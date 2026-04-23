@@ -1,6 +1,6 @@
 use chemcore_engine::{
-    BondVariant, DoubleBondPlacement, Engine, PointerEvent, Tool, ToolState, DEFAULT_BOND_LENGTH,
-    DEFAULT_BOND_STROKE,
+    BondVariant, DoubleBondPlacement, Engine, PointerEvent, RenderPrimitive, Tool, ToolState,
+    BOND_CENTER_FOCUS_RADIUS, DEFAULT_BOND_LENGTH, DEFAULT_BOND_STROKE,
 };
 
 fn bond_tool() -> ToolState {
@@ -213,6 +213,11 @@ fn double_bond_tool_focuses_bond_center_and_converts_to_side_double() {
     let center = engine.state().overlay.hover_bond_center.as_ref().unwrap();
     assert_eq!(center.point.x, 318.0);
     assert_eq!(center.point.y, 260.0);
+    assert_eq!(center.order, 1);
+    assert!(engine.render_list().iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Circle { radius, .. } if (*radius - BOND_CENTER_FOCUS_RADIUS).abs() < 0.001
+    )));
 
     engine.pointer_down(PointerEvent {
         x: 318.0,
@@ -232,4 +237,16 @@ fn double_bond_tool_focuses_bond_center_and_converts_to_side_double() {
         Some(DoubleBondPlacement::Center),
     );
     assert!(engine.can_undo());
+
+    engine.pointer_move(PointerEvent {
+        x: 318.0,
+        y: 260.0,
+        button: None,
+    });
+    let double_center = engine.state().overlay.hover_bond_center.as_ref().unwrap();
+    assert_eq!(double_center.order, 2);
+    assert!(engine.render_list().iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Polygon { points, .. } if points.len() == 4
+    )));
 }

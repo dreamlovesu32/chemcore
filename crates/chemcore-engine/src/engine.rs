@@ -4,8 +4,8 @@ use crate::{
     render_document, select_at, snapped_angle_for_anchor, Bond, BondAnchor, BondPreview,
     ChemcoreDocument, DoubleBond, DoubleBondPlacement, DragState, EditorOptions, EndpointHit,
     OverlayState, Point, PointerEvent, RenderPrimitive, RenderRole, SelectionState, Tool,
-    ToolState, BOND_CENTER_HIT_RADIUS, DEFAULT_BOND_LENGTH, DRAG_START_THRESHOLD,
-    ENDPOINT_HIT_RADIUS,
+    ToolState, BOND_CENTER_FOCUS_RADIUS, BOND_CENTER_HIT_RADIUS, DEFAULT_BOND_LENGTH,
+    DOUBLE_BOND_FOCUS_WIDTH, DRAG_START_THRESHOLD, ENDPOINT_HIT_RADIUS,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -77,14 +77,24 @@ impl Engine {
             });
         }
         if let Some(hover) = &self.state.overlay.hover_bond_center {
-            out.push(RenderPrimitive::Circle {
-                role: RenderRole::HoverBondCenter,
-                center: hover.point,
-                radius: BOND_CENTER_HIT_RADIUS,
-                fill: "rgba(47,111,237,0.18)".to_string(),
-                stroke: "rgba(47,111,237,0.82)".to_string(),
-                stroke_width: 1.4,
-            });
+            if hover.order == 2 {
+                out.push(RenderPrimitive::Polygon {
+                    role: RenderRole::HoverBondCenter,
+                    points: oriented_rect_points(hover.begin, hover.end, DOUBLE_BOND_FOCUS_WIDTH),
+                    fill: "rgba(47,111,237,0.11)".to_string(),
+                    stroke: "rgba(47,111,237,0.72)".to_string(),
+                    stroke_width: 1.2,
+                });
+            } else {
+                out.push(RenderPrimitive::Circle {
+                    role: RenderRole::HoverBondCenter,
+                    center: hover.point,
+                    radius: BOND_CENTER_FOCUS_RADIUS,
+                    fill: "rgba(47,111,237,0.18)".to_string(),
+                    stroke: "rgba(47,111,237,0.82)".to_string(),
+                    stroke_width: 1.4,
+                });
+            }
         }
         if let Some(preview) = &self.state.overlay.preview {
             out.push(RenderPrimitive::Line {
@@ -513,6 +523,29 @@ impl Engine {
         }
         out
     }
+}
+
+fn oriented_rect_points(start: Point, end: Point, width: f64) -> Vec<Point> {
+    let dx = end.x - start.x;
+    let dy = end.y - start.y;
+    let length = dx.hypot(dy);
+    if length <= crate::EPSILON {
+        let half = width / 2.0;
+        return vec![
+            Point::new(start.x - half, start.y - half),
+            Point::new(start.x + half, start.y - half),
+            Point::new(start.x + half, start.y + half),
+            Point::new(start.x - half, start.y + half),
+        ];
+    }
+    let nx = -dy / length * width / 2.0;
+    let ny = dx / length * width / 2.0;
+    vec![
+        Point::new(start.x + nx, start.y + ny),
+        Point::new(end.x + nx, end.y + ny),
+        Point::new(end.x - nx, end.y - ny),
+        Point::new(start.x - nx, start.y - ny),
+    ]
 }
 
 impl Engine {

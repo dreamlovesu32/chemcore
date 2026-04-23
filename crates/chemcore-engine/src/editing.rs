@@ -9,6 +9,8 @@ use std::collections::HashSet;
 pub const ENDPOINT_HIT_RADIUS: f64 = 16.0;
 pub const BOND_HIT_RADIUS: f64 = 6.0;
 pub const BOND_CENTER_HIT_RADIUS: f64 = 9.0;
+pub const BOND_CENTER_FOCUS_RADIUS: f64 = 4.5;
+pub const DOUBLE_BOND_FOCUS_WIDTH: f64 = 10.0;
 pub const DRAG_START_THRESHOLD: f64 = 4.0;
 pub const GLOBAL_SNAP_ANGLES: &[f64] = &[
     0.0, 30.0, 45.0, 60.0, 90.0, 120.0, 135.0, 150.0, 180.0, 210.0, 225.0, 240.0, 270.0, 300.0,
@@ -106,6 +108,9 @@ pub struct BondHit {
 pub struct BondCenterHit {
     pub bond_id: String,
     pub point: Point,
+    pub begin: Point,
+    pub end: Point,
+    pub order: u8,
     pub distance: f64,
 }
 
@@ -223,7 +228,7 @@ pub fn hit_test_bond_center(
     let entry = document.editable_fragment()?;
     let mut best: Option<BondCenterHit> = None;
     for bond in &entry.fragment.bonds {
-        if bond.order != 1 {
+        if bond.order != 1 && bond.order != 2 {
             continue;
         }
         let Some(begin) = entry
@@ -243,11 +248,18 @@ pub fn hit_test_bond_center(
             (begin_point.x + end_point.x) / 2.0,
             (begin_point.y + end_point.y) / 2.0,
         );
-        let distance = point.distance(center);
+        let distance = if bond.order == 1 {
+            point.distance(center)
+        } else {
+            point_to_segment_distance(point, begin_point, end_point)
+        };
         if distance <= radius && best.as_ref().map_or(true, |hit| distance < hit.distance) {
             best = Some(BondCenterHit {
                 bond_id: bond.id.clone(),
                 point: center,
+                begin: begin_point,
+                end: end_point,
+                order: bond.order,
                 distance,
             });
         }

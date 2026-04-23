@@ -376,6 +376,13 @@ button {
   filter: drop-shadow(0 0 4px rgba(47, 111, 237, 0.45));
 }
 
+.editor-bond-center-rect {
+  fill: rgba(47, 111, 237, 0.11);
+  stroke: rgba(47, 111, 237, 0.72);
+  stroke-width: 1.2;
+  filter: drop-shadow(0 0 4px rgba(47, 111, 237, 0.35));
+}
+
 .editor-bond-preview {
   stroke: rgba(0, 0, 0, 0.72);
   stroke-linecap: round;

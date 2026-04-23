@@ -1092,6 +1092,16 @@ function renderEditorOverlay() {
         "stroke-width": primitive.strokeWidth || primitive.stroke_width || editorBondStrokeWidth(),
         "data-role": primitive.role,
       }));
+    } else if (primitive.kind === "polygon" && Array.isArray(primitive.points)) {
+      const className = primitive.role === "hover-bond-center" ? "editor-bond-center-rect" : "";
+      if (!className) {
+        continue;
+      }
+      overlay.appendChild(makeSvgNode("polygon", {
+        points: primitive.points.map((point) => `${point.x},${point.y}`).join(" "),
+        class: className,
+        "data-role": primitive.role,
+      }));
     } else if (primitive.kind === "circle" && primitive.center) {
       const classByRole = {
         "hover-endpoint": "editor-endpoint-halo",

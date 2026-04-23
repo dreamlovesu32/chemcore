@@ -33,6 +33,14 @@ pub enum RenderPrimitive {
         #[serde(rename = "strokeWidth")]
         stroke_width: f64,
     },
+    Polygon {
+        role: RenderRole,
+        points: Vec<Point>,
+        fill: String,
+        stroke: String,
+        #[serde(rename = "strokeWidth")]
+        stroke_width: f64,
+    },
 }
 
 pub fn render_document(document: &ChemcoreDocument) -> Vec<RenderPrimitive> {
