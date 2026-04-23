@@ -31,6 +31,9 @@
             <button class="icon-button" type="button" data-command="redo" aria-label="Redo" title="Redo">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 7 4.5 4.5L15 16"/><path d="M19 11.5H9.5a5 5 0 0 0 0 10"/></svg>
             </button>
+            <button class="icon-button" type="button" data-command="delete" aria-label="Delete" title="Delete">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14"/><path d="M9 7V4h6v3"/><path d="M7 7l1 13h8l1-13"/><path d="M10.5 11v5"/><path d="M13.5 11v5"/></svg>
+            </button>
             <button class="icon-button" type="button" data-command="cut" aria-label="Cut" title="Cut">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6.5" cy="17.5" r="2.2"/><circle cx="17.5" cy="17.5" r="2.2"/><path d="M8.2 16 18 5"/><path d="m6 5 9.8 11"/></svg>
             </button>
@@ -57,60 +60,15 @@
             </button>
           </div>
         </div>
-        <div class="toolbar-row toolbar-row-secondary" aria-label="Secondary toolbar"></div>
+        <div id="secondary-toolbar" class="toolbar-row toolbar-row-secondary" aria-label="Secondary toolbar"></div>
       </header>
 
       <aside class="tool-rail" aria-label="Drawing tools">
-        <div class="tool-slot">
-          <button class="tool-button is-active" type="button" data-tool="select" data-current="free" aria-label="Select" title="Select">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5 18.5 12 12 14l-2.5 6z"/></svg>
-          </button>
-          <button class="menu-button" type="button" aria-label="Selection variants" title="Selection variants">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
-          </button>
-          <div class="tool-menu">
-            <button type="button" data-tool-option="free" aria-label="Free selection" title="Free selection">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6c5-4 14 1 13 7-1 7-12 7-14 1"/></svg>
-            </button>
-            <button type="button" data-tool-option="box" aria-label="Box selection" title="Box selection">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" stroke-dasharray="2 2"/></svg>
-            </button>
-          </div>
-        </div>
-
-        <div class="tool-slot">
-          <button class="tool-button" type="button" data-tool="bond" data-current="single" aria-label="Bond" title="Bond">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17 19 7"/></svg>
-          </button>
-          <button class="menu-button" type="button" aria-label="Bond variants" title="Bond variants">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
-          </button>
-          <div class="tool-menu">
-            <button type="button" data-tool-option="single" aria-label="Single bond" title="Single bond"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17 19 7"/></svg></button>
-            <button type="button" data-tool-option="double" aria-label="Double bond" title="Double bond"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 15 18 6"/><path d="M6 18 19 9"/></svg></button>
-            <button type="button" data-tool-option="triple" aria-label="Triple bond" title="Triple bond"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 14 17.5 5"/><path d="M6 17 19 8"/><path d="M7.5 20 20.5 11"/></svg></button>
-            <button type="button" data-tool-option="dashed" aria-label="Dashed bond" title="Dashed bond"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17 7 15.5"/><path d="M9.5 13.8 11.5 12.4"/><path d="M14 10.6 16 9.2"/><path d="M18.5 7.5 19 7"/></svg></button>
-          </div>
-        </div>
-
-        <div class="tool-slot">
-          <button class="tool-button" type="button" data-tool="wedge" data-current="solid" aria-label="Wedge bond" title="Wedge bond">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="filled" d="M6 17 19 6 14 19z"/></svg>
-          </button>
-          <button class="menu-button" type="button" aria-label="Wedge variants" title="Wedge variants">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
-          </button>
-          <div class="tool-menu">
-            <button type="button" data-tool-option="solid" aria-label="Solid wedge" title="Solid wedge"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="filled" d="M6 17 19 6 14 19z"/></svg></button>
-            <button type="button" data-tool-option="hashed" aria-label="Hashed wedge" title="Hashed wedge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17 19 6"/><path d="M9 16.4 7.6 14.9"/><path d="M12 15.5 9.4 12.7"/><path d="M15 14.6 11.2 10.6"/><path d="M18 13.7 13 8.4"/></svg></button>
-          </div>
-        </div>
-
-        <button class="tool-button" type="button" data-tool="erase" aria-label="Erase" title="Erase">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 16 8-8 4 4-8 8H7z"/><path d="M5 20h12"/></svg>
+        <button class="tool-button is-active" type="button" data-tool="select" aria-label="Select" title="Select">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5 18.5 12 12 14l-2.5 6z"/></svg>
         </button>
-        <button class="tool-button" type="button" data-tool="arrow" aria-label="Arrow" title="Arrow">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15"/><path d="m14 7 5 5-5 5"/></svg>
+        <button class="tool-button" type="button" data-tool="bond" aria-label="Bond" title="Bond">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17 19 7"/></svg>
         </button>
         <button class="tool-button" type="button" data-tool="text" aria-label="Text" title="Text">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M12 6v14"/><path d="M8 20h8"/></svg>
@@ -118,7 +76,7 @@
         <button class="tool-button" type="button" data-tool="shape" aria-label="Shape" title="Shape">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="10" height="10"/><circle cx="16.5" cy="16.5" r="3.5"/></svg>
         </button>
-        <button class="tool-button" type="button" data-tool="template" aria-label="Template" title="Template">
+        <button class="tool-button" type="button" data-tool="templates" aria-label="Rings and templates" title="Rings and templates">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 4 7 4v8l-7 4-7-4V8z"/><path d="M8.5 9.5v5"/><path d="M15.5 9.5v5"/></svg>
         </button>
       </aside>

@@ -83,6 +83,9 @@ button {
 }
 
 .toolbar-row-secondary {
+  gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
   border-top: 1px solid var(--line);
   background: var(--chrome-2);
 }
@@ -102,8 +105,8 @@ button {
 
 .icon-button,
 .tool-button,
-.menu-button,
-.tool-menu button {
+.secondary-button,
+.color-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -120,23 +123,22 @@ button {
 
 .icon-button:hover,
 .tool-button:hover,
-.menu-button:hover,
-.tool-menu button:hover {
+.secondary-button:hover,
+.color-button:hover {
   border-color: var(--line-strong);
   background: var(--hover);
 }
 
 .icon-button:active,
 .tool-button:active,
-.menu-button:active,
-.tool-menu button:active {
+.secondary-button:active,
+.color-button:active {
   transform: translateY(1px);
 }
 
 .icon-button svg,
 .tool-button svg,
-.menu-button svg,
-.tool-menu svg {
+.secondary-button svg {
   width: 20px;
   height: 20px;
   overflow: visible;
@@ -147,7 +149,11 @@ button {
 .editor-topbar svg circle,
 .tool-rail svg path,
 .tool-rail svg rect,
-.tool-rail svg circle {
+.tool-rail svg circle,
+.toolbar-row-secondary svg path,
+.toolbar-row-secondary svg rect,
+.toolbar-row-secondary svg circle,
+.toolbar-row-secondary svg polygon {
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
@@ -156,9 +162,14 @@ button {
 }
 
 .editor-topbar svg .filled,
-.tool-rail svg .filled {
+.tool-rail svg .filled,
+.toolbar-row-secondary svg .filled {
   fill: currentColor;
   stroke: currentColor;
+}
+
+.toolbar-row-secondary svg .soft-fill {
+  fill: rgba(47, 111, 237, 0.14);
 }
 
 .zoom-group {
@@ -207,66 +218,74 @@ button {
   color: var(--active);
 }
 
-.tool-slot {
-  position: relative;
-  display: grid;
-  grid-template-columns: 38px 8px;
-  align-items: stretch;
-  width: 46px;
-}
-
-.tool-slot .tool-button {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.menu-button {
-  width: 8px;
-  height: 34px;
-  padding: 0;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  color: var(--muted);
-}
-
-.menu-button svg {
-  width: 10px;
-  height: 10px;
-}
-
-.menu-button svg path {
-  stroke-width: 2.3;
-}
-
-.tool-menu {
-  position: absolute;
-  left: 48px;
-  top: 0;
-  display: none;
-  min-width: 40px;
-  padding: 4px;
-  border: 1px solid var(--line-strong);
-  border-radius: 7px;
-  background: var(--surface);
-  box-shadow: 0 8px 24px rgba(23, 31, 42, 0.16);
-  z-index: 20;
-}
-
-.tool-slot.is-open .tool-menu {
-  display: grid;
-  gap: 3px;
-}
-
-.tool-menu button {
-  width: 32px;
-  height: 30px;
+.secondary-button {
+  width: 29px;
+  height: 25px;
+  flex: 0 0 auto;
   color: var(--ink);
 }
 
-.tool-menu button.is-selected {
+.secondary-button.is-selected,
+.color-button.is-selected {
   border-color: #8fb0f4;
   background: var(--active-soft);
   color: var(--active);
+}
+
+.secondary-divider {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  flex: 0 0 auto;
+  background: var(--line-strong);
+}
+
+.secondary-select,
+.secondary-input {
+  height: 25px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--ink);
+  outline: none;
+}
+
+.secondary-select {
+  min-width: 118px;
+  padding: 0 22px 0 7px;
+}
+
+.secondary-input {
+  width: 52px;
+  padding: 0 6px;
+  text-align: right;
+}
+
+.color-button {
+  width: 30px;
+  height: 25px;
+  padding: 3px;
+  flex: 0 0 auto;
+}
+
+.color-swatch {
+  width: 18px;
+  height: 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: var(--swatch, #000000);
+}
+
+.color-swatch.no-fill {
+  background:
+    linear-gradient(135deg, transparent 44%, #c83636 46%, #c83636 54%, transparent 56%),
+    #ffffff;
+}
+
+.ring-label {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .canvas-panel {

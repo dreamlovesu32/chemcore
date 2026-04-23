@@ -627,6 +627,7 @@ const docMeta = document.getElementById("doc-meta");
 const viewerTitle = document.getElementById("viewer-title");
 const viewerStats = document.getElementById("viewer-stats");
 const viewerSvg = document.getElementById("viewer-svg");
+const secondaryToolbar = document.getElementById("secondary-toolbar");
 
 if (sampleSelect) {
   for (const samplePath of SAMPLE_FILES) {
@@ -657,6 +658,16 @@ toggleTexts?.addEventListener("change", () => renderDocument());
 
 const zoomInput = document.getElementById("zoom-input");
 let zoomPercent = 100;
+const editorState = {
+  activeTool: "select",
+  selectMode: "free",
+  bondType: "single",
+  textColor: "#000000",
+  shapeStroke: "#000000",
+  shapeFill: "none",
+  shapeStyle: "rect",
+  template: "benzene",
+};
 
 function setZoomPercent(nextZoom) {
   zoomPercent = Math.max(25, Math.min(400, Math.round(nextZoom)));
@@ -683,48 +694,187 @@ zoomInput?.addEventListener("change", () => {
   setZoomPercent(Number.isFinite(parsed) ? parsed : zoomPercent);
 });
 
+function toolbarButton(value, title, svg, selected = false) {
+  return `
+    <button class="secondary-button${selected ? " is-selected" : ""}" type="button" data-secondary-value="${value}" aria-label="${title}" title="${title}">
+      ${svg}
+    </button>
+  `;
+}
+
+function colorButton(value, title, color, selected = false) {
+  const noFillClass = color === "none" ? " no-fill" : "";
+  const swatchStyle = color === "none" ? "" : ` style="--swatch:${color}"`;
+  return `
+    <button class="color-button${selected ? " is-selected" : ""}" type="button" data-secondary-value="${value}" aria-label="${title}" title="${title}">
+      <span class="color-swatch${noFillClass}"${swatchStyle}></span>
+    </button>
+  `;
+}
+
+function secondaryDivider() {
+  return `<span class="secondary-divider" aria-hidden="true"></span>`;
+}
+
+function selectToolbarHtml() {
+  const mode = editorState.selectMode;
+  return [
+    toolbarButton("select-free", "Free selection", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6c5-4 14 1 13 7-1 7-12 7-14 1"/></svg>`, mode === "free"),
+    toolbarButton("select-box", "Box selection", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" stroke-dasharray="2 2"/></svg>`, mode === "box"),
+    secondaryDivider(),
+    toolbarButton("align-left", "Align left", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14"/><path d="M9 7h9"/><path d="M9 12h6"/><path d="M9 17h11"/></svg>`),
+    toolbarButton("align-right", "Align right", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14"/><path d="M6 7h9"/><path d="M9 12h6"/><path d="M4 17h11"/></svg>`),
+    toolbarButton("align-top", "Align top", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M7 9v9"/><path d="M12 9v6"/><path d="M17 9v11"/></svg>`),
+    toolbarButton("align-bottom", "Align bottom", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18h14"/><path d="M7 6v9"/><path d="M12 9v6"/><path d="M17 4v11"/></svg>`),
+    toolbarButton("align-center", "Center", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16"/><path d="M4 12h16"/><rect x="8" y="8" width="8" height="8"/></svg>`),
+    toolbarButton("align-h-center", "Horizontal center", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16"/><path d="M6 7h12"/><path d="M8 12h8"/><path d="M5 17h14"/></svg>`),
+    secondaryDivider(),
+    toolbarButton("distribute", "Distribute spacing", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="4" height="4"/><rect x="15" y="5" width="4" height="4"/><rect x="10" y="15" width="4" height="4"/><path d="M7 12h10"/></svg>`),
+    toolbarButton("distribute-h", "Horizontal distribute", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="8" width="4" height="8"/><rect x="10" y="8" width="4" height="8"/><rect x="16" y="8" width="4" height="8"/><path d="M4 19h16"/></svg>`),
+    secondaryDivider(),
+    toolbarButton("flip-h", "Flip horizontal", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16"/><path class="filled" d="M5 7v10l5-5z"/><path d="M19 7v10l-5-5z"/></svg>`),
+    toolbarButton("flip-v", "Flip vertical", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"/><path class="filled" d="M7 5h10l-5 5z"/><path d="M7 19h10l-5-5z"/></svg>`),
+  ].join("");
+}
+
+function bondToolbarHtml() {
+  const type = editorState.bondType;
+  return [
+    toolbarButton("bond-single", "Single bond", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17 19 7"/></svg>`, type === "single"),
+    toolbarButton("bond-double", "Double bond", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 15 18 6"/><path d="M6 18 19 9"/></svg>`, type === "double"),
+    toolbarButton("bond-triple", "Triple bond", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 14 17.5 5"/><path d="M6 17 19 8"/><path d="M7.5 20 20.5 11"/></svg>`, type === "triple"),
+    toolbarButton("bond-dashed", "Dashed bond", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17 7 15.5"/><path d="M9.5 13.8 11.5 12.4"/><path d="M14 10.6 16 9.2"/><path d="M18.5 7.5 19 7"/></svg>`, type === "dashed"),
+    toolbarButton("bond-dashed-double", "Dashed-solid double bond", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 14 18 5"/><path d="M6 18 8 16.6"/><path d="M10.5 14.8 12.5 13.4"/><path d="M15 11.6 17 10.2"/></svg>`, type === "dashed-double"),
+    toolbarButton("bond-bold", "Bold bond", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17 19 7" style="stroke-width:3.4"/></svg>`, type === "bold"),
+    toolbarButton("bond-bold-dashed", "Bold dashed bond", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17 8 15" style="stroke-width:3.2"/><path d="M10.5 13.2 13.5 11.2" style="stroke-width:3.2"/><path d="M16 9.5 19 7.5" style="stroke-width:3.2"/></svg>`, type === "bold-dashed"),
+    toolbarButton("bond-wedge", "Solid wedge", `<svg viewBox="0 0 24 24" aria-hidden="true"><path class="filled" d="M6 17 19 6 14 19z"/></svg>`, type === "wedge"),
+    toolbarButton("bond-hashed-wedge", "Hashed wedge", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17 19 6"/><path d="M9 16.4 7.6 14.9"/><path d="M12 15.5 9.4 12.7"/><path d="M15 14.6 11.2 10.6"/><path d="M18 13.7 13 8.4"/></svg>`, type === "hashed-wedge"),
+  ].join("");
+}
+
+function textToolbarHtml() {
+  return `
+    <select class="secondary-select" data-text-control="font" aria-label="Font family">
+      <option>Arial</option>
+      <option>Helvetica</option>
+      <option>Times New Roman</option>
+      <option>Courier New</option>
+      <option>TeX Gyre Heros</option>
+    </select>
+    <input class="secondary-input" data-text-control="size" aria-label="Font size" value="12" />
+    ${secondaryDivider()}
+    ${colorButton("text-black", "Black text", "#000000", editorState.textColor === "#000000")}
+    ${colorButton("text-red", "Red text", "#ff0000", editorState.textColor === "#ff0000")}
+    ${colorButton("text-blue", "Blue text", "#0000ff", editorState.textColor === "#0000ff")}
+    ${colorButton("text-green", "Green text", "#0a8f3c", editorState.textColor === "#0a8f3c")}
+  `;
+}
+
+function shapeToolbarHtml() {
+  return `
+    ${colorButton("stroke-black", "Black border", "#000000", editorState.shapeStroke === "#000000")}
+    ${colorButton("stroke-red", "Red border", "#ff0000", editorState.shapeStroke === "#ff0000")}
+    ${colorButton("stroke-blue", "Blue border", "#0000ff", editorState.shapeStroke === "#0000ff")}
+    ${secondaryDivider()}
+    ${colorButton("fill-none", "No fill", "none", editorState.shapeFill === "none")}
+    ${colorButton("fill-white", "White fill", "#ffffff", editorState.shapeFill === "#ffffff")}
+    ${colorButton("fill-black", "Black fill", "#000000", editorState.shapeFill === "#000000")}
+    ${colorButton("fill-gray", "Gray fill", "#808892", editorState.shapeFill === "#808892")}
+    ${secondaryDivider()}
+    ${toolbarButton("shape-rect", "Rectangle", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14"/></svg>`, editorState.shapeStyle === "rect")}
+    ${toolbarButton("shape-dashed", "Dashed outline", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" stroke-dasharray="2 2"/></svg>`, editorState.shapeStyle === "dashed")}
+    ${toolbarButton("shape-filled", "Filled rectangle", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect class="filled" x="5" y="5" width="14" height="14"/></svg>`, editorState.shapeStyle === "filled")}
+    ${toolbarButton("shape-ellipse", "Ellipse", `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg>`, editorState.shapeStyle === "ellipse")}
+  `;
+}
+
+function ringSvg(sides, aromatic = false) {
+  if (aromatic) {
+    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 4 7 4v8l-7 4-7-4V8z"/><path d="M8.5 9.5v5"/><path d="M15.5 9.5v5"/></svg>`;
+  }
+  const pointsBySide = {
+    3: "12,4 20,18 4,18",
+    4: "6,6 18,6 18,18 6,18",
+    5: "12,4 20,10 17,19 7,19 4,10",
+    6: "12,4 19,8 19,16 12,20 5,16 5,8",
+    7: "12,4 18,7 20,14 16,20 8,20 4,14 6,7",
+    8: "9,4 15,4 20,9 20,15 15,20 9,20 4,15 4,9",
+  };
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="${pointsBySide[sides]}"/></svg>`;
+}
+
+function templatesToolbarHtml() {
+  return [
+    toolbarButton("ring-3", "3-membered ring", ringSvg(3), editorState.template === "ring-3"),
+    toolbarButton("ring-4", "4-membered ring", ringSvg(4), editorState.template === "ring-4"),
+    toolbarButton("ring-5", "5-membered ring", ringSvg(5), editorState.template === "ring-5"),
+    toolbarButton("ring-6", "6-membered ring", ringSvg(6), editorState.template === "ring-6"),
+    toolbarButton("ring-7", "7-membered ring", ringSvg(7), editorState.template === "ring-7"),
+    toolbarButton("ring-8", "8-membered ring", ringSvg(8), editorState.template === "ring-8"),
+    secondaryDivider(),
+    toolbarButton("benzene", "Benzene ring", ringSvg(6, true), editorState.template === "benzene"),
+  ].join("");
+}
+
+function renderSecondaryToolbar() {
+  if (!secondaryToolbar) {
+    return;
+  }
+  if (editorState.activeTool === "bond") {
+    secondaryToolbar.innerHTML = bondToolbarHtml();
+  } else if (editorState.activeTool === "text") {
+    secondaryToolbar.innerHTML = textToolbarHtml();
+  } else if (editorState.activeTool === "shape") {
+    secondaryToolbar.innerHTML = shapeToolbarHtml();
+  } else if (editorState.activeTool === "templates") {
+    secondaryToolbar.innerHTML = templatesToolbarHtml();
+  } else {
+    secondaryToolbar.innerHTML = selectToolbarHtml();
+  }
+}
+
 function setActiveTool(toolButton) {
+  editorState.activeTool = toolButton?.dataset?.tool || editorState.activeTool;
   document.querySelectorAll(".tool-button").forEach((button) => {
     button.classList.toggle("is-active", button === toolButton);
   });
+  renderSecondaryToolbar();
 }
 
 document.querySelectorAll(".tool-button").forEach((button) => {
   button.addEventListener("click", () => {
     setActiveTool(button);
-    document.querySelectorAll(".tool-slot.is-open").forEach((slot) => slot.classList.remove("is-open"));
   });
 });
 
-document.querySelectorAll(".menu-button").forEach((button) => {
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const slot = button.closest(".tool-slot");
-    const willOpen = !slot?.classList.contains("is-open");
-    document.querySelectorAll(".tool-slot.is-open").forEach((openSlot) => openSlot.classList.remove("is-open"));
-    slot?.classList.toggle("is-open", willOpen);
-  });
+secondaryToolbar?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-secondary-value]");
+  if (!button) {
+    return;
+  }
+  const value = button.dataset.secondaryValue;
+  if (value === "select-free" || value === "select-box") {
+    editorState.selectMode = value.replace("select-", "");
+  } else if (value?.startsWith("bond-")) {
+    editorState.bondType = value.replace("bond-", "");
+  } else if (value?.startsWith("shape-")) {
+    editorState.shapeStyle = value.replace("shape-", "");
+  } else if (value?.startsWith("ring-") || value === "benzene") {
+    editorState.template = value;
+  } else if (value?.startsWith("text-")) {
+    const colors = { "text-black": "#000000", "text-red": "#ff0000", "text-blue": "#0000ff", "text-green": "#0a8f3c" };
+    editorState.textColor = colors[value] || editorState.textColor;
+  } else if (value?.startsWith("stroke-")) {
+    const colors = { "stroke-black": "#000000", "stroke-red": "#ff0000", "stroke-blue": "#0000ff" };
+    editorState.shapeStroke = colors[value] || editorState.shapeStroke;
+  } else if (value?.startsWith("fill-")) {
+    const fills = { "fill-none": "none", "fill-white": "#ffffff", "fill-black": "#000000", "fill-gray": "#808892" };
+    editorState.shapeFill = fills[value] || editorState.shapeFill;
+  }
+  renderSecondaryToolbar();
 });
 
-document.querySelectorAll(".tool-menu button").forEach((button) => {
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const slot = button.closest(".tool-slot");
-    const toolButton = slot?.querySelector(".tool-button");
-    if (toolButton) {
-      toolButton.dataset.current = button.dataset.toolOption || "";
-      setActiveTool(toolButton);
-    }
-    slot?.querySelectorAll(".tool-menu button").forEach((item) => {
-      item.classList.toggle("is-selected", item === button);
-    });
-    slot?.classList.remove("is-open");
-  });
-});
-
-document.addEventListener("click", () => {
-  document.querySelectorAll(".tool-slot.is-open").forEach((slot) => slot.classList.remove("is-open"));
-});
+renderSecondaryToolbar();
 
 function parseMolblock(molblock) {
   const lines = molblock.replace(/\r/g, "").split("\n");
