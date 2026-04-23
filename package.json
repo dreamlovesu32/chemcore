@@ -9,9 +9,10 @@
     "example": "examples"
   },
   "scripts": {
+    "build:engine-wasm": "bash scripts/build-engine-wasm.sh",
     "build:glyph-wasm": "bash scripts/build-glyph-wasm.sh",
     "screenshot": "node scripts/viewer-screenshot.mjs",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "cargo test && node --check viewer/app.js"
   },
   "keywords": [],
   "author": "",

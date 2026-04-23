@@ -1,0 +1,16 @@
+{
+  "name": "chemcore-engine",
+  "type": "module",
+  "version": "0.1.0",
+  "license": "ISC",
+  "files": [
+    "chemcore_engine_bg.wasm",
+    "chemcore_engine.js",
+    "chemcore_engine.d.ts"
+  ],
+  "main": "chemcore_engine.js",
+  "types": "chemcore_engine.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
