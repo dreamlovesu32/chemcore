@@ -353,9 +353,10 @@ button {
 }
 
 .editor-endpoint-halo {
-  fill: rgba(47, 111, 237, 0.18);
-  stroke: rgba(47, 111, 237, 0.55);
-  stroke-width: 1;
+  fill: rgba(47, 111, 237, 0.24);
+  stroke: rgba(47, 111, 237, 0.78);
+  stroke-width: 1.4;
+  filter: drop-shadow(0 0 4px rgba(47, 111, 237, 0.55));
 }
 
 .editor-bond-preview {

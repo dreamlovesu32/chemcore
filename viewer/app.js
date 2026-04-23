@@ -58,7 +58,7 @@ const EDITOR_SCALE = 2.5;
 const EDITOR_PAGE = { width: 1200, height: 800, background: "#ffffff" };
 const EDITOR_FALLBACK_BOND_LENGTH = 14.4 * EDITOR_SCALE;
 const EDITOR_BOND_STROKE = BOND_STROKE * EDITOR_SCALE;
-const ENDPOINT_HIT_RADIUS_PX = 10;
+const ENDPOINT_HIT_RADIUS_PX = 16;
 const DRAG_START_THRESHOLD_PX = 4;
 const GLOBAL_SNAP_ANGLES = [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330];
 const RELATIVE_BOND_ANGLES = [30, 60, 90, 120, 150, 180];
@@ -1346,8 +1346,12 @@ function canDrawSingleBond() {
   return editorState.activeTool === "bond" && editorState.bondType === "single" && !LABEL_DEBUG_MODE;
 }
 
+function canFocusEditorEndpoint() {
+  return editorState.activeTool === "bond" && !LABEL_DEBUG_MODE;
+}
+
 function handleEditorPointerMove(event) {
-  if (!canDrawSingleBond()) {
+  if (!canFocusEditorEndpoint()) {
     state.editor.hoverEndpoint = null;
     clearEditorPreview();
     return;
@@ -1424,7 +1428,7 @@ function renderEditorOverlay() {
   }
   const overlay = makeSvgNode("g", { "data-layer": "editor-overlay", "pointer-events": "none" });
   const hover = state.editor.hoverEndpoint;
-  if (hover?.point && canDrawSingleBond()) {
+  if (hover?.point && canFocusEditorEndpoint()) {
     overlay.appendChild(makeSvgNode("circle", {
       cx: hover.point.x,
       cy: hover.point.y,
