@@ -237,6 +237,52 @@ fn dragged_bond_endpoint_reuses_focused_existing_endpoint() {
 }
 
 #[test]
+fn click_extension_reuses_endpoint_at_default_angle() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    engine.pointer_down(PointerEvent {
+        x: 300.0,
+        y: 260.0,
+        button: Some(0),
+    });
+    engine.pointer_up(PointerEvent {
+        x: 300.0,
+        y: 260.0,
+        button: Some(0),
+    });
+
+    engine.add_single_bond(
+        chemcore_engine::BondAnchor {
+            node_id: None,
+            point: chemcore_engine::Point::new(200.0, 200.0),
+        },
+        chemcore_engine::Point::new(354.0, 228.82),
+    );
+
+    engine.pointer_down(PointerEvent {
+        x: 336.0,
+        y: 260.0,
+        button: Some(0),
+    });
+    engine.pointer_up(PointerEvent {
+        x: 336.0,
+        y: 260.0,
+        button: Some(0),
+    });
+
+    let entry = engine.state().document.editable_fragment().unwrap();
+    assert_eq!(entry.fragment.nodes.len(), 4);
+    assert_eq!(entry.fragment.bonds.len(), 3);
+    let closing = entry.fragment.bonds.last().unwrap();
+    assert!(matches!(
+        (closing.begin.as_str(), closing.end.as_str()),
+        ("n_2", "n_5") | ("n_5", "n_2")
+    ));
+    assert_eq!(node_degrees(&engine).get("n_2"), Some(&2));
+    assert_eq!(node_degrees(&engine).get("n_5"), Some(&2));
+}
+
+#[test]
 fn select_delete_and_undo_redo_round_trip() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());

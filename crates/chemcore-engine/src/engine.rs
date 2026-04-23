@@ -251,10 +251,12 @@ impl Engine {
             }
         } else {
             let angle = default_angle_for_anchor(&self.state.document, &drag.anchor);
-            BondAnchor {
-                node_id: None,
-                point: endpoint_from_angle(&drag.anchor, angle, self.options.bond_length),
-            }
+            let end = endpoint_from_angle(&drag.anchor, angle, self.options.bond_length);
+            self.endpoint_anchor_near(&drag.anchor, end)
+                .unwrap_or(BondAnchor {
+                    node_id: None,
+                    point: end,
+                })
         };
         self.state.overlay.preview = None;
         self.add_single_bond_between(drag.anchor, end_anchor);
@@ -435,6 +437,14 @@ impl Engine {
             ENDPOINT_HIT_RADIUS,
             anchor.node_id.as_deref(),
         )
+    }
+
+    fn endpoint_anchor_near(&self, anchor: &BondAnchor, point: Point) -> Option<BondAnchor> {
+        let target = self.drag_target_endpoint(anchor, point)?;
+        Some(BondAnchor {
+            node_id: Some(target.node_id),
+            point: target.point,
+        })
     }
 
     fn bond_exists(&self, begin_id: &str, end_id: &str) -> bool {
