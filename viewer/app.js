@@ -332,6 +332,10 @@ function expandOpticalShape(shape, margin) {
 }
 
 function lineIntersection(point, direction, otherPoint, otherDirection) {
+  return lineIntersectionWithParameters(point, direction, otherPoint, otherDirection)?.point || null;
+}
+
+function lineIntersectionWithParameters(point, direction, otherPoint, otherDirection) {
   const cross = direction.x * otherDirection.y - direction.y * otherDirection.x;
   if (Math.abs(cross) < 1e-6) {
     return null;
@@ -339,9 +343,14 @@ function lineIntersection(point, direction, otherPoint, otherDirection) {
   const dx = otherPoint.x - point.x;
   const dy = otherPoint.y - point.y;
   const t = (dx * otherDirection.y - dy * otherDirection.x) / cross;
+  const u = (dx * direction.y - dy * direction.x) / cross;
   return {
-    x: point.x + direction.x * t,
-    y: point.y + direction.y * t,
+    point: {
+      x: point.x + direction.x * t,
+      y: point.y + direction.y * t,
+    },
+    t,
+    u,
   };
 }
 
@@ -1565,11 +1574,13 @@ function renderDoubleBond(group, start, end, doublePosition, color, options = {}
       x: end.x + normalX * doubleOffset * side,
       y: end.y + normalY * doubleOffset * side,
     };
+    const joinedStart = options.shortStartPoint || null;
+    const joinedEnd = options.shortEndPoint || null;
     const shortSegment = insetBondSegment(
-      offsetStart,
-      offsetEnd,
-      alignStart ? 0 : sideInset,
-      alignEnd ? 0 : sideInset,
+      joinedStart || offsetStart,
+      joinedEnd || offsetEnd,
+      (joinedStart || alignStart) ? 0 : sideInset,
+      (joinedEnd || alignEnd) ? 0 : sideInset,
     );
     renderRetreatedBondSegment(group, {
       ...shortSegment,
@@ -1885,8 +1896,112 @@ function isFragmentBondSideDouble(bond) {
   if (Number(bond?.order || 1) !== 2) {
     return false;
   }
+  return Boolean(fragmentSideDoublePlacement(bond));
+}
+
+function fragmentSideDoublePlacement(bond) {
+  if (Number(bond?.order || 1) !== 2) {
+    return null;
+  }
   const sideMode = String(bond.double?.placement || bond.doubleStyle || bond.doublePosition || "").toLowerCase();
-  return sideMode === "left" || sideMode === "right";
+  return sideMode === "left" || sideMode === "right" ? sideMode : null;
+}
+
+function doublePlacementSide(placement) {
+  return String(placement || "").toLowerCase() === "left" ? 1 : -1;
+}
+
+function fragmentNodePoint(node, originX, originY) {
+  return localPointFromAbsolute(node.position, originX, originY);
+}
+
+function sideDoubleOffsetLineForFragmentEndpoint(bond, sharedNodeId, nodeMap, originX, originY, doubleOffset) {
+  const placement = fragmentSideDoublePlacement(bond);
+  if (!placement) {
+    return null;
+  }
+  const beginNode = nodeMap.get(bond.begin);
+  const endNode = nodeMap.get(bond.end);
+  if (!beginNode || !endNode || (sharedNodeId !== bond.begin && sharedNodeId !== bond.end)) {
+    return null;
+  }
+  const begin = fragmentNodePoint(beginNode, originX, originY);
+  const end = fragmentNodePoint(endNode, originX, originY);
+  const dx = end.x - begin.x;
+  const dy = end.y - begin.y;
+  const length = Math.hypot(dx, dy);
+  if (length <= 1e-6) {
+    return null;
+  }
+  const normalX = -dy / length;
+  const normalY = dx / length;
+  const side = doublePlacementSide(placement);
+  const shared = sharedNodeId === bond.begin ? begin : end;
+  const other = sharedNodeId === bond.begin ? end : begin;
+  return {
+    point: {
+      x: shared.x + normalX * doubleOffset * side,
+      y: shared.y + normalY * doubleOffset * side,
+    },
+    direction: {
+      x: (other.x - shared.x) / length,
+      y: (other.y - shared.y) / length,
+    },
+    shared,
+    length,
+  };
+}
+
+function pointToLineDistance(point, linePoint, direction) {
+  return Math.abs((point.x - linePoint.x) * direction.y - (point.y - linePoint.y) * direction.x);
+}
+
+function sideDoubleJoinPointForFragmentEndpoint(bond, sharedNodeId, bonds, nodeMap, originX, originY, doubleOffset) {
+  const sharedNode = nodeMap.get(sharedNodeId);
+  if (!sharedNode || hasVisibleFragmentNodeLabel(sharedNode)) {
+    return null;
+  }
+  const currentLine = sideDoubleOffsetLineForFragmentEndpoint(bond, sharedNodeId, nodeMap, originX, originY, doubleOffset);
+  if (!currentLine) {
+    return null;
+  }
+  for (const otherBond of bonds || []) {
+    if (otherBond === bond || !isFragmentBondSideDouble(otherBond)) {
+      continue;
+    }
+    if (otherBond.begin !== sharedNodeId && otherBond.end !== sharedNodeId) {
+      continue;
+    }
+    const otherLine = sideDoubleOffsetLineForFragmentEndpoint(otherBond, sharedNodeId, nodeMap, originX, originY, doubleOffset);
+    if (!otherLine) {
+      continue;
+    }
+    const cross = currentLine.direction.x * otherLine.direction.y - currentLine.direction.y * otherLine.direction.x;
+    if (Math.abs(cross) < 1e-6) {
+      if (pointToLineDistance(otherLine.point, currentLine.point, currentLine.direction) <= doubleOffset * 0.08) {
+        return {
+          x: (currentLine.point.x + otherLine.point.x) / 2,
+          y: (currentLine.point.y + otherLine.point.y) / 2,
+        };
+      }
+      continue;
+    }
+    const intersection = lineIntersectionWithParameters(
+      currentLine.point,
+      currentLine.direction,
+      otherLine.point,
+      otherLine.direction,
+    );
+    if (!intersection || intersection.t < -0.2 || intersection.u < -0.2) {
+      continue;
+    }
+    const sharedDistance = Math.hypot(intersection.point.x - currentLine.shared.x, intersection.point.y - currentLine.shared.y);
+    const maxJoinDistance = Math.min(currentLine.length, otherLine.length) * 0.45;
+    if (sharedDistance <= Math.max(doubleOffset * 4, maxJoinDistance)) {
+      return intersection.point;
+    }
+  }
+  return null;
 }
 
 function isFragmentBondWideContactCandidate(bond) {
@@ -2486,6 +2601,9 @@ function renderFragmentBond(group, bond, nodeMap, bonds, originX, originY, textG
   }
 
   if (bond.order === 2) {
+    const doublePlacement = bond.double?.placement || bond.doubleStyle || bond.doublePosition || null;
+    const doubleScale = strokeWidth / BOND_STROKE;
+    const doubleOffset = DOUBLE_BOND_OFFSET * doubleScale;
     renderDoubleBond(group, start, end, bond.double?.placement || bond.doubleStyle || bond.doublePosition || null, color, {
       terminalStart: fragmentNodeDegree(bonds, bond.begin) === 1,
       terminalEnd: fragmentNodeDegree(bonds, bond.end) === 1,
@@ -2495,6 +2613,8 @@ function renderFragmentBond(group, bond, nodeMap, bonds, originX, originY, textG
       endBoxes: endCollisionBoxes,
       shapeGap,
       strokeWidth,
+      shortStartPoint: doublePlacement ? sideDoubleJoinPointForFragmentEndpoint(bond, bond.begin, bonds, nodeMap, originX, originY, doubleOffset) : null,
+      shortEndPoint: doublePlacement ? sideDoubleJoinPointForFragmentEndpoint(bond, bond.end, bonds, nodeMap, originX, originY, doubleOffset) : null,
     });
     return;
   }
