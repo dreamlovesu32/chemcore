@@ -2,145 +2,201 @@
 
 Author: Jiajun Zhang
 
-Time range: 2026-04-24 00:28 to 2026-04-25 00:47, Asia/Shanghai
+Time range: 2026-04-25 00:47 to 2026-04-25 23:59, Asia/Shanghai
 
 ## Summary
 
-The main outcome today was not another round of local fixes on top of the old bond logic. We replaced bond-contact rendering with a more coherent geometry kernel.
+Today’s work shifted from bond-contact geometry into editor behavior itself. The main result was not another pile of isolated fixes, but a much more coherent rule set for hover atom replacement, generated label geometry, 15-degree snapping, automatic double-bond placement, freeze semantics, and the meaning of `Left` and `Right` across editing and rendering.
 
-Previously, main bonds, side lines, bold bonds, wedges, dashed bonds, and centered doubles all had partially separate contact rules. Many cases were held together by local heuristics, which is why the viewer could still show spikes, seams, wrong retreats, or preview/final mismatches even when individual cases looked close.
+The core problem was consistency. A double bond could be stored as one placement while being drawn on the opposite side. A newly created double bond could freeze too early and stop reacting to later substituents. A newly generated atom label could render text correctly but still break retreat, knockout, or label anchoring because its geometry was incomplete. By the end of the session those behaviors were aligned into one predictable system.
 
-Today we moved that layer onto a contour-driven Rust rendering path. Solid bonds are treated as polygons, bond contact is resolved through contour intersections, and drag preview now renders through the same `render_document` path as final placement. The later refinements also settled the final centered-double rule for the hash family: both `hash bond` and `hashed wedge` keep their standard mother shapes and retreat axially instead of switching to slanted intersection caps.
+## Ketcher Shortcut Research
 
-## Bond Contact Kernel Rewrite
+The first step was to verify how Ketcher handles keyboard replacement while hovering an endpoint in bond-drawing mode. The target interaction was explicit:
 
-The largest change today was the fragment-bond contact rewrite.
+- hover an atom endpoint,
+- do not click,
+- type a key,
+- and let the atom change into an element or abbreviation directly.
 
-The new direction is:
+That research produced a compact Chemcore rule document rather than a copy of Ketcher internals. The current baseline rules are:
 
-- objects with a main bond are first reduced to endpoint contours,
-- two-bond contact is resolved from extended inner and outer contour intersections,
-- three-way and higher-degree nodes are resolved around the node in angular order,
-- and `180°` straight-through cases are handled as explicit exceptions instead of forcing unstable intersections.
+- `p -> Ph`
+- `P -> P`
+- `m -> Me`
+- `c -> clear back to default carbon`
 
-The important part is not only that these cases can be computed, but that the renderer now tries to generate the correct bond polygon directly instead of stacking patch-on-patch fixes. In multi-bond nodes, a five-sided bond polygon is no longer a special overlay trick; it now falls naturally out of the endpoint profile logic.
+They are recorded in:
 
-The old legacy molblock rendering branch was also split out of the main render file into its own module so it stops contaminating the new contact path.
+- `docs/ketcher-hover-atom-hotkeys.zh-CN.md`
 
-## Unified Bond Geometry Model
+## Hover Endpoint Replacement
 
-Several bond types were moved onto one shared geometry model today:
+After fixing the intended interaction, Chemcore gained direct keyboard replacement for hovered endpoints in bond mode.
 
-- All solid bonds are handled as polygons rather than `line` primitives. A plain single bond and a bold bond are now the same geometry type with different widths.
-- Solid wedges are no longer treated as triangles. They now render as trapezoids with a very short narrow-end cap, which makes later contact and width handling fit the same polygon framework.
-- Dashed bonds no longer depend on SVG dash styling. They are built as solid mother polygons and then cut into segments with white knockout gaps.
-- Hash bonds and hashed wedges now follow the same idea: a bold mother shape sliced by denser white gaps, with equal black segment lengths and white spacing allowed to vary within a tolerance before the segment count changes.
+This was wired through the actual engine path rather than through a frontend-only overlay:
 
-This matters because contact rules no longer depend on whether a shape happened to be rendered as a line or a polygon. Once an object has explicit contours, contact can fall back to the same contour-intersection logic.
+- the viewer intercepts keyboard input while an endpoint is hovered,
+- wasm exposes a replacement API,
+- the Rust engine updates the hovered node,
+- and element replacement, abbreviation replacement, and reset-to-carbon each use explicit state updates.
 
-## Double-Bond Rules Tightened
+The important detail is that “clear to carbon” is not just deleting visible text. It removes the label state and returns the node to ordinary default carbon semantics, so later serialization and editing behavior stay clean.
 
-Most of today’s double-bond work was about replacing vague behavior with explicit rules.
+## Generated Label Geometry
 
-For side double bonds:
+Once hover replacement worked, a second issue appeared immediately: the new label text rendered, but retreat, knockout, and centered-double label handling degraded.
 
-- the outer side line normally keeps its original inset behavior and does not participate in ordinary contact,
-- only the inner side line joins against neighboring geometry,
-- terminal ends stay equal in length with the main bond,
-- non-terminal ends shorten by `offset * sqrt(3) / 3`,
-- acute-angle retreat happens only when the connected main bond does not provide a same-side secondary line,
-- if the neighbor does provide a same-side secondary line, the two secondary lines still intersect normally,
-- and if the neighbor is a centered double bond, retreat uses its center axis as reference.
+The cause was straightforward: the generated labels had text content but not full geometry. Existing rendering logic depends on geometry fields such as:
 
-Centered doubles were also rewritten:
+- `label.position`
+- `label.box`
+- `label.glyphPolygons`
 
-- they are no longer treated as a decorative double-line special case,
-- each child line now decides its own endpoint behavior independently,
-- each endpoint and each side can extend to neighboring bond contours on its own,
-- near-straight cases above `162°` remain unchanged,
-- and mixed solid/dashed centered doubles as well as double-dashed centered doubles now share the same centered-double rule set.
+Today the engine was updated so generated labels receive geometry up front, and hover-replaced labels also refresh their geometry afterwards. That allowed the existing retreat and clipping logic to keep working instead of forcing a separate “quick label” render path.
 
-This finally makes the boundaries between side double and centered double behavior much clearer, especially at branching contacts.
+## Label Font Size
 
-## Hash Bonds and Multi-Bond Nodes
+Generated abbreviation labels also looked too small next to ordinary structure labels. Their default font size was raised in two steps and settled at `15`.
 
-Hash bonds and hashed wedges received two important rules today.
+This is not only a cosmetic tweak:
 
-First, when they touch ordinary main-bond geometry, their mother outlines stay unchanged:
+- font size changes the label box,
+- the label box changes retreat and knockout behavior,
+- so the font default and the geometry defaults have to stay synchronized.
 
-- a `hash bond` remains a standard rectangle,
-- a `hashed wedge` remains a standard trapezoid.
+## 15-Degree Snapping
 
-They no longer deform like solid bonds to actively fit neighboring geometry. The later centered-double refinement settled the intended rule more explicitly:
+Angle snapping was expanded to a full `15°` lattice.
 
-- `hash bond` keeps its rectangular cap and only retreats along its own axis,
-- `hashed wedge` also keeps a standard trapezoid and only retreats along its own axis,
-- the hashed wedge still changes shape when shortened because its wide-end width stays fixed while its length changes,
-- and both keep equal black segment lengths while allowing controlled white-gap variation.
+This changed the editor snapping rules themselves rather than adding a frontend helper:
 
-Second, in multi-bond nodes:
+- global snap angles now cover `0°..345°` in `15°` increments,
+- relative bond angles also use `15°` increments.
 
-- hash bonds and hashed wedges keep their original shapes,
-- the other bonds retreat instead,
-- and they leave a small white gap rather than trying to create a perfectly sealed seam.
+That makes horizontal, vertical, `30°`, `45°`, `60°`, and `75°` structures all snap naturally, and it keeps click-extension and drag-extension on the same angular grid.
 
-This keeps the hash family from being visually crushed in dense nodes and gives those nodes a more stable hierarchy.
+## Double Bonds and Labels
 
-## Editor Preview and Viewer Cleanup
+Another large part of the session was about making double bonds and labels behave by clear rules.
 
-In addition to backend geometry, today also closed several important frontend gaps.
+Two visible bugs were involved:
 
-The biggest one is drag preview. The editor no longer draws a fake overlay bond while dragging. The Rust engine now clones the current document, inserts the temporary bond, and runs `render_document` on that preview document. That means:
+- label retreat was shrinking the apparent spacing between double-bond lines,
+- and some centered doubles looked non-parallel when one endpoint carried a label.
 
-- the bond shown during drag,
-- the bond committed on mouse release,
-- and the final display list emitted by the kernel
+These were not the same bug.
 
-all now come from the same geometry path.
+### Label Retreat Must Not Change Real Bond Length
 
-The temporary debug panel that showed cursor coordinates and polygon vertices in the lower-right corner was removed once the geometry stabilized. The primary bond button in the left toolbar now also mirrors the currently selected bond subtype.
+The user requirement was explicit: except for wedge-family behavior, label retreat should not redefine the real bond length. It only shortens the visible segment near the label.
 
-We also cleaned up frontend handling of `strokeWidth: 0`, polygon stroking, and shared-edge style overrides. Several cases where the backend SVG looked correct but the live viewer still showed spikes or white seams were ultimately traced to the frontend accidentally stroking polygons that were supposed to have no stroke.
+The engine and render path were adjusted so:
+
+- double and triple offset scaling use real node-to-node length,
+- side insets also use the true bond length,
+- label clipping affects only visible retreat, not bond-spacing calculations.
+
+That removed the incorrect “compressed” look of labeled side doubles.
+
+### Parallel Centered Doubles
+
+The non-parallel centered-double bug had a different cause. The center line had already been retreated against the label once, but the two child lines were still generating some endpoint profiles and offsets from a mismatched basis. That let the two visible lines attach to slightly different parallel references.
+
+The fix was to unify the offset basis used for:
+
+- centered-double child-line rendering,
+- endpoint profile generation,
+- and label-end clipping behavior.
+
+After that, the two centered-double lines remained genuinely parallel again.
+
+### Terminal Double-Bond Label Anchoring
+
+A separate rule was also clarified:
+
+- at a terminal side or centered double bond with no further substituent, the label should sit between the two visible lines,
+- once that endpoint gains another substituent, anchoring should fall back to the ordinary main-bond logic.
+
+That behavior was folded into the generated-label geometry refresh path.
+
+## Automatic Double-Bond Placement and Freezing
+
+The trickiest editor-side work today was the automatic placement and freezing model for double bonds.
+
+### Initial Default Style
+
+When a bond becomes a double bond for the first time in an ambiguous multi-connection case, the default should be `center double`. That rule was applied both to:
+
+- converting an existing bond by clicking it with the double-bond tool,
+- directly drawing a new double bond,
+- and creating a dashed double bond for the first time.
+
+### Automatic Repositioning
+
+For unfrozen double bonds, placement now follows substituent distribution:
+
+- when a third bond is added, the double bond moves to the more substituted side,
+- when a fourth bond creates a tie, it moves to the side of the most recently drawn bond,
+- for a mono-substituted double bond, adding a cis substituent on the other end moves the double to the inner side.
+
+The implementation was kept as one side-counting framework rather than many overlapping special cases.
+
+### Freeze Semantics
+
+The user clarified the intended freeze model:
+
+- a newly born double bond is not frozen,
+- that includes bonds converted from single, triple, wedge, or dashed styles,
+- and also includes directly drawn double or dashed-double bonds,
+- a double bond becomes frozen only after the user clicks an already-existing double bond to manually change its style.
+
+That required adding an explicit `frozen` field to `DoubleBond` and tightening all creation and cycling paths so “first creation” and “manual restyling” are no longer confused with each other.
+
+## Final Left/Right Alignment
+
+The last major correction of the day was about what “inner side” really means for slanted double bonds.
+
+The editor logic had one meaning for `DoubleBondPlacement::Left` and `Right`, but the renderer and generated label anchoring were still drawing those placements on the opposite side. That is why some horizontal cases looked acceptable while a slanted bond immediately exposed the mismatch.
+
+The final fix was to align all three layers:
+
+- placement calculation in the editor,
+- side selection in the renderer,
+- label offset direction for generated labels on side doubles.
+
+After that, a stored placement and a drawn placement finally referred to the same visible side.
 
 ## Verification
 
-The main verification commands used today were:
+The main closing verification steps were:
 
 ```bash
-cargo test
+cargo test -p chemcore-engine
 npm run build:engine-wasm
-node --check viewer/app.js
 ```
 
-`cargo test` now covers:
+The regression coverage now includes:
 
-- bond-tool interaction behavior,
-- render-document geometry regressions,
-- multi-bond nodes, centered doubles, hash bonds, wedges, and related contact cases.
+- hover endpoint replacement,
+- 15-degree angle snapping,
+- labeled side-double and centered-double geometry,
+- unfrozen first-created double and dashed-double bonds,
+- third-bond and fourth-bond automatic side movement,
+- cis mono-substituted double-bond movement to the inner side,
+- and freeze behavior after manual style changes.
 
-This round was also accepted through direct viewer interaction checks for:
+## Final Result
 
-- two-bond contacts,
-- three-way and higher-degree contacts,
-- side-double and centered-double edge cases,
-- hash bond and hashed wedge behavior against ordinary bonds, centered doubles, and multi-bond nodes,
-- the final “retreat without changing the mother shape” rule for hash-family bonds against centered doubles,
-- and hashed-wedge knockout spacing following the actual trapezoid after retreat,
-- and consistency between drag preview and final placement.
+By the end of the day the editor behavior had settled into a much more coherent shape:
 
-## Commit Timeline
-
-| Commit | Summary |
-| --- | --- |
-| `1951a84` | Rewrote the bond contact rendering kernel and moved drag preview onto the same Rust render path. |
-| `387c2ab` | Added the bilingual developer log for 2026-04-25. |
-
-## Remaining Risks and Next Steps
-
-The biggest gain today is that bond contact is now much closer to a backend geometry definition instead of a viewer-side visual patch. But a few follow-up risks are still clear:
-
-- centered doubles, side doubles, and the hash family now live in one framework, but their rule surface is still large enough that more example-driven regression coverage is needed,
-- the viewer and the Rust display list are now much closer, and the next step should keep reducing any frontend reinterpretation of geometry,
-- and the contact rules are now stable enough that they should eventually be written down as standalone rendering documentation rather than only living in tests and branch logic.
-
-The architectural conclusion for the day is clear: stable bond rendering will not come from layering more viewer-side fixes. It has to come from defining bond geometry, endpoint closure, and node contact allocation centrally inside the Rust kernel.
+- hovered endpoints can be changed directly from the keyboard,
+- generated labels carry full geometry,
+- new labels match surrounding chemistry labels better,
+- bond drawing snaps on a complete `15°` grid,
+- label retreat no longer distorts double-bond spacing,
+- centered doubles remain parallel near labels,
+- newly created double bonds stay unfrozen,
+- manually restyled double bonds freeze,
+- unfrozen doubles reposition automatically as substituents are added,
+- and `Left`/`Right` now mean the same thing in state and on screen.
