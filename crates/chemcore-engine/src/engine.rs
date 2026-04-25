@@ -1,14 +1,13 @@
 use crate::{
     anchor_from_point, bond_center_focus_length, can_draw_bond, can_focus_bond_center,
-    can_focus_endpoint, default_angle_for_anchor_for_variant, endpoint_from_angle,
+    can_focus_endpoint, default_angle_for_anchor_for_variant, endpoint_from_angle_for_document,
     hit_test_bond_center, hit_test_endpoint, hit_test_endpoint_excluding, render_document,
     select_at, snapped_angle_for_anchor, Bond, BondAnchor, BondLinePattern, BondLineStyles,
-    BondLineWeight, BondLineWeights, BondPreview, BondStereo, BondVariant,
-    ChemcoreDocument, DoubleBond, DoubleBondPlacement, DragState, EditorOptions, EndpointHit,
-    OverlayState, Point, PointerEvent, RenderPrimitive, RenderRole, SelectionState, Tool,
-    ToolState,
-    BOND_CENTER_FOCUS_WIDTH, BOND_CENTER_HIT_RADIUS, DEFAULT_BOND_LENGTH,
-    DRAG_START_THRESHOLD, ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS,
+    BondLineWeight, BondLineWeights, BondPreview, BondStereo, BondVariant, ChemcoreDocument,
+    DoubleBond, DoubleBondPlacement, DragState, EditorOptions, EndpointHit, OverlayState, Point,
+    PointerEvent, RenderPrimitive, RenderRole, SelectionState, Tool, ToolState,
+    BOND_CENTER_FOCUS_WIDTH, BOND_CENTER_HIT_RADIUS, DEFAULT_BOND_LENGTH, DRAG_START_THRESHOLD,
+    ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -157,6 +156,7 @@ impl Engine {
                     drag.target = Some(BondAnchor {
                         node_id: Some(target.node_id.clone()),
                         point: target.point,
+                        label_anchor: target.label_anchor.clone(),
                     });
                     target.point
                 } else if drag.free_length {
@@ -165,7 +165,12 @@ impl Engine {
                 } else {
                     drag.target = None;
                     let angle = snapped_angle_for_anchor(&self.state.document, &drag.anchor, point);
-                    endpoint_from_angle(&drag.anchor, angle, self.options.bond_length)
+                    endpoint_from_angle_for_document(
+                        &self.state.document,
+                        &drag.anchor,
+                        angle,
+                        self.options.bond_length,
+                    )
                 };
                 drag.preview_end = Some(end);
                 self.state.overlay.preview = Some(BondPreview {
@@ -221,6 +226,7 @@ impl Engine {
                 anchor: BondAnchor {
                     node_id: Some(endpoint.node_id),
                     point: endpoint.point,
+                    label_anchor: endpoint.label_anchor,
                 },
                 start: point,
                 has_dragged: false,
@@ -259,16 +265,23 @@ impl Engine {
                 BondAnchor {
                     node_id: None,
                     point: drag.preview_end.unwrap_or_else(|| event.point()),
+                    label_anchor: None,
                 }
             } else {
                 let end = drag.preview_end.unwrap_or_else(|| {
                     let angle =
                         snapped_angle_for_anchor(&self.state.document, &drag.anchor, event.point());
-                    endpoint_from_angle(&drag.anchor, angle, self.options.bond_length)
+                    endpoint_from_angle_for_document(
+                        &self.state.document,
+                        &drag.anchor,
+                        angle,
+                        self.options.bond_length,
+                    )
                 });
                 BondAnchor {
                     node_id: None,
                     point: end,
+                    label_anchor: None,
                 }
             }
         } else {
@@ -277,11 +290,17 @@ impl Engine {
                 &drag.anchor,
                 self.state.tool.bond_variant,
             );
-            let end = endpoint_from_angle(&drag.anchor, angle, self.options.bond_length);
+            let end = endpoint_from_angle_for_document(
+                &self.state.document,
+                &drag.anchor,
+                angle,
+                self.options.bond_length,
+            );
             self.endpoint_anchor_near(&drag.anchor, end)
                 .unwrap_or(BondAnchor {
                     node_id: None,
                     point: end,
+                    label_anchor: None,
                 })
         };
         self.state.overlay.preview = None;
@@ -299,6 +318,7 @@ impl Engine {
             BondAnchor {
                 node_id: None,
                 point: end,
+                label_anchor: None,
             },
             1,
         );
@@ -361,6 +381,7 @@ impl Engine {
                 node_id: node.id.clone(),
                 point: entry.world_point_for_node(node),
                 distance: 0.0,
+                label_anchor: None,
             });
         self.state.overlay.hover_endpoint = endpoint;
         true
@@ -377,6 +398,7 @@ impl Engine {
             BondAnchor {
                 node_id: None,
                 point: drag.preview_end?,
+                label_anchor: None,
             }
         };
         self.document_with_preview_bond(&drag.anchor, &end_anchor, self.pending_bond_order())
@@ -554,6 +576,7 @@ impl Engine {
         Some(BondAnchor {
             node_id: Some(target.node_id),
             point: target.point,
+            label_anchor: target.label_anchor,
         })
     }
 
@@ -561,7 +584,12 @@ impl Engine {
         self.bond_exists_in_document(&self.state.document, begin_id, end_id)
     }
 
-    fn bond_exists_in_document(&self, document: &ChemcoreDocument, begin_id: &str, end_id: &str) -> bool {
+    fn bond_exists_in_document(
+        &self,
+        document: &ChemcoreDocument,
+        begin_id: &str,
+        end_id: &str,
+    ) -> bool {
         let Some(entry) = document.editable_fragment() else {
             return false;
         };
@@ -843,10 +871,7 @@ fn opposite_double_bond_placement(placement: DoubleBondPlacement) -> DoubleBondP
     }
 }
 
-fn apply_single_tool_center_style(
-    bond: &mut Bond,
-    default_placement: DoubleBondPlacement,
-) -> bool {
+fn apply_single_tool_center_style(bond: &mut Bond, default_placement: DoubleBondPlacement) -> bool {
     if is_plain_single_bond(bond) {
         return advance_plain_double_cycle(bond, default_placement);
     }
@@ -856,10 +881,7 @@ fn apply_single_tool_center_style(
     replace_with_plain_single_bond_style(bond)
 }
 
-fn apply_double_tool_center_style(
-    bond: &mut Bond,
-    default_placement: DoubleBondPlacement,
-) -> bool {
+fn apply_double_tool_center_style(bond: &mut Bond, default_placement: DoubleBondPlacement) -> bool {
     if is_plain_single_bond(bond) || is_plain_triple_bond(bond) {
         return replace_with_plain_double_bond_style(bond, default_placement);
     }
@@ -876,10 +898,7 @@ fn apply_double_tool_center_style(
     replace_with_plain_double_bond_style(bond, default_placement)
 }
 
-fn cycle_dashed_bond_center_style(
-    bond: &mut Bond,
-    default_placement: DoubleBondPlacement,
-) -> bool {
+fn cycle_dashed_bond_center_style(bond: &mut Bond, default_placement: DoubleBondPlacement) -> bool {
     if bond.order == 2 && !has_stereo_style(bond) {
         return cycle_dashed_double_bond_style(bond, Some(default_placement));
     }
@@ -896,10 +915,7 @@ fn cycle_dashed_double_bond_tool_center_style(
     replace_with_plain_dashed_double_bond_style(bond, default_placement)
 }
 
-fn cycle_bold_bond_center_style(
-    bond: &mut Bond,
-    default_placement: DoubleBondPlacement,
-) -> bool {
+fn cycle_bold_bond_center_style(bond: &mut Bond, default_placement: DoubleBondPlacement) -> bool {
     if bond.order == 2 && !has_stereo_style(bond) {
         if is_bold_family_bond(bond) {
             return cycle_bold_double_bond_style(bond, Some(default_placement));
@@ -952,7 +968,8 @@ fn cycle_dashed_double_bond_style(
         DoubleBondPlacement::Center => {
             let dashed_sides = centered_dashed_sides(&bond.line_styles);
             if dashed_sides.is_empty() {
-                *outer_line_pattern_mut(&mut bond.line_styles, default_side) = BondLinePattern::Dashed;
+                *outer_line_pattern_mut(&mut bond.line_styles, default_side) =
+                    BondLinePattern::Dashed;
                 bond.double = Some(DoubleBond {
                     placement: DoubleBondPlacement::Center,
                     center_exit_side: None,
@@ -962,7 +979,8 @@ fn cycle_dashed_double_bond_style(
             if dashed_sides.len() == 1 {
                 let first_dashed = dashed_sides[0];
                 let second_side = opposite_double_bond_placement(first_dashed);
-                *outer_line_pattern_mut(&mut bond.line_styles, second_side) = BondLinePattern::Dashed;
+                *outer_line_pattern_mut(&mut bond.line_styles, second_side) =
+                    BondLinePattern::Dashed;
                 bond.double = Some(DoubleBond {
                     placement: DoubleBondPlacement::Center,
                     center_exit_side: Some(opposite_double_bond_placement(first_dashed)),
@@ -1055,10 +1073,7 @@ fn replace_with_plain_single_bond_style(bond: &mut Bond) -> bool {
     true
 }
 
-fn replace_with_plain_double_bond_style(
-    bond: &mut Bond,
-    placement: DoubleBondPlacement,
-) -> bool {
+fn replace_with_plain_double_bond_style(bond: &mut Bond, placement: DoubleBondPlacement) -> bool {
     bond.order = 2;
     bond.double = Some(DoubleBond {
         placement,

@@ -1,7 +1,7 @@
 use crate::{
     angle_between, angle_in_clockwise_arc, angular_distance, direction_from_angle,
-    largest_angular_gap, normalize_angle, ChemcoreDocument, EditableFragment, Node, Point,
-    DEFAULT_BOND_LENGTH,
+    largest_angular_gap, normalize_angle, split_label_groups, ChemcoreDocument, EditableFragment,
+    Node, Point, DEFAULT_BOND_LENGTH,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -95,6 +95,8 @@ pub struct EndpointHit {
     pub node_id: String,
     pub point: Point,
     pub distance: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label_anchor: Option<LabelAnchorGeometry>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -135,6 +137,20 @@ impl SelectionState {
 pub struct BondAnchor {
     pub node_id: Option<String>,
     pub point: Point,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label_anchor: Option<LabelAnchorGeometry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LabelAnchorGeometry {
+    pub glyph_index: usize,
+    pub glyph_point: Point,
+    pub first_glyph_point: Point,
+    pub left_point: Point,
+    pub right_point: Point,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub right_group_point: Option<Point>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -201,7 +217,19 @@ pub fn hit_test_endpoint_excluding(
                 node_id: node.id.clone(),
                 point: node_point,
                 distance,
+                label_anchor: None,
             });
+        }
+        for label_anchor in label_anchor_geometries(&entry, node) {
+            let distance = point.distance(label_anchor.glyph_point);
+            if distance <= radius && best.as_ref().map_or(true, |hit| distance < hit.distance) {
+                best = Some(EndpointHit {
+                    node_id: node.id.clone(),
+                    point: label_anchor.glyph_point,
+                    distance,
+                    label_anchor: Some(label_anchor),
+                });
+            }
         }
     }
     best
@@ -305,12 +333,14 @@ pub fn anchor_from_point(document: &ChemcoreDocument, point: Point) -> Option<Bo
         return Some(BondAnchor {
             node_id: Some(hit.node_id),
             point: hit.point,
+            label_anchor: hit.label_anchor,
         });
     }
     document.editable_fragment()?;
     Some(BondAnchor {
         node_id: None,
         point,
+        label_anchor: None,
     })
 }
 
@@ -469,6 +499,16 @@ pub fn endpoint_from_angle(anchor: &BondAnchor, angle: f64, length: f64) -> Poin
         .translated(direction_from_angle(angle).scaled(length))
 }
 
+pub fn endpoint_from_angle_for_document(
+    document: &ChemcoreDocument,
+    anchor: &BondAnchor,
+    angle: f64,
+    length: f64,
+) -> Point {
+    resolved_anchor_point_for_angle(document, anchor, angle)
+        .translated(direction_from_angle(angle).scaled(length))
+}
+
 pub fn nearest_angle(target: f64, candidates: &[f64]) -> f64 {
     candidates
         .iter()
@@ -490,6 +530,139 @@ fn point_to_segment_distance(point: Point, start: Point, end: Point) -> f64 {
     }
     let t = (((point.x - start.x) * dx + (point.y - start.y) * dy) / length_sq).clamp(0.0, 1.0);
     point.distance(Point::new(start.x + dx * t, start.y + dy * t))
+}
+
+fn label_anchor_geometries(entry: &EditableFragment<'_>, node: &Node) -> Vec<LabelAnchorGeometry> {
+    let Some(label) = node.label.as_ref() else {
+        return Vec::new();
+    };
+    if label.glyph_polygons.is_empty() {
+        return Vec::new();
+    }
+
+    let glyph_points: Vec<Point> = label
+        .glyph_polygons()
+        .into_iter()
+        .filter_map(|polygon| polygon_anchor_point(&polygon))
+        .map(|point| {
+            Point::new(
+                point.x + entry.object.transform.translate[0],
+                point.y + entry.object.transform.translate[1],
+            )
+        })
+        .collect();
+    if glyph_points.is_empty() {
+        return Vec::new();
+    }
+
+    let first_glyph_point = glyph_points[0];
+    let left_point = glyph_points
+        .iter()
+        .copied()
+        .min_by(|a, b| a.x.total_cmp(&b.x))
+        .unwrap_or(first_glyph_point);
+    let right_point = glyph_points
+        .iter()
+        .copied()
+        .max_by(|a, b| a.x.total_cmp(&b.x))
+        .unwrap_or(first_glyph_point);
+    let right_group_index = rightmost_group_anchor_index(label, glyph_points.len());
+    let right_group_point = right_group_index.and_then(|index| glyph_points.get(index).copied());
+
+    glyph_points
+        .iter()
+        .enumerate()
+        .map(|(glyph_index, glyph_point)| LabelAnchorGeometry {
+            glyph_index,
+            glyph_point: *glyph_point,
+            first_glyph_point,
+            left_point,
+            right_point,
+            right_group_point,
+        })
+        .collect()
+}
+
+fn polygon_anchor_point(polygon: &[Point]) -> Option<Point> {
+    if polygon.is_empty() {
+        return None;
+    }
+    let mut min_x = f64::INFINITY;
+    let mut min_y = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
+    for point in polygon {
+        min_x = min_x.min(point.x);
+        min_y = min_y.min(point.y);
+        max_x = max_x.max(point.x);
+        max_y = max_y.max(point.y);
+    }
+    Some(Point::new((min_x + max_x) * 0.5, (min_y + max_y) * 0.5))
+}
+
+fn label_visible_chars(node_label: &crate::NodeLabel) -> Vec<char> {
+    node_label
+        .source_text
+        .as_deref()
+        .unwrap_or(node_label.text.as_str())
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect()
+}
+
+fn rightmost_group_anchor_index(
+    node_label: &crate::NodeLabel,
+    glyph_count: usize,
+) -> Option<usize> {
+    let chars = label_visible_chars(node_label);
+    if chars.len() != glyph_count {
+        return None;
+    }
+    let grouped_text = chars.iter().collect::<String>();
+    let groups = split_label_groups(&grouped_text);
+    let rightmost_group = groups.last()?;
+    let anchor_char = chars.len().checked_sub(rightmost_group.chars().count())?;
+    Some(anchor_char)
+}
+
+fn anchor_has_existing_connections(document: &ChemcoreDocument, anchor: &BondAnchor) -> bool {
+    let Some(node_id) = anchor.node_id.as_deref() else {
+        return false;
+    };
+    let Some(entry) = document.editable_fragment() else {
+        return false;
+    };
+    !adjacent_directions(&entry, node_id).is_empty()
+}
+
+fn angle_uses_vertical_label_anchor(angle: f64) -> bool {
+    angular_distance(angle, 90.0) <= 7.5 || angular_distance(angle, 270.0) <= 7.5
+}
+
+fn resolved_anchor_point_for_angle(
+    document: &ChemcoreDocument,
+    anchor: &BondAnchor,
+    angle: f64,
+) -> Point {
+    let Some(label_anchor) = anchor.label_anchor.as_ref() else {
+        return anchor.point;
+    };
+    if angle_uses_vertical_label_anchor(angle) {
+        return label_anchor.glyph_point;
+    }
+    let direction = direction_from_angle(angle);
+    if direction.x < -1.0e-6 {
+        return label_anchor.left_point;
+    }
+    if direction.x > 1.0e-6 {
+        if anchor_has_existing_connections(document, anchor) {
+            return label_anchor
+                .right_group_point
+                .unwrap_or(label_anchor.right_point);
+        }
+        return label_anchor.right_point;
+    }
+    label_anchor.glyph_point
 }
 
 fn point_in_bond_center_focus(point: Point, start: Point, end: Point) -> bool {

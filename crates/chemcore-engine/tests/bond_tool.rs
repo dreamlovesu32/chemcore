@@ -3,6 +3,7 @@ use chemcore_engine::{
     RenderPrimitive, RenderRole, Tool, ToolState, BOND_CENTER_FOCUS_LENGTH, BOND_CENTER_FOCUS_WIDTH,
     DEFAULT_BOND_LENGTH, DEFAULT_BOND_STROKE, ENDPOINT_FOCUS_RADIUS,
 };
+use serde_json::json;
 use std::collections::BTreeMap;
 
 fn bond_tool() -> ToolState {
@@ -101,6 +102,80 @@ fn click(engine: &mut Engine, x: f64, y: f64) {
     });
 }
 
+fn rect_polygon(x1: f64, y1: f64, x2: f64, y2: f64) -> serde_json::Value {
+    json!([[x1, y1], [x2, y1], [x2, y2], [x1, y2]])
+}
+
+fn load_label_document(
+    engine: &mut Engine,
+    label_text: &str,
+    glyph_polygons: Vec<serde_json::Value>,
+    bonds: serde_json::Value,
+) {
+    let document = json!({
+        "format": { "name": "chemcore", "version": "0.1" },
+        "document": {
+            "id": "doc_test",
+            "title": "label test",
+            "page": { "width": 400.0, "height": 320.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_molecule_default": {
+                "kind": "molecule",
+                "stroke": "#000000",
+                "strokeWidth": DEFAULT_BOND_STROKE,
+                "fontFamily": "Arial",
+                "fontSize": 11.0
+            }
+        },
+        "objects": [{
+            "id": "obj_molecule_001",
+            "type": "molecule",
+            "visible": true,
+            "zIndex": 10,
+            "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+            "styleRef": "style_molecule_default",
+            "payload": { "resourceRef": "mol_001" }
+        }],
+        "resources": {
+            "mol_001": {
+                "type": "molecule_fragment2d",
+                "encoding": "chemcore.molecule.fragment2d",
+                "data": {
+                    "schema": "chemcore.molecule.fragment2d",
+                    "bbox": [0.0, 0.0, 400.0, 320.0],
+                    "nodes": [{
+                        "id": "n1",
+                        "element": "N",
+                        "atomicNumber": 7,
+                        "position": [300.0, 260.0],
+                        "charge": 0,
+                        "numHydrogens": 0,
+                        "label": {
+                            "text": label_text,
+                            "sourceText": label_text,
+                            "position": [297.0, 260.0],
+                            "box": [294.0, 256.0, 324.0, 264.0],
+                            "glyphPolygons": glyph_polygons
+                        }
+                    }, {
+                        "id": "n0",
+                        "element": "C",
+                        "atomicNumber": 6,
+                        "position": [264.0, 260.0],
+                        "charge": 0,
+                        "numHydrogens": 0
+                    }],
+                    "bonds": bonds
+                }
+            }
+        }
+    });
+    engine
+        .load_document_json(&document.to_string())
+        .expect("document should load");
+}
+
 #[test]
 fn click_on_blank_canvas_creates_horizontal_single_bond() {
     let mut engine = Engine::new();
@@ -158,6 +233,148 @@ fn hover_focuses_existing_endpoint() {
         primitive,
         RenderPrimitive::Circle { radius, .. } if (*radius - ENDPOINT_FOCUS_RADIUS).abs() < 0.001
     )));
+}
+
+#[test]
+fn hover_focuses_label_glyph_anchor() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    load_label_document(
+        &mut engine,
+        "CuF3",
+        vec![
+            rect_polygon(294.0, 256.0, 300.0, 264.0),
+            rect_polygon(302.0, 256.0, 308.0, 264.0),
+            rect_polygon(310.0, 256.0, 316.0, 264.0),
+            rect_polygon(318.0, 256.0, 324.0, 264.0),
+        ],
+        json!([]),
+    );
+
+    engine.pointer_move(PointerEvent {
+        x: 305.0,
+        y: 260.0,
+        button: None,
+        alt_key: false,
+    });
+
+    let hover = engine.state().overlay.hover_endpoint.as_ref().unwrap();
+    assert_eq!(hover.node_id, "n1");
+    assert!((hover.point.x - 305.0).abs() < 0.001, "{hover:?}");
+    assert!((hover.point.y - 260.0).abs() < 0.001, "{hover:?}");
+    assert!(hover.label_anchor.is_some(), "{hover:?}");
+}
+
+#[test]
+fn click_on_label_glyph_uses_rightmost_label_anchor_for_horizontal_bond() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    load_label_document(
+        &mut engine,
+        "CuF3",
+        vec![
+            rect_polygon(294.0, 256.0, 300.0, 264.0),
+            rect_polygon(302.0, 256.0, 308.0, 264.0),
+            rect_polygon(310.0, 256.0, 316.0, 264.0),
+            rect_polygon(318.0, 256.0, 324.0, 264.0),
+        ],
+        json!([]),
+    );
+
+    click(&mut engine, 305.0, 260.0);
+
+    let entry = engine.state().document.editable_fragment().unwrap();
+    let last = entry.fragment.nodes.last().unwrap();
+    assert!((last.position[0] - 357.0).abs() < 0.01, "{:?}", last.position);
+    assert!((last.position[1] - 260.0).abs() < 0.01, "{:?}", last.position);
+}
+
+#[test]
+fn drag_from_label_glyph_uses_focused_glyph_for_vertical_bond() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    load_label_document(
+        &mut engine,
+        "CuF3",
+        vec![
+            rect_polygon(294.0, 256.0, 300.0, 264.0),
+            rect_polygon(302.0, 256.0, 308.0, 264.0),
+            rect_polygon(310.0, 256.0, 316.0, 264.0),
+            rect_polygon(318.0, 256.0, 324.0, 264.0),
+        ],
+        json!([]),
+    );
+
+    engine.pointer_down(PointerEvent {
+        x: 305.0,
+        y: 260.0,
+        button: Some(0),
+        alt_key: false,
+    });
+    engine.pointer_move(PointerEvent {
+        x: 305.0,
+        y: 220.0,
+        button: None,
+        alt_key: false,
+    });
+    engine.pointer_up(PointerEvent {
+        x: 305.0,
+        y: 220.0,
+        button: Some(0),
+        alt_key: false,
+    });
+
+    let entry = engine.state().document.editable_fragment().unwrap();
+    let last = entry.fragment.nodes.last().unwrap();
+    assert!((last.position[0] - 305.0).abs() < 0.01, "{:?}", last.position);
+    assert!((last.position[1] - 224.0).abs() < 0.01, "{:?}", last.position);
+}
+
+#[test]
+fn drag_from_connected_label_uses_rightmost_group_uppercase_anchor() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    load_label_document(
+        &mut engine,
+        "CuF3",
+        vec![
+            rect_polygon(294.0, 256.0, 300.0, 264.0),
+            rect_polygon(302.0, 256.0, 308.0, 264.0),
+            rect_polygon(310.0, 256.0, 316.0, 264.0),
+            rect_polygon(318.0, 256.0, 324.0, 264.0),
+        ],
+        json!([{
+            "id": "b0",
+            "begin": "n0",
+            "end": "n1",
+            "order": 1,
+            "strokeWidth": DEFAULT_BOND_STROKE
+        }]),
+    );
+
+    engine.pointer_down(PointerEvent {
+        x: 305.0,
+        y: 260.0,
+        button: Some(0),
+        alt_key: false,
+    });
+    engine.pointer_move(PointerEvent {
+        x: 360.0,
+        y: 260.0,
+        button: None,
+        alt_key: false,
+    });
+    engine.pointer_up(PointerEvent {
+        x: 360.0,
+        y: 260.0,
+        button: Some(0),
+        alt_key: false,
+    });
+
+    let entry = engine.state().document.editable_fragment().unwrap();
+    let last = entry.fragment.nodes.last().unwrap();
+    assert!((last.position[0] - 349.0).abs() < 0.01, "{:?}", last.position);
+    assert!((last.position[1] - 260.0).abs() < 0.01, "{:?}", last.position);
 }
 
 #[test]
@@ -1645,6 +1862,7 @@ fn click_extension_reuses_endpoint_at_default_angle() {
         chemcore_engine::BondAnchor {
             node_id: None,
             point: chemcore_engine::Point::new(200.0, 200.0),
+            label_anchor: None,
         },
         chemcore_engine::Point::new(354.0, 228.82),
     );
