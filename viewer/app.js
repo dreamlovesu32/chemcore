@@ -10,6 +10,31 @@ import {
   normalizeDisplayColor,
 } from "./render_support.js";
 import {
+  editorChargeSignBaselineAdjustment as computeEditorChargeSignBaselineAdjustment,
+  editorScriptBaselineShift as computeEditorScriptBaselineShift,
+  editorScriptScale as computeEditorScriptScale,
+  estimateTextRunsWidth as computeEstimateTextRunsWidth,
+  estimatedEditorCharWidth as computeEstimatedEditorCharWidth,
+  lookupEditorGlyphProfile as lookupGlyphProfile,
+  normalizeSharedGlyphProfiles,
+  sliceTextByOffset,
+  textLength,
+} from "./text_metrics.js";
+import {
+  normalizeEditorSelectionOffsets as normalizeEditorSelectionOffsetsModel,
+  normalizeEditorSourceRuns as normalizeEditorSourceRunsModel,
+  runsPlainText,
+  splitRunsForSelection,
+  styleAtEditorOffset as styleAtEditorOffsetModel,
+} from "./text_editor_model.js";
+import {
+  displayRunsForEditor as resolveDisplayRunsForEditor,
+  editorSourceRunsFromSession as createEditorSourceRunsFromSession,
+  fillTextEditorContent as renderTextEditorContent,
+  previewTextRunsFromKernel as previewTextRunsFromEngine,
+} from "./text_editor_render.js";
+import { createTextEditorController } from "./text_editor_controller.js";
+import {
   renderLineObject,
   renderShapeObject,
   renderTextObject,
@@ -41,6 +66,8 @@ const state = {
   runtimeViewBox: null,
   lastEditFocusPoint: null,
 };
+let sharedGlyphProfiles = null;
+const sharedGlyphProfilesReady = loadSharedGlyphProfiles();
 
 if (typeof window !== "undefined") {
   window.__chemcoreDebug = {
@@ -50,6 +77,31 @@ if (typeof window !== "undefined") {
     },
     get engineState() {
       return currentEditorEngineState();
+    },
+    get activeTextEditor() {
+      return activeTextEditor;
+    },
+    insertEditorText(text) {
+      if (!activeTextEditor) {
+        return false;
+      }
+      for (const character of Array.from(String(text || ""))) {
+        textEditorController.insertTextAtSelection(character);
+      }
+      return true;
+    },
+    syncDocument() {
+      syncDocumentFromEngine();
+      renderDocument();
+      return state.currentDocument;
+    },
+    worldToClient(x, y) {
+      const matrix = viewerSvg?.getScreenCTM?.();
+      if (!matrix) {
+        return null;
+      }
+      const point = new DOMPoint(x, y).matrixTransform(matrix);
+      return { x: point.x, y: point.y };
     },
   };
 }
@@ -79,6 +131,9 @@ const viewerStats = document.getElementById("viewer-stats");
 const viewerSvg = document.getElementById("viewer-svg");
 const viewerContainer = document.getElementById("viewer-container");
 const secondaryToolbar = document.getElementById("secondary-toolbar");
+const textEditorLayer = document.createElement("div");
+textEditorLayer.className = "text-editor-layer";
+viewerContainer?.appendChild(textEditorLayer);
 
 if (sampleSelect) {
   for (const samplePath of SAMPLE_FILES) {
@@ -113,12 +168,30 @@ const editorState = {
   activeTool: "bond",
   selectMode: "free",
   bondType: "single",
+  textFontFamily: "Arial",
+  textFontSize: 12,
   textColor: "#000000",
+  textAlign: "left",
+  textBold: false,
+  textItalic: false,
+  textUnderline: false,
+  textScript: "normal",
   shapeStroke: "#000000",
   shapeFill: "none",
   shapeStyle: "rect",
   template: "benzene",
 };
+let activeTextEditor = null;
+
+async function loadSharedGlyphProfiles() {
+  const url = new URL("../shared/glyph_profiles.json", import.meta.url);
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to load shared glyph profiles: ${response.status}`);
+  }
+  sharedGlyphProfiles = normalizeSharedGlyphProfiles(await response.json());
+  return sharedGlyphProfiles;
+}
 
 function isEditingRustDocument() {
   return !LABEL_DEBUG_MODE && !state.currentPath && state.editorEngine;
@@ -259,6 +332,18 @@ function worldToScreenPoint(point) {
   return {
     x: (point.x - viewBox.x) * scale - (viewerContainer?.scrollLeft || 0),
     y: (point.y - viewBox.y) * scale - (viewerContainer?.scrollTop || 0),
+  };
+}
+
+function worldToLayerPoint(point) {
+  if (!point) {
+    return null;
+  }
+  const viewBox = activeViewBox();
+  const scale = viewportScale();
+  return {
+    x: (point.x - viewBox.x) * scale,
+    y: (point.y - viewBox.y) * scale,
   };
 }
 
@@ -406,24 +491,33 @@ function applyViewerViewport(options = {}) {
     return;
   }
   const viewBox = activeViewBox();
+  const pixelWidth = `${Math.max(1, viewBox.width * viewportScale())}px`;
+  const pixelHeight = `${Math.max(1, viewBox.height * viewportScale())}px`;
   viewerSvg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
-  viewerSvg.style.width = `${Math.max(1, viewBox.width * viewportScale())}px`;
-  viewerSvg.style.height = `${Math.max(1, viewBox.height * viewportScale())}px`;
+  viewerSvg.style.width = pixelWidth;
+  viewerSvg.style.height = pixelHeight;
+  if (textEditorLayer) {
+    textEditorLayer.style.width = pixelWidth;
+    textEditorLayer.style.height = pixelHeight;
+  }
 
   const scrollDelta = options.scrollDelta;
   const centerWorld = options.centerWorld;
   if (!viewerContainer || (!scrollDelta && !centerWorld)) {
+    positionActiveTextEditor();
     return;
   }
   requestAnimationFrame(() => {
     if (centerWorld) {
       scrollViewerToWorldPoint(centerWorld, true);
+      positionActiveTextEditor();
       return;
     }
     if (scrollDelta) {
       viewerContainer.scrollLeft += scrollDelta.x * viewportScale();
       viewerContainer.scrollTop += scrollDelta.y * viewportScale();
     }
+    positionActiveTextEditor();
   });
 }
 
@@ -494,7 +588,10 @@ function boundsFromPrimitive(primitive) {
   if (primitive.kind === "text") {
     const fontSize = Number(primitive.fontSize || primitive.font_size || DEFAULT_TEXT_FONT_SIZE);
     const text = String(primitive.text || "");
-    const width = Math.max(fontSize * 0.6, text.length * fontSize * 0.62);
+    const runs = Array.isArray(primitive.runs) && primitive.runs.length
+      ? primitive.runs
+      : [{ text, fontSize, script: "normal" }];
+    const width = Math.max(fontSize * 0.6, estimateTextRunsWidth(runs, fontSize));
     const anchor = primitive.textAnchor || primitive.text_anchor || "start";
     const x = Number(primitive.x || 0);
     const y = Number(primitive.y || 0);
@@ -780,13 +877,19 @@ function renderCorePrimitive(svgRoot, primitive) {
         const isSub = isSubscriptRun(run);
         const isSuper = isSuperscriptRun(run);
         const isSubOrSuper = isSub || isSuper;
+        const scriptScale = isSub ? editorScriptScale("subscript") : isSuper ? editorScriptScale("superscript") : 1;
         const tspan = makeSvgNode("tspan", {
           fill: run.fill ? normalizeDisplayColor(run.fill) : undefined,
-          "font-size": isSubOrSuper ? Math.max(7, runFontSize * 0.72) : runFontSize,
+          "font-size": isSubOrSuper ? Math.max(7, runFontSize * scriptScale) : runFontSize,
           "font-family": run.fontFamily ? displayLabelFontFamily(run.fontFamily) : undefined,
           "font-weight": fontWeightForRun(run),
           "font-style": fontStyleForRun(run),
-          "baseline-shift": isSub ? "-28%" : isSuper ? "48%" : undefined,
+          "text-decoration": run.underline ? "underline" : undefined,
+          "baseline-shift": isSub
+            ? `-${editorGlyphLayoutConfig().subscriptShiftDownEm}em`
+            : isSuper
+              ? `${editorGlyphLayoutConfig().superscriptShiftUpEm}em`
+              : undefined,
           dx: isSuper ? "-0.02em" : undefined,
         });
         tspan.textContent = run.text || "";
@@ -820,6 +923,7 @@ function currentEditorEngineState() {
 }
 
 function resetEditorEngine() {
+  finishActiveTextEditor(false);
   state.editorEngine?.free?.();
   state.editorEngine = new WasmEngine();
   state.runtimeViewBox = defaultEditorViewBox();
@@ -953,6 +1057,13 @@ function runHoverEndpointShortcut(event) {
 
 document.addEventListener("keydown", (event) => {
   const target = event.target;
+  if (activeTextEditor?.root?.contains?.(target)) {
+    if (event.key === "Escape") {
+      finishActiveTextEditor(false);
+      event.preventDefault();
+    }
+    return;
+  }
   if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) {
     return;
   }
@@ -1050,6 +1161,13 @@ function syncPrimaryBondToolButton() {
   bondButton.setAttribute("title", spec.title);
 }
 
+function syncCanvasCursor() {
+  if (!viewerSvg) {
+    return;
+  }
+  viewerSvg.style.cursor = editorState.activeTool === "text" ? "text" : "crosshair";
+}
+
 function selectToolbarHtml() {
   const mode = editorState.selectMode;
   return [
@@ -1087,20 +1205,31 @@ function bondToolbarHtml() {
 }
 
 function textToolbarHtml() {
+  const align = editorState.textAlign;
   return `
     <select class="secondary-select" data-text-control="font" aria-label="Font family">
-      <option>Arial</option>
-      <option>Helvetica</option>
-      <option>Times New Roman</option>
-      <option>Courier New</option>
-      <option>TeX Gyre Heros</option>
+      <option${editorState.textFontFamily === "Arial" ? " selected" : ""}>Arial</option>
+      <option${editorState.textFontFamily === "Helvetica" ? " selected" : ""}>Helvetica</option>
+      <option${editorState.textFontFamily === "Times New Roman" ? " selected" : ""}>Times New Roman</option>
+      <option${editorState.textFontFamily === "Courier New" ? " selected" : ""}>Courier New</option>
+      <option${editorState.textFontFamily === "TeX Gyre Heros" ? " selected" : ""}>TeX Gyre Heros</option>
     </select>
-    <input class="secondary-input" data-text-control="size" aria-label="Font size" value="12" />
+    <input class="secondary-input" data-text-control="size" aria-label="Font size" value="${editorState.textFontSize}" />
     ${secondaryDivider()}
-    ${colorButton("text-black", "Black text", "#000000", editorState.textColor === "#000000")}
-    ${colorButton("text-red", "Red text", "#ff0000", editorState.textColor === "#ff0000")}
-    ${colorButton("text-blue", "Blue text", "#0000ff", editorState.textColor === "#0000ff")}
-    ${colorButton("text-green", "Green text", "#0a8f3c", editorState.textColor === "#0a8f3c")}
+    ${colorButton("text-black", "Text color", "#000000", editorState.textColor === "#000000")}
+    ${secondaryDivider()}
+    ${toolbarButton("text-align-left", "Align left", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M5 10h9"/><path d="M5 14h12"/><path d="M5 18h8"/></svg>`, align === "left")}
+    ${toolbarButton("text-align-center", "Align center", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M7 10h10"/><path d="M6 14h12"/><path d="M8 18h8"/></svg>`, align === "center")}
+    ${toolbarButton("text-align-right", "Align right", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M10 10h9"/><path d="M7 14h12"/><path d="M11 18h8"/></svg>`, align === "right")}
+    ${toolbarButton("text-align-justify", "Justify", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M5 10h14"/><path d="M5 14h14"/><path d="M5 18h14"/></svg>`, align === "justify")}
+    ${secondaryDivider()}
+    ${toolbarButton("text-bold", "Bold", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h5.4a3.1 3.1 0 0 1 0 6.2H8z"/><path d="M8 11.2h6.2a3.4 3.4 0 0 1 0 6.8H8z"/></svg>`, editorState.textBold)}
+    ${toolbarButton("text-italic", "Italic", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h-4"/><path d="M14 19h-4"/><path d="M13 5 11 19"/></svg>`, editorState.textItalic)}
+    ${toolbarButton("text-underline", "Underline", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v7a4 4 0 0 0 8 0V5"/><path d="M6 19h12"/></svg>`, editorState.textUnderline)}
+    ${secondaryDivider()}
+    ${toolbarButton("text-chemical", "Chemical", `<svg viewBox="0 0 24 24" aria-hidden="true"><text x="3.6" y="15.4" fill="currentColor" font-size="10.8" font-family="Arial, Helvetica, sans-serif" font-weight="700">CH</text><text x="16.1" y="18.1" fill="currentColor" font-size="6.4" font-family="Arial, Helvetica, sans-serif" font-weight="700">2</text><text x="15.8" y="9.1" fill="currentColor" font-size="5.8" font-family="Arial, Helvetica, sans-serif" font-weight="700">+</text></svg>`, editorState.textScript === "chemical")}
+    ${toolbarButton("text-subscript", "Subscript", `<svg viewBox="0 0 24 24" aria-hidden="true"><text x="4.2" y="14.8" fill="currentColor" font-size="12.2" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-weight="700">X</text><text x="15.6" y="18.1" fill="currentColor" font-size="7" font-family="Arial, Helvetica, sans-serif" font-weight="700">2</text></svg>`, editorState.textScript === "subscript")}
+    ${toolbarButton("text-superscript", "Superscript", `<svg viewBox="0 0 24 24" aria-hidden="true"><text x="4.2" y="14.8" fill="currentColor" font-size="12.2" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-weight="700">X</text><text x="15.4" y="9.1" fill="currentColor" font-size="7" font-family="Arial, Helvetica, sans-serif" font-weight="700">2</text></svg>`, editorState.textScript === "superscript")}
   `;
 }
 
@@ -1168,13 +1297,743 @@ function renderSecondaryToolbar() {
   syncPrimaryBondToolButton();
 }
 
+const textEditorController = createTextEditorController({
+  getActiveEditor: () => activeTextEditor,
+  setActiveEditor: (editor) => {
+    activeTextEditor = editor;
+  },
+  textEditorLayer,
+  editorState,
+  textLength,
+  runsPlainText,
+  normalizeRuns: normalizeEditorSourceRuns,
+  normalizeSelection: (plainText, selectionOffsets) => normalizeEditorSelectionOffsetsModel(plainText, selectionOffsets),
+  splitRunsForSelection,
+  styleAtOffset: styleAtEditorOffsetModel,
+  cssColorToHex,
+  editorRootBaseStyle,
+  editorSourceRunsFromSession,
+  previewTextRunsFromKernel,
+  displayRunsForEditor,
+  renderRunNode: editorRunNode,
+  syncTextToolbarStateFromSession,
+  positionActiveTextEditor,
+  syncTextEditorSize,
+  updateCustomEditorChrome,
+  defaultTextEditorLineHeight,
+  editorOffsetFromPointerEvent,
+  buildEditorCaretLayout,
+  editorLineIndexForOffset,
+  measureEditorCaretRect,
+  nearestOffsetOnLine,
+});
+
+function focusActiveTextEditor() {
+  textEditorController.focusActiveTextEditor();
+}
+
+function openTextEditorAt(point) {
+  finishActiveTextEditor(true);
+  const session = parseEngineJson(state.editorEngine?.beginTextEdit?.(point.x, point.y), null);
+  if (!session) {
+    renderEditorOverlay(currentEditorRenderList());
+    return;
+  }
+  renderEditorOverlay(currentEditorRenderList());
+  openTextEditorSession(session);
+}
+
+function openTextEditorSession(session) {
+  textEditorController.openTextEditorSession(session);
+}
+
+function editorSourceRunsFromSession(session, root) {
+  return createEditorSourceRunsFromSession(session, root, {
+    defaultFontFamily: editorState.textFontFamily,
+    defaultFontSize: editorState.textFontSize,
+    defaultTextColor: editorState.textColor,
+    normalizeRuns: normalizeEditorSourceRuns,
+    baseStyle: editorRootBaseStyle,
+  });
+}
+
+function previewTextRunsFromKernel(sourceRuns, root, options = {}) {
+  return previewTextRunsFromEngine(sourceRuns, root, {
+    engine: state.editorEngine,
+    parseJson: parseEngineJson,
+    baseStyle: editorRootBaseStyle,
+    normalizeRuns: normalizeEditorSourceRuns,
+    runsPlainText,
+    defaultTextAlign: editorState.textAlign,
+    defaultLineHeight: defaultTextEditorLineHeight,
+    target: options.target || activeTextEditor?.session?.target,
+  });
+}
+
+function displayRunsForEditor(sourceRuns, root, options = {}) {
+  return resolveDisplayRunsForEditor(sourceRuns, root, {
+    engine: state.editorEngine,
+    parseJson: parseEngineJson,
+    baseStyle: editorRootBaseStyle,
+    normalizeRuns: normalizeEditorSourceRuns,
+    runsPlainText,
+    defaultTextAlign: editorState.textAlign,
+    defaultLineHeight: defaultTextEditorLineHeight,
+    target: options.target || activeTextEditor?.session?.target,
+  });
+}
+
+function fillTextEditorContent(root, session, selectionOffsets = null) {
+  renderTextEditorContent(root, session, selectionOffsets, {
+    resolveDisplayRuns: (nextSession) => displayRunsForEditor(
+      Array.isArray(nextSession.sourceRuns) && nextSession.sourceRuns.length
+        ? nextSession.sourceRuns
+        : nextSession.text
+          ? [{ text: String(nextSession.text || ""), script: nextSession.defaultChemical ? "chemical" : "normal" }]
+          : [],
+      activeTextEditor?.root || root,
+      { target: nextSession.target },
+    ),
+    renderRunNode: editorRunNode,
+  });
+}
+
+function editorRootBaseStyle(root) {
+  return {
+    fontFamily: root.style.fontFamily || editorState.textFontFamily,
+    fontSize: Number.parseFloat(root.style.fontSize || `${editorState.textFontSize}`),
+    fill: cssColorToHex(root.style.color || editorState.textColor),
+    fontWeight: 400,
+    fontStyle: "normal",
+    underline: false,
+    script: root.dataset.defaultChemical === "true" ? "chemical" : "normal",
+  };
+}
+
+function editorRunNode(run, text, selected = false) {
+  const span = document.createElement("span");
+  span.className = selected ? "text-editor-run is-selected" : "text-editor-run";
+  span.textContent = text;
+  if (run.fontFamily) {
+    span.style.fontFamily = run.fontFamily;
+  }
+  if (run.fontSize) {
+    span.style.fontSize = `${Number(run.fontSize)}px`;
+  }
+  if (run.fill) {
+    span.style.color = run.fill;
+  }
+  if (Number(run.fontWeight || 400) >= 700) {
+    span.style.fontWeight = "700";
+  }
+  if (String(run.fontStyle || "normal").toLowerCase() === "italic") {
+    span.style.fontStyle = "italic";
+  }
+  if (run.underline) {
+    span.style.textDecoration = "underline";
+  }
+  if (run.script === "subscript") {
+    span.dataset.script = "subscript";
+    span.style.verticalAlign = "sub";
+    span.style.fontSize = `${Math.max(7, Number(run.fontSize || editorState.textFontSize) * editorScriptScale("subscript"))}px`;
+  } else if (run.script === "superscript") {
+    span.dataset.script = "superscript";
+    span.style.verticalAlign = "super";
+    span.style.fontSize = `${Math.max(7, Number(run.fontSize || editorState.textFontSize) * editorScriptScale("superscript"))}px`;
+  } else if (run.script === "chemical") {
+    span.dataset.script = "chemical";
+  }
+  return span;
+}
+
+function syncTextToolbarStateFromSession(session) {
+  editorState.textFontFamily = session.fontFamily || editorState.textFontFamily;
+  editorState.textFontSize = Number(session.fontSize || editorState.textFontSize);
+  editorState.textColor = session.fill || editorState.textColor;
+  editorState.textAlign = session.align || "left";
+  editorState.textScript = session.defaultChemical ? "chemical" : "normal";
+  editorState.textBold = false;
+  editorState.textItalic = false;
+  editorState.textUnderline = false;
+  renderSecondaryToolbar();
+}
+
+function positionActiveTextEditor() {
+  if (!activeTextEditor?.root) {
+    return;
+  }
+  const { target } = activeTextEditor.session;
+  const point = worldToLayerPoint({ x: target.x, y: target.y });
+  if (!point) {
+    return;
+  }
+  const root = activeTextEditor.root;
+  const align = root.style.textAlign || "left";
+  const anchorOffset = editorAnchorOffset(root, activeTextEditor.session, {
+    preferSessionOffset: !activeTextEditor.hasUserEdited,
+  });
+  const scale = editorDisplayScale();
+  root.style.left = `${point.x}px`;
+  root.style.top = `${point.y}px`;
+  root.style.transform = `translate(${-anchorOffset.x * scale}px, ${-anchorOffset.y * scale}px) scale(${scale})`;
+  root.dataset.anchor = align === "right"
+    ? "end"
+    : align === "center"
+      ? "middle"
+      : "start";
+}
+
+function syncTextEditorSize() {
+  if (!activeTextEditor?.root) {
+    return;
+  }
+  const root = activeTextEditor.root;
+  const display = activeTextEditor.display || root;
+  display.style.width = "max-content";
+  display.style.height = "auto";
+  const width = Math.max(8, Math.ceil(display.scrollWidth + 2));
+  const height = Math.max(Number.parseFloat(root.style.minHeight || "15"), display.scrollHeight + 2);
+  root.style.width = `${width}px`;
+  root.style.height = `${height}px`;
+  display.style.width = `${width}px`;
+  display.style.height = `${height}px`;
+  updateCustomEditorChrome();
+  positionActiveTextEditor();
+}
+
+function defaultTextEditorLineHeight(fontSize) {
+  const size = Number(fontSize || editorState.textFontSize) || editorState.textFontSize;
+  return Math.max(size, size * 1.05);
+}
+
+function editorDisplayScale() {
+  return Math.max(0.01, viewportScale());
+}
+
+function editorGlyphProfiles() {
+  if (!sharedGlyphProfiles) {
+    throw new Error("Shared glyph profiles have not loaded yet");
+  }
+  return sharedGlyphProfiles;
+}
+
+function editorGlyphLayoutConfig() {
+  return editorGlyphProfiles().layout;
+}
+
+function lookupEditorGlyphProfile(character) {
+  return lookupGlyphProfile(sharedGlyphProfiles, character);
+}
+
+function editorScriptScale(script) {
+  return computeEditorScriptScale(sharedGlyphProfiles, script);
+}
+
+function editorScriptBaselineShift(baseFontSize, script) {
+  return computeEditorScriptBaselineShift(sharedGlyphProfiles, baseFontSize, script);
+}
+
+function editorChargeSignBaselineAdjustment(profile, baseFontSize, script) {
+  return computeEditorChargeSignBaselineAdjustment(sharedGlyphProfiles, profile, baseFontSize, script);
+}
+
+function expandedEditorRuns(sourceRuns) {
+  if (!(sourceRuns || []).length) {
+    return [];
+  }
+  return displayRunsForEditor(sourceRuns, activeTextEditor?.root);
+}
+
+function effectiveEditorRunFontSize(run, fallbackFontSize) {
+  const base = Number(run.fontSize || fallbackFontSize || editorState.textFontSize);
+  return Math.max(7, base * editorScriptScale(run.script));
+}
+
+function effectiveEditorRunBaselineShift(run, fallbackFontSize) {
+  const base = Number(run.fontSize || fallbackFontSize || editorState.textFontSize);
+  return editorScriptBaselineShift(base, run.script);
+}
+
+function buildEditorTextLayout() {
+  if (!activeTextEditor?.root) {
+    return null;
+  }
+  const fallbackFontSize = Number.parseFloat(activeTextEditor.root.style.fontSize || `${editorState.textFontSize}`) || editorState.textFontSize;
+  const lineHeight = Number.parseFloat(activeTextEditor.root.style.lineHeight || `${defaultTextEditorLineHeight(fallbackFontSize)}`) || defaultTextEditorLineHeight(fallbackFontSize);
+  const runs = expandedEditorRuns(activeTextEditor.sourceRuns || []);
+  const cacheKey = JSON.stringify({
+    runs,
+    fontSize: fallbackFontSize,
+    lineHeight,
+  });
+  if (activeTextEditor.layoutCache?.key === cacheKey) {
+    return activeTextEditor.layoutCache;
+  }
+
+  const lines = [];
+  const characters = [];
+  const caretPositions = [];
+  let lineIndex = 0;
+  let x = 0;
+  let offset = 0;
+  let line = {
+    index: 0,
+    startOffset: 0,
+    endOffset: 0,
+    y: 0,
+    height: lineHeight,
+    caretOffsets: [],
+  };
+  lines.push(line);
+  caretPositions.push({ offset: 0, x: 0, y: 1, height: Math.max(1, lineHeight - 2), lineIndex: 0 });
+  line.caretOffsets.push(caretPositions[0]);
+
+  for (const run of runs) {
+    const baseFontSize = Number(run.fontSize || fallbackFontSize || editorState.textFontSize);
+    const runFontSize = effectiveEditorRunFontSize(run, fallbackFontSize);
+    const baselineShift = effectiveEditorRunBaselineShift(run, fallbackFontSize);
+    for (const ch of String(run.text || "")) {
+      if (ch === "\n") {
+        line.endOffset = offset;
+        lineIndex += 1;
+        x = 0;
+        line = {
+          index: lineIndex,
+          startOffset: offset + 1,
+          endOffset: offset + 1,
+          y: lineIndex * lineHeight,
+          height: lineHeight,
+          caretOffsets: [],
+        };
+        lines.push(line);
+        offset += 1;
+        const caret = { offset, x: 0, y: line.y + 1, height: Math.max(1, lineHeight - 2), lineIndex };
+        caretPositions.push(caret);
+        line.caretOffsets.push(caret);
+        continue;
+      }
+      const profile = lookupEditorGlyphProfile(ch);
+      const baselineY = line.y + lineHeight * 0.82 + baselineShift
+        + editorChargeSignBaselineAdjustment(profile, baseFontSize, run.script);
+      const width = (profile.advanceEm + editorGlyphLayoutConfig().trackingEm) * runFontSize;
+      const rawTop = baselineY + (profile.inkTopEm - profile.padYEm) * runFontSize;
+      const rawBottom = baselineY + (profile.inkBottomEm + profile.padYEm) * runFontSize;
+      const charTop = Math.max(line.y + 1, rawTop);
+      const charHeight = Math.max(1, Math.min(lineHeight - 2, rawBottom - rawTop));
+      characters.push({
+        offset,
+        char: ch,
+        x,
+        width,
+        y: charTop,
+        height: charHeight,
+        lineIndex,
+      });
+      x += width;
+      offset += 1;
+      const caret = { offset, x, y: line.y + 1, height: Math.max(1, lineHeight - 2), lineIndex };
+      caretPositions.push(caret);
+      line.caretOffsets.push(caret);
+      line.endOffset = offset;
+    }
+  }
+
+  if (!lines.length) {
+    lines.push({
+      index: 0,
+      startOffset: 0,
+      endOffset: 0,
+      y: 0,
+      height: lineHeight,
+      caretOffsets: [caretPositions[0]],
+    });
+  }
+
+  const layout = {
+    key: cacheKey,
+    text: activeTextEditor.plainText,
+    lineHeight,
+    lines,
+    characters,
+    caretPositions,
+  };
+  activeTextEditor.layoutCache = layout;
+  return layout;
+}
+
+function editorAnchorOffset(root, session, options = {}) {
+  const preferSessionOffset = Boolean(options.preferSessionOffset);
+  if (session?.target?.kind !== "endpoint-label") {
+    return { x: 0, y: 0 };
+  }
+  const sessionOffset = normalizeSessionAnchorOffset(session?.anchorOffset);
+  if (preferSessionOffset && sessionOffset) {
+    return sessionOffset;
+  }
+  const measuredOffset = measureEndpointEditorAnchorOffset(root);
+  if (measuredOffset) {
+    return measuredOffset;
+  }
+  if (sessionOffset) {
+    return sessionOffset;
+  }
+  const layout = buildEditorTextLayout();
+  if (layout) {
+    const character = layout.characters.find((entry) => /[A-Z]/.test(entry.char))
+      || layout.characters.find((entry) => /\S/.test(entry.char));
+    if (character) {
+      return {
+        x: character.x + character.width * 0.5,
+        y: character.y + character.height * 0.5,
+      };
+    }
+  }
+  return {
+    x: 0,
+    y: Number.parseFloat(root.style.lineHeight || `${defaultTextEditorLineHeight(editorState.textFontSize)}`) * 0.5,
+  };
+}
+
+function normalizeSessionAnchorOffset(value) {
+  if (!Array.isArray(value) || value.length < 2) {
+    return null;
+  }
+  const x = Number(value[0]);
+  const y = Number(value[1]);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return null;
+  }
+  return { x, y };
+}
+
+function measureEndpointEditorAnchorOffset(root) {
+  const layout = buildEditorTextLayout();
+  if (!layout) {
+    return null;
+  }
+  const character = layout.characters.find((entry) => /[A-Z]/.test(entry.char))
+    || layout.characters.find((entry) => /\S/.test(entry.char));
+  if (!character) {
+    return null;
+  }
+  return {
+    x: character.x + character.width * 0.5,
+    y: character.y + character.height * 0.5,
+  };
+}
+
+function estimatedEditorCharWidth(character, fontSize) {
+  return computeEstimatedEditorCharWidth(sharedGlyphProfiles, character, fontSize);
+}
+
+function estimateTextRunsWidth(runs, fallbackFontSize = editorState.textFontSize) {
+  return computeEstimateTextRunsWidth(
+    sharedGlyphProfiles,
+    runs,
+    fallbackFontSize,
+    editorState.textFontSize,
+  );
+}
+
+function placeCaretAtEnd(element) {
+  if (!activeTextEditor) {
+    return;
+  }
+  const offset = textLength(activeTextEditor.plainText);
+  setActiveEditorSelection({ anchor: offset, focus: offset }, false);
+  renderActiveTextEditorFromModel();
+}
+
+function selectAllEditorText(element) {
+  if (!activeTextEditor) {
+    return;
+  }
+  setActiveEditorSelection({ anchor: 0, focus: textLength(activeTextEditor.plainText) }, false);
+  renderActiveTextEditorFromModel();
+}
+
+function captureEditorCaretOffset(root) {
+  const selectionOffsets = currentEditorSelectionOffsets();
+  if (!selectionOffsets || !selectionOffsets.collapsed) {
+    return null;
+  }
+  return selectionOffsets.anchor;
+}
+
+function restoreEditorCaretOffset(root, offset) {
+  if (!Number.isFinite(offset)) {
+    placeCaretAtEnd(root);
+    return;
+  }
+  setActiveEditorSelection({ anchor: offset, focus: offset }, true);
+}
+
+function updateCustomEditorChrome() {
+  if (!activeTextEditor?.root || !activeTextEditor.display || !activeTextEditor.caret || !activeTextEditor.input) {
+    return;
+  }
+  const selection = currentEditorSelectionOffsets();
+  const caret = activeTextEditor.caret;
+  const input = activeTextEditor.input;
+  if (!selection || !selection.collapsed) {
+    caret.style.display = "none";
+    const focusRect = measureEditorCaretRect(selection?.focus ?? textLength(activeTextEditor.plainText));
+    positionHiddenEditorInput(focusRect);
+    return;
+  }
+  const caretRect = measureEditorCaretRect(selection.focus);
+  if (!caretRect) {
+    caret.style.display = "none";
+    positionHiddenEditorInput(null);
+    return;
+  }
+  caret.style.display = "block";
+  caret.style.left = `${caretRect.x}px`;
+  caret.style.top = `${caretRect.y}px`;
+  caret.style.height = `${caretRect.height}px`;
+  positionHiddenEditorInput(caretRect);
+}
+
+function positionHiddenEditorInput(caretRect) {
+  if (!activeTextEditor?.input) {
+    return;
+  }
+  const input = activeTextEditor.input;
+  if (!caretRect) {
+    input.style.left = "0px";
+    input.style.top = "0px";
+    return;
+  }
+  input.style.left = `${caretRect.x}px`;
+  input.style.top = `${caretRect.y}px`;
+  input.style.height = `${Math.max(1, caretRect.height)}px`;
+}
+
+function measureEditorCaretRect(offset) {
+  const layout = buildEditorTextLayout();
+  if (!layout) {
+    return null;
+  }
+  const caret = layout.caretPositions[Math.max(0, Math.min(layout.caretPositions.length - 1, offset))];
+  if (!caret) {
+    return null;
+  }
+  return {
+    x: caret.x,
+    y: caret.y,
+    width: 0,
+    height: caret.height,
+  };
+}
+
+function buildEditorCaretLayout() {
+  const layout = buildEditorTextLayout();
+  if (!layout) {
+    return null;
+  }
+  return layout;
+}
+
+function editorLineIndexForOffset(offset) {
+  const layout = buildEditorCaretLayout();
+  if (!layout) {
+    return -1;
+  }
+  for (let index = 0; index < layout.lines.length; index += 1) {
+    const line = layout.lines[index];
+    if (line.caretOffsets.some((entry) => entry.offset === offset)) {
+      return index;
+    }
+  }
+  return layout.lines.length - 1;
+}
+
+function nearestOffsetOnLine(line, targetX) {
+  if (!line?.caretOffsets?.length) {
+    return 0;
+  }
+  return line.caretOffsets.reduce((best, entry) => {
+    const bestDistance = Math.abs(best.x - targetX);
+    const nextDistance = Math.abs(entry.x - targetX);
+    if (nextDistance < bestDistance) {
+      return entry;
+    }
+    return best;
+  }).offset;
+}
+
+function editorOffsetFromPointerEvent(event) {
+  const layout = buildEditorCaretLayout();
+  if (!activeTextEditor?.display || !layout) {
+    return 0;
+  }
+  const rect = activeTextEditor.display.getBoundingClientRect();
+  const localX = event.clientX - rect.left;
+  const localY = event.clientY - rect.top;
+  let line = layout.lines[0];
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const candidate of layout.lines) {
+    const centerY = candidate.y + candidate.height * 0.5;
+    const distance = Math.abs(centerY - localY);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      line = candidate;
+    }
+  }
+  if (!line) {
+    return 0;
+  }
+  return nearestOffsetOnLine(line, localX);
+}
+
+function handleTextEditorPointerDown(event) {
+  textEditorController.handleTextEditorPointerDown(event);
+}
+
+function handleTextEditorPointerMove(event) {
+  textEditorController.handleTextEditorPointerMove(event);
+}
+
+function handleTextEditorPointerUp(event) {
+  textEditorController.handleTextEditorPointerUp(event);
+}
+
+function handleTextEditorKeyDown(event) {
+  textEditorController.handleTextEditorKeyDown(event);
+}
+
+function finishActiveTextEditor(commit = true) {
+  if (!activeTextEditor) {
+    return false;
+  }
+  const { root, session, input } = activeTextEditor;
+  input?.blur?.();
+  const selection = window.getSelection?.();
+  selection?.removeAllRanges?.();
+  const nextSession = buildCommittedTextSession(session, root);
+  textEditorLayer.replaceChildren();
+  activeTextEditor = null;
+  if (!commit) {
+    renderDocument();
+    return false;
+  }
+  const changed = state.editorEngine?.applyTextEdit?.(JSON.stringify(nextSession));
+  syncDocumentFromEngine();
+  renderDocument();
+  return Boolean(changed);
+}
+
+function buildCommittedTextSession(session, root) {
+  const sourceRuns = normalizeEditorSourceRuns(
+    activeTextEditor?.sourceRuns || [],
+    editorRootBaseStyle(root),
+  );
+  const anchorOffset = editorAnchorOffset(root, session);
+  return {
+    ...session,
+    text: runsPlainText(sourceRuns),
+    sourceRuns,
+    fontFamily: root.style.fontFamily || editorState.textFontFamily,
+    fontSize: Number.parseFloat(root.style.fontSize || `${editorState.textFontSize}`),
+    fill: cssColorToHex(root.style.color || editorState.textColor),
+    align: root.style.textAlign || editorState.textAlign,
+    lineHeight: Number.parseFloat(root.style.lineHeight || `${defaultTextEditorLineHeight(editorState.textFontSize)}`),
+    anchorOffset: session.target?.kind === "endpoint-label" ? [anchorOffset.x, anchorOffset.y] : undefined,
+    measuredSize: [root.offsetWidth, root.offsetHeight],
+    defaultChemical: root.dataset.defaultChemical === "true",
+  };
+}
+
+function normalizeEditorSourceRuns(runs, fallbackStyle) {
+  return normalizeEditorSourceRunsModel(runs, fallbackStyle, cssColorToHex);
+}
+
+function cssColorToHex(color) {
+  if (!color) {
+    return "#000000";
+  }
+  if (color.startsWith("#")) {
+    return color;
+  }
+  const match = color.match(/\d+/g);
+  if (!match || match.length < 3) {
+    return color;
+  }
+  return `#${match.slice(0, 3).map((value) => Number(value).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function applyTextAlignment(align) {
+  if (!activeTextEditor?.root) {
+    return;
+  }
+  activeTextEditor.root.style.textAlign = align === "justify" ? "justify" : align;
+  syncTextEditorSize();
+  positionActiveTextEditor();
+}
+
+function currentEditorSelectionOffsets() {
+  return textEditorController.currentEditorSelectionOffsets();
+}
+
+function restoreEditorSelectionOffsets(selectionOffsets) {
+  setActiveEditorSelection(selectionOffsets, false);
+}
+
+function normalizeEditorSelectionOffsets(selectionOffsets) {
+  if (!activeTextEditor) {
+    return null;
+  }
+  return normalizeEditorSelectionOffsetsModel(activeTextEditor.plainText, selectionOffsets);
+}
+
+function setActiveEditorSelection(selectionOffsets, syncDom = true) {
+  return textEditorController.setActiveEditorSelection(selectionOffsets, syncDom);
+}
+
+function renderActiveTextEditorFromModel(selectionOffsets = null) {
+  textEditorController.renderActiveTextEditorFromModel(selectionOffsets);
+}
+
+function syncPendingEditorStyleWithSelection() {
+  textEditorController.syncPendingEditorStyleWithSelection();
+}
+
+function handleTextEditorBeforeInput(event, root) {
+  textEditorController.handleTextEditorBeforeInput(event, root);
+}
+
+function applyTextFormatCommand(command) {
+  textEditorController.applyTextFormatCommand(command);
+}
+
+function applyTextScript(script) {
+  textEditorController.applyTextScript(script);
+}
+
+function applyTextInlineStyle(styles) {
+  textEditorController.applyTextInlineStyle(styles);
+}
+
+function applyChemicalFormat() {
+  textEditorController.applyChemicalFormat();
+}
+
+function insertTextAtSelection(text) {
+  textEditorController.insertTextAtSelection(text);
+}
+
 function setActiveTool(toolButton) {
+  const nextTool = toolButton?.dataset?.tool || editorState.activeTool;
+  if (editorState.activeTool === "text" && nextTool !== "text") {
+    finishActiveTextEditor(true);
+  }
   editorState.activeTool = toolButton?.dataset?.tool || editorState.activeTool;
   document.querySelectorAll(".tool-button").forEach((button) => {
     button.classList.toggle("is-active", button === toolButton);
   });
   syncEngineToolState();
   renderSecondaryToolbar();
+  syncCanvasCursor();
 }
 
 document.querySelectorAll(".tool-button").forEach((button) => {
@@ -1189,7 +2048,32 @@ secondaryToolbar?.addEventListener("click", (event) => {
     return;
   }
   const value = button.dataset.secondaryValue;
-  if (value === "select-free" || value === "select-box") {
+  if (value?.startsWith("text-align-")) {
+    editorState.textAlign = value.replace("text-align-", "");
+    applyTextAlignment(editorState.textAlign);
+  } else if (value === "text-bold") {
+    editorState.textBold = !editorState.textBold;
+    applyTextFormatCommand("bold");
+  } else if (value === "text-italic") {
+    editorState.textItalic = !editorState.textItalic;
+    applyTextFormatCommand("italic");
+  } else if (value === "text-underline") {
+    editorState.textUnderline = !editorState.textUnderline;
+    applyTextFormatCommand("underline");
+  } else if (value === "text-chemical") {
+    editorState.textScript = "chemical";
+    applyChemicalFormat();
+  } else if (value === "text-subscript") {
+    editorState.textScript = "subscript";
+    applyTextScript("subscript");
+  } else if (value === "text-superscript") {
+    editorState.textScript = "superscript";
+    applyTextScript("superscript");
+  } else if (value?.startsWith("text-")) {
+    const colors = { "text-black": "#000000", "text-red": "#ff0000", "text-blue": "#0000ff", "text-green": "#0a8f3c" };
+    editorState.textColor = colors[value] || editorState.textColor;
+    applyTextInlineStyle({ color: editorState.textColor });
+  } else if (value === "select-free" || value === "select-box") {
     editorState.selectMode = value.replace("select-", "");
   } else if (value?.startsWith("bond-")) {
     editorState.bondType = value.replace("bond-", "");
@@ -1197,9 +2081,6 @@ secondaryToolbar?.addEventListener("click", (event) => {
     editorState.shapeStyle = value.replace("shape-", "");
   } else if (value?.startsWith("ring-") || value === "benzene") {
     editorState.template = value;
-  } else if (value?.startsWith("text-")) {
-    const colors = { "text-black": "#000000", "text-red": "#ff0000", "text-blue": "#0000ff", "text-green": "#0a8f3c" };
-    editorState.textColor = colors[value] || editorState.textColor;
   } else if (value?.startsWith("stroke-")) {
     const colors = { "stroke-black": "#000000", "stroke-red": "#ff0000", "stroke-blue": "#0000ff" };
     editorState.shapeStroke = colors[value] || editorState.shapeStroke;
@@ -1209,9 +2090,31 @@ secondaryToolbar?.addEventListener("click", (event) => {
   }
   syncEngineToolState();
   renderSecondaryToolbar();
+  focusActiveTextEditor();
+});
+
+secondaryToolbar?.addEventListener("change", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) {
+    return;
+  }
+  const control = target.dataset.textControl;
+  if (control === "font") {
+    editorState.textFontFamily = target.value || editorState.textFontFamily;
+    applyTextInlineStyle({ fontFamily: editorState.textFontFamily });
+  } else if (control === "size") {
+    const size = Number(target.value || editorState.textFontSize);
+    if (Number.isFinite(size) && size > 0) {
+      editorState.textFontSize = Math.max(6, Math.min(288, Math.round(size)));
+      applyTextInlineStyle({ fontSize: `${editorState.textFontSize}px` });
+    }
+  }
+  renderSecondaryToolbar();
+  focusActiveTextEditor();
 });
 
 renderSecondaryToolbar();
+syncCanvasCursor();
 
 function svgPointFromEvent(event) {
   const screenMatrix = viewerSvg.getScreenCTM?.();
@@ -1236,7 +2139,8 @@ function editorBondStrokeWidth() {
 }
 
 function routeEditorPointerEvents() {
-  return isEditingRustDocument() && (editorState.activeTool === "bond" || editorState.activeTool === "select");
+  return isEditingRustDocument()
+    && (editorState.activeTool === "bond" || editorState.activeTool === "select" || editorState.activeTool === "text");
 }
 
 function isDocumentPreviewPrimitive(primitive) {
@@ -1259,6 +2163,7 @@ function handleEditorPointerMove(event) {
   const renderList = currentEditorRenderList();
   maybeAutoExpandEditorViewport(renderList);
   renderEditorOverlay(renderList);
+  positionActiveTextEditor();
 }
 
 function handleEditorPointerDown(event) {
@@ -1267,6 +2172,11 @@ function handleEditorPointerDown(event) {
   }
   const point = svgPointFromEvent(event);
   state.lastEditFocusPoint = point;
+  if (editorState.activeTool === "text") {
+    event.preventDefault();
+    openTextEditorAt(point);
+    return;
+  }
   event.preventDefault();
   viewerSvg.setPointerCapture?.(event.pointerId);
   state.editorEngine.pointerDown(point.x, point.y, event.altKey);
@@ -1275,6 +2185,9 @@ function handleEditorPointerDown(event) {
 }
 
 function handleEditorPointerUp(event) {
+  if (editorState.activeTool === "text") {
+    return;
+  }
   if (!routeEditorPointerEvents()) {
     return;
   }
@@ -1291,8 +2204,10 @@ function handleEditorPointerLeave() {
   if (!isEditingRustDocument()) {
     return;
   }
-  state.editorEngine.clearInteraction();
-  renderEditorOverlay();
+  if (editorState.activeTool !== "text") {
+    state.editorEngine.clearInteraction();
+    renderEditorOverlay();
+  }
 }
 
 function renderEditorOverlay(renderList = null) {
@@ -1348,6 +2263,23 @@ function renderEditorOverlay(renderList = null) {
         class: className,
         "data-role": primitive.role,
       }));
+    } else if (primitive.kind === "rect") {
+      const classByRole = {
+        "hover-text-box": "editor-text-box-focus",
+        "hover-label-glyph": "editor-label-glyph-focus",
+      };
+      const className = classByRole[primitive.role];
+      if (!className) {
+        continue;
+      }
+      overlay.appendChild(makeSvgNode("rect", {
+        x: primitive.x,
+        y: primitive.y,
+        width: primitive.width,
+        height: primitive.height,
+        class: className,
+        "data-role": primitive.role,
+      }));
     } else if (primitive.kind === "circle" && primitive.center) {
       const classByRole = {
         "hover-endpoint": "editor-endpoint-halo",
@@ -1381,6 +2313,9 @@ viewerSvg?.addEventListener("pointercancel", () => {
   renderEditorOverlay();
 });
 viewerSvg?.addEventListener("pointerleave", handleEditorPointerLeave);
+viewerContainer?.addEventListener("scroll", () => {
+  positionActiveTextEditor();
+});
 
 window.addEventListener("resize", () => {
   if (!state.currentDocument) {
@@ -1482,6 +2417,7 @@ function renderDocument() {
     .map(([type, count]) => `${type}: ${count}`)
     .join(" | ");
   renderEditorOverlay();
+  positionActiveTextEditor();
 }
 
 function fitView() {
@@ -1527,6 +2463,7 @@ async function loadDocument(path) {
 }
 
 async function loadAndRender() {
+  finishActiveTextEditor(false);
   viewerTitle.textContent = "Loading...";
   try {
     if (state.currentPath) {
@@ -1567,7 +2504,7 @@ async function loadAndRender() {
 }
 
 try {
-  await initializeChemcoreEngine();
+  await Promise.all([initializeChemcoreEngine(), sharedGlyphProfilesReady]);
   await loadAndRender();
 } catch (error) {
   viewerTitle.textContent = "Runtime load failed";

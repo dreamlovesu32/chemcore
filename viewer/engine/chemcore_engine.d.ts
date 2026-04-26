@@ -4,6 +4,8 @@
 export class WasmEngine {
     free(): void;
     [Symbol.dispose](): void;
+    applyTextEdit(session_json: string): boolean;
+    beginTextEdit(x: number, y: number): string;
     canRedo(): boolean;
     canUndo(): boolean;
     clearInteraction(): void;
@@ -14,6 +16,7 @@ export class WasmEngine {
     pointerDown(x: number, y: number, alt_key: boolean): void;
     pointerMove(x: number, y: number, alt_key: boolean): void;
     pointerUp(x: number, y: number, alt_key: boolean): void;
+    previewTextRuns(session_json: string): string;
     redo(): boolean;
     renderListJson(): string;
     replaceHoveredEndpointLabel(label: string): boolean;
@@ -27,6 +30,8 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_wasmengine_free: (a: number, b: number) => void;
+    readonly wasmengine_applyTextEdit: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmengine_beginTextEdit: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_canRedo: (a: number) => number;
     readonly wasmengine_canUndo: (a: number) => number;
     readonly wasmengine_clearInteraction: (a: number) => void;
@@ -37,6 +42,7 @@ export interface InitOutput {
     readonly wasmengine_pointerDown: (a: number, b: number, c: number, d: number) => void;
     readonly wasmengine_pointerMove: (a: number, b: number, c: number, d: number) => void;
     readonly wasmengine_pointerUp: (a: number, b: number, c: number, d: number) => void;
+    readonly wasmengine_previewTextRuns: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_redo: (a: number) => number;
     readonly wasmengine_renderListJson: (a: number) => [number, number, number, number];
     readonly wasmengine_replaceHoveredEndpointLabel: (a: number, b: number, c: number) => number;
@@ -44,10 +50,10 @@ export interface InitOutput {
     readonly wasmengine_stateJson: (a: number) => [number, number, number, number];
     readonly wasmengine_undo: (a: number) => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;
-    readonly __externref_table_dealloc: (a: number) => void;
-    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+    readonly __externref_table_dealloc: (a: number) => void;
+    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __wbindgen_start: () => void;
 }
 

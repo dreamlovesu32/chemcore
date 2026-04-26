@@ -329,6 +329,78 @@ button {
   cursor: crosshair;
 }
 
+.text-editor-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.text-editor {
+  position: absolute;
+  display: inline-block;
+  min-width: 8px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: #ffffff;
+  color: #000000;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+  overflow: visible;
+  pointer-events: auto;
+  box-shadow: inset 0 0 0 1px #000000;
+  transform-origin: 0 0;
+  user-select: none;
+}
+
+.text-editor-display {
+  position: relative;
+  white-space: pre;
+  min-width: inherit;
+  min-height: inherit;
+}
+
+.text-editor-run {
+  display: inline;
+}
+
+.text-editor-run.is-selected {
+  background: rgba(47, 111, 237, 0.28);
+}
+
+.text-editor-caret {
+  position: absolute;
+  width: 1px;
+  background: #111318;
+  pointer-events: none;
+}
+
+.text-editor-input {
+  position: absolute;
+  width: 1px;
+  min-width: 1px;
+  height: 1em;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  opacity: 0;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  outline: none;
+  pointer-events: none;
+}
+
+.text-editor-marker {
+  display: inline-block;
+  width: 0;
+  overflow: hidden;
+}
+
 .chem-text {
   font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
   fill: #000000;
@@ -380,6 +452,18 @@ button {
   stroke: rgba(47, 111, 237, 0.72);
   stroke-width: 1.2;
   filter: drop-shadow(0 0 4px rgba(47, 111, 237, 0.35));
+}
+
+.editor-text-box-focus {
+  fill: rgba(47, 111, 237, 0.12);
+  stroke: rgba(47, 111, 237, 0.76);
+  stroke-width: 1.1;
+}
+
+.editor-label-glyph-focus {
+  fill: rgba(47, 111, 237, 0.12);
+  stroke: rgba(47, 111, 237, 0.82);
+  stroke-width: 1.1;
 }
 
 .editor-selection-bond {

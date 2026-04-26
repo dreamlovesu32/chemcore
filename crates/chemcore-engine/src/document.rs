@@ -358,7 +358,7 @@ impl NodeLabel {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct LabelRun {
     #[serde(default)]
@@ -373,6 +373,8 @@ pub struct LabelRun {
     pub font_weight: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font_style: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub underline: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub script: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

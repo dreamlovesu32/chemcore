@@ -83,6 +83,34 @@ impl WasmEngine {
         self.inner.replace_hovered_endpoint_label(label)
     }
 
+    #[wasm_bindgen(js_name = beginTextEdit)]
+    pub fn begin_text_edit(&mut self, x: f64, y: f64) -> Result<String, JsValue> {
+        let session = self
+            .inner
+            .begin_text_edit(crate::Point::new(x, y))
+            .ok_or_else(|| JsValue::from_str("No text edit target"))?;
+        serde_json::to_string(&session).map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    #[wasm_bindgen(js_name = applyTextEdit)]
+    pub fn apply_text_edit(&mut self, session_json: &str) -> Result<bool, JsValue> {
+        let session: crate::TextEditSession = serde_json::from_str(session_json)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        Ok(self.inner.apply_text_edit(session))
+    }
+
+    #[wasm_bindgen(js_name = previewTextRuns)]
+    pub fn preview_text_runs(&self, session_json: &str) -> Result<String, JsValue> {
+        let session: crate::TextEditSession = serde_json::from_str(session_json)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        let (source_runs, display_runs) = self.inner.preview_text_runs(&session);
+        serde_json::to_string(&serde_json::json!({
+            "sourceRuns": source_runs,
+            "displayRuns": display_runs,
+        }))
+        .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
     #[wasm_bindgen(js_name = canUndo)]
     pub fn can_undo(&self) -> bool {
         self.inner.can_undo()

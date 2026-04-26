@@ -60,6 +60,7 @@ fn fragment_label_runs_for_line(
         fill: label.fill.clone(),
         font_weight: None,
         font_style: None,
+        underline: None,
         script: None,
         face: None,
     }]

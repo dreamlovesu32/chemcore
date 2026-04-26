@@ -156,6 +156,7 @@ export function renderTextObject(svgRoot, object) {
           "font-family": run.fontFamily ? displayLabelFontFamily(run.fontFamily) : undefined,
           "font-weight": fontWeightForRun(run),
           "font-style": fontStyleForRun(run),
+          "text-decoration": run.underline ? "underline" : undefined,
           "baseline-shift": isSub ? "-28%" : isSuper ? "48%" : undefined,
           dx: isSuper ? "-0.02em" : undefined,
         });

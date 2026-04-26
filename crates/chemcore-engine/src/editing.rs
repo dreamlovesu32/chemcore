@@ -4,7 +4,7 @@ use crate::{
     Node, Point, DEFAULT_BOND_LENGTH,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 pub const ENDPOINT_FOCUS_RADIUS: f64 = 4.5;
 pub const ENDPOINT_HIT_RADIUS: f64 = 9.0;
@@ -13,6 +13,7 @@ pub const BOND_CENTER_FOCUS_LENGTH: f64 = 18.0;
 pub const BOND_CENTER_FOCUS_WIDTH: f64 = 9.0;
 pub const BOND_CENTER_HIT_RADIUS: f64 = BOND_CENTER_FOCUS_LENGTH;
 pub const DRAG_START_THRESHOLD: f64 = 4.0;
+pub const BLANK_CANVAS_DEFAULT_ANGLE: f64 = 330.0;
 pub const GLOBAL_SNAP_ANGLES: &[f64] = &[
     0.0, 15.0, 30.0, 45.0, 60.0, 75.0, 90.0, 105.0, 120.0, 135.0, 150.0, 165.0, 180.0, 195.0,
     210.0, 225.0, 240.0, 255.0, 270.0, 285.0, 300.0, 315.0, 330.0, 345.0,
@@ -148,11 +149,22 @@ pub struct BondAnchor {
 pub struct LabelAnchorGeometry {
     pub glyph_index: usize,
     pub glyph_point: Point,
+    pub glyph_box: [f64; 4],
     pub first_glyph_point: Point,
     pub left_point: Point,
     pub right_point: Point,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub right_group_point: Option<Point>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HoverTextBox {
+    pub bounds: [f64; 4],
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub object_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub node_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -171,6 +183,7 @@ pub struct DragState {
 pub struct OverlayState {
     pub hover_endpoint: Option<EndpointHit>,
     pub hover_bond_center: Option<BondCenterHit>,
+    pub hover_text_box: Option<HoverTextBox>,
     pub preview: Option<BondPreview>,
 }
 
@@ -189,7 +202,7 @@ pub fn can_focus_bond_center(tool_state: &ToolState) -> bool {
 }
 
 pub fn can_focus_endpoint(tool_state: &ToolState) -> bool {
-    tool_state.active_tool == Tool::Bond
+    matches!(tool_state.active_tool, Tool::Bond | Tool::Text)
 }
 
 pub fn hit_test_endpoint(
@@ -212,6 +225,23 @@ pub fn hit_test_endpoint_excluding(
         if excluded_node_id == Some(node.id.as_str()) {
             continue;
         }
+        let label_anchors = label_anchor_geometries(&entry, node);
+        if !label_anchors.is_empty() {
+            for label_anchor in label_anchors {
+                let distance = point.distance(label_anchor.glyph_point);
+                if (point_in_box(point, label_anchor.glyph_box) || distance <= radius)
+                    && best.as_ref().map_or(true, |hit| distance < hit.distance)
+                {
+                    best = Some(EndpointHit {
+                        node_id: node.id.clone(),
+                        point: label_anchor.glyph_point,
+                        distance,
+                        label_anchor: Some(label_anchor),
+                    });
+                }
+            }
+            continue;
+        }
         let node_point = entry.world_point_for_node(node);
         let distance = point.distance(node_point);
         if distance <= radius && best.as_ref().map_or(true, |hit| distance < hit.distance) {
@@ -221,17 +251,6 @@ pub fn hit_test_endpoint_excluding(
                 distance,
                 label_anchor: None,
             });
-        }
-        for label_anchor in label_anchor_geometries(&entry, node) {
-            let distance = point.distance(label_anchor.glyph_point);
-            if distance <= radius && best.as_ref().map_or(true, |hit| distance < hit.distance) {
-                best = Some(EndpointHit {
-                    node_id: node.id.clone(),
-                    point: label_anchor.glyph_point,
-                    distance,
-                    label_anchor: Some(label_anchor),
-                });
-            }
         }
     }
     best
@@ -380,33 +399,174 @@ fn default_angle_for_anchor_with_single_neighbor_delta(
     single_neighbor_delta: f64,
 ) -> f64 {
     let Some(node_id) = &anchor.node_id else {
-        return 0.0;
+        return BLANK_CANVAS_DEFAULT_ANGLE;
     };
     let Some(entry) = document.editable_fragment() else {
-        return 0.0;
+        return BLANK_CANVAS_DEFAULT_ANGLE;
     };
     let directions = adjacent_directions(&entry, node_id);
     match directions.len() {
         0 => 0.0,
         1 => {
+            if (single_neighbor_delta - 180.0).abs() < 1.0e-9 {
+                return normalize_angle(directions[0] + 180.0);
+            }
             let a = normalize_angle(directions[0] + single_neighbor_delta);
             let b = normalize_angle(directions[0] - single_neighbor_delta);
-            let da = direction_from_angle(a);
-            let db = direction_from_angle(b);
-            if (da.y - db.y).abs() > 1.0e-9 {
-                if da.y < db.y {
-                    a
-                } else {
-                    b
-                }
-            } else if da.x > db.x {
-                a
+            if connected_component_bond_count(&entry, node_id) <= 1 {
+                right_preferred_angle(a, b)
             } else {
-                b
+                preferred_continuation_angle(&entry, node_id, anchor.point, a, b)
             }
         }
         _ => largest_angular_gap(&directions).center,
     }
+}
+
+fn right_preferred_angle(a: f64, b: f64) -> f64 {
+    let da = direction_from_angle(a);
+    let db = direction_from_angle(b);
+    if da.x >= db.x {
+        a
+    } else {
+        b
+    }
+}
+
+fn preferred_continuation_angle(
+    entry: &EditableFragment<'_>,
+    anchor_node_id: &str,
+    anchor_point: Point,
+    a: f64,
+    b: f64,
+) -> f64 {
+    let component_node_ids = connected_component_node_ids(entry, anchor_node_id);
+    let component_bonds = connected_component_bond_segments(entry, &component_node_ids);
+    let a_distance = candidate_distance_to_other_bonds(
+        entry,
+        &component_node_ids,
+        &component_bonds,
+        anchor_node_id,
+        anchor_point,
+        a,
+    );
+    let b_distance = candidate_distance_to_other_bonds(
+        entry,
+        &component_node_ids,
+        &component_bonds,
+        anchor_node_id,
+        anchor_point,
+        b,
+    );
+    if (a_distance - b_distance).abs() <= 1.0e-9 {
+        right_preferred_angle(a, b)
+    } else if a_distance < b_distance {
+        a
+    } else {
+        b
+    }
+}
+
+fn connected_component_bond_count(entry: &EditableFragment<'_>, node_id: &str) -> usize {
+    let component_node_ids = connected_component_node_ids(entry, node_id);
+    entry
+        .fragment
+        .bonds
+        .iter()
+        .filter(|bond| {
+            component_node_ids.contains(bond.begin.as_str())
+                && component_node_ids.contains(bond.end.as_str())
+        })
+        .count()
+}
+
+fn connected_component_node_ids(entry: &EditableFragment<'_>, node_id: &str) -> HashSet<String> {
+    let mut visited: HashSet<String> = HashSet::new();
+    let mut queue = VecDeque::new();
+    visited.insert(node_id.to_string());
+    queue.push_back(node_id.to_string());
+
+    while let Some(current) = queue.pop_front() {
+        for bond in &entry.fragment.bonds {
+            let neighbor = if bond.begin == current {
+                Some(bond.end.as_str())
+            } else if bond.end == current {
+                Some(bond.begin.as_str())
+            } else {
+                None
+            };
+            let Some(neighbor) = neighbor else {
+                continue;
+            };
+            if visited.insert(neighbor.to_string()) {
+                queue.push_back(neighbor.to_string());
+            }
+        }
+    }
+
+    visited
+}
+
+fn connected_component_bond_segments(
+    entry: &EditableFragment<'_>,
+    component_node_ids: &HashSet<String>,
+) -> Vec<(String, String, Point, Point)> {
+    entry
+        .fragment
+        .bonds
+        .iter()
+        .filter_map(|bond| {
+            if !component_node_ids.contains(bond.begin.as_str())
+                || !component_node_ids.contains(bond.end.as_str())
+            {
+                return None;
+            }
+            let begin = node_by_id(&entry.fragment.nodes, &bond.begin)?;
+            let end = node_by_id(&entry.fragment.nodes, &bond.end)?;
+            Some((
+                bond.begin.clone(),
+                bond.end.clone(),
+                entry.world_point_for_node(begin),
+                entry.world_point_for_node(end),
+            ))
+        })
+        .collect()
+}
+
+fn candidate_distance_to_other_bonds(
+    entry: &EditableFragment<'_>,
+    component_node_ids: &HashSet<String>,
+    component_bonds: &[(String, String, Point, Point)],
+    anchor_node_id: &str,
+    anchor_point: Point,
+    candidate_angle: f64,
+) -> f64 {
+    let candidate_endpoint =
+        anchor_point.translated(direction_from_angle(candidate_angle).scaled(DEFAULT_BOND_LENGTH));
+    let snapped_target = component_node_ids
+        .iter()
+        .filter(|node_id| node_id.as_str() != anchor_node_id)
+        .filter_map(|node_id| node_by_id(&entry.fragment.nodes, node_id))
+        .find_map(|node| {
+            let point = entry.world_point_for_node(node);
+            if point.distance(candidate_endpoint) <= 1.0e-6
+                && node.element == "C"
+                && node.atomic_number == 6
+                && !node.is_placeholder
+            {
+                Some(point)
+            } else {
+                None
+            }
+        })
+        .unwrap_or(candidate_endpoint);
+
+    component_bonds
+        .iter()
+        .filter(|(begin_id, end_id, _, _)| begin_id != anchor_node_id && end_id != anchor_node_id)
+        .map(|(_, _, begin, end)| point_to_segment_distance(snapped_target, *begin, *end))
+        .min_by(|left, right| left.total_cmp(right))
+        .unwrap_or(f64::INFINITY)
 }
 
 pub fn default_angle_for_anchor(document: &ChemcoreDocument, anchor: &BondAnchor) -> f64 {
@@ -534,6 +694,10 @@ fn point_to_segment_distance(point: Point, start: Point, end: Point) -> f64 {
     point.distance(Point::new(start.x + dx * t, start.y + dy * t))
 }
 
+fn point_in_box(point: Point, bounds: [f64; 4]) -> bool {
+    point.x >= bounds[0] && point.x <= bounds[2] && point.y >= bounds[1] && point.y <= bounds[3]
+}
+
 fn label_anchor_geometries(entry: &EditableFragment<'_>, node: &Node) -> Vec<LabelAnchorGeometry> {
     let Some(label) = node.label.as_ref() else {
         return Vec::new();
@@ -542,9 +706,9 @@ fn label_anchor_geometries(entry: &EditableFragment<'_>, node: &Node) -> Vec<Lab
         return Vec::new();
     }
 
-    let glyph_points: Vec<Point> = label
-        .glyph_polygons()
-        .into_iter()
+    let glyph_polygons = label.glyph_polygons();
+    let glyph_points: Vec<Point> = glyph_polygons
+        .iter()
         .filter_map(|polygon| polygon_anchor_point(&polygon))
         .map(|point| {
             Point::new(
@@ -574,13 +738,19 @@ fn label_anchor_geometries(entry: &EditableFragment<'_>, node: &Node) -> Vec<Lab
     glyph_points
         .iter()
         .enumerate()
-        .map(|(glyph_index, glyph_point)| LabelAnchorGeometry {
-            glyph_index,
-            glyph_point: *glyph_point,
-            first_glyph_point,
-            left_point,
-            right_point,
-            right_group_point,
+        .filter_map(|(glyph_index, glyph_point)| {
+            let glyph_box = glyph_polygons.get(glyph_index).and_then(|polygon| {
+                polygon_bounds_world(polygon, entry.object.transform.translate)
+            })?;
+            Some(LabelAnchorGeometry {
+                glyph_index,
+                glyph_point: *glyph_point,
+                glyph_box,
+                first_glyph_point,
+                left_point,
+                right_point,
+                right_group_point,
+            })
         })
         .collect()
 }
@@ -600,6 +770,23 @@ fn polygon_anchor_point(polygon: &[Point]) -> Option<Point> {
         max_y = max_y.max(point.y);
     }
     Some(Point::new((min_x + max_x) * 0.5, (min_y + max_y) * 0.5))
+}
+
+fn polygon_bounds_world(polygon: &[Point], translate: [f64; 2]) -> Option<[f64; 4]> {
+    if polygon.is_empty() {
+        return None;
+    }
+    let mut min_x = f64::INFINITY;
+    let mut min_y = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
+    for point in polygon {
+        min_x = min_x.min(point.x + translate[0]);
+        min_y = min_y.min(point.y + translate[1]);
+        max_x = max_x.max(point.x + translate[0]);
+        max_y = max_y.max(point.y + translate[1]);
+    }
+    Some([min_x, min_y, max_x, max_y])
 }
 
 fn label_visible_chars(node_label: &crate::NodeLabel) -> Vec<char> {
