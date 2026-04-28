@@ -139,6 +139,11 @@ button {
   background: transparent;
 }
 
+.icon-button.is-active {
+  border-color: var(--line-strong);
+  background: var(--active);
+}
+
 .icon-button:active,
 .tool-button:active,
 .secondary-button:active,
@@ -366,6 +371,7 @@ button {
   box-shadow: inset 0 0 0 1px #000000;
   transform-origin: 0 0;
   user-select: none;
+  cursor: text;
 }
 
 .text-editor-display {
@@ -373,11 +379,13 @@ button {
   white-space: pre;
   min-width: inherit;
   min-height: inherit;
+  cursor: text;
 }
 
 .text-editor-svg {
   display: block;
   overflow: visible;
+  cursor: text;
 }
 
 .text-editor-selection-layer {
@@ -504,11 +512,47 @@ button {
   stroke-linecap: round;
 }
 
-.editor-selection-node {
-  fill: rgba(47, 111, 237, 0.16);
+.editor-selection-box,
+.editor-selection-bond-box,
+.editor-selection-node-box,
+.editor-selection-text-box {
+  fill: rgba(47, 111, 237, 0.08);
   stroke: rgba(47, 111, 237, 0.86);
-  stroke-width: 1.6px;
   vector-effect: non-scaling-stroke;
+}
+
+.editor-selection-box,
+.editor-selection-text-box {
+  stroke-width: 1.2px;
+}
+
+.editor-selection-bond-box {
+  stroke-width: 1.1px;
+}
+
+.editor-selection-node-box {
+  fill: rgba(47, 111, 237, 0.14);
+  stroke-width: 1.4px;
+}
+
+.editor-selection-bond-dot {
+  fill: rgba(47, 111, 237, 0.92);
+  stroke: #ffffff;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.editor-selection-marquee,
+.editor-selection-lasso {
+  fill: rgba(47, 111, 237, 0.06);
+  stroke: rgba(47, 111, 237, 0.82);
+  stroke-width: 1.1px;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 4 3;
+}
+
+.editor-selection-lasso {
+  fill: none;
 }
 
 .editor-preview-end {

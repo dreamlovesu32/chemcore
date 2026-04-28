@@ -21,6 +21,9 @@ export class WasmEngine {
     redo(): boolean;
     renderListJson(): string;
     replaceHoveredEndpointLabel(label: string): boolean;
+    selectAtPoint(x: number, y: number, additive: boolean): void;
+    selectInPolygon(points_json: string, additive: boolean): void;
+    selectInRect(x1: number, y1: number, x2: number, y2: number, additive: boolean): void;
     setTool(active_tool: string, bond_variant: string): void;
     stateJson(): string;
     undo(): boolean;
@@ -48,6 +51,9 @@ export interface InitOutput {
     readonly wasmengine_redo: (a: number) => number;
     readonly wasmengine_renderListJson: (a: number) => [number, number, number, number];
     readonly wasmengine_replaceHoveredEndpointLabel: (a: number, b: number, c: number) => number;
+    readonly wasmengine_selectAtPoint: (a: number, b: number, c: number, d: number) => void;
+    readonly wasmengine_selectInPolygon: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly wasmengine_selectInRect: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly wasmengine_setTool: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly wasmengine_stateJson: (a: number) => [number, number, number, number];
     readonly wasmengine_undo: (a: number) => number;

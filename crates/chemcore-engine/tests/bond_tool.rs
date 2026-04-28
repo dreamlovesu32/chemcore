@@ -1,7 +1,7 @@
 use chemcore_engine::{
-    BondLinePattern, BondLineWeight, BondVariant, DoubleBondPlacement, Engine, PointerEvent,
-    RenderPrimitive, RenderRole, Tool, ToolState, DEFAULT_BOND_LENGTH, DEFAULT_BOND_STROKE,
-    ENDPOINT_FOCUS_RADIUS,
+    direction_from_angle, BondLinePattern, BondLineWeight, BondVariant, DoubleBondPlacement,
+    Engine, Point, PointerEvent, RenderPrimitive, RenderRole, Tool, ToolState, DEFAULT_BOND_LENGTH,
+    DEFAULT_BOND_STROKE, ENDPOINT_FOCUS_RADIUS,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -12,6 +12,10 @@ const fn px(value: f64) -> f64 {
 
 fn px_point(x: f64, y: f64) -> chemcore_engine::Point {
     chemcore_engine::Point::new(px(x), px(y))
+}
+
+fn endpoint_from_anchor(anchor: Point, angle: f64) -> Point {
+    anchor.translated(direction_from_angle(angle).scaled(DEFAULT_BOND_LENGTH))
 }
 
 const FIRST_START_X: f64 = 7.94;
@@ -101,6 +105,13 @@ fn hashed_wedge_bond_tool() -> ToolState {
     }
 }
 
+fn select_tool() -> ToolState {
+    ToolState {
+        active_tool: Tool::Select,
+        bond_variant: BondVariant::Single,
+    }
+}
+
 fn fragment_counts(engine: &Engine) -> (usize, usize) {
     let entry = engine.state().document.editable_fragment().unwrap();
     (entry.fragment.nodes.len(), entry.fragment.bonds.len())
@@ -158,6 +169,24 @@ fn bond_center_point(engine: &Engine, bond_id: &str) -> chemcore_engine::Point {
         (begin.position[0] + end.position[0]) * 0.5,
         (begin.position[1] + end.position[1]) * 0.5,
     )
+}
+
+fn selection_bond_rect(engine: &Engine) -> (f64, f64, f64, f64) {
+    engine
+        .render_list()
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Rect {
+                role: RenderRole::SelectionBond,
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => Some((x, y, width, height)),
+            _ => None,
+        })
+        .expect("selection bond rect should exist")
 }
 
 fn click(engine: &mut Engine, x: f64, y: f64) {
@@ -261,6 +290,33 @@ fn load_label_document(
     engine
         .load_document_json(&document.to_string())
         .expect("document should load");
+}
+
+fn load_text_object_document(engine: &mut Engine) {
+    let document = json!({
+        "format": { "name": "chemcore", "version": "0.1" },
+        "document": {
+            "id": "doc_text",
+            "title": "text test",
+            "page": { "width": px(400.0), "height": px(320.0), "background": "#ffffff" }
+        },
+        "styles": {},
+        "objects": [{
+            "id": "obj_text_001",
+            "type": "text",
+            "visible": true,
+            "zIndex": 20,
+            "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+            "payload": {
+                "text": "Note",
+                "bbox": [px(280.0), px(240.0), px(320.0), px(268.0)],
+                "runs": []
+            }
+        }]
+    });
+    engine
+        .load_document_json(&document.to_string())
+        .expect("text document should load");
 }
 
 #[test]
@@ -492,7 +548,7 @@ fn hover_focuses_label_glyph_anchor() {
 }
 
 #[test]
-fn click_on_label_glyph_uses_rightmost_label_anchor_for_horizontal_bond() {
+fn click_on_label_glyph_uses_rightmost_group_anchor_for_default_bond() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());
     load_label_document(
@@ -511,13 +567,14 @@ fn click_on_label_glyph_uses_rightmost_label_anchor_for_horizontal_bond() {
 
     let entry = engine.state().document.editable_fragment().unwrap();
     let last = entry.fragment.nodes.last().unwrap();
+    let expected = endpoint_from_anchor(px_point(313.0, 260.0), 0.0);
     assert!(
-        (last.position[0] - 9.55).abs() < 0.01,
+        (last.position[0] - expected.x).abs() < 0.01,
         "{:?}",
         last.position
     );
     assert!(
-        (last.position[1] - FIRST_START_Y).abs() < 0.01,
+        (last.position[1] - expected.y).abs() < 0.01,
         "{:?}",
         last.position
     );
@@ -628,6 +685,106 @@ fn drag_from_connected_label_uses_rightmost_group_uppercase_anchor() {
 }
 
 #[test]
+fn drag_from_middle_label_glyph_uses_leftmost_anchor_for_leftward_bond() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    load_label_document(
+        &mut engine,
+        "CuF3",
+        vec![
+            rect_polygon(294.0, 256.0, 300.0, 264.0),
+            rect_polygon(302.0, 256.0, 308.0, 264.0),
+            rect_polygon(310.0, 256.0, 316.0, 264.0),
+            rect_polygon(318.0, 256.0, 324.0, 264.0),
+        ],
+        json!([]),
+    );
+
+    engine.pointer_down(PointerEvent {
+        x: px(305.0),
+        y: px(260.0),
+        button: Some(0),
+        alt_key: false,
+    });
+    engine.pointer_move(PointerEvent {
+        x: px(250.0),
+        y: px(260.0),
+        button: None,
+        alt_key: false,
+    });
+    engine.pointer_up(PointerEvent {
+        x: px(250.0),
+        y: px(260.0),
+        button: Some(0),
+        alt_key: false,
+    });
+
+    let entry = engine.state().document.editable_fragment().unwrap();
+    let last = entry.fragment.nodes.last().unwrap();
+    let expected = endpoint_from_anchor(px_point(297.0, 260.0), 180.0);
+    assert!(
+        (last.position[0] - expected.x).abs() < 0.01,
+        "{:?}",
+        last.position
+    );
+    assert!(
+        (last.position[1] - expected.y).abs() < 0.01,
+        "{:?}",
+        last.position
+    );
+}
+
+#[test]
+fn drag_from_rightmost_label_glyph_keeps_clicked_glyph_for_rightward_bond() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    load_label_document(
+        &mut engine,
+        "CuF3",
+        vec![
+            rect_polygon(294.0, 256.0, 300.0, 264.0),
+            rect_polygon(302.0, 256.0, 308.0, 264.0),
+            rect_polygon(310.0, 256.0, 316.0, 264.0),
+            rect_polygon(318.0, 256.0, 324.0, 264.0),
+        ],
+        json!([]),
+    );
+
+    engine.pointer_down(PointerEvent {
+        x: px(321.0),
+        y: px(260.0),
+        button: Some(0),
+        alt_key: false,
+    });
+    engine.pointer_move(PointerEvent {
+        x: px(360.0),
+        y: px(260.0),
+        button: None,
+        alt_key: false,
+    });
+    engine.pointer_up(PointerEvent {
+        x: px(360.0),
+        y: px(260.0),
+        button: Some(0),
+        alt_key: false,
+    });
+
+    let entry = engine.state().document.editable_fragment().unwrap();
+    let last = entry.fragment.nodes.last().unwrap();
+    let expected = endpoint_from_anchor(px_point(321.0, 260.0), 0.0);
+    assert!(
+        (last.position[0] - expected.x).abs() < 0.01,
+        "{:?}",
+        last.position
+    );
+    assert!(
+        (last.position[1] - expected.y).abs() < 0.01,
+        "{:?}",
+        last.position
+    );
+}
+
+#[test]
 fn click_on_single_bond_endpoint_extends_at_120_degrees() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());
@@ -668,6 +825,35 @@ fn click_on_single_bond_endpoint_extends_at_120_degrees() {
         (point[1] - FIRST_END_SINGLE_EXTEND_Y).abs() < 0.01,
         "{point:?}"
     );
+}
+
+#[test]
+fn click_draw_keeps_hover_at_pointer_position_instead_of_new_endpoint() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+
+    engine.pointer_down(PointerEvent {
+        x: FIRST_END_X,
+        y: FIRST_END_Y,
+        button: Some(0),
+        alt_key: false,
+    });
+    engine.pointer_up(PointerEvent {
+        x: FIRST_END_X,
+        y: FIRST_END_Y,
+        button: Some(0),
+        alt_key: false,
+    });
+
+    let hover = engine
+        .state()
+        .overlay
+        .hover_endpoint
+        .as_ref()
+        .expect("pointer-position hover should remain on clicked endpoint");
+    assert_eq!(hover.point.x, FIRST_END_X);
+    assert_eq!(hover.point.y, FIRST_END_Y);
 }
 
 #[test]
@@ -2330,16 +2516,8 @@ fn select_delete_and_undo_redo_round_trip() {
     assert_eq!(fragment_counts(&engine), (2, 1));
     assert!(engine.can_undo());
 
-    engine.set_tool_state(ToolState {
-        active_tool: Tool::Select,
-        bond_variant: BondVariant::Single,
-    });
-    engine.pointer_down(PointerEvent {
-        x: FIRST_CENTER_X,
-        y: FIRST_CENTER_Y,
-        button: Some(0),
-        alt_key: false,
-    });
+    engine.set_tool_state(select_tool());
+    engine.select_at_point(Point::new(FIRST_CENTER_X, FIRST_CENTER_Y), false);
     assert_eq!(engine.state().selection.bonds.len(), 1);
 
     assert!(engine.delete_selection());
@@ -2350,6 +2528,177 @@ fn select_delete_and_undo_redo_round_trip() {
 
     assert!(engine.redo());
     assert_eq!(fragment_counts(&engine), (0, 0));
+}
+
+#[test]
+fn select_tool_click_on_text_object_selects_text_box() {
+    let mut engine = Engine::new();
+    load_text_object_document(&mut engine);
+    engine.set_tool_state(select_tool());
+
+    engine.select_at_point(px_point(300.0, 250.0), false);
+
+    assert_eq!(engine.state().selection.text_objects, vec!["obj_text_001"]);
+    assert!(engine.render_list().iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Rect {
+            role: RenderRole::SelectionTextBox,
+            ..
+        }
+    )));
+}
+
+#[test]
+fn select_tool_click_on_label_selects_label_box_not_atom() {
+    let mut engine = Engine::new();
+    load_label_document(
+        &mut engine,
+        "CuF3",
+        vec![
+            rect_polygon(294.0, 256.0, 300.0, 264.0),
+            rect_polygon(302.0, 256.0, 308.0, 264.0),
+            rect_polygon(310.0, 256.0, 316.0, 264.0),
+            rect_polygon(318.0, 256.0, 324.0, 264.0),
+        ],
+        json!([]),
+    );
+    engine.set_tool_state(select_tool());
+
+    engine.select_at_point(px_point(305.0, 260.0), false);
+
+    assert_eq!(engine.state().selection.label_nodes, vec!["n1"]);
+    assert!(engine.state().selection.nodes.is_empty());
+    assert!(engine.render_list().iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Rect {
+            role: RenderRole::SelectionTextBox,
+            ..
+        }
+    )));
+}
+
+#[test]
+fn select_tool_click_on_endpoint_selects_atom_box() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+    engine.set_tool_state(select_tool());
+
+    engine.select_at_point(Point::new(FIRST_END_X, FIRST_END_Y), false);
+
+    assert_eq!(engine.state().selection.nodes, vec!["n_2"]);
+    assert!(engine.render_list().iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Rect {
+            role: RenderRole::SelectionNode,
+            ..
+        }
+    )));
+}
+
+#[test]
+fn select_tool_click_on_bond_does_not_render_outer_region_box() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+    engine.set_tool_state(select_tool());
+
+    engine.select_at_point(Point::new(FIRST_CENTER_X, FIRST_CENTER_Y), false);
+
+    let render_list = engine.render_list();
+    assert!(render_list.iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Rect {
+            role: RenderRole::SelectionBond,
+            ..
+        }
+    )));
+    assert!(!render_list.iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Rect {
+            role: RenderRole::SelectionBox,
+            ..
+        }
+    )));
+}
+
+#[test]
+fn select_tool_click_on_side_double_bond_wraps_both_lines() {
+    let mut single = Engine::new();
+    single.set_tool_state(bond_tool());
+    click(&mut single, px(300.0), px(260.0));
+    single.set_tool_state(select_tool());
+    single.select_at_point(Point::new(FIRST_CENTER_X, FIRST_CENTER_Y), false);
+    let (_, _, single_width, single_height) = selection_bond_rect(&single);
+
+    let mut double = Engine::new();
+    double.set_tool_state(double_bond_tool());
+    click(&mut double, px(300.0), px(260.0));
+    double.set_tool_state(select_tool());
+    double.select_at_point(Point::new(FIRST_CENTER_X, FIRST_CENTER_Y), false);
+    let (_, _, double_width, double_height) = selection_bond_rect(&double);
+
+    assert!(
+        double_width > single_width + 0.04 || double_height > single_height + 0.04,
+        "expected double bond rect to exceed single bond rect, single=({single_width}, {single_height}) double=({double_width}, {double_height})"
+    );
+}
+
+#[test]
+fn select_tool_click_on_triple_bond_wraps_all_three_lines() {
+    let mut single = Engine::new();
+    single.set_tool_state(bond_tool());
+    click(&mut single, px(300.0), px(260.0));
+    single.set_tool_state(select_tool());
+    single.select_at_point(Point::new(FIRST_CENTER_X, FIRST_CENTER_Y), false);
+    let (_, _, single_width, single_height) = selection_bond_rect(&single);
+
+    let mut triple = Engine::new();
+    triple.set_tool_state(triple_bond_tool());
+    click(&mut triple, px(300.0), px(260.0));
+    triple.set_tool_state(select_tool());
+    triple.select_at_point(Point::new(FIRST_CENTER_X, FIRST_CENTER_Y), false);
+    let (_, _, triple_width, triple_height) = selection_bond_rect(&triple);
+
+    assert!(
+        triple_width > single_width + 0.08 || triple_height > single_height + 0.08,
+        "expected triple bond rect to exceed single bond rect, single=({single_width}, {single_height}) triple=({triple_width}, {triple_height})"
+    );
+}
+
+#[test]
+fn select_tool_box_selecting_whole_fragment_renders_component_box() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+    engine.set_tool_state(select_tool());
+
+    engine.select_in_rect(px_point(290.0, 234.0), px_point(346.0, 286.0), false);
+
+    assert_eq!(engine.state().selection.nodes.len(), 2);
+    assert_eq!(engine.state().selection.bonds.len(), 1);
+    assert!(engine.render_list().iter().any(|primitive| {
+        matches!(
+            primitive,
+            RenderPrimitive::Rect {
+                role: RenderRole::SelectionBox,
+                ..
+            }
+        )
+    }));
+}
+
+#[test]
+fn select_tool_shift_click_adds_to_selection() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+    engine.set_tool_state(select_tool());
+
+    engine.select_at_point(Point::new(FIRST_END_X, FIRST_END_Y), false);
+    engine.select_at_point(Point::new(FIRST_START_X, FIRST_START_Y), true);
+
+    assert_eq!(engine.state().selection.nodes.len(), 2);
 }
 
 #[test]

@@ -220,6 +220,36 @@ export class WasmEngine {
         return ret !== 0;
     }
     /**
+     * @param {number} x
+     * @param {number} y
+     * @param {boolean} additive
+     */
+    selectAtPoint(x, y, additive) {
+        wasm.wasmengine_selectAtPoint(this.__wbg_ptr, x, y, additive);
+    }
+    /**
+     * @param {string} points_json
+     * @param {boolean} additive
+     */
+    selectInPolygon(points_json, additive) {
+        const ptr0 = passStringToWasm0(points_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_selectInPolygon(this.__wbg_ptr, ptr0, len0, additive);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * @param {number} x1
+     * @param {number} y1
+     * @param {number} x2
+     * @param {number} y2
+     * @param {boolean} additive
+     */
+    selectInRect(x1, y1, x2, y2, additive) {
+        wasm.wasmengine_selectInRect(this.__wbg_ptr, x1, y1, x2, y2, additive);
+    }
+    /**
      * @param {string} active_tool
      * @param {string} bond_variant
      */

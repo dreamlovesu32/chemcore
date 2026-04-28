@@ -1,6 +1,6 @@
 use chemcore_engine::{
-    BondAnchor, BondVariant, Engine, Point, PointerEvent, TextEditLayoutRequest,
-    TextEditSelection, TextEditTarget, Tool, ToolState,
+    BondAnchor, BondVariant, Engine, Point, PointerEvent, TextEditLayoutRequest, TextEditSelection,
+    TextEditTarget, Tool, ToolState,
 };
 
 fn px(value: f64) -> f64 {
@@ -113,7 +113,10 @@ fn preview_text_edit_layout_returns_kernel_caret_and_selection_geometry() {
             text: "Hello".to_string(),
             ..session
         },
-        selection: Some(TextEditSelection { anchor: 2, focus: 5 }),
+        selection: Some(TextEditSelection {
+            anchor: 2,
+            focus: 5,
+        }),
     });
 
     assert_eq!(layout.text, "Hello");
@@ -122,9 +125,18 @@ fn preview_text_edit_layout_returns_kernel_caret_and_selection_geometry() {
     assert_eq!(layout.lines[0].start_offset, 0);
     assert_eq!(layout.lines[0].end_offset, 5);
     assert_eq!(layout.caret_positions.len(), 6);
-    assert_eq!(layout.caret_positions.last().map(|caret| caret.offset), Some(5));
-    assert_eq!(layout.selection.as_ref().map(|selection| selection.start), Some(2));
-    assert_eq!(layout.selection.as_ref().map(|selection| selection.end), Some(5));
+    assert_eq!(
+        layout.caret_positions.last().map(|caret| caret.offset),
+        Some(5)
+    );
+    assert_eq!(
+        layout.selection.as_ref().map(|selection| selection.start),
+        Some(2)
+    );
+    assert_eq!(
+        layout.selection.as_ref().map(|selection| selection.end),
+        Some(5)
+    );
     assert_eq!(layout.selection_rects.len(), 1);
     assert!(layout.width >= px(8.0));
     assert!(layout.height >= layout.line_height);
@@ -279,7 +291,10 @@ fn preview_text_edit_layout_matches_committed_endpoint_label_geometry() {
 
     let layout = engine.preview_text_edit_layout(&TextEditLayoutRequest {
         session: edited_session.clone(),
-        selection: Some(TextEditSelection { anchor: 5, focus: 5 }),
+        selection: Some(TextEditSelection {
+            anchor: 5,
+            focus: 5,
+        }),
     });
 
     assert!(engine.apply_text_edit(edited_session));
@@ -296,8 +311,16 @@ fn preview_text_edit_layout_matches_committed_endpoint_label_geometry() {
     let box_value = label.box_field.expect("label box should exist");
     approx_eq(layout.width, box_value[2] - box_value[0], 0.02);
     approx_eq(layout.height, box_value[3] - box_value[1], 0.02);
-    approx_eq(layout.anchor_offset[0], session.target.world_point().x.value() - box_value[0], 0.02);
-    approx_eq(layout.anchor_offset[1], session.target.world_point().y.value() - box_value[1], 0.02);
+    approx_eq(
+        layout.anchor_offset[0],
+        session.target.world_point().x.value() - box_value[0],
+        0.02,
+    );
+    approx_eq(
+        layout.anchor_offset[1],
+        session.target.world_point().y.value() - box_value[1],
+        0.02,
+    );
     assert_eq!(
         layout.lines.first().map(|line| {
             line.runs
@@ -405,8 +428,8 @@ fn reopening_endpoint_label_session_preserves_bbox_and_anchor_precision() {
     assert!((box_value[1] - label_box[1]).abs() < 1.0e-6);
     assert!((box_value[2] - label_box[2]).abs() < 1.0e-6);
     assert!((box_value[3] - label_box[3]).abs() < 1.0e-6);
-    assert!(anchor_offset[0].abs() > 1.0e-4);
-    assert!(anchor_offset[1].abs() > 1.0e-4);
+    assert!(anchor_offset[0].abs() < 1.0e-6);
+    assert!(anchor_offset[1].abs() < 1.0e-6);
 }
 
 #[test]
@@ -430,8 +453,8 @@ fn endpoint_text_edit_ignores_implausible_dom_label_measurements() {
     assert!(engine.apply_text_edit(chemcore_engine::TextEditSession {
         text: "N".to_string(),
         source_runs: Vec::new(),
+        box_value: Some([0.0, 0.0, px(3000.0), px(3000.0)]),
         anchor_offset: Some([px(2000.0), px(2000.0)]),
-        measured_size: Some([px(3000.0), px(3000.0)]),
         ..session
     }));
 
@@ -506,7 +529,6 @@ fn preview_text_runs_expands_chemical_source_runs_in_kernel() {
         line_height: Some(12.6),
         box_value: None,
         anchor_offset: None,
-        measured_size: None,
         preserve_lines: true,
         default_chemical: true,
     };
@@ -555,23 +577,7 @@ fn reopening_existing_endpoint_label_uses_stable_label_anchor() {
         .first()
         .expect("node should exist");
     let label = node.label.as_ref().expect("label should exist");
-    let polygon = &label.glyph_polygons[0];
-    let min_x = polygon
-        .iter()
-        .map(|point| point[0])
-        .fold(f64::INFINITY, f64::min);
-    let max_x = polygon
-        .iter()
-        .map(|point| point[0])
-        .fold(f64::NEG_INFINITY, f64::max);
-    let min_y = polygon
-        .iter()
-        .map(|point| point[1])
-        .fold(f64::INFINITY, f64::min);
-    let max_y = polygon
-        .iter()
-        .map(|point| point[1])
-        .fold(f64::NEG_INFINITY, f64::max);
+    let box_value = label.bbox().expect("label should have bbox");
 
     let reopened = engine
         .begin_text_edit(Point::new(
@@ -581,12 +587,12 @@ fn reopening_existing_endpoint_label_uses_stable_label_anchor() {
         .expect("existing label session should be created");
     match reopened.target {
         TextEditTarget::EndpointLabel { x, y, .. } => {
-            assert!((x - ((min_x + max_x) * 0.5)).abs() < 0.001, "{x}");
-            assert!((y - ((min_y + max_y) * 0.5)).abs() < 0.001, "{y}");
+            assert!((x - box_value[0]).abs() < 0.001, "{x}");
+            assert!((y - box_value[1]).abs() < 0.001, "{y}");
         }
         other => panic!("unexpected target: {other:?}"),
     }
-    assert!(reopened.anchor_offset.is_some());
+    assert_eq!(reopened.anchor_offset, Some([0.0, 0.0]));
 }
 
 #[test]
@@ -609,7 +615,7 @@ fn endpoint_label_anchor_tracks_terminal_double_status() {
         bond.double.as_ref().map(|double| double.placement),
         Some(chemcore_engine::DoubleBondPlacement::Right)
     );
-    let node = entry
+    let terminal_node = entry
         .fragment
         .nodes
         .iter()
@@ -617,27 +623,30 @@ fn endpoint_label_anchor_tracks_terminal_double_status() {
         .expect("terminal node should exist")
         .clone();
     let terminal_session = engine
-        .begin_text_edit(Point::new(node.position[0], node.position[1]))
+        .begin_text_edit(Point::new(
+            terminal_node.position[0],
+            terminal_node.position[1],
+        ))
         .expect("endpoint session should be created");
     let terminal_anchor = match terminal_session.target.clone() {
         TextEditTarget::EndpointLabel { x, y, .. } => Point::new(x, y),
         other => panic!("unexpected target: {other:?}"),
     };
     assert!(
-        (terminal_anchor.x - node.position[0]).abs() > 0.001
-            || (terminal_anchor.y - node.position[1]).abs() > 0.001,
+        (terminal_anchor.x - terminal_node.position[0]).abs() > 0.001
+            || (terminal_anchor.y - terminal_node.position[1]).abs() > 0.001,
         "{terminal_anchor:?} vs {:?}",
-        node.position
+        terminal_node.position
     );
     assert!(
-        (terminal_anchor.x - node.position[0]).abs() < 0.001,
+        (terminal_anchor.x - terminal_node.position[0]).abs() < 0.001,
         "{terminal_anchor:?} vs {:?}",
-        node.position
+        terminal_node.position
     );
     assert!(
-        terminal_anchor.y > node.position[1],
+        terminal_anchor.y > terminal_node.position[1],
         "{terminal_anchor:?} vs {:?}",
-        node.position
+        terminal_node.position
     );
     assert!(engine.apply_text_edit(chemcore_engine::TextEditSession {
         text: "Ph".to_string(),
@@ -646,19 +655,37 @@ fn endpoint_label_anchor_tracks_terminal_double_status() {
     }));
 
     let reopened_terminal = engine
-        .begin_text_edit(Point::new(node.position[0], node.position[1]))
+        .begin_text_edit(Point::new(
+            terminal_node.position[0],
+            terminal_node.position[1],
+        ))
         .expect("existing endpoint label session should be created");
+    let reopened_node = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("editable fragment should exist")
+        .fragment
+        .nodes
+        .iter()
+        .find(|candidate| candidate.id == terminal_node.id)
+        .expect("terminal node should still exist");
+    let reopened_label_box = reopened_node
+        .label
+        .as_ref()
+        .and_then(|label| label.bbox())
+        .expect("reopened label box");
     match reopened_terminal.target {
         TextEditTarget::EndpointLabel { x, y, .. } => {
             assert!(
-                (x - terminal_anchor.x).abs() < 0.01,
+                (x - reopened_label_box[0]).abs() < 0.01,
                 "{x} vs {}",
-                terminal_anchor.x
+                reopened_label_box[0]
             );
             assert!(
-                (y - terminal_anchor.y).abs() < 0.01,
+                (y - reopened_label_box[1]).abs() < 0.01,
                 "{y} vs {}",
-                terminal_anchor.y
+                reopened_label_box[1]
             );
         }
         other => panic!("unexpected target: {other:?}"),
@@ -666,20 +693,22 @@ fn endpoint_label_anchor_tracks_terminal_double_status() {
 
     engine.set_tool_state(tool_state(BondVariant::Single));
     assert!(engine.add_single_bond_between(
-        node_anchor(&node.id, Point::new(node.position[0], node.position[1])),
+        node_anchor(
+            &terminal_node.id,
+            Point::new(terminal_node.position[0], terminal_node.position[1]),
+        ),
         free_anchor(px_point(172.0, 128.0)),
     ));
 
-    let entry = engine
+    let node_after_attachment = engine
         .state()
         .document
         .editable_fragment()
-        .expect("editable fragment should exist");
-    let node_after_attachment = entry
+        .expect("editable fragment should exist")
         .fragment
         .nodes
         .iter()
-        .find(|candidate| candidate.id == node.id)
+        .find(|candidate| candidate.id == terminal_node.id)
         .expect("terminal node should still exist")
         .position;
     let attached_session = engine
@@ -688,10 +717,25 @@ fn endpoint_label_anchor_tracks_terminal_double_status() {
             node_after_attachment[1],
         ))
         .expect("attached endpoint label session should be created");
+    let attached_node = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("editable fragment should exist")
+        .fragment
+        .nodes
+        .iter()
+        .find(|candidate| candidate.id == terminal_node.id)
+        .expect("terminal node should still exist");
+    let attached_label_box = attached_node
+        .label
+        .as_ref()
+        .and_then(|label| label.bbox())
+        .expect("attached label box");
     match attached_session.target {
         TextEditTarget::EndpointLabel { x, y, .. } => {
-            assert!((x - node_after_attachment[0]).abs() < px(0.5), "{x}");
-            assert!((y - node_after_attachment[1]).abs() < px(0.5), "{y}");
+            assert!((x - attached_label_box[0]).abs() < 0.01, "{x}");
+            assert!((y - attached_label_box[1]).abs() < 0.01, "{y}");
         }
         other => panic!("unexpected target: {other:?}"),
     }
@@ -712,7 +756,7 @@ fn endpoint_label_reanchors_when_double_bond_style_changes() {
         .document
         .editable_fragment()
         .expect("editable fragment should exist");
-    let node = entry
+    let terminal_node = entry
         .fragment
         .nodes
         .iter()
@@ -727,7 +771,10 @@ fn endpoint_label_reanchors_when_double_bond_style_changes() {
         .id
         .clone();
     let session = engine
-        .begin_text_edit(Point::new(node.position[0], node.position[1]))
+        .begin_text_edit(Point::new(
+            terminal_node.position[0],
+            terminal_node.position[1],
+        ))
         .expect("endpoint session should be created");
     assert!(engine.apply_text_edit(chemcore_engine::TextEditSession {
         text: "Ph".to_string(),
@@ -770,20 +817,38 @@ fn endpoint_label_reanchors_when_double_bond_style_changes() {
         bond.double.as_ref().map(|double| double.placement),
         Some(chemcore_engine::DoubleBondPlacement::Center)
     );
-    let node = entry
+    let terminal_node_position = entry
         .fragment
         .nodes
         .iter()
-        .find(|candidate| candidate.id == node.id)
+        .find(|candidate| candidate.id == terminal_node.id)
         .expect("terminal node should exist")
         .position;
     let centered_session = engine
-        .begin_text_edit(Point::new(node[0], node[1]))
+        .begin_text_edit(Point::new(
+            terminal_node_position[0],
+            terminal_node_position[1],
+        ))
         .expect("centered endpoint label session should be created");
+    let centered_node = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("editable fragment should exist")
+        .fragment
+        .nodes
+        .iter()
+        .find(|candidate| candidate.id == terminal_node.id)
+        .expect("terminal node should exist");
+    let centered_label_box = centered_node
+        .label
+        .as_ref()
+        .and_then(|label| label.bbox())
+        .expect("centered label box");
     match centered_session.target {
         TextEditTarget::EndpointLabel { x, y, .. } => {
-            assert!((x - node[0]).abs() < px(0.5), "{x}");
-            assert!((y - node[1]).abs() < px(0.5), "{y}");
+            assert!((x - centered_label_box[0]).abs() < 0.01, "{x}");
+            assert!((y - centered_label_box[1]).abs() < 0.01, "{y}");
         }
         other => panic!("unexpected target: {other:?}"),
     }

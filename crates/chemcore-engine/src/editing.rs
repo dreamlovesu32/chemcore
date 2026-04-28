@@ -156,13 +156,22 @@ pub struct BondCenterHit {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SelectionState {
+    #[serde(default)]
+    pub text_objects: Vec<String>,
+    #[serde(default)]
+    pub label_nodes: Vec<String>,
+    #[serde(default)]
+    pub region: bool,
     pub nodes: Vec<String>,
     pub bonds: Vec<String>,
 }
 
 impl SelectionState {
     pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty() && self.bonds.is_empty()
+        self.text_objects.is_empty()
+            && self.label_nodes.is_empty()
+            && self.nodes.is_empty()
+            && self.bonds.is_empty()
     }
 }
 
@@ -184,6 +193,7 @@ pub struct LabelAnchorGeometry {
     pub first_glyph_point: Point,
     pub left_point: Point,
     pub right_point: Point,
+    pub rightmost_glyph_index: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub right_group_point: Option<Point>,
 }
@@ -370,12 +380,18 @@ pub fn hit_test_bond_center(
 pub fn select_at(document: &ChemcoreDocument, point: Point) -> SelectionState {
     if let Some(endpoint) = hit_test_endpoint(document, point, ENDPOINT_HIT_RADIUS) {
         return SelectionState {
+            text_objects: Vec::new(),
+            label_nodes: Vec::new(),
+            region: false,
             nodes: vec![endpoint.node_id],
             bonds: Vec::new(),
         };
     }
     if let Some(bond) = hit_test_bond(document, point, BOND_HIT_RADIUS) {
         return SelectionState {
+            text_objects: Vec::new(),
+            label_nodes: Vec::new(),
+            region: false,
             nodes: Vec::new(),
             bonds: vec![bond.bond_id],
         };
@@ -761,11 +777,13 @@ fn label_anchor_geometries(entry: &EditableFragment<'_>, node: &Node) -> Vec<Lab
         .copied()
         .min_by(|a, b| a.x.total_cmp(&b.x))
         .unwrap_or(first_glyph_point);
-    let right_point = glyph_points
+    let (rightmost_glyph_index, right_point) = glyph_points
         .iter()
         .copied()
-        .max_by(|a, b| a.x.total_cmp(&b.x))
-        .unwrap_or(first_glyph_point);
+        .enumerate()
+        .max_by(|left, right| left.1.x.total_cmp(&right.1.x))
+        .map(|(index, point)| (index, point))
+        .unwrap_or((0, first_glyph_point));
     let right_group_index = rightmost_group_anchor_index(label, glyph_points.len());
     let right_group_point = right_group_index.and_then(|index| glyph_points.get(index).copied());
 
@@ -783,6 +801,7 @@ fn label_anchor_geometries(entry: &EditableFragment<'_>, node: &Node) -> Vec<Lab
                 first_glyph_point,
                 left_point,
                 right_point,
+                rightmost_glyph_index,
                 right_group_point,
             })
         })
@@ -848,22 +867,12 @@ fn rightmost_group_anchor_index(
     Some(anchor_char)
 }
 
-fn anchor_has_existing_connections(document: &ChemcoreDocument, anchor: &BondAnchor) -> bool {
-    let Some(node_id) = anchor.node_id.as_deref() else {
-        return false;
-    };
-    let Some(entry) = document.editable_fragment() else {
-        return false;
-    };
-    !adjacent_directions(&entry, node_id).is_empty()
-}
-
 fn angle_uses_vertical_label_anchor(angle: f64) -> bool {
     angular_distance(angle, 90.0) <= 7.5 || angular_distance(angle, 270.0) <= 7.5
 }
 
 fn resolved_anchor_point_for_angle(
-    document: &ChemcoreDocument,
+    _document: &ChemcoreDocument,
     anchor: &BondAnchor,
     angle: f64,
 ) -> Point {
@@ -878,12 +887,12 @@ fn resolved_anchor_point_for_angle(
         return label_anchor.left_point;
     }
     if direction.x > 1.0e-6 {
-        if anchor_has_existing_connections(document, anchor) {
-            return label_anchor
-                .right_group_point
-                .unwrap_or(label_anchor.right_point);
+        if label_anchor.glyph_index == label_anchor.rightmost_glyph_index {
+            return label_anchor.glyph_point;
         }
-        return label_anchor.right_point;
+        return label_anchor
+            .right_group_point
+            .unwrap_or(label_anchor.right_point);
     }
     label_anchor.glyph_point
 }

@@ -10,14 +10,9 @@ import {
   normalizeDisplayColor,
 } from "./render_support.js";
 import {
-  editorChargeSignBaselineAdjustment as computeEditorChargeSignBaselineAdjustment,
-  editorScriptBaselineShift as computeEditorScriptBaselineShift,
   editorScriptScale as computeEditorScriptScale,
   estimateTextRunsWidth as computeEstimateTextRunsWidth,
-  estimatedEditorCharWidth as computeEstimatedEditorCharWidth,
-  lookupEditorGlyphProfile as lookupGlyphProfile,
   normalizeSharedGlyphProfiles,
-  sliceTextByOffset,
   textLength,
 } from "./text_metrics.js";
 import {
@@ -28,10 +23,7 @@ import {
   styleAtEditorOffset as styleAtEditorOffsetModel,
 } from "./text_editor_model.js";
 import {
-  displayRunsForEditor as resolveDisplayRunsForEditor,
   editorSourceRunsFromSession as createEditorSourceRunsFromSession,
-  fillTextEditorContent as renderTextEditorContent,
-  previewTextRunsFromKernel as previewTextRunsFromEngine,
 } from "./text_editor_render.js";
 import { createTextEditorController } from "./text_editor_controller.js";
 import {
@@ -129,6 +121,12 @@ const EDITOR_FIT_PADDING_RATIO = 0.08;
 const ZOOM_MIN_PERCENT = 25;
 const ZOOM_MAX_PERCENT = 400;
 const ZOOM_STEP_LEVELS = [25, 33, 50, 67, 80, 100, 125, 150, 200, 250, 300, 400];
+const DELETE_CURSOR_SVG = encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+    <rect x="4" y="4" width="8" height="8" fill="#ffffff" stroke="#000000" stroke-width="1"/>
+  </svg>`,
+);
+const DELETE_CURSOR = `url("data:image/svg+xml,${DELETE_CURSOR_SVG}") 8 8, crosshair`;
 
 const sampleSelect = document.getElementById("sample-select");
 const reloadButton = document.getElementById("reload-button");
@@ -219,6 +217,7 @@ const editorState = {
   template: "benzene",
 };
 let activeTextEditor = null;
+let activeSelectionGesture = null;
 
 async function loadSharedGlyphProfiles() {
   const url = new URL("../shared/glyph_profiles.json", import.meta.url);
@@ -269,7 +268,6 @@ function mapTextSessionLengths(session, convert) {
     lineHeight: session.lineHeight == null ? session.lineHeight : convert(Number(session.lineHeight)),
     boxValue: mapLengthArray(session.boxValue, convert),
     anchorOffset: mapLengthArray(session.anchorOffset, convert),
-    measuredSize: mapLengthArray(session.measuredSize, convert),
     sourceRuns: mapRunsFontSize(session.sourceRuns, convert),
   };
 }
@@ -333,24 +331,6 @@ function mapTextEditLayoutLengths(layout, convert) {
       }))
       : layout.selectionRects,
   };
-}
-
-function previewTextRunsForEditor(sessionJson) {
-  const session = parseEngineJson(sessionJson, null);
-  if (!session || !state.editorEngine?.previewTextRuns) {
-    return JSON.stringify(null);
-  }
-  const preview = parseEngineJson(
-    state.editorEngine.previewTextRuns(JSON.stringify(editorSessionToEngineSession(session))),
-    null,
-  );
-  if (!preview) {
-    return JSON.stringify(null);
-  }
-  return JSON.stringify({
-    sourceRuns: mapRunsFontSize(preview.sourceRuns, cmToCssPx),
-    displayRuns: mapRunsFontSize(preview.displayRuns, cmToCssPx),
-  });
 }
 
 function previewTextEditLayoutFromKernel(session, selectionOffsets = null) {
@@ -1395,6 +1375,8 @@ function syncCanvasCursor() {
   }
   viewerSvg.style.cursor = editorState.activeTool === "text"
     ? "text"
+    : editorState.activeTool === "delete"
+      ? DELETE_CURSOR
     : editorState.activeTool === "select"
       ? "default"
       : "crosshair";
@@ -1562,10 +1544,7 @@ const textEditorController = createTextEditorController({
   editorRootBaseStyle,
   editorRootFontFamily,
   editorSourceRunsFromSession,
-  previewTextRunsFromKernel,
   previewTextEditLayoutFromKernel,
-  displayRunsForEditor,
-  renderRunNode: editorRunNode,
   defaultLineHeight: defaultTextEditorLineHeight,
   scriptScale: editorScriptScale,
   scriptShiftEm: (script) => {
@@ -1619,57 +1598,6 @@ function editorSourceRunsFromSession(session, root) {
   });
 }
 
-function previewTextRunsFromKernel(sourceRuns, root, options = {}) {
-  return previewTextRunsFromEngine(sourceRuns, root, {
-    engine: { previewTextRuns: previewTextRunsForEditor },
-    parseJson: parseEngineJson,
-    baseStyle: editorRootBaseStyle,
-    normalizeRuns: normalizeEditorSourceRuns,
-    runsPlainText,
-    defaultTextAlign: editorState.textAlign,
-    defaultLineHeight: defaultTextEditorLineHeight,
-    target: options.target || activeTextEditor?.session?.target,
-  });
-}
-
-function displayRunsForEditor(sourceRuns, root, options = {}) {
-  return resolveDisplayRunsForEditor(sourceRuns, root, {
-    engine: { previewTextRuns: previewTextRunsForEditor },
-    parseJson: parseEngineJson,
-    baseStyle: editorRootBaseStyle,
-    normalizeRuns: normalizeEditorSourceRuns,
-    runsPlainText,
-    defaultTextAlign: editorState.textAlign,
-    defaultLineHeight: defaultTextEditorLineHeight,
-    target: options.target || activeTextEditor?.session?.target,
-  });
-}
-
-function fillTextEditorContent(root, session, selectionOffsets = null) {
-  renderTextEditorContent(root, session, selectionOffsets, {
-    resolveDisplayRuns: (nextSession) => displayRunsForEditor(
-      Array.isArray(nextSession.sourceRuns) && nextSession.sourceRuns.length
-        ? nextSession.sourceRuns
-        : nextSession.text
-          ? [{ text: String(nextSession.text || ""), script: nextSession.defaultChemical ? "chemical" : "normal" }]
-          : [],
-      activeTextEditor?.root || root,
-      { target: nextSession.target },
-    ),
-    defaultLineHeight: defaultTextEditorLineHeight,
-    scriptScale: editorScriptScale,
-    scriptShiftEm: (script) => {
-      if (script === "subscript") {
-        return editorGlyphLayoutConfig().subscriptShiftDownEm;
-      }
-      if (script === "superscript") {
-        return editorGlyphLayoutConfig().superscriptShiftUpEm;
-      }
-      return 0;
-    },
-  });
-}
-
 function editorRootBaseStyle(root) {
   const baseFontSize = Number.parseFloat(root?.dataset?.baseFontSize || `${editorState.textFontSize}`)
     || editorState.textFontSize;
@@ -1682,42 +1610,6 @@ function editorRootBaseStyle(root) {
     underline: false,
     script: root.dataset.defaultChemical === "true" ? "chemical" : "normal",
   };
-}
-
-function editorRunNode(run, text, selected = false) {
-  const span = document.createElement("span");
-  span.className = selected ? "text-editor-run is-selected" : "text-editor-run";
-  span.textContent = text;
-  if (run.fontFamily) {
-    span.style.fontFamily = editorCssFontFamily(run.fontFamily);
-  }
-  if (run.fontSize) {
-    span.style.fontSize = `${Number(run.fontSize)}px`;
-  }
-  if (run.fill) {
-    span.style.color = run.fill;
-  }
-  if (Number(run.fontWeight || 400) >= 700) {
-    span.style.fontWeight = "700";
-  }
-  if (String(run.fontStyle || "normal").toLowerCase() === "italic") {
-    span.style.fontStyle = "italic";
-  }
-  if (run.underline) {
-    span.style.textDecoration = "underline";
-  }
-  if (run.script === "subscript") {
-    span.dataset.script = "subscript";
-    span.style.verticalAlign = "sub";
-    span.style.fontSize = `${Math.max(7, Number(run.fontSize || editorState.textFontSize) * editorScriptScale("subscript"))}px`;
-  } else if (run.script === "superscript") {
-    span.dataset.script = "superscript";
-    span.style.verticalAlign = "super";
-    span.style.fontSize = `${Math.max(7, Number(run.fontSize || editorState.textFontSize) * editorScriptScale("superscript"))}px`;
-  } else if (run.script === "chemical") {
-    span.dataset.script = "chemical";
-  }
-  return span;
 }
 
 function syncTextToolbarStateFromSession(session) {
@@ -1820,77 +1712,12 @@ function editorGlyphLayoutConfig() {
   return editorGlyphProfiles().layout;
 }
 
-function lookupEditorGlyphProfile(character) {
-  return lookupGlyphProfile(sharedGlyphProfiles, character);
-}
-
 function editorScriptScale(script) {
   return computeEditorScriptScale(sharedGlyphProfiles, script);
 }
 
-function editorScriptBaselineShift(baseFontSize, script) {
-  return computeEditorScriptBaselineShift(sharedGlyphProfiles, baseFontSize, script);
-}
-
-function editorRenderOffset() {
-  return { x: 0, y: 0 };
-}
-
-function editorVisualScale() {
-  return 1;
-}
-
-function editorChargeSignBaselineAdjustment(profile, baseFontSize, script) {
-  return computeEditorChargeSignBaselineAdjustment(sharedGlyphProfiles, profile, baseFontSize, script);
-}
-
-function expandedEditorRuns(sourceRuns) {
-  if (!(sourceRuns || []).length) {
-    return [];
-  }
-  return displayRunsForEditor(sourceRuns, activeTextEditor?.root);
-}
-
-function effectiveEditorRunFontSize(run, fallbackFontSize) {
-  const base = Number(run.fontSize || fallbackFontSize || editorState.textFontSize);
-  return Math.max(7, base * editorScriptScale(run.script));
-}
-
-function effectiveEditorRunBaselineShift(run, fallbackFontSize) {
-  const base = Number(run.fontSize || fallbackFontSize || editorState.textFontSize);
-  return editorScriptBaselineShift(base, run.script);
-}
-
 function buildEditorTextLayout() {
   return activeTextEditor?.layout || null;
-}
-
-function editorAnchorOffset(root, session, options = {}) {
-  return activeTextEditor?.layout?.anchorOffset || { x: 0, y: 0 };
-}
-
-function fallbackEndpointEditorAnchorOffset(root) {
-  return activeTextEditor?.layout?.anchorOffset || { x: 0, y: 0 };
-}
-
-function normalizeSessionAnchorOffset(value) {
-  if (!Array.isArray(value) || value.length < 2) {
-    return null;
-  }
-  const x = Number(value[0]);
-  const y = Number(value[1]);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    return null;
-  }
-  return { x, y };
-}
-
-function measureEndpointEditorAnchorOffset(root) {
-  return activeTextEditor?.layout?.anchorOffset || null;
-}
-
-function estimatedEditorCharWidth(character, fontSize) {
-  return computeEstimatedEditorCharWidth(sharedGlyphProfiles, character, fontSize);
 }
 
 function estimateTextRunsWidth(runs, fallbackFontSize = editorState.textFontSize) {
@@ -2121,7 +1948,7 @@ function buildCommittedTextSession(session, root) {
     activeTextEditor?.sourceRuns || [],
     editorRootBaseStyle(root),
   );
-  const anchorOffset = editorAnchorOffset(root, session);
+  const anchorOffset = activeTextEditor?.layout?.anchorOffset || { x: 0, y: 0 };
   const baseFontSize = Number.parseFloat(root.dataset.baseFontSize || `${editorState.textFontSize}`)
     || editorState.textFontSize;
   const baseLineHeight = Number.parseFloat(root.dataset.baseLineHeight || `${defaultTextEditorLineHeight(baseFontSize)}`)
@@ -2138,7 +1965,6 @@ function buildCommittedTextSession(session, root) {
     anchorOffset: session.target?.kind === "endpoint-label"
       ? [anchorOffset.x, anchorOffset.y]
       : undefined,
-    measuredSize: [root.offsetWidth, root.offsetHeight],
     defaultChemical: root.dataset.defaultChemical === "true",
   };
 }
@@ -2226,16 +2052,22 @@ function setActiveTool(toolButton) {
   if (editorState.activeTool === "text" && nextTool !== "text") {
     finishActiveTextEditor(true);
   }
+  if (editorState.activeTool === "select" && nextTool !== "select") {
+    activeSelectionGesture = null;
+  }
   editorState.activeTool = toolButton?.dataset?.tool || editorState.activeTool;
-  document.querySelectorAll(".tool-button").forEach((button) => {
-    button.classList.toggle("is-active", button === toolButton);
+  document.querySelectorAll("[data-tool]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.tool === editorState.activeTool);
   });
   syncEngineToolState();
   renderSecondaryToolbar();
   syncCanvasCursor();
+  if (isEditingRustDocument()) {
+    renderEditorOverlay(currentEditorRenderList());
+  }
 }
 
-document.querySelectorAll(".tool-button").forEach((button) => {
+document.querySelectorAll("[data-tool]").forEach((button) => {
   button.addEventListener("click", () => {
     setActiveTool(button);
   });
@@ -2354,6 +2186,21 @@ function isDocumentPreviewPrimitive(primitive) {
 
 function handleEditorPointerMove(event) {
   const point = svgPointFromEvent(event);
+  if (editorState.activeTool === "select" && activeSelectionGesture) {
+    event.preventDefault();
+    if (pointDistance(activeSelectionGesture.start, point) >= cssPxToCm(3)) {
+      activeSelectionGesture.dragged = true;
+    }
+    activeSelectionGesture.current = point;
+    if (editorState.selectMode === "free") {
+      const lastPoint = activeSelectionGesture.points[activeSelectionGesture.points.length - 1];
+      if (!lastPoint || pointDistance(lastPoint, point) >= cssPxToCm(2)) {
+        activeSelectionGesture.points.push(point);
+      }
+    }
+    renderEditorOverlay(currentEditorRenderList());
+    return;
+  }
   if (!routeEditorPointerEvents()) {
     if (isEditingRustDocument()) {
       state.editorEngine.clearInteraction();
@@ -2379,6 +2226,20 @@ function handleEditorPointerDown(event) {
     openTextEditorAt(point);
     return;
   }
+  if (editorState.activeTool === "select") {
+    event.preventDefault();
+    viewerSvg.setPointerCapture?.(event.pointerId);
+    state.editorEngine.pointerMove(point.x, point.y, event.altKey);
+    activeSelectionGesture = {
+      start: point,
+      current: point,
+      points: [point],
+      dragged: false,
+      additive: !!event.shiftKey,
+    };
+    renderEditorOverlay(currentEditorRenderList());
+    return;
+  }
   event.preventDefault();
   viewerSvg.setPointerCapture?.(event.pointerId);
   state.editorEngine.pointerDown(point.x, point.y, event.altKey);
@@ -2397,6 +2258,29 @@ function handleEditorPointerUp(event) {
   state.lastEditFocusPoint = point;
   event.preventDefault();
   viewerSvg.releasePointerCapture?.(event.pointerId);
+  if (editorState.activeTool === "select") {
+    const gesture = activeSelectionGesture;
+    activeSelectionGesture = null;
+    if (!gesture) {
+      return;
+    }
+    if (!gesture.dragged) {
+      state.editorEngine.selectAtPoint(point.x, point.y, gesture.additive);
+    } else if (editorState.selectMode === "box") {
+      state.editorEngine.selectInRect(
+        gesture.start.x,
+        gesture.start.y,
+        point.x,
+        point.y,
+        gesture.additive,
+      );
+    } else {
+      const polygonPoints = [...gesture.points, point].map((candidate) => [candidate.x, candidate.y]);
+      state.editorEngine.selectInPolygon(JSON.stringify(polygonPoints), gesture.additive);
+    }
+    renderDocument();
+    return;
+  }
   state.editorEngine.pointerUp(point.x, point.y, event.altKey);
   syncDocumentFromEngine();
   renderDocument();
@@ -2404,6 +2288,9 @@ function handleEditorPointerUp(event) {
 
 function handleEditorPointerLeave() {
   if (!isEditingRustDocument()) {
+    return;
+  }
+  if (editorState.activeTool === "select" && activeSelectionGesture) {
     return;
   }
   if (editorState.activeTool !== "text") {
@@ -2469,6 +2356,10 @@ function renderEditorOverlay(renderList = null) {
       const classByRole = {
         "hover-text-box": "editor-text-box-focus",
         "hover-label-glyph": "editor-label-glyph-focus",
+        "selection-box": "editor-selection-box",
+        "selection-bond": "editor-selection-bond-box",
+        "selection-node": "editor-selection-node-box",
+        "selection-text-box": "editor-selection-text-box",
       };
       const className = classByRole[primitive.role];
       if (!className) {
@@ -2487,7 +2378,7 @@ function renderEditorOverlay(renderList = null) {
         "hover-endpoint": "editor-endpoint-halo",
         "hover-bond-center": "editor-bond-center-halo",
         "preview-end": "editor-preview-end",
-        "selection-node": "editor-selection-node",
+        "selection-bond-dot": "editor-selection-bond-dot",
       };
       const className = classByRole[primitive.role];
       if (!className) {
@@ -2499,6 +2390,30 @@ function renderEditorOverlay(renderList = null) {
         r: primitive.radius,
         class: className,
         "data-role": primitive.role,
+      }));
+    }
+  }
+  if (editorState.activeTool === "select" && activeSelectionGesture?.dragged) {
+    if (editorState.selectMode === "box") {
+      const start = activeSelectionGesture.start;
+      const current = activeSelectionGesture.current;
+      overlay.appendChild(makeSvgNode("rect", {
+        x: Math.min(start.x, current.x),
+        y: Math.min(start.y, current.y),
+        width: Math.abs(current.x - start.x),
+        height: Math.abs(current.y - start.y),
+        class: "editor-selection-marquee",
+        "data-role": "selection-marquee",
+      }));
+    } else {
+      const points = activeSelectionGesture.points
+        .concat([activeSelectionGesture.current])
+        .map((candidate) => `${candidate.x},${candidate.y}`)
+        .join(" ");
+      overlay.appendChild(makeSvgNode("polyline", {
+        points,
+        class: "editor-selection-lasso",
+        "data-role": "selection-lasso",
       }));
     }
   }

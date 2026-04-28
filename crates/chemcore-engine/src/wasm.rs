@@ -50,6 +50,35 @@ impl WasmEngine {
         ));
     }
 
+    #[wasm_bindgen(js_name = selectAtPoint)]
+    pub fn select_at_point(&mut self, x: f64, y: f64, additive: bool) {
+        self.inner.select_at_point(
+            Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))),
+            additive,
+        );
+    }
+
+    #[wasm_bindgen(js_name = selectInRect)]
+    pub fn select_in_rect(&mut self, x1: f64, y1: f64, x2: f64, y2: f64, additive: bool) {
+        self.inner.select_in_rect(
+            Point::from_world(WorldPoint::new(WorldCm(x1), WorldCm(y1))),
+            Point::from_world(WorldPoint::new(WorldCm(x2), WorldCm(y2))),
+            additive,
+        );
+    }
+
+    #[wasm_bindgen(js_name = selectInPolygon)]
+    pub fn select_in_polygon(&mut self, points_json: &str, additive: bool) -> Result<(), JsValue> {
+        let raw_points: Vec<[f64; 2]> = serde_json::from_str(points_json)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        let points = raw_points
+            .into_iter()
+            .map(|point| Point::from_world(WorldPoint::new(WorldCm(point[0]), WorldCm(point[1]))))
+            .collect();
+        self.inner.select_in_polygon(points, additive);
+        Ok(())
+    }
+
     #[wasm_bindgen(js_name = clearInteraction)]
     pub fn clear_interaction(&mut self) {
         self.inner.clear_interaction();

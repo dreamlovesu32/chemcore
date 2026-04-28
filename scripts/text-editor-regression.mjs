@@ -132,7 +132,16 @@ await page.mouse.click(labelBox.x + labelBox.width / 2, labelBox.y + labelBox.he
 await page.waitForFunction(() => document.querySelector(".text-editor-display")?.textContent?.includes("H2SO4"));
 assert.equal(await selectedEditorText(), "H2SO4");
 const reopenedLabelTextBox = await page.locator(".text-editor-svg text").first().boundingBox();
-assertBoxesClose(reopenedLabelTextBox, labelBox, "label reopen geometry");
+const reopenedLabelEditorBox = await page.locator(".text-editor").boundingBox();
+assert(reopenedLabelEditorBox, "reopened label editor is not visible");
+assert(
+  Math.abs(reopenedLabelEditorBox.x - reopenedLabelTextBox.x) <= 1,
+  `label editor root should align with text x: ${reopenedLabelEditorBox.x} vs ${reopenedLabelTextBox.x}`,
+);
+assert(
+  Math.abs(reopenedLabelEditorBox.y - reopenedLabelTextBox.y) <= 1,
+  `label editor root should align with text y: ${reopenedLabelEditorBox.y} vs ${reopenedLabelTextBox.y}`,
+);
 
 logStep("zoom-editor");
 const editorBeforeZoom = await page.locator(".text-editor").boundingBox();

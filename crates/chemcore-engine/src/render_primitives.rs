@@ -17,8 +17,11 @@ pub enum RenderRole {
     HoverTextBox,
     PreviewBond,
     PreviewEnd,
+    SelectionBox,
     SelectionBond,
+    SelectionBondDot,
     SelectionNode,
+    SelectionTextBox,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
