@@ -99,19 +99,57 @@ The render path now supports:
 
 ## Labels, Implicit Hydrogens, and Abbreviation Recognition
 
-Endpoint labels are no longer plain text only:
+Endpoint labels are no longer plain text only. The implemented behavior has two engine-owned paths: simple element labels with implicit hydrogen refresh, and legal abbreviation or whole-label recognition. Both run inside the Rust endpoint-label pipeline.
 
-- Simple element labels enter element recognition and refresh implicit hydrogen count from connectivity.
-- Rules for `N`, `O`, `P`, `S`, halogens, `B`, `Si`, and related atoms are documented in `docs/implicit-hydrogen-rules.zh-CN.md`.
-- Terminal abbreviations include `Me`, `Et`, `Pr`, `iPr`, `Bu`, `iBu`, `sBu`, `tBu`, `Ph`, `Bn`, `Ac`, `Boc`, `Cbz`, `Fmoc`, `TMS`, and others.
-- Composite abbreviations include labels such as `CO2Et`, `COOEt`, `OAc`, and `SO2Me`.
-- Bridge labels include `NH`, `CO`, `CO2/COO`, `OCO`, `SO/SO2`, `CH2`, and selected `NMe/NTs` forms.
-- `N3` is recognized as azido.
-- `CF3` uses normal abbreviation recognition; when connected on the right it displays as `F3C` while anchoring on `C`.
-- `t-Bu` and `tBu` are aliases for the same legal label; related aliases such as `nBu` and `iPr` are handled by the same legal-label system.
-- Recognized whole-label abbreviations and unknown invalid labels both behave as whole labels when connected on the left, anchoring at the rightmost glyph group.
+### Implicit Hydrogen Refresh
 
-Recognition results are stored in `meta.labelRecognition`, and the format documentation now describes the `functionalGroupExpansion.v1` semantic layer. This expansion is extra semantic data, not a replacement for the main molecule graph.
+Implicit hydrogens apply only when the label can be confirmed as a simple element label, such as `N`, `O`, `S`, `P`, or `Cl`. Arbitrary text, functional-group abbreviations, unknown labels, and labels recognized as whole-label fallbacks do not use this path. Refresh happens when:
+
+- the user applies an endpoint text edit;
+- a hovered endpoint is replaced through a keyboard element shortcut;
+- adding, deleting, template insertion, bond-order changes, or bond-style changes modify connectivity and require related labels to be laid out again;
+- CDXML import turns structure labels into native attached labels and runs them through the same geometry refresh.
+
+The calculation baseline is connectivity, valence, and charge:
+
+```text
+connection_count = sum(max(bond.order, 1))
+numHydrogens = typical_valence - connection_count - abs(charge)
+```
+
+The result is clamped to `0..=9`. Different elements use different valence behavior:
+
+- `N` uses 3/4/5-valence handling, so a singly connected `N` typically displays as `NH2` and loses hydrogens as connectivity increases.
+- `O` defaults to valence 2, so singly connected `O` displays as `OH`.
+- `P` and `S` use 3/5 and 2/4/6 valence ladders instead of one fixed valence.
+- `F/Cl/Br/I` use halogen rules; isolated labels can display as `FH` or `ClH`, while singly connected halogens do not gain hydrogen.
+- `C` is recognized as an element label but skeletal carbon still does not display automatic hydrogen. `H` and `D` also do not receive additional hydrogen.
+
+Display text and source text are deliberately separate. A source label may be `NH2`; if the connection is on the right, the rendered label can display as `H2N` according to direction rules, while reopening the editor still uses stable source text. Generated hydrogen characters appear in editable text and can be hovered, but they cannot become bond anchors. Dragging a bond from generated `H` routes the anchor back to the heavy atom.
+
+### Label Recognition Order
+
+Endpoint label recognition is contextual; it is not just a list of frontend text exceptions:
+
+1. Try simple element labels first, such as `N`, `O`, `Cl`, and `Si`.
+2. Try functional-group canonical labels and aliases.
+3. Parse composable labels as linker + terminal fragments.
+4. Validate terminal or bridge legality from current external connection count.
+5. Preserve unrecognized labels as whole text and apply the whole-label anchor fallback.
+
+Connection count is part of legality. Terminal abbreviations are legal only with exactly one external bond. On two-bond nodes, labels such as `Boc`, `Ts`, `CN`, `NO2`, and `CO2Et` are marked invalid instead of being expanded incorrectly. Bridge abbreviations are legal only with exactly two external bonds, including `NH`, `CO`, `CO2/COO`, `OCO`, `SO/SO2`, `CH2`, and selected substituted-nitrogen bridges such as `NMe/NTs`.
+
+Terminal abbreviations include `Me`, `Et`, `Pr`, `iPr`, `Bu`, `iBu`, `sBu`, `tBu`, `Ph`, `Bn`, `Ac`, `Boc`, `Cbz`, `Fmoc`, `TMS`, and others. Composite abbreviations include `CO2Et`, `COOEt`, `OAc`, `SO2Me`, and `COOSO2Me`, built from open linkers and terminal fragments. Whole-word matches only prove legality; they do not bypass composition. For example, `CO2Et` is still recorded as `CO2 + Et`.
+
+Several labels that were easy to mishandle were covered explicitly:
+
+- `N3` is recognized as azido instead of an unknown string.
+- `CF3` uses normal functional-group recognition. When connected on the right, display rules render it as `F3C`, but the anchor atom remains `C`.
+- `t-Bu` and `tBu` are aliases for the same legal label. Related aliases such as `nBu`, `iBu`, `sBu`, `iPr`, and `nPr` are handled by the legal-label system rather than frontend text exceptions.
+- For modified alkyl labels such as `t-Bu`, right-side attachment uses the normal left-side anchor atom. Left-side attachment does not reverse the text; instead the whole label is treated as one glyph group and anchors on the rightmost glyph, the `u` side.
+- All unrecognized invalid labels use the same whole-label fallback. On left-side attachment, the anchor is the rightmost glyph group; on right-side attachment, normal left anchoring is used. Unknown labels therefore do not get reversed letter-by-letter into bogus formulas.
+
+Recognition results are stored in `meta.labelRecognition`, including `status`, `canonicalLabel`, `groupKind`, `components`, `anchorAtom`, and optional `expansion`. `functionalGroupExpansion.v1` is an extra semantic layer with local atoms, bonds, and attachments for expandable groups; it does not replace the main molecule graph. Readers that only need visual round-trip can ignore this metadata, while chemical readers can consume it.
 
 ## Text Editing and Label Layout
 
@@ -179,4 +217,3 @@ Validation run before this commit:
 
 - `cargo test -p chemcore-engine`
 - `./scripts/build-engine-wasm.sh`
-

@@ -99,19 +99,57 @@ center_distance = inner_gap + (width_a + width_b) / 2
 
 ## 标签、隐式氢和缩写识别
 
-新增缩写识别模块后，端点标签不再只是普通文本：
+新增缩写识别模块后，端点标签不再只是普通文本。今天实际落地的是“元素/隐式氢”和“合法缩写/whole-label”两条并行路径，它们都发生在 Rust engine 的 endpoint label pipeline 里。
 
-- 简单元素标签会进入元素识别，并根据连接数刷新隐式氢。
-- `N`、`O`、`P`、`S`、卤素、`B`、`Si` 等隐式氢规则写入 `docs/implicit-hydrogen-rules.zh-CN.md`。
-- terminal abbreviation 支持 `Me`、`Et`、`Pr`、`iPr`、`Bu`、`iBu`、`sBu`、`tBu`、`Ph`、`Bn`、`Ac`、`Boc`、`Cbz`、`Fmoc`、`TMS` 等。
-- 组合缩写支持 `CO2Et`、`COOEt`、`OAc`、`SO2Me` 等由 linker + terminal 组成的标签。
-- 两键桥接标签支持 `NH`、`CO`、`CO2/COO`、`OCO`、`SO/SO2`、`CH2` 和部分 `NMe/NTs`。
-- `N3` 识别为叠氮基。
-- `CF3` 走正常缩写识别；右侧连接时显示为 `F3C`，锚点仍在 `C` 上。
-- `t-Bu` 和 `tBu` 作为同一个合法标签识别，`nBu/iPr` 等同类 alias 同样进入合法标签系统。
-- 已识别 whole-label 缩写和未知非法标签在靠左连接时都按整体处理，锚点落在最右侧字母组。
+### 隐式氢刷新
 
-识别结果写入 `meta.labelRecognition`，并在格式文档中补充了 `functionalGroupExpansion.v1` 的语义层说明。这个 expansion 是附加语义，不替换主分子图。
+隐式氢只作用在能被确认是简单元素标签的节点上，例如 `N`、`O`、`S`、`P`、`Cl`。任意文本、functional group 缩写、未知 label 和已经识别为 whole-label 的非法标签不会走这条规则。刷新时机包括：
+
+- 用户提交 endpoint text edit。
+- hover 端点后用键盘快捷方式替换元素。
+- 加键、删键、模板插入、键阶或键样式变化导致连接数变化后，相关 label 重新排版。
+- CDXML 导入后把结构标签转为内核 attached label 时，统一经过 label geometry refresh。
+
+计算基线是连接数、价态和电荷：
+
+```text
+connection_count = sum(max(bond.order, 1))
+numHydrogens = typical_valence - connection_count - abs(charge)
+```
+
+结果夹在 `0..=9`。不同元素的 `typical_valence` 不完全相同：
+
+- `N` 按 3/4/5 价路径处理，常见单键 `N` 会显示为 `NH2`，双键或高连接数时减少氢。
+- `O` 默认 2 价，单键 `O` 显示为 `OH`。
+- `P` 和 `S` 采用 3/5、2/4/6 价阶梯，避免简单按一个固定价态算错。
+- `F/Cl/Br/I` 采用卤素规则；孤立时可显示 `FH`、`ClH`，单键时不再加氢。
+- `C` 虽然是元素标签，但骨架碳不自动显示隐式氢；`H`、`D` 自身也不会再挂氢。
+
+显示文本和源文本分开处理。比如源文本可以是 `NH2`，如果连接方向在右侧，显示层可以按 label 方向规则变成 `H2N`；重新打开编辑器仍使用稳定 source text。自动生成的 `H` 字符会出现在编辑文本里，也能参与 hover 高亮，但不能成为画键锚点：从生成的 `H` 位置拖键时，engine 会把实际锚点落回对应重原子。
+
+### 标签识别顺序
+
+端点标签识别按上下文执行，不是纯文本特例表：
+
+1. 先尝试简单元素标签，例如 `N`、`O`、`Cl`、`Si`。
+2. 再尝试 functional group canonical label 和 alias。
+3. 对可组合标签走 linker + terminal 解析。
+4. 根据当前外部连接数判定 terminal 或 bridge 是否合法。
+5. 无法识别的标签保留为整体文本，并进入 whole-label 锚点规则。
+
+连接数是合法性的关键。terminal 缩写只在恰好一根外部键时合法；两键节点上的 `Boc`、`Ts`、`CN`、`NO2`、`CO2Et` 会标记为非法缩写，而不是错误展开。bridge 缩写只在恰好两根外部键时合法，例如 `NH`、`CO`、`CO2/COO`、`OCO`、`SO/SO2`、`CH2`，以及部分 `NMe/NTs` 这种取代氮桥。
+
+terminal abbreviation 支持 `Me`、`Et`、`Pr`、`iPr`、`Bu`、`iBu`、`sBu`、`tBu`、`Ph`、`Bn`、`Ac`、`Boc`、`Cbz`、`Fmoc`、`TMS` 等。组合缩写支持 `CO2Et`、`COOEt`、`OAc`、`SO2Me`、`COOSO2Me` 这类由开放 linker 和 terminal 片段拼出的标签。整词命中只证明标签合法，不跳过组合解析；例如 `CO2Et` 仍记录为 `CO2 + Et`。
+
+本轮特别补了几个容易误判的标签：
+
+- `N3` 识别为叠氮基，不再当作普通未知字符串。
+- `CF3` 走正常 functional group 识别；右侧连接时显示层按方向规则变成 `F3C`，但 anchor atom 仍是 `C`。
+- `t-Bu` 和 `tBu` 是同一个合法 label；`nBu/iBu/sBu/iPr/nPr` 等也作为 alias 进入合法标签系统，而不是前端文本特例。
+- 对 `t-Bu` 这类带修饰前缀的标签，靠右连接按正常逻辑锚在左侧连接原子；靠左连接时不反转文本，而是把整个 label 看成一个字母组，锚点落在最右侧 glyph，也就是 `u` 侧。
+- 对所有无法识别的非法标签也采用同一个 whole-label fallback：靠左时锚点落在最右侧字母组，靠右时走正常左侧锚点。这样未知标签不会被逐字母反转成错误化学式。
+
+识别结果写入 `meta.labelRecognition`，包括 `status`、`canonicalLabel`、`groupKind`、`components`、`anchorAtom` 和可选的 `expansion`。`functionalGroupExpansion.v1` 是附加语义层，使用局部 atoms/bonds/attachments 表示可展开结构，但不替换主 molecule graph。读取方如果只需要视觉还原，可以忽略这段 meta；需要化学语义时再消费它。
 
 ## 文本编辑和标签排版
 
@@ -179,4 +217,3 @@ viewer 层更新：
 
 - `cargo test -p chemcore-engine`
 - `./scripts/build-engine-wasm.sh`
-
