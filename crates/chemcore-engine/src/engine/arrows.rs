@@ -1,6 +1,10 @@
 use super::*;
 use serde_json::json;
 
+fn round_point(point: Point) -> Point {
+    Point::new(crate::round2(point.x), crate::round2(point.y))
+}
+
 pub(super) fn arrow_drag_end(start: Point, point: Point, alt_key: bool) -> Point {
     if alt_key {
         return point;

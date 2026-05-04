@@ -7,8 +7,6 @@ use crate::{
 use serde_json::Value as JsonValue;
 use std::collections::{BTreeMap, BTreeSet};
 
-#[path = "render/arrow_geometry.rs"]
-mod arrow_geometry;
 #[path = "render/bond_geometry.rs"]
 mod bond_geometry;
 #[path = "render/bond_metrics.rs"]
@@ -29,8 +27,6 @@ mod object_render;
 mod primitives;
 #[path = "render/style_payload.rs"]
 mod style_payload;
-#[path = "render/text_utils.rs"]
-mod text_utils;
 
 use bond_render::{compute_solid_wedge_points, render_fragment_bond};
 pub use bounds::{render_primitive_bounds, render_primitives_bounds};
@@ -50,7 +46,6 @@ use primitives::{
 };
 pub use primitives::{RenderPrimitive, RenderRole};
 
-use arrow_geometry::{arrow_axis, arrow_head_points, hollow_arrow_outline_points};
 use bond_geometry::*;
 use bond_metrics::*;
 pub(crate) use bounds::fragment_bond_visual_bounds;
@@ -59,7 +54,6 @@ use labels::{
     render_fragment_line_with_profiles, world_point,
 };
 use style_payload::*;
-use text_utils::{split_preserved_text_lines, split_runs_by_line, wrap_text_lines};
 
 const VIEWER_BOND_STROKE: f64 = crate::VIEWER_BOND_STROKE_CM.value();
 const DEFAULT_MULTI_BOND_CENTER_SPACING_RATIO: f64 = crate::DEFAULT_BOND_SPACING_PERCENT / 100.0;

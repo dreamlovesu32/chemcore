@@ -1,7 +1,6 @@
 mod arrows;
 mod bond_styles;
 mod bond_tools;
-mod bounds;
 mod brackets;
 mod clipboard;
 mod command;
@@ -9,7 +8,6 @@ mod delete;
 mod presets;
 mod select;
 mod shapes;
-mod symbol_tools;
 mod templates;
 mod text_edit;
 
@@ -32,12 +30,8 @@ use self::bond_styles::{
     replace_with_stereo_bond_style, should_default_center_double_bond_for_segment,
     update_terminal_double_bond_placement_after_new_attachment,
 };
-use self::bounds::render_bounds_scope_accepts;
 use self::delete::FocusedDeleteMode;
 use self::presets::{document_style_preset_for_options, editor_options_from_cdxml_document};
-use self::symbol_tools::{
-    bracket_kind_name, bracket_symbol_metrics, round_point, symbol_orbit_point,
-};
 use crate::{
     adjacent_directions, anchor_from_point, angle_between, bond_center_focus_length, can_draw_bond,
     can_focus_bond_center, can_focus_endpoint, default_angle_for_anchor_for_variant,
@@ -74,6 +68,61 @@ pub enum RenderBoundsScope {
     All,
     Document,
     Selection,
+}
+
+fn render_bounds_scope_accepts(scope: RenderBoundsScope, primitive: &RenderPrimitive) -> bool {
+    match scope {
+        RenderBoundsScope::All => true,
+        RenderBoundsScope::Document => {
+            let role = render_primitive_role(primitive);
+            role != RenderRole::DocumentKnockout
+                && !render_role_is_selection(role)
+                && !render_role_is_hover(role)
+                && !render_role_is_preview(role)
+        }
+        RenderBoundsScope::Selection => render_role_is_selection(render_primitive_role(primitive)),
+    }
+}
+
+fn render_primitive_role(primitive: &RenderPrimitive) -> RenderRole {
+    match primitive {
+        RenderPrimitive::Line { role, .. }
+        | RenderPrimitive::Circle { role, .. }
+        | RenderPrimitive::Polygon { role, .. }
+        | RenderPrimitive::Rect { role, .. }
+        | RenderPrimitive::Ellipse { role, .. }
+        | RenderPrimitive::Polyline { role, .. }
+        | RenderPrimitive::Path { role, .. }
+        | RenderPrimitive::FilledPath { role, .. }
+        | RenderPrimitive::Text { role, .. } => *role,
+    }
+}
+
+fn render_role_is_selection(role: RenderRole) -> bool {
+    matches!(
+        role,
+        RenderRole::SelectionBox
+            | RenderRole::SelectionBond
+            | RenderRole::SelectionBondDot
+            | RenderRole::SelectionNode
+            | RenderRole::SelectionTextBox
+    )
+}
+
+fn render_role_is_hover(role: RenderRole) -> bool {
+    matches!(
+        role,
+        RenderRole::HoverEndpoint
+            | RenderRole::HoverLabelGlyph
+            | RenderRole::HoverBondCenter
+            | RenderRole::HoverArrowCenter
+            | RenderRole::HoverArrowHandle
+            | RenderRole::HoverTextBox
+    )
+}
+
+fn render_role_is_preview(role: RenderRole) -> bool {
+    matches!(role, RenderRole::PreviewBond | RenderRole::PreviewEnd)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

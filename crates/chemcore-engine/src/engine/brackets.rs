@@ -1,5 +1,39 @@
 use super::*;
 
+fn bracket_kind_name(kind: crate::BracketKind) -> &'static str {
+    match kind {
+        crate::BracketKind::Round => "round",
+        crate::BracketKind::Square => "square",
+        crate::BracketKind::Curly => "curly",
+        crate::BracketKind::DoubleDagger => "double-dagger",
+        crate::BracketKind::Dagger => "dagger",
+        crate::BracketKind::CirclePlus => "circle-plus",
+        crate::BracketKind::Plus => "plus",
+        crate::BracketKind::RadicalCation => "radical-cation",
+        crate::BracketKind::LonePair => "lone-pair",
+        crate::BracketKind::CircleMinus => "circle-minus",
+        crate::BracketKind::Minus => "minus",
+        crate::BracketKind::RadicalAnion => "radical-anion",
+        crate::BracketKind::Electron => "electron",
+    }
+}
+
+fn bracket_symbol_metrics(kind: crate::BracketKind, line_width: f64) -> crate::CdxmlSymbolMetrics {
+    crate::cdxml_symbol_metrics_for_line_width(bracket_kind_name(kind), line_width)
+}
+
+fn symbol_orbit_point(anchor: SymbolOrbitAnchor, pointer: Point) -> Point {
+    let angle = angle_between(anchor.point, pointer).to_radians();
+    let (rx, ry) = match anchor.mode {
+        SymbolOrbitMode::Endpoint => (13.0, 13.0),
+        SymbolOrbitMode::Label => (13.0, 8.0),
+    };
+    Point::new(
+        anchor.point.x + angle.cos() * rx,
+        anchor.point.y + angle.sin() * ry,
+    )
+}
+
 impl Engine {
     pub(super) fn pointer_down_bracket(&mut self, event: PointerEvent) {
         let point = event.point();
