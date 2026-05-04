@@ -166,19 +166,20 @@ Examples:
 
 Hosts should not redefine the document model.
 
-## Why CDXML Parsing Lives Here
+## Why CDXML Parsing Lives In The Core
 
 CDXML is currently the main import path because it provides a practical bridge
-from ChemDraw-based workflows into a future `chemcore` document.
+from ChemDraw-based workflows into a `chemcore` document.
 
-The migrated parser under `src/chemcore/cdxml` is temporary only in the sense
-that it is an import subsystem, not because it is throwaway code.
+The active CDXML parser and writer live in the Rust engine:
 
-Its current role is:
+- [crates/chemcore-engine/src/cdxml.rs](../crates/chemcore-engine/src/cdxml.rs)
 
-- extract molecules, text, arrows, and tables
-- preserve structure data via `molblock2d`
-- provide enough information to build the first `chemcore` document converter
+Their role is:
+
+- parse CDXML into native `ChemcoreDocument` objects and molecule fragments
+- preserve enough import metadata to retain source drawing options
+- export the current document back to ChemDraw-readable CDXML
 
 ## First Milestone
 
@@ -188,8 +189,8 @@ It is:
 
 1. `chemcore` file format v0.1
 2. `chemcore` runtime model v0.1
-3. a converter from extracted CDXML data into that model
-4. a read-only renderer backend that proves the model is sufficient
+3. native CDXML import/export through the Rust engine
+4. a renderer backend that proves the model is sufficient
 
 That milestone answers the most important question:
 

@@ -1,111 +1,56 @@
 # chemcore
 
-`chemcore` 是一个跨平台的化学文档核心。
+`chemcore` 是一个跨平台化学文档核心。
 
-这个项目的目标不是“先做一个网页 demo，之后再重写成桌面版”。从第一天开始，
-它就要定义一套稳定的文档核心：
-
-- 平台无关的文档模型
-- 稳定的文件格式
-- 适合编辑和渲染的运行时场景模型
-- 从 CDXML 等旧工具导入的路径
-- 面向浏览器和桌面宿主的渲染后端
-
-第一阶段的实现范围依然会刻意收窄：
-
-- 先把格式边界定义清楚
-- 先做到可读、可写
-- 先做到可显示
-- 继续把 CDXML 解析保留为导入路径
+这个项目的目标不是“先做一个网页 demo，之后再重写成桌面版”。当前主线是把文档模型、编辑行为、命中测试、化学标签逻辑、CDXML 导入导出和 render primitive 生成都收在共享 Rust core 里。
 
 ## 当前范围
 
-当前 [`src/chemcore/cdxml`](./src/chemcore/cdxml) 下面的代码提供的是第一批导入侧基础：
+当前有效实现集中在 [`crates/chemcore-engine`](./crates/chemcore-engine)：
 
-- CDXML 提取入口：`extract_cdxml`
-- 从 CDXML 几何中提取分子
-- 提取文本 / 表格 / 箭头
-- 通过 SDF 匹配为分子补充 `smiles` 和 `molblock2d`
-- 对 2D 结构做立体后处理
+- `document.rs`：`chemcore` v0.1 文档模型和 JSON 解析
+- `engine.rs` 与 `engine/*`：编辑状态、工具、命令历史、选择、删除、剪贴板、模板、文本编辑
+- `render.rs` 与 `render_*`：后端无关 render primitives
+- `cdxml.rs`：Rust 原生 CDXML 导入和导出
+- `abbreviation.rs`、`label_rules.rs`、`symbols.rs`、`repeating_units.rs`：化学标签和符号行为
+- `wasm.rs`：浏览器侧 engine 绑定
 
-这里目前只覆盖了解析侧。它还不是 `chemcore` 的 renderer、editor，也不是最终的文档序列化器。
+[`viewer`](./viewer) 是浏览器宿主，负责 toolbar、文件打开保存、浏览器事件、坐标换算和 SVG/DOM 绘制。化学行为应来自 engine 状态和 render primitives，不应在 viewer 里另写一套。
 
 ## 设计文档
 
-当前的设计基线在下面这些文件里：
+当前设计基线在下面这些文件里：
 
-- [README.md](./README.md)
 - [docs/architecture.md](./docs/architecture.md)
 - [docs/format-v0.1.md](./docs/format-v0.1.md)
 - [docs/project-rules.zh-CN.md](./docs/project-rules.zh-CN.md)
 - [docs/implicit-hydrogen-rules.zh-CN.md](./docs/implicit-hydrogen-rules.zh-CN.md)
 - [docs/abbreviation-recognition-rules.zh-CN.md](./docs/abbreviation-recognition-rules.zh-CN.md)
+- [docs/bond-rendering-rules.zh-CN.md](./docs/bond-rendering-rules.zh-CN.md)
+- [docs/editor-command-history.md](./docs/editor-command-history.md)
 - [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)
-- [docs/architecture.zh-CN.md](./docs/architecture.zh-CN.md)
-- [docs/format-v0.1.zh-CN.md](./docs/format-v0.1.zh-CN.md)
 - [examples/document-v0.1.json](./examples/document-v0.1.json)
-
-这几份文件共同构成了下一步开发的工作约定：
-
-- 把导入数据转换成 `chemcore` 文档模型
-- 用第一个 backend 把这个模型渲染出来
-- 在引入编辑能力之前，先验证 round-trip 行为
 
 ## 工作区结构
 
 ```text
 chemcore/
-  README.md
-  README.zh-CN.md
-  docs/
-    architecture.md
-    architecture.zh-CN.md
-    format-v0.1.md
-    format-v0.1.zh-CN.md
-  examples/
-    document-v0.1.json
-  src/
-    chemcore/
-      __init__.py
-      cdxml/
-        __init__.py
-        extract_cdxml.py
-        cdxml_layout.py
-        cdxml_molecule.py
-        cdxml_sdf_match.py
-        cdxml_shared.py
-        cdxml_stereo.py
+  crates/chemcore-engine/    Rust 文档、编辑、渲染、CDXML、WASM 核心
+  viewer/                    浏览器编辑器宿主和生成的 WASM package
+  docs/                      架构、格式、渲染和行为文档
+  examples/                  chemcore JSON 示例
+  scripts/                   构建、验证和浏览器回归辅助脚本
+  shared/                    Rust/viewer 共用 JSON 数据
 ```
 
-## Conda 环境
-
-环境名：`chemcore`
-
-推荐的创建命令：
+## 常用命令
 
 ```bash
-conda create -y -n chemcore python=3.11 rdkit -c conda-forge
+cargo test
+npm run build:engine-wasm
+npm run dev:engine
+npm run verify
+node --check viewer/app.js
 ```
 
-激活命令：
-
-```bash
-conda activate chemcore
-```
-
-## 最小用法
-
-在 `/home/jiajun/chemcore` 目录下：
-
-```bash
-PYTHONPATH=src python -c "from chemcore import extract_cdxml; print(extract_cdxml('/path/to/base_without_cdxml_suffix'))"
-```
-
-`extract_cdxml()` 接收的是不带 `.cdxml` 后缀的基础路径，同时要求旁边存在配套的 `.sdf` 文件，这和当前导入链路保持一致。
-
-## 近期计划
-
-1. 把提取出的 CDXML 对象映射到 `chemcore` v0.1 文档模型
-2. 基于该模型实现第一个只读渲染后端
-3. 验证对象身份、坐标、样式引用和 z-order
-4. 之后再开始最小编辑操作
+`npm run verify` 会跑 Rust 测试、重建浏览器 engine WASM、检查 viewer 语法，并确认 `viewer/engine` 生成物已同步。

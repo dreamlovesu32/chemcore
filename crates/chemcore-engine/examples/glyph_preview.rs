@@ -27,7 +27,7 @@ fn default_patterns() -> Vec<&'static str> {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut output_path = String::from("tmp/chemcore_glyph_kernel_preview.svg");
+    let mut output_path = String::from("tmp/chemcore_glyph_preview.svg");
     let mut patterns: Vec<String> = default_patterns().into_iter().map(str::to_string).collect();
     let mut only_mode = false;
 
