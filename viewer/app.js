@@ -5,12 +5,8 @@ import {
   renderBoundsFromEngine,
   renderListFromEngine,
 } from "./engine_bridge.js";
-import {
-  documentTitleForFileName,
-  downloadTextFile,
-  looksLikeCdxmlFile,
-  saveFormatFromFileName,
-} from "./file_io.js";
+import { bindEditorControls } from "./editor_bindings.js";
+import { createDocumentFlow } from "./document_flow.js";
 import {
   boundsCenter,
   boundsSize,
@@ -20,6 +16,11 @@ import {
   pointDistance,
   rectContainsBounds,
 } from "./geometry.js";
+import {
+  normalizeToolbarFontSize,
+  renderSecondaryToolbarHtml,
+  syncPrimaryToolButtons,
+} from "./toolbar.js";
 import {
   displayLabelFontFamily,
   makeSvgNode,
@@ -216,31 +217,6 @@ toggleTexts?.addEventListener("change", () => renderDocument());
 
 const zoomInput = document.getElementById("zoom-input");
 let zoomPercent = 100;
-const TEXT_FONT_OPTIONS = [
-  "Arial",
-  "Helvetica",
-  "TeX Gyre Heros",
-  "Times New Roman",
-  "Courier New",
-];
-const TEXT_FONT_SIZE_OPTIONS = [5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 24];
-
-function normalizeToolbarFontSize(value) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return 10;
-  }
-  const rounded = Math.round(numeric);
-  if (Math.abs(numeric - rounded) < 0.05) {
-    return rounded;
-  }
-  return Math.round(numeric * 10) / 10;
-}
-
-function formatToolbarFontSize(value) {
-  const normalized = normalizeToolbarFontSize(value);
-  return Number.isInteger(normalized) ? String(normalized) : normalized.toFixed(1);
-}
 
 const editorState = {
   activeTool: "bond",
@@ -1241,263 +1217,6 @@ function handleViewerWheel(event) {
   setZoomPercent(nextZoomStep(direction));
 }
 
-document.querySelectorAll("[data-command]").forEach((button) => {
-  button.addEventListener("click", async () => {
-    const command = button.dataset.command;
-    if (command === "open") {
-      try {
-        await chooseAndOpenDocument();
-      } catch (error) {
-        if (!isAbortError(error)) {
-          console.error("Failed to open document", error);
-          window.alert?.(`Open failed: ${error.message || error}`);
-        }
-      }
-      return;
-    }
-    if (command === "save") {
-      try {
-        await saveCurrentDocumentAs();
-      } catch (error) {
-        if (!isAbortError(error)) {
-          console.error("Failed to save document", error);
-          window.alert?.(`Save failed: ${error.message || error}`);
-        }
-      }
-      return;
-    }
-    if (command === "save-cdxml") {
-      try {
-        await saveCurrentDocumentCdxml();
-      } catch (error) {
-        if (!isAbortError(error)) {
-          console.error("Failed to save CDXML", error);
-          window.alert?.(`Save CDXML failed: ${error.message || error}`);
-        }
-      }
-      return;
-    }
-    if (command === "save-svg") {
-      try {
-        await saveCurrentDocumentSvg();
-      } catch (error) {
-        if (!isAbortError(error)) {
-          console.error("Failed to save SVG", error);
-          window.alert?.(`Save SVG failed: ${error.message || error}`);
-        }
-      }
-      return;
-    }
-    if (runEditorCommand(command)) {
-      return;
-    }
-    if (command === "zoom-in") {
-      setZoomPercent(nextZoomStep(1));
-    } else if (command === "zoom-out") {
-      setZoomPercent(nextZoomStep(-1));
-    } else if (command === "fit") {
-      fitView();
-    } else if (command === "new") {
-      state.currentPath = null;
-      resetEditorEngine();
-      renderDocument();
-      fitView();
-    }
-  });
-});
-
-openFileInput.addEventListener("change", async () => {
-  const [file] = Array.from(openFileInput.files || []);
-  openFileInput.value = "";
-  try {
-    await openDocumentFile(file);
-  } catch (error) {
-    console.error("Failed to open document", error);
-    window.alert?.(`Open failed: ${error.message || error}`);
-  }
-});
-
-zoomInput?.addEventListener("change", () => {
-  const parsed = Number.parseInt(String(zoomInput.value || ""), 10);
-  setZoomPercent(Number.isFinite(parsed) ? parsed : zoomPercent);
-});
-
-const HOVER_ENDPOINT_SHORTCUT_LABELS = {
-  h: "H",
-  n: "N",
-  o: "O",
-  s: "S",
-  P: "P",
-  p: "Ph",
-  f: "F",
-  l: "Cl",
-  b: "Br",
-  i: "I",
-  m: "Me",
-  S: "Si",
-  N: "Na",
-  B: "B",
-  d: "D",
-};
-
-function hoverEndpointShortcutLabelForEvent(event) {
-  if (!isEditingRustDocument()) {
-    return null;
-  }
-  if (event.ctrlKey || event.metaKey || event.altKey) {
-    return null;
-  }
-  if (event.key === "c") {
-    return "C";
-  }
-  return HOVER_ENDPOINT_SHORTCUT_LABELS[event.key] || null;
-}
-
-function runHoverEndpointShortcut(event) {
-  const label = hoverEndpointShortcutLabelForEvent(event);
-  if (!label) {
-    return false;
-  }
-  const changed = state.editorEngine?.replaceHoveredEndpointLabel?.(label);
-  if (!changed) {
-    return false;
-  }
-  syncDocumentFromEngine();
-  renderDocument();
-  return true;
-}
-
-document.addEventListener("keydown", (event) => {
-  const target = event.target;
-  if (activeTextEditor?.root?.contains?.(target)) {
-    if (event.key === "Escape") {
-      finishActiveTextEditor(false);
-      event.preventDefault();
-    }
-    return;
-  }
-  if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) {
-    return;
-  }
-  const commandKey = event.ctrlKey || event.metaKey;
-  let command = null;
-  if (commandKey && event.key.toLowerCase() === "z" && !event.shiftKey) {
-    command = "undo";
-  } else if ((commandKey && event.key.toLowerCase() === "y") || (commandKey && event.shiftKey && event.key.toLowerCase() === "z")) {
-    command = "redo";
-  } else if (commandKey && event.key.toLowerCase() === "c") {
-    command = "copy";
-  } else if (commandKey && event.key.toLowerCase() === "x") {
-    command = "cut";
-  } else if (commandKey && event.key.toLowerCase() === "v") {
-    command = "paste";
-  } else if (event.key === "Delete" || event.key === "Backspace") {
-    command = "delete";
-  }
-  if (command && runEditorCommand(command)) {
-    event.preventDefault();
-    return;
-  }
-  if (runHoverEndpointShortcut(event)) {
-    event.preventDefault();
-  }
-});
-
-function toolbarButton(value, title, svg, selected = false) {
-  return `
-    <button class="secondary-button${selected ? " is-selected" : ""}" type="button" data-secondary-value="${value}" aria-label="${title}" title="${title}">
-      ${svg}
-    </button>
-  `;
-}
-
-function colorButton(value, title, color, selected = false) {
-  const noFillClass = color === "none" ? " no-fill" : "";
-  const swatchStyle = color === "none" ? "" : ` style="--swatch:${color}"`;
-  return `
-    <button class="color-button${selected ? " is-selected" : ""}" type="button" data-secondary-value="${value}" aria-label="${title}" title="${title}">
-      <span class="color-swatch${noFillClass}"${swatchStyle}></span>
-    </button>
-  `;
-}
-
-function secondaryDivider() {
-  return `<span class="secondary-divider" aria-hidden="true"></span>`;
-}
-
-const BOND_TOOL_ICON_SPECS = {
-  single: {
-    title: "Single bond",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17 19 7"/></svg>`,
-  },
-  double: {
-    title: "Double bond",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 15 18 6"/><path d="M6 18 19 9"/></svg>`,
-  },
-  triple: {
-    title: "Triple bond",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 14 17.5 5"/><path d="M6 17 19 8"/><path d="M7.5 20 20.5 11"/></svg>`,
-  },
-  dashed: {
-    title: "Dashed bond",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17 7 15.5"/><path d="M9.5 13.8 11.5 12.4"/><path d="M14 10.6 16 9.2"/><path d="M18.5 7.5 19 7"/></svg>`,
-  },
-  "dashed-double": {
-    title: "Dashed-solid double bond",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.3 16 18.3 6" style="stroke-linecap:butt"/><path d="M5.7 18 19.7 8" style="stroke-dasharray:2.2 1.6;stroke-linecap:butt"/></svg>`,
-  },
-  bold: {
-    title: "Bold bond",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><polygon class="filled" points="4.1,15.7 18.1,5.7 19.9,8.3 5.9,18.3" style="stroke-linejoin:miter"/></svg>`,
-  },
-  "bold-dashed": {
-    title: "Hash bond",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.8 15.4 8.2 18.8" style="stroke-width:1.9"/><path d="M9.6 12.7 12 16.1" style="stroke-width:1.9"/><path d="M13.4 10 15.8 13.4" style="stroke-width:1.9"/><path d="M17.2 7.3 19.6 10.7" style="stroke-width:1.9"/></svg>`,
-  },
-  wedge: {
-    title: "Solid wedge",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><polygon class="filled" points="3.2,14.5 6.8,19.5 19,7" style="stroke-linejoin:miter"/></svg>`,
-  },
-  "hashed-wedge": {
-    title: "Hash wedge",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><polygon class="filled" points="3.5,14.9 3.8,15.3 5.7,13.3 4.5,13.9" style="stroke:none"/><polygon class="filled" points="4.1,15.7 4.4,16.2 8.6,11.9 7,12.7" style="stroke:none"/><polygon class="filled" points="4.7,16.6 5.1,17.2 11.7,10.4 9.8,11.3" style="stroke:none"/><polygon class="filled" points="5.5,17.7 6,18.4 15.5,8.6 13.3,9.7" style="stroke:none"/></svg>`,
-  },
-};
-
-function bondToolIconSpec(type = editorState.bondType) {
-  return BOND_TOOL_ICON_SPECS[type] || BOND_TOOL_ICON_SPECS.single;
-}
-
-function syncPrimaryBondToolButton() {
-  const bondButton = document.querySelector('.tool-button[data-tool="bond"]');
-  if (!bondButton) {
-    return;
-  }
-  const spec = bondToolIconSpec();
-  bondButton.innerHTML = spec.svg;
-  bondButton.setAttribute("aria-label", spec.title);
-  bondButton.setAttribute("title", spec.title);
-}
-
-function syncPrimaryTemplateToolButton() {
-  const templateButton = document.querySelector('.tool-button[data-tool="templates"]');
-  if (!templateButton) {
-    return;
-  }
-  const spec = templateIconSpec();
-  templateButton.innerHTML = spec.svg;
-  templateButton.setAttribute("aria-label", spec.title);
-  templateButton.setAttribute("title", spec.title);
-}
-
-function syncPrimarySymbolToolButton() {
-  const symbolButton = document.querySelector('.tool-button[data-tool="symbol"]');
-  if (!symbolButton) {
-    return;
-  }
-  symbolButton.innerHTML = bracketIconSvg(editorState.symbolKind);
-}
-
 function syncCanvasCursor() {
   if (!viewerSvg) {
     return;
@@ -1567,355 +1286,12 @@ function syncArrowAwareCursorForPoint(point) {
   viewerSvg.style.cursor = overSelection ? "grab" : "default";
 }
 
-function selectToolbarHtml() {
-  const mode = editorState.selectMode;
-  return [
-    toolbarButton("select-free", "Free selection", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6c5-4 14 1 13 7-1 7-12 7-14 1"/></svg>`, mode === "free"),
-    toolbarButton("select-box", "Box selection", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" stroke-dasharray="2 2"/></svg>`, mode === "box"),
-    secondaryDivider(),
-    toolbarButton("align-left", "Align left", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14"/><path d="M9 7h9"/><path d="M9 12h6"/><path d="M9 17h11"/></svg>`),
-    toolbarButton("align-right", "Align right", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14"/><path d="M6 7h9"/><path d="M9 12h6"/><path d="M4 17h11"/></svg>`),
-    toolbarButton("align-top", "Align top", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M7 9v9"/><path d="M12 9v6"/><path d="M17 9v11"/></svg>`),
-    toolbarButton("align-bottom", "Align bottom", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18h14"/><path d="M7 6v9"/><path d="M12 9v6"/><path d="M17 4v11"/></svg>`),
-    toolbarButton("align-h-center", "Horizontal center", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16"/><path d="M6 7h12"/><path d="M8 12h8"/><path d="M5 17h14"/></svg>`),
-    toolbarButton("align-v-center", "Vertical center", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"/><path d="M7 6v12"/><path d="M12 8v8"/><path d="M17 5v14"/></svg>`),
-    secondaryDivider(),
-    toolbarButton("distribute-v", "Vertical distribute", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="4" width="10" height="3"/><rect x="7" y="10.5" width="10" height="3"/><rect x="7" y="17" width="10" height="3"/><path d="M5 7v3.5"/><path d="M5 13.5V17"/><path d="M19 7v3.5"/><path d="M19 13.5V17"/></svg>`),
-    toolbarButton("distribute-h", "Horizontal distribute", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="3" height="10"/><rect x="10.5" y="7" width="3" height="10"/><rect x="17" y="7" width="3" height="10"/><path d="M7 5h3.5"/><path d="M13.5 5H17"/><path d="M7 19h3.5"/><path d="M13.5 19H17"/></svg>`),
-    secondaryDivider(),
-    toolbarButton("flip-h", "Flip horizontal", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16"/><path class="filled" d="M5 7v10l5-5z"/><path d="M19 7v10l-5-5z"/></svg>`),
-    toolbarButton("flip-v", "Flip vertical", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"/><path class="filled" d="M7 5h10l-5 5z"/><path d="M7 19h10l-5-5z"/></svg>`),
-  ].join("");
-}
-
-function bondToolbarHtml() {
-  const type = editorState.bondType;
-  return [
-    toolbarButton("bond-single", bondToolIconSpec("single").title, bondToolIconSpec("single").svg, type === "single"),
-    toolbarButton("bond-double", bondToolIconSpec("double").title, bondToolIconSpec("double").svg, type === "double"),
-    toolbarButton("bond-triple", bondToolIconSpec("triple").title, bondToolIconSpec("triple").svg, type === "triple"),
-    toolbarButton("bond-dashed", bondToolIconSpec("dashed").title, bondToolIconSpec("dashed").svg, type === "dashed"),
-    toolbarButton("bond-dashed-double", bondToolIconSpec("dashed-double").title, bondToolIconSpec("dashed-double").svg, type === "dashed-double"),
-    toolbarButton("bond-bold", bondToolIconSpec("bold").title, bondToolIconSpec("bold").svg, type === "bold"),
-    toolbarButton("bond-bold-dashed", bondToolIconSpec("bold-dashed").title, bondToolIconSpec("bold-dashed").svg, type === "bold-dashed"),
-    toolbarButton("bond-wedge", bondToolIconSpec("wedge").title, bondToolIconSpec("wedge").svg, type === "wedge"),
-    toolbarButton("bond-hashed-wedge", bondToolIconSpec("hashed-wedge").title, bondToolIconSpec("hashed-wedge").svg, type === "hashed-wedge"),
-  ].join("");
-}
-
-function arrowIconSvg(type = "solid") {
-  if (type === "curved" || type === "curved-mirror") {
-    const transform = type === "curved-mirror" ? ` transform="translate(0 24) scale(1 -1)"` : "";
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><g${transform}><path d="M18.8 7.2C12.8 4.8 6 8.9 5.9 15.4"/><path class="filled" d="M20.5 9.6 17.2 6l4.9-.7z"/></g></svg>`;
-  }
-  if (type === "hollow") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h10v3l6-5-6-5v3H4z"/></svg>`;
-  }
-  if (type === "open") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h12"/><path d="M4 15h12"/><path d="m15 6 5 6-5 6"/></svg>`;
-  }
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h12"/><path class="filled" d="M15 7 21 12l-6 5z"/></svg>`;
-}
-
-function isCurvedArrowType(type = editorState.arrowType) {
-  return type === "curved" || type === "curved-mirror";
-}
-
-function arrowTypeSupportsHeadSize(type = editorState.arrowType) {
-  return type === "solid" || isCurvedArrowType(type);
-}
-
-function arrowCurveSvg(curve, mirrored = false) {
-  const paths = {
-    "270": "M18.8 6.2C11.9 3.6 4.5 8.3 4.5 15.4c0 4 3.4 6.4 7.3 5.3",
-    "180": "M18.8 7.1C13.1 4.3 6.2 8.6 6.2 14.6c0 3.4 2.9 5.3 6.1 4.5",
-    "120": "M18.8 8.4C14.5 5.9 8.4 8.2 7.2 13.2",
-    "90": "M18.8 9.6C15.2 7.5 10.8 8.9 8.4 12.1",
-  };
-  const transform = mirrored ? ` transform="translate(0 24) scale(1 -1)"` : "";
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><g${transform}><path d="${paths[curve] || paths["270"]}"/><path class="filled" d="M20.4 8.8 17.1 5.8l4.7-1z"/></g></svg>`;
-}
-
-function arrowSizeSvg(size) {
-  const scale = size === "large" ? 1 : size === "small" ? 0.62 : 0.78;
-  const tip = 20;
-  const base = tip - 7 * scale;
-  const half = 4.8 * scale;
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h${Math.max(8, base - 4)}"/><path class="filled" d="M${base} ${12 - half} ${tip} 12 ${base} ${12 + half}z"/></svg>`;
-}
-
-function arrowEndpointSvg(label, side) {
-  const head = side === "head"
-    ? `<path class="filled" d="M15 7 21 12l-6 5z"/>`
-    : `<path class="filled" d="M9 7 3 12l6 5z"/>`;
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/>${head}<text x="12" y="22" text-anchor="middle" fill="currentColor" font-size="5.5" font-family="Arial, Helvetica, sans-serif">${label}</text></svg>`;
-}
-
-function arrowHalfEndpointSvg(side, half) {
-  const isHead = side === "head";
-  const tipX = isHead ? 21 : 3;
-  const baseX = isHead ? 15 : 9;
-  const shaftStart = isHead ? 5 : 9;
-  const shaftEnd = isHead ? 15 : 19;
-  const topLabel = half === "left" ? "left" : "right";
-  const bottomLabel = isHead ? "head" : "tail";
-  const head = half === "left"
-    ? `<path class="filled" d="M${tipX} 12 ${baseX} 12 ${baseX} 7z"/>`
-    : `<path class="filled" d="M${tipX} 12 ${baseX} 17 ${baseX} 12z"/>`;
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><text x="12" y="5" text-anchor="middle" fill="currentColor" font-size="4.8" font-family="Arial, Helvetica, sans-serif">${topLabel}</text><path d="M${shaftStart} 12h${shaftEnd - shaftStart}"/>${head}<text x="12" y="22" text-anchor="middle" fill="currentColor" font-size="4.8" font-family="Arial, Helvetica, sans-serif">${bottomLabel}</text></svg>`;
-}
-
-function arrowNoGoSvg(kind) {
-  const mark = kind === "hash"
-    ? `<path class="filled" d="M10 7.5 12 8.2 8 17.5 6 16.8z"/><path class="filled" d="M16 7.5 18 8.2 14 17.5 12 16.8z"/>`
-    : `<path class="filled" d="M7.1 6.2 17.8 16.9 16.4 18.3 5.7 7.6z"/><path class="filled" d="M16.4 5.7 17.8 7.1 7.1 17.8 5.7 16.4z"/>`;
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h12"/><path class="filled" d="M15 7 21 12l-6 5z"/>${mark}</svg>`;
-}
-
-function arrowToolbarHtml() {
-  const type = editorState.arrowType;
-  const lineSelected = editorState.arrowHeadStyle === "none" && editorState.arrowTailStyle === "none";
-  const controls = [
-    toolbarButton("arrow-type-solid", "Solid arrow", arrowIconSvg("solid"), type === "solid"),
-    toolbarButton("arrow-type-curved", "Curved arrow", arrowIconSvg("curved"), type === "curved"),
-    toolbarButton("arrow-type-curved-mirror", "Mirrored curved arrow", arrowIconSvg("curved-mirror"), type === "curved-mirror"),
-    toolbarButton("arrow-type-hollow", "Hollow arrow", arrowIconSvg("hollow"), type === "hollow"),
-    toolbarButton("arrow-type-open", "Open hollow arrow", arrowIconSvg("open"), type === "open"),
-    secondaryDivider(),
-  ];
-  if (isCurvedArrowType(type)) {
-    const mirrored = type === "curved-mirror";
-    controls.push(
-      toolbarButton("arrow-curve-270", "Curve 270 degrees", arrowCurveSvg("270", mirrored), editorState.arrowCurve === "270"),
-      toolbarButton("arrow-curve-180", "Curve 180 degrees", arrowCurveSvg("180", mirrored), editorState.arrowCurve === "180"),
-      toolbarButton("arrow-curve-120", "Curve 120 degrees", arrowCurveSvg("120", mirrored), editorState.arrowCurve === "120"),
-      toolbarButton("arrow-curve-90", "Curve 90 degrees", arrowCurveSvg("90", mirrored), editorState.arrowCurve === "90"),
-    );
-    controls.push(secondaryDivider());
-  }
-  if (arrowTypeSupportsHeadSize(type)) {
-    controls.push(
-      toolbarButton("arrow-size-large", "Large arrow head", arrowSizeSvg("large"), editorState.arrowHeadSize === "large"),
-      toolbarButton("arrow-size-medium", "Medium arrow head", arrowSizeSvg("medium"), editorState.arrowHeadSize === "medium"),
-      toolbarButton("arrow-size-small", "Small arrow head", arrowSizeSvg("small"), editorState.arrowHeadSize === "small"),
-    );
-    controls.push(secondaryDivider());
-  }
-  controls.push(
-    toolbarButton("arrow-line", "Line", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"/></svg>`, lineSelected),
-    toolbarButton("arrow-head", "Head arrow", arrowEndpointSvg("head", "head"), editorState.arrowHeadStyle === "full"),
-    toolbarButton("arrow-tail", "Tail arrow", arrowEndpointSvg("tail", "tail"), editorState.arrowTailStyle === "full"),
-  );
-  if (arrowTypeSupportsHeadSize(type)) {
-    controls.push(
-      toolbarButton("arrow-head-left", "Head left half arrow", arrowHalfEndpointSvg("head", "left"), editorState.arrowHeadStyle === "left"),
-      toolbarButton("arrow-head-right", "Head right half arrow", arrowHalfEndpointSvg("head", "right"), editorState.arrowHeadStyle === "right"),
-      toolbarButton("arrow-tail-left", "Tail left half arrow", arrowHalfEndpointSvg("tail", "left"), editorState.arrowTailStyle === "left"),
-      toolbarButton("arrow-tail-right", "Tail right half arrow", arrowHalfEndpointSvg("tail", "right"), editorState.arrowTailStyle === "right"),
-    );
-    controls.push(secondaryDivider());
-    controls.push(
-      toolbarButton("arrow-nogo-cross", "Cross arrow", arrowNoGoSvg("cross"), editorState.arrowNoGo === "cross"),
-      toolbarButton("arrow-nogo-hash", "Double slash arrow", arrowNoGoSvg("hash"), editorState.arrowNoGo === "hash"),
-    );
-  }
-  controls.push(secondaryDivider());
-  controls.push(toolbarButton("arrow-bold", "Bold arrow", `<svg viewBox="0 0 24 24" aria-hidden="true"><text x="12" y="17" text-anchor="middle" fill="currentColor" font-size="16" font-family="Arial, Helvetica, sans-serif" font-weight="700">B</text></svg>`, editorState.arrowBold));
-  return controls.join("");
-}
-
-function textToolbarHtml() {
-  const align = editorState.textAlign;
-  const fontOptions = TEXT_FONT_OPTIONS
-    .map((fontFamily) => (
-      `<option value="${fontFamily}"${editorState.textFontFamily === fontFamily ? " selected" : ""}>${fontFamily}</option>`
-    ))
-    .join("");
-  const normalizedFontSize = normalizeToolbarFontSize(editorState.textFontSize);
-  const knownFontSizes = new Set(TEXT_FONT_SIZE_OPTIONS);
-  const fontSizeOptions = [
-    ...TEXT_FONT_SIZE_OPTIONS,
-    ...(knownFontSizes.has(normalizedFontSize) ? [] : [normalizedFontSize]),
-  ]
-    .sort((left, right) => left - right)
-    .map((fontSize) => (
-      `<option value="${fontSize}"${normalizedFontSize === fontSize ? " selected" : ""}>${formatToolbarFontSize(fontSize)}</option>`
-    ))
-    .join("");
-  return `
-    <select class="secondary-select" data-text-control="font" aria-label="Font family">
-      ${fontOptions}
-    </select>
-    <select class="secondary-select" data-text-control="size" aria-label="Font size">
-      ${fontSizeOptions}
-    </select>
-    ${secondaryDivider()}
-    ${colorButton("text-black", "Text color", "#000000", editorState.textColor === "#000000")}
-    ${secondaryDivider()}
-    ${toolbarButton("text-align-left", "Align left", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M5 10h9"/><path d="M5 14h12"/><path d="M5 18h8"/></svg>`, align === "left")}
-    ${toolbarButton("text-align-center", "Align center", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M7 10h10"/><path d="M6 14h12"/><path d="M8 18h8"/></svg>`, align === "center")}
-    ${toolbarButton("text-align-right", "Align right", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M10 10h9"/><path d="M7 14h12"/><path d="M11 18h8"/></svg>`, align === "right")}
-    ${toolbarButton("text-align-justify", "Justify", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M5 10h14"/><path d="M5 14h14"/><path d="M5 18h14"/></svg>`, align === "justify")}
-    ${secondaryDivider()}
-    ${toolbarButton("text-bold", "Bold", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h5.4a3.1 3.1 0 0 1 0 6.2H8z"/><path d="M8 11.2h6.2a3.4 3.4 0 0 1 0 6.8H8z"/></svg>`, editorState.textBold)}
-    ${toolbarButton("text-italic", "Italic", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h-4"/><path d="M14 19h-4"/><path d="M13 5 11 19"/></svg>`, editorState.textItalic)}
-    ${toolbarButton("text-underline", "Underline", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v7a4 4 0 0 0 8 0V5"/><path d="M6 19h12"/></svg>`, editorState.textUnderline)}
-    ${secondaryDivider()}
-    ${toolbarButton("text-chemical", "Chemical", `<svg viewBox="0 0 24 24" aria-hidden="true"><text x="3.6" y="15.4" fill="currentColor" font-size="10.8" font-family="Arial, Helvetica, sans-serif" font-weight="700">CH</text><text x="16.1" y="18.1" fill="currentColor" font-size="6.4" font-family="Arial, Helvetica, sans-serif" font-weight="700">2</text><text x="15.8" y="9.1" fill="currentColor" font-size="5.8" font-family="Arial, Helvetica, sans-serif" font-weight="700">+</text></svg>`, editorState.textScript === "chemical")}
-    ${toolbarButton("text-subscript", "Subscript", `<svg viewBox="0 0 24 24" aria-hidden="true"><text x="4.2" y="14.8" fill="currentColor" font-size="12.2" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-weight="700">X</text><text x="15.6" y="18.1" fill="currentColor" font-size="7" font-family="Arial, Helvetica, sans-serif" font-weight="700">2</text></svg>`, editorState.textScript === "subscript")}
-    ${toolbarButton("text-superscript", "Superscript", `<svg viewBox="0 0 24 24" aria-hidden="true"><text x="4.2" y="14.8" fill="currentColor" font-size="12.2" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-weight="700">X</text><text x="15.4" y="9.1" fill="currentColor" font-size="7" font-family="Arial, Helvetica, sans-serif" font-weight="700">2</text></svg>`, editorState.textScript === "superscript")}
-  `;
-}
-
-function shapeToolbarHtml() {
-  return `
-    ${toolbarButton("shape-kind-circle", "Circle", `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.8"/></svg>`, editorState.shapeKind === "circle")}
-    ${toolbarButton("shape-kind-ellipse", "Ellipse", `<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="7" ry="4.2"/></svg>`, editorState.shapeKind === "ellipse")}
-    ${toolbarButton("shape-kind-round-rect", "Rounded rectangle", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="6" width="14" height="12" rx="3"/></svg>`, editorState.shapeKind === "round-rect")}
-    ${toolbarButton("shape-kind-rect", "Rectangle", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="6" width="14" height="12"/></svg>`, editorState.shapeKind === "rect")}
-    ${secondaryDivider()}
-    ${toolbarButton("shape-style-solid", "Solid outline", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="6" width="14" height="12"/></svg>`, editorState.shapeStyle === "solid")}
-    ${toolbarButton("shape-style-dashed", "Dashed outline", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="6" width="14" height="12" stroke-dasharray="2 2"/></svg>`, editorState.shapeStyle === "dashed")}
-    ${toolbarButton("shape-style-shaded", "Shaded", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect class="filled" x="5" y="6" width="14" height="12"/><rect class="soft-fill" x="6.5" y="7.2" width="9.2" height="7.8"/><rect x="5" y="6" width="14" height="12"/></svg>`, editorState.shapeStyle === "shaded")}
-    ${toolbarButton("shape-style-filled", "Filled", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect class="filled" x="5" y="6" width="14" height="12"/></svg>`, editorState.shapeStyle === "filled")}
-    ${toolbarButton("shape-style-shadowed", "Shadowed", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect class="soft-fill" x="7" y="8" width="12" height="10"/><rect x="5" y="6" width="12" height="10"/></svg>`, editorState.shapeStyle === "shadowed")}
-    ${secondaryDivider()}
-    ${colorButton("shape-color-black", "Black", "#000000", editorState.shapeColor === "#000000")}
-    ${colorButton("shape-color-red", "Red", "#ff0000", editorState.shapeColor === "#ff0000")}
-    ${colorButton("shape-color-blue", "Blue", "#0000ff", editorState.shapeColor === "#0000ff")}
-    ${colorButton("shape-color-green", "Green", "#008000", editorState.shapeColor === "#008000")}
-  `;
-}
-
-function bracketIconSvg(kind = "round") {
-  if (kind === "square") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H6v14h3"/><path d="M15 5h3v14h-3"/></svg>`;
-  }
-  if (kind === "curly") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5c-2 0-2 2-2 3.5V10c0 1.2-.9 2-2 2 1.1 0 2 .8 2 2v1.5C8 17 8 19 10 19"/><path d="M14 5c2 0 2 2 2 3.5V10c0 1.2.9 2 2 2-1.1 0-2 .8-2 2v1.5c0 1.5 0 3.5-2 3.5"/></svg>`;
-  }
-  if (kind === "double-dagger") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path class="filled" d="M11 4h2v16h-2z"/><path class="filled" d="M7 8h10v2H7z"/><path class="filled" d="M7 14h10v2H7z"/></svg>`;
-  }
-  if (kind === "dagger") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path class="filled" d="M11 4h2v16h-2z"/><path class="filled" d="M7 8h10v2H7z"/></svg>`;
-  }
-  if (kind === "circle-plus" || kind === "circle-minus") {
-    const mark = kind === "circle-plus"
-      ? `<path d="M12 8v8"/><path d="M8 12h8"/>`
-      : `<path d="M8 12h8"/>`;
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2"/>${mark}</svg>`;
-  }
-  if (kind === "plus") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v10"/><path d="M7 12h10"/></svg>`;
-  }
-  if (kind === "minus") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg>`;
-  }
-  if (kind === "radical-cation" || kind === "radical-anion") {
-    const mark = kind === "radical-cation"
-      ? `<path d="M15.5 8v8"/><path d="M11.5 12h8"/>`
-      : `<path d="M11.5 12h8"/>`;
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="filled" cx="7.5" cy="12" r="1.8"/>${mark}</svg>`;
-  }
-  if (kind === "lone-pair") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="filled" cx="9" cy="12" r="1.8"/><circle class="filled" cx="15" cy="12" r="1.8"/></svg>`;
-  }
-  if (kind === "electron") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="filled" cx="12" cy="12" r="2.2"/></svg>`;
-  }
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5c-3 3-3 11 0 14"/><path d="M14 5c3 3 3 11 0 14"/></svg>`;
-}
-
-function bracketToolbarHtml() {
-  return [
-    toolbarButton("bracket-kind-round", "Parentheses", bracketIconSvg("round"), editorState.bracketKind === "round"),
-    toolbarButton("bracket-kind-square", "Square brackets", bracketIconSvg("square"), editorState.bracketKind === "square"),
-    toolbarButton("bracket-kind-curly", "Braces", bracketIconSvg("curly"), editorState.bracketKind === "curly"),
-  ].join("");
-}
-
-function symbolToolbarHtml() {
-  return [
-    toolbarButton("symbol-kind-circle-plus", "Circle plus", bracketIconSvg("circle-plus"), editorState.symbolKind === "circle-plus"),
-    toolbarButton("symbol-kind-plus", "Plus", bracketIconSvg("plus"), editorState.symbolKind === "plus"),
-    toolbarButton("symbol-kind-radical-cation", "Radical cation", bracketIconSvg("radical-cation"), editorState.symbolKind === "radical-cation"),
-    toolbarButton("symbol-kind-lone-pair", "Lone pair", bracketIconSvg("lone-pair"), editorState.symbolKind === "lone-pair"),
-    toolbarButton("symbol-kind-circle-minus", "Circle minus", bracketIconSvg("circle-minus"), editorState.symbolKind === "circle-minus"),
-    toolbarButton("symbol-kind-minus", "Minus", bracketIconSvg("minus"), editorState.symbolKind === "minus"),
-    toolbarButton("symbol-kind-radical-anion", "Radical anion", bracketIconSvg("radical-anion"), editorState.symbolKind === "radical-anion"),
-    toolbarButton("symbol-kind-electron", "Electron", bracketIconSvg("electron"), editorState.symbolKind === "electron"),
-  ].join("");
-}
-
-function ringSvg(sides, aromatic = false) {
-  if (aromatic) {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 4 7 4v8l-7 4-7-4V8z"/><circle cx="12" cy="12" r="4.6"/></svg>`;
-  }
-  const pointsBySide = {
-    3: "12,4 20,18 4,18",
-    4: "6,6 18,6 18,18 6,18",
-    5: "12,4 20,10 17,19 7,19 4,10",
-    6: "12,4 19,8 19,16 12,20 5,16 5,8",
-    7: "12,4 18,7 20,14 16,20 8,20 4,14 6,7",
-    8: "9,4 15,4 20,9 20,15 15,20 9,20 4,15 4,9",
-  };
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="${pointsBySide[sides]}"/></svg>`;
-}
-
-function templateIconSpec(template = editorState.template) {
-  if (template === "benzene") {
-    return {
-      title: "Benzene ring",
-      svg: ringSvg(6, true),
-    };
-  }
-  const match = /^ring-(\d+)$/.exec(template || "");
-  const sides = Number(match?.[1] || 6);
-  return {
-    title: `${sides}-membered ring`,
-    svg: ringSvg(sides),
-  };
-}
-
-function templatesToolbarHtml() {
-  return [
-    toolbarButton("ring-3", "3-membered ring", ringSvg(3), editorState.template === "ring-3"),
-    toolbarButton("ring-4", "4-membered ring", ringSvg(4), editorState.template === "ring-4"),
-    toolbarButton("ring-5", "5-membered ring", ringSvg(5), editorState.template === "ring-5"),
-    toolbarButton("ring-6", "6-membered ring", ringSvg(6), editorState.template === "ring-6"),
-    toolbarButton("ring-7", "7-membered ring", ringSvg(7), editorState.template === "ring-7"),
-    toolbarButton("ring-8", "8-membered ring", ringSvg(8), editorState.template === "ring-8"),
-    toolbarButton("benzene", "Benzene ring", ringSvg(6, true), editorState.template === "benzene"),
-  ].join("");
-}
-
 function renderSecondaryToolbar() {
   if (!secondaryToolbar) {
     return;
   }
-  if (editorState.activeTool === "bond") {
-    secondaryToolbar.innerHTML = bondToolbarHtml();
-  } else if (editorState.activeTool === "delete") {
-    secondaryToolbar.innerHTML = "";
-  } else if (editorState.activeTool === "text") {
-    secondaryToolbar.innerHTML = textToolbarHtml();
-  } else if (editorState.activeTool === "arrow") {
-    secondaryToolbar.innerHTML = arrowToolbarHtml();
-  } else if (editorState.activeTool === "bracket") {
-    secondaryToolbar.innerHTML = bracketToolbarHtml();
-  } else if (editorState.activeTool === "symbol") {
-    secondaryToolbar.innerHTML = symbolToolbarHtml();
-  } else if (editorState.activeTool === "shape") {
-    secondaryToolbar.innerHTML = shapeToolbarHtml();
-  } else if (editorState.activeTool === "templates") {
-    secondaryToolbar.innerHTML = templatesToolbarHtml();
-  } else {
-    secondaryToolbar.innerHTML = selectToolbarHtml();
-  }
-  syncPrimaryBondToolButton();
-  syncPrimaryTemplateToolButton();
-  syncPrimarySymbolToolButton();
+  secondaryToolbar.innerHTML = renderSecondaryToolbarHtml(editorState);
+  syncPrimaryToolButtons(editorState, document);
 }
 
 const textEditorController = createTextEditorController({
@@ -2498,184 +1874,80 @@ function insertTextAtSelection(text) {
   textEditorController.insertTextAtSelection(text);
 }
 
-function setActiveTool(toolButton) {
-  const nextTool = toolButton?.dataset?.tool || editorState.activeTool;
-  if (editorState.activeTool === "text" && nextTool !== "text") {
-    finishActiveTextEditor(true);
-  }
-  if (editorState.activeTool === "select" && nextTool !== "select") {
-    activeSelectionGesture = null;
-  }
-  if (nextTool !== "bracket") {
-    state.activeBracketDragStart = null;
-  }
-  editorState.activeTool = toolButton?.dataset?.tool || editorState.activeTool;
-  document.querySelectorAll("[data-tool]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.tool === editorState.activeTool);
-  });
-  syncEngineToolState();
-  renderSecondaryToolbar();
-  syncCanvasCursor();
-  if (isEditingRustDocument()) {
-    renderEditorOverlay(currentEditorRenderList());
-  }
-}
-
-document.querySelectorAll("[data-tool]").forEach((button) => {
-  button.addEventListener("click", () => {
-    setActiveTool(button);
-  });
+const documentFlow = createDocumentFlow({
+  state,
+  WasmEngine,
+  openFileInput,
+  viewerTitle,
+  viewerStats,
+  viewerSvg,
+  docMeta,
+  finishActiveTextEditor,
+  clearZoomHandoffs,
+  syncDocumentStylePresetFromEngine,
+  syncEngineToolState,
+  syncDocumentFromEngine,
+  syncCoreRenderListFromCurrentDocument,
+  resetEditorEngine,
+  pageViewBox,
+  defaultEditorViewBox,
+  renderDocument,
+  fitView,
 });
 
-documentStylePresetInput?.addEventListener("change", (event) => {
-  finishActiveTextEditor(true);
-  editorState.documentStylePreset = event.target.value || "default";
-  syncEngineToolState();
-  if (isEditingRustDocument()) {
-    syncDocumentFromEngine();
-    renderDocument();
-  }
-});
+const {
+  chooseAndOpenDocument,
+  isAbortError,
+  loadAndRender,
+  loadJsonDocumentIntoEditor,
+  openDocumentFile,
+  saveCurrentDocumentAs,
+  saveCurrentDocumentCdxml,
+  saveCurrentDocumentSvg,
+  updateDocumentMeta,
+} = documentFlow;
 
-secondaryToolbar?.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-secondary-value]");
-  if (!button) {
-    return;
-  }
-  const value = button.dataset.secondaryValue;
-  let arrowOptionChanged = false;
-  if (value?.startsWith("text-align-")) {
-    editorState.textAlign = value.replace("text-align-", "");
-    applyTextAlignment(editorState.textAlign);
-  } else if (value === "text-bold") {
-    editorState.textBold = !editorState.textBold;
-    applyTextFormatCommand("bold");
-  } else if (value === "text-italic") {
-    editorState.textItalic = !editorState.textItalic;
-    applyTextFormatCommand("italic");
-  } else if (value === "text-underline") {
-    editorState.textUnderline = !editorState.textUnderline;
-    applyTextFormatCommand("underline");
-  } else if (value === "text-chemical") {
-    if (editorState.textScript === "chemical") {
-      editorState.textScript = "normal";
-      applyTextScript("normal");
-    } else {
-      editorState.textScript = "chemical";
-      applyChemicalFormat();
-    }
-  } else if (value === "text-subscript") {
-    editorState.textScript = "subscript";
-    applyTextScript("subscript");
-  } else if (value === "text-superscript") {
-    editorState.textScript = "superscript";
-    applyTextScript("superscript");
-  } else if (value?.startsWith("text-")) {
-    const colors = { "text-black": "#000000", "text-red": "#ff0000", "text-blue": "#0000ff", "text-green": "#0a8f3c" };
-    editorState.textColor = colors[value] || editorState.textColor;
-    applyTextInlineStyle({ color: editorState.textColor });
-  } else if (value === "select-free" || value === "select-box") {
-    editorState.selectMode = value.replace("select-", "");
-  } else if (/^(align-|distribute-|flip-)/.test(value || "")) {
-    applySelectionArrangeCommand(value);
-  } else if (value?.startsWith("bond-")) {
-    editorState.bondType = value.replace("bond-", "");
-  } else if (value?.startsWith("arrow-type-")) {
-    editorState.arrowType = value.replace("arrow-type-", "");
-    if (!arrowTypeSupportsHeadSize(editorState.arrowType)) {
-      if (editorState.arrowHeadStyle === "left" || editorState.arrowHeadStyle === "right") {
-        editorState.arrowHeadStyle = "full";
-      }
-      if (editorState.arrowTailStyle === "left" || editorState.arrowTailStyle === "right") {
-        editorState.arrowTailStyle = "full";
-      }
-      editorState.arrowHead = editorState.arrowHeadStyle !== "none";
-      editorState.arrowTail = editorState.arrowTailStyle !== "none";
-      editorState.arrowNoGo = "none";
-    }
-    arrowOptionChanged = true;
-  } else if (value?.startsWith("arrow-size-")) {
-    editorState.arrowHeadSize = value.replace("arrow-size-", "");
-    arrowOptionChanged = true;
-  } else if (value?.startsWith("arrow-curve-")) {
-    editorState.arrowCurve = value.replace("arrow-curve-", "");
-    arrowOptionChanged = true;
-  } else if (value === "arrow-line") {
-    editorState.arrowHeadStyle = "none";
-    editorState.arrowTailStyle = "none";
-    editorState.arrowHead = false;
-    editorState.arrowTail = false;
-    arrowOptionChanged = true;
-  } else if (value === "arrow-head") {
-    editorState.arrowHeadStyle = editorState.arrowHeadStyle === "full" ? "none" : "full";
-    editorState.arrowHead = editorState.arrowHeadStyle !== "none";
-    arrowOptionChanged = true;
-  } else if (value === "arrow-tail") {
-    editorState.arrowTailStyle = editorState.arrowTailStyle === "full" ? "none" : "full";
-    editorState.arrowTail = editorState.arrowTailStyle !== "none";
-    arrowOptionChanged = true;
-  } else if (value === "arrow-head-left" || value === "arrow-head-right") {
-    const next = value === "arrow-head-left" ? "left" : "right";
-    editorState.arrowHeadStyle = editorState.arrowHeadStyle === next ? "none" : next;
-    editorState.arrowHead = editorState.arrowHeadStyle !== "none";
-    arrowOptionChanged = true;
-  } else if (value === "arrow-tail-left" || value === "arrow-tail-right") {
-    const next = value === "arrow-tail-left" ? "left" : "right";
-    editorState.arrowTailStyle = editorState.arrowTailStyle === next ? "none" : next;
-    editorState.arrowTail = editorState.arrowTailStyle !== "none";
-    arrowOptionChanged = true;
-  } else if (value === "arrow-nogo-cross" || value === "arrow-nogo-hash") {
-    const next = value === "arrow-nogo-cross" ? "cross" : "hash";
-    editorState.arrowNoGo = editorState.arrowNoGo === next ? "none" : next;
-    arrowOptionChanged = true;
-  } else if (value === "arrow-bold") {
-    editorState.arrowBold = !editorState.arrowBold;
-    arrowOptionChanged = true;
-  } else if (value?.startsWith("bracket-kind-")) {
-    editorState.bracketKind = value.replace("bracket-kind-", "");
-  } else if (value?.startsWith("symbol-kind-")) {
-    editorState.symbolKind = value.replace("symbol-kind-", "");
-  } else if (value?.startsWith("shape-kind-")) {
-    editorState.shapeKind = value.replace("shape-kind-", "");
-  } else if (value?.startsWith("shape-style-")) {
-    editorState.shapeStyle = value.replace("shape-style-", "");
-  } else if (value?.startsWith("ring-") || value === "benzene") {
-    editorState.template = value;
-  } else if (value?.startsWith("shape-color-")) {
-    const colors = {
-      "shape-color-black": "#000000",
-      "shape-color-red": "#ff0000",
-      "shape-color-blue": "#0000ff",
-      "shape-color-green": "#008000",
-    };
-    editorState.shapeColor = colors[value] || editorState.shapeColor;
-  }
-  syncEngineToolState();
-  if (arrowOptionChanged) {
-    applyArrowOptionsToSelection();
-  }
-  renderSecondaryToolbar();
-  focusActiveTextEditor();
-});
-
-secondaryToolbar?.addEventListener("change", (event) => {
-  const target = event.target;
-  if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) {
-    return;
-  }
-  const control = target.dataset.textControl;
-  if (control === "font") {
-    editorState.textFontFamily = target.value || editorState.textFontFamily;
-    applyTextInlineStyle({ fontFamily: editorState.textFontFamily });
-  } else if (control === "size") {
-    const size = Number(target.value || editorState.textFontSize);
-    if (Number.isFinite(size) && size > 0) {
-      editorState.textFontSize = normalizeToolbarFontSize(Math.max(5, Math.min(288, size)));
-      applyTextInlineStyle({ fontSize: `${editorState.textFontSize}px` });
-    }
-  }
-  renderSecondaryToolbar();
-  focusActiveTextEditor();
+bindEditorControls({
+  state,
+  editorState,
+  openFileInput,
+  zoomInput,
+  secondaryToolbar,
+  documentStylePresetInput,
+  getActiveTextEditor: () => activeTextEditor,
+  clearActiveSelectionGesture: () => { activeSelectionGesture = null; },
+  getZoomPercent: () => zoomPercent,
+  setTextFontSize: (size) => {
+    editorState.textFontSize = normalizeToolbarFontSize(Math.max(5, Math.min(288, size)));
+  },
+  isEditingRustDocument,
+  syncEngineToolState,
+  syncDocumentFromEngine,
+  renderDocument,
+  renderEditorOverlay,
+  currentEditorRenderList,
+  renderSecondaryToolbar,
+  syncCanvasCursor,
+  finishActiveTextEditor,
+  chooseAndOpenDocument,
+  saveCurrentDocumentAs,
+  saveCurrentDocumentCdxml,
+  saveCurrentDocumentSvg,
+  isAbortError,
+  runEditorCommand,
+  setZoomPercent,
+  nextZoomStep,
+  fitView,
+  resetEditorEngine,
+  openDocumentFile,
+  focusActiveTextEditor,
+  applyTextAlignment,
+  applyTextFormatCommand,
+  applyTextScript,
+  applyChemicalFormat,
+  applyTextInlineStyle,
+  applySelectionArrangeCommand,
+  applyArrowOptionsToSelection,
 });
 
 renderSecondaryToolbar();
@@ -3444,329 +2716,6 @@ function fitView() {
   syncZoomControl();
   const target = fitTargetBox || nextViewBox;
   applyViewerViewport({ centerWorld: { x: target.x + target.width / 2, y: target.y + target.height / 2 } });
-}
-
-async function loadDocument(path) {
-  const response = await fetch(path, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`Failed to load ${path}: ${response.status}`);
-  }
-  return response.json();
-}
-
-function validateChemcoreJsonDocument(documentData) {
-  if (!documentData || typeof documentData !== "object") {
-    throw new Error("JSON root must be an object.");
-  }
-  if (!documentData.document || typeof documentData.document !== "object") {
-    throw new Error("Missing document section.");
-  }
-  if (!Array.isArray(documentData.objects)) {
-    throw new Error("Missing objects array.");
-  }
-  if (!documentData.resources || typeof documentData.resources !== "object") {
-    throw new Error("Missing resources section.");
-  }
-}
-
-function loadJsonDocumentIntoEditor(documentData, fileName = null) {
-  validateChemcoreJsonDocument(documentData);
-  finishActiveTextEditor(false);
-  state.currentPath = null;
-  state.currentFileName = fileName;
-  state.editorEngine?.free?.();
-  state.editorEngine = new WasmEngine();
-  state.lastEditFocusPoint = null;
-  clearZoomHandoffs();
-  state.editorEngine.loadDocumentJson(JSON.stringify(documentData));
-  syncDocumentStylePresetFromEngine();
-  syncEngineToolState();
-  syncDocumentFromEngine();
-  state.runtimeViewBox = state.currentDocument?.document?.page
-    ? pageViewBox(state.currentDocument.document.page)
-    : defaultEditorViewBox();
-  viewerTitle.textContent = state.currentDocument?.document?.title || fileName || "Untitled";
-  updateDocumentMeta();
-  renderDocument();
-  fitView();
-}
-
-function currentDocumentJsonForSave() {
-  finishActiveTextEditor(true);
-  if (state.editorEngine && !state.currentPath) {
-    syncDocumentFromEngine();
-  }
-  if (!state.currentDocument) {
-    throw new Error("No document to save.");
-  }
-  return `${JSON.stringify(state.currentDocument, null, 2)}\n`;
-}
-
-function cdxmlFileNameForSave() {
-  const baseName = state.currentFileName || documentTitleForFileName(state.currentDocument);
-  return baseName.replace(/\.[^.]+$/, "") + ".cdxml";
-}
-
-function svgFileNameForSave() {
-  const baseName = state.currentFileName || documentTitleForFileName(state.currentDocument);
-  return baseName.replace(/\.[^.]+$/, "") + ".svg";
-}
-
-function saveAsBaseName() {
-  const baseName = state.currentFileName || documentTitleForFileName(state.currentDocument);
-  return baseName.replace(/\.[^.]+$/, "") || "chemcore-document";
-}
-
-function savePayloadForFormat(format) {
-  if (format === "svg") {
-    return {
-      content: currentDocumentSvgForSave(),
-      mimeType: "image/svg+xml",
-    };
-  }
-  if (format === "cdxml") {
-    return {
-      content: currentDocumentCdxmlForSave(),
-      mimeType: "chemical/x-cdxml",
-    };
-  }
-  return {
-    content: currentDocumentJsonForSave(),
-    mimeType: "application/json",
-  };
-}
-
-async function saveCurrentDocumentJson() {
-  const json = currentDocumentJsonForSave();
-  const suggestedName = state.currentFileName || documentTitleForFileName(state.currentDocument);
-  if (window.showSaveFilePicker) {
-    const handle = await window.showSaveFilePicker({
-      suggestedName,
-      types: [
-        {
-          description: "chemcore JSON",
-          accept: { "application/json": [".json"] },
-        },
-      ],
-    });
-    const writable = await handle.createWritable();
-    await writable.write(json);
-    await writable.close();
-    state.currentFileName = handle.name || suggestedName;
-    viewerTitle.textContent = state.currentDocument?.document?.title || state.currentFileName || "Untitled";
-    return;
-  }
-  downloadTextFile(json, suggestedName, "application/json");
-}
-
-function currentDocumentCdxmlForSave() {
-  finishActiveTextEditor(true);
-  if (!state.editorEngine) {
-    throw new Error("CDXML export is unavailable.");
-  }
-  return state.editorEngine.documentCdxml();
-}
-
-function currentDocumentSvgForSave() {
-  finishActiveTextEditor(true);
-  if (!state.editorEngine?.documentSvg) {
-    throw new Error("SVG export is unavailable.");
-  }
-  return state.editorEngine.documentSvg();
-}
-
-async function saveCurrentDocumentCdxml() {
-  const cdxml = currentDocumentCdxmlForSave();
-  const suggestedName = cdxmlFileNameForSave();
-  if (window.showSaveFilePicker) {
-    const handle = await window.showSaveFilePicker({
-      suggestedName,
-      types: [
-        {
-          description: "ChemDraw CDXML",
-          accept: { "chemical/x-cdxml": [".cdxml"], "text/xml": [".cdxml"] },
-        },
-      ],
-    });
-    const writable = await handle.createWritable();
-    await writable.write(cdxml);
-    await writable.close();
-    state.currentFileName = handle.name || suggestedName;
-    viewerTitle.textContent = state.currentDocument?.document?.title || state.currentFileName || "Untitled";
-    return;
-  }
-  downloadTextFile(cdxml, suggestedName, "chemical/x-cdxml");
-}
-
-async function saveCurrentDocumentSvg() {
-  const svg = currentDocumentSvgForSave();
-  const suggestedName = svgFileNameForSave();
-  if (window.showSaveFilePicker) {
-    const handle = await window.showSaveFilePicker({
-      suggestedName,
-      types: [
-        {
-          description: "Scalable Vector Graphics",
-          accept: { "image/svg+xml": [".svg"] },
-        },
-      ],
-    });
-    const writable = await handle.createWritable();
-    await writable.write(svg);
-    await writable.close();
-    return;
-  }
-  downloadTextFile(svg, suggestedName, "image/svg+xml");
-}
-
-async function saveCurrentDocumentAs() {
-  if (window.showSaveFilePicker) {
-    const handle = await window.showSaveFilePicker({
-      suggestedName: `${saveAsBaseName()}.cdxml`,
-      types: [
-        {
-          description: "ChemDraw CDXML",
-          accept: { "chemical/x-cdxml": [".cdxml"], "text/xml": [".cdxml"] },
-        },
-        {
-          description: "Scalable Vector Graphics",
-          accept: { "image/svg+xml": [".svg"] },
-        },
-        {
-          description: "chemcore JSON",
-          accept: { "application/json": [".json"] },
-        },
-      ],
-    });
-    const format = saveFormatFromFileName(handle.name);
-    const { content } = savePayloadForFormat(format);
-    const writable = await handle.createWritable();
-    await writable.write(content);
-    await writable.close();
-    if (format !== "svg") {
-      state.currentFileName = handle.name || state.currentFileName;
-      viewerTitle.textContent = state.currentDocument?.document?.title || state.currentFileName || "Untitled";
-    }
-    return;
-  }
-  await saveCurrentDocumentJson();
-}
-
-async function openDocumentFile(file) {
-  if (!file) {
-    return;
-  }
-  const text = await file.text();
-  if (looksLikeCdxmlFile(file, text)) {
-    finishActiveTextEditor(false);
-    state.currentPath = null;
-    state.currentFileName = file.name || null;
-    state.editorEngine?.free?.();
-    state.editorEngine = new WasmEngine();
-    state.lastEditFocusPoint = null;
-    clearZoomHandoffs();
-    state.editorEngine.loadDocumentCdxml(text);
-    syncDocumentStylePresetFromEngine();
-    syncEngineToolState();
-    syncDocumentFromEngine();
-    state.runtimeViewBox = state.currentDocument?.document?.page
-      ? pageViewBox(state.currentDocument.document.page)
-      : defaultEditorViewBox();
-    viewerTitle.textContent = state.currentDocument?.document?.title || file.name || "Imported CDXML";
-    updateDocumentMeta();
-    renderDocument();
-    fitView();
-    return;
-  }
-  const documentData = JSON.parse(text);
-  loadJsonDocumentIntoEditor(documentData, file.name || null);
-}
-
-function isAbortError(error) {
-  return error?.name === "AbortError";
-}
-
-async function chooseAndOpenDocument() {
-  if (window.showOpenFilePicker) {
-    const [handle] = await window.showOpenFilePicker({
-      multiple: false,
-      types: [
-        {
-          description: "chemcore JSON or CDXML",
-          accept: {
-            "application/json": [".json"],
-            "text/xml": [".cdxml"],
-            "application/xml": [".cdxml"],
-            "application/x-cdxml": [".cdxml"],
-            "chemical/x-cdxml": [".cdxml"],
-            "application/vnd.cambridgesoft.cdxml": [".cdxml"],
-          },
-        },
-      ],
-      excludeAcceptAllOption: false,
-    });
-    if (!handle) {
-      return;
-    }
-    await openDocumentFile(await handle.getFile());
-    return;
-  }
-  openFileInput.click();
-}
-
-function currentDocumentMetaPayload() {
-  if (!state.currentDocument) {
-    return null;
-  }
-  return {
-    sample: state.currentPath || state.currentFileName || "blank",
-    page: state.currentDocument.document.page,
-    meta: state.currentDocument.document.meta,
-    display: state.displayMetrics,
-  };
-}
-
-function updateDocumentMeta() {
-  const payload = currentDocumentMetaPayload();
-  if (!docMeta || !payload) {
-    return;
-  }
-  docMeta.textContent = JSON.stringify(payload, null, 2);
-}
-
-async function loadAndRender() {
-  finishActiveTextEditor(false);
-  clearZoomHandoffs();
-  viewerTitle.textContent = "Loading...";
-  try {
-    if (state.currentPath) {
-      state.currentFileName = null;
-      const documentData = await loadDocument(state.currentPath);
-      state.currentDocument = documentData;
-      state.runtimeViewBox = pageViewBox(documentData.document.page);
-      syncCoreRenderListFromCurrentDocument();
-    } else {
-      state.coreRenderList = null;
-      if (!state.editorEngine) {
-        resetEditorEngine();
-      } else {
-        state.editorEngine.clearInteraction();
-        syncEngineToolState();
-        syncDocumentFromEngine();
-      }
-    }
-    const documentData = state.currentDocument;
-    state.currentDocument = documentData;
-    viewerTitle.textContent = documentData.document.title || state.currentPath;
-    updateDocumentMeta();
-    renderDocument();
-    fitView();
-  } catch (error) {
-    viewerTitle.textContent = "Load failed";
-    viewerStats.textContent = "";
-    docMeta.textContent = String(error);
-    viewerSvg.innerHTML = "";
-  }
 }
 
 watchDisplayMetrics();
