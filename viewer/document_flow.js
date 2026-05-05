@@ -1,18 +1,30 @@
 import {
+  CHEMCORE_COMPRESSED_EXTENSION,
+  CHEMCORE_COMPRESSED_MIME,
+  CHEMCORE_TEXT_MIME,
+  baseNameWithoutDocumentExtension,
+  chemcoreOpenAcceptTypes,
+  compressChemcoreText,
+  decompressChemcoreText,
   documentTitleForFileName,
+  downloadBinaryFile,
   downloadTextFile,
+  looksLikeCompressedChemcoreFile,
   looksLikeCdxmlFile,
   saveFormatFromFileName,
 } from "./file_io.js";
 
 export function createDocumentFlow(options) {
-  function loadDocument(path) {
-    return fetch(path, { cache: "no-store" }).then((response) => {
-      if (!response.ok) {
-        throw new Error(`Failed to load ${path}: ${response.status}`);
-      }
-      return response.json();
-    });
+  async function loadDocument(path) {
+    const response = await fetch(path, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Failed to load ${path}: ${response.status}`);
+    }
+    const compressed = path.toLowerCase().endsWith(CHEMCORE_COMPRESSED_EXTENSION);
+    const text = compressed
+      ? await decompressChemcoreText(await response.arrayBuffer())
+      : await response.text();
+    return JSON.parse(text);
   }
 
   function validateChemcoreJsonDocument(documentData) {
@@ -65,20 +77,20 @@ export function createDocumentFlow(options) {
 
   function cdxmlFileNameForSave() {
     const baseName = options.state.currentFileName || documentTitleForFileName(options.state.currentDocument);
-    return baseName.replace(/\.[^.]+$/, "") + ".cdxml";
+    return `${baseNameWithoutDocumentExtension(baseName)}.cdxml`;
   }
 
   function svgFileNameForSave() {
     const baseName = options.state.currentFileName || documentTitleForFileName(options.state.currentDocument);
-    return baseName.replace(/\.[^.]+$/, "") + ".svg";
+    return `${baseNameWithoutDocumentExtension(baseName)}.svg`;
   }
 
   function saveAsBaseName() {
     const baseName = options.state.currentFileName || documentTitleForFileName(options.state.currentDocument);
-    return baseName.replace(/\.[^.]+$/, "") || "chemcore-document";
+    return baseNameWithoutDocumentExtension(baseName) || "chemcore-document";
   }
 
-  function savePayloadForFormat(format) {
+  async function savePayloadForFormat(format) {
     if (format === "svg") {
       return {
         content: currentDocumentSvgForSave(),
@@ -91,28 +103,38 @@ export function createDocumentFlow(options) {
         mimeType: "chemical/x-cdxml",
       };
     }
+    const json = currentDocumentJsonForSave();
+    if (format === "ccjs") {
+      return {
+        content: json,
+        mimeType: CHEMCORE_TEXT_MIME,
+      };
+    }
     return {
-      content: currentDocumentJsonForSave(),
-      mimeType: "application/json",
+      content: await compressChemcoreText(json),
+      mimeType: CHEMCORE_COMPRESSED_MIME,
     };
   }
 
-  async function saveCurrentDocumentJson() {
-    const json = currentDocumentJsonForSave();
-    const suggestedName = options.state.currentFileName || documentTitleForFileName(options.state.currentDocument);
+  async function saveCurrentDocumentNative() {
+    const payload = await savePayloadForFormat("ccjz");
+    const suggestedName = `${saveAsBaseName()}${CHEMCORE_COMPRESSED_EXTENSION}`;
     if (window.showSaveFilePicker) {
       const handle = await window.showSaveFilePicker({
         suggestedName,
-        types: [{ description: "chemcore JSON", accept: { "application/json": [".json"] } }],
+        types: [{
+          description: "ChemCore CCJZ",
+          accept: { [CHEMCORE_COMPRESSED_MIME]: [CHEMCORE_COMPRESSED_EXTENSION] },
+        }],
       });
       const writable = await handle.createWritable();
-      await writable.write(json);
+      await writable.write(payload.content);
       await writable.close();
       options.state.currentFileName = handle.name || suggestedName;
       options.viewerTitle.textContent = options.state.currentDocument?.document?.title || options.state.currentFileName || "Untitled";
       return;
     }
-    downloadTextFile(json, suggestedName, "application/json");
+    downloadBinaryFile(payload.content, suggestedName, payload.mimeType);
   }
 
   function currentDocumentCdxmlForSave() {
@@ -168,15 +190,22 @@ export function createDocumentFlow(options) {
   async function saveCurrentDocumentAs() {
     if (window.showSaveFilePicker) {
       const handle = await window.showSaveFilePicker({
-        suggestedName: `${saveAsBaseName()}.cdxml`,
+        suggestedName: `${saveAsBaseName()}${CHEMCORE_COMPRESSED_EXTENSION}`,
         types: [
+          {
+            description: "ChemCore CCJZ",
+            accept: { [CHEMCORE_COMPRESSED_MIME]: [CHEMCORE_COMPRESSED_EXTENSION] },
+          },
+          {
+            description: "ChemCore CCJS",
+            accept: { [CHEMCORE_TEXT_MIME]: [CHEMCORE_TEXT_EXTENSION] },
+          },
           { description: "ChemDraw CDXML", accept: { "chemical/x-cdxml": [".cdxml"], "text/xml": [".cdxml"] } },
           { description: "Scalable Vector Graphics", accept: { "image/svg+xml": [".svg"] } },
-          { description: "chemcore JSON", accept: { "application/json": [".json"] } },
         ],
       });
       const format = saveFormatFromFileName(handle.name);
-      const { content } = savePayloadForFormat(format);
+      const { content } = await savePayloadForFormat(format);
       const writable = await handle.createWritable();
       await writable.write(content);
       await writable.close();
@@ -186,14 +215,16 @@ export function createDocumentFlow(options) {
       }
       return;
     }
-    await saveCurrentDocumentJson();
+    await saveCurrentDocumentNative();
   }
 
   async function openDocumentFile(file) {
     if (!file) {
       return;
     }
-    const text = await file.text();
+    const text = looksLikeCompressedChemcoreFile(file)
+      ? await decompressChemcoreText(await file.arrayBuffer())
+      : await file.text();
     if (looksLikeCdxmlFile(file, text)) {
       options.finishActiveTextEditor(false);
       options.state.currentPath = null;
@@ -226,17 +257,7 @@ export function createDocumentFlow(options) {
     if (window.showOpenFilePicker) {
       const [handle] = await window.showOpenFilePicker({
         multiple: false,
-        types: [{
-          description: "chemcore JSON or CDXML",
-          accept: {
-            "application/json": [".json"],
-            "text/xml": [".cdxml"],
-            "application/xml": [".cdxml"],
-            "application/x-cdxml": [".cdxml"],
-            "chemical/x-cdxml": [".cdxml"],
-            "application/vnd.cambridgesoft.cdxml": [".cdxml"],
-          },
-        }],
+        types: chemcoreOpenAcceptTypes(),
         excludeAcceptAllOption: false,
       });
       if (!handle) {

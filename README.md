@@ -35,7 +35,7 @@ The current design baseline lives in:
 - [docs/bond-rendering-rules.zh-CN.md](./docs/bond-rendering-rules.zh-CN.md)
 - [docs/editor-command-history.md](./docs/editor-command-history.md)
 - [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)
-- [examples/document-v0.1.json](./examples/document-v0.1.json)
+- [examples/document-v0.1.ccjs](./examples/document-v0.1.ccjs)
 
 ## Workspace Layout
 
@@ -44,7 +44,7 @@ chemcore/
   crates/chemcore-engine/    Rust document, editing, rendering, CDXML, WASM core
   viewer/                    Browser editor host and generated WASM package
   docs/                      Architecture, format, rendering, and behavior notes
-  examples/                  Example chemcore JSON documents
+  examples/                  Example ChemCore native documents
   scripts/                   Build, verification, and browser regression helpers
   shared/                    Shared JSON data consumed by Rust/viewer code
 ```

@@ -7,6 +7,7 @@ import {
 } from "./engine_bridge.js";
 import { bindEditorControls } from "./editor_bindings.js";
 import { createDocumentFlow } from "./document_flow.js";
+import { chemcoreOpenAcceptString } from "./file_io.js";
 import {
   boundsCenter,
   boundsSize,
@@ -65,17 +66,17 @@ import {
 } from "./units.js";
 
 const SAMPLE_FILES = [
-  "../tmp/examples/02-13/2017-2-13/oleObject1.chemcore.json",
-  "../tmp/examples/02-13/2017-2-13/oleObject2.chemcore.json",
-  "../tmp/examples/02-13/2017-2-13/oleObject3.chemcore.json",
-  "../tmp/examples/02-13/2017-2-13/oleObject4.chemcore.json",
-  "../tmp/examples/02-13/lm 2017-2-13  working report/oleObject1.chemcore.json",
-  "../tmp/examples/02-13/工作汇报-jc-2017-2-13/oleObject1.chemcore.json",
-  "../tmp/examples/02-13/工作汇报-jc-2017-2-13/oleObject2.chemcore.json",
-  "../tmp/examples/02-13/工作汇报-jc-2017-2-13/oleObject3.chemcore.json",
-  "../tmp/examples/02-13/工作汇报-jc-2017-2-13/oleObject4.chemcore.json",
-  "../tmp/examples/02-13/工作汇报-jc-2017-2-13/oleObject5.chemcore.json",
-  "../tmp/examples/02-13/工作汇报-jc-2017-2-13/oleObject6.chemcore.json",
+  "../tmp/examples/02-13/2017-2-13/oleObject1.ccjs",
+  "../tmp/examples/02-13/2017-2-13/oleObject2.ccjs",
+  "../tmp/examples/02-13/2017-2-13/oleObject3.ccjs",
+  "../tmp/examples/02-13/2017-2-13/oleObject4.ccjs",
+  "../tmp/examples/02-13/lm 2017-2-13  working report/oleObject1.ccjs",
+  "../tmp/examples/02-13/工作汇报-jc-2017-2-13/oleObject1.ccjs",
+  "../tmp/examples/02-13/工作汇报-jc-2017-2-13/oleObject2.ccjs",
+  "../tmp/examples/02-13/工作汇报-jc-2017-2-13/oleObject3.ccjs",
+  "../tmp/examples/02-13/工作汇报-jc-2017-2-13/oleObject4.ccjs",
+  "../tmp/examples/02-13/工作汇报-jc-2017-2-13/oleObject5.ccjs",
+  "../tmp/examples/02-13/工作汇报-jc-2017-2-13/oleObject6.ccjs",
 ];
 
 const VIEW_MODE = document.body.dataset.viewMode || "document";
@@ -177,16 +178,7 @@ const secondaryToolbar = document.getElementById("secondary-toolbar");
 const documentStylePresetInput = document.getElementById("document-style-preset");
 const openFileInput = document.createElement("input");
 openFileInput.type = "file";
-openFileInput.accept = [
-  ".json",
-  ".cdxml",
-  "application/json",
-  "text/xml",
-  "application/xml",
-  "application/x-cdxml",
-  "chemical/x-cdxml",
-  "application/vnd.cambridgesoft.cdxml",
-].join(",");
+openFileInput.accept = chemcoreOpenAcceptString();
 openFileInput.className = "visually-hidden";
 document.body.appendChild(openFileInput);
 const textEditorLayer = document.createElement("div");

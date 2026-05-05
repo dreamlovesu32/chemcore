@@ -29,7 +29,7 @@
 - [docs/bond-rendering-rules.zh-CN.md](./docs/bond-rendering-rules.zh-CN.md)
 - [docs/editor-command-history.md](./docs/editor-command-history.md)
 - [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)
-- [examples/document-v0.1.json](./examples/document-v0.1.json)
+- [examples/document-v0.1.ccjs](./examples/document-v0.1.ccjs)
 
 ## 工作区结构
 
@@ -38,7 +38,7 @@ chemcore/
   crates/chemcore-engine/    Rust 文档、编辑、渲染、CDXML、WASM 核心
   viewer/                    浏览器编辑器宿主和生成的 WASM package
   docs/                      架构、格式、渲染和行为文档
-  examples/                  chemcore JSON 示例
+  examples/                  ChemCore 原生文档示例
   scripts/                   构建、验证和浏览器回归辅助脚本
   shared/                    Rust/viewer 共用 JSON 数据
 ```

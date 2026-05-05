@@ -6,7 +6,7 @@ Chemcore 的编辑能力从现在开始以 Rust 核心为准。Web、Windows、i
 
 `crates/chemcore-engine` 负责：
 
-- `chemcore.json` 文档模型和序列化
+- `.ccjs` / `.ccjz` 原生文档模型和序列化
 - 编辑工具状态
 - pointer/key 事件归一化后的处理
 - 端点、键、标签、形状等对象命中测试
@@ -31,7 +31,7 @@ Chemcore 的编辑能力从现在开始以 Rust 核心为准。Web、Windows、i
 - 空白处点击添加横向单键
 - 端点点击按 120 度延伸
 - 拖拽时固定键长并做角度吸附
-- WASM API 输出当前 `chemcore.json` 和 overlay 状态
+- WASM API 输出当前原生文档 JSON 和 overlay 状态
 - 键工具下的键中心聚焦
 - 单键按钮状态下点击键中心循环：偏置双键、居中等长双键、另一侧偏置双键
 - 选择单个端点或键

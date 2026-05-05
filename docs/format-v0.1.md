@@ -822,14 +822,15 @@ Those belong in future versions once the base model is proven.
 
 ## File Extension
 
-For now, the recommended extension is:
+The native document extensions are:
 
-- `.chemcore.json`
+- `.ccjz`: the default save format, containing gzip-compressed ChemCore JSON.
+- `.ccjs`: the readable/debug format, containing uncompressed ChemCore JSON.
 
-This makes it obvious that:
+This keeps the JSON payload inspectable without making the default file unnecessarily large:
 
-- the payload is JSON
-- the schema is still evolving
+- production saves and Save As should default to `.ccjz`
+- manual diffs and import/export debugging should use `.ccjs`
 
 ## Compatibility Promise
 

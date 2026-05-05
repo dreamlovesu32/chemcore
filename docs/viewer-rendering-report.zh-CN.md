@@ -126,7 +126,7 @@ viewer 截图可用：
 node scripts/viewer-screenshot.mjs \
   http://127.0.0.1:8765/viewer/ \
   tmp/viewer-screenshot.png \
-  ../tmp/examples/02-13/2017-2-13/oleObject3.chemcore.json
+  ../tmp/examples/02-13/2017-2-13/oleObject3.ccjs
 ```
 
-当前 viewer 服务可以直接加载 `tmp/examples/02-13` 下的示例 JSON，刷新页面即可看到最新 WASM 和前台逻辑。
+当前 viewer 服务可以直接加载 `tmp/examples/02-13` 下的示例 `.ccjs`，刷新页面即可看到最新 WASM 和前台逻辑。
