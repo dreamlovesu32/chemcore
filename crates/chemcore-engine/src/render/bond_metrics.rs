@@ -403,8 +403,8 @@ pub(super) fn fragment_outer_bond_offset_for_side(
         return Some(triple_bond_offset_distance(start, end, stroke_width));
     }
     let placement = side_double_placement(bond)?;
-    if (placement == DoubleBondPlacement::Left && side < 0.0)
-        || (placement == DoubleBondPlacement::Right && side > 0.0)
+    if (placement == DoubleBondPlacement::Left && side > 0.0)
+        || (placement == DoubleBondPlacement::Right && side < 0.0)
     {
         return Some(double_bond_center_distance_for_weights(
             start,
@@ -422,8 +422,8 @@ pub(super) fn outer_bond_candidate_sides(bond: &Bond) -> Vec<f64> {
         return vec![1.0, -1.0];
     }
     match side_double_placement(bond) {
-        Some(DoubleBondPlacement::Left) => vec![-1.0],
-        Some(DoubleBondPlacement::Right) => vec![1.0],
+        Some(DoubleBondPlacement::Left) => vec![1.0],
+        Some(DoubleBondPlacement::Right) => vec![-1.0],
         _ => Vec::new(),
     }
 }

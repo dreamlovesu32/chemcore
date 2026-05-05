@@ -580,8 +580,8 @@ fn template_drag_focus_point(anchor: &TemplateAnchor) -> Point {
 
 fn inward_double_placement(begin: Point, end: Point, center: Point) -> DoubleBondPlacement {
     match side_for_point(begin, end, center).unwrap_or(1.0) {
-        side if side > 0.0 => DoubleBondPlacement::Right,
-        _ => DoubleBondPlacement::Left,
+        side if side > 0.0 => DoubleBondPlacement::Left,
+        _ => DoubleBondPlacement::Right,
     }
 }
 

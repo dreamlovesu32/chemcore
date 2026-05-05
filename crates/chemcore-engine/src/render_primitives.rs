@@ -310,6 +310,24 @@ pub(super) fn push_knockout_polygon(
     points: Vec<Point>,
     object_id: Option<String>,
 ) {
+    push_knockout_polygon_with_node(out, points, object_id, None);
+}
+
+pub(super) fn push_label_knockout_polygon(
+    out: &mut Vec<RenderPrimitive>,
+    points: Vec<Point>,
+    object_id: Option<String>,
+    node_id: String,
+) {
+    push_knockout_polygon_with_node(out, points, object_id, Some(node_id));
+}
+
+fn push_knockout_polygon_with_node(
+    out: &mut Vec<RenderPrimitive>,
+    points: Vec<Point>,
+    object_id: Option<String>,
+    node_id: Option<String>,
+) {
     let points = compact_polygon_points(points);
     if points.len() < 3 || polygon_area_signed(&points).abs() <= 1.0e-4 {
         return;
@@ -317,7 +335,7 @@ pub(super) fn push_knockout_polygon(
     out.push(RenderPrimitive::Polygon {
         role: RenderRole::DocumentKnockout,
         object_id,
-        node_id: None,
+        node_id,
         bond_id: None,
         points,
         fill: KNOCKOUT_FILL.to_string(),

@@ -43,6 +43,96 @@ function defaultPunctuationGlyphProfile(sharedGlyphProfiles) {
   return sharedGlyphProfiles.defaults.punctuation;
 }
 
+function fallbackRectGlyphProfile(advanceEm, inkTopEm, inkRightEm, inkBottomEm) {
+  return {
+    shape: "rect",
+    advanceEm,
+    inkLeftEm: 0,
+    inkTopEm,
+    inkRightEm,
+    inkBottomEm,
+    padXEm: 0.09,
+    padYEm: 0.09,
+    visible: true,
+  };
+}
+
+function invisibleWhitespaceGlyphProfile() {
+  return {
+    shape: "rect",
+    advanceEm: 0.28,
+    inkLeftEm: 0,
+    inkTopEm: 0,
+    inkRightEm: 0,
+    inkBottomEm: 0,
+    padXEm: 0,
+    padYEm: 0,
+    visible: false,
+  };
+}
+
+function isSingleCodePoint(character) {
+  return !!character && Array.from(character).length === 1;
+}
+
+function characterCodePoint(character) {
+  return isSingleCodePoint(character) ? character.codePointAt(0) : NaN;
+}
+
+function isCjkOrFullwidth(character) {
+  const code = characterCodePoint(character);
+  return Number.isFinite(code) && (
+    (code >= 0x1100 && code <= 0x11ff)
+    || (code >= 0x2e80 && code <= 0xa4cf)
+    || (code >= 0xac00 && code <= 0xd7af)
+    || (code >= 0xf900 && code <= 0xfaff)
+    || (code >= 0xfe10 && code <= 0xfe6f)
+    || (code >= 0xff00 && code <= 0xffef)
+    || (code >= 0x20000 && code <= 0x2fa1f)
+  );
+}
+
+function isMathOrArrowSymbol(character) {
+  const code = characterCodePoint(character);
+  return Number.isFinite(code) && (
+    (code >= 0x2190 && code <= 0x21ff)
+    || (code >= 0x2200 && code <= 0x22ff)
+    || (code >= 0x27f0 && code <= 0x27ff)
+  );
+}
+
+function isGreekOrExtendedLetter(character) {
+  return isSingleCodePoint(character) && /^\p{L}$/u.test(character);
+}
+
+function isUppercaseLetter(character) {
+  return isSingleCodePoint(character) && character.toLocaleUpperCase() === character && character.toLocaleLowerCase() !== character;
+}
+
+function inferredGlyphProfile(character) {
+  if (!character) {
+    return null;
+  }
+  if (/\s/u.test(character)) {
+    return invisibleWhitespaceGlyphProfile();
+  }
+  if (isCjkOrFullwidth(character)) {
+    return fallbackRectGlyphProfile(1.0, -0.86, 1.0, 0.14);
+  }
+  if (isMathOrArrowSymbol(character)) {
+    return fallbackRectGlyphProfile(0.84, -0.74, 0.84, 0.06);
+  }
+  if (character === "‰" || character === "‱") {
+    return fallbackRectGlyphProfile(1.34, -0.74, 1.34, 0.06);
+  }
+  if (isGreekOrExtendedLetter(character)) {
+    return isUppercaseLetter(character)
+      ? fallbackRectGlyphProfile(0.72, -0.74, 0.72, 0.04)
+      : fallbackRectGlyphProfile(0.62, -0.62, 0.62, 0.08);
+  }
+  return fallbackRectGlyphProfile(0.62, -0.74, 0.62, 0.08);
+}
+
 export function textCodePoints(text) {
   return Array.from(String(text || ""));
 }
@@ -96,6 +186,9 @@ export function lookupEditorGlyphProfile(sharedGlyphProfiles, character) {
   }
   if (isAsciiGlyphCode(character, 48, 57)) {
     return defaultDigitGlyphProfile(sharedGlyphProfiles);
+  }
+  if (!isAsciiGlyphCode(character, 0x21, 0x7e)) {
+    return inferredGlyphProfile(character);
   }
   return defaultPunctuationGlyphProfile(sharedGlyphProfiles);
 }

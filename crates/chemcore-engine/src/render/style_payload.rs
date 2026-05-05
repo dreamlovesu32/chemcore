@@ -83,6 +83,14 @@ pub(super) fn payload_points(payload: &ObjectPayload, key: &str) -> Vec<Point> {
         .collect()
 }
 
+fn payload_nested_point(payload: &ObjectPayload, group: &str, key: &str) -> Option<Point> {
+    let coords = payload.extra.get(group)?.get(key)?.as_array()?;
+    Some(Point::new(
+        coords.first()?.as_f64()?,
+        coords.get(1)?.as_f64()?,
+    ))
+}
+
 pub(super) fn payload_box_width(payload: &ObjectPayload, key: &str) -> Option<f64> {
     let coords = payload.extra.get(key)?.as_array()?;
     coords.get(2)?.as_f64()
@@ -97,46 +105,52 @@ pub(super) fn payload_runs(payload: &ObjectPayload, key: &str) -> Vec<LabelRun> 
         .unwrap_or_default()
 }
 
-pub(super) fn payload_arrow_head(payload: &ObjectPayload, key: &str) -> Option<ArrowHeadGeometry> {
+pub(super) fn payload_arrow_head(
+    payload: &ObjectPayload,
+    key: &str,
+    stroke_width: f64,
+) -> Option<ArrowHeadGeometry> {
     let value = payload.extra.get(key)?;
-    let length = value
-        .get("length")
-        .and_then(JsonValue::as_f64)
-        .unwrap_or(crate::DEFAULT_ARROW_HEAD_LENGTH_CM.value());
+    let length = value.get("length").and_then(JsonValue::as_f64)?;
+    let scale = if stroke_width > EPSILON {
+        stroke_width
+    } else {
+        DEFAULT_BOND_STROKE
+    };
     Some(ArrowHeadGeometry {
-        length,
+        length: length * scale,
         center_length: value
             .get("centerLength")
             .or_else(|| value.get("center_length"))
-            .and_then(JsonValue::as_f64)
-            .unwrap_or(length * 0.875),
-        width: value
-            .get("width")
-            .and_then(JsonValue::as_f64)
-            .unwrap_or(length * 0.25),
+            .and_then(JsonValue::as_f64)?
+            * scale,
+        width: value.get("width").and_then(JsonValue::as_f64)? * scale,
         kind: value
             .get("kind")
             .and_then(JsonValue::as_str)
-            .map(arrow_head_kind)
-            .unwrap_or_default(),
-        curve: value
-            .get("curve")
-            .and_then(JsonValue::as_f64)
-            .unwrap_or(0.0),
+            .map(arrow_head_kind)?,
+        curve: value.get("curve").and_then(JsonValue::as_f64)?,
         head_full: value
             .get("head")
             .and_then(JsonValue::as_str)
             .is_some_and(|head| head.eq_ignore_ascii_case("full")),
-        bold: value
-            .get("bold")
-            .and_then(JsonValue::as_bool)
-            .unwrap_or(false),
+        bold: value.get("bold").and_then(JsonValue::as_bool)?,
         no_go: value
             .get("noGo")
             .or_else(|| value.get("no_go"))
             .and_then(JsonValue::as_str)
-            .map(arrow_no_go_geometry)
-            .unwrap_or_default(),
+            .map(arrow_no_go_geometry)?,
+    })
+}
+
+pub(super) fn payload_arrow_arc_geometry(
+    payload: &ObjectPayload,
+    key: &str,
+) -> Option<ArrowArcGeometry> {
+    Some(ArrowArcGeometry {
+        center: payload_nested_point(payload, key, "center")?,
+        major_axis_end: payload_nested_point(payload, key, "majorAxisEnd")?,
+        minor_axis_end: payload_nested_point(payload, key, "minorAxisEnd")?,
     })
 }
 

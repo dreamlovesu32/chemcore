@@ -522,7 +522,9 @@ text 对象表示带定位信息的富文本内容。
 - `bondSpacing`：双键间距百分比，对应 ChemDraw `BondSpacing`
 - `stereo.kind`：`solid-wedge | hashed-wedge`
 - `stereo.wideEnd`：`begin | end`
-- `double.placement`：`left | right | center`
+- `double.placement`：`left | right | center`，其中 `left` / `right` 按
+  `begin -> end` 的有向键定义；在页面坐标 y 向下时，`left` 对应键向量
+  左法线 `(-dy, dx)`，`right` 对应右法线 `(dy, -dx)`
 
 当前内置绘图模板的关键值：
 
@@ -590,11 +592,11 @@ line 对象表示页面上的线性笔画几何。
 - `arrowHead`：可选箭头装饰数据；省略或为 `null` 就是普通线
 - `curve`：可选，bezier 或弧线等曲线元数据
 
-`arrowHead` 的尺寸字段使用 ChemDraw 对应语义：
+`arrowHead` 的尺寸字段使用 ChemDraw 对应的相对线宽语义。渲染时实际尺寸为字段值乘以当前线宽；导出 CDXML 时再乘以 `100` 写回原始属性：
 
-- `length` 对应 CDXML `HeadSize / 100`
-- `centerLength` 对应 CDXML `ArrowheadCenterSize / 100`
-- `width` 对应 CDXML `ArrowheadWidth / 100`。对实心箭头，ChemDraw 将该值作为宽端半宽参数，渲染轮廓使用约 `width + 0.05` 的外侧半宽，并用该半宽的 `7/16` 作为内侧贝塞尔控制点偏移；对开放/空心箭头，该值作为头部相对箭杆半宽的额外宽度参数
+- `length` 对应 CDXML `HeadSize / 100`，实际头长为 `length * strokeWidth`
+- `centerLength` 对应 CDXML `ArrowheadCenterSize / 100`，实际凹口位置为 `centerLength * strokeWidth`
+- `width` 对应 CDXML `ArrowheadWidth / 100`，实际宽端半宽参数为 `width * strokeWidth`。对实心箭头，ChemDraw 将该值作为宽端半宽参数，渲染轮廓使用约 `width * strokeWidth + 0.05` 的外侧半宽，并用该半宽的 `7/16` 作为内侧贝塞尔控制点偏移；对开放/空心箭头，该值作为头部相对箭杆半宽的额外宽度参数
 - `curve` 对应 CDXML `AngularSize`，负值和正值分别表示两种弯曲方向
 - `noGo` 对应 CDXML `NoGo`，可取 `none | cross | hash`
 - `kind` 为 `hollow` 或 `open` 时使用空心/开口箭头自己的尺寸模板，不复用实心箭头模板

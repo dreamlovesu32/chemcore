@@ -144,41 +144,64 @@ pub(super) fn arrow_object_focus_points(
     }
     let start = points[0];
     let end = *points.last().unwrap_or(&points[0]);
-    curved_arrow_points(start, end, line_object_arrow_curve(object))
+    let curve = line_object_arrow_curve(object);
+    if curve.abs() <= crate::EPSILON {
+        return vec![start, end];
+    }
+    curved_arrow_points(start, curve, object).unwrap_or_default()
 }
 
-pub(super) fn curved_arrow_points(start: Point, end: Point, sweep_degrees: f64) -> Vec<Point> {
-    let chord = Vector::new(end.x - start.x, end.y - start.y);
-    let chord_length = chord.length();
-    if chord_length <= crate::EPSILON || sweep_degrees.abs() <= crate::EPSILON {
-        return vec![start, end];
+pub(super) fn curved_arrow_points(
+    start: Point,
+    sweep_degrees: f64,
+    object: &crate::SceneObject,
+) -> Option<Vec<Point>> {
+    let (center, major_axis_end, minor_axis_end) = line_object_arrow_arc_geometry(object)?;
+    let major = Vector::new(major_axis_end.x - center.x, major_axis_end.y - center.y);
+    let minor = Vector::new(minor_axis_end.x - center.x, minor_axis_end.y - center.y);
+    let det = major.x * minor.y - major.y * minor.x;
+    if det.abs() <= crate::EPSILON
+        || major.length() <= crate::EPSILON
+        || minor.length() <= crate::EPSILON
+        || sweep_degrees.abs() <= crate::EPSILON
+    {
+        return None;
     }
+    let relative = Vector::new(start.x - center.x, start.y - center.y);
+    let cos = (relative.x * minor.y - relative.y * minor.x) / det;
+    let sin = (major.x * relative.y - major.y * relative.x) / det;
+    let start_angle = sin.atan2(cos);
     let sweep = -sweep_degrees.to_radians();
-    let half = sweep.abs() * 0.5;
-    let sin_half = half.sin().abs();
-    if sin_half <= crate::EPSILON {
-        return vec![start, end];
-    }
-    let unit = chord.normalized();
-    let normal = Vector::new(-unit.y, unit.x);
-    let radius = chord_length / (2.0 * sin_half);
-    let offset = radius * half.cos() * sweep.signum();
-    let center = Point::new(
-        (start.x + end.x) * 0.5 + normal.x * offset,
-        (start.y + end.y) * 0.5 + normal.y * offset,
-    );
-    let start_angle = (start.y - center.y).atan2(start.x - center.x);
     let steps = ((sweep_degrees.abs() / 12.0).ceil() as usize).clamp(8, 32);
-    (0..=steps)
-        .map(|index| {
-            let t = index as f64 / steps as f64;
-            let angle = start_angle + sweep * t;
-            Point::new(
-                center.x + angle.cos() * radius,
-                center.y + angle.sin() * radius,
-            )
-        })
-        .collect()
+    Some(
+        (0..=steps)
+            .map(|index| {
+                let t = index as f64 / steps as f64;
+                let angle = start_angle + sweep * t;
+                center
+                    .translated(major.scaled(angle.cos()))
+                    .translated(minor.scaled(angle.sin()))
+            })
+            .collect(),
+    )
+}
+
+fn line_object_arrow_arc_geometry(object: &crate::SceneObject) -> Option<(Point, Point, Point)> {
+    let geometry = object.payload.extra.get("arrowGeometry")?;
+    let tx = object.transform.translate[0];
+    let ty = object.transform.translate[1];
+    let point = |key: &str| -> Option<Point> {
+        let coords = geometry.get(key)?.as_array()?;
+        Some(Point::new(
+            tx + coords.first()?.as_f64()?,
+            ty + coords.get(1)?.as_f64()?,
+        ))
+    };
+    Some((
+        point("center")?,
+        point("majorAxisEnd")?,
+        point("minorAxisEnd")?,
+    ))
 }
 
 pub(super) fn polyline_length(points: &[Point]) -> f64 {

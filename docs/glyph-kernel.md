@@ -22,6 +22,8 @@ The active glyph geometry implementation lives in Rust:
 The Rust engine consumes shared normalized glyph profiles:
 
 - [shared/glyph_profiles.json](../shared/glyph_profiles.json)
+- [shared/text_symbols.json](../shared/text_symbols.json) lists the text-symbol
+  catalog used by the viewer palette and by the profile generation script
 
 The kernel defines:
 
@@ -30,8 +32,17 @@ The kernel defines:
 - scalable padding
 - rect / ellipse / cut-corner background shapes
 - normal / subscript / superscript layout
+- conservative Unicode-category fallbacks for characters that are not explicitly
+  listed in the shared profile manifest
 
 The output is used by attached-label layout, label anchor geometry, label-aware bond clipping, and text edit preview geometry.
+
+Text-symbol profiles should be regenerated instead of hand-filled one character
+at a time:
+
+```bash
+python scripts/generate-glyph-profiles.py
+```
 
 ## Web Status
 

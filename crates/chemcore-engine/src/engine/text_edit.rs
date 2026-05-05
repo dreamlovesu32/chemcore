@@ -181,11 +181,10 @@ fn make_text_payload(
     height: f64,
 ) -> crate::ObjectPayload {
     let mut extra = std::collections::BTreeMap::new();
+    let align = session.align.clone().unwrap_or_else(|| "left".to_string());
+    let local_box = text_object_box_for_align(&align, width, height);
     extra.insert("text".to_string(), Value::String(text.to_string()));
-    extra.insert(
-        "align".to_string(),
-        Value::String(session.align.clone().unwrap_or_else(|| "left".to_string())),
-    );
+    extra.insert("align".to_string(), Value::String(align));
     extra.insert("valign".to_string(), Value::String("top".to_string()));
     extra.insert("preserveLines".to_string(), Value::Bool(true));
     extra.insert(
@@ -223,7 +222,15 @@ fn make_text_payload(
                 .unwrap_or(DEFAULT_TEXT_BLOCK_LINE_HEIGHT)
         )),
     );
-    extra.insert("box".to_string(), json!([0.0, 0.0, width, height]));
+    extra.insert(
+        "box".to_string(),
+        json!([
+            round6(local_box[0]),
+            round6(local_box[1]),
+            round6(local_box[2]),
+            round6(local_box[3])
+        ]),
+    );
     extra.insert(
         "runs".to_string(),
         serde_json::to_value(display_runs).unwrap_or(Value::Array(Vec::new())),
@@ -234,7 +241,12 @@ fn make_text_payload(
     );
     crate::ObjectPayload {
         resource_ref: None,
-        bbox: Some([0.0, 0.0, width, height]),
+        bbox: Some([
+            round6(local_box[0]),
+            round6(local_box[1]),
+            round6(local_box[2]),
+            round6(local_box[3]),
+        ]),
         extra,
     }
 }
@@ -799,8 +811,22 @@ impl Engine {
             session_font_size,
             session.fill.as_deref().unwrap_or("#000000"),
         );
-        let (width, height) =
+        let (estimated_width, estimated_height) =
             estimate_text_block_size(&display_runs, session_font_size, session_line_height);
+        let width = round2(
+            session
+                .box_value
+                .map(|bbox| bbox[2].max(0.0))
+                .unwrap_or(0.0)
+                .max(estimated_width),
+        );
+        let height = round2(
+            session
+                .box_value
+                .map(|bbox| bbox[3].max(0.0))
+                .unwrap_or(0.0)
+                .max(estimated_height),
+        );
         let (x, y, existing_object_id) = match &session.target {
             TextEditTarget::TextObject { object_id, x, y } => (*x, *y, object_id.clone()),
             _ => return false,

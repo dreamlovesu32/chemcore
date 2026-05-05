@@ -1,6 +1,7 @@
 use crate::LabelRun;
 use std::collections::BTreeMap;
 
+use super::colors::CdxmlColorTable;
 use super::round2;
 
 pub(super) fn label_source_run(
@@ -9,7 +10,7 @@ pub(super) fn label_source_run(
     font_id: &str,
     color_id: &str,
     font_size: f64,
-    colors: &BTreeMap<String, String>,
+    colors: &CdxmlColorTable,
     fonts: &BTreeMap<String, String>,
 ) -> LabelRun {
     let decoded_face = decode_cdxml_face(face);
@@ -22,12 +23,7 @@ pub(super) fn label_source_run(
                 .unwrap_or_else(|| "Arial".to_string()),
         ),
         font_size: Some(round2(font_size)),
-        fill: Some(
-            colors
-                .get(color_id)
-                .cloned()
-                .unwrap_or_else(|| "#000000".to_string()),
-        ),
+        fill: Some(colors.resolve(Some(color_id))),
         font_weight: Some(if decoded_face.bold { 700 } else { 400 }),
         font_style: Some(
             if decoded_face.italic {
@@ -48,7 +44,7 @@ pub(super) fn label_display_runs(
     font_id: &str,
     color_id: &str,
     font_size: f64,
-    colors: &BTreeMap<String, String>,
+    colors: &CdxmlColorTable,
     fonts: &BTreeMap<String, String>,
 ) -> Vec<LabelRun> {
     let source = label_source_run(text, face, font_id, color_id, font_size, colors, fonts);
@@ -89,7 +85,10 @@ fn expand_cdxml_chemical_run(base: &LabelRun) -> Vec<LabelRun> {
 
     for index in 0..chars.len() {
         let character = chars[index];
-        if character.is_ascii_digit() && index > 0 && chars[index - 1].is_ascii_alphabetic() {
+        if character.is_ascii_digit()
+            && index > 0
+            && (chars[index - 1].is_ascii_alphabetic() || chars[index - 1] == ')')
+        {
             scripts[index] = "subscript";
         }
         if matches!(character, '+' | '-') {

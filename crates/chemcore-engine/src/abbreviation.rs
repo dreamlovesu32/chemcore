@@ -8,7 +8,7 @@ mod expansion;
 mod valence;
 
 use self::expansion::expansion_for_recognition;
-use self::valence::parse_valence_terminal_label;
+use self::valence::{parse_chemical_text_label, parse_valence_terminal_label};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -158,6 +158,13 @@ const N_BRIDGE_FRAGMENT: FragmentDef = FragmentDef {
 
 const TERMINAL_FRAGMENTS: &[FragmentDef] = &[
     terminal("R", &[], "R group / generic substituent", "R", "R"),
+    terminal(
+        "Ar",
+        &[],
+        "aryl group / generic aromatic substituent",
+        "Ar",
+        "Ar",
+    ),
     terminal("Me", &["CH3"], "methyl", "-CH3", "C"),
     terminal("Et", &["C2H5"], "ethyl", "-CH2CH3", "C"),
     terminal("Pr", &[], "propyl", "-CH2CH2CH3", "C"),
@@ -261,7 +268,9 @@ pub fn recognize_abbreviation_label_for_connection_count(
     if trimmed.is_empty() {
         return None;
     }
-    if connection_count == 1 {
+    if connection_count == 0 {
+        parse_chemical_text_label(trimmed)
+    } else if connection_count == 1 {
         parse_valence_terminal_label(trimmed).or_else(|| recognize_terminal(trimmed))
     } else if connection_count == 2 {
         recognize_bridge(trimmed)
@@ -279,7 +288,6 @@ pub fn recognized_abbreviation_meta_for_connection_count(
     connection_count: usize,
 ) -> Option<Value> {
     let recognition = recognize_abbreviation_label_for_connection_count(label, connection_count)?;
-    let expansion = expansion_for_recognition(&recognition);
     let mut meta = json!({
         "kind": "functional-group",
         "status": "recognized",
@@ -289,10 +297,12 @@ pub fn recognized_abbreviation_meta_for_connection_count(
         "formula": recognition.formula,
         "anchorAtom": recognition.anchor_atom,
         "components": recognition.components,
-        "expansion": expansion,
     });
     if recognition.kind == "valence-fragment" {
         meta["source"] = json!("valence-parser");
+    }
+    if recognition.kind != "chemical-text" {
+        meta["expansion"] = expansion_for_recognition(&recognition);
     }
     Some(meta)
 }

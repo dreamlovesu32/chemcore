@@ -41,8 +41,8 @@ use object_render::{
     render_text_object,
 };
 use primitives::{
-    push_bond_line, push_bond_polygon, push_knockout_polygon, push_line, push_path, push_polygon,
-    push_polyline, push_text, push_text_for_node,
+    push_bond_line, push_bond_polygon, push_knockout_polygon, push_label_knockout_polygon,
+    push_line, push_path, push_polygon, push_polyline, push_text, push_text_for_node,
 };
 pub use primitives::{RenderPrimitive, RenderRole};
 
@@ -119,6 +119,13 @@ pub(crate) struct ArrowHeadGeometry {
     head_full: bool,
     bold: bool,
     no_go: ArrowNoGoGeometry,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ArrowArcGeometry {
+    center: Point,
+    major_axis_end: Point,
+    minor_axis_end: Point,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

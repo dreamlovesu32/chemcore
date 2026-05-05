@@ -444,6 +444,139 @@ button {
   overflow: hidden;
 }
 
+.text-symbol-palette {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 12;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.text-symbol-toggle,
+.text-symbol-pin,
+.text-symbol-cell {
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.text-symbol-toggle {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  box-shadow: 0 3px 10px rgba(17, 19, 24, 0.14);
+}
+
+.text-symbol-toggle:hover,
+.text-symbol-pin:hover,
+.text-symbol-cell:hover {
+  border-color: #8fb0f4;
+  background: var(--active-soft);
+  color: var(--active);
+}
+
+.text-symbol-toggle svg {
+  width: 28px;
+  height: 28px;
+}
+
+.text-symbol-panel {
+  width: min(360px, calc(100vw - 92px));
+  max-height: min(440px, calc(100vh - 150px));
+  display: none;
+  flex-direction: column;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 8px 26px rgba(17, 19, 24, 0.18);
+  pointer-events: auto;
+}
+
+.text-symbol-palette.is-open .text-symbol-panel {
+  display: flex;
+}
+
+.text-symbol-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 4px 6px 4px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--chrome);
+}
+
+.text-symbol-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.text-symbol-pin {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+}
+
+.text-symbol-pin svg {
+  width: 20px;
+  height: 20px;
+}
+
+.text-symbol-pin svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.text-symbol-pin.is-selected {
+  border-color: #8fb0f4;
+  background: var(--active-soft);
+  color: var(--active);
+}
+
+.text-symbol-content {
+  overflow: auto;
+  padding: 7px;
+}
+
+.text-symbol-section {
+  margin: 0 0 8px;
+}
+
+.text-symbol-section:last-child {
+  margin-bottom: 0;
+}
+
+.text-symbol-section-label {
+  margin: 0 0 4px 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.text-symbol-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+  gap: 3px;
+}
+
+.text-symbol-cell {
+  height: 28px;
+  min-width: 28px;
+  border-radius: 4px;
+  padding: 0;
+  font-family: Arial, "Helvetica Neue", Helvetica, "Droid Sans Fallback", sans-serif;
+  font-size: 16px;
+  line-height: 1;
+}
+
 .chem-text {
   font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
   fill: #000000;

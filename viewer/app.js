@@ -44,6 +44,10 @@ import {
 } from "./text_editor_render.js";
 import { createTextEditorController } from "./text_editor_controller.js";
 import {
+  createTextSymbolPalette,
+  loadTextSymbolCatalog,
+} from "./text_symbol_palette.js";
+import {
   renderLineObject,
   renderShapeObject,
   renderTextObject,
@@ -92,6 +96,7 @@ const state = {
   isProgrammaticScroll: false,
   expectedProgrammaticScroll: null,
   displayMetrics: displayMetrics(),
+  pendingTextSymbol: null,
 };
 let sharedGlyphProfiles = null;
 const sharedGlyphProfilesReady = loadSharedGlyphProfiles();
@@ -187,6 +192,15 @@ document.body.appendChild(openFileInput);
 const textEditorLayer = document.createElement("div");
 textEditorLayer.className = "text-editor-layer";
 viewerContainer?.appendChild(textEditorLayer);
+let textSymbolPalette = null;
+const textSymbolCatalogReady = loadTextSymbolCatalog().then((catalog) => {
+  textSymbolPalette = createTextSymbolPalette({
+    mount: viewerContainer,
+    catalog,
+    onSelect: insertTextSymbol,
+  });
+  return textSymbolPalette;
+});
 
 if (sampleSelect) {
   for (const samplePath of SAMPLE_FILES) {
@@ -1351,6 +1365,12 @@ function openTextEditorAt(point) {
   }
   renderEditorOverlay(currentEditorRenderList());
   openTextEditorSession(session);
+  if (state.pendingTextSymbol) {
+    const symbol = state.pendingTextSymbol;
+    state.pendingTextSymbol = null;
+    textEditorController.insertTextAtSelection(symbol);
+    focusActiveTextEditor();
+  }
 }
 
 function openTextEditorSession(session) {
@@ -1872,6 +1892,23 @@ function applyChemicalFormat() {
 
 function insertTextAtSelection(text) {
   textEditorController.insertTextAtSelection(text);
+}
+
+function insertTextSymbol(character) {
+  const symbol = String(character || "");
+  if (!symbol) {
+    return;
+  }
+  if (activeTextEditor) {
+    textEditorController.insertTextAtSelection(symbol);
+    focusActiveTextEditor();
+    return;
+  }
+  state.pendingTextSymbol = symbol;
+  editorState.activeTool = "text";
+  syncEngineToolState();
+  renderSecondaryToolbar();
+  syncCanvasCursor();
 }
 
 const documentFlow = createDocumentFlow({
@@ -2721,7 +2758,7 @@ function fitView() {
 watchDisplayMetrics();
 
 try {
-  await Promise.all([initializeChemcoreEngine(), sharedGlyphProfilesReady]);
+  await Promise.all([initializeChemcoreEngine(), sharedGlyphProfilesReady, textSymbolCatalogReady]);
   await loadAndRender();
 } catch (error) {
   viewerTitle.textContent = "Runtime load failed";

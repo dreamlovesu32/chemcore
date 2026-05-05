@@ -773,6 +773,14 @@ fn curved_arrow_tool_stores_curve_and_renders_arc_segments() {
         arrow_head.get("curve").and_then(|value| value.as_f64()),
         Some(120.0)
     );
+    let arrow_geometry = object
+        .payload
+        .extra
+        .get("arrowGeometry")
+        .expect("created curved arrow should store arc geometry");
+    assert!(arrow_geometry.get("center").is_some());
+    assert!(arrow_geometry.get("majorAxisEnd").is_some());
+    assert!(arrow_geometry.get("minorAxisEnd").is_some());
     let arc_points = engine
         .render_list()
         .into_iter()

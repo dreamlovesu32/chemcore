@@ -6,11 +6,13 @@ use crate::{
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
+mod colors;
 mod export;
 mod import_objects;
 mod text_runs;
 mod xml;
 
+use self::colors::CdxmlColorTable;
 pub use self::export::document_to_cdxml;
 use self::import_objects::{
     append_bracket_objects, append_line_objects, append_shape_objects, append_text_objects,
@@ -46,7 +48,7 @@ impl Default for CdxmlDefaults {
 pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemcoreDocument, String> {
     let root = parse_xml_tree(cdxml)?;
     let defaults = cdxml_defaults(&root);
-    let colors = cdxml_color_table(&root);
+    let colors = CdxmlColorTable::from_cdxml(&root);
     let fonts = cdxml_font_table(&root);
     let mut styles = default_cdxml_styles(defaults);
     let mut resources = BTreeMap::new();
@@ -118,9 +120,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<Chemcore
         &display_fragment_ids,
         &bonded_node_ids,
     );
-
-    let page = page_from_objects(&objects);
-    Ok(ChemcoreDocument {
+    let mut document = ChemcoreDocument {
         format: FormatInfo {
             name: "chemcore".to_string(),
             version: "0.1".to_string(),
@@ -129,7 +129,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<Chemcore
         document: DocumentInfo {
             id: "doc_cdxml_import".to_string(),
             title: title.unwrap_or("Imported CDXML").to_string(),
-            page,
+            page: page_from_objects(&objects, colors.background()),
             meta: json!({
                 "createdBy": "chemcore",
                 "sourceFormat": "cdxml",
@@ -152,7 +152,12 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<Chemcore
         styles,
         objects,
         resources,
-    })
+    };
+    crate::normalize_text_object_payloads(&mut document);
+    crate::normalize_shape_object_payloads(&mut document);
+    crate::normalize_arrow_object_payloads(&mut document);
+    crate::normalize_fragment_label_payloads(&mut document);
+    Ok(document)
 }
 
 pub(crate) fn normalize_cdxml_document_for_editing(document: &mut ChemcoreDocument) {
@@ -408,50 +413,6 @@ fn default_cdxml_styles(defaults: CdxmlDefaults) -> BTreeMap<String, Value> {
     ])
 }
 
-fn cdxml_color_table(root: &XmlNode) -> BTreeMap<String, String> {
-    let mut colors = BTreeMap::from([("0".to_string(), "#000000".to_string())]);
-    if let Some(table) = descendants(root)
-        .into_iter()
-        .find(|node| node.is("colortable"))
-    {
-        for (index, color) in table.direct_children("color").enumerate() {
-            let Some(r) = parse_f64(color.attr("r")) else {
-                continue;
-            };
-            let Some(g) = parse_f64(color.attr("g")) else {
-                continue;
-            };
-            let Some(b) = parse_f64(color.attr("b")) else {
-                continue;
-            };
-            colors.insert(
-                (index + 1).to_string(),
-                format!(
-                    "#{:02x}{:02x}{:02x}",
-                    (r * 255.0).round().clamp(0.0, 255.0) as u8,
-                    (g * 255.0).round().clamp(0.0, 255.0) as u8,
-                    (b * 255.0).round().clamp(0.0, 255.0) as u8
-                ),
-            );
-        }
-    }
-    // ChemDraw commonly writes the first colortable entries as white/black,
-    // while document objects still use legacy palette ids for semantic colors.
-    // These ids are visible in exported SVG from the same CDXML fixtures.
-    for (id, color) in [
-        ("0", "#000000"),
-        ("3", "#000000"),
-        ("4", "#d61f1f"),
-        ("5", "#fff24a"),
-        ("7", "#55f0f5"),
-        ("8", "#1b32d8"),
-        ("10", "#cfcfcf"),
-    ] {
-        colors.insert(id.to_string(), color.to_string());
-    }
-    colors
-}
-
 fn cdxml_font_table(root: &XmlNode) -> BTreeMap<String, String> {
     let mut fonts = BTreeMap::from([("3".to_string(), "Arial".to_string())]);
     if let Some(table) = descendants(root)
@@ -496,7 +457,7 @@ fn normalize_fragment(
     fragment: &XmlNode,
     bbox: [f64; 4],
     defaults: CdxmlDefaults,
-    colors: &BTreeMap<String, String>,
+    colors: &CdxmlColorTable,
     fonts: &BTreeMap<String, String>,
 ) -> Option<MoleculeFragment> {
     let origin = [bbox[0], bbox[1]];
@@ -546,7 +507,7 @@ fn normalize_fragment(
 fn normalize_node(
     node: &XmlNode,
     origin: [f64; 2],
-    colors: &BTreeMap<String, String>,
+    colors: &CdxmlColorTable,
     fonts: &BTreeMap<String, String>,
 ) -> Option<Node> {
     let id = node.attr("id")?.to_string();
@@ -581,7 +542,7 @@ fn normalize_node(
 fn node_label(
     node: &XmlNode,
     origin: [f64; 2],
-    colors: &BTreeMap<String, String>,
+    colors: &CdxmlColorTable,
     fonts: &BTreeMap<String, String>,
 ) -> Option<NodeLabel> {
     let text_el = node.direct_children("t").next()?;
@@ -595,9 +556,28 @@ fn node_label(
         return None;
     }
     let bbox = parse_bbox(text_el.attr("BoundingBox"));
-    let parent_font = text_el.attr("font").unwrap_or("3");
-    let parent_color = text_el.attr("color").unwrap_or("0");
-    let parent_size = parse_f64(text_el.attr("size")).unwrap_or(10.0);
+    let parent_font = text_el
+        .attr("font")
+        .or_else(|| {
+            text_el
+                .direct_children("s")
+                .find_map(|run| run.attr("font"))
+        })
+        .unwrap_or("3");
+    let parent_color = text_el
+        .attr("color")
+        .or_else(|| {
+            text_el
+                .direct_children("s")
+                .find_map(|run| run.attr("color"))
+        })
+        .unwrap_or("0");
+    let parent_size = parse_f64(text_el.attr("size")).unwrap_or_else(|| {
+        text_el
+            .direct_children("s")
+            .find_map(|run| parse_f64(run.attr("size")))
+            .unwrap_or(10.0)
+    });
     let runs: Vec<LabelRun> = text_el
         .direct_children("s")
         .filter_map(|run| {
@@ -618,9 +598,17 @@ fn node_label(
     Some(NodeLabel {
         text: text.clone(),
         source_text: Some(text.clone()),
-        position: parse_xy(node.attr("p"))
+        position: parse_xy(text_el.attr("p"))
+            .or_else(|| parse_xy(node.attr("p")))
             .map(|point| [round2(point[0] - origin[0]), round2(point[1] - origin[1])]),
-        box_field: None,
+        box_field: bbox.map(|bbox| {
+            [
+                round2(bbox[0] - origin[0]),
+                round2(bbox[1] - origin[1]),
+                round2(bbox[2] - origin[0]),
+                round2(bbox[3] - origin[1]),
+            ]
+        }),
         runs,
         line_runs: Vec::new(),
         lines: if text.contains('\n') {
@@ -638,12 +626,7 @@ fn node_label(
                 .cloned()
                 .unwrap_or_else(|| "Arial".to_string()),
         ),
-        fill: Some(
-            colors
-                .get(parent_color)
-                .cloned()
-                .unwrap_or_else(|| "#000000".to_string()),
-        ),
+        fill: Some(colors.resolve(Some(parent_color))),
         font_size: Some(parent_size),
         glyph_polygons: Vec::new(),
         box_value: None,
@@ -809,7 +792,7 @@ fn cdxml_bond_line_weights(order: u8, display: &str, display2: &str) -> BondLine
     weights
 }
 
-fn page_from_objects(objects: &[SceneObject]) -> Page {
+fn page_from_objects(objects: &[SceneObject], background: &str) -> Page {
     let mut max_x: f64 = 640.0;
     let mut max_y: f64 = 480.0;
     for object in objects {
@@ -836,7 +819,7 @@ fn page_from_objects(objects: &[SceneObject]) -> Page {
     Page {
         width: round2(max_x + 24.0),
         height: round2(max_y + 24.0),
-        background: "#ffffff".to_string(),
+        background: background.to_string(),
     }
 }
 

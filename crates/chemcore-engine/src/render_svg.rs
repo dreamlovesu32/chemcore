@@ -72,6 +72,10 @@ fn visible_in_document_svg(primitive: &RenderPrimitive) -> bool {
         RenderPrimitive::Rect {
             role: crate::RenderRole::DocumentKnockout,
             ..
+        } | RenderPrimitive::Polygon {
+            role: crate::RenderRole::DocumentKnockout,
+            node_id: Some(_),
+            ..
         }
     )
 }

@@ -106,6 +106,13 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
     return;
   }
   if (primitive.kind === "polygon" && Array.isArray(primitive.points)) {
+    if (
+      primitive.role === "document-knockout"
+      && (primitive.nodeId || primitive.node_id)
+      && !options.labelDebugMode
+    ) {
+      return;
+    }
     const strokeWidth = primitiveStrokeWidthValue(primitive, BOND_STROKE);
     const attrs = {
       points: primitive.points.map((point) => `${point.x},${point.y}`).join(" "),
@@ -116,6 +123,8 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
     };
     if (primitive.role === "document-bond") {
       attrs.class = strokeWidth > 0 ? "mol-bond-stroked" : "mol-bond-filled";
+    } else if (primitive.role === "document-knockout") {
+      attrs.class = "label-knockout-shape";
     }
     svgRoot.appendChild(makeSvgNode("polygon", attrs));
     return;

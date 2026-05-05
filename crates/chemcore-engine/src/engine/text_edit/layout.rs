@@ -80,6 +80,10 @@ pub(super) fn anchor_x_for_align(align: &str, width: f64) -> f64 {
     }
 }
 
+pub(super) fn text_object_box_for_align(align: &str, width: f64, height: f64) -> [f64; 4] {
+    [-anchor_x_for_align(align, width), 0.0, width, height]
+}
+
 pub(super) fn measure_text_edit_line_width(runs: &[LabelRun], fallback_font_size: f64) -> f64 {
     runs.iter().fold(0.0, |width, run| {
         let run_font_size = run.font_size.unwrap_or(fallback_font_size);
@@ -115,7 +119,13 @@ pub(super) fn build_text_edit_layout_geometry(
     for (line_index, line) in lines.iter().enumerate() {
         let mut caret_offsets = Vec::new();
         let line_start = offset;
-        let mut cursor_x = line.x;
+        let line_width = measure_text_edit_line_width(&line.runs, fallback_font_size);
+        let visual_line_x = match line.text_anchor.as_str() {
+            "end" => line.x - line_width,
+            "middle" => line.x - line_width * 0.5,
+            _ => line.x,
+        };
+        let mut cursor_x = visual_line_x;
         let caret_y = line.y;
         let caret_height = line.height.max(0.0);
         let start_caret = TextEditLayoutCaret {
@@ -260,14 +270,22 @@ pub(super) fn build_text_object_edit_layout(
         .iter()
         .map(|runs| measure_text_edit_line_width(runs, fallback_font_size))
         .collect();
+    let session_box = session.box_value;
+    let box_width = session_box.map(|bbox| bbox[2].max(0.0)).unwrap_or(0.0);
+    let box_height = session_box.map(|bbox| bbox[3].max(0.0)).unwrap_or(0.0);
     let width = round2(
         line_widths
             .iter()
             .copied()
-            .fold(TEXT_EDIT_BOX_WIDTH, f64::max),
+            .fold(TEXT_EDIT_BOX_WIDTH.max(box_width), f64::max),
     );
-    let height = round2((line_height * line_runs.len().max(1) as f64).max(line_height));
+    let height = round2(
+        (line_height * line_runs.len().max(1) as f64)
+            .max(line_height)
+            .max(box_height),
+    );
     let text_anchor = text_anchor_for_align(align);
+    let local_box = text_object_box_for_align(align, width, height);
     let lines = line_runs
         .into_iter()
         .enumerate()
@@ -291,7 +309,7 @@ pub(super) fn build_text_object_edit_layout(
         width,
         height,
         line_height,
-        [0.0, 0.0],
+        [-local_box[0], -local_box[1]],
         selection,
         fallback_font_size,
     )

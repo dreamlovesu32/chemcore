@@ -47,7 +47,7 @@ export function renderLineObject(svgRoot, object, styles) {
     const from = points[points.length - 2];
     const to = points[points.length - 1];
     if (arrowHead?.length > 0) {
-      const shaftEnd = arrowShaftEnd(from, to, arrowHead);
+      const shaftEnd = arrowShaftEnd(from, to, arrowHead, strokeWidth);
       path.setAttribute("d", points
         .slice(0, -2)
         .map((point, index) => `${index === 0 ? "M" : "L"} ${point[0]} ${point[1]}`)
@@ -55,26 +55,27 @@ export function renderLineObject(svgRoot, object, styles) {
         .join(" "));
     }
     svgRoot.appendChild(path);
-    renderArrowHead(svgRoot, from, to, arrowHead, stroke);
+    renderArrowHead(svgRoot, from, to, arrowHead, stroke, strokeWidth);
     return;
   }
 
   svgRoot.appendChild(path);
 }
 
-function arrowShaftEnd(from, to, arrowHead) {
+function arrowShaftEnd(from, to, arrowHead, strokeWidth) {
   const dx = to[0] - from[0];
   const dy = to[1] - from[1];
   const length = Math.hypot(dx, dy) || 1;
   const ux = dx / length;
   const uy = dy / length;
-  const headLength = Math.max(5.4, (arrowHead?.length || 8) * 0.6);
-  const notchLength = Math.max(3.2, headLength * 0.66);
+  const scale = Number(strokeWidth) > 0 ? Number(strokeWidth) : DEFAULT_LINE_STROKE_WIDTH;
+  const headLength = (arrowHead?.length || 10) * scale;
+  const notchLength = Math.min(Math.max(0, (arrowHead?.centerLength || (arrowHead?.length || 10) * 0.875) * scale), headLength);
   const centerLength = Math.max(0, Math.min(notchLength, length * 0.8));
   return [to[0] - ux * centerLength, to[1] - uy * centerLength];
 }
 
-function renderArrowHead(svgRoot, from, to, arrowHead, stroke) {
+function renderArrowHead(svgRoot, from, to, arrowHead, stroke, strokeWidth) {
   const dx = to[0] - from[0];
   const dy = to[1] - from[1];
   const length = Math.hypot(dx, dy) || 1;
@@ -82,15 +83,16 @@ function renderArrowHead(svgRoot, from, to, arrowHead, stroke) {
   const uy = dy / length;
   const nx = -uy;
   const ny = ux;
-  const sourceLength = arrowHead?.length || 8;
-  const sourceWidth = arrowHead?.width || sourceLength * 0.55;
-  const headLength = Math.max(5.4, sourceLength * 0.6);
-  const headWidth = Math.max(4.8, sourceWidth * 1.16);
-  const notchLength = Math.max(3.2, Math.min(headLength * 0.66, headLength - 0.8));
+  const scale = Number(strokeWidth) > 0 ? Number(strokeWidth) : DEFAULT_LINE_STROKE_WIDTH;
+  const sourceLength = arrowHead?.length || 10;
+  const sourceWidth = arrowHead?.width || sourceLength * 0.25;
+  const headLength = sourceLength * scale;
+  const headHalfWidth = Math.max(0, sourceWidth * scale) + 0.05;
+  const notchLength = Math.min(Math.max(0, (arrowHead?.centerLength || sourceLength * 0.875) * scale), headLength);
 
   const p1 = [to[0], to[1]];
-  const p2 = [to[0] - ux * headLength + nx * (headWidth / 2), to[1] - uy * headLength + ny * (headWidth / 2)];
-  const p3 = [to[0] - ux * headLength - nx * (headWidth / 2), to[1] - uy * headLength - ny * (headWidth / 2)];
+  const p2 = [to[0] - ux * headLength + nx * headHalfWidth, to[1] - uy * headLength + ny * headHalfWidth];
+  const p3 = [to[0] - ux * headLength - nx * headHalfWidth, to[1] - uy * headLength - ny * headHalfWidth];
   const notch = [to[0] - ux * notchLength, to[1] - uy * notchLength];
   const useNotch = String(arrowHead?.head || "").toLowerCase() === "full" && notchLength < headLength - 0.2;
   const points = useNotch

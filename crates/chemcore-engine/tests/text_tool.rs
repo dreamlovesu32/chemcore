@@ -398,6 +398,170 @@ fn preview_text_edit_layout_returns_kernel_caret_and_selection_geometry() {
 }
 
 #[test]
+fn centered_text_object_edit_layout_anchors_editor_to_box_center() {
+    let engine = Engine::new();
+    let session = chemcore_engine::TextEditSession {
+        target: TextEditTarget::TextObject {
+            object_id: None,
+            x: 50.0,
+            y: 10.0,
+        },
+        text: "center".to_string(),
+        source_runs: Vec::new(),
+        font_family: Some("Arial".to_string()),
+        font_size: Some(10.0),
+        fill: Some("#000000".to_string()),
+        align: Some("center".to_string()),
+        line_height: Some(12.0),
+        box_value: Some([-20.0, 0.0, 40.0, 20.0]),
+        anchor_offset: None,
+        preserve_lines: true,
+        default_chemical: false,
+    };
+
+    let layout = engine.preview_text_edit_layout(&TextEditLayoutRequest {
+        session,
+        selection: None,
+    });
+
+    assert_eq!(layout.width, 40.0);
+    assert_eq!(layout.height, 20.0);
+    assert_eq!(layout.anchor_offset, [20.0, 0.0]);
+    assert_eq!(layout.lines[0].x, 20.0);
+    assert_eq!(layout.lines[0].text_anchor, "middle");
+}
+
+#[test]
+fn centered_text_object_selection_rects_use_visual_line_bounds() {
+    let engine = Engine::new();
+    let session = chemcore_engine::TextEditSession {
+        target: TextEditTarget::TextObject {
+            object_id: None,
+            x: 50.0,
+            y: 10.0,
+        },
+        text: "center".to_string(),
+        source_runs: Vec::new(),
+        font_family: Some("Arial".to_string()),
+        font_size: Some(10.0),
+        fill: Some("#000000".to_string()),
+        align: Some("center".to_string()),
+        line_height: Some(12.0),
+        box_value: Some([-20.0, 0.0, 40.0, 20.0]),
+        anchor_offset: None,
+        preserve_lines: true,
+        default_chemical: false,
+    };
+
+    let layout = engine.preview_text_edit_layout(&TextEditLayoutRequest {
+        session,
+        selection: Some(TextEditSelection {
+            anchor: 0,
+            focus: 6,
+        }),
+    });
+    let line_anchor_x = layout.lines[0].x;
+    let selection_rect = layout
+        .selection_rects
+        .first()
+        .expect("selection should produce a visual rect");
+    let first_caret = layout
+        .caret_positions
+        .iter()
+        .find(|caret| caret.offset == 0)
+        .expect("first caret should exist");
+
+    assert!(selection_rect.x < line_anchor_x, "{selection_rect:?}");
+    assert!(
+        selection_rect.x + selection_rect.width > line_anchor_x,
+        "{selection_rect:?}"
+    );
+    assert_eq!(first_caret.x, selection_rect.x);
+}
+
+#[test]
+fn text_object_caret_treats_percent_as_wide_single_glyph() {
+    let engine = Engine::new();
+    let session = chemcore_engine::TextEditSession {
+        target: TextEditTarget::TextObject {
+            object_id: None,
+            x: 0.0,
+            y: 0.0,
+        },
+        text: "mol%)".to_string(),
+        source_runs: Vec::new(),
+        font_family: Some("Arial".to_string()),
+        font_size: Some(10.0),
+        fill: Some("#000000".to_string()),
+        align: Some("left".to_string()),
+        line_height: Some(12.0),
+        box_value: None,
+        anchor_offset: None,
+        preserve_lines: true,
+        default_chemical: false,
+    };
+
+    let layout = engine.preview_text_edit_layout(&TextEditLayoutRequest {
+        session,
+        selection: None,
+    });
+    let caret_x = |offset| {
+        layout
+            .caret_positions
+            .iter()
+            .find(|caret| caret.offset == offset)
+            .map(|caret| caret.x)
+            .expect("caret offset should exist")
+    };
+
+    assert!((caret_x(4) - caret_x(3) - 10.0).abs() < 1.0e-6);
+}
+
+#[test]
+fn applying_centered_text_object_edit_stores_box_relative_to_anchor() {
+    let mut engine = Engine::new();
+    let session = chemcore_engine::TextEditSession {
+        target: TextEditTarget::TextObject {
+            object_id: None,
+            x: 50.0,
+            y: 10.0,
+        },
+        text: "center".to_string(),
+        source_runs: Vec::new(),
+        font_family: Some("Arial".to_string()),
+        font_size: Some(10.0),
+        fill: Some("#000000".to_string()),
+        align: Some("center".to_string()),
+        line_height: Some(12.0),
+        box_value: Some([-20.0, 0.0, 40.0, 20.0]),
+        anchor_offset: None,
+        preserve_lines: true,
+        default_chemical: false,
+    };
+
+    assert!(engine.apply_text_edit(session));
+    let text_object = engine
+        .state()
+        .document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("text object should exist");
+    let box_value: [f64; 4] = serde_json::from_value(
+        text_object
+            .payload
+            .extra
+            .get("box")
+            .cloned()
+            .expect("text object should store box"),
+    )
+    .expect("text object box should deserialize");
+
+    assert_eq!(text_object.transform.translate, [50.0, 10.0]);
+    assert_eq!(box_value[0], -box_value[2] * 0.5);
+}
+
+#[test]
 fn reopening_text_object_preserves_default_font_size_precision() {
     let mut engine = Engine::new();
     let session = engine
@@ -1378,7 +1542,7 @@ fn endpoint_label_anchor_tracks_terminal_double_status() {
         terminal_node.position
     );
     assert!(
-        terminal_anchor.y > terminal_node.position[1],
+        terminal_anchor.y < terminal_node.position[1],
         "{terminal_anchor:?} vs {:?}",
         terminal_node.position
     );

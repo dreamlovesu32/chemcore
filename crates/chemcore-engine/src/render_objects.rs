@@ -217,7 +217,7 @@ pub(super) fn render_fragment_label(
         }
     } else {
         for polygon in knockout_polygons {
-            push_knockout_polygon(out, polygon, object_id.clone());
+            push_label_knockout_polygon(out, polygon, object_id.clone(), node.id.clone());
         }
     }
     if fragment_label_is_invalid(label) {

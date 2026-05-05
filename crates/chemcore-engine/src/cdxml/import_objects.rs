@@ -5,7 +5,7 @@ pub(super) fn append_line_objects(
     objects: &mut Vec<SceneObject>,
     styles: &mut BTreeMap<String, Value>,
     defaults: CdxmlDefaults,
-    colors: &BTreeMap<String, String>,
+    colors: &CdxmlColorTable,
 ) {
     let mut index = 1;
     for node in descendants(root) {
@@ -47,32 +47,42 @@ pub(super) fn append_line_objects(
             );
             arrow_head.insert(
                 "head".to_string(),
-                json!(node
-                    .attr("ArrowheadHead")
-                    .unwrap_or(if head_enabled { "Full" } else { "None" })
-                    .to_ascii_lowercase()),
+                json!(canonical_arrow_endpoint(
+                    node.attr("ArrowheadHead").unwrap_or(if head_enabled {
+                        "Full"
+                    } else {
+                        "None"
+                    }),
+                )),
             );
             arrow_head.insert(
                 "tail".to_string(),
-                json!(node
-                    .attr("ArrowheadTail")
-                    .unwrap_or(if tail_enabled { "Full" } else { "None" })
-                    .to_ascii_lowercase()),
+                json!(canonical_arrow_endpoint(
+                    node.attr("ArrowheadTail").unwrap_or(if tail_enabled {
+                        "Full"
+                    } else {
+                        "None"
+                    }),
+                )),
             );
+            if let Some(fill_type) = node.attr("FillType").map(canonical_arrow_fill_type) {
+                arrow_head.insert("fillType".to_string(), json!(fill_type));
+            }
             arrow_head.insert(
                 "length".to_string(),
-                json!(parse_scaled_100(node.attr("HeadSize")).unwrap_or(defaults.bond_length * 0.7)),
+                json!(parse_scaled_100(node.attr("HeadSize"))
+                    .unwrap_or(crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO)),
             );
             arrow_head.insert(
                 "centerLength".to_string(),
                 json!(parse_scaled_100(node.attr("ArrowheadCenterSize"))
                     .or_else(|| parse_scaled_100(node.attr("ArrowShaftSpacing")))
-                    .unwrap_or(defaults.bond_length * 0.45)),
+                    .unwrap_or(crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.875)),
             );
             arrow_head.insert(
                 "width".to_string(),
                 json!(parse_scaled_100(node.attr("ArrowheadWidth"))
-                    .unwrap_or(defaults.bond_length * 0.25)),
+                    .unwrap_or(crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.25)),
             );
             if let Some(curve) =
                 parse_f64(node.attr("AngularSize")).filter(|value| value.abs() > crate::EPSILON)
@@ -88,9 +98,42 @@ pub(super) fn append_line_objects(
             }
             if node
                 .attr("LineType")
-                .is_some_and(|value| value.eq_ignore_ascii_case("Bold"))
+                .is_some_and(|value| value.contains("Bold"))
             {
                 arrow_head.insert("bold".to_string(), json!(true));
+            }
+            let mut arrow_geometry = BTreeMap::new();
+            if let Some(bbox) = parse_bbox(node.attr("BoundingBox")) {
+                arrow_geometry.insert(
+                    "boundingBox".to_string(),
+                    json!([
+                        round2(bbox[0]),
+                        round2(bbox[1]),
+                        round2(bbox[2]),
+                        round2(bbox[3])
+                    ]),
+                );
+            }
+            if let Some(center) = parse_xyz2(node.attr("Center3D")) {
+                arrow_geometry.insert(
+                    "center".to_string(),
+                    json!([round2(center[0]), round2(center[1])]),
+                );
+            }
+            if let Some(major) = parse_xyz2(node.attr("MajorAxisEnd3D")) {
+                arrow_geometry.insert(
+                    "majorAxisEnd".to_string(),
+                    json!([round2(major[0]), round2(major[1])]),
+                );
+            }
+            if let Some(minor) = parse_xyz2(node.attr("MinorAxisEnd3D")) {
+                arrow_geometry.insert(
+                    "minorAxisEnd".to_string(),
+                    json!([round2(minor[0]), round2(minor[1])]),
+                );
+            }
+            if !arrow_geometry.is_empty() {
+                extra.insert("arrowGeometry".to_string(), json!(arrow_geometry));
             }
             extra.insert(
                 "head".to_string(),
@@ -123,20 +166,35 @@ pub(super) fn append_line_objects(
     }
 }
 
+fn canonical_arrow_endpoint(value: &str) -> &'static str {
+    match value.to_ascii_lowercase().as_str() {
+        "full" => "full",
+        "halfleft" | "half-left" | "left" | "top" => "half-left",
+        "halfright" | "half-right" | "right" | "bottom" => "half-right",
+        _ => "none",
+    }
+}
+
+fn canonical_arrow_fill_type(value: &str) -> &'static str {
+    match value.to_ascii_lowercase().as_str() {
+        "none" => "none",
+        "solid" => "solid",
+        "shaded" => "shaded",
+        _ => "unknown",
+    }
+}
+
 fn cdxml_line_style_ref(
     node: &XmlNode,
     is_arrow: bool,
     styles: &mut BTreeMap<String, Value>,
     defaults: CdxmlDefaults,
-    colors: &BTreeMap<String, String>,
+    colors: &CdxmlColorTable,
 ) -> String {
     let line_type = node.attr("LineType").unwrap_or("");
     let bold = line_type.contains("Bold");
     let dashed = line_type.contains("Dashed");
-    let color = colors
-        .get(node.attr("color").unwrap_or("0"))
-        .cloned()
-        .unwrap_or_else(|| "#000000".to_string());
+    let color = colors.resolve(node.attr("color"));
     let base = if is_arrow { "arrow" } else { "line" };
     if !bold && !dashed && color == "#000000" {
         return format!("style_{base}_default");
@@ -169,7 +227,7 @@ pub(super) fn append_shape_objects(
     objects: &mut Vec<SceneObject>,
     styles: &mut BTreeMap<String, Value>,
     defaults: CdxmlDefaults,
-    colors: &BTreeMap<String, String>,
+    colors: &CdxmlColorTable,
 ) {
     let mut index = 1;
     for node in descendants(root) {
@@ -190,10 +248,7 @@ pub(super) fn append_shape_objects(
                 "OvalType"
             })
             .unwrap_or("");
-        let color = colors
-            .get(node.attr("color").unwrap_or("0"))
-            .cloned()
-            .unwrap_or_else(|| "#000000".to_string());
+        let color = colors.resolve(node.attr("color"));
         let filled = type_value.contains("Filled");
         let shaded = type_value.contains("Shaded");
         let shadow = type_value.contains("Shadow");
@@ -521,7 +576,7 @@ pub(super) fn append_text_objects(
     root: &XmlNode,
     objects: &mut Vec<SceneObject>,
     styles: &mut BTreeMap<String, Value>,
-    colors: &BTreeMap<String, String>,
+    colors: &CdxmlColorTable,
     fonts: &BTreeMap<String, String>,
     display_fragment_ids: &BTreeSet<String>,
     bonded_node_ids: &BTreeSet<String>,
@@ -550,7 +605,7 @@ pub(super) fn append_text_objects_recursive(
     index: &mut usize,
     objects: &mut Vec<SceneObject>,
     styles: &mut BTreeMap<String, Value>,
-    colors: &BTreeMap<String, String>,
+    colors: &CdxmlColorTable,
     fonts: &BTreeMap<String, String>,
     display_fragment_ids: &BTreeSet<String>,
     bonded_node_ids: &BTreeSet<String>,
@@ -607,7 +662,7 @@ fn text_object(
     index: usize,
     z_index: i32,
     styles: &mut BTreeMap<String, Value>,
-    colors: &BTreeMap<String, String>,
+    colors: &CdxmlColorTable,
     fonts: &BTreeMap<String, String>,
 ) -> Option<SceneObject> {
     let text = node
@@ -626,8 +681,14 @@ fn text_object(
         .or_else(|| node.attr("LabelJustification"))
         .unwrap_or("Left")
         .to_ascii_lowercase();
-    let font_id = node.attr("font").unwrap_or("3");
-    let color_id = node.attr("color").unwrap_or("0");
+    let font_id = node
+        .attr("font")
+        .or_else(|| node.direct_children("s").find_map(|run| run.attr("font")))
+        .unwrap_or("3");
+    let color_id = node
+        .attr("color")
+        .or_else(|| node.direct_children("s").find_map(|run| run.attr("color")))
+        .unwrap_or("0");
     let font_size = parse_f64(node.attr("size")).unwrap_or_else(|| {
         node.direct_children("s")
             .find_map(|run| parse_f64(run.attr("size")))
@@ -640,7 +701,7 @@ fn text_object(
             "fontFamily": fonts.get(font_id).cloned().unwrap_or_else(|| "Arial".to_string()),
             "fontSize": font_size,
             "fontWeight": 400,
-            "fill": colors.get(color_id).cloned().unwrap_or_else(|| "#000000".to_string()),
+            "fill": colors.resolve(Some(color_id)),
             "stroke": null,
         })
     });
@@ -683,9 +744,14 @@ fn text_object(
     };
     let mut extra = BTreeMap::new();
     extra.insert("text".to_string(), json!(text));
+    let box_x = match align.as_str() {
+        "center" => -width * 0.5,
+        "right" => -width,
+        _ => 0.0,
+    };
     extra.insert(
         "box".to_string(),
-        json!([0.0, 0.0, round2(width), round2(height)]),
+        json!([round2(box_x), 0.0, round2(width), round2(height)]),
     );
     extra.insert("align".to_string(), json!(align));
     extra.insert("valign".to_string(), json!("top"));

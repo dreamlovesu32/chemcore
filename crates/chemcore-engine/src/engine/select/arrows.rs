@@ -86,6 +86,22 @@ pub(super) fn snapped_arrow_curve_from_point(
     }
 }
 
+fn refresh_arrow_arc_geometry(object: &mut crate::SceneObject) {
+    let curve = object_arrow_curve(object);
+    let Some((start, end)) = crate::arrow_payload_line_endpoints(&object.payload.extra) else {
+        object.payload.extra.remove("arrowGeometry");
+        return;
+    };
+    if let Some(geometry) = crate::default_arrow_arc_geometry_payload(start, end, curve) {
+        object
+            .payload
+            .extra
+            .insert("arrowGeometry".to_string(), geometry);
+    } else {
+        object.payload.extra.remove("arrowGeometry");
+    }
+}
+
 pub(super) fn update_arrow_object_points(
     engine: &mut Engine,
     object_id: &str,
@@ -111,6 +127,7 @@ pub(super) fn update_arrow_object_points(
         .payload
         .extra
         .insert("points".to_string(), next_points);
+    refresh_arrow_arc_geometry(object);
     true
 }
 
@@ -157,5 +174,6 @@ pub(super) fn update_arrow_object_curve(engine: &mut Engine, object_id: &str, cu
         .payload
         .extra
         .insert("arrowHead".to_string(), arrow_head);
+    refresh_arrow_arc_geometry(object);
     true
 }

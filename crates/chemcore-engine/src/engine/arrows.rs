@@ -255,11 +255,13 @@ impl Engine {
             "tail".to_string(),
             JsonValue::String(if tail_enabled { "start" } else { "none" }.to_string()),
         );
+        let curve =
+            arrow_curve_sweep_degrees(self.state.tool.arrow_variant, self.state.tool.arrow_curve);
         extra.insert(
             "arrowHead".to_string(),
             json!({
                 "kind": arrow_variant_name(self.state.tool.arrow_variant),
-                "curve": arrow_curve_sweep_degrees(self.state.tool.arrow_variant, self.state.tool.arrow_curve),
+                "curve": curve,
                 "head": arrow_endpoint_payload_name(head_style),
                 "tail": arrow_endpoint_payload_name(tail_style),
                 "length": length,
@@ -269,6 +271,9 @@ impl Engine {
                 "noGo": arrow_no_go_payload_name(self.state.tool.arrow_no_go),
             }),
         );
+        if let Some(geometry) = crate::default_arrow_arc_geometry_payload(start, end, curve) {
+            extra.insert("arrowGeometry".to_string(), geometry);
+        }
         SceneObject {
             id: object_id,
             object_type: "line".to_string(),
@@ -375,11 +380,12 @@ impl Engine {
                     .to_string(),
                 ),
             );
+            let curve_degrees = arrow_curve_sweep_degrees(variant, curve);
             next_extra.insert(
                 "arrowHead".to_string(),
                 json!({
                     "kind": arrow_variant_name(variant),
-                    "curve": arrow_curve_sweep_degrees(variant, curve),
+                    "curve": curve_degrees,
                     "head": arrow_endpoint_payload_name(head_style),
                     "tail": arrow_endpoint_payload_name(tail_style),
                     "length": length,
@@ -389,6 +395,15 @@ impl Engine {
                     "noGo": arrow_no_go_payload_name(no_go),
                 }),
             );
+            if let Some((start, end)) = crate::arrow_payload_line_endpoints(&next_extra) {
+                if let Some(geometry) =
+                    crate::default_arrow_arc_geometry_payload(start, end, curve_degrees)
+                {
+                    next_extra.insert("arrowGeometry".to_string(), geometry);
+                } else {
+                    next_extra.remove("arrowGeometry");
+                }
+            }
             if object.payload.extra != next_extra
                 || object.style_ref.as_deref() != Some("style_arrow_default")
             {

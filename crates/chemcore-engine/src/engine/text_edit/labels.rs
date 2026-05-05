@@ -598,6 +598,9 @@ pub(super) fn label_recognition_meta_for_node_text(
             Some(crate::invalid_abbreviation_meta(trimmed))
         };
     }
+    if connection_count == 0 {
+        return Some(crate::invalid_abbreviation_meta(trimmed));
+    }
     crate::recognized_abbreviation_meta_for_connection_count(trimmed, connection_count)
         .or_else(|| Some(crate::invalid_abbreviation_meta(trimmed)))
 }

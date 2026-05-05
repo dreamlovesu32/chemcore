@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "groups": [
+    {
+      "id": "greek",
+      "label": "Greek",
+      "characters": "αβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΘΛΞΠΣΦΨΩ"
+    },
+    {
+      "id": "math",
+      "label": "Math",
+      "characters": "±∓×÷−=≠≈≡≤≥∞∂∇√∫∑∏∝∴∵"
+    },
+    {
+      "id": "arrows",
+      "label": "Arrows",
+      "characters": "←↑→↓↔↕↖↗↘↙⇄⇌⇐⇒⇔"
+    },
+    {
+      "id": "units",
+      "label": "Units",
+      "characters": "%‰‱°℃℉ÅµΩΩÅ"
+    },
+    {
+      "id": "marks",
+      "label": "Marks",
+      "characters": "·•…′″‴'\"‘’“”‹›«»‐–—"
+    },
+    {
+      "id": "cjk",
+      "label": "CJK",
+      "characters": "中文（）【】《》、。，；：？！"
+    }
+  ]
+}

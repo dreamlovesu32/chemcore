@@ -4,15 +4,9 @@ fn arrow_head_points(from: Point, to: Point, arrow_head: ArrowHeadGeometry) -> V
     let direction = Vector::new(to.x - from.x, to.y - from.y);
     let unit = direction.normalized();
     let normal = Vector::new(-unit.y, unit.x);
-    let head_length = arrow_head
-        .length
-        .max(crate::ARROW_SHAPE_MIN_HEAD_LENGTH_CM.value());
-    let head_half_width =
-        (arrow_head.width.max(0.0) + 0.05).max(crate::ARROW_SHAPE_MIN_HEAD_WIDTH_CM.value());
-    let notch_length = arrow_head
-        .center_length
-        .max(crate::ARROW_SHAPE_MIN_NOTCH_LENGTH_CM.value())
-        .min(head_length - crate::ARROW_SHAPE_MIN_HEAD_TO_NOTCH_GAP_CM.value());
+    let head_length = arrow_head.length;
+    let head_half_width = arrow_head.width.max(0.0) + 0.05;
+    let notch_length = arrow_head.center_length.max(0.0).min(head_length);
     let tip = to;
     let left = Point::new(
         to.x - unit.x * head_length + normal.x * head_half_width,
@@ -135,7 +129,8 @@ pub(crate) fn render_line_object(
         .and_then(|value| style_number_array(value, "dashArray"))
         .unwrap_or_default();
     let object_id = Some(object.id.clone());
-    let arrow_head = payload_arrow_head(&object.payload, "arrowHead");
+    let arrow_head = payload_arrow_head(&object.payload, "arrowHead", stroke_width);
+    let arrow_arc = payload_arrow_arc_geometry(&object.payload, "arrowGeometry");
     if let Some(arrow_head) = arrow_head.filter(|arrow_head| arrow_head.length > 0.0) {
         let head_style = payload_arrow_endpoint_style(&object.payload, "head", "end");
         let tail_style = payload_arrow_endpoint_style(&object.payload, "tail", "start");
@@ -147,8 +142,10 @@ pub(crate) fn render_line_object(
             &line_cap,
             &line_join,
             arrow_head,
+            arrow_arc,
             head_style,
             tail_style,
+            &dash_array,
             object_id,
         );
         return;
@@ -227,8 +224,10 @@ fn render_arrow_line_object(
     line_cap: &str,
     line_join: &str,
     arrow_head: ArrowHeadGeometry,
+    arrow_arc: Option<ArrowArcGeometry>,
     head_style: RenderArrowEndpointStyle,
     tail_style: RenderArrowEndpointStyle,
+    dash_array: &[f64],
     object_id: Option<String>,
 ) {
     if points.len() < 2 {
@@ -237,6 +236,9 @@ fn render_arrow_line_object(
     let start = points[0];
     let end = *points.last().unwrap_or(&start);
     if arrow_head.curve.abs() > crate::EPSILON && arrow_head.kind == ArrowHeadKind::Solid {
+        let Some(arrow_arc) = arrow_arc else {
+            return;
+        };
         render_curved_solid_arrow_line(
             out,
             start,
@@ -244,8 +246,10 @@ fn render_arrow_line_object(
             stroke,
             stroke_width,
             arrow_head,
+            arrow_arc,
             head_style,
             tail_style,
+            dash_array,
             object_id,
         );
         return;
@@ -260,6 +264,7 @@ fn render_arrow_line_object(
             arrow_head,
             head_style,
             tail_style,
+            dash_array,
             object_id,
         ),
         ArrowHeadKind::Hollow => render_hollow_arrow_line(
@@ -284,6 +289,7 @@ fn render_arrow_line_object(
             arrow_head,
             head_style.enabled(),
             tail_style.enabled(),
+            dash_array,
             object_id,
         ),
     }
@@ -297,36 +303,28 @@ fn render_curved_solid_arrow_line(
     stroke: &str,
     stroke_width: f64,
     arrow_head: ArrowHeadGeometry,
+    arrow_arc: ArrowArcGeometry,
     head_style: RenderArrowEndpointStyle,
     tail_style: RenderArrowEndpointStyle,
+    dash_array: &[f64],
     object_id: Option<String>,
 ) {
-    let points = curved_arrow_points(start, end, arrow_head.curve);
+    let points = curved_arrow_points(start, arrow_head.curve, arrow_arc);
     if points.len() < 2 {
-        render_solid_arrow_line(
-            out,
-            start,
-            end,
-            stroke,
-            stroke_width,
-            arrow_head,
-            head_style,
-            tail_style,
-            object_id,
-        );
         return;
     }
     let line_width = if arrow_head.bold { 4.0 } else { stroke_width };
     let start_trim = arrow_endpoint_shaft_trim(tail_style, arrow_head);
     let end_trim = arrow_endpoint_shaft_trim(head_style, arrow_head);
-    if let Some(path) = curved_arrow_path(start, end, arrow_head.curve, start_trim, end_trim) {
+    if let Some(path) = curved_arrow_path(start, arrow_head.curve, arrow_arc, start_trim, end_trim)
+    {
         push_path(
             out,
             path.d,
             path.points,
             stroke,
             line_width,
-            Vec::new(),
+            dash_array.to_vec(),
             Some("butt".to_string()),
             Some("round".to_string()),
             RenderRole::DocumentGraphic,
@@ -362,32 +360,52 @@ fn render_curved_solid_arrow_line(
     }
 }
 
-fn curved_arrow_points(start: Point, end: Point, sweep_degrees: f64) -> Vec<Point> {
-    let Some(arc) = curved_arrow_arc(start, end, sweep_degrees) else {
-        return vec![start, end];
+fn curved_arrow_points(
+    start: Point,
+    sweep_degrees: f64,
+    arrow_arc: ArrowArcGeometry,
+) -> Vec<Point> {
+    let Some(arc) = curved_arrow_arc(start, sweep_degrees, arrow_arc) else {
+        return Vec::new();
     };
     let steps = ((sweep_degrees.abs() / 12.0).ceil() as usize).clamp(8, 32);
     (0..=steps)
         .map(|index| {
             let t = index as f64 / steps as f64;
-            arc.point_at(arc.start_angle + arc.sweep * t)
+            arc.point_at(arc.start_angle() + arc.sweep() * t)
         })
         .collect()
 }
 
+#[derive(Debug, Clone, Copy)]
 struct CurvedArrowArc {
     center: Point,
-    radius: f64,
+    major: Vector,
+    minor: Vector,
     start_angle: f64,
     sweep: f64,
 }
 
 impl CurvedArrowArc {
     fn point_at(&self, angle: f64) -> Point {
-        Point::new(
-            self.center.x + angle.cos() * self.radius,
-            self.center.y + angle.sin() * self.radius,
+        self.center
+            .translated(self.major.scaled(angle.cos()))
+            .translated(self.minor.scaled(angle.sin()))
+    }
+
+    fn derivative_at(&self, angle: f64) -> Vector {
+        Vector::new(
+            -self.major.x * angle.sin() + self.minor.x * angle.cos(),
+            -self.major.y * angle.sin() + self.minor.y * angle.cos(),
         )
+    }
+
+    fn start_angle(&self) -> f64 {
+        self.start_angle
+    }
+
+    fn sweep(&self) -> f64 {
+        self.sweep
     }
 }
 
@@ -396,49 +414,53 @@ struct CurvedArrowPath {
     points: Vec<Point>,
 }
 
-fn curved_arrow_arc(start: Point, end: Point, sweep_degrees: f64) -> Option<CurvedArrowArc> {
-    let chord = Vector::new(end.x - start.x, end.y - start.y);
-    let chord_length = chord.length();
-    if chord_length <= crate::EPSILON || sweep_degrees.abs() <= crate::EPSILON {
-        return None;
-    }
-    let sweep = -sweep_degrees.to_radians();
-    let half = sweep.abs() * 0.5;
-    let sin_half = half.sin().abs();
-    if sin_half <= crate::EPSILON {
-        return None;
-    }
-    let unit = chord.normalized();
-    let normal = Vector::new(-unit.y, unit.x);
-    let radius = chord_length / (2.0 * sin_half);
-    let offset = radius * half.cos() * sweep.signum();
-    let center = Point::new(
-        (start.x + end.x) * 0.5 + normal.x * offset,
-        (start.y + end.y) * 0.5 + normal.y * offset,
+fn curved_arrow_arc(
+    start: Point,
+    sweep_degrees: f64,
+    geometry: ArrowArcGeometry,
+) -> Option<CurvedArrowArc> {
+    let major = Vector::new(
+        geometry.major_axis_end.x - geometry.center.x,
+        geometry.major_axis_end.y - geometry.center.y,
     );
+    let minor = Vector::new(
+        geometry.minor_axis_end.x - geometry.center.x,
+        geometry.minor_axis_end.y - geometry.center.y,
+    );
+    let det = major.x * minor.y - major.y * minor.x;
+    if det.abs() <= crate::EPSILON
+        || major.length() <= crate::EPSILON
+        || minor.length() <= crate::EPSILON
+        || sweep_degrees.abs() <= crate::EPSILON
+    {
+        return None;
+    }
+    let relative = Vector::new(start.x - geometry.center.x, start.y - geometry.center.y);
+    let cos = (relative.x * minor.y - relative.y * minor.x) / det;
+    let sin = (major.x * relative.y - major.y * relative.x) / det;
     Some(CurvedArrowArc {
-        center,
-        radius,
-        start_angle: (start.y - center.y).atan2(start.x - center.x),
-        sweep,
+        center: geometry.center,
+        major,
+        minor,
+        start_angle: sin.atan2(cos),
+        sweep: -sweep_degrees.to_radians(),
     })
 }
 
 fn curved_arrow_path(
     start: Point,
-    end: Point,
     sweep_degrees: f64,
+    arrow_arc: ArrowArcGeometry,
     start_trim: f64,
     end_trim: f64,
 ) -> Option<CurvedArrowPath> {
-    let arc = curved_arrow_arc(start, end, sweep_degrees)?;
-    let total = arc.radius * arc.sweep.abs();
+    let arc = curved_arrow_arc(start, sweep_degrees, arrow_arc)?;
+    let total = curved_arrow_arc_length(&arc, arc.start_angle(), arc.sweep());
     if start_trim + end_trim >= total - crate::EPSILON {
         return None;
     }
-    let sign = arc.sweep.signum();
-    let start_angle = arc.start_angle + sign * start_trim / arc.radius;
-    let end_angle = arc.start_angle + arc.sweep - sign * end_trim / arc.radius;
+    let start_angle = curved_arrow_angle_at_distance(&arc, start_trim);
+    let end_angle = curved_arrow_angle_at_distance(&arc, total - end_trim);
     let sweep = end_angle - start_angle;
     let start_point = arc.point_at(start_angle);
     let mut d = format!("M {} {}", start_point.x, start_point.y);
@@ -457,14 +479,10 @@ fn curved_arrow_path(
         let p0 = arc.point_at(angle);
         let p3 = arc.point_at(next);
         let k = 4.0 / 3.0 * (delta * 0.25).tan();
-        let c1 = Point::new(
-            p0.x - k * arc.radius * angle.sin(),
-            p0.y + k * arc.radius * angle.cos(),
-        );
-        let c2 = Point::new(
-            p3.x + k * arc.radius * next.sin(),
-            p3.y - k * arc.radius * next.cos(),
-        );
+        let d0 = arc.derivative_at(angle);
+        let d1 = arc.derivative_at(next);
+        let c1 = p0.translated(d0.scaled(k));
+        let c2 = p3.translated(d1.scaled(-k));
         d.push_str(&format!(
             " C {} {}, {} {}, {} {}",
             c1.x, c1.y, c2.x, c2.y, p3.x, p3.y
@@ -472,6 +490,51 @@ fn curved_arrow_path(
         angle = next;
     }
     Some(CurvedArrowPath { d, points })
+}
+
+fn curved_arrow_arc_length(arc: &CurvedArrowArc, start_angle: f64, sweep: f64) -> f64 {
+    let steps = ((sweep.abs().to_degrees() / 2.0).ceil() as usize).clamp(16, 256);
+    let mut length = 0.0;
+    let mut previous = arc.point_at(start_angle);
+    for index in 1..=steps {
+        let t = index as f64 / steps as f64;
+        let point = arc.point_at(start_angle + sweep * t);
+        length += previous.distance(point);
+        previous = point;
+    }
+    length
+}
+
+fn curved_arrow_angle_at_distance(arc: &CurvedArrowArc, distance: f64) -> f64 {
+    if distance <= 0.0 {
+        return arc.start_angle();
+    }
+    let total = curved_arrow_arc_length(arc, arc.start_angle(), arc.sweep());
+    if distance >= total {
+        return arc.start_angle() + arc.sweep();
+    }
+    let steps = ((arc.sweep().abs().to_degrees() / 2.0).ceil() as usize).clamp(16, 256);
+    let mut walked = 0.0;
+    let mut previous_angle = arc.start_angle();
+    let mut previous = arc.point_at(previous_angle);
+    for index in 1..=steps {
+        let t = index as f64 / steps as f64;
+        let angle = arc.start_angle() + arc.sweep() * t;
+        let point = arc.point_at(angle);
+        let segment = previous.distance(point);
+        if walked + segment >= distance {
+            let local = if segment <= crate::EPSILON {
+                0.0
+            } else {
+                (distance - walked) / segment
+            };
+            return previous_angle + (angle - previous_angle) * local;
+        }
+        walked += segment;
+        previous = point;
+        previous_angle = angle;
+    }
+    arc.start_angle() + arc.sweep()
 }
 
 fn polyline_length(points: &[Point]) -> f64 {
@@ -525,6 +588,7 @@ fn render_solid_arrow_line(
     arrow_head: ArrowHeadGeometry,
     head_style: RenderArrowEndpointStyle,
     tail_style: RenderArrowEndpointStyle,
+    dash_array: &[f64],
     object_id: Option<String>,
 ) {
     let Some((unit, _normal, length)) = arrow_axis(start, end) else {
@@ -543,7 +607,7 @@ fn render_solid_arrow_line(
             vec![start_shaft, end_shaft],
             stroke,
             line_width,
-            Vec::new(),
+            dash_array.to_vec(),
             Some("butt".to_string()),
             Some("miter".to_string()),
             RenderRole::DocumentGraphic,
@@ -691,14 +755,9 @@ fn solid_arrow_head_points(
     let Some((unit, normal, _length)) = arrow_axis(from, to) else {
         return Vec::new();
     };
-    let head_length = arrow_head
-        .length
-        .max(crate::ARROW_SHAPE_MIN_HEAD_LENGTH_CM.value());
+    let head_length = arrow_head.length;
     let head_half_width = solid_arrow_head_outer_half_width(arrow_head);
-    let notch_length = arrow_head
-        .center_length
-        .max(crate::ARROW_SHAPE_MIN_NOTCH_LENGTH_CM.value())
-        .min(head_length - crate::ARROW_SHAPE_MIN_HEAD_TO_NOTCH_GAP_CM.value());
+    let notch_length = arrow_head.center_length.max(0.0).min(head_length);
     let notch = Point::new(to.x - unit.x * notch_length, to.y - unit.y * notch_length);
     let right = Point::new(
         to.x - unit.x * head_length + normal.x * head_half_width,
@@ -770,14 +829,9 @@ fn solid_full_arrow_head_path(
     arrow_head: ArrowHeadGeometry,
 ) -> Option<SolidArrowHeadPath> {
     let (unit, normal, _) = arrow_axis(from, to)?;
-    let head_length = arrow_head
-        .length
-        .max(crate::ARROW_SHAPE_MIN_HEAD_LENGTH_CM.value());
+    let head_length = arrow_head.length;
     let head_half_width = solid_arrow_head_outer_half_width(arrow_head);
-    let notch_length = arrow_head
-        .center_length
-        .max(crate::ARROW_SHAPE_MIN_NOTCH_LENGTH_CM.value())
-        .min(head_length - crate::ARROW_SHAPE_MIN_HEAD_TO_NOTCH_GAP_CM.value());
+    let notch_length = arrow_head.center_length.max(0.0).min(head_length);
     let control_half_width = head_half_width * 7.0 / 16.0;
 
     let tip = to;
@@ -830,7 +884,7 @@ fn solid_full_arrow_head_path(
 }
 
 fn solid_arrow_head_outer_half_width(arrow_head: ArrowHeadGeometry) -> f64 {
-    (arrow_head.width.max(0.0) + 0.05).max(crate::ARROW_SHAPE_MIN_HEAD_WIDTH_CM.value())
+    arrow_head.width.max(0.0) + 0.05
 }
 
 fn arrow_endpoint_shaft_trim(
@@ -883,6 +937,7 @@ fn render_open_arrow_line(
     arrow_head: ArrowHeadGeometry,
     has_head: bool,
     has_tail: bool,
+    dash_array: &[f64],
     object_id: Option<String>,
 ) {
     let Some((unit, normal, length)) = arrow_axis(start, end) else {
@@ -918,7 +973,7 @@ fn render_open_arrow_line(
             ),
             stroke,
             line_width,
-            Vec::new(),
+            dash_array.to_vec(),
             Some(line_cap.to_string()),
             Some(line_join.to_string()),
             RenderRole::DocumentGraphic,
@@ -934,7 +989,7 @@ fn render_open_arrow_line(
             ],
             stroke,
             line_width,
-            Vec::new(),
+            dash_array.to_vec(),
             Some(line_cap.to_string()),
             Some(line_join.to_string()),
             RenderRole::DocumentGraphic,
@@ -948,7 +1003,7 @@ fn render_open_arrow_line(
             ],
             stroke,
             line_width,
-            Vec::new(),
+            dash_array.to_vec(),
             Some(line_cap.to_string()),
             Some(line_join.to_string()),
             RenderRole::DocumentGraphic,
@@ -969,7 +1024,7 @@ fn render_open_arrow_line(
             ),
             stroke,
             line_width,
-            Vec::new(),
+            dash_array.to_vec(),
             Some(line_cap.to_string()),
             Some(line_join.to_string()),
             RenderRole::DocumentGraphic,

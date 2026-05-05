@@ -585,11 +585,11 @@ Example:
 - `arrowHead`: optional arrow decoration data; omitted or `null` means plain line
 - `curve`: optional curve metadata for bezier or arc-like lines
 
-`arrowHead` size fields follow the matching ChemDraw meanings:
+`arrowHead` size fields follow ChemDraw's stroke-width-relative meanings. At render time the real size is the stored value multiplied by the current stroke width; CDXML export writes the stored value back multiplied by `100`:
 
-- `length` maps to CDXML `HeadSize / 100`
-- `centerLength` maps to CDXML `ArrowheadCenterSize / 100`
-- `width` maps to CDXML `ArrowheadWidth / 100`. For solid arrowheads, ChemDraw treats this as the broad-end half-width parameter: the rendered outline uses an outer half-width of about `width + 0.05` and an inner Bezier control offset of `7/16` of that half-width. For open and hollow arrowheads, this value is the extra head-width parameter relative to the shaft half-width
+- `length` maps to CDXML `HeadSize / 100`; the rendered head length is `length * strokeWidth`
+- `centerLength` maps to CDXML `ArrowheadCenterSize / 100`; the rendered notch position is `centerLength * strokeWidth`
+- `width` maps to CDXML `ArrowheadWidth / 100`; the rendered broad-end half-width parameter is `width * strokeWidth`. For solid arrowheads, ChemDraw treats this as the broad-end half-width parameter: the rendered outline uses an outer half-width of about `width * strokeWidth + 0.05` and an inner Bezier control offset of `7/16` of that half-width. For open and hollow arrowheads, this value is the extra head-width parameter relative to the shaft half-width
 - `curve` maps to CDXML `AngularSize`; negative and positive values represent opposite bend directions
 - `noGo` maps to CDXML `NoGo` and may be `none | cross | hash`
 - `hollow` and `open` arrow kinds use their own size template instead of reusing the solid arrow template

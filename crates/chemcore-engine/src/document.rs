@@ -1,10 +1,11 @@
 use crate::{
     round2, Point, DEFAULT_BOND_LENGTH_CM, DEFAULT_BOND_STROKE_CM,
     DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM, DEFAULT_PAGE_HEIGHT_CM, DEFAULT_PAGE_WIDTH_CM,
-    DEFAULT_TEXT_BLOCK_PADDING_CM, PT_PER_CM,
+    DEFAULT_TEXT_BLOCK_PADDING_CM, DEFAULT_TEXT_FONT_SIZE_CM, DEFAULT_TEXT_LINE_HEIGHT_CM, EPSILON,
+    PT_PER_CM,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
 
 pub const DEFAULT_PAGE_WIDTH: f64 = DEFAULT_PAGE_WIDTH_CM;
@@ -133,7 +134,478 @@ pub fn parse_document_json(json: &str) -> Result<ChemcoreDocument, String> {
         scale_document_json_value(&mut value, PT_PER_CM);
     }
     ensure_document_json_unit(&mut value);
-    serde_json::from_value(value).map_err(|error| error.to_string())
+    let mut document: ChemcoreDocument =
+        serde_json::from_value(value).map_err(|error| error.to_string())?;
+    normalize_text_object_payloads(&mut document);
+    normalize_shape_object_payloads(&mut document);
+    normalize_arrow_object_payloads(&mut document);
+    normalize_fragment_label_payloads(&mut document);
+    Ok(document)
+}
+
+pub(crate) fn normalize_arrow_object_payloads(document: &mut ChemcoreDocument) {
+    for object in &mut document.objects {
+        if object.object_type == "line" {
+            normalize_arrow_payload_extra(&mut object.payload.extra);
+        }
+    }
+}
+
+pub(crate) fn normalize_arrow_payload_extra(extra: &mut BTreeMap<String, Value>) {
+    normalize_arrow_head_payload(extra);
+    let curve = arrow_payload_curve(extra);
+    if curve.abs() <= EPSILON {
+        return;
+    }
+    if arrow_payload_geometry_is_valid(extra) {
+        return;
+    }
+    let Some((start, end)) = arrow_payload_line_endpoints(extra) else {
+        return;
+    };
+    if let Some(geometry) = default_arrow_arc_geometry_payload(start, end, curve) {
+        extra.insert("arrowGeometry".to_string(), geometry);
+    }
+}
+
+pub(crate) fn default_arrow_arc_geometry_payload(
+    start: Point,
+    end: Point,
+    curve: f64,
+) -> Option<Value> {
+    let chord = Point::new(end.x - start.x, end.y - start.y);
+    let chord_length = start.distance(end);
+    if chord_length <= EPSILON || curve.abs() <= EPSILON {
+        return None;
+    }
+    let sweep = -curve.to_radians();
+    let half = sweep.abs() * 0.5;
+    let sin_half = half.sin().abs();
+    if sin_half <= EPSILON {
+        return None;
+    }
+    let ux = chord.x / chord_length;
+    let uy = chord.y / chord_length;
+    let radius = chord_length / (2.0 * sin_half);
+    let offset = radius * half.cos() * sweep.signum();
+    let center = Point::new(
+        (start.x + end.x) * 0.5 - uy * offset,
+        (start.y + end.y) * 0.5 + ux * offset,
+    );
+    Some(json!({
+        "center": [round2(center.x), round2(center.y)],
+        "majorAxisEnd": [round2(center.x + radius), round2(center.y)],
+        "minorAxisEnd": [round2(center.x), round2(center.y + radius)]
+    }))
+}
+
+fn normalize_arrow_head_payload(extra: &mut BTreeMap<String, Value>) {
+    let legacy_head = extra
+        .get("head")
+        .and_then(Value::as_str)
+        .map(ToString::to_string);
+    let legacy_tail = extra
+        .get("tail")
+        .and_then(Value::as_str)
+        .map(ToString::to_string);
+    let Some(Value::Object(arrow_head)) = extra.get_mut("arrowHead") else {
+        return;
+    };
+
+    let length = object_number(arrow_head, "length")
+        .filter(|value| *value > EPSILON)
+        .unwrap_or(crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO);
+    arrow_head.insert("length".to_string(), json!(round2(length)));
+
+    let center_length = object_number(arrow_head, "centerLength")
+        .or_else(|| object_number(arrow_head, "center_length"))
+        .filter(|value| *value > 0.0)
+        .unwrap_or(length * 0.875);
+    arrow_head.insert("centerLength".to_string(), json!(round2(center_length)));
+
+    let width = object_number(arrow_head, "width")
+        .filter(|value| *value >= 0.0)
+        .unwrap_or(length * 0.25);
+    arrow_head.insert("width".to_string(), json!(round2(width)));
+
+    let kind = arrow_head
+        .get("kind")
+        .and_then(Value::as_str)
+        .map(canonical_arrow_head_kind)
+        .unwrap_or("solid");
+    arrow_head.insert("kind".to_string(), json!(kind));
+
+    let curve = object_number(arrow_head, "curve").unwrap_or(0.0);
+    arrow_head.insert("curve".to_string(), json!(round2(curve)));
+
+    let head = arrow_head
+        .get("head")
+        .and_then(Value::as_str)
+        .map(canonical_arrow_endpoint_payload)
+        .unwrap_or_else(|| canonical_legacy_arrow_endpoint(legacy_head.as_deref(), "end"));
+    arrow_head.insert("head".to_string(), json!(head));
+
+    let tail = arrow_head
+        .get("tail")
+        .and_then(Value::as_str)
+        .map(canonical_arrow_endpoint_payload)
+        .unwrap_or_else(|| canonical_legacy_arrow_endpoint(legacy_tail.as_deref(), "start"));
+    arrow_head.insert("tail".to_string(), json!(tail));
+
+    let bold = arrow_head
+        .get("bold")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    arrow_head.insert("bold".to_string(), json!(bold));
+
+    let no_go = arrow_head
+        .get("noGo")
+        .or_else(|| arrow_head.get("no_go"))
+        .and_then(Value::as_str)
+        .map(canonical_arrow_no_go)
+        .unwrap_or("none");
+    arrow_head.insert("noGo".to_string(), json!(no_go));
+}
+
+fn object_number(object: &Map<String, Value>, key: &str) -> Option<f64> {
+    object.get(key)?.as_f64().filter(|value| value.is_finite())
+}
+
+fn canonical_arrow_head_kind(value: &str) -> &'static str {
+    match value.to_ascii_lowercase().as_str() {
+        "hollow" => "hollow",
+        "angle" | "open" | "retrosynthetic" => "open",
+        _ => "solid",
+    }
+}
+
+fn canonical_arrow_endpoint_payload(value: &str) -> &'static str {
+    match value.to_ascii_lowercase().as_str() {
+        "full" => "full",
+        "half-left" | "halfleft" | "left" | "top" => "half-left",
+        "half-right" | "halfright" | "right" | "bottom" => "half-right",
+        _ => "none",
+    }
+}
+
+fn canonical_legacy_arrow_endpoint(value: Option<&str>, enabled: &str) -> &'static str {
+    if value.is_some_and(|value| {
+        value.eq_ignore_ascii_case(enabled) || value.eq_ignore_ascii_case("both")
+    }) {
+        "full"
+    } else {
+        "none"
+    }
+}
+
+fn canonical_arrow_no_go(value: &str) -> &'static str {
+    match value.to_ascii_lowercase().as_str() {
+        "cross" => "cross",
+        "hash" => "hash",
+        _ => "none",
+    }
+}
+
+pub(crate) fn arrow_payload_line_endpoints(
+    extra: &BTreeMap<String, Value>,
+) -> Option<(Point, Point)> {
+    let points = extra.get("points")?.as_array()?;
+    let start = points.first()?.as_array()?;
+    let end = points.get(1)?.as_array()?;
+    Some((
+        Point::new(start.first()?.as_f64()?, start.get(1)?.as_f64()?),
+        Point::new(end.first()?.as_f64()?, end.get(1)?.as_f64()?),
+    ))
+}
+
+fn arrow_payload_curve(extra: &BTreeMap<String, Value>) -> f64 {
+    extra
+        .get("arrowHead")
+        .and_then(|value| value.get("curve"))
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0)
+}
+
+fn arrow_payload_geometry_is_valid(extra: &BTreeMap<String, Value>) -> bool {
+    ["center", "majorAxisEnd", "minorAxisEnd"]
+        .into_iter()
+        .all(|key| {
+            extra
+                .get("arrowGeometry")
+                .and_then(|geometry| geometry.get(key))
+                .and_then(Value::as_array)
+                .is_some_and(|coords| {
+                    coords.first().and_then(Value::as_f64).is_some()
+                        && coords.get(1).and_then(Value::as_f64).is_some()
+                })
+        })
+}
+
+pub(crate) fn normalize_text_object_payloads(document: &mut ChemcoreDocument) {
+    let styles = document.styles.clone();
+    for object in &mut document.objects {
+        if object.object_type != "text" {
+            continue;
+        }
+        normalize_text_object_payload_defaults(object, &styles);
+        let align = object
+            .payload
+            .extra
+            .get("align")
+            .and_then(Value::as_str)
+            .unwrap_or("left");
+        let anchor_x = match align {
+            "center" => 0.5,
+            "right" => 1.0,
+            _ => continue,
+        };
+        let Some(mut box_value) = object
+            .payload
+            .extra
+            .get("box")
+            .cloned()
+            .and_then(|value| serde_json::from_value::<[f64; 4]>(value).ok())
+        else {
+            continue;
+        };
+        if box_value[0].abs() > crate::EPSILON
+            || box_value[2] <= crate::EPSILON
+            || !box_value.iter().all(|value| value.is_finite())
+        {
+            continue;
+        }
+        box_value[0] = round2(-box_value[2] * anchor_x);
+        object
+            .payload
+            .extra
+            .insert("box".to_string(), json!(box_value));
+        if let Some(bbox) = object.payload.bbox.as_mut() {
+            if bbox[0].abs() <= crate::EPSILON
+                && (bbox[2] - box_value[2]).abs() <= crate::EPSILON
+                && bbox.iter().all(|value| value.is_finite())
+            {
+                bbox[0] = box_value[0];
+            }
+        }
+    }
+}
+
+fn normalize_text_object_payload_defaults(
+    object: &mut SceneObject,
+    styles: &BTreeMap<String, Value>,
+) {
+    let style = object
+        .style_ref
+        .as_ref()
+        .and_then(|style_ref| styles.get(style_ref));
+    let font_size = object
+        .payload
+        .extra
+        .get("fontSize")
+        .and_then(Value::as_f64)
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .or_else(|| style.and_then(|style| style_number(style, "fontSize")))
+        .or_else(|| style.and_then(|style| style_number(style, "font_size")))
+        .unwrap_or(DEFAULT_TEXT_FONT_SIZE_CM);
+    object
+        .payload
+        .extra
+        .insert("fontSize".to_string(), json!(round2(font_size)));
+
+    let line_height = object
+        .payload
+        .extra
+        .get("lineHeight")
+        .and_then(Value::as_f64)
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .unwrap_or(DEFAULT_TEXT_LINE_HEIGHT_CM);
+    object
+        .payload
+        .extra
+        .insert("lineHeight".to_string(), json!(round2(line_height)));
+
+    object
+        .payload
+        .extra
+        .entry("align".to_string())
+        .or_insert_with(|| json!("left"));
+    object
+        .payload
+        .extra
+        .entry("preserveLines".to_string())
+        .or_insert_with(|| json!(false));
+
+    if text_payload_box(&object.payload.extra).is_none() {
+        let text = object
+            .payload
+            .extra
+            .get("text")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let box_value = object
+            .payload
+            .bbox
+            .filter(valid_bbox)
+            .unwrap_or_else(|| default_text_object_box(text, font_size, line_height));
+        object.payload.extra.insert(
+            "box".to_string(),
+            json!([
+                round2(box_value[0]),
+                round2(box_value[1]),
+                round2(box_value[2]),
+                round2(box_value[3])
+            ]),
+        );
+    }
+}
+
+fn style_number(style: &Value, key: &str) -> Option<f64> {
+    style
+        .get(key)?
+        .as_f64()
+        .filter(|value| value.is_finite() && *value > 0.0)
+}
+
+fn text_payload_box(extra: &BTreeMap<String, Value>) -> Option<[f64; 4]> {
+    let value = extra.get("box")?;
+    serde_json::from_value::<[f64; 4]>(value.clone())
+        .ok()
+        .filter(valid_bbox)
+}
+
+fn default_text_object_box(text: &str, font_size: f64, line_height: f64) -> [f64; 4] {
+    let max_chars = text
+        .lines()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(0) as f64;
+    let line_count = text.lines().count().max(1) as f64;
+    [
+        0.0,
+        0.0,
+        (max_chars * font_size * 0.55).max(font_size),
+        (line_count * line_height).max(font_size),
+    ]
+}
+
+fn valid_bbox(bbox: &[f64; 4]) -> bool {
+    bbox.iter().all(|value| value.is_finite())
+}
+
+pub(crate) fn normalize_shape_object_payloads(document: &mut ChemcoreDocument) {
+    for object in &mut document.objects {
+        if object.object_type != "shape" {
+            continue;
+        }
+        let kind = object
+            .payload
+            .extra
+            .get("kind")
+            .and_then(Value::as_str)
+            .unwrap_or("rect")
+            .to_string();
+        if !matches!(kind.as_str(), "circle" | "ellipse") {
+            continue;
+        }
+        if shape_oval_geometry_is_valid(&object.payload.extra) {
+            continue;
+        }
+        let Some([x, y, width, height]) = object.payload.bbox.filter(valid_bbox) else {
+            continue;
+        };
+        let center = Point::new(
+            object.transform.translate[0] + x + width * 0.5,
+            object.transform.translate[1] + y + height * 0.5,
+        );
+        let major = Point::new(center.x + width.abs() * 0.5, center.y);
+        let minor_radius = if height.abs() > EPSILON {
+            height.abs() * 0.5
+        } else {
+            width.abs() * 0.5
+        };
+        let minor = Point::new(center.x, center.y + minor_radius);
+        object.payload.extra.insert(
+            "center".to_string(),
+            json!([round2(center.x), round2(center.y)]),
+        );
+        object.payload.extra.insert(
+            "majorAxisEnd".to_string(),
+            json!([round2(major.x), round2(major.y)]),
+        );
+        object.payload.extra.insert(
+            "minorAxisEnd".to_string(),
+            json!([round2(minor.x), round2(minor.y)]),
+        );
+    }
+}
+
+fn shape_oval_geometry_is_valid(extra: &BTreeMap<String, Value>) -> bool {
+    ["center", "majorAxisEnd", "minorAxisEnd"]
+        .into_iter()
+        .all(|key| {
+            extra
+                .get(key)
+                .and_then(Value::as_array)
+                .is_some_and(|coords| {
+                    coords.first().and_then(Value::as_f64).is_some()
+                        && coords.get(1).and_then(Value::as_f64).is_some()
+                })
+        })
+}
+
+pub(crate) fn normalize_fragment_label_payloads(document: &mut ChemcoreDocument) {
+    for resource in document.resources.values_mut() {
+        let Some(fragment) = resource.data.as_fragment_mut() else {
+            continue;
+        };
+        for node in &mut fragment.nodes {
+            if let Some(label) = &mut node.label {
+                normalize_node_label_payload(label, node.position);
+            }
+        }
+    }
+}
+
+fn normalize_node_label_payload(label: &mut NodeLabel, node_position: [f64; 2]) {
+    if label.position.is_none() {
+        label.position = Some(node_position);
+    }
+    if label.font_size.is_none() {
+        label.font_size = Some(DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM);
+    }
+    if label.align.is_none() {
+        label.align = Some("left".to_string());
+    }
+    if label.font_family.is_none() {
+        label.font_family = Some("Arial".to_string());
+    }
+    if label.fill.is_none() {
+        label.fill = Some("#000000".to_string());
+    }
+    if label.box_value.is_none() && label.box_field.is_none() {
+        let font_size = label
+            .font_size
+            .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM);
+        let position = label.position.unwrap_or(node_position);
+        label.box_field = Some(default_node_label_box(position, &label.text, font_size));
+    }
+}
+
+fn default_node_label_box(position: [f64; 2], text: &str, font_size: f64) -> [f64; 4] {
+    let line_count = text.lines().count().max(1) as f64;
+    let max_chars = text
+        .lines()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(0) as f64;
+    let width = (max_chars * font_size * 0.58).max(font_size);
+    let height = (line_count * font_size * 1.25).max(font_size);
+    [
+        round2(position[0]),
+        round2(position[1] - font_size),
+        round2(position[0] + width),
+        round2(position[1] - font_size + height),
+    ]
 }
 
 fn document_json_uses_legacy_cm(value: &Value) -> bool {
@@ -247,9 +719,13 @@ fn scale_key_as_length_array(key: &str) -> bool {
         "bbox"
             | "box"
             | "boxField"
+            | "boundingBox"
             | "position"
             | "translate"
             | "points"
+            | "center"
+            | "majorAxisEnd"
+            | "minorAxisEnd"
             | "anchorOffset"
             | "glyphPolygons"
     )

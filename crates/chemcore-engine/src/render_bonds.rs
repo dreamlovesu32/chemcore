@@ -157,9 +157,9 @@ fn render_double_bond(
     match side_mode {
         Some(DoubleBondPlacement::Left) | Some(DoubleBondPlacement::Right) => {
             let side = if side_mode == Some(DoubleBondPlacement::Left) {
-                -1.0
-            } else {
                 1.0
+            } else {
+                -1.0
             };
             let double_offset = double_bond_center_distance_for_bond_weights(
                 bond,

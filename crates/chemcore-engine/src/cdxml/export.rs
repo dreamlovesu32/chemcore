@@ -6,7 +6,10 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use std::fmt::Write;
 
-use super::{element_symbol, CdxmlDefaults};
+use super::{
+    colors::{rgb_fractions, CdxmlColorTable},
+    element_symbol, CdxmlDefaults,
+};
 
 pub fn document_to_cdxml(document: &ChemcoreDocument) -> String {
     CdxmlDocumentWriter::new(document).write()
@@ -83,17 +86,21 @@ struct CdxmlDocumentWriter<'a> {
     document: &'a ChemcoreDocument,
     next_id: u64,
     colors: CdxmlColorTable,
+    fonts: CdxmlFontTable,
     defaults: CdxmlDefaults,
 }
 
 impl<'a> CdxmlDocumentWriter<'a> {
     fn new(document: &'a ChemcoreDocument) -> Self {
-        let mut colors = CdxmlColorTable::default();
+        let mut colors = CdxmlColorTable::for_export(&document.document.page.background);
         collect_document_colors(document, &mut colors);
+        let mut fonts = CdxmlFontTable::default();
+        collect_document_fonts(document, &mut fonts);
         Self {
             document,
             next_id: 1,
             colors,
+            fonts,
             defaults: export_cdxml_defaults(document),
         }
     }
@@ -108,11 +115,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
         out.push_str("<!DOCTYPE CDXML SYSTEM \"http://www.cambridgesoft.com/xml/cdxml.dtd\" >\n");
         write!(
             out,
-            "<CDXML Name=\"{}\" BoundingBox=\"{}\" WindowPosition=\"0 0\" WindowSize=\"{} {}\" FractionalWidths=\"yes\" InterpretChemically=\"yes\" ShowAtomQuery=\"yes\" ShowBondQuery=\"yes\" LabelFont=\"3\" LabelSize=\"{}\" CaptionFont=\"3\" CaptionSize=\"{}\" LineWidth=\"{}\" BoldWidth=\"{}\" BondLength=\"{}\" BondSpacing=\"{}\" HashSpacing=\"{}\" color=\"{}\" bgcolor=\"{}\">\n",
+            "<CDXML CreationProgram=\"ChemCore\" Name=\"{}\" BoundingBox=\"{}\" WindowPosition=\"0 0\" WindowSize=\"-32768 -32768\" WindowIsZoomed=\"yes\" FractionalWidths=\"yes\" InterpretChemically=\"yes\" ShowAtomQuery=\"yes\" ShowAtomStereo=\"no\" ShowAtomEnhancedStereo=\"yes\" ShowAtomNumber=\"no\" ShowResidueID=\"no\" ShowBondQuery=\"yes\" ShowBondRxn=\"yes\" ShowBondStereo=\"no\" ShowTerminalCarbonLabels=\"no\" ShowNonTerminalCarbonLabels=\"no\" HideImplicitHydrogens=\"no\" LabelFont=\"3\" LabelSize=\"{}\" LabelFace=\"96\" CaptionFont=\"3\" CaptionSize=\"{}\" CaptionFace=\"0\" LineWidth=\"{}\" BoldWidth=\"{}\" BondLength=\"{}\" BondSpacing=\"{}\" HashSpacing=\"{}\" MarginWidth=\"1.6\" ChainAngle=\"120\" LabelJustification=\"Auto\" CaptionJustification=\"Left\" PrintMargins=\"36 36 36 36\" color=\"0\" bgcolor=\"{}\">\n",
             xml_escape_attr(&self.document.document.title),
             root_bbox,
-            fmt_num(width),
-            fmt_num(height),
             fmt_num(self.defaults.label_size),
             fmt_num(self.defaults.caption_size),
             fmt_num(self.defaults.line_width),
@@ -120,17 +125,14 @@ impl<'a> CdxmlDocumentWriter<'a> {
             fmt_num(self.defaults.bond_length),
             fmt_num(self.defaults.bond_spacing),
             fmt_num(self.defaults.hash_spacing),
-            self.colors.id_for("#000000"),
-            self.colors.id_for(&page.background),
+            self.colors.background_id(),
         )
         .expect("writing CDXML root should not fail");
         self.write_color_table(&mut out);
-        out.push_str("  <fonttable>\n");
-        out.push_str("    <font id=\"3\" charset=\"iso-8859-1\" name=\"Arial\"/>\n");
-        out.push_str("  </fonttable>\n");
+        self.write_font_table(&mut out);
         write!(
             out,
-            "  <page id=\"{}\" BoundingBox=\"{}\" Width=\"{}\" Height=\"{}\">\n",
+            "  <page id=\"{}\" BoundingBox=\"{}\" HeaderPosition=\"36\" FooterPosition=\"36\" PrintTrimMarks=\"yes\" HeightPages=\"1\" WidthPages=\"1\" Width=\"{}\" Height=\"{}\">\n",
             self.alloc_id(),
             root_bbox,
             fmt_num(width),
@@ -175,6 +177,20 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .expect("writing color table should not fail");
         }
         out.push_str("  </colortable>\n");
+    }
+
+    fn write_font_table(&self, out: &mut String) {
+        out.push_str("  <fonttable>\n");
+        for (id, name) in self.fonts.fonts() {
+            writeln!(
+                out,
+                "    <font id=\"{}\" charset=\"iso-8859-1\" name=\"{}\"/>",
+                id,
+                xml_escape_attr(name),
+            )
+            .expect("writing font table should not fail");
+        }
+        out.push_str("  </fonttable>\n");
     }
 
     fn write_molecule_object(&mut self, out: &mut String, object: &SceneObject) {
@@ -238,6 +254,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
         let is_nickname =
             node.is_placeholder || should_export_node_as_nickname(node, label_text.as_deref());
         let mut attrs = vec![("id", cdxml_id.to_string()), ("p", fmt_point(point))];
+        attrs.push(("Z", object.z_index.to_string()));
         if !is_plain_carbon && !is_nickname && node.atomic_number > 0 {
             attrs.push(("Element", node.atomic_number.to_string()));
         }
@@ -252,6 +269,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
         if node.num_hydrogens > 0 {
             attrs.push(("NumHydrogens", node.num_hydrogens.to_string()));
         }
+        attrs.push(("AS", "N".to_string()));
         if let Some(label) = node.label.as_ref().filter(|label| label.has_visible_text()) {
             write_open_tag(out, 6, "n", attrs);
             self.write_node_label(out, object, node, label);
@@ -269,32 +287,36 @@ impl<'a> CdxmlDocumentWriter<'a> {
         label: &NodeLabel,
     ) {
         let text = label.source_text.as_deref().unwrap_or(&label.text);
-        let font_size = label.font_size.unwrap_or(10.0);
-        let color_id = self
-            .colors
-            .id_for(label.fill.as_deref().unwrap_or("#000000"));
+        let Some(font_size) = label.font_size else {
+            return;
+        };
         let position = label
             .position
             .map(|position| object_local_point(object, position))
             .unwrap_or_else(|| object_local_point(object, node.position));
-        let bbox = label
+        let Some(bbox) = label
             .bbox()
             .map(|bbox| translate_bbox(bbox, object.transform.translate))
-            .unwrap_or_else(|| text_bbox_estimate(position, text, font_size));
-        let attrs = vec![
+        else {
+            return;
+        };
+        let mut attrs = vec![
             ("id", self.alloc_id()),
             ("p", fmt_point(position)),
             ("BoundingBox", fmt_bbox(bbox)),
-            ("LabelAlignment", "Auto".to_string()),
             (
-                "Justification",
+                "LabelAlignment",
+                cdxml_node_label_alignment(label).to_string(),
+            ),
+            (
+                "LabelJustification",
                 cdxml_justification(label.align.as_deref()).to_string(),
             ),
-            ("font", "3".to_string()),
-            ("size", fmt_num(font_size)),
-            ("color", color_id),
             ("UTF8Text", text.to_string()),
         ];
+        if let Some(line_starts) = cdxml_label_line_starts(label) {
+            attrs.push(("LineStarts", line_starts));
+        }
         write_open_tag(out, 8, "t", attrs);
         self.write_label_runs(out, 10, label, text, font_size);
         out.push_str("        </t>\n");
@@ -306,9 +328,11 @@ impl<'a> CdxmlDocumentWriter<'a> {
         };
         let mut attrs = vec![
             ("id", self.alloc_id()),
+            ("Z", "1".to_string()),
             ("B", begin.clone()),
             ("E", end.clone()),
             ("Order", bond.order.max(1).to_string()),
+            ("BS", "N".to_string()),
         ];
         if let Some(display) = cdxml_bond_display(bond, false) {
             attrs.push(("Display", display.to_string()));
@@ -356,16 +380,10 @@ impl<'a> CdxmlDocumentWriter<'a> {
             object.transform.translate[1],
         ));
         let arrow = object.payload.extra.get("arrowHead");
-        let has_head = payload_string_cdxml(&object.payload, "head").as_deref() == Some("end")
-            || arrow
-                .and_then(|value| value.get("head"))
-                .and_then(Value::as_str)
-                .is_some_and(|value| !value.eq_ignore_ascii_case("none"));
-        let has_tail = payload_string_cdxml(&object.payload, "tail").as_deref() == Some("start")
-            || arrow
-                .and_then(|value| value.get("tail"))
-                .and_then(Value::as_str)
-                .is_some_and(|value| !value.eq_ignore_ascii_case("none"));
+        let head_position = cdxml_arrow_endpoint_position(&object.payload, arrow, "head", "end");
+        let tail_position = cdxml_arrow_endpoint_position(&object.payload, arrow, "tail", "start");
+        let has_head = head_position != "None";
+        let has_tail = tail_position != "None";
         let style = object_style(self.document, object);
         let stroke = style
             .and_then(|style| style_string_value(style, "stroke"))
@@ -373,6 +391,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
         let stroke_width = style
             .and_then(|style| style_number_value(style, "strokeWidth"))
             .unwrap_or(crate::DEFAULT_BOND_STROKE);
+        let dashed = style
+            .and_then(|style| style_number_array(style, "dashArray"))
+            .is_some_and(|dash_array| !dash_array.is_empty());
         let mut attrs = vec![
             ("id", self.alloc_id()),
             ("Head3D", fmt_point3(head)),
@@ -382,21 +403,66 @@ impl<'a> CdxmlDocumentWriter<'a> {
             ("Z", object.z_index.to_string()),
         ];
         if has_head || has_tail {
-            if arrow
+            let bold = arrow
                 .and_then(|value| value.get("bold"))
                 .and_then(Value::as_bool)
-                .unwrap_or(false)
-            {
-                attrs.push(("LineType", "Bold".to_string()));
+                .unwrap_or(false);
+            match (bold, dashed) {
+                (true, true) => attrs.push(("LineType", "Bold Dashed".to_string())),
+                (true, false) => attrs.push(("LineType", "Bold".to_string())),
+                (false, true) => attrs.push(("LineType", "Dashed".to_string())),
+                (false, false) => {}
             }
-            attrs.push((
-                "ArrowheadHead",
-                if has_head { "Full" } else { "None" }.to_string(),
-            ));
-            attrs.push((
-                "ArrowheadTail",
-                if has_tail { "Full" } else { "None" }.to_string(),
-            ));
+            if let Some(fill_type) = arrow
+                .and_then(|value| value.get("fillType").or_else(|| value.get("fill_type")))
+                .and_then(Value::as_str)
+                .and_then(cdxml_arrow_fill_type)
+            {
+                attrs.push(("FillType", fill_type.to_string()));
+            }
+            if let Some(bbox) =
+                payload_nested_bbox_cdxml(&object.payload, "arrowGeometry", "boundingBox")
+            {
+                attrs.push((
+                    "BoundingBox",
+                    fmt_bbox(translate_bbox(bbox, object.transform.translate)),
+                ));
+            }
+            if let Some(center) =
+                payload_nested_point_cdxml(&object.payload, "arrowGeometry", "center")
+            {
+                attrs.push((
+                    "Center3D",
+                    fmt_point3(center.translated(crate::Vector::new(
+                        object.transform.translate[0],
+                        object.transform.translate[1],
+                    ))),
+                ));
+            }
+            if let Some(major) =
+                payload_nested_point_cdxml(&object.payload, "arrowGeometry", "majorAxisEnd")
+            {
+                attrs.push((
+                    "MajorAxisEnd3D",
+                    fmt_point3(major.translated(crate::Vector::new(
+                        object.transform.translate[0],
+                        object.transform.translate[1],
+                    ))),
+                ));
+            }
+            if let Some(minor) =
+                payload_nested_point_cdxml(&object.payload, "arrowGeometry", "minorAxisEnd")
+            {
+                attrs.push((
+                    "MinorAxisEnd3D",
+                    fmt_point3(minor.translated(crate::Vector::new(
+                        object.transform.translate[0],
+                        object.transform.translate[1],
+                    ))),
+                ));
+            }
+            attrs.push(("ArrowheadHead", head_position.to_string()));
+            attrs.push(("ArrowheadTail", tail_position.to_string()));
             let arrow_kind = cdxml_arrow_kind(arrow);
             attrs.push(("ArrowheadType", arrow_kind.to_string()));
             if let Some(value) = arrow
@@ -440,6 +506,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
             }
             write_empty_tag(out, 4, "arrow", attrs);
         } else {
+            if dashed {
+                attrs.push(("LineType", "Dashed".to_string()));
+            }
             attrs.push(("GraphicType", "Line".to_string()));
             write_empty_tag(out, 4, "graphic", attrs);
         }
@@ -471,16 +540,15 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .and_then(|style| style_number_value(style, "shadowSize"))
             .unwrap_or(4.0);
         if matches!(kind.as_str(), "circle" | "ellipse") {
-            let center = payload_point_cdxml(&object.payload, "center").unwrap_or_else(|| {
-                Point::new(
-                    object.transform.translate[0] + x + width * 0.5,
-                    object.transform.translate[1] + y + height * 0.5,
-                )
-            });
-            let major = payload_point_cdxml(&object.payload, "majorAxisEnd")
-                .unwrap_or_else(|| Point::new(center.x + width * 0.5, center.y));
-            let minor = payload_point_cdxml(&object.payload, "minorAxisEnd")
-                .unwrap_or_else(|| Point::new(center.x, center.y + height * 0.5));
+            let Some(center) = payload_point_cdxml(&object.payload, "center") else {
+                return;
+            };
+            let Some(major) = payload_point_cdxml(&object.payload, "majorAxisEnd") else {
+                return;
+            };
+            let Some(minor) = payload_point_cdxml(&object.payload, "minorAxisEnd") else {
+                return;
+            };
             let bbox = [
                 object.transform.translate[0] + x,
                 object.transform.translate[1] + y,
@@ -673,24 +741,25 @@ impl<'a> CdxmlDocumentWriter<'a> {
             return;
         }
         let style = object_style(self.document, object);
-        let font_size = object
+        let Some(font_size) = object
             .payload
             .extra
             .get("fontSize")
             .and_then(Value::as_f64)
             .or_else(|| style.and_then(|style| style_number_value(style, "fontSize")))
-            .unwrap_or(10.0);
+        else {
+            return;
+        };
         let color = style
             .and_then(|style| style_nullable_string_value(style, "fill"))
             .unwrap_or_else(|| "#000000".to_string());
-        let box_value = payload_bbox_cdxml(&object.payload, "box")
-            .or(object.payload.bbox)
-            .unwrap_or([
-                0.0,
-                0.0,
-                (text.len() as f64 * font_size * 0.55).max(12.0),
-                font_size * 1.4,
-            ]);
+        let font_family = style
+            .and_then(|style| style_string_value(style, "fontFamily"))
+            .unwrap_or_else(|| "Arial".to_string());
+        let Some(box_value) = payload_bbox_cdxml(&object.payload, "box").or(object.payload.bbox)
+        else {
+            return;
+        };
         let anchor = Point::new(object.transform.translate[0], object.transform.translate[1]);
         let bbox = [
             object.transform.translate[0] + box_value[0],
@@ -707,9 +776,6 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 cdxml_justification(payload_string_cdxml(&object.payload, "align").as_deref())
                     .to_string(),
             ),
-            ("font", "3".to_string()),
-            ("size", fmt_num(font_size)),
-            ("color", self.colors.id_for(&color)),
             ("Z", object.z_index.to_string()),
             ("UTF8Text", text.clone()),
         ];
@@ -721,7 +787,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .cloned()
             .and_then(|value| serde_json::from_value::<Vec<LabelRun>>(value).ok())
             .unwrap_or_default();
-        self.write_runs(out, 6, &runs, &text, font_size, &color);
+        self.write_runs(out, 6, &runs, &text, font_size, &color, &font_family);
         out.push_str("    </t>\n");
     }
 
@@ -733,13 +799,16 @@ impl<'a> CdxmlDocumentWriter<'a> {
         fallback: &str,
         fallback_size: f64,
     ) {
+        let source_runs = label_source_runs_for_export(label);
+        let runs = source_runs.as_deref().unwrap_or(&label.runs);
         self.write_runs(
             out,
             indent,
-            &label.runs,
+            runs,
             fallback,
             fallback_size,
             label.fill.as_deref().unwrap_or("#000000"),
+            label.font_family.as_deref().unwrap_or("Arial"),
         );
     }
 
@@ -751,10 +820,11 @@ impl<'a> CdxmlDocumentWriter<'a> {
         fallback: &str,
         fallback_size: f64,
         fallback_color: &str,
+        fallback_font_family: &str,
     ) {
         if runs.is_empty() {
             let attrs = vec![
-                ("font", "3".to_string()),
+                ("font", self.fonts.id_for(fallback_font_family)),
                 ("size", fmt_num(fallback_size)),
                 ("color", self.colors.id_for(fallback_color)),
             ];
@@ -782,7 +852,11 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 _ => {}
             }
             let mut attrs = vec![
-                ("font", "3".to_string()),
+                (
+                    "font",
+                    self.fonts
+                        .id_for(run.font_family.as_deref().unwrap_or(fallback_font_family)),
+                ),
                 ("size", fmt_num(run.font_size.unwrap_or(fallback_size))),
                 (
                     "color",
@@ -804,47 +878,61 @@ impl<'a> CdxmlDocumentWriter<'a> {
 }
 
 #[derive(Debug, Clone)]
-struct CdxmlColorTable {
-    colors: Vec<String>,
+struct CdxmlFontTable {
+    fonts: Vec<(String, String)>,
     ids: BTreeMap<String, String>,
+    next_id: u64,
 }
 
-impl Default for CdxmlColorTable {
+impl Default for CdxmlFontTable {
     fn default() -> Self {
         let mut table = Self {
-            colors: Vec::new(),
+            fonts: Vec::new(),
             ids: BTreeMap::new(),
+            next_id: 4,
         };
-        table.ensure("#ffffff");
-        table.ensure("#000000");
+        table.insert_with_id("3", "Arial");
         table
     }
 }
 
-impl CdxmlColorTable {
-    fn ensure(&mut self, color: &str) -> String {
-        let normalized = normalize_hex_color(color).unwrap_or_else(|| "#000000".to_string());
+impl CdxmlFontTable {
+    fn normalize_name(name: &str) -> String {
+        let trimmed = name.trim();
+        if trimmed.is_empty() {
+            "Arial".to_string()
+        } else {
+            trimmed.to_string()
+        }
+    }
+
+    fn insert_with_id(&mut self, id: &str, name: &str) {
+        let normalized = Self::normalize_name(name);
+        self.ids.insert(normalized.clone(), id.to_string());
+        self.fonts.push((id.to_string(), normalized));
+    }
+
+    fn ensure(&mut self, name: &str) -> String {
+        let normalized = Self::normalize_name(name);
         if let Some(id) = self.ids.get(&normalized) {
             return id.clone();
         }
-        let id = (self.colors.len() + 1).to_string();
-        self.colors.push(normalized.clone());
-        self.ids.insert(normalized, id.clone());
+        let id = self.next_id.to_string();
+        self.next_id += 1;
+        self.insert_with_id(&id, &normalized);
         id
     }
 
-    fn id_for(&self, color: &str) -> String {
-        let normalized = normalize_hex_color(color).unwrap_or_else(|| "#000000".to_string());
-        self.ids.get(&normalized).cloned().unwrap_or_else(|| {
-            self.ids
-                .get("#000000")
-                .cloned()
-                .unwrap_or_else(|| "2".to_string())
-        })
+    fn id_for(&self, name: &str) -> String {
+        let normalized = Self::normalize_name(name);
+        self.ids
+            .get(&normalized)
+            .cloned()
+            .unwrap_or_else(|| "3".to_string())
     }
 
-    fn colors(&self) -> &[String] {
-        &self.colors
+    fn fonts(&self) -> &[(String, String)] {
+        &self.fonts
     }
 }
 
@@ -895,6 +983,49 @@ fn collect_document_colors(document: &ChemcoreDocument, colors: &mut CdxmlColorT
             for run in &label.runs {
                 if let Some(fill) = &run.fill {
                     colors.ensure(fill);
+                }
+            }
+        }
+    }
+}
+
+fn collect_document_fonts(document: &ChemcoreDocument, fonts: &mut CdxmlFontTable) {
+    for style in document.styles.values() {
+        if let Some(font_family) = style_string_value(style, "fontFamily") {
+            fonts.ensure(&font_family);
+        }
+    }
+    for object in &document.objects {
+        if object.object_type == "text" {
+            if let Some(runs) = object
+                .payload
+                .extra
+                .get("runs")
+                .cloned()
+                .and_then(|value| serde_json::from_value::<Vec<LabelRun>>(value).ok())
+            {
+                for run in runs {
+                    if let Some(font_family) = run.font_family {
+                        fonts.ensure(&font_family);
+                    }
+                }
+            }
+        }
+    }
+    for resource in document.resources.values() {
+        let Some(fragment) = resource.data.as_fragment() else {
+            continue;
+        };
+        for node in &fragment.nodes {
+            let Some(label) = &node.label else {
+                continue;
+            };
+            if let Some(font_family) = &label.font_family {
+                fonts.ensure(font_family);
+            }
+            for run in &label.runs {
+                if let Some(font_family) = &run.font_family {
+                    fonts.ensure(font_family);
                 }
             }
         }
@@ -964,8 +1095,26 @@ fn payload_points_cdxml(payload: &ObjectPayload, key: &str) -> Vec<Point> {
         .collect()
 }
 
+fn payload_nested_point_cdxml(payload: &ObjectPayload, group: &str, key: &str) -> Option<Point> {
+    let coords = payload.extra.get(group)?.get(key)?.as_array()?;
+    Some(Point::new(
+        coords.first()?.as_f64()?,
+        coords.get(1)?.as_f64()?,
+    ))
+}
+
 fn payload_bbox_cdxml(payload: &ObjectPayload, key: &str) -> Option<[f64; 4]> {
     let coords = payload.extra.get(key)?.as_array()?;
+    Some([
+        coords.first()?.as_f64()?,
+        coords.get(1)?.as_f64()?,
+        coords.get(2)?.as_f64()?,
+        coords.get(3)?.as_f64()?,
+    ])
+}
+
+fn payload_nested_bbox_cdxml(payload: &ObjectPayload, group: &str, key: &str) -> Option<[f64; 4]> {
+    let coords = payload.extra.get(group)?.get(key)?.as_array()?;
     Some([
         coords.first()?.as_f64()?,
         coords.get(1)?.as_f64()?,
@@ -1030,31 +1179,97 @@ fn translate_bbox(bbox: [f64; 4], translate: [f64; 2]) -> [f64; 4] {
     ]
 }
 
-fn text_bbox_estimate(position: Point, text: &str, font_size: f64) -> [f64; 4] {
-    let line_count = text.lines().count().max(1) as f64;
-    let max_chars = text
-        .lines()
-        .map(|line| line.chars().count())
-        .max()
-        .unwrap_or(1) as f64;
-    let width = (max_chars * font_size * 0.58).max(font_size);
-    let height = (line_count * font_size * 1.25).max(font_size);
-    [
-        position.x,
-        position.y - font_size,
-        position.x + width,
-        position.y - font_size + height,
-    ]
-}
-
 fn should_export_node_as_nickname(node: &Node, label_text: Option<&str>) -> bool {
     let Some(text) = label_text else {
         return false;
     };
     let trimmed = text.trim();
     !trimmed.is_empty()
-        && !(node.atomic_number > 0 && trimmed == element_symbol(node.atomic_number))
+        && !element_label_text_matches_node(node, trimmed)
         && !(node.atomic_number == 6 && trimmed == "C")
+}
+
+fn element_label_text_matches_node(node: &Node, text: &str) -> bool {
+    if node.atomic_number == 0 {
+        return false;
+    }
+    let symbol = element_symbol(node.atomic_number);
+    let hydrogen = hydrogen_suffix(node.num_hydrogens);
+    let charge = charge_suffix(node.charge);
+    let canonical = format!("{symbol}{hydrogen}{charge}");
+    if text == canonical {
+        return true;
+    }
+    if node.num_hydrogens > 0 {
+        let hydrogen_first = format!("{hydrogen}{symbol}{charge}");
+        if text == hydrogen_first {
+            return true;
+        }
+    }
+    false
+}
+
+fn hydrogen_suffix(count: u8) -> String {
+    match count {
+        0 => String::new(),
+        1 => "H".to_string(),
+        value => format!("H{value}"),
+    }
+}
+
+fn charge_suffix(charge: i32) -> String {
+    match charge {
+        0 => String::new(),
+        1 => "+".to_string(),
+        -1 => "-".to_string(),
+        value if value > 1 => format!("{value}+"),
+        value => format!("{}-", value.abs()),
+    }
+}
+
+fn cdxml_node_label_alignment(label: &NodeLabel) -> &'static str {
+    if label.layout.as_deref() == Some("attached-group-above") {
+        "Above"
+    } else {
+        "Auto"
+    }
+}
+
+fn cdxml_label_line_starts(label: &NodeLabel) -> Option<String> {
+    let lines: Vec<String> = if !label.lines.is_empty() {
+        label.lines.clone()
+    } else if !label.line_runs.is_empty() {
+        label
+            .line_runs
+            .iter()
+            .map(|line| line.iter().map(|run| run.text.as_str()).collect())
+            .collect()
+    } else {
+        Vec::new()
+    };
+    if lines.len() <= 1 {
+        return None;
+    }
+    let mut offset = 0usize;
+    Some(
+        lines
+            .iter()
+            .map(|line| {
+                offset += line.chars().count() + 1;
+                offset.to_string()
+            })
+            .collect::<Vec<_>>()
+            .join(" "),
+    )
+}
+
+fn label_source_runs_for_export(label: &NodeLabel) -> Option<Vec<LabelRun>> {
+    label
+        .meta
+        .get("sourceRuns")
+        .cloned()
+        .and_then(|value| serde_json::from_value::<Vec<LabelRun>>(value).ok())
+        .filter(|runs| !runs.is_empty())
 }
 
 fn cdxml_bond_display(bond: &Bond, second: bool) -> Option<&'static str> {
@@ -1110,6 +1325,48 @@ fn cdxml_arrow_kind(value: Option<&Value>) -> &'static str {
     }
 }
 
+fn cdxml_arrow_endpoint_position(
+    payload: &ObjectPayload,
+    arrow: Option<&Value>,
+    key: &str,
+    legacy_enabled_value: &str,
+) -> &'static str {
+    if let Some(value) = arrow
+        .and_then(|value| value.get(key))
+        .and_then(Value::as_str)
+        .and_then(cdxml_arrow_endpoint_style)
+    {
+        return value;
+    }
+    if payload_string_cdxml(payload, key)
+        .as_deref()
+        .is_some_and(|value| value.eq_ignore_ascii_case(legacy_enabled_value))
+    {
+        "Full"
+    } else {
+        "None"
+    }
+}
+
+fn cdxml_arrow_endpoint_style(value: &str) -> Option<&'static str> {
+    match value.to_ascii_lowercase().as_str() {
+        "full" => Some("Full"),
+        "half-left" | "halfleft" | "left" | "top" => Some("HalfLeft"),
+        "half-right" | "halfright" | "right" | "bottom" => Some("HalfRight"),
+        "none" => Some("None"),
+        _ => None,
+    }
+}
+
+fn cdxml_arrow_fill_type(value: &str) -> Option<&'static str> {
+    match value.to_ascii_lowercase().as_str() {
+        "none" => Some("None"),
+        "solid" => Some("Solid"),
+        "shaded" => Some("Shaded"),
+        _ => None,
+    }
+}
+
 fn cdxml_arrow_no_go(value: &str) -> Option<&'static str> {
     match value.to_ascii_lowercase().as_str() {
         "cross" => Some("Cross"),
@@ -1134,34 +1391,6 @@ fn cdxml_justification(value: Option<&str>) -> &'static str {
         "right" | "end" => "Right",
         _ => "Left",
     }
-}
-
-fn normalize_hex_color(color: &str) -> Option<String> {
-    let color = color.trim();
-    if !color.starts_with('#') {
-        return None;
-    }
-    let hex = &color[1..];
-    if hex.len() == 3 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
-        let mut out = String::from("#");
-        for ch in hex.chars() {
-            out.push(ch.to_ascii_lowercase());
-            out.push(ch.to_ascii_lowercase());
-        }
-        return Some(out);
-    }
-    if hex.len() == 6 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Some(format!("#{}", hex.to_ascii_lowercase()));
-    }
-    None
-}
-
-fn rgb_fractions(color: &str) -> (f64, f64, f64) {
-    let normalized = normalize_hex_color(color).unwrap_or_else(|| "#000000".to_string());
-    let r = u8::from_str_radix(&normalized[1..3], 16).unwrap_or(0) as f64 / 255.0;
-    let g = u8::from_str_radix(&normalized[3..5], 16).unwrap_or(0) as f64 / 255.0;
-    let b = u8::from_str_radix(&normalized[5..7], 16).unwrap_or(0) as f64 / 255.0;
-    (r, g, b)
 }
 
 fn fmt_num(value: f64) -> String {

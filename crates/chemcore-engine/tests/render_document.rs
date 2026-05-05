@@ -1,7 +1,7 @@
 use chemcore_engine::{
     angular_distance, document_to_cdxml, document_to_svg, hit_test_bond_center,
-    parse_cdxml_document, render_document, ChemcoreDocument, Engine, Point, RenderPrimitive,
-    RenderRole,
+    parse_cdxml_document, parse_document_json, render_document, ChemcoreDocument, Engine, Point,
+    RenderPrimitive, RenderRole,
 };
 use serde_json::json;
 use serde_json::Map;
@@ -125,6 +125,269 @@ fn object_knockout_polygons(primitives: &[RenderPrimitive]) -> Vec<Vec<chemcore_
         .collect()
 }
 
+fn render_roundtrip_signature(document: &ChemcoreDocument) -> Vec<String> {
+    let primitives: Vec<_> = render_document(document)
+        .into_iter()
+        .filter(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Line {
+                    role: RenderRole::DocumentBond | RenderRole::DocumentGraphic,
+                    ..
+                } | RenderPrimitive::Circle {
+                    role: RenderRole::DocumentGraphic | RenderRole::DocumentText,
+                    ..
+                } | RenderPrimitive::Polygon {
+                    role: RenderRole::DocumentBond
+                        | RenderRole::DocumentGraphic
+                        | RenderRole::DocumentKnockout,
+                    ..
+                } | RenderPrimitive::Rect {
+                    role: RenderRole::DocumentGraphic | RenderRole::DocumentText,
+                    ..
+                } | RenderPrimitive::Ellipse {
+                    role: RenderRole::DocumentGraphic,
+                    ..
+                } | RenderPrimitive::Polyline {
+                    role: RenderRole::DocumentGraphic | RenderRole::DocumentBond,
+                    ..
+                } | RenderPrimitive::Path {
+                    role: RenderRole::DocumentGraphic | RenderRole::DocumentBond,
+                    ..
+                } | RenderPrimitive::FilledPath {
+                    role: RenderRole::DocumentGraphic,
+                    ..
+                } | RenderPrimitive::Text {
+                    role: RenderRole::DocumentText,
+                    ..
+                }
+            )
+        })
+        .collect();
+    let (offset_x, offset_y) = render_signature_origin(&primitives);
+    let mut signature: Vec<String> = primitives
+        .iter()
+        .map(|primitive| primitive_signature(primitive, offset_x, offset_y))
+        .collect();
+    signature.sort();
+    signature
+}
+
+fn render_signature_origin(primitives: &[RenderPrimitive]) -> (f64, f64) {
+    let mut min_x = f64::INFINITY;
+    let mut min_y = f64::INFINITY;
+    for primitive in primitives {
+        for point in primitive_points(primitive) {
+            min_x = min_x.min(point.x);
+            min_y = min_y.min(point.y);
+        }
+    }
+    if min_x.is_finite() && min_y.is_finite() {
+        (min_x, min_y)
+    } else {
+        (0.0, 0.0)
+    }
+}
+
+fn primitive_points(primitive: &RenderPrimitive) -> Vec<Point> {
+    match primitive {
+        RenderPrimitive::Line { from, to, .. } => vec![*from, *to],
+        RenderPrimitive::Circle { center, radius, .. } => vec![
+            Point::new(center.x - radius, center.y - radius),
+            Point::new(center.x + radius, center.y + radius),
+        ],
+        RenderPrimitive::Polygon { points, .. }
+        | RenderPrimitive::Polyline { points, .. }
+        | RenderPrimitive::Path { points, .. }
+        | RenderPrimitive::FilledPath { points, .. } => points.clone(),
+        RenderPrimitive::Rect {
+            x,
+            y,
+            width,
+            height,
+            ..
+        } => vec![Point::new(*x, *y), Point::new(*x + *width, *y + *height)],
+        RenderPrimitive::Ellipse { center, rx, ry, .. } => vec![
+            Point::new(center.x - rx, center.y - ry),
+            Point::new(center.x + rx, center.y + ry),
+        ],
+        RenderPrimitive::Text { x, y, .. } => vec![Point::new(*x, *y)],
+    }
+}
+
+fn primitive_signature(primitive: &RenderPrimitive, offset_x: f64, offset_y: f64) -> String {
+    match primitive {
+        RenderPrimitive::Line {
+            role,
+            from,
+            to,
+            stroke,
+            stroke_width,
+            dash_array,
+            ..
+        } => format!(
+            "line:{role:?}:{}:{}:{stroke}:{}:{:?}",
+            point_sig(*from, offset_x, offset_y),
+            point_sig(*to, offset_x, offset_y),
+            num_sig(*stroke_width),
+            nums_sig(dash_array),
+        ),
+        RenderPrimitive::Circle {
+            role,
+            center,
+            radius,
+            fill,
+            stroke,
+            stroke_width,
+            ..
+        } => format!(
+            "circle:{role:?}:{}:{}:{fill}:{stroke}:{}",
+            point_sig(*center, offset_x, offset_y),
+            num_sig(*radius),
+            num_sig(*stroke_width),
+        ),
+        RenderPrimitive::Polygon {
+            role,
+            points,
+            fill,
+            stroke,
+            stroke_width,
+            ..
+        } => format!(
+            "polygon:{role:?}:{}:{fill}:{stroke}:{}",
+            points_sig(points, offset_x, offset_y),
+            num_sig(*stroke_width),
+        ),
+        RenderPrimitive::Rect {
+            role,
+            x,
+            y,
+            width,
+            height,
+            fill,
+            stroke,
+            stroke_width,
+            rx,
+            ry,
+            dash_array,
+            ..
+        } => format!(
+            "rect:{role:?}:{}:{}:{}:{}:{fill:?}:{stroke:?}:{}:{rx:?}:{ry:?}:{:?}",
+            num_sig(*x - offset_x),
+            num_sig(*y - offset_y),
+            num_sig(*width),
+            num_sig(*height),
+            num_sig(*stroke_width),
+            nums_sig(dash_array),
+        ),
+        RenderPrimitive::Ellipse {
+            role,
+            center,
+            rx,
+            ry,
+            rotate,
+            fill,
+            stroke,
+            stroke_width,
+            dash_array,
+            ..
+        } => format!(
+            "ellipse:{role:?}:{}:{}:{}:{}:{fill:?}:{stroke:?}:{}:{:?}",
+            point_sig(*center, offset_x, offset_y),
+            num_sig(*rx),
+            num_sig(*ry),
+            num_sig(*rotate),
+            num_sig(*stroke_width),
+            nums_sig(dash_array),
+        ),
+        RenderPrimitive::Polyline {
+            role,
+            points,
+            stroke,
+            stroke_width,
+            dash_array,
+            line_cap,
+            line_join,
+            ..
+        } => format!(
+            "polyline:{role:?}:{}:{stroke}:{}:{:?}:{line_cap:?}:{line_join:?}",
+            points_sig(points, offset_x, offset_y),
+            num_sig(*stroke_width),
+            nums_sig(dash_array),
+        ),
+        RenderPrimitive::Path {
+            role,
+            d,
+            points,
+            stroke,
+            stroke_width,
+            dash_array,
+            line_cap,
+            line_join,
+            ..
+        } => format!(
+            "path:{role:?}:{}:{d}:{stroke}:{}:{:?}:{line_cap:?}:{line_join:?}",
+            points_sig(points, offset_x, offset_y),
+            num_sig(*stroke_width),
+            nums_sig(dash_array),
+        ),
+        RenderPrimitive::FilledPath {
+            role,
+            d,
+            points,
+            fill,
+            fill_rule,
+            ..
+        } => format!(
+            "filled-path:{role:?}:{}:{d}:{fill}:{fill_rule:?}",
+            points_sig(points, offset_x, offset_y),
+        ),
+        RenderPrimitive::Text {
+            role,
+            x,
+            y,
+            text,
+            font_size,
+            font_family,
+            fill,
+            text_anchor,
+            line_height,
+            box_width,
+            runs,
+            ..
+        } => format!(
+            "text:{role:?}:{}:{}:{text}:{}:{font_family:?}:{fill:?}:{text_anchor:?}:{line_height:?}:{box_width:?}:{runs:?}",
+            num_sig(*x - offset_x),
+            num_sig(*y - offset_y),
+            num_sig(*font_size),
+        ),
+    }
+}
+
+fn point_sig(point: Point, offset_x: f64, offset_y: f64) -> String {
+    format!(
+        "{} {}",
+        num_sig(point.x - offset_x),
+        num_sig(point.y - offset_y)
+    )
+}
+
+fn points_sig(points: &[Point], offset_x: f64, offset_y: f64) -> String {
+    points
+        .iter()
+        .map(|point| point_sig(*point, offset_x, offset_y))
+        .collect::<Vec<_>>()
+        .join(";")
+}
+
+fn nums_sig(values: &[f64]) -> Vec<String> {
+    values.iter().map(|value| num_sig(*value)).collect()
+}
+
+fn num_sig(value: f64) -> String {
+    format!("{:.2}", value)
+}
+
 fn object_knockout_rect_count(primitives: &[RenderPrimitive]) -> usize {
     primitives
         .iter()
@@ -155,6 +418,42 @@ fn object_bond_polygons_with_ids(
                 && object_id.as_deref() == Some("obj_molecule_001") =>
             {
                 Some((bond_id.clone().unwrap_or_default(), points.clone()))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn object_bond_centerlines_with_ids(
+    primitives: &[RenderPrimitive],
+    target_object_id: &str,
+) -> Vec<(String, chemcore_engine::Point, chemcore_engine::Point)> {
+    primitives
+        .iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Line {
+                role,
+                object_id,
+                bond_id,
+                from,
+                to,
+                ..
+            } if *role == RenderRole::DocumentBond
+                && object_id.as_deref() == Some(target_object_id) =>
+            {
+                Some((bond_id.clone().unwrap_or_default(), *from, *to))
+            }
+            RenderPrimitive::Polygon {
+                role,
+                object_id,
+                bond_id,
+                points,
+                ..
+            } if *role == RenderRole::DocumentBond
+                && object_id.as_deref() == Some(target_object_id) =>
+            {
+                let (from, to) = bond_axis_from_points(points)?;
+                Some((bond_id.clone().unwrap_or_default(), from, to))
             }
             _ => None,
         })
@@ -206,6 +505,23 @@ fn fixture_path(name: &str) -> std::path::PathBuf {
         .join(name)
 }
 
+fn cdxml_shape_fills_by_z(document: &ChemcoreDocument) -> Vec<String> {
+    let mut shapes: Vec<_> = document
+        .objects
+        .iter()
+        .filter(|object| object.object_type == "shape")
+        .collect();
+    shapes.sort_by_key(|object| object.z_index);
+    shapes
+        .into_iter()
+        .filter_map(|object| {
+            let style_ref = object.style_ref.as_ref()?;
+            document.styles.get(style_ref)?.get("fill")?.as_str()
+        })
+        .map(ToString::to_string)
+        .collect()
+}
+
 #[test]
 fn export_cdxml_emits_chemdraw_document_with_native_fragment() {
     let document = fragment_document(
@@ -248,6 +564,7 @@ fn export_cdxml_emits_chemdraw_document_with_native_fragment() {
                     "text": "CF3",
                     "sourceText": "CF3",
                     "position": [30.0, 80.0],
+                    "box": [30.0, 70.0, 47.4, 82.5],
                     "fontSize": 10.0,
                     "fill": "#d61f1f",
                     "attachment": "node",
@@ -280,12 +597,22 @@ fn export_cdxml_emits_chemdraw_document_with_native_fragment() {
 
     assert!(cdxml.contains("<!DOCTYPE CDXML"));
     assert!(cdxml.contains("<CDXML"));
+    assert!(cdxml.contains("CreationProgram=\"ChemCore\""));
+    assert!(cdxml.contains("LabelFace=\"96\""));
+    assert!(cdxml.contains("CaptionFace=\"0\""));
+    assert!(cdxml.contains("color=\"0\" bgcolor=\"1\""));
     assert!(cdxml.contains("<page"));
+    assert!(cdxml.contains("HeaderPosition=\"36\""));
     assert!(cdxml.contains("<fragment"));
     assert!(cdxml.contains("Order=\"2\""));
+    assert!(cdxml.contains("BS=\"N\""));
     assert!(cdxml.contains("BondSpacing=\"18\""));
     assert!(cdxml.contains("NodeType=\"Nickname\""));
     assert!(cdxml.contains("UTF8Text=\"CF3\""));
+    assert!(!cdxml.contains("<t font="));
+    assert!(!cdxml.contains("<t size="));
+    assert!(!cdxml.contains("<t color="));
+    assert!(cdxml.contains("<s font=\"3\" size=\"10\" color=\"0\""));
 
     let roundtripped =
         parse_cdxml_document(&cdxml, Some("roundtrip")).expect("export should parse");
@@ -301,6 +628,164 @@ fn export_cdxml_emits_chemdraw_document_with_native_fragment() {
         .nodes
         .iter()
         .any(|node| node.label.as_ref().is_some_and(|label| label.text == "CF3")));
+    let cf3_label = fragment
+        .nodes
+        .iter()
+        .find_map(|node| node.label.as_ref().filter(|label| label.text == "CF3"))
+        .expect("CF3 label should roundtrip");
+    assert_eq!(cf3_label.fill.as_deref(), Some("#d61f1f"));
+}
+
+#[test]
+fn export_cdxml_preserves_text_run_style_across_reimport() {
+    let document: ChemcoreDocument = serde_json::from_value(json!({
+        "format": { "name": "chemcore", "version": "0.1" },
+        "document": {
+            "id": "doc_test",
+            "title": "text style",
+            "page": { "width": 200.0, "height": 120.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_text_default": {
+                "kind": "text",
+                "fontFamily": "Times New Roman",
+                "fontSize": 16.0,
+                "fill": "#d61f1f",
+                "stroke": null
+            }
+        },
+        "objects": [{
+            "id": "obj_text_001",
+            "type": "text",
+            "visible": true,
+            "zIndex": 10,
+            "transform": { "translate": [24.0, 32.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+            "styleRef": "style_text_default",
+            "payload": {
+                "text": "RedBlue",
+                "box": [0.0, 0.0, 80.0, 22.0],
+                "align": "left",
+                "fontSize": 16.0,
+                "runs": [
+                    {
+                        "text": "Red",
+                        "fontFamily": "Times New Roman",
+                        "fontSize": 16.0,
+                        "fill": "#d61f1f",
+                        "fontWeight": 700,
+                        "script": "normal"
+                    },
+                    {
+                        "text": "Blue",
+                        "fontFamily": "Arial",
+                        "fontSize": 12.0,
+                        "fill": "#1b32d8",
+                        "fontStyle": "italic",
+                        "script": "normal"
+                    }
+                ]
+            }
+        }],
+        "resources": {}
+    }))
+    .expect("document should deserialize");
+
+    let cdxml = document_to_cdxml(&document);
+    let roundtripped =
+        parse_cdxml_document(&cdxml, Some("text style")).expect("export should parse");
+    let text_object = roundtripped
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("text object should roundtrip");
+    let runs: Vec<chemcore_engine::LabelRun> = serde_json::from_value(
+        text_object
+            .payload
+            .extra
+            .get("runs")
+            .cloned()
+            .expect("text runs should roundtrip"),
+    )
+    .expect("text runs should deserialize");
+
+    assert_eq!(runs[0].text, "Red");
+    assert_eq!(runs[0].fill.as_deref(), Some("#d61f1f"));
+    assert_eq!(runs[0].font_family.as_deref(), Some("Times New Roman"));
+    assert_eq!(runs[0].font_weight, Some(700));
+    assert_eq!(runs[1].text, "Blue");
+    assert_eq!(runs[1].fill.as_deref(), Some("#1b32d8"));
+    assert_eq!(runs[1].font_family.as_deref(), Some("Arial"));
+    assert_eq!(runs[1].font_style.as_deref(), Some("italic"));
+}
+
+#[test]
+fn cdxml_import_export_import_is_render_stable_for_tmp_fixtures() {
+    for fixture in [
+        "molecule.cdxml",
+        "shape.cdxml",
+        "kuohao.cdxml",
+        "duibi.cdxml",
+        "color.cdxml",
+        "assets-acs.cdxml",
+        "arrows-acs.cdxml",
+    ] {
+        let cdxml = std::fs::read_to_string(fixture_path(fixture)).expect("fixture should exist");
+        let imported = parse_cdxml_document(&cdxml, Some(fixture)).expect("fixture should import");
+        let exported = document_to_cdxml(&imported);
+        let reimported =
+            parse_cdxml_document(&exported, Some(fixture)).expect("export should reimport");
+
+        assert_eq!(
+            render_roundtrip_signature(&reimported),
+            render_roundtrip_signature(&imported),
+            "{fixture} should be stable across import/export/import",
+        );
+    }
+}
+
+#[test]
+fn cdxml_import_export_import_is_svg_stable_for_tmp_fixtures() {
+    for fixture in [
+        "molecule.cdxml",
+        "shape.cdxml",
+        "kuohao.cdxml",
+        "duibi.cdxml",
+        "color.cdxml",
+        "assets-acs.cdxml",
+        "arrows-acs.cdxml",
+    ] {
+        let cdxml = std::fs::read_to_string(fixture_path(fixture)).expect("fixture should exist");
+        let imported = parse_cdxml_document(&cdxml, Some(fixture)).expect("fixture should import");
+        let exported = document_to_cdxml(&imported);
+        let reimported =
+            parse_cdxml_document(&exported, Some(fixture)).expect("export should reimport");
+
+        assert_eq!(
+            document_to_svg(&reimported),
+            document_to_svg(&imported),
+            "{fixture} should keep the same SVG across import/export/import",
+        );
+    }
+}
+
+#[test]
+fn cdxml_exported_arrow_fixtures_are_stable_after_first_save() {
+    for fixture in ["assets-acs.cdxml", "arrows-acs.cdxml"] {
+        let cdxml = std::fs::read_to_string(fixture_path(fixture)).expect("fixture should exist");
+        let imported = parse_cdxml_document(&cdxml, Some(fixture)).expect("fixture should import");
+        let first_export = document_to_cdxml(&imported);
+        let first_reimport =
+            parse_cdxml_document(&first_export, Some(fixture)).expect("first export should import");
+        let second_export = document_to_cdxml(&first_reimport);
+        let second_reimport = parse_cdxml_document(&second_export, Some(fixture))
+            .expect("second export should import");
+
+        assert_eq!(
+            render_roundtrip_signature(&second_reimport),
+            render_roundtrip_signature(&first_reimport),
+            "{fixture} should not drift after the first save",
+        );
+    }
 }
 
 #[test]
@@ -414,7 +899,8 @@ fn load_cdxml_document_preserves_imported_acs_drawing_options() {
 
 #[test]
 fn parse_cdxml_imports_assets_molecules_as_native_fragments() {
-    let cdxml = std::fs::read_to_string(fixture_path("assets.cdxml")).expect("assets.cdxml");
+    let cdxml =
+        std::fs::read_to_string(fixture_path("assets-acs.cdxml")).expect("assets-acs.cdxml");
     let document = parse_cdxml_document(&cdxml, Some("assets")).expect("cdxml should parse");
 
     assert!(document
@@ -449,7 +935,8 @@ fn parse_cdxml_imports_assets_molecules_as_native_fragments() {
 
 #[test]
 fn parse_cdxml_imports_arrows_shapes_and_text_objects() {
-    let arrows = std::fs::read_to_string(fixture_path("arrows.cdxml")).expect("arrows.cdxml");
+    let arrows =
+        std::fs::read_to_string(fixture_path("arrows-acs.cdxml")).expect("arrows-acs.cdxml");
     let arrow_document =
         parse_cdxml_document(&arrows, Some("arrows")).expect("arrows should parse");
     assert!(arrow_document
@@ -607,7 +1094,8 @@ fn export_cdxml_writes_shape_style_parameters() {
 
 #[test]
 fn parse_cdxml_preserves_arrow_geometry_modifiers() {
-    let assets = std::fs::read_to_string(fixture_path("assets.cdxml")).expect("assets.cdxml");
+    let assets =
+        std::fs::read_to_string(fixture_path("assets-acs.cdxml")).expect("assets-acs.cdxml");
     let document = parse_cdxml_document(&assets, Some("assets")).expect("assets should parse");
     assert!(document.objects.iter().any(|object| {
         object.payload.extra.get("arrowHead").is_some_and(|arrow| {
@@ -624,6 +1112,150 @@ fn parse_cdxml_preserves_arrow_geometry_modifiers() {
                 && arrow.get("width").and_then(|value| value.as_f64()) == Some(2.0)
         })
     }));
+    assert!(document.objects.iter().any(|object| {
+        object.payload.extra.get("arrowHead").is_some_and(|arrow| {
+            arrow.get("head").and_then(|value| value.as_str()) == Some("half-left")
+        })
+    }));
+    assert!(document.objects.iter().any(|object| {
+        object
+            .payload
+            .extra
+            .get("arrowGeometry")
+            .is_some_and(|geometry| {
+                geometry.get("center").is_some()
+                    && geometry.get("majorAxisEnd").is_some()
+                    && geometry.get("minorAxisEnd").is_some()
+            })
+    }));
+}
+
+#[test]
+fn cdxml_arrow_head_dimensions_are_relative_to_line_width() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML LineWidth="0.6" BondLength="14.4" color="0" bgcolor="1">
+  <page id="1" BoundingBox="0 0 160 80">
+    <arrow id="2" Head3D="128.21 40 0" Tail3D="0 40 0" Z="1"
+      FillType="None" ArrowheadType="Solid" ArrowheadHead="Full"
+      HeadSize="2250" ArrowheadCenterSize="1969" ArrowheadWidth="563"/>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("arrow")).expect("cdxml should parse");
+    let arrow = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "line")
+        .expect("arrow should import as line object");
+    let arrow_head = arrow
+        .payload
+        .extra
+        .get("arrowHead")
+        .expect("arrow should keep cdxml arrow payload");
+    assert_eq!(
+        arrow_head.get("length").and_then(|value| value.as_f64()),
+        Some(22.5)
+    );
+    assert_eq!(
+        arrow_head
+            .get("centerLength")
+            .and_then(|value| value.as_f64()),
+        Some(19.69)
+    );
+    assert_eq!(
+        arrow_head.get("width").and_then(|value| value.as_f64()),
+        Some(5.63)
+    );
+
+    let primitives = render_document(&document);
+    let head_points = primitives
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::FilledPath {
+                role,
+                object_id,
+                points,
+                ..
+            } if *role == RenderRole::DocumentGraphic
+                && object_id.as_deref() == Some(arrow.id.as_str()) =>
+            {
+                Some(points)
+            }
+            _ => None,
+        })
+        .expect("solid arrow head should render as filled path");
+    let head_min_x = head_points
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::INFINITY, f64::min);
+    let head_max_x = head_points
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let head_min_y = head_points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::INFINITY, f64::min);
+    let head_max_y = head_points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    assert!((head_max_x - head_min_x - 13.5).abs() <= 0.001);
+    assert!((head_max_y - head_min_y - 6.856).abs() <= 0.001);
+}
+
+#[test]
+fn cdxml_arrow_head_rendering_does_not_apply_size_floor() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML LineWidth="0.6" BondLength="14.4" color="0" bgcolor="1">
+  <page id="1" BoundingBox="0 0 40 20">
+    <arrow id="2" Head3D="20 10 0" Tail3D="0 10 0" Z="1"
+      FillType="None" ArrowheadType="Solid" ArrowheadHead="Full"
+      HeadSize="600" ArrowheadCenterSize="525" ArrowheadWidth="150"/>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("small arrow")).expect("cdxml should parse");
+    let arrow = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "line")
+        .expect("arrow should import as line object");
+    let primitives = render_document(&document);
+    let head_points = primitives
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::FilledPath {
+                role,
+                object_id,
+                points,
+                ..
+            } if *role == RenderRole::DocumentGraphic
+                && object_id.as_deref() == Some(arrow.id.as_str()) =>
+            {
+                Some(points)
+            }
+            _ => None,
+        })
+        .expect("solid arrow head should render as filled path");
+    let head_min_x = head_points
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::INFINITY, f64::min);
+    let head_max_x = head_points
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let head_min_y = head_points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::INFINITY, f64::min);
+    let head_max_y = head_points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    assert!((head_max_x - head_min_x - 3.6).abs() <= 0.001);
+    assert!((head_max_y - head_min_y - 1.9).abs() <= 0.001);
 }
 
 #[test]
@@ -639,7 +1271,8 @@ fn export_cdxml_writes_arrow_geometry_modifiers() {
             "style_arrow_default": {
                 "kind": "stroke",
                 "stroke": "#000000",
-                "strokeWidth": 1.0
+                "strokeWidth": 1.0,
+                "dashArray": [2.7]
             }
         },
         "objects": [{
@@ -659,10 +1292,17 @@ fn export_cdxml_writes_arrow_geometry_modifiers() {
                     "length": 8.0,
                     "centerLength": 7.0,
                     "width": 2.0,
-                    "head": "full",
+                    "head": "half-left",
                     "tail": "none",
+                    "fillType": "none",
                     "bold": true,
                     "noGo": "hash"
+                },
+                "arrowGeometry": {
+                    "boundingBox": [10.0, 10.0, 120.0, 40.0],
+                    "center": [65.0, 20.0],
+                    "majorAxisEnd": [120.0, 20.0],
+                    "minorAxisEnd": [65.0, 75.0]
                 }
             }
         }],
@@ -674,9 +1314,247 @@ fn export_cdxml_writes_arrow_geometry_modifiers() {
     assert!(cdxml.contains("HeadSize=\"800\""));
     assert!(cdxml.contains("ArrowheadCenterSize=\"700\""));
     assert!(cdxml.contains("ArrowheadWidth=\"200\""));
+    assert!(cdxml.contains("ArrowheadHead=\"HalfLeft\""));
     assert!(cdxml.contains("AngularSize=\"-270\""));
     assert!(cdxml.contains("NoGo=\"Hash\""));
-    assert!(cdxml.contains("LineType=\"Bold\""));
+    assert!(cdxml.contains("LineType=\"Bold Dashed\""));
+    assert!(cdxml.contains("FillType=\"None\""));
+    assert!(cdxml.contains("Center3D=\"65 20 0\""));
+    assert!(cdxml.contains("MajorAxisEnd3D=\"120 20 0\""));
+    assert!(cdxml.contains("MinorAxisEnd3D=\"65 75 0\""));
+}
+
+#[test]
+fn render_document_uses_arrow_geometry_for_elliptic_curved_arrows() {
+    let document: ChemcoreDocument = serde_json::from_value(json!({
+        "format": { "name": "chemcore", "version": "0.1" },
+        "document": {
+            "id": "doc_test",
+            "title": "test",
+            "page": { "width": 80.0, "height": 60.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_arrow_default": {
+                "kind": "stroke",
+                "stroke": "#000000",
+                "strokeWidth": 1.0
+            }
+        },
+        "objects": [{
+            "id": "obj_line_001",
+            "type": "line",
+            "visible": true,
+            "zIndex": 10,
+            "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+            "styleRef": "style_arrow_default",
+            "payload": {
+                "points": [[20.0, 0.0], [0.0, 10.0]],
+                "head": "none",
+                "tail": "none",
+                "arrowHead": {
+                    "kind": "curved",
+                    "curve": -90.0,
+                    "head": "none",
+                    "tail": "none",
+                    "length": 1.0,
+                    "centerLength": 0.5,
+                    "width": 0.2,
+                    "bold": false,
+                    "noGo": "none"
+                },
+                "arrowGeometry": {
+                    "center": [0.0, 0.0],
+                    "majorAxisEnd": [20.0, 0.0],
+                    "minorAxisEnd": [0.0, 10.0]
+                }
+            }
+        }],
+        "resources": {}
+    }))
+    .expect("document should deserialize");
+
+    let path_points = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Path {
+                role: RenderRole::DocumentGraphic,
+                object_id,
+                points,
+                ..
+            } if object_id.as_deref() == Some("obj_line_001") => Some(points),
+            _ => None,
+        })
+        .expect("elliptic arrow should render as a path");
+
+    assert!(
+        path_points
+            .iter()
+            .any(|point| point.x > 13.0 && point.x < 15.5 && point.y > 6.5 && point.y < 7.8),
+        "{path_points:?}"
+    );
+}
+
+#[test]
+fn parse_document_json_fills_default_arrow_geometry_at_import_boundary() {
+    let document = parse_document_json(
+        &json!({
+            "format": { "name": "chemcore", "version": "0.1" },
+            "document": {
+                "id": "doc_test",
+                "title": "test",
+                "page": { "width": 120.0, "height": 80.0, "background": "#ffffff" }
+            },
+            "styles": {
+                "style_arrow_default": {
+                    "kind": "stroke",
+                    "stroke": "#000000",
+                    "strokeWidth": 1.0
+                }
+            },
+            "objects": [{
+                "id": "obj_line_001",
+                "type": "line",
+                "visible": true,
+                "zIndex": 10,
+                "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "styleRef": "style_arrow_default",
+                "payload": {
+                    "points": [[10.0, 20.0], [90.0, 20.0]],
+                    "head": "end",
+                    "tail": "none",
+                    "arrowHead": {
+                        "kind": "curved",
+                        "curve": -120.0,
+                        "head": "full",
+                        "tail": "none",
+                        "length": 10.0,
+                        "centerLength": 8.75,
+                        "width": 2.5
+                    }
+                }
+            }],
+            "resources": {}
+        })
+        .to_string(),
+    )
+    .expect("document json should parse");
+
+    let object = document
+        .objects
+        .iter()
+        .find(|object| object.id == "obj_line_001")
+        .expect("arrow object should exist");
+    let geometry = object
+        .payload
+        .extra
+        .get("arrowGeometry")
+        .expect("legacy curved arrow should receive default arc geometry");
+    let arrow_head = object
+        .payload
+        .extra
+        .get("arrowHead")
+        .expect("arrow head should be normalized at import boundary");
+    assert_eq!(
+        arrow_head.get("kind").and_then(|value| value.as_str()),
+        Some("solid")
+    );
+    assert_eq!(
+        arrow_head.get("bold").and_then(|value| value.as_bool()),
+        Some(false)
+    );
+    assert_eq!(
+        arrow_head.get("noGo").and_then(|value| value.as_str()),
+        Some("none")
+    );
+    assert!(geometry.get("center").is_some());
+    assert!(geometry.get("majorAxisEnd").is_some());
+    assert!(geometry.get("minorAxisEnd").is_some());
+    assert!(render_document(&document).iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Path {
+            role: RenderRole::DocumentGraphic,
+            object_id,
+            ..
+        } if object_id.as_deref() == Some("obj_line_001")
+    )));
+}
+
+#[test]
+fn parse_document_json_normalizes_text_and_shape_payloads_at_import_boundary() {
+    let document = parse_document_json(
+        &json!({
+            "format": { "name": "chemcore", "version": "0.1" },
+            "document": {
+                "id": "doc_test",
+                "title": "test",
+                "page": { "width": 120.0, "height": 80.0, "background": "#ffffff" }
+            },
+            "objects": [
+                {
+                    "id": "obj_text_001",
+                    "type": "text",
+                    "visible": true,
+                    "zIndex": 10,
+                    "transform": { "translate": [12.0, 20.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                    "payload": { "text": "Note" }
+                },
+                {
+                    "id": "obj_shape_001",
+                    "type": "shape",
+                    "visible": true,
+                    "zIndex": 11,
+                    "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                    "payload": {
+                        "kind": "ellipse",
+                        "bbox": [10.0, 20.0, 40.0, 0.0]
+                    }
+                }
+            ],
+            "resources": {}
+        })
+        .to_string(),
+    )
+    .expect("document json should parse");
+
+    let text = document
+        .objects
+        .iter()
+        .find(|object| object.id == "obj_text_001")
+        .expect("text object should exist");
+    assert_eq!(
+        text.payload
+            .extra
+            .get("fontSize")
+            .and_then(|value| value.as_f64()),
+        Some(10.0)
+    );
+    assert!(text.payload.extra.get("lineHeight").is_some());
+    assert!(text.payload.extra.get("box").is_some());
+    assert_eq!(
+        text.payload
+            .extra
+            .get("align")
+            .and_then(|value| value.as_str()),
+        Some("left")
+    );
+
+    let shape = document
+        .objects
+        .iter()
+        .find(|object| object.id == "obj_shape_001")
+        .expect("shape object should exist");
+    assert_eq!(
+        shape.payload.extra.get("center"),
+        Some(&json!([30.0, 20.0]))
+    );
+    assert_eq!(
+        shape.payload.extra.get("majorAxisEnd"),
+        Some(&json!([50.0, 20.0]))
+    );
+    assert_eq!(
+        shape.payload.extra.get("minorAxisEnd"),
+        Some(&json!([30.0, 40.0]))
+    );
 }
 
 #[test]
@@ -736,6 +1614,138 @@ fn parse_cdxml_preserves_small_text_object_bbox() {
 }
 
 #[test]
+fn parse_cdxml_preserves_aligned_text_object_source_bbox() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.40" LineWidth="0.60" BoldWidth="2" HashSpacing="2.50">
+  <page id="1">
+    <t id="2" p="50 20" BoundingBox="30 10 70 30" Justification="Center" UTF8Text="center">
+      <s font="3" size="10" face="0" color="0">center</s>
+    </t>
+    <t id="3" p="120 20" BoundingBox="80 10 120 30" Justification="Right" UTF8Text="right">
+      <s font="3" size="10" face="0" color="0">right</s>
+    </t>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(cdxml, Some("aligned text")).expect("text cdxml should parse");
+    let text_objects: Vec<_> = document
+        .objects
+        .iter()
+        .filter(|object| object.object_type == "text")
+        .collect();
+
+    let center = text_objects
+        .iter()
+        .find(|object| {
+            object
+                .payload
+                .extra
+                .get("text")
+                .and_then(serde_json::Value::as_str)
+                == Some("center")
+        })
+        .expect("center text should import");
+    let center_box: [f64; 4] = serde_json::from_value(
+        center
+            .payload
+            .extra
+            .get("box")
+            .cloned()
+            .expect("center text should preserve box"),
+    )
+    .expect("center box should deserialize");
+    assert_eq!(center.transform.translate, [50.0, 10.0]);
+    assert_eq!(center_box, [-20.0, 0.0, 40.0, 20.0]);
+
+    let right = text_objects
+        .iter()
+        .find(|object| {
+            object
+                .payload
+                .extra
+                .get("text")
+                .and_then(serde_json::Value::as_str)
+                == Some("right")
+        })
+        .expect("right text should import");
+    let right_box: [f64; 4] = serde_json::from_value(
+        right
+            .payload
+            .extra
+            .get("box")
+            .cloned()
+            .expect("right text should preserve box"),
+    )
+    .expect("right box should deserialize");
+    assert_eq!(right.transform.translate, [120.0, 10.0]);
+    assert_eq!(right_box, [-40.0, 0.0, 40.0, 20.0]);
+}
+
+#[test]
+fn load_cdxml_document_hit_tests_aligned_text_object_source_bbox() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.40" LineWidth="0.60" BoldWidth="2" HashSpacing="2.50">
+  <page id="1">
+    <t id="2" p="50 20" BoundingBox="30 10 70 30" Justification="Center" UTF8Text="center">
+      <s font="3" size="10" face="0" color="0">center</s>
+    </t>
+  </page>
+</CDXML>"##;
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(cdxml)
+        .expect("cdxml should load into engine");
+
+    engine.select_at_point(Point::new(31.0, 20.0), false);
+    assert_eq!(engine.state().selection.text_objects, vec!["obj_text_001"]);
+
+    engine.select_at_point(Point::new(71.0, 20.0), false);
+    assert!(engine.state().selection.text_objects.is_empty());
+}
+
+#[test]
+fn parse_document_json_migrates_legacy_aligned_text_object_box() {
+    let document = parse_document_json(
+        &json!({
+            "format": { "name": "chemcore", "version": "0.1" },
+            "document": {
+                "id": "doc_test",
+                "title": "test",
+                "page": { "width": 200.0, "height": 160.0, "background": "#ffffff" }
+            },
+            "objects": [{
+                "id": "obj_text_001",
+                "type": "text",
+                "transform": { "translate": [50.0, 10.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": {
+                    "text": "center",
+                    "align": "center",
+                    "box": [0.0, 0.0, 40.0, 20.0]
+                }
+            }]
+        })
+        .to_string(),
+    )
+    .expect("document json should parse");
+    let text_object = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("text object should exist");
+    let box_value: [f64; 4] = serde_json::from_value(
+        text_object
+            .payload
+            .extra
+            .get("box")
+            .cloned()
+            .expect("text object should preserve migrated box"),
+    )
+    .expect("text box should deserialize");
+
+    assert_eq!(box_value, [-20.0, 0.0, 40.0, 20.0]);
+}
+
+#[test]
 fn parse_cdxml_formula_face_expands_digits_to_subscript() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML BondLength="14.40" LineWidth="0.60" BoldWidth="2" HashSpacing="2.50">
@@ -768,6 +1778,60 @@ fn parse_cdxml_formula_face_expands_digits_to_subscript() {
     assert_eq!(runs[1].text, "3");
     assert_eq!(runs[1].font_weight, Some(700));
     assert_eq!(runs[1].script.as_deref(), Some("subscript"));
+}
+
+#[test]
+fn parse_cdxml_chemical_face_subscripts_group_multipliers() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.40" LineWidth="0.60" BoldWidth="2" HashSpacing="2.50">
+  <page id="1">
+    <t id="2" p="10 20" BoundingBox="10 20 120 36" Justification="Left" UTF8Text="ArB(OH)2">
+      <s font="3" size="10" face="96" color="0">ArB(OH)2</s>
+    </t>
+    <t id="3" p="10 40" BoundingBox="10 40 160 56" Justification="Left" UTF8Text="Cu(CH3CN)4PF6">
+      <s font="3" size="10" face="96" color="0">Cu(CH3CN)4PF6</s>
+    </t>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("formula")).expect("text cdxml should parse");
+    let text_runs = |text: &str| -> Vec<chemcore_engine::LabelRun> {
+        let object = document
+            .objects
+            .iter()
+            .find(|object| {
+                object
+                    .payload
+                    .extra
+                    .get("text")
+                    .and_then(serde_json::Value::as_str)
+                    == Some(text)
+            })
+            .expect("formula text should import");
+        serde_json::from_value(
+            object
+                .payload
+                .extra
+                .get("runs")
+                .cloned()
+                .expect("imported text should preserve runs"),
+        )
+        .expect("runs should deserialize")
+    };
+
+    let ar_boron = text_runs("ArB(OH)2");
+    assert_eq!(ar_boron.last().map(|run| run.text.as_str()), Some("2"));
+    assert_eq!(
+        ar_boron.last().and_then(|run| run.script.as_deref()),
+        Some("subscript")
+    );
+
+    let copper = text_runs("Cu(CH3CN)4PF6");
+    let subscript_text: Vec<_> = copper
+        .iter()
+        .filter(|run| run.script.as_deref() == Some("subscript"))
+        .map(|run| run.text.as_str())
+        .collect();
+    assert_eq!(subscript_text, vec!["3", "4", "6"]);
 }
 
 #[test]
@@ -936,23 +2000,188 @@ fn parse_cdxml_imports_example_formula_face_node_labels_with_subscripts() {
 }
 
 #[test]
-fn parse_cdxml_uses_chemdraw_legacy_palette_ids() {
+fn cdxml_export_import_preserves_example_above_nh_labels() {
     let cdxml = std::fs::read_to_string(fixture_path("02-13/2017-2-13/oleObject1.cdxml"))
+        .expect("example cdxml");
+    let imported =
+        parse_cdxml_document(&cdxml, Some("example")).expect("example cdxml should parse");
+    let exported = document_to_cdxml(&imported);
+    assert!(exported.contains("LabelAlignment=\"Above\""), "{exported}");
+
+    let reimported =
+        parse_cdxml_document(&exported, Some("example export")).expect("export should parse");
+    let above_nh_count = reimported
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .filter(|node| node.atomic_number == 7 && node.num_hydrogens == 1)
+        .filter_map(|node| node.label.as_ref())
+        .filter(|label| label.source_text.as_deref() == Some("NH"))
+        .filter(|label| label.layout.as_deref() == Some("attached-group-above"))
+        .filter(|label| label.lines == vec!["H".to_string(), "N".to_string()])
+        .count();
+
+    assert!(
+        above_nh_count >= 2,
+        "expected the reactant/product NH labels to stay stacked, got {above_nh_count}"
+    );
+}
+
+#[test]
+fn parse_cdxml_uses_chemdraw_color_table_offset() {
+    let cdxml = std::fs::read_to_string(fixture_path("color.cdxml")).expect("color fixture");
+    let document = parse_cdxml_document(&cdxml, Some("color")).expect("color cdxml should parse");
+
+    let shape_fills = cdxml_shape_fills_by_z(&document);
+    assert_eq!(
+        shape_fills,
+        vec![
+            "#000000", "#ff0000", "#ffff00", "#00ff00", "#ffffff", "#00ffff", "#0000ff", "#ff00ff",
+            "#804040", "#008000", "#0000a0", "#808080",
+        ]
+    );
+
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("color=\"4\""), "{exported}");
+    assert!(
+        exported.contains("<color r=\"1\" g=\"0\" b=\"0\"/>"),
+        "{exported}"
+    );
+
+    let reimported =
+        parse_cdxml_document(&exported, Some("color export")).expect("export should parse");
+    assert_eq!(cdxml_shape_fills_by_z(&reimported), shape_fills);
+}
+
+#[test]
+fn parse_cdxml_color_table_keeps_duplicate_slots() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML color="0" bgcolor="1">
+  <colortable>
+    <color r="1" g="1" b="1"/>
+    <color r="0" g="0" b="0"/>
+    <color r="0" g="0" b="0"/>
+    <color r="1" g="0" b="0"/>
+  </colortable>
+  <page id="1">
+    <graphic id="2" BoundingBox="20 20 40 40" Z="1" color="5" GraphicType="Oval" OvalType="Circle Filled" Center3D="30 30 0" MajorAxisEnd3D="40 30 0" MinorAxisEnd3D="30 40 0"/>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(cdxml, Some("duplicate colors")).expect("cdxml should parse");
+
+    assert_eq!(cdxml_shape_fills_by_z(&document), vec!["#ff0000"]);
+}
+
+#[test]
+fn cdxml_export_import_preserves_non_white_page_background() {
+    let document = parse_document_json(
+        &json!({
+            "format": { "name": "chemcore", "version": "0.1" },
+            "document": {
+                "id": "doc_test",
+                "title": "red background",
+                "page": { "width": 120.0, "height": 80.0, "background": "#ff0000" }
+            },
+            "styles": {},
+            "objects": [],
+            "resources": {}
+        })
+        .to_string(),
+    )
+    .expect("document json should parse");
+
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("bgcolor=\"4\""), "{exported}");
+
+    let reimported =
+        parse_cdxml_document(&exported, Some("red background")).expect("export should parse");
+    assert_eq!(reimported.document.page.background, "#ff0000");
+}
+
+#[test]
+fn parse_cdxml_right_side_double_bonds_render_on_begin_to_end_right_side() {
+    let cdxml = std::fs::read_to_string(fixture_path("02-13/2017-2-13/oleObject2.cdxml"))
         .expect("example cdxml");
     let document =
         parse_cdxml_document(&cdxml, Some("example")).expect("example cdxml should parse");
+    let object = document
+        .objects
+        .iter()
+        .find(|object| object.id == "obj_mol_004")
+        .expect("ArB(OH)2 fragment should import as obj_mol_004");
+    let resource_ref = object
+        .payload
+        .resource_ref
+        .as_deref()
+        .expect("molecule object should have resourceRef");
+    let fragment = document
+        .resources
+        .get(resource_ref)
+        .expect("molecule resource should exist")
+        .data
+        .as_fragment()
+        .expect("molecule resource should have fragment data");
 
-    let style_fills: Vec<_> = document
-        .styles
-        .values()
-        .filter_map(|style| style.get("fill").and_then(serde_json::Value::as_str))
-        .collect();
+    for bond_id in ["50407073", "50407075", "50407077"] {
+        let bond = fragment
+            .bonds
+            .iter()
+            .find(|bond| bond.id == bond_id)
+            .expect("ring double bond should import");
+        assert_eq!(
+            bond.double.as_ref().map(|double| double.placement),
+            Some(chemcore_engine::DoubleBondPlacement::Right)
+        );
+    }
 
-    assert!(style_fills.contains(&"#d61f1f"), "{style_fills:?}");
-    assert!(style_fills.contains(&"#1b32d8"), "{style_fills:?}");
-    assert!(style_fills.contains(&"#55f0f5"), "{style_fills:?}");
-    assert!(style_fills.contains(&"#fff24a"), "{style_fills:?}");
-    assert!(style_fills.contains(&"#cfcfcf"), "{style_fills:?}");
+    let primitives = render_document(&document);
+    let centerlines = object_bond_centerlines_with_ids(&primitives, "obj_mol_004");
+    let ring_center = chemcore_engine::Point::new(586.57, 77.5);
+    for (bond_id, begin, end) in [
+        (
+            "50407073",
+            chemcore_engine::Point::new(574.1, 70.3),
+            chemcore_engine::Point::new(574.1, 84.7),
+        ),
+        (
+            "50407075",
+            chemcore_engine::Point::new(586.57, 91.9),
+            chemcore_engine::Point::new(599.04, 84.7),
+        ),
+        (
+            "50407077",
+            chemcore_engine::Point::new(599.04, 70.3),
+            chemcore_engine::Point::new(586.57, 63.1),
+        ),
+    ] {
+        let dx = end.x - begin.x;
+        let dy = end.y - begin.y;
+        let length = dx.hypot(dy);
+        let right_normal = chemcore_engine::Point::new(dy / length, -dx / length);
+        let raw_mid = chemcore_engine::Point::new((begin.x + end.x) * 0.5, (begin.y + end.y) * 0.5);
+        let center_projection = (ring_center.x - raw_mid.x) * right_normal.x
+            + (ring_center.y - raw_mid.y) * right_normal.y;
+        assert!(
+            center_projection > 0.0,
+            "{bond_id} center should be on B->E right side"
+        );
+
+        let max_rendered_projection = centerlines
+            .iter()
+            .filter(|(id, _, _)| id == bond_id)
+            .map(|(_, from, to)| {
+                let mid = chemcore_engine::Point::new((from.x + to.x) * 0.5, (from.y + to.y) * 0.5);
+                (mid.x - raw_mid.x) * right_normal.x + (mid.y - raw_mid.y) * right_normal.y
+            })
+            .max_by(|a, b| a.total_cmp(b))
+            .expect("double bond should render centerlines");
+        assert!(
+            max_rendered_projection > 0.0,
+            "{bond_id} outer line should render on B->E right side, got {max_rendered_projection}"
+        );
+    }
 }
 
 #[test]
@@ -1041,6 +2270,39 @@ fn parse_cdxml_node_labels_use_internal_attached_layout() {
         "{box_value:?}"
     );
     assert_ne!(box_value, [0.0, 0.0, 100.0, 100.0]);
+
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("Element=\"7\""), "{exported}");
+    assert!(exported.contains("NumHydrogens=\"1\""), "{exported}");
+    assert!(exported.contains("LabelAlignment=\"Above\""), "{exported}");
+    assert!(exported.contains("LineStarts=\"2 4\""), "{exported}");
+    assert!(exported.contains("face=\"96\""), "{exported}");
+
+    let reimported =
+        parse_cdxml_document(&exported, Some("labels export")).expect("export should parse");
+    let reimported_fragment = reimported
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .expect("reimport should create molecule fragment resource");
+    let reimported_node = reimported_fragment
+        .nodes
+        .iter()
+        .find(|node| node.atomic_number == 7)
+        .expect("nitrogen node should reimport as nitrogen");
+    let reimported_label = reimported_node
+        .label
+        .as_ref()
+        .expect("nitrogen label should reimport");
+    assert_eq!(reimported_node.num_hydrogens, 1);
+    assert_eq!(
+        reimported_label.lines,
+        vec!["H".to_string(), "N".to_string()]
+    );
+    assert_eq!(
+        reimported_label.layout.as_deref(),
+        Some("attached-group-above")
+    );
 }
 
 #[test]
@@ -1666,10 +2928,15 @@ fn render_document_emits_arrow_line_primitives() {
                 "head": "end",
                 "tail": "none",
                 "arrowHead": {
+                    "kind": "solid",
                     "length": 22.5,
+                    "centerLength": 19.69,
                     "width": 5.63,
+                    "curve": 0.0,
                     "head": "full",
-                    "tail": "full"
+                    "tail": "full",
+                    "bold": false,
+                    "noGo": "none"
                 }
             }
         }],
@@ -1727,7 +2994,7 @@ fn render_document_emits_arrow_line_primitives() {
             .iter()
             .map(|point| point.y)
             .fold(f64::INFINITY, f64::min);
-    assert!((head_width - 11.36).abs() <= 0.001);
+    assert!((head_width - 8.2072).abs() <= 0.001);
 }
 
 #[test]
@@ -1764,8 +3031,11 @@ fn render_document_uses_open_arrow_width_as_extra_head_width() {
                     "length": 12.0,
                     "centerLength": 12.0,
                     "width": 3.0,
+                    "curve": 0.0,
                     "head": "full",
-                    "tail": "none"
+                    "tail": "none",
+                    "bold": false,
+                    "noGo": "none"
                 }
             }
         }],
@@ -1799,7 +3069,7 @@ fn render_document_uses_open_arrow_width_as_extra_head_width() {
             .iter()
             .map(|point| point.y)
             .fold(f64::INFINITY, f64::min);
-    assert!((outline_width - 15.0).abs() <= 0.001);
+    assert!((outline_width - 10.8).abs() <= 0.001);
 }
 
 #[test]
@@ -1837,8 +3107,11 @@ fn render_document_respects_thin_open_and_hollow_arrow_stroke_width() {
                         "length": 12.0,
                         "centerLength": 12.0,
                         "width": 3.0,
+                        "curve": 0.0,
                         "head": "full",
-                        "tail": "none"
+                        "tail": "none",
+                        "bold": false,
+                        "noGo": "none"
                     }
                 }
             },
@@ -1858,8 +3131,11 @@ fn render_document_respects_thin_open_and_hollow_arrow_stroke_width() {
                         "length": 12.0,
                         "centerLength": 12.0,
                         "width": 3.0,
+                        "curve": 0.0,
                         "head": "full",
-                        "tail": "none"
+                        "tail": "none",
+                        "bold": false,
+                        "noGo": "none"
                     }
                 }
             }
@@ -1942,11 +3218,14 @@ fn render_document_emits_arrow_no_go_marks_at_current_head_size() {
                 "head": "end",
                 "tail": "none",
                 "arrowHead": {
+                    "kind": "solid",
                     "length": 10.0,
                     "centerLength": 8.75,
                     "width": 2.5,
+                    "curve": 0.0,
                     "head": "full",
                     "tail": "none",
+                    "bold": false,
                     "noGo": "hash"
                 }
             }
@@ -2580,6 +3859,17 @@ fn render_document_uses_label_glyph_polygons_for_knockout_and_endpoint_clipping(
     let knockouts = object_knockout_polygons(&primitives);
     assert_eq!(knockouts.len(), 2, "{knockouts:?}");
     assert_eq!(object_knockout_rect_count(&primitives), 0);
+    assert!(primitives.iter().all(|primitive| match primitive {
+        RenderPrimitive::Polygon { role, node_id, .. } if *role == RenderRole::DocumentKnockout => {
+            node_id.as_deref() == Some("n1")
+        }
+        _ => true,
+    }));
+    let svg = document_to_svg(&document);
+    assert!(
+        !svg.contains("fill=\"#ffffff\""),
+        "label clipping geometry should not paint a white knockout in document SVG: {svg}"
+    );
 
     let centerlines = object_bond_centerlines(&primitives);
     assert_eq!(centerlines.len(), 1, "{centerlines:?}");

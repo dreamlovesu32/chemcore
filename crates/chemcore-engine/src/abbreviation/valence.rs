@@ -10,6 +10,10 @@ enum ValenceTokenKind {
         fragment: FragmentDef,
         matched: String,
     },
+    Group {
+        tokens: Vec<ValenceToken>,
+        count: usize,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -24,16 +28,53 @@ struct ValenceNodeState {
     element: String,
     valence: u8,
     used: u8,
+    unconstrained_valence: bool,
 }
 
 pub(super) fn parse_valence_terminal_label(label: &str) -> Option<AbbreviationRecognition> {
     let tokens = tokenize_valence_label(label)?;
+    let (components, _) = parse_valence_fragment_tokens(&tokens, 1, 0)?;
+    let formula = valence_formula(&components);
+    let anchor_atom = components
+        .first()
+        .map(|component| component.left_anchor.clone())
+        .unwrap_or_default();
+    Some(AbbreviationRecognition {
+        label: label.to_string(),
+        canonical_label: canonical_valence_label(label),
+        kind: "valence-fragment".to_string(),
+        formula,
+        anchor_atom,
+        components,
+    })
+}
+
+pub(super) fn parse_chemical_text_label(label: &str) -> Option<AbbreviationRecognition> {
+    let tokens = tokenize_valence_label(label)?;
+    if tokens.is_empty() {
+        return None;
+    }
+    Some(AbbreviationRecognition {
+        label: label.to_string(),
+        canonical_label: canonical_valence_label(label),
+        kind: "chemical-text".to_string(),
+        formula: label.to_string(),
+        anchor_atom: String::new(),
+        components: Vec::new(),
+    })
+}
+
+fn parse_valence_fragment_tokens(
+    tokens: &[ValenceToken],
+    root_used: u8,
+    allowed_root_remaining: u8,
+) -> Option<(Vec<AbbreviationComponent>, Vec<ValenceNodeState>)> {
     if tokens.is_empty() || !matches!(tokens.first()?.kind, ValenceTokenKind::Atom { .. }) {
         return None;
     }
     let mut components = Vec::new();
     let mut nodes = Vec::new();
-    for (valence, charge) in valence_options(&tokens, 0, 1) {
+    for (valence, charge) in valence_options(tokens, 0, root_used) {
         let mut root_components = Vec::new();
         let mut root_nodes = Vec::new();
         let ValenceTokenKind::Atom { element, .. } = &tokens[0].kind else {
@@ -51,35 +92,25 @@ pub(super) fn parse_valence_terminal_label(label: &str) -> Option<AbbreviationRe
             component_index,
             element: element.clone(),
             valence,
-            used: 1,
+            used: root_used,
+            unconstrained_valence: is_unconstrained_valence_element(element),
         });
         if parse_valence_tokens_from(
-            &tokens,
+            tokens,
             1,
             root_components,
             root_nodes,
+            allowed_root_remaining,
             &mut components,
             &mut nodes,
         ) {
             break;
         }
     }
-    if components.is_empty() || nodes.iter().any(|node| node.used != node.valence) {
+    if components.is_empty() || !nodes_are_satisfied(&nodes, allowed_root_remaining) {
         return None;
     }
-    let formula = valence_formula(&components);
-    let anchor_atom = components
-        .first()
-        .map(|component| component.left_anchor.clone())
-        .unwrap_or_default();
-    Some(AbbreviationRecognition {
-        label: label.to_string(),
-        canonical_label: canonical_valence_label(label),
-        kind: "valence-fragment".to_string(),
-        formula,
-        anchor_atom,
-        components,
-    })
+    Some((components, nodes))
 }
 
 fn canonical_valence_label(label: &str) -> String {
@@ -96,11 +127,12 @@ fn parse_valence_tokens_from(
     index: usize,
     components: Vec<AbbreviationComponent>,
     nodes: Vec<ValenceNodeState>,
+    allowed_root_remaining: u8,
     out_components: &mut Vec<AbbreviationComponent>,
     out_nodes: &mut Vec<ValenceNodeState>,
 ) -> bool {
     if index >= tokens.len() {
-        if nodes.iter().all(|node| node.used == node.valence) {
+        if nodes_are_satisfied(&nodes, allowed_root_remaining) {
             *out_components = components;
             *out_nodes = nodes;
             return true;
@@ -129,6 +161,7 @@ fn parse_valence_tokens_from(
                 index + 1,
                 next_components,
                 next_nodes,
+                allowed_root_remaining,
                 out_components,
                 out_nodes,
             )
@@ -160,12 +193,14 @@ fn parse_valence_tokens_from(
                         element: element.clone(),
                         valence,
                         used: bond_order,
+                        unconstrained_valence: is_unconstrained_valence_element(element),
                     });
                     if parse_valence_tokens_from(
                         tokens,
                         index + 1,
                         next_components,
                         next_nodes,
+                        allowed_root_remaining,
                         out_components,
                         out_nodes,
                     ) {
@@ -175,7 +210,106 @@ fn parse_valence_tokens_from(
             }
             false
         }
+        ValenceTokenKind::Group {
+            tokens: group_tokens,
+            count,
+        } => {
+            let Some((group_components, group_nodes)) =
+                parse_valence_group_for_attachment(group_tokens)
+            else {
+                return false;
+            };
+            let mut next_components = components;
+            let mut next_nodes = nodes;
+            for _ in 0..*count {
+                if !append_attached_valence_group(
+                    &group_components,
+                    &group_nodes,
+                    parent_index,
+                    &mut next_components,
+                    &mut next_nodes,
+                ) {
+                    return false;
+                }
+            }
+            parse_valence_tokens_from(
+                tokens,
+                index + 1,
+                next_components,
+                next_nodes,
+                allowed_root_remaining,
+                out_components,
+                out_nodes,
+            )
+        }
     }
+}
+
+fn parse_valence_group_for_attachment(
+    group_tokens: &[ValenceToken],
+) -> Option<(Vec<AbbreviationComponent>, Vec<ValenceNodeState>)> {
+    // Parenthesized groups are first parsed as standalone. Only if the first
+    // atom has exactly one spare valence do we reparse it as attached.
+    parse_valence_fragment_tokens(group_tokens, 0, 1)?;
+    parse_valence_fragment_tokens(group_tokens, 1, 0)
+}
+
+fn append_attached_valence_group(
+    group_components: &[AbbreviationComponent],
+    group_nodes: &[ValenceNodeState],
+    parent_index: usize,
+    components: &mut Vec<AbbreviationComponent>,
+    nodes: &mut Vec<ValenceNodeState>,
+) -> bool {
+    if group_components.is_empty()
+        || group_nodes.is_empty()
+        || nodes
+            .get(parent_index)
+            .is_none_or(|node| node.used >= node.valence)
+    {
+        return false;
+    }
+    let component_offset = components.len();
+    let parent_component_index = nodes[parent_index].component_index;
+    for (index, component) in group_components.iter().enumerate() {
+        let mut component = component.clone();
+        component.parent_index = if index == 0 {
+            Some(parent_component_index)
+        } else {
+            component
+                .parent_index
+                .map(|parent| parent + component_offset)
+        };
+        if index == 0 {
+            component.bond_order_to_parent = Some(1);
+        }
+        components.push(component);
+    }
+    nodes[parent_index].used += 1;
+    nodes.extend(group_nodes.iter().cloned().map(|mut node| {
+        node.component_index += component_offset;
+        node
+    }));
+    true
+}
+
+fn nodes_are_satisfied(nodes: &[ValenceNodeState], allowed_root_remaining: u8) -> bool {
+    nodes.iter().enumerate().all(|(index, node)| {
+        let allowed_remaining = if index == 0 {
+            allowed_root_remaining
+        } else {
+            0
+        };
+        node_valence_has_remaining(node, allowed_remaining)
+    })
+}
+
+fn node_valence_has_remaining(node: &ValenceNodeState, allowed_remaining: u8) -> bool {
+    if node.unconstrained_valence {
+        return true;
+    }
+    let remaining = node.valence.saturating_sub(node.used);
+    remaining == allowed_remaining
 }
 
 fn next_nodes_element(nodes: &[ValenceNodeState], index: usize) -> String {
@@ -209,10 +343,37 @@ fn push_valence_atom_component(
 }
 
 fn tokenize_valence_label(label: &str) -> Option<Vec<ValenceToken>> {
+    tokenize_valence_label_inner(label)
+}
+
+fn tokenize_valence_label_inner(label: &str) -> Option<Vec<ValenceToken>> {
     let mut tokens = Vec::new();
     let mut index = 0;
     while index < label.len() {
         let rest = &label[index..];
+        if rest.starts_with('(') {
+            let close_offset = matching_close_paren(rest)?;
+            let inner = &rest[1..close_offset];
+            let after_close = index + close_offset + 1;
+            let (count, digit_len) = parse_decimal_prefix(&label[after_close..]);
+            let count = count.unwrap_or(1);
+            if inner.is_empty() || count == 0 || count > 32 {
+                return None;
+            }
+            let group_tokens = tokenize_valence_label_inner(inner)?;
+            tokens.push(ValenceToken {
+                label: label[index..after_close + digit_len].to_string(),
+                kind: ValenceTokenKind::Group {
+                    tokens: group_tokens,
+                    count,
+                },
+            });
+            index = after_close + digit_len;
+            continue;
+        }
+        if rest.starts_with(')') {
+            return None;
+        }
         if let Some((fragment, matched)) = match_valence_terminal_prefix(rest) {
             tokens.push(ValenceToken {
                 label: canonical_label_for(matched, fragment.label),
@@ -243,6 +404,23 @@ fn tokenize_valence_label(label: &str) -> Option<Vec<ValenceToken>> {
         }
     }
     Some(tokens)
+}
+
+fn matching_close_paren(text: &str) -> Option<usize> {
+    let mut depth = 0usize;
+    for (index, character) in text.char_indices() {
+        match character {
+            '(' => depth += 1,
+            ')' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 fn parse_element_prefix(text: &str) -> Option<(&'static str, usize)> {
@@ -288,9 +466,45 @@ fn is_valence_terminal_fragment(fragment: &FragmentDef) -> bool {
 }
 
 const SUPPORTED_VALENCE_ELEMENTS: &[&str] = &[
-    "Cl", "Br", "Si", "As", "Li", "Na", "Rb", "Cs", "Fr", "Be", "Mg", "Ca", "Sr", "Ba", "Ra", "H",
-    "B", "C", "N", "O", "S", "P", "F", "I", "K",
+    "Cl", "Br", "Sc", "Ti", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Zr", "Nb", "Mo", "Tc", "Ru",
+    "Rh", "Pd", "Ag", "Cd", "Hf", "Ta", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Si", "As", "Li", "Na",
+    "Rb", "Cs", "Fr", "Be", "Mg", "Ca", "Sr", "Ba", "Ra", "H", "B", "C", "N", "O", "S", "P", "F",
+    "I", "K", "V", "W", "Y",
 ];
+
+fn is_unconstrained_valence_element(element: &str) -> bool {
+    matches!(
+        element,
+        "Sc" | "Ti"
+            | "V"
+            | "Cr"
+            | "Mn"
+            | "Fe"
+            | "Co"
+            | "Ni"
+            | "Cu"
+            | "Zn"
+            | "Y"
+            | "Zr"
+            | "Nb"
+            | "Mo"
+            | "Tc"
+            | "Ru"
+            | "Rh"
+            | "Pd"
+            | "Ag"
+            | "Cd"
+            | "Hf"
+            | "Ta"
+            | "W"
+            | "Re"
+            | "Os"
+            | "Ir"
+            | "Pt"
+            | "Au"
+            | "Hg"
+    )
+}
 
 fn valence_options(
     tokens: &[ValenceToken],
@@ -301,6 +515,7 @@ fn valence_options(
         return Vec::new();
     };
     let mut options: Vec<(u8, Option<i8>)> = match element.as_str() {
+        _ if is_unconstrained_valence_element(element) => vec![(32, None)],
         "H" => vec![(1, None)],
         "Li" | "Na" | "K" | "Rb" | "Cs" | "Fr" => vec![(1, None)],
         "Be" | "Mg" | "Ca" | "Sr" | "Ba" | "Ra" => vec![(2, None)],

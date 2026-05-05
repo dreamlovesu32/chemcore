@@ -999,6 +999,28 @@ fn lookup_glyph_profile(character: char) -> GlyphProfile {
     if let Some(profile) = shared.specials.get(&character) {
         return *profile;
     }
+    if character.is_whitespace() {
+        return GlyphProfile {
+            shape_kind: ShapeKind::Rect,
+            advance_em: 0.28,
+            ink_left_em: 0.0,
+            ink_top_em: 0.0,
+            ink_right_em: 0.0,
+            ink_bottom_em: 0.0,
+            pad_x_em: 0.0,
+            pad_y_em: 0.0,
+            visible: false,
+        };
+    }
+    if is_cjk_or_fullwidth(character) {
+        return fallback_rect_profile(1.0, -0.86, 1.0, 0.14);
+    }
+    if is_math_or_arrow_symbol(character) {
+        return fallback_rect_profile(0.84, -0.74, 0.84, 0.06);
+    }
+    if matches!(character, '\u{2030}' | '\u{2031}') {
+        return fallback_rect_profile(1.34, -0.74, 1.34, 0.06);
+    }
     if character.is_ascii_uppercase() {
         return shared.defaults.upper;
     }
@@ -1008,5 +1030,107 @@ fn lookup_glyph_profile(character: char) -> GlyphProfile {
     if character.is_ascii_digit() {
         return shared.defaults.digit;
     }
-    default_punctuation_profile()
+    if character.is_alphabetic() {
+        if character.is_uppercase() {
+            return fallback_rect_profile(0.72, -0.74, 0.72, 0.04);
+        }
+        return fallback_rect_profile(0.62, -0.62, 0.62, 0.08);
+    }
+    if character.is_ascii_punctuation() {
+        return default_punctuation_profile();
+    }
+    fallback_rect_profile(0.62, -0.74, 0.62, 0.08)
+}
+
+fn fallback_rect_profile(
+    advance_em: f64,
+    ink_top_em: f64,
+    ink_right_em: f64,
+    ink_bottom_em: f64,
+) -> GlyphProfile {
+    GlyphProfile {
+        shape_kind: ShapeKind::Rect,
+        advance_em,
+        ink_left_em: 0.0,
+        ink_top_em,
+        ink_right_em,
+        ink_bottom_em,
+        pad_x_em: 0.09,
+        pad_y_em: 0.09,
+        visible: true,
+    }
+}
+
+fn is_cjk_or_fullwidth(character: char) -> bool {
+    let code = character as u32;
+    matches!(
+        code,
+        0x1100..=0x11FF
+            | 0x2E80..=0xA4CF
+            | 0xAC00..=0xD7AF
+            | 0xF900..=0xFAFF
+            | 0xFE10..=0xFE6F
+            | 0xFF00..=0xFFEF
+            | 0x20000..=0x2FA1F
+    )
+}
+
+fn is_math_or_arrow_symbol(character: char) -> bool {
+    let code = character as u32;
+    matches!(code, 0x2190..=0x21FF | 0x2200..=0x22FF | 0x27F0..=0x27FF)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generated_text_symbols_have_non_punctuation_metrics() {
+        let expected_min_widths = [
+            ('%', 0.90),
+            ('‰', 1.10),
+            ('α', 0.50),
+            ('≤', 0.70),
+            ('→', 0.70),
+            ('℃', 0.90),
+            ('中', 0.90),
+        ];
+        for (character, min_width) in expected_min_widths {
+            let profile = lookup_glyph_profile(character);
+            assert!(
+                profile.advance_em >= min_width,
+                "{character} should not use narrow punctuation fallback: {profile:?}"
+            );
+            assert!(profile.visible, "{character} should be visible");
+            assert!(
+                profile.ink_bottom_em > profile.ink_top_em,
+                "{character} should have a usable vertical ink box: {profile:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn unknown_cjk_text_gets_conservative_square_profile() {
+        let profile = lookup_glyph_profile('龘');
+        assert!(profile.advance_em >= 0.95, "{profile:?}");
+        assert!(profile.ink_right_em >= 0.95, "{profile:?}");
+        assert!(profile.visible);
+    }
+
+    #[test]
+    fn text_symbol_polygons_are_available_for_label_clipping() {
+        let runs = vec![LabelRun {
+            text: "‰α≤→℃中".to_string(),
+            font_family: Some("Arial".to_string()),
+            font_size: Some(10.0),
+            fill: Some("#000000".to_string()),
+            font_weight: Some(400),
+            font_style: Some("normal".to_string()),
+            underline: None,
+            script: Some("normal".to_string()),
+        }];
+        let polygons = build_label_glyph_polygons(&runs, &[], [0.0, 0.0], None, 10.0);
+        assert_eq!(polygons.len(), 6, "{polygons:?}");
+        assert!(polygons.iter().all(|polygon| polygon.len() >= 4));
+    }
 }

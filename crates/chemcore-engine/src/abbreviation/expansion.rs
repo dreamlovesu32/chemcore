@@ -955,6 +955,28 @@ mod tests {
     }
 
     #[test]
+    fn valence_parser_allows_one_open_valence_only_inside_parenthesized_groups() {
+        assert!(recognize_abbreviation_label("B(OH)2").is_some());
+        assert!(recognize_abbreviation_label("CH2(OH)").is_some());
+        assert!(recognize_abbreviation_label("CH2(NH)").is_none());
+        assert!(recognize_abbreviation_label("CH2N").is_none());
+    }
+
+    #[test]
+    fn zero_connection_chemical_text_validates_without_functional_group_expansion() {
+        for label in ["ArB(OH)2", "Cu(CH3CN)4PF6"] {
+            let recognition = recognize_abbreviation_label_for_connection_count(label, 0).unwrap();
+            assert_eq!(recognition.kind, "chemical-text");
+            assert!(recognition.components.is_empty());
+
+            let meta = recognized_abbreviation_meta_for_connection_count(label, 0).unwrap();
+            assert_eq!(meta["status"], "recognized");
+            assert_eq!(meta["groupKind"], "chemical-text");
+            assert!(meta.get("expansion").is_none());
+        }
+    }
+
+    #[test]
     fn valence_parser_treats_named_groups_as_monovalent_terminators() {
         let recognition = recognize_abbreviation_label("CH2Boc").unwrap();
         assert_eq!(recognition.kind, "valence-fragment");

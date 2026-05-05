@@ -59,6 +59,12 @@ npm run verify
 - 电荷、自由基和孤对符号归属到分子原子后的语义，以 `docs/charge-radical-symbol-rules.zh-CN.md` 为设计基线。
 - 标签识别、隐式氢数量、生成标签文本和画键锚点都属于 Rust engine 行为，不应在 viewer 里另写一套。
 
+## 文本符号和 Glyph
+
+- 文本里的 Unicode 符号和特殊字符，以 `docs/text-symbol-glyph-profile-rules.zh-CN.md` 为当前行为基线。
+- `shared/text_symbols.json` 只定义文本符号表 UI 分组；字符进入文档后仍是普通 text run 内容。
+- glyph advance、ink box、background box、glyph polygon 和未知字符兜底由 Rust glyph kernel 统一定义；viewer 只能消费共享 profile 和 engine layout。
+
 ## 命令历史
 
 - 只有已提交的文档变化进入 history。

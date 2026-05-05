@@ -129,9 +129,9 @@ pub(super) fn attached_node_label_anchor_world(
         return node_world;
     }
     let side = if placement == DoubleBondPlacement::Left {
-        -1.0
-    } else {
         1.0
+    } else {
+        -1.0
     };
     let normal_x = -dy / length;
     let normal_y = dx / length;
@@ -173,8 +173,8 @@ pub(super) fn side_double_center_distance_for_bond_points(
     placement: DoubleBondPlacement,
 ) -> f64 {
     let outer_weight = match placement {
-        DoubleBondPlacement::Left => bond.line_weights.right,
-        DoubleBondPlacement::Right => bond.line_weights.left,
+        DoubleBondPlacement::Left => bond.line_weights.left,
+        DoubleBondPlacement::Right => bond.line_weights.right,
         DoubleBondPlacement::Center => BondLineWeight::Normal,
     };
     let main_width =

@@ -192,7 +192,10 @@ pub(super) fn expand_chemical_run(base: &LabelRun, text: &str) -> Vec<LabelRun> 
 
     for index in 0..chars.len() {
         let character = chars[index];
-        if character.is_ascii_digit() && index > 0 && chars[index - 1].is_ascii_alphabetic() {
+        if character.is_ascii_digit()
+            && index > 0
+            && (chars[index - 1].is_ascii_alphabetic() || chars[index - 1] == ')')
+        {
             scripts[index] = "subscript";
         }
         if matches!(character, '+' | '-') {

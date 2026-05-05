@@ -26,11 +26,7 @@ pub const HASH_WEDGE_SEGMENT_WIDTH_CM: WorldCm = css_px(0.72).to_world_cm();
 
 pub const BOUNDARY_JOIN_MIN_BACKTRACK_CM: WorldCm = css_px(0.85).to_world_cm();
 pub const LABEL_GEOMETRY_CLIP_MARGIN_CM: WorldCm = css_px(1.8).to_world_cm();
-pub const DEFAULT_ARROW_HEAD_LENGTH_CM: WorldCm = world_cm(8.0);
-pub const ARROW_SHAPE_MIN_HEAD_LENGTH_CM: WorldCm = world_cm(5.4);
-pub const ARROW_SHAPE_MIN_HEAD_WIDTH_CM: WorldCm = world_cm(1.0);
-pub const ARROW_SHAPE_MIN_NOTCH_LENGTH_CM: WorldCm = world_cm(3.2);
-pub const ARROW_SHAPE_MIN_HEAD_TO_NOTCH_GAP_CM: WorldCm = world_cm(0.8);
+pub const DEFAULT_ARROW_HEAD_LENGTH_RATIO: f64 = 10.0;
 pub const TEXT_WRAP_ESTIMATED_CHAR_WIDTH_CM: WorldCm = css_px(6.0).to_world_cm();
 pub const DASH_GAP_STROKE_EXTRA_CM: WorldCm = world_cm(0.26);
 pub const HASH_WEDGE_GAP_START_OFFSET_CM: WorldCm = world_cm(0.38);

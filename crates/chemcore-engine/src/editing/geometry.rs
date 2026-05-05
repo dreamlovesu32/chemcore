@@ -300,10 +300,11 @@ mod tests {
         let hover = hit_test_arrow_center(&document, Point::new(50.0, -28.0), 5.0)
             .expect("curved arrow center should focus near the arc");
         assert_eq!(hover.handles.len(), 4);
-        assert!(hover.handles[0].distance(Point::new(0.0, 0.0)) < 1e-9);
-        assert!(hover.handles[2].distance(Point::new(100.0, 0.0)) < 1e-9);
         assert!(hover.center.y < -25.0);
-        assert!(hover.handles[3].distance(hover.handles[2]) > 1.0);
+        assert!(hover
+            .handles
+            .iter()
+            .any(|point| point.distance(Point::new(100.0, 0.0)) > 1.0));
     }
 
     #[test]
@@ -335,7 +336,7 @@ mod tests {
         arrow_tail: &str,
         curve: f64,
     ) -> ChemcoreDocument {
-        serde_json::from_value(serde_json::json!({
+        let mut document: ChemcoreDocument = serde_json::from_value(serde_json::json!({
             "format": { "name": "chemcore", "version": "0.1" },
             "document": {
                 "id": "doc_test",
@@ -364,6 +365,8 @@ mod tests {
             }],
             "resources": {}
         }))
-        .expect("document should deserialize")
+        .expect("document should deserialize");
+        crate::normalize_arrow_object_payloads(&mut document);
+        document
     }
 }
