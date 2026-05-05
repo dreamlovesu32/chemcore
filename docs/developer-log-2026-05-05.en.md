@@ -26,31 +26,100 @@ Both worktrees were aligned at:
 56cdd4a feat: adopt ccjs and ccjz document extensions
 ```
 
-The two recent development commits that needed to be carried forward were:
+The two development commits that needed to be carried forward into today's log were:
 
 ```text
 0e4e0e1 feat: improve cdxml rendering fidelity
 56cdd4a feat: adopt ccjs and ccjz document extensions
 ```
 
-`0e4e0e1` continued improving CDXML import, internal representation, save, re-import, and rendering fidelity:
+`0e4e0e1` was the largest development commit of the day, touching 49 files with about 4462 insertions and 542 deletions. It was not a narrow patch; it was a broad fidelity pass over ChemDraw/CDXML behavior, arrow semantics, structural labels, glyph profiles, text symbols, and regression coverage.
 
-- Added a unified CDXML color-table import/export path.
-- Matched ChemDraw color semantics: `color="0"` is foreground, `bgcolor="1"` is background, and `<colortable>` entries start at id `2`.
-- Routed line, shape, text, text-run, fragment-label, page-background, and object-style colors through the unified table.
-- Expanded internal arrow semantics: solid/hollow/open, single/double-headed, half arrows, curved arrows, bold arrows, and no-go cross/hash markers.
-- Expanded `render_objects/arrows.rs` toward ChemDraw-level arrow rendering behavior.
-- Stopped treating molecule labels as ordinary text objects; structural labels can preserve `lineRuns`.
-- Added text-symbol and glyph-profile paths, including `shared/text_symbols.json`, `viewer/text_symbol_palette.js`, glyph-profile generation, and regression scripts.
-- Expanded Rust tests, especially CDXML, text, arrow, glyph, and render-stability coverage in `crates/chemcore-engine/tests/render_document.rs`.
+The CDXML color system was centralized:
 
-`56cdd4a` moved native file entry points to `.ccjs` / `.ccjz`:
+- Added `crates/chemcore-engine/src/cdxml/colors.rs` to own CDXML `<colortable>` parsing, color id mapping, and export.
+- Made ChemDraw color ids explicit: `color="0"` is foreground, default black; `bgcolor="1"` is background, default white; user color-table entries start at id `2`.
+- Parsed RGB fractions in the `0..1` range and rounded them into `#rrggbb`, avoiding drift between floating-point CDXML colors and integer hex colors.
+- Routed CDXML import for lines, shapes, text objects, text runs, fragment labels, page background, and object styles through one color resolver.
+- Changed CDXML export to collect colors actually used by the document, write one stable `<colortable>`, and map object colors back to stable ids.
+- Added color-focused tests for duplicate color slots, Default/ACS samples, non-white page backgrounds, and color preservation after re-import.
 
-- `.ccjz` is the default product save format: gzip-compressed chemcore JSON.
-- `.ccjs` is the readable debug format: plain-text chemcore JSON.
-- Viewer file flow supports opening `.ccjz`, `.ccjs`, and `.cdxml`, plus saving `.ccjz`, `.ccjs`, and exporting `.cdxml` / `.svg`.
-- The example file moved from `examples/document-v0.1.json` to `examples/document-v0.1.ccjs`.
-- README, format docs, project rules, and viewer rendering reports were updated to use `.ccjs/.ccjz` terminology.
+Arrow model and rendering semantics were made much richer:
+
+- The internal document model now carries thicker `arrowHead` and `arrowGeometry` data instead of relying on a few frontend size buckets.
+- `kind` records solid, hollow, and open hollow arrows; `head` and `tail` record full, left, right, and none endpoint styles.
+- `length`, `centerLength`, and `width` are stored and aligned with ChemDraw `HeadSize`, `ArrowheadCenterSize`, and `ArrowheadWidth`.
+- `curve` and ellipse-arc geometry are stored for curved arrows and curved double arrows.
+- `noGo` records cross/hash no-go marks, and `bold` records bold arrow semantics.
+- `crates/chemcore-engine/src/render_objects/arrows.rs` now renders solid arrows, hollow arrows, open arrows, half arrows, double-headed arrows, curved arrows, bold arrows, and no-go marks.
+- CDXML import reads arrow size, type, endpoint, curve, geometry, and color parameters; CDXML export writes `ArrowheadType`, `ArrowheadHead`, `ArrowheadTail`, `ArrowheadCenterSize`, `ArrowheadWidth`, curve geometry, and color.
+- Selection/editing paths were updated in `editing/arrows.rs`, `engine/arrows.rs`, `engine/select/arrows.rs`, and `editing/geometry.rs`, keeping hover, drag, selected-style updates, and scaled arrow geometry consistent.
+- Tests now cover arrowhead size floors, arrow dimensions relative to line width, independent open/hollow templates, half-arrow visual sides on curves, and stable CDXML arrow fixtures after export/re-import.
+
+Structural labels, abbreviation handling, and valence recognition also advanced:
+
+- `abbreviation.rs`, `abbreviation/expansion.rs`, and `abbreviation/valence.rs` continued moving chemical abbreviations, open valence, terminal group, and bridge group rules into the Rust engine.
+- Molecule fragment labels are no longer treated as ordinary text objects, avoiding a CDXML import path where structural labels and free text were mixed together.
+- Structural labels can carry `lineRuns`, preserving multi-line and multi-run labels such as `H` above `N`.
+- Source runs and normalized display runs were separated: source-file run data stays in import metadata, while editing/display uses chemically normalized runs.
+- Text-edit internals under `engine/text_edit` were updated across geometry, labels, layout, and runs so endpoint labels, text objects, reopened edit sessions, and caret/selection geometry follow the Rust glyph kernel more closely.
+- Tests were added or expanded for terminal abbreviations, two-connection bridge abbreviations, charged B/N/O exceptions, P/S implicit hydrogen rules, halogen alternating implicit hydrogen rules, right-side label anchors, and reopened text-edit bbox/anchor precision.
+
+The glyph kernel, text symbols, and viewer text-rendering path received a full pass:
+
+- Added `shared/text_symbols.json` as shared data for common text and chemical typography symbols.
+- Added `viewer/text_symbol_palette.js`, allowing the viewer to show a text-symbol palette and insert selected symbols into the active text editor or arm the text tool for insertion.
+- Added `scripts/generate-glyph-profiles.py` for generating/updating shared glyph profiles.
+- Added `scripts/text-symbol-regression.mjs` for text-symbol regression checks.
+- Updated `shared/glyph_profiles.json` so glyph advance, ink box, background box, polygon, and clipping data stay aligned with the Rust kernel.
+- Updated `glyph_kernel.rs`, `viewer/text_metrics.js`, `viewer/primitive_dom_renderer.js`, `viewer/object_fallbacks.js`, and `viewer/styles.css` so the viewer consumes engine/shared-profile output rather than inventing text measurement locally.
+- Added `docs/text-symbol-glyph-profile-rules.zh-CN.md` to document text-symbol and glyph-profile maintenance rules.
+- Updated `docs/glyph-kernel.md`, preserving the rule that the Rust glyph kernel is authoritative for advance, ink box, background box, glyph polygon, and label clipping.
+
+Rendering, format fields, and import boundaries were strengthened:
+
+- `document.rs` added fields for arrows, shapes, text, and style payloads so JSON can preserve real CDXML semantics instead of only the subset the viewer currently draws.
+- `render.rs`, `render_bonds.rs`, `render/bond_metrics.rs`, `render/style_payload.rs`, `render_objects/text.rs`, `render_primitives.rs`, and `render_svg.rs` continued consolidating render primitive output.
+- Shape objects gained more ChemDraw style fidelity, including rectangle, round rectangle, ellipse, shadowed, shaded, and dashed geometry/style behavior.
+- Small brackets, shapes, and text bboxes no longer get inflated by unreasonable fixed minimums after import.
+- ACS Document 1996 and Default drawing parameters remain separate instead of treating ACS as a simple scale of Default.
+- The JSON import boundary migrates legacy aligned text boxes, fills default arrow geometry, and normalizes text/shape payloads so older files do not open with missing fields.
+- `docs/format-v0.1.md` and `docs/format-v0.1.zh-CN.md` were updated with these model fields, and `docs/project-rules.zh-CN.md` was updated to reinforce the engine/viewer ownership boundary.
+
+Test assets and validation coverage were expanded significantly:
+
+- `crates/chemcore-engine/tests/render_document.rs` gained many CDXML, SVG, arrow, shape, glyph, text, and import/export stability cases.
+- `crates/chemcore-engine/tests/bond_tool.rs` covers editor-tool behavior for arrows, hover/drag, templates, shapes, select, text, symbols, and brackets.
+- `crates/chemcore-engine/tests/text_tool.rs` covers endpoint labels, plain text objects, text runs, reopened editing, caret, selection, and unrecognized-abbreviation red boxes.
+- Fixture stability checks now cover CDXML import -> export -> import render/SVG stability and preservation of object semantics in local `tmp/` fixtures.
+- `viewer/engine/chemcore_engine_bg.wasm` was regenerated with the Rust engine changes so browser-visible behavior matches the core.
+
+`56cdd4a` was the second development commit of the day, touching 11 files with about 176 insertions and 77 deletions. It moved Chemcore's own file entry points from generic `.json` to `.ccjs` / `.ccjz`, and updated viewer open/save flow accordingly.
+
+Native format naming and responsibilities were clarified:
+
+- `.ccjz` is the default product save format: gzip-compressed chemcore JSON, intended for everyday user saves and sharing.
+- `.ccjs` is the readable debug format: plain-text chemcore JSON, intended for inspection, diffs, and reproductions.
+- Chemcore native files are no longer exposed as plain `.json`, avoiding confusion with arbitrary JSON files and reducing the chance users treat the format as generic JSON data.
+- The example file was renamed from `examples/document-v0.1.json` to `examples/document-v0.1.ccjs`, keeping examples aligned with the new format policy.
+
+Viewer file flow was refactored around centralized format handling:
+
+- `viewer/file_io.js` added `.ccjs` / `.ccjz` extension constants, MIME constants, filename-format detection, base-name handling, compression helpers, and decompression helpers.
+- `.ccjz` uses browser `CompressionStream` / `DecompressionStream`; the content is still chemcore JSON, stored as gzip.
+- The open accept list now includes `.ccjz`, `.ccjs`, `.cdxml`, and their MIME types so browser file pickers can filter correctly.
+- `documentTitleForFileName` now defaults to `.ccjz`, deriving a safe filename from the document title or current file name.
+- `viewer/document_flow.js` now decides whether gzip decompression is needed from filename/MIME, then decides whether the content is CDXML from content and file metadata.
+- Save as supports `.ccjz`, `.ccjs`, `.cdxml`, and `.svg`; unknown save extensions default to `.ccjz`.
+- `viewer/app.js` was adapted to the new example extension and file-flow API.
+
+Docs and project rules were updated together:
+
+- `README.md` and `README.zh-CN.md` now describe `.ccjs/.ccjz` as the native formats.
+- `docs/format-v0.1.md` and `docs/format-v0.1.zh-CN.md` specify `.ccjz` as gzip JSON and `.ccjs` as debug JSON.
+- `docs/project-rules.zh-CN.md` records the native-format rule: `.ccjz` is the default save format and `.ccjs` is the debug format.
+- `docs/rust-engine-architecture.zh-CN.md` and `docs/viewer-rendering-report.zh-CN.md` were updated so old `.json` terminology no longer remains in developer rules.
+- This format migration also prepares the future Tauri/desktop shell: the product can associate `.ccjz/.ccjs` instead of taking over ordinary `.json`.
 
 ### Windows-Native Environment Rebuild
 
@@ -227,7 +296,8 @@ package-lock.json
 viewer/document_flow.js
 viewer/engine/chemcore_engine_bg.wasm
 viewer/index.html
-docs/developer-log-2026-05-05.md
+docs/developer-log-2026-05-05.zh-CN.md
+docs/developer-log-2026-05-05.en.md
 ```
 
 `HANDOFF-2026-05-05.md` has been absorbed into this log and deleted from the repository root.
@@ -239,7 +309,8 @@ Meaning of each change:
 - `viewer/document_flow.js`: fix missing save constant import and open the save picker before content generation.
 - `viewer/index.html`: update `app.js` cache-busting query.
 - `viewer/engine/chemcore_engine_bg.wasm`: stable Windows-native WASM rebuild artifact.
-- `docs/developer-log-2026-05-05.md`: this bilingual developer log.
+- `docs/developer-log-2026-05-05.zh-CN.md`: the Chinese developer log.
+- `docs/developer-log-2026-05-05.en.md`: the English developer log.
 
 ### Follow-Up Notes
 

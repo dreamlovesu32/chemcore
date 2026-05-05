@@ -26,31 +26,100 @@
 56cdd4a feat: adopt ccjs and ccjz document extensions
 ```
 
-今天接手时需要吸收的两个最近开发提交是：
+今天接手时需要吸收并写入日志的两个开发提交是：
 
 ```text
 0e4e0e1 feat: improve cdxml rendering fidelity
 56cdd4a feat: adopt ccjs and ccjz document extensions
 ```
 
-`0e4e0e1` 的核心内容是继续提升 CDXML 导入、内部模型、另存、再导入和渲染保真：
+`0e4e0e1` 是今天最大的一次功能提交，共涉及 49 个文件，约 4462 行新增和 542 行删除。它不是单点修补，而是围绕 ChemDraw/CDXML 保真、箭头语义、结构标签、glyph profile、文本符号和回归测试做了一轮系统性加厚。
 
-- 新增统一 CDXML color table 解析和导出路径。
-- 颜色语义按 ChemDraw 规则处理：`color="0"` 为前景色，`bgcolor="1"` 为背景色，`<colortable>` entries 从 id `2` 开始。
-- CDXML import/export 统一处理 line、shape、text、text run、fragment label、页面背景和对象样式颜色。
-- 扩充箭头内部语义，包括 solid/hollow/open、单双头、半边箭头、弯曲箭头、粗箭头和 no-go cross/hash。
-- `render_objects/arrows.rs` 扩充到更接近 ChemDraw 的箭头渲染语义。
-- 分子 label 不再当作普通 text object；结构 label 支持 `lineRuns`，保留多行和 run 信息。
-- 新增文本符号和 glyph profile 路径，包括 `shared/text_symbols.json`、`viewer/text_symbol_palette.js`、glyph profile 生成和回归脚本。
-- 扩充 Rust 测试，尤其是 `crates/chemcore-engine/tests/render_document.rs` 的 CDXML、文本、箭头、glyph 和渲染稳定性覆盖。
+CDXML 颜色系统被收拢到统一实现：
 
-`56cdd4a` 的核心内容是把原生格式入口迁到 `.ccjs` / `.ccjz`：
+- 新增 `crates/chemcore-engine/src/cdxml/colors.rs`，把 CDXML `<colortable>` 的解析、颜色 id 映射和导出收敛到同一个模块。
+- 明确 ChemDraw 颜色 id 语义：`color="0"` 表示前景色，默认黑色；`bgcolor="1"` 表示背景色，默认白色；用户颜色从 `<colortable>` 的 id `2` 开始。
+- RGB 小数按 `0..1` 范围解析，再 round 到 `#rrggbb`，避免导入导出时因为浮点小数和整数颜色之间的转换产生漂移。
+- CDXML 导入路径中，line、shape、text object、text run、fragment label、页面背景和对象样式都改成通过同一个颜色表解析。
+- CDXML 导出路径中，先收集文档实际用到的颜色，再统一写出 `<colortable>`，并让对象颜色反查到稳定 id。
+- 增加颜色相关测试，例如 duplicate color slots、Default/ACS 样例、非白页面背景和重新导入后的颜色保持。
 
-- `.ccjz` 是默认产品保存格式，即 gzip 压缩后的 chemcore JSON。
-- `.ccjs` 是可读调试格式，即纯文本 chemcore JSON。
-- viewer 文件流支持打开 `.ccjz`、`.ccjs`、`.cdxml`，并支持保存 `.ccjz`、`.ccjs`、导出 `.cdxml` 和 `.svg`。
-- 示例文件从 `examples/document-v0.1.json` 改为 `examples/document-v0.1.ccjs`。
-- README、格式文档、项目规则和 viewer 渲染报告同步改成 `.ccjs/.ccjz` 术语。
+箭头模型和渲染语义被显著扩充：
+
+- 内部 document model 加厚了 `arrowHead` 和 `arrowGeometry`，不再只靠少量前端档位描述箭头。
+- 保存 `kind` 区分 solid、hollow、open hollow；保存 `head`、`tail` 区分 full、left、right、none 等端点样式。
+- 保存 `length`、`centerLength`、`width`，分别对齐 ChemDraw 的 `HeadSize`、`ArrowheadCenterSize` 和 `ArrowheadWidth`。
+- 保存 `curve` 与椭圆弧几何，用于弯曲箭头和 curved double arrow。
+- 保存 `noGo` 的 cross/hash 语义，以及 `bold` 粗箭头语义。
+- `crates/chemcore-engine/src/render_objects/arrows.rs` 扩展为能渲染实心箭头、空心箭头、开口箭头、半边箭头、双头箭头、弯曲箭头、粗箭头和 no-go 标记。
+- CDXML 导入读取箭头尺寸、类型、端点、弯曲参数和颜色；CDXML 导出写回 `ArrowheadType`、`ArrowheadHead`、`ArrowheadTail`、`ArrowheadCenterSize`、`ArrowheadWidth`、弯曲几何和颜色。
+- 选择/编辑路径同步更新，包括 `editing/arrows.rs`、`engine/arrows.rs`、`engine/select/arrows.rs` 和 `editing/geometry.rs`，让 hover、拖拽、选中样式更新和缩放后的箭头几何保持一致。
+- 新增或扩展测试覆盖：箭头头部不被尺寸下限覆盖、箭头尺寸相对线宽、open/hollow 独立尺寸模板、半边箭头在曲线上的视觉左右侧、CDXML 导入导出后箭头 fixture 稳定。
+
+结构标签、缩写和 valence 识别继续推进：
+
+- `abbreviation.rs`、`abbreviation/expansion.rs`、`abbreviation/valence.rs` 继续把化学缩写、开放价、终端基团和桥连基团识别规则收到 Rust engine。
+- 分子 fragment label 不再当作普通 text object 处理，避免导入 CDXML 后把结构标签和自由文本混在一起。
+- 结构 label 支持 `lineRuns`，用于保留类似上方 `H`、下方 `N` 的多行/多 run 标签布局。
+- source runs 和 normalized display runs 分离：源文件中的 run 信息保存在 import meta，显示与编辑使用化学上归一化后的 runs。
+- 文本编辑路径更新了 `engine/text_edit` 下的 geometry、labels、layout、runs，使 endpoint label、text object、reopen edit session、caret/selection geometry 更接近 Rust glyph kernel 的结果。
+- 测试覆盖继续补齐，包括 terminal abbreviation、two-connection bridge、charged B/N/O 例外、P/S 隐式氢规则、卤素交替隐式氢规则、右侧 label anchor、重开文本编辑 session 后 bbox/anchor 精度稳定。
+
+glyph kernel、文本符号和 viewer 文本渲染路径有一轮完整补强：
+
+- 新增 `shared/text_symbols.json`，把常用文本符号和化学排版符号变成共享数据源。
+- 新增 `viewer/text_symbol_palette.js`，viewer 侧可以展示文本符号 palette，并把选择的符号插入当前文本编辑器或切换到文本工具待插入。
+- 新增 `scripts/generate-glyph-profiles.py`，用于生成/更新共享 glyph profiles。
+- 新增 `scripts/text-symbol-regression.mjs`，用于文本符号回归检查。
+- 更新 `shared/glyph_profiles.json`，让 glyph advance、ink box、background box、polygon 和 clipping 数据与 Rust kernel 保持一致。
+- 更新 `glyph_kernel.rs`、`viewer/text_metrics.js`、`viewer/primitive_dom_renderer.js`、`viewer/object_fallbacks.js` 和 `viewer/styles.css`，让 viewer 消费 engine 和共享 profile，而不是重新发明文本测量逻辑。
+- 新增 `docs/text-symbol-glyph-profile-rules.zh-CN.md`，记录文本符号与 glyph profile 的维护规则。
+- `docs/glyph-kernel.md` 同步更新，继续强调 Rust glyph kernel 是 advance、ink box、background box、glyph polygon 和 label clipping 的权威。
+
+渲染、格式和导入边界也同步加厚：
+
+- `document.rs` 扩展了箭头、shape、text、style payload 等字段，以便 JSON 能保存导入自 CDXML 的真实语义，而不是只保存 viewer 当前能画出的近似。
+- `render.rs`、`render_bonds.rs`、`render/bond_metrics.rs`、`render/style_payload.rs`、`render_objects/text.rs`、`render_primitives.rs` 和 `render_svg.rs` 继续收敛 render primitive 输出。
+- shape 对象继续补齐 ChemDraw 样式，包括 rectangle、round rect、ellipse、shadowed、shaded、dashed 等几何和样式字段。
+- bracket、shape、text bbox 等小对象不再被不合理固定下限撑大，导入后更接近源 CDXML 尺寸。
+- ACS Document 1996 与 Default 的绘图参数继续分开维护，避免把 ACS 当成 Default 的简单缩放。
+- JSON import boundary 会迁移 legacy aligned text box、补默认 arrow geometry、归一化 text/shape payload，避免旧文件打开后缺字段。
+- `docs/format-v0.1.md` 和 `docs/format-v0.1.zh-CN.md` 同步记录这些模型字段，`docs/project-rules.zh-CN.md` 同步强调 engine/viewer 职责边界。
+
+测试资产和验证面大幅扩展：
+
+- `crates/chemcore-engine/tests/render_document.rs` 增加大量 CDXML、SVG、箭头、shape、glyph、文本和导入导出稳定性用例。
+- `crates/chemcore-engine/tests/bond_tool.rs` 覆盖编辑器工具行为，包括箭头 hover/drag、模板、shape、select、text、symbol、bracket 等交互。
+- `crates/chemcore-engine/tests/text_tool.rs` 覆盖 endpoint label、plain text object、text run、重开编辑、caret、selection、识别失败红框等文本编辑行为。
+- 新增 fixture 稳定性检查，包括 CDXML import -> export -> import 后 render/SVG 是否稳定，以及 `tmp/` fixture 的对象语义是否保持。
+- `viewer/engine/chemcore_engine_bg.wasm` 随 Rust engine 更新同步重建，让浏览器 viewer 可见行为跟内核一致。
+
+`56cdd4a` 是今天第二个开发提交，共涉及 11 个文件，约 176 行新增和 77 行删除。它把产品自己的文件入口从泛泛的 `.json` 迁到 `.ccjs` / `.ccjz`，并把 viewer 打开/保存流程一起改到新格式。
+
+原生格式的命名和职责被重新定下来：
+
+- `.ccjz` 是默认产品保存格式，即 gzip 压缩后的 chemcore JSON。它适合用户日常保存和传递。
+- `.ccjs` 是可读调试格式，即纯文本 chemcore JSON。它适合人工检查、diff 和问题复现。
+- 不再把 chemcore 原生文件暴露成普通 `.json`，避免和任意 JSON 文件混淆，也避免用户误以为这是通用 JSON 数据。
+- 示例文件从 `examples/document-v0.1.json` 重命名为 `examples/document-v0.1.ccjs`，让 examples 与新文件策略一致。
+
+viewer 文件流被重构为集中处理格式判断：
+
+- `viewer/file_io.js` 新增 `.ccjs` / `.ccjz` 的扩展名常量、MIME 常量、文件名格式判断、base name 处理、压缩和解压工具。
+- `.ccjz` 读写使用浏览器 `CompressionStream` / `DecompressionStream`，内容仍是 chemcore JSON，只是以 gzip 形式存储。
+- open accept list 同时接受 `.ccjz`、`.ccjs`、`.cdxml` 以及对应 MIME，方便浏览器文件选择器过滤。
+- `documentTitleForFileName` 默认生成 `.ccjz` 文件名，保存时会从当前文档 title 或当前文件名推导安全文件名。
+- `viewer/document_flow.js` 的 open path 会按文件名或 MIME 判断是否需要 gzip 解压，再按内容判断是否为 CDXML。
+- Save as 支持 `.ccjz`、`.ccjs`、`.cdxml`、`.svg` 四类输出；未识别扩展名默认按 `.ccjz` 保存。
+- `viewer/app.js` 适配新的示例文件扩展名和文件流 API。
+
+文档和项目规则同步更新：
+
+- `README.md` 与 `README.zh-CN.md` 把原生格式说明改为 `.ccjs/.ccjz`。
+- `docs/format-v0.1.md` 与 `docs/format-v0.1.zh-CN.md` 明确 `.ccjz` 为 gzip JSON、`.ccjs` 为 debug JSON。
+- `docs/project-rules.zh-CN.md` 写入原生格式规则，强调 `.ccjz` 是默认保存格式，`.ccjs` 是调试格式。
+- `docs/rust-engine-architecture.zh-CN.md` 和 `docs/viewer-rendering-report.zh-CN.md` 同步术语，避免旧 `.json` 入口继续出现在开发规则里。
+- 这次格式迁移也为后续 Tauri/桌面壳文件关联做了铺垫：产品可以关联 `.ccjz/.ccjs`，而不是抢普通 `.json`。
 
 ### Windows 原生环境重建
 
@@ -231,7 +300,8 @@ package-lock.json
 viewer/document_flow.js
 viewer/engine/chemcore_engine_bg.wasm
 viewer/index.html
-docs/developer-log-2026-05-05.md
+docs/developer-log-2026-05-05.zh-CN.md
+docs/developer-log-2026-05-05.en.md
 ```
 
 `HANDOFF-2026-05-05.md` 的内容已并入本日志，并已从根目录删除。
@@ -243,7 +313,8 @@ docs/developer-log-2026-05-05.md
 - `viewer/document_flow.js`：修复保存未导入常量，并把保存框调用提前到内容生成前。
 - `viewer/index.html`：更新 `app.js` cache-busting query。
 - `viewer/engine/chemcore_engine_bg.wasm`：Windows-native WASM rebuild 后的稳定生成物变化。
-- `docs/developer-log-2026-05-05.md`：本双语开发者日志。
+- `docs/developer-log-2026-05-05.zh-CN.md`：本中文开发者日志。
+- `docs/developer-log-2026-05-05.en.md`：本英文开发者日志。
 
 ### 后续注意事项
 
