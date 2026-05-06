@@ -9,9 +9,9 @@
     "example": "examples"
   },
   "scripts": {
-    "build:engine-wasm": "bash scripts/build-engine-wasm.sh",
-    "dev:engine": "bash scripts/dev-engine-wasm.sh",
-    "verify": "bash scripts/verify.sh",
+    "build:engine-wasm": "node scripts/build-engine-wasm.mjs",
+    "dev:engine": "node scripts/dev-engine-wasm.mjs",
+    "verify": "node scripts/verify.mjs",
     "screenshot": "node scripts/viewer-screenshot.mjs",
     "test": "cargo test && node --check viewer/app.js"
   },
