@@ -2120,7 +2120,7 @@ fn parse_cdxml_keeps_numeric_suffix_node_label_anchored_on_letter() {
             .collect()
     }
 
-    fn anchor_of(label: &chemcore_engine::NodeLabel, index: usize) -> Point {
+    fn glyph_center(label: &chemcore_engine::NodeLabel, index: usize) -> Point {
         let polygon = label
             .glyph_polygons
             .get(index)
@@ -2155,8 +2155,8 @@ fn parse_cdxml_keeps_numeric_suffix_node_label_anchored_on_letter() {
 
         assert_eq!(n3_label.runs[1].script.as_deref(), Some("subscript"));
         assert!(
-            anchor_of(n3_label, 0).distance(n3_node.point()) < 0.01,
-            "N3 should anchor on N, not on the subscript digit: node={n3_node:?}, label={n3_label:?}"
+            (glyph_center(n3_label, 1).x - n3_node.position[0]).abs() < 0.01,
+            "N3 should use the subscript digit for anchor x: node={n3_node:?}, label={n3_label:?}"
         );
         assert!(
             (n3_label.position.unwrap()[1] - ph_label.position.unwrap()[1]).abs() < 0.5,
@@ -2208,8 +2208,12 @@ fn parse_cdxml_keeps_numeric_suffix_node_label_anchored_on_letter() {
     );
     assert_eq!(invalid_label.runs[1].script.as_deref(), Some("subscript"));
     assert!(
-        anchor_of(invalid_label, 0).distance(invalid_node.point()) < 0.01,
-        "invalid labels should prefer non-script glyph anchors over subscript/superscript glyphs: node={invalid_node:?}, label={invalid_label:?}"
+        (glyph_center(invalid_label, 1).x - invalid_node.position[0]).abs() < 0.01,
+        "invalid labels should still use subscript/superscript glyphs for anchor x: node={invalid_node:?}, label={invalid_label:?}"
+    );
+    assert!(
+        (glyph_center(invalid_label, 1).y - invalid_node.position[1]).abs() > 1.0,
+        "subscript glyph bbox y should not be used as the label anchor y: node={invalid_node:?}, label={invalid_label:?}"
     );
 }
 

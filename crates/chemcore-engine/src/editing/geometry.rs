@@ -37,7 +37,8 @@ pub(super) fn label_anchor_geometries(
     let glyph_polygons = label.glyph_polygons();
     let glyph_points: Vec<Point> = glyph_polygons
         .iter()
-        .filter_map(|polygon| polygon_anchor_point(&polygon))
+        .enumerate()
+        .filter_map(|(index, polygon)| label_glyph_anchor_point(label, polygon, index))
         .map(|point| {
             Point::new(
                 point.x + entry.object.transform.translate[0],
@@ -101,6 +102,64 @@ pub(super) fn polygon_anchor_point(polygon: &[Point]) -> Option<Point> {
         max_y = max_y.max(point.y);
     }
     Some(Point::new((min_x + max_x) * 0.5, (min_y + max_y) * 0.5))
+}
+
+fn label_glyph_anchor_point(
+    label: &crate::NodeLabel,
+    polygon: &[Point],
+    glyph_index: usize,
+) -> Option<Point> {
+    let mut point = polygon_anchor_point(polygon)?;
+    let font_size = label
+        .font_size
+        .unwrap_or(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM);
+    point.y = label_glyph_anchor_y(label, glyph_index, font_size)?;
+    Some(point)
+}
+
+fn label_glyph_anchor_y(
+    label: &crate::NodeLabel,
+    glyph_index: usize,
+    font_size: f64,
+) -> Option<f64> {
+    let line_lengths = label_line_lengths(label);
+    let line_count = line_lengths.len().max(1);
+    let mut remaining = glyph_index;
+    let mut line_index = 0usize;
+    for (index, length) in line_lengths.iter().copied().enumerate() {
+        if remaining < length {
+            line_index = index;
+            break;
+        }
+        remaining = remaining.saturating_sub(length);
+        line_index = index;
+    }
+    let baseline_y = if line_count > 1 {
+        let bbox = label.bbox()?;
+        let line_height = (bbox[3] - bbox[1]) / line_count as f64;
+        bbox[1] + line_height * line_index as f64 + line_height * 0.82
+    } else {
+        label.position.map(|position| position[1])?
+    };
+    Some(baseline_y + crate::glyph_kernel::shared_standard_glyph_anchor_y_offset(font_size))
+}
+
+fn label_line_lengths(label: &crate::NodeLabel) -> Vec<usize> {
+    if !label.line_runs.is_empty() {
+        return label
+            .line_runs
+            .iter()
+            .map(|line| line.iter().map(|run| run.text.chars().count()).sum())
+            .collect();
+    }
+    if !label.lines.is_empty() {
+        return label
+            .lines
+            .iter()
+            .map(|line| line.chars().count())
+            .collect();
+    }
+    vec![label.text.chars().count()]
 }
 
 pub(super) fn polygon_bounds_world(polygon: &[Point], translate: [f64; 2]) -> Option<[f64; 4]> {

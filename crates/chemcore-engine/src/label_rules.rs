@@ -71,12 +71,7 @@ pub fn reverse_label_groups(text: &str) -> String {
 }
 
 pub fn terminal_letter_anchor_offset(group: &str) -> usize {
-    group
-        .chars()
-        .enumerate()
-        .filter_map(|(index, character)| character.is_ascii_alphabetic().then_some(index))
-        .last()
-        .unwrap_or(0)
+    group.chars().count().saturating_sub(1)
 }
 
 pub fn decide_label_layout(
@@ -293,10 +288,10 @@ mod tests {
     }
 
     #[test]
-    fn terminal_letter_anchor_offset_skips_trailing_digits() {
+    fn terminal_letter_anchor_offset_uses_terminal_glyph() {
         assert_eq!(terminal_letter_anchor_offset("Ph"), 1);
-        assert_eq!(terminal_letter_anchor_offset("Ph2"), 1);
-        assert_eq!(terminal_letter_anchor_offset("N3"), 0);
+        assert_eq!(terminal_letter_anchor_offset("Ph2"), 2);
+        assert_eq!(terminal_letter_anchor_offset("N3"), 1);
     }
 
     #[test]
@@ -330,7 +325,7 @@ mod tests {
     }
 
     #[test]
-    fn reversed_single_group_anchors_terminal_letter_not_digit() {
+    fn reversed_single_group_anchors_terminal_glyph() {
         let decision = LabelLayoutDecision {
             flow: LabelFlow::Reverse,
             anchor: LabelAnchorPolicy::OriginalFirstGroup,
@@ -342,7 +337,7 @@ mod tests {
 
         let n3 = layout_label_text("N3", &decision);
         assert_eq!(n3.lines, vec!["N3"]);
-        assert_eq!(n3.anchor_char, 0);
+        assert_eq!(n3.anchor_char, 1);
     }
 
     #[test]

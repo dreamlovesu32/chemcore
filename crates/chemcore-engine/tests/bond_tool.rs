@@ -962,6 +962,13 @@ fn load_label_document(
         .expect("document should load");
 }
 
+fn default_label_anchor_y() -> f64 {
+    px(260.0)
+        + chemcore_engine::shared_standard_glyph_anchor_y_offset(
+            chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM,
+        )
+}
+
 fn load_text_object_document(engine: &mut Engine) {
     let document = json!({
         "format": { "name": "chemcore", "version": "0.1" },
@@ -2163,7 +2170,10 @@ fn hover_focuses_label_glyph_anchor() {
     let hover = engine.state().overlay.hover_endpoint.as_ref().unwrap();
     assert_eq!(hover.node_id, "n1");
     assert!((hover.point.x - px(305.0)).abs() < 0.001, "{hover:?}");
-    assert!((hover.point.y - px(260.0)).abs() < 0.001, "{hover:?}");
+    assert!(
+        (hover.point.y - default_label_anchor_y()).abs() < 0.001,
+        "{hover:?}"
+    );
     let anchor = hover
         .label_anchor
         .as_ref()
@@ -2212,7 +2222,7 @@ fn click_on_label_glyph_uses_rightmost_group_anchor_for_default_bond() {
 
     let entry = engine.state().document.editable_fragment().unwrap();
     let last = entry.fragment.nodes.last().unwrap();
-    let expected = endpoint_from_anchor(px_point(313.0, 260.0), 0.0);
+    let expected = endpoint_from_anchor(Point::new(px(321.0), default_label_anchor_y()), 0.0);
     assert!(
         (last.position[0] - expected.x).abs() < 0.01,
         "{:?}",
@@ -2226,8 +2236,8 @@ fn click_on_label_glyph_uses_rightmost_group_anchor_for_default_bond() {
 }
 
 #[test]
-fn single_group_label_right_anchor_uses_terminal_letter_but_not_digit() {
-    for (label, expected_anchor_x) in [("Ph", px(305.0)), ("N3", px(297.0))] {
+fn single_group_label_right_anchor_uses_layout_glyph_x_and_stable_y() {
+    for (label, expected_anchor_x) in [("Ph", px(305.0)), ("N3", px(305.0))] {
         let mut engine = Engine::new();
         engine.set_tool_state(bond_tool());
         load_label_document(
@@ -2257,7 +2267,7 @@ fn single_group_label_right_anchor_uses_terminal_letter_but_not_digit() {
             "{label}: {right_group_point:?}"
         );
         assert!(
-            (right_group_point.y - px(260.0)).abs() < 0.01,
+            (right_group_point.y - default_label_anchor_y()).abs() < 0.01,
             "{label}: {right_group_point:?}"
         );
     }
@@ -2305,15 +2315,16 @@ fn drag_from_label_glyph_uses_focused_glyph_for_vertical_bond() {
         "{:?}",
         last.position
     );
+    let expected = endpoint_from_anchor(Point::new(px(305.0), default_label_anchor_y()), 270.0);
     assert!(
-        (last.position[1] - FIRST_END_TRIPLE_EXTEND_Y).abs() < 0.01,
+        (last.position[1] - expected.y).abs() < 0.01,
         "{:?}",
         last.position
     );
 }
 
 #[test]
-fn drag_from_connected_label_uses_rightmost_group_uppercase_anchor() {
+fn drag_from_connected_label_uses_rightmost_group_terminal_anchor() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());
     load_label_document(
@@ -2355,13 +2366,14 @@ fn drag_from_connected_label_uses_rightmost_group_uppercase_anchor() {
 
     let entry = engine.state().document.editable_fragment().unwrap();
     let last = entry.fragment.nodes.last().unwrap();
+    let expected = endpoint_from_anchor(Point::new(px(321.0), default_label_anchor_y()), 0.0);
     assert!(
-        (last.position[0] - px(353.0)).abs() < 0.01,
+        (last.position[0] - expected.x).abs() < 0.01,
         "{:?}",
         last.position
     );
     assert!(
-        (last.position[1] - FIRST_START_Y).abs() < 0.01,
+        (last.position[1] - expected.y).abs() < 0.01,
         "{:?}",
         last.position
     );
@@ -2404,7 +2416,7 @@ fn drag_from_middle_label_glyph_uses_leftmost_anchor_for_leftward_bond() {
 
     let entry = engine.state().document.editable_fragment().unwrap();
     let last = entry.fragment.nodes.last().unwrap();
-    let expected = endpoint_from_anchor(px_point(297.0, 260.0), 180.0);
+    let expected = endpoint_from_anchor(Point::new(px(297.0), default_label_anchor_y()), 180.0);
     assert!(
         (last.position[0] - expected.x).abs() < 0.01,
         "{:?}",
@@ -2454,7 +2466,7 @@ fn drag_from_rightmost_label_glyph_keeps_clicked_glyph_for_rightward_bond() {
 
     let entry = engine.state().document.editable_fragment().unwrap();
     let last = entry.fragment.nodes.last().unwrap();
-    let expected = endpoint_from_anchor(px_point(321.0, 260.0), 0.0);
+    let expected = endpoint_from_anchor(Point::new(px(321.0), default_label_anchor_y()), 0.0);
     assert!(
         (last.position[0] - expected.x).abs() < 0.01,
         "{:?}",
@@ -6854,7 +6866,7 @@ fn bracket_symbol_drag_from_label_glyph_orbits_around_clicked_glyph() {
         Some("plus")
     );
     assert_eq!(round_to_2(symbol.transform.translate[0]), 27.83);
-    assert_eq!(round_to_2(symbol.transform.translate[1]), 16.83);
+    assert_eq!(round_to_2(symbol.transform.translate[1]), 16.18);
 }
 
 #[test]

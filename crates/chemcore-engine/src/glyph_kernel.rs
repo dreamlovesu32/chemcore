@@ -590,6 +590,11 @@ fn standard_glyph_center_y_offset(config: LayoutConfig) -> f64 {
     (profile.ink_top_em + profile.ink_bottom_em) * 0.5 * config.font_size_px
 }
 
+pub fn shared_standard_glyph_anchor_y_offset(font_size: f64) -> f64 {
+    let profile = default_upper_profile();
+    (profile.ink_top_em + profile.ink_bottom_em) * 0.5 * font_size
+}
+
 fn visible_bounds(placements: &[GlyphPlacement]) -> Option<[f64; 4]> {
     let mut out: Option<[f64; 4]> = None;
     for placement in placements {

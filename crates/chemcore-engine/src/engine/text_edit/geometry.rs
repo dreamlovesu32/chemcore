@@ -23,23 +23,16 @@ pub(super) fn endpoint_label_editor_anchor_world(
             source_runs_are_chemical(&source_runs),
         );
         let layout = layout_label_text(&source_text, &decision);
-        let font_family = label
-            .font_family
-            .clone()
-            .unwrap_or_else(|| DEFAULT_TEXT_FONT_FAMILY.to_string());
-        let font_size = WorldCm(label.font_size.unwrap_or(DEFAULT_TEXT_FONT_SIZE)).value();
-        let fill = label
-            .fill
-            .clone()
-            .unwrap_or_else(|| DEFAULT_TEXT_FILL.to_string());
-        let display_runs =
-            display_runs_from_source_runs(&source_runs, &font_family, font_size, &fill);
-        let (_, line_runs) = layout_display_runs(&display_runs, &decision);
-        let anchor_index = label_anchor_index_for_layout(&line_runs, &layout);
-        if let Some(anchor) = glyph_polygons
-            .get(anchor_index)
-            .and_then(|polygon| polygon_anchor_point(polygon))
-        {
+        let anchor_index = layout
+            .lines
+            .iter()
+            .take(layout.anchor_line)
+            .map(|line| line.chars().count())
+            .sum::<usize>()
+            + layout.anchor_char;
+        if let Some(anchor) = glyph_polygons.get(anchor_index).and_then(|polygon| {
+            label_glyph_anchor_point(label, polygon, layout.anchor_line, layout.lines.len())
+        }) {
             return Some(Point::new(
                 anchor.x + object_translate[0],
                 anchor.y + object_translate[1],
@@ -51,6 +44,34 @@ pub(super) fn endpoint_label_editor_anchor_world(
         bbox[0] + object_translate[0],
         bbox[1] + object_translate[1],
     ))
+}
+
+fn label_glyph_anchor_point(
+    label: &crate::NodeLabel,
+    polygon: &[Point],
+    line_index: usize,
+    line_count: usize,
+) -> Option<Point> {
+    let mut point = polygon_anchor_point(polygon)?;
+    let font_size = WorldCm(label.font_size.unwrap_or(DEFAULT_TEXT_FONT_SIZE)).value();
+    point.y = label_line_anchor_y(label, line_index, line_count, font_size)?;
+    Some(point)
+}
+
+fn label_line_anchor_y(
+    label: &crate::NodeLabel,
+    line_index: usize,
+    line_count: usize,
+    font_size: f64,
+) -> Option<f64> {
+    let baseline_y = if line_count > 1 {
+        let bbox = label.bbox()?;
+        let line_height = (bbox[3] - bbox[1]) / line_count as f64;
+        bbox[1] + line_height * line_index as f64 + line_height * 0.82
+    } else {
+        label.position.map(|position| position[1])?
+    };
+    Some(baseline_y + crate::glyph_kernel::shared_standard_glyph_anchor_y_offset(font_size))
 }
 
 pub(super) fn polygon_anchor_point(polygon: &[Point]) -> Option<Point> {

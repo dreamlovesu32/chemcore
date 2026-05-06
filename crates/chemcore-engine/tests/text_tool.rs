@@ -103,7 +103,17 @@ fn glyph_anchor(label: &chemcore_engine::NodeLabel, index: usize) -> Point {
             ]
         },
     );
-    Point::new((bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5)
+    let baseline_y = label
+        .position
+        .map(|position| position[1])
+        .unwrap_or((bounds[1] + bounds[3]) * 0.5);
+    let font_size = label
+        .font_size
+        .unwrap_or(chemcore_engine::DEFAULT_TEXT_FONT_SIZE_CM);
+    Point::new(
+        (bounds[0] + bounds[2]) * 0.5,
+        baseline_y + chemcore_engine::shared_standard_glyph_anchor_y_offset(font_size),
+    )
 }
 
 fn load_single_carbon_node(engine: &mut Engine) {
