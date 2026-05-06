@@ -49,7 +49,7 @@ export function createDocumentFlow(options) {
     options.state.currentPath = null;
     options.state.currentFileName = fileName;
     options.state.editorEngine?.free?.();
-    options.state.editorEngine = new options.WasmEngine();
+    options.state.editorEngine = options.engineHost.createEngineSession();
     options.state.lastEditFocusPoint = null;
     options.clearZoomHandoffs();
     options.state.editorEngine.loadDocumentJson(JSON.stringify(documentData));
@@ -234,7 +234,7 @@ export function createDocumentFlow(options) {
       options.state.currentPath = null;
       options.state.currentFileName = file.name || null;
       options.state.editorEngine?.free?.();
-      options.state.editorEngine = new options.WasmEngine();
+      options.state.editorEngine = options.engineHost.createEngineSession();
       options.state.lastEditFocusPoint = null;
       options.clearZoomHandoffs();
       options.state.editorEngine.loadDocumentCdxml(text);

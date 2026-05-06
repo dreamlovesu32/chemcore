@@ -414,12 +414,22 @@ checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 name = "chemcore-desktop"
 version = "0.1.0"
 dependencies = [
+ "chemcore-desktop-service",
  "log",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-log",
+]
+
+[[package]]
+name = "chemcore-desktop-service"
+version = "0.1.0"
+dependencies = [
+ "chemcore-engine",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

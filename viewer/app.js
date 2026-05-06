@@ -1,10 +1,10 @@
-import initializeChemcoreEngine, { WasmEngine } from "./engine/chemcore_engine.js";
 import {
   parseEngineJson,
   primitivesForObject,
   renderBoundsFromEngine,
   renderListFromEngine,
 } from "./engine_bridge.js";
+import { createEngineHost } from "./engine_host.js";
 import { bindEditorControls } from "./editor_bindings.js";
 import { createDocumentFlow } from "./document_flow.js";
 import { chemcoreOpenAcceptString } from "./file_io.js";
@@ -99,6 +99,7 @@ const state = {
   displayMetrics: displayMetrics(),
   pendingTextSymbol: null,
 };
+const engineHost = createEngineHost();
 let sharedGlyphProfiles = null;
 const sharedGlyphProfilesReady = loadSharedGlyphProfiles();
 
@@ -1080,7 +1081,7 @@ function currentEditorEngineState() {
 function resetEditorEngine() {
   finishActiveTextEditor(false);
   state.editorEngine?.free?.();
-  state.editorEngine = new WasmEngine();
+  state.editorEngine = engineHost.createEngineSession();
   state.runtimeViewBox = defaultEditorViewBox();
   state.lastEditFocusPoint = null;
   clearZoomHandoffs();
@@ -1091,7 +1092,7 @@ function resetEditorEngine() {
 
 function resetDocumentEngine() {
   state.documentEngine?.free?.();
-  state.documentEngine = new WasmEngine();
+  state.documentEngine = engineHost.createEngineSession();
 }
 
 function refreshCommandAvailability() {
@@ -1905,7 +1906,7 @@ function insertTextSymbol(character) {
 
 const documentFlow = createDocumentFlow({
   state,
-  WasmEngine,
+  engineHost,
   openFileInput,
   viewerTitle,
   viewerStats,
@@ -2750,7 +2751,7 @@ function fitView() {
 watchDisplayMetrics();
 
 try {
-  await Promise.all([initializeChemcoreEngine(), sharedGlyphProfilesReady, textSymbolCatalogReady]);
+  await Promise.all([engineHost.initialize(), sharedGlyphProfilesReady, textSymbolCatalogReady]);
   await loadAndRender();
 } catch (error) {
   viewerTitle.textContent = "Runtime load failed";

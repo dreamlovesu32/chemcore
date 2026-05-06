@@ -105,6 +105,30 @@ EngineHost
 
 短期桌面版可以加载现有 viewer 和 WASM，以便快速启动桌面窗口。但这只能作为同一架构下的阶段性实现，不应把桌面版永久锁死在 WebView WASM 文件读写模型里。长期桌面版应让 Tauri Rust 后端直接调用 `chemcore-engine`，文件系统、gzip、Office 对象、预览生成和批量导出都走 native Rust。
 
+截至 2026-05-06，代码中已经开始落实这条边界：
+
+```text
+viewer/engine_host.js
+  前端 EngineHost 入口。默认使用 WasmEngineHost，保留 Web 端行为。
+
+crates/chemcore-desktop-service
+  原生桌面 document/engine service。直接持有 chemcore-engine::Engine session。
+
+apps/chemcore-desktop/src-tauri
+  Tauri command 边界。当前已经暴露 desktop_engine_* 命令给未来 TauriEngineHost 使用。
+```
+
+当前阶段仍默认使用 `WasmEngineHost`，这是为了保持编辑器同步调用模型稳定。下一阶段切换到 native path 时，不应让 UI 直接散落调用 Tauri command，而应只实现 `TauriEngineHost`，让它满足同一套 editor-facing session API。
+
+建议的切换顺序：
+
+1. 让 `TauriEngineHost` 先支持只读 session：create/free、documentJson、stateJson、renderListJson、renderBoundsJson、documentSvg、documentCdxml。
+2. 再迁移文件打开/保存：`.ccjz` gzip、`.ccjs`、`.cdxml` 都由 `chemcore-desktop-service` 处理。
+3. 最后迁移编辑命令、pointer events、text edit、clipboard。每迁移一组，都保持 Web viewer 仍走 `WasmEngineHost`。
+4. native path 稳定后，桌面端默认使用 `TauriEngineHost`；Web 端继续使用 `WasmEngineHost`。
+
+这个顺序可以避免 UI 和 engine 同时大改，也避免后续 Office 层绕开 desktop service。
+
 ## Office 集成策略
 
 如果目标是 ChemDraw 级 Office 体验，核心不是单纯 Office Add-in，而是真正的 Windows OLE/COM 嵌入对象。
@@ -233,20 +257,20 @@ Office 中的对象预览不能只依赖 SVG。长期需要：
 
 ### 阶段 2：Document Service
 
-- 包装现有 `chemcore-engine`。
-- 定义打开、保存、导出、预览、迁移、命令执行 API。
+- 包装现有 `chemcore-engine`。已开始：`crates/chemcore-desktop-service` 现在持有 native engine sessions。
+- 定义打开、保存、导出、预览、迁移、命令执行 API。已开始：当前先暴露 document JSON、state JSON、render list、bounds、SVG、CDXML。
 - Web 和 Desktop 都通过该 API 语义建模。
 
 ### 阶段 3：Tauri 桌面壳
 
-- 建立 Tauri app。
-- 加载现有 viewer UI。
+- 建立 Tauri app。已完成：`apps/chemcore-desktop/src-tauri`。
+- 加载现有 viewer UI。已完成：`npm run desktop:dev` 可启动 Windows 桌面窗口。
 - 增加菜单、快捷键、文件对话框、最近文件、拖拽打开、单实例。
 - 配置 `.ccjz/.ccjs/.cdxml` 文件关联。
 
 ### 阶段 4：桌面 Native Engine Path
 
-- Tauri 后端直接调用 Rust engine。
+- Tauri 后端直接调用 Rust engine。已开始：Tauri 已持有 `DesktopDocumentService`，并暴露 `desktop_engine_*` commands。
 - WebView 不再负责本地文件系统、gzip 和路径权限。
 - viewer 只负责 UI 和交互。
 

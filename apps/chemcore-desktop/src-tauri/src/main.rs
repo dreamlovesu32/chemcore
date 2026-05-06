@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-  chemcore_desktop_lib::run();
+    chemcore_desktop_lib::run();
 }
