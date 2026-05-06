@@ -45,7 +45,7 @@ fn hollow_arrow_outline_points(
     let (unit, normal, length) = arrow_axis(start, end)?;
     let shaft_half_width = arrow_head.center_length.max(arrow_head.length) * 0.5;
     let head_length = arrow_head.length.min(length * 0.45);
-    let head_half_width = shaft_half_width + arrow_head.width.max(0.0) * 0.5;
+    let head_half_width = hollow_open_arrow_head_half_width(shaft_half_width, arrow_head);
     let neck_offset = (head_length * 0.5).min(length * 0.3);
     let start_neck = if has_tail {
         start.translated(unit.scaled(neck_offset))
@@ -1038,7 +1038,14 @@ fn open_arrow_shaft_half_width(arrow_head: ArrowHeadGeometry) -> f64 {
 }
 
 fn open_arrow_head_half_width(arrow_head: ArrowHeadGeometry) -> f64 {
-    open_arrow_shaft_half_width(arrow_head) + arrow_head.width.max(0.0) * 0.5
+    hollow_open_arrow_head_half_width(open_arrow_shaft_half_width(arrow_head), arrow_head)
+}
+
+fn hollow_open_arrow_head_half_width(
+    shaft_half_width: f64,
+    arrow_head: ArrowHeadGeometry,
+) -> f64 {
+    shaft_half_width + arrow_head.width.max(0.0) * 2.0
 }
 
 fn open_arrow_head_outline_points(

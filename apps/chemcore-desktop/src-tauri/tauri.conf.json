@@ -19,6 +19,7 @@
         "minWidth": 960,
         "minHeight": 640,
         "resizable": true,
+        "dragDropEnabled": true,
         "fullscreen": false
       }
     ],
@@ -36,6 +37,40 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "fileAssociations": [
+      {
+        "ext": ["ccjz"],
+        "name": "Chemcore Compressed Document",
+        "description": "Chemcore compressed document",
+        "role": "Editor",
+        "mimeType": "application/vnd.chemcore+gzip"
+      },
+      {
+        "ext": ["ccjs"],
+        "name": "Chemcore JSON Document",
+        "description": "Chemcore readable JSON document",
+        "role": "Editor",
+        "mimeType": "application/vnd.chemcore+json"
+      },
+      {
+        "ext": ["cdxml"],
+        "name": "ChemDraw CDXML Document",
+        "description": "ChemDraw CDXML document",
+        "role": "Editor",
+        "mimeType": "chemical/x-cdxml"
+      }
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "perMachine",
+        "displayLanguageSelector": true
+      }
+    },
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

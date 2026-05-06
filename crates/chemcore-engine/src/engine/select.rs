@@ -503,6 +503,162 @@ impl Engine {
         true
     }
 
+    pub fn apply_color_to_selection(&mut self, color: &str) -> bool {
+        let color = normalize_selection_color(color);
+        self.with_command(
+            EditorCommand::ApplySelectionColor {
+                color: color.clone(),
+            },
+            |engine| engine.apply_color_to_selection_untracked(&color),
+        )
+    }
+
+    fn apply_color_to_selection_untracked(&mut self, color: &str) -> bool {
+        if self.state.selection.is_empty() {
+            return false;
+        }
+        self.push_undo_snapshot();
+        let selected_text: BTreeSet<String> =
+            self.state.selection.text_objects.iter().cloned().collect();
+        let selected_graphics: BTreeSet<String> =
+            self.state.selection.arrow_objects.iter().cloned().collect();
+        let mut changed = false;
+        for index in 0..self.state.document.objects.len() {
+            let object_type = self.state.document.objects[index].object_type.clone();
+            let object_id = self.state.document.objects[index].id.clone();
+            if selected_text.contains(&object_id) && object_type == "text" {
+                changed |= self.apply_color_to_object(index, color, ColorTarget::Text);
+            } else if selected_graphics.contains(&object_id) {
+                changed |= self.apply_color_to_object(index, color, ColorTarget::Graphic);
+            }
+        }
+        changed |= self.apply_color_to_selected_fragment(color);
+        if !changed {
+            self.undo_stack.pop();
+            return false;
+        }
+        self.state.overlay.hover_arrow = None;
+        self.state.overlay.hover_text_box = None;
+        self.state.overlay.hover_endpoint = None;
+        true
+    }
+
+    fn apply_color_to_selected_fragment(&mut self, color: &str) -> bool {
+        let selected_labels: BTreeSet<String> =
+            self.state.selection.label_nodes.iter().cloned().collect();
+        let selected_nodes: BTreeSet<String> = self.state.selection.nodes.iter().cloned().collect();
+        let selected_bonds: BTreeSet<String> = self.state.selection.bonds.iter().cloned().collect();
+        let mut changed = false;
+        if let Some(entry) = self.state.document.editable_fragment_mut() {
+            for node in &mut entry.fragment.nodes {
+                if !selected_labels.contains(&node.id) && !selected_nodes.contains(&node.id) {
+                    continue;
+                }
+                if let Some(label) = &mut node.label {
+                    if label.fill.as_deref() != Some(color) {
+                        label.fill = Some(color.to_string());
+                        changed = true;
+                    }
+                    for run in &mut label.runs {
+                        if run.fill.as_deref() != Some(color) {
+                            run.fill = Some(color.to_string());
+                            changed = true;
+                        }
+                    }
+                    for line in &mut label.line_runs {
+                        for run in line {
+                            if run.fill.as_deref() != Some(color) {
+                                run.fill = Some(color.to_string());
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+            if !selected_nodes.is_empty() || !selected_bonds.is_empty() {
+                let object_id = entry.object.id.clone();
+                drop(entry);
+                if let Some(index) = self
+                    .state
+                    .document
+                    .objects
+                    .iter()
+                    .position(|object| object.id == object_id)
+                {
+                    changed |= self.apply_color_to_object(index, color, ColorTarget::Molecule);
+                }
+            }
+        }
+        changed
+    }
+
+    fn apply_color_to_object(&mut self, index: usize, color: &str, target: ColorTarget) -> bool {
+        let Some(object) = self.state.document.objects.get(index) else {
+            return false;
+        };
+        let object_id = object.id.clone();
+        let object_type = object.object_type.clone();
+        let source_style_ref = object.style_ref.clone();
+        let style_id = format!("style_{object_id}_color");
+        let base_style = source_style_ref
+            .as_ref()
+            .and_then(|style_ref| self.state.document.styles.get(style_ref))
+            .cloned()
+            .unwrap_or_else(|| json!({ "kind": object_type }));
+        let mut style = base_style.as_object().cloned().unwrap_or_default();
+        let mut changed = source_style_ref.as_deref() != Some(style_id.as_str());
+        match target {
+            ColorTarget::Text => {
+                changed |= set_style_string(&mut style, "fill", color);
+                changed |= self.apply_color_to_text_object_runs(index, color);
+            }
+            ColorTarget::Molecule => {
+                changed |= set_style_string(&mut style, "stroke", color);
+                changed |= set_style_string(&mut style, "fill", color);
+            }
+            ColorTarget::Graphic => {
+                let has_stroke = style
+                    .get("stroke")
+                    .is_some_and(|value| !value.is_null());
+                let has_fill = style.get("fill").is_some_and(|value| !value.is_null());
+                if has_stroke || !has_fill {
+                    changed |= set_style_string(&mut style, "stroke", color);
+                }
+                if has_fill {
+                    changed |= set_style_string(&mut style, "fill", color);
+                }
+            }
+        }
+        if !changed {
+            return false;
+        }
+        self.state
+            .document
+            .styles
+            .insert(style_id.clone(), JsonValue::Object(style));
+        if let Some(object) = self.state.document.objects.get_mut(index) {
+            object.style_ref = Some(style_id);
+        }
+        true
+    }
+
+    fn apply_color_to_text_object_runs(&mut self, index: usize, color: &str) -> bool {
+        let Some(object) = self.state.document.objects.get_mut(index) else {
+            return false;
+        };
+        let Some(runs) = object.payload.extra.get_mut("runs").and_then(JsonValue::as_array_mut)
+        else {
+            return false;
+        };
+        let mut changed = false;
+        for run in runs {
+            if let Some(run_object) = run.as_object_mut() {
+                changed |= set_style_string(run_object, "fill", color);
+            }
+        }
+        changed
+    }
+
     pub fn select_at_point(&mut self, point: Point, additive: bool) {
         let hit = self.select_hit_at_point(point);
         self.state.selection = if let Some(hit) = hit {
@@ -1099,4 +1255,32 @@ impl Engine {
         }
         out
     }
+}
+
+#[derive(Clone, Copy)]
+enum ColorTarget {
+    Text,
+    Graphic,
+    Molecule,
+}
+
+fn normalize_selection_color(color: &str) -> String {
+    let trimmed = color.trim();
+    if trimmed.starts_with('#') && trimmed.len() == 7 {
+        trimmed.to_ascii_lowercase()
+    } else {
+        "#000000".to_string()
+    }
+}
+
+fn set_style_string(
+    style: &mut serde_json::Map<String, JsonValue>,
+    key: &str,
+    value: &str,
+) -> bool {
+    if style.get(key).and_then(JsonValue::as_str) == Some(value) {
+        return false;
+    }
+    style.insert(key.to_string(), JsonValue::String(value.to_string()));
+    true
 }

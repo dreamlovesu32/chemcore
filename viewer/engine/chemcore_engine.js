@@ -61,6 +61,16 @@ export class WasmEngine {
         return ret !== 0;
     }
     /**
+     * @param {string} color
+     * @returns {boolean}
+     */
+    applyColorToSelection(color) {
+        const ptr0 = passStringToWasm0(color, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyColorToSelection(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
      * @param {string} command
      * @returns {boolean}
      */
@@ -159,6 +169,21 @@ export class WasmEngine {
     }
     clearInteraction() {
         wasm.wasmengine_clearInteraction(this.__wbg_ptr);
+    }
+    /**
+     * @returns {string | undefined}
+     */
+    clipboardSelectionJson() {
+        const ret = wasm.wasmengine_clipboardSelectionJson(this.__wbg_ptr);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
     }
     /**
      * @returns {boolean}
@@ -328,6 +353,19 @@ export class WasmEngine {
     pasteClipboard() {
         const ret = wasm.wasmengine_pasteClipboard(this.__wbg_ptr);
         return ret !== 0;
+    }
+    /**
+     * @param {string} json
+     * @returns {boolean}
+     */
+    pasteClipboardJson(json) {
+        const ptr0 = passStringToWasm0(json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_pasteClipboardJson(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] !== 0;
     }
     /**
      * @param {number} x

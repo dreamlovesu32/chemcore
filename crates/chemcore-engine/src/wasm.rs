@@ -350,6 +350,11 @@ impl WasmEngine {
         self.inner.apply_selection_arrange_command(command)
     }
 
+    #[wasm_bindgen(js_name = applyColorToSelection)]
+    pub fn apply_color_to_selection(&mut self, color: &str) -> bool {
+        self.inner.apply_color_to_selection(color)
+    }
+
     #[wasm_bindgen(js_name = clearInteraction)]
     pub fn clear_interaction(&mut self) {
         self.inner.clear_interaction();
@@ -387,6 +392,13 @@ impl WasmEngine {
         self.inner.copy_selection()
     }
 
+    #[wasm_bindgen(js_name = clipboardSelectionJson)]
+    pub fn clipboard_selection_json(&self) -> Result<Option<String>, JsValue> {
+        self.inner
+            .clipboard_selection_json()
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
     #[wasm_bindgen(js_name = cutSelection)]
     pub fn cut_selection(&mut self) -> bool {
         self.inner.cut_selection()
@@ -395,6 +407,13 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = pasteClipboard)]
     pub fn paste_clipboard(&mut self) -> bool {
         self.inner.paste_clipboard()
+    }
+
+    #[wasm_bindgen(js_name = pasteClipboardJson)]
+    pub fn paste_clipboard_json(&mut self, json: &str) -> Result<bool, JsValue> {
+        self.inner
+            .paste_clipboard_json(json)
+            .map_err(|error| JsValue::from_str(&error))
     }
 
     #[wasm_bindgen(js_name = replaceHoveredEndpointLabel)]

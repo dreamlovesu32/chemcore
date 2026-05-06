@@ -1,11 +1,12 @@
 use super::text_edit::refresh_attached_node_label_geometry_for_all_nodes;
 use super::{EditorCommand, Engine};
 use crate::{Bond, Node, SelectionState};
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
 const CLIPBOARD_PASTE_OFFSET_CM: f64 = 0.35 * crate::PT_PER_CM;
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct ClipboardContent {
     nodes: Vec<Node>,
     bonds: Vec<Bond>,
@@ -18,6 +19,12 @@ impl Engine {
         };
         self.clipboard = Some(content);
         true
+    }
+
+    pub fn clipboard_selection_json(&self) -> Result<Option<String>, String> {
+        self.clipboard_content_from_selection()
+            .map(|content| serde_json::to_string(&content).map_err(|error| error.to_string()))
+            .transpose()
     }
 
     pub fn cut_selection(&mut self) -> bool {
@@ -37,6 +44,13 @@ impl Engine {
         self.with_command(EditorCommand::PasteClipboard, |engine| {
             engine.paste_clipboard_untracked()
         })
+    }
+
+    pub fn paste_clipboard_json(&mut self, json: &str) -> Result<bool, String> {
+        let content: ClipboardContent =
+            serde_json::from_str(json).map_err(|error| error.to_string())?;
+        self.clipboard = Some(content);
+        Ok(self.paste_clipboard())
     }
 
     fn paste_clipboard_untracked(&mut self) -> bool {

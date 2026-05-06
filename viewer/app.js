@@ -4,6 +4,7 @@ import {
   renderBoundsFromEngine,
   renderListFromEngine,
 } from "./engine_bridge.js";
+import { createDesktopFileHost } from "./desktop_file_host.js";
 import { createEngineHost } from "./engine_host.js";
 import { bindEditorControls } from "./editor_bindings.js";
 import { createDocumentFlow } from "./document_flow.js";
@@ -20,6 +21,7 @@ import {
 import {
   normalizeToolbarFontSize,
   renderSecondaryToolbarHtml,
+  syncPrimaryChromeIcons,
   syncPrimaryToolButtons,
 } from "./toolbar.js";
 import {
@@ -85,6 +87,7 @@ const LABEL_DEBUG_MODE = VIEW_MODE === "label-debug";
 const state = {
   currentPath: LABEL_DEBUG_MODE ? SAMPLE_FILES[0] : null,
   currentFileName: null,
+  currentFilePath: null,
   currentDocument: null,
   editorEngine: null,
   documentEngine: null,
@@ -100,6 +103,7 @@ const state = {
   pendingTextSymbol: null,
 };
 const engineHost = createEngineHost();
+const desktopFileHost = createDesktopFileHost();
 let sharedGlyphProfiles = null;
 const sharedGlyphProfilesReady = loadSharedGlyphProfiles();
 
@@ -120,6 +124,9 @@ if (typeof window !== "undefined") {
     },
     get engineHost() {
       return engineHost;
+    },
+    get desktopFileHost() {
+      return desktopFileHost;
     },
     insertEditorText(text) {
       if (!activeTextEditor) {
@@ -198,6 +205,8 @@ const textSymbolCatalogReady = loadTextSymbolCatalog().then((catalog) => {
   return textSymbolPalette;
 });
 
+syncPrimaryChromeIcons();
+
 if (sampleSelect) {
   for (const samplePath of SAMPLE_FILES) {
     const option = document.createElement("option");
@@ -236,6 +245,7 @@ const editorState = {
   textFontFamily: "Arial",
   textFontSize: normalizeToolbarFontSize(cmToCssPx(DEFAULT_TEXT_FONT_SIZE)),
   textColor: "#000000",
+  selectionColor: "#000000",
   textAlign: "left",
   textBold: false,
   textItalic: false,
@@ -253,6 +263,7 @@ const editorState = {
   shapeKind: "circle",
   shapeStyle: "solid",
   shapeColor: "#000000",
+  documentColors: [],
   bracketKind: "round",
   symbolKind: "circle-plus",
   template: "ring-6",
@@ -1109,7 +1120,39 @@ function refreshCommandAvailability() {
   }
 }
 
-function runEditorCommand(command) {
+async function writeNativeClipboardFromSelection(fragmentJson = null) {
+  if (!desktopFileHost?.available || !state.editorEngine) {
+    return;
+  }
+  try {
+    await desktopFileHost.writeClipboard({
+      chemcoreFragmentJson: fragmentJson || state.editorEngine.clipboardSelectionJson?.() || null,
+      chemcoreDocumentJson: state.editorEngine.documentJson?.() || null,
+      cdxml: state.editorEngine.documentCdxml?.() || null,
+      svg: state.editorEngine.documentSvg?.() || null,
+      text: state.editorEngine.documentCdxml?.() || null,
+    });
+  } catch (error) {
+    console.warn("Failed to write native clipboard", error);
+  }
+}
+
+async function pasteFromNativeClipboard() {
+  if (!desktopFileHost?.available || !state.editorEngine?.pasteClipboardJson) {
+    return false;
+  }
+  try {
+    const payload = await desktopFileHost.readClipboard();
+    if (payload?.chemcoreFragmentJson) {
+      return !!state.editorEngine.pasteClipboardJson(payload.chemcoreFragmentJson);
+    }
+  } catch (error) {
+    console.warn("Failed to read native clipboard", error);
+  }
+  return false;
+}
+
+async function runEditorCommand(command) {
   if (!isEditingRustDocument()) {
     return false;
   }
@@ -1119,11 +1162,22 @@ function runEditorCommand(command) {
   } else if (command === "redo") {
     changed = state.editorEngine.redo();
   } else if (command === "copy") {
+    const fragmentJson = state.editorEngine.clipboardSelectionJson?.() || null;
     changed = !!state.editorEngine.copySelection?.();
+    if (changed) {
+      await writeNativeClipboardFromSelection(fragmentJson);
+    }
   } else if (command === "cut") {
+    const fragmentJson = state.editorEngine.clipboardSelectionJson?.() || null;
     changed = !!state.editorEngine.cutSelection?.();
+    if (changed) {
+      await writeNativeClipboardFromSelection(fragmentJson);
+    }
   } else if (command === "paste") {
-    changed = !!state.editorEngine.pasteClipboard?.();
+    changed = await pasteFromNativeClipboard();
+    if (!changed) {
+      changed = !!state.editorEngine.pasteClipboard?.();
+    }
   } else if (command === "delete") {
     changed = state.editorEngine.deleteSelection();
   } else {
@@ -1300,8 +1354,37 @@ function renderSecondaryToolbar() {
   if (!secondaryToolbar) {
     return;
   }
+  editorState.documentColors = currentDocumentColors();
   secondaryToolbar.innerHTML = renderSecondaryToolbarHtml(editorState);
   syncPrimaryToolButtons(editorState, document);
+}
+
+function currentDocumentColors() {
+  const colors = [];
+  const visit = (value) => {
+    if (typeof value === "string") {
+      const normalized = cssColorToHex(value);
+      if (/^#[0-9a-fA-F]{6}$/.test(normalized)) {
+        colors.push(normalized.toLowerCase());
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (value && typeof value === "object") {
+      for (const [key, child] of Object.entries(value)) {
+        if (/color|fill|stroke|background/i.test(key) || typeof child === "object") {
+          visit(child);
+        }
+      }
+    }
+  };
+  visit(state.currentDocument?.styles || {});
+  visit(state.currentDocument?.objects || []);
+  visit(state.currentDocument?.resources || {});
+  return Array.from(new Set(colors));
 }
 
 const textEditorController = createTextEditorController({
@@ -1820,14 +1903,36 @@ function cssColorToHex(color) {
   if (!color) {
     return "#000000";
   }
-  if (color.startsWith("#")) {
-    return color;
+  if (/^#[0-9a-fA-F]{6}$/.test(color)) {
+    return color.toLowerCase();
+  }
+  if (/^#[0-9a-fA-F]{3}$/.test(color)) {
+    return `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`.toLowerCase();
   }
   const match = color.match(/\d+/g);
   if (!match || match.length < 3) {
     return color;
   }
   return `#${match.slice(0, 3).map((value) => Number(value).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function applySelectionColor(color) {
+  const normalized = cssColorToHex(color);
+  editorState.selectionColor = normalized;
+  if (activeTextEditor) {
+    applyTextInlineStyle({ color: normalized });
+    return true;
+  }
+  if (!isEditingRustDocument() || !state.editorEngine?.applyColorToSelection) {
+    return false;
+  }
+  const changed = !!state.editorEngine.applyColorToSelection(normalized);
+  if (!changed) {
+    return false;
+  }
+  syncDocumentFromEngine();
+  renderDocument();
+  return true;
 }
 
 function applyTextAlignment(align) {
@@ -1910,6 +2015,7 @@ function insertTextSymbol(character) {
 const documentFlow = createDocumentFlow({
   state,
   engineHost,
+  desktopFileHost,
   openFileInput,
   viewerTitle,
   viewerStats,
@@ -1934,8 +2040,12 @@ const {
   loadAndRender,
   loadJsonDocumentIntoEditor,
   openDocumentFile,
+  openDocumentPath,
+  saveCurrentDocument,
   saveCurrentDocumentAs,
   saveCurrentDocumentCdxml,
+  saveCurrentDocumentEmf,
+  saveCurrentDocumentPdf,
   saveCurrentDocumentSvg,
   updateDocumentMeta,
 } = documentFlow;
@@ -1943,6 +2053,7 @@ const {
 bindEditorControls({
   state,
   editorState,
+  desktopFileHost,
   openFileInput,
   zoomInput,
   secondaryToolbar,
@@ -1963,8 +2074,12 @@ bindEditorControls({
   syncCanvasCursor,
   finishActiveTextEditor,
   chooseAndOpenDocument,
+  openDocumentPath,
+  saveCurrentDocument,
   saveCurrentDocumentAs,
   saveCurrentDocumentCdxml,
+  saveCurrentDocumentEmf,
+  saveCurrentDocumentPdf,
   saveCurrentDocumentSvg,
   isAbortError,
   runEditorCommand,
@@ -1981,6 +2096,8 @@ bindEditorControls({
   applyTextInlineStyle,
   applySelectionArrangeCommand,
   applyArrowOptionsToSelection,
+  applySelectionColor,
+  getDocumentColors: currentDocumentColors,
 });
 
 renderSecondaryToolbar();

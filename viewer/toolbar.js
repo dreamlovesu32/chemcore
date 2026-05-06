@@ -29,6 +29,355 @@ export function arrowTypeSupportsHeadSize(type) {
   return type === "solid" || type === "curved" || type === "curved-mirror";
 }
 
+const ICON_VIEWBOX = "0 0 24 24";
+const ICON_BLACK = "#111318";
+const ICON_BLUE = "#2f6fed";
+export const CHEMDRAW_BASIC_COLORS = [
+  { value: "#000000", title: "Black" },
+  { value: "#ff0000", title: "Red" },
+  { value: "#ffff00", title: "Yellow" },
+  { value: "#00ff00", title: "Green" },
+  { value: "#ffffff", title: "White" },
+  { value: "#00ffff", title: "Cyan" },
+  { value: "#0000ff", title: "Blue" },
+  { value: "#ff00ff", title: "Magenta" },
+];
+
+function iconSvg(content, className = "") {
+  const classAttr = className ? ` class="chemcore-icon ${className}"` : ` class="chemcore-icon"`;
+  return `<svg${classAttr} viewBox="${ICON_VIEWBOX}" aria-hidden="true">${content}</svg>`;
+}
+
+function linePath(from, to, className = "cc-stroke", extra = "") {
+  return `<path class="${className}" d="M${fmt(from.x)} ${fmt(from.y)} L${fmt(to.x)} ${fmt(to.y)}"${extra}/>`;
+}
+
+function polyline(points, className = "cc-stroke", extra = "") {
+  const d = points
+    .map((point, index) => `${index ? "L" : "M"}${fmt(point.x)} ${fmt(point.y)}`)
+    .join(" ");
+  return `<path class="${className}" d="${d}"${extra}/>`;
+}
+
+function polygon(points, className = "cc-fill", extra = "") {
+  return `<polygon class="${className}" points="${points.map((point) => `${fmt(point.x)},${fmt(point.y)}`).join(" ")}"${extra}/>`;
+}
+
+function fmt(value) {
+  return Number(value).toFixed(2).replace(/\.?0+$/, "");
+}
+
+function point(x, y) {
+  return { x, y };
+}
+
+function add(left, right) {
+  return point(left.x + right.x, left.y + right.y);
+}
+
+function sub(left, right) {
+  return point(left.x - right.x, left.y - right.y);
+}
+
+function mul(vector, scalar) {
+  return point(vector.x * scalar, vector.y * scalar);
+}
+
+function unit(vector) {
+  const length = Math.hypot(vector.x, vector.y) || 1;
+  return point(vector.x / length, vector.y / length);
+}
+
+function normal(vector) {
+  const normalized = unit(vector);
+  return point(-normalized.y, normalized.x);
+}
+
+const BOND_A = point(4.8, 16.6);
+const BOND_B = point(19.2, 7.4);
+
+function bondIconSvg(type = "single") {
+  const axis = sub(BOND_B, BOND_A);
+  const normalVector = normal(axis);
+  const unitAxis = unit(axis);
+  const offset = 1.42;
+  const shiftedLine = (distance) => linePath(
+    add(BOND_A, mul(normalVector, distance)),
+    add(BOND_B, mul(normalVector, distance)),
+    "cc-bond",
+  );
+
+  if (type === "double") {
+    return iconSvg(`${shiftedLine(-offset)}${shiftedLine(offset)}`, "cc-bond-icon");
+  }
+  if (type === "triple") {
+    return iconSvg(`${shiftedLine(-2.25)}${shiftedLine(0)}${shiftedLine(2.25)}`, "cc-bond-icon");
+  }
+  if (type === "dashed") {
+    const pieces = [];
+    for (let index = 0; index < 6; index += 1) {
+      const startT = 0.02 + index * 0.165;
+      const endT = startT + 0.082;
+      pieces.push(linePath(
+        add(BOND_A, mul(axis, startT)),
+        add(BOND_A, mul(axis, endT)),
+        "cc-bond",
+      ));
+    }
+    return iconSvg(pieces.join(""), "cc-bond-icon");
+  }
+  if (type === "dashed-double") {
+    const solid = shiftedLine(-offset);
+    const dashed = [];
+    const a = add(BOND_A, mul(normalVector, offset));
+    const b = add(BOND_B, mul(normalVector, offset));
+    const dashedAxis = sub(b, a);
+    for (let index = 0; index < 5; index += 1) {
+      const startT = index * 0.205;
+      dashed.push(linePath(
+        add(a, mul(dashedAxis, startT)),
+        add(a, mul(dashedAxis, startT + 0.105)),
+        "cc-bond",
+      ));
+    }
+    return iconSvg(`${solid}${dashed.join("")}`, "cc-bond-icon");
+  }
+  if (type === "bold") {
+    return iconSvg(polygon([
+      add(BOND_A, mul(normalVector, -1.55)),
+      add(BOND_B, mul(normalVector, -1.55)),
+      add(BOND_B, mul(normalVector, 1.55)),
+      add(BOND_A, mul(normalVector, 1.55)),
+    ], "cc-bond-fill"), "cc-bond-icon");
+  }
+  if (type === "bold-dashed") {
+    const pieces = [];
+    for (let index = 0; index < 5; index += 1) {
+      const t = 0.12 + index * 0.18;
+      const center = add(BOND_A, mul(axis, t));
+      const half = 1.35;
+      pieces.push(linePath(
+        add(center, mul(normalVector, -half)),
+        add(center, mul(normalVector, half)),
+        "cc-bond-hash",
+      ));
+    }
+    return iconSvg(pieces.join(""), "cc-bond-icon");
+  }
+  if (type === "wedge") {
+    return iconSvg(polygon([
+      add(BOND_A, mul(normalVector, -2.45)),
+      add(BOND_A, mul(normalVector, 2.45)),
+      BOND_B,
+    ], "cc-bond-fill"), "cc-bond-icon");
+  }
+  if (type === "hashed-wedge") {
+    const pieces = [];
+    for (let index = 0; index < 6; index += 1) {
+      const t = 0.08 + index * 0.135;
+      const center = add(BOND_A, mul(axis, t));
+      const half = 2.25 - index * 0.32;
+      pieces.push(linePath(
+        add(center, mul(normalVector, -half)),
+        add(center, mul(normalVector, half)),
+        "cc-bond-hash",
+      ));
+    }
+    return iconSvg(pieces.join(""), "cc-bond-icon");
+  }
+  return iconSvg(linePath(BOND_A, BOND_B, "cc-bond"), "cc-bond-icon");
+}
+
+function arrowHead(tip, direction, size = 1, className = "cc-arrow-fill") {
+  const axis = unit(direction);
+  const side = normal(axis);
+  const base = add(tip, mul(axis, -4.7 * size));
+  return polygon([
+    tip,
+    add(base, mul(side, 3.1 * size)),
+    add(base, mul(side, -3.1 * size)),
+  ], className);
+}
+
+function openArrowHead(tip, direction, size = 1) {
+  const axis = unit(direction);
+  const side = normal(axis);
+  const base = add(tip, mul(axis, -4.9 * size));
+  return `${linePath(tip, add(base, mul(side, 3.1 * size)), "cc-arrow")}${linePath(tip, add(base, mul(side, -3.1 * size)), "cc-arrow")}`;
+}
+
+function straightArrowSvg({ head = "solid", tail = false, bold = false } = {}) {
+  const start = point(4, 12);
+  const end = point(19.5, 12);
+  const strokeClass = bold ? "cc-arrow cc-arrow-bold" : "cc-arrow";
+  let body = linePath(start, head === "none" ? point(20, 12) : point(15.6, 12), strokeClass);
+  if (tail) {
+    body += arrowHead(start, point(-1, 0), 0.92);
+  }
+  if (head === "solid") {
+    body += arrowHead(end, point(1, 0), 0.92);
+  } else if (head === "open") {
+    body += openArrowHead(end, point(1, 0), 0.92);
+  } else if (head === "hollow") {
+    body = `<path class="${strokeClass}" d="M4 12h10.4v3.25L20 12l-5.6-3.25V12z"/>`;
+  }
+  return iconSvg(body, "cc-arrow-icon");
+}
+
+function curvedArrowSvg({ mirrored = false, curve = "270" } = {}) {
+  const paths = {
+    "270": "M18.4 6.2C12.2 3.8 5.4 7.9 5.2 14.2c-.1 4.5 3.3 7.1 7.5 6.1",
+    "180": "M18.4 7.2C13.1 4.6 6.6 8.3 6.5 14.1c-.1 3.4 2.8 5.5 6.1 4.8",
+    "120": "M18.4 8.4C14.2 6.1 8.5 8.1 7.2 13.2",
+    "90": "M18.4 9.6C15.3 7.8 11.1 8.8 8.7 12",
+  };
+  const transform = mirrored ? ` transform="translate(0 24) scale(1 -1)"` : "";
+  return iconSvg(`<g${transform}><path class="cc-arrow" d="${paths[curve] || paths["270"]}"/>${arrowHead(point(19.9, 7.5), point(1, -0.25), 0.78)}</g>`, "cc-arrow-icon");
+}
+
+function shapeIconSvg(kind = "rect", style = "solid") {
+  const fill = style === "filled" ? "cc-shape-fill" : style === "shaded" ? "cc-shape-soft-fill" : "cc-empty-fill";
+  const dash = style === "dashed" ? ` stroke-dasharray="2.2 1.8"` : "";
+  const shadow = style === "shadowed"
+    ? `<path class="cc-shadow-fill" d="M8.2 8.2h10.3v9.5H8.2z"/><path class="cc-shadow-edge" d="M5.5 6.2 8.2 8.2M18.5 6.2v11.5M5.5 17.7h2.7"/>`
+    : "";
+  const mark = kind === "circle"
+    ? `<circle class="${fill} cc-shape" cx="12" cy="12" r="6.2"${dash}/>`
+    : kind === "ellipse"
+      ? `<ellipse class="${fill} cc-shape" cx="12" cy="12" rx="7.2" ry="4.5"${dash}/>`
+      : `<rect class="${fill} cc-shape" x="5.5" y="6.2" width="13" height="11.5"${kind === "round-rect" ? ` rx="2.6"` : ""}${dash}/>`;
+  return iconSvg(`${shadow}${mark}`, "cc-shape-icon");
+}
+
+function generatedRingSvg(sides, aromatic = false) {
+  const pointsBySide = {
+    3: [point(12, 4.5), point(20, 18.5), point(4, 18.5)],
+    4: [point(6, 6), point(18, 6), point(18, 18), point(6, 18)],
+    5: [point(12, 4.2), point(20, 10.1), point(16.9, 19.3), point(7.1, 19.3), point(4, 10.1)],
+    6: [point(12, 4.2), point(19, 8.2), point(19, 15.8), point(12, 19.8), point(5, 15.8), point(5, 8.2)],
+    7: [point(12, 4.1), point(18.2, 7), point(20.2, 13.7), point(16.4, 19.6), point(7.6, 19.6), point(3.8, 13.7), point(5.8, 7)],
+    8: [point(9, 4), point(15, 4), point(20, 9), point(20, 15), point(15, 20), point(9, 20), point(4, 15), point(4, 9)],
+  };
+  const ring = polygon(pointsBySide[sides] || pointsBySide[6], "cc-ring");
+  const aromaticMark = aromatic ? `<circle class="cc-ring" cx="12" cy="12" r="4.35"/>` : "";
+  return iconSvg(`${ring}${aromaticMark}`, "cc-ring-icon");
+}
+
+function generatedBracketIconSvg(kind = "round") {
+  if (kind === "square") {
+    return iconSvg(`<path class="cc-stroke" d="M9 5.2H6.4v13.6H9"/><path class="cc-stroke" d="M15 5.2h2.6v13.6H15"/>`, "cc-bracket-icon");
+  }
+  if (kind === "curly") {
+    return iconSvg(`<path class="cc-stroke" d="M10.1 4.8c-2.3.2-2.4 2.2-2.3 3.8v1.1c0 1.4-.9 2.2-2 2.3 1.1.1 2 .9 2 2.3v1.1c-.1 1.6 0 3.6 2.3 3.8"/><path class="cc-stroke" d="M13.9 4.8c2.3.2 2.4 2.2 2.3 3.8v1.1c0 1.4.9 2.2 2 2.3-1.1.1-2 .9-2 2.3v1.1c.1 1.6 0 3.6-2.3 3.8"/>`, "cc-bracket-icon");
+  }
+  if (kind === "circle-plus" || kind === "circle-minus") {
+    const plus = kind === "circle-plus" ? `<path class="cc-stroke" d="M12 8.1v7.8"/>` : "";
+    return iconSvg(`<circle class="cc-stroke" cx="12" cy="12" r="6.15"/><path class="cc-stroke" d="M8.1 12h7.8"/>${plus}`, "cc-symbol-icon");
+  }
+  if (kind === "plus") {
+    return iconSvg(`<path class="cc-stroke" d="M12 6.5v11"/><path class="cc-stroke" d="M6.5 12h11"/>`, "cc-symbol-icon");
+  }
+  if (kind === "minus") {
+    return iconSvg(`<path class="cc-stroke" d="M6.5 12h11"/>`, "cc-symbol-icon");
+  }
+  if (kind === "radical-cation" || kind === "radical-anion") {
+    const plus = kind === "radical-cation" ? `<path class="cc-stroke" d="M16 8.3v7.4"/>` : "";
+    return iconSvg(`<circle class="cc-dot" cx="7.3" cy="12" r="1.7"/><path class="cc-stroke" d="M12.4 12h7.2"/>${plus}`, "cc-symbol-icon");
+  }
+  if (kind === "lone-pair") {
+    return iconSvg(`<circle class="cc-dot" cx="9" cy="12" r="1.75"/><circle class="cc-dot" cx="15" cy="12" r="1.75"/>`, "cc-symbol-icon");
+  }
+  if (kind === "electron") {
+    return iconSvg(`<circle class="cc-dot" cx="12" cy="12" r="2.1"/>`, "cc-symbol-icon");
+  }
+  return iconSvg(`<path class="cc-stroke" d="M10 5c-3 3-3 11 0 14"/><path class="cc-stroke" d="M14 5c3 3 3 11 0 14"/>`, "cc-bracket-icon");
+}
+
+function textFormatIconSvg(kind) {
+  if (kind === "bold") {
+    return iconSvg(
+      `<path class="cc-fill" d="M7.05 4.9h6.08c3 0 4.74 1.34 4.74 3.53 0 1.4-.73 2.48-2.07 3.05 1.63.5 2.6 1.73 2.6 3.4 0 2.62-2.04 4.22-5.37 4.22H7.05zm3.16 5.75h2.57c1.32 0 2.08-.6 2.08-1.68 0-1.02-.74-1.58-2.07-1.58h-2.58zm0 5.88h2.92c1.44 0 2.21-.63 2.21-1.79 0-1.12-.82-1.72-2.3-1.72h-2.83z"/>`,
+      "cc-text-format-icon",
+    );
+  }
+  if (kind === "italic") {
+    return iconSvg(
+      `<text class="cc-italic-glyph" x="12" y="18.2" text-anchor="middle">I</text>`,
+      "cc-text-format-icon",
+    );
+  }
+  if (kind === "underline") {
+    return iconSvg(
+      `<path class="cc-text-stroke" d="M7.45 5.35v7.02c0 2.72 1.76 4.34 4.55 4.34s4.55-1.62 4.55-4.34V5.35"/><path class="cc-text-underline" d="M6.45 20.15h11.1"/>`,
+      "cc-text-format-icon",
+    );
+  }
+  if (kind === "chemical") {
+    return iconSvg(
+      `<text class="cc-chemical-main" x="3.8" y="16.2">CH2</text>`,
+      "cc-text-format-icon cc-script-icon",
+    );
+  }
+  if (kind === "subscript") {
+    return iconSvg(
+      `<text class="cc-script-main" x="4.45" y="14.7">X</text><text class="cc-script-sub" x="15.25" y="18.25">2</text>`,
+      "cc-text-format-icon cc-script-icon",
+    );
+  }
+  if (kind === "superscript") {
+    return iconSvg(
+      `<text class="cc-script-main" x="4.45" y="15.25">X</text><text class="cc-script-sup" x="15.18" y="9.15">2</text>`,
+      "cc-text-format-icon cc-script-icon",
+    );
+  }
+  return "";
+}
+
+function commandIconSvg(name) {
+  const icons = {
+    new: iconSvg(`<path class="cc-stroke" d="M6.3 3.8h8.4L18.7 8v12.2H6.3z"/><path class="cc-stroke" d="M14.7 3.8V8h4"/><path class="cc-stroke" d="M12.5 11v6"/><path class="cc-stroke" d="M9.5 14h6"/>`, "cc-command-icon"),
+    open: iconSvg(`<path class="cc-stroke" d="M3.7 8h6l2 2h8.6v8.7H3.7z"/><path class="cc-stroke" d="M3.7 8V5.2h5.1l2 2h6.5V10"/><path class="cc-stroke" d="M8.2 14.2h7.2"/><path class="cc-stroke" d="m12.8 11.4 2.9 2.8-2.9 2.8"/>`, "cc-command-icon"),
+    save: iconSvg(`<path class="cc-stroke" d="M5.1 4.2h11.3l2.5 2.5v13.1H5.1z"/><path class="cc-stroke" d="M8.2 4.2v6h7.2v-6"/><path class="cc-stroke" d="M8.2 15.5h7.6v4.3H8.2z"/>`, "cc-command-icon"),
+    undo: iconSvg(`<path class="cc-stroke" d="M9.1 7.1 4.7 11.5 9.1 16"/><path class="cc-stroke" d="M5 11.5h9.3c3.5 0 5.5 2.2 5.5 5.1 0 2.7-2.1 4.9-5.2 4.9"/>`, "cc-command-icon"),
+    redo: iconSvg(`<path class="cc-stroke" d="m14.9 7.1 4.4 4.4-4.4 4.5"/><path class="cc-stroke" d="M19 11.5H9.7c-3.5 0-5.5 2.2-5.5 5.1 0 2.7 2.1 4.9 5.2 4.9"/>`, "cc-command-icon"),
+    delete: iconSvg(`<path class="cc-stroke" d="M5.7 7.75h12.6"/><path class="cc-stroke" d="M9.15 7.75V5.15h5.7v2.6"/><path class="cc-stroke" d="M7.65 7.75 8.35 19h7.3l.7-11.25"/><path class="cc-stroke cc-stroke-soft" d="M10.55 11.05v4.85"/><path class="cc-stroke cc-stroke-soft" d="M13.45 11.05v4.85"/>`, "cc-command-icon"),
+    cut: iconSvg(`<circle class="cc-stroke" cx="6.5" cy="17.3" r="2.05"/><circle class="cc-stroke" cx="17.5" cy="17.3" r="2.05"/><path class="cc-stroke" d="M8.1 15.9 18 5.3"/><path class="cc-stroke" d="m6.1 5.3 9.8 10.6"/>`, "cc-command-icon"),
+    copy: iconSvg(`<rect class="cc-stroke" x="8.2" y="7.2" width="9.7" height="11.6"/><rect class="cc-stroke" x="5.2" y="4.2" width="9.7" height="11.6"/>`, "cc-command-icon"),
+    paste: iconSvg(`<path class="cc-stroke" d="M8.2 5.2h7.6v3H8.2z"/><path class="cc-stroke" d="M6.2 7.2h11.6v12.6H6.2z"/><path class="cc-stroke" d="M9.1 12.3h5.8"/><path class="cc-stroke" d="M9.1 16h5"/>`, "cc-command-icon"),
+    "zoom-in": iconSvg(`<circle class="cc-stroke" cx="10.3" cy="10.3" r="6"/><path class="cc-stroke" d="m14.8 14.8 5.2 5.2"/><path class="cc-stroke" d="M10.3 7.2v6.2"/><path class="cc-stroke" d="M7.2 10.3h6.2"/>`, "cc-command-icon"),
+    "zoom-out": iconSvg(`<circle class="cc-stroke" cx="10.3" cy="10.3" r="6"/><path class="cc-stroke" d="m14.8 14.8 5.2 5.2"/><path class="cc-stroke" d="M7.2 10.3h6.2"/>`, "cc-command-icon"),
+    fit: iconSvg(`<path class="cc-stroke" d="M4.5 9V4.5H9"/><path class="cc-stroke" d="M19.5 9V4.5H15"/><path class="cc-stroke" d="M4.5 15v4.5H9"/><path class="cc-stroke" d="M19.5 15v4.5H15"/><rect class="cc-stroke" x="8.1" y="8.1" width="7.8" height="7.8"/>`, "cc-command-icon"),
+    select: iconSvg(`<path class="cc-fill cc-select-fill" d="M5.2 4.5 18.8 12 12.2 14.1l-2.7 5.8z"/>`, "cc-tool-icon"),
+    text: iconSvg(`<path class="cc-stroke" d="M7.5 19 12 5.1 16.5 19"/><path class="cc-stroke" d="M9 14.1h6"/>`, "cc-tool-icon"),
+    arrow: straightArrowSvg(),
+    shape: iconSvg(`<rect class="cc-shape cc-empty-fill" x="5.5" y="5.5" width="10.2" height="10.2"/><circle class="cc-shape cc-empty-fill" cx="16.8" cy="16.8" r="3.45"/>`, "cc-tool-icon"),
+  };
+  return icons[name] || "";
+}
+
+export function syncPrimaryChromeIcons(root = document) {
+  for (const button of root.querySelectorAll("[data-command]")) {
+    const svg = commandIconSvg(button.dataset.command);
+    if (svg) {
+      button.innerHTML = svg;
+    }
+  }
+  for (const [tool, svg] of [
+    ["select", commandIconSvg("select")],
+    ["text", commandIconSvg("text")],
+    ["arrow", straightArrowSvg()],
+    ["bracket", generatedBracketIconSvg("round")],
+    ["symbol", generatedBracketIconSvg("circle-plus")],
+    ["shape", commandIconSvg("shape")],
+    ["templates", generatedRingSvg(6)],
+  ]) {
+    const button = root.querySelector(`.tool-button[data-tool="${tool}"]`);
+    if (button && svg) {
+      button.innerHTML = svg;
+    }
+  }
+}
+
 export function renderSecondaryToolbarHtml(editorState) {
   if (editorState.activeTool === "bond") {
     return bondToolbarHtml(editorState);
@@ -71,14 +420,59 @@ function toolbarButton(value, title, svg, selected = false) {
   `;
 }
 
-function colorButton(value, title, color, selected = false) {
-  const noFillClass = color === "none" ? " no-fill" : "";
-  const swatchStyle = color === "none" ? "" : ` style="--swatch:${color}"`;
+function colorPickerControl(prefix, currentColor, documentColors = []) {
+  const color = normalizedHex(currentColor) || "#000000";
+  const extras = uniqueColors(documentColors).filter((value) => (
+    !CHEMDRAW_BASIC_COLORS.some((basic) => colorsEqual(basic.value, value))
+  ));
+  const swatches = [...CHEMDRAW_BASIC_COLORS, ...extras.map((value) => ({ value, title: value.toUpperCase() }))]
+    .map((entry, index) => `
+      <button class="color-panel-swatch${colorsEqual(color, entry.value) ? " is-selected" : ""}" type="button" data-color-swatch-value="${entry.value}" title="${entry.title}" aria-label="${entry.title}" style="--swatch:${entry.value}; --swatch-index:${index}"></button>
+    `)
+    .join("");
   return `
-    <button class="color-button${selected ? " is-selected" : ""}" type="button" data-secondary-value="${value}" aria-label="${title}" title="${title}">
-      <span class="color-swatch${noFillClass}"${swatchStyle}></span>
-    </button>
+    <div class="color-picker" data-color-prefix="${prefix}">
+      <button class="color-picker-button" type="button" data-secondary-value="${prefix}-apply" aria-label="Apply color" title="Apply color">
+        <span class="color-picker-swatch" style="--swatch:${color}"></span>
+        <span class="color-picker-arrow" data-color-picker-arrow aria-hidden="true"></span>
+      </button>
+      <div class="color-picker-panel" role="menu">
+        <div class="color-panel-grid">
+          ${swatches}
+        </div>
+        <button class="color-panel-other" type="button" data-color-other>Other...</button>
+      </div>
+    </div>
   `;
+}
+
+function colorsEqual(left, right) {
+  return String(left || "").toLowerCase() === String(right || "").toLowerCase();
+}
+
+function normalizedHex(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (/^#[0-9a-f]{6}$/.test(raw)) {
+    return raw;
+  }
+  if (/^#[0-9a-f]{3}$/.test(raw)) {
+    return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`;
+  }
+  return null;
+}
+
+function uniqueColors(colors) {
+  const seen = new Set();
+  const out = [];
+  for (const color of colors || []) {
+    const normalized = normalizedHex(color);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    out.push(normalized);
+  }
+  return out;
 }
 
 function secondaryDivider() {
@@ -88,39 +482,39 @@ function secondaryDivider() {
 const BOND_TOOL_ICON_SPECS = {
   single: {
     title: "Single bond",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17 19 7"/></svg>`,
+    svg: bondIconSvg("single"),
   },
   double: {
     title: "Double bond",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 15 18 6"/><path d="M6 18 19 9"/></svg>`,
+    svg: bondIconSvg("double"),
   },
   triple: {
     title: "Triple bond",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 14 17.5 5"/><path d="M6 17 19 8"/><path d="M7.5 20 20.5 11"/></svg>`,
+    svg: bondIconSvg("triple"),
   },
   dashed: {
     title: "Dashed bond",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17 7 15.5"/><path d="M9.5 13.8 11.5 12.4"/><path d="M14 10.6 16 9.2"/><path d="M18.5 7.5 19 7"/></svg>`,
+    svg: bondIconSvg("dashed"),
   },
   "dashed-double": {
     title: "Dashed-solid double bond",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.3 16 18.3 6" style="stroke-linecap:butt"/><path d="M5.7 18 19.7 8" style="stroke-dasharray:2.2 1.6;stroke-linecap:butt"/></svg>`,
+    svg: bondIconSvg("dashed-double"),
   },
   bold: {
     title: "Bold bond",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><polygon class="filled" points="4.1,15.7 18.1,5.7 19.9,8.3 5.9,18.3" style="stroke-linejoin:miter"/></svg>`,
+    svg: bondIconSvg("bold"),
   },
   "bold-dashed": {
     title: "Hash bond",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.8 15.4 8.2 18.8" style="stroke-width:1.9"/><path d="M9.6 12.7 12 16.1" style="stroke-width:1.9"/><path d="M13.4 10 15.8 13.4" style="stroke-width:1.9"/><path d="M17.2 7.3 19.6 10.7" style="stroke-width:1.9"/></svg>`,
+    svg: bondIconSvg("bold-dashed"),
   },
   wedge: {
     title: "Solid wedge",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><polygon class="filled" points="3.2,14.5 6.8,19.5 19,7" style="stroke-linejoin:miter"/></svg>`,
+    svg: bondIconSvg("wedge"),
   },
   "hashed-wedge": {
     title: "Hash wedge",
-    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><polygon class="filled" points="3.5,14.9 3.8,15.3 5.7,13.3 4.5,13.9" style="stroke:none"/><polygon class="filled" points="4.1,15.7 4.4,16.2 8.6,11.9 7,12.7" style="stroke:none"/><polygon class="filled" points="4.7,16.6 5.1,17.2 11.7,10.4 9.8,11.3" style="stroke:none"/><polygon class="filled" points="5.5,17.7 6,18.4 15.5,8.6 13.3,9.7" style="stroke:none"/></svg>`,
+    svg: bondIconSvg("hashed-wedge"),
   },
 };
 
@@ -171,11 +565,13 @@ function selectToolbarHtml(editorState) {
     toolbarButton("align-h-center", "Horizontal center", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16"/><path d="M6 7h12"/><path d="M8 12h8"/><path d="M5 17h14"/></svg>`),
     toolbarButton("align-v-center", "Vertical center", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"/><path d="M7 6v12"/><path d="M12 8v8"/><path d="M17 5v14"/></svg>`),
     secondaryDivider(),
-    toolbarButton("distribute-v", "Vertical distribute", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="4" width="10" height="3"/><rect x="7" y="10.5" width="10" height="3"/><rect x="7" y="17" width="10" height="3"/><path d="M5 7v3.5"/><path d="M5 13.5V17"/><path d="M19 7v3.5"/><path d="M19 13.5V17"/></svg>`),
-    toolbarButton("distribute-h", "Horizontal distribute", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="3" height="10"/><rect x="10.5" y="7" width="3" height="10"/><rect x="17" y="7" width="3" height="10"/><path d="M7 5h3.5"/><path d="M13.5 5H17"/><path d="M7 19h3.5"/><path d="M13.5 19H17"/></svg>`),
+    toolbarButton("distribute-v", "Vertical distribute", distributeIconSvg("vertical")),
+    toolbarButton("distribute-h", "Horizontal distribute", distributeIconSvg("horizontal")),
     secondaryDivider(),
     toolbarButton("flip-h", "Flip horizontal", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16"/><path class="filled" d="M5 7v10l5-5z"/><path d="M19 7v10l-5-5z"/></svg>`),
     toolbarButton("flip-v", "Flip vertical", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"/><path class="filled" d="M7 5h10l-5 5z"/><path d="M7 19h10l-5-5z"/></svg>`),
+    secondaryDivider(),
+    colorPickerControl("selection-color", editorState.selectionColor || editorState.textColor, editorState.documentColors),
   ].join("");
 }
 
@@ -188,16 +584,15 @@ function bondToolbarHtml(editorState) {
 
 function arrowIconSvg(type = "solid") {
   if (type === "curved" || type === "curved-mirror") {
-    const transform = type === "curved-mirror" ? ` transform="translate(0 24) scale(1 -1)"` : "";
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><g${transform}><path d="M18.8 7.2C12.8 4.8 6 8.9 5.9 15.4"/><path class="filled" d="M20.5 9.6 17.2 6l4.9-.7z"/></g></svg>`;
+    return curvedArrowSvg({ mirrored: type === "curved-mirror" });
   }
   if (type === "hollow") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h10v3l6-5-6-5v3H4z"/></svg>`;
+    return straightArrowSvg({ head: "hollow" });
   }
   if (type === "open") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h12"/><path d="M4 15h12"/><path d="m15 6 5 6-5 6"/></svg>`;
+    return straightArrowSvg({ head: "open" });
   }
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h12"/><path class="filled" d="M15 7 21 12l-6 5z"/></svg>`;
+  return straightArrowSvg();
 }
 
 function isCurvedArrowType(type) {
@@ -205,14 +600,7 @@ function isCurvedArrowType(type) {
 }
 
 function arrowCurveSvg(curve, mirrored = false) {
-  const paths = {
-    "270": "M18.8 6.2C11.9 3.6 4.5 8.3 4.5 15.4c0 4 3.4 6.4 7.3 5.3",
-    "180": "M18.8 7.1C13.1 4.3 6.2 8.6 6.2 14.6c0 3.4 2.9 5.3 6.1 4.5",
-    "120": "M18.8 8.4C14.5 5.9 8.4 8.2 7.2 13.2",
-    "90": "M18.8 9.6C15.2 7.5 10.8 8.9 8.4 12.1",
-  };
-  const transform = mirrored ? ` transform="translate(0 24) scale(1 -1)"` : "";
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><g${transform}><path d="${paths[curve] || paths["270"]}"/><path class="filled" d="M20.4 8.8 17.1 5.8l4.7-1z"/></g></svg>`;
+  return curvedArrowSvg({ curve, mirrored });
 }
 
 function arrowSizeSvg(size) {
@@ -220,14 +608,14 @@ function arrowSizeSvg(size) {
   const tip = 20;
   const base = tip - 7 * scale;
   const half = 4.8 * scale;
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h${Math.max(8, base - 4)}"/><path class="filled" d="M${base} ${12 - half} ${tip} 12 ${base} ${12 + half}z"/></svg>`;
+  return iconSvg(`<path class="cc-arrow" d="M4 12h${Math.max(8, base - 4)}"/>${polygon([point(tip, 12), point(base, 12 - half), point(base, 12 + half)], "cc-arrow-fill")}`, "cc-arrow-icon");
 }
 
 function arrowEndpointSvg(label, side) {
-  const head = side === "head"
-    ? `<path class="filled" d="M15 7 21 12l-6 5z"/>`
-    : `<path class="filled" d="M9 7 3 12l6 5z"/>`;
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/>${head}<text x="12" y="22" text-anchor="middle" fill="currentColor" font-size="5.5" font-family="Arial, Helvetica, sans-serif">${label}</text></svg>`;
+  const isHead = side === "head";
+  const head = isHead ? arrowHead(point(20.2, 10.8), point(1, 0), 0.82) : arrowHead(point(3.8, 10.8), point(-1, 0), 0.82);
+  const body = isHead ? `<path class="cc-arrow" d="M4.4 10.8h11.4"/>` : `<path class="cc-arrow" d="M8.2 10.8h11.4"/>`;
+  return iconSvg(`${body}${head}<text class="cc-icon-label" x="12" y="21.1" text-anchor="middle">${label}</text>`, "cc-arrow-icon cc-arrow-endpoint-icon");
 }
 
 function arrowHalfEndpointSvg(side, half) {
@@ -236,19 +624,36 @@ function arrowHalfEndpointSvg(side, half) {
   const baseX = isHead ? 15 : 9;
   const shaftStart = isHead ? 5 : 9;
   const shaftEnd = isHead ? 15 : 19;
+  const head = half === "left"
+    ? `<path class="cc-arrow-fill" d="M${tipX} 12 ${baseX} 12 ${baseX} 7.2z"/>`
+    : `<path class="cc-arrow-fill" d="M${tipX} 12 ${baseX} 16.8 ${baseX} 12z"/>`;
   const topLabel = half === "left" ? "left" : "right";
   const bottomLabel = isHead ? "head" : "tail";
-  const head = half === "left"
-    ? `<path class="filled" d="M${tipX} 12 ${baseX} 12 ${baseX} 7z"/>`
-    : `<path class="filled" d="M${tipX} 12 ${baseX} 17 ${baseX} 12z"/>`;
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><text x="12" y="5" text-anchor="middle" fill="currentColor" font-size="4.8" font-family="Arial, Helvetica, sans-serif">${topLabel}</text><path d="M${shaftStart} 12h${shaftEnd - shaftStart}"/>${head}<text x="12" y="22" text-anchor="middle" fill="currentColor" font-size="4.8" font-family="Arial, Helvetica, sans-serif">${bottomLabel}</text></svg>`;
+  return iconSvg(`<text class="cc-icon-label cc-icon-label-small" x="12" y="5.15" text-anchor="middle">${topLabel}</text><path class="cc-arrow" d="M${shaftStart} 12h${shaftEnd - shaftStart}"/>${head}<text class="cc-icon-label cc-icon-label-small" x="12" y="22.15" text-anchor="middle">${bottomLabel}</text>`, "cc-arrow-icon cc-arrow-endpoint-icon");
 }
 
 function arrowNoGoSvg(kind) {
   const mark = kind === "hash"
-    ? `<path class="filled" d="M10 7.5 12 8.2 8 17.5 6 16.8z"/><path class="filled" d="M16 7.5 18 8.2 14 17.5 12 16.8z"/>`
-    : `<path class="filled" d="M7.1 6.2 17.8 16.9 16.4 18.3 5.7 7.6z"/><path class="filled" d="M16.4 5.7 17.8 7.1 7.1 17.8 5.7 16.4z"/>`;
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h12"/><path class="filled" d="M15 7 21 12l-6 5z"/>${mark}</svg>`;
+    ? `<path class="cc-arrow-fill" d="M10 7.5 12 8.2 8 17.5 6 16.8z"/><path class="cc-arrow-fill" d="M16 7.5 18 8.2 14 17.5 12 16.8z"/>`
+    : `<path class="cc-arrow-fill" d="M7.1 6.2 17.8 16.9 16.4 18.3 5.7 7.6z"/><path class="cc-arrow-fill" d="M16.4 5.7 17.8 7.1 7.1 17.8 5.7 16.4z"/>`;
+  return iconSvg(`<path class="cc-arrow" d="M4 12h12"/>${arrowHead(point(20.5, 12), point(1, 0), 0.9)}${mark}`, "cc-arrow-icon");
+}
+
+function distributeIconSvg(axis = "horizontal") {
+  if (axis === "vertical") {
+    return iconSvg(`
+      <path class="cc-guide" d="M5.3 5.2v13.6M18.7 5.2v13.6"/>
+      <rect class="cc-distribute-fill" x="7.2" y="5" width="9.6" height="3.2" rx="0.4"/>
+      <rect class="cc-distribute-fill" x="7.2" y="10.4" width="9.6" height="3.2" rx="0.4"/>
+      <rect class="cc-distribute-fill" x="7.2" y="15.8" width="9.6" height="3.2" rx="0.4"/>
+    `, "cc-distribute-icon");
+  }
+  return iconSvg(`
+    <path class="cc-guide" d="M5.2 5.3h13.6M5.2 18.7h13.6"/>
+    <rect class="cc-distribute-fill" x="5" y="7.2" width="3.2" height="9.6" rx="0.4"/>
+    <rect class="cc-distribute-fill" x="10.4" y="7.2" width="3.2" height="9.6" rx="0.4"/>
+    <rect class="cc-distribute-fill" x="15.8" y="7.2" width="3.2" height="9.6" rx="0.4"/>
+  `, "cc-distribute-icon");
 }
 
 function arrowToolbarHtml(editorState) {
@@ -318,71 +723,42 @@ function textToolbarHtml(editorState) {
     <select class="secondary-select" data-text-control="font" aria-label="Font family">${fontOptions}</select>
     <select class="secondary-select" data-text-control="size" aria-label="Font size">${fontSizeOptions}</select>
     ${secondaryDivider()}
-    ${colorButton("text-black", "Text color", "#000000", editorState.textColor === "#000000")}
+    ${colorPickerControl("text-color", editorState.textColor, editorState.documentColors)}
     ${secondaryDivider()}
     ${toolbarButton("text-align-left", "Align left", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M5 10h9"/><path d="M5 14h12"/><path d="M5 18h8"/></svg>`, editorState.textAlign === "left")}
     ${toolbarButton("text-align-center", "Align center", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M7 10h10"/><path d="M6 14h12"/><path d="M8 18h8"/></svg>`, editorState.textAlign === "center")}
     ${toolbarButton("text-align-right", "Align right", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M10 10h9"/><path d="M7 14h12"/><path d="M11 18h8"/></svg>`, editorState.textAlign === "right")}
     ${toolbarButton("text-align-justify", "Justify", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M5 10h14"/><path d="M5 14h14"/><path d="M5 18h14"/></svg>`, editorState.textAlign === "justify")}
     ${secondaryDivider()}
-    ${toolbarButton("text-bold", "Bold", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h5.4a3.1 3.1 0 0 1 0 6.2H8z"/><path d="M8 11.2h6.2a3.4 3.4 0 0 1 0 6.8H8z"/></svg>`, editorState.textBold)}
-    ${toolbarButton("text-italic", "Italic", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h-4"/><path d="M14 19h-4"/><path d="M13 5 11 19"/></svg>`, editorState.textItalic)}
-    ${toolbarButton("text-underline", "Underline", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v7a4 4 0 0 0 8 0V5"/><path d="M6 19h12"/></svg>`, editorState.textUnderline)}
+    ${toolbarButton("text-bold", "Bold", textFormatIconSvg("bold"), editorState.textBold)}
+    ${toolbarButton("text-italic", "Italic", textFormatIconSvg("italic"), editorState.textItalic)}
+    ${toolbarButton("text-underline", "Underline", textFormatIconSvg("underline"), editorState.textUnderline)}
     ${secondaryDivider()}
-    ${toolbarButton("text-chemical", "Chemical", `<svg viewBox="0 0 24 24" aria-hidden="true"><text x="3.6" y="15.4" fill="currentColor" font-size="10.8" font-family="Arial, Helvetica, sans-serif" font-weight="700">CH</text><text x="16.1" y="18.1" fill="currentColor" font-size="6.4" font-family="Arial, Helvetica, sans-serif" font-weight="700">2</text><text x="15.8" y="9.1" fill="currentColor" font-size="5.8" font-family="Arial, Helvetica, sans-serif" font-weight="700">+</text></svg>`, editorState.textScript === "chemical")}
-    ${toolbarButton("text-subscript", "Subscript", `<svg viewBox="0 0 24 24" aria-hidden="true"><text x="4.2" y="14.8" fill="currentColor" font-size="12.2" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-weight="700">X</text><text x="15.6" y="18.1" fill="currentColor" font-size="7" font-family="Arial, Helvetica, sans-serif" font-weight="700">2</text></svg>`, editorState.textScript === "subscript")}
-    ${toolbarButton("text-superscript", "Superscript", `<svg viewBox="0 0 24 24" aria-hidden="true"><text x="4.2" y="14.8" fill="currentColor" font-size="12.2" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-weight="700">X</text><text x="15.4" y="9.1" fill="currentColor" font-size="7" font-family="Arial, Helvetica, sans-serif" font-weight="700">2</text></svg>`, editorState.textScript === "superscript")}
+    ${toolbarButton("text-chemical", "Chemical", textFormatIconSvg("chemical"), editorState.textScript === "chemical")}
+    ${toolbarButton("text-subscript", "Subscript", textFormatIconSvg("subscript"), editorState.textScript === "subscript")}
+    ${toolbarButton("text-superscript", "Superscript", textFormatIconSvg("superscript"), editorState.textScript === "superscript")}
   `;
 }
 
 function shapeToolbarHtml(editorState) {
   return `
-    ${toolbarButton("shape-kind-circle", "Circle", `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.8"/></svg>`, editorState.shapeKind === "circle")}
-    ${toolbarButton("shape-kind-ellipse", "Ellipse", `<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="7" ry="4.2"/></svg>`, editorState.shapeKind === "ellipse")}
-    ${toolbarButton("shape-kind-round-rect", "Rounded rectangle", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="6" width="14" height="12" rx="3"/></svg>`, editorState.shapeKind === "round-rect")}
-    ${toolbarButton("shape-kind-rect", "Rectangle", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="6" width="14" height="12"/></svg>`, editorState.shapeKind === "rect")}
+    ${toolbarButton("shape-kind-circle", "Circle", shapeIconSvg("circle"), editorState.shapeKind === "circle")}
+    ${toolbarButton("shape-kind-ellipse", "Ellipse", shapeIconSvg("ellipse"), editorState.shapeKind === "ellipse")}
+    ${toolbarButton("shape-kind-round-rect", "Rounded rectangle", shapeIconSvg("round-rect"), editorState.shapeKind === "round-rect")}
+    ${toolbarButton("shape-kind-rect", "Rectangle", shapeIconSvg("rect"), editorState.shapeKind === "rect")}
     ${secondaryDivider()}
-    ${toolbarButton("shape-style-solid", "Solid outline", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="6" width="14" height="12"/></svg>`, editorState.shapeStyle === "solid")}
-    ${toolbarButton("shape-style-dashed", "Dashed outline", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="6" width="14" height="12" stroke-dasharray="2 2"/></svg>`, editorState.shapeStyle === "dashed")}
-    ${toolbarButton("shape-style-shaded", "Shaded", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect class="filled" x="5" y="6" width="14" height="12"/><rect class="soft-fill" x="6.5" y="7.2" width="9.2" height="7.8"/><rect x="5" y="6" width="14" height="12"/></svg>`, editorState.shapeStyle === "shaded")}
-    ${toolbarButton("shape-style-filled", "Filled", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect class="filled" x="5" y="6" width="14" height="12"/></svg>`, editorState.shapeStyle === "filled")}
-    ${toolbarButton("shape-style-shadowed", "Shadowed", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect class="soft-fill" x="7" y="8" width="12" height="10"/><rect x="5" y="6" width="12" height="10"/></svg>`, editorState.shapeStyle === "shadowed")}
+    ${toolbarButton("shape-style-solid", "Solid outline", shapeIconSvg("rect", "solid"), editorState.shapeStyle === "solid")}
+    ${toolbarButton("shape-style-dashed", "Dashed outline", shapeIconSvg("rect", "dashed"), editorState.shapeStyle === "dashed")}
+    ${toolbarButton("shape-style-shaded", "Shaded", shapeIconSvg("rect", "shaded"), editorState.shapeStyle === "shaded")}
+    ${toolbarButton("shape-style-filled", "Filled", shapeIconSvg("rect", "filled"), editorState.shapeStyle === "filled")}
+    ${toolbarButton("shape-style-shadowed", "Shadowed", shapeIconSvg("rect", "shadowed"), editorState.shapeStyle === "shadowed")}
     ${secondaryDivider()}
-    ${colorButton("shape-color-black", "Black", "#000000", editorState.shapeColor === "#000000")}
-    ${colorButton("shape-color-red", "Red", "#ff0000", editorState.shapeColor === "#ff0000")}
-    ${colorButton("shape-color-blue", "Blue", "#0000ff", editorState.shapeColor === "#0000ff")}
-    ${colorButton("shape-color-green", "Green", "#008000", editorState.shapeColor === "#008000")}
+    ${colorPickerControl("shape-color", editorState.shapeColor, editorState.documentColors)}
   `;
 }
 
 function bracketIconSvg(kind = "round") {
-  if (kind === "square") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H6v14h3"/><path d="M15 5h3v14h-3"/></svg>`;
-  }
-  if (kind === "curly") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5c-2 0-2 2-2 3.5V10c0 1.2-.9 2-2 2 1.1 0 2 .8 2 2v1.5C8 17 8 19 10 19"/><path d="M14 5c2 0 2 2 2 3.5V10c0 1.2.9 2 2 2-1.1 0-2 .8-2 2v1.5c0 1.5 0 3.5-2 3.5"/></svg>`;
-  }
-  if (kind === "circle-plus" || kind === "circle-minus") {
-    const mark = kind === "circle-plus" ? `<path d="M12 8v8"/><path d="M8 12h8"/>` : `<path d="M8 12h8"/>`;
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2"/>${mark}</svg>`;
-  }
-  if (kind === "plus") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v10"/><path d="M7 12h10"/></svg>`;
-  }
-  if (kind === "minus") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg>`;
-  }
-  if (kind === "radical-cation" || kind === "radical-anion") {
-    const mark = kind === "radical-cation" ? `<path d="M15.5 8v8"/><path d="M11.5 12h8"/>` : `<path d="M11.5 12h8"/>`;
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="filled" cx="7.5" cy="12" r="1.8"/>${mark}</svg>`;
-  }
-  if (kind === "lone-pair") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="filled" cx="9" cy="12" r="1.8"/><circle class="filled" cx="15" cy="12" r="1.8"/></svg>`;
-  }
-  if (kind === "electron") {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="filled" cx="12" cy="12" r="2.2"/></svg>`;
-  }
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5c-3 3-3 11 0 14"/><path d="M14 5c3 3 3 11 0 14"/></svg>`;
+  return generatedBracketIconSvg(kind);
 }
 
 function bracketToolbarHtml(editorState) {
@@ -407,18 +783,7 @@ function symbolToolbarHtml(editorState) {
 }
 
 function ringSvg(sides, aromatic = false) {
-  if (aromatic) {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 4 7 4v8l-7 4-7-4V8z"/><circle cx="12" cy="12" r="4.6"/></svg>`;
-  }
-  const pointsBySide = {
-    3: "12,4 20,18 4,18",
-    4: "6,6 18,6 18,18 6,18",
-    5: "12,4 20,10 17,19 7,19 4,10",
-    6: "12,4 19,8 19,16 12,20 5,16 5,8",
-    7: "12,4 18,7 20,14 16,20 8,20 4,14 6,7",
-    8: "9,4 15,4 20,9 20,15 15,20 9,20 4,15 4,9",
-  };
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="${pointsBySide[sides]}"/></svg>`;
+  return generatedRingSvg(sides, aromatic);
 }
 
 function templateIconSpec(template = "ring-6") {

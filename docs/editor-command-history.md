@@ -140,6 +140,21 @@ Current command ids:
 - `flip-h`
 - `flip-v`
 
+### `apply-selection-color`
+
+Applies a color to the current selection.
+
+Recorded data:
+
+- `color`: normalized hex color string
+
+Current behavior:
+
+- selected text objects update their text fill style and rich text run fills
+- selected molecule labels update label and run fills
+- selected molecule nodes or bonds update the molecule style color
+- selected line, bracket, symbol, and shape objects update their stroke and/or fill style color
+
 ### `move-selection`
 
 Moves the current selected molecule parts.

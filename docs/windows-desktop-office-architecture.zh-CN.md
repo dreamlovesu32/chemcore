@@ -121,6 +121,30 @@ apps/chemcore-desktop/src-tauri
 
 当前阶段 Web 仍默认使用 `WasmEngineHost`，桌面端使用 `DesktopHybridEngineHost`。这是为了保持编辑器同步调用模型稳定，同时保证 Tauri native command 通路不再只是空代码。下一阶段切换到 native path 时，不应让 UI 直接散落调用 Tauri command，而应只实现 `TauriEngineHost`，让它满足同一套 editor-facing session API。
 
+同日后续推进中，桌面端非 Office 原生能力继续加厚：
+
+```text
+crates/chemcore-desktop-service
+  已开始负责原生文件读写：.ccjz gzip、.ccjs、.cdxml、.svg。
+  已持久化最近文件列表，供桌面菜单使用。
+
+apps/chemcore-desktop/src-tauri
+  已增加原生 File/Edit/View 菜单、快捷键、文件打开/保存/另存为对话框、拖拽打开、
+  启动参数打开、最近文件菜单和 .ccjz/.ccjs/.cdxml 文件关联配置。
+  已接入 Tauri single-instance 插件：第二次启动会把可打开文件参数转发给已有窗口，并唤醒主窗口。
+  已接入 Windows 原生剪贴板 command：复制/剪切时写入 Chemcore 选择片段、整文档 JSON、CDXML、
+  SVG 和 Unicode text fallback；粘贴时优先读取 Chemcore 选择片段并插入当前画布。
+  已支持 PDF preview 导出：当前先由 WebView 将 SVG 预览栅格化并封装为单页 PDF。
+  已支持基础 EMF preview 导出：当前由 Tauri 后端把 document render primitives 映射到 Win32 GDI
+  Enhanced Metafile。该路径适合预览/Office fallback，后续仍应继续提升 path、字体和高级填充的保真度。
+
+viewer/desktop_file_host.js
+  WebView 内的桌面文件 host。桌面端优先走 Tauri native file commands；
+  浏览器端继续走 File System Access API 或下载 fallback。
+```
+
+这仍不表示 Office/OLE 已完成，也不表示编辑事件已经切到 native engine path。当前桌面端的化学编辑交互仍主要通过 WebView + WASM engine 同步执行；这部分保持不变，是为了避免在文件系统原生化时同时改动 editor-facing API 的同步/异步模型。基础 EMF preview 已经落地，但还不是最终 Office/OLE 对象渲染后端；后续应继续把更多 SVG/path/text 细节迁到可测试的 native vector renderer。
+
 建议的切换顺序：
 
 1. 让 `TauriEngineHost` 先支持只读 session：create/free、documentJson、stateJson、renderListJson、renderBoundsJson、documentSvg、documentCdxml。
@@ -266,13 +290,13 @@ Office 中的对象预览不能只依赖 SVG。长期需要：
 
 - 建立 Tauri app。已完成：`apps/chemcore-desktop/src-tauri`。
 - 加载现有 viewer UI。已完成：`npm run desktop:dev` 可启动 Windows 桌面窗口。
-- 增加菜单、快捷键、文件对话框、最近文件、拖拽打开、单实例。
-- 配置 `.ccjz/.ccjs/.cdxml` 文件关联。
+- 增加菜单、快捷键、文件对话框、最近文件、拖拽打开、单实例。已完成到单窗口原生菜单、快捷键、文件对话框、最近文件、拖拽打开和启动参数打开；单实例仍未接入。
+- 配置 `.ccjz/.ccjs/.cdxml` 文件关联。已写入 Tauri bundle 配置，需通过 installer 安装后在 Windows 系统层验证。
 
 ### 阶段 4：桌面 Native Engine Path
 
 - Tauri 后端直接调用 Rust engine。已开始：Tauri 已持有 `DesktopDocumentService`，并暴露 `desktop_engine_*` commands。
-- WebView 不再负责本地文件系统、gzip 和路径权限。
+- WebView 不再负责本地文件系统、gzip 和路径权限。已开始：桌面打开/保存/另存为优先走 Tauri native file commands，`.ccjz` gzip 由 Rust service 处理。
 - viewer 只负责 UI 和交互。
 
 ### 阶段 5：文档容器与预览
@@ -341,6 +365,14 @@ MSVC Build Tools:   Visual Studio Build Tools 2022 17.14.21
 Rust:               1.95.0, x86_64-pc-windows-msvc
 Node.js:            D:\nodejs-24.15.0
 ```
+
+当前仍未完成：
+
+- 单实例和第二次打开文件唤醒已有窗口。
+- 代码签名和自动更新。
+- Windows 原生剪贴板多格式写入。
+- EMF/PDF 等非 SVG 预览导出。
+- Office/OLE/COM 集成。
 
 ## 参考资料
 

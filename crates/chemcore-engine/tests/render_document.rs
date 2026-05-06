@@ -3069,7 +3069,7 @@ fn render_document_uses_open_arrow_width_as_extra_head_width() {
             .iter()
             .map(|point| point.y)
             .fold(f64::INFINITY, f64::min);
-    assert!((outline_width - 10.8).abs() <= 0.001);
+    assert!((outline_width - 17.28).abs() <= 0.001);
 }
 
 #[test]
@@ -3186,6 +3186,50 @@ fn render_document_respects_thin_open_and_hollow_arrow_stroke_width() {
             .all(|width| (*width - 0.6).abs() <= 1.0e-6),
         "{open_widths:?}"
     );
+}
+
+#[test]
+fn cdxml_acs_hollow_and_open_arrows_keep_chemdraw_head_width() {
+    let arrows =
+        std::fs::read_to_string(fixture_path("arrows-acs.cdxml")).expect("arrows-acs.cdxml");
+    let document = parse_cdxml_document(&arrows, Some("arrows")).expect("arrows should parse");
+    let primitives = render_document(&document);
+
+    for (object_id, expected_height) in [
+        ("obj_line_004", 14.4),
+        ("obj_line_005", 7.2),
+        ("obj_line_006", 14.4),
+        ("obj_line_007", 7.2),
+    ] {
+        let height = primitives
+            .iter()
+            .filter_map(|primitive| match primitive {
+                RenderPrimitive::Polygon {
+                    role,
+                    object_id: Some(id),
+                    points,
+                    ..
+                }
+                | RenderPrimitive::Polyline {
+                    role,
+                    object_id: Some(id),
+                    points,
+                    ..
+                } if *role == RenderRole::DocumentGraphic && id == object_id => {
+                    Some(
+                        points.iter().map(|point| point.y).fold(f64::NEG_INFINITY, f64::max)
+                            - points.iter().map(|point| point.y).fold(f64::INFINITY, f64::min),
+                    )
+                }
+                _ => None,
+            })
+            .fold(0.0, f64::max);
+
+        assert!(
+            (height - expected_height).abs() <= 0.001,
+            "{object_id} height {height}"
+        );
+    }
 }
 
 #[test]

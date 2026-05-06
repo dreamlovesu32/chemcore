@@ -9,11 +9,13 @@ import {
   decompressChemcoreText,
   documentTitleForFileName,
   downloadBinaryFile,
+  downloadBlobFile,
   downloadTextFile,
   looksLikeCompressedChemcoreFile,
   looksLikeCdxmlFile,
   saveFormatFromFileName,
 } from "./file_io.js";
+import { pdfPreviewBase64FromSvg } from "./export_preview.js";
 
 export function createDocumentFlow(options) {
   async function loadDocument(path) {
@@ -48,6 +50,7 @@ export function createDocumentFlow(options) {
     options.finishActiveTextEditor(false);
     options.state.currentPath = null;
     options.state.currentFileName = fileName;
+    options.state.currentFilePath = null;
     options.state.editorEngine?.free?.();
     options.state.editorEngine = options.engineHost.createEngineSession();
     options.state.lastEditFocusPoint = null;
@@ -86,6 +89,16 @@ export function createDocumentFlow(options) {
     return `${baseNameWithoutDocumentExtension(baseName)}.svg`;
   }
 
+  function pdfFileNameForSave() {
+    const baseName = options.state.currentFileName || documentTitleForFileName(options.state.currentDocument);
+    return `${baseNameWithoutDocumentExtension(baseName)}.pdf`;
+  }
+
+  function emfFileNameForSave() {
+    const baseName = options.state.currentFileName || documentTitleForFileName(options.state.currentDocument);
+    return `${baseNameWithoutDocumentExtension(baseName)}.emf`;
+  }
+
   function saveAsBaseName() {
     const baseName = options.state.currentFileName || documentTitleForFileName(options.state.currentDocument);
     return baseNameWithoutDocumentExtension(baseName) || "chemcore-document";
@@ -117,7 +130,19 @@ export function createDocumentFlow(options) {
     };
   }
 
+  async function saveCurrentDocument() {
+    if (options.desktopFileHost?.available && options.state.currentFilePath) {
+      await saveCurrentDocumentToDesktopPath(options.state.currentFilePath);
+      return;
+    }
+    await saveCurrentDocumentAs();
+  }
+
   async function saveCurrentDocumentNative() {
+    if (options.desktopFileHost?.available) {
+      await saveCurrentDocumentAs();
+      return;
+    }
     const suggestedName = `${saveAsBaseName()}${CHEMCORE_COMPRESSED_EXTENSION}`;
     if (window.showSaveFilePicker) {
       const handle = await window.showSaveFilePicker({
@@ -157,6 +182,14 @@ export function createDocumentFlow(options) {
 
   async function saveCurrentDocumentCdxml() {
     const suggestedName = cdxmlFileNameForSave();
+    if (options.desktopFileHost?.available) {
+      const path = await options.desktopFileHost.chooseSavePath(suggestedName);
+      if (!path) {
+        return;
+      }
+      await saveCurrentDocumentToDesktopPath(path, "cdxml");
+      return;
+    }
     if (window.showSaveFilePicker) {
       const handle = await window.showSaveFilePicker({
         suggestedName,
@@ -176,6 +209,14 @@ export function createDocumentFlow(options) {
 
   async function saveCurrentDocumentSvg() {
     const suggestedName = svgFileNameForSave();
+    if (options.desktopFileHost?.available) {
+      const path = await options.desktopFileHost.chooseSavePath(suggestedName);
+      if (!path) {
+        return;
+      }
+      await saveCurrentDocumentToDesktopPath(path, "svg");
+      return;
+    }
     if (window.showSaveFilePicker) {
       const handle = await window.showSaveFilePicker({
         suggestedName,
@@ -191,7 +232,65 @@ export function createDocumentFlow(options) {
     downloadTextFile(svg, suggestedName, "image/svg+xml");
   }
 
+  async function currentDocumentPdfPreviewBase64ForSave() {
+    return pdfPreviewBase64FromSvg(currentDocumentSvgForSave());
+  }
+
+  async function saveCurrentDocumentPdf() {
+    const suggestedName = pdfFileNameForSave();
+    if (options.desktopFileHost?.available) {
+      const path = await (
+        options.desktopFileHost.chooseExportSavePath?.(suggestedName, "pdf")
+        || options.desktopFileHost.chooseSavePath(suggestedName)
+      );
+      if (!path) {
+        return;
+      }
+      const pdfBase64 = await currentDocumentPdfPreviewBase64ForSave();
+      await options.desktopFileHost.writeBase64(path, pdfBase64);
+      return;
+    }
+    const pdfBase64 = await currentDocumentPdfPreviewBase64ForSave();
+    downloadBlobFile(
+      new Blob([base64ToUint8(pdfBase64)], { type: "application/pdf" }),
+      suggestedName,
+    );
+  }
+
+  async function saveCurrentDocumentEmf() {
+    if (!options.desktopFileHost?.available || !options.desktopFileHost.exportEmf) {
+      throw new Error("EMF export is available only in the Windows desktop app.");
+    }
+    options.finishActiveTextEditor(true);
+    if (!options.state.editorEngine?.renderListJson || !options.state.editorEngine?.renderBoundsJson) {
+      throw new Error("EMF export is unavailable.");
+    }
+    const suggestedName = emfFileNameForSave();
+    const path = await (
+      options.desktopFileHost.chooseExportSavePath?.(suggestedName, "emf")
+      || options.desktopFileHost.chooseSavePath(suggestedName)
+    );
+    if (!path) {
+      return;
+    }
+    const boundsJson = options.state.editorEngine.renderBoundsJson("document")
+      || options.state.editorEngine.renderBoundsJson("all");
+    await options.desktopFileHost.exportEmf(
+      path,
+      options.state.editorEngine.renderListJson(),
+      boundsJson,
+    );
+  }
+
   async function saveCurrentDocumentAs() {
+    if (options.desktopFileHost?.available) {
+      const path = await options.desktopFileHost.chooseSavePath(`${saveAsBaseName()}${CHEMCORE_COMPRESSED_EXTENSION}`);
+      if (!path) {
+        return;
+      }
+      await saveCurrentDocumentToDesktopPath(path);
+      return;
+    }
     if (window.showSaveFilePicker) {
       const handle = await window.showSaveFilePicker({
         suggestedName: `${saveAsBaseName()}${CHEMCORE_COMPRESSED_EXTENSION}`,
@@ -222,6 +321,31 @@ export function createDocumentFlow(options) {
     await saveCurrentDocumentNative();
   }
 
+  function desktopFormatForPath(path, fallbackFormat = null) {
+    return fallbackFormat || saveFormatFromFileName(path);
+  }
+
+  function desktopContentForFormat(format) {
+    if (format === "svg") {
+      return currentDocumentSvgForSave();
+    }
+    if (format === "cdxml") {
+      return currentDocumentCdxmlForSave();
+    }
+    return currentDocumentJsonForSave();
+  }
+
+  async function saveCurrentDocumentToDesktopPath(path, forcedFormat = null) {
+    const format = desktopFormatForPath(path, forcedFormat);
+    const saved = await options.desktopFileHost.writePath(path, desktopContentForFormat(format), format);
+    if (format !== "svg") {
+      options.state.currentFilePath = saved.path || path;
+      options.state.currentFileName = saved.fileName || fileNameFromPath(path);
+      options.viewerTitle.textContent = options.state.currentDocument?.document?.title || options.state.currentFileName || "Untitled";
+      updateDocumentMeta();
+    }
+  }
+
   async function openDocumentFile(file) {
     if (!file) {
       return;
@@ -230,27 +354,45 @@ export function createDocumentFlow(options) {
       ? await decompressChemcoreText(await file.arrayBuffer())
       : await file.text();
     if (looksLikeCdxmlFile(file, text)) {
-      options.finishActiveTextEditor(false);
-      options.state.currentPath = null;
-      options.state.currentFileName = file.name || null;
-      options.state.editorEngine?.free?.();
-      options.state.editorEngine = options.engineHost.createEngineSession();
-      options.state.lastEditFocusPoint = null;
-      options.clearZoomHandoffs();
-      options.state.editorEngine.loadDocumentCdxml(text);
-      options.syncDocumentStylePresetFromEngine();
-      options.syncEngineToolState();
-      options.syncDocumentFromEngine();
-      options.state.runtimeViewBox = options.state.currentDocument?.document?.page
-        ? options.pageViewBox(options.state.currentDocument.document.page)
-        : options.defaultEditorViewBox();
-      options.viewerTitle.textContent = options.state.currentDocument?.document?.title || file.name || "Imported CDXML";
-      updateDocumentMeta();
-      options.renderDocument();
-      options.fitView();
+      loadCdxmlDocumentIntoEditor(text, file.name || null, null);
       return;
     }
     loadJsonDocumentIntoEditor(JSON.parse(text), file.name || null);
+  }
+
+  async function openDocumentPath(path) {
+    if (!options.desktopFileHost?.available || !path) {
+      return;
+    }
+    const opened = await options.desktopFileHost.readPath(path);
+    if (opened.format === "cdxml") {
+      loadCdxmlDocumentIntoEditor(opened.text, opened.fileName || fileNameFromPath(path), opened.path || path);
+      return;
+    }
+    loadJsonDocumentIntoEditor(JSON.parse(opened.text), opened.fileName || fileNameFromPath(path));
+    options.state.currentFilePath = opened.path || path;
+  }
+
+  function loadCdxmlDocumentIntoEditor(cdxml, fileName = null, filePath = null) {
+    options.finishActiveTextEditor(false);
+    options.state.currentPath = null;
+    options.state.currentFileName = fileName;
+    options.state.currentFilePath = filePath;
+    options.state.editorEngine?.free?.();
+    options.state.editorEngine = options.engineHost.createEngineSession();
+    options.state.lastEditFocusPoint = null;
+    options.clearZoomHandoffs();
+    options.state.editorEngine.loadDocumentCdxml(cdxml);
+    options.syncDocumentStylePresetFromEngine();
+    options.syncEngineToolState();
+    options.syncDocumentFromEngine();
+    options.state.runtimeViewBox = options.state.currentDocument?.document?.page
+      ? options.pageViewBox(options.state.currentDocument.document.page)
+      : options.defaultEditorViewBox();
+    options.viewerTitle.textContent = options.state.currentDocument?.document?.title || fileName || "Imported CDXML";
+    updateDocumentMeta();
+    options.renderDocument();
+    options.fitView();
   }
 
   function isAbortError(error) {
@@ -258,6 +400,13 @@ export function createDocumentFlow(options) {
   }
 
   async function chooseAndOpenDocument() {
+    if (options.desktopFileHost?.available) {
+      const path = await options.desktopFileHost.chooseOpenPath();
+      if (path) {
+        await openDocumentPath(path);
+      }
+      return;
+    }
     if (window.showOpenFilePicker) {
       const [handle] = await window.showOpenFilePicker({
         multiple: false,
@@ -271,6 +420,10 @@ export function createDocumentFlow(options) {
       return;
     }
     options.openFileInput.click();
+  }
+
+  function fileNameFromPath(path) {
+    return String(path || "").split(/[\\/]/).filter(Boolean).pop() || "Untitled";
   }
 
   function currentDocumentMetaPayload() {
@@ -300,6 +453,7 @@ export function createDocumentFlow(options) {
     try {
       if (options.state.currentPath) {
         options.state.currentFileName = null;
+        options.state.currentFilePath = null;
         const documentData = await loadDocument(options.state.currentPath);
         options.state.currentDocument = documentData;
         options.state.runtimeViewBox = options.pageViewBox(documentData.document.page);
@@ -334,9 +488,22 @@ export function createDocumentFlow(options) {
     loadAndRender,
     loadJsonDocumentIntoEditor,
     openDocumentFile,
+    openDocumentPath,
+    saveCurrentDocument,
     saveCurrentDocumentAs,
     saveCurrentDocumentCdxml,
+    saveCurrentDocumentEmf,
+    saveCurrentDocumentPdf,
     saveCurrentDocumentSvg,
     updateDocumentMeta,
   };
+}
+
+function base64ToUint8(value) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
 }

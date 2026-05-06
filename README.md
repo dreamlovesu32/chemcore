@@ -42,6 +42,8 @@ The current design baseline lives in:
 ```text
 chemcore/
   crates/chemcore-engine/    Rust document, editing, rendering, CDXML, WASM core
+  crates/chemcore-desktop-service/ Native desktop engine session, file I/O, and recent-file service
+  apps/chemcore-desktop/      Tauri Windows desktop application
   viewer/                    Browser editor host and generated WASM package
   docs/                      Architecture, format, rendering, and behavior notes
   examples/                  Example ChemCore native documents
@@ -56,6 +58,8 @@ cargo test
 npm run build:engine-wasm
 npm run dev:engine
 npm run verify
+npm run desktop:dev
+npm run desktop:build
 node --check viewer/app.js
 ```
 

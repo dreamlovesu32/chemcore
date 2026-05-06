@@ -94,6 +94,9 @@ pub enum EditorCommand {
     ApplySelectionArrange {
         command: String,
     },
+    ApplySelectionColor {
+        color: String,
+    },
     MoveSelection,
     RotateSelection,
     ApplyTextEdit {

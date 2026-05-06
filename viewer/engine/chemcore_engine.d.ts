@@ -7,6 +7,7 @@ export class WasmEngine {
     activeArrowEditDegrees(): number;
     applyArrowEndpointOptionsToSelection(variant: string, head_size: string, curve: string, head_style: string, tail_style: string, no_go: string, bold: boolean): boolean;
     applyArrowOptionsToSelection(variant: string, head_size: string, head: boolean, tail: boolean, bold: boolean): boolean;
+    applyColorToSelection(color: string): boolean;
     applySelectionArrangeCommand(command: string): boolean;
     applyTextEdit(session_json: string): boolean;
     beginHoverArrowEdit(x: number, y: number): string;
@@ -16,6 +17,7 @@ export class WasmEngine {
     canRedo(): boolean;
     canUndo(): boolean;
     clearInteraction(): void;
+    clipboardSelectionJson(): string | undefined;
     copySelection(): boolean;
     cutSelection(): boolean;
     deleteSelection(): boolean;
@@ -31,6 +33,7 @@ export class WasmEngine {
     loadDocumentJson(json: string): void;
     constructor();
     pasteClipboard(): boolean;
+    pasteClipboardJson(json: string): boolean;
     pointerDown(x: number, y: number, alt_key: boolean): void;
     pointerMove(x: number, y: number, alt_key: boolean): void;
     pointerUp(x: number, y: number, alt_key: boolean): void;
@@ -68,6 +71,7 @@ export interface InitOutput {
     readonly wasmengine_activeArrowEditDegrees: (a: number) => number;
     readonly wasmengine_applyArrowEndpointOptionsToSelection: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => number;
     readonly wasmengine_applyArrowOptionsToSelection: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
+    readonly wasmengine_applyColorToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applySelectionArrangeCommand: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyTextEdit: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_beginHoverArrowEdit: (a: number, b: number, c: number) => [number, number];
@@ -77,6 +81,7 @@ export interface InitOutput {
     readonly wasmengine_canRedo: (a: number) => number;
     readonly wasmengine_canUndo: (a: number) => number;
     readonly wasmengine_clearInteraction: (a: number) => void;
+    readonly wasmengine_clipboardSelectionJson: (a: number) => [number, number, number, number];
     readonly wasmengine_copySelection: (a: number) => number;
     readonly wasmengine_cutSelection: (a: number) => number;
     readonly wasmengine_deleteSelection: (a: number) => number;
@@ -92,6 +97,7 @@ export interface InitOutput {
     readonly wasmengine_loadDocumentJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_new: () => number;
     readonly wasmengine_pasteClipboard: (a: number) => number;
+    readonly wasmengine_pasteClipboardJson: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_pointerDown: (a: number, b: number, c: number, d: number) => void;
     readonly wasmengine_pointerMove: (a: number, b: number, c: number, d: number) => void;
     readonly wasmengine_pointerUp: (a: number, b: number, c: number, d: number) => void;

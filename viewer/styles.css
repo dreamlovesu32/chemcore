@@ -106,7 +106,8 @@ button {
 .icon-button,
 .tool-button,
 .secondary-button,
-.color-button {
+.color-button,
+.color-picker-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -124,7 +125,8 @@ button {
 .icon-button:hover,
 .tool-button:hover,
 .secondary-button:hover,
-.color-button:hover {
+.color-button:hover,
+.color-picker-button:hover {
   border-color: var(--line-strong);
   background: var(--hover);
 }
@@ -147,7 +149,8 @@ button {
 .icon-button:active,
 .tool-button:active,
 .secondary-button:active,
-.color-button:active {
+.color-button:active,
+.color-picker-button:active {
   transform: translateY(1px);
 }
 
@@ -186,6 +189,195 @@ button {
 
 .toolbar-row-secondary svg .soft-fill {
   fill: rgba(47, 111, 237, 0.14);
+}
+
+.chemcore-icon {
+  color: currentColor;
+}
+
+.chemcore-icon .cc-stroke,
+.chemcore-icon .cc-bond,
+.chemcore-icon .cc-bond-hash,
+.chemcore-icon .cc-arrow,
+.chemcore-icon .cc-shape,
+.chemcore-icon .cc-ring {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.chemcore-icon .cc-bond {
+  stroke-width: 1.72;
+  stroke-linecap: butt;
+}
+
+.chemcore-icon .cc-bond-hash {
+  stroke-width: 2.05;
+  stroke-linecap: butt;
+}
+
+.chemcore-icon .cc-arrow {
+  stroke-width: 1.72;
+}
+
+.chemcore-icon .cc-arrow-bold {
+  stroke-width: 2.45;
+}
+
+.chemcore-icon .cc-shape,
+.chemcore-icon .cc-ring,
+.chemcore-icon .cc-stroke,
+.chemcore-icon .cc-guide {
+  stroke-width: 1.65;
+}
+
+.chemcore-icon .cc-stroke-soft {
+  stroke-width: 1.45;
+}
+
+.chemcore-icon .cc-guide {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  opacity: 0.74;
+}
+
+.chemcore-icon .cc-fill,
+.chemcore-icon .cc-bond-fill,
+.chemcore-icon .cc-arrow-fill,
+.chemcore-icon .cc-dot {
+  fill: currentColor;
+  stroke: none;
+}
+
+.chemcore-icon .cc-blue-dot {
+  fill: var(--active);
+}
+
+.chemcore-icon .cc-shape-fill {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.chemcore-icon .cc-shape-soft-fill {
+  fill: rgba(47, 111, 237, 0.16);
+  stroke: currentColor;
+}
+
+.chemcore-icon .cc-shadow-fill {
+  fill: rgba(17, 19, 24, 0.14);
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+.chemcore-icon .cc-shadow-edge {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chemcore-icon .cc-distribute-fill {
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 0.7;
+}
+
+.chemcore-icon .cc-empty-fill {
+  fill: none;
+}
+
+.chemcore-icon .cc-select-fill {
+  stroke: currentColor;
+  stroke-width: 1.35;
+  stroke-linejoin: round;
+}
+
+.chemcore-icon .cc-icon-label {
+  fill: currentColor;
+  stroke: none;
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  font-size: 5.75px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.chemcore-icon .cc-icon-label-small {
+  font-size: 4.8px;
+}
+
+.chemcore-icon .cc-text-stroke,
+.chemcore-icon .cc-text-underline {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.chemcore-icon .cc-text-stroke {
+  stroke-width: 2.25;
+}
+
+.chemcore-icon .cc-text-underline {
+  stroke-width: 1.65;
+}
+
+.chemcore-icon .cc-chemical-main,
+.chemcore-icon .cc-chemical-sub,
+.chemcore-icon .cc-chemical-sup,
+.chemcore-icon .cc-script-main,
+.chemcore-icon .cc-script-sub,
+.chemcore-icon .cc-script-sup {
+  fill: currentColor;
+  stroke: none;
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.chemcore-icon .cc-italic-glyph {
+  fill: currentColor;
+  stroke: none;
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  font-size: 18.5px;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.chemcore-icon .cc-chemical-main {
+  font-size: 10.8px;
+}
+
+.chemcore-icon .cc-chemical-sub {
+  font-size: 6.25px;
+}
+
+.chemcore-icon .cc-chemical-sup {
+  font-size: 6px;
+}
+
+.chemcore-icon .cc-script-main {
+  font-size: 12.4px;
+  font-style: italic;
+}
+
+.chemcore-icon .cc-script-sub,
+.chemcore-icon .cc-script-sup {
+  font-size: 6.9px;
+}
+
+.secondary-button:has(.cc-arrow-endpoint-icon) {
+  width: 46px;
+}
+
+.secondary-button:has(.cc-script-icon) {
+  width: 44px;
 }
 
 .zoom-group {
@@ -295,25 +487,261 @@ button {
   width: 64px;
 }
 
-.color-button {
-  width: 30px;
-  height: 25px;
-  padding: 3px;
+.color-picker {
+  position: relative;
   flex: 0 0 auto;
 }
 
-.color-swatch {
-  width: 18px;
-  height: 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 2px;
-  background: var(--swatch, #000000);
+.color-picker-button {
+  position: relative;
+  width: 33px;
+  height: 27px;
+  padding: 2px;
 }
 
-.color-swatch.no-fill {
-  background:
-    linear-gradient(135deg, transparent 44%, #c83636 46%, #c83636 54%, transparent 56%),
-    #ffffff;
+.color-picker-swatch {
+  width: 24px;
+  height: 21px;
+  border: 1px solid #7f8793;
+  border-radius: 0;
+  background: var(--swatch, #000000);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32);
+}
+
+.color-picker-arrow {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 11px;
+  height: 11px;
+}
+
+.color-picker-arrow::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-top: 5px solid #111318;
+  filter: drop-shadow(0 0 1px #ffffff) drop-shadow(0 0 1px #ffffff);
+}
+
+.color-picker-panel {
+  position: fixed;
+  top: 93px;
+  left: var(--color-panel-left, 8px);
+  z-index: 30;
+  display: none;
+  width: 170px;
+  min-height: 318px;
+  padding: 17px 6px 5px;
+  border: 1px solid #bfc6d0;
+  border-top: 9px solid #b7c5d8;
+  background: #eeeeee;
+  box-shadow: 0 2px 6px rgba(17, 19, 24, 0.18);
+}
+
+.color-picker.is-open .color-picker-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.color-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 30px);
+  grid-auto-rows: 30px;
+  align-content: start;
+  gap: 11px 12px;
+  min-height: 230px;
+}
+
+.color-panel-swatch {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #b6bbc3;
+  border-radius: 0;
+  background: var(--swatch, #000000);
+  cursor: pointer;
+}
+
+.color-panel-swatch.is-selected,
+.color-panel-swatch.is-hovered {
+  outline: 2px solid #2f6fed;
+  outline-offset: 1px;
+}
+
+.color-panel-other {
+  width: 100%;
+  height: 37px;
+  margin-top: auto;
+  border: 1px solid #c9ced6;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #000000;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.color-panel-other.is-hovered,
+.color-panel-other:hover {
+  border-color: #2f6fed;
+  background: #f7fbff;
+}
+
+.color-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(17, 19, 24, 0.18);
+}
+
+.color-dialog {
+  width: min(900px, calc(100vw - 28px));
+  border: 1px solid #c8d0d8;
+  border-radius: 8px;
+  background: #f4f7f9;
+  box-shadow: 0 16px 40px rgba(17, 19, 24, 0.24);
+  overflow: hidden;
+}
+
+.color-dialog-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 38px;
+  padding: 0 10px 0 14px;
+  background: #edf8fb;
+  color: #000000;
+  font-size: 16px;
+}
+
+.color-dialog-close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  font-size: 25px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.color-dialog-close:hover {
+  background: #e0ebf0;
+}
+
+.color-dialog-body {
+  display: grid;
+  grid-template-columns: 390px minmax(300px, 1fr);
+  gap: 25px;
+  padding: 14px 16px 16px;
+}
+
+.color-dialog-label {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.color-dialog-basic-grid,
+.color-dialog-custom-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 40px);
+  gap: 7px 8px;
+}
+
+.color-dialog-chip {
+  width: 40px;
+  height: 35px;
+  border: 1px solid #9ca4ad;
+  border-radius: 0;
+  background: var(--swatch, #000000);
+  cursor: pointer;
+}
+
+.color-dialog-chip.is-selected {
+  outline: 2px solid #000000;
+  outline-offset: 1px;
+}
+
+.color-dialog-custom {
+  margin-top: 24px;
+}
+
+.color-dialog-main {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 205px;
+  gap: 12px;
+}
+
+.color-dialog-native {
+  width: 100%;
+  height: 230px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: crosshair;
+}
+
+.color-dialog-preview {
+  width: 95px;
+  height: 74px;
+  border: 1px solid #000000;
+  background: var(--swatch, #000000);
+  margin-bottom: 10px;
+}
+
+.color-dialog-controls {
+  display: block;
+}
+
+.color-dialog-fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+}
+
+.color-dialog-field {
+  display: grid;
+  grid-template-columns: 45px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.color-dialog-field input {
+  height: 31px;
+  min-width: 0;
+  border: 1px solid #c8ced5;
+  border-radius: 2px;
+  padding: 0 6px;
+  background: #ffffff;
+}
+
+.color-dialog-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.color-dialog-actions button {
+  min-width: 92px;
+  height: 38px;
+  border: 1px solid #c8ced5;
+  border-radius: 4px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.color-dialog-actions button:first-child {
+  border-color: #1677d2;
 }
 
 .ring-label {

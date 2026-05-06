@@ -36,6 +36,8 @@
 ```text
 chemcore/
   crates/chemcore-engine/    Rust 文档、编辑、渲染、CDXML、WASM 核心
+  crates/chemcore-desktop-service/ 桌面端原生 engine session、文件读写和最近文件服务
+  apps/chemcore-desktop/      Tauri Windows 桌面应用
   viewer/                    浏览器编辑器宿主和生成的 WASM package
   docs/                      架构、格式、渲染和行为文档
   examples/                  ChemCore 原生文档示例
@@ -50,6 +52,8 @@ cargo test
 npm run build:engine-wasm
 npm run dev:engine
 npm run verify
+npm run desktop:dev
+npm run desktop:build
 node --check viewer/app.js
 ```
 
