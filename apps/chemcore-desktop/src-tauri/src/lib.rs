@@ -157,6 +157,23 @@ fn desktop_engine_document_svg(
 }
 
 #[tauri::command]
+fn desktop_engine_document_colors_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<String, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.document_colors_json(session_id)
+}
+
+#[tauri::command]
+fn desktop_color_choose(
+    initial_color: String,
+    custom_colors: Vec<String>,
+) -> Result<Option<String>, String> {
+    native_choose_color(&initial_color, &custom_colors)
+}
+
+#[tauri::command]
 fn desktop_file_choose_open() -> Result<Option<String>, String> {
     Ok(document_file_dialog()
         .pick_file()
@@ -434,6 +451,68 @@ fn native_clipboard_read() -> Result<NativeClipboardReadPayload, String> {
 #[cfg(not(target_os = "windows"))]
 fn native_clipboard_read() -> Result<NativeClipboardReadPayload, String> {
     Err("Native clipboard is only implemented on Windows.".to_string())
+}
+
+#[cfg(target_os = "windows")]
+fn native_choose_color(
+    initial_color: &str,
+    custom_colors: &[String],
+) -> Result<Option<String>, String> {
+    use windows_sys::Win32::UI::Controls::Dialogs::{
+        ChooseColorW, CommDlgExtendedError, CHOOSECOLORW, CC_FULLOPEN, CC_RGBINIT,
+    };
+
+    let mut custom_color_refs = [0u32; 16];
+    for (index, color) in custom_colors.iter().take(custom_color_refs.len()).enumerate() {
+        custom_color_refs[index] = colorref_from_hex(color).unwrap_or(0x00ff_ffff);
+    }
+
+    let mut choose = CHOOSECOLORW {
+        lStructSize: std::mem::size_of::<CHOOSECOLORW>() as u32,
+        hwndOwner: std::ptr::null_mut(),
+        hInstance: std::ptr::null_mut(),
+        rgbResult: colorref_from_hex(initial_color).unwrap_or(0),
+        lpCustColors: custom_color_refs.as_mut_ptr(),
+        Flags: CC_FULLOPEN | CC_RGBINIT,
+        lCustData: 0,
+        lpfnHook: None,
+        lpTemplateName: std::ptr::null(),
+    };
+
+    let picked = unsafe { ChooseColorW(&mut choose) };
+    if picked != 0 {
+        return Ok(Some(hex_from_colorref(choose.rgbResult)));
+    }
+    let error = unsafe { CommDlgExtendedError() };
+    if error == 0 {
+        Ok(None)
+    } else {
+        Err(format!("Windows color dialog failed with error code {error}."))
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn native_choose_color(
+    _initial_color: &str,
+    _custom_colors: &[String],
+) -> Result<Option<String>, String> {
+    Err("Native color dialog is only implemented on Windows.".to_string())
+}
+
+fn colorref_from_hex(color: &str) -> Option<u32> {
+    let raw = color.trim().trim_start_matches('#');
+    if raw.len() < 6 || !raw[..6].chars().all(|character| character.is_ascii_hexdigit()) {
+        return None;
+    }
+    let rgb = u32::from_str_radix(&raw[..6], 16).ok()?;
+    Some(rgb_to_colorref(rgb))
+}
+
+fn hex_from_colorref(colorref: u32) -> String {
+    let red = colorref & 0xff;
+    let green = (colorref >> 8) & 0xff;
+    let blue = (colorref >> 16) & 0xff;
+    format!("#{red:02x}{green:02x}{blue:02x}")
 }
 
 #[cfg(target_os = "windows")]
@@ -1265,6 +1344,8 @@ pub fn run() {
             desktop_engine_render_bounds_json,
             desktop_engine_document_cdxml,
             desktop_engine_document_svg,
+            desktop_engine_document_colors_json,
+            desktop_color_choose,
             desktop_file_choose_open,
             desktop_file_choose_save,
             desktop_file_choose_export_save,

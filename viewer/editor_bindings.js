@@ -363,7 +363,7 @@ function bindToolbarColorPickers(options) {
     closeColorPickers(picker);
     picker.classList.add("is-open");
     const rect = picker.getBoundingClientRect();
-    const left = Math.max(4, Math.min(window.innerWidth - 176, (pointerX ?? rect.left) - 5));
+    const left = Math.max(4, Math.min(window.innerWidth - 138, (pointerX ?? rect.left) - 5));
     picker.style.setProperty("--color-panel-left", `${left}px`);
   };
   const targetAtPointer = (event) => {
@@ -427,6 +427,8 @@ function bindToolbarColorPickers(options) {
         applyToolbarColor(activeDrag.picker?.dataset?.colorPrefix, color, options);
       }, options);
       closeColorPickers();
+    } else {
+      closeColorPickers();
     }
     event.preventDefault();
   });
@@ -470,7 +472,7 @@ function handleColorPickerClick(event, options) {
     } else {
       closeColorPickers(picker);
       const rect = picker.getBoundingClientRect();
-      picker.style.setProperty("--color-panel-left", `${Math.max(4, Math.min(window.innerWidth - 176, rect.left - 5))}px`);
+      picker.style.setProperty("--color-panel-left", `${Math.max(4, Math.min(window.innerWidth - 138, rect.left - 5))}px`);
       picker.classList.add("is-open");
     }
     event.preventDefault();
@@ -642,127 +644,34 @@ function colorFromToolbarValue(value, prefix) {
 }
 
 function openColorDialog(currentColor, onPick, options) {
-  const existing = document.querySelector(".color-dialog-backdrop");
-  existing?.remove();
-  let selected = normalizeHexColor(currentColor) || "#000000";
-  const backdrop = document.createElement("div");
-  backdrop.className = "color-dialog-backdrop";
-  backdrop.innerHTML = colorDialogHtml(selected, options);
-  document.body.appendChild(backdrop);
-  const picker = backdrop.querySelector(".color-dialog-native");
-  const preview = backdrop.querySelector(".color-dialog-preview");
-  const hexInput = backdrop.querySelector('[data-color-field="hex"]');
-  const rgbInputs = Array.from(backdrop.querySelectorAll("[data-rgb-field]"));
-  const close = () => backdrop.remove();
-  const sync = (color) => {
-    selected = normalizeHexColor(color) || selected;
-    picker.value = selected;
-    preview.style.setProperty("--swatch", selected);
-    hexInput.value = selected.toUpperCase();
-    const { r, g, b } = hexToRgb(selected);
-    for (const input of rgbInputs) {
-      input.value = String({ r, g, b }[input.dataset.rgbField]);
-    }
-    backdrop.querySelectorAll(".color-dialog-chip").forEach((chip) => {
-      chip.classList.toggle("is-selected", normalizeHexColor(chip.dataset.colorDialogValue) === selected);
-    });
-  };
-  picker.addEventListener("input", () => sync(picker.value));
-  hexInput.addEventListener("change", () => sync(hexInput.value));
-  for (const input of rgbInputs) {
-    input.addEventListener("change", () => {
-      const values = Object.fromEntries(rgbInputs.map((field) => [
-        field.dataset.rgbField,
-        clampRgb(field.value),
-      ]));
-      sync(rgbToHex(values.r, values.g, values.b));
-    });
+  const selected = normalizeHexColor(currentColor) || "#000000";
+  if (typeof options.colorHost?.chooseColor !== "function") {
+    return;
   }
-  backdrop.addEventListener("click", (event) => {
-    if (event.target === backdrop || event.target.closest("[data-color-dialog-cancel]") || event.target.closest(".color-dialog-close")) {
-      close();
-      return;
-    }
-    const chip = event.target.closest("[data-color-dialog-value]");
-    if (chip) {
-      sync(chip.dataset.colorDialogValue);
-      return;
-    }
-    if (event.target.closest("[data-color-dialog-ok]")) {
-      onPick(selected);
-      close();
-    }
-  });
-  backdrop.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      close();
-    }
-  });
-  backdrop.tabIndex = -1;
-  backdrop.focus();
-  sync(selected);
+  options.colorHost.chooseColor(selected, colorDialogCustomColors(options))
+    .then((color) => {
+      const normalized = normalizeHexColor(color);
+      if (normalized) {
+        onPick(normalized);
+      }
+    })
+    .catch((error) => {
+      console.warn("[chemcore] color host failed to choose a color", error);
+    });
 }
 
-function colorDialogHtml(selected, options) {
-  const basics = [
-    "#ff7777", "#ffff77", "#77ff77", "#00e878", "#77e6e6", "#006bd6", "#f46bb4", "#ee66ee",
-    "#ff0000", "#ffff00", "#66ff00", "#00ff3b", "#1fd6d6", "#0b75a8", "#ff00dd", "#ff0090",
-    "#8b3d3d", "#ff7438", "#00e800", "#007a68", "#004b88", "#7a7de0", "#820047", "#f20073",
-    "#900000", "#ff7900", "#007000", "#007748", "#0000ff", "#00007d", "#800080", "#7500ff",
-    "#4b0000", "#8a4b00", "#004b00", "#004b4b", "#000075", "#00004b", "#3d003d", "#310075",
-    "#000000", "#808000", "#808040", "#808080", "#408080", "#c0c0c0", "#3a003a", "#ffffff",
+function colorDialogCustomColors(options) {
+  const curated = [
+    "#111827", "#374151", "#6b7280", "#9ca3af",
+    "#e5e7eb", "#f8fafc", "#334155", "#0f172a",
+    "#0f766e", "#0e7490", "#2563eb", "#4f46e5",
+    "#7c3aed", "#be185d", "#dc2626", "#ea580c",
   ];
-  const extras = (options.getDocumentColors?.() || [])
-    .map(normalizeHexColor)
-    .filter(Boolean)
-    .filter((color, index, list) => list.indexOf(color) === index)
-    .filter((color) => !basics.includes(color));
-  const basicChips = [...basics, ...extras.slice(0, 16)].map((color) => colorChipHtml(color, selected)).join("");
-  const customChips = Array.from({ length: 16 }, (_, index) => {
-    const color = extras[index + 16] || "#000000";
-    return colorChipHtml(color, selected);
-  }).join("");
-  const { r, g, b } = hexToRgb(selected);
-  return `
-    <div class="color-dialog" role="dialog" aria-modal="true" aria-label="颜色">
-      <div class="color-dialog-titlebar">
-        <span>颜色</span>
-        <button class="color-dialog-close" type="button" aria-label="Close">×</button>
-      </div>
-      <div class="color-dialog-body">
-        <section>
-          <p class="color-dialog-label">基本颜色(B):</p>
-          <div class="color-dialog-basic-grid">${basicChips}</div>
-          <div class="color-dialog-custom">
-            <p class="color-dialog-label">自定义颜色(C):</p>
-            <div class="color-dialog-custom-grid">${customChips}</div>
-          </div>
-        </section>
-        <section class="color-dialog-main">
-          <input class="color-dialog-native" type="color" value="${selected}" aria-label="Color picker">
-          <div>
-            <div class="color-dialog-controls">
-              <div class="color-dialog-preview" style="--swatch:${selected}"></div>
-              <div class="color-dialog-fields">
-                <label class="color-dialog-field"><span>Hex:</span><input data-color-field="hex" value="${selected.toUpperCase()}"></label>
-                <label class="color-dialog-field"><span>红(R):</span><input data-rgb-field="r" type="number" min="0" max="255" value="${r}"></label>
-                <label class="color-dialog-field"><span>绿(G):</span><input data-rgb-field="g" type="number" min="0" max="255" value="${g}"></label>
-                <label class="color-dialog-field"><span>蓝(U):</span><input data-rgb-field="b" type="number" min="0" max="255" value="${b}"></label>
-              </div>
-            </div>
-            <div class="color-dialog-actions">
-              <button type="button" data-color-dialog-ok>确定</button>
-              <button type="button" data-color-dialog-cancel>取消</button>
-            </div>
-          </div>
-        </section>
-      </div>
-    </div>
-  `;
-}
-
-function colorChipHtml(color, selected) {
-  return `<button class="color-dialog-chip${normalizeHexColor(color) === normalizeHexColor(selected) ? " is-selected" : ""}" type="button" data-color-dialog-value="${color}" style="--swatch:${color}" aria-label="${color}"></button>`;
+  const colors = [
+    ...(options.getDocumentColors?.() || []),
+    ...curated,
+  ].map(normalizeHexColor).filter(Boolean);
+  return colors.filter((color, index) => colors.indexOf(color) === index).slice(0, 16);
 }
 
 function normalizeHexColor(value) {
@@ -778,15 +687,6 @@ function normalizeHexColor(value) {
     return rgbToHex(match[1], match[2], match[3]);
   }
   return null;
-}
-
-function hexToRgb(color) {
-  const hex = normalizeHexColor(color) || "#000000";
-  return {
-    r: Number.parseInt(hex.slice(1, 3), 16),
-    g: Number.parseInt(hex.slice(3, 5), 16),
-    b: Number.parseInt(hex.slice(5, 7), 16),
-  };
 }
 
 function rgbToHex(r, g, b) {

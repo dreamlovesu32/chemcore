@@ -4,6 +4,7 @@ import {
   renderBoundsFromEngine,
   renderListFromEngine,
 } from "./engine_bridge.js";
+import { createColorHost } from "./color_host.js";
 import { createDesktopFileHost } from "./desktop_file_host.js";
 import { createEngineHost } from "./engine_host.js";
 import { bindEditorControls } from "./editor_bindings.js";
@@ -104,6 +105,7 @@ const state = {
 };
 const engineHost = createEngineHost();
 const desktopFileHost = createDesktopFileHost();
+const colorHost = createColorHost({ desktopFileHost });
 let sharedGlyphProfiles = null;
 const sharedGlyphProfilesReady = loadSharedGlyphProfiles();
 
@@ -1360,31 +1362,16 @@ function renderSecondaryToolbar() {
 }
 
 function currentDocumentColors() {
-  const colors = [];
-  const visit = (value) => {
-    if (typeof value === "string") {
-      const normalized = cssColorToHex(value);
-      if (/^#[0-9a-fA-F]{6}$/.test(normalized)) {
-        colors.push(normalized.toLowerCase());
-      }
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach(visit);
-      return;
-    }
-    if (value && typeof value === "object") {
-      for (const [key, child] of Object.entries(value)) {
-        if (/color|fill|stroke|background/i.test(key) || typeof child === "object") {
-          visit(child);
-        }
+  if (typeof state.editorEngine?.documentColorsJson === "function") {
+    const engineColorsJson = state.editorEngine.documentColorsJson();
+    if (typeof engineColorsJson === "string") {
+      const engineColors = parseEngineJson(engineColorsJson, null);
+      if (Array.isArray(engineColors)) {
+        return engineColors;
       }
     }
-  };
-  visit(state.currentDocument?.styles || {});
-  visit(state.currentDocument?.objects || []);
-  visit(state.currentDocument?.resources || {});
-  return Array.from(new Set(colors));
+  }
+  return [];
 }
 
 const textEditorController = createTextEditorController({
@@ -2054,6 +2041,7 @@ bindEditorControls({
   state,
   editorState,
   desktopFileHost,
+  colorHost,
   openFileInput,
   zoomInput,
   secondaryToolbar,

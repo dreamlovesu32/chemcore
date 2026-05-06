@@ -82,6 +82,10 @@ class TauriEngineSession {
   async documentSvg() {
     return this.invoke("desktop_engine_document_svg", { sessionId: this.sessionId });
   }
+
+  async documentColorsJson() {
+    return this.invoke("desktop_engine_document_colors_json", { sessionId: this.sessionId });
+  }
 }
 
 class TauriEngineHost {

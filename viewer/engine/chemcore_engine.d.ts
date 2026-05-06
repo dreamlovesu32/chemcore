@@ -22,6 +22,7 @@ export class WasmEngine {
     cutSelection(): boolean;
     deleteSelection(): boolean;
     documentCdxml(): string;
+    documentColorsJson(): string;
     documentJson(): string;
     documentStylePreset(): string;
     documentSvg(): string;
@@ -86,6 +87,7 @@ export interface InitOutput {
     readonly wasmengine_cutSelection: (a: number) => number;
     readonly wasmengine_deleteSelection: (a: number) => number;
     readonly wasmengine_documentCdxml: (a: number) => [number, number];
+    readonly wasmengine_documentColorsJson: (a: number) => [number, number, number, number];
     readonly wasmengine_documentJson: (a: number) => [number, number, number, number];
     readonly wasmengine_documentStylePreset: (a: number) => [number, number];
     readonly wasmengine_documentSvg: (a: number) => [number, number];

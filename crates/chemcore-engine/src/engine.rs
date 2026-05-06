@@ -273,6 +273,10 @@ impl Engine {
         crate::document_to_svg(&self.state.document)
     }
 
+    pub fn document_colors(&self) -> Vec<String> {
+        collect_document_colors(&self.state.document)
+    }
+
     pub fn render_bounds(&self, scope: RenderBoundsScope) -> Option<[f64; 4]> {
         let primitives = self.render_list();
         render_primitives_bounds(
@@ -1260,4 +1264,94 @@ impl Engine {
         }
         BondLineWeights::default()
     }
+}
+
+fn collect_document_colors(document: &ChemcoreDocument) -> Vec<String> {
+    let mut colors = Vec::new();
+    push_normalized_color(&document.document.page.background, &mut colors);
+    let Ok(value) = serde_json::to_value(document) else {
+        return colors;
+    };
+    visit_document_colors(&value, false, &mut colors);
+    colors
+}
+
+fn visit_document_colors(value: &JsonValue, accepts_string: bool, colors: &mut Vec<String>) {
+    match value {
+        JsonValue::String(raw) if accepts_string => push_normalized_color(raw, colors),
+        JsonValue::Array(items) => {
+            for item in items {
+                visit_document_colors(item, accepts_string, colors);
+            }
+        }
+        JsonValue::Object(map) => {
+            for (key, child) in map {
+                let color_key = key_contains_color(key);
+                visit_document_colors(child, accepts_string || color_key, colors);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn key_contains_color(key: &str) -> bool {
+    let key = key.to_ascii_lowercase();
+    key.contains("color")
+        || key.contains("fill")
+        || key.contains("stroke")
+        || key.contains("background")
+}
+
+fn push_normalized_color(raw: &str, colors: &mut Vec<String>) {
+    let Some(color) = normalize_document_color(raw) else {
+        return;
+    };
+    if !colors.iter().any(|existing| existing == &color) {
+        colors.push(color);
+    }
+}
+
+fn normalize_document_color(raw: &str) -> Option<String> {
+    let raw = raw.trim().to_ascii_lowercase();
+    if raw == "none" || raw.is_empty() {
+        return None;
+    }
+    if raw.len() == 7
+        && raw.starts_with('#')
+        && raw[1..]
+            .chars()
+            .all(|character| character.is_ascii_hexdigit())
+    {
+        return Some(raw);
+    }
+    if raw.len() == 4
+        && raw.starts_with('#')
+        && raw[1..]
+            .chars()
+            .all(|character| character.is_ascii_hexdigit())
+    {
+        let mut expanded = String::from("#");
+        for character in raw[1..].chars() {
+            expanded.push(character);
+            expanded.push(character);
+        }
+        return Some(expanded);
+    }
+    let inner = raw.strip_prefix("rgb(")?.strip_suffix(')')?;
+    let mut values = [0u8; 3];
+    let mut count = 0usize;
+    for part in inner.split(',') {
+        if count >= values.len() {
+            return None;
+        }
+        values[count] = part.trim().parse::<u8>().ok()?;
+        count += 1;
+    }
+    if count != values.len() {
+        return None;
+    }
+    Some(format!(
+        "#{:02x}{:02x}{:02x}",
+        values[0], values[1], values[2]
+    ))
 }

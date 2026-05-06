@@ -20,6 +20,7 @@ export const wasmengine_copySelection: (a: number) => number;
 export const wasmengine_cutSelection: (a: number) => number;
 export const wasmengine_deleteSelection: (a: number) => number;
 export const wasmengine_documentCdxml: (a: number) => [number, number];
+export const wasmengine_documentColorsJson: (a: number) => [number, number, number, number];
 export const wasmengine_documentJson: (a: number) => [number, number, number, number];
 export const wasmengine_documentStylePreset: (a: number) => [number, number];
 export const wasmengine_documentSvg: (a: number) => [number, number];

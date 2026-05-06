@@ -155,6 +155,11 @@ impl DesktopDocumentService {
         Ok(self.session(session_id)?.document_svg())
     }
 
+    pub fn document_colors_json(&self, session_id: SessionId) -> Result<String, String> {
+        serde_json::to_string(&self.session(session_id)?.document_colors())
+            .map_err(|error| error.to_string())
+    }
+
     pub fn read_document_file<P: AsRef<Path>>(
         &mut self,
         path: P,

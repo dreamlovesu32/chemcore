@@ -52,6 +52,66 @@ fn fragment_document(nodes: serde_json::Value, bonds: serde_json::Value) -> Chem
     .expect("document should deserialize")
 }
 
+#[test]
+fn engine_reports_document_colors_from_document_model() {
+    let mut engine = Engine::new();
+    engine
+        .load_document_json(
+            &json!({
+                "format": { "name": "chemcore", "version": "0.1", "unit": "pt" },
+                "document": {
+                    "id": "doc_colors",
+                    "title": "colors",
+                    "page": { "width": 200.0, "height": 160.0, "background": "#fff" }
+                },
+                "styles": {
+                    "style_molecule_default": {
+                        "kind": "molecule",
+                        "stroke": "rgb(1, 2, 3)",
+                        "fill": "#abc",
+                        "strokeWidth": 0.85,
+                        "fontSize": 11.0
+                    }
+                },
+                "objects": [{
+                    "id": "obj_molecule",
+                    "type": "molecule",
+                    "styleRef": "style_molecule_default",
+                    "payload": { "resourceRef": "mol" }
+                }],
+                "resources": {
+                    "mol": {
+                        "type": "molecule_fragment2d",
+                        "encoding": "chemcore.molecule.fragment2d",
+                        "data": {
+                            "schema": "chemcore.molecule.fragment2d",
+                            "bbox": [0.0, 0.0, 200.0, 160.0],
+                            "nodes": [{
+                                "id": "n1",
+                                "element": "C",
+                                "atomicNumber": 6,
+                                "position": [20.0, 20.0],
+                                "charge": 0,
+                                "numHydrogens": 0,
+                                "label": { "text": "Me", "fill": "#00ff00" }
+                            }],
+                            "bonds": []
+                        }
+                    }
+                }
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+    let colors = engine.document_colors();
+    assert!(colors.contains(&"#ffffff".to_string()));
+    assert!(colors.contains(&"#010203".to_string()));
+    assert!(colors.contains(&"#aabbcc".to_string()));
+    assert!(colors.contains(&"#00ff00".to_string()));
+    assert_eq!(colors.iter().filter(|color| *color == "#ffffff").count(), 1);
+}
+
 fn polygon_area(points: &[chemcore_engine::Point]) -> f64 {
     if points.len() < 3 {
         return 0.0;

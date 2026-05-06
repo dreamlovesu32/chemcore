@@ -43,6 +43,10 @@ export class DesktopFileHost {
     return this.invoke("desktop_file_export_emf", { path, renderListJson, boundsJson });
   }
 
+  async chooseColor(initialColor, customColors = []) {
+    return this.invoke("desktop_color_choose", { initialColor, customColors });
+  }
+
   async recentFiles() {
     return this.invoke("desktop_recent_files");
   }
