@@ -29,9 +29,6 @@ impl Engine {
 
     pub fn set_document_style_preset(&mut self, preset: &str) {
         let preset = normalize_document_style_preset(preset);
-        if self.document_style_preset == preset {
-            return;
-        }
         let next_options = document_style_preset_options(preset);
         let scale = if self.options.bond_length > crate::EPSILON {
             next_options.bond_length / self.options.bond_length
@@ -81,28 +78,9 @@ fn document_style_preset_options(preset: &str) -> EditorOptions {
     }
 }
 
-pub(super) fn document_style_preset_for_options(options: &EditorOptions) -> &'static str {
-    let acs = document_style_preset_options(ACS_DOCUMENT_1996_PRESET);
-    if editor_options_approx_eq(options, &acs) {
-        ACS_DOCUMENT_1996_PRESET
-    } else {
-        DEFAULT_DOCUMENT_STYLE_PRESET
-    }
-}
-
-fn editor_options_approx_eq(left: &EditorOptions, right: &EditorOptions) -> bool {
-    (left.bond_length - right.bond_length).abs() <= 0.05
-        && (left.bond_stroke_width - right.bond_stroke_width).abs() <= 0.01
-        && (left.bold_bond_width - right.bold_bond_width).abs() <= 0.05
-        && (left.wedge_width - right.wedge_width).abs() <= 0.05
-        && (left.label_clip_margin - right.label_clip_margin).abs() <= 0.05
-        && (left.hash_spacing - right.hash_spacing).abs() <= 0.05
-        && (left.bond_spacing - right.bond_spacing).abs() <= 0.05
-        && (left.graphic_stroke_width - right.graphic_stroke_width).abs() <= 0.01
-}
-
-pub(super) fn editor_options_from_cdxml_document(document: &ChemcoreDocument) -> EditorOptions {
+pub(super) fn editor_options_from_document(document: &ChemcoreDocument) -> EditorOptions {
     let mut options = EditorOptions::default();
+    let mut has_cdxml_defaults = false;
     let mut has_bond_length = false;
     let mut has_line_width = false;
     let mut has_bold_width = false;
@@ -115,6 +93,7 @@ pub(super) fn editor_options_from_cdxml_document(document: &ChemcoreDocument) ->
         .and_then(|value| value.get("cdxml"))
         .and_then(|value| value.get("defaults"))
     {
+        has_cdxml_defaults = true;
         if let Some(value) = defaults.get("bondLength").and_then(JsonValue::as_f64) {
             options.bond_length = value;
             has_bond_length = true;
@@ -137,37 +116,57 @@ pub(super) fn editor_options_from_cdxml_document(document: &ChemcoreDocument) ->
             has_bond_spacing = true;
         }
     }
-    if let Some(metrics) = infer_cdxml_document_bond_metrics(document) {
-        if !has_bond_length {
-            options.bond_length = metrics.bond_length.unwrap_or(options.bond_length);
-        }
-        if !has_line_width {
-            options.bond_stroke_width = metrics.line_width.unwrap_or(options.bond_stroke_width);
-            options.graphic_stroke_width =
-                metrics.line_width.unwrap_or(options.graphic_stroke_width);
-        }
-        if !has_bold_width {
-            options.bold_bond_width = metrics.bold_width.unwrap_or(options.bold_bond_width);
-        }
-        if !has_hash_spacing {
-            options.hash_spacing = metrics.hash_spacing.unwrap_or(options.hash_spacing);
-        }
-        if !has_bond_spacing {
-            options.bond_spacing = metrics.bond_spacing.unwrap_or(options.bond_spacing);
+    if has_cdxml_defaults {
+        if let Some(metrics) = infer_cdxml_document_bond_metrics(document) {
+            if !has_bond_length {
+                options.bond_length = metrics.bond_length.unwrap_or(options.bond_length);
+            }
+            if !has_line_width {
+                options.bond_stroke_width = metrics.line_width.unwrap_or(options.bond_stroke_width);
+                options.graphic_stroke_width =
+                    metrics.line_width.unwrap_or(options.graphic_stroke_width);
+            }
+            if !has_bold_width {
+                options.bold_bond_width = metrics.bold_width.unwrap_or(options.bold_bond_width);
+            }
+            if !has_hash_spacing {
+                options.hash_spacing = metrics.hash_spacing.unwrap_or(options.hash_spacing);
+            }
+            if !has_bond_spacing {
+                options.bond_spacing = metrics.bond_spacing.unwrap_or(options.bond_spacing);
+            }
         }
     }
+    options.wedge_width = derived_wedge_width(options.bold_bond_width);
+    options.label_clip_margin = derived_label_clip_margin(options.bold_bond_width);
+    options
+}
+
+pub(super) fn editor_options_from_imported_cdxml_document(
+    document: &ChemcoreDocument,
+) -> EditorOptions {
+    let mut options = editor_options_from_document(document);
     let acs = document_style_preset_options(ACS_DOCUMENT_1996_PRESET);
     if (options.bond_length - acs.bond_length).abs() <= 0.05
-        && (options.bond_stroke_width - acs.bond_stroke_width).abs() <= 0.01
         && (options.bold_bond_width - acs.bold_bond_width).abs() <= 0.05
         && (options.hash_spacing - acs.hash_spacing).abs() <= 0.05
         && (options.bond_spacing - acs.bond_spacing).abs() <= 0.05
-        && (options.graphic_stroke_width - acs.graphic_stroke_width).abs() <= 0.01
     {
-        options.wedge_width = acs.wedge_width;
         options.label_clip_margin = acs.label_clip_margin;
     }
     options
+}
+
+fn derived_wedge_width(bold_width: f64) -> f64 {
+    (bold_width * 1.5).max(crate::DEFAULT_BOND_STROKE)
+}
+
+fn derived_label_clip_margin(bold_width: f64) -> f64 {
+    if (bold_width - 2.0).abs() <= 0.1 {
+        crate::ACS_LABEL_GEOMETRY_CLIP_MARGIN_CM.value()
+    } else {
+        crate::LABEL_GEOMETRY_CLIP_MARGIN_CM.value()
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]

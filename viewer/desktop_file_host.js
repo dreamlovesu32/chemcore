@@ -75,6 +75,10 @@ export class DesktopFileHost {
     return this.invoke("desktop_file_export_emf", { path, renderListJson, boundsJson });
   }
 
+  async confirmApplyStylePreset(presetName, message) {
+    return this.invoke("desktop_dialog_confirm_style_preset", { presetName, message });
+  }
+
   async recentFiles() {
     return this.invoke("desktop_recent_files");
   }

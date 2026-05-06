@@ -325,13 +325,58 @@ function setActiveTool(toolButton, options) {
 }
 
 function bindDocumentStylePreset(options) {
-  options.documentStylePresetInput?.addEventListener("change", (event) => {
+  const button = options.documentStyleButton;
+  const menu = options.documentStyleMenu;
+  if (!button || !menu) {
+    return;
+  }
+
+  const closeMenu = () => {
+    menu.hidden = true;
+    button.setAttribute("aria-expanded", "false");
+  };
+  const toggleMenu = () => {
+    const nextHidden = !menu.hidden;
+    menu.hidden = nextHidden;
+    button.setAttribute("aria-expanded", nextHidden ? "false" : "true");
+  };
+
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    toggleMenu();
+  });
+
+  menu.addEventListener("click", async (event) => {
+    const item = event.target.closest("[data-document-style-preset]");
+    if (!item) {
+      return;
+    }
+    event.preventDefault();
+    const preset = item.dataset.documentStylePreset || "default";
+    closeMenu();
     options.finishActiveTextEditor(true);
-    options.editorState.documentStylePreset = event.target.value || "default";
+    const confirmed = await options.confirmApplyDocumentStylePreset?.(preset);
+    if (!confirmed) {
+      return;
+    }
+    options.state.editorEngine?.setDocumentStylePreset?.(preset);
     options.syncEngineToolState();
     if (options.isEditingRustDocument()) {
       options.syncDocumentFromEngine();
       options.renderDocument();
+    }
+  });
+
+  document.addEventListener("pointerdown", (event) => {
+    if (menu.hidden || button.contains(event.target) || menu.contains(event.target)) {
+      return;
+    }
+    closeMenu();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenu();
     }
   });
 }

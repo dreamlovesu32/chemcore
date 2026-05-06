@@ -201,7 +201,8 @@ const viewerContainer = document.getElementById("viewer-container");
 const secondaryToolbar = document.getElementById("secondary-toolbar");
 const desktopTitlebar = document.getElementById("desktop-titlebar");
 const documentTabsRoot = document.getElementById("document-tabs");
-const documentStylePresetInput = document.getElementById("document-style-preset");
+const documentStyleButton = document.getElementById("document-style-button");
+const documentStyleMenu = document.getElementById("document-style-menu");
 const openFileInput = document.createElement("input");
 openFileInput.type = "file";
 openFileInput.accept = chemcoreOpenAcceptString();
@@ -278,7 +279,6 @@ if (viewerTitle) {
 
 const editorState = {
   activeTool: "bond",
-  documentStylePreset: "default",
   selectMode: "free",
   bondType: "single",
   textFontFamily: "Arial",
@@ -377,7 +377,6 @@ function restoreDocumentTabState(tab) {
   activeSelectionGesture = null;
   textEditorLayer.replaceChildren();
   activeTextEditor = null;
-  syncDocumentStylePresetFromEngine();
   syncEngineToolState();
   syncZoomControl();
   renderSecondaryToolbar();
@@ -659,7 +658,6 @@ function syncEngineToolState() {
   if (!state.editorEngine) {
     return;
   }
-  state.editorEngine.setDocumentStylePreset?.(editorState.documentStylePreset);
   state.editorEngine.setTool(editorState.activeTool, editorState.bondType);
   state.editorEngine.setTemplate?.(editorState.template);
   state.editorEngine.setShapeOptions?.(
@@ -688,17 +686,6 @@ function syncEngineToolState() {
     editorState.arrowTail,
     editorState.arrowBold,
   );
-}
-
-function syncDocumentStylePresetFromEngine() {
-  if (!state.editorEngine?.documentStylePreset) {
-    return;
-  }
-  const preset = state.editorEngine.documentStylePreset() || "default";
-  editorState.documentStylePreset = preset;
-  if (documentStylePresetInput) {
-    documentStylePresetInput.value = preset;
-  }
 }
 
 function mapRunsFontSize(runs, convert) {
@@ -2381,7 +2368,6 @@ const documentFlow = createDocumentFlow({
   docMeta,
   finishActiveTextEditor,
   clearZoomHandoffs,
-  syncDocumentStylePresetFromEngine,
   syncEngineToolState,
   syncDocumentFromEngine,
   syncCoreRenderListFromCurrentDocument,
@@ -2618,6 +2604,15 @@ async function chooseAndOpenDocumentTab() {
   openFileInput.click();
 }
 
+async function confirmApplyDocumentStylePreset(preset) {
+  const label = preset === "acs-document-1996" ? "ACS 1996" : "Default";
+  const message = `Apply ${label} to this document? This will rescale the drawing and update existing bond, label, and graphic metrics.`;
+  if (desktopFileHost?.confirmApplyStylePreset) {
+    return desktopFileHost.confirmApplyStylePreset(label, message);
+  }
+  return window.confirm(message);
+}
+
 bindEditorControls({
   state,
   editorState,
@@ -2626,7 +2621,9 @@ bindEditorControls({
   openFileInput,
   zoomInput,
   secondaryToolbar,
-  documentStylePresetInput,
+  documentStyleButton,
+  documentStyleMenu,
+  confirmApplyDocumentStylePreset,
   getActiveTextEditor: () => activeTextEditor,
   clearActiveSelectionGesture: () => { activeSelectionGesture = null; },
   newDocumentTab,

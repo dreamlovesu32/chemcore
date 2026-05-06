@@ -184,6 +184,20 @@ pub(super) fn preferred_double_bond_side_for_segment(
     }
 }
 
+pub fn automatic_double_bond_placement_for_segment(
+    fragment: &crate::MoleculeFragment,
+    begin_id: &str,
+    end_id: &str,
+    ignored_bond_id: Option<&str>,
+) -> DoubleBondPlacement {
+    if should_default_center_double_bond_for_segment(fragment, begin_id, end_id, ignored_bond_id) {
+        DoubleBondPlacement::Center
+    } else {
+        preferred_double_bond_side_for_segment(fragment, begin_id, end_id, ignored_bond_id)
+            .unwrap_or(DoubleBondPlacement::Right)
+    }
+}
+
 fn update_unfrozen_double_bond_auto_placement(
     fragment: &mut crate::MoleculeFragment,
     double_bond_id: &str,

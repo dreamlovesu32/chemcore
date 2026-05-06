@@ -637,8 +637,7 @@ body.browser-shell .document-tabbar {
   gap: 4px;
 }
 
-.zoom-input,
-.document-style-select {
+.zoom-input {
   width: 74px;
   height: 36px;
   border: 1px solid var(--line-strong);
@@ -649,12 +648,72 @@ body.browser-shell .document-tabbar {
   outline: none;
 }
 
-.document-style-select {
-  width: 230px;
+.document-style-group {
+  position: relative;
 }
 
-.zoom-input:focus,
-.document-style-select:focus {
+.style-preset-button {
+  height: 36px;
+  min-width: 92px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 0 10px 0 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.style-preset-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.style-preset-button:focus {
+  border-color: var(--active);
+  box-shadow: 0 0 0 2px var(--active-soft);
+}
+
+.style-preset-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 138px;
+  padding: 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.14);
+  z-index: 30;
+}
+
+.style-preset-menu button {
+  width: 100%;
+  height: 30px;
+  border: 0;
+  border-radius: 4px;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+
+.style-preset-menu button:hover,
+.style-preset-menu button:focus {
+  background: var(--active-soft);
+  outline: none;
+}
+
+.zoom-input:focus {
   border-color: var(--active);
   box-shadow: 0 0 0 2px var(--active-soft);
 }

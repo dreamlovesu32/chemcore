@@ -962,7 +962,6 @@ fn load_cdxml_document_preserves_imported_acs_drawing_options() {
         .load_cdxml_document(&cdxml)
         .expect("cdxml should load into engine");
 
-    assert_eq!(engine.document_style_preset(), "acs-document-1996");
     assert!((engine.options().bond_length - 14.4).abs() < 0.05);
     assert!((engine.options().bond_stroke_width - 0.6).abs() < 0.01);
     assert!((engine.options().bold_bond_width - 2.0).abs() < 0.05);
@@ -970,6 +969,39 @@ fn load_cdxml_document_preserves_imported_acs_drawing_options() {
     assert!((engine.options().label_clip_margin - 0.95).abs() < 0.05);
     assert!((engine.options().hash_spacing - 2.5).abs() < 0.05);
     assert!((engine.options().bond_spacing - 18.0).abs() < 0.05);
+}
+
+#[test]
+fn load_cdxml_document_derives_wedge_width_from_imported_bold_width() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="14.40" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" LabelSize="10">
+  <page id="p1" BoundingBox="0 0 100 100">
+    <fragment id="f1" BoundingBox="10 10 40 20">
+      <n id="n1" p="10 15"/>
+      <n id="n2" p="24.4 15"/>
+      <b id="b1" B="n1" E="n2" Display="WedgeBegin"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(cdxml)
+        .expect("cdxml should load into engine");
+
+    assert!((engine.options().bond_length - 14.4).abs() < 0.05);
+    assert!((engine.options().bond_stroke_width - 0.99).abs() < 0.01);
+    assert!((engine.options().bold_bond_width - 2.01).abs() < 0.01);
+    assert!((engine.options().wedge_width - 3.015).abs() < 0.01);
+
+    let bond = &engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("editable fragment should exist")
+        .fragment
+        .bonds[0];
+    assert!((bond.wedge_width.unwrap_or_default() - 3.015).abs() < 0.01);
 }
 
 #[test]
@@ -2075,6 +2107,113 @@ fn parse_cdxml_imports_example_formula_face_node_labels_with_subscripts() {
 }
 
 #[test]
+fn parse_cdxml_keeps_numeric_suffix_node_label_anchored_on_letter() {
+    fn labeled_nodes(
+        document: &ChemcoreDocument,
+    ) -> Vec<(&chemcore_engine::Node, &chemcore_engine::NodeLabel)> {
+        document
+            .resources
+            .values()
+            .filter_map(|resource| resource.data.as_fragment())
+            .flat_map(|fragment| fragment.nodes.iter())
+            .filter_map(|node| node.label.as_ref().map(|label| (node, label)))
+            .collect()
+    }
+
+    fn anchor_of(label: &chemcore_engine::NodeLabel, index: usize) -> Point {
+        let polygon = label
+            .glyph_polygons
+            .get(index)
+            .expect("glyph polygon should exist");
+        let (mut min_x, mut min_y) = (f64::INFINITY, f64::INFINITY);
+        let (mut max_x, mut max_y) = (f64::NEG_INFINITY, f64::NEG_INFINITY);
+        for [x, y] in polygon {
+            min_x = min_x.min(*x);
+            min_y = min_y.min(*y);
+            max_x = max_x.max(*x);
+            max_y = max_y.max(*y);
+        }
+        Point::new((min_x + max_x) * 0.5, (min_y + max_y) * 0.5)
+    }
+
+    fn assert_n3_aligns_with_right_ph(document: &ChemcoreDocument) {
+        let nodes = labeled_nodes(document);
+        let (n3_node, n3_label) = nodes
+            .iter()
+            .copied()
+            .find(|(_, label)| label.source_text.as_deref() == Some("N3"))
+            .expect("example should contain an N3 node label");
+        let (_, ph_label) = nodes
+            .iter()
+            .copied()
+            .find(|(node, label)| {
+                label.source_text.as_deref() == Some("Ph")
+                    && (node.position[1] - n3_node.position[1]).abs() < 0.01
+                    && node.position[0] > n3_node.position[0]
+            })
+            .expect("example should contain the matching right-side Ph label");
+
+        assert_eq!(n3_label.runs[1].script.as_deref(), Some("subscript"));
+        assert!(
+            anchor_of(n3_label, 0).distance(n3_node.point()) < 0.01,
+            "N3 should anchor on N, not on the subscript digit: node={n3_node:?}, label={n3_label:?}"
+        );
+        assert!(
+            (n3_label.position.unwrap()[1] - ph_label.position.unwrap()[1]).abs() < 0.5,
+            "N3 and the matching Ph should keep the same baseline: n3={:?}, ph={:?}",
+            n3_label.position,
+            ph_label.position
+        );
+    }
+
+    let cdxml = std::fs::read_to_string(fixture_path("02-13/2017-2-13/oleObject1.cdxml"))
+        .expect("example cdxml");
+    let imported =
+        parse_cdxml_document(&cdxml, Some("example")).expect("example cdxml should parse");
+    assert_n3_aligns_with_right_ph(&imported);
+
+    let exported = document_to_cdxml(&imported);
+    let reimported =
+        parse_cdxml_document(&exported, Some("example export")).expect("export should parse");
+    assert_n3_aligns_with_right_ph(&reimported);
+
+    let invalid_cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="14.40" LineWidth="0.60" LabelSize="10">
+  <page id="p1" BoundingBox="0 0 80 40">
+    <fragment id="f1" BoundingBox="0 0 40 20">
+      <n id="n1" p="10 10" NodeType="Nickname">
+        <t id="t1" p="10 14" BoundingBox="4 4 16 16" UTF8Text="X3">
+          <s font="3" size="10" face="96">X3</s>
+        </t>
+      </n>
+      <n id="n2" p="24.4 10"/>
+      <b id="b1" B="n1" E="n2"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let invalid_imported =
+        parse_cdxml_document(invalid_cdxml, Some("invalid")).expect("invalid label cdxml");
+    let (invalid_node, invalid_label) = labeled_nodes(&invalid_imported)
+        .into_iter()
+        .find(|(_, label)| label.source_text.as_deref() == Some("X3"))
+        .expect("invalid X3 label should import");
+    assert_eq!(
+        invalid_label
+            .meta
+            .get("labelRecognition")
+            .and_then(|meta| meta.get("status"))
+            .and_then(serde_json::Value::as_str),
+        Some("invalid")
+    );
+    assert_eq!(invalid_label.runs[1].script.as_deref(), Some("subscript"));
+    assert!(
+        anchor_of(invalid_label, 0).distance(invalid_node.point()) < 0.01,
+        "invalid labels should prefer non-script glyph anchors over subscript/superscript glyphs: node={invalid_node:?}, label={invalid_label:?}"
+    );
+}
+
+#[test]
 fn cdxml_export_import_preserves_example_above_nh_labels() {
     let cdxml = std::fs::read_to_string(fixture_path("02-13/2017-2-13/oleObject1.cdxml"))
         .expect("example cdxml");
@@ -2346,6 +2485,45 @@ fn parse_cdxml_right_side_double_bonds_render_on_begin_to_end_right_side() {
             "{bond_id} outer line should render on B->E right side, got {max_rendered_projection}"
         );
     }
+}
+
+#[test]
+fn parse_cdxml_unspecified_alkene_double_bond_uses_automatic_side_placement() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="14.40" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" LabelSize="10">
+  <page id="p1" BoundingBox="0 0 120 80">
+    <fragment id="f1" BoundingBox="10 10 80 50">
+      <n id="n1" p="10 40"/>
+      <n id="n2" p="24.4 40"/>
+      <n id="n3" p="38.8 40"/>
+      <n id="n4" p="24.4 26"/>
+      <b id="b1" B="n1" E="n2"/>
+      <b id="b2" B="n2" E="n3" Order="2"/>
+      <b id="b3" B="n2" E="n4"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("alkene")).expect("cdxml should parse");
+    let fragment = document
+        .editable_fragment()
+        .expect("editable fragment should exist")
+        .fragment;
+    let bond = fragment
+        .bonds
+        .iter()
+        .find(|bond| bond.id == "b2")
+        .expect("alkene double bond should import");
+
+    let double = bond
+        .double
+        .as_ref()
+        .expect("double bond state should be inferred");
+    assert_ne!(
+        double.placement,
+        chemcore_engine::DoubleBondPlacement::Center
+    );
+    assert!(!double.frozen);
 }
 
 #[test]

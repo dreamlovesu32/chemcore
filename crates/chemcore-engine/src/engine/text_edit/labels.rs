@@ -141,6 +141,7 @@ pub(super) fn make_centered_node_label_from_runs(
     );
     let layout = layout_label_text(text, &decision);
     let (lines, line_runs) = layout_display_runs(&display_runs, &decision);
+    let anchor_char = label_anchor_char_for_layout(&line_runs, &layout);
     let line_height = (font_size * 1.05).max(font_size);
     let estimated_width = lines
         .iter()
@@ -150,11 +151,11 @@ pub(super) fn make_centered_node_label_from_runs(
     let estimated_height = round2((line_height * lines.len().max(1) as f64).max(line_height));
     let anchor_prefix_width = line_runs
         .get(layout.anchor_line)
-        .map(|runs| estimate_prefix_width(runs, layout.anchor_char, font_size))
+        .map(|runs| estimate_prefix_width(runs, anchor_char, font_size))
         .unwrap_or(0.0);
     let anchor_char_width = line_runs
         .get(layout.anchor_line)
-        .and_then(|runs| estimate_anchor_char_width(runs, layout.anchor_char, font_size))
+        .and_then(|runs| estimate_anchor_char_width(runs, anchor_char, font_size))
         .unwrap_or(font_size * 0.62);
     let anchor_center_x = anchor_prefix_width + anchor_char_width * 0.5;
     let can_use_measured_geometry =
@@ -223,7 +224,7 @@ pub(super) fn make_centered_node_label_from_runs(
         font_size,
     );
     if lines.len() == 1 {
-        if let Some(current_anchor) = glyph_polygons.get(layout.anchor_char).and_then(|polygon| {
+        if let Some(current_anchor) = glyph_polygons.get(anchor_char).and_then(|polygon| {
             let points: Vec<_> = polygon
                 .iter()
                 .map(|point| Point::new(point[0], point[1]))
@@ -429,6 +430,51 @@ pub(super) fn merge_styled_glyph_runs(line: &[StyledGlyph]) -> Vec<LabelRun> {
         runs.push(next);
     }
     runs
+}
+
+pub(super) fn label_anchor_index_for_layout(
+    line_runs: &[Vec<LabelRun>],
+    layout: &crate::LabelLayout,
+) -> usize {
+    let local_anchor = label_anchor_char_for_layout(line_runs, layout);
+    line_runs
+        .iter()
+        .take(layout.anchor_line)
+        .map(|line| {
+            line.iter()
+                .map(|run| run.text.chars().count())
+                .sum::<usize>()
+        })
+        .sum::<usize>()
+        + local_anchor
+}
+
+fn label_anchor_char_for_layout(line_runs: &[Vec<LabelRun>], layout: &crate::LabelLayout) -> usize {
+    line_runs
+        .get(layout.anchor_line)
+        .map(|runs| label_anchor_char_for_runs(runs, layout.anchor_char))
+        .unwrap_or(layout.anchor_char)
+}
+
+fn label_anchor_char_for_runs(runs: &[LabelRun], fallback_index: usize) -> usize {
+    let mut shifted = Vec::new();
+    for run in runs {
+        let is_shifted = matches!(run.script.as_deref(), Some("subscript" | "superscript"));
+        shifted.extend(run.text.chars().map(|_| is_shifted));
+    }
+    if shifted.is_empty() {
+        return fallback_index;
+    }
+
+    let fallback_index = fallback_index.min(shifted.len() - 1);
+    if !shifted[fallback_index] {
+        return fallback_index;
+    }
+    (0..=fallback_index)
+        .rev()
+        .find(|index| !shifted[*index])
+        .or_else(|| (fallback_index + 1..shifted.len()).find(|index| !shifted[*index]))
+        .unwrap_or(fallback_index)
 }
 
 pub(super) fn estimate_line_runs_width(runs: &[LabelRun], fallback_font_size: f64) -> f64 {

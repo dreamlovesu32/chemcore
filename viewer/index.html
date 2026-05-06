@@ -103,10 +103,14 @@
           <div class="toolbar-divider" aria-hidden="true"></div>
 
           <div class="toolbar-group document-style-group">
-            <select id="document-style-preset" class="document-style-select" aria-label="Document style">
-              <option value="default" selected>Default</option>
-              <option value="acs-document-1996">ACS Document 1996</option>
-            </select>
+            <button id="document-style-button" class="style-preset-button" type="button" aria-haspopup="menu" aria-expanded="false" title="Apply style preset">
+              Style
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+            </button>
+            <div id="document-style-menu" class="style-preset-menu" role="menu" hidden>
+              <button type="button" role="menuitem" data-document-style-preset="default">Default</button>
+              <button type="button" role="menuitem" data-document-style-preset="acs-document-1996">ACS 1996</button>
+            </div>
           </div>
         </div>
         <div id="secondary-toolbar" class="toolbar-row toolbar-row-secondary" aria-label="Secondary toolbar"></div>

@@ -190,6 +190,25 @@ fn desktop_file_choose_open() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
+fn desktop_dialog_confirm_style_preset(
+    preset_name: String,
+    message: String,
+) -> Result<bool, String> {
+    let description = if message.trim().is_empty() {
+        format!("Apply {preset_name} to this document?")
+    } else {
+        message
+    };
+    let result = rfd::MessageDialog::new()
+        .set_title("Apply Style Preset")
+        .set_description(&description)
+        .set_level(rfd::MessageLevel::Warning)
+        .set_buttons(rfd::MessageButtons::OkCancel)
+        .show();
+    Ok(result == rfd::MessageDialogResult::Ok)
+}
+
+#[tauri::command]
 fn desktop_file_choose_save(suggested_name: String) -> Result<Option<String>, String> {
     Ok(document_file_dialog()
         .set_file_name(suggested_name)
@@ -1521,6 +1540,7 @@ pub fn run() {
             desktop_engine_document_svg,
             desktop_engine_document_colors_json,
             desktop_file_choose_open,
+            desktop_dialog_confirm_style_preset,
             desktop_file_choose_save,
             desktop_file_choose_export_save,
             desktop_file_read_path,

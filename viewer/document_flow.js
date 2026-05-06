@@ -56,7 +56,6 @@ export function createDocumentFlow(options) {
     options.state.lastEditFocusPoint = null;
     options.clearZoomHandoffs();
     options.state.editorEngine.loadDocumentJson(JSON.stringify(documentData));
-    options.syncDocumentStylePresetFromEngine();
     options.syncEngineToolState();
     options.syncDocumentFromEngine();
     options.state.runtimeViewBox = options.state.currentDocument?.document?.page
@@ -387,7 +386,6 @@ export function createDocumentFlow(options) {
     options.state.lastEditFocusPoint = null;
     options.clearZoomHandoffs();
     options.state.editorEngine.loadDocumentCdxml(cdxml);
-    options.syncDocumentStylePresetFromEngine();
     options.syncEngineToolState();
     options.syncDocumentFromEngine();
     options.state.runtimeViewBox = options.state.currentDocument?.document?.page

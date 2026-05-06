@@ -24,6 +24,7 @@ pub use self::text_edit::{
 };
 
 use self::arrows::ensure_arrow_style;
+pub(crate) use self::bond_styles::automatic_double_bond_placement_for_segment;
 use self::bond_styles::{
     apply_double_tool_center_style, apply_single_tool_center_style, centered_oriented_rect_points,
     cycle_bold_bond_center_style, cycle_dashed_bond_center_style,
@@ -33,7 +34,7 @@ use self::bond_styles::{
     update_terminal_double_bond_placement_after_new_attachment,
 };
 use self::delete::FocusedDeleteMode;
-use self::presets::{document_style_preset_for_options, editor_options_from_cdxml_document};
+use self::presets::{editor_options_from_document, editor_options_from_imported_cdxml_document};
 use crate::{
     adjacent_directions, anchor_from_point, angle_between, bond_center_focus_length, can_draw_bond,
     can_focus_bond_center, can_focus_endpoint, default_angle_for_anchor_for_variant,
@@ -289,8 +290,9 @@ impl Engine {
     pub fn load_document_json(&mut self, json: &str) -> Result<(), String> {
         let mut document = crate::parse_document_json(json)?;
         refresh_repeating_units(&mut document);
+        let options = editor_options_from_document(&document);
         self.state.document = document;
-        self.options = EditorOptions::default();
+        self.options = options;
         self.document_style_preset = DEFAULT_DOCUMENT_STYLE_PRESET.to_string();
         self.refresh_symbol_chemistry();
         if let Some(entry) = self.state.document.editable_fragment_mut() {
@@ -309,11 +311,10 @@ impl Engine {
         let mut document = crate::parse_cdxml_document(cdxml, None)?;
         crate::cdxml::normalize_cdxml_document_for_editing(&mut document);
         refresh_repeating_units(&mut document);
-        let options = editor_options_from_cdxml_document(&document);
-        let preset = document_style_preset_for_options(&options).to_string();
+        let options = editor_options_from_imported_cdxml_document(&document);
         self.state.document = document;
         self.options = options;
-        self.document_style_preset = preset;
+        self.document_style_preset = DEFAULT_DOCUMENT_STYLE_PRESET.to_string();
         self.refresh_symbol_chemistry();
         if let Some(entry) = self.state.document.editable_fragment_mut() {
             refresh_element_valence_recognition_for_all_nodes(entry.fragment);
@@ -1200,8 +1201,12 @@ impl Engine {
                     DoubleBondPlacement::Center
                 } else {
                     let entry = self.state.document.editable_fragment()?;
-                    preferred_double_bond_side_for_segment(entry.fragment, begin_id, end_id, None)
-                        .unwrap_or(DoubleBondPlacement::Right)
+                    automatic_double_bond_placement_for_segment(
+                        entry.fragment,
+                        begin_id,
+                        end_id,
+                        None,
+                    )
                 };
                 Some(DoubleBond {
                     placement,

@@ -191,6 +191,7 @@ struct RowRender {
 }
 
 static SHARED_GLYPH_PROFILES: OnceLock<SharedGlyphProfiles> = OnceLock::new();
+const LABEL_GLYPH_CLIP_PAD_SCALE: f64 = 0.25;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct SharedGlyphMetrics {
@@ -432,10 +433,10 @@ fn layout_glyph(
     ];
     let background_box = if profile.visible {
         [
-            ink_box[0] - profile.pad_x_em * scale,
-            ink_box[1] - profile.pad_y_em * scale,
-            ink_box[2] + profile.pad_x_em * scale,
-            ink_box[3] + profile.pad_y_em * scale,
+            ink_box[0] - profile.pad_x_em * LABEL_GLYPH_CLIP_PAD_SCALE * scale,
+            ink_box[1] - profile.pad_y_em * LABEL_GLYPH_CLIP_PAD_SCALE * scale,
+            ink_box[2] + profile.pad_x_em * LABEL_GLYPH_CLIP_PAD_SCALE * scale,
+            ink_box[3] + profile.pad_y_em * LABEL_GLYPH_CLIP_PAD_SCALE * scale,
         ]
     } else {
         [0.0, 0.0, 0.0, 0.0]
