@@ -109,7 +109,8 @@ EngineHost
 
 ```text
 viewer/engine_host.js
-  前端 EngineHost 入口。默认使用 WasmEngineHost，保留 Web 端行为。
+  前端 EngineHost 入口。Web 使用 WasmEngineHost；Tauri dev 使用 DesktopHybridEngineHost。
+  hybrid 模式中 UI 仍走 WASM，同步编辑行为不变，同时启动时运行 native engine probe。
 
 crates/chemcore-desktop-service
   原生桌面 document/engine service。直接持有 chemcore-engine::Engine session。
@@ -118,7 +119,7 @@ apps/chemcore-desktop/src-tauri
   Tauri command 边界。当前已经暴露 desktop_engine_* 命令给未来 TauriEngineHost 使用。
 ```
 
-当前阶段仍默认使用 `WasmEngineHost`，这是为了保持编辑器同步调用模型稳定。下一阶段切换到 native path 时，不应让 UI 直接散落调用 Tauri command，而应只实现 `TauriEngineHost`，让它满足同一套 editor-facing session API。
+当前阶段 Web 仍默认使用 `WasmEngineHost`，桌面端使用 `DesktopHybridEngineHost`。这是为了保持编辑器同步调用模型稳定，同时保证 Tauri native command 通路不再只是空代码。下一阶段切换到 native path 时，不应让 UI 直接散落调用 Tauri command，而应只实现 `TauriEngineHost`，让它满足同一套 editor-facing session API。
 
 建议的切换顺序：
 

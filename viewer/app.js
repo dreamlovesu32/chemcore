@@ -118,6 +118,9 @@ if (typeof window !== "undefined") {
     get displayMetrics() {
       return state.displayMetrics;
     },
+    get engineHost() {
+      return engineHost;
+    },
     insertEditorText(text) {
       if (!activeTextEditor) {
         return false;
