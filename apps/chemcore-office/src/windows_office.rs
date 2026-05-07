@@ -12,8 +12,9 @@ use windows_sys::Win32::Foundation::{
     GlobalFree, ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, HGLOBAL, POINTL, RECT, SIZE,
 };
 use windows_sys::Win32::Graphics::Gdi::{
-    CreatePen, DeleteObject, Ellipse, GetStockObject, LineTo, MoveToEx, Rectangle, SelectObject,
-    SetBkMode, TextOutW, HDC, HGDIOBJ, NULL_BRUSH, PS_SOLID, TRANSPARENT,
+    CloseMetaFile, CreateMetaFileW, CreatePen, DeleteMetaFile, DeleteObject, Ellipse,
+    GetStockObject, LineTo, MoveToEx, Rectangle, SelectObject, SetBkMode, SetMapMode, TextOutW,
+    HDC, HGDIOBJ, MM_ANISOTROPIC, NULL_BRUSH, PS_SOLID, TRANSPARENT,
 };
 use windows_sys::Win32::System::Com::StructuredStorage::{
     CreateILockBytesOnHGlobal, StgCreateDocfile, StgCreateDocfileOnILockBytes, WriteClassStg,
@@ -22,15 +23,15 @@ use windows_sys::Win32::System::Com::{
     CoInitializeEx, CoRegisterClassObject, CoRevokeClassObject, CoTaskMemAlloc, CoUninitialize,
     CLSCTX_LOCAL_SERVER, COINIT_APARTMENTTHREADED, DATADIR_GET, DVASPECT_CONTENT, FORMATETC,
     REGCLS_MULTIPLEUSE, STATSTG, STGC_DEFAULT, STGMEDIUM, STGM_CREATE, STGM_READ, STGM_READWRITE,
-    STGM_SHARE_EXCLUSIVE, TYMED_HGLOBAL, TYMED_ISTORAGE,
+    STGM_SHARE_EXCLUSIVE, TYMED_HGLOBAL, TYMED_ISTORAGE, TYMED_MFPICT,
 };
-use windows_sys::Win32::System::DataExchange::RegisterClipboardFormatW;
+use windows_sys::Win32::System::DataExchange::{RegisterClipboardFormatW, METAFILEPICT};
 use windows_sys::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock};
 use windows_sys::Win32::System::Ole::{
-    OleFlushClipboard, OleInitialize, OleRegEnumVerbs, OleRegGetMiscStatus, OleRegGetUserType,
-    OleSetClipboard, OleUninitialize, ReleaseStgMedium, OBJECTDESCRIPTOR,
-    OLEMISC_ACTIVATEWHENVISIBLE, OLEMISC_INSIDEOUT, OLEMISC_RENDERINGISDEVICEINDEPENDENT,
-    OLEMISC_SETCLIENTSITEFIRST,
+    OleCreateFromData, OleFlushClipboard, OleInitialize, OleRegEnumVerbs, OleRegGetMiscStatus,
+    OleRegGetUserType, OleSetClipboard, OleUninitialize, ReleaseStgMedium, CF_METAFILEPICT,
+    OBJECTDESCRIPTOR, OLEMISC_ACTIVATEWHENVISIBLE, OLEMISC_INSIDEOUT,
+    OLEMISC_RENDERINGISDEVICEINDEPENDENT, OLEMISC_SETCLIENTSITEFIRST, OLERENDER_DRAW,
 };
 use windows_sys::Win32::System::Registry::{
     RegCloseKey, RegCreateKeyW, RegDeleteTreeW, RegSetValueExW, HKEY, HKEY_CURRENT_USER,
@@ -449,14 +450,15 @@ fn run_self_test() -> Result<(), String> {
         let mut medium = STGMEDIUM::default();
         let get_data = (*(*(data_object.cast::<*const DataObjectVtbl>()))).get_data;
         let hr = get_data(data_object, &embed_format, &mut medium);
-        part_release::<DataObjectVtbl>(data_object);
         if !hresult_succeeded(hr) || medium.tymed != TYMED_ISTORAGE as u32 {
+            part_release::<DataObjectVtbl>(data_object);
             return Err(format!(
                 "IDataObject::GetData(Embed Source) failed: 0x{:08X}",
                 hr as u32
             ));
         }
         if medium.u.pstg.is_null() {
+            part_release::<DataObjectVtbl>(data_object);
             return Err("IDataObject::GetData(Embed Source) returned a null storage.".into());
         }
         let document = storage_read_stream(medium.u.pstg, OLE_STREAM_DOCUMENT)?;
@@ -466,11 +468,71 @@ fn run_self_test() -> Result<(), String> {
         if !document.contains("\"name\":\"chemcore\"") {
             return Err("Embedded source did not contain a Chemcore document stream.".into());
         }
+
+        run_ole_create_from_data_self_test(data_object)?;
+        part_release::<DataObjectVtbl>(data_object);
     }
 
     run_persist_storage_self_test()?;
 
     println!("{DOCUMENT_DISPLAY_NAME} COM object self-test passed.");
+    Ok(())
+}
+
+unsafe fn run_ole_create_from_data_self_test(data_object: *mut c_void) -> Result<(), String> {
+    let ole_init_hr = OleInitialize(null());
+    if !hresult_succeeded(ole_init_hr) {
+        return Err(format!(
+            "OleInitialize for OleCreateFromData self-test failed: 0x{:08X}",
+            ole_init_hr as u32
+        ));
+    }
+    let mut lock_bytes = null_mut();
+    let hr = CreateILockBytesOnHGlobal(null_mut(), 1, &mut lock_bytes);
+    if !hresult_succeeded(hr) || lock_bytes.is_null() {
+        OleUninitialize();
+        return Err(format!(
+            "CreateILockBytesOnHGlobal for OleCreateFromData self-test failed: 0x{:08X}",
+            hr as u32
+        ));
+    }
+    let mut storage = null_mut();
+    let hr = StgCreateDocfileOnILockBytes(
+        lock_bytes,
+        STGM_CREATE | STGM_READWRITE | STGM_SHARE_EXCLUSIVE,
+        0,
+        &mut storage,
+    );
+    com_release(lock_bytes);
+    if !hresult_succeeded(hr) || storage.is_null() {
+        OleUninitialize();
+        return Err(format!(
+            "StgCreateDocfileOnILockBytes for OleCreateFromData self-test failed: 0x{:08X}",
+            hr as u32
+        ));
+    }
+
+    let mut ole_object = null_mut();
+    let hr = OleCreateFromData(
+        data_object,
+        &IID_IOLE_OBJECT,
+        OLERENDER_DRAW as u32,
+        null(),
+        null_mut(),
+        storage,
+        &mut ole_object,
+    );
+    if !ole_object.is_null() {
+        com_release(ole_object);
+    }
+    com_release(storage);
+    OleUninitialize();
+    if !hresult_succeeded(hr) {
+        return Err(format!(
+            "OleCreateFromData self-test failed: 0x{:08X}",
+            hr as u32
+        ));
+    }
     Ok(())
 }
 
@@ -1011,12 +1073,14 @@ unsafe extern "system" fn data_object_get_data(
     if object.is_null() {
         return E_POINTER;
     }
-    write_clipboard_format_to_medium(
+    let hr = write_clipboard_format_to_medium(
         &(*object).payload,
         (*object).extent_himetric,
         &*format,
         medium,
-    )
+    );
+    log_format_request("IDataObject::GetData", &*format, hr);
+    hr
 }
 
 unsafe extern "system" fn data_object_get_data_here(
@@ -1037,8 +1101,11 @@ unsafe extern "system" fn data_object_get_data_here(
         if storage.is_null() {
             return E_POINTER;
         }
-        return write_ole_storage_payload(storage, &(*object).payload);
+        let hr = write_ole_storage_payload(storage, &(*object).payload);
+        log_format_request("IDataObject::GetDataHere", &*format, hr);
+        return hr;
     }
+    log_format_request("IDataObject::GetDataHere", &*format, DV_E_FORMATETC);
     DV_E_FORMATETC
 }
 
@@ -1053,11 +1120,14 @@ unsafe extern "system" fn data_object_query_get_data(
     if object.is_null() {
         return E_POINTER;
     }
-    if clipboard_format_supported(&(*object).payload, (*object).extent_himetric, &*format) {
+    let hr = if clipboard_format_supported(&(*object).payload, (*object).extent_himetric, &*format)
+    {
         S_OK
     } else {
         DV_E_FORMATETC
-    }
+    };
+    log_format_request("IDataObject::QueryGetData", &*format, hr);
+    hr
 }
 
 unsafe extern "system" fn data_object_get_canonical_format_etc(
@@ -1097,6 +1167,7 @@ unsafe extern "system" fn data_object_enum_format_etc(
     if object.is_null() {
         return E_POINTER;
     }
+    log_ole_event("IDataObject::EnumFormatEtc(DATADIR_GET)");
     let enumerator = Box::new(FormatEtcEnumerator {
         vtbl: &FORMAT_ETC_ENUMERATOR_VTBL,
         ref_count: AtomicU32::new(1),
@@ -1224,6 +1295,11 @@ unsafe extern "system" fn format_etc_enum_next(
     let mut copied = 0;
     while copied < count && enumerator.index < enumerator.formats.len() {
         *out.add(copied as usize) = enumerator.formats[enumerator.index];
+        log_format_request(
+            "IEnumFORMATETC::Next",
+            &enumerator.formats[enumerator.index],
+            S_OK,
+        );
         enumerator.index += 1;
         copied += 1;
     }
@@ -1321,7 +1397,9 @@ unsafe extern "system" fn persist_storage_init_new(this: *mut c_void, storage: *
         return E_POINTER;
     }
     (*object).storage = storage;
-    write_ole_storage_payload(storage, &(*object).payload)
+    let hr = write_ole_storage_payload(storage, &(*object).payload);
+    log_ole_event(&format!("IPersistStorage::InitNew -> 0x{:08X}", hr as u32));
+    hr
 }
 
 unsafe extern "system" fn persist_storage_load(this: *mut c_void, storage: *mut c_void) -> i32 {
@@ -1342,6 +1420,7 @@ unsafe extern "system" fn persist_storage_load(this: *mut c_void, storage: *mut 
     }) {
         (*object).payload.svg = svg;
     }
+    log_ole_event("IPersistStorage::Load -> 0x00000000");
     S_OK
 }
 
@@ -1357,7 +1436,9 @@ unsafe extern "system" fn persist_storage_save(
     if object.is_null() {
         return E_POINTER;
     }
-    write_ole_storage_payload(storage, &(*object).payload)
+    let hr = write_ole_storage_payload(storage, &(*object).payload);
+    log_ole_event(&format!("IPersistStorage::Save -> 0x{:08X}", hr as u32));
+    hr
 }
 
 unsafe extern "system" fn persist_storage_save_completed(
@@ -1569,7 +1650,7 @@ fn hglobal_for_object_descriptor(extent: SIZE) -> Result<HGLOBAL, i32> {
         }
         std::ptr::write_bytes(target, 0, total);
         let descriptor = target.cast::<OBJECTDESCRIPTOR>();
-        (*descriptor).cbSize = total as u32;
+        (*descriptor).cbSize = descriptor_size as u32;
         (*descriptor).clsid = CLSID_CHEMCORE_DOCUMENT;
         (*descriptor).dwDrawAspect = DVASPECT_CONTENT;
         (*descriptor).sizel = extent;
@@ -1592,6 +1673,45 @@ fn hglobal_for_object_descriptor(extent: SIZE) -> Result<HGLOBAL, i32> {
     }
 }
 
+fn hglobal_for_metafile_pict(extent: SIZE) -> Result<HGLOBAL, i32> {
+    unsafe {
+        let metafile_dc = CreateMetaFileW(null());
+        if metafile_dc.is_null() {
+            return Err(E_FAIL);
+        }
+        SetMapMode(metafile_dc, MM_ANISOTROPIC);
+        let bounds = RECT {
+            left: 0,
+            top: 0,
+            right: extent.cx.max(1),
+            bottom: extent.cy.max(1),
+        };
+        draw_placeholder_preview(metafile_dc, &bounds);
+        let metafile = CloseMetaFile(metafile_dc);
+        if metafile.is_null() {
+            return Err(E_FAIL);
+        }
+
+        let handle = GlobalAlloc(GMEM_MOVEABLE_FLAG, std::mem::size_of::<METAFILEPICT>());
+        if handle.is_null() {
+            DeleteMetaFile(metafile);
+            return Err(E_OUTOFMEMORY);
+        }
+        let target = GlobalLock(handle).cast::<METAFILEPICT>();
+        if target.is_null() {
+            GlobalFree(handle);
+            DeleteMetaFile(metafile);
+            return Err(E_FAIL);
+        }
+        (*target).mm = MM_ANISOTROPIC;
+        (*target).xExt = extent.cx;
+        (*target).yExt = extent.cy;
+        (*target).hMF = metafile;
+        GlobalUnlock(handle);
+        Ok(handle)
+    }
+}
+
 fn hglobal_medium(handle: HGLOBAL, medium: *mut STGMEDIUM) -> i32 {
     if medium.is_null() {
         unsafe {
@@ -1603,6 +1723,22 @@ fn hglobal_medium(handle: HGLOBAL, medium: *mut STGMEDIUM) -> i32 {
         *medium = STGMEDIUM::default();
         (*medium).tymed = TYMED_HGLOBAL as u32;
         (*medium).u.hGlobal = handle;
+        (*medium).pUnkForRelease = null_mut();
+    }
+    S_OK
+}
+
+fn metafile_pict_medium(handle: HGLOBAL, medium: *mut STGMEDIUM) -> i32 {
+    if medium.is_null() {
+        unsafe {
+            GlobalFree(handle);
+        }
+        return E_POINTER;
+    }
+    unsafe {
+        *medium = STGMEDIUM::default();
+        (*medium).tymed = TYMED_MFPICT as u32;
+        (*medium).u.hMetaFilePict = handle.cast();
         (*medium).pUnkForRelease = null_mut();
     }
     S_OK
@@ -1624,6 +1760,34 @@ fn clipboard_format(name: &str) -> u16 {
     unsafe { RegisterClipboardFormatW(wide_null(name).as_ptr()) as u16 }
 }
 
+fn known_clipboard_format_name(format: u16) -> &'static str {
+    if format == clipboard_format(CLIPBOARD_FORMAT_EMBED_SOURCE) {
+        CLIPBOARD_FORMAT_EMBED_SOURCE
+    } else if format == clipboard_format(CLIPBOARD_FORMAT_OBJECT_DESCRIPTOR) {
+        CLIPBOARD_FORMAT_OBJECT_DESCRIPTOR
+    } else if format == CF_METAFILEPICT {
+        "CF_METAFILEPICT"
+    } else if format == clipboard_format(FORMAT_CHEMCORE_FRAGMENT) {
+        FORMAT_CHEMCORE_FRAGMENT
+    } else if format == clipboard_format(FORMAT_CHEMCORE_DOCUMENT_JSON) {
+        FORMAT_CHEMCORE_DOCUMENT_JSON
+    } else {
+        "unknown"
+    }
+}
+
+unsafe fn log_format_request(prefix: &str, format: &FORMATETC, hr: i32) {
+    log_ole_event(&format!(
+        "{prefix}: cf={} ({}) aspect={} lindex={} tymed=0x{:X} -> 0x{:08X}",
+        format.cfFormat,
+        known_clipboard_format_name(format.cfFormat),
+        format.dwAspect,
+        format.lindex,
+        format.tymed,
+        hr as u32
+    ));
+}
+
 fn default_misc_status() -> u32 {
     (OLEMISC_INSIDEOUT
         | OLEMISC_ACTIVATEWHENVISIBLE
@@ -1638,6 +1802,7 @@ fn ole_clipboard_formats(payload: &OleObjectPayload, _extent: SIZE) -> Vec<FORMA
         clipboard_format(CLIPBOARD_FORMAT_EMBED_SOURCE),
         TYMED_ISTORAGE as u32,
     );
+    push_format(&mut formats, CF_METAFILEPICT, TYMED_MFPICT as u32);
     push_format(
         &mut formats,
         clipboard_format(CLIPBOARD_FORMAT_OBJECT_DESCRIPTOR),
@@ -1701,6 +1866,15 @@ unsafe fn write_clipboard_format_to_medium(
             return DV_E_TYMED;
         }
         return create_ole_storage_medium(payload, medium);
+    }
+    if format.cfFormat == CF_METAFILEPICT {
+        if (format.tymed & TYMED_MFPICT as u32) == 0 {
+            return DV_E_TYMED;
+        }
+        return match hglobal_for_metafile_pict(extent) {
+            Ok(handle) => metafile_pict_medium(handle, medium),
+            Err(hr) => hr,
+        };
     }
     if (format.tymed & TYMED_HGLOBAL as u32) == 0 {
         return DV_E_TYMED;
