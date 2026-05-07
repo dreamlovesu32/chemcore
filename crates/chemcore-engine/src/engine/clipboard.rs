@@ -1,6 +1,6 @@
 use super::text_edit::refresh_attached_node_label_geometry_for_all_nodes;
 use super::{EditorCommand, Engine};
-use crate::{Bond, Node, SelectionState};
+use crate::{Bond, ChemcoreDocument, Node, Resource, ResourceData, SceneObject, SelectionState};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -30,6 +30,12 @@ impl Engine {
     pub fn clipboard_selection_json(&self) -> Result<Option<String>, String> {
         self.clipboard_content_from_selection()
             .map(|content| serde_json::to_string(&content).map_err(|error| error.to_string()))
+            .transpose()
+    }
+
+    pub fn clipboard_document_json(&self) -> Result<Option<String>, String> {
+        self.document_from_selection()
+            .map(|document| serde_json::to_string(&document).map_err(|error| error.to_string()))
             .transpose()
     }
 
@@ -170,4 +176,142 @@ impl Engine {
 
         Some(ClipboardContent { nodes, bonds })
     }
+
+    fn document_from_selection(&self) -> Option<ChemcoreDocument> {
+        if self.state.selection.is_empty() {
+            return None;
+        }
+
+        let selected_molecule = self.selected_molecule_clipboard_object();
+        let mut selected_object_ids: BTreeSet<String> =
+            self.state.selection.text_objects.iter().cloned().collect();
+        selected_object_ids.extend(self.state.selection.arrow_objects.iter().cloned());
+
+        let mut objects = Vec::new();
+        for object in &self.state.document.objects {
+            if selected_molecule
+                .as_ref()
+                .is_some_and(|(molecule, _, _)| molecule.id == object.id)
+            {
+                objects.push(selected_molecule.as_ref().unwrap().0.clone());
+                continue;
+            }
+            clone_selected_scene_objects(object, &selected_object_ids, &mut objects);
+        }
+        if objects.is_empty() {
+            return None;
+        }
+
+        let mut document = self.state.document.clone();
+        document.document.id = "doc_clipboard_selection".to_string();
+        document.document.title = "Chemcore Clipboard Selection".to_string();
+        document.objects = objects;
+        if let Some((_, resource_ref, resource)) = selected_molecule {
+            document.resources.insert(resource_ref, resource);
+        }
+        Some(document)
+    }
+
+    fn selected_molecule_clipboard_object(&self) -> Option<(SceneObject, String, Resource)> {
+        let entry = self.state.document.editable_fragment()?;
+        let resource_ref = entry.object.payload.resource_ref.clone()?;
+
+        let mut node_ids: BTreeSet<String> = self.state.selection.nodes.iter().cloned().collect();
+        node_ids.extend(self.state.selection.label_nodes.iter().cloned());
+
+        let selected_bonds: BTreeSet<&str> = self
+            .state
+            .selection
+            .bonds
+            .iter()
+            .map(String::as_str)
+            .collect();
+        for bond in &entry.fragment.bonds {
+            if selected_bonds.contains(bond.id.as_str()) {
+                node_ids.insert(bond.begin.clone());
+                node_ids.insert(bond.end.clone());
+            }
+        }
+
+        let nodes: Vec<Node> = entry
+            .fragment
+            .nodes
+            .iter()
+            .filter(|node| node_ids.contains(&node.id))
+            .cloned()
+            .collect();
+        if nodes.is_empty() {
+            return None;
+        }
+
+        let bonds: Vec<Bond> = entry
+            .fragment
+            .bonds
+            .iter()
+            .filter(|bond| {
+                selected_bonds.contains(bond.id.as_str())
+                    && node_ids.contains(&bond.begin)
+                    && node_ids.contains(&bond.end)
+            })
+            .cloned()
+            .collect();
+
+        let mut fragment = entry.fragment.clone();
+        fragment.nodes = nodes;
+        fragment.bonds = bonds;
+        fragment.bbox = fragment_clipboard_bounds(&fragment.nodes);
+
+        let mut object = entry.object.clone();
+        object.payload.bbox = Some(fragment.bbox);
+
+        let mut resource = self.state.document.resources.get(&resource_ref)?.clone();
+        resource.data = ResourceData::Fragment(fragment);
+        Some((object, resource_ref, resource))
+    }
+}
+
+fn clone_selected_scene_objects(
+    object: &SceneObject,
+    selected_ids: &BTreeSet<String>,
+    out: &mut Vec<SceneObject>,
+) {
+    if selected_ids.contains(&object.id) {
+        out.push(object.clone());
+        return;
+    }
+
+    let mut children = Vec::new();
+    for child in &object.children {
+        clone_selected_scene_objects(child, selected_ids, &mut children);
+    }
+    if !children.is_empty() {
+        let mut clone = object.clone();
+        clone.children = children;
+        out.push(clone);
+    }
+}
+
+fn fragment_clipboard_bounds(nodes: &[Node]) -> [f64; 4] {
+    let Some(first) = nodes.first() else {
+        return [0.0, 0.0, 1.0, 1.0];
+    };
+    let mut min_x = first.position[0];
+    let mut min_y = first.position[1];
+    let mut max_x = first.position[0];
+    let mut max_y = first.position[1];
+    for node in nodes {
+        min_x = min_x.min(node.position[0]);
+        min_y = min_y.min(node.position[1]);
+        max_x = max_x.max(node.position[0]);
+        max_y = max_y.max(node.position[1]);
+        if let Some(label) = &node.label {
+            if let Some([x1, y1, x2, y2]) = label.bbox() {
+                min_x = min_x.min(x1);
+                min_y = min_y.min(y1);
+                max_x = max_x.max(x2);
+                max_y = max_y.max(y2);
+            }
+        }
+    }
+    [min_x, min_y, max_x.max(min_x + 1.0), max_y.max(min_y + 1.0)]
 }

@@ -570,6 +570,13 @@ impl WasmEngine {
             .map_err(|error| JsValue::from_str(&error))
     }
 
+    #[wasm_bindgen(js_name = clipboardDocumentJson)]
+    pub fn clipboard_document_json(&self) -> Result<Option<String>, JsValue> {
+        self.inner
+            .clipboard_document_json()
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
     #[wasm_bindgen(js_name = cutSelection)]
     pub fn cut_selection(&mut self) -> bool {
         self.inner.cut_selection()

@@ -960,6 +960,15 @@ fn desktop_engine_clipboard_selection_json(
 }
 
 #[tauri::command]
+fn desktop_engine_clipboard_document_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<Option<String>, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.clipboard_document_json(session_id)
+}
+
+#[tauri::command]
 fn desktop_engine_cut_selection(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
@@ -2514,6 +2523,7 @@ pub fn run() {
             desktop_engine_copy_selection,
             desktop_engine_has_clipboard,
             desktop_engine_clipboard_selection_json,
+            desktop_engine_clipboard_document_json,
             desktop_engine_cut_selection,
             desktop_engine_paste_clipboard,
             desktop_engine_paste_clipboard_json,

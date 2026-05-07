@@ -3249,11 +3249,11 @@ impl PreviewTransform {
 }
 
 unsafe fn draw_payload_preview(dc: HDC, bounds: &RECT, payload: &OleObjectPayload) -> bool {
-    if draw_svg_preview(dc, bounds, payload) {
+    if draw_payload_vector_preview(dc, bounds, payload) {
         return true;
     }
 
-    draw_payload_vector_preview(dc, bounds, payload)
+    draw_svg_preview(dc, bounds, payload)
 }
 
 unsafe fn draw_payload_vector_preview(dc: HDC, bounds: &RECT, payload: &OleObjectPayload) -> bool {

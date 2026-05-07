@@ -1,8 +1,8 @@
 use chemcore_engine::{
-    angle_between, direction_from_angle, line_object_points, ArrowCurve, ArrowEndpointStyle,
-    ArrowHeadSize, ArrowNoGo, ArrowVariant, BondLinePattern, BondLineWeight, BondVariant,
-    BracketKind, DoubleBondPlacement, Engine, Point, PointerEvent, RenderPrimitive, RenderRole,
-    ShapeKind, ShapeStyle, Tool, ToolState, DEFAULT_BOND_LENGTH, DEFAULT_BOND_STROKE,
+    angle_between, direction_from_angle, line_object_points, parse_document_json, ArrowCurve,
+    ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondLinePattern, BondLineWeight,
+    BondVariant, BracketKind, DoubleBondPlacement, Engine, Point, PointerEvent, RenderPrimitive,
+    RenderRole, ShapeKind, ShapeStyle, Tool, ToolState, DEFAULT_BOND_LENGTH, DEFAULT_BOND_STROKE,
     ENDPOINT_FOCUS_RADIUS,
 };
 use serde_json::json;
@@ -1013,6 +1013,45 @@ fn component_selection_from_label_selects_whole_fragment() {
     assert!(selection.nodes.contains(&"n1".to_string()));
     assert_eq!(selection.bonds, vec!["b1".to_string()]);
     assert_eq!(selection.label_nodes, vec!["n1".to_string()]);
+}
+
+#[test]
+fn clipboard_document_json_contains_selected_molecule_fragment() {
+    let mut engine = Engine::new();
+    load_label_document(
+        &mut engine,
+        "Ph",
+        vec![json!([
+            [px(314.0), px(256.0)],
+            [px(324.0), px(256.0)],
+            [px(324.0), px(264.0)],
+            [px(314.0), px(264.0)]
+        ])],
+        json!([{ "id": "b1", "begin": "n0", "end": "n1", "order": 1 }]),
+    );
+    assert!(engine.select_component_at_point(px_point(318.0, 260.0), false));
+
+    let document_json = engine
+        .clipboard_document_json()
+        .expect("clipboard document should serialize")
+        .expect("selection should produce a clipboard document");
+    let document = parse_document_json(&document_json).expect("clipboard document should parse");
+    let entry = document
+        .editable_fragment()
+        .expect("clipboard document should keep the selected molecule");
+
+    assert_eq!(document.objects.len(), 1);
+    assert_eq!(entry.fragment.nodes.len(), 2);
+    assert_eq!(entry.fragment.bonds.len(), 1);
+    assert_eq!(
+        entry
+            .fragment
+            .nodes
+            .iter()
+            .filter(|node| node.label.is_some())
+            .count(),
+        1
+    );
 }
 
 fn load_text_object_document(engine: &mut Engine) {

@@ -27,6 +27,7 @@ export const wasmengine_canUndo: (a: number) => number;
 export const wasmengine_centerSelectionOnPage: (a: number) => number;
 export const wasmengine_clearInteraction: (a: number) => void;
 export const wasmengine_clearSelection: (a: number) => number;
+export const wasmengine_clipboardDocumentJson: (a: number) => [number, number, number, number];
 export const wasmengine_clipboardSelectionJson: (a: number) => [number, number, number, number];
 export const wasmengine_contextHitTestJson: (a: number, b: number, c: number) => [number, number];
 export const wasmengine_contextMenuJson: (a: number, b: number, c: number, d: number) => [number, number];

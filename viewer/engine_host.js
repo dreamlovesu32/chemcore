@@ -556,6 +556,11 @@ class TauriEngineSession {
     return this.invoke("desktop_engine_clipboard_selection_json", { sessionId: this.sessionId });
   }
 
+  async clipboardDocumentJson() {
+    await this.ready();
+    return this.invoke("desktop_engine_clipboard_document_json", { sessionId: this.sessionId });
+  }
+
   cutSelection() {
     return this.invokeMutation("desktop_engine_cut_selection");
   }

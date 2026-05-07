@@ -2077,9 +2077,11 @@ async function writeNativeClipboardFromSelection(fragmentJson = null) {
   }
   try {
     const resolvedFragmentJson = fragmentJson || await state.editorEngine.clipboardSelectionJson?.() || null;
-    const documentJson = state.editorEngine.documentJson?.() || null;
+    const documentJson = await state.editorEngine.clipboardDocumentJson?.()
+      || state.editorEngine.documentJson?.()
+      || null;
     const cdxml = await state.editorEngine.documentCdxml?.() || null;
-    const svg = await state.editorEngine.documentSvg?.() || null;
+    const svg = null;
     await desktopFileHost.writeClipboard({
       chemcoreFragmentJson: resolvedFragmentJson,
       chemcoreDocumentJson: documentJson,

@@ -305,6 +305,21 @@ export class WasmEngine {
     /**
      * @returns {string | undefined}
      */
+    clipboardDocumentJson() {
+        const ret = wasm.wasmengine_clipboardDocumentJson(this.__wbg_ptr);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
+    }
+    /**
+     * @returns {string | undefined}
+     */
     clipboardSelectionJson() {
         const ret = wasm.wasmengine_clipboardSelectionJson(this.__wbg_ptr);
         if (ret[3]) {

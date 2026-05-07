@@ -1,7 +1,7 @@
 use chemcore_engine::{
     ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondVariant,
-    BracketKind, Engine, Point, PointerEvent, RenderBoundsScope, ShapeKind, ShapeStyle,
-    RenderPrimitive, RenderRole, TextEditLayoutRequest, TextEditSession, Tool, ToolState, WorldCm,
+    BracketKind, Engine, Point, PointerEvent, RenderBoundsScope, RenderPrimitive, RenderRole,
+    ShapeKind, ShapeStyle, TextEditLayoutRequest, TextEditSession, Tool, ToolState, WorldCm,
     WorldPoint,
 };
 use flate2::read::GzDecoder;
@@ -209,11 +209,7 @@ impl DesktopDocumentService {
                 .then(|| session.document_json())
                 .transpose()
                 .map_err(|error| error.to_string())?,
-            state_json: Some(
-                session
-                    .state_json()
-                    .map_err(|error| error.to_string())?,
-            ),
+            state_json: Some(session.state_json().map_err(|error| error.to_string())?),
             render_list_json,
             all_bounds_json: bounds_json_for_snapshot(
                 primitives.as_deref(),
@@ -988,6 +984,10 @@ impl DesktopDocumentService {
         session_id: SessionId,
     ) -> Result<Option<String>, String> {
         self.session(session_id)?.clipboard_selection_json()
+    }
+
+    pub fn clipboard_document_json(&self, session_id: SessionId) -> Result<Option<String>, String> {
+        self.session(session_id)?.clipboard_document_json()
     }
 
     pub fn cut_selection(&mut self, session_id: SessionId) -> Result<bool, String> {

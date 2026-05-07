@@ -29,6 +29,7 @@ export class WasmEngine {
     centerSelectionOnPage(): boolean;
     clearInteraction(): void;
     clearSelection(): boolean;
+    clipboardDocumentJson(): string | undefined;
     clipboardSelectionJson(): string | undefined;
     contextHitTestJson(x: number, y: number): string;
     contextMenuJson(hit_json: string, has_paste: boolean): string;
@@ -123,6 +124,7 @@ export interface InitOutput {
     readonly wasmengine_centerSelectionOnPage: (a: number) => number;
     readonly wasmengine_clearInteraction: (a: number) => void;
     readonly wasmengine_clearSelection: (a: number) => number;
+    readonly wasmengine_clipboardDocumentJson: (a: number) => [number, number, number, number];
     readonly wasmengine_clipboardSelectionJson: (a: number) => [number, number, number, number];
     readonly wasmengine_contextHitTestJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_contextMenuJson: (a: number, b: number, c: number, d: number) => [number, number];
