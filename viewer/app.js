@@ -1505,14 +1505,7 @@ async function renderSelectionOnlyUpdate(point, syncCursor = syncSelectCursorFor
 }
 
 async function selectClickTarget(point, additive = false) {
-  const selectedComponent = !!(await state.editorEngine.selectComponentAtPoint?.(
-    point.x,
-    point.y,
-    additive,
-  ));
-  if (!selectedComponent) {
-    await state.editorEngine.selectAtPoint(point.x, point.y, additive);
-  }
+  await state.editorEngine.selectAtPoint(point.x, point.y, additive);
 }
 
 function currentEditorEngineState() {
