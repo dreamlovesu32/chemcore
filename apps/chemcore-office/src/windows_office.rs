@@ -7,14 +7,19 @@ use std::process::Command;
 use std::ptr::{null, null_mut};
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use chemcore_engine::{
+    parse_document_json, render_document, render_primitives_bounds, Point as CorePoint,
+    RenderPrimitive, RenderRole,
+};
 use windows_sys::core::GUID;
 use windows_sys::Win32::Foundation::{
-    GlobalFree, ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, HGLOBAL, POINTL, RECT, SIZE,
+    GlobalFree, COLORREF, ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, HGLOBAL, POINT, POINTL, RECT, SIZE,
 };
 use windows_sys::Win32::Graphics::Gdi::{
-    CloseMetaFile, CreateMetaFileW, CreatePen, DeleteMetaFile, DeleteObject, Ellipse,
-    GetStockObject, LineTo, MoveToEx, Rectangle, SelectObject, SetBkMode, SetMapMode, TextOutW,
-    HDC, HGDIOBJ, MM_ANISOTROPIC, NULL_BRUSH, PS_SOLID, TRANSPARENT,
+    CloseMetaFile, CreateMetaFileW, CreatePen, CreateSolidBrush, DeleteMetaFile, DeleteObject,
+    Ellipse, GetStockObject, LineTo, MoveToEx, Polygon, Rectangle, SelectObject, SetBkMode,
+    SetMapMode, SetTextColor, SetViewportExtEx, SetWindowExtEx, TextOutW, HDC, HGDIOBJ,
+    MM_ANISOTROPIC, NULL_BRUSH, PS_SOLID, TRANSPARENT,
 };
 use windows_sys::Win32::System::Com::StructuredStorage::{
     CreateILockBytesOnHGlobal, StgCreateDocfile, StgCreateDocfileOnILockBytes, WriteClassStg,
@@ -25,13 +30,15 @@ use windows_sys::Win32::System::Com::{
     REGCLS_MULTIPLEUSE, STATSTG, STGC_DEFAULT, STGMEDIUM, STGM_CREATE, STGM_READ, STGM_READWRITE,
     STGM_SHARE_EXCLUSIVE, TYMED_HGLOBAL, TYMED_ISTORAGE, TYMED_MFPICT,
 };
+use windows_sys::Win32::System::Console::FreeConsole;
 use windows_sys::Win32::System::DataExchange::{RegisterClipboardFormatW, METAFILEPICT};
 use windows_sys::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock};
 use windows_sys::Win32::System::Ole::{
-    OleCreateFromData, OleFlushClipboard, OleInitialize, OleRegEnumVerbs, OleRegGetMiscStatus,
-    OleRegGetUserType, OleSetClipboard, OleUninitialize, ReleaseStgMedium, CF_METAFILEPICT,
-    OBJECTDESCRIPTOR, OLEMISC_ACTIVATEWHENVISIBLE, OLEMISC_INSIDEOUT,
-    OLEMISC_RENDERINGISDEVICEINDEPENDENT, OLEMISC_SETCLIENTSITEFIRST, OLERENDER_DRAW,
+    CreateOleAdviseHolder, OleCreateFromData, OleFlushClipboard, OleInitialize, OleRegEnumVerbs,
+    OleRegGetMiscStatus, OleRegGetUserType, OleSave, OleSetClipboard, OleUninitialize,
+    ReleaseStgMedium, CF_METAFILEPICT, OBJECTDESCRIPTOR, OLEMISC_ACTIVATEWHENVISIBLE,
+    OLEMISC_INSIDEOUT, OLEMISC_RENDERINGISDEVICEINDEPENDENT, OLEMISC_SETCLIENTSITEFIRST,
+    OLERENDER_DRAW,
 };
 use windows_sys::Win32::System::Registry::{
     RegCloseKey, RegCreateKeyW, RegDeleteTreeW, RegSetValueExW, HKEY, HKEY_CURRENT_USER,
@@ -49,6 +56,7 @@ const CLSID_STRING: &str = "{CB69F54F-F21E-44DE-84FB-89D98FECE056}";
 const OLE_STREAM_MANIFEST: &str = "ChemcoreManifest";
 const OLE_STREAM_DOCUMENT: &str = "ChemcoreDocument";
 const OLE_STREAM_PREVIEW_SVG: &str = "ChemcorePreviewSvg";
+const CLIPBOARD_FORMAT_EMBEDDED_OBJECT: &str = "Embedded Object";
 const CLIPBOARD_FORMAT_EMBED_SOURCE: &str = "Embed Source";
 const CLIPBOARD_FORMAT_OBJECT_DESCRIPTOR: &str = "Object Descriptor";
 const FORMAT_CHEMCORE_FRAGMENT: &str = "Chemcore Clipboard Fragment";
@@ -163,6 +171,9 @@ pub fn run() -> Result<(), String> {
             copy_clipboard_payload(PathBuf::from(payload_path))
         }
         "--serve" | "-Embedding" | "/Embedding" | "--embedding" => {
+            unsafe {
+                FreeConsole();
+            }
             log_ole_event(&format!("COM server launch command: {command}"));
             run_com_server()
         }
@@ -431,7 +442,14 @@ fn run_self_test() -> Result<(), String> {
                 hr as u32
             ));
         }
-        let embed_format = FORMATETC {
+        let embedded_format = FORMATETC {
+            cfFormat: clipboard_format(CLIPBOARD_FORMAT_EMBEDDED_OBJECT),
+            ptd: null_mut(),
+            dwAspect: DVASPECT_CONTENT,
+            lindex: -1,
+            tymed: TYMED_ISTORAGE as u32,
+        };
+        let embed_source_format = FORMATETC {
             cfFormat: clipboard_format(CLIPBOARD_FORMAT_EMBED_SOURCE),
             ptd: null_mut(),
             dwAspect: DVASPECT_CONTENT,
@@ -439,7 +457,15 @@ fn run_self_test() -> Result<(), String> {
             tymed: TYMED_ISTORAGE as u32,
         };
         let query_get_data = (*(*(data_object.cast::<*const DataObjectVtbl>()))).query_get_data;
-        let hr = query_get_data(data_object, &embed_format);
+        let hr = query_get_data(data_object, &embedded_format);
+        if !hresult_succeeded(hr) {
+            part_release::<DataObjectVtbl>(data_object);
+            return Err(format!(
+                "IDataObject::QueryGetData(Embedded Object) failed: 0x{:08X}",
+                hr as u32
+            ));
+        }
+        let hr = query_get_data(data_object, &embed_source_format);
         if !hresult_succeeded(hr) {
             part_release::<DataObjectVtbl>(data_object);
             return Err(format!(
@@ -449,17 +475,17 @@ fn run_self_test() -> Result<(), String> {
         }
         let mut medium = STGMEDIUM::default();
         let get_data = (*(*(data_object.cast::<*const DataObjectVtbl>()))).get_data;
-        let hr = get_data(data_object, &embed_format, &mut medium);
+        let hr = get_data(data_object, &embedded_format, &mut medium);
         if !hresult_succeeded(hr) || medium.tymed != TYMED_ISTORAGE as u32 {
             part_release::<DataObjectVtbl>(data_object);
             return Err(format!(
-                "IDataObject::GetData(Embed Source) failed: 0x{:08X}",
+                "IDataObject::GetData(Embedded Object) failed: 0x{:08X}",
                 hr as u32
             ));
         }
         if medium.u.pstg.is_null() {
             part_release::<DataObjectVtbl>(data_object);
-            return Err("IDataObject::GetData(Embed Source) returned a null storage.".into());
+            return Err("IDataObject::GetData(Embedded Object) returned a null storage.".into());
         }
         let document = storage_read_stream(medium.u.pstg, OLE_STREAM_DOCUMENT)?;
         ReleaseStgMedium(&mut medium);
@@ -1095,13 +1121,16 @@ unsafe extern "system" fn data_object_get_data_here(
     if object.is_null() {
         return E_POINTER;
     }
+    let embedded_object = clipboard_format(CLIPBOARD_FORMAT_EMBEDDED_OBJECT);
     let embed_source = clipboard_format(CLIPBOARD_FORMAT_EMBED_SOURCE);
-    if (*format).cfFormat == embed_source && ((*format).tymed & TYMED_ISTORAGE as u32) != 0 {
+    if ((*format).cfFormat == embedded_object || (*format).cfFormat == embed_source)
+        && ((*format).tymed & TYMED_ISTORAGE as u32) != 0
+    {
         let storage = (*medium).u.pstg;
         if storage.is_null() {
             return E_POINTER;
         }
-        let hr = write_ole_storage_payload(storage, &(*object).payload);
+        let hr = save_ole_object_storage(storage, &(*object).payload);
         log_format_request("IDataObject::GetDataHere", &*format, hr);
         return hr;
     }
@@ -1585,7 +1614,7 @@ unsafe fn create_ole_storage_medium(payload: &OleObjectPayload, medium: *mut STG
         return hr;
     }
 
-    let hr = write_ole_storage_payload(storage, payload);
+    let hr = save_ole_object_storage(storage, payload);
     if !hresult_succeeded(hr) {
         com_release(storage);
         return hr;
@@ -1595,6 +1624,21 @@ unsafe fn create_ole_storage_medium(payload: &OleObjectPayload, medium: *mut STG
     (*medium).u.pstg = storage;
     (*medium).pUnkForRelease = null_mut();
     S_OK
+}
+
+unsafe fn save_ole_object_storage(storage: *mut c_void, payload: &OleObjectPayload) -> i32 {
+    let mut object = Box::new(ChemcoreOleObject::with_payload(payload.clone()));
+    object.init_self_references();
+    let object = Box::into_raw(object);
+    let persist_storage =
+        (&mut (*object).persist_storage as *mut InterfacePart<PersistStorageVtbl>).cast::<c_void>();
+    let hr = OleSave(persist_storage, storage, 0);
+    chemcore_object_release(object);
+    if hresult_succeeded(hr) {
+        storage_commit(storage)
+    } else {
+        hr
+    }
 }
 
 fn hglobal_for_bytes(bytes: &[u8]) -> Result<HGLOBAL, i32> {
@@ -1673,20 +1717,24 @@ fn hglobal_for_object_descriptor(extent: SIZE) -> Result<HGLOBAL, i32> {
     }
 }
 
-fn hglobal_for_metafile_pict(extent: SIZE) -> Result<HGLOBAL, i32> {
+fn hglobal_for_metafile_pict(payload: &OleObjectPayload, extent: SIZE) -> Result<HGLOBAL, i32> {
     unsafe {
         let metafile_dc = CreateMetaFileW(null());
         if metafile_dc.is_null() {
             return Err(E_FAIL);
         }
         SetMapMode(metafile_dc, MM_ANISOTROPIC);
+        SetWindowExtEx(metafile_dc, extent.cx.max(1), extent.cy.max(1), null_mut());
+        SetViewportExtEx(metafile_dc, extent.cx.max(1), extent.cy.max(1), null_mut());
         let bounds = RECT {
             left: 0,
             top: 0,
             right: extent.cx.max(1),
             bottom: extent.cy.max(1),
         };
-        draw_placeholder_preview(metafile_dc, &bounds);
+        if !draw_payload_preview(metafile_dc, &bounds, payload) {
+            draw_placeholder_preview(metafile_dc, &bounds);
+        }
         let metafile = CloseMetaFile(metafile_dc);
         if metafile.is_null() {
             return Err(E_FAIL);
@@ -1763,6 +1811,8 @@ fn clipboard_format(name: &str) -> u16 {
 fn known_clipboard_format_name(format: u16) -> &'static str {
     if format == clipboard_format(CLIPBOARD_FORMAT_EMBED_SOURCE) {
         CLIPBOARD_FORMAT_EMBED_SOURCE
+    } else if format == clipboard_format(CLIPBOARD_FORMAT_EMBEDDED_OBJECT) {
+        CLIPBOARD_FORMAT_EMBEDDED_OBJECT
     } else if format == clipboard_format(CLIPBOARD_FORMAT_OBJECT_DESCRIPTOR) {
         CLIPBOARD_FORMAT_OBJECT_DESCRIPTOR
     } else if format == CF_METAFILEPICT {
@@ -1799,10 +1849,14 @@ fn ole_clipboard_formats(payload: &OleObjectPayload, _extent: SIZE) -> Vec<FORMA
     let mut formats = Vec::new();
     push_format(
         &mut formats,
+        clipboard_format(CLIPBOARD_FORMAT_EMBEDDED_OBJECT),
+        TYMED_ISTORAGE as u32,
+    );
+    push_format(
+        &mut formats,
         clipboard_format(CLIPBOARD_FORMAT_EMBED_SOURCE),
         TYMED_ISTORAGE as u32,
     );
-    push_format(&mut formats, CF_METAFILEPICT, TYMED_MFPICT as u32);
     push_format(
         &mut formats,
         clipboard_format(CLIPBOARD_FORMAT_OBJECT_DESCRIPTOR),
@@ -1820,6 +1874,7 @@ fn ole_clipboard_formats(payload: &OleObjectPayload, _extent: SIZE) -> Vec<FORMA
         clipboard_format(FORMAT_CHEMCORE_DOCUMENT_JSON),
         TYMED_HGLOBAL as u32,
     );
+    push_format(&mut formats, CF_METAFILEPICT, TYMED_MFPICT as u32);
 
     formats.retain(|format| format.cfFormat != 0);
     formats
@@ -1861,7 +1916,9 @@ unsafe fn write_clipboard_format_to_medium(
     if medium.is_null() {
         return E_POINTER;
     }
-    if format.cfFormat == clipboard_format(CLIPBOARD_FORMAT_EMBED_SOURCE) {
+    if format.cfFormat == clipboard_format(CLIPBOARD_FORMAT_EMBEDDED_OBJECT)
+        || format.cfFormat == clipboard_format(CLIPBOARD_FORMAT_EMBED_SOURCE)
+    {
         if (format.tymed & TYMED_ISTORAGE as u32) == 0 {
             return DV_E_TYMED;
         }
@@ -1871,7 +1928,7 @@ unsafe fn write_clipboard_format_to_medium(
         if (format.tymed & TYMED_MFPICT as u32) == 0 {
             return DV_E_TYMED;
         }
-        return match hglobal_for_metafile_pict(extent) {
+        return match hglobal_for_metafile_pict(payload, extent) {
             Ok(handle) => metafile_pict_medium(handle, medium),
             Err(hr) => hr,
         };
@@ -2029,6 +2086,19 @@ unsafe fn stream_read_all(stream: *mut c_void) -> Result<Vec<u8>, i32> {
 unsafe fn stream_commit(stream: *mut c_void) -> i32 {
     let stream_vtbl = *(stream.cast::<*const StreamVtbl>());
     ((*stream_vtbl).commit)(stream, STGC_DEFAULT)
+}
+
+#[repr(C)]
+struct OleAdviseHolderVtbl {
+    query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
+    add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+    release: unsafe extern "system" fn(*mut c_void) -> u32,
+    advise: unsafe extern "system" fn(*mut c_void, *mut c_void, *mut u32) -> i32,
+    unadvise: unsafe extern "system" fn(*mut c_void, u32) -> i32,
+    enum_advise: unsafe extern "system" fn(*mut c_void, *mut *mut c_void) -> i32,
+    send_on_rename: unsafe extern "system" fn(*mut c_void, *mut c_void) -> i32,
+    send_on_save: unsafe extern "system" fn(*mut c_void) -> i32,
+    send_on_close: unsafe extern "system" fn(*mut c_void) -> i32,
 }
 
 #[repr(C)]
@@ -2275,28 +2345,57 @@ unsafe extern "system" fn ole_object_get_extent(
 }
 
 unsafe extern "system" fn ole_object_advise(
-    _this: *mut c_void,
-    _sink: *mut c_void,
+    this: *mut c_void,
+    sink: *mut c_void,
     connection: *mut u32,
 ) -> i32 {
-    if !connection.is_null() {
-        *connection = 0;
+    if connection.is_null() {
+        return E_POINTER;
     }
-    E_NOTIMPL
+    *connection = 0;
+    let object = owner_from_part::<OleObjectVtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    if (*object).ole_advise_holder.is_null() {
+        let hr = CreateOleAdviseHolder(&mut (*object).ole_advise_holder);
+        if !hresult_succeeded(hr) {
+            return hr;
+        }
+    }
+    let holder_vtbl = *((*object)
+        .ole_advise_holder
+        .cast::<*const OleAdviseHolderVtbl>());
+    ((*holder_vtbl).advise)((*object).ole_advise_holder, sink, connection)
 }
 
-unsafe extern "system" fn ole_object_unadvise(_this: *mut c_void, _connection: u32) -> i32 {
-    E_NOTIMPL
+unsafe extern "system" fn ole_object_unadvise(this: *mut c_void, connection: u32) -> i32 {
+    let object = owner_from_part::<OleObjectVtbl>(this);
+    if object.is_null() || (*object).ole_advise_holder.is_null() {
+        return E_POINTER;
+    }
+    let holder_vtbl = *((*object)
+        .ole_advise_holder
+        .cast::<*const OleAdviseHolderVtbl>());
+    ((*holder_vtbl).unadvise)((*object).ole_advise_holder, connection)
 }
 
 unsafe extern "system" fn ole_object_enum_advise(
-    _this: *mut c_void,
+    this: *mut c_void,
     enum_advise: *mut *mut c_void,
 ) -> i32 {
-    if !enum_advise.is_null() {
-        *enum_advise = null_mut();
+    if enum_advise.is_null() {
+        return E_POINTER;
     }
-    E_NOTIMPL
+    *enum_advise = null_mut();
+    let object = owner_from_part::<OleObjectVtbl>(this);
+    if object.is_null() || (*object).ole_advise_holder.is_null() {
+        return S_FALSE;
+    }
+    let holder_vtbl = *((*object)
+        .ole_advise_holder
+        .cast::<*const OleAdviseHolderVtbl>());
+    ((*holder_vtbl).enum_advise)((*object).ole_advise_holder, enum_advise)
 }
 
 unsafe extern "system" fn ole_object_get_misc_status(
@@ -2392,7 +2491,13 @@ unsafe extern "system" fn view_object_draw(
     if object.is_null() {
         return E_POINTER;
     }
-    draw_placeholder_preview(_draw_dc as HDC, &*(bounds.cast::<RECT>()));
+    if !draw_payload_preview(
+        _draw_dc as HDC,
+        &*(bounds.cast::<RECT>()),
+        &(*object).payload,
+    ) {
+        draw_placeholder_preview(_draw_dc as HDC, &*(bounds.cast::<RECT>()));
+    }
     S_OK
 }
 
@@ -2593,14 +2698,333 @@ fn monotonic_millis() -> u128 {
         .unwrap_or(0)
 }
 
+struct PreviewTransform {
+    min_x: f64,
+    min_y: f64,
+    scale: f64,
+    offset_x: f64,
+    offset_y: f64,
+}
+
+impl PreviewTransform {
+    fn from_bounds(bounds: &RECT, primitive_bounds: [f64; 4]) -> Option<Self> {
+        let [min_x, min_y, max_x, max_y] = primitive_bounds;
+        let source_width = (max_x - min_x).max(1.0);
+        let source_height = (max_y - min_y).max(1.0);
+        let target_width = (bounds.right - bounds.left).max(1) as f64;
+        let target_height = (bounds.bottom - bounds.top).max(1) as f64;
+        let margin = target_width.min(target_height) * 0.08;
+        let usable_width = (target_width - margin * 2.0).max(1.0);
+        let usable_height = (target_height - margin * 2.0).max(1.0);
+        let scale = (usable_width / source_width).min(usable_height / source_height);
+        if !scale.is_finite() || scale <= 0.0 {
+            return None;
+        }
+        let drawn_width = source_width * scale;
+        let drawn_height = source_height * scale;
+        Some(Self {
+            min_x,
+            min_y,
+            scale,
+            offset_x: bounds.left as f64 + (target_width - drawn_width) / 2.0,
+            offset_y: bounds.top as f64 + (target_height - drawn_height) / 2.0,
+        })
+    }
+
+    fn point(&self, point: CorePoint) -> POINT {
+        POINT {
+            x: (self.offset_x + (point.x - self.min_x) * self.scale).round() as i32,
+            y: (self.offset_y + (point.y - self.min_y) * self.scale).round() as i32,
+        }
+    }
+
+    fn xy(&self, x: f64, y: f64) -> POINT {
+        self.point(CorePoint { x, y })
+    }
+
+    fn length(&self, value: f64) -> i32 {
+        (value.abs() * self.scale).round().max(1.0) as i32
+    }
+}
+
+unsafe fn draw_payload_preview(dc: HDC, bounds: &RECT, payload: &OleObjectPayload) -> bool {
+    let Ok(document) = parse_document_json(&payload.chemcore_document_json) else {
+        return false;
+    };
+    let primitives = render_document(&document);
+    let visible: Vec<_> = primitives
+        .iter()
+        .filter(|primitive| office_preview_primitive_visible(primitive))
+        .collect();
+    let Some(primitive_bounds) = render_primitives_bounds(visible.iter().copied()) else {
+        return false;
+    };
+    let Some(transform) = PreviewTransform::from_bounds(bounds, primitive_bounds) else {
+        return false;
+    };
+
+    for primitive in visible {
+        draw_preview_primitive(dc, primitive, &transform);
+    }
+    true
+}
+
+fn office_preview_primitive_visible(primitive: &RenderPrimitive) -> bool {
+    let role = match primitive {
+        RenderPrimitive::Line { role, .. }
+        | RenderPrimitive::Circle { role, .. }
+        | RenderPrimitive::Polygon { role, .. }
+        | RenderPrimitive::Rect { role, .. }
+        | RenderPrimitive::Ellipse { role, .. }
+        | RenderPrimitive::Polyline { role, .. }
+        | RenderPrimitive::Path { role, .. }
+        | RenderPrimitive::FilledPath { role, .. }
+        | RenderPrimitive::Text { role, .. } => role,
+    };
+    matches!(
+        role,
+        RenderRole::DocumentBond
+            | RenderRole::DocumentGraphic
+            | RenderRole::DocumentKnockout
+            | RenderRole::DocumentText
+    )
+}
+
+unsafe fn draw_preview_primitive(
+    dc: HDC,
+    primitive: &RenderPrimitive,
+    transform: &PreviewTransform,
+) {
+    match primitive {
+        RenderPrimitive::Line {
+            from,
+            to,
+            stroke,
+            stroke_width,
+            ..
+        } => draw_preview_line(
+            dc,
+            transform.point(*from),
+            transform.point(*to),
+            stroke,
+            *stroke_width,
+            transform,
+        ),
+        RenderPrimitive::Polygon {
+            points,
+            fill,
+            stroke,
+            stroke_width,
+            ..
+        } => draw_preview_polygon(dc, points, fill, stroke, *stroke_width, transform),
+        RenderPrimitive::FilledPath { points, fill, .. } => {
+            draw_preview_polygon(dc, points, fill, fill, 0.0, transform)
+        }
+        RenderPrimitive::Polyline {
+            points,
+            stroke,
+            stroke_width,
+            ..
+        }
+        | RenderPrimitive::Path {
+            points,
+            stroke,
+            stroke_width,
+            ..
+        } => {
+            for pair in points.windows(2) {
+                draw_preview_line(
+                    dc,
+                    transform.point(pair[0]),
+                    transform.point(pair[1]),
+                    stroke,
+                    *stroke_width,
+                    transform,
+                );
+            }
+        }
+        RenderPrimitive::Rect {
+            x,
+            y,
+            width,
+            height,
+            fill,
+            stroke,
+            stroke_width,
+            ..
+        } => {
+            let p1 = transform.xy(*x, *y);
+            let p2 = transform.xy(*x + *width, *y + *height);
+            let fill_color = fill.as_deref().and_then(colorref_from_css);
+            let brush = fill_color
+                .map(|color| CreateSolidBrush(color))
+                .unwrap_or_else(|| GetStockObject(NULL_BRUSH));
+            let pen = stroke
+                .as_deref()
+                .and_then(colorref_from_css)
+                .map(|color| CreatePen(PS_SOLID, transform.length(*stroke_width), color))
+                .unwrap_or_else(|| CreatePen(PS_SOLID, 0, 0x000000));
+            let old_brush = SelectObject(dc, brush as HGDIOBJ);
+            let old_pen = SelectObject(dc, pen as HGDIOBJ);
+            Rectangle(dc, p1.x, p1.y, p2.x, p2.y);
+            SelectObject(dc, old_pen);
+            SelectObject(dc, old_brush);
+            DeleteObject(pen as HGDIOBJ);
+            if fill_color.is_some() {
+                DeleteObject(brush as HGDIOBJ);
+            }
+        }
+        RenderPrimitive::Ellipse {
+            center,
+            rx,
+            ry,
+            fill,
+            stroke,
+            stroke_width,
+            ..
+        } => {
+            let c = transform.point(*center);
+            let rx = transform.length(*rx);
+            let ry = transform.length(*ry);
+            let fill_color = fill.as_deref().and_then(colorref_from_css);
+            let brush = fill_color
+                .map(|color| CreateSolidBrush(color))
+                .unwrap_or_else(|| GetStockObject(NULL_BRUSH));
+            let pen = stroke
+                .as_deref()
+                .and_then(colorref_from_css)
+                .map(|color| CreatePen(PS_SOLID, transform.length(*stroke_width), color))
+                .unwrap_or_else(|| CreatePen(PS_SOLID, 0, 0x000000));
+            let old_brush = SelectObject(dc, brush as HGDIOBJ);
+            let old_pen = SelectObject(dc, pen as HGDIOBJ);
+            Ellipse(dc, c.x - rx, c.y - ry, c.x + rx, c.y + ry);
+            SelectObject(dc, old_pen);
+            SelectObject(dc, old_brush);
+            DeleteObject(pen as HGDIOBJ);
+            if fill_color.is_some() {
+                DeleteObject(brush as HGDIOBJ);
+            }
+        }
+        RenderPrimitive::Circle {
+            center,
+            radius,
+            fill,
+            stroke,
+            stroke_width,
+            ..
+        } => {
+            let c = transform.point(*center);
+            let r = transform.length(*radius);
+            let fill_color = colorref_from_css(fill);
+            let brush = fill_color
+                .map(|color| CreateSolidBrush(color))
+                .unwrap_or_else(|| GetStockObject(NULL_BRUSH));
+            let pen = colorref_from_css(stroke)
+                .map(|color| CreatePen(PS_SOLID, transform.length(*stroke_width), color))
+                .unwrap_or_else(|| CreatePen(PS_SOLID, 0, 0x000000));
+            let old_brush = SelectObject(dc, brush as HGDIOBJ);
+            let old_pen = SelectObject(dc, pen as HGDIOBJ);
+            Ellipse(dc, c.x - r, c.y - r, c.x + r, c.y + r);
+            SelectObject(dc, old_pen);
+            SelectObject(dc, old_brush);
+            DeleteObject(pen as HGDIOBJ);
+            if fill_color.is_some() {
+                DeleteObject(brush as HGDIOBJ);
+            }
+        }
+        RenderPrimitive::Text {
+            x, y, text, fill, ..
+        } => {
+            let p = transform.xy(*x, *y);
+            SetBkMode(dc, TRANSPARENT as i32);
+            SetTextColor(
+                dc,
+                fill.as_deref()
+                    .and_then(colorref_from_css)
+                    .unwrap_or(0x000000),
+            );
+            let label = wide_null(text);
+            TextOutW(
+                dc,
+                p.x,
+                p.y,
+                label.as_ptr(),
+                (label.len().saturating_sub(1)) as i32,
+            );
+        }
+    }
+}
+
+unsafe fn draw_preview_line(
+    dc: HDC,
+    from: POINT,
+    to: POINT,
+    color: &str,
+    stroke_width: f64,
+    transform: &PreviewTransform,
+) {
+    let pen = CreatePen(
+        PS_SOLID,
+        transform.length(stroke_width),
+        colorref_from_css(color).unwrap_or(0x000000),
+    );
+    let old_pen = SelectObject(dc, pen as HGDIOBJ);
+    MoveToEx(dc, from.x, from.y, null_mut());
+    LineTo(dc, to.x, to.y);
+    SelectObject(dc, old_pen);
+    DeleteObject(pen as HGDIOBJ);
+}
+
+unsafe fn draw_preview_polygon(
+    dc: HDC,
+    points: &[CorePoint],
+    fill: &str,
+    stroke: &str,
+    stroke_width: f64,
+    transform: &PreviewTransform,
+) {
+    if points.len() < 2 {
+        return;
+    }
+    let mapped: Vec<POINT> = points.iter().map(|point| transform.point(*point)).collect();
+    let fill_color = colorref_from_css(fill);
+    let brush = fill_color
+        .map(|color| CreateSolidBrush(color))
+        .unwrap_or_else(|| GetStockObject(NULL_BRUSH));
+    let pen = CreatePen(
+        PS_SOLID,
+        transform.length(stroke_width),
+        colorref_from_css(stroke).unwrap_or_else(|| colorref_from_css(fill).unwrap_or(0x000000)),
+    );
+    let old_brush = SelectObject(dc, brush as HGDIOBJ);
+    let old_pen = SelectObject(dc, pen as HGDIOBJ);
+    Polygon(dc, mapped.as_ptr(), mapped.len() as i32);
+    SelectObject(dc, old_pen);
+    SelectObject(dc, old_brush);
+    DeleteObject(pen as HGDIOBJ);
+    if fill_color.is_some() {
+        DeleteObject(brush as HGDIOBJ);
+    }
+}
+
+fn colorref_from_css(value: &str) -> Option<COLORREF> {
+    let hex = value.strip_prefix('#')?;
+    if hex.len() != 6 {
+        return None;
+    }
+    let rgb = u32::from_str_radix(hex, 16).ok()?;
+    let r = (rgb >> 16) & 0xff;
+    let g = (rgb >> 8) & 0xff;
+    let b = rgb & 0xff;
+    Some((b << 16) | (g << 8) | r)
+}
+
 unsafe fn draw_placeholder_preview(dc: HDC, bounds: &RECT) {
     let width = (bounds.right - bounds.left).max(1);
     let height = (bounds.bottom - bounds.top).max(1);
     let old_brush = SelectObject(dc, GetStockObject(NULL_BRUSH));
-    let pen = CreatePen(PS_SOLID, (width.min(height) / 40).max(1), 0x000000);
+    let pen = CreatePen(PS_SOLID, (width.min(height) / 120).clamp(1, 16), 0x000000);
     let old_pen = SelectObject(dc, pen as HGDIOBJ);
-
-    Rectangle(dc, bounds.left, bounds.top, bounds.right, bounds.bottom);
 
     let mid_y = bounds.top + height * 58 / 100;
     let left_x = bounds.left + width * 24 / 100;
