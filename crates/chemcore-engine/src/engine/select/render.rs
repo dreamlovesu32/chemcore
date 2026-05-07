@@ -372,6 +372,7 @@ pub(super) fn component_selection_items(
             }
         }
     }
+    let mut label_items_added = 0usize;
     for node_id in &label_node_ids {
         let Some(node) = entry.fragment.nodes.iter().find(|node| node.id == *node_id) else {
             continue;
@@ -385,17 +386,22 @@ pub(super) fn component_selection_items(
             bounds: AxisBounds::from_array(bounds),
             center: Point::new((bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5),
         });
+        label_items_added += 1;
     }
-    for node_id in &component.node_ids {
-        let Some(node) = entry.fragment.nodes.iter().find(|node| node.id == *node_id) else {
-            continue;
-        };
-        let center = entry.world_point_for_node(node);
-        items.push(FragmentSelectionItem {
-            kind: FragmentItemKind::Node,
-            bounds: AxisBounds::around_point(center, SELECTION_NODE_BOX_SIZE / 2.0),
-            center,
-        });
+    let include_node_boxes =
+        !component.complete || (component.bond_ids.is_empty() && label_items_added == 0);
+    if include_node_boxes {
+        for node_id in &component.node_ids {
+            let Some(node) = entry.fragment.nodes.iter().find(|node| node.id == *node_id) else {
+                continue;
+            };
+            let center = entry.world_point_for_node(node);
+            items.push(FragmentSelectionItem {
+                kind: FragmentItemKind::Node,
+                bounds: AxisBounds::around_point(center, SELECTION_NODE_BOX_SIZE / 2.0),
+                center,
+            });
+        }
     }
     for bond_id in &component.bond_ids {
         let Some(bond) = entry.fragment.bonds.iter().find(|bond| bond.id == *bond_id) else {

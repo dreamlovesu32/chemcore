@@ -1355,7 +1355,7 @@ function maybeAutoExpandEditorViewport(_primitives) {
   if (!isEditingRustDocument()) {
     return false;
   }
-  const bounds = currentRenderBounds("all");
+  const bounds = currentRenderBounds("document");
   if (!bounds) {
     return false;
   }
@@ -1424,13 +1424,20 @@ async function syncCoreRenderListFromCurrentDocument() {
   }
 }
 
-function syncEditorRenderListFromEngine() {
+function syncEditorRenderListFromEngine(options = {}) {
   if (!state.editorEngine) {
     return [];
   }
+  const autoExpand = options.autoExpand ?? true;
   state.coreRenderList = renderListFromEngine(state.editorEngine);
-  maybeAutoExpandEditorViewport(state.coreRenderList || []);
+  if (autoExpand) {
+    maybeAutoExpandEditorViewport(state.coreRenderList || []);
+  }
   return state.coreRenderList || [];
+}
+
+function syncEditorSelectionRenderListFromEngine() {
+  return syncEditorRenderListFromEngine({ autoExpand: false });
 }
 
 function currentEditorOverlayRenderList() {
@@ -1486,6 +1493,14 @@ async function syncDocumentFromEngine() {
     await syncCoreRenderListFromCurrentDocument();
     maybeAutoExpandEditorViewport(state.coreRenderList || []);
   }
+  refreshCommandAvailability();
+}
+
+async function renderSelectionOnlyUpdate(point, syncCursor = syncSelectCursorForPoint) {
+  if (point) {
+    await syncCursor(point);
+  }
+  renderEditorOverlay(syncEditorSelectionRenderListFromEngine());
   refreshCommandAvailability();
 }
 
@@ -4136,12 +4151,14 @@ async function handleEditorPointerUp(event) {
       if (gesture.dragged) {
         await state.editorEngine.finishSelectionMove(point.x, point.y, event.altKey);
         await syncDocumentFromEngine();
+        await syncSelectCursorForPoint(point);
+        clearDocumentObjectPreviewTransform();
+        renderDocument();
       } else {
         await state.editorEngine.selectAtPoint(point.x, point.y, gesture.additive);
+        clearDocumentObjectPreviewTransform();
+        await renderSelectionOnlyUpdate(point);
       }
-      await syncSelectCursorForPoint(point);
-      clearDocumentObjectPreviewTransform();
-      renderDocument();
       return;
     }
     if (!gesture.dragged) {
@@ -4158,8 +4175,7 @@ async function handleEditorPointerUp(event) {
       const polygonPoints = [...gesture.points, point].map((candidate) => [candidate.x, candidate.y]);
       await state.editorEngine.selectInPolygon(JSON.stringify(polygonPoints), gesture.additive);
     }
-    await syncSelectCursorForPoint(point);
-    renderDocument();
+    await renderSelectionOnlyUpdate(point);
     return;
   }
   await state.editorEngine.pointerUp(point.x, point.y, event.altKey);
@@ -4198,9 +4214,7 @@ async function handleEditorDoubleClick(event) {
   }
   event.preventDefault();
   activeSelectionGesture = null;
-  await syncDocumentFromEngine();
-  await syncSelectCursorForPoint(point);
-  renderDocument();
+  await renderSelectionOnlyUpdate(point);
 }
 
 function renderEditorOverlay(renderList = null) {
@@ -4567,7 +4581,7 @@ function fitView() {
   let nextViewBox;
   let fitTargetBox = null;
   if (isEditingRustDocument()) {
-    const bounds = currentRenderBounds("all");
+    const bounds = currentRenderBounds("document");
     if (!bounds) {
       nextViewBox = defaultEditorViewBox();
       state.runtimeViewBox = nextViewBox;

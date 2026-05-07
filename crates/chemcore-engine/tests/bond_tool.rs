@@ -5764,6 +5764,32 @@ fn select_tool_box_selecting_whole_fragment_renders_component_box() {
 }
 
 #[test]
+fn select_tool_whole_fragment_box_ignores_hidden_atom_handles() {
+    let mut complete = Engine::new();
+    complete.set_tool_state(bond_tool());
+    click(&mut complete, px(300.0), px(260.0));
+    complete.set_tool_state(select_tool());
+    complete.select_in_rect(px_point(290.0, 234.0), px_point(346.0, 286.0), false);
+    let complete_rect = selection_box_rect(&complete);
+
+    let mut bond = Engine::new();
+    bond.set_tool_state(bond_tool());
+    click(&mut bond, px(300.0), px(260.0));
+    bond.set_tool_state(select_tool());
+    bond.select_at_point(Point::new(FIRST_CENTER_X, FIRST_CENTER_Y), false);
+    let bond_rect = selection_bond_rect(&bond);
+
+    assert_rect_close(complete_rect, bond_rect);
+    assert!(!complete.render_list().iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Rect {
+            role: RenderRole::SelectionNode,
+            ..
+        }
+    )));
+}
+
+#[test]
 fn select_tool_shift_click_adds_to_selection() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());
