@@ -278,18 +278,21 @@ target\debug\chemcore-office.exe --unregister-machine
 ChemcoreManifest    OLE object manifest，记录 class/progId 和 payload stream 名称。
 ChemcoreDocument    Chemcore document JSON，内容由 chemcore-engine 生成。
 ChemcorePreviewSvg  当前阶段的 SVG preview placeholder，后续由真实渲染结果替换。
+\x02OlePres001       EMF presentation stream，用于 OLE storage 内部预览。
+\x03EPRINT           Enhanced print stream，内容为 EMF bits。
 ```
 
 - `npm run office:self-test` 用于无 Office 环境下验证 COM object 创建、接口查询、CLSID 返回，以及 OLE storage stream 写入/读回。
-- 桌面端复制时会继续写入普通 Windows clipboard 格式，同时调用 `chemcore-office.exe --copy-clipboard-payload` 把同一份 Chemcore document/svg/cdxml payload 放入 OLE clipboard。该 OLE clipboard object 支持 `Embed Source`、`Object Descriptor`、Chemcore 自定义 JSON、CDXML、SVG 和 Unicode text，用于 Office 粘贴为可编辑对象。
+- 桌面端复制时会继续写入普通 Windows clipboard 格式，同时调用 `chemcore-office.exe --copy-clipboard-payload` 把同一份 Chemcore document/svg/cdxml payload 放入 OLE clipboard。该 OLE clipboard object 支持 `Embed Source`、`Object Descriptor`、Chemcore 自定义 JSON、CDXML、SVG、Unicode text 和 `CF_ENHMETAFILE`，用于 Office 粘贴为可编辑对象。默认 OLE clipboard 不再枚举 `CF_METAFILEPICT`，避免 Word 优先生成 WMF 预览。
+- 已增加 `chemcore-office.exe --write-word-docx-payload <payload.json> <output.docx>`。这是第一条“直写 Word 结构”的路径：直接生成包含 `word/embeddings/oleObject1.bin` 和 `word/media/image1.emf` 的 OOXML package，用于验证和沉淀 ChemDraw 式外部 EMF 预览结构。后续 clipboard/active Word 插入能力应复用这条 package writer，而不是让 Word 自己从 WMF fallback 反推预览。
 
 后续仍需补齐真正的 embedded object 接口：
 
 ```text
 IOleObject      已补基础 extent 和 DoVerb 唤醒桌面端，下一步补编辑后回写 Office storage。
-IDataObject     已补 OLE clipboard 的 Embed Source/Object Descriptor/自定义文本格式。
-IPersistStorage 已写入 Chemcore payload stream 和 SVG preview stream，下一步补 Load 回读和编辑回写。
-IViewObject2    已补基础 Draw/GetExtent placeholder，下一步接真实 native preview renderer。
+IDataObject     已补 OLE clipboard 的 Embed Source/Object Descriptor/自定义文本格式/CF_ENHMETAFILE。
+IPersistStorage 已写入 Chemcore payload stream、SVG preview stream、EMF presentation 和 EPRINT，下一步补 Load 回读和编辑回写。
+IViewObject2    已接 native vector preview renderer 的基础路径，下一步继续补 path、字体和高级填充保真度。
 IRunnableObject 当前骨架已存在，下一步补运行状态和桌面端唤醒。
 ```
 

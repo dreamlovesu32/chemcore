@@ -1,5 +1,6 @@
 use std::env;
 use std::ffi::c_void;
+use std::io::{Cursor, Read, Write};
 use std::mem::zeroed;
 use std::os::windows::ffi::OsStrExt;
 use std::path::PathBuf;
@@ -26,6 +27,7 @@ use windows_sys::Win32::Graphics::Gdi::{
 };
 use windows_sys::Win32::System::Com::StructuredStorage::{
     CreateILockBytesOnHGlobal, StgCreateDocfile, StgCreateDocfileOnILockBytes, WriteClassStg,
+    WriteFmtUserTypeStg,
 };
 use windows_sys::Win32::System::Com::{
     CoInitializeEx, CoRegisterClassObject, CoRevokeClassObject, CoTaskMemAlloc, CoUninitialize,
@@ -59,7 +61,6 @@ const CLSID_STRING: &str = "{CB69F54F-F21E-44DE-84FB-89D98FECE056}";
 const OLE_STREAM_MANIFEST: &str = "ChemcoreManifest";
 const OLE_STREAM_DOCUMENT: &str = "ChemcoreDocument";
 const OLE_STREAM_PREVIEW_SVG: &str = "ChemcorePreviewSvg";
-const OLE_STREAM_PRESENTATION_WMF: &str = "\u{0002}OlePres000";
 const OLE_STREAM_PRESENTATION_EMF: &str = "\u{0002}OlePres001";
 const OLE_STREAM_ENHANCED_PRINT: &str = "\u{0003}EPRINT";
 const CLIPBOARD_FORMAT_EMBEDDED_OBJECT: &str = "Embedded Object";
@@ -179,6 +180,15 @@ pub fn run() -> Result<(), String> {
                 "--copy-clipboard-payload requires a JSON payload path.".to_string()
             })?;
             copy_clipboard_payload(PathBuf::from(payload_path))
+        }
+        "--write-word-docx-payload" => {
+            let payload_path = args.next().ok_or_else(|| {
+                "--write-word-docx-payload requires a JSON payload path.".to_string()
+            })?;
+            let output_path = args.next().ok_or_else(|| {
+                "--write-word-docx-payload requires an output .docx path.".to_string()
+            })?;
+            write_word_docx_payload(PathBuf::from(payload_path), PathBuf::from(output_path))
         }
         "--serve" | "-Embedding" | "/Embedding" | "--embedding" => {
             unsafe {
@@ -363,15 +373,7 @@ impl OleObjectPayload {
 }
 
 fn copy_clipboard_payload(payload_path: PathBuf) -> Result<(), String> {
-    let json = std::fs::read_to_string(&payload_path).map_err(|error| {
-        format!(
-            "Failed to read OLE clipboard payload {}: {error}",
-            payload_path.display()
-        )
-    })?;
-    let payload: ClipboardPayload = serde_json::from_str(&json)
-        .map_err(|error| format!("Invalid OLE clipboard payload JSON: {error}"))?;
-    let payload = OleObjectPayload::from_clipboard(payload);
+    let payload = read_ole_object_payload(&payload_path)?;
 
     unsafe {
         let hr = OleInitialize(null());
@@ -403,6 +405,34 @@ fn copy_clipboard_payload(payload_path: PathBuf) -> Result<(), String> {
     }
 
     println!("{DOCUMENT_DISPLAY_NAME} OLE clipboard payload copied.");
+    Ok(())
+}
+
+fn read_ole_object_payload(payload_path: &PathBuf) -> Result<OleObjectPayload, String> {
+    let json = std::fs::read_to_string(payload_path).map_err(|error| {
+        format!(
+            "Failed to read OLE clipboard payload {}: {error}",
+            payload_path.display()
+        )
+    })?;
+    let payload: ClipboardPayload = serde_json::from_str(&json)
+        .map_err(|error| format!("Invalid OLE clipboard payload JSON: {error}"))?;
+    Ok(OleObjectPayload::from_clipboard(payload))
+}
+
+fn write_word_docx_payload(payload_path: PathBuf, output_path: PathBuf) -> Result<(), String> {
+    let payload = read_ole_object_payload(&payload_path)?;
+    let package = word_docx_package_for_payload(&payload)?;
+    std::fs::write(&output_path, package).map_err(|error| {
+        format!(
+            "Failed to write Word OOXML package {}: {error}",
+            output_path.display()
+        )
+    })?;
+    println!(
+        "{DOCUMENT_DISPLAY_NAME} Word OOXML package written to {}.",
+        output_path.display()
+    );
     Ok(())
 }
 
@@ -518,6 +548,7 @@ fn run_self_test() -> Result<(), String> {
     }
 
     run_persist_storage_self_test()?;
+    run_word_docx_package_self_test()?;
 
     println!("{DOCUMENT_DISPLAY_NAME} COM object self-test passed.");
     Ok(())
@@ -642,7 +673,6 @@ fn run_persist_storage_self_test() -> Result<(), String> {
         let document = storage_read_stream(storage, OLE_STREAM_DOCUMENT)?;
         let manifest = storage_read_stream(storage, OLE_STREAM_MANIFEST)?;
         let preview = storage_read_stream(storage, OLE_STREAM_PREVIEW_SVG)?;
-        let presentation_wmf = storage_read_stream(storage, OLE_STREAM_PRESENTATION_WMF)?;
         let presentation_emf = storage_read_stream(storage, OLE_STREAM_PRESENTATION_EMF)?;
         let enhanced_print = storage_read_stream(storage, OLE_STREAM_ENHANCED_PRINT)?;
 
@@ -666,8 +696,8 @@ fn run_persist_storage_self_test() -> Result<(), String> {
         if !preview.contains("<svg") || !preview.contains(DOCUMENT_DISPLAY_NAME) {
             return Err("ChemcorePreviewSvg stream did not contain the preview placeholder".into());
         }
-        if presentation_wmf.len() <= 40 || presentation_emf.len() <= 40 {
-            return Err("OLE presentation streams were unexpectedly empty.".into());
+        if presentation_emf.len() <= 40 {
+            return Err("OLE EMF presentation stream was unexpectedly empty.".into());
         }
         if !enhanced_print_is_emf(&enhanced_print) {
             return Err("Enhanced print stream did not contain an EMF payload.".into());
@@ -678,6 +708,50 @@ fn run_persist_storage_self_test() -> Result<(), String> {
 
     let _ = std::fs::remove_file(storage_path);
     result
+}
+
+fn run_word_docx_package_self_test() -> Result<(), String> {
+    let payload = OleObjectPayload::blank();
+    let package = word_docx_package_for_payload(&payload)?;
+    let reader = Cursor::new(package);
+    let mut archive = zip::ZipArchive::new(reader)
+        .map_err(|error| format!("Generated Word OOXML package is not a zip: {error}"))?;
+    let mut names = Vec::new();
+    for index in 0..archive.len() {
+        let file = archive
+            .by_index(index)
+            .map_err(|error| format!("Failed to inspect Word OOXML package entry: {error}"))?;
+        names.push(file.name().to_string());
+    }
+    for required in [
+        "[Content_Types].xml",
+        "word/document.xml",
+        "word/_rels/document.xml.rels",
+        "word/media/image1.emf",
+        "word/embeddings/oleObject1.bin",
+    ] {
+        if !names.iter().any(|name| name == required) {
+            return Err(format!(
+                "Generated Word OOXML package is missing {required}."
+            ));
+        }
+    }
+    let mut document_xml = String::new();
+    archive
+        .by_name("word/document.xml")
+        .map_err(|error| format!("Generated Word OOXML package has no document.xml: {error}"))?
+        .read_to_string(&mut document_xml)
+        .map_err(|error| format!("Failed to read generated document.xml: {error}"))?;
+    if !document_xml.contains("ProgID=\"Chemcore.Document.1\"")
+        || !document_xml.contains("r:id=\"rId4\"")
+        || !document_xml.contains("r:id=\"rId5\"")
+    {
+        return Err(
+            "Generated Word OOXML document does not link both EMF preview and OLE embedding."
+                .into(),
+        );
+    }
+    Ok(())
 }
 
 fn current_server_path() -> Result<PathBuf, String> {
@@ -1596,6 +1670,11 @@ unsafe fn write_ole_storage_payload(storage: *mut c_void, payload: &OleObjectPay
     if !hresult_succeeded(hr) {
         return hr;
     }
+    let user_type = wide_null(DOCUMENT_DISPLAY_NAME);
+    let hr = WriteFmtUserTypeStg(storage, CF_ENHMETAFILE, user_type.as_ptr());
+    if !hresult_succeeded(hr) {
+        return hr;
+    }
 
     let document = chemcore_document_stream_payload(payload);
     let manifest = match ole_manifest_stream_payload() {
@@ -1611,14 +1690,6 @@ unsafe fn write_ole_storage_payload(storage: *mut c_void, payload: &OleObjectPay
     ];
     for (name, bytes) in streams {
         let hr = storage_write_stream(storage, name, bytes);
-        if !hresult_succeeded(hr) {
-            return hr;
-        }
-    }
-    if let Ok(presentation) =
-        ole_presentation_stream_for_payload(payload, payload.extent_himetric(), CF_METAFILEPICT)
-    {
-        let hr = storage_write_stream(storage, OLE_STREAM_PRESENTATION_WMF, &presentation);
         if !hresult_succeeded(hr) {
             return hr;
         }
@@ -1983,6 +2054,170 @@ fn enhanced_metafile_bits_for_payload(
     }
 }
 
+fn word_docx_package_for_payload(payload: &OleObjectPayload) -> Result<Vec<u8>, String> {
+    let extent = payload.extent_himetric();
+    let emf = enhanced_metafile_bits_for_payload(payload, extent).map_err(|hr| {
+        format!(
+            "Failed to render Word OOXML EMF preview: 0x{:08X}",
+            hr as u32
+        )
+    })?;
+    let ole = ole_storage_file_bytes_for_payload(payload)?;
+    let width_pt = himetric_to_points(extent.cx);
+    let height_pt = himetric_to_points(extent.cy);
+    let width_twips = points_to_twips(width_pt);
+    let height_twips = points_to_twips(height_pt);
+
+    let mut cursor = Cursor::new(Vec::new());
+    {
+        let mut zip = zip::ZipWriter::new(&mut cursor);
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored);
+        zip_add_text(
+            &mut zip,
+            options,
+            "[Content_Types].xml",
+            &word_content_types_xml(),
+        )?;
+        zip_add_text(&mut zip, options, "_rels/.rels", &word_root_rels_xml())?;
+        zip_add_text(
+            &mut zip,
+            options,
+            "docProps/core.xml",
+            &word_core_props_xml(),
+        )?;
+        zip_add_text(&mut zip, options, "docProps/app.xml", &word_app_props_xml())?;
+        zip_add_text(
+            &mut zip,
+            options,
+            "word/document.xml",
+            &word_document_xml(width_pt, height_pt, width_twips, height_twips),
+        )?;
+        zip_add_text(
+            &mut zip,
+            options,
+            "word/_rels/document.xml.rels",
+            &word_document_rels_xml(),
+        )?;
+        zip_add_bytes(&mut zip, options, "word/media/image1.emf", &emf)?;
+        zip_add_bytes(&mut zip, options, "word/embeddings/oleObject1.bin", &ole)?;
+        zip.finish()
+            .map_err(|error| format!("Failed to finish Word OOXML package: {error}"))?;
+    }
+    Ok(cursor.into_inner())
+}
+
+fn zip_add_text<W: Write + std::io::Seek>(
+    zip: &mut zip::ZipWriter<W>,
+    options: zip::write::SimpleFileOptions,
+    name: &str,
+    text: &str,
+) -> Result<(), String> {
+    zip_add_bytes(zip, options, name, text.as_bytes())
+}
+
+fn zip_add_bytes<W: Write + std::io::Seek>(
+    zip: &mut zip::ZipWriter<W>,
+    options: zip::write::SimpleFileOptions,
+    name: &str,
+    bytes: &[u8],
+) -> Result<(), String> {
+    zip.start_file(name, options)
+        .map_err(|error| format!("Failed to add {name} to Word OOXML package: {error}"))?;
+    zip.write_all(bytes)
+        .map_err(|error| format!("Failed to write {name} to Word OOXML package: {error}"))
+}
+
+fn word_content_types_xml() -> String {
+    r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="bin" ContentType="application/vnd.openxmlformats-officedocument.oleObject"/><Default Extension="emf" ContentType="image/x-emf"/><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>"#.to_string()
+}
+
+fn word_root_rels_xml() -> String {
+    r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>"#.to_string()
+}
+
+fn word_document_rels_xml() -> String {
+    r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.emf"/><Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/oleObject" Target="embeddings/oleObject1.bin"/></Relationships>"#.to_string()
+}
+
+fn word_core_props_xml() -> String {
+    r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>Chemcore Document</dc:title><dc:creator>Chemcore</dc:creator><cp:lastModifiedBy>Chemcore</cp:lastModifiedBy></cp:coreProperties>"#.to_string()
+}
+
+fn word_app_props_xml() -> String {
+    r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Chemcore</Application></Properties>"#.to_string()
+}
+
+fn word_document_xml(width_pt: f64, height_pt: f64, width_twips: i32, height_twips: i32) -> String {
+    format!(
+        r##"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:object w:dxaOrig="{width_twips}" w:dyaOrig="{height_twips}"><v:shapetype id="_x0000_t75" coordsize="21600,21600" o:spt="75" o:preferrelative="t" path="m@4@5l@4@11@9@11@9@5xe" filled="f" stroked="f"><v:stroke joinstyle="miter"/><v:formulas><v:f eqn="if lineDrawn pixelLineWidth 0"/><v:f eqn="sum @0 1 0"/><v:f eqn="sum 0 0 @1"/><v:f eqn="prod @2 1 2"/><v:f eqn="prod @3 21600 pixelWidth"/><v:f eqn="prod @3 21600 pixelHeight"/><v:f eqn="sum @0 0 1"/><v:f eqn="prod @6 1 2"/><v:f eqn="prod @7 21600 pixelWidth"/><v:f eqn="sum @8 21600 0"/><v:f eqn="prod @7 21600 pixelHeight"/><v:f eqn="sum @10 21600 0"/></v:formulas><v:path o:extrusionok="f" gradientshapeok="t" o:connecttype="rect"/><o:lock v:ext="edit" aspectratio="t"/></v:shapetype><v:shape id="_x0000_i1025" type="#_x0000_t75" style="width:{:.1}pt;height:{:.1}pt" o:ole=""><v:imagedata r:id="rId4" o:title=""/></v:shape><o:OLEObject Type="Embed" ProgID="{VERSIONED_PROG_ID}" ShapeID="_x0000_i1025" DrawAspect="Content" ObjectID="_chemcore0001" r:id="rId5"/></w:object></w:r></w:p><w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1800" w:bottom="1440" w:left="1800" w:header="851" w:footer="992" w:gutter="0"/></w:sectPr></w:body></w:document>"##,
+        width_pt, height_pt
+    )
+}
+
+fn himetric_to_points(value: i32) -> f64 {
+    (value.max(1) as f64 / HIMETRIC_PER_CM) * PT_PER_CM
+}
+
+fn points_to_twips(value: f64) -> i32 {
+    (value * 20.0).round().clamp(1.0, i32::MAX as f64) as i32
+}
+
+fn ole_storage_file_bytes_for_payload(payload: &OleObjectPayload) -> Result<Vec<u8>, String> {
+    let storage_path = env::temp_dir().join(format!(
+        "chemcore-office-docx-{}-{}.ole",
+        std::process::id(),
+        unique_temp_suffix()
+    ));
+    let result = unsafe {
+        let mut storage = null_mut();
+        let storage_path_w = wide_path_null(&storage_path);
+        let hr = StgCreateDocfile(
+            storage_path_w.as_ptr(),
+            STGM_CREATE | STGM_READWRITE | STGM_SHARE_EXCLUSIVE,
+            0,
+            &mut storage,
+        );
+        if !hresult_succeeded(hr) || storage.is_null() {
+            Err(format!(
+                "StgCreateDocfile for Word OOXML OLE embedding failed: 0x{:08X}",
+                hr as u32
+            ))
+        } else {
+            let hr = save_ole_object_storage(storage, payload);
+            com_release(storage);
+            if !hresult_succeeded(hr) {
+                Err(format!(
+                    "Saving Word OOXML OLE embedding failed: 0x{:08X}",
+                    hr as u32
+                ))
+            } else {
+                std::fs::read(&storage_path).map_err(|error| {
+                    format!(
+                        "Failed to read generated Word OOXML OLE storage {}: {error}",
+                        storage_path.display()
+                    )
+                })
+            }
+        }
+    };
+    let _ = std::fs::remove_file(storage_path);
+    result
+}
+
+fn unique_temp_suffix() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default()
+}
+
 fn enhanced_print_is_emf(bytes: &[u8]) -> bool {
     bytes.len() >= 44
         && u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) == 1
@@ -2122,7 +2357,6 @@ fn ole_clipboard_formats(payload: &OleObjectPayload, _extent: SIZE) -> Vec<FORMA
         TYMED_HGLOBAL as u32,
     );
     push_format(&mut formats, CF_ENHMETAFILE, TYMED_ENHMF as u32);
-    push_format(&mut formats, CF_METAFILEPICT, TYMED_MFPICT as u32);
 
     formats.retain(|format| format.cfFormat != 0);
     formats
@@ -2230,7 +2464,6 @@ fn ole_manifest_stream_payload() -> Result<Vec<u8>, i32> {
         "previewSvgStream": OLE_STREAM_PREVIEW_SVG,
         "enhancedPrintStream": OLE_STREAM_ENHANCED_PRINT,
         "presentationStreams": [
-            OLE_STREAM_PRESENTATION_WMF,
             OLE_STREAM_PRESENTATION_EMF
         ]
     }))
@@ -3546,6 +3779,7 @@ fn print_help() {
     println!("  chemcore-office.exe --print-registration");
     println!("  chemcore-office.exe --self-test");
     println!("  chemcore-office.exe --copy-clipboard-payload <payload.json>");
+    println!("  chemcore-office.exe --write-word-docx-payload <payload.json> <output.docx>");
     println!("  chemcore-office.exe --serve");
     println!();
     println!("COM may launch this executable with -Embedding or /Embedding.");
