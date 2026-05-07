@@ -16,12 +16,12 @@ use windows_sys::Win32::Foundation::{
     GlobalFree, COLORREF, ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, HGLOBAL, POINT, POINTL, RECT, SIZE,
 };
 use windows_sys::Win32::Graphics::Gdi::{
-    CloseEnhMetaFile, CloseMetaFile, CreateEnhMetaFileW, CreateMetaFileW, CreatePen,
+    CloseEnhMetaFile, CloseMetaFile, CreateEnhMetaFileW, CreateFontW, CreateMetaFileW, CreatePen,
     CreateSolidBrush, DeleteEnhMetaFile, DeleteMetaFile, DeleteObject, Ellipse, GetStockObject,
-    LineTo, MoveToEx, Polygon, Rectangle, SelectObject, SetBkMode, SetMapMode, SetTextColor,
-    SetViewportExtEx, SetWindowExtEx, StretchDIBits, TextOutW, BITMAPINFO, BITMAPINFOHEADER,
-    BI_RGB, DIB_RGB_COLORS, HDC, HGDIOBJ, MM_ANISOTROPIC, NULL_BRUSH, PS_SOLID, SRCCOPY,
-    TRANSPARENT,
+    LineTo, MoveToEx, Polygon, Rectangle, SelectObject, SetBkMode, SetMapMode, SetTextAlign,
+    SetTextColor, SetViewportExtEx, SetWindowExtEx, StretchDIBits, TextOutW, BITMAPINFO,
+    BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HDC, HGDIOBJ, MM_ANISOTROPIC, NULL_BRUSH, PS_SOLID,
+    SRCCOPY, TA_BASELINE, TA_CENTER, TA_LEFT, TA_RIGHT, TRANSPARENT,
 };
 use windows_sys::Win32::System::Com::StructuredStorage::{
     CreateILockBytesOnHGlobal, StgCreateDocfile, StgCreateDocfileOnILockBytes, WriteClassStg,
@@ -1800,7 +1800,7 @@ fn hglobal_for_metafile_pict(payload: &OleObjectPayload, extent: SIZE) -> Result
             right: canvas.cx,
             bottom: canvas.cy,
         };
-        if !draw_payload_preview(metafile_dc, &bounds, payload) {
+        if !draw_payload_vector_preview(metafile_dc, &bounds, payload) {
             draw_placeholder_preview(metafile_dc, &bounds);
         }
         let metafile = CloseMetaFile(metafile_dc);
@@ -1846,7 +1846,7 @@ fn enhanced_metafile_for_payload(
         SetMapMode(dc, MM_ANISOTROPIC);
         SetWindowExtEx(dc, extent.cx.max(1), extent.cy.max(1), null_mut());
         SetViewportExtEx(dc, extent.cx.max(1), extent.cy.max(1), null_mut());
-        if !draw_payload_preview(dc, &bounds, payload) {
+        if !draw_payload_vector_preview(dc, &bounds, payload) {
             draw_placeholder_preview(dc, &bounds);
         }
         let metafile = CloseEnhMetaFile(dc);
@@ -1990,6 +1990,7 @@ fn ole_clipboard_formats(payload: &OleObjectPayload, _extent: SIZE) -> Vec<FORMA
         TYMED_HGLOBAL as u32,
     );
     push_format(&mut formats, CF_ENHMETAFILE, TYMED_ENHMF as u32);
+    push_format(&mut formats, CF_METAFILEPICT, TYMED_MFPICT as u32);
 
     formats.retain(|format| format.cfFormat != 0);
     formats
@@ -2882,6 +2883,10 @@ unsafe fn draw_payload_preview(dc: HDC, bounds: &RECT, payload: &OleObjectPayloa
         return true;
     }
 
+    draw_payload_vector_preview(dc, bounds, payload)
+}
+
+unsafe fn draw_payload_vector_preview(dc: HDC, bounds: &RECT, payload: &OleObjectPayload) -> bool {
     let Ok(document) = parse_document_json(&payload.chemcore_document_json) else {
         return false;
     };
@@ -3154,9 +3159,45 @@ unsafe fn draw_preview_primitive(
             }
         }
         RenderPrimitive::Text {
-            x, y, text, fill, ..
+            x,
+            y,
+            text,
+            font_size,
+            font_family,
+            fill,
+            text_anchor,
+            line_height,
+            ..
         } => {
-            let p = transform.xy(*x, *y);
+            let font_height = transform.length(*font_size).max(1);
+            let family = wide_null(font_family.as_deref().unwrap_or("Arial"));
+            let font = CreateFontW(
+                -font_height,
+                0,
+                0,
+                0,
+                400,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                family.as_ptr(),
+            );
+            let old_font = if font.is_null() {
+                null_mut()
+            } else {
+                SelectObject(dc, font as HGDIOBJ)
+            };
+            let align = match text_anchor.as_deref() {
+                Some("middle") => TA_CENTER,
+                Some("end") => TA_RIGHT,
+                _ => TA_LEFT,
+            } | TA_BASELINE;
+            let old_align = SetTextAlign(dc, align);
             SetBkMode(dc, TRANSPARENT as i32);
             SetTextColor(
                 dc,
@@ -3164,14 +3205,25 @@ unsafe fn draw_preview_primitive(
                     .and_then(colorref_from_css)
                     .unwrap_or(0x000000),
             );
-            let label = wide_null(text);
-            TextOutW(
-                dc,
-                p.x,
-                p.y,
-                label.as_ptr(),
-                (label.len().saturating_sub(1)) as i32,
-            );
+            let line_step_world = (*line_height).unwrap_or(*font_size * 1.2).max(0.01);
+            for (index, line) in text.lines().enumerate() {
+                let p = transform.xy(*x, *y + index as f64 * line_step_world);
+                let label = wide_null(line);
+                TextOutW(
+                    dc,
+                    p.x,
+                    p.y,
+                    label.as_ptr(),
+                    (label.len().saturating_sub(1)) as i32,
+                );
+            }
+            SetTextAlign(dc, old_align);
+            if !font.is_null() {
+                if !old_font.is_null() {
+                    SelectObject(dc, old_font);
+                }
+                DeleteObject(font as HGDIOBJ);
+            }
         }
     }
 }
