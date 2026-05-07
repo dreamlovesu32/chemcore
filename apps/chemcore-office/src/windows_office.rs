@@ -8,8 +8,8 @@ use std::ptr::{null, null_mut};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use chemcore_engine::{
-    parse_document_json, render_document, render_primitives_bounds, Point as CorePoint,
-    RenderPrimitive, RenderRole,
+    parse_document_json, render_document, render_primitives_bounds, Bond, ChemcoreDocument,
+    Node, Point as CorePoint, RenderPrimitive, RenderRole, PT_PER_CM,
 };
 use windows_sys::core::GUID;
 use windows_sys::Win32::Foundation::{
@@ -65,8 +65,10 @@ const FORMAT_CHEMCORE_DOCUMENT_JSON: &str = "Chemcore Document JSON";
 const GMEM_MOVEABLE_FLAG: u32 = 0x0002;
 const DEFAULT_OBJECT_WIDTH_HIMETRIC: i32 = 6000;
 const DEFAULT_OBJECT_HEIGHT_HIMETRIC: i32 = 3000;
+const HIMETRIC_PER_CM: f64 = 1000.0;
+const WORD_A4_BODY_WIDTH_CM: f64 = 21.0 - 2.0 * 3.18;
 const WMF_PREVIEW_WIDTH: i32 = 200;
-const WMF_PREVIEW_HEIGHT: i32 = 100;
+const MIN_OBJECT_EXTENT_HIMETRIC: i32 = 100;
 
 const CLSID_CHEMCORE_DOCUMENT: GUID = GUID {
     data1: 0xcb69f54f,
@@ -312,6 +314,12 @@ struct ClipboardPayload {
     svg: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+struct ClipboardFragmentPayload {
+    nodes: Vec<Node>,
+    bonds: Vec<Bond>,
+}
+
 #[derive(Debug, Clone)]
 struct OleObjectPayload {
     chemcore_fragment_json: Option<String>,
@@ -333,18 +341,71 @@ impl OleObjectPayload {
 
     fn from_clipboard(payload: ClipboardPayload) -> Self {
         let fallback = Self::blank();
+        let document_json = payload
+            .chemcore_fragment_json
+            .as_deref()
+            .and_then(|fragment_json| {
+                document_json_from_clipboard_fragment(
+                    fragment_json,
+                    payload.chemcore_document_json.as_deref(),
+                )
+            })
+            .or_else(|| {
+                payload
+                    .chemcore_document_json
+                    .filter(|value| !value.trim().is_empty())
+            })
+            .unwrap_or(fallback.chemcore_document_json);
         Self {
             chemcore_fragment_json: payload.chemcore_fragment_json,
-            chemcore_document_json: payload
-                .chemcore_document_json
-                .filter(|value| !value.trim().is_empty())
-                .unwrap_or(fallback.chemcore_document_json),
+            chemcore_document_json: document_json,
             svg: payload
                 .svg
                 .filter(|value| !value.trim().is_empty())
                 .unwrap_or(fallback.svg),
         }
     }
+
+    fn extent_himetric(&self) -> SIZE {
+        extent_himetric_for_payload(self).unwrap_or(SIZE {
+            cx: DEFAULT_OBJECT_WIDTH_HIMETRIC,
+            cy: DEFAULT_OBJECT_HEIGHT_HIMETRIC,
+        })
+    }
+}
+
+fn document_json_from_clipboard_fragment(
+    fragment_json: &str,
+    source_document_json: Option<&str>,
+) -> Option<String> {
+    if fragment_json.trim().is_empty() {
+        return None;
+    }
+    let fragment: ClipboardFragmentPayload = serde_json::from_str(fragment_json).ok()?;
+    if fragment.nodes.is_empty() {
+        return None;
+    }
+
+    let document = source_document_json
+        .filter(|value| !value.trim().is_empty())
+        .and_then(|json| parse_document_json(json).ok())
+        .unwrap_or_else(ChemcoreDocument::blank);
+    let mut scratch = ChemcoreDocument::blank();
+    scratch.styles = document.styles.clone();
+    scratch.document = document.document.clone();
+    let page_width = scratch.document.page.width;
+    let page_height = scratch.document.page.height;
+
+    if let Some(entry) = scratch.editable_fragment_mut() {
+        entry.fragment.nodes = fragment.nodes;
+        entry.fragment.bonds = fragment.bonds;
+        entry.fragment.bbox = [0.0, 0.0, page_width, page_height];
+        entry.object.payload.bbox = Some(entry.fragment.bbox);
+    } else {
+        return None;
+    }
+
+    serde_json::to_string(&scratch).ok()
 }
 
 fn copy_clipboard_payload(payload_path: PathBuf) -> Result<(), String> {
@@ -891,6 +952,7 @@ impl ChemcoreOleObject {
     }
 
     fn with_payload(payload: OleObjectPayload) -> Self {
+        let extent_himetric = payload.extent_himetric();
         Self {
             unknown_vtbl: &UNKNOWN_VTBL,
             ref_count: AtomicU32::new(1),
@@ -918,10 +980,7 @@ impl ChemcoreOleObject {
             storage: null_mut(),
             ole_advise_holder: null_mut(),
             payload,
-            extent_himetric: SIZE {
-                cx: DEFAULT_OBJECT_WIDTH_HIMETRIC,
-                cy: DEFAULT_OBJECT_HEIGHT_HIMETRIC,
-            },
+            extent_himetric,
         }
     }
 
@@ -1459,6 +1518,7 @@ unsafe extern "system" fn persist_storage_load(this: *mut c_void, storage: *mut 
     }) {
         (*object).payload.svg = svg;
     }
+    (*object).extent_himetric = (*object).payload.extent_himetric();
     log_ole_event("IPersistStorage::Load -> 0x00000000");
     S_OK
 }
@@ -1727,30 +1787,68 @@ fn hglobal_for_object_descriptor(extent: SIZE) -> Result<HGLOBAL, i32> {
     }
 }
 
+fn extent_himetric_for_payload(payload: &OleObjectPayload) -> Option<SIZE> {
+    let bounds = visible_payload_bounds(payload)?;
+    let width_cm = (bounds[2] - bounds[0]).max(0.0) / PT_PER_CM;
+    let height_cm = (bounds[3] - bounds[1]).max(0.0) / PT_PER_CM;
+    if !width_cm.is_finite() || !height_cm.is_finite() || width_cm <= 0.0 || height_cm <= 0.0 {
+        return None;
+    }
+
+    let scale = if width_cm > WORD_A4_BODY_WIDTH_CM {
+        WORD_A4_BODY_WIDTH_CM / width_cm
+    } else {
+        1.0
+    };
+    let cx = (width_cm * scale * HIMETRIC_PER_CM)
+        .round()
+        .clamp(MIN_OBJECT_EXTENT_HIMETRIC as f64, i32::MAX as f64) as i32;
+    let cy = (height_cm * scale * HIMETRIC_PER_CM)
+        .round()
+        .clamp(MIN_OBJECT_EXTENT_HIMETRIC as f64, i32::MAX as f64) as i32;
+    Some(SIZE { cx, cy })
+}
+
+fn visible_payload_bounds(payload: &OleObjectPayload) -> Option<[f64; 4]> {
+    let document = parse_document_json(&payload.chemcore_document_json).ok()?;
+    let primitives = render_document(&document);
+    render_primitives_bounds(
+        primitives
+            .iter()
+            .filter(|primitive| office_preview_primitive_visible(primitive)),
+    )
+}
+
+fn wmf_preview_canvas_size(extent: SIZE) -> SIZE {
+    let width = WMF_PREVIEW_WIDTH.max(1);
+    let height = if extent.cx > 0 && extent.cy > 0 {
+        ((width as f64) * (extent.cy as f64 / extent.cx as f64))
+            .round()
+            .clamp(1.0, 2000.0) as i32
+    } else {
+        width
+    };
+    SIZE {
+        cx: width,
+        cy: height,
+    }
+}
+
 fn hglobal_for_metafile_pict(payload: &OleObjectPayload, extent: SIZE) -> Result<HGLOBAL, i32> {
     unsafe {
+        let canvas = wmf_preview_canvas_size(extent);
         let metafile_dc = CreateMetaFileW(null());
         if metafile_dc.is_null() {
             return Err(E_FAIL);
         }
         SetMapMode(metafile_dc, MM_ANISOTROPIC);
-        SetWindowExtEx(
-            metafile_dc,
-            WMF_PREVIEW_WIDTH,
-            WMF_PREVIEW_HEIGHT,
-            null_mut(),
-        );
-        SetViewportExtEx(
-            metafile_dc,
-            WMF_PREVIEW_WIDTH,
-            WMF_PREVIEW_HEIGHT,
-            null_mut(),
-        );
+        SetWindowExtEx(metafile_dc, canvas.cx, canvas.cy, null_mut());
+        SetViewportExtEx(metafile_dc, canvas.cx, canvas.cy, null_mut());
         let bounds = RECT {
             left: 0,
             top: 0,
-            right: WMF_PREVIEW_WIDTH,
-            bottom: WMF_PREVIEW_HEIGHT,
+            right: canvas.cx,
+            bottom: canvas.cy,
         };
         if !draw_payload_preview(metafile_dc, &bounds, payload) {
             draw_placeholder_preview(metafile_dc, &bounds);
@@ -2400,7 +2498,16 @@ unsafe extern "system" fn ole_object_set_extent(
     if object.is_null() {
         return E_POINTER;
     }
-    (*object).extent_himetric = *(size.cast::<SIZE>());
+    let requested = *(size.cast::<SIZE>());
+    let natural = (*object).payload.extent_himetric();
+    if requested.cx == DEFAULT_OBJECT_WIDTH_HIMETRIC
+        && requested.cy == DEFAULT_OBJECT_HEIGHT_HIMETRIC
+        && (natural.cx != requested.cx || natural.cy != requested.cy)
+    {
+        (*object).extent_himetric = natural;
+    } else {
+        (*object).extent_himetric = requested;
+    }
     S_OK
 }
 
@@ -2789,10 +2896,7 @@ impl PreviewTransform {
         let source_height = (max_y - min_y).max(1.0);
         let target_width = (bounds.right - bounds.left).max(1) as f64;
         let target_height = (bounds.bottom - bounds.top).max(1) as f64;
-        let margin = target_width.min(target_height) * 0.08;
-        let usable_width = (target_width - margin * 2.0).max(1.0);
-        let usable_height = (target_height - margin * 2.0).max(1.0);
-        let scale = (usable_width / source_width).min(usable_height / source_height);
+        let scale = (target_width / source_width).min(target_height / source_height);
         if !scale.is_finite() || scale <= 0.0 {
             return None;
         }
