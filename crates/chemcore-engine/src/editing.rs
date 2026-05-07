@@ -222,6 +222,30 @@ pub struct EditorOptions {
     pub graphic_stroke_width: f64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ObjectSettings {
+    pub bond_length: f64,
+    pub line_width: f64,
+    pub bold_width: f64,
+    pub bond_spacing: f64,
+    pub margin_width: f64,
+    pub hash_spacing: f64,
+}
+
+impl From<&EditorOptions> for ObjectSettings {
+    fn from(options: &EditorOptions) -> Self {
+        Self {
+            bond_length: options.bond_length,
+            line_width: options.bond_stroke_width,
+            bold_width: options.bold_bond_width,
+            bond_spacing: options.bond_spacing,
+            margin_width: options.margin_width,
+            hash_spacing: options.hash_spacing,
+        }
+    }
+}
+
 impl Default for EditorOptions {
     fn default() -> Self {
         Self {

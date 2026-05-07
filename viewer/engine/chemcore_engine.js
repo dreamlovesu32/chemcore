@@ -101,6 +101,19 @@ export class WasmEngine {
         return ret !== 0;
     }
     /**
+     * @param {string} settings_json
+     * @returns {boolean}
+     */
+    applyObjectSettingsDialogJson(settings_json) {
+        const ptr0 = passStringToWasm0(settings_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyObjectSettingsDialogJson(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] !== 0;
+    }
+    /**
      * @param {string} command
      * @returns {boolean}
      */
@@ -109,6 +122,19 @@ export class WasmEngine {
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.wasmengine_applySelectionArrangeCommand(this.__wbg_ptr, ptr0, len0);
         return ret !== 0;
+    }
+    /**
+     * @param {string} payload_json
+     * @returns {boolean}
+     */
+    applySelectionNumericDialogJson(payload_json) {
+        const ptr0 = passStringToWasm0(payload_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applySelectionNumericDialogJson(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] !== 0;
     }
     /**
      * @param {string} command
@@ -306,6 +332,25 @@ export class WasmEngine {
             return getStringFromWasm0(ret[0], ret[1]);
         } finally {
             wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @param {string} hit_json
+     * @param {boolean} has_paste
+     * @returns {string}
+     */
+    contextMenuJson(hit_json, has_paste) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ptr0 = passStringToWasm0(hit_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.wasmengine_contextMenuJson(this.__wbg_ptr, ptr0, len0, has_paste);
+            deferred2_0 = ret[0];
+            deferred2_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
         }
     }
     /**
@@ -549,6 +594,21 @@ export class WasmEngine {
         return this;
     }
     /**
+     * @returns {string}
+     */
+    objectSettingsDialogJson() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.wasmengine_objectSettingsDialogJson(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * @returns {boolean}
      */
     pasteClipboard() {
@@ -767,6 +827,24 @@ export class WasmEngine {
     selectionContainsPoint(x, y) {
         const ret = wasm.wasmengine_selectionContainsPoint(this.__wbg_ptr, x, y);
         return ret !== 0;
+    }
+    /**
+     * @param {string} kind
+     * @returns {string}
+     */
+    selectionNumericDialogJson(kind) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ptr0 = passStringToWasm0(kind, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.wasmengine_selectionNumericDialogJson(this.__wbg_ptr, ptr0, len0);
+            deferred2_0 = ret[0];
+            deferred2_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
     }
     /**
      * @param {string} variant

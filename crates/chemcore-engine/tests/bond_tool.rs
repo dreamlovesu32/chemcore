@@ -1404,6 +1404,148 @@ fn acs_document_1996_preset_scales_existing_document_as_one_group() {
 }
 
 #[test]
+fn object_settings_update_bond_and_graphic_metrics() {
+    let mut engine = Engine::new();
+    let document = json!({
+        "format": { "name": "chemcore", "version": "0.1", "unit": "pt" },
+        "document": {
+            "id": "doc_object_settings",
+            "title": "object settings",
+            "page": { "width": 160.0, "height": 120.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_line": { "kind": "stroke", "stroke": "#111111", "strokeWidth": 1.0 },
+            "style_shape": { "kind": "shape", "stroke": "#111111", "strokeWidth": 1.0, "fill": null }
+        },
+        "objects": [
+            {
+                "id": "obj_mol",
+                "type": "molecule",
+                "styleRef": "style_molecule_default",
+                "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "resourceRef": "mol" }
+            },
+            {
+                "id": "obj_line",
+                "type": "line",
+                "styleRef": "style_line",
+                "payload": {
+                    "points": [[50.0, 20.0], [90.0, 20.0]],
+                    "kind": "line"
+                }
+            },
+            {
+                "id": "obj_shape",
+                "type": "shape",
+                "styleRef": "style_shape",
+                "transform": { "translate": [50.0, 40.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "bbox": [0.0, 0.0, 24.0, 12.0], "kind": "rect" }
+            },
+            {
+                "id": "obj_bracket",
+                "type": "bracket",
+                "transform": { "translate": [90.0, 40.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "bbox": [0.0, 0.0, 14.0, 28.0], "kind": "round", "stroke": "#111111", "strokeWidth": 1.0 }
+            }
+        ],
+        "resources": {
+            "mol": {
+                "type": "molecule_fragment2d",
+                "encoding": "chemcore.molecule.fragment2d",
+                "data": {
+                    "schema": "chemcore.molecule.fragment2d",
+                    "bbox": [0.0, 0.0, 40.0, 20.0],
+                    "nodes": [
+                        { "id": "n1", "element": "C", "atomicNumber": 6, "position": [10.0, 10.0], "charge": 0, "numHydrogens": 0 },
+                        { "id": "n2", "element": "C", "atomicNumber": 6, "position": [40.0, 10.0], "charge": 0, "numHydrogens": 0 }
+                    ],
+                    "bonds": [
+                        { "id": "b1", "begin": "n1", "end": "n2", "order": 1, "strokeWidth": 1.0 }
+                    ]
+                }
+            }
+        }
+    });
+    engine
+        .load_document_json(&document.to_string())
+        .expect("object settings fixture should load");
+
+    let changed = engine
+        .apply_object_settings_dialog_json(
+            r#"{
+                "unit": "pt",
+                "values": {
+                    "bondLength": 15.0,
+                    "lineWidth": 0.7,
+                    "boldWidth": 2.1,
+                    "bondSpacing": 16.0,
+                    "marginWidth": 1.8,
+                    "hashSpacing": 2.4
+                }
+            }"#,
+        )
+        .expect("object settings should parse");
+    assert!(changed);
+    assert!((engine.options().bond_length - 15.0).abs() < 0.001);
+    assert!((engine.options().bond_stroke_width - 0.7).abs() < 0.001);
+    assert!((engine.options().graphic_stroke_width - 0.7).abs() < 0.001);
+
+    let fragment = engine.state().document.editable_fragment().unwrap();
+    let bond = &fragment.fragment.bonds[0];
+    assert!((bond.stroke_width - 0.7).abs() < 0.001);
+    assert_eq!(bond.bold_width, Some(2.1));
+    assert_eq!(bond.bond_spacing, Some(16.0));
+    assert_eq!(bond.margin_width, Some(1.8));
+    assert_eq!(bond.hash_spacing, Some(2.4));
+
+    assert_eq!(
+        engine.state().document.styles["style_line"]["strokeWidth"],
+        json!(0.7)
+    );
+    assert_eq!(
+        engine.state().document.styles["style_shape"]["strokeWidth"],
+        json!(0.7)
+    );
+    let bracket = engine
+        .state()
+        .document
+        .find_scene_object("obj_bracket")
+        .unwrap();
+    assert_eq!(bracket.payload.extra["strokeWidth"], json!(0.7));
+    let defaults = &engine.state().document.document.meta["import"]["cdxml"]["defaults"];
+    assert_eq!(defaults["bondLength"], json!(15.0));
+    assert_eq!(defaults["lineWidth"], json!(0.7));
+    assert_eq!(defaults["bondSpacing"], json!(16.0));
+}
+
+#[test]
+fn engine_provides_context_menu_and_numeric_dialog_schemas() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+    let hit = engine.context_hit_test_json(Point::new(FIRST_CENTER_X, FIRST_CENTER_Y));
+    let menu: serde_json::Value =
+        serde_json::from_str(&engine.context_menu_json(&hit, false)).unwrap();
+    let labels = menu
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item.get("label").and_then(serde_json::Value::as_str))
+        .collect::<Vec<_>>();
+    assert!(labels.contains(&"Bond Type"));
+    assert!(labels.contains(&"Object Settings..."));
+
+    let scale: serde_json::Value =
+        serde_json::from_str(&engine.selection_numeric_dialog_json("scale")).unwrap();
+    assert_eq!(scale["kind"], "scale");
+    assert_eq!(scale["field"]["unit"], "%");
+    assert!(engine.select_all());
+    assert!(engine
+        .apply_selection_numeric_dialog_json(r#"{"kind":"scale","value":110}"#)
+        .unwrap());
+}
+
+#[test]
 fn template_click_on_bond_uses_bond_as_ring_side() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());

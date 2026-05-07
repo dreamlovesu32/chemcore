@@ -83,6 +83,21 @@ impl WasmEngine {
         self.inner.document_style_preset().to_string()
     }
 
+    #[wasm_bindgen(js_name = objectSettingsDialogJson)]
+    pub fn object_settings_dialog_json(&self) -> String {
+        self.inner.object_settings_dialog_json()
+    }
+
+    #[wasm_bindgen(js_name = applyObjectSettingsDialogJson)]
+    pub fn apply_object_settings_dialog_json(
+        &mut self,
+        settings_json: &str,
+    ) -> Result<bool, JsValue> {
+        self.inner
+            .apply_object_settings_dialog_json(settings_json)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
     #[wasm_bindgen(js_name = setArrowOptions)]
     pub fn set_arrow_options(
         &mut self,
@@ -273,6 +288,11 @@ impl WasmEngine {
             .context_hit_test_json(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))))
     }
 
+    #[wasm_bindgen(js_name = contextMenuJson)]
+    pub fn context_menu_json(&self, hit_json: &str, has_paste: bool) -> String {
+        self.inner.context_menu_json(hit_json, has_paste)
+    }
+
     #[wasm_bindgen(js_name = selectionContainsPoint)]
     pub fn selection_contains_point(&self, x: f64, y: f64) -> bool {
         self.inner
@@ -424,6 +444,21 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = rotateSelectionDegrees)]
     pub fn rotate_selection_degrees(&mut self, degrees: f64) -> bool {
         self.inner.rotate_selection_degrees(degrees)
+    }
+
+    #[wasm_bindgen(js_name = selectionNumericDialogJson)]
+    pub fn selection_numeric_dialog_json(&self, kind: &str) -> String {
+        self.inner.selection_numeric_dialog_json(kind)
+    }
+
+    #[wasm_bindgen(js_name = applySelectionNumericDialogJson)]
+    pub fn apply_selection_numeric_dialog_json(
+        &mut self,
+        payload_json: &str,
+    ) -> Result<bool, JsValue> {
+        self.inner
+            .apply_selection_numeric_dialog_json(payload_json)
+            .map_err(|error| JsValue::from_str(&error))
     }
 
     #[wasm_bindgen(js_name = applySelectionOrderCommand)]

@@ -234,6 +234,18 @@ class TauriEngineSession {
     return this.cache.documentStylePreset || "default";
   }
 
+  async objectSettingsDialogJson() {
+    await this.ready();
+    return this.invoke("desktop_engine_object_settings_dialog_json", { sessionId: this.sessionId });
+  }
+
+  applyObjectSettingsDialogJson(settingsJson) {
+    if (this.layoutEngine?.loadDocumentJson) {
+      this.layoutEngine.loadDocumentJson(this.cache.documentJson);
+    }
+    return this.invokeMutation("desktop_engine_apply_object_settings_dialog_json", { settingsJson }, { refresh: "all" });
+  }
+
   setArrowOptions(variant, headSize, head, tail, bold) {
     return this.invokeMutation("desktop_engine_set_arrow_options", {
       variant,
@@ -317,6 +329,11 @@ class TauriEngineSession {
   async contextHitTestJson(x, y) {
     await this.ready();
     return this.invoke("desktop_engine_context_hit_test_json", { sessionId: this.sessionId, x, y });
+  }
+
+  async contextMenuJson(hitJson, hasPaste) {
+    await this.ready();
+    return this.invoke("desktop_engine_context_menu_json", { sessionId: this.sessionId, hitJson, hasPaste });
   }
 
   selectionContainsPoint(x, y) {
@@ -410,6 +427,15 @@ class TauriEngineSession {
 
   rotateSelectionDegrees(degrees) {
     return this.invokeMutation("desktop_engine_rotate_selection_degrees", { degrees });
+  }
+
+  async selectionNumericDialogJson(kind) {
+    await this.ready();
+    return this.invoke("desktop_engine_selection_numeric_dialog_json", { sessionId: this.sessionId, kind });
+  }
+
+  applySelectionNumericDialogJson(payloadJson) {
+    return this.invokeMutation("desktop_engine_apply_selection_numeric_dialog_json", { payloadJson });
   }
 
   applySelectionOrderCommand(command) {

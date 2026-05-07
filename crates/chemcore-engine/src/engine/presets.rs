@@ -1,10 +1,10 @@
 use super::text_edit::refresh_attached_node_label_geometry_for_all_nodes;
 use super::{Engine, ACS_DOCUMENT_1996_PRESET, DEFAULT_DOCUMENT_STYLE_PRESET};
 use crate::{
-    render_document, render_primitives_bounds, ChemcoreDocument, EditorOptions, Point, WorldCm,
-    DEFAULT_BOND_LENGTH,
+    render_document, render_primitives_bounds, ChemcoreDocument, EditorOptions, ObjectSettings,
+    Point, SceneObject, WorldCm, DEFAULT_BOND_LENGTH,
 };
-use serde_json::Value as JsonValue;
+use serde_json::{Map as JsonMap, Value as JsonValue};
 
 impl Engine {
     pub fn options(&self) -> &EditorOptions {
@@ -27,6 +27,80 @@ impl Engine {
         self.set_bond_length_world_cm(WorldCm(length));
     }
 
+    pub fn object_settings(&self) -> ObjectSettings {
+        ObjectSettings::from(&self.options)
+    }
+
+    pub fn object_settings_dialog_json(&self) -> String {
+        serde_json::to_string(&object_settings_dialog_payload(&self.options, "cm"))
+            .unwrap_or_else(|_| "{}".to_string())
+    }
+
+    pub fn apply_object_settings_dialog_json(
+        &mut self,
+        settings_json: &str,
+    ) -> Result<bool, String> {
+        let value: JsonValue =
+            serde_json::from_str(settings_json).map_err(|error| error.to_string())?;
+        let unit = value
+            .get("unit")
+            .and_then(JsonValue::as_str)
+            .unwrap_or("cm");
+        let values = value
+            .get("values")
+            .and_then(JsonValue::as_object)
+            .ok_or_else(|| "Object settings payload must include values.".to_string())?;
+        let settings = ObjectSettings {
+            bond_length: parse_object_setting(values, "bondLength", unit, true)?,
+            line_width: parse_object_setting(values, "lineWidth", unit, true)?,
+            bold_width: parse_object_setting(values, "boldWidth", unit, true)?,
+            bond_spacing: parse_object_setting(values, "bondSpacing", unit, false)?,
+            margin_width: parse_object_setting(values, "marginWidth", unit, true)?,
+            hash_spacing: parse_object_setting(values, "hashSpacing", unit, true)?,
+        };
+        Ok(self.apply_object_settings(settings))
+    }
+
+    pub fn apply_object_settings(&mut self, settings: ObjectSettings) -> bool {
+        let Some(next_options) = object_settings_to_options(settings) else {
+            return false;
+        };
+        if editor_options_match_visible_object_settings(&self.options, &next_options) {
+            return false;
+        }
+        let command = super::command::EditorCommand::ApplyObjectSettings { settings };
+        self.with_command(command, |engine| {
+            engine.apply_object_settings_untracked(next_options)
+        })
+    }
+
+    fn apply_object_settings_untracked(&mut self, next_options: EditorOptions) -> bool {
+        let scale = if self.options.bond_length > crate::EPSILON {
+            next_options.bond_length / self.options.bond_length
+        } else {
+            1.0
+        };
+        if (scale - 1.0).abs() > crate::EPSILON {
+            if let Some(anchor) = document_content_center(&self.state.document) {
+                scale_document_for_style_preset(&mut self.state.document, scale, anchor);
+            }
+        }
+        apply_existing_document_style_preset(&mut self.state.document, &next_options);
+        update_document_object_settings_defaults(&mut self.state.document, &next_options);
+        if let Some(mut entry) = self.state.document.editable_fragment_mut() {
+            refresh_attached_node_label_geometry_for_all_nodes(
+                entry.fragment,
+                entry.object.transform.translate,
+                next_options.bond_stroke_world_cm().value(),
+            );
+            entry.update_bounds();
+        }
+        self.options = next_options;
+        self.document_style_preset = "custom".to_string();
+        self.clear_interaction();
+        true
+    }
+
     pub fn set_document_style_preset(&mut self, preset: &str) {
         let preset = normalize_document_style_preset(preset);
         let next_options = document_style_preset_options(preset);
@@ -41,6 +115,7 @@ impl Engine {
             }
         }
         apply_existing_document_style_preset(&mut self.state.document, &next_options);
+        update_document_object_settings_defaults(&mut self.state.document, &next_options);
         if let Some(mut entry) = self.state.document.editable_fragment_mut() {
             refresh_attached_node_label_geometry_for_all_nodes(
                 entry.fragment,
@@ -53,6 +128,111 @@ impl Engine {
         self.document_style_preset = preset.to_string();
         self.clear_interaction();
     }
+}
+
+fn object_settings_to_options(settings: ObjectSettings) -> Option<EditorOptions> {
+    let bond_length = positive_or_none(settings.bond_length)?;
+    let line_width = positive_or_none(settings.line_width)?;
+    let bold_width = positive_or_none(settings.bold_width)?;
+    let bond_spacing = positive_or_none(settings.bond_spacing)?;
+    let margin_width = positive_or_none(settings.margin_width)?;
+    let hash_spacing = positive_or_none(settings.hash_spacing)?;
+    Some(EditorOptions {
+        bond_length,
+        bond_stroke_width: line_width,
+        bold_bond_width: bold_width,
+        wedge_width: derived_wedge_width(bold_width),
+        label_clip_margin: derived_label_clip_margin(bold_width),
+        hash_spacing,
+        bond_spacing,
+        margin_width,
+        graphic_stroke_width: line_width,
+    })
+}
+
+fn object_settings_dialog_payload(options: &EditorOptions, unit: &str) -> JsonValue {
+    let unit = if unit == "pt" { "pt" } else { "cm" };
+    serde_json::json!({
+        "unit": unit,
+        "units": ["cm", "pt"],
+        "fields": [
+            object_settings_dialog_field("bondLength", "Bond Length", options.bond_length, unit),
+            object_settings_dialog_field("lineWidth", "Line Width", options.bond_stroke_width, unit),
+            object_settings_dialog_field("boldWidth", "Bold Width", options.bold_bond_width, unit),
+            object_settings_dialog_field("bondSpacing", "Double Spacing", options.bond_spacing, "%"),
+            object_settings_dialog_field("marginWidth", "Margin Width", options.margin_width, unit),
+            object_settings_dialog_field("hashSpacing", "Hash Spacing", options.hash_spacing, unit),
+        ]
+    })
+}
+
+fn object_settings_dialog_field(key: &str, label: &str, value: f64, unit: &str) -> JsonValue {
+    let display_value = if unit == "%" {
+        value
+    } else {
+        display_length(value, unit)
+    };
+    serde_json::json!({
+        "key": key,
+        "label": label,
+        "value": round3(display_value),
+        "values": {
+            "cm": if unit == "%" { round3(value) } else { round3(value / crate::PT_PER_CM) },
+            "pt": if unit == "%" { round3(value) } else { round3(value) },
+        },
+        "unit": unit,
+    })
+}
+
+fn round3(value: f64) -> f64 {
+    (value * 1000.0).round() / 1000.0
+}
+
+fn display_length(value: f64, unit: &str) -> f64 {
+    if unit == "pt" {
+        value
+    } else {
+        value / crate::PT_PER_CM
+    }
+}
+
+fn parse_object_setting(
+    values: &JsonMap<String, JsonValue>,
+    key: &str,
+    unit: &str,
+    is_length: bool,
+) -> Result<f64, String> {
+    let value = values
+        .get(key)
+        .and_then(JsonValue::as_f64)
+        .ok_or_else(|| format!("{key} must be a number."))?;
+    if !value.is_finite() || value <= 0.0 {
+        return Err(format!("{key} must be greater than 0."));
+    }
+    if is_length && unit != "pt" {
+        Ok(value * crate::PT_PER_CM)
+    } else {
+        Ok(value)
+    }
+}
+
+fn positive_or_none(value: f64) -> Option<f64> {
+    value
+        .is_finite()
+        .then_some(value)
+        .filter(|value| *value > 0.0)
+}
+
+fn editor_options_match_visible_object_settings(
+    current: &EditorOptions,
+    next: &EditorOptions,
+) -> bool {
+    (current.bond_length - next.bond_length).abs() <= crate::EPSILON
+        && (current.bond_stroke_width - next.bond_stroke_width).abs() <= crate::EPSILON
+        && (current.bold_bond_width - next.bold_bond_width).abs() <= crate::EPSILON
+        && (current.hash_spacing - next.hash_spacing).abs() <= crate::EPSILON
+        && (current.bond_spacing - next.bond_spacing).abs() <= crate::EPSILON
+        && (current.margin_width - next.margin_width).abs() <= crate::EPSILON
 }
 
 fn normalize_document_style_preset(preset: &str) -> &'static str {
@@ -448,6 +628,10 @@ fn apply_existing_document_style_preset(document: &mut ChemcoreDocument, options
             _ => {}
         }
     }
+    let graphic_width = options.graphic_stroke_world_cm().value();
+    for object in &mut document.objects {
+        apply_graphic_stroke_width_to_object(object, graphic_width);
+    }
 }
 
 fn existing_style_has_stroke_width(object: &serde_json::Map<String, JsonValue>) -> bool {
@@ -455,4 +639,92 @@ fn existing_style_has_stroke_width(object: &serde_json::Map<String, JsonValue>) 
         .get("strokeWidth")
         .and_then(JsonValue::as_f64)
         .is_some_and(|value| value > crate::EPSILON)
+}
+
+fn apply_graphic_stroke_width_to_object(object: &mut SceneObject, width: f64) {
+    match object.object_type.as_str() {
+        "bracket" | "symbol" => {
+            update_positive_extra_number(&mut object.payload.extra, "strokeWidth", width);
+            update_positive_extra_number(&mut object.payload.extra, "symbolLineWidth", width);
+        }
+        _ => {}
+    }
+    for child in &mut object.children {
+        apply_graphic_stroke_width_to_object(child, width);
+    }
+}
+
+fn update_positive_extra_number(
+    object: &mut std::collections::BTreeMap<String, JsonValue>,
+    key: &str,
+    value: f64,
+) {
+    if object
+        .get(key)
+        .and_then(JsonValue::as_f64)
+        .is_some_and(|current| current > crate::EPSILON)
+    {
+        object.insert(key.to_string(), json_number(value));
+    }
+}
+
+fn update_document_object_settings_defaults(
+    document: &mut ChemcoreDocument,
+    options: &EditorOptions,
+) {
+    let Some(meta) = document.document.meta.as_object_mut() else {
+        document.document.meta = JsonValue::Object(JsonMap::new());
+        return update_document_object_settings_defaults(document, options);
+    };
+    let import = meta
+        .entry("import".to_string())
+        .or_insert_with(|| JsonValue::Object(JsonMap::new()));
+    if !import.is_object() {
+        *import = JsonValue::Object(JsonMap::new());
+    }
+    let Some(import) = import.as_object_mut() else {
+        return;
+    };
+    let cdxml = import
+        .entry("cdxml".to_string())
+        .or_insert_with(|| JsonValue::Object(JsonMap::new()));
+    if !cdxml.is_object() {
+        *cdxml = JsonValue::Object(JsonMap::new());
+    }
+    let Some(cdxml) = cdxml.as_object_mut() else {
+        return;
+    };
+    let defaults = cdxml
+        .entry("defaults".to_string())
+        .or_insert_with(|| JsonValue::Object(JsonMap::new()));
+    if !defaults.is_object() {
+        *defaults = JsonValue::Object(JsonMap::new());
+    }
+    let Some(defaults) = defaults.as_object_mut() else {
+        return;
+    };
+    defaults.insert(
+        "bondLength".to_string(),
+        json_number(options.bond_length_world_cm().value()),
+    );
+    defaults.insert(
+        "lineWidth".to_string(),
+        json_number(options.bond_stroke_world_cm().value()),
+    );
+    defaults.insert(
+        "boldWidth".to_string(),
+        json_number(options.bold_bond_width_world_cm().value()),
+    );
+    defaults.insert(
+        "hashSpacing".to_string(),
+        json_number(options.hash_spacing_world_cm().value()),
+    );
+    defaults.insert(
+        "bondSpacing".to_string(),
+        json_number(options.bond_spacing_percent()),
+    );
+    defaults.insert(
+        "marginWidth".to_string(),
+        json_number(options.margin_width_world_cm().value()),
+    );
 }

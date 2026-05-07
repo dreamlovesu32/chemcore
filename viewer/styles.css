@@ -1391,6 +1391,200 @@ body.browser-shell .document-tabbar {
   display: none;
 }
 
+.object-settings-dialog[hidden] {
+  display: none;
+}
+
+.object-settings-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  color: #111318;
+  font-size: 14px;
+}
+
+.object-settings-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(17, 19, 24, 0.18);
+}
+
+.object-settings-panel {
+  position: relative;
+  width: min(460px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid #c9ced6;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 16px 42px rgba(17, 19, 24, 0.2);
+}
+
+.object-settings-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.object-settings-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.object-settings-unit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #48515d;
+}
+
+.object-settings-unit select {
+  height: 26px;
+  min-width: 62px;
+  border: 1px solid #b9c1cc;
+  border-radius: 3px;
+  background: #ffffff;
+}
+
+.object-settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+
+.object-settings-grid label {
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr) 82px 24px;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.object-settings-grid span {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.object-settings-grid input {
+  width: 82px;
+  height: 28px;
+  padding: 2px 5px;
+  border: 1px solid #b9c1cc;
+  border-radius: 2px;
+}
+
+.object-settings-grid input.is-invalid {
+  border-color: #b44747;
+  box-shadow: 0 0 0 2px rgba(180, 71, 71, 0.16);
+}
+
+.object-settings-grid em {
+  color: #5d6672;
+  font-style: normal;
+}
+
+.object-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.object-settings-actions button {
+  min-width: 72px;
+  height: 30px;
+  border: 1px solid #aeb7c2;
+  border-radius: 3px;
+  background: #f5f6f8;
+}
+
+.object-settings-actions button[type="submit"] {
+  border-color: #245ed0;
+  background: #2f6fed;
+  color: #ffffff;
+}
+
+.numeric-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  color: #111318;
+  font-size: 14px;
+}
+
+.numeric-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(17, 19, 24, 0.18);
+}
+
+.numeric-dialog-panel {
+  position: relative;
+  width: min(320px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid #c9ced6;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 16px 42px rgba(17, 19, 24, 0.2);
+}
+
+.numeric-dialog-title {
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.numeric-dialog-field {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) 96px auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.numeric-dialog-field input {
+  width: 96px;
+  height: 28px;
+  padding: 2px 5px;
+  border: 1px solid #b9c1cc;
+  border-radius: 2px;
+}
+
+.numeric-dialog-field input.is-invalid {
+  border-color: #b44747;
+  box-shadow: 0 0 0 2px rgba(180, 71, 71, 0.16);
+}
+
+.numeric-dialog-field em {
+  color: #5d6672;
+  font-style: normal;
+}
+
+.numeric-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.numeric-dialog-actions button {
+  min-width: 72px;
+  height: 30px;
+  border: 1px solid #aeb7c2;
+  border-radius: 3px;
+  background: #f5f6f8;
+}
+
+.numeric-dialog-actions button[type="submit"] {
+  border-color: #245ed0;
+  background: #2f6fed;
+  color: #ffffff;
+}
+
 .text-editor {
   position: absolute;
   display: inline-block;

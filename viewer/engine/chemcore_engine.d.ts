@@ -11,7 +11,9 @@ export class WasmEngine {
     applyBracketKindToSelection(kind: string): boolean;
     applyColorToSelection(color: string): boolean;
     applyLineStyleToSelection(style: string): boolean;
+    applyObjectSettingsDialogJson(settings_json: string): boolean;
     applySelectionArrangeCommand(command: string): boolean;
+    applySelectionNumericDialogJson(payload_json: string): boolean;
     applySelectionOrderCommand(command: string): boolean;
     applyShapeStyleToSelection(style: string): boolean;
     applyTextEdit(session_json: string): boolean;
@@ -29,6 +31,7 @@ export class WasmEngine {
     clearSelection(): boolean;
     clipboardSelectionJson(): string | undefined;
     contextHitTestJson(x: number, y: number): string;
+    contextMenuJson(hit_json: string, has_paste: boolean): string;
     copySelection(): boolean;
     cutSelection(): boolean;
     deleteSelection(): boolean;
@@ -50,6 +53,7 @@ export class WasmEngine {
     loadDocumentCdxml(cdxml: string): void;
     loadDocumentJson(json: string): void;
     constructor();
+    objectSettingsDialogJson(): string;
     pasteClipboard(): boolean;
     pasteClipboardJson(json: string): boolean;
     pointerDown(x: number, y: number, alt_key: boolean): void;
@@ -69,6 +73,7 @@ export class WasmEngine {
     selectInPolygon(points_json: string, additive: boolean): void;
     selectInRect(x1: number, y1: number, x2: number, y2: number, additive: boolean): void;
     selectionContainsPoint(x: number, y: number): boolean;
+    selectionNumericDialogJson(kind: string): string;
     setArrowEndpointOptions(variant: string, head_size: string, curve: string, head_style: string, tail_style: string, no_go: string, bold: boolean): void;
     setArrowOptions(variant: string, head_size: string, head: boolean, tail: boolean, bold: boolean): void;
     setBracketOptions(kind: string): void;
@@ -100,7 +105,9 @@ export interface InitOutput {
     readonly wasmengine_applyBracketKindToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyColorToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyLineStyleToSelection: (a: number, b: number, c: number) => number;
+    readonly wasmengine_applyObjectSettingsDialogJson: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_applySelectionArrangeCommand: (a: number, b: number, c: number) => number;
+    readonly wasmengine_applySelectionNumericDialogJson: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_applySelectionOrderCommand: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyShapeStyleToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyTextEdit: (a: number, b: number, c: number) => [number, number, number];
@@ -118,6 +125,7 @@ export interface InitOutput {
     readonly wasmengine_clearSelection: (a: number) => number;
     readonly wasmengine_clipboardSelectionJson: (a: number) => [number, number, number, number];
     readonly wasmengine_contextHitTestJson: (a: number, b: number, c: number) => [number, number];
+    readonly wasmengine_contextMenuJson: (a: number, b: number, c: number, d: number) => [number, number];
     readonly wasmengine_copySelection: (a: number) => number;
     readonly wasmengine_cutSelection: (a: number) => number;
     readonly wasmengine_deleteSelection: (a: number) => number;
@@ -139,6 +147,7 @@ export interface InitOutput {
     readonly wasmengine_loadDocumentCdxml: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_loadDocumentJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_new: () => number;
+    readonly wasmengine_objectSettingsDialogJson: (a: number) => [number, number];
     readonly wasmengine_pasteClipboard: (a: number) => number;
     readonly wasmengine_pasteClipboardJson: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_pointerDown: (a: number, b: number, c: number, d: number) => void;
@@ -158,6 +167,7 @@ export interface InitOutput {
     readonly wasmengine_selectInPolygon: (a: number, b: number, c: number, d: number) => [number, number];
     readonly wasmengine_selectInRect: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly wasmengine_selectionContainsPoint: (a: number, b: number, c: number) => number;
+    readonly wasmengine_selectionNumericDialogJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_setArrowEndpointOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => void;
     readonly wasmengine_setArrowOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly wasmengine_setBracketOptions: (a: number, b: number, c: number) => void;

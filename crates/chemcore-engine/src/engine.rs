@@ -4,6 +4,7 @@ mod bond_tools;
 mod brackets;
 mod clipboard;
 mod command;
+mod context_menu;
 mod context_styles;
 mod delete;
 mod groups;

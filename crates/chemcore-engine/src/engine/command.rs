@@ -1,6 +1,6 @@
 use crate::{
     ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondAnchor,
-    BondVariant, ChemcoreDocument, Point, ShapeKind, ShapeStyle,
+    BondVariant, ChemcoreDocument, ObjectSettings, Point, ShapeKind, ShapeStyle,
 };
 use serde::{Deserialize, Serialize};
 
@@ -102,6 +102,9 @@ pub enum EditorCommand {
     ResizeSelection,
     ApplyTextEdit {
         target: TextEditCommandTarget,
+    },
+    ApplyObjectSettings {
+        settings: ObjectSettings,
     },
     ReplaceHoveredEndpointLabel {
         label: String,

@@ -251,6 +251,19 @@ impl DesktopDocumentService {
             .to_string())
     }
 
+    pub fn object_settings_dialog_json(&self, session_id: SessionId) -> Result<String, String> {
+        Ok(self.session(session_id)?.object_settings_dialog_json())
+    }
+
+    pub fn apply_object_settings_dialog_json(
+        &mut self,
+        session_id: SessionId,
+        settings_json: &str,
+    ) -> Result<bool, String> {
+        self.session_mut(session_id)?
+            .apply_object_settings_dialog_json(settings_json)
+    }
+
     pub fn set_arrow_options(
         &mut self,
         session_id: SessionId,
@@ -475,6 +488,17 @@ impl DesktopDocumentService {
         y: f64,
     ) -> Result<String, String> {
         Ok(self.session(session_id)?.context_hit_test_json(point(x, y)))
+    }
+
+    pub fn context_menu_json(
+        &self,
+        session_id: SessionId,
+        hit_json: &str,
+        has_paste: bool,
+    ) -> Result<String, String> {
+        Ok(self
+            .session(session_id)?
+            .context_menu_json(hit_json, has_paste))
     }
 
     pub fn selection_contains_point(
@@ -718,6 +742,25 @@ impl DesktopDocumentService {
         Ok(self
             .session_mut(session_id)?
             .rotate_selection_degrees(degrees))
+    }
+
+    pub fn selection_numeric_dialog_json(
+        &self,
+        session_id: SessionId,
+        kind: &str,
+    ) -> Result<String, String> {
+        Ok(self
+            .session(session_id)?
+            .selection_numeric_dialog_json(kind))
+    }
+
+    pub fn apply_selection_numeric_dialog_json(
+        &mut self,
+        session_id: SessionId,
+        payload_json: &str,
+    ) -> Result<bool, String> {
+        self.session_mut(session_id)?
+            .apply_selection_numeric_dialog_json(payload_json)
     }
 
     pub fn apply_selection_order_command(

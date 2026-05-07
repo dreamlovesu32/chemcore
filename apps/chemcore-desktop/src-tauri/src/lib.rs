@@ -255,6 +255,25 @@ fn desktop_engine_document_style_preset(
 }
 
 #[tauri::command]
+fn desktop_engine_object_settings_dialog_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<String, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.object_settings_dialog_json(session_id)
+}
+
+#[tauri::command]
+fn desktop_engine_apply_object_settings_dialog_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    settings_json: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.apply_object_settings_dialog_json(session_id, &settings_json)
+}
+
+#[tauri::command]
 fn desktop_engine_set_arrow_options(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
@@ -444,6 +463,17 @@ fn desktop_engine_context_hit_test_json(
 ) -> Result<String, String> {
     let service = state.service.lock().map_err(|error| error.to_string())?;
     service.context_hit_test_json(session_id, x, y)
+}
+
+#[tauri::command]
+fn desktop_engine_context_menu_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    hit_json: String,
+    has_paste: bool,
+) -> Result<String, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.context_menu_json(session_id, &hit_json, has_paste)
 }
 
 #[tauri::command]
@@ -692,6 +722,26 @@ fn desktop_engine_rotate_selection_degrees(
 ) -> Result<bool, String> {
     let mut service = state.service.lock().map_err(|error| error.to_string())?;
     service.rotate_selection_degrees(session_id, degrees)
+}
+
+#[tauri::command]
+fn desktop_engine_selection_numeric_dialog_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    kind: String,
+) -> Result<String, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.selection_numeric_dialog_json(session_id, &kind)
+}
+
+#[tauri::command]
+fn desktop_engine_apply_selection_numeric_dialog_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    payload_json: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.apply_selection_numeric_dialog_json(session_id, &payload_json)
 }
 
 #[tauri::command]
@@ -2335,6 +2385,8 @@ pub fn run() {
             desktop_engine_set_symbol_options,
             desktop_engine_set_document_style_preset,
             desktop_engine_document_style_preset,
+            desktop_engine_object_settings_dialog_json,
+            desktop_engine_apply_object_settings_dialog_json,
             desktop_engine_set_arrow_options,
             desktop_engine_set_arrow_endpoint_options,
             desktop_engine_apply_arrow_options_to_selection,
@@ -2349,6 +2401,7 @@ pub fn run() {
             desktop_engine_select_all,
             desktop_engine_clear_selection,
             desktop_engine_context_hit_test_json,
+            desktop_engine_context_menu_json,
             desktop_engine_selection_contains_point,
             desktop_engine_hover_arrow_action,
             desktop_engine_begin_hover_arrow_edit,
@@ -2371,6 +2424,8 @@ pub fn run() {
             desktop_engine_apply_selection_arrange_command,
             desktop_engine_scale_selection,
             desktop_engine_rotate_selection_degrees,
+            desktop_engine_selection_numeric_dialog_json,
+            desktop_engine_apply_selection_numeric_dialog_json,
             desktop_engine_apply_selection_order_command,
             desktop_engine_group_selection,
             desktop_engine_ungroup_selection,
