@@ -99,18 +99,48 @@ EngineHost
   WasmEngineHost
     浏览器 Web 版：通过 wasm-bindgen 调用 chemcore-engine。
 
+  DesktopHybridEngineHost
+    Windows 桌面版默认路径：WebView 内通过 WASM 同步调用同一个 chemcore-engine，
+    同时通过 Tauri command 使用 Rust native desktop service 的系统能力。
+
   TauriEngineHost
-    Windows 桌面版：通过 Tauri command 调用 Rust native desktop service。
+    显式 native diagnostic/future path：通过 Tauri command 调用 Rust native desktop service。
 ```
 
-短期桌面版可以加载现有 viewer 和 WASM，以便快速启动桌面窗口。但这只能作为同一架构下的阶段性实现，不应把桌面版永久锁死在 WebView WASM 文件读写模型里。长期桌面版应让 Tauri Rust 后端直接调用 `chemcore-engine`，文件系统、gzip、Office 对象、预览生成和批量导出都走 native Rust。
+这里的“hybrid”不是前端 fallback，也不是两套化学逻辑。它的长期含义是：同一个 Rust `chemcore-engine` 同时编译成 WASM editor runtime 和 native desktop service runtime；浏览器和桌面编辑热路径共享同一个 engine 行为，桌面系统能力由 native service 承担。
+
+桌面端长期默认应使用 `DesktopHybridEngineHost`：
+
+- pointer move、hover、focus、hit testing、selection、drag preview、rotate/scale/move、object settings 等高频编辑路径，必须在 WebView 进程内同步调用 WASM core。
+- 文件打开/保存、最近文件、系统剪贴板、多格式导出、Office/OLE、窗口、菜单、后台预览生成等系统能力，必须走 Tauri native service。
+- UI 层不能因为使用 WASM 就重新实现化学规则；WASM 只是同一个 Rust core 的运行形态。
+- native service 可以持有同样的 engine session，但不能把每一次鼠标移动、hover 或聚焦都变成 Tauri IPC + JSON snapshot。
+
+`TauriEngineHost` 和 `?engine=tauri-native` 保留为诊断、回归测试和未来增量 native editor path。它只有在满足下面条件后，才可以重新讨论是否承担热编辑路径：
+
+- pointer move / hover / focus 有合并、取消和优先级策略。
+- 编辑反馈不依赖每次 interaction 都传输完整 document/render/state JSON snapshot。
+- render primitive 和 selection/focus overlay 支持增量 diff 或共享内存式更新。
+- 大文件下聚焦、拖拽和框选的延迟不高于桌面默认 hybrid path。
+
+因此，长期方向不是“Web 端一套、桌面端一套”，也不是“桌面永远只能靠前端”。长期方向是：
+
+```text
+同一个 Rust core
+  -> wasm editor runtime：浏览器 + 桌面热交互默认路径
+  -> native desktop service runtime：文件、剪贴板、导出、Office/OLE、后台任务
+
+两个壳
+  -> browser shell
+  -> Tauri Windows desktop shell
+```
 
 截至 2026-05-06，代码中已经开始落实这条边界：
 
 ```text
 viewer/engine_host.js
-  前端 EngineHost 入口。Web 使用 WasmEngineHost；Tauri dev 使用 DesktopHybridEngineHost。
-  hybrid 模式中 UI 仍走 WASM，同步编辑行为不变，同时启动时运行 native engine probe。
+  前端 EngineHost 入口。Web 使用 WasmEngineHost；Tauri 默认使用 DesktopHybridEngineHost。
+  tauri-native 只通过显式 ?engine=tauri-native 启用，用于诊断和未来 native path 验证。
 
 crates/chemcore-desktop-service
   原生桌面 document/engine service。直接持有 chemcore-engine::Engine session。
@@ -119,7 +149,9 @@ apps/chemcore-desktop/src-tauri
   Tauri command 边界。当前已经暴露 desktop_engine_* 命令给未来 TauriEngineHost 使用。
 ```
 
-当前阶段 Web 仍默认使用 `WasmEngineHost`，桌面端使用 `DesktopHybridEngineHost`。这是为了保持编辑器同步调用模型稳定，同时保证 Tauri native command 通路不再只是空代码。下一阶段切换到 native path 时，不应让 UI 直接散落调用 Tauri command，而应只实现 `TauriEngineHost`，让它满足同一套 editor-facing session API。
+当前阶段 Web 仍默认使用 `WasmEngineHost`，桌面端使用 `DesktopHybridEngineHost`。这是为了保持编辑器同步调用模型稳定，同时保证 Tauri native command 通路不再只是空代码。后续扩展 native service 时，不应让 UI 直接散落调用 Tauri command；低频系统能力通过 desktop file/export/clipboard host 接入，高频编辑能力继续通过同一套 editor-facing engine API 接入。
+
+这段话的约束在 2026-05-07 调整为更明确的长期规则：桌面端默认不再切换到 `TauriEngineHost` 热编辑路径。native path 继续存在，但必须先证明它在大文件高频交互下达到上述性能条件；在此之前，`DesktopHybridEngineHost` 是正式桌面编辑运行时。
 
 同日后续推进中，桌面端非 Office 原生能力继续加厚：
 
@@ -145,14 +177,15 @@ viewer/desktop_file_host.js
 
 这仍不表示 Office/OLE 已完成，也不表示编辑事件已经切到 native engine path。当前桌面端的化学编辑交互仍主要通过 WebView + WASM engine 同步执行；这部分保持不变，是为了避免在文件系统原生化时同时改动 editor-facing API 的同步/异步模型。基础 EMF preview 已经落地，但还不是最终 Office/OLE 对象渲染后端；后续应继续把更多 SVG/path/text 细节迁到可测试的 native vector renderer。
 
-建议的切换顺序：
+建议的推进顺序：
 
-1. 让 `TauriEngineHost` 先支持只读 session：create/free、documentJson、stateJson、renderListJson、renderBoundsJson、documentSvg、documentCdxml。
-2. 再迁移文件打开/保存：`.ccjz` gzip、`.ccjs`、`.cdxml` 都由 `chemcore-desktop-service` 处理。
-3. 最后迁移编辑命令、pointer events、text edit、clipboard。每迁移一组，都保持 Web viewer 仍走 `WasmEngineHost`。
-4. native path 稳定后，桌面端默认使用 `TauriEngineHost`；Web 端继续使用 `WasmEngineHost`。
+1. 保持 `DesktopHybridEngineHost` 为桌面默认编辑运行时，保证浏览器端和桌面端热交互一致且流畅。
+2. 继续加厚 `chemcore-desktop-service`：文件容器、系统剪贴板、导出、最近文件、Office/OLE、后台预览生成。
+3. 把所有对象设置、右键菜单、旋转/缩放等编辑语义留在 engine API 内；UI 只负责展示动态表单和收集输入。
+4. 保留 `TauriEngineHost` 作为 native diagnostic path，用真实大文件验证增量协议、IPC 合并和 snapshot diff。
+5. 如果 native path 未来能证明热交互性能不低于 hybrid path，再作为可选实现讨论；否则它只服务低频/native 系统能力。
 
-这个顺序可以避免 UI 和 engine 同时大改，也避免后续 Office 层绕开 desktop service。
+这个顺序可以避免 UI 和 engine 同时大改，也避免后续 Office 层绕开 desktop service。更重要的是，它把用户最敏感的鼠标聚焦、hover 和拖拽留在低延迟路径上。
 
 ## Office 集成策略
 
@@ -290,14 +323,16 @@ Office 中的对象预览不能只依赖 SVG。长期需要：
 
 - 建立 Tauri app。已完成：`apps/chemcore-desktop/src-tauri`。
 - 加载现有 viewer UI。已完成：`npm run desktop:dev` 可启动 Windows 桌面窗口。
-- 增加菜单、快捷键、文件对话框、最近文件、拖拽打开、单实例。已完成到单窗口原生菜单、快捷键、文件对话框、最近文件、拖拽打开和启动参数打开；单实例仍未接入。
+- 增加菜单、快捷键、文件对话框、最近文件、拖拽打开、单实例。已完成到单窗口原生菜单、快捷键、文件对话框、最近文件、拖拽打开、启动参数打开和单实例唤醒。
 - 配置 `.ccjz/.ccjs/.cdxml` 文件关联。已写入 Tauri bundle 配置，需通过 installer 安装后在 Windows 系统层验证。
 
-### 阶段 4：桌面 Native Engine Path
+### 阶段 4：桌面 Hybrid Runtime 与 Native Service
 
+- 桌面默认编辑运行时使用 `DesktopHybridEngineHost`：热交互通过 WebView 内 WASM core 同步完成。
 - Tauri 后端直接调用 Rust engine。已开始：Tauri 已持有 `DesktopDocumentService`，并暴露 `desktop_engine_*` commands。
 - WebView 不再负责本地文件系统、gzip 和路径权限。已开始：桌面打开/保存/另存为优先走 Tauri native file commands，`.ccjz` gzip 由 Rust service 处理。
-- viewer 只负责 UI 和交互。
+- viewer 只负责 UI、事件采集、坐标换算和渲染；编辑语义仍由 Rust core 决定。
+- `TauriEngineHost` 保留为 `?engine=tauri-native` 诊断路径，不作为桌面热交互默认路径。
 
 ### 阶段 5：文档容器与预览
 
@@ -368,11 +403,10 @@ Node.js:            D:\nodejs-24.15.0
 
 当前仍未完成：
 
-- 单实例和第二次打开文件唤醒已有窗口。
+- Installer 安装后的 Windows 系统级文件关联验证。
 - 代码签名和自动更新。
-- Windows 原生剪贴板多格式写入。
-- EMF/PDF 等非 SVG 预览导出。
 - Office/OLE/COM 集成。
+- EMF/native vector renderer 的 path、字体和高级填充保真度继续提升。
 
 ## 参考资料
 

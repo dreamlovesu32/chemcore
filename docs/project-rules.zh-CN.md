@@ -9,6 +9,11 @@ Windows 桌面端和 Office 集成的长期方案见 `docs/windows-desktop-offic
 - Rust `crates/chemcore-engine` 是当前编辑行为、文档 mutation、命中测试、吸附、选择、删除、命令历史和 render primitive 的权威。
 - Viewer 只负责 toolbar、菜单、文件打开保存、浏览器事件采集、坐标换算和 SVG/DOM 绘制。
 - 新的化学编辑行为不应重新散回 `viewer/app.js`。如果 viewer 需要知道几何，应优先消费 engine 输出的 primitive 或显式状态。
+- WASM 是同一个 Rust engine 的运行形态，不是前端 fallback。浏览器端和桌面端热编辑路径都可以使用 WASM core，只要业务规则仍在 Rust engine 中。
+- Windows 桌面端默认使用 `DesktopHybridEngineHost`：pointer move、hover、focus、hit testing、selection、拖拽预览、旋转、缩放、object settings 等高频编辑行为必须保持进程内 core 调用。
+- Tauri native service 负责文件、剪贴板、导出、Office/OLE、窗口、菜单、最近文件和后台任务等系统能力。
+- 不允许把高频鼠标事件设计成每次同步跨 Tauri IPC 并回传完整 document/render/state JSON snapshot。除非有增量 diff、事件合并和大文件性能证明，否则 `TauriEngineHost` 只能作为 `?engine=tauri-native` 诊断路径。
+- 右键菜单、缩放/旋转面板、object settings 等界面可以由 viewer 展示，但字段定义、适用对象、混合值、应用逻辑和文档 mutation 必须来自 engine API。
 
 ## 文档单位
 

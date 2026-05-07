@@ -29,6 +29,13 @@
 
 Web 和桌面只是宿主，不是两个独立产品。
 
+桌面端的长期路径是混合运行时，而不是分叉产品：
+
+- 同一个 Rust core 编译成 WASM editor runtime，供浏览器和桌面 WebView 的高频编辑路径同步调用。
+- 同一个 Rust core 也被 native desktop service 调用，负责文件、剪贴板、导出、Office/OLE 和后台预览等系统能力。
+- Windows 桌面默认编辑 host 是 `DesktopHybridEngineHost`；`TauriEngineHost` / `?engine=tauri-native` 是诊断和未来 native path 验证入口。
+- 这不违反“一核两壳”：一核是 `chemcore-engine`，两壳是 browser shell 和 Tauri desktop shell，WASM/native 只是同一核心的两个运行形态。
+
 ### 2. 化学语义和文档语义分离
 
 化学结构数据和文档对象数据解决的是两类不同问题。

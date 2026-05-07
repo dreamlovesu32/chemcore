@@ -633,17 +633,17 @@ export function detectEngineHostKind() {
   if (engineOverride === "tauri-native") {
     return "tauri-native";
   }
-  if (engineOverride === "desktop-hybrid") {
-    return "tauri";
+  if (engineOverride === "desktop-hybrid" || engineOverride === "tauri") {
+    return "desktop-hybrid";
   }
-  return globalThis.__TAURI_INTERNALS__ ? "tauri-native" : "wasm";
+  return globalThis.__TAURI_INTERNALS__ ? "desktop-hybrid" : "wasm";
 }
 
 export function createEngineHost(kind = detectEngineHostKind()) {
   if (kind === "tauri-native") {
     return new TauriEngineHost();
   }
-  if (kind === "tauri") {
+  if (kind === "desktop-hybrid" || kind === "tauri") {
     return new DesktopHybridEngineHost();
   }
   return new WasmEngineHost();
