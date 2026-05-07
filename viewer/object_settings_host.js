@@ -120,8 +120,12 @@ class ObjectSettingsDialog {
     const values = {};
     for (const field of this.payload.fields) {
       const input = this.backdrop.querySelector(`[name='${cssEscape(field.key)}']`);
-      const value = Number(String(input?.value || "").trim());
+      const rawValue = String(input?.value ?? "").trim();
       input.classList.remove("is-invalid");
+      if (!rawValue) {
+        continue;
+      }
+      const value = Number(rawValue);
       values[field.key] = value;
     }
     return values;
@@ -161,14 +165,22 @@ function unitForField(field, unit) {
 }
 
 function displayValueForField(field, unit) {
-  if (field.unit === "%") {
-    return Number(field.value || field.values?.cm || 0);
+  if (field.mixed) {
+    return null;
   }
-  return Number(field.values?.[unit] ?? field.value ?? 0);
+  if (field.unit === "%") {
+    return valueOrNull(field.value ?? field.values?.cm);
+  }
+  return valueOrNull(field.values?.[unit] ?? field.value);
 }
 
 function formatNumber(value) {
   return Number.isFinite(value) ? String(Math.round(value * 1000) / 1000) : "";
+}
+
+function valueOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 function escapeHtml(value) {

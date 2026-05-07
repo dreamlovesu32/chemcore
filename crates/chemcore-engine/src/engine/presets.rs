@@ -124,7 +124,7 @@ impl Engine {
             .iter()
             .filter_map(|bond| self.bond_length_value(bond))
             .collect::<Vec<_>>();
-        if let Some(value) = first_finite(bond_lengths) {
+        if let Some(value) = object_setting_field_value(bond_lengths) {
             fields.push(object_settings_dialog_field(
                 "bondLength",
                 "Bond Length",
@@ -142,7 +142,7 @@ impl Engine {
                 .iter()
                 .filter_map(|object| self.graphic_stroke_width_value(object)),
         );
-        if let Some(value) = first_finite(line_widths) {
+        if let Some(value) = object_setting_field_value(line_widths) {
             fields.push(object_settings_dialog_field(
                 "lineWidth",
                 "Line Width",
@@ -156,7 +156,7 @@ impl Engine {
             .filter(|bond| bond_uses_bold_width(bond))
             .map(|bond| bond.bold_width.unwrap_or(self.options.bold_bond_width))
             .collect::<Vec<_>>();
-        if let Some(value) = first_finite(bold_widths) {
+        if let Some(value) = object_setting_field_value(bold_widths) {
             fields.push(object_settings_dialog_field(
                 "boldWidth",
                 "Bold Width",
@@ -170,7 +170,7 @@ impl Engine {
             .filter(|bond| bond.order >= 2)
             .map(|bond| bond.bond_spacing.unwrap_or(self.options.bond_spacing))
             .collect::<Vec<_>>();
-        if let Some(value) = first_finite(bond_spacings) {
+        if let Some(value) = object_setting_field_value(bond_spacings) {
             fields.push(object_settings_dialog_field(
                 "bondSpacing",
                 "Double Spacing",
@@ -183,7 +183,7 @@ impl Engine {
             .iter()
             .map(|bond| bond.margin_width.unwrap_or(self.options.margin_width))
             .collect::<Vec<_>>();
-        if let Some(value) = first_finite(margin_widths) {
+        if let Some(value) = object_setting_field_value(margin_widths) {
             fields.push(object_settings_dialog_field(
                 "marginWidth",
                 "Margin Width",
@@ -197,7 +197,7 @@ impl Engine {
             .filter(|bond| bond_uses_hash_spacing(bond))
             .map(|bond| bond.hash_spacing.unwrap_or(self.options.hash_spacing))
             .collect::<Vec<_>>();
-        if let Some(value) = first_finite(hash_spacings) {
+        if let Some(value) = object_setting_field_value(hash_spacings) {
             fields.push(object_settings_dialog_field(
                 "hashSpacing",
                 "Hash Spacing",
@@ -427,21 +427,29 @@ fn object_settings_to_options(settings: ObjectSettings) -> Option<EditorOptions>
     })
 }
 
-fn object_settings_dialog_field(key: &str, label: &str, value: f64, unit: &str) -> JsonValue {
-    let display_value = if unit == "%" {
-        value
-    } else {
-        display_length(value, unit)
-    };
+fn object_settings_dialog_field(
+    key: &str,
+    label: &str,
+    value: ObjectSettingFieldValue,
+    unit: &str,
+) -> JsonValue {
+    let display_value = value.value.map(|value| {
+        if unit == "%" {
+            value
+        } else {
+            display_length(value, unit)
+        }
+    });
     serde_json::json!({
         "key": key,
         "label": label,
-        "value": round3(display_value),
+        "value": display_value.map(round3),
         "values": {
-            "cm": if unit == "%" { round3(value) } else { round3(value / crate::PT_PER_CM) },
-            "pt": if unit == "%" { round3(value) } else { round3(value) },
+            "cm": value.value.map(|value| if unit == "%" { round3(value) } else { round3(value / crate::PT_PER_CM) }),
+            "pt": value.value.map(|value| if unit == "%" { round3(value) } else { round3(value) }),
         },
         "unit": unit,
+        "mixed": value.mixed,
     })
 }
 
@@ -510,10 +518,25 @@ fn parse_optional_object_setting(
     parse_object_setting(values, key, unit, is_length).map(Some)
 }
 
-fn first_finite(values: Vec<f64>) -> Option<f64> {
-    values
+#[derive(Clone, Copy)]
+struct ObjectSettingFieldValue {
+    value: Option<f64>,
+    mixed: bool,
+}
+
+fn object_setting_field_value(values: Vec<f64>) -> Option<ObjectSettingFieldValue> {
+    let values = values
         .into_iter()
-        .find(|value| value.is_finite() && *value > 0.0)
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .collect::<Vec<_>>();
+    let first = *values.first()?;
+    let mixed = values
+        .iter()
+        .any(|value| (*value - first).abs() > crate::EPSILON);
+    Some(ObjectSettingFieldValue {
+        value: (!mixed).then_some(first),
+        mixed,
+    })
 }
 
 fn bond_uses_bold_width(bond: &Bond) -> bool {

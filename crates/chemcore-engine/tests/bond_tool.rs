@@ -1575,6 +1575,148 @@ fn object_settings_update_bond_and_graphic_metrics() {
 }
 
 #[test]
+fn object_settings_multi_selection_uses_union_and_blanks_mixed_values() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+    engine.set_tool_state(double_bond_tool());
+    click(&mut engine, px(420.0), px(260.0));
+
+    let bond_centers = {
+        let entry = engine.state().document.editable_fragment().unwrap();
+        entry
+            .fragment
+            .bonds
+            .iter()
+            .map(|bond| {
+                let begin = entry
+                    .fragment
+                    .nodes
+                    .iter()
+                    .find(|node| node.id == bond.begin)
+                    .unwrap()
+                    .point();
+                let end = entry
+                    .fragment
+                    .nodes
+                    .iter()
+                    .find(|node| node.id == bond.end)
+                    .unwrap()
+                    .point();
+                (
+                    bond.order,
+                    Point::new((begin.x + end.x) * 0.5, (begin.y + end.y) * 0.5),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    assert!(bond_centers.iter().any(|(order, _)| *order >= 2));
+    assert!(engine.select_component_at_point(bond_centers[0].1, false));
+    assert!(engine
+        .apply_object_settings_dialog_json(
+            r#"{
+                "unit": "pt",
+                "values": {
+                    "bondLength": 12.0
+                }
+            }"#,
+        )
+        .expect("single selected setting should parse"));
+    let bond_centers = {
+        let entry = engine.state().document.editable_fragment().unwrap();
+        entry
+            .fragment
+            .bonds
+            .iter()
+            .map(|bond| {
+                let begin = entry
+                    .fragment
+                    .nodes
+                    .iter()
+                    .find(|node| node.id == bond.begin)
+                    .unwrap()
+                    .point();
+                let end = entry
+                    .fragment
+                    .nodes
+                    .iter()
+                    .find(|node| node.id == bond.end)
+                    .unwrap()
+                    .point();
+                (
+                    bond.order,
+                    Point::new((begin.x + end.x) * 0.5, (begin.y + end.y) * 0.5),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    assert!(engine.select_component_at_point(bond_centers[0].1, false));
+    assert!(engine.select_component_at_point(bond_centers[1].1, true));
+
+    let dialog: serde_json::Value =
+        serde_json::from_str(&engine.object_settings_dialog_json()).unwrap();
+    let fields = dialog["fields"].as_array().unwrap();
+    let field_keys = fields
+        .iter()
+        .filter_map(|field| field["key"].as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        field_keys,
+        vec!["bondLength", "lineWidth", "bondSpacing", "marginWidth"]
+    );
+    let bond_length = fields
+        .iter()
+        .find(|field| field["key"] == "bondLength")
+        .unwrap();
+    assert_eq!(bond_length["mixed"], json!(true));
+    assert!(bond_length["value"].is_null());
+
+    assert!(engine
+        .apply_object_settings_dialog_json(
+            r#"{
+                "unit": "pt",
+                "values": {
+                    "bondLength": 12.0,
+                    "bondSpacing": 14.0
+                }
+            }"#,
+        )
+        .expect("mixed settings should parse"));
+
+    let entry = engine.state().document.editable_fragment().unwrap();
+    let selected = engine
+        .state()
+        .selection
+        .bonds
+        .iter()
+        .map(String::as_str)
+        .collect::<std::collections::BTreeSet<_>>();
+    for bond in &entry.fragment.bonds {
+        if !selected.contains(bond.id.as_str()) {
+            continue;
+        }
+        let begin = entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == bond.begin)
+            .unwrap();
+        let end = entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == bond.end)
+            .unwrap();
+        assert!((begin.point().distance(end.point()) - 12.0).abs() < 0.02);
+        if bond.order >= 2 {
+            assert_eq!(bond.bond_spacing, Some(14.0));
+        } else {
+            assert_ne!(bond.bond_spacing, Some(14.0));
+        }
+    }
+}
+
+#[test]
 fn engine_provides_context_menu_and_numeric_dialog_schemas() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());
