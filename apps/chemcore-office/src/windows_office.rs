@@ -3,12 +3,19 @@ use std::ffi::c_void;
 use std::mem::zeroed;
 use std::path::PathBuf;
 use std::ptr::{null, null_mut};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use windows_sys::core::GUID;
 use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS};
+use windows_sys::Win32::System::Com::StructuredStorage::WriteClassStg;
 use windows_sys::Win32::System::Com::{
-    CoInitializeEx, CoRegisterClassObject, CoRevokeClassObject, CoUninitialize,
-    CLSCTX_LOCAL_SERVER, COINIT_APARTMENTTHREADED, REGCLS_MULTIPLEUSE,
+    CoInitializeEx, CoRegisterClassObject, CoRevokeClassObject, CoTaskMemAlloc, CoUninitialize,
+    CLSCTX_LOCAL_SERVER, COINIT_APARTMENTTHREADED, DVASPECT_CONTENT, FORMATETC, REGCLS_MULTIPLEUSE,
+    STGMEDIUM,
+};
+use windows_sys::Win32::System::Ole::{
+    OleRegEnumVerbs, OleRegGetMiscStatus, OleRegGetUserType, OLEMISC_ACTIVATEWHENVISIBLE,
+    OLEMISC_INSIDEOUT, OLEMISC_RENDERINGISDEVICEINDEPENDENT, OLEMISC_SETCLIENTSITEFIRST,
 };
 use windows_sys::Win32::System::Registry::{
     RegCloseKey, RegCreateKeyW, RegDeleteTreeW, RegSetValueExW, HKEY, HKEY_CURRENT_USER,
@@ -45,10 +52,62 @@ const IID_ICLASS_FACTORY: GUID = GUID {
     data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
 };
 
+const IID_IDATA_OBJECT: GUID = GUID {
+    data1: 0x0000010e,
+    data2: 0x0000,
+    data3: 0x0000,
+    data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
+};
+
+const IID_IPERSIST: GUID = GUID {
+    data1: 0x0000010c,
+    data2: 0x0000,
+    data3: 0x0000,
+    data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
+};
+
+const IID_IPERSIST_STORAGE: GUID = GUID {
+    data1: 0x0000010a,
+    data2: 0x0000,
+    data3: 0x0000,
+    data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
+};
+
+const IID_IOLE_OBJECT: GUID = GUID {
+    data1: 0x00000112,
+    data2: 0x0000,
+    data3: 0x0000,
+    data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
+};
+
+const IID_IVIEW_OBJECT: GUID = GUID {
+    data1: 0x0000010d,
+    data2: 0x0000,
+    data3: 0x0000,
+    data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
+};
+
+const IID_IVIEW_OBJECT2: GUID = GUID {
+    data1: 0x00000127,
+    data2: 0x0000,
+    data3: 0x0000,
+    data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
+};
+
+const IID_IRUNNABLE_OBJECT: GUID = GUID {
+    data1: 0x00000126,
+    data2: 0x0000,
+    data3: 0x0000,
+    data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
+};
+
 const S_OK: i32 = 0;
+const S_FALSE: i32 = 1;
 const E_POINTER: i32 = 0x80004003u32 as i32;
 const E_NOINTERFACE: i32 = 0x80004002u32 as i32;
 const E_NOTIMPL: i32 = 0x80004001u32 as i32;
+const E_OUTOFMEMORY: i32 = 0x8007000eu32 as i32;
+const OLE_E_NOTRUNNING: i32 = 0x80040005u32 as i32;
 const CLASS_E_NOAGGREGATION: i32 = 0x80040110u32 as i32;
 
 pub fn run() -> Result<(), String> {
@@ -60,6 +119,7 @@ pub fn run() -> Result<(), String> {
         "--register-machine" => register(RegistrationScope::Machine),
         "--unregister-machine" => unregister(RegistrationScope::Machine),
         "--print-registration" => print_registration(),
+        "--self-test" => run_self_test(),
         "--serve" | "-Embedding" | "/Embedding" | "--embedding" => run_com_server(),
         "" | "--help" | "-h" | "/?" => {
             print_help();
@@ -182,6 +242,56 @@ fn print_registration() -> Result<(), String> {
     println!("Versioned ProgID: {VERSIONED_PROG_ID}");
     println!("CLSID: {CLSID_STRING}");
     println!("Server: {}", server_path.display());
+    Ok(())
+}
+
+fn run_self_test() -> Result<(), String> {
+    unsafe {
+        let factory = (&CLASS_FACTORY as *const ClassFactory)
+            .cast_mut()
+            .cast::<c_void>();
+        let mut ole_object = null_mut();
+        let hr =
+            class_factory_create_instance(factory, null_mut(), &IID_IOLE_OBJECT, &mut ole_object);
+        if !hresult_succeeded(hr) || ole_object.is_null() {
+            return Err(format!(
+                "IClassFactory::CreateInstance(IOleObject) failed: 0x{:08X}",
+                hr as u32
+            ));
+        }
+
+        let required_interfaces = [
+            ("IDataObject", IID_IDATA_OBJECT),
+            ("IPersistStorage", IID_IPERSIST_STORAGE),
+            ("IViewObject2", IID_IVIEW_OBJECT2),
+            ("IRunnableObject", IID_IRUNNABLE_OBJECT),
+        ];
+        for (name, iid) in required_interfaces {
+            let mut interface = null_mut();
+            let hr = part_query_interface::<OleObjectVtbl>(ole_object, &iid, &mut interface);
+            if !hresult_succeeded(hr) || interface.is_null() {
+                part_release::<OleObjectVtbl>(ole_object);
+                return Err(format!(
+                    "QueryInterface({name}) failed: 0x{:08X}",
+                    hr as u32
+                ));
+            }
+            com_release(interface);
+        }
+
+        let mut class_id = GUID::default();
+        let get_class_id = (*(*(ole_object.cast::<*const OleObjectVtbl>()))).get_user_class_id;
+        let hr = get_class_id(ole_object, &mut class_id);
+        part_release::<OleObjectVtbl>(ole_object);
+        if !hresult_succeeded(hr) || !guid_eq(&class_id, &CLSID_CHEMCORE_DOCUMENT) {
+            return Err(format!(
+                "IOleObject::GetUserClassID failed: 0x{:08X}",
+                hr as u32
+            ));
+        }
+    }
+
+    println!("{DOCUMENT_DISPLAY_NAME} COM object self-test passed.");
     Ok(())
 }
 
@@ -358,19 +468,923 @@ unsafe extern "system" fn class_factory_release(_this: *mut c_void) -> u32 {
 unsafe extern "system" fn class_factory_create_instance(
     _this: *mut c_void,
     outer: *mut c_void,
-    _riid: *const GUID,
+    riid: *const GUID,
     object: *mut *mut c_void,
 ) -> i32 {
     if !object.is_null() {
         *object = null_mut();
     }
+    if object.is_null() {
+        return E_POINTER;
+    }
     if !outer.is_null() {
         return CLASS_E_NOAGGREGATION;
+    }
+    if riid.is_null() {
+        return E_NOINTERFACE;
+    }
+    let mut instance = Box::new(ChemcoreOleObject::new());
+    instance.init_self_references();
+    let instance = Box::into_raw(instance);
+    let hr = chemcore_object_query_interface(instance, riid, object);
+    chemcore_object_release(instance);
+    hr
+}
+
+unsafe extern "system" fn class_factory_lock_server(_this: *mut c_void, _lock: i32) -> i32 {
+    S_OK
+}
+
+#[repr(C)]
+struct ChemcoreOleObject {
+    unknown_vtbl: *const UnknownVtbl,
+    ref_count: AtomicU32,
+    data_object: InterfacePart<DataObjectVtbl>,
+    persist_storage: InterfacePart<PersistStorageVtbl>,
+    ole_object: InterfacePart<OleObjectVtbl>,
+    view_object2: InterfacePart<ViewObject2Vtbl>,
+    runnable_object: InterfacePart<RunnableObjectVtbl>,
+    client_site: *mut c_void,
+    storage: *mut c_void,
+    ole_advise_holder: *mut c_void,
+}
+
+#[repr(C)]
+struct InterfacePart<T> {
+    vtbl: *const T,
+    owner: *mut ChemcoreOleObject,
+}
+
+impl ChemcoreOleObject {
+    fn new() -> Self {
+        Self {
+            unknown_vtbl: &UNKNOWN_VTBL,
+            ref_count: AtomicU32::new(1),
+            data_object: InterfacePart {
+                vtbl: &DATA_OBJECT_VTBL,
+                owner: null_mut(),
+            },
+            persist_storage: InterfacePart {
+                vtbl: &PERSIST_STORAGE_VTBL,
+                owner: null_mut(),
+            },
+            ole_object: InterfacePart {
+                vtbl: &OLE_OBJECT_VTBL,
+                owner: null_mut(),
+            },
+            view_object2: InterfacePart {
+                vtbl: &VIEW_OBJECT2_VTBL,
+                owner: null_mut(),
+            },
+            runnable_object: InterfacePart {
+                vtbl: &RUNNABLE_OBJECT_VTBL,
+                owner: null_mut(),
+            },
+            client_site: null_mut(),
+            storage: null_mut(),
+            ole_advise_holder: null_mut(),
+        }
+    }
+
+    fn init_self_references(&mut self) {
+        let owner = self as *mut ChemcoreOleObject;
+        self.data_object.owner = owner;
+        self.persist_storage.owner = owner;
+        self.ole_object.owner = owner;
+        self.view_object2.owner = owner;
+        self.runnable_object.owner = owner;
+    }
+}
+
+impl Drop for ChemcoreOleObject {
+    fn drop(&mut self) {
+        unsafe {
+            com_release(self.client_site);
+            self.client_site = null_mut();
+            com_release(self.ole_advise_holder);
+            self.ole_advise_holder = null_mut();
+        }
+    }
+}
+
+#[repr(C)]
+struct UnknownVtbl {
+    query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
+    add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+    release: unsafe extern "system" fn(*mut c_void) -> u32,
+}
+
+static UNKNOWN_VTBL: UnknownVtbl = UnknownVtbl {
+    query_interface: unknown_query_interface,
+    add_ref: unknown_add_ref,
+    release: unknown_release,
+};
+
+unsafe extern "system" fn unknown_query_interface(
+    this: *mut c_void,
+    riid: *const GUID,
+    object: *mut *mut c_void,
+) -> i32 {
+    chemcore_object_query_interface(this.cast::<ChemcoreOleObject>(), riid, object)
+}
+
+unsafe extern "system" fn unknown_add_ref(this: *mut c_void) -> u32 {
+    chemcore_object_add_ref(this.cast::<ChemcoreOleObject>())
+}
+
+unsafe extern "system" fn unknown_release(this: *mut c_void) -> u32 {
+    chemcore_object_release(this.cast::<ChemcoreOleObject>())
+}
+
+fn chemcore_object_query_interface(
+    object: *mut ChemcoreOleObject,
+    riid: *const GUID,
+    out: *mut *mut c_void,
+) -> i32 {
+    if out.is_null() {
+        return E_POINTER;
+    }
+    unsafe {
+        *out = null_mut();
+    }
+    if object.is_null() || riid.is_null() {
+        return E_NOINTERFACE;
+    }
+    let riid = unsafe { &*riid };
+    let interface = unsafe {
+        if guid_eq(riid, &IID_IUNKNOWN) {
+            object.cast::<c_void>()
+        } else if guid_eq(riid, &IID_IDATA_OBJECT) {
+            (&mut (*object).data_object as *mut InterfacePart<DataObjectVtbl>).cast::<c_void>()
+        } else if guid_eq(riid, &IID_IPERSIST) || guid_eq(riid, &IID_IPERSIST_STORAGE) {
+            (&mut (*object).persist_storage as *mut InterfacePart<PersistStorageVtbl>)
+                .cast::<c_void>()
+        } else if guid_eq(riid, &IID_IOLE_OBJECT) {
+            (&mut (*object).ole_object as *mut InterfacePart<OleObjectVtbl>).cast::<c_void>()
+        } else if guid_eq(riid, &IID_IVIEW_OBJECT) || guid_eq(riid, &IID_IVIEW_OBJECT2) {
+            (&mut (*object).view_object2 as *mut InterfacePart<ViewObject2Vtbl>).cast::<c_void>()
+        } else if guid_eq(riid, &IID_IRUNNABLE_OBJECT) {
+            (&mut (*object).runnable_object as *mut InterfacePart<RunnableObjectVtbl>)
+                .cast::<c_void>()
+        } else {
+            null_mut()
+        }
+    };
+    if interface.is_null() {
+        return E_NOINTERFACE;
+    }
+    chemcore_object_add_ref(object);
+    unsafe {
+        *out = interface;
+    }
+    S_OK
+}
+
+fn chemcore_object_add_ref(object: *mut ChemcoreOleObject) -> u32 {
+    if object.is_null() {
+        return 0;
+    }
+    unsafe { (*object).ref_count.fetch_add(1, Ordering::Relaxed) + 1 }
+}
+
+fn chemcore_object_release(object: *mut ChemcoreOleObject) -> u32 {
+    if object.is_null() {
+        return 0;
+    }
+    let next = unsafe { (*object).ref_count.fetch_sub(1, Ordering::Release) - 1 };
+    if next == 0 {
+        std::sync::atomic::fence(Ordering::Acquire);
+        unsafe {
+            drop(Box::from_raw(object));
+        }
+    }
+    next
+}
+
+unsafe fn owner_from_part<T>(this: *mut c_void) -> *mut ChemcoreOleObject {
+    if this.is_null() {
+        return null_mut();
+    }
+    (*(this.cast::<InterfacePart<T>>())).owner
+}
+
+unsafe extern "system" fn part_query_interface<T>(
+    this: *mut c_void,
+    riid: *const GUID,
+    object: *mut *mut c_void,
+) -> i32 {
+    chemcore_object_query_interface(owner_from_part::<T>(this), riid, object)
+}
+
+unsafe extern "system" fn part_add_ref<T>(this: *mut c_void) -> u32 {
+    chemcore_object_add_ref(owner_from_part::<T>(this))
+}
+
+unsafe extern "system" fn part_release<T>(this: *mut c_void) -> u32 {
+    chemcore_object_release(owner_from_part::<T>(this))
+}
+
+#[repr(C)]
+struct DataObjectVtbl {
+    query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
+    add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+    release: unsafe extern "system" fn(*mut c_void) -> u32,
+    get_data: unsafe extern "system" fn(*mut c_void, *const FORMATETC, *mut STGMEDIUM) -> i32,
+    get_data_here: unsafe extern "system" fn(*mut c_void, *const FORMATETC, *mut STGMEDIUM) -> i32,
+    query_get_data: unsafe extern "system" fn(*mut c_void, *const FORMATETC) -> i32,
+    get_canonical_format_etc:
+        unsafe extern "system" fn(*mut c_void, *const FORMATETC, *mut FORMATETC) -> i32,
+    set_data:
+        unsafe extern "system" fn(*mut c_void, *const FORMATETC, *const STGMEDIUM, i32) -> i32,
+    enum_format_etc: unsafe extern "system" fn(*mut c_void, u32, *mut *mut c_void) -> i32,
+    d_advise:
+        unsafe extern "system" fn(*mut c_void, *const FORMATETC, u32, *mut c_void, *mut u32) -> i32,
+    d_unadvise: unsafe extern "system" fn(*mut c_void, u32) -> i32,
+    enum_d_advise: unsafe extern "system" fn(*mut c_void, *mut *mut c_void) -> i32,
+}
+
+static DATA_OBJECT_VTBL: DataObjectVtbl = DataObjectVtbl {
+    query_interface: part_query_interface::<DataObjectVtbl>,
+    add_ref: part_add_ref::<DataObjectVtbl>,
+    release: part_release::<DataObjectVtbl>,
+    get_data: data_object_get_data,
+    get_data_here: data_object_get_data_here,
+    query_get_data: data_object_query_get_data,
+    get_canonical_format_etc: data_object_get_canonical_format_etc,
+    set_data: data_object_set_data,
+    enum_format_etc: data_object_enum_format_etc,
+    d_advise: data_object_d_advise,
+    d_unadvise: data_object_d_unadvise,
+    enum_d_advise: data_object_enum_d_advise,
+};
+
+unsafe extern "system" fn data_object_get_data(
+    _this: *mut c_void,
+    _format: *const FORMATETC,
+    _medium: *mut STGMEDIUM,
+) -> i32 {
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn data_object_get_data_here(
+    _this: *mut c_void,
+    _format: *const FORMATETC,
+    _medium: *mut STGMEDIUM,
+) -> i32 {
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn data_object_query_get_data(
+    _this: *mut c_void,
+    _format: *const FORMATETC,
+) -> i32 {
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn data_object_get_canonical_format_etc(
+    _this: *mut c_void,
+    _format_in: *const FORMATETC,
+    format_out: *mut FORMATETC,
+) -> i32 {
+    if format_out.is_null() {
+        return E_POINTER;
+    }
+    (*format_out).ptd = null_mut();
+    0x00040130
+}
+
+unsafe extern "system" fn data_object_set_data(
+    _this: *mut c_void,
+    _format: *const FORMATETC,
+    _medium: *const STGMEDIUM,
+    _release: i32,
+) -> i32 {
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn data_object_enum_format_etc(
+    _this: *mut c_void,
+    _direction: u32,
+    enum_format_etc: *mut *mut c_void,
+) -> i32 {
+    if !enum_format_etc.is_null() {
+        *enum_format_etc = null_mut();
     }
     E_NOTIMPL
 }
 
-unsafe extern "system" fn class_factory_lock_server(_this: *mut c_void, _lock: i32) -> i32 {
+unsafe extern "system" fn data_object_d_advise(
+    _this: *mut c_void,
+    _format: *const FORMATETC,
+    _advf: u32,
+    _sink: *mut c_void,
+    connection: *mut u32,
+) -> i32 {
+    if !connection.is_null() {
+        *connection = 0;
+    }
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn data_object_d_unadvise(_this: *mut c_void, _connection: u32) -> i32 {
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn data_object_enum_d_advise(
+    _this: *mut c_void,
+    enum_advise: *mut *mut c_void,
+) -> i32 {
+    if !enum_advise.is_null() {
+        *enum_advise = null_mut();
+    }
+    E_NOTIMPL
+}
+
+#[repr(C)]
+struct PersistStorageVtbl {
+    query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
+    add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+    release: unsafe extern "system" fn(*mut c_void) -> u32,
+    get_class_id: unsafe extern "system" fn(*mut c_void, *mut GUID) -> i32,
+    is_dirty: unsafe extern "system" fn(*mut c_void) -> i32,
+    init_new: unsafe extern "system" fn(*mut c_void, *mut c_void) -> i32,
+    load: unsafe extern "system" fn(*mut c_void, *mut c_void) -> i32,
+    save: unsafe extern "system" fn(*mut c_void, *mut c_void, i32) -> i32,
+    save_completed: unsafe extern "system" fn(*mut c_void, *mut c_void) -> i32,
+    hands_off_storage: unsafe extern "system" fn(*mut c_void) -> i32,
+}
+
+static PERSIST_STORAGE_VTBL: PersistStorageVtbl = PersistStorageVtbl {
+    query_interface: part_query_interface::<PersistStorageVtbl>,
+    add_ref: part_add_ref::<PersistStorageVtbl>,
+    release: part_release::<PersistStorageVtbl>,
+    get_class_id: persist_storage_get_class_id,
+    is_dirty: persist_storage_is_dirty,
+    init_new: persist_storage_init_new,
+    load: persist_storage_load,
+    save: persist_storage_save,
+    save_completed: persist_storage_save_completed,
+    hands_off_storage: persist_storage_hands_off_storage,
+};
+
+unsafe extern "system" fn persist_storage_get_class_id(
+    _this: *mut c_void,
+    class_id: *mut GUID,
+) -> i32 {
+    if class_id.is_null() {
+        return E_POINTER;
+    }
+    *class_id = CLSID_CHEMCORE_DOCUMENT;
+    S_OK
+}
+
+unsafe extern "system" fn persist_storage_is_dirty(_this: *mut c_void) -> i32 {
+    S_FALSE
+}
+
+unsafe extern "system" fn persist_storage_init_new(this: *mut c_void, storage: *mut c_void) -> i32 {
+    let object = owner_from_part::<PersistStorageVtbl>(this);
+    if object.is_null() || storage.is_null() {
+        return E_POINTER;
+    }
+    (*object).storage = storage;
+    WriteClassStg(storage, &CLSID_CHEMCORE_DOCUMENT)
+}
+
+unsafe extern "system" fn persist_storage_load(this: *mut c_void, storage: *mut c_void) -> i32 {
+    let object = owner_from_part::<PersistStorageVtbl>(this);
+    if object.is_null() || storage.is_null() {
+        return E_POINTER;
+    }
+    (*object).storage = storage;
+    S_OK
+}
+
+unsafe extern "system" fn persist_storage_save(
+    _this: *mut c_void,
+    storage: *mut c_void,
+    _same_as_load: i32,
+) -> i32 {
+    if storage.is_null() {
+        return E_POINTER;
+    }
+    WriteClassStg(storage, &CLSID_CHEMCORE_DOCUMENT)
+}
+
+unsafe extern "system" fn persist_storage_save_completed(
+    this: *mut c_void,
+    storage: *mut c_void,
+) -> i32 {
+    let object = owner_from_part::<PersistStorageVtbl>(this);
+    if !object.is_null() {
+        (*object).storage = storage;
+    }
+    S_OK
+}
+
+unsafe extern "system" fn persist_storage_hands_off_storage(this: *mut c_void) -> i32 {
+    let object = owner_from_part::<PersistStorageVtbl>(this);
+    if !object.is_null() {
+        (*object).storage = null_mut();
+    }
+    S_OK
+}
+
+#[repr(C)]
+struct OleObjectVtbl {
+    query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
+    add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+    release: unsafe extern "system" fn(*mut c_void) -> u32,
+    set_client_site: unsafe extern "system" fn(*mut c_void, *mut c_void) -> i32,
+    get_client_site: unsafe extern "system" fn(*mut c_void, *mut *mut c_void) -> i32,
+    set_host_names: unsafe extern "system" fn(*mut c_void, *const u16, *const u16) -> i32,
+    close: unsafe extern "system" fn(*mut c_void, i32) -> i32,
+    set_moniker: unsafe extern "system" fn(*mut c_void, u32, *mut c_void) -> i32,
+    get_moniker: unsafe extern "system" fn(*mut c_void, u32, u32, *mut *mut c_void) -> i32,
+    init_from_data: unsafe extern "system" fn(*mut c_void, *mut c_void, i32, u32) -> i32,
+    get_clipboard_data: unsafe extern "system" fn(*mut c_void, u32, *mut *mut c_void) -> i32,
+    do_verb: unsafe extern "system" fn(
+        *mut c_void,
+        i32,
+        *mut c_void,
+        *mut c_void,
+        i32,
+        isize,
+        *const c_void,
+    ) -> i32,
+    enum_verbs: unsafe extern "system" fn(*mut c_void, *mut *mut c_void) -> i32,
+    update: unsafe extern "system" fn(*mut c_void) -> i32,
+    is_up_to_date: unsafe extern "system" fn(*mut c_void) -> i32,
+    get_user_class_id: unsafe extern "system" fn(*mut c_void, *mut GUID) -> i32,
+    get_user_type: unsafe extern "system" fn(*mut c_void, u32, *mut *mut u16) -> i32,
+    set_extent: unsafe extern "system" fn(*mut c_void, u32, *const c_void) -> i32,
+    get_extent: unsafe extern "system" fn(*mut c_void, u32, *mut c_void) -> i32,
+    advise: unsafe extern "system" fn(*mut c_void, *mut c_void, *mut u32) -> i32,
+    unadvise: unsafe extern "system" fn(*mut c_void, u32) -> i32,
+    enum_advise: unsafe extern "system" fn(*mut c_void, *mut *mut c_void) -> i32,
+    get_misc_status: unsafe extern "system" fn(*mut c_void, u32, *mut u32) -> i32,
+    set_color_scheme: unsafe extern "system" fn(*mut c_void, *const c_void) -> i32,
+}
+
+static OLE_OBJECT_VTBL: OleObjectVtbl = OleObjectVtbl {
+    query_interface: part_query_interface::<OleObjectVtbl>,
+    add_ref: part_add_ref::<OleObjectVtbl>,
+    release: part_release::<OleObjectVtbl>,
+    set_client_site: ole_object_set_client_site,
+    get_client_site: ole_object_get_client_site,
+    set_host_names: ole_object_set_host_names,
+    close: ole_object_close,
+    set_moniker: ole_object_set_moniker,
+    get_moniker: ole_object_get_moniker,
+    init_from_data: ole_object_init_from_data,
+    get_clipboard_data: ole_object_get_clipboard_data,
+    do_verb: ole_object_do_verb,
+    enum_verbs: ole_object_enum_verbs,
+    update: ole_object_update,
+    is_up_to_date: ole_object_is_up_to_date,
+    get_user_class_id: ole_object_get_user_class_id,
+    get_user_type: ole_object_get_user_type,
+    set_extent: ole_object_set_extent,
+    get_extent: ole_object_get_extent,
+    advise: ole_object_advise,
+    unadvise: ole_object_unadvise,
+    enum_advise: ole_object_enum_advise,
+    get_misc_status: ole_object_get_misc_status,
+    set_color_scheme: ole_object_set_color_scheme,
+};
+
+unsafe extern "system" fn ole_object_set_client_site(this: *mut c_void, site: *mut c_void) -> i32 {
+    let object = owner_from_part::<OleObjectVtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    com_release((*object).client_site);
+    (*object).client_site = site;
+    com_add_ref(site);
+    S_OK
+}
+
+unsafe extern "system" fn ole_object_get_client_site(
+    this: *mut c_void,
+    site: *mut *mut c_void,
+) -> i32 {
+    if site.is_null() {
+        return E_POINTER;
+    }
+    let object = owner_from_part::<OleObjectVtbl>(this);
+    if object.is_null() {
+        *site = null_mut();
+        return E_POINTER;
+    }
+    *site = (*object).client_site;
+    com_add_ref(*site);
+    S_OK
+}
+
+unsafe extern "system" fn ole_object_set_host_names(
+    _this: *mut c_void,
+    _container_app: *const u16,
+    _container_object: *const u16,
+) -> i32 {
+    S_OK
+}
+
+unsafe extern "system" fn ole_object_close(_this: *mut c_void, _save_option: i32) -> i32 {
+    S_OK
+}
+
+unsafe extern "system" fn ole_object_set_moniker(
+    _this: *mut c_void,
+    _which_moniker: u32,
+    _moniker: *mut c_void,
+) -> i32 {
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn ole_object_get_moniker(
+    _this: *mut c_void,
+    _assign: u32,
+    _which_moniker: u32,
+    moniker: *mut *mut c_void,
+) -> i32 {
+    if !moniker.is_null() {
+        *moniker = null_mut();
+    }
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn ole_object_init_from_data(
+    _this: *mut c_void,
+    _data_object: *mut c_void,
+    _creation: i32,
+    _reserved: u32,
+) -> i32 {
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn ole_object_get_clipboard_data(
+    _this: *mut c_void,
+    _reserved: u32,
+    data_object: *mut *mut c_void,
+) -> i32 {
+    if !data_object.is_null() {
+        *data_object = null_mut();
+    }
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn ole_object_do_verb(
+    _this: *mut c_void,
+    _verb: i32,
+    _message: *mut c_void,
+    _active_site: *mut c_void,
+    _index: i32,
+    _parent: isize,
+    _position: *const c_void,
+) -> i32 {
+    OLE_E_NOTRUNNING
+}
+
+unsafe extern "system" fn ole_object_enum_verbs(
+    _this: *mut c_void,
+    enum_verbs: *mut *mut c_void,
+) -> i32 {
+    if enum_verbs.is_null() {
+        return E_POINTER;
+    }
+    *enum_verbs = null_mut();
+    OleRegEnumVerbs(&CLSID_CHEMCORE_DOCUMENT, enum_verbs)
+}
+
+unsafe extern "system" fn ole_object_update(_this: *mut c_void) -> i32 {
+    S_OK
+}
+
+unsafe extern "system" fn ole_object_is_up_to_date(_this: *mut c_void) -> i32 {
+    S_OK
+}
+
+unsafe extern "system" fn ole_object_get_user_class_id(
+    _this: *mut c_void,
+    class_id: *mut GUID,
+) -> i32 {
+    if class_id.is_null() {
+        return E_POINTER;
+    }
+    *class_id = CLSID_CHEMCORE_DOCUMENT;
+    S_OK
+}
+
+unsafe extern "system" fn ole_object_get_user_type(
+    _this: *mut c_void,
+    form: u32,
+    user_type: *mut *mut u16,
+) -> i32 {
+    if user_type.is_null() {
+        return E_POINTER;
+    }
+    *user_type = null_mut();
+    let hr = OleRegGetUserType(&CLSID_CHEMCORE_DOCUMENT, form, user_type);
+    if hresult_succeeded(hr) {
+        return hr;
+    }
+    allocate_com_string(DOCUMENT_DISPLAY_NAME, user_type)
+}
+
+unsafe extern "system" fn ole_object_set_extent(
+    _this: *mut c_void,
+    _draw_aspect: u32,
+    _size: *const c_void,
+) -> i32 {
+    S_OK
+}
+
+unsafe extern "system" fn ole_object_get_extent(
+    _this: *mut c_void,
+    _draw_aspect: u32,
+    size: *mut c_void,
+) -> i32 {
+    if size.is_null() {
+        return E_POINTER;
+    }
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn ole_object_advise(
+    _this: *mut c_void,
+    _sink: *mut c_void,
+    connection: *mut u32,
+) -> i32 {
+    if !connection.is_null() {
+        *connection = 0;
+    }
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn ole_object_unadvise(_this: *mut c_void, _connection: u32) -> i32 {
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn ole_object_enum_advise(
+    _this: *mut c_void,
+    enum_advise: *mut *mut c_void,
+) -> i32 {
+    if !enum_advise.is_null() {
+        *enum_advise = null_mut();
+    }
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn ole_object_get_misc_status(
+    _this: *mut c_void,
+    draw_aspect: u32,
+    status: *mut u32,
+) -> i32 {
+    if status.is_null() {
+        return E_POINTER;
+    }
+    let hr = OleRegGetMiscStatus(&CLSID_CHEMCORE_DOCUMENT, draw_aspect, status);
+    if hresult_succeeded(hr) {
+        return hr;
+    }
+    *status = (OLEMISC_INSIDEOUT
+        | OLEMISC_ACTIVATEWHENVISIBLE
+        | OLEMISC_RENDERINGISDEVICEINDEPENDENT
+        | OLEMISC_SETCLIENTSITEFIRST) as u32;
+    S_OK
+}
+
+unsafe extern "system" fn ole_object_set_color_scheme(
+    _this: *mut c_void,
+    _palette_log: *const c_void,
+) -> i32 {
+    S_OK
+}
+
+#[repr(C)]
+struct ViewObject2Vtbl {
+    query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
+    add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+    release: unsafe extern "system" fn(*mut c_void) -> u32,
+    draw: unsafe extern "system" fn(
+        *mut c_void,
+        u32,
+        i32,
+        *mut c_void,
+        *mut c_void,
+        isize,
+        isize,
+        *const c_void,
+        *const c_void,
+        *mut c_void,
+        usize,
+    ) -> i32,
+    get_color_set: unsafe extern "system" fn(
+        *mut c_void,
+        u32,
+        i32,
+        *mut c_void,
+        *mut c_void,
+        isize,
+        *mut *mut c_void,
+    ) -> i32,
+    freeze: unsafe extern "system" fn(*mut c_void, u32, i32, *mut c_void, *mut u32) -> i32,
+    unfreeze: unsafe extern "system" fn(*mut c_void, u32) -> i32,
+    set_advise: unsafe extern "system" fn(*mut c_void, u32, u32, *mut c_void) -> i32,
+    get_advise: unsafe extern "system" fn(*mut c_void, *mut u32, *mut u32, *mut *mut c_void) -> i32,
+    get_extent: unsafe extern "system" fn(*mut c_void, u32, i32, *mut c_void, *mut c_void) -> i32,
+}
+
+static VIEW_OBJECT2_VTBL: ViewObject2Vtbl = ViewObject2Vtbl {
+    query_interface: part_query_interface::<ViewObject2Vtbl>,
+    add_ref: part_add_ref::<ViewObject2Vtbl>,
+    release: part_release::<ViewObject2Vtbl>,
+    draw: view_object_draw,
+    get_color_set: view_object_get_color_set,
+    freeze: view_object_freeze,
+    unfreeze: view_object_unfreeze,
+    set_advise: view_object_set_advise,
+    get_advise: view_object_get_advise,
+    get_extent: view_object_get_extent,
+};
+
+unsafe extern "system" fn view_object_draw(
+    _this: *mut c_void,
+    _draw_aspect: u32,
+    _index: i32,
+    _aspect: *mut c_void,
+    _target_device: *mut c_void,
+    _target_dc: isize,
+    _draw_dc: isize,
+    _bounds: *const c_void,
+    _window_bounds: *const c_void,
+    _continue_fn: *mut c_void,
+    _continue_value: usize,
+) -> i32 {
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn view_object_get_color_set(
+    _this: *mut c_void,
+    _draw_aspect: u32,
+    _index: i32,
+    _aspect: *mut c_void,
+    _target_device: *mut c_void,
+    _target_dc: isize,
+    color_set: *mut *mut c_void,
+) -> i32 {
+    if !color_set.is_null() {
+        *color_set = null_mut();
+    }
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn view_object_freeze(
+    _this: *mut c_void,
+    _draw_aspect: u32,
+    _index: i32,
+    _aspect: *mut c_void,
+    freeze_key: *mut u32,
+) -> i32 {
+    if !freeze_key.is_null() {
+        *freeze_key = 0;
+    }
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn view_object_unfreeze(_this: *mut c_void, _freeze_key: u32) -> i32 {
+    E_NOTIMPL
+}
+
+unsafe extern "system" fn view_object_set_advise(
+    _this: *mut c_void,
+    _aspects: u32,
+    _advf: u32,
+    _sink: *mut c_void,
+) -> i32 {
+    S_OK
+}
+
+unsafe extern "system" fn view_object_get_advise(
+    _this: *mut c_void,
+    aspects: *mut u32,
+    advf: *mut u32,
+    sink: *mut *mut c_void,
+) -> i32 {
+    if !aspects.is_null() {
+        *aspects = DVASPECT_CONTENT;
+    }
+    if !advf.is_null() {
+        *advf = 0;
+    }
+    if !sink.is_null() {
+        *sink = null_mut();
+    }
+    S_OK
+}
+
+unsafe extern "system" fn view_object_get_extent(
+    _this: *mut c_void,
+    _draw_aspect: u32,
+    _index: i32,
+    _target_device: *mut c_void,
+    size: *mut c_void,
+) -> i32 {
+    if size.is_null() {
+        return E_POINTER;
+    }
+    E_NOTIMPL
+}
+
+#[repr(C)]
+struct RunnableObjectVtbl {
+    query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
+    add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+    release: unsafe extern "system" fn(*mut c_void) -> u32,
+    get_running_class: unsafe extern "system" fn(*mut c_void, *mut GUID) -> i32,
+    run: unsafe extern "system" fn(*mut c_void, *mut c_void) -> i32,
+    is_running: unsafe extern "system" fn(*mut c_void) -> i32,
+    lock_running: unsafe extern "system" fn(*mut c_void, i32, i32) -> i32,
+    set_contained_object: unsafe extern "system" fn(*mut c_void, i32) -> i32,
+}
+
+static RUNNABLE_OBJECT_VTBL: RunnableObjectVtbl = RunnableObjectVtbl {
+    query_interface: part_query_interface::<RunnableObjectVtbl>,
+    add_ref: part_add_ref::<RunnableObjectVtbl>,
+    release: part_release::<RunnableObjectVtbl>,
+    get_running_class: runnable_object_get_running_class,
+    run: runnable_object_run,
+    is_running: runnable_object_is_running,
+    lock_running: runnable_object_lock_running,
+    set_contained_object: runnable_object_set_contained_object,
+};
+
+unsafe extern "system" fn runnable_object_get_running_class(
+    _this: *mut c_void,
+    class_id: *mut GUID,
+) -> i32 {
+    if class_id.is_null() {
+        return E_POINTER;
+    }
+    *class_id = CLSID_CHEMCORE_DOCUMENT;
+    S_OK
+}
+
+unsafe extern "system" fn runnable_object_run(
+    _this: *mut c_void,
+    _bind_context: *mut c_void,
+) -> i32 {
+    S_OK
+}
+
+unsafe extern "system" fn runnable_object_is_running(_this: *mut c_void) -> i32 {
+    S_OK
+}
+
+unsafe extern "system" fn runnable_object_lock_running(
+    _this: *mut c_void,
+    _lock: i32,
+    _last_unlock_closes: i32,
+) -> i32 {
+    S_OK
+}
+
+unsafe extern "system" fn runnable_object_set_contained_object(
+    _this: *mut c_void,
+    _contained: i32,
+) -> i32 {
+    S_OK
+}
+
+unsafe fn com_add_ref(interface: *mut c_void) {
+    if interface.is_null() {
+        return;
+    }
+    let vtbl = *(interface.cast::<*const UnknownVtbl>());
+    ((*vtbl).add_ref)(interface);
+}
+
+unsafe fn com_release(interface: *mut c_void) {
+    if interface.is_null() {
+        return;
+    }
+    let vtbl = *(interface.cast::<*const UnknownVtbl>());
+    ((*vtbl).release)(interface);
+}
+
+unsafe fn allocate_com_string(value: &str, out: *mut *mut u16) -> i32 {
+    if out.is_null() {
+        return E_POINTER;
+    }
+    let wide = wide_null(value);
+    let bytes = wide.len() * std::mem::size_of::<u16>();
+    let ptr = CoTaskMemAlloc(bytes).cast::<u16>();
+    if ptr.is_null() {
+        *out = null_mut();
+        return E_OUTOFMEMORY;
+    }
+    std::ptr::copy_nonoverlapping(wide.as_ptr(), ptr, wide.len());
+    *out = ptr;
     S_OK
 }
 
@@ -394,6 +1408,7 @@ fn print_help() {
     println!("  chemcore-office.exe --register-machine");
     println!("  chemcore-office.exe --unregister-machine");
     println!("  chemcore-office.exe --print-registration");
+    println!("  chemcore-office.exe --self-test");
     println!("  chemcore-office.exe --serve");
     println!();
     println!("COM may launch this executable with -Embedding or /Embedding.");

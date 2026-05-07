@@ -253,6 +253,7 @@ Local server:       chemcore-office.exe
 npm run office:register-dev
 npm run office:unregister-dev
 npm run office:print-registration
+npm run office:self-test
 ```
 
 `office:register-dev` 写入 `HKCU\Software\Classes`，通常不需要管理员权限，只影响当前 Windows 用户。正式安装器稳定后再写入 `HKLM\Software\Classes`，对应命令为：
@@ -269,16 +270,18 @@ target\debug\chemcore-office.exe --unregister-machine
 - `chemcore-office.exe` 是独立 COM local server，不和 `chemcore-desktop.exe` 生命周期绑死。
 - 已支持 user/machine scope 注册与反注册。
 - 已注册 `Insertable`、`LocalServer32`、`ProgID`、`VersionIndependentProgID`、`Verb` 和 `DefaultIcon` 等 OLE 基础键。
-- 已有最小 `IClassFactory` local server 骨架，可被 COM 启动并注册 class object。
+- 已有 `IClassFactory` local server 骨架，可被 COM 启动并注册 class object。
+- `IClassFactory::CreateInstance` 已能返回 Chemcore object，并支持查询 `IOleObject`、`IDataObject`、`IPersistStorage`、`IViewObject2` 和 `IRunnableObject`。
+- `npm run office:self-test` 用于无 Office 环境下验证 COM object 创建、接口查询和 CLSID 返回。
 
 后续仍需补齐真正的 embedded object 接口：
 
 ```text
-IOleObject
-IDataObject
-IPersistStorage
-IViewObject2
-IRunnableObject
+IOleObject      当前骨架已存在，下一步补 DoVerb 双击激活、extent、advise。
+IDataObject     当前骨架已存在，下一步补 clipboard/embedded object formats。
+IPersistStorage 当前骨架已存在，下一步补 Chemcore payload stream 和 preview stream。
+IViewObject2    当前骨架已存在，下一步补 EMF preview Draw/GetExtent。
+IRunnableObject 当前骨架已存在，下一步补运行状态和桌面端唤醒。
 ```
 
 第一阶段只要求 Windows/Office 能识别 Chemcore OLE class；第二阶段再让 Office 插入对象时得到可显示 preview；第三阶段实现双击激活和编辑回写。

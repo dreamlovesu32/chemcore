@@ -17,6 +17,7 @@
     "office:print-registration": "cargo run -p chemcore-office -- --print-registration",
     "office:register-dev": "cargo run -p chemcore-office -- --register-user",
     "office:serve": "cargo run -p chemcore-office -- --serve",
+    "office:self-test": "cargo run -p chemcore-office -- --self-test",
     "office:unregister-dev": "cargo run -p chemcore-office -- --unregister-user",
     "verify": "node scripts/verify.mjs",
     "screenshot": "node scripts/viewer-screenshot.mjs",
