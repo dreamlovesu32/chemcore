@@ -19,7 +19,8 @@ use windows_sys::Win32::Graphics::Gdi::{
     CloseEnhMetaFile, CloseMetaFile, CreateEnhMetaFileW, CreateMetaFileW, CreatePen,
     CreateSolidBrush, DeleteEnhMetaFile, DeleteMetaFile, DeleteObject, Ellipse, GetStockObject,
     LineTo, MoveToEx, Polygon, Rectangle, SelectObject, SetBkMode, SetMapMode, SetTextColor,
-    SetViewportExtEx, SetWindowExtEx, TextOutW, HDC, HGDIOBJ, MM_ANISOTROPIC, NULL_BRUSH, PS_SOLID,
+    SetViewportExtEx, SetWindowExtEx, StretchDIBits, TextOutW, BITMAPINFO, BITMAPINFOHEADER,
+    BI_RGB, DIB_RGB_COLORS, HDC, HGDIOBJ, MM_ANISOTROPIC, NULL_BRUSH, PS_SOLID, SRCCOPY,
     TRANSPARENT,
 };
 use windows_sys::Win32::System::Com::StructuredStorage::{
@@ -2877,6 +2878,10 @@ impl PreviewTransform {
 }
 
 unsafe fn draw_payload_preview(dc: HDC, bounds: &RECT, payload: &OleObjectPayload) -> bool {
+    if draw_svg_preview(dc, bounds, payload) {
+        return true;
+    }
+
     let Ok(document) = parse_document_json(&payload.chemcore_document_json) else {
         return false;
     };
@@ -2896,6 +2901,89 @@ unsafe fn draw_payload_preview(dc: HDC, bounds: &RECT, payload: &OleObjectPayloa
         draw_preview_primitive(dc, primitive, &transform);
     }
     true
+}
+
+struct SvgPreviewBitmap {
+    width: i32,
+    height: i32,
+    bgra: Vec<u8>,
+}
+
+fn render_svg_preview_bitmap(svg: &str) -> Option<SvgPreviewBitmap> {
+    if svg.trim().is_empty() {
+        return None;
+    }
+    let options = usvg::Options::default();
+    let tree = usvg::Tree::from_str(svg, &options).ok()?;
+    let size = tree.size().to_int_size();
+    let source_width = size.width().max(1);
+    let source_height = size.height().max(1);
+    let max_side = 2400.0_f32;
+    let scale = (max_side / source_width.max(source_height) as f32).min(1.0);
+    let width = ((source_width as f32) * scale).round().max(1.0) as u32;
+    let height = ((source_height as f32) * scale).round().max(1.0) as u32;
+    let mut pixmap = tiny_skia::Pixmap::new(width, height)?;
+    pixmap.fill(tiny_skia::Color::WHITE);
+    let mut pixmap_mut = pixmap.as_mut();
+    resvg::render(
+        &tree,
+        tiny_skia::Transform::from_scale(scale, scale),
+        &mut pixmap_mut,
+    );
+
+    let mut bgra = Vec::with_capacity((width as usize) * (height as usize) * 4);
+    for pixel in pixmap.data().chunks_exact(4) {
+        bgra.push(pixel[2]);
+        bgra.push(pixel[1]);
+        bgra.push(pixel[0]);
+        bgra.push(0xFF);
+    }
+
+    Some(SvgPreviewBitmap {
+        width: width as i32,
+        height: height as i32,
+        bgra,
+    })
+}
+
+unsafe fn draw_svg_preview(dc: HDC, bounds: &RECT, payload: &OleObjectPayload) -> bool {
+    let Some(bitmap) = render_svg_preview_bitmap(&payload.svg) else {
+        return false;
+    };
+    let target_width = (bounds.right - bounds.left).max(1);
+    let target_height = (bounds.bottom - bounds.top).max(1);
+    let mut info = BITMAPINFO {
+        bmiHeader: BITMAPINFOHEADER {
+            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: bitmap.width,
+            biHeight: -bitmap.height,
+            biPlanes: 1,
+            biBitCount: 32,
+            biCompression: BI_RGB,
+            biSizeImage: 0,
+            biXPelsPerMeter: 0,
+            biYPelsPerMeter: 0,
+            biClrUsed: 0,
+            biClrImportant: 0,
+        },
+        bmiColors: unsafe { zeroed() },
+    };
+    let lines = StretchDIBits(
+        dc,
+        bounds.left,
+        bounds.top,
+        target_width,
+        target_height,
+        0,
+        0,
+        bitmap.width,
+        bitmap.height,
+        bitmap.bgra.as_ptr().cast::<c_void>(),
+        &mut info,
+        DIB_RGB_COLORS,
+        SRCCOPY,
+    );
+    lines != 0
 }
 
 fn office_preview_primitive_visible(primitive: &RenderPrimitive) -> bool {
