@@ -61,6 +61,7 @@ const OLE_STREAM_DOCUMENT: &str = "ChemcoreDocument";
 const OLE_STREAM_PREVIEW_SVG: &str = "ChemcorePreviewSvg";
 const OLE_STREAM_PRESENTATION_WMF: &str = "\u{0002}OlePres000";
 const OLE_STREAM_PRESENTATION_EMF: &str = "\u{0002}OlePres001";
+const OLE_STREAM_ENHANCED_PRINT: &str = "\u{0003}EPRINT";
 const CLIPBOARD_FORMAT_EMBEDDED_OBJECT: &str = "Embedded Object";
 const CLIPBOARD_FORMAT_EMBED_SOURCE: &str = "Embed Source";
 const CLIPBOARD_FORMAT_OBJECT_DESCRIPTOR: &str = "Object Descriptor";
@@ -643,6 +644,7 @@ fn run_persist_storage_self_test() -> Result<(), String> {
         let preview = storage_read_stream(storage, OLE_STREAM_PREVIEW_SVG)?;
         let presentation_wmf = storage_read_stream(storage, OLE_STREAM_PRESENTATION_WMF)?;
         let presentation_emf = storage_read_stream(storage, OLE_STREAM_PRESENTATION_EMF)?;
+        let enhanced_print = storage_read_stream(storage, OLE_STREAM_ENHANCED_PRINT)?;
 
         com_release(persist_storage);
         com_release(storage);
@@ -666,6 +668,9 @@ fn run_persist_storage_self_test() -> Result<(), String> {
         }
         if presentation_wmf.len() <= 40 || presentation_emf.len() <= 40 {
             return Err("OLE presentation streams were unexpectedly empty.".into());
+        }
+        if !enhanced_print_is_emf(&enhanced_print) {
+            return Err("Enhanced print stream did not contain an EMF payload.".into());
         }
 
         Ok(())
@@ -1626,6 +1631,14 @@ unsafe fn write_ole_storage_payload(storage: *mut c_void, payload: &OleObjectPay
             return hr;
         }
     }
+    if let Ok(enhanced_print) =
+        enhanced_metafile_bits_for_payload(payload, payload.extent_himetric())
+    {
+        let hr = storage_write_stream(storage, OLE_STREAM_ENHANCED_PRINT, &enhanced_print);
+        if !hresult_succeeded(hr) {
+            return hr;
+        }
+    }
 
     storage_commit(storage)
 }
@@ -1970,6 +1983,12 @@ fn enhanced_metafile_bits_for_payload(
     }
 }
 
+fn enhanced_print_is_emf(bytes: &[u8]) -> bool {
+    bytes.len() >= 44
+        && u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) == 1
+        && bytes[40..44] == *b" EMF"
+}
+
 fn hglobal_medium(handle: HGLOBAL, medium: *mut STGMEDIUM) -> i32 {
     if medium.is_null() {
         unsafe {
@@ -2209,6 +2228,7 @@ fn ole_manifest_stream_payload() -> Result<Vec<u8>, i32> {
         "progId": PROG_ID,
         "documentStream": OLE_STREAM_DOCUMENT,
         "previewSvgStream": OLE_STREAM_PREVIEW_SVG,
+        "enhancedPrintStream": OLE_STREAM_ENHANCED_PRINT,
         "presentationStreams": [
             OLE_STREAM_PRESENTATION_WMF,
             OLE_STREAM_PRESENTATION_EMF
