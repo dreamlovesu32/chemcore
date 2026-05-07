@@ -15,6 +15,14 @@ Windows 桌面端和 Office 集成的长期方案见 `docs/windows-desktop-offic
 - 不允许把高频鼠标事件设计成每次同步跨 Tauri IPC 并回传完整 document/render/state JSON snapshot。除非有增量 diff、事件合并和大文件性能证明，否则 `TauriEngineHost` 只能作为 `?engine=tauri-native` 诊断路径。
 - 右键菜单、缩放/旋转面板、object settings 等界面可以由 viewer 展示，但字段定义、适用对象、混合值、应用逻辑和文档 mutation 必须来自 engine API。
 
+## Office/OLE 边界
+
+- Office 集成必须以 `apps/chemcore-office` 的独立 COM/OLE local server 为边界，不把 OLE 生命周期直接塞进桌面主窗口进程。
+- Chemcore 自己的 OLE class 固定为 `Chemcore.Document` / `Chemcore.Document.1` / `{CB69F54F-F21E-44DE-84FB-89D98FECE056}`。
+- 开发期注册写 `HKCU\Software\Classes`，正式安装器写 `HKLM\Software\Classes`。不要要求用户手动编辑注册表。
+- OLE server 只能负责 COM/OLE 接口、storage、preview、剪贴板对象和唤醒桌面端；化学解析、文档 mutation、导入导出和渲染语义仍由 Rust engine / desktop service 提供。
+- Office Add-in 只能作为后续 Ribbon/入口增强，不能替代 OLE embedded object。
+
 ## 文档单位
 
 - 当前 `.ccjs` / `.ccjz` 原生文件里的文档 JSON 单位固定为印刷点数：`format.unit = "pt"`。

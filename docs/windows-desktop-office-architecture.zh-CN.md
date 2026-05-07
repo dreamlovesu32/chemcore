@@ -233,6 +233,56 @@ Chemcore OLE Object
 
 Office Add-in 可作为后续增强，用于 Ribbon 按钮、模板库、批量插入、选中对象编辑、导入导出入口等。但 Add-in 不应替代 OLE 对象，因为 Add-in 无法单独提供 ChemDraw 式双击对象编辑体验。
 
+## Chemcore OLE 注册
+
+Chemcore 自己的 Office 对象从一开始按长期 OLE class 设计，不走临时图片粘贴方案。
+
+固定对象身份：
+
+```text
+Display name:       Chemcore Document
+ProgID:             Chemcore.Document
+Versioned ProgID:   Chemcore.Document.1
+CLSID:              {CB69F54F-F21E-44DE-84FB-89D98FECE056}
+Local server:       chemcore-office.exe
+```
+
+开发期优先注册到当前用户：
+
+```powershell
+npm run office:register-dev
+npm run office:unregister-dev
+npm run office:print-registration
+```
+
+`office:register-dev` 写入 `HKCU\Software\Classes`，通常不需要管理员权限，只影响当前 Windows 用户。正式安装器稳定后再写入 `HKLM\Software\Classes`，对应命令为：
+
+```powershell
+target\debug\chemcore-office.exe --register-machine
+target\debug\chemcore-office.exe --unregister-machine
+```
+
+`--register-machine` 需要管理员权限，应由正式 installer elevated 执行。开发时如果确实要测试 machine scope，需要用管理员 PowerShell 运行对应命令。
+
+当前 `apps/chemcore-office` 已建立长期边界：
+
+- `chemcore-office.exe` 是独立 COM local server，不和 `chemcore-desktop.exe` 生命周期绑死。
+- 已支持 user/machine scope 注册与反注册。
+- 已注册 `Insertable`、`LocalServer32`、`ProgID`、`VersionIndependentProgID`、`Verb` 和 `DefaultIcon` 等 OLE 基础键。
+- 已有最小 `IClassFactory` local server 骨架，可被 COM 启动并注册 class object。
+
+后续仍需补齐真正的 embedded object 接口：
+
+```text
+IOleObject
+IDataObject
+IPersistStorage
+IViewObject2
+IRunnableObject
+```
+
+第一阶段只要求 Windows/Office 能识别 Chemcore OLE class；第二阶段再让 Office 插入对象时得到可显示 preview；第三阶段实现双击激活和编辑回写。
+
 ## 原生文档容器
 
 当前 `.ccjz` 是 gzip JSON，适合早期阶段。但为了 Office 对象、预览、缩略图和资源管理，长期应把 `.ccjz` 的 API 设计成容器模型。

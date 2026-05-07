@@ -14,6 +14,10 @@
     "desktop:dev": "node scripts/desktop-tauri.mjs dev",
     "desktop:info": "node scripts/desktop-tauri.mjs info",
     "dev:engine": "node scripts/dev-engine-wasm.mjs",
+    "office:print-registration": "cargo run -p chemcore-office -- --print-registration",
+    "office:register-dev": "cargo run -p chemcore-office -- --register-user",
+    "office:serve": "cargo run -p chemcore-office -- --serve",
+    "office:unregister-dev": "cargo run -p chemcore-office -- --unregister-user",
     "verify": "node scripts/verify.mjs",
     "screenshot": "node scripts/viewer-screenshot.mjs",
     "test": "cargo test && node --check viewer/app.js"

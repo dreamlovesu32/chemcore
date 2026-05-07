@@ -3,6 +3,7 @@ members = [
   "crates/chemcore-engine",
   "crates/chemcore-desktop-service",
   "apps/chemcore-desktop/src-tauri",
+  "apps/chemcore-office",
 ]
 resolver = "2"
 
