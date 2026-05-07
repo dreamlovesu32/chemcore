@@ -31,6 +31,13 @@ struct DesktopState {
     pending_detached_documents: Mutex<BTreeMap<String, DesktopDetachedDocumentPayload>>,
 }
 
+fn current_timestamp_ms() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or(0)
+}
+
 impl DesktopState {
     fn new() -> Self {
         Self {
@@ -63,7 +70,7 @@ struct DesktopDetachedDocumentPayload {
     zoom_percent: Option<f64>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct NativeClipboardWritePayload {
     chemcore_fragment_json: Option<String>,
@@ -1309,80 +1316,129 @@ fn native_clipboard_write(payload: NativeClipboardWritePayload) -> Result<(), St
     };
     use windows_sys::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock};
 
-    unsafe {
-        if OpenClipboard(std::ptr::null_mut()) == 0 {
-            return Err("Failed to open Windows clipboard.".to_string());
-        }
-    }
-    let _guard = ClipboardCloseGuard;
-
-    unsafe {
-        if EmptyClipboard() == 0 {
-            return Err("Failed to clear Windows clipboard.".to_string());
-        }
-    }
-
-    let mut wrote = false;
-    for (format_name, value) in [
-        (
-            FORMAT_CHEMCORE_FRAGMENT,
-            payload.chemcore_fragment_json.as_deref(),
-        ),
-        (
-            FORMAT_CHEMCORE_DOCUMENT_JSON,
-            payload.chemcore_document_json.as_deref(),
-        ),
-        (FORMAT_CHEMDRAW_INTERCHANGE, payload.cdxml.as_deref()),
-        (FORMAT_CDXML_MIME, payload.cdxml.as_deref()),
-        (FORMAT_SVG_MIME, payload.svg.as_deref()),
-        (FORMAT_SVG, payload.svg.as_deref()),
-    ] {
-        let Some(value) = value.filter(|value| !value.is_empty()) else {
-            continue;
-        };
-        let format = unsafe { RegisterClipboardFormatW(wide_null(format_name).as_ptr()) };
-        if format == 0 {
-            return Err(format!(
-                "Failed to register clipboard format {format_name}."
-            ));
-        }
+    {
         unsafe {
-            write_clipboard_utf8(
-                format,
-                value,
-                GlobalAlloc,
-                GlobalLock,
-                GlobalUnlock,
-                SetClipboardData,
-            )?;
+            if OpenClipboard(std::ptr::null_mut()) == 0 {
+                return Err("Failed to open Windows clipboard.".to_string());
+            }
         }
-        wrote = true;
+        let _guard = ClipboardCloseGuard;
+
+        unsafe {
+            if EmptyClipboard() == 0 {
+                return Err("Failed to clear Windows clipboard.".to_string());
+            }
+        }
+
+        let mut wrote = false;
+        for (format_name, value) in [
+            (
+                FORMAT_CHEMCORE_FRAGMENT,
+                payload.chemcore_fragment_json.as_deref(),
+            ),
+            (
+                FORMAT_CHEMCORE_DOCUMENT_JSON,
+                payload.chemcore_document_json.as_deref(),
+            ),
+            (FORMAT_CHEMDRAW_INTERCHANGE, payload.cdxml.as_deref()),
+            (FORMAT_CDXML_MIME, payload.cdxml.as_deref()),
+            (FORMAT_SVG_MIME, payload.svg.as_deref()),
+            (FORMAT_SVG, payload.svg.as_deref()),
+        ] {
+            let Some(value) = value.filter(|value| !value.is_empty()) else {
+                continue;
+            };
+            let format = unsafe { RegisterClipboardFormatW(wide_null(format_name).as_ptr()) };
+            if format == 0 {
+                return Err(format!(
+                    "Failed to register clipboard format {format_name}."
+                ));
+            }
+            unsafe {
+                write_clipboard_utf8(
+                    format,
+                    value,
+                    GlobalAlloc,
+                    GlobalLock,
+                    GlobalUnlock,
+                    SetClipboardData,
+                )?;
+            }
+            wrote = true;
+        }
+
+        let text = payload
+            .text
+            .as_deref()
+            .or(payload.cdxml.as_deref())
+            .filter(|value| !value.is_empty());
+        if let Some(text) = text {
+            unsafe {
+                write_clipboard_utf16(
+                    13,
+                    text,
+                    GlobalAlloc,
+                    GlobalLock,
+                    GlobalUnlock,
+                    SetClipboardData,
+                )?;
+            }
+            wrote = true;
+        }
+
+        if !wrote {
+            return Err("Clipboard payload is empty.".to_string());
+        }
     }
 
-    let text = payload
-        .text
+    if payload
+        .chemcore_document_json
         .as_deref()
-        .or(payload.cdxml.as_deref())
-        .filter(|value| !value.is_empty());
-    if let Some(text) = text {
-        unsafe {
-            write_clipboard_utf16(
-                13,
-                text,
-                GlobalAlloc,
-                GlobalLock,
-                GlobalUnlock,
-                SetClipboardData,
-            )?;
-        }
-        wrote = true;
+        .is_some_and(|value| !value.trim().is_empty())
+    {
+        native_office_ole_clipboard_write(&payload)?;
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn native_office_ole_clipboard_write(payload: &NativeClipboardWritePayload) -> Result<(), String> {
+    let office_exe = std::env::current_exe()
+        .map_err(|error| format!("Failed to resolve desktop executable path: {error}"))?
+        .with_file_name("chemcore-office.exe");
+    if !office_exe.exists() {
+        return Err(format!(
+            "Chemcore Office/OLE server was not found at {}",
+            office_exe.display()
+        ));
     }
 
-    if wrote {
-        Ok(())
-    } else {
-        Err("Clipboard payload is empty.".to_string())
-    }
+    let payload_path = std::env::temp_dir().join(format!(
+        "chemcore-office-clipboard-{}-{}.json",
+        std::process::id(),
+        current_timestamp_ms()
+    ));
+    let json = serde_json::to_string(payload)
+        .map_err(|error| format!("Failed to serialize OLE clipboard payload: {error}"))?;
+    fs::write(&payload_path, json)
+        .map_err(|error| format!("Failed to write OLE clipboard payload: {error}"))?;
+
+    let result = std::process::Command::new(&office_exe)
+        .arg("--copy-clipboard-payload")
+        .arg(&payload_path)
+        .status()
+        .map_err(|error| format!("Failed to run Chemcore Office/OLE clipboard bridge: {error}"))
+        .and_then(|status| {
+            if status.success() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "Chemcore Office/OLE clipboard bridge exited with {status}."
+                ))
+            }
+        });
+    let _ = fs::remove_file(payload_path);
+    result
 }
 
 #[cfg(not(target_os = "windows"))]

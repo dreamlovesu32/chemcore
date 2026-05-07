@@ -281,14 +281,15 @@ ChemcorePreviewSvg  当前阶段的 SVG preview placeholder，后续由真实渲
 ```
 
 - `npm run office:self-test` 用于无 Office 环境下验证 COM object 创建、接口查询、CLSID 返回，以及 OLE storage stream 写入/读回。
+- 桌面端复制时会继续写入普通 Windows clipboard 格式，同时调用 `chemcore-office.exe --copy-clipboard-payload` 把同一份 Chemcore document/svg/cdxml payload 放入 OLE clipboard。该 OLE clipboard object 支持 `Embed Source`、`Object Descriptor`、Chemcore 自定义 JSON、CDXML、SVG 和 Unicode text，用于 Office 粘贴为可编辑对象。
 
 后续仍需补齐真正的 embedded object 接口：
 
 ```text
-IOleObject      当前骨架已存在，下一步补 DoVerb 双击激活、extent、advise。
-IDataObject     当前骨架已存在，下一步补 clipboard/embedded object formats。
+IOleObject      已补基础 extent 和 DoVerb 唤醒桌面端，下一步补编辑后回写 Office storage。
+IDataObject     已补 OLE clipboard 的 Embed Source/Object Descriptor/自定义文本格式。
 IPersistStorage 已写入 Chemcore payload stream 和 SVG preview stream，下一步补 Load 回读和编辑回写。
-IViewObject2    当前骨架已存在，下一步补 EMF preview Draw/GetExtent。
+IViewObject2    已补基础 Draw/GetExtent placeholder，下一步接真实 native preview renderer。
 IRunnableObject 当前骨架已存在，下一步补运行状态和桌面端唤醒。
 ```
 

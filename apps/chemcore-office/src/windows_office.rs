@@ -3,20 +3,34 @@ use std::ffi::c_void;
 use std::mem::zeroed;
 use std::os::windows::ffi::OsStrExt;
 use std::path::PathBuf;
+use std::process::Command;
 use std::ptr::{null, null_mut};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use windows_sys::core::GUID;
-use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS};
-use windows_sys::Win32::System::Com::StructuredStorage::{StgCreateDocfile, WriteClassStg};
+use windows_sys::Win32::Foundation::{
+    GlobalFree, ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, HGLOBAL, POINTL, RECT, SIZE,
+};
+use windows_sys::Win32::Graphics::Gdi::{
+    CreatePen, DeleteObject, Ellipse, GetStockObject, LineTo, MoveToEx, Rectangle, SelectObject,
+    SetBkMode, TextOutW, HDC, HGDIOBJ, NULL_BRUSH, PS_SOLID, TRANSPARENT,
+};
+use windows_sys::Win32::System::Com::StructuredStorage::{
+    CreateILockBytesOnHGlobal, StgCreateDocfile, StgCreateDocfileOnILockBytes, WriteClassStg,
+};
 use windows_sys::Win32::System::Com::{
     CoInitializeEx, CoRegisterClassObject, CoRevokeClassObject, CoTaskMemAlloc, CoUninitialize,
-    CLSCTX_LOCAL_SERVER, COINIT_APARTMENTTHREADED, DVASPECT_CONTENT, FORMATETC, REGCLS_MULTIPLEUSE,
-    STATSTG, STGC_DEFAULT, STGMEDIUM, STGM_CREATE, STGM_READ, STGM_READWRITE, STGM_SHARE_EXCLUSIVE,
+    CLSCTX_LOCAL_SERVER, COINIT_APARTMENTTHREADED, DATADIR_GET, DVASPECT_CONTENT, FORMATETC,
+    REGCLS_MULTIPLEUSE, STATSTG, STGC_DEFAULT, STGMEDIUM, STGM_CREATE, STGM_READ, STGM_READWRITE,
+    STGM_SHARE_EXCLUSIVE, TYMED_HGLOBAL, TYMED_ISTORAGE,
 };
+use windows_sys::Win32::System::DataExchange::RegisterClipboardFormatW;
+use windows_sys::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock};
 use windows_sys::Win32::System::Ole::{
-    OleRegEnumVerbs, OleRegGetMiscStatus, OleRegGetUserType, OLEMISC_ACTIVATEWHENVISIBLE,
-    OLEMISC_INSIDEOUT, OLEMISC_RENDERINGISDEVICEINDEPENDENT, OLEMISC_SETCLIENTSITEFIRST,
+    OleFlushClipboard, OleInitialize, OleRegEnumVerbs, OleRegGetMiscStatus, OleRegGetUserType,
+    OleSetClipboard, OleUninitialize, ReleaseStgMedium, OBJECTDESCRIPTOR,
+    OLEMISC_ACTIVATEWHENVISIBLE, OLEMISC_INSIDEOUT, OLEMISC_RENDERINGISDEVICEINDEPENDENT,
+    OLEMISC_SETCLIENTSITEFIRST,
 };
 use windows_sys::Win32::System::Registry::{
     RegCloseKey, RegCreateKeyW, RegDeleteTreeW, RegSetValueExW, HKEY, HKEY_CURRENT_USER,
@@ -34,6 +48,18 @@ const CLSID_STRING: &str = "{CB69F54F-F21E-44DE-84FB-89D98FECE056}";
 const OLE_STREAM_MANIFEST: &str = "ChemcoreManifest";
 const OLE_STREAM_DOCUMENT: &str = "ChemcoreDocument";
 const OLE_STREAM_PREVIEW_SVG: &str = "ChemcorePreviewSvg";
+const CLIPBOARD_FORMAT_EMBED_SOURCE: &str = "Embed Source";
+const CLIPBOARD_FORMAT_OBJECT_DESCRIPTOR: &str = "Object Descriptor";
+const FORMAT_CHEMCORE_FRAGMENT: &str = "Chemcore Clipboard Fragment";
+const FORMAT_CHEMCORE_DOCUMENT_JSON: &str = "Chemcore Document JSON";
+const FORMAT_CHEMDRAW_INTERCHANGE: &str = "ChemDraw Interchange Format";
+const FORMAT_CDXML_MIME: &str = "chemical/x-cdxml";
+const FORMAT_SVG_MIME: &str = "image/svg+xml";
+const FORMAT_SVG: &str = "SVG";
+const CF_UNICODETEXT: u16 = 13;
+const GMEM_MOVEABLE_FLAG: u32 = 0x0002;
+const DEFAULT_OBJECT_WIDTH_HIMETRIC: i32 = 6000;
+const DEFAULT_OBJECT_HEIGHT_HIMETRIC: i32 = 3000;
 
 const CLSID_CHEMCORE_DOCUMENT: GUID = GUID {
     data1: 0xcb69f54f,
@@ -58,6 +84,13 @@ const IID_ICLASS_FACTORY: GUID = GUID {
 
 const IID_IDATA_OBJECT: GUID = GUID {
     data1: 0x0000010e,
+    data2: 0x0000,
+    data3: 0x0000,
+    data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
+};
+
+const IID_IENUM_FORMATETC: GUID = GUID {
+    data1: 0x00000103,
     data2: 0x0000,
     data3: 0x0000,
     data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
@@ -112,6 +145,8 @@ const E_POINTER: i32 = 0x80004003u32 as i32;
 const E_NOINTERFACE: i32 = 0x80004002u32 as i32;
 const E_NOTIMPL: i32 = 0x80004001u32 as i32;
 const E_OUTOFMEMORY: i32 = 0x8007000eu32 as i32;
+const DV_E_FORMATETC: i32 = 0x80040064u32 as i32;
+const DV_E_TYMED: i32 = 0x80040069u32 as i32;
 const OLE_E_NOTRUNNING: i32 = 0x80040005u32 as i32;
 const CLASS_E_NOAGGREGATION: i32 = 0x80040110u32 as i32;
 
@@ -125,6 +160,12 @@ pub fn run() -> Result<(), String> {
         "--unregister-machine" => unregister(RegistrationScope::Machine),
         "--print-registration" => print_registration(),
         "--self-test" => run_self_test(),
+        "--copy-clipboard-payload" => {
+            let payload_path = args.next().ok_or_else(|| {
+                "--copy-clipboard-payload requires a JSON payload path.".to_string()
+            })?;
+            copy_clipboard_payload(PathBuf::from(payload_path))
+        }
         "--serve" | "-Embedding" | "/Embedding" | "--embedding" => run_com_server(),
         "" | "--help" | "-h" | "/?" => {
             print_help();
@@ -250,6 +291,104 @@ fn print_registration() -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ClipboardPayload {
+    chemcore_fragment_json: Option<String>,
+    chemcore_document_json: Option<String>,
+    cdxml: Option<String>,
+    svg: Option<String>,
+    text: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct OleObjectPayload {
+    chemcore_fragment_json: Option<String>,
+    chemcore_document_json: String,
+    cdxml: Option<String>,
+    svg: String,
+    text: Option<String>,
+}
+
+impl OleObjectPayload {
+    fn blank() -> Self {
+        let chemcore_document_json =
+            serde_json::to_string(&chemcore_engine::ChemcoreDocument::blank())
+                .unwrap_or_else(|_| "{}".to_string());
+        Self {
+            chemcore_fragment_json: None,
+            chemcore_document_json,
+            cdxml: None,
+            svg: String::from_utf8(ole_preview_svg_stream_payload()).unwrap_or_default(),
+            text: Some(DOCUMENT_DISPLAY_NAME.to_string()),
+        }
+    }
+
+    fn from_clipboard(payload: ClipboardPayload) -> Self {
+        let fallback = Self::blank();
+        Self {
+            chemcore_fragment_json: payload.chemcore_fragment_json,
+            chemcore_document_json: payload
+                .chemcore_document_json
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or(fallback.chemcore_document_json),
+            cdxml: payload.cdxml.filter(|value| !value.trim().is_empty()),
+            svg: payload
+                .svg
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or(fallback.svg),
+            text: payload
+                .text
+                .filter(|value| !value.trim().is_empty())
+                .or(Some(DOCUMENT_DISPLAY_NAME.to_string())),
+        }
+    }
+}
+
+fn copy_clipboard_payload(payload_path: PathBuf) -> Result<(), String> {
+    let json = std::fs::read_to_string(&payload_path).map_err(|error| {
+        format!(
+            "Failed to read OLE clipboard payload {}: {error}",
+            payload_path.display()
+        )
+    })?;
+    let payload: ClipboardPayload = serde_json::from_str(&json)
+        .map_err(|error| format!("Invalid OLE clipboard payload JSON: {error}"))?;
+    let payload = OleObjectPayload::from_clipboard(payload);
+
+    unsafe {
+        let hr = OleInitialize(null());
+        if !hresult_succeeded(hr) {
+            return Err(format!("OleInitialize failed: 0x{:08X}", hr as u32));
+        }
+
+        let mut object = Box::new(ChemcoreOleObject::with_payload(payload));
+        object.init_self_references();
+        let object = Box::into_raw(object);
+        let data_object =
+            (&mut (*object).data_object as *mut InterfacePart<DataObjectVtbl>).cast::<c_void>();
+
+        let set_hr = OleSetClipboard(data_object);
+        let flush_hr = if hresult_succeeded(set_hr) {
+            OleFlushClipboard()
+        } else {
+            set_hr
+        };
+        chemcore_object_release(object);
+        OleUninitialize();
+
+        if !hresult_succeeded(flush_hr) {
+            return Err(format!(
+                "Failed to place Chemcore OLE object on clipboard: 0x{:08X}",
+                flush_hr as u32
+            ));
+        }
+    }
+
+    println!("{DOCUMENT_DISPLAY_NAME} OLE clipboard payload copied.");
+    Ok(())
+}
+
 fn run_self_test() -> Result<(), String> {
     unsafe {
         let factory = (&CLASS_FACTORY as *const ClassFactory)
@@ -293,6 +432,52 @@ fn run_self_test() -> Result<(), String> {
                 "IOleObject::GetUserClassID failed: 0x{:08X}",
                 hr as u32
             ));
+        }
+
+        let mut data_object = null_mut();
+        let hr =
+            class_factory_create_instance(factory, null_mut(), &IID_IDATA_OBJECT, &mut data_object);
+        if !hresult_succeeded(hr) || data_object.is_null() {
+            return Err(format!(
+                "IClassFactory::CreateInstance(IDataObject) failed: 0x{:08X}",
+                hr as u32
+            ));
+        }
+        let embed_format = FORMATETC {
+            cfFormat: clipboard_format(CLIPBOARD_FORMAT_EMBED_SOURCE),
+            ptd: null_mut(),
+            dwAspect: DVASPECT_CONTENT,
+            lindex: -1,
+            tymed: TYMED_ISTORAGE as u32,
+        };
+        let query_get_data = (*(*(data_object.cast::<*const DataObjectVtbl>()))).query_get_data;
+        let hr = query_get_data(data_object, &embed_format);
+        if !hresult_succeeded(hr) {
+            part_release::<DataObjectVtbl>(data_object);
+            return Err(format!(
+                "IDataObject::QueryGetData(Embed Source) failed: 0x{:08X}",
+                hr as u32
+            ));
+        }
+        let mut medium = STGMEDIUM::default();
+        let get_data = (*(*(data_object.cast::<*const DataObjectVtbl>()))).get_data;
+        let hr = get_data(data_object, &embed_format, &mut medium);
+        part_release::<DataObjectVtbl>(data_object);
+        if !hresult_succeeded(hr) || medium.tymed != TYMED_ISTORAGE as u32 {
+            return Err(format!(
+                "IDataObject::GetData(Embed Source) failed: 0x{:08X}",
+                hr as u32
+            ));
+        }
+        if medium.u.pstg.is_null() {
+            return Err("IDataObject::GetData(Embed Source) returned a null storage.".into());
+        }
+        let document = storage_read_stream(medium.u.pstg, OLE_STREAM_DOCUMENT)?;
+        ReleaseStgMedium(&mut medium);
+        let document = String::from_utf8(document)
+            .map_err(|error| format!("Embedded source document stream is not UTF-8: {error}"))?;
+        if !document.contains("\"name\":\"chemcore\"") {
+            return Err("Embedded source did not contain a Chemcore document stream.".into());
         }
     }
 
@@ -605,6 +790,8 @@ struct ChemcoreOleObject {
     client_site: *mut c_void,
     storage: *mut c_void,
     ole_advise_holder: *mut c_void,
+    payload: OleObjectPayload,
+    extent_himetric: SIZE,
 }
 
 #[repr(C)]
@@ -615,6 +802,10 @@ struct InterfacePart<T> {
 
 impl ChemcoreOleObject {
     fn new() -> Self {
+        Self::with_payload(OleObjectPayload::blank())
+    }
+
+    fn with_payload(payload: OleObjectPayload) -> Self {
         Self {
             unknown_vtbl: &UNKNOWN_VTBL,
             ref_count: AtomicU32::new(1),
@@ -641,6 +832,11 @@ impl ChemcoreOleObject {
             client_site: null_mut(),
             storage: null_mut(),
             ole_advise_holder: null_mut(),
+            payload,
+            extent_himetric: SIZE {
+                cx: DEFAULT_OBJECT_WIDTH_HIMETRIC,
+                cy: DEFAULT_OBJECT_HEIGHT_HIMETRIC,
+            },
         }
     }
 
@@ -817,26 +1013,64 @@ static DATA_OBJECT_VTBL: DataObjectVtbl = DataObjectVtbl {
 };
 
 unsafe extern "system" fn data_object_get_data(
-    _this: *mut c_void,
-    _format: *const FORMATETC,
-    _medium: *mut STGMEDIUM,
+    this: *mut c_void,
+    format: *const FORMATETC,
+    medium: *mut STGMEDIUM,
 ) -> i32 {
-    E_NOTIMPL
+    if format.is_null() || medium.is_null() {
+        return E_POINTER;
+    }
+    let object = owner_from_part::<DataObjectVtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    write_clipboard_format_to_medium(
+        &(*object).payload,
+        (*object).extent_himetric,
+        &*format,
+        medium,
+    )
 }
 
 unsafe extern "system" fn data_object_get_data_here(
-    _this: *mut c_void,
-    _format: *const FORMATETC,
-    _medium: *mut STGMEDIUM,
+    this: *mut c_void,
+    format: *const FORMATETC,
+    medium: *mut STGMEDIUM,
 ) -> i32 {
-    E_NOTIMPL
+    if format.is_null() || medium.is_null() {
+        return E_POINTER;
+    }
+    let object = owner_from_part::<DataObjectVtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    let embed_source = clipboard_format(CLIPBOARD_FORMAT_EMBED_SOURCE);
+    if (*format).cfFormat == embed_source && ((*format).tymed & TYMED_ISTORAGE as u32) != 0 {
+        let storage = (*medium).u.pstg;
+        if storage.is_null() {
+            return E_POINTER;
+        }
+        return write_ole_storage_payload(storage, &(*object).payload);
+    }
+    DV_E_FORMATETC
 }
 
 unsafe extern "system" fn data_object_query_get_data(
-    _this: *mut c_void,
-    _format: *const FORMATETC,
+    this: *mut c_void,
+    format: *const FORMATETC,
 ) -> i32 {
-    E_NOTIMPL
+    if format.is_null() {
+        return E_POINTER;
+    }
+    let object = owner_from_part::<DataObjectVtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    if clipboard_format_supported(&(*object).payload, (*object).extent_himetric, &*format) {
+        S_OK
+    } else {
+        DV_E_FORMATETC
+    }
 }
 
 unsafe extern "system" fn data_object_get_canonical_format_etc(
@@ -861,14 +1095,29 @@ unsafe extern "system" fn data_object_set_data(
 }
 
 unsafe extern "system" fn data_object_enum_format_etc(
-    _this: *mut c_void,
-    _direction: u32,
+    this: *mut c_void,
+    direction: u32,
     enum_format_etc: *mut *mut c_void,
 ) -> i32 {
-    if !enum_format_etc.is_null() {
-        *enum_format_etc = null_mut();
+    if enum_format_etc.is_null() {
+        return E_POINTER;
     }
-    E_NOTIMPL
+    *enum_format_etc = null_mut();
+    if direction != DATADIR_GET as u32 {
+        return E_NOTIMPL;
+    }
+    let object = owner_from_part::<DataObjectVtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    let enumerator = Box::new(FormatEtcEnumerator {
+        vtbl: &FORMAT_ETC_ENUMERATOR_VTBL,
+        ref_count: AtomicU32::new(1),
+        formats: ole_clipboard_formats(&(*object).payload, (*object).extent_himetric),
+        index: 0,
+    });
+    *enum_format_etc = Box::into_raw(enumerator).cast::<c_void>();
+    S_OK
 }
 
 unsafe extern "system" fn data_object_d_advise(
@@ -896,6 +1145,145 @@ unsafe extern "system" fn data_object_enum_d_advise(
         *enum_advise = null_mut();
     }
     E_NOTIMPL
+}
+
+#[repr(C)]
+struct FormatEtcEnumerator {
+    vtbl: *const FormatEtcEnumeratorVtbl,
+    ref_count: AtomicU32,
+    formats: Vec<FORMATETC>,
+    index: usize,
+}
+
+#[repr(C)]
+struct FormatEtcEnumeratorVtbl {
+    query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
+    add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+    release: unsafe extern "system" fn(*mut c_void) -> u32,
+    next: unsafe extern "system" fn(*mut c_void, u32, *mut FORMATETC, *mut u32) -> i32,
+    skip: unsafe extern "system" fn(*mut c_void, u32) -> i32,
+    reset: unsafe extern "system" fn(*mut c_void) -> i32,
+    clone: unsafe extern "system" fn(*mut c_void, *mut *mut c_void) -> i32,
+}
+
+static FORMAT_ETC_ENUMERATOR_VTBL: FormatEtcEnumeratorVtbl = FormatEtcEnumeratorVtbl {
+    query_interface: format_etc_enum_query_interface,
+    add_ref: format_etc_enum_add_ref,
+    release: format_etc_enum_release,
+    next: format_etc_enum_next,
+    skip: format_etc_enum_skip,
+    reset: format_etc_enum_reset,
+    clone: format_etc_enum_clone,
+};
+
+unsafe extern "system" fn format_etc_enum_query_interface(
+    this: *mut c_void,
+    riid: *const GUID,
+    object: *mut *mut c_void,
+) -> i32 {
+    if object.is_null() {
+        return E_POINTER;
+    }
+    *object = null_mut();
+    if riid.is_null() {
+        return E_NOINTERFACE;
+    }
+    if guid_eq(&*riid, &IID_IUNKNOWN) || guid_eq(&*riid, &IID_IENUM_FORMATETC) {
+        *object = this;
+        format_etc_enum_add_ref(this);
+        return S_OK;
+    }
+    E_NOINTERFACE
+}
+
+unsafe extern "system" fn format_etc_enum_add_ref(this: *mut c_void) -> u32 {
+    if this.is_null() {
+        return 0;
+    }
+    (*(this.cast::<FormatEtcEnumerator>()))
+        .ref_count
+        .fetch_add(1, Ordering::Relaxed)
+        + 1
+}
+
+unsafe extern "system" fn format_etc_enum_release(this: *mut c_void) -> u32 {
+    if this.is_null() {
+        return 0;
+    }
+    let next = (*(this.cast::<FormatEtcEnumerator>()))
+        .ref_count
+        .fetch_sub(1, Ordering::Release)
+        - 1;
+    if next == 0 {
+        std::sync::atomic::fence(Ordering::Acquire);
+        drop(Box::from_raw(this.cast::<FormatEtcEnumerator>()));
+    }
+    next
+}
+
+unsafe extern "system" fn format_etc_enum_next(
+    this: *mut c_void,
+    count: u32,
+    out: *mut FORMATETC,
+    fetched: *mut u32,
+) -> i32 {
+    if this.is_null() || out.is_null() {
+        return E_POINTER;
+    }
+    if count != 1 && fetched.is_null() {
+        return E_POINTER;
+    }
+    let enumerator = &mut *(this.cast::<FormatEtcEnumerator>());
+    let mut copied = 0;
+    while copied < count && enumerator.index < enumerator.formats.len() {
+        *out.add(copied as usize) = enumerator.formats[enumerator.index];
+        enumerator.index += 1;
+        copied += 1;
+    }
+    if !fetched.is_null() {
+        *fetched = copied;
+    }
+    if copied == count {
+        S_OK
+    } else {
+        S_FALSE
+    }
+}
+
+unsafe extern "system" fn format_etc_enum_skip(this: *mut c_void, count: u32) -> i32 {
+    if this.is_null() {
+        return E_POINTER;
+    }
+    let enumerator = &mut *(this.cast::<FormatEtcEnumerator>());
+    enumerator.index = (enumerator.index + count as usize).min(enumerator.formats.len());
+    if enumerator.index < enumerator.formats.len() {
+        S_OK
+    } else {
+        S_FALSE
+    }
+}
+
+unsafe extern "system" fn format_etc_enum_reset(this: *mut c_void) -> i32 {
+    if this.is_null() {
+        return E_POINTER;
+    }
+    (*(this.cast::<FormatEtcEnumerator>())).index = 0;
+    S_OK
+}
+
+unsafe extern "system" fn format_etc_enum_clone(this: *mut c_void, out: *mut *mut c_void) -> i32 {
+    if this.is_null() || out.is_null() {
+        return E_POINTER;
+    }
+    let enumerator = &*(this.cast::<FormatEtcEnumerator>());
+    let clone = Box::new(FormatEtcEnumerator {
+        vtbl: &FORMAT_ETC_ENUMERATOR_VTBL,
+        ref_count: AtomicU32::new(1),
+        formats: enumerator.formats.clone(),
+        index: enumerator.index,
+    });
+    *out = Box::into_raw(clone).cast::<c_void>();
+    S_OK
 }
 
 #[repr(C)]
@@ -946,7 +1334,7 @@ unsafe extern "system" fn persist_storage_init_new(this: *mut c_void, storage: *
         return E_POINTER;
     }
     (*object).storage = storage;
-    write_ole_storage_payload(storage)
+    write_ole_storage_payload(storage, &(*object).payload)
 }
 
 unsafe extern "system" fn persist_storage_load(this: *mut c_void, storage: *mut c_void) -> i32 {
@@ -955,18 +1343,34 @@ unsafe extern "system" fn persist_storage_load(this: *mut c_void, storage: *mut 
         return E_POINTER;
     }
     (*object).storage = storage;
+    if let Ok(document) = storage_read_stream(storage, OLE_STREAM_DOCUMENT).and_then(|bytes| {
+        String::from_utf8(bytes)
+            .map_err(|error| format!("ChemcoreDocument stream is not UTF-8: {error}"))
+    }) {
+        (*object).payload.chemcore_document_json = document;
+    }
+    if let Ok(svg) = storage_read_stream(storage, OLE_STREAM_PREVIEW_SVG).and_then(|bytes| {
+        String::from_utf8(bytes)
+            .map_err(|error| format!("ChemcorePreviewSvg stream is not UTF-8: {error}"))
+    }) {
+        (*object).payload.svg = svg;
+    }
     S_OK
 }
 
 unsafe extern "system" fn persist_storage_save(
-    _this: *mut c_void,
+    this: *mut c_void,
     storage: *mut c_void,
     _same_as_load: i32,
 ) -> i32 {
     if storage.is_null() {
         return E_POINTER;
     }
-    write_ole_storage_payload(storage)
+    let object = owner_from_part::<PersistStorageVtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    write_ole_storage_payload(storage, &(*object).payload)
 }
 
 unsafe extern "system" fn persist_storage_save_completed(
@@ -1054,7 +1458,7 @@ struct StreamVtbl {
     clone: unsafe extern "system" fn(*mut c_void, *mut *mut c_void) -> i32,
 }
 
-unsafe fn write_ole_storage_payload(storage: *mut c_void) -> i32 {
+unsafe fn write_ole_storage_payload(storage: *mut c_void, payload: &OleObjectPayload) -> i32 {
     if storage.is_null() {
         return E_POINTER;
     }
@@ -1063,20 +1467,17 @@ unsafe fn write_ole_storage_payload(storage: *mut c_void) -> i32 {
         return hr;
     }
 
-    let document = match chemcore_document_stream_payload() {
-        Ok(document) => document,
-        Err(hr) => return hr,
-    };
+    let document = chemcore_document_stream_payload(payload);
     let manifest = match ole_manifest_stream_payload() {
         Ok(manifest) => manifest,
         Err(hr) => return hr,
     };
-    let preview = ole_preview_svg_stream_payload();
+    let preview = payload.svg.as_bytes();
 
     let streams = [
         (OLE_STREAM_MANIFEST, manifest.as_slice()),
         (OLE_STREAM_DOCUMENT, document.as_slice()),
-        (OLE_STREAM_PREVIEW_SVG, preview.as_slice()),
+        (OLE_STREAM_PREVIEW_SVG, preview),
     ];
     for (name, bytes) in streams {
         let hr = storage_write_stream(storage, name, bytes);
@@ -1088,8 +1489,309 @@ unsafe fn write_ole_storage_payload(storage: *mut c_void) -> i32 {
     storage_commit(storage)
 }
 
-fn chemcore_document_stream_payload() -> Result<Vec<u8>, i32> {
-    serde_json::to_vec(&chemcore_engine::ChemcoreDocument::blank()).map_err(|_| E_FAIL)
+fn chemcore_document_stream_payload(payload: &OleObjectPayload) -> Vec<u8> {
+    payload.chemcore_document_json.as_bytes().to_vec()
+}
+
+unsafe fn create_ole_storage_medium(payload: &OleObjectPayload, medium: *mut STGMEDIUM) -> i32 {
+    if medium.is_null() {
+        return E_POINTER;
+    }
+    *medium = STGMEDIUM::default();
+
+    let mut lock_bytes = null_mut();
+    let hr = CreateILockBytesOnHGlobal(null_mut(), 1, &mut lock_bytes);
+    if !hresult_succeeded(hr) || lock_bytes.is_null() {
+        return hr;
+    }
+
+    let mut storage = null_mut();
+    let hr = StgCreateDocfileOnILockBytes(
+        lock_bytes,
+        STGM_CREATE | STGM_READWRITE | STGM_SHARE_EXCLUSIVE,
+        0,
+        &mut storage,
+    );
+    com_release(lock_bytes);
+    if !hresult_succeeded(hr) || storage.is_null() {
+        return hr;
+    }
+
+    let hr = write_ole_storage_payload(storage, payload);
+    if !hresult_succeeded(hr) {
+        com_release(storage);
+        return hr;
+    }
+
+    (*medium).tymed = TYMED_ISTORAGE as u32;
+    (*medium).u.pstg = storage;
+    (*medium).pUnkForRelease = null_mut();
+    S_OK
+}
+
+fn hglobal_for_bytes(bytes: &[u8]) -> Result<HGLOBAL, i32> {
+    unsafe {
+        let handle = GlobalAlloc(GMEM_MOVEABLE_FLAG, bytes.len());
+        if handle.is_null() {
+            return Err(E_OUTOFMEMORY);
+        }
+        let target = GlobalLock(handle).cast::<u8>();
+        if target.is_null() {
+            GlobalFree(handle);
+            return Err(E_FAIL);
+        }
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), target, bytes.len());
+        GlobalUnlock(handle);
+        Ok(handle)
+    }
+}
+
+fn hglobal_for_utf8_nul(value: &str) -> Result<HGLOBAL, i32> {
+    let mut bytes = value.as_bytes().to_vec();
+    bytes.push(0);
+    hglobal_for_bytes(&bytes)
+}
+
+fn hglobal_for_utf16_nul(value: &str) -> Result<HGLOBAL, i32> {
+    let wide = wide_null(value);
+    let bytes = unsafe {
+        std::slice::from_raw_parts(
+            wide.as_ptr().cast::<u8>(),
+            wide.len() * std::mem::size_of::<u16>(),
+        )
+    };
+    hglobal_for_bytes(bytes)
+}
+
+fn hglobal_for_object_descriptor(extent: SIZE) -> Result<HGLOBAL, i32> {
+    let user_type = wide_null(DOCUMENT_DISPLAY_NAME);
+    let source = wide_null(APP_NAME);
+    let descriptor_size = std::mem::size_of::<OBJECTDESCRIPTOR>();
+    let user_bytes = user_type.len() * std::mem::size_of::<u16>();
+    let source_bytes = source.len() * std::mem::size_of::<u16>();
+    let total = descriptor_size + user_bytes + source_bytes;
+    unsafe {
+        let handle = GlobalAlloc(GMEM_MOVEABLE_FLAG, total);
+        if handle.is_null() {
+            return Err(E_OUTOFMEMORY);
+        }
+        let target = GlobalLock(handle).cast::<u8>();
+        if target.is_null() {
+            GlobalFree(handle);
+            return Err(E_FAIL);
+        }
+        std::ptr::write_bytes(target, 0, total);
+        let descriptor = target.cast::<OBJECTDESCRIPTOR>();
+        (*descriptor).cbSize = total as u32;
+        (*descriptor).clsid = CLSID_CHEMCORE_DOCUMENT;
+        (*descriptor).dwDrawAspect = DVASPECT_CONTENT;
+        (*descriptor).sizel = extent;
+        (*descriptor).pointl = POINTL { x: 0, y: 0 };
+        (*descriptor).dwStatus = default_misc_status();
+        (*descriptor).dwFullUserTypeName = descriptor_size as u32;
+        (*descriptor).dwSrcOfCopy = (descriptor_size + user_bytes) as u32;
+        std::ptr::copy_nonoverlapping(
+            user_type.as_ptr().cast::<u8>(),
+            target.add(descriptor_size),
+            user_bytes,
+        );
+        std::ptr::copy_nonoverlapping(
+            source.as_ptr().cast::<u8>(),
+            target.add(descriptor_size + user_bytes),
+            source_bytes,
+        );
+        GlobalUnlock(handle);
+        Ok(handle)
+    }
+}
+
+fn hglobal_medium(handle: HGLOBAL, medium: *mut STGMEDIUM) -> i32 {
+    if medium.is_null() {
+        unsafe {
+            GlobalFree(handle);
+        }
+        return E_POINTER;
+    }
+    unsafe {
+        *medium = STGMEDIUM::default();
+        (*medium).tymed = TYMED_HGLOBAL as u32;
+        (*medium).u.hGlobal = handle;
+        (*medium).pUnkForRelease = null_mut();
+    }
+    S_OK
+}
+
+fn hglobal_text_medium(value: &str, unicode: bool, medium: *mut STGMEDIUM) -> i32 {
+    let handle = if unicode {
+        hglobal_for_utf16_nul(value)
+    } else {
+        hglobal_for_utf8_nul(value)
+    };
+    match handle {
+        Ok(handle) => hglobal_medium(handle, medium),
+        Err(hr) => hr,
+    }
+}
+
+fn clipboard_format(name: &str) -> u16 {
+    unsafe { RegisterClipboardFormatW(wide_null(name).as_ptr()) as u16 }
+}
+
+fn default_misc_status() -> u32 {
+    (OLEMISC_INSIDEOUT
+        | OLEMISC_ACTIVATEWHENVISIBLE
+        | OLEMISC_RENDERINGISDEVICEINDEPENDENT
+        | OLEMISC_SETCLIENTSITEFIRST) as u32
+}
+
+fn ole_clipboard_formats(payload: &OleObjectPayload, _extent: SIZE) -> Vec<FORMATETC> {
+    let mut formats = Vec::new();
+    push_format(
+        &mut formats,
+        clipboard_format(CLIPBOARD_FORMAT_EMBED_SOURCE),
+        TYMED_ISTORAGE as u32,
+    );
+    push_format(
+        &mut formats,
+        clipboard_format(CLIPBOARD_FORMAT_OBJECT_DESCRIPTOR),
+        TYMED_HGLOBAL as u32,
+    );
+    if payload.chemcore_fragment_json.is_some() {
+        push_format(
+            &mut formats,
+            clipboard_format(FORMAT_CHEMCORE_FRAGMENT),
+            TYMED_HGLOBAL as u32,
+        );
+    }
+    push_format(
+        &mut formats,
+        clipboard_format(FORMAT_CHEMCORE_DOCUMENT_JSON),
+        TYMED_HGLOBAL as u32,
+    );
+    if payload.cdxml.is_some() {
+        push_format(
+            &mut formats,
+            clipboard_format(FORMAT_CHEMDRAW_INTERCHANGE),
+            TYMED_HGLOBAL as u32,
+        );
+        push_format(
+            &mut formats,
+            clipboard_format(FORMAT_CDXML_MIME),
+            TYMED_HGLOBAL as u32,
+        );
+    }
+    if !payload.svg.is_empty() {
+        push_format(
+            &mut formats,
+            clipboard_format(FORMAT_SVG_MIME),
+            TYMED_HGLOBAL as u32,
+        );
+        push_format(
+            &mut formats,
+            clipboard_format(FORMAT_SVG),
+            TYMED_HGLOBAL as u32,
+        );
+    }
+    if payload.text.is_some() {
+        push_format(&mut formats, CF_UNICODETEXT, TYMED_HGLOBAL as u32);
+    }
+
+    formats.retain(|format| format.cfFormat != 0);
+    formats
+}
+
+fn push_format(formats: &mut Vec<FORMATETC>, cf_format: u16, tymed: u32) {
+    if cf_format == 0 {
+        return;
+    }
+    formats.push(FORMATETC {
+        cfFormat: cf_format,
+        ptd: null_mut(),
+        dwAspect: DVASPECT_CONTENT,
+        lindex: -1,
+        tymed,
+    });
+}
+
+unsafe fn clipboard_format_supported(
+    payload: &OleObjectPayload,
+    extent: SIZE,
+    requested: &FORMATETC,
+) -> bool {
+    ole_clipboard_formats(payload, extent)
+        .into_iter()
+        .any(|available| {
+            available.cfFormat == requested.cfFormat
+                && (requested.dwAspect == 0 || requested.dwAspect == DVASPECT_CONTENT)
+                && (available.tymed & requested.tymed) != 0
+        })
+}
+
+unsafe fn write_clipboard_format_to_medium(
+    payload: &OleObjectPayload,
+    extent: SIZE,
+    format: &FORMATETC,
+    medium: *mut STGMEDIUM,
+) -> i32 {
+    if medium.is_null() {
+        return E_POINTER;
+    }
+    if format.cfFormat == clipboard_format(CLIPBOARD_FORMAT_EMBED_SOURCE) {
+        if (format.tymed & TYMED_ISTORAGE as u32) == 0 {
+            return DV_E_TYMED;
+        }
+        return create_ole_storage_medium(payload, medium);
+    }
+    if (format.tymed & TYMED_HGLOBAL as u32) == 0 {
+        return DV_E_TYMED;
+    }
+
+    if format.cfFormat == clipboard_format(CLIPBOARD_FORMAT_OBJECT_DESCRIPTOR) {
+        return match hglobal_for_object_descriptor(extent) {
+            Ok(handle) => hglobal_medium(handle, medium),
+            Err(hr) => hr,
+        };
+    }
+    if format.cfFormat == clipboard_format(FORMAT_CHEMCORE_FRAGMENT) {
+        return payload
+            .chemcore_fragment_json
+            .as_deref()
+            .map(|value| hglobal_text_medium(value, false, medium))
+            .unwrap_or(DV_E_FORMATETC);
+    }
+    if format.cfFormat == clipboard_format(FORMAT_CHEMCORE_DOCUMENT_JSON) {
+        return hglobal_text_medium(&payload.chemcore_document_json, false, medium);
+    }
+    if format.cfFormat == clipboard_format(FORMAT_CHEMDRAW_INTERCHANGE)
+        || format.cfFormat == clipboard_format(FORMAT_CDXML_MIME)
+    {
+        return payload
+            .cdxml
+            .as_deref()
+            .map(|value| hglobal_text_medium(value, false, medium))
+            .unwrap_or(DV_E_FORMATETC);
+    }
+    if format.cfFormat == clipboard_format(FORMAT_SVG_MIME)
+        || format.cfFormat == clipboard_format(FORMAT_SVG)
+    {
+        return hglobal_text_medium(&payload.svg, false, medium);
+    }
+    if format.cfFormat == CF_UNICODETEXT {
+        return payload
+            .text
+            .as_deref()
+            .map(|value| hglobal_text_medium(value, true, medium))
+            .unwrap_or(DV_E_FORMATETC);
+    }
+
+    DV_E_FORMATETC
+}
+
+fn ole_preview_svg_stream_payload() -> Vec<u8> {
+    format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="240" height="120" viewBox="0 0 240 120"><rect width="240" height="120" fill="#ffffff"/><path d="M56 68h128" stroke="#111827" stroke-width="4" stroke-linecap="round"/><circle cx="56" cy="68" r="7" fill="#111827"/><circle cx="184" cy="68" r="7" fill="#111827"/><text x="120" y="32" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#111827">{DOCUMENT_DISPLAY_NAME}</text></svg>"##
+    )
+    .into_bytes()
 }
 
 fn ole_manifest_stream_payload() -> Result<Vec<u8>, i32> {
@@ -1102,13 +1804,6 @@ fn ole_manifest_stream_payload() -> Result<Vec<u8>, i32> {
         "previewSvgStream": OLE_STREAM_PREVIEW_SVG
     }))
     .map_err(|_| E_FAIL)
-}
-
-fn ole_preview_svg_stream_payload() -> Vec<u8> {
-    format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="240" height="120" viewBox="0 0 240 120"><rect width="240" height="120" fill="#ffffff"/><path d="M56 68h128" stroke="#111827" stroke-width="4" stroke-linecap="round"/><circle cx="56" cy="68" r="7" fill="#111827"/><circle cx="184" cy="68" r="7" fill="#111827"/><text x="120" y="32" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#111827">{DOCUMENT_DISPLAY_NAME}</text></svg>"##
-    )
-    .into_bytes()
 }
 
 unsafe fn storage_write_stream(storage: *mut c_void, name: &str, bytes: &[u8]) -> i32 {
@@ -1368,7 +2063,7 @@ unsafe extern "system" fn ole_object_get_clipboard_data(
 }
 
 unsafe extern "system" fn ole_object_do_verb(
-    _this: *mut c_void,
+    this: *mut c_void,
     _verb: i32,
     _message: *mut c_void,
     _active_site: *mut c_void,
@@ -1376,7 +2071,13 @@ unsafe extern "system" fn ole_object_do_verb(
     _parent: isize,
     _position: *const c_void,
 ) -> i32 {
-    OLE_E_NOTRUNNING
+    let object = owner_from_part::<OleObjectVtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    launch_desktop_for_payload(&(*object).payload)
+        .map(|_| S_OK)
+        .unwrap_or(OLE_E_NOTRUNNING)
 }
 
 unsafe extern "system" fn ole_object_enum_verbs(
@@ -1426,22 +2127,35 @@ unsafe extern "system" fn ole_object_get_user_type(
 }
 
 unsafe extern "system" fn ole_object_set_extent(
-    _this: *mut c_void,
+    this: *mut c_void,
     _draw_aspect: u32,
-    _size: *const c_void,
+    size: *const c_void,
 ) -> i32 {
+    if size.is_null() {
+        return E_POINTER;
+    }
+    let object = owner_from_part::<OleObjectVtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    (*object).extent_himetric = *(size.cast::<SIZE>());
     S_OK
 }
 
 unsafe extern "system" fn ole_object_get_extent(
-    _this: *mut c_void,
+    this: *mut c_void,
     _draw_aspect: u32,
     size: *mut c_void,
 ) -> i32 {
     if size.is_null() {
         return E_POINTER;
     }
-    E_NOTIMPL
+    let object = owner_from_part::<OleObjectVtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    *(size.cast::<SIZE>()) = (*object).extent_himetric;
+    S_OK
 }
 
 unsafe extern "system" fn ole_object_advise(
@@ -1481,10 +2195,7 @@ unsafe extern "system" fn ole_object_get_misc_status(
     if hresult_succeeded(hr) {
         return hr;
     }
-    *status = (OLEMISC_INSIDEOUT
-        | OLEMISC_ACTIVATEWHENVISIBLE
-        | OLEMISC_RENDERINGISDEVICEINDEPENDENT
-        | OLEMISC_SETCLIENTSITEFIRST) as u32;
+    *status = default_misc_status();
     S_OK
 }
 
@@ -1543,19 +2254,30 @@ static VIEW_OBJECT2_VTBL: ViewObject2Vtbl = ViewObject2Vtbl {
 };
 
 unsafe extern "system" fn view_object_draw(
-    _this: *mut c_void,
-    _draw_aspect: u32,
+    this: *mut c_void,
+    draw_aspect: u32,
     _index: i32,
     _aspect: *mut c_void,
     _target_device: *mut c_void,
     _target_dc: isize,
     _draw_dc: isize,
-    _bounds: *const c_void,
+    bounds: *const c_void,
     _window_bounds: *const c_void,
     _continue_fn: *mut c_void,
     _continue_value: usize,
 ) -> i32 {
-    E_NOTIMPL
+    if draw_aspect != DVASPECT_CONTENT {
+        return DV_E_FORMATETC;
+    }
+    if _draw_dc == 0 || bounds.is_null() {
+        return E_POINTER;
+    }
+    let object = owner_from_part::<ViewObject2Vtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    draw_placeholder_preview(_draw_dc as HDC, &*(bounds.cast::<RECT>()));
+    S_OK
 }
 
 unsafe extern "system" fn view_object_get_color_set(
@@ -1618,7 +2340,7 @@ unsafe extern "system" fn view_object_get_advise(
 }
 
 unsafe extern "system" fn view_object_get_extent(
-    _this: *mut c_void,
+    this: *mut c_void,
     _draw_aspect: u32,
     _index: i32,
     _target_device: *mut c_void,
@@ -1627,7 +2349,12 @@ unsafe extern "system" fn view_object_get_extent(
     if size.is_null() {
         return E_POINTER;
     }
-    E_NOTIMPL
+    let object = owner_from_part::<ViewObject2Vtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    *(size.cast::<SIZE>()) = (*object).extent_himetric;
+    S_OK
 }
 
 #[repr(C)]
@@ -1706,6 +2433,82 @@ unsafe fn com_release(interface: *mut c_void) {
     ((*vtbl).release)(interface);
 }
 
+fn launch_desktop_for_payload(payload: &OleObjectPayload) -> Result<(), String> {
+    let payload_path = env::temp_dir().join(format!(
+        "chemcore-ole-edit-{}-{}.json",
+        std::process::id(),
+        monotonic_millis()
+    ));
+    std::fs::write(&payload_path, &payload.chemcore_document_json)
+        .map_err(|error| format!("Failed to write temporary OLE edit payload: {error}"))?;
+
+    let desktop_exe = current_server_path()?.with_file_name("chemcore-desktop.exe");
+    if !desktop_exe.exists() {
+        return Err(format!(
+            "Chemcore desktop executable was not found at {}",
+            desktop_exe.display()
+        ));
+    }
+
+    Command::new(desktop_exe)
+        .arg(payload_path)
+        .spawn()
+        .map_err(|error| format!("Failed to launch Chemcore desktop: {error}"))?;
+    Ok(())
+}
+
+fn monotonic_millis() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or(0)
+}
+
+unsafe fn draw_placeholder_preview(dc: HDC, bounds: &RECT) {
+    let width = (bounds.right - bounds.left).max(1);
+    let height = (bounds.bottom - bounds.top).max(1);
+    let old_brush = SelectObject(dc, GetStockObject(NULL_BRUSH));
+    let pen = CreatePen(PS_SOLID, (width.min(height) / 40).max(1), 0x000000);
+    let old_pen = SelectObject(dc, pen as HGDIOBJ);
+
+    Rectangle(dc, bounds.left, bounds.top, bounds.right, bounds.bottom);
+
+    let mid_y = bounds.top + height * 58 / 100;
+    let left_x = bounds.left + width * 24 / 100;
+    let right_x = bounds.left + width * 76 / 100;
+    MoveToEx(dc, left_x, mid_y, null_mut());
+    LineTo(dc, right_x, mid_y);
+    let radius = (width.min(height) / 20).max(3);
+    Ellipse(
+        dc,
+        left_x - radius,
+        mid_y - radius,
+        left_x + radius,
+        mid_y + radius,
+    );
+    Ellipse(
+        dc,
+        right_x - radius,
+        mid_y - radius,
+        right_x + radius,
+        mid_y + radius,
+    );
+
+    SetBkMode(dc, TRANSPARENT as i32);
+    let label = wide_null(DOCUMENT_DISPLAY_NAME);
+    TextOutW(
+        dc,
+        bounds.left + width * 30 / 100,
+        bounds.top + height * 18 / 100,
+        label.as_ptr(),
+        (label.len().saturating_sub(1)) as i32,
+    );
+
+    SelectObject(dc, old_pen);
+    SelectObject(dc, old_brush);
+    DeleteObject(pen as HGDIOBJ);
+}
+
 unsafe fn allocate_com_string(value: &str, out: *mut *mut u16) -> i32 {
     if out.is_null() {
         return E_POINTER;
@@ -1743,6 +2546,7 @@ fn print_help() {
     println!("  chemcore-office.exe --unregister-machine");
     println!("  chemcore-office.exe --print-registration");
     println!("  chemcore-office.exe --self-test");
+    println!("  chemcore-office.exe --copy-clipboard-payload <payload.json>");
     println!("  chemcore-office.exe --serve");
     println!();
     println!("COM may launch this executable with -Embedding or /Embedding.");
