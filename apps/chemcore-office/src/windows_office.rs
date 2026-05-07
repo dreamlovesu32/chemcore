@@ -21,7 +21,7 @@ use windows_sys::Win32::Graphics::Gdi::{
     CreateSolidBrush, DeleteEnhMetaFile, DeleteMetaFile, DeleteObject, Ellipse, GetEnhMetaFileBits,
     GetMetaFileBitsEx, GetStockObject, LineTo, MoveToEx, Polygon, Rectangle, SelectObject,
     SetBkMode, SetMapMode, SetTextAlign, SetTextColor, SetViewportExtEx, SetWindowExtEx,
-    StretchDIBits, TextOutW, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HDC, HGDIOBJ,
+    StretchDIBits, TextOutA, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HDC, HGDIOBJ,
     MM_ANISOTROPIC, NULL_BRUSH, PS_SOLID, SRCCOPY, TA_BASELINE, TA_CENTER, TA_LEFT, TA_RIGHT,
     TRANSPARENT,
 };
@@ -3537,6 +3537,7 @@ unsafe fn draw_preview_primitive(
             fill,
             text_anchor,
             line_height,
+            runs,
             ..
         } => {
             let font_height = transform.length(*font_size).max(1);
@@ -3576,16 +3577,14 @@ unsafe fn draw_preview_primitive(
                     .unwrap_or(0x000000),
             );
             let line_step_world = (*line_height).unwrap_or(*font_size * 1.2).max(0.01);
-            for (index, line) in text.lines().enumerate() {
+            let text_source = preview_text_content(text, runs);
+            for (index, line) in text_source.lines().enumerate() {
                 let p = transform.xy(*x, *y + index as f64 * line_step_world);
-                let label = wide_null(line);
-                TextOutW(
-                    dc,
-                    p.x,
-                    p.y,
-                    label.as_ptr(),
-                    (label.len().saturating_sub(1)) as i32,
-                );
+                let label = ansi_metafile_text_bytes(line);
+                if label.is_empty() {
+                    continue;
+                }
+                TextOutA(dc, p.x, p.y, label.as_ptr(), label.len() as i32);
             }
             SetTextAlign(dc, old_align);
             if !font.is_null() {
@@ -3596,6 +3595,19 @@ unsafe fn draw_preview_primitive(
             }
         }
     }
+}
+
+fn preview_text_content(text: &str, runs: &[chemcore_engine::LabelRun]) -> String {
+    if !text.is_empty() || runs.is_empty() {
+        return text.to_string();
+    }
+    runs.iter().map(|run| run.text.as_str()).collect()
+}
+
+fn ansi_metafile_text_bytes(text: &str) -> Vec<u8> {
+    text.chars()
+        .map(|ch| if ch.is_ascii() { ch as u8 } else { b'?' })
+        .collect()
 }
 
 unsafe fn draw_preview_line(
@@ -3727,13 +3739,13 @@ unsafe fn draw_placeholder_preview(dc: HDC, bounds: &RECT) {
     );
 
     SetBkMode(dc, TRANSPARENT as i32);
-    let label = wide_null(DOCUMENT_DISPLAY_NAME);
-    TextOutW(
+    let label = ansi_metafile_text_bytes(DOCUMENT_DISPLAY_NAME);
+    TextOutA(
         dc,
         bounds.left + width * 30 / 100,
         bounds.top + height * 18 / 100,
         label.as_ptr(),
-        (label.len().saturating_sub(1)) as i32,
+        label.len() as i32,
     );
 
     SelectObject(dc, old_pen);
