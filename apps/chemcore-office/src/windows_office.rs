@@ -2064,7 +2064,7 @@ unsafe extern "system" fn ole_object_get_clipboard_data(
 
 unsafe extern "system" fn ole_object_do_verb(
     this: *mut c_void,
-    _verb: i32,
+    verb: i32,
     _message: *mut c_void,
     _active_site: *mut c_void,
     _index: i32,
@@ -2075,9 +2075,13 @@ unsafe extern "system" fn ole_object_do_verb(
     if object.is_null() {
         return E_POINTER;
     }
-    launch_desktop_for_payload(&(*object).payload)
-        .map(|_| S_OK)
-        .unwrap_or(OLE_E_NOTRUNNING)
+    match launch_desktop_for_payload(&(*object).payload) {
+        Ok(()) => S_OK,
+        Err(error) => {
+            log_ole_event(&format!("DoVerb({verb}) failed: {error}"));
+            OLE_E_NOTRUNNING
+        }
+    }
 }
 
 unsafe extern "system" fn ole_object_enum_verbs(
@@ -2435,7 +2439,7 @@ unsafe fn com_release(interface: *mut c_void) {
 
 fn launch_desktop_for_payload(payload: &OleObjectPayload) -> Result<(), String> {
     let payload_path = env::temp_dir().join(format!(
-        "chemcore-ole-edit-{}-{}.json",
+        "chemcore-ole-edit-{}-{}.ccjs",
         std::process::id(),
         monotonic_millis()
     ));
@@ -2455,6 +2459,19 @@ fn launch_desktop_for_payload(payload: &OleObjectPayload) -> Result<(), String> 
         .spawn()
         .map_err(|error| format!("Failed to launch Chemcore desktop: {error}"))?;
     Ok(())
+}
+
+fn log_ole_event(message: &str) {
+    let path = env::temp_dir().join("chemcore-office.log");
+    let line = format!("[{}] {message}\n", monotonic_millis());
+    let _ = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .and_then(|mut file| {
+            use std::io::Write;
+            file.write_all(line.as_bytes())
+        });
 }
 
 fn monotonic_millis() -> u128 {
