@@ -262,7 +262,44 @@ pub(crate) fn text_object_world_bounds(object: &crate::SceneObject) -> Option<[f
         .map(|bbox| [bbox[0], bbox[1], bbox[2], bbox[3]]))?;
     let x = object.transform.translate[0] + local_box[0];
     let y = object.transform.translate[1] + local_box[1];
+    if object.transform.rotate.abs() > crate::EPSILON {
+        let center =
+            crate::Point::new(object.transform.translate[0], object.transform.translate[1]);
+        let mut min_x = f64::INFINITY;
+        let mut min_y = f64::INFINITY;
+        let mut max_x = f64::NEG_INFINITY;
+        let mut max_y = f64::NEG_INFINITY;
+        for point in [
+            crate::Point::new(x, y),
+            crate::Point::new(x + local_box[2], y),
+            crate::Point::new(x + local_box[2], y + local_box[3]),
+            crate::Point::new(x, y + local_box[3]),
+        ] {
+            let point = rotate_text_bounds_point(point, center, object.transform.rotate);
+            min_x = min_x.min(point.x);
+            min_y = min_y.min(point.y);
+            max_x = max_x.max(point.x);
+            max_y = max_y.max(point.y);
+        }
+        return Some([min_x, min_y, max_x, max_y]);
+    }
     Some([x, y, x + local_box[2], y + local_box[3]])
+}
+
+fn rotate_text_bounds_point(
+    point: crate::Point,
+    center: crate::Point,
+    degrees: f64,
+) -> crate::Point {
+    let radians = degrees.to_radians();
+    let cos = radians.cos();
+    let sin = radians.sin();
+    let dx = point.x - center.x;
+    let dy = point.y - center.y;
+    crate::Point::new(
+        center.x + dx * cos - dy * sin,
+        center.y + dx * sin + dy * cos,
+    )
 }
 
 pub(crate) fn endpoint_label_world_bounds(

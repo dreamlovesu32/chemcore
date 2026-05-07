@@ -52,6 +52,99 @@ fn fragment_document(nodes: serde_json::Value, bonds: serde_json::Value) -> Chem
     .expect("document should deserialize")
 }
 
+fn primitive_polygon_bounds(points: &[Point]) -> [f64; 4] {
+    points.iter().fold(
+        [
+            f64::INFINITY,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::NEG_INFINITY,
+        ],
+        |mut bounds, point| {
+            bounds[0] = bounds[0].min(point.x);
+            bounds[1] = bounds[1].min(point.y);
+            bounds[2] = bounds[2].max(point.x);
+            bounds[3] = bounds[3].max(point.y);
+            bounds
+        },
+    )
+}
+
+#[test]
+fn render_document_adds_margin_knockout_for_later_crossing_bond() {
+    let document = fragment_document(
+        json!([
+            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 60.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n2", "element": "C", "atomicNumber": 6, "position": [100.0, 60.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [60.0, 20.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n4", "element": "C", "atomicNumber": 6, "position": [60.0, 100.0], "charge": 0, "numHydrogens": 0 }
+        ]),
+        json!([
+            { "id": "b_under", "begin": "n1", "end": "n2", "order": 1, "strokeWidth": 1.0, "marginWidth": 2.0 },
+            { "id": "b_over", "begin": "n3", "end": "n4", "order": 1, "strokeWidth": 1.0, "marginWidth": 2.0 }
+        ]),
+    );
+
+    let primitives = render_document(&document);
+    let knockout_index = primitives
+        .iter()
+        .position(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Polygon {
+                    role: RenderRole::DocumentKnockout,
+                    ..
+                }
+            )
+        })
+        .expect("crossing over-bond should insert a white margin knockout");
+    let under_index = primitives
+        .iter()
+        .position(|primitive| matches!(primitive, RenderPrimitive::Polygon { role: RenderRole::DocumentBond, bond_id, .. } if bond_id.as_deref() == Some("b_under")))
+        .expect("under bond should render");
+    let over_index = primitives
+        .iter()
+        .position(|primitive| matches!(primitive, RenderPrimitive::Polygon { role: RenderRole::DocumentBond, bond_id, .. } if bond_id.as_deref() == Some("b_over")))
+        .expect("over bond should render");
+    assert!(under_index < knockout_index && knockout_index < over_index);
+
+    let RenderPrimitive::Polygon { points, .. } = &primitives[knockout_index] else {
+        unreachable!("knockout is a polygon");
+    };
+    let bounds = primitive_polygon_bounds(points);
+    assert!((bounds[0] - 57.5).abs() < 0.001, "{bounds:?}");
+    assert!((bounds[1] - 57.5).abs() < 0.001, "{bounds:?}");
+    assert!((bounds[2] - 62.5).abs() < 0.001, "{bounds:?}");
+    assert!((bounds[3] - 62.5).abs() < 0.001, "{bounds:?}");
+}
+
+#[test]
+fn render_document_does_not_add_margin_knockout_for_shared_endpoint_bonds() {
+    let document = fragment_document(
+        json!([
+            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 60.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n2", "element": "C", "atomicNumber": 6, "position": [60.0, 60.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [100.0, 60.0], "charge": 0, "numHydrogens": 0 }
+        ]),
+        json!([
+            { "id": "b_left", "begin": "n1", "end": "n2", "order": 1, "strokeWidth": 1.0, "marginWidth": 2.0 },
+            { "id": "b_right", "begin": "n2", "end": "n3", "order": 1, "strokeWidth": 1.0, "marginWidth": 2.0 }
+        ]),
+    );
+
+    let primitives = render_document(&document);
+    assert!(
+        !primitives.iter().any(|primitive| matches!(
+            primitive,
+            RenderPrimitive::Polygon {
+                role: RenderRole::DocumentKnockout,
+                ..
+            }
+        )),
+        "endpoint contact should stay in the existing contact kernel, not use crossing margin"
+    );
+}
+
 #[test]
 fn cdxml_group_import_preserves_tree_and_z_order() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
@@ -243,6 +336,56 @@ fn engine_groups_and_ungroups_selected_scene_objects_without_geometry_drift() {
 }
 
 #[test]
+fn context_hit_test_reports_object_without_mutating_selection() {
+    let document: ChemcoreDocument = serde_json::from_value(json!({
+        "format": { "name": "chemcore", "version": "0.1", "unit": "pt" },
+        "document": {
+            "id": "doc_context_hit",
+            "title": "context hit",
+            "page": { "width": 200.0, "height": 160.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_shape": {
+                "kind": "shape",
+                "stroke": "#000000",
+                "strokeWidth": 1.0
+            }
+        },
+        "objects": [{
+            "id": "shape_a",
+            "type": "shape",
+            "zIndex": 10,
+            "transform": { "translate": [10.0, 10.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+            "styleRef": "style_shape",
+            "payload": { "bbox": [0.0, 0.0, 20.0, 10.0], "kind": "rect" }
+        }],
+        "resources": {}
+    }))
+    .expect("document should deserialize");
+
+    let mut engine = Engine::new();
+    engine
+        .load_document_json(&serde_json::to_string(&document).unwrap())
+        .expect("document should load");
+    let hit: serde_json::Value =
+        serde_json::from_str(&engine.context_hit_test_json(Point::new(15.0, 15.0))).unwrap();
+    assert_eq!(hit["kind"], "object");
+    assert_eq!(hit["objectId"], "shape_a");
+    assert_eq!(hit["objectType"], "shape");
+    assert_eq!(hit["selected"], false);
+    assert!(engine.state().selection.is_empty());
+
+    engine.select_at_point(Point::new(15.0, 15.0), false);
+    let selected_hit: serde_json::Value =
+        serde_json::from_str(&engine.context_hit_test_json(Point::new(15.0, 15.0))).unwrap();
+    assert_eq!(selected_hit["selected"], true);
+
+    let canvas_hit: serde_json::Value =
+        serde_json::from_str(&engine.context_hit_test_json(Point::new(150.0, 120.0))).unwrap();
+    assert_eq!(canvas_hit["kind"], "canvas");
+}
+
+#[test]
 fn complete_molecule_selection_suppresses_internal_selection_dots() {
     let mut engine = Engine::new();
     engine
@@ -274,6 +417,117 @@ fn complete_molecule_selection_suppresses_internal_selection_dots() {
         })
         .count();
     assert_eq!(dot_count, 0);
+}
+
+#[test]
+fn select_all_selects_document_surface_without_expanding_groups() {
+    let document = json!({
+        "format": { "name": "chemcore", "version": "0.1", "unit": "pt" },
+        "document": {
+            "id": "doc_select_all",
+            "title": "select all",
+            "page": { "width": 200.0, "height": 160.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_shape": {
+                "kind": "shape",
+                "stroke": "#000000",
+                "strokeWidth": 1.0
+            }
+        },
+        "objects": [
+            {
+                "id": "obj_molecule_001",
+                "type": "molecule",
+                "visible": true,
+                "zIndex": 10,
+                "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "resourceRef": "mol_001" }
+            },
+            {
+                "id": "shape_1",
+                "type": "shape",
+                "visible": true,
+                "zIndex": 20,
+                "transform": { "translate": [80.0, 20.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "styleRef": "style_shape",
+                "payload": { "bbox": [0.0, 0.0, 20.0, 10.0], "kind": "rect" }
+            },
+            {
+                "id": "text_1",
+                "type": "text",
+                "visible": true,
+                "zIndex": 30,
+                "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "text": "Note", "bbox": [20.0, 70.0, 60.0, 90.0], "runs": [] }
+            },
+            {
+                "id": "group_1",
+                "type": "group",
+                "visible": true,
+                "zIndex": 40,
+                "children": [{
+                    "id": "group_child_shape",
+                    "type": "shape",
+                    "visible": true,
+                    "zIndex": 41,
+                    "transform": { "translate": [110.0, 70.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                    "styleRef": "style_shape",
+                    "payload": { "bbox": [0.0, 0.0, 20.0, 10.0], "kind": "rect" }
+                }]
+            }
+        ],
+        "resources": {
+            "mol_001": {
+                "type": "molecule_fragment2d",
+                "encoding": "chemcore.molecule.fragment2d",
+                "data": {
+                    "schema": "chemcore.molecule.fragment2d",
+                    "bbox": [0.0, 0.0, 60.0, 40.0],
+                    "nodes": [
+                        { "id": "n1", "element": "C", "atomicNumber": 6, "position": [10.0, 10.0], "charge": 0, "numHydrogens": 0 },
+                        { "id": "n2", "element": "C", "atomicNumber": 6, "position": [40.0, 10.0], "charge": 0, "numHydrogens": 0 }
+                    ],
+                    "bonds": [
+                        { "id": "b1", "begin": "n1", "end": "n2", "order": 1, "strokeWidth": 0.85 }
+                    ]
+                }
+            }
+        }
+    });
+    let mut engine = Engine::new();
+    engine
+        .load_document_json(&document.to_string())
+        .expect("document should load");
+
+    assert!(engine.select_all());
+    let selection = &engine.state().selection;
+    assert_eq!(selection.nodes, vec!["n1".to_string(), "n2".to_string()]);
+    assert_eq!(selection.bonds, vec!["b1".to_string()]);
+    assert_eq!(selection.text_objects, vec!["text_1".to_string()]);
+    assert_eq!(
+        selection.arrow_objects,
+        vec!["shape_1".to_string(), "group_1".to_string()]
+    );
+    assert!(!selection
+        .arrow_objects
+        .contains(&"group_child_shape".to_string()));
+
+    let internal_dot_count = engine
+        .render_list()
+        .into_iter()
+        .filter(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Circle {
+                    role: RenderRole::SelectionBondDot,
+                    ..
+                }
+            )
+        })
+        .count();
+    assert_eq!(internal_dot_count, 0);
+    assert!(!engine.select_all());
 }
 
 #[test]
@@ -879,7 +1133,8 @@ fn export_cdxml_emits_chemdraw_document_with_native_fragment() {
                 "order": 2,
                 "double": { "placement": "center", "frozen": false },
                 "strokeWidth": 0.6,
-                "bondSpacing": 18.0
+                "bondSpacing": 18.0,
+                "marginWidth": 1.6
             },
             {
                 "id": "b2",
@@ -906,6 +1161,7 @@ fn export_cdxml_emits_chemdraw_document_with_native_fragment() {
     assert!(cdxml.contains("Order=\"2\""));
     assert!(cdxml.contains("BS=\"N\""));
     assert!(cdxml.contains("BondSpacing=\"18\""));
+    assert!(cdxml.contains("MarginWidth=\"1.6\""));
     assert!(cdxml.contains("NodeType=\"Nickname\""));
     assert!(cdxml.contains("UTF8Text=\"CF3\""));
     assert!(!cdxml.contains("<t font="));
@@ -1193,13 +1449,14 @@ fn load_cdxml_document_preserves_imported_acs_drawing_options() {
     assert!((engine.options().label_clip_margin - 0.95).abs() < 0.05);
     assert!((engine.options().hash_spacing - 2.5).abs() < 0.05);
     assert!((engine.options().bond_spacing - 18.0).abs() < 0.05);
+    assert!((engine.options().margin_width - 1.6).abs() < 0.05);
 }
 
 #[test]
 fn load_cdxml_document_derives_wedge_width_from_imported_bold_width() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
-<CDXML BondLength="14.40" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" LabelSize="10">
+<CDXML BondLength="14.40" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.7" LabelSize="10">
   <page id="p1" BoundingBox="0 0 100 100">
     <fragment id="f1" BoundingBox="10 10 40 20">
       <n id="n1" p="10 15"/>
@@ -1217,6 +1474,7 @@ fn load_cdxml_document_derives_wedge_width_from_imported_bold_width() {
     assert!((engine.options().bond_stroke_width - 0.99).abs() < 0.01);
     assert!((engine.options().bold_bond_width - 2.01).abs() < 0.01);
     assert!((engine.options().wedge_width - 3.015).abs() < 0.01);
+    assert!((engine.options().margin_width - 1.7).abs() < 0.01);
 
     let bond = &engine
         .state()
@@ -1226,6 +1484,7 @@ fn load_cdxml_document_derives_wedge_width_from_imported_bold_width() {
         .fragment
         .bonds[0];
     assert!((bond.wedge_width.unwrap_or_default() - 3.015).abs() < 0.01);
+    assert_eq!(bond.margin_width, Some(1.7));
 }
 
 #[test]

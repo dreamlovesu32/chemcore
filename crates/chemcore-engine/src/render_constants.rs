@@ -3,6 +3,8 @@ use crate::{css_px, world_cm, WorldCm, DEFAULT_BOND_STROKE_CM};
 pub const VIEWER_BOND_STROKE_CM: WorldCm = world_cm(DEFAULT_BOND_STROKE_CM);
 
 pub const DEFAULT_BOND_SPACING_PERCENT: f64 = 12.0;
+pub const DEFAULT_BOND_MARGIN_WIDTH_CM: WorldCm = world_cm(2.0);
+pub const ACS_BOND_MARGIN_WIDTH_CM: WorldCm = world_cm(1.6);
 pub const DOUBLE_BOND_SIDE_INSET_CM: WorldCm = world_cm(1.05);
 pub const HASH_WEDGE_SPACING_CM: WorldCm = world_cm(2.7);
 pub const HASH_WEDGE_START_OFFSET_CM: WorldCm = world_cm(1.0);

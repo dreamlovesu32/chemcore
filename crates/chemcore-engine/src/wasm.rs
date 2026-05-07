@@ -257,6 +257,22 @@ impl WasmEngine {
         Ok(())
     }
 
+    #[wasm_bindgen(js_name = selectAll)]
+    pub fn select_all(&mut self) -> bool {
+        self.inner.select_all()
+    }
+
+    #[wasm_bindgen(js_name = clearSelection)]
+    pub fn clear_selection(&mut self) -> bool {
+        self.inner.clear_selection()
+    }
+
+    #[wasm_bindgen(js_name = contextHitTestJson)]
+    pub fn context_hit_test_json(&self, x: f64, y: f64) -> String {
+        self.inner
+            .context_hit_test_json(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))))
+    }
+
     #[wasm_bindgen(js_name = selectionContainsPoint)]
     pub fn selection_contains_point(&self, x: f64, y: f64) -> bool {
         self.inner
@@ -400,6 +416,16 @@ impl WasmEngine {
         self.inner.apply_selection_arrange_command(command)
     }
 
+    #[wasm_bindgen(js_name = scaleSelection)]
+    pub fn scale_selection(&mut self, percent: f64) -> bool {
+        self.inner.scale_selection(percent)
+    }
+
+    #[wasm_bindgen(js_name = rotateSelectionDegrees)]
+    pub fn rotate_selection_degrees(&mut self, degrees: f64) -> bool {
+        self.inner.rotate_selection_degrees(degrees)
+    }
+
     #[wasm_bindgen(js_name = applySelectionOrderCommand)]
     pub fn apply_selection_order_command(&mut self, command: &str) -> bool {
         self.inner.apply_selection_order_command(command)
@@ -418,6 +444,46 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = applyColorToSelection)]
     pub fn apply_color_to_selection(&mut self, color: &str) -> bool {
         self.inner.apply_color_to_selection(color)
+    }
+
+    #[wasm_bindgen(js_name = applyShapeStyleToSelection)]
+    pub fn apply_shape_style_to_selection(&mut self, style: &str) -> bool {
+        self.inner.apply_shape_style_to_selection(style)
+    }
+
+    #[wasm_bindgen(js_name = applyBracketKindToSelection)]
+    pub fn apply_bracket_kind_to_selection(&mut self, kind: &str) -> bool {
+        self.inner.apply_bracket_kind_to_selection(kind)
+    }
+
+    #[wasm_bindgen(js_name = applyLineStyleToSelection)]
+    pub fn apply_line_style_to_selection(&mut self, style: &str) -> bool {
+        self.inner.apply_line_style_to_selection(style)
+    }
+
+    #[wasm_bindgen(js_name = applyBondStyleToSelection)]
+    pub fn apply_bond_style_to_selection(&mut self, style: &str) -> bool {
+        self.inner.apply_bond_style_to_selection(style)
+    }
+
+    #[wasm_bindgen(js_name = applyTextStyleToSelection)]
+    pub fn apply_text_style_to_selection(&mut self, command: &str, value: &str) -> bool {
+        self.inner.apply_text_style_to_selection(command, value)
+    }
+
+    #[wasm_bindgen(js_name = setChemicalCheckForSelection)]
+    pub fn set_chemical_check_for_selection(&mut self, enabled: bool) -> bool {
+        self.inner.set_chemical_check_for_selection(enabled)
+    }
+
+    #[wasm_bindgen(js_name = expandLabelsInSelection)]
+    pub fn expand_labels_in_selection(&mut self) -> bool {
+        self.inner.expand_labels_in_selection()
+    }
+
+    #[wasm_bindgen(js_name = centerSelectionOnPage)]
+    pub fn center_selection_on_page(&mut self) -> bool {
+        self.inner.center_selection_on_page()
     }
 
     #[wasm_bindgen(js_name = clearInteraction)]
@@ -455,6 +521,11 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = copySelection)]
     pub fn copy_selection(&mut self) -> bool {
         self.inner.copy_selection()
+    }
+
+    #[wasm_bindgen(js_name = hasClipboard)]
+    pub fn has_clipboard(&self) -> bool {
+        self.inner.has_clipboard()
     }
 
     #[wasm_bindgen(js_name = clipboardSelectionJson)]

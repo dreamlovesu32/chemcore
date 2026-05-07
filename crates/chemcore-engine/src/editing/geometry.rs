@@ -332,6 +332,7 @@ mod tests {
             label_clip_margin: 1.35,
             hash_spacing: 2.9,
             bond_spacing: 12.0,
+            margin_width: 2.0,
             graphic_stroke_width: 1.0,
         };
         assert_eq!(options.bond_length_world_cm(), WorldCm(30.0));

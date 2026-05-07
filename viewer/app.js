@@ -27,6 +27,9 @@ import {
   rectContainsBounds,
 } from "./geometry.js";
 import {
+  TEXT_FONT_OPTIONS,
+  TEXT_FONT_SIZE_OPTIONS,
+  formatToolbarFontSize,
   normalizeToolbarFontSize,
   renderSecondaryToolbarHtml,
   syncPrimaryChromeIcons,
@@ -215,6 +218,9 @@ document.body.appendChild(openFileInput);
 const textEditorLayer = document.createElement("div");
 textEditorLayer.className = "text-editor-layer";
 viewerContainer?.appendChild(textEditorLayer);
+const canvasContextMenu = createCanvasContextMenu();
+document.body.appendChild(canvasContextMenu);
+let activeContextMenuState = null;
 let textSymbolPalette = null;
 const textSymbolCatalogReady = loadTextSymbolCatalog().then((catalog) => {
   textSymbolPalette = createTextSymbolPalette({
@@ -1483,6 +1489,1108 @@ function refreshCommandAvailability() {
   if (redoButton) {
     redoButton.disabled = !state.editorEngine?.canRedo?.();
   }
+  void updateCanvasContextMenuAvailability();
+}
+
+function editorSelectionHasItems(selection) {
+  if (!selection) {
+    return false;
+  }
+  return Boolean(selection.region)
+    || ["nodes", "bonds", "labelNodes", "arrowObjects", "textObjects"].some((key) => (
+      Array.isArray(selection[key]) && selection[key].length > 0
+    ));
+}
+
+function currentEditorSelectionHasItems() {
+  return editorSelectionHasItems(currentEditorEngineState()?.selection);
+}
+
+function sceneObjectHasSelectableContent(object, resources) {
+  if (!object || object.visible === false) {
+    return false;
+  }
+  if (object.type === "molecule") {
+    const resource = resources?.[object.payload?.resourceRef];
+    const fragment = resource?.data;
+    return Boolean(fragment?.nodes?.length || fragment?.bonds?.length);
+  }
+  if (object.type === "group") {
+    return true;
+  }
+  return ["text", "line", "bracket", "symbol", "shape"].includes(object.type);
+}
+
+function currentDocumentHasSelectableContent() {
+  const documentData = state.currentDocument;
+  if (!documentData?.objects?.length) {
+    return false;
+  }
+  return documentData.objects.some((object) => sceneObjectHasSelectableContent(object, documentData.resources));
+}
+
+function collectSceneObjects(objects = [], out = new Map()) {
+  for (const object of objects || []) {
+    out.set(object.id, object);
+    if (Array.isArray(object.children)) {
+      collectSceneObjects(object.children, out);
+    }
+  }
+  return out;
+}
+
+function currentSceneObjectMap() {
+  return collectSceneObjects(state.currentDocument?.objects || []);
+}
+
+function currentEditableFragment() {
+  const documentData = state.currentDocument;
+  const molecule = documentData?.objects?.find((object) => object.type === "molecule" && object.payload?.resourceRef);
+  return molecule ? documentData.resources?.[molecule.payload.resourceRef]?.data || null : null;
+}
+
+function currentSelectionInfo() {
+  const selection = currentEditorEngineState()?.selection || {};
+  const objectMap = currentSceneObjectMap();
+  const textObjects = (selection.textObjects || []).map((id) => objectMap.get(id)).filter(Boolean);
+  const graphicObjects = (selection.arrowObjects || []).map((id) => objectMap.get(id)).filter(Boolean);
+  const fragment = currentEditableFragment();
+  const nodeIds = selection.nodes || [];
+  const bondIds = selection.bonds || [];
+  const labelNodeIds = selection.labelNodes || [];
+  return {
+    selection,
+    objectMap,
+    textObjects,
+    graphicObjects,
+    sceneObjects: textObjects.concat(graphicObjects),
+    fragment,
+    nodes: nodeIds.map((id) => fragment?.nodes?.find((node) => node.id === id)).filter(Boolean),
+    bonds: bondIds.map((id) => fragment?.bonds?.find((bond) => bond.id === id)).filter(Boolean),
+    labelNodes: labelNodeIds.map((id) => fragment?.nodes?.find((node) => node.id === id)).filter(Boolean),
+  };
+}
+
+function contextSelectionCount(info = currentSelectionInfo()) {
+  return info.sceneObjects.length + info.nodes.length + info.bonds.length + info.labelNodes.length;
+}
+
+function contextHasSelection(info = currentSelectionInfo()) {
+  return contextSelectionCount(info) > 0 || Boolean(info.selection?.region);
+}
+
+function uniformValue(values) {
+  const normalized = values.filter((value) => value != null && value !== "");
+  if (!normalized.length) {
+    return null;
+  }
+  return normalized.every((value) => value === normalized[0]) ? normalized[0] : null;
+}
+
+async function currentClipboardHasPasteContent() {
+  if (!state.editorEngine) {
+    return false;
+  }
+  try {
+    if (await Promise.resolve(state.editorEngine.hasClipboard?.())) {
+      return true;
+    }
+  } catch (error) {
+    console.warn("Failed to inspect engine clipboard", error);
+  }
+  if (!desktopFileHost?.available || !state.editorEngine.pasteClipboardJson) {
+    return false;
+  }
+  try {
+    const payload = await desktopFileHost.readClipboard();
+    return Boolean(payload?.chemcoreFragmentJson);
+  } catch (error) {
+    console.warn("Failed to inspect native clipboard", error);
+    return false;
+  }
+}
+
+function createCanvasContextMenu() {
+  const menu = document.createElement("div");
+  menu.className = "canvas-context-menu";
+  menu.hidden = true;
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-label", "Canvas menu");
+
+  menu.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+  });
+  menu.addEventListener("click", (event) => {
+    const item = event.target.closest("[data-canvas-context-command]");
+    if (!item || item.disabled || item.dataset.hasSubmenu === "true") {
+      return;
+    }
+    const command = item.dataset.canvasContextCommand;
+    const value = item.dataset.canvasContextValue || "";
+    void runCanvasContextMenuCommand(command, value);
+  });
+
+  return menu;
+}
+
+async function updateCanvasContextMenuAvailability() {
+  if (!canvasContextMenu || canvasContextMenu.hidden) {
+    return;
+  }
+  renderCanvasContextMenu(await buildCanvasContextMenuItems(activeContextMenuState?.hit || { kind: "canvas" }));
+}
+
+function hideCanvasContextMenu() {
+  if (canvasContextMenu.hidden) {
+    return;
+  }
+  canvasContextMenu.hidden = true;
+}
+
+async function finishTemporaryContextSelection() {
+  if (!activeContextMenuState?.temporarySelection) {
+    activeContextMenuState = null;
+    return;
+  }
+  activeContextMenuState = null;
+  if (await state.editorEngine?.clearSelection?.()) {
+    await syncDocumentFromEngine();
+    renderDocument();
+  }
+}
+
+function closeCanvasContextMenu() {
+  hideCanvasContextMenu();
+  void finishTemporaryContextSelection();
+}
+
+function canvasContextMenuItem(item, depth = 0) {
+  if (item.type === "separator") {
+    const separator = document.createElement("div");
+    separator.className = "canvas-context-menu-separator";
+    separator.setAttribute("role", "separator");
+    return separator;
+  }
+
+  const entry = document.createElement("div");
+  entry.className = "canvas-context-menu-entry";
+  if (item.submenu?.length) {
+    entry.classList.add("has-submenu");
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "canvas-context-menu-item";
+  button.dataset.canvasContextCommand = item.command || "";
+  button.dataset.canvasContextValue = item.value || "";
+  button.dataset.hasSubmenu = item.submenu?.length ? "true" : "false";
+  button.disabled = !!item.disabled;
+  button.setAttribute("role", "menuitem");
+  if (item.checked) {
+    button.classList.add("is-checked");
+    button.setAttribute("aria-checked", "true");
+  }
+
+  const check = document.createElement("span");
+  check.className = "canvas-context-menu-check";
+  check.textContent = item.checked ? "✓" : "";
+  const label = document.createElement("span");
+  label.className = "canvas-context-menu-label";
+  label.textContent = item.label || "";
+  const shortcut = document.createElement("span");
+  shortcut.className = "canvas-context-menu-shortcut";
+  shortcut.textContent = item.submenu?.length ? "›" : item.shortcut || "";
+  button.append(check, label, shortcut);
+  entry.appendChild(button);
+
+  if (item.submenu?.length) {
+    const submenu = document.createElement("div");
+    submenu.className = "canvas-context-submenu";
+    submenu.setAttribute("role", "menu");
+    if (depth >= 1) {
+      submenu.classList.add("is-nested");
+    }
+    item.submenu.forEach((child) => submenu.appendChild(canvasContextMenuItem(child, depth + 1)));
+    entry.appendChild(submenu);
+  }
+  return entry;
+}
+
+function renderCanvasContextMenu(items) {
+  canvasContextMenu.innerHTML = "";
+  items.forEach((item) => canvasContextMenu.appendChild(canvasContextMenuItem(item)));
+}
+
+async function openCanvasContextMenu(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  if (!isEditingRustDocument()) {
+    closeCanvasContextMenu();
+    return;
+  }
+  const point = svgPointFromEvent(event);
+  let hit = await contextHitTest(point);
+  const temporarySelection = editorState.activeTool !== "select" && hit.kind !== "canvas" && !hit.selected;
+  if (hit.kind !== "canvas" && !hit.selected) {
+    await state.editorEngine.selectAtPoint(point.x, point.y, false);
+    await syncDocumentFromEngine();
+    renderDocument();
+    hit = await contextHitTest(point);
+  }
+  activeContextMenuState = {
+    hit,
+    point,
+    temporarySelection,
+    actionTaken: false,
+  };
+  renderCanvasContextMenu(await buildCanvasContextMenuItems(hit));
+  canvasContextMenu.hidden = false;
+  const margin = 6;
+  const width = canvasContextMenu.offsetWidth;
+  const height = canvasContextMenu.offsetHeight;
+  const left = Math.max(margin, Math.min(event.clientX, window.innerWidth - width - margin));
+  const top = Math.max(margin, Math.min(event.clientY, window.innerHeight - height - margin));
+  canvasContextMenu.style.left = `${left}px`;
+  canvasContextMenu.style.top = `${top}px`;
+  canvasContextMenu.querySelector("button:not(:disabled):not([data-has-submenu='true'])")?.focus?.({ preventScroll: true });
+}
+
+async function contextHitTest(point) {
+  if (!state.editorEngine?.contextHitTestJson) {
+    return { kind: "canvas" };
+  }
+  try {
+    return parseEngineJson(await state.editorEngine.contextHitTestJson(point.x, point.y), { kind: "canvas" }) || { kind: "canvas" };
+  } catch (error) {
+    console.warn("Failed to hit-test context menu target", error);
+    return { kind: "canvas" };
+  }
+}
+
+function separator() {
+  return { type: "separator" };
+}
+
+function item(label, command, options = {}) {
+  return { label, command, ...options };
+}
+
+function submenu(label, children, options = {}) {
+  return { label, submenu: children, ...options };
+}
+
+async function clipboardMenuItems(includeSelectAll = false) {
+  const hasSelection = currentEditorSelectionHasItems();
+  const hasPaste = await currentClipboardHasPasteContent();
+  const items = [
+    item("Cut", "cut", { shortcut: "Ctrl+X", disabled: !hasSelection }),
+    item("Copy", "copy", { shortcut: "Ctrl+C", disabled: !hasSelection }),
+    item("Paste", "paste", { shortcut: "Ctrl+V", disabled: !hasPaste }),
+  ];
+  if (includeSelectAll) {
+    items.push(item("Select All", "select-all", {
+      shortcut: "Ctrl+A",
+      disabled: !currentDocumentHasSelectableContent(),
+    }));
+  } else {
+    items.push(item("Delete", "delete", { disabled: !hasSelection }));
+  }
+  return items;
+}
+
+function selectedSceneObjects() {
+  return currentSelectionInfo().sceneObjects;
+}
+
+function selectedSingleObject() {
+  const objects = selectedSceneObjects();
+  return objects.length === 1 ? objects[0] : null;
+}
+
+function selectedObjectTypes() {
+  return new Set(selectedSceneObjects().map((object) => object.type));
+}
+
+function selectedContainsGroup() {
+  return selectedSceneObjects().some((object) => object.type === "group");
+}
+
+function orderMenuItems() {
+  const disabled = selectedSceneObjects().length === 0;
+  return [
+    item("Bring Forward", "order", { value: "bring-forward", disabled }),
+    item("Send Backward", "order", { value: "send-backward", disabled }),
+    item("Bring to Front", "order", { value: "bring-front", disabled }),
+    item("Send to Back", "order", { value: "send-back", disabled }),
+  ];
+}
+
+function transformMenuItems({ includeFlip = true } = {}) {
+  return [
+    ...(includeFlip ? [
+      item("Flip Horizontal", "arrange", { value: "flip-h" }),
+      item("Flip Vertical", "arrange", { value: "flip-v" }),
+    ] : []),
+    item("Rotate...", "rotate-dialog"),
+    item("Scale...", "scale-dialog"),
+  ];
+}
+
+function groupingMenu() {
+  const sceneCount = selectedSceneObjects().length;
+  return submenu("Group", [
+    item("Group", "group", { disabled: sceneCount < 2 }),
+    item("Ungroup", "ungroup", { disabled: !selectedContainsGroup() }),
+  ]);
+}
+
+const CONTEXT_MENU_COLORS = [
+  ["Black", "#000000"],
+  ["Red", "#ff0000"],
+  ["Blue", "#0000ff"],
+  ["Green", "#008000"],
+  ["Yellow", "#ffff00"],
+  ["Orange", "#ffa500"],
+  ["Purple", "#800080"],
+  ["Gray", "#808080"],
+];
+
+function styleColorForObject(object) {
+  const style = state.currentDocument?.styles?.[object?.styleRef];
+  return cssColorToHex(
+    object?.payload?.fill
+    || object?.payload?.stroke
+    || style?.fill
+    || style?.stroke
+    || object?.payload?.color
+    || "#000000",
+  );
+}
+
+function selectedUniformColor() {
+  const info = currentSelectionInfo();
+  const colors = [];
+  for (const object of info.sceneObjects) {
+    colors.push(styleColorForObject(object));
+  }
+  for (const bond of info.bonds) {
+    colors.push(cssColorToHex(bond.stroke || "#000000"));
+  }
+  for (const node of info.labelNodes.concat(info.nodes)) {
+    colors.push(cssColorToHex(node.label?.fill || "#000000"));
+  }
+  return uniformValue(colors);
+}
+
+function colorMenu() {
+  const current = selectedUniformColor();
+  return submenu("Color", [
+    ...CONTEXT_MENU_COLORS.map(([label, value]) => item(label, "color", {
+      value,
+      checked: current === value,
+    })),
+    item("Other...", "color-other"),
+  ]);
+}
+
+function objectSettingsItem() {
+  return item("Object Settings...", "noop", { disabled: true });
+}
+
+function shapeKindForObject(object) {
+  const kind = object?.payload?.kind || "";
+  if (kind === "roundRect") {
+    return "round-rect";
+  }
+  return kind || "shape";
+}
+
+function shapeStyleForObject(object) {
+  const style = state.currentDocument?.styles?.[object?.styleRef] || {};
+  if (style.shadow || style.shadowed) {
+    return "shadowed";
+  }
+  if (style.faded) {
+    return "faded";
+  }
+  if (style.shaded) {
+    return "shaded";
+  }
+  if (style.fill && !style.stroke) {
+    return "filled";
+  }
+  if (Array.isArray(style.dashArray) && style.dashArray.length) {
+    return "dashed";
+  }
+  return "plain";
+}
+
+function selectedUniformShapeStyle() {
+  const shapes = selectedSceneObjects().filter((object) => object.type === "shape");
+  return uniformValue(shapes.map(shapeStyleForObject));
+}
+
+function shapeStyleMenu() {
+  const current = selectedUniformShapeStyle();
+  return submenu("Shape Style", [
+    item("Plain", "shape-style", { value: "plain", checked: current === "plain" }),
+    item("Dashed", "shape-style", { value: "dashed", checked: current === "dashed" }),
+    item("Filled", "shape-style", { value: "filled", checked: current === "filled" }),
+    item("Shaded", "shape-style", { value: "shaded", checked: current === "shaded" }),
+    item("Faded", "shape-style", { value: "faded", checked: current === "faded" }),
+    item("Shadowed", "shape-style", { value: "shadowed", checked: current === "shadowed" }),
+  ]);
+}
+
+function bracketKindForObject(object) {
+  return object?.payload?.kind || "round";
+}
+
+function bracketTypeMenu() {
+  const current = uniformValue(selectedSceneObjects()
+    .filter((object) => object.type === "bracket")
+    .map(bracketKindForObject));
+  return submenu("Bracket Type", [
+    item("Parentheses", "bracket-kind", { value: "round", checked: current === "round" }),
+    item("Square Brackets", "bracket-kind", { value: "square", checked: current === "square" }),
+    item("Braces", "bracket-kind", { value: "curly", checked: current === "curly" }),
+  ]);
+}
+
+function lineObjectStyle(object) {
+  const style = state.currentDocument?.styles?.[object?.styleRef] || {};
+  const arrowHead = object?.payload?.arrowHead || {};
+  if (arrowHead.bold) {
+    return "bold";
+  }
+  if (Array.isArray(style.dashArray) && style.dashArray.length) {
+    return "dashed";
+  }
+  return "plain";
+}
+
+function selectedUniformLineStyle() {
+  const lines = selectedSceneObjects().filter((object) => object.type === "line");
+  return uniformValue(lines.map(lineObjectStyle));
+}
+
+function selectedUniformArrowEndpoint(endpoint) {
+  const lines = selectedSceneObjects().filter((object) => object.type === "line");
+  return uniformValue(lines.map((object) => object.payload?.arrowHead?.[endpoint] || "none"));
+}
+
+function lineStyleMenu() {
+  const current = selectedUniformLineStyle();
+  return submenu("Line Style", [
+    item("Plain", "line-style", { value: "plain", checked: current === "plain" }),
+    item("Dashed", "line-style", { value: "dashed", checked: current === "dashed" }),
+    item("Bold", "line-style", { value: "bold", checked: current === "bold" }),
+  ]);
+}
+
+function arrowheadsMenu() {
+  const head = selectedUniformArrowEndpoint("head");
+  const tail = selectedUniformArrowEndpoint("tail");
+  return submenu("Arrowheads", [
+    item("Full Arrow at Start", "arrow-endpoint", { value: "tail:full", checked: tail === "full" }),
+    item("Full Arrow at End", "arrow-endpoint", { value: "head:full", checked: head === "full" }),
+    item("Half Arrow at Start Left", "arrow-endpoint", { value: "tail:left", checked: tail === "half-left" || tail === "left" }),
+    item("Half Arrow at Start Right", "arrow-endpoint", { value: "tail:right", checked: tail === "half-right" || tail === "right" }),
+    item("Half Arrow at End Left", "arrow-endpoint", { value: "head:left", checked: head === "half-left" || head === "left" }),
+    item("Half Arrow at End Right", "arrow-endpoint", { value: "head:right", checked: head === "half-right" || head === "right" }),
+  ]);
+}
+
+function bondStyleKey(bond) {
+  if (!bond) {
+    return "";
+  }
+  if (bond.order === 3) {
+    return "triple-plain";
+  }
+  if (bond.order === 2) {
+    const placement = bond.double?.placement || "center";
+    const left = bond.lineStyles?.left;
+    const right = bond.lineStyles?.right;
+    const main = bond.lineStyles?.main;
+    const weight = bond.lineWeights?.main;
+    if (left === "dashed" && right === "dashed") {
+      return "double-double-dashed";
+    }
+    if (main === "dashed") {
+      return "double-dashed";
+    }
+    if (weight === "bold") {
+      return "double-bold";
+    }
+    return `double-${placement}`;
+  }
+  const stereo = bond.stereo?.kind || "";
+  if (bond.meta?.contextMenuBondStyle === "single-hashed") {
+    return "single-hashed";
+  }
+  const mainStyle = bond.lineStyles?.main;
+  const mainWeight = bond.lineWeights?.main;
+  if (stereo.includes("hashed")) {
+    return "single-hashed-wedged";
+  }
+  if (stereo.includes("wedge")) {
+    return "single-bold-wedged";
+  }
+  if (mainWeight === "bold") {
+    return "single-bold";
+  }
+  if (mainStyle === "dashed") {
+    return "single-dashed";
+  }
+  return "single-plain";
+}
+
+function selectedUniformBondStyle() {
+  return uniformValue(currentSelectionInfo().bonds.map(bondStyleKey));
+}
+
+function bondTypeMenu() {
+  const current = selectedUniformBondStyle();
+  return submenu("Bond Type", [
+    submenu("Single", [
+      item("Plain", "bond-style", { value: "single-plain", checked: current === "single-plain" }),
+      item("Dashed", "bond-style", { value: "single-dashed", checked: current === "single-dashed" }),
+      item("Hashed", "bond-style", { value: "single-hashed", checked: current === "single-hashed" }),
+      item("Hashed Wedged", "bond-style", { value: "single-hashed-wedged", checked: current === "single-hashed-wedged" }),
+      item("Bold", "bond-style", { value: "single-bold", checked: current === "single-bold" }),
+      item("Bold Wedged", "bond-style", { value: "single-bold-wedged", checked: current === "single-bold-wedged" }),
+    ]),
+    submenu("Double", [
+      item("Left", "bond-style", { value: "double-left", checked: current === "double-left" }),
+      item("Right", "bond-style", { value: "double-right", checked: current === "double-right" }),
+      item("Center", "bond-style", { value: "double-center", checked: current === "double-center" }),
+      item("Bold", "bond-style", { value: "double-bold", checked: current === "double-bold" }),
+      item("Dashed", "bond-style", { value: "double-dashed", checked: current === "double-dashed" }),
+      item("Double Dashed", "bond-style", { value: "double-double-dashed", checked: current === "double-double-dashed" }),
+    ]),
+    submenu("Triple", [
+      item("Plain", "bond-style", { value: "triple-plain", checked: current === "triple-plain" }),
+    ]),
+  ]);
+}
+
+function selectedTextTargets() {
+  const info = currentSelectionInfo();
+  const targets = [];
+  for (const object of info.textObjects) {
+    targets.push({ kind: "text", object });
+  }
+  for (const node of info.labelNodes.concat(info.nodes)) {
+    if (node.label) {
+      targets.push({ kind: "label", node, label: node.label });
+    }
+  }
+  return targets;
+}
+
+function textObjectRuns(object) {
+  const payload = object?.payload || {};
+  return (Array.isArray(payload.sourceRuns) && payload.sourceRuns.length ? payload.sourceRuns : payload.runs) || [];
+}
+
+function textTargetRuns(target) {
+  if (target.kind === "text") {
+    return textObjectRuns(target.object);
+  }
+  const label = target.label || {};
+  if (Array.isArray(label.runs) && label.runs.length) {
+    return label.runs;
+  }
+  if (Array.isArray(label.lineRuns) && label.lineRuns.length) {
+    return label.lineRuns.flat();
+  }
+  return [];
+}
+
+function textTargetPlainText(target) {
+  if (target.kind === "text") {
+    return target.object?.payload?.text || runsPlainText(textObjectRuns(target.object)) || "";
+  }
+  return target.label?.text || runsPlainText(textTargetRuns(target)) || "";
+}
+
+function textTargetFontFamily(target) {
+  if (target.kind === "text") {
+    return target.object?.payload?.fontFamily || textTargetRuns(target)[0]?.fontFamily || "Arial";
+  }
+  return target.label?.fontFamily || textTargetRuns(target)[0]?.fontFamily || "Arial";
+}
+
+function textTargetFontSize(target) {
+  if (target.kind === "text") {
+    return Number(target.object?.payload?.fontSize || textTargetRuns(target)[0]?.fontSize || DEFAULT_TEXT_FONT_SIZE);
+  }
+  return Number(target.label?.fontSize || textTargetRuns(target)[0]?.fontSize || DEFAULT_TEXT_FONT_SIZE);
+}
+
+function textTargetAlign(target) {
+  if (target.kind === "text") {
+    return target.object?.payload?.align || "left";
+  }
+  return target.label?.align || "left";
+}
+
+function textTargetLineHeight(target) {
+  if (target.kind === "text") {
+    return Number(target.object?.payload?.lineHeight || DEFAULT_TEXT_FONT_SIZE * 1.2);
+  }
+  return null;
+}
+
+function runFlagUniform(targets, predicate) {
+  const values = [];
+  for (const target of targets) {
+    const runs = textTargetRuns(target);
+    if (!runs.length && textTargetPlainText(target)) {
+      values.push(false);
+      continue;
+    }
+    for (const run of runs) {
+      values.push(Boolean(predicate(run)));
+    }
+  }
+  return uniformValue(values);
+}
+
+function selectedUniformTextFontFamily() {
+  return uniformValue(selectedTextTargets().map(textTargetFontFamily));
+}
+
+function selectedUniformTextFontSize() {
+  return uniformValue(selectedTextTargets().map((target) => normalizeToolbarFontSize(textTargetFontSize(target))));
+}
+
+function selectedUniformTextAlign() {
+  return uniformValue(selectedTextTargets().map(textTargetAlign));
+}
+
+function selectedUniformTextLineHeight() {
+  return uniformValue(selectedTextTargets().map(textTargetLineHeight));
+}
+
+function selectedTextStyleState() {
+  const targets = selectedTextTargets();
+  return {
+    bold: runFlagUniform(targets, (run) => Number(run.fontWeight || 400) >= 600),
+    italic: runFlagUniform(targets, (run) => String(run.fontStyle || "normal") === "italic"),
+    underline: runFlagUniform(targets, (run) => !!run.underline),
+    superscript: runFlagUniform(targets, (run) => String(run.script || "normal") === "superscript"),
+    subscript: runFlagUniform(targets, (run) => String(run.script || "normal") === "subscript"),
+    formula: runFlagUniform(targets, (run) => String(run.script || "normal") === "chemical"),
+  };
+}
+
+function textFontMenu() {
+  const current = selectedUniformTextFontFamily();
+  return submenu("Font", TEXT_FONT_OPTIONS.map((font) => item(font, "text-style", {
+    value: `font-family:${font}`,
+    checked: current === font,
+  })));
+}
+
+function textSizeMenu() {
+  const current = selectedUniformTextFontSize();
+  const sizes = [...TEXT_FONT_SIZE_OPTIONS];
+  if (current && !sizes.includes(current)) {
+    sizes.push(current);
+  }
+  sizes.sort((left, right) => left - right);
+  return submenu("Size", sizes.map((size) => item(formatToolbarFontSize(size), "text-style", {
+    value: `font-size:${size}`,
+    checked: current === size,
+  })));
+}
+
+function textStyleMenu() {
+  const current = selectedTextStyleState();
+  return submenu("Style", [
+    item("Bold", "text-style", { value: `bold:${current.bold === true ? "off" : "on"}`, checked: current.bold === true }),
+    item("Italic", "text-style", { value: `italic:${current.italic === true ? "off" : "on"}`, checked: current.italic === true }),
+    item("Underline", "text-style", { value: `underline:${current.underline === true ? "off" : "on"}`, checked: current.underline === true }),
+    item("Superscript", "text-style", { value: `superscript:${current.superscript === true ? "off" : "on"}`, checked: current.superscript === true }),
+    item("Subscript", "text-style", { value: `subscript:${current.subscript === true ? "off" : "on"}`, checked: current.subscript === true }),
+    item("Formula", "text-style", { value: `formula:${current.formula === true ? "off" : "on"}`, checked: current.formula === true }),
+  ]);
+}
+
+function textAlignmentMenu() {
+  const current = selectedUniformTextAlign();
+  return submenu("Alignment", [
+    item("Left", "text-style", { value: "align:left", checked: current === "left" }),
+    item("Center", "text-style", { value: "align:center", checked: current === "center" }),
+    item("Right", "text-style", { value: "align:right", checked: current === "right" }),
+    item("Justified", "text-style", { value: "align:justify", checked: current === "justify" }),
+  ]);
+}
+
+function chemicalCheckEnabledForNode(node) {
+  return node?.meta?.chemicalCheck !== false && node?.label?.meta?.chemicalCheck !== false;
+}
+
+function selectedUniformChemicalCheck() {
+  const info = currentSelectionInfo();
+  return uniformValue(info.nodes.concat(info.labelNodes).map(chemicalCheckEnabledForNode));
+}
+
+function chemicalCheckItem() {
+  const checked = selectedUniformChemicalCheck() !== false;
+  return item("Chemical Check", "chemical-check", { value: checked ? "off" : "on", checked });
+}
+
+function selectedCanExpandLabel() {
+  const info = currentSelectionInfo();
+  return info.nodes.concat(info.labelNodes).some((node) => {
+    const recognition = node?.meta?.labelRecognition || node?.label?.meta?.labelRecognition;
+    return recognition?.status === "recognized" && recognition?.expansion?.complete !== false;
+  });
+}
+
+async function buildCanvasContextMenuItems(hit) {
+  if (hit.kind === "canvas") {
+    return clipboardMenuItems(true);
+  }
+  const info = currentSelectionInfo();
+  const selectedCount = contextSelectionCount(info);
+  const selectedTypes = selectedObjectTypes();
+  const singleObject = selectedSingleObject();
+  const base = await clipboardMenuItems(false);
+
+  if (selectedCount > 1 || selectedTypes.has("group")) {
+    return [
+      ...base,
+      separator(),
+      ...orderMenuItems(),
+      separator(),
+      ...transformMenuItems(),
+      separator(),
+      colorMenu(),
+      groupingMenu(),
+      separator(),
+      objectSettingsItem(),
+    ];
+  }
+
+  if (hit.kind === "bond" || info.bonds.length) {
+    return [
+      ...base,
+      separator(),
+      bondTypeMenu(),
+      separator(),
+      colorMenu(),
+      objectSettingsItem(),
+    ];
+  }
+
+  if (hit.kind === "atom" || hit.kind === "label" || info.nodes.length || info.labelNodes.length) {
+    const showLabelTypography = selectedTextTargets().length > 0;
+    return [
+      ...base,
+      separator(),
+      item("Edit Label", "edit-text"),
+      item("Expand Label", "expand-label", { disabled: !selectedCanExpandLabel() }),
+      ...(showLabelTypography ? [
+        separator(),
+        textFontMenu(),
+        textStyleMenu(),
+        textSizeMenu(),
+        textAlignmentMenu(),
+      ] : []),
+      separator(),
+      chemicalCheckItem(),
+      separator(),
+      colorMenu(),
+      objectSettingsItem(),
+    ];
+  }
+
+  if (singleObject?.type === "line") {
+    return [
+      ...base,
+      separator(),
+      lineStyleMenu(),
+      separator(),
+      arrowheadsMenu(),
+      separator(),
+      ...orderMenuItems(),
+      separator(),
+      ...transformMenuItems(),
+      separator(),
+      colorMenu(),
+      objectSettingsItem(),
+    ];
+  }
+
+  if (singleObject?.type === "shape") {
+    return [
+      ...base,
+      separator(),
+      shapeStyleMenu(),
+      separator(),
+      ...orderMenuItems(),
+      item("Center on Page", "center-page"),
+      separator(),
+      ...transformMenuItems(),
+      separator(),
+      colorMenu(),
+      objectSettingsItem(),
+    ];
+  }
+
+  if (singleObject?.type === "bracket") {
+    return [
+      ...base,
+      separator(),
+      bracketTypeMenu(),
+      separator(),
+      ...orderMenuItems(),
+      separator(),
+      ...transformMenuItems(),
+      separator(),
+      colorMenu(),
+      objectSettingsItem(),
+    ];
+  }
+
+  if (singleObject?.type === "symbol") {
+    return [
+      ...base,
+      separator(),
+      ...orderMenuItems(),
+      item("Center on Page", "center-page"),
+      separator(),
+      ...transformMenuItems(),
+      separator(),
+      colorMenu(),
+      objectSettingsItem(),
+    ];
+  }
+
+  if (singleObject?.type === "text") {
+    return [
+      ...base,
+      separator(),
+      item("Edit Text", "edit-text"),
+      separator(),
+      textFontMenu(),
+      textStyleMenu(),
+      textSizeMenu(),
+      textAlignmentMenu(),
+      item("Line Spacing...", "text-line-spacing"),
+      separator(),
+      ...orderMenuItems(),
+      item("Center on Page", "center-page"),
+      separator(),
+      colorMenu(),
+      objectSettingsItem(),
+    ];
+  }
+
+  return [
+    ...base,
+    separator(),
+    ...orderMenuItems(),
+    separator(),
+    colorMenu(),
+    objectSettingsItem(),
+  ];
+}
+
+async function runCanvasContextMenuCommand(command, value) {
+  if (!command || command === "noop") {
+    return;
+  }
+  if (activeContextMenuState) {
+    activeContextMenuState.actionTaken = true;
+  }
+  hideCanvasContextMenu();
+  let changed = false;
+  if (["cut", "copy", "paste", "delete", "select-all"].includes(command)) {
+    changed = await runEditorCommand(command);
+  } else if (command === "order") {
+    changed = !!(await state.editorEngine?.applySelectionOrderCommand?.(value));
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "arrange") {
+    changed = !!(await state.editorEngine?.applySelectionArrangeCommand?.(value));
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "group") {
+    changed = !!(await state.editorEngine?.groupSelection?.());
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "ungroup") {
+    changed = !!(await state.editorEngine?.ungroupSelection?.());
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "color") {
+    changed = await applySelectionColor(value);
+  } else if (command === "color-other") {
+    openColorDialog(selectedUniformColor() || editorState.selectionColor || "#000000", async (color) => {
+      await applySelectionColor(color);
+      await finishTemporaryContextSelection();
+    }, { colorHost });
+    return;
+  } else if (command === "shape-style") {
+    changed = !!(await state.editorEngine?.applyShapeStyleToSelection?.(value));
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "bracket-kind") {
+    changed = !!(await state.editorEngine?.applyBracketKindToSelection?.(value));
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "line-style") {
+    changed = !!(await state.editorEngine?.applyLineStyleToSelection?.(value));
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "bond-style") {
+    changed = !!(await state.editorEngine?.applyBondStyleToSelection?.(value));
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "text-style") {
+    const separatorIndex = value.indexOf(":");
+    const styleCommand = separatorIndex >= 0 ? value.slice(0, separatorIndex) : value;
+    const styleValue = separatorIndex >= 0 ? value.slice(separatorIndex + 1) : "";
+    changed = !!(await state.editorEngine?.applyTextStyleToSelection?.(styleCommand, styleValue));
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "text-line-spacing") {
+    const current = selectedUniformTextLineHeight() || DEFAULT_TEXT_FONT_SIZE * 1.2;
+    const next = window.prompt?.("Line spacing", formatToolbarFontSize(current));
+    if (next != null) {
+      changed = !!(await state.editorEngine?.applyTextStyleToSelection?.("line-height", String(next)));
+      if (changed) {
+        await syncDocumentFromEngine();
+        renderDocument();
+      }
+    }
+  } else if (command === "chemical-check") {
+    changed = !!(await state.editorEngine?.setChemicalCheckForSelection?.(value !== "off"));
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "expand-label") {
+    changed = !!(await state.editorEngine?.expandLabelsInSelection?.());
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "center-page") {
+    changed = !!(await state.editorEngine?.centerSelectionOnPage?.());
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "scale-dialog") {
+    const next = window.prompt?.("Scale percentage", "100");
+    if (next != null) {
+      changed = !!(await state.editorEngine?.scaleSelection?.(Number(next)));
+      if (changed) {
+        await syncDocumentFromEngine();
+        renderDocument();
+      }
+    }
+  } else if (command === "rotate-dialog") {
+    const next = window.prompt?.("Rotate degrees", "90");
+    if (next != null) {
+      changed = !!(await state.editorEngine?.rotateSelectionDegrees?.(Number(next)));
+      if (changed) {
+        await syncDocumentFromEngine();
+        renderDocument();
+      }
+    }
+  } else if (command === "edit-text") {
+    const point = activeContextMenuState?.point;
+    if (point) {
+      await openTextEditorAt(point);
+      changed = true;
+    }
+  } else if (command === "arrow-bold") {
+    syncEditorArrowStateFromSelectedLine();
+    editorState.arrowBold = selectedUniformLineStyle() !== "bold";
+    changed = await applyArrowOptionsToSelection();
+  } else if (command === "arrow-endpoint") {
+    syncEditorArrowStateFromSelectedLine();
+    const [endpoint, style] = value.split(":");
+    const nextStyle = style || "none";
+    if (endpoint === "head") {
+      editorState.arrowHeadStyle = selectedUniformArrowEndpoint("head") === endpointStylePayloadName(nextStyle) ? "none" : nextStyle;
+      editorState.arrowHead = editorState.arrowHeadStyle !== "none";
+    } else {
+      editorState.arrowTailStyle = selectedUniformArrowEndpoint("tail") === endpointStylePayloadName(nextStyle) ? "none" : nextStyle;
+      editorState.arrowTail = editorState.arrowTailStyle !== "none";
+    }
+    changed = await applyArrowOptionsToSelection();
+  }
+  if (!changed) {
+    renderEditorOverlay();
+    refreshCommandAvailability();
+  }
+  await finishTemporaryContextSelection();
+}
+
+function endpointStylePayloadName(style) {
+  if (style === "left") {
+    return "half-left";
+  }
+  if (style === "right") {
+    return "half-right";
+  }
+  return style;
+}
+
+function syncEditorArrowStateFromSelectedLine() {
+  const line = selectedSceneObjects().find((object) => object.type === "line");
+  if (!line) {
+    return;
+  }
+  const arrowHead = line.payload?.arrowHead || {};
+  const kind = arrowHead.kind || "solid";
+  if (["solid", "curved", "curved-mirror", "hollow", "open"].includes(kind)) {
+    editorState.arrowType = kind;
+  }
+  const curve = Math.abs(Number(arrowHead.curve || 0));
+  if (curve >= 260) {
+    editorState.arrowCurve = "270";
+  } else if (curve >= 150) {
+    editorState.arrowCurve = "180";
+  } else if (curve >= 105) {
+    editorState.arrowCurve = "120";
+  } else if (curve >= 60) {
+    editorState.arrowCurve = "90";
+  }
+  const head = arrowHead.head || "none";
+  const tail = arrowHead.tail || "none";
+  editorState.arrowHeadStyle = head === "half-left" ? "left" : head === "half-right" ? "right" : head;
+  editorState.arrowTailStyle = tail === "half-left" ? "left" : tail === "half-right" ? "right" : tail;
+  editorState.arrowHead = editorState.arrowHeadStyle !== "none";
+  editorState.arrowTail = editorState.arrowTailStyle !== "none";
+  editorState.arrowBold = !!arrowHead.bold;
+  editorState.arrowNoGo = arrowHead.noGo || "none";
 }
 
 async function writeNativeClipboardFromSelection(fragmentJson = null) {
@@ -1526,6 +2634,7 @@ async function runEditorCommand(command) {
     return false;
   }
   let changed = false;
+  let shouldRenderDocument = false;
   if (command === "undo") {
     changed = await state.editorEngine.undo();
   } else if (command === "redo") {
@@ -1549,15 +2658,45 @@ async function runEditorCommand(command) {
     }
   } else if (command === "delete") {
     changed = await state.editorEngine.deleteSelection();
+  } else if (command === "select-all") {
+    await activateEditorTool("select");
+    changed = !!(await state.editorEngine.selectAll?.());
+    shouldRenderDocument = true;
   } else {
     return false;
   }
-  if (changed) {
+  if (changed || shouldRenderDocument) {
     await syncDocumentFromEngine();
     renderDocument();
   } else {
     renderEditorOverlay();
     refreshCommandAvailability();
+  }
+  return true;
+}
+
+async function activateEditorTool(nextTool) {
+  if (!nextTool || editorState.activeTool === nextTool) {
+    return false;
+  }
+  if (editorState.activeTool === "text" && nextTool !== "text") {
+    await finishActiveTextEditor(true);
+  }
+  if (editorState.activeTool === "select" && nextTool !== "select") {
+    activeSelectionGesture = null;
+  }
+  if (nextTool !== "bracket") {
+    state.activeBracketDragStart = null;
+  }
+  editorState.activeTool = nextTool;
+  document.querySelectorAll("[data-tool]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.tool === editorState.activeTool);
+  });
+  await syncEngineToolState();
+  renderSecondaryToolbar();
+  syncCanvasCursor();
+  if (isEditingRustDocument()) {
+    renderEditorOverlay(currentEditorRenderList());
   }
   return true;
 }
@@ -3617,9 +4756,23 @@ viewerSvg?.addEventListener("pointercancel", async () => {
 });
 viewerSvg?.addEventListener("pointerleave", handleEditorPointerLeave);
 viewerContainer?.addEventListener("wheel", handleViewerWheel, { passive: false });
+viewerContainer?.addEventListener("contextmenu", openCanvasContextMenu);
 viewerContainer?.addEventListener("scroll", () => {
+  closeCanvasContextMenu();
   positionActiveTextEditor();
 });
+document.addEventListener("pointerdown", (event) => {
+  if (canvasContextMenu.hidden || canvasContextMenu.contains(event.target)) {
+    return;
+  }
+  closeCanvasContextMenu();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeCanvasContextMenu();
+  }
+});
+window.addEventListener("blur", closeCanvasContextMenu);
 
 window.addEventListener("resize", () => {
   if (!state.currentDocument) {

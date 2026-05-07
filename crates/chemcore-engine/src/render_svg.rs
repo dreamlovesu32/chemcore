@@ -172,6 +172,8 @@ fn extend_bounds_for_primitive(
             box_width,
             text,
             runs,
+            rotate,
+            rotate_center,
             ..
         } => {
             let width = box_width.unwrap_or_else(|| estimate_text_width(text, runs, *font_size));
@@ -180,12 +182,17 @@ fn extend_bounds_for_primitive(
                 .unwrap_or(DEFAULT_TEXT_LINE_HEIGHT)
                 .max(*font_size)
                 * line_count;
-            extend_bounds_for_point(&mut bounds, Point::new(*x, y - font_size), 0.0);
-            extend_bounds_for_point(
-                &mut bounds,
-                Point::new(x + width, y - font_size + height),
-                0.0,
-            );
+            let top_left = Point::new(*x, y - font_size);
+            let bottom_right = Point::new(x + width, y - font_size + height);
+            if rotate.abs() > crate::EPSILON {
+                let center = rotate_center.unwrap_or(Point::new(*x, *y));
+                for point in rotated_box_points(top_left, bottom_right, center, *rotate) {
+                    extend_bounds_for_point(&mut bounds, point, 0.0);
+                }
+            } else {
+                extend_bounds_for_point(&mut bounds, top_left, 0.0);
+                extend_bounds_for_point(&mut bounds, bottom_right, 0.0);
+            }
         }
     }
     bounds
@@ -202,6 +209,50 @@ fn extend_bounds_for_point(bounds: &mut Option<[f64; 4]>, point: Point, pad: f64
         ],
         None => next,
     });
+}
+
+fn rotated_box_points(
+    top_left: Point,
+    bottom_right: Point,
+    center: Point,
+    rotate: f64,
+) -> [Point; 4] {
+    [
+        rotate_point_around(top_left, center, rotate),
+        rotate_point_around(Point::new(bottom_right.x, top_left.y), center, rotate),
+        rotate_point_around(bottom_right, center, rotate),
+        rotate_point_around(Point::new(top_left.x, bottom_right.y), center, rotate),
+    ]
+}
+
+fn rotate_point_around(point: Point, center: Point, degrees: f64) -> Point {
+    if degrees.abs() <= crate::EPSILON {
+        return point;
+    }
+    let radians = degrees.to_radians();
+    let cos = radians.cos();
+    let sin = radians.sin();
+    let dx = point.x - center.x;
+    let dy = point.y - center.y;
+    Point::new(
+        center.x + dx * cos - dy * sin,
+        center.y + dx * sin + dy * cos,
+    )
+}
+
+fn rotate_transform_attr(rotate: f64, center: Option<&Point>) -> String {
+    let Some(center) = center else {
+        return String::new();
+    };
+    if rotate.abs() <= crate::EPSILON {
+        return String::new();
+    }
+    format!(
+        r#" transform="rotate({} {} {})""#,
+        fmt_num(rotate),
+        fmt_num(center.x),
+        fmt_num(center.y)
+    )
 }
 
 fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderPrimitive) {
@@ -367,17 +418,21 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
             dash_array,
             line_cap,
             line_join,
+            rotate,
+            rotate_center,
             ..
         } => {
+            let transform = rotate_transform_attr(*rotate, rotate_center.as_ref());
             writeln!(
                 out,
-                r#"  <path d="{}" fill="none" stroke="{}" stroke-width="{}"{}{}{} />"#,
+                r#"  <path d="{}" fill="none" stroke="{}" stroke-width="{}"{}{}{}{} />"#,
                 escape_attr(d),
                 escape_attr(stroke),
                 fmt_num(*stroke_width),
                 dash_attr(dash_array),
                 optional_str_attr("stroke-linecap", line_cap.as_deref()),
-                optional_str_attr("stroke-linejoin", line_join.as_deref())
+                optional_str_attr("stroke-linejoin", line_join.as_deref()),
+                transform
             )
             .expect("write path");
         }
@@ -387,16 +442,20 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
             fill_rule,
             clip_path_d,
             clip_rule,
+            rotate,
+            rotate_center,
             ..
         } => {
             let clip_attr = clip_path_attr(defs, clip_path_d.as_deref(), clip_rule.as_deref());
+            let transform = rotate_transform_attr(*rotate, rotate_center.as_ref());
             writeln!(
                 out,
-                r#"  <path d="{}" fill="{}" stroke="none"{}{} />"#,
+                r#"  <path d="{}" fill="{}" stroke="none"{}{}{} />"#,
                 escape_attr(d),
                 escape_attr(fill),
                 optional_str_attr("fill-rule", fill_rule.as_deref()),
-                clip_attr
+                clip_attr,
+                transform
             )
             .expect("write filled path");
         }
@@ -409,17 +468,22 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
             fill,
             text_anchor,
             runs,
+            rotate,
+            rotate_center,
             ..
         } => {
+            let center = rotate_center.unwrap_or(Point::new(*x, *y));
+            let transform = rotate_transform_attr(*rotate, Some(&center));
             write!(
                 out,
-                r#"  <text x="{}" y="{}" font-size="{}" dominant-baseline="alphabetic" text-anchor="{}" fill="{}"{}>"#,
+                r#"  <text x="{}" y="{}" font-size="{}" dominant-baseline="alphabetic" text-anchor="{}" fill="{}"{}{}>"#,
                 fmt_num(*x),
                 fmt_num(*y),
                 fmt_num(*font_size),
                 escape_attr(text_anchor.as_deref().unwrap_or("start")),
                 escape_attr(fill.as_deref().unwrap_or("#000000")),
-                optional_str_attr("font-family", font_family.as_deref())
+                optional_str_attr("font-family", font_family.as_deref()),
+                transform
             )
             .expect("write text start");
             if runs.is_empty() {

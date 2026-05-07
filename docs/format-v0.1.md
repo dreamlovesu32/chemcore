@@ -488,6 +488,13 @@ Example bonds:
   "begin": "n1",
   "end": "n2",
   "order": 1,
+  "strokeWidth": 0.6,
+  "boldWidth": 2.0,
+  "wedgeWidth": 3.0,
+  "labelClipMargin": 0.95,
+  "hashSpacing": 2.5,
+  "bondSpacing": 18.0,
+  "marginWidth": 1.6,
   "stereo": {
     "kind": "solid-wedge",
     "wideEnd": "end"
@@ -526,9 +533,29 @@ Molecule label fields:
 Bond fields:
 
 - `order`: numeric bond order
+- `strokeWidth`: normal bond stroke width in pt
+- `boldWidth`: bold bond template width in pt
+- `wedgeWidth`: solid and hashed wedge wide-end template width in pt
+- `labelClipMargin`: extra bond retreat from label glyph/box geometry in pt
+- `hashSpacing`: hash / hashed wedge template spacing in pt
+- `bondSpacing`: double-bond spacing percentage, matching CDXML `BondSpacing`
+- `marginWidth`: white margin width around the overpassing bond when two bonds
+  cross without sharing an endpoint; this applies only to bond-vs-bond crossing
 - `stereo.kind`: `solid-wedge | hashed-wedge`
 - `stereo.wideEnd`: `begin | end`
 - `double.placement`: `left | right | center`
+
+Current built-in template values:
+
+| Field | Default | ACS Document 1996 |
+| --- | ---: | ---: |
+| `strokeWidth` | `1.0` | `0.6` |
+| `boldWidth` | `4.0` | `2.0` |
+| `wedgeWidth` | `6.0` | `3.0` |
+| `labelClipMargin` | `1.35` | `0.95` |
+| `hashSpacing` | `2.9` | `2.5` |
+| `bondSpacing` | `12.0` | `18.0` |
+| `marginWidth` | `2.0` | `1.6` |
 
 ## Line Object
 

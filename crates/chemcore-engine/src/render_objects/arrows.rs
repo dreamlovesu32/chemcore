@@ -803,6 +803,8 @@ fn render_solid_arrow_head(
                 fill_rule: None,
                 clip_path_d: None,
                 clip_rule: None,
+                rotate: 0.0,
+                rotate_center: None,
             });
         }
         return;

@@ -61,6 +61,26 @@ export class WasmEngine {
         return ret !== 0;
     }
     /**
+     * @param {string} style
+     * @returns {boolean}
+     */
+    applyBondStyleToSelection(style) {
+        const ptr0 = passStringToWasm0(style, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyBondStyleToSelection(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
+     * @param {string} kind
+     * @returns {boolean}
+     */
+    applyBracketKindToSelection(kind) {
+        const ptr0 = passStringToWasm0(kind, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyBracketKindToSelection(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
      * @param {string} color
      * @returns {boolean}
      */
@@ -68,6 +88,16 @@ export class WasmEngine {
         const ptr0 = passStringToWasm0(color, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.wasmengine_applyColorToSelection(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
+     * @param {string} style
+     * @returns {boolean}
+     */
+    applyLineStyleToSelection(style) {
+        const ptr0 = passStringToWasm0(style, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyLineStyleToSelection(this.__wbg_ptr, ptr0, len0);
         return ret !== 0;
     }
     /**
@@ -91,6 +121,16 @@ export class WasmEngine {
         return ret !== 0;
     }
     /**
+     * @param {string} style
+     * @returns {boolean}
+     */
+    applyShapeStyleToSelection(style) {
+        const ptr0 = passStringToWasm0(style, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyShapeStyleToSelection(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
      * @param {string} session_json
      * @returns {boolean}
      */
@@ -102,6 +142,19 @@ export class WasmEngine {
             throw takeFromExternrefTable0(ret[1]);
         }
         return ret[0] !== 0;
+    }
+    /**
+     * @param {string} command
+     * @param {string} value
+     * @returns {boolean}
+     */
+    applyTextStyleToSelection(command, value) {
+        const ptr0 = passStringToWasm0(command, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(value, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyTextStyleToSelection(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        return ret !== 0;
     }
     /**
      * @param {number} x
@@ -206,8 +259,22 @@ export class WasmEngine {
         const ret = wasm.wasmengine_canUndo(this.__wbg_ptr);
         return ret !== 0;
     }
+    /**
+     * @returns {boolean}
+     */
+    centerSelectionOnPage() {
+        const ret = wasm.wasmengine_centerSelectionOnPage(this.__wbg_ptr);
+        return ret !== 0;
+    }
     clearInteraction() {
         wasm.wasmengine_clearInteraction(this.__wbg_ptr);
+    }
+    /**
+     * @returns {boolean}
+     */
+    clearSelection() {
+        const ret = wasm.wasmengine_clearSelection(this.__wbg_ptr);
+        return ret !== 0;
     }
     /**
      * @returns {string | undefined}
@@ -223,6 +290,23 @@ export class WasmEngine {
             wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
         }
         return v1;
+    }
+    /**
+     * @param {number} x
+     * @param {number} y
+     * @returns {string}
+     */
+    contextHitTestJson(x, y) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.wasmengine_contextHitTestJson(this.__wbg_ptr, x, y);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
     }
     /**
      * @returns {boolean}
@@ -333,6 +417,13 @@ export class WasmEngine {
         }
     }
     /**
+     * @returns {boolean}
+     */
+    expandLabelsInSelection() {
+        const ret = wasm.wasmengine_expandLabelsInSelection(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * @param {number} x
      * @param {number} y
      * @param {boolean} alt_key
@@ -386,6 +477,13 @@ export class WasmEngine {
      */
     groupSelection() {
         const ret = wasm.wasmengine_groupSelection(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @returns {boolean}
+     */
+    hasClipboard() {
+        const ret = wasm.wasmengine_hasClipboard(this.__wbg_ptr);
         return ret !== 0;
     }
     /**
@@ -599,6 +697,29 @@ export class WasmEngine {
         return ret !== 0;
     }
     /**
+     * @param {number} degrees
+     * @returns {boolean}
+     */
+    rotateSelectionDegrees(degrees) {
+        const ret = wasm.wasmengine_rotateSelectionDegrees(this.__wbg_ptr, degrees);
+        return ret !== 0;
+    }
+    /**
+     * @param {number} percent
+     * @returns {boolean}
+     */
+    scaleSelection(percent) {
+        const ret = wasm.wasmengine_scaleSelection(this.__wbg_ptr, percent);
+        return ret !== 0;
+    }
+    /**
+     * @returns {boolean}
+     */
+    selectAll() {
+        const ret = wasm.wasmengine_selectAll(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * @param {number} x
      * @param {number} y
      * @param {boolean} additive
@@ -692,6 +813,14 @@ export class WasmEngine {
         const ptr0 = passStringToWasm0(kind, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         wasm.wasmengine_setBracketOptions(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * @param {boolean} enabled
+     * @returns {boolean}
+     */
+    setChemicalCheckForSelection(enabled) {
+        const ret = wasm.wasmengine_setChemicalCheckForSelection(this.__wbg_ptr, enabled);
+        return ret !== 0;
     }
     /**
      * @param {string} preset

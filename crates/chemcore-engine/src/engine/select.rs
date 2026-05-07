@@ -154,7 +154,6 @@ struct NodeMoveOriginal {
 #[derive(Clone)]
 struct TextMoveOriginal {
     object_id: String,
-    translate: [f64; 2],
     object: SceneObject,
 }
 
@@ -629,6 +628,95 @@ impl Engine {
         true
     }
 
+    pub fn scale_selection(&mut self, percent: f64) -> bool {
+        let scale = percent / 100.0;
+        if !scale.is_finite() || scale <= 0.0 || (scale - 1.0).abs() <= crate::EPSILON {
+            return false;
+        }
+        self.with_command(
+            EditorCommand::LegacyMutation {
+                label: format!("scale-selection:{percent:.2}"),
+            },
+            |engine| engine.scale_selection_untracked(scale),
+        )
+    }
+
+    fn scale_selection_untracked(&mut self, scale: f64) -> bool {
+        let Some(bounds) = self.selection_rotation_bounds() else {
+            return false;
+        };
+        let Some(drag) = self.build_selection_resize_drag(
+            SelectionResizeHandle::SouthEast,
+            Point::new(bounds.max_x, bounds.max_y),
+        ) else {
+            return false;
+        };
+        self.push_undo_snapshot();
+        apply_selection_scale_to_document(
+            self,
+            &drag.node_originals,
+            &drag.object_originals,
+            Point::new(bounds.center_x(), bounds.center_y()),
+            scale,
+            scale,
+        );
+        self.clear_interaction();
+        true
+    }
+
+    pub fn rotate_selection_degrees(&mut self, degrees: f64) -> bool {
+        if !degrees.is_finite() || degrees.abs() <= crate::EPSILON {
+            return false;
+        }
+        self.with_command(EditorCommand::RotateSelection, |engine| {
+            engine.rotate_selection_degrees_untracked(degrees)
+        })
+    }
+
+    fn rotate_selection_degrees_untracked(&mut self, degrees: f64) -> bool {
+        let Some(bounds) = self.selection_rotation_bounds() else {
+            return false;
+        };
+        let center = Point::new(bounds.center_x(), bounds.center_y());
+        let Some(mut drag) = self.build_selection_rotate_drag(Point::new(center.x + 1.0, center.y))
+        else {
+            return false;
+        };
+        drag.center = center;
+        self.push_undo_snapshot();
+        apply_selection_rotation_to_document(self, &drag, degrees);
+        self.clear_interaction();
+        true
+    }
+
+    pub fn center_selection_on_page(&mut self) -> bool {
+        self.with_command(
+            EditorCommand::LegacyMutation {
+                label: "center-selection-on-page".to_string(),
+            },
+            |engine| engine.center_selection_on_page_untracked(),
+        )
+    }
+
+    fn center_selection_on_page_untracked(&mut self) -> bool {
+        let Some(bounds) = self.selection_rotation_bounds() else {
+            return false;
+        };
+        let page = &self.state.document.document.page;
+        let delta_x = page.width * 0.5 - bounds.center_x();
+        let delta_y = page.height * 0.5 - bounds.center_y();
+        if delta_x.abs() <= crate::EPSILON && delta_y.abs() <= crate::EPSILON {
+            return false;
+        }
+        let Some(drag) = self.build_selection_move_drag(Point::new(0.0, 0.0), true) else {
+            return false;
+        };
+        self.push_undo_snapshot();
+        apply_selection_drag_to_document(self, &drag, Point::new(delta_x, delta_y), true);
+        self.clear_interaction();
+        true
+    }
+
     pub fn apply_color_to_selection(&mut self, color: &str) -> bool {
         let color = normalize_selection_color(color);
         self.with_command(
@@ -953,6 +1041,93 @@ impl Engine {
         );
         self.state.selection = merge_selection(self.state.selection.clone(), selection, additive);
         self.clear_interaction();
+    }
+
+    pub fn select_all(&mut self) -> bool {
+        let mut selection = SelectionState::default();
+        for object in &self.state.document.objects {
+            if !object.visible {
+                continue;
+            }
+            match object.object_type.as_str() {
+                "text" => selection.text_objects.push(object.id.clone()),
+                "line" | "bracket" | "symbol" | "shape" | "group" => {
+                    selection.arrow_objects.push(object.id.clone())
+                }
+                _ => {}
+            }
+        }
+        if let Some(entry) = self.state.document.editable_fragment() {
+            selection
+                .nodes
+                .extend(entry.fragment.nodes.iter().map(|node| node.id.clone()));
+            selection.label_nodes.extend(
+                entry
+                    .fragment
+                    .nodes
+                    .iter()
+                    .filter_map(|node| node.label.as_ref().map(|_| node.id.clone())),
+            );
+            selection
+                .bonds
+                .extend(entry.fragment.bonds.iter().map(|bond| bond.id.clone()));
+        }
+        let changed = self.state.selection != selection;
+        self.state.selection = selection;
+        self.clear_interaction();
+        changed
+    }
+
+    pub fn clear_selection(&mut self) -> bool {
+        let changed = !self.state.selection.is_empty();
+        self.state.selection = SelectionState::default();
+        self.clear_interaction();
+        changed
+    }
+
+    pub fn context_hit_test_json(&self, point: Point) -> String {
+        let Some(hit) = self.select_hit_at_point(point) else {
+            return json!({ "kind": "canvas" }).to_string();
+        };
+        let selected = selection_contains_hit(&self.state.selection, &hit);
+        match hit {
+            SelectHit::TextObject { object_id } => json!({
+                "kind": "text",
+                "objectId": object_id,
+                "objectType": "text",
+                "selected": selected,
+            }),
+            SelectHit::ArrowObject { object_id } => {
+                let object = self
+                    .state
+                    .document
+                    .scene_objects()
+                    .into_iter()
+                    .find(|object| object.id == object_id);
+                json!({
+                    "kind": "object",
+                    "objectId": object_id,
+                    "objectType": object.map(|object| object.object_type.as_str()).unwrap_or(""),
+                    "selected": selected,
+                })
+            }
+            SelectHit::Label { node_id } => json!({
+                "kind": "label",
+                "nodeId": node_id,
+                "selected": selected,
+            }),
+            SelectHit::Node { node_id } => json!({
+                "kind": "atom",
+                "nodeId": node_id,
+                "selected": selected,
+            }),
+            SelectHit::Bond { bond_id } => json!({
+                "kind": "bond",
+                "bondId": bond_id,
+                "selected": selected,
+            }),
+        }
+        .to_string()
     }
 
     pub(super) fn hover_select_target(&mut self, point: Point) {
@@ -1303,7 +1478,6 @@ impl Engine {
             if text_ids.contains(&object.id) {
                 text_originals.push(TextMoveOriginal {
                     object_id: object.id.clone(),
-                    translate: object.transform.translate,
                     object: object.clone(),
                 });
             }
@@ -1374,7 +1548,6 @@ impl Engine {
             if text_ids.contains(&object.id) {
                 text_originals.push(TextMoveOriginal {
                     object_id: object.id.clone(),
-                    translate: object.transform.translate,
                     object: object.clone(),
                 });
             }

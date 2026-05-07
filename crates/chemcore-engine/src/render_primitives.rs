@@ -159,6 +159,14 @@ pub enum RenderPrimitive {
         line_cap: Option<String>,
         #[serde(rename = "lineJoin", default, skip_serializing_if = "Option::is_none")]
         line_join: Option<String>,
+        #[serde(default, skip_serializing_if = "is_zero")]
+        rotate: f64,
+        #[serde(
+            rename = "rotateCenter",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
+        rotate_center: Option<Point>,
     },
     FilledPath {
         role: RenderRole,
@@ -174,6 +182,14 @@ pub enum RenderPrimitive {
         clip_path_d: Option<String>,
         #[serde(rename = "clipRule", default, skip_serializing_if = "Option::is_none")]
         clip_rule: Option<String>,
+        #[serde(default, skip_serializing_if = "is_zero")]
+        rotate: f64,
+        #[serde(
+            rename = "rotateCenter",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
+        rotate_center: Option<Point>,
     },
     Text {
         role: RenderRole,
@@ -212,6 +228,14 @@ pub enum RenderPrimitive {
         box_width: Option<f64>,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         runs: Vec<crate::LabelRun>,
+        #[serde(default, skip_serializing_if = "is_zero")]
+        rotate: f64,
+        #[serde(
+            rename = "rotateCenter",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
+        rotate_center: Option<Point>,
     },
 }
 
@@ -393,6 +417,8 @@ pub(super) fn push_path(
         dash_array,
         line_cap,
         line_join,
+        rotate: 0.0,
+        rotate_center: None,
     });
 }
 
@@ -408,7 +434,7 @@ pub(super) fn push_text(
     runs: Vec<crate::LabelRun>,
     object_id: Option<String>,
 ) {
-    push_text_for_node(
+    push_text_rotated(
         out,
         x,
         y,
@@ -419,8 +445,44 @@ pub(super) fn push_text(
         text_anchor,
         runs,
         object_id,
+        0.0,
         None,
     );
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn push_text_rotated(
+    out: &mut Vec<RenderPrimitive>,
+    x: f64,
+    y: f64,
+    text: String,
+    font_size: f64,
+    font_family: Option<String>,
+    fill: Option<String>,
+    text_anchor: Option<String>,
+    runs: Vec<crate::LabelRun>,
+    object_id: Option<String>,
+    rotate: f64,
+    rotate_center: Option<Point>,
+) {
+    out.push(RenderPrimitive::Text {
+        role: RenderRole::DocumentText,
+        object_id,
+        node_id: None,
+        x,
+        y,
+        text,
+        font_size,
+        font_family,
+        fill,
+        text_anchor,
+        line_height: None,
+        preserve_lines: false,
+        box_width: None,
+        runs,
+        rotate,
+        rotate_center,
+    });
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -452,5 +514,7 @@ pub(super) fn push_text_for_node(
         preserve_lines: false,
         box_width: None,
         runs,
+        rotate: 0.0,
+        rotate_center: None,
     });
 }

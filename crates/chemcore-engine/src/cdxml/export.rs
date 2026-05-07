@@ -39,6 +39,9 @@ fn export_cdxml_defaults(document: &ChemcoreDocument) -> CdxmlDefaults {
         if let Some(value) = import_defaults.get("bondSpacing").and_then(Value::as_f64) {
             defaults.bond_spacing = value;
         }
+        if let Some(value) = import_defaults.get("marginWidth").and_then(Value::as_f64) {
+            defaults.margin_width = value;
+        }
         if let Some(value) = import_defaults.get("labelSize").and_then(Value::as_f64) {
             defaults.label_size = value;
         }
@@ -62,6 +65,9 @@ fn export_cdxml_defaults(document: &ChemcoreDocument) -> CdxmlDefaults {
             }
             if let Some(value) = bond.hash_spacing {
                 defaults.hash_spacing = value;
+            }
+            if let Some(value) = bond.margin_width {
+                defaults.margin_width = value;
             }
             break;
         }
@@ -115,7 +121,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
         out.push_str("<!DOCTYPE CDXML SYSTEM \"http://www.cambridgesoft.com/xml/cdxml.dtd\" >\n");
         write!(
             out,
-            "<CDXML CreationProgram=\"ChemCore\" Name=\"{}\" BoundingBox=\"{}\" WindowPosition=\"0 0\" WindowSize=\"-32768 -32768\" WindowIsZoomed=\"yes\" FractionalWidths=\"yes\" InterpretChemically=\"yes\" ShowAtomQuery=\"yes\" ShowAtomStereo=\"no\" ShowAtomEnhancedStereo=\"yes\" ShowAtomNumber=\"no\" ShowResidueID=\"no\" ShowBondQuery=\"yes\" ShowBondRxn=\"yes\" ShowBondStereo=\"no\" ShowTerminalCarbonLabels=\"no\" ShowNonTerminalCarbonLabels=\"no\" HideImplicitHydrogens=\"no\" LabelFont=\"3\" LabelSize=\"{}\" LabelFace=\"96\" CaptionFont=\"3\" CaptionSize=\"{}\" CaptionFace=\"0\" LineWidth=\"{}\" BoldWidth=\"{}\" BondLength=\"{}\" BondSpacing=\"{}\" HashSpacing=\"{}\" MarginWidth=\"1.6\" ChainAngle=\"120\" LabelJustification=\"Auto\" CaptionJustification=\"Left\" PrintMargins=\"36 36 36 36\" color=\"0\" bgcolor=\"{}\">\n",
+            "<CDXML CreationProgram=\"ChemCore\" Name=\"{}\" BoundingBox=\"{}\" WindowPosition=\"0 0\" WindowSize=\"-32768 -32768\" WindowIsZoomed=\"yes\" FractionalWidths=\"yes\" InterpretChemically=\"yes\" ShowAtomQuery=\"yes\" ShowAtomStereo=\"no\" ShowAtomEnhancedStereo=\"yes\" ShowAtomNumber=\"no\" ShowResidueID=\"no\" ShowBondQuery=\"yes\" ShowBondRxn=\"yes\" ShowBondStereo=\"no\" ShowTerminalCarbonLabels=\"no\" ShowNonTerminalCarbonLabels=\"no\" HideImplicitHydrogens=\"no\" LabelFont=\"3\" LabelSize=\"{}\" LabelFace=\"96\" CaptionFont=\"3\" CaptionSize=\"{}\" CaptionFace=\"0\" LineWidth=\"{}\" BoldWidth=\"{}\" BondLength=\"{}\" BondSpacing=\"{}\" HashSpacing=\"{}\" MarginWidth=\"{}\" ChainAngle=\"120\" LabelJustification=\"Auto\" CaptionJustification=\"Left\" PrintMargins=\"36 36 36 36\" color=\"0\" bgcolor=\"{}\">\n",
             xml_escape_attr(&self.document.document.title),
             root_bbox,
             fmt_num(self.defaults.label_size),
@@ -125,6 +131,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             fmt_num(self.defaults.bond_length),
             fmt_num(self.defaults.bond_spacing),
             fmt_num(self.defaults.hash_spacing),
+            fmt_num(self.defaults.margin_width),
             self.colors.background_id(),
         )
         .expect("writing CDXML root should not fail");
@@ -419,6 +426,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
         }
         if let Some(value) = bond.bond_spacing {
             attrs.push(("BondSpacing", fmt_num(value)));
+        }
+        if let Some(value) = bond.margin_width {
+            attrs.push(("MarginWidth", fmt_num(value)));
         }
         write_empty_tag(out, 6, "b", attrs);
     }

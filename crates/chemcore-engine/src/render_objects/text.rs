@@ -76,6 +76,8 @@ pub(crate) fn render_text_object(
 ) {
     let tx = object.transform.translate[0];
     let ty = object.transform.translate[1];
+    let rotate = object.transform.rotate;
+    let rotate_center = (rotate.abs() > crate::EPSILON).then_some(Point::new(tx, ty));
     let style = object
         .style_ref
         .as_ref()
@@ -106,7 +108,7 @@ pub(crate) fn render_text_object(
                 if line_runs.is_empty() {
                     continue;
                 }
-                push_text(
+                push_text_rotated(
                     out,
                     tx,
                     ty + font_size * 0.82 + index as f64 * line_height,
@@ -117,6 +119,8 @@ pub(crate) fn render_text_object(
                     Some(text_anchor.clone()),
                     line_runs,
                     object_id.clone(),
+                    rotate,
+                    rotate_center,
                 );
             }
             return;
@@ -126,7 +130,7 @@ pub(crate) fn render_text_object(
                 .into_iter()
                 .enumerate()
         {
-            push_text(
+            push_text_rotated(
                 out,
                 tx,
                 ty + font_size * 0.82 + index as f64 * line_height,
@@ -137,6 +141,8 @@ pub(crate) fn render_text_object(
                 Some(text_anchor.clone()),
                 Vec::new(),
                 object_id.clone(),
+                rotate,
+                rotate_center,
             );
         }
         return;
@@ -153,7 +159,7 @@ pub(crate) fn render_text_object(
     .into_iter()
     .enumerate()
     {
-        push_text(
+        push_text_rotated(
             out,
             tx,
             ty + font_size * 0.82 + index as f64 * line_height,
@@ -164,6 +170,8 @@ pub(crate) fn render_text_object(
             Some(text_anchor.clone()),
             Vec::new(),
             object_id.clone(),
+            rotate,
+            rotate_center,
         );
     }
 }

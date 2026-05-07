@@ -55,6 +55,7 @@ impl Engine {
             label_clip_margin: Some(self.options.label_clip_margin_world_cm().value()),
             hash_spacing: Some(self.options.hash_spacing_world_cm().value()),
             bond_spacing: Some(self.options.bond_spacing_percent()),
+            margin_width: Some(self.options.margin_width_world_cm().value()),
             line_styles: self.pending_line_styles(),
             line_weights: self.pending_line_weights(),
             meta: serde_json::Value::Null,

@@ -218,6 +218,7 @@ pub struct EditorOptions {
     pub label_clip_margin: f64,
     pub hash_spacing: f64,
     pub bond_spacing: f64,
+    pub margin_width: f64,
     pub graphic_stroke_width: f64,
 }
 
@@ -231,6 +232,7 @@ impl Default for EditorOptions {
             label_clip_margin: crate::LABEL_GEOMETRY_CLIP_MARGIN_CM.value(),
             hash_spacing: crate::DEFAULT_HASH_SPACING_CM.value(),
             bond_spacing: crate::DEFAULT_BOND_SPACING_PERCENT,
+            margin_width: crate::DEFAULT_BOND_MARGIN_WIDTH_CM.value(),
             graphic_stroke_width: crate::DEFAULT_BOND_STROKE,
         }
     }
@@ -263,6 +265,10 @@ impl EditorOptions {
 
     pub const fn bond_spacing_percent(&self) -> f64 {
         self.bond_spacing
+    }
+
+    pub const fn margin_width_world_cm(&self) -> WorldCm {
+        WorldCm(self.margin_width)
     }
 
     pub const fn graphic_stroke_world_cm(&self) -> WorldCm {

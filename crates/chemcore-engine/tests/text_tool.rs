@@ -2144,6 +2144,46 @@ fn endpoint_label_stores_composite_abbreviation_recognition_metadata() {
 }
 
 #[test]
+fn context_expand_label_replaces_terminal_abbreviation_with_fragment() {
+    let mut engine = Engine::new();
+    load_one_bond_terminal_node(&mut engine);
+    let session = engine
+        .begin_text_edit(px_point(300.0, 260.0))
+        .expect("endpoint text session should start");
+
+    assert!(engine.apply_text_edit(chemcore_engine::TextEditSession {
+        text: "Et".to_string(),
+        ..session
+    }));
+    engine.set_tool_state(select_tool_state());
+    engine.select_at_point(px_point(300.0, 260.0), false);
+
+    assert!(engine.expand_labels_in_selection());
+    let entry = engine.state().document.editable_fragment().unwrap();
+    assert!(entry.fragment.nodes.iter().all(|node| node.id != "n1"));
+    assert!(entry.fragment.nodes.iter().any(|node| node.id == "n1_c1"));
+    assert!(entry.fragment.nodes.iter().any(|node| node.id == "n1_c2"));
+    assert!(entry.fragment.bonds.iter().any(|bond| {
+        (bond.begin == "n1_c1" && bond.end == "n1_c2")
+            || (bond.begin == "n1_c2" && bond.end == "n1_c1")
+    }));
+    assert!(entry
+        .fragment
+        .bonds
+        .iter()
+        .any(|bond| bond.id == "b1" && (bond.begin == "n1_c1" || bond.end == "n1_c1")));
+    assert!(engine
+        .state()
+        .selection
+        .nodes
+        .contains(&"n1_c1".to_string()));
+
+    assert!(engine.undo());
+    let entry = engine.state().document.editable_fragment().unwrap();
+    assert!(entry.fragment.nodes.iter().any(|node| node.id == "n1"));
+}
+
+#[test]
 fn zero_connection_endpoint_rejects_terminal_abbreviations() {
     let mut engine = Engine::new();
     load_single_carbon_node(&mut engine);

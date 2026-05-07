@@ -27,6 +27,7 @@ struct CdxmlDefaults {
     bold_width: f64,
     hash_spacing: f64,
     bond_spacing: f64,
+    margin_width: f64,
     label_size: f64,
     caption_size: f64,
 }
@@ -39,6 +40,7 @@ impl Default for CdxmlDefaults {
             bold_width: crate::BOLD_BOND_WIDTH_CM.value(),
             hash_spacing: crate::DEFAULT_HASH_SPACING_CM.value(),
             bond_spacing: crate::DEFAULT_BOND_SPACING_PERCENT,
+            margin_width: crate::DEFAULT_BOND_MARGIN_WIDTH_CM.value(),
             label_size: crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM,
             caption_size: crate::DEFAULT_TEXT_FONT_SIZE_CM,
         }
@@ -144,6 +146,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<Chemcore
                             "boldWidth": defaults.bold_width,
                             "hashSpacing": defaults.hash_spacing,
                             "bondSpacing": defaults.bond_spacing,
+                            "marginWidth": defaults.margin_width,
                             "labelSize": defaults.label_size,
                             "captionSize": defaults.caption_size,
                         }
@@ -483,6 +486,8 @@ fn cdxml_defaults(root: &XmlNode) -> CdxmlDefaults {
             .unwrap_or(crate::DEFAULT_HASH_SPACING_CM.value()),
         bond_spacing: parse_f64(root.attr("BondSpacing"))
             .unwrap_or(crate::DEFAULT_BOND_SPACING_PERCENT),
+        margin_width: parse_f64(root.attr("MarginWidth"))
+            .unwrap_or(crate::DEFAULT_BOND_MARGIN_WIDTH_CM.value()),
         label_size: parse_f64(root.attr("LabelSize"))
             .unwrap_or(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM),
         caption_size: parse_f64(root.attr("CaptionSize"))
@@ -822,6 +827,7 @@ fn normalize_bond(
     let bold_width = parse_f64(bond.attr("BoldWidth")).unwrap_or(defaults.bold_width);
     let hash_spacing = parse_f64(bond.attr("HashSpacing")).unwrap_or(defaults.hash_spacing);
     let bond_spacing = parse_f64(bond.attr("BondSpacing")).unwrap_or(defaults.bond_spacing);
+    let margin_width = parse_f64(bond.attr("MarginWidth")).unwrap_or(defaults.margin_width);
     let stereo = match display {
         "WedgeBegin" => Some(BondStereo {
             kind: "solid-wedge".to_string(),
@@ -881,6 +887,7 @@ fn normalize_bond(
         )),
         hash_spacing: Some(hash_spacing),
         bond_spacing: Some(bond_spacing),
+        margin_width: Some(margin_width),
         line_styles,
         line_weights,
         meta: json!({"import": {"cdxml": {"display": empty_as_null(bond.attr("Display")), "doublePosition": empty_as_null(bond.attr("DoublePosition"))}}}),

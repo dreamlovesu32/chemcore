@@ -13,6 +13,12 @@ pub(super) struct ClipboardContent {
 }
 
 impl Engine {
+    pub fn has_clipboard(&self) -> bool {
+        self.clipboard
+            .as_ref()
+            .is_some_and(|content| !content.nodes.is_empty())
+    }
+
     pub fn copy_selection(&mut self) -> bool {
         let Some(content) = self.clipboard_content_from_selection() else {
             return false;

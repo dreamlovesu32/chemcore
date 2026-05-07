@@ -80,6 +80,10 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
     if (primitive.role === "document-bond") {
       attrs.class = "mol-bond-stroked";
     }
+    const transform = primitiveRotateTransform(primitive);
+    if (transform) {
+      attrs.transform = transform;
+    }
     svgRoot.appendChild(makeSvgNode("path", attrs));
     return;
   }
@@ -101,6 +105,10 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       }));
       defs.appendChild(clipPath);
       attrs["clip-path"] = `url(#${clipId})`;
+    }
+    const transform = primitiveRotateTransform(primitive);
+    if (transform) {
+      attrs.transform = transform;
     }
     svgRoot.appendChild(makeSvgNode("path", attrs));
     return;
@@ -218,6 +226,10 @@ function renderTextPrimitive(svgRoot, primitive, options) {
         ? displayLabelFontFamily(primitive.font_family)
         : undefined,
   });
+  const transform = primitiveRotateTransform(primitive, { x: primitive.x, y: primitive.y });
+  if (transform) {
+    textNode.setAttribute("transform", transform);
+  }
   if (Array.isArray(primitive.runs) && primitive.runs.length) {
     for (const run of primitive.runs) {
       const runFontSize = Number(run.fontSize || primitive.fontSize || DEFAULT_TEXT_FONT_SIZE);
@@ -251,4 +263,16 @@ function renderTextPrimitive(svgRoot, primitive, options) {
     textNode.textContent = primitive.text || "";
   }
   svgRoot.appendChild(textNode);
+}
+
+function primitiveRotateTransform(primitive, fallbackCenter = null) {
+  const rotate = Number(primitive.rotate || 0);
+  if (Math.abs(rotate) <= 0.0001) {
+    return "";
+  }
+  const center = primitive.rotateCenter || primitive.rotate_center || fallbackCenter;
+  if (!center) {
+    return "";
+  }
+  return `rotate(${rotate} ${center.x} ${center.y})`;
 }

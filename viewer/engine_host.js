@@ -306,6 +306,19 @@ class TauriEngineSession {
     return this.invokeMutation("desktop_engine_select_in_polygon", { pointsJson, additive });
   }
 
+  selectAll() {
+    return this.invokeMutation("desktop_engine_select_all");
+  }
+
+  clearSelection() {
+    return this.invokeMutation("desktop_engine_clear_selection");
+  }
+
+  async contextHitTestJson(x, y) {
+    await this.ready();
+    return this.invoke("desktop_engine_context_hit_test_json", { sessionId: this.sessionId, x, y });
+  }
+
   selectionContainsPoint(x, y) {
     const state = safeJsonParse(this.cache.stateJson, null);
     if (!state?.selection) {
@@ -391,6 +404,14 @@ class TauriEngineSession {
     return this.invokeMutation("desktop_engine_apply_selection_arrange_command", { command });
   }
 
+  scaleSelection(percent) {
+    return this.invokeMutation("desktop_engine_scale_selection", { percent });
+  }
+
+  rotateSelectionDegrees(degrees) {
+    return this.invokeMutation("desktop_engine_rotate_selection_degrees", { degrees });
+  }
+
   applySelectionOrderCommand(command) {
     return this.invokeMutation("desktop_engine_apply_selection_order_command", { command });
   }
@@ -405,6 +426,38 @@ class TauriEngineSession {
 
   applyColorToSelection(color) {
     return this.invokeMutation("desktop_engine_apply_color_to_selection", { color });
+  }
+
+  applyShapeStyleToSelection(style) {
+    return this.invokeMutation("desktop_engine_apply_shape_style_to_selection", { style });
+  }
+
+  applyBracketKindToSelection(kind) {
+    return this.invokeMutation("desktop_engine_apply_bracket_kind_to_selection", { kind });
+  }
+
+  applyLineStyleToSelection(style) {
+    return this.invokeMutation("desktop_engine_apply_line_style_to_selection", { style });
+  }
+
+  applyBondStyleToSelection(style) {
+    return this.invokeMutation("desktop_engine_apply_bond_style_to_selection", { style });
+  }
+
+  applyTextStyleToSelection(command, value) {
+    return this.invokeMutation("desktop_engine_apply_text_style_to_selection", { command, value });
+  }
+
+  setChemicalCheckForSelection(enabled) {
+    return this.invokeMutation("desktop_engine_set_chemical_check_for_selection", { enabled });
+  }
+
+  expandLabelsInSelection() {
+    return this.invokeMutation("desktop_engine_expand_labels_in_selection");
+  }
+
+  centerSelectionOnPage() {
+    return this.invokeMutation("desktop_engine_center_selection_on_page");
   }
 
   clearInteraction() {
@@ -433,6 +486,11 @@ class TauriEngineSession {
 
   copySelection() {
     return this.invokeMutation("desktop_engine_copy_selection");
+  }
+
+  async hasClipboard() {
+    await this.ready();
+    return this.invoke("desktop_engine_has_clipboard", { sessionId: this.sessionId });
   }
 
   async clipboardSelectionJson() {

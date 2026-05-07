@@ -29,15 +29,24 @@ pub(crate) fn render_bracket_object(
     }
     let tx = object.transform.translate[0] + x;
     let ty = object.transform.translate[1] + y;
-    let bounds = vec![
-        Point::new(tx, ty),
-        Point::new(tx + width, ty),
-        Point::new(tx + width, ty + height),
-        Point::new(tx, ty + height),
-    ];
+    let rotate = object.transform.rotate;
+    let rotate_center = Point::new(tx + width * 0.5, ty + height * 0.5);
+    let bounds = rotated_rect_points_around(tx, ty, width, height, rotate_center, rotate);
+    let transform_center = (rotate.abs() > crate::EPSILON).then_some(rotate_center);
     let kind = payload_string(&object.payload, "kind").unwrap_or_else(|| "round".to_string());
     if object.object_type == "symbol" {
-        render_symbol_object_geometry(out, object, tx, ty, width, height, &kind, bounds);
+        render_symbol_object_geometry(
+            out,
+            object,
+            tx,
+            ty,
+            width,
+            height,
+            &kind,
+            bounds,
+            rotate,
+            transform_center,
+        );
         return;
     }
 
@@ -52,6 +61,8 @@ pub(crate) fn render_bracket_object(
         dash_array: Vec::new(),
         line_cap: Some("butt".to_string()),
         line_join: Some(if kind == "curly" { "round" } else { "miter" }.to_string()),
+        rotate,
+        rotate_center: transform_center,
     });
 }
 
@@ -186,6 +197,8 @@ fn render_symbol_object_geometry(
     height: f64,
     kind: &str,
     bounds: Vec<Point>,
+    rotate: f64,
+    rotate_center: Option<Point>,
 ) {
     let fill = payload_string(&object.payload, "fill").unwrap_or_else(|| "#000000".to_string());
     let stroke_width = payload_number(&object.payload, "strokeWidth").unwrap_or(px_to_cm(1.0));
@@ -208,6 +221,8 @@ fn render_symbol_object_geometry(
                 dash_array: Vec::new(),
                 line_cap: None,
                 line_join: None,
+                rotate,
+                rotate_center,
             });
             let sign_x = center.x - layout.circle_sign_size * 0.5 + layout.circle_sign_offset;
             let sign_y = center.y - layout.circle_sign_size * 0.5 + layout.circle_sign_offset;
@@ -223,6 +238,8 @@ fn render_symbol_object_geometry(
                         layout.sign_thickness,
                     ),
                     bounds,
+                    rotate,
+                    rotate_center,
                     &fill,
                 );
             } else {
@@ -237,6 +254,8 @@ fn render_symbol_object_geometry(
                         layout.sign_thickness,
                     ),
                     bounds,
+                    rotate,
+                    rotate_center,
                     &fill,
                 );
             }
@@ -246,6 +265,8 @@ fn render_symbol_object_geometry(
             object_id,
             plus_symbol_path_ds_with_thick(x, y, width, height, layout.sign_thickness),
             bounds,
+            rotate,
+            rotate_center,
             &fill,
         ),
         "minus" => push_symbol_filled_path(
@@ -253,6 +274,8 @@ fn render_symbol_object_geometry(
             object_id,
             minus_symbol_path_d_with_thick(x, y, width, height, layout.sign_thickness),
             bounds,
+            rotate,
+            rotate_center,
             &fill,
         ),
         "radical-cation" => {
@@ -268,7 +291,7 @@ fn render_symbol_object_geometry(
                 layout.radical_sign_size,
                 layout.sign_thickness,
             ));
-            push_symbol_filled_paths(out, object_id, paths, bounds, &fill);
+            push_symbol_filled_paths(out, object_id, paths, bounds, rotate, rotate_center, &fill);
         }
         "radical-anion" => push_symbol_filled_paths(
             out,
@@ -288,6 +311,8 @@ fn render_symbol_object_geometry(
                 ),
             ],
             bounds,
+            rotate,
+            rotate_center,
             &fill,
         ),
         "lone-pair" => push_symbol_filled_paths(
@@ -306,6 +331,8 @@ fn render_symbol_object_geometry(
                 ),
             ],
             bounds,
+            rotate,
+            rotate_center,
             &fill,
         ),
         "electron" => push_symbol_filled_path(
@@ -313,6 +340,8 @@ fn render_symbol_object_geometry(
             object_id,
             dot_symbol_path_d(x + width * 0.5, y + height * 0.5, layout.electron_diameter),
             bounds,
+            rotate,
+            rotate_center,
             &fill,
         ),
         _ => push_symbol_filled_path(
@@ -320,6 +349,8 @@ fn render_symbol_object_geometry(
             object_id,
             bracket_symbol_path_d(x, y, width, height, kind),
             bounds,
+            rotate,
+            rotate_center,
             &fill,
         ),
     }
@@ -367,6 +398,8 @@ fn push_symbol_filled_path(
     object_id: Option<String>,
     d: String,
     bounds: Vec<Point>,
+    rotate: f64,
+    rotate_center: Option<Point>,
     fill: &str,
 ) {
     out.push(RenderPrimitive::FilledPath {
@@ -378,6 +411,8 @@ fn push_symbol_filled_path(
         fill_rule: None,
         clip_path_d: None,
         clip_rule: None,
+        rotate,
+        rotate_center,
     });
 }
 
@@ -386,10 +421,20 @@ fn push_symbol_filled_paths(
     object_id: Option<String>,
     paths: Vec<String>,
     bounds: Vec<Point>,
+    rotate: f64,
+    rotate_center: Option<Point>,
     fill: &str,
 ) {
     for d in paths {
-        push_symbol_filled_path(out, object_id.clone(), d, bounds.clone(), fill);
+        push_symbol_filled_path(
+            out,
+            object_id.clone(),
+            d,
+            bounds.clone(),
+            rotate,
+            rotate_center,
+            fill,
+        );
     }
 }
 
@@ -526,6 +571,7 @@ enum ShapeGeometry {
         height: f64,
         corner_radius: Option<f64>,
         rounded: bool,
+        rotate: f64,
     },
 }
 
@@ -564,6 +610,7 @@ impl ShapeGeometry {
             height,
             corner_radius,
             rounded: kind == "roundRect",
+            rotate: object.transform.rotate,
         })
     }
 
@@ -583,8 +630,11 @@ impl ShapeGeometry {
                 height,
                 corner_radius,
                 rounded,
+                rotate,
             } => {
-                if rounded {
+                if rotate.abs() > crate::EPSILON {
+                    rotated_rect_path_d(x, y, width, height, rotate)
+                } else if rounded {
                     rounded_rect_path_d(x, y, width, height, corner_radius.unwrap_or(0.0))
                 } else {
                     rect_path_d(x, y, width, height)
@@ -628,8 +678,11 @@ impl ShapeGeometry {
                 height,
                 corner_radius,
                 rounded,
+                rotate,
             } => {
-                if rounded {
+                if rotate.abs() > crate::EPSILON {
+                    rotated_rect_path_d(x + dx, y + dy, width, height, rotate)
+                } else if rounded {
                     rounded_rect_path_d(x + dx, y + dy, width, height, corner_radius.unwrap_or(0.0))
                 } else {
                     rect_path_d(x + dx, y + dy, width, height)
@@ -652,13 +705,9 @@ impl ShapeGeometry {
                 y,
                 width,
                 height,
+                rotate,
                 ..
-            } => vec![
-                Point::new(x, y),
-                Point::new(x + width, y),
-                Point::new(x + width, y + height),
-                Point::new(x, y + height),
-            ],
+            } => rotated_rect_points(x, y, width, height, rotate),
         }
     }
 
@@ -680,11 +729,17 @@ impl ShapeGeometry {
                 y,
                 width,
                 height,
+                rotate,
                 ..
-            } => vec![
-                Point::new(x, y),
-                Point::new(x + width + offset, y + height + offset),
-            ],
+            } => {
+                let mut points = rotated_rect_points(x, y, width, height, rotate);
+                let shifted = points
+                    .iter()
+                    .map(|point| Point::new(point.x + offset, point.y + offset))
+                    .collect::<Vec<_>>();
+                points.extend(shifted);
+                points
+            }
         }
     }
 }
@@ -791,6 +846,8 @@ fn push_shape_fill(
         fill_rule: None,
         clip_path_d: None,
         clip_rule: None,
+        rotate: 0.0,
+        rotate_center: None,
     });
 }
 
@@ -819,6 +876,8 @@ fn push_shape_outline(
             ShapeGeometry::Rect { .. } => Some("miter".to_string()),
             ShapeGeometry::Oval { .. } => None,
         },
+        rotate: 0.0,
+        rotate_center: None,
     });
 }
 
@@ -845,6 +904,7 @@ fn push_shape_shaded_layers(
             height,
             corner_radius,
             rounded,
+            ..
         } => push_shaded_rect_layers(
             out,
             object_id,
@@ -872,23 +932,42 @@ fn push_shape_custom(
             width,
             height,
             corner_radius,
+            rotate,
             ..
-        } => out.push(RenderPrimitive::Rect {
-            role: RenderRole::DocumentGraphic,
-            object_id: Some(object_id.to_string()),
-            node_id: None,
-            x: *x,
-            y: *y,
-            width: *width,
-            height: *height,
-            fill: style.fill,
-            stroke: style.stroke,
-            stroke_width: style.stroke_width,
-            rx: *corner_radius,
-            ry: *corner_radius,
-            dash_array: style.dash_array,
-            fill_gradient: style.fill_gradient,
-        }),
+        } => {
+            if rotate.abs() > crate::EPSILON {
+                if let Some(fill) = style.fill {
+                    push_shape_fill(out, object_id, geometry, fill);
+                }
+                if let Some(stroke) = style.stroke {
+                    push_shape_outline(
+                        out,
+                        object_id,
+                        geometry,
+                        stroke,
+                        style.stroke_width,
+                        style.dash_array,
+                    );
+                }
+            } else {
+                out.push(RenderPrimitive::Rect {
+                    role: RenderRole::DocumentGraphic,
+                    object_id: Some(object_id.to_string()),
+                    node_id: None,
+                    x: *x,
+                    y: *y,
+                    width: *width,
+                    height: *height,
+                    fill: style.fill,
+                    stroke: style.stroke,
+                    stroke_width: style.stroke_width,
+                    rx: *corner_radius,
+                    ry: *corner_radius,
+                    dash_array: style.dash_array,
+                    fill_gradient: style.fill_gradient,
+                });
+            }
+        }
         ShapeGeometry::Oval { .. } => {
             if let Some(fill) = style.fill {
                 push_shape_fill(out, object_id, geometry, fill);
@@ -925,6 +1004,8 @@ fn push_shape_shadow_path(
         fill_rule: None,
         clip_path_d: Some(clip_path),
         clip_rule: Some("evenodd".to_string()),
+        rotate: 0.0,
+        rotate_center: None,
     });
 }
 
@@ -947,6 +1028,8 @@ fn push_shape_ellipse_fill(
         fill_rule: None,
         clip_path_d: None,
         clip_rule: None,
+        rotate: 0.0,
+        rotate_center: None,
     });
 }
 
@@ -1014,6 +1097,8 @@ fn push_shape_rect_fill(
         fill_rule: None,
         clip_path_d: None,
         clip_rule: None,
+        rotate: 0.0,
+        rotate_center: None,
     });
 }
 
@@ -1181,6 +1266,60 @@ fn rect_path_d(x: f64, y: f64, width: f64, height: f64) -> String {
     let bottom = y + height;
     format!(
         "M {right},{bottom} C {right},{bottom} {right},{y} {right},{y} C {right},{y} {x},{y} {x},{y} C {x},{y} {x},{bottom} {x},{bottom} C {x},{bottom} {right},{bottom} {right},{bottom}"
+    )
+}
+
+fn rotated_rect_points(x: f64, y: f64, width: f64, height: f64, rotate: f64) -> Vec<Point> {
+    let center = Point::new(x + width * 0.5, y + height * 0.5);
+    rotated_rect_points_around(x, y, width, height, center, rotate)
+}
+
+fn rotated_rect_points_around(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    center: Point,
+    rotate: f64,
+) -> Vec<Point> {
+    [
+        Point::new(x, y),
+        Point::new(x + width, y),
+        Point::new(x + width, y + height),
+        Point::new(x, y + height),
+    ]
+    .into_iter()
+    .map(|point| rotate_point_around(point, center, rotate))
+    .collect()
+}
+
+fn rotated_rect_path_d(x: f64, y: f64, width: f64, height: f64, rotate: f64) -> String {
+    let points = rotated_rect_points(x, y, width, height, rotate);
+    format!(
+        "M {},{} L {},{} L {},{} L {},{} Z",
+        points[0].x,
+        points[0].y,
+        points[1].x,
+        points[1].y,
+        points[2].x,
+        points[2].y,
+        points[3].x,
+        points[3].y
+    )
+}
+
+fn rotate_point_around(point: Point, center: Point, degrees: f64) -> Point {
+    if degrees.abs() <= crate::EPSILON {
+        return point;
+    }
+    let radians = degrees.to_radians();
+    let cos = radians.cos();
+    let sin = radians.sin();
+    let dx = point.x - center.x;
+    let dy = point.y - center.y;
+    Point::new(
+        center.x + dx * cos - dy * sin,
+        center.y + dx * sin + dy * cos,
     )
 }
 

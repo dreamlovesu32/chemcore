@@ -1114,6 +1114,7 @@ fn click_on_blank_canvas_creates_up_right_single_bond() {
     assert_eq!(entry.fragment.nodes[1].position, [FIRST_END_X, FIRST_END_Y]);
     assert_eq!(entry.fragment.bonds[0].stroke_width, DEFAULT_BOND_STROKE);
     assert_eq!(entry.fragment.bonds[0].bond_spacing, Some(12.0));
+    assert_eq!(entry.fragment.bonds[0].margin_width, Some(2.0));
 }
 
 #[test]
@@ -1135,6 +1136,7 @@ fn acs_document_1996_preset_sets_new_bond_metrics() {
     assert_eq!(bond.label_clip_margin, Some(0.95));
     assert_eq!(bond.hash_spacing, Some(2.5));
     assert_eq!(bond.bond_spacing, Some(18.0));
+    assert_eq!(bond.margin_width, Some(1.6));
 }
 
 #[test]
@@ -1372,6 +1374,7 @@ fn acs_document_1996_preset_scales_existing_document_as_one_group() {
     assert_eq!(bond.wedge_width, Some(3.0));
     assert_eq!(bond.label_clip_margin, Some(0.95));
     assert_eq!(bond.hash_spacing, Some(2.5));
+    assert_eq!(bond.margin_width, Some(1.6));
 
     engine.set_document_style_preset("default");
     let entry = engine.state().document.editable_fragment().unwrap();
@@ -1397,6 +1400,7 @@ fn acs_document_1996_preset_scales_existing_document_as_one_group() {
     assert!((default_bond.stroke_width - DEFAULT_BOND_STROKE).abs() < 0.001);
     assert_eq!(default_bond.wedge_width, Some(6.0));
     assert_eq!(default_bond.label_clip_margin, Some(1.35));
+    assert_eq!(default_bond.margin_width, Some(2.0));
 }
 
 #[test]
@@ -5601,6 +5605,240 @@ fn selection_color_applies_to_all_selected_object_kinds() {
     assert_eq!(
         payload_value("obj_symbol", "fill").as_deref(),
         Some("#2288cc")
+    );
+}
+
+#[test]
+fn context_style_commands_apply_to_graphic_text_and_bond_selections() {
+    let mut engine = Engine::new();
+    let document = json!({
+        "format": { "name": "chemcore", "version": "0.1", "unit": "pt" },
+        "document": {
+            "id": "doc_context_styles",
+            "title": "context styles",
+            "page": { "width": 160.0, "height": 100.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_line": { "kind": "line", "stroke": "#111111", "strokeWidth": 1.0 },
+            "style_shape": { "kind": "shape", "stroke": "#111111", "strokeWidth": 1.0, "fill": null },
+            "style_text": { "kind": "text", "fill": "#111111", "fontSize": 10.0 }
+        },
+        "objects": [
+            {
+                "id": "obj_mol",
+                "type": "molecule",
+                "styleRef": "style_molecule_default",
+                "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "resourceRef": "mol" }
+            },
+            {
+                "id": "obj_line",
+                "type": "line",
+                "styleRef": "style_line",
+                "payload": {
+                    "points": [[12.0, 42.0], [34.0, 42.0]],
+                    "kind": "line",
+                    "arrowHead": { "kind": "solid", "head": "full", "tail": "none", "length": 10.0, "centerLength": 8.0, "width": 2.0, "bold": false }
+                }
+            },
+            {
+                "id": "obj_shape",
+                "type": "shape",
+                "styleRef": "style_shape",
+                "transform": { "translate": [48.0, 30.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "bbox": [0.0, 0.0, 22.0, 14.0], "kind": "rect" }
+            },
+            {
+                "id": "obj_bracket",
+                "type": "bracket",
+                "transform": { "translate": [78.0, 26.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "bbox": [0.0, 0.0, 16.0, 24.0], "kind": "round", "stroke": "#111111", "strokeWidth": 1.0 }
+            },
+            {
+                "id": "obj_text",
+                "type": "text",
+                "styleRef": "style_text",
+                "transform": { "translate": [105.0, 28.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "bbox": [0.0, 0.0, 32.0, 14.0], "text": "note", "fontSize": 10.0, "lineHeight": 12.0, "align": "left", "preserveLines": true }
+            }
+        ],
+        "resources": {
+            "mol": {
+                "type": "molecule_fragment2d",
+                "encoding": "chemcore.molecule.fragment2d",
+                "data": {
+                    "schema": "chemcore.molecule.fragment2d",
+                    "bbox": [0.0, 0.0, 40.0, 20.0],
+                    "nodes": [
+                        { "id": "n1", "element": "C", "atomicNumber": 6, "position": [10.0, 10.0], "charge": 0, "numHydrogens": 0 },
+                        { "id": "n2", "element": "C", "atomicNumber": 6, "position": [30.0, 10.0], "charge": 0, "numHydrogens": 0 }
+                    ],
+                    "bonds": [
+                        { "id": "b1", "begin": "n1", "end": "n2", "order": 1, "strokeWidth": 0.85 }
+                    ]
+                }
+            }
+        }
+    });
+    engine
+        .load_document_json(&document.to_string())
+        .expect("context style fixture should load");
+
+    engine.select_at_point(Point::new(55.0, 36.0), false);
+    assert!(engine.apply_shape_style_to_selection("filled"));
+    let shape = engine
+        .state()
+        .document
+        .find_scene_object("obj_shape")
+        .expect("shape should exist");
+    let shape_style = engine
+        .state()
+        .document
+        .styles
+        .get(shape.style_ref.as_deref().unwrap())
+        .expect("shape style should exist");
+    assert!(shape_style
+        .get("stroke")
+        .is_some_and(|value| value.is_null()));
+    assert_eq!(shape_style["fill"], "#111111");
+
+    engine.select_at_point(Point::new(80.0, 30.0), false);
+    assert!(engine.apply_bracket_kind_to_selection("curly"));
+    let bracket = engine
+        .state()
+        .document
+        .find_scene_object("obj_bracket")
+        .expect("bracket should exist");
+    assert_eq!(bracket.payload.extra["kind"], "curly");
+
+    engine.select_at_point(Point::new(23.0, 42.0), false);
+    assert!(engine.apply_line_style_to_selection("bold"));
+    let line = engine
+        .state()
+        .document
+        .find_scene_object("obj_line")
+        .expect("line should exist");
+    assert_eq!(line.payload.extra["arrowHead"]["bold"], true);
+    let line_style = engine
+        .state()
+        .document
+        .styles
+        .get(line.style_ref.as_deref().unwrap())
+        .expect("line style should exist");
+    assert_eq!(line_style["strokeWidth"], 2.0);
+
+    engine.select_at_point(Point::new(112.0, 34.0), false);
+    assert!(engine.apply_text_style_to_selection("bold", "on"));
+    assert!(engine.apply_text_style_to_selection("align", "center"));
+    let text = engine
+        .state()
+        .document
+        .find_scene_object("obj_text")
+        .expect("text should exist");
+    assert_eq!(text.payload.extra["align"], "center");
+    assert_eq!(text.payload.extra["runs"][0]["fontWeight"], 700.0);
+
+    engine.select_at_point(Point::new(20.0, 10.0), false);
+    assert!(engine.apply_bond_style_to_selection("double-double-dashed"));
+    let fragment = engine
+        .state()
+        .document
+        .editable_fragment()
+        .unwrap()
+        .fragment;
+    let bond = fragment.bonds.iter().find(|bond| bond.id == "b1").unwrap();
+    assert_eq!(bond.order, 2);
+    assert_eq!(bond.line_styles.left, BondLinePattern::Dashed);
+    assert_eq!(bond.line_styles.right, BondLinePattern::Dashed);
+
+    assert!(engine.undo());
+    let fragment = engine
+        .state()
+        .document
+        .editable_fragment()
+        .unwrap()
+        .fragment;
+    let bond = fragment.bonds.iter().find(|bond| bond.id == "b1").unwrap();
+    assert_eq!(bond.order, 1);
+}
+
+#[test]
+fn chemical_check_context_command_suppresses_invalid_label_marker() {
+    let mut engine = Engine::new();
+    let document = json!({
+        "format": { "name": "chemcore", "version": "0.1", "unit": "pt" },
+        "document": {
+            "id": "doc_chemical_check_toggle",
+            "title": "chemical check toggle",
+            "page": { "width": 80.0, "height": 60.0, "background": "#ffffff" }
+        },
+        "objects": [
+            {
+                "id": "obj_mol",
+                "type": "molecule",
+                "styleRef": "style_molecule_default",
+                "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "resourceRef": "mol" }
+            }
+        ],
+        "resources": {
+            "mol": {
+                "type": "molecule_fragment2d",
+                "encoding": "chemcore.molecule.fragment2d",
+                "data": {
+                    "schema": "chemcore.molecule.fragment2d",
+                    "bbox": [0.0, 0.0, 40.0, 30.0],
+                    "nodes": [
+                        {
+                            "id": "n1",
+                            "element": "C",
+                            "atomicNumber": 6,
+                            "position": [20.0, 20.0],
+                            "charge": 0,
+                            "numHydrogens": 0,
+                            "label": {
+                                "text": "BadLabel",
+                                "position": [20.0, 20.0],
+                                "box": [15.0, 14.0, 50.0, 26.0],
+                                "meta": { "labelRecognition": { "status": "invalid" } }
+                            }
+                        }
+                    ],
+                    "bonds": []
+                }
+            }
+        }
+    });
+    engine
+        .load_document_json(&document.to_string())
+        .expect("chemical check fixture should load");
+    engine.select_at_point(Point::new(20.0, 20.0), false);
+    assert!(engine.set_chemical_check_for_selection(false));
+
+    let fragment = engine
+        .state()
+        .document
+        .editable_fragment()
+        .unwrap()
+        .fragment;
+    let node = fragment.nodes.iter().find(|node| node.id == "n1").unwrap();
+    assert_eq!(node.meta["chemicalCheck"], false);
+    assert_eq!(node.label.as_ref().unwrap().meta["chemicalCheck"], false);
+
+    let render = engine.render_list();
+    let has_invalid_box = render.iter().any(|primitive| {
+        matches!(
+            primitive,
+            RenderPrimitive::Rect {
+                role: RenderRole::DocumentGraphic,
+                node_id: Some(node_id),
+                ..
+            } if node_id == "n1"
+        )
+    });
+    assert!(
+        !has_invalid_box,
+        "chemical check off should hide invalid label marker"
     );
 }
 

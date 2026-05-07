@@ -477,6 +477,7 @@ text 对象表示带定位信息的富文本内容。
   "labelClipMargin": 0.95,
   "hashSpacing": 2.5,
   "bondSpacing": 18.0,
+  "marginWidth": 1.6,
   "stereo": {
     "kind": "solid-wedge",
     "wideEnd": "end"
@@ -520,6 +521,7 @@ text 对象表示带定位信息的富文本内容。
 - `labelClipMargin`：键端从 label glyph/box 退开的额外距离，单位为 pt；Default 和 ACS 模板不同
 - `hashSpacing`：hash / hashed wedge 模板间距，单位为 pt
 - `bondSpacing`：双键间距百分比，对应 ChemDraw `BondSpacing`
+- `marginWidth`：非端点键键交叉时，上层键周围的白边宽度，单位为 pt；只用于键与键的遮盖关系
 - `stereo.kind`：`solid-wedge | hashed-wedge`
 - `stereo.wideEnd`：`begin | end`
 - `double.placement`：`left | right | center`，其中 `left` / `right` 按
@@ -536,6 +538,7 @@ text 对象表示带定位信息的富文本内容。
 | `labelClipMargin` | `1.35` | `0.95` |
 | `hashSpacing` | `2.9` | `2.5` |
 | `bondSpacing` | `12.0` | `18.0` |
+| `marginWidth` | `2.0` | `1.6` |
 
 ## Line 对象
 

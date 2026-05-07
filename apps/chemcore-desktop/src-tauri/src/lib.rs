@@ -418,6 +418,35 @@ fn desktop_engine_select_in_polygon(
 }
 
 #[tauri::command]
+fn desktop_engine_select_all(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.select_all(session_id)
+}
+
+#[tauri::command]
+fn desktop_engine_clear_selection(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.clear_selection(session_id)
+}
+
+#[tauri::command]
+fn desktop_engine_context_hit_test_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    x: f64,
+    y: f64,
+) -> Result<String, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.context_hit_test_json(session_id, x, y)
+}
+
+#[tauri::command]
 fn desktop_engine_selection_contains_point(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
@@ -646,6 +675,26 @@ fn desktop_engine_apply_selection_arrange_command(
 }
 
 #[tauri::command]
+fn desktop_engine_scale_selection(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    percent: f64,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.scale_selection(session_id, percent)
+}
+
+#[tauri::command]
+fn desktop_engine_rotate_selection_degrees(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    degrees: f64,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.rotate_selection_degrees(session_id, degrees)
+}
+
+#[tauri::command]
 fn desktop_engine_apply_selection_order_command(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
@@ -681,6 +730,85 @@ fn desktop_engine_apply_color_to_selection(
 ) -> Result<bool, String> {
     let mut service = state.service.lock().map_err(|error| error.to_string())?;
     service.apply_color_to_selection(session_id, &color)
+}
+
+#[tauri::command]
+fn desktop_engine_apply_shape_style_to_selection(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    style: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.apply_shape_style_to_selection(session_id, &style)
+}
+
+#[tauri::command]
+fn desktop_engine_apply_bracket_kind_to_selection(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    kind: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.apply_bracket_kind_to_selection(session_id, &kind)
+}
+
+#[tauri::command]
+fn desktop_engine_apply_line_style_to_selection(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    style: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.apply_line_style_to_selection(session_id, &style)
+}
+
+#[tauri::command]
+fn desktop_engine_apply_bond_style_to_selection(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    style: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.apply_bond_style_to_selection(session_id, &style)
+}
+
+#[tauri::command]
+fn desktop_engine_apply_text_style_to_selection(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    command: String,
+    value: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.apply_text_style_to_selection(session_id, &command, &value)
+}
+
+#[tauri::command]
+fn desktop_engine_set_chemical_check_for_selection(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    enabled: bool,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.set_chemical_check_for_selection(session_id, enabled)
+}
+
+#[tauri::command]
+fn desktop_engine_expand_labels_in_selection(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.expand_labels_in_selection(session_id)
+}
+
+#[tauri::command]
+fn desktop_engine_center_selection_on_page(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.center_selection_on_page(session_id)
 }
 
 #[tauri::command]
@@ -744,6 +872,15 @@ fn desktop_engine_copy_selection(
 ) -> Result<bool, String> {
     let mut service = state.service.lock().map_err(|error| error.to_string())?;
     service.copy_selection(session_id)
+}
+
+#[tauri::command]
+fn desktop_engine_has_clipboard(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<bool, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.has_clipboard(session_id)
 }
 
 #[tauri::command]
@@ -2209,6 +2346,9 @@ pub fn run() {
             desktop_engine_select_component_at_point,
             desktop_engine_select_in_rect,
             desktop_engine_select_in_polygon,
+            desktop_engine_select_all,
+            desktop_engine_clear_selection,
+            desktop_engine_context_hit_test_json,
             desktop_engine_selection_contains_point,
             desktop_engine_hover_arrow_action,
             desktop_engine_begin_hover_arrow_edit,
@@ -2229,10 +2369,20 @@ pub fn run() {
             desktop_engine_update_selection_resize,
             desktop_engine_finish_selection_resize,
             desktop_engine_apply_selection_arrange_command,
+            desktop_engine_scale_selection,
+            desktop_engine_rotate_selection_degrees,
             desktop_engine_apply_selection_order_command,
             desktop_engine_group_selection,
             desktop_engine_ungroup_selection,
             desktop_engine_apply_color_to_selection,
+            desktop_engine_apply_shape_style_to_selection,
+            desktop_engine_apply_bracket_kind_to_selection,
+            desktop_engine_apply_line_style_to_selection,
+            desktop_engine_apply_bond_style_to_selection,
+            desktop_engine_apply_text_style_to_selection,
+            desktop_engine_set_chemical_check_for_selection,
+            desktop_engine_expand_labels_in_selection,
+            desktop_engine_center_selection_on_page,
             desktop_engine_clear_interaction,
             desktop_engine_undo,
             desktop_engine_redo,
@@ -2240,6 +2390,7 @@ pub fn run() {
             desktop_engine_can_redo,
             desktop_engine_delete_selection,
             desktop_engine_copy_selection,
+            desktop_engine_has_clipboard,
             desktop_engine_clipboard_selection_json,
             desktop_engine_cut_selection,
             desktop_engine_paste_clipboard,

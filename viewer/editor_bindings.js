@@ -259,6 +259,9 @@ function keyboardCommand(event) {
   if (commandKey && event.key.toLowerCase() === "v") {
     return "paste";
   }
+  if (commandKey && event.key.toLowerCase() === "a") {
+    return "select-all";
+  }
   if (event.key === "Delete" || event.key === "Backspace") {
     return "delete";
   }

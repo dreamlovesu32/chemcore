@@ -788,6 +788,7 @@ fn insert_ring_bond(
         label_clip_margin: Some(engine.options.label_clip_margin_world_cm().value()),
         hash_spacing: Some(engine.options.hash_spacing_world_cm().value()),
         bond_spacing: Some(engine.options.bond_spacing_percent()),
+        margin_width: Some(engine.options.margin_width_world_cm().value()),
         line_styles,
         line_weights,
         meta: serde_json::Value::Null,

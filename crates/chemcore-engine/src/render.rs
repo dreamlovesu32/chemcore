@@ -43,6 +43,7 @@ use object_render::{
 use primitives::{
     push_bond_line, push_bond_polygon, push_knockout_polygon, push_label_knockout_polygon,
     push_line, push_path, push_polygon, push_polyline, push_text, push_text_for_node,
+    push_text_rotated,
 };
 pub use primitives::{RenderPrimitive, RenderRole};
 
@@ -212,6 +213,7 @@ mod tests {
             label_clip_margin: None,
             hash_spacing: None,
             bond_spacing: None,
+            margin_width: None,
             line_styles: crate::BondLineStyles::default(),
             line_weights: crate::BondLineWeights::default(),
             meta: serde_json::Value::Null,

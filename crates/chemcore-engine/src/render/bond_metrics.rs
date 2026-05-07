@@ -140,6 +140,11 @@ pub(super) fn label_clip_margin_for_bond(bond: &Bond, stroke_width: f64) -> f64 
         .unwrap_or_else(|| label_clip_margin_for_legacy_bond_template(bond, stroke_width))
 }
 
+pub(super) fn margin_width_for_bond(bond: &Bond, stroke_width: f64) -> f64 {
+    bond.margin_width
+        .unwrap_or_else(|| margin_width_for_legacy_bond_template(bond, stroke_width))
+}
+
 pub(super) fn solid_wedge_width_for_legacy_bond_template(bond: &Bond, stroke_width: f64) -> f64 {
     if is_acs_document_1996_bond_template(bond, stroke_width) {
         3.0
@@ -153,6 +158,14 @@ pub(super) fn label_clip_margin_for_legacy_bond_template(bond: &Bond, stroke_wid
         crate::ACS_LABEL_GEOMETRY_CLIP_MARGIN_CM.value()
     } else {
         crate::LABEL_GEOMETRY_CLIP_MARGIN_CM.value()
+    }
+}
+
+pub(super) fn margin_width_for_legacy_bond_template(bond: &Bond, stroke_width: f64) -> f64 {
+    if is_acs_document_1996_bond_template(bond, stroke_width) {
+        crate::ACS_BOND_MARGIN_WIDTH_CM.value()
+    } else {
+        crate::DEFAULT_BOND_MARGIN_WIDTH_CM.value()
     }
 }
 

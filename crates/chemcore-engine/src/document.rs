@@ -1115,6 +1115,8 @@ pub struct Bond {
     pub hash_spacing: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bond_spacing: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub margin_width: Option<f64>,
     #[serde(default)]
     pub line_styles: BondLineStyles,
     #[serde(default)]

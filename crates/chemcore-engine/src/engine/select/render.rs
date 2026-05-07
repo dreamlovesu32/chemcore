@@ -99,12 +99,39 @@ pub(super) fn object_bbox_selection_bounds(object: &crate::SceneObject) -> Optio
     }
     let tx = object.transform.translate[0];
     let ty = object.transform.translate[1];
+    if object.transform.rotate.abs() > crate::EPSILON {
+        let center = Point::new(tx + x + width * 0.5, ty + y + height * 0.5);
+        let mut bounds = AxisBounds::around_point(
+            rotate_point_around(Point::new(tx + x, ty + y), center, object.transform.rotate),
+            0.0,
+        );
+        for point in [
+            Point::new(tx + x + width, ty + y),
+            Point::new(tx + x + width, ty + y + height),
+            Point::new(tx + x, ty + y + height),
+        ] {
+            bounds.include_point(rotate_point_around(point, center, object.transform.rotate));
+        }
+        return Some(bounds);
+    }
     Some(AxisBounds::new(
         tx + x,
         ty + y,
         tx + x + width,
         ty + y + height,
     ))
+}
+
+fn rotate_point_around(point: Point, center: Point, degrees: f64) -> Point {
+    let radians = degrees.to_radians();
+    let cos = radians.cos();
+    let sin = radians.sin();
+    let dx = point.x - center.x;
+    let dy = point.y - center.y;
+    Point::new(
+        center.x + dx * cos - dy * sin,
+        center.y + dx * sin + dy * cos,
+    )
 }
 
 fn shape_object_selection_bounds(object: &crate::SceneObject) -> Option<AxisBounds> {

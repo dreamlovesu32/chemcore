@@ -460,6 +460,23 @@ impl DesktopDocumentService {
         Ok(())
     }
 
+    pub fn select_all(&mut self, session_id: SessionId) -> Result<bool, String> {
+        Ok(self.session_mut(session_id)?.select_all())
+    }
+
+    pub fn clear_selection(&mut self, session_id: SessionId) -> Result<bool, String> {
+        Ok(self.session_mut(session_id)?.clear_selection())
+    }
+
+    pub fn context_hit_test_json(
+        &self,
+        session_id: SessionId,
+        x: f64,
+        y: f64,
+    ) -> Result<String, String> {
+        Ok(self.session(session_id)?.context_hit_test_json(point(x, y)))
+    }
+
     pub fn selection_contains_point(
         &self,
         session_id: SessionId,
@@ -689,6 +706,20 @@ impl DesktopDocumentService {
             .apply_selection_arrange_command(command))
     }
 
+    pub fn scale_selection(&mut self, session_id: SessionId, percent: f64) -> Result<bool, String> {
+        Ok(self.session_mut(session_id)?.scale_selection(percent))
+    }
+
+    pub fn rotate_selection_degrees(
+        &mut self,
+        session_id: SessionId,
+        degrees: f64,
+    ) -> Result<bool, String> {
+        Ok(self
+            .session_mut(session_id)?
+            .rotate_selection_degrees(degrees))
+    }
+
     pub fn apply_selection_order_command(
         &mut self,
         session_id: SessionId,
@@ -715,6 +746,75 @@ impl DesktopDocumentService {
         Ok(self
             .session_mut(session_id)?
             .apply_color_to_selection(color))
+    }
+
+    pub fn apply_shape_style_to_selection(
+        &mut self,
+        session_id: SessionId,
+        style: &str,
+    ) -> Result<bool, String> {
+        Ok(self
+            .session_mut(session_id)?
+            .apply_shape_style_to_selection(style))
+    }
+
+    pub fn apply_bracket_kind_to_selection(
+        &mut self,
+        session_id: SessionId,
+        kind: &str,
+    ) -> Result<bool, String> {
+        Ok(self
+            .session_mut(session_id)?
+            .apply_bracket_kind_to_selection(kind))
+    }
+
+    pub fn apply_line_style_to_selection(
+        &mut self,
+        session_id: SessionId,
+        style: &str,
+    ) -> Result<bool, String> {
+        Ok(self
+            .session_mut(session_id)?
+            .apply_line_style_to_selection(style))
+    }
+
+    pub fn apply_bond_style_to_selection(
+        &mut self,
+        session_id: SessionId,
+        style: &str,
+    ) -> Result<bool, String> {
+        Ok(self
+            .session_mut(session_id)?
+            .apply_bond_style_to_selection(style))
+    }
+
+    pub fn apply_text_style_to_selection(
+        &mut self,
+        session_id: SessionId,
+        command: &str,
+        value: &str,
+    ) -> Result<bool, String> {
+        Ok(self
+            .session_mut(session_id)?
+            .apply_text_style_to_selection(command, value))
+    }
+
+    pub fn set_chemical_check_for_selection(
+        &mut self,
+        session_id: SessionId,
+        enabled: bool,
+    ) -> Result<bool, String> {
+        Ok(self
+            .session_mut(session_id)?
+            .set_chemical_check_for_selection(enabled))
+    }
+
+    pub fn expand_labels_in_selection(&mut self, session_id: SessionId) -> Result<bool, String> {
+        Ok(self.session_mut(session_id)?.expand_labels_in_selection())
+    }
+
+    pub fn center_selection_on_page(&mut self, session_id: SessionId) -> Result<bool, String> {
+        Ok(self.session_mut(session_id)?.center_selection_on_page())
     }
 
     pub fn clear_interaction(&mut self, session_id: SessionId) -> Result<(), String> {
@@ -744,6 +844,10 @@ impl DesktopDocumentService {
 
     pub fn copy_selection(&mut self, session_id: SessionId) -> Result<bool, String> {
         Ok(self.session_mut(session_id)?.copy_selection())
+    }
+
+    pub fn has_clipboard(&self, session_id: SessionId) -> Result<bool, String> {
+        Ok(self.session(session_id)?.has_clipboard())
     }
 
     pub fn clipboard_selection_json(
@@ -1280,6 +1384,10 @@ mod tests {
         service.set_tool(session_id, "bond", "single").unwrap();
         service.pointer_down(session_id, 20.0, 20.0, false).unwrap();
         service.pointer_up(session_id, 20.0, 20.0, false).unwrap();
+        assert!(!service.has_clipboard(session_id).unwrap());
+        assert!(service.select_all(session_id).unwrap());
+        assert!(service.copy_selection(session_id).unwrap());
+        assert!(service.has_clipboard(session_id).unwrap());
         service
             .select_in_rect(session_id, 0.0, 0.0, 120.0, 80.0, false)
             .unwrap();

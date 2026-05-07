@@ -176,12 +176,7 @@ pub(super) fn apply_selection_rotation_to_document(
         else {
             continue;
         };
-        let next = rotate_point_around(
-            Point::new(original.translate[0], original.translate[1]),
-            drag.center,
-            angle,
-        );
-        object.transform.translate = [round2(next.x), round2(next.y)];
+        *object = rotated_scene_object(&original.object, drag.center, angle);
     }
 
     let stroke_width = engine.options.bond_stroke_world_cm().value();
@@ -213,6 +208,207 @@ pub(super) fn apply_selection_rotation_to_document(
         stroke_width,
     );
     entry.update_bounds();
+}
+
+fn rotated_scene_object(original: &SceneObject, center: Point, degrees: f64) -> SceneObject {
+    let mut object = original.clone();
+    if original.object_type == "group" {
+        object.children = original
+            .children
+            .iter()
+            .map(|child| rotated_scene_object(child, center, degrees))
+            .collect();
+        return object;
+    }
+
+    let original_translate = Point::new(
+        original.transform.translate[0],
+        original.transform.translate[1],
+    );
+
+    match original.object_type.as_str() {
+        "line" => rotate_payload_points_to_next_local(
+            &mut object,
+            original_translate,
+            original_translate,
+            center,
+            degrees,
+        ),
+        "shape" if shape_uses_absolute_points(original) => rotate_payload_points_to_next_local(
+            &mut object,
+            Point::new(0.0, 0.0),
+            Point::new(0.0, 0.0),
+            center,
+            degrees,
+        ),
+        "shape" | "bracket" | "symbol" => {
+            rotate_bbox_based_object(&mut object, original, center, degrees);
+        }
+        "text" => {
+            let next_translate = rotate_point_around(original_translate, center, degrees);
+            object.transform.translate = [round2(next_translate.x), round2(next_translate.y)];
+            object.transform.rotate = round2(object.transform.rotate + degrees);
+        }
+        _ => {
+            let next_translate = rotate_point_around(original_translate, center, degrees);
+            object.transform.translate = [round2(next_translate.x), round2(next_translate.y)];
+        }
+    }
+    object
+}
+
+fn rotate_bbox_based_object(
+    object: &mut SceneObject,
+    original: &SceneObject,
+    center: Point,
+    degrees: f64,
+) {
+    let original_translate = Point::new(
+        original.transform.translate[0],
+        original.transform.translate[1],
+    );
+    if let Some([x, y, width, height]) = original.payload.bbox {
+        let original_center = Point::new(
+            original_translate.x + x + width * 0.5,
+            original_translate.y + y + height * 0.5,
+        );
+        let next_center = rotate_point_around(original_center, center, degrees);
+        object.transform.translate = [
+            round2(original_translate.x + next_center.x - original_center.x),
+            round2(original_translate.y + next_center.y - original_center.y),
+        ];
+    } else {
+        let next_translate = rotate_point_around(original_translate, center, degrees);
+        object.transform.translate = [round2(next_translate.x), round2(next_translate.y)];
+    }
+    object.transform.rotate = round2(object.transform.rotate + degrees);
+}
+
+fn rotate_payload_points_to_next_local(
+    object: &mut SceneObject,
+    original_translate: Point,
+    next_translate: Point,
+    center: Point,
+    degrees: f64,
+) {
+    for key in ["center", "majorAxisEnd", "minorAxisEnd"] {
+        rotate_extra_point(
+            &mut object.payload.extra,
+            key,
+            original_translate,
+            next_translate,
+            center,
+            degrees,
+        );
+    }
+    rotate_extra_point_array(
+        &mut object.payload.extra,
+        "points",
+        original_translate,
+        next_translate,
+        center,
+        degrees,
+    );
+    if let Some(geometry) = object
+        .payload
+        .extra
+        .get_mut("arrowGeometry")
+        .and_then(JsonValue::as_object_mut)
+    {
+        for key in ["center", "majorAxisEnd", "minorAxisEnd"] {
+            rotate_json_object_point(
+                geometry,
+                key,
+                original_translate,
+                next_translate,
+                center,
+                degrees,
+            );
+        }
+    }
+}
+
+fn rotate_extra_point(
+    extra: &mut BTreeMap<String, JsonValue>,
+    key: &str,
+    original_translate: Point,
+    next_translate: Point,
+    center: Point,
+    degrees: f64,
+) {
+    let Some(point) = extra.get(key).and_then(json_array_to_point) else {
+        return;
+    };
+    let next = rotate_local_point_to_next_local(
+        point,
+        original_translate,
+        next_translate,
+        center,
+        degrees,
+    );
+    extra.insert(key.to_string(), json!([round2(next.x), round2(next.y)]));
+}
+
+fn rotate_json_object_point(
+    object: &mut serde_json::Map<String, JsonValue>,
+    key: &str,
+    original_translate: Point,
+    next_translate: Point,
+    center: Point,
+    degrees: f64,
+) {
+    let Some(point) = object.get(key).and_then(json_array_to_point) else {
+        return;
+    };
+    let next = rotate_local_point_to_next_local(
+        point,
+        original_translate,
+        next_translate,
+        center,
+        degrees,
+    );
+    object.insert(key.to_string(), json!([round2(next.x), round2(next.y)]));
+}
+
+fn rotate_extra_point_array(
+    extra: &mut BTreeMap<String, JsonValue>,
+    key: &str,
+    original_translate: Point,
+    next_translate: Point,
+    center: Point,
+    degrees: f64,
+) {
+    let Some(points) = extra.get_mut(key).and_then(JsonValue::as_array_mut) else {
+        return;
+    };
+    for value in points {
+        let Some(point) = json_array_to_point(value) else {
+            continue;
+        };
+        let next = rotate_local_point_to_next_local(
+            point,
+            original_translate,
+            next_translate,
+            center,
+            degrees,
+        );
+        *value = json!([round2(next.x), round2(next.y)]);
+    }
+}
+
+fn rotate_local_point_to_next_local(
+    point: Point,
+    original_translate: Point,
+    next_translate: Point,
+    center: Point,
+    degrees: f64,
+) -> Point {
+    let world = Point::new(
+        original_translate.x + point.x,
+        original_translate.y + point.y,
+    );
+    let rotated = rotate_point_around(world, center, degrees);
+    Point::new(rotated.x - next_translate.x, rotated.y - next_translate.y)
 }
 
 pub(super) fn terminal_drag_target(
@@ -277,8 +473,25 @@ pub(super) fn apply_selection_resize_to_document(
     scale_y: f64,
 ) {
     let pivot = selection_resize_pivot(drag.handle, drag.bounds);
+    apply_selection_scale_to_document(
+        engine,
+        &drag.node_originals,
+        &drag.object_originals,
+        pivot,
+        scale_x,
+        scale_y,
+    );
+}
 
-    for original in &drag.object_originals {
+pub(super) fn apply_selection_scale_to_document(
+    engine: &mut Engine,
+    node_originals: &[NodeMoveOriginal],
+    object_originals: &[ObjectResizeOriginal],
+    pivot: Point,
+    scale_x: f64,
+    scale_y: f64,
+) {
+    for original in object_originals {
         let Some(object) = engine
             .state
             .document
@@ -294,7 +507,7 @@ pub(super) fn apply_selection_resize_to_document(
         return;
     };
     let object_translate = entry.object.transform.translate;
-    for original in &drag.node_originals {
+    for original in node_originals {
         let original_world = Point::new(
             object_translate[0] + original.position[0],
             object_translate[1] + original.position[1],
