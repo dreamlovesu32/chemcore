@@ -1795,6 +1795,60 @@ fn cdxml_arrow_head_dimensions_are_relative_to_line_width() {
 }
 
 #[test]
+fn cdxml_bold_arrow_head_dimensions_stay_relative_to_cdxml_line_width() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML LineWidth="0.6" BoldWidth="2" BondLength="14.4" color="0" bgcolor="1">
+  <page id="1" BoundingBox="0 0 160 80">
+    <arrow id="2" Head3D="128.21 40 0" Tail3D="0 40 0" Z="1"
+      LineType="Bold" FillType="None" ArrowheadType="Solid" ArrowheadHead="Full"
+      HeadSize="4500" ArrowheadCenterSize="3938" ArrowheadWidth="1125"/>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("bold arrow")).expect("cdxml should parse");
+    let arrow = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "line")
+        .expect("arrow should import as line object");
+    let primitives = render_document(&document);
+    let head_points = primitives
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::FilledPath {
+                role,
+                object_id,
+                points,
+                ..
+            } if *role == RenderRole::DocumentGraphic
+                && object_id.as_deref() == Some(arrow.id.as_str()) =>
+            {
+                Some(points)
+            }
+            _ => None,
+        })
+        .expect("solid arrow head should render as filled path");
+    let head_min_x = head_points
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::INFINITY, f64::min);
+    let head_max_x = head_points
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let head_min_y = head_points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::INFINITY, f64::min);
+    let head_max_y = head_points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    assert!((head_max_x - head_min_x - 27.0).abs() <= 0.001);
+    assert!((head_max_y - head_min_y - 13.62).abs() <= 0.001);
+}
+
+#[test]
 fn cdxml_arrow_head_rendering_does_not_apply_size_floor() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
@@ -2171,6 +2225,37 @@ fn parse_cdxml_imports_free_text_object() {
             ..
         } if text == "H2O" || runs.iter().any(|run| run.text == "H2O")
     )));
+}
+
+#[test]
+fn parse_cdxml_skips_bracketusage_objecttag_text() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.40" LineWidth="0.60" BoldWidth="2" HashSpacing="2.50">
+  <page id="1">
+    <graphic id="2" BoundingBox="20 10 20 70" GraphicType="Bracket" BracketType="Square">
+      <objecttag id="1" Name="bracketusage">
+        <t p="0 0" BoundingBox="0 -6.30 4.17 0"><s font="3" size="7.5" color="0">2</s></t>
+      </objecttag>
+      <objecttag id="2" Name="parameterizedBracketLabel" Visible="no">
+        <t p="24 74" BoundingBox="24 68 42 74" Visible="no"><s font="3" size="7.5" color="0">abc</s></t>
+      </objecttag>
+    </graphic>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("bracket text")).expect("cdxml should parse");
+    let texts: Vec<_> = document
+        .objects
+        .iter()
+        .filter(|object| object.object_type == "text")
+        .filter_map(|object| {
+            object
+                .payload
+                .extra
+                .get("text")
+                .and_then(|value| value.as_str())
+        })
+        .collect();
+    assert_eq!(texts, vec!["abc"]);
 }
 
 #[test]

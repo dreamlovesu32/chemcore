@@ -536,7 +536,14 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 .and_then(|value| value.get("length"))
                 .and_then(Value::as_f64)
             {
-                attrs.push(("HeadSize", fmt_num(value * 100.0)));
+                attrs.push((
+                    "HeadSize",
+                    fmt_num(cdxml_arrow_size_attribute(
+                        value,
+                        stroke_width,
+                        self.defaults.line_width,
+                    )),
+                ));
             }
             if let Some(value) = arrow
                 .and_then(|value| {
@@ -546,16 +553,25 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 })
                 .and_then(Value::as_f64)
             {
-                attrs.push(("ArrowheadCenterSize", fmt_num(value * 100.0)));
+                let value =
+                    cdxml_arrow_size_attribute(value, stroke_width, self.defaults.line_width);
+                attrs.push(("ArrowheadCenterSize", fmt_num(value)));
                 if matches!(arrow_kind, "Hollow" | "Angle") {
-                    attrs.push(("ArrowShaftSpacing", fmt_num(value * 100.0)));
+                    attrs.push(("ArrowShaftSpacing", fmt_num(value)));
                 }
             }
             if let Some(value) = arrow
                 .and_then(|value| value.get("width"))
                 .and_then(Value::as_f64)
             {
-                attrs.push(("ArrowheadWidth", fmt_num(value * 100.0)));
+                attrs.push((
+                    "ArrowheadWidth",
+                    fmt_num(cdxml_arrow_size_attribute(
+                        value,
+                        stroke_width,
+                        self.defaults.line_width,
+                    )),
+                ));
             }
             if let Some(value) = arrow
                 .and_then(|value| value.get("curve"))
@@ -1429,6 +1445,14 @@ fn cdxml_arrow_endpoint_style(value: &str) -> Option<&'static str> {
         "half-right" | "halfright" | "right" | "bottom" => Some("HalfRight"),
         "none" => Some("None"),
         _ => None,
+    }
+}
+
+fn cdxml_arrow_size_attribute(value: f64, stroke_width: f64, default_line_width: f64) -> f64 {
+    if default_line_width.abs() <= crate::EPSILON {
+        value * 100.0
+    } else {
+        value * stroke_width / default_line_width * 100.0
     }
 }
 

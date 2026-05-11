@@ -8,23 +8,12 @@ use std::process::Command;
 use std::ptr::{null, null_mut};
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use chemcore_engine::{
-    parse_document_json, render_document, render_primitives_bounds, Point as CorePoint,
-    RenderPrimitive, RenderRole, PT_PER_CM,
-};
+use chemcore_engine::PT_PER_CM;
 use windows_sys::core::GUID;
 use windows_sys::Win32::Foundation::{
-    GlobalFree, COLORREF, ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, HGLOBAL, POINT, POINTL, RECT, SIZE,
+    GlobalFree, ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, HGLOBAL, POINTL, RECT, SIZE,
 };
-use windows_sys::Win32::Globalization::WideCharToMultiByte;
-use windows_sys::Win32::Graphics::Gdi::{
-    CloseEnhMetaFile, CloseMetaFile, CreateEnhMetaFileW, CreateFontW, CreateMetaFileW, CreatePen,
-    CreateSolidBrush, DeleteEnhMetaFile, DeleteMetaFile, DeleteObject, Ellipse, GetEnhMetaFileBits,
-    GetMetaFileBitsEx, GetStockObject, LineTo, MoveToEx, Polygon, Rectangle, SelectObject,
-    SetBkMode, SetMapMode, SetTextAlign, SetTextColor, SetViewportExtEx, SetWindowExtEx,
-    StretchDIBits, TextOutA, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HDC, HGDIOBJ,
-    MM_ANISOTROPIC, NULL_BRUSH, PS_SOLID, SRCCOPY, TA_BASELINE, TA_LEFT, TRANSPARENT,
-};
+use windows_sys::Win32::Graphics::Gdi::{DeleteEnhMetaFile, HDC};
 use windows_sys::Win32::System::Com::StructuredStorage::{
     CreateILockBytesOnHGlobal, StgCreateDocfile, StgCreateDocfileOnILockBytes, WriteClassStg,
     WriteFmtUserTypeStg,
@@ -36,7 +25,7 @@ use windows_sys::Win32::System::Com::{
     STGM_SHARE_EXCLUSIVE, TYMED_ENHMF, TYMED_HGLOBAL, TYMED_ISTORAGE, TYMED_MFPICT,
 };
 use windows_sys::Win32::System::Console::FreeConsole;
-use windows_sys::Win32::System::DataExchange::{RegisterClipboardFormatW, METAFILEPICT};
+use windows_sys::Win32::System::DataExchange::RegisterClipboardFormatW;
 use windows_sys::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock};
 use windows_sys::Win32::System::Ole::{
     CreateOleAdviseHolder, OleCreateFromData, OleFlushClipboard, OleInitialize, OleRegEnumVerbs,
@@ -51,6 +40,14 @@ use windows_sys::Win32::System::Registry::{
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetMessageW, TranslateMessage, MSG,
+};
+
+mod emf_preview;
+
+use emf_preview::{
+    draw_payload_preview, draw_placeholder_preview, enhanced_metafile_bits_for_payload,
+    enhanced_metafile_for_payload, extent_himetric_for_payload, hglobal_for_metafile_pict,
+    ole_presentation_stream_for_payload,
 };
 
 const APP_NAME: &str = "Chemcore";
@@ -72,6 +69,8 @@ const GMEM_MOVEABLE_FLAG: u32 = 0x0002;
 const DEFAULT_OBJECT_WIDTH_HIMETRIC: i32 = 6000;
 const DEFAULT_OBJECT_HEIGHT_HIMETRIC: i32 = 3000;
 const HIMETRIC_PER_CM: f64 = 1000.0;
+const HIMETRIC_PER_CSS_PX: f64 = 2540.0 / 96.0;
+const EMF_LOGICAL_UNITS_PER_CSS_PX: f64 = 2.0;
 const WORD_A4_BODY_WIDTH_CM: f64 = 21.0 - 2.0 * 3.18;
 const WMF_PREVIEW_MAX_EXTENT: i32 = 30_000;
 const MIN_OBJECT_EXTENT_HIMETRIC: i32 = 100;
@@ -189,6 +188,15 @@ pub fn run() -> Result<(), String> {
                 "--write-word-docx-payload requires an output .docx path.".to_string()
             })?;
             write_word_docx_payload(PathBuf::from(payload_path), PathBuf::from(output_path))
+        }
+        "--write-emf-payload" => {
+            let payload_path = args
+                .next()
+                .ok_or_else(|| "--write-emf-payload requires a JSON payload path.".to_string())?;
+            let output_path = args
+                .next()
+                .ok_or_else(|| "--write-emf-payload requires an output .emf path.".to_string())?;
+            write_emf_payload(PathBuf::from(payload_path), PathBuf::from(output_path))
         }
         "--serve" | "-Embedding" | "/Embedding" | "--embedding" => {
             unsafe {
@@ -431,6 +439,29 @@ fn write_word_docx_payload(payload_path: PathBuf, output_path: PathBuf) -> Resul
     })?;
     println!(
         "{DOCUMENT_DISPLAY_NAME} Word OOXML package written to {}.",
+        output_path.display()
+    );
+    Ok(())
+}
+
+fn write_emf_payload(payload_path: PathBuf, output_path: PathBuf) -> Result<(), String> {
+    let payload = read_ole_object_payload(&payload_path)?;
+    let extent = payload.extent_himetric();
+    let emf = enhanced_metafile_bits_for_payload(&payload, extent).map_err(|hr| {
+        format!(
+            "Failed to render EMF preview for {}: 0x{:08X}",
+            payload_path.display(),
+            hr as u32
+        )
+    })?;
+    std::fs::write(&output_path, emf).map_err(|error| {
+        format!(
+            "Failed to write EMF preview {}: {error}",
+            output_path.display()
+        )
+    })?;
+    println!(
+        "{DOCUMENT_DISPLAY_NAME} EMF preview written to {}.",
         output_path.display()
     );
     Ok(())
@@ -1845,216 +1876,6 @@ fn hglobal_for_object_descriptor(extent: SIZE) -> Result<HGLOBAL, i32> {
     }
 }
 
-fn extent_himetric_for_payload(payload: &OleObjectPayload) -> Option<SIZE> {
-    let bounds = visible_payload_bounds(payload)?;
-    let width_cm = (bounds[2] - bounds[0]).max(0.0) / PT_PER_CM;
-    let height_cm = (bounds[3] - bounds[1]).max(0.0) / PT_PER_CM;
-    if !width_cm.is_finite() || !height_cm.is_finite() || width_cm <= 0.0 || height_cm <= 0.0 {
-        return None;
-    }
-
-    let scale = if width_cm > WORD_A4_BODY_WIDTH_CM {
-        WORD_A4_BODY_WIDTH_CM / width_cm
-    } else {
-        1.0
-    };
-    let cx = (width_cm * scale * HIMETRIC_PER_CM)
-        .round()
-        .clamp(MIN_OBJECT_EXTENT_HIMETRIC as f64, i32::MAX as f64) as i32;
-    let cy = (height_cm * scale * HIMETRIC_PER_CM)
-        .round()
-        .clamp(MIN_OBJECT_EXTENT_HIMETRIC as f64, i32::MAX as f64) as i32;
-    Some(SIZE { cx, cy })
-}
-
-fn visible_payload_bounds(payload: &OleObjectPayload) -> Option<[f64; 4]> {
-    let document = parse_document_json(&payload.chemcore_document_json).ok()?;
-    let primitives = render_document(&document);
-    render_primitives_bounds(
-        primitives
-            .iter()
-            .filter(|primitive| office_preview_primitive_visible(primitive)),
-    )
-}
-
-fn wmf_preview_canvas_size(extent: SIZE) -> SIZE {
-    let source_width = extent.cx.max(1) as f64;
-    let source_height = extent.cy.max(1) as f64;
-    let scale = (WMF_PREVIEW_MAX_EXTENT as f64 / source_width.max(source_height)).min(1.0);
-    let width = (source_width * scale)
-        .round()
-        .clamp(1.0, WMF_PREVIEW_MAX_EXTENT as f64) as i32;
-    let height = (source_height * scale)
-        .round()
-        .clamp(1.0, WMF_PREVIEW_MAX_EXTENT as f64) as i32;
-    SIZE {
-        cx: width,
-        cy: height,
-    }
-}
-
-fn hglobal_for_metafile_pict(payload: &OleObjectPayload, extent: SIZE) -> Result<HGLOBAL, i32> {
-    unsafe {
-        let metafile = windows_metafile_for_payload(payload, extent)?;
-
-        let handle = GlobalAlloc(GMEM_MOVEABLE_FLAG, std::mem::size_of::<METAFILEPICT>());
-        if handle.is_null() {
-            DeleteMetaFile(metafile);
-            return Err(E_OUTOFMEMORY);
-        }
-        let target = GlobalLock(handle).cast::<METAFILEPICT>();
-        if target.is_null() {
-            GlobalFree(handle);
-            DeleteMetaFile(metafile);
-            return Err(E_FAIL);
-        }
-        (*target).mm = MM_ANISOTROPIC;
-        (*target).xExt = extent.cx;
-        (*target).yExt = extent.cy;
-        (*target).hMF = metafile;
-        GlobalUnlock(handle);
-        Ok(handle)
-    }
-}
-
-unsafe fn windows_metafile_for_payload(
-    payload: &OleObjectPayload,
-    extent: SIZE,
-) -> Result<*mut c_void, i32> {
-    let canvas = wmf_preview_canvas_size(extent);
-    let metafile_dc = CreateMetaFileW(null());
-    if metafile_dc.is_null() {
-        return Err(E_FAIL);
-    }
-    SetMapMode(metafile_dc, MM_ANISOTROPIC);
-    SetWindowExtEx(metafile_dc, canvas.cx, canvas.cy, null_mut());
-    SetViewportExtEx(metafile_dc, canvas.cx, canvas.cy, null_mut());
-    let bounds = RECT {
-        left: 0,
-        top: 0,
-        right: canvas.cx,
-        bottom: canvas.cy,
-    };
-    if !draw_payload_vector_preview(metafile_dc, &bounds, payload) {
-        draw_placeholder_preview(metafile_dc, &bounds);
-    }
-    let metafile = CloseMetaFile(metafile_dc);
-    if metafile.is_null() {
-        return Err(E_FAIL);
-    }
-    Ok(metafile)
-}
-
-fn enhanced_metafile_for_payload(
-    payload: &OleObjectPayload,
-    extent: SIZE,
-) -> Result<*mut c_void, i32> {
-    unsafe {
-        let bounds = RECT {
-            left: 0,
-            top: 0,
-            right: extent.cx.max(1),
-            bottom: extent.cy.max(1),
-        };
-        let dc = CreateEnhMetaFileW(0 as HDC, null(), &bounds, null());
-        if dc.is_null() {
-            return Err(E_FAIL);
-        }
-        SetMapMode(dc, MM_ANISOTROPIC);
-        SetWindowExtEx(dc, extent.cx.max(1), extent.cy.max(1), null_mut());
-        SetViewportExtEx(dc, extent.cx.max(1), extent.cy.max(1), null_mut());
-        if !draw_payload_vector_preview(dc, &bounds, payload) {
-            draw_placeholder_preview(dc, &bounds);
-        }
-        let metafile = CloseEnhMetaFile(dc);
-        if metafile.is_null() {
-            return Err(E_FAIL);
-        }
-        Ok(metafile)
-    }
-}
-
-fn ole_presentation_stream_for_payload(
-    payload: &OleObjectPayload,
-    extent: SIZE,
-    format: u16,
-) -> Result<Vec<u8>, i32> {
-    let data = match format {
-        CF_METAFILEPICT => windows_metafile_bits_for_payload(payload, extent)?,
-        CF_ENHMETAFILE => enhanced_metafile_bits_for_payload(payload, extent)?,
-        _ => return Err(DV_E_FORMATETC),
-    };
-    Ok(ole_presentation_stream_bytes(format, extent, &data))
-}
-
-fn ole_presentation_stream_bytes(format: u16, extent: SIZE, data: &[u8]) -> Vec<u8> {
-    let mut out =
-        Vec::with_capacity(40 + data.len() + if format == CF_METAFILEPICT { 18 } else { 0 });
-    write_u32_le(&mut out, 0xFFFF_FFFF);
-    write_u32_le(&mut out, format as u32);
-    write_u32_le(&mut out, 4);
-    write_u32_le(&mut out, DVASPECT_CONTENT);
-    write_u32_le(&mut out, 0xFFFF_FFFF);
-    write_u32_le(&mut out, 2);
-    write_u32_le(&mut out, 0);
-    write_u32_le(&mut out, extent.cx.max(1) as u32);
-    write_u32_le(&mut out, extent.cy.max(1) as u32);
-    write_u32_le(&mut out, data.len().min(u32::MAX as usize) as u32);
-    out.extend_from_slice(data);
-    if format == CF_METAFILEPICT {
-        out.extend_from_slice(&[0u8; 18]);
-    }
-    out
-}
-
-fn write_u32_le(out: &mut Vec<u8>, value: u32) {
-    out.extend_from_slice(&value.to_le_bytes());
-}
-
-fn windows_metafile_bits_for_payload(
-    payload: &OleObjectPayload,
-    extent: SIZE,
-) -> Result<Vec<u8>, i32> {
-    unsafe {
-        let metafile = windows_metafile_for_payload(payload, extent)?;
-        let size = GetMetaFileBitsEx(metafile, 0, null_mut());
-        if size == 0 {
-            DeleteMetaFile(metafile);
-            return Err(E_FAIL);
-        }
-        let mut bytes = vec![0u8; size as usize];
-        let written = GetMetaFileBitsEx(metafile, size, bytes.as_mut_ptr().cast::<c_void>());
-        DeleteMetaFile(metafile);
-        if written == 0 {
-            return Err(E_FAIL);
-        }
-        bytes.truncate(written as usize);
-        Ok(bytes)
-    }
-}
-
-fn enhanced_metafile_bits_for_payload(
-    payload: &OleObjectPayload,
-    extent: SIZE,
-) -> Result<Vec<u8>, i32> {
-    unsafe {
-        let metafile = enhanced_metafile_for_payload(payload, extent)?;
-        let size = GetEnhMetaFileBits(metafile, 0, null_mut());
-        if size == 0 {
-            DeleteEnhMetaFile(metafile);
-            return Err(E_FAIL);
-        }
-        let mut bytes = vec![0u8; size as usize];
-        let written = GetEnhMetaFileBits(metafile, size, bytes.as_mut_ptr());
-        DeleteEnhMetaFile(metafile);
-        if written == 0 {
-            return Err(E_FAIL);
-        }
-        bytes.truncate(written as usize);
-        Ok(bytes)
-    }
-}
-
 fn word_docx_package_for_payload(payload: &OleObjectPayload) -> Result<Vec<u8>, String> {
     let extent = payload.extent_himetric();
     let emf = enhanced_metafile_bits_for_payload(payload, extent).map_err(|hr| {
@@ -3203,786 +3024,6 @@ fn monotonic_millis() -> u128 {
         .unwrap_or(0)
 }
 
-struct PreviewTransform {
-    min_x: f64,
-    min_y: f64,
-    scale: f64,
-    offset_x: f64,
-    offset_y: f64,
-}
-
-impl PreviewTransform {
-    fn from_bounds(bounds: &RECT, primitive_bounds: [f64; 4]) -> Option<Self> {
-        let [min_x, min_y, max_x, max_y] = primitive_bounds;
-        let source_width = (max_x - min_x).max(1.0);
-        let source_height = (max_y - min_y).max(1.0);
-        let target_width = (bounds.right - bounds.left).max(1) as f64;
-        let target_height = (bounds.bottom - bounds.top).max(1) as f64;
-        let scale = (target_width / source_width).min(target_height / source_height);
-        if !scale.is_finite() || scale <= 0.0 {
-            return None;
-        }
-        let drawn_width = source_width * scale;
-        let drawn_height = source_height * scale;
-        Some(Self {
-            min_x,
-            min_y,
-            scale,
-            offset_x: bounds.left as f64 + (target_width - drawn_width) / 2.0,
-            offset_y: bounds.top as f64 + (target_height - drawn_height) / 2.0,
-        })
-    }
-
-    fn point(&self, point: CorePoint) -> POINT {
-        POINT {
-            x: (self.offset_x + (point.x - self.min_x) * self.scale).round() as i32,
-            y: (self.offset_y + (point.y - self.min_y) * self.scale).round() as i32,
-        }
-    }
-
-    fn xy(&self, x: f64, y: f64) -> POINT {
-        self.point(CorePoint { x, y })
-    }
-
-    fn length(&self, value: f64) -> i32 {
-        (value.abs() * self.scale).round().max(1.0) as i32
-    }
-}
-
-unsafe fn draw_payload_preview(dc: HDC, bounds: &RECT, payload: &OleObjectPayload) -> bool {
-    if draw_payload_vector_preview(dc, bounds, payload) {
-        return true;
-    }
-
-    draw_svg_preview(dc, bounds, payload)
-}
-
-unsafe fn draw_payload_vector_preview(dc: HDC, bounds: &RECT, payload: &OleObjectPayload) -> bool {
-    let Ok(document) = parse_document_json(&payload.chemcore_document_json) else {
-        return false;
-    };
-    let primitives = render_document(&document);
-    let visible: Vec<_> = primitives
-        .iter()
-        .filter(|primitive| office_preview_primitive_visible(primitive))
-        .collect();
-    let Some(primitive_bounds) = render_primitives_bounds(visible.iter().copied()) else {
-        return false;
-    };
-    let Some(transform) = PreviewTransform::from_bounds(bounds, primitive_bounds) else {
-        return false;
-    };
-
-    for primitive in visible {
-        draw_preview_primitive(dc, primitive, &transform);
-    }
-    true
-}
-
-struct SvgPreviewBitmap {
-    width: i32,
-    height: i32,
-    bgra: Vec<u8>,
-}
-
-fn render_svg_preview_bitmap(svg: &str) -> Option<SvgPreviewBitmap> {
-    if svg.trim().is_empty() {
-        return None;
-    }
-    let options = usvg::Options::default();
-    let tree = usvg::Tree::from_str(svg, &options).ok()?;
-    let size = tree.size().to_int_size();
-    let source_width = size.width().max(1);
-    let source_height = size.height().max(1);
-    let max_side = 2400.0_f32;
-    let scale = (max_side / source_width.max(source_height) as f32).min(1.0);
-    let width = ((source_width as f32) * scale).round().max(1.0) as u32;
-    let height = ((source_height as f32) * scale).round().max(1.0) as u32;
-    let mut pixmap = tiny_skia::Pixmap::new(width, height)?;
-    pixmap.fill(tiny_skia::Color::WHITE);
-    let mut pixmap_mut = pixmap.as_mut();
-    resvg::render(
-        &tree,
-        tiny_skia::Transform::from_scale(scale, scale),
-        &mut pixmap_mut,
-    );
-
-    let mut bgra = Vec::with_capacity((width as usize) * (height as usize) * 4);
-    for pixel in pixmap.data().chunks_exact(4) {
-        bgra.push(pixel[2]);
-        bgra.push(pixel[1]);
-        bgra.push(pixel[0]);
-        bgra.push(0xFF);
-    }
-
-    Some(SvgPreviewBitmap {
-        width: width as i32,
-        height: height as i32,
-        bgra,
-    })
-}
-
-unsafe fn draw_svg_preview(dc: HDC, bounds: &RECT, payload: &OleObjectPayload) -> bool {
-    let Some(bitmap) = render_svg_preview_bitmap(&payload.svg) else {
-        return false;
-    };
-    let target_width = (bounds.right - bounds.left).max(1);
-    let target_height = (bounds.bottom - bounds.top).max(1);
-    let mut info = BITMAPINFO {
-        bmiHeader: BITMAPINFOHEADER {
-            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-            biWidth: bitmap.width,
-            biHeight: -bitmap.height,
-            biPlanes: 1,
-            biBitCount: 32,
-            biCompression: BI_RGB,
-            biSizeImage: 0,
-            biXPelsPerMeter: 0,
-            biYPelsPerMeter: 0,
-            biClrUsed: 0,
-            biClrImportant: 0,
-        },
-        bmiColors: unsafe { zeroed() },
-    };
-    let lines = StretchDIBits(
-        dc,
-        bounds.left,
-        bounds.top,
-        target_width,
-        target_height,
-        0,
-        0,
-        bitmap.width,
-        bitmap.height,
-        bitmap.bgra.as_ptr().cast::<c_void>(),
-        &mut info,
-        DIB_RGB_COLORS,
-        SRCCOPY,
-    );
-    lines != 0
-}
-
-fn office_preview_primitive_visible(primitive: &RenderPrimitive) -> bool {
-    let role = match primitive {
-        RenderPrimitive::Line { role, .. }
-        | RenderPrimitive::Circle { role, .. }
-        | RenderPrimitive::Polygon { role, .. }
-        | RenderPrimitive::Rect { role, .. }
-        | RenderPrimitive::Ellipse { role, .. }
-        | RenderPrimitive::Polyline { role, .. }
-        | RenderPrimitive::Path { role, .. }
-        | RenderPrimitive::FilledPath { role, .. }
-        | RenderPrimitive::Text { role, .. } => role,
-    };
-    matches!(
-        role,
-        RenderRole::DocumentBond | RenderRole::DocumentGraphic | RenderRole::DocumentText
-    )
-}
-
-unsafe fn draw_preview_primitive(
-    dc: HDC,
-    primitive: &RenderPrimitive,
-    transform: &PreviewTransform,
-) {
-    match primitive {
-        RenderPrimitive::Line {
-            from,
-            to,
-            stroke,
-            stroke_width,
-            ..
-        } => draw_preview_line(
-            dc,
-            transform.point(*from),
-            transform.point(*to),
-            stroke,
-            *stroke_width,
-            transform,
-        ),
-        RenderPrimitive::Polygon {
-            role,
-            points,
-            fill,
-            stroke,
-            stroke_width,
-            ..
-        } => draw_preview_polygon(dc, *role, points, fill, stroke, *stroke_width, transform),
-        RenderPrimitive::FilledPath { points, fill, .. } => draw_preview_polygon(
-            dc,
-            RenderRole::DocumentGraphic,
-            points,
-            fill,
-            fill,
-            0.0,
-            transform,
-        ),
-        RenderPrimitive::Polyline {
-            points,
-            stroke,
-            stroke_width,
-            ..
-        }
-        | RenderPrimitive::Path {
-            points,
-            stroke,
-            stroke_width,
-            ..
-        } => {
-            for pair in points.windows(2) {
-                draw_preview_line(
-                    dc,
-                    transform.point(pair[0]),
-                    transform.point(pair[1]),
-                    stroke,
-                    *stroke_width,
-                    transform,
-                );
-            }
-        }
-        RenderPrimitive::Rect {
-            x,
-            y,
-            width,
-            height,
-            fill,
-            stroke,
-            stroke_width,
-            ..
-        } => {
-            let p1 = transform.xy(*x, *y);
-            let p2 = transform.xy(*x + *width, *y + *height);
-            let fill_color = fill.as_deref().and_then(colorref_from_css);
-            let brush = fill_color
-                .map(|color| CreateSolidBrush(color))
-                .unwrap_or_else(|| GetStockObject(NULL_BRUSH));
-            let pen = stroke
-                .as_deref()
-                .and_then(colorref_from_css)
-                .map(|color| CreatePen(PS_SOLID, transform.length(*stroke_width), color))
-                .unwrap_or_else(|| CreatePen(PS_SOLID, 0, 0x000000));
-            let old_brush = SelectObject(dc, brush as HGDIOBJ);
-            let old_pen = SelectObject(dc, pen as HGDIOBJ);
-            Rectangle(dc, p1.x, p1.y, p2.x, p2.y);
-            SelectObject(dc, old_pen);
-            SelectObject(dc, old_brush);
-            DeleteObject(pen as HGDIOBJ);
-            if fill_color.is_some() {
-                DeleteObject(brush as HGDIOBJ);
-            }
-        }
-        RenderPrimitive::Ellipse {
-            center,
-            rx,
-            ry,
-            fill,
-            stroke,
-            stroke_width,
-            ..
-        } => {
-            let c = transform.point(*center);
-            let rx = transform.length(*rx);
-            let ry = transform.length(*ry);
-            let fill_color = fill.as_deref().and_then(colorref_from_css);
-            let brush = fill_color
-                .map(|color| CreateSolidBrush(color))
-                .unwrap_or_else(|| GetStockObject(NULL_BRUSH));
-            let pen = stroke
-                .as_deref()
-                .and_then(colorref_from_css)
-                .map(|color| CreatePen(PS_SOLID, transform.length(*stroke_width), color))
-                .unwrap_or_else(|| CreatePen(PS_SOLID, 0, 0x000000));
-            let old_brush = SelectObject(dc, brush as HGDIOBJ);
-            let old_pen = SelectObject(dc, pen as HGDIOBJ);
-            Ellipse(dc, c.x - rx, c.y - ry, c.x + rx, c.y + ry);
-            SelectObject(dc, old_pen);
-            SelectObject(dc, old_brush);
-            DeleteObject(pen as HGDIOBJ);
-            if fill_color.is_some() {
-                DeleteObject(brush as HGDIOBJ);
-            }
-        }
-        RenderPrimitive::Circle {
-            center,
-            radius,
-            fill,
-            stroke,
-            stroke_width,
-            ..
-        } => {
-            let c = transform.point(*center);
-            let r = transform.length(*radius);
-            let fill_color = colorref_from_css(fill);
-            let brush = fill_color
-                .map(|color| CreateSolidBrush(color))
-                .unwrap_or_else(|| GetStockObject(NULL_BRUSH));
-            let pen = colorref_from_css(stroke)
-                .map(|color| CreatePen(PS_SOLID, transform.length(*stroke_width), color))
-                .unwrap_or_else(|| CreatePen(PS_SOLID, 0, 0x000000));
-            let old_brush = SelectObject(dc, brush as HGDIOBJ);
-            let old_pen = SelectObject(dc, pen as HGDIOBJ);
-            Ellipse(dc, c.x - r, c.y - r, c.x + r, c.y + r);
-            SelectObject(dc, old_pen);
-            SelectObject(dc, old_brush);
-            DeleteObject(pen as HGDIOBJ);
-            if fill_color.is_some() {
-                DeleteObject(brush as HGDIOBJ);
-            }
-        }
-        RenderPrimitive::Text {
-            x,
-            y,
-            text,
-            font_size,
-            font_family,
-            fill,
-            text_anchor,
-            line_height,
-            runs,
-            ..
-        } => {
-            draw_preview_text(
-                dc,
-                *x,
-                *y,
-                text,
-                *font_size,
-                font_family.as_deref(),
-                fill.as_deref(),
-                text_anchor.as_deref(),
-                *line_height,
-                runs,
-                transform,
-            );
-        }
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-unsafe fn draw_preview_text(
-    dc: HDC,
-    x: f64,
-    y: f64,
-    text: &str,
-    font_size: f64,
-    font_family: Option<&str>,
-    fill: Option<&str>,
-    text_anchor: Option<&str>,
-    line_height: Option<f64>,
-    runs: &[chemcore_engine::LabelRun],
-    transform: &PreviewTransform,
-) {
-    let old_align = SetTextAlign(dc, TA_LEFT | TA_BASELINE);
-    SetBkMode(dc, TRANSPARENT as i32);
-    SetTextColor(dc, fill.and_then(colorref_from_css).unwrap_or(0x000000));
-
-    let line_step_world = line_height.unwrap_or(font_size * 1.2).max(0.01);
-    let lines = preview_text_lines(text, runs);
-    for (index, line_runs) in lines.iter().enumerate() {
-        if line_runs.is_empty() {
-            continue;
-        }
-        let origin = transform.xy(x, y + index as f64 * line_step_world);
-        let width = preview_line_width(line_runs, font_size, transform);
-        let mut cursor_x = match text_anchor {
-            Some("middle") => origin.x - width / 2,
-            Some("end") => origin.x - width,
-            _ => origin.x,
-        };
-        for run in line_runs {
-            cursor_x += draw_preview_text_run(
-                dc,
-                cursor_x,
-                origin.y,
-                run,
-                font_size,
-                font_family,
-                transform,
-            );
-        }
-    }
-
-    SetTextAlign(dc, old_align);
-}
-
-#[derive(Clone)]
-struct PreviewTextRun {
-    text: String,
-    font_family: Option<String>,
-    font_size: Option<f64>,
-    fill: Option<String>,
-    font_weight: Option<u32>,
-    font_style: Option<String>,
-    underline: Option<bool>,
-    script: Option<String>,
-}
-
-fn preview_text_lines(text: &str, runs: &[chemcore_engine::LabelRun]) -> Vec<Vec<PreviewTextRun>> {
-    if runs.is_empty() {
-        return text
-            .lines()
-            .map(|line| {
-                vec![PreviewTextRun {
-                    text: line.to_string(),
-                    font_family: None,
-                    font_size: None,
-                    fill: None,
-                    font_weight: None,
-                    font_style: None,
-                    underline: None,
-                    script: None,
-                }]
-            })
-            .collect();
-    }
-
-    let mut lines = vec![Vec::new()];
-    for run in runs {
-        let segments: Vec<&str> = run.text.split('\n').collect();
-        for (index, segment) in segments.iter().enumerate() {
-            if !segment.is_empty() {
-                lines.last_mut().expect("line exists").push(PreviewTextRun {
-                    text: (*segment).to_string(),
-                    font_family: run.font_family.clone(),
-                    font_size: run.font_size,
-                    fill: run.fill.clone(),
-                    font_weight: run.font_weight,
-                    font_style: run.font_style.clone(),
-                    underline: run.underline,
-                    script: run.script.clone(),
-                });
-            }
-            if index + 1 < segments.len() {
-                lines.push(Vec::new());
-            }
-        }
-    }
-    lines
-}
-
-unsafe fn preview_line_width(
-    runs: &[PreviewTextRun],
-    fallback_font_size: f64,
-    transform: &PreviewTransform,
-) -> i32 {
-    runs.iter()
-        .map(|run| preview_text_run_advance(run, fallback_font_size, transform))
-        .sum()
-}
-
-unsafe fn draw_preview_text_run(
-    dc: HDC,
-    x: i32,
-    baseline_y: i32,
-    run: &PreviewTextRun,
-    fallback_font_size: f64,
-    fallback_family: Option<&str>,
-    transform: &PreviewTransform,
-) -> i32 {
-    let label = ansi_metafile_text_bytes(&run.text);
-    if label.is_empty() {
-        return 0;
-    }
-    let font = create_preview_font(run, fallback_font_size, fallback_family, transform);
-    let old_font = if font.is_null() {
-        null_mut()
-    } else {
-        SelectObject(dc, font as HGDIOBJ)
-    };
-    let text_color = run
-        .fill
-        .as_deref()
-        .and_then(colorref_from_css)
-        .unwrap_or(0x000000);
-    SetTextColor(dc, text_color);
-    let script_shift = preview_script_baseline_shift(run, fallback_font_size, transform);
-    TextOutA(
-        dc,
-        x,
-        baseline_y + script_shift,
-        label.as_ptr(),
-        label.len() as i32,
-    );
-    let advance = preview_text_run_advance(run, fallback_font_size, transform);
-    if !font.is_null() {
-        if !old_font.is_null() {
-            SelectObject(dc, old_font);
-        }
-        DeleteObject(font as HGDIOBJ);
-    }
-    advance
-}
-
-fn preview_text_run_advance(
-    run: &PreviewTextRun,
-    fallback_font_size: f64,
-    transform: &PreviewTransform,
-) -> i32 {
-    let script_scale = preview_script_scale(run.script.as_deref());
-    let font_size = run.font_size.unwrap_or(fallback_font_size) * script_scale;
-    let world_width: f64 = run
-        .text
-        .chars()
-        .map(|character| preview_char_advance_em(character) * font_size)
-        .sum();
-    (world_width * transform.scale).round().max(0.0) as i32
-}
-
-unsafe fn create_preview_font(
-    run: &PreviewTextRun,
-    fallback_font_size: f64,
-    fallback_family: Option<&str>,
-    transform: &PreviewTransform,
-) -> HGDIOBJ {
-    let script_scale = preview_script_scale(run.script.as_deref());
-    let font_size = run.font_size.unwrap_or(fallback_font_size) * script_scale;
-    let font_height = transform.length(font_size).max(1);
-    let family = wide_null(
-        run.font_family
-            .as_deref()
-            .or(fallback_family)
-            .unwrap_or("Arial"),
-    );
-    CreateFontW(
-        -font_height,
-        0,
-        0,
-        0,
-        run.font_weight.unwrap_or(400).clamp(100, 900) as i32,
-        (run.font_style.as_deref() == Some("italic")) as u32,
-        run.underline.unwrap_or(false) as u32,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        family.as_ptr(),
-    ) as HGDIOBJ
-}
-
-fn preview_script_baseline_shift(
-    run: &PreviewTextRun,
-    fallback_font_size: f64,
-    transform: &PreviewTransform,
-) -> i32 {
-    let base_height = transform.length(run.font_size.unwrap_or(fallback_font_size));
-    match run.script.as_deref() {
-        Some("subscript") => (base_height as f64 * 0.22).round() as i32,
-        Some("superscript") => -(base_height as f64 * 0.38).round() as i32,
-        _ => 0,
-    }
-}
-
-fn preview_script_scale(script: Option<&str>) -> f64 {
-    match script {
-        Some("subscript" | "superscript") => 0.7,
-        _ => 1.0,
-    }
-}
-
-fn preview_char_advance_em(character: char) -> f64 {
-    match character {
-        ' ' | '\t' => 0.32,
-        'i' | 'l' | 'I' | '!' | '|' => 0.28,
-        'f' | 'j' | 'r' | 't' | ',' | '.' | ':' | ';' => 0.34,
-        '(' | ')' | '[' | ']' | '{' | '}' => 0.36,
-        'M' | 'W' => 0.86,
-        'm' | 'w' => 0.78,
-        '0'..='9' => 0.56,
-        'A'..='Z' => 0.68,
-        '+' | '-' | '=' | '/' | '\\' => 0.55,
-        _ if character.is_ascii() => 0.52,
-        _ => 0.9,
-    }
-}
-
-fn ansi_metafile_text_bytes(text: &str) -> Vec<u8> {
-    const CP_ACP: u32 = 0;
-    let wide: Vec<u16> = text.encode_utf16().collect();
-    if wide.is_empty() {
-        return Vec::new();
-    }
-    unsafe {
-        let needed = WideCharToMultiByte(
-            CP_ACP,
-            0,
-            wide.as_ptr(),
-            wide.len() as i32,
-            null_mut(),
-            0,
-            null(),
-            null_mut(),
-        );
-        if needed <= 0 {
-            return text
-                .chars()
-                .map(|ch| if ch.is_ascii() { ch as u8 } else { b'?' })
-                .collect();
-        }
-        let mut out = vec![0u8; needed as usize];
-        let written = WideCharToMultiByte(
-            CP_ACP,
-            0,
-            wide.as_ptr(),
-            wide.len() as i32,
-            out.as_mut_ptr(),
-            out.len() as i32,
-            null(),
-            null_mut(),
-        );
-        if written <= 0 {
-            Vec::new()
-        } else {
-            out.truncate(written as usize);
-            out
-        }
-    }
-}
-
-unsafe fn draw_preview_line(
-    dc: HDC,
-    from: POINT,
-    to: POINT,
-    color: &str,
-    stroke_width: f64,
-    transform: &PreviewTransform,
-) {
-    let pen = CreatePen(
-        PS_SOLID,
-        transform.length(stroke_width),
-        colorref_from_css(color).unwrap_or(0x000000),
-    );
-    let old_pen = SelectObject(dc, pen as HGDIOBJ);
-    MoveToEx(dc, from.x, from.y, null_mut());
-    LineTo(dc, to.x, to.y);
-    SelectObject(dc, old_pen);
-    DeleteObject(pen as HGDIOBJ);
-}
-
-unsafe fn draw_preview_polygon(
-    dc: HDC,
-    role: RenderRole,
-    points: &[CorePoint],
-    fill: &str,
-    stroke: &str,
-    stroke_width: f64,
-    transform: &PreviewTransform,
-) {
-    if points.len() < 2 {
-        return;
-    }
-    let mapped: Vec<POINT> = points.iter().map(|point| transform.point(*point)).collect();
-    let fill_color = colorref_from_css(fill);
-    let brush = fill_color
-        .map(|color| CreateSolidBrush(color))
-        .unwrap_or_else(|| GetStockObject(NULL_BRUSH));
-    let pen = CreatePen(
-        PS_SOLID,
-        transform.length(stroke_width),
-        colorref_from_css(stroke).unwrap_or_else(|| colorref_from_css(fill).unwrap_or(0x000000)),
-    );
-    let old_brush = SelectObject(dc, brush as HGDIOBJ);
-    let old_pen = SelectObject(dc, pen as HGDIOBJ);
-    Polygon(dc, mapped.as_ptr(), mapped.len() as i32);
-    SelectObject(dc, old_pen);
-    SelectObject(dc, old_brush);
-    DeleteObject(pen as HGDIOBJ);
-    if fill_color.is_some() {
-        DeleteObject(brush as HGDIOBJ);
-    }
-    if role == RenderRole::DocumentBond {
-        draw_preview_polygon_centerline(dc, points, fill, transform);
-    }
-}
-
-unsafe fn draw_preview_polygon_centerline(
-    dc: HDC,
-    points: &[CorePoint],
-    color: &str,
-    transform: &PreviewTransform,
-) {
-    if points.len() < 4 {
-        return;
-    }
-    let middle = points.len() / 2;
-    if middle == 0 || middle >= points.len() {
-        return;
-    }
-    let start = CorePoint {
-        x: (points[0].x + points[points.len() - 1].x) * 0.5,
-        y: (points[0].y + points[points.len() - 1].y) * 0.5,
-    };
-    let end = CorePoint {
-        x: (points[middle - 1].x + points[middle].x) * 0.5,
-        y: (points[middle - 1].y + points[middle].y) * 0.5,
-    };
-    let width = points[0].distance(points[points.len() - 1]);
-    draw_preview_line(
-        dc,
-        transform.point(start),
-        transform.point(end),
-        color,
-        width.max(0.5),
-        transform,
-    );
-}
-
-fn colorref_from_css(value: &str) -> Option<COLORREF> {
-    let hex = value.strip_prefix('#')?;
-    if hex.len() != 6 {
-        return None;
-    }
-    let rgb = u32::from_str_radix(hex, 16).ok()?;
-    let r = (rgb >> 16) & 0xff;
-    let g = (rgb >> 8) & 0xff;
-    let b = rgb & 0xff;
-    Some((b << 16) | (g << 8) | r)
-}
-
-unsafe fn draw_placeholder_preview(dc: HDC, bounds: &RECT) {
-    let width = (bounds.right - bounds.left).max(1);
-    let height = (bounds.bottom - bounds.top).max(1);
-    let old_brush = SelectObject(dc, GetStockObject(NULL_BRUSH));
-    let pen = CreatePen(PS_SOLID, (width.min(height) / 120).clamp(1, 16), 0x000000);
-    let old_pen = SelectObject(dc, pen as HGDIOBJ);
-
-    let mid_y = bounds.top + height * 58 / 100;
-    let left_x = bounds.left + width * 24 / 100;
-    let right_x = bounds.left + width * 76 / 100;
-    MoveToEx(dc, left_x, mid_y, null_mut());
-    LineTo(dc, right_x, mid_y);
-    let radius = (width.min(height) / 20).max(3);
-    Ellipse(
-        dc,
-        left_x - radius,
-        mid_y - radius,
-        left_x + radius,
-        mid_y + radius,
-    );
-    Ellipse(
-        dc,
-        right_x - radius,
-        mid_y - radius,
-        right_x + radius,
-        mid_y + radius,
-    );
-
-    SetBkMode(dc, TRANSPARENT as i32);
-    let label = ansi_metafile_text_bytes(DOCUMENT_DISPLAY_NAME);
-    TextOutA(
-        dc,
-        bounds.left + width * 30 / 100,
-        bounds.top + height * 18 / 100,
-        label.as_ptr(),
-        label.len() as i32,
-    );
-
-    SelectObject(dc, old_pen);
-    SelectObject(dc, old_brush);
-    DeleteObject(pen as HGDIOBJ);
-}
-
 unsafe fn allocate_com_string(value: &str, out: *mut *mut u16) -> i32 {
     if out.is_null() {
         return E_POINTER;
@@ -4022,6 +3063,7 @@ fn print_help() {
     println!("  chemcore-office.exe --self-test");
     println!("  chemcore-office.exe --copy-clipboard-payload <payload.json>");
     println!("  chemcore-office.exe --write-word-docx-payload <payload.json> <output.docx>");
+    println!("  chemcore-office.exe --write-emf-payload <payload.json> <output.emf>");
     println!("  chemcore-office.exe --serve");
     println!();
     println!("COM may launch this executable with -Embedding or /Embedding.");

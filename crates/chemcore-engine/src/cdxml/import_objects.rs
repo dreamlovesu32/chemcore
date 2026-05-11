@@ -21,6 +21,13 @@ pub(super) fn append_line_objects(
             continue;
         };
         let is_arrow = node.is("arrow") || has_arrow_attrs(node);
+        let line_type = node.attr("LineType").unwrap_or("");
+        let bold = line_type.contains("Bold");
+        let stroke_width = if bold {
+            defaults.bold_width
+        } else {
+            defaults.line_width
+        };
         let head_enabled = arrow_endpoint_enabled(node.attr("ArrowheadHead"))
             || node
                 .attr("ArrowType")
@@ -70,19 +77,31 @@ pub(super) fn append_line_objects(
             }
             arrow_head.insert(
                 "length".to_string(),
-                json!(parse_scaled_100(node.attr("HeadSize"))
-                    .unwrap_or(crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO)),
+                json!(cdxml_arrow_size_for_render_scale(
+                    parse_scaled_100(node.attr("HeadSize")),
+                    crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO,
+                    defaults.line_width,
+                    stroke_width,
+                )),
             );
             arrow_head.insert(
                 "centerLength".to_string(),
-                json!(parse_scaled_100(node.attr("ArrowheadCenterSize"))
-                    .or_else(|| parse_scaled_100(node.attr("ArrowShaftSpacing")))
-                    .unwrap_or(crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.875)),
+                json!(cdxml_arrow_size_for_render_scale(
+                    parse_scaled_100(node.attr("ArrowheadCenterSize"))
+                        .or_else(|| parse_scaled_100(node.attr("ArrowShaftSpacing"))),
+                    crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.875,
+                    defaults.line_width,
+                    stroke_width,
+                )),
             );
             arrow_head.insert(
                 "width".to_string(),
-                json!(parse_scaled_100(node.attr("ArrowheadWidth"))
-                    .unwrap_or(crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.25)),
+                json!(cdxml_arrow_size_for_render_scale(
+                    parse_scaled_100(node.attr("ArrowheadWidth")),
+                    crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.25,
+                    defaults.line_width,
+                    stroke_width,
+                )),
             );
             if let Some(curve) =
                 parse_f64(node.attr("AngularSize")).filter(|value| value.abs() > crate::EPSILON)
@@ -96,10 +115,7 @@ pub(super) fn append_line_objects(
             {
                 arrow_head.insert("noGo".to_string(), json!(no_go.to_ascii_lowercase()));
             }
-            if node
-                .attr("LineType")
-                .is_some_and(|value| value.contains("Bold"))
-            {
+            if bold {
                 arrow_head.insert("bold".to_string(), json!(true));
             }
             let mut arrow_geometry = BTreeMap::new();
@@ -183,6 +199,19 @@ fn canonical_arrow_fill_type(value: &str) -> &'static str {
         "shaded" => "shaded",
         _ => "unknown",
     }
+}
+
+fn cdxml_arrow_size_for_render_scale(
+    value: Option<f64>,
+    fallback: f64,
+    cdxml_line_width: f64,
+    render_stroke_width: f64,
+) -> f64 {
+    let base = value.unwrap_or(fallback);
+    if render_stroke_width.abs() <= crate::EPSILON {
+        return base;
+    }
+    base * cdxml_line_width.max(crate::EPSILON) / render_stroke_width
 }
 
 fn cdxml_line_style_ref(
@@ -615,6 +644,7 @@ pub(super) fn append_text_objects_recursive(
     bonded_node_ids: &BTreeSet<String>,
 ) {
     let next_skip_text = skip_text
+        || (node.is("objecttag") && node.attr("Name") == Some("bracketusage"))
         || (node.is("fragment")
             && node
                 .attr("id")
