@@ -6,12 +6,17 @@
 
 use super::*;
 
+const EMF_VECTOR_RECORD_SCALE: f64 = 16.0;
+const EMF_ARROW_RECORD_SCALE: f64 = 3.0;
+
+#[derive(Clone, Copy)]
 struct PreviewTransform {
     min_x: f64,
     min_y: f64,
     scale: f64,
     offset_x: f64,
     offset_y: f64,
+    record_scale: f64,
 }
 
 impl PreviewTransform {
@@ -33,13 +38,23 @@ impl PreviewTransform {
             scale,
             offset_x: bounds.left as f64 + (target_width - drawn_width) / 2.0,
             offset_y: bounds.top as f64 + (target_height - drawn_height) / 2.0,
+            record_scale: 1.0,
         })
+    }
+
+    fn with_record_scale(self, record_scale: f64) -> Self {
+        Self {
+            record_scale: record_scale.max(1.0),
+            ..self
+        }
     }
 
     fn point(&self, point: CorePoint) -> POINT {
         POINT {
-            x: (self.offset_x + (point.x - self.min_x) * self.scale).round() as i32,
-            y: (self.offset_y + (point.y - self.min_y) * self.scale).round() as i32,
+            x: ((self.offset_x + (point.x - self.min_x) * self.scale) * self.record_scale).round()
+                as i32,
+            y: ((self.offset_y + (point.y - self.min_y) * self.scale) * self.record_scale).round()
+                as i32,
         }
     }
 
@@ -48,7 +63,9 @@ impl PreviewTransform {
     }
 
     fn length(&self, value: f64) -> i32 {
-        (value.abs() * self.scale).round().max(1.0) as i32
+        (value.abs() * self.scale * self.record_scale)
+            .round()
+            .max(1.0) as i32
     }
 }
 
@@ -78,6 +95,25 @@ pub(super) unsafe fn draw_payload_vector_preview_with_source_bounds(
     payload: &OleObjectPayload,
     source_bounds: Option<[f64; 4]>,
 ) -> bool {
+    draw_payload_vector_preview_internal(dc, bounds, payload, source_bounds, false)
+}
+
+pub(super) unsafe fn draw_payload_emf_vector_preview_with_source_bounds(
+    dc: HDC,
+    bounds: &RECT,
+    payload: &OleObjectPayload,
+    source_bounds: Option<[f64; 4]>,
+) -> bool {
+    draw_payload_vector_preview_internal(dc, bounds, payload, source_bounds, true)
+}
+
+unsafe fn draw_payload_vector_preview_internal(
+    dc: HDC,
+    bounds: &RECT,
+    payload: &OleObjectPayload,
+    source_bounds: Option<[f64; 4]>,
+    high_resolution_vectors: bool,
+) -> bool {
     let Ok(document) = parse_document_json(&payload.chemcore_document_json) else {
         return false;
     };
@@ -96,11 +132,117 @@ pub(super) unsafe fn draw_payload_vector_preview_with_source_bounds(
     };
 
     let mut cache = PreviewGdiCache::default();
+    let mut vector_scope = 0;
+    let mut active_record_scale = 1.0;
+    let mut high_resolution_available = high_resolution_vectors;
     for primitive in visible {
+        let record_scale = if high_resolution_available {
+            preview_primitive_record_scale(primitive)
+        } else {
+            1.0
+        };
+        if record_scale > 1.0 {
+            if vector_scope != 0 && (active_record_scale - record_scale).abs() > f64::EPSILON {
+                RestoreDC(dc, vector_scope);
+                vector_scope = 0;
+                active_record_scale = 1.0;
+            }
+            if vector_scope == 0 {
+                vector_scope = begin_high_resolution_vector_scope(dc, record_scale);
+                if vector_scope == 0 {
+                    high_resolution_available = false;
+                }
+                active_record_scale = record_scale;
+            }
+            if high_resolution_available {
+                let vector_transform = transform.with_record_scale(record_scale);
+                draw_preview_primitive(dc, primitive, &vector_transform, &mut cache);
+                continue;
+            }
+        } else if vector_scope != 0 {
+            RestoreDC(dc, vector_scope);
+            vector_scope = 0;
+        }
         draw_preview_primitive(dc, primitive, &transform, &mut cache);
+    }
+    if vector_scope != 0 {
+        RestoreDC(dc, vector_scope);
     }
     cache.delete_objects();
     true
+}
+
+unsafe fn begin_high_resolution_vector_scope(dc: HDC, record_scale: f64) -> i32 {
+    if !record_scale.is_finite() || record_scale <= 1.0 {
+        return 0;
+    }
+    let saved = SaveDC(dc);
+    if saved == 0 {
+        return 0;
+    }
+    if SetGraphicsMode(dc, GM_ADVANCED) == 0 {
+        RestoreDC(dc, saved);
+        return 0;
+    }
+    let inverse = (1.0 / record_scale) as f32;
+    let transform = XFORM {
+        eM11: inverse,
+        eM12: 0.0,
+        eM21: 0.0,
+        eM22: inverse,
+        eDx: 0.0,
+        eDy: 0.0,
+    };
+    if SetWorldTransform(dc, &transform) == 0 {
+        RestoreDC(dc, saved);
+        return 0;
+    }
+    saved
+}
+
+fn preview_primitive_record_scale(primitive: &RenderPrimitive) -> f64 {
+    match primitive {
+        RenderPrimitive::Text { .. } => 1.0,
+        RenderPrimitive::Line {
+            role, object_id, ..
+        }
+        | RenderPrimitive::Circle {
+            role, object_id, ..
+        }
+        | RenderPrimitive::Polygon {
+            role, object_id, ..
+        }
+        | RenderPrimitive::Rect {
+            role, object_id, ..
+        }
+        | RenderPrimitive::Ellipse {
+            role, object_id, ..
+        }
+        | RenderPrimitive::Polyline {
+            role, object_id, ..
+        }
+        | RenderPrimitive::Path {
+            role, object_id, ..
+        }
+        | RenderPrimitive::FilledPath {
+            role, object_id, ..
+        } => {
+            if *role == RenderRole::DocumentBond {
+                return EMF_VECTOR_RECORD_SCALE;
+            }
+            if *role != RenderRole::DocumentGraphic {
+                return 1.0;
+            }
+            if object_id
+                .as_deref()
+                .is_some_and(|id| id.starts_with("obj_line_"))
+            {
+                EMF_ARROW_RECORD_SCALE
+            } else {
+                EMF_VECTOR_RECORD_SCALE
+            }
+        }
+    }
 }
 
 struct SvgPreviewBitmap {
@@ -212,6 +354,7 @@ unsafe fn draw_preview_primitive(
 ) {
     match primitive {
         RenderPrimitive::Line {
+            role,
             from,
             to,
             stroke,
@@ -224,7 +367,11 @@ unsafe fn draw_preview_primitive(
             transform.point(*to),
             stroke,
             *stroke_width,
-            Some("butt"),
+            if *role == RenderRole::DocumentBond {
+                Some("round")
+            } else {
+                Some("butt")
+            },
             Some("miter"),
             transform,
             dash_array,
@@ -779,7 +926,7 @@ unsafe fn create_preview_font(key: &PreviewFontKey) -> HGDIOBJ {
         0,
         0,
         0,
-        0,
+        ANTIALIASED_QUALITY as u32,
         0,
         family.as_ptr(),
     ) as HGDIOBJ
@@ -1812,7 +1959,7 @@ unsafe fn draw_preview_polygon(
                 transform.point(end),
                 fill,
                 width.max(0.5),
-                Some("butt"),
+                Some("round"),
                 Some("miter"),
                 transform,
                 &[],
@@ -1961,7 +2108,7 @@ unsafe fn draw_preview_polygon_centerline(
         transform.point(end),
         color,
         width.max(0.5),
-        Some("butt"),
+        Some("round"),
         Some("miter"),
         transform,
         &[],

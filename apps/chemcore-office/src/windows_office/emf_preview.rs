@@ -20,13 +20,14 @@ use windows_sys::Win32::Graphics::Gdi::{
     CreateMetaFileW, CreatePen, CreateSolidBrush, DeleteEnhMetaFile, DeleteMetaFile, DeleteObject,
     Ellipse, EndPath, ExtCreatePen, FillPath, GetEnhMetaFileBits, GetMetaFileBitsEx,
     GetStockObject, GetTextExtentPoint32W, LineTo, MoveToEx, PolyBezier, PolyBezierTo, Polygon,
-    Polyline, Rectangle, RestoreDC, SaveDC, SelectClipPath, SelectObject, SetBkMode, SetMapMode,
-    SetMiterLimit, SetPolyFillMode, SetTextAlign, SetTextColor, SetViewportExtEx, SetWindowExtEx,
-    StretchDIBits, StrokePath, TextOutA, TextOutW, ALTERNATE, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
-    BS_SOLID, DIB_RGB_COLORS, HDC, HGDIOBJ, LOGBRUSH, MM_ANISOTROPIC, NULL_BRUSH, NULL_PEN,
+    Polyline, Rectangle, RestoreDC, SaveDC, SelectClipPath, SelectObject, SetBkMode,
+    SetGraphicsMode, SetMapMode, SetMiterLimit, SetPolyFillMode, SetTextAlign, SetTextColor,
+    SetViewportExtEx, SetWindowExtEx, SetWorldTransform, StretchDIBits, StrokePath, TextOutA,
+    TextOutW, ALTERNATE, ANTIALIASED_QUALITY, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BS_SOLID,
+    DIB_RGB_COLORS, GM_ADVANCED, HDC, HGDIOBJ, LOGBRUSH, MM_ANISOTROPIC, NULL_BRUSH, NULL_PEN,
     PS_DASH, PS_ENDCAP_FLAT, PS_ENDCAP_ROUND, PS_ENDCAP_SQUARE, PS_GEOMETRIC, PS_JOIN_BEVEL,
     PS_JOIN_MITER, PS_JOIN_ROUND, PS_SOLID, PS_USERSTYLE, RGN_AND, SRCCOPY, TA_BASELINE, TA_LEFT,
-    TRANSPARENT,
+    TRANSPARENT, XFORM,
 };
 use windows_sys::Win32::System::Com::DVASPECT_CONTENT;
 use windows_sys::Win32::System::DataExchange::METAFILEPICT;
@@ -42,7 +43,7 @@ use super::{
 mod renderer;
 
 use renderer::{
-    draw_payload_vector_preview, draw_payload_vector_preview_with_source_bounds,
+    draw_payload_emf_vector_preview_with_source_bounds, draw_payload_vector_preview,
     office_preview_primitive_visible,
 };
 
@@ -219,8 +220,12 @@ pub(super) fn enhanced_metafile_for_payload(
             SetWindowExtEx(dc, extent.cx.max(1), extent.cy.max(1), null_mut());
             SetViewportExtEx(dc, extent.cx.max(1), extent.cy.max(1), null_mut());
         }
-        if !draw_payload_vector_preview_with_source_bounds(dc, &draw_bounds, payload, source_bounds)
-        {
+        if !draw_payload_emf_vector_preview_with_source_bounds(
+            dc,
+            &draw_bounds,
+            payload,
+            source_bounds,
+        ) {
             draw_placeholder_preview(dc, &draw_bounds);
         }
         let metafile = CloseEnhMetaFile(dc);
