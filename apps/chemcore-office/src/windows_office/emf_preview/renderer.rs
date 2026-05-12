@@ -9,22 +9,24 @@ use std::sync::OnceLock;
 use windows_sys::Win32::Graphics::Gdi::{CreateCompatibleDC, DeleteDC, HENHMETAFILE};
 use windows_sys::Win32::Graphics::GdiPlus::{
     DashStyleDash, EmfTypeEmfPlusDual, FillModeAlternate, FontStyleBold, FontStyleItalic,
-    FontStyleRegular, FontStyleUnderline, GdipAddPathBezier, GdipAddPathLine, GdipClosePathFigure,
-    GdipCreateFont, GdipCreateFontFamilyFromName, GdipCreatePath, GdipCreatePen1,
-    GdipCreateSolidFill, GdipCreateStringFormat, GdipDeleteBrush, GdipDeleteFont,
-    GdipDeleteFontFamily, GdipDeleteGraphics, GdipDeletePath, GdipDeletePen,
+    FontStyleRegular, FontStyleUnderline, GdipAddPathBezier, GdipAddPathLine,
+    GdipCloneStringFormat, GdipClosePathFigure, GdipCreateFont, GdipCreateFontFamilyFromName,
+    GdipCreatePath, GdipCreatePen1, GdipCreateSolidFill, GdipCreateStringFormat, GdipDeleteBrush,
+    GdipDeleteFont, GdipDeleteFontFamily, GdipDeleteGraphics, GdipDeletePath, GdipDeletePen,
     GdipDeleteStringFormat, GdipDisposeImage, GdipDrawEllipse, GdipDrawLine, GdipDrawLines,
     GdipDrawPath, GdipDrawPolygon, GdipDrawRectangle, GdipDrawString, GdipFillEllipse,
     GdipFillPath, GdipFillPolygon, GdipFillRectangle, GdipGetDC, GdipGetHemfFromMetafile,
-    GdipGetImageGraphicsContext, GdipRecordMetafile, GdipReleaseDC, GdipSetPenDashArray,
-    GdipSetPenDashStyle, GdipSetPenEndCap, GdipSetPenLineJoin, GdipSetPenMiterLimit,
-    GdipSetPenStartCap, GdipSetSmoothingMode, GdipSetStringFormatAlign, GdipSetStringFormatFlags,
-    GdipSetStringFormatLineAlign, GdipSetTextRenderingHint, GdipStartPathFigure, GdiplusStartup,
+    GdipGetImageGraphicsContext, GdipMeasureString, GdipRecordMetafile, GdipReleaseDC,
+    GdipSetPenDashArray, GdipSetPenDashStyle, GdipSetPenEndCap, GdipSetPenLineJoin,
+    GdipSetPenMiterLimit, GdipSetPenStartCap, GdipSetSmoothingMode, GdipSetStringFormatAlign,
+    GdipSetStringFormatFlags, GdipSetStringFormatLineAlign, GdipSetTextRenderingHint,
+    GdipStartPathFigure, GdipStringFormatGetGenericTypographic, GdiplusStartup,
     GdiplusStartupInput, GpBrush, GpFont, GpFontFamily, GpGraphics, GpImage, GpMetafile, GpPath,
     GpPen, GpStringFormat, LineCapFlat, LineCapRound, LineCapSquare, LineJoinBevel, LineJoinMiter,
     LineJoinRound, MetafileFrameUnitGdi, Ok as GDI_PLUS_OK, PointF, RectF, SmoothingModeAntiAlias,
     StringAlignmentNear, StringFormatFlagsMeasureTrailingSpaces, StringFormatFlagsNoClip,
-    StringFormatFlagsNoWrap, TextRenderingHintAntiAliasGridFit, UnitPixel,
+    StringFormatFlagsNoFitBlackBox, StringFormatFlagsNoWrap, TextRenderingHintAntiAliasGridFit,
+    UnitPixel,
 };
 
 const EMF_VECTOR_RECORD_SCALE: f64 = 16.0;
@@ -1320,7 +1322,7 @@ unsafe fn draw_gdiplus_text(
 ) -> bool {
     let line_step_world = line_height.unwrap_or(font_size * 1.2).max(0.01);
     let lines = preview_text_lines(text, runs);
-    let layouts = gdiplus_text_layout(&lines, font_size, font_family, transform);
+    let layouts = gdiplus_text_layout(graphics, &lines, font_size, font_family, transform);
     let mut ok = true;
     for (index, line_runs) in lines.iter().enumerate() {
         if line_runs.is_empty() {
@@ -1368,6 +1370,7 @@ struct GdiplusTextRunLayout {
 }
 
 unsafe fn gdiplus_text_layout(
+    graphics: *mut GpGraphics,
     lines: &[Vec<PreviewTextRun>],
     fallback_font_size: f64,
     fallback_family: Option<&str>,
@@ -1402,15 +1405,24 @@ unsafe fn gdiplus_text_layout(
                 .iter()
                 .map(|run| {
                     let dx = preview_script_dx_f32(run, fallback_font_size, transform);
-                    let advance = preview_text_run_extent(
-                        dc,
+                    let advance = gdiplus_text_run_advance(
+                        graphics,
                         run,
                         fallback_font_size,
                         fallback_family,
                         transform,
-                        &mut cache,
-                    ) as f32;
-                    width += advance;
+                    )
+                    .unwrap_or_else(|| {
+                        preview_text_run_extent(
+                            dc,
+                            run,
+                            fallback_font_size,
+                            fallback_family,
+                            transform,
+                            &mut cache,
+                        ) as f32
+                    });
+                    width += dx + advance;
                     GdiplusTextRunLayout { dx, advance }
                 })
                 .collect();
@@ -1423,6 +1435,53 @@ unsafe fn gdiplus_text_layout(
     cache.delete_objects();
     DeleteDC(dc);
     layouts
+}
+
+unsafe fn gdiplus_text_run_advance(
+    graphics: *mut GpGraphics,
+    run: &PreviewTextRun,
+    fallback_font_size: f64,
+    fallback_family: Option<&str>,
+    transform: &PreviewTransform,
+) -> Option<f32> {
+    if run.text.is_empty() {
+        return Some(0.0);
+    }
+    let font = create_gdiplus_font(run, fallback_font_size, fallback_family, transform)?;
+    let Some(format) = create_gdiplus_string_format() else {
+        GdipDeleteFont(font);
+        return None;
+    };
+    let wide: Vec<u16> = run.text.encode_utf16().collect();
+    let script_scale = preview_script_scale(run.script.as_deref());
+    let font_px = (run.font_size.unwrap_or(fallback_font_size) * script_scale * transform.scale)
+        .max(1.0) as f32;
+    let layout = RectF {
+        X: 0.0,
+        Y: 0.0,
+        Width: font_px * wide.len().max(1) as f32 * 4.0,
+        Height: font_px * 2.0,
+    };
+    let mut bounds = RectF {
+        X: 0.0,
+        Y: 0.0,
+        Width: 0.0,
+        Height: 0.0,
+    };
+    let ok = GdipMeasureString(
+        graphics,
+        wide.as_ptr(),
+        wide.len() as i32,
+        font,
+        &layout,
+        format,
+        &mut bounds,
+        null_mut(),
+        null_mut(),
+    ) == GDI_PLUS_OK;
+    GdipDeleteStringFormat(format);
+    GdipDeleteFont(font);
+    ok.then_some(bounds.Width.max(0.0))
 }
 
 unsafe fn draw_gdiplus_text_run(
@@ -1520,12 +1579,23 @@ unsafe fn create_gdiplus_font(
 
 unsafe fn create_gdiplus_string_format() -> Option<*mut GpStringFormat> {
     let mut format: *mut GpStringFormat = null_mut();
-    if GdipCreateStringFormat(0, 0, &mut format) != GDI_PLUS_OK || format.is_null() {
+    let mut base: *mut GpStringFormat = null_mut();
+    if GdipStringFormatGetGenericTypographic(&mut base) == GDI_PLUS_OK
+        && !base.is_null()
+        && GdipCloneStringFormat(base, &mut format) == GDI_PLUS_OK
+        && !format.is_null()
+    {
+        // GenericTypographic avoids the extra layout padding in DrawString, which keeps
+        // EMF text anchors aligned with the SVG renderer's alphabetic-baseline model.
+    } else if GdipCreateStringFormat(0, 0, &mut format) != GDI_PLUS_OK || format.is_null() {
         return None;
     }
     GdipSetStringFormatFlags(
         format,
-        StringFormatFlagsNoWrap | StringFormatFlagsNoClip | StringFormatFlagsMeasureTrailingSpaces,
+        StringFormatFlagsNoWrap
+            | StringFormatFlagsNoClip
+            | StringFormatFlagsNoFitBlackBox
+            | StringFormatFlagsMeasureTrailingSpaces,
     );
     GdipSetStringFormatAlign(format, StringAlignmentNear);
     GdipSetStringFormatLineAlign(format, StringAlignmentNear);
@@ -1917,10 +1987,12 @@ fn preview_script_baseline_shift(
     fallback_font_size: f64,
     transform: &PreviewTransform,
 ) -> i32 {
-    let base_height = transform.length(run.font_size.unwrap_or(fallback_font_size));
+    let font_size =
+        run.font_size.unwrap_or(fallback_font_size) * preview_script_scale(run.script.as_deref());
+    let script_height = transform.length(font_size);
     match run.script.as_deref() {
-        Some("subscript") => (base_height as f64 * 0.30).round() as i32,
-        Some("superscript") => -(base_height as f64 * 0.28).round() as i32,
+        Some("subscript") => (script_height as f64 * 0.30).round() as i32,
+        Some("superscript") => -(script_height as f64 * 0.28).round() as i32,
         _ => 0,
     }
 }
@@ -1930,10 +2002,12 @@ fn preview_script_baseline_shift_f32(
     fallback_font_size: f64,
     transform: &PreviewTransform,
 ) -> f32 {
-    let base_height = run.font_size.unwrap_or(fallback_font_size) * transform.scale;
+    let font_size =
+        run.font_size.unwrap_or(fallback_font_size) * preview_script_scale(run.script.as_deref());
+    let script_height = font_size * transform.scale;
     match run.script.as_deref() {
-        Some("subscript") => (base_height * 0.30) as f32,
-        Some("superscript") => -(base_height * 0.28) as f32,
+        Some("subscript") => (script_height * 0.30) as f32,
+        Some("superscript") => -(script_height * 0.28) as f32,
         _ => 0.0,
     }
 }
