@@ -1,5 +1,5 @@
 use super::text_edit::refresh_attached_node_label_geometry_for_all_nodes;
-use super::{EditorCommand, Engine};
+use super::{EditorCommand, Engine, RenderBoundsScope};
 use crate::{Bond, ChemcoreDocument, Node, Resource, ResourceData, SceneObject, SelectionState};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -209,6 +209,9 @@ impl Engine {
         if let Some((_, resource_ref, resource)) = selected_molecule {
             document.resources.insert(resource_ref, resource);
         }
+        if let Some(bounds) = self.render_bounds(RenderBoundsScope::Selection) {
+            set_clipboard_selection_bounds_meta(&mut document, bounds);
+        }
         Some(document)
     }
 
@@ -314,4 +317,30 @@ fn fragment_clipboard_bounds(nodes: &[Node]) -> [f64; 4] {
         }
     }
     [min_x, min_y, max_x.max(min_x + 1.0), max_y.max(min_y + 1.0)]
+}
+
+fn set_clipboard_selection_bounds_meta(document: &mut ChemcoreDocument, bounds: [f64; 4]) {
+    if !document.document.meta.is_object() {
+        document.document.meta = serde_json::json!({});
+    }
+    let Some(meta) = document.document.meta.as_object_mut() else {
+        return;
+    };
+    let clipboard = meta
+        .entry("clipboard")
+        .or_insert_with(|| serde_json::json!({}));
+    if !clipboard.is_object() {
+        *clipboard = serde_json::json!({});
+    }
+    if let Some(clipboard) = clipboard.as_object_mut() {
+        clipboard.insert(
+            "selectionBounds".to_string(),
+            serde_json::json!({
+                "minX": bounds[0],
+                "minY": bounds[1],
+                "maxX": bounds[2],
+                "maxY": bounds[3],
+            }),
+        );
+    }
 }

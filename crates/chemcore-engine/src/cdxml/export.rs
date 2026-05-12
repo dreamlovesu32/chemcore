@@ -843,7 +843,16 @@ impl<'a> CdxmlDocumentWriter<'a> {
         else {
             return;
         };
-        let anchor = Point::new(object.transform.translate[0], object.transform.translate[1]);
+        let baseline_offset = object
+            .payload
+            .extra
+            .get("baselineOffset")
+            .and_then(Value::as_f64)
+            .unwrap_or(font_size * 0.82);
+        let anchor = Point::new(
+            object.transform.translate[0],
+            object.transform.translate[1] + baseline_offset,
+        );
         let bbox = [
             object.transform.translate[0] + box_value[0],
             object.transform.translate[1] + box_value[1],

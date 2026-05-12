@@ -10,6 +10,8 @@ const fn cm(value: f64) -> f64 {
     value * chemcore_engine::PT_PER_CM
 }
 
+const CDXML_EDIT_SCALE: f64 = chemcore_engine::PT_TO_CSS_PX * 2.0;
+
 fn fragment_document(nodes: serde_json::Value, bonds: serde_json::Value) -> ChemcoreDocument {
     serde_json::from_value(json!({
         "format": { "name": "chemcore", "version": "0.1" },
@@ -1431,7 +1433,12 @@ fn parse_cdxml_merges_display_fragments_for_editing_hit_tests() {
         .expect("merged fragment should be editable")
         .fragment;
     assert_eq!(fragment.bonds.len(), 2);
-    assert!(hit_test_bond_center(&document, Point::new(85.0, 15.0), 30.0).is_some());
+    assert!(hit_test_bond_center(
+        &document,
+        Point::new(85.0 * CDXML_EDIT_SCALE, 15.0 * CDXML_EDIT_SCALE),
+        30.0 * CDXML_EDIT_SCALE
+    )
+    .is_some());
 }
 
 #[test]
@@ -1442,14 +1449,14 @@ fn load_cdxml_document_preserves_imported_acs_drawing_options() {
         .load_cdxml_document(&cdxml)
         .expect("cdxml should load into engine");
 
-    assert!((engine.options().bond_length - 14.4).abs() < 0.05);
-    assert!((engine.options().bond_stroke_width - 0.6).abs() < 0.01);
-    assert!((engine.options().bold_bond_width - 2.0).abs() < 0.05);
-    assert!((engine.options().wedge_width - 3.0).abs() < 0.05);
-    assert!((engine.options().label_clip_margin - 0.95).abs() < 0.05);
-    assert!((engine.options().hash_spacing - 2.5).abs() < 0.05);
+    assert!((engine.options().bond_length - 38.4).abs() < 0.05);
+    assert!((engine.options().bond_stroke_width - 1.6).abs() < 0.01);
+    assert!((engine.options().bold_bond_width - 5.333).abs() < 0.05);
+    assert!((engine.options().wedge_width - 8.0).abs() < 0.05);
+    assert!((engine.options().label_clip_margin - 2.533).abs() < 0.05);
+    assert!((engine.options().hash_spacing - 6.667).abs() < 0.05);
     assert!((engine.options().bond_spacing - 18.0).abs() < 0.05);
-    assert!((engine.options().margin_width - 1.6).abs() < 0.05);
+    assert!((engine.options().margin_width - 4.267).abs() < 0.05);
 }
 
 #[test]
@@ -1470,11 +1477,11 @@ fn load_cdxml_document_derives_wedge_width_from_imported_bold_width() {
         .load_cdxml_document(cdxml)
         .expect("cdxml should load into engine");
 
-    assert!((engine.options().bond_length - 14.4).abs() < 0.05);
-    assert!((engine.options().bond_stroke_width - 0.99).abs() < 0.01);
-    assert!((engine.options().bold_bond_width - 2.01).abs() < 0.01);
-    assert!((engine.options().wedge_width - 3.015).abs() < 0.01);
-    assert!((engine.options().margin_width - 1.7).abs() < 0.01);
+    assert!((engine.options().bond_length - 38.4).abs() < 0.05);
+    assert!((engine.options().bond_stroke_width - 2.64).abs() < 0.01);
+    assert!((engine.options().bold_bond_width - 5.36).abs() < 0.01);
+    assert!((engine.options().wedge_width - 8.04).abs() < 0.01);
+    assert!((engine.options().margin_width - 4.53).abs() < 0.01);
 
     let bond = &engine
         .state()
@@ -1483,8 +1490,8 @@ fn load_cdxml_document_derives_wedge_width_from_imported_bold_width() {
         .expect("editable fragment should exist")
         .fragment
         .bonds[0];
-    assert!((bond.wedge_width.unwrap_or_default() - 3.015).abs() < 0.01);
-    assert_eq!(bond.margin_width, Some(1.7));
+    assert!((bond.wedge_width.unwrap_or_default() - 8.04).abs() < 0.01);
+    assert_eq!(bond.margin_width, Some(4.53));
 }
 
 #[test]
@@ -2371,10 +2378,16 @@ fn load_cdxml_document_hit_tests_aligned_text_object_source_bbox() {
         .load_cdxml_document(cdxml)
         .expect("cdxml should load into engine");
 
-    engine.select_at_point(Point::new(31.0, 20.0), false);
+    engine.select_at_point(
+        Point::new(31.0 * CDXML_EDIT_SCALE, 20.0 * CDXML_EDIT_SCALE),
+        false,
+    );
     assert_eq!(engine.state().selection.text_objects, vec!["obj_text_001"]);
 
-    engine.select_at_point(Point::new(71.0, 20.0), false);
+    engine.select_at_point(
+        Point::new(71.0 * CDXML_EDIT_SCALE, 20.0 * CDXML_EDIT_SCALE),
+        false,
+    );
     assert!(engine.state().selection.text_objects.is_empty());
 }
 

@@ -18,6 +18,10 @@ import {
 import { pdfPreviewBase64FromSvg } from "./export_preview.js";
 
 export function createDocumentFlow(options) {
+  async function waitForRuntimeReady() {
+    await options.waitForRuntimeReady?.();
+  }
+
   async function loadDocument(path) {
     const response = await fetch(path, { cache: "no-store" });
     if (!response.ok) {
@@ -46,6 +50,7 @@ export function createDocumentFlow(options) {
   }
 
   async function loadJsonDocumentIntoEditor(documentData, fileName = null, filePath = null) {
+    await waitForRuntimeReady();
     validateChemcoreJsonDocument(documentData);
     await options.finishActiveTextEditor(false);
     options.state.currentPath = null;
@@ -378,6 +383,7 @@ export function createDocumentFlow(options) {
   }
 
   async function loadCdxmlDocumentIntoEditor(cdxml, fileName = null, filePath = null) {
+    await waitForRuntimeReady();
     await options.finishActiveTextEditor(false);
     options.state.currentPath = null;
     options.state.currentFileName = fileName;

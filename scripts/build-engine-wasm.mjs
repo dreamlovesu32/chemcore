@@ -1,4 +1,4 @@
-import { rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -33,3 +33,9 @@ run("wasm-pack", [
 // wasm-pack writes an ignore-all file for publishable packages. In this repo the
 // viewer consumes these runtime artifacts directly, so they need to stay tracked.
 rmSync(join(rootDir, "viewer", "engine", ".gitignore"), { force: true });
+
+const viewerSharedDir = join(rootDir, "viewer", "shared");
+mkdirSync(viewerSharedDir, { recursive: true });
+for (const fileName of ["glyph_profiles.json", "text_symbols.json"]) {
+  copyFileSync(join(rootDir, "shared", fileName), join(viewerSharedDir, fileName));
+}

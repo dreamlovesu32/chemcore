@@ -1,10 +1,19 @@
 export async function loadTextSymbolCatalog() {
-  const url = new URL("../shared/text_symbols.json", import.meta.url);
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to load text symbol catalog: ${response.status}`);
+  const candidates = [
+    new URL("./shared/text_symbols.json", import.meta.url),
+    new URL("./text_symbols.json", import.meta.url),
+    new URL("../shared/text_symbols.json", import.meta.url),
+    new URL("/shared/text_symbols.json", window.location.href),
+  ];
+  let lastStatus = "not attempted";
+  for (const url of candidates) {
+    const response = await fetch(url);
+    if (response.ok) {
+      return normalizeTextSymbolCatalog(await response.json());
+    }
+    lastStatus = `${response.status} ${url.href}`;
   }
-  return normalizeTextSymbolCatalog(await response.json());
+  throw new Error(`Failed to load text symbol catalog: ${lastStatus}`);
 }
 
 export function createTextSymbolPalette({ mount, catalog, onSelect }) {

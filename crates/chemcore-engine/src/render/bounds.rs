@@ -1,5 +1,9 @@
 use super::*;
 
+const TEXT_INK_HORIZONTAL_PAD_EM: f64 = 0.16;
+const TEXT_GDI_DESCENT_EM: f64 = 0.59;
+const TEXT_GDI_LINE_BOX_EM: f64 = 1.45;
+
 pub fn render_primitives_bounds<'a>(
     primitives: impl IntoIterator<Item = &'a RenderPrimitive>,
 ) -> Option<[f64; 4]> {
@@ -181,38 +185,83 @@ pub fn render_primitive_bounds(primitive: &RenderPrimitive) -> Option<[f64; 4]> 
             text_anchor,
             ..
         } => {
-            let width = box_width.unwrap_or_else(|| estimate_text_width(text, runs, *font_size));
-            let line_count = text.lines().count().max(1) as f64;
-            let height = line_height.unwrap_or(*font_size * 1.2).max(*font_size) * line_count;
+            let measured_width = estimate_text_width(text, runs, *font_size);
+            let width = box_width.unwrap_or(0.0).max(measured_width);
+            let max_font_size = estimate_text_max_font_size(*font_size, runs);
+            let line_count = estimate_text_line_count(text, runs) as f64;
+            let line_height = line_height
+                .unwrap_or(max_font_size * TEXT_GDI_LINE_BOX_EM)
+                .max(max_font_size);
+            let right_pad = max_font_size * TEXT_INK_HORIZONTAL_PAD_EM;
+            let left_pad = right_pad;
             let min_x = match text_anchor.as_deref() {
                 Some("middle") => x - width * 0.5,
                 Some("end") => x - width,
                 _ => *x,
             };
-            Some([
-                min_x,
-                y - font_size * 0.86,
-                min_x + width,
-                y - font_size * 0.86 + height,
-            ])
+            let min_y = y - max_font_size * 0.86;
+            let max_y =
+                y + (line_count - 1.0).max(0.0) * line_height + max_font_size * TEXT_GDI_DESCENT_EM;
+            Some([min_x - left_pad, min_y, min_x + width + right_pad, max_y])
         }
     }
 }
 
 fn estimate_text_width(text: &str, runs: &[LabelRun], fallback_font_size: f64) -> f64 {
     if !runs.is_empty() {
+        let mut max_width = 0.0;
+        let mut line_width = 0.0;
+        for run in runs {
+            let font_size = run.font_size.unwrap_or(fallback_font_size)
+                * crate::shared_script_scale_factor(run.script.as_deref());
+            for character in run.text.chars() {
+                match character {
+                    '\n' => {
+                        max_width = f64::max(max_width, line_width);
+                        line_width = 0.0;
+                    }
+                    '\r' => {}
+                    _ => line_width += crate::shared_estimated_char_width(character, font_size),
+                }
+            }
+        }
+        return f64::max(max_width, line_width);
+    }
+    text.lines()
+        .map(|line| estimate_text_line_width(line, fallback_font_size))
+        .fold(0.0, f64::max)
+}
+
+fn estimate_text_line_width(text: &str, font_size: f64) -> f64 {
+    text.chars()
+        .filter(|character| *character != '\r')
+        .map(|character| crate::shared_estimated_char_width(character, font_size))
+        .sum()
+}
+
+fn estimate_text_line_count(text: &str, runs: &[LabelRun]) -> usize {
+    if !runs.is_empty() {
         return runs
             .iter()
             .map(|run| {
-                let font_size = run.font_size.unwrap_or(fallback_font_size)
-                    * crate::shared_script_scale_factor(run.script.as_deref());
-                run.text.chars().count() as f64 * font_size * 0.56
+                run.text
+                    .chars()
+                    .filter(|character| *character == '\n')
+                    .count()
             })
-            .sum();
+            .sum::<usize>()
+            + 1;
     }
-    text.lines()
-        .map(|line| line.chars().count() as f64 * fallback_font_size * 0.56)
-        .fold(0.0, f64::max)
+    text.lines().count().max(1)
+}
+
+fn estimate_text_max_font_size(fallback_font_size: f64, runs: &[LabelRun]) -> f64 {
+    runs.iter()
+        .map(|run| {
+            run.font_size.unwrap_or(fallback_font_size)
+                * crate::shared_script_scale_factor(run.script.as_deref())
+        })
+        .fold(fallback_font_size, f64::max)
 }
 
 fn point_list_bounds(points: &[Point], margin: f64) -> Option<[f64; 4]> {

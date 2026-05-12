@@ -791,6 +791,12 @@ fn text_object(
     extra.insert("valign".to_string(), json!("top"));
     extra.insert("lineHeight".to_string(), json!(round2(font_size * 1.2)));
     extra.insert("fontSize".to_string(), json!(round2(font_size)));
+    if let Some(point) = parse_xy(node.attr("p")) {
+        extra.insert(
+            "baselineOffset".to_string(),
+            json!(round2(point[1] - translate[1])),
+        );
+    }
     extra.insert("preserveLines".to_string(), json!(true));
     if !runs.is_empty() {
         extra.insert("runs".to_string(), serde_json::to_value(runs).ok()?);

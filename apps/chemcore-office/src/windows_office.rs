@@ -334,6 +334,7 @@ fn print_registration() -> Result<(), String> {
 struct ClipboardPayload {
     chemcore_fragment_json: Option<String>,
     chemcore_document_json: Option<String>,
+    render_list_json: Option<String>,
     svg: Option<String>,
 }
 
@@ -341,6 +342,7 @@ struct ClipboardPayload {
 struct OleObjectPayload {
     chemcore_fragment_json: Option<String>,
     chemcore_document_json: String,
+    render_list_json: Option<String>,
     svg: String,
 }
 
@@ -352,6 +354,7 @@ impl OleObjectPayload {
         Self {
             chemcore_fragment_json: None,
             chemcore_document_json,
+            render_list_json: None,
             svg: String::from_utf8(ole_preview_svg_stream_payload()).unwrap_or_default(),
         }
     }
@@ -365,6 +368,9 @@ impl OleObjectPayload {
         Self {
             chemcore_fragment_json: payload.chemcore_fragment_json,
             chemcore_document_json: document_json,
+            render_list_json: payload
+                .render_list_json
+                .filter(|value| !value.trim().is_empty()),
             svg: payload
                 .svg
                 .filter(|value| !value.trim().is_empty())

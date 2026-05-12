@@ -5,9 +5,29 @@
 // ChemDraw-style EMF record strategy.
 
 use super::*;
+use std::sync::OnceLock;
+use windows_sys::Win32::Graphics::Gdi::{CreateCompatibleDC, DeleteDC, HENHMETAFILE};
+use windows_sys::Win32::Graphics::GdiPlus::{
+    DashStyleDash, EmfTypeEmfPlusDual, FillModeAlternate, FontStyleBold, FontStyleItalic,
+    FontStyleRegular, FontStyleUnderline, GdipAddPathBezier, GdipAddPathLine, GdipClosePathFigure,
+    GdipCreateFont, GdipCreateFontFamilyFromName, GdipCreatePath, GdipCreatePen1,
+    GdipCreateSolidFill, GdipCreateStringFormat, GdipDeleteBrush, GdipDeleteFont,
+    GdipDeleteFontFamily, GdipDeleteGraphics, GdipDeletePath, GdipDeletePen,
+    GdipDeleteStringFormat, GdipDisposeImage, GdipDrawEllipse, GdipDrawLine, GdipDrawLines,
+    GdipDrawPath, GdipDrawPolygon, GdipDrawRectangle, GdipDrawString, GdipFillEllipse,
+    GdipFillPath, GdipFillPolygon, GdipFillRectangle, GdipGetHemfFromMetafile,
+    GdipGetImageGraphicsContext, GdipRecordMetafile, GdipSetPenDashArray, GdipSetPenDashStyle,
+    GdipSetPenEndCap, GdipSetPenLineJoin, GdipSetPenMiterLimit, GdipSetPenStartCap,
+    GdipSetSmoothingMode, GdipSetStringFormatAlign, GdipSetStringFormatLineAlign,
+    GdipSetTextRenderingHint, GdipStartPathFigure, GdiplusStartup, GdiplusStartupInput, GpBrush,
+    GpFont, GpFontFamily, GpGraphics, GpImage, GpMetafile, GpPath, GpPen, GpStringFormat,
+    LineCapFlat, LineCapRound, LineCapSquare, LineJoinBevel, LineJoinMiter, LineJoinRound,
+    MetafileFrameUnitGdi, Ok as GDI_PLUS_OK, PointF, RectF, SmoothingModeAntiAlias,
+    StringAlignmentNear, TextRenderingHintAntiAliasGridFit, UnitPixel,
+};
 
 const EMF_VECTOR_RECORD_SCALE: f64 = 16.0;
-const EMF_ARROW_RECORD_SCALE: f64 = 3.0;
+const EMF_ARROW_RECORD_SCALE: f64 = EMF_VECTOR_RECORD_SCALE;
 
 #[derive(Clone, Copy)]
 struct PreviewTransform {
@@ -62,6 +82,13 @@ impl PreviewTransform {
         self.point(CorePoint { x, y })
     }
 
+    fn gdip_point(&self, point: CorePoint) -> PointF {
+        PointF {
+            X: (self.offset_x + (point.x - self.min_x) * self.scale) as f32,
+            Y: (self.offset_y + (point.y - self.min_y) * self.scale) as f32,
+        }
+    }
+
     fn length(&self, value: f64) -> i32 {
         (value.abs() * self.scale * self.record_scale)
             .round()
@@ -107,6 +134,123 @@ pub(super) unsafe fn draw_payload_emf_vector_preview_with_source_bounds(
     draw_payload_vector_preview_internal(dc, bounds, payload, source_bounds, true)
 }
 
+pub(super) unsafe fn enhanced_metafile_gdiplus_dual_preview(
+    frame_bounds: &RECT,
+    draw_bounds: &RECT,
+    payload: &OleObjectPayload,
+    source_bounds: Option<[f64; 4]>,
+) -> Option<HENHMETAFILE> {
+    if !ensure_gdiplus_started() {
+        return None;
+    }
+    let primitives = if let Some(primitives) = payload_render_primitives(payload) {
+        primitives
+    } else {
+        let Ok(document) = parse_document_json(&payload.chemcore_document_json) else {
+            return None;
+        };
+        render_document(&document)
+    };
+    let visible: Vec<_> = primitives
+        .iter()
+        .filter(|primitive| office_preview_primitive_visible(primitive))
+        .collect();
+    let Some(primitive_bounds) = render_primitives_bounds(visible.iter().copied()) else {
+        return None;
+    };
+    let Some(transform) =
+        PreviewTransform::from_bounds(draw_bounds, source_bounds.unwrap_or(primitive_bounds))
+    else {
+        return None;
+    };
+    let ref_dc = CreateCompatibleDC(null_mut());
+    if ref_dc.is_null() {
+        return None;
+    }
+    let frame = RectF {
+        X: frame_bounds.left as f32,
+        Y: frame_bounds.top as f32,
+        Width: (frame_bounds.right - frame_bounds.left).max(1) as f32,
+        Height: (frame_bounds.bottom - frame_bounds.top).max(1) as f32,
+    };
+    let mut metafile: *mut GpMetafile = null_mut();
+    let record_status = GdipRecordMetafile(
+        ref_dc,
+        EmfTypeEmfPlusDual,
+        &frame,
+        MetafileFrameUnitGdi,
+        null(),
+        &mut metafile,
+    );
+    DeleteDC(ref_dc);
+    if record_status != GDI_PLUS_OK || metafile.is_null() {
+        return None;
+    }
+    let mut graphics = null_mut();
+    if GdipGetImageGraphicsContext(metafile as *mut GpImage, &mut graphics) != GDI_PLUS_OK
+        || graphics.is_null()
+    {
+        GdipDisposeImage(metafile as *mut GpImage);
+        return None;
+    }
+    GdipSetSmoothingMode(graphics, SmoothingModeAntiAlias);
+    GdipSetTextRenderingHint(graphics, TextRenderingHintAntiAliasGridFit);
+    let mut ok = true;
+    for primitive in visible {
+        if !draw_gdiplus_primitive(graphics, primitive, &transform) {
+            ok = false;
+            break;
+        }
+    }
+    GdipDeleteGraphics(graphics);
+    if !ok {
+        GdipDisposeImage(metafile as *mut GpImage);
+        return None;
+    }
+    let mut hemf = null_mut();
+    if GdipGetHemfFromMetafile(metafile, &mut hemf) != GDI_PLUS_OK || hemf.is_null() {
+        GdipDisposeImage(metafile as *mut GpImage);
+        return None;
+    }
+    GdipDisposeImage(metafile as *mut GpImage);
+    Some(hemf)
+}
+
+pub(super) fn payload_contains_text(payload: &OleObjectPayload) -> bool {
+    let primitives = if let Some(primitives) = payload_render_primitives(payload) {
+        primitives
+    } else {
+        let Ok(document) = parse_document_json(&payload.chemcore_document_json) else {
+            return false;
+        };
+        render_document(&document)
+    };
+    primitives
+        .iter()
+        .filter(|primitive| office_preview_primitive_visible(primitive))
+        .any(|primitive| matches!(primitive, RenderPrimitive::Text { .. }))
+}
+
+fn ensure_gdiplus_started() -> bool {
+    static GDIPLUS_TOKEN: OnceLock<Option<usize>> = OnceLock::new();
+    GDIPLUS_TOKEN
+        .get_or_init(|| unsafe {
+            let mut token = 0usize;
+            let input = GdiplusStartupInput {
+                GdiplusVersion: 1,
+                DebugEventCallback: 0,
+                SuppressBackgroundThread: 0,
+                SuppressExternalCodecs: 0,
+            };
+            if GdiplusStartup(&mut token, &input, null_mut()) == GDI_PLUS_OK {
+                Some(token)
+            } else {
+                None
+            }
+        })
+        .is_some()
+}
+
 unsafe fn draw_payload_vector_preview_internal(
     dc: HDC,
     bounds: &RECT,
@@ -114,10 +258,14 @@ unsafe fn draw_payload_vector_preview_internal(
     source_bounds: Option<[f64; 4]>,
     high_resolution_vectors: bool,
 ) -> bool {
-    let Ok(document) = parse_document_json(&payload.chemcore_document_json) else {
-        return false;
+    let primitives = if let Some(primitives) = payload_render_primitives(payload) {
+        primitives
+    } else {
+        let Ok(document) = parse_document_json(&payload.chemcore_document_json) else {
+            return false;
+        };
+        render_document(&document)
     };
-    let primitives = render_document(&document);
     let visible: Vec<_> = primitives
         .iter()
         .filter(|primitive| office_preview_primitive_visible(primitive))
@@ -653,6 +801,683 @@ unsafe fn draw_preview_primitive(
     }
 }
 
+unsafe fn draw_gdiplus_primitive(
+    graphics: *mut GpGraphics,
+    primitive: &RenderPrimitive,
+    transform: &PreviewTransform,
+) -> bool {
+    match primitive {
+        RenderPrimitive::Line {
+            from,
+            to,
+            stroke,
+            stroke_width,
+            dash_array,
+            role,
+            ..
+        } => {
+            let Some(pen) = create_gdiplus_pen(
+                stroke,
+                transform.length(*stroke_width) as f32,
+                if *role == RenderRole::DocumentBond {
+                    Some("round")
+                } else {
+                    Some("butt")
+                },
+                Some("miter"),
+                dash_array,
+                transform,
+            ) else {
+                return false;
+            };
+            let p1 = transform.gdip_point(*from);
+            let p2 = transform.gdip_point(*to);
+            let ok = GdipDrawLine(graphics, pen, p1.X, p1.Y, p2.X, p2.Y) == GDI_PLUS_OK;
+            GdipDeletePen(pen);
+            ok
+        }
+        RenderPrimitive::Polyline {
+            points,
+            stroke,
+            stroke_width,
+            dash_array,
+            line_cap,
+            line_join,
+            ..
+        } => draw_gdiplus_polyline(
+            graphics,
+            points,
+            stroke,
+            *stroke_width,
+            line_cap.as_deref(),
+            line_join.as_deref(),
+            transform,
+            dash_array,
+        ),
+        RenderPrimitive::Polygon {
+            points,
+            fill,
+            stroke,
+            stroke_width,
+            ..
+        } => draw_gdiplus_polygon(graphics, points, fill, stroke, *stroke_width, transform),
+        RenderPrimitive::FilledPath {
+            d,
+            fill,
+            clip_path_d,
+            ..
+        } => {
+            if clip_path_d.is_some() {
+                return false;
+            }
+            draw_gdiplus_path(
+                graphics,
+                d,
+                Some(fill),
+                None,
+                0.0,
+                None,
+                None,
+                transform,
+                &[],
+            )
+        }
+        RenderPrimitive::Path {
+            d,
+            stroke,
+            stroke_width,
+            dash_array,
+            line_cap,
+            line_join,
+            ..
+        } => draw_gdiplus_path(
+            graphics,
+            d,
+            None,
+            Some(stroke),
+            *stroke_width,
+            line_cap.as_deref(),
+            line_join.as_deref(),
+            transform,
+            dash_array,
+        ),
+        RenderPrimitive::Rect {
+            x,
+            y,
+            width,
+            height,
+            fill,
+            stroke,
+            stroke_width,
+            dash_array,
+            ..
+        } => draw_gdiplus_rect(
+            graphics,
+            *x,
+            *y,
+            *width,
+            *height,
+            fill.as_deref(),
+            stroke.as_deref(),
+            *stroke_width,
+            dash_array,
+            transform,
+        ),
+        RenderPrimitive::Ellipse {
+            center,
+            rx,
+            ry,
+            fill,
+            stroke,
+            stroke_width,
+            dash_array,
+            ..
+        } => draw_gdiplus_ellipse(
+            graphics,
+            center.x - rx,
+            center.y - ry,
+            rx * 2.0,
+            ry * 2.0,
+            fill.as_deref(),
+            stroke.as_deref(),
+            *stroke_width,
+            dash_array,
+            transform,
+        ),
+        RenderPrimitive::Circle {
+            center,
+            radius,
+            fill,
+            stroke,
+            stroke_width,
+            ..
+        } => draw_gdiplus_ellipse(
+            graphics,
+            center.x - radius,
+            center.y - radius,
+            radius * 2.0,
+            radius * 2.0,
+            Some(fill),
+            Some(stroke),
+            *stroke_width,
+            &[],
+            transform,
+        ),
+        RenderPrimitive::Text {
+            x,
+            y,
+            text,
+            font_size,
+            font_family,
+            fill,
+            text_anchor,
+            line_height,
+            runs,
+            ..
+        } => draw_gdiplus_text(
+            graphics,
+            *x,
+            *y,
+            text,
+            *font_size,
+            font_family.as_deref(),
+            fill.as_deref(),
+            text_anchor.as_deref(),
+            *line_height,
+            runs,
+            transform,
+        ),
+    }
+}
+
+unsafe fn draw_gdiplus_polyline(
+    graphics: *mut GpGraphics,
+    points: &[CorePoint],
+    color: &str,
+    stroke_width: f64,
+    line_cap: Option<&str>,
+    line_join: Option<&str>,
+    transform: &PreviewTransform,
+    dash_array: &[f64],
+) -> bool {
+    if points.len() < 2 {
+        return true;
+    }
+    let Some(pen) = create_gdiplus_pen(
+        color,
+        transform.length(stroke_width) as f32,
+        line_cap,
+        line_join,
+        dash_array,
+        transform,
+    ) else {
+        return false;
+    };
+    let mapped: Vec<PointF> = points
+        .iter()
+        .map(|point| transform.gdip_point(*point))
+        .collect();
+    let ok = GdipDrawLines(graphics, pen, mapped.as_ptr(), mapped.len() as i32) == GDI_PLUS_OK;
+    GdipDeletePen(pen);
+    ok
+}
+
+unsafe fn draw_gdiplus_polygon(
+    graphics: *mut GpGraphics,
+    points: &[CorePoint],
+    fill: &str,
+    stroke: &str,
+    stroke_width: f64,
+    transform: &PreviewTransform,
+) -> bool {
+    if points.len() < 3 {
+        return true;
+    }
+    let mapped: Vec<PointF> = points
+        .iter()
+        .map(|point| transform.gdip_point(*point))
+        .collect();
+    let mut ok = true;
+    if let Some(brush) = create_gdiplus_solid_brush(fill) {
+        ok &= GdipFillPolygon(
+            graphics,
+            brush,
+            mapped.as_ptr(),
+            mapped.len() as i32,
+            FillModeAlternate,
+        ) == GDI_PLUS_OK;
+        GdipDeleteBrush(brush);
+    }
+    if stroke_width > 0.0 {
+        if let Some(pen) = create_gdiplus_pen(
+            stroke,
+            transform.length(stroke_width) as f32,
+            Some("butt"),
+            Some("miter"),
+            &[],
+            transform,
+        ) {
+            ok &=
+                GdipDrawPolygon(graphics, pen, mapped.as_ptr(), mapped.len() as i32) == GDI_PLUS_OK;
+            GdipDeletePen(pen);
+        }
+    }
+    ok
+}
+
+unsafe fn draw_gdiplus_rect(
+    graphics: *mut GpGraphics,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    fill: Option<&str>,
+    stroke: Option<&str>,
+    stroke_width: f64,
+    dash_array: &[f64],
+    transform: &PreviewTransform,
+) -> bool {
+    let p1 = transform.gdip_point(CorePoint { x, y });
+    let p2 = transform.gdip_point(CorePoint {
+        x: x + width,
+        y: y + height,
+    });
+    let left = p1.X.min(p2.X);
+    let top = p1.Y.min(p2.Y);
+    let w = (p1.X - p2.X).abs();
+    let h = (p1.Y - p2.Y).abs();
+    let mut ok = true;
+    if let Some(fill) = fill {
+        if let Some(brush) = create_gdiplus_solid_brush(fill) {
+            ok &= GdipFillRectangle(graphics, brush, left, top, w, h) == GDI_PLUS_OK;
+            GdipDeleteBrush(brush);
+        }
+    }
+    if let Some(stroke) = stroke {
+        if let Some(pen) = create_gdiplus_pen(
+            stroke,
+            transform.length(stroke_width) as f32,
+            Some("butt"),
+            Some("miter"),
+            dash_array,
+            transform,
+        ) {
+            ok &= GdipDrawRectangle(graphics, pen, left, top, w, h) == GDI_PLUS_OK;
+            GdipDeletePen(pen);
+        }
+    }
+    ok
+}
+
+unsafe fn draw_gdiplus_ellipse(
+    graphics: *mut GpGraphics,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    fill: Option<&str>,
+    stroke: Option<&str>,
+    stroke_width: f64,
+    dash_array: &[f64],
+    transform: &PreviewTransform,
+) -> bool {
+    let p1 = transform.gdip_point(CorePoint { x, y });
+    let p2 = transform.gdip_point(CorePoint {
+        x: x + width,
+        y: y + height,
+    });
+    let left = p1.X.min(p2.X);
+    let top = p1.Y.min(p2.Y);
+    let w = (p1.X - p2.X).abs();
+    let h = (p1.Y - p2.Y).abs();
+    let mut ok = true;
+    if let Some(fill) = fill {
+        if let Some(brush) = create_gdiplus_solid_brush(fill) {
+            ok &= GdipFillEllipse(graphics, brush, left, top, w, h) == GDI_PLUS_OK;
+            GdipDeleteBrush(brush);
+        }
+    }
+    if let Some(stroke) = stroke {
+        if let Some(pen) = create_gdiplus_pen(
+            stroke,
+            transform.length(stroke_width) as f32,
+            Some("round"),
+            Some("round"),
+            dash_array,
+            transform,
+        ) {
+            ok &= GdipDrawEllipse(graphics, pen, left, top, w, h) == GDI_PLUS_OK;
+            GdipDeletePen(pen);
+        }
+    }
+    ok
+}
+
+unsafe fn draw_gdiplus_path(
+    graphics: *mut GpGraphics,
+    d: &str,
+    fill: Option<&str>,
+    stroke: Option<&str>,
+    stroke_width: f64,
+    line_cap: Option<&str>,
+    line_join: Option<&str>,
+    transform: &PreviewTransform,
+    dash_array: &[f64],
+) -> bool {
+    let Some(commands) = parse_preview_path(d) else {
+        return false;
+    };
+    let Some(path) = create_gdiplus_path(&commands, transform) else {
+        return false;
+    };
+    let mut ok = true;
+    if let Some(fill) = fill {
+        if let Some(brush) = create_gdiplus_solid_brush(fill) {
+            ok &= GdipFillPath(graphics, brush, path) == GDI_PLUS_OK;
+            GdipDeleteBrush(brush);
+        }
+    }
+    if let Some(stroke) = stroke {
+        if let Some(pen) = create_gdiplus_pen(
+            stroke,
+            transform.length(stroke_width) as f32,
+            line_cap,
+            line_join,
+            dash_array,
+            transform,
+        ) {
+            ok &= GdipDrawPath(graphics, pen, path) == GDI_PLUS_OK;
+            GdipDeletePen(pen);
+        }
+    }
+    GdipDeletePath(path);
+    ok
+}
+
+unsafe fn create_gdiplus_path(
+    commands: &[PreviewPathCommand],
+    transform: &PreviewTransform,
+) -> Option<*mut GpPath> {
+    let mut path = null_mut();
+    if GdipCreatePath(FillModeAlternate, &mut path) != GDI_PLUS_OK || path.is_null() {
+        return None;
+    }
+    let mut current = None;
+    let mut ok = true;
+    for command in commands {
+        match *command {
+            PreviewPathCommand::Move(point) => {
+                if current.is_some() {
+                    ok &= GdipStartPathFigure(path) == GDI_PLUS_OK;
+                }
+                current = Some(point);
+            }
+            PreviewPathCommand::Line(point) => {
+                if let Some(from) = current {
+                    let p1 = transform.gdip_point(from);
+                    let p2 = transform.gdip_point(point);
+                    ok &= GdipAddPathLine(path, p1.X, p1.Y, p2.X, p2.Y) == GDI_PLUS_OK;
+                }
+                current = Some(point);
+            }
+            PreviewPathCommand::Cubic(c1, c2, to) => {
+                if let Some(from) = current {
+                    let p1 = transform.gdip_point(from);
+                    let p2 = transform.gdip_point(c1);
+                    let p3 = transform.gdip_point(c2);
+                    let p4 = transform.gdip_point(to);
+                    ok &= GdipAddPathBezier(path, p1.X, p1.Y, p2.X, p2.Y, p3.X, p3.Y, p4.X, p4.Y)
+                        == GDI_PLUS_OK;
+                }
+                current = Some(to);
+            }
+            PreviewPathCommand::Close => {
+                ok &= GdipClosePathFigure(path) == GDI_PLUS_OK;
+                current = None;
+            }
+        }
+    }
+    if ok {
+        Some(path)
+    } else {
+        GdipDeletePath(path);
+        None
+    }
+}
+
+unsafe fn create_gdiplus_pen(
+    color: &str,
+    width: f32,
+    line_cap: Option<&str>,
+    line_join: Option<&str>,
+    dash_array: &[f64],
+    transform: &PreviewTransform,
+) -> Option<*mut GpPen> {
+    let mut pen = null_mut();
+    if GdipCreatePen1(css_argb(color)?, width.max(1.0), UnitPixel, &mut pen) != GDI_PLUS_OK
+        || pen.is_null()
+    {
+        return None;
+    }
+    let cap = gdiplus_line_cap(line_cap);
+    GdipSetPenStartCap(pen, cap);
+    GdipSetPenEndCap(pen, cap);
+    GdipSetPenLineJoin(pen, gdiplus_line_join(line_join));
+    GdipSetPenMiterLimit(pen, PREVIEW_MITER_LIMIT);
+    if !dash_array.is_empty() {
+        let mut dash: Vec<f32> = dash_array
+            .iter()
+            .copied()
+            .filter(|value| value.is_finite() && *value > 0.0)
+            .map(|value| (transform.length(value) as f32 / width.max(1.0)).max(0.1))
+            .collect();
+        if dash.len() == 1 {
+            GdipSetPenDashStyle(pen, DashStyleDash);
+        } else if !dash.is_empty() {
+            if dash.len() % 2 == 1 {
+                dash.extend_from_within(..);
+            }
+            GdipSetPenDashArray(pen, dash.as_ptr(), dash.len() as i32);
+        }
+    }
+    Some(pen)
+}
+
+unsafe fn create_gdiplus_solid_brush(color: &str) -> Option<*mut GpBrush> {
+    let mut brush = null_mut();
+    if GdipCreateSolidFill(css_argb(color)?, &mut brush) == GDI_PLUS_OK && !brush.is_null() {
+        Some(brush as *mut GpBrush)
+    } else {
+        None
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+unsafe fn draw_gdiplus_text(
+    graphics: *mut GpGraphics,
+    x: f64,
+    y: f64,
+    text: &str,
+    font_size: f64,
+    font_family: Option<&str>,
+    fill: Option<&str>,
+    text_anchor: Option<&str>,
+    line_height: Option<f64>,
+    runs: &[chemcore_engine::LabelRun],
+    transform: &PreviewTransform,
+) -> bool {
+    let line_step_world = line_height.unwrap_or(font_size * 1.2).max(0.01);
+    let lines = preview_text_lines(text, runs);
+    let mut ok = true;
+    for (index, line_runs) in lines.iter().enumerate() {
+        if line_runs.is_empty() {
+            continue;
+        }
+        let origin = transform.gdip_point(CorePoint {
+            x,
+            y: y + index as f64 * line_step_world,
+        });
+        let width = preview_line_width_f32(line_runs, font_size, transform);
+        let mut cursor_x = match text_anchor {
+            Some("middle") => origin.X - width / 2.0,
+            Some("end") => origin.X - width,
+            _ => origin.X,
+        };
+        for run in line_runs {
+            let advance = preview_text_run_advance_estimate_f32(run, font_size, transform);
+            let dx = preview_script_dx_f32(run, font_size, transform);
+            ok &= draw_gdiplus_text_run(
+                graphics,
+                cursor_x + dx,
+                origin.Y,
+                advance,
+                run,
+                font_size,
+                font_family,
+                fill,
+                transform,
+            );
+            cursor_x += dx + advance;
+        }
+    }
+    ok
+}
+
+unsafe fn draw_gdiplus_text_run(
+    graphics: *mut GpGraphics,
+    x: f32,
+    baseline_y: f32,
+    advance: f32,
+    run: &PreviewTextRun,
+    fallback_font_size: f64,
+    fallback_family: Option<&str>,
+    fallback_fill: Option<&str>,
+    transform: &PreviewTransform,
+) -> bool {
+    if run.text.is_empty() {
+        return true;
+    }
+    let Some(font) = create_gdiplus_font(run, fallback_font_size, fallback_family) else {
+        return false;
+    };
+    let fill = run.fill.as_deref().or(fallback_fill).unwrap_or("#000000");
+    let Some(brush) = create_gdiplus_solid_brush(fill) else {
+        GdipDeleteFont(font);
+        return false;
+    };
+    let Some(format) = create_gdiplus_string_format() else {
+        GdipDeleteBrush(brush);
+        GdipDeleteFont(font);
+        return false;
+    };
+    let script_scale = preview_script_scale(run.script.as_deref());
+    let font_px = (run.font_size.unwrap_or(fallback_font_size) * script_scale * transform.scale)
+        .max(1.0) as f32;
+    let top = baseline_y - (font_px * 0.86)
+        + preview_script_baseline_shift_f32(run, fallback_font_size, transform);
+    let rect = RectF {
+        X: x,
+        Y: top,
+        Width: (advance * 1.8).max(font_px * 0.5),
+        Height: (font_px * 1.45).max(1.0),
+    };
+    let wide: Vec<u16> = run.text.encode_utf16().collect();
+    let ok = GdipDrawString(
+        graphics,
+        wide.as_ptr(),
+        wide.len() as i32,
+        font,
+        &rect,
+        format,
+        brush,
+    ) == GDI_PLUS_OK;
+    GdipDeleteStringFormat(format);
+    GdipDeleteBrush(brush);
+    GdipDeleteFont(font);
+    ok
+}
+
+unsafe fn create_gdiplus_font(
+    run: &PreviewTextRun,
+    fallback_font_size: f64,
+    fallback_family: Option<&str>,
+) -> Option<*mut GpFont> {
+    let family_name = run
+        .font_family
+        .as_deref()
+        .or(fallback_family)
+        .unwrap_or("Arial");
+    let wide_family = wide_null(family_name);
+    let mut family: *mut GpFontFamily = null_mut();
+    if GdipCreateFontFamilyFromName(wide_family.as_ptr(), null_mut(), &mut family) != GDI_PLUS_OK
+        || family.is_null()
+    {
+        return None;
+    }
+    let mut style = FontStyleRegular;
+    if run.font_weight.unwrap_or(400) >= 600 {
+        style |= FontStyleBold;
+    }
+    if run.font_style.as_deref() == Some("italic") {
+        style |= FontStyleItalic;
+    }
+    if run.underline.unwrap_or(false) {
+        style |= FontStyleUnderline;
+    }
+    let script_scale = preview_script_scale(run.script.as_deref());
+    let em_size = (run.font_size.unwrap_or(fallback_font_size) * script_scale).max(0.1) as f32;
+    let mut font: *mut GpFont = null_mut();
+    let ok = GdipCreateFont(family, em_size, style, UnitPixel, &mut font) == GDI_PLUS_OK
+        && !font.is_null();
+    GdipDeleteFontFamily(family);
+    ok.then_some(font)
+}
+
+unsafe fn create_gdiplus_string_format() -> Option<*mut GpStringFormat> {
+    let mut format: *mut GpStringFormat = null_mut();
+    if GdipCreateStringFormat(0, 0, &mut format) != GDI_PLUS_OK || format.is_null() {
+        return None;
+    }
+    GdipSetStringFormatAlign(format, StringAlignmentNear);
+    GdipSetStringFormatLineAlign(format, StringAlignmentNear);
+    Some(format)
+}
+
+fn gdiplus_line_cap(line_cap: Option<&str>) -> i32 {
+    match line_cap {
+        Some("round") => LineCapRound,
+        Some("square") => LineCapSquare,
+        _ => LineCapFlat,
+    }
+}
+
+fn gdiplus_line_join(line_join: Option<&str>) -> i32 {
+    match line_join {
+        Some("round") => LineJoinRound,
+        Some("bevel") => LineJoinBevel,
+        _ => LineJoinMiter,
+    }
+}
+
+fn css_argb(value: &str) -> Option<u32> {
+    let value = value.trim();
+    if value.eq_ignore_ascii_case("none") {
+        return None;
+    }
+    if let Some(hex) = value.strip_prefix('#') {
+        if hex.len() != 6 {
+            return None;
+        }
+        let rgb = u32::from_str_radix(hex, 16).ok()?;
+        return Some(0xff000000 | rgb);
+    }
+    if let Some((r, g, b, alpha)) = parse_css_rgba(value) {
+        let a = (alpha * 255.0).round().clamp(0.0, 255.0) as u32;
+        return Some((a << 24) | (r << 16) | (g << 8) | b);
+    }
+    None
+}
+
 #[allow(clippy::too_many_arguments)]
 unsafe fn draw_preview_text(
     dc: HDC,
@@ -679,16 +1504,18 @@ unsafe fn draw_preview_text(
             continue;
         }
         let origin = transform.xy(x, y + index as f64 * line_step_world);
-        let width = preview_line_width(line_runs, font_size, transform);
+        let width =
+            preview_line_width_measured(dc, line_runs, font_size, font_family, transform, cache);
         let mut cursor_x = match text_anchor {
             Some("middle") => origin.x - width / 2,
             Some("end") => origin.x - width,
             _ => origin.x,
         };
         for run in line_runs {
-            cursor_x += draw_preview_text_run(
+            let dx = preview_script_dx(run, font_size, transform);
+            let advance = draw_preview_text_run(
                 dc,
-                cursor_x,
+                cursor_x + dx,
                 origin.y,
                 run,
                 font_size,
@@ -696,6 +1523,7 @@ unsafe fn draw_preview_text(
                 transform,
                 cache,
             );
+            cursor_x += dx + advance;
         }
     }
 
@@ -812,13 +1640,35 @@ fn preview_text_lines(text: &str, runs: &[chemcore_engine::LabelRun]) -> Vec<Vec
     lines
 }
 
-fn preview_line_width(
+unsafe fn preview_line_width_measured(
+    dc: HDC,
+    runs: &[PreviewTextRun],
+    fallback_font_size: f64,
+    fallback_family: Option<&str>,
+    transform: &PreviewTransform,
+    cache: &mut PreviewGdiCache,
+) -> i32 {
+    runs.iter()
+        .map(|run| {
+            preview_text_run_extent(
+                dc,
+                run,
+                fallback_font_size,
+                fallback_family,
+                transform,
+                cache,
+            )
+        })
+        .sum()
+}
+
+fn preview_line_width_f32(
     runs: &[PreviewTextRun],
     fallback_font_size: f64,
     transform: &PreviewTransform,
-) -> i32 {
+) -> f32 {
     runs.iter()
-        .map(|run| preview_text_run_advance_estimate(run, fallback_font_size, transform))
+        .map(|run| preview_text_run_advance_estimate_f32(run, fallback_font_size, transform))
         .sum()
 }
 
@@ -837,11 +1687,7 @@ unsafe fn draw_preview_text_run(
         return 0;
     }
     let font = cache.font_for_run(run, fallback_font_size, fallback_family, transform);
-    let old_font = if font.is_null() {
-        null_mut()
-    } else {
-        SelectObject(dc, font as HGDIOBJ)
-    };
+    let old_font = select_preview_font(dc, font);
     let text_color = run
         .fill
         .as_deref()
@@ -858,12 +1704,42 @@ unsafe fn draw_preview_text_run(
     );
     let advance = preview_text_extent(dc, &label)
         .unwrap_or_else(|| preview_text_run_advance_estimate(run, fallback_font_size, transform));
-    if !font.is_null() {
-        if !old_font.is_null() {
-            SelectObject(dc, old_font);
-        }
-    }
+    restore_preview_font(dc, old_font);
     advance
+}
+
+unsafe fn preview_text_run_extent(
+    dc: HDC,
+    run: &PreviewTextRun,
+    fallback_font_size: f64,
+    fallback_family: Option<&str>,
+    transform: &PreviewTransform,
+    cache: &mut PreviewGdiCache,
+) -> i32 {
+    let label: Vec<u16> = run.text.encode_utf16().collect();
+    if label.is_empty() {
+        return 0;
+    }
+    let font = cache.font_for_run(run, fallback_font_size, fallback_family, transform);
+    let old_font = select_preview_font(dc, font);
+    let advance = preview_text_extent(dc, &label)
+        .unwrap_or_else(|| preview_text_run_advance_estimate(run, fallback_font_size, transform));
+    restore_preview_font(dc, old_font);
+    advance
+}
+
+unsafe fn select_preview_font(dc: HDC, font: HGDIOBJ) -> HGDIOBJ {
+    if font.is_null() {
+        null_mut()
+    } else {
+        SelectObject(dc, font as HGDIOBJ)
+    }
+}
+
+unsafe fn restore_preview_font(dc: HDC, old_font: HGDIOBJ) {
+    if !old_font.is_null() {
+        SelectObject(dc, old_font);
+    }
 }
 
 unsafe fn preview_text_extent(dc: HDC, label: &[u16]) -> Option<i32> {
@@ -888,6 +1764,21 @@ fn preview_text_run_advance_estimate(
         .map(|character| preview_char_advance_em(character) * font_size)
         .sum();
     (world_width * transform.scale).round().max(0.0) as i32
+}
+
+fn preview_text_run_advance_estimate_f32(
+    run: &PreviewTextRun,
+    fallback_font_size: f64,
+    transform: &PreviewTransform,
+) -> f32 {
+    let script_scale = preview_script_scale(run.script.as_deref());
+    let font_size = run.font_size.unwrap_or(fallback_font_size) * script_scale;
+    let world_width: f64 = run
+        .text
+        .chars()
+        .map(|character| preview_char_advance_em(character) * font_size)
+        .sum();
+    (world_width * transform.scale).max(0.0) as f32
 }
 
 fn preview_font_key(
@@ -939,15 +1830,59 @@ fn preview_script_baseline_shift(
 ) -> i32 {
     let base_height = transform.length(run.font_size.unwrap_or(fallback_font_size));
     match run.script.as_deref() {
-        Some("subscript") => (base_height as f64 * 0.22).round() as i32,
-        Some("superscript") => -(base_height as f64 * 0.38).round() as i32,
+        Some("subscript") => (base_height as f64 * 0.30).round() as i32,
+        Some("superscript") => -(base_height as f64 * 0.28).round() as i32,
         _ => 0,
     }
 }
 
+fn preview_script_baseline_shift_f32(
+    run: &PreviewTextRun,
+    fallback_font_size: f64,
+    transform: &PreviewTransform,
+) -> f32 {
+    let base_height = run.font_size.unwrap_or(fallback_font_size) * transform.scale;
+    match run.script.as_deref() {
+        Some("subscript") => (base_height * 0.22) as f32,
+        Some("superscript") => -(base_height * 0.38) as f32,
+        _ => 0.0,
+    }
+}
+
+fn preview_script_dx(
+    run: &PreviewTextRun,
+    fallback_font_size: f64,
+    transform: &PreviewTransform,
+) -> i32 {
+    preview_script_dx_f64(run, fallback_font_size, transform)
+        .round()
+        .clamp(i32::MIN as f64, i32::MAX as f64) as i32
+}
+
+fn preview_script_dx_f32(
+    run: &PreviewTextRun,
+    fallback_font_size: f64,
+    transform: &PreviewTransform,
+) -> f32 {
+    preview_script_dx_f64(run, fallback_font_size, transform) as f32
+}
+
+fn preview_script_dx_f64(
+    run: &PreviewTextRun,
+    fallback_font_size: f64,
+    transform: &PreviewTransform,
+) -> f64 {
+    if run.script.as_deref() != Some("superscript") {
+        return 0.0;
+    }
+    let font_size =
+        run.font_size.unwrap_or(fallback_font_size) * preview_script_scale(run.script.as_deref());
+    -0.02 * font_size * transform.scale * transform.record_scale
+}
+
 fn preview_script_scale(script: Option<&str>) -> f64 {
     match script {
-        Some("subscript" | "superscript") => 0.7,
+        Some("subscript" | "superscript") => 0.78,
         _ => 1.0,
     }
 }

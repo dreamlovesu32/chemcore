@@ -44,8 +44,11 @@ mod renderer;
 
 use renderer::{
     draw_payload_emf_vector_preview_with_source_bounds, draw_payload_vector_preview,
-    office_preview_primitive_visible,
+    office_preview_primitive_visible, payload_contains_text,
 };
+
+const CHEMDRAW_HIMETRIC_PER_SVG_PX: f64 = 2540.0 / 240.0;
+const CHEMDRAW_EMF_LOGICAL_UNITS_PER_SVG_PX: f64 = 1.0;
 
 pub(super) unsafe fn draw_payload_preview(
     dc: HDC,
@@ -61,6 +64,15 @@ pub(super) unsafe fn draw_placeholder_preview(dc: HDC, bounds: &RECT) {
 
 pub(super) fn extent_himetric_for_payload(payload: &OleObjectPayload) -> Option<SIZE> {
     let bounds = visible_payload_bounds(payload)?;
+    if payload_uses_cdxml_editing_scale(payload) {
+        let cx = ((bounds[2] - bounds[0]).max(0.0) * CHEMDRAW_HIMETRIC_PER_SVG_PX)
+            .round()
+            .clamp(MIN_OBJECT_EXTENT_HIMETRIC as f64, i32::MAX as f64) as i32;
+        let cy = ((bounds[3] - bounds[1]).max(0.0) * CHEMDRAW_HIMETRIC_PER_SVG_PX)
+            .round()
+            .clamp(MIN_OBJECT_EXTENT_HIMETRIC as f64, i32::MAX as f64) as i32;
+        return Some(SIZE { cx, cy });
+    }
     let width_cm = (bounds[2] - bounds[0]).max(0.0) / PT_PER_CM;
     let height_cm = (bounds[3] - bounds[1]).max(0.0) / PT_PER_CM;
     if !width_cm.is_finite() || !height_cm.is_finite() || width_cm <= 0.0 || height_cm <= 0.0 {
@@ -81,17 +93,110 @@ pub(super) fn extent_himetric_for_payload(payload: &OleObjectPayload) -> Option<
     Some(SIZE { cx, cy })
 }
 
+fn payload_uses_cdxml_editing_scale(payload: &OleObjectPayload) -> bool {
+    parse_document_json(&payload.chemcore_document_json)
+        .ok()
+        .and_then(|document| {
+            document
+                .document
+                .meta
+                .pointer("/import/cdxml/editingScale")
+                .and_then(serde_json::Value::as_f64)
+                .filter(|scale| (*scale - 1.0).abs() > f64::EPSILON)
+        })
+        .is_some()
+}
+
 fn visible_payload_bounds(payload: &OleObjectPayload) -> Option<[f64; 4]> {
-    if let Some(bounds) = svg_viewbox_bounds(&payload.svg) {
-        return Some(bounds);
+    if let Some(primitives) = payload_render_primitives(payload) {
+        let primitive_bounds = render_primitives_bounds(
+            primitives
+                .iter()
+                .filter(|primitive| office_preview_primitive_visible(primitive)),
+        );
+        if let Ok(document) = parse_document_json(&payload.chemcore_document_json) {
+            let clipboard_bounds = clipboard_selection_bounds(&document.document.meta);
+            match (clipboard_bounds, primitive_bounds) {
+                (Some(selection), Some(primitives)) => {
+                    return Some(union_bounds(selection, primitives));
+                }
+                (Some(selection), None) => return Some(selection),
+                (None, Some(primitives)) => return Some(primitives),
+                (None, None) => {}
+            }
+        } else if let Some(bounds) = primitive_bounds {
+            return Some(bounds);
+        }
+    } else if let Ok(document) = parse_document_json(&payload.chemcore_document_json) {
+        let clipboard_bounds = clipboard_selection_bounds(&document.document.meta);
+        let primitives = render_document(&document);
+        let primitive_bounds = render_primitives_bounds(
+            primitives
+                .iter()
+                .filter(|primitive| office_preview_primitive_visible(primitive)),
+        );
+        match (clipboard_bounds, primitive_bounds) {
+            (Some(selection), Some(primitives)) => {
+                return Some(union_bounds(selection, primitives))
+            }
+            (Some(selection), None) => return Some(selection),
+            (None, Some(primitives)) => return Some(primitives),
+            (None, None) => {}
+        }
     }
-    let document = parse_document_json(&payload.chemcore_document_json).ok()?;
-    let primitives = render_document(&document);
-    render_primitives_bounds(
-        primitives
-            .iter()
-            .filter(|primitive| office_preview_primitive_visible(primitive)),
-    )
+    svg_viewbox_bounds(&payload.svg)
+}
+
+fn payload_render_primitives(payload: &OleObjectPayload) -> Option<Vec<RenderPrimitive>> {
+    payload
+        .render_list_json
+        .as_deref()
+        .and_then(|json| serde_json::from_str::<Vec<RenderPrimitive>>(json).ok())
+        .filter(|primitives| !primitives.is_empty())
+}
+
+fn clipboard_selection_bounds(meta: &serde_json::Value) -> Option<[f64; 4]> {
+    let value = meta.pointer("/clipboard/selectionBounds")?;
+    if let Some(array) = value.as_array() {
+        if array.len() == 4 {
+            return valid_bounds([
+                array[0].as_f64()?,
+                array[1].as_f64()?,
+                array[2].as_f64()?,
+                array[3].as_f64()?,
+            ]);
+        }
+    }
+    valid_bounds([
+        value.get("minX")?.as_f64()?,
+        value.get("minY")?.as_f64()?,
+        value.get("maxX")?.as_f64()?,
+        value.get("maxY")?.as_f64()?,
+    ])
+}
+
+fn valid_bounds(bounds: [f64; 4]) -> Option<[f64; 4]> {
+    let [min_x, min_y, max_x, max_y] = bounds;
+    if min_x.is_finite()
+        && min_y.is_finite()
+        && max_x.is_finite()
+        && max_y.is_finite()
+        && max_x > min_x
+        && max_y > min_y
+    {
+        Some(bounds)
+    } else {
+        None
+    }
+}
+
+fn union_bounds(a: [f64; 4], b: [f64; 4]) -> [f64; 4] {
+    [
+        a[0].min(b[0]),
+        a[1].min(b[1]),
+        a[2].max(b[2]),
+        a[3].max(b[3]),
+    ]
 }
 
 fn svg_viewbox_bounds(svg: &str) -> Option<[f64; 4]> {
@@ -194,11 +299,12 @@ pub(super) fn enhanced_metafile_for_payload(
     extent: SIZE,
 ) -> Result<*mut c_void, i32> {
     unsafe {
+        let use_chemdraw_units = payload_uses_cdxml_editing_scale(payload);
         let (frame_bounds, draw_bounds, source_bounds, use_logical_preview_coords) =
             if let Some(primitive_bounds) = visible_payload_bounds(payload) {
                 (
-                    office_preview_frame_bounds(primitive_bounds),
-                    office_preview_logical_bounds(primitive_bounds),
+                    office_preview_frame_bounds(primitive_bounds, use_chemdraw_units),
+                    office_preview_logical_bounds(primitive_bounds, use_chemdraw_units),
                     Some(primitive_bounds),
                     true,
                 )
@@ -211,6 +317,16 @@ pub(super) fn enhanced_metafile_for_payload(
                 };
                 (bounds, bounds, None, false)
             };
+        if use_logical_preview_coords && !payload_contains_text(payload) {
+            if let Some(metafile) = renderer::enhanced_metafile_gdiplus_dual_preview(
+                &frame_bounds,
+                &draw_bounds,
+                payload,
+                source_bounds,
+            ) {
+                return Ok(metafile);
+            }
+        }
         let dc = CreateEnhMetaFileW(0 as HDC, null(), &frame_bounds, null());
         if dc.is_null() {
             return Err(E_FAIL);
@@ -236,30 +352,36 @@ pub(super) fn enhanced_metafile_for_payload(
     }
 }
 
-fn office_preview_frame_bounds(bounds: [f64; 4]) -> RECT {
+fn office_preview_frame_bounds(bounds: [f64; 4], use_chemdraw_units: bool) -> RECT {
+    let scale = if use_chemdraw_units {
+        CHEMDRAW_HIMETRIC_PER_SVG_PX
+    } else {
+        HIMETRIC_PER_CSS_PX
+    };
     RECT {
-        left: css_px_to_himetric(bounds[0]),
-        top: css_px_to_himetric(bounds[1]),
-        right: css_px_to_himetric(bounds[2]).max(css_px_to_himetric(bounds[0]) + 1),
-        bottom: css_px_to_himetric(bounds[3]).max(css_px_to_himetric(bounds[1]) + 1),
+        left: scaled_to_i32(bounds[0], scale),
+        top: scaled_to_i32(bounds[1], scale),
+        right: scaled_to_i32(bounds[2], scale).max(scaled_to_i32(bounds[0], scale) + 1),
+        bottom: scaled_to_i32(bounds[3], scale).max(scaled_to_i32(bounds[1], scale) + 1),
     }
 }
 
-fn office_preview_logical_bounds(bounds: [f64; 4]) -> RECT {
+fn office_preview_logical_bounds(bounds: [f64; 4], use_chemdraw_units: bool) -> RECT {
+    let scale = if use_chemdraw_units {
+        CHEMDRAW_EMF_LOGICAL_UNITS_PER_SVG_PX
+    } else {
+        EMF_LOGICAL_UNITS_PER_CSS_PX
+    };
     RECT {
-        left: css_px_to_emf_logical(bounds[0]),
-        top: css_px_to_emf_logical(bounds[1]),
-        right: css_px_to_emf_logical(bounds[2]).max(css_px_to_emf_logical(bounds[0]) + 1),
-        bottom: css_px_to_emf_logical(bounds[3]).max(css_px_to_emf_logical(bounds[1]) + 1),
+        left: scaled_to_i32(bounds[0], scale),
+        top: scaled_to_i32(bounds[1], scale),
+        right: scaled_to_i32(bounds[2], scale).max(scaled_to_i32(bounds[0], scale) + 1),
+        bottom: scaled_to_i32(bounds[3], scale).max(scaled_to_i32(bounds[1], scale) + 1),
     }
 }
 
-fn css_px_to_himetric(value: f64) -> i32 {
-    (value * HIMETRIC_PER_CSS_PX).round() as i32
-}
-
-fn css_px_to_emf_logical(value: f64) -> i32 {
-    (value * EMF_LOGICAL_UNITS_PER_CSS_PX).round() as i32
+fn scaled_to_i32(value: f64, scale: f64) -> i32 {
+    (value * scale).round() as i32
 }
 
 pub(super) fn ole_presentation_stream_for_payload(

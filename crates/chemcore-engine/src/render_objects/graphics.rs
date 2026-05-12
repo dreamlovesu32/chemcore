@@ -18,7 +18,7 @@ pub(crate) fn render_shape_object(
 
 pub(crate) fn render_bracket_object(
     out: &mut Vec<RenderPrimitive>,
-    _document: &ChemcoreDocument,
+    document: &ChemcoreDocument,
     object: &SceneObject,
 ) {
     let Some([x, y, width, height]) = object.payload.bbox else {
@@ -31,10 +31,11 @@ pub(crate) fn render_bracket_object(
     let ty = object.transform.translate[1] + y;
     let rotate = object.transform.rotate;
     let rotate_center = Point::new(tx + width * 0.5, ty + height * 0.5);
-    let bounds = rotated_rect_points_around(tx, ty, width, height, rotate_center, rotate);
-    let transform_center = (rotate.abs() > crate::EPSILON).then_some(rotate_center);
     let kind = payload_string(&object.payload, "kind").unwrap_or_else(|| "round".to_string());
+    let bounds = bracket_path_bounds(tx, ty, width, height, &kind, rotate_center, rotate);
+    let transform_center = (rotate.abs() > crate::EPSILON).then_some(rotate_center);
     if object.object_type == "symbol" {
+        let symbol_layout_scale = cdxml_editing_scale(document).unwrap_or(1.0);
         render_symbol_object_geometry(
             out,
             object,
@@ -46,6 +47,7 @@ pub(crate) fn render_bracket_object(
             bounds,
             rotate,
             transform_center,
+            symbol_layout_scale,
         );
         return;
     }
@@ -145,20 +147,35 @@ fn bracket_pair_path_d(x: f64, y: f64, width: f64, height: f64, kind: &str) -> S
             )
         }
         _ => {
-            let depth = round_bracket_depth(width, height);
             format!(
                 "M {},{} A {height},{height} 0 0 0 {},{} M {},{} A {height},{height} 0 0 0 {},{}",
-                x + depth,
-                y,
-                x + depth,
-                bottom,
-                right - depth,
-                bottom,
-                right - depth,
-                y
+                x, y, x, bottom, right, bottom, right, y
             )
         }
     }
+}
+
+fn bracket_path_bounds(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    kind: &str,
+    rotate_center: Point,
+    rotate: f64,
+) -> Vec<Point> {
+    if kind == "round" {
+        let depth = round_bracket_depth(width, height);
+        return rotated_rect_points_around(
+            x - depth,
+            y,
+            width + depth * 2.0,
+            height,
+            rotate_center,
+            rotate,
+        );
+    }
+    rotated_rect_points_around(x, y, width, height, rotate_center, rotate)
 }
 
 fn square_bracket_lip(width: f64, height: f64) -> f64 {
@@ -175,8 +192,24 @@ fn curly_bracket_depth(width: f64, height: f64) -> f64 {
     (height * 0.14423).min(width * 0.24).max(0.0)
 }
 
-fn bracket_symbol_path_d(x: f64, y: f64, width: f64, height: f64, kind: &str) -> String {
-    let thick = 1.6_f64.min(width * 0.35).min(height * 0.18);
+fn cdxml_editing_scale(document: &ChemcoreDocument) -> Option<f64> {
+    document
+        .document
+        .meta
+        .pointer("/import/cdxml/editingScale")
+        .and_then(JsonValue::as_f64)
+        .filter(|value| value.is_finite() && *value > 0.0)
+}
+
+fn bracket_symbol_path_d(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    kind: &str,
+    thick: f64,
+) -> String {
+    let thick = thick.min(width * 0.35).min(height * 0.18);
     let cx = x + width * 0.5;
     let vertical = rect_path_d(cx - thick * 0.5, y, thick, height);
     let top_bar = rect_path_d(x, y + height * 0.28 - thick * 0.5, width, thick);
@@ -199,6 +232,7 @@ fn render_symbol_object_geometry(
     bounds: Vec<Point>,
     rotate: f64,
     rotate_center: Option<Point>,
+    layout_scale: f64,
 ) {
     let fill = payload_string(&object.payload, "fill").unwrap_or_else(|| "#000000".to_string());
     let stroke_width = payload_number(&object.payload, "strokeWidth").unwrap_or(px_to_cm(1.0));
@@ -207,6 +241,7 @@ fn render_symbol_object_geometry(
         .map(|style| crate::cdxml_symbol_style_from_name(&style))
         .unwrap_or(crate::CdxmlSymbolStyle::Default);
     let layout = charge_symbol_layout(symbol_style);
+    let layout = layout.scaled(layout_scale);
     match kind {
         "circle-plus" | "circle-minus" => {
             let center = Point::new(x + width * 0.5, y + height * 0.5);
@@ -347,7 +382,7 @@ fn render_symbol_object_geometry(
         _ => push_symbol_filled_path(
             out,
             object_id,
-            bracket_symbol_path_d(x, y, width, height, kind),
+            bracket_symbol_path_d(x, y, width, height, kind, layout.sign_thickness),
             bounds,
             rotate,
             rotate_center,
@@ -390,6 +425,21 @@ fn charge_symbol_layout(style: crate::CdxmlSymbolStyle) -> ChargeSymbolLayout {
             lone_pair_gap: 1.0,
             electron_diameter: 1.6665,
         },
+    }
+}
+
+impl ChargeSymbolLayout {
+    fn scaled(self, factor: f64) -> Self {
+        Self {
+            circle_sign_size: self.circle_sign_size * factor,
+            circle_sign_offset: self.circle_sign_offset * factor,
+            radical_sign_size: self.radical_sign_size * factor,
+            sign_thickness: self.sign_thickness * factor,
+            dot_diameter: self.dot_diameter * factor,
+            radical_gap: self.radical_gap * factor,
+            lone_pair_gap: self.lone_pair_gap * factor,
+            electron_diameter: self.electron_diameter * factor,
+        }
     }
 }
 

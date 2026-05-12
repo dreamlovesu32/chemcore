@@ -46,14 +46,13 @@ fn hollow_arrow_outline_points(
     let shaft_half_width = arrow_head.center_length.max(arrow_head.length) * 0.5;
     let head_length = arrow_head.length.min(length * 0.45);
     let head_half_width = hollow_open_arrow_head_half_width(shaft_half_width, arrow_head);
-    let neck_offset = (head_length * 0.5).min(length * 0.3);
     let start_neck = if has_tail {
-        start.translated(unit.scaled(neck_offset))
+        start.translated(unit.scaled(head_length))
     } else {
         start
     };
     let end_neck = if has_head {
-        end.translated(unit.scaled(-neck_offset))
+        end.translated(unit.scaled(-head_length))
     } else {
         end
     };
@@ -313,7 +312,11 @@ fn render_curved_solid_arrow_line(
     if points.len() < 2 {
         return;
     }
-    let line_width = if arrow_head.bold { 4.0 } else { stroke_width };
+    let line_width = if arrow_head.bold {
+        stroke_width.max(4.0)
+    } else {
+        stroke_width
+    };
     let start_trim = arrow_endpoint_shaft_trim(tail_style, arrow_head);
     let end_trim = arrow_endpoint_shaft_trim(head_style, arrow_head);
     if let Some(path) = curved_arrow_path(start, arrow_head.curve, arrow_arc, start_trim, end_trim)
@@ -594,7 +597,11 @@ fn render_solid_arrow_line(
     let Some((unit, _normal, length)) = arrow_axis(start, end) else {
         return;
     };
-    let line_width = if arrow_head.bold { 4.0 } else { stroke_width };
+    let line_width = if arrow_head.bold {
+        stroke_width.max(4.0)
+    } else {
+        stroke_width
+    };
     let start_shaft = start.translated(
         unit.scaled(arrow_endpoint_shaft_trim(tail_style, arrow_head).min(length * 0.45)),
     );
@@ -921,7 +928,11 @@ fn render_hollow_arrow_line(
         points,
         "none",
         stroke,
-        if arrow_head.bold { 2.0 } else { stroke_width },
+        if arrow_head.bold {
+            stroke_width.max(2.0)
+        } else {
+            stroke_width
+        },
         RenderRole::DocumentGraphic,
         object_id,
     );
@@ -945,7 +956,11 @@ fn render_open_arrow_line(
     let Some((unit, normal, length)) = arrow_axis(start, end) else {
         return;
     };
-    let line_width = if arrow_head.bold { 2.0 } else { stroke_width };
+    let line_width = if arrow_head.bold {
+        stroke_width.max(2.0)
+    } else {
+        stroke_width
+    };
     let shaft_half_width = open_arrow_shaft_half_width(arrow_head);
     let head_length = arrow_head.length.min(length * 0.45);
     let neck_offset = (head_length * 0.5).min(length * 0.3);

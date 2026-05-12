@@ -102,6 +102,8 @@ pub(crate) fn render_text_object(
         return;
     };
     if preserve_lines {
+        let baseline_offset =
+            payload_number(&object.payload, "baselineOffset").unwrap_or(font_size * 0.82);
         let runs = payload_runs(&object.payload, "runs");
         if !runs.is_empty() {
             for (index, line_runs) in split_runs_by_line(&runs).into_iter().enumerate() {
@@ -111,7 +113,7 @@ pub(crate) fn render_text_object(
                 push_text_rotated(
                     out,
                     tx,
-                    ty + font_size * 0.82 + index as f64 * line_height,
+                    ty + baseline_offset + index as f64 * line_height,
                     String::new(),
                     font_size,
                     font_family.clone(),
@@ -133,7 +135,7 @@ pub(crate) fn render_text_object(
             push_text_rotated(
                 out,
                 tx,
-                ty + font_size * 0.82 + index as f64 * line_height,
+                ty + baseline_offset + index as f64 * line_height,
                 line,
                 font_size,
                 font_family.clone(),

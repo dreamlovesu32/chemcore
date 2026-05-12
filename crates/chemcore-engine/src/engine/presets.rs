@@ -810,6 +810,22 @@ pub(super) fn editor_options_from_imported_cdxml_document(
     {
         options.label_clip_margin = acs.label_clip_margin;
     }
+    let editing_scale = document
+        .document
+        .meta
+        .pointer("/import/cdxml/editingScale")
+        .and_then(JsonValue::as_f64)
+        .unwrap_or(1.0);
+    if (editing_scale - 1.0).abs() > crate::EPSILON {
+        options.bond_length *= editing_scale;
+        options.bond_stroke_width *= editing_scale;
+        options.bold_bond_width *= editing_scale;
+        options.wedge_width *= editing_scale;
+        options.label_clip_margin *= editing_scale;
+        options.hash_spacing *= editing_scale;
+        options.margin_width *= editing_scale;
+        options.graphic_stroke_width *= editing_scale;
+    }
     options
 }
 

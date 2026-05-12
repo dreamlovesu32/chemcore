@@ -18,6 +18,7 @@ const RECORD_NAMES = new Map([
   [17, "EMR_SETMAPMODE"],
   [18, "EMR_SETBKMODE"],
   [19, "EMR_SETPOLYFILLMODE"],
+  [21, "EMR_SETSTRETCHBLTMODE"],
   [22, "EMR_SETTEXTALIGN"],
   [24, "EMR_SETTEXTCOLOR"],
   [25, "EMR_SETBKCOLOR"],
@@ -68,6 +69,45 @@ const RECORD_NAMES = new Map([
   [116, "EMR_TRANSPARENTBLT"],
   [118, "EMR_GRADIENTFILL"],
   [120, "EMR_SETTEXTJUSTIFICATION"],
+]);
+
+const EMFPLUS_COMMENT_IDENTIFIER = 0x2b464d45;
+
+const EMFPLUS_RECORD_NAMES = new Map([
+  [0x4001, "EmfPlusHeader"],
+  [0x4002, "EmfPlusEndOfFile"],
+  [0x4003, "EmfPlusComment"],
+  [0x4004, "EmfPlusGetDC"],
+  [0x4008, "EmfPlusObject"],
+  [0x4009, "EmfPlusClear"],
+  [0x400a, "EmfPlusFillRects"],
+  [0x400b, "EmfPlusDrawRects"],
+  [0x400c, "EmfPlusFillPolygon"],
+  [0x400d, "EmfPlusDrawLines"],
+  [0x400e, "EmfPlusFillEllipse"],
+  [0x400f, "EmfPlusDrawEllipse"],
+  [0x4014, "EmfPlusFillPath"],
+  [0x4015, "EmfPlusDrawPath"],
+  [0x4019, "EmfPlusDrawBeziers"],
+  [0x401c, "EmfPlusDrawString"],
+  [0x401d, "EmfPlusSetRenderingOrigin"],
+  [0x401e, "EmfPlusSetAntiAliasMode"],
+  [0x401f, "EmfPlusSetTextRenderingHint"],
+  [0x4021, "EmfPlusSetInterpolationMode"],
+  [0x4022, "EmfPlusSetPixelOffsetMode"],
+  [0x4024, "EmfPlusSetCompositingQuality"],
+  [0x4025, "EmfPlusSave"],
+  [0x4026, "EmfPlusRestore"],
+  [0x402a, "EmfPlusSetWorldTransform"],
+  [0x402c, "EmfPlusMultiplyWorldTransform"],
+  [0x402d, "EmfPlusTranslateWorldTransform"],
+  [0x402e, "EmfPlusScaleWorldTransform"],
+  [0x402f, "EmfPlusRotateWorldTransform"],
+  [0x4030, "EmfPlusSetPageTransform"],
+  [0x4031, "EmfPlusResetClip"],
+  [0x4032, "EmfPlusSetClipRect"],
+  [0x4033, "EmfPlusSetClipPath"],
+  [0x4037, "EmfPlusStrokeFillPath"],
 ]);
 
 function u32(buffer, offset) {
@@ -139,6 +179,30 @@ function readText(buffer, recordOffset, recordSize, emrTextOffset, wide) {
     hasDx: offDx !== 0,
     text,
   };
+}
+
+function decodeGdiComment(buffer, offset, size) {
+  const dataSize = u32(buffer, offset + 8) ?? 0;
+  const identifier = u32(buffer, offset + 12);
+  const identifierText =
+    offset + 16 <= buffer.length ? buffer.toString("latin1", offset + 12, offset + 16) : "";
+  const comment = { dataSize, identifier, identifierText };
+  if (identifier === EMFPLUS_COMMENT_IDENTIFIER && offset + 28 <= offset + size) {
+    const recordType = buffer.readUInt16LE(offset + 16);
+    const flags = buffer.readUInt16LE(offset + 18);
+    const emfPlusSize = u32(buffer, offset + 20);
+    const emfPlusDataSize = u32(buffer, offset + 24);
+    Object.assign(comment, {
+      emfPlus: {
+        type: recordType,
+        name: EMFPLUS_RECORD_NAMES.get(recordType) ?? `EmfPlus_0x${recordType.toString(16)}`,
+        flags,
+        size: emfPlusSize,
+        dataSize: emfPlusDataSize,
+      },
+    });
+  }
+  return comment;
 }
 
 function decodeRecord(buffer, offset, type, size) {
@@ -216,10 +280,31 @@ function decodeRecord(buffer, offset, type, size) {
       scale: { x: f32(buffer, offset + 28), y: f32(buffer, offset + 32) },
       text: readText(buffer, offset, size, offset + 36, type === 84),
     });
-  } else if (type === 18 || type === 17 || type === 19 || type === 22 || type === 98) {
+  } else if ([17, 18, 19, 21, 22, 98].includes(type)) {
     Object.assign(info, { value: u32(buffer, offset + 8) });
   } else if (type === 24 || type === 25) {
     Object.assign(info, { color: colorref(u32(buffer, offset + 8)) });
+  } else if (type === 70) {
+    Object.assign(info, decodeGdiComment(buffer, offset, size));
+  } else if (type === 81) {
+    Object.assign(info, {
+      bounds: rect(buffer, offset + 8),
+      dest: {
+        x: i32(buffer, offset + 24),
+        y: i32(buffer, offset + 28),
+        width: i32(buffer, offset + 72),
+        height: i32(buffer, offset + 76),
+      },
+      source: {
+        x: i32(buffer, offset + 32),
+        y: i32(buffer, offset + 36),
+        width: i32(buffer, offset + 40),
+        height: i32(buffer, offset + 44),
+      },
+      bitmapInfoBytes: u32(buffer, offset + 52),
+      bitmapBitsBytes: u32(buffer, offset + 60),
+      rasterOperation: u32(buffer, offset + 68),
+    });
   }
   return { index: null, offset, type, name, size, ...info };
 }
@@ -245,7 +330,7 @@ export async function inspectEmf(inputPath, options = {}) {
   }
   const header = records.find((record) => record.type === 1) ?? null;
   const interesting = records.filter((record) =>
-    /POLY|TEXT|FONT|PEN|BRUSH|PATH|ELLIPSE|RECTANGLE|STRETCH|BITBLT|ALPHA|GRADIENT|WORLDTRANSFORM|CLIP/.test(
+    /POLY|TEXT|FONT|PEN|BRUSH|PATH|ELLIPSE|RECTANGLE|STRETCH|BITBLT|ALPHA|GRADIENT|WORLDTRANSFORM|CLIP|GDICOMMENT/.test(
       record.name
     )
   );

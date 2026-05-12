@@ -75,6 +75,7 @@ struct DesktopDetachedDocumentPayload {
 struct NativeClipboardWritePayload {
     chemcore_fragment_json: Option<String>,
     chemcore_document_json: Option<String>,
+    render_list_json: Option<String>,
     cdxml: Option<String>,
     svg: Option<String>,
     text: Option<String>,
@@ -1309,8 +1310,11 @@ fn desktop_window_take_detached_document(
 }
 
 #[tauri::command]
-fn desktop_clipboard_write(payload: NativeClipboardWritePayload) -> Result<(), String> {
-    native_clipboard_write(payload)
+fn desktop_clipboard_write(
+    app: tauri::AppHandle,
+    payload: NativeClipboardWritePayload,
+) -> Result<(), String> {
+    native_clipboard_write(&app, payload)
 }
 
 #[tauri::command]
@@ -1319,7 +1323,10 @@ fn desktop_clipboard_read() -> Result<NativeClipboardReadPayload, String> {
 }
 
 #[cfg(target_os = "windows")]
-fn native_clipboard_write(payload: NativeClipboardWritePayload) -> Result<(), String> {
+fn native_clipboard_write(
+    app: &tauri::AppHandle,
+    payload: NativeClipboardWritePayload,
+) -> Result<(), String> {
     use windows_sys::Win32::System::DataExchange::{
         EmptyClipboard, OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
     };
@@ -1405,16 +1412,30 @@ fn native_clipboard_write(payload: NativeClipboardWritePayload) -> Result<(), St
         .as_deref()
         .is_some_and(|value| !value.trim().is_empty())
     {
-        native_office_ole_clipboard_write(&payload)?;
+        native_office_ole_clipboard_write(app, &payload)?;
     }
     Ok(())
 }
 
 #[cfg(target_os = "windows")]
-fn native_office_ole_clipboard_write(payload: &NativeClipboardWritePayload) -> Result<(), String> {
-    let office_exe = std::env::current_exe()
+fn native_office_ole_clipboard_write(
+    app: &tauri::AppHandle,
+    payload: &NativeClipboardWritePayload,
+) -> Result<(), String> {
+    let adjacent_office_exe = std::env::current_exe()
         .map_err(|error| format!("Failed to resolve desktop executable path: {error}"))?
         .with_file_name("chemcore-office.exe");
+    let mut candidates = vec![adjacent_office_exe];
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        candidates.push(resource_dir.join("chemcore-office.exe"));
+    }
+    let office_exe = candidates
+        .into_iter()
+        .find(|path| path.exists())
+        .ok_or_else(|| {
+            "Chemcore Office/OLE server was not found next to the desktop executable or in bundled resources."
+                .to_string()
+        })?;
     if !office_exe.exists() {
         return Err(format!(
             "Chemcore Office/OLE server was not found at {}",
@@ -1451,7 +1472,10 @@ fn native_office_ole_clipboard_write(payload: &NativeClipboardWritePayload) -> R
 }
 
 #[cfg(not(target_os = "windows"))]
-fn native_clipboard_write(_payload: NativeClipboardWritePayload) -> Result<(), String> {
+fn native_clipboard_write(
+    _app: &tauri::AppHandle,
+    _payload: NativeClipboardWritePayload,
+) -> Result<(), String> {
     Err("Native clipboard is only implemented on Windows.".to_string())
 }
 

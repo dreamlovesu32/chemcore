@@ -248,6 +248,11 @@ const textSymbolCatalogReady = loadTextSymbolCatalog().then((catalog) => {
   });
   return textSymbolPalette;
 });
+const appRuntimeReady = Promise.all([
+  engineHost.initialize(),
+  sharedGlyphProfilesReady,
+  textSymbolCatalogReady,
+]);
 
 syncPrimaryChromeIcons();
 bindDesktopWindowChrome();
@@ -672,13 +677,22 @@ async function syncDesktopMaximizedState() {
 }
 
 async function loadSharedGlyphProfiles() {
-  const url = new URL("../shared/glyph_profiles.json", import.meta.url);
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to load shared glyph profiles: ${response.status}`);
+  const candidates = [
+    new URL("./shared/glyph_profiles.json", import.meta.url),
+    new URL("./glyph_profiles.json", import.meta.url),
+    new URL("../shared/glyph_profiles.json", import.meta.url),
+    new URL("/shared/glyph_profiles.json", window.location.href),
+  ];
+  let lastStatus = "not attempted";
+  for (const url of candidates) {
+    const response = await fetch(url);
+    if (response.ok) {
+      sharedGlyphProfiles = normalizeSharedGlyphProfiles(await response.json());
+      return sharedGlyphProfiles;
+    }
+    lastStatus = `${response.status} ${url.href}`;
   }
-  sharedGlyphProfiles = normalizeSharedGlyphProfiles(await response.json());
-  return sharedGlyphProfiles;
+  throw new Error(`Failed to load shared glyph profiles: ${lastStatus}`);
 }
 
 function isEditingRustDocument() {
@@ -2064,27 +2078,33 @@ function syncEditorArrowStateFromSelectedLine() {
   editorState.arrowNoGo = arrowHead.noGo || "none";
 }
 
-async function writeNativeClipboardFromSelection(fragmentJson = null) {
+async function writeNativeClipboardFromSelection(fragmentJson = null, documentJson = undefined) {
   if (!desktopFileHost?.available || !state.editorEngine) {
-    return;
+    return false;
   }
   try {
     const resolvedFragmentJson = fragmentJson || await state.editorEngine.clipboardSelectionJson?.() || null;
-    const documentJson = await state.editorEngine.clipboardDocumentJson?.()
-      || state.editorEngine.documentJson?.()
-      || null;
+    const resolvedDocumentJson = documentJson === undefined
+      ? await state.editorEngine.clipboardDocumentJson?.() || null
+      : documentJson;
+    if (!resolvedFragmentJson && !resolvedDocumentJson) {
+      return false;
+    }
     const cdxml = await state.editorEngine.documentCdxml?.() || null;
     const svg = null;
     await desktopFileHost.writeClipboard({
       chemcoreFragmentJson: resolvedFragmentJson,
-      chemcoreDocumentJson: documentJson,
+      chemcoreDocumentJson: resolvedDocumentJson,
+      renderListJson: state.editorEngine.renderListJson?.() || null,
       cdxml,
       svg,
       text: cdxml,
     });
+    return true;
   } catch (error) {
     console.warn("Failed to write native clipboard", error);
   }
+  return false;
 }
 
 async function pasteFromNativeClipboard() {
@@ -2114,15 +2134,15 @@ async function runEditorCommand(command) {
     changed = await state.editorEngine.redo();
   } else if (command === "copy") {
     const fragmentJson = await state.editorEngine.clipboardSelectionJson?.() || null;
+    const documentJson = await state.editorEngine.clipboardDocumentJson?.() || null;
     changed = !!(await state.editorEngine.copySelection?.());
-    if (changed) {
-      await writeNativeClipboardFromSelection(fragmentJson);
-    }
+    changed = await writeNativeClipboardFromSelection(fragmentJson, documentJson) || changed;
   } else if (command === "cut") {
     const fragmentJson = await state.editorEngine.clipboardSelectionJson?.() || null;
+    const documentJson = await state.editorEngine.clipboardDocumentJson?.() || null;
     changed = !!(await state.editorEngine.cutSelection?.());
     if (changed) {
-      await writeNativeClipboardFromSelection(fragmentJson);
+      await writeNativeClipboardFromSelection(fragmentJson, documentJson);
     }
   } else if (command === "paste") {
     changed = await pasteFromNativeClipboard();
@@ -3056,6 +3076,7 @@ const documentFlow = createDocumentFlow({
   defaultEditorViewBox,
   renderDocument,
   fitView,
+  waitForRuntimeReady: () => appRuntimeReady,
 });
 
 const {
@@ -3198,6 +3219,7 @@ async function newDocumentTab() {
   if (!isDesktopShell && openBrowserBlankDocumentTab()) {
     return;
   }
+  await appRuntimeReady;
   await finishActiveTextEditor(true);
   saveActiveDocumentTabState();
   const tab = createDocumentTab();
@@ -3215,6 +3237,7 @@ async function openDocumentPathInTab(path) {
   if (!path) {
     return;
   }
+  await appRuntimeReady;
   await finishActiveTextEditor(true);
   saveActiveDocumentTabState();
   const previousTabId = activeDocumentTabId;
@@ -3242,6 +3265,7 @@ async function openDocumentFileInTab(file) {
   if (!isDesktopShell && await openBrowserFileInNewTab(file)) {
     return;
   }
+  await appRuntimeReady;
   await finishActiveTextEditor(true);
   saveActiveDocumentTabState();
   const previousTabId = activeDocumentTabId;
@@ -4661,7 +4685,7 @@ async function loadInitialDocumentTabs() {
 }
 
 try {
-  await Promise.all([engineHost.initialize(), sharedGlyphProfilesReady, textSymbolCatalogReady]);
+  await appRuntimeReady;
   await loadInitialDocumentTabs();
 } catch (error) {
   viewerTitle.textContent = "Runtime load failed";

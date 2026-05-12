@@ -12,6 +12,20 @@ if (!args.length) {
   process.exit(1);
 }
 
+if (args[0] === "build") {
+  const officeResult = spawnSync("cargo", ["build", "-p", "chemcore-office", "--release"], {
+    cwd: rootDir,
+    stdio: "inherit",
+    shell: false,
+  });
+  if (officeResult.error) {
+    throw officeResult.error;
+  }
+  if (officeResult.status !== 0) {
+    process.exit(officeResult.status ?? 1);
+  }
+}
+
 const result = spawnSync(process.execPath, [tauriCli, ...args], {
   cwd: appDir,
   stdio: "inherit",

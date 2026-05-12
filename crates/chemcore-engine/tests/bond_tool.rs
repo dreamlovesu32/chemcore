@@ -8070,7 +8070,7 @@ fn bracket_tool_imports_chemdraw_charge_symbol_kinds() {
                     == Some("plus")
         })
         .expect("ACS plus symbol should import");
-    assert_eq!(plus.payload.bbox, Some([0.0, 0.0, 3.9335, 3.9335]));
+    assert_eq!(plus.payload.bbox, Some([0.0, 0.0, 10.49, 10.49]));
     assert_eq!(
         plus.payload
             .extra
@@ -8093,7 +8093,7 @@ fn bracket_tool_imports_chemdraw_charge_symbol_kinds() {
                     == Some("radical-cation")
         })
         .expect("ACS radical cation should import");
-    assert_eq!(radical.payload.bbox, Some([0.0, 0.0, 3.3, 2.2]));
+    assert_eq!(radical.payload.bbox, Some([0.0, 0.0, 8.8, 5.87]));
 }
 
 #[test]
