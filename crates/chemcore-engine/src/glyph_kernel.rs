@@ -908,7 +908,10 @@ pub(crate) fn shared_script_scale_factor(script: Option<&str>) -> f64 {
     }
 }
 
-pub(crate) fn shared_script_baseline_shift_em(script: Option<&str>, font_weight: Option<u32>) -> f64 {
+pub(crate) fn shared_script_baseline_shift_em(
+    script: Option<&str>,
+    font_weight: Option<u32>,
+) -> f64 {
     match script {
         Some("subscript") if font_weight.unwrap_or(400) >= 600 => {
             CHEMDRAW_BOLD_SUBSCRIPT_SHIFT_DOWN_EM

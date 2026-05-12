@@ -818,6 +818,7 @@ impl Engine {
             fallback_fill,
             preview_connection_angles,
             &editing_session,
+            false,
         );
         build_endpoint_label_edit_layout_from_label(
             text,
@@ -1226,6 +1227,7 @@ pub(super) fn apply_node_label_text_edit(
         session.fill.as_deref().unwrap_or(DEFAULT_TEXT_FILL),
         connection_angles,
         session,
+        false,
     );
     set_label_recognition_meta(&mut next_label, label_recognition_meta);
     let implicit_hydrogen_label_meta = previous_implicit_hydrogen_label_meta.map(|meta| {

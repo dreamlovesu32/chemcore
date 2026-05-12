@@ -944,8 +944,8 @@ fn node_label(
         .or_else(|| text_el.attr("LabelJustification"));
     let is_centered = attr_eq_ignore_ascii_case(label_display, "Center")
         || attr_eq_ignore_ascii_case(label_justification, "Center");
-    let glyph_polygons = if is_centered {
-        if let Some(position) = local_position {
+    let glyph_polygons = if let Some(position) = local_position {
+        if is_centered {
             let width = local_bbox
                 .map(|bbox| (bbox[2] - bbox[0]).abs())
                 .filter(|width| *width > EPSILON)
@@ -960,7 +960,10 @@ fn node_label(
                 parent_size,
             )
         } else {
-            Vec::new()
+            let glyph_origin = local_bbox
+                .map(|bbox| [bbox[0], round2(bbox[1] + parent_size * 0.82)])
+                .unwrap_or(position);
+            crate::build_label_glyph_polygons(&runs, &[], glyph_origin, local_bbox, parent_size)
         }
     } else {
         Vec::new()
@@ -990,7 +993,7 @@ fn node_label(
         fill: Some(colors.resolve(Some(parent_color))),
         font_size: Some(parent_size),
         glyph_polygons,
-        box_value: is_centered.then_some(local_bbox).flatten(),
+        box_value: local_bbox,
         meta: json!({
             "import": {
                 "cdxml": {

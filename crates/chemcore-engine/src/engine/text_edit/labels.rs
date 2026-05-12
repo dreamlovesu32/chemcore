@@ -133,6 +133,7 @@ pub(super) fn make_centered_node_label_from_runs(
     fill: &str,
     connection_angles: &[f64],
     session: &TextEditSession,
+    preserve_measured_box: bool,
 ) -> crate::NodeLabel {
     let decision = label_layout_decision_for_text_mode(
         text,
@@ -158,8 +159,12 @@ pub(super) fn make_centered_node_label_from_runs(
         .and_then(|runs| estimate_anchor_char_width(runs, anchor_char, font_size))
         .unwrap_or(font_size * 0.62);
     let anchor_center_x = anchor_prefix_width + anchor_char_width * 0.5;
-    let can_use_measured_geometry =
-        matches!(decision.flow, LabelFlow::Forward) && lines.len() == 1 && layout.anchor_line == 0;
+    let can_preserve_imported_single_line_box =
+        preserve_measured_box && lines.len() == 1 && layout.anchor_line == 0;
+    let can_use_measured_geometry = (matches!(decision.flow, LabelFlow::Forward)
+        || can_preserve_imported_single_line_box)
+        && lines.len() == 1
+        && layout.anchor_line == 0;
     let measured_anchor = session
         .anchor_offset_world_cm()
         .map(|value| (value[0].value(), value[1].value()));
@@ -192,8 +197,16 @@ pub(super) fn make_centered_node_label_from_runs(
             if valid_anchor_x && valid_anchor_y && valid_size {
                 let x1 = round2(position[0] - anchor_offset_x);
                 let y1 = round2(position[1] - anchor_offset_y);
-                let width = round2(measured_width.max(estimated_width));
-                let height = round2(measured_height.max(estimated_height));
+                let width = round2(if preserve_measured_box {
+                    measured_width
+                } else {
+                    measured_width.max(estimated_width)
+                });
+                let height = round2(if preserve_measured_box {
+                    measured_height
+                } else {
+                    measured_height.max(estimated_height)
+                });
                 let baseline_y = round2(y1 + font_size * 0.82);
                 (width, height, x1, y1, baseline_y)
             } else {
@@ -967,7 +980,6 @@ pub(super) fn refreshed_attached_node_label(
     if !is_attached_node_label(label) {
         return None;
     }
-
     let source_runs = source_runs_from_node_label(label);
     let source_text = label_source_text(label);
     let text = if implicit_hydrogen_label_is_user_edited(label) {
@@ -1019,7 +1031,11 @@ pub(super) fn refreshed_attached_node_label(
         &fill,
         &connection_angles,
         &session,
+        label.meta.pointer("/import/cdxml/boundingBox").is_some(),
     );
+    if let Some(import_meta) = label.meta.get("import").cloned() {
+        set_meta_object_field(&mut next_label.meta, "import", Some(import_meta));
+    }
     let recognition_meta = label
         .meta
         .get("labelRecognition")

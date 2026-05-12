@@ -3284,6 +3284,43 @@ fn parse_cdxml_auto_double_bond_places_five_member_ring_inside() {
 }
 
 #[test]
+fn parse_cdxml_attached_atom_label_preserves_source_bbox_size() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="14.40" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" LabelSize="10">
+  <page id="p1" BoundingBox="0 0 40 24">
+    <fragment id="f1" BoundingBox="0 0 40 24">
+      <n id="n1" p="10 12" Element="7">
+        <t p="6.40 15.90" BoundingBox="6.40 7.56 13.62 15.90" LabelJustification="Left">
+          <s font="3" size="10" color="0" face="96">N</s>
+        </t>
+      </n>
+      <n id="n2" p="24 12"/>
+      <b id="b1" B="n1" E="n2"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(cdxml, Some("atom label bbox")).expect("cdxml should parse");
+    let label = document
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .and_then(|fragment| fragment.nodes.iter().find(|node| node.id == "n1"))
+        .and_then(|node| node.label.as_ref())
+        .expect("N label should import");
+    let bbox = label.bbox().expect("N label should keep bbox");
+    assert!(
+        ((bbox[3] - bbox[1]) - 8.34).abs() < 0.01,
+        "attached CDXML atom labels should keep ChemDraw bbox height, got {bbox:?}"
+    );
+    assert!(
+        !label.glyph_polygons.is_empty(),
+        "refresh should still populate glyph polygons for clipping"
+    );
+}
+
+#[test]
 fn parse_cdxml_double_bond_spacing_uses_bond_spacing_percent() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML BondLength="14.40" BondSpacing="18" LineWidth="0.60" BoldWidth="2" HashSpacing="2.50">
