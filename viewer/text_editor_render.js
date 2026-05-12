@@ -1,4 +1,4 @@
-import { textLength } from "./text_metrics.js";
+import { editorSvgScriptBaselineShift, textLength } from "./text_metrics.js";
 import {
   displayLabelFontFamily,
   fontStyleForRun,
@@ -51,7 +51,7 @@ function normalizedSelectionRange(selectionOffsets) {
 }
 
 export function fillTextEditorContent(root, session, selectionOffsets, options) {
-  const { scriptScale, scriptShiftEm } = options;
+  const { scriptScale } = options;
   root.innerHTML = "";
   const layout = session;
   const lines = Array.isArray(layout?.lines) && layout.lines.length
@@ -101,21 +101,21 @@ export function fillTextEditorContent(root, session, selectionOffsets, options) 
       const runFontSize = Number(run.fontSize || baseFontSize);
       const isSub = isSubscriptRun(run);
       const isSuper = isSuperscriptRun(run);
+      const isSubOrSuper = isSub || isSuper;
       const scale = isSub ? scriptScale("subscript") : isSuper ? scriptScale("superscript") : 1;
+      const fontWeight = fontWeightForRun(run);
       const tspan = makeSvgNode("tspan", {
         class: isSelected ? "text-editor-run is-selected" : "text-editor-run",
         "data-script": run.script || undefined,
         fill: run.fill ? normalizeDisplayColor(run.fill) : undefined,
-        "font-size": (isSub || isSuper) ? Math.max(7, runFontSize * scale) : runFontSize,
+        "font-size": isSubOrSuper ? Math.max(7, runFontSize * scale) : runFontSize,
         "font-family": run.fontFamily ? displayLabelFontFamily(run.fontFamily) : undefined,
-        "font-weight": fontWeightForRun(run),
+        "font-weight": fontWeight,
         "font-style": fontStyleForRun(run),
         "text-decoration": run.underline ? "underline" : undefined,
-        "baseline-shift": isSub
-          ? `-${scriptShiftEm("subscript")}em`
-          : isSuper
-            ? `${scriptShiftEm("superscript")}em`
-            : undefined,
+        "baseline-shift": isSubOrSuper
+          ? editorSvgScriptBaselineShift(null, runFontSize, run.script, fontWeight)
+          : undefined,
         dx: isSuper ? "-0.02em" : undefined,
       });
       tspan.textContent = runText;

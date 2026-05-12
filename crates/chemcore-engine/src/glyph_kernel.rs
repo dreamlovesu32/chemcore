@@ -8,6 +8,7 @@ use std::sync::OnceLock;
 const RECT_CHAMFER_RATIO: f64 = 0.18;
 const SPECIAL_CORNER_CUT_RATIO: f64 = 0.42;
 const ELLIPSE_STEPS: usize = 20;
+const CHEMDRAW_BOLD_SUBSCRIPT_SHIFT_DOWN_EM: f64 = 0.215;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ShapeKind {
@@ -905,6 +906,24 @@ pub(crate) fn shared_script_scale_factor(script: Option<&str>) -> f64 {
         Some("superscript") => shared_glyph_profiles().layout.superscript_scale,
         _ => 1.0,
     }
+}
+
+pub(crate) fn shared_script_baseline_shift_em(script: Option<&str>, font_weight: Option<u32>) -> f64 {
+    match script {
+        Some("subscript") if font_weight.unwrap_or(400) >= 600 => {
+            CHEMDRAW_BOLD_SUBSCRIPT_SHIFT_DOWN_EM
+        }
+        Some("subscript") => shared_glyph_profiles().layout.subscript_shift_down_em,
+        Some("superscript") => -shared_glyph_profiles().layout.superscript_shift_up_em,
+        _ => 0.0,
+    }
+}
+
+pub(crate) fn shared_svg_script_baseline_shift_em(
+    script: Option<&str>,
+    font_weight: Option<u32>,
+) -> f64 {
+    -shared_script_baseline_shift_em(script, font_weight)
 }
 
 pub(crate) fn shared_estimated_char_width(character: char, font_size: f64) -> f64 {

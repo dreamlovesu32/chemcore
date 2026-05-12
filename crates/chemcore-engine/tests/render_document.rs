@@ -2265,6 +2265,44 @@ fn parse_cdxml_imports_free_text_object() {
 }
 
 #[test]
+fn parse_cdxml_text_auto_line_height_uses_chemdraw_import_compatibility() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.40" LineWidth="0.60" BoldWidth="2" HashSpacing="2.50">
+  <page id="1">
+    <t id="1" p="10 20" BoundingBox="10 10 90 45" Justification="Left" LineHeight="auto">
+      <s font="3" size="10" face="0" color="0">Plain A
+Plain B</s>
+    </t>
+    <t id="2" p="110 20" BoundingBox="110 10 210 45" Justification="Left" LineHeight="auto">
+      <s font="3" size="10" face="97" color="0">H2O A
+H2O B</s>
+    </t>
+    <t id="3" p="10 90" BoundingBox="10 80 110 125" Justification="Left" LineHeight="auto">
+      <s font="3" size="10" face="1" color="0">H</s><s font="3" size="10" face="33" color="0">2</s><s font="3" size="10" face="1" color="0">O A
+H</s><s font="3" size="10" face="33" color="0">2</s><s font="3" size="10" face="1" color="0">O B</s>
+    </t>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(cdxml, Some("line height")).expect("text cdxml should parse");
+    let mut line_heights: Vec<f64> = document
+        .objects
+        .iter()
+        .filter(|object| object.object_type == "text")
+        .filter_map(|object| {
+            object
+                .payload
+                .extra
+                .get("lineHeight")
+                .and_then(|value| value.as_f64())
+        })
+        .collect();
+    line_heights.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+    assert_eq!(line_heights, vec![11.5, 11.75, 13.45]);
+}
+
+#[test]
 fn parse_cdxml_unescapes_text_entities() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML BondLength="14.40" LineWidth="0.60" BoldWidth="2" HashSpacing="2.50">

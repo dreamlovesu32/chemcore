@@ -524,6 +524,14 @@ fn write_text_run(out: &mut String, run: &LabelRun, fallback_font_size: f64) {
         } else {
             1.0
         };
+    let baseline_shift = if is_sub || is_super {
+        let base_font_size = run.font_size.unwrap_or(fallback_font_size);
+        let shift =
+            crate::shared_svg_script_baseline_shift_em(run.script.as_deref(), run.font_weight);
+        Some(base_font_size * shift)
+    } else {
+        None
+    };
     write!(
         out,
         r#"<tspan{}{}{}{}{}{}{}>{}</tspan>"#,
@@ -536,13 +544,7 @@ fn write_text_run(out: &mut String, run: &LabelRun, fallback_font_size: f64) {
             "text-decoration",
             run.underline.filter(|value| *value).map(|_| "underline")
         ),
-        if is_sub {
-            r#" baseline-shift="-0.30em""#.to_string()
-        } else if is_super {
-            r#" baseline-shift="0.28em""#.to_string()
-        } else {
-            String::new()
-        },
+        optional_num_attr("baseline-shift", baseline_shift),
         escape_text(&run.text)
     )
     .expect("write text run");

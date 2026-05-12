@@ -32,6 +32,10 @@ use windows_sys::Win32::Graphics::GdiPlus::{
 const EMF_VECTOR_RECORD_SCALE: f64 = 16.0;
 const EMF_ARROW_RECORD_SCALE: f64 = EMF_VECTOR_RECORD_SCALE;
 const USE_GDIPLUS_TEXT_PREVIEW: bool = true;
+const CHEMDRAW_SCRIPT_SCALE: f64 = 0.75;
+const CHEMDRAW_SUBSCRIPT_SHIFT_DOWN_EM: f64 = 0.22;
+const CHEMDRAW_BOLD_SUBSCRIPT_SHIFT_DOWN_EM: f64 = 0.215;
+const CHEMDRAW_SUPERSCRIPT_SHIFT_UP_EM: f64 = 0.392;
 
 #[derive(Clone, Copy)]
 struct PreviewTransform {
@@ -1987,14 +1991,8 @@ fn preview_script_baseline_shift(
     fallback_font_size: f64,
     transform: &PreviewTransform,
 ) -> i32 {
-    let font_size =
-        run.font_size.unwrap_or(fallback_font_size) * preview_script_scale(run.script.as_deref());
-    let script_height = transform.length(font_size);
-    match run.script.as_deref() {
-        Some("subscript") => (script_height as f64 * 0.30).round() as i32,
-        Some("superscript") => -(script_height as f64 * 0.28).round() as i32,
-        _ => 0,
-    }
+    let base_height = transform.length(run.font_size.unwrap_or(fallback_font_size));
+    (base_height as f64 * preview_script_baseline_shift_em(run)).round() as i32
 }
 
 fn preview_script_baseline_shift_f32(
@@ -2002,12 +2000,17 @@ fn preview_script_baseline_shift_f32(
     fallback_font_size: f64,
     transform: &PreviewTransform,
 ) -> f32 {
-    let font_size =
-        run.font_size.unwrap_or(fallback_font_size) * preview_script_scale(run.script.as_deref());
-    let script_height = font_size * transform.scale;
+    let base_height = run.font_size.unwrap_or(fallback_font_size) * transform.scale;
+    (base_height * preview_script_baseline_shift_em(run)) as f32
+}
+
+fn preview_script_baseline_shift_em(run: &PreviewTextRun) -> f64 {
     match run.script.as_deref() {
-        Some("subscript") => (script_height * 0.30) as f32,
-        Some("superscript") => -(script_height * 0.28) as f32,
+        Some("subscript") if run.font_weight.unwrap_or(400) >= 600 => {
+            CHEMDRAW_BOLD_SUBSCRIPT_SHIFT_DOWN_EM
+        }
+        Some("subscript") => CHEMDRAW_SUBSCRIPT_SHIFT_DOWN_EM,
+        Some("superscript") => -CHEMDRAW_SUPERSCRIPT_SHIFT_UP_EM,
         _ => 0.0,
     }
 }
@@ -2045,7 +2048,7 @@ fn preview_script_dx_f64(
 
 fn preview_script_scale(script: Option<&str>) -> f64 {
     match script {
-        Some("subscript" | "superscript") => 0.78,
+        Some("subscript" | "superscript") => CHEMDRAW_SCRIPT_SCALE,
         _ => 1.0,
     }
 }

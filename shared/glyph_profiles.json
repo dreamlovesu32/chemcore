@@ -1,10 +1,10 @@
 {
   "layout": {
     "trackingEm": 0.0,
-    "subscriptScale": 0.78,
-    "superscriptScale": 0.78,
-    "subscriptShiftDownEm": 0.3,
-    "superscriptShiftUpEm": 0.28
+    "subscriptScale": 0.75,
+    "superscriptScale": 0.75,
+    "subscriptShiftDownEm": 0.22,
+    "superscriptShiftUpEm": 0.392
   },
   "defaults": {
     "upper": { "shape": "rect", "advanceEm": 0.72, "inkLeftEm": 0.0, "inkTopEm": -0.73, "inkRightEm": 0.72, "inkBottomEm": 0.0, "padXEm": 0.09, "padYEm": 0.09, "visible": true },

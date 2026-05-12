@@ -9,6 +9,7 @@ import {
   normalizeDisplayColor,
   wrapTextLines,
 } from "./render_support.js";
+import { editorScriptScale, editorSvgScriptBaselineShift } from "./text_metrics.js";
 import { cssPxToCm } from "./units.js";
 
 const DEFAULT_TEXT_FONT_SIZE = 10;
@@ -157,14 +158,19 @@ export function renderTextObject(svgRoot, object) {
         const isSub = isSubscriptRun(run);
         const isSuper = isSuperscriptRun(run);
         const isSubOrSuper = isSub || isSuper;
+        const fontWeight = fontWeightForRun(run);
         const tspan = makeSvgNode("tspan", {
           fill: run.fill ? normalizeDisplayColor(run.fill) : undefined,
-          "font-size": isSubOrSuper ? Math.max(cssPxToCm(7), runFontSize * 0.72) : runFontSize,
+          "font-size": isSubOrSuper
+            ? Math.max(cssPxToCm(7), runFontSize * editorScriptScale(null, run.script))
+            : runFontSize,
           "font-family": run.fontFamily ? displayLabelFontFamily(run.fontFamily) : undefined,
-          "font-weight": fontWeightForRun(run),
+          "font-weight": fontWeight,
           "font-style": fontStyleForRun(run),
           "text-decoration": run.underline ? "underline" : undefined,
-          "baseline-shift": isSub ? "-28%" : isSuper ? "48%" : undefined,
+          "baseline-shift": isSubOrSuper
+            ? editorSvgScriptBaselineShift(null, runFontSize, run.script, fontWeight)
+            : undefined,
           dx: isSuper ? "-0.02em" : undefined,
         });
         tspan.textContent = run.text;

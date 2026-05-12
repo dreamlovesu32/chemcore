@@ -789,7 +789,10 @@ fn text_object(
     );
     extra.insert("align".to_string(), json!(align));
     extra.insert("valign".to_string(), json!("top"));
-    extra.insert("lineHeight".to_string(), json!(round2(font_size * 1.2)));
+    extra.insert(
+        "lineHeight".to_string(),
+        json!(round2(cdxml_text_line_height(node, font_size))),
+    );
     extra.insert("fontSize".to_string(), json!(round2(font_size)));
     if let Some(point) = parse_xy(node.attr("p")) {
         extra.insert(
@@ -822,4 +825,52 @@ fn text_object(
         },
         children: Vec::new(),
     })
+}
+
+fn cdxml_text_line_height(node: &XmlNode, font_size: f64) -> f64 {
+    match node.attr("LineHeight").map(str::trim) {
+        Some(value) if !value.eq_ignore_ascii_case("auto") => {
+            parse_f64(Some(value)).unwrap_or(font_size * 1.2)
+        }
+        Some(_) => cdxml_auto_text_line_height(node, font_size),
+        None => font_size * 1.2,
+    }
+}
+
+fn cdxml_auto_text_line_height(node: &XmlNode, font_size: f64) -> f64 {
+    let mut has_bold = false;
+    let mut has_manual_subscript = false;
+    let mut has_manual_superscript = false;
+
+    for run in node.direct_children("s") {
+        let face = parse_u32(run.attr("face")).unwrap_or(0);
+        has_bold |= face & 1 != 0;
+        let has_subscript = face & 32 != 0;
+        let has_superscript = face & 64 != 0;
+        if has_subscript && !has_superscript {
+            has_manual_subscript = true;
+        }
+        if has_superscript && !has_subscript {
+            has_manual_superscript = true;
+        }
+    }
+
+    let ratio = if has_manual_superscript {
+        if has_bold {
+            1.445
+        } else {
+            1.415
+        }
+    } else if has_manual_subscript {
+        if has_bold {
+            1.345
+        } else {
+            1.315
+        }
+    } else if has_bold {
+        1.175
+    } else {
+        1.15
+    };
+    font_size * ratio
 }

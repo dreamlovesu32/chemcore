@@ -20,9 +20,18 @@ function isAsciiGlyphCode(character, lowerBound, upperBound) {
   return Number.isFinite(code) && code >= lowerBound && code <= upperBound;
 }
 
+const DEFAULT_GLYPH_LAYOUT = {
+  trackingEm: 0,
+  subscriptScale: 0.75,
+  superscriptScale: 0.75,
+  subscriptShiftDownEm: 0.22,
+  superscriptShiftUpEm: 0.392,
+};
+const CHEMDRAW_BOLD_SUBSCRIPT_SHIFT_DOWN_EM = 0.215;
+
 function editorGlyphLayoutConfig(sharedGlyphProfiles) {
   if (!sharedGlyphProfiles) {
-    throw new Error("Shared glyph profiles have not loaded yet");
+    return DEFAULT_GLYPH_LAYOUT;
   }
   return sharedGlyphProfiles.layout;
 }
@@ -156,10 +165,10 @@ export function normalizeSharedGlyphProfiles(manifest) {
   return {
     layout: {
       trackingEm: Number(manifest?.layout?.trackingEm || 0),
-      subscriptScale: Number(manifest?.layout?.subscriptScale || 0.78),
-      superscriptScale: Number(manifest?.layout?.superscriptScale || 0.78),
-      subscriptShiftDownEm: Number(manifest?.layout?.subscriptShiftDownEm || 0.30),
-      superscriptShiftUpEm: Number(manifest?.layout?.superscriptShiftUpEm || 0.28),
+      subscriptScale: Number(manifest?.layout?.subscriptScale || 0.75),
+      superscriptScale: Number(manifest?.layout?.superscriptScale || 0.75),
+      subscriptShiftDownEm: Number(manifest?.layout?.subscriptShiftDownEm || 0.22),
+      superscriptShiftUpEm: Number(manifest?.layout?.superscriptShiftUpEm || 0.392),
     },
     defaults: {
       upper: normalizeSharedGlyphProfile(manifest?.defaults?.upper),
@@ -205,14 +214,24 @@ export function editorScriptScale(sharedGlyphProfiles, script) {
 }
 
 export function editorScriptBaselineShift(sharedGlyphProfiles, baseFontSize, script) {
+  return editorScriptBaselineShiftEm(sharedGlyphProfiles, script) * baseFontSize;
+}
+
+export function editorScriptBaselineShiftEm(sharedGlyphProfiles, script, fontWeight = 400) {
   const layout = editorGlyphLayoutConfig(sharedGlyphProfiles);
   if (script === "subscript") {
-    return layout.subscriptShiftDownEm * baseFontSize;
+    return Number(fontWeight) >= 600
+      ? CHEMDRAW_BOLD_SUBSCRIPT_SHIFT_DOWN_EM
+      : layout.subscriptShiftDownEm;
   }
   if (script === "superscript") {
-    return -layout.superscriptShiftUpEm * baseFontSize;
+    return -layout.superscriptShiftUpEm;
   }
   return 0;
+}
+
+export function editorSvgScriptBaselineShift(sharedGlyphProfiles, runFontSize, script, fontWeight = 400) {
+  return -editorScriptBaselineShiftEm(sharedGlyphProfiles, script, fontWeight) * runFontSize;
 }
 
 export function editorChargeSignBaselineAdjustment(sharedGlyphProfiles, profile, baseFontSize, script) {
