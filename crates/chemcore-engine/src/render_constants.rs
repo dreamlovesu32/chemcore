@@ -25,10 +25,10 @@ pub const HASH_WEDGE_INITIAL_SEGMENT_WIDTH_CM: WorldCm = css_px(0.82).to_world_c
 pub const HASH_WEDGE_SEGMENT_WIDTH_CM: WorldCm = css_px(0.72).to_world_cm();
 
 pub const BOUNDARY_JOIN_MIN_BACKTRACK_CM: WorldCm = css_px(0.85).to_world_cm();
-pub const LABEL_GEOMETRY_CLIP_MARGIN_CM: WorldCm = css_px(1.8).to_world_cm();
+pub const LABEL_GEOMETRY_CLIP_MARGIN_CM: WorldCm = world_cm(1.2);
 pub const DEFAULT_ARROW_HEAD_LENGTH_RATIO: f64 = 10.0;
 pub const TEXT_WRAP_ESTIMATED_CHAR_WIDTH_CM: WorldCm = css_px(6.0).to_world_cm();
 pub const DASH_GAP_STROKE_EXTRA_CM: WorldCm = world_cm(0.26);
 pub const HASH_WEDGE_GAP_START_OFFSET_CM: WorldCm = world_cm(0.38);
 pub const HASH_WEDGE_GAP_END_INSET_CM: WorldCm = world_cm(0.0);
-pub const ACS_LABEL_GEOMETRY_CLIP_MARGIN_CM: WorldCm = world_cm(0.95);
+pub const ACS_LABEL_GEOMETRY_CLIP_MARGIN_CM: WorldCm = world_cm(0.8);

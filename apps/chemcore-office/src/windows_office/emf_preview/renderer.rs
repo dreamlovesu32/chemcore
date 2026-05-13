@@ -3030,7 +3030,7 @@ unsafe fn draw_preview_oval_bounds(
 
 unsafe fn draw_preview_polygon(
     dc: HDC,
-    role: RenderRole,
+    _role: RenderRole,
     points: &[CorePoint],
     fill: &str,
     stroke: &str,
@@ -3039,26 +3039,6 @@ unsafe fn draw_preview_polygon(
     cache: &mut PreviewGdiCache,
 ) {
     if points.len() < 2 {
-        return;
-    }
-    if role == RenderRole::DocumentBond {
-        if let Some((start, end, width)) = preview_thin_polygon_centerline(points) {
-            draw_preview_line(
-                dc,
-                transform.point(start),
-                transform.point(end),
-                fill,
-                width.max(0.5),
-                Some("round"),
-                Some("miter"),
-                transform,
-                &[],
-            );
-            return;
-        }
-    }
-    if role == RenderRole::DocumentBond && points.len() == 4 {
-        draw_preview_polygon_centerline(dc, points, fill, transform);
         return;
     }
     let mapped: Vec<POINT> = points.iter().map(|point| transform.point(*point)).collect();
@@ -3081,55 +3061,6 @@ unsafe fn draw_preview_polygon(
     SelectObject(dc, old_pen);
     SelectObject(dc, old_brush);
     delete_preview_pen(pen);
-    if role == RenderRole::DocumentBond {
-        draw_preview_polygon_centerline(dc, points, fill, transform);
-    }
-}
-
-fn preview_thin_polygon_centerline(points: &[CorePoint]) -> Option<(CorePoint, CorePoint, f64)> {
-    if points.len() < 4 {
-        return None;
-    }
-    let mut best = (0usize, 1usize, 0.0);
-    for i in 0..points.len() {
-        for j in (i + 1)..points.len() {
-            let distance = points[i].distance(points[j]);
-            if distance > best.2 {
-                best = (i, j, distance);
-            }
-        }
-    }
-    let length = best.2;
-    if length <= 1.0 {
-        return None;
-    }
-    let area = polygon_area(points).abs();
-    let width = area / length;
-    if !width.is_finite() || width <= 0.0 || width / length > 0.12 {
-        return None;
-    }
-
-    let axis = CorePoint {
-        x: (points[best.1].x - points[best.0].x) / length,
-        y: (points[best.1].y - points[best.0].y) / length,
-    };
-    let projections: Vec<f64> = points
-        .iter()
-        .map(|point| point.x * axis.x + point.y * axis.y)
-        .collect();
-    let min_projection = projections.iter().copied().fold(f64::INFINITY, f64::min);
-    let max_projection = projections
-        .iter()
-        .copied()
-        .fold(f64::NEG_INFINITY, f64::max);
-    let tolerance = width.max(length * 0.02);
-    let start = average_projected_points(points, &projections, min_projection, tolerance)?;
-    let end = average_projected_points(points, &projections, max_projection, tolerance)?;
-    if start.distance(end) < 1.0 {
-        None
-    } else {
-        Some((start, end, width))
-    }
 }
 
 fn polygon_area(points: &[CorePoint]) -> f64 {
@@ -3143,66 +3074,6 @@ fn polygon_area(points: &[CorePoint]) -> f64 {
         area += current.x * next.y - next.x * current.y;
     }
     area * 0.5
-}
-
-fn average_projected_points(
-    points: &[CorePoint],
-    projections: &[f64],
-    target: f64,
-    tolerance: f64,
-) -> Option<CorePoint> {
-    let mut sum = CorePoint { x: 0.0, y: 0.0 };
-    let mut count = 0.0;
-    for (point, projection) in points.iter().zip(projections) {
-        if (*projection - target).abs() <= tolerance {
-            sum.x += point.x;
-            sum.y += point.y;
-            count += 1.0;
-        }
-    }
-    if count == 0.0 {
-        None
-    } else {
-        Some(CorePoint {
-            x: sum.x / count,
-            y: sum.y / count,
-        })
-    }
-}
-
-unsafe fn draw_preview_polygon_centerline(
-    dc: HDC,
-    points: &[CorePoint],
-    color: &str,
-    transform: &PreviewTransform,
-) {
-    if points.len() != 4 {
-        return;
-    }
-    let middle = points.len() / 2;
-    if middle == 0 || middle >= points.len() {
-        return;
-    }
-    let start = CorePoint {
-        x: (points[0].x + points[points.len() - 1].x) * 0.5,
-        y: (points[0].y + points[points.len() - 1].y) * 0.5,
-    };
-    let end = CorePoint {
-        x: (points[middle - 1].x + points[middle].x) * 0.5,
-        y: (points[middle - 1].y + points[middle].y) * 0.5,
-    };
-    let width = points[0].distance(points[points.len() - 1]);
-    draw_preview_line(
-        dc,
-        transform.point(start),
-        transform.point(end),
-        color,
-        width.max(0.5),
-        Some("round"),
-        Some("miter"),
-        transform,
-        &[],
-    );
 }
 
 fn colorref_from_css(value: &str) -> Option<COLORREF> {

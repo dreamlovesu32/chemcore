@@ -1083,7 +1083,7 @@ fn normalize_bond(
         stroke: bond.attr("color").map(|color| colors.resolve(Some(color))),
         bold_width: Some(bold_width),
         wedge_width: Some(cdxml_import_wedge_width(stroke_width, bold_width)),
-        label_clip_margin: Some(cdxml_import_label_clip_margin(stroke_width)),
+        label_clip_margin: Some(cdxml_import_label_clip_margin(margin_width)),
         hash_spacing: Some(hash_spacing),
         bond_spacing: Some(bond_spacing),
         margin_width: Some(margin_width),
@@ -1151,8 +1151,8 @@ fn cdxml_import_wedge_width(_stroke_width: f64, bold_width: f64) -> f64 {
     (bold_width * 1.5).max(crate::DEFAULT_BOND_STROKE)
 }
 
-pub(crate) fn cdxml_import_label_clip_margin(stroke_width: f64) -> f64 {
-    round2(0.65 + stroke_width.max(0.0) * 0.5)
+pub(crate) fn cdxml_import_label_clip_margin(margin_width: f64) -> f64 {
+    round2((margin_width - 0.8).max(0.0))
 }
 
 fn cdxml_bond_order(value: Option<&str>) -> u8 {

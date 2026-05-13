@@ -44,7 +44,7 @@
     "P": { "shape": "rect-cut-bottom-right", "advanceEm": 0.67, "inkLeftEm": 0.0, "inkTopEm": -0.73, "inkRightEm": 0.67, "inkBottomEm": 0.0, "padXEm": 0.09, "padYEm": 0.09, "visible": true },
     "Q": { "shape": "ellipse", "advanceEm": 0.78, "inkLeftEm": 0.0, "inkTopEm": -0.75, "inkRightEm": 0.78, "inkBottomEm": 0.06, "padXEm": 0.09, "padYEm": 0.09, "visible": true },
     "R": { "shape": "rect", "advanceEm": 0.72, "inkLeftEm": 0.0, "inkTopEm": -0.73, "inkRightEm": 0.72, "inkBottomEm": 0.0, "padXEm": 0.09, "padYEm": 0.09, "visible": true },
-    "S": { "shape": "rect", "advanceEm": 0.67, "inkLeftEm": 0.0, "inkTopEm": -0.75, "inkRightEm": 0.67, "inkBottomEm": 0.02, "padXEm": 0.09, "padYEm": 0.09, "visible": true },
+    "S": { "shape": "ellipse", "advanceEm": 0.67, "inkLeftEm": 0.0, "inkTopEm": -0.75, "inkRightEm": 0.67, "inkBottomEm": 0.02, "padXEm": 0.09, "padYEm": 0.09, "visible": true },
     "T": { "shape": "rect", "advanceEm": 0.61, "inkLeftEm": 0.0, "inkTopEm": -0.73, "inkRightEm": 0.61, "inkBottomEm": 0.0, "padXEm": 0.09, "padYEm": 0.09, "visible": true },
     "U": { "shape": "rect", "advanceEm": 0.72, "inkLeftEm": 0.0, "inkTopEm": -0.73, "inkRightEm": 0.72, "inkBottomEm": 0.02, "padXEm": 0.09, "padYEm": 0.09, "visible": true },
     "V": { "shape": "rect", "advanceEm": 0.67, "inkLeftEm": 0.0, "inkTopEm": -0.73, "inkRightEm": 0.67, "inkBottomEm": 0.0, "padXEm": 0.09, "padYEm": 0.09, "visible": true },

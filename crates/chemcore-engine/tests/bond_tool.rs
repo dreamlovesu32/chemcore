@@ -1197,7 +1197,7 @@ fn acs_document_1996_preset_sets_new_bond_metrics() {
     assert!((bond.stroke_width - 0.6).abs() < 0.001);
     assert_eq!(bond.bold_width, Some(2.0));
     assert_eq!(bond.wedge_width, Some(3.0));
-    assert_eq!(bond.label_clip_margin, Some(0.95));
+    assert_eq!(bond.label_clip_margin, Some(0.8));
     assert_eq!(bond.hash_spacing, Some(2.5));
     assert_eq!(bond.bond_spacing, Some(18.0));
     assert_eq!(bond.margin_width, Some(1.6));
@@ -1436,7 +1436,7 @@ fn acs_document_1996_preset_scales_existing_document_as_one_group() {
     assert!((bond.stroke_width - 0.6).abs() < 0.001);
     assert_eq!(bond.bold_width, Some(2.0));
     assert_eq!(bond.wedge_width, Some(3.0));
-    assert_eq!(bond.label_clip_margin, Some(0.95));
+    assert_eq!(bond.label_clip_margin, Some(0.8));
     assert_eq!(bond.hash_spacing, Some(2.5));
     assert_eq!(bond.margin_width, Some(1.6));
 
@@ -1463,7 +1463,7 @@ fn acs_document_1996_preset_scales_existing_document_as_one_group() {
     assert!((default_begin.distance(default_end) - DEFAULT_BOND_LENGTH).abs() < 0.001);
     assert!((default_bond.stroke_width - DEFAULT_BOND_STROKE).abs() < 0.001);
     assert_eq!(default_bond.wedge_width, Some(6.0));
-    assert_eq!(default_bond.label_clip_margin, Some(1.35));
+    assert_eq!(default_bond.label_clip_margin, Some(1.2));
     assert_eq!(default_bond.margin_width, Some(2.0));
 }
 

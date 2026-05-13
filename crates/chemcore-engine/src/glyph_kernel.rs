@@ -1147,4 +1147,32 @@ mod tests {
         assert_eq!(polygons.len(), 6, "{polygons:?}");
         assert!(polygons.iter().all(|polygon| polygon.len() >= 4));
     }
+
+    #[test]
+    fn sulfur_uses_ellipse_clip_profile() {
+        let profile = lookup_glyph_profile('S');
+        assert_eq!(
+            profile.shape_kind,
+            ShapeKind::Ellipse,
+            "uppercase S should use ellipse clipping"
+        );
+
+        let runs = vec![LabelRun {
+            text: "S".to_string(),
+            font_family: Some("Arial".to_string()),
+            font_size: Some(10.0),
+            fill: Some("#000000".to_string()),
+            font_weight: Some(400),
+            font_style: Some("normal".to_string()),
+            underline: None,
+            script: Some("normal".to_string()),
+        }];
+        let polygons = build_label_glyph_polygons(&runs, &[], [0.0, 0.0], None, 10.0);
+        assert_eq!(polygons.len(), 1, "{polygons:?}");
+        assert!(
+            polygons[0].len() >= 16,
+            "uppercase S should generate ellipse-like clip geometry: {:?}",
+            polygons[0]
+        );
+    }
 }

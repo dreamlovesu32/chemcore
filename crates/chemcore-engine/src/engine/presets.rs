@@ -419,7 +419,7 @@ fn object_settings_to_options(settings: ObjectSettings) -> Option<EditorOptions>
         bond_stroke_width: line_width,
         bold_bond_width: bold_width,
         wedge_width: derived_wedge_width(bold_width),
-        label_clip_margin: derived_label_clip_margin(bold_width),
+        label_clip_margin: derived_label_clip_margin(margin_width),
         hash_spacing,
         bond_spacing,
         margin_width,
@@ -588,10 +588,6 @@ fn apply_settings_to_bond(
         if bond_uses_bold_width(bond) {
             changed |= set_bond_option_number(&mut bond.bold_width, value);
             changed |= set_bond_option_number(&mut bond.wedge_width, derived_wedge_width(value));
-            changed |= set_bond_option_number(
-                &mut bond.label_clip_margin,
-                derived_label_clip_margin(value),
-            );
         }
     }
     if let Some(value) = settings.bond_spacing {
@@ -601,6 +597,10 @@ fn apply_settings_to_bond(
     }
     if let Some(value) = settings.margin_width {
         changed |= set_bond_option_number(&mut bond.margin_width, value);
+        changed |= set_bond_option_number(
+            &mut bond.label_clip_margin,
+            derived_label_clip_margin(value),
+        );
     }
     if let Some(value) = settings.hash_spacing {
         if bond_uses_hash_spacing(bond) {
@@ -794,9 +794,9 @@ pub(super) fn editor_options_from_document(document: &ChemcoreDocument) -> Edito
     }
     options.wedge_width = derived_wedge_width(options.bold_bond_width);
     options.label_clip_margin = if has_cdxml_defaults {
-        crate::cdxml::cdxml_import_label_clip_margin(options.bond_stroke_width)
+        crate::cdxml::cdxml_import_label_clip_margin(options.margin_width)
     } else {
-        derived_label_clip_margin(options.bold_bond_width)
+        derived_label_clip_margin(options.margin_width)
     };
     options
 }
@@ -828,12 +828,8 @@ fn derived_wedge_width(bold_width: f64) -> f64 {
     (bold_width * 1.5).max(crate::DEFAULT_BOND_STROKE)
 }
 
-fn derived_label_clip_margin(bold_width: f64) -> f64 {
-    if (bold_width - 2.0).abs() <= 0.1 {
-        crate::ACS_LABEL_GEOMETRY_CLIP_MARGIN_CM.value()
-    } else {
-        crate::LABEL_GEOMETRY_CLIP_MARGIN_CM.value()
-    }
+fn derived_label_clip_margin(margin_width: f64) -> f64 {
+    crate::cdxml::cdxml_import_label_clip_margin(margin_width)
 }
 
 #[derive(Debug, Clone, Copy, Default)]

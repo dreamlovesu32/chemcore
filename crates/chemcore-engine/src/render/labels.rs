@@ -260,10 +260,21 @@ pub(super) fn render_fragment_line_with_profiles(
         .and_then(|node| node.label.as_ref())
         .is_some_and(|label| label.has_visible_text());
     let (clipped_start, clipped_end) = if clip_against_label_geometry {
-        let clipped_start =
-            clip_point_out_of_label_geometry(start, end, start_box, &start_polygons, 0.8);
-        let clipped_end =
-            clip_point_out_of_label_geometry(end, clipped_start, end_box, &end_polygons, 0.8);
+        let label_clip_margin = label_clip_margin_for_bond(bond, stroke_width);
+        let clipped_start = clip_point_out_of_label_geometry(
+            start,
+            end,
+            start_box,
+            &start_polygons,
+            label_clip_margin,
+        );
+        let clipped_end = clip_point_out_of_label_geometry(
+            end,
+            clipped_start,
+            end_box,
+            &end_polygons,
+            label_clip_margin,
+        );
         (clipped_start, clipped_end)
     } else {
         (start, end)

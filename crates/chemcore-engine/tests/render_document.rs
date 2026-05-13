@@ -1483,7 +1483,7 @@ fn load_cdxml_document_preserves_imported_acs_drawing_options() {
     assert!((engine.options().bond_stroke_width - 1.6).abs() < 0.01);
     assert!((engine.options().bold_bond_width - 5.333).abs() < 0.05);
     assert!((engine.options().wedge_width - 8.0).abs() < 0.05);
-    assert!((engine.options().label_clip_margin - 2.533).abs() < 0.05);
+    assert!((engine.options().label_clip_margin - 2.133).abs() < 0.05);
     assert!((engine.options().hash_spacing - 6.667).abs() < 0.05);
     assert!((engine.options().bond_spacing - 18.0).abs() < 0.05);
     assert!((engine.options().margin_width - 4.267).abs() < 0.05);
@@ -1511,7 +1511,7 @@ fn load_cdxml_document_derives_wedge_width_from_imported_bold_width() {
     assert!((engine.options().bond_stroke_width - 2.64).abs() < 0.01);
     assert!((engine.options().bold_bond_width - 5.36).abs() < 0.01);
     assert!((engine.options().wedge_width - 8.04).abs() < 0.01);
-    assert!((engine.options().label_clip_margin - 3.07).abs() < 0.01);
+    assert!((engine.options().label_clip_margin - 2.40).abs() < 0.01);
     assert!((engine.options().margin_width - 4.53).abs() < 0.01);
 
     let bond = &engine
@@ -1522,8 +1522,47 @@ fn load_cdxml_document_derives_wedge_width_from_imported_bold_width() {
         .fragment
         .bonds[0];
     assert!((bond.wedge_width.unwrap_or_default() - 8.04).abs() < 0.01);
-    assert_eq!(bond.label_clip_margin, Some(3.07));
+    assert_eq!(bond.label_clip_margin, Some(2.4));
     assert_eq!(bond.margin_width, Some(4.53));
+}
+
+#[test]
+fn load_cdxml_document_derives_label_retreat_from_margin_width() {
+    fn imported_label_clip_margin(line_width: f64, margin_width: f64) -> f64 {
+        let cdxml = format!(
+            r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="14.40" LineWidth="{line_width:.2}" BoldWidth="2.00" HashSpacing="2.50" BondSpacing="18" MarginWidth="{margin_width:.2}" LabelSize="10">
+  <page id="p1" BoundingBox="0 0 50 30">
+    <fragment id="f1" BoundingBox="0 0 50 30">
+      <n id="n1" p="10 15"/>
+      <n id="n2" p="24.4 15" Element="7">
+        <t p="20.8 18.9" BoundingBox="20.8 10.56 28.02 18.9" LabelJustification="Left">
+          <s font="3" size="10" color="0" face="96">N</s>
+        </t>
+      </n>
+      <b id="b1" B="n1" E="n2"/>
+    </fragment>
+  </page>
+</CDXML>"#
+        );
+        let mut engine = Engine::new();
+        engine
+            .load_cdxml_document(&cdxml)
+            .expect("cdxml should load");
+        engine.options().label_clip_margin
+    }
+
+    let normal = imported_label_clip_margin(0.60, 1.60);
+    let wide_line = imported_label_clip_margin(1.80, 1.60);
+    let wide_margin = imported_label_clip_margin(0.60, 5.00);
+
+    assert!((normal - 2.133).abs() < 0.01, "{normal}");
+    assert!(
+        (wide_line - normal).abs() < 0.01,
+        "bond-to-label retreat follows MarginWidth, not LineWidth: {normal} {wide_line}"
+    );
+    assert!((wide_margin - 11.2).abs() < 0.01, "{wide_margin}");
 }
 
 #[test]
@@ -3286,6 +3325,222 @@ fn parse_cdxml_auto_double_bond_places_five_member_ring_inside() {
 }
 
 #[test]
+fn parse_cdxml_auto_double_bond_prefers_alternating_ring_over_short_fused_cycle() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="14.40" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" LabelSize="10">
+  <page id="p1" BoundingBox="40 240 90 305">
+    <fragment id="f1" BoundingBox="40 240 90 305">
+      <n id="a" p="62.90 267.82"/>
+      <n id="b" p="76.43 272.76"/>
+      <n id="c" p="51.87 277.07"/>
+      <n id="d" p="54.35 291.25"/>
+      <n id="e" p="67.88 296.19"/>
+      <n id="f" p="78.92 286.94"/>
+      <n id="g" p="63.42 253.43"/>
+      <n id="h" p="77.27 249.48"/>
+      <n id="i" p="85.31 261.42"/>
+      <b id="target" B="a" E="b" Order="2"/>
+      <b id="outer1" B="a" E="c"/>
+      <b id="outer2" B="c" E="d" Order="2"/>
+      <b id="outer3" B="d" E="e"/>
+      <b id="outer4" B="e" E="f" Order="2"/>
+      <b id="outer5" B="f" E="b"/>
+      <b id="short1" B="a" E="g"/>
+      <b id="short2" B="g" E="h"/>
+      <b id="short3" B="h" E="i"/>
+      <b id="short4" B="i" E="b"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(cdxml, Some("fused alternating")).expect("cdxml should parse");
+    let fragment = document
+        .editable_fragment()
+        .expect("editable fragment should exist")
+        .fragment;
+    let bond = fragment
+        .bonds
+        .iter()
+        .find(|bond| bond.id == "target")
+        .expect("target double bond should import");
+
+    assert_eq!(
+        bond.double.as_ref().map(|double| double.placement),
+        Some(chemcore_engine::DoubleBondPlacement::Left)
+    );
+}
+
+#[test]
+fn load_cdxml_thiocyanation_auto_double_bonds_match_chemdraw_sides() {
+    let cdxml = std::fs::read_to_string(fixture_path("thiocyanation-source.cdxml"))
+        .expect("thiocyanation-source.cdxml should exist");
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(&cdxml)
+        .expect("thiocyanation source should load");
+    let fragment = engine
+        .state()
+        .document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .find(|fragment| fragment.bonds.iter().any(|bond| bond.id == "f1_30118"))
+        .expect("thiocyanation fused ring fragment should import");
+    let target = fragment
+        .bonds
+        .iter()
+        .find(|bond| bond.id == "f1_30118")
+        .expect("fused ring target double bond should import");
+    let cycles = test_cycle_paths_for_segment(fragment, &target.begin, &target.end, &target.id);
+    let shortest_cycle = cycles
+        .iter()
+        .min_by_key(|cycle| cycle.len())
+        .expect("target should have a short fused cycle");
+    let preferred_cycle = cycles
+        .iter()
+        .filter(|cycle| test_cycle_is_alternating_six(fragment, cycle, &target.id))
+        .max_by_key(|cycle| test_cycle_alternating_match_count(fragment, cycle, &target.id))
+        .expect("target should have an alternating six-member cycle");
+
+    assert!(
+        shortest_cycle.len() < preferred_cycle.len(),
+        "fixture must exercise ChemDraw's alternating-ring preference over the shortest fused cycle"
+    );
+    assert_eq!(
+        test_cycle_side(fragment, target, shortest_cycle),
+        Some(chemcore_engine::DoubleBondPlacement::Right)
+    );
+    assert_eq!(
+        test_cycle_side(fragment, target, preferred_cycle),
+        Some(chemcore_engine::DoubleBondPlacement::Left)
+    );
+    assert_eq!(
+        target.double.as_ref().map(|double| double.placement),
+        test_cycle_side(fragment, target, preferred_cycle)
+    );
+}
+
+fn test_cycle_paths_for_segment(
+    fragment: &chemcore_engine::MoleculeFragment,
+    begin_id: &str,
+    end_id: &str,
+    ignored_bond_id: &str,
+) -> Vec<Vec<String>> {
+    let mut cycles = Vec::new();
+    let mut queue = std::collections::VecDeque::from([vec![begin_id.to_string()]]);
+    while let Some(path) = queue.pop_front() {
+        if path.len() > 12 {
+            continue;
+        }
+        let Some(current) = path.last() else {
+            continue;
+        };
+        for bond in &fragment.bonds {
+            if bond.id == ignored_bond_id {
+                continue;
+            }
+            let neighbor = if bond.begin == *current {
+                bond.end.as_str()
+            } else if bond.end == *current {
+                bond.begin.as_str()
+            } else {
+                continue;
+            };
+            if neighbor == end_id {
+                let mut cycle = path.clone();
+                cycle.push(end_id.to_string());
+                if cycle.len() >= 3 {
+                    cycles.push(cycle);
+                }
+                continue;
+            }
+            if path.iter().any(|node_id| node_id == neighbor) {
+                continue;
+            }
+            let mut next = path.clone();
+            next.push(neighbor.to_string());
+            queue.push_back(next);
+        }
+    }
+    cycles
+}
+
+fn test_cycle_is_alternating_six(
+    fragment: &chemcore_engine::MoleculeFragment,
+    cycle: &[String],
+    ignored_bond_id: &str,
+) -> bool {
+    cycle.len() == 6
+        && test_cycle_alternating_match_count(fragment, cycle, ignored_bond_id) == cycle.len() - 1
+}
+
+fn test_cycle_alternating_match_count(
+    fragment: &chemcore_engine::MoleculeFragment,
+    cycle: &[String],
+    ignored_bond_id: &str,
+) -> usize {
+    cycle
+        .windows(2)
+        .enumerate()
+        .filter(|(index, pair)| {
+            let expected_order = if index % 2 == 0 { 1 } else { 2 };
+            fragment.bonds.iter().any(|bond| {
+                bond.id != ignored_bond_id
+                    && bond.order == expected_order
+                    && ((bond.begin == pair[0] && bond.end == pair[1])
+                        || (bond.begin == pair[1] && bond.end == pair[0]))
+            })
+        })
+        .count()
+}
+
+fn test_cycle_side(
+    fragment: &chemcore_engine::MoleculeFragment,
+    target: &chemcore_engine::Bond,
+    cycle: &[String],
+) -> Option<chemcore_engine::DoubleBondPlacement> {
+    let begin = fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == target.begin)?
+        .point();
+    let end = fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == target.end)?
+        .point();
+    let dx = end.x - begin.x;
+    let dy = end.y - begin.y;
+    let length = dx.hypot(dy);
+    if length <= chemcore_engine::EPSILON {
+        return None;
+    }
+    let normal_x = -dy / length;
+    let normal_y = dx / length;
+    let midpoint = chemcore_engine::Point::new((begin.x + end.x) * 0.5, (begin.y + end.y) * 0.5);
+    let mut score = 0.0;
+    for node_id in cycle {
+        if node_id == &target.begin || node_id == &target.end {
+            continue;
+        }
+        let point = fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == *node_id)?
+            .point();
+        score += (point.x - midpoint.x) * normal_x + (point.y - midpoint.y) * normal_y;
+    }
+    if score > chemcore_engine::EPSILON {
+        Some(chemcore_engine::DoubleBondPlacement::Left)
+    } else if score < -chemcore_engine::EPSILON {
+        Some(chemcore_engine::DoubleBondPlacement::Right)
+    } else {
+        None
+    }
+}
+
+#[test]
 fn parse_cdxml_attached_atom_label_preserves_source_bbox_size() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
@@ -3319,6 +3574,45 @@ fn parse_cdxml_attached_atom_label_preserves_source_bbox_size() {
     assert!(
         !label.glyph_polygons.is_empty(),
         "refresh should still populate glyph polygons for clipping"
+    );
+}
+
+#[test]
+fn parse_cdxml_attached_sulfur_label_uses_elliptical_clip_geometry() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="14.40" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" LabelSize="10">
+  <page id="p1" BoundingBox="0 0 40 24">
+    <fragment id="f1" BoundingBox="0 0 40 24">
+      <n id="n1" p="10 12" Element="16">
+        <t p="6.40 15.90" BoundingBox="6.40 7.56 13.10 15.90" LabelJustification="Left">
+          <s font="3" size="10" color="0" face="96">S</s>
+        </t>
+      </n>
+      <n id="n2" p="24 12"/>
+      <b id="b1" B="n1" E="n2"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(cdxml, Some("sulfur ellipse clip")).expect("cdxml should parse");
+    let label = document
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .and_then(|fragment| fragment.nodes.iter().find(|node| node.id == "n1"))
+        .and_then(|node| node.label.as_ref())
+        .expect("S label should import");
+
+    assert!(
+        !label.glyph_polygons.is_empty(),
+        "sulfur label should populate glyph polygons"
+    );
+    assert!(
+        label.glyph_polygons.iter().any(|polygon| polygon.len() >= 16),
+        "sulfur clipping should include an ellipse-like polygon for S; text={:?}, polygons={:?}",
+        label.text,
+        label.glyph_polygons
     );
 }
 
@@ -6887,7 +7181,7 @@ fn render_document_uses_smaller_acs_label_clip_margin() {
     let margin = 51.0 - label_endpoint.x;
 
     assert!(
-        (margin - 0.95).abs() < 0.02,
+        (margin - 0.8).abs() < 0.02,
         "ACS label clipping should use the ACS template margin: {margin} {polygon:?}"
     );
 }

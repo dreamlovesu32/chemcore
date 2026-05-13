@@ -261,7 +261,7 @@ fn ring_double_bond_placement_for_segment(
     end_id: &str,
     ignored_bond_id: Option<&str>,
 ) -> Option<DoubleBondPlacement> {
-    let cycle = shortest_cycle_path_for_segment(fragment, begin_id, end_id, ignored_bond_id)?;
+    let cycle = preferred_cycle_path_for_segment(fragment, begin_id, end_id, ignored_bond_id)?;
     let begin = fragment
         .nodes
         .iter()
@@ -296,12 +296,13 @@ fn ring_double_bond_placement_for_segment(
     (score.abs() > crate::EPSILON).then(|| placement_from_signed_side_score(score))
 }
 
-fn shortest_cycle_path_for_segment(
+fn preferred_cycle_path_for_segment(
     fragment: &crate::MoleculeFragment,
     begin_id: &str,
     end_id: &str,
     ignored_bond_id: Option<&str>,
 ) -> Option<Vec<String>> {
+    let mut best: Option<(Vec<String>, CyclePreference)> = None;
     let mut queue = std::collections::VecDeque::from([vec![begin_id.to_string()]]);
     while let Some(path) = queue.pop_front() {
         if path.len() > 12 {
@@ -322,7 +323,16 @@ fn shortest_cycle_path_for_segment(
             if neighbor == end_id {
                 let mut cycle = path.clone();
                 cycle.push(end_id.to_string());
-                return (cycle.len() >= 3).then_some(cycle);
+                if cycle.len() >= 3 {
+                    let preference = cycle_preference_for_path(fragment, &cycle, ignored_bond_id);
+                    if best
+                        .as_ref()
+                        .is_none_or(|(_, best_preference)| preference > *best_preference)
+                    {
+                        best = Some((cycle, preference));
+                    }
+                }
+                continue;
             }
             if path.iter().any(|node_id| node_id == neighbor) {
                 continue;
@@ -332,7 +342,62 @@ fn shortest_cycle_path_for_segment(
             queue.push_back(next);
         }
     }
-    None
+    best.map(|(cycle, _)| cycle)
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct CyclePreference {
+    is_alternating_six: bool,
+    is_fully_alternating: bool,
+    alternating_matches: usize,
+    near_six_score: i32,
+    short_score: i32,
+}
+
+fn cycle_preference_for_path(
+    fragment: &crate::MoleculeFragment,
+    path: &[String],
+    ignored_bond_id: Option<&str>,
+) -> CyclePreference {
+    let orders = cycle_path_bond_orders(fragment, path, ignored_bond_id).unwrap_or_default();
+    let mut alternating_matches = 0usize;
+    let mut is_fully_alternating = !orders.is_empty();
+    for (index, order) in orders.iter().enumerate() {
+        let expected = if index % 2 == 0 { 1 } else { 2 };
+        if *order == expected {
+            alternating_matches += 1;
+        } else {
+            is_fully_alternating = false;
+        }
+    }
+    let length = path.len() as i32;
+    CyclePreference {
+        is_alternating_six: is_fully_alternating && path.len() == 6,
+        is_fully_alternating,
+        alternating_matches,
+        near_six_score: -(length - 6).abs(),
+        short_score: -length,
+    }
+}
+
+fn cycle_path_bond_orders(
+    fragment: &crate::MoleculeFragment,
+    path: &[String],
+    ignored_bond_id: Option<&str>,
+) -> Option<Vec<u8>> {
+    if path.len() < 2 {
+        return None;
+    }
+    let mut orders = Vec::with_capacity(path.len() - 1);
+    for pair in path.windows(2) {
+        let bond = fragment.bonds.iter().find(|bond| {
+            !ignored_bond_id.is_some_and(|ignored| bond.id == ignored)
+                && ((bond.begin == pair[0] && bond.end == pair[1])
+                    || (bond.begin == pair[1] && bond.end == pair[0]))
+        })?;
+        orders.push(bond.order);
+    }
+    Some(orders)
 }
 
 fn update_unfrozen_double_bond_auto_placement(
