@@ -318,9 +318,10 @@ pub(super) fn enhanced_metafile_for_payload(
                 };
                 (bounds, bounds, None, false)
             };
-        // ChemDraw-style Office previews use EMF+ dual records with antialiasing.
-        // The renderer keeps text and unsupported primitives on GDI fallback records
-        // while recording bond geometry through GDI+ so Word gets smoother edges.
+        // Default to EMF+ dual recording for smooth bond geometry. We still keep
+        // a shared EMF playback path in IViewObject so Word's live redraw stays
+        // closer to the packaged preview, while pure GDI remains available via env
+        // for targeted investigation.
         let force_gdiplus_dual = std::env::var_os("CHEMCORE_OFFICE_GDIPLUS_DUAL").is_some();
         let disable_gdiplus_dual =
             std::env::var_os("CHEMCORE_OFFICE_DISABLE_GDIPLUS_DUAL").is_some();

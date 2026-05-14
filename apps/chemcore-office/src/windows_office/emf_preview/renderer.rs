@@ -25,7 +25,8 @@ use windows_sys::Win32::Graphics::GdiPlus::{
     GdipSetPenDashArray, GdipSetPenDashStyle, GdipSetPenEndCap, GdipSetPenLineJoin,
     GdipSetPenMiterLimit, GdipSetPenStartCap, GdipSetSmoothingMode, GdipSetStringFormatAlign,
     GdipSetStringFormatFlags, GdipSetStringFormatLineAlign, GdipSetTextRenderingHint,
-    GdipStartPathFigure, GdipStringFormatGetGenericTypographic, GdiplusStartup,
+    GdipStartPathFigure, GdipStringFormatGetGenericTypographic, GdipSaveGraphics,
+    GdipRestoreGraphics, GdiplusStartup,
     GdiplusStartupInput, GpBrush, GpFont, GpFontFamily, GpGraphics, GpImage, GpMetafile, GpPath,
     GpPen, GpStringFormat, LineCapFlat, LineCapRound, LineCapSquare, LineJoinBevel, LineJoinMiter,
     LineJoinRound, MetafileFrameUnitGdi, Ok as GDI_PLUS_OK, PointF, RectF, SmoothingModeAntiAlias,
@@ -50,6 +51,7 @@ struct PreviewTransform {
     offset_x: f64,
     offset_y: f64,
     record_scale: f64,
+    emf_recording: bool,
 }
 
 impl PreviewTransform {
@@ -72,12 +74,20 @@ impl PreviewTransform {
             offset_x: bounds.left as f64 + (target_width - drawn_width) / 2.0,
             offset_y: bounds.top as f64 + (target_height - drawn_height) / 2.0,
             record_scale: 1.0,
+            emf_recording: false,
         })
     }
 
     fn with_record_scale(self, record_scale: f64) -> Self {
         Self {
             record_scale: record_scale.max(1.0),
+            ..self
+        }
+    }
+
+    fn for_emf_recording(self) -> Self {
+        Self {
+            emf_recording: true,
             ..self
         }
     }
@@ -107,6 +117,18 @@ impl PreviewTransform {
             .round()
             .max(1.0) as i32
     }
+
+    fn gdip_length(&self, value: f64) -> f32 {
+        if self.emf_recording {
+            value.abs().max(0.01) as f32
+        } else {
+            (value.abs() * self.scale).max(0.01) as f32
+        }
+    }
+
+    fn pen_width(&self, value: f64) -> i32 {
+        self.length(value)
+    }
 }
 
 pub(super) unsafe fn draw_payload_preview(
@@ -114,7 +136,7 @@ pub(super) unsafe fn draw_payload_preview(
     bounds: &RECT,
     payload: &OleObjectPayload,
 ) -> bool {
-    if draw_payload_vector_preview(dc, bounds, payload) {
+    if draw_payload_vector_preview_internal(dc, bounds, payload, None, true) {
         return true;
     }
 
@@ -176,6 +198,7 @@ pub(super) unsafe fn enhanced_metafile_gdiplus_dual_preview(
     else {
         return None;
     };
+    let transform = transform.for_emf_recording();
     let ref_dc = CreateCompatibleDC(null_mut());
     if ref_dc.is_null() {
         return None;
@@ -208,7 +231,7 @@ pub(super) unsafe fn enhanced_metafile_gdiplus_dual_preview(
     }
     GdipSetSmoothingMode(graphics, SmoothingModeAntiAlias);
     GdipSetTextRenderingHint(graphics, TextRenderingHintAntiAliasGridFit);
-    let use_gdiplus_text = gdiplus_text_preview_enabled();
+    let use_gdiplus_text = gdiplus_text_preview_enabled() && !transform.emf_recording;
     let bond_context = preview_bond_context(payload);
     let mut gdi_cache = PreviewGdiCache::default();
     let mut ok = true;
@@ -738,7 +761,7 @@ unsafe fn draw_preview_primitive(
                 .map(|color| {
                     create_preview_pen(
                         color,
-                        transform.length(*stroke_width),
+                        transform.pen_width(*stroke_width),
                         Some("butt"),
                         Some("miter"),
                         dash_array,
@@ -777,7 +800,7 @@ unsafe fn draw_preview_primitive(
                 .map(|color| {
                     create_preview_pen(
                         color,
-                        transform.length(*stroke_width),
+                        transform.pen_width(*stroke_width),
                         Some("round"),
                         Some("round"),
                         dash_array,
@@ -811,7 +834,7 @@ unsafe fn draw_preview_primitive(
                 .map(|color| {
                     create_preview_pen(
                         color,
-                        transform.length(*stroke_width),
+                        transform.pen_width(*stroke_width),
                         Some("round"),
                         Some("round"),
                         &[],
@@ -863,7 +886,20 @@ unsafe fn draw_gdiplus_primitive(
     transform: &PreviewTransform,
     bond_context: Option<&PreviewBondContext>,
 ) -> bool {
-    match primitive {
+    let save_restore = transform.emf_recording
+        && matches!(
+            primitive,
+            RenderPrimitive::Line {
+                ..
+            } | RenderPrimitive::Polyline {
+                ..
+            }
+        );
+    let mut state = 0u32;
+    if save_restore && GdipSaveGraphics(graphics, &mut state) != GDI_PLUS_OK {
+        return false;
+    }
+    let ok = match primitive {
         RenderPrimitive::Line {
             from,
             to,
@@ -874,7 +910,7 @@ unsafe fn draw_gdiplus_primitive(
         } => {
             let Some(pen) = create_gdiplus_pen(
                 stroke,
-                transform.length(*stroke_width) as f32,
+                transform.gdip_length(*stroke_width),
                 Some("butt"),
                 Some("miter"),
                 dash_array,
@@ -1051,7 +1087,11 @@ unsafe fn draw_gdiplus_primitive(
             runs,
             transform,
         ),
+    };
+    if save_restore {
+        let _ = GdipRestoreGraphics(graphics, state);
     }
+    ok
 }
 
 unsafe fn draw_gdiplus_polyline(
@@ -1069,7 +1109,7 @@ unsafe fn draw_gdiplus_polyline(
     }
     let Some(pen) = create_gdiplus_pen(
         color,
-        transform.length(stroke_width) as f32,
+        transform.gdip_length(stroke_width),
         line_cap,
         line_join,
         dash_array,
@@ -1130,7 +1170,7 @@ unsafe fn draw_gdiplus_polygon(
     if stroke_width > 0.0 {
         if let Some(pen) = create_gdiplus_pen(
             stroke,
-            transform.length(stroke_width) as f32,
+            transform.gdip_length(stroke_width),
             Some("butt"),
             Some("miter"),
             &[],
@@ -1175,7 +1215,7 @@ unsafe fn draw_gdiplus_rect(
     if let Some(stroke) = stroke {
         if let Some(pen) = create_gdiplus_pen(
             stroke,
-            transform.length(stroke_width) as f32,
+            transform.gdip_length(stroke_width),
             Some("butt"),
             Some("miter"),
             dash_array,
@@ -1219,7 +1259,7 @@ unsafe fn draw_gdiplus_ellipse(
     if let Some(stroke) = stroke {
         if let Some(pen) = create_gdiplus_pen(
             stroke,
-            transform.length(stroke_width) as f32,
+            transform.gdip_length(stroke_width),
             Some("round"),
             Some("round"),
             dash_array,
@@ -1259,7 +1299,7 @@ unsafe fn draw_gdiplus_path(
     if let Some(stroke) = stroke {
         if let Some(pen) = create_gdiplus_pen(
             stroke,
-            transform.length(stroke_width) as f32,
+            transform.gdip_length(stroke_width),
             line_cap,
             line_join,
             dash_array,
@@ -1333,7 +1373,7 @@ unsafe fn create_gdiplus_pen(
     transform: &PreviewTransform,
 ) -> Option<*mut GpPen> {
     let mut pen = null_mut();
-    if GdipCreatePen1(css_argb(color)?, width.max(1.0), UnitPixel, &mut pen) != GDI_PLUS_OK
+    if GdipCreatePen1(css_argb(color)?, width.max(0.01), UnitPixel, &mut pen) != GDI_PLUS_OK
         || pen.is_null()
     {
         return None;
@@ -1348,7 +1388,7 @@ unsafe fn create_gdiplus_pen(
             .iter()
             .copied()
             .filter(|value| value.is_finite() && *value > 0.0)
-            .map(|value| (transform.length(value) as f32 / width.max(1.0)).max(0.1))
+            .map(|value| (transform.gdip_length(value) / width.max(0.01)).max(0.1))
             .collect();
         if dash.len() == 1 {
             GdipSetPenDashStyle(pen, DashStyleDash);
@@ -2325,7 +2365,7 @@ unsafe fn draw_preview_polyline_points(
     }
     let pen = create_preview_pen(
         colorref_from_css(color).unwrap_or(0x000000),
-        transform.length(stroke_width),
+        transform.pen_width(stroke_width),
         line_cap,
         line_join,
         dash_array,
@@ -2407,7 +2447,7 @@ unsafe fn draw_preview_svg_path(
         .map(|color| {
             create_preview_pen(
                 color,
-                transform.length(stroke_width),
+                transform.pen_width(stroke_width),
                 line_cap,
                 line_join,
                 dash_array,
@@ -2617,7 +2657,7 @@ unsafe fn draw_preview_svg_polygon_path(
         .map(|color| {
             create_preview_pen(
                 color,
-                transform.length(stroke_width),
+                transform.pen_width(stroke_width),
                 line_cap,
                 line_join,
                 dash_array,
@@ -2698,7 +2738,7 @@ unsafe fn draw_preview_svg_polyline_path(
 
     let pen = create_preview_pen(
         color,
-        transform.length(stroke_width),
+        transform.pen_width(stroke_width),
         line_cap,
         line_join,
         dash_array,
@@ -3082,7 +3122,7 @@ unsafe fn draw_preview_oval_bounds(
         .unwrap_or_else(|| GetStockObject(NULL_BRUSH));
     let pen = create_preview_pen(
         stroke_color,
-        transform.length(stroke_width),
+        transform.pen_width(stroke_width),
         Some("round"),
         Some("round"),
         dash_array,
@@ -3135,7 +3175,7 @@ unsafe fn draw_preview_polygon(
         .unwrap_or_else(|| GetStockObject(NULL_BRUSH));
     let pen = create_preview_pen(
         colorref_from_css(stroke).unwrap_or_else(|| colorref_from_css(fill).unwrap_or(0x000000)),
-        transform.length(stroke_width),
+        transform.pen_width(stroke_width),
         Some("butt"),
         Some("miter"),
         &[],
@@ -3211,9 +3251,7 @@ fn preview_bond_context_from_document(document: &ChemcoreDocument) -> PreviewBon
                 x: end.position[0] + object.transform.translate[0],
                 y: end.position[1] + object.transform.translate[1],
             };
-            let allow_pen = preview_bond_is_pen_family(bond)
-                && preview_endpoint_allows_pen(bond, &incident, &bond.begin)
-                && preview_endpoint_allows_pen(bond, &incident, &bond.end);
+            let allow_pen = preview_bond_is_pen_family(bond);
             let start_has_label = begin
                 .label
                 .as_ref()
@@ -3296,41 +3334,6 @@ fn preview_bond_is_side_double(bond: &Bond) -> bool {
         bond.double.as_ref().map(|double| double.placement),
         Some(DoubleBondPlacement::Left | DoubleBondPlacement::Right)
     )
-}
-
-fn preview_endpoint_allows_pen<'a>(
-    bond: &Bond,
-    incident: &BTreeMap<&'a str, Vec<&'a Bond>>,
-    node_id: &str,
-) -> bool {
-    incident
-        .get(node_id)
-        .into_iter()
-        .flatten()
-        .filter(|other| other.id != bond.id)
-        .all(|other| {
-            (other.stroke_width - bond.stroke_width).abs() <= 1.0e-6
-                && (preview_bond_is_pen_family(other) || preview_bond_is_pen_safe_obstacle(other))
-        })
-}
-
-fn preview_bond_is_pen_safe_obstacle(bond: &Bond) -> bool {
-    preview_bond_is_hash_bond(bond)
-        || bond
-            .stereo
-            .as_ref()
-            .is_some_and(|stereo| stereo.kind.contains("hashed"))
-}
-
-fn preview_bond_is_hash_bond(bond: &Bond) -> bool {
-    bond.order == 1
-        && ((bond.line_styles.main == BondLinePattern::Dashed
-            && bond.line_weights.main == BondLineWeight::Bold)
-            || bond
-                .meta
-                .get("contextMenuBondStyle")
-                .and_then(|value| value.as_str())
-                == Some("single-hashed"))
 }
 
 fn preview_normalize_axis(axis: CorePoint) -> Option<CorePoint> {
@@ -4154,28 +4157,8 @@ mod tests {
     }
 
     #[test]
-    fn preview_endpoint_allows_pen_next_to_single_hashed_bond() {
+    fn preview_pen_family_bonds_ignore_neighbor_shape_for_allow_pen() {
         let bond = test_bond("b1", "n1", "n2");
-        let mut hashed = test_bond("b2", "n1", "n3");
-        hashed.line_styles.main = BondLinePattern::Dashed;
-        hashed.meta = serde_json::json!({ "contextMenuBondStyle": "single-hashed" });
-        let mut incident = BTreeMap::new();
-        incident.insert("n1", vec![&bond, &hashed]);
-
-        assert!(preview_endpoint_allows_pen(&bond, &incident, "n1"));
-    }
-
-    #[test]
-    fn preview_endpoint_allows_pen_next_to_hashed_wedge_bond() {
-        let bond = test_bond("b1", "n1", "n2");
-        let mut hashed_wedge = test_bond("b2", "n1", "n3");
-        hashed_wedge.stereo = Some(chemcore_engine::BondStereo {
-            kind: "hashed-wedge".to_string(),
-            wide_end: "end".to_string(),
-        });
-        let mut incident = BTreeMap::new();
-        incident.insert("n1", vec![&bond, &hashed_wedge]);
-
-        assert!(preview_endpoint_allows_pen(&bond, &incident, "n1"));
+        assert!(preview_bond_is_pen_family(&bond));
     }
 }
