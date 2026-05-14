@@ -6708,7 +6708,7 @@ fn render_document_keeps_side_double_outer_line_full_length_when_only_opposite_s
         json!([
             { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 40.0], "charge": 0, "numHydrogens": 0 },
             { "id": "n2", "element": "C", "atomicNumber": 6, "position": [56.0, 40.0], "charge": 0, "numHydrogens": 0 },
-            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [74.0, 12.0], "charge": 0, "numHydrogens": 0 }
+            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [74.0, 68.0], "charge": 0, "numHydrogens": 0 }
         ]),
         json!([
             {
@@ -6761,6 +6761,54 @@ fn render_document_keeps_side_double_outer_line_full_length_when_only_opposite_s
         (long_axis.0.x - 20.0).abs() < 0.05 && (long_axis.1.x - 56.0).abs() < 0.05,
         "{long_axis:?}"
     );
+}
+
+#[test]
+fn render_document_keeps_same_side_single_attached_side_double_outer_line_shortened() {
+    let document = fragment_document(
+        json!([
+            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 40.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n2", "element": "C", "atomicNumber": 6, "position": [56.0, 40.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [74.0, 12.0], "charge": 0, "numHydrogens": 0 }
+        ]),
+        json!([
+            {
+                "id": "b1",
+                "begin": "n1",
+                "end": "n2",
+                "order": 2,
+                "strokeWidth": 0.85,
+                "double": {
+                    "placement": "right"
+                }
+            },
+            {
+                "id": "b2",
+                "begin": "n2",
+                "end": "n3",
+                "order": 1,
+                "strokeWidth": 0.85
+            }
+        ]),
+    );
+
+    let polygons: Vec<_> = object_bond_polygons_with_ids(&render_document(&document))
+        .into_iter()
+        .filter(|(bond_id, _)| bond_id == "b1")
+        .map(|(_, points)| points)
+        .collect();
+    assert_eq!(polygons.len(), 2);
+
+    let mut indexed_lengths: Vec<_> = polygons
+        .iter()
+        .enumerate()
+        .map(|(index, points)| (index, bond_axis_length(points).expect("bond axis length")))
+        .collect();
+    indexed_lengths.sort_by(|(_, a), (_, b)| a.total_cmp(b));
+
+    let short_length = indexed_lengths[0].1;
+    let long_length = indexed_lengths[1].1;
+    assert!(short_length < long_length - 0.05, "{short_length} {long_length}");
 }
 
 #[test]

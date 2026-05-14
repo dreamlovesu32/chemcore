@@ -862,6 +862,18 @@ pub(super) fn side_double_outer_endpoint_can_match_main_length(
         if other_bond.order >= 2 {
             return false;
         }
+        let Some(other_axis) =
+            bond_axis_line_for_endpoint(object, node_map, other_bond, shared_node_id)
+        else {
+            return false;
+        };
+        let Some(contact_side) = main_contact_side(current_center.direction, other_axis.direction)
+        else {
+            return false;
+        };
+        if (contact_side - current_local_side).abs() <= 1.0e-6 {
+            return false;
+        }
         if side_double_outer_line_requires_acute_retreat(
             object,
             node_map,
