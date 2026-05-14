@@ -51,6 +51,7 @@ use renderer::{
 const CHEMDRAW_HIMETRIC_PER_SVG_PX: f64 = 2540.0 / 240.0;
 const CHEMDRAW_EMF_LOGICAL_UNITS_PER_SVG_PX: f64 = 1.0;
 const USE_GDIPLUS_DUAL_PREVIEW: bool = true;
+const PREVIEW_SOURCE_RIGHT_PADDING_PT: f64 = 16.0;
 
 pub(super) unsafe fn draw_payload_preview(
     dc: HDC,
@@ -169,11 +170,21 @@ fn visible_payload_bounds(payload: &OleObjectPayload) -> Option<[f64; 4]> {
     svg_viewbox_bounds(&payload.svg)
 }
 
-fn preview_canvas_bounds(payload: &OleObjectPayload) -> Option<[f64; 4]> {
+pub(super) fn preview_source_bounds(payload: &OleObjectPayload) -> Option<[f64; 4]> {
     match (visible_payload_bounds(payload), svg_viewbox_bounds(&payload.svg)) {
-        (Some(visible), Some(svg)) => Some(union_bounds(visible, svg)),
-        (Some(visible), None) => Some(visible),
-        (None, Some(svg)) => Some(svg),
+        (Some(visible), Some(svg)) => Some([
+            visible[0],
+            visible[1],
+            visible[2].max(svg[2]) + PREVIEW_SOURCE_RIGHT_PADDING_PT,
+            visible[3],
+        ]),
+        (Some(visible), None) => Some([
+            visible[0],
+            visible[1],
+            visible[2] + PREVIEW_SOURCE_RIGHT_PADDING_PT,
+            visible[3],
+        ]),
+        (None, Some(svg)) => Some([svg[0], svg[1], svg[2] + PREVIEW_SOURCE_RIGHT_PADDING_PT, svg[3]]),
         (None, None) => None,
     }
 }
@@ -332,11 +343,11 @@ pub(super) fn enhanced_metafile_for_payload(
     unsafe {
         let use_chemdraw_units = payload_uses_cdxml_editing_scale(payload);
         let (frame_bounds, draw_bounds, source_bounds, use_logical_preview_coords) =
-            if let Some(preview_bounds) = preview_canvas_bounds(payload) {
+            if let Some(visible_bounds) = visible_payload_bounds(payload) {
                 (
-                    office_preview_frame_bounds(preview_bounds, use_chemdraw_units),
-                    office_preview_logical_bounds(preview_bounds, use_chemdraw_units),
-                    Some(preview_bounds),
+                    office_preview_frame_bounds(visible_bounds, use_chemdraw_units),
+                    office_preview_logical_bounds(visible_bounds, use_chemdraw_units),
+                    preview_source_bounds(payload).or(Some(visible_bounds)),
                     true,
                 )
             } else {

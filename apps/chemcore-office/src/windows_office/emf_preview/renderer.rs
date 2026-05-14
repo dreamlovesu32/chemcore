@@ -16,7 +16,7 @@ use windows_sys::Win32::Graphics::GdiPlus::{
     DashStyleDash, EmfTypeEmfPlusDual, FillModeAlternate, FontStyleBold, FontStyleItalic,
     FontStyleRegular, FontStyleUnderline, GdipAddPathBezier, GdipAddPathLine,
     GdipCloneStringFormat, GdipClosePathFigure, GdipCreateFont, GdipCreateFontFamilyFromName,
-    GdipCreatePath, GdipCreatePen1, GdipCreateSolidFill, GdipCreateStringFormat, GdipDeleteBrush,
+    GdipCreateFromHDC, GdipCreatePath, GdipCreatePen1, GdipCreateSolidFill, GdipCreateStringFormat, GdipDeleteBrush,
     GdipDeleteFont, GdipDeleteFontFamily, GdipDeleteGraphics, GdipDeletePath, GdipDeletePen,
     GdipDeleteStringFormat, GdipDisposeImage, GdipDrawEllipse, GdipDrawLine, GdipDrawLines,
     GdipDrawPath, GdipDrawPolygon, GdipDrawRectangle, GdipDrawString, GdipFillEllipse,
@@ -144,7 +144,13 @@ pub(super) unsafe fn draw_payload_preview(
     bounds: &RECT,
     payload: &OleObjectPayload,
 ) -> bool {
-    if draw_payload_vector_preview_internal(dc, bounds, payload, None, true) {
+    if draw_payload_vector_preview_internal(
+        dc,
+        bounds,
+        payload,
+        super::preview_source_bounds(payload),
+        true,
+    ) {
         return true;
     }
 
@@ -244,7 +250,7 @@ pub(super) unsafe fn enhanced_metafile_gdiplus_dual_preview(
     }
     GdipSetSmoothingMode(graphics, SmoothingModeAntiAlias);
     GdipSetTextRenderingHint(graphics, TextRenderingHintAntiAliasGridFit);
-    let use_gdiplus_text = gdiplus_text_preview_enabled() && !transform.emf_recording;
+    let use_gdiplus_text = gdiplus_text_preview_enabled();
     let bond_context = preview_bond_context(payload);
     let mut gdi_cache = PreviewGdiCache::default();
     let mut ok = true;
@@ -295,6 +301,14 @@ pub(super) unsafe fn enhanced_metafile_gdiplus_dual_preview(
 fn gdiplus_text_preview_enabled() -> bool {
     (USE_GDIPLUS_TEXT_PREVIEW || std::env::var_os("CHEMCORE_OFFICE_GDIPLUS_TEXT").is_some())
         && std::env::var_os("CHEMCORE_OFFICE_DISABLE_GDIPLUS_TEXT").is_none()
+}
+
+fn gdiplus_text_scale(transform: &PreviewTransform) -> f64 {
+    if transform.emf_recording {
+        transform.scale / CHEMDRAW_EMF_PAGE_SCALE as f64
+    } else {
+        transform.scale
+    }
 }
 
 unsafe fn draw_gdi_primitive_in_gdiplus(
@@ -1596,8 +1610,35 @@ unsafe fn gdiplus_text_run_advance(
         return None;
     };
     let wide: Vec<u16> = run.text.encode_utf16().collect();
+    let width = gdiplus_measure_text_width(
+        graphics,
+        font,
+        format,
+        &wide,
+        run,
+        fallback_font_size,
+        transform,
+    );
+    GdipDeleteStringFormat(format);
+    GdipDeleteFont(font);
+    width
+}
+
+unsafe fn gdiplus_measure_text_width(
+    graphics: *mut GpGraphics,
+    font: *mut GpFont,
+    format: *mut GpStringFormat,
+    wide: &[u16],
+    run: &PreviewTextRun,
+    fallback_font_size: f64,
+    transform: &PreviewTransform,
+) -> Option<f32> {
+    if wide.is_empty() {
+        return Some(0.0);
+    }
     let script_scale = preview_script_scale(run.script.as_deref());
-    let font_px = (run.font_size.unwrap_or(fallback_font_size) * script_scale * transform.scale)
+    let font_px =
+        (run.font_size.unwrap_or(fallback_font_size) * script_scale * gdiplus_text_scale(transform))
         .max(1.0) as f32;
     let layout = RectF {
         X: 0.0,
@@ -1622,8 +1663,6 @@ unsafe fn gdiplus_text_run_advance(
         null_mut(),
         null_mut(),
     ) == GDI_PLUS_OK;
-    GdipDeleteStringFormat(format);
-    GdipDeleteFont(font);
     ok.then_some(bounds.Width.max(0.0))
 }
 
@@ -1656,7 +1695,8 @@ unsafe fn draw_gdiplus_text_run(
         return false;
     };
     let script_scale = preview_script_scale(run.script.as_deref());
-    let font_px = (run.font_size.unwrap_or(fallback_font_size) * script_scale * transform.scale)
+    let font_px =
+        (run.font_size.unwrap_or(fallback_font_size) * script_scale * gdiplus_text_scale(transform))
         .max(1.0) as f32;
     let top = baseline_y - (font_px * 0.86)
         + preview_script_baseline_shift_f32(run, fallback_font_size, transform);
@@ -1711,7 +1751,8 @@ unsafe fn create_gdiplus_font(
         style |= FontStyleUnderline;
     }
     let script_scale = preview_script_scale(run.script.as_deref());
-    let em_size = (run.font_size.unwrap_or(fallback_font_size) * script_scale * transform.scale)
+    let em_size =
+        (run.font_size.unwrap_or(fallback_font_size) * script_scale * gdiplus_text_scale(transform))
         .max(0.1) as f32;
     let mut font: *mut GpFont = null_mut();
     let ok = GdipCreateFont(family, em_size, style, UnitPixel, &mut font) == GDI_PLUS_OK
@@ -1842,6 +1883,7 @@ struct PreviewTextRun {
     font_style: Option<String>,
     underline: Option<bool>,
     script: Option<String>,
+    tighten_advance: bool,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -1904,6 +1946,7 @@ fn preview_text_lines(text: &str, runs: &[chemcore_engine::LabelRun]) -> Vec<Vec
         return text
             .lines()
             .map(|line| {
+                let tighten_advance = line.chars().any(|ch| ch.is_whitespace());
                 preview_text_chunks(line)
                     .into_iter()
                     .map(|chunk| PreviewTextRun {
@@ -1915,12 +1958,14 @@ fn preview_text_lines(text: &str, runs: &[chemcore_engine::LabelRun]) -> Vec<Vec
                         font_style: None,
                         underline: None,
                         script: None,
+                        tighten_advance,
                     })
                     .collect()
             })
             .collect();
     }
 
+    let tighten_advance = text.chars().any(|ch| ch.is_whitespace());
     let mut lines = vec![Vec::new()];
     for run in runs {
         let segments: Vec<&str> = run.text.split('\n').collect();
@@ -1936,6 +1981,7 @@ fn preview_text_lines(text: &str, runs: &[chemcore_engine::LabelRun]) -> Vec<Vec
                         font_style: run.font_style.clone(),
                         underline: run.underline,
                         script: run.script.clone(),
+                        tighten_advance,
                     });
                 }
             }
@@ -2070,27 +2116,56 @@ unsafe fn draw_preview_text_run(
         .unwrap_or(0x000000);
     SetTextColor(dc, text_color);
     let script_shift = preview_script_baseline_shift(run, fallback_font_size, transform);
-    let advance = preview_text_extent(dc, &label)
-        .unwrap_or_else(|| preview_text_run_advance_estimate(run, fallback_font_size, transform));
-    if let Some(dx) = preview_text_dx_array(dc, &label) {
-        ExtTextOutW(
-            dc,
-            x,
-            baseline_y + script_shift,
-            0,
-            null(),
-            label.as_ptr(),
-            label.len() as u32,
-            dx.as_ptr(),
-        );
+    let advance = if run.tighten_advance {
+        preview_text_extent(dc, &label, true)
     } else {
-        TextOutW(
-            dc,
-            x,
-            baseline_y + script_shift,
-            label.as_ptr(),
-            label.len() as i32,
-        );
+        preview_structure_label_extent(dc, run, fallback_font_size, fallback_family, transform)
+    }
+    .unwrap_or_else(|| preview_text_run_advance_estimate(run, fallback_font_size, transform));
+    if run.tighten_advance {
+        if let Some(dx) = preview_text_dx_array(dc, &label, true) {
+            ExtTextOutW(
+                dc,
+                x,
+                baseline_y + script_shift,
+                0,
+                null(),
+                label.as_ptr(),
+                label.len() as u32,
+                dx.as_ptr(),
+            );
+        } else {
+            TextOutW(
+                dc,
+                x,
+                baseline_y + script_shift,
+                label.as_ptr(),
+                label.len() as i32,
+            );
+        }
+    } else {
+        if let Some(dx) =
+            preview_structure_label_dx_array(dc, run, fallback_font_size, fallback_family, transform)
+        {
+            ExtTextOutW(
+                dc,
+                x,
+                baseline_y + script_shift,
+                0,
+                null(),
+                label.as_ptr(),
+                label.len() as u32,
+                dx.as_ptr(),
+            );
+        } else {
+            TextOutW(
+                dc,
+                x,
+                baseline_y + script_shift,
+                label.as_ptr(),
+                label.len() as i32,
+            );
+        }
     }
     restore_preview_font(dc, old_font);
     advance
@@ -2110,8 +2185,12 @@ unsafe fn preview_text_run_extent(
     }
     let font = cache.font_for_run(run, fallback_font_size, fallback_family, transform);
     let old_font = select_preview_font(dc, font);
-    let advance = preview_text_extent(dc, &label)
-        .unwrap_or_else(|| preview_text_run_advance_estimate(run, fallback_font_size, transform));
+    let advance = if run.tighten_advance {
+        preview_text_extent(dc, &label, true)
+    } else {
+        preview_structure_label_extent(dc, run, fallback_font_size, fallback_family, transform)
+    }
+    .unwrap_or_else(|| preview_text_run_advance_estimate(run, fallback_font_size, transform));
     restore_preview_font(dc, old_font);
     advance
 }
@@ -2130,9 +2209,11 @@ unsafe fn restore_preview_font(dc: HDC, old_font: HGDIOBJ) {
     }
 }
 
-unsafe fn preview_text_extent(dc: HDC, label: &[u16]) -> Option<i32> {
-    if let Some(dx) = preview_text_dx_array(dc, label) {
-        return Some(dx.iter().sum::<i32>().max(0));
+unsafe fn preview_text_extent(dc: HDC, label: &[u16], tighten_advance: bool) -> Option<i32> {
+    if tighten_advance {
+        if let Some(dx) = preview_text_dx_array(dc, label, true) {
+            return Some(dx.iter().sum::<i32>().max(0));
+        }
     }
     let mut size = SIZE { cx: 0, cy: 0 };
     if GetTextExtentPoint32W(dc, label.as_ptr(), label.len() as i32, &mut size) == 0 {
@@ -2142,7 +2223,11 @@ unsafe fn preview_text_extent(dc: HDC, label: &[u16]) -> Option<i32> {
     }
 }
 
-unsafe fn preview_text_dx_array(dc: HDC, label: &[u16]) -> Option<Vec<i32>> {
+unsafe fn preview_text_dx_array(
+    dc: HDC,
+    label: &[u16],
+    tighten_advance: bool,
+) -> Option<Vec<i32>> {
     if label.is_empty() {
         return Some(Vec::new());
     }
@@ -2162,18 +2247,88 @@ unsafe fn preview_text_dx_array(dc: HDC, label: &[u16]) -> Option<Vec<i32>> {
     {
         return None;
     }
+    let tighten = if tighten_advance {
+        CHEMDRAW_GDI_TEXT_ADVANCE_TIGHTEN
+    } else {
+        1.0
+    };
     let mut dx = Vec::with_capacity(label.len());
-    let mut previous = 0i32;
     let mut previous_scaled = 0i32;
     for cumulative in partial {
-        let step = (cumulative - previous).max(0);
-        previous = cumulative;
-        let scaled_cumulative =
-            ((cumulative as f64) * CHEMDRAW_GDI_TEXT_ADVANCE_TIGHTEN).round() as i32;
-        let scaled_step = (scaled_cumulative - previous_scaled).max(0).max(step.min(1));
+        let scaled_cumulative = ((cumulative as f64) * tighten).round() as i32;
+        let scaled_step = (scaled_cumulative - previous_scaled).max(0).max(1);
         previous_scaled = scaled_cumulative;
         dx.push(scaled_step);
     }
+    Some(dx)
+}
+
+unsafe fn preview_structure_label_extent(
+    dc: HDC,
+    run: &PreviewTextRun,
+    fallback_font_size: f64,
+    fallback_family: Option<&str>,
+    transform: &PreviewTransform,
+) -> Option<i32> {
+    let dx =
+        preview_structure_label_dx_array(dc, run, fallback_font_size, fallback_family, transform)?;
+    Some(dx.iter().sum::<i32>().max(0))
+}
+
+unsafe fn preview_structure_label_dx_array(
+    _dc: HDC,
+    run: &PreviewTextRun,
+    fallback_font_size: f64,
+    fallback_family: Option<&str>,
+    transform: &PreviewTransform,
+) -> Option<Vec<i32>> {
+    if run.text.is_empty() {
+        return Some(Vec::new());
+    }
+    let wide: Vec<u16> = run.text.encode_utf16().collect();
+    let Some(font) = create_gdiplus_font(run, fallback_font_size, fallback_family, transform)
+    else {
+        return None;
+    };
+    let Some(format) = create_gdiplus_string_format() else {
+        GdipDeleteFont(font);
+        return None;
+    };
+    let measure_dc = CreateCompatibleDC(null_mut());
+    if measure_dc.is_null() {
+        GdipDeleteStringFormat(format);
+        GdipDeleteFont(font);
+        return None;
+    }
+    let mut graphics: *mut GpGraphics = null_mut();
+    if GdipCreateFromHDC(measure_dc, &mut graphics) != GDI_PLUS_OK || graphics.is_null() {
+        DeleteDC(measure_dc);
+        GdipDeleteStringFormat(format);
+        GdipDeleteFont(font);
+        return None;
+    }
+    GdipSetTextRenderingHint(graphics, TextRenderingHintAntiAliasGridFit);
+    let mut dx = Vec::with_capacity(wide.len());
+    let mut previous = 0i32;
+    for end in 1..=wide.len() {
+        let Some(width) =
+            gdiplus_measure_text_width(graphics, font, format, &wide[..end], run, fallback_font_size, transform)
+        else {
+            GdipDeleteGraphics(graphics);
+            DeleteDC(measure_dc);
+            GdipDeleteStringFormat(format);
+            GdipDeleteFont(font);
+            return None;
+        };
+        let cumulative = width.round().max(previous as f32) as i32;
+        let step = (cumulative - previous).max(1);
+        previous = cumulative;
+        dx.push(step);
+    }
+    GdipDeleteGraphics(graphics);
+    DeleteDC(measure_dc);
+    GdipDeleteStringFormat(format);
+    GdipDeleteFont(font);
     Some(dx)
 }
 
@@ -2263,7 +2418,7 @@ fn preview_script_baseline_shift_f32(
     fallback_font_size: f64,
     transform: &PreviewTransform,
 ) -> f32 {
-    let base_height = run.font_size.unwrap_or(fallback_font_size) * transform.scale;
+    let base_height = run.font_size.unwrap_or(fallback_font_size) * gdiplus_text_scale(transform);
     (base_height * preview_script_baseline_shift_em(run)) as f32
 }
 
