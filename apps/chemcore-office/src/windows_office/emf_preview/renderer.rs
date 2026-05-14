@@ -16,10 +16,11 @@ use windows_sys::Win32::Graphics::GdiPlus::{
     DashStyleDash, EmfTypeEmfPlusDual, FillModeAlternate, FontStyleBold, FontStyleItalic,
     FontStyleRegular, FontStyleUnderline, GdipAddPathBezier, GdipAddPathLine,
     GdipCloneStringFormat, GdipClosePathFigure, GdipCreateFont, GdipCreateFontFamilyFromName,
-    GdipCreatePath, GdipCreatePen1, GdipCreateSolidFill, GdipCreateStringFormat, GdipDeleteBrush,
-    GdipDeleteFont, GdipDeleteFontFamily, GdipDeleteGraphics, GdipDeletePath, GdipDeletePen,
-    GdipDeleteStringFormat, GdipDisposeImage, GdipDrawEllipse, GdipDrawLine, GdipDrawLines,
-    GdipDrawPath, GdipDrawPolygon, GdipDrawRectangle, GdipDrawString, GdipFillEllipse,
+    GdipCreateFromHDC, GdipCreatePath, GdipCreatePen1, GdipCreateSolidFill,
+    GdipCreateStringFormat, GdipDeleteBrush, GdipDeleteFont, GdipDeleteFontFamily,
+    GdipDeleteGraphics, GdipDeletePath, GdipDeletePen, GdipDeleteStringFormat,
+    GdipDisposeImage, GdipDrawEllipse, GdipDrawLine, GdipDrawLines, GdipDrawPath,
+    GdipDrawPolygon, GdipDrawRectangle, GdipDrawString, GdipFillEllipse,
     GdipFillPath, GdipFillPolygon, GdipFillRectangle, GdipGetDC, GdipGetHemfFromMetafile,
     GdipGetImageGraphicsContext, GdipMeasureString, GdipRecordMetafile, GdipReleaseDC,
     GdipSetPenDashArray, GdipSetPenDashStyle, GdipSetPenEndCap, GdipSetPenLineJoin,
@@ -349,10 +350,33 @@ unsafe fn draw_payload_vector_preview_internal(
 
     let mut cache = PreviewGdiCache::default();
     let bond_context = preview_bond_context(payload);
+    let mut gdiplus_graphics: *mut GpGraphics = null_mut();
     let mut vector_scope = 0;
     let mut active_record_scale = 1.0;
     let mut high_resolution_available = high_resolution_vectors;
     for primitive in visible {
+        if high_resolution_vectors
+            && preview_primitive_uses_live_gdiplus_bond(primitive)
+            && ensure_gdiplus_started()
+        {
+            if gdiplus_graphics.is_null()
+                && GdipCreateFromHDC(dc, &mut gdiplus_graphics) == GDI_PLUS_OK
+                && !gdiplus_graphics.is_null()
+            {
+                GdipSetSmoothingMode(gdiplus_graphics, SmoothingModeAntiAlias);
+                GdipSetTextRenderingHint(gdiplus_graphics, TextRenderingHintAntiAliasGridFit);
+            }
+            if !gdiplus_graphics.is_null()
+                && draw_gdiplus_primitive(
+                    gdiplus_graphics,
+                    primitive,
+                    &transform,
+                    bond_context.as_ref(),
+                )
+            {
+                continue;
+            }
+        }
         let record_scale = if high_resolution_available {
             preview_primitive_record_scale(primitive)
         } else {
@@ -390,6 +414,9 @@ unsafe fn draw_payload_vector_preview_internal(
     }
     if vector_scope != 0 {
         RestoreDC(dc, vector_scope);
+    }
+    if !gdiplus_graphics.is_null() {
+        GdipDeleteGraphics(gdiplus_graphics);
     }
     cache.delete_objects();
     true
@@ -552,7 +579,18 @@ unsafe fn draw_svg_preview(dc: HDC, bounds: &RECT, payload: &OleObjectPayload) -
 }
 
 pub(super) fn office_preview_primitive_visible(primitive: &RenderPrimitive) -> bool {
-    let role = match primitive {
+    let role = preview_primitive_role(primitive);
+    matches!(
+        role,
+        RenderRole::DocumentBond
+            | RenderRole::DocumentGraphic
+            | RenderRole::DocumentKnockout
+            | RenderRole::DocumentText
+    )
+}
+
+fn preview_primitive_role(primitive: &RenderPrimitive) -> RenderRole {
+    match primitive {
         RenderPrimitive::Line { role, .. }
         | RenderPrimitive::Circle { role, .. }
         | RenderPrimitive::Polygon { role, .. }
@@ -561,15 +599,12 @@ pub(super) fn office_preview_primitive_visible(primitive: &RenderPrimitive) -> b
         | RenderPrimitive::Polyline { role, .. }
         | RenderPrimitive::Path { role, .. }
         | RenderPrimitive::FilledPath { role, .. }
-        | RenderPrimitive::Text { role, .. } => role,
-    };
-    matches!(
-        role,
-        RenderRole::DocumentBond
-            | RenderRole::DocumentGraphic
-            | RenderRole::DocumentKnockout
-            | RenderRole::DocumentText
-    )
+        | RenderPrimitive::Text { role, .. } => *role,
+    }
+}
+
+fn preview_primitive_uses_live_gdiplus_bond(primitive: &RenderPrimitive) -> bool {
+    preview_primitive_role(primitive) == RenderRole::DocumentBond
 }
 
 unsafe fn draw_preview_primitive(
