@@ -169,6 +169,15 @@ fn visible_payload_bounds(payload: &OleObjectPayload) -> Option<[f64; 4]> {
     svg_viewbox_bounds(&payload.svg)
 }
 
+fn preview_canvas_bounds(payload: &OleObjectPayload) -> Option<[f64; 4]> {
+    match (visible_payload_bounds(payload), svg_viewbox_bounds(&payload.svg)) {
+        (Some(visible), Some(svg)) => Some(union_bounds(visible, svg)),
+        (Some(visible), None) => Some(visible),
+        (None, Some(svg)) => Some(svg),
+        (None, None) => None,
+    }
+}
+
 fn payload_render_primitives(payload: &OleObjectPayload) -> Option<Vec<RenderPrimitive>> {
     payload
         .render_list_json
@@ -323,11 +332,11 @@ pub(super) fn enhanced_metafile_for_payload(
     unsafe {
         let use_chemdraw_units = payload_uses_cdxml_editing_scale(payload);
         let (frame_bounds, draw_bounds, source_bounds, use_logical_preview_coords) =
-            if let Some(primitive_bounds) = visible_payload_bounds(payload) {
+            if let Some(preview_bounds) = preview_canvas_bounds(payload) {
                 (
-                    office_preview_frame_bounds(primitive_bounds, use_chemdraw_units),
-                    office_preview_logical_bounds(primitive_bounds, use_chemdraw_units),
-                    Some(primitive_bounds),
+                    office_preview_frame_bounds(preview_bounds, use_chemdraw_units),
+                    office_preview_logical_bounds(preview_bounds, use_chemdraw_units),
+                    Some(preview_bounds),
                     true,
                 )
             } else {
