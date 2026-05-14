@@ -65,17 +65,17 @@ pub(super) unsafe fn draw_placeholder_preview(dc: HDC, bounds: &RECT) {
 
 pub(super) fn extent_himetric_for_payload(payload: &OleObjectPayload) -> Option<SIZE> {
     let bounds = visible_payload_bounds(payload)?;
-    if payload_uses_cdxml_editing_scale(payload) {
-        let cx = ((bounds[2] - bounds[0]).max(0.0) * CHEMDRAW_HIMETRIC_PER_SVG_PX)
-            .round()
-            .clamp(MIN_OBJECT_EXTENT_HIMETRIC as f64, i32::MAX as f64) as i32;
-        let cy = ((bounds[3] - bounds[1]).max(0.0) * CHEMDRAW_HIMETRIC_PER_SVG_PX)
-            .round()
-            .clamp(MIN_OBJECT_EXTENT_HIMETRIC as f64, i32::MAX as f64) as i32;
-        return Some(SIZE { cx, cy });
-    }
-    let width_cm = (bounds[2] - bounds[0]).max(0.0) / PT_PER_CM;
-    let height_cm = (bounds[3] - bounds[1]).max(0.0) / PT_PER_CM;
+    let (mut width_cm, mut height_cm) = if payload_uses_cdxml_editing_scale(payload) {
+        (
+            (bounds[2] - bounds[0]).max(0.0) * CHEMDRAW_HIMETRIC_PER_SVG_PX / HIMETRIC_PER_CM,
+            (bounds[3] - bounds[1]).max(0.0) * CHEMDRAW_HIMETRIC_PER_SVG_PX / HIMETRIC_PER_CM,
+        )
+    } else {
+        (
+            (bounds[2] - bounds[0]).max(0.0) / PT_PER_CM,
+            (bounds[3] - bounds[1]).max(0.0) / PT_PER_CM,
+        )
+    };
     if !width_cm.is_finite() || !height_cm.is_finite() || width_cm <= 0.0 || height_cm <= 0.0 {
         return None;
     }
@@ -85,10 +85,12 @@ pub(super) fn extent_himetric_for_payload(payload: &OleObjectPayload) -> Option<
     } else {
         1.0
     };
-    let cx = (width_cm * scale * HIMETRIC_PER_CM)
+    width_cm *= scale;
+    height_cm *= scale;
+    let cx = (width_cm * HIMETRIC_PER_CM)
         .round()
         .clamp(MIN_OBJECT_EXTENT_HIMETRIC as f64, i32::MAX as f64) as i32;
-    let cy = (height_cm * scale * HIMETRIC_PER_CM)
+    let cy = (height_cm * HIMETRIC_PER_CM)
         .round()
         .clamp(MIN_OBJECT_EXTENT_HIMETRIC as f64, i32::MAX as f64) as i32;
     Some(SIZE { cx, cy })
