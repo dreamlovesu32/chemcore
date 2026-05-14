@@ -1902,16 +1902,19 @@ fn preview_text_lines(text: &str, runs: &[chemcore_engine::LabelRun]) -> Vec<Vec
         return text
             .lines()
             .map(|line| {
-                vec![PreviewTextRun {
-                    text: line.to_string(),
-                    font_family: None,
-                    font_size: None,
-                    fill: None,
-                    font_weight: None,
-                    font_style: None,
-                    underline: None,
-                    script: None,
-                }]
+                preview_text_chunks(line)
+                    .into_iter()
+                    .map(|chunk| PreviewTextRun {
+                        text: chunk,
+                        font_family: None,
+                        font_size: None,
+                        fill: None,
+                        font_weight: None,
+                        font_style: None,
+                        underline: None,
+                        script: None,
+                    })
+                    .collect()
             })
             .collect();
     }
@@ -1921,16 +1924,18 @@ fn preview_text_lines(text: &str, runs: &[chemcore_engine::LabelRun]) -> Vec<Vec
         let segments: Vec<&str> = run.text.split('\n').collect();
         for (index, segment) in segments.iter().enumerate() {
             if !segment.is_empty() {
-                lines.last_mut().expect("line exists").push(PreviewTextRun {
-                    text: (*segment).to_string(),
-                    font_family: run.font_family.clone(),
-                    font_size: run.font_size,
-                    fill: run.fill.clone(),
-                    font_weight: run.font_weight,
-                    font_style: run.font_style.clone(),
-                    underline: run.underline,
-                    script: run.script.clone(),
-                });
+                for chunk in preview_text_chunks(segment) {
+                    lines.last_mut().expect("line exists").push(PreviewTextRun {
+                        text: chunk,
+                        font_family: run.font_family.clone(),
+                        font_size: run.font_size,
+                        fill: run.fill.clone(),
+                        font_weight: run.font_weight,
+                        font_style: run.font_style.clone(),
+                        underline: run.underline,
+                        script: run.script.clone(),
+                    });
+                }
             }
             if index + 1 < segments.len() {
                 lines.push(Vec::new());
@@ -1938,6 +1943,74 @@ fn preview_text_lines(text: &str, runs: &[chemcore_engine::LabelRun]) -> Vec<Vec
         }
     }
     lines
+}
+
+fn preview_text_chunks(segment: &str) -> Vec<String> {
+    if segment.is_empty() {
+        return Vec::new();
+    }
+    let mut chunks = Vec::new();
+    let mut cursor = 0usize;
+    while cursor < segment.len() {
+        let leading_start = cursor;
+        while let Some(ch) = segment[cursor..].chars().next() {
+            if !ch.is_whitespace() {
+                break;
+            }
+            cursor += ch.len_utf8();
+            if cursor >= segment.len() {
+                break;
+            }
+        }
+        if cursor > leading_start {
+            chunks.push(segment[leading_start..cursor].to_string());
+            if cursor >= segment.len() {
+                break;
+            }
+        }
+
+        let token_start = cursor;
+        while let Some(ch) = segment[cursor..].chars().next() {
+            if ch.is_whitespace() {
+                break;
+            }
+            cursor += ch.len_utf8();
+            if cursor >= segment.len() {
+                break;
+            }
+        }
+        if cursor <= token_start {
+            break;
+        }
+
+        let whitespace_start = cursor;
+        while let Some(ch) = segment[cursor..].chars().next() {
+            if !ch.is_whitespace() {
+                break;
+            }
+            cursor += ch.len_utf8();
+            if cursor >= segment.len() {
+                break;
+            }
+        }
+
+        if whitespace_start == cursor {
+            chunks.push(segment[token_start..cursor].to_string());
+            continue;
+        }
+
+        let first_whitespace_end = whitespace_start
+            + segment[whitespace_start..cursor]
+                .chars()
+                .next()
+                .map(|ch| ch.len_utf8())
+                .unwrap_or(0);
+        chunks.push(segment[token_start..first_whitespace_end].to_string());
+        if first_whitespace_end < cursor {
+            chunks.push(segment[first_whitespace_end..cursor].to_string());
+        }
+    }
+    chunks
 }
 
 unsafe fn preview_line_width_measured(
@@ -4254,5 +4327,28 @@ mod tests {
     fn preview_pen_family_bonds_ignore_neighbor_shape_for_allow_pen() {
         let bond = test_bond("b1", "n1", "n2");
         assert!(preview_bond_is_pen_family(&bond));
+    }
+
+    #[test]
+    fn preview_text_chunks_match_chemdraw_word_spacing_pattern() {
+        assert_eq!(
+            preview_text_chunks("4DPAIPN (2 mol%)"),
+            vec!["4DPAIPN ", "(2 ", "mol%)"]
+        );
+        assert_eq!(
+            preview_text_chunks(" (5 mol%), L (7 mol%)"),
+            vec![" ", "(5 ", "mol%), ", "L ", "(7 ", "mol%)"]
+        );
+        assert_eq!(
+            preview_text_chunks("76% yield, 94% ee"),
+            vec!["76% ", "yield, ", "94% ", "ee"]
+        );
+    }
+
+    #[test]
+    fn preview_text_lines_split_plain_runs_into_word_chunks() {
+        let lines = preview_text_lines("4DPAIPN (2 mol%)", &[]);
+        let chunks: Vec<_> = lines[0].iter().map(|run| run.text.as_str()).collect();
+        assert_eq!(chunks, vec!["4DPAIPN ", "(2 ", "mol%)"]);
     }
 }
