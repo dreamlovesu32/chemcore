@@ -37,7 +37,7 @@ use windows_sys::Win32::System::Ole::{CF_ENHMETAFILE, CF_METAFILEPICT};
 use super::{
     wide_null, OleObjectPayload, DOCUMENT_DISPLAY_NAME, DV_E_FORMATETC,
     EMF_LOGICAL_UNITS_PER_CSS_PX, E_FAIL, E_OUTOFMEMORY, GMEM_MOVEABLE_FLAG, HIMETRIC_PER_CM,
-    HIMETRIC_PER_CSS_PX, MIN_OBJECT_EXTENT_HIMETRIC, WMF_PREVIEW_MAX_EXTENT, WORD_A4_BODY_WIDTH_CM,
+    HIMETRIC_PER_CSS_PX, MIN_OBJECT_EXTENT_HIMETRIC, WMF_PREVIEW_MAX_EXTENT,
 };
 
 mod renderer;
@@ -65,11 +65,18 @@ pub(super) unsafe fn draw_placeholder_preview(dc: HDC, bounds: &RECT) {
 
 pub(super) fn extent_himetric_for_payload(payload: &OleObjectPayload) -> Option<SIZE> {
     let bounds = visible_payload_bounds(payload)?;
-    let (mut width_cm, mut height_cm) = if payload_uses_cdxml_editing_scale(payload) {
-        (
-            (bounds[2] - bounds[0]).max(0.0) * CHEMDRAW_HIMETRIC_PER_SVG_PX / HIMETRIC_PER_CM,
-            (bounds[3] - bounds[1]).max(0.0) * CHEMDRAW_HIMETRIC_PER_SVG_PX / HIMETRIC_PER_CM,
-        )
+    let (width_cm, height_cm) = if payload_uses_cdxml_editing_scale(payload) {
+        if let Some(cdxml_bounds) = cdxml_root_bounding_box_points(payload) {
+            (
+                (cdxml_bounds[2] - cdxml_bounds[0]).max(0.0) / PT_PER_CM,
+                (cdxml_bounds[3] - cdxml_bounds[1]).max(0.0) / PT_PER_CM,
+            )
+        } else {
+            (
+                (bounds[2] - bounds[0]).max(0.0) * CHEMDRAW_HIMETRIC_PER_SVG_PX / HIMETRIC_PER_CM,
+                (bounds[3] - bounds[1]).max(0.0) * CHEMDRAW_HIMETRIC_PER_SVG_PX / HIMETRIC_PER_CM,
+            )
+        }
     } else {
         (
             (bounds[2] - bounds[0]).max(0.0) / PT_PER_CM,
@@ -80,13 +87,6 @@ pub(super) fn extent_himetric_for_payload(payload: &OleObjectPayload) -> Option<
         return None;
     }
 
-    let scale = if width_cm > WORD_A4_BODY_WIDTH_CM {
-        WORD_A4_BODY_WIDTH_CM / width_cm
-    } else {
-        1.0
-    };
-    width_cm *= scale;
-    height_cm *= scale;
     let cx = (width_cm * HIMETRIC_PER_CM)
         .round()
         .clamp(MIN_OBJECT_EXTENT_HIMETRIC as f64, i32::MAX as f64) as i32;
@@ -94,6 +94,24 @@ pub(super) fn extent_himetric_for_payload(payload: &OleObjectPayload) -> Option<
         .round()
         .clamp(MIN_OBJECT_EXTENT_HIMETRIC as f64, i32::MAX as f64) as i32;
     Some(SIZE { cx, cy })
+}
+
+fn cdxml_root_bounding_box_points(payload: &OleObjectPayload) -> Option<[f64; 4]> {
+    let cdxml = payload.cdxml.as_deref()?;
+    let start = cdxml.find("<CDXML")?;
+    let head_end = cdxml[start..].find('>')? + start;
+    let head = &cdxml[start..head_end];
+    let marker = "BoundingBox=\"";
+    let bbox_start = head.find(marker)? + marker.len();
+    let bbox_end = head[bbox_start..].find('"')? + bbox_start;
+    let values: Vec<f64> = head[bbox_start..bbox_end]
+        .split_ascii_whitespace()
+        .filter_map(|part| part.parse::<f64>().ok())
+        .collect();
+    let [x1, y1, x2, y2] = values.as_slice() else {
+        return None;
+    };
+    valid_bounds([*x1, *y1, *x2, *y2])
 }
 
 fn payload_uses_cdxml_editing_scale(payload: &OleObjectPayload) -> bool {

@@ -57,6 +57,7 @@ const VERSIONED_PROG_ID: &str = "Chemcore.Document.1";
 const CLSID_STRING: &str = "{CB69F54F-F21E-44DE-84FB-89D98FECE056}";
 const OLE_STREAM_MANIFEST: &str = "ChemcoreManifest";
 const OLE_STREAM_DOCUMENT: &str = "ChemcoreDocument";
+const OLE_STREAM_SOURCE_CDXML: &str = "ChemcoreSourceCdxml";
 const OLE_STREAM_PREVIEW_SVG: &str = "ChemcorePreviewSvg";
 const OLE_STREAM_PRESENTATION_EMF: &str = "\u{0002}OlePres001";
 const OLE_STREAM_ENHANCED_PRINT: &str = "\u{0003}EPRINT";
@@ -335,6 +336,7 @@ struct ClipboardPayload {
     chemcore_fragment_json: Option<String>,
     chemcore_document_json: Option<String>,
     render_list_json: Option<String>,
+    cdxml: Option<String>,
     svg: Option<String>,
 }
 
@@ -343,6 +345,7 @@ struct OleObjectPayload {
     chemcore_fragment_json: Option<String>,
     chemcore_document_json: String,
     render_list_json: Option<String>,
+    cdxml: Option<String>,
     svg: String,
 }
 
@@ -355,6 +358,7 @@ impl OleObjectPayload {
             chemcore_fragment_json: None,
             chemcore_document_json,
             render_list_json: None,
+            cdxml: None,
             svg: String::from_utf8(ole_preview_svg_stream_payload()).unwrap_or_default(),
         }
     }
@@ -371,6 +375,7 @@ impl OleObjectPayload {
             render_list_json: payload
                 .render_list_json
                 .filter(|value| !value.trim().is_empty()),
+            cdxml: payload.cdxml.filter(|value| !value.trim().is_empty()),
             svg: payload
                 .svg
                 .filter(|value| !value.trim().is_empty())
@@ -1592,6 +1597,12 @@ unsafe extern "system" fn persist_storage_load(this: *mut c_void, storage: *mut 
     }) {
         (*object).payload.svg = svg;
     }
+    if let Ok(cdxml) = storage_read_stream(storage, OLE_STREAM_SOURCE_CDXML).and_then(|bytes| {
+        String::from_utf8(bytes)
+            .map_err(|error| format!("ChemcoreSourceCdxml stream is not UTF-8: {error}"))
+    }) {
+        (*object).payload.cdxml = Some(cdxml);
+    }
     (*object).extent_himetric = (*object).payload.extent_himetric();
     log_ole_event("IPersistStorage::Load -> 0x00000000");
     S_OK
@@ -1727,6 +1738,12 @@ unsafe fn write_ole_storage_payload(storage: *mut c_void, payload: &OleObjectPay
     ];
     for (name, bytes) in streams {
         let hr = storage_write_stream(storage, name, bytes);
+        if !hresult_succeeded(hr) {
+            return hr;
+        }
+    }
+    if let Some(cdxml) = payload.cdxml.as_deref() {
+        let hr = storage_write_stream(storage, OLE_STREAM_SOURCE_CDXML, cdxml.as_bytes());
         if !hresult_succeeded(hr) {
             return hr;
         }
@@ -1883,18 +1900,19 @@ fn hglobal_for_object_descriptor(extent: SIZE) -> Result<HGLOBAL, i32> {
 }
 
 fn word_docx_package_for_payload(payload: &OleObjectPayload) -> Result<Vec<u8>, String> {
-    let extent = payload.extent_himetric();
-    let emf = enhanced_metafile_bits_for_payload(payload, extent).map_err(|hr| {
+    let natural_extent = payload.extent_himetric();
+    let display_extent = fit_extent_himetric_to_word_body(natural_extent);
+    let emf = enhanced_metafile_bits_for_payload(payload, display_extent).map_err(|hr| {
         format!(
             "Failed to render Word OOXML EMF preview: 0x{:08X}",
             hr as u32
         )
     })?;
     let ole = ole_storage_file_bytes_for_payload(payload)?;
-    let width_pt = himetric_to_points(extent.cx);
-    let height_pt = himetric_to_points(extent.cy);
-    let width_twips = points_to_twips(width_pt);
-    let height_twips = points_to_twips(height_pt);
+    let width_pt = himetric_to_points(display_extent.cx);
+    let height_pt = himetric_to_points(display_extent.cy);
+    let width_twips = points_to_twips(himetric_to_points(natural_extent.cx));
+    let height_twips = points_to_twips(himetric_to_points(natural_extent.cy));
 
     let mut cursor = Cursor::new(Vec::new());
     {
@@ -1993,8 +2011,28 @@ fn himetric_to_points(value: i32) -> f64 {
     (value.max(1) as f64 / HIMETRIC_PER_CM) * PT_PER_CM
 }
 
+fn fit_extent_himetric_to_word_body(extent: SIZE) -> SIZE {
+    let width_pt = himetric_to_points(extent.cx);
+    let height_pt = himetric_to_points(extent.cy);
+    let max_width_pt = WORD_A4_BODY_WIDTH_CM * PT_PER_CM;
+    if width_pt <= max_width_pt || width_pt <= 0.0 || height_pt <= 0.0 {
+        return extent;
+    }
+    let scale = max_width_pt / width_pt;
+    SIZE {
+        cx: points_to_himetric(width_pt * scale),
+        cy: points_to_himetric(height_pt * scale),
+    }
+}
+
 fn points_to_twips(value: f64) -> i32 {
     (value * 20.0).round().clamp(1.0, i32::MAX as f64) as i32
+}
+
+fn points_to_himetric(value: f64) -> i32 {
+    ((value / PT_PER_CM) * HIMETRIC_PER_CM)
+        .round()
+        .clamp(MIN_OBJECT_EXTENT_HIMETRIC as f64, i32::MAX as f64) as i32
 }
 
 fn ole_storage_file_bytes_for_payload(payload: &OleObjectPayload) -> Result<Vec<u8>, String> {
