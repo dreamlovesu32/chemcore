@@ -22,22 +22,23 @@ use windows_sys::Win32::Graphics::GdiPlus::{
     GdipDrawPath, GdipDrawPolygon, GdipDrawRectangle, GdipDrawString, GdipFillEllipse,
     GdipFillPath, GdipFillPolygon, GdipFillRectangle, GdipGetDC, GdipGetHemfFromMetafile,
     GdipGetImageGraphicsContext, GdipMeasureString, GdipRecordMetafile, GdipReleaseDC,
-    GdipSetPenDashArray, GdipSetPenDashStyle, GdipSetPenEndCap, GdipSetPenLineJoin,
-    GdipSetPenMiterLimit, GdipSetPenStartCap, GdipSetSmoothingMode, GdipSetStringFormatAlign,
-    GdipSetStringFormatFlags, GdipSetStringFormatLineAlign, GdipSetTextRenderingHint,
-    GdipStartPathFigure, GdipStringFormatGetGenericTypographic, GdipSaveGraphics,
-    GdipRestoreGraphics, GdiplusStartup,
+    GdipSetPageScale, GdipSetPageUnit, GdipSetPenDashArray, GdipSetPenDashStyle,
+    GdipSetPenEndCap, GdipSetPenLineJoin, GdipSetPenMiterLimit, GdipSetPenStartCap,
+    GdipSetSmoothingMode, GdipSetStringFormatAlign, GdipSetStringFormatFlags,
+    GdipSetStringFormatLineAlign, GdipSetTextRenderingHint, GdipStartPathFigure,
+    GdipStringFormatGetGenericTypographic, GdipSaveGraphics, GdipRestoreGraphics, GdiplusStartup,
     GdiplusStartupInput, GpBrush, GpFont, GpFontFamily, GpGraphics, GpImage, GpMetafile, GpPath,
-    GpPen, GpStringFormat, LineCapFlat, LineCapRound, LineCapSquare, LineJoinBevel, LineJoinMiter,
-    LineJoinRound, MetafileFrameUnitGdi, Ok as GDI_PLUS_OK, PointF, RectF, SmoothingModeAntiAlias,
-    StringAlignmentNear, StringFormatFlagsMeasureTrailingSpaces, StringFormatFlagsNoClip,
-    StringFormatFlagsNoFitBlackBox, StringFormatFlagsNoWrap, TextRenderingHintAntiAliasGridFit,
-    UnitPixel,
+    GpPen, GpStringFormat, LineCapFlat, LineCapRound, LineCapSquare, LineJoinBevel,
+    LineJoinMiter, LineJoinRound, MetafileFrameUnitGdi, Ok as GDI_PLUS_OK, PointF, RectF,
+    SmoothingModeAntiAlias, StringAlignmentNear, StringFormatFlagsMeasureTrailingSpaces,
+    StringFormatFlagsNoClip, StringFormatFlagsNoFitBlackBox, StringFormatFlagsNoWrap,
+    TextRenderingHintAntiAliasGridFit, UnitPixel, UnitWorld,
 };
 
 const EMF_VECTOR_RECORD_SCALE: f64 = 16.0;
 const EMF_ARROW_RECORD_SCALE: f64 = EMF_VECTOR_RECORD_SCALE;
 const USE_GDIPLUS_TEXT_PREVIEW: bool = true;
+const CHEMDRAW_EMF_PAGE_SCALE: f32 = 0.266_666_68;
 const CHEMDRAW_SCRIPT_SCALE: f64 = 0.75;
 const CHEMDRAW_SUBSCRIPT_SHIFT_DOWN_EM: f64 = 0.22;
 const CHEMDRAW_BOLD_SUBSCRIPT_SHIFT_DOWN_EM: f64 = 0.215;
@@ -106,9 +107,14 @@ impl PreviewTransform {
     }
 
     fn gdip_point(&self, point: CorePoint) -> PointF {
+        let page_scale = if self.emf_recording {
+            CHEMDRAW_EMF_PAGE_SCALE
+        } else {
+            1.0
+        };
         PointF {
-            X: (self.offset_x + (point.x - self.min_x) * self.scale) as f32,
-            Y: (self.offset_y + (point.y - self.min_y) * self.scale) as f32,
+            X: (self.offset_x + (point.x - self.min_x) * self.scale) as f32 / page_scale,
+            Y: (self.offset_y + (point.y - self.min_y) * self.scale) as f32 / page_scale,
         }
     }
 
@@ -228,6 +234,11 @@ pub(super) unsafe fn enhanced_metafile_gdiplus_dual_preview(
     {
         GdipDisposeImage(metafile as *mut GpImage);
         return None;
+    }
+    if transform.emf_recording {
+        GdipSetPageUnit(graphics, UnitPixel);
+        GdipSetPageScale(graphics, 1.0);
+        GdipSetPageScale(graphics, CHEMDRAW_EMF_PAGE_SCALE);
     }
     GdipSetSmoothingMode(graphics, SmoothingModeAntiAlias);
     GdipSetTextRenderingHint(graphics, TextRenderingHintAntiAliasGridFit);
@@ -1143,13 +1154,31 @@ unsafe fn draw_gdiplus_polygon(
     if role == RenderRole::DocumentBond {
         if let Some(stroke_line) = preview_bond_stroke_line(points, bond_id, bond_context) {
             let line_points = [stroke_line.start, stroke_line.end];
+            if transform.emf_recording {
+                let mut state = 0u32;
+                if GdipSaveGraphics(graphics, &mut state) != GDI_PLUS_OK {
+                    return false;
+                }
+                let ok = draw_gdiplus_polyline(
+                    graphics,
+                    &line_points,
+                    fill,
+                    stroke_line.width,
+                    Some("round"),
+                    Some("round"),
+                    transform,
+                    &[],
+                );
+                let _ = GdipRestoreGraphics(graphics, state);
+                return ok;
+            }
             return draw_gdiplus_polyline(
                 graphics,
                 &line_points,
                 fill,
                 stroke_line.width,
                 Some("round"),
-                Some("round"),
+                None,
                 transform,
                 &[],
             );
@@ -1373,7 +1402,12 @@ unsafe fn create_gdiplus_pen(
     transform: &PreviewTransform,
 ) -> Option<*mut GpPen> {
     let mut pen = null_mut();
-    if GdipCreatePen1(css_argb(color)?, width.max(0.01), UnitPixel, &mut pen) != GDI_PLUS_OK
+    let unit = if transform.emf_recording {
+        UnitWorld
+    } else {
+        UnitPixel
+    };
+    if GdipCreatePen1(css_argb(color)?, width.max(0.01), unit, &mut pen) != GDI_PLUS_OK
         || pen.is_null()
     {
         return None;
@@ -1381,7 +1415,9 @@ unsafe fn create_gdiplus_pen(
     let cap = gdiplus_line_cap(line_cap);
     GdipSetPenStartCap(pen, cap);
     GdipSetPenEndCap(pen, cap);
-    GdipSetPenLineJoin(pen, gdiplus_line_join(line_join));
+    if line_join.is_some() {
+        GdipSetPenLineJoin(pen, gdiplus_line_join(line_join));
+    }
     GdipSetPenMiterLimit(pen, PREVIEW_MITER_LIMIT);
     if !dash_array.is_empty() {
         let mut dash: Vec<f32> = dash_array
