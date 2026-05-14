@@ -43,6 +43,8 @@ const CHEMDRAW_SCRIPT_SCALE: f64 = 0.75;
 const CHEMDRAW_SUBSCRIPT_SHIFT_DOWN_EM: f64 = 0.22;
 const CHEMDRAW_BOLD_SUBSCRIPT_SHIFT_DOWN_EM: f64 = 0.215;
 const CHEMDRAW_SUPERSCRIPT_SHIFT_UP_EM: f64 = 0.392;
+const OUT_TT_ONLY_PRECIS_VALUE: u32 = 7;
+const CHEMDRAW_GDI_TEXT_ADVANCE_TIGHTEN: f64 = 0.965;
 
 #[derive(Clone, Copy)]
 struct PreviewTransform {
@@ -2068,15 +2070,28 @@ unsafe fn draw_preview_text_run(
         .unwrap_or(0x000000);
     SetTextColor(dc, text_color);
     let script_shift = preview_script_baseline_shift(run, fallback_font_size, transform);
-    TextOutW(
-        dc,
-        x,
-        baseline_y + script_shift,
-        label.as_ptr(),
-        label.len() as i32,
-    );
     let advance = preview_text_extent(dc, &label)
         .unwrap_or_else(|| preview_text_run_advance_estimate(run, fallback_font_size, transform));
+    if let Some(dx) = preview_text_dx_array(dc, &label) {
+        ExtTextOutW(
+            dc,
+            x,
+            baseline_y + script_shift,
+            0,
+            null(),
+            label.as_ptr(),
+            label.len() as u32,
+            dx.as_ptr(),
+        );
+    } else {
+        TextOutW(
+            dc,
+            x,
+            baseline_y + script_shift,
+            label.as_ptr(),
+            label.len() as i32,
+        );
+    }
     restore_preview_font(dc, old_font);
     advance
 }
@@ -2116,12 +2131,50 @@ unsafe fn restore_preview_font(dc: HDC, old_font: HGDIOBJ) {
 }
 
 unsafe fn preview_text_extent(dc: HDC, label: &[u16]) -> Option<i32> {
+    if let Some(dx) = preview_text_dx_array(dc, label) {
+        return Some(dx.iter().sum::<i32>().max(0));
+    }
     let mut size = SIZE { cx: 0, cy: 0 };
     if GetTextExtentPoint32W(dc, label.as_ptr(), label.len() as i32, &mut size) == 0 {
         None
     } else {
         Some(size.cx.max(0))
     }
+}
+
+unsafe fn preview_text_dx_array(dc: HDC, label: &[u16]) -> Option<Vec<i32>> {
+    if label.is_empty() {
+        return Some(Vec::new());
+    }
+    let mut size = SIZE { cx: 0, cy: 0 };
+    let mut fit = 0i32;
+    let mut partial = vec![0i32; label.len()];
+    if GetTextExtentExPointW(
+        dc,
+        label.as_ptr(),
+        label.len() as i32,
+        i32::MAX,
+        &mut fit,
+        partial.as_mut_ptr(),
+        &mut size,
+    ) == 0
+        || fit != label.len() as i32
+    {
+        return None;
+    }
+    let mut dx = Vec::with_capacity(label.len());
+    let mut previous = 0i32;
+    let mut previous_scaled = 0i32;
+    for cumulative in partial {
+        let step = (cumulative - previous).max(0);
+        previous = cumulative;
+        let scaled_cumulative =
+            ((cumulative as f64) * CHEMDRAW_GDI_TEXT_ADVANCE_TIGHTEN).round() as i32;
+        let scaled_step = (scaled_cumulative - previous_scaled).max(0).max(step.min(1));
+        previous_scaled = scaled_cumulative;
+        dx.push(scaled_step);
+    }
+    Some(dx)
 }
 
 fn preview_text_run_advance_estimate(
@@ -2188,7 +2241,7 @@ unsafe fn create_preview_font(key: &PreviewFontKey) -> HGDIOBJ {
         key.underline as u32,
         0,
         0,
-        0,
+        OUT_TT_ONLY_PRECIS_VALUE,
         0,
         ANTIALIASED_QUALITY as u32,
         0,

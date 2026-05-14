@@ -18,16 +18,17 @@ use windows_sys::Win32::Globalization::WideCharToMultiByte;
 use windows_sys::Win32::Graphics::Gdi::{
     BeginPath, CloseEnhMetaFile, CloseFigure, CloseMetaFile, CreateEnhMetaFileW, CreateFontW,
     CreateMetaFileW, CreatePen, CreateSolidBrush, DeleteEnhMetaFile, DeleteMetaFile, DeleteObject,
-    Ellipse, EndPath, ExtCreatePen, FillPath, GetEnhMetaFileBits, GetMetaFileBitsEx,
-    GetStockObject, GetTextExtentPoint32W, LineTo, MoveToEx, PolyBezier, PolyBezierTo, Polygon,
-    Polyline, Rectangle, RestoreDC, SaveDC, SelectClipPath, SelectObject, SetBkMode,
-    SetGraphicsMode, SetMapMode, SetMiterLimit, SetPolyFillMode, SetTextAlign, SetTextColor,
-    SetViewportExtEx, SetWindowExtEx, SetWorldTransform, StretchDIBits, StrokePath, TextOutA,
-    TextOutW, ALTERNATE, ANTIALIASED_QUALITY, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BS_SOLID,
-    DIB_RGB_COLORS, GM_ADVANCED, HDC, HGDIOBJ, LOGBRUSH, MM_ANISOTROPIC, NULL_BRUSH, NULL_PEN,
-    PS_ENDCAP_FLAT, PS_ENDCAP_ROUND, PS_ENDCAP_SQUARE, PS_GEOMETRIC, PS_JOIN_BEVEL, PS_JOIN_MITER,
-    PS_JOIN_ROUND, PS_SOLID, PS_USERSTYLE, RGN_AND, SRCCOPY, TA_BASELINE, TA_LEFT, TRANSPARENT,
-    XFORM,
+    Ellipse, EndPath, ExtCreatePen, ExtTextOutW, FillPath, GetEnhMetaFileBits,
+    GetMetaFileBitsEx, GetStockObject, GetTextExtentExPointW, GetTextExtentPoint32W, LineTo,
+    MoveToEx, PolyBezier, PolyBezierTo, Polygon, Polyline, Rectangle, RestoreDC, SaveDC,
+    SelectClipPath, SelectObject, SetBkMode, SetGraphicsMode, SetMapMode, SetMiterLimit,
+    SetPolyFillMode, SetTextAlign, SetTextColor, SetViewportExtEx, SetWindowExtEx,
+    SetWorldTransform, StretchDIBits, StrokePath, TextOutA, TextOutW, ALTERNATE,
+    ANTIALIASED_QUALITY, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BS_SOLID, DIB_RGB_COLORS,
+    GM_ADVANCED, HDC, HGDIOBJ, LOGBRUSH, MM_ANISOTROPIC, NULL_BRUSH, NULL_PEN,
+    PS_ENDCAP_FLAT, PS_ENDCAP_ROUND, PS_ENDCAP_SQUARE, PS_GEOMETRIC, PS_JOIN_BEVEL,
+    PS_JOIN_MITER, PS_JOIN_ROUND, PS_SOLID, PS_USERSTYLE, RGN_AND, SRCCOPY, TA_BASELINE,
+    TA_LEFT, TRANSPARENT, XFORM,
 };
 use windows_sys::Win32::System::Com::DVASPECT_CONTENT;
 use windows_sys::Win32::System::DataExchange::METAFILEPICT;
