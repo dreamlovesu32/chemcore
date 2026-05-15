@@ -438,3 +438,38 @@ ChemDraw 的 fallback 记录是：
 - Conclusion:
   - “object id 稳定化”本身不是充分条件
   - 根因仍然更像在 `DrawString` 的 point/layout 语义或 dual fallback 合并策略上
+
+### Experiment: 把 packaged `DrawString` 改成 `0 x 0` point-style `layoutRect`
+
+- Hypothesis:
+  - 既然 ChemDraw 的标题/条件 plain text `DrawString` 都是 `rect=(x,y,0,0)`，那把我们的 packaged `DrawString` 也改成同样的 point-style anchor，可能会让 dual fallback 正确落出独立空格。
+- Code path touched:
+  - `apps/chemcore-office/src/windows_office/emf_preview/renderer.rs`
+  - 仅在 `transform.emf_recording` 时，把 `DrawString` 的 `RectF` 宽高改成 `0`
+- Fixtures used:
+  - `tmp/thiocyanation-source.analysis.payload.json`
+  - `tmp/thiocyanation-source.analysis.emf`
+  - `tmp/thiocyanation-source.chemdraw.emf`
+- Expected result:
+  - 标题第二行 token 变成：
+    - `6`
+    - `" "`
+    - `"(5 "`
+  - fallback `EMR_EXTTEXTOUTW " "` 重新出现
+- Actual result:
+  - `DrawString` 形态确实更像 ChemDraw：
+    - `rect=(x,y,0,0)`
+    - normal / subscript font id 仍然稳定分开
+  - 但标题第二行 fallback 空格仍然没有出现：
+    - 仍然只有 `6`
+    - 直接跳到 `"(5 "`
+  - 因此 point-style `layoutRect` 不是充分条件
+- Relevant files:
+  - `tmp/thiocyanation-source.analysis.emf`
+  - `tmp/thiocyanation-source.analysis.emf.records.json`
+- Kept or reverted:
+  - 计划回退产品代码
+  - 文档保留
+- Conclusion:
+  - “稳定 font id + zero-rect” 两条同时满足，依然不能让 fallback 空格回来
+  - 真正根因更可能在 `StringFormat` 对象内容，或 dual fallback 更深层的生成策略
