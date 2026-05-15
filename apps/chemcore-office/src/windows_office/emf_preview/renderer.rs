@@ -1499,7 +1499,21 @@ unsafe fn draw_gdiplus_text(
         let Some(line_layout) = layouts.get(index) else {
             continue;
         };
-        let width = line_layout.width;
+        let trailing_trim = if transform.emf_recording
+            && matches!(text_anchor, Some("middle" | "end"))
+        {
+            gdiplus_line_trailing_space_trim(
+                graphics,
+                line_runs,
+                font_size,
+                font_family,
+                transform,
+            )
+            .unwrap_or(0.0)
+        } else {
+            0.0
+        };
+        let width = (line_layout.width - trailing_trim).max(0.0);
         let mut cursor_x = match text_anchor {
             Some("middle") => origin.X - width / 2.0,
             Some("end") => origin.X - width,
@@ -1521,6 +1535,72 @@ unsafe fn draw_gdiplus_text(
         }
     }
     ok
+}
+
+unsafe fn gdiplus_line_trailing_space_trim(
+    graphics: *mut GpGraphics,
+    line_runs: &[PreviewTextRun],
+    fallback_font_size: f64,
+    fallback_family: Option<&str>,
+    transform: &PreviewTransform,
+) -> Option<f32> {
+    let mut remaining = 0usize;
+    for run in line_runs.iter().rev() {
+        for ch in run.text.chars().rev() {
+            if ch == ' ' || ch == '\t' {
+                remaining += 1;
+            } else {
+                break;
+            }
+        }
+        if remaining > 0 && !run.text.chars().all(|ch| ch == ' ' || ch == '\t') {
+            break;
+        }
+    }
+    if remaining == 0 {
+        return Some(0.0);
+    }
+    let mut trim = 0.0f32;
+    for run in line_runs.iter().rev() {
+        if remaining == 0 {
+            break;
+        }
+        let trailing = run
+            .text
+            .chars()
+            .rev()
+            .take_while(|ch| *ch == ' ' || *ch == '\t')
+            .count();
+        if trailing == 0 {
+            break;
+        }
+        let take = trailing.min(remaining);
+        let original = gdiplus_text_run_advance(
+            graphics,
+            run,
+            fallback_font_size,
+            fallback_family,
+            transform,
+        )?;
+        let keep_chars = run.text.chars().count().saturating_sub(take);
+        let trimmed_text: String = run.text.chars().take(keep_chars).collect();
+        let mut trimmed_run = run.clone();
+        trimmed_run.text = trimmed_text;
+        let trimmed = gdiplus_text_run_advance(
+            graphics,
+            &trimmed_run,
+            fallback_font_size,
+            fallback_family,
+            transform,
+        )
+        .unwrap_or(0.0);
+        trim += (original - trimmed).max(0.0);
+        remaining -= take;
+        if !run.text.chars().all(|ch| ch == ' ' || ch == '\t') {
+            break;
+        }
+    }
+    Some(trim)
 }
 
 struct GdiplusTextLineLayout {

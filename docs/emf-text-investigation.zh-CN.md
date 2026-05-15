@@ -1418,3 +1418,67 @@ ChemDraw 的 fallback 记录是：
     - packaged `DrawString` anchor / baseline placement
     - especially for the centered title / reagent block and `CH3CN`
     - rather than only trying to “repair” fallback tokenization
+
+### Experiment: trim end-of-line trailing spaces from centered packaged line-width only
+- Hypothesis:
+  - The `CH3CN (0.2 M)  ` line is horizontally shifted because our packaged centering width includes end-of-line trailing spaces.
+  - ChemDraw seems to draw those trailing spaces, but not count them when computing the centered line anchor.
+  - If we keep token drawing unchanged, and only subtract the width of **line-end trailing spaces** from the centered line width, the `CH3CN` line should move back into place without perturbing other lines.
+- Code path touched:
+  - `apps/chemcore-office/src/windows_office/emf_preview/renderer.rs`
+  - Add `gdiplus_line_trailing_space_trim(...)`
+  - In `draw_gdiplus_text(...)`, for packaged `EMF` + centered/end-anchored text only:
+    - `width = line_layout.width - trailing_trim`
+    - token rendering itself remains unchanged
+- Validation samples:
+  - packaged production payload:
+    - `tmp/thiocyanation-source.chemcore.v62.payload.json`
+  - outputs:
+    - `tmp/thiocyanation-source.v69.emf`
+    - `tmp/thiocyanation-source.chemcore.v69.docx`
+    - `tmp/thiocyanation-source.v69.emf.records.json`
+  - token compare reports:
+    - `tmp/v69-chemdraw-title-conditions.md`
+    - `tmp/v69-chemdraw-drawstring-title-conditions.md`
+  - whole-image pixel compare:
+    - `tmp/v69-chemdraw-direct-compare/metrics.json`
+    - `tmp/v69-chemdraw-direct-compare/overlay-top-left-aligned.png`
+- Actual result:
+  - The `CH3CN` line horizontal mismatch is essentially eliminated.
+  - Fallback `EMR_EXTTEXTOUTW`:
+    - before (`v62`):
+      - `CH`: `(670,457)` vs `(677,455)` => `dx=-7`, `dy=+2`
+      - `CN<sp>`: `dx=-7`, `dy=+2`
+      - `(0.2<sp>)`: `dx=-7`, `dy=+2`
+      - final `<sp>`: `dx=-7`, `dy=+2`
+    - after (`v69`):
+      - `CH`: `(678,457)` vs `(677,455)` => `dx=+1`, `dy=+2`
+      - `CN<sp>`: `dx=0`, `dy=+2`
+      - `(0.2<sp>)`: `dx=0`, `dy=+2`
+      - final `<sp>`: `dx=+1`, `dy=+2`
+  - `EmfPlusDrawString`:
+    - before (`v62`):
+      - `CH`: `dx=-27.376`, `dy=+5.623`
+      - `CN<sp>`: `dx=-27.532`, `dy=+5.623`
+      - `(0.2<sp>)`: `dx=-27.676`, `dy=+5.623`
+      - final `<sp>`: `dx=-27.964`, `dy=+5.623`
+    - after (`v69`):
+      - `CH`: `dx=+0.383`, `dy=+5.623`
+      - `CN<sp>`: `dx=+0.228`, `dy=+5.623`
+      - `(0.2<sp>)`: `dx=+0.084`, `dy=+5.623`
+      - final `<sp>`: `dx=-0.204`, `dy=+5.623`
+  - The main title / reagent block remains unchanged; this experiment does **not** address its vertical offset.
+  - Whole-image direct overlap vs ChemDraw improves significantly:
+    - previous baseline (`v56`) `ink_iou = 0.5790806951869038`
+    - `v69` `ink_iou = 0.6530264147832091`
+- Conclusion:
+  - The `CH3CN` line misalignment is a separate, line-width problem, not a baseline or tokenization problem.
+  - ChemDraw-like behavior is better matched by:
+    - drawing the trailing spaces as before
+    - but excluding line-end trailing space width from centered packaged line-width computation
+  - This is a valid production improvement and should be kept.
+- Remaining problem after this experiment:
+  - The title / conditions / reagent block is still too low in packaged `DrawString` by about `+5.7 .. +6.1` page-space units.
+  - So the next investigation target remains:
+    - packaged `DrawString` anchor / baseline placement for the centered title block
+    - not the `CH3CN` line anymore
