@@ -1708,22 +1708,11 @@ unsafe fn draw_gdiplus_text_run(
     let baseline_top_factor = if transform.emf_recording { 0.88 } else { 0.86 };
     let top = baseline_y - (font_px * baseline_top_factor)
         + preview_script_baseline_shift_f32(run, fallback_font_size, transform);
-    let point_style = transform.emf_recording
-        && std::env::var_os("CHEMCORE_OFFICE_EXPERIMENT_POINT_STYLE_TEXT").is_some();
-    let rect = if point_style {
-        RectF {
-            X: x,
-            Y: top,
-            Width: 0.0,
-            Height: 0.0,
-        }
-    } else {
-        RectF {
-            X: x,
-            Y: top,
-            Width: (advance * 1.8).max(font_px * 0.5),
-            Height: (font_px * 1.45).max(1.0),
-        }
+    let rect = RectF {
+        X: x,
+        Y: top,
+        Width: (advance * 1.8).max(font_px * 0.5),
+        Height: (font_px * 1.45).max(1.0),
     };
     let wide: Vec<u16> = run.text.encode_utf16().collect();
     let ok = GdipDrawString(
