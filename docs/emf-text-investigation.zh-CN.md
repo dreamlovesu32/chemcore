@@ -1003,3 +1003,50 @@ ChemDraw 的 fallback 记录是：
     - `header bounds.top / frame.top`
     - packaged GDI+ font 口径（`EmfPlusFont emSize`）
     - 以及它们如何影响 dual fallback 是否落出独立 `" "`
+
+### Finding: 关键分叉不是“状态污染”，而是 `PreviewTransform::scale` 的限幅轴切换
+
+- Observation:
+  - `renderer.rs` 中 packaged GDI+ 字体口径来自：
+    - `gdiplus_text_scale(transform)`
+    - `create_gdiplus_font()`
+    - `em_size = font_size * gdiplus_text_scale(transform)`
+  - `gdiplus_text_scale(transform)` 在 `emf_recording` 时等于：
+    - `transform.scale / CHEMDRAW_EMF_PAGE_SCALE`
+  - 而 `transform.scale` 又来自：
+    - `PreviewTransform::from_bounds(draw_bounds, source_bounds)`
+    - `scale = min(target_width / source_width, target_height / source_height)`
+- Derived math:
+  - baseline / good case 使用固定 `selectionBounds` 后，source 约为：
+    - `width = 1364.0313 - 128.888676 = 1235.142624`
+    - `height = 823.2053 - 270.96 = 552.2453`
+  - 对应 ratio：
+    - `width_ratio = round(1235.142624) / 1235.142624 = 0.9998845283`
+    - `height_ratio = round(552.2453) / 552.2453 = 0.9995558133`
+    - 因此 baseline 取 **height-limited**：
+      - `transform.scale = 0.9995558133`
+  - free-text 顶部上抬后（`top = 266.67`），source 变成：
+    - `height = 823.2053 - 266.67 = 556.5353`
+  - 对应 ratio：
+    - `width_ratio = 0.9998845283`（不变）
+    - `height_ratio = round(556.5353) / 556.5353 = 1.0008349875`
+    - 因此 bad case 转成 **width-limited**：
+      - `transform.scale = 0.9998845283`
+- Consequence:
+  - 这正好解释了 `EmfPlusFont emSize` 的实测变化：
+    - good normal: `99.96807098388672`
+    - bad normal: `100.00094604492188`
+  - 也解释了为什么：
+    - `move-left`（只保留 top 外扩）仍坏
+    - `move-down`（只保留 right 外扩）恢复
+    - `move-inside`（都恢复）也恢复
+- Conclusion:
+  - 当前 packaged `EMF` 文字问题的最直接根因，不再像“前置 free text 污染了状态”。
+  - 更准确地说，是：
+    - **free text 把 `source_bounds.top` 往上抬**
+    - **导致 `PreviewTransform::scale` 从 height-limited 切到 width-limited**
+    - **进而把 packaged GDI+ normal font emSize 推大约 0.03%**
+    - **最终改变 dual fallback 是否输出独立 `" "`**
+  - 后续真正应该继续追的，是：
+    - 为什么这 0.03% 的 `emSize`/scale 变化，会刚好跨过 fallback 空格输出阈值
+    - 以及是否应该避免 text preview 受“顶部自由文本”驱动的限幅轴切换
