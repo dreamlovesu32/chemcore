@@ -1505,6 +1505,8 @@ unsafe fn draw_gdiplus_text(
             Some("end") => origin.X - width,
             _ => origin.X,
         };
+        let packaged_mixed_center_line =
+            transform.emf_recording && text_anchor == Some("middle") && preview_line_has_mixed_script(line_runs);
         for (run, run_layout) in line_runs.iter().zip(&line_layout.runs) {
             ok &= draw_gdiplus_text_run(
                 graphics,
@@ -1512,6 +1514,7 @@ unsafe fn draw_gdiplus_text(
                 origin.Y,
                 run_layout.advance,
                 run,
+                packaged_mixed_center_line,
                 font_size,
                 font_family,
                 fill,
@@ -1531,6 +1534,21 @@ struct GdiplusTextLineLayout {
 struct GdiplusTextRunLayout {
     dx: f32,
     advance: f32,
+}
+
+fn preview_line_has_mixed_script(line_runs: &[PreviewTextRun]) -> bool {
+    let mut saw_script = false;
+    let mut saw_normal = false;
+    for run in line_runs {
+        match run.script.as_deref() {
+            Some("subscript") | Some("superscript") => saw_script = true,
+            _ => saw_normal = true,
+        }
+        if saw_script && saw_normal {
+            return true;
+        }
+    }
+    false
 }
 
 unsafe fn gdiplus_text_layout(
@@ -1679,6 +1697,7 @@ unsafe fn draw_gdiplus_text_run(
     baseline_y: f32,
     advance: f32,
     run: &PreviewTextRun,
+    packaged_mixed_center_line: bool,
     fallback_font_size: f64,
     fallback_family: Option<&str>,
     fallback_fill: Option<&str>,
@@ -1706,8 +1725,10 @@ unsafe fn draw_gdiplus_text_run(
         (run.font_size.unwrap_or(fallback_font_size) * script_scale * gdiplus_text_scale(transform))
         .max(1.0) as f32;
     let baseline_top_factor = if transform.emf_recording { 0.88 } else { 0.86 };
+    let packaged_top_bias = if packaged_mixed_center_line { 0.3 } else { 0.0 };
     let top = baseline_y - (font_px * baseline_top_factor)
-        + preview_script_baseline_shift_f32(run, fallback_font_size, transform);
+        + preview_script_baseline_shift_f32(run, fallback_font_size, transform)
+        + packaged_top_bias;
     let rect = RectF {
         X: x,
         Y: top,
