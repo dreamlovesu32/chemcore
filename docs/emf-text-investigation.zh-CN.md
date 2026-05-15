@@ -126,6 +126,155 @@
 
 - 前面的矢量对象会改变后续标题块的 fallback 行为
 
+### 新增：上下文触发矩阵（2026-05-15）
+
+为了把问题拆成更窄的机制链，我基于 `subset-8` 人工拼了几组最小 payload：
+
+- `subset-8-plus-free-ph`
+- `subset-8-plus-free-6`
+- `subset-8-plus-free-x`
+- `subset-8-plus-8free-ph`
+- `subset-8-plus-line`
+- `subset-8-plus-unlabeled-molecule`
+- `subset-8-plus-free-ph-unlabeled-molecule`
+- `subset-8-plus-unlabeled-molecule-free-x`
+- `subset-8-plus-unlabeled-molecule-line`
+
+其中：
+
+- `free-*`：插入一个额外 free text 对象
+- `8free-ph`：插入多颗额外 free `Ph`
+- `line`：插入普通 vector line 对象
+- `unlabeled-molecule`：插入一个 **只有 molecule、没有任何节点 label** 的骨架对象
+
+结论如下。
+
+#### A. 任意额外 free text 会打坏试剂行，但不会打坏标题行
+
+样本：
+
+- `subset-8-plus-free-ph`
+- `subset-8-plus-free-6`
+- `subset-8-plus-free-x`
+- `subset-8-plus-8free-ph`
+
+共同结果：
+
+- 标题第二行仍然保留：
+  - `6`
+  - `" "`
+  - `"(5 "`
+- 试剂行会退化成：
+  - `Ph`
+  - `"(3 "`
+
+这说明：
+
+- 试剂行 `Ph -> 空格 -> (3 ` 这一段的问题，不依赖具体 token 是 `Ph` 还是 `6` 还是 `X`
+- 只要前面出现额外 free text，上下文就足以吞掉试剂行那颗 fallback 空格
+
+#### B. 普通 vector line 不会触发任何一类空格丢失
+
+样本：
+
+- `subset-8-plus-line`
+
+结果：
+
+- 标题行正常
+- 试剂行正常
+
+这说明：
+
+- 标题行问题不是“任意前置矢量对象”都会触发
+- 试剂行问题也不是普通 vector 绘制链导致的
+
+#### C. 无标签 molecule 会打坏标题行，但不会打坏试剂行
+
+样本：
+
+- `subset-8-plus-unlabeled-molecule`
+
+结果：
+
+- 标题第二行退化成：
+  - `6`
+  - `"(5 "`
+- 试剂行仍然保留：
+  - `Ph`
+  - `" "`
+  - `"(3 "`
+
+这说明：
+
+- 标题行 `6 -> 空格 -> (5 ` 的丢失，不需要节点 label 参与
+- 仅仅 molecule 的骨架绘制链就足以触发
+
+#### D. free text 可以“修复” molecule 对标题行的污染，但同时继续打坏试剂行
+
+样本：
+
+- `subset-8-plus-free-ph-unlabeled-molecule`
+- `subset-8-plus-unlabeled-molecule-free-x`
+
+结果：
+
+- 标题第二行又恢复成：
+  - `6`
+  - `" "`
+  - `"(5 "`
+- 试剂行仍然退化成：
+  - `Ph`
+  - `"(3 "`
+
+注意：
+
+- 这些样本里，free text 在最终渲染顺序上位于 molecule 之后、标题对象之前
+- 所以它更像是把“molecule -> title”的某个坏状态重置掉了
+
+这说明：
+
+- 标题行问题和试剂行问题不是同一个触发器
+- free text 对象会带来一种新的 fallback 状态：
+  - 它会让试剂行变坏
+  - 但又能把无标签 molecule 对标题行造成的污染冲掉
+
+#### E. line 不能起到同样的“重置”作用
+
+样本：
+
+- `subset-8-plus-unlabeled-molecule-line`
+
+结果：
+
+- 标题第二行仍然退化成：
+  - `6`
+  - `"(5 "`
+- 试剂行仍然保留：
+  - `Ph`
+  - `" "`
+  - `"(3 "`
+
+这说明：
+
+- 这个“重置器”是 text 特有的，不是任意对象都能做到
+
+#### 当前最强结论
+
+现在已经可以把问题明确拆成 **两条独立的状态链**：
+
+1. `molecule path/state -> title second line`
+   - 无标签 molecule 足以打坏标题行空格
+   - free text 可以把它重置掉
+   - 普通 line 不会触发，也不会重置
+
+2. `free text state -> reagent line`
+   - 任意额外 free text 都足以打坏试剂行空格
+   - 普通 line 不会触发
+   - 无标签 molecule 单独不会触发
+
+所以 `subset-9` / 完整 payload 里看到的“标题和试剂都略坏”，更像是 **两条不同的 fallback 状态污染链叠加**，而不是一个统一 bug 的两种外观。
+
 ## 记录级观察
 
 ### ChemDraw 在 `6 -> 空格 -> (5 ` 这段的形态
