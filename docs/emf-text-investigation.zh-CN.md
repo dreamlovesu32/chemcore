@@ -1244,3 +1244,46 @@ ChemDraw 的 fallback 记录是：
 - Status:
   - Experiment produced a real narrowing result.
   - Product code should still be reverted; keep only the threshold finding.
+
+### Experiment: global packaged-text top bias
+- Hypothesis:
+  - Since a packaged-text `top` nudge of about `+0.3` is sufficient to restore the missing reagent-line fallback space in the bad threshold case, maybe a small global packaged-text top bias can serve as a stable product fix.
+- Code path touched:
+  - `apps/chemcore-office/src/windows_office/emf_preview/renderer.rs`
+  - `draw_gdiplus_text_run()`
+  - Apply a hardcoded `packaged_top_bias = 0.3` when `transform.emf_recording`
+- Validation samples:
+  - bad threshold case:
+    - `tmp/fixed-selection/free-x-y-sweep/y-266_67.payload.json`
+    - output: `y-266_67.topbias.emf`
+  - full thiocyanation packaged output:
+    - payload: `tmp/thiocyanation-source.chemcore.v62.payload.json`
+    - output: `tmp/thiocyanation-source.topbias.emf`
+    - docx: `tmp/thiocyanation-source.topbias.docx`
+- Actual result:
+  - The minimal bad case becomes good:
+    - reagent sequence changes from
+      - `Ph`
+      - **no fallback `EMR_EXTTEXTOUTW " "`**
+      - `"(3 "`
+    - to
+      - `Ph`
+      - `" "`
+      - `"(3 "`
+  - The packaged `DrawString` rect Y values move exactly as expected, e.g. on the reagent line:
+    - bad `top-0.2`: `rect.y = 1443.591796875`
+    - good `top-0.3`: `rect.y = 1443.69189453125`
+    - global top-bias output matches the good side of that threshold
+  - However, on the full thiocyanation document, the global pixel overlap gets slightly worse:
+    - direct top-left-aligned comparison against `tmp/thiocyanation-source.chemdraw.emf`
+    - `ink_iou = 0.6213436096613667`
+  - This is lower than the current packaged-text baseline from commit `0b11408` (`~0.6264`).
+- Conclusion:
+  - A **global** packaged-text top bias is too broad.
+  - It fixes the narrow fallback-space bug, but it also nudges unrelated text that was already close to ChemDraw, reducing the full-document match slightly.
+  - The useful lesson is:
+    - the vertical-placement threshold is real
+    - but the eventual fix must be **targeted**, not global
+- Status:
+  - Experiment is informative but not acceptable as the final product path.
+  - Revert the code change; keep only the finding.
