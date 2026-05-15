@@ -43,6 +43,8 @@ const CHEMDRAW_SCRIPT_SCALE: f64 = 0.75;
 const CHEMDRAW_SUBSCRIPT_SHIFT_DOWN_EM: f64 = 0.22;
 const CHEMDRAW_BOLD_SUBSCRIPT_SHIFT_DOWN_EM: f64 = 0.215;
 const CHEMDRAW_SUPERSCRIPT_SHIFT_UP_EM: f64 = 0.392;
+const CHEMDRAW_PACKAGED_CENTERED_TEXT_TOP_BIAS_EM: f32 = 0.012;
+const CHEMDRAW_PACKAGED_CENTERED_SCRIPT_EXTRA_TOP_BIAS_EM: f32 = 0.02;
 const OUT_TT_ONLY_PRECIS_VALUE: u32 = 7;
 const CHEMDRAW_GDI_TEXT_ADVANCE_TIGHTEN: f64 = 0.965;
 
@@ -1530,6 +1532,7 @@ unsafe fn draw_gdiplus_text(
                 cursor_x + run_layout.dx,
                 origin.Y,
                 baseline_offset,
+                text_anchor,
                 run_layout.advance,
                 run,
                 font_size,
@@ -1764,6 +1767,7 @@ unsafe fn draw_gdiplus_text_run(
     x: f32,
     baseline_y: f32,
     baseline_offset: Option<f64>,
+    text_anchor: Option<&str>,
     advance: f32,
     run: &PreviewTextRun,
     fallback_font_size: f64,
@@ -1807,8 +1811,19 @@ unsafe fn draw_gdiplus_text_run(
     } else {
         font_px * 0.86
     };
+    let packaged_centered_bias = if transform.emf_recording && matches!(text_anchor, Some("middle"))
+    {
+        let mut bias = font_px * CHEMDRAW_PACKAGED_CENTERED_TEXT_TOP_BIAS_EM;
+        if matches!(run.script.as_deref(), Some("subscript" | "superscript")) {
+            bias += font_px * CHEMDRAW_PACKAGED_CENTERED_SCRIPT_EXTRA_TOP_BIAS_EM;
+        }
+        bias
+    } else {
+        0.0
+    };
     let top = baseline_y - baseline_top
-        + preview_script_baseline_shift_f32(run, fallback_font_size, transform);
+        + preview_script_baseline_shift_f32(run, fallback_font_size, transform)
+        - packaged_centered_bias;
     let rect = RectF {
         X: x,
         Y: top,

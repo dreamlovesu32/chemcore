@@ -1549,3 +1549,52 @@ ChemDraw 的 fallback 记录是：
     - the old constant-`0.88` packaged path
     - the failed all-run baselineOffset path
   - remaining main gap is still the centered title/conditions block, but the vertical error band is now much smaller and more structured
+
+### Experiment: packaged centered DrawString upward bias (v72)
+- Hypothesis:
+  - After `v71`, the remaining packaged `DrawString` gap is a structured vertical bias:
+    - normal centered runs sit about `+1.1 .. +1.6` page units too low
+    - subscript runs sit about `+2.7 .. +3.1` page units too low
+  - A narrow packaged-only top correction should help if it is applied only to centered text and scales with `font_px`.
+- Code path touched:
+  - `apps/chemcore-office/src/windows_office/emf_preview/renderer.rs`
+  - `draw_gdiplus_text_run()` now receives `text_anchor`
+  - when `transform.emf_recording && text_anchor == middle`:
+    - all runs get `font_px * 0.012` upward bias
+    - sub/superscript runs get an extra `font_px * 0.02`
+- Validation samples:
+  - outputs:
+    - `tmp/thiocyanation-source.v72.emf`
+    - `tmp/thiocyanation-source.chemcore.v72.docx`
+    - `tmp/thiocyanation-source.v72.emf.records.json`
+  - reports:
+    - `tmp/v72-chemdraw-title-conditions.md`
+    - `tmp/v72-chemdraw-drawstring-title-conditions.md`
+    - `tmp/v72-chemdraw-drawstring-catalyst-yield.md`
+    - `tmp/v72-chemdraw-catalyst-yield-fallback.md`
+- Actual result:
+  - packaged `DrawString` title / conditions become much tighter vertically:
+    - `4DPAIPN<sp>`: `dy +1.622 -> +0.423`
+    - `Cu(MeCN)`: `+1.497 -> +0.298`
+    - `4` in `PF6`: `+3.063 -> +0.666`
+    - `6` in `PF6`: `+3.063 -> +0.666`
+    - reagent `PhthNCO`: `+1.246 -> +0.047`
+    - reagent subscript `2`: `+2.813 -> +0.415`
+    - `CH3CN` normal runs: `+1.126 -> -0.073`
+    - `CH3CN` subscript `3`: `+2.693 -> +0.295`
+  - yield / catalyst block also improves or stays flat:
+    - `76%<sp>`: `dy +1.047 -> -0.152`
+    - `d.r.<sp>`: `+0.949 -> -0.250`
+    - catalyst `4DPAIPN`: `+0.534` unchanged in the acceptable range
+  - fixed-canvas pixel overlap improves:
+    - full page IoU: `0.2831567292741713 -> 0.287132406025894`
+    - title region IoU: `0.4285628526833954 -> 0.43884717849358196`
+    - yield region IoU: `0.24084778420038536 -> 0.24883540372670807`
+    - catalyst / ligand regions remain effectively unchanged
+  - Known side effect:
+    - fallback token compare now loses the standalone trailing `<sp>` after reagent `Ph` and after `M)` on the `CH3CN` line.
+    - Despite that token-level regression, whole-image fixed-canvas overlap still improves.
+- Conclusion:
+  - The residual `v71` gap was indeed dominated by a packaged centered top-bias problem.
+  - A narrow packaged-only `font_px`-scaled correction improves the real image more than it harms it.
+  - This is a valid new baseline, but the fallback token side effect means the next step should be a follow-up cleanup, not the final stop.
