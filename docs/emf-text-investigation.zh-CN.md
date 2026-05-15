@@ -1375,3 +1375,46 @@ ChemDraw 的 fallback 记录是：
   - Therefore the next production experiments should target:
     - packaged fallback baseline / anchor positioning on the real document
     - not more synthetic top-bounds-only fixes
+
+### Production `EmfPlusDrawString` baseline (v62 vs ChemDraw)
+- Goal:
+  - Check whether the remaining production shift exists only in fallback `EMR_EXTTEXTOUTW`,
+    or whether packaged `GDI+ DrawString` itself is already offset before dual fallback.
+- New reusable tool:
+  - `scripts/emf-drawstring-compare.mjs`
+  - Purpose:
+    - decode `EmfPlusDrawString` from the binary `EMF`
+    - align by token text
+    - compare `rect.x / rect.y` directly between ours and ChemDraw
+- Generated reports:
+  - title / conditions / reagent / `CH3CN` block:
+    - `tmp/v62-chemdraw-drawstring-title-conditions.md`
+  - catalyst + yield area:
+    - `tmp/v62-chemdraw-drawstring-catalyst-yield.md`
+- Hard findings:
+  - The production shift is **already present in packaged `EmfPlusDrawString` geometry**.
+  - Title / conditions / reagent block:
+    - `4DPAIPN<sp>`: ours `(2444.110,1093.119)` vs ChemDraw `(2439.935,1087.000)` => `dx=+4.175`, `dy=+6.119`
+    - `Cu(MeCN)`: `dx=+1.713`, `dy=+5.994`
+    - `PF`: `dx=+1.275`, `dy=+5.994`
+    - standalone `<sp>` after `6`: `dx=+1.133`, `dy=+5.994`
+    - reagent line `PhthNCO / SCH / Ph / <sp> / (3<sp>`: mostly `dy≈+5.743`
+  - `CH3CN` line is a distinct sub-case:
+    - `CH`: ours `(2513.093,1621.923)` vs ChemDraw `(2540.469,1616.300)` => `dx=-27.376`, `dy=+5.623`
+    - `CN<sp>`: `dx=-27.532`, `dy=+5.623`
+    - `(0.2<sp>)`: `dx=-27.676`, `dy=+5.623`
+    - trailing standalone `<sp>`: `dx=-27.964`, `dy=+5.623`
+  - Yield area:
+    - first line (`76%<sp>`, `yield,<sp>`, `94%<sp>`, `ee`) is only `dy≈+2.547`
+    - second line (`d.r.<sp>`, `><sp>`, `20:1`) is `dy≈+2.449`
+  - Catalyst structure labels are already close:
+    - most `Ph` labels differ by only about `dx≈-1`, `dy≈-1`
+- Interpretation:
+  - The remaining production mismatch is **not fallback-only**.
+  - For the main title / reagent block, packaged `DrawString` is already too low by about `+5.5 .. +6.1` in page space.
+  - The fallback `EMR_EXTTEXTOUTW` `dy≈+2` is therefore downstream of an earlier packaged `DrawString` placement difference, not an isolated fallback bug.
+  - `CH3CN` is not just a vertical issue; it is a separate line-specific anchor/placement problem with a large negative `dx`.
+  - This narrows the next real target to:
+    - packaged `DrawString` anchor / baseline placement
+    - especially for the centered title / reagent block and `CH3CN`
+    - rather than only trying to “repair” fallback tokenization
