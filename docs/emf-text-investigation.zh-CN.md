@@ -473,3 +473,73 @@ ChemDraw 的 fallback 记录是：
 - Conclusion:
   - “稳定 font id + zero-rect” 两条同时满足，依然不能让 fallback 空格回来
   - 真正根因更可能在 `StringFormat` 对象内容，或 dual fallback 更深层的生成策略
+
+### Finding: 当前最小复现应切到 `mixed-center-two-line`
+
+- Observation:
+  - 用当前基线代码重新导样本后，`mixed-center-line` 不再是最小复现，因为它会正确落出：
+    - `6`
+    - `" "`
+    - `"(5 "`
+  - 当前最小复现是 `tmp/word-text-fixtures/mixed-center-two-line.cdxml`
+- Current behavior on `mixed-center-two-line`:
+  - second line fallback 变成：
+    - `Cu(MeCN)`
+    - `4`
+    - `PF`
+    - `6`
+    - `"(5 "`
+  - 中间独立 `" "` 丢失
+- ChemDraw behavior on the same fixture:
+  - second line fallback 是：
+    - `Cu(MeCN)`
+    - `4`
+    - `PF`
+    - `6`
+    - `" "`
+    - `"(5 "`
+- Conclusion:
+  - 问题已经能在一个极小的、当前有效的 fixture 上稳定复现
+  - 后续分析和回归优先围绕 `mixed-center-two-line`
+
+### Finding: 不是 `Center` 特有问题；拆成两个 text object 会恢复
+
+- Temporary fixtures:
+  - `tmp/word-text-temp/mixed-left-two-line.cdxml`
+  - `tmp/word-text-temp/mixed-right-two-line.cdxml`
+  - `tmp/word-text-temp/mixed-center-two-objects.cdxml`
+- Results:
+  - `mixed-left-two-line`：第二行仍然缺独立 `" "` fallback
+  - `mixed-right-two-line`：第二行仍然缺独立 `" "` fallback
+  - `mixed-center-two-objects`：把两行拆成两个独立 `<t>` 后，第二行 fallback 空格恢复
+- Conclusion:
+  - 问题不是 `Center` 对齐专属
+  - 更像是“同一个多行 text object 中，后续 mixed-script 行”的 packaged dual fallback 行为
+
+### Experiment: packaged EMF 文字按“每一行”加 `GDI+ Save/Restore`
+
+- Hypothesis:
+  - 既然把两行拆成两个独立 `<t>` 会恢复第二行空格，也许在 packaged `EMF` 里对每一行加一层 `GDI+ Save/Restore`，能模拟 object boundary 的 flush 行为。
+- Code path touched:
+  - `apps/chemcore-office/src/windows_office/emf_preview/renderer.rs`
+  - `draw_gdiplus_text()` 的按行循环中，`transform.emf_recording` 时对每一行包一层 `GdipSaveGraphics / GdipRestoreGraphics`
+- Fixtures used:
+  - `tmp/word-text-fixtures/mixed-center-two-line.cdxml`
+  - `tmp/thiocyanation-source.cdxml`
+- Expected result:
+  - `mixed-center-two-line` 的第二行 fallback 恢复：
+    - `6`
+    - `" "`
+    - `"(5 "`
+- Actual result:
+  - 第二行独立空格仍然没有回来
+  - 只是在记录链上引入了新的：
+    - `EmfPlusRestore (0x4026)`
+    - `EmfPlusSave (0x4025)`
+  - 但不改变核心现象
+- Kept or reverted:
+  - 计划回退产品代码
+  - 文档保留
+- Conclusion:
+  - object boundary 的效果，并不能通过“按行 Save/Restore”简单模拟
+  - 两行拆成两个独立 `<t>` 能成功，说明真正有效的分界还在更高层

@@ -1492,11 +1492,19 @@ unsafe fn draw_gdiplus_text(
         if line_runs.is_empty() {
             continue;
         }
+        let line_save_restore = transform.emf_recording;
+        let mut line_state = 0u32;
+        if line_save_restore && GdipSaveGraphics(graphics, &mut line_state) != GDI_PLUS_OK {
+            return false;
+        }
         let origin = transform.gdip_point(CorePoint {
             x,
             y: y + index as f64 * line_step_world,
         });
         let Some(line_layout) = layouts.get(index) else {
+            if line_save_restore {
+                let _ = GdipRestoreGraphics(graphics, line_state);
+            }
             continue;
         };
         let width = line_layout.width;
@@ -1518,6 +1526,9 @@ unsafe fn draw_gdiplus_text(
                 transform,
             );
             cursor_x += run_layout.dx + run_layout.advance;
+        }
+        if line_save_restore {
+            let _ = GdipRestoreGraphics(graphics, line_state);
         }
     }
     ok
