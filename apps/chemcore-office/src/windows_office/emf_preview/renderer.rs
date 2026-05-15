@@ -1492,6 +1492,10 @@ unsafe fn draw_gdiplus_text(
         if line_runs.is_empty() {
             continue;
         }
+        let point_style_line = transform.emf_recording
+            && text_anchor == Some("middle")
+            && lines.len() > 1
+            && preview_text_line_has_mixed_script_runs(line_runs);
         let origin = transform.gdip_point(CorePoint {
             x,
             y: y + index as f64 * line_step_world,
@@ -1511,6 +1515,7 @@ unsafe fn draw_gdiplus_text(
                 cursor_x + run_layout.dx,
                 origin.Y,
                 run_layout.advance,
+                point_style_line,
                 run,
                 font_size,
                 font_family,
@@ -1601,6 +1606,21 @@ unsafe fn gdiplus_text_layout(
     layouts
 }
 
+fn preview_text_line_has_mixed_script_runs(line_runs: &[PreviewTextRun]) -> bool {
+    let has_plain = line_runs
+        .iter()
+        .any(|run| run.script.as_deref().is_none_or(str::is_empty));
+    let has_script = line_runs
+        .iter()
+        .any(|run| {
+            matches!(
+                run.script.as_deref(),
+                Some("sub") | Some("super") | Some("subscript") | Some("superscript")
+            )
+        });
+    has_plain && has_script
+}
+
 unsafe fn gdiplus_text_run_advance(
     graphics: *mut GpGraphics,
     run: &PreviewTextRun,
@@ -1678,6 +1698,7 @@ unsafe fn draw_gdiplus_text_run(
     x: f32,
     baseline_y: f32,
     advance: f32,
+    point_style: bool,
     run: &PreviewTextRun,
     fallback_font_size: f64,
     fallback_family: Option<&str>,
@@ -1708,11 +1729,20 @@ unsafe fn draw_gdiplus_text_run(
     let baseline_top_factor = if transform.emf_recording { 0.88 } else { 0.86 };
     let top = baseline_y - (font_px * baseline_top_factor)
         + preview_script_baseline_shift_f32(run, fallback_font_size, transform);
-    let rect = RectF {
-        X: x,
-        Y: top,
-        Width: (advance * 1.8).max(font_px * 0.5),
-        Height: (font_px * 1.45).max(1.0),
+    let rect = if point_style {
+        RectF {
+            X: x,
+            Y: top,
+            Width: 0.0,
+            Height: 0.0,
+        }
+    } else {
+        RectF {
+            X: x,
+            Y: top,
+            Width: (advance * 1.8).max(font_px * 0.5),
+            Height: (font_px * 1.45).max(1.0),
+        }
     };
     let wide: Vec<u16> = run.text.encode_utf16().collect();
     let ok = GdipDrawString(
