@@ -1050,3 +1050,42 @@ ChemDraw 的 fallback 记录是：
   - 后续真正应该继续追的，是：
     - 为什么这 0.03% 的 `emSize`/scale 变化，会刚好跨过 fallback 空格输出阈值
     - 以及是否应该避免 text preview 受“顶部自由文本”驱动的限幅轴切换
+
+### Experiment: 扫描 free text `Y` 位置，定位空格消失阈值
+
+- Hypothesis:
+  - 如果根因真的是 `source_bounds.top` 引起的 `scale` 限幅轴切换，那么把 free text `X` 的 `translate.y` 沿竖直方向微调，空格是否存在应该会出现一个非常明确的阈值。
+- Code path touched:
+  - 无产品代码改动
+  - 仅生成分析性 payload 变体：
+    - `tmp/fixed-selection/free-x-y-sweep/*.payload.json`
+- Sweep values:
+  - `y = 266.67, 268.00, 269.00, 270.00, 270.50, 270.96, 271.00, 272.00, 275.00, 280.00, 290.00, 300.00, 320.00`
+- Actual result:
+  - 只有最上面的一个点会坏：
+    - `y=266.67`
+      - `header.bounds.top = 268`
+      - reagent fallback：
+        - `Ph`
+        - **没有独立 `" "`**
+        - `"(3 "`
+      - reagent normal font raw：
+        - `emSize = 100.00094604492188`
+  - 从 `y=268.00` 开始往下，全都恢复：
+    - `y=268.00`
+      - `header.bounds.top = 269`
+      - reagent fallback：
+        - `Ph`
+        - `" "`
+        - `"(3 "`
+      - reagent normal font raw：
+        - `emSize = 99.96807098388672`
+  - 之后 `y >= 268.00` 的所有样本都保持同样的“好”状态。
+- Conclusion:
+  - 这不是模糊的“有时会坏”，而是一个**几乎单像素级**的阈值问题。
+  - 当前最稳定的经验规律是：
+    - `header.bounds.top = 268` 时坏
+    - `header.bounds.top >= 269` 时好
+  - 这进一步支持上一条结论：
+    - 问题由 `source/top -> scale -> emSize` 的极小切换触发
+    - 而不是笼统的上下文或对象种类污染
