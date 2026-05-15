@@ -1706,8 +1706,15 @@ unsafe fn draw_gdiplus_text_run(
         (run.font_size.unwrap_or(fallback_font_size) * script_scale * gdiplus_text_scale(transform))
         .max(1.0) as f32;
     let baseline_top_factor = if transform.emf_recording { 0.88 } else { 0.86 };
-    let top = baseline_y - (font_px * baseline_top_factor)
-        + preview_script_baseline_shift_f32(run, fallback_font_size, transform);
+    let top_nudge = std::env::var("CHEMCORE_OFFICE_EXPERIMENT_TEXT_TOP_NUDGE")
+        .ok()
+        .and_then(|raw| raw.parse::<f32>().ok())
+        .filter(|_| transform.emf_recording)
+        .unwrap_or(0.0);
+    let top = baseline_y
+        - (font_px * baseline_top_factor)
+        + preview_script_baseline_shift_f32(run, fallback_font_size, transform)
+        + top_nudge;
     let rect = RectF {
         X: x,
         Y: top,
