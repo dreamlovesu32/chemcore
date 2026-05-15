@@ -543,3 +543,36 @@ ChemDraw 的 fallback 记录是：
 - Conclusion:
   - object boundary 的效果，并不能通过“按行 Save/Restore”简单模拟
   - 两行拆成两个独立 `<t>` 能成功，说明真正有效的分界还在更高层
+
+### Experiment: packaged `GDI+ MeasureString` 改到离屏 graphics
+
+- Hypothesis:
+  - 当前 `gdiplus_text_layout()` 在 packaged `EMF` 录制时，直接拿 recording metafile 的 `GpGraphics` 去 `MeasureString`。
+  - 这可能会污染 dual fallback 的状态，所以把测量改到离屏 `GDI+ graphics` 上，也许能让 `mixed-center-two-line` 第二行的独立空格恢复。
+- Code path touched:
+  - `apps/chemcore-office/src/windows_office/emf_preview/renderer.rs`
+  - `gdiplus_text_layout()`
+  - `transform.emf_recording` 时：
+    - 基于 `CreateCompatibleDC` + `GdipCreateFromHDC`
+    - 构造专用 `measure_graphics`
+    - 用它替代 recording metafile graphics 参与 `gdiplus_text_run_advance()`
+- Fixtures used:
+  - `tmp/word-text-fixtures/mixed-center-two-line.cdxml`
+  - `tmp/thiocyanation-source.cdxml`
+- Expected result:
+  - `mixed-center-two-line` 第二行 fallback 恢复：
+    - `6`
+    - `" "`
+    - `"(5 "`
+- Actual result:
+  - 第二行独立空格仍然没有回来
+  - `mixed-center-two-line` 仍然是：
+    - `6`
+    - `"(5 "`
+  - 完整 `thiocyanation` 标题第二行也同样没有恢复
+- Kept or reverted:
+  - 计划回退产品代码
+  - 文档保留
+- Conclusion:
+  - `MeasureString` 使用 recording metafile graphics 不是这颗 fallback 空格丢失的主因
+  - 问题仍然更像在 packaged dual fallback 的文本输出阶段，而不是测量阶段

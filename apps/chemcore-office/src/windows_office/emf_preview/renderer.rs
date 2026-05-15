@@ -1560,6 +1560,16 @@ unsafe fn gdiplus_text_layout(
             })
             .collect();
     }
+    let mut measure_graphics = graphics;
+    let mut owned_measure_graphics: *mut GpGraphics = null_mut();
+    if transform.emf_recording {
+        if GdipCreateFromHDC(dc, &mut owned_measure_graphics) == GDI_PLUS_OK
+            && !owned_measure_graphics.is_null()
+        {
+            GdipSetTextRenderingHint(owned_measure_graphics, TextRenderingHintAntiAliasGridFit);
+            measure_graphics = owned_measure_graphics;
+        }
+    }
     let mut cache = PreviewGdiCache::default();
     let layouts = lines
         .iter()
@@ -1570,7 +1580,7 @@ unsafe fn gdiplus_text_layout(
                 .map(|run| {
                     let dx = preview_script_dx_f32(run, fallback_font_size, transform);
                     let advance = gdiplus_text_run_advance(
-                        graphics,
+                        measure_graphics,
                         run,
                         fallback_font_size,
                         fallback_family,
@@ -1596,6 +1606,9 @@ unsafe fn gdiplus_text_layout(
             }
         })
         .collect();
+    if !owned_measure_graphics.is_null() {
+        GdipDeleteGraphics(owned_measure_graphics);
+    }
     cache.delete_objects();
     DeleteDC(dc);
     layouts
