@@ -403,3 +403,38 @@ ChemDraw 的 fallback 记录是：
 - Conclusion:
   - 后续推理必须以 `analysis.emf` 为准
   - 旧 `v62` 只能当历史样本，不能再当当前代码基线
+
+### Experiment: 让 packaged `EMF` 的 GDI+ 文本稳定复用 font / string-format 对象
+
+- Hypothesis:
+  - 当前 dual fallback 的不稳定，可能来自同一个 `fontId` 在 `EmfPlusObject` 里被反复重绑成 normal/subscript 两种字号；如果把对象身份稳定下来，fallback tokenization 可能会更像 ChemDraw。
+- Code path touched:
+  - `apps/chemcore-office/src/windows_office/emf_preview/renderer.rs`
+  - 在 packaged / GDI+ text 路径中增加 `PreviewGdiplusTextCache`
+  - 复用 `GpFont` / `GpStringFormat`
+- Fixtures used:
+  - `tmp/thiocyanation-source.analysis.payload.json`
+  - `tmp/thiocyanation-source.analysis.emf`
+  - `tmp/thiocyanation-source.chemdraw.emf`
+- Expected result:
+  - 标题第二行对象链从“同一个 `fontId` 来回重绑”变成稳定的 normal/subscript font id
+  - fallback `EMR_EXTTEXTOUTW " "` 重新出现
+- Actual result:
+  - 对象身份确实稳定了：
+    - 我们从原来的 `fontId=5` 反复重绑
+    - 变成了更像 ChemDraw 的分离状态：
+      - normal `fontId=4`
+      - subscript `fontId=5`
+      - `formatId=3`
+  - 但标题第二行 fallback 空格仍然缺失：
+    - `EMF+ DrawString " "` 仍然存在
+    - `EMR_EXTTEXTOUTW " "` 仍然没有出现
+- Relevant files:
+  - `tmp/thiocyanation-source.analysis.emf`
+  - `tmp/thiocyanation-source.analysis.emf.records.json`
+  - `scripts/emf-object-history.mjs`
+- Kept or reverted:
+  - 当前先保留，作为下一步实验基线
+- Conclusion:
+  - “object id 稳定化”本身不是充分条件
+  - 根因仍然更像在 `DrawString` 的 point/layout 语义或 dual fallback 合并策略上
