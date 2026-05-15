@@ -31,7 +31,7 @@ use windows_sys::Win32::Graphics::GdiPlus::{
     GpPen, GpStringFormat, LineCapFlat, LineCapRound, LineCapSquare, LineJoinBevel,
     LineJoinMiter, LineJoinRound, MetafileFrameUnitGdi, Ok as GDI_PLUS_OK, PointF, RectF,
     SmoothingModeAntiAlias, StringAlignmentNear, StringFormatFlagsMeasureTrailingSpaces,
-    StringFormatFlagsNoClip, StringFormatFlagsNoFitBlackBox,
+    StringFormatFlagsNoClip, StringFormatFlagsNoFitBlackBox, TextRenderingHintAntiAlias,
     TextRenderingHintAntiAliasGridFit, UnitPixel, UnitWorld,
 };
 
@@ -249,7 +249,14 @@ pub(super) unsafe fn enhanced_metafile_gdiplus_dual_preview(
         GdipSetPageScale(graphics, CHEMDRAW_EMF_PAGE_SCALE);
     }
     GdipSetSmoothingMode(graphics, SmoothingModeAntiAlias);
-    GdipSetTextRenderingHint(graphics, TextRenderingHintAntiAliasGridFit);
+    GdipSetTextRenderingHint(
+        graphics,
+        if transform.emf_recording {
+            TextRenderingHintAntiAlias
+        } else {
+            TextRenderingHintAntiAliasGridFit
+        },
+    );
     let use_gdiplus_text = gdiplus_text_preview_enabled();
     let bond_context = preview_bond_context(payload);
     let mut gdi_cache = PreviewGdiCache::default();
