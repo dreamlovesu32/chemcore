@@ -1116,3 +1116,35 @@ ChemDraw 的 fallback 记录是：
 - Status:
   - Experiment failed.
   - Product code should be reverted; keep only the finding.
+
+### Experiment: clamp packaged normal `EmfPlusFont emSize` back to the good-case value
+- Hypothesis:
+  - Since the bad free-text-top case correlates with normal packaged font `emSize` jumping from `99.96807098388672` to `100.00094604492188`, maybe the standalone reagent-line fallback space disappears simply because the font crosses that threshold.
+- Code path touched:
+  - `apps/chemcore-office/src/windows_office/emf_preview/renderer.rs`
+  - `create_gdiplus_font()`
+  - Add an experiment-only env var:
+    - `CHEMCORE_OFFICE_EXPERIMENT_EMSIZE_CLAMP`
+    - when `transform.emf_recording`, clamp `em_size = min(em_size, clamp)`
+- Validation sample:
+  - bad threshold case: `tmp/fixed-selection/free-x-y-sweep/y-266_67.payload.json`
+  - run with:
+    - `CHEMCORE_OFFICE_EXPERIMENT_EMSIZE_CLAMP=99.968071`
+  - output:
+    - `y-266_67.clamped.emf`
+- Actual result:
+  - The packaged EMF font objects for the affected normal runs were successfully clamped down to the good-case family:
+    - reagent normal `DrawString` objects now use raw `...a7efc742...` (`f32 = 99.9681`)
+    - instead of the bad-case `...7c00c842...` (`f32 = 100.0009`)
+  - However, the reagent-line fallback still remained bad:
+    - `Ph`
+    - **no fallback `EMR_EXTTEXTOUTW " "`**
+    - `"(3 "`
+  - The standalone reagent space still exists at the EMF+ layer as `DrawString text=" "`.
+- Conclusion:
+  - `EmfPlusFont emSize` is **not by itself sufficient** to determine whether dual fallback emits the standalone reagent-line space.
+  - The earlier `top -> scale-axis -> emSize` chain is still a strong correlation, but this experiment shows `emSize` is not the sole causal switch.
+  - Whatever the real trigger is, it survives even after the packaged normal font is forced back into the “good” numeric bucket.
+- Status:
+  - Experiment failed as a fix.
+  - Keep the finding, revert the temporary clamp hook.
