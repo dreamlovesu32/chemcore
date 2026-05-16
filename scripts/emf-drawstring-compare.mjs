@@ -142,9 +142,9 @@ function buildMarkdown(args, aligned) {
   }
   lines.push("");
   lines.push(
-    "| kind | token | ours rec | ours x | ours y | ref rec | ref x | ref y | dx | dy |"
+    "| kind | token | ours rec | ours x | ours y | ours w | ours h | ref rec | ref x | ref y | ref w | ref h | dx | dy | dw | dh |"
   );
-  lines.push("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|");
+  lines.push("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
 
   let matched = 0;
   let dxSum = 0;
@@ -156,6 +156,10 @@ function buildMarkdown(args, aligned) {
       row.ours && row.reference ? row.ours.x - row.reference.x : null;
     const dy =
       row.ours && row.reference ? row.ours.y - row.reference.y : null;
+    const dw =
+      row.ours && row.reference ? row.ours.width - row.reference.width : null;
+    const dh =
+      row.ours && row.reference ? row.ours.height - row.reference.height : null;
     if (Number.isFinite(dx) && Number.isFinite(dy)) {
       matched += 1;
       dxSum += dx;
@@ -164,11 +168,16 @@ function buildMarkdown(args, aligned) {
     lines.push(
       `| ${row.kind} | \`${token}\` | ${row.ours?.recordIndex ?? ""} | ${
         row.ours?.x?.toFixed(3) ?? ""
-      } | ${row.ours?.y?.toFixed(3) ?? ""} | ${row.reference?.recordIndex ?? ""} | ${
+      } | ${row.ours?.y?.toFixed(3) ?? ""} | ${row.ours?.width?.toFixed(3) ?? ""} | ${
+        row.ours?.height?.toFixed(3) ?? ""
+      } | ${row.reference?.recordIndex ?? ""} | ${
         row.reference?.x?.toFixed(3) ?? ""
       } | ${row.reference?.y?.toFixed(3) ?? ""} | ${
+        row.reference?.width?.toFixed(3) ?? ""
+      } | ${row.reference?.height?.toFixed(3) ?? ""} | ${
         Number.isFinite(dx) ? dx.toFixed(3) : ""
       } | ${Number.isFinite(dy) ? dy.toFixed(3) : ""} |`
+      + ` ${Number.isFinite(dw) ? dw.toFixed(3) : ""} | ${Number.isFinite(dh) ? dh.toFixed(3) : ""} |`
     );
   }
 

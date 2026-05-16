@@ -56,9 +56,15 @@ const ENV_PACKAGED_PIXEL_OFFSET_HIGHQUALITY: &str =
     "CHEMCORE_EMF_PACKAGED_PIXEL_OFFSET_HIGHQUALITY";
 const ENV_PACKAGED_CENTERED_PLAIN_GDI_WIDTH: &str =
     "CHEMCORE_EMF_PACKAGED_CENTERED_PLAIN_GDI_WIDTH";
+const ENV_PACKAGED_SMOOTHING_MODE_VALUE: &str =
+    "CHEMCORE_EMF_PACKAGED_SMOOTHING_MODE_VALUE";
 
 fn preview_env_enabled(name: &str) -> bool {
     std::env::var_os(name).is_some()
+}
+
+fn preview_env_i32(name: &str) -> Option<i32> {
+    std::env::var(name).ok()?.trim().parse::<i32>().ok()
 }
 
 #[derive(Clone, Copy)]
@@ -266,7 +272,12 @@ pub(super) unsafe fn enhanced_metafile_gdiplus_dual_preview(
             GdipSetPixelOffsetMode(graphics, PixelOffsetModeHighQuality);
         }
     }
-    GdipSetSmoothingMode(graphics, SmoothingModeAntiAlias);
+    let smoothing_mode = if transform.emf_recording {
+        preview_env_i32(ENV_PACKAGED_SMOOTHING_MODE_VALUE).unwrap_or(SmoothingModeAntiAlias)
+    } else {
+        SmoothingModeAntiAlias
+    };
+    GdipSetSmoothingMode(graphics, smoothing_mode);
     GdipSetTextRenderingHint(
         graphics,
         if transform.emf_recording {
