@@ -1,7 +1,9 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$Scenario,
-    [string]$OutEmf = "tmp/gdiplus-harness.emf"
+    [string]$OutEmf = "tmp/gdiplus-harness.emf",
+    [ValidateSet("rect", "point")]
+    [string]$Mode = "rect"
 )
 
 Set-StrictMode -Version Latest
@@ -131,8 +133,14 @@ try {
             "Orange" { [System.Drawing.Brushes]::Orange }
             default { [System.Drawing.Brushes]::Black }
         }
-        $rect = [System.Drawing.RectangleF]::new($run.X, $run.Y, $run.Width, $run.Height)
-        $graphics.DrawString($run.Text, $font, $brush, $rect, $format)
+        if ($Mode -eq "point") {
+            $point = [System.Drawing.PointF]::new($run.X, $run.Y)
+            $graphics.DrawString($run.Text, $font, $brush, $point, $format)
+        }
+        else {
+            $rect = [System.Drawing.RectangleF]::new($run.X, $run.Y, $run.Width, $run.Height)
+            $graphics.DrawString($run.Text, $font, $brush, $rect, $format)
+        }
     }
 }
 finally {
