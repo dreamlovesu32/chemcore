@@ -3466,3 +3466,155 @@ Word `CopyAsPicture` 后的结果立刻完全变样：
 
 - Word 是否把这几项当成同一组 identity key
 - 以及还有没有其他字段也属于这组 key（例如 `Type / DrawAspect / r:id` 等）
+
+## 2026-05-16：旧 `v28-shape2.png` 参考图失效，先前 shell/identity 结论被污染
+
+这一轮最关键的不是某个新 patch，而是发现：
+
+- 我们一直拿来当 Word 基线的
+  - `tmp/frame-word-ab/v28-shape2.png`
+- 已经不是当前这套 `word-copy-inline-shape.ps1 + Word COM` 口径下可复现的结果
+
+### 1. 原始 `v28.docx` 重新跑一次 `CopyAsPicture`，结果就已经不是旧参考图
+
+我直接对原文件重新导了一次：
+
+- `tmp/v28-wrapper-ablate10/v28-rerun.shape2.png`
+
+拿它和旧参考图比：
+
+- 旧参考：`tmp/frame-word-ab/v28-shape2.png`
+- 新 rerun：`tmp/v28-wrapper-ablate10/v28-rerun.shape2.png`
+
+旧参考是：
+
+- size = `(557, 244)`
+- bbox = `(2, 2, 551, 239)`
+
+而新 rerun 是：
+
+- size = `(555, 242)`
+- bbox = `(2, 2, 549, 237)`
+
+也就是说：
+
+- **不用改任何字段**
+- **只是现在重新跑一次 Word `CopyAsPicture`**
+- 结果就已经落到了先前那个 `~0.639556` 的台阶上
+
+### 2. 纯文件系统拷贝、纯 rezip-identical，也都与新 rerun 完全一致
+
+我又做了两个极端对照：
+
+- `filesystem-copy.docx`
+  - 只是对 `v28.docx` 做文件系统拷贝
+- `rezip-identical.docx`
+  - 逐 entry 原字节重打包，内部文件内容不改
+
+拿它们和新 rerun 比：
+
+- `filesystem-copy.shape2` vs `v28-rerun.shape2`
+  - `iou = 1.0`
+  - `dx = 0`
+  - `dy = 0`
+- `rezip-identical.shape2` vs `v28-rerun.shape2`
+  - `iou = 1.0`
+  - `dx = 0`
+  - `dy = 0`
+
+这说明：
+
+- 之前那套“identity 单改就掉到 0.639556”的现象
+- 本质上不是 identity patch 的专有后果
+- 而是因为我们把这些变体拿去和一个**已经失效的旧参考图**比了
+
+### 3. 之前那些 identity / 非 identity 变体，彼此其实都和新 rerun 完全一致
+
+我把下面这些变体，全都重新改拿 `v28-rerun.shape2` 当参考：
+
+- `progid-samefamily`
+- `objectid-bump`
+- `oleshapeid-bump`
+- `vshapeid-bump`
+- `anchorid-bump`
+- `imagetitle-nonempty`
+
+结果全部一样：
+
+- `iou = 1.0`
+- `dx = 0`
+- `dy = 0`
+
+所以现在可以明确收回前面的误判：
+
+- `ProgID / ObjectID / ShapeID` 不是当前口径下的主因
+- `anchorId / o:title` 当然也不是
+- 我们之前看到的统一 `0.639556`，只是因为参考图错了
+
+### 4. shell 影响也被这个新基线大幅收缩了
+
+最关键的一个回算是：
+
+- `chemref-v28embed-shellchem.wordcopy.png` vs `v28-rerun.shape2.png`
+  - `iou = 0.999912`
+  - `dx = 0`
+  - `dy = 0`
+
+也就是说：
+
+- **exact ChemDraw image**
+- 放到 current shell 但把 `dxaOrig + style width/height` patch 成 ChemDraw 值后
+- 在当前 Word `CopyAsPicture` 口径下，已经几乎和新 rerun 一样
+
+这和之前“shell 对 exact ChemDraw image 仍然强敏感”的结论相冲突。  
+现在更准确的说法是：
+
+- 旧结论主要是被旧参考图污染了
+
+### 5. 纠偏后的稳定结论
+
+用新 rerun 基线重算后，当前还成立的硬结论只剩这些：
+
+1. 对我们自己的 EMF：
+   - `current-in-v28shell.shape2`
+     - `iou = 0.342309`
+     - `dx = 4`
+     - `dy = 3`
+   - `frame-chem-in-v28shell.shape2`
+     - `iou = 0.744865`
+     - `dx = 0`
+     - `dy = 0`
+   - `frame-origin-height-in-v28shell.shape2`
+     - `iou = 0.474935`
+     - `dx = 3`
+     - `dy = 0`
+
+2. 同样地，在 current shell + ChemDraw size 的那组文档里：
+   - `current-shellchem.wordcopy`
+     - `iou = 0.342309`
+   - `frame-chem-shellchem.wordcopy`
+     - `iou = 0.744865`
+   - `frame-origin-height-shellchem.wordcopy`
+     - `iou = 0.474871`
+
+所以：
+
+- **真正还站得住的主结论是：`frame-chem` 仍然明显更对**
+- 而不是 shell identity / shell metadata
+
+### 6. 下一步研究方向需要回正
+
+这次纠偏以后，后面的重点应该回到：
+
+- `EMR_HEADER.frame` 的语义
+- 以及我们怎样在 record-time 生成更接近 ChemDraw 的 frame
+
+而不是继续深挖：
+
+- `ProgID`
+- `ObjectID`
+- `ShapeID`
+- `anchorId`
+- `o:title`
+
+因为在当前有效基线下，这些都已经被证伪为主因。
