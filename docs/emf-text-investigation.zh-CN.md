@@ -1958,3 +1958,87 @@ ChemDraw 的 fallback 记录是：
 - The most likely remaining classes are now:
   - packaged `DrawString` layout-rect semantics versus ChemDraw's zero-layout / point-like recording
   - or deeper EMF+/GDI+ rasterization behavior that affects both text and vector ink placement.
+
+### New tooling: direct SVG-vs-EMF raster comparison
+- Added:
+  - `scripts/render-svg-preview.py`
+  - `scripts/png-ink-bbox-compare.py`
+  - `scripts/png-best-shift.py`
+- Purpose:
+  - compare **our own current SVG** against **our own packaged EMF** for the same payload;
+  - isolate whether the residual is introduced before EMF export or by packaged EMF replay/rasterization itself.
+
+### Finding: packaged EMF already diverges from current chemcore SVG on pure-vector fixtures
+- Three self-comparison fixtures were run:
+  - `molecule`
+  - `arrows-acs`
+  - `assets-acs`
+- Method:
+  - export payload JSON with current engine
+  - render packaged EMF to PNG with `render-emf-preview.mjs`
+  - extract payload `svg`, rasterize with `render-svg-preview.py`
+  - compare visible ink bbox with `png-ink-bbox-compare.py`
+
+#### `molecule`: packaged EMF vs current chemcore SVG
+- EMF bbox:
+  - `left=9 top=25 right=917 bottom=309`
+- current SVG bbox:
+  - `left=16 top=16 right=923 bottom=329`
+- Difference:
+  - `left -7`
+  - `right -6`
+  - `center_x -6.5`
+  - `center_y -5.5`
+  - `height -29`
+
+#### `arrows-acs`: packaged EMF vs current chemcore SVG
+- EMF bbox:
+  - `left=5 top=30 right=488 bottom=855`
+- current SVG bbox:
+  - `left=17 top=16 right=499 bottom=919`
+- Difference:
+  - `left -12`
+  - `right -11`
+  - `center_x -11.5`
+  - `center_y -25.0`
+  - `height -78`
+
+#### `assets-acs`: packaged EMF vs current chemcore SVG
+- EMF bbox:
+  - `left=7 top=14 right=648 bottom=1305`
+- current SVG bbox:
+  - `left=15 top=16 right=655 bottom=1340`
+- Difference:
+  - `left -8`
+  - `right -7`
+  - `center_x -7.5`
+  - `center_y -18.5`
+  - `height -33`
+
+### Interpretation: this is no longer a ChemDraw-only mismatch
+- These fixtures show that the packaged EMF residual already exists **before** bringing ChemDraw into the loop.
+- In other words:
+  - current chemcore SVG and current packaged EMF for the same payload do **not** place visible ink identically;
+  - the residual is therefore not just a ChemDraw oracle difference;
+  - it is at least partly introduced somewhere in the packaged preview chain (preview geometry, EMF recording, or EMF replay), not solely by ChemDraw-vs-chemcore document semantics.
+- This shifts the search strategy:
+  - further text-only fallback work will not be sufficient on its own;
+  - we need a lower-level packaged EMF visible-ink harness that can reproduce the same shift on pure vector scenes.
+
+### Negative control: removing right-side preview padding does not explain the shift
+- Added investigation-only env override:
+  - `CHEMCORE_PREVIEW_SOURCE_RIGHT_PADDING_PT`
+- Hypothesis:
+  - perhaps the `16 pt` right padding workaround was shrinking the entire scene and causing the visible leftward residual.
+- Result on `molecule` with `padding=0`:
+  - baseline packaged EMF vs current SVG:
+    - `left -7`, `right -6`, `center_x -6.5`
+  - `padding=0` packaged EMF vs current SVG:
+    - `left -7`, `right -25`, `center_x -16.0`
+- Result on `arrows-acs` with `padding=0`:
+  - identical to baseline:
+    - `left -12`, `right -11`, `center_x -11.5`, `center_y -25.0`
+- Conclusion:
+  - the right-padding workaround is **not** the primary cause of the pure-vector residual;
+  - on `molecule` it actually makes the horizontal mismatch worse,
+  - and on `arrows-acs` it changes essentially nothing.
