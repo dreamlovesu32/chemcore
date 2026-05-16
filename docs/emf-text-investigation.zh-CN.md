@@ -4327,3 +4327,179 @@ Word `CopyAsPicture` 结果：
 
 - full doc 的对象分族
 - 再研究这些亚类在同一 Word replay 口径下如何组合成最终最优 frame
+
+### 补充：`mixed-center-two-line` 和 `mixed-center-block` 把 centered 家族从二分法推成了连续梯度
+
+为了避免只凭两个样本就下结论，我又把：
+
+- `mixed-center-two-line`
+- `mixed-center-block`
+
+也塞进了同一个 same-shell 壳里做对照：
+
+- 产物目录：`tmp/frame-word-ab/sameshell-fixtures-extra/`
+
+先看 `current -> frame-chem`：
+
+- `mixed-center-two-line`
+  - `current = 0.469240`
+  - `frame-chem = 0.876091`
+- `mixed-center-block`
+  - `current = 0.450178`
+  - `frame-chem = 0.854650`
+
+说明它们仍然明确属于 centered 家族。
+
+再看 4 点小矩阵：
+
+- `chem = (+0,+0,+0,+0)`
+- `quarter = (+8,+1,+7,+0)`
+- `half = (+16,+1,+13,+0)`
+- `full = (+33,+3,+27,+0)`
+
+结果：
+
+- `mixed-center-two-line`
+  - `chem = 0.875907`
+  - `quarter = 0.882337`
+  - `half = 0.858742`
+  - `full = 0.846681`
+- `mixed-center-block`
+  - `chem = 0.854617`
+  - `quarter = 0.856661`
+  - `half = 0.870833`
+  - `full = 0.834889`
+
+把 4 个 centered 样本并在一起看，会得到一条更像连续谱的规律：
+
+- `mixed-center-line`：最喜欢 `chem`
+- `mixed-center-two-line`：最喜欢 `quarter`
+- `mixed-center-block`：最喜欢 `half`
+- `plain-center-line`：最喜欢 `full`
+
+这里还有一个重要细节：`mixed-center-two-line` 这个 fixture 名字有误导性。  
+它在 payload 里其实是：
+
+- 两行 centered text
+- `runs = 5`
+- `scripts = ['normal']`
+
+也就是说，它是 **两行 plain centered**，不是 mixed-script。
+
+对应的 4 个样本特征表：
+
+- `mixed-center-line`
+  - `lines = 1`
+  - `width = 960`
+  - `height = 66.67`
+  - `scripts = ['normal', 'subscript']`
+- `mixed-center-two-line`
+  - `lines = 2`
+  - `width = 960`
+  - `height = 133.33`
+  - `scripts = ['normal']`
+- `mixed-center-block`
+  - `lines = 4`
+  - `width = 720`
+  - `height = 133.33`
+  - `scripts = ['normal', 'subscript']`
+- `plain-center-line`
+  - `lines = 1`
+  - `width = 880`
+  - `height = 66.67`
+  - `scripts = ['normal']`
+
+这说明 centered 家族的最优偏移，至少不是单纯由某一个维度决定的：
+
+- 不是只看是不是 mixed-script
+- 也不是只看 line count
+- 也不是只看 box height
+
+更像是一个由多个对象特征共同决定的连续函数。
+
+因此后面的正确方向更像是：
+
+- 继续收集 centered 样本
+- 从对象特征出发拟合它们对 `chem -> quarter -> half -> full` 这条轴的位置
+
+而不是继续用“mixed vs plain”这种过粗的二分法。 
+
+## 2026-05-16：centered 家族不是二分，而更像一条从 `chem` 到 `full` 的连续梯度
+
+为了避免只凭 `mixed-center-line / plain-center-line` 两个样本就下过头的结论，我又把：
+
+- `mixed-center-two-line`
+- `mixed-center-block`
+
+也拉进了同一个 same-shell 壳：
+
+- `tmp/frame-word-ab/sameshell-fixtures-extra/`
+
+先看 `current -> frame-chem`：
+
+### `mixed-center-two-line`
+
+- `current`：`IoU = 0.469240`
+- `frame-chem`：`0.876091`
+
+### `mixed-center-block`
+
+- `current`：`IoU = 0.450178`
+- `frame-chem`：`0.854650`
+
+所以这两类仍然明确属于 centered 家族，而不是 right-edge 家族。
+
+然后我继续用和前面一样的 4 个点去试：
+
+- `chem = (+0,+0,+0,+0)`
+- `quarter = (+8,+1,+7,+0)`
+- `half = (+16,+1,+13,+0)`
+- `full = (+33,+3,+27,+0)`
+
+结果：
+
+### `mixed-center-two-line`
+
+- `chem`：`0.875907`
+- `quarter`：`0.882337`
+- `half`：`0.858742`
+- `full`：`0.846681`
+
+### `mixed-center-block`
+
+- `chem`：`0.854617`
+- `quarter`：`0.856661`
+- `half`：`0.870833`
+- `full`：`0.834889`
+
+把 centered 样本放在一起看，会出现一个比“二分法”更像真实规律的梯度：
+
+- `mixed-center-line`：最喜欢 `chem`
+- `mixed-center-two-line`：最喜欢 `quarter`
+- `mixed-center-block`：最喜欢 `half`
+- `plain-center-line`：最喜欢 `full`
+
+这说明：
+
+- centered 家族内部不是简单分成 “mixed-script” 和 “plain” 两个完全离散亚类
+- 更像是从 `chem` 向 `full-doc` 微偏移逐步过渡的一条连续谱
+
+至少当前样本下：
+
+1. mixed-script 越强、越“尖”的 centered 对象，越靠近 `chem`
+2. centered 文本块越大/越块状，越能接受一点正向微偏移
+3. 纯 plain centered text 最吃 `full-doc` 那种偏移
+
+所以接下来最值得研究的，不再是“到底属于 mixed 还是 plain”，而是：
+
+- centered 家族的最优微偏移，能不能用某个对象级特征连续预测
+
+例如：
+
+- 文本块高度
+- 行数
+- plain/mixed run 比例
+- 上下标 run 占比
+- 可见 bbox 的长宽比
+
+也就是说，我们下一步更像要从“分家族”迈到“按对象特征拟合 centered frame 偏移”。 
