@@ -4424,6 +4424,80 @@ Word `CopyAsPicture` 结果：
 
 而不是继续用“mixed vs plain”这种过粗的二分法。 
 
+### 补充：full doc 的 centered 文本对象，本身就落在不同原型附近
+
+为了不只盯最小样本，我补了一个对象特征工具：
+
+- `scripts/dump-text-object-features.py`
+
+并导出了：
+
+- `tmp/current-thiocyanation.text-features.json`
+- `tmp/word-text-fixtures-compare/*.text-features.json`
+
+先看 full doc 里真正居中的 3 个文本对象：
+
+1. `obj_text_004`
+   - `4DPAIPN (2 mol%) / Cu(MeCN)4PF6 ... / TMSCN ... / PhthNCO2SCH2Ph ...`
+   - `lines = 4`
+   - `runs = 10`
+   - `scripts = ['normal', 'subscript']`
+   - `width = 681.36`
+   - `height = 125.33`
+
+2. `obj_text_005`
+   - `CH3CN (0.2 M) / 420 nm 3W, 10 °C, 24 h`
+   - `lines = 2`
+   - `runs = 3`
+   - `scripts = ['normal', 'subscript']`
+   - `width = 434.72`
+   - `height = 62.67`
+
+3. `obj_text_006`
+   - `76% yield, 94% ee / d.r. > 20:1`
+   - `lines = 2`
+   - `runs = 1`
+   - `scripts = ['normal']`
+   - `width = 331.76`
+   - `height = 61.33`
+
+用一个很粗的对象特征距离去找最接近的 fixture 原型后，得到：
+
+- `obj_text_004` 最接近 `mixed-center-block`
+- `obj_text_006` 最接近 `plain-center-line`
+- `obj_text_005` 则不太像现有任何一个 fixture
+  - 勉强最近的是 `mixed-center-line`
+  - 但它实际上是：
+    - 两行
+    - mixed-script
+    - 比 `mixed-center-line` 短很多
+    - 又比 `plain-center-line` 更复杂
+
+这很重要，因为它解释了为什么：
+
+- full doc 的最佳 `frame-best`
+- 不会刚好等于某一个 centered fixture 的最优点
+
+更准确地说：
+
+- `obj_text_004` 会把 full doc 往 `half` 那边拉
+- `obj_text_006` 会把 full doc 往 `full` 那边拉
+- `obj_text_005` 是一个当前 **缺 oracle 原型** 的中间态，它很可能在决定最终 full doc 最优点时起了关键作用
+
+所以现在最有信息量的下一步，不是继续只在现有 4 个 centered fixture 上做离散推理，而是：
+
+- 明确承认 `obj_text_005` 这一类还缺最小 oracle
+- 后续如果能拿到更多 ChemDraw 样本，优先补这类：
+  - 两行
+  - mixed-script
+  - 较窄 centered text
+
+在没有新 oracle 之前，我们也至少知道：
+
+- full doc 之所以偏向 `frame-best`
+- 不是因为它“整体像某一个 fixture”
+- 而是因为它内部本来就是多种 centered 子原型的混合。 
+
 ## 2026-05-16：centered 家族不是二分，而更像一条从 `chem` 到 `full` 的连续梯度
 
 为了避免只凭 `mixed-center-line / plain-center-line` 两个样本就下过头的结论，我又把：
