@@ -24,12 +24,12 @@ use windows_sys::Win32::Graphics::GdiPlus::{
     GdipGetImageGraphicsContext, GdipMeasureString, GdipRecordMetafile, GdipReleaseDC,
     GdipSetPageScale, GdipSetPageUnit, GdipSetPenDashArray, GdipSetPenDashStyle,
     GdipSetPenEndCap, GdipSetPenLineJoin, GdipSetPenMiterLimit, GdipSetPenStartCap,
-    GdipSetSmoothingMode, GdipSetStringFormatAlign, GdipSetStringFormatFlags,
+    GdipSetPixelOffsetMode, GdipSetSmoothingMode, GdipSetStringFormatAlign, GdipSetStringFormatFlags,
     GdipSetStringFormatLineAlign, GdipSetTextRenderingHint, GdipStartPathFigure,
     GdipStringFormatGetGenericTypographic, GdipSaveGraphics, GdipRestoreGraphics, GdiplusStartup,
     GdiplusStartupInput, GpBrush, GpFont, GpFontFamily, GpGraphics, GpImage, GpMetafile, GpPath,
     GpPen, GpStringFormat, LineCapFlat, LineCapRound, LineCapSquare, LineJoinBevel,
-    LineJoinMiter, LineJoinRound, MetafileFrameUnitGdi, Ok as GDI_PLUS_OK, PointF, RectF,
+    LineJoinMiter, LineJoinRound, MetafileFrameUnitGdi, Ok as GDI_PLUS_OK, PixelOffsetModeHighQuality, PointF, RectF,
     SmoothingModeAntiAlias, StringAlignmentNear, StringFormatFlagsMeasureTrailingSpaces,
     StringFormatFlagsNoClip, StringFormatFlagsNoFitBlackBox, TextRenderingHintAntiAlias,
     TextRenderingHintAntiAliasGridFit, UnitPixel, UnitWorld,
@@ -52,6 +52,8 @@ const ENV_DISABLE_PACKAGED_TRAILING_TRIM: &str =
 const ENV_DISABLE_PACKAGED_NOFITBLACKBOX: &str =
     "CHEMCORE_EMF_PACKAGED_TEXT_DISABLE_NOFITBLACKBOX";
 const ENV_PACKAGED_TEXT_GRIDFIT: &str = "CHEMCORE_EMF_PACKAGED_TEXT_GRIDFIT";
+const ENV_PACKAGED_PIXEL_OFFSET_HIGHQUALITY: &str =
+    "CHEMCORE_EMF_PACKAGED_PIXEL_OFFSET_HIGHQUALITY";
 
 fn preview_env_enabled(name: &str) -> bool {
     std::env::var_os(name).is_some()
@@ -258,6 +260,9 @@ pub(super) unsafe fn enhanced_metafile_gdiplus_dual_preview(
         GdipSetPageUnit(graphics, UnitPixel);
         GdipSetPageScale(graphics, 1.0);
         GdipSetPageScale(graphics, CHEMDRAW_EMF_PAGE_SCALE);
+        if preview_env_enabled(ENV_PACKAGED_PIXEL_OFFSET_HIGHQUALITY) {
+            GdipSetPixelOffsetMode(graphics, PixelOffsetModeHighQuality);
+        }
     }
     GdipSetSmoothingMode(graphics, SmoothingModeAntiAlias);
     GdipSetTextRenderingHint(
