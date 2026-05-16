@@ -3344,3 +3344,125 @@ Word `CopyAsPicture` 后的结果立刻完全变样：
 - 而是更精确地说：
   - **shell 对 ChemDraw 风格紧 frame / 紧内容的 image 更敏感**
   - 对 chemcore 当前这类 preview image，额外 shell 细节基本已经不重要
+
+## 2026-05-16：`ProgID / ObjectID / ShapeID` 任一单字段变化都足以触发同一条 Word 回放分支
+
+这一轮继续在 **exact `v28` shell + exact `v28 image2.emf`** 这条最干净的口径下做 identity ablation。
+
+### 1. 先补齐 `objectid-only / shapeid-only`
+
+之前已经知道：
+
+- `size-current`：只改 `dxaOrig + style width/height`
+  - `iou = 0.410956`
+- `progid-only`
+  - `iou = 0.639556`
+- `identity-current`
+  - `iou = 0.639556`
+
+我补量了两条之前缺的：
+
+- `objectid-only.shape2`
+  - `iou = 0.639556`
+  - `dx = -1`
+  - `dy = -1`
+- `shapeid-only.shape2`
+  - `iou = 0.639556`
+  - `dx = -1`
+  - `dy = -1`
+
+其中：
+
+- `objectid-only`
+  - 只改 `o:OLEObject@ObjectID`
+- `shapeid-only`
+  - 同时改 `o:OLEObject@ShapeID`
+  - 以及 `<v:shape id>`
+
+这说明：
+
+- 不只是 `ProgID` 特殊
+- `ObjectID` 单独变化也足够
+- `ShapeID` 组变化也足够
+
+### 2. 再把 `ShapeID` 组拆细：OLE ShapeID 和 VML shape id 各自都能单独触发
+
+为了确认 `shapeid-only` 不是“必须两个字段一起变”，我又做了两条更细的变体：
+
+- `oleshapeid-only`
+  - 只改 `o:OLEObject@ShapeID`
+- `vshapeid-only`
+  - 只改 `<v:shape id>`
+
+结果：
+
+- `oleshapeid-only.shape2`
+  - `iou = 0.639556`
+  - `dx = -1`
+  - `dy = -1`
+- `vshapeid-only.shape2`
+  - `iou = 0.639556`
+  - `dx = -1`
+  - `dy = -1`
+
+所以：
+
+- `o:OLEObject@ShapeID` 单独变化，足以触发同一条 Word 回放分支
+- `<v:shape id>` 单独变化，也足以触发同一条 Word 回放分支
+
+### 3. 再确认“不是字段类型，而是精确值变化本身”
+
+为了排除“Word 只是识别到从 ChemDraw 变成了 Chemcore 风格字符串”，我又做了同家族/同格式但不同值的变体：
+
+- `progid-samefamily`
+  - `ChemDraw.Document.6.0 -> ChemDraw.Document.6.1`
+- `objectid-bump`
+  - `_1840302152 -> _1840302153`
+- `oleshapeid-bump`
+  - `_x0000_i1026 -> _x0000_i1099`
+- `vshapeid-bump`
+  - `_x0000_i1026 -> _x0000_i1099`
+
+结果四条完全一样：
+
+- `iou = 0.639556`
+- `dx = -1`
+- `dy = -1`
+
+这说明：
+
+- Word 不只是看“这是不是 ChemDraw 家族的值”
+- 而是在乎 **这些 identity 字段是否精确等于原值**
+- 任一单字段只要偏离原值，就会掉到同一条回放模式
+
+### 4. 当前最准确的判断
+
+到这一步，可以把 shell identity 的结论说得更硬：
+
+- 在 exact `v28 shell + exact v28 image2.emf` 口径下
+- `ProgID`
+- `ObjectID`
+- `o:OLEObject@ShapeID`
+- `<v:shape id>`
+
+这四类 identity 字段，**任意一个单独偏离原值**，都足以把 Word `CopyAsPicture` 的像素结果从：
+
+- 基线 `v28-shape2`
+
+拉到同一个较差台阶：
+
+- `iou ≈ 0.639556`
+
+而且这个台阶高度完全一致，不像是“各字段各自带来一点可叠加误差”，更像：
+
+- Word 内部对这组 identity 做了某种二值化路径选择
+- 只要其中任何一个 key 不匹配，就切到另一条预览/回放分支
+
+这说明下一步如果继续研究 shell，重点不该再放在：
+
+- “这些字段哪一个更重要”
+
+而应该放在：
+
+- Word 是否把这几项当成同一组 identity key
+- 以及还有没有其他字段也属于这组 key（例如 `Type / DrawAspect / r:id` 等）
