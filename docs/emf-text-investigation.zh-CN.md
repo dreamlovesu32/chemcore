@@ -4059,3 +4059,136 @@ Word `CopyAsPicture` 后的结果立刻完全变样：
 
 1. 这个最优 `frame` 是否能从现有 geometry/bounds 直接推导出来，而不是搜索出来？
 2. 在不改 preview shell 的情况下，record-time 能否直接生成这一类更接近最优点的 frame？
+## 2026-05-16：same-shell 最小 fixture 说明 `frame` 至少有两类家族
+
+### 1. 新增可复用工具：直接替换 `docx` 里的 `image1.emf`
+
+- 新增脚本：
+  - `scripts/patch-docx-image1.py`
+- 作用：
+  - 直接把任意 `EMF` 塞进同一个 Word shell，
+  - 避免每次手工 unzip / rezip，
+  - 方便做真正的 **same-shell** A/B。
+
+### 2. `current-swapfixturepreview.docx` 实际上是一个很好的 same-shell fixture 壳
+
+验证结果：
+
+- `tmp/frame-word-ab/current-swapfixturepreview.docx`
+  - 里面的 `word/media/image1.emf`
+  - 与 `tmp/word-text-fixtures-compare/mixed-center-line.chemdraw.emf`
+  - **字节完全一致**
+
+所以它可以直接作为：
+- centered text 类最小样本的 same-shell ChemDraw 参考壳。
+
+### 3. same-shell `mixed-center-line`：`frame-chem` 强烈优于 current
+
+构造：
+
+- `mixed-center-line.chemref.docx`
+  - 用 `current-swapfixturepreview.docx` 壳
+  - 替换 `image1.emf = mixed-center-line.chemdraw.emf`
+- `mixed-center-line.current.docx`
+  - 同壳
+  - 替换 `image1.emf = mixed-center-line.chemcore.emf`
+- `mixed-center-line.frame-chem.docx`
+  - 在 `current.docx` 基础上
+  - 再 patch `frame = ChemDraw frame`
+
+Word `CopyAsPicture` 结果：
+
+- `current`
+  - `IoU = 0.419537`
+  - `dx = 2`
+  - `dy = 0`
+- `frame-chem`
+  - `IoU = 0.904823`
+  - `dx = 1`
+  - `dy = 9`
+
+结论：
+
+- 对 centered mixed-script 单行文本，
+- same-shell 口径下，
+- **ChemDraw frame 明显是正确方向**。
+
+### 4. same-shell `plain-center-line`：`frame-chem` 仍然有效，但提升幅度比 mixed-script 小
+
+Word `CopyAsPicture` 结果：
+
+- `current`
+  - `IoU = 0.382959`
+  - `dx = 8`
+  - `dy = 2`
+- `frame-chem`
+  - `IoU = 0.680721`
+  - `dx = -1`
+  - `dy = 9`
+
+结论：
+
+- centered plain text 这类，
+- 也支持 `frame-chem`，
+- 但不像 mixed-script 那样几乎一锤定音。
+
+### 5. same-shell `right-edge-ph`：`frame-chem` 完全不是正确家族
+
+Word `CopyAsPicture` 结果：
+
+- `current`
+  - `IoU = 0.255300`
+  - `dx = -16`
+  - `dy = 3`
+- `frame-chem`
+  - `IoU = 0.0`
+  - `dx = -12`
+  - `dy = -12`
+
+也就是说：
+
+- 右缘窄标签类样本，
+- **不能直接套 centered text 那套 ChemDraw frame**。
+
+### 6. `right-edge-ph` 的 same-shell 小搜索给出了另一条家族
+
+在 `visible bbox + padding` 这条族里做 12 个点的小搜索后，
+当前最优点是：
+
+- `left +0`
+- `top +0`
+- `right +2`
+- `bottom +1`
+
+对应 same-shell `CopyAsPicture`：
+
+- `IoU = 0.951067`
+- `dx = 0`
+- `dy = 10`
+
+比：
+
+- `current = 0.255300`
+- `frame-chem = 0.0`
+
+都高得多。
+
+这说明现在已经可以比较明确地收敛成：
+
+- `frame` 的最优解 **不是单一家族**
+- 至少有两类：
+  1. centered text 家族：更像 `frame-chem`
+  2. right-edge 窄标签家族：更像 `visible-tight + 小右/下余量`
+
+### 7. 当前最值得继续的方向
+
+到这里，下一步不该再把所有样本混在一起搜一个统一 `frame`。
+
+更合理的路线是：
+
+1. 先把样本按几何家族分开：
+   - centered text
+   - right-edge narrow label
+   - full mixed graphic/text
+2. 分别研究每类家族的最优 `frame` 规则
+3. 再看 full doc 更像哪种组合，而不是强行套 centered 或 right-edge 的单一规则
