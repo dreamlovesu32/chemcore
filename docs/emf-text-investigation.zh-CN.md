@@ -1850,3 +1850,111 @@ ChemDraw 的 fallback 记录是：
   - the residual is concentrated in a few centered plain-text lines;
   - mixed normal/subscript lines are already close enough that broad fixes tend to over-correct them;
   - the next worthwhile step is to keep targeting those centered plain lines, rather than re-opening all packaged text behavior.
+
+### Follow-up tooling: rendered PNG line-level ink comparison
+- Added:
+  - `scripts/png-text-line-compare.py`
+- Reason:
+  - record-level `DrawString` / `EMR_EXTTEXTOUTW` diffs had become insufficient;
+  - we needed to compare the **actual visible ink boxes** that the user sees in rendered PNGs.
+- On the current packaged baseline (`v80`) versus ChemDraw, title/conditions region (`650,120,1850,560`) shows:
+  - row 0: `left -5`, `right -6`, `center_x -5.5`, `center_y +1.0`
+  - row 1: `left -5`, `right -6`, `center_x -5.5`, `center_y +2.0`
+  - row 2: `left -5`, `right -11`, `center_x -8.0`, `center_y -0.5`
+  - row 3: `left -5`, `right -5`, `center_x -5.0`, `center_y +1.0`
+  - row 4: `left -4`, `right -7`, `center_x -5.5`, `center_y +1.5`
+- This is the first direct metric that matches the user's eye:
+  - the visible centered title block is consistently a few pixels **left** of ChemDraw,
+  - even when record-level token chains already look nearly aligned.
+
+### Finding: rendered-ink residual is not only a text problem
+- Sanity-check region bboxes on rendered PNGs show the same leftward residual on non-text content:
+  - top-left substrate region:
+    - ours bbox `163,160 -> 899,326`
+    - ChemDraw bbox `168,160 -> 899,324`
+    - left edge is `-5 px`
+  - central arrow region:
+    - ours bbox `770,240 -> 1799,359`
+    - ChemDraw bbox `775,240 -> 1799,359`
+    - left edge is again `-5 px`
+  - top-right product region, by contrast, is essentially aligned in bbox
+- Conclusion:
+  - the remaining packaged-vs-ChemDraw gap is **not purely text-layout-specific**
+  - at least part of it lives at the lower rendered-ink / rasterization level.
+
+### Finding: the visible leftward residual is robust to threshold choice
+- On the title/conditions region, repeating the rendered-ink bbox compare with RGB thresholds
+  - `740`
+  - `700`
+  - `660`
+  - `620`
+  - `580`
+  produces essentially the same row-level left drift:
+  - rows remain about `-5 px` left of ChemDraw
+  - vertical drift remains around `+1 ~ +2 px`
+- Conclusion:
+  - this is **not** just a loose anti-aliased fringe being counted by an overly permissive threshold.
+  - The residual survives into darker ink thresholds and should be treated as a real visible-placement / rasterization difference.
+
+### Finding: packaged `DrawString` token anchors are already close
+- Using `scripts/emf-drawstring-compare.mjs` on the title/conditions block of `v80` versus ChemDraw:
+  - `4DPAIPN `: `dx +4.175`, `dy +0.423`
+  - `Cu(MeCN)`: `dx +1.713`, `dy +0.298`
+  - `PF` / `6` / standalone `" "` / `"(5 "` are all within roughly `1 px`
+  - `TMSCN (4 eq.)`, `PhthNCO₂SCH₂Ph (3 eq.)`, and `CH₃CN (0.2 M)` tokens are similarly close in `DrawString` space
+- Important contrast:
+  - visible rendered line boxes are still about `5 px` left of ChemDraw
+  - therefore the remaining problem is **not explained by token anchor positions alone**
+- This sharply narrows the issue to:
+  - `layoutRect` semantics
+  - ink placement inside the `DrawString` layout
+  - or lower-level rasterization state
+
+### Experiment matrix: packaged `SetAntiAliasMode`
+- Added investigation-only env override:
+  - `CHEMCORE_EMF_PACKAGED_SMOOTHING_MODE_VALUE`
+- Variants tested:
+  - `mode=3`
+  - `mode=4`
+  - `mode=5`
+  - `mode=6`
+- Emitted `EmfPlusSetAntiAliasMode` flags:
+  - `mode=3 -> flags=6`
+  - `mode=4 -> flags=9`
+  - `mode=5 -> flags=11`
+  - `mode=6 -> no useful improvement and no visible recovery`
+- Actual visible result on title/conditions:
+  - all four variants preserve essentially the same rendered-ink line boxes as baseline
+  - no meaningful recovery toward ChemDraw
+- Conclusion:
+  - packaged anti-alias mode, at least via direct `GdipSetSmoothingMode(...)` numeric overrides, is **not** the missing lever for the current residual.
+
+### Experiment matrix: packaged `SetPixelOffsetMode`
+- Added investigation-only env override:
+  - `CHEMCORE_EMF_PACKAGED_PIXEL_OFFSET_MODE_VALUE`
+- Variants tested:
+  - `mode=1`
+  - `mode=2`
+  - `mode=3`
+  - `mode=4`
+- Emitted `EmfPlusSetPixelOffsetMode` flags:
+  - `mode=1 -> flags=1`
+  - `mode=2 -> flags=2` (matches ChemDraw's recorded value)
+  - `mode=3 -> flags=3`
+  - `mode=4 -> flags=4`
+- Actual visible result:
+  - `mode=1` and `mode=3` are effectively indistinguishable from baseline
+  - `mode=2` and `mode=4` actually make the title/conditions left drift slightly worse (e.g. row centers move from about `-5.5 px` to `-6.5 px`)
+- Conclusion:
+  - even matching ChemDraw's `EmfPlusSetPixelOffsetMode flags=2` **does not** recover the remaining visible packaged-vs-ChemDraw difference.
+  - Therefore pixel-offset mode is not the missing explanation either.
+
+### Current interpretation after rendered-ink investigation
+- We now have a stronger picture than before:
+  - record-level token placement for packaged text is already very close in many key lines
+  - but visible rendered ink still drifts left/down slightly
+  - and a similar left-edge drift appears in at least some non-text regions (substrate, arrow)
+- This means the remaining problem has moved below the previous text-token / fallback layer.
+- The most likely remaining classes are now:
+  - packaged `DrawString` layout-rect semantics versus ChemDraw's zero-layout / point-like recording
+  - or deeper EMF+/GDI+ rasterization behavior that affects both text and vector ink placement.
