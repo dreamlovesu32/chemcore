@@ -5067,3 +5067,125 @@ Word `CopyAsPicture` 结果：
      - 往下补一点
      - 往右再补一点
      - 同时把顶部也略微往下压
+
+## 2026-05-16 新进展：`frame-quarter -> frame-best` 的残差几乎都落在非标题区
+
+为了避免再靠手工口算区域提升，新增了一个通用脚本：
+
+- `scripts/compare-region-reports.py`
+
+它可以直接比较两份 `png-region-iou.py` 报告，输出每个区域的：
+
+- `base_iou`
+- `target_iou`
+- `delta_iou`
+- `delta_intersection`
+- `delta_only_ours`
+- `delta_only_reference`
+
+对应的 full-doc same-shell 对比结果在：
+
+- `tmp/frame-word-ab/quarter-to-best.delta.json`
+
+这里把 `frame-quarter-shellchem` 当作“centered-family 工程基准”，再看它到 `frame-best-shellchem` 的提升。结果很清楚：
+
+- 全局：`0.770339 -> 0.841267`，`+0.070929`
+- 最大增益区域按 `delta_iou` 排序：
+  1. `arrow`: `+0.165292`
+  2. `conditions_block`: `+0.104738`
+  3. `bottom_right_catalyst`: `+0.087969`
+  4. `bottom_center_reagent`: `+0.078198`
+  5. `top_left_substrate`: `+0.060337`
+  6. `bottom_left_ligand`: `+0.049916`
+  7. `top_right_product`: `+0.043866`
+  8. `ch3cn`: `+0.030141`
+  9. `title_block`: `+0.013597`
+
+这说明一件很重要的事：
+
+- 从 `quarter` 到 `best` 的修正，**不是主要为了标题块**
+- 标题区和 `CH3CN` 区都还有收益，但已经很小
+- 真正的主增益来自：
+  - `arrow`
+  - `conditions_block`
+  - 底部 `catalyst / reagent`
+  - 以及若干非标题骨架区
+
+也就是说，`frame-quarter` 已经可以视为一个比 `obj_text_004` 拟合值更好的 **centered-family 工程基准**；
+而 `frame-best` 则更像是在这个基准上，再叠加一层面向 **非标题 / 非纯 centered 文本** 的修正。
+
+## 2026-05-16 新进展：full-doc 的 frame 修正不能直接套回 centered-only / right-edge fixture
+
+为了验证“第二家族修正”是不是某种 centered 通用规律，我做了一个反证实验：
+
+- 取 full doc 上 `frame-chem -> frame-best` 的 header frame 增量
+- 直接套回 same-shell fixture 的 `frame-chem` 版本
+- 再用 Word `CopyAsPicture` 和对应 ChemDraw oracle 做逐像素比较
+
+full-doc 的这组增量是（HIMETRIC）：
+
+- `left +30`
+- `top +3`
+- `right +27`
+- `bottom +2`
+
+结果保存在：
+
+- `tmp/frame-word-ab/full-delta-on-fixtures.json`
+
+关键结果如下：
+
+- `mixed-center-line`
+  - `chem = 0.904823`
+  - `delta = 0.856653`
+  - 明显变差
+- `plain-center-line`
+  - `chem = 0.680721`
+  - `delta = 0.694470`
+  - 只小幅变好
+- `mixed-center-two-line`
+  - `chem = 0.876091`
+  - `delta = 0.871995`
+  - 微幅变差
+- `mixed-center-block`
+  - `chem = 0.854650`
+  - `delta = 0.812987`
+  - 明显变差
+- `right-edge-ph`
+  - `current = 0.203061`
+  - `chem = 0.000000`
+  - `delta = 0.000000`
+  - 说明这组 centered/full-doc 修正对右缘窄标签家族完全不适用
+
+这一步的意义很大：
+
+- full-doc 的 `frame-best` 修正 **不是** 一个可以跨家族复用的统一规则
+- 它对 `plain-center-line` 这类样本可能有一点帮助
+- 但对 `mixed-center-line / mixed-center-block / right-edge-ph` 都不成立
+
+所以当前更靠谱的结构化理解是：
+
+1. **centered-family 基准**
+   - 当前工程上最像的是 `frame-quarter`
+2. **full-doc 专属修正**
+   - 主贡献集中在 `arrow + conditions + bottom catalyst/reagent`
+   - 不能直接拿去套 centered-only fixture
+   - 更不能拿去套 `right-edge-ph` 这类窄右缘标签家族
+
+### 当前结论（更新版）
+
+到这里为止，frame 语义至少已经可以稳定拆成三层：
+
+1. `current`
+   - 我们现在产品里的默认 frame
+2. `centered-family baseline`
+   - 当前工程上最像 `frame-quarter`
+3. `full-doc residual correction`
+   - 主增益来自 `arrow / conditions / bottom catalyst/reagent`
+   - 不是 centered-only 可复用规则
+
+因此下一步最合理的方向，不是继续强找“单一全局 frame 公式”，而是：
+
+- 继续研究 `quarter -> best` 这一层 residual
+- 把它和 `arrow / conditions / bottom catalyst/reagent` 的几何量联系起来
+- 看它能否被表述成第二套、仅在 full-doc 这类混合图上启用的修正规则
