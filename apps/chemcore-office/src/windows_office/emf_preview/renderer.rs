@@ -19,7 +19,7 @@ use windows_sys::Win32::Graphics::GdiPlus::{
     GdipCreateFromHDC, GdipCreatePath, GdipCreatePen1, GdipCreateSolidFill, GdipCreateStringFormat, GdipDeleteBrush,
     GdipDeleteFont, GdipDeleteFontFamily, GdipDeleteGraphics, GdipDeletePath, GdipDeletePen,
     GdipDeleteStringFormat, GdipDisposeImage, GdipDrawEllipse, GdipDrawLine, GdipDrawLines,
-    GdipDrawDriverString, GdipDrawPath, GdipDrawPolygon, GdipDrawRectangle, GdipDrawString, GdipFillEllipse,
+    GdipDrawPath, GdipDrawPolygon, GdipDrawRectangle, GdipDrawString, GdipFillEllipse,
     GdipFillPath, GdipFillPolygon, GdipFillRectangle, GdipGetCellAscent, GdipGetDC, GdipGetEmHeight, GdipGetFamily, GdipGetHemfFromMetafile,
     GdipGetImageGraphicsContext, GdipMeasureString, GdipRecordMetafile, GdipReleaseDC,
     GdipSetPageScale, GdipSetPageUnit, GdipSetPenDashArray, GdipSetPenDashStyle,
@@ -28,7 +28,7 @@ use windows_sys::Win32::Graphics::GdiPlus::{
     GdipSetStringFormatLineAlign, GdipSetTextRenderingHint, GdipStartPathFigure,
     GdipStringFormatGetGenericTypographic, GdipSaveGraphics, GdipRestoreGraphics, GdiplusStartup,
     GdiplusStartupInput, GpBrush, GpFont, GpFontFamily, GpGraphics, GpImage, GpMetafile, GpPath,
-    GpPen, GpStringFormat, LineCapFlat, LineCapRound, LineCapSquare, LineJoinBevel, Matrix,
+    GpPen, GpStringFormat, LineCapFlat, LineCapRound, LineCapSquare, LineJoinBevel,
     LineJoinMiter, LineJoinRound, MetafileFrameUnitGdi, Ok as GDI_PLUS_OK, PointF, RectF,
     SmoothingModeAntiAlias, StringAlignmentNear, StringFormatFlagsMeasureTrailingSpaces,
     StringFormatFlagsNoClip, StringFormatFlagsNoFitBlackBox, TextRenderingHintAntiAlias,
@@ -1821,28 +1821,6 @@ unsafe fn draw_gdiplus_text_run(
     } else {
         0.0
     };
-    if transform.emf_recording
-        && matches!(text_anchor, Some("middle"))
-        && std::env::var_os("CHEMCORE_OFFICE_EXPERIMENT_PACKAGED_DRIVER_TEXT").is_some()
-    {
-        let ok = draw_gdiplus_driver_text_run(
-            graphics,
-            x,
-            baseline_y,
-            baseline_offset,
-            packaged_centered_bias,
-            run,
-            fallback_font_size,
-            fallback_family,
-            brush,
-            font,
-            transform,
-        );
-        GdipDeleteStringFormat(format);
-        GdipDeleteBrush(brush);
-        GdipDeleteFont(font);
-        return ok;
-    }
     let top = baseline_y - baseline_top
         + preview_script_baseline_shift_f32(run, fallback_font_size, transform)
         - packaged_centered_bias;
@@ -1865,82 +1843,6 @@ unsafe fn draw_gdiplus_text_run(
     GdipDeleteStringFormat(format);
     GdipDeleteBrush(brush);
     GdipDeleteFont(font);
-    ok
-}
-
-unsafe fn draw_gdiplus_driver_text_run(
-    graphics: *mut GpGraphics,
-    x: f32,
-    baseline_y: f32,
-    baseline_offset: Option<f64>,
-    packaged_centered_bias: f32,
-    run: &PreviewTextRun,
-    fallback_font_size: f64,
-    fallback_family: Option<&str>,
-    brush: *mut GpBrush,
-    font: *mut GpFont,
-    transform: &PreviewTransform,
-) -> bool {
-    let Some(format) = create_gdiplus_string_format() else {
-        return false;
-    };
-    let wide: Vec<u16> = run.text.encode_utf16().collect();
-    if wide.is_empty() {
-        GdipDeleteStringFormat(format);
-        return true;
-    }
-    let script_scale = preview_script_scale(run.script.as_deref());
-    let font_px =
-        (run.font_size.unwrap_or(fallback_font_size) * script_scale * gdiplus_text_scale(transform))
-        .max(1.0) as f32;
-    let ascent_ratio = gdiplus_font_ascent_ratio(font, run).unwrap_or(if transform.emf_recording {
-        0.905_273_44
-    } else {
-        0.86
-    });
-    let baseline_top = match run.script.as_deref() {
-        Some("subscript" | "superscript") => font_px * ascent_ratio,
-        _ => baseline_offset
-            .map(|value| (value * gdiplus_text_scale(transform)) as f32)
-            .unwrap_or(font_px * ascent_ratio),
-    };
-    let baseline = baseline_y
-        - baseline_top
-        + preview_script_baseline_shift_f32(run, fallback_font_size, transform)
-        - packaged_centered_bias
-        + baseline_top;
-    let mut positions = Vec::with_capacity(wide.len());
-    for index in 0..wide.len() {
-        let prefix_width = if index == 0 {
-            0.0
-        } else {
-            gdiplus_measure_text_width(
-                graphics,
-                font,
-                format,
-                &wide[..index],
-                run,
-                fallback_font_size,
-                transform,
-            )
-            .unwrap_or(0.0)
-        };
-        positions.push(PointF {
-            X: x + prefix_width,
-            Y: baseline,
-        });
-    }
-    let ok = GdipDrawDriverString(
-        graphics,
-        wide.as_ptr(),
-        wide.len() as i32,
-        font,
-        brush,
-        positions.as_ptr(),
-        0,
-        null::<Matrix>(),
-    ) == GDI_PLUS_OK;
-    GdipDeleteStringFormat(format);
     ok
 }
 
