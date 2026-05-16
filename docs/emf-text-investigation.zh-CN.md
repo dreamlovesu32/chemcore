@@ -5019,3 +5019,51 @@ Word `CopyAsPicture` 结果：
   - 看能不能把 `frame-best` 分解成：
     - `centered rule`
     - `non-text correction`
+
+### 5. `frame-best` 相对 full visible 的 pad，离 `obj_text_004` 最近
+
+把 full doc 的 `frame-best` 也改写成相对 full visible 的 pad：
+
+- `frame-best(full visible)`
+  - `left = -0.567`
+  - `top = +0.378`
+  - `right = +23.432`
+  - `bottom = +2.173`
+
+再和 3 个 centered text object 的 family 预测值直接做差：
+
+- 相对 `obj_text_004`（四行标题块）
+  - `Δleft = -1.057`
+  - `Δtop = +3.421`
+  - `Δright = +1.783`
+  - `Δbottom = +0.510`
+- 相对 `obj_text_005`
+  - `Δleft = -4.635`
+  - `Δtop = +3.453`
+  - `Δright = +5.743`
+  - `Δbottom = +1.644`
+- 相对 `obj_text_006`
+  - `Δleft = -6.128`
+  - `Δtop = +3.453`
+  - `Δright = +7.396`
+  - `Δbottom = +1.668`
+
+这说明：
+
+- full doc 的最终最优 `frame-best`
+  - 在**水平 pad 结构**上最接近 `obj_text_004`
+  - 而不是 `obj_text_005/006`
+- 也就是说，full doc 的 frame 基准更像：
+  - 先由四行标题块确定 centered family 的主方向
+  - 再由 `conditions_block + arrow` 把 `top/bottom` 和少量 `right` 往外推
+
+这一步很重要，因为它把 full doc 的最优 frame 分成了两层：
+
+1. **水平主基准**
+   - 主要由 `obj_text_004`（四行标题块）决定
+2. **非文本修正**
+   - 主要由 `conditions_block + arrow` 决定
+   - 其效果更像：
+     - 往下补一点
+     - 往右再补一点
+     - 同时把顶部也略微往下压
