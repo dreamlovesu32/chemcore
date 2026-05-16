@@ -2221,3 +2221,91 @@ This suggests a more faithful future rule should likely be:
 - keep the **base rectangle policy** explicit (e.g. include `svg_right` when needed),
 - then add only the **minimum extra right compensation** needed for real replay,
 - instead of carrying a single oversized global constant.
+
+### New experiment modes: `svgpad` / `unionpad`
+- Two additional investigation-only source-bounds modes were added:
+  - `svgpad`
+    - use the full SVG bounds on left/top/bottom,
+    - but still allow extra right-side padding.
+  - `unionpad`
+    - use the union of visible/svg bounds,
+    - then still allow extra right-side padding.
+
+Purpose:
+- test whether the real win comes from:
+  - keeping the full SVG frame,
+  - while still preserving enough right-side breathing room for text.
+
+### Result: `svgpad` is much more promising than the old `current` rule
+#### Pure-vector fixtures against current chemcore SVG
+- `molecule`
+  - `current`: `best_iou = 0.841335`
+  - `svgpad`: `best_iou = 0.833295`
+- `arrows-acs`
+  - `current`: `best_iou = 0.950161`
+  - `svgpad`: `best_iou = 0.915239`
+- `assets-acs`
+  - `current`: `best_iou = 0.870225`
+  - `svgpad`: `best_iou = 0.859204`
+
+Interpretation:
+- `svgpad` is **not** closer to the current chemcore SVG.
+- This strengthens the earlier conclusion that **current chemcore SVG is not the right gold standard** for packaged-preview geometry decisions.
+
+#### Full `thiocyanation-source` against ChemDraw EMF
+- `current`: `best_iou = 0.773699`
+- `visible`: `best_iou = 0.780436`
+- `svgpad`: `best_iou = 0.803110`
+- `unionpad`: `best_iou = 0.803095`
+
+Interpretation:
+- Against the actual ChemDraw target, `svgpad`/`unionpad` are **substantially better** than the existing `current` rule.
+- So the direction “keep the full SVG frame, then compensate the right side only as needed” now looks more plausible than the old “visible left/top/bottom + extra right padding” rule.
+
+### `svgpad` right-padding sweep
+- A focused sweep was then run for:
+  - `sourceBoundsMode = svgpad`
+  - `rightPaddingPt = 0 / 4 / 8 / 10 / 12 / 16`
+- Against ChemDraw EMF:
+  - `pad=0`: `best_iou = 0.808369`
+  - `pad=4`: `best_iou = 0.801002`
+  - `pad=8`: `best_iou = 0.798227`
+  - `pad=10`: `best_iou = 0.795584`
+  - `pad=12`: `best_iou = 0.790117`
+  - `pad=16`: `best_iou = 0.803095`
+
+Interpretation:
+- The best result in this sweep was actually:
+  - `svgpad + pad=0`
+- This is extremely important, because it suggests:
+  - the **full SVG frame itself** is already providing the needed right-side safety,
+  - and the extra `+16 pt` compensation may not be necessary once we stop cropping left/top/bottom to the visible bounds.
+
+### Word real replay check for `svgpad + pad=0`
+- The full production document was exported as `.docx` using:
+  - `sourceBoundsMode = svgpad`
+  - `rightPaddingPt = 0`
+- Then replayed through:
+  - Word COM
+  - `CopyAsPicture`
+- In the focused right-bottom catalyst crop:
+  - the problematic right-side `Ph` remained visible.
+
+Interpretation:
+- `svgpad + pad=0` is not just a packaged-EMF numeric win;
+- it also survives the Word live replay sanity check for the previously problematic right edge.
+
+### Current best candidate hypothesis
+- The strongest candidate so far is now:
+  - **`svgpad + pad=0`**
+
+Why it matters:
+- It beats the old `current` rule against ChemDraw.
+- It still survives Word replay on the previously problematic right edge.
+- It avoids the large global over-padding that the old `current + 16 pt` rule introduced.
+
+What this suggests structurally:
+- The truly necessary part may be:
+  - “do not crop away the SVG frame on left/top/bottom”
+- rather than:
+  - “crop tightly to visible bounds and then re-add a large constant on the right”.
