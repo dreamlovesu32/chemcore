@@ -2170,3 +2170,54 @@ Interpretation:
     - the **base source rectangle policy**
     - from the **text-overhang compensation policy**,
   - instead of baking both into one global `current` rule.
+
+### Additional right-padding sweep (`0 / 2 / 4 / 6 / 8 / 10 / 12 / 14 / 16`)
+- The full production document was then swept more densely with:
+  - `sourceBoundsMode = current`
+  - `rightPaddingPt = 0, 2, 4, 6, 8, 10, 12, 14, 16`
+- Against the current ChemDraw EMF, the packaged-EMF overlap came out as:
+  - `pad=0`: `best_iou = 0.781718`
+  - `pad=2`: `best_iou = 0.764830`
+  - `pad=4`: `best_iou = 0.779087`
+  - `pad=6`: `best_iou = 0.781622`
+  - `pad=8`: `best_iou = 0.763541`
+  - `pad=10`: `best_iou = 0.792161`
+  - `pad=12`: `best_iou = 0.785943`
+  - `pad=14`: `best_iou = 0.792083`
+  - `pad=16`: `best_iou = 0.773699`
+
+Interpretation:
+- `16 pt` is not merely “suboptimal”; it is clearly **off the local optimum**.
+- The best values in this sweep were around:
+  - `10 pt`
+  - `14 pt`
+- Even `0 pt` and `6 pt` were competitive with or better than the old `16 pt`.
+
+### Word real replay check: clipping threshold is lower than expected
+- To avoid overfitting to `System.Drawing` replay, the full production document was also exported as `.docx` and checked through **Word COM + CopyAsPicture** at multiple paddings:
+  - `pad=0`
+  - `pad=2`
+  - `pad=4`
+  - `pad=10`
+  - `pad=14`
+- In the focused right-bottom catalyst crop, the problematic right-side `Ph` remained visually present across all of these sampled paddings.
+
+Interpretation:
+- The “current” source-bounds policy already has one important protection even at `pad=0`:
+  - it still uses `max(visible_right, svg_right)` on the right edge.
+- That suggests the **inclusion of the SVG right edge** may be the truly necessary part,
+  while the extra `+16 pt` constant is likely larger than required.
+
+### Refined hypothesis
+- We now have stronger evidence that the current rule is mixing two separate ideas:
+  1. use a source rectangle that is not as tight as `visible_bounds`,
+  2. add an additional right-side compensation constant.
+- The experiments suggest:
+  - `visible` alone is too aggressive for the full production document,
+  - but `current + 16 pt` is over-padded,
+  - and a large part of the safety may already come from including `svg_right`.
+
+This suggests a more faithful future rule should likely be:
+- keep the **base rectangle policy** explicit (e.g. include `svg_right` when needed),
+- then add only the **minimum extra right compensation** needed for real replay,
+- instead of carrying a single oversized global constant.
