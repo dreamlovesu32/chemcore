@@ -2853,3 +2853,128 @@ ChemDraw 参照口径：
 - 先解释 `top / bottom / height`
 - 再解释 `left`
 - `right / width` 暂时不是主矛盾
+
+### 最小 Word fixture 说明：`origin+height` 不是通用 frame 规则
+
+为了验证 `origin+height` 是否只是 full document 偶然成立，这一轮把已有最小样本也搬进了 **Word COM `CopyAsPicture`** 口径。
+
+样本：
+
+- `mixed-center-block`
+- `mixed-center-line`
+- `mixed-center-two-line`
+- `plain-center-line`
+- `right-edge-ph`
+
+方法：
+
+1. 用当前代码从 `.payload.json` 生成 `*.current.docx`
+2. 以同一个 `docx` 壳为基底，替换 `word/media/image1.emf`
+   - `chemref`
+     - 直接替换成对应的 `*.chemdraw.emf`
+   - `origin-height`
+     - 只 patch `frame.left/top/bottom`
+     - 保持 `frame.right` 为当前值
+   - `frame-chem`
+     - 整组 `frame` 直接抄成 ChemDraw header
+3. 用 `scripts/word-copy-inline-shape.ps1`
+   - 对第一个 inline shape 执行 `CopyAsPicture`
+   - 保存为 `PNG`
+4. 用 `scripts/png-best-shift.py` 对 `chemref.wordcopy.png` 做比较
+
+结果（相对各自的 `chemref`）：
+
+#### `mixed-center-block`
+- `current`
+  - `iou = 0.449363`
+  - `dx = 14`
+  - `dy = 3`
+- `origin-height`
+  - `iou = 0.586382`
+  - `dx = 7`
+  - `dy = -2`
+- `frame-chem`
+  - `iou = 0.798127`
+  - `dx = 1`
+  - `dy = -2`
+
+#### `mixed-center-line`
+- `current`
+  - `iou = 0.411039`
+  - `dx = 14`
+  - `dy = -2`
+- `origin-height`
+  - `iou = 0.525624`
+  - `dx = 7`
+  - `dy = -5`
+- `frame-chem`
+  - `iou = 0.678733`
+  - `dx = 1`
+  - `dy = -5`
+
+#### `mixed-center-two-line`
+- `current`
+  - `iou = 0.416014`
+  - `dx = 14`
+  - `dy = -8`
+- `origin-height`
+  - `iou = 0.620329`
+  - `dx = 7`
+  - `dy = -5`
+- `frame-chem`
+  - `iou = 0.679595`
+  - `dx = 1`
+  - `dy = -5`
+
+#### `plain-center-line`
+- `current`
+  - `iou = 0.315641`
+  - `dx = 15`
+  - `dy = 0`
+- `origin-height`
+  - `iou = 0.772355`
+  - `dx = 9`
+  - `dy = -5`
+- `frame-chem`
+  - `iou = 0.580243`
+  - `dx = -1`
+  - `dy = -5`
+
+#### `right-edge-ph`
+- `current`
+  - `iou = 0.194174`
+  - `dx = 6`
+  - `dy = -12`
+- `origin-height`
+  - `iou = 0.0`
+  - `dx = -20`
+  - `dy = -20`
+- `frame-chem`
+  - `iou = 0.0`
+  - `dx = -20`
+  - `dy = -20`
+
+结论：
+
+1. `frame` 在 Word 口径下对最小样本同样是强影响因子。
+2. 但 `origin+height` 不是通用规则：
+   - 对 full document 很强
+   - 对 centered text fixtures 也有收益
+   - 但对 `right-edge-ph` 这类窄右侧样本直接失败
+3. 对 centered fixtures 来说，完整 `frame-chem` 反而比 `origin+height` 更接近参考。
+4. 这说明：
+   - full document 上的 `origin+height` 最优，不应该被过度推广成产品全局规则
+   - frame 语义很可能仍然和：
+     - 内容类型
+     - 显示 extents
+     - 或 Word/OLE 外层显示框
+     存在耦合
+
+当前更稳的表述应该是：
+
+- `frame` 仍然是主问题；
+- 但它不是“统一改成 `origin+height`”就能结束；
+- 后续应该继续找：
+  - 为什么 full document 更像 `origin+height`
+  - 为什么 centered fixtures 更像 `frame-chem`
+  - 为什么 `right-edge-ph` 会对这两条都失稳

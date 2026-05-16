@@ -1,5 +1,3 @@
-$ErrorActionPreference = "Stop"
-
 param(
   [Parameter(Mandatory = $true)]
   [string]$InputDocx,
@@ -15,6 +13,8 @@ param(
 
   [int]$ClipboardDelayMs = 800
 )
+
+$ErrorActionPreference = "Stop"
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
