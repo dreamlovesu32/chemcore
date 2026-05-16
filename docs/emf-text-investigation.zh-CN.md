@@ -1701,3 +1701,37 @@ ChemDraw 的 fallback 记录是：
   - `MeasureCharacterRanges` can change packaged text record geometry so that it *looks* much closer to ChemDraw at the `DrawString` / `EXTTEXTOUTW` level.
   - However, those record-level improvements do **not** translate into any visible pixel improvement in the rendered EMF.
   - Therefore this path is not a winning product fix; keep it reverted and treat it as another negative result that separates record-chain similarity from actual image similarity.
+
+### Experiment: packaged centered text via GDI+ DrawDriverString (v77)
+- Hypothesis:
+  - The earlier harness evidence suggested that a true point-style / driver-style GDI+ text API may preserve the critical fallback spaces better than `DrawString(RectF, ...)`, while still staying on a GDI+ path.
+  - A narrow packaged-only experiment that switches only centered packaged text from `DrawString` to `DrawDriverString` may therefore move us closer to ChemDraw.
+- Code paths touched (experiment only, reverted):
+  - `apps/chemcore-office/src/windows_office/emf_preview/renderer.rs`
+  - Added a packaged-only `CHEMCORE_OFFICE_EXPERIMENT_PACKAGED_DRIVER_TEXT` branch:
+    - only active for `transform.emf_recording && text_anchor == middle`
+    - build per-code-unit positions from cumulative GDI+ prefix widths
+    - draw the run with `GdipDrawDriverString(...)`
+  - Added `GdipDrawDriverString` imports and a temporary helper `draw_gdiplus_driver_text_run(...)`
+- Validation samples:
+  - outputs:
+    - `tmp/thiocyanation-source.v77.emf`
+    - `tmp/thiocyanation-source.v77.emf.records.json`
+  - reports:
+    - `tmp/v77-chemdraw-title-conditions.md`
+    - packaged image compare against `tmp/thiocyanation-source.chemdraw.emf`
+- Actual result:
+  - The packaged centered text is no longer recorded as `EmfPlusDrawString`; it becomes `EmfPlus_0x4036` / `DrawDriverString`.
+  - Fallback `EMR_EXTTEXTOUTW` tokenization becomes much more ChemDraw-like:
+    - `PF6 -> " " -> "(5 "` is present again
+    - `Ph -> " " -> "(3 "` also appears again
+    - title/conditions fallback compare stays near-perfect in `x`, with a consistent `dy = +1 px`
+  - But visible pixels get dramatically worse:
+    - fixed-canvas whole-page IoU drops from the `v72` baseline `0.28713` to `0.24992`
+    - title region drops to `0.24706`
+    - yield region stays only around `0.24801`
+    - catalyst / ligand regions remain effectively unchanged because they do not use this path
+- Conclusion:
+  - `DrawDriverString` can restore the desired fallback token chain, but the visible EMF+ rendering it produces is substantially worse than the current `DrawString` baseline.
+  - Therefore this is **not** a shippable product path in its current form.
+  - Keep the investigation tooling and harness support, but revert the packaged product experiment.
