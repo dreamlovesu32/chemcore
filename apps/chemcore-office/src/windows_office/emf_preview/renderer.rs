@@ -56,6 +56,7 @@ const ENV_PACKAGED_PIXEL_OFFSET_HIGHQUALITY: &str =
     "CHEMCORE_EMF_PACKAGED_PIXEL_OFFSET_HIGHQUALITY";
 const ENV_PACKAGED_CENTERED_PLAIN_GDI_WIDTH: &str =
     "CHEMCORE_EMF_PACKAGED_CENTERED_PLAIN_GDI_WIDTH";
+const ENV_PACKAGED_ANTIALIAS_MODE_5: &str = "CHEMCORE_EMF_PACKAGED_ANTIALIAS_MODE_5";
 
 fn preview_env_enabled(name: &str) -> bool {
     std::env::var_os(name).is_some()
@@ -266,7 +267,14 @@ pub(super) unsafe fn enhanced_metafile_gdiplus_dual_preview(
             GdipSetPixelOffsetMode(graphics, PixelOffsetModeHighQuality);
         }
     }
-    GdipSetSmoothingMode(graphics, SmoothingModeAntiAlias);
+    let packaged_smoothing_mode = if transform.emf_recording
+        && preview_env_enabled(ENV_PACKAGED_ANTIALIAS_MODE_5)
+    {
+        5
+    } else {
+        SmoothingModeAntiAlias
+    };
+    GdipSetSmoothingMode(graphics, packaged_smoothing_mode);
     GdipSetTextRenderingHint(
         graphics,
         if transform.emf_recording {
