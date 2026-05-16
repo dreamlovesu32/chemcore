@@ -60,7 +60,9 @@ enum PreviewSourceBoundsMode {
     Current,
     Visible,
     Svg,
+    SvgPadRight,
     Union,
+    UnionPadRight,
 }
 
 pub(super) unsafe fn draw_payload_preview(
@@ -206,10 +208,27 @@ pub(super) fn preview_source_bounds(payload: &OleObjectPayload) -> Option<[f64; 
         },
         PreviewSourceBoundsMode::Visible => visible,
         PreviewSourceBoundsMode::Svg => svg,
+        PreviewSourceBoundsMode::SvgPadRight => {
+            svg.map(|svg| [svg[0], svg[1], svg[2] + right_padding, svg[3]])
+        }
         PreviewSourceBoundsMode::Union => match (visible, svg) {
             (Some(visible), Some(svg)) => Some(union_bounds(visible, svg)),
             (Some(visible), None) => Some(visible),
             (None, Some(svg)) => Some(svg),
+            (None, None) => None,
+        },
+        PreviewSourceBoundsMode::UnionPadRight => match (visible, svg) {
+            (Some(visible), Some(svg)) => {
+                let union = union_bounds(visible, svg);
+                Some([union[0], union[1], union[2] + right_padding, union[3]])
+            }
+            (Some(visible), None) => Some([
+                visible[0],
+                visible[1],
+                visible[2] + right_padding,
+                visible[3],
+            ]),
+            (None, Some(svg)) => Some([svg[0], svg[1], svg[2] + right_padding, svg[3]]),
             (None, None) => None,
         },
     }
@@ -529,7 +548,9 @@ fn preview_source_bounds_mode() -> PreviewSourceBoundsMode {
     {
         Some("visible") => PreviewSourceBoundsMode::Visible,
         Some("svg") => PreviewSourceBoundsMode::Svg,
+        Some("svgpad") => PreviewSourceBoundsMode::SvgPadRight,
         Some("union") => PreviewSourceBoundsMode::Union,
+        Some("unionpad") => PreviewSourceBoundsMode::UnionPadRight,
         _ => PreviewSourceBoundsMode::Current,
     }
 }
