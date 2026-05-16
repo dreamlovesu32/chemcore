@@ -2714,3 +2714,142 @@ ChemDraw：
   - 为什么 ChemDraw 的 preview frame 在 `x/y origin` 上会换到那组值
   - 以及为什么 `height` 会显著更短
 - 而不是先盯 `width`
+
+### Word `CopyAsPicture` 口径也验证了：`frame` 是主因，但敏感分量和离线 patch 不完全相同
+
+为了避免再次被离线 `System.Drawing.Metafile` 的行为误导，这一轮把对比口径切到了 **Word 自己的实时回放**：
+
+- 用当前分支重新导出：
+  - `tmp/frame-word-ab/current.docx`
+- 然后只 patch 其中 `word/media/image1.emf` 的 `EMR_HEADER.frame`
+- 最后用 Word COM：
+  - 选中第一个 inline shape
+  - `CopyAsPicture`
+  - 保存成 `PNG`
+
+为此新增了两个可复用脚本：
+
+- `scripts/word-copy-inline-shape.ps1`
+  - 用 Word COM 打开 `docx`
+  - 对指定 `InlineShape` 执行 `CopyAsPicture`
+  - 从剪贴板保存为 `PNG`
+- `scripts/patch-docx-image1-frame.py`
+  - 只 patch `docx` 包内 `word/media/image1.emf` 的 `frame`
+  - 不改 `document.xml` / `oleObject1.bin` / 显示尺寸
+
+这次对 full document 做的 patch 变体：
+
+- `current`
+- `x-only`
+- `y-only`
+- `width-only`
+- `height-only`
+- `size-only`
+- `origin-only`
+- `origin-height`
+- `frame-chem`
+
+ChemDraw 参照口径：
+
+- 直接使用 `tmp/thiocyanation-source.chemcore.v28.docx`
+- 通过同一条 Word COM `CopyAsPicture` 链导出第二个对象：
+  - `tmp/frame-word-ab/v28-shape2.png`
+
+得到的 Word 回放结果（`best_shift` 对 `v28-shape2.png`）：
+
+- `current`
+  - `iou = 0.311686`
+  - `dx = 3`
+  - `dy = 2`
+- `x-only`
+  - `iou = 0.295366`
+  - `dx = 2`
+  - `dy = 2`
+- `y-only`
+  - `iou = 0.409181`
+  - `dx = 3`
+  - `dy = -2`
+- `width-only`
+  - `iou = 0.267287`
+  - `dx = 0`
+  - `dy = 2`
+- `height-only`
+  - `iou = 0.344130`
+  - `dx = 3`
+  - `dy = 3`
+- `size-only`
+  - `iou = 0.287548`
+  - `dx = 0`
+  - `dy = 3`
+- `origin-only`
+  - `iou = 0.376939`
+  - `dx = 2`
+  - `dy = -2`
+- `origin-height`
+  - `iou = 0.439630`
+  - `dx = 2`
+  - `dy = -1`
+- `frame-chem`
+  - `iou = 0.408697`
+  - `dx = -1`
+  - `dy = -1`
+
+对应的 Word 回放可见 ink bbox：
+
+- `current`
+  - `left=5 top=8 right=552 bottom=232`
+  - `width=548 height=225`
+- `x-only`
+  - `left=2 top=8 right=552 bottom=232`
+  - `width=551 height=225`
+- `y-only`
+  - `left=5 top=3 right=552 bottom=232`
+  - `width=548 height=230`
+- `width-only`
+  - `left=4 top=8 right=550 bottom=232`
+  - `width=547 height=225`
+- `height-only`
+  - `left=5 top=8 right=552 bottom=235`
+  - `width=548 height=228`
+- `origin-only`
+  - `left=3 top=3 right=552 bottom=232`
+  - `width=550 height=230`
+- `origin-height`
+  - `left=3 top=3 right=552 bottom=235`
+  - `width=550 height=233`
+- `frame-chem`
+  - `left=3 top=3 right=550 bottom=235`
+  - `width=548 height=233`
+- `v28-shape2`（ChemDraw Word 参照）
+  - `left=2 top=2 right=551 bottom=239`
+  - `width=550 height=238`
+
+这一轮最重要的结论：
+
+1. `frame` 不只是离线 patch 的主因，在 **Word 自己的实时回放** 里同样是主因。
+2. 但 Word 口径下的敏感分量和离线 patch 不完全一样：
+   - `y-only` 的价值明显高于 `x-only`
+   - `height-only` 也有稳定收益
+   - `width-only` 依然几乎没有价值
+3. 在 Word 口径里，当前最强的简化候选不是完整 ChemDraw frame，而是：
+   - **`origin + height`**
+4. `record-time frame override` 仍然是可行产品路径：
+   - 同一组 `frame` 数字直接通过环境变量写入录制过程
+   - Word 仍能正常打开并 `CopyAsPicture`
+   - 而且和“事后 patch `image1.emf` header”的 Word 回放结果几乎一致
+5. 这也说明前面那个“record-time frame override 不可用”的结论，至少对 **Word 回放** 来说已经过期了；
+   - 当时真正不兼容的是 `System.Drawing.Metafile`
+   - 不是 Word 本身
+
+当前更准确的 working hypothesis：
+
+- 对 packaged preview 来说，
+- `EMR_HEADER.frame` 不是一个“无关紧要的 metadata”，
+- 它实质上参与了 Word 对整张 preview 的放置和缩放解释。
+
+而在 full document 上，
+最值得继续逆向的 frame 规则已经进一步收敛成：
+
+- 先解释 `top / bottom / height`
+- 再解释 `left`
+- `right / width` 暂时不是主矛盾
