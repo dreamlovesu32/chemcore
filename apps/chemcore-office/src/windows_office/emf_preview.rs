@@ -53,6 +53,15 @@ const CHEMDRAW_EMF_LOGICAL_UNITS_PER_SVG_PX: f64 = 1.0;
 const USE_GDIPLUS_DUAL_PREVIEW: bool = true;
 const PREVIEW_SOURCE_RIGHT_PADDING_PT: f64 = 16.0;
 const ENV_PREVIEW_SOURCE_RIGHT_PADDING_PT: &str = "CHEMCORE_PREVIEW_SOURCE_RIGHT_PADDING_PT";
+const ENV_PREVIEW_SOURCE_BOUNDS_MODE: &str = "CHEMCORE_PREVIEW_SOURCE_BOUNDS_MODE";
+
+#[derive(Clone, Copy, Debug)]
+enum PreviewSourceBoundsMode {
+    Current,
+    Visible,
+    Svg,
+    Union,
+}
 
 pub(super) unsafe fn draw_payload_preview(
     dc: HDC,
@@ -176,24 +185,33 @@ pub(super) fn preview_source_bounds(payload: &OleObjectPayload) -> Option<[f64; 
         .ok()
         .and_then(|value| value.trim().parse::<f64>().ok())
         .unwrap_or(PREVIEW_SOURCE_RIGHT_PADDING_PT);
-    match (
-        visible_payload_bounds(payload),
-        svg_viewbox_bounds(&payload.svg),
-    ) {
-        (Some(visible), Some(svg)) => Some([
-            visible[0],
-            visible[1],
-            visible[2].max(svg[2]) + right_padding,
-            visible[3],
-        ]),
-        (Some(visible), None) => Some([
-            visible[0],
-            visible[1],
-            visible[2] + right_padding,
-            visible[3],
-        ]),
-        (None, Some(svg)) => Some([svg[0], svg[1], svg[2] + right_padding, svg[3]]),
-        (None, None) => None,
+    let visible = visible_payload_bounds(payload);
+    let svg = svg_viewbox_bounds(&payload.svg);
+    match preview_source_bounds_mode() {
+        PreviewSourceBoundsMode::Current => match (visible, svg) {
+            (Some(visible), Some(svg)) => Some([
+                visible[0],
+                visible[1],
+                visible[2].max(svg[2]) + right_padding,
+                visible[3],
+            ]),
+            (Some(visible), None) => Some([
+                visible[0],
+                visible[1],
+                visible[2] + right_padding,
+                visible[3],
+            ]),
+            (None, Some(svg)) => Some([svg[0], svg[1], svg[2] + right_padding, svg[3]]),
+            (None, None) => None,
+        },
+        PreviewSourceBoundsMode::Visible => visible,
+        PreviewSourceBoundsMode::Svg => svg,
+        PreviewSourceBoundsMode::Union => match (visible, svg) {
+            (Some(visible), Some(svg)) => Some(union_bounds(visible, svg)),
+            (Some(visible), None) => Some(visible),
+            (None, Some(svg)) => Some(svg),
+            (None, None) => None,
+        },
     }
 }
 
@@ -205,6 +223,7 @@ pub(super) fn preview_bounds_debug_report(
     let visible_bounds = visible_payload_bounds(payload);
     let svg_bounds = svg_viewbox_bounds(&payload.svg);
     let source_bounds = preview_source_bounds(payload);
+    let source_bounds_mode = preview_source_bounds_mode();
     let right_padding = std::env::var(ENV_PREVIEW_SOURCE_RIGHT_PADDING_PT)
         .ok()
         .and_then(|value| value.trim().parse::<f64>().ok())
@@ -228,6 +247,7 @@ pub(super) fn preview_bounds_debug_report(
         };
     json!({
         "useCdxmlEditingScale": use_chemdraw_units,
+        "sourceBoundsMode": format!("{source_bounds_mode:?}"),
         "extentHimetric": {
             "width": extent.cx,
             "height": extent.cy,
@@ -499,6 +519,19 @@ fn rect_debug_json(rect: RECT) -> serde_json::Value {
         "width": rect.right - rect.left,
         "height": rect.bottom - rect.top,
     })
+}
+
+fn preview_source_bounds_mode() -> PreviewSourceBoundsMode {
+    match std::env::var(ENV_PREVIEW_SOURCE_BOUNDS_MODE)
+        .ok()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("visible") => PreviewSourceBoundsMode::Visible,
+        Some("svg") => PreviewSourceBoundsMode::Svg,
+        Some("union") => PreviewSourceBoundsMode::Union,
+        _ => PreviewSourceBoundsMode::Current,
+    }
 }
 
 pub(super) fn ole_presentation_stream_for_payload(
