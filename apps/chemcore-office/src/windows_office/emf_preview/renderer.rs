@@ -54,6 +54,8 @@ const ENV_DISABLE_PACKAGED_NOFITBLACKBOX: &str =
 const ENV_PACKAGED_TEXT_GRIDFIT: &str = "CHEMCORE_EMF_PACKAGED_TEXT_GRIDFIT";
 const ENV_PACKAGED_PIXEL_OFFSET_HIGHQUALITY: &str =
     "CHEMCORE_EMF_PACKAGED_PIXEL_OFFSET_HIGHQUALITY";
+const ENV_PACKAGED_CENTERED_PLAIN_GDI_WIDTH: &str =
+    "CHEMCORE_EMF_PACKAGED_CENTERED_PLAIN_GDI_WIDTH";
 
 fn preview_env_enabled(name: &str) -> bool {
     std::env::var_os(name).is_some()
@@ -1511,7 +1513,14 @@ unsafe fn draw_gdiplus_text(
 ) -> bool {
     let line_step_world = line_height.unwrap_or(font_size * 1.2).max(0.01);
     let lines = preview_text_lines(text, runs);
-    let layouts = gdiplus_text_layout(graphics, &lines, font_size, font_family, transform);
+    let layouts = gdiplus_text_layout(
+        graphics,
+        &lines,
+        font_size,
+        font_family,
+        transform,
+        transform.emf_recording && matches!(text_anchor, Some("middle")),
+    );
     let mut ok = true;
     for (index, line_runs) in lines.iter().enumerate() {
         if line_runs.is_empty() {
@@ -1647,6 +1656,7 @@ unsafe fn gdiplus_text_layout(
     fallback_font_size: f64,
     fallback_family: Option<&str>,
     transform: &PreviewTransform,
+    packaged_centered: bool,
 ) -> Vec<GdiplusTextLineLayout> {
     let dc = CreateCompatibleDC(null_mut());
     if dc.is_null() {
@@ -1672,19 +1682,15 @@ unsafe fn gdiplus_text_layout(
     let layouts = lines
         .iter()
         .map(|runs| {
+            let use_plain_gdi_widths = packaged_centered
+                && preview_env_enabled(ENV_PACKAGED_CENTERED_PLAIN_GDI_WIDTH)
+                && runs.iter().all(|run| run.script.is_none());
             let mut width = 0.0f32;
             let run_layouts = runs
                 .iter()
                 .map(|run| {
                     let dx = preview_script_dx_f32(run, fallback_font_size, transform);
-                    let advance = gdiplus_text_run_advance(
-                        graphics,
-                        run,
-                        fallback_font_size,
-                        fallback_family,
-                        transform,
-                    )
-                    .unwrap_or_else(|| {
+                    let advance = if use_plain_gdi_widths {
                         preview_text_run_extent(
                             dc,
                             run,
@@ -1693,7 +1699,25 @@ unsafe fn gdiplus_text_layout(
                             transform,
                             &mut cache,
                         ) as f32
-                    });
+                    } else {
+                        gdiplus_text_run_advance(
+                            graphics,
+                            run,
+                            fallback_font_size,
+                            fallback_family,
+                            transform,
+                        )
+                        .unwrap_or_else(|| {
+                            preview_text_run_extent(
+                                dc,
+                                run,
+                                fallback_font_size,
+                                fallback_family,
+                                transform,
+                                &mut cache,
+                            ) as f32
+                        })
+                    };
                     width += dx + advance;
                     GdiplusTextRunLayout { dx, advance }
                 })
