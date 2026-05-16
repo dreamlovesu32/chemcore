@@ -4882,3 +4882,140 @@ Word `CopyAsPicture` 结果：
 
 - ??????????????? `left/right` ? `top/bottom` ???????????
 - ?????????????? centered ?????
+
+## 2026-05-16：centered text 家族可以直接拟合成 `visible -> frame` pad 规则
+
+这轮不再只盯 `frame-best/full` 的搜索结果，而是把 4 个 same-shell centered fixture 的
+`ChemDraw frame` 统一改写成相对 `visible frame` 的 pad：
+
+- `mixed-center-line`
+- `plain-center-line`
+- `mixed-center-two-line`
+- `mixed-center-block`
+
+分析产物：
+
+- `tmp/frame-word-ab/centered-family-fit.json`
+- `scripts/fit-centered-frame-family.py`
+
+### 1. 相对 `visible frame` 的 centered 家族 pad 很规整
+
+4 个 fixture 的 pad（单位：px，相对 `visible frame`）：
+
+- `mixed-center-line`
+  - `left = +3.686`
+  - `top = -3.024`
+  - `right = +18.239`
+  - `bottom = +0.095`
+- `plain-center-line`
+  - `left = +6.897`
+  - `top = -3.118`
+  - `right = +14.549`
+  - `bottom = +0.094`
+- `mixed-center-two-line`
+  - `left = +3.779`
+  - `top = -3.118`
+  - `right = +17.763`
+  - `bottom = +0.661`
+- `mixed-center-block`
+  - `left = +3.686`
+  - `top = -3.024`
+  - `right = +18.239`
+  - `bottom = +1.796`
+
+直接能看出 3 条规律：
+
+1. 水平总额外量几乎恒定：
+   - `left + right = 21.446 ~ 21.925 px`
+2. `top` 基本是常数：
+   - 大约 `-3.1 px`
+3. `bottom` 会随块高增长：
+   - 一行时接近 `0.1 px`
+   - 两行时约 `0.66 px`
+   - 四行时约 `1.80 px`
+
+### 2. 拟合结果
+
+对这 4 个 centered fixture 做线性拟合后：
+
+- `left_px ≈ 10.3741 - 0.0145064 * visible_width_px`
+  - `R² = 0.9964`
+- `right_px ≈ 10.7087 + 0.0160568 * visible_width_px`
+  - `R² = 0.9751`
+- `top_px ≈ -3.1058 + 0.0004981 * visible_height_px`
+  - `R² = 0.166`
+  - 更像常数项，实际可直接近似为 `-3.1 px`
+- `bottom_px ≈ -0.6054 + 0.0180983 * visible_height_px`
+  - `R² ≈ 1.0`
+
+这意味着 centered text 家族已经不再只是“`chem / quarter / half / full` 哪个更像”的口头描述，
+而是第一次出现了可直接从 `visible width/height` 推 `frame` 分量的经验规则。
+
+### 3. 套到 full doc 的 3 个 centered text object 上
+
+将上面的拟合直接代入 full doc 的 3 个 centered 文本对象：
+
+- `obj_text_004`（四行标题块，`width=681.36`, `height=125.33`）
+  - 预测：
+    - `left = +0.490`
+    - `right = +21.649`
+    - `top = -3.043`
+    - `bottom = +1.663`
+- `obj_text_005`（`CH3CN ... / 420 nm ...`，`width=434.72`, `height=62.67`）
+  - 预测：
+    - `left = +4.068`
+    - `right = +17.689`
+    - `top = -3.075`
+    - `bottom = +0.529`
+- `obj_text_006`（产率两行，`width=331.76`, `height=61.33`）
+  - 预测：
+    - `left = +5.561`
+    - `right = +16.036`
+    - `top = -3.075`
+    - `bottom = +0.505`
+
+这和前面的 qualitative 观察是能对上的：
+
+- `obj_text_004` 宽、行数多，所以天然要求：
+  - 更小的 `left`
+  - 更大的 `right`
+  - 更大的 `bottom`
+- `obj_text_005 / obj_text_006` 更窄，所以 `left` 会更大、`right` 更小
+- 这解释了为什么 full doc 内部不同 centered 子原型会把最优 `frame` 往不同方向拉
+
+### 4. 为什么这还不能直接等于 full-doc `frame-best`
+
+虽然 centered 家族已经能拟合出一条像样规则，但 full doc 的全局最优点：
+
+- `frame-best = (1443, 2996, 14430, 8651)`
+
+仍然不能只靠 centered text 解释。原因前面已经量过：
+
+- `top/bottom` 对 `conditions_block` 和 `arrow` 很值钱
+- `left/right` 对 `obj_text_005` 这类窄 centered text 很值钱
+
+所以现在更准确的模型是：
+
+- **centered text 家族**
+  - 提供一条“基准 frame pad 规则”
+- **non-text / arrow / conditions family**
+  - 会在这个基准上继续推 `top/bottom`
+  - 甚至推 `right`
+
+也就是说，`frame-best/full` 更像：
+
+- `centered-family visible-based rule`
+- 再叠加
+- `conditions + arrow` 的额外修正项
+
+### 当前结论
+
+这是到目前为止最有价值的新进展之一：
+
+- 我们第一次拿到了可参数化的 centered family frame 规则
+- 而不是只靠 brute-force 搜索 `frame-best`
+- 下一步就可以继续研究：
+  - full doc 里 `conditions_block + arrow` 到底贡献了哪些额外分量
+  - 看能不能把 `frame-best` 分解成：
+    - `centered rule`
+    - `non-text correction`
