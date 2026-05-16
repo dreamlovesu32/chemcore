@@ -1626,3 +1626,44 @@ ChemDraw 的 fallback 记录是：
   - Matching ChemDraw's `layoutRect = 0 x 0` is **not sufficient** once our own `x/y` anchor computation is already fixed to the current packaged path.
   - The remaining gap is not in rect size anymore; it is in the computed anchor positions / fallback behavior.
   - Revert the code change and keep only the finding.
+### Experiment: packaged centered trailing-space advance blend (v74/v75)
+- Hypothesis:
+  - The remaining horizontal drift in `v72` is dominated by a few centered packaged tokens whose measured advance is too small, especially tokens that end with a visible character plus trailing space (for example `4DPAIPN `, `L `, `3W, `).
+  - Replacing all centered packaged layout widths with GDI extents (`v74`) over-corrects and integerizes the whole line.
+  - A narrower variant that only blends GDI extents into trailing-space tokens (`v75`) may keep GDI+ geometry while fixing the worst under-measured steps.
+- Code paths touched (experiment only, reverted):
+  - `apps/chemcore-office/src/windows_office/emf_preview/renderer.rs`
+  - `v74`: packaged centered `gdiplus_text_layout()` used GDI extents for all centered runs.
+  - `v75`: packaged centered layout kept GDI+ widths by default, but for tokens ending with whitespace and containing visible characters, blended `advance = gdiplus + 0.5 * (gdi - gdiplus)`.
+- Validation samples:
+  - outputs:
+    - `tmp/thiocyanation-source.v74.emf`
+    - `tmp/thiocyanation-source.v75.emf`
+  - reports:
+    - `tmp/v74-chemdraw-drawstring-title-conditions.md`
+    - `tmp/v74-chemdraw-title-conditions.md`
+    - `tmp/v75-chemdraw-drawstring-title-conditions.md`
+    - `tmp/v75-chemdraw-title-conditions.md`
+- Actual result:
+  - `v74` significantly tightens packaged DrawString x positions:
+    - `4DPAIPN `: `dx +4.175 -> +0.065`
+    - `Cu(MeCN)`: `+1.713 -> -0.363`
+    - `3W, `: `+3.000 -> +0.121`
+    - `10 `: `-2.685 -> -0.446`
+  - But fixed-canvas image IoU gets worse than `v72`:
+    - full page: `0.28713 -> 0.28261`
+    - title region: `0.35999 -> 0.33549`
+    - yield region: `0.24730 -> 0.25541`
+  - `v75` partially recovers from that over-correction:
+    - `4DPAIPN `: `+4.175 -> +2.183`
+    - `Cu(MeCN)`: `+1.713 -> +1.011`
+    - `3W, `: `+3.000 -> +1.668`
+    - `10 `: `-2.685 -> -1.457`
+  - But `v75` still does not beat `v72` in actual pixels:
+    - full page: `0.28713 -> 0.28450`
+    - title region: `0.35999 -> 0.35074`
+    - yield region: `0.24730 -> 0.24865`
+- Conclusion:
+  - GDI extents are useful as a diagnostic: they prove the centered packaged horizontal residual is tied to a few under-measured trailing-space tokens.
+  - But even a narrow trailing-space blend does not outperform the `v72` packaged baseline in real pixels.
+  - Therefore the remaining issue is not solved by simply switching the width source from GDI+ to GDI; this line should stay reverted and be treated as measurement evidence rather than product logic.
