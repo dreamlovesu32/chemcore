@@ -2978,3 +2978,96 @@ ChemDraw 参照口径：
   - 为什么 full document 更像 `origin+height`
   - 为什么 centered fixtures 更像 `frame-chem`
   - 为什么 `right-edge-ph` 会对这两条都失稳
+## 2026-05-16：`docx` 外层尺寸 patch 工具与 `dxaOrig/style` 解耦结论
+
+这轮先把 `frame` 和 `docx` 外层尺寸拆开做成可控实验。
+
+新增工具：
+
+- `scripts/patch-docx-object-size.py`
+
+它直接 patch `word/document.xml` 里第一个 OLE 对象的：
+
+- `w:dxaOrig / w:dyaOrig`
+- `v:shape style="width:...;height:..."`
+
+支持：
+
+- 绝对值 patch
+- `--display-scale`
+- `--natural-scale`
+
+### 观察 1：`dxaOrig/dyaOrig` 对 Word `CopyAsPicture` 基本无影响
+
+对 `right-edge-ph` 做对称实验：
+
+- current / chemref 两边同时改 `natural-scale = 0.6 ~ 1.2`
+- `v:shape width/height` 保持不变
+
+结果：
+
+- 渲染后真实 ink bbox 完全不变
+- best-shift IoU 基本固定在 `0.563 ~ 0.575`
+
+结论：
+
+- Word 实时回放几乎不吃 `dxaOrig / dyaOrig`
+- 这两个字段更像“原始大小/属性对话框”元数据
+- 真正控制 `CopyAsPicture` 可见结果的，是 `v:shape style width/height`
+
+### 观察 2：`v:shape width/height` 会显著改变像素 IoU
+
+继续对 `right-edge-ph` 做对称实验：
+
+- current / chemref 两边同时改 `display-scale = 0.6 ~ 1.1`
+- `dxaOrig / dyaOrig` 保持不变
+
+结果：
+
+- `0.60 -> 0.5771`
+- `0.70 -> 0.5856`
+- `0.80 -> 0.5804`
+- `0.90 -> 0.5494`
+- `1.00 -> 0.5632`
+- `1.10 -> 0.5100`
+
+也就是说，只改 shell 的显示尺寸，就能明显改动逐像素 IoU。
+
+### 观察 3：centered fixture 也同样对 display-size 敏感
+
+对 `mixed-center-line` 做同样的对称 `display-scale` 扫描：
+
+- `0.60 -> 0.4995`
+- `0.70 -> 0.4781`
+- `0.80 -> 0.4723`
+- `0.90 -> 0.4619`
+- `1.00 -> 0.4598`
+- `1.10 -> 0.4765`
+
+这说明：
+
+- `display-size` 对 Word `CopyAsPicture` 的像素重叠有一阶影响
+- 这种影响里混有明显的栅格化/采样效应
+
+### 这轮的解释
+
+这批实验不能直接解读成：
+
+- “把显示尺寸调小就更几何正确”
+
+更合理的理解是：
+
+- Word 的 `CopyAsPicture` 对最终显示分辨率高度敏感
+- shell 显示尺寸变化会改变栅格化采样口径
+- 所以 IoU 变好，不一定代表底层 `frame` / `bounds` 语义更对
+
+### 当前可用结论
+
+1. `dxaOrig/dyaOrig` 不是 Word 实时回放的主控制量。
+2. `v:shape width/height` 才是主控制量。
+3. 因为 `display-size` 本身会显著改动 IoU，后续如果继续研究 `frame` 语义：
+   - 必须尽量固定 `display width/height`
+   - 不能再把“缩小后更像”直接当成 geometry 修复成功
+4. 这也解释了为什么 `right-edge-ph` 和 centered fixtures 在 Word 口径下会显得更不稳定：
+   - 它们不仅受 `frame` 影响
+   - 也明显受 shell 显示尺寸和最终采样口径影响
