@@ -32,14 +32,17 @@ namespace Harness {
             IntPtr matrix
         );
 
-        public static IntPtr NativeGraphics(Graphics graphics) =>
-            (IntPtr)typeof(Graphics).GetField("nativeGraphics", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(graphics);
+        public static IntPtr NativeGraphics(Graphics graphics) {
+            return (IntPtr)typeof(Graphics).GetField("nativeGraphics", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(graphics);
+        }
 
-        public static IntPtr NativeFont(Font font) =>
-            (IntPtr)typeof(Font).GetField("nativeFont", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(font);
+        public static IntPtr NativeFont(Font font) {
+            return (IntPtr)typeof(Font).GetField("nativeFont", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(font);
+        }
 
-        public static IntPtr NativeBrush(Brush brush) =>
-            (IntPtr)typeof(Brush).GetField("nativeBrush", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(brush);
+        public static IntPtr NativeBrush(Brush brush) {
+            return (IntPtr)typeof(Brush).GetField("nativeBrush", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(brush);
+        }
     }
 }
 "@
