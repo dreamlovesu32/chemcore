@@ -61,6 +61,10 @@ const ENV_PACKAGED_CENTERED_PLAIN_ZERO_LAYOUT: &str =
 const ENV_PACKAGED_SMOOTHING_MODE_VALUE: &str = "CHEMCORE_EMF_PACKAGED_SMOOTHING_MODE_VALUE";
 const ENV_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT: &str =
     "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT";
+const ENV_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT: &str =
+    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT";
+const ENV_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT: &str =
+    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT";
 const ENV_ATTACHED_LABEL_REPLAY_FONT_SCALE_EXPERIMENT: &str =
     "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_FONT_SCALE_EXPERIMENT";
 const ENV_ATTACHED_LABEL_REPLAY_TEXT_HINT_EXPERIMENT: &str =
@@ -1701,6 +1705,13 @@ unsafe fn draw_gdiplus_text(
     }
     let effective_font_size = font_size * effective_font_scale;
     let x = x + x_nudge_px / (transform.scale * transform.record_scale.max(1.0));
+    let y_nudge_px = preview_attached_label_replay_y_nudge_px(
+        node_id,
+        runs,
+        fill,
+        text_anchor,
+        label_context,
+    );
     let line_step_world = line_height.unwrap_or(effective_font_size * 1.2).max(0.01);
     let mut lines = preview_text_lines(text, runs);
     preview_scale_text_run_font_sizes(&mut lines, effective_font_scale);
@@ -1719,7 +1730,9 @@ unsafe fn draw_gdiplus_text(
         }
         let origin = transform.gdip_point(CorePoint {
             x,
-            y: y + index as f64 * line_step_world,
+            y: y
+                + y_nudge_px / (transform.scale * transform.record_scale.max(1.0))
+                + index as f64 * line_step_world,
         });
         let Some(line_layout) = layouts.get(index) else {
             continue;
@@ -2250,6 +2263,13 @@ unsafe fn draw_preview_text(
     );
     let effective_font_size = font_size * effective_font_scale;
     let x = x + x_nudge_px / (transform.scale * transform.record_scale.max(1.0));
+    let y_nudge_px = preview_attached_label_replay_y_nudge_px(
+        node_id,
+        runs,
+        fill,
+        text_anchor,
+        label_context,
+    );
     let old_align = SetTextAlign(dc, TA_LEFT | TA_BASELINE);
     SetBkMode(dc, TRANSPARENT as i32);
     SetTextColor(dc, fill.and_then(colorref_from_css).unwrap_or(0x000000));
@@ -2261,7 +2281,11 @@ unsafe fn draw_preview_text(
         if line_runs.is_empty() {
             continue;
         }
-        let origin = transform.xy(x, y + index as f64 * line_step_world);
+        let origin = transform.xy(
+            x,
+            y + y_nudge_px / (transform.scale * transform.record_scale.max(1.0))
+                + index as f64 * line_step_world,
+        );
         let width =
             preview_line_width_measured(
                 dc,
@@ -2306,6 +2330,32 @@ fn preview_attached_label_replay_nudge_px(
         return 0.0;
     };
     if !preview_attached_label_replay_matches(
+        node_id,
+        runs,
+        fallback_fill,
+        text_anchor,
+        label_context,
+    ) {
+        return 0.0;
+    }
+    nudge_px
+}
+
+fn preview_attached_label_replay_y_nudge_px(
+    node_id: Option<&str>,
+    runs: &[chemcore_engine::LabelRun],
+    fallback_fill: Option<&str>,
+    text_anchor: Option<&str>,
+    label_context: Option<&PreviewLabelContext>,
+) -> f64 {
+    let Some(nudge_px) = preview_env_f64(ENV_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT) else {
+        return 0.0;
+    };
+    if std::env::var_os(ENV_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT).is_some() {
+        if !preview_attached_label_replay_node_filter_matches(node_id) {
+            return 0.0;
+        }
+    } else if !preview_attached_label_replay_matches(
         node_id,
         runs,
         fallback_fill,
@@ -2396,6 +2446,21 @@ fn preview_attached_label_replay_matches(
         .or(fallback_fill)
         .unwrap_or("#000000");
     fill.eq_ignore_ascii_case("#000000")
+}
+
+fn preview_attached_label_replay_node_filter_matches(node_id: Option<&str>) -> bool {
+    let Some(filter) = std::env::var_os(ENV_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT) else {
+        return true;
+    };
+    let Some(node_id) = node_id else {
+        return false;
+    };
+    let filter = filter.to_string_lossy();
+    filter
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .any(|value| value.eq_ignore_ascii_case(node_id))
 }
 
 fn preview_scale_text_run_font_sizes(lines: &mut [Vec<PreviewTextRun>], scale: f64) {

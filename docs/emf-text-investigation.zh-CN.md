@@ -8716,3 +8716,43 @@ Conclusion:
 - For the worst catalyst top-half black `Ph` family, whole-frame vertical phase is clearly the dominant axis.
 - Horizontal frame tweaks do not explain this family; they underperform the baseline while y-only tweaks give stable local gains.
 - Next step should stay on the y/phase line (finer y sweep or a narrow product experiment), not x-family searching.
+
+
+### 2026-05-17 node-filtered attached-label packaged y-nudge
+
+Goal:
+- Test whether a local packaged replay `y` nudge can reproduce the same-shell whole-frame y-phase improvement for the worst top-half catalyst black `Ph` labels.
+- Target nodes only: `f4_32333`, `f4_32335`.
+
+Implementation:
+- Added packaged preview env hook:
+  - `CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT`
+  - `CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT`
+- For this experiment, `Y_NUDGE` honors the explicit node filter directly and does not require the older `Left + right-half + north + small-gap` family matcher.
+
+Same-shell Word replay results (base frame = frame-global3):
+- baseline global IoU: `0.8618815442`
+- `y = -1 px`:
+  - global IoU `0.8634435284`
+  - `f4_32333: 0.492647 -> 0.543307`
+  - `f4_32335: 0.595420 -> 0.655738`
+- `y = -2 px`:
+  - global IoU `0.8643932117`
+  - `f4_32333: 0.492647 -> 0.582677`
+  - `f4_32335: 0.595420 -> 0.710744`
+- `y = -3 px`:
+  - global IoU `0.8621959027`
+  - `f4_32333: 0.492647 -> 0.472868`
+  - `f4_32335: 0.595420 -> 0.609756`
+- `y = -4 px`:
+  - global IoU `0.8602348055`
+  - both labels degrade
+- Positive nudges:
+  - `+1 / +2 px` both degrade these labels and do not help global IoU.
+
+Conclusion:
+- This is the first successful local packaged replay intervention for an attached-label family.
+- The effect direction matches the same-shell frame search: negative y helps, positive y hurts.
+- The family is not purely a whole-frame phenomenon; for `f4_32333/f4_32335`, record-time local vertical placement is sufficient to move Word replay in the expected direction.
+- Best tested local value is currently `-2 px`.
+- This does NOT generalize automatically to the other catalyst black `Ph` labels (`f4_32339`, `f4_32343`, `f4_32345`, `f4_32347`), which remained unchanged under this node-filtered run.
