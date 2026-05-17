@@ -102,6 +102,7 @@ fn main() {
     let mut visible_no_knockout: Vec<&RenderPrimitive> = Vec::new();
     let mut visible_with_knockout: Vec<&RenderPrimitive> = Vec::new();
     let mut sample_knockouts = Vec::new();
+    let mut text_samples = Vec::new();
 
     for primitive in &primitives {
         let role = match primitive {
@@ -162,6 +163,26 @@ fn main() {
                 }
             }
         }
+        if role == RenderRole::DocumentText {
+            if let RenderPrimitive::Text {
+                x,
+                y,
+                text,
+                font_size,
+                object_id,
+                ..
+            } = primitive
+            {
+                text_samples.push(serde_json::json!({
+                    "text": text,
+                    "x": x,
+                    "y": y,
+                    "fontSize": font_size,
+                    "objectId": object_id,
+                    "bbox": primitive_bbox(primitive),
+                }));
+            }
+        }
     }
 
     let visible_with_knockout_bounds = render_primitives_bounds(visible_with_knockout.iter().copied());
@@ -178,7 +199,8 @@ fn main() {
             "plainCount": plain_knockout_count,
             "unionBounds": knockout_bounds,
             "samples": sample_knockouts,
-        }
+        },
+        "textSamples": text_samples,
     });
     println!("{}", serde_json::to_string_pretty(&report).expect("report json"));
 }

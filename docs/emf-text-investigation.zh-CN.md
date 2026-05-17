@@ -5954,3 +5954,84 @@ Word `CopyAsPicture` 后：
 - `DocumentKnockout` 作为单独 bug 线，目标是让 Office preview 回到 SVG 语义：
   - 内部退让几何参与计算
   - 但不在最终可见结果中留下字壳
+
+### 6. 把 `current / no-knockout` 都补到 `frame-global3` 后，same-shell 主指标仍完全一致
+
+为了彻底排除“只是 frame 没补齐”的干扰，又做了一步：
+
+1. 先把
+   - `tmp/thiocyanation-source.current.emf`
+   - `tmp/thiocyanation-source.no-knockout.emf`
+   patch 进同一个 `frame-global3` shell
+2. 再把两者的 `EMR_HEADER.frame` 都 patch 成：
+   - `(1441, 2994, 14431, 8656)`
+
+得到：
+
+- `tmp/frame-word-ab/frame-global3-currentknockout-fg3.docx`
+- `tmp/frame-word-ab/frame-global3-noknockout-fg3.docx`
+
+再用 Word `CopyAsPicture` 和真正的 ChemDraw 参考图
+- `tmp/v28-wrapper-ablate10/v28-rerun.shape2.png`
+做 best-shift 比较，结果三者完全一样：
+
+- `global3_candidate`: `IoU = 0.861882`
+- `current_fg3`: `IoU = 0.861882`
+- `noknockout_fg3`: `IoU = 0.861882`
+
+所以在 current 主线上可以更强地下结论：
+
+- `DocumentKnockout` 可见性泄漏虽然是真的
+- 但就算把 frame 对齐到 `frame-global3`
+- same-shell 与 ChemDraw 的主指标仍完全不受它影响
+
+也就是说，它现在更像：
+
+- 一个明确的局部显示错误
+- 但不是 `frame-global3 -> ChemDraw` 这条主线的瓶颈
+
+### 7. `frame-global3` 残差热点：主要仍集中在标题/标签文字，但已不再是“纯文字问题”
+
+新增工具：
+
+- `scripts/png-hotspot-components.py`
+
+它会对两张渲染后的 PNG 做：
+
+- best-shift 对齐后 XOR
+- 连通分量提取
+- 输出热点 bbox 和叠加图
+
+当前 `frame-global3` 对 `v28-rerun.shape2.png` 的结果：
+
+- `tmp/frame-word-ab/frame-global3-hotspots/overlay-hotspots-topn.png`
+- `tmp/frame-word-ab/frame-global3-hotspots/hotspots-topn.json`
+
+主热点确实大多挂在：
+
+- 上部标题/条件文字
+- 右上产物标签
+- 右下催化剂标签
+- 左下配体标签
+
+但我又把这些残差像素投到全文本 bbox 邻域里做了一次量化：
+
+- 使用 `render_role_report` 导出的 `DocumentText` bbox
+- 每个 bbox 外扩 `3 px`
+
+结果：
+
+- `residual_inside_text_boxes = 961`
+- `residual_outside_text_boxes = 767`
+- `inside_ratio = 0.5561`
+
+也就是：
+
+- 约 `55.6%` 的残差确实落在文本附近
+- 但还有 `44.4%` 的残差并不在文本邻域内
+
+这说明：
+
+- “普通文本/标签文本对齐”仍然是主矛盾之一
+- 但当前 same-shell 剩余差异已经不能再被简化成纯文字问题
+- `frame-global3` 之后，还同时有一层非文本/非标签的 replay 残差
