@@ -8676,3 +8676,43 @@ Artifacts:
 - replay PNG: `tmp/frame-word-ab/attached-phasebands-hit-fg3.wordcopy.png`
 - compare JSON: `tmp/frame-word-ab/attached-phasebands-hit-fg3.bestshift.json`
 - label IoU: `tmp/frame-word-ab/attached-phasebands-hit-fg3-label-iou.json`
+
+
+### 2026-05-17 same-shell catalyst top-half black Ph frame search
+
+Summary:
+- Ran same-shell Word frame search around `frame-global3 = (1441,2994,14431,8656)` for the two worst catalyst top-half black `Ph` boxes.
+- Regions:
+  - `ph_top_left = (458,132,488,152)`
+  - `ph_top_right = (496,132,525,152)`
+  - `catalyst_top_half = (450,120,525,160)`
+  - `catalyst_all = (432,120,555,242)`
+  - `global = (0,0,555,242)`
+- Artifacts:
+  - `tmp/frame-word-ab/catalyst-toplabels-ysearch.json`
+  - `tmp/frame-word-ab/catalyst-toplabels-xsearch.json`
+
+Y-only search (`left=right=0`, `top,bottom in [-3,+3]`):
+- Best local family candidate was `delta = [0,0,0,+1]` (bottom +1 only).
+- Metrics:
+  - `global = 0.860980`
+  - `ph_top_left = 0.539568`
+  - `ph_top_right = 0.616541`
+  - `catalyst_top_half = 0.609971`
+  - `catalyst_all = 0.737078`
+- Several nearby `top/bottom` combinations collapse to the same top-label IoUs, which looks like a raster/phase equivalence class rather than a unique geometric optimum.
+
+X-only search (`top=bottom=0`, `left,right in [-3,+3]`):
+- Best candidate was just the baseline `delta = [0,0,0,0]`.
+- Metrics:
+  - `global = 0.861882`
+  - `ph_top_left = 0.514085`
+  - `ph_top_right = 0.588235`
+  - `catalyst_top_half = 0.576705`
+  - `catalyst_all = 0.733531`
+- No x-only perturbation beat the baseline for the top-half family.
+
+Conclusion:
+- For the worst catalyst top-half black `Ph` family, whole-frame vertical phase is clearly the dominant axis.
+- Horizontal frame tweaks do not explain this family; they underperform the baseline while y-only tweaks give stable local gains.
+- Next step should stay on the y/phase line (finer y sweep or a narrow product experiment), not x-family searching.
