@@ -10264,3 +10264,83 @@ Takeaway:
 - The next profitable direction should switch to:
   - a different replay knob, or
   - a different family decomposition for the remaining catalyst/product/reagent labels.
+
+## 2026-05-18 y-probe tooling correction and additive-y rerun
+
+Question:
+- Were the earlier `x` versus `y` probe conclusions real, or were they partially polluted by probe-tooling behavior?
+
+What was wrong:
+- The first `probe-attached-actions-on-stack.py` implementation had two issues:
+  1. the `y` branch was accidentally wired through the `x` probe slot because of a control-flow bug in the script;
+  2. even after fixing that bug, `phase3band` still short-circuited `preview_attached_label_replay_y_nudge_px(...)`, so explicit `y` probes were being masked by the phase policy.
+
+Fixes:
+- Script fix:
+  - `scripts/probe-attached-actions-on-stack.py`
+  - corrected the `x`/`y` branch structure so `y` actions no longer overwrite `x` env slots.
+- Renderer analysis hook:
+  - `apps/chemcore-office/src/windows_office/emf_preview/renderer.rs`
+  - added additive `Y_DELTA` experiment env slots that are applied **after** `phase3band`, instead of being shadowed by it.
+
+Sanity check:
+- After the fixes, the generated `docx` / embedded `image1.emf` are no longer byte-identical between `x:+2` and `y:+1 / y:-1` probes.
+- Example:
+  - `f4_32321.x.p2` embedded `image1.emf` hash:
+    - `d4a47731e658baf2bffa4c1ef7b5b9509f82e4b17b9f43c376f26623bf2e5c40`
+  - `f4_32321.y.p1` embedded `image1.emf` hash:
+    - `b9d4ec5d32e25f0493b41382211de00c8eb92bbbac6dece2744420d117f2630f`
+
+Corrected probe:
+- Output:
+  - `tmp/frame-word-ab/probe-current-best-yx2-fixed/summary.json`
+- Same baseline stack:
+  - `frame = (1441, 2994, 14431, 8656)`
+  - `phase-policy = phase3band`
+  - existing `x/top/font-scale` stack unchanged
+- Probe set:
+  - nodes:
+    - `f4_32321`
+    - `f4_32345`
+    - `f5_2794`
+    - `f4_32335`
+    - `f4_32337`
+    - `f5_2784`
+    - `f4_32341`
+    - `f1_28328`
+    - `f4_32323`
+    - `f2_34461`
+  - actions:
+    - `x:+2`
+    - `x:-2`
+    - `y:+1`
+    - `y:+2`
+    - `y:-1`
+    - `y:-2`
+
+Corrected headline result:
+- The earlier “broad positive `y` family” no longer holds.
+- After fixing the tooling and letting `y` deltas actually stack on top of `phase3band`, only a very narrow positive set remains:
+  - `f1_28328 y:-2`
+    - `globalDelta = +0.0003841807`
+    - `labelDelta = +0.0457057823`
+  - `f1_28328 y:-1`
+    - `globalDelta = +0.0001709472`
+    - `labelDelta = +0.0232941662`
+  - `f2_34461 y:+1`
+    - `globalDelta = +0.0000710583`
+    - `labelDelta = +0.0063740403`
+- Everything else in this `x±2 / y±{1,2}` matrix is flat or negative.
+
+Interpretation:
+- The previous “`x` and `y` produce the same replay” result was a tooling artifact.
+- The previous “large positive `y` family” interpretation was also too optimistic because explicit `y` probes were being swallowed by `phase3band`.
+- Once probed correctly, the remaining profitable `y`-delta family is much narrower:
+  - one `attached-group-above` black `O` case (`f1_28328`) prefers more negative `y`;
+  - one black `N` case (`f2_34461`) still prefers a small positive `y`.
+
+Takeaway:
+- Future attached-label replay work should treat `y-delta` as a **small residual family**, not a broad primary family.
+- The safer working model is now:
+  - `phase3band` remains the main vertical policy;
+  - additional `y` deltas are narrow exceptions layered on top.

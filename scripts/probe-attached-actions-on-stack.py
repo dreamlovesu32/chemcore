@@ -69,6 +69,7 @@ def main() -> None:
     ap.add_argument("--actions", required=True, help="comma-separated actions, e.g. x:+1,top:-1,font:0.97")
     ap.add_argument("--phase-policy", default="")
     ap.add_argument("--baseline-x", action="append", default=[], help="repeatable amount|filter")
+    ap.add_argument("--baseline-y", action="append", default=[], help="repeatable amount|filter")
     ap.add_argument("--baseline-top", action="append", default=[], help="repeatable amount|filter")
     ap.add_argument("--baseline-font", action="append", default=[], help="repeatable scale|filter")
     args = ap.parse_args()
@@ -83,6 +84,7 @@ def main() -> None:
     nodes = [part.strip() for part in args.nodes.split(",") if part.strip()]
     actions = [part.strip() for part in args.actions.split(",") if part.strip()]
     baseline_x = parse_specs(args.baseline_x)
+    baseline_y = parse_specs(args.baseline_y)
     baseline_top = parse_specs(args.baseline_top)
     baseline_font = parse_specs(args.baseline_font)
 
@@ -101,6 +103,18 @@ def main() -> None:
             "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NUDGE_NODE_FILTER_EXPERIMENT",
             "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NUDGE_NODE_FILTER_EXPERIMENT_2",
             "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NUDGE_NODE_FILTER_EXPERIMENT_3",
+        ],
+    )
+    add_env_specs(
+        common_env,
+        baseline_y,
+        [
+            "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT",
+            "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT_2",
+        ],
+        [
+            "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT",
+            "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT_2",
         ],
     )
     add_env_specs(
@@ -253,6 +267,38 @@ def main() -> None:
                 if not matched:
                     env["CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT_3"] = value
                     env["CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NUDGE_NODE_FILTER_EXPERIMENT_3"] = node_id
+            elif kind == "y":
+                if args.phase_policy:
+                    env["CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_DELTA_EXPERIMENT"] = value
+                    env["CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_DELTA_NODE_FILTER_EXPERIMENT"] = node_id
+                else:
+                    matched = False
+                    for idx, (amount, filt) in enumerate(baseline_y):
+                        if amount_matches(amount, value):
+                            env[
+                                [
+                                    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT",
+                                    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT_2",
+                                ][idx]
+                            ] = join_filter(filt, node_id)
+                            matched = True
+                            break
+                    if not matched:
+                        if len(baseline_y) >= 2:
+                            raise ValueError(f"no free y slot for action {action} on node {node_id}")
+                        slot = len(baseline_y)
+                        env[
+                            [
+                                "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT",
+                                "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT_2",
+                            ][slot]
+                        ] = value
+                        env[
+                            [
+                                "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT",
+                                "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT_2",
+                            ][slot]
+                        ] = node_id
             elif kind == "top":
                 matched = False
                 for idx, (amount, filt) in enumerate(baseline_top):

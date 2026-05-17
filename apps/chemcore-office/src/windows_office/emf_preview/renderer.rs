@@ -79,6 +79,14 @@ const ENV_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT_2: &str =
     "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT_2";
 const ENV_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT_2: &str =
     "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT_2";
+const ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_EXPERIMENT: &str =
+    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_DELTA_EXPERIMENT";
+const ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_NODE_FILTER_EXPERIMENT: &str =
+    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_DELTA_NODE_FILTER_EXPERIMENT";
+const ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_EXPERIMENT_2: &str =
+    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_DELTA_EXPERIMENT_2";
+const ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_NODE_FILTER_EXPERIMENT_2: &str =
+    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_DELTA_NODE_FILTER_EXPERIMENT_2";
 const ENV_ATTACHED_LABEL_REPLAY_FONT_SCALE_EXPERIMENT: &str =
     "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_FONT_SCALE_EXPERIMENT";
 const ENV_ATTACHED_LABEL_REPLAY_FONT_SCALE_NODE_FILTER_EXPERIMENT: &str =
@@ -2422,6 +2430,7 @@ fn preview_attached_label_replay_y_nudge_px(
     fallback_font_size: f64,
     transform: &PreviewTransform,
 ) -> f64 {
+    let mut total = 0.0;
     if let Some(nudge_px) = preview_attached_label_replay_phase_policy_y_nudge_px(
         node_id,
         runs,
@@ -2434,16 +2443,47 @@ fn preview_attached_label_replay_y_nudge_px(
         fallback_font_size,
         transform,
     ) {
-        return nudge_px;
+        total += nudge_px;
+    } else {
+        for (nudge_env, filter_env) in [
+            (
+                ENV_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT,
+                ENV_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT,
+            ),
+            (
+                ENV_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT_2,
+                ENV_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT_2,
+            ),
+        ] {
+            let Some(nudge_px) = preview_env_f64(nudge_env) else {
+                continue;
+            };
+            if std::env::var_os(filter_env).is_some() {
+                if !preview_attached_label_replay_node_filter_matches_with_env(node_id, filter_env)
+                {
+                    continue;
+                }
+            } else if !preview_attached_label_replay_matches(
+                node_id,
+                runs,
+                fallback_fill,
+                text_anchor,
+                label_context,
+            ) {
+                continue;
+            }
+            total += nudge_px;
+            break;
+        }
     }
     for (nudge_env, filter_env) in [
         (
-            ENV_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT,
-            ENV_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT,
+            ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_EXPERIMENT,
+            ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_NODE_FILTER_EXPERIMENT,
         ),
         (
-            ENV_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT_2,
-            ENV_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT_2,
+            ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_EXPERIMENT_2,
+            ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_NODE_FILTER_EXPERIMENT_2,
         ),
     ] {
         let Some(nudge_px) = preview_env_f64(nudge_env) else {
@@ -2462,9 +2502,10 @@ fn preview_attached_label_replay_y_nudge_px(
         ) {
             continue;
         }
-        return nudge_px;
+        total += nudge_px;
+        break;
     }
-    0.0
+    total
 }
 
 fn preview_attached_label_replay_phase_policy_y_nudge_px(
