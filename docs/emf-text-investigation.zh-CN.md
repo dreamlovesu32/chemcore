@@ -8900,3 +8900,36 @@ Current interpretation:
 
 Open question:
 - Can the current lane split be reduced from explicit node filters to a smaller geometry/phase rule using features such as `topPagePhase`, `componentQuadrant`, `primaryNeighborBucket`, `fill`, and `text`?
+
+### 2026-05-17 attached-label x-fontscale correction
+
+Question:
+- Was the earlier attached-label x/font-scale no-op result real, or a bad experiment setup?
+
+Key correction:
+- The earlier no-op conclusion was invalid.
+- `preview_attached_label_replay_nudge_px()` and `preview_attached_label_replay_font_scale()` were still gated by the narrow `preview_attached_label_replay_matches()` predicate.
+- On the current full-doc dataset, that predicate naturally matches only `f4_32339`.
+- So earlier scans that tried to use node filters against labels like `f4_32333`, `f4_32335`, `f5_2784`, `f5_2794` were mostly measuring a path that never fired.
+
+Analysis hook improvement:
+- Added node-filter-aware matching for:
+  - `CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT`
+  - `CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_FONT_SCALE_EXPERIMENT`
+  - `CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TEXT_HINT_EXPERIMENT`
+- If `CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT` is present, these axes now honor that node filter directly instead of the old narrow family predicate.
+
+Isolated proof on a previously non-matching label (`f4_32333`):
+- `x = +3 px` with node-filter targeting `f4_32333`:
+  - `EmfPlusDrawString.x`: `4324.372 -> 4335.622` (`+11.25` page-space units)
+  - fallback `EMR_EXTTEXTOUTW` reference `x`: `1153 -> 1156`
+  - fallback bounds shifted right by `+3 px`
+- `font-scale = 0.94` with node-filter targeting `f4_32333`:
+  - `EmfPlusDrawString` size: `220.096 x 144.954 -> 206.890 x 136.256`
+  - fallback font height: `-27 -> -25`
+  - fallback bounds shrink: `right 1185 -> 1183`, `top/bottom 584..615 -> 585..612`
+
+Conclusion:
+- Attached-label local x and local font-scale are real live knobs in packaged EMF replay.
+- The earlier no-op result was caused by testing labels that did not satisfy the old match predicate.
+- These axes should now be treated as valid for future attached-label family experiments.
