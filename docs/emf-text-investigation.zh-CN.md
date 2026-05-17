@@ -10344,3 +10344,121 @@ Takeaway:
 - The safer working model is now:
   - `phase3band` remains the main vertical policy;
   - additional `y` deltas are narrow exceptions layered on top.
+
+## 2026-05-18 residual `y-delta` subfamilies after metadata backfill
+
+Question:
+- Once the corrected additive `y-delta` probe is trusted, can the remaining profitable `y` exceptions be promoted from node lists into reusable subfamily rules?
+
+Metadata backfill:
+- The two strongest negative-`y` nodes from the corrected probe were missing geometry context in the earlier attached-page-phase table:
+  - `f1_28325`
+  - `f1_28328`
+- I backfilled them from:
+  - `tmp/thiocyanation-source.cdxml`
+  - `tmp/all-text-primitives.json`
+- Both are:
+  - black `O`
+  - `layout = attached-group-above`
+  - in the bottom-left ligand fragment
+
+Re-checking the corrected positive set:
+- `y:+1`
+  - `f2_34461`
+  - `f4_32339`
+- `y:-1`
+  - `f1_28322`
+  - `f1_28325`
+  - `f1_28328`
+  - `f4_32331`
+- `y:-2`
+  - `f1_28325`
+  - `f1_28328`
+
+Candidate microfamilies:
+
+1. Negative-`y` `attached-group-above` oxygen family
+- Rule candidate:
+  - `text == O`
+  - `fill == #000000`
+  - `layout == attached-group-above`
+- Node realization in this document:
+  - `f1_28325`
+  - `f1_28328`
+- Action:
+  - `y = -2`
+
+2. Weak negative-`y` east-facing black `N` family
+- Observed positives:
+  - `f1_28322`
+  - `f4_32331`
+- Shared features:
+  - `text == N`
+  - `fill == #000000`
+  - `primaryNeighborBucket == east`
+  - `gapRight ≈ 114..117`
+  - `topPagePhase ≈ 0.34..0.39`
+- Action:
+  - `y = -1`
+
+3. Previous positive-`y` north-mixed family
+- Nodes:
+  - `f2_34461`
+  - `f4_32339`
+- Shared shape:
+  - black attached labels
+  - `primaryNeighborBucket == north`
+  - `topPagePhase < 0.35`
+- Action:
+  - `y = +1`
+- But this family is now suspect and must be judged by whole-document same-shell replay, not single-node deltas alone.
+
+Same-shell bundled policy check:
+- Harness:
+  - `tmp/frame-word-ab/y-policy-eval/summary.json`
+- Baseline (current top/x/font/phase stack under this harness):
+  - `IoU = 0.8751508326`
+- `negO_only`
+  - `y = -2` on `f1_28325,f1_28328`
+  - `IoU = 0.8758348757`
+  - `delta = +0.0006840431`
+- `eastN_only`
+  - `y = -1` on `f1_28322,f4_32331`
+  - `IoU = 0.8753117207`
+  - `delta = +0.0001608881`
+- `northMixed_only`
+  - `y = +1` on `f2_34461,f4_32339`
+  - `IoU = 0.8745476478`
+  - `delta = -0.0006031848`
+- `negO_plus_eastN`
+  - `IoU = 0.8759958156`
+  - `delta = +0.0008449830`
+- `negO_plus_northMixed`
+  - `IoU = 0.8752312766`
+  - `delta = +0.0000804441`
+- `eastN_plus_northMixed`
+  - `IoU = 0.8747084841`
+  - `delta = -0.0004423485`
+- `all_three`
+  - `IoU = 0.8759253299`
+  - `delta = +0.0007744973`
+
+Interpretation:
+- The old “small positive north family” does **not** survive whole-document same-shell validation.
+- The strongest residual `y` gain now comes from:
+  1. black `O` with `layout = attached-group-above` using `y = -2`
+  2. plus a much weaker east-facing black `N` `y = -1` carry-on
+- The corrected residual `y` family should therefore be rewritten as:
+  - primary:
+    - `text == O && fill == #000000 && layout == attached-group-above -> y = -2`
+  - secondary:
+    - black `N`, `primaryNeighborBucket == east`, `gapRight ≈ 114..117`, `topPagePhase ≈ 0.34..0.39 -> y = -1`
+  - discard:
+    - the previous `northMixed -> y:+1` family for the packaged same-shell full-doc objective
+
+Takeaway:
+- The corrected additive-`y` story is now much narrower and cleaner than the earlier broad-family interpretation.
+- Residual `y` is still real, but it is no longer a dominant axis:
+  - one compact negative-`y` oxygen family
+  - one tiny negative-`y` `N` carry-on
+  - no durable positive-`y` north family at the full-document same-shell level
