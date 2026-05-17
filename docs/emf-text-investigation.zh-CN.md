@@ -10180,3 +10180,87 @@ Takeaway:
   1. catalyst attached-group labels,
   2. product/reagent attached-group labels,
   3. a smaller non-label substrate replay residual.
+
+## 2026-05-18 current best stack saturation probe
+
+Question:
+- Once the attached-label replay stack reaches `IoU = 0.882196`, are the remaining top residual labels still improvable by the already-known local action axes (`x`, `top`, `font-scale`) one node at a time?
+
+New tooling:
+- `scripts/probe-attached-actions-on-stack.py`
+  - Takes a fixed same-shell replay baseline plus a list of target nodes and actions.
+  - Rebuilds a probe variant for each `(node, action)` pair and reports:
+    - global best-shift IoU delta
+    - local label-box IoU delta
+
+Baseline stack under test:
+- `font-scale = 0.97` when `137.245 <= gapRight <= 166.240`
+- `x = +1` when `121.165 <= gapRight <= 180.670` and `xPagePhase >= 0.209741`
+- `x = -1` when `text == N && componentQuadrant == LT`
+- `top = +1` when `text == O && gapRight <= 180.990`
+- `top = +2` when `gapRight <= 149.630 && topPagePhase >= 0.605638`
+- `top = -2` using the two compact predicates plus the `LB + gapRight >= 225.110` singleton patch
+- same-shell frame:
+  - `(1441, 2994, 14431, 8656)`
+
+Probe targets:
+- Top residual labels from `label-attribution.fg3.json`:
+  - `f4_32321`
+  - `f4_32345`
+  - `f5_2794`
+  - `f4_32335`
+  - `f4_32337`
+  - `f5_2784`
+  - `f4_32341`
+  - `f1_28328`
+  - `f4_32323`
+  - `f2_34461`
+
+Probe actions:
+- `x:+1`
+- `x:-1`
+- `top:+2`
+- `top:-2`
+- `font:0.97`
+
+Outputs:
+- `tmp/frame-word-ab/probe-current-best-20260518/summary.json`
+
+Headline result:
+- Almost the entire matrix is already saturated.
+- The only positive global delta found in this first pass is:
+  - `f1_28328` with `top:-2`
+  - `globalDelta = +0.0000997504`
+  - `labelDelta = +0.0161224490`
+
+Representative outcomes:
+- `f4_32321`
+  - `x:+1`: global `-0.0016606`, local `-0.1229`
+  - `x:-1`: global `-0.0011823`, local `-0.1001`
+  - `top:+2 / top:-2 / font:0.97`: exact no-op
+- `f4_32345`
+  - `x:+1`: global `-0.0017316`
+  - `x:-1`: global `-0.0012957`
+  - `top:+2 / top:-2`: no-op
+  - `font:0.97`: slight negative
+- `f5_2794`
+  - `x:+1 / x:-1`: both negative
+  - `top:+2 / top:-2 / font:0.97`: no-op
+- `f2_34461`
+  - `x:-1`: negative
+  - `top:+2 / font:0.97`: no-op
+
+Interpretation:
+- Under the current best stack, the known local microfamily axes are close to exhausted for the heaviest residual labels.
+- This is not just a global-IoU effect: most local label-box IoU values are also flat or negative under these additional one-node nudges.
+- The current attached-label replay stack should therefore be treated as near-saturated along:
+  - `x`
+  - `top`
+  - `font-scale`
+  when applied as more of the same single-node extensions.
+
+Takeaway:
+- Future gains are unlikely to come from simply adding more one-off `x/top/font` nodes on top of the current stack.
+- The next profitable direction should switch to:
+  - a different replay knob, or
+  - a different family decomposition for the remaining catalyst/product/reagent labels.
