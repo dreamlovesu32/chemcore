@@ -9855,3 +9855,105 @@ Takeaway:
 - The next profitable direction is not more brute-force top-nudge search, but either:
   - compressing the remaining singleton patch further, or
   - moving to the next unsolved replay axis (`x` family / non-text residual).
+
+## 2026-05-18 x-family under the current best top stack
+
+Question:
+- After the `top` families were promoted into rule form, can the attached-label `x` axis also be compressed from node lists into reusable predicates on top of the current best top stack?
+
+Baseline for this round:
+- `top = -2 px` on:
+  - `f1_28322`
+  - `f2_34464`
+  - `f4_32321`
+  - `f4_32323`
+  - `f4_32329`
+  - `f4_32331`
+  - `f4_32337`
+  - `f4_32345`
+  - `f4_32347`
+  - `f5_2784`
+  - `f5_2788`
+  - `f5_2794`
+- `top = +2 px` on:
+  - `f2_41`
+  - `f4_32333`
+  - `f4_32335`
+- `top = +1 px` on:
+  - `f2_37`
+  - `f2_43`
+- `font-scale = 0.97` on:
+  - `f4_32333`
+  - `f4_32343`
+  - `f4_32347`
+
+Atlas runs:
+- `tmp/frame-word-ab/x-atlas-on-topstack-plus1-20260517`
+- `tmp/frame-word-ab/x-atlas-on-topstack-neg1-20260518`
+
+### `x = +1` branch
+
+Top positive nodes:
+- `f4_32347`: `globalDelta = +0.0013838331`
+- `f4_32333`: `+0.0013031619`
+- `f4_32327`: `+0.0001515193`
+
+Everything else is already non-positive on this baseline.
+
+Best safe predicate search result:
+- `gapRight >= 121.165`
+- `gapRight <= 180.670`
+- `xPagePhase >= 0.209741`
+
+This matches exactly:
+- `f4_32327`
+- `f4_32333`
+- `f4_32347`
+
+and no negative members.
+
+Score:
+- `totalDeltaIou = 0.0028385143`
+- `neg = 0`
+
+Interpretation:
+- Under the true best `top` stack, the positive `x = +1` family is no longer just a hand-picked 3-node set.
+- It now has a clean safe predicate.
+
+### `x = -1` branch
+
+Atlas result:
+- only `f1_28331` remains positive
+  - `globalDelta = +0.0002126957`
+- every other candidate is negative
+
+Best safe compact predicate search result:
+- `text == N`
+- `componentQuadrant == LT`
+
+This matches exactly:
+- `f1_28331`
+
+Interpretation:
+- The negative `x` branch still behaves like a singleton carry-on rather than a broader family.
+- There is no evidence on the current top-stacked baseline for a second reusable `x = -1` microfamily.
+
+### Updated conclusion
+
+The attached-label `x` axis is now understood as:
+- one real positive family:
+  - `x = +1` when
+    - `121.165 <= gapRight <= 180.670`
+    - `xPagePhase >= 0.209741`
+- one remaining negative singleton:
+  - `x = -1` on `f1_28331`
+
+This means the `x` axis has largely crossed into rule form, but not completely:
+- the positive branch is now reproducible by predicate
+- the negative branch is still effectively a singleton patch
+
+Takeaway:
+- If we keep pushing replay rule formalization, the next best target is **not** more `x = +1` atlas mining.
+- The profitable next step is either:
+  - compressing the remaining `x = -1` singleton further,
+  - or switching to the next unsolved replay family outside the current `x/y/font-scale/top` stack.
