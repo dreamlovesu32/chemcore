@@ -60,6 +60,9 @@ const ENV_PACKAGED_CENTERED_PLAIN_ZERO_LAYOUT: &str =
     "CHEMCORE_EMF_PACKAGED_CENTERED_PLAIN_ZERO_LAYOUT";
 const ENV_PACKAGED_SMOOTHING_MODE_VALUE: &str = "CHEMCORE_EMF_PACKAGED_SMOOTHING_MODE_VALUE";
 const ENV_HIDE_DOCUMENT_KNOCKOUT: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_KNOCKOUT";
+const ENV_HIDE_DOCUMENT_TEXT: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_TEXT";
+const ENV_HIDE_DOCUMENT_BOND: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_BOND";
+const ENV_HIDE_DOCUMENT_GRAPHIC: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_GRAPHIC";
 
 fn preview_env_enabled(name: &str) -> bool {
     std::env::var_os(name).is_some()
@@ -634,8 +637,16 @@ pub(super) fn office_preview_primitive_visible(primitive: &RenderPrimitive) -> b
         | RenderPrimitive::FilledPath { role, .. }
         | RenderPrimitive::Text { role, .. } => role,
     };
-    if *role == RenderRole::DocumentKnockout && preview_env_enabled(ENV_HIDE_DOCUMENT_KNOCKOUT) {
-        return false;
+    match role {
+        RenderRole::DocumentKnockout if preview_env_enabled(ENV_HIDE_DOCUMENT_KNOCKOUT) => {
+            return false;
+        }
+        RenderRole::DocumentText if preview_env_enabled(ENV_HIDE_DOCUMENT_TEXT) => return false,
+        RenderRole::DocumentBond if preview_env_enabled(ENV_HIDE_DOCUMENT_BOND) => return false,
+        RenderRole::DocumentGraphic if preview_env_enabled(ENV_HIDE_DOCUMENT_GRAPHIC) => {
+            return false;
+        }
+        _ => {}
     }
     matches!(
         role,

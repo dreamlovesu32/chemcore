@@ -5850,3 +5850,107 @@ Word `CopyAsPicture` 后：
 - 继续做“文本本体 vs knockout”隔离
 - 但 same-shell 主线不应因为这条发现而完全转向 `glyph clipping`
 - 更像是把它作为一条并行 bug 线索保留
+
+
+## 2026-05-17 文本本体 vs knockout 隔离：`knockout-only` 基本是 `text-only` 的胖超集
+
+在上面的可见性结论基础上，这轮继续做 role-isolation，不再直接拿 full figure 猜。
+
+### 1. 分析开关扩展
+
+在 `office_preview_primitive_visible()` 上继续加了三个分析开关：
+
+- `CHEMCORE_EMF_HIDE_DOCUMENT_TEXT`
+- `CHEMCORE_EMF_HIDE_DOCUMENT_BOND`
+- `CHEMCORE_EMF_HIDE_DOCUMENT_GRAPHIC`
+
+这样可以导出 3 类隔离视图：
+
+- `text+knockout`
+  - 隐藏 `DocumentBond / DocumentGraphic`
+- `text-only`
+  - 隐藏 `DocumentBond / DocumentGraphic / DocumentKnockout`
+- `knockout-only`
+  - 隐藏 `DocumentBond / DocumentGraphic / DocumentText`
+
+对应产物：
+
+- `tmp/thiocyanation-source.text-plus-knockout.docx`
+- `tmp/thiocyanation-source.text-only.docx`
+- `tmp/thiocyanation-source.knockout-only.docx`
+
+以及 Word `CopyAsPicture`：
+
+- `tmp/thiocyanation-source.text-plus-knockout.png`
+- `tmp/thiocyanation-source.text-only.png`
+- `tmp/thiocyanation-source.knockout-only.png`
+- 总拼图：
+  - `tmp/thiocyanation-source.role-isolation-montage.png`
+
+### 2. 关键视觉结论
+
+直接看拼图时，最关键的观察是：
+
+- `knockout-only` 不是空白
+- 它也不是一些与文字无关的矩形块
+- 它看起来像一套 **更胖、更壳状的文字**
+
+也就是说，当前 node-specific `DocumentKnockout` 的可见形态，本质上就是：
+
+- 以 label 文字为中心
+- 外扩/肥化过一层的字形壳
+
+这和用户看到的“每个标签像被圈出来”是完全一致的。
+
+### 3. 定量结论：`knockout-only` 几乎是 `text-only` 的严格超集
+
+我又直接对 `text-only` 和 `knockout-only` 做了一张红蓝叠加：
+
+- `tmp/thiocyanation-source.text-vs-knockout-overlay.png`
+- 指标：
+  - `tmp/thiocyanation-source.text-vs-knockout.json`
+
+结果：
+
+- `intersection = 7274`
+- `only_text = 0`
+- `only_knockout = 644`
+- `IoU = 0.918666`
+
+这个数值非常关键，因为它说明：
+
+- `text-only` 的所有黑字像素，全部都落在 `knockout-only` 里面
+- 没有任何 “text-only 独有、而 knockout-only 没覆盖到” 的像素
+- `knockout-only` 只是比 `text-only` 多出了一圈额外外扩
+
+也就是：
+
+- `text-only ⊂ knockout-only`
+
+从几何上讲，这已经非常接近“文字本体 + 一圈 halo”。
+
+### 4. 这条证据和 same-shell 主线如何并存
+
+这轮结论和上一节并不冲突，反而把问题拆得更清楚了：
+
+1. `DocumentKnockout` 可见性泄漏
+   - 现在已经有强证据证明：
+   - 它看起来就是文字壳/外扩字形
+   - 是用户肉眼看到“标签被圈出来”的直接来源
+
+2. same-shell ChemDraw 对齐主线
+   - 当前剩余 same-shell 残差的 dominant factor 仍更像 `EMR_HEADER.frame / Word replay`
+   - 但这不意味着 `DocumentKnockout` 无关
+   - 它更像是一个独立的、局部视觉错误
+
+所以当前更合理的总判断是：
+
+- `frame` 主导全局对齐差
+- `DocumentKnockout` 可见性主导“标签外面有壳”的局部错误
+
+下一步如果进入修复，不应该把两者混成一个问题。应该：
+
+- `frame` 继续沿 same-shell Word replay 主线研究
+- `DocumentKnockout` 作为单独 bug 线，目标是让 Office preview 回到 SVG 语义：
+  - 内部退让几何参与计算
+  - 但不在最终可见结果中留下字壳
