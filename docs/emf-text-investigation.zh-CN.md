@@ -9470,3 +9470,223 @@ Takeaway:
 - Further gains are unlikely to come from more local `x/y/font-scale` microfamily mining.
 - The next profitable direction should switch to a different replay knob or a different family decomposition.
 
+## 2026-05-17 attached-label text-hint atlas on the true best baseline
+
+Question:
+- After `phase3band + x(+1/-1) + font-scale=0.97` became the current best same-shell replay stack, is there still any profitable attached-label `TextRenderingHint` family?
+
+Baseline stack before this round:
+- `phase3band`
+- `x = +1` on:
+  - `f4_32327`
+  - `f4_32333`
+  - `f4_32347`
+- `x = -1` on:
+  - `f1_28331`
+- `font-scale = 0.97` on:
+  - `f4_32333`
+  - `f4_32343`
+  - `f4_32347`
+- baseline same-shell full-doc result:
+  - `IoU = 0.8785754573`
+
+Experiment:
+- Added dedicated node-filter support for:
+  - `CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TEXT_HINT_NODE_FILTER_EXPERIMENT`
+- Added atlas runner:
+  - `scripts/run-attached-hint-atlas.py`
+- Output:
+  - `tmp/frame-word-ab/hint-atlas-combined.json`
+
+Result:
+- All packaged attached-label hint candidates `0..5` had:
+  - `positive_count = 0`
+- For every node, the best safe hint remained:
+  - `hint = 4`
+  - `globalDelta = 0`
+
+Interpretation:
+- Attached-label replay residuals on the current best baseline are **not** driven by packaged `TextRenderingHint`.
+- This axis is saturated / non-productive for the current oracle.
+
+Takeaway:
+- `hint` should be removed from the active hypothesis set.
+- The next promising axis should be a different replay knob, not more hint tuning.
+
+## 2026-05-17 attached-label top-nudge families on the true best baseline
+
+Question:
+- After `x / y / font-scale / hint` microfamilies saturated, can a more direct packaged vertical-placement knob improve same-shell replay?
+
+New packaged replay hook:
+- Added packaged attached-label `top` placement override:
+  - `CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT`
+  - `CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT`
+- Later extended to:
+  - `_2`
+  - `_3`
+  so multiple top-nudge families can be stacked in the same replay.
+
+New tooling:
+- `scripts/run-attached-top-atlas.py`
+- `scripts/search-attached-top-policy.py`
+- Summary output:
+  - `tmp/frame-word-ab/top-family-summary-20260517.json`
+- Combined atlas:
+  - `tmp/frame-word-ab/top-atlas-combined.json`
+- Phase-band search:
+  - `tmp/frame-word-ab/top-policy-search-20260517.json`
+
+Baseline stack before top-nudge:
+- same-shell full-doc:
+  - `IoU = 0.8785754573`
+
+### Single-family same-shell validation
+
+Direct same-shell validation on the full doc (not just atlas deltas):
+
+- `top = -2 px` on:
+  - `f5_2784`
+  - `f4_32321`
+  - `f5_2788`
+  - `f4_32323`
+  - `f5_2794`
+  - `f2_34464`
+  - `f4_32345`
+  - `f4_32329`
+  - `f4_32331`
+  - `f1_28322`
+  - `f4_32337`
+  - `f4_32347`
+  - result:
+    - `IoU = 0.8813422602`
+
+- `top = +2 px` on:
+  - `f2_41`
+  - `f4_32335`
+  - `f4_32333`
+  - result:
+    - `IoU = 0.8792130302`
+
+- `top = +1 px` on:
+  - `f2_43`
+  - `f2_37`
+  - result:
+    - `IoU = 0.8787878788`
+
+Interpretation:
+- `top = -2 px` is a strong new family, materially better than baseline.
+- `top = +2 px` and `top = +1 px` are both weaker alone, but still positive.
+
+### Stacked top-nudge validation
+
+Two-family stack:
+- `top = -2 px` family
+- plus `top = +2 px` family
+- result:
+  - `IoU = 0.8819825638`
+
+Three-family stack:
+- `top = -2 px` family
+- plus `top = +2 px` family
+- plus `top = +1 px` family
+- result:
+  - `IoU = 0.8821962051`
+
+This is the best same-shell result reached so far on this branch.
+
+Compared to the previous best stacked baseline:
+- `0.8785754573 -> 0.8821962051`
+- absolute gain:
+  - `+0.0036207478`
+
+Label-box attribution for the three-family stack:
+- Positive local gains include:
+  - `f5_2784` `CN`: `+0.096034`
+  - `f2_41` `S`: `+0.056804`
+  - `f5_2788` `S`: `+0.036425`
+  - `f4_32321` `NC`: `+0.032678`
+  - `f4_32323` `CN`: `+0.021139`
+  - `f2_34464` `O`: `+0.019277`
+  - `f2_43` `O`: `+0.016714`
+  - `f5_2794` `Ph`: `+0.015038`
+  - `f4_32335` `Ph`: `+0.011945`
+  - `f4_32329` `N`: `+0.011905`
+  - `f4_32331` `N`: `+0.010989`
+  - `f4_32345` `Ph`: `+0.010956`
+  - `f1_28322` `N`: `+0.009709`
+  - `f2_37` `O`: `+0.008893`
+- Observed label losses:
+  - none
+
+So this is not a fragile single-label tweak; it is a real multi-family replay improvement.
+
+### Phase-band search versus explicit node families
+
+Using `top-atlas-combined.json` plus `attached-page-phase.full.json`, I searched compact `topPagePhase` band policies.
+
+Best safe one-band policy:
+- `[0.0, 0.3241855) -> top = -1`
+- summed atlas delta:
+  - `0.001694617`
+
+Best safe three-band policy from atlas:
+- `[0.0, 0.3241855) -> -1`
+- `[0.4201406, 0.5640733) -> -1` or `-2`
+- `[0.6056385, 0.6313786) -> +2`
+- summed atlas delta:
+  - `0.003018076`
+
+But same-shell validation shows that these compact phase-band families still underperform the explicit node-family stack:
+
+- predicate-based `m2 + p2`:
+  - `IoU = 0.8811329890`
+- predicate-based `m2 + p2 + p1(f2_37)`:
+  - `IoU = 0.8812040997`
+- explicit node-family stack:
+  - `IoU = 0.8821962051`
+
+Interpretation:
+- `topPagePhase` is useful, but not yet sufficient by itself.
+- The current strongest attached-label replay policy is still the explicit 3-family node stack.
+- The next step is not to abandon predicates, but to search for richer `top` families that combine:
+  - `topPagePhase`
+  - `gapRight`
+  - `fill`
+  - `text`
+  - `quadrant / neighbor`
+
+Current best verified stacked policy on the branch:
+- `phase3band`
+- `x = +1` on:
+  - `f4_32327`
+  - `f4_32333`
+  - `f4_32347`
+- `x = -1` on:
+  - `f1_28331`
+- `font-scale = 0.97` on:
+  - `f4_32333`
+  - `f4_32343`
+  - `f4_32347`
+- `top = -2 px` on:
+  - `f5_2784`
+  - `f4_32321`
+  - `f5_2788`
+  - `f4_32323`
+  - `f5_2794`
+  - `f2_34464`
+  - `f4_32345`
+  - `f4_32329`
+  - `f4_32331`
+  - `f1_28322`
+  - `f4_32337`
+  - `f4_32347`
+- `top = +2 px` on:
+  - `f2_41`
+  - `f4_32335`
+  - `f4_32333`
+- `top = +1 px` on:
+  - `f2_43`
+  - `f2_37`
+- same-shell full-doc result:
+  - `IoU = 0.8821962051`

@@ -85,6 +85,20 @@ const ENV_ATTACHED_LABEL_REPLAY_FONT_SCALE_NODE_FILTER_EXPERIMENT: &str =
     "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_FONT_SCALE_NODE_FILTER_EXPERIMENT";
 const ENV_ATTACHED_LABEL_REPLAY_TEXT_HINT_EXPERIMENT: &str =
     "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TEXT_HINT_EXPERIMENT";
+const ENV_ATTACHED_LABEL_REPLAY_TEXT_HINT_NODE_FILTER_EXPERIMENT: &str =
+    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TEXT_HINT_NODE_FILTER_EXPERIMENT";
+const ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT: &str =
+    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT";
+const ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT: &str =
+    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT";
+const ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT_2: &str =
+    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT_2";
+const ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT_2: &str =
+    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT_2";
+const ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT_3: &str =
+    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT_3";
+const ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT_3: &str =
+    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT_3";
 const ENV_ATTACHED_LABEL_REPLAY_PHASE_POLICY_EXPERIMENT: &str =
     "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_PHASE_POLICY_EXPERIMENT";
 const ENV_HIDE_DOCUMENT_KNOCKOUT: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_KNOCKOUT";
@@ -1735,6 +1749,13 @@ unsafe fn draw_gdiplus_text(
         effective_font_size,
         transform,
     );
+    let top_nudge_px = preview_attached_label_replay_top_nudge_px(
+        node_id,
+        runs,
+        fill,
+        text_anchor,
+        label_context,
+    );
     let line_step_world = line_height.unwrap_or(effective_font_size * 1.2).max(0.01);
     let mut lines = preview_text_lines(text, runs);
     preview_scale_text_run_font_sizes(&mut lines, effective_font_scale);
@@ -1789,6 +1810,7 @@ unsafe fn draw_gdiplus_text(
                 baseline_offset,
                 text_anchor,
                 run_layout.advance,
+                top_nudge_px,
                 run,
                 effective_font_size,
                 font_family,
@@ -2043,6 +2065,7 @@ unsafe fn draw_gdiplus_text_run(
     baseline_offset: Option<f64>,
     text_anchor: Option<&str>,
     advance: f32,
+    top_nudge_px: f64,
     run: &PreviewTextRun,
     fallback_font_size: f64,
     fallback_family: Option<&str>,
@@ -2098,7 +2121,8 @@ unsafe fn draw_gdiplus_text_run(
     };
     let top = baseline_y - baseline_top
         + preview_script_baseline_shift_f32(run, fallback_font_size, transform)
-        - packaged_centered_bias;
+        - packaged_centered_bias
+        + (top_nudge_px / (transform.scale * transform.record_scale.max(1.0))) as f32;
     let zero_layout = transform.emf_recording
         && matches!(text_anchor, Some("middle"))
         && run.script.is_none()
@@ -2555,16 +2579,56 @@ fn preview_attached_label_replay_text_hint(
     label_context: Option<&PreviewLabelContext>,
 ) -> Option<i32> {
     let hint = preview_env_i32(ENV_ATTACHED_LABEL_REPLAY_TEXT_HINT_EXPERIMENT)?;
-    if !preview_attached_label_replay_experiment_matches(
+    if !preview_attached_label_replay_experiment_matches_with_filter_env(
         node_id,
         runs,
         fallback_fill,
         text_anchor,
         label_context,
+        ENV_ATTACHED_LABEL_REPLAY_TEXT_HINT_NODE_FILTER_EXPERIMENT,
     ) {
         return None;
     }
     Some(hint)
+}
+
+fn preview_attached_label_replay_top_nudge_px(
+    node_id: Option<&str>,
+    runs: &[chemcore_engine::LabelRun],
+    fallback_fill: Option<&str>,
+    text_anchor: Option<&str>,
+    label_context: Option<&PreviewLabelContext>,
+) -> f64 {
+    for (nudge_env, filter_env) in [
+        (
+            ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT,
+            ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT,
+        ),
+        (
+            ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT_2,
+            ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT_2,
+        ),
+        (
+            ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT_3,
+            ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT_3,
+        ),
+    ] {
+        let Some(nudge_px) = preview_env_f64(nudge_env) else {
+            continue;
+        };
+        if !preview_attached_label_replay_experiment_matches_with_filter_env(
+            node_id,
+            runs,
+            fallback_fill,
+            text_anchor,
+            label_context,
+            filter_env,
+        ) {
+            continue;
+        }
+        return nudge_px;
+    }
+    0.0
 }
 
 fn preview_attached_label_replay_experiment_matches(
