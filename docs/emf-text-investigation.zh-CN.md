@@ -10077,3 +10077,106 @@ Takeaway:
 - The next profitable direction is not more atlas brute force on these same axes, but either:
   - compressing the remaining semantic singleton(s) further,
   - or switching to the next unsolved family outside the current attached-label microfamily stack.
+
+## 2026-05-18 current best rule-stack residual attribution
+
+Question:
+- After rewriting most of the attached-label replay stack into predicates, what still dominates the same-shell residual against the `v28-rerun.shape2.png` oracle?
+
+Replay setup:
+- Start from the current best attached-label replay stack:
+  - `font-scale = 0.97` when `137.245 <= gapRight <= 166.240`
+  - `x = +1` when `121.165 <= gapRight <= 180.670` and `xPagePhase >= 0.209741`
+  - `x = -1` when `text == N && componentQuadrant == LT`
+  - `top = +1` when `text == O && gapRight <= 180.990`
+  - `top = +2` when `gapRight <= 149.630 && topPagePhase >= 0.605638`
+  - `top = -2` using the two compact predicates plus the `LB + gapRight >= 225.110` singleton patch
+- Export a fresh raw docx/EMF.
+- Patch that EMF into the `frame-global3-shellchem.docx` shell.
+- Patch `EMR_HEADER.frame` to the current best same-shell frame:
+  - `(1441, 2994, 14431, 8656)`
+- Use Word `CopyAsPicture` and re-run same-shell best-shift / residual attribution.
+
+Outputs:
+- `tmp/frame-word-ab/current-best-rule-stack-20260518/fg3.docx`
+- `tmp/frame-word-ab/current-best-rule-stack-20260518/wordcopy.fg3.png`
+- `tmp/frame-word-ab/current-best-rule-stack-20260518/bestshift.fg3.json`
+- `tmp/frame-word-ab/current-best-rule-stack-20260518/label-attribution.fg3.json`
+- `tmp/frame-word-ab/current-best-rule-stack-20260518/molecule-partition.fg3.json`
+
+Headline result:
+- `best_iou = 0.8821962051`
+- `dx = -1`
+- `dy = 0`
+
+Interpretation:
+- The predicate stack is not just a local label fix. Under the current best shell/frame, it becomes the best known same-shell Word replay result so far.
+- The replay is now good enough that residual attribution can be trusted again without the previous “wrong shell / wrong frame” ambiguity.
+
+### Dominant residual is still molecule-internal labels
+
+Same-shell residual totals:
+- `residualPixelCount = 1459`
+- `labelUnionResidualCount = 709`
+- `componentUnionResidualCount = 933`
+- `componentNonLabelResidualCount = 224`
+
+Interpretation:
+- Roughly half of the remaining residual still lands directly inside label boxes.
+- Most of the component-side residual is still label-driven rather than skeleton-driven.
+
+### Top residual labels under the current best stack
+
+Largest `label-attribution.fg3.json` entries:
+- `f4_32321` `NC` (black, attached-group): `41`
+- `f4_32333` `Ph` (black, attached-group): `36`
+- `f4_32345` `Ph` (black, attached-group): `36`
+- `f4_32347` `Ph` (black, attached-group): `36`
+- `f5_2794` `Ph` (orange, attached-group): `34`
+- `f4_32335` `Ph` (black, attached-group): `33`
+- `f4_32337` `Ph` (black, attached-group): `33`
+- `f5_2784` `CN` (blue, attached-group): `33`
+- `f4_32341` `Ph` (black, attached-group): `31`
+- `f1_28328` `O` (black, attached-group): `30`
+- `f4_32323` `CN` (black, attached-group): `30`
+- `f2_34461` `N` (black, attached-group): `29`
+
+Interpretation:
+- Even after the predicate stack, the heaviest unresolved family is still catalyst / product attached-group text.
+- The next productive analysis step should not return to external centered text; it should continue down these molecule-internal label families.
+
+### Component breakdown after the current best stack
+
+From `molecule-partition.fg3.json`:
+- `bottom_right_catalyst_component`
+  - `residual = 395`
+  - `label = 384`
+  - `non-label = 11`
+- `bottom_left_ligand_component`
+  - `residual = 162`
+  - `label = 110`
+  - `non-label = 52`
+- `top_right_product_component`
+  - `residual = 160`
+  - `label = 91`
+  - `non-label = 69`
+- `bottom_center_reagent_component`
+  - `residual = 153`
+  - `label = 124`
+  - `non-label = 29`
+- `top_left_substrate_component`
+  - `residual = 63`
+  - `label = 0`
+  - `non-label = 63`
+
+Interpretation:
+- `bottom_right_catalyst_component` remains the dominant unresolved component, and it is almost purely a label problem now.
+- `top_right_product_component` and `bottom_center_reagent_component` are still mixed but label-heavy.
+- `top_left_substrate_component` is now clearly a non-label replay problem and should be tracked separately from the attached-label line.
+
+Takeaway:
+- The current best predicate stack has pushed the same-shell Word replay to `0.882196`, but it has not flattened the label problem.
+- The dominant residual has now cleanly narrowed to:
+  1. catalyst attached-group labels,
+  2. product/reagent attached-group labels,
+  3. a smaller non-label substrate replay residual.
