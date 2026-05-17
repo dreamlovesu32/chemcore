@@ -6035,3 +6035,365 @@ Word `CopyAsPicture` 后：
 - “普通文本/标签文本对齐”仍然是主矛盾之一
 - 但当前 same-shell 剩余差异已经不能再被简化成纯文字问题
 - `frame-global3` 之后，还同时有一层非文本/非标签的 replay 残差
+
+### 8. `DocumentKnockout` 在 Office preview 里确实泄漏成可见 halo，但它不是当前 `frame-global3` 主线瓶颈
+
+为了把“标签外面像被圈出来”这件事和 same-shell 主线分开，我补了一个 role 报告工具：
+
+- `crates/chemcore-engine/examples/render_role_report.rs`
+
+对 `tmp/thiocyanation-source.payload.json` 运行后得到：
+
+- `primitiveCount = 217`
+- `DocumentBond = 138`
+- `DocumentGraphic = 2`
+- `DocumentKnockout = 39`
+- `DocumentText = 38`
+- `DocumentKnockout` 全部都是 `nodeSpecific`，`plainCount = 0`
+- `visibleBoundsWithKnockout == visibleBoundsNoKnockout`
+
+这说明：
+
+- knockout 并不改变当前 full doc 的可见/source bounds
+- 但它在像素层确实参与了绘制
+
+随后在 Office preview 里加了 4 个分析开关：
+
+- `CHEMCORE_EMF_HIDE_DOCUMENT_KNOCKOUT`
+- `CHEMCORE_EMF_HIDE_DOCUMENT_TEXT`
+- `CHEMCORE_EMF_HIDE_DOCUMENT_BOND`
+- `CHEMCORE_EMF_HIDE_DOCUMENT_GRAPHIC`
+
+并导出了 4 组 Word 复制图：
+
+- `text-only`
+- `knockout-only`
+- `text+knockout`
+- `current`
+
+关键图：
+
+- `tmp/thiocyanation-source.role-isolation-montage.png`
+- `tmp/thiocyanation-source.text-vs-knockout-overlay.png`
+- `tmp/thiocyanation-source.text-vs-knockout.json`
+
+量化结果：
+
+- `intersection = 7274`
+- `only_text = 0`
+- `only_knockout = 644`
+- `IoU = 0.918666`
+
+这说明对 full doc 而言：
+
+- `knockout-only` 基本就是 `text-only` 的“胖超集”
+- 也就是说，用户肉眼看到的“每个标签像被圈出来”，并不是错觉，而是内部 knockout 几何真的泄漏成了可见外壳
+
+但把 `current.emf` 和 `no-knockout.emf` 都 patch 进同一个 `frame-global3` shell 之后，再和 ChemDraw 做 same-shell 对比：
+
+- `global3_candidate = 0.861882`
+- `current_fg3 = 0.861882`
+- `noknockout_fg3 = 0.861882`
+
+三者完全一致。
+
+所以现在可以更准确地把它定性成：
+
+- `DocumentKnockout` 可见性泄漏是一个**独立的显示 bug**
+- 它解释“标签外面有一圈壳”
+- 但它**不是**当前 `frame-global3 -> ChemDraw` same-shell 主线残差的 dominant factor
+
+### 9. `frame-global3` 剩余误差里，分子内部标签/组件比外部 centered text 还重
+
+为了继续拆 residual，我补了两个脚本：
+
+- `scripts/attribute-word-residual.py`
+- `scripts/attribute-word-residual-labels.py`
+
+前者把 `frame-global3` 与 ChemDraw 的残差像素投到：
+
+- top-level object
+- merged molecule component
+
+后者再把分子内部标签单独投影出来，直接数每个 label box 里的 residual 像素。
+
+#### 9.1 几何/组件归因
+
+输出：
+
+- `tmp/frame-word-ab/frame-global3-geometry-attribution.json`
+
+关键结果：
+
+- `component` 总 residual = `1202`
+- `top:text` 总 residual = `691`
+- `top:line` 总 residual = `30`
+
+也就是：
+
+- 分子组件 residual 比 top-level centered text residual 还大
+- arrow 之类的 line 残差只占很小一层
+
+组件排名前几位：
+
+- `bottom_right_catalyst_component = 538`
+- `top_right_product_component = 240`
+- `bottom_center_reagent_component = 191`
+- `bottom_left_ligand_component = 170`
+- `top_left_substrate_component = 63`
+
+这说明当前 same-shell 主线里，最重的非全局残差其实已经偏到：
+
+- 右下催化剂
+- 右上产物
+- 中下试剂
+
+#### 9.2 分子内部标签归因
+
+输出：
+
+- `tmp/frame-word-ab/frame-global3-label-attribution.json`
+
+最重的标签 residual 基本都落在分子内部标签，而不是普通 centered title：
+
+- 黑色 `Ph`：`69 / 64 / 53 ...`
+- 蓝色 `CN`：`66`
+- 橙色 `Ph`：`61`
+- 黑色 `NC`：`51`
+- 橙色 `S`：`44`
+- 试剂中的 `S`：`33`
+
+这一步很重要，因为它把当前 same-shell 主线的剩余误差进一步收窄成：
+
+1. 外部 centered text（标题、`CH3CN`、产率）
+2. **分子内部标签 replay**（催化剂/产物/试剂上的 `Ph/CN/NC/S`）
+3. 少量非文本 replay
+
+也就是说，接下来如果继续死磕：
+
+- 不能再把所有问题统称成“普通文本没对齐”
+- 分子内部标签已经是独立且更重的一条主线
+
+### 10. `right-edge-ph` 最小样本上的 knockout 泄漏不像 full doc 那样稳定
+
+我还对 `tmp/word-text-fixtures/right-edge-ph.cdxml` 做了同样的 role isolation：
+
+- `right-edge-ph.current.docx/png`
+- `right-edge-ph.text-only.docx/png`
+- `right-edge-ph.knockout-only.docx/png`
+- `right-edge-ph.role-isolation-montage.png`
+- `right-edge-ph.text-vs-knockout.json`
+
+结果和 full doc 很不一样：
+
+- `intersection = 951`
+- `only_text = 3264`
+- `only_knockout = 2151`
+- `IoU = 0.149387`
+
+也就是说，`right-edge-ph` 这个最小 fixture 上：
+
+- `knockout-only` 并不是 `text-only` 的稳定胖超集
+- “knockout 泄漏成字壳”这个现象在 full doc 上非常强，但并不是所有 fixture 的统一行为
+
+因此后面修这个 bug 时要注意：
+
+- 它很可能和完整文档上下文 / merged molecule label replay 有关
+- 不能简单拿 `right-edge-ph` 一类最小样本就当作 full doc 的直接替身
+
+### 11. 给 Office preview 加了 `object_id` 分析过滤，开始把“外部 centered text”和“分子内部标签 replay”拆开
+
+为了不再只靠整张 full doc 猜，我在 Office preview 里补了一个纯分析开关：
+
+- `CHEMCORE_EMF_INCLUDE_OBJECT_IDS`
+
+语义是：
+
+- 只回放指定 top-level `object_id`
+- 其他 primitive 一律不画
+
+这样可以直接做：
+
+- `obj_cdxml_merged_molecule`
+- `obj_text_004/005/006`
+- `obj_line_001`
+
+这类“同一 payload、同一 Word 壳、不同对象子集”的对照。
+
+当前这只是分析工具，不是产品行为。
+
+### 12. `frame-global3` 剩余误差里，分子组件 residual 已经大于外部 centered text
+
+新增脚本：
+
+- `scripts/attribute-word-residual.py`
+
+它会把 `frame-global3` 对 ChemDraw 的 residual 像素投到：
+
+- top-level object
+- merged molecule component
+
+输出：
+
+- `tmp/frame-word-ab/frame-global3-geometry-attribution.json`
+
+结果很关键：
+
+- `component` 总 residual = `1202`
+- `top:text` 总 residual = `691`
+- `top:line` 总 residual = `30`
+
+这说明现在的主问题已经不能再概括成“普通 centered text 没对齐”。  
+在 `frame-global3` 之后：
+
+- 分子组件 replay 残差比外部 centered text 残差还更重
+- arrow / line 只占一小层
+
+组件内残差排名前几位：
+
+- `bottom_right_catalyst_component = 538`
+- `top_right_product_component = 240`
+- `bottom_center_reagent_component = 191`
+- `bottom_left_ligand_component = 170`
+- `top_left_substrate_component = 63`
+
+这一步把 same-shell 主线重新拆成了：
+
+1. 外部 centered text
+2. **分子组件/分子内部标签 replay**
+3. 少量 line/arrow replay
+
+### 13. `frame-global3` 的标签级归因：当前最重的是催化剂/产物/试剂里的 `Ph/CN/NC/S`
+
+新增脚本：
+
+- `scripts/attribute-word-residual-labels.py`
+
+它直接读取 payload 中 merged molecule 的 node label `glyphPolygons / box`，把 residual 投到每个 label box 上。
+
+输出：
+
+- `tmp/frame-word-ab/frame-global3-label-attribution.json`
+
+当前最重的标签残差集中在：
+
+- 黑色 `Ph`
+- 蓝色 `CN`
+- 黑色 `NC`
+- 橙色 `Ph`
+- 橙色 `S`
+
+典型数值：
+
+- 黑色 `Ph`: `69 / 64 / 53 ...`
+- 蓝色 `CN`: `66`
+- 橙色 `Ph`: `61`
+- 黑色 `NC`: `51`
+- 橙色 `S`: `44`
+- 试剂中的 `S`: `33`
+
+这一步很关键，因为它说明：
+
+- 当前 same-shell 主线剩余误差里，**分子内部标签**已经是独立且更重的一条支线
+- 而且主要集中在：
+  - 右下催化剂
+  - 右上产物
+  - 中下试剂
+
+也就是说，后面不能再把所有 residual 都叫“文字问题”：
+
+- 外部 centered text 是一条线
+- 分子内部 `Ph/CN/NC/S` 标签 replay 是另一条线
+
+### 14. 当前更合理的主线分解
+
+结合上面的 role isolation、geometry attribution、label attribution，现在 `frame-global3` 之后的 mainline 已经可以更准确地表述成：
+
+1. `DocumentKnockout` 可见性泄漏  
+   - 真 bug  
+   - 解释“标签外面像被圈出来”  
+   - 但不是 same-shell `frame-global3 -> ChemDraw` 的 dominant factor
+
+2. 外部 centered text replay  
+   - 仍然有 residual  
+   - 但已经不是唯一主矛盾
+
+3. **分子内部标签 replay**  
+   - 当前权重更大  
+   - 尤其是催化剂/产物/试剂中的 `Ph/CN/NC/S`
+
+4. 少量非文本 replay  
+   - arrow / 一些非标签分子几何
+
+后面的研究不该再只沿着“普通文本对齐”一条线往下打，而应该至少把：
+
+- 外部 centered text
+- 分子内部标签 replay
+
+分成两条并行主线。
+
+### 15. 分子 residual 里大约 `81%` 真的是 label residual，不是骨架 replay
+
+为了把“分子内部标签 replay”和“分子骨架 replay”再拆开，我补了第三个脚本：
+
+- `scripts/attribute-word-residual-molecule.py`
+
+它会在 `frame-global3` same-shell 主线下，把 residual 再分成：
+
+- 落在任意 molecule label box 内
+- 落在 molecule component box 内、但不在任何 label box 内
+
+输出：
+
+- `tmp/frame-word-ab/frame-global3-molecule-partition.json`
+
+当前结果：
+
+- `residualPixelCount = 1728`
+- `componentUnionResidualCount = 1202`
+- `labelUnionResidualCount = 978`
+- `componentNonLabelResidualCount = 224`
+
+也就是说：
+
+- 在所有 molecule-component residual 里
+- 大约 `978 / 1202 = 81.4%`
+- 是**直接落在分子标签 box 内**的
+
+这一步很关键，因为它把“分子组件 residual 更重”进一步推进成了：
+
+- **分子主线的 dominant factor 已经不是骨架本身，而是分子内部标签 replay**
+
+按 component 看会更明显：
+
+- `bottom_right_catalyst_component`
+  - `residualCount = 538`
+  - `labelResidualCount = 527`
+  - `nonLabelResidualCount = 11`
+- `top_right_product_component`
+  - `240 / 171 / 69`
+- `bottom_center_reagent_component`
+  - `191 / 162 / 29`
+- `bottom_left_ligand_component`
+  - `170 / 118 / 52`
+- `top_left_substrate_component`
+  - `63 / 0 / 63`
+
+这说明当前 molecule 侧 residual 可以进一步分成两类：
+
+1. **标签主导型**
+   - `bottom_right_catalyst`
+   - `top_right_product`
+   - `bottom_center_reagent`
+   - `bottom_left_ligand`（虽有一部分非标签 residual，但标签仍占大头）
+
+2. **纯几何型**
+   - `top_left_substrate`
+   - 这块几乎没有标签，残差都来自分子骨架 replay
+
+因此，`frame-global3` 之后更准确的 residual 模型应该更新成：
+
+- 外部 centered text replay
+- 分子内部标签 replay（当前最重）
+- 少量分子骨架 replay（尤其 `top_left_substrate`）
+- 少量 line/arrow replay

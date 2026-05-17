@@ -63,9 +63,39 @@ const ENV_HIDE_DOCUMENT_KNOCKOUT: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_KNOCKOUT";
 const ENV_HIDE_DOCUMENT_TEXT: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_TEXT";
 const ENV_HIDE_DOCUMENT_BOND: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_BOND";
 const ENV_HIDE_DOCUMENT_GRAPHIC: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_GRAPHIC";
+const ENV_INCLUDE_OBJECT_IDS: &str = "CHEMCORE_EMF_INCLUDE_OBJECT_IDS";
 
 fn preview_env_enabled(name: &str) -> bool {
     std::env::var_os(name).is_some()
+}
+
+fn preview_env_object_id_filter() -> Option<std::collections::BTreeSet<String>> {
+    let raw = std::env::var(ENV_INCLUDE_OBJECT_IDS).ok()?;
+    let ids = raw
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .collect::<std::collections::BTreeSet<_>>();
+    if ids.is_empty() {
+        None
+    } else {
+        Some(ids)
+    }
+}
+
+fn preview_primitive_object_id(primitive: &RenderPrimitive) -> Option<&str> {
+    match primitive {
+        RenderPrimitive::Line { object_id, .. }
+        | RenderPrimitive::Circle { object_id, .. }
+        | RenderPrimitive::Polygon { object_id, .. }
+        | RenderPrimitive::Rect { object_id, .. }
+        | RenderPrimitive::Ellipse { object_id, .. }
+        | RenderPrimitive::Polyline { object_id, .. }
+        | RenderPrimitive::Path { object_id, .. }
+        | RenderPrimitive::FilledPath { object_id, .. }
+        | RenderPrimitive::Text { object_id, .. } => object_id.as_deref(),
+    }
 }
 
 fn preview_env_i32(name: &str) -> Option<i32> {
@@ -626,6 +656,14 @@ unsafe fn draw_svg_preview(dc: HDC, bounds: &RECT, payload: &OleObjectPayload) -
 }
 
 pub(super) fn office_preview_primitive_visible(primitive: &RenderPrimitive) -> bool {
+    if let Some(allow_ids) = preview_env_object_id_filter() {
+        let Some(object_id) = preview_primitive_object_id(primitive) else {
+            return false;
+        };
+        if !allow_ids.contains(object_id) {
+            return false;
+        }
+    }
     let role = match primitive {
         RenderPrimitive::Line { role, .. }
         | RenderPrimitive::Circle { role, .. }
