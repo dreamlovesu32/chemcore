@@ -8466,3 +8466,50 @@ Key findings:
 Current interpretation:
 - `frame-global3` is still a global compromise.
 - The next useful target is not a single label like `f4_32339`, but phase-sensitive attached-label replay buckets, especially within the catalyst top-half label family.
+
+
+## 2026-05-17 attached-label phase buckets: vertical coherence beats horizontal coherence
+
+Follow-up to the phase-sensitivity work: compare small uniform frame-origin shifts in `y` versus `x`.
+
+Artifacts:
+- `tmp/frame-word-ab/top-black-ph-phase-search.json`
+- `tmp/frame-word-ab/phase-label-iou/`
+- `tmp/frame-word-ab/phase-label-iou-x/`
+- `tmp/frame-word-ab/phase-label-iou/attached-phase-sensitivity.json`
+- `tmp/frame-word-ab/phase-label-iou-x/attached-phase-sensitivity-x.json`
+
+Vertical (`dy`) findings:
+- `f4_32333`: `0.4926 -> 0.5188 -> 0.5191`
+- `f4_32335`: `0.5954 -> 0.6250 -> 0.6349`
+- `f4_32339`: `0.7521 -> 0.7398 -> 0.7054`
+- `f4_32345`: `0.6970 -> 0.6970 -> 0.6791`
+
+This is not random. The response is much easier to explain by phase buckets:
+- `centerYPhase = 0.735`, `boxTopPhase = 0.2`
+  - avg `dy+1` gain `+0.0149`
+  - avg `dy+3` gain `+0.0120`
+- `centerYPhase = 0.535`, `boxTopPhase = 0.0`
+  - avg `dy+1` gain `-0.0058`
+  - avg `dy+3` gain `-0.0071`
+- `centerYPhase = 0.935`, `boxTopPhase = 0.4`
+  - avg `dy+1` gain `+0.0159`
+  - avg `dy+3` gain `+0.0099`
+
+Horizontal (`dx`) findings:
+- `f4_32333`: best with strong negative `dx`
+- `f4_32335`: mild improvement at `dx = +1`
+- `f4_32339`: worsens for positive `dx`
+- several other labels stay nearly flat around `dx in {-1,0,+1}`
+
+Phase-bucket summaries also show a weaker and less coherent pattern for `x`:
+- `centerYPhase = 0.735`, `boxTopPhase = 0.2`
+  - avg `dx-1` delta `-0.0037`
+  - avg `dx+1` delta `-0.0283`
+  - avg `dx+3` delta `-0.0554`
+- most buckets either stay near zero for `dx-1` or degrade for positive `dx`
+
+Interpretation:
+- `y` shifts reveal a family-level replay phase signal.
+- `x` shifts mostly do not. They behave more like per-label tradeoffs than a coherent family rule.
+- For the current catalyst black `Ph` problem, vertical phase is therefore a much more promising axis than horizontal frame translation.
