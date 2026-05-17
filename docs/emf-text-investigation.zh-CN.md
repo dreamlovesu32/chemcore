@@ -8566,3 +8566,66 @@ Interpretation:
 Next step:
 - treat `topPagePhase` as the primary axis for attached-label replay families
 - compare it against the worst catalyst-top black `Ph` and the product-side orange/blue labels before making any new replay experiments
+
+
+## 2026-05-17 attached-label same-shell `topPagePhase` band search
+
+Artifacts:
+- `scripts/search-attached-phase-policy.py`
+- `tmp/frame-word-ab/attached-phase-policy-search.json`
+
+Method:
+- Take the packaged attached-label same-shell sensitivity table from `attached-page-phase.full.json`.
+- Search simple non-wrapping `topPagePhase` interval policies.
+- Allowed actions per interval:
+  - `0`: no `y` nudge
+  - `1`: reuse the measured `dy+1` replay variant
+  - `3`: reuse the measured `dy+3` replay variant
+- Search both:
+  - unconstrained one-band / two-band policies
+  - `safe` policies that reject any interval containing a label with negative delta for the chosen action
+
+Key findings:
+1. The highest-scoring unconstrained policy is broad but dirty:
+   - one band `[0.0, 0.6313786402477035)` with `dy+1`
+   - `totalDeltaIou = 0.2416888474`
+   - but it includes `5` negatively affected labels
+
+2. The highest-scoring unconstrained two-band policy is:
+   - `[0.0, 0.6313786402477035) -> dy+1`
+   - `[0.9027839824973398, 1.0) -> dy+3`
+   - `totalDeltaIou = 0.2802613060`
+   - but it still mixes in `5` negatively affected labels
+
+3. The strongest safe policy is much cleaner and loses almost no score:
+   - `[0.0, 0.3241855029598355) -> dy+1`
+   - `[0.5640732919537186, 0.6313786402477035) -> dy+1`
+   - `totalDeltaIou = 0.2791453908`
+   - `safe_ratio = 0.9960` relative to the best unconstrained two-band policy
+   - `selectedNegativeCount = 0`
+
+4. The safe policy covers exactly the families that already looked healthy under positive `dy`:
+   - low-phase band:
+     - `f5_2788` orange `S`
+     - `f5_2794` orange `Ph`
+     - `f5_2784` blue `CN`
+     - `f2_34461` black `N`
+     - `f2_37` black `O`
+     - `f4_32345` / `f4_32347` black `Ph` near zero or slightly positive
+   - mid-high band:
+     - `f4_32325` black `N`
+     - `f2_41` black `S`
+     - `f4_32333` / `f4_32335` top-half catalyst black `Ph`
+
+5. This makes the current replay family picture sharper:
+   - positive-`dy` attached-label replay is not a single continuous phase family
+   - the most useful packaged same-shell rule so far is a two-band `dy+1` policy
+   - labels in the middle `topPagePhase ~= 0.34 ~ 0.53` region remain mixed or fragile and should not be forced into the same family
+
+Interpretation:
+- `topPagePhase` is now strong enough to produce a real, reusable rule candidate rather than just post-hoc explanation.
+- The safe two-band policy is especially valuable because it preserves nearly all measured uplift while avoiding the labels that we already know regress under positive `dy`.
+
+Next step:
+- keep using `topPagePhase` as the primary axis
+- compare this safe two-band replay family against the worst catalyst-top black `Ph` and nearby control labels before introducing any packaged replay experiment hook
