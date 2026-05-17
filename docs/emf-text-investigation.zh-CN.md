@@ -8390,3 +8390,79 @@ Grouped by catalyst half:
 
 ### Next step
 Continue on the replay path, but pivot the main family from ?single-node `f4_32339`? to ?top-half catalyst black `Ph` labels under same-shell shape-IoU?. That is the sharper target for the next round.
+
+
+## 2026-05-17 same-shell attached-label phase sensitivity (frame-global3 origin shifts)
+
+This round tested a very narrow hypothesis: some attached-label replay families may be driven more by local pixel phase than by font size / hint / anchor.
+
+New tool:
+- `scripts/summarize-attached-phase-sensitivity.py`
+
+Experiment setup:
+- same-shell template: `tmp/frame-word-ab/frame-global3-shellchem.docx`
+- base frame: `(1441, 2994, 14431, 8656)`
+- only apply uniform frame-origin shifts, keeping width/height fixed:
+  - `dy = 0`
+  - `dy = +1`
+  - `dy = +3`
+- compare local label-shape IoU with:
+  - `scripts/compare-full-label-iou.py`
+
+Artifacts:
+- `tmp/frame-word-ab/top-black-ph-phase-search.json`
+- `tmp/frame-word-ab/phase-label-iou/frame_dy0.json`
+- `tmp/frame-word-ab/phase-label-iou/frame_dy1.json`
+- `tmp/frame-word-ab/phase-label-iou/frame_dy3.json`
+- `tmp/frame-word-ab/phase-label-iou/attached-phase-sensitivity.json`
+
+Key findings:
+
+1. The top-half catalyst black `Ph` family is not uniform.
+   Under the current best same-shell frame, the worst local IoUs are:
+   - `f4_32333`: `0.4926`
+   - `f4_32335`: `0.5954`
+   - `f4_32347`: `0.6257`
+   - `f4_32345`: `0.6970`
+   - `f4_32337`: `0.7097`
+   - `f4_32339`: `0.7521`
+
+2. A pure vertical frame-origin nudge changes these labels differently.
+   Example deltas:
+   - `f4_32333`: `0.4926 -> 0.5188 -> 0.5191`
+   - `f4_32335`: `0.5954 -> 0.6250 -> 0.6349`
+   - `f4_32339`: `0.7521 -> 0.7398 -> 0.7054`
+   - `f4_32345`: `0.6970 -> 0.6970 -> 0.6791`
+
+3. The sensitivity aligns better with phase buckets than with text identity alone.
+   The most useful buckets so far are:
+   - `centerYPhase = 0.735`, `boxTopPhase = 0.2`
+     - count `4`
+     - avg `dy+1` gain `+0.0149`
+     - avg `dy+3` gain `+0.0120`
+   - `centerYPhase = 0.535`, `boxTopPhase = 0.0`
+     - count `3`
+     - avg `dy+1` gain `-0.0058`
+     - avg `dy+3` gain `-0.0071`
+   - `centerYPhase = 0.935`, `boxTopPhase = 0.4`
+     - count `3`
+     - avg `dy+1` gain `+0.0159`
+     - avg `dy+3` gain `+0.0099`
+
+4. This supports a stronger replay-phase hypothesis.
+   We have already ruled out:
+   - attached-label x-anchor nudges
+   - run font-scale tweaks
+   - packaged `TextRenderingHint` overrides
+
+   The remaining signal is consistent with local replay depending on page-space phase / rasterization alignment.
+
+5. Global tradeoff remains real.
+   The same `dy` shifts that help the worst top black `Ph` labels reduce global same-shell IoU:
+   - base `dy=0`: global `0.861882`
+   - `dy=+1`: global `0.845352`
+   - `dy=+3`: global `0.828192`
+
+Current interpretation:
+- `frame-global3` is still a global compromise.
+- The next useful target is not a single label like `f4_32339`, but phase-sensitive attached-label replay buckets, especially within the catalyst top-half label family.
