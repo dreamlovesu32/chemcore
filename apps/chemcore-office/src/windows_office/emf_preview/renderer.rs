@@ -61,6 +61,8 @@ const ENV_PACKAGED_CENTERED_PLAIN_ZERO_LAYOUT: &str =
 const ENV_PACKAGED_SMOOTHING_MODE_VALUE: &str = "CHEMCORE_EMF_PACKAGED_SMOOTHING_MODE_VALUE";
 const ENV_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT: &str =
     "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT";
+const ENV_ATTACHED_LABEL_REPLAY_FONT_SCALE_EXPERIMENT: &str =
+    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_FONT_SCALE_EXPERIMENT";
 const ENV_HIDE_DOCUMENT_KNOCKOUT: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_KNOCKOUT";
 const ENV_HIDE_DOCUMENT_TEXT: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_TEXT";
 const ENV_HIDE_DOCUMENT_BOND: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_BOND";
@@ -1687,13 +1689,22 @@ unsafe fn draw_gdiplus_text(
         text_anchor,
         label_context,
     );
+    let effective_font_scale = preview_attached_label_replay_font_scale(
+        node_id,
+        runs,
+        fill,
+        text_anchor,
+        label_context,
+    );
+    let effective_font_size = font_size * effective_font_scale;
     let x = x + x_nudge_px / (transform.scale * transform.record_scale.max(1.0));
-    let line_step_world = line_height.unwrap_or(font_size * 1.2).max(0.01);
-    let lines = preview_text_lines(text, runs);
+    let line_step_world = line_height.unwrap_or(effective_font_size * 1.2).max(0.01);
+    let mut lines = preview_text_lines(text, runs);
+    preview_scale_text_run_font_sizes(&mut lines, effective_font_scale);
     let layouts = gdiplus_text_layout(
         graphics,
         &lines,
-        font_size,
+        effective_font_size,
         font_family,
         transform,
         transform.emf_recording && matches!(text_anchor, Some("middle")),
@@ -1714,8 +1725,14 @@ unsafe fn draw_gdiplus_text(
             && !preview_env_enabled(ENV_DISABLE_PACKAGED_TRAILING_TRIM)
             && matches!(text_anchor, Some("middle" | "end"))
         {
-            gdiplus_line_trailing_space_trim(graphics, line_runs, font_size, font_family, transform)
-                .unwrap_or(0.0)
+            gdiplus_line_trailing_space_trim(
+                graphics,
+                line_runs,
+                effective_font_size,
+                font_family,
+                transform,
+            )
+            .unwrap_or(0.0)
         } else {
             0.0
         };
@@ -1734,7 +1751,7 @@ unsafe fn draw_gdiplus_text(
                 text_anchor,
                 run_layout.advance,
                 run,
-                font_size,
+                effective_font_size,
                 font_family,
                 fill,
                 transform,
@@ -2218,33 +2235,49 @@ unsafe fn draw_preview_text(
         text_anchor,
         label_context,
     );
+    let effective_font_scale = preview_attached_label_replay_font_scale(
+        node_id,
+        runs,
+        fill,
+        text_anchor,
+        label_context,
+    );
+    let effective_font_size = font_size * effective_font_scale;
     let x = x + x_nudge_px / (transform.scale * transform.record_scale.max(1.0));
     let old_align = SetTextAlign(dc, TA_LEFT | TA_BASELINE);
     SetBkMode(dc, TRANSPARENT as i32);
     SetTextColor(dc, fill.and_then(colorref_from_css).unwrap_or(0x000000));
 
-    let line_step_world = line_height.unwrap_or(font_size * 1.2).max(0.01);
-    let lines = preview_text_lines(text, runs);
+    let line_step_world = line_height.unwrap_or(effective_font_size * 1.2).max(0.01);
+    let mut lines = preview_text_lines(text, runs);
+    preview_scale_text_run_font_sizes(&mut lines, effective_font_scale);
     for (index, line_runs) in lines.iter().enumerate() {
         if line_runs.is_empty() {
             continue;
         }
         let origin = transform.xy(x, y + index as f64 * line_step_world);
         let width =
-            preview_line_width_measured(dc, line_runs, font_size, font_family, transform, cache);
+            preview_line_width_measured(
+                dc,
+                line_runs,
+                effective_font_size,
+                font_family,
+                transform,
+                cache,
+            );
         let mut cursor_x = match text_anchor {
             Some("middle") => origin.x - width / 2,
             Some("end") => origin.x - width,
             _ => origin.x,
         };
         for run in line_runs {
-            let dx = preview_script_dx(run, font_size, transform);
+            let dx = preview_script_dx(run, effective_font_size, transform);
             let advance = draw_preview_text_run(
                 dc,
                 cursor_x + dx,
                 origin.y,
                 run,
-                font_size,
+                effective_font_size,
                 font_family,
                 transform,
                 cache,
@@ -2266,39 +2299,90 @@ fn preview_attached_label_replay_nudge_px(
     let Some(nudge_px) = preview_env_f64(ENV_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT) else {
         return 0.0;
     };
-    if !matches!(text_anchor, Some("start")) {
+    if !preview_attached_label_replay_matches(
+        node_id,
+        runs,
+        fallback_fill,
+        text_anchor,
+        label_context,
+    ) {
         return 0.0;
+    }
+    nudge_px
+}
+
+fn preview_attached_label_replay_font_scale(
+    node_id: Option<&str>,
+    runs: &[chemcore_engine::LabelRun],
+    fallback_fill: Option<&str>,
+    text_anchor: Option<&str>,
+    label_context: Option<&PreviewLabelContext>,
+) -> f64 {
+    let Some(scale) = preview_env_f64(ENV_ATTACHED_LABEL_REPLAY_FONT_SCALE_EXPERIMENT) else {
+        return 1.0;
+    };
+    if !preview_attached_label_replay_matches(
+        node_id,
+        runs,
+        fallback_fill,
+        text_anchor,
+        label_context,
+    ) {
+        return 1.0;
+    }
+    scale
+}
+
+fn preview_attached_label_replay_matches(
+    node_id: Option<&str>,
+    runs: &[chemcore_engine::LabelRun],
+    fallback_fill: Option<&str>,
+    text_anchor: Option<&str>,
+    label_context: Option<&PreviewLabelContext>,
+) -> bool {
+    if !matches!(text_anchor, Some("start")) {
+        return false;
     }
     let Some(node_id) = node_id else {
-        return 0.0;
+        return false;
     };
     let Some(info) = label_context.and_then(|context| context.infos.get(node_id)) else {
-        return 0.0;
+        return false;
     };
     if info.layout.as_deref() != Some("attached-group") {
-        return 0.0;
+        return false;
     }
     if info.label_justification.as_deref() != Some("Left") {
-        return 0.0;
+        return false;
     }
     if info.component_half_x != PreviewComponentHalfX::Right {
-        return 0.0;
+        return false;
     }
     if info.primary_neighbor_bucket != Some(PreviewNeighborBucket::North) {
-        return 0.0;
+        return false;
     }
     if info.gap_right > 40.44 {
-        return 0.0;
+        return false;
     }
     let fill = runs
         .iter()
         .find_map(|run| run.fill.as_deref())
         .or(fallback_fill)
         .unwrap_or("#000000");
-    if !fill.eq_ignore_ascii_case("#000000") {
-        return 0.0;
+    fill.eq_ignore_ascii_case("#000000")
+}
+
+fn preview_scale_text_run_font_sizes(lines: &mut [Vec<PreviewTextRun>], scale: f64) {
+    if (scale - 1.0).abs() <= f64::EPSILON {
+        return;
     }
-    nudge_px
+    for line in lines {
+        for run in line {
+            if let Some(font_size) = run.font_size.as_mut() {
+                *font_size *= scale;
+            }
+        }
+    }
 }
 
 #[derive(Clone)]

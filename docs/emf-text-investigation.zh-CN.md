@@ -8268,3 +8268,47 @@ A straightforward replay x-anchor correction does not repair the characteristic 
 
 ### Next step
 Treat `f4_32339` and its narrow family as a replay-width / ink-generation problem, not as a text-anchor problem. Avoid spending more time on simple x-anchor nudges.
+
+
+## 2026-05-17 attached-label run font-scale sensitivity matrix
+
+### Goal
+Check whether the dominant replay outlier family is driven by local font size rather than anchor placement. The target family remained:
+- `text = Ph`
+- `fill = #000000`
+- `layout = attached-group`
+- `labelJustification = Left`
+- `componentHalfX = right`
+- `primaryNeighborBucket = north`
+- `gapRight <= 40.44`
+
+### Implementation
+- Added env-gated experiment hook in `renderer.rs`:
+  - `CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_FONT_SCALE_EXPERIMENT=<scale>`
+- Unlike the earlier anchor experiment, this path scales explicit `PreviewTextRun.font_size` values, so both layout and glyph-size calculations use the same adjusted run font sizes.
+- Same-shell comparison again used the fixed `frame-global3` header frame `(1441,2994,14431,8656)`.
+
+### Matrix
+Reference summary:
+- [tmp/frame-word-ab/attached-runscale-matrix.json](d:/Projects/chemcore/tmp/frame-word-ab/attached-runscale-matrix.json)
+
+Key rows:
+- `0.90x`: global `IoU = 0.859128`, `f4_32339 deltaDims = [7,1]`, `deltaTopLeft = [-6,0]`
+- `0.95x`: global `IoU = 0.860190`, `f4_32339 deltaDims = [7,1]`, `deltaTopLeft = [-6,0]`
+- `1.00x` baseline: global `IoU = 0.861882`, `f4_32339 deltaDims = [7,1]`, `deltaTopLeft = [-6,0]`
+- `1.05x`: global `IoU = 0.859765`, `f4_32339 deltaDims = [7,1]`, `deltaTopLeft = [-6,0]`
+- `1.10x`: global `IoU = 0.859274`, `f4_32339 deltaDims = [7,1]`, `deltaTopLeft = [-6,0]`
+
+### Findings
+- Across the full `0.90 .. 1.10` run-scale range, the dominant outlier `f4_32339` does not move at all.
+- `deltaTopLeft` remains exactly `[-6, 0]`.
+- `deltaDims` remains exactly `[7, 1]`.
+- The local residual count stays at `30` throughout the entire matrix.
+- Global same-shell IoU is still best at the baseline `1.00x` case.
+
+### Conclusion
+This family is not font-scale dominated either.
+Even when explicit per-run font sizes are scaled before packaged replay, the local bbox of `f4_32339` is pixel-stable. Together with the earlier anchor matrix, this strongly suggests that the dominant cause is deeper replay width / ink-generation behavior rather than ordinary anchor placement or font size.
+
+### Next step
+Keep treating this narrow family as a replay-width / ink-generation problem. The next experiments should target how the replay path generates visible ink for attached-group labels, not how it places or sizes the text anchor.
