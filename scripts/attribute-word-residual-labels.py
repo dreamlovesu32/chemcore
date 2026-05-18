@@ -9,10 +9,21 @@ from PIL import Image
 
 
 def load_payload(path: Path) -> dict:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload = load_json_any_encoding(path)
     if "chemcoreDocumentJson" in payload:
-        return json.loads(payload["chemcoreDocumentJson"])
+        doc = payload["chemcoreDocumentJson"]
+        return json.loads(doc) if isinstance(doc, str) else doc
     return payload
+
+
+def load_json_any_encoding(path: Path) -> dict:
+    raw = path.read_bytes()
+    for encoding in ("utf-8", "utf-8-sig", "utf-16", "utf-16-le", "utf-16-be"):
+        try:
+            return json.loads(raw.decode(encoding))
+        except Exception:
+            continue
+    raise ValueError(f"Unable to decode JSON file: {path}")
 
 
 def load_mask(path: Path, threshold: int) -> tuple[list[list[bool]], int, int]:
@@ -106,7 +117,7 @@ def main() -> None:
     args = parser.parse_args()
 
     document = load_payload(Path(args.payload_json))
-    role_report = json.loads(Path(args.role_report_json).read_text(encoding="utf-16"))
+    role_report = load_json_any_encoding(Path(args.role_report_json))
     ours, width, height = load_mask(Path(args.ours_png), args.threshold)
     reference, ref_width, ref_height = load_mask(Path(args.reference_png), args.threshold)
     if (width, height) != (ref_width, ref_height):
