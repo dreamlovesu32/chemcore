@@ -10665,3 +10665,80 @@ same-shell 比较输出：
    - `dy > 0`
    偏差模式
 3. 不再只围绕 `thiocyanation-source` 的局部标签 microfamily 做推理，而要回到更高层的 replay / frame / shell 语义
+
+## 2026-05-18 第二轮泛化抽样：扩到 19 个历史 OLE 对象，并验证 frame 主因是否泛化
+
+新增样本：
+- 	mp/ppt-sample-zww4
+  - 来源：	mp/Group past reports/2018-2019/work report/20190506/ZWW-2019-5-6.pptx
+  - entryCount = 4
+  - same-shell 可跑结果 3 个，1 个失败（preview-not-emf，是 WMF 预览）
+
+ZWW 三个对象结果：
+- slide2.oleObject1: IoU = 0.454442, dx = 4, dy = 6
+- slide4.oleObject3: IoU = 0.528250, dx = 4, dy = 5
+- slide5.oleObject4: IoU = 0.423868, dx = 4, dy = 4
+
+为了把跨样本现象固定下来，新增工具：
+- scripts/summarize-ppt-sameshell-generalization.py
+
+聚合了当前 4 组样本（cch / ljy8 / wjg4 / zww4）后，得到：
+- 总对象数：19
+- vgBestIou = 0.377750
+- vgDx = +5.105
+- vgDy = +6.368
+- 平均 rameDelta = [ +894, -320, +1587, -98 ]
+- 平均 sizeDelta = [ +692, +222 ]
+- 平均尺寸比：
+  - vgWidthRatio = 1.051026
+  - vgHeightRatio = 1.018358
+
+解释：
+- 跨样本看，ChemDraw 预览 EMF 相对我们的 image1.emf，确实稳定更“宽”一些，平均宽度约多 5.1%。
+- 同时 best-shift 也稳定落在 dx > 0, dy > 0 一侧。
+- 所以**泛化主问题仍然存在**，而且不是单个历史文件偶然偏掉。
+
+但更关键的新结论是：
+- **单文档线上发现的 rame 主因，不能直接泛化到这批历史样本。**
+
+我做了 3 组跨样本 frame-policy A/B：
+
+1. 固定 vg_delta（直接把平均 rameDelta 加到我们的 image1.emf 上）
+- 结果：vgIou = 0.106409
+- 相比 baseline  .377750，大幅变差
+
+2. 固定 median_delta
+- 结果：vgIou = 0.095815
+- 同样大幅变差
+
+3. 直接把每个对象的 EMR_HEADER.frame 抄成对应 ChemDraw preview 的 frame（rame-chemref）
+- 结果：vgIou = 0.104478
+- 也显著变差
+
+另外还试了按比例的宽/高规则：
+- x_ratio_only
+- xy_ratio
+
+结果同样失败：
+- x_ratio_only: vgIou = 0.142049
+- xy_ratio: vgIou = 0.122534
+
+这一步非常重要，因为它说明：
+- 历史样本里的 same-shell 差异，**不能简单地靠“把 frame 调成 ChemDraw 那张”来解释**。
+- 也不能靠一个全局固定的 rameDelta 或尺寸比例去修。
+- 也就是说，	hiocyanation-source 那条围绕 EMR_HEADER.frame 的主因链，在真实历史 PPT OLE 对象上**不具备直接可移植性**。
+
+当前更稳妥的判断是：
+1. 跨历史样本，确实存在稳定的正向 dx/dy 偏移与尺寸差
+2. 但这些差异不是一个“固定 frame 规则”能解释的
+3. 所以下一步不该继续套单文档 rame 经验，而应该去查：
+   - 历史 OLE 对象里 ChemDraw preview EMF 与我们 packaged EMF 的**内容回放语义**到底差在哪里
+   - 尤其是：为什么 same-shell 下，抄 ChemDraw 的 frame 反而会把回放做坏
+
+Takeaway：
+- 到这一步可以正式收回一个旧假设：
+  - “只要找到正确 EMR_HEADER.frame，就能泛化解决 Word replay 差异”
+- 这个假设在 	hiocyanation-source 上成立，但在历史 PPT 样本上**被证伪**。
+- 后续泛化主线应该转去研究：
+  - **real PPT ChemDraw object 的 packaged replay 语义差**
+  - 而不是继续把单文档 frame 调优当成系统解。
