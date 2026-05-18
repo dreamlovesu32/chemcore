@@ -10815,3 +10815,38 @@ Takeaway：
   1. 为什么历史 ChemDraw preview 普遍几乎不用 Save/Restore，而我们大量使用
   2. 为什么历史 ChemDraw preview 基本不用 FillPolygon/Polygon16，而我们大量使用
   3. 这些差异与 dx > 0 / dy > 0 / 低 IoU 的相关性到底有多强
+
+## 2026-05-18 Office 预览可见 halo：默认隐藏 DocumentKnockout
+
+用户重新指出了一个比 same-shell 指标更基础的显示错误：
+- Office / Word 里每个标签都像被一层框或外壳圈出来
+- 这不是普通文字对齐问题，而是内部退让几何泄漏成了可见结果
+
+已有证据：
+- engine 的 `document_svg` 本来就默认隐藏 `DocumentKnockout`
+- Office 预览此前却把 `RenderRole::DocumentKnockout` 当成正常可见 primitive 回放
+- `knockout-only` 与 `text-only` 的叠加里，`knockout` 基本是文字的“胖超集”
+
+本轮采取的最小产品修复：
+- 在 `apps/chemcore-office/src/windows_office/emf_preview/renderer.rs`
+- `office_preview_primitive_visible()` 默认 **不再**让 `DocumentKnockout` 进入可见回放
+- 仅保留一个显式调试开关：
+  - `CHEMCORE_EMF_SHOW_DOCUMENT_KNOCKOUT=1`
+- 旧的 `CHEMCORE_EMF_HIDE_DOCUMENT_KNOCKOUT` 仍保留，调试时优先级更高
+
+行为语义：
+- 默认用户可见回放：`DocumentBond | DocumentGraphic | DocumentText`
+- `DocumentKnockout` 只用于内部分析/调试，不再直接画到 Word 预览里
+
+手工验证：
+- 重新导出 `tmp/thiocyanation-source.chemcore.v78.docx`
+- 用 Word `CopyAsPicture` 生成：
+  - `tmp/thiocyanation-source.chemcore.v78.wordcopy.png`
+  - `tmp/thiocyanation-source.chemcore.v78.product-crop.png`
+  - `tmp/thiocyanation-source.chemcore.v78.catalyst-crop.png`
+- 肉眼结果：右上产物与右下催化剂周围那层明显的白色外壳/框基本消失
+
+备注：
+- 这一步主要修的是“可见 halo”这个独立 bug
+- 它不等同于 same-shell Word replay 主线已经完全对齐
+- 后续 frame / replay 泛化分析仍按原主线继续进行

@@ -110,6 +110,7 @@ const ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT_3: &str =
 const ENV_ATTACHED_LABEL_REPLAY_PHASE_POLICY_EXPERIMENT: &str =
     "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_PHASE_POLICY_EXPERIMENT";
 const ENV_HIDE_DOCUMENT_KNOCKOUT: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_KNOCKOUT";
+const ENV_SHOW_DOCUMENT_KNOCKOUT: &str = "CHEMCORE_EMF_SHOW_DOCUMENT_KNOCKOUT";
 const ENV_HIDE_DOCUMENT_TEXT: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_TEXT";
 const ENV_HIDE_DOCUMENT_BOND: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_BOND";
 const ENV_HIDE_DOCUMENT_GRAPHIC: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_GRAPHIC";
@@ -806,8 +807,12 @@ pub(super) fn office_preview_primitive_visible(primitive: &RenderPrimitive) -> b
         | RenderPrimitive::Text { role, .. } => role,
     };
     match role {
-        RenderRole::DocumentKnockout if preview_env_enabled(ENV_HIDE_DOCUMENT_KNOCKOUT) => {
-            return false;
+        RenderRole::DocumentKnockout => {
+            if preview_env_enabled(ENV_HIDE_DOCUMENT_KNOCKOUT)
+                || !preview_env_enabled(ENV_SHOW_DOCUMENT_KNOCKOUT)
+            {
+                return false;
+            }
         }
         RenderRole::DocumentText if preview_env_enabled(ENV_HIDE_DOCUMENT_TEXT) => return false,
         RenderRole::DocumentBond if preview_env_enabled(ENV_HIDE_DOCUMENT_BOND) => return false,
@@ -820,7 +825,6 @@ pub(super) fn office_preview_primitive_visible(primitive: &RenderPrimitive) -> b
         role,
         RenderRole::DocumentBond
             | RenderRole::DocumentGraphic
-            | RenderRole::DocumentKnockout
             | RenderRole::DocumentText
     )
 }
