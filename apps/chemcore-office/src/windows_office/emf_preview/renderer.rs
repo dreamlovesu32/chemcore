@@ -72,60 +72,8 @@ const ENV_PACKAGED_CENTERED_SCRIPT_EXTRA_TOP_BIAS_EM: &str =
 const ENV_DEFAULT_MULTILINE_BLACK_LABEL_Y_NUDGE_PX: &str =
     "CHEMCORE_EMF_DEFAULT_MULTILINE_BLACK_LABEL_Y_NUDGE_PX";
 const ENV_PACKAGED_SMOOTHING_MODE_VALUE: &str = "CHEMCORE_EMF_PACKAGED_SMOOTHING_MODE_VALUE";
-const ENV_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT";
-const ENV_ATTACHED_LABEL_REPLAY_NUDGE_NODE_FILTER_EXPERIMENT: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NUDGE_NODE_FILTER_EXPERIMENT";
-const ENV_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT_2: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT_2";
-const ENV_ATTACHED_LABEL_REPLAY_NUDGE_NODE_FILTER_EXPERIMENT_2: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NUDGE_NODE_FILTER_EXPERIMENT_2";
-const ENV_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT_3: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT_3";
-const ENV_ATTACHED_LABEL_REPLAY_NUDGE_NODE_FILTER_EXPERIMENT_3: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NUDGE_NODE_FILTER_EXPERIMENT_3";
-const ENV_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT";
-const ENV_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT";
-const ENV_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT_2: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT_2";
-const ENV_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT_2: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT_2";
-const ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_EXPERIMENT: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_DELTA_EXPERIMENT";
-const ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_NODE_FILTER_EXPERIMENT: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_DELTA_NODE_FILTER_EXPERIMENT";
-const ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_EXPERIMENT_2: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_DELTA_EXPERIMENT_2";
-const ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_NODE_FILTER_EXPERIMENT_2: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_Y_DELTA_NODE_FILTER_EXPERIMENT_2";
-const ENV_ATTACHED_LABEL_REPLAY_FONT_SCALE_EXPERIMENT: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_FONT_SCALE_EXPERIMENT";
-const ENV_ATTACHED_LABEL_REPLAY_FONT_SCALE_NODE_FILTER_EXPERIMENT: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_FONT_SCALE_NODE_FILTER_EXPERIMENT";
-const ENV_ATTACHED_LABEL_REPLAY_TEXT_HINT_EXPERIMENT: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TEXT_HINT_EXPERIMENT";
-const ENV_ATTACHED_LABEL_REPLAY_TEXT_HINT_NODE_FILTER_EXPERIMENT: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TEXT_HINT_NODE_FILTER_EXPERIMENT";
-const ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT";
-const ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT";
-const ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT_2: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT_2";
-const ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT_2: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT_2";
-const ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT_3: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT_3";
-const ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT_3: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT_3";
 const ENV_ATTACHED_LABEL_REPLAY_PHASE_POLICY_EXPERIMENT: &str =
     "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_PHASE_POLICY_EXPERIMENT";
-const ENV_ATTACHED_LABEL_REPLAY_GENERAL_POLICY_EXPERIMENT: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_GENERAL_POLICY_EXPERIMENT";
-const ENV_ATTACHED_LABEL_REPLAY_STACK_POLICY_EXPERIMENT: &str =
-    "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_STACK_POLICY_EXPERIMENT";
 const ENV_HIDE_DOCUMENT_KNOCKOUT: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_KNOCKOUT";
 const ENV_SHOW_DOCUMENT_KNOCKOUT: &str = "CHEMCORE_EMF_SHOW_DOCUMENT_KNOCKOUT";
 const ENV_SHOW_INVALID_MARKERS: &str = "CHEMCORE_EMF_SHOW_INVALID_MARKERS";
@@ -371,62 +319,12 @@ struct PreviewLabelContext {
 #[derive(Debug, Clone)]
 struct PreviewLabelInfo {
     layout: Option<String>,
-    label_justification: Option<String>,
     world_box: Option<PreviewLabelBBox>,
     simple_single_run: bool,
-    component_half_x: PreviewComponentHalfX,
-    component_half_y: PreviewComponentHalfY,
-    primary_neighbor_bucket: Option<PreviewNeighborBucket>,
-    gap_right: f64,
     line_count: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PreviewComponentHalfX {
-    Left,
-    Right,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PreviewComponentHalfY {
-    Top,
-    Bottom,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PreviewNeighborBucket {
-    East,
-    South,
-    West,
-    North,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PreviewComponentQuadrant {
-    LT,
-    LB,
-    RT,
-    RB,
-}
-
 impl PreviewLabelInfo {
-    fn component_quadrant(&self) -> PreviewComponentQuadrant {
-        match (self.component_half_x, self.component_half_y) {
-            (PreviewComponentHalfX::Left, PreviewComponentHalfY::Top) => {
-                PreviewComponentQuadrant::LT
-            }
-            (PreviewComponentHalfX::Left, PreviewComponentHalfY::Bottom) => {
-                PreviewComponentQuadrant::LB
-            }
-            (PreviewComponentHalfX::Right, PreviewComponentHalfY::Top) => {
-                PreviewComponentQuadrant::RT
-            }
-            (PreviewComponentHalfX::Right, PreviewComponentHalfY::Bottom) => {
-                PreviewComponentQuadrant::RB
-            }
-        }
-    }
-
     fn is_attached_group_layout(&self) -> bool {
         matches!(
             self.layout.as_deref(),
@@ -2792,84 +2690,18 @@ fn preview_packaged_attached_start_layout_mode(
 }
 
 fn preview_attached_label_replay_nudge_px(
-    node_id: Option<&str>,
-    runs: &[chemcore_engine::LabelRun],
-    fallback_fill: Option<&str>,
-    text_anchor: Option<&str>,
-    label_context: Option<&PreviewLabelContext>,
-    x: f64,
-    y: f64,
-    baseline_offset: Option<f64>,
-    fallback_font_size: f64,
-    transform: &PreviewTransform,
+    _node_id: Option<&str>,
+    _runs: &[chemcore_engine::LabelRun],
+    _fallback_fill: Option<&str>,
+    _text_anchor: Option<&str>,
+    _label_context: Option<&PreviewLabelContext>,
+    _x: f64,
+    _y: f64,
+    _baseline_offset: Option<f64>,
+    _fallback_font_size: f64,
+    _transform: &PreviewTransform,
 ) -> f64 {
-    if let Some(nudge_px) = preview_attached_label_replay_stack_policy_x_nudge_px(
-        node_id,
-        runs,
-        text_anchor,
-        label_context,
-        x,
-        y,
-        baseline_offset,
-        fallback_font_size,
-        transform,
-    ) {
-        return nudge_px;
-    }
-    if let Some(nudge_px) = preview_attached_label_replay_general_policy_x_nudge_px(
-        node_id,
-        runs,
-        fallback_fill,
-        text_anchor,
-        label_context,
-    ) {
-        return nudge_px;
-    }
-    for (nudge_env, filter_env) in [
-        (
-            ENV_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT,
-            ENV_ATTACHED_LABEL_REPLAY_NUDGE_NODE_FILTER_EXPERIMENT,
-        ),
-        (
-            ENV_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT_2,
-            ENV_ATTACHED_LABEL_REPLAY_NUDGE_NODE_FILTER_EXPERIMENT_2,
-        ),
-        (
-            ENV_ATTACHED_LABEL_REPLAY_NUDGE_EXPERIMENT_3,
-            ENV_ATTACHED_LABEL_REPLAY_NUDGE_NODE_FILTER_EXPERIMENT_3,
-        ),
-    ] {
-        let Some(nudge_px) = preview_env_f64(nudge_env) else {
-            continue;
-        };
-        if !preview_attached_label_replay_experiment_matches_with_filter_env(
-            node_id,
-            runs,
-            fallback_fill,
-            text_anchor,
-            label_context,
-            filter_env,
-        ) {
-            continue;
-        }
-        return nudge_px;
-    }
     0.0
-}
-
-fn preview_attached_label_replay_stack_policy_name() -> Option<String> {
-    let raw = std::env::var_os(ENV_ATTACHED_LABEL_REPLAY_STACK_POLICY_EXPERIMENT)?;
-    let value = raw.to_string_lossy();
-    let value = value.trim();
-    if value.is_empty() {
-        None
-    } else {
-        Some(value.to_string())
-    }
-}
-
-fn preview_attached_label_replay_stack_policy_is_current_best(policy: &str) -> bool {
-    policy.eq_ignore_ascii_case("current-best-v1") || policy.eq_ignore_ascii_case("best-20260518")
 }
 
 fn preview_attached_label_replay_phase_policy_name() -> Option<String> {
@@ -2894,110 +2726,6 @@ fn preview_attached_label_replay_phase_policy_name() -> Option<String> {
     }
 }
 
-fn preview_attached_group_label_info<'a>(
-    node_id: Option<&str>,
-    text_anchor: Option<&str>,
-    label_context: Option<&'a PreviewLabelContext>,
-) -> Option<&'a PreviewLabelInfo> {
-    if !matches!(text_anchor, Some("start")) {
-        return None;
-    }
-    let node_id = node_id?;
-    let info = label_context.and_then(|context| context.infos.get(node_id))?;
-    (info.layout.as_deref() == Some("attached-group")).then_some(info)
-}
-
-fn preview_attached_label_text(runs: &[chemcore_engine::LabelRun]) -> String {
-    runs.iter().map(|run| run.text.as_str()).collect::<String>()
-}
-
-fn preview_attached_label_stack_policy_phases(
-    x: f64,
-    y: f64,
-    baseline_offset: Option<f64>,
-    fallback_font_size: f64,
-    transform: &PreviewTransform,
-) -> (f64, f64) {
-    let font_px = (fallback_font_size * gdiplus_text_scale(transform)).max(1.0) as f32;
-    let baseline_top = baseline_offset
-        .map(|value| (value * gdiplus_text_scale(transform)) as f32)
-        .unwrap_or(font_px * 0.905_273_44);
-    let origin = transform.gdip_point(CorePoint { x, y });
-    (
-        origin.X.rem_euclid(1.0) as f64,
-        (origin.Y - baseline_top).rem_euclid(1.0) as f64,
-    )
-}
-
-fn preview_attached_label_replay_stack_policy_x_nudge_px(
-    node_id: Option<&str>,
-    runs: &[chemcore_engine::LabelRun],
-    text_anchor: Option<&str>,
-    label_context: Option<&PreviewLabelContext>,
-    x: f64,
-    y: f64,
-    baseline_offset: Option<f64>,
-    fallback_font_size: f64,
-    transform: &PreviewTransform,
-) -> Option<f64> {
-    let policy = preview_attached_label_replay_stack_policy_name()?;
-    if !preview_attached_label_replay_stack_policy_is_current_best(&policy)
-        || !transform.emf_recording
-    {
-        return None;
-    }
-    let info = preview_attached_group_label_info(node_id, text_anchor, label_context)?;
-    let text = preview_attached_label_text(runs);
-    let (x_page_phase, _) = preview_attached_label_stack_policy_phases(
-        x,
-        y,
-        baseline_offset,
-        fallback_font_size,
-        transform,
-    );
-    if (121.165..=180.670).contains(&info.gap_right) && x_page_phase >= 0.209_741 {
-        return Some(1.0);
-    }
-    if text.eq_ignore_ascii_case("N") && info.component_quadrant() == PreviewComponentQuadrant::LT {
-        return Some(-1.0);
-    }
-    None
-}
-
-fn preview_attached_label_replay_general_policy_x_nudge_px(
-    node_id: Option<&str>,
-    runs: &[chemcore_engine::LabelRun],
-    fallback_fill: Option<&str>,
-    text_anchor: Option<&str>,
-    label_context: Option<&PreviewLabelContext>,
-) -> Option<f64> {
-    let policy = std::env::var_os(ENV_ATTACHED_LABEL_REPLAY_GENERAL_POLICY_EXPERIMENT)?;
-    let policy = policy.to_string_lossy();
-    if !matches!(text_anchor, Some("start")) {
-        return None;
-    }
-    let node_id = node_id?;
-    let info = label_context.and_then(|context| context.infos.get(node_id))?;
-    let fill = runs
-        .iter()
-        .find_map(|run| run.fill.as_deref())
-        .or(fallback_fill)
-        .unwrap_or("#000000");
-    if !fill.eq_ignore_ascii_case("#000000") {
-        return None;
-    }
-    if info.layout.as_deref() == Some("attached-group-above")
-        && info.line_count == 1
-        && preview_general_policy_has_token(
-            policy.as_ref(),
-            &["ppt-family-v1", "above-single-black-x+1"],
-        )
-    {
-        return Some(1.0);
-    }
-    None
-}
-
 fn preview_attached_label_replay_y_nudge_px(
     node_id: Option<&str>,
     runs: &[chemcore_engine::LabelRun],
@@ -3020,15 +2748,6 @@ fn preview_attached_label_replay_y_nudge_px(
     ) {
         total += nudge_px;
     }
-    if let Some(nudge_px) = preview_attached_label_replay_general_policy_y_nudge_px(
-        node_id,
-        runs,
-        fallback_fill,
-        text_anchor,
-        label_context,
-    ) {
-        total += nudge_px;
-    }
     if let Some(nudge_px) = preview_attached_label_replay_phase_policy_y_nudge_px(
         node_id,
         runs,
@@ -3042,66 +2761,6 @@ fn preview_attached_label_replay_y_nudge_px(
         transform,
     ) {
         total += nudge_px;
-    } else {
-        for (nudge_env, filter_env) in [
-            (
-                ENV_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT,
-                ENV_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT,
-            ),
-            (
-                ENV_ATTACHED_LABEL_REPLAY_Y_NUDGE_EXPERIMENT_2,
-                ENV_ATTACHED_LABEL_REPLAY_NODE_FILTER_EXPERIMENT_2,
-            ),
-        ] {
-            let Some(nudge_px) = preview_env_f64(nudge_env) else {
-                continue;
-            };
-            if std::env::var_os(filter_env).is_some() {
-                if !preview_attached_label_replay_node_filter_matches_with_env(node_id, filter_env)
-                {
-                    continue;
-                }
-            } else if !preview_attached_label_replay_matches(
-                node_id,
-                runs,
-                fallback_fill,
-                text_anchor,
-                label_context,
-            ) {
-                continue;
-            }
-            total += nudge_px;
-            break;
-        }
-    }
-    for (nudge_env, filter_env) in [
-        (
-            ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_EXPERIMENT,
-            ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_NODE_FILTER_EXPERIMENT,
-        ),
-        (
-            ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_EXPERIMENT_2,
-            ENV_ATTACHED_LABEL_REPLAY_Y_DELTA_NODE_FILTER_EXPERIMENT_2,
-        ),
-    ] {
-        let Some(nudge_px) = preview_env_f64(nudge_env) else {
-            continue;
-        };
-        if std::env::var_os(filter_env).is_some() {
-            if !preview_attached_label_replay_node_filter_matches_with_env(node_id, filter_env) {
-                continue;
-            }
-        } else if !preview_attached_label_replay_matches(
-            node_id,
-            runs,
-            fallback_fill,
-            text_anchor,
-            label_context,
-        ) {
-            continue;
-        }
-        total += nudge_px;
-        break;
     }
     total
 }
@@ -3135,76 +2794,6 @@ fn preview_attached_label_replay_default_family_y_nudge_px(
         }
         _ => None,
     }
-}
-
-fn preview_attached_label_replay_general_policy_y_nudge_px(
-    node_id: Option<&str>,
-    runs: &[chemcore_engine::LabelRun],
-    fallback_fill: Option<&str>,
-    text_anchor: Option<&str>,
-    label_context: Option<&PreviewLabelContext>,
-) -> Option<f64> {
-    let policy = std::env::var_os(ENV_ATTACHED_LABEL_REPLAY_GENERAL_POLICY_EXPERIMENT)?;
-    let policy = policy.to_string_lossy();
-    if !matches!(text_anchor, Some("start")) {
-        return None;
-    }
-    let node_id = node_id?;
-    let info = label_context.and_then(|context| context.infos.get(node_id))?;
-    let fill = runs
-        .iter()
-        .find_map(|run| run.fill.as_deref())
-        .or(fallback_fill)
-        .unwrap_or("#000000");
-    if !fill.eq_ignore_ascii_case("#000000") {
-        return None;
-    }
-    match info.layout.as_deref() {
-        Some("attached-group-above") if info.line_count > 1 => {
-            preview_general_policy_lookup_y_nudge(
-                policy.as_ref(),
-                &[
-                    ("ppt-box-v1", -2.0),
-                    ("ppt-family-v1", -2.0),
-                    ("above-multi-black-y-1", -1.0),
-                    ("above-multi-black-y-2", -2.0),
-                    ("above-multi-black-y-3", -3.0),
-                    ("above-multi-black-y-4", -4.0),
-                ],
-            )
-        }
-        Some("attached-group") if info.line_count > 1 => preview_general_policy_lookup_y_nudge(
-            policy.as_ref(),
-            &[
-                ("ppt-box-v1", -3.0),
-                ("ppt-family-v1", -3.0),
-                ("lateral-multi-black-y-1", -1.0),
-                ("lateral-multi-black-y-2", -2.0),
-                ("lateral-multi-black-y-3", -3.0),
-                ("lateral-multi-black-y-4", -4.0),
-            ],
-        ),
-        _ => None,
-    }
-}
-
-fn preview_general_policy_has_token(policy: &str, tokens: &[&str]) -> bool {
-    policy.split(',').map(str::trim).any(|token| {
-        tokens
-            .iter()
-            .any(|candidate| token.eq_ignore_ascii_case(candidate))
-    })
-}
-
-fn preview_general_policy_lookup_y_nudge(policy: &str, tokens: &[(&str, f64)]) -> Option<f64> {
-    for token in policy.split(',').map(str::trim) {
-        for (candidate, value) in tokens {
-            if token.eq_ignore_ascii_case(candidate) {
-                return Some(*value);
-            }
-        }
-    }
-    None
 }
 
 fn preview_attached_label_replay_phase_policy_y_nudge_px(
@@ -3285,238 +2874,38 @@ fn preview_attached_label_replay_phase_policy_y_nudge_px(
 }
 
 fn preview_attached_label_replay_font_scale(
-    node_id: Option<&str>,
-    runs: &[chemcore_engine::LabelRun],
-    fallback_fill: Option<&str>,
-    text_anchor: Option<&str>,
-    label_context: Option<&PreviewLabelContext>,
+    _node_id: Option<&str>,
+    _runs: &[chemcore_engine::LabelRun],
+    _fallback_fill: Option<&str>,
+    _text_anchor: Option<&str>,
+    _label_context: Option<&PreviewLabelContext>,
 ) -> f64 {
-    if let Some(scale) =
-        preview_attached_label_replay_stack_policy_font_scale(node_id, text_anchor, label_context)
-    {
-        return scale;
-    }
-    let Some(scale) = preview_env_f64(ENV_ATTACHED_LABEL_REPLAY_FONT_SCALE_EXPERIMENT) else {
-        return 1.0;
-    };
-    if !preview_attached_label_replay_experiment_matches_with_filter_env(
-        node_id,
-        runs,
-        fallback_fill,
-        text_anchor,
-        label_context,
-        ENV_ATTACHED_LABEL_REPLAY_FONT_SCALE_NODE_FILTER_EXPERIMENT,
-    ) {
-        return 1.0;
-    }
-    scale
-}
-
-fn preview_attached_label_replay_stack_policy_font_scale(
-    node_id: Option<&str>,
-    text_anchor: Option<&str>,
-    label_context: Option<&PreviewLabelContext>,
-) -> Option<f64> {
-    let policy = preview_attached_label_replay_stack_policy_name()?;
-    if !preview_attached_label_replay_stack_policy_is_current_best(&policy) {
-        return None;
-    }
-    let info = preview_attached_group_label_info(node_id, text_anchor, label_context)?;
-    ((137.245..=166.240).contains(&info.gap_right)).then_some(0.97)
+    1.0
 }
 
 fn preview_attached_label_replay_text_hint(
-    node_id: Option<&str>,
-    runs: &[chemcore_engine::LabelRun],
-    fallback_fill: Option<&str>,
-    text_anchor: Option<&str>,
-    label_context: Option<&PreviewLabelContext>,
+    _node_id: Option<&str>,
+    _runs: &[chemcore_engine::LabelRun],
+    _fallback_fill: Option<&str>,
+    _text_anchor: Option<&str>,
+    _label_context: Option<&PreviewLabelContext>,
 ) -> Option<i32> {
-    let hint = preview_env_i32(ENV_ATTACHED_LABEL_REPLAY_TEXT_HINT_EXPERIMENT)?;
-    if !preview_attached_label_replay_experiment_matches_with_filter_env(
-        node_id,
-        runs,
-        fallback_fill,
-        text_anchor,
-        label_context,
-        ENV_ATTACHED_LABEL_REPLAY_TEXT_HINT_NODE_FILTER_EXPERIMENT,
-    ) {
-        return None;
-    }
-    Some(hint)
-}
-
-fn preview_attached_label_replay_top_nudge_px(
-    node_id: Option<&str>,
-    runs: &[chemcore_engine::LabelRun],
-    fallback_fill: Option<&str>,
-    text_anchor: Option<&str>,
-    label_context: Option<&PreviewLabelContext>,
-    x: f64,
-    y: f64,
-    baseline_offset: Option<f64>,
-    fallback_font_size: f64,
-    transform: &PreviewTransform,
-) -> f64 {
-    let mut total = preview_attached_label_replay_stack_policy_top_nudge_px(
-        node_id,
-        runs,
-        text_anchor,
-        label_context,
-        x,
-        y,
-        baseline_offset,
-        fallback_font_size,
-        transform,
-    )
-    .unwrap_or(0.0);
-    for (nudge_env, filter_env) in [
-        (
-            ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT,
-            ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT,
-        ),
-        (
-            ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT_2,
-            ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT_2,
-        ),
-        (
-            ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_EXPERIMENT_3,
-            ENV_ATTACHED_LABEL_REPLAY_TOP_NUDGE_NODE_FILTER_EXPERIMENT_3,
-        ),
-    ] {
-        let Some(nudge_px) = preview_env_f64(nudge_env) else {
-            continue;
-        };
-        if !preview_attached_label_replay_experiment_matches_with_filter_env(
-            node_id,
-            runs,
-            fallback_fill,
-            text_anchor,
-            label_context,
-            filter_env,
-        ) {
-            continue;
-        }
-        total += nudge_px;
-        break;
-    }
-    total
-}
-
-fn preview_attached_label_replay_stack_policy_top_nudge_px(
-    node_id: Option<&str>,
-    runs: &[chemcore_engine::LabelRun],
-    text_anchor: Option<&str>,
-    label_context: Option<&PreviewLabelContext>,
-    x: f64,
-    y: f64,
-    baseline_offset: Option<f64>,
-    fallback_font_size: f64,
-    transform: &PreviewTransform,
-) -> Option<f64> {
-    let policy = preview_attached_label_replay_stack_policy_name()?;
-    if !preview_attached_label_replay_stack_policy_is_current_best(&policy)
-        || !transform.emf_recording
-    {
-        return None;
-    }
-    let info = preview_attached_group_label_info(node_id, text_anchor, label_context)?;
-    let text = preview_attached_label_text(runs);
-    let (x_page_phase, top_page_phase) = preview_attached_label_stack_policy_phases(
-        x,
-        y,
-        baseline_offset,
-        fallback_font_size,
-        transform,
-    );
-
-    if (info.gap_right <= 149.630 && top_page_phase <= 0.532_088 && x_page_phase <= 0.636_529)
-        || (info.gap_right <= 180.750 && top_page_phase <= 0.532_088 && x_page_phase >= 0.716_492)
-        || (info.component_quadrant() == PreviewComponentQuadrant::LB && info.gap_right >= 225.110)
-    {
-        return Some(-2.0);
-    }
-    if info.gap_right <= 149.630 && top_page_phase >= 0.605_638 {
-        return Some(2.0);
-    }
-    if text.eq_ignore_ascii_case("O") && info.gap_right <= 180.990 {
-        return Some(1.0);
-    }
     None
 }
 
-fn preview_attached_label_replay_experiment_matches_with_filter_env(
-    node_id: Option<&str>,
-    runs: &[chemcore_engine::LabelRun],
-    fallback_fill: Option<&str>,
-    text_anchor: Option<&str>,
-    label_context: Option<&PreviewLabelContext>,
-    filter_env_name: &str,
-) -> bool {
-    if std::env::var_os(filter_env_name).is_some() {
-        return preview_attached_label_replay_node_filter_matches_with_env(
-            node_id,
-            filter_env_name,
-        );
-    }
-    preview_attached_label_replay_matches(node_id, runs, fallback_fill, text_anchor, label_context)
-}
-
-fn preview_attached_label_replay_matches(
-    node_id: Option<&str>,
-    runs: &[chemcore_engine::LabelRun],
-    fallback_fill: Option<&str>,
-    text_anchor: Option<&str>,
-    label_context: Option<&PreviewLabelContext>,
-) -> bool {
-    if !matches!(text_anchor, Some("start")) {
-        return false;
-    }
-    let Some(node_id) = node_id else {
-        return false;
-    };
-    let Some(info) = label_context.and_then(|context| context.infos.get(node_id)) else {
-        return false;
-    };
-    if info.layout.as_deref() != Some("attached-group") {
-        return false;
-    }
-    if info.label_justification.as_deref() != Some("Left") {
-        return false;
-    }
-    if info.component_half_x != PreviewComponentHalfX::Right {
-        return false;
-    }
-    if info.primary_neighbor_bucket != Some(PreviewNeighborBucket::North) {
-        return false;
-    }
-    if info.gap_right > 40.44 {
-        return false;
-    }
-    let fill = runs
-        .iter()
-        .find_map(|run| run.fill.as_deref())
-        .or(fallback_fill)
-        .unwrap_or("#000000");
-    fill.eq_ignore_ascii_case("#000000")
-}
-
-fn preview_attached_label_replay_node_filter_matches_with_env(
-    node_id: Option<&str>,
-    env_name: &str,
-) -> bool {
-    let Some(filter) = std::env::var_os(env_name) else {
-        return true;
-    };
-    let Some(node_id) = node_id else {
-        return false;
-    };
-    let filter = filter.to_string_lossy();
-    filter
-        .split(',')
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .any(|value| value.eq_ignore_ascii_case(node_id))
+fn preview_attached_label_replay_top_nudge_px(
+    _node_id: Option<&str>,
+    _runs: &[chemcore_engine::LabelRun],
+    _fallback_fill: Option<&str>,
+    _text_anchor: Option<&str>,
+    _label_context: Option<&PreviewLabelContext>,
+    _x: f64,
+    _y: f64,
+    _baseline_offset: Option<f64>,
+    _fallback_font_size: f64,
+    _transform: &PreviewTransform,
+) -> f64 {
+    0.0
 }
 
 fn preview_scale_text_run_font_sizes(lines: &mut [Vec<PreviewTextRun>], scale: f64) {
@@ -5202,14 +4591,6 @@ struct PreviewLabelBBox {
 }
 
 impl PreviewLabelBBox {
-    fn center_x(&self) -> f64 {
-        (self.left + self.right) * 0.5
-    }
-
-    fn center_y(&self) -> f64 {
-        (self.top + self.bottom) * 0.5
-    }
-
     fn expand_to_include(self, other: Self) -> Self {
         Self {
             left: self.left.min(other.left),
@@ -5253,7 +4634,6 @@ fn preview_label_context_from_document(document: &ChemcoreDocument) -> PreviewLa
         }
         let components = preview_fragment_components(&node_map, &adjacency);
         for component in components {
-            let component_box = preview_component_world_box(object, &node_map, &component);
             for node_id in &component {
                 let Some(node) = node_map.get(node_id.as_str()).copied() else {
                     continue;
@@ -5265,40 +4645,12 @@ fn preview_label_context_from_document(document: &ChemcoreDocument) -> PreviewLa
                 let Some(label_box) = preview_label_world_box(object, label) else {
                     continue;
                 };
-                let label_justification = label
-                    .meta
-                    .pointer("/import/cdxml/labelJustification")
-                    .and_then(|value| value.as_str())
-                    .map(ToOwned::to_owned)
-                    .or_else(|| {
-                        label
-                            .meta
-                            .pointer("/import/cdxml/labelAlignment")
-                            .and_then(|value| value.as_str())
-                            .map(ToOwned::to_owned)
-                    })
-                    .or_else(|| label.align.clone());
                 infos.insert(
                     (*node_id).to_string(),
                     PreviewLabelInfo {
                         layout: label.layout.clone(),
-                        label_justification,
                         world_box: Some(label_box),
                         simple_single_run: preview_label_is_simple_single_run(label),
-                        component_half_x: if label_box.center_x() < component_box.center_x() {
-                            PreviewComponentHalfX::Left
-                        } else {
-                            PreviewComponentHalfX::Right
-                        },
-                        component_half_y: if label_box.center_y() < component_box.center_y() {
-                            PreviewComponentHalfY::Top
-                        } else {
-                            PreviewComponentHalfY::Bottom
-                        },
-                        primary_neighbor_bucket: preview_primary_neighbor_bucket(
-                            node, &node_map, &adjacency,
-                        ),
-                        gap_right: component_box.right - label_box.right,
                         line_count: if !label.line_runs.is_empty() {
                             label.line_runs.len()
                         } else {
@@ -5412,35 +4764,6 @@ fn preview_fragment_components(
     components
 }
 
-fn preview_component_world_box(
-    object: &SceneObject,
-    node_map: &BTreeMap<&str, &chemcore_engine::Node>,
-    component: &[String],
-) -> PreviewLabelBBox {
-    let mut boxes = Vec::new();
-    for node_id in component {
-        let Some(node) = node_map.get(node_id.as_str()).copied() else {
-            continue;
-        };
-        boxes.push(preview_point_bbox(preview_transform_scene_point(
-            object,
-            node.position[0],
-            node.position[1],
-        )));
-        if let Some(label) = node.label.as_ref().filter(|label| label.has_visible_text()) {
-            if let Some(label_box) = preview_label_world_box(object, label) {
-                boxes.push(label_box);
-            }
-        }
-    }
-    preview_union_boxes(&boxes).unwrap_or(PreviewLabelBBox {
-        left: 0.0,
-        top: 0.0,
-        right: 0.0,
-        bottom: 0.0,
-    })
-}
-
 fn preview_label_world_box(
     object: &SceneObject,
     label: &chemcore_engine::NodeLabel,
@@ -5469,33 +4792,6 @@ fn preview_label_world_box(
     preview_union_boxes(&candidates)
 }
 
-fn preview_primary_neighbor_bucket(
-    node: &chemcore_engine::Node,
-    node_map: &BTreeMap<&str, &chemcore_engine::Node>,
-    adjacency: &BTreeMap<&str, Vec<&str>>,
-) -> Option<PreviewNeighborBucket> {
-    let mut best: Option<(f64, PreviewNeighborBucket)> = None;
-    for neighbor_id in adjacency
-        .get(node.id.as_str())
-        .into_iter()
-        .flatten()
-        .copied()
-    {
-        let Some(neighbor) = node_map.get(neighbor_id).copied() else {
-            continue;
-        };
-        let dx = neighbor.position[0] - node.position[0];
-        let dy = neighbor.position[1] - node.position[1];
-        let dist2 = dx * dx + dy * dy;
-        let bucket = preview_neighbor_bucket(dx, dy);
-        match best {
-            Some((best_dist2, _)) if dist2 <= best_dist2 => {}
-            _ => best = Some((dist2, bucket)),
-        }
-    }
-    best.map(|(_, bucket)| bucket)
-}
-
 fn preview_label_is_simple_single_run(label: &chemcore_engine::NodeLabel) -> bool {
     if label.text.contains('\n') || !label.has_visible_text() {
         return false;
@@ -5513,19 +4809,6 @@ fn preview_label_is_simple_single_run(label: &chemcore_engine::NodeLabel) -> boo
     }
     let run = &runs[0];
     !matches!(run.script.as_deref(), Some("subscript" | "superscript"))
-}
-
-fn preview_neighbor_bucket(dx: f64, dy: f64) -> PreviewNeighborBucket {
-    let deg = dy.atan2(dx).to_degrees();
-    if (-45.0..45.0).contains(&deg) {
-        PreviewNeighborBucket::East
-    } else if (45.0..135.0).contains(&deg) {
-        PreviewNeighborBucket::South
-    } else if deg >= 135.0 || deg < -135.0 {
-        PreviewNeighborBucket::West
-    } else {
-        PreviewNeighborBucket::North
-    }
 }
 
 fn preview_transform_scene_point(object: &SceneObject, x: f64, y: f64) -> CorePoint {
@@ -5581,15 +4864,6 @@ fn preview_union_boxes(boxes: &[PreviewLabelBBox]) -> Option<PreviewLabelBBox> {
         bbox = bbox.expand_to_include(next);
     }
     Some(bbox)
-}
-
-fn preview_point_bbox(point: CorePoint) -> PreviewLabelBBox {
-    PreviewLabelBBox {
-        left: point.x,
-        top: point.y,
-        right: point.x,
-        bottom: point.y,
-    }
 }
 
 fn preview_molecule_fragment<'a>(
@@ -6682,13 +5956,8 @@ mod tests {
             "n1".to_string(),
             PreviewLabelInfo {
                 layout: Some("attached-group-above".to_string()),
-                label_justification: Some("Left".to_string()),
                 world_box: None,
                 simple_single_run: false,
-                component_half_x: PreviewComponentHalfX::Right,
-                component_half_y: PreviewComponentHalfY::Top,
-                primary_neighbor_bucket: Some(PreviewNeighborBucket::North),
-                gap_right: 120.0,
                 line_count: 2,
             },
         );

@@ -25,6 +25,7 @@
     "office:serve": "cargo run -p chemcore-office -- --serve",
     "office:self-test": "cargo run -p chemcore-office -- --self-test",
     "office:unregister-dev": "cargo run -p chemcore-office -- --unregister-user",
+    "office:validate-roundtrip": "powershell -ExecutionPolicy Bypass -File scripts/validate-word-ole-roundtrip.ps1",
     "regression:label-anchor": "node scripts/label-anchor-regression.mjs",
     "regression:text-editor": "node scripts/text-editor-regression.mjs",
     "verify": "node scripts/verify.mjs",
