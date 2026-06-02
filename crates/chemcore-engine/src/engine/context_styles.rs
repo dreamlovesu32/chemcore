@@ -35,6 +35,7 @@ impl Engine {
                         style,
                         &color,
                         self.options.graphic_stroke_world_cm().value(),
+                        self.options.hash_spacing,
                     ),
                 )
             })
@@ -287,6 +288,7 @@ impl Engine {
                         style,
                         &color,
                         self.options.graphic_stroke_world_cm().value(),
+                        self.options.hash_spacing,
                     ),
                 )
             })
@@ -1097,14 +1099,14 @@ fn selected_object_style_color(document: &ChemcoreDocument, object: &SceneObject
         .unwrap_or_else(|| "#000000".to_string())
 }
 
-fn shape_style_json(style: &str, color: &str, stroke_width: f64) -> JsonValue {
+fn shape_style_json(style: &str, color: &str, stroke_width: f64, dash_spacing: f64) -> JsonValue {
     match style {
         "dashed" => json!({
             "kind": "shape",
             "fill": null,
             "stroke": color,
             "strokeWidth": stroke_width,
-            "dashArray": [SHAPE_DASH_LENGTH],
+            "dashArray": [dash_spacing],
         }),
         "filled" => json!({
             "kind": "shape",
@@ -1175,7 +1177,7 @@ fn orbital_style_json(style: &str, color: &str, stroke_width: f64) -> JsonValue 
     }
 }
 
-fn line_style_json(style: &str, color: &str, stroke_width: f64) -> JsonValue {
+fn line_style_json(style: &str, color: &str, stroke_width: f64, dash_spacing: f64) -> JsonValue {
     let width = if style == "bold" {
         (stroke_width * 2.0).max(stroke_width)
     } else {
@@ -1187,7 +1189,7 @@ fn line_style_json(style: &str, color: &str, stroke_width: f64) -> JsonValue {
         "strokeWidth": width,
         "lineCap": "butt",
         "lineJoin": "miter",
-        "dashArray": if style == "dashed" { json!([SHAPE_DASH_LENGTH]) } else { json!([]) },
+        "dashArray": if style == "dashed" { json!([dash_spacing]) } else { json!([]) },
     })
 }
 

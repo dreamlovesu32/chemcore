@@ -2899,6 +2899,8 @@ fn parse_cdxml_imports_rest_fixture_special_bonds_and_table() {
         .expect("tlc plate should import");
     assert_eq!(tlc.object_type, "shape");
     assert_eq!(tlc.payload.extra.get("kind"), Some(&json!("tlcPlate")));
+    assert_eq!(tlc.transform.translate, [365.29, 138.75]);
+    assert_eq!(tlc.payload.bbox, Some([0.0, 0.0, 102.37, 172.13]));
     let lanes = tlc
         .payload
         .extra
@@ -4558,6 +4560,48 @@ fn parse_cdxml_preserves_default_and_acs_hash_spacing_presets_for_dashed_bonds()
             "{fixture} dashed bond style"
         );
     }
+}
+
+#[test]
+fn parse_cdxml_uses_document_hash_spacing_for_dashed_lines() {
+    for (fixture, expected_hash_spacing) in [("dash.cdxml", 2.7), ("dash-acs.cdxml", 2.5)] {
+        let cdxml = std::fs::read_to_string(fixture_path(fixture)).expect("dash fixture");
+        let mut engine = Engine::new();
+        engine
+            .load_cdxml_document(&cdxml)
+            .expect("cdxml should load into engine");
+        let svg = engine.document_svg();
+        let expected_scaled_dash =
+            ((expected_hash_spacing * chemcore_engine::PT_TO_CSS_PX * 2.0) * 100.0).round()
+                / 100.0;
+        let expected_dash_attr = format!("stroke-dasharray=\"{expected_scaled_dash}\"");
+
+        assert!(
+            svg.contains(&expected_dash_attr),
+            "{fixture} expected {expected_dash_attr} in {svg}"
+        );
+        assert!(svg.contains("stroke-linecap=\"butt\""), "{fixture} cap");
+        assert!(svg.contains("stroke-linejoin=\"miter\""), "{fixture} join");
+    }
+}
+
+#[test]
+fn tlc_plate_guides_use_document_hash_spacing() {
+    let cdxml = std::fs::read_to_string(fixture_path("rest.cdxml")).expect("rest fixture");
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(&cdxml)
+        .expect("cdxml should load into engine");
+    let svg = engine.document_svg();
+    let expected_scaled_dash =
+        ((2.7 * chemcore_engine::PT_TO_CSS_PX * 2.0) * 100.0).round() / 100.0;
+    let expected_dash_attr = format!("stroke-dasharray=\"{expected_scaled_dash}\"");
+    let dash_occurrences = svg.matches(&expected_dash_attr).count();
+
+    assert!(
+        dash_occurrences >= 2,
+        "expected at least 2 TLC dash guides with {expected_dash_attr}, svg={svg}"
+    );
 }
 
 fn imported_fragment_bond<'a>(

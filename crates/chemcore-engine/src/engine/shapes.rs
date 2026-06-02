@@ -188,6 +188,7 @@ impl Engine {
                     extra.insert("showSolventFront".to_string(), json!(true));
                     extra.insert("showBorders".to_string(), json!(true));
                     extra.insert("showSideTicks".to_string(), json!(true));
+                    extra.insert("dashSpacing".to_string(), json!(round2(self.options.hash_spacing)));
                     let lane_count = suggested_tlc_lane_count(width);
                     let lanes: Vec<_> = (0..lane_count)
                         .map(|index| {
@@ -258,7 +259,7 @@ impl Engine {
                 "fill": null,
                 "stroke": color,
                 "strokeWidth": stroke_width,
-                "dashArray": [SHAPE_DASH_LENGTH],
+                "dashArray": [self.options.hash_spacing],
             }),
             ShapeStyle::Shaded => json!({
                 "kind": "shape",

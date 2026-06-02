@@ -69,7 +69,6 @@ const HOVER_ENDPOINT_STROKE_WIDTH: f64 = crate::px_to_cm(1.4);
 const HOVER_BOND_CENTER_STROKE_WIDTH: f64 = crate::px_to_cm(1.2);
 const PREVIEW_END_RADIUS: f64 = crate::px_to_cm(5.0);
 const PREVIEW_END_STROKE_WIDTH: f64 = crate::px_to_cm(1.2);
-const SHAPE_DASH_LENGTH: f64 = 2.7;
 const SYMBOL_CLICK_CLEARANCE: f64 = 2.5;
 const ELLIPSE_MINOR_AXIS_RATIO: f64 = 0.4;
 const ROUND_RECT_CORNER_RADIUS: f64 = 6.0;

@@ -474,6 +474,7 @@ fn scale_json_key_as_length_scalar(key: &str) -> bool {
             | "padding"
             | "cornerRadius"
             | "shadowSize"
+            | "dashSpacing"
     )
 }
 
@@ -495,6 +496,7 @@ fn scale_json_key_as_length_array(key: &str) -> bool {
             | "axisEnd"
             | "anchorOffset"
             | "glyphPolygons"
+            | "dashArray"
     )
 }
 

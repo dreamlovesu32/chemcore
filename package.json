@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build:engine-wasm": "node scripts/build-engine-wasm.mjs",
+    "chemdraw:focus-capture": "powershell -ExecutionPolicy Bypass -File scripts/chemdraw-focus-capture.ps1",
     "compare:cdxml-symbol-pixels": "node scripts/compare-cdxml-symbol-pixels.mjs",
     "compare:svg-pixels": "node scripts/compare-svg-pixels.mjs",
     "desktop:build": "node scripts/desktop-tauri.mjs build",
@@ -26,6 +27,7 @@
     "office:self-test": "cargo run -p chemcore-office -- --self-test",
     "office:unregister-dev": "cargo run -p chemcore-office -- --unregister-user",
     "office:validate-roundtrip": "powershell -ExecutionPolicy Bypass -File scripts/validate-word-ole-roundtrip.ps1",
+    "audit:core-render-coverage": "node scripts/audit-core-render-coverage.mjs",
     "regression:label-anchor": "node scripts/label-anchor-regression.mjs",
     "regression:text-editor": "node scripts/text-editor-regression.mjs",
     "verify": "node scripts/verify.mjs",

@@ -1,6 +1,10 @@
 use super::*;
 use crate::Point;
 
+fn non_bond_dash_array(defaults: CdxmlDefaults) -> Value {
+    json!([defaults.hash_spacing])
+}
+
 pub(super) fn append_line_objects(
     root: &XmlNode,
     objects: &mut Vec<SceneObject>,
@@ -241,13 +245,15 @@ fn cdxml_line_style_ref(
         }
     );
     styles.entry(style_id.clone()).or_insert_with(|| {
+        let line_cap = if dashed || is_arrow { "butt" } else { "round" };
+        let line_join = if dashed || is_arrow { "miter" } else { "round" };
         json!({
             "kind": "stroke",
             "stroke": color,
             "strokeWidth": if bold { defaults.bold_width } else { defaults.line_width },
-            "lineCap": if is_arrow { "butt" } else { "round" },
-            "lineJoin": if is_arrow { "miter" } else { "round" },
-            "dashArray": if dashed { json!([2.7]) } else { json!([]) },
+            "lineCap": line_cap,
+            "lineJoin": line_join,
+            "dashArray": if dashed { non_bond_dash_array(defaults) } else { json!([]) },
         })
     });
     style_id
@@ -300,7 +306,7 @@ pub(super) fn append_shape_objects(
                 "fill": if filled || shaded { json!(color) } else { Value::Null },
                 "stroke": if filled { Value::Null } else { json!(color) },
                 "strokeWidth": if filled { 0.0 } else { stroke_width },
-                "dashArray": if dashed { json!([2.7]) } else { json!([]) },
+                "dashArray": if dashed { non_bond_dash_array(defaults) } else { json!([]) },
                 "shaded": if shaded { json!(true) } else { Value::Null },
                 "shadow": if shadow { json!(true) } else { Value::Null },
                 "shadowSize": if shadow { json!(shadow_size) } else { Value::Null },
@@ -631,7 +637,28 @@ pub(super) fn append_tlc_plate_shape_objects(
         if !node.is("tlcplate") || node.attr("SupersededBy").is_some() {
             continue;
         }
-        let Some(bbox) = parse_bbox(node.attr("BoundingBox")) else {
+        let corners = [
+            parse_xyz2(node.attr("TopLeft")),
+            parse_xyz2(node.attr("TopRight")),
+            parse_xyz2(node.attr("BottomRight")),
+            parse_xyz2(node.attr("BottomLeft")),
+        ];
+        let plate_bbox = corners
+            .iter()
+            .flatten()
+            .fold(None, |acc: Option<[f64; 4]>, point| {
+                Some(match acc {
+                    Some([left, top, right, bottom]) => [
+                        left.min(point[0]),
+                        top.min(point[1]),
+                        right.max(point[0]),
+                        bottom.max(point[1]),
+                    ],
+                    None => [point[0], point[1], point[0], point[1]],
+                })
+            })
+            .or_else(|| parse_bbox(node.attr("BoundingBox")));
+        let Some(bbox) = plate_bbox else {
             continue;
         };
         let color = colors.resolve(node.attr("color"));
@@ -723,6 +750,7 @@ pub(super) fn append_tlc_plate_shape_objects(
                 .attr("ShowSideTicks")
                 .is_none_or(|value| value.eq_ignore_ascii_case("yes"))),
         );
+        extra.insert("dashSpacing".to_string(), json!(round2(defaults.hash_spacing)));
         extra.insert("lanes".to_string(), json!(lanes));
         objects.push(SceneObject {
             id: format!("obj_shape_tlc_{index:03}"),

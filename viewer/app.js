@@ -115,6 +115,7 @@ const state = {
   displayMetrics: displayMetrics(),
   pendingTextSymbol: null,
 };
+const legacyFallbackWarnings = new Set();
 const engineHost = createEngineHost();
 const desktopFileHost = createDesktopFileHost();
 const colorHost = createColorHost();
@@ -1476,6 +1477,47 @@ function corePrimitivesForObject(objectId) {
   return primitivesForObject(state.coreRenderList, objectId);
 }
 
+function documentUsesCorePrimitivePipeline(documentData) {
+  return Boolean(documentData && state.coreRenderList && state.coreRenderList.length);
+}
+
+function warnUnexpectedLegacyFallback(object, documentData) {
+  if (!documentUsesCorePrimitivePipeline(documentData)) {
+    return;
+  }
+  const kind = object?.payload?.kind || object?.type || "object";
+  const key = `${object?.id || "unknown"}:${kind}`;
+  if (legacyFallbackWarnings.has(key)) {
+    return;
+  }
+  legacyFallbackWarnings.add(key);
+  console.warn("[chemcore] unexpected legacy fallback render", {
+    id: object?.id || null,
+    type: object?.type || null,
+    kind,
+    meta: object?.meta || null,
+  });
+}
+
+function renderObjectCorePrimitives(objectLayer, objectId) {
+  const corePrimitives = corePrimitivesForObject(objectId);
+  if (!corePrimitives.length) {
+    return false;
+  }
+  objectLayer.setAttribute("data-renderer", "core");
+  corePrimitives.forEach((primitive) => renderCorePrimitive(objectLayer, primitive, corePrimitiveRenderOptions()));
+  return true;
+}
+
+function renderObjectWithCoreFallback(objectLayer, object, documentData, fallbackRenderer) {
+  if (renderObjectCorePrimitives(objectLayer, object.id)) {
+    return;
+  }
+  objectLayer.setAttribute("data-renderer", "fallback");
+  warnUnexpectedLegacyFallback(object, documentData);
+  fallbackRenderer();
+}
+
 function activeEndpointEditorNodeId() {
   return activeTextEditor?.session?.target?.kind === "endpoint-label"
     ? activeTextEditor.session.target.nodeId || activeTextEditor.session.target.node_id
@@ -1660,6 +1702,66 @@ function currentSelectionInfo() {
     bonds: bondIds.map((id) => fragment?.bonds?.find((bond) => bond.id === id)).filter(Boolean),
     labelNodes: labelNodeIds.map((id) => fragment?.nodes?.find((node) => node.id === id)).filter(Boolean),
   };
+}
+
+function currentSelectionOverlayBehavior() {
+  const info = currentSelectionInfo();
+  const onlySingleGraphic = info.graphicObjects.length === 1
+    && info.textObjects.length === 0
+    && info.nodes.length === 0
+    && info.bonds.length === 0
+    && info.labelNodes.length === 0;
+  const base = {
+    showResizeHandles: true,
+    showRotateHandle: true,
+    rotateHandleShape: "circle",
+    showRotateGlyph: true,
+    showCenterCross: false,
+    useGlobalBoundsOnly: false,
+  };
+  if (!onlySingleGraphic) {
+    return base;
+  }
+  const object = info.graphicObjects[0];
+  const kind = object?.payload?.kind || "";
+  if (object?.type === "line") {
+    return {
+      ...base,
+      showResizeHandles: false,
+      showRotateHandle: false,
+      showRotateGlyph: false,
+      useGlobalBoundsOnly: true,
+    };
+  }
+  if (object?.type === "shape" && kind === "orbital") {
+    return {
+      ...base,
+      showRotateHandle: false,
+      showRotateGlyph: false,
+      showCenterCross: true,
+      useGlobalBoundsOnly: true,
+    };
+  }
+  if (object?.type === "shape" && kind === "tlcPlate") {
+    return {
+      ...base,
+      showResizeHandles: false,
+      rotateHandleShape: "square",
+      showRotateGlyph: false,
+      showCenterCross: true,
+      useGlobalBoundsOnly: true,
+    };
+  }
+  if (object?.type === "shape" && kind === "crossTable") {
+    return {
+      ...base,
+      showResizeHandles: false,
+      showRotateHandle: false,
+      showRotateGlyph: false,
+      useGlobalBoundsOnly: true,
+    };
+  }
+  return base;
 }
 
 function formatTlcRfValue(rf) {
@@ -3747,8 +3849,8 @@ function screenPxToWorld(px) {
   return px / Math.max(1, viewportScale());
 }
 
-function selectionRotateHandleFromBounds(bounds) {
-  if (!bounds) {
+function selectionRotateHandleFromBounds(bounds, behavior = currentSelectionOverlayBehavior()) {
+  if (!bounds || behavior?.showRotateHandle === false) {
     return null;
   }
   return {
@@ -3761,7 +3863,7 @@ function selectionRotateHandleFromBounds(bounds) {
 }
 
 function currentSelectionRotateHandle() {
-  return selectionRotateHandleFromBounds(currentRenderBounds("selection"));
+  return selectionRotateHandleFromBounds(currentRenderBounds("selection"), currentSelectionOverlayBehavior());
 }
 
 function selectionRotateHandleHit(point) {
@@ -3798,13 +3900,18 @@ function selectionResizeHandlesForBounds(bounds) {
   ].map((handle) => ({ ...handle, size, hitRadius, bounds }));
 }
 
-function selectionResizeHandles(renderList = currentEditorRenderList()) {
-  const handles = selectionBoxPrimitives(renderList).flatMap((primitive) => selectionResizeHandlesForBounds({
-    minX: primitive.x,
-    minY: primitive.y,
-    maxX: primitive.x + primitive.width,
-    maxY: primitive.y + primitive.height,
-  }));
+function selectionResizeHandles(renderList = currentEditorRenderList(), behavior = currentSelectionOverlayBehavior()) {
+  if (behavior?.showResizeHandles === false) {
+    return [];
+  }
+  const handles = behavior?.useGlobalBoundsOnly
+    ? []
+    : selectionBoxPrimitives(renderList).flatMap((primitive) => selectionResizeHandlesForBounds({
+      minX: primitive.x,
+      minY: primitive.y,
+      maxX: primitive.x + primitive.width,
+      maxY: primitive.y + primitive.height,
+    }));
   const globalBounds = currentRenderBounds("selection");
   if (globalBounds) {
     handles.push(...selectionResizeHandlesForBounds(globalBounds).map((handle) => ({
@@ -3816,7 +3923,7 @@ function selectionResizeHandles(renderList = currentEditorRenderList()) {
 }
 
 function selectionResizeHandleHit(point) {
-  return selectionResizeHandles()
+  return selectionResizeHandles(currentEditorRenderList(), currentSelectionOverlayBehavior())
     .map((handle) => {
       const dx = Math.abs(point.x - handle.x);
       const dy = Math.abs(point.y - handle.y);
@@ -3836,6 +3943,18 @@ function selectionResizeHandleHit(point) {
       }
       return a.distance - b.distance;
     })[0]?.handle || null;
+}
+
+function selectionCenterCrossFromBounds(bounds) {
+  if (!bounds) {
+    return null;
+  }
+  const halfSize = screenPxToWorld(5);
+  return {
+    x: (bounds.minX + bounds.maxX) * 0.5,
+    y: (bounds.minY + bounds.maxY) * 0.5,
+    halfSize,
+  };
 }
 
 function selectionResizePivot(handleName, bounds) {
@@ -4644,7 +4763,8 @@ function renderEditorOverlay(renderList = null) {
     && activeTlcLaneHover) {
     drawTlcSpotGuideOverlay(overlay, activeTlcLaneHover);
   } else if (editorState.activeTool === "select" && !activeSelectionGesture) {
-    for (const handle of selectionResizeHandles(primitives)) {
+    const selectionBehavior = currentSelectionOverlayBehavior();
+    for (const handle of selectionResizeHandles(primitives, selectionBehavior)) {
       overlay.appendChild(makeSvgNode("rect", {
         x: handle.x - handle.size * 0.5,
         y: handle.y - handle.size * 0.5,
@@ -4654,7 +4774,29 @@ function renderEditorOverlay(renderList = null) {
         "data-role": `selection-resize-${handle.name}`,
       }));
     }
-    const handle = selectionRotateHandleFromBounds(currentRenderBounds("selection"));
+    const selectionBounds = currentRenderBounds("selection");
+    if (selectionBehavior.showCenterCross) {
+      const cross = selectionCenterCrossFromBounds(selectionBounds);
+      if (cross) {
+        overlay.appendChild(makeSvgNode("line", {
+          x1: cross.x - cross.halfSize,
+          y1: cross.y,
+          x2: cross.x + cross.halfSize,
+          y2: cross.y,
+          class: "editor-selection-center-cross",
+          "data-role": "selection-center-cross",
+        }));
+        overlay.appendChild(makeSvgNode("line", {
+          x1: cross.x,
+          y1: cross.y - cross.halfSize,
+          x2: cross.x,
+          y2: cross.y + cross.halfSize,
+          class: "editor-selection-center-cross",
+          "data-role": "selection-center-cross",
+        }));
+      }
+    }
+    const handle = selectionRotateHandleFromBounds(selectionBounds, selectionBehavior);
     if (handle) {
       const topCenter = {
         x: (handle.bounds.minX + handle.bounds.maxX) * 0.5,
@@ -4668,18 +4810,32 @@ function renderEditorOverlay(renderList = null) {
         class: "editor-selection-rotate-stem",
         "data-role": "selection-rotate-stem",
       }));
-      overlay.appendChild(makeSvgNode("circle", {
-        cx: handle.x,
-        cy: handle.y,
-        r: handle.radius,
-        class: "editor-selection-rotate-handle",
-        "data-role": "selection-rotate-handle",
-      }));
-      overlay.appendChild(makeSvgNode("path", {
-        d: `M ${handle.x - handle.radius * 0.55} ${handle.y} A ${handle.radius * 0.55} ${handle.radius * 0.55} 0 1 1 ${handle.x + handle.radius * 0.35} ${handle.y + handle.radius * 0.42}`,
-        class: "editor-selection-rotate-glyph",
-        "data-role": "selection-rotate-glyph",
-      }));
+      if (selectionBehavior.rotateHandleShape === "square") {
+        const size = handle.radius * 1.25;
+        overlay.appendChild(makeSvgNode("rect", {
+          x: handle.x - size * 0.5,
+          y: handle.y - size * 0.5,
+          width: size,
+          height: size,
+          class: "editor-selection-top-handle",
+          "data-role": "selection-rotate-handle",
+        }));
+      } else {
+        overlay.appendChild(makeSvgNode("circle", {
+          cx: handle.x,
+          cy: handle.y,
+          r: handle.radius,
+          class: "editor-selection-rotate-handle",
+          "data-role": "selection-rotate-handle",
+        }));
+      }
+      if (selectionBehavior.showRotateGlyph) {
+        overlay.appendChild(makeSvgNode("path", {
+          d: `M ${handle.x - handle.radius * 0.55} ${handle.y} A ${handle.radius * 0.55} ${handle.radius * 0.55} 0 1 1 ${handle.x + handle.radius * 0.35} ${handle.y + handle.radius * 0.42}`,
+          class: "editor-selection-rotate-glyph",
+          "data-role": "selection-rotate-glyph",
+        }));
+      }
     }
   }
   if (editorState.activeTool === "select" && activeSelectionGesture?.dragged) {
@@ -4808,34 +4964,21 @@ function renderSceneObject(parentLayer, object, documentData) {
       renderSceneObject(objectLayer, child, documentData);
     }
   } else if (object.type === "molecule") {
-    const corePrimitives = corePrimitivesForObject(object.id);
-    if (corePrimitives.length) {
-      corePrimitives.forEach((primitive) => renderCorePrimitive(objectLayer, primitive, corePrimitiveRenderOptions()));
-    }
+    renderObjectCorePrimitives(objectLayer, object.id);
   } else if (object.type === "shape") {
-    const corePrimitives = corePrimitivesForObject(object.id);
-    if (corePrimitives.length) {
-      corePrimitives.forEach((primitive) => renderCorePrimitive(objectLayer, primitive, corePrimitiveRenderOptions()));
-    } else {
+    renderObjectWithCoreFallback(objectLayer, object, documentData, () => {
       renderShapeObject(objectLayer, object, documentData.styles);
-    }
+    });
   } else if (object.type === "line") {
-    const corePrimitives = corePrimitivesForObject(object.id);
-    if (corePrimitives.length) {
-      corePrimitives.forEach((primitive) => renderCorePrimitive(objectLayer, primitive, corePrimitiveRenderOptions()));
-    } else {
+    renderObjectWithCoreFallback(objectLayer, object, documentData, () => {
       renderLineObject(objectLayer, object, documentData.styles);
-    }
+    });
   } else if (object.type === "text") {
-    const corePrimitives = corePrimitivesForObject(object.id);
-    if (corePrimitives.length) {
-      corePrimitives.forEach((primitive) => renderCorePrimitive(objectLayer, primitive, corePrimitiveRenderOptions()));
-    } else {
+    renderObjectWithCoreFallback(objectLayer, object, documentData, () => {
       renderTextObject(objectLayer, object);
-    }
+    });
   } else if (object.type === "bracket" || object.type === "symbol") {
-    const corePrimitives = corePrimitivesForObject(object.id);
-    corePrimitives.forEach((primitive) => renderCorePrimitive(objectLayer, primitive, corePrimitiveRenderOptions()));
+    renderObjectCorePrimitives(objectLayer, object.id);
   }
 
   if (objectLayer.childNodes.length) {

@@ -27,6 +27,26 @@ struct OrbitalLobeGeometry {
     c8: Point,
 }
 
+// These lobe profiles are calibrated against ChemDraw's exported orbital templates.
+// Keep them centralized so geometry tweaks stay explicit instead of drifting as inline literals.
+const P_ORBITAL_PROFILE: OrbitalLobeProfile = OrbitalLobeProfile {
+    start_ctrl: 0.156,
+    side_ctrl: 0.291,
+    belly_ctrl: 0.51,
+    shoulder: 0.667,
+    tip_ctrl: 0.86,
+    tip_half: 0.25,
+};
+
+const DXY_ORBITAL_PROFILE: OrbitalLobeProfile = OrbitalLobeProfile {
+    start_ctrl: 0.0,
+    side_ctrl: 0.352,
+    belly_ctrl: 0.357,
+    shoulder: 0.668,
+    tip_ctrl: 0.86,
+    tip_half: 0.25,
+};
+
 pub(crate) fn render_shape_object(
     out: &mut Vec<RenderPrimitive>,
     document: &ChemcoreDocument,
@@ -42,7 +62,7 @@ pub(crate) fn render_shape_object(
         return;
     }
     if payload_string(&object.payload, "kind").as_deref() == Some("tlcPlate") {
-        render_tlc_plate_shape_object(out, object, style);
+        render_tlc_plate_shape_object(out, document, object, style);
         return;
     }
     if payload_string(&object.payload, "kind").as_deref() == Some("crossTable") {
@@ -60,10 +80,10 @@ fn render_orbital_shape_object(
     object: &SceneObject,
     style: ShapeStyleSpec,
 ) {
-    let template = payload_string(&object.payload, "orbitalTemplate")
-        .unwrap_or_else(|| "s".to_string());
-    let phase = payload_string(&object.payload, "orbitalPhase")
-        .unwrap_or_else(|| "plus".to_string());
+    let template =
+        payload_string(&object.payload, "orbitalTemplate").unwrap_or_else(|| "s".to_string());
+    let phase =
+        payload_string(&object.payload, "orbitalPhase").unwrap_or_else(|| "plus".to_string());
     let stroke = style.base_color().to_string();
     let stroke_width = if style.stroke_width > crate::EPSILON {
         style.stroke_width
@@ -116,39 +136,54 @@ fn render_orbital_shape_object(
     let center = start;
     let rotate = angle_between(start, end);
     let phase_positive = phase != "minus";
-    let p_profile = OrbitalLobeProfile {
-        start_ctrl: 0.156,
-        side_ctrl: 0.291,
-        belly_ctrl: 0.51,
-        shoulder: 0.667,
-        tip_ctrl: 0.86,
-        tip_half: 0.25,
-    };
-    let dxy_profile = OrbitalLobeProfile {
-        start_ctrl: 0.0,
-        side_ctrl: 0.352,
-        belly_ctrl: 0.357,
-        shoulder: 0.668,
-        tip_ctrl: 0.86,
-        tip_half: 0.25,
-    };
-
     match template.as_str() {
         "p" => {
-            let primary = orbital_lobe_geometry(center, end, p_profile);
-            let secondary = orbital_lobe_geometry(center, center.translated(unit.scaled(-axis_len)), p_profile);
-            render_orbital_lobe_style(out, &object.id, &primary, &stroke, stroke_width, &style, phase_positive);
-            render_orbital_lobe_style(out, &object.id, &secondary, &stroke, stroke_width, &style, !phase_positive);
+            let primary = orbital_lobe_geometry(center, end, P_ORBITAL_PROFILE);
+            let secondary = orbital_lobe_geometry(
+                center,
+                center.translated(unit.scaled(-axis_len)),
+                P_ORBITAL_PROFILE,
+            );
+            render_orbital_lobe_style(
+                out,
+                &object.id,
+                &primary,
+                &stroke,
+                stroke_width,
+                &style,
+                phase_positive,
+            );
+            render_orbital_lobe_style(
+                out,
+                &object.id,
+                &secondary,
+                &stroke,
+                stroke_width,
+                &style,
+                !phase_positive,
+            );
         }
         "dxy" => {
-            let vertical = orbital_lobe_geometry(center, end, dxy_profile);
-            let vertical_opposite =
-                orbital_lobe_geometry(center, center.translated(unit.scaled(-axis_len)), dxy_profile);
+            let vertical = orbital_lobe_geometry(center, end, DXY_ORBITAL_PROFILE);
+            let vertical_opposite = orbital_lobe_geometry(
+                center,
+                center.translated(unit.scaled(-axis_len)),
+                DXY_ORBITAL_PROFILE,
+            );
             let horizontal_tip = center.translated(normal.scaled(axis_len));
             let horizontal_opposite_tip = center.translated(normal.scaled(-axis_len));
-            let horizontal = orbital_lobe_geometry(center, horizontal_tip, dxy_profile);
-            let horizontal_opposite = orbital_lobe_geometry(center, horizontal_opposite_tip, dxy_profile);
-            render_orbital_lobe_style(out, &object.id, &vertical, &stroke, stroke_width, &style, phase_positive);
+            let horizontal = orbital_lobe_geometry(center, horizontal_tip, DXY_ORBITAL_PROFILE);
+            let horizontal_opposite =
+                orbital_lobe_geometry(center, horizontal_opposite_tip, DXY_ORBITAL_PROFILE);
+            render_orbital_lobe_style(
+                out,
+                &object.id,
+                &vertical,
+                &stroke,
+                stroke_width,
+                &style,
+                phase_positive,
+            );
             render_orbital_lobe_style(
                 out,
                 &object.id,
@@ -158,7 +193,15 @@ fn render_orbital_shape_object(
                 &style,
                 phase_positive,
             );
-            render_orbital_lobe_style(out, &object.id, &horizontal, &stroke, stroke_width, &style, !phase_positive);
+            render_orbital_lobe_style(
+                out,
+                &object.id,
+                &horizontal,
+                &stroke,
+                stroke_width,
+                &style,
+                !phase_positive,
+            );
             render_orbital_lobe_style(
                 out,
                 &object.id,
@@ -170,20 +213,56 @@ fn render_orbital_shape_object(
             );
         }
         "hybrid" => {
-            let primary = orbital_lobe_geometry(center, end, p_profile);
+            let primary = orbital_lobe_geometry(center, end, P_ORBITAL_PROFILE);
             let secondary = orbital_lobe_geometry(
                 center,
                 center.translated(unit.scaled(-(axis_len * 0.4))),
-                p_profile,
+                P_ORBITAL_PROFILE,
             );
-            render_orbital_lobe_style(out, &object.id, &primary, &stroke, stroke_width, &style, !phase_positive);
-            render_orbital_lobe_style(out, &object.id, &secondary, &stroke, stroke_width, &style, phase_positive);
+            render_orbital_lobe_style(
+                out,
+                &object.id,
+                &primary,
+                &stroke,
+                stroke_width,
+                &style,
+                !phase_positive,
+            );
+            render_orbital_lobe_style(
+                out,
+                &object.id,
+                &secondary,
+                &stroke,
+                stroke_width,
+                &style,
+                phase_positive,
+            );
         }
         "dz2" => {
-            let top = orbital_lobe_geometry(center, center.translated(unit.scaled(-axis_len)), p_profile);
-            let bottom = orbital_lobe_geometry(center, end, p_profile);
-            render_orbital_lobe_style(out, &object.id, &top, &stroke, stroke_width, &style, !phase_positive);
-            render_orbital_lobe_style(out, &object.id, &bottom, &stroke, stroke_width, &style, !phase_positive);
+            let top = orbital_lobe_geometry(
+                center,
+                center.translated(unit.scaled(-axis_len)),
+                P_ORBITAL_PROFILE,
+            );
+            let bottom = orbital_lobe_geometry(center, end, P_ORBITAL_PROFILE);
+            render_orbital_lobe_style(
+                out,
+                &object.id,
+                &top,
+                &stroke,
+                stroke_width,
+                &style,
+                !phase_positive,
+            );
+            render_orbital_lobe_style(
+                out,
+                &object.id,
+                &bottom,
+                &stroke,
+                stroke_width,
+                &style,
+                !phase_positive,
+            );
             render_orbital_ring(
                 out,
                 object,
@@ -198,7 +277,7 @@ fn render_orbital_shape_object(
             );
         }
         "lobe" => {
-            let lobe = orbital_lobe_geometry(center, end, p_profile);
+            let lobe = orbital_lobe_geometry(center, end, P_ORBITAL_PROFILE);
             render_orbital_lobe_style(out, &object.id, &lobe, &stroke, stroke_width, &style, true);
         }
         _ => {}
@@ -268,6 +347,7 @@ fn render_cross_table_shape_object(
 
 fn render_tlc_plate_shape_object(
     out: &mut Vec<RenderPrimitive>,
+    document: &ChemcoreDocument,
     object: &SceneObject,
     style: ShapeStyleSpec,
 ) {
@@ -291,6 +371,12 @@ fn render_tlc_plate_shape_object(
     } else {
         px_to_cm(1.0)
     };
+    let dash_spacing = payload_number(&object.payload, "dashSpacing")
+        .unwrap_or(crate::DEFAULT_HASH_SPACING_CM.value());
+    let editing_scale = (object.meta.get("source").and_then(JsonValue::as_str) == Some("cdxml"))
+        .then(|| cdxml_editing_scale(document))
+        .flatten()
+        .unwrap_or(1.0);
     if payload_bool(&object.payload, "showBorders").unwrap_or(true) {
         out.push(RenderPrimitive::Rect {
             role: RenderRole::DocumentGraphic,
@@ -321,7 +407,7 @@ fn render_tlc_plate_shape_object(
             Point::new(tx + width, origin_y),
             &stroke,
             stroke_width,
-            vec![2.7],
+            vec![dash_spacing],
             rotate,
             rotate_center,
         );
@@ -334,13 +420,13 @@ fn render_tlc_plate_shape_object(
             Point::new(tx + width, solvent_y),
             &stroke,
             stroke_width,
-            vec![2.7],
+            vec![dash_spacing],
             rotate,
             rotate_center,
         );
     }
     let show_side_ticks = payload_bool(&object.payload, "showSideTicks").unwrap_or(true);
-    let tick_half = 3.0;
+    let tick_half = 3.0 * editing_scale;
     let lanes = object
         .payload
         .extra
@@ -1933,7 +2019,11 @@ fn render_orbital_ellipse_style(
     }
 }
 
-fn orbital_lobe_geometry(apex: Point, tip: Point, profile: OrbitalLobeProfile) -> OrbitalLobeGeometry {
+fn orbital_lobe_geometry(
+    apex: Point,
+    tip: Point,
+    profile: OrbitalLobeProfile,
+) -> OrbitalLobeGeometry {
     let axis = crate::Vector::new(tip.x - apex.x, tip.y - apex.y);
     let length = axis.length();
     let unit = axis.normalized();
@@ -2228,7 +2318,10 @@ fn dz2_ring_path_d(center: Point, rx: f64, ry: f64, rotate: f64) -> String {
         }
         let dx = point.x - center.x;
         let dy = point.y - center.y;
-        Point::new(center.x + (dx * cos) - (dy * sin), center.y + (dx * sin) + (dy * cos))
+        Point::new(
+            center.x + (dx * cos) - (dy * sin),
+            center.y + (dx * sin) + (dy * cos),
+        )
     };
     let x0 = center.x - rx;
     let x1 = center.x + rx;

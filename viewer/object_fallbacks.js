@@ -12,11 +12,28 @@ import {
 import { editorScriptScale, editorSvgScriptBaselineShift } from "./text_metrics.js";
 import { cssPxToCm } from "./units.js";
 
+// Legacy document renderer used only when a scene object has no core primitives.
+// The Rust/WASM render list is the maintained source of truth for current products.
+
 const DEFAULT_TEXT_FONT_SIZE = 10;
 const DEFAULT_TEXT_LINE_HEIGHT = cssPxToCm(10.5);
 const DEFAULT_LINE_STROKE_WIDTH = cssPxToCm(1.6);
 const DEFAULT_TEXT_WRAP_WIDTH = cssPxToCm(160);
 const DEFAULT_SHAPE_STROKE_WIDTH = cssPxToCm(1);
+
+function dashArrayValue(dashArray) {
+  return dashArray?.length ? dashArray.join(" ") : undefined;
+}
+
+function strokeStyleAttrs(style, fallbackStrokeWidth = DEFAULT_LINE_STROKE_WIDTH) {
+  return {
+    stroke: style.stroke || "#222222",
+    strokeWidth: style.strokeWidth || fallbackStrokeWidth,
+    lineCap: style.lineCap || "round",
+    lineJoin: style.lineJoin || "round",
+    dashArray: dashArrayValue(style.dashArray),
+  };
+}
 
 export function renderLineObject(svgRoot, object, styles) {
   const points = object.payload.points || [];
@@ -25,10 +42,13 @@ export function renderLineObject(svgRoot, object, styles) {
   }
 
   const style = styles?.[object.styleRef] || {};
-  const stroke = style.stroke || "#222222";
-  const strokeWidth = style.strokeWidth || DEFAULT_LINE_STROKE_WIDTH;
-  const lineCap = style.lineCap || "round";
-  const lineJoin = style.lineJoin || "round";
+  const {
+    stroke,
+    strokeWidth,
+    lineCap,
+    lineJoin,
+    dashArray,
+  } = strokeStyleAttrs(style, DEFAULT_LINE_STROKE_WIDTH);
   const arrowHead = object.payload.arrowHead || null;
 
   const pathValue = points
@@ -42,6 +62,7 @@ export function renderLineObject(svgRoot, object, styles) {
     "stroke-width": strokeWidth,
     "stroke-linecap": lineCap,
     "stroke-linejoin": lineJoin,
+    "stroke-dasharray": dashArray,
   });
 
   if (object.payload.head === "end") {
@@ -205,6 +226,8 @@ export function renderShapeObject(svgRoot, object, styles) {
   const [, , width, height] = object.payload.bbox || [0, 0, 0, 0];
   const gradient = style.fillGradient;
   const kind = object.payload.kind || "rect";
+  const shapeStrokeWidth = style.strokeWidth || DEFAULT_SHAPE_STROKE_WIDTH;
+  const shapeDashArray = dashArrayValue(style.dashArray);
   if (kind === "circle" || kind === "ellipse") {
     const center = object.payload.center;
     const major = object.payload.majorAxisEnd;
@@ -222,12 +245,10 @@ export function renderShapeObject(svgRoot, object, styles) {
       ry,
       fill: style.fill || "none",
       stroke: style.stroke || "none",
-      "stroke-width": style.strokeWidth || DEFAULT_SHAPE_STROKE_WIDTH,
+      "stroke-width": shapeStrokeWidth,
       transform: Math.abs(rotate) > 0.0001 ? `rotate(${rotate} ${center[0]} ${center[1]})` : undefined,
+      "stroke-dasharray": shapeDashArray,
     };
-    if (style.dashArray?.length) {
-      attrs["stroke-dasharray"] = style.dashArray.join(" ");
-    }
     svgRoot.appendChild(makeSvgNode("ellipse", attrs));
     return;
   }
@@ -238,7 +259,8 @@ export function renderShapeObject(svgRoot, object, styles) {
     height,
     fill: style.fill || "none",
     stroke: style.stroke || "none",
-    "stroke-width": style.strokeWidth || DEFAULT_SHAPE_STROKE_WIDTH,
+    "stroke-width": shapeStrokeWidth,
+    "stroke-dasharray": shapeDashArray,
   };
   if (gradient?.stops?.length) {
     const defs = ensureSvgDefs(svgRoot);
@@ -259,9 +281,6 @@ export function renderShapeObject(svgRoot, object, styles) {
     defs.appendChild(linearGradient);
     attrs.fill = `url(#${gradientId})`;
   }
-  if (style.dashArray?.length) {
-    attrs["stroke-dasharray"] = style.dashArray.join(" ");
-  }
   if (object.payload.kind === "roundRect") {
     attrs.rx = object.payload.cornerRadius || 0;
     attrs.ry = object.payload.cornerRadius || 0;
@@ -269,18 +288,24 @@ export function renderShapeObject(svgRoot, object, styles) {
   svgRoot.appendChild(makeSvgNode("rect", attrs));
   if (object.payload.kind === "crossTable") {
     const stroke = style.stroke || "#000000";
-    const strokeWidth = style.strokeWidth || DEFAULT_SHAPE_STROKE_WIDTH;
-    const dash = style.dashArray?.length ? style.dashArray.join(" ") : undefined;
+    const strokeWidth = shapeStrokeWidth;
     svgRoot.appendChild(makeSvgNode("path", {
       d: `M${tx + width * 0.5} ${ty} L${tx + width * 0.5} ${ty + height} M${tx} ${ty + height * 0.5} L${tx + width} ${ty + height * 0.5}`,
       fill: "none",
       stroke,
       "stroke-width": strokeWidth,
-      "stroke-dasharray": dash,
+      "stroke-dasharray": shapeDashArray,
     }));
   } else if (object.payload.kind === "tlcPlate") {
     const stroke = style.stroke || "#000000";
-    const strokeWidth = style.strokeWidth || DEFAULT_SHAPE_STROKE_WIDTH;
+    const strokeWidth = shapeStrokeWidth;
+    const lineCap = style.lineCap || "butt";
+    const lineJoin = style.lineJoin || "miter";
+    const fallbackDashArray = style.dashArray?.length
+      ? shapeDashArray
+      : Number.isFinite(Number(object.payload.dashSpacing))
+        ? String(Number(object.payload.dashSpacing))
+        : undefined;
     const originFraction = Number(object.payload.originFraction ?? 0.1);
     const solventFraction = Number(object.payload.solventFrontFraction ?? 0.1);
     const originY = ty + height * (1 - originFraction);
@@ -290,7 +315,9 @@ export function renderShapeObject(svgRoot, object, styles) {
       fill: "none",
       stroke,
       "stroke-width": strokeWidth,
-      "stroke-dasharray": "2.7",
+      "stroke-dasharray": fallbackDashArray,
+      "stroke-linecap": lineCap,
+      "stroke-linejoin": lineJoin,
     }));
     for (const lane of object.payload.lanes || []) {
       const offset = Number(lane.offset ?? 0.5);
