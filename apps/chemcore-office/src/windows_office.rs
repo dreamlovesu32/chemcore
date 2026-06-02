@@ -362,6 +362,7 @@ struct OleObjectPayload {
     render_list_json: Option<String>,
     cdxml: Option<String>,
     svg: String,
+    svg_was_supplied: bool,
     text: Option<String>,
 }
 
@@ -376,6 +377,7 @@ impl OleObjectPayload {
             render_list_json: None,
             cdxml: None,
             svg: String::from_utf8(ole_preview_svg_stream_payload()).unwrap_or_default(),
+            svg_was_supplied: false,
             text: None,
         }
     }
@@ -383,6 +385,7 @@ impl OleObjectPayload {
     fn from_clipboard(payload: ClipboardPayload) -> Self {
         let fallback = Self::blank();
         let cdxml = payload.cdxml.filter(|value| !value.trim().is_empty());
+        let supplied_svg = payload.svg.filter(|value| !value.trim().is_empty());
         let document_json = payload
             .chemcore_document_json
             .filter(|value| !value.trim().is_empty())
@@ -398,11 +401,11 @@ impl OleObjectPayload {
                 .render_list_json
                 .filter(|value| !value.trim().is_empty()),
             cdxml: cdxml.clone(),
-            svg: payload
-                .svg
-                .filter(|value| !value.trim().is_empty())
+            svg: supplied_svg
+                .clone()
                 .or(generated_svg)
                 .unwrap_or(fallback.svg),
+            svg_was_supplied: supplied_svg.is_some(),
             text: payload
                 .text
                 .filter(|value| !value.trim().is_empty())
@@ -2432,6 +2435,7 @@ mod tests {
             render_list_json: None,
             cdxml: Some("<CDXML></CDXML>".to_string()),
             svg: "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>".to_string(),
+            svg_was_supplied: true,
             text: Some("<CDXML></CDXML>".to_string()),
         };
         let format_names: BTreeSet<_> = ole_clipboard_formats(&payload, SIZE::default())
@@ -2468,6 +2472,7 @@ mod tests {
             "generated preview should not fall back to the placeholder svg"
         );
     }
+
 }
 
 fn ole_preview_svg_stream_payload() -> Vec<u8> {
@@ -2850,6 +2855,7 @@ unsafe fn payload_from_data_object(data_object: *mut c_void) -> Result<OleObject
         .or(text_payload_from_data_object(data_object, FORMAT_SVG, false)?)
     {
         payload.svg = svg;
+        payload.svg_was_supplied = true;
         populated = true;
     }
     if let Some(text) = text_payload_from_data_object_by_id(
@@ -2887,6 +2893,7 @@ unsafe fn payload_from_storage(storage: *mut c_void) -> Result<OleObjectPayload,
             .map_err(|error| format!("ChemcorePreviewSvg stream is not UTF-8: {error}"))
     }) {
         payload.svg = svg;
+        payload.svg_was_supplied = true;
         populated = true;
     }
     if let Ok(cdxml) = storage_read_stream(storage, OLE_STREAM_SOURCE_CDXML).and_then(|bytes| {

@@ -1,5 +1,28 @@
 use super::*;
 
+fn refresh_attached_label_geometry_for_bond_endpoints(
+    fragment: &mut crate::MoleculeFragment,
+    object_translate: [f64; 2],
+    stroke_width: f64,
+    begin_id: &str,
+    end_id: &str,
+) {
+    refresh_attached_node_label_geometry_for_node(
+        fragment,
+        object_translate,
+        begin_id,
+        stroke_width,
+    );
+    if end_id != begin_id {
+        refresh_attached_node_label_geometry_for_node(
+            fragment,
+            object_translate,
+            end_id,
+            stroke_width,
+        );
+    }
+}
+
 impl Engine {
     pub(super) fn document_with_preview_bond(
         &self,
@@ -70,10 +93,12 @@ impl Engine {
             &end_id,
             "__preview_bond",
         );
-        refresh_attached_node_label_geometry_for_all_nodes(
+        refresh_attached_label_geometry_for_bond_endpoints(
             entry.fragment,
             entry.object.transform.translate,
             self.options.bond_stroke_world_cm().value(),
+            &begin_id,
+            &end_id,
         );
         entry.update_bounds();
         Some(document)
@@ -142,10 +167,22 @@ impl Engine {
         if let Some(double) = bond.double.as_mut() {
             double.frozen = should_freeze_after_change;
         }
-        refresh_attached_node_label_geometry_for_all_nodes(
+        let Some((begin_id, end_id)) = entry
+            .fragment
+            .bonds
+            .iter()
+            .find(|bond| bond.id == bond_id)
+            .map(|bond| (bond.begin.clone(), bond.end.clone()))
+        else {
+            self.undo_stack.pop();
+            return false;
+        };
+        refresh_attached_label_geometry_for_bond_endpoints(
             entry.fragment,
             entry.object.transform.translate,
             self.options.bond_stroke_world_cm().value(),
+            &begin_id,
+            &end_id,
         );
         entry.update_bounds();
         self.state.selection = SelectionState::default();

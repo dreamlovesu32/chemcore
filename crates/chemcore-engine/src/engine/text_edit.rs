@@ -819,6 +819,8 @@ impl Engine {
             preview_connection_angles,
             &editing_session,
             false,
+            false,
+            None,
         );
         build_endpoint_label_edit_layout_from_label(
             text,
@@ -1228,6 +1230,8 @@ pub(super) fn apply_node_label_text_edit(
         connection_angles,
         session,
         false,
+        false,
+        None,
     );
     set_label_recognition_meta(&mut next_label, label_recognition_meta);
     let implicit_hydrogen_label_meta = previous_implicit_hydrogen_label_meta.map(|meta| {

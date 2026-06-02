@@ -134,12 +134,21 @@ pub(super) fn make_centered_node_label_from_runs(
     connection_angles: &[f64],
     session: &TextEditSession,
     preserve_measured_box: bool,
+    treat_as_literal_text_mode: bool,
+    forced_flow: Option<LabelFlow>,
 ) -> crate::NodeLabel {
-    let decision = label_layout_decision_for_text_mode(
+    let mut decision = label_layout_decision_for_text_mode(
         text,
         connection_angles,
-        source_runs_are_chemical(&source_runs),
+        if treat_as_literal_text_mode {
+            false
+        } else {
+            source_runs_are_chemical(&source_runs)
+        },
     );
+    if let Some(flow) = forced_flow {
+        decision.flow = flow;
+    }
     let layout = layout_label_text(text, &decision);
     let (lines, line_runs) = layout_display_runs(&display_runs, &decision);
     let anchor_char = label_anchor_char_for_layout(&line_runs, &layout);
@@ -236,14 +245,19 @@ pub(super) fn make_centered_node_label_from_runs(
         Some([x1, y1, x2, y2]),
         font_size,
     );
-    if lines.len() == 1 {
-        if let Some(current_anchor) = glyph_polygons.get(anchor_char).and_then(|polygon| {
-            let points: Vec<_> = polygon
-                .iter()
-                .map(|point| Point::new(point[0], point[1]))
-                .collect();
-            polygon_anchor_point(&points)
-        }) {
+    if let Some(anchor_polygon_index) =
+        label_anchor_polygon_index(&line_runs, layout.anchor_line, anchor_char)
+    {
+        if let Some(current_anchor) = glyph_polygons
+            .get(anchor_polygon_index)
+            .and_then(|polygon| {
+                let points: Vec<_> = polygon
+                    .iter()
+                    .map(|point| Point::new(point[0], point[1]))
+                    .collect();
+                polygon_anchor_point(&points)
+            })
+        {
             let dx = round2(position[0] - current_anchor.x);
             let dy = round2(position[1] - current_anchor.y);
             if dx.abs() > crate::EPSILON || dy.abs() > crate::EPSILON {
@@ -295,6 +309,22 @@ pub(super) fn make_centered_node_label_from_runs(
         box_value: Some([x1, y1, x2, y2]),
         meta: Value::Object(meta),
     }
+}
+
+fn label_anchor_polygon_index(
+    line_runs: &[Vec<LabelRun>],
+    anchor_line: usize,
+    anchor_char: usize,
+) -> Option<usize> {
+    let mut index = 0usize;
+    for (line_index, runs) in line_runs.iter().enumerate() {
+        let line_len: usize = runs.iter().map(|run| run.text.chars().count()).sum();
+        if line_index == anchor_line {
+            return (anchor_char < line_len).then_some(index + anchor_char);
+        }
+        index += line_len;
+    }
+    None
 }
 
 pub(super) fn label_layout_decision_for_text_mode(
@@ -985,6 +1015,42 @@ fn is_cdxml_imported_single_character_centered_label(label: &crate::NodeLabel) -
             .is_some()
 }
 
+fn cdxml_imported_label_alignment_is_horizontal_only(label: &crate::NodeLabel) -> bool {
+    let alignment = label
+        .meta
+        .pointer("/import/cdxml/labelAlignment")
+        .and_then(serde_json::Value::as_str);
+    match alignment {
+        Some(value) => matches!(value, "Left" | "Center" | "Right"),
+        None => true,
+    }
+}
+
+fn imported_cdxml_label_geometry_is_authoritative(label: &crate::NodeLabel) -> bool {
+    label.attachment.as_deref() == Some("node")
+        && cdxml_imported_label_alignment_is_horizontal_only(label)
+        && label
+            .meta
+            .pointer("/import/cdxml/boundingBox")
+            .is_some()
+        && label
+            .meta
+            .pointer("/import/cdxml/textPosition")
+            .is_some()
+}
+
+fn cdxml_imported_label_flow_override(label: &crate::NodeLabel) -> Option<LabelFlow> {
+    match label
+        .meta
+        .pointer("/import/cdxml/labelAlignment")
+        .and_then(serde_json::Value::as_str)
+    {
+        Some("Above") => Some(LabelFlow::StackAbove),
+        Some("Below") => Some(LabelFlow::StackBelow),
+        _ => None,
+    }
+}
+
 pub(super) fn refreshed_attached_node_label(
     fragment: &crate::MoleculeFragment,
     node_id: &str,
@@ -993,6 +1059,9 @@ pub(super) fn refreshed_attached_node_label(
 ) -> Option<crate::NodeLabel> {
     let node = fragment.nodes.iter().find(|node| node.id == node_id)?;
     let label = node.label.as_ref()?;
+    if imported_cdxml_label_geometry_is_authoritative(label) {
+        return Some(label.clone());
+    }
     let world_anchor =
         attached_node_label_anchor_world(fragment, node_id, object_translate, stroke_width);
     let local_anchor = [
@@ -1059,7 +1128,9 @@ pub(super) fn refreshed_attached_node_label(
         &fill,
         &connection_angles,
         &session,
-        label.meta.pointer("/import/cdxml/boundingBox").is_some(),
+        false,
+        false,
+        cdxml_imported_label_flow_override(label),
     );
     if let Some(import_meta) = label.meta.get("import").cloned() {
         set_meta_object_field(&mut next_label.meta, "import", Some(import_meta));

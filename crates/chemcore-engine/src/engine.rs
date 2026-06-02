@@ -17,7 +17,10 @@ mod text_edit;
 pub use self::command::{
     CommandAnchor, EditorCommand, FocusedDeleteSource, HistoryEntry, TextEditCommandTarget,
 };
-pub(crate) use self::text_edit::refresh_attached_node_label_geometry_for_all_nodes;
+pub(crate) use self::text_edit::{
+    refresh_attached_node_label_geometry_for_all_nodes,
+    refresh_attached_node_label_geometry_for_node,
+};
 use self::text_edit::{
     endpoint_label_world_bounds, refresh_element_valence_recognition_for_all_nodes,
 };
@@ -1081,11 +1084,20 @@ impl Engine {
             &end_id,
             &bond_id,
         );
-        refresh_attached_node_label_geometry_for_all_nodes(
+        refresh_attached_node_label_geometry_for_node(
             entry.fragment,
             entry.object.transform.translate,
+            &begin_id,
             self.options.bond_stroke_world_cm().value(),
         );
+        if end_id != begin_id {
+            refresh_attached_node_label_geometry_for_node(
+                entry.fragment,
+                entry.object.transform.translate,
+                &end_id,
+                self.options.bond_stroke_world_cm().value(),
+            );
+        }
         entry.update_bounds();
         self.note_pending_select_target(PendingSelectTarget::MoleculeBond(bond_id));
         true

@@ -1,7 +1,8 @@
 use chemcore_engine::{
     angular_distance, document_to_cdxml, document_to_svg, hit_test_bond_center,
     parse_cdxml_document, parse_document_json, render_document, render_primitives_bounds,
-    ChemcoreDocument, Engine, Point, RenderPrimitive, RenderRole,
+    BondAnchor, ChemcoreDocument, Engine, Point, RenderPrimitive, RenderRole, ResourceData,
+    Vector,
 };
 use serde_json::json;
 use serde_json::Map;
@@ -2990,6 +2991,178 @@ fn select_all_wraps_example_reaction_group_text_inside_group_box() {
         selection_boxes,
         group_text_bounds
     );
+}
+
+#[test]
+fn adding_bond_to_imported_cdxml_keeps_fragment_bbox_tight() {
+    let cdxml = std::fs::read_to_string(fixture_path("2017-2-13__oleObject1.cdxml"))
+        .expect("example cdxml");
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(&cdxml)
+        .expect("cdxml should load into engine");
+
+    let (resource_ref, object_translate, before_bbox, anchor_node_id, anchor_world) = {
+        let molecule = engine
+            .state()
+            .document
+            .objects
+            .iter()
+            .find(|object| object.object_type == "molecule")
+            .expect("molecule object should exist");
+        let resource_ref = molecule
+            .payload
+            .resource_ref
+            .clone()
+            .expect("molecule should reference fragment resource");
+        let ResourceData::Fragment(fragment) = engine
+            .state()
+            .document
+            .resources
+            .get(&resource_ref)
+            .expect("fragment resource should exist")
+            .data
+            .clone()
+        else {
+            panic!("resource should be a fragment");
+        };
+        let anchor_node = fragment
+            .nodes
+            .iter()
+            .find(|node| node.position[0] < 10.0 && node.position[1] > 80.0 && node.position[1] < 100.0)
+            .expect("fixture should contain a left-edge anchor node");
+        let anchor_world = Point::new(
+            molecule.transform.translate[0] + anchor_node.position[0],
+            molecule.transform.translate[1] + anchor_node.position[1],
+        );
+        (
+            resource_ref,
+            molecule.transform.translate,
+            fragment.bbox,
+            anchor_node.id.clone(),
+            anchor_world,
+        )
+    };
+
+    assert!(engine.add_single_bond_between(
+        BondAnchor {
+            node_id: Some(anchor_node_id),
+            point: anchor_world,
+            label_anchor: None,
+        },
+        BondAnchor {
+            node_id: None,
+            point: anchor_world.translated(Vector::new(-35.0, 35.0)),
+            label_anchor: None,
+        },
+    ));
+
+    let molecule = engine
+        .state()
+        .document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "molecule")
+        .expect("molecule object should still exist");
+    assert_eq!(molecule.transform.translate, object_translate);
+    let ResourceData::Fragment(fragment) = engine
+        .state()
+        .document
+        .resources
+        .get(&resource_ref)
+        .expect("fragment resource should still exist")
+        .data
+        .clone()
+    else {
+        panic!("resource should remain a fragment");
+    };
+    let after_bbox = fragment.bbox;
+    let object_bbox = molecule.payload.bbox.expect("molecule object should keep bbox");
+
+    assert_eq!(object_bbox, after_bbox);
+    assert!(
+        after_bbox[3] < before_bbox[3] * 1.8,
+        "fragment bbox ballooned after bond edit: before={before_bbox:?}, after={after_bbox:?}"
+    );
+    assert!(
+        after_bbox[2] > before_bbox[2],
+        "new bond should expand fragment width: before={before_bbox:?}, after={after_bbox:?}"
+    );
+}
+
+#[test]
+fn adding_isolated_bond_to_imported_cdxml_keeps_existing_label_geometry_stable() {
+    let cdxml = std::fs::read_to_string(fixture_path("2017-2-13__oleObject1.cdxml"))
+        .expect("example cdxml");
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(&cdxml)
+        .expect("cdxml should load into engine");
+
+    let before_labels = {
+        let entry = engine
+            .state()
+            .document
+            .editable_fragment()
+            .expect("imported document should expose fragment");
+        ["f1_6003", "f2_10159", "f3_4815"]
+            .into_iter()
+            .map(|node_id| {
+                let node = entry
+                    .fragment
+                    .nodes
+                    .iter()
+                    .find(|node| node.id == node_id)
+                    .expect("fixture node should exist");
+                let label = node.label.as_ref().expect("fixture node should keep label");
+                (
+                    node_id.to_string(),
+                    (
+                        label.position.expect("label position"),
+                        label.bbox().expect("label bbox"),
+                    ),
+                )
+            })
+            .collect::<std::collections::BTreeMap<_, _>>()
+    };
+
+    assert!(engine.add_single_bond_between(
+        BondAnchor {
+            node_id: None,
+            point: Point::new(-120.0, -80.0),
+            label_anchor: None,
+        },
+        BondAnchor {
+            node_id: None,
+            point: Point::new(-85.0, -45.0),
+            label_anchor: None,
+        },
+    ));
+
+    let entry = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("document should still expose fragment");
+    for (node_id, (expected_position, expected_bbox)) in before_labels {
+        let node = entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == node_id)
+            .expect("fixture node should still exist");
+        let label = node.label.as_ref().expect("fixture node should still keep label");
+        assert_eq!(
+            label.position.expect("label position"),
+            expected_position,
+            "isolated bond should not move imported label position for node {node_id}"
+        );
+        assert_eq!(
+            label.bbox().expect("label bbox"),
+            expected_bbox,
+            "isolated bond should not rewrite imported label box for node {node_id}"
+        );
+    }
 }
 
 #[test]

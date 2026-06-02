@@ -1222,13 +1222,41 @@ impl EditableFragmentMut<'_> {
     }
 
     pub fn update_bounds(&mut self) {
-        let mut max_x = DEFAULT_PAGE_WIDTH;
-        let mut max_y = DEFAULT_PAGE_HEIGHT;
-        for node in &self.fragment.nodes {
-            max_x = max_x.max(node.position[0] + DEFAULT_TEXT_BLOCK_PADDING_CM);
-            max_y = max_y.max(node.position[1] + DEFAULT_TEXT_BLOCK_PADDING_CM);
-        }
-        self.fragment.bbox = [0.0, 0.0, round2(max_x), round2(max_y)];
+        self.fragment.bbox = fragment_content_bbox(&self.fragment.nodes)
+            .unwrap_or([0.0, 0.0, DEFAULT_PAGE_WIDTH, DEFAULT_PAGE_HEIGHT]);
         self.object.payload.bbox = Some(self.fragment.bbox);
     }
+}
+
+fn fragment_content_bbox(nodes: &[Node]) -> Option<[f64; 4]> {
+    let mut min_x = f64::INFINITY;
+    let mut min_y = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
+    let mut found = false;
+
+    for node in nodes {
+        min_x = min_x.min(node.position[0] - DEFAULT_TEXT_BLOCK_PADDING_CM);
+        min_y = min_y.min(node.position[1] - DEFAULT_TEXT_BLOCK_PADDING_CM);
+        max_x = max_x.max(node.position[0] + DEFAULT_TEXT_BLOCK_PADDING_CM);
+        max_y = max_y.max(node.position[1] + DEFAULT_TEXT_BLOCK_PADDING_CM);
+        found = true;
+
+        if let Some(label) = &node.label {
+            if let Some([x1, y1, x2, y2]) = label.bbox() {
+                min_x = min_x.min(x1);
+                min_y = min_y.min(y1);
+                max_x = max_x.max(x2);
+                max_y = max_y.max(y2);
+                found = true;
+            }
+        }
+    }
+
+    found.then_some([
+        round2(min_x),
+        round2(min_y),
+        round2((max_x - min_x).max(1.0)),
+        round2((max_y - min_y).max(1.0)),
+    ])
 }

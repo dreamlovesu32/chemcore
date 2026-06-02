@@ -215,13 +215,25 @@ fn visible_payload_bounds(payload: &OleObjectPayload) -> Option<[f64; 4]> {
     svg_viewbox_bounds(&payload.svg)
 }
 
+fn document_clipboard_bounds(payload: &OleObjectPayload) -> Option<[f64; 4]> {
+    let document = parse_document_json(&payload.chemcore_document_json).ok()?;
+    clipboard_selection_bounds(&document.document.meta)
+}
+
 pub(super) fn preview_source_bounds(payload: &OleObjectPayload) -> Option<[f64; 4]> {
     let right_padding = std::env::var(ENV_PREVIEW_SOURCE_RIGHT_PADDING_PT)
         .ok()
         .and_then(|value| value.trim().parse::<f64>().ok())
         .unwrap_or(PREVIEW_SOURCE_RIGHT_PADDING_PT);
-    let visible = visible_payload_bounds(payload);
-    let svg = svg_viewbox_bounds(&payload.svg);
+    let visible = visible_payload_bounds(payload).or_else(|| {
+        (!payload.svg_was_supplied)
+            .then(|| document_clipboard_bounds(payload))
+            .flatten()
+    });
+    let svg = payload
+        .svg_was_supplied
+        .then(|| svg_viewbox_bounds(&payload.svg))
+        .flatten();
     if let Some(sides) = preview_source_bounds_sides_override() {
         return match (visible, svg) {
             (Some(visible), Some(svg)) => Some([
@@ -328,7 +340,10 @@ pub(super) fn preview_bounds_debug_report(
 ) -> serde_json::Value {
     let use_chemdraw_units = payload_uses_cdxml_editing_scale(payload);
     let visible_bounds = visible_payload_bounds(payload);
-    let svg_bounds = svg_viewbox_bounds(&payload.svg);
+    let svg_bounds = payload
+        .svg_was_supplied
+        .then(|| svg_viewbox_bounds(&payload.svg))
+        .flatten();
     let source_bounds = preview_source_bounds(payload);
     let frame_source_bounds = preview_frame_source_bounds(payload);
     let source_bounds_mode = preview_source_bounds_mode();
