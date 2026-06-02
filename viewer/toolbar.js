@@ -166,6 +166,22 @@ function bondIconSvg(type = "single") {
     }
     return iconSvg(pieces.join(""), "cc-bond-icon");
   }
+  if (type === "wavy") {
+    const segments = [];
+    const halfWaves = 6;
+    const amplitude = 2.1;
+    segments.push(`M${fmt(BOND_A.x)} ${fmt(BOND_A.y)}`);
+    for (let index = 0; index < halfWaves; index += 1) {
+      const t0 = index / halfWaves;
+      const t1 = (index + 1) / halfWaves;
+      const midT = (t0 + t1) * 0.5;
+      const side = index % 2 === 0 ? -1 : 1;
+      const control = add(add(BOND_A, mul(axis, midT)), mul(normalVector, amplitude * side));
+      const endPoint = add(BOND_A, mul(axis, t1));
+      segments.push(`Q${fmt(control.x)} ${fmt(control.y)} ${fmt(endPoint.x)} ${fmt(endPoint.y)}`);
+    }
+    return iconSvg(`<path class="cc-bond" d="${segments.join(" ")}"/>`, "cc-bond-icon");
+  }
   if (type === "wedge") {
     return iconSvg(polygon([
       add(BOND_A, mul(normalVector, -2.45)),
@@ -186,6 +202,23 @@ function bondIconSvg(type = "single") {
       ));
     }
     return iconSvg(pieces.join(""), "cc-bond-icon");
+  }
+  if (type === "hollow-wedge") {
+    const outer = [
+      add(BOND_A, mul(normalVector, -2.45)),
+      add(BOND_A, mul(normalVector, 2.45)),
+      BOND_B,
+    ];
+    const center = point((outer[0].x + outer[1].x) * 0.5, (outer[0].y + outer[1].y) * 0.5);
+    const inner = [
+      center,
+      add(outer[1], mul(unitAxis, -2.3)),
+      add(outer[2], mul(unitAxis, -2.3)),
+    ];
+    return iconSvg(
+      `<path class="cc-bond-fill" fill-rule="evenodd" d="M${fmt(outer[0].x)} ${fmt(outer[0].y)} L${fmt(outer[1].x)} ${fmt(outer[1].y)} L${fmt(outer[2].x)} ${fmt(outer[2].y)} Z M${fmt(inner[0].x)} ${fmt(inner[0].y)} L${fmt(inner[1].x)} ${fmt(inner[1].y)} L${fmt(inner[2].x)} ${fmt(inner[2].y)} Z"/>`,
+      "cc-bond-icon",
+    );
   }
   return iconSvg(linePath(BOND_A, BOND_B, "cc-bond"), "cc-bond-icon");
 }
@@ -247,7 +280,9 @@ function shapeIconSvg(kind = "rect", style = "solid") {
     ? `<circle class="${fill} cc-shape" cx="12" cy="12" r="6.2"${dash}/>`
     : kind === "ellipse"
       ? `<ellipse class="${fill} cc-shape" cx="12" cy="12" rx="7.2" ry="4.5"${dash}/>`
-      : `<rect class="${fill} cc-shape" x="5.5" y="6.2" width="13" height="11.5"${kind === "round-rect" ? ` rx="2.6"` : ""}${dash}/>`;
+      : kind === "cross-table"
+        ? `<rect class="${fill} cc-shape" x="5.5" y="6.2" width="13" height="11.5"${dash}/><path class="cc-shape" d="M12 6.2v11.5M5.5 11.95h13"${dash}/>`
+        : `<rect class="${fill} cc-shape" x="5.5" y="6.2" width="13" height="11.5"${kind === "round-rect" ? ` rx="2.6"` : ""}${dash}/>`;
   return iconSvg(`${shadow}${mark}`, "cc-shape-icon");
 }
 
@@ -353,6 +388,8 @@ function commandIconSvg(name) {
     text: iconSvg(`<path class="cc-stroke" d="M7.5 19 12 5.1 16.5 19"/><path class="cc-stroke" d="M9 14.1h6"/>`, "cc-tool-icon"),
     arrow: straightArrowSvg(),
     shape: iconSvg(`<rect class="cc-shape cc-empty-fill" x="5.5" y="5.5" width="10.2" height="10.2"/><circle class="cc-shape cc-empty-fill" cx="16.8" cy="16.8" r="3.45"/>`, "cc-tool-icon"),
+    "tlc-plate": iconSvg(`<rect class="cc-shape cc-empty-fill" x="5.3" y="4.8" width="13.4" height="14.2"/><path class="cc-shape" d="M5.3 8.5h13.4M5.3 15.6h13.4" stroke-dasharray="1.5 1.5"/><circle class="cc-shape-fill" cx="8.9" cy="12.9" r="1.2"/><circle class="cc-shape-fill" cx="12" cy="10.9" r="1.2"/><circle class="cc-shape-fill" cx="15.1" cy="14.1" r="1.2"/>`, "cc-tool-icon"),
+    orbital: iconSvg(`<path class="cc-shape cc-empty-fill" d="M12 4c3.35 0 5.35 2.67 5.35 6.25 0 3.26-2 6.17-5.35 9.5-3.35-3.33-5.35-6.24-5.35-9.5C6.65 6.67 8.65 4 12 4Z"/><path class="cc-shape" d="M12 4c0 0 2 2.55 2 6.25S12 19.75 12 19.75"/>`, "cc-tool-icon"),
   };
   return icons[name] || "";
 }
@@ -376,6 +413,8 @@ export function syncPrimaryChromeIcons(root = document) {
     ["bracket", generatedBracketIconSvg("round")],
     ["symbol", generatedBracketIconSvg("circle-plus")],
     ["shape", commandIconSvg("shape")],
+    ["tlc-plate", commandIconSvg("tlc-plate")],
+    ["orbital", commandIconSvg("orbital")],
     ["templates", generatedRingSvg(6)],
   ]) {
     const button = root.querySelector(`.tool-button[data-tool="${tool}"]`);
@@ -407,6 +446,12 @@ export function renderSecondaryToolbarHtml(editorState) {
   if (editorState.activeTool === "shape") {
     return shapeToolbarHtml(editorState);
   }
+  if (editorState.activeTool === "tlc-plate") {
+    return tlcPlateToolbarHtml(editorState);
+  }
+  if (editorState.activeTool === "orbital") {
+    return orbitalToolbarHtml(editorState);
+  }
   if (editorState.activeTool === "templates") {
     return templatesToolbarHtml(editorState);
   }
@@ -417,6 +462,7 @@ export function syncPrimaryToolButtons(editorState, root = document) {
   syncPrimaryBondToolButton(editorState, root);
   syncPrimaryTemplateToolButton(editorState, root);
   syncPrimarySymbolToolButton(editorState, root);
+  syncPrimaryOrbitalToolButton(editorState, root);
 }
 
 function toolbarButton(value, title, svg, selected = false) {
@@ -515,6 +561,10 @@ const BOND_TOOL_ICON_SPECS = {
     title: "Hash bond",
     svg: bondIconSvg("bold-dashed"),
   },
+  wavy: {
+    title: "Wavy bond",
+    svg: bondIconSvg("wavy"),
+  },
   wedge: {
     title: "Solid wedge",
     svg: bondIconSvg("wedge"),
@@ -522,6 +572,10 @@ const BOND_TOOL_ICON_SPECS = {
   "hashed-wedge": {
     title: "Hash wedge",
     svg: bondIconSvg("hashed-wedge"),
+  },
+  "hollow-wedge": {
+    title: "Hollow wedge",
+    svg: bondIconSvg("hollow-wedge"),
   },
 };
 
@@ -557,6 +611,18 @@ function syncPrimarySymbolToolButton(editorState, root) {
     return;
   }
   symbolButton.innerHTML = bracketIconSvg(editorState.symbolKind);
+}
+
+function syncPrimaryOrbitalToolButton(editorState, root) {
+  const orbitalButton = root.querySelector('.tool-button[data-tool="orbital"]');
+  if (!orbitalButton) {
+    return;
+  }
+  orbitalButton.innerHTML = orbitalGlyphSvg(
+    editorState.orbitalTemplate || "s",
+    editorState.orbitalStyle || "hollow",
+    editorState.orbitalPhase || "plus",
+  );
 }
 
 function selectToolbarHtml(editorState) {
@@ -753,6 +819,7 @@ function shapeToolbarHtml(editorState) {
     ${toolbarButton("shape-kind-ellipse", "Ellipse", shapeIconSvg("ellipse"), editorState.shapeKind === "ellipse")}
     ${toolbarButton("shape-kind-round-rect", "Rounded rectangle", shapeIconSvg("round-rect"), editorState.shapeKind === "round-rect")}
     ${toolbarButton("shape-kind-rect", "Rectangle", shapeIconSvg("rect"), editorState.shapeKind === "rect")}
+    ${toolbarButton("shape-kind-cross-table", "Cross table", shapeIconSvg("cross-table"), editorState.shapeKind === "cross-table")}
     ${secondaryDivider()}
     ${toolbarButton("shape-style-solid", "Solid outline", shapeIconSvg("rect", "solid"), editorState.shapeStyle === "solid")}
     ${toolbarButton("shape-style-dashed", "Dashed outline", shapeIconSvg("rect", "dashed"), editorState.shapeStyle === "dashed")}
@@ -761,6 +828,68 @@ function shapeToolbarHtml(editorState) {
     ${toolbarButton("shape-style-shadowed", "Shadowed", shapeIconSvg("rect", "shadowed"), editorState.shapeStyle === "shadowed")}
     ${secondaryDivider()}
     ${colorPickerControl("shape-color", editorState.shapeColor, editorState.documentColors)}
+  `;
+}
+
+function tlcPlateToolbarHtml(editorState) {
+  return `
+    ${colorPickerControl("shape-color", editorState.shapeColor, editorState.documentColors)}
+  `;
+}
+
+function orbitalGlyphSvg(template = "s", style = "hollow", phase = "plus") {
+  const filledClass = style === "filled" ? "cc-shape-fill" : style === "shaded" ? "cc-shape-soft-fill" : "cc-empty-fill";
+  const secondaryFill = style === "hollow" ? "cc-empty-fill" : "cc-empty-fill";
+  if (template === "s") {
+    return iconSvg(`<circle class="${filledClass} cc-shape" cx="12" cy="12" r="6.1"/>`, "cc-shape-icon");
+  }
+  if (template === "oval") {
+    return iconSvg(`<ellipse class="${filledClass} cc-shape" cx="12" cy="12" rx="7.1" ry="4.1"/>`, "cc-shape-icon");
+  }
+  if (template === "p") {
+    const topClass = phase === "plus" ? filledClass : secondaryFill;
+    const bottomClass = phase === "plus" ? secondaryFill : filledClass;
+    return iconSvg(`<ellipse class="${topClass} cc-shape" cx="12" cy="8.1" rx="3.1" ry="4.2"/><ellipse class="${bottomClass} cc-shape" cx="12" cy="15.9" rx="3.1" ry="4.2"/>`, "cc-shape-icon");
+  }
+  if (template === "dxy") {
+    const primaryClass = phase === "plus" ? filledClass : secondaryFill;
+    const secondaryClass = phase === "plus" ? secondaryFill : filledClass;
+    return iconSvg(`<ellipse class="${primaryClass} cc-shape" cx="8.4" cy="8.4" rx="2.2" ry="3.6" transform="rotate(-45 8.4 8.4)"/><ellipse class="${primaryClass} cc-shape" cx="15.6" cy="15.6" rx="2.2" ry="3.6" transform="rotate(-45 15.6 15.6)"/><ellipse class="${secondaryClass} cc-shape" cx="15.6" cy="8.4" rx="2.2" ry="3.6" transform="rotate(45 15.6 8.4)"/><ellipse class="${secondaryClass} cc-shape" cx="8.4" cy="15.6" rx="2.2" ry="3.6" transform="rotate(45 8.4 15.6)"/>`, "cc-shape-icon");
+  }
+  if (template === "hybrid") {
+    const primaryClass = phase === "plus" ? filledClass : secondaryFill;
+    const secondaryClass = phase === "plus" ? secondaryFill : filledClass;
+    return iconSvg(`<ellipse class="${primaryClass} cc-shape" cx="14.2" cy="12" rx="4.4" ry="2.8"/><ellipse class="${secondaryClass} cc-shape" cx="8.6" cy="12" rx="2.3" ry="1.6"/>`, "cc-shape-icon");
+  }
+  if (template === "dz2") {
+    const primaryClass = phase === "plus" ? filledClass : secondaryFill;
+    const secondaryClass = phase === "plus" ? secondaryFill : filledClass;
+    return iconSvg(`<ellipse class="${primaryClass} cc-shape" cx="12" cy="7.2" rx="2.4" ry="3.5"/><ellipse class="${secondaryClass} cc-shape" cx="12" cy="16.8" rx="2.4" ry="3.5"/><ellipse class="cc-empty-fill cc-shape" cx="12" cy="12" rx="5.7" ry="1.8"/>`, "cc-shape-icon");
+  }
+  return iconSvg(`<path class="${filledClass} cc-shape" d="M9.1 18.2c4.1-1 6.6-4.4 6.1-8.3-.3-2.1-1.5-3.7-3.2-5.9-2.1 2.8-3.4 4.8-3.8 7.1-.4 2.9.9 5.5.9 7.1Z"/>`, "cc-shape-icon");
+}
+
+function orbitalToolbarHtml(editorState) {
+  const template = editorState.orbitalTemplate || "s";
+  const style = editorState.orbitalStyle || "hollow";
+  const phase = editorState.orbitalPhase || "plus";
+  return `
+    ${toolbarButton("orbital-template-s", "s orbital", orbitalGlyphSvg("s", style, phase), template === "s")}
+    ${toolbarButton("orbital-template-p", "p orbital", orbitalGlyphSvg("p", style, phase), template === "p")}
+    ${toolbarButton("orbital-template-dxy", "dxy orbital", orbitalGlyphSvg("dxy", style, phase), template === "dxy")}
+    ${toolbarButton("orbital-template-oval", "oval orbital", orbitalGlyphSvg("oval", style, phase), template === "oval")}
+    ${toolbarButton("orbital-template-hybrid", "hybrid orbital", orbitalGlyphSvg("hybrid", style, phase), template === "hybrid")}
+    ${toolbarButton("orbital-template-dz2", "dz2 orbital", orbitalGlyphSvg("dz2", style, phase), template === "dz2")}
+    ${toolbarButton("orbital-template-lobe", "lobe orbital", orbitalGlyphSvg("lobe", style, phase), template === "lobe")}
+    ${secondaryDivider()}
+    ${toolbarButton("orbital-style-hollow", "Hollow", orbitalGlyphSvg(template, "hollow", phase), style === "hollow")}
+    ${toolbarButton("orbital-style-filled", "Filled", orbitalGlyphSvg(template, "filled", phase), style === "filled")}
+    ${toolbarButton("orbital-style-shaded", "Shaded", orbitalGlyphSvg(template, "shaded", phase), style === "shaded")}
+    ${secondaryDivider()}
+    ${toolbarButton("orbital-phase-plus", "Primary lobe position", orbitalGlyphSvg(template, style, "plus"), phase === "plus")}
+    ${toolbarButton("orbital-phase-minus", "Alternate lobe position", orbitalGlyphSvg(template, style, "minus"), phase === "minus")}
+    ${secondaryDivider()}
+    ${colorPickerControl("orbital-color", editorState.orbitalColor || editorState.shapeColor, editorState.documentColors)}
   `;
 }
 

@@ -224,6 +224,19 @@ fn desktop_engine_set_shape_options(
 }
 
 #[tauri::command]
+fn desktop_engine_set_orbital_options(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    template: String,
+    style: String,
+    phase: String,
+    color: String,
+) -> Result<(), String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.set_orbital_options(session_id, &template, &style, &phase, &color)
+}
+
+#[tauri::command]
 fn desktop_engine_set_template(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
@@ -808,6 +821,36 @@ fn desktop_engine_apply_shape_style_to_selection(
 ) -> Result<bool, String> {
     let mut service = state.service.lock().map_err(|error| error.to_string())?;
     service.apply_shape_style_to_selection(session_id, &style)
+}
+
+#[tauri::command]
+fn desktop_engine_apply_orbital_template_to_selection(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    template: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.apply_orbital_template_to_selection(session_id, &template)
+}
+
+#[tauri::command]
+fn desktop_engine_apply_orbital_style_to_selection(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    style: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.apply_orbital_style_to_selection(session_id, &style)
+}
+
+#[tauri::command]
+fn desktop_engine_apply_orbital_phase_to_selection(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    phase: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.apply_orbital_phase_to_selection(session_id, &phase)
 }
 
 #[tauri::command]
@@ -2480,6 +2523,7 @@ pub fn run() {
             desktop_engine_document_colors_json,
             desktop_engine_set_tool,
             desktop_engine_set_shape_options,
+            desktop_engine_set_orbital_options,
             desktop_engine_set_template,
             desktop_engine_set_bracket_options,
             desktop_engine_set_symbol_options,
@@ -2531,6 +2575,9 @@ pub fn run() {
             desktop_engine_ungroup_selection,
             desktop_engine_apply_color_to_selection,
             desktop_engine_apply_shape_style_to_selection,
+            desktop_engine_apply_orbital_template_to_selection,
+            desktop_engine_apply_orbital_style_to_selection,
+            desktop_engine_apply_orbital_phase_to_selection,
             desktop_engine_apply_bracket_kind_to_selection,
             desktop_engine_apply_line_style_to_selection,
             desktop_engine_apply_bond_style_to_selection,

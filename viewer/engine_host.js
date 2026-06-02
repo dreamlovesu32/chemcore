@@ -235,6 +235,15 @@ class TauriEngineSession {
     return this.invokeMutation("desktop_engine_set_shape_options", { kind, style, color }, { refresh: "state", dirtyExports: false });
   }
 
+  setOrbitalOptions(template, style, phase, color) {
+    return this.invokeMutation("desktop_engine_set_orbital_options", {
+      template,
+      style,
+      phase,
+      color,
+    }, { refresh: "state", dirtyExports: false });
+  }
+
   setTemplate(template) {
     return this.invokeMutation("desktop_engine_set_template", { template }, { refresh: "state", dirtyExports: false });
   }
@@ -488,6 +497,18 @@ class TauriEngineSession {
 
   applyShapeStyleToSelection(style) {
     return this.invokeMutation("desktop_engine_apply_shape_style_to_selection", { style });
+  }
+
+  applyOrbitalTemplateToSelection(template) {
+    return this.invokeMutation("desktop_engine_apply_orbital_template_to_selection", { template });
+  }
+
+  applyOrbitalStyleToSelection(style) {
+    return this.invokeMutation("desktop_engine_apply_orbital_style_to_selection", { style });
+  }
+
+  applyOrbitalPhaseToSelection(phase) {
+    return this.invokeMutation("desktop_engine_apply_orbital_phase_to_selection", { phase });
   }
 
   applyBracketKindToSelection(kind) {

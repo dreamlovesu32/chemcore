@@ -68,10 +68,6 @@ const SOLID_WEDGE_END_INSET: f64 = crate::SOLID_WEDGE_END_INSET_CM.value();
 const CENTER_DOUBLE_NO_EXTENSION_ANGLE_DEGREES: f64 = 162.0;
 const CHEMCORE_INK: &str = "#000000";
 const KNOCKOUT_FILL: &str = "#ffffff";
-const DASHED_BOND_PATTERN: [f64; 2] = [
-    crate::DASHED_BOND_PATTERN_CM[0].value(),
-    crate::DASHED_BOND_PATTERN_CM[1].value(),
-];
 const BOLD_BOND_WIDTH: f64 = crate::BOLD_BOND_WIDTH_CM.value();
 const MAIN_CONTACT_MITER_LIMIT: f64 = 4.0;
 

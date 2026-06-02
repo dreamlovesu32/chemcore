@@ -163,7 +163,7 @@ impl Engine {
                     extra,
                 )
             }
-            ShapeKind::RoundRect | ShapeKind::Rect => {
+            ShapeKind::RoundRect | ShapeKind::Rect | ShapeKind::CrossTable | ShapeKind::TlcPlate => {
                 let x1 = start.x.min(current.x);
                 let y1 = start.y.min(current.y);
                 let width = (current.x - start.x).abs();
@@ -174,12 +174,36 @@ impl Engine {
                 let mut extra = BTreeMap::new();
                 extra.insert(
                     "kind".to_string(),
-                    json!(if self.state.tool.shape_kind == ShapeKind::RoundRect {
-                        "roundRect"
-                    } else {
-                        "rect"
+                    json!(match self.state.tool.shape_kind {
+                        ShapeKind::RoundRect => "roundRect",
+                        ShapeKind::CrossTable => "crossTable",
+                        ShapeKind::TlcPlate => "tlcPlate",
+                        _ => "rect",
                     }),
                 );
+                if self.state.tool.shape_kind == ShapeKind::TlcPlate {
+                    extra.insert("originFraction".to_string(), json!(0.1));
+                    extra.insert("solventFrontFraction".to_string(), json!(0.1));
+                    extra.insert("showOrigin".to_string(), json!(true));
+                    extra.insert("showSolventFront".to_string(), json!(true));
+                    extra.insert("showBorders".to_string(), json!(true));
+                    extra.insert("showSideTicks".to_string(), json!(true));
+                    let lane_count = suggested_tlc_lane_count(width);
+                    let lanes: Vec<_> = (0..lane_count)
+                        .map(|index| {
+                            let offset = (index as f64 + 1.0) / (lane_count as f64 + 1.0);
+                            json!({
+                                "offset": round2(offset),
+                                "spots": [
+                                    {
+                                        "rf": 0.15,
+                                    }
+                                ]
+                            })
+                        })
+                        .collect();
+                    extra.insert("lanes".to_string(), json!(lanes));
+                }
                 if self.state.tool.shape_kind == ShapeKind::RoundRect {
                     extra.insert(
                         "cornerRadius".to_string(),
@@ -399,6 +423,7 @@ impl Engine {
             ShapeObjectKind::Rect | ShapeObjectKind::RoundRect => {
                 shape_rect_hit(object, point, true).is_some()
             }
+            ShapeObjectKind::Orbital => shape_rect_hit(object, point, true).is_some(),
         }
     }
 
@@ -464,10 +489,20 @@ impl Engine {
                         handles: hit.handles,
                     });
                 }
+                ShapeObjectKind::Orbital => {
+                    if shape_rect_hit(object, point, true).is_none() {
+                        continue;
+                    }
+                    return None;
+                }
             }
         }
         None
     }
+}
+
+fn suggested_tlc_lane_count(width: f64) -> usize {
+    ((width / 11.4).round() as isize).clamp(3, 12) as usize
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -476,6 +511,7 @@ enum ShapeObjectKind {
     Ellipse,
     Rect,
     RoundRect,
+    Orbital,
 }
 
 struct ShapeTarget {
@@ -523,6 +559,7 @@ fn shape_object_kind(object: &SceneObject) -> Option<ShapeObjectKind> {
         "ellipse" => Some(ShapeObjectKind::Ellipse),
         "roundRect" | "round-rect" => Some(ShapeObjectKind::RoundRect),
         "rect" => Some(ShapeObjectKind::Rect),
+        "orbital" => Some(ShapeObjectKind::Orbital),
         _ => None,
     }
 }
@@ -656,6 +693,7 @@ fn resized_shape_object_from_handle(
         ShapeObjectKind::Rect | ShapeObjectKind::RoundRect => {
             resized_rect_object(original, handle, point)
         }
+        ShapeObjectKind::Orbital => None,
     }
 }
 

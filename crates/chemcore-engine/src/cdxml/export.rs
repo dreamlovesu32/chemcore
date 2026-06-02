@@ -15,6 +15,16 @@ pub fn document_to_cdxml(document: &ChemcoreDocument) -> String {
     CdxmlDocumentWriter::new(document).write()
 }
 
+fn cdxml_editing_scale(document: &ChemcoreDocument) -> f64 {
+    document
+        .document
+        .meta
+        .pointer("/import/cdxml/editingScale")
+        .and_then(Value::as_f64)
+        .filter(|value| *value > crate::EPSILON)
+        .unwrap_or(1.0)
+}
+
 fn export_cdxml_defaults(document: &ChemcoreDocument) -> CdxmlDefaults {
     let mut defaults = CdxmlDefaults::default();
     if let Some(import_defaults) = document
@@ -94,6 +104,7 @@ struct CdxmlDocumentWriter<'a> {
     colors: CdxmlColorTable,
     fonts: CdxmlFontTable,
     defaults: CdxmlDefaults,
+    editing_scale: f64,
 }
 
 impl<'a> CdxmlDocumentWriter<'a> {
@@ -108,6 +119,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             colors,
             fonts,
             defaults: export_cdxml_defaults(document),
+            editing_scale: cdxml_editing_scale(document),
         }
     }
 
@@ -674,6 +686,157 @@ impl<'a> CdxmlDocumentWriter<'a> {
             object.transform.translate[0] + x + width,
             object.transform.translate[1] + y + height,
         ];
+        if kind == "orbital" {
+            self.write_orbital_shape_object(out, object, color, style);
+            return;
+        }
+        if kind == "crossTable" {
+            let left = bbox[0];
+            let top = bbox[1];
+            let mid_x = left + width * 0.5;
+            let mid_y = top + height * 0.5;
+            let right = bbox[2];
+            let bottom = bbox[3];
+            let cell_bounds = [
+                [left, top, mid_x, mid_y],
+                [mid_x, top, right, mid_y],
+                [left, mid_y, mid_x, bottom],
+                [mid_x, mid_y, right, bottom],
+            ];
+            let table_id = self.alloc_id();
+            let color_id = self.colors.id_for(color);
+            write_open_tag(
+                out,
+                4,
+                "table",
+                vec![
+                    ("id", table_id),
+                    ("BoundingBox", fmt_bbox(bbox)),
+                    ("color", color_id.clone()),
+                    ("Z", object.z_index.to_string()),
+                ],
+            );
+            for bounds in cell_bounds {
+                write_empty_tag(
+                    out,
+                    6,
+                    "page",
+                    vec![
+                        ("id", self.alloc_id()),
+                        ("BoundingBox", fmt_bbox(bounds)),
+                        ("HeaderPosition", "36".to_string()),
+                        ("FooterPosition", "36".to_string()),
+                        ("PrintTrimMarks", "yes".to_string()),
+                        ("HeightPages", "1".to_string()),
+                        ("WidthPages", "1".to_string()),
+                        ("BoundsInParent", fmt_bbox(bounds)),
+                    ],
+                );
+            }
+            write_indent(out, 4);
+            out.push_str("</table>\n");
+            return;
+        }
+        if kind == "tlcPlate" {
+            let plate_id = self.alloc_id();
+            let color_id = self.colors.id_for(color);
+            let origin_fraction = object
+                .payload
+                .extra
+                .get("originFraction")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.1);
+            let solvent_fraction = object
+                .payload
+                .extra
+                .get("solventFrontFraction")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.1);
+            let bool_attr = |key: &str, default_value: bool| {
+                if object
+                    .payload
+                    .extra
+                    .get(key)
+                    .and_then(Value::as_bool)
+                    .unwrap_or(default_value)
+                {
+                    "yes".to_string()
+                } else {
+                    "no".to_string()
+                }
+            };
+            write_open_tag(
+                out,
+                4,
+                "tlcplate",
+                vec![
+                    ("id", plate_id),
+                    ("OriginFraction", fmt_num(origin_fraction)),
+                    ("SolventFrontFraction", fmt_num(solvent_fraction)),
+                    ("ShowOrigin", bool_attr("showOrigin", true)),
+                    ("ShowSolventFront", bool_attr("showSolventFront", true)),
+                    ("TopLeft", fmt_point(Point::new(bbox[0], bbox[1]))),
+                    ("TopRight", fmt_point(Point::new(bbox[2], bbox[1]))),
+                    ("BottomRight", fmt_point(Point::new(bbox[2], bbox[3]))),
+                    ("BottomLeft", fmt_point(Point::new(bbox[0], bbox[3]))),
+                    ("ShowBorders", bool_attr("showBorders", true)),
+                    ("ShowSideTicks", bool_attr("showSideTicks", true)),
+                    ("BoundingBox", fmt_bbox(bbox)),
+                    ("Z", object.z_index.to_string()),
+                    ("color", color_id.clone()),
+                ],
+            );
+            if let Some(lanes) = object.payload.extra.get("lanes").and_then(Value::as_array) {
+                for lane in lanes {
+                    write_open_tag(out, 6, "tlclane", vec![("id", self.alloc_id())]);
+                    if let Some(spots) = lane.get("spots").and_then(Value::as_array) {
+                        for spot in spots {
+                            let mut attrs = vec![
+                                ("id", self.alloc_id()),
+                                (
+                                    "Rf",
+                                    fmt_num(spot.get("rf").and_then(Value::as_f64).unwrap_or(0.15)),
+                                ),
+                                (
+                                    "Tail",
+                                    fmt_num(spot.get("tail").and_then(Value::as_f64).unwrap_or(0.0)),
+                                ),
+                                (
+                                    "Width",
+                                    fmt_num(self.cdxml_tlc_spot_extent(
+                                        spot.get("width").and_then(Value::as_f64),
+                                    )),
+                                ),
+                                (
+                                    "Height",
+                                    fmt_num(self.cdxml_tlc_spot_extent(
+                                        spot.get("height").and_then(Value::as_f64),
+                                    )),
+                                ),
+                                (
+                                    "CurveType",
+                                    spot
+                                        .get("curveType")
+                                        .and_then(Value::as_i64)
+                                        .unwrap_or(128)
+                                        .to_string(),
+                                ),
+                                ("color", color_id.clone()),
+                            ];
+                            if spot.get("showRf").and_then(Value::as_bool).unwrap_or(false) {
+                                attrs.push(("ShowRf", "yes".to_string()));
+                            }
+                            write_empty_tag(out, 8, "tlcspot", attrs);
+                        }
+                    }
+                    write_indent(out, 6);
+                    out.push_str("</tlclane>\n");
+                }
+            }
+            write_indent(out, 4);
+            out.push_str("</tlcplate>\n");
+            return;
+        }
         let mut rectangle_type = String::new();
         if kind == "roundRect" {
             rectangle_type.push_str("RoundEdge");
@@ -707,6 +870,82 @@ impl<'a> CdxmlDocumentWriter<'a> {
         }
         if shadowed {
             attrs.push(("ShadowSize", fmt_num(shadow_size * 100.0)));
+        }
+        write_empty_tag(out, 4, "graphic", attrs);
+    }
+
+    fn write_orbital_shape_object(
+        &mut self,
+        out: &mut String,
+        object: &SceneObject,
+        color: &str,
+        style: Option<&Value>,
+    ) {
+        let template = payload_string_cdxml(&object.payload, "orbitalTemplate")
+            .unwrap_or_else(|| "s".to_string());
+        let render_style = payload_string_cdxml(&object.payload, "orbitalStyle")
+            .unwrap_or_else(|| "hollow".to_string());
+        let phase = payload_string_cdxml(&object.payload, "orbitalPhase")
+            .unwrap_or_else(|| "plus".to_string());
+        let orbital_type = cdxml_orbital_type(&template, &render_style, &phase);
+        let mut attrs = vec![
+            ("id", self.alloc_id()),
+            ("GraphicType", "Orbital".to_string()),
+            ("OrbitalType", orbital_type.to_string()),
+            ("color", self.colors.id_for(color)),
+            ("Z", object.z_index.to_string()),
+        ];
+        if matches!(template.as_str(), "s" | "oval") {
+            let Some(center) = payload_point_cdxml(&object.payload, "center") else {
+                return;
+            };
+            let Some(major) = payload_point_cdxml(&object.payload, "majorAxisEnd") else {
+                return;
+            };
+            let Some(minor) = payload_point_cdxml(&object.payload, "minorAxisEnd") else {
+                return;
+            };
+            let radius_x = center.distance(major);
+            let radius_y = center.distance(minor);
+            let bbox = [
+                center.x - radius_x,
+                center.y - radius_y,
+                center.x + radius_x,
+                center.y + radius_y,
+            ];
+            attrs.push(("BoundingBox", fmt_bbox(bbox)));
+            attrs.push(("Center3D", fmt_point3(center)));
+            attrs.push(("MajorAxisEnd3D", fmt_point3(major)));
+            attrs.push(("MinorAxisEnd3D", fmt_point3(minor)));
+            if template == "s" {
+                let oval_type = match render_style.as_str() {
+                    "shaded" => "Circle Shaded",
+                    "filled" => "Circle Filled",
+                    _ => "Circle",
+                };
+                attrs.push(("OvalType", oval_type.to_string()));
+            } else {
+                let oval_type = match render_style.as_str() {
+                    "shaded" => "Shaded",
+                    "filled" => "Filled",
+                    _ => "",
+                };
+                if !oval_type.is_empty() {
+                    attrs.push(("OvalType", oval_type.to_string()));
+                }
+            }
+            write_empty_tag(out, 4, "graphic", attrs);
+            return;
+        }
+        let Some(start) = payload_point_cdxml(&object.payload, "axisStart") else {
+            return;
+        };
+        let Some(end) = payload_point_cdxml(&object.payload, "axisEnd") else {
+            return;
+        };
+        attrs.push(("BoundingBox", fmt_bbox([end.x, end.y, start.x, start.y])));
+        if let Some(stroke_width) = style.and_then(|style| style_number_value(style, "strokeWidth")) {
+            attrs.push(("LineWidth", fmt_num(stroke_width)));
         }
         write_empty_tag(out, 4, "graphic", attrs);
     }
@@ -966,6 +1205,16 @@ impl<'a> CdxmlDocumentWriter<'a> {
         let id = self.next_id;
         self.next_id += 1;
         id.to_string()
+    }
+
+    fn cdxml_tlc_spot_extent(&self, extent: Option<f64>) -> f64 {
+        let Some(extent) = extent else {
+            return 327680.0;
+        };
+        if extent > 1024.0 {
+            return extent;
+        }
+        (extent / self.editing_scale.max(crate::EPSILON) * 65536.0).round()
     }
 }
 
@@ -1387,6 +1636,13 @@ fn cdxml_bond_display(bond: &Bond, second: bool) -> Option<&'static str> {
                 "WedgedHashEnd"
             });
         }
+        if stereo.kind == "hollow-wedge" {
+            return Some(if stereo.wide_end == "end" {
+                "HollowWedgeBegin"
+            } else {
+                "HollowWedgeEnd"
+            });
+        }
     }
     if second {
         if bond.line_styles.right == crate::BondLinePattern::Dashed {
@@ -1401,6 +1657,9 @@ fn cdxml_bond_display(bond: &Bond, second: bool) -> Option<&'static str> {
         || bond.line_styles.left == crate::BondLinePattern::Dashed
     {
         return Some("Dash");
+    }
+    if bond.line_styles.main == crate::BondLinePattern::Wavy {
+        return Some("Wavy");
     }
     if bond.line_weights.main == crate::BondLineWeight::Bold
         || bond.line_weights.left == crate::BondLineWeight::Bold
@@ -1490,6 +1749,33 @@ fn push_cdxml_shape_type_flag(out: &mut String, enabled: bool, flag: &str) {
         out.push(' ');
     }
     out.push_str(flag);
+}
+
+fn cdxml_orbital_type(template: &str, style: &str, phase: &str) -> &'static str {
+    match (template, style, phase) {
+        ("s", "shaded", _) => "sShaded",
+        ("s", "filled", _) => "sFilled",
+        ("s", _, _) => "s",
+        ("p", "filled", _) => "pFilled",
+        ("p", _, _) => "p",
+        ("dxy", "filled", _) => "dxyFilled",
+        ("dxy", _, _) => "dxy",
+        ("oval", "shaded", _) => "ovalShaded",
+        ("oval", "filled", _) => "ovalFilled",
+        ("oval", _, _) => "oval",
+        ("hybrid", "filled", "minus") => "hybridMinusFilled",
+        ("hybrid", _, "minus") => "hybridMinus",
+        ("hybrid", "filled", _) => "hybridPlusFilled",
+        ("hybrid", _, _) => "hybridPlus",
+        ("dz2", "filled", "minus") => "dz2MinusFilled",
+        ("dz2", _, "minus") => "dz2Minus",
+        ("dz2", "filled", _) => "dz2PlusFilled",
+        ("dz2", _, _) => "dz2Plus",
+        ("lobe", "shaded", _) => "lobeShaded",
+        ("lobe", "filled", _) => "lobeFilled",
+        ("lobe", _, _) => "lobe",
+        _ => "s",
+    }
 }
 
 fn cdxml_justification(value: Option<&str>) -> &'static str {

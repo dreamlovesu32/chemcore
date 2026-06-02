@@ -695,6 +695,18 @@ fn replace_with_plain_dashed_bond_style(bond: &mut Bond) -> bool {
     true
 }
 
+pub(super) fn replace_with_plain_wavy_bond_style(bond: &mut Bond) -> bool {
+    bond.order = 1;
+    bond.double = None;
+    bond.stereo = None;
+    bond.line_styles = BondLineStyles {
+        main: BondLinePattern::Wavy,
+        ..BondLineStyles::default()
+    };
+    bond.line_weights = BondLineWeights::default();
+    true
+}
+
 fn replace_with_plain_dashed_double_bond_style(
     bond: &mut Bond,
     placement: DoubleBondPlacement,
@@ -753,6 +765,7 @@ pub(super) fn replace_with_stereo_bond_style(bond: &mut Bond, variant: BondVaria
     let kind = match variant {
         BondVariant::Wedge => "solid-wedge",
         BondVariant::HashedWedge => "hashed-wedge",
+        BondVariant::HollowWedge => "hollow-wedge",
         _ => return false,
     };
     let current_wide_end = bond

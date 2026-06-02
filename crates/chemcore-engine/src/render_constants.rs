@@ -11,12 +11,10 @@ pub const HASH_WEDGE_START_OFFSET_CM: WorldCm = world_cm(1.0);
 pub const HASH_WEDGE_END_INSET_CM: WorldCm = world_cm(0.0);
 pub const HASH_BLACK_SEGMENT_LENGTH_CM: WorldCm = world_cm(1.0);
 pub const HASH_TARGET_GAP_LENGTH_CM: WorldCm = world_cm(1.9);
-pub const DEFAULT_HASH_SPACING_CM: WorldCm =
-    world_cm(HASH_BLACK_SEGMENT_LENGTH_CM.value() + HASH_TARGET_GAP_LENGTH_CM.value());
+pub const DEFAULT_HASH_SPACING_CM: WorldCm = HASH_WEDGE_SPACING_CM;
 pub const SOLID_WEDGE_END_INSET_CM: WorldCm = world_cm(0.0);
 pub const BOLD_BOND_WIDTH_CM: WorldCm = world_cm(4.0);
 pub const SOLID_WEDGE_WIDTH_CM: WorldCm = world_cm(6.0);
-pub const DASHED_BOND_PATTERN_CM: [WorldCm; 2] = [world_cm(10.0 / 3.0), world_cm(10.0 / 3.0)];
 
 pub const HASH_WEDGE_INITIAL_HALF_WIDTH_CM: WorldCm = css_px(0.42).to_world_cm();
 pub const HASH_WEDGE_PROGRESS_BASE_HALF_WIDTH_CM: WorldCm = css_px(0.16).to_world_cm();

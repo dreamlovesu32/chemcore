@@ -1,4 +1,5 @@
 use super::*;
+use crate::Point;
 
 pub(super) fn append_line_objects(
     root: &XmlNode,
@@ -393,6 +394,366 @@ pub(super) fn append_shape_objects(
             children: Vec::new(),
         });
         index += 1;
+    }
+}
+
+pub(super) fn append_orbital_shape_objects(
+    root: &XmlNode,
+    objects: &mut Vec<SceneObject>,
+    styles: &mut BTreeMap<String, Value>,
+    defaults: CdxmlDefaults,
+    colors: &CdxmlColorTable,
+) {
+    let mut index = 1;
+    for node in descendants(root) {
+        if !node.is("graphic")
+            || node.attr("SupersededBy").is_some()
+            || node.attr("GraphicType") != Some("Orbital")
+        {
+            continue;
+        }
+        let Some(orbital_type) = node.attr("OrbitalType") else {
+            continue;
+        };
+        let Some((template, style, phase)) = cdxml_orbital_family(orbital_type) else {
+            continue;
+        };
+        let color = colors.resolve(node.attr("color"));
+        let style_id = format!("style_shape_orbital_{index:03}");
+        styles.insert(
+            style_id.clone(),
+            json!({
+                "kind": "shape",
+                "fill": if style == "hollow" { Value::Null } else { json!(color.clone()) },
+                "stroke": if style == "filled" { Value::Null } else { json!(color.clone()) },
+                "strokeWidth": defaults.line_width,
+                "dashArray": json!([]),
+                "shaded": if style == "shaded" { json!(true) } else { Value::Null },
+            }),
+        );
+        let mut extra = BTreeMap::new();
+        extra.insert("kind".to_string(), json!("orbital"));
+        extra.insert("orbitalTemplate".to_string(), json!(template));
+        extra.insert("orbitalStyle".to_string(), json!(style));
+        extra.insert("orbitalPhase".to_string(), json!(phase));
+        extra.insert("orbitalColor".to_string(), json!(color.clone()));
+
+        let (transform, payload_bbox) = if matches!(template, "s" | "oval") {
+            let (Some(center), Some(major), Some(minor)) = (
+                parse_xyz2(node.attr("Center3D")),
+                parse_xyz2(node.attr("MajorAxisEnd3D")),
+                parse_xyz2(node.attr("MinorAxisEnd3D")),
+            ) else {
+                continue;
+            };
+            extra.insert(
+                "center".to_string(),
+                json!([round2(center[0]), round2(center[1])]),
+            );
+            extra.insert(
+                "majorAxisEnd".to_string(),
+                json!([round2(major[0]), round2(major[1])]),
+            );
+            extra.insert(
+                "minorAxisEnd".to_string(),
+                json!([round2(minor[0]), round2(minor[1])]),
+            );
+            let rx = Point::new(center[0], center[1]).distance(Point::new(major[0], major[1]));
+            let ry = Point::new(center[0], center[1]).distance(Point::new(minor[0], minor[1]));
+            let bbox = [
+                center[0] - rx,
+                center[1] - ry,
+                center[0] + rx,
+                center[1] + ry,
+            ];
+            (
+                Transform::identity(),
+                Some([
+                    round2(bbox[0].min(bbox[2])),
+                    round2(bbox[1].min(bbox[3])),
+                    round2((bbox[2] - bbox[0]).abs()),
+                    round2((bbox[3] - bbox[1]).abs()),
+                ]),
+            )
+        } else {
+            let Some((anchor, tip)) = parse_orbital_axis_points(node.attr("BoundingBox")) else {
+                continue;
+            };
+            extra.insert(
+                "axisStart".to_string(),
+                json!([round2(anchor[0]), round2(anchor[1])]),
+            );
+            extra.insert(
+                "axisEnd".to_string(),
+                json!([round2(tip[0]), round2(tip[1])]),
+            );
+            let padding = ((Point::new(anchor[0], anchor[1]).distance(Point::new(tip[0], tip[1])) * 0.75)
+                .max(defaults.bond_length * 0.25))
+                .max(6.0);
+            let min_x = anchor[0].min(tip[0]) - padding;
+            let min_y = anchor[1].min(tip[1]) - padding;
+            let max_x = anchor[0].max(tip[0]) + padding;
+            let max_y = anchor[1].max(tip[1]) + padding;
+            (
+                Transform::identity(),
+                Some([
+                    round2(min_x),
+                    round2(min_y),
+                    round2(max_x - min_x),
+                    round2(max_y - min_y),
+                ]),
+            )
+        };
+
+        objects.push(SceneObject {
+            id: format!("obj_shape_orbital_{index:03}"),
+            object_type: "shape".to_string(),
+            name: format!("orbital {index}"),
+            visible: true,
+            locked: false,
+            z_index: parse_i32(node.attr("Z")).unwrap_or(15),
+            transform,
+            style_ref: Some(style_id),
+            meta: json!({"source": "cdxml", "graphicId": node.attr("id"), "orbitalType": orbital_type}),
+            payload: ObjectPayload {
+                resource_ref: None,
+                bbox: payload_bbox,
+                extra,
+            },
+            children: Vec::new(),
+        });
+        index += 1;
+    }
+}
+
+fn parse_orbital_axis_points(value: Option<&str>) -> Option<([f64; 2], [f64; 2])> {
+    let nums: Vec<f64> = value?
+        .split_whitespace()
+        .take(4)
+        .filter_map(|part| part.parse().ok())
+        .collect();
+    if nums.len() != 4 {
+        return None;
+    }
+    Some(([nums[2], nums[3]], [nums[0], nums[1]]))
+}
+
+fn cdxml_orbital_family(value: &str) -> Option<(&'static str, &'static str, &'static str)> {
+    match value {
+        "s" => Some(("s", "hollow", "plus")),
+        "sShaded" => Some(("s", "shaded", "plus")),
+        "sFilled" => Some(("s", "filled", "plus")),
+        "p" => Some(("p", "shaded", "plus")),
+        "pFilled" => Some(("p", "filled", "plus")),
+        "dxy" => Some(("dxy", "shaded", "plus")),
+        "dxyFilled" => Some(("dxy", "filled", "plus")),
+        "oval" => Some(("oval", "hollow", "plus")),
+        "ovalShaded" => Some(("oval", "shaded", "plus")),
+        "ovalFilled" => Some(("oval", "filled", "plus")),
+        "hybridMinus" => Some(("hybrid", "shaded", "minus")),
+        "hybridMinusFilled" => Some(("hybrid", "filled", "minus")),
+        "hybridPlus" => Some(("hybrid", "shaded", "plus")),
+        "hybridPlusFilled" => Some(("hybrid", "filled", "plus")),
+        "dz2Minus" => Some(("dz2", "shaded", "minus")),
+        "dz2MinusFilled" => Some(("dz2", "filled", "minus")),
+        "dz2Plus" => Some(("dz2", "shaded", "plus")),
+        "dz2PlusFilled" => Some(("dz2", "filled", "plus")),
+        "lobe" => Some(("lobe", "hollow", "plus")),
+        "lobeShaded" => Some(("lobe", "shaded", "plus")),
+        "lobeFilled" => Some(("lobe", "filled", "plus")),
+        _ => None,
+    }
+}
+
+pub(super) fn append_table_shape_objects(
+    root: &XmlNode,
+    objects: &mut Vec<SceneObject>,
+    styles: &mut BTreeMap<String, Value>,
+    defaults: CdxmlDefaults,
+    colors: &CdxmlColorTable,
+) {
+    let mut index = 1;
+    for node in descendants(root) {
+        if !node.is("table") || node.attr("SupersededBy").is_some() {
+            continue;
+        }
+        let Some(bbox) = parse_bbox(node.attr("BoundingBox")) else {
+            continue;
+        };
+        let color = colors.resolve(node.attr("color"));
+        let style_id = format!("style_shape_table_{index:03}");
+        styles.insert(
+            style_id.clone(),
+            json!({
+                "kind": "shape",
+                "fill": Value::Null,
+                "stroke": color,
+                "strokeWidth": defaults.line_width,
+                "dashArray": json!([]),
+            }),
+        );
+        let mut extra = BTreeMap::new();
+        extra.insert("kind".to_string(), json!("crossTable"));
+        objects.push(SceneObject {
+            id: format!("obj_shape_table_{index:03}"),
+            object_type: "shape".to_string(),
+            name: format!("table shape {index}"),
+            visible: true,
+            locked: false,
+            z_index: parse_i32(node.attr("Z")).unwrap_or(15),
+            transform: Transform {
+                translate: [round2(bbox[0]), round2(bbox[1])],
+                rotate: 0.0,
+                scale: [1.0, 1.0],
+            },
+            style_ref: Some(style_id),
+            meta: json!({"source": "cdxml", "tableId": node.attr("id")}),
+            payload: ObjectPayload {
+                resource_ref: None,
+                bbox: Some([0.0, 0.0, round2(bbox[2] - bbox[0]), round2(bbox[3] - bbox[1])]),
+                extra,
+            },
+            children: Vec::new(),
+        });
+        index += 1;
+    }
+}
+
+pub(super) fn append_tlc_plate_shape_objects(
+    root: &XmlNode,
+    objects: &mut Vec<SceneObject>,
+    styles: &mut BTreeMap<String, Value>,
+    defaults: CdxmlDefaults,
+    colors: &CdxmlColorTable,
+) {
+    let mut index = 1;
+    for node in descendants(root) {
+        if !node.is("tlcplate") || node.attr("SupersededBy").is_some() {
+            continue;
+        }
+        let Some(bbox) = parse_bbox(node.attr("BoundingBox")) else {
+            continue;
+        };
+        let color = colors.resolve(node.attr("color"));
+        let style_id = format!("style_shape_tlc_{index:03}");
+        styles.insert(
+            style_id.clone(),
+            json!({
+                "kind": "shape",
+                "fill": "#ffffff",
+                "stroke": color,
+                "strokeWidth": defaults.line_width,
+                "dashArray": json!([]),
+            }),
+        );
+        let lanes_xml: Vec<_> = node
+            .children
+            .iter()
+            .filter(|child| child.is("tlclane"))
+            .collect();
+        let lane_count = lanes_xml.len().max(1);
+        let lanes: Vec<_> = lanes_xml
+            .iter()
+            .enumerate()
+            .map(|(lane_index, lane)| {
+                let spots: Vec<_> = lane
+                    .children
+                    .iter()
+                    .filter(|child| child.is("tlcspot"))
+                    .map(|spot| {
+                        let mut json_spot = serde_json::Map::new();
+                        json_spot.insert(
+                            "rf".to_string(),
+                            json!(round2(parse_f64(spot.attr("Rf")).unwrap_or(0.15))),
+                        );
+                        if let Some(width) = parse_f64(spot.attr("Width")) {
+                            json_spot.insert(
+                                "width".to_string(),
+                                json!(round2(normalize_tlc_spot_extent(width))),
+                            );
+                        }
+                        if let Some(height) = parse_f64(spot.attr("Height")) {
+                            json_spot.insert(
+                                "height".to_string(),
+                                json!(round2(normalize_tlc_spot_extent(height))),
+                            );
+                        }
+                        if let Some(curve_type) = parse_i32(spot.attr("CurveType")) {
+                            json_spot.insert("curveType".to_string(), json!(curve_type));
+                        }
+                        if let Some(tail) = parse_f64(spot.attr("Tail")) {
+                            json_spot.insert("tail".to_string(), json!(tail));
+                        }
+                        Value::Object(json_spot)
+                    })
+                    .collect();
+                json!({
+                    "offset": round2((lane_index as f64 + 1.0) / (lane_count as f64 + 1.0)),
+                    "spots": spots,
+                })
+            })
+            .collect();
+        let mut extra = BTreeMap::new();
+        extra.insert("kind".to_string(), json!("tlcPlate"));
+        extra.insert(
+            "originFraction".to_string(),
+            json!(round2(parse_f64(node.attr("OriginFraction")).unwrap_or(0.1))),
+        );
+        extra.insert(
+            "solventFrontFraction".to_string(),
+            json!(round2(parse_f64(node.attr("SolventFrontFraction")).unwrap_or(0.1))),
+        );
+        extra.insert(
+            "showOrigin".to_string(),
+            json!(node.attr("ShowOrigin").is_none_or(|value| value.eq_ignore_ascii_case("yes"))),
+        );
+        extra.insert(
+            "showSolventFront".to_string(),
+            json!(node
+                .attr("ShowSolventFront")
+                .is_none_or(|value| value.eq_ignore_ascii_case("yes"))),
+        );
+        extra.insert(
+            "showBorders".to_string(),
+            json!(node.attr("ShowBorders").is_none_or(|value| value.eq_ignore_ascii_case("yes"))),
+        );
+        extra.insert(
+            "showSideTicks".to_string(),
+            json!(node
+                .attr("ShowSideTicks")
+                .is_none_or(|value| value.eq_ignore_ascii_case("yes"))),
+        );
+        extra.insert("lanes".to_string(), json!(lanes));
+        objects.push(SceneObject {
+            id: format!("obj_shape_tlc_{index:03}"),
+            object_type: "shape".to_string(),
+            name: format!("tlc plate {index}"),
+            visible: true,
+            locked: false,
+            z_index: parse_i32(node.attr("Z")).unwrap_or(15),
+            transform: Transform {
+                translate: [round2(bbox[0]), round2(bbox[1])],
+                rotate: 0.0,
+                scale: [1.0, 1.0],
+            },
+            style_ref: Some(style_id),
+            meta: json!({"source": "cdxml", "tlcPlateId": node.attr("id")}),
+            payload: ObjectPayload {
+                resource_ref: None,
+                bbox: Some([0.0, 0.0, round2(bbox[2] - bbox[0]), round2(bbox[3] - bbox[1])]),
+                extra,
+            },
+            children: Vec::new(),
+        });
+        index += 1;
+    }
+}
+
+fn normalize_tlc_spot_extent(raw: f64) -> f64 {
+    if raw.abs() > 1024.0 {
+        raw / 65536.0
+    } else {
+        raw
     }
 }
 

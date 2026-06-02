@@ -338,6 +338,10 @@ const editorState = {
   shapeKind: "circle",
   shapeStyle: "solid",
   shapeColor: "#000000",
+  orbitalTemplate: "s",
+  orbitalStyle: "hollow",
+  orbitalPhase: "plus",
+  orbitalColor: "#000000",
   documentColors: [],
   bracketKind: "round",
   symbolKind: "circle-plus",
@@ -345,6 +349,8 @@ const editorState = {
 };
 let activeTextEditor = null;
 let activeSelectionGesture = null;
+let activeTlcSpotHover = null;
+let activeTlcLaneHover = null;
 
 const TAB_STATE_KEYS = [
   "currentPath",
@@ -706,10 +712,17 @@ async function syncEngineToolState() {
   await state.editorEngine.ready?.();
   await state.editorEngine.setTool(editorState.activeTool, editorState.bondType);
   await state.editorEngine.setTemplate?.(editorState.template);
+  const shapeKind = editorState.activeTool === "tlc-plate" ? "tlc-plate" : editorState.shapeKind;
   await state.editorEngine.setShapeOptions?.(
-    editorState.shapeKind,
+    shapeKind,
     editorState.shapeStyle,
     editorState.shapeColor,
+  );
+  await state.editorEngine.setOrbitalOptions?.(
+    editorState.orbitalTemplate,
+    editorState.orbitalStyle,
+    editorState.orbitalPhase,
+    editorState.orbitalColor,
   );
   await state.editorEngine.setBracketOptions?.(editorState.bracketKind);
   await state.editorEngine.setSymbolOptions?.(editorState.symbolKind);
@@ -1649,6 +1662,77 @@ function currentSelectionInfo() {
   };
 }
 
+function formatTlcRfValue(rf) {
+  return `Rf ${Number(rf || 0).toFixed(2)}`;
+}
+
+function tlcSpotSupportsOverlay(hit) {
+  return Array.isArray(hit?.guidePoints) && hit.guidePoints.length >= 4;
+}
+
+function drawTlcSpotGuideOverlay(overlay, hit, { showLabel = false } = {}) {
+  if (!tlcSpotSupportsOverlay(hit)) {
+    return;
+  }
+  overlay.appendChild(makeSvgNode("polygon", {
+    points: hit.guidePoints.map((point) => `${point.x},${point.y}`).join(" "),
+    class: "editor-selection-box",
+    fill: "none",
+    "data-role": showLabel ? "tlc-spot-drag-guide" : "tlc-spot-hover-guide",
+  }));
+  if (!showLabel || !hit.center) {
+    return;
+  }
+  const label = formatTlcRfValue(hit.rf);
+  const labelX = hit.center.x + screenPxToWorld(10);
+  const labelY = hit.center.y - screenPxToWorld(10);
+  const paddingX = screenPxToWorld(6);
+  const paddingY = screenPxToWorld(4);
+  const labelWidth = Math.max(screenPxToWorld(44), screenPxToWorld(label.length * 7));
+  const labelHeight = screenPxToWorld(20);
+  overlay.appendChild(makeSvgNode("rect", {
+    x: labelX - paddingX,
+    y: labelY - labelHeight + paddingY,
+    width: labelWidth + paddingX * 2,
+    height: labelHeight,
+    rx: screenPxToWorld(4),
+    ry: screenPxToWorld(4),
+    class: "editor-selection-text-box",
+    fill: "#ffffff",
+    "data-role": "tlc-spot-rf-box",
+  }));
+  overlay.appendChild(makeSvgNode("text", {
+    x: labelX,
+    y: labelY,
+    class: "editor-selection-rotate-angle",
+    "data-role": "tlc-spot-rf-label",
+  }));
+  overlay.lastChild.textContent = label;
+}
+
+function clearTlcHoverState() {
+  activeTlcSpotHover = null;
+  activeTlcLaneHover = null;
+}
+
+async function updateTlcSpotHover(point) {
+  if (!state.editorEngine || (editorState.activeTool !== "select" && editorState.activeTool !== "tlc-plate")) {
+    activeTlcSpotHover = null;
+    activeTlcLaneHover = null;
+    return null;
+  }
+  if (activeSelectionGesture?.kind === "tlc-spot-drag") {
+    activeTlcSpotHover = activeSelectionGesture.hit || null;
+    activeTlcLaneHover = null;
+    return activeTlcSpotHover;
+  }
+  activeTlcSpotHover = parseEngineJson(await state.editorEngine.tlcSpotHitTestJson?.(point.x, point.y), null);
+  activeTlcLaneHover = activeTlcSpotHover
+    ? null
+    : parseEngineJson(await state.editorEngine.tlcLaneGuideHitTestJson?.(point.x, point.y), null);
+  return activeTlcSpotHover;
+}
+
 function contextSelectionCount(info = currentSelectionInfo()) {
   return info.sceneObjects.length + info.nodes.length + info.bonds.length + info.labelNodes.length;
 }
@@ -1953,6 +2037,24 @@ async function runCanvasContextMenuCommand(command, value) {
     return;
   } else if (command === "shape-style") {
     changed = !!(await state.editorEngine?.applyShapeStyleToSelection?.(value));
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "orbital-template") {
+    changed = !!(await state.editorEngine?.applyOrbitalTemplateToSelection?.(value));
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "orbital-style") {
+    changed = !!(await state.editorEngine?.applyOrbitalStyleToSelection?.(value));
+    if (changed) {
+      await syncDocumentFromEngine();
+      renderDocument();
+    }
+  } else if (command === "orbital-phase") {
+    changed = !!(await state.editorEngine?.applyOrbitalPhaseToSelection?.(value));
     if (changed) {
       await syncDocumentFromEngine();
       renderDocument();
@@ -2350,6 +2452,10 @@ async function syncArrowAwareCursorForPoint(point) {
     syncCanvasCursor();
     return;
   }
+  if (activeSelectionGesture?.kind === "tlc-spot-drag") {
+    viewerSvg.style.cursor = "ns-resize";
+    return;
+  }
   if (activeSelectionGesture?.kind === "move") {
     viewerSvg.style.cursor = "grabbing";
     return;
@@ -2372,6 +2478,10 @@ async function syncArrowAwareCursorForPoint(point) {
   }
   if (activeSelectionGesture?.kind === "shape-resize") {
     viewerSvg.style.cursor = activeSelectionGesture.cursor || "nwse-resize";
+    return;
+  }
+  if ((editorState.activeTool === "select" || editorState.activeTool === "tlc-plate") && activeTlcSpotHover) {
+    viewerSvg.style.cursor = "ns-resize";
     return;
   }
   if (editorState.activeTool === "select") {
@@ -2409,7 +2519,7 @@ async function syncArrowAwareCursorForPoint(point) {
     viewerSvg.style.cursor = "crosshair";
     return;
   }
-  if (editorState.activeTool === "shape") {
+  if (editorState.activeTool === "shape" || editorState.activeTool === "tlc-plate" || editorState.activeTool === "orbital") {
     viewerSvg.style.cursor = "crosshair";
     return;
   }
@@ -3431,6 +3541,8 @@ function routeEditorPointerEvents() {
       || editorState.activeTool === "select"
       || editorState.activeTool === "text"
       || editorState.activeTool === "shape"
+      || editorState.activeTool === "tlc-plate"
+      || editorState.activeTool === "orbital"
       || editorState.activeTool === "templates");
 }
 
@@ -3885,8 +3997,20 @@ function bracketLabelAnchorPoint(start, end, kind = editorState.bracketKind) {
 
 async function handleEditorPointerMove(event) {
   const point = svgPointFromEvent(event);
-  if ((editorState.activeTool === "select" || editorState.activeTool === "arrow" || editorState.activeTool === "shape") && activeSelectionGesture) {
+  if ((editorState.activeTool === "select" || editorState.activeTool === "arrow" || editorState.activeTool === "shape" || editorState.activeTool === "tlc-plate" || editorState.activeTool === "orbital") && activeSelectionGesture) {
     event.preventDefault();
+    if (activeSelectionGesture.kind === "tlc-spot-drag") {
+      activeSelectionGesture.current = point;
+      activeSelectionGesture.dragged = pointDistance(activeSelectionGesture.start, point) >= cssPxToCm(1.5);
+      const hit = parseEngineJson(await state.editorEngine.updateTlcSpotDragJson?.(point.x, point.y), null);
+      if (hit) {
+        activeSelectionGesture.hit = hit;
+        await syncDocumentFromEngine();
+      }
+      await syncSelectCursorForPoint(point);
+      renderDocument();
+      return;
+    }
     if (activeSelectionGesture.kind === "arrow-endpoint" || activeSelectionGesture.kind === "arrow-curve") {
       if (pointDistance(activeSelectionGesture.start, point) >= cssPxToCm(3)) {
         activeSelectionGesture.dragged = true;
@@ -3971,9 +4095,14 @@ async function handleEditorPointerMove(event) {
     return;
   }
   await state.editorEngine.pointerMove(point.x, point.y, event.altKey);
+  if ((editorState.activeTool === "select" || editorState.activeTool === "tlc-plate") && !activeSelectionGesture) {
+    await updateTlcSpotHover(point);
+  } else if (activeSelectionGesture?.kind !== "tlc-spot-drag") {
+    clearTlcHoverState();
+  }
   if (editorState.activeTool === "select") {
     await syncSelectCursorForPoint(point);
-  } else if (editorState.activeTool === "arrow" || editorState.activeTool === "shape") {
+  } else if (editorState.activeTool === "arrow" || editorState.activeTool === "shape" || editorState.activeTool === "tlc-plate" || editorState.activeTool === "orbital") {
     await syncArrowAwareCursorForPoint(point);
   }
   const renderList = currentEditorRenderList();
@@ -4000,6 +4129,22 @@ async function handleEditorPointerDown(event) {
     event.preventDefault();
     viewerSvg.setPointerCapture?.(event.pointerId);
     await state.editorEngine.pointerMove(point.x, point.y, event.altKey);
+    const tlcSpotHit = parseEngineJson(await state.editorEngine.beginTlcSpotDragJson?.(point.x, point.y), null);
+    if (tlcSpotHit) {
+      activeSelectionGesture = {
+        kind: "tlc-spot-drag",
+        start: point,
+        current: point,
+        dragged: false,
+        cursor: "ns-resize",
+        hit: tlcSpotHit,
+      };
+      activeTlcSpotHover = tlcSpotHit;
+      activeTlcLaneHover = null;
+      await selectClickTarget(point, !!event.shiftKey);
+      await renderSelectionOnlyUpdate(point);
+      return;
+    }
     const resizeHandle = selectionResizeHandleHit(point);
     if (resizeHandle && await state.editorEngine.beginSelectionResize?.(resizeHandle.name, point.x, point.y)) {
       activeSelectionGesture = {
@@ -4117,7 +4262,25 @@ async function handleEditorPointerDown(event) {
       return;
     }
   }
-  if (editorState.activeTool === "shape") {
+  if (editorState.activeTool === "shape" || editorState.activeTool === "tlc-plate") {
+    if (editorState.activeTool === "tlc-plate") {
+      const tlcSpotHit = parseEngineJson(await state.editorEngine.beginTlcSpotDragJson?.(point.x, point.y), null);
+      if (tlcSpotHit) {
+        activeSelectionGesture = {
+          kind: "tlc-spot-drag",
+          start: point,
+          current: point,
+          dragged: false,
+          cursor: "ns-resize",
+          hit: tlcSpotHit,
+        };
+        activeTlcSpotHover = tlcSpotHit;
+        activeTlcLaneHover = null;
+        await syncArrowAwareCursorForPoint(point);
+        renderEditorOverlay(currentEditorRenderList());
+        return;
+      }
+    }
     const shapeEditAction = await state.editorEngine.beginHoverShapeEdit?.(point.x, point.y) || "";
     if (shapeEditAction) {
       activeSelectionGesture = {
@@ -4149,6 +4312,24 @@ async function handleEditorPointerUp(event) {
   state.lastEditFocusPoint = point;
   event.preventDefault();
   viewerSvg.releasePointerCapture?.(event.pointerId);
+  if (activeSelectionGesture?.kind === "tlc-spot-drag") {
+    const hit = parseEngineJson(await state.editorEngine.finishTlcSpotDragJson?.(point.x, point.y), null);
+    activeSelectionGesture = null;
+    if (hit) {
+      activeTlcSpotHover = hit;
+      activeTlcLaneHover = null;
+      await syncDocumentFromEngine();
+    } else {
+      clearTlcHoverState();
+    }
+    if (editorState.activeTool === "select") {
+      await syncSelectCursorForPoint(point);
+    } else {
+      await syncArrowAwareCursorForPoint(point);
+    }
+    renderDocument();
+    return;
+  }
   if ((editorState.activeTool === "select" || editorState.activeTool === "arrow")
     && (activeSelectionGesture?.kind === "arrow-endpoint" || activeSelectionGesture?.kind === "arrow-curve")) {
     const gesture = activeSelectionGesture;
@@ -4172,7 +4353,7 @@ async function handleEditorPointerUp(event) {
     }
     return;
   }
-  if ((editorState.activeTool === "select" || editorState.activeTool === "shape")
+  if ((editorState.activeTool === "select" || editorState.activeTool === "shape" || editorState.activeTool === "tlc-plate" || editorState.activeTool === "orbital")
     && activeSelectionGesture?.kind === "shape-resize") {
     const gesture = activeSelectionGesture;
     activeSelectionGesture = null;
@@ -4267,6 +4448,7 @@ async function handleEditorPointerLeave() {
   if (editorState.activeTool === "select" && activeSelectionGesture) {
     return;
   }
+  clearTlcHoverState();
   if (editorState.activeTool !== "text") {
     await state.editorEngine.clearInteraction();
     renderEditorOverlay();
@@ -4427,6 +4609,40 @@ function renderEditorOverlay(renderList = null) {
       "data-role": "arrow-curve-angle",
     }));
     overlay.lastChild.textContent = formatRotationAngle(activeSelectionGesture.angle || 0);
+  } else if ((editorState.activeTool === "select" || editorState.activeTool === "tlc-plate")
+    && activeSelectionGesture?.kind === "tlc-spot-drag") {
+    const hit = activeSelectionGesture.hit;
+    if (hit?.center) {
+      const label = formatTlcRfValue(hit.rf);
+      const labelX = hit.center.x + screenPxToWorld(10);
+      const labelY = hit.center.y - screenPxToWorld(10);
+      const paddingX = screenPxToWorld(6);
+      const paddingY = screenPxToWorld(4);
+      const labelWidth = Math.max(screenPxToWorld(44), screenPxToWorld(label.length * 7));
+      const labelHeight = screenPxToWorld(20);
+      overlay.appendChild(makeSvgNode("rect", {
+        x: labelX - paddingX,
+        y: labelY - labelHeight + paddingY,
+        width: labelWidth + paddingX * 2,
+        height: labelHeight,
+        rx: screenPxToWorld(4),
+        ry: screenPxToWorld(4),
+        class: "editor-selection-text-box",
+        fill: "#ffffff",
+        "data-role": "tlc-spot-rf-box",
+      }));
+      overlay.appendChild(makeSvgNode("text", {
+        x: labelX,
+        y: labelY,
+        class: "editor-selection-rotate-angle",
+        "data-role": "tlc-spot-rf-label",
+      }));
+      overlay.lastChild.textContent = label;
+    }
+  } else if ((editorState.activeTool === "select" || editorState.activeTool === "tlc-plate")
+    && !activeSelectionGesture
+    && activeTlcLaneHover) {
+    drawTlcSpotGuideOverlay(overlay, activeTlcLaneHover);
   } else if (editorState.activeTool === "select" && !activeSelectionGesture) {
     for (const handle of selectionResizeHandles(primitives)) {
       overlay.appendChild(makeSvgNode("rect", {

@@ -10,6 +10,9 @@ export const wasmengine_applyBracketKindToSelection: (a: number, b: number, c: n
 export const wasmengine_applyColorToSelection: (a: number, b: number, c: number) => number;
 export const wasmengine_applyLineStyleToSelection: (a: number, b: number, c: number) => number;
 export const wasmengine_applyObjectSettingsDialogJson: (a: number, b: number, c: number) => [number, number, number];
+export const wasmengine_applyOrbitalPhaseToSelection: (a: number, b: number, c: number) => number;
+export const wasmengine_applyOrbitalStyleToSelection: (a: number, b: number, c: number) => number;
+export const wasmengine_applyOrbitalTemplateToSelection: (a: number, b: number, c: number) => number;
 export const wasmengine_applySelectionArrangeCommand: (a: number, b: number, c: number) => number;
 export const wasmengine_applySelectionNumericDialogJson: (a: number, b: number, c: number) => [number, number, number];
 export const wasmengine_applySelectionOrderCommand: (a: number, b: number, c: number) => number;
@@ -22,6 +25,7 @@ export const wasmengine_beginSelectionMove: (a: number, b: number, c: number, d:
 export const wasmengine_beginSelectionResize: (a: number, b: number, c: number, d: number, e: number) => number;
 export const wasmengine_beginSelectionRotate: (a: number, b: number, c: number) => number;
 export const wasmengine_beginTextEdit: (a: number, b: number, c: number) => [number, number, number, number];
+export const wasmengine_beginTlcSpotDragJson: (a: number, b: number, c: number) => [number, number, number, number];
 export const wasmengine_canRedo: (a: number) => number;
 export const wasmengine_canUndo: (a: number) => number;
 export const wasmengine_centerSelectionOnPage: (a: number) => number;
@@ -45,6 +49,7 @@ export const wasmengine_finishHoverShapeEdit: (a: number, b: number, c: number, 
 export const wasmengine_finishSelectionMove: (a: number, b: number, c: number, d: number) => number;
 export const wasmengine_finishSelectionResize: (a: number, b: number, c: number) => number;
 export const wasmengine_finishSelectionRotate: (a: number, b: number, c: number, d: number) => number;
+export const wasmengine_finishTlcSpotDragJson: (a: number, b: number, c: number) => [number, number, number, number];
 export const wasmengine_groupSelection: (a: number) => number;
 export const wasmengine_hasClipboard: (a: number) => number;
 export const wasmengine_hoverArrowAction: (a: number, b: number, c: number) => [number, number];
@@ -78,11 +83,14 @@ export const wasmengine_setArrowOptions: (a: number, b: number, c: number, d: nu
 export const wasmengine_setBracketOptions: (a: number, b: number, c: number) => void;
 export const wasmengine_setChemicalCheckForSelection: (a: number, b: number) => number;
 export const wasmengine_setDocumentStylePreset: (a: number, b: number, c: number) => void;
+export const wasmengine_setOrbitalOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
 export const wasmengine_setShapeOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
 export const wasmengine_setSymbolOptions: (a: number, b: number, c: number) => void;
 export const wasmengine_setTemplate: (a: number, b: number, c: number) => void;
 export const wasmengine_setTool: (a: number, b: number, c: number, d: number, e: number) => void;
 export const wasmengine_stateJson: (a: number) => [number, number, number, number];
+export const wasmengine_tlcLaneGuideHitTestJson: (a: number, b: number, c: number) => [number, number, number, number];
+export const wasmengine_tlcSpotHitTestJson: (a: number, b: number, c: number) => [number, number, number, number];
 export const wasmengine_undo: (a: number) => number;
 export const wasmengine_ungroupSelection: (a: number) => number;
 export const wasmengine_updateHoverArrowEdit: (a: number, b: number, c: number, d: number) => number;
@@ -90,6 +98,7 @@ export const wasmengine_updateHoverShapeEdit: (a: number, b: number, c: number, 
 export const wasmengine_updateSelectionMove: (a: number, b: number, c: number, d: number) => number;
 export const wasmengine_updateSelectionResize: (a: number, b: number, c: number) => number;
 export const wasmengine_updateSelectionRotate: (a: number, b: number, c: number, d: number) => number;
+export const wasmengine_updateTlcSpotDragJson: (a: number, b: number, c: number) => [number, number, number, number];
 export const __wbindgen_externrefs: WebAssembly.Table;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

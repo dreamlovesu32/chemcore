@@ -67,6 +67,11 @@ pub(super) fn render_fragment_bond(
         return;
     }
 
+    if bond.order == 1 && bond.line_styles.main == crate::BondLinePattern::Wavy {
+        render_wavy_bond(out, bond, start, finish, stroke, stroke_width, object_id);
+        return;
+    }
+
     if bond.order == 2 {
         render_double_bond(
             out,
@@ -127,7 +132,7 @@ pub(super) fn render_fragment_bond(
         true,
         stroke,
         stroke_width,
-        line_pattern_dash_array(bond.line_styles.main),
+        line_pattern_dash_array_for_bond(bond, stroke_width, bond.line_styles.main),
         bond.line_weights.main,
         object_id,
     );
@@ -184,7 +189,7 @@ fn render_double_bond(
                 true,
                 stroke,
                 stroke_width,
-                line_pattern_dash_array(bond.line_styles.main),
+                line_pattern_dash_array_for_bond(bond, stroke_width, bond.line_styles.main),
                 bond.line_weights.main,
                 object_id.clone(),
             );
@@ -315,7 +320,7 @@ fn render_center_double_bond_lines(
             false,
             stroke,
             stroke_width,
-            line_pattern_dash_array(pattern),
+            line_pattern_dash_array_for_bond(bond, stroke_width, pattern),
             weight,
             object_id.clone(),
             false,
@@ -364,7 +369,7 @@ fn render_triple_bond(
         true,
         stroke,
         stroke_width,
-        line_pattern_dash_array(bond.line_styles.main),
+        line_pattern_dash_array_for_bond(bond, stroke_width, bond.line_styles.main),
         bond.line_weights.main,
         object_id.clone(),
     );
@@ -511,7 +516,7 @@ fn render_outer_bond_lines(
             false,
             stroke,
             stroke_width,
-            line_pattern_dash_array(line_pattern),
+            line_pattern_dash_array_for_bond(bond, stroke_width, line_pattern),
             line_weight,
             object_id.clone(),
             true,
@@ -626,7 +631,108 @@ fn render_stereo_bond(
                 push_bond_filled_path(out, &bond.id, stripe, stroke, object_id.clone());
             }
         }
+        BondStereoKind::HollowWedgeEnd => {
+            let points = compute_fragment_solid_wedge_points(
+                object,
+                contact_kernel,
+                bonds,
+                node_map,
+                bond,
+                &bond.end,
+                start,
+                end,
+                if end_has_label {
+                    SOLID_WEDGE_END_INSET
+                } else {
+                    0.0
+                },
+                stroke_width,
+                !contact_kernel.uses_endpoint(&bond.id, &bond.end),
+            );
+            push_hollow_wedge(out, &bond.id, points, stroke, stroke_width, object_id);
+        }
+        BondStereoKind::HollowWedgeBegin => {
+            let points = compute_fragment_solid_wedge_points(
+                object,
+                contact_kernel,
+                bonds,
+                node_map,
+                bond,
+                &bond.begin,
+                end,
+                start,
+                if begin_has_label {
+                    SOLID_WEDGE_END_INSET
+                } else {
+                    0.0
+                },
+                stroke_width,
+                !contact_kernel.uses_endpoint(&bond.id, &bond.begin),
+            );
+            push_hollow_wedge(out, &bond.id, points, stroke, stroke_width, object_id);
+        }
     }
+}
+
+fn render_wavy_bond(
+    out: &mut Vec<RenderPrimitive>,
+    bond: &Bond,
+    start: Point,
+    end: Point,
+    stroke: &str,
+    stroke_width: f64,
+    object_id: Option<String>,
+) {
+    let direction = Vector::new(end.x - start.x, end.y - start.y);
+    let length = direction.length();
+    if length <= EPSILON {
+        return;
+    }
+    let unit = direction.normalized();
+    let normal = Vector::new(-unit.y, unit.x);
+    let amplitude = (1.875 * (stroke_width / VIEWER_BOND_STROKE)).clamp(0.8, length * 0.18);
+    let mut half_wave_count = ((length / amplitude).round() as usize).max(4);
+    if half_wave_count % 2 != 0 {
+        half_wave_count += 1;
+    }
+    let half_wave_step = length / half_wave_count as f64;
+    let mut d = format!("M {:.4} {:.4}", start.x, start.y);
+    let mut points = vec![start];
+    for index in 0..half_wave_count {
+        let t = half_wave_step * (index + 1) as f64;
+        let endpoint_side = match (index + 1) % 4 {
+            1 => 1.0,
+            3 => -1.0,
+            _ => 0.0,
+        };
+        let end_point = Point::new(
+            start.x + unit.x * t + normal.x * amplitude * endpoint_side,
+            start.y + unit.y * t + normal.y * amplitude * endpoint_side,
+        );
+        let sweep = match (index + 1) % 4 {
+            1 | 2 => 0,
+            _ => 1,
+        };
+        d.push_str(&format!(
+            " A {:.4},{:.4} 90 0,{} {:.4} {:.4}",
+            amplitude, amplitude, sweep, end_point.x, end_point.y
+        ));
+        points.push(end_point);
+    }
+    out.push(RenderPrimitive::Path {
+        role: RenderRole::DocumentBond,
+        object_id,
+        bond_id: Some(bond.id.clone()),
+        d,
+        points,
+        stroke: stroke.to_string(),
+        stroke_width,
+        dash_array: Vec::new(),
+        line_cap: None,
+        line_join: Some("bevel".to_string()),
+        rotate: 0.0,
+        rotate_center: None,
+    });
 }
 
 pub(super) fn compute_solid_wedge_points(
@@ -960,6 +1066,39 @@ fn push_hashed_wedge_stripe(
         lerp_point(tip_minus, cap_minus, t1),
         lerp_point(tip_minus, cap_minus, t0),
     ]));
+}
+
+fn push_hollow_wedge(
+    out: &mut Vec<RenderPrimitive>,
+    bond_id: &str,
+    points: Vec<Point>,
+    stroke: &str,
+    stroke_width: f64,
+    object_id: Option<String>,
+) {
+    let points = compact_polygon_points(points);
+    if points.len() != 4 || polygon_area_signed(&points).abs() <= 1.0e-4 {
+        return;
+    }
+    let mut d = format!("M {:.4} {:.4}", points[0].x, points[0].y);
+    for point in points.iter().skip(1) {
+        d.push_str(&format!(" L {:.4} {:.4}", point.x, point.y));
+    }
+    d.push_str(" Z");
+    out.push(RenderPrimitive::Path {
+        role: RenderRole::DocumentBond,
+        object_id,
+        bond_id: Some(bond_id.to_string()),
+        d,
+        points,
+        stroke: stroke.to_string(),
+        stroke_width,
+        dash_array: Vec::new(),
+        line_cap: Some("butt".to_string()),
+        line_join: Some("miter".to_string()),
+        rotate: 0.0,
+        rotate_center: None,
+    });
 }
 
 fn push_bond_filled_path(

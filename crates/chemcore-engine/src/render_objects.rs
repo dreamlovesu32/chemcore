@@ -266,7 +266,9 @@ fn crossing_bond_visual_width(bond: &Bond, start: Point, end: Point, stroke_widt
             BondStereoKind::SolidWedgeBegin
             | BondStereoKind::SolidWedgeEnd
             | BondStereoKind::HashedWedgeBegin
-            | BondStereoKind::HashedWedgeEnd => {
+            | BondStereoKind::HashedWedgeEnd
+            | BondStereoKind::HollowWedgeBegin
+            | BondStereoKind::HollowWedgeEnd => {
                 solid_wedge_half_width_for_bond(bond, stroke_width) * 2.0
             }
         };

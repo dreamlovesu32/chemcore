@@ -161,9 +161,20 @@ impl Engine {
                 ]);
             }
             Some("shape") => {
+                let is_orbital = self
+                    .selected_scene_objects()
+                    .first()
+                    .and_then(|object| payload_string(object, "kind"))
+                    .is_some_and(|kind| kind == "orbital");
+                items.push(separator());
+                if is_orbital {
+                    items.push(self.orbital_template_menu());
+                    items.push(self.orbital_style_menu());
+                    items.push(self.orbital_phase_menu());
+                } else {
+                    items.push(self.shape_style_menu());
+                }
                 items.extend([
-                    separator(),
-                    self.shape_style_menu(),
                     separator(),
                     order_subitems_flat(),
                     json!({"label": "Center on Page", "command": "center-page"}),
@@ -387,6 +398,18 @@ impl Engine {
         bond_type_menu(self.selected_uniform_bond_style().as_deref())
     }
 
+    fn orbital_template_menu(&self) -> JsonValue {
+        orbital_template_menu(self.selected_uniform_orbital_template().as_deref())
+    }
+
+    fn orbital_style_menu(&self) -> JsonValue {
+        orbital_style_menu(self.selected_uniform_orbital_style().as_deref())
+    }
+
+    fn orbital_phase_menu(&self) -> JsonValue {
+        orbital_phase_menu(self.selected_uniform_orbital_phase().as_deref())
+    }
+
     fn text_font_menu(&self) -> JsonValue {
         text_font_menu(self.selected_uniform_text_font_family().as_deref())
     }
@@ -569,6 +592,48 @@ impl Engine {
             self.selected_bonds()
                 .into_iter()
                 .map(bond_style_key)
+                .collect(),
+        )
+    }
+
+    fn selected_uniform_orbital_template(&self) -> Option<String> {
+        uniform_value(
+            self.selected_scene_objects()
+                .into_iter()
+                .filter(|object| object.object_type == "shape")
+                .filter(|object| payload_string(object, "kind").as_deref() == Some("orbital"))
+                .map(|object| {
+                    payload_string(object, "orbitalTemplate")
+                        .unwrap_or_else(|| "s".to_string())
+                })
+                .collect(),
+        )
+    }
+
+    fn selected_uniform_orbital_style(&self) -> Option<String> {
+        uniform_value(
+            self.selected_scene_objects()
+                .into_iter()
+                .filter(|object| object.object_type == "shape")
+                .filter(|object| payload_string(object, "kind").as_deref() == Some("orbital"))
+                .map(|object| {
+                    payload_string(object, "orbitalStyle")
+                        .unwrap_or_else(|| "hollow".to_string())
+                })
+                .collect(),
+        )
+    }
+
+    fn selected_uniform_orbital_phase(&self) -> Option<String> {
+        uniform_value(
+            self.selected_scene_objects()
+                .into_iter()
+                .filter(|object| object.object_type == "shape")
+                .filter(|object| payload_string(object, "kind").as_deref() == Some("orbital"))
+                .map(|object| {
+                    payload_string(object, "orbitalPhase")
+                        .unwrap_or_else(|| "plus".to_string())
+                })
                 .collect(),
         )
     }
@@ -920,6 +985,18 @@ fn bond_type_menu(current: Option<&str>) -> JsonValue {
                         "single-bold-wedged",
                         current == Some("single-bold-wedged"),
                     ),
+                    checked_item(
+                        "Hollow Wedged",
+                        "bond-style",
+                        "single-hollow-wedged",
+                        current == Some("single-hollow-wedged"),
+                    ),
+                    checked_item(
+                        "Wavy",
+                        "bond-style",
+                        "single-wavy",
+                        current == Some("single-wavy"),
+                    ),
                 ],
             ),
             submenu(
@@ -972,6 +1049,42 @@ fn bond_type_menu(current: Option<&str>) -> JsonValue {
                     current == Some("triple-plain"),
                 )],
             ),
+        ],
+    )
+}
+
+fn orbital_template_menu(current: Option<&str>) -> JsonValue {
+    submenu(
+        "Orbital Template",
+        vec![
+            checked_item("s", "orbital-template", "s", current == Some("s")),
+            checked_item("p", "orbital-template", "p", current == Some("p")),
+            checked_item("dxy", "orbital-template", "dxy", current == Some("dxy")),
+            checked_item("oval", "orbital-template", "oval", current == Some("oval")),
+            checked_item("hybrid", "orbital-template", "hybrid", current == Some("hybrid")),
+            checked_item("dz2", "orbital-template", "dz2", current == Some("dz2")),
+            checked_item("lobe", "orbital-template", "lobe", current == Some("lobe")),
+        ],
+    )
+}
+
+fn orbital_style_menu(current: Option<&str>) -> JsonValue {
+    submenu(
+        "Orbital Style",
+        vec![
+            checked_item("Hollow", "orbital-style", "hollow", current == Some("hollow")),
+            checked_item("Filled", "orbital-style", "filled", current == Some("filled")),
+            checked_item("Shaded", "orbital-style", "shaded", current == Some("shaded")),
+        ],
+    )
+}
+
+fn orbital_phase_menu(current: Option<&str>) -> JsonValue {
+    submenu(
+        "Orbital Phase",
+        vec![
+            checked_item("Plus", "orbital-phase", "plus", current == Some("plus")),
+            checked_item("Minus", "orbital-phase", "minus", current == Some("minus")),
         ],
     )
 }
@@ -1169,6 +1282,14 @@ fn line_object_style(document: &crate::ChemcoreDocument, object: &SceneObject) -
 }
 
 fn bond_style_key(bond: &Bond) -> String {
+    if bond
+        .meta
+        .get("contextMenuBondStyle")
+        .and_then(JsonValue::as_str)
+        == Some("single-wavy")
+    {
+        return "single-wavy".to_string();
+    }
     if bond.order == 3 {
         return "triple-plain".to_string();
     }
@@ -1211,6 +1332,9 @@ fn bond_style_key(bond: &Bond) -> String {
         .unwrap_or("");
     if stereo.contains("hashed") {
         return "single-hashed-wedged".to_string();
+    }
+    if stereo.contains("hollow-wedge") {
+        return "single-hollow-wedged".to_string();
     }
     if stereo.contains("wedge") {
         return "single-bold-wedged".to_string();

@@ -183,6 +183,18 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
     svgRoot.appendChild(makeSvgNode("ellipse", attrs));
     return;
   }
+  if (primitive.kind === "circle" && primitive.center) {
+    const attrs = {
+      cx: primitive.center.x,
+      cy: primitive.center.y,
+      r: primitive.radius,
+      fill: primitive.fill || "none",
+      stroke: primitive.stroke || "none",
+      "stroke-width": primitiveStrokeWidthValue(primitive, 1),
+    };
+    svgRoot.appendChild(makeSvgNode("circle", attrs));
+    return;
+  }
   if (primitive.kind === "text") {
     renderTextPrimitive(svgRoot, primitive, options);
   }

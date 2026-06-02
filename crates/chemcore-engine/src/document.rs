@@ -1162,6 +1162,7 @@ pub enum BondLinePattern {
     #[default]
     Solid,
     Dashed,
+    Wavy,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

@@ -676,6 +676,12 @@ async function handleSecondaryToolbarValue(value, options) {
     editorState.shapeKind = value.replace("shape-kind-", "");
   } else if (value?.startsWith("shape-style-")) {
     editorState.shapeStyle = value.replace("shape-style-", "");
+  } else if (value?.startsWith("orbital-template-")) {
+    editorState.orbitalTemplate = value.replace("orbital-template-", "");
+  } else if (value?.startsWith("orbital-style-")) {
+    editorState.orbitalStyle = value.replace("orbital-style-", "");
+  } else if (value?.startsWith("orbital-phase-")) {
+    editorState.orbitalPhase = value.replace("orbital-phase-", "");
   } else if (value?.startsWith("ring-") || value === "benzene") {
     editorState.template = value;
   } else if (value === "shape-color-apply") {
@@ -684,6 +690,13 @@ async function handleSecondaryToolbarValue(value, options) {
     const color = colorFromToolbarValue(value, "shape-color-");
     if (color) {
       await applyToolbarColor("shape-color", color, options);
+    }
+  } else if (value === "orbital-color-apply") {
+    await applyToolbarColor("orbital-color", editorState.orbitalColor || editorState.shapeColor, options);
+  } else if (value?.startsWith("orbital-color-")) {
+    const color = colorFromToolbarValue(value, "orbital-color-");
+    if (color) {
+      await applyToolbarColor("orbital-color", color, options);
     }
   }
   await options.syncEngineToolState();
@@ -695,6 +708,9 @@ async function handleSecondaryToolbarValue(value, options) {
 }
 
 function currentColorForPrefix(prefix, options) {
+  if (prefix === "orbital-color") {
+    return options.editorState.orbitalColor || options.editorState.shapeColor;
+  }
   if (prefix === "shape-color") {
     return options.editorState.shapeColor;
   }
@@ -707,7 +723,11 @@ function currentColorForPrefix(prefix, options) {
 async function applyToolbarColor(prefix, color, options) {
   const normalized = normalizeHexColor(color) || "#000000";
   const { editorState } = options;
-  if (prefix === "shape-color") {
+  if (prefix === "orbital-color") {
+    editorState.orbitalColor = normalized;
+    await options.syncEngineToolState();
+    await options.applySelectionColor?.(normalized);
+  } else if (prefix === "shape-color") {
     editorState.shapeColor = normalized;
     await options.syncEngineToolState();
     await options.applySelectionColor?.(normalized);

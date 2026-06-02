@@ -8,6 +8,7 @@ mod context_menu;
 mod context_styles;
 mod delete;
 mod groups;
+mod orbitals;
 mod presets;
 mod select;
 mod shapes;
@@ -36,6 +37,7 @@ use self::bond_styles::{
     cycle_bold_bond_center_style, cycle_dashed_bond_center_style,
     cycle_dashed_double_bond_tool_center_style, preferred_double_bond_side_for_segment,
     replace_with_bold_dashed_bond_style, replace_with_plain_triple_bond_style,
+    replace_with_plain_wavy_bond_style,
     replace_with_stereo_bond_style, should_default_center_double_bond_for_segment,
     update_terminal_double_bond_placement_after_new_attachment,
 };
@@ -46,15 +48,16 @@ use crate::{
     can_focus_bond_center, can_focus_endpoint, default_angle_for_anchor_for_variant,
     direction_from_angle, endpoint_from_angle_for_document, hit_test_arrow_center,
     hit_test_bond_center, hit_test_endpoint, hit_test_endpoint_excluding, largest_angular_gap,
-    nearest_angle, normalize_angle, refresh_repeating_units, render_document,
+    nearest_angle, normalize_angle, px_to_cm, refresh_repeating_units, render_document,
     render_primitives_bounds, snapped_angle_for_anchor, ArrowCurve, ArrowEndpointStyle,
     ArrowHeadSize, ArrowNoGo, ArrowVariant, Bond, BondAnchor, BondLinePattern, BondLineStyles,
     BondLineWeight, BondLineWeights, BondPreview, BondStereo, BondVariant, ChemcoreDocument,
     DoubleBond, DoubleBondPlacement, DragState, EditorOptions, EndpointHit, HoverShape,
-    HoverTextBox, OverlayState, Point, PointerEvent, RenderPrimitive, RenderRole, SceneObject,
-    SelectionState, ShapeKind, ShapeStyle, Tool, ToolState, BOND_CENTER_FOCUS_WIDTH,
-    BOND_CENTER_HIT_RADIUS, DRAG_START_THRESHOLD, ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS,
-    GLOBAL_SNAP_ANGLES,
+    HoverTextBox, OrbitalPhase, OrbitalStyle, OrbitalTemplate, OverlayState, Point,
+    PointerEvent, RenderPrimitive, RenderRole, SceneObject, SelectionState, ShapeKind,
+    ShapeStyle, Tool, ToolState, BOND_CENTER_FOCUS_WIDTH, BOND_CENTER_HIT_RADIUS,
+    DRAG_START_THRESHOLD, ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
+    round2,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
@@ -186,6 +189,8 @@ pub struct Engine {
     drag: Option<DragState>,
     arrow_drag: Option<ArrowDragState>,
     arrow_edit_drag: Option<ArrowEditDragState>,
+    tlc_spot_drag: Option<TlcSpotDragState>,
+    orbital_drag: Option<OrbitalDragState>,
     selection_drag: Option<select::SelectionMoveDrag>,
     selection_rotate_drag: Option<select::SelectionRotateDrag>,
     selection_resize_drag: Option<select::SelectionResizeDrag>,
@@ -232,8 +237,33 @@ struct ArrowEditDragState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TlcSpotHit {
+    pub object_id: String,
+    pub lane_index: usize,
+    pub spot_index: usize,
+    pub rf: f64,
+    pub center: Point,
+    pub guide_points: Vec<Point>,
+}
+
+#[derive(Debug, Clone)]
+struct TlcSpotDragState {
+    hit: TlcSpotHit,
+    changed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct ShapeDragState {
     start: Point,
+    current: Point,
+    has_dragged: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OrbitalDragState {
+    anchor: Point,
     current: Point,
     has_dragged: bool,
 }
@@ -316,6 +346,8 @@ impl Engine {
             drag: None,
             arrow_drag: None,
             arrow_edit_drag: None,
+            tlc_spot_drag: None,
+            orbital_drag: None,
             selection_drag: None,
             selection_rotate_drag: None,
             selection_resize_drag: None,
@@ -406,6 +438,120 @@ impl Engine {
         self.command_context.clear();
         self.next_id = self.infer_next_id();
         Ok(())
+    }
+
+    pub fn tlc_spot_hit_test(&self, point: Point) -> Option<TlcSpotHit> {
+        let mut best: Option<(f64, TlcSpotHit)> = None;
+        for object in self.state.document.scene_objects() {
+            let Some(geometry) = tlc_plate_geometry(object) else {
+                continue;
+            };
+            for (lane_index, lane_x) in geometry.lane_centers.iter().enumerate() {
+                let Some(spots) = geometry.spots.get(lane_index) else {
+                    continue;
+                };
+                for (spot_index, rf) in spots.iter().enumerate() {
+                    let local_center = Point::new(
+                        *lane_x,
+                        geometry.origin_y - (geometry.origin_y - geometry.solvent_y) * *rf,
+                    );
+                    let center = rotate_point(local_center, geometry.center, geometry.rotate);
+                    let distance = center.distance(point);
+                    if distance > geometry.spot_radius + px_to_cm(6.0) {
+                        continue;
+                    }
+                    let hit = TlcSpotHit {
+                        object_id: object.id.clone(),
+                        lane_index,
+                        spot_index,
+                        rf: round2(*rf),
+                        center,
+                        guide_points: tlc_lane_guide_points(&geometry, lane_index),
+                    };
+                    match &best {
+                        Some((best_distance, _)) if *best_distance <= distance => {}
+                        _ => best = Some((distance, hit)),
+                    }
+                }
+            }
+        }
+        best.map(|(_, hit)| hit)
+    }
+
+    pub fn begin_tlc_spot_drag(&mut self, point: Point) -> Option<TlcSpotHit> {
+        let hit = self.tlc_spot_hit_test(point)?;
+        self.push_undo_snapshot();
+        self.redo_stack.clear();
+        self.tlc_spot_drag = Some(TlcSpotDragState {
+            hit: hit.clone(),
+            changed: false,
+        });
+        Some(hit)
+    }
+
+    pub fn update_tlc_spot_drag(&mut self, point: Point) -> Option<TlcSpotHit> {
+        let drag = self.tlc_spot_drag.clone()?;
+        let next = self.update_tlc_spot_to_point(
+            &drag.hit.object_id,
+            drag.hit.lane_index,
+            drag.hit.spot_index,
+            point,
+        )?;
+        if let Some(active_drag) = &mut self.tlc_spot_drag {
+            active_drag.changed |= (active_drag.hit.rf - next.rf).abs() > 0.0001;
+            active_drag.hit = next.clone();
+        }
+        Some(next)
+    }
+
+    pub fn finish_tlc_spot_drag(&mut self, point: Point) -> Option<TlcSpotHit> {
+        let had_drag = self.tlc_spot_drag.is_some();
+        let next = if had_drag {
+            self.update_tlc_spot_drag(point)
+        } else {
+            None
+        };
+        let changed = self
+            .tlc_spot_drag
+            .as_ref()
+            .is_some_and(|drag| drag.changed);
+        self.tlc_spot_drag = None;
+        if had_drag && !changed {
+            self.undo_stack.pop();
+        }
+        next
+    }
+
+    pub fn tlc_lane_guide_hit_test(&self, point: Point) -> Option<TlcSpotHit> {
+        if self.tlc_spot_hit_test(point).is_some() {
+            return None;
+        }
+        for object in self.state.document.scene_objects() {
+            let Some(geometry) = tlc_plate_geometry(object) else {
+                continue;
+            };
+            for (lane_index, spots) in geometry.spots.iter().enumerate() {
+                let guide_points = tlc_lane_guide_points(&geometry, lane_index);
+                if !point_in_polygon(point, &guide_points) {
+                    continue;
+                }
+                let rf = spots.first().copied().unwrap_or(0.15);
+                let lane_x = *geometry.lane_centers.get(lane_index)?;
+                let local_center = Point::new(
+                    lane_x,
+                    geometry.origin_y - (geometry.origin_y - geometry.solvent_y) * rf,
+                );
+                return Some(TlcSpotHit {
+                    object_id: object.id.clone(),
+                    lane_index,
+                    spot_index: 0,
+                    rf: round2(rf),
+                    center: rotate_point(local_center, geometry.center, geometry.rotate),
+                    guide_points,
+                });
+            }
+        }
+        None
     }
 
     pub fn render_list(&self) -> Vec<RenderPrimitive> {
@@ -561,7 +707,11 @@ impl Engine {
             self.pointer_move_template(event);
             return;
         }
-        if self.state.tool.active_tool == Tool::Shape {
+        if self.state.tool.active_tool == Tool::Orbital {
+            self.pointer_move_orbital(event);
+            return;
+        }
+        if matches!(self.state.tool.active_tool, Tool::Shape | Tool::TlcPlate) {
             self.pointer_move_shape(event);
             return;
         }
@@ -731,7 +881,11 @@ impl Engine {
             self.pointer_down_template(event);
             return;
         }
-        if self.state.tool.active_tool == Tool::Shape {
+        if self.state.tool.active_tool == Tool::Orbital {
+            self.pointer_down_orbital(event);
+            return;
+        }
+        if matches!(self.state.tool.active_tool, Tool::Shape | Tool::TlcPlate) {
             self.pointer_down_shape(event);
             return;
         }
@@ -825,7 +979,11 @@ impl Engine {
             self.pointer_up_template(event);
             return;
         }
-        if self.state.tool.active_tool == Tool::Shape {
+        if self.state.tool.active_tool == Tool::Orbital {
+            self.pointer_up_orbital(event);
+            return;
+        }
+        if matches!(self.state.tool.active_tool, Tool::Shape | Tool::TlcPlate) {
             self.pointer_up_shape(event);
             return;
         }
@@ -897,6 +1055,8 @@ impl Engine {
         self.drag = None;
         self.arrow_drag = None;
         self.arrow_edit_drag = None;
+        self.tlc_spot_drag = None;
+        self.orbital_drag = None;
         self.selection_drag = None;
         self.selection_rotate_drag = None;
         self.selection_resize_drag = None;
@@ -1108,6 +1268,9 @@ impl Engine {
             return Some(preview_document);
         }
         if let Some(preview_document) = self.shape_preview_document() {
+            return Some(preview_document);
+        }
+        if let Some(preview_document) = self.orbital_preview_document() {
             return Some(preview_document);
         }
         if let Some(preview_document) = self.bracket_preview_document() {
@@ -1443,6 +1606,12 @@ impl Engine {
                     ..BondLineStyles::default()
                 };
             }
+            BondVariant::Wavy => {
+                return BondLineStyles {
+                    main: BondLinePattern::Wavy,
+                    ..BondLineStyles::default()
+                };
+            }
             _ => {}
         }
         BondLineStyles::default()
@@ -1456,6 +1625,10 @@ impl Engine {
             }),
             BondVariant::HashedWedge => Some(BondStereo {
                 kind: "hashed-wedge".to_string(),
+                wide_end: "end".to_string(),
+            }),
+            BondVariant::HollowWedge => Some(BondStereo {
+                kind: "hollow-wedge".to_string(),
                 wide_end: "end".to_string(),
             }),
             _ => None,
@@ -1474,6 +1647,182 @@ impl Engine {
         }
         BondLineWeights::default()
     }
+
+    fn update_tlc_spot_to_point(
+        &mut self,
+        object_id: &str,
+        lane_index: usize,
+        spot_index: usize,
+        point: Point,
+    ) -> Option<TlcSpotHit> {
+        let object = self.state.document.find_scene_object_mut(object_id)?;
+        let geometry = tlc_plate_geometry(object)?;
+        let local_point = rotate_point(point, geometry.center, -geometry.rotate);
+        let denominator = (geometry.origin_y - geometry.solvent_y).abs();
+        if denominator <= crate::EPSILON {
+            return None;
+        }
+        let rf = ((geometry.origin_y - local_point.y) / (geometry.origin_y - geometry.solvent_y))
+            .clamp(0.0, 1.0);
+        let lanes = object.payload.extra.get_mut("lanes")?.as_array_mut()?;
+        let lane = lanes.get_mut(lane_index)?.as_object_mut()?;
+        let spots = lane.get_mut("spots")?.as_array_mut()?;
+        let spot = spots.get_mut(spot_index)?.as_object_mut()?;
+        spot.insert("rf".to_string(), json!(round2(rf)));
+        let lane_x = *geometry.lane_centers.get(lane_index)?;
+        let local_center = Point::new(
+            lane_x,
+            geometry.origin_y - (geometry.origin_y - geometry.solvent_y) * rf,
+        );
+        Some(TlcSpotHit {
+            object_id: object_id.to_string(),
+            lane_index,
+            spot_index,
+            rf: round2(rf),
+            center: rotate_point(local_center, geometry.center, geometry.rotate),
+            guide_points: tlc_lane_guide_points(&geometry, lane_index),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+struct TlcPlateGeometry {
+    center: Point,
+    rotate: f64,
+    left: f64,
+    right: f64,
+    origin_y: f64,
+    solvent_y: f64,
+    spot_radius: f64,
+    lane_centers: Vec<f64>,
+    spots: Vec<Vec<f64>>,
+}
+
+fn tlc_plate_geometry(object: &SceneObject) -> Option<TlcPlateGeometry> {
+    if object.object_type != "shape" {
+        return None;
+    }
+    if object
+        .payload
+        .extra
+        .get("kind")
+        .and_then(JsonValue::as_str)
+        != Some("tlcPlate")
+    {
+        return None;
+    }
+    let [x, y, width, height] = object.payload.bbox?;
+    if width <= crate::EPSILON || height <= crate::EPSILON {
+        return None;
+    }
+    let tx = object.transform.translate[0] + x;
+    let ty = object.transform.translate[1] + y;
+    let origin_fraction = object
+        .payload
+        .extra
+        .get("originFraction")
+        .and_then(JsonValue::as_f64)
+        .unwrap_or(0.1);
+    let solvent_fraction = object
+        .payload
+        .extra
+        .get("solventFrontFraction")
+        .and_then(JsonValue::as_f64)
+        .unwrap_or(0.1);
+    let origin_y = ty + height * (1.0 - origin_fraction);
+    let solvent_y = ty + height * solvent_fraction;
+    let lane_values = object
+        .payload
+        .extra
+        .get("lanes")
+        .and_then(JsonValue::as_array)?
+        .iter()
+        .map(|lane| {
+            let offset = lane
+                .get("offset")
+                .and_then(JsonValue::as_f64)
+                .unwrap_or(0.5);
+            let spots = lane
+                .get("spots")
+                .and_then(JsonValue::as_array)
+                .map(|spots| {
+                    spots
+                        .iter()
+                        .map(|spot| spot.get("rf").and_then(JsonValue::as_f64).unwrap_or(0.15))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            (tx + width * offset, spots)
+        })
+        .collect::<Vec<_>>();
+    Some(TlcPlateGeometry {
+        center: Point::new(tx + width * 0.5, ty + height * 0.5),
+        rotate: object.transform.rotate,
+        left: tx,
+        right: tx + width,
+        origin_y,
+        solvent_y,
+        spot_radius: (width.min(height) * 0.015).clamp(2.0, 5.0),
+        lane_centers: lane_values.iter().map(|(x, _)| *x).collect(),
+        spots: lane_values.into_iter().map(|(_, spots)| spots).collect(),
+    })
+}
+
+fn tlc_lane_guide_points(geometry: &TlcPlateGeometry, lane_index: usize) -> Vec<Point> {
+    let Some(&lane_x) = geometry.lane_centers.get(lane_index) else {
+        return Vec::new();
+    };
+    let left = if lane_index == 0 {
+        (geometry.left + lane_x) * 0.5
+    } else {
+        (geometry.lane_centers[lane_index - 1] + lane_x) * 0.5
+    };
+    let right = if lane_index + 1 >= geometry.lane_centers.len() {
+        (geometry.right + lane_x) * 0.5
+    } else {
+        (lane_x + geometry.lane_centers[lane_index + 1]) * 0.5
+    };
+    let top = geometry.solvent_y.min(geometry.origin_y);
+    let bottom = geometry.solvent_y.max(geometry.origin_y);
+    [
+        Point::new(left, top),
+        Point::new(right, top),
+        Point::new(right, bottom),
+        Point::new(left, bottom),
+    ]
+    .into_iter()
+    .map(|point| rotate_point(point, geometry.center, geometry.rotate))
+    .collect()
+}
+
+fn rotate_point(point: Point, center: Point, degrees: f64) -> Point {
+    if degrees.abs() <= crate::EPSILON {
+        return point;
+    }
+    let radians = degrees.to_radians();
+    let dx = point.x - center.x;
+    let dy = point.y - center.y;
+    Point::new(
+        center.x + dx * radians.cos() - dy * radians.sin(),
+        center.y + dx * radians.sin() + dy * radians.cos(),
+    )
+}
+
+fn point_in_polygon(point: Point, polygon: &[Point]) -> bool {
+    let mut inside = false;
+    let mut previous = *polygon.last().unwrap_or(&point);
+    for current in polygon {
+        let intersects = ((current.y > point.y) != (previous.y > point.y))
+            && (point.x
+                < (previous.x - current.x) * (point.y - current.y)
+                    / (previous.y - current.y + 1.0e-12)
+                    + current.x);
+        if intersects {
+            inside = !inside;
+        }
+        previous = *current;
+    }
+    inside
 }
 
 fn collect_document_colors(document: &ChemcoreDocument) -> Vec<String> {

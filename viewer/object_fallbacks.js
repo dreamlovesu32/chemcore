@@ -267,4 +267,56 @@ export function renderShapeObject(svgRoot, object, styles) {
     attrs.ry = object.payload.cornerRadius || 0;
   }
   svgRoot.appendChild(makeSvgNode("rect", attrs));
+  if (object.payload.kind === "crossTable") {
+    const stroke = style.stroke || "#000000";
+    const strokeWidth = style.strokeWidth || DEFAULT_SHAPE_STROKE_WIDTH;
+    const dash = style.dashArray?.length ? style.dashArray.join(" ") : undefined;
+    svgRoot.appendChild(makeSvgNode("path", {
+      d: `M${tx + width * 0.5} ${ty} L${tx + width * 0.5} ${ty + height} M${tx} ${ty + height * 0.5} L${tx + width} ${ty + height * 0.5}`,
+      fill: "none",
+      stroke,
+      "stroke-width": strokeWidth,
+      "stroke-dasharray": dash,
+    }));
+  } else if (object.payload.kind === "tlcPlate") {
+    const stroke = style.stroke || "#000000";
+    const strokeWidth = style.strokeWidth || DEFAULT_SHAPE_STROKE_WIDTH;
+    const originFraction = Number(object.payload.originFraction ?? 0.1);
+    const solventFraction = Number(object.payload.solventFrontFraction ?? 0.1);
+    const originY = ty + height * (1 - originFraction);
+    const solventY = ty + height * solventFraction;
+    svgRoot.appendChild(makeSvgNode("path", {
+      d: `M${tx} ${originY}L${tx + width} ${originY} M${tx} ${solventY}L${tx + width} ${solventY}`,
+      fill: "none",
+      stroke,
+      "stroke-width": strokeWidth,
+      "stroke-dasharray": "2.7",
+    }));
+    for (const lane of object.payload.lanes || []) {
+      const offset = Number(lane.offset ?? 0.5);
+      const laneX = tx + width * offset;
+      svgRoot.appendChild(makeSvgNode("path", {
+        d: `M${laneX} ${originY - 3}L${laneX} ${originY + 3}`,
+        fill: "none",
+        stroke,
+        "stroke-width": strokeWidth,
+      }));
+      for (const spot of lane.spots || []) {
+        const rf = Number(spot.rf ?? 0.15);
+        const spotY = originY - (originY - solventY) * rf;
+        const spotDiameter = Number(spot.width ?? spot.height ?? 0);
+        const spotRadius = spotDiameter > 0
+          ? Math.max(2, Math.min(10, spotDiameter * 0.5))
+          : Math.max(2, Math.min(5, Math.min(width, height) * 0.015));
+        svgRoot.appendChild(makeSvgNode("circle", {
+          cx: laneX,
+          cy: spotY,
+          r: spotRadius,
+          fill: stroke,
+          stroke,
+          "stroke-width": 0,
+        }));
+      }
+    }
+  }
 }

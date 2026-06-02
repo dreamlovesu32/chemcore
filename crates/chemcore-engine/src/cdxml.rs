@@ -15,7 +15,8 @@ mod xml;
 use self::colors::CdxmlColorTable;
 pub use self::export::document_to_cdxml;
 use self::import_objects::{
-    append_bracket_objects, append_line_objects, append_shape_objects, append_text_objects,
+    append_bracket_objects, append_line_objects, append_shape_objects, append_table_shape_objects,
+    append_orbital_shape_objects, append_text_objects, append_tlc_plate_shape_objects,
 };
 use self::text_runs::{label_display_runs, label_source_run};
 use self::xml::{descendants, parse_xml_tree, XmlNode};
@@ -113,6 +114,9 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<Chemcore
     }
     append_line_objects(&root, &mut objects, &mut styles, defaults, &colors);
     append_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
+    append_orbital_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
+    append_table_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
+    append_tlc_plate_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
     append_bracket_objects(&root, &mut objects, defaults);
     append_text_objects(
         &root,
@@ -487,6 +491,8 @@ fn scale_json_key_as_length_array(key: &str) -> bool {
             | "center"
             | "majorAxisEnd"
             | "minorAxisEnd"
+            | "axisStart"
+            | "axisEnd"
             | "anchorOffset"
             | "glyphPolygons"
     )
@@ -1129,6 +1135,14 @@ fn normalize_bond(
             kind: "hashed-wedge".to_string(),
             wide_end: "begin".to_string(),
         }),
+        "HollowWedgeBegin" => Some(BondStereo {
+            kind: "hollow-wedge".to_string(),
+            wide_end: "end".to_string(),
+        }),
+        "HollowWedgeEnd" => Some(BondStereo {
+            kind: "hollow-wedge".to_string(),
+            wide_end: "begin".to_string(),
+        }),
         _ => None,
     };
     let order = cdxml_bond_order(bond.attr("Order"));
@@ -1253,6 +1267,8 @@ fn cdxml_bond_line_styles(order: u8, display: &str, display2: &str) -> BondLineS
         if order >= 2 {
             styles.left = crate::BondLinePattern::Dashed;
         }
+    } else if display == "Wavy" {
+        styles.main = crate::BondLinePattern::Wavy;
     }
     if order >= 2 && matches!(display2, "Dash" | "Hash") {
         styles.right = crate::BondLinePattern::Dashed;

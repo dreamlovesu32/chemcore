@@ -156,7 +156,8 @@ impl Engine {
             }
             BondVariant::Bold => cycle_bold_bond_center_style(bond, default_placement),
             BondVariant::BoldDashed => replace_with_bold_dashed_bond_style(bond),
-            BondVariant::Wedge | BondVariant::HashedWedge => {
+            BondVariant::Wavy => replace_with_plain_wavy_bond_style(bond),
+            BondVariant::Wedge | BondVariant::HashedWedge | BondVariant::HollowWedge => {
                 replace_with_stereo_bond_style(bond, self.state.tool.bond_variant)
             }
         };

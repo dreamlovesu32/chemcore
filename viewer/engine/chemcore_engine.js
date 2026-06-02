@@ -114,6 +114,36 @@ export class WasmEngine {
         return ret[0] !== 0;
     }
     /**
+     * @param {string} phase
+     * @returns {boolean}
+     */
+    applyOrbitalPhaseToSelection(phase) {
+        const ptr0 = passStringToWasm0(phase, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyOrbitalPhaseToSelection(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
+     * @param {string} style
+     * @returns {boolean}
+     */
+    applyOrbitalStyleToSelection(style) {
+        const ptr0 = passStringToWasm0(style, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyOrbitalStyleToSelection(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
+     * @param {string} template
+     * @returns {boolean}
+     */
+    applyOrbitalTemplateToSelection(template) {
+        const ptr0 = passStringToWasm0(template, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyOrbitalTemplateToSelection(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
      * @param {string} command
      * @returns {boolean}
      */
@@ -270,6 +300,23 @@ export class WasmEngine {
         } finally {
             wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
         }
+    }
+    /**
+     * @param {number} x
+     * @param {number} y
+     * @returns {string | undefined}
+     */
+    beginTlcSpotDragJson(x, y) {
+        const ret = wasm.wasmengine_beginTlcSpotDragJson(this.__wbg_ptr, x, y);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
     }
     /**
      * @returns {boolean}
@@ -531,6 +578,23 @@ export class WasmEngine {
     finishSelectionRotate(x, y, alt_key) {
         const ret = wasm.wasmengine_finishSelectionRotate(this.__wbg_ptr, x, y, alt_key);
         return ret !== 0;
+    }
+    /**
+     * @param {number} x
+     * @param {number} y
+     * @returns {string | undefined}
+     */
+    finishTlcSpotDragJson(x, y) {
+        const ret = wasm.wasmengine_finishTlcSpotDragJson(this.__wbg_ptr, x, y);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
     }
     /**
      * @returns {boolean}
@@ -924,6 +988,23 @@ export class WasmEngine {
         wasm.wasmengine_setDocumentStylePreset(this.__wbg_ptr, ptr0, len0);
     }
     /**
+     * @param {string} template
+     * @param {string} style
+     * @param {string} phase
+     * @param {string} color
+     */
+    setOrbitalOptions(template, style, phase, color) {
+        const ptr0 = passStringToWasm0(template, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(style, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(phase, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(color, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        wasm.wasmengine_setOrbitalOptions(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3);
+    }
+    /**
      * @param {string} kind
      * @param {string} style
      * @param {string} color
@@ -984,6 +1065,40 @@ export class WasmEngine {
         } finally {
             wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
         }
+    }
+    /**
+     * @param {number} x
+     * @param {number} y
+     * @returns {string | undefined}
+     */
+    tlcLaneGuideHitTestJson(x, y) {
+        const ret = wasm.wasmengine_tlcLaneGuideHitTestJson(this.__wbg_ptr, x, y);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
+    }
+    /**
+     * @param {number} x
+     * @param {number} y
+     * @returns {string | undefined}
+     */
+    tlcSpotHitTestJson(x, y) {
+        const ret = wasm.wasmengine_tlcSpotHitTestJson(this.__wbg_ptr, x, y);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
     }
     /**
      * @returns {boolean}
@@ -1047,6 +1162,23 @@ export class WasmEngine {
     updateSelectionRotate(x, y, alt_key) {
         const ret = wasm.wasmengine_updateSelectionRotate(this.__wbg_ptr, x, y, alt_key);
         return ret !== 0;
+    }
+    /**
+     * @param {number} x
+     * @param {number} y
+     * @returns {string | undefined}
+     */
+    updateTlcSpotDragJson(x, y) {
+        const ret = wasm.wasmengine_updateTlcSpotDragJson(this.__wbg_ptr, x, y);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
     }
 }
 if (Symbol.dispose) WasmEngine.prototype[Symbol.dispose] = WasmEngine.prototype.free;

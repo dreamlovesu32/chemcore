@@ -1,8 +1,8 @@
 use chemcore_engine::{
     ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondVariant,
-    BracketKind, Engine, Point, PointerEvent, RenderBoundsScope, RenderPrimitive, RenderRole,
-    ShapeKind, ShapeStyle, TextEditLayoutRequest, TextEditSession, Tool, ToolState, WorldCm,
-    WorldPoint,
+    BracketKind, Engine, OrbitalPhase, OrbitalStyle, OrbitalTemplate, Point, PointerEvent,
+    RenderBoundsScope, RenderPrimitive, RenderRole, ShapeKind, ShapeStyle, TextEditLayoutRequest,
+    TextEditSession, Tool, ToolState, WorldCm, WorldPoint,
 };
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
@@ -273,6 +273,10 @@ impl DesktopDocumentService {
             shape_kind: current.shape_kind,
             shape_style: current.shape_style,
             shape_color: current.shape_color,
+            orbital_template: current.orbital_template,
+            orbital_style: current.orbital_style,
+            orbital_phase: current.orbital_phase,
+            orbital_color: current.orbital_color,
             bracket_kind: current.bracket_kind,
             symbol_kind: current.symbol_kind,
             template: current.template,
@@ -300,6 +304,24 @@ impl DesktopDocumentService {
         let session = self.session_mut(session_id)?;
         let mut tool = session.state().tool.clone();
         tool.template = template.to_string();
+        session.set_tool_state(tool);
+        Ok(())
+    }
+
+    pub fn set_orbital_options(
+        &mut self,
+        session_id: SessionId,
+        template: &str,
+        style: &str,
+        phase: &str,
+        color: &str,
+    ) -> Result<(), String> {
+        let session = self.session_mut(session_id)?;
+        let mut tool = session.state().tool.clone();
+        tool.orbital_template = parse_orbital_template(template);
+        tool.orbital_style = parse_orbital_style(style);
+        tool.orbital_phase = parse_orbital_phase(phase);
+        tool.orbital_color = color.to_string();
         session.set_tool_state(tool);
         Ok(())
     }
@@ -887,6 +909,36 @@ impl DesktopDocumentService {
             .apply_shape_style_to_selection(style))
     }
 
+    pub fn apply_orbital_template_to_selection(
+        &mut self,
+        session_id: SessionId,
+        template: &str,
+    ) -> Result<bool, String> {
+        Ok(self
+            .session_mut(session_id)?
+            .apply_orbital_template_to_selection(template))
+    }
+
+    pub fn apply_orbital_style_to_selection(
+        &mut self,
+        session_id: SessionId,
+        style: &str,
+    ) -> Result<bool, String> {
+        Ok(self
+            .session_mut(session_id)?
+            .apply_orbital_style_to_selection(style))
+    }
+
+    pub fn apply_orbital_phase_to_selection(
+        &mut self,
+        session_id: SessionId,
+        phase: &str,
+    ) -> Result<bool, String> {
+        Ok(self
+            .session_mut(session_id)?
+            .apply_orbital_phase_to_selection(phase))
+    }
+
     pub fn apply_bracket_kind_to_selection(
         &mut self,
         session_id: SessionId,
@@ -1295,6 +1347,8 @@ fn parse_tool(value: &str) -> Tool {
         "delete" => Tool::Delete,
         "text" => Tool::Text,
         "shape" => Tool::Shape,
+        "tlc-plate" | "tlcPlate" => Tool::TlcPlate,
+        "orbital" => Tool::Orbital,
         "templates" => Tool::Templates,
         _ => Tool::Select,
     }
@@ -1333,6 +1387,8 @@ fn parse_shape_kind(value: &str) -> ShapeKind {
         "ellipse" => ShapeKind::Ellipse,
         "round-rect" | "roundRect" => ShapeKind::RoundRect,
         "rect" => ShapeKind::Rect,
+        "cross-table" | "crossTable" => ShapeKind::CrossTable,
+        "tlc-plate" | "tlcPlate" => ShapeKind::TlcPlate,
         _ => ShapeKind::Circle,
     }
 }
@@ -1344,6 +1400,33 @@ fn parse_shape_style(value: &str) -> ShapeStyle {
         "filled" => ShapeStyle::Filled,
         "shadowed" | "shadow" => ShapeStyle::Shadowed,
         _ => ShapeStyle::Solid,
+    }
+}
+
+fn parse_orbital_template(value: &str) -> OrbitalTemplate {
+    match value {
+        "p" => OrbitalTemplate::P,
+        "dxy" => OrbitalTemplate::Dxy,
+        "oval" => OrbitalTemplate::Oval,
+        "hybrid" => OrbitalTemplate::Hybrid,
+        "dz2" => OrbitalTemplate::Dz2,
+        "lobe" => OrbitalTemplate::Lobe,
+        _ => OrbitalTemplate::S,
+    }
+}
+
+fn parse_orbital_style(value: &str) -> OrbitalStyle {
+    match value {
+        "filled" => OrbitalStyle::Filled,
+        "shaded" => OrbitalStyle::Shaded,
+        _ => OrbitalStyle::Hollow,
+    }
+}
+
+fn parse_orbital_phase(value: &str) -> OrbitalPhase {
+    match value {
+        "minus" => OrbitalPhase::Minus,
+        _ => OrbitalPhase::Plus,
     }
 }
 
@@ -1390,8 +1473,10 @@ fn parse_bond_variant(value: &str) -> BondVariant {
         "dashed-double" => BondVariant::DashedDouble,
         "bold" => BondVariant::Bold,
         "bold-dashed" => BondVariant::BoldDashed,
+        "wavy" => BondVariant::Wavy,
         "wedge" => BondVariant::Wedge,
         "hashed-wedge" => BondVariant::HashedWedge,
+        "hollow-wedge" => BondVariant::HollowWedge,
         _ => BondVariant::Single,
     }
 }

@@ -74,6 +74,156 @@ impl Engine {
         )
     }
 
+    pub fn apply_orbital_template_to_selection(&mut self, template: &str) -> bool {
+        let template = normalize_orbital_template_name(template);
+        self.with_command(
+            EditorCommand::LegacyMutation {
+                label: format!("apply-orbital-template:{template}"),
+            },
+            |engine| engine.apply_orbital_template_to_selection_untracked(&template),
+        )
+    }
+
+    fn apply_orbital_template_to_selection_untracked(&mut self, template: &str) -> bool {
+        let selected: BTreeSet<String> =
+            self.state.selection.arrow_objects.iter().cloned().collect();
+        if selected.is_empty() {
+            return false;
+        }
+        let ids = self
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .filter(|object| {
+                selected.contains(&object.id)
+                    && object.object_type == "shape"
+                    && payload_string(&object.payload, "kind").as_deref() == Some("orbital")
+            })
+            .map(|object| object.id.clone())
+            .collect::<Vec<_>>();
+        if ids.is_empty() {
+            return false;
+        }
+        self.push_undo_snapshot();
+        let mut changed = false;
+        for object_id in ids {
+            if let Some(object) = self.state.document.find_scene_object_mut(&object_id) {
+                changed |= set_payload_string(&mut object.payload.extra, "orbitalTemplate", template);
+            }
+        }
+        if !changed {
+            self.undo_stack.pop();
+            return false;
+        }
+        self.state.overlay.hover_shape = None;
+        true
+    }
+
+    pub fn apply_orbital_style_to_selection(&mut self, style: &str) -> bool {
+        let style = normalize_orbital_style_name(style);
+        self.with_command(
+            EditorCommand::LegacyMutation {
+                label: format!("apply-orbital-style:{style}"),
+            },
+            |engine| engine.apply_orbital_style_to_selection_untracked(&style),
+        )
+    }
+
+    fn apply_orbital_style_to_selection_untracked(&mut self, style: &str) -> bool {
+        let selected: BTreeSet<String> =
+            self.state.selection.arrow_objects.iter().cloned().collect();
+        if selected.is_empty() {
+            return false;
+        }
+        let updates = self
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .filter(|object| {
+                selected.contains(&object.id)
+                    && object.object_type == "shape"
+                    && payload_string(&object.payload, "kind").as_deref() == Some("orbital")
+            })
+            .map(|object| {
+                let color = selected_object_style_color(&self.state.document, object);
+                (
+                    object.id.clone(),
+                    format!("style_{}_orbital_{}", object.id, style.replace('-', "_")),
+                    orbital_style_json(style, &color, self.options.graphic_stroke_world_cm().value()),
+                )
+            })
+            .collect::<Vec<_>>();
+        if updates.is_empty() {
+            return false;
+        }
+        self.push_undo_snapshot();
+        let mut changed = false;
+        for (object_id, style_id, style_value) in updates {
+            self.state.document.styles.insert(style_id.clone(), style_value);
+            if let Some(object) = self.state.document.find_scene_object_mut(&object_id) {
+                changed |= set_payload_string(&mut object.payload.extra, "orbitalStyle", style);
+                if object.style_ref.as_deref() != Some(style_id.as_str()) {
+                    object.style_ref = Some(style_id);
+                    changed = true;
+                }
+            }
+        }
+        if !changed {
+            self.undo_stack.pop();
+            return false;
+        }
+        self.state.overlay.hover_shape = None;
+        true
+    }
+
+    pub fn apply_orbital_phase_to_selection(&mut self, phase: &str) -> bool {
+        let phase = normalize_orbital_phase_name(phase);
+        self.with_command(
+            EditorCommand::LegacyMutation {
+                label: format!("apply-orbital-phase:{phase}"),
+            },
+            |engine| engine.apply_orbital_phase_to_selection_untracked(&phase),
+        )
+    }
+
+    fn apply_orbital_phase_to_selection_untracked(&mut self, phase: &str) -> bool {
+        let selected: BTreeSet<String> =
+            self.state.selection.arrow_objects.iter().cloned().collect();
+        if selected.is_empty() {
+            return false;
+        }
+        let ids = self
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .filter(|object| {
+                selected.contains(&object.id)
+                    && object.object_type == "shape"
+                    && payload_string(&object.payload, "kind").as_deref() == Some("orbital")
+            })
+            .map(|object| object.id.clone())
+            .collect::<Vec<_>>();
+        if ids.is_empty() {
+            return false;
+        }
+        self.push_undo_snapshot();
+        let mut changed = false;
+        for object_id in ids {
+            if let Some(object) = self.state.document.find_scene_object_mut(&object_id) {
+                changed |= set_payload_string(&mut object.payload.extra, "orbitalPhase", phase);
+            }
+        }
+        if !changed {
+            self.undo_stack.pop();
+            return false;
+        }
+        self.state.overlay.hover_shape = None;
+        true
+    }
+
     fn apply_bracket_kind_to_selection_untracked(&mut self, kind: &str) -> bool {
         let selected: BTreeSet<String> =
             self.state.selection.arrow_objects.iter().cloned().collect();
@@ -844,6 +994,36 @@ fn normalize_shape_style_name(style: &str) -> String {
     .to_string()
 }
 
+fn normalize_orbital_template_name(value: &str) -> String {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "p" => "p",
+        "dxy" => "dxy",
+        "oval" => "oval",
+        "hybrid" => "hybrid",
+        "dz2" => "dz2",
+        "lobe" => "lobe",
+        _ => "s",
+    }
+    .to_string()
+}
+
+fn normalize_orbital_style_name(value: &str) -> String {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "filled" => "filled",
+        "shaded" => "shaded",
+        _ => "hollow",
+    }
+    .to_string()
+}
+
+fn normalize_orbital_phase_name(value: &str) -> String {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "minus" => "minus",
+        _ => "plus",
+    }
+    .to_string()
+}
+
 fn normalize_bracket_kind_name(kind: &str) -> String {
     match kind.trim().to_ascii_lowercase().replace('_', "-").as_str() {
         "square" | "square-brackets" => "square",
@@ -968,6 +1148,33 @@ fn shape_style_json(style: &str, color: &str, stroke_width: f64) -> JsonValue {
     }
 }
 
+fn orbital_style_json(style: &str, color: &str, stroke_width: f64) -> JsonValue {
+    match style {
+        "filled" => json!({
+            "kind": "shape",
+            "fill": color,
+            "stroke": color,
+            "strokeWidth": stroke_width,
+            "dashArray": [],
+        }),
+        "shaded" => json!({
+            "kind": "shape",
+            "fill": color,
+            "stroke": color,
+            "strokeWidth": stroke_width,
+            "dashArray": [],
+            "shaded": true,
+        }),
+        _ => json!({
+            "kind": "shape",
+            "fill": null,
+            "stroke": color,
+            "strokeWidth": stroke_width,
+            "dashArray": [],
+        }),
+    }
+}
+
 fn line_style_json(style: &str, color: &str, stroke_width: f64) -> JsonValue {
     let width = if style == "bold" {
         (stroke_width * 2.0).max(stroke_width)
@@ -1015,6 +1222,17 @@ fn apply_bond_style_key(bond: &mut Bond, style: &str, bold_width: f64, wedge_wid
                 kind: "solid-wedge".to_string(),
                 wide_end: existing_wide_end(bond),
             });
+        }
+        "single-hollow-wedged" => {
+            set_single_common(bond);
+            bond.stereo = Some(BondStereo {
+                kind: "hollow-wedge".to_string(),
+                wide_end: existing_wide_end(bond),
+            });
+        }
+        "single-wavy" => {
+            set_single_common(bond);
+            replace_with_plain_wavy_bond_style(bond);
         }
         "double-left" => set_double_common(bond, DoubleBondPlacement::Left),
         "double-right" => set_double_common(bond, DoubleBondPlacement::Right),

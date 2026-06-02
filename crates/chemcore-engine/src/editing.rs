@@ -63,6 +63,8 @@ pub enum Tool {
     Delete,
     Text,
     Shape,
+    TlcPlate,
+    Orbital,
     Templates,
 }
 
@@ -76,8 +78,10 @@ pub enum BondVariant {
     DashedDouble,
     Bold,
     BoldDashed,
+    Wavy,
     Wedge,
     HashedWedge,
+    HollowWedge,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -161,6 +165,8 @@ pub enum ShapeKind {
     Ellipse,
     RoundRect,
     Rect,
+    CrossTable,
+    TlcPlate,
 }
 
 impl Default for ShapeKind {
@@ -182,6 +188,51 @@ pub enum ShapeStyle {
 impl Default for ShapeStyle {
     fn default() -> Self {
         Self::Solid
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum OrbitalTemplate {
+    S,
+    P,
+    Dxy,
+    Oval,
+    Hybrid,
+    Dz2,
+    Lobe,
+}
+
+impl Default for OrbitalTemplate {
+    fn default() -> Self {
+        Self::S
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum OrbitalStyle {
+    Hollow,
+    Shaded,
+    Filled,
+}
+
+impl Default for OrbitalStyle {
+    fn default() -> Self {
+        Self::Hollow
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum OrbitalPhase {
+    Plus,
+    Minus,
+}
+
+impl Default for OrbitalPhase {
+    fn default() -> Self {
+        Self::Plus
     }
 }
 
@@ -329,6 +380,14 @@ pub struct ToolState {
     #[serde(default = "default_shape_color")]
     pub shape_color: String,
     #[serde(default)]
+    pub orbital_template: OrbitalTemplate,
+    #[serde(default)]
+    pub orbital_style: OrbitalStyle,
+    #[serde(default)]
+    pub orbital_phase: OrbitalPhase,
+    #[serde(default = "default_shape_color")]
+    pub orbital_color: String,
+    #[serde(default)]
     pub bracket_kind: BracketKind,
     #[serde(default = "default_symbol_kind")]
     pub symbol_kind: BracketKind,
@@ -353,6 +412,10 @@ impl Default for ToolState {
             shape_kind: ShapeKind::Circle,
             shape_style: ShapeStyle::Solid,
             shape_color: default_shape_color(),
+            orbital_template: OrbitalTemplate::S,
+            orbital_style: OrbitalStyle::Hollow,
+            orbital_phase: OrbitalPhase::Plus,
+            orbital_color: default_shape_color(),
             bracket_kind: BracketKind::Round,
             symbol_kind: default_symbol_kind(),
             template: default_template(),

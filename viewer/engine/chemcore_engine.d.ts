@@ -12,6 +12,9 @@ export class WasmEngine {
     applyColorToSelection(color: string): boolean;
     applyLineStyleToSelection(style: string): boolean;
     applyObjectSettingsDialogJson(settings_json: string): boolean;
+    applyOrbitalPhaseToSelection(phase: string): boolean;
+    applyOrbitalStyleToSelection(style: string): boolean;
+    applyOrbitalTemplateToSelection(template: string): boolean;
     applySelectionArrangeCommand(command: string): boolean;
     applySelectionNumericDialogJson(payload_json: string): boolean;
     applySelectionOrderCommand(command: string): boolean;
@@ -24,6 +27,7 @@ export class WasmEngine {
     beginSelectionResize(handle: string, x: number, y: number): boolean;
     beginSelectionRotate(x: number, y: number): boolean;
     beginTextEdit(x: number, y: number): string;
+    beginTlcSpotDragJson(x: number, y: number): string | undefined;
     canRedo(): boolean;
     canUndo(): boolean;
     centerSelectionOnPage(): boolean;
@@ -47,6 +51,7 @@ export class WasmEngine {
     finishSelectionMove(x: number, y: number, alt_key: boolean): boolean;
     finishSelectionResize(x: number, y: number): boolean;
     finishSelectionRotate(x: number, y: number, alt_key: boolean): boolean;
+    finishTlcSpotDragJson(x: number, y: number): string | undefined;
     groupSelection(): boolean;
     hasClipboard(): boolean;
     hoverArrowAction(x: number, y: number): string;
@@ -80,11 +85,14 @@ export class WasmEngine {
     setBracketOptions(kind: string): void;
     setChemicalCheckForSelection(enabled: boolean): boolean;
     setDocumentStylePreset(preset: string): void;
+    setOrbitalOptions(template: string, style: string, phase: string, color: string): void;
     setShapeOptions(kind: string, style: string, color: string): void;
     setSymbolOptions(kind: string): void;
     setTemplate(template: string): void;
     setTool(active_tool: string, bond_variant: string): void;
     stateJson(): string;
+    tlcLaneGuideHitTestJson(x: number, y: number): string | undefined;
+    tlcSpotHitTestJson(x: number, y: number): string | undefined;
     undo(): boolean;
     ungroupSelection(): boolean;
     updateHoverArrowEdit(x: number, y: number, alt_key: boolean): boolean;
@@ -92,6 +100,7 @@ export class WasmEngine {
     updateSelectionMove(x: number, y: number, alt_key: boolean): boolean;
     updateSelectionResize(x: number, y: number): boolean;
     updateSelectionRotate(x: number, y: number, alt_key: boolean): boolean;
+    updateTlcSpotDragJson(x: number, y: number): string | undefined;
 }
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -107,6 +116,9 @@ export interface InitOutput {
     readonly wasmengine_applyColorToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyLineStyleToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyObjectSettingsDialogJson: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmengine_applyOrbitalPhaseToSelection: (a: number, b: number, c: number) => number;
+    readonly wasmengine_applyOrbitalStyleToSelection: (a: number, b: number, c: number) => number;
+    readonly wasmengine_applyOrbitalTemplateToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applySelectionArrangeCommand: (a: number, b: number, c: number) => number;
     readonly wasmengine_applySelectionNumericDialogJson: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_applySelectionOrderCommand: (a: number, b: number, c: number) => number;
@@ -119,6 +131,7 @@ export interface InitOutput {
     readonly wasmengine_beginSelectionResize: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly wasmengine_beginSelectionRotate: (a: number, b: number, c: number) => number;
     readonly wasmengine_beginTextEdit: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly wasmengine_beginTlcSpotDragJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_canRedo: (a: number) => number;
     readonly wasmengine_canUndo: (a: number) => number;
     readonly wasmengine_centerSelectionOnPage: (a: number) => number;
@@ -142,6 +155,7 @@ export interface InitOutput {
     readonly wasmengine_finishSelectionMove: (a: number, b: number, c: number, d: number) => number;
     readonly wasmengine_finishSelectionResize: (a: number, b: number, c: number) => number;
     readonly wasmengine_finishSelectionRotate: (a: number, b: number, c: number, d: number) => number;
+    readonly wasmengine_finishTlcSpotDragJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_groupSelection: (a: number) => number;
     readonly wasmengine_hasClipboard: (a: number) => number;
     readonly wasmengine_hoverArrowAction: (a: number, b: number, c: number) => [number, number];
@@ -175,11 +189,14 @@ export interface InitOutput {
     readonly wasmengine_setBracketOptions: (a: number, b: number, c: number) => void;
     readonly wasmengine_setChemicalCheckForSelection: (a: number, b: number) => number;
     readonly wasmengine_setDocumentStylePreset: (a: number, b: number, c: number) => void;
+    readonly wasmengine_setOrbitalOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
     readonly wasmengine_setShapeOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly wasmengine_setSymbolOptions: (a: number, b: number, c: number) => void;
     readonly wasmengine_setTemplate: (a: number, b: number, c: number) => void;
     readonly wasmengine_setTool: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly wasmengine_stateJson: (a: number) => [number, number, number, number];
+    readonly wasmengine_tlcLaneGuideHitTestJson: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly wasmengine_tlcSpotHitTestJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_undo: (a: number) => number;
     readonly wasmengine_ungroupSelection: (a: number) => number;
     readonly wasmengine_updateHoverArrowEdit: (a: number, b: number, c: number, d: number) => number;
@@ -187,6 +204,7 @@ export interface InitOutput {
     readonly wasmengine_updateSelectionMove: (a: number, b: number, c: number, d: number) => number;
     readonly wasmengine_updateSelectionResize: (a: number, b: number, c: number) => number;
     readonly wasmengine_updateSelectionRotate: (a: number, b: number, c: number, d: number) => number;
+    readonly wasmengine_updateTlcSpotDragJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

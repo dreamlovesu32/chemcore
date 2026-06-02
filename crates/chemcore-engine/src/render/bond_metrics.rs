@@ -379,9 +379,18 @@ pub(super) fn side_double_placement(bond: &Bond) -> Option<DoubleBondPlacement> 
     }
 }
 
-pub(super) fn line_pattern_dash_array(pattern: BondLinePattern) -> Vec<f64> {
+pub(super) fn line_pattern_dash_array_for_bond(
+    bond: &Bond,
+    stroke_width: f64,
+    pattern: BondLinePattern,
+) -> Vec<f64> {
     if pattern == BondLinePattern::Dashed {
-        DASHED_BOND_PATTERN.to_vec()
+        let spacing = bond
+            .hash_spacing
+            .filter(|spacing| *spacing > crate::EPSILON)
+            .unwrap_or(crate::DEFAULT_HASH_SPACING_CM.value());
+        let segment = spacing.max(stroke_width * 0.75);
+        vec![segment, segment]
     } else {
         Vec::new()
     }
@@ -1206,6 +1215,8 @@ pub(super) enum BondStereoKind {
     SolidWedgeEnd,
     HashedWedgeBegin,
     HashedWedgeEnd,
+    HollowWedgeBegin,
+    HollowWedgeEnd,
 }
 
 pub(super) fn bond_stereo_kind(bond: &Bond) -> Option<BondStereoKind> {
@@ -1215,6 +1226,8 @@ pub(super) fn bond_stereo_kind(bond: &Bond) -> Option<BondStereoKind> {
             ("solid-wedge", "end") => Some(BondStereoKind::SolidWedgeEnd),
             ("hashed-wedge", "begin") => Some(BondStereoKind::HashedWedgeBegin),
             ("hashed-wedge", "end") => Some(BondStereoKind::HashedWedgeEnd),
+            ("hollow-wedge", "begin") => Some(BondStereoKind::HollowWedgeBegin),
+            ("hollow-wedge", "end") => Some(BondStereoKind::HollowWedgeEnd),
             _ => None,
         };
     }
@@ -1227,6 +1240,63 @@ pub(super) fn bond_stereo_kind(bond: &Bond) -> Option<BondStereoKind> {
         "WedgeEnd" => Some(BondStereoKind::SolidWedgeBegin),
         "WedgedHashBegin" => Some(BondStereoKind::HashedWedgeEnd),
         "WedgedHashEnd" => Some(BondStereoKind::HashedWedgeBegin),
+        "HollowWedgeBegin" => Some(BondStereoKind::HollowWedgeEnd),
+        "HollowWedgeEnd" => Some(BondStereoKind::HollowWedgeBegin),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::line_pattern_dash_array_for_bond;
+    use crate::{
+        Bond, BondLinePattern, BondLineStyles, BondLineWeight, BondLineWeights, DEFAULT_BOND_STROKE,
+    };
+    use serde_json::Value;
+
+    fn test_bond(hash_spacing: Option<f64>) -> Bond {
+        Bond {
+            id: "b1".to_string(),
+            begin: "n1".to_string(),
+            end: "n2".to_string(),
+            order: 1,
+            double: None,
+            stereo: None,
+            stroke_width: DEFAULT_BOND_STROKE,
+            stroke: None,
+            bold_width: None,
+            wedge_width: None,
+            label_clip_margin: None,
+            hash_spacing,
+            bond_spacing: None,
+            margin_width: None,
+            line_styles: BondLineStyles::default(),
+            line_weights: BondLineWeights {
+                main: BondLineWeight::Normal,
+                left: BondLineWeight::Normal,
+                right: BondLineWeight::Normal,
+            },
+            meta: Value::Null,
+        }
+    }
+
+    #[test]
+    fn dashed_bond_dash_array_uses_explicit_hash_spacing() {
+        let dash_array =
+            line_pattern_dash_array_for_bond(&test_bond(Some(2.7)), 1.0, BondLinePattern::Dashed);
+        assert_eq!(dash_array, vec![2.7, 2.7]);
+    }
+
+    #[test]
+    fn dashed_bond_dash_array_defaults_to_chem_draw_hash_spacing() {
+        let dash_array =
+            line_pattern_dash_array_for_bond(&test_bond(None), 1.0, BondLinePattern::Dashed);
+        assert_eq!(
+            dash_array,
+            vec![
+                crate::DEFAULT_HASH_SPACING_CM.value(),
+                crate::DEFAULT_HASH_SPACING_CM.value()
+            ]
+        );
     }
 }

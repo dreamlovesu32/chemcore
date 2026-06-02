@@ -1,7 +1,7 @@
 use crate::{
     ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondVariant,
-    BracketKind, Engine, Point, PointerEvent, RenderBoundsScope, ShapeKind, ShapeStyle, Tool,
-    ToolState, WorldCm, WorldPoint,
+    BracketKind, Engine, OrbitalPhase, OrbitalStyle, OrbitalTemplate, Point, PointerEvent,
+    RenderBoundsScope, ShapeKind, ShapeStyle, Tool, ToolState, WorldCm, WorldPoint,
 };
 use wasm_bindgen::prelude::*;
 
@@ -37,6 +37,10 @@ impl WasmEngine {
             shape_kind: current.shape_kind,
             shape_style: current.shape_style,
             shape_color: current.shape_color,
+            orbital_template: current.orbital_template,
+            orbital_style: current.orbital_style,
+            orbital_phase: current.orbital_phase,
+            orbital_color: current.orbital_color,
             bracket_kind: current.bracket_kind,
             symbol_kind: current.symbol_kind,
             template: current.template,
@@ -56,6 +60,16 @@ impl WasmEngine {
     pub fn set_template(&mut self, template: &str) {
         let mut tool = self.inner.state().tool.clone();
         tool.template = template.to_string();
+        self.inner.set_tool_state(tool);
+    }
+
+    #[wasm_bindgen(js_name = setOrbitalOptions)]
+    pub fn set_orbital_options(&mut self, template: &str, style: &str, phase: &str, color: &str) {
+        let mut tool = self.inner.state().tool.clone();
+        tool.orbital_template = parse_orbital_template(template);
+        tool.orbital_style = parse_orbital_style(style);
+        tool.orbital_phase = parse_orbital_phase(phase);
+        tool.orbital_color = color.to_string();
         self.inner.set_tool_state(tool);
     }
 
@@ -277,6 +291,63 @@ impl WasmEngine {
         self.inner.select_all()
     }
 
+    #[wasm_bindgen(js_name = beginTlcSpotDragJson)]
+    pub fn begin_tlc_spot_drag_json(&mut self, x: f64, y: f64) -> Result<Option<String>, JsValue> {
+        let hit = self
+            .inner
+            .begin_tlc_spot_drag(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
+        hit.map(|value| serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string())))
+            .transpose()
+    }
+
+    #[wasm_bindgen(js_name = tlcSpotHitTestJson)]
+    pub fn tlc_spot_hit_test_json(&self, x: f64, y: f64) -> Result<Option<String>, JsValue> {
+        let hit = self
+            .inner
+            .tlc_spot_hit_test(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
+        hit.map(|value| serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string())))
+            .transpose()
+    }
+
+    #[wasm_bindgen(js_name = tlcLaneGuideHitTestJson)]
+    pub fn tlc_lane_guide_hit_test_json(
+        &self,
+        x: f64,
+        y: f64,
+    ) -> Result<Option<String>, JsValue> {
+        let hit = self
+            .inner
+            .tlc_lane_guide_hit_test(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
+        hit.map(|value| serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string())))
+            .transpose()
+    }
+
+    #[wasm_bindgen(js_name = updateTlcSpotDragJson)]
+    pub fn update_tlc_spot_drag_json(
+        &mut self,
+        x: f64,
+        y: f64,
+    ) -> Result<Option<String>, JsValue> {
+        let hit = self
+            .inner
+            .update_tlc_spot_drag(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
+        hit.map(|value| serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string())))
+            .transpose()
+    }
+
+    #[wasm_bindgen(js_name = finishTlcSpotDragJson)]
+    pub fn finish_tlc_spot_drag_json(
+        &mut self,
+        x: f64,
+        y: f64,
+    ) -> Result<Option<String>, JsValue> {
+        let hit = self
+            .inner
+            .finish_tlc_spot_drag(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
+        hit.map(|value| serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string())))
+            .transpose()
+    }
+
     #[wasm_bindgen(js_name = clearSelection)]
     pub fn clear_selection(&mut self) -> bool {
         self.inner.clear_selection()
@@ -484,6 +555,21 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = applyShapeStyleToSelection)]
     pub fn apply_shape_style_to_selection(&mut self, style: &str) -> bool {
         self.inner.apply_shape_style_to_selection(style)
+    }
+
+    #[wasm_bindgen(js_name = applyOrbitalTemplateToSelection)]
+    pub fn apply_orbital_template_to_selection(&mut self, template: &str) -> bool {
+        self.inner.apply_orbital_template_to_selection(template)
+    }
+
+    #[wasm_bindgen(js_name = applyOrbitalStyleToSelection)]
+    pub fn apply_orbital_style_to_selection(&mut self, style: &str) -> bool {
+        self.inner.apply_orbital_style_to_selection(style)
+    }
+
+    #[wasm_bindgen(js_name = applyOrbitalPhaseToSelection)]
+    pub fn apply_orbital_phase_to_selection(&mut self, phase: &str) -> bool {
+        self.inner.apply_orbital_phase_to_selection(phase)
     }
 
     #[wasm_bindgen(js_name = applyBracketKindToSelection)]
@@ -716,8 +802,37 @@ fn parse_tool(value: &str) -> Tool {
         "delete" => Tool::Delete,
         "text" => Tool::Text,
         "shape" => Tool::Shape,
+        "tlc-plate" | "tlcPlate" => Tool::TlcPlate,
+        "orbital" => Tool::Orbital,
         "templates" => Tool::Templates,
         _ => Tool::Select,
+    }
+}
+
+fn parse_orbital_template(value: &str) -> OrbitalTemplate {
+    match value {
+        "p" => OrbitalTemplate::P,
+        "dxy" => OrbitalTemplate::Dxy,
+        "oval" => OrbitalTemplate::Oval,
+        "hybrid" => OrbitalTemplate::Hybrid,
+        "dz2" => OrbitalTemplate::Dz2,
+        "lobe" => OrbitalTemplate::Lobe,
+        _ => OrbitalTemplate::S,
+    }
+}
+
+fn parse_orbital_style(value: &str) -> OrbitalStyle {
+    match value {
+        "filled" => OrbitalStyle::Filled,
+        "shaded" => OrbitalStyle::Shaded,
+        _ => OrbitalStyle::Hollow,
+    }
+}
+
+fn parse_orbital_phase(value: &str) -> OrbitalPhase {
+    match value {
+        "minus" => OrbitalPhase::Minus,
+        _ => OrbitalPhase::Plus,
     }
 }
 
@@ -754,6 +869,8 @@ fn parse_shape_kind(value: &str) -> ShapeKind {
         "ellipse" => ShapeKind::Ellipse,
         "round-rect" | "roundRect" => ShapeKind::RoundRect,
         "rect" => ShapeKind::Rect,
+        "cross-table" | "crossTable" => ShapeKind::CrossTable,
+        "tlc-plate" | "tlcPlate" => ShapeKind::TlcPlate,
         _ => ShapeKind::Circle,
     }
 }
@@ -811,8 +928,10 @@ fn parse_bond_variant(value: &str) -> BondVariant {
         "dashed-double" => BondVariant::DashedDouble,
         "bold" => BondVariant::Bold,
         "bold-dashed" => BondVariant::BoldDashed,
+        "wavy" => BondVariant::Wavy,
         "wedge" => BondVariant::Wedge,
         "hashed-wedge" => BondVariant::HashedWedge,
+        "hollow-wedge" => BondVariant::HollowWedge,
         _ => BondVariant::Single,
     }
 }

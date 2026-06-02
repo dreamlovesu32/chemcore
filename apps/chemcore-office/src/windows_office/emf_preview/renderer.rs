@@ -75,7 +75,6 @@ const ENV_PACKAGED_SMOOTHING_MODE_VALUE: &str = "CHEMCORE_EMF_PACKAGED_SMOOTHING
 const ENV_ATTACHED_LABEL_REPLAY_PHASE_POLICY_EXPERIMENT: &str =
     "CHEMCORE_EMF_ATTACHED_LABEL_REPLAY_PHASE_POLICY_EXPERIMENT";
 const ENV_HIDE_DOCUMENT_KNOCKOUT: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_KNOCKOUT";
-const ENV_SHOW_DOCUMENT_KNOCKOUT: &str = "CHEMCORE_EMF_SHOW_DOCUMENT_KNOCKOUT";
 const ENV_SHOW_INVALID_MARKERS: &str = "CHEMCORE_EMF_SHOW_INVALID_MARKERS";
 const ENV_HIDE_DOCUMENT_TEXT: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_TEXT";
 const ENV_HIDE_DOCUMENT_BOND: &str = "CHEMCORE_EMF_HIDE_DOCUMENT_BOND";
@@ -927,9 +926,7 @@ pub(super) fn office_preview_primitive_visible(primitive: &RenderPrimitive) -> b
     };
     match role {
         RenderRole::DocumentKnockout => {
-            if preview_env_enabled(ENV_HIDE_DOCUMENT_KNOCKOUT)
-                || !preview_env_enabled(ENV_SHOW_DOCUMENT_KNOCKOUT)
-            {
+            if preview_env_enabled(ENV_HIDE_DOCUMENT_KNOCKOUT) {
                 return false;
             }
         }
@@ -942,7 +939,10 @@ pub(super) fn office_preview_primitive_visible(primitive: &RenderPrimitive) -> b
     }
     matches!(
         role,
-        RenderRole::DocumentBond | RenderRole::DocumentGraphic | RenderRole::DocumentText
+        RenderRole::DocumentBond
+            | RenderRole::DocumentGraphic
+            | RenderRole::DocumentKnockout
+            | RenderRole::DocumentText
     )
 }
 
@@ -4381,6 +4381,11 @@ fn append_preview_arc_cubics(
     large_arc: bool,
     sweep: bool,
 ) -> Option<()> {
+    let x_axis_rotation = if (rx - ry).abs() <= 1.0e-6 {
+        0.0
+    } else {
+        x_axis_rotation
+    };
     if x_axis_rotation.abs() > 1.0e-6 {
         return None;
     }
@@ -5946,6 +5951,27 @@ mod tests {
             fill_gradient: None,
         };
         assert!(!preview_is_invalid_marker_primitive(&primitive));
+        assert!(office_preview_primitive_visible(&primitive));
+    }
+
+    #[test]
+    fn preview_document_knockout_is_visible_by_default() {
+        let primitive = RenderPrimitive::Rect {
+            role: RenderRole::DocumentKnockout,
+            object_id: Some("o1".to_string()),
+            node_id: None,
+            x: 1.0,
+            y: 2.0,
+            width: 3.0,
+            height: 4.0,
+            fill: Some("#ffffff".to_string()),
+            stroke: None,
+            stroke_width: 0.0,
+            rx: None,
+            ry: None,
+            dash_array: Vec::new(),
+            fill_gradient: None,
+        };
         assert!(office_preview_primitive_visible(&primitive));
     }
 
