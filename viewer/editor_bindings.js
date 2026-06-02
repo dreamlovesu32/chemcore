@@ -753,7 +753,7 @@ function colorFromToolbarValue(value, prefix) {
   return /^[0-9a-fA-F]{6}$/.test(hex) ? `#${hex.toLowerCase()}` : null;
 }
 
-function openColorDialog(currentColor, onPick, options) {
+export function openColorDialog(currentColor, onPick, options) {
   const selected = normalizeHexColor(currentColor) || "#000000";
   if (typeof options.colorHost?.chooseColor !== "function") {
     return;

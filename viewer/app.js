@@ -9,7 +9,7 @@ import { createObjectSettingsHost } from "./object_settings_host.js";
 import { createNumericDialogHost } from "./numeric_dialog_host.js";
 import { createDesktopFileHost } from "./desktop_file_host.js";
 import { createEngineHost } from "./engine_host.js";
-import { bindEditorControls } from "./editor_bindings.js";
+import { bindEditorControls, openColorDialog } from "./editor_bindings.js";
 import { createDocumentFlow } from "./document_flow.js";
 import {
   chemcoreOpenAcceptString,
@@ -44,6 +44,10 @@ import {
 } from "./render_support.js";
 import { createSceneRenderer } from "./scene_renderer.js";
 import { createEditorOverlayRenderer } from "./editor_overlay.js";
+import { createEditorSelectionState } from "./editor_selection_state.js";
+import { createEditorPointerController } from "./editor_pointer_controller.js";
+import { createCanvasContextMenuHost } from "./editor_context_menu.js";
+import { createEditorCommandController } from "./editor_command_controller.js";
 import {
   editorScriptScale as computeEditorScriptScale,
   estimateTextRunsWidth as computeEstimateTextRunsWidth,
@@ -227,9 +231,8 @@ document.body.appendChild(openFileInput);
 const textEditorLayer = document.createElement("div");
 textEditorLayer.className = "text-editor-layer";
 viewerContainer?.appendChild(textEditorLayer);
-const canvasContextMenu = createCanvasContextMenu();
-document.body.appendChild(canvasContextMenu);
-let activeContextMenuState = null;
+let canvasContextMenuHost = null;
+let canvasContextMenu = null;
 let textSymbolPalette = null;
 const textSymbolCatalogReady = loadTextSymbolCatalog().then((catalog) => {
   textSymbolPalette = createTextSymbolPalette({
@@ -1534,11 +1537,134 @@ const editorOverlayRenderer = createEditorOverlayRenderer({
   activeTlcLaneHover: () => activeTlcLaneHover,
 });
 
+const editorSelectionState = createEditorSelectionState({
+  state: () => state,
+  editorState: () => editorState,
+  currentEditorEngineState,
+  activeDocumentTab,
+  documentTitleFromState,
+  parseEngineJson,
+  activeSelectionGesture: () => activeSelectionGesture,
+  setActiveTlcSpotHover: (value) => { activeTlcSpotHover = value; },
+  setActiveTlcLaneHover: (value) => { activeTlcLaneHover = value; },
+});
+
+const editorSelectionHasItems = (...args) => editorSelectionState.editorSelectionHasItems(...args);
+const currentEditorSelectionHasItems = (...args) => editorSelectionState.currentEditorSelectionHasItems(...args);
+const currentDocumentHasSelectableContent = (...args) => editorSelectionState.currentDocumentHasSelectableContent(...args);
+const activeDocumentTabIsBlankUntitled = (...args) => editorSelectionState.activeDocumentTabIsBlankUntitled(...args);
+const currentSceneObjectMap = (...args) => editorSelectionState.currentSceneObjectMap(...args);
+const currentEditableFragment = (...args) => editorSelectionState.currentEditableFragment(...args);
+const currentSelectionInfo = (...args) => editorSelectionState.currentSelectionInfo(...args);
+const clearTlcHoverState = (...args) => editorSelectionState.clearTlcHoverState(...args);
+const updateTlcSpotHover = (...args) => editorSelectionState.updateTlcSpotHover(...args);
+const contextSelectionCount = (...args) => editorSelectionState.contextSelectionCount(...args);
+const contextHasSelection = (...args) => editorSelectionState.contextHasSelection(...args);
+const selectedSceneObjects = (...args) => editorSelectionState.selectedSceneObjects(...args);
+
 const renderEditorOverlay = (...args) => editorOverlayRenderer.renderEditorOverlay(...args);
 const currentSelectionRotateHandle = (...args) => editorOverlayRenderer.currentSelectionRotateHandle(...args);
 const selectionResizeHandleHit = (...args) => editorOverlayRenderer.selectionResizeHandleHit(...args);
 const selectionResizeGestureScale = (...args) => editorOverlayRenderer.selectionResizeGestureScale(...args);
 const selectionRotateAngleForGesture = (...args) => editorOverlayRenderer.selectionRotateAngleForGesture(...args);
+const selectionRotateHandleHit = (point) => {
+  const handle = currentSelectionRotateHandle();
+  return !!handle && pointDistance(point, handle) <= handle.hitRadius;
+};
+
+const editorCommandController = createEditorCommandController({
+  state: () => state,
+  desktopFileHost,
+  isEditingRustDocument,
+  syncDocumentFromEngine,
+  renderDocument,
+  renderEditorOverlay,
+  refreshCommandAvailability,
+  activateEditorTool,
+});
+const writeNativeClipboardFromSelection = (...args) => editorCommandController.writeNativeClipboardFromSelection(...args);
+const pasteFromNativeClipboard = (...args) => editorCommandController.pasteFromNativeClipboard(...args);
+const runEditorCommand = (...args) => editorCommandController.runEditorCommand(...args);
+
+canvasContextMenuHost = createCanvasContextMenuHost({
+  state: () => state,
+  editorState: () => editorState,
+  desktopFileHost,
+  colorHost,
+  objectSettingsHost,
+  numericDialogHost,
+  openColorDialog,
+  isEditingRustDocument,
+  parseEngineJson,
+  svgPointFromEvent,
+  selectClickTarget,
+  renderSelectionOnlyUpdate,
+  syncDocumentFromEngine,
+  renderDocument,
+  runEditorCommand,
+  applySelectionColor,
+  applyArrowOptionsToSelection,
+  currentSelectionInfo,
+  selectedSceneObjects,
+  cssColorToHex,
+  openTextEditorAt,
+  renderEditorOverlay,
+  refreshCommandAvailability,
+});
+canvasContextMenu = canvasContextMenuHost.canvasContextMenu;
+document.body.appendChild(canvasContextMenu);
+const updateCanvasContextMenuAvailability = (...args) => canvasContextMenuHost.updateCanvasContextMenuAvailability(...args);
+const closeCanvasContextMenu = (...args) => canvasContextMenuHost.closeCanvasContextMenu(...args);
+const openCanvasContextMenu = (...args) => canvasContextMenuHost.openCanvasContextMenu(...args);
+
+const editorPointerController = createEditorPointerController({
+  state: () => state,
+  editorState: () => editorState,
+  viewerSvg: () => viewerSvg,
+  svgPointFromEvent,
+  parseEngineJson,
+  pointDistance,
+  cssPxToCm,
+  routeEditorPointerEvents,
+  isEditingRustDocument,
+  openTextEditorAt,
+  syncSelectCursorForPoint,
+  syncArrowAwareCursorForPoint,
+  syncDocumentFromEngine,
+  renderDocument,
+  renderSelectionOnlyUpdate,
+  selectionResizeHandleHit,
+  currentSelectionRotateHandle,
+  selectionResizeGestureScale,
+  selectionRotateAngleForGesture,
+  currentRenderBounds,
+  currentEditorRenderList,
+  currentEditorOverlayRenderList,
+  renderEditorOverlay,
+  applyDocumentObjectPreviewTransform,
+  clearDocumentObjectPreviewTransform,
+  syncEditorRenderListFromEngine,
+  syncEditorOverlayPreviewTransform,
+  updateTlcSpotHover,
+  clearTlcHoverState,
+  maybeAutoExpandEditorViewport,
+  positionActiveTextEditor,
+  selectClickTarget,
+  cursorForShapeAction,
+  syncCanvasCursor,
+  bracketLabelAnchorPoint,
+  angleBetweenPoints: (from, to) => {
+    const raw = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
+    return ((raw % 360) + 360) % 360;
+  },
+  activeSelectionGesture: () => activeSelectionGesture,
+  setActiveSelectionGesture: (value) => { activeSelectionGesture = value; },
+  setActiveTlcSpotHover: (value) => { activeTlcSpotHover = value; },
+  setActiveTlcLaneHover: (value) => { activeTlcLaneHover = value; },
+  setLastEditFocusPoint: (value) => { state.lastEditFocusPoint = value; },
+  activeBracketDragStart: () => state.activeBracketDragStart,
+  setActiveBracketDragStart: (value) => { state.activeBracketDragStart = value; },
+});
 
 async function syncDocumentFromEngine() {
   if (!state.editorEngine) {
@@ -1603,663 +1729,12 @@ function refreshCommandAvailability() {
   void updateCanvasContextMenuAvailability();
 }
 
-function editorSelectionHasItems(selection) {
-  if (!selection) {
-    return false;
-  }
-  return Boolean(selection.region)
-    || ["nodes", "bonds", "labelNodes", "arrowObjects", "textObjects"].some((key) => (
-      Array.isArray(selection[key]) && selection[key].length > 0
-    ));
-}
-
-function currentEditorSelectionHasItems() {
-  return editorSelectionHasItems(currentEditorEngineState()?.selection);
-}
-
-function sceneObjectHasSelectableContent(object, resources) {
-  if (!object || object.visible === false) {
-    return false;
-  }
-  if (object.type === "molecule") {
-    const resource = resources?.[object.payload?.resourceRef];
-    const fragment = resource?.data;
-    return Boolean(fragment?.nodes?.length || fragment?.bonds?.length);
-  }
-  if (object.type === "group") {
-    return true;
-  }
-  return ["text", "line", "bracket", "symbol", "shape"].includes(object.type);
-}
-
-function currentDocumentHasSelectableContent() {
-  const documentData = state.currentDocument;
-  if (!documentData?.objects?.length) {
-    return false;
-  }
-  return documentData.objects.some((object) => sceneObjectHasSelectableContent(object, documentData.resources));
-}
-
-function activeDocumentTabIsBlankUntitled() {
-  const tab = activeDocumentTab();
-  if (!tab) {
-    return false;
-  }
-  const title = documentTitleFromState();
-  const hasPath = Boolean(state.currentPath || state.currentFileName || state.currentFilePath);
-  return title === "Untitled" && !hasPath && !currentDocumentHasSelectableContent();
-}
-
-function collectSceneObjects(objects = [], out = new Map()) {
-  for (const object of objects || []) {
-    out.set(object.id, object);
-    if (Array.isArray(object.children)) {
-      collectSceneObjects(object.children, out);
-    }
-  }
-  return out;
-}
-
-function currentSceneObjectMap() {
-  return collectSceneObjects(state.currentDocument?.objects || []);
-}
-
-function currentEditableFragment() {
-  const documentData = state.currentDocument;
-  const molecule = documentData?.objects?.find((object) => object.type === "molecule" && object.payload?.resourceRef);
-  return molecule ? documentData.resources?.[molecule.payload.resourceRef]?.data || null : null;
-}
-
-function currentSelectionInfo() {
-  const selection = currentEditorEngineState()?.selection || {};
-  const objectMap = currentSceneObjectMap();
-  const textObjects = (selection.textObjects || []).map((id) => objectMap.get(id)).filter(Boolean);
-  const graphicObjects = (selection.arrowObjects || []).map((id) => objectMap.get(id)).filter(Boolean);
-  const fragment = currentEditableFragment();
-  const nodeIds = selection.nodes || [];
-  const bondIds = selection.bonds || [];
-  const labelNodeIds = selection.labelNodes || [];
-  return {
-    selection,
-    objectMap,
-    textObjects,
-    graphicObjects,
-    sceneObjects: textObjects.concat(graphicObjects),
-    fragment,
-    nodes: nodeIds.map((id) => fragment?.nodes?.find((node) => node.id === id)).filter(Boolean),
-    bonds: bondIds.map((id) => fragment?.bonds?.find((bond) => bond.id === id)).filter(Boolean),
-    labelNodes: labelNodeIds.map((id) => fragment?.nodes?.find((node) => node.id === id)).filter(Boolean),
-  };
-}
-
-function clearTlcHoverState() {
-  activeTlcSpotHover = null;
-  activeTlcLaneHover = null;
-}
-
-async function updateTlcSpotHover(point) {
-  if (!state.editorEngine || (editorState.activeTool !== "select" && editorState.activeTool !== "tlc-plate")) {
-    activeTlcSpotHover = null;
-    activeTlcLaneHover = null;
-    return null;
-  }
-  if (activeSelectionGesture?.kind === "tlc-spot-drag") {
-    activeTlcSpotHover = activeSelectionGesture.hit || null;
-    activeTlcLaneHover = null;
-    return activeTlcSpotHover;
-  }
-  activeTlcSpotHover = parseEngineJson(await state.editorEngine.tlcSpotHitTestJson?.(point.x, point.y), null);
-  activeTlcLaneHover = activeTlcSpotHover
-    ? null
-    : parseEngineJson(await state.editorEngine.tlcLaneGuideHitTestJson?.(point.x, point.y), null);
-  return activeTlcSpotHover;
-}
-
-function contextSelectionCount(info = currentSelectionInfo()) {
-  return info.sceneObjects.length + info.nodes.length + info.bonds.length + info.labelNodes.length;
-}
-
-function contextHasSelection(info = currentSelectionInfo()) {
-  return contextSelectionCount(info) > 0 || Boolean(info.selection?.region);
-}
-
 function uniformValue(values) {
   const normalized = values.filter((value) => value != null && value !== "");
   if (!normalized.length) {
     return null;
   }
   return normalized.every((value) => value === normalized[0]) ? normalized[0] : null;
-}
-
-async function currentClipboardHasPasteContent() {
-  if (!state.editorEngine) {
-    return false;
-  }
-  try {
-    if (await Promise.resolve(state.editorEngine.hasClipboard?.())) {
-      return true;
-    }
-  } catch (error) {
-    console.warn("Failed to inspect engine clipboard", error);
-  }
-  if (!desktopFileHost?.available || !state.editorEngine.pasteClipboardJson) {
-    return false;
-  }
-  try {
-    const payload = await desktopFileHost.readClipboard();
-    return Boolean(payload?.chemcoreFragmentJson);
-  } catch (error) {
-    console.warn("Failed to inspect native clipboard", error);
-    return false;
-  }
-}
-
-function createCanvasContextMenu() {
-  const menu = document.createElement("div");
-  menu.className = "canvas-context-menu";
-  menu.hidden = true;
-  menu.setAttribute("role", "menu");
-  menu.setAttribute("aria-label", "Canvas menu");
-
-  menu.addEventListener("contextmenu", (event) => {
-    event.preventDefault();
-  });
-  menu.addEventListener("click", (event) => {
-    const item = event.target.closest("[data-canvas-context-command]");
-    if (!item || item.disabled || item.dataset.hasSubmenu === "true") {
-      return;
-    }
-    const command = item.dataset.canvasContextCommand;
-    const value = item.dataset.canvasContextValue || "";
-    void runCanvasContextMenuCommand(command, value);
-  });
-
-  return menu;
-}
-
-async function updateCanvasContextMenuAvailability() {
-  if (!canvasContextMenu || canvasContextMenu.hidden) {
-    return;
-  }
-  renderCanvasContextMenu(await buildCanvasContextMenuItems(activeContextMenuState?.hit || { kind: "canvas" }));
-}
-
-function hideCanvasContextMenu() {
-  if (canvasContextMenu.hidden) {
-    return;
-  }
-  canvasContextMenu.hidden = true;
-}
-
-async function finishTemporaryContextSelection() {
-  if (!activeContextMenuState?.temporarySelection) {
-    activeContextMenuState = null;
-    return;
-  }
-  activeContextMenuState = null;
-  if (await state.editorEngine?.clearSelection?.()) {
-    await syncDocumentFromEngine();
-    renderDocument();
-  }
-}
-
-function closeCanvasContextMenu() {
-  hideCanvasContextMenu();
-  void finishTemporaryContextSelection();
-}
-
-function canvasContextMenuItem(item, depth = 0) {
-  if (item.type === "separator") {
-    const separator = document.createElement("div");
-    separator.className = "canvas-context-menu-separator";
-    separator.setAttribute("role", "separator");
-    return separator;
-  }
-
-  const entry = document.createElement("div");
-  entry.className = "canvas-context-menu-entry";
-  if (item.submenu?.length) {
-    entry.classList.add("has-submenu");
-  }
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "canvas-context-menu-item";
-  button.dataset.canvasContextCommand = item.command || "";
-  button.dataset.canvasContextValue = item.value || "";
-  button.dataset.hasSubmenu = item.submenu?.length ? "true" : "false";
-  button.disabled = !!item.disabled;
-  button.setAttribute("role", "menuitem");
-  if (item.checked) {
-    button.classList.add("is-checked");
-    button.setAttribute("aria-checked", "true");
-  }
-
-  const check = document.createElement("span");
-  check.className = "canvas-context-menu-check";
-  check.textContent = item.checked ? "✓" : "";
-  const label = document.createElement("span");
-  label.className = "canvas-context-menu-label";
-  label.textContent = item.label || "";
-  const shortcut = document.createElement("span");
-  shortcut.className = "canvas-context-menu-shortcut";
-  shortcut.textContent = item.submenu?.length ? "›" : item.shortcut || "";
-  button.append(check, label, shortcut);
-  entry.appendChild(button);
-
-  if (item.submenu?.length) {
-    const submenu = document.createElement("div");
-    submenu.className = "canvas-context-submenu";
-    submenu.setAttribute("role", "menu");
-    if (depth >= 1) {
-      submenu.classList.add("is-nested");
-    }
-    item.submenu.forEach((child) => submenu.appendChild(canvasContextMenuItem(child, depth + 1)));
-    entry.appendChild(submenu);
-  }
-  return entry;
-}
-
-function renderCanvasContextMenu(items) {
-  canvasContextMenu.innerHTML = "";
-  items.forEach((item) => canvasContextMenu.appendChild(canvasContextMenuItem(item)));
-}
-
-async function openCanvasContextMenu(event) {
-  event.preventDefault();
-  event.stopPropagation();
-  if (!isEditingRustDocument()) {
-    closeCanvasContextMenu();
-    return;
-  }
-  const point = svgPointFromEvent(event);
-  let hit = await contextHitTest(point);
-  const temporarySelection = editorState.activeTool !== "select" && hit.kind !== "canvas" && !hit.selected;
-  if (hit.kind !== "canvas" && !hit.selected) {
-    await selectClickTarget(point, false);
-    await renderSelectionOnlyUpdate(point);
-    hit = await contextHitTest(point);
-  }
-  activeContextMenuState = {
-    hit,
-    point,
-    temporarySelection,
-    actionTaken: false,
-  };
-  renderCanvasContextMenu(await buildCanvasContextMenuItems(hit));
-  canvasContextMenu.hidden = false;
-  const margin = 6;
-  const width = canvasContextMenu.offsetWidth;
-  const height = canvasContextMenu.offsetHeight;
-  const left = Math.max(margin, Math.min(event.clientX, window.innerWidth - width - margin));
-  const top = Math.max(margin, Math.min(event.clientY, window.innerHeight - height - margin));
-  canvasContextMenu.style.left = `${left}px`;
-  canvasContextMenu.style.top = `${top}px`;
-  canvasContextMenu.querySelector("button:not(:disabled):not([data-has-submenu='true'])")?.focus?.({ preventScroll: true });
-}
-
-async function contextHitTest(point) {
-  if (!state.editorEngine?.contextHitTestJson) {
-    return { kind: "canvas" };
-  }
-  try {
-    return parseEngineJson(await state.editorEngine.contextHitTestJson(point.x, point.y), { kind: "canvas" }) || { kind: "canvas" };
-  } catch (error) {
-    console.warn("Failed to hit-test context menu target", error);
-    return { kind: "canvas" };
-  }
-}
-
-function selectedSceneObjects() {
-  return currentSelectionInfo().sceneObjects;
-}
-
-function styleColorForObject(object) {
-  const style = state.currentDocument?.styles?.[object?.styleRef];
-  return cssColorToHex(
-    object?.payload?.fill
-    || object?.payload?.stroke
-    || style?.fill
-    || style?.stroke
-    || object?.payload?.color
-    || "#000000",
-  );
-}
-
-function selectedUniformColor() {
-  const info = currentSelectionInfo();
-  const colors = [];
-  for (const object of info.sceneObjects) {
-    colors.push(styleColorForObject(object));
-  }
-  for (const bond of info.bonds) {
-    colors.push(cssColorToHex(bond.stroke || "#000000"));
-  }
-  for (const node of info.labelNodes.concat(info.nodes)) {
-    colors.push(cssColorToHex(node.label?.fill || "#000000"));
-  }
-  return uniformValue(colors);
-}
-
-function lineObjectStyle(object) {
-  const style = state.currentDocument?.styles?.[object?.styleRef] || {};
-  const arrowHead = object?.payload?.arrowHead || {};
-  if (arrowHead.bold) {
-    return "bold";
-  }
-  if (Array.isArray(style.dashArray) && style.dashArray.length) {
-    return "dashed";
-  }
-  return "plain";
-}
-
-function selectedUniformLineStyle() {
-  const lines = selectedSceneObjects().filter((object) => object.type === "line");
-  return uniformValue(lines.map(lineObjectStyle));
-}
-
-function selectedUniformArrowEndpoint(endpoint) {
-  const lines = selectedSceneObjects().filter((object) => object.type === "line");
-  return uniformValue(lines.map((object) => object.payload?.arrowHead?.[endpoint] || "none"));
-}
-
-async function buildCanvasContextMenuItems(hit) {
-  if (!state.editorEngine?.contextMenuJson) {
-    return [];
-  }
-  const hasPaste = await currentClipboardHasPasteContent();
-  return parseEngineJson(
-    await state.editorEngine.contextMenuJson(JSON.stringify(hit || { kind: "canvas" }), hasPaste),
-    [],
-  ) || [];
-}
-
-async function runCanvasContextMenuCommand(command, value) {
-  if (!command || command === "noop") {
-    return;
-  }
-  if (activeContextMenuState) {
-    activeContextMenuState.actionTaken = true;
-  }
-  hideCanvasContextMenu();
-  let changed = false;
-  if (["cut", "copy", "paste", "delete", "select-all"].includes(command)) {
-    changed = await runEditorCommand(command);
-  } else if (command === "order") {
-    changed = !!(await state.editorEngine?.applySelectionOrderCommand?.(value));
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "arrange") {
-    changed = !!(await state.editorEngine?.applySelectionArrangeCommand?.(value));
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "group") {
-    changed = !!(await state.editorEngine?.groupSelection?.());
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "ungroup") {
-    changed = !!(await state.editorEngine?.ungroupSelection?.());
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "color") {
-    changed = await applySelectionColor(value);
-  } else if (command === "color-other") {
-    openColorDialog(selectedUniformColor() || editorState.selectionColor || "#000000", async (color) => {
-      await applySelectionColor(color);
-      await finishTemporaryContextSelection();
-    }, { colorHost });
-    return;
-  } else if (command === "shape-style") {
-    changed = !!(await state.editorEngine?.applyShapeStyleToSelection?.(value));
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "orbital-template") {
-    changed = !!(await state.editorEngine?.applyOrbitalTemplateToSelection?.(value));
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "orbital-style") {
-    changed = !!(await state.editorEngine?.applyOrbitalStyleToSelection?.(value));
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "orbital-phase") {
-    changed = !!(await state.editorEngine?.applyOrbitalPhaseToSelection?.(value));
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "bracket-kind") {
-    changed = !!(await state.editorEngine?.applyBracketKindToSelection?.(value));
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "line-style") {
-    changed = !!(await state.editorEngine?.applyLineStyleToSelection?.(value));
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "bond-style") {
-    changed = !!(await state.editorEngine?.applyBondStyleToSelection?.(value));
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "text-style") {
-    const separatorIndex = value.indexOf(":");
-    const styleCommand = separatorIndex >= 0 ? value.slice(0, separatorIndex) : value;
-    const styleValue = separatorIndex >= 0 ? value.slice(separatorIndex + 1) : "";
-    changed = !!(await state.editorEngine?.applyTextStyleToSelection?.(styleCommand, styleValue));
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "text-line-spacing") {
-    await numericDialogHost.choose("line-height");
-    await finishTemporaryContextSelection();
-    return;
-  } else if (command === "chemical-check") {
-    changed = !!(await state.editorEngine?.setChemicalCheckForSelection?.(value !== "off"));
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "expand-label") {
-    changed = !!(await state.editorEngine?.expandLabelsInSelection?.());
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "center-page") {
-    changed = !!(await state.editorEngine?.centerSelectionOnPage?.());
-    if (changed) {
-      await syncDocumentFromEngine();
-      renderDocument();
-    }
-  } else if (command === "object-settings") {
-    await objectSettingsHost.chooseObjectSettings();
-    await finishTemporaryContextSelection();
-    return;
-  } else if (command === "scale-dialog") {
-    await numericDialogHost.choose("scale");
-    await finishTemporaryContextSelection();
-    return;
-  } else if (command === "rotate-dialog") {
-    await numericDialogHost.choose("rotate");
-    await finishTemporaryContextSelection();
-    return;
-  } else if (command === "edit-text") {
-    const point = activeContextMenuState?.point;
-    if (point) {
-      await openTextEditorAt(point);
-      changed = true;
-    }
-  } else if (command === "arrow-bold") {
-    syncEditorArrowStateFromSelectedLine();
-    editorState.arrowBold = selectedUniformLineStyle() !== "bold";
-    changed = await applyArrowOptionsToSelection();
-  } else if (command === "arrow-endpoint") {
-    syncEditorArrowStateFromSelectedLine();
-    const [endpoint, style] = value.split(":");
-    const nextStyle = style || "none";
-    if (endpoint === "head") {
-      editorState.arrowHeadStyle = selectedUniformArrowEndpoint("head") === endpointStylePayloadName(nextStyle) ? "none" : nextStyle;
-      editorState.arrowHead = editorState.arrowHeadStyle !== "none";
-    } else {
-      editorState.arrowTailStyle = selectedUniformArrowEndpoint("tail") === endpointStylePayloadName(nextStyle) ? "none" : nextStyle;
-      editorState.arrowTail = editorState.arrowTailStyle !== "none";
-    }
-    changed = await applyArrowOptionsToSelection();
-  }
-  if (!changed) {
-    renderEditorOverlay();
-    refreshCommandAvailability();
-  }
-  await finishTemporaryContextSelection();
-}
-
-function endpointStylePayloadName(style) {
-  if (style === "left") {
-    return "half-left";
-  }
-  if (style === "right") {
-    return "half-right";
-  }
-  return style;
-}
-
-function syncEditorArrowStateFromSelectedLine() {
-  const line = selectedSceneObjects().find((object) => object.type === "line");
-  if (!line) {
-    return;
-  }
-  const arrowHead = line.payload?.arrowHead || {};
-  const kind = arrowHead.kind || "solid";
-  if (["solid", "curved", "curved-mirror", "hollow", "open"].includes(kind)) {
-    editorState.arrowType = kind;
-  }
-  const curve = Math.abs(Number(arrowHead.curve || 0));
-  if (curve >= 260) {
-    editorState.arrowCurve = "270";
-  } else if (curve >= 150) {
-    editorState.arrowCurve = "180";
-  } else if (curve >= 105) {
-    editorState.arrowCurve = "120";
-  } else if (curve >= 60) {
-    editorState.arrowCurve = "90";
-  }
-  const head = arrowHead.head || "none";
-  const tail = arrowHead.tail || "none";
-  editorState.arrowHeadStyle = head === "half-left" ? "left" : head === "half-right" ? "right" : head;
-  editorState.arrowTailStyle = tail === "half-left" ? "left" : tail === "half-right" ? "right" : tail;
-  editorState.arrowHead = editorState.arrowHeadStyle !== "none";
-  editorState.arrowTail = editorState.arrowTailStyle !== "none";
-  editorState.arrowBold = !!arrowHead.bold;
-  editorState.arrowNoGo = arrowHead.noGo || "none";
-}
-
-async function writeNativeClipboardFromSelection(fragmentJson = null, documentJson = undefined) {
-  if (!desktopFileHost?.available || !state.editorEngine) {
-    return false;
-  }
-  try {
-    const resolvedFragmentJson = fragmentJson || await state.editorEngine.clipboardSelectionJson?.() || null;
-    const resolvedDocumentJson = documentJson === undefined
-      ? await state.editorEngine.clipboardDocumentJson?.() || null
-      : documentJson;
-    if (!resolvedFragmentJson && !resolvedDocumentJson) {
-      return false;
-    }
-    const cdxml = await state.editorEngine.documentCdxml?.() || null;
-    const svg = null;
-    await desktopFileHost.writeClipboard({
-      chemcoreFragmentJson: resolvedFragmentJson,
-      chemcoreDocumentJson: resolvedDocumentJson,
-      renderListJson: state.editorEngine.renderListJson?.() || null,
-      cdxml,
-      svg,
-      text: cdxml,
-    });
-    return true;
-  } catch (error) {
-    console.warn("Failed to write native clipboard", error);
-  }
-  return false;
-}
-
-async function pasteFromNativeClipboard() {
-  if (!desktopFileHost?.available || !state.editorEngine?.pasteClipboardJson) {
-    return false;
-  }
-  try {
-    const payload = await desktopFileHost.readClipboard();
-    if (payload?.chemcoreFragmentJson) {
-      return !!(await state.editorEngine.pasteClipboardJson(payload.chemcoreFragmentJson));
-    }
-  } catch (error) {
-    console.warn("Failed to read native clipboard", error);
-  }
-  return false;
-}
-
-async function runEditorCommand(command) {
-  if (!isEditingRustDocument()) {
-    return false;
-  }
-  let changed = false;
-  let shouldRenderDocument = false;
-  if (command === "undo") {
-    changed = await state.editorEngine.undo();
-  } else if (command === "redo") {
-    changed = await state.editorEngine.redo();
-  } else if (command === "copy") {
-    const fragmentJson = await state.editorEngine.clipboardSelectionJson?.() || null;
-    const documentJson = await state.editorEngine.clipboardDocumentJson?.() || null;
-    changed = !!(await state.editorEngine.copySelection?.());
-    changed = await writeNativeClipboardFromSelection(fragmentJson, documentJson) || changed;
-  } else if (command === "cut") {
-    const fragmentJson = await state.editorEngine.clipboardSelectionJson?.() || null;
-    const documentJson = await state.editorEngine.clipboardDocumentJson?.() || null;
-    changed = !!(await state.editorEngine.cutSelection?.());
-    if (changed) {
-      await writeNativeClipboardFromSelection(fragmentJson, documentJson);
-    }
-  } else if (command === "paste") {
-    changed = await pasteFromNativeClipboard();
-    if (!changed) {
-      changed = !!(await state.editorEngine.pasteClipboard?.());
-    }
-  } else if (command === "delete") {
-    changed = await state.editorEngine.deleteSelection();
-  } else if (command === "select-all") {
-    await activateEditorTool("select");
-    changed = !!(await state.editorEngine.selectAll?.());
-    shouldRenderDocument = true;
-  } else {
-    return false;
-  }
-  if (changed || shouldRenderDocument) {
-    await syncDocumentFromEngine();
-    renderDocument();
-  } else {
-    renderEditorOverlay();
-    refreshCommandAvailability();
-  }
-  return true;
 }
 
 async function activateEditorTool(nextTool) {
@@ -3790,492 +3265,14 @@ function bracketLabelAnchorPoint(start, end, kind = editorState.bracketKind) {
   };
 }
 
-async function handleEditorPointerMove(event) {
-  const point = svgPointFromEvent(event);
-  if ((editorState.activeTool === "select" || editorState.activeTool === "arrow" || editorState.activeTool === "shape" || editorState.activeTool === "tlc-plate" || editorState.activeTool === "orbital") && activeSelectionGesture) {
-    event.preventDefault();
-    if (activeSelectionGesture.kind === "tlc-spot-drag") {
-      activeSelectionGesture.current = point;
-      activeSelectionGesture.dragged = pointDistance(activeSelectionGesture.start, point) >= cssPxToCm(1.5);
-      const hit = parseEngineJson(await state.editorEngine.updateTlcSpotDragJson?.(point.x, point.y), null);
-      if (hit) {
-        activeSelectionGesture.hit = hit;
-        await syncDocumentFromEngine();
-      }
-      await syncSelectCursorForPoint(point);
-      renderDocument();
-      return;
-    }
-    if (activeSelectionGesture.kind === "arrow-endpoint" || activeSelectionGesture.kind === "arrow-curve") {
-      if (pointDistance(activeSelectionGesture.start, point) >= cssPxToCm(3)) {
-        activeSelectionGesture.dragged = true;
-      }
-      activeSelectionGesture.current = point;
-      await state.editorEngine.updateHoverArrowEdit?.(point.x, point.y, event.altKey);
-      if (activeSelectionGesture.kind === "arrow-curve") {
-        activeSelectionGesture.angle = state.editorEngine.activeArrowEditDegrees?.() || 0;
-      }
-      await syncArrowAwareCursorForPoint(point);
-      renderEditorOverlay(syncEditorRenderListFromEngine());
-      return;
-    }
-    if (activeSelectionGesture.kind === "shape-resize") {
-      if (pointDistance(activeSelectionGesture.start, point) >= cssPxToCm(3)) {
-        activeSelectionGesture.dragged = true;
-      }
-      activeSelectionGesture.current = point;
-      await state.editorEngine.updateHoverShapeEdit?.(point.x, point.y, event.altKey);
-      await syncArrowAwareCursorForPoint(point);
-      renderEditorOverlay(syncEditorRenderListFromEngine());
-      return;
-    }
-    if (activeSelectionGesture.kind === "rotate") {
-      activeSelectionGesture.current = point;
-      activeSelectionGesture.angle = selectionRotateAngleForGesture(activeSelectionGesture, point, event.altKey);
-      if (applyDocumentObjectPreviewTransform()) {
-        await syncSelectCursorForPoint(point);
-        renderEditorOverlay(currentEditorOverlayRenderList());
-        return;
-      }
-      await state.editorEngine.updateSelectionRotate(point.x, point.y, event.altKey);
-      await syncSelectCursorForPoint(point);
-      renderEditorOverlay(syncEditorRenderListFromEngine());
-      return;
-    }
-    if (activeSelectionGesture.kind === "resize") {
-      activeSelectionGesture.current = point;
-      activeSelectionGesture.scale = selectionResizeGestureScale(activeSelectionGesture, point);
-      if (applyDocumentObjectPreviewTransform()) {
-        await syncSelectCursorForPoint(point);
-        renderEditorOverlay(currentEditorOverlayRenderList());
-        return;
-      }
-      await state.editorEngine.updateSelectionResize?.(point.x, point.y);
-      await syncSelectCursorForPoint(point);
-      renderEditorOverlay(syncEditorRenderListFromEngine());
-      return;
-    }
-    if (activeSelectionGesture.kind === "move") {
-      activeSelectionGesture.current = point;
-      if (applyDocumentObjectPreviewTransform()) {
-        await syncSelectCursorForPoint(point);
-        if (!syncEditorOverlayPreviewTransform()) {
-          renderEditorOverlay(currentEditorOverlayRenderList());
-        }
-        return;
-      }
-      await state.editorEngine.updateSelectionMove(point.x, point.y, event.altKey);
-      await syncSelectCursorForPoint(point);
-      renderEditorOverlay(syncEditorRenderListFromEngine());
-      return;
-    }
-    if (pointDistance(activeSelectionGesture.start, point) >= cssPxToCm(3)) {
-      activeSelectionGesture.dragged = true;
-    }
-    activeSelectionGesture.current = point;
-    if (editorState.selectMode === "free") {
-      const lastPoint = activeSelectionGesture.points[activeSelectionGesture.points.length - 1];
-      if (!lastPoint || pointDistance(lastPoint, point) >= cssPxToCm(2)) {
-        activeSelectionGesture.points.push(point);
-      }
-    }
-    renderEditorOverlay(currentEditorRenderList());
-    return;
-  }
-  if (!routeEditorPointerEvents()) {
-    if (isEditingRustDocument()) {
-      await state.editorEngine.clearInteraction();
-      renderEditorOverlay();
-    }
-    return;
-  }
-  await state.editorEngine.pointerMove(point.x, point.y, event.altKey);
-  if ((editorState.activeTool === "select" || editorState.activeTool === "tlc-plate") && !activeSelectionGesture) {
-    await updateTlcSpotHover(point);
-  } else if (activeSelectionGesture?.kind !== "tlc-spot-drag") {
-    clearTlcHoverState();
-  }
-  if (editorState.activeTool === "select") {
-    await syncSelectCursorForPoint(point);
-  } else if (editorState.activeTool === "arrow" || editorState.activeTool === "shape" || editorState.activeTool === "tlc-plate" || editorState.activeTool === "orbital") {
-    await syncArrowAwareCursorForPoint(point);
-  }
-  const renderList = currentEditorRenderList();
-  maybeAutoExpandEditorViewport(renderList);
-  renderEditorOverlay(renderList);
-  positionActiveTextEditor();
-}
-
-async function handleEditorPointerDown(event) {
-  if (!routeEditorPointerEvents() || event.button !== 0) {
-    return;
-  }
-  const point = svgPointFromEvent(event);
-  state.lastEditFocusPoint = point;
-  if (editorState.activeTool === "bracket") {
-    state.activeBracketDragStart = point;
-  }
-  if (editorState.activeTool === "text") {
-    event.preventDefault();
-    await openTextEditorAt(point);
-    return;
-  }
-  if (editorState.activeTool === "select") {
-    event.preventDefault();
-    viewerSvg.setPointerCapture?.(event.pointerId);
-    await state.editorEngine.pointerMove(point.x, point.y, event.altKey);
-    const tlcSpotHit = parseEngineJson(await state.editorEngine.beginTlcSpotDragJson?.(point.x, point.y), null);
-    if (tlcSpotHit) {
-      activeSelectionGesture = {
-        kind: "tlc-spot-drag",
-        start: point,
-        current: point,
-        dragged: false,
-        cursor: "ns-resize",
-        hit: tlcSpotHit,
-      };
-      activeTlcSpotHover = tlcSpotHit;
-      activeTlcLaneHover = null;
-      await selectClickTarget(point, !!event.shiftKey);
-      await renderSelectionOnlyUpdate(point);
-      return;
-    }
-    const resizeHandle = selectionResizeHandleHit(point);
-    if (resizeHandle && await state.editorEngine.beginSelectionResize?.(resizeHandle.name, point.x, point.y)) {
-      activeSelectionGesture = {
-        kind: "resize",
-        handle: resizeHandle.name,
-        cursor: resizeHandle.cursor,
-        bounds: currentRenderBounds("selection"),
-        start: point,
-        current: point,
-        scale: 1,
-      };
-      await syncSelectCursorForPoint(point);
-      syncEditorRenderListFromEngine();
-      renderEditorOverlay(currentEditorOverlayRenderList());
-      return;
-    }
-    const overSelection = !!state.editorEngine.selectionContainsPoint?.(point.x, point.y);
-    const shapeEditAction = overSelection
-      ? ""
-      : await state.editorEngine.beginHoverShapeEdit?.(point.x, point.y) || "";
-    if (shapeEditAction) {
-      activeSelectionGesture = {
-        kind: "shape-resize",
-        action: shapeEditAction,
-        cursor: cursorForShapeAction(shapeEditAction) || "nwse-resize",
-        start: point,
-        current: point,
-        dragged: false,
-        additive: !!event.shiftKey,
-      };
-      await syncArrowAwareCursorForPoint(point);
-      renderEditorOverlay(currentEditorRenderList());
-      return;
-    }
-    const arrowEditAction = await state.editorEngine.beginHoverArrowEdit?.(point.x, point.y) || "";
-    if (arrowEditAction) {
-      activeSelectionGesture = {
-        kind: arrowEditAction === "curve" ? "arrow-curve" : "arrow-endpoint",
-        action: arrowEditAction,
-        start: point,
-        current: point,
-        dragged: false,
-        additive: !!event.shiftKey,
-        angle: 0,
-      };
-      await syncArrowAwareCursorForPoint(point);
-      renderEditorOverlay(currentEditorRenderList());
-      return;
-    }
-    const rotateHandle = currentSelectionRotateHandle();
-    if (rotateHandle && pointDistance(point, rotateHandle) <= rotateHandle.hitRadius) {
-      if (await state.editorEngine.beginSelectionRotate?.(point.x, point.y)) {
-        activeSelectionGesture = {
-          kind: "rotate",
-          center: {
-            x: (rotateHandle.bounds.minX + rotateHandle.bounds.maxX) * 0.5,
-            y: (rotateHandle.bounds.minY + rotateHandle.bounds.maxY) * 0.5,
-          },
-          bounds: rotateHandle.bounds,
-          start: point,
-          current: point,
-          startAngle: angleBetweenPoints(
-            {
-              x: (rotateHandle.bounds.minX + rotateHandle.bounds.maxX) * 0.5,
-              y: (rotateHandle.bounds.minY + rotateHandle.bounds.maxY) * 0.5,
-            },
-            point,
-          ),
-          angle: 0,
-        };
-        await syncSelectCursorForPoint(point);
-        syncEditorRenderListFromEngine();
-        renderEditorOverlay(currentEditorOverlayRenderList());
-        return;
-      }
-    }
-    if (overSelection && await state.editorEngine.beginSelectionMove?.(point.x, point.y, !!event.shiftKey, event.altKey)) {
-      activeSelectionGesture = {
-        kind: "move",
-        start: point,
-        current: point,
-        additive: !!event.shiftKey,
-      };
-      await syncSelectCursorForPoint(point);
-      syncEditorRenderListFromEngine();
-      renderEditorOverlay(currentEditorOverlayRenderList());
-      return;
-    }
-    activeSelectionGesture = {
-      kind: "select",
-      start: point,
-      current: point,
-      points: [point],
-      dragged: false,
-      additive: !!event.shiftKey,
-    };
-    renderEditorOverlay(currentEditorRenderList());
-    return;
-  }
-  event.preventDefault();
-  viewerSvg.setPointerCapture?.(event.pointerId);
-  if (editorState.activeTool === "arrow") {
-    const arrowEditAction = await state.editorEngine.beginHoverArrowEdit?.(point.x, point.y) || "";
-    if (arrowEditAction) {
-      activeSelectionGesture = {
-        kind: arrowEditAction === "curve" ? "arrow-curve" : "arrow-endpoint",
-        action: arrowEditAction,
-        start: point,
-        current: point,
-        dragged: false,
-        angle: 0,
-      };
-      await syncArrowAwareCursorForPoint(point);
-      renderEditorOverlay(currentEditorRenderList());
-      return;
-    }
-  }
-  if (editorState.activeTool === "shape" || editorState.activeTool === "tlc-plate") {
-    if (editorState.activeTool === "tlc-plate") {
-      const tlcSpotHit = parseEngineJson(await state.editorEngine.beginTlcSpotDragJson?.(point.x, point.y), null);
-      if (tlcSpotHit) {
-        activeSelectionGesture = {
-          kind: "tlc-spot-drag",
-          start: point,
-          current: point,
-          dragged: false,
-          cursor: "ns-resize",
-          hit: tlcSpotHit,
-        };
-        activeTlcSpotHover = tlcSpotHit;
-        activeTlcLaneHover = null;
-        await syncArrowAwareCursorForPoint(point);
-        renderEditorOverlay(currentEditorRenderList());
-        return;
-      }
-    }
-    const shapeEditAction = await state.editorEngine.beginHoverShapeEdit?.(point.x, point.y) || "";
-    if (shapeEditAction) {
-      activeSelectionGesture = {
-        kind: "shape-resize",
-        action: shapeEditAction,
-        cursor: cursorForShapeAction(shapeEditAction) || "nwse-resize",
-        start: point,
-        current: point,
-        dragged: false,
-      };
-      await syncArrowAwareCursorForPoint(point);
-      renderEditorOverlay(currentEditorRenderList());
-      return;
-    }
-  }
-  await state.editorEngine.pointerDown(point.x, point.y, event.altKey);
-  await syncDocumentFromEngine();
-  renderEditorOverlay(currentEditorRenderList());
-}
-
-async function handleEditorPointerUp(event) {
-  if (editorState.activeTool === "text") {
-    return;
-  }
-  if (!routeEditorPointerEvents()) {
-    return;
-  }
-  const point = svgPointFromEvent(event);
-  state.lastEditFocusPoint = point;
-  event.preventDefault();
-  viewerSvg.releasePointerCapture?.(event.pointerId);
-  if (activeSelectionGesture?.kind === "tlc-spot-drag") {
-    const hit = parseEngineJson(await state.editorEngine.finishTlcSpotDragJson?.(point.x, point.y), null);
-    activeSelectionGesture = null;
-    if (hit) {
-      activeTlcSpotHover = hit;
-      activeTlcLaneHover = null;
-      await syncDocumentFromEngine();
-    } else {
-      clearTlcHoverState();
-    }
-    if (editorState.activeTool === "select") {
-      await syncSelectCursorForPoint(point);
-    } else {
-      await syncArrowAwareCursorForPoint(point);
-    }
-    renderDocument();
-    return;
-  }
-  if ((editorState.activeTool === "select" || editorState.activeTool === "arrow")
-    && (activeSelectionGesture?.kind === "arrow-endpoint" || activeSelectionGesture?.kind === "arrow-curve")) {
-    const gesture = activeSelectionGesture;
-    activeSelectionGesture = null;
-    const changed = !!(await state.editorEngine.finishHoverArrowEdit?.(point.x, point.y, event.altKey));
-    if (changed) {
-      await state.editorEngine.refreshRenderState?.();
-      await syncDocumentFromEngine();
-    } else if (!gesture.dragged && editorState.activeTool === "select") {
-      await selectClickTarget(point, gesture.additive);
-      clearDocumentObjectPreviewTransform();
-      await renderSelectionOnlyUpdate(point, syncArrowAwareCursorForPoint);
-      return;
-    }
-    if (changed) {
-      await syncArrowAwareCursorForPoint(point);
-      renderDocument();
-    } else {
-      clearDocumentObjectPreviewTransform();
-      await renderSelectionOnlyUpdate(point, syncArrowAwareCursorForPoint);
-    }
-    return;
-  }
-  if ((editorState.activeTool === "select" || editorState.activeTool === "shape" || editorState.activeTool === "tlc-plate" || editorState.activeTool === "orbital")
-    && activeSelectionGesture?.kind === "shape-resize") {
-    const gesture = activeSelectionGesture;
-    activeSelectionGesture = null;
-    const changed = !!(await state.editorEngine.finishHoverShapeEdit?.(point.x, point.y, event.altKey));
-    if (changed) {
-      await state.editorEngine.refreshRenderState?.();
-      await syncDocumentFromEngine();
-    } else if (!gesture.dragged && editorState.activeTool === "select") {
-      await selectClickTarget(point, gesture.additive);
-      clearDocumentObjectPreviewTransform();
-      await renderSelectionOnlyUpdate(point, syncArrowAwareCursorForPoint);
-      return;
-    }
-    if (changed) {
-      await syncArrowAwareCursorForPoint(point);
-      renderDocument();
-    } else {
-      clearDocumentObjectPreviewTransform();
-      await renderSelectionOnlyUpdate(point, syncArrowAwareCursorForPoint);
-    }
-    return;
-  }
-  if (editorState.activeTool === "select") {
-    const gesture = activeSelectionGesture;
-    activeSelectionGesture = null;
-    if (!gesture) {
-      return;
-    }
-    if (gesture.kind === "rotate") {
-      await state.editorEngine.finishSelectionRotate(point.x, point.y, event.altKey);
-      await syncDocumentFromEngine();
-      await syncSelectCursorForPoint(point);
-      clearDocumentObjectPreviewTransform();
-      renderDocument();
-      return;
-    }
-    if (gesture.kind === "resize") {
-      await state.editorEngine.finishSelectionResize?.(point.x, point.y);
-      await syncDocumentFromEngine();
-      await syncSelectCursorForPoint(point);
-      clearDocumentObjectPreviewTransform();
-      renderDocument();
-      return;
-    }
-    if (gesture.kind === "move") {
-      if (gesture.dragged) {
-        await state.editorEngine.finishSelectionMove(point.x, point.y, event.altKey);
-        await syncDocumentFromEngine();
-        await syncSelectCursorForPoint(point);
-        clearDocumentObjectPreviewTransform();
-        renderDocument();
-      } else {
-        await selectClickTarget(point, gesture.additive);
-        clearDocumentObjectPreviewTransform();
-        await renderSelectionOnlyUpdate(point);
-      }
-      return;
-    }
-    if (!gesture.dragged) {
-      await selectClickTarget(point, gesture.additive);
-    } else if (editorState.selectMode === "box") {
-      await state.editorEngine.selectInRect(
-        gesture.start.x,
-        gesture.start.y,
-        point.x,
-        point.y,
-        gesture.additive,
-      );
-    } else {
-      const polygonPoints = [...gesture.points, point].map((candidate) => [candidate.x, candidate.y]);
-      await state.editorEngine.selectInPolygon(JSON.stringify(polygonPoints), gesture.additive);
-    }
-    await renderSelectionOnlyUpdate(point);
-    return;
-  }
-  await state.editorEngine.pointerUp(point.x, point.y, event.altKey);
-  await syncDocumentFromEngine();
-  renderDocument();
-  if (editorState.activeTool === "bracket") {
-    const start = state.activeBracketDragStart;
-    state.activeBracketDragStart = null;
-    if (start && pointDistance(start, point) >= cssPxToCm(4)) {
-      await openTextEditorAt(bracketLabelAnchorPoint(start, point));
-    }
-  }
-}
-
-async function handleEditorPointerLeave() {
-  if (!isEditingRustDocument()) {
-    return;
-  }
-  if (editorState.activeTool === "select" && activeSelectionGesture) {
-    return;
-  }
-  clearTlcHoverState();
-  if (editorState.activeTool !== "text") {
-    await state.editorEngine.clearInteraction();
-    renderEditorOverlay();
-  }
-}
-
-async function handleEditorDoubleClick(event) {
-  if (!routeEditorPointerEvents() || editorState.activeTool !== "select") {
-    return;
-  }
-  const point = svgPointFromEvent(event);
-  const changed = !!(await state.editorEngine.selectComponentAtPoint?.(point.x, point.y, event.shiftKey));
-  if (!changed) {
-    return;
-  }
-  event.preventDefault();
-  activeSelectionGesture = null;
-  await renderSelectionOnlyUpdate(point);
-}
-
-viewerSvg?.addEventListener("pointermove", handleEditorPointerMove);
-viewerSvg?.addEventListener("pointerdown", handleEditorPointerDown);
-viewerSvg?.addEventListener("pointerup", handleEditorPointerUp);
-viewerSvg?.addEventListener("dblclick", handleEditorDoubleClick);
+viewerSvg?.addEventListener("pointermove", editorPointerController.handleEditorPointerMove);
+viewerSvg?.addEventListener("pointerdown", editorPointerController.handleEditorPointerDown);
+viewerSvg?.addEventListener("pointerup", editorPointerController.handleEditorPointerUp);
+viewerSvg?.addEventListener("dblclick", editorPointerController.handleEditorDoubleClick);
 viewerSvg?.addEventListener("pointercancel", async () => {
-  activeSelectionGesture = null;
-  clearDocumentObjectPreviewTransform();
-  await state.editorEngine?.clearInteraction?.();
-  syncCanvasCursor();
-  renderEditorOverlay();
+  await editorPointerController.handleEditorPointerCancel();
 });
-viewerSvg?.addEventListener("pointerleave", handleEditorPointerLeave);
+viewerSvg?.addEventListener("pointerleave", editorPointerController.handleEditorPointerLeave);
 viewerContainer?.addEventListener("wheel", handleViewerWheel, { passive: false });
 viewerContainer?.addEventListener("contextmenu", openCanvasContextMenu);
 viewerContainer?.addEventListener("scroll", () => {
