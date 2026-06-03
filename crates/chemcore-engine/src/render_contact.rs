@@ -278,8 +278,8 @@ pub(super) fn main_bond_endpoint_geometry<'a>(
         let wide_half_width = solid_wedge_half_width_for_bond(bond, stroke_width);
         return match stereo_kind {
             BondStereoKind::SolidWedgeEnd
-                | BondStereoKind::HashedWedgeEnd
-                | BondStereoKind::HollowWedgeEnd
+            | BondStereoKind::HashedWedgeEnd
+            | BondStereoKind::HollowWedgeEnd
                 if node_id == bond.end =>
             {
                 let base_plus = Point::new(
@@ -323,8 +323,8 @@ pub(super) fn main_bond_endpoint_geometry<'a>(
                 })
             }
             BondStereoKind::SolidWedgeBegin
-                | BondStereoKind::HashedWedgeBegin
-                | BondStereoKind::HollowWedgeBegin
+            | BondStereoKind::HashedWedgeBegin
+            | BondStereoKind::HollowWedgeBegin
                 if node_id == bond.begin =>
             {
                 let base_plus = Point::new(

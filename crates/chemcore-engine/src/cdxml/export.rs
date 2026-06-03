@@ -799,7 +799,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
                                 ),
                                 (
                                     "Tail",
-                                    fmt_num(spot.get("tail").and_then(Value::as_f64).unwrap_or(0.0)),
+                                    fmt_num(
+                                        spot.get("tail").and_then(Value::as_f64).unwrap_or(0.0),
+                                    ),
                                 ),
                                 (
                                     "Width",
@@ -815,8 +817,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
                                 ),
                                 (
                                     "CurveType",
-                                    spot
-                                        .get("curveType")
+                                    spot.get("curveType")
                                         .and_then(Value::as_i64)
                                         .unwrap_or(128)
                                         .to_string(),
@@ -944,7 +945,8 @@ impl<'a> CdxmlDocumentWriter<'a> {
             return;
         };
         attrs.push(("BoundingBox", fmt_bbox([end.x, end.y, start.x, start.y])));
-        if let Some(stroke_width) = style.and_then(|style| style_number_value(style, "strokeWidth")) {
+        if let Some(stroke_width) = style.and_then(|style| style_number_value(style, "strokeWidth"))
+        {
             attrs.push(("LineWidth", fmt_num(stroke_width)));
         }
         write_empty_tag(out, 4, "graphic", attrs);

@@ -18,12 +18,12 @@ mod text_edit;
 pub use self::command::{
     CommandAnchor, EditorCommand, FocusedDeleteSource, HistoryEntry, TextEditCommandTarget,
 };
+use self::text_edit::{
+    endpoint_label_world_bounds, refresh_element_valence_recognition_for_all_nodes,
+};
 pub(crate) use self::text_edit::{
     refresh_attached_node_label_geometry_for_all_nodes,
     refresh_attached_node_label_geometry_for_node,
-};
-use self::text_edit::{
-    endpoint_label_world_bounds, refresh_element_valence_recognition_for_all_nodes,
 };
 pub use self::text_edit::{
     TextEditLayout, TextEditLayoutCaret, TextEditLayoutCaretOffset, TextEditLayoutLine,
@@ -37,8 +37,8 @@ use self::bond_styles::{
     cycle_bold_bond_center_style, cycle_dashed_bond_center_style,
     cycle_dashed_double_bond_tool_center_style, preferred_double_bond_side_for_segment,
     replace_with_bold_dashed_bond_style, replace_with_plain_triple_bond_style,
-    replace_with_plain_wavy_bond_style,
-    replace_with_stereo_bond_style, should_default_center_double_bond_for_segment,
+    replace_with_plain_wavy_bond_style, replace_with_stereo_bond_style,
+    should_default_center_double_bond_for_segment,
     update_terminal_double_bond_placement_after_new_attachment,
 };
 use self::delete::FocusedDeleteMode;
@@ -49,15 +49,14 @@ use crate::{
     direction_from_angle, endpoint_from_angle_for_document, hit_test_arrow_center,
     hit_test_bond_center, hit_test_endpoint, hit_test_endpoint_excluding, largest_angular_gap,
     nearest_angle, normalize_angle, px_to_cm, refresh_repeating_units, render_document,
-    render_primitives_bounds, snapped_angle_for_anchor, ArrowCurve, ArrowEndpointStyle,
+    render_primitives_bounds, round2, snapped_angle_for_anchor, ArrowCurve, ArrowEndpointStyle,
     ArrowHeadSize, ArrowNoGo, ArrowVariant, Bond, BondAnchor, BondLinePattern, BondLineStyles,
     BondLineWeight, BondLineWeights, BondPreview, BondStereo, BondVariant, ChemcoreDocument,
     DoubleBond, DoubleBondPlacement, DragState, EditorOptions, EndpointHit, HoverShape,
-    HoverTextBox, OrbitalPhase, OrbitalStyle, OrbitalTemplate, OverlayState, Point,
-    PointerEvent, RenderPrimitive, RenderRole, SceneObject, SelectionState, ShapeKind,
-    ShapeStyle, Tool, ToolState, BOND_CENTER_FOCUS_WIDTH, BOND_CENTER_HIT_RADIUS,
-    DRAG_START_THRESHOLD, ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
-    round2,
+    HoverTextBox, OrbitalPhase, OrbitalStyle, OrbitalTemplate, OverlayState, Point, PointerEvent,
+    RenderPrimitive, RenderRole, SceneObject, SelectionState, ShapeKind, ShapeStyle, Tool,
+    ToolState, BOND_CENTER_FOCUS_WIDTH, BOND_CENTER_HIT_RADIUS, DRAG_START_THRESHOLD,
+    ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
@@ -510,10 +509,7 @@ impl Engine {
         } else {
             None
         };
-        let changed = self
-            .tlc_spot_drag
-            .as_ref()
-            .is_some_and(|drag| drag.changed);
+        let changed = self.tlc_spot_drag.as_ref().is_some_and(|drag| drag.changed);
         self.tlc_spot_drag = None;
         if had_drag && !changed {
             self.undo_stack.pop();
@@ -1701,13 +1697,7 @@ fn tlc_plate_geometry(object: &SceneObject) -> Option<TlcPlateGeometry> {
     if object.object_type != "shape" {
         return None;
     }
-    if object
-        .payload
-        .extra
-        .get("kind")
-        .and_then(JsonValue::as_str)
-        != Some("tlcPlate")
-    {
+    if object.payload.extra.get("kind").and_then(JsonValue::as_str) != Some("tlcPlate") {
         return None;
     }
     let [x, y, width, height] = object.payload.bbox?;

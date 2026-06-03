@@ -163,7 +163,10 @@ impl Engine {
                     extra,
                 )
             }
-            ShapeKind::RoundRect | ShapeKind::Rect | ShapeKind::CrossTable | ShapeKind::TlcPlate => {
+            ShapeKind::RoundRect
+            | ShapeKind::Rect
+            | ShapeKind::CrossTable
+            | ShapeKind::TlcPlate => {
                 let x1 = start.x.min(current.x);
                 let y1 = start.y.min(current.y);
                 let width = (current.x - start.x).abs();
@@ -188,7 +191,10 @@ impl Engine {
                     extra.insert("showSolventFront".to_string(), json!(true));
                     extra.insert("showBorders".to_string(), json!(true));
                     extra.insert("showSideTicks".to_string(), json!(true));
-                    extra.insert("dashSpacing".to_string(), json!(round2(self.options.hash_spacing)));
+                    extra.insert(
+                        "dashSpacing".to_string(),
+                        json!(round2(self.options.hash_spacing)),
+                    );
                     let lane_count = suggested_tlc_lane_count(width);
                     let lanes: Vec<_> = (0..lane_count)
                         .map(|index| {

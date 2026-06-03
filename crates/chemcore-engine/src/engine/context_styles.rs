@@ -110,7 +110,8 @@ impl Engine {
         let mut changed = false;
         for object_id in ids {
             if let Some(object) = self.state.document.find_scene_object_mut(&object_id) {
-                changed |= set_payload_string(&mut object.payload.extra, "orbitalTemplate", template);
+                changed |=
+                    set_payload_string(&mut object.payload.extra, "orbitalTemplate", template);
             }
         }
         if !changed {
@@ -152,7 +153,11 @@ impl Engine {
                 (
                     object.id.clone(),
                     format!("style_{}_orbital_{}", object.id, style.replace('-', "_")),
-                    orbital_style_json(style, &color, self.options.graphic_stroke_world_cm().value()),
+                    orbital_style_json(
+                        style,
+                        &color,
+                        self.options.graphic_stroke_world_cm().value(),
+                    ),
                 )
             })
             .collect::<Vec<_>>();
@@ -162,7 +167,10 @@ impl Engine {
         self.push_undo_snapshot();
         let mut changed = false;
         for (object_id, style_id, style_value) in updates {
-            self.state.document.styles.insert(style_id.clone(), style_value);
+            self.state
+                .document
+                .styles
+                .insert(style_id.clone(), style_value);
             if let Some(object) = self.state.document.find_scene_object_mut(&object_id) {
                 changed |= set_payload_string(&mut object.payload.extra, "orbitalStyle", style);
                 if object.style_ref.as_deref() != Some(style_id.as_str()) {

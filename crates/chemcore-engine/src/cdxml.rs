@@ -15,8 +15,9 @@ mod xml;
 use self::colors::CdxmlColorTable;
 pub use self::export::document_to_cdxml;
 use self::import_objects::{
-    append_bracket_objects, append_line_objects, append_shape_objects, append_table_shape_objects,
-    append_orbital_shape_objects, append_text_objects, append_tlc_plate_shape_objects,
+    append_bracket_objects, append_line_objects, append_orbital_shape_objects,
+    append_shape_objects, append_table_shape_objects, append_text_objects,
+    append_tlc_plate_shape_objects,
 };
 use self::text_runs::{label_display_runs, label_source_run};
 use self::xml::{descendants, parse_xml_tree, XmlNode};

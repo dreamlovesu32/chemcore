@@ -1223,8 +1223,12 @@ impl EditableFragmentMut<'_> {
     }
 
     pub fn update_bounds(&mut self) {
-        self.fragment.bbox = fragment_content_bbox(&self.fragment.nodes)
-            .unwrap_or([0.0, 0.0, DEFAULT_PAGE_WIDTH, DEFAULT_PAGE_HEIGHT]);
+        self.fragment.bbox = fragment_content_bbox(&self.fragment.nodes).unwrap_or([
+            0.0,
+            0.0,
+            DEFAULT_PAGE_WIDTH,
+            DEFAULT_PAGE_HEIGHT,
+        ]);
         self.object.payload.bbox = Some(self.fragment.bbox);
     }
 }

@@ -603,8 +603,7 @@ impl Engine {
                 .filter(|object| object.object_type == "shape")
                 .filter(|object| payload_string(object, "kind").as_deref() == Some("orbital"))
                 .map(|object| {
-                    payload_string(object, "orbitalTemplate")
-                        .unwrap_or_else(|| "s".to_string())
+                    payload_string(object, "orbitalTemplate").unwrap_or_else(|| "s".to_string())
                 })
                 .collect(),
         )
@@ -617,8 +616,7 @@ impl Engine {
                 .filter(|object| object.object_type == "shape")
                 .filter(|object| payload_string(object, "kind").as_deref() == Some("orbital"))
                 .map(|object| {
-                    payload_string(object, "orbitalStyle")
-                        .unwrap_or_else(|| "hollow".to_string())
+                    payload_string(object, "orbitalStyle").unwrap_or_else(|| "hollow".to_string())
                 })
                 .collect(),
         )
@@ -631,8 +629,7 @@ impl Engine {
                 .filter(|object| object.object_type == "shape")
                 .filter(|object| payload_string(object, "kind").as_deref() == Some("orbital"))
                 .map(|object| {
-                    payload_string(object, "orbitalPhase")
-                        .unwrap_or_else(|| "plus".to_string())
+                    payload_string(object, "orbitalPhase").unwrap_or_else(|| "plus".to_string())
                 })
                 .collect(),
         )
@@ -1061,7 +1058,12 @@ fn orbital_template_menu(current: Option<&str>) -> JsonValue {
             checked_item("p", "orbital-template", "p", current == Some("p")),
             checked_item("dxy", "orbital-template", "dxy", current == Some("dxy")),
             checked_item("oval", "orbital-template", "oval", current == Some("oval")),
-            checked_item("hybrid", "orbital-template", "hybrid", current == Some("hybrid")),
+            checked_item(
+                "hybrid",
+                "orbital-template",
+                "hybrid",
+                current == Some("hybrid"),
+            ),
             checked_item("dz2", "orbital-template", "dz2", current == Some("dz2")),
             checked_item("lobe", "orbital-template", "lobe", current == Some("lobe")),
         ],
@@ -1072,9 +1074,24 @@ fn orbital_style_menu(current: Option<&str>) -> JsonValue {
     submenu(
         "Orbital Style",
         vec![
-            checked_item("Hollow", "orbital-style", "hollow", current == Some("hollow")),
-            checked_item("Filled", "orbital-style", "filled", current == Some("filled")),
-            checked_item("Shaded", "orbital-style", "shaded", current == Some("shaded")),
+            checked_item(
+                "Hollow",
+                "orbital-style",
+                "hollow",
+                current == Some("hollow"),
+            ),
+            checked_item(
+                "Filled",
+                "orbital-style",
+                "filled",
+                current == Some("filled"),
+            ),
+            checked_item(
+                "Shaded",
+                "orbital-style",
+                "shaded",
+                current == Some("shaded"),
+            ),
         ],
     )
 }

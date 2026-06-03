@@ -2159,12 +2159,8 @@ fn hglobal_for_word_rtf_object(payload: &OleObjectPayload) -> Result<HGLOBAL, i3
 
 fn word_rtf_object_for_payload(payload: &OleObjectPayload) -> Result<String, String> {
     let display_extent = fit_extent_himetric_to_word_body(payload.extent_himetric());
-    let emf = enhanced_metafile_bits_for_payload(payload, display_extent).map_err(|hr| {
-        format!(
-            "Failed to render Word RTF EMF preview: 0x{:08X}",
-            hr as u32
-        )
-    })?;
+    let emf = enhanced_metafile_bits_for_payload(payload, display_extent)
+        .map_err(|hr| format!("Failed to render Word RTF EMF preview: 0x{:08X}", hr as u32))?;
     let ole = ole_storage_file_bytes_for_payload(payload)?;
     let objdata = word_rtf_objdata_bytes(&ole, &emf)?;
     let width_twips = points_to_twips(himetric_to_points(display_extent.cx));
@@ -2196,10 +2192,7 @@ fn word_rtf_object_for_payload(payload: &OleObjectPayload) -> Result<String, Str
     Ok(rtf)
 }
 
-fn word_rtf_objdata_bytes(
-    ole_storage: &[u8],
-    presentation_emf: &[u8],
-) -> Result<Vec<u8>, String> {
+fn word_rtf_objdata_bytes(ole_storage: &[u8], presentation_emf: &[u8]) -> Result<Vec<u8>, String> {
     if ole_storage.len() > u32::MAX as usize {
         return Err("OLE storage is too large for RTF objdata.".into());
     }
@@ -2215,9 +2208,8 @@ fn word_rtf_objdata_bytes(
         return Err("OLE class name is too large for RTF objdata.".into());
     }
 
-    let mut bytes = Vec::with_capacity(
-        44 + class_name_len * 2 + ole_storage.len() + presentation_emf.len(),
-    );
+    let mut bytes =
+        Vec::with_capacity(44 + class_name_len * 2 + ole_storage.len() + presentation_emf.len());
     bytes.extend_from_slice(&0x0000_0501u32.to_le_bytes());
     bytes.extend_from_slice(&2u32.to_le_bytes());
     bytes.extend_from_slice(&(class_name_len as u32).to_le_bytes());

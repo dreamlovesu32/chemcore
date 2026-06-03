@@ -296,8 +296,10 @@ impl WasmEngine {
         let hit = self
             .inner
             .begin_tlc_spot_drag(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
-        hit.map(|value| serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string())))
-            .transpose()
+        hit.map(|value| {
+            serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string()))
+        })
+        .transpose()
     }
 
     #[wasm_bindgen(js_name = tlcSpotHitTestJson)]
@@ -305,47 +307,43 @@ impl WasmEngine {
         let hit = self
             .inner
             .tlc_spot_hit_test(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
-        hit.map(|value| serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string())))
-            .transpose()
+        hit.map(|value| {
+            serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string()))
+        })
+        .transpose()
     }
 
     #[wasm_bindgen(js_name = tlcLaneGuideHitTestJson)]
-    pub fn tlc_lane_guide_hit_test_json(
-        &self,
-        x: f64,
-        y: f64,
-    ) -> Result<Option<String>, JsValue> {
+    pub fn tlc_lane_guide_hit_test_json(&self, x: f64, y: f64) -> Result<Option<String>, JsValue> {
         let hit = self
             .inner
             .tlc_lane_guide_hit_test(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
-        hit.map(|value| serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string())))
-            .transpose()
+        hit.map(|value| {
+            serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string()))
+        })
+        .transpose()
     }
 
     #[wasm_bindgen(js_name = updateTlcSpotDragJson)]
-    pub fn update_tlc_spot_drag_json(
-        &mut self,
-        x: f64,
-        y: f64,
-    ) -> Result<Option<String>, JsValue> {
+    pub fn update_tlc_spot_drag_json(&mut self, x: f64, y: f64) -> Result<Option<String>, JsValue> {
         let hit = self
             .inner
             .update_tlc_spot_drag(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
-        hit.map(|value| serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string())))
-            .transpose()
+        hit.map(|value| {
+            serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string()))
+        })
+        .transpose()
     }
 
     #[wasm_bindgen(js_name = finishTlcSpotDragJson)]
-    pub fn finish_tlc_spot_drag_json(
-        &mut self,
-        x: f64,
-        y: f64,
-    ) -> Result<Option<String>, JsValue> {
+    pub fn finish_tlc_spot_drag_json(&mut self, x: f64, y: f64) -> Result<Option<String>, JsValue> {
         let hit = self
             .inner
             .finish_tlc_spot_drag(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
-        hit.map(|value| serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string())))
-            .transpose()
+        hit.map(|value| {
+            serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string()))
+        })
+        .transpose()
     }
 
     #[wasm_bindgen(js_name = clearSelection)]

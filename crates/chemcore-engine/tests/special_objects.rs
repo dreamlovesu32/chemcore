@@ -31,9 +31,9 @@ fn parse_cdxml_imports_rest_fixture_special_bonds_and_table() {
         .iter()
         .any(|bond| bond.line_styles.main == BondLinePattern::Wavy));
     assert!(bonds.iter().any(|bond| {
-        bond.stereo.as_ref().is_some_and(|stereo| {
-            stereo.kind == "hollow-wedge" && stereo.wide_end == "end"
-        })
+        bond.stereo
+            .as_ref()
+            .is_some_and(|stereo| stereo.kind == "hollow-wedge" && stereo.wide_end == "end")
     }));
 
     let table = document
@@ -78,27 +78,31 @@ fn parse_cdxml_imports_rest_fixture_special_bonds_and_table() {
     )));
     let hollow_wedge_paths: Vec<_> = primitives
         .iter()
-        .filter(|primitive| matches!(
-            primitive,
-            RenderPrimitive::Path {
-                role: RenderRole::DocumentBond,
-                bond_id: Some(bond_id),
-                line_join,
-                ..
-            } if bond_id == "32" && line_join.as_deref() == Some("miter")
-        ))
+        .filter(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Path {
+                    role: RenderRole::DocumentBond,
+                    bond_id: Some(bond_id),
+                    line_join,
+                    ..
+                } if bond_id == "32" && line_join.as_deref() == Some("miter")
+            )
+        })
         .collect();
     assert_eq!(hollow_wedge_paths.len(), 1, "{hollow_wedge_paths:?}");
     let table_graphics: Vec<_> = primitives
         .iter()
-        .filter(|primitive| matches!(
-            primitive,
-            RenderPrimitive::Path {
-                role: RenderRole::DocumentGraphic,
-                object_id: Some(object_id),
-                ..
-            } if object_id == "obj_shape_table_001"
-        ))
+        .filter(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Path {
+                    role: RenderRole::DocumentGraphic,
+                    object_id: Some(object_id),
+                    ..
+                } if object_id == "obj_shape_table_001"
+            )
+        })
         .collect();
     assert_eq!(table_graphics.len(), 3, "{table_graphics:?}");
     assert!(primitives.iter().any(|primitive| matches!(
@@ -179,9 +183,18 @@ fn parse_cdxml_imports_orbital_fixture_templates_and_styles() {
         .iter()
         .find(|object| object.id == "obj_shape_orbital_004")
         .expect("p orbital should import");
-    assert_eq!(p_default.payload.extra.get("orbitalTemplate"), Some(&json!("p")));
-    assert_eq!(p_default.payload.extra.get("orbitalStyle"), Some(&json!("shaded")));
-    assert_eq!(p_default.payload.extra.get("orbitalPhase"), Some(&json!("plus")));
+    assert_eq!(
+        p_default.payload.extra.get("orbitalTemplate"),
+        Some(&json!("p"))
+    );
+    assert_eq!(
+        p_default.payload.extra.get("orbitalStyle"),
+        Some(&json!("shaded"))
+    );
+    assert_eq!(
+        p_default.payload.extra.get("orbitalPhase"),
+        Some(&json!("plus"))
+    );
 
     let hybrid_minus = orbitals
         .iter()
@@ -281,9 +294,18 @@ fn parse_cdxml_exports_orbital_fixture_orbital_tags() {
     assert!(exported.contains("GraphicType=\"Orbital\""), "{exported}");
     assert!(exported.contains("OrbitalType=\"sShaded\""), "{exported}");
     assert!(exported.contains("OrbitalType=\"pFilled\""), "{exported}");
-    assert!(exported.contains("OrbitalType=\"hybridMinus\""), "{exported}");
-    assert!(exported.contains("OrbitalType=\"dz2PlusFilled\""), "{exported}");
-    assert!(exported.contains("OrbitalType=\"lobeShaded\""), "{exported}");
+    assert!(
+        exported.contains("OrbitalType=\"hybridMinus\""),
+        "{exported}"
+    );
+    assert!(
+        exported.contains("OrbitalType=\"dz2PlusFilled\""),
+        "{exported}"
+    );
+    assert!(
+        exported.contains("OrbitalType=\"lobeShaded\""),
+        "{exported}"
+    );
 }
 
 #[test]
@@ -391,10 +413,9 @@ fn tlc_plate_spot_drag_updates_rf() {
 
 #[test]
 fn parse_cdxml_preserves_default_and_acs_hash_spacing_presets_for_dashed_bonds() {
-    for (fixture, expected_hash_spacing, expected_margin_width) in [
-        ("dash.cdxml", 2.7, 2.0),
-        ("dash-acs.cdxml", 2.5, 1.6),
-    ] {
+    for (fixture, expected_hash_spacing, expected_margin_width) in
+        [("dash.cdxml", 2.7, 2.0), ("dash-acs.cdxml", 2.5, 1.6)]
+    {
         let cdxml = std::fs::read_to_string(fixture_path(fixture)).expect("dash fixture");
         let document = parse_cdxml_document(&cdxml, Some(fixture)).expect("cdxml should parse");
         let defaults = &document.document.meta["import"]["cdxml"]["defaults"];
@@ -438,8 +459,7 @@ fn parse_cdxml_uses_document_hash_spacing_for_dashed_lines() {
             .expect("cdxml should load into engine");
         let svg = engine.document_svg();
         let expected_scaled_dash =
-            ((expected_hash_spacing * chemcore_engine::PT_TO_CSS_PX * 2.0) * 100.0).round()
-                / 100.0;
+            ((expected_hash_spacing * chemcore_engine::PT_TO_CSS_PX * 2.0) * 100.0).round() / 100.0;
         let expected_dash_attr = format!("stroke-dasharray=\"{expected_scaled_dash}\"");
 
         assert!(

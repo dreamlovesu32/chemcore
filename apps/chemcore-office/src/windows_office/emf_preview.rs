@@ -655,10 +655,7 @@ fn chemdraw_himetric_per_svg_px_for_current_device() -> (f64, f64) {
     unsafe {
         let dc = GetDC(null_mut());
         if dc.is_null() {
-            return (
-                CHEMDRAW_HIMETRIC_PER_SVG_PX,
-                CHEMDRAW_HIMETRIC_PER_SVG_PX,
-            );
+            return (CHEMDRAW_HIMETRIC_PER_SVG_PX, CHEMDRAW_HIMETRIC_PER_SVG_PX);
         }
         let horz_res = positive_device_cap(dc, GDI_DESKTOPHORZRES)
             .unwrap_or_else(|| GetDeviceCaps(dc, GDI_HORZRES));

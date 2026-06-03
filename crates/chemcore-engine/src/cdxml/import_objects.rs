@@ -493,9 +493,10 @@ pub(super) fn append_orbital_shape_objects(
                 "axisEnd".to_string(),
                 json!([round2(tip[0]), round2(tip[1])]),
             );
-            let padding = ((Point::new(anchor[0], anchor[1]).distance(Point::new(tip[0], tip[1])) * 0.75)
+            let padding = ((Point::new(anchor[0], anchor[1]).distance(Point::new(tip[0], tip[1]))
+                * 0.75)
                 .max(defaults.bond_length * 0.25))
-                .max(6.0);
+            .max(6.0);
             let min_x = anchor[0].min(tip[0]) - padding;
             let min_y = anchor[1].min(tip[1]) - padding;
             let max_x = anchor[0].max(tip[0]) + padding;
@@ -616,7 +617,12 @@ pub(super) fn append_table_shape_objects(
             meta: json!({"source": "cdxml", "tableId": node.attr("id")}),
             payload: ObjectPayload {
                 resource_ref: None,
-                bbox: Some([0.0, 0.0, round2(bbox[2] - bbox[0]), round2(bbox[3] - bbox[1])]),
+                bbox: Some([
+                    0.0,
+                    0.0,
+                    round2(bbox[2] - bbox[0]),
+                    round2(bbox[3] - bbox[1]),
+                ]),
                 extra,
             },
             children: Vec::new(),
@@ -724,15 +730,21 @@ pub(super) fn append_tlc_plate_shape_objects(
         extra.insert("kind".to_string(), json!("tlcPlate"));
         extra.insert(
             "originFraction".to_string(),
-            json!(round2(parse_f64(node.attr("OriginFraction")).unwrap_or(0.1))),
+            json!(round2(
+                parse_f64(node.attr("OriginFraction")).unwrap_or(0.1)
+            )),
         );
         extra.insert(
             "solventFrontFraction".to_string(),
-            json!(round2(parse_f64(node.attr("SolventFrontFraction")).unwrap_or(0.1))),
+            json!(round2(
+                parse_f64(node.attr("SolventFrontFraction")).unwrap_or(0.1)
+            )),
         );
         extra.insert(
             "showOrigin".to_string(),
-            json!(node.attr("ShowOrigin").is_none_or(|value| value.eq_ignore_ascii_case("yes"))),
+            json!(node
+                .attr("ShowOrigin")
+                .is_none_or(|value| value.eq_ignore_ascii_case("yes"))),
         );
         extra.insert(
             "showSolventFront".to_string(),
@@ -742,7 +754,9 @@ pub(super) fn append_tlc_plate_shape_objects(
         );
         extra.insert(
             "showBorders".to_string(),
-            json!(node.attr("ShowBorders").is_none_or(|value| value.eq_ignore_ascii_case("yes"))),
+            json!(node
+                .attr("ShowBorders")
+                .is_none_or(|value| value.eq_ignore_ascii_case("yes"))),
         );
         extra.insert(
             "showSideTicks".to_string(),
@@ -750,7 +764,10 @@ pub(super) fn append_tlc_plate_shape_objects(
                 .attr("ShowSideTicks")
                 .is_none_or(|value| value.eq_ignore_ascii_case("yes"))),
         );
-        extra.insert("dashSpacing".to_string(), json!(round2(defaults.hash_spacing)));
+        extra.insert(
+            "dashSpacing".to_string(),
+            json!(round2(defaults.hash_spacing)),
+        );
         extra.insert("lanes".to_string(), json!(lanes));
         objects.push(SceneObject {
             id: format!("obj_shape_tlc_{index:03}"),
@@ -768,7 +785,12 @@ pub(super) fn append_tlc_plate_shape_objects(
             meta: json!({"source": "cdxml", "tlcPlateId": node.attr("id")}),
             payload: ObjectPayload {
                 resource_ref: None,
-                bbox: Some([0.0, 0.0, round2(bbox[2] - bbox[0]), round2(bbox[3] - bbox[1])]),
+                bbox: Some([
+                    0.0,
+                    0.0,
+                    round2(bbox[2] - bbox[0]),
+                    round2(bbox[3] - bbox[1]),
+                ]),
                 extra,
             },
             children: Vec::new(),

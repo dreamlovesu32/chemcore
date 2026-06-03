@@ -106,10 +106,16 @@ impl Engine {
         let direction = crate::direction_from_angle(angle);
         let mut extra = BTreeMap::new();
         extra.insert("kind".to_string(), json!("orbital"));
-        extra.insert("orbitalTemplate".to_string(), json!(orbital_template_name(template)));
+        extra.insert(
+            "orbitalTemplate".to_string(),
+            json!(orbital_template_name(template)),
+        );
         extra.insert("orbitalStyle".to_string(), json!(orbital_style_name(style)));
         extra.insert("orbitalPhase".to_string(), json!(orbital_phase_name(phase)));
-        extra.insert("orbitalColor".to_string(), json!(self.state.tool.orbital_color.clone()));
+        extra.insert(
+            "orbitalColor".to_string(),
+            json!(self.state.tool.orbital_color.clone()),
+        );
         extra.insert("angle".to_string(), json!(round2(angle)));
         extra.insert("size".to_string(), json!(round2(size)));
 
@@ -118,7 +124,10 @@ impl Engine {
                 let radius = size;
                 let major = anchor.translated(direction.scaled(radius));
                 let minor = anchor.translated(direction_from_angle(angle + 90.0).scaled(radius));
-                extra.insert("center".to_string(), json!([round2(anchor.x), round2(anchor.y)]));
+                extra.insert(
+                    "center".to_string(),
+                    json!([round2(anchor.x), round2(anchor.y)]),
+                );
                 extra.insert(
                     "majorAxisEnd".to_string(),
                     json!([round2(major.x), round2(major.y)]),
@@ -142,7 +151,10 @@ impl Engine {
                 let ry = size * OVAL_MINOR_RATIO;
                 let major = anchor.translated(direction.scaled(rx));
                 let minor = anchor.translated(direction_from_angle(angle + 90.0).scaled(ry));
-                extra.insert("center".to_string(), json!([round2(anchor.x), round2(anchor.y)]));
+                extra.insert(
+                    "center".to_string(),
+                    json!([round2(anchor.x), round2(anchor.y)]),
+                );
                 extra.insert(
                     "majorAxisEnd".to_string(),
                     json!([round2(major.x), round2(major.y)]),
@@ -163,7 +175,10 @@ impl Engine {
             }
             OrbitalTemplate::Lobe => {
                 let end = anchor.translated(direction.scaled(size));
-                extra.insert("axisStart".to_string(), json!([round2(anchor.x), round2(anchor.y)]));
+                extra.insert(
+                    "axisStart".to_string(),
+                    json!([round2(anchor.x), round2(anchor.y)]),
+                );
                 extra.insert("axisEnd".to_string(), json!([round2(end.x), round2(end.y)]));
                 let [x1, y1, x2, y2] = orbital_axis_bounds(anchor, end, size * 0.75);
                 (
@@ -174,7 +189,10 @@ impl Engine {
             OrbitalTemplate::Hybrid => {
                 let start = anchor;
                 let end = anchor.translated(direction.scaled(size));
-                extra.insert("axisStart".to_string(), json!([round2(start.x), round2(start.y)]));
+                extra.insert(
+                    "axisStart".to_string(),
+                    json!([round2(start.x), round2(start.y)]),
+                );
                 extra.insert("axisEnd".to_string(), json!([round2(end.x), round2(end.y)]));
                 let [x1, y1, x2, y2] = orbital_axis_bounds(start, end, size * 0.75);
                 (
@@ -185,7 +203,10 @@ impl Engine {
             _ => {
                 let start = anchor;
                 let end = anchor.translated(direction.scaled(size));
-                extra.insert("axisStart".to_string(), json!([round2(start.x), round2(start.y)]));
+                extra.insert(
+                    "axisStart".to_string(),
+                    json!([round2(start.x), round2(start.y)]),
+                );
                 extra.insert("axisEnd".to_string(), json!([round2(end.x), round2(end.y)]));
                 let [x1, y1, x2, y2] = orbital_axis_bounds(start, end, size * 0.75);
                 (
@@ -312,7 +333,12 @@ mod tests {
 
         engine.state.tool.orbital_template = OrbitalTemplate::Oval;
         let oval = engine
-            .orbital_scene_object(anchor, current, "oval".to_string(), "style_oval".to_string())
+            .orbital_scene_object(
+                anchor,
+                current,
+                "oval".to_string(),
+                "style_oval".to_string(),
+            )
             .expect("oval orbital");
         assert_eq!(oval.payload.bbox, Some([152.0, 280.8, 96.0, 38.4]));
 
@@ -328,8 +354,14 @@ mod tests {
                 .orbital_scene_object(anchor, current, "orb".to_string(), "style_orb".to_string())
                 .expect("orbital object");
             assert_eq!(object.payload.bbox, Some([164.0, 264.0, 72.0, 120.0]));
-            assert_eq!(object.payload.extra.get("axisStart"), Some(&json!([200.0, 300.0])));
-            assert_eq!(object.payload.extra.get("axisEnd"), Some(&json!([200.0, 348.0])));
+            assert_eq!(
+                object.payload.extra.get("axisStart"),
+                Some(&json!([200.0, 300.0]))
+            );
+            assert_eq!(
+                object.payload.extra.get("axisEnd"),
+                Some(&json!([200.0, 348.0]))
+            );
         }
     }
 
@@ -348,7 +380,12 @@ mod tests {
 
         engine.state.tool.orbital_template = OrbitalTemplate::Oval;
         let oval = engine
-            .orbital_scene_object(anchor, current, "oval".to_string(), "style_oval".to_string())
+            .orbital_scene_object(
+                anchor,
+                current,
+                "oval".to_string(),
+                "style_oval".to_string(),
+            )
             .expect("oval orbital");
         assert_eq!(oval.payload.bbox, Some([176.96, 290.78, 46.08, 18.43]));
 
@@ -364,8 +401,14 @@ mod tests {
                 .orbital_scene_object(anchor, current, "orb".to_string(), "style_orb".to_string())
                 .expect("orbital object");
             assert_eq!(object.payload.bbox, Some([182.72, 282.72, 34.56, 57.6]));
-            assert_eq!(object.payload.extra.get("axisStart"), Some(&json!([200.0, 300.0])));
-            assert_eq!(object.payload.extra.get("axisEnd"), Some(&json!([200.0, 323.04])));
+            assert_eq!(
+                object.payload.extra.get("axisStart"),
+                Some(&json!([200.0, 300.0]))
+            );
+            assert_eq!(
+                object.payload.extra.get("axisEnd"),
+                Some(&json!([200.0, 323.04]))
+            );
         }
     }
 }
