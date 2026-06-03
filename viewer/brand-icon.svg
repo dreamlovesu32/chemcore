@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
+  <title>Chemcore brand icon</title>
+  <defs>
+    <linearGradient id="bg" x1="160" y1="96" x2="880" y2="928" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d3deeb"/>
+      <stop offset="0.58" stop-color="#cbd8e6"/>
+      <stop offset="1" stop-color="#c3d1e0"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="192" y1="96" x2="824" y2="936" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8fb0f4"/>
+      <stop offset="0.52" stop-color="#2f6fed"/>
+      <stop offset="1" stop-color="#245ed0"/>
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="20" stdDeviation="32" flood-color="#111318" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+  <rect x="112" y="96" width="800" height="800" rx="176" fill="url(#edge)" filter="url(#softShadow)"/>
+  <rect x="138" y="122" width="748" height="748" rx="154" fill="url(#bg)"/>
+  <text x="512" y="476" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="196" font-weight="900" letter-spacing="0" fill="#334155">Chem</text>
+  <text x="512" y="674" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="196" font-weight="900" letter-spacing="0" fill="#2f6fed">Core</text>
+</svg>
