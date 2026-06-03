@@ -1,43 +1,14 @@
 use crate::LabelRun;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::f64::consts::TAU;
 use std::fmt::Write;
 use std::sync::OnceLock;
 
-const RECT_CHAMFER_RATIO: f64 = 0.18;
-const SPECIAL_CORNER_CUT_RATIO: f64 = 0.42;
-const ELLIPSE_STEPS: usize = 20;
-const PETAL_SAMPLE_STEPS: usize = 20;
-const PETAL_RADIUS_HEIGHT_RATIO: f64 = 0.31;
+const LABEL_GLYPH_FALLBACK_OUTSET_HEIGHT_RATIO: f64 = 0.30;
 const CHEMDRAW_BOLD_SUBSCRIPT_SHIFT_DOWN_EM: f64 = 0.215;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ShapeKind {
-    Rect,
-    Ellipse,
-    RectCutTopRight,
-    RectCutBottomRight,
-    RectCutTopLeft,
-    RectCutBottomLeft,
-    PetalNEHKXZ,
-    PetalA,
-    PetalV,
-    PetalI,
-    PetalJ,
-    PetalL,
-    PetalF,
-    PetalR,
-    PetalT,
-    PetalU,
-    PetalY,
-    PetalBDP,
-    PetalQ,
-}
 
 #[derive(Debug, Clone, Copy)]
 struct GlyphProfile {
-    shape_kind: ShapeKind,
     advance_em: f64,
     ink_left_em: f64,
     ink_top_em: f64,
@@ -51,7 +22,6 @@ struct GlyphProfile {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GlyphProfileJson {
-    shape: String,
     advance_em: f64,
     ink_left_em: f64,
     ink_top_em: f64,
@@ -109,6 +79,37 @@ struct SharedGlyphProfiles {
     layout: SharedGlyphLayout,
     defaults: SharedGlyphDefaults,
     specials: HashMap<char, GlyphProfile>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GlyphClipPolygonJson {
+    points: Vec<[f64; 2]>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SharedGlyphClipPolygonsJson {
+    version: u32,
+    natural_outset_ratio: f64,
+    green_inset_ratio: f64,
+    circle_radius_ratio: f64,
+    glyphs: HashMap<String, GlyphClipPolygonJson>,
+}
+
+#[derive(Debug, Clone)]
+struct GlyphClipPolygon {
+    points: Vec<[f64; 2]>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+struct SharedGlyphClipPolygons {
+    version: u32,
+    natural_outset_ratio: f64,
+    green_inset_ratio: f64,
+    circle_radius_ratio: f64,
+    glyphs: HashMap<char, GlyphClipPolygon>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -175,8 +176,8 @@ struct GlyphPlacement {
     origin_x_px: f64,
     baseline_y_px: f64,
     advance_px: f64,
+    ink_box_px: [f64; 4],
     background_box_px: [f64; 4],
-    shape_kind: ShapeKind,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -207,6 +208,7 @@ struct RowRender {
 }
 
 static SHARED_GLYPH_PROFILES: OnceLock<SharedGlyphProfiles> = OnceLock::new();
+static SHARED_GLYPH_CLIP_POLYGONS: OnceLock<SharedGlyphClipPolygons> = OnceLock::new();
 const LABEL_GLYPH_CLIP_PAD_SCALE: f64 = 0.25;
 
 #[derive(Debug, Clone, Copy)]
@@ -334,22 +336,11 @@ pub fn render_glyph_preview_svg(pattern_specs: &[&str]) -> String {
             if !placement.visible {
                 continue;
             }
-            if placement.shape_kind == ShapeKind::Ellipse {
-                let [x1, y1, x2, y2] = placement.background_box_px;
+            if let Some(polygon) = shape_polygon(placement) {
                 let _ = writeln!(
                     svg,
-                    "  <ellipse cx=\"{:.3}\" cy=\"{:.3}\" rx=\"{:.3}\" ry=\"{:.3}\" fill=\"#ffffff\" data-role=\"glyph-shape\" data-shape=\"ellipse\"/>",
-                    (x1 + x2) * 0.5,
-                    (y1 + y2) * 0.5,
-                    (x2 - x1) * 0.5,
-                    (y2 - y1) * 0.5
-                );
-            } else if let Some(polygon) = shape_polygon(placement) {
-                let _ = writeln!(
-                    svg,
-                    "  <path d=\"{}\" fill=\"#ffffff\" data-role=\"glyph-shape\" data-shape=\"{}\"/>",
+                    "  <path d=\"{}\" fill=\"#ffffff\" data-role=\"glyph-shape\" data-shape=\"clip-polygon\"/>",
                     svg_path_for_polygon(&polygon),
-                    shape_name(placement.shape_kind)
                 );
             }
         }
@@ -465,8 +456,8 @@ fn layout_glyph(
         origin_x_px,
         baseline_y_px: baseline_y,
         advance_px,
+        ink_box_px: ink_box,
         background_box_px: background_box,
-        shape_kind: profile.shape_kind,
     }
 }
 
@@ -624,6 +615,10 @@ fn visible_bounds(placements: &[GlyphPlacement]) -> Option<[f64; 4]> {
 fn translate_placement(placement: &mut GlyphPlacement, dx: f64, dy: f64) {
     placement.origin_x_px += dx;
     placement.baseline_y_px += dy;
+    placement.ink_box_px[0] += dx;
+    placement.ink_box_px[1] += dy;
+    placement.ink_box_px[2] += dx;
+    placement.ink_box_px[3] += dy;
     placement.background_box_px[0] += dx;
     placement.background_box_px[1] += dy;
     placement.background_box_px[2] += dx;
@@ -664,205 +659,34 @@ fn shape_polygon(placement: &GlyphPlacement) -> Option<Vec<[f64; 2]>> {
     if !placement.visible {
         return None;
     }
-    Some(match placement.shape_kind {
-        ShapeKind::Ellipse => ellipse_polygon(placement.background_box_px),
-        ShapeKind::Rect
-        | ShapeKind::RectCutTopRight
-        | ShapeKind::RectCutBottomRight
-        | ShapeKind::RectCutTopLeft
-        | ShapeKind::RectCutBottomLeft => {
-            chamfer_polygon(placement.background_box_px, placement.shape_kind)
-        }
-        _ => petal_polygon(placement),
-    })
+    shared_glyph_clip_polygons()
+        .glyphs
+        .get(&placement.codepoint)
+        .map(|polygon| map_normalized_polygon(&polygon.points, placement.ink_box_px))
+        .or_else(|| Some(fallback_natural_outset_polygon(placement.ink_box_px)))
 }
 
-fn ellipse_polygon(background_box: [f64; 4]) -> Vec<[f64; 2]> {
-    let [x1, y1, x2, y2] = background_box;
-    let cx = (x1 + x2) * 0.5;
-    let cy = (y1 + y2) * 0.5;
-    let rx = ((x2 - x1) * 0.5).max(0.1);
-    let ry = ((y2 - y1) * 0.5).max(0.1);
-    (0..ELLIPSE_STEPS)
-        .map(|index| {
-            let theta = TAU * index as f64 / ELLIPSE_STEPS as f64;
-            [cx + rx * theta.cos(), cy + ry * theta.sin()]
-        })
-        .collect()
-}
-
-fn chamfer_polygon(background_box: [f64; 4], shape_kind: ShapeKind) -> Vec<[f64; 2]> {
-    let [x1, y1, x2, y2] = background_box;
-    let width = (x2 - x1).max(0.0);
-    let height = (y2 - y1).max(0.0);
-    let mut tl = clamp_corner_cut(width.min(height) * RECT_CHAMFER_RATIO, width, height);
-    let mut tr = tl;
-    let mut br = tl;
-    let mut bl = tl;
-    let special = clamp_corner_cut(width.min(height) * SPECIAL_CORNER_CUT_RATIO, width, height);
-    match shape_kind {
-        ShapeKind::RectCutTopRight => tr = special,
-        ShapeKind::RectCutBottomRight => br = special,
-        ShapeKind::RectCutTopLeft => tl = special,
-        ShapeKind::RectCutBottomLeft => bl = special,
-        ShapeKind::Rect
-        | ShapeKind::Ellipse
-        | ShapeKind::PetalNEHKXZ
-        | ShapeKind::PetalA
-        | ShapeKind::PetalV
-        | ShapeKind::PetalI
-        | ShapeKind::PetalJ
-        | ShapeKind::PetalL
-        | ShapeKind::PetalF
-        | ShapeKind::PetalR
-        | ShapeKind::PetalT
-        | ShapeKind::PetalU
-        | ShapeKind::PetalY
-        | ShapeKind::PetalBDP
-        | ShapeKind::PetalQ => {}
-    }
-    vec![
-        [x1 + tl, y1],
-        [x2 - tr, y1],
-        [x2, y1 + tr],
-        [x2, y2 - br],
-        [x2 - br, y2],
-        [x1 + bl, y2],
-        [x1, y2 - bl],
-        [x1, y1 + tl],
-    ]
-}
-
-fn petal_polygon(placement: &GlyphPlacement) -> Vec<[f64; 2]> {
-    let mut points = petal_base_polygon(placement.background_box_px, placement.shape_kind);
-    if !placement.codepoint.is_ascii_uppercase() {
-        return points;
-    }
-    let [x1, y1, x2, y2] = placement.background_box_px;
+fn map_normalized_polygon(points: &[[f64; 2]], ink_box: [f64; 4]) -> Vec<[f64; 2]> {
+    let [x1, y1, x2, y2] = ink_box;
     let width = (x2 - x1).max(0.1);
     let height = (y2 - y1).max(0.1);
-    let radius = height * PETAL_RADIUS_HEIGHT_RATIO;
-    for [cx_norm, cy_norm] in petal_centers(placement.shape_kind) {
-        let center = [x1 + width * cx_norm, y1 + height * cy_norm];
-        points.extend(circle_points(center, radius, PETAL_SAMPLE_STEPS));
-    }
-    convex_hull(points)
-}
-
-fn petal_base_polygon(background_box: [f64; 4], shape_kind: ShapeKind) -> Vec<[f64; 2]> {
-    match shape_kind {
-        ShapeKind::PetalF => chamfer_polygon(background_box, ShapeKind::RectCutBottomRight),
-        ShapeKind::PetalL => chamfer_polygon(background_box, ShapeKind::RectCutTopRight),
-        ShapeKind::PetalQ => ellipse_polygon(background_box),
-        ShapeKind::PetalNEHKXZ
-        | ShapeKind::PetalA
-        | ShapeKind::PetalV
-        | ShapeKind::PetalI
-        | ShapeKind::PetalJ
-        | ShapeKind::PetalR
-        | ShapeKind::PetalT
-        | ShapeKind::PetalU
-        | ShapeKind::PetalY
-        | ShapeKind::PetalBDP => chamfer_polygon(background_box, ShapeKind::Rect),
-        ShapeKind::Rect
-        | ShapeKind::Ellipse
-        | ShapeKind::RectCutTopRight
-        | ShapeKind::RectCutBottomRight
-        | ShapeKind::RectCutTopLeft
-        | ShapeKind::RectCutBottomLeft => chamfer_polygon(background_box, ShapeKind::Rect),
-    }
-}
-
-fn petal_centers(shape_kind: ShapeKind) -> &'static [[f64; 2]] {
-    const FOUR_CORNER: &[[f64; 2]] = &[[0.31, 0.30], [0.69, 0.30], [0.69, 0.70], [0.31, 0.70]];
-    const THREE_A: &[[f64; 2]] = &[[0.50, 0.33], [0.31, 0.70], [0.69, 0.70]];
-    const THREE_V: &[[f64; 2]] = &[[0.31, 0.30], [0.69, 0.30], [0.50, 0.67]];
-    const TWO_VERTICAL: &[[f64; 2]] = &[[0.50, 0.30], [0.50, 0.70]];
-    const ONE_TOP: &[[f64; 2]] = &[[0.50, 0.30]];
-    const THREE_L: &[[f64; 2]] = &[[0.31, 0.30], [0.69, 0.70], [0.31, 0.70]];
-    const THREE_F: &[[f64; 2]] = &[[0.31, 0.30], [0.69, 0.30], [0.31, 0.70]];
-    const THREE_T: &[[f64; 2]] = &[[0.31, 0.30], [0.50, 0.30], [0.69, 0.30]];
-    const TWO_U: &[[f64; 2]] = &[[0.31, 0.30], [0.69, 0.30]];
-    const THREE_Y: &[[f64; 2]] = &[[0.31, 0.30], [0.69, 0.30], [0.50, 0.70]];
-    const LEFT_PAIR: &[[f64; 2]] = &[[0.31, 0.30], [0.31, 0.70]];
-    const Q_TAIL: &[[f64; 2]] = &[[0.72, 0.72]];
-    match shape_kind {
-        ShapeKind::PetalNEHKXZ => FOUR_CORNER,
-        ShapeKind::PetalA => THREE_A,
-        ShapeKind::PetalV => THREE_V,
-        ShapeKind::PetalI => TWO_VERTICAL,
-        ShapeKind::PetalJ => ONE_TOP,
-        ShapeKind::PetalL => THREE_L,
-        ShapeKind::PetalF => THREE_F,
-        ShapeKind::PetalR => THREE_L,
-        ShapeKind::PetalT => THREE_T,
-        ShapeKind::PetalU => TWO_U,
-        ShapeKind::PetalY => THREE_Y,
-        ShapeKind::PetalBDP => LEFT_PAIR,
-        ShapeKind::PetalQ => Q_TAIL,
-        ShapeKind::Rect
-        | ShapeKind::Ellipse
-        | ShapeKind::RectCutTopRight
-        | ShapeKind::RectCutBottomRight
-        | ShapeKind::RectCutTopLeft
-        | ShapeKind::RectCutBottomLeft => &[],
-    }
-}
-
-fn circle_points(center: [f64; 2], radius: f64, steps: usize) -> Vec<[f64; 2]> {
-    (0..steps)
-        .map(|index| {
-            let theta = TAU * index as f64 / steps as f64;
-            [
-                center[0] + radius * theta.cos(),
-                center[1] + radius * theta.sin(),
-            ]
-        })
+    points
+        .iter()
+        .map(|point| [x1 + point[0] * width, y1 + point[1] * height])
         .collect()
 }
 
-fn convex_hull(mut points: Vec<[f64; 2]>) -> Vec<[f64; 2]> {
-    if points.len() <= 3 {
-        return points;
-    }
-    points.sort_by(|a, b| a[0].total_cmp(&b[0]).then_with(|| a[1].total_cmp(&b[1])));
-    points.dedup_by(|a, b| (a[0] - b[0]).abs() < 1e-9 && (a[1] - b[1]).abs() < 1e-9);
-    if points.len() <= 3 {
-        return points;
-    }
-
-    let mut lower = Vec::new();
-    for point in &points {
-        while lower.len() >= 2
-            && cross(lower[lower.len() - 2], lower[lower.len() - 1], *point) <= 0.0
-        {
-            lower.pop();
-        }
-        lower.push(*point);
-    }
-
-    let mut upper = Vec::new();
-    for point in points.iter().rev() {
-        while upper.len() >= 2
-            && cross(upper[upper.len() - 2], upper[upper.len() - 1], *point) <= 0.0
-        {
-            upper.pop();
-        }
-        upper.push(*point);
-    }
-
-    lower.pop();
-    upper.pop();
-    lower.extend(upper);
-    lower
-}
-
-fn cross(a: [f64; 2], b: [f64; 2], c: [f64; 2]) -> f64 {
-    (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
-}
-
-fn clamp_corner_cut(value: f64, width: f64, height: f64) -> f64 {
-    value.max(0.0).min(width * 0.48).min(height * 0.48)
+fn fallback_natural_outset_polygon(ink_box: [f64; 4]) -> Vec<[f64; 2]> {
+    let [x1, y1, x2, y2] = ink_box;
+    let height = (y2 - y1).max(0.1);
+    let manifest_ratio = shared_glyph_clip_polygons().natural_outset_ratio;
+    let outset = height * manifest_ratio.max(LABEL_GLYPH_FALLBACK_OUTSET_HEIGHT_RATIO);
+    vec![
+        [x1 - outset, y1 - outset],
+        [x2 + outset, y1 - outset],
+        [x2 + outset, y2 + outset],
+        [x1 - outset, y2 + outset],
+    ]
 }
 
 fn make_preview_row(
@@ -998,30 +822,6 @@ fn align_name(align: PreviewAlign) -> &'static str {
     }
 }
 
-fn shape_name(shape: ShapeKind) -> &'static str {
-    match shape {
-        ShapeKind::Rect => "rect-chamfered",
-        ShapeKind::Ellipse => "ellipse",
-        ShapeKind::RectCutTopRight => "rect-cut-top-right",
-        ShapeKind::RectCutBottomRight => "rect-cut-bottom-right",
-        ShapeKind::RectCutTopLeft => "rect-cut-top-left",
-        ShapeKind::RectCutBottomLeft => "rect-cut-bottom-left",
-        ShapeKind::PetalNEHKXZ => "petal-nehkxz",
-        ShapeKind::PetalA => "petal-a",
-        ShapeKind::PetalV => "petal-v",
-        ShapeKind::PetalI => "petal-i",
-        ShapeKind::PetalJ => "petal-j",
-        ShapeKind::PetalL => "petal-l",
-        ShapeKind::PetalF => "petal-f",
-        ShapeKind::PetalR => "petal-r",
-        ShapeKind::PetalT => "petal-t",
-        ShapeKind::PetalU => "petal-u",
-        ShapeKind::PetalY => "petal-y",
-        ShapeKind::PetalBDP => "petal-bdp",
-        ShapeKind::PetalQ => "petal-q",
-    }
-}
-
 fn svg_path_for_polygon(points: &[[f64; 2]]) -> String {
     let mut path = String::new();
     for (index, point) in points.iter().enumerate() {
@@ -1062,6 +862,15 @@ fn shared_glyph_profiles() -> &'static SharedGlyphProfiles {
             serde_json::from_str(include_str!("../../../shared/glyph_profiles.json"))
                 .expect("shared glyph profile manifest must be valid JSON");
         SharedGlyphProfiles::from_json(manifest)
+    })
+}
+
+fn shared_glyph_clip_polygons() -> &'static SharedGlyphClipPolygons {
+    SHARED_GLYPH_CLIP_POLYGONS.get_or_init(|| {
+        let manifest: SharedGlyphClipPolygonsJson =
+            serde_json::from_str(include_str!("../../../shared/glyph_clip_polygons.json"))
+                .expect("shared glyph clip manifest must be valid JSON");
+        SharedGlyphClipPolygons::from_json(manifest)
     })
 }
 
@@ -1161,7 +970,6 @@ impl SharedGlyphProfiles {
 
 fn glyph_profile_from_json(profile: &GlyphProfileJson) -> GlyphProfile {
     GlyphProfile {
-        shape_kind: shape_kind_from_name(&profile.shape),
         advance_em: profile.advance_em,
         ink_left_em: profile.ink_left_em,
         ink_top_em: profile.ink_top_em,
@@ -1173,28 +981,31 @@ fn glyph_profile_from_json(profile: &GlyphProfileJson) -> GlyphProfile {
     }
 }
 
-fn shape_kind_from_name(shape: &str) -> ShapeKind {
-    match shape {
-        "rect" => ShapeKind::Rect,
-        "ellipse" => ShapeKind::Ellipse,
-        "rect-cut-top-right" => ShapeKind::RectCutTopRight,
-        "rect-cut-bottom-right" => ShapeKind::RectCutBottomRight,
-        "rect-cut-top-left" => ShapeKind::RectCutTopLeft,
-        "rect-cut-bottom-left" => ShapeKind::RectCutBottomLeft,
-        "petal-nehkxz" => ShapeKind::PetalNEHKXZ,
-        "petal-a" => ShapeKind::PetalA,
-        "petal-v" => ShapeKind::PetalV,
-        "petal-i" => ShapeKind::PetalI,
-        "petal-j" => ShapeKind::PetalJ,
-        "petal-l" => ShapeKind::PetalL,
-        "petal-f" => ShapeKind::PetalF,
-        "petal-r" => ShapeKind::PetalR,
-        "petal-t" => ShapeKind::PetalT,
-        "petal-u" => ShapeKind::PetalU,
-        "petal-y" => ShapeKind::PetalY,
-        "petal-bdp" => ShapeKind::PetalBDP,
-        "petal-q" => ShapeKind::PetalQ,
-        _ => panic!("unknown glyph profile shape: {shape}"),
+impl SharedGlyphClipPolygons {
+    fn from_json(manifest: SharedGlyphClipPolygonsJson) -> Self {
+        let mut glyphs = HashMap::new();
+        for (key, value) in manifest.glyphs {
+            let mut chars = key.chars();
+            let character = chars
+                .next()
+                .filter(|_| chars.next().is_none())
+                .unwrap_or_else(|| {
+                    panic!("glyph clip manifest key must be exactly one character: {key:?}")
+                });
+            glyphs.insert(
+                character,
+                GlyphClipPolygon {
+                    points: value.points,
+                },
+            );
+        }
+        Self {
+            version: manifest.version,
+            natural_outset_ratio: manifest.natural_outset_ratio,
+            green_inset_ratio: manifest.green_inset_ratio,
+            circle_radius_ratio: manifest.circle_radius_ratio,
+            glyphs,
+        }
     }
 }
 
@@ -1205,7 +1016,6 @@ fn lookup_glyph_profile(character: char) -> GlyphProfile {
     }
     if character.is_whitespace() {
         return GlyphProfile {
-            shape_kind: ShapeKind::Rect,
             advance_em: 0.28,
             ink_left_em: 0.0,
             ink_top_em: 0.0,
@@ -1253,7 +1063,6 @@ fn fallback_rect_profile(
     ink_bottom_em: f64,
 ) -> GlyphProfile {
     GlyphProfile {
-        shape_kind: ShapeKind::Rect,
         advance_em,
         ink_left_em: 0.0,
         ink_top_em,
@@ -1338,121 +1147,121 @@ mod tests {
         assert!(polygons.iter().all(|polygon| polygon.len() >= 4));
     }
 
-    #[test]
-    fn sulfur_uses_ellipse_clip_profile() {
-        let profile = lookup_glyph_profile('S');
-        assert_eq!(
-            profile.shape_kind,
-            ShapeKind::Ellipse,
-            "uppercase S should use ellipse clipping"
-        );
-
-        let runs = vec![LabelRun {
-            text: "S".to_string(),
-            font_family: Some("Arial".to_string()),
-            font_size: Some(10.0),
-            fill: Some("#000000".to_string()),
-            font_weight: Some(400),
-            font_style: Some("normal".to_string()),
-            underline: None,
-            script: Some("normal".to_string()),
-        }];
-        let polygons = build_label_glyph_polygons(&runs, &[], [0.0, 0.0], None, 10.0);
-        assert_eq!(polygons.len(), 1, "{polygons:?}");
-        assert!(
-            polygons[0].len() >= 16,
-            "uppercase S should generate ellipse-like clip geometry: {:?}",
-            polygons[0]
-        );
+    fn polygon_bounds(points: &[[f64; 2]]) -> [f64; 4] {
+        let mut bounds = [
+            f64::INFINITY,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::NEG_INFINITY,
+        ];
+        for point in points {
+            bounds[0] = bounds[0].min(point[0]);
+            bounds[1] = bounds[1].min(point[1]);
+            bounds[2] = bounds[2].max(point[0]);
+            bounds[3] = bounds[3].max(point[1]);
+        }
+        bounds
     }
 
     #[test]
-    fn nitrogen_uses_petal_family_profile() {
-        let profile = lookup_glyph_profile('N');
-        assert_eq!(profile.shape_kind, ShapeKind::PetalNEHKXZ);
+    fn clip_manifest_is_locked_to_current_tuned_ratios() {
+        let manifest = shared_glyph_clip_polygons();
+        assert_eq!(manifest.version, 1);
+        assert!((manifest.natural_outset_ratio - 0.30).abs() < 1e-9);
+        assert!((manifest.green_inset_ratio - 0.22).abs() < 1e-9);
+        assert!((manifest.circle_radius_ratio - 0.60).abs() < 1e-9);
+        assert!(manifest.glyphs.contains_key(&'N'));
+        assert!(manifest.glyphs.contains_key(&'+'));
+    }
 
+    #[test]
+    fn uppercase_n_uses_expanded_manifest_polygon() {
         let placement = layout_glyph('N', ScriptKind::Normal, LayoutConfig::default(), 0.0, 0.0);
         let polygon = shape_polygon(&placement).expect("N should have clip geometry");
+        let bounds = polygon_bounds(&polygon);
+        assert!(polygon.len() >= 20, "{polygon:?}");
+        assert!(
+            bounds[0] < placement.ink_box_px[0],
+            "{bounds:?} vs {:?}",
+            placement.ink_box_px
+        );
+        assert!(
+            bounds[1] < placement.ink_box_px[1],
+            "{bounds:?} vs {:?}",
+            placement.ink_box_px
+        );
+        assert!(
+            bounds[2] > placement.ink_box_px[2],
+            "{bounds:?} vs {:?}",
+            placement.ink_box_px
+        );
+        assert!(
+            bounds[3] > placement.ink_box_px[3],
+            "{bounds:?} vs {:?}",
+            placement.ink_box_px
+        );
+    }
+
+    #[test]
+    fn plus_symbol_uses_manifest_natural_outline_geometry() {
+        let placement = layout_glyph('+', ScriptKind::Normal, LayoutConfig::default(), 0.0, 0.0);
+        let polygon = shape_polygon(&placement).expect("+ should have clip geometry");
+        let bounds = polygon_bounds(&polygon);
         assert!(polygon.len() >= 12, "{polygon:?}");
-        let min_x = polygon
-            .iter()
-            .map(|point| point[0])
-            .fold(f64::INFINITY, f64::min);
-        let max_x = polygon
-            .iter()
-            .map(|point| point[0])
-            .fold(f64::NEG_INFINITY, f64::max);
-        assert!(min_x < placement.background_box_px[0], "{polygon:?}");
-        assert!(max_x > placement.background_box_px[2], "{polygon:?}");
+        assert!(
+            bounds[0] < placement.ink_box_px[0],
+            "{bounds:?} vs {:?}",
+            placement.ink_box_px
+        );
+        assert!(
+            bounds[1] < placement.ink_box_px[1],
+            "{bounds:?} vs {:?}",
+            placement.ink_box_px
+        );
+        assert!(
+            bounds[2] > placement.ink_box_px[2],
+            "{bounds:?} vs {:?}",
+            placement.ink_box_px
+        );
+        assert!(
+            bounds[3] > placement.ink_box_px[3],
+            "{bounds:?} vs {:?}",
+            placement.ink_box_px
+        );
     }
 
     #[test]
-    fn iodine_uses_vertical_two_lobe_profile() {
-        let profile = lookup_glyph_profile('I');
-        assert_eq!(profile.shape_kind, ShapeKind::PetalI);
-
-        let placement = layout_glyph('I', ScriptKind::Normal, LayoutConfig::default(), 0.0, 0.0);
-        let polygon = shape_polygon(&placement).expect("I should have clip geometry");
-        let min_x = polygon
-            .iter()
-            .map(|point| point[0])
-            .fold(f64::INFINITY, f64::min);
-        let max_x = polygon
-            .iter()
-            .map(|point| point[0])
-            .fold(f64::NEG_INFINITY, f64::max);
-        assert!(min_x < placement.background_box_px[0], "{polygon:?}");
-        assert!(max_x > placement.background_box_px[2], "{polygon:?}");
-    }
-
-    #[test]
-    fn lowercase_petal_shapes_do_not_add_circle_lobes() {
-        let upper = GlyphPlacement {
-            codepoint: 'N',
-            script: ScriptKind::Normal,
-            visible: true,
-            font_size_px: 11.0,
-            origin_x_px: 0.0,
-            baseline_y_px: 0.0,
-            advance_px: 0.0,
-            background_box_px: [0.0, 0.0, 10.0, 10.0],
-            shape_kind: ShapeKind::PetalNEHKXZ,
-        };
-        let lower = GlyphPlacement {
-            codepoint: 'n',
-            ..upper.clone()
-        };
-
-        let upper_polygon = shape_polygon(&upper).expect("uppercase petal polygon");
-        let lower_polygon = shape_polygon(&lower).expect("lowercase petal polygon");
-        let lower_base = petal_base_polygon(lower.background_box_px, lower.shape_kind);
-
-        let lower_min_x = lower_polygon
-            .iter()
-            .map(|point| point[0])
-            .fold(f64::INFINITY, f64::min);
-        let lower_max_x = lower_polygon
-            .iter()
-            .map(|point| point[0])
-            .fold(f64::NEG_INFINITY, f64::max);
-        let lower_base_min_x = lower_base
-            .iter()
-            .map(|point| point[0])
-            .fold(f64::INFINITY, f64::min);
-        let lower_base_max_x = lower_base
-            .iter()
-            .map(|point| point[0])
-            .fold(f64::NEG_INFINITY, f64::max);
-
-        assert!(upper_polygon.len() > lower_base.len(), "{upper_polygon:?}");
+    fn unknown_visible_characters_fall_back_to_rectangular_natural_outset() {
+        let placement = layout_glyph(
+            '\u{1F9EA}',
+            ScriptKind::Normal,
+            LayoutConfig::default(),
+            0.0,
+            0.0,
+        );
+        assert!(!shared_glyph_clip_polygons()
+            .glyphs
+            .contains_key(&placement.codepoint));
+        let polygon = shape_polygon(&placement).expect("fallback glyph should have clip geometry");
+        assert_eq!(polygon.len(), 4, "{polygon:?}");
+        let bounds = polygon_bounds(&polygon);
+        let outset = (placement.ink_box_px[3] - placement.ink_box_px[1])
+            * LABEL_GLYPH_FALLBACK_OUTSET_HEIGHT_RATIO;
         assert!(
-            (lower_min_x - lower_base_min_x).abs() < 1e-9,
-            "{lower_polygon:?}"
+            (bounds[0] - (placement.ink_box_px[0] - outset)).abs() < 1e-9,
+            "{bounds:?}"
         );
         assert!(
-            (lower_max_x - lower_base_max_x).abs() < 1e-9,
-            "{lower_polygon:?}"
+            (bounds[1] - (placement.ink_box_px[1] - outset)).abs() < 1e-9,
+            "{bounds:?}"
         );
-        assert_eq!(lower_polygon, lower_base);
+        assert!(
+            (bounds[2] - (placement.ink_box_px[2] + outset)).abs() < 1e-9,
+            "{bounds:?}"
+        );
+        assert!(
+            (bounds[3] - (placement.ink_box_px[3] + outset)).abs() < 1e-9,
+            "{bounds:?}"
+        );
     }
 }
