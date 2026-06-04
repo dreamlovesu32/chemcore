@@ -1598,7 +1598,7 @@ body.browser-shell .document-tabbar {
   overflow-wrap: normal;
   overflow: visible;
   pointer-events: auto;
-  box-shadow: inset 0 0 0 1px #000000;
+  box-shadow: inset 0 0 0 0.5px rgba(17, 19, 24, 0.62);
   transform-origin: 0 0;
   user-select: none;
   cursor: text;
@@ -1830,6 +1830,10 @@ body.browser-shell .document-tabbar {
 
 .label-knockout-shape {
   stroke: none;
+}
+
+.document-diagnostic-marker {
+  pointer-events: none;
 }
 
 .editor-endpoint-halo {

@@ -139,8 +139,10 @@ pub fn hit_test_bond_center(
         let Some(end) = entry.fragment.nodes.iter().find(|node| node.id == bond.end) else {
             continue;
         };
-        let begin_point = entry.world_point_for_node(begin);
-        let end_point = entry.world_point_for_node(end);
+        let raw_begin = entry.world_point_for_node(begin);
+        let raw_end = entry.world_point_for_node(end);
+        let (begin_point, end_point) =
+            visual_bond_center_focus_segment(document, &entry, bond, begin, end, raw_begin, raw_end);
         let center = Point::new(
             (begin_point.x + end_point.x) / 2.0,
             (begin_point.y + end_point.y) / 2.0,
@@ -162,6 +164,42 @@ pub fn hit_test_bond_center(
         }
     }
     best
+}
+
+fn visual_bond_center_focus_segment(
+    document: &ChemcoreDocument,
+    entry: &EditableFragment<'_>,
+    bond: &Bond,
+    begin: &Node,
+    end: &Node,
+    raw_begin: Point,
+    raw_end: Point,
+) -> (Point, Point) {
+    let begin_has_label = begin
+        .label
+        .as_ref()
+        .is_some_and(|label| label.has_visible_text());
+    let end_has_label = end
+        .label
+        .as_ref()
+        .is_some_and(|label| label.has_visible_text());
+    if !begin_has_label && !end_has_label {
+        return (raw_begin, raw_end);
+    }
+    let Some(bounds) = fragment_bond_visual_bounds(document, entry.object, entry.fragment, bond)
+    else {
+        return (raw_begin, raw_end);
+    };
+    let raw_center = Point::new(
+        (raw_begin.x + raw_end.x) * 0.5,
+        (raw_begin.y + raw_end.y) * 0.5,
+    );
+    let visual_center = Point::new((bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5);
+    let offset = Vector::new(visual_center.x - raw_center.x, visual_center.y - raw_center.y);
+    (
+        Point::new(raw_begin.x + offset.x, raw_begin.y + offset.y),
+        Point::new(raw_end.x + offset.x, raw_end.y + offset.y),
+    )
 }
 
 pub fn hit_test_arrow_center(

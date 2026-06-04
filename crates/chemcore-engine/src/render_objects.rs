@@ -527,8 +527,8 @@ pub(super) fn render_fragment_label(
         if let Some(box_value) = invalid_box {
             out.push(RenderPrimitive::Rect {
                 role: RenderRole::DocumentGraphic,
-                object_id: object_id.clone(),
-                node_id: Some(node.id.clone()),
+                object_id: None,
+                node_id: None,
                 x: box_value.x1,
                 y: box_value.y1,
                 width: (box_value.x2 - box_value.x1).max(0.0),

@@ -6884,6 +6884,13 @@ fn bond_tool_focuses_bond_center_and_cycles_double_styles() {
         })
         .expect("single-bond center focus should render as a 4-point rectangle");
     assert_eq!(center_rect.len(), 4);
+    let focus_length = (0..4)
+        .map(|index| center_rect[index].distance(center_rect[(index + 1) % 4]))
+        .fold(0.0, f64::max);
+    assert!(
+        (focus_length - DEFAULT_BOND_LENGTH * 0.5).abs() < 0.001,
+        "bond center focus length should be half the bond length: {focus_length}"
+    );
 
     engine.pointer_down(PointerEvent {
         x: FIRST_CENTER_X,

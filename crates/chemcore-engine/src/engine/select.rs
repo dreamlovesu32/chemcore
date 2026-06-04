@@ -74,6 +74,13 @@ impl AxisBounds {
         Self::new(bounds[0], bounds[1], bounds[2], bounds[3])
     }
 
+    fn center(&self) -> Point {
+        Point::new(
+            (self.min_x + self.max_x) * 0.5,
+            (self.min_y + self.max_y) * 0.5,
+        )
+    }
+
     fn include_point(&mut self, point: Point) {
         self.min_x = self.min_x.min(point.x);
         self.min_y = self.min_y.min(point.y);

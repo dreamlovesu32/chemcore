@@ -10,7 +10,7 @@ const fn cm(value: f64) -> f64 {
     value * chemcore_engine::PT_PER_CM
 }
 
-const CDXML_EDIT_SCALE: f64 = chemcore_engine::PT_TO_CSS_PX * 2.0;
+const CDXML_EDIT_SCALE: f64 = 1.0;
 
 fn fragment_document(nodes: serde_json::Value, bonds: serde_json::Value) -> ChemcoreDocument {
     serde_json::from_value(json!({
@@ -1513,14 +1513,66 @@ fn load_cdxml_document_preserves_imported_acs_drawing_options() {
         .load_cdxml_document(&cdxml)
         .expect("cdxml should load into engine");
 
-    assert!((engine.options().bond_length - 38.4).abs() < 0.05);
-    assert!((engine.options().bond_stroke_width - 1.6).abs() < 0.01);
-    assert!((engine.options().bold_bond_width - 5.333).abs() < 0.05);
-    assert!((engine.options().wedge_width - 8.0).abs() < 0.05);
-    assert!((engine.options().label_clip_margin - 2.133).abs() < 0.05);
-    assert!((engine.options().hash_spacing - 6.667).abs() < 0.05);
+    assert!((engine.options().bond_length - 14.4).abs() < 0.05);
+    assert!((engine.options().bond_stroke_width - 0.6).abs() < 0.01);
+    assert!((engine.options().bold_bond_width - 2.0).abs() < 0.05);
+    assert!((engine.options().wedge_width - 3.0).abs() < 0.05);
+    assert!((engine.options().label_clip_margin - 0.8).abs() < 0.05);
+    assert!((engine.options().hash_spacing - 2.5).abs() < 0.05);
     assert!((engine.options().bond_spacing - 18.0).abs() < 0.05);
-    assert!((engine.options().margin_width - 4.267).abs() < 0.05);
+    assert!((engine.options().margin_width - 1.6).abs() < 0.05);
+}
+
+#[test]
+fn load_cdxml_document_preserves_imported_label_font_size() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="14.40" LineWidth="0.60" LabelSize="10">
+  <page id="p1" BoundingBox="0 0 40 24">
+    <fragment id="f1" BoundingBox="0 0 40 24">
+      <n id="n1" p="10 12" Element="7">
+        <t p="6.40 15.90" BoundingBox="6.40 7.56 13.62 15.90" LabelJustification="Left">
+          <s font="3" size="10" color="0" face="96">N</s>
+        </t>
+      </n>
+      <n id="n2" p="24 12"/>
+      <b id="b1" B="n1" E="n2"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(cdxml)
+        .expect("cdxml should load into engine");
+
+    let fragment = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("editable fragment")
+        .fragment;
+    let label = fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "n1")
+        .and_then(|node| node.label.as_ref())
+        .expect("imported N label");
+    assert_eq!(label.font_family.as_deref(), Some("Arial"));
+    assert_eq!(label.font_size, Some(10.0));
+    assert_eq!(label.runs.first().and_then(|run| run.font_size), Some(10.0));
+
+    let session = engine
+        .begin_text_edit(Point::new(10.0, 12.0))
+        .expect("clicking label should open a text edit session");
+    assert_eq!(session.font_family.as_deref(), Some("Arial"));
+    assert_eq!(session.font_size, Some(10.0));
+    assert_eq!(
+        session
+            .source_runs
+            .first()
+            .and_then(|run| run.font_size),
+        Some(10.0)
+    );
 }
 
 #[test]
@@ -1541,12 +1593,12 @@ fn load_cdxml_document_derives_wedge_width_from_imported_bold_width() {
         .load_cdxml_document(cdxml)
         .expect("cdxml should load into engine");
 
-    assert!((engine.options().bond_length - 38.4).abs() < 0.05);
-    assert!((engine.options().bond_stroke_width - 2.64).abs() < 0.01);
-    assert!((engine.options().bold_bond_width - 5.36).abs() < 0.01);
-    assert!((engine.options().wedge_width - 8.04).abs() < 0.01);
-    assert!((engine.options().label_clip_margin - 2.40).abs() < 0.01);
-    assert!((engine.options().margin_width - 4.53).abs() < 0.01);
+    assert!((engine.options().bond_length - 14.4).abs() < 0.05);
+    assert!((engine.options().bond_stroke_width - 0.99).abs() < 0.01);
+    assert!((engine.options().bold_bond_width - 2.01).abs() < 0.01);
+    assert!((engine.options().wedge_width - 3.015).abs() < 0.01);
+    assert!((engine.options().label_clip_margin - 0.90).abs() < 0.01);
+    assert!((engine.options().margin_width - 1.70).abs() < 0.01);
 
     let bond = &engine
         .state()
@@ -1555,9 +1607,9 @@ fn load_cdxml_document_derives_wedge_width_from_imported_bold_width() {
         .expect("editable fragment should exist")
         .fragment
         .bonds[0];
-    assert!((bond.wedge_width.unwrap_or_default() - 8.04).abs() < 0.01);
-    assert_eq!(bond.label_clip_margin, Some(2.4));
-    assert_eq!(bond.margin_width, Some(4.53));
+    assert!((bond.wedge_width.unwrap_or_default() - 3.015).abs() < 0.01);
+    assert_eq!(bond.label_clip_margin, Some(0.9));
+    assert_eq!(bond.margin_width, Some(1.7));
 }
 
 #[test]
@@ -1591,12 +1643,12 @@ fn load_cdxml_document_derives_label_retreat_from_margin_width() {
     let wide_line = imported_label_clip_margin(1.80, 1.60);
     let wide_margin = imported_label_clip_margin(0.60, 5.00);
 
-    assert!((normal - 2.133).abs() < 0.01, "{normal}");
+    assert!((normal - 0.8).abs() < 0.01, "{normal}");
     assert!(
         (wide_line - normal).abs() < 0.01,
         "bond-to-label retreat follows MarginWidth, not LineWidth: {normal} {wide_line}"
     );
-    assert!((wide_margin - 11.2).abs() < 0.01, "{wide_margin}");
+    assert!((wide_margin - 4.2).abs() < 0.01, "{wide_margin}");
 }
 
 #[test]
@@ -5754,6 +5806,64 @@ fn render_document_respects_explicit_small_fragment_label_font_size() {
         .expect("fragment label text");
 
     assert!((font_size - 6.0).abs() <= 1.0e-6, "{font_size}");
+}
+
+#[test]
+fn render_document_draws_imported_cdxml_invalid_marker_as_non_focusable_diagnostic() {
+    let document = fragment_document(
+        json!([
+            {
+                "id": "n1",
+                "element": "N",
+                "atomicNumber": 7,
+                "position": [20.0, 20.0],
+                "charge": 0,
+                "numHydrogens": 0,
+                "label": {
+                    "text": "N",
+                    "sourceText": "N",
+                    "position": [18.0, 20.0],
+                    "box": [18.0, 14.0, 22.0, 20.0],
+                    "fontSize": 10.0,
+                    "runs": [{
+                        "text": "N",
+                        "fontFamily": "Arial",
+                        "fontSize": 10.0,
+                        "fill": "#000000",
+                        "fontWeight": 400,
+                        "fontStyle": "normal",
+                        "script": "normal"
+                    }],
+                    "meta": {
+                        "import": { "cdxml": { "textPosition": [18.0, 20.0] } },
+                        "labelRecognition": { "status": "invalid" }
+                    }
+                }
+            }
+        ]),
+        json!([]),
+    );
+
+    let marker = render_document(&document)
+        .into_iter()
+        .find(|primitive| matches!(
+            primitive,
+            RenderPrimitive::Rect {
+                role: RenderRole::DocumentGraphic,
+                stroke: Some(stroke),
+                ..
+            } if stroke == "#d32f2f"
+        ))
+        .expect("imported invalid label should still render a diagnostic marker");
+
+    assert!(matches!(
+        marker,
+        RenderPrimitive::Rect {
+            object_id: None,
+            node_id: None,
+            ..
+        }
+    ));
 }
 
 #[test]

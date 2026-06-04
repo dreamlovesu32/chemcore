@@ -252,7 +252,7 @@ fn parse_cdxml_imports_orbital_fixture_templates_and_styles() {
 }
 
 #[test]
-fn load_cdxml_document_scales_orbital_axes_for_editing() {
+fn load_cdxml_document_preserves_orbital_axes_for_editing() {
     let cdxml = std::fs::read_to_string(fixture_path("orbital.cdxml")).expect("orbital fixture");
     let mut engine = Engine::new();
     engine
@@ -265,7 +265,7 @@ fn load_cdxml_document_scales_orbital_axes_for_editing() {
         .objects
         .iter()
         .find(|object| object.id == "obj_shape_orbital_004")
-        .expect("scaled p orbital should exist");
+        .expect("p orbital should exist");
     let axis_start = p_default
         .payload
         .extra
@@ -278,10 +278,10 @@ fn load_cdxml_document_scales_orbital_axes_for_editing() {
         .get("axisEnd")
         .and_then(serde_json::Value::as_array)
         .expect("axisEnd should be stored");
-    assert_eq!(axis_start[0].as_f64(), Some(627.92));
-    assert_eq!(axis_start[1].as_f64(), Some(366.0));
-    assert_eq!(axis_end[0].as_f64(), Some(627.92));
-    assert_eq!(axis_end[1].as_f64(), Some(414.0));
+    assert_eq!(axis_start[0].as_f64(), Some(235.47));
+    assert_eq!(axis_start[1].as_f64(), Some(137.25));
+    assert_eq!(axis_end[0].as_f64(), Some(235.47));
+    assert_eq!(axis_end[1].as_f64(), Some(155.25));
 }
 
 #[test]
@@ -458,9 +458,8 @@ fn parse_cdxml_uses_document_hash_spacing_for_dashed_lines() {
             .load_cdxml_document(&cdxml)
             .expect("cdxml should load into engine");
         let svg = engine.document_svg();
-        let expected_scaled_dash =
-            ((expected_hash_spacing * chemcore_engine::PT_TO_CSS_PX * 2.0) * 100.0).round() / 100.0;
-        let expected_dash_attr = format!("stroke-dasharray=\"{expected_scaled_dash}\"");
+        let expected_dash = (expected_hash_spacing * 100.0_f64).round() / 100.0;
+        let expected_dash_attr = format!("stroke-dasharray=\"{expected_dash}\"");
 
         assert!(
             svg.contains(&expected_dash_attr),
@@ -479,9 +478,8 @@ fn tlc_plate_guides_use_document_hash_spacing() {
         .load_cdxml_document(&cdxml)
         .expect("cdxml should load into engine");
     let svg = engine.document_svg();
-    let expected_scaled_dash =
-        ((2.7 * chemcore_engine::PT_TO_CSS_PX * 2.0) * 100.0).round() / 100.0;
-    let expected_dash_attr = format!("stroke-dasharray=\"{expected_scaled_dash}\"");
+    let expected_dash = (2.7_f64 * 100.0).round() / 100.0;
+    let expected_dash_attr = format!("stroke-dasharray=\"{expected_dash}\"");
     let dash_occurrences = svg.matches(&expected_dash_attr).count();
 
     assert!(

@@ -297,7 +297,7 @@ pub(crate) fn normalize_cdxml_document_for_editing(document: &mut ChemcoreDocume
     scale_cdxml_document_for_editing(document);
 }
 
-const CDXML_EDITING_OUTPUT_SCALE: f64 = crate::PT_TO_CSS_PX * 2.0;
+const CDXML_EDITING_OUTPUT_SCALE: f64 = 1.0;
 
 fn scale_cdxml_document_for_editing(document: &mut ChemcoreDocument) {
     if document

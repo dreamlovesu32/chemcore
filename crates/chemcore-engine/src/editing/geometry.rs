@@ -293,9 +293,7 @@ pub(super) fn point_in_bond_center_focus(point: Point, start: Point, end: Point)
 
 pub fn bond_center_focus_length(start: Point, end: Point) -> f64 {
     let length = start.distance(end);
-    (length - ENDPOINT_FOCUS_RADIUS * 2.0)
-        .max(0.0)
-        .min(BOND_CENTER_FOCUS_LENGTH)
+    (length * 0.5).max(0.0)
 }
 
 pub(super) fn bond_center_focus_radius(start: Point, end: Point) -> f64 {

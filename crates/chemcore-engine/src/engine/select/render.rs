@@ -431,7 +431,7 @@ pub(super) fn component_selection_items(
         items.push(FragmentSelectionItem {
             kind: FragmentItemKind::Bond,
             bounds,
-            center: midpoint(begin_point, end_point),
+            center: bounds.center(),
         });
     }
     items

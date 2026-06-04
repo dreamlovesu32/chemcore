@@ -1,7 +1,8 @@
 use crate::{
     angle_between, angle_in_clockwise_arc, angular_distance, css_px, direction_from_angle,
-    largest_angular_gap, normalize_angle, split_label_groups, world_cm, ChemcoreDocument,
-    EditableFragment, Node, Point, Vector, WorldCm, WorldPoint, DEFAULT_BOND_LENGTH, PT_PER_CM,
+    fragment_bond_visual_bounds, largest_angular_gap, normalize_angle, split_label_groups,
+    world_cm, Bond, ChemcoreDocument, EditableFragment, Node, Point, Vector, WorldCm, WorldPoint,
+    DEFAULT_BOND_LENGTH, PT_PER_CM,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, VecDeque};
