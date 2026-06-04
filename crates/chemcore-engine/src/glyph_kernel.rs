@@ -91,6 +91,7 @@ struct GlyphClipPolygonJson {
 #[serde(rename_all = "camelCase")]
 struct SharedGlyphClipPolygonsJson {
     version: u32,
+    coordinate_system: Option<String>,
     natural_outset_ratio: f64,
     green_inset_ratio: f64,
     circle_radius_ratio: f64,
@@ -106,10 +107,17 @@ struct GlyphClipPolygon {
 #[allow(dead_code)]
 struct SharedGlyphClipPolygons {
     version: u32,
+    coordinate_system: GlyphClipCoordinateSystem,
     natural_outset_ratio: f64,
     green_inset_ratio: f64,
     circle_radius_ratio: f64,
     glyphs: HashMap<char, GlyphClipPolygon>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GlyphClipCoordinateSystem {
+    LegacyInkBox,
+    HeightCentered,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -713,21 +721,41 @@ fn shape_polygon(placement: &GlyphPlacement) -> Option<Vec<[f64; 2]>> {
     if !placement.visible {
         return None;
     }
-    shared_glyph_clip_polygons()
+    let manifest = shared_glyph_clip_polygons();
+    manifest
         .glyphs
         .get(&placement.codepoint)
-        .map(|polygon| map_normalized_polygon(&polygon.points, placement.ink_box_px))
+        .map(|polygon| {
+            map_normalized_polygon(
+                &polygon.points,
+                placement.ink_box_px,
+                manifest.coordinate_system,
+            )
+        })
         .or_else(|| Some(fallback_natural_outset_polygon(placement.ink_box_px)))
 }
 
-fn map_normalized_polygon(points: &[[f64; 2]], ink_box: [f64; 4]) -> Vec<[f64; 2]> {
+fn map_normalized_polygon(
+    points: &[[f64; 2]],
+    ink_box: [f64; 4],
+    coordinate_system: GlyphClipCoordinateSystem,
+) -> Vec<[f64; 2]> {
     let [x1, y1, x2, y2] = ink_box;
     let width = (x2 - x1).max(0.1);
     let height = (y2 - y1).max(0.1);
-    points
-        .iter()
-        .map(|point| [x1 + point[0] * width, y1 + point[1] * height])
-        .collect()
+    match coordinate_system {
+        GlyphClipCoordinateSystem::LegacyInkBox => points
+            .iter()
+            .map(|point| [x1 + point[0] * width, y1 + point[1] * height])
+            .collect(),
+        GlyphClipCoordinateSystem::HeightCentered => {
+            let center_x = (x1 + x2) * 0.5;
+            points
+                .iter()
+                .map(|point| [center_x + point[0] * height, y1 + point[1] * height])
+                .collect()
+        }
+    }
 }
 
 fn fallback_natural_outset_polygon(ink_box: [f64; 4]) -> Vec<[f64; 2]> {
@@ -1151,8 +1179,14 @@ impl SharedGlyphClipPolygons {
                 },
             );
         }
+        let coordinate_system = match manifest.coordinate_system.as_deref() {
+            Some("heightCentered") => GlyphClipCoordinateSystem::HeightCentered,
+            Some(other) => panic!("unsupported glyph clip coordinate system: {other}"),
+            None => GlyphClipCoordinateSystem::LegacyInkBox,
+        };
         Self {
             version: manifest.version,
+            coordinate_system,
             natural_outset_ratio: manifest.natural_outset_ratio,
             green_inset_ratio: manifest.green_inset_ratio,
             circle_radius_ratio: manifest.circle_radius_ratio,
@@ -1354,10 +1388,14 @@ mod tests {
     #[test]
     fn clip_manifest_is_locked_to_current_tuned_ratios() {
         let manifest = shared_glyph_clip_polygons();
-        assert_eq!(manifest.version, 1);
-        assert!((manifest.natural_outset_ratio - 0.30).abs() < 1e-9);
+        assert_eq!(manifest.version, 2);
+        assert_eq!(
+            manifest.coordinate_system,
+            GlyphClipCoordinateSystem::HeightCentered
+        );
+        assert!((manifest.natural_outset_ratio - 0.25).abs() < 1e-9);
         assert!((manifest.green_inset_ratio - 0.22).abs() < 1e-9);
-        assert!((manifest.circle_radius_ratio - 0.60).abs() < 1e-9);
+        assert!((manifest.circle_radius_ratio - 0.50).abs() < 1e-9);
         assert!(manifest.glyphs.contains_key(&'N'));
         assert!(manifest.glyphs.contains_key(&'+'));
     }
@@ -1385,6 +1423,21 @@ mod tests {
         );
         assert!(
             bounds[3] > placement.ink_box_px[3],
+            "{bounds:?} vs {:?}",
+            placement.ink_box_px
+        );
+    }
+
+    #[test]
+    fn narrow_uppercase_i_expansion_is_not_scaled_by_ink_width() {
+        let placement = layout_glyph('I', ScriptKind::Normal, LayoutConfig::default(), 0.0, 0.0);
+        let polygon = shape_polygon(&placement).expect("I should have clip geometry");
+        let bounds = polygon_bounds(&polygon);
+        let polygon_width = bounds[2] - bounds[0];
+        let glyph_height = placement.ink_box_px[3] - placement.ink_box_px[1];
+        assert!(polygon.len() >= 20, "{polygon:?}");
+        assert!(
+            polygon_width <= glyph_height * 1.25,
             "{bounds:?} vs {:?}",
             placement.ink_box_px
         );

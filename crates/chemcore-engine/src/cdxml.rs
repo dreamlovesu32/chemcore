@@ -1246,7 +1246,8 @@ fn cdxml_import_wedge_width(_stroke_width: f64, bold_width: f64) -> f64 {
 }
 
 pub(crate) fn cdxml_import_label_clip_margin(margin_width: f64) -> f64 {
-    round2((margin_width - 0.8).max(0.0))
+    let _ = margin_width;
+    0.0
 }
 
 fn cdxml_bond_order(value: Option<&str>) -> u8 {

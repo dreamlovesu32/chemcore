@@ -20,9 +20,9 @@ DEFAULT_OUTPUT = ROOT / "shared" / "glyph_clip_polygons.json"
 
 FONT_SIZE = 240
 PADDING = 160
-NATURAL_OUTSET_RATIO = 0.30
+NATURAL_OUTSET_RATIO = 0.25
 GREEN_INSET_RATIO = 0.22
-CIRCLE_RADIUS_RATIO = 0.60
+CIRCLE_RADIUS_RATIO = 0.50
 
 ANCHOR_MAP = {
     "A": [("midpoint", "c0", 1, 2), ("point", "c0", 0), ("point", "c0", 3)],
@@ -177,9 +177,9 @@ def clip_polygon_for_char(ttfont: TTFont, font: ImageFont.FreeTypeFont, ch: str)
             merged |= (xx - cx) ** 2 + (yy - cy) ** 2 <= radius * radius
 
     contour = contour_from_mask(merged)
-    width = max(1.0, bbox[2] - bbox[0])
     height = max(1.0, bbox[3] - bbox[1])
-    normalized = [[(x - bbox[0]) / width, (y - bbox[1]) / height] for x, y in contour]
+    center_x = (bbox[0] + bbox[2]) * 0.5
+    normalized = [[(x - center_x) / height, (y - bbox[1]) / height] for x, y in contour]
     return {
         "bboxPx": list(bbox),
         "glyphHeightPx": glyph_height,
@@ -202,9 +202,10 @@ def main() -> None:
             print(f"skip {ch!r}: {error}")
 
     payload = {
-        "version": 1,
+        "version": 2,
         "sourceFont": str(args.font),
         "fontSizePx": FONT_SIZE,
+        "coordinateSystem": "heightCentered",
         "naturalOutsetRatio": NATURAL_OUTSET_RATIO,
         "greenInsetRatio": GREEN_INSET_RATIO,
         "circleRadiusRatio": CIRCLE_RADIUS_RATIO,
