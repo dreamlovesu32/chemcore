@@ -157,7 +157,7 @@ impl PreviewTransform {
 
     fn gdip_length(&self, value: f64) -> f32 {
         if self.emf_recording {
-            (value.abs() as f32 / CHEMDRAW_EMF_PAGE_SCALE).max(0.01)
+            ((value.abs() * self.scale) as f32 / CHEMDRAW_EMF_PAGE_SCALE).max(0.01)
         } else {
             (value.abs() * self.scale).max(0.01) as f32
         }
@@ -672,6 +672,9 @@ pub(super) fn office_preview_primitive_visible(primitive: &RenderPrimitive) -> b
     };
     match role {
         RenderRole::DocumentKnockout => {
+            if preview_primitive_node_id(primitive).is_some() {
+                return false;
+            }
             if preview_env_enabled(ENV_HIDE_DOCUMENT_KNOCKOUT) {
                 return false;
             }
@@ -5303,6 +5306,22 @@ mod tests {
         CorePoint { x, y }
     }
 
+    #[test]
+    fn emf_gdiplus_length_scales_like_points() {
+        let transform = PreviewTransform {
+            min_x: 0.0,
+            min_y: 0.0,
+            scale: 2.0,
+            offset_x: 0.0,
+            offset_y: 0.0,
+            record_scale: 1.0,
+            emf_recording: true,
+        };
+
+        let expected = (0.85_f64 * 2.0) as f32 / CHEMDRAW_EMF_PAGE_SCALE;
+        assert!((transform.gdip_length(0.85) - expected).abs() < 1.0e-6);
+    }
+
     fn test_bond(id: &str, begin: &str, end: &str) -> Bond {
         Bond {
             id: id.to_string(),
@@ -5719,6 +5738,27 @@ mod tests {
             fill_gradient: None,
         };
         assert!(office_preview_primitive_visible(&primitive));
+    }
+
+    #[test]
+    fn preview_label_knockout_stays_transparent() {
+        let primitive = RenderPrimitive::Rect {
+            role: RenderRole::DocumentKnockout,
+            object_id: Some("o1".to_string()),
+            node_id: Some("n1".to_string()),
+            x: 1.0,
+            y: 2.0,
+            width: 3.0,
+            height: 4.0,
+            fill: Some("#ffffff".to_string()),
+            stroke: None,
+            stroke_width: 0.0,
+            rx: None,
+            ry: None,
+            dash_array: Vec::new(),
+            fill_gradient: None,
+        };
+        assert!(!office_preview_primitive_visible(&primitive));
     }
 
     #[test]

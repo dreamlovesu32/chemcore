@@ -110,7 +110,7 @@ export async function generateChemDrawOracle(options = {}) {
     String.raw`
 param([string]$JobsPath)
 $ErrorActionPreference = "Stop"
-$jobs = Get-Content -Raw -LiteralPath $JobsPath | ConvertFrom-Json
+$jobs = Get-Content -Raw -Encoding UTF8 -LiteralPath $JobsPath | ConvertFrom-Json
 $app = $null
 $doc = $null
 try {

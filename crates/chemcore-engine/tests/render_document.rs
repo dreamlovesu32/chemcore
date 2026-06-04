@@ -36,7 +36,7 @@ fn fragment_document(nodes: serde_json::Value, bonds: serde_json::Value) -> Chem
             "zIndex": 10,
             "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
             "styleRef": "style_molecule_default",
-            "payload": { "resourceRef": "mol_001" }
+            "payload": { "resourceRef": "mol_001", "bbox": [0.0, 0.0, 80.0, 40.0] }
         }],
         "resources": {
             "mol_001": {
@@ -1567,10 +1567,7 @@ fn load_cdxml_document_preserves_imported_label_font_size() {
     assert_eq!(session.font_family.as_deref(), Some("Arial"));
     assert_eq!(session.font_size, Some(10.0));
     assert_eq!(
-        session
-            .source_runs
-            .first()
-            .and_then(|run| run.font_size),
+        session.source_runs.first().and_then(|run| run.font_size),
         Some(10.0)
     );
 }
@@ -3991,7 +3988,7 @@ fn parse_cdxml_attached_atom_label_preserves_source_bbox_size() {
 }
 
 #[test]
-fn render_cdxml_single_character_atom_label_uses_node_center_baseline() {
+fn render_cdxml_single_character_atom_label_uses_text_primitive() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
 <CDXML BondLength="14.40" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" LabelSize="10">
@@ -4010,41 +4007,46 @@ fn render_cdxml_single_character_atom_label_uses_node_center_baseline() {
     let document =
         parse_cdxml_document(cdxml, Some("single atom label")).expect("cdxml should parse");
     let primitives = render_document(&document);
-    let glyph = primitives
+    let text = primitives
         .iter()
         .find_map(|primitive| match primitive {
-            RenderPrimitive::FilledPath {
+            RenderPrimitive::Text {
                 node_id,
-                points,
                 role,
+                x,
+                y,
+                runs,
+                text_anchor,
                 ..
             } if node_id.as_deref() == Some("n1") && *role == RenderRole::DocumentText => {
-                Some(primitive_polygon_bounds(points))
+                Some((*x, *y, runs.clone(), text_anchor.clone()))
             }
             _ => None,
         })
-        .expect("N label should render as kernel glyph path");
+        .expect("N label should render as text");
 
-    assert!(
-        ((glyph[0] + glyph[2]) * 0.5 - 10.0).abs() < 0.001,
-        "{glyph:?}"
+    assert!((text.0 - 6.4).abs() < 0.001, "{text:?}");
+    assert!((text.1 - 15.63).abs() < 0.001, "{text:?}");
+    assert_eq!(
+        text.2
+            .iter()
+            .map(|run| run.text.as_str())
+            .collect::<String>(),
+        "N"
     );
-    assert!(
-        ((glyph[1] + glyph[3]) * 0.5 - 12.0).abs() < 0.001,
-        "{glyph:?}"
-    );
+    assert_eq!(text.3.as_deref(), Some("start"));
     assert!(!primitives.iter().any(|primitive| matches!(
         primitive,
-        RenderPrimitive::Text {
+        RenderPrimitive::FilledPath {
             node_id,
-            role: RenderRole::DocumentText,
+            role,
             ..
-        } if node_id.as_deref() == Some("n1")
+        } if node_id.as_deref() == Some("n1") && *role == RenderRole::DocumentText
     )));
 }
 
 #[test]
-fn render_cdxml_imported_atom_label_uses_kernel_glyph_paths() {
+fn render_cdxml_imported_atom_label_uses_text_primitive() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
 <CDXML BondLength="14.40" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" LabelSize="10">
@@ -4062,36 +4064,33 @@ fn render_cdxml_imported_atom_label_uses_kernel_glyph_paths() {
 </CDXML>"#;
     let document = parse_cdxml_document(cdxml, Some("multi atom label")).expect("cdxml");
     let primitives = render_document(&document);
-    let glyph_paths: Vec<_> = primitives
+    let text = primitives
         .iter()
-        .filter_map(|primitive| match primitive {
-            RenderPrimitive::FilledPath {
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Text {
                 node_id,
                 role,
-                points,
+                runs,
                 ..
             } if node_id.as_deref() == Some("n1") && *role == RenderRole::DocumentText => {
-                Some(primitive_polygon_bounds(points))
+                Some(runs.clone())
             }
             _ => None,
         })
-        .collect();
+        .expect("NH label should render as text");
 
-    assert_eq!(glyph_paths.len(), 2, "{glyph_paths:?}");
+    assert_eq!(
+        text.iter().map(|run| run.text.as_str()).collect::<String>(),
+        "NH"
+    );
     assert!(!primitives.iter().any(|primitive| matches!(
         primitive,
-        RenderPrimitive::Text {
+        RenderPrimitive::FilledPath {
             node_id,
-            role: RenderRole::DocumentText,
+            role,
             ..
-        } if node_id.as_deref() == Some("n1")
+        } if node_id.as_deref() == Some("n1") && *role == RenderRole::DocumentText
     )));
-    assert!(
-        glyph_paths
-            .iter()
-            .any(|bounds| ((bounds[0] + bounds[2]) * 0.5 - 10.0).abs() < 0.001),
-        "{glyph_paths:?}"
-    );
 }
 
 #[test]
@@ -5846,14 +5845,16 @@ fn render_document_draws_imported_cdxml_invalid_marker_as_non_focusable_diagnost
 
     let marker = render_document(&document)
         .into_iter()
-        .find(|primitive| matches!(
-            primitive,
-            RenderPrimitive::Rect {
-                role: RenderRole::DocumentGraphic,
-                stroke: Some(stroke),
-                ..
-            } if stroke == "#d32f2f"
-        ))
+        .find(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Rect {
+                    role: RenderRole::DocumentGraphic,
+                    stroke: Some(stroke),
+                    ..
+                } if stroke == "#d32f2f"
+            )
+        })
         .expect("imported invalid label should still render a diagnostic marker");
 
     assert!(matches!(

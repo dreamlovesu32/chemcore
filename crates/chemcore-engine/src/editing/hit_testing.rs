@@ -141,8 +141,9 @@ pub fn hit_test_bond_center(
         };
         let raw_begin = entry.world_point_for_node(begin);
         let raw_end = entry.world_point_for_node(end);
-        let (begin_point, end_point) =
-            visual_bond_center_focus_segment(document, &entry, bond, begin, end, raw_begin, raw_end);
+        let (begin_point, end_point) = visual_bond_center_focus_segment(
+            document, &entry, bond, begin, end, raw_begin, raw_end,
+        );
         let center = Point::new(
             (begin_point.x + end_point.x) / 2.0,
             (begin_point.y + end_point.y) / 2.0,
@@ -195,7 +196,10 @@ fn visual_bond_center_focus_segment(
         (raw_begin.y + raw_end.y) * 0.5,
     );
     let visual_center = Point::new((bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5);
-    let offset = Vector::new(visual_center.x - raw_center.x, visual_center.y - raw_center.y);
+    let offset = Vector::new(
+        visual_center.x - raw_center.x,
+        visual_center.y - raw_center.y,
+    );
     (
         Point::new(raw_begin.x + offset.x, raw_begin.y + offset.y),
         Point::new(raw_end.x + offset.x, raw_end.y + offset.y),

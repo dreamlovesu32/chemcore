@@ -1394,7 +1394,7 @@ unsafe extern "system" fn data_object_get_data_here(
         if storage.is_null() {
             return E_POINTER;
         }
-        let hr = save_ole_object_storage(storage, &(*object).payload);
+        let hr = save_ole_object_storage(storage, &(*object).payload, (*object).extent_himetric);
         log_format_request("IDataObject::GetDataHere", &*format, hr);
         return hr;
     }
@@ -1690,7 +1690,7 @@ unsafe extern "system" fn persist_storage_init_new(this: *mut c_void, storage: *
         return E_POINTER;
     }
     (*object).storage = storage;
-    let hr = write_ole_storage_payload(storage, &(*object).payload);
+    let hr = write_ole_storage_payload(storage, &(*object).payload, (*object).extent_himetric);
     log_ole_event(&format!("IPersistStorage::InitNew -> 0x{:08X}", hr as u32));
     hr
 }
@@ -1743,7 +1743,7 @@ unsafe extern "system" fn persist_storage_save(
     if object.is_null() {
         return E_POINTER;
     }
-    let hr = write_ole_storage_payload(storage, &(*object).payload);
+    let hr = write_ole_storage_payload(storage, &(*object).payload, (*object).extent_himetric);
     log_ole_event(&format!("IPersistStorage::Save -> 0x{:08X}", hr as u32));
     hr
 }
@@ -1833,7 +1833,11 @@ struct StreamVtbl {
     clone: unsafe extern "system" fn(*mut c_void, *mut *mut c_void) -> i32,
 }
 
-unsafe fn write_ole_storage_payload(storage: *mut c_void, payload: &OleObjectPayload) -> i32 {
+unsafe fn write_ole_storage_payload(
+    storage: *mut c_void,
+    payload: &OleObjectPayload,
+    presentation_extent: SIZE,
+) -> i32 {
     if storage.is_null() {
         return E_POINTER;
     }
@@ -1882,16 +1886,14 @@ unsafe fn write_ole_storage_payload(storage: *mut c_void, payload: &OleObjectPay
         }
     }
     if let Ok(presentation) =
-        ole_presentation_stream_for_payload(payload, payload.extent_himetric(), CF_ENHMETAFILE)
+        ole_presentation_stream_for_payload(payload, presentation_extent, CF_ENHMETAFILE)
     {
         let hr = storage_write_stream(storage, OLE_STREAM_PRESENTATION_EMF, &presentation);
         if !hresult_succeeded(hr) {
             return hr;
         }
     }
-    if let Ok(enhanced_print) =
-        enhanced_metafile_bits_for_payload(payload, payload.extent_himetric())
-    {
+    if let Ok(enhanced_print) = enhanced_metafile_bits_for_payload(payload, presentation_extent) {
         let hr = storage_write_stream(storage, OLE_STREAM_ENHANCED_PRINT, &enhanced_print);
         if !hresult_succeeded(hr) {
             return hr;
@@ -1921,7 +1923,11 @@ fn ole_stream_payload() -> [u8; 20] {
     bytes
 }
 
-unsafe fn create_ole_storage_medium(payload: &OleObjectPayload, medium: *mut STGMEDIUM) -> i32 {
+unsafe fn create_ole_storage_medium(
+    payload: &OleObjectPayload,
+    extent: SIZE,
+    medium: *mut STGMEDIUM,
+) -> i32 {
     if medium.is_null() {
         return E_POINTER;
     }
@@ -1945,7 +1951,7 @@ unsafe fn create_ole_storage_medium(payload: &OleObjectPayload, medium: *mut STG
         return hr;
     }
 
-    let hr = save_ole_object_storage(storage, payload);
+    let hr = save_ole_object_storage(storage, payload, extent);
     if !hresult_succeeded(hr) {
         com_release(storage);
         return hr;
@@ -1957,8 +1963,13 @@ unsafe fn create_ole_storage_medium(payload: &OleObjectPayload, medium: *mut STG
     S_OK
 }
 
-unsafe fn save_ole_object_storage(storage: *mut c_void, payload: &OleObjectPayload) -> i32 {
+unsafe fn save_ole_object_storage(
+    storage: *mut c_void,
+    payload: &OleObjectPayload,
+    presentation_extent: SIZE,
+) -> i32 {
     let mut object = Box::new(ChemcoreOleObject::with_payload(payload.clone()));
+    object.extent_himetric = presentation_extent;
     object.init_self_references();
     let object = Box::into_raw(object);
     let persist_storage =
@@ -2161,7 +2172,7 @@ fn word_rtf_object_for_payload(payload: &OleObjectPayload) -> Result<String, Str
     let display_extent = fit_extent_himetric_to_word_body(payload.extent_himetric());
     let emf = enhanced_metafile_bits_for_payload(payload, display_extent)
         .map_err(|hr| format!("Failed to render Word RTF EMF preview: 0x{:08X}", hr as u32))?;
-    let ole = ole_storage_file_bytes_for_payload(payload)?;
+    let ole = ole_storage_file_bytes_for_payload(payload, display_extent)?;
     let objdata = word_rtf_objdata_bytes(&ole, &emf)?;
     let width_twips = points_to_twips(himetric_to_points(display_extent.cx));
     let height_twips = points_to_twips(himetric_to_points(display_extent.cy));
@@ -2250,11 +2261,11 @@ fn word_docx_package_for_payload(payload: &OleObjectPayload) -> Result<Vec<u8>, 
             hr as u32
         )
     })?;
-    let ole = ole_storage_file_bytes_for_payload(payload)?;
+    let ole = ole_storage_file_bytes_for_payload(payload, display_extent)?;
     let width_pt = himetric_to_points(display_extent.cx);
     let height_pt = himetric_to_points(display_extent.cy);
-    let width_twips = points_to_twips(himetric_to_points(natural_extent.cx));
-    let height_twips = points_to_twips(himetric_to_points(natural_extent.cy));
+    let width_twips = points_to_twips(width_pt);
+    let height_twips = points_to_twips(height_pt);
 
     let mut cursor = Cursor::new(Vec::new());
     {
@@ -2377,7 +2388,10 @@ fn points_to_himetric(value: f64) -> i32 {
         .clamp(MIN_OBJECT_EXTENT_HIMETRIC as f64, i32::MAX as f64) as i32
 }
 
-fn ole_storage_file_bytes_for_payload(payload: &OleObjectPayload) -> Result<Vec<u8>, String> {
+fn ole_storage_file_bytes_for_payload(
+    payload: &OleObjectPayload,
+    presentation_extent: SIZE,
+) -> Result<Vec<u8>, String> {
     let storage_path = env::temp_dir().join(format!(
         "chemcore-office-docx-{}-{}.ole",
         std::process::id(),
@@ -2398,7 +2412,7 @@ fn ole_storage_file_bytes_for_payload(payload: &OleObjectPayload) -> Result<Vec<
                 hr as u32
             ))
         } else {
-            let hr = save_ole_object_storage(storage, payload);
+            let hr = save_ole_object_storage(storage, payload, presentation_extent);
             com_release(storage);
             if !hresult_succeeded(hr) {
                 Err(format!(
@@ -2647,7 +2661,7 @@ unsafe fn write_clipboard_format_to_medium(
         if (format.tymed & TYMED_ISTORAGE as u32) == 0 {
             return DV_E_TYMED;
         }
-        return create_ole_storage_medium(payload, medium);
+        return create_ole_storage_medium(payload, extent, medium);
     }
     if format.cfFormat == CF_ENHMETAFILE {
         if (format.tymed & TYMED_ENHMF as u32) == 0 {
@@ -2796,6 +2810,42 @@ mod tests {
         assert!(
             !payload.svg.contains(DOCUMENT_DISPLAY_NAME),
             "generated preview should not fall back to the placeholder svg"
+        );
+    }
+
+    #[test]
+    fn word_docx_orig_size_uses_fitted_display_extent() {
+        let document_json = serde_json::to_string(&chemcore_engine::ChemcoreDocument::blank())
+            .expect("blank document should serialize");
+        let payload = OleObjectPayload {
+            chemcore_fragment_json: None,
+            chemcore_document_json: document_json,
+            render_list_json: None,
+            cdxml: None,
+            svg: r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400"></svg>"#
+                .to_string(),
+            svg_was_supplied: true,
+            text: None,
+        };
+        let display_extent = fit_extent_himetric_to_word_body(payload.extent_himetric());
+        let width_twips = points_to_twips(himetric_to_points(display_extent.cx));
+        let height_twips = points_to_twips(himetric_to_points(display_extent.cy));
+
+        let package = word_docx_package_for_payload(&payload).expect("docx should be generated");
+        let mut archive =
+            zip::ZipArchive::new(Cursor::new(package)).expect("docx package should be a zip");
+        let mut document_xml = String::new();
+        archive
+            .by_name("word/document.xml")
+            .expect("document.xml should exist")
+            .read_to_string(&mut document_xml)
+            .expect("document.xml should be UTF-8");
+
+        assert!(
+            document_xml.contains(&format!(
+                r#"w:dxaOrig="{width_twips}" w:dyaOrig="{height_twips}""#
+            )),
+            "Word reset-size metadata must match the fitted display extent"
         );
     }
 }

@@ -344,19 +344,13 @@ pub(super) fn preview_bounds_debug_report(
     let (frame_bounds, draw_bounds, use_logical_preview_coords) =
         if let Some(visible) = visible_bounds {
             let draw_source_bounds = source_bounds.unwrap_or(visible);
-            let frame_source_bounds = frame_source_bounds.unwrap_or(draw_source_bounds);
             (
-                office_preview_frame_size_bounds(frame_source_bounds, use_chemdraw_units),
+                preview_frame_bounds_for_extent(extent),
                 office_preview_logical_size_bounds(draw_source_bounds, use_chemdraw_units),
                 true,
             )
         } else {
-            let bounds = RECT {
-                left: 0,
-                top: 0,
-                right: extent.cx.max(1),
-                bottom: extent.cy.max(1),
-            };
+            let bounds = preview_frame_bounds_for_extent(extent);
             (bounds, bounds, false)
         };
     json!({
@@ -554,21 +548,14 @@ fn enhanced_metafile_for_payload_with_options(
         let (frame_bounds, draw_bounds, source_bounds, use_logical_preview_coords) =
             if let Some(visible_bounds) = visible_payload_bounds(payload) {
                 let draw_source_bounds = preview_source_bounds(payload).unwrap_or(visible_bounds);
-                let frame_source_bounds =
-                    preview_frame_source_bounds(payload).unwrap_or(draw_source_bounds);
                 (
-                    office_preview_frame_size_bounds(frame_source_bounds, use_chemdraw_units),
+                    preview_frame_bounds_for_extent(extent),
                     office_preview_logical_size_bounds(draw_source_bounds, use_chemdraw_units),
                     Some(draw_source_bounds),
                     true,
                 )
             } else {
-                let bounds = RECT {
-                    left: 0,
-                    top: 0,
-                    right: extent.cx.max(1),
-                    bottom: extent.cy.max(1),
-                };
+                let bounds = preview_frame_bounds_for_extent(extent);
                 (bounds, bounds, None, false)
             };
         // Default to EMF+ dual recording for smooth bond geometry. We still keep
@@ -688,13 +675,12 @@ fn himetric_per_svg_px_from_device_metrics(resolution_px: i32, size_mm: i32) -> 
         .filter(|scale| *scale > 0.0)
 }
 
-fn office_preview_frame_size_bounds(bounds: [f64; 4], use_chemdraw_units: bool) -> RECT {
-    let rect = office_preview_frame_bounds(bounds, use_chemdraw_units);
+fn preview_frame_bounds_for_extent(extent: SIZE) -> RECT {
     RECT {
         left: 0,
         top: 0,
-        right: (rect.right - rect.left).max(1),
-        bottom: (rect.bottom - rect.top).max(1),
+        right: extent.cx.max(1),
+        bottom: extent.cy.max(1),
     }
 }
 
@@ -973,6 +959,55 @@ mod tests {
                 .pointer("/frameBoundsHimetric/height")
                 .and_then(|value| value.as_i64()),
             "OLE object extent and preview frame must use the same vertical scale"
+        );
+    }
+
+    #[test]
+    fn preview_frame_honors_requested_display_extent() {
+        let document = ChemcoreDocument::blank();
+        let render_list_json = serde_json::to_string(&vec![RenderPrimitive::Rect {
+            role: RenderRole::DocumentGraphic,
+            object_id: Some("visible-content".to_string()),
+            node_id: None,
+            x: 10.0,
+            y: 20.0,
+            width: 20.0,
+            height: 20.0,
+            fill: Some("#000000".to_string()),
+            stroke: None,
+            stroke_width: 0.0,
+            rx: None,
+            ry: None,
+            dash_array: Vec::new(),
+            fill_gradient: None,
+        }])
+        .unwrap();
+        let payload = OleObjectPayload {
+            chemcore_fragment_json: None,
+            chemcore_document_json: serde_json::to_string(&document).unwrap(),
+            render_list_json: Some(render_list_json),
+            cdxml: None,
+            svg: r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400"></svg>"#
+                .to_string(),
+            svg_was_supplied: true,
+            text: None,
+        };
+
+        let report = preview_bounds_debug_report(&payload, SIZE { cx: 400, cy: 200 });
+
+        assert_eq!(
+            report
+                .pointer("/frameBoundsHimetric/width")
+                .and_then(|value| value.as_i64()),
+            Some(400),
+            "Word-fitted previews must record the requested display width in the EMF frame"
+        );
+        assert_eq!(
+            report
+                .pointer("/frameBoundsHimetric/height")
+                .and_then(|value| value.as_i64()),
+            Some(200),
+            "Word-fitted previews must record the requested display height in the EMF frame"
         );
     }
 }

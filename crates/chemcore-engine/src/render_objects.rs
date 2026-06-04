@@ -1,5 +1,5 @@
 use super::*;
-use crate::{shared_glyph_outline_path_centered, DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM};
+use crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM;
 
 #[path = "render_objects/arrows.rs"]
 mod arrows;
@@ -85,107 +85,6 @@ fn fragment_label_position_world(label: &crate::NodeLabel, object: &SceneObject)
         object.transform.translate[0] + position[0],
         object.transform.translate[1] + position[1],
     )
-}
-
-fn imported_node_label_uses_glyph_geometry(label: &crate::NodeLabel) -> bool {
-    label.attachment.as_deref() == Some("node")
-        && label.meta.pointer("/import/cdxml/boundingBox").is_some()
-        && !label.glyph_polygons.is_empty()
-}
-
-fn glyph_polygon_center(polygon: &[[f64; 2]]) -> Option<Point> {
-    let mut min_x = f64::INFINITY;
-    let mut min_y = f64::INFINITY;
-    let mut max_x = f64::NEG_INFINITY;
-    let mut max_y = f64::NEG_INFINITY;
-    let mut found = false;
-    for point in polygon {
-        found = true;
-        min_x = min_x.min(point[0]);
-        min_y = min_y.min(point[1]);
-        max_x = max_x.max(point[0]);
-        max_y = max_y.max(point[1]);
-    }
-    found.then(|| Point::new((min_x + max_x) * 0.5, (min_y + max_y) * 0.5))
-}
-
-fn glyph_polygon_path_d_world(polygon: &[[f64; 2]], object: &SceneObject) -> Option<String> {
-    let mut iter = polygon.iter();
-    let first = iter.next()?;
-    let mut d = format!(
-        "M {} {}",
-        fmt_path_num(object.transform.translate[0] + first[0]),
-        fmt_path_num(object.transform.translate[1] + first[1])
-    );
-    for point in iter {
-        d.push_str(" L ");
-        d.push_str(&fmt_path_num(object.transform.translate[0] + point[0]));
-        d.push(' ');
-        d.push_str(&fmt_path_num(object.transform.translate[1] + point[1]));
-    }
-    d.push_str(" Z");
-    Some(d)
-}
-
-fn glyph_polygon_points_world(polygon: &[[f64; 2]], object: &SceneObject) -> Vec<Point> {
-    polygon
-        .iter()
-        .map(|point| {
-            Point::new(
-                object.transform.translate[0] + point[0],
-                object.transform.translate[1] + point[1],
-            )
-        })
-        .collect()
-}
-
-fn fmt_path_num(value: f64) -> String {
-    let mut text = format!("{value:.6}");
-    while text.contains('.') && text.ends_with('0') {
-        text.pop();
-    }
-    if text.ends_with('.') {
-        text.pop();
-    }
-    if text == "-0" {
-        "0".to_string()
-    } else {
-        text
-    }
-}
-
-fn fragment_label_visible_glyph_runs(label: &crate::NodeLabel, lines: &[String]) -> Vec<LabelRun> {
-    let source_lines: Vec<Vec<LabelRun>> = if !label.line_runs.is_empty() {
-        label.line_runs.clone()
-    } else if !label.runs.is_empty() {
-        vec![label.runs.clone()]
-    } else {
-        lines
-            .iter()
-            .map(|line| fragment_label_runs_for_line(label, 0, line))
-            .collect()
-    };
-    source_lines
-        .into_iter()
-        .flat_map(|line| line.into_iter())
-        .flat_map(|run| {
-            let script_scale = crate::shared_script_scale_factor(run.script.as_deref());
-            run.text
-                .chars()
-                .filter(|character| !character.is_whitespace())
-                .map(move |character| LabelRun {
-                    text: character.to_string(),
-                    font_family: run.font_family.clone(),
-                    font_size: run.font_size.map(|size| size * script_scale),
-                    fill: run.fill.clone(),
-                    font_weight: run.font_weight,
-                    font_style: run.font_style.clone(),
-                    underline: run.underline,
-                    script: Some("normal".to_string()),
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect()
 }
 
 fn polygon_list_bounds(polygons: &[Vec<Point>]) -> Option<(f64, f64, f64, f64)> {
@@ -547,54 +446,6 @@ pub(super) fn render_fragment_label(
     let lines = fragment_label_lines(label);
     if lines.is_empty() {
         return;
-    }
-    if imported_node_label_uses_glyph_geometry(label) {
-        let glyph_runs = fragment_label_visible_glyph_runs(label, &lines);
-        if glyph_runs.len() == label.glyph_polygons.len() {
-            for (run, polygon) in glyph_runs.into_iter().zip(label.glyph_polygons.iter()) {
-                let Some(center) = glyph_polygon_center(polygon) else {
-                    continue;
-                };
-                let font_size = run.font_size.unwrap_or(font_size);
-                let character = run.text.chars().next();
-                let world_center = Point::new(
-                    object.transform.translate[0] + center.x,
-                    object.transform.translate[1] + center.y,
-                );
-                let glyph_path = character
-                    .and_then(|ch| shared_glyph_outline_path_centered(ch, font_size, world_center));
-                let (d, points, fill_rule) = if let Some(path) = glyph_path {
-                    (path.d, path.points, Some("nonzero".to_string()))
-                } else if let Some(d) = glyph_polygon_path_d_world(polygon, object) {
-                    (
-                        d,
-                        glyph_polygon_points_world(polygon, object),
-                        Some("nonzero".to_string()),
-                    )
-                } else {
-                    continue;
-                };
-                out.push(RenderPrimitive::FilledPath {
-                    role: RenderRole::DocumentText,
-                    object_id: object_id.clone(),
-                    node_id: Some(node.id.clone()),
-                    bond_id: None,
-                    d,
-                    points,
-                    fill: run
-                        .fill
-                        .clone()
-                        .or_else(|| fill.clone())
-                        .unwrap_or_else(|| "#000000".to_string()),
-                    fill_rule,
-                    clip_path_d: None,
-                    clip_rule: None,
-                    rotate: 0.0,
-                    rotate_center: None,
-                });
-            }
-            return;
-        }
     }
     let world_position = fragment_label_position_world(label, object);
     if lines.len() == 1 {

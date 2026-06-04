@@ -642,15 +642,36 @@ pub(crate) fn normalize_fragment_label_payloads(document: &mut ChemcoreDocument)
         let Some(fragment) = resource.data.as_fragment_mut() else {
             continue;
         };
+        let node_positions: BTreeMap<String, [f64; 2]> = fragment
+            .nodes
+            .iter()
+            .map(|node| (node.id.clone(), node.position))
+            .collect();
+        let anchor_sides: BTreeMap<String, ImportedLabelAnchorSide> = fragment
+            .nodes
+            .iter()
+            .filter_map(|node| {
+                imported_label_anchor_side_for_node(node, &fragment.bonds, &node_positions)
+                    .map(|side| (node.id.clone(), side))
+            })
+            .collect();
         for node in &mut fragment.nodes {
             if let Some(label) = &mut node.label {
-                normalize_node_label_payload(label, node.position);
+                normalize_node_label_payload(
+                    label,
+                    node.position,
+                    anchor_sides.get(&node.id).copied(),
+                );
             }
         }
     }
 }
 
-fn normalize_node_label_payload(label: &mut NodeLabel, node_position: [f64; 2]) {
+fn normalize_node_label_payload(
+    label: &mut NodeLabel,
+    node_position: [f64; 2],
+    anchor_side: Option<ImportedLabelAnchorSide>,
+) {
     if label.position.is_none() {
         label.position = Some(node_position);
     }
@@ -675,11 +696,15 @@ fn normalize_node_label_payload(label: &mut NodeLabel, node_position: [f64; 2]) 
     }
     if label.glyph_polygons.is_empty() || label.meta.pointer("/import/cdxml/boundingBox").is_some()
     {
-        rebuild_node_label_glyph_polygons(label, node_position);
+        rebuild_node_label_glyph_polygons(label, node_position, anchor_side);
     }
 }
 
-fn rebuild_node_label_glyph_polygons(label: &mut NodeLabel, node_position: [f64; 2]) {
+fn rebuild_node_label_glyph_polygons(
+    label: &mut NodeLabel,
+    node_position: [f64; 2],
+    anchor_side: Option<ImportedLabelAnchorSide>,
+) {
     if !label.has_visible_text() {
         label.glyph_polygons.clear();
         return;
@@ -740,16 +765,59 @@ fn rebuild_node_label_glyph_polygons(label: &mut NodeLabel, node_position: [f64;
         )
     };
 
-    align_imported_node_label_glyph_anchor(label, node_position);
+    align_imported_node_label_glyph_anchor(label, node_position, anchor_side);
 }
 
-fn align_imported_node_label_glyph_anchor(label: &mut NodeLabel, node_position: [f64; 2]) {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ImportedLabelAnchorSide {
+    Left,
+    Right,
+}
+
+fn imported_label_anchor_side_for_node(
+    node: &Node,
+    bonds: &[Bond],
+    node_positions: &BTreeMap<String, [f64; 2]>,
+) -> Option<ImportedLabelAnchorSide> {
+    node.label.as_ref()?;
+    let mut side = None;
+    for bond in bonds {
+        let other_id = if bond.begin == node.id {
+            &bond.end
+        } else if bond.end == node.id {
+            &bond.begin
+        } else {
+            continue;
+        };
+        let other_position = node_positions.get(other_id)?;
+        let dx = other_position[0] - node.position[0];
+        if dx.abs() <= EPSILON {
+            continue;
+        }
+        let next_side = if dx > 0.0 {
+            ImportedLabelAnchorSide::Right
+        } else {
+            ImportedLabelAnchorSide::Left
+        };
+        if side.is_some_and(|current| current != next_side) {
+            return None;
+        }
+        side = Some(next_side);
+    }
+    side
+}
+
+fn align_imported_node_label_glyph_anchor(
+    label: &mut NodeLabel,
+    node_position: [f64; 2],
+    anchor_side: Option<ImportedLabelAnchorSide>,
+) {
     if label.attachment.as_deref() != Some("node")
         || label.meta.pointer("/import/cdxml/boundingBox").is_none()
     {
         return;
     }
-    let Some(anchor) = imported_node_label_anchor_point(label) else {
+    let Some(anchor) = imported_node_label_anchor_point(label, anchor_side) else {
         return;
     };
     let delta_x = round2(node_position[0] - anchor[0]);
@@ -794,7 +862,10 @@ fn align_imported_node_label_glyph_anchor(label: &mut NodeLabel, node_position: 
     }
 }
 
-fn imported_node_label_anchor_point(label: &NodeLabel) -> Option<[f64; 2]> {
+fn imported_node_label_anchor_point(
+    label: &NodeLabel,
+    anchor_side: Option<ImportedLabelAnchorSide>,
+) -> Option<[f64; 2]> {
     if label.glyph_polygons.is_empty() {
         return None;
     }
@@ -806,6 +877,9 @@ fn imported_node_label_anchor_point(label: &NodeLabel) -> Option<[f64; 2]> {
         let first_glyph_bounds = glyph_single_polygon_bounds(label.glyph_polygons.first()?)?;
         return Some([x, (first_glyph_bounds[1] + first_glyph_bounds[3]) * 0.5]);
     }
+    if let Some(anchor_side) = anchor_side {
+        return imported_node_label_side_anchor_point(label, anchor_side);
+    }
     let polygon = if label.align.as_deref() == Some("right") {
         label.glyph_polygons.last()?
     } else {
@@ -813,6 +887,54 @@ fn imported_node_label_anchor_point(label: &NodeLabel) -> Option<[f64; 2]> {
     };
     glyph_single_polygon_bounds(polygon)
         .map(|bounds| [(bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5])
+}
+
+fn imported_node_label_side_anchor_point(
+    label: &NodeLabel,
+    anchor_side: ImportedLabelAnchorSide,
+) -> Option<[f64; 2]> {
+    let characters: Vec<char> = label.text.chars().collect();
+    let candidate = match anchor_side {
+        ImportedLabelAnchorSide::Left => label
+            .glyph_polygons
+            .iter()
+            .enumerate()
+            .find(|(index, _)| {
+                characters
+                    .get(*index)
+                    .is_some_and(|ch| ch.is_ascii_alphabetic())
+            })
+            .map(|(_, polygon)| polygon)
+            .or_else(|| {
+                label.glyph_polygons.iter().min_by(|left, right| {
+                    glyph_polygon_center_x(left).total_cmp(&glyph_polygon_center_x(right))
+                })
+            }),
+        ImportedLabelAnchorSide::Right => label
+            .glyph_polygons
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(index, _)| {
+                characters
+                    .get(*index)
+                    .is_some_and(|ch| ch.is_ascii_alphabetic())
+            })
+            .map(|(_, polygon)| polygon)
+            .or_else(|| {
+                label.glyph_polygons.iter().max_by(|left, right| {
+                    glyph_polygon_center_x(left).total_cmp(&glyph_polygon_center_x(right))
+                })
+            }),
+    }?;
+    glyph_single_polygon_bounds(candidate)
+        .map(|bounds| [(bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5])
+}
+
+fn glyph_polygon_center_x(polygon: &[[f64; 2]]) -> f64 {
+    glyph_single_polygon_bounds(polygon)
+        .map(|bounds| (bounds[0] + bounds[2]) * 0.5)
+        .unwrap_or(0.0)
 }
 
 fn glyph_single_polygon_bounds(polygon: &[[f64; 2]]) -> Option<[f64; 4]> {
@@ -1458,6 +1580,142 @@ mod tests {
             max_y = max_y.max(point[1]);
         }
         Some([min_x, min_y, max_x, max_y])
+    }
+
+    fn glyph_center(label: &NodeLabel, index: usize) -> Point {
+        let bounds = polygon_bounds(
+            label
+                .glyph_polygons
+                .get(index)
+                .expect("glyph polygon should exist"),
+        )
+        .expect("glyph polygon should have bounds");
+        Point::new((bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5)
+    }
+
+    #[test]
+    fn imported_label_anchor_follows_horizontal_bond_side() {
+        let document = parse_document_json(
+            &json!({
+                "format": { "name": "chemcore", "version": "0.1" },
+                "document": {
+                    "id": "doc_anchor_side",
+                    "title": "anchor side",
+                    "page": { "width": 80.0, "height": 40.0, "background": "#ffffff" }
+                },
+                "objects": [{
+                    "id": "obj_molecule_001",
+                    "type": "molecule",
+                    "visible": true,
+                    "zIndex": 10,
+                    "payload": { "resourceRef": "mol_001" }
+                }],
+                "resources": {
+                    "mol_001": {
+                        "type": "molecule_fragment2d",
+                        "encoding": "chemcore.molecule.fragment2d",
+                        "data": {
+                            "schema": "chemcore.molecule.fragment2d",
+                            "bbox": [0.0, 0.0, 80.0, 40.0],
+                            "nodes": [{
+                                "id": "left_label",
+                                "element": "C",
+                                "atomicNumber": 6,
+                                "position": [10.0, 10.0],
+                                "charge": 0,
+                                "numHydrogens": 0,
+                                "label": {
+                                    "text": "Ph",
+                                    "sourceText": "Ph",
+                                    "position": [6.78, 13.63],
+                                    "box": [6.78, 5.43, 19.08, 15.93],
+                                    "runs": [{ "text": "Ph", "fontFamily": "Arial", "fontSize": 10.0 }],
+                                    "align": "left",
+                                    "anchor": "start",
+                                    "attachment": "node",
+                                    "fontFamily": "Arial",
+                                    "fontSize": 10.0,
+                                    "meta": { "import": { "cdxml": { "boundingBox": [6.78, 5.43, 19.08, 15.93] } } }
+                                }
+                            }, {
+                                "id": "left_neighbor",
+                                "element": "C",
+                                "atomicNumber": 6,
+                                "position": [24.0, 10.0],
+                                "charge": 0,
+                                "numHydrogens": 0
+                            }, {
+                                "id": "right_label",
+                                "element": "C",
+                                "atomicNumber": 6,
+                                "position": [50.0, 10.0],
+                                "charge": 0,
+                                "numHydrogens": 0,
+                                "label": {
+                                    "text": "Ph",
+                                    "sourceText": "Ph",
+                                    "position": [46.78, 13.63],
+                                    "box": [46.78, 5.43, 59.08, 15.93],
+                                    "runs": [{ "text": "Ph", "fontFamily": "Arial", "fontSize": 10.0 }],
+                                    "align": "left",
+                                    "anchor": "start",
+                                    "attachment": "node",
+                                    "fontFamily": "Arial",
+                                    "fontSize": 10.0,
+                                    "meta": { "import": { "cdxml": { "boundingBox": [46.78, 5.43, 59.08, 15.93] } } }
+                                }
+                            }, {
+                                "id": "right_neighbor",
+                                "element": "C",
+                                "atomicNumber": 6,
+                                "position": [36.0, 10.0],
+                                "charge": 0,
+                                "numHydrogens": 0
+                            }],
+                            "bonds": [{
+                                "id": "b_right",
+                                "begin": "left_label",
+                                "end": "left_neighbor",
+                                "order": 1
+                            }, {
+                                "id": "b_left",
+                                "begin": "right_label",
+                                "end": "right_neighbor",
+                                "order": 1
+                            }]
+                        }
+                    }
+                }
+            })
+            .to_string(),
+        )
+        .expect("document should parse");
+        let fragment = document
+            .resources
+            .get("mol_001")
+            .and_then(|resource| resource.data.as_fragment())
+            .expect("fragment should exist");
+        let left_label_node = fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == "left_label")
+            .expect("left label node");
+        let left_label = left_label_node.label.as_ref().expect("left label");
+        let right_label_node = fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == "right_label")
+            .expect("right label node");
+        let right_label = right_label_node.label.as_ref().expect("right label");
+
+        assert!(
+            glyph_center(left_label, 1).distance(left_label_node.point()) < 0.01,
+            "right-side bond should anchor Ph on h: node={left_label_node:?}, label={left_label:?}"
+        );
+        assert!(
+            glyph_center(right_label, 0).distance(right_label_node.point()) < 0.01,
+            "left-side bond should anchor Ph on P: node={right_label_node:?}, label={right_label:?}"
+        );
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use crate::{LabelRun, Point};
+use crate::LabelRun;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -217,7 +217,6 @@ struct RowRender {
 
 static SHARED_GLYPH_PROFILES: OnceLock<SharedGlyphProfiles> = OnceLock::new();
 static SHARED_GLYPH_CLIP_POLYGONS: OnceLock<SharedGlyphClipPolygons> = OnceLock::new();
-static SHARED_GLYPH_OUTLINES: OnceLock<SharedGlyphOutlines> = OnceLock::new();
 const LABEL_GLYPH_CLIP_PAD_SCALE: f64 = 0.25;
 
 #[derive(Debug, Clone, Copy)]
@@ -225,59 +224,6 @@ pub(crate) struct SharedGlyphMetrics {
     pub advance: f64,
     pub top: f64,
     pub bottom: f64,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GlyphOutlineCommandJson {
-    op: String,
-    points: Vec<[f64; 2]>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GlyphOutlineJson {
-    advance_em: f64,
-    bounds_em: [f64; 4],
-    commands: Vec<GlyphOutlineCommandJson>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SharedGlyphOutlinesJson {
-    version: u32,
-    source_font: String,
-    units_per_em: u32,
-    glyphs: HashMap<String, GlyphOutlineJson>,
-}
-
-#[derive(Debug, Clone)]
-struct GlyphOutlineCommand {
-    op: String,
-    points: Vec<[f64; 2]>,
-}
-
-#[derive(Debug, Clone)]
-struct GlyphOutline {
-    #[allow(dead_code)]
-    advance_em: f64,
-    bounds_em: [f64; 4],
-    commands: Vec<GlyphOutlineCommand>,
-}
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-struct SharedGlyphOutlines {
-    version: u32,
-    source_font: String,
-    units_per_em: u32,
-    glyphs: HashMap<char, GlyphOutline>,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct SharedGlyphOutlinePath {
-    pub d: String,
-    pub points: Vec<Point>,
 }
 
 pub fn build_label_glyph_polygons(
@@ -956,15 +902,6 @@ fn shared_glyph_clip_polygons() -> &'static SharedGlyphClipPolygons {
     })
 }
 
-fn shared_glyph_outlines() -> &'static SharedGlyphOutlines {
-    SHARED_GLYPH_OUTLINES.get_or_init(|| {
-        let manifest: SharedGlyphOutlinesJson =
-            serde_json::from_str(include_str!("../../../shared/glyph_outlines.json"))
-                .expect("shared glyph outline manifest must be valid JSON");
-        SharedGlyphOutlines::from_json(manifest)
-    })
-}
-
 fn default_lower_profile() -> GlyphProfile {
     shared_glyph_profiles().defaults.lower
 }
@@ -1024,95 +961,6 @@ pub(crate) fn shared_glyph_metrics(
         advance: placement.advance_px,
         top: placement.background_box_px[1],
         bottom: placement.background_box_px[3],
-    }
-}
-
-pub(crate) fn shared_glyph_outline_path_centered(
-    character: char,
-    font_size: f64,
-    center: Point,
-) -> Option<SharedGlyphOutlinePath> {
-    let outline = shared_glyph_outlines().glyphs.get(&character)?;
-    let [x1, y1, x2, y2] = outline.bounds_em;
-    let tx = center.x - ((x1 + x2) * 0.5 * font_size);
-    let ty = center.y - ((y1 + y2) * 0.5 * font_size);
-    let mut d = String::new();
-    let mut points = Vec::new();
-
-    for command in &outline.commands {
-        match command.op.as_str() {
-            "M" | "L" if command.points.len() == 1 => {
-                let p = map_outline_point(command.points[0], font_size, tx, ty);
-                push_outline_prefix(&mut d, command.op.as_str());
-                push_outline_point(&mut d, p);
-                points.push(p);
-            }
-            "Q" if command.points.len() == 2 => {
-                let c = map_outline_point(command.points[0], font_size, tx, ty);
-                let p = map_outline_point(command.points[1], font_size, tx, ty);
-                push_outline_prefix(&mut d, "Q");
-                push_outline_point(&mut d, c);
-                d.push(' ');
-                push_outline_point(&mut d, p);
-                points.push(c);
-                points.push(p);
-            }
-            "C" if command.points.len() == 3 => {
-                let c1 = map_outline_point(command.points[0], font_size, tx, ty);
-                let c2 = map_outline_point(command.points[1], font_size, tx, ty);
-                let p = map_outline_point(command.points[2], font_size, tx, ty);
-                push_outline_prefix(&mut d, "C");
-                push_outline_point(&mut d, c1);
-                d.push(' ');
-                push_outline_point(&mut d, c2);
-                d.push(' ');
-                push_outline_point(&mut d, p);
-                points.push(c1);
-                points.push(c2);
-                points.push(p);
-            }
-            "Z" => {
-                if !d.is_empty() {
-                    d.push_str(" Z");
-                }
-            }
-            _ => return None,
-        }
-    }
-
-    (!d.is_empty()).then_some(SharedGlyphOutlinePath { d, points })
-}
-
-fn map_outline_point(point: [f64; 2], font_size: f64, tx: f64, ty: f64) -> Point {
-    Point::new(point[0] * font_size + tx, point[1] * font_size + ty)
-}
-
-fn push_outline_prefix(out: &mut String, op: &str) {
-    if !out.is_empty() {
-        out.push(' ');
-    }
-    out.push_str(op);
-    out.push(' ');
-}
-
-fn push_outline_point(out: &mut String, point: Point) {
-    out.push_str(&fmt_path_num(point.x));
-    out.push(' ');
-    out.push_str(&fmt_path_num(point.y));
-}
-
-fn fmt_path_num(value: f64) -> String {
-    let mut text = format!("{value:.6}");
-    while text.contains('.') && text.ends_with('0') {
-        text.pop();
-    }
-    if text.ends_with('.') {
-        text.pop();
-    }
-    if text == "-0" {
-        "0".to_string()
-    } else {
-        text
     }
 }
 
@@ -1190,42 +1038,6 @@ impl SharedGlyphClipPolygons {
             natural_outset_ratio: manifest.natural_outset_ratio,
             green_inset_ratio: manifest.green_inset_ratio,
             circle_radius_ratio: manifest.circle_radius_ratio,
-            glyphs,
-        }
-    }
-}
-
-impl SharedGlyphOutlines {
-    fn from_json(manifest: SharedGlyphOutlinesJson) -> Self {
-        let mut glyphs = HashMap::new();
-        for (key, value) in manifest.glyphs {
-            let mut chars = key.chars();
-            let character = chars
-                .next()
-                .filter(|_| chars.next().is_none())
-                .unwrap_or_else(|| {
-                    panic!("glyph outline manifest key must be exactly one character: {key:?}")
-                });
-            glyphs.insert(
-                character,
-                GlyphOutline {
-                    advance_em: value.advance_em,
-                    bounds_em: value.bounds_em,
-                    commands: value
-                        .commands
-                        .into_iter()
-                        .map(|command| GlyphOutlineCommand {
-                            op: command.op,
-                            points: command.points,
-                        })
-                        .collect(),
-                },
-            );
-        }
-        Self {
-            version: manifest.version,
-            source_font: manifest.source_font,
-            units_per_em: manifest.units_per_em,
             glyphs,
         }
     }
