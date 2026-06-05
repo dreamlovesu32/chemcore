@@ -65,6 +65,7 @@ const OLE_STREAM_DOCUMENT: &str = "ChemcoreDocument";
 const OLE_STREAM_SOURCE_CDXML: &str = "ChemcoreSourceCdxml";
 const OLE_STREAM_PREVIEW_SVG: &str = "ChemcorePreviewSvg";
 const OLE_STREAM_PRESENTATION_EMF: &str = "\u{0002}OlePres001";
+const OLE_STREAM_PRESENTATION_EMF_WORD: &str = "\u{0002}OlePres000";
 const OLE_STREAM_OBJ_INFO: &str = "\u{0003}ObjInfo";
 const OLE_STREAM_ENHANCED_PRINT: &str = "\u{0003}EPRINT";
 const CLIPBOARD_FORMAT_EMBEDDED_OBJECT: &str = "Embedded Object";
@@ -1726,7 +1727,8 @@ unsafe extern "system" fn persist_storage_load(this: *mut c_void, storage: *mut 
     }) {
         (*object).payload.cdxml = Some(cdxml);
     }
-    (*object).extent_himetric = (*object).payload.extent_himetric();
+    (*object).extent_himetric =
+        storage_presentation_extent(storage).unwrap_or_else(|| (*object).payload.extent_himetric());
     log_ole_event("IPersistStorage::Load -> 0x00000000");
     S_OK
 }
@@ -1859,7 +1861,7 @@ unsafe fn write_ole_storage_payload(
     let ole = ole_stream_payload();
     let obj_info = ole_obj_info_stream_payload();
     let document = chemcore_document_stream_payload(payload);
-    let manifest = match ole_manifest_stream_payload() {
+    let manifest = match ole_manifest_stream_payload(presentation_extent) {
         Ok(manifest) => manifest,
         Err(hr) => return hr,
     };
@@ -2169,7 +2171,7 @@ fn hglobal_for_word_rtf_object(payload: &OleObjectPayload) -> Result<HGLOBAL, i3
 }
 
 fn word_rtf_object_for_payload(payload: &OleObjectPayload) -> Result<String, String> {
-    let display_extent = fit_extent_himetric_to_word_body(payload.extent_himetric());
+    let display_extent = payload.extent_himetric();
     let emf = enhanced_metafile_bits_for_payload(payload, display_extent)
         .map_err(|hr| format!("Failed to render Word RTF EMF preview: 0x{:08X}", hr as u32))?;
     let ole = ole_storage_file_bytes_for_payload(payload, display_extent)?;
@@ -2848,6 +2850,82 @@ mod tests {
             "Word reset-size metadata must match the fitted display extent"
         );
     }
+
+    #[test]
+    fn word_rtf_clipboard_uses_natural_extent() {
+        let document_json = serde_json::to_string(&chemcore_engine::ChemcoreDocument::blank())
+            .expect("blank document should serialize");
+        let payload = OleObjectPayload {
+            chemcore_fragment_json: None,
+            chemcore_document_json: document_json,
+            render_list_json: None,
+            cdxml: None,
+            svg: r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400"></svg>"#
+                .to_string(),
+            svg_was_supplied: true,
+            text: None,
+        };
+        let natural_extent = payload.extent_himetric();
+        let natural_width_twips = points_to_twips(himetric_to_points(natural_extent.cx));
+        let natural_height_twips = points_to_twips(himetric_to_points(natural_extent.cy));
+
+        let rtf = word_rtf_object_for_payload(&payload).expect("RTF should be generated");
+
+        assert!(
+            rtf.contains(&format!(
+                "\\objw{natural_width_twips}\\objh{natural_height_twips}"
+            )),
+            "clipboard RTF should preserve natural OLE object size and let Word decide paste scaling"
+        );
+        assert!(
+            rtf.contains(&format!(
+                "\\picwgoal{natural_width_twips}\\pichgoal{natural_height_twips}"
+            )),
+            "clipboard RTF preview should preserve natural EMF display size"
+        );
+    }
+
+    #[test]
+    fn ole_manifest_persists_presentation_extent() {
+        let extent = SIZE {
+            cx: 12_220,
+            cy: 5_250,
+        };
+        let manifest = ole_manifest_stream_payload(extent).expect("manifest should serialize");
+
+        assert_size_eq(presentation_extent_from_manifest(&manifest), extent);
+    }
+
+    #[test]
+    fn ole_presentation_extent_parser_accepts_native_and_word_stream_layouts() {
+        let extent = SIZE {
+            cx: 12_220,
+            cy: 5_250,
+        };
+        let mut native = vec![0u8; 40];
+        native[28..32].copy_from_slice(&extent.cx.to_le_bytes());
+        native[32..36].copy_from_slice(&extent.cy.to_le_bytes());
+        assert_size_eq(
+            presentation_extent_from_ole_presentation_stream(&native),
+            extent,
+        );
+
+        let mut word = vec![0u8; 128];
+        word[12..16].copy_from_slice(&1u32.to_le_bytes());
+        word[40..44].copy_from_slice(&1u32.to_le_bytes());
+        word[72..76].copy_from_slice(&extent.cx.to_le_bytes());
+        word[76..80].copy_from_slice(&extent.cy.to_le_bytes());
+        assert_size_eq(
+            presentation_extent_from_ole_presentation_stream(&word),
+            extent,
+        );
+    }
+
+    fn assert_size_eq(actual: Option<SIZE>, expected: SIZE) {
+        let actual = actual.expect("expected a presentation extent");
+        assert_eq!(actual.cx, expected.cx);
+        assert_eq!(actual.cy, expected.cy);
+    }
 }
 
 fn ole_preview_svg_stream_payload() -> Vec<u8> {
@@ -2857,12 +2935,16 @@ fn ole_preview_svg_stream_payload() -> Vec<u8> {
     .into_bytes()
 }
 
-fn ole_manifest_stream_payload() -> Result<Vec<u8>, i32> {
+fn ole_manifest_stream_payload(presentation_extent: SIZE) -> Result<Vec<u8>, i32> {
     serde_json::to_vec(&serde_json::json!({
         "format": "chemcore-ole-object",
         "version": 1,
         "classId": CLSID_STRING,
         "progId": PROG_ID,
+        "presentationExtentHimetric": {
+            "cx": presentation_extent.cx,
+            "cy": presentation_extent.cy
+        },
         "documentStream": OLE_STREAM_DOCUMENT,
         "previewSvgStream": OLE_STREAM_PREVIEW_SVG,
         "enhancedPrintStream": OLE_STREAM_ENHANCED_PRINT,
@@ -2871,6 +2953,69 @@ fn ole_manifest_stream_payload() -> Result<Vec<u8>, i32> {
         ]
     }))
     .map_err(|_| E_FAIL)
+}
+
+unsafe fn storage_presentation_extent(storage: *mut c_void) -> Option<SIZE> {
+    storage_read_stream(storage, OLE_STREAM_MANIFEST)
+        .ok()
+        .and_then(|bytes| presentation_extent_from_manifest(&bytes))
+        .or_else(|| {
+            storage_read_stream(storage, OLE_STREAM_PRESENTATION_EMF)
+                .ok()
+                .and_then(|bytes| presentation_extent_from_ole_presentation_stream(&bytes))
+        })
+        .or_else(|| {
+            storage_read_stream(storage, OLE_STREAM_PRESENTATION_EMF_WORD)
+                .ok()
+                .and_then(|bytes| presentation_extent_from_ole_presentation_stream(&bytes))
+        })
+        .or_else(|| {
+            storage_read_stream(storage, OLE_STREAM_ENHANCED_PRINT)
+                .ok()
+                .and_then(|bytes| presentation_extent_from_emf_bits(&bytes))
+        })
+}
+
+fn presentation_extent_from_manifest(bytes: &[u8]) -> Option<SIZE> {
+    let manifest: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+    let extent = manifest.get("presentationExtentHimetric")?;
+    let cx = extent.get("cx")?.as_i64()?;
+    let cy = extent.get("cy")?.as_i64()?;
+    valid_presentation_extent(cx, cy)
+}
+
+fn presentation_extent_from_ole_presentation_stream(bytes: &[u8]) -> Option<SIZE> {
+    read_size_at(bytes, 28).or_else(|| {
+        let emf_signature = 1u32.to_le_bytes();
+        bytes
+            .windows(4)
+            .enumerate()
+            .filter(|(_, window)| *window == emf_signature)
+            .find_map(|(emf_offset, _)| presentation_extent_from_emf_bits(&bytes[emf_offset..]))
+    })
+}
+
+fn presentation_extent_from_emf_bits(bytes: &[u8]) -> Option<SIZE> {
+    read_size_at(bytes, 32)
+}
+
+fn read_size_at(bytes: &[u8], offset: usize) -> Option<SIZE> {
+    let cx = i32::from_le_bytes(bytes.get(offset..offset + 4)?.try_into().ok()?);
+    let cy = i32::from_le_bytes(bytes.get(offset + 4..offset + 8)?.try_into().ok()?);
+    valid_presentation_extent(cx as i64, cy as i64)
+}
+
+fn valid_presentation_extent(cx: i64, cy: i64) -> Option<SIZE> {
+    if (MIN_OBJECT_EXTENT_HIMETRIC as i64..=1_000_000).contains(&cx)
+        && (MIN_OBJECT_EXTENT_HIMETRIC as i64..=1_000_000).contains(&cy)
+    {
+        Some(SIZE {
+            cx: cx as i32,
+            cy: cy as i32,
+        })
+    } else {
+        None
+    }
 }
 
 unsafe fn storage_write_stream(storage: *mut c_void, name: &str, bytes: &[u8]) -> i32 {

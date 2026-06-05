@@ -68,7 +68,9 @@ unsafe extern "system" {
 const CHEMDRAW_HIMETRIC_PER_SVG_PX: f64 = 2540.0 / 240.0;
 const CHEMDRAW_EMF_LOGICAL_UNITS_PER_SVG_PX: f64 = 1.0;
 const USE_GDIPLUS_DUAL_PREVIEW: bool = true;
+const PREVIEW_SOURCE_PADDING_PX: f64 = 10.0;
 const PREVIEW_SOURCE_RIGHT_PADDING_PT: f64 = 0.0;
+const ENV_PREVIEW_SOURCE_PADDING_PX: &str = "CHEMCORE_PREVIEW_SOURCE_PADDING_PX";
 const ENV_PREVIEW_SOURCE_RIGHT_PADDING_PT: &str = "CHEMCORE_PREVIEW_SOURCE_RIGHT_PADDING_PT";
 const ENV_PREVIEW_SOURCE_BOUNDS_SIDES: &str = "CHEMCORE_PREVIEW_SOURCE_BOUNDS_SIDES";
 const ENV_PREVIEW_SOURCE_BOUNDS_MODE: &str = "CHEMCORE_PREVIEW_SOURCE_BOUNDS_MODE";
@@ -78,7 +80,7 @@ const DEFAULT_PREVIEW_FRAME_OFFSETS_SVG_PX: PreviewFrameOffsetsSvgPx = PreviewFr
     left: 1.0,
     top: 1.0,
     right: 1.0,
-    bottom: -1.0,
+    bottom: -5.0,
 };
 const GDI_HORZSIZE: i32 = 4;
 const GDI_VERTSIZE: i32 = 6;
@@ -91,6 +93,7 @@ const GDI_DESKTOPHORZRES: i32 = 118;
 enum PreviewSourceBoundsMode {
     Current,
     Visible,
+    VisiblePad,
     Svg,
     SvgPadRight,
     Union,
@@ -170,18 +173,13 @@ fn visible_payload_bounds(payload: &OleObjectPayload) -> Option<[f64; 4]> {
                 .iter()
                 .filter(|primitive| office_preview_primitive_visible(primitive)),
         );
-        if let Ok(document) = parse_document_json(&payload.chemcore_document_json) {
-            let clipboard_bounds = clipboard_selection_bounds(&document.document.meta);
-            match (clipboard_bounds, primitive_bounds) {
-                (Some(selection), Some(primitives)) => {
-                    return Some(union_bounds(selection, primitives));
-                }
-                (Some(selection), None) => return Some(selection),
-                (None, Some(primitives)) => return Some(primitives),
-                (None, None) => {}
-            }
-        } else if let Some(bounds) = primitive_bounds {
+        if let Some(bounds) = primitive_bounds {
             return Some(bounds);
+        }
+        if let Ok(document) = parse_document_json(&payload.chemcore_document_json) {
+            if let Some(bounds) = clipboard_selection_bounds(&document.document.meta) {
+                return Some(bounds);
+            }
         }
     } else if let Ok(document) = parse_document_json(&payload.chemcore_document_json) {
         let clipboard_bounds = clipboard_selection_bounds(&document.document.meta);
@@ -191,13 +189,11 @@ fn visible_payload_bounds(payload: &OleObjectPayload) -> Option<[f64; 4]> {
                 .iter()
                 .filter(|primitive| office_preview_primitive_visible(primitive)),
         );
-        match (clipboard_bounds, primitive_bounds) {
-            (Some(selection), Some(primitives)) => {
-                return Some(union_bounds(selection, primitives))
-            }
-            (Some(selection), None) => return Some(selection),
-            (None, Some(primitives)) => return Some(primitives),
-            (None, None) => {}
+        if let Some(bounds) = primitive_bounds {
+            return Some(bounds);
+        }
+        if let Some(bounds) = clipboard_bounds {
+            return Some(bounds);
         }
     }
     svg_viewbox_bounds(&payload.svg)
@@ -213,6 +209,8 @@ pub(super) fn preview_source_bounds(payload: &OleObjectPayload) -> Option<[f64; 
         .ok()
         .and_then(|value| value.trim().parse::<f64>().ok())
         .unwrap_or(PREVIEW_SOURCE_RIGHT_PADDING_PT);
+    let source_padding_px = preview_source_padding_px();
+    let use_chemdraw_units = payload_uses_cdxml_editing_scale(payload);
     let visible = visible_payload_bounds(payload).or_else(|| {
         (!payload.svg_was_supplied)
             .then(|| document_clipboard_bounds(payload))
@@ -274,6 +272,8 @@ pub(super) fn preview_source_bounds(payload: &OleObjectPayload) -> Option<[f64; 
             (None, None) => None,
         },
         PreviewSourceBoundsMode::Visible => visible,
+        PreviewSourceBoundsMode::VisiblePad => visible
+            .map(|bounds| pad_bounds_logical_px(bounds, source_padding_px, use_chemdraw_units)),
         PreviewSourceBoundsMode::Svg => svg,
         PreviewSourceBoundsMode::SvgPadRight => {
             svg.map(|svg| [svg[0], svg[1], svg[2] + right_padding, svg[3]])
@@ -341,6 +341,9 @@ pub(super) fn preview_bounds_debug_report(
         .ok()
         .and_then(|value| value.trim().parse::<f64>().ok())
         .unwrap_or(PREVIEW_SOURCE_RIGHT_PADDING_PT);
+    let source_padding_px = preview_source_padding_px();
+    let source_padding_svg_px =
+        source_padding_svg_px_for_report(source_padding_px, use_chemdraw_units);
     let (frame_bounds, draw_bounds, use_logical_preview_coords) =
         if let Some(visible) = visible_bounds {
             let draw_source_bounds = source_bounds.unwrap_or(visible);
@@ -358,6 +361,8 @@ pub(super) fn preview_bounds_debug_report(
         "sourceBoundsMode": format!("{source_bounds_mode:?}"),
         "frameBoundsMode": format!("{frame_bounds_mode:?}"),
         "sourceBoundsSidesOverride": source_bounds_sides_override,
+        "sourcePaddingPx": source_padding_px,
+        "sourcePaddingSvgPx": source_padding_svg_px,
         "frameOffsetsSvgPx": preview_frame_offsets_svg_px().map(|offsets| json!({
             "left": offsets.left,
             "top": offsets.top,
@@ -431,6 +436,29 @@ fn union_bounds(a: [f64; 4], b: [f64; 4]) -> [f64; 4] {
         a[1].min(b[1]),
         a[2].max(b[2]),
         a[3].max(b[3]),
+    ]
+}
+
+fn pad_bounds_logical_px(bounds: [f64; 4], padding_px: f64, use_chemdraw_units: bool) -> [f64; 4] {
+    if !padding_px.is_finite() || padding_px <= 0.0 {
+        return bounds;
+    }
+    let (scale_x, scale_y) = office_preview_logical_units_per_svg_px(use_chemdraw_units);
+    let padding_x = if scale_x > 0.0 {
+        padding_px / scale_x
+    } else {
+        0.0
+    };
+    let padding_y = if scale_y > 0.0 {
+        padding_px / scale_y
+    } else {
+        0.0
+    };
+    [
+        bounds[0] - padding_x,
+        bounds[1] - padding_y,
+        bounds[2] + padding_x,
+        bounds[3] + padding_y,
     ]
 }
 
@@ -685,17 +713,38 @@ fn preview_frame_bounds_for_extent(extent: SIZE) -> RECT {
 }
 
 fn office_preview_logical_bounds(bounds: [f64; 4], use_chemdraw_units: bool) -> RECT {
-    let scale = if use_chemdraw_units {
-        CHEMDRAW_EMF_LOGICAL_UNITS_PER_SVG_PX
-    } else {
-        EMF_LOGICAL_UNITS_PER_CSS_PX
-    };
+    let (scale_x, scale_y) = office_preview_logical_units_per_svg_px(use_chemdraw_units);
     RECT {
-        left: scaled_to_i32(bounds[0], scale),
-        top: scaled_to_i32(bounds[1], scale),
-        right: scaled_to_i32(bounds[2], scale).max(scaled_to_i32(bounds[0], scale) + 1),
-        bottom: scaled_to_i32(bounds[3], scale).max(scaled_to_i32(bounds[1], scale) + 1),
+        left: scaled_to_i32(bounds[0], scale_x),
+        top: scaled_to_i32(bounds[1], scale_y),
+        right: scaled_to_i32(bounds[2], scale_x).max(scaled_to_i32(bounds[0], scale_x) + 1),
+        bottom: scaled_to_i32(bounds[3], scale_y).max(scaled_to_i32(bounds[1], scale_y) + 1),
     }
+}
+
+fn office_preview_logical_units_per_svg_px(use_chemdraw_units: bool) -> (f64, f64) {
+    if use_chemdraw_units {
+        return (
+            CHEMDRAW_EMF_LOGICAL_UNITS_PER_SVG_PX,
+            CHEMDRAW_EMF_LOGICAL_UNITS_PER_SVG_PX,
+        );
+    }
+    let (himetric_per_pixel_x, himetric_per_pixel_y) =
+        chemdraw_himetric_per_svg_px_for_current_device();
+    (
+        logical_units_per_svg_px(HIMETRIC_PER_CSS_PX, himetric_per_pixel_x),
+        logical_units_per_svg_px(HIMETRIC_PER_CSS_PX, himetric_per_pixel_y),
+    )
+}
+
+fn logical_units_per_svg_px(himetric_per_svg_px: f64, himetric_per_device_pixel: f64) -> f64 {
+    if himetric_per_svg_px.is_finite()
+        && himetric_per_device_pixel.is_finite()
+        && himetric_per_device_pixel > 0.0
+    {
+        return (himetric_per_svg_px / himetric_per_device_pixel).max(0.01);
+    }
+    EMF_LOGICAL_UNITS_PER_CSS_PX
 }
 
 fn office_preview_logical_size_bounds(bounds: [f64; 4], use_chemdraw_units: bool) -> RECT {
@@ -731,12 +780,34 @@ fn preview_source_bounds_mode() -> PreviewSourceBoundsMode {
     {
         Some("current") => PreviewSourceBoundsMode::Current,
         Some("visible") => PreviewSourceBoundsMode::Visible,
+        Some("visiblepad") | Some("visible-pad") | Some("padded-visible") => {
+            PreviewSourceBoundsMode::VisiblePad
+        }
         Some("svg") => PreviewSourceBoundsMode::Svg,
         Some("svgpad") => PreviewSourceBoundsMode::SvgPadRight,
         Some("union") => PreviewSourceBoundsMode::Union,
         Some("unionpad") => PreviewSourceBoundsMode::UnionPadRight,
-        _ => PreviewSourceBoundsMode::Svg,
+        _ => PreviewSourceBoundsMode::VisiblePad,
     }
+}
+
+fn preview_source_padding_px() -> f64 {
+    std::env::var(ENV_PREVIEW_SOURCE_PADDING_PX)
+        .ok()
+        .and_then(|value| value.trim().parse::<f64>().ok())
+        .filter(|value| value.is_finite() && *value >= 0.0)
+        .unwrap_or(PREVIEW_SOURCE_PADDING_PX)
+}
+
+fn source_padding_svg_px_for_report(
+    padding_px: f64,
+    use_chemdraw_units: bool,
+) -> serde_json::Value {
+    let (scale_x, scale_y) = office_preview_logical_units_per_svg_px(use_chemdraw_units);
+    json!({
+        "x": if scale_x > 0.0 { padding_px / scale_x } else { 0.0 },
+        "y": if scale_y > 0.0 { padding_px / scale_y } else { 0.0 }
+    })
 }
 
 fn preview_frame_bounds_mode() -> PreviewFrameBoundsMode {
