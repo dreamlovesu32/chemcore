@@ -2642,11 +2642,6 @@ fn ole_clipboard_formats(payload: &OleObjectPayload, _extent: SIZE) -> Vec<FORMA
     let mut formats = Vec::new();
     push_format(
         &mut formats,
-        clipboard_format(CLIPBOARD_FORMAT_RTF),
-        TYMED_HGLOBAL as u32,
-    );
-    push_format(
-        &mut formats,
         clipboard_format(CLIPBOARD_FORMAT_EMBEDDED_OBJECT),
         TYMED_ISTORAGE as u32,
     );
@@ -2838,7 +2833,10 @@ mod tests {
         assert!(format_names.contains(CLIPBOARD_FORMAT_EMBEDDED_OBJECT));
         assert!(format_names.contains(CLIPBOARD_FORMAT_EMBED_SOURCE));
         assert!(format_names.contains(CLIPBOARD_FORMAT_OBJECT_DESCRIPTOR));
-        assert!(format_names.contains(CLIPBOARD_FORMAT_RTF));
+        assert!(
+            !format_names.contains(CLIPBOARD_FORMAT_RTF),
+            "Word should choose the embedded OLE object path so it can fit oversized objects itself"
+        );
         assert!(format_names.contains(CLIPBOARD_FORMAT_NATIVE));
         assert!(format_names.contains(FORMAT_CHEMCORE_NATIVE));
         assert!(format_names.contains(FORMAT_CHEMCORE_DOCUMENT_JSON));
