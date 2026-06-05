@@ -52,6 +52,11 @@ use emf_preview::{
     ole_presentation_stream_for_payload, preview_bounds_debug_report,
 };
 
+#[link(name = "ole32")]
+unsafe extern "system" {
+    fn CreateDataAdviseHolder(holder: *mut *mut c_void) -> i32;
+}
+
 const APP_NAME: &str = "Chemcore";
 const DOCUMENT_DISPLAY_NAME: &str = "Chemcore Document";
 const PROG_ID: &str = "Chemcore.Document";
@@ -1188,6 +1193,7 @@ struct ChemcoreOleObject {
     client_site: *mut c_void,
     storage: *mut c_void,
     ole_advise_holder: *mut c_void,
+    data_advise_holder: *mut c_void,
     payload: OleObjectPayload,
     extent_himetric: SIZE,
 }
@@ -1231,6 +1237,7 @@ impl ChemcoreOleObject {
             client_site: null_mut(),
             storage: null_mut(),
             ole_advise_holder: null_mut(),
+            data_advise_holder: null_mut(),
             payload,
             extent_himetric,
         }
@@ -1253,6 +1260,8 @@ impl Drop for ChemcoreOleObject {
             self.client_site = null_mut();
             com_release(self.ole_advise_holder);
             self.ole_advise_holder = null_mut();
+            com_release(self.data_advise_holder);
+            self.data_advise_holder = null_mut();
         }
     }
 }
@@ -1529,30 +1538,96 @@ unsafe extern "system" fn data_object_enum_format_etc(
 }
 
 unsafe extern "system" fn data_object_d_advise(
-    _this: *mut c_void,
-    _format: *const FORMATETC,
-    _advf: u32,
-    _sink: *mut c_void,
+    this: *mut c_void,
+    format: *const FORMATETC,
+    advf: u32,
+    sink: *mut c_void,
     connection: *mut u32,
 ) -> i32 {
-    if !connection.is_null() {
-        *connection = 0;
+    if format.is_null() || connection.is_null() {
+        return E_POINTER;
     }
-    E_NOTIMPL
+    *connection = 0;
+    let object = owner_from_part::<DataObjectVtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    if (*object).data_advise_holder.is_null() {
+        let hr = CreateDataAdviseHolder(&mut (*object).data_advise_holder);
+        if !hresult_succeeded(hr) {
+            log_format_request("IDataObject::DAdvise(CreateDataAdviseHolder)", &*format, hr);
+            return hr;
+        }
+    }
+    let holder_vtbl = *((*object)
+        .data_advise_holder
+        .cast::<*const DataAdviseHolderVtbl>());
+    let data_object =
+        (&mut (*object).data_object as *mut InterfacePart<DataObjectVtbl>).cast::<c_void>();
+    let hr = ((*holder_vtbl).advise)(
+        (*object).data_advise_holder,
+        data_object,
+        format.cast_mut(),
+        advf,
+        sink,
+        connection,
+    );
+    log_format_request("IDataObject::DAdvise", &*format, hr);
+    hr
 }
 
-unsafe extern "system" fn data_object_d_unadvise(_this: *mut c_void, _connection: u32) -> i32 {
-    E_NOTIMPL
+unsafe extern "system" fn data_object_d_unadvise(this: *mut c_void, connection: u32) -> i32 {
+    let object = owner_from_part::<DataObjectVtbl>(this);
+    if object.is_null() || (*object).data_advise_holder.is_null() {
+        return E_POINTER;
+    }
+    let holder_vtbl = *((*object)
+        .data_advise_holder
+        .cast::<*const DataAdviseHolderVtbl>());
+    let hr = ((*holder_vtbl).unadvise)((*object).data_advise_holder, connection);
+    log_ole_event(&format!(
+        "IDataObject::DUnadvise({connection}) -> 0x{:08X}",
+        hr as u32
+    ));
+    hr
 }
 
 unsafe extern "system" fn data_object_enum_d_advise(
-    _this: *mut c_void,
+    this: *mut c_void,
     enum_advise: *mut *mut c_void,
 ) -> i32 {
-    if !enum_advise.is_null() {
-        *enum_advise = null_mut();
+    if enum_advise.is_null() {
+        return E_POINTER;
     }
-    E_NOTIMPL
+    *enum_advise = null_mut();
+    let object = owner_from_part::<DataObjectVtbl>(this);
+    if object.is_null() || (*object).data_advise_holder.is_null() {
+        return S_FALSE;
+    }
+    let holder_vtbl = *((*object)
+        .data_advise_holder
+        .cast::<*const DataAdviseHolderVtbl>());
+    let hr = ((*holder_vtbl).enum_advise)((*object).data_advise_holder, enum_advise);
+    log_ole_event(&format!("IDataObject::EnumDAdvise -> 0x{:08X}", hr as u32));
+    hr
+}
+
+#[repr(C)]
+struct DataAdviseHolderVtbl {
+    query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
+    add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+    release: unsafe extern "system" fn(*mut c_void) -> u32,
+    advise: unsafe extern "system" fn(
+        *mut c_void,
+        *mut c_void,
+        *mut FORMATETC,
+        u32,
+        *mut c_void,
+        *mut u32,
+    ) -> i32,
+    unadvise: unsafe extern "system" fn(*mut c_void, u32) -> i32,
+    enum_advise: unsafe extern "system" fn(*mut c_void, *mut *mut c_void) -> i32,
+    send_on_data_change: unsafe extern "system" fn(*mut c_void, *mut c_void, u32, u32) -> i32,
 }
 
 #[repr(C)]
@@ -1957,7 +2032,6 @@ unsafe fn write_ole_storage_payload(
             return hr;
         }
     }
-
     storage_commit(storage)
 }
 
@@ -2835,7 +2909,7 @@ mod tests {
         assert!(format_names.contains(CLIPBOARD_FORMAT_OBJECT_DESCRIPTOR));
         assert!(
             !format_names.contains(CLIPBOARD_FORMAT_RTF),
-            "Word should choose the embedded OLE object path so it can fit oversized objects itself"
+            "Word should use the embedded OLE object path so it can fit oversized objects itself"
         );
         assert!(format_names.contains(CLIPBOARD_FORMAT_NATIVE));
         assert!(format_names.contains(FORMAT_CHEMCORE_NATIVE));
@@ -3379,14 +3453,23 @@ unsafe extern "system" fn ole_object_init_from_data(
 }
 
 unsafe extern "system" fn ole_object_get_clipboard_data(
-    _this: *mut c_void,
+    this: *mut c_void,
     _reserved: u32,
     data_object: *mut *mut c_void,
 ) -> i32 {
-    if !data_object.is_null() {
-        *data_object = null_mut();
+    if data_object.is_null() {
+        return E_POINTER;
     }
-    E_NOTIMPL
+    *data_object = null_mut();
+    let object = owner_from_part::<OleObjectVtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    *data_object =
+        (&mut (*object).data_object as *mut InterfacePart<DataObjectVtbl>).cast::<c_void>();
+    chemcore_object_add_ref(object);
+    log_ole_event("IOleObject::GetClipboardData -> IDataObject");
+    S_OK
 }
 
 unsafe fn payload_from_data_object(data_object: *mut c_void) -> Result<OleObjectPayload, String> {
