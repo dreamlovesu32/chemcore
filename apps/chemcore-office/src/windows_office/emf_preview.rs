@@ -86,6 +86,8 @@ const GDI_HORZSIZE: i32 = 4;
 const GDI_VERTSIZE: i32 = 6;
 const GDI_HORZRES: i32 = 8;
 const GDI_VERTRES: i32 = 10;
+const GDI_LOGPIXELSX: i32 = 88;
+const GDI_LOGPIXELSY: i32 = 90;
 const GDI_DESKTOPVERTRES: i32 = 117;
 const GDI_DESKTOPHORZRES: i32 = 118;
 
@@ -576,9 +578,17 @@ fn enhanced_metafile_for_payload_with_options(
         let (frame_bounds, draw_bounds, source_bounds, use_logical_preview_coords) =
             if let Some(visible_bounds) = visible_payload_bounds(payload) {
                 let draw_source_bounds = preview_source_bounds(payload).unwrap_or(visible_bounds);
+                // Word reports an EMF's "original size" from the EMF frame adjusted
+                // by the metafile device DPI. Scale the frame and recorded
+                // coordinates together so the visual size stays unchanged while
+                // Word's original-size calculation matches the OOXML shape size.
+                let word_scale = word_original_size_normalization_scale();
                 (
-                    preview_frame_bounds_for_extent(extent),
-                    office_preview_logical_size_bounds(draw_source_bounds, use_chemdraw_units),
+                    scale_rect_size(preview_frame_bounds_for_extent(extent), word_scale),
+                    scale_rect_size(
+                        office_preview_logical_size_bounds(draw_source_bounds, use_chemdraw_units),
+                        word_scale,
+                    ),
                     Some(draw_source_bounds),
                     true,
                 )
@@ -754,6 +764,50 @@ fn office_preview_logical_size_bounds(bounds: [f64; 4], use_chemdraw_units: bool
         top: 0,
         right: (rect.right - rect.left).max(1),
         bottom: (rect.bottom - rect.top).max(1),
+    }
+}
+
+fn word_original_size_normalization_scale() -> (f64, f64) {
+    unsafe {
+        let dc = GetDC(null_mut());
+        if dc.is_null() {
+            return (1.0, 1.0);
+        }
+        let scale_x = word_original_size_axis_scale(dc, GDI_LOGPIXELSX, GDI_HORZRES, GDI_HORZSIZE);
+        let scale_y = word_original_size_axis_scale(dc, GDI_LOGPIXELSY, GDI_VERTRES, GDI_VERTSIZE);
+        ReleaseDC(null_mut(), dc);
+        (scale_x.unwrap_or(1.0), scale_y.unwrap_or(1.0))
+    }
+}
+
+unsafe fn word_original_size_axis_scale(
+    dc: HDC,
+    logical_dpi_cap: i32,
+    logical_res_cap: i32,
+    size_mm_cap: i32,
+) -> Option<f64> {
+    let logical_dpi = positive_device_cap(dc, logical_dpi_cap)? as f64;
+    let logical_res = positive_device_cap(dc, logical_res_cap)? as f64;
+    let size_mm = positive_device_cap(dc, size_mm_cap)? as f64;
+    let scale = logical_dpi * size_mm / (logical_res * 25.4);
+    scale
+        .is_finite()
+        .then_some(scale)
+        .filter(|value| *value > 0.0 && *value <= 1.0)
+}
+
+fn scale_rect_size(rect: RECT, scale: (f64, f64)) -> RECT {
+    let width = ((rect.right - rect.left).max(1) as f64 * scale.0)
+        .round()
+        .max(1.0) as i32;
+    let height = ((rect.bottom - rect.top).max(1) as f64 * scale.1)
+        .round()
+        .max(1.0) as i32;
+    RECT {
+        left: rect.left,
+        top: rect.top,
+        right: rect.left.saturating_add(width),
+        bottom: rect.top.saturating_add(height),
     }
 }
 

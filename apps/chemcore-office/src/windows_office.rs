@@ -22,10 +22,10 @@ use windows_sys::Win32::System::Com::StructuredStorage::{
     WriteFmtUserTypeStg,
 };
 use windows_sys::Win32::System::Com::{
-    CoInitializeEx, CoRegisterClassObject, CoRevokeClassObject, CoTaskMemAlloc, CoUninitialize,
-    CLSCTX_LOCAL_SERVER, COINIT_APARTMENTTHREADED, DATADIR_GET, DVASPECT_CONTENT, FORMATETC,
-    REGCLS_MULTIPLEUSE, STATSTG, STGC_DEFAULT, STGMEDIUM, STGM_CREATE, STGM_READ, STGM_READWRITE,
-    STGM_SHARE_EXCLUSIVE, TYMED_ENHMF, TYMED_HGLOBAL, TYMED_ISTORAGE, TYMED_MFPICT,
+    CoRegisterClassObject, CoRevokeClassObject, CoTaskMemAlloc, CLSCTX_LOCAL_SERVER, DATADIR_GET,
+    DVASPECT_CONTENT, FORMATETC, REGCLS_MULTIPLEUSE, STATSTG, STGC_DEFAULT, STGMEDIUM, STGM_CREATE,
+    STGM_READ, STGM_READWRITE, STGM_SHARE_EXCLUSIVE, TYMED_ENHMF, TYMED_HGLOBAL, TYMED_ISTORAGE,
+    TYMED_MFPICT,
 };
 use windows_sys::Win32::System::Console::FreeConsole;
 use windows_sys::Win32::System::DataExchange::RegisterClipboardFormatW;
@@ -183,6 +183,7 @@ const CLASS_E_NOAGGREGATION: i32 = 0x80040110u32 as i32;
 pub fn run() -> Result<(), String> {
     let mut args = env::args().skip(1);
     let command = args.next().unwrap_or_default();
+    log_ole_event(&format!("launch command: {command}"));
     match command.as_str() {
         "--register-user" => register(RegistrationScope::User),
         "--unregister-user" => unregister(RegistrationScope::User),
@@ -227,7 +228,6 @@ pub fn run() -> Result<(), String> {
             unsafe {
                 FreeConsole();
             }
-            log_ole_event(&format!("COM server launch command: {command}"));
             run_com_server()
         }
         "" | "--help" | "-h" | "/?" => {
@@ -298,6 +298,7 @@ fn register(scope: RegistrationScope) -> Result<(), String> {
 
     let clsid_path = classes_path(&format!("CLSID\\{CLSID_STRING}"));
     set_key_default(root, &clsid_path, DOCUMENT_DISPLAY_NAME)?;
+    set_named_string(root, &clsid_path, "AppID", CLSID_STRING)?;
     set_key_default(root, &format!("{clsid_path}\\ProgID"), VERSIONED_PROG_ID)?;
     set_key_default(
         root,
@@ -308,6 +309,12 @@ fn register(scope: RegistrationScope) -> Result<(), String> {
         root,
         &format!("{clsid_path}\\LocalServer32"),
         &server_command,
+    )?;
+    set_named_string(
+        root,
+        &format!("{clsid_path}\\LocalServer32"),
+        "ServerExecutable",
+        &server_path.to_string_lossy(),
     )?;
     set_key_default(root, &format!("{clsid_path}\\LocalServer"), &server_command)?;
     set_key_default(root, &format!("{clsid_path}\\InprocHandler32"), "ole32.dll")?;
@@ -329,6 +336,10 @@ fn register(scope: RegistrationScope) -> Result<(), String> {
     set_key_default(root, &format!("{clsid_path}\\MiscStatus\\1"), &misc_status)?;
     register_data_formats(root, &clsid_path)?;
     create_key(root, &format!("{clsid_path}\\Insertable"))?;
+    create_key(
+        root,
+        &format!("{clsid_path}\\Implemented Categories\\{{40FC6ED3-2438-11CF-A3DB-080036F12502}}"),
+    )?;
     register_std_file_editing(root, PROG_ID, &server_command)?;
     register_std_file_editing(root, VERSIONED_PROG_ID, &server_command)?;
 
@@ -349,7 +360,7 @@ fn register_std_file_editing(
 ) -> Result<(), String> {
     let std_file_editing = classes_path(&format!("{prog_id}\\Protocol\\StdFileEditing"));
     set_key_default(root, &format!("{std_file_editing}\\Server"), server_command)?;
-    set_key_default(root, &format!("{std_file_editing}\\Verb\\0"), "&Edit")?;
+    set_key_default(root, &format!("{std_file_editing}\\Verb\\0"), "&Edit,0,2")?;
     set_key_default(root, &format!("{std_file_editing}\\Verb\\1"), "&Open,0,2")?;
     Ok(())
 }
@@ -961,6 +972,38 @@ fn set_key_default(root: HKEY, subkey: &str, value: &str) -> Result<(), String> 
     Ok(())
 }
 
+fn set_named_string(root: HKEY, subkey: &str, name: &str, value: &str) -> Result<(), String> {
+    let subkey_w = wide_null(subkey);
+    let mut key: HKEY = null_mut();
+    let status = unsafe { RegCreateKeyW(root, subkey_w.as_ptr(), &mut key) };
+    if status != ERROR_SUCCESS {
+        return Err(format!("Failed to create registry key {subkey}: {status}"));
+    }
+
+    let name_w = wide_null(name);
+    let value_w = wide_null(value);
+    let bytes = (value_w.len() * std::mem::size_of::<u16>()) as u32;
+    let status = unsafe {
+        RegSetValueExW(
+            key,
+            name_w.as_ptr(),
+            0,
+            REG_SZ,
+            value_w.as_ptr().cast::<u8>(),
+            bytes,
+        )
+    };
+    unsafe {
+        RegCloseKey(key);
+    }
+    if status != ERROR_SUCCESS {
+        return Err(format!(
+            "Failed to set registry value {subkey}\\{name}: {status}"
+        ));
+    }
+    Ok(())
+}
+
 fn delete_tree(root: HKEY, subkey: &str) -> Result<(), String> {
     let subkey_w = wide_null(subkey);
     let status = unsafe { RegDeleteTreeW(root, subkey_w.as_ptr()) };
@@ -1011,12 +1054,15 @@ static CLASS_FACTORY: ClassFactory = ClassFactory {
 };
 
 fn run_com_server() -> Result<(), String> {
-    let hr = unsafe { CoInitializeEx(null_mut(), COINIT_APARTMENTTHREADED as u32) };
+    log_ole_event("COM server initializing OLE");
+    let hr = unsafe { OleInitialize(null()) };
     if !hresult_succeeded(hr) {
-        return Err(format!("CoInitializeEx failed: 0x{:08X}", hr as u32));
+        log_ole_event(&format!("OleInitialize failed: 0x{:08X}", hr as u32));
+        return Err(format!("OleInitialize failed: 0x{:08X}", hr as u32));
     }
 
     let mut registration_cookie = 0;
+    log_ole_event("COM server registering class object");
     let hr = unsafe {
         CoRegisterClassObject(
             &CLSID_CHEMCORE_DOCUMENT,
@@ -1030,20 +1076,26 @@ fn run_com_server() -> Result<(), String> {
     };
     if !hresult_succeeded(hr) {
         unsafe {
-            CoUninitialize();
+            OleUninitialize();
         }
+        log_ole_event(&format!(
+            "CoRegisterClassObject failed for {CLSID_STRING}: 0x{:08X}",
+            hr as u32
+        ));
         return Err(format!(
             "CoRegisterClassObject failed for {CLSID_STRING}: 0x{:08X}",
             hr as u32
         ));
     }
 
+    log_ole_event("COM server class object registered");
     println!("{DOCUMENT_DISPLAY_NAME} COM local server is running.");
     run_message_loop();
 
+    log_ole_event("COM server message loop exited");
     unsafe {
         CoRevokeClassObject(registration_cookie);
-        CoUninitialize();
+        OleUninitialize();
     }
     Ok(())
 }
@@ -1096,6 +1148,7 @@ unsafe extern "system" fn class_factory_create_instance(
     riid: *const GUID,
     object: *mut *mut c_void,
 ) -> i32 {
+    log_ole_event("IClassFactory::CreateInstance");
     if !object.is_null() {
         *object = null_mut();
     }
@@ -1113,6 +1166,10 @@ unsafe extern "system" fn class_factory_create_instance(
     let instance = Box::into_raw(instance);
     let hr = chemcore_object_query_interface(instance, riid, object);
     chemcore_object_release(instance);
+    log_ole_event(&format!(
+        "IClassFactory::CreateInstance -> 0x{:08X}",
+        hr as u32
+    ));
     hr
 }
 
@@ -1922,6 +1979,7 @@ fn ole_obj_info_stream_payload() -> [u8; 6] {
 fn ole_stream_payload() -> [u8; 20] {
     let mut bytes = [0u8; 20];
     bytes[0..4].copy_from_slice(&0x0200_0001u32.to_le_bytes());
+    bytes[4..8].copy_from_slice(&0x0000_0008u32.to_le_bytes());
     bytes
 }
 
@@ -3518,8 +3576,12 @@ unsafe extern "system" fn ole_object_do_verb(
     if object.is_null() {
         return E_POINTER;
     }
+    log_ole_event(&format!("IOleObject::DoVerb({verb})"));
     match launch_desktop_for_payload(&(*object).payload) {
-        Ok(()) => S_OK,
+        Ok(()) => {
+            log_ole_event(&format!("IOleObject::DoVerb({verb}) -> 0x00000000"));
+            S_OK
+        }
         Err(error) => {
             log_ole_event(&format!("DoVerb({verb}) failed: {error}"));
             OLE_E_NOTRUNNING
@@ -3932,6 +3994,10 @@ fn launch_desktop_for_payload(payload: &OleObjectPayload) -> Result<(), String> 
     ));
     std::fs::write(&payload_path, &payload.chemcore_document_json)
         .map_err(|error| format!("Failed to write temporary OLE edit payload: {error}"))?;
+    log_ole_event(&format!(
+        "Wrote OLE edit payload to {}",
+        payload_path.display()
+    ));
 
     let desktop_exe = current_server_path()?.with_file_name("chemcore-desktop.exe");
     if !desktop_exe.exists() {
@@ -3942,9 +4008,12 @@ fn launch_desktop_for_payload(payload: &OleObjectPayload) -> Result<(), String> 
     }
     ensure_desktop_dev_server_for_debug_exe(&desktop_exe)?;
 
+    log_ole_event(&format!(
+        "Launching Chemcore desktop from {}",
+        desktop_exe.display()
+    ));
     Command::new(desktop_exe)
         .arg(payload_path)
-        .creation_flags(CREATE_NO_WINDOW_FLAG)
         .spawn()
         .map_err(|error| format!("Failed to launch Chemcore desktop: {error}"))?;
     Ok(())
@@ -4007,16 +4076,27 @@ fn desktop_dev_server_is_ready() -> bool {
 }
 
 fn log_ole_event(message: &str) {
-    let path = env::temp_dir().join("chemcore-office.log");
-    let line = format!("[{}] {message}\n", monotonic_millis());
+    let line = format!(
+        "[{} pid={}] {message}\n",
+        monotonic_millis(),
+        std::process::id()
+    );
+    let temp_path = env::temp_dir().join("chemcore-office.log");
     let _ = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(path)
-        .and_then(|mut file| {
-            use std::io::Write;
-            file.write_all(line.as_bytes())
-        });
+        .open(temp_path)
+        .and_then(|mut file| file.write_all(line.as_bytes()));
+
+    if let Ok(exe) = env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let _ = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(parent.join("chemcore-office.log"))
+                .and_then(|mut file| file.write_all(line.as_bytes()));
+        }
+    }
 }
 
 fn monotonic_millis() -> u128 {
