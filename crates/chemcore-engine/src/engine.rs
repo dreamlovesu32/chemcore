@@ -267,9 +267,28 @@ struct TlcSpotDragState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ShapeDragState {
+    pointer_start: Point,
     start: Point,
     current: Point,
+    anchor: ShapeDrawAnchor,
     has_dragged: bool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ShapeDrawAnchor {
+    kind: ShapeDrawAnchorKind,
+    point: Point,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    bounds: Option<[f64; 4]>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum ShapeDrawAnchorKind {
+    Free,
+    Endpoint,
+    Label,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

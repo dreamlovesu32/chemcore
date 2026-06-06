@@ -4866,6 +4866,16 @@ fn shape_payload_point(engine: &Engine, key: &str) -> Point {
     )
 }
 
+fn first_shape_object(engine: &Engine) -> &chemcore_engine::SceneObject {
+    engine
+        .state()
+        .document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "shape")
+        .expect("shape object should exist")
+}
+
 fn shape_object_count(engine: &Engine) -> usize {
     engine
         .state()
@@ -5141,6 +5151,236 @@ fn shape_tool_rectangles_use_drag_corners() {
             ..
         } if (*stroke_width - 1.0).abs() < 0.001 && dash_array.is_empty() && d.starts_with("M ")
     )));
+}
+
+#[test]
+fn shape_tool_click_on_existing_atom_adds_fixed_rect_centered_on_atom() {
+    let mut engine = Engine::new();
+    let endpoint = px_point(300.0, 260.0);
+    let target = px_point(330.0, 260.0);
+
+    engine.set_tool_state(bond_tool());
+    engine.pointer_down(PointerEvent {
+        x: endpoint.x,
+        y: endpoint.y,
+        button: Some(0),
+        alt_key: false,
+    });
+    engine.pointer_move(PointerEvent {
+        x: target.x,
+        y: target.y,
+        button: None,
+        alt_key: false,
+    });
+    engine.pointer_up(PointerEvent {
+        x: target.x,
+        y: target.y,
+        button: Some(0),
+        alt_key: false,
+    });
+
+    engine.set_tool_state(shape_tool(ShapeKind::Rect, ShapeStyle::Solid));
+    engine.pointer_down(PointerEvent {
+        x: endpoint.x,
+        y: endpoint.y,
+        button: Some(0),
+        alt_key: false,
+    });
+    engine.pointer_up(PointerEvent {
+        x: endpoint.x,
+        y: endpoint.y,
+        button: Some(0),
+        alt_key: false,
+    });
+
+    let object = first_shape_object(&engine);
+    assert_point_close(
+        Point::new(object.transform.translate[0], object.transform.translate[1]),
+        Point::new(endpoint.x - 7.7, endpoint.y - 7.7),
+    );
+    let bbox = object.payload.bbox.expect("shape should have bbox");
+    assert!((bbox[2] - 15.4).abs() < 1e-9, "{bbox:?}");
+    assert!((bbox[3] - 15.4).abs() < 1e-9, "{bbox:?}");
+}
+
+#[test]
+fn shape_tool_drag_from_atom_uses_atom_as_rect_corner() {
+    let mut engine = Engine::new();
+    let endpoint = px_point(300.0, 260.0);
+    let bond_target = px_point(330.0, 260.0);
+    let rect_target = px_point(340.0, 292.0);
+
+    engine.set_tool_state(bond_tool());
+    engine.pointer_down(PointerEvent {
+        x: endpoint.x,
+        y: endpoint.y,
+        button: Some(0),
+        alt_key: false,
+    });
+    engine.pointer_move(PointerEvent {
+        x: bond_target.x,
+        y: bond_target.y,
+        button: None,
+        alt_key: false,
+    });
+    engine.pointer_up(PointerEvent {
+        x: bond_target.x,
+        y: bond_target.y,
+        button: Some(0),
+        alt_key: false,
+    });
+
+    engine.set_tool_state(shape_tool(ShapeKind::Rect, ShapeStyle::Solid));
+    engine.pointer_down(PointerEvent {
+        x: endpoint.x,
+        y: endpoint.y,
+        button: Some(0),
+        alt_key: false,
+    });
+    engine.pointer_move(PointerEvent {
+        x: rect_target.x,
+        y: rect_target.y,
+        button: None,
+        alt_key: false,
+    });
+    engine.pointer_up(PointerEvent {
+        x: rect_target.x,
+        y: rect_target.y,
+        button: Some(0),
+        alt_key: false,
+    });
+
+    let object = first_shape_object(&engine);
+    assert_point_close(
+        Point::new(object.transform.translate[0], object.transform.translate[1]),
+        endpoint,
+    );
+    assert_eq!(
+        object.payload.bbox,
+        Some([
+            0.0,
+            0.0,
+            rect_target.x - endpoint.x,
+            rect_target.y - endpoint.y
+        ])
+    );
+}
+
+#[test]
+fn shape_tool_click_on_label_rect_uses_label_box() {
+    let mut engine = Engine::new();
+    load_label_document(
+        &mut engine,
+        "Ph",
+        vec![json!([
+            [px(294.0), px(256.0)],
+            [px(324.0), px(256.0)],
+            [px(324.0), px(264.0)],
+            [px(294.0), px(264.0)]
+        ])],
+        json!([]),
+    );
+    let label_center = px_point(309.0, 260.0);
+
+    engine.set_tool_state(shape_tool(ShapeKind::RoundRect, ShapeStyle::Solid));
+    engine.pointer_down(PointerEvent {
+        x: label_center.x,
+        y: label_center.y,
+        button: Some(0),
+        alt_key: false,
+    });
+    engine.pointer_up(PointerEvent {
+        x: label_center.x,
+        y: label_center.y,
+        button: Some(0),
+        alt_key: false,
+    });
+
+    let object = first_shape_object(&engine);
+    assert_point_close(
+        Point::new(object.transform.translate[0], object.transform.translate[1]),
+        px_point(294.0, 256.0),
+    );
+    assert_eq!(object.payload.bbox, Some([0.0, 0.0, px(30.0), px(8.0)]));
+}
+
+#[test]
+fn shape_tool_drag_from_label_circle_uses_label_center() {
+    let mut engine = Engine::new();
+    load_label_document(
+        &mut engine,
+        "Ph",
+        vec![json!([
+            [px(294.0), px(256.0)],
+            [px(324.0), px(256.0)],
+            [px(324.0), px(264.0)],
+            [px(294.0), px(264.0)]
+        ])],
+        json!([]),
+    );
+    let click_point = px_point(296.0, 258.0);
+    let label_center = px_point(309.0, 260.0);
+    let target = px_point(340.0, 260.0);
+
+    engine.set_tool_state(shape_tool(ShapeKind::Circle, ShapeStyle::Solid));
+    engine.pointer_down(PointerEvent {
+        x: click_point.x,
+        y: click_point.y,
+        button: Some(0),
+        alt_key: false,
+    });
+    engine.pointer_move(PointerEvent {
+        x: target.x,
+        y: target.y,
+        button: None,
+        alt_key: false,
+    });
+    engine.pointer_up(PointerEvent {
+        x: target.x,
+        y: target.y,
+        button: Some(0),
+        alt_key: false,
+    });
+
+    assert_point_close(shape_payload_point(&engine, "center"), label_center);
+    assert_point_close(shape_payload_point(&engine, "majorAxisEnd"), target);
+}
+
+#[test]
+fn shape_tool_ignores_plain_text_focus() {
+    let mut engine = Engine::new();
+    load_text_object_document(&mut engine);
+
+    engine.set_tool_state(shape_tool(ShapeKind::Rect, ShapeStyle::Solid));
+    engine.pointer_move(PointerEvent {
+        x: px(300.0),
+        y: px(250.0),
+        button: None,
+        alt_key: false,
+    });
+    assert!(engine.state().overlay.hover_text_box.is_none());
+
+    engine.pointer_down(PointerEvent {
+        x: px(300.0),
+        y: px(250.0),
+        button: Some(0),
+        alt_key: false,
+    });
+    engine.pointer_up(PointerEvent {
+        x: px(300.0),
+        y: px(250.0),
+        button: Some(0),
+        alt_key: false,
+    });
+    assert!(
+        engine
+            .state()
+            .document
+            .objects
+            .iter()
+            .all(|object| object.object_type != "shape"),
+        "plain text click should not create a shape"
+    );
 }
 
 #[test]

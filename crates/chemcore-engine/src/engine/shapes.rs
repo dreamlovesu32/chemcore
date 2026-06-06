@@ -1,17 +1,23 @@
 use super::*;
 use crate::round2;
 
+const DEFAULT_SHAPE_CLICK_RADIUS: f64 = 7.7;
+const ACS_SHAPE_CLICK_RADIUS: f64 = 7.2;
+
 impl Engine {
     pub(super) fn pointer_down_shape(&mut self, event: PointerEvent) {
         let point = event.point();
         if self.begin_hover_shape_edit(point) != "" {
             return;
         }
+        let anchor = self.shape_draw_anchor_at_point(point);
         self.clear_interaction();
         self.state.selection = SelectionState::default();
         self.shape_drag = Some(ShapeDragState {
-            start: point,
-            current: point,
+            pointer_start: point,
+            start: anchor.point,
+            current: anchor.point,
+            anchor,
             has_dragged: false,
         });
     }
@@ -25,7 +31,7 @@ impl Engine {
         self.state.overlay = OverlayState::default();
         if let Some(mut drag) = self.shape_drag.take() {
             drag.current = point;
-            if drag.start.distance(point) >= DRAG_START_THRESHOLD {
+            if drag.pointer_start.distance(point) >= DRAG_START_THRESHOLD {
                 drag.has_dragged = true;
             }
             if drag.has_dragged {
@@ -49,17 +55,23 @@ impl Engine {
             return;
         };
         drag.current = event.point();
-        if drag.start.distance(drag.current) < DRAG_START_THRESHOLD {
+        if drag.pointer_start.distance(event.point()) < DRAG_START_THRESHOLD {
             self.state.overlay = OverlayState::default();
+        } else {
+            drag.has_dragged = true;
+        }
+        if !drag.has_dragged && drag.anchor.kind == ShapeDrawAnchorKind::Free {
             return;
         }
-        drag.has_dragged = true;
+        let Some((begin, end)) = self.shape_command_points_from_drag(&drag) else {
+            return;
+        };
         let command = EditorCommand::AddShape {
             kind: self.state.tool.shape_kind,
             style: self.state.tool.shape_style,
             color: self.state.tool.shape_color.clone(),
-            begin: CommandAnchor::from(drag.start),
-            end: CommandAnchor::from(drag.current),
+            begin: CommandAnchor::from(begin),
+            end: CommandAnchor::from(end),
         };
         self.with_command(command, |engine| engine.insert_shape_from_drag(&drag));
         self.state.overlay = OverlayState::default();
@@ -75,9 +87,8 @@ impl Engine {
         document
             .styles
             .insert(style_id.clone(), self.pending_shape_style());
-        document.objects.push(self.shape_scene_object(
-            drag.start,
-            drag.current,
+        document.objects.push(self.shape_scene_object_from_drag(
+            drag,
             "__preview_shape".to_string(),
             style_id,
         )?);
@@ -87,12 +98,9 @@ impl Engine {
     pub(super) fn insert_shape_from_drag(&mut self, drag: &ShapeDragState) -> bool {
         let object_id = self.next_id("obj_shape");
         let style_id = format!("style_{object_id}");
-        let Some(object) = self.shape_scene_object(
-            drag.start,
-            drag.current,
-            object_id.clone(),
-            style_id.clone(),
-        ) else {
+        let Some(object) =
+            self.shape_scene_object_from_drag(drag, object_id.clone(), style_id.clone())
+        else {
             return false;
         };
         self.push_undo_snapshot();
@@ -103,6 +111,149 @@ impl Engine {
         self.state.document.objects.push(object);
         self.note_pending_select_target(PendingSelectTarget::GraphicObject(object_id));
         true
+    }
+
+    fn shape_scene_object_from_drag(
+        &self,
+        drag: &ShapeDragState,
+        object_id: String,
+        style_id: String,
+    ) -> Option<SceneObject> {
+        if drag.has_dragged {
+            return self.shape_scene_object(drag.start, drag.current, object_id, style_id);
+        }
+        self.shape_scene_object_from_click_anchor(drag.anchor, object_id, style_id)
+    }
+
+    fn shape_scene_object_from_click_anchor(
+        &self,
+        anchor: ShapeDrawAnchor,
+        object_id: String,
+        style_id: String,
+    ) -> Option<SceneObject> {
+        match anchor.kind {
+            ShapeDrawAnchorKind::Free => None,
+            ShapeDrawAnchorKind::Endpoint => self.shape_scene_object_from_centered_radius(
+                anchor.point,
+                self.shape_click_radius(),
+                object_id,
+                style_id,
+            ),
+            ShapeDrawAnchorKind::Label => {
+                let bounds = anchor.bounds?;
+                match self.state.tool.shape_kind {
+                    ShapeKind::Rect
+                    | ShapeKind::RoundRect
+                    | ShapeKind::CrossTable
+                    | ShapeKind::TlcPlate => self.shape_scene_object(
+                        Point::new(bounds[0], bounds[1]),
+                        Point::new(bounds[2], bounds[3]),
+                        object_id,
+                        style_id,
+                    ),
+                    ShapeKind::Circle | ShapeKind::Ellipse => {
+                        let width = (bounds[2] - bounds[0]).abs();
+                        let height = (bounds[3] - bounds[1]).abs();
+                        let radius = (width.max(height) * 0.5).max(crate::EPSILON);
+                        self.shape_scene_object_from_centered_radius(
+                            anchor.point,
+                            radius,
+                            object_id,
+                            style_id,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fn shape_scene_object_from_centered_radius(
+        &self,
+        center: Point,
+        radius: f64,
+        object_id: String,
+        style_id: String,
+    ) -> Option<SceneObject> {
+        if radius <= crate::EPSILON {
+            return None;
+        }
+        match self.state.tool.shape_kind {
+            ShapeKind::Circle | ShapeKind::Ellipse => self.shape_scene_object(
+                center,
+                center.translated(direction_from_angle(0.0).scaled(radius)),
+                object_id,
+                style_id,
+            ),
+            ShapeKind::Rect
+            | ShapeKind::RoundRect
+            | ShapeKind::CrossTable
+            | ShapeKind::TlcPlate => self.shape_scene_object(
+                Point::new(center.x - radius, center.y - radius),
+                Point::new(center.x + radius, center.y + radius),
+                object_id,
+                style_id,
+            ),
+        }
+    }
+
+    fn shape_command_points_from_drag(&self, drag: &ShapeDragState) -> Option<(Point, Point)> {
+        if drag.has_dragged {
+            return Some((drag.start, drag.current));
+        }
+        match drag.anchor.kind {
+            ShapeDrawAnchorKind::Free => None,
+            ShapeDrawAnchorKind::Endpoint => {
+                let radius = self.shape_click_radius();
+                Some(match self.state.tool.shape_kind {
+                    ShapeKind::Circle | ShapeKind::Ellipse => (
+                        drag.anchor.point,
+                        drag.anchor
+                            .point
+                            .translated(direction_from_angle(0.0).scaled(radius)),
+                    ),
+                    ShapeKind::Rect
+                    | ShapeKind::RoundRect
+                    | ShapeKind::CrossTable
+                    | ShapeKind::TlcPlate => (
+                        Point::new(drag.anchor.point.x - radius, drag.anchor.point.y - radius),
+                        Point::new(drag.anchor.point.x + radius, drag.anchor.point.y + radius),
+                    ),
+                })
+            }
+            ShapeDrawAnchorKind::Label => {
+                let bounds = drag.anchor.bounds?;
+                Some(match self.state.tool.shape_kind {
+                    ShapeKind::Circle | ShapeKind::Ellipse => {
+                        let radius = ((bounds[2] - bounds[0])
+                            .abs()
+                            .max((bounds[3] - bounds[1]).abs())
+                            * 0.5)
+                            .max(crate::EPSILON);
+                        (
+                            drag.anchor.point,
+                            drag.anchor
+                                .point
+                                .translated(direction_from_angle(0.0).scaled(radius)),
+                        )
+                    }
+                    ShapeKind::Rect
+                    | ShapeKind::RoundRect
+                    | ShapeKind::CrossTable
+                    | ShapeKind::TlcPlate => (
+                        Point::new(bounds[0], bounds[1]),
+                        Point::new(bounds[2], bounds[3]),
+                    ),
+                })
+            }
+        }
+    }
+
+    fn shape_click_radius(&self) -> f64 {
+        if self.options.graphic_stroke_width <= 0.61 {
+            ACS_SHAPE_CLICK_RADIUS
+        } else {
+            DEFAULT_SHAPE_CLICK_RADIUS
+        }
     }
 
     pub(super) fn shape_scene_object(
@@ -414,6 +565,29 @@ impl Engine {
         self.state.overlay.hover_arrow = None;
         self.state.overlay.hover_text_box = None;
         self.state.overlay.preview = None;
+        if self.state.overlay.hover_shape.is_some() {
+            return;
+        }
+        if let Some((node_id, bounds)) = self.hit_test_endpoint_label_box(point) {
+            self.state.overlay.hover_text_box = Some(HoverTextBox {
+                bounds,
+                object_id: None,
+                node_id: Some(node_id),
+            });
+            return;
+        }
+        if let Some(endpoint) = hit_test_endpoint(&self.state.document, point, ENDPOINT_HIT_RADIUS)
+        {
+            if let Some(label_anchor) = &endpoint.label_anchor {
+                self.state.overlay.hover_text_box = Some(HoverTextBox {
+                    bounds: label_anchor.glyph_box,
+                    object_id: None,
+                    node_id: Some(endpoint.node_id),
+                });
+            } else {
+                self.state.overlay.hover_endpoint = Some(endpoint);
+            }
+        }
     }
 
     pub(super) fn shape_select_hit_at_point(&self, point: Point, object: &SceneObject) -> bool {
@@ -505,6 +679,39 @@ impl Engine {
             }
         }
         None
+    }
+
+    fn shape_draw_anchor_at_point(&self, point: Point) -> ShapeDrawAnchor {
+        if let Some((_node_id, bounds)) = self.hit_test_endpoint_label_box(point) {
+            return ShapeDrawAnchor {
+                kind: ShapeDrawAnchorKind::Label,
+                point: Point::new((bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5),
+                bounds: Some(bounds),
+            };
+        }
+        if let Some(endpoint) = hit_test_endpoint(&self.state.document, point, ENDPOINT_HIT_RADIUS)
+        {
+            if let Some(label_anchor) = endpoint.label_anchor {
+                return ShapeDrawAnchor {
+                    kind: ShapeDrawAnchorKind::Label,
+                    point: Point::new(
+                        (label_anchor.glyph_box[0] + label_anchor.glyph_box[2]) * 0.5,
+                        (label_anchor.glyph_box[1] + label_anchor.glyph_box[3]) * 0.5,
+                    ),
+                    bounds: Some(label_anchor.glyph_box),
+                };
+            }
+            return ShapeDrawAnchor {
+                kind: ShapeDrawAnchorKind::Endpoint,
+                point: endpoint.point,
+                bounds: None,
+            };
+        }
+        ShapeDrawAnchor {
+            kind: ShapeDrawAnchorKind::Free,
+            point,
+            bounds: None,
+        }
     }
 }
 
