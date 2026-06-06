@@ -1486,7 +1486,31 @@ function activeEndpointEditorNodeId() {
     : null;
 }
 
+function primitiveMatchesActiveTextEditorTarget(primitive) {
+  const target = activeTextEditor?.session?.target;
+  if (!target || !primitive) {
+    return false;
+  }
+  const role = primitive.role;
+  const primitiveObjectId = primitive.objectId || primitive.object_id || null;
+  const primitiveNodeId = primitive.nodeId || primitive.node_id || null;
+  if (target.kind === "text-object" && primitiveObjectId) {
+    const targetObjectId = target.objectId || target.object_id || null;
+    return primitiveObjectId === targetObjectId
+      && (role === "hover-text-box" || role === "selection-text-box");
+  }
+  if (target.kind === "endpoint-label" && primitiveNodeId) {
+    const targetNodeId = target.nodeId || target.node_id || null;
+    return primitiveNodeId === targetNodeId
+      && (role === "hover-text-box" || role === "hover-label-glyph" || role === "selection-text-box");
+  }
+  return false;
+}
+
 function shouldHidePrimitiveForActiveEndpointEditor(primitive) {
+  if (primitiveMatchesActiveTextEditorTarget(primitive)) {
+    return true;
+  }
   const nodeId = activeEndpointEditorNodeId();
   const role = primitive?.role;
   const primitiveNodeId = primitive?.nodeId || primitive?.node_id;
