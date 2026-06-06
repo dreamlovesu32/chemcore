@@ -8,14 +8,15 @@ use crate::{
     hit_test_arrow_center, hit_test_bond_center, hit_test_endpoint, line_object_points,
     nearest_angle, round2, shape_object_visual_bounds, HoverTextBox, Point, RenderPrimitive,
     RenderRole, SceneObject, SelectionState, BOND_CENTER_HIT_RADIUS, DEFAULT_BOND_LENGTH,
-    DRAG_START_THRESHOLD, ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
+    DRAG_START_THRESHOLD, ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
 };
 use serde_json::{json, Value as JsonValue};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-const SELECTION_NODE_BOX_SIZE: f64 = 2.0;
+const SELECTION_NODE_BOX_SIZE: f64 = ENDPOINT_FOCUS_RADIUS * 2.0;
 const SELECTION_BOX_STROKE_WIDTH: f64 = 1.0;
 const SELECTION_BOND_DOT_RADIUS: f64 = 0.5;
+const SELECTION_RESIZE_HANDLE_SIZE: f64 = 2.0;
 
 #[path = "select/arrange.rs"]
 mod arrange;
@@ -225,6 +226,19 @@ impl SelectionResizeHandle {
             self,
             Self::NorthEast | Self::NorthWest | Self::SouthEast | Self::SouthWest
         )
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::North => "north",
+            Self::South => "south",
+            Self::East => "east",
+            Self::West => "west",
+            Self::NorthEast => "northeast",
+            Self::NorthWest => "northwest",
+            Self::SouthEast => "southeast",
+            Self::SouthWest => "southwest",
+        }
     }
 }
 
@@ -1689,6 +1703,7 @@ impl Engine {
         render_selected_text_boxes(self, &overlay, &mut out);
         render_selected_arrow_handles(self, &overlay, &mut out);
         render_selected_fragment_content(self, &overlay, &mut out);
+        render_selection_resize_handles(&mut out);
         out
     }
 

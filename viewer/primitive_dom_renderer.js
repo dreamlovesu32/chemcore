@@ -36,6 +36,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       y2: primitive.to.y,
       stroke: primitive.stroke || CHEMDRAW_INK,
       "stroke-width": strokeWidth,
+      "data-role": primitive.role || undefined,
       "data-bond-id": primitive.bondId || undefined,
     };
     if ((primitive.dashArray || primitive.dash_array)?.length) {
@@ -57,6 +58,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       "stroke-dasharray": (primitive.dashArray || primitive.dash_array)?.join(" ") || undefined,
       "stroke-linecap": primitive.lineCap || primitive.line_cap || undefined,
       "stroke-linejoin": primitive.lineJoin || primitive.line_join || undefined,
+      "data-role": primitive.role || undefined,
       "data-bond-id": primitive.bondId || undefined,
     };
     if (primitive.role === "document-bond") {
@@ -75,6 +77,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       "stroke-dasharray": (primitive.dashArray || primitive.dash_array)?.join(" ") || undefined,
       "stroke-linecap": primitive.lineCap || primitive.line_cap || undefined,
       "stroke-linejoin": primitive.lineJoin || primitive.line_join || undefined,
+      "data-role": primitive.role || undefined,
       "data-bond-id": primitive.bondId || undefined,
     };
     if (primitive.role === "document-bond") {
@@ -128,6 +131,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       fill: primitive.fill || CHEMDRAW_INK,
       stroke: strokeWidth > 0 ? (primitive.stroke || primitive.fill || CHEMDRAW_INK) : "none",
       "stroke-width": strokeWidth,
+      "data-role": primitive.role || undefined,
       "data-bond-id": primitive.bondId || undefined,
     };
     if (primitive.role === "document-bond") {
@@ -150,6 +154,8 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       fill: primitive.fill || "none",
       stroke: primitive.stroke || "none",
       "stroke-width": primitiveStrokeWidthValue(primitive, 1),
+      "data-role": primitive.role || undefined,
+      "data-object-id": primitive.objectId || primitive.object_id || undefined,
       rx: primitive.rx,
       ry: primitive.ry,
     };
@@ -174,6 +180,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       fill: primitive.fill || "none",
       stroke: primitive.stroke || "none",
       "stroke-width": primitiveStrokeWidthValue(primitive, 1),
+      "data-role": primitive.role || undefined,
     };
     const rotate = Number(primitive.rotate || 0);
     if (Math.abs(rotate) > 0.0001) {
@@ -194,6 +201,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       fill: primitive.fill || "none",
       stroke: primitive.stroke || "none",
       "stroke-width": primitiveStrokeWidthValue(primitive, 1),
+      "data-role": primitive.role || undefined,
     };
     svgRoot.appendChild(makeSvgNode("circle", attrs));
     return;

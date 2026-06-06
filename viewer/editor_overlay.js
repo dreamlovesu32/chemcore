@@ -139,33 +139,6 @@ export function createEditorOverlayRenderer(options) {
     );
   }
 
-  function selectionBoxPrimitives(renderList = options.currentEditorRenderList()) {
-    const selectionRoles = new Set(["selection-box", "selection-bond", "selection-node", "selection-text-box"]);
-    return (renderList || []).filter((primitive) => (
-      primitive.kind === "rect" && selectionRoles.has(primitive.role)
-    ));
-  }
-
-  function selectionResizeHandlesForBounds(bounds) {
-    if (!bounds) {
-      return [];
-    }
-    const size = options.screenPxToWorld(8);
-    const hitRadius = options.screenPxToWorld(10);
-    const centerX = (bounds.minX + bounds.maxX) * 0.5;
-    const centerY = (bounds.minY + bounds.maxY) * 0.5;
-    return [
-      { name: "nw", cursor: "nwse-resize", x: bounds.minX, y: bounds.minY, size, hitRadius },
-      { name: "n", cursor: "ns-resize", x: centerX, y: bounds.minY, size, hitRadius },
-      { name: "ne", cursor: "nesw-resize", x: bounds.maxX, y: bounds.minY, size, hitRadius },
-      { name: "e", cursor: "ew-resize", x: bounds.maxX, y: centerY, size, hitRadius },
-      { name: "se", cursor: "nwse-resize", x: bounds.maxX, y: bounds.maxY, size, hitRadius },
-      { name: "s", cursor: "ns-resize", x: centerX, y: bounds.maxY, size, hitRadius },
-      { name: "sw", cursor: "nesw-resize", x: bounds.minX, y: bounds.maxY, size, hitRadius },
-      { name: "w", cursor: "ew-resize", x: bounds.minX, y: centerY, size, hitRadius },
-    ];
-  }
-
   function selectionResizeHandles(
     renderList = options.currentEditorRenderList(),
     behavior = currentSelectionOverlayBehavior(),
@@ -173,22 +146,80 @@ export function createEditorOverlayRenderer(options) {
     if (!behavior.showResizeHandles) {
       return [];
     }
-    const handles = behavior.useGlobalBoundsOnly
-      ? []
-      : selectionBoxPrimitives(renderList).flatMap((primitive) => selectionResizeHandlesForBounds({
-        minX: primitive.x,
-        minY: primitive.y,
-        maxX: primitive.x + primitive.width,
-        maxY: primitive.y + primitive.height,
-      }));
-    const globalBounds = options.currentRenderBounds("selection");
-    if (globalBounds) {
-      handles.push(...selectionResizeHandlesForBounds(globalBounds).map((handle) => ({
-        ...handle,
-        global: true,
-      })));
+    return (renderList || [])
+      .filter((primitive) => primitive.kind === "rect" && primitive.role === "selection-resize-handle")
+      .map(selectionResizeHandleFromPrimitive)
+      .filter((handle) => handle && (!behavior.useGlobalBoundsOnly || handle.global));
+  }
+
+  function selectionResizeHandleFromPrimitive(primitive) {
+    const rawId = String(primitive.objectId || primitive.object_id || "");
+    const global = rawId.startsWith("global:");
+    const rawName = global ? rawId.slice("global:".length) : rawId;
+    const name = resizeHandleShortName(rawName);
+    if (!name) {
+      return null;
     }
-    return handles;
+    return {
+      name,
+      cursor: resizeHandleCursor(name),
+      x: primitive.x + primitive.width * 0.5,
+      y: primitive.y + primitive.height * 0.5,
+      size: primitive.width,
+      hitRadius: options.screenPxToWorld(10),
+      global,
+      primitive,
+    };
+  }
+
+  function resizeHandleShortName(name) {
+    switch (String(name || "").toLowerCase().replace(/[_-]/g, "")) {
+      case "n":
+      case "north":
+        return "n";
+      case "s":
+      case "south":
+        return "s";
+      case "e":
+      case "east":
+        return "e";
+      case "w":
+      case "west":
+        return "w";
+      case "ne":
+      case "northeast":
+        return "ne";
+      case "nw":
+      case "northwest":
+        return "nw";
+      case "se":
+      case "southeast":
+        return "se";
+      case "sw":
+      case "southwest":
+        return "sw";
+      default:
+        return "";
+    }
+  }
+
+  function resizeHandleCursor(name) {
+    switch (name) {
+      case "n":
+      case "s":
+        return "ns-resize";
+      case "e":
+      case "w":
+        return "ew-resize";
+      case "ne":
+      case "sw":
+        return "nesw-resize";
+      case "nw":
+      case "se":
+        return "nwse-resize";
+      default:
+        return "default";
+    }
   }
 
   function selectionResizeHandleHit(point) {
@@ -339,6 +370,10 @@ export function createEditorOverlayRenderer(options) {
     }
     const previewActive = options.activeGestureUsesDocumentPreview()
       || primitives.some((primitive) => primitive.role === "preview-end");
+    const editorState = options.editorState();
+    const activeSelectionGesture = options.activeSelectionGesture();
+    const selectionBehavior = currentSelectionOverlayBehavior();
+    const visibleResizeHandles = selectionResizeHandles(primitives, selectionBehavior);
     if (previewActive) {
       const viewBox = options.activeViewBox();
       const pageBackground = normalizeDisplayColor(
@@ -368,18 +403,7 @@ export function createEditorOverlayRenderer(options) {
         if (primitive.role !== "selection-bond") {
           continue;
         }
-        overlay.appendChild(makeSvgNode("line", {
-          x1: primitive.from.x,
-          y1: primitive.from.y,
-          x2: primitive.to.x,
-          y2: primitive.to.y,
-          class: "editor-selection-bond",
-          "stroke-width": options.primitiveStrokeWidthValue(
-            primitive,
-            options.editorBondStrokeWidth(),
-          ),
-          "data-role": primitive.role,
-        }));
+        renderCorePrimitive(overlay, primitive, options.corePrimitiveRenderOptions());
       } else if (primitive.kind === "polygon" && Array.isArray(primitive.points)) {
         const className = primitive.role === "hover-bond-center" ? "editor-bond-center-rect" : "";
         if (!className) {
@@ -395,23 +419,26 @@ export function createEditorOverlayRenderer(options) {
           "hover-text-box": "editor-text-box-focus",
           "hover-label-glyph": "editor-label-glyph-focus",
           "hover-arrow-handle": "editor-arrow-focus-handle",
-          "selection-box": "editor-selection-box",
-          "selection-bond": "editor-selection-bond-box",
-          "selection-node": "editor-selection-node-box",
-          "selection-text-box": "editor-selection-text-box",
         };
+        if (primitive.role?.startsWith("selection-")) {
+          if (primitive.role === "selection-resize-handle") {
+            if (activeSelectionGesture || !visibleResizeHandles.some((handle) => handle.primitive === primitive)) {
+              continue;
+            }
+          }
+          renderCorePrimitive(overlay, primitive, options.corePrimitiveRenderOptions());
+          continue;
+        }
         const className = classByRole[primitive.role];
         if (!className) {
           continue;
         }
-        const selectionRole = primitive.role?.startsWith("selection-");
         overlay.appendChild(makeSvgNode("rect", {
           x: primitive.x,
           y: primitive.y,
           width: primitive.width,
           height: primitive.height,
           class: className,
-          fill: selectionRole ? "none" : undefined,
           "data-role": primitive.role,
         }));
       } else if (primitive.kind === "circle" && primitive.center) {
@@ -428,6 +455,10 @@ export function createEditorOverlayRenderer(options) {
         if (!className) {
           continue;
         }
+        if (primitive.role?.startsWith("selection-")) {
+          renderCorePrimitive(overlay, primitive, options.corePrimitiveRenderOptions());
+          continue;
+        }
         overlay.appendChild(makeSvgNode("circle", {
           cx: primitive.center.x,
           cy: primitive.center.y,
@@ -437,8 +468,6 @@ export function createEditorOverlayRenderer(options) {
         }));
       }
     }
-    const editorState = options.editorState();
-    const activeSelectionGesture = options.activeSelectionGesture();
     if (editorState.activeTool === "select" && activeSelectionGesture?.kind === "resize") {
       const bounds = options.currentRenderBounds("selection") || activeSelectionGesture.bounds;
       if (bounds) {
@@ -510,17 +539,6 @@ export function createEditorOverlayRenderer(options) {
       && options.activeTlcLaneHover()) {
       drawTlcSpotGuideOverlay(overlay, options.activeTlcLaneHover());
     } else if (editorState.activeTool === "select" && !activeSelectionGesture) {
-      const selectionBehavior = currentSelectionOverlayBehavior();
-      for (const handle of selectionResizeHandles(primitives, selectionBehavior)) {
-        overlay.appendChild(makeSvgNode("rect", {
-          x: handle.x - handle.size * 0.5,
-          y: handle.y - handle.size * 0.5,
-          width: handle.size,
-          height: handle.size,
-          class: "editor-selection-resize-handle",
-          "data-role": `selection-resize-${handle.name}`,
-        }));
-      }
       const selectionBounds = options.currentRenderBounds("selection");
       if (selectionBehavior.showCenterCross) {
         const cross = selectionCenterCrossFromBounds(selectionBounds);

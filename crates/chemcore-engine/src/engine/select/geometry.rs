@@ -101,6 +101,96 @@ pub(super) fn push_selection_bond_dot(out: &mut Vec<RenderPrimitive>, center: Po
     });
 }
 
+pub(super) fn render_selection_resize_handles(out: &mut Vec<RenderPrimitive>) {
+    let item_bounds: Vec<_> = out
+        .iter()
+        .filter_map(selection_rect_primitive_bounds)
+        .collect();
+    for bounds in &item_bounds {
+        push_selection_resize_handles_for_bounds(out, *bounds, None);
+    }
+
+    let mut global_bounds = None;
+    for bounds in item_bounds {
+        include_optional_bounds(&mut global_bounds, bounds);
+    }
+    if let Some(bounds) = global_bounds {
+        push_selection_resize_handles_for_bounds(out, bounds, Some("global"));
+    }
+}
+
+fn selection_rect_primitive_bounds(primitive: &RenderPrimitive) -> Option<AxisBounds> {
+    match primitive {
+        RenderPrimitive::Rect {
+            role:
+                RenderRole::SelectionBox
+                | RenderRole::SelectionBond
+                | RenderRole::SelectionNode
+                | RenderRole::SelectionTextBox,
+            x,
+            y,
+            width,
+            height,
+            ..
+        } => Some(AxisBounds::new(*x, *y, *x + *width, *y + *height)),
+        _ => None,
+    }
+}
+
+fn push_selection_resize_handles_for_bounds(
+    out: &mut Vec<RenderPrimitive>,
+    bounds: AxisBounds,
+    prefix: Option<&str>,
+) {
+    for handle in [
+        SelectionResizeHandle::NorthWest,
+        SelectionResizeHandle::North,
+        SelectionResizeHandle::NorthEast,
+        SelectionResizeHandle::East,
+        SelectionResizeHandle::SouthEast,
+        SelectionResizeHandle::South,
+        SelectionResizeHandle::SouthWest,
+        SelectionResizeHandle::West,
+    ] {
+        let center = selection_resize_handle_center(handle, bounds);
+        let size = SELECTION_RESIZE_HANDLE_SIZE;
+        let handle_id = if let Some(prefix) = prefix {
+            format!("{prefix}:{}", handle.name())
+        } else {
+            handle.name().to_string()
+        };
+        out.push(RenderPrimitive::Rect {
+            role: RenderRole::SelectionResizeHandle,
+            object_id: Some(handle_id),
+            node_id: None,
+            x: center.x - size * 0.5,
+            y: center.y - size * 0.5,
+            width: size,
+            height: size,
+            fill: Some("rgba(47,111,237,0.92)".to_string()),
+            stroke: None,
+            stroke_width: 0.0,
+            rx: None,
+            ry: None,
+            dash_array: Vec::new(),
+            fill_gradient: None,
+        });
+    }
+}
+
+fn selection_resize_handle_center(handle: SelectionResizeHandle, bounds: AxisBounds) -> Point {
+    match handle {
+        SelectionResizeHandle::North => Point::new(bounds.center_x(), bounds.min_y),
+        SelectionResizeHandle::South => Point::new(bounds.center_x(), bounds.max_y),
+        SelectionResizeHandle::East => Point::new(bounds.max_x, bounds.center_y()),
+        SelectionResizeHandle::West => Point::new(bounds.min_x, bounds.center_y()),
+        SelectionResizeHandle::NorthEast => Point::new(bounds.max_x, bounds.min_y),
+        SelectionResizeHandle::NorthWest => Point::new(bounds.min_x, bounds.min_y),
+        SelectionResizeHandle::SouthEast => Point::new(bounds.max_x, bounds.max_y),
+        SelectionResizeHandle::SouthWest => Point::new(bounds.min_x, bounds.max_y),
+    }
+}
+
 pub(super) fn midpoint(a: Point, b: Point) -> Point {
     Point::new((a.x + b.x) * 0.5, (a.y + b.y) * 0.5)
 }

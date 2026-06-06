@@ -24,6 +24,7 @@ pub enum RenderRole {
     SelectionBond,
     SelectionBondDot,
     SelectionNode,
+    SelectionResizeHandle,
     SelectionTextBox,
 }
 

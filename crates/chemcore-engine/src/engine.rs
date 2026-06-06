@@ -91,7 +91,9 @@ fn render_bounds_scope_accepts(scope: RenderBoundsScope, primitive: &RenderPrimi
                 && !render_role_is_hover(role)
                 && !render_role_is_preview(role)
         }
-        RenderBoundsScope::Selection => render_role_is_selection(render_primitive_role(primitive)),
+        RenderBoundsScope::Selection => {
+            render_role_is_selection_bounds(render_primitive_role(primitive))
+        }
     }
 }
 
@@ -110,6 +112,10 @@ fn render_primitive_role(primitive: &RenderPrimitive) -> RenderRole {
 }
 
 fn render_role_is_selection(role: RenderRole) -> bool {
+    render_role_is_selection_bounds(role) || role == RenderRole::SelectionResizeHandle
+}
+
+fn render_role_is_selection_bounds(role: RenderRole) -> bool {
     matches!(
         role,
         RenderRole::SelectionBox
