@@ -40,8 +40,9 @@ use windows_sys::Win32::System::Registry::{
     RegCloseKey, RegCreateKeyW, RegDeleteTreeW, RegSetValueExW, HKEY, HKEY_CURRENT_USER,
     HKEY_LOCAL_MACHINE, REG_SZ,
 };
+use windows_sys::Win32::UI::Shell::ShellExecuteW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    DispatchMessageW, GetMessageW, TranslateMessage, MSG,
+    DispatchMessageW, GetMessageW, TranslateMessage, MSG, SW_SHOWNORMAL,
 };
 
 mod emf_preview;
@@ -94,6 +95,8 @@ const WORD_A4_BODY_WIDTH_CM: f64 = 21.0 - 2.0 * 3.18;
 const MIN_OBJECT_EXTENT_HIMETRIC: i32 = 100;
 const CREATE_NO_WINDOW_FLAG: u32 = 0x08000000;
 const DESKTOP_DEV_SERVER_ADDR: &str = "127.0.0.1:8767";
+const CHEMCORE_DESKTOP_EXE_NAME: &str = "chemcore-desktop.exe";
+const CHEMCORE_DESKTOP_ENV: &str = "CHEMCORE_DESKTOP_EXE";
 
 const CLSID_CHEMCORE_DOCUMENT: GUID = GUID {
     data1: 0xcb69f54f,
@@ -3083,6 +3086,26 @@ mod tests {
         );
     }
 
+    #[test]
+    fn desktop_exe_candidates_cover_dev_and_tauri_resource_layouts() {
+        let dev_server = PathBuf::from(r"C:\repo\chemcore\target\debug\chemcore-office.exe");
+        assert_eq!(
+            desktop_exe_candidates_for_server_path(&dev_server)[0],
+            PathBuf::from(r"C:\repo\chemcore\target\debug\chemcore-desktop.exe")
+        );
+
+        let resource_server =
+            PathBuf::from(r"C:\Program Files\Chemcore\resources\chemcore-office.exe");
+        let candidates = desktop_exe_candidates_for_server_path(&resource_server);
+        assert!(candidates.contains(&PathBuf::from(
+            r"C:\Program Files\Chemcore\resources\chemcore-desktop.exe"
+        )));
+        assert!(candidates.contains(&PathBuf::from(
+            r"C:\Program Files\Chemcore\chemcore-desktop.exe"
+        )));
+        assert!(candidates.contains(&PathBuf::from(r"C:\Program Files\Chemcore\Chemcore.exe")));
+    }
+
     fn assert_size_eq(actual: Option<SIZE>, expected: SIZE) {
         let actual = actual.expect("expected a presentation extent");
         assert_eq!(actual.cx, expected.cx);
@@ -4112,24 +4135,129 @@ fn launch_desktop_for_payload(payload: &OleObjectPayload) -> Result<(), String> 
         payload_path.display()
     ));
 
-    let desktop_exe = current_server_path()?.with_file_name("chemcore-desktop.exe");
-    if !desktop_exe.exists() {
-        return Err(format!(
-            "Chemcore desktop executable was not found at {}",
-            desktop_exe.display()
-        ));
-    }
+    let desktop_exe = resolve_desktop_exe()?;
     ensure_desktop_dev_server_for_debug_exe(&desktop_exe)?;
 
     log_ole_event(&format!(
         "Launching Chemcore desktop from {}",
         desktop_exe.display()
     ));
-    Command::new(desktop_exe)
-        .arg(payload_path)
-        .spawn()
-        .map_err(|error| format!("Failed to launch Chemcore desktop: {error}"))?;
+    launch_desktop_process(&desktop_exe, &payload_path)?;
     Ok(())
+}
+
+fn resolve_desktop_exe() -> Result<PathBuf, String> {
+    if let Ok(override_path) = env::var(CHEMCORE_DESKTOP_ENV) {
+        let override_path = PathBuf::from(override_path);
+        if override_path.exists() {
+            log_ole_event(&format!(
+                "Using {CHEMCORE_DESKTOP_ENV} desktop executable at {}",
+                override_path.display()
+            ));
+            return Ok(override_path);
+        }
+        log_ole_event(&format!(
+            "{CHEMCORE_DESKTOP_ENV} points to missing desktop executable at {}",
+            override_path.display()
+        ));
+    }
+
+    let server_path = current_server_path()?;
+    let candidates = desktop_exe_candidates_for_server_path(&server_path);
+    if let Some(candidate) = candidates.iter().find(|path| path.exists()) {
+        return Ok(candidate.clone());
+    }
+
+    let searched = candidates
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    Err(format!(
+        "Chemcore desktop executable was not found. Searched: {searched}"
+    ))
+}
+
+fn desktop_exe_candidates_for_server_path(server_path: &PathBuf) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    let Some(server_dir) = server_path.parent() else {
+        return candidates;
+    };
+
+    push_desktop_exe_candidates(&mut candidates, &server_dir.to_path_buf());
+    if server_dir
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case("resources"))
+    {
+        if let Some(app_dir) = server_dir.parent() {
+            push_desktop_exe_candidates(&mut candidates, &app_dir.to_path_buf());
+        }
+    }
+    candidates
+}
+
+fn push_desktop_exe_candidates(candidates: &mut Vec<PathBuf>, dir: &PathBuf) {
+    for name in [CHEMCORE_DESKTOP_EXE_NAME, "Chemcore.exe", "chemcore.exe"] {
+        let candidate = dir.join(name);
+        if !candidates.contains(&candidate) {
+            candidates.push(candidate);
+        }
+    }
+}
+
+fn launch_desktop_process(desktop_exe: &PathBuf, payload_path: &PathBuf) -> Result<(), String> {
+    let mut command = Command::new(desktop_exe);
+    command.arg(payload_path);
+    if let Some(parent) = desktop_exe.parent() {
+        command.current_dir(parent);
+    }
+
+    match command.spawn() {
+        Ok(_) => Ok(()),
+        Err(error) => {
+            log_ole_event(&format!(
+                "CreateProcess launch failed for {}: {error}",
+                desktop_exe.display()
+            ));
+            shell_execute_desktop(desktop_exe, payload_path).map_err(|shell_error| {
+                format!(
+                    "Failed to launch Chemcore desktop with CreateProcess ({error}) and ShellExecuteW ({shell_error})"
+                )
+            })
+        }
+    }
+}
+
+fn shell_execute_desktop(desktop_exe: &PathBuf, payload_path: &PathBuf) -> Result<(), String> {
+    let operation = wide_null("open");
+    let file = wide_path_null(desktop_exe);
+    let parameters = wide_null(&quote_path(payload_path));
+    let directory = desktop_exe
+        .parent()
+        .map(|parent| wide_path_null(&parent.to_path_buf()));
+    let directory_ptr = directory
+        .as_ref()
+        .map(|value| value.as_ptr())
+        .unwrap_or(null());
+    let result = unsafe {
+        ShellExecuteW(
+            null_mut(),
+            operation.as_ptr(),
+            file.as_ptr(),
+            parameters.as_ptr(),
+            directory_ptr,
+            SW_SHOWNORMAL,
+        )
+    } as isize;
+    if result > 32 {
+        log_ole_event(&format!(
+            "ShellExecuteW launch succeeded for {}",
+            desktop_exe.display()
+        ));
+        return Ok(());
+    }
+    Err(format!("ShellExecuteW returned {result}"))
 }
 
 fn ensure_desktop_dev_server_for_debug_exe(desktop_exe: &PathBuf) -> Result<(), String> {
