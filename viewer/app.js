@@ -1969,7 +1969,7 @@ async function syncArrowAwareCursorForPoint(point) {
       return;
     }
   }
-  if (selectionRotateHandleHit(point)) {
+  if (editorState.activeTool === "select" && selectionRotateHandleHit(point)) {
     viewerSvg.style.cursor = "grab";
     return;
   }
@@ -1987,11 +1987,16 @@ async function syncArrowAwareCursorForPoint(point) {
     viewerSvg.style.cursor = "grab";
     return;
   }
-  const shapeAction = await state.editorEngine.hoverShapeAction?.(point.x, point.y) || "";
-  const shapeCursor = cursorForShapeAction(shapeAction);
-  if (shapeCursor) {
-    viewerSvg.style.cursor = shapeCursor;
-    return;
+  if (editorState.activeTool === "select"
+    || editorState.activeTool === "shape"
+    || editorState.activeTool === "tlc-plate"
+    || editorState.activeTool === "orbital") {
+    const shapeAction = await state.editorEngine.hoverShapeAction?.(point.x, point.y) || "";
+    const shapeCursor = cursorForShapeAction(shapeAction);
+    if (shapeCursor) {
+      viewerSvg.style.cursor = shapeCursor;
+      return;
+    }
   }
   if (editorState.activeTool === "arrow") {
     viewerSvg.style.cursor = "crosshair";
