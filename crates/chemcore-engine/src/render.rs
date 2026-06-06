@@ -1,6 +1,6 @@
 use crate::{
     legacy_mol::{parse_molblock, LegacyAtom, LegacyBond as LegacyMolBond, LegacyMol},
-    px_to_cm, Bond, BondLinePattern, BondLineWeight, ChemcoreDocument, DoubleBondPlacement,
+    px_to_pt, Bond, BondLinePattern, BondLineWeight, ChemcoreDocument, DoubleBondPlacement,
     LabelRun, MoleculeFragment, Node, ObjectPayload, Point, ResourceData, SceneObject, Vector,
     DEFAULT_BOND_STROKE, EPSILON,
 };
@@ -55,20 +55,20 @@ use labels::{
 };
 use style_payload::*;
 
-const VIEWER_BOND_STROKE: f64 = crate::VIEWER_BOND_STROKE_CM.value();
+const VIEWER_BOND_STROKE: f64 = crate::VIEWER_BOND_STROKE_PT.value();
 const DEFAULT_MULTI_BOND_CENTER_SPACING_RATIO: f64 = crate::DEFAULT_BOND_SPACING_PERCENT / 100.0;
-const DOUBLE_BOND_SIDE_INSET: f64 = crate::DOUBLE_BOND_SIDE_INSET_CM.value();
+const DOUBLE_BOND_SIDE_INSET: f64 = crate::DOUBLE_BOND_SIDE_INSET_PT.value();
 const DOUBLE_BOND_SIDE_INSET_RATIO: f64 = 0.14;
-const HASH_WEDGE_SPACING: f64 = crate::HASH_WEDGE_SPACING_CM.value();
-const HASH_WEDGE_START_OFFSET: f64 = crate::HASH_WEDGE_START_OFFSET_CM.value();
-const HASH_WEDGE_END_INSET: f64 = crate::HASH_WEDGE_END_INSET_CM.value();
-const HASH_BLACK_SEGMENT_LENGTH: f64 = crate::HASH_BLACK_SEGMENT_LENGTH_CM.value();
-const HASH_TARGET_GAP_LENGTH: f64 = crate::HASH_TARGET_GAP_LENGTH_CM.value();
-const SOLID_WEDGE_END_INSET: f64 = crate::SOLID_WEDGE_END_INSET_CM.value();
+const HASH_WEDGE_SPACING: f64 = crate::HASH_WEDGE_SPACING_PT.value();
+const HASH_WEDGE_START_OFFSET: f64 = crate::HASH_WEDGE_START_OFFSET_PT.value();
+const HASH_WEDGE_END_INSET: f64 = crate::HASH_WEDGE_END_INSET_PT.value();
+const HASH_BLACK_SEGMENT_LENGTH: f64 = crate::HASH_BLACK_SEGMENT_LENGTH_PT.value();
+const HASH_TARGET_GAP_LENGTH: f64 = crate::HASH_TARGET_GAP_LENGTH_PT.value();
+const SOLID_WEDGE_END_INSET: f64 = crate::SOLID_WEDGE_END_INSET_PT.value();
 const CENTER_DOUBLE_NO_EXTENSION_ANGLE_DEGREES: f64 = 162.0;
 const CHEMCORE_INK: &str = "#000000";
 const KNOCKOUT_FILL: &str = "#ffffff";
-const BOLD_BOND_WIDTH: f64 = crate::BOLD_BOND_WIDTH_CM.value();
+const BOLD_BOND_WIDTH: f64 = crate::BOLD_BOND_WIDTH_PT.value();
 const MAIN_CONTACT_MITER_LIMIT: f64 = 4.0;
 
 #[derive(Debug, Clone, Copy)]
@@ -259,8 +259,8 @@ mod tests {
         assert!(gaps[0].0 > 0.0);
         assert!(gaps.last().unwrap().1 < 18.0);
 
-        let start_offset = crate::HASH_WEDGE_GAP_START_OFFSET_CM.value() * 2.0;
-        let end_inset = crate::HASH_WEDGE_GAP_END_INSET_CM.value() * 2.0;
+        let start_offset = crate::HASH_WEDGE_GAP_START_OFFSET_PT.value() * 2.0;
+        let end_inset = crate::HASH_WEDGE_GAP_END_INSET_PT.value() * 2.0;
         let black_lengths = black_segment_lengths(18.0, start_offset, end_inset, &gaps);
         for length in &black_lengths {
             approx_eq(*length, black_lengths[0]);

@@ -74,9 +74,9 @@ import {
   renderCorePrimitive,
 } from "./primitive_dom_renderer.js";
 import {
-  CSS_PX_PER_CM,
-  cmToCssPx,
-  cssPxToCm,
+  CSS_PX_PER_PT,
+  ptToCssPx,
+  cssPxToPt,
   displayMetrics,
   mapLengthArray,
 } from "./units.js";
@@ -312,7 +312,7 @@ const editorState = {
   selectMode: "box",
   bondType: "single",
   textFontFamily: "Arial",
-  textFontSize: cmToCssPx(DEFAULT_TEXT_FONT_SIZE),
+  textFontSize: ptToCssPx(DEFAULT_TEXT_FONT_SIZE),
   textColor: "#000000",
   selectionColor: "#000000",
   textAlign: "left",
@@ -767,11 +767,11 @@ function mapTextSessionLengths(session, convert) {
 }
 
 function engineSessionToEditorSession(session) {
-  return mapTextSessionLengths(session, cmToCssPx);
+  return mapTextSessionLengths(session, ptToCssPx);
 }
 
 function editorSessionToEngineSession(session) {
-  return mapTextSessionLengths(session, cssPxToCm);
+  return mapTextSessionLengths(session, cssPxToPt);
 }
 
 function mapTextEditLayoutLengths(layout, convert) {
@@ -843,7 +843,7 @@ function previewTextEditLayoutFromKernel(session, selectionOffsets = null) {
     })),
     null,
   );
-  return preview ? mapTextEditLayoutLengths(preview, cmToCssPx) : null;
+  return preview ? mapTextEditLayoutLengths(preview, ptToCssPx) : null;
 }
 
 function editorCssFontFamily(fontFamily) {
@@ -890,7 +890,7 @@ function visibleWorldSize(scale = viewportScale()) {
 }
 
 function viewportScaleForZoom(percent) {
-  return CSS_PX_PER_CM * (closestZoomStep(percent) / 100);
+  return CSS_PX_PER_PT * (closestZoomStep(percent) / 100);
 }
 
 function visibleWorldRect(scale = viewportScale()) {
@@ -960,7 +960,7 @@ function activeViewBox() {
 }
 
 function viewportScale() {
-  return CSS_PX_PER_CM * zoomScale();
+  return CSS_PX_PER_PT * zoomScale();
 }
 
 function zoomScale() {
@@ -1274,7 +1274,7 @@ function applyViewerViewport(options = {}) {
   viewerSvg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
   viewerSvg.style.width = pixelWidth;
   viewerSvg.style.height = pixelHeight;
-  viewerSvg.style.setProperty("--chemcore-css-px-per-cm", String(state.displayMetrics.cssPxPerCm));
+  viewerSvg.style.setProperty("--chemcore-css-px-per-pt", String(state.displayMetrics.cssPxPerPt));
   viewerSvg.style.setProperty("--chemcore-device-pixel-ratio", String(state.displayMetrics.devicePixelRatio));
   viewerSvg.style.setProperty("--chemcore-device-dpi", String(state.displayMetrics.devicePxPerInch));
   if (textEditorLayer) {
@@ -1327,7 +1327,7 @@ function fitZoomPercentForViewBox(viewBox) {
   const width = Math.max(1, viewerContainer.clientWidth);
   const height = Math.max(1, viewerContainer.clientHeight);
   const scale = Math.min(width / Math.max(1, viewBox.width), height / Math.max(1, viewBox.height));
-  return zoomStepAtOrBelow((scale / CSS_PX_PER_CM) * 100);
+  return zoomStepAtOrBelow((scale / CSS_PX_PER_PT) * 100);
 }
 
 function editorCanvasViewBoxFromBounds(bounds, scale = viewportScale()) {
@@ -1515,7 +1515,6 @@ function corePrimitiveRenderOptions() {
 }
 
 const editorOverlayRenderer = createEditorOverlayRenderer({
-  getSelectionInfo: () => currentSelectionInfo(),
   currentRenderBounds,
   currentEditorRenderList,
   screenPxToWorld,
@@ -1567,10 +1566,7 @@ const currentSelectionRotateHandle = (...args) => editorOverlayRenderer.currentS
 const selectionResizeHandleHit = (...args) => editorOverlayRenderer.selectionResizeHandleHit(...args);
 const selectionResizeGestureScale = (...args) => editorOverlayRenderer.selectionResizeGestureScale(...args);
 const selectionRotateAngleForGesture = (...args) => editorOverlayRenderer.selectionRotateAngleForGesture(...args);
-const selectionRotateHandleHit = (point) => {
-  const handle = currentSelectionRotateHandle();
-  return !!handle && pointDistance(point, handle) <= handle.hitRadius;
-};
+const selectionRotateHandleHit = (...args) => editorOverlayRenderer.selectionRotateHandleHit(...args);
 
 const editorCommandController = createEditorCommandController({
   state: () => state,
@@ -1624,7 +1620,7 @@ const editorPointerController = createEditorPointerController({
   svgPointFromEvent,
   parseEngineJson,
   pointDistance,
-  cssPxToCm,
+  cssPxToPt,
   routeEditorPointerEvents,
   isEditingRustDocument,
   openTextEditorAt,
@@ -1634,6 +1630,7 @@ const editorPointerController = createEditorPointerController({
   renderDocument,
   renderSelectionOnlyUpdate,
   selectionResizeHandleHit,
+  selectionRotateHandleHit,
   currentSelectionRotateHandle,
   selectionResizeGestureScale,
   selectionRotateAngleForGesture,
@@ -2926,7 +2923,7 @@ bindEditorControls({
   getZoomPercent: () => zoomPercent,
   setTextFontSize: (size) => {
     const fontSize = normalizeToolbarFontSize(Math.max(5, Math.min(288, size)));
-    editorState.textFontSize = cmToCssPx(fontSize);
+    editorState.textFontSize = ptToCssPx(fontSize);
   },
   isEditingRustDocument,
   syncEngineToolState,

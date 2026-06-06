@@ -9,7 +9,7 @@ import {
   normalizeDisplayColor,
 } from "./render_support.js";
 import { editorScriptScale, editorSvgScriptBaselineShift } from "./text_metrics.js";
-import { cssPxToCm } from "./units.js";
+import { cssPxToPt } from "./units.js";
 
 const DEFAULT_TEXT_FONT_SIZE = 10;
 const BOND_STROKE = 1.0;
@@ -268,7 +268,7 @@ function renderTextPrimitive(svgRoot, primitive, options) {
       const fontWeight = fontWeightForRun(run);
       const tspan = makeSvgNode("tspan", {
         fill: run.fill ? normalizeDisplayColor(run.fill) : undefined,
-        "font-size": isSubOrSuper ? Math.max(cssPxToCm(7), runFontSize * scriptScale) : runFontSize,
+        "font-size": isSubOrSuper ? Math.max(cssPxToPt(7), runFontSize * scriptScale) : runFontSize,
         "font-family": run.fontFamily ? displayLabelFontFamily(run.fontFamily) : undefined,
         "font-weight": fontWeight,
         "font-style": fontStyleForRun(run),

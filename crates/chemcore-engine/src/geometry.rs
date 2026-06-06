@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{WorldCm, WorldPoint};
+use crate::{WorldPoint, WorldPt};
 
 pub const EPSILON: f64 = 1.0e-9;
 
@@ -23,7 +23,7 @@ impl Point {
     }
 
     pub const fn world(self) -> WorldPoint {
-        WorldPoint::new(WorldCm(self.x), WorldCm(self.y))
+        WorldPoint::new(WorldPt(self.x), WorldPt(self.y))
     }
 
     pub fn distance(self, other: Self) -> f64 {

@@ -7,7 +7,7 @@ use chemcore_engine::{
 use serde_json::json;
 
 fn px(value: f64) -> f64 {
-    chemcore_engine::px_to_cm(value)
+    chemcore_engine::px_to_pt(value)
 }
 
 fn px_point(x: f64, y: f64) -> Point {
@@ -81,7 +81,7 @@ fn normal_source_run(text: &str) -> chemcore_engine::LabelRun {
     chemcore_engine::LabelRun {
         text: text.to_string(),
         font_family: Some("Arial".to_string()),
-        font_size: Some(chemcore_engine::DEFAULT_TEXT_FONT_SIZE_CM),
+        font_size: Some(chemcore_engine::DEFAULT_TEXT_FONT_SIZE_PT),
         fill: Some("#000000".to_string()),
         font_weight: Some(400),
         font_style: Some("normal".to_string()),
@@ -128,7 +128,7 @@ fn load_single_carbon_node(engine: &mut Engine) {
                 "stroke": "#000000",
                 "strokeWidth": chemcore_engine::DEFAULT_BOND_STROKE,
                 "fontFamily": "Arial",
-                "fontSize": chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM
+                "fontSize": chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT
             }
         },
         "objects": [{
@@ -179,7 +179,7 @@ fn load_one_bond_terminal_node(engine: &mut Engine) {
                 "stroke": "#000000",
                 "strokeWidth": chemcore_engine::DEFAULT_BOND_STROKE,
                 "fontFamily": "Arial",
-                "fontSize": chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM
+                "fontSize": chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT
             }
         },
         "objects": [{
@@ -248,7 +248,7 @@ fn load_two_bond_central_node(engine: &mut Engine) {
                 "stroke": "#000000",
                 "strokeWidth": chemcore_engine::DEFAULT_BOND_STROKE,
                 "fontFamily": "Arial",
-                "fontSize": chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM
+                "fontSize": chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT
             }
         },
         "objects": [{
@@ -336,7 +336,7 @@ fn load_three_bond_central_oxygen(engine: &mut Engine, charge: i32) {
                 "stroke": "#000000",
                 "strokeWidth": chemcore_engine::DEFAULT_BOND_STROKE,
                 "fontFamily": "Arial",
-                "fontSize": chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM
+                "fontSize": chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT
             }
         },
         "objects": [{
@@ -371,7 +371,7 @@ fn load_three_bond_central_oxygen(engine: &mut Engine, charge: i32) {
                                 "runs": [{
                                     "text": "O",
                                     "fontFamily": "Arial",
-                                    "fontSize": chemcore_engine::DEFAULT_TEXT_FONT_SIZE_CM,
+                                    "fontSize": chemcore_engine::DEFAULT_TEXT_FONT_SIZE_PT,
                                     "fill": "#000000",
                                     "fontWeight": 400,
                                     "fontStyle": "normal",
@@ -384,13 +384,13 @@ fn load_three_bond_central_oxygen(engine: &mut Engine, charge: i32) {
                                 "anchor": "start",
                                 "fontFamily": "Arial",
                                 "fill": "#000000",
-                                "fontSize": chemcore_engine::DEFAULT_TEXT_FONT_SIZE_CM,
+                                "fontSize": chemcore_engine::DEFAULT_TEXT_FONT_SIZE_PT,
                                 "boxValue": [px(296.5), px(254.0), px(303.5), px(264.0)],
                                 "meta": {
                                     "sourceRuns": [{
                                         "text": "O",
                                         "fontFamily": "Arial",
-                                        "fontSize": chemcore_engine::DEFAULT_TEXT_FONT_SIZE_CM,
+                                        "fontSize": chemcore_engine::DEFAULT_TEXT_FONT_SIZE_PT,
                                         "fill": "#000000",
                                         "fontWeight": 400,
                                         "fontStyle": "normal",
@@ -723,7 +723,7 @@ fn text_object_default_box_height_wraps_descenders() {
 
     assert_eq!(
         session.line_height,
-        Some(chemcore_engine::DEFAULT_TEXT_LINE_HEIGHT_CM)
+        Some(chemcore_engine::DEFAULT_TEXT_LINE_HEIGHT_PT)
     );
     assert!(engine.apply_text_edit(chemcore_engine::TextEditSession {
         text: "apple".to_string(),
@@ -863,13 +863,13 @@ fn reopening_text_object_preserves_default_font_size_precision() {
         .get("fontSize")
         .and_then(serde_json::Value::as_f64)
         .expect("text object should persist font size");
-    assert!((stored_font_size - chemcore_engine::DEFAULT_TEXT_FONT_SIZE_CM).abs() < 1.0e-6);
+    assert!((stored_font_size - chemcore_engine::DEFAULT_TEXT_FONT_SIZE_PT).abs() < 1.0e-6);
 
     let reopened = engine
         .begin_text_edit(px_point(120.0, 88.0))
         .expect("text object session should reopen");
     let reopened_font_size = reopened.font_size.expect("reopened session font size");
-    assert!((reopened_font_size - chemcore_engine::DEFAULT_TEXT_FONT_SIZE_CM).abs() < 1.0e-6);
+    assert!((reopened_font_size - chemcore_engine::DEFAULT_TEXT_FONT_SIZE_PT).abs() < 1.0e-6);
 }
 
 #[test]
@@ -896,8 +896,8 @@ fn delete_tool_click_on_text_box_removes_text_object() {
     engine.set_tool_state(delete_tool_state());
     click(
         &mut engine,
-        chemcore_engine::cm_to_px(translate[0] + bounds[2] * 0.5),
-        chemcore_engine::cm_to_px(translate[1] + bounds[3] * 0.5),
+        chemcore_engine::pt_to_px(translate[0] + bounds[2] * 0.5),
+        chemcore_engine::pt_to_px(translate[1] + bounds[3] * 0.5),
     );
     assert!(engine
         .state()

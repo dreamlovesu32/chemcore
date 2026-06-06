@@ -680,16 +680,16 @@ pub(super) fn compute_hashed_wedge_segments(
             1.0
         };
         let half_width = if index == 0 {
-            crate::HASH_WEDGE_INITIAL_HALF_WIDTH_CM.value()
+            crate::HASH_WEDGE_INITIAL_HALF_WIDTH_PT.value()
         } else {
-            crate::HASH_WEDGE_PROGRESS_BASE_HALF_WIDTH_CM.value()
-                + progress * crate::HASH_WEDGE_PROGRESS_HALF_WIDTH_RANGE_CM.value()
+            crate::HASH_WEDGE_PROGRESS_BASE_HALF_WIDTH_PT.value()
+                + progress * crate::HASH_WEDGE_PROGRESS_HALF_WIDTH_RANGE_PT.value()
         } * scale;
         let center = Point::new(start.x + unit.x * dist, start.y + unit.y * dist);
         let segment_width = if index == 0 {
-            crate::HASH_WEDGE_INITIAL_SEGMENT_WIDTH_CM.value()
+            crate::HASH_WEDGE_INITIAL_SEGMENT_WIDTH_PT.value()
         } else {
-            crate::HASH_WEDGE_SEGMENT_WIDTH_CM.value()
+            crate::HASH_WEDGE_SEGMENT_WIDTH_PT.value()
         } * scale;
         segments.push((
             Point::new(
@@ -820,9 +820,9 @@ pub(super) fn boundary_line_join_candidate(
         other.direction,
     )?;
     let min_current =
-        -(current.offset_distance * 4.0).max(crate::BOUNDARY_JOIN_MIN_BACKTRACK_CM.value());
+        -(current.offset_distance * 4.0).max(crate::BOUNDARY_JOIN_MIN_BACKTRACK_PT.value());
     let min_other =
-        -(other.offset_distance * 4.0).max(crate::BOUNDARY_JOIN_MIN_BACKTRACK_CM.value());
+        -(other.offset_distance * 4.0).max(crate::BOUNDARY_JOIN_MIN_BACKTRACK_PT.value());
     if t < min_current || u < min_other {
         return None;
     }

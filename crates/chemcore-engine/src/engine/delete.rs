@@ -6,9 +6,9 @@ use super::{EditorCommand, Engine};
 use std::collections::BTreeSet;
 
 const DEFAULT_TEXT_FONT_FAMILY: &str = "Arial";
-const DEFAULT_TEXT_FONT_SIZE: f64 = crate::DEFAULT_TEXT_FONT_SIZE_CM;
+const DEFAULT_TEXT_FONT_SIZE: f64 = crate::DEFAULT_TEXT_FONT_SIZE_PT;
 const DEFAULT_TEXT_FILL: &str = "#000000";
-const DEFAULT_TEXT_LINE_HEIGHT: f64 = crate::DEFAULT_TEXT_LINE_HEIGHT_CM;
+const DEFAULT_TEXT_LINE_HEIGHT: f64 = crate::DEFAULT_TEXT_LINE_HEIGHT_PT;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum FocusedDeleteMode {
@@ -72,7 +72,7 @@ impl Engine {
         refresh_attached_node_label_geometry_for_all_nodes(
             entry.fragment,
             entry.object.transform.translate,
-            self.options.bond_stroke_world_cm().value(),
+            self.options.bond_stroke_world_pt().value(),
         );
         entry.update_bounds();
         drop(entry);
@@ -203,7 +203,7 @@ impl Engine {
             entry.fragment,
             object_translate,
             node_id,
-            self.options.bond_stroke_world_cm().value(),
+            self.options.bond_stroke_world_pt().value(),
         );
         entry.update_bounds();
         self.state.selection = crate::SelectionState::default();
@@ -248,7 +248,7 @@ impl Engine {
         refresh_attached_node_label_geometry_for_all_nodes(
             entry.fragment,
             object_translate,
-            self.options.bond_stroke_world_cm().value(),
+            self.options.bond_stroke_world_pt().value(),
         );
         entry.update_bounds();
         self.state.selection = crate::SelectionState::default();
@@ -276,7 +276,7 @@ impl Engine {
         refresh_attached_node_label_geometry_for_all_nodes(
             entry.fragment,
             object_translate,
-            self.options.bond_stroke_world_cm().value(),
+            self.options.bond_stroke_world_pt().value(),
         );
         entry.update_bounds();
         self.state.selection = crate::SelectionState::default();
@@ -303,7 +303,7 @@ impl Engine {
         refresh_attached_node_label_geometry_for_all_nodes(
             entry.fragment,
             object_translate,
-            self.options.bond_stroke_world_cm().value(),
+            self.options.bond_stroke_world_pt().value(),
         );
         entry.update_bounds();
         self.state.selection = crate::SelectionState::default();
@@ -361,7 +361,7 @@ impl Engine {
         refresh_attached_node_label_geometry_for_all_nodes(
             entry.fragment,
             object_translate,
-            self.options.bond_stroke_world_cm().value(),
+            self.options.bond_stroke_world_pt().value(),
         );
         entry.update_bounds();
         self.state.selection = crate::SelectionState::default();

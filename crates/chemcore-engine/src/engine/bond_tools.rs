@@ -71,14 +71,14 @@ impl Engine {
             order: order.max(1),
             double: self.pending_double_state_for_new_bond(&begin_id, &end_id, order.max(1)),
             stereo: self.pending_bond_stereo(),
-            stroke_width: self.options.bond_stroke_world_cm().value(),
+            stroke_width: self.options.bond_stroke_world_pt().value(),
             stroke: None,
-            bold_width: Some(self.options.bold_bond_width_world_cm().value()),
-            wedge_width: Some(self.options.wedge_width_world_cm().value()),
-            label_clip_margin: Some(self.options.label_clip_margin_world_cm().value()),
-            hash_spacing: Some(self.options.hash_spacing_world_cm().value()),
+            bold_width: Some(self.options.bold_bond_width_world_pt().value()),
+            wedge_width: Some(self.options.wedge_width_world_pt().value()),
+            label_clip_margin: Some(self.options.label_clip_margin_world_pt().value()),
+            hash_spacing: Some(self.options.hash_spacing_world_pt().value()),
             bond_spacing: Some(self.options.bond_spacing_percent()),
-            margin_width: Some(self.options.margin_width_world_cm().value()),
+            margin_width: Some(self.options.margin_width_world_pt().value()),
             line_styles: self.pending_line_styles(),
             line_weights: self.pending_line_weights(),
             meta: serde_json::Value::Null,
@@ -96,7 +96,7 @@ impl Engine {
         refresh_attached_label_geometry_for_bond_endpoints(
             entry.fragment,
             entry.object.transform.translate,
-            self.options.bond_stroke_world_cm().value(),
+            self.options.bond_stroke_world_pt().value(),
             &begin_id,
             &end_id,
         );
@@ -181,7 +181,7 @@ impl Engine {
         refresh_attached_label_geometry_for_bond_endpoints(
             entry.fragment,
             entry.object.transform.translate,
-            self.options.bond_stroke_world_cm().value(),
+            self.options.bond_stroke_world_pt().value(),
             &begin_id,
             &end_id,
         );

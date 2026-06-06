@@ -691,7 +691,7 @@ impl Engine {
                     .extra
                     .get("lineHeight")
                     .and_then(JsonValue::as_f64)
-                    .unwrap_or(crate::DEFAULT_TEXT_LINE_HEIGHT_CM),
+                    .unwrap_or(crate::DEFAULT_TEXT_LINE_HEIGHT_PT),
             ));
         }
         for node in self.selected_label_nodes() {
@@ -1418,7 +1418,7 @@ fn text_object_font_size(object: &SceneObject) -> f64 {
                 .and_then(|run| run.get("fontSize"))
                 .and_then(JsonValue::as_f64)
         })
-        .unwrap_or(crate::DEFAULT_TEXT_FONT_SIZE_CM)
+        .unwrap_or(crate::DEFAULT_TEXT_FONT_SIZE_PT)
 }
 
 fn label_runs(label: &NodeLabel) -> Vec<&LabelRun> {
@@ -1444,7 +1444,7 @@ fn label_font_size(label: &NodeLabel) -> f64 {
     label
         .font_size
         .or_else(|| label_runs(label).first().and_then(|run| run.font_size))
-        .unwrap_or(crate::DEFAULT_TEXT_FONT_SIZE_CM)
+        .unwrap_or(crate::DEFAULT_TEXT_FONT_SIZE_PT)
 }
 
 #[allow(clippy::too_many_arguments)]

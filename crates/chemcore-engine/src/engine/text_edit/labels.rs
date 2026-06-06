@@ -175,7 +175,7 @@ pub(super) fn make_centered_node_label_from_runs(
         && lines.len() == 1
         && layout.anchor_line == 0;
     let measured_anchor = session
-        .anchor_offset_world_cm()
+        .anchor_offset_world_pt()
         .map(|value| (value[0].value(), value[1].value()));
     let measured_box_size = endpoint_session_box_size(session);
     let fallback_geometry = || {
@@ -838,7 +838,7 @@ pub(super) fn estimated_centered_label_geometry(
         .max(crate::glyph_kernel::shared_estimated_char_width(
             'C', font_size,
         ));
-    let height = (font_size * 0.84).max(crate::px_to_cm(8.0));
+    let height = (font_size * 0.84).max(crate::px_to_pt(8.0));
     let half_width = width * 0.5;
     let half_height = height * 0.5;
     let x1 = center[0] - half_width;
@@ -1059,7 +1059,7 @@ fn refreshed_authoritative_imported_label_display(
         .font_family
         .clone()
         .unwrap_or_else(|| DEFAULT_TEXT_FONT_FAMILY.to_string());
-    let font_size = WorldCm(label.font_size.unwrap_or(DEFAULT_TEXT_FONT_SIZE)).value();
+    let font_size = WorldPt(label.font_size.unwrap_or(DEFAULT_TEXT_FONT_SIZE)).value();
     let fill = label
         .fill
         .clone()
@@ -1140,7 +1140,7 @@ pub(super) fn refreshed_attached_node_label(
         .font_family
         .clone()
         .unwrap_or_else(|| DEFAULT_TEXT_FONT_FAMILY.to_string());
-    let font_size = WorldCm(label.font_size.unwrap_or(DEFAULT_TEXT_FONT_SIZE)).value();
+    let font_size = WorldPt(label.font_size.unwrap_or(DEFAULT_TEXT_FONT_SIZE)).value();
     let fill = label
         .fill
         .clone()

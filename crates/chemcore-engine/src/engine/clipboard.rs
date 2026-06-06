@@ -4,7 +4,7 @@ use crate::{Bond, ChemcoreDocument, Node, Resource, ResourceData, SceneObject, S
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-const CLIPBOARD_PASTE_OFFSET_CM: f64 = 0.35 * crate::PT_PER_CM;
+const CLIPBOARD_PASTE_OFFSET_PT: f64 = 9.921_259_842_519_685;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct ClipboardContent {
@@ -87,8 +87,8 @@ impl Engine {
             id_map.insert(node.id.clone(), next_id.clone());
             let mut next = node.clone();
             next.id = next_id.clone();
-            next.position[0] = crate::round2(next.position[0] + CLIPBOARD_PASTE_OFFSET_CM);
-            next.position[1] = crate::round2(next.position[1] + CLIPBOARD_PASTE_OFFSET_CM);
+            next.position[0] = crate::round2(next.position[0] + CLIPBOARD_PASTE_OFFSET_PT);
+            next.position[1] = crate::round2(next.position[1] + CLIPBOARD_PASTE_OFFSET_PT);
             nodes_to_insert.push(next);
             pasted_node_ids.push(next_id);
         }
@@ -105,7 +105,7 @@ impl Engine {
             bonds_to_insert.push(next);
         }
 
-        let stroke_width = self.options.bond_stroke_world_cm().value();
+        let stroke_width = self.options.bond_stroke_world_pt().value();
         let Some(mut entry) = self.state.document.editable_fragment_mut() else {
             self.undo_stack.pop();
             return false;

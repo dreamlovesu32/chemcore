@@ -9,38 +9,33 @@ export const PT_PER_CSS_PX = PT_PER_INCH / CSS_PX_PER_INCH;
 export const PT_PER_CM = PT_PER_INCH / CM_PER_INCH;
 export const CM_PER_PT = CM_PER_INCH / PT_PER_INCH;
 
-export const CSS_PX_PER_CM = CSS_PX_PER_PT;
-export const CM_PER_CSS_PX = PT_PER_CSS_PX;
-
 export const devicePixelRatioValue = () =>
   Number(globalThis.window?.devicePixelRatio || globalThis.devicePixelRatio || 1) || 1;
 
 export const devicePxPerInch = () => CSS_PX_PER_INCH * devicePixelRatioValue();
-export const devicePxPerCm = () => CSS_PX_PER_CM * devicePixelRatioValue();
+export const devicePxPerPt = () => CSS_PX_PER_PT * devicePixelRatioValue();
 
-export const cmToCssPx = (cm) => cm * CSS_PX_PER_CM;
-export const cssPxToCm = (px) => px * CM_PER_CSS_PX;
+export const ptToCssPx = (pt) => pt * CSS_PX_PER_PT;
+export const cssPxToPt = (px) => px * PT_PER_CSS_PX;
 
-export const cmToDevicePx = (cm) => cmToCssPx(cm) * devicePixelRatioValue();
-export const devicePxToCm = (px) => cssPxToCm(px / devicePixelRatioValue());
+export const ptToDevicePx = (pt) => ptToCssPx(pt) * devicePixelRatioValue();
+export const devicePxToPt = (px) => cssPxToPt(px / devicePixelRatioValue());
 
 export const displayMetrics = () => {
   const devicePixelRatio = devicePixelRatioValue();
   return {
     cssPxPerInch: CSS_PX_PER_INCH,
-    cssPxPerCm: CSS_PX_PER_CM,
-    cmPerCssPx: CM_PER_CSS_PX,
     cssPxPerPt: CSS_PX_PER_PT,
     ptPerCssPx: PT_PER_CSS_PX,
     devicePixelRatio,
     displayScalePercent: devicePixelRatio * 100,
     devicePxPerInch: CSS_PX_PER_INCH * devicePixelRatio,
-    devicePxPerCm: CSS_PX_PER_CM * devicePixelRatio,
+    devicePxPerPt: CSS_PX_PER_PT * devicePixelRatio,
   };
 };
 
-export const cmToPx = cmToCssPx;
-export const pxToCm = cssPxToCm;
+export const ptToPx = ptToCssPx;
+export const pxToPt = cssPxToPt;
 
 export const mapLengthArray = (values, convert) =>
   Array.isArray(values) ? values.map((value) => convert(Number(value || 0))) : values;

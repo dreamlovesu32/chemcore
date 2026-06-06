@@ -11,16 +11,16 @@ impl CssPx {
         self.0
     }
 
-    pub const fn to_world_cm(self) -> WorldCm {
-        WorldCm(self.0 * CSS_PX_TO_PT)
+    pub const fn to_world_pt(self) -> WorldPt {
+        WorldPt(self.0 * CSS_PX_TO_PT)
     }
 }
 
 /// Canonical internal geometry unit for the Rust engine.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct WorldCm(pub f64);
+pub struct WorldPt(pub f64);
 
-impl WorldCm {
+impl WorldPt {
     pub const fn new(value: f64) -> Self {
         Self(value)
     }
@@ -35,16 +35,16 @@ impl WorldCm {
 }
 
 /// Name the internal world-space unit explicitly at boundary code.
-pub type WorldUnit = WorldCm;
+pub type WorldUnit = WorldPt;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WorldPoint {
-    pub x: WorldCm,
-    pub y: WorldCm,
+    pub x: WorldPt,
+    pub y: WorldPt,
 }
 
 impl WorldPoint {
-    pub const fn new(x: WorldCm, y: WorldCm) -> Self {
+    pub const fn new(x: WorldPt, y: WorldPt) -> Self {
         Self { x, y }
     }
 
@@ -65,7 +65,7 @@ impl CssPxPoint {
     }
 
     pub const fn to_world_point(self) -> WorldPoint {
-        WorldPoint::new(self.x.to_world_cm(), self.y.to_world_cm())
+        WorldPoint::new(self.x.to_world_pt(), self.y.to_world_pt())
     }
 }
 
@@ -73,18 +73,18 @@ pub const fn css_px(value: f64) -> CssPx {
     CssPx::new(value)
 }
 
-pub const fn world_cm(value: f64) -> WorldCm {
-    WorldCm::new(value)
+pub const fn world_pt(value: f64) -> WorldPt {
+    WorldPt::new(value)
 }
 
-impl From<CssPx> for WorldCm {
+impl From<CssPx> for WorldPt {
     fn from(value: CssPx) -> Self {
-        value.to_world_cm()
+        value.to_world_pt()
     }
 }
 
-impl From<WorldCm> for CssPx {
-    fn from(value: WorldCm) -> Self {
+impl From<WorldPt> for CssPx {
+    fn from(value: WorldPt) -> Self {
         value.to_css_px()
     }
 }
@@ -100,45 +100,42 @@ pub const CM_PER_PT: f64 = CM_PER_INCH / PT_PER_INCH;
 pub const PT_TO_CSS_PX: f64 = CSS_PX_PER_INCH / PT_PER_INCH;
 pub const CSS_PX_TO_PT: f64 = PT_PER_INCH / CSS_PX_PER_INCH;
 
-pub const CM_TO_CSS_PX: f64 = PT_TO_CSS_PX;
-pub const CSS_PX_TO_CM: f64 = CSS_PX_TO_PT;
-
-pub const fn cm_to_css_px(cm: f64) -> f64 {
-    world_cm(cm).to_css_px().value()
+pub const fn pt_to_css_px(pt: f64) -> f64 {
+    world_pt(pt).to_css_px().value()
 }
 
-pub const fn css_px_to_cm(px: f64) -> f64 {
-    css_px(px).to_world_cm().value()
+pub const fn css_px_to_pt(px: f64) -> f64 {
+    css_px(px).to_world_pt().value()
 }
 
-pub const fn cm_to_px(cm: f64) -> f64 {
-    cm_to_css_px(cm)
+pub const fn pt_to_px(pt: f64) -> f64 {
+    pt_to_css_px(pt)
 }
 
-pub const fn px_to_cm(px: f64) -> f64 {
-    css_px_to_cm(px)
+pub const fn px_to_pt(px: f64) -> f64 {
+    css_px_to_pt(px)
 }
 
-pub const DEFAULT_PAGE_WIDTH_CM: f64 = 900.0;
-pub const DEFAULT_PAGE_HEIGHT_CM: f64 = 600.0;
-pub const DEFAULT_BOND_LENGTH_CM: f64 = 30.0;
-pub const DEFAULT_BOND_STROKE_CM: f64 = 1.0;
-pub const DEFAULT_TEXT_FONT_SIZE_CM: f64 = 10.0;
-pub const DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM: f64 = 10.0;
-pub const DEFAULT_TEXT_LINE_HEIGHT_CM: f64 = DEFAULT_TEXT_FONT_SIZE_CM * 1.2;
-pub const DEFAULT_CENTERED_LABEL_FONT_SIZE_CM: f64 = DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM;
-pub const DEFAULT_TEXT_BLOCK_LINE_HEIGHT_CM: f64 = 11.25;
-pub const DEFAULT_TEXT_BLOCK_PADDING_CM: f64 = px_to_cm(8.0);
+pub const DEFAULT_PAGE_WIDTH_PT: f64 = 900.0;
+pub const DEFAULT_PAGE_HEIGHT_PT: f64 = 600.0;
+pub const DEFAULT_BOND_LENGTH_PT: f64 = 30.0;
+pub const DEFAULT_BOND_STROKE_PT: f64 = 1.0;
+pub const DEFAULT_TEXT_FONT_SIZE_PT: f64 = 10.0;
+pub const DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT: f64 = 10.0;
+pub const DEFAULT_TEXT_LINE_HEIGHT_PT: f64 = DEFAULT_TEXT_FONT_SIZE_PT * 1.2;
+pub const DEFAULT_CENTERED_LABEL_FONT_SIZE_PT: f64 = DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT;
+pub const DEFAULT_TEXT_BLOCK_LINE_HEIGHT_PT: f64 = 11.25;
+pub const DEFAULT_TEXT_BLOCK_PADDING_PT: f64 = px_to_pt(8.0);
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn css_px_and_world_cm_round_trip() {
+    fn css_px_and_world_pt_round_trip() {
         let px = css_px(12.0);
-        let world = px.to_world_cm();
-        assert!((world.value() - px_to_cm(12.0)).abs() < 1.0e-9);
+        let world = px.to_world_pt();
+        assert!((world.value() - px_to_pt(12.0)).abs() < 1.0e-9);
         assert!((world.to_css_px().value() - 12.0).abs() < 1.0e-9);
     }
 

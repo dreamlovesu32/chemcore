@@ -1,17 +1,16 @@
 use crate::{
-    round2, Point, DEFAULT_BOND_LENGTH_CM, DEFAULT_BOND_STROKE_CM,
-    DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM, DEFAULT_PAGE_HEIGHT_CM, DEFAULT_PAGE_WIDTH_CM,
-    DEFAULT_TEXT_BLOCK_PADDING_CM, DEFAULT_TEXT_FONT_SIZE_CM, DEFAULT_TEXT_LINE_HEIGHT_CM, EPSILON,
-    PT_PER_CM,
+    round2, Point, DEFAULT_BOND_LENGTH_PT, DEFAULT_BOND_STROKE_PT,
+    DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT, DEFAULT_PAGE_HEIGHT_PT, DEFAULT_PAGE_WIDTH_PT,
+    DEFAULT_TEXT_BLOCK_PADDING_PT, DEFAULT_TEXT_FONT_SIZE_PT, DEFAULT_TEXT_LINE_HEIGHT_PT, EPSILON,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
 
-pub const DEFAULT_PAGE_WIDTH: f64 = DEFAULT_PAGE_WIDTH_CM;
-pub const DEFAULT_PAGE_HEIGHT: f64 = DEFAULT_PAGE_HEIGHT_CM;
-pub const DEFAULT_BOND_LENGTH: f64 = DEFAULT_BOND_LENGTH_CM;
-pub const DEFAULT_BOND_STROKE: f64 = DEFAULT_BOND_STROKE_CM;
+pub const DEFAULT_PAGE_WIDTH: f64 = DEFAULT_PAGE_WIDTH_PT;
+pub const DEFAULT_PAGE_HEIGHT: f64 = DEFAULT_PAGE_HEIGHT_PT;
+pub const DEFAULT_BOND_LENGTH: f64 = DEFAULT_BOND_LENGTH_PT;
+pub const DEFAULT_BOND_STROKE: f64 = DEFAULT_BOND_STROKE_PT;
 
 fn default_true() -> bool {
     true
@@ -40,7 +39,7 @@ impl ChemcoreDocument {
                 "stroke": "#000000",
                 "strokeWidth": DEFAULT_BOND_STROKE,
                 "fontFamily": "Arial",
-                "fontSize": DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM
+                "fontSize": DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT
             }),
         );
         styles.insert(
@@ -214,10 +213,7 @@ fn remove_scene_objects_by_id(
 
 pub fn parse_document_json(json: &str) -> Result<ChemcoreDocument, String> {
     let mut value: Value = serde_json::from_str(json).map_err(|error| error.to_string())?;
-    if document_json_uses_legacy_cm(&value) {
-        scale_document_json_value(&mut value, PT_PER_CM);
-    }
-    ensure_document_json_unit(&mut value);
+    ensure_document_json_pt_unit(&mut value)?;
     let mut document: ChemcoreDocument =
         serde_json::from_value(value).map_err(|error| error.to_string())?;
     normalize_text_object_payloads(&mut document);
@@ -490,7 +486,7 @@ fn normalize_text_object_payload_defaults(
         .filter(|value| value.is_finite() && *value > 0.0)
         .or_else(|| style.and_then(|style| style_number(style, "fontSize")))
         .or_else(|| style.and_then(|style| style_number(style, "font_size")))
-        .unwrap_or(DEFAULT_TEXT_FONT_SIZE_CM);
+        .unwrap_or(DEFAULT_TEXT_FONT_SIZE_PT);
     object
         .payload
         .extra
@@ -502,7 +498,7 @@ fn normalize_text_object_payload_defaults(
         .get("lineHeight")
         .and_then(Value::as_f64)
         .filter(|value| value.is_finite() && *value > 0.0)
-        .unwrap_or(DEFAULT_TEXT_LINE_HEIGHT_CM);
+        .unwrap_or(DEFAULT_TEXT_LINE_HEIGHT_PT);
     object
         .payload
         .extra
@@ -676,7 +672,7 @@ fn normalize_node_label_payload(
         label.position = Some(node_position);
     }
     if label.font_size.is_none() {
-        label.font_size = Some(DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM);
+        label.font_size = Some(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT);
     }
     if label.align.is_none() {
         label.align = Some("left".to_string());
@@ -690,7 +686,7 @@ fn normalize_node_label_payload(
     if label.box_value.is_none() && label.box_field.is_none() {
         let font_size = label
             .font_size
-            .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM);
+            .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT);
         let position = label.position.unwrap_or(node_position);
         label.box_field = Some(default_node_label_box(position, &label.text, font_size));
     }
@@ -713,7 +709,7 @@ fn rebuild_node_label_glyph_polygons(
     let position = label.position.unwrap_or(node_position);
     let font_size = label
         .font_size
-        .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM);
+        .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT);
     let local_bbox = label.bbox();
     let align = label.align.as_deref().unwrap_or("left");
     let line_runs = if label.line_runs.is_empty() {
@@ -988,127 +984,23 @@ fn default_node_label_box(position: [f64; 2], text: &str, font_size: f64) -> [f6
     ]
 }
 
-fn document_json_uses_legacy_cm(value: &Value) -> bool {
-    let unit = value
-        .get("format")
-        .and_then(|format| format.get("unit"))
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    if unit.eq_ignore_ascii_case("cm") {
-        return true;
-    }
-    if !unit.is_empty() {
-        return false;
-    }
-
-    let width = value
-        .get("document")
-        .and_then(|document| document.get("page"))
-        .and_then(|page| page.get("width"))
-        .and_then(Value::as_f64);
-    let height = value
-        .get("document")
-        .and_then(|document| document.get("page"))
-        .and_then(|page| page.get("height"))
-        .and_then(Value::as_f64);
-    matches!((width, height), (Some(width), Some(height)) if width <= 100.0 && height <= 100.0)
-}
-
-fn ensure_document_json_unit(value: &mut Value) {
+fn ensure_document_json_pt_unit(value: &mut Value) -> Result<(), String> {
     if !value.is_object() {
-        return;
+        return Ok(());
     }
     let Some(format) = value.get_mut("format").and_then(Value::as_object_mut) else {
-        return;
+        return Ok(());
     };
+    if let Some(unit) = format.get("unit").and_then(Value::as_str) {
+        if unit.eq_ignore_ascii_case("pt") {
+            return Ok(());
+        }
+        return Err(format!(
+            "Unsupported chemcore document unit '{unit}'. Current development files must use pt."
+        ));
+    }
     format.insert("unit".to_string(), Value::String("pt".to_string()));
-}
-
-fn scale_document_json_value(value: &mut Value, factor: f64) {
-    scale_json_value_by_key("", value, factor);
-}
-
-fn scale_json_value_by_key(key: &str, value: &mut Value, factor: f64) {
-    if scale_key_as_length_scalar(key) {
-        scale_all_numbers(value, factor);
-        return;
-    }
-    match value {
-        Value::Array(items) if scale_key_as_length_array(key) => {
-            for item in items {
-                scale_all_numbers(item, factor);
-            }
-        }
-        Value::Array(items) => {
-            for item in items {
-                scale_json_value_by_key("", item, factor);
-            }
-        }
-        Value::Object(object) => {
-            for (child_key, child_value) in object {
-                scale_json_value_by_key(child_key, child_value, factor);
-            }
-        }
-        _ => {}
-    }
-}
-
-fn scale_all_numbers(value: &mut Value, factor: f64) {
-    match value {
-        Value::Number(number) => {
-            if let Some(scaled) = number
-                .as_f64()
-                .and_then(|value| serde_json::Number::from_f64(value * factor))
-            {
-                *number = scaled;
-            }
-        }
-        Value::Array(items) => {
-            for item in items {
-                scale_all_numbers(item, factor);
-            }
-        }
-        Value::Object(object) => {
-            for child_value in object.values_mut() {
-                scale_all_numbers(child_value, factor);
-            }
-        }
-        _ => {}
-    }
-}
-
-fn scale_key_as_length_scalar(key: &str) -> bool {
-    matches!(
-        key,
-        "width"
-            | "height"
-            | "x"
-            | "y"
-            | "strokeWidth"
-            | "fontSize"
-            | "lineHeight"
-            | "wrapWidth"
-            | "pad"
-            | "padding"
-    )
-}
-
-fn scale_key_as_length_array(key: &str) -> bool {
-    matches!(
-        key,
-        "bbox"
-            | "box"
-            | "boxField"
-            | "boundingBox"
-            | "position"
-            | "translate"
-            | "points"
-            | "center"
-            | "majorAxisEnd"
-            | "minorAxisEnd"
-            | "anchorOffset"
-            | "glyphPolygons"
-    )
+    Ok(())
 }
 
 fn default_format_unit() -> String {
@@ -1537,10 +1429,10 @@ fn fragment_content_bbox(nodes: &[Node]) -> Option<[f64; 4]> {
     let mut found = false;
 
     for node in nodes {
-        min_x = min_x.min(node.position[0] - DEFAULT_TEXT_BLOCK_PADDING_CM);
-        min_y = min_y.min(node.position[1] - DEFAULT_TEXT_BLOCK_PADDING_CM);
-        max_x = max_x.max(node.position[0] + DEFAULT_TEXT_BLOCK_PADDING_CM);
-        max_y = max_y.max(node.position[1] + DEFAULT_TEXT_BLOCK_PADDING_CM);
+        min_x = min_x.min(node.position[0] - DEFAULT_TEXT_BLOCK_PADDING_PT);
+        min_y = min_y.min(node.position[1] - DEFAULT_TEXT_BLOCK_PADDING_PT);
+        max_x = max_x.max(node.position[0] + DEFAULT_TEXT_BLOCK_PADDING_PT);
+        max_y = max_y.max(node.position[1] + DEFAULT_TEXT_BLOCK_PADDING_PT);
         found = true;
 
         if let Some(label) = &node.label {

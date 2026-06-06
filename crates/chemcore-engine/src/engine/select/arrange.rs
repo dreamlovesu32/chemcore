@@ -233,7 +233,7 @@ pub(super) fn apply_arrange_items_to_document(engine: &mut Engine, items: &[Sele
         }
     }
 
-    let stroke_width = engine.options.bond_stroke_world_cm().value();
+    let stroke_width = engine.options.bond_stroke_world_pt().value();
     let Some(mut entry) = engine.state.document.editable_fragment_mut() else {
         return;
     };

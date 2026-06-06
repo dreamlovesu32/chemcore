@@ -1,7 +1,7 @@
 use crate::{
     ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondVariant,
     BracketKind, Engine, OrbitalPhase, OrbitalStyle, OrbitalTemplate, Point, PointerEvent,
-    RenderBoundsScope, ShapeKind, ShapeStyle, Tool, ToolState, WorldCm, WorldPoint,
+    RenderBoundsScope, ShapeKind, ShapeStyle, Tool, ToolState, WorldPoint, WorldPt,
 };
 use wasm_bindgen::prelude::*;
 
@@ -225,7 +225,7 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = pointerMove)]
     pub fn pointer_move(&mut self, x: f64, y: f64, alt_key: bool) {
         self.inner.pointer_move(PointerEvent::from_world_point(
-            WorldPoint::new(WorldCm(x), WorldCm(y)),
+            WorldPoint::new(WorldPt(x), WorldPt(y)),
             None,
             alt_key,
         ));
@@ -234,7 +234,7 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = pointerDown)]
     pub fn pointer_down(&mut self, x: f64, y: f64, alt_key: bool) {
         self.inner.pointer_down(PointerEvent::from_world_point(
-            WorldPoint::new(WorldCm(x), WorldCm(y)),
+            WorldPoint::new(WorldPt(x), WorldPt(y)),
             Some(0),
             alt_key,
         ));
@@ -243,7 +243,7 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = pointerUp)]
     pub fn pointer_up(&mut self, x: f64, y: f64, alt_key: bool) {
         self.inner.pointer_up(PointerEvent::from_world_point(
-            WorldPoint::new(WorldCm(x), WorldCm(y)),
+            WorldPoint::new(WorldPt(x), WorldPt(y)),
             Some(0),
             alt_key,
         ));
@@ -252,7 +252,7 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = selectAtPoint)]
     pub fn select_at_point(&mut self, x: f64, y: f64, additive: bool) {
         self.inner.select_at_point(
-            Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))),
+            Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))),
             additive,
         );
     }
@@ -260,7 +260,7 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = selectComponentAtPoint)]
     pub fn select_component_at_point(&mut self, x: f64, y: f64, additive: bool) -> bool {
         self.inner.select_component_at_point(
-            Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))),
+            Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))),
             additive,
         )
     }
@@ -268,8 +268,8 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = selectInRect)]
     pub fn select_in_rect(&mut self, x1: f64, y1: f64, x2: f64, y2: f64, additive: bool) {
         self.inner.select_in_rect(
-            Point::from_world(WorldPoint::new(WorldCm(x1), WorldCm(y1))),
-            Point::from_world(WorldPoint::new(WorldCm(x2), WorldCm(y2))),
+            Point::from_world(WorldPoint::new(WorldPt(x1), WorldPt(y1))),
+            Point::from_world(WorldPoint::new(WorldPt(x2), WorldPt(y2))),
             additive,
         );
     }
@@ -280,7 +280,7 @@ impl WasmEngine {
             .map_err(|error| JsValue::from_str(&error.to_string()))?;
         let points = raw_points
             .into_iter()
-            .map(|point| Point::from_world(WorldPoint::new(WorldCm(point[0]), WorldCm(point[1]))))
+            .map(|point| Point::from_world(WorldPoint::new(WorldPt(point[0]), WorldPt(point[1]))))
             .collect();
         self.inner.select_in_polygon(points, additive);
         Ok(())
@@ -295,7 +295,7 @@ impl WasmEngine {
     pub fn begin_tlc_spot_drag_json(&mut self, x: f64, y: f64) -> Result<Option<String>, JsValue> {
         let hit = self
             .inner
-            .begin_tlc_spot_drag(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
+            .begin_tlc_spot_drag(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))));
         hit.map(|value| {
             serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string()))
         })
@@ -306,7 +306,7 @@ impl WasmEngine {
     pub fn tlc_spot_hit_test_json(&self, x: f64, y: f64) -> Result<Option<String>, JsValue> {
         let hit = self
             .inner
-            .tlc_spot_hit_test(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
+            .tlc_spot_hit_test(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))));
         hit.map(|value| {
             serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string()))
         })
@@ -317,7 +317,7 @@ impl WasmEngine {
     pub fn tlc_lane_guide_hit_test_json(&self, x: f64, y: f64) -> Result<Option<String>, JsValue> {
         let hit = self
             .inner
-            .tlc_lane_guide_hit_test(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
+            .tlc_lane_guide_hit_test(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))));
         hit.map(|value| {
             serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string()))
         })
@@ -328,7 +328,7 @@ impl WasmEngine {
     pub fn update_tlc_spot_drag_json(&mut self, x: f64, y: f64) -> Result<Option<String>, JsValue> {
         let hit = self
             .inner
-            .update_tlc_spot_drag(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
+            .update_tlc_spot_drag(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))));
         hit.map(|value| {
             serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string()))
         })
@@ -339,7 +339,7 @@ impl WasmEngine {
     pub fn finish_tlc_spot_drag_json(&mut self, x: f64, y: f64) -> Result<Option<String>, JsValue> {
         let hit = self
             .inner
-            .finish_tlc_spot_drag(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))));
+            .finish_tlc_spot_drag(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))));
         hit.map(|value| {
             serde_json::to_string(&value).map_err(|error| JsValue::from_str(&error.to_string()))
         })
@@ -354,7 +354,7 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = contextHitTestJson)]
     pub fn context_hit_test_json(&self, x: f64, y: f64) -> String {
         self.inner
-            .context_hit_test_json(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))))
+            .context_hit_test_json(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))))
     }
 
     #[wasm_bindgen(js_name = contextMenuJson)]
@@ -365,27 +365,27 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = selectionContainsPoint)]
     pub fn selection_contains_point(&self, x: f64, y: f64) -> bool {
         self.inner
-            .selection_contains_point(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))))
+            .selection_contains_point(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))))
     }
 
     #[wasm_bindgen(js_name = hoverArrowAction)]
     pub fn hover_arrow_action(&self, x: f64, y: f64) -> String {
         self.inner
-            .hover_arrow_action_at_point(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))))
+            .hover_arrow_action_at_point(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))))
             .to_string()
     }
 
     #[wasm_bindgen(js_name = beginHoverArrowEdit)]
     pub fn begin_hover_arrow_edit(&mut self, x: f64, y: f64) -> String {
         self.inner
-            .begin_hover_arrow_edit(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))))
+            .begin_hover_arrow_edit(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))))
             .to_string()
     }
 
     #[wasm_bindgen(js_name = updateHoverArrowEdit)]
     pub fn update_hover_arrow_edit(&mut self, x: f64, y: f64, alt_key: bool) -> bool {
         self.inner.update_hover_arrow_edit(
-            Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))),
+            Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))),
             alt_key,
         )
     }
@@ -393,7 +393,7 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = finishHoverArrowEdit)]
     pub fn finish_hover_arrow_edit(&mut self, x: f64, y: f64, alt_key: bool) -> bool {
         self.inner.finish_hover_arrow_edit(
-            Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))),
+            Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))),
             alt_key,
         )
     }
@@ -401,21 +401,21 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = hoverShapeAction)]
     pub fn hover_shape_action(&self, x: f64, y: f64) -> String {
         self.inner
-            .hover_shape_action_at_point(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))))
+            .hover_shape_action_at_point(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))))
             .to_string()
     }
 
     #[wasm_bindgen(js_name = beginHoverShapeEdit)]
     pub fn begin_hover_shape_edit(&mut self, x: f64, y: f64) -> String {
         self.inner
-            .begin_hover_shape_edit(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))))
+            .begin_hover_shape_edit(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))))
             .to_string()
     }
 
     #[wasm_bindgen(js_name = updateHoverShapeEdit)]
     pub fn update_hover_shape_edit(&mut self, x: f64, y: f64, alt_key: bool) -> bool {
         self.inner.update_hover_shape_edit(
-            Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))),
+            Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))),
             alt_key,
         )
     }
@@ -423,7 +423,7 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = finishHoverShapeEdit)]
     pub fn finish_hover_shape_edit(&mut self, x: f64, y: f64, alt_key: bool) -> bool {
         self.inner.finish_hover_shape_edit(
-            Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))),
+            Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))),
             alt_key,
         )
     }
@@ -436,7 +436,7 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = beginSelectionMove)]
     pub fn begin_selection_move(&mut self, x: f64, y: f64, additive: bool, alt_key: bool) -> bool {
         self.inner.begin_selection_move_at_point(
-            Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))),
+            Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))),
             additive,
             alt_key,
         )
@@ -445,7 +445,7 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = updateSelectionMove)]
     pub fn update_selection_move(&mut self, x: f64, y: f64, alt_key: bool) -> bool {
         self.inner.update_selection_move(
-            Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))),
+            Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))),
             alt_key,
         )
     }
@@ -453,7 +453,7 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = finishSelectionMove)]
     pub fn finish_selection_move(&mut self, x: f64, y: f64, alt_key: bool) -> bool {
         self.inner.finish_selection_move(
-            Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))),
+            Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))),
             alt_key,
         )
     }
@@ -461,13 +461,13 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = beginSelectionRotate)]
     pub fn begin_selection_rotate(&mut self, x: f64, y: f64) -> bool {
         self.inner
-            .begin_selection_rotate(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))))
+            .begin_selection_rotate(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))))
     }
 
     #[wasm_bindgen(js_name = updateSelectionRotate)]
     pub fn update_selection_rotate(&mut self, x: f64, y: f64, alt_key: bool) -> bool {
         self.inner.update_selection_rotate(
-            Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))),
+            Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))),
             alt_key,
         )
     }
@@ -475,7 +475,7 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = finishSelectionRotate)]
     pub fn finish_selection_rotate(&mut self, x: f64, y: f64, alt_key: bool) -> bool {
         self.inner.finish_selection_rotate(
-            Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))),
+            Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))),
             alt_key,
         )
     }
@@ -484,20 +484,20 @@ impl WasmEngine {
     pub fn begin_selection_resize(&mut self, handle: &str, x: f64, y: f64) -> bool {
         self.inner.begin_selection_resize(
             handle,
-            Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))),
+            Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))),
         )
     }
 
     #[wasm_bindgen(js_name = updateSelectionResize)]
     pub fn update_selection_resize(&mut self, x: f64, y: f64) -> bool {
         self.inner
-            .update_selection_resize(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))))
+            .update_selection_resize(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))))
     }
 
     #[wasm_bindgen(js_name = finishSelectionResize)]
     pub fn finish_selection_resize(&mut self, x: f64, y: f64) -> bool {
         self.inner
-            .finish_selection_resize(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))))
+            .finish_selection_resize(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))))
     }
 
     #[wasm_bindgen(js_name = applySelectionArrangeCommand)]
@@ -687,7 +687,7 @@ impl WasmEngine {
     pub fn begin_text_edit(&mut self, x: f64, y: f64) -> Result<String, JsValue> {
         let session = self
             .inner
-            .begin_text_edit(Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y))))
+            .begin_text_edit(Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))))
             .ok_or_else(|| JsValue::from_str("No text edit target"))?;
         serde_json::to_string(&session).map_err(|error| JsValue::from_str(&error.to_string()))
     }

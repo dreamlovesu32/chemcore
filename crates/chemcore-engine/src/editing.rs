@@ -1,8 +1,8 @@
 use crate::{
     angle_between, angle_in_clockwise_arc, angular_distance, css_px, direction_from_angle,
     fragment_bond_visual_bounds, largest_angular_gap, normalize_angle, split_label_groups,
-    world_cm, Bond, ChemcoreDocument, EditableFragment, Node, Point, Vector, WorldCm, WorldPoint,
-    DEFAULT_BOND_LENGTH, PT_PER_CM,
+    world_pt, Bond, ChemcoreDocument, EditableFragment, Node, Point, Vector, WorldPoint, WorldPt,
+    DEFAULT_BOND_LENGTH,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, VecDeque};
@@ -30,20 +30,20 @@ pub use self::hit_testing::{
     hit_test_endpoint_excluding, select_at,
 };
 
-pub const ENDPOINT_FOCUS_RADIUS_CM: WorldCm = world_cm(0.1 * PT_PER_CM);
-pub const ENDPOINT_HIT_RADIUS_CM: WorldCm = css_px(9.0).to_world_cm();
-pub const BOND_HIT_RADIUS_CM: WorldCm = css_px(6.0).to_world_cm();
-pub const BOND_CENTER_FOCUS_LENGTH_CM: WorldCm = world_cm(0.8 * PT_PER_CM);
-pub const BOND_CENTER_FOCUS_WIDTH_CM: WorldCm = world_cm(0.2 * PT_PER_CM);
-pub const BOND_CENTER_HIT_RADIUS_CM: WorldCm = BOND_CENTER_FOCUS_LENGTH_CM;
-pub const DRAG_START_THRESHOLD_CM: WorldCm = css_px(4.0).to_world_cm();
-pub const ENDPOINT_FOCUS_RADIUS: f64 = ENDPOINT_FOCUS_RADIUS_CM.value();
-pub const ENDPOINT_HIT_RADIUS: f64 = ENDPOINT_HIT_RADIUS_CM.value();
-pub const BOND_HIT_RADIUS: f64 = BOND_HIT_RADIUS_CM.value();
-pub const BOND_CENTER_FOCUS_LENGTH: f64 = BOND_CENTER_FOCUS_LENGTH_CM.value();
-pub const BOND_CENTER_FOCUS_WIDTH: f64 = BOND_CENTER_FOCUS_WIDTH_CM.value();
-pub const BOND_CENTER_HIT_RADIUS: f64 = BOND_CENTER_HIT_RADIUS_CM.value();
-pub const DRAG_START_THRESHOLD: f64 = DRAG_START_THRESHOLD_CM.value();
+pub const ENDPOINT_FOCUS_RADIUS_PT: WorldPt = world_pt(2.834_645_669_291_339);
+pub const ENDPOINT_HIT_RADIUS_PT: WorldPt = css_px(9.0).to_world_pt();
+pub const BOND_HIT_RADIUS_PT: WorldPt = css_px(6.0).to_world_pt();
+pub const BOND_CENTER_FOCUS_LENGTH_PT: WorldPt = world_pt(22.677_165_354_330_71);
+pub const BOND_CENTER_FOCUS_WIDTH_PT: WorldPt = world_pt(5.669_291_338_582_678);
+pub const BOND_CENTER_HIT_RADIUS_PT: WorldPt = BOND_CENTER_FOCUS_LENGTH_PT;
+pub const DRAG_START_THRESHOLD_PT: WorldPt = css_px(4.0).to_world_pt();
+pub const ENDPOINT_FOCUS_RADIUS: f64 = ENDPOINT_FOCUS_RADIUS_PT.value();
+pub const ENDPOINT_HIT_RADIUS: f64 = ENDPOINT_HIT_RADIUS_PT.value();
+pub const BOND_HIT_RADIUS: f64 = BOND_HIT_RADIUS_PT.value();
+pub const BOND_CENTER_FOCUS_LENGTH: f64 = BOND_CENTER_FOCUS_LENGTH_PT.value();
+pub const BOND_CENTER_FOCUS_WIDTH: f64 = BOND_CENTER_FOCUS_WIDTH_PT.value();
+pub const BOND_CENTER_HIT_RADIUS: f64 = BOND_CENTER_HIT_RADIUS_PT.value();
+pub const DRAG_START_THRESHOLD: f64 = DRAG_START_THRESHOLD_PT.value();
 pub const BLANK_CANVAS_DEFAULT_ANGLE: f64 = 330.0;
 pub const GLOBAL_SNAP_ANGLES: &[f64] = &[
     0.0, 15.0, 30.0, 45.0, 60.0, 75.0, 90.0, 105.0, 120.0, 135.0, 150.0, 165.0, 180.0, 195.0,
@@ -303,52 +303,52 @@ impl Default for EditorOptions {
         Self {
             bond_length: DEFAULT_BOND_LENGTH,
             bond_stroke_width: crate::DEFAULT_BOND_STROKE,
-            bold_bond_width: crate::BOLD_BOND_WIDTH_CM.value(),
-            wedge_width: crate::SOLID_WEDGE_WIDTH_CM.value(),
-            label_clip_margin: crate::LABEL_GEOMETRY_CLIP_MARGIN_CM.value(),
-            hash_spacing: crate::DEFAULT_HASH_SPACING_CM.value(),
+            bold_bond_width: crate::BOLD_BOND_WIDTH_PT.value(),
+            wedge_width: crate::SOLID_WEDGE_WIDTH_PT.value(),
+            label_clip_margin: crate::LABEL_GEOMETRY_CLIP_MARGIN_PT.value(),
+            hash_spacing: crate::DEFAULT_HASH_SPACING_PT.value(),
             bond_spacing: crate::DEFAULT_BOND_SPACING_PERCENT,
-            margin_width: crate::DEFAULT_BOND_MARGIN_WIDTH_CM.value(),
+            margin_width: crate::DEFAULT_BOND_MARGIN_WIDTH_PT.value(),
             graphic_stroke_width: crate::DEFAULT_BOND_STROKE,
         }
     }
 }
 
 impl EditorOptions {
-    pub const fn bond_length_world_cm(&self) -> WorldCm {
-        WorldCm(self.bond_length)
+    pub const fn bond_length_world_pt(&self) -> WorldPt {
+        WorldPt(self.bond_length)
     }
 
-    pub const fn bond_stroke_world_cm(&self) -> WorldCm {
-        WorldCm(self.bond_stroke_width)
+    pub const fn bond_stroke_world_pt(&self) -> WorldPt {
+        WorldPt(self.bond_stroke_width)
     }
 
-    pub const fn bold_bond_width_world_cm(&self) -> WorldCm {
-        WorldCm(self.bold_bond_width)
+    pub const fn bold_bond_width_world_pt(&self) -> WorldPt {
+        WorldPt(self.bold_bond_width)
     }
 
-    pub const fn wedge_width_world_cm(&self) -> WorldCm {
-        WorldCm(self.wedge_width)
+    pub const fn wedge_width_world_pt(&self) -> WorldPt {
+        WorldPt(self.wedge_width)
     }
 
-    pub const fn label_clip_margin_world_cm(&self) -> WorldCm {
-        WorldCm(self.label_clip_margin)
+    pub const fn label_clip_margin_world_pt(&self) -> WorldPt {
+        WorldPt(self.label_clip_margin)
     }
 
-    pub const fn hash_spacing_world_cm(&self) -> WorldCm {
-        WorldCm(self.hash_spacing)
+    pub const fn hash_spacing_world_pt(&self) -> WorldPt {
+        WorldPt(self.hash_spacing)
     }
 
     pub const fn bond_spacing_percent(&self) -> f64 {
         self.bond_spacing
     }
 
-    pub const fn margin_width_world_cm(&self) -> WorldCm {
-        WorldCm(self.margin_width)
+    pub const fn margin_width_world_pt(&self) -> WorldPt {
+        WorldPt(self.margin_width)
     }
 
-    pub const fn graphic_stroke_world_cm(&self) -> WorldCm {
-        WorldCm(self.graphic_stroke_width)
+    pub const fn graphic_stroke_world_pt(&self) -> WorldPt {
+        WorldPt(self.graphic_stroke_width)
     }
 }
 
@@ -469,7 +469,7 @@ impl PointerEvent {
     }
 
     pub const fn world_point(&self) -> WorldPoint {
-        WorldPoint::new(WorldCm(self.x), WorldCm(self.y))
+        WorldPoint::new(WorldPt(self.x), WorldPt(self.y))
     }
 }
 

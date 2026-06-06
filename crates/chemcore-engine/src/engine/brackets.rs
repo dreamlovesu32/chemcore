@@ -186,7 +186,7 @@ impl Engine {
                 refresh_attached_node_label_geometry_for_all_nodes(
                     entry.fragment,
                     entry.object.transform.translate,
-                    self.options.bond_stroke_world_cm().value(),
+                    self.options.bond_stroke_world_pt().value(),
                 );
                 entry.update_bounds();
             }
@@ -217,7 +217,7 @@ impl Engine {
         extra.insert("stroke".to_string(), json!("#000000"));
         extra.insert(
             "strokeWidth".to_string(),
-            json!(self.options.graphic_stroke_world_cm().value()),
+            json!(self.options.graphic_stroke_world_pt().value()),
         );
         extra.insert("lipSize".to_string(), json!(60));
         Some(SceneObject {
@@ -252,7 +252,7 @@ impl Engine {
     ) -> SceneObject {
         let metrics = bracket_symbol_metrics(
             self.state.tool.symbol_kind,
-            self.options.graphic_stroke_world_cm().value(),
+            self.options.graphic_stroke_world_pt().value(),
         );
         let (width, height) = (metrics.width, metrics.height);
         let mut extra = BTreeMap::new();
@@ -351,7 +351,7 @@ impl Engine {
     pub(super) fn bracket_symbol_click_center_distance(&self) -> f64 {
         let metrics = bracket_symbol_metrics(
             self.state.tool.symbol_kind,
-            self.options.graphic_stroke_world_cm().value(),
+            self.options.graphic_stroke_world_pt().value(),
         );
         metrics.width.max(metrics.height) * 0.5 + SYMBOL_CLICK_CLEARANCE
     }

@@ -81,7 +81,7 @@ pub(super) fn apply_selection_drag_to_document(
         }
     }
 
-    let stroke_width = engine.options.bond_stroke_world_cm().value();
+    let stroke_width = engine.options.bond_stroke_world_pt().value();
     let Some(mut entry) = engine.state.document.editable_fragment_mut() else {
         return;
     };
@@ -179,7 +179,7 @@ pub(super) fn apply_selection_rotation_to_document(
         *object = rotated_scene_object(&original.object, drag.center, angle);
     }
 
-    let stroke_width = engine.options.bond_stroke_world_cm().value();
+    let stroke_width = engine.options.bond_stroke_world_pt().value();
     let Some(mut entry) = engine.state.document.editable_fragment_mut() else {
         return;
     };
@@ -502,7 +502,7 @@ pub(super) fn apply_selection_scale_to_document(
         *object = resized_scene_object(&original.object, pivot, scale_x, scale_y);
     }
 
-    let stroke_width = engine.options.bond_stroke_world_cm().value();
+    let stroke_width = engine.options.bond_stroke_world_pt().value();
     let Some(mut entry) = engine.state.document.editable_fragment_mut() else {
         return;
     };

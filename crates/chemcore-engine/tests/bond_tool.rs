@@ -9,7 +9,7 @@ use serde_json::json;
 use std::collections::BTreeMap;
 
 const fn px(value: f64) -> f64 {
-    chemcore_engine::px_to_cm(value)
+    chemcore_engine::px_to_pt(value)
 }
 
 fn px_point(x: f64, y: f64) -> chemcore_engine::Point {
@@ -939,7 +939,7 @@ fn load_label_document(
                 "stroke": "#000000",
                 "strokeWidth": DEFAULT_BOND_STROKE,
                 "fontFamily": "Arial",
-                "fontSize": chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM
+                "fontSize": chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT
             }
         },
         "objects": [{
@@ -1227,7 +1227,7 @@ fn acs_document_1996_preset_reflows_existing_endpoint_label_geometry() {
 
     assert_eq!(
         label.font_size,
-        Some(chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM)
+        Some(chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT)
     );
     assert!(
         glyph_width > 8.0,
@@ -1903,12 +1903,14 @@ fn template_endpoint_ring_connects_adjacent_intersections_through_center() {
         [(center_index + original_bond_points.len() - 1) % original_bond_points.len()];
     let next = original_bond_points[(center_index + 1) % original_bond_points.len()];
 
+    const ENDPOINT_RING_JUNCTION_TOLERANCE_PT: f64 = 2.267_716_535_433_071;
+
     assert!(
-        previous.distance(endpoint) < 0.08 * chemcore_engine::PT_PER_CM,
+        previous.distance(endpoint) < ENDPOINT_RING_JUNCTION_TOLERANCE_PT,
         "{previous:?}"
     );
     assert!(
-        next.distance(endpoint) < 0.08 * chemcore_engine::PT_PER_CM,
+        next.distance(endpoint) < ENDPOINT_RING_JUNCTION_TOLERANCE_PT,
         "{next:?}"
     );
 
@@ -1923,7 +1925,7 @@ fn template_endpoint_ring_connects_adjacent_intersections_through_center() {
                     ..
                 } if points
                     .iter()
-                    .any(|point| point.distance(endpoint) < 0.08 * chemcore_engine::PT_PER_CM)
+                    .any(|point| point.distance(endpoint) < ENDPOINT_RING_JUNCTION_TOLERANCE_PT)
             )
         }),
         "endpoint ring junction should be covered by bond polygons, not an extra center patch"
@@ -2387,7 +2389,7 @@ fn hovered_endpoint_can_be_replaced_with_element_label() {
     );
     assert_eq!(
         node.label.as_ref().and_then(|label| label.font_size),
-        Some(chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM)
+        Some(chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT)
     );
     assert_eq!(
         node.label.as_ref().and_then(|label| label.align.as_deref()),
@@ -2532,7 +2534,7 @@ fn hovered_endpoint_can_be_replaced_with_abbreviation_label() {
     );
     assert_eq!(
         node.label.as_ref().and_then(|label| label.font_size),
-        Some(chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM)
+        Some(chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT)
     );
     assert_eq!(
         node.label.as_ref().and_then(|label| label.align.as_deref()),

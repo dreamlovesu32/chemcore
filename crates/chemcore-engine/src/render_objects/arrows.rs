@@ -117,7 +117,7 @@ pub(crate) fn render_line_object(
         .and_then(|value| {
             style_number(value, "strokeWidth").or_else(|| style_number(value, "stroke_width"))
         })
-        .unwrap_or(px_to_cm(1.6));
+        .unwrap_or(px_to_pt(1.6));
     let line_cap = style
         .and_then(|value| style_string(value, "lineCap"))
         .unwrap_or_else(|| "round".to_string());

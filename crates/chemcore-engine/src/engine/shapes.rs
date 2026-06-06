@@ -251,7 +251,7 @@ impl Engine {
 
     pub(super) fn pending_shape_style(&self) -> JsonValue {
         let color = self.state.tool.shape_color.clone();
-        let stroke_width = self.options.graphic_stroke_world_cm().value();
+        let stroke_width = self.options.graphic_stroke_world_pt().value();
         match self.state.tool.shape_style {
             ShapeStyle::Solid => json!({
                 "kind": "shape",
@@ -765,7 +765,7 @@ fn resized_rect_object(
     point: Point,
 ) -> Option<SceneObject> {
     let bounds = shape_rect_bounds(original)?;
-    let min_size = crate::px_to_cm(4.0);
+    let min_size = crate::px_to_pt(4.0);
     let mut left = bounds[0];
     let mut top = bounds[1];
     let mut right = bounds[2];

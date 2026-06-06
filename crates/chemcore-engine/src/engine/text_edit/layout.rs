@@ -263,8 +263,8 @@ pub(super) fn build_text_object_edit_layout(
     selection: Option<TextEditSelectionState>,
 ) -> TextEditLayout {
     let fallback_font_size = session
-        .font_size_world_cm()
-        .unwrap_or(WorldCm(DEFAULT_TEXT_FONT_SIZE))
+        .font_size_world_pt()
+        .unwrap_or(WorldPt(DEFAULT_TEXT_FONT_SIZE))
         .value();
     let align = session.align.as_deref().unwrap_or("left");
     let line_runs = split_runs_by_line_preserving_empty(&display_runs);
@@ -411,7 +411,7 @@ pub(super) fn estimate_text_block_size(
         }
     }
     max_width = max_width.max(line_width);
-    let width = round2((max_width + font_size * 0.24).max(crate::px_to_cm(8.0)));
+    let width = round2((max_width + font_size * 0.24).max(crate::px_to_pt(8.0)));
     let height = round2((line_height * line_count as f64).max(line_height));
     (width, height)
 }

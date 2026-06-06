@@ -128,7 +128,7 @@ pub(super) fn solid_wedge_half_width_for_bond(bond: &Bond, stroke_width: f64) ->
 }
 
 pub(super) fn solid_wedge_half_width(stroke_width: f64) -> f64 {
-    crate::SOLID_WEDGE_WIDTH_CM.value().max(stroke_width) * 0.5
+    crate::SOLID_WEDGE_WIDTH_PT.value().max(stroke_width) * 0.5
 }
 
 pub(super) fn solid_wedge_tip_half_width(stroke_width: f64) -> f64 {
@@ -149,23 +149,23 @@ pub(super) fn solid_wedge_width_for_legacy_bond_template(bond: &Bond, stroke_wid
     if is_acs_document_1996_bond_template(bond, stroke_width) {
         3.0
     } else {
-        crate::SOLID_WEDGE_WIDTH_CM.value()
+        crate::SOLID_WEDGE_WIDTH_PT.value()
     }
 }
 
 pub(super) fn label_clip_margin_for_legacy_bond_template(bond: &Bond, stroke_width: f64) -> f64 {
     if is_acs_document_1996_bond_template(bond, stroke_width) {
-        crate::ACS_LABEL_GEOMETRY_CLIP_MARGIN_CM.value()
+        crate::ACS_LABEL_GEOMETRY_CLIP_MARGIN_PT.value()
     } else {
-        crate::LABEL_GEOMETRY_CLIP_MARGIN_CM.value()
+        crate::LABEL_GEOMETRY_CLIP_MARGIN_PT.value()
     }
 }
 
 pub(super) fn margin_width_for_legacy_bond_template(bond: &Bond, stroke_width: f64) -> f64 {
     if is_acs_document_1996_bond_template(bond, stroke_width) {
-        crate::ACS_BOND_MARGIN_WIDTH_CM.value()
+        crate::ACS_BOND_MARGIN_WIDTH_PT.value()
     } else {
-        crate::DEFAULT_BOND_MARGIN_WIDTH_CM.value()
+        crate::DEFAULT_BOND_MARGIN_WIDTH_PT.value()
     }
 }
 
@@ -274,7 +274,7 @@ pub(super) fn dashed_bond_knockout_polygons(
     let unit = direction.normalized();
     let normal = Vector::new(-unit.y, unit.x);
     let half_width =
-        stroke_width * 0.5 + stroke_width.max(crate::DASH_GAP_STROKE_EXTRA_CM.value()) * 0.45;
+        stroke_width * 0.5 + stroke_width.max(crate::DASH_GAP_STROKE_EXTRA_PT.value()) * 0.45;
     dash_gap_intervals(length, dash_array)
         .into_iter()
         .map(|(gap_start, gap_end)| {
@@ -360,8 +360,8 @@ pub(super) fn hashed_wedge_gap_intervals(
         return Vec::new();
     }
     let scale = stroke_width / VIEWER_BOND_STROKE;
-    let start_offset = (crate::HASH_WEDGE_GAP_START_OFFSET_CM.value() * scale).min(length * 0.06);
-    let end_inset = (crate::HASH_WEDGE_GAP_END_INSET_CM.value() * scale).min(length * 0.03);
+    let start_offset = (crate::HASH_WEDGE_GAP_START_OFFSET_PT.value() * scale).min(length * 0.06);
+    let end_inset = (crate::HASH_WEDGE_GAP_END_INSET_PT.value() * scale).min(length * 0.03);
     equal_black_segment_gap_intervals(
         length,
         start_offset,
@@ -388,7 +388,7 @@ pub(super) fn line_pattern_dash_array_for_bond(
         let spacing = bond
             .hash_spacing
             .filter(|spacing| *spacing > crate::EPSILON)
-            .unwrap_or(crate::DEFAULT_HASH_SPACING_CM.value());
+            .unwrap_or(crate::DEFAULT_HASH_SPACING_PT.value());
         let segment = spacing.max(stroke_width * 0.75);
         vec![segment, segment]
     } else {
@@ -1294,8 +1294,8 @@ mod tests {
         assert_eq!(
             dash_array,
             vec![
-                crate::DEFAULT_HASH_SPACING_CM.value(),
-                crate::DEFAULT_HASH_SPACING_CM.value()
+                crate::DEFAULT_HASH_SPACING_PT.value(),
+                crate::DEFAULT_HASH_SPACING_PT.value()
             ]
         );
     }

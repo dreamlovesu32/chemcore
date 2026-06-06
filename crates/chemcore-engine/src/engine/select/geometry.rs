@@ -69,7 +69,7 @@ pub(super) fn push_selection_box(
         y: bounds.min_y,
         width: (bounds.max_x - bounds.min_x).max(0.0),
         height: (bounds.max_y - bounds.min_y).max(0.0),
-        fill: Some("rgba(47,111,237,0.08)".to_string()),
+        fill: None,
         stroke: Some("rgba(47,111,237,0.86)".to_string()),
         stroke_width: SELECTION_BOX_STROKE_WIDTH,
         rx: None,
@@ -97,29 +97,39 @@ pub(super) fn push_selection_bond_dot(out: &mut Vec<RenderPrimitive>, center: Po
         radius: SELECTION_BOND_DOT_RADIUS,
         fill: "rgba(47,111,237,0.9)".to_string(),
         stroke: "#ffffff".to_string(),
-        stroke_width: crate::px_to_cm(1.0),
+        stroke_width: crate::px_to_pt(1.0),
     });
 }
 
-pub(super) fn render_selection_resize_handles(out: &mut Vec<RenderPrimitive>) {
-    let item_bounds: Vec<_> = out
+pub(super) fn render_selection_resize_handles(
+    out: &mut Vec<RenderPrimitive>,
+    use_global_bounds_only: bool,
+) {
+    for bounds in selection_control_bounds(out, use_global_bounds_only) {
+        push_selection_resize_handles_for_bounds(out, bounds);
+    }
+}
+
+pub(super) fn selection_control_bounds(
+    primitives: &[RenderPrimitive],
+    use_global_bounds_only: bool,
+) -> Vec<AxisBounds> {
+    let item_bounds: Vec<_> = primitives
         .iter()
         .filter_map(selection_rect_primitive_bounds)
         .collect();
-    for bounds in &item_bounds {
-        push_selection_resize_handles_for_bounds(out, *bounds, None);
+    if !use_global_bounds_only {
+        return item_bounds;
     }
 
     let mut global_bounds = None;
     for bounds in item_bounds {
         include_optional_bounds(&mut global_bounds, bounds);
     }
-    if let Some(bounds) = global_bounds {
-        push_selection_resize_handles_for_bounds(out, bounds, Some("global"));
-    }
+    global_bounds.into_iter().collect()
 }
 
-fn selection_rect_primitive_bounds(primitive: &RenderPrimitive) -> Option<AxisBounds> {
+pub(super) fn selection_rect_primitive_bounds(primitive: &RenderPrimitive) -> Option<AxisBounds> {
     match primitive {
         RenderPrimitive::Rect {
             role:
@@ -137,11 +147,7 @@ fn selection_rect_primitive_bounds(primitive: &RenderPrimitive) -> Option<AxisBo
     }
 }
 
-fn push_selection_resize_handles_for_bounds(
-    out: &mut Vec<RenderPrimitive>,
-    bounds: AxisBounds,
-    prefix: Option<&str>,
-) {
+fn push_selection_resize_handles_for_bounds(out: &mut Vec<RenderPrimitive>, bounds: AxisBounds) {
     for handle in [
         SelectionResizeHandle::NorthWest,
         SelectionResizeHandle::North,
@@ -154,14 +160,9 @@ fn push_selection_resize_handles_for_bounds(
     ] {
         let center = selection_resize_handle_center(handle, bounds);
         let size = SELECTION_RESIZE_HANDLE_SIZE;
-        let handle_id = if let Some(prefix) = prefix {
-            format!("{prefix}:{}", handle.name())
-        } else {
-            handle.name().to_string()
-        };
         out.push(RenderPrimitive::Rect {
             role: RenderRole::SelectionResizeHandle,
-            object_id: Some(handle_id),
+            object_id: Some(handle.name().to_string()),
             node_id: None,
             x: center.x - size * 0.5,
             y: center.y - size * 0.5,

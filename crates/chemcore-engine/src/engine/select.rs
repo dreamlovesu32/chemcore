@@ -17,6 +17,9 @@ const SELECTION_NODE_BOX_SIZE: f64 = ENDPOINT_FOCUS_RADIUS * 2.0;
 const SELECTION_BOX_STROKE_WIDTH: f64 = 1.0;
 const SELECTION_BOND_DOT_RADIUS: f64 = 0.5;
 const SELECTION_RESIZE_HANDLE_SIZE: f64 = 2.0;
+const SELECTION_ROTATE_HANDLE_RADIUS: f64 = 3.75;
+const SELECTION_ROTATE_HANDLE_OFFSET: f64 = 13.5;
+const SELECTION_CENTER_CROSS_HALF_SIZE: f64 = 3.75;
 
 #[path = "select/arrange.rs"]
 mod arrange;
@@ -238,6 +241,35 @@ impl SelectionResizeHandle {
             Self::NorthWest => "northwest",
             Self::SouthEast => "southeast",
             Self::SouthWest => "southwest",
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SelectionRotateHandleShape {
+    Circle,
+    Square,
+}
+
+#[derive(Clone, Copy)]
+struct SelectionOverlayBehavior {
+    show_resize_handles: bool,
+    show_rotate_handle: bool,
+    rotate_handle_shape: SelectionRotateHandleShape,
+    show_rotate_glyph: bool,
+    show_center_cross: bool,
+    use_global_bounds_only: bool,
+}
+
+impl Default for SelectionOverlayBehavior {
+    fn default() -> Self {
+        Self {
+            show_resize_handles: true,
+            show_rotate_handle: true,
+            rotate_handle_shape: SelectionRotateHandleShape::Circle,
+            show_rotate_glyph: true,
+            show_center_cross: false,
+            use_global_bounds_only: false,
         }
     }
 }
@@ -1241,7 +1273,7 @@ impl Engine {
                 else {
                     continue;
                 };
-                if point_in_bounds(point, bounds.expanded(crate::px_to_cm(3.0))) {
+                if point_in_bounds(point, bounds.expanded(crate::px_to_pt(3.0))) {
                     return Some(SelectHit::ArrowObject {
                         object_id: object.id.clone(),
                     });
@@ -1703,8 +1735,187 @@ impl Engine {
         render_selected_text_boxes(self, &overlay, &mut out);
         render_selected_arrow_handles(self, &overlay, &mut out);
         render_selected_fragment_content(self, &overlay, &mut out);
-        render_selection_resize_handles(&mut out);
+        let behavior = self.selection_overlay_behavior();
+        if self.selection_drag.is_none() && self.selection_resize_drag.is_none() {
+            if behavior.show_resize_handles {
+                render_selection_resize_handles(&mut out, behavior.use_global_bounds_only);
+            }
+            self.render_selection_transform_adornments(&mut out, behavior);
+        }
         out
+    }
+
+    fn selection_overlay_behavior(&self) -> SelectionOverlayBehavior {
+        let base = SelectionOverlayBehavior::default();
+        let selection = &self.state.selection;
+        let only_single_graphic = selection.arrow_objects.len() == 1
+            && selection.text_objects.is_empty()
+            && selection.nodes.is_empty()
+            && selection.bonds.is_empty()
+            && selection.label_nodes.is_empty();
+        if !only_single_graphic {
+            return base;
+        }
+        let Some(object) = self
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .find(|object| object.id == selection.arrow_objects[0])
+        else {
+            return base;
+        };
+        let kind = object
+            .payload
+            .extra
+            .get("kind")
+            .and_then(JsonValue::as_str)
+            .unwrap_or("");
+        if object.object_type == "line" {
+            return SelectionOverlayBehavior {
+                show_resize_handles: false,
+                show_rotate_handle: false,
+                show_rotate_glyph: false,
+                use_global_bounds_only: true,
+                ..base
+            };
+        }
+        if object.object_type == "shape" && kind == "orbital" {
+            return SelectionOverlayBehavior {
+                show_rotate_handle: false,
+                show_rotate_glyph: false,
+                show_center_cross: true,
+                use_global_bounds_only: true,
+                ..base
+            };
+        }
+        if object.object_type == "shape" && kind == "tlcPlate" {
+            return SelectionOverlayBehavior {
+                show_resize_handles: false,
+                rotate_handle_shape: SelectionRotateHandleShape::Square,
+                show_rotate_glyph: false,
+                show_center_cross: true,
+                use_global_bounds_only: true,
+                ..base
+            };
+        }
+        if object.object_type == "shape" && kind == "crossTable" {
+            return SelectionOverlayBehavior {
+                show_resize_handles: false,
+                show_rotate_handle: false,
+                show_rotate_glyph: false,
+                use_global_bounds_only: true,
+                ..base
+            };
+        }
+        base
+    }
+
+    fn render_selection_transform_adornments(
+        &self,
+        out: &mut Vec<RenderPrimitive>,
+        behavior: SelectionOverlayBehavior,
+    ) {
+        let Some(bounds) = self.selection_rotation_bounds() else {
+            return;
+        };
+        if behavior.show_center_cross {
+            let center = bounds.center();
+            let half = SELECTION_CENTER_CROSS_HALF_SIZE;
+            out.push(RenderPrimitive::Line {
+                role: RenderRole::SelectionCenterCross,
+                object_id: None,
+                bond_id: None,
+                from: Point::new(center.x - half, center.y),
+                to: Point::new(center.x + half, center.y),
+                stroke: "rgba(47,111,237,0.9)".to_string(),
+                stroke_width: SELECTION_BOX_STROKE_WIDTH,
+                dash_array: Vec::new(),
+            });
+            out.push(RenderPrimitive::Line {
+                role: RenderRole::SelectionCenterCross,
+                object_id: None,
+                bond_id: None,
+                from: Point::new(center.x, center.y - half),
+                to: Point::new(center.x, center.y + half),
+                stroke: "rgba(47,111,237,0.9)".to_string(),
+                stroke_width: SELECTION_BOX_STROKE_WIDTH,
+                dash_array: Vec::new(),
+            });
+        }
+        if !behavior.show_rotate_handle {
+            return;
+        }
+        let handle = Point::new(
+            bounds.center_x(),
+            bounds.min_y - SELECTION_ROTATE_HANDLE_OFFSET,
+        );
+        let top_center = Point::new(bounds.center_x(), bounds.min_y);
+        out.push(RenderPrimitive::Line {
+            role: RenderRole::SelectionRotateStem,
+            object_id: None,
+            bond_id: None,
+            from: top_center,
+            to: Point::new(handle.x, handle.y + SELECTION_ROTATE_HANDLE_RADIUS),
+            stroke: "rgba(47,111,237,0.9)".to_string(),
+            stroke_width: SELECTION_BOX_STROKE_WIDTH,
+            dash_array: Vec::new(),
+        });
+        match behavior.rotate_handle_shape {
+            SelectionRotateHandleShape::Circle => out.push(RenderPrimitive::Circle {
+                role: RenderRole::SelectionRotateHandle,
+                object_id: Some("rotate".to_string()),
+                node_id: None,
+                center: handle,
+                radius: SELECTION_ROTATE_HANDLE_RADIUS,
+                fill: "#ffffff".to_string(),
+                stroke: "rgba(47,111,237,0.9)".to_string(),
+                stroke_width: SELECTION_BOX_STROKE_WIDTH,
+            }),
+            SelectionRotateHandleShape::Square => {
+                let size = SELECTION_ROTATE_HANDLE_RADIUS * 1.25;
+                out.push(RenderPrimitive::Rect {
+                    role: RenderRole::SelectionRotateHandle,
+                    object_id: Some("rotate".to_string()),
+                    node_id: None,
+                    x: handle.x - size * 0.5,
+                    y: handle.y - size * 0.5,
+                    width: size,
+                    height: size,
+                    fill: Some("#ffffff".to_string()),
+                    stroke: Some("rgba(47,111,237,0.9)".to_string()),
+                    stroke_width: SELECTION_BOX_STROKE_WIDTH,
+                    rx: None,
+                    ry: None,
+                    dash_array: Vec::new(),
+                    fill_gradient: None,
+                });
+            }
+        }
+        if behavior.show_rotate_glyph {
+            out.push(RenderPrimitive::Path {
+                role: RenderRole::SelectionRotateGlyph,
+                object_id: None,
+                bond_id: None,
+                d: format!(
+                    "M {} {} A {} {} 0 1 1 {} {}",
+                    handle.x - SELECTION_ROTATE_HANDLE_RADIUS * 0.55,
+                    handle.y,
+                    SELECTION_ROTATE_HANDLE_RADIUS * 0.55,
+                    SELECTION_ROTATE_HANDLE_RADIUS * 0.55,
+                    handle.x + SELECTION_ROTATE_HANDLE_RADIUS * 0.35,
+                    handle.y + SELECTION_ROTATE_HANDLE_RADIUS * 0.42
+                ),
+                points: Vec::new(),
+                stroke: "rgba(47,111,237,0.9)".to_string(),
+                stroke_width: SELECTION_BOX_STROKE_WIDTH,
+                dash_array: Vec::new(),
+                line_cap: None,
+                line_join: None,
+                rotate: 0.0,
+                rotate_center: None,
+            });
+        }
     }
 
     fn selection_rotation_bounds(&self) -> Option<AxisBounds> {

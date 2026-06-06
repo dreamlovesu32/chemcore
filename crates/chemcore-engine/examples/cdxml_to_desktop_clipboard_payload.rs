@@ -28,12 +28,12 @@ fn main() {
     let document_json = if let Some([x1, y1, x2, y2]) = rect {
         engine.select_in_rect(
             Point {
-                x: chemcore_engine::px_to_cm(x1),
-                y: chemcore_engine::px_to_cm(y1),
+                x: chemcore_engine::px_to_pt(x1),
+                y: chemcore_engine::px_to_pt(y1),
             },
             Point {
-                x: chemcore_engine::px_to_cm(x2),
-                y: chemcore_engine::px_to_cm(y2),
+                x: chemcore_engine::px_to_pt(x2),
+                y: chemcore_engine::px_to_pt(y2),
             },
             false,
         );

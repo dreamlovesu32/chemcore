@@ -39,12 +39,12 @@ impl Default for CdxmlDefaults {
         Self {
             bond_length: crate::DEFAULT_BOND_LENGTH,
             line_width: crate::DEFAULT_BOND_STROKE,
-            bold_width: crate::BOLD_BOND_WIDTH_CM.value(),
-            hash_spacing: crate::DEFAULT_HASH_SPACING_CM.value(),
+            bold_width: crate::BOLD_BOND_WIDTH_PT.value(),
+            hash_spacing: crate::DEFAULT_HASH_SPACING_PT.value(),
             bond_spacing: crate::DEFAULT_BOND_SPACING_PERCENT,
-            margin_width: crate::DEFAULT_BOND_MARGIN_WIDTH_CM.value(),
-            label_size: crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM,
-            caption_size: crate::DEFAULT_TEXT_FONT_SIZE_CM,
+            margin_width: crate::DEFAULT_BOND_MARGIN_WIDTH_PT.value(),
+            label_size: crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT,
+            caption_size: crate::DEFAULT_TEXT_FONT_SIZE_PT,
         }
     }
 }
@@ -691,17 +691,17 @@ fn cdxml_defaults(root: &XmlNode) -> CdxmlDefaults {
     CdxmlDefaults {
         bond_length: parse_f64(root.attr("BondLength")).unwrap_or(crate::DEFAULT_BOND_LENGTH),
         line_width: parse_f64(root.attr("LineWidth")).unwrap_or(crate::DEFAULT_BOND_STROKE),
-        bold_width: parse_f64(root.attr("BoldWidth")).unwrap_or(crate::BOLD_BOND_WIDTH_CM.value()),
+        bold_width: parse_f64(root.attr("BoldWidth")).unwrap_or(crate::BOLD_BOND_WIDTH_PT.value()),
         hash_spacing: parse_f64(root.attr("HashSpacing"))
-            .unwrap_or(crate::DEFAULT_HASH_SPACING_CM.value()),
+            .unwrap_or(crate::DEFAULT_HASH_SPACING_PT.value()),
         bond_spacing: parse_f64(root.attr("BondSpacing"))
             .unwrap_or(crate::DEFAULT_BOND_SPACING_PERCENT),
         margin_width: parse_f64(root.attr("MarginWidth"))
-            .unwrap_or(crate::DEFAULT_BOND_MARGIN_WIDTH_CM.value()),
+            .unwrap_or(crate::DEFAULT_BOND_MARGIN_WIDTH_PT.value()),
         label_size: parse_f64(root.attr("LabelSize"))
-            .unwrap_or(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM),
+            .unwrap_or(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT),
         caption_size: parse_f64(root.attr("CaptionSize"))
-            .unwrap_or(crate::DEFAULT_TEXT_FONT_SIZE_CM),
+            .unwrap_or(crate::DEFAULT_TEXT_FONT_SIZE_PT),
     }
 }
 

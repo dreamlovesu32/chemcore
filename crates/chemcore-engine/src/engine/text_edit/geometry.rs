@@ -31,7 +31,7 @@ pub(super) fn endpoint_label_editor_anchor_world(
             .font_family
             .clone()
             .unwrap_or_else(|| DEFAULT_TEXT_FONT_FAMILY.to_string());
-        let font_size = WorldCm(label.font_size.unwrap_or(DEFAULT_TEXT_FONT_SIZE)).value();
+        let font_size = WorldPt(label.font_size.unwrap_or(DEFAULT_TEXT_FONT_SIZE)).value();
         let fill = label
             .fill
             .clone()
@@ -228,7 +228,7 @@ pub(super) fn bond_line_weight_stroke_width_for_engine(
     if weight == BondLineWeight::Bold {
         bond.bold_width
             .unwrap_or_else(|| {
-                crate::BOLD_BOND_WIDTH_CM.value() * (stroke_width / crate::DEFAULT_BOND_STROKE_CM)
+                crate::BOLD_BOND_WIDTH_PT.value() * (stroke_width / crate::DEFAULT_BOND_STROKE_PT)
             })
             .max(stroke_width)
     } else {

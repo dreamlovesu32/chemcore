@@ -3,19 +3,19 @@ use super::{
 };
 use crate::{
     build_label_glyph_polygons, decide_label_layout, layout_label_text, round2, round6, Bond,
-    BondLineWeight, DoubleBondPlacement, EndpointHit, LabelFlow, LabelRun, Point, WorldCm,
-    WorldPoint,
+    BondLineWeight, DoubleBondPlacement, EndpointHit, LabelFlow, LabelRun, Point, WorldPoint,
+    WorldPt,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 const DEFAULT_TEXT_FONT_FAMILY: &str = "Arial";
-const DEFAULT_TEXT_FONT_SIZE: f64 = crate::DEFAULT_TEXT_FONT_SIZE_CM;
+const DEFAULT_TEXT_FONT_SIZE: f64 = crate::DEFAULT_TEXT_FONT_SIZE_PT;
 const DEFAULT_TEXT_FILL: &str = "#000000";
-const DEFAULT_TEXT_LINE_HEIGHT: f64 = crate::DEFAULT_TEXT_LINE_HEIGHT_CM;
-const DEFAULT_TEXT_BLOCK_LINE_HEIGHT: f64 = crate::DEFAULT_TEXT_BLOCK_LINE_HEIGHT_CM;
-const DEFAULT_CENTERED_LABEL_FONT_SIZE: f64 = crate::DEFAULT_CENTERED_LABEL_FONT_SIZE_CM;
-const TEXT_EDIT_BOX_WIDTH: f64 = crate::px_to_cm(8.0);
+const DEFAULT_TEXT_LINE_HEIGHT: f64 = crate::DEFAULT_TEXT_LINE_HEIGHT_PT;
+const DEFAULT_TEXT_BLOCK_LINE_HEIGHT: f64 = crate::DEFAULT_TEXT_BLOCK_LINE_HEIGHT_PT;
+const DEFAULT_CENTERED_LABEL_FONT_SIZE: f64 = crate::DEFAULT_CENTERED_LABEL_FONT_SIZE_PT;
+const TEXT_EDIT_BOX_WIDTH: f64 = crate::px_to_pt(8.0);
 const IMPLICIT_HYDROGEN_LABEL_META_KEY: &str = "implicitHydrogenLabel";
 
 #[path = "text_edit/geometry.rs"]
@@ -85,23 +85,23 @@ impl TextEditTarget {
     pub const fn world_point(&self) -> WorldPoint {
         match self {
             Self::TextObject { x, y, .. } | Self::EndpointLabel { x, y, .. } => {
-                WorldPoint::new(WorldCm(*x), WorldCm(*y))
+                WorldPoint::new(WorldPt(*x), WorldPt(*y))
             }
         }
     }
 }
 
 impl TextEditSession {
-    pub const fn font_size_world_cm(&self) -> Option<WorldCm> {
+    pub const fn font_size_world_pt(&self) -> Option<WorldPt> {
         match self.font_size {
-            Some(value) => Some(WorldCm(value)),
+            Some(value) => Some(WorldPt(value)),
             None => None,
         }
     }
 
-    pub const fn line_height_world_cm(&self) -> Option<WorldCm> {
+    pub const fn line_height_world_pt(&self) -> Option<WorldPt> {
         match self.line_height {
-            Some(value) => Some(WorldCm(value)),
+            Some(value) => Some(WorldPt(value)),
             None => None,
         }
     }
@@ -110,9 +110,9 @@ impl TextEditSession {
         self.target.world_point()
     }
 
-    pub const fn anchor_offset_world_cm(&self) -> Option<[WorldCm; 2]> {
+    pub const fn anchor_offset_world_pt(&self) -> Option<[WorldPt; 2]> {
         match self.anchor_offset {
-            Some([x, y]) => Some([WorldCm(x), WorldCm(y)]),
+            Some([x, y]) => Some([WorldPt(x), WorldPt(y)]),
             None => None,
         }
     }
@@ -204,8 +204,8 @@ fn make_text_payload(
         "fontSize".to_string(),
         json!(round6(
             session
-                .font_size_world_cm()
-                .unwrap_or(WorldCm(DEFAULT_TEXT_FONT_SIZE))
+                .font_size_world_pt()
+                .unwrap_or(WorldPt(DEFAULT_TEXT_FONT_SIZE))
                 .value()
         )),
     );
@@ -478,8 +478,8 @@ impl Engine {
             .as_deref()
             .unwrap_or(DEFAULT_TEXT_FONT_FAMILY);
         let fallback_font_size = session
-            .font_size_world_cm()
-            .unwrap_or(WorldCm(DEFAULT_TEXT_FONT_SIZE))
+            .font_size_world_pt()
+            .unwrap_or(WorldPt(DEFAULT_TEXT_FONT_SIZE))
             .value();
         let fallback_fill = session.fill.as_deref().unwrap_or(DEFAULT_TEXT_FILL);
         let source_runs = merge_adjacent_runs(normalize_source_runs(session, &text));
@@ -511,13 +511,13 @@ impl Engine {
             .as_deref()
             .unwrap_or(DEFAULT_TEXT_FONT_FAMILY);
         let fallback_font_size = session
-            .font_size_world_cm()
-            .unwrap_or(WorldCm(DEFAULT_TEXT_FONT_SIZE))
+            .font_size_world_pt()
+            .unwrap_or(WorldPt(DEFAULT_TEXT_FONT_SIZE))
             .value();
         let fallback_fill = session.fill.as_deref().unwrap_or(DEFAULT_TEXT_FILL);
         let line_height = session
-            .line_height_world_cm()
-            .unwrap_or(WorldCm(DEFAULT_TEXT_LINE_HEIGHT))
+            .line_height_world_pt()
+            .unwrap_or(WorldPt(DEFAULT_TEXT_LINE_HEIGHT))
             .value();
         let source_runs = merge_adjacent_runs(normalize_source_runs(session, &text));
         let display_runs = display_runs_from_source_runs(
@@ -600,7 +600,7 @@ impl Engine {
             entry.fragment,
             object_translate,
             &hovered_node_id,
-            self.options.bond_stroke_world_cm().value(),
+            self.options.bond_stroke_world_pt().value(),
         );
         entry.update_bounds();
         let hover_point = crate::Point::new(
@@ -649,7 +649,7 @@ impl Engine {
                 entry.fragment,
                 node_id,
                 entry.object.transform.translate,
-                self.options.bond_stroke_world_cm().value(),
+                self.options.bond_stroke_world_pt().value(),
             )
         });
         let source_runs = label
@@ -665,8 +665,8 @@ impl Engine {
         let font_size = label
             .and_then(|label| label.font_size)
             .or(Some(DEFAULT_TEXT_FONT_SIZE));
-        let font_size_world_cm = WorldCm(font_size.unwrap_or(DEFAULT_TEXT_FONT_SIZE));
-        let line_height = Some((font_size_world_cm.value() * 1.05).max(font_size_world_cm.value()));
+        let font_size_world_pt = WorldPt(font_size.unwrap_or(DEFAULT_TEXT_FONT_SIZE));
+        let line_height = Some((font_size_world_pt.value() * 1.05).max(font_size_world_pt.value()));
         let default_chemical = label
             .map(|_| source_runs_are_chemical(&source_runs))
             .unwrap_or(true);
@@ -844,12 +844,12 @@ impl Engine {
         }
         let source_runs = normalize_source_runs(session, &text);
         let session_font_size = session
-            .font_size_world_cm()
-            .unwrap_or(WorldCm(DEFAULT_TEXT_FONT_SIZE))
+            .font_size_world_pt()
+            .unwrap_or(WorldPt(DEFAULT_TEXT_FONT_SIZE))
             .value();
         let session_line_height = session
-            .line_height_world_cm()
-            .unwrap_or(WorldCm(DEFAULT_TEXT_BLOCK_LINE_HEIGHT))
+            .line_height_world_pt()
+            .unwrap_or(WorldPt(DEFAULT_TEXT_BLOCK_LINE_HEIGHT))
             .value();
         let display_runs = display_runs_from_source_runs(
             &source_runs,
@@ -981,7 +981,7 @@ impl Engine {
             entry.fragment,
             object_translate,
             node_id,
-            self.options.bond_stroke_world_cm().value(),
+            self.options.bond_stroke_world_pt().value(),
         );
         entry.update_bounds();
         let hover_point = crate::Point::new(
@@ -1204,8 +1204,8 @@ pub(super) fn apply_node_label_text_edit(
     set_node_label_recognition_meta(node, label_recognition_meta.clone());
 
     let session_font_size = session
-        .font_size_world_cm()
-        .unwrap_or(WorldCm(DEFAULT_TEXT_FONT_SIZE))
+        .font_size_world_pt()
+        .unwrap_or(WorldPt(DEFAULT_TEXT_FONT_SIZE))
         .value();
     let display_runs = display_runs_from_source_runs(
         &source_runs,

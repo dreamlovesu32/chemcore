@@ -31,7 +31,7 @@ fn split_preserved_text_lines(text: &str) -> Vec<String> {
 fn wrap_text_lines(text: &str, max_width: f64, font_size: f64) -> Vec<String> {
     let raw_lines: Vec<&str> = text.split('\n').collect();
     let max_chars = (max_width
-        / crate::TEXT_WRAP_ESTIMATED_CHAR_WIDTH_CM
+        / crate::TEXT_WRAP_ESTIMATED_CHAR_WIDTH_PT
             .value()
             .max(font_size * 0.6))
     .floor()

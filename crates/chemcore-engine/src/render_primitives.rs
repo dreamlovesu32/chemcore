@@ -23,8 +23,12 @@ pub enum RenderRole {
     SelectionBox,
     SelectionBond,
     SelectionBondDot,
+    SelectionCenterCross,
     SelectionNode,
     SelectionResizeHandle,
+    SelectionRotateGlyph,
+    SelectionRotateHandle,
+    SelectionRotateStem,
     SelectionTextBox,
 }
 

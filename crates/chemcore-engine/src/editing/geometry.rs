@@ -309,19 +309,19 @@ mod tests {
     #[test]
     fn pointer_event_world_point_round_trip() {
         let event = PointerEvent::from_world_point(
-            WorldPoint::new(WorldCm(7.94), WorldCm(6.88)),
+            WorldPoint::new(WorldPt(7.94), WorldPt(6.88)),
             Some(0),
             true,
         );
         assert_eq!(
             event.world_point(),
-            WorldPoint::new(WorldCm(7.94), WorldCm(6.88))
+            WorldPoint::new(WorldPt(7.94), WorldPt(6.88))
         );
         assert_eq!(event.point(), Point::new(7.94, 6.88));
     }
 
     #[test]
-    fn editor_options_accessors_expose_world_cm() {
+    fn editor_options_accessors_expose_world_pt() {
         let options = EditorOptions {
             bond_length: 30.0,
             bond_stroke_width: 1.0,
@@ -333,14 +333,14 @@ mod tests {
             margin_width: 2.0,
             graphic_stroke_width: 1.0,
         };
-        assert_eq!(options.bond_length_world_cm(), WorldCm(30.0));
-        assert_eq!(options.bond_stroke_world_cm(), WorldCm(1.0));
-        assert_eq!(options.bold_bond_width_world_cm(), WorldCm(4.0));
-        assert_eq!(options.wedge_width_world_cm(), WorldCm(6.0));
-        assert_eq!(options.label_clip_margin_world_cm(), WorldCm(1.2));
-        assert_eq!(options.hash_spacing_world_cm(), WorldCm(2.7));
+        assert_eq!(options.bond_length_world_pt(), WorldPt(30.0));
+        assert_eq!(options.bond_stroke_world_pt(), WorldPt(1.0));
+        assert_eq!(options.bold_bond_width_world_pt(), WorldPt(4.0));
+        assert_eq!(options.wedge_width_world_pt(), WorldPt(6.0));
+        assert_eq!(options.label_clip_margin_world_pt(), WorldPt(1.2));
+        assert_eq!(options.hash_spacing_world_pt(), WorldPt(2.7));
         assert_eq!(options.bond_spacing_percent(), 12.0);
-        assert_eq!(options.graphic_stroke_world_cm(), WorldCm(1.0));
+        assert_eq!(options.graphic_stroke_world_pt(), WorldPt(1.0));
     }
 
     #[test]

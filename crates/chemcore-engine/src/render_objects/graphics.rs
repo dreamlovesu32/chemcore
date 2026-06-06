@@ -88,7 +88,7 @@ fn render_orbital_shape_object(
     let stroke_width = if style.stroke_width > crate::EPSILON {
         style.stroke_width
     } else {
-        px_to_cm(1.0)
+        px_to_pt(1.0)
     };
 
     if matches!(template.as_str(), "s" | "oval") {
@@ -315,7 +315,7 @@ fn render_cross_table_shape_object(
     let stroke_width = if style.stroke_width > crate::EPSILON {
         style.stroke_width
     } else {
-        px_to_cm(1.0)
+        px_to_pt(1.0)
     };
     let dash_array = style.dash_array;
     let mid_x = tx + width * 0.5;
@@ -369,10 +369,10 @@ fn render_tlc_plate_shape_object(
     let stroke_width = if style.stroke_width > crate::EPSILON {
         style.stroke_width
     } else {
-        px_to_cm(1.0)
+        px_to_pt(1.0)
     };
     let dash_spacing = payload_number(&object.payload, "dashSpacing")
-        .unwrap_or(crate::DEFAULT_HASH_SPACING_CM.value());
+        .unwrap_or(crate::DEFAULT_HASH_SPACING_PT.value());
     let editing_scale = (object.meta.get("source").and_then(JsonValue::as_str) == Some("cdxml"))
         .then(|| cdxml_editing_scale(document))
         .flatten()
@@ -556,7 +556,7 @@ pub(crate) fn render_bracket_object(
         d: bracket_pair_path_d(tx, ty, width, height, &kind),
         points: bounds,
         stroke: payload_string(&object.payload, "stroke").unwrap_or_else(|| "#000000".to_string()),
-        stroke_width: payload_number(&object.payload, "strokeWidth").unwrap_or(px_to_cm(1.0)),
+        stroke_width: payload_number(&object.payload, "strokeWidth").unwrap_or(px_to_pt(1.0)),
         dash_array: Vec::new(),
         line_cap: Some("butt".to_string()),
         line_join: Some(if kind == "curly" { "round" } else { "miter" }.to_string()),
@@ -732,7 +732,7 @@ fn render_symbol_object_geometry(
     layout_scale: f64,
 ) {
     let fill = payload_string(&object.payload, "fill").unwrap_or_else(|| "#000000".to_string());
-    let stroke_width = payload_number(&object.payload, "strokeWidth").unwrap_or(px_to_cm(1.0));
+    let stroke_width = payload_number(&object.payload, "strokeWidth").unwrap_or(px_to_pt(1.0));
     let object_id = Some(object.id.clone());
     let symbol_style = payload_string(&object.payload, "symbolStyle")
         .map(|style| crate::cdxml_symbol_style_from_name(&style))
@@ -1056,7 +1056,7 @@ impl ShapeStyleSpec {
             .and_then(|value| {
                 style_number(value, "strokeWidth").or_else(|| style_number(value, "stroke_width"))
             })
-            .unwrap_or(px_to_cm(1.0));
+            .unwrap_or(px_to_pt(1.0));
         let dash_array = style
             .and_then(|value| style_number_array(value, "dashArray"))
             .unwrap_or_default();

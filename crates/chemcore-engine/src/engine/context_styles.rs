@@ -34,7 +34,7 @@ impl Engine {
                     shape_style_json(
                         style,
                         &color,
-                        self.options.graphic_stroke_world_cm().value(),
+                        self.options.graphic_stroke_world_pt().value(),
                         self.options.hash_spacing,
                     ),
                 )
@@ -156,7 +156,7 @@ impl Engine {
                     orbital_style_json(
                         style,
                         &color,
-                        self.options.graphic_stroke_world_cm().value(),
+                        self.options.graphic_stroke_world_pt().value(),
                     ),
                 )
             })
@@ -295,7 +295,7 @@ impl Engine {
                     line_style_json(
                         style,
                         &color,
-                        self.options.graphic_stroke_world_cm().value(),
+                        self.options.graphic_stroke_world_pt().value(),
                         self.options.hash_spacing,
                     ),
                 )
@@ -343,7 +343,7 @@ impl Engine {
             return false;
         }
         self.push_undo_snapshot();
-        let stroke_width = self.options.bond_stroke_world_cm().value();
+        let stroke_width = self.options.bond_stroke_world_pt().value();
         let Some(mut entry) = self.state.document.editable_fragment_mut() else {
             self.undo_stack.pop();
             return false;
@@ -355,8 +355,8 @@ impl Engine {
                 changed |= apply_bond_style_key(
                     bond,
                     style,
-                    self.options.bold_bond_width_world_cm().value(),
-                    self.options.wedge_width_world_cm().value(),
+                    self.options.bold_bond_width_world_pt().value(),
+                    self.options.wedge_width_world_pt().value(),
                 );
             }
         }
@@ -419,7 +419,7 @@ impl Engine {
         if selected_labels.is_empty() && selected_nodes.is_empty() {
             return false;
         }
-        let stroke_width = self.options.bond_stroke_world_cm().value();
+        let stroke_width = self.options.bond_stroke_world_pt().value();
         let Some(mut entry) = self.state.document.editable_fragment_mut() else {
             return false;
         };
@@ -502,14 +502,14 @@ impl Engine {
         }
 
         self.push_undo_snapshot();
-        let stroke_width = self.options.bond_stroke_world_cm().value();
-        let bold_width = self.options.bold_bond_width_world_cm().value();
-        let wedge_width = self.options.wedge_width_world_cm().value();
-        let label_clip_margin = self.options.label_clip_margin_world_cm().value();
-        let hash_spacing = self.options.hash_spacing_world_cm().value();
+        let stroke_width = self.options.bond_stroke_world_pt().value();
+        let bold_width = self.options.bold_bond_width_world_pt().value();
+        let wedge_width = self.options.wedge_width_world_pt().value();
+        let label_clip_margin = self.options.label_clip_margin_world_pt().value();
+        let hash_spacing = self.options.hash_spacing_world_pt().value();
         let bond_spacing = self.options.bond_spacing_percent();
-        let margin_width = self.options.margin_width_world_cm().value();
-        let bond_length = self.options.bond_length_world_cm().value();
+        let margin_width = self.options.margin_width_world_pt().value();
+        let bond_length = self.options.bond_length_world_pt().value();
         let mut expanded_node_ids = Vec::new();
 
         let Some(mut entry) = self.state.document.editable_fragment_mut() else {
@@ -1428,7 +1428,7 @@ fn ensure_text_object_runs(object: &mut SceneObject) {
     let font_family =
         payload_string(&object.payload, "fontFamily").unwrap_or_else(|| "Arial".to_string());
     let font_size =
-        payload_number(&object.payload, "fontSize").unwrap_or(crate::DEFAULT_TEXT_FONT_SIZE_CM);
+        payload_number(&object.payload, "fontSize").unwrap_or(crate::DEFAULT_TEXT_FONT_SIZE_PT);
     let fill = payload_string(&object.payload, "fill").unwrap_or_else(|| "#000000".to_string());
     let run = json!({
         "text": text,

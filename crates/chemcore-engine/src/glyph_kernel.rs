@@ -402,7 +402,7 @@ fn glyph_placements_for_runs(
         let font_size = run
             .font_size
             .unwrap_or(fallback_font_size)
-            .max(crate::css_px(1.0).to_world_cm().value());
+            .max(crate::css_px(1.0).to_world_pt().value());
         let config = LayoutConfig {
             font_size_px: font_size,
             ..LayoutConfig::default()

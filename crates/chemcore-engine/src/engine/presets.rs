@@ -2,7 +2,7 @@ use super::text_edit::refresh_attached_node_label_geometry_for_all_nodes;
 use super::{Engine, ACS_DOCUMENT_1996_PRESET, DEFAULT_DOCUMENT_STYLE_PRESET};
 use crate::{
     render_document, render_primitives_bounds, Bond, ChemcoreDocument, EditorOptions,
-    ObjectSettings, Point, SceneObject, WorldCm, DEFAULT_BOND_LENGTH,
+    ObjectSettings, Point, SceneObject, WorldPt, DEFAULT_BOND_LENGTH,
 };
 use serde_json::{Map as JsonMap, Value as JsonValue};
 use std::collections::BTreeSet;
@@ -16,7 +16,7 @@ impl Engine {
         &self.document_style_preset
     }
 
-    pub fn set_bond_length_world_cm(&mut self, length: WorldCm) {
+    pub fn set_bond_length_world_pt(&mut self, length: WorldPt) {
         self.options.bond_length = if length.value() > 0.0 {
             length.value()
         } else {
@@ -25,7 +25,7 @@ impl Engine {
     }
 
     pub fn set_bond_length(&mut self, length: f64) {
-        self.set_bond_length_world_cm(WorldCm(length));
+        self.set_bond_length_world_pt(WorldPt(length));
     }
 
     pub fn object_settings(&self) -> ObjectSettings {
@@ -92,7 +92,7 @@ impl Engine {
             refresh_attached_node_label_geometry_for_all_nodes(
                 entry.fragment,
                 entry.object.transform.translate,
-                next_options.bond_stroke_world_cm().value(),
+                next_options.bond_stroke_world_pt().value(),
             );
             entry.update_bounds();
         }
@@ -231,7 +231,7 @@ impl Engine {
         let selected_graphics: BTreeSet<String> =
             self.state.selection.arrow_objects.iter().cloned().collect();
 
-        let stroke_width = self.options.bond_stroke_world_cm().value();
+        let stroke_width = self.options.bond_stroke_world_pt().value();
         if !selected_bonds.is_empty() {
             if let Some(mut entry) = self.state.document.editable_fragment_mut() {
                 let object_translate = entry.object.transform.translate;
@@ -397,7 +397,7 @@ impl Engine {
             refresh_attached_node_label_geometry_for_all_nodes(
                 entry.fragment,
                 entry.object.transform.translate,
-                next_options.bond_stroke_world_cm().value(),
+                next_options.bond_stroke_world_pt().value(),
             );
             entry.update_bounds();
         }
@@ -715,10 +715,10 @@ fn document_style_preset_options(preset: &str) -> EditorOptions {
             bond_stroke_width: 0.6,
             bold_bond_width: 2.0,
             wedge_width: 3.0,
-            label_clip_margin: crate::ACS_LABEL_GEOMETRY_CLIP_MARGIN_CM.value(),
+            label_clip_margin: crate::ACS_LABEL_GEOMETRY_CLIP_MARGIN_PT.value(),
             hash_spacing: 2.5,
             bond_spacing: 18.0,
-            margin_width: crate::ACS_BOND_MARGIN_WIDTH_CM.value(),
+            margin_width: crate::ACS_BOND_MARGIN_WIDTH_PT.value(),
             graphic_stroke_width: 0.6,
         },
         _ => EditorOptions::default(),
@@ -1046,25 +1046,25 @@ fn apply_existing_document_style_preset(document: &mut ChemcoreDocument, options
         };
         for node in &mut fragment.nodes {
             if let Some(label) = node.label.as_mut() {
-                label.font_size = Some(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM);
+                label.font_size = Some(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT);
                 for run in &mut label.runs {
-                    run.font_size = Some(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM);
+                    run.font_size = Some(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT);
                 }
                 for line in &mut label.line_runs {
                     for run in line {
-                        run.font_size = Some(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM);
+                        run.font_size = Some(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT);
                     }
                 }
             }
         }
         for bond in &mut fragment.bonds {
-            bond.stroke_width = options.bond_stroke_world_cm().value();
-            bond.bold_width = Some(options.bold_bond_width_world_cm().value());
-            bond.wedge_width = Some(options.wedge_width_world_cm().value());
-            bond.label_clip_margin = Some(options.label_clip_margin_world_cm().value());
-            bond.hash_spacing = Some(options.hash_spacing_world_cm().value());
+            bond.stroke_width = options.bond_stroke_world_pt().value();
+            bond.bold_width = Some(options.bold_bond_width_world_pt().value());
+            bond.wedge_width = Some(options.wedge_width_world_pt().value());
+            bond.label_clip_margin = Some(options.label_clip_margin_world_pt().value());
+            bond.hash_spacing = Some(options.hash_spacing_world_pt().value());
             bond.bond_spacing = Some(options.bond_spacing_percent());
-            bond.margin_width = Some(options.margin_width_world_cm().value());
+            bond.margin_width = Some(options.margin_width_world_pt().value());
         }
     }
     for style in document.styles.values_mut() {
@@ -1077,9 +1077,9 @@ fn apply_existing_document_style_preset(document: &mut ChemcoreDocument, options
             .unwrap_or("")
             .to_string();
         let target_width = match kind.as_str() {
-            "molecule" => Some(options.bond_stroke_world_cm().value()),
+            "molecule" => Some(options.bond_stroke_world_pt().value()),
             "stroke" | "shape" => existing_style_has_stroke_width(object)
-                .then_some(options.graphic_stroke_world_cm().value()),
+                .then_some(options.graphic_stroke_world_pt().value()),
             _ => None,
         };
         if let Some(width) = target_width {
@@ -1089,19 +1089,19 @@ fn apply_existing_document_style_preset(document: &mut ChemcoreDocument, options
             "molecule" => {
                 object.insert(
                     "fontSize".to_string(),
-                    json_number(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM),
+                    json_number(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT),
                 );
             }
             "text" => {
                 object.insert(
                     "fontSize".to_string(),
-                    json_number(crate::DEFAULT_TEXT_FONT_SIZE_CM),
+                    json_number(crate::DEFAULT_TEXT_FONT_SIZE_PT),
                 );
             }
             _ => {}
         }
     }
-    let graphic_width = options.graphic_stroke_world_cm().value();
+    let graphic_width = options.graphic_stroke_world_pt().value();
     for object in &mut document.objects {
         apply_graphic_stroke_width_to_object(object, graphic_width);
     }
@@ -1178,19 +1178,19 @@ fn update_document_object_settings_defaults(
     };
     defaults.insert(
         "bondLength".to_string(),
-        json_number(options.bond_length_world_cm().value()),
+        json_number(options.bond_length_world_pt().value()),
     );
     defaults.insert(
         "lineWidth".to_string(),
-        json_number(options.bond_stroke_world_cm().value()),
+        json_number(options.bond_stroke_world_pt().value()),
     );
     defaults.insert(
         "boldWidth".to_string(),
-        json_number(options.bold_bond_width_world_cm().value()),
+        json_number(options.bold_bond_width_world_pt().value()),
     );
     defaults.insert(
         "hashSpacing".to_string(),
-        json_number(options.hash_spacing_world_cm().value()),
+        json_number(options.hash_spacing_world_pt().value()),
     );
     defaults.insert(
         "bondSpacing".to_string(),
@@ -1198,6 +1198,6 @@ fn update_document_object_settings_defaults(
     );
     defaults.insert(
         "marginWidth".to_string(),
-        json_number(options.margin_width_world_cm().value()),
+        json_number(options.margin_width_world_pt().value()),
     );
 }

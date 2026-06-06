@@ -48,7 +48,7 @@ use crate::{
     can_focus_bond_center, can_focus_endpoint, default_angle_for_anchor_for_variant,
     direction_from_angle, endpoint_from_angle_for_document, hit_test_arrow_center,
     hit_test_bond_center, hit_test_endpoint, hit_test_endpoint_excluding, largest_angular_gap,
-    nearest_angle, normalize_angle, px_to_cm, refresh_repeating_units, render_document,
+    nearest_angle, normalize_angle, px_to_pt, refresh_repeating_units, render_document,
     render_primitives_bounds, round2, snapped_angle_for_anchor, ArrowCurve, ArrowEndpointStyle,
     ArrowHeadSize, ArrowNoGo, ArrowVariant, Bond, BondAnchor, BondLinePattern, BondLineStyles,
     BondLineWeight, BondLineWeights, BondPreview, BondStereo, BondVariant, ChemcoreDocument,
@@ -62,12 +62,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use std::collections::{BTreeMap, BTreeSet};
 
-const HOVER_STROKE_WIDTH: f64 = crate::px_to_cm(1.1);
-const HOVER_LABEL_STROKE_WIDTH: f64 = crate::px_to_cm(1.1);
-const HOVER_ENDPOINT_STROKE_WIDTH: f64 = crate::px_to_cm(1.4);
-const HOVER_BOND_CENTER_STROKE_WIDTH: f64 = crate::px_to_cm(1.2);
-const PREVIEW_END_RADIUS: f64 = crate::px_to_cm(5.0);
-const PREVIEW_END_STROKE_WIDTH: f64 = crate::px_to_cm(1.2);
+const HOVER_STROKE_WIDTH: f64 = crate::px_to_pt(1.1);
+const HOVER_LABEL_STROKE_WIDTH: f64 = crate::px_to_pt(1.1);
+const HOVER_ENDPOINT_STROKE_WIDTH: f64 = crate::px_to_pt(1.4);
+const HOVER_BOND_CENTER_STROKE_WIDTH: f64 = crate::px_to_pt(1.2);
+const PREVIEW_END_RADIUS: f64 = crate::px_to_pt(5.0);
+const PREVIEW_END_STROKE_WIDTH: f64 = crate::px_to_pt(1.2);
 const SYMBOL_CLICK_CLEARANCE: f64 = 2.5;
 const ELLIPSE_MINOR_AXIS_RATIO: f64 = 0.4;
 const ROUND_RECT_CORNER_RADIUS: f64 = 6.0;
@@ -112,7 +112,15 @@ fn render_primitive_role(primitive: &RenderPrimitive) -> RenderRole {
 }
 
 fn render_role_is_selection(role: RenderRole) -> bool {
-    render_role_is_selection_bounds(role) || role == RenderRole::SelectionResizeHandle
+    render_role_is_selection_bounds(role)
+        || matches!(
+            role,
+            RenderRole::SelectionCenterCross
+                | RenderRole::SelectionResizeHandle
+                | RenderRole::SelectionRotateGlyph
+                | RenderRole::SelectionRotateHandle
+                | RenderRole::SelectionRotateStem
+        )
 }
 
 fn render_role_is_selection_bounds(role: RenderRole) -> bool {
@@ -461,7 +469,7 @@ impl Engine {
                     );
                     let center = rotate_point(local_center, geometry.center, geometry.rotate);
                     let distance = center.distance(point);
-                    if distance > geometry.spot_radius + px_to_cm(6.0) {
+                    if distance > geometry.spot_radius + px_to_pt(6.0) {
                         continue;
                     }
                     let hit = TlcSpotHit {
@@ -593,7 +601,7 @@ impl Engine {
                         object_id: Some(hover.object_id.clone()),
                         node_id: None,
                         center: *handle,
-                        radius: crate::px_to_cm(1.5),
+                        radius: crate::px_to_pt(1.5),
                         fill: "#ffffff".to_string(),
                         stroke: "rgba(47,111,237,0.82)".to_string(),
                         stroke_width: HOVER_STROKE_WIDTH,
@@ -608,7 +616,7 @@ impl Engine {
                     object_id: Some(hover.object_id.clone()),
                     node_id: None,
                     center: *handle,
-                    radius: crate::px_to_cm(2.0),
+                    radius: crate::px_to_pt(2.0),
                     fill: "#ffffff".to_string(),
                     stroke: "rgba(47,111,237,0.82)".to_string(),
                     stroke_width: HOVER_STROKE_WIDTH,
@@ -835,7 +843,7 @@ impl Engine {
                         &self.state.document,
                         &drag.anchor,
                         angle,
-                        self.options.bond_length_world_cm().value(),
+                        self.options.bond_length_world_pt().value(),
                     )
                 };
                 drag.preview_end = Some(end);
@@ -1016,7 +1024,7 @@ impl Engine {
                         &self.state.document,
                         &drag.anchor,
                         angle,
-                        self.options.bond_length_world_cm().value(),
+                        self.options.bond_length_world_pt().value(),
                     )
                 });
                 BondAnchor {
@@ -1035,7 +1043,7 @@ impl Engine {
                 &self.state.document,
                 &drag.anchor,
                 angle,
-                self.options.bond_length_world_cm().value(),
+                self.options.bond_length_world_pt().value(),
             );
             self.endpoint_anchor_near(&drag.anchor, end)
                 .unwrap_or(BondAnchor {
@@ -1223,14 +1231,14 @@ impl Engine {
             order: order.max(1),
             double: pending_double,
             stereo: pending_stereo,
-            stroke_width: self.options.bond_stroke_world_cm().value(),
+            stroke_width: self.options.bond_stroke_world_pt().value(),
             stroke: None,
-            bold_width: Some(self.options.bold_bond_width_world_cm().value()),
-            wedge_width: Some(self.options.wedge_width_world_cm().value()),
-            label_clip_margin: Some(self.options.label_clip_margin_world_cm().value()),
-            hash_spacing: Some(self.options.hash_spacing_world_cm().value()),
+            bold_width: Some(self.options.bold_bond_width_world_pt().value()),
+            wedge_width: Some(self.options.wedge_width_world_pt().value()),
+            label_clip_margin: Some(self.options.label_clip_margin_world_pt().value()),
+            hash_spacing: Some(self.options.hash_spacing_world_pt().value()),
             bond_spacing: Some(self.options.bond_spacing_percent()),
-            margin_width: Some(self.options.margin_width_world_cm().value()),
+            margin_width: Some(self.options.margin_width_world_pt().value()),
             line_styles: pending_line_styles,
             line_weights: pending_line_weights,
             meta: serde_json::Value::Null,
@@ -1249,14 +1257,14 @@ impl Engine {
             entry.fragment,
             entry.object.transform.translate,
             &begin_id,
-            self.options.bond_stroke_world_cm().value(),
+            self.options.bond_stroke_world_pt().value(),
         );
         if end_id != begin_id {
             refresh_attached_node_label_geometry_for_node(
                 entry.fragment,
                 entry.object.transform.translate,
                 &end_id,
-                self.options.bond_stroke_world_cm().value(),
+                self.options.bond_stroke_world_pt().value(),
             );
         }
         entry.update_bounds();

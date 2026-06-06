@@ -8,7 +8,7 @@ use crate::{
     ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
 };
 
-const RING_REUSE_RADIUS: f64 = crate::px_to_cm(5.0);
+const RING_REUSE_RADIUS: f64 = crate::px_to_pt(5.0);
 
 #[derive(Clone)]
 enum TemplateAnchor {
@@ -694,7 +694,7 @@ fn insert_ring_plan_into_document(
 }
 
 fn template_stroke_width(document: &ChemcoreDocument, plan: &RingPlan, engine: &Engine) -> f64 {
-    let fallback = engine.options.bond_stroke_world_cm().value();
+    let fallback = engine.options.bond_stroke_world_pt().value();
     let Some(entry) = document.editable_fragment() else {
         return fallback;
     };
@@ -783,12 +783,12 @@ fn insert_ring_bond(
         stereo: None,
         stroke_width,
         stroke: None,
-        bold_width: Some(engine.options.bold_bond_width_world_cm().value()),
-        wedge_width: Some(engine.options.wedge_width_world_cm().value()),
-        label_clip_margin: Some(engine.options.label_clip_margin_world_cm().value()),
-        hash_spacing: Some(engine.options.hash_spacing_world_cm().value()),
+        bold_width: Some(engine.options.bold_bond_width_world_pt().value()),
+        wedge_width: Some(engine.options.wedge_width_world_pt().value()),
+        label_clip_margin: Some(engine.options.label_clip_margin_world_pt().value()),
+        hash_spacing: Some(engine.options.hash_spacing_world_pt().value()),
         bond_spacing: Some(engine.options.bond_spacing_percent()),
-        margin_width: Some(engine.options.margin_width_world_cm().value()),
+        margin_width: Some(engine.options.margin_width_world_pt().value()),
         line_styles,
         line_weights,
         meta: serde_json::Value::Null,

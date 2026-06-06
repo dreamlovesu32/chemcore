@@ -240,7 +240,7 @@ impl Engine {
 
     fn pending_orbital_style(&self) -> JsonValue {
         let color = self.state.tool.orbital_color.clone();
-        let stroke_width = self.options.graphic_stroke_world_cm().value();
+        let stroke_width = self.options.graphic_stroke_world_pt().value();
         match self.state.tool.orbital_style {
             OrbitalStyle::Hollow => json!({
                 "kind": "shape",
@@ -268,7 +268,7 @@ impl Engine {
     }
 
     fn default_orbital_size(&self) -> f64 {
-        (self.options.bond_length_world_cm().value() * DEFAULT_ORBITAL_SIZE_RATIO).max(12.0)
+        (self.options.bond_length_world_pt().value() * DEFAULT_ORBITAL_SIZE_RATIO).max(12.0)
     }
 }
 

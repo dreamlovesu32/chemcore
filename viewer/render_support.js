@@ -1,4 +1,4 @@
-import { cssPxToCm } from "./units.js";
+import { cssPxToPt } from "./units.js";
 
 const CHEMDRAW_INK = "#000000";
 const CHEMDRAW_COLOR_MAP = new Map([
@@ -74,7 +74,7 @@ export function ensureSvgDefs(svgRoot) {
 
 export function wrapTextLines(text, maxWidth, fontSize) {
   const rawLines = String(text || "").split("\n");
-  const maxChars = Math.max(8, Math.floor(maxWidth / Math.max(cssPxToCm(6), fontSize * 0.6)));
+  const maxChars = Math.max(8, Math.floor(maxWidth / Math.max(cssPxToPt(6), fontSize * 0.6)));
   const out = [];
 
   for (const rawLine of rawLines) {

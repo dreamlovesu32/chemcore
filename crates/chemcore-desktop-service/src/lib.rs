@@ -2,7 +2,7 @@ use chemcore_engine::{
     ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondVariant,
     BracketKind, Engine, OrbitalPhase, OrbitalStyle, OrbitalTemplate, Point, PointerEvent,
     RenderBoundsScope, RenderPrimitive, RenderRole, ShapeKind, ShapeStyle, TextEditLayoutRequest,
-    TextEditSession, Tool, ToolState, WorldCm, WorldPoint,
+    TextEditSession, Tool, ToolState, WorldPoint, WorldPt,
 };
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
@@ -1305,7 +1305,15 @@ fn render_primitive_role(primitive: &RenderPrimitive) -> RenderRole {
 }
 
 fn render_role_is_selection(role: RenderRole) -> bool {
-    render_role_is_selection_bounds(role) || role == RenderRole::SelectionResizeHandle
+    render_role_is_selection_bounds(role)
+        || matches!(
+            role,
+            RenderRole::SelectionCenterCross
+                | RenderRole::SelectionResizeHandle
+                | RenderRole::SelectionRotateGlyph
+                | RenderRole::SelectionRotateHandle
+                | RenderRole::SelectionRotateStem
+        )
 }
 
 fn render_role_is_selection_bounds(role: RenderRole) -> bool {
@@ -1337,11 +1345,11 @@ fn render_role_is_preview(role: RenderRole) -> bool {
 }
 
 fn point(x: f64, y: f64) -> Point {
-    Point::from_world(WorldPoint::new(WorldCm(x), WorldCm(y)))
+    Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y)))
 }
 
 fn pointer_event(x: f64, y: f64, button: Option<u8>, alt_key: bool) -> PointerEvent {
-    PointerEvent::from_world_point(WorldPoint::new(WorldCm(x), WorldCm(y)), button, alt_key)
+    PointerEvent::from_world_point(WorldPoint::new(WorldPt(x), WorldPt(y)), button, alt_key)
 }
 
 fn parse_tool(value: &str) -> Tool {

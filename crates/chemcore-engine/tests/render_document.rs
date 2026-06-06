@@ -6,7 +6,7 @@ use chemcore_engine::{
 use serde_json::json;
 use serde_json::Map;
 
-const fn cm(value: f64) -> f64 {
+const fn cdxml_cm_to_pt(value: f64) -> f64 {
     value * chemcore_engine::PT_PER_CM
 }
 
@@ -8878,20 +8878,20 @@ fn render_document_clips_solid_wedge_in_three_way_main_contact() {
 fn render_document_uses_extended_intersections_for_solid_wedge_three_way_contact() {
     let document = fragment_document(
         json!([
-            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [cm(7.5), cm(6.5)], "charge": 0, "numHydrogens": 0 },
-            { "id": "n2", "element": "C", "atomicNumber": 6, "position": [cm(6.45), cm(6.5)], "charge": 0, "numHydrogens": 0 },
-            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [cm(7.682330586550277), cm(5.465951859337181)], "charge": 0, "numHydrogens": 0 },
-            { "id": "n4", "element": "C", "atomicNumber": 6, "position": [cm(7.859121150491952), cm(7.486677251825204)], "charge": 0, "numHydrogens": 0 }
+            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [cdxml_cm_to_pt(7.5), cdxml_cm_to_pt(6.5)], "charge": 0, "numHydrogens": 0 },
+            { "id": "n2", "element": "C", "atomicNumber": 6, "position": [cdxml_cm_to_pt(6.45), cdxml_cm_to_pt(6.5)], "charge": 0, "numHydrogens": 0 },
+            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [cdxml_cm_to_pt(7.682330586550277), cdxml_cm_to_pt(5.465951859337181)], "charge": 0, "numHydrogens": 0 },
+            { "id": "n4", "element": "C", "atomicNumber": 6, "position": [cdxml_cm_to_pt(7.859121150491952), cdxml_cm_to_pt(7.486677251825204)], "charge": 0, "numHydrogens": 0 }
         ]),
         json!([
-            { "id": "b_left", "begin": "n1", "end": "n2", "order": 1, "strokeWidth": cm(0.035) },
-            { "id": "b_up", "begin": "n1", "end": "n3", "order": 1, "strokeWidth": cm(0.035) },
+            { "id": "b_left", "begin": "n1", "end": "n2", "order": 1, "strokeWidth": cdxml_cm_to_pt(0.035) },
+            { "id": "b_up", "begin": "n1", "end": "n3", "order": 1, "strokeWidth": cdxml_cm_to_pt(0.035) },
             {
                 "id": "b_wedge",
                 "begin": "n1",
                 "end": "n4",
                 "order": 1,
-                "strokeWidth": cm(0.035),
+                "strokeWidth": cdxml_cm_to_pt(0.035),
                 "stereo": {
                     "kind": "solid-wedge",
                     "wideEnd": "begin"
@@ -8900,9 +8900,11 @@ fn render_document_uses_extended_intersections_for_solid_wedge_three_way_contact
         ]),
     );
 
-    let expected_up_wedge_intersection =
-        chemcore_engine::Point::new(cm(7.5537589823596605), cm(6.295896144157522));
-    let contact_center = chemcore_engine::Point::new(cm(7.5), cm(6.5));
+    let expected_up_wedge_intersection = chemcore_engine::Point::new(
+        cdxml_cm_to_pt(7.5537589823596605),
+        cdxml_cm_to_pt(6.295896144157522),
+    );
+    let contact_center = chemcore_engine::Point::new(cdxml_cm_to_pt(7.5), cdxml_cm_to_pt(6.5));
     let polygons = object_bond_polygons_with_ids(&render_document(&document));
     let up = polygons
         .iter()
@@ -8915,13 +8917,13 @@ fn render_document_uses_extended_intersections_for_solid_wedge_three_way_contact
 
     assert!(
         up.iter()
-            .any(|point| point.distance(expected_up_wedge_intersection) <= cm(0.001)),
+            .any(|point| point.distance(expected_up_wedge_intersection) <= cdxml_cm_to_pt(0.001)),
         "{up:?}"
     );
     assert!(
         wedge
             .iter()
-            .any(|point| point.distance(expected_up_wedge_intersection) <= cm(0.001)),
+            .any(|point| point.distance(expected_up_wedge_intersection) <= cdxml_cm_to_pt(0.001)),
         "{wedge:?}"
     );
     let has_edge = |points: &[chemcore_engine::Point],
@@ -8929,10 +8931,10 @@ fn render_document_uses_extended_intersections_for_solid_wedge_three_way_contact
                     second: chemcore_engine::Point| {
         (0..points.len()).any(|index| {
             let next = (index + 1) % points.len();
-            (points[index].distance(first) <= cm(0.001)
-                && points[next].distance(second) <= cm(0.001))
-                || (points[index].distance(second) <= cm(0.001)
-                    && points[next].distance(first) <= cm(0.001))
+            (points[index].distance(first) <= cdxml_cm_to_pt(0.001)
+                && points[next].distance(second) <= cdxml_cm_to_pt(0.001))
+                || (points[index].distance(second) <= cdxml_cm_to_pt(0.001)
+                    && points[next].distance(first) <= cdxml_cm_to_pt(0.001))
         })
     };
     assert!(

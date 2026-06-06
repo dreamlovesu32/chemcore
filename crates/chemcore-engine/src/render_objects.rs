@@ -1,5 +1,5 @@
 use super::*;
-use crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM;
+use crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT;
 
 #[path = "render_objects/arrows.rs"]
 mod arrows;
@@ -27,7 +27,7 @@ fn fragment_label_font_size(label: &crate::NodeLabel) -> f64 {
             size = Some(size.map_or(run_size, |current| current.max(run_size)));
         }
     }
-    size.unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM)
+    size.unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT)
 }
 
 fn fragment_label_lines(label: &crate::NodeLabel) -> Vec<String> {

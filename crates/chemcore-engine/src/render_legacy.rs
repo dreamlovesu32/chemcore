@@ -1,5 +1,5 @@
 use super::*;
-use crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM;
+use crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT;
 
 #[derive(Debug, Clone)]
 struct LegacyLabelMetrics {
@@ -208,10 +208,10 @@ fn legacy_label_metrics(parsed: &LegacyMol, atom_index: usize) -> LegacyLabelMet
     }
     let label = legacy_format_atom_label(&parsed.atoms[atom_index]);
     let width =
-        px_to_cm(12.0_f64).max(label.chars().count() as f64 * px_to_cm(6.2) + px_to_cm(8.0));
+        px_to_pt(12.0_f64).max(label.chars().count() as f64 * px_to_pt(6.2) + px_to_pt(8.0));
     LegacyLabelMetrics {
         visible: true,
-        pad: width / 2.0 - px_to_cm(2.0),
+        pad: width / 2.0 - px_to_pt(2.0),
         label,
     }
 }
@@ -231,8 +231,8 @@ fn legacy_atom_label_offset(parsed: &LegacyMol, atom_index: usize) -> Vector {
         });
     let length = vx.hypot(vy).max(1.0);
     Vector::new(
-        (-vx / length) * px_to_cm(4.5),
-        (vy / length) * px_to_cm(4.5),
+        (-vx / length) * px_to_pt(4.5),
+        (vy / length) * px_to_pt(4.5),
     )
 }
 
@@ -668,13 +668,13 @@ fn legacy_build_collapsed_groups(
             }
         });
         let unit = direction.normalized();
-        let label_width = px_to_cm(20.0_f64)
-            .max(sgroup.label.chars().count() as f64 * px_to_cm(7.1) + px_to_cm(8.0));
+        let label_width = px_to_pt(20.0_f64)
+            .max(sgroup.label.chars().count() as f64 * px_to_pt(7.1) + px_to_pt(8.0));
         collapsed_groups.push(LegacyCollapsedGroup {
             label: sgroup.label.clone(),
             centroid: Point::new(
-                anchor_point.x + unit.x * (label_width * 0.45 + px_to_cm(7.0)),
-                anchor_point.y + unit.y * px_to_cm(10.0),
+                anchor_point.x + unit.x * (label_width * 0.45 + px_to_pt(7.0)),
+                anchor_point.y + unit.y * px_to_pt(10.0),
             ),
             connections,
         });
@@ -711,5 +711,5 @@ fn legacy_label_font_size(document: &ChemcoreDocument, object: &SceneObject) -> 
         .and_then(|style| {
             style_number(style, "fontSize").or_else(|| style_number(style, "font_size"))
         })
-        .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_CM)
+        .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT)
 }

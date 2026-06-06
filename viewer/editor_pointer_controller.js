@@ -1,9 +1,4 @@
 export function createEditorPointerController(options) {
-  function selectionRotateHandleHit(point) {
-    const handle = options.currentSelectionRotateHandle();
-    return !!handle && options.pointDistance(point, handle) <= handle.hitRadius;
-  }
-
   async function handleEditorPointerMove(event) {
     const point = options.svgPointFromEvent(event);
     const editorState = options.editorState();
@@ -16,7 +11,7 @@ export function createEditorPointerController(options) {
       event.preventDefault();
       if (gesture.kind === "tlc-spot-drag") {
         gesture.current = point;
-        gesture.dragged = options.pointDistance(gesture.start, point) >= options.cssPxToCm(1.5);
+        gesture.dragged = options.pointDistance(gesture.start, point) >= options.cssPxToPt(1.5);
         const hit = options.parseEngineJson(
           await options.state().editorEngine.updateTlcSpotDragJson?.(point.x, point.y),
           null,
@@ -30,7 +25,7 @@ export function createEditorPointerController(options) {
         return;
       }
       if (gesture.kind === "arrow-endpoint" || gesture.kind === "arrow-curve") {
-        if (options.pointDistance(gesture.start, point) >= options.cssPxToCm(3)) {
+        if (options.pointDistance(gesture.start, point) >= options.cssPxToPt(3)) {
           gesture.dragged = true;
         }
         gesture.current = point;
@@ -43,7 +38,7 @@ export function createEditorPointerController(options) {
         return;
       }
       if (gesture.kind === "shape-resize") {
-        if (options.pointDistance(gesture.start, point) >= options.cssPxToCm(3)) {
+        if (options.pointDistance(gesture.start, point) >= options.cssPxToPt(3)) {
           gesture.dragged = true;
         }
         gesture.current = point;
@@ -92,13 +87,13 @@ export function createEditorPointerController(options) {
         options.renderEditorOverlay(options.syncEditorRenderListFromEngine());
         return;
       }
-      if (options.pointDistance(gesture.start, point) >= options.cssPxToCm(3)) {
+      if (options.pointDistance(gesture.start, point) >= options.cssPxToPt(3)) {
         gesture.dragged = true;
       }
       gesture.current = point;
       if (editorState.selectMode === "free") {
         const lastPoint = gesture.points[gesture.points.length - 1];
-        if (!lastPoint || options.pointDistance(lastPoint, point) >= options.cssPxToCm(2)) {
+        if (!lastPoint || options.pointDistance(lastPoint, point) >= options.cssPxToPt(2)) {
           gesture.points.push(point);
         }
       }
@@ -219,8 +214,8 @@ export function createEditorPointerController(options) {
         options.renderEditorOverlay(options.currentEditorRenderList());
         return;
       }
-      const rotateHandle = options.currentSelectionRotateHandle();
-      if (rotateHandle && options.pointDistance(point, rotateHandle) <= rotateHandle.hitRadius) {
+      const rotateHandle = options.selectionRotateHandleHit(point);
+      if (rotateHandle) {
         if (await options.state().editorEngine.beginSelectionRotate?.(point.x, point.y)) {
           options.setActiveSelectionGesture({
             kind: "rotate",
@@ -467,7 +462,7 @@ export function createEditorPointerController(options) {
     if (options.editorState().activeTool === "bracket") {
       const start = options.activeBracketDragStart();
       options.setActiveBracketDragStart(null);
-      if (start && options.pointDistance(start, point) >= options.cssPxToCm(4)) {
+      if (start && options.pointDistance(start, point) >= options.cssPxToPt(4)) {
         await options.openTextEditorAt(options.bracketLabelAnchorPoint(start, point));
       }
     }

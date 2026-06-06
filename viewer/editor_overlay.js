@@ -7,66 +7,6 @@ import { renderCorePrimitive } from "./primitive_dom_renderer.js";
 const SELECTION_RESIZE_MIN_SCALE = 0.05;
 
 export function createEditorOverlayRenderer(options) {
-  function currentSelectionOverlayBehavior() {
-    const info = options.getSelectionInfo();
-    const onlySingleGraphic = info.graphicObjects.length === 1
-      && info.textObjects.length === 0
-      && info.nodes.length === 0
-      && info.bonds.length === 0
-      && info.labelNodes.length === 0;
-    const base = {
-      showResizeHandles: true,
-      showRotateHandle: true,
-      rotateHandleShape: "circle",
-      showRotateGlyph: true,
-      showCenterCross: false,
-      useGlobalBoundsOnly: false,
-    };
-    if (!onlySingleGraphic) {
-      return base;
-    }
-    const object = info.graphicObjects[0];
-    const kind = object?.payload?.kind || "";
-    if (object?.type === "line") {
-      return {
-        ...base,
-        showResizeHandles: false,
-        showRotateHandle: false,
-        showRotateGlyph: false,
-        useGlobalBoundsOnly: true,
-      };
-    }
-    if (object?.type === "shape" && kind === "orbital") {
-      return {
-        ...base,
-        showRotateHandle: false,
-        showRotateGlyph: false,
-        showCenterCross: true,
-        useGlobalBoundsOnly: true,
-      };
-    }
-    if (object?.type === "shape" && kind === "tlcPlate") {
-      return {
-        ...base,
-        showResizeHandles: false,
-        rotateHandleShape: "square",
-        showRotateGlyph: false,
-        showCenterCross: true,
-        useGlobalBoundsOnly: true,
-      };
-    }
-    if (object?.type === "shape" && kind === "crossTable") {
-      return {
-        ...base,
-        showResizeHandles: false,
-        showRotateHandle: false,
-        showRotateGlyph: false,
-        useGlobalBoundsOnly: true,
-      };
-    }
-    return base;
-  }
-
   function formatTlcRfValue(rf) {
     return `Rf ${Number(rf || 0).toFixed(2)}`;
   }
@@ -118,45 +58,68 @@ export function createEditorOverlayRenderer(options) {
     overlay.lastChild.textContent = label;
   }
 
-  function selectionRotateHandleFromBounds(bounds, behavior = currentSelectionOverlayBehavior()) {
-    if (!bounds || behavior.showRotateHandle === false) {
+  function currentSelectionRotateHandle(renderList = options.currentEditorRenderList()) {
+    return selectionRotateHandles(renderList)[0] || null;
+  }
+
+  function selectionRotateHandles(renderList = options.currentEditorRenderList()) {
+    return (renderList || [])
+      .filter((primitive) => (
+        primitive.role === "selection-rotate-handle"
+        && (primitive.kind === "circle" || primitive.kind === "rect")
+      ))
+      .map(selectionRotateHandleFromPrimitive)
+      .filter(Boolean);
+  }
+
+  function selectionRotateHandleFromPrimitive(primitive) {
+    if (!primitive) {
       return null;
     }
-    const radius = options.screenPxToWorld(5);
+    const bounds = options.currentRenderBounds("selection");
+    if (!bounds) {
+      return null;
+    }
+    if (primitive.kind === "circle" && primitive.center) {
+      return {
+        x: primitive.center.x,
+        y: primitive.center.y,
+        radius: Number(primitive.radius || 0),
+        hitRadius: options.screenPxToWorld(10),
+        bounds,
+        primitive,
+      };
+    }
     return {
-      x: (bounds.minX + bounds.maxX) * 0.5,
-      y: bounds.minY - options.screenPxToWorld(18),
-      radius,
+      x: primitive.x + primitive.width * 0.5,
+      y: primitive.y + primitive.height * 0.5,
+      radius: Math.max(primitive.width, primitive.height) * 0.5,
       hitRadius: options.screenPxToWorld(10),
       bounds,
+      primitive,
     };
   }
 
-  function currentSelectionRotateHandle() {
-    return selectionRotateHandleFromBounds(
-      options.currentRenderBounds("selection"),
-      currentSelectionOverlayBehavior(),
-    );
+  function selectionRotateHandleHit(point) {
+    return selectionRotateHandles(options.currentEditorRenderList())
+      .map((handle) => ({
+        handle,
+        distance: options.pointDistance(point, handle),
+      }))
+      .filter((entry) => entry.distance <= entry.handle.hitRadius)
+      .sort((a, b) => a.distance - b.distance)[0]?.handle || null;
   }
 
-  function selectionResizeHandles(
-    renderList = options.currentEditorRenderList(),
-    behavior = currentSelectionOverlayBehavior(),
-  ) {
-    if (!behavior.showResizeHandles) {
-      return [];
-    }
+  function selectionResizeHandles(renderList = options.currentEditorRenderList()) {
     return (renderList || [])
       .filter((primitive) => primitive.kind === "rect" && primitive.role === "selection-resize-handle")
       .map(selectionResizeHandleFromPrimitive)
-      .filter((handle) => handle && (!behavior.useGlobalBoundsOnly || handle.global));
+      .filter(Boolean);
   }
 
   function selectionResizeHandleFromPrimitive(primitive) {
     const rawId = String(primitive.objectId || primitive.object_id || "");
-    const global = rawId.startsWith("global:");
-    const rawName = global ? rawId.slice("global:".length) : rawId;
-    const name = resizeHandleShortName(rawName);
+    const name = resizeHandleShortName(rawId);
     if (!name) {
       return null;
     }
@@ -167,7 +130,6 @@ export function createEditorOverlayRenderer(options) {
       y: primitive.y + primitive.height * 0.5,
       size: primitive.width,
       hitRadius: options.screenPxToWorld(10),
-      global,
       primitive,
     };
   }
@@ -223,7 +185,7 @@ export function createEditorOverlayRenderer(options) {
   }
 
   function selectionResizeHandleHit(point) {
-    return selectionResizeHandles(options.currentEditorRenderList(), currentSelectionOverlayBehavior())
+    return selectionResizeHandles(options.currentEditorRenderList())
       .map((handle) => {
         const dx = Math.abs(point.x - handle.x);
         const dy = Math.abs(point.y - handle.y);
@@ -237,24 +199,8 @@ export function createEditorOverlayRenderer(options) {
         if (cornerPriority) {
           return cornerPriority;
         }
-        const globalPriority = Number(b.handle.global) - Number(a.handle.global);
-        if (globalPriority) {
-          return globalPriority;
-        }
         return a.distance - b.distance;
       })[0]?.handle || null;
-  }
-
-  function selectionCenterCrossFromBounds(bounds) {
-    if (!bounds) {
-      return null;
-    }
-    const halfSize = options.screenPxToWorld(5);
-    return {
-      x: (bounds.minX + bounds.maxX) * 0.5,
-      y: (bounds.minY + bounds.maxY) * 0.5,
-      halfSize,
-    };
   }
 
   function selectionResizePivot(handleName, bounds) {
@@ -372,8 +318,7 @@ export function createEditorOverlayRenderer(options) {
       || primitives.some((primitive) => primitive.role === "preview-end");
     const editorState = options.editorState();
     const activeSelectionGesture = options.activeSelectionGesture();
-    const selectionBehavior = currentSelectionOverlayBehavior();
-    const visibleResizeHandles = selectionResizeHandles(primitives, selectionBehavior);
+    const visibleResizeHandles = selectionResizeHandles(primitives);
     if (previewActive) {
       const viewBox = options.activeViewBox();
       const pageBackground = normalizeDisplayColor(
@@ -400,7 +345,12 @@ export function createEditorOverlayRenderer(options) {
         continue;
       }
       if (primitive.kind === "line" && primitive.from && primitive.to) {
-        if (primitive.role !== "selection-bond") {
+        if (!primitive.role?.startsWith("selection-")) {
+          continue;
+        }
+        renderCorePrimitive(overlay, primitive, options.corePrimitiveRenderOptions());
+      } else if (primitive.kind === "path" && primitive.d) {
+        if (!primitive.role?.startsWith("selection-")) {
           continue;
         }
         renderCorePrimitive(overlay, primitive, options.corePrimitiveRenderOptions());
@@ -442,6 +392,10 @@ export function createEditorOverlayRenderer(options) {
           "data-role": primitive.role,
         }));
       } else if (primitive.kind === "circle" && primitive.center) {
+        if (primitive.role?.startsWith("selection-")) {
+          renderCorePrimitive(overlay, primitive, options.corePrimitiveRenderOptions());
+          continue;
+        }
         const classByRole = {
           "hover-endpoint": "editor-endpoint-halo",
           "hover-bond-center": "editor-bond-center-halo",
@@ -453,10 +407,6 @@ export function createEditorOverlayRenderer(options) {
         };
         const className = classByRole[primitive.role];
         if (!className) {
-          continue;
-        }
-        if (primitive.role?.startsWith("selection-")) {
-          renderCorePrimitive(overlay, primitive, options.corePrimitiveRenderOptions());
           continue;
         }
         overlay.appendChild(makeSvgNode("circle", {
@@ -538,70 +488,6 @@ export function createEditorOverlayRenderer(options) {
       && !activeSelectionGesture
       && options.activeTlcLaneHover()) {
       drawTlcSpotGuideOverlay(overlay, options.activeTlcLaneHover());
-    } else if (editorState.activeTool === "select" && !activeSelectionGesture) {
-      const selectionBounds = options.currentRenderBounds("selection");
-      if (selectionBehavior.showCenterCross) {
-        const cross = selectionCenterCrossFromBounds(selectionBounds);
-        if (cross) {
-          overlay.appendChild(makeSvgNode("line", {
-            x1: cross.x - cross.halfSize,
-            y1: cross.y,
-            x2: cross.x + cross.halfSize,
-            y2: cross.y,
-            class: "editor-selection-center-cross",
-            "data-role": "selection-center-cross",
-          }));
-          overlay.appendChild(makeSvgNode("line", {
-            x1: cross.x,
-            y1: cross.y - cross.halfSize,
-            x2: cross.x,
-            y2: cross.y + cross.halfSize,
-            class: "editor-selection-center-cross",
-            "data-role": "selection-center-cross",
-          }));
-        }
-      }
-      const handle = selectionRotateHandleFromBounds(selectionBounds, selectionBehavior);
-      if (handle) {
-        const topCenter = {
-          x: (handle.bounds.minX + handle.bounds.maxX) * 0.5,
-          y: handle.bounds.minY,
-        };
-        overlay.appendChild(makeSvgNode("line", {
-          x1: topCenter.x,
-          y1: topCenter.y,
-          x2: handle.x,
-          y2: handle.y + handle.radius,
-          class: "editor-selection-rotate-stem",
-          "data-role": "selection-rotate-stem",
-        }));
-        if (selectionBehavior.rotateHandleShape === "square") {
-          const size = handle.radius * 1.25;
-          overlay.appendChild(makeSvgNode("rect", {
-            x: handle.x - size * 0.5,
-            y: handle.y - size * 0.5,
-            width: size,
-            height: size,
-            class: "editor-selection-top-handle",
-            "data-role": "selection-rotate-handle",
-          }));
-        } else {
-          overlay.appendChild(makeSvgNode("circle", {
-            cx: handle.x,
-            cy: handle.y,
-            r: handle.radius,
-            class: "editor-selection-rotate-handle",
-            "data-role": "selection-rotate-handle",
-          }));
-        }
-        if (selectionBehavior.showRotateGlyph) {
-          overlay.appendChild(makeSvgNode("path", {
-            d: `M ${handle.x - handle.radius * 0.55} ${handle.y} A ${handle.radius * 0.55} ${handle.radius * 0.55} 0 1 1 ${handle.x + handle.radius * 0.35} ${handle.y + handle.radius * 0.42}`,
-            class: "editor-selection-rotate-glyph",
-            "data-role": "selection-rotate-glyph",
-          }));
-        }
-      }
     }
     if (editorState.activeTool === "select" && activeSelectionGesture?.dragged) {
       if (editorState.selectMode === "box") {
@@ -633,8 +519,8 @@ export function createEditorOverlayRenderer(options) {
   }
 
   return {
-    currentSelectionOverlayBehavior,
     currentSelectionRotateHandle,
+    selectionRotateHandleHit,
     selectionResizeHandleHit,
     selectionResizeGestureScale,
     selectionRotateAngleForGesture,
