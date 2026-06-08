@@ -1,4 +1,4 @@
-export function createObjectSettingsHost({ root = document.body, engine, onApply } = {}) {
+export function createObjectSettingsHost({ root = document.body, engine, commandEngine, onApply } = {}) {
   return {
     async chooseObjectSettings() {
       const targetEngine = engine?.();
@@ -10,7 +10,17 @@ export function createObjectSettingsHost({ root = document.body, engine, onApply
         root,
         payload,
         apply: async (settings) => {
-          const changed = !!(await targetEngine.applyObjectSettingsDialogJson(JSON.stringify(settings)));
+          const settingsJson = JSON.stringify(settings);
+          const result = commandEngine?.executeEngineCommand
+            ? await commandEngine.executeEngineCommand(
+              {
+                type: "apply-object-settings",
+                payload: { settings },
+              },
+              () => targetEngine.applyObjectSettingsDialogJson(settingsJson),
+            )
+            : { changed: !!(await targetEngine.applyObjectSettingsDialogJson(settingsJson)) };
+          const changed = !!result.changed;
           if (changed) {
             await onApply?.();
           }

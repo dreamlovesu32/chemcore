@@ -48,6 +48,7 @@ import { createEditorSelectionState } from "./editor_selection_state.js";
 import { createEditorPointerController } from "./editor_pointer_controller.js";
 import { createCanvasContextMenuHost } from "./editor_context_menu.js";
 import { createEditorCommandController } from "./editor_command_controller.js";
+import { createEditorCommandEngine } from "./editor_command_engine.js";
 import {
   editorScriptScale as computeEditorScriptScale,
   estimateTextRunsWidth as computeEstimateTextRunsWidth,
@@ -120,19 +121,24 @@ const state = {
 const engineHost = createEngineHost();
 const desktopFileHost = createDesktopFileHost();
 const colorHost = createColorHost();
+const commandEngine = createEditorCommandEngine({
+  currentDocumentFingerprint: currentDocumentSaveFingerprint,
+  syncDocumentFromEngine,
+  onDocumentCommitted: handleDocumentCommandCommitted,
+});
 const objectSettingsHost = createObjectSettingsHost({
   root: document.body,
   engine: () => state.editorEngine,
+  commandEngine,
   onApply: async () => {
-    await syncDocumentFromEngine();
     renderDocument();
   },
 });
 const numericDialogHost = createNumericDialogHost({
   root: document.body,
   engine: () => state.editorEngine,
+  commandEngine,
   onApply: async () => {
-    await syncDocumentFromEngine();
     renderDocument();
   },
 });
@@ -163,6 +169,9 @@ if (typeof window !== "undefined") {
     },
     get desktopFileHost() {
       return desktopFileHost;
+    },
+    get commandEngine() {
+      return commandEngine;
     },
     insertEditorText(text) {
       if (!activeTextEditor) {
@@ -489,6 +498,20 @@ async function autoSaveAllOleEditDocumentTabs() {
   for (const tab of documentTabs) {
     await autoSaveOleEditDocumentTab(tab);
   }
+}
+
+async function handleDocumentCommandCommitted(event) {
+  saveActiveDocumentTabState();
+  const tab = activeDocumentTab();
+  if (tab) {
+    await autoSaveOleEditDocumentTab(tab);
+  }
+  refreshCommandAvailability();
+  console.debug?.("[chemcore] document command committed", {
+    type: event.commandType,
+    revision: event.revision,
+    source: event.source,
+  });
 }
 
 function fileNameFromPath(path) {
@@ -1680,6 +1703,7 @@ const editorCommandController = createEditorCommandController({
   renderEditorOverlay,
   refreshCommandAvailability,
   activateEditorTool,
+  commandEngine,
 });
 const writeNativeClipboardFromSelection = (...args) => editorCommandController.writeNativeClipboardFromSelection(...args);
 const pasteFromNativeClipboard = (...args) => editorCommandController.pasteFromNativeClipboard(...args);
@@ -1692,6 +1716,7 @@ canvasContextMenuHost = createCanvasContextMenuHost({
   colorHost,
   objectSettingsHost,
   numericDialogHost,
+  commandEngine,
   openColorDialog,
   isEditingRustDocument,
   parseEngineJson,
@@ -1752,6 +1777,7 @@ const editorPointerController = createEditorPointerController({
   selectClickTarget,
   cursorForShapeAction,
   syncCanvasCursor,
+  commandEngine,
   bracketLabelAnchorPoint,
   angleBetweenPoints: (from, to) => {
     const raw = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
@@ -1803,6 +1829,7 @@ async function resetEditorEngine() {
   await state.editorEngine?.free?.();
   state.editorEngine = engineHost.createEngineSession();
   await state.editorEngine.ready?.();
+  commandEngine.resetRevision();
   state.runtimeViewBox = defaultEditorViewBox();
   state.lastEditFocusPoint = null;
   clearZoomHandoffs();
@@ -2597,10 +2624,17 @@ async function finishActiveTextEditor(commit = true) {
     renderDocument();
     return false;
   }
-  const changed = await state.editorEngine?.applyTextEdit?.(JSON.stringify(editorSessionToEngineSession(nextSession)));
-  await syncDocumentFromEngine();
+  const result = await commandEngine.executeEngineCommand(
+    {
+      type: "apply-text-edit",
+      payload: {
+        target: nextSession.target || null,
+      },
+    },
+    () => state.editorEngine?.applyTextEdit?.(JSON.stringify(editorSessionToEngineSession(nextSession))),
+  );
   renderDocument();
-  return Boolean(changed);
+  return Boolean(result.changed);
 }
 
 function buildCommittedTextSession(session, root) {
@@ -2660,11 +2694,17 @@ async function applySelectionColor(color) {
   if (!isEditingRustDocument() || !state.editorEngine?.applyColorToSelection) {
     return false;
   }
-  const changed = !!(await state.editorEngine.applyColorToSelection(normalized));
+  const result = await commandEngine.executeEngineCommand(
+    {
+      type: "apply-selection-color",
+      payload: { color: normalized },
+    },
+    () => state.editorEngine.applyColorToSelection(normalized),
+  );
+  const changed = !!result.changed;
   if (!changed) {
     return false;
   }
-  await syncDocumentFromEngine();
   renderDocument();
   return true;
 }
@@ -2766,6 +2806,7 @@ const documentFlow = createDocumentFlow({
   renderDocument,
   fitView,
   markCurrentDocumentSaved,
+  resetCommandEngineRevision: () => commandEngine.resetRevision(),
   refreshCommandAvailability,
   waitForRuntimeReady: () => appRuntimeReady,
 });
@@ -3070,6 +3111,7 @@ bindEditorControls({
   saveCurrentDocumentSvg,
   isAbortError,
   runEditorCommand,
+  commandEngine,
   setZoomPercent,
   nextZoomStep,
   fitView,
@@ -3332,11 +3374,17 @@ async function applySelectionArrangeCommand(command) {
   if (!isEditingRustDocument() || editorState.activeTool !== "select") {
     return false;
   }
-  const changed = !!(await state.editorEngine.applySelectionArrangeCommand?.(command));
+  const result = await commandEngine.executeEngineCommand(
+    {
+      type: "apply-selection-arrange",
+      payload: { command },
+    },
+    () => state.editorEngine.applySelectionArrangeCommand?.(command),
+  );
+  const changed = !!result.changed;
   if (!changed) {
     return false;
   }
-  await syncDocumentFromEngine();
   renderDocument();
   return true;
 }
@@ -3345,25 +3393,41 @@ async function applyArrowOptionsToSelection() {
   if (!isEditingRustDocument()) {
     return false;
   }
-  const changed = state.editorEngine.applyArrowEndpointOptionsToSelection
-    ? !!(await state.editorEngine.applyArrowEndpointOptionsToSelection(
-      editorState.arrowType,
-      editorState.arrowHeadSize,
-      editorState.arrowCurve,
-      editorState.arrowHeadStyle,
-      editorState.arrowTailStyle,
-      editorState.arrowNoGo,
-      editorState.arrowBold,
-    ))
-    : !!(await state.editorEngine.applyArrowOptionsToSelection?.(
-      editorState.arrowType,
-      editorState.arrowHeadSize,
-      editorState.arrowHead,
-      editorState.arrowTail,
-      editorState.arrowBold,
-    ));
+  const result = await commandEngine.executeEngineCommand(
+    {
+      type: "apply-arrow-style",
+      payload: {
+        changes: {
+          variant: editorState.arrowType,
+          headSize: editorState.arrowHeadSize,
+          curve: editorState.arrowCurve,
+          headStyle: editorState.arrowHeadStyle,
+          tailStyle: editorState.arrowTailStyle,
+          noGo: editorState.arrowNoGo,
+          bold: editorState.arrowBold,
+        },
+      },
+    },
+    () => state.editorEngine.applyArrowEndpointOptionsToSelection
+      ? state.editorEngine.applyArrowEndpointOptionsToSelection(
+        editorState.arrowType,
+        editorState.arrowHeadSize,
+        editorState.arrowCurve,
+        editorState.arrowHeadStyle,
+        editorState.arrowTailStyle,
+        editorState.arrowNoGo,
+        editorState.arrowBold,
+      )
+      : state.editorEngine.applyArrowOptionsToSelection?.(
+        editorState.arrowType,
+        editorState.arrowHeadSize,
+        editorState.arrowHead,
+        editorState.arrowTail,
+        editorState.arrowBold,
+      ),
+  );
+  const changed = !!result.changed;
   if (changed) {
-    await syncDocumentFromEngine();
     renderDocument();
   }
   return changed;

@@ -1,4 +1,44 @@
 export function createEditorPointerController(options) {
+  async function executeDocumentCommand(command, apply, executeOptions = {}) {
+    if (options.commandEngine?.executeEngineCommand) {
+      return options.commandEngine.executeEngineCommand(command, apply, executeOptions);
+    }
+    const rawResult = await apply();
+    if (rawResult) {
+      await options.syncDocumentFromEngine();
+    }
+    return {
+      changed: !!rawResult,
+      rawResult,
+    };
+  }
+
+  function pointerCommitCommandType() {
+    const tool = options.editorState().activeTool;
+    if (tool === "bond") {
+      return "add-bond";
+    }
+    if (tool === "arrow") {
+      return "add-arrow";
+    }
+    if (tool === "shape" || tool === "tlc-plate" || tool === "orbital") {
+      return "add-shape";
+    }
+    if (tool === "bracket") {
+      return "add-bracket";
+    }
+    if (tool === "symbol") {
+      return "add-symbol";
+    }
+    if (tool === "templates") {
+      return "insert-template";
+    }
+    if (tool === "delete") {
+      return "delete-selection";
+    }
+    return "pointer-document-edit";
+  }
+
   async function handleEditorPointerMove(event) {
     const point = options.svgPointFromEvent(event);
     const editorState = options.editorState();
@@ -337,15 +377,18 @@ export function createEditorPointerController(options) {
     options.viewerSvg().releasePointerCapture?.(event.pointerId);
     const gesture = options.activeSelectionGesture();
     if (gesture?.kind === "tlc-spot-drag") {
-      const hit = options.parseEngineJson(
-        await options.state().editorEngine.finishTlcSpotDragJson?.(point.x, point.y),
-        null,
+      const result = await executeDocumentCommand(
+        {
+          type: "set-tlc-spot-position",
+          payload: { x: point.x, y: point.y },
+        },
+        () => options.state().editorEngine.finishTlcSpotDragJson?.(point.x, point.y),
       );
+      const hit = options.parseEngineJson(result.rawResult, null);
       options.setActiveSelectionGesture(null);
       if (hit) {
         options.setActiveTlcSpotHover(hit);
         options.setActiveTlcLaneHover(null);
-        await options.syncDocumentFromEngine();
       } else {
         options.clearTlcHoverState();
       }
@@ -360,11 +403,26 @@ export function createEditorPointerController(options) {
     if ((options.editorState().activeTool === "select" || options.editorState().activeTool === "arrow")
       && (gesture?.kind === "arrow-endpoint" || gesture?.kind === "arrow-curve")) {
       options.setActiveSelectionGesture(null);
-      const changed = !!(await options.state().editorEngine.finishHoverArrowEdit?.(point.x, point.y, event.altKey));
-      if (changed) {
-        await options.state().editorEngine.refreshRenderState?.();
-        await options.syncDocumentFromEngine();
-      } else if (!gesture.dragged && options.editorState().activeTool === "select") {
+      const result = await executeDocumentCommand(
+        {
+          type: "set-arrow-geometry",
+          payload: {
+            action: gesture.kind === "arrow-curve" ? "curve" : "endpoint",
+            x: point.x,
+            y: point.y,
+            altKey: event.altKey,
+          },
+        },
+        async () => {
+          const changed = !!(await options.state().editorEngine.finishHoverArrowEdit?.(point.x, point.y, event.altKey));
+          if (changed) {
+            await options.state().editorEngine.refreshRenderState?.();
+          }
+          return changed;
+        },
+      );
+      const changed = !!result.changed;
+      if (!changed && !gesture.dragged && options.editorState().activeTool === "select") {
         await options.selectClickTarget(point, gesture.additive);
         options.clearDocumentObjectPreviewTransform();
         await options.renderSelectionOnlyUpdate(point, options.syncArrowAwareCursorForPoint);
@@ -385,11 +443,26 @@ export function createEditorPointerController(options) {
       || options.editorState().activeTool === "orbital")
       && gesture?.kind === "shape-resize") {
       options.setActiveSelectionGesture(null);
-      const changed = !!(await options.state().editorEngine.finishHoverShapeEdit?.(point.x, point.y, event.altKey));
-      if (changed) {
-        await options.state().editorEngine.refreshRenderState?.();
-        await options.syncDocumentFromEngine();
-      } else if (!gesture.dragged && options.editorState().activeTool === "select") {
+      const result = await executeDocumentCommand(
+        {
+          type: "set-shape-geometry",
+          payload: {
+            action: gesture.action || "resize",
+            x: point.x,
+            y: point.y,
+            altKey: event.altKey,
+          },
+        },
+        async () => {
+          const changed = !!(await options.state().editorEngine.finishHoverShapeEdit?.(point.x, point.y, event.altKey));
+          if (changed) {
+            await options.state().editorEngine.refreshRenderState?.();
+          }
+          return changed;
+        },
+      );
+      const changed = !!result.changed;
+      if (!changed && !gesture.dragged && options.editorState().activeTool === "select") {
         await options.selectClickTarget(point, gesture.additive);
         options.clearDocumentObjectPreviewTransform();
         await options.renderSelectionOnlyUpdate(point, options.syncArrowAwareCursorForPoint);
@@ -410,16 +483,34 @@ export function createEditorPointerController(options) {
         return;
       }
       if (gesture.kind === "rotate") {
-        await options.state().editorEngine.finishSelectionRotate(point.x, point.y, event.altKey);
-        await options.syncDocumentFromEngine();
+        await executeDocumentCommand(
+          {
+            type: "rotate-selection",
+            payload: {
+              x: point.x,
+              y: point.y,
+              altKey: event.altKey,
+            },
+          },
+          () => options.state().editorEngine.finishSelectionRotate(point.x, point.y, event.altKey),
+        );
         await options.syncSelectCursorForPoint(point);
         options.clearDocumentObjectPreviewTransform();
         options.renderDocument();
         return;
       }
       if (gesture.kind === "resize") {
-        await options.state().editorEngine.finishSelectionResize?.(point.x, point.y);
-        await options.syncDocumentFromEngine();
+        await executeDocumentCommand(
+          {
+            type: "resize-selection",
+            payload: {
+              handle: gesture.handle || null,
+              x: point.x,
+              y: point.y,
+            },
+          },
+          () => options.state().editorEngine.finishSelectionResize?.(point.x, point.y),
+        );
         await options.syncSelectCursorForPoint(point);
         options.clearDocumentObjectPreviewTransform();
         options.renderDocument();
@@ -427,8 +518,17 @@ export function createEditorPointerController(options) {
       }
       if (gesture.kind === "move") {
         if (gesture.dragged) {
-          await options.state().editorEngine.finishSelectionMove(point.x, point.y, event.altKey);
-          await options.syncDocumentFromEngine();
+          await executeDocumentCommand(
+            {
+              type: "move-selection",
+              payload: {
+                start: gesture.start,
+                end: point,
+                altKey: event.altKey,
+              },
+            },
+            () => options.state().editorEngine.finishSelectionMove(point.x, point.y, event.altKey),
+          );
           await options.syncSelectCursorForPoint(point);
           options.clearDocumentObjectPreviewTransform();
           options.renderDocument();
@@ -456,8 +556,17 @@ export function createEditorPointerController(options) {
       await options.renderSelectionOnlyUpdate(point);
       return;
     }
-    await options.state().editorEngine.pointerUp(point.x, point.y, event.altKey);
-    await options.syncDocumentFromEngine();
+    await executeDocumentCommand(
+      {
+        type: pointerCommitCommandType(),
+        payload: {
+          x: point.x,
+          y: point.y,
+          altKey: event.altKey,
+        },
+      },
+      () => options.state().editorEngine.pointerUp(point.x, point.y, event.altKey),
+    );
     options.renderDocument();
     if (options.editorState().activeTool === "bracket") {
       const start = options.activeBracketDragStart();

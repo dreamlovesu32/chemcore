@@ -265,32 +265,37 @@ export function createCanvasContextMenuHost(options) {
     }
     hideCanvasContextMenu();
     let changed = false;
+    const executeDocumentCommand = async (chemcoreCommand, apply) => {
+      if (options.commandEngine?.executeEngineCommand) {
+        const result = await options.commandEngine.executeEngineCommand(chemcoreCommand, apply);
+        if (result.changed) {
+          options.renderDocument();
+        }
+        return !!result.changed;
+      }
+      const fallbackChanged = !!(await apply());
+      if (fallbackChanged) {
+        await options.syncDocumentFromEngine();
+        options.renderDocument();
+      }
+      return fallbackChanged;
+    };
     if (["cut", "copy", "paste", "delete", "select-all"].includes(command)) {
       changed = await options.runEditorCommand(command);
     } else if (command === "order") {
-      changed = !!(await options.state().editorEngine?.applySelectionOrderCommand?.(value));
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand(
+        { type: "apply-selection-order", payload: { command: value } },
+        () => options.state().editorEngine?.applySelectionOrderCommand?.(value),
+      );
     } else if (command === "arrange") {
-      changed = !!(await options.state().editorEngine?.applySelectionArrangeCommand?.(value));
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand(
+        { type: "apply-selection-arrange", payload: { command: value } },
+        () => options.state().editorEngine?.applySelectionArrangeCommand?.(value),
+      );
     } else if (command === "group") {
-      changed = !!(await options.state().editorEngine?.groupSelection?.());
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand("group-selection", () => options.state().editorEngine?.groupSelection?.());
     } else if (command === "ungroup") {
-      changed = !!(await options.state().editorEngine?.ungroupSelection?.());
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand("ungroup-selection", () => options.state().editorEngine?.ungroupSelection?.());
     } else if (command === "color") {
       changed = await options.applySelectionColor(value);
     } else if (command === "color-other") {
@@ -300,78 +305,61 @@ export function createCanvasContextMenuHost(options) {
       }, { colorHost: options.colorHost });
       return;
     } else if (command === "shape-style") {
-      changed = !!(await options.state().editorEngine?.applyShapeStyleToSelection?.(value));
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand(
+        { type: "apply-shape-style", payload: { changes: { shapeStyle: value } } },
+        () => options.state().editorEngine?.applyShapeStyleToSelection?.(value),
+      );
     } else if (command === "orbital-template") {
-      changed = !!(await options.state().editorEngine?.applyOrbitalTemplateToSelection?.(value));
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand(
+        { type: "apply-orbital-style", payload: { changes: { template: value } } },
+        () => options.state().editorEngine?.applyOrbitalTemplateToSelection?.(value),
+      );
     } else if (command === "orbital-style") {
-      changed = !!(await options.state().editorEngine?.applyOrbitalStyleToSelection?.(value));
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand(
+        { type: "apply-orbital-style", payload: { changes: { style: value } } },
+        () => options.state().editorEngine?.applyOrbitalStyleToSelection?.(value),
+      );
     } else if (command === "orbital-phase") {
-      changed = !!(await options.state().editorEngine?.applyOrbitalPhaseToSelection?.(value));
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand(
+        { type: "apply-orbital-style", payload: { changes: { phase: value } } },
+        () => options.state().editorEngine?.applyOrbitalPhaseToSelection?.(value),
+      );
     } else if (command === "bracket-kind") {
-      changed = !!(await options.state().editorEngine?.applyBracketKindToSelection?.(value));
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand(
+        { type: "apply-bracket-style", payload: { changes: { kind: value } } },
+        () => options.state().editorEngine?.applyBracketKindToSelection?.(value),
+      );
     } else if (command === "line-style") {
-      changed = !!(await options.state().editorEngine?.applyLineStyleToSelection?.(value));
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand(
+        { type: "apply-line-style", payload: { changes: { lineStyle: value } } },
+        () => options.state().editorEngine?.applyLineStyleToSelection?.(value),
+      );
     } else if (command === "bond-style") {
-      changed = !!(await options.state().editorEngine?.applyBondStyleToSelection?.(value));
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand(
+        { type: "apply-bond-style", payload: { changes: { variant: value } } },
+        () => options.state().editorEngine?.applyBondStyleToSelection?.(value),
+      );
     } else if (command === "text-style") {
       const separatorIndex = value.indexOf(":");
       const styleCommand = separatorIndex >= 0 ? value.slice(0, separatorIndex) : value;
       const styleValue = separatorIndex >= 0 ? value.slice(separatorIndex + 1) : "";
-      changed = !!(await options.state().editorEngine?.applyTextStyleToSelection?.(styleCommand, styleValue));
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand(
+        { type: "apply-text-style", payload: { changes: { [styleCommand]: styleValue } } },
+        () => options.state().editorEngine?.applyTextStyleToSelection?.(styleCommand, styleValue),
+      );
     } else if (command === "text-line-spacing") {
       await options.numericDialogHost.choose("line-height");
       await finishTemporaryContextSelection();
       return;
     } else if (command === "chemical-check") {
-      changed = !!(await options.state().editorEngine?.setChemicalCheckForSelection?.(value !== "off"));
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand(
+        { type: "apply-text-style", payload: { changes: { chemicalCheck: value !== "off" } } },
+        () => options.state().editorEngine?.setChemicalCheckForSelection?.(value !== "off"),
+      );
     } else if (command === "expand-label") {
-      changed = !!(await options.state().editorEngine?.expandLabelsInSelection?.());
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand("expand-labels", () => options.state().editorEngine?.expandLabelsInSelection?.());
     } else if (command === "center-page") {
-      changed = !!(await options.state().editorEngine?.centerSelectionOnPage?.());
-      if (changed) {
-        await options.syncDocumentFromEngine();
-        options.renderDocument();
-      }
+      changed = await executeDocumentCommand("center-selection-on-page", () => options.state().editorEngine?.centerSelectionOnPage?.());
     } else if (command === "object-settings") {
       await options.objectSettingsHost.chooseObjectSettings();
       await finishTemporaryContextSelection();

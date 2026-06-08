@@ -1,4 +1,4 @@
-export function createNumericDialogHost({ root = document.body, engine, onApply } = {}) {
+export function createNumericDialogHost({ root = document.body, engine, commandEngine, onApply } = {}) {
   return {
     async choose(kind) {
       const targetEngine = engine?.();
@@ -10,10 +10,23 @@ export function createNumericDialogHost({ root = document.body, engine, onApply 
         root,
         payload,
         apply: async (value) => {
-          const changed = !!(await targetEngine.applySelectionNumericDialogJson(JSON.stringify({
+          const payloadJson = JSON.stringify({
             kind: payload.kind,
             value,
-          })));
+          });
+          const result = commandEngine?.executeEngineCommand
+            ? await commandEngine.executeEngineCommand(
+              {
+                type: "apply-selection-numeric",
+                payload: {
+                  kind: payload.kind,
+                  value,
+                },
+              },
+              () => targetEngine.applySelectionNumericDialogJson(payloadJson),
+            )
+            : { changed: !!(await targetEngine.applySelectionNumericDialogJson(payloadJson)) };
+          const changed = !!result.changed;
           if (changed) {
             await onApply?.();
           }

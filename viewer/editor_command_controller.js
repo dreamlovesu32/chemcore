@@ -37,12 +37,26 @@ export function createEditorCommandController(options) {
     try {
       const payload = await options.desktopFileHost.readClipboard();
       if (payload?.chemcoreFragmentJson) {
-        return !!(await state.editorEngine.pasteClipboardJson(payload.chemcoreFragmentJson));
+        return !!(await executeDocumentCommand(
+          {
+            type: "paste-clipboard",
+            payload: { source: "native" },
+          },
+          () => state.editorEngine.pasteClipboardJson(payload.chemcoreFragmentJson),
+        ));
       }
     } catch (error) {
       console.warn("Failed to read native clipboard", error);
     }
     return false;
+  }
+
+  async function executeDocumentCommand(command, apply, executeOptions = {}) {
+    if (options.commandEngine?.executeEngineCommand) {
+      const result = await options.commandEngine.executeEngineCommand(command, apply, executeOptions);
+      return !!result.changed;
+    }
+    return !!(await apply());
   }
 
   async function runEditorCommand(command) {
@@ -53,9 +67,9 @@ export function createEditorCommandController(options) {
     let changed = false;
     let shouldRenderDocument = false;
     if (command === "undo") {
-      changed = await state.editorEngine.undo();
+      changed = await executeDocumentCommand("undo", () => state.editorEngine.undo());
     } else if (command === "redo") {
-      changed = await state.editorEngine.redo();
+      changed = await executeDocumentCommand("redo", () => state.editorEngine.redo());
     } else if (command === "copy") {
       const fragmentJson = await state.editorEngine.clipboardSelectionJson?.() || null;
       const documentJson = await state.editorEngine.clipboardDocumentJson?.() || null;
@@ -64,17 +78,23 @@ export function createEditorCommandController(options) {
     } else if (command === "cut") {
       const fragmentJson = await state.editorEngine.clipboardSelectionJson?.() || null;
       const documentJson = await state.editorEngine.clipboardDocumentJson?.() || null;
-      changed = !!(await state.editorEngine.cutSelection?.());
+      changed = await executeDocumentCommand("cut-selection", () => state.editorEngine.cutSelection?.());
       if (changed) {
         await writeNativeClipboardFromSelection(fragmentJson, documentJson);
       }
     } else if (command === "paste") {
       changed = await pasteFromNativeClipboard();
       if (!changed) {
-        changed = !!(await state.editorEngine.pasteClipboard?.());
+        changed = await executeDocumentCommand(
+          {
+            type: "paste-clipboard",
+            payload: { source: "internal" },
+          },
+          () => state.editorEngine.pasteClipboard?.(),
+        );
       }
     } else if (command === "delete") {
-      changed = await state.editorEngine.deleteSelection();
+      changed = await executeDocumentCommand("delete-selection", () => state.editorEngine.deleteSelection());
     } else if (command === "select-all") {
       await options.activateEditorTool("select");
       changed = !!(await state.editorEngine.selectAll?.());

@@ -59,6 +59,7 @@ export function createDocumentFlow(options) {
     await options.state.editorEngine?.free?.();
     options.state.editorEngine = options.engineHost.createEngineSession();
     await options.state.editorEngine.ready?.();
+    options.resetCommandEngineRevision?.();
     options.state.lastEditFocusPoint = null;
     options.clearZoomHandoffs();
     await options.state.editorEngine.loadDocumentJson(JSON.stringify(documentData));
@@ -403,6 +404,7 @@ export function createDocumentFlow(options) {
     await options.state.editorEngine?.free?.();
     options.state.editorEngine = options.engineHost.createEngineSession();
     await options.state.editorEngine.ready?.();
+    options.resetCommandEngineRevision?.();
     options.state.lastEditFocusPoint = null;
     options.clearZoomHandoffs();
     await options.state.editorEngine.loadDocumentCdxml(cdxml);

@@ -286,11 +286,19 @@ async function runHoverEndpointShortcut(event, options) {
   if (!label) {
     return false;
   }
-  const changed = await options.state.editorEngine?.replaceHoveredEndpointLabel?.(label);
+  const result = options.commandEngine?.executeEngineCommand
+    ? await options.commandEngine.executeEngineCommand(
+      {
+        type: "replace-endpoint-label",
+        payload: { label },
+      },
+      () => options.state.editorEngine?.replaceHoveredEndpointLabel?.(label),
+    )
+    : { changed: await options.state.editorEngine?.replaceHoveredEndpointLabel?.(label) };
+  const changed = !!result.changed;
   if (!changed) {
     return false;
   }
-  options.syncDocumentFromEngine();
   options.renderDocument();
   return true;
 }
@@ -362,10 +370,21 @@ function bindDocumentStylePreset(options) {
     if (!confirmed) {
       return;
     }
-    await options.state.editorEngine?.setDocumentStylePreset?.(preset);
+    const result = options.commandEngine?.executeEngineCommand
+      ? await options.commandEngine.executeEngineCommand(
+        {
+          type: "apply-document-style",
+          payload: {
+            preset,
+            scope: "document",
+          },
+        },
+        () => options.state.editorEngine?.setDocumentStylePreset?.(preset),
+        { compareDocument: true },
+      )
+      : { changed: await options.state.editorEngine?.setDocumentStylePreset?.(preset) };
     await options.syncEngineToolState();
-    if (options.isEditingRustDocument()) {
-      options.syncDocumentFromEngine();
+    if (options.isEditingRustDocument() && result.changed !== false) {
       options.renderDocument();
     }
   });
