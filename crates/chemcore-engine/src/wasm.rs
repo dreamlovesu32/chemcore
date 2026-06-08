@@ -605,6 +605,13 @@ impl WasmEngine {
         self.inner.center_selection_on_page()
     }
 
+    #[wasm_bindgen(js_name = executeCommandJson)]
+    pub fn execute_command_json(&mut self, command_json: &str) -> Result<String, JsValue> {
+        self.inner
+            .execute_command_json(command_json)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
     #[wasm_bindgen(js_name = clearInteraction)]
     pub fn clear_interaction(&mut self) {
         self.inner.clear_interaction();
@@ -727,6 +734,25 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = canRedo)]
     pub fn can_redo(&self) -> bool {
         self.inner.can_redo()
+    }
+
+    #[wasm_bindgen(js_name = revision)]
+    pub fn revision(&self) -> u64 {
+        self.inner.revision()
+    }
+
+    #[wasm_bindgen(js_name = lastCommandResultJson)]
+    pub fn last_command_result_json(&self) -> Result<String, JsValue> {
+        self.inner
+            .last_command_result_json()
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    #[wasm_bindgen(js_name = historyJson)]
+    pub fn history_json(&self) -> Result<String, JsValue> {
+        self.inner
+            .history_json()
+            .map_err(|error| JsValue::from_str(&error.to_string()))
     }
 
     #[wasm_bindgen(js_name = stateJson)]

@@ -1,5 +1,5 @@
 use super::text_edit::refresh_attached_node_label_geometry_for_all_nodes;
-use super::{Engine, ACS_DOCUMENT_1996_PRESET, DEFAULT_DOCUMENT_STYLE_PRESET};
+use super::{Engine, ObjectSettingsPatch, ACS_DOCUMENT_1996_PRESET, DEFAULT_DOCUMENT_STYLE_PRESET};
 use crate::{
     render_document, render_primitives_bounds, Bond, ChemcoreDocument, EditorOptions,
     ObjectSettings, Point, SceneObject, WorldPt, DEFAULT_BOND_LENGTH,
@@ -209,13 +209,20 @@ impl Engine {
         fields
     }
 
-    fn apply_object_settings_to_selection(&mut self, settings: SelectedObjectSettings) -> bool {
+    pub(super) fn apply_object_settings_to_selection(
+        &mut self,
+        settings: SelectedObjectSettings,
+    ) -> bool {
         if settings.is_empty() || self.state.selection.is_empty() {
             return false;
         }
+        let bond_ids = self.state.selection.bonds.clone();
+        let object_ids = self.state.selection.arrow_objects.clone();
         self.with_command(
-            super::command::EditorCommand::LegacyMutation {
-                label: "apply-object-settings-selection".to_string(),
+            super::command::EditorCommand::ApplyObjectSettingsToSelection {
+                bond_ids,
+                object_ids,
+                settings: settings.into(),
             },
             |engine| engine.apply_object_settings_to_selection_untracked(settings),
         )
@@ -378,8 +385,23 @@ impl Engine {
             })
     }
 
-    pub fn set_document_style_preset(&mut self, preset: &str) {
+    pub fn set_document_style_preset(&mut self, preset: &str) -> bool {
+        let preset = normalize_document_style_preset(preset).to_string();
+        self.with_command(
+            super::command::EditorCommand::ApplyDocumentStyle {
+                preset: preset.clone(),
+            },
+            |engine| engine.set_document_style_preset_untracked(&preset),
+        )
+    }
+
+    fn set_document_style_preset_untracked(&mut self, preset: &str) -> bool {
         let preset = normalize_document_style_preset(preset);
+        let before_document_json = serde_json::to_string(&self.state.document).unwrap_or_default();
+        let before_settings = self.object_settings();
+        let before_preset = self.document_style_preset.clone();
+
+        self.push_undo_snapshot();
         let next_options = document_style_preset_options(preset);
         let scale = if self.options.bond_length > crate::EPSILON {
             next_options.bond_length / self.options.bond_length
@@ -404,6 +426,14 @@ impl Engine {
         self.options = next_options;
         self.document_style_preset = preset.to_string();
         self.clear_interaction();
+        let after_document_json = serde_json::to_string(&self.state.document).unwrap_or_default();
+        let changed = before_document_json != after_document_json
+            || before_settings != self.object_settings()
+            || before_preset != self.document_style_preset;
+        if !changed {
+            self.undo_stack.pop();
+        }
+        changed
     }
 }
 
@@ -486,13 +516,13 @@ fn parse_object_setting(
 }
 
 #[derive(Clone, Copy, Default)]
-struct SelectedObjectSettings {
-    bond_length: Option<f64>,
-    line_width: Option<f64>,
-    bold_width: Option<f64>,
-    bond_spacing: Option<f64>,
-    margin_width: Option<f64>,
-    hash_spacing: Option<f64>,
+pub(super) struct SelectedObjectSettings {
+    pub(super) bond_length: Option<f64>,
+    pub(super) line_width: Option<f64>,
+    pub(super) bold_width: Option<f64>,
+    pub(super) bond_spacing: Option<f64>,
+    pub(super) margin_width: Option<f64>,
+    pub(super) hash_spacing: Option<f64>,
 }
 
 impl SelectedObjectSettings {
@@ -503,6 +533,19 @@ impl SelectedObjectSettings {
             && self.bond_spacing.is_none()
             && self.margin_width.is_none()
             && self.hash_spacing.is_none()
+    }
+}
+
+impl From<SelectedObjectSettings> for ObjectSettingsPatch {
+    fn from(settings: SelectedObjectSettings) -> Self {
+        Self {
+            bond_length: settings.bond_length,
+            line_width: settings.line_width,
+            bold_width: settings.bold_width,
+            bond_spacing: settings.bond_spacing,
+            margin_width: settings.margin_width,
+            hash_spacing: settings.hash_spacing,
+        }
     }
 }
 

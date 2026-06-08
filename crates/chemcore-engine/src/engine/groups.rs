@@ -7,12 +7,12 @@ const STACK_STEP: i32 = 10;
 
 impl Engine {
     pub fn group_selection(&mut self) -> bool {
-        self.with_command(
-            EditorCommand::LegacyMutation {
-                label: "group-selection".to_string(),
-            },
-            |engine| engine.group_selection_untracked(),
-        )
+        let object_ids = selected_scene_object_ids(&self.state.selection)
+            .into_iter()
+            .collect();
+        self.with_command(EditorCommand::GroupSelection { object_ids }, |engine| {
+            engine.group_selection_untracked()
+        })
     }
 
     fn group_selection_untracked(&mut self) -> bool {
@@ -21,9 +21,11 @@ impl Engine {
             return false;
         }
         let group_id = self.next_id("grp");
+        self.push_undo_snapshot();
         let Some(group) =
             group_selected_in_siblings(&mut self.state.document.objects, &selected_ids, group_id)
         else {
+            self.undo_stack.pop();
             return false;
         };
         self.state.selection = SelectionState {
@@ -34,12 +36,12 @@ impl Engine {
     }
 
     pub fn ungroup_selection(&mut self) -> bool {
-        self.with_command(
-            EditorCommand::LegacyMutation {
-                label: "ungroup-selection".to_string(),
-            },
-            |engine| engine.ungroup_selection_untracked(),
-        )
+        let object_ids = selected_scene_object_ids(&self.state.selection)
+            .into_iter()
+            .collect();
+        self.with_command(EditorCommand::UngroupSelection { object_ids }, |engine| {
+            engine.ungroup_selection_untracked()
+        })
     }
 
     fn ungroup_selection_untracked(&mut self) -> bool {
@@ -47,12 +49,14 @@ impl Engine {
         if selected_ids.is_empty() {
             return false;
         }
+        self.push_undo_snapshot();
         let mut ungrouped = Vec::new();
         if !ungroup_selected_in_siblings(
             &mut self.state.document.objects,
             &selected_ids,
             &mut ungrouped,
         ) {
+            self.undo_stack.pop();
             return false;
         }
         let mut selection = SelectionState::default();
@@ -68,9 +72,13 @@ impl Engine {
     }
 
     pub fn apply_selection_order_command(&mut self, command: &str) -> bool {
+        let object_ids = selected_scene_object_ids(&self.state.selection)
+            .into_iter()
+            .collect();
         self.with_command(
-            EditorCommand::LegacyMutation {
-                label: format!("order-selection:{command}"),
+            EditorCommand::ApplySelectionOrder {
+                object_ids,
+                command: command.to_string(),
             },
             |engine| engine.apply_selection_order_command_untracked(command),
         )
@@ -81,7 +89,13 @@ impl Engine {
         if selected_ids.is_empty() {
             return false;
         }
-        apply_order_in_siblings(&mut self.state.document.objects, &selected_ids, command)
+        self.push_undo_snapshot();
+        let changed =
+            apply_order_in_siblings(&mut self.state.document.objects, &selected_ids, command);
+        if !changed {
+            self.undo_stack.pop();
+        }
+        changed
     }
 }
 

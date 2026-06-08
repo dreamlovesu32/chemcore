@@ -139,6 +139,16 @@ fn desktop_engine_document_json(
 }
 
 #[tauri::command]
+fn desktop_engine_execute_command_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    command_json: String,
+) -> Result<String, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.execute_command_json(session_id, &command_json)
+}
+
+#[tauri::command]
 fn desktop_engine_state_json(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
@@ -2549,6 +2559,7 @@ pub fn run() {
             desktop_engine_load_document_json,
             desktop_engine_load_document_cdxml,
             desktop_engine_document_json,
+            desktop_engine_execute_command_json,
             desktop_engine_state_json,
             desktop_engine_render_list_json,
             desktop_engine_render_bounds_json,

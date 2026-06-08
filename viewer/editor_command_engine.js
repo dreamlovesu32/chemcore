@@ -1,4 +1,4 @@
-export function createEditorCommandEngine(options) {
+export function createEditorCommandEngine(options = {}) {
   const listeners = new Map();
   let revision = 0;
   let nextCommandIndex = 1;
@@ -17,74 +17,106 @@ export function createEditorCommandEngine(options) {
     }
   }
 
+  function engine() {
+    return typeof options.engine === "function" ? options.engine() : options.engine || null;
+  }
+
   function normalizeCommand(command) {
     if (typeof command === "string") {
-      return {
-        type: command,
-        schemaVersion: 1,
-        payload: {},
-      };
+      return { type: command };
     }
+    return { ...(command || {}) };
+  }
+
+  function kernelCommandFrom(command) {
+    const { payload, schemaVersion, apply, label, meta, ...rest } = command || {};
     return {
-      schemaVersion: 1,
-      payload: {},
-      ...(command || {}),
+      ...(payload && typeof payload === "object" ? payload : {}),
+      ...rest,
     };
+  }
+
+  function parseCommandResultJson(json) {
+    if (!json || typeof json !== "string") {
+      return null;
+    }
+    try {
+      return JSON.parse(json);
+    } catch {
+      return null;
+    }
+  }
+
+  function readEngineResult() {
+    const activeEngine = engine();
+    const resultJson = activeEngine?.lastCommandResultJson?.();
+    return parseCommandResultJson(resultJson);
+  }
+
+  function readEngineRevision() {
+    const activeEngine = engine();
+    const nextRevision = activeEngine?.revision?.();
+    return Number.isFinite(Number(nextRevision)) ? Number(nextRevision) : revision;
   }
 
   async function executeCommand(command, executeOptions = {}) {
     const normalized = normalizeCommand(command);
+    const activeEngine = engine();
     const apply = executeOptions.apply || normalized.apply;
-    if (typeof apply !== "function") {
-      throw new Error(`Command '${normalized.type || "unknown"}' has no apply handler.`);
+    let rawResult = null;
+    let result = null;
+
+    if (typeof apply === "function") {
+      rawResult = await apply(normalized);
+      if (executeOptions.sync !== false && rawResult !== false) {
+        await options.syncDocumentFromEngine?.();
+      }
+      result = readEngineResult();
+    } else if (activeEngine?.executeCommandJson) {
+      const commandJson = JSON.stringify(kernelCommandFrom(normalized));
+      const resultJson = await activeEngine.executeCommandJson(commandJson);
+      result = parseCommandResultJson(resultJson);
+      if (executeOptions.sync !== false && result?.changed) {
+        await options.syncDocumentFromEngine?.();
+      }
+    } else {
+      throw new Error(`Command '${normalized.type || "unknown"}' has no engine executor.`);
     }
 
-    const beforeRevision = revision;
-    const beforeFingerprint = options.currentDocumentFingerprint?.() || null;
-    const rawResult = await apply(normalized);
-    const rawChanged = rawResult !== false;
-    const shouldSync = executeOptions.sync !== false
-      && (rawChanged || executeOptions.assumeChanged || executeOptions.compareDocument);
-
-    if (shouldSync) {
-      await options.syncDocumentFromEngine?.();
+    if (!result) {
+      revision = readEngineRevision();
+      result = {
+        changed: Boolean(rawResult),
+        revision,
+        beforeRevision: revision,
+        command: kernelCommandFrom(normalized),
+      };
     }
 
-    const afterFingerprint = options.currentDocumentFingerprint?.() || null;
-    const changed = Boolean(
-      rawChanged
-      && (executeOptions.assumeChanged || beforeFingerprint !== afterFingerprint),
-    );
+    revision = Number.isFinite(Number(result.revision)) ? Number(result.revision) : readEngineRevision();
 
-    if (!changed) {
+    if (!result.changed) {
       await executeOptions.onUnchanged?.();
       await emit("command-executed", {
-        command: normalized,
-        changed: false,
-        revision,
-        beforeRevision,
+        ...result,
+        command: result.command || kernelCommandFrom(normalized),
+        commandType: normalized.type,
+        rawResult,
       });
       return {
-        changed: false,
-        revision,
-        beforeRevision,
-        command: normalized,
+        ...result,
+        command: result.command || kernelCommandFrom(normalized),
         rawResult,
       };
     }
 
-    revision += 1;
     const event = {
+      ...result,
       commitId: `cmd_${String(nextCommandIndex++).padStart(6, "0")}`,
-      command: normalized,
+      command: result.command || kernelCommandFrom(normalized),
       commandType: normalized.type,
-      changed: true,
-      revision,
-      beforeRevision,
       source: executeOptions.source || normalized.meta?.source || "ui",
       label: executeOptions.label || normalized.label || normalized.type,
-      beforeFingerprint,
-      afterFingerprint,
       rawResult,
     };
     await emit("command-executed", event);
@@ -101,7 +133,7 @@ export function createEditorCommandEngine(options) {
   }
 
   function currentRevision() {
-    return revision;
+    return readEngineRevision();
   }
 
   function resetRevision(nextRevision = 0) {

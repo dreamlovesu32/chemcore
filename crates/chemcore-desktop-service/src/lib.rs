@@ -83,6 +83,8 @@ pub struct DesktopEngineSnapshot {
     pub selection_bounds_json: Option<String>,
     pub document_colors_json: Option<String>,
     pub document_style_preset: Option<String>,
+    pub revision: Option<u64>,
+    pub last_command_result_json: Option<String>,
     pub can_undo: Option<bool>,
     pub can_redo: Option<bool>,
 }
@@ -231,6 +233,12 @@ impl DesktopDocumentService {
                 .transpose()
                 .map_err(|error| error.to_string())?,
             document_style_preset: Some(session.document_style_preset().to_string()),
+            revision: Some(session.revision()),
+            last_command_result_json: Some(
+                session
+                    .last_command_result_json()
+                    .map_err(|error| error.to_string())?,
+            ),
             can_undo: Some(session.can_undo()),
             can_redo: Some(session.can_redo()),
         };
@@ -996,6 +1004,15 @@ impl DesktopDocumentService {
 
     pub fn center_selection_on_page(&mut self, session_id: SessionId) -> Result<bool, String> {
         Ok(self.session_mut(session_id)?.center_selection_on_page())
+    }
+
+    pub fn execute_command_json(
+        &mut self,
+        session_id: SessionId,
+        command_json: &str,
+    ) -> Result<String, String> {
+        self.session_mut(session_id)?
+            .execute_command_json(command_json)
     }
 
     pub fn clear_interaction(&mut self, session_id: SessionId) -> Result<(), String> {
@@ -1882,9 +1899,15 @@ mod tests {
 
     #[test]
     fn detects_ole_edit_transient_paths() {
-        assert!(is_ole_edit_path(Path::new("chemcore-ole-edit-123-456.ccjs")));
-        assert!(is_ole_edit_path(Path::new(r"C:\Temp\chemcore-ole-edit-123-456.ccjs")));
-        assert!(!is_ole_edit_path(Path::new("chemcore-ole-edit-123-456.ccjz")));
+        assert!(is_ole_edit_path(Path::new(
+            "chemcore-ole-edit-123-456.ccjs"
+        )));
+        assert!(is_ole_edit_path(Path::new(
+            r"C:\Temp\chemcore-ole-edit-123-456.ccjs"
+        )));
+        assert!(!is_ole_edit_path(Path::new(
+            "chemcore-ole-edit-123-456.ccjz"
+        )));
         assert!(!is_ole_edit_path(Path::new("regular-document.ccjs")));
     }
 

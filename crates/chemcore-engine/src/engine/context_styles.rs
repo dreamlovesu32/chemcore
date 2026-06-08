@@ -6,9 +6,11 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 impl Engine {
     pub fn apply_shape_style_to_selection(&mut self, style: &str) -> bool {
         let style = normalize_shape_style_name(style);
+        let object_ids = self.state.selection.arrow_objects.clone();
         self.with_command(
-            EditorCommand::LegacyMutation {
-                label: format!("apply-shape-style:{style}"),
+            EditorCommand::ApplyShapeStyle {
+                object_ids,
+                style: style.clone(),
             },
             |engine| engine.apply_shape_style_to_selection_untracked(&style),
         )
@@ -67,9 +69,11 @@ impl Engine {
 
     pub fn apply_bracket_kind_to_selection(&mut self, kind: &str) -> bool {
         let kind = normalize_bracket_kind_name(kind);
+        let object_ids = self.state.selection.arrow_objects.clone();
         self.with_command(
-            EditorCommand::LegacyMutation {
-                label: format!("apply-bracket-kind:{kind}"),
+            EditorCommand::ApplyBracketKind {
+                object_ids,
+                kind: kind.clone(),
             },
             |engine| engine.apply_bracket_kind_to_selection_untracked(&kind),
         )
@@ -77,9 +81,11 @@ impl Engine {
 
     pub fn apply_orbital_template_to_selection(&mut self, template: &str) -> bool {
         let template = normalize_orbital_template_name(template);
+        let object_ids = self.state.selection.arrow_objects.clone();
         self.with_command(
-            EditorCommand::LegacyMutation {
-                label: format!("apply-orbital-template:{template}"),
+            EditorCommand::ApplyOrbitalTemplate {
+                object_ids,
+                template: template.clone(),
             },
             |engine| engine.apply_orbital_template_to_selection_untracked(&template),
         )
@@ -124,9 +130,11 @@ impl Engine {
 
     pub fn apply_orbital_style_to_selection(&mut self, style: &str) -> bool {
         let style = normalize_orbital_style_name(style);
+        let object_ids = self.state.selection.arrow_objects.clone();
         self.with_command(
-            EditorCommand::LegacyMutation {
-                label: format!("apply-orbital-style:{style}"),
+            EditorCommand::ApplyOrbitalStyle {
+                object_ids,
+                style: style.clone(),
             },
             |engine| engine.apply_orbital_style_to_selection_untracked(&style),
         )
@@ -189,9 +197,11 @@ impl Engine {
 
     pub fn apply_orbital_phase_to_selection(&mut self, phase: &str) -> bool {
         let phase = normalize_orbital_phase_name(phase);
+        let object_ids = self.state.selection.arrow_objects.clone();
         self.with_command(
-            EditorCommand::LegacyMutation {
-                label: format!("apply-orbital-phase:{phase}"),
+            EditorCommand::ApplyOrbitalPhase {
+                object_ids,
+                phase: phase.clone(),
             },
             |engine| engine.apply_orbital_phase_to_selection_untracked(&phase),
         )
@@ -267,9 +277,11 @@ impl Engine {
 
     pub fn apply_line_style_to_selection(&mut self, style: &str) -> bool {
         let style = normalize_line_style_name(style);
+        let object_ids = self.state.selection.arrow_objects.clone();
         self.with_command(
-            EditorCommand::LegacyMutation {
-                label: format!("apply-line-style:{style}"),
+            EditorCommand::ApplyLineStyle {
+                object_ids,
+                style: style.clone(),
             },
             |engine| engine.apply_line_style_to_selection_untracked(&style),
         )
@@ -329,9 +341,11 @@ impl Engine {
 
     pub fn apply_bond_style_to_selection(&mut self, style: &str) -> bool {
         let style = normalize_bond_style_name(style);
+        let bond_ids = self.state.selection.bonds.clone();
         self.with_command(
-            EditorCommand::LegacyMutation {
-                label: format!("apply-bond-style:{style}"),
+            EditorCommand::ApplyBondStyle {
+                bond_ids,
+                style: style.clone(),
             },
             |engine| engine.apply_bond_style_to_selection_untracked(&style),
         )
@@ -377,9 +391,16 @@ impl Engine {
     pub fn apply_text_style_to_selection(&mut self, command: &str, value: &str) -> bool {
         let command = normalize_text_style_command(command);
         let value = value.trim().to_string();
+        let text_object_ids = self.state.selection.text_objects.clone();
+        let label_node_ids = self.state.selection.label_nodes.clone();
+        let node_ids = self.state.selection.nodes.clone();
         self.with_command(
-            EditorCommand::LegacyMutation {
-                label: format!("apply-text-style:{command}:{value}"),
+            EditorCommand::ApplyTextStyle {
+                text_object_ids,
+                label_node_ids,
+                node_ids,
+                command: command.clone(),
+                value: value.clone(),
             },
             |engine| engine.apply_text_style_to_selection_untracked(&command, &value),
         )
@@ -446,9 +467,7 @@ impl Engine {
 
     pub fn set_chemical_check_for_selection(&mut self, enabled: bool) -> bool {
         self.with_command(
-            EditorCommand::LegacyMutation {
-                label: format!("set-chemical-check:{enabled}"),
-            },
+            EditorCommand::SetChemicalCheckForSelection { enabled },
             |engine| engine.set_chemical_check_for_selection_untracked(enabled),
         )
     }
@@ -485,12 +504,9 @@ impl Engine {
     }
 
     pub fn expand_labels_in_selection(&mut self) -> bool {
-        self.with_command(
-            EditorCommand::LegacyMutation {
-                label: "expand-label-selection".to_string(),
-            },
-            |engine| engine.expand_labels_in_selection_untracked(),
-        )
+        self.with_command(EditorCommand::ExpandLabelsInSelection, |engine| {
+            engine.expand_labels_in_selection_untracked()
+        })
     }
 
     fn expand_labels_in_selection_untracked(&mut self) -> bool {

@@ -104,6 +104,7 @@ const state = {
   currentFileName: null,
   currentFilePath: null,
   savedDocumentJson: null,
+  savedRevision: null,
   currentDocument: null,
   editorEngine: null,
   documentEngine: null,
@@ -122,7 +123,7 @@ const engineHost = createEngineHost();
 const desktopFileHost = createDesktopFileHost();
 const colorHost = createColorHost();
 const commandEngine = createEditorCommandEngine({
-  currentDocumentFingerprint: currentDocumentSaveFingerprint,
+  engine: () => state.editorEngine,
   syncDocumentFromEngine,
   onDocumentCommitted: handleDocumentCommandCommitted,
 });
@@ -361,6 +362,7 @@ const TAB_STATE_KEYS = [
   "currentFileName",
   "currentFilePath",
   "savedDocumentJson",
+  "savedRevision",
   "currentDocument",
   "editorEngine",
   "documentEngine",
@@ -384,6 +386,7 @@ function createDocumentTab(title = "Untitled") {
     currentFileName: null,
     currentFilePath: null,
     savedDocumentJson: null,
+    savedRevision: null,
     currentDocument: null,
     editorEngine: null,
     documentEngine: null,
@@ -446,16 +449,27 @@ function currentDocumentSaveFingerprint() {
   return state.currentDocument ? JSON.stringify(state.currentDocument) : null;
 }
 
+function currentDocumentRevision() {
+  const revision = state.editorEngine?.revision?.();
+  return Number.isFinite(Number(revision)) ? Number(revision) : null;
+}
+
 function markCurrentDocumentSaved() {
   state.savedDocumentJson = currentDocumentSaveFingerprint();
+  state.savedRevision = currentDocumentRevision();
   const tab = activeDocumentTab();
   if (tab) {
     tab.savedDocumentJson = state.savedDocumentJson;
+    tab.savedRevision = state.savedRevision;
   }
   refreshCommandAvailability();
 }
 
 function currentDocumentIsDirty() {
+  const revision = currentDocumentRevision();
+  if (revision != null && state.savedRevision != null) {
+    return revision !== state.savedRevision;
+  }
   const fingerprint = currentDocumentSaveFingerprint();
   return !!fingerprint && state.savedDocumentJson != null && fingerprint !== state.savedDocumentJson;
 }
@@ -477,13 +491,16 @@ async function autoSaveOleEditDocumentTab(tab) {
     return false;
   }
   const fingerprint = JSON.stringify(tab.currentDocument);
-  if (tab.savedDocumentJson === fingerprint) {
+  const revision = tab.editorEngine?.revision?.();
+  if (tab.savedDocumentJson === fingerprint && (revision == null || tab.savedRevision === revision)) {
     return false;
   }
   await desktopFileHost.writeTransientPath(tab.currentFilePath, `${JSON.stringify(tab.currentDocument, null, 2)}\n`);
   tab.savedDocumentJson = fingerprint;
+  tab.savedRevision = Number.isFinite(Number(revision)) ? Number(revision) : tab.savedRevision;
   if (tab.id === activeDocumentTabId) {
     state.savedDocumentJson = fingerprint;
+    state.savedRevision = tab.savedRevision;
   }
   refreshCommandAvailability();
   return true;
@@ -1836,6 +1853,7 @@ async function resetEditorEngine() {
   state.currentFileName = null;
   state.currentFilePath = null;
   state.savedDocumentJson = null;
+  state.savedRevision = null;
   await syncEngineToolState();
   await syncDocumentFromEngine();
   markCurrentDocumentSaved();
@@ -2906,6 +2924,7 @@ async function documentSnapshotFromTab(tab) {
     filePath: freshTab.currentFilePath || null,
     documentJson: JSON.stringify(freshTab.currentDocument),
     savedDocumentJson: freshTab.savedDocumentJson || null,
+    savedRevision: freshTab.savedRevision ?? null,
     zoomPercent: Number(freshTab.zoomPercent || 100),
   };
 }
@@ -2932,6 +2951,9 @@ async function loadDetachedDocumentPayload(payload) {
   await loadJsonDocumentIntoEditor(documentData, payload.fileName || null, payload.filePath || null);
   if (typeof payload.savedDocumentJson === "string") {
     state.savedDocumentJson = payload.savedDocumentJson;
+    state.savedRevision = Number.isFinite(Number(payload.savedRevision))
+      ? Number(payload.savedRevision)
+      : currentDocumentRevision();
     refreshCommandAvailability();
   }
   if (Number.isFinite(Number(payload.zoomPercent))) {

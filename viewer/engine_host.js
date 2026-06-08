@@ -53,6 +53,8 @@ class TauriEngineSession {
       renderBoundsJson: new Map(),
       documentColorsJson: "[]",
       documentStylePreset: "default",
+      revision: 0,
+      lastCommandResultJson: "null",
       canUndo: false,
       canRedo: false,
       documentCdxml: null,
@@ -143,6 +145,12 @@ class TauriEngineSession {
     }
     if (snapshot.documentStylePreset != null) {
       this.cache.documentStylePreset = snapshot.documentStylePreset;
+    }
+    if (snapshot.revision != null) {
+      this.cache.revision = Number(snapshot.revision) || 0;
+    }
+    if (snapshot.lastCommandResultJson != null) {
+      this.cache.lastCommandResultJson = snapshot.lastCommandResultJson;
     }
     if (snapshot.canUndo != null) {
       this.cache.canUndo = Boolean(snapshot.canUndo);
@@ -265,6 +273,18 @@ class TauriEngineSession {
 
   documentStylePreset() {
     return this.cache.documentStylePreset || "default";
+  }
+
+  revision() {
+    return this.cache.revision || 0;
+  }
+
+  lastCommandResultJson() {
+    return this.cache.lastCommandResultJson || "null";
+  }
+
+  executeCommandJson(commandJson) {
+    return this.invokeMutation("desktop_engine_execute_command_json", { commandJson }, { refresh: "document" });
   }
 
   async objectSettingsDialogJson() {

@@ -333,12 +333,10 @@ impl Engine {
     }
 
     pub fn update_hover_arrow_edit(&mut self, point: Point, alt_key: bool) -> bool {
-        self.with_command(
-            EditorCommand::LegacyMutation {
-                label: "edit-arrow".to_string(),
-            },
-            |engine| engine.update_hover_arrow_edit_untracked(point, alt_key),
-        )
+        let command = self.hover_arrow_edit_command();
+        self.with_transient_command(command, |engine| {
+            engine.update_hover_arrow_edit_untracked(point, alt_key)
+        })
     }
 
     fn update_hover_arrow_edit_untracked(&mut self, point: Point, alt_key: bool) -> bool {
@@ -356,12 +354,10 @@ impl Engine {
     }
 
     pub fn finish_hover_arrow_edit(&mut self, point: Point, alt_key: bool) -> bool {
-        self.with_command(
-            EditorCommand::LegacyMutation {
-                label: "edit-arrow".to_string(),
-            },
-            |engine| engine.finish_hover_arrow_edit_untracked(point, alt_key),
-        )
+        let command = self.hover_arrow_edit_command();
+        self.with_command(command, |engine| {
+            engine.finish_hover_arrow_edit_untracked(point, alt_key)
+        })
     }
 
     fn finish_hover_arrow_edit_untracked(&mut self, point: Point, alt_key: bool) -> bool {
@@ -390,6 +386,20 @@ impl Engine {
             .as_ref()
             .map(|drag| drag.current_degrees)
             .unwrap_or(0.0)
+    }
+
+    fn hover_arrow_edit_command(&self) -> EditorCommand {
+        let (object_id, action) = self
+            .arrow_edit_drag
+            .as_ref()
+            .map(|drag| {
+                (
+                    Some(drag.object_id.clone()),
+                    arrow_edit_mode_name(drag.mode).to_string(),
+                )
+            })
+            .unwrap_or_else(|| (None, "unknown".to_string()));
+        EditorCommand::EditArrowGeometry { object_id, action }
     }
 
     fn hover_arrow_edit_mode_at_point(&self, point: Point) -> Option<ArrowEditMode> {
@@ -533,7 +543,7 @@ impl Engine {
     }
 
     pub fn update_selection_rotate(&mut self, point: Point, alt_key: bool) -> bool {
-        self.with_command(EditorCommand::RotateSelection, |engine| {
+        self.with_transient_command(EditorCommand::RotateSelection, |engine| {
             engine.update_selection_rotate_untracked(point, alt_key)
         })
     }
@@ -568,7 +578,7 @@ impl Engine {
     }
 
     pub fn update_selection_resize(&mut self, point: Point) -> bool {
-        self.with_command(EditorCommand::ResizeSelection, |engine| {
+        self.with_transient_command(EditorCommand::ResizeSelection, |engine| {
             engine.update_selection_resize_untracked(point)
         })
     }
@@ -603,7 +613,7 @@ impl Engine {
     }
 
     pub fn update_selection_move(&mut self, point: Point, alt_key: bool) -> bool {
-        self.with_command(EditorCommand::MoveSelection, |engine| {
+        self.with_transient_command(EditorCommand::MoveSelection, |engine| {
             engine.update_selection_move_untracked(point, alt_key)
         })
     }
@@ -686,12 +696,9 @@ impl Engine {
         if !scale.is_finite() || scale <= 0.0 || (scale - 1.0).abs() <= crate::EPSILON {
             return false;
         }
-        self.with_command(
-            EditorCommand::LegacyMutation {
-                label: format!("scale-selection:{percent:.2}"),
-            },
-            |engine| engine.scale_selection_untracked(scale),
-        )
+        self.with_command(EditorCommand::ScaleSelection { percent }, |engine| {
+            engine.scale_selection_untracked(scale)
+        })
     }
 
     fn scale_selection_untracked(&mut self, scale: f64) -> bool {
@@ -743,12 +750,9 @@ impl Engine {
     }
 
     pub fn center_selection_on_page(&mut self) -> bool {
-        self.with_command(
-            EditorCommand::LegacyMutation {
-                label: "center-selection-on-page".to_string(),
-            },
-            |engine| engine.center_selection_on_page_untracked(),
-        )
+        self.with_command(EditorCommand::CenterSelectionOnPage, |engine| {
+            engine.center_selection_on_page_untracked()
+        })
     }
 
     fn center_selection_on_page_untracked(&mut self) -> bool {
@@ -1960,6 +1964,14 @@ impl Engine {
             }
         }
         out
+    }
+}
+
+fn arrow_edit_mode_name(mode: ArrowEditMode) -> &'static str {
+    match mode {
+        ArrowEditMode::Head => "move-head",
+        ArrowEditMode::Tail => "move-tail",
+        ArrowEditMode::Curve => "set-curve",
     }
 }
 

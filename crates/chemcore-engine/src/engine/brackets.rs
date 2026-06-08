@@ -83,7 +83,12 @@ impl Engine {
             return;
         }
         drag.has_dragged = true;
-        self.insert_bracket_from_drag(&drag);
+        let command = EditorCommand::AddBracket {
+            kind: self.state.tool.bracket_kind,
+            begin: CommandAnchor::from(drag.start),
+            end: CommandAnchor::from(drag.current),
+        };
+        self.with_command(command, |engine| engine.insert_bracket_from_drag(&drag));
         self.state.overlay = OverlayState::default();
     }
 
@@ -131,7 +136,11 @@ impl Engine {
         };
         drag.current = event.point();
         let point = self.bracket_symbol_insert_point(&drag);
-        self.insert_bracket_symbol(point);
+        let command = EditorCommand::AddSymbol {
+            kind: self.state.tool.symbol_kind,
+            center: CommandAnchor::from(point),
+        };
+        self.with_command(command, |engine| engine.insert_bracket_symbol(point));
         self.state.overlay = OverlayState::default();
     }
 

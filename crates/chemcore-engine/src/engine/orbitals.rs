@@ -42,10 +42,15 @@ impl Engine {
         if drag.anchor.distance(drag.current) >= DRAG_START_THRESHOLD {
             drag.has_dragged = true;
         }
-        let command = EditorCommand::LegacyMutation {
-            label: "add-orbital".to_string(),
-        };
         if drag.has_dragged {
+            let command = EditorCommand::AddOrbital {
+                template: self.state.tool.orbital_template,
+                style: self.state.tool.orbital_style,
+                phase: self.state.tool.orbital_phase,
+                color: self.state.tool.orbital_color.clone(),
+                center: CommandAnchor::from(drag.anchor),
+                end: CommandAnchor::from(drag.current),
+            };
             self.with_command(command, |engine| engine.insert_orbital_from_drag(&drag));
         }
         self.state.overlay = OverlayState::default();

@@ -490,12 +490,10 @@ impl Engine {
     }
 
     pub fn update_hover_shape_edit(&mut self, point: Point, _alt_key: bool) -> bool {
-        self.with_command(
-            EditorCommand::LegacyMutation {
-                label: "edit-shape".to_string(),
-            },
-            |engine| engine.update_hover_shape_edit_untracked(point),
-        )
+        let command = self.hover_shape_edit_command();
+        self.with_transient_command(command, |engine| {
+            engine.update_hover_shape_edit_untracked(point)
+        })
     }
 
     fn update_hover_shape_edit_untracked(&mut self, point: Point) -> bool {
@@ -532,12 +530,10 @@ impl Engine {
     }
 
     pub fn finish_hover_shape_edit(&mut self, point: Point, _alt_key: bool) -> bool {
-        self.with_command(
-            EditorCommand::LegacyMutation {
-                label: "edit-shape".to_string(),
-            },
-            |engine| engine.finish_hover_shape_edit_untracked(point),
-        )
+        let command = self.hover_shape_edit_command();
+        self.with_command(command, |engine| {
+            engine.finish_hover_shape_edit_untracked(point)
+        })
     }
 
     fn finish_hover_shape_edit_untracked(&mut self, point: Point) -> bool {
@@ -556,6 +552,20 @@ impl Engine {
             self.note_pending_select_target(PendingSelectTarget::GraphicObject(object_id));
         }
         changed
+    }
+
+    fn hover_shape_edit_command(&self) -> EditorCommand {
+        let (object_id, action) = self
+            .shape_edit_drag
+            .as_ref()
+            .map(|drag| {
+                (
+                    Some(drag.object_id.clone()),
+                    drag.handle.action_name().to_string(),
+                )
+            })
+            .unwrap_or_else(|| (None, "unknown".to_string()));
+        EditorCommand::EditShapeGeometry { object_id, action }
     }
 
     pub(super) fn refresh_shape_hover(&mut self, point: Point) {

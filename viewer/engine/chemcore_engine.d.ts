@@ -45,6 +45,7 @@ export class WasmEngine {
     documentJson(): string;
     documentStylePreset(): string;
     documentSvg(): string;
+    executeCommandJson(command_json: string): string;
     expandLabelsInSelection(): boolean;
     finishHoverArrowEdit(x: number, y: number, alt_key: boolean): boolean;
     finishHoverShapeEdit(x: number, y: number, alt_key: boolean): boolean;
@@ -54,8 +55,10 @@ export class WasmEngine {
     finishTlcSpotDragJson(x: number, y: number): string | undefined;
     groupSelection(): boolean;
     hasClipboard(): boolean;
+    historyJson(): string;
     hoverArrowAction(x: number, y: number): string;
     hoverShapeAction(x: number, y: number): string;
+    lastCommandResultJson(): string;
     loadDocumentCdxml(cdxml: string): void;
     loadDocumentJson(json: string): void;
     constructor();
@@ -71,6 +74,7 @@ export class WasmEngine {
     renderBoundsJson(scope: string): string;
     renderListJson(): string;
     replaceHoveredEndpointLabel(label: string): boolean;
+    revision(): bigint;
     rotateSelectionDegrees(degrees: number): boolean;
     scaleSelection(percent: number): boolean;
     selectAll(): boolean;
@@ -149,6 +153,7 @@ export interface InitOutput {
     readonly wasmengine_documentJson: (a: number) => [number, number, number, number];
     readonly wasmengine_documentStylePreset: (a: number) => [number, number];
     readonly wasmengine_documentSvg: (a: number) => [number, number];
+    readonly wasmengine_executeCommandJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_expandLabelsInSelection: (a: number) => number;
     readonly wasmengine_finishHoverArrowEdit: (a: number, b: number, c: number, d: number) => number;
     readonly wasmengine_finishHoverShapeEdit: (a: number, b: number, c: number, d: number) => number;
@@ -158,8 +163,10 @@ export interface InitOutput {
     readonly wasmengine_finishTlcSpotDragJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_groupSelection: (a: number) => number;
     readonly wasmengine_hasClipboard: (a: number) => number;
+    readonly wasmengine_historyJson: (a: number) => [number, number, number, number];
     readonly wasmengine_hoverArrowAction: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_hoverShapeAction: (a: number, b: number, c: number) => [number, number];
+    readonly wasmengine_lastCommandResultJson: (a: number) => [number, number, number, number];
     readonly wasmengine_loadDocumentCdxml: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_loadDocumentJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_new: () => number;
@@ -175,6 +182,7 @@ export interface InitOutput {
     readonly wasmengine_renderBoundsJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_renderListJson: (a: number) => [number, number, number, number];
     readonly wasmengine_replaceHoveredEndpointLabel: (a: number, b: number, c: number) => number;
+    readonly wasmengine_revision: (a: number) => bigint;
     readonly wasmengine_rotateSelectionDegrees: (a: number, b: number) => number;
     readonly wasmengine_scaleSelection: (a: number, b: number) => number;
     readonly wasmengine_selectAll: (a: number) => number;

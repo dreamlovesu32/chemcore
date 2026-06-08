@@ -16,7 +16,8 @@ mod templates;
 mod text_edit;
 
 pub use self::command::{
-    CommandAnchor, EditorCommand, FocusedDeleteSource, HistoryEntry, TextEditCommandTarget,
+    CommandAnchor, CommandResult, CommandTargetDelta, CommandTargets, EditorCommand,
+    FocusedDeleteSource, HistoryEntry, ObjectSettingsPatch, TextEditCommandTarget,
 };
 use self::text_edit::{
     endpoint_label_world_bounds, refresh_element_valence_recognition_for_all_nodes,
@@ -42,7 +43,10 @@ use self::bond_styles::{
     update_terminal_double_bond_placement_after_new_attachment,
 };
 use self::delete::FocusedDeleteMode;
-use self::presets::{editor_options_from_document, editor_options_from_imported_cdxml_document};
+use self::presets::{
+    editor_options_from_document, editor_options_from_imported_cdxml_document,
+    SelectedObjectSettings,
+};
 use crate::{
     adjacent_directions, anchor_from_point, angle_between, bond_center_focus_length, can_draw_bond,
     can_focus_bond_center, can_focus_endpoint, default_angle_for_anchor_for_variant,
@@ -215,6 +219,8 @@ pub struct Engine {
     options: EditorOptions,
     document_style_preset: String,
     next_id: u64,
+    revision: u64,
+    last_command_result: Option<CommandResult>,
     undo_stack: Vec<HistoryEntry>,
     redo_stack: Vec<HistoryEntry>,
     command_context: Vec<EditorCommand>,
@@ -261,7 +267,9 @@ pub struct TlcSpotHit {
 #[derive(Debug, Clone)]
 struct TlcSpotDragState {
     hit: TlcSpotHit,
+    initial_rf: f64,
     changed: bool,
+    undo_pushed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -391,6 +399,8 @@ impl Engine {
             options: EditorOptions::default(),
             document_style_preset: DEFAULT_DOCUMENT_STYLE_PRESET.to_string(),
             next_id: 1,
+            revision: 0,
+            last_command_result: None,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
             command_context: Vec::new(),
@@ -446,6 +456,8 @@ impl Engine {
         self.undo_stack.clear();
         self.redo_stack.clear();
         self.command_context.clear();
+        self.revision = 0;
+        self.last_command_result = None;
         self.next_id = self.infer_next_id();
         Ok(())
     }
@@ -467,6 +479,8 @@ impl Engine {
         self.undo_stack.clear();
         self.redo_stack.clear();
         self.command_context.clear();
+        self.revision = 0;
+        self.last_command_result = None;
         self.next_id = self.infer_next_id();
         Ok(())
     }
@@ -511,17 +525,32 @@ impl Engine {
 
     pub fn begin_tlc_spot_drag(&mut self, point: Point) -> Option<TlcSpotHit> {
         let hit = self.tlc_spot_hit_test(point)?;
-        self.push_undo_snapshot();
-        self.redo_stack.clear();
         self.tlc_spot_drag = Some(TlcSpotDragState {
+            initial_rf: hit.rf,
             hit: hit.clone(),
             changed: false,
+            undo_pushed: false,
         });
         Some(hit)
     }
 
     pub fn update_tlc_spot_drag(&mut self, point: Point) -> Option<TlcSpotHit> {
+        let command = self.tlc_spot_drag_command()?;
+        let mut next = None;
+        self.with_transient_command(command, |engine| {
+            next = engine.update_tlc_spot_drag_untracked(point);
+            next.is_some()
+        });
+        next
+    }
+
+    fn update_tlc_spot_drag_untracked(&mut self, point: Point) -> Option<TlcSpotHit> {
         let drag = self.tlc_spot_drag.clone()?;
+        let next_rf = self.tlc_spot_rf_at_point(&drag.hit.object_id, drag.hit.lane_index, point)?;
+        let changed = (drag.hit.rf - next_rf).abs() > 0.0001;
+        if changed && !drag.undo_pushed {
+            self.push_undo_snapshot();
+        }
         let next = self.update_tlc_spot_to_point(
             &drag.hit.object_id,
             drag.hit.lane_index,
@@ -529,7 +558,8 @@ impl Engine {
             point,
         )?;
         if let Some(active_drag) = &mut self.tlc_spot_drag {
-            active_drag.changed |= (active_drag.hit.rf - next.rf).abs() > 0.0001;
+            active_drag.changed |= changed;
+            active_drag.undo_pushed |= changed;
             active_drag.hit = next.clone();
         }
         Some(next)
@@ -543,11 +573,25 @@ impl Engine {
             None
         };
         let changed = self.tlc_spot_drag.as_ref().is_some_and(|drag| drag.changed);
+        let undo_pushed = self
+            .tlc_spot_drag
+            .as_ref()
+            .is_some_and(|drag| drag.undo_pushed);
         self.tlc_spot_drag = None;
-        if had_drag && !changed {
+        if had_drag && undo_pushed && !changed {
             self.undo_stack.pop();
         }
         next
+    }
+
+    fn tlc_spot_drag_command(&self) -> Option<EditorCommand> {
+        let drag = self.tlc_spot_drag.as_ref()?;
+        Some(EditorCommand::MoveTlcSpot {
+            object_id: drag.hit.object_id.clone(),
+            lane_index: drag.hit.lane_index,
+            spot_index: drag.hit.spot_index,
+            before_rf: drag.initial_rf,
+        })
     }
 
     pub fn tlc_lane_guide_hit_test(&self, point: Point) -> Option<TlcSpotHit> {
@@ -1337,6 +1381,8 @@ impl Engine {
         let Some(mut entry) = self.undo_stack.pop() else {
             return false;
         };
+        let before_revision = self.revision;
+        let before_document = self.state.document.clone();
         let after = entry
             .after
             .clone()
@@ -1344,6 +1390,7 @@ impl Engine {
         self.restore_document(entry.before.clone());
         entry.after = Some(after);
         self.redo_stack.push(entry);
+        self.commit_command_result(EditorCommand::Undo, before_revision, before_document);
         true
     }
 
@@ -1354,8 +1401,11 @@ impl Engine {
         let Some(after) = entry.after.clone() else {
             return false;
         };
+        let before_revision = self.revision;
+        let before_document = self.state.document.clone();
         self.restore_document(after);
         self.undo_stack.push(entry);
+        self.commit_command_result(EditorCommand::Redo, before_revision, before_document);
         true
     }
 
@@ -1365,6 +1415,352 @@ impl Engine {
 
     pub fn can_redo(&self) -> bool {
         !self.redo_stack.is_empty()
+    }
+
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    pub fn last_command_result(&self) -> Option<&CommandResult> {
+        self.last_command_result.as_ref()
+    }
+
+    pub fn last_command_result_json(&self) -> serde_json::Result<String> {
+        serde_json::to_string(&self.last_command_result)
+    }
+
+    pub fn history_json(&self) -> serde_json::Result<String> {
+        serde_json::to_string(&self.undo_stack)
+    }
+
+    pub fn execute_command_json(&mut self, command_json: &str) -> Result<String, String> {
+        let command: EditorCommand =
+            serde_json::from_str(command_json).map_err(|error| error.to_string())?;
+        let result = self.execute_command(command)?;
+        serde_json::to_string(&result).map_err(|error| error.to_string())
+    }
+
+    pub fn execute_command(&mut self, command: EditorCommand) -> Result<CommandResult, String> {
+        self.last_command_result = None;
+        let changed = match command.clone() {
+            EditorCommand::Undo => self.undo(),
+            EditorCommand::Redo => self.redo(),
+            EditorCommand::AddBond {
+                begin,
+                end,
+                order,
+                variant,
+            } => {
+                let previous_tool = self.state.tool.clone();
+                self.state.tool.bond_variant = variant;
+                let changed = self.add_bond_between(
+                    bond_anchor_from_command(begin),
+                    bond_anchor_from_command(end),
+                    order,
+                );
+                self.state.tool = previous_tool;
+                changed
+            }
+            EditorCommand::AddArrow {
+                begin,
+                end,
+                variant,
+                head_size,
+                curve,
+                head_style,
+                tail_style,
+                head,
+                tail,
+                bold,
+                no_go,
+            } => {
+                let previous_tool = self.state.tool.clone();
+                self.state.tool.arrow_variant = variant;
+                self.state.tool.arrow_head_size = head_size;
+                self.state.tool.arrow_curve = curve;
+                self.state.tool.arrow_head_style = head_style;
+                self.state.tool.arrow_tail_style = tail_style;
+                self.state.tool.arrow_head = head;
+                self.state.tool.arrow_tail = tail;
+                self.state.tool.arrow_bold = bold;
+                self.state.tool.arrow_no_go = no_go;
+                let changed = self
+                    .add_arrow_between(point_from_command(&begin), point_from_command(&end))
+                    .is_some();
+                self.state.tool = previous_tool;
+                changed
+            }
+            EditorCommand::AddShape {
+                kind,
+                style,
+                color,
+                begin,
+                end,
+            } => self.with_command(command.clone(), |engine| {
+                let previous_tool = engine.state.tool.clone();
+                engine.state.tool.shape_kind = kind;
+                engine.state.tool.shape_style = style;
+                engine.state.tool.shape_color = color;
+                let start = point_from_command(&begin);
+                let current = point_from_command(&end);
+                let drag = ShapeDragState {
+                    pointer_start: start,
+                    start,
+                    current,
+                    anchor: ShapeDrawAnchor {
+                        kind: ShapeDrawAnchorKind::Free,
+                        point: start,
+                        bounds: None,
+                    },
+                    has_dragged: start.distance(current) > crate::EPSILON,
+                };
+                let changed = engine.insert_shape_from_drag(&drag);
+                engine.state.tool = previous_tool;
+                changed
+            }),
+            EditorCommand::AddBracket { kind, begin, end } => {
+                self.with_command(command.clone(), |engine| {
+                    let previous_tool = engine.state.tool.clone();
+                    engine.state.tool.bracket_kind = kind;
+                    let drag = BracketDragState {
+                        start: point_from_command(&begin),
+                        current: point_from_command(&end),
+                        symbol_anchor: None,
+                        has_dragged: true,
+                    };
+                    let changed = engine.insert_bracket_from_drag(&drag);
+                    engine.state.tool = previous_tool;
+                    changed
+                })
+            }
+            EditorCommand::AddSymbol { kind, center } => {
+                self.with_command(command.clone(), |engine| {
+                    let previous_tool = engine.state.tool.clone();
+                    engine.state.tool.symbol_kind = kind;
+                    let changed = engine.insert_bracket_symbol(point_from_command(&center));
+                    engine.state.tool = previous_tool;
+                    changed
+                })
+            }
+            EditorCommand::MoveTlcSpot { .. }
+            | EditorCommand::MoveSelection
+            | EditorCommand::RotateSelection
+            | EditorCommand::ResizeSelection
+            | EditorCommand::EditArrowGeometry { .. }
+            | EditorCommand::EditShapeGeometry { .. }
+            | EditorCommand::ApplyTextEdit { .. } => {
+                return Err(format!(
+                    "Command '{}' requires an active interaction context.",
+                    editor_command_type_name(&command)
+                ));
+            }
+            EditorCommand::AddOrbital {
+                template,
+                style,
+                phase,
+                color,
+                center,
+                end,
+            } => self.with_command(command.clone(), |engine| {
+                let previous_tool = engine.state.tool.clone();
+                engine.state.tool.orbital_template = template;
+                engine.state.tool.orbital_style = style;
+                engine.state.tool.orbital_phase = phase;
+                engine.state.tool.orbital_color = color;
+                let drag = OrbitalDragState {
+                    anchor: point_from_command(&center),
+                    current: point_from_command(&end),
+                    has_dragged: true,
+                };
+                let changed = engine.insert_orbital_from_drag(&drag);
+                engine.state.tool = previous_tool;
+                changed
+            }),
+            EditorCommand::ApplyArrowStyle {
+                object_ids,
+                variant,
+                head_size,
+                curve,
+                head_style,
+                tail_style,
+                head,
+                tail,
+                bold,
+                no_go,
+            } => {
+                self.state.selection = SelectionState {
+                    arrow_objects: object_ids,
+                    ..SelectionState::default()
+                };
+                self.apply_arrow_options_to_selection(
+                    variant, head_size, curve, head_style, tail_style, head, tail, bold, no_go,
+                )
+            }
+            EditorCommand::CycleBondStyle { bond_id, variant } => {
+                let previous_tool = self.state.tool.clone();
+                self.state.tool.bond_variant = variant;
+                let changed = self.cycle_bond_center_style(&bond_id);
+                self.state.tool = previous_tool;
+                changed
+            }
+            EditorCommand::DeleteSelection => self.delete_selection(),
+            EditorCommand::DeleteFocusedAtPoint { x, y, source } => self.delete_focused_at_point(
+                Point::new(x, y),
+                match source {
+                    FocusedDeleteSource::DeleteTool => FocusedDeleteMode::DeleteToolClick,
+                    FocusedDeleteSource::CommandKey => FocusedDeleteMode::CommandKey,
+                },
+            ),
+            EditorCommand::PasteClipboard => self.paste_clipboard(),
+            EditorCommand::CutSelection => self.cut_selection(),
+            EditorCommand::InsertTemplate { template, x, y } => {
+                let previous_tool = self.state.tool.clone();
+                let before_revision = self.revision;
+                self.state.tool.template = template;
+                let event = PointerEvent {
+                    x,
+                    y,
+                    button: Some(0),
+                    alt_key: false,
+                };
+                self.pointer_down_template(event.clone());
+                self.pointer_up_template(event);
+                self.state.tool = previous_tool;
+                self.revision != before_revision
+            }
+            EditorCommand::ApplySelectionArrange { command } => {
+                self.apply_selection_arrange_command(&command)
+            }
+            EditorCommand::ApplySelectionOrder {
+                object_ids,
+                command,
+            } => {
+                self.state.selection = SelectionState {
+                    arrow_objects: object_ids,
+                    ..SelectionState::default()
+                };
+                self.apply_selection_order_command(&command)
+            }
+            EditorCommand::ApplySelectionColor { color } => self.apply_color_to_selection(&color),
+            EditorCommand::ApplyShapeStyle { object_ids, style } => {
+                self.state.selection = SelectionState {
+                    arrow_objects: object_ids,
+                    ..SelectionState::default()
+                };
+                self.apply_shape_style_to_selection(&style)
+            }
+            EditorCommand::ApplyBracketKind { object_ids, kind } => {
+                self.state.selection = SelectionState {
+                    arrow_objects: object_ids,
+                    ..SelectionState::default()
+                };
+                self.apply_bracket_kind_to_selection(&kind)
+            }
+            EditorCommand::ApplyOrbitalTemplate {
+                object_ids,
+                template,
+            } => {
+                self.state.selection = SelectionState {
+                    arrow_objects: object_ids,
+                    ..SelectionState::default()
+                };
+                self.apply_orbital_template_to_selection(&template)
+            }
+            EditorCommand::ApplyOrbitalStyle { object_ids, style } => {
+                self.state.selection = SelectionState {
+                    arrow_objects: object_ids,
+                    ..SelectionState::default()
+                };
+                self.apply_orbital_style_to_selection(&style)
+            }
+            EditorCommand::ApplyOrbitalPhase { object_ids, phase } => {
+                self.state.selection = SelectionState {
+                    arrow_objects: object_ids,
+                    ..SelectionState::default()
+                };
+                self.apply_orbital_phase_to_selection(&phase)
+            }
+            EditorCommand::ApplyLineStyle { object_ids, style } => {
+                self.state.selection = SelectionState {
+                    arrow_objects: object_ids,
+                    ..SelectionState::default()
+                };
+                self.apply_line_style_to_selection(&style)
+            }
+            EditorCommand::ApplyBondStyle { bond_ids, style } => {
+                self.state.selection = SelectionState {
+                    bonds: bond_ids,
+                    ..SelectionState::default()
+                };
+                self.apply_bond_style_to_selection(&style)
+            }
+            EditorCommand::ApplyTextStyle {
+                text_object_ids,
+                label_node_ids,
+                node_ids,
+                command,
+                value,
+            } => {
+                self.state.selection = SelectionState {
+                    text_objects: text_object_ids,
+                    label_nodes: label_node_ids,
+                    nodes: node_ids,
+                    ..SelectionState::default()
+                };
+                self.apply_text_style_to_selection(&command, &value)
+            }
+            EditorCommand::SetChemicalCheckForSelection { enabled } => {
+                self.set_chemical_check_for_selection(enabled)
+            }
+            EditorCommand::ExpandLabelsInSelection => self.expand_labels_in_selection(),
+            EditorCommand::CenterSelectionOnPage => self.center_selection_on_page(),
+            EditorCommand::GroupSelection { object_ids } => {
+                self.state.selection = SelectionState {
+                    arrow_objects: object_ids,
+                    ..SelectionState::default()
+                };
+                self.group_selection()
+            }
+            EditorCommand::UngroupSelection { object_ids } => {
+                self.state.selection = SelectionState {
+                    arrow_objects: object_ids,
+                    ..SelectionState::default()
+                };
+                self.ungroup_selection()
+            }
+            EditorCommand::ScaleSelection { percent } => self.scale_selection(percent),
+            EditorCommand::ApplyObjectSettings { settings } => self.apply_object_settings(settings),
+            EditorCommand::ApplyObjectSettingsToSelection {
+                bond_ids,
+                object_ids,
+                settings,
+            } => {
+                self.state.selection = SelectionState {
+                    bonds: bond_ids,
+                    arrow_objects: object_ids,
+                    ..SelectionState::default()
+                };
+                self.apply_object_settings_to_selection(SelectedObjectSettings {
+                    bond_length: settings.bond_length,
+                    line_width: settings.line_width,
+                    bold_width: settings.bold_width,
+                    bond_spacing: settings.bond_spacing,
+                    margin_width: settings.margin_width,
+                    hash_spacing: settings.hash_spacing,
+                })
+            }
+            EditorCommand::ApplyDocumentStyle { preset } => self.set_document_style_preset(&preset),
+            EditorCommand::ReplaceHoveredEndpointLabel { label } => {
+                self.replace_hovered_endpoint_label(&label)
+            }
+        };
+        if !changed && self.last_command_result.is_none() {
+            self.last_command_result = Some(self.unchanged_command_result());
+        }
+        Ok(self
+            .last_command_result
+            .clone()
+            .unwrap_or_else(|| self.unchanged_command_result()))
     }
 
     fn drag_target_endpoint(&self, anchor: &BondAnchor, point: Point) -> Option<EndpointHit> {
@@ -1454,13 +1850,43 @@ impl Engine {
         if !self.command_context.is_empty() {
             return apply(self);
         }
+        let before_revision = self.revision;
+        let before_document = self.state.document.clone();
+        let before_redo_stack = self.redo_stack.clone();
         let undo_len = self.undo_stack.len();
         self.command_context.push(command.clone());
+        let applied = apply(self);
+        self.command_context.pop();
+        let command_before_document = self
+            .history_before_document_for_command(undo_len, &command)
+            .unwrap_or_else(|| before_document.clone());
+        let document_changed =
+            !documents_equivalent(&command_before_document, &self.state.document);
+        if applied && document_changed {
+            refresh_repeating_units(&mut self.state.document);
+            self.finalize_command_history(undo_len, command.clone());
+            self.commit_command_result(command, before_revision, command_before_document);
+            true
+        } else {
+            self.cleanup_unchanged_command_history(undo_len, &command, before_redo_stack);
+            self.last_command_result = Some(self.unchanged_command_result());
+            false
+        }
+    }
+
+    fn with_transient_command<F>(&mut self, command: EditorCommand, apply: F) -> bool
+    where
+        F: FnOnce(&mut Self) -> bool,
+    {
+        if !self.command_context.is_empty() {
+            return apply(self);
+        }
+        let before_document = self.state.document.clone();
+        self.command_context.push(command);
         let changed = apply(self);
         self.command_context.pop();
-        if changed {
+        if changed && !documents_equivalent(&before_document, &self.state.document) {
             refresh_repeating_units(&mut self.state.document);
-            self.finalize_command_history(undo_len, command);
         }
         changed
     }
@@ -1483,13 +1909,101 @@ impl Engine {
         });
     }
 
+    fn history_before_document_for_command(
+        &self,
+        undo_len: usize,
+        command: &EditorCommand,
+    ) -> Option<ChemcoreDocument> {
+        if self.undo_stack.len() > undo_len {
+            return self
+                .undo_stack
+                .get(undo_len)
+                .map(|entry| entry.before.clone());
+        }
+        self.undo_stack
+            .iter()
+            .rev()
+            .find(|entry| entry.command == *command && entry.after.is_none())
+            .map(|entry| entry.before.clone())
+    }
+
+    fn cleanup_unchanged_command_history(
+        &mut self,
+        undo_len: usize,
+        command: &EditorCommand,
+        before_redo_stack: Vec<HistoryEntry>,
+    ) {
+        if self.undo_stack.len() > undo_len {
+            self.undo_stack.truncate(undo_len);
+            self.redo_stack = before_redo_stack;
+            return;
+        }
+        if self
+            .undo_stack
+            .last()
+            .is_some_and(|entry| entry.command == *command && entry.after.is_none())
+        {
+            self.undo_stack.pop();
+        }
+    }
+
+    fn commit_command_result(
+        &mut self,
+        command: EditorCommand,
+        before_revision: u64,
+        before_document: ChemcoreDocument,
+    ) {
+        self.revision = self.revision.saturating_add(1);
+        self.last_command_result = Some(self.command_result_from_diff(
+            Some(command),
+            before_revision,
+            &before_document,
+            &self.state.document,
+        ));
+    }
+
+    fn command_result_from_diff(
+        &self,
+        command: Option<EditorCommand>,
+        before_revision: u64,
+        before_document: &ChemcoreDocument,
+        after_document: &ChemcoreDocument,
+    ) -> CommandResult {
+        let delta = document_target_delta(before_document, after_document);
+        CommandResult {
+            changed: !delta.created.is_empty()
+                || !delta.updated.is_empty()
+                || !delta.deleted.is_empty(),
+            revision: self.revision,
+            before_revision,
+            command,
+            targets: command_targets_union(&delta),
+            created: delta.created,
+            updated: delta.updated,
+            deleted: delta.deleted,
+            can_undo: self.can_undo(),
+            can_redo: self.can_redo(),
+            undo_depth: self.undo_stack.len(),
+            redo_depth: self.redo_stack.len(),
+            diagnostics: BTreeMap::new(),
+        }
+    }
+
+    fn unchanged_command_result(&self) -> CommandResult {
+        CommandResult::unchanged(
+            self.revision,
+            self.can_undo(),
+            self.can_redo(),
+            self.undo_stack.len(),
+            self.redo_stack.len(),
+        )
+    }
+
     fn current_history_command(&self) -> EditorCommand {
         self.command_context
             .last()
             .cloned()
-            .unwrap_or_else(|| EditorCommand::LegacyMutation {
-                label: "unclassified-mutation".to_string(),
-            })
+            .expect("document mutation must run inside Engine::with_command")
     }
 
     fn push_undo_snapshot(&mut self) {
@@ -1710,6 +2224,220 @@ impl Engine {
             center: rotate_point(local_center, geometry.center, geometry.rotate),
             guide_points: tlc_lane_guide_points(&geometry, lane_index),
         })
+    }
+
+    fn tlc_spot_rf_at_point(
+        &self,
+        object_id: &str,
+        lane_index: usize,
+        point: Point,
+    ) -> Option<f64> {
+        let object = self.state.document.find_scene_object(object_id)?;
+        let geometry = tlc_plate_geometry(object)?;
+        let local_point = rotate_point(point, geometry.center, -geometry.rotate);
+        let denominator = (geometry.origin_y - geometry.solvent_y).abs();
+        if denominator <= crate::EPSILON {
+            return None;
+        }
+        geometry.lane_centers.get(lane_index)?;
+        Some(round2(
+            ((geometry.origin_y - local_point.y) / (geometry.origin_y - geometry.solvent_y))
+                .clamp(0.0, 1.0),
+        ))
+    }
+}
+
+#[derive(Default)]
+struct DocumentTargetMaps {
+    nodes: BTreeMap<String, JsonValue>,
+    bonds: BTreeMap<String, JsonValue>,
+    objects: BTreeMap<String, JsonValue>,
+    styles: BTreeMap<String, JsonValue>,
+}
+
+fn documents_equivalent(before: &ChemcoreDocument, after: &ChemcoreDocument) -> bool {
+    serde_json::to_value(before).ok() == serde_json::to_value(after).ok()
+}
+
+fn document_target_delta(
+    before: &ChemcoreDocument,
+    after: &ChemcoreDocument,
+) -> CommandTargetDelta {
+    let before = document_target_maps(before);
+    let after = document_target_maps(after);
+    let (created_nodes, updated_nodes, deleted_nodes) =
+        diff_target_map(&before.nodes, &after.nodes);
+    let (created_bonds, updated_bonds, deleted_bonds) =
+        diff_target_map(&before.bonds, &after.bonds);
+    let (created_objects, updated_objects, deleted_objects) =
+        diff_target_map(&before.objects, &after.objects);
+    let (created_styles, updated_styles, deleted_styles) =
+        diff_target_map(&before.styles, &after.styles);
+
+    CommandTargetDelta {
+        created: CommandTargets {
+            nodes: created_nodes,
+            bonds: created_bonds,
+            objects: created_objects,
+            styles: created_styles,
+        },
+        updated: CommandTargets {
+            nodes: updated_nodes,
+            bonds: updated_bonds,
+            objects: updated_objects,
+            styles: updated_styles,
+        },
+        deleted: CommandTargets {
+            nodes: deleted_nodes,
+            bonds: deleted_bonds,
+            objects: deleted_objects,
+            styles: deleted_styles,
+        },
+    }
+}
+
+fn document_target_maps(document: &ChemcoreDocument) -> DocumentTargetMaps {
+    let mut maps = DocumentTargetMaps::default();
+    for object in document.scene_objects() {
+        maps.objects.insert(
+            object.id.clone(),
+            serde_json::to_value(object).unwrap_or(JsonValue::Null),
+        );
+    }
+    for (style_id, style) in &document.styles {
+        maps.styles.insert(style_id.clone(), style.clone());
+    }
+    if let Some(entry) = document.editable_fragment() {
+        for node in &entry.fragment.nodes {
+            maps.nodes.insert(
+                node.id.clone(),
+                serde_json::to_value(node).unwrap_or(JsonValue::Null),
+            );
+        }
+        for bond in &entry.fragment.bonds {
+            maps.bonds.insert(
+                bond.id.clone(),
+                serde_json::to_value(bond).unwrap_or(JsonValue::Null),
+            );
+        }
+    }
+    maps
+}
+
+fn diff_target_map(
+    before: &BTreeMap<String, JsonValue>,
+    after: &BTreeMap<String, JsonValue>,
+) -> (Vec<String>, Vec<String>, Vec<String>) {
+    let mut created = Vec::new();
+    let mut updated = Vec::new();
+    let mut deleted = Vec::new();
+    for (id, value) in after {
+        match before.get(id) {
+            Some(before_value) if before_value == value => {}
+            Some(_) => updated.push(id.clone()),
+            None => created.push(id.clone()),
+        }
+    }
+    for id in before.keys() {
+        if !after.contains_key(id) {
+            deleted.push(id.clone());
+        }
+    }
+    (created, updated, deleted)
+}
+
+fn command_targets_union(delta: &CommandTargetDelta) -> CommandTargets {
+    CommandTargets {
+        nodes: union_target_ids([
+            delta.created.nodes.as_slice(),
+            delta.updated.nodes.as_slice(),
+            delta.deleted.nodes.as_slice(),
+        ]),
+        bonds: union_target_ids([
+            delta.created.bonds.as_slice(),
+            delta.updated.bonds.as_slice(),
+            delta.deleted.bonds.as_slice(),
+        ]),
+        objects: union_target_ids([
+            delta.created.objects.as_slice(),
+            delta.updated.objects.as_slice(),
+            delta.deleted.objects.as_slice(),
+        ]),
+        styles: union_target_ids([
+            delta.created.styles.as_slice(),
+            delta.updated.styles.as_slice(),
+            delta.deleted.styles.as_slice(),
+        ]),
+    }
+}
+
+fn union_target_ids<const N: usize>(groups: [&[String]; N]) -> Vec<String> {
+    let mut ids = BTreeSet::new();
+    for group in groups {
+        ids.extend(group.iter().cloned());
+    }
+    ids.into_iter().collect()
+}
+
+fn point_from_command(anchor: &CommandAnchor) -> Point {
+    Point::new(anchor.x, anchor.y)
+}
+
+fn bond_anchor_from_command(anchor: CommandAnchor) -> BondAnchor {
+    BondAnchor {
+        node_id: anchor.node_id,
+        point: Point::new(anchor.x, anchor.y),
+        label_anchor: None,
+    }
+}
+
+fn editor_command_type_name(command: &EditorCommand) -> &'static str {
+    match command {
+        EditorCommand::Undo => "undo",
+        EditorCommand::Redo => "redo",
+        EditorCommand::AddBond { .. } => "add-bond",
+        EditorCommand::AddArrow { .. } => "add-arrow",
+        EditorCommand::AddShape { .. } => "add-shape",
+        EditorCommand::AddBracket { .. } => "add-bracket",
+        EditorCommand::AddSymbol { .. } => "add-symbol",
+        EditorCommand::MoveTlcSpot { .. } => "move-tlc-spot",
+        EditorCommand::ApplyArrowStyle { .. } => "apply-arrow-style",
+        EditorCommand::CycleBondStyle { .. } => "cycle-bond-style",
+        EditorCommand::DeleteSelection => "delete-selection",
+        EditorCommand::DeleteFocusedAtPoint { .. } => "delete-focused-at-point",
+        EditorCommand::PasteClipboard => "paste-clipboard",
+        EditorCommand::CutSelection => "cut-selection",
+        EditorCommand::InsertTemplate { .. } => "insert-template",
+        EditorCommand::ApplySelectionArrange { .. } => "apply-selection-arrange",
+        EditorCommand::ApplySelectionOrder { .. } => "apply-selection-order",
+        EditorCommand::ApplySelectionColor { .. } => "apply-selection-color",
+        EditorCommand::ApplyShapeStyle { .. } => "apply-shape-style",
+        EditorCommand::ApplyBracketKind { .. } => "apply-bracket-kind",
+        EditorCommand::ApplyOrbitalTemplate { .. } => "apply-orbital-template",
+        EditorCommand::ApplyOrbitalStyle { .. } => "apply-orbital-style",
+        EditorCommand::ApplyOrbitalPhase { .. } => "apply-orbital-phase",
+        EditorCommand::ApplyLineStyle { .. } => "apply-line-style",
+        EditorCommand::ApplyBondStyle { .. } => "apply-bond-style",
+        EditorCommand::ApplyTextStyle { .. } => "apply-text-style",
+        EditorCommand::SetChemicalCheckForSelection { .. } => "set-chemical-check-for-selection",
+        EditorCommand::ExpandLabelsInSelection => "expand-labels-in-selection",
+        EditorCommand::CenterSelectionOnPage => "center-selection-on-page",
+        EditorCommand::GroupSelection { .. } => "group-selection",
+        EditorCommand::UngroupSelection { .. } => "ungroup-selection",
+        EditorCommand::MoveSelection => "move-selection",
+        EditorCommand::RotateSelection => "rotate-selection",
+        EditorCommand::ResizeSelection => "resize-selection",
+        EditorCommand::ScaleSelection { .. } => "scale-selection",
+        EditorCommand::EditArrowGeometry { .. } => "edit-arrow-geometry",
+        EditorCommand::EditShapeGeometry { .. } => "edit-shape-geometry",
+        EditorCommand::ApplyTextEdit { .. } => "apply-text-edit",
+        EditorCommand::ApplyObjectSettings { .. } => "apply-object-settings",
+        EditorCommand::ApplyObjectSettingsToSelection { .. } => {
+            "apply-object-settings-to-selection"
+        }
+        EditorCommand::ApplyDocumentStyle { .. } => "apply-document-style",
+        EditorCommand::ReplaceHoveredEndpointLabel { .. } => "replace-hovered-endpoint-label",
+        EditorCommand::AddOrbital { .. } => "add-orbital",
     }
 }
 
