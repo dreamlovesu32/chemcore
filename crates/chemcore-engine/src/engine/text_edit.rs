@@ -30,9 +30,10 @@ mod runs;
 use self::geometry::*;
 use self::labels::*;
 pub(crate) use self::labels::{
-    refresh_attached_node_label_geometry_for_all_nodes,
+    element_symbol_info, implicit_hydrogen_label_text_for_count,
+    mark_shortcut_implicit_hydrogen_label, refresh_attached_node_label_geometry_for_all_nodes,
     refresh_attached_node_label_geometry_for_node,
-    refresh_element_valence_recognition_for_all_nodes,
+    refresh_element_valence_recognition_for_all_nodes, standalone_element_hydrogen_count,
 };
 use self::layout::*;
 use self::runs::*;
@@ -116,6 +117,49 @@ impl TextEditSession {
             None => None,
         }
     }
+}
+
+pub(crate) fn make_periodic_element_node_label(text: &str, position: [f64; 2]) -> crate::NodeLabel {
+    let font_size = DEFAULT_CENTERED_LABEL_FONT_SIZE;
+    let session = TextEditSession {
+        target: TextEditTarget::EndpointLabel {
+            node_id: String::new(),
+            x: position[0],
+            y: position[1],
+        },
+        text: text.to_string(),
+        source_runs: Vec::new(),
+        font_family: Some(DEFAULT_TEXT_FONT_FAMILY.to_string()),
+        font_size: Some(font_size),
+        fill: Some(DEFAULT_TEXT_FILL.to_string()),
+        align: Some("center".to_string()),
+        line_height: Some(DEFAULT_TEXT_LINE_HEIGHT),
+        box_value: None,
+        anchor_offset: None,
+        preserve_lines: false,
+        default_chemical: true,
+    };
+    let source_runs = normalize_source_runs(&session, text);
+    let display_runs = display_runs_from_source_runs(
+        &source_runs,
+        DEFAULT_TEXT_FONT_FAMILY,
+        font_size,
+        DEFAULT_TEXT_FILL,
+    );
+    make_centered_node_label_from_runs(
+        text,
+        position,
+        source_runs,
+        display_runs,
+        DEFAULT_TEXT_FONT_FAMILY,
+        font_size,
+        DEFAULT_TEXT_FILL,
+        &[],
+        &session,
+        false,
+        false,
+        None,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -293,6 +293,8 @@ impl DesktopDocumentService {
             orbital_color: current.orbital_color,
             bracket_kind: current.bracket_kind,
             symbol_kind: current.symbol_kind,
+            element_symbol: current.element_symbol,
+            element_atomic_number: current.element_atomic_number,
             template: current.template,
         });
         Ok(())
@@ -352,6 +354,20 @@ impl DesktopDocumentService {
         let session = self.session_mut(session_id)?;
         let mut tool = session.state().tool.clone();
         tool.symbol_kind = parse_bracket_kind(kind);
+        session.set_tool_state(tool);
+        Ok(())
+    }
+
+    pub fn set_element_options(
+        &mut self,
+        session_id: SessionId,
+        symbol: &str,
+        atomic_number: u8,
+    ) -> Result<(), String> {
+        let session = self.session_mut(session_id)?;
+        let mut tool = session.state().tool.clone();
+        tool.element_symbol = symbol.to_string();
+        tool.element_atomic_number = atomic_number;
         session.set_tool_state(tool);
         Ok(())
     }
@@ -1388,6 +1404,7 @@ fn parse_tool(value: &str) -> Tool {
         "arrow" => Tool::Arrow,
         "bracket" => Tool::Bracket,
         "symbol" => Tool::Symbol,
+        "element" => Tool::Element,
         "delete" => Tool::Delete,
         "text" => Tool::Text,
         "shape" => Tool::Shape,
@@ -1937,8 +1954,7 @@ mod tests {
             std::process::id(),
             1
         ));
-        let document_json =
-            r#"{"document":{"title":"OLE payload"},"objects":[],"resources":{}}"#;
+        let document_json = r#"{"document":{"title":"OLE payload"},"objects":[],"resources":{}}"#;
         let payload = serde_json::json!({
             "chemcoreDocumentJson": document_json,
             "renderListJson": "[]",

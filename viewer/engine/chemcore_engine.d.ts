@@ -89,6 +89,7 @@ export class WasmEngine {
     setBracketOptions(kind: string): void;
     setChemicalCheckForSelection(enabled: boolean): boolean;
     setDocumentStylePreset(preset: string): void;
+    setElementOptions(symbol: string, atomic_number: number): void;
     setOrbitalOptions(template: string, style: string, phase: string, color: string): void;
     setShapeOptions(kind: string, style: string, color: string): void;
     setSymbolOptions(kind: string): void;
@@ -197,6 +198,7 @@ export interface InitOutput {
     readonly wasmengine_setBracketOptions: (a: number, b: number, c: number) => void;
     readonly wasmengine_setChemicalCheckForSelection: (a: number, b: number) => number;
     readonly wasmengine_setDocumentStylePreset: (a: number, b: number, c: number) => void;
+    readonly wasmengine_setElementOptions: (a: number, b: number, c: number, d: number) => void;
     readonly wasmengine_setOrbitalOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
     readonly wasmengine_setShapeOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly wasmengine_setSymbolOptions: (a: number, b: number, c: number) => void;

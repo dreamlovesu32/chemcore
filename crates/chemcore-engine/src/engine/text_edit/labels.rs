@@ -46,38 +46,159 @@ pub(super) fn parse_element_hydrogen_label(label: &str) -> Option<ParsedElementH
     None
 }
 
-pub(super) fn element_label_replacement(label: &str) -> Option<NodeLabelReplacement<'_>> {
+pub(crate) fn element_symbol_info(label: &str) -> Option<(&'static str, u8)> {
     ELEMENT_REPLACEMENTS
         .iter()
         .find(|(element, _)| *element == label)
-        .map(|(element, atomic_number)| {
-            if *element == "C" {
-                NodeLabelReplacement::Carbon
-            } else {
-                NodeLabelReplacement::Element {
-                    element: *element,
-                    atomic_number: *atomic_number,
-                }
+        .copied()
+}
+
+pub(super) fn element_label_replacement(label: &str) -> Option<NodeLabelReplacement<'_>> {
+    element_symbol_info(label).map(|(element, atomic_number)| {
+        if element == "C" {
+            NodeLabelReplacement::Carbon
+        } else {
+            NodeLabelReplacement::Element {
+                element,
+                atomic_number,
             }
-        })
+        }
+    })
 }
 
 const ELEMENT_REPLACEMENTS: &[(&str, u8)] = &[
-    ("C", 6),
     ("H", 1),
+    ("He", 2),
+    ("Li", 3),
+    ("Be", 4),
+    ("B", 5),
+    ("C", 6),
     ("N", 7),
     ("O", 8),
-    ("S", 16),
-    ("P", 15),
     ("F", 9),
-    ("Cl", 17),
-    ("Br", 35),
-    ("I", 53),
-    ("Si", 14),
+    ("Ne", 10),
     ("Na", 11),
-    ("B", 5),
+    ("Mg", 12),
+    ("Al", 13),
+    ("Si", 14),
+    ("P", 15),
+    ("S", 16),
+    ("Cl", 17),
+    ("Ar", 18),
+    ("K", 19),
+    ("Ca", 20),
+    ("Sc", 21),
+    ("Ti", 22),
+    ("V", 23),
+    ("Cr", 24),
+    ("Mn", 25),
+    ("Fe", 26),
+    ("Co", 27),
+    ("Ni", 28),
+    ("Cu", 29),
+    ("Zn", 30),
+    ("Ga", 31),
+    ("Ge", 32),
+    ("As", 33),
+    ("Se", 34),
+    ("Br", 35),
+    ("Kr", 36),
+    ("Rb", 37),
+    ("Sr", 38),
+    ("Y", 39),
+    ("Zr", 40),
+    ("Nb", 41),
+    ("Mo", 42),
+    ("Tc", 43),
+    ("Ru", 44),
+    ("Rh", 45),
+    ("Pd", 46),
+    ("Ag", 47),
+    ("Cd", 48),
+    ("In", 49),
+    ("Sn", 50),
+    ("Sb", 51),
+    ("Te", 52),
+    ("I", 53),
+    ("Xe", 54),
+    ("Cs", 55),
+    ("Ba", 56),
+    ("La", 57),
+    ("Ce", 58),
+    ("Pr", 59),
+    ("Nd", 60),
+    ("Pm", 61),
+    ("Sm", 62),
+    ("Eu", 63),
+    ("Gd", 64),
+    ("Tb", 65),
+    ("Dy", 66),
+    ("Ho", 67),
+    ("Er", 68),
+    ("Tm", 69),
+    ("Yb", 70),
+    ("Lu", 71),
+    ("Hf", 72),
+    ("Ta", 73),
+    ("W", 74),
+    ("Re", 75),
+    ("Os", 76),
+    ("Ir", 77),
+    ("Pt", 78),
+    ("Au", 79),
+    ("Hg", 80),
+    ("Tl", 81),
+    ("Pb", 82),
+    ("Bi", 83),
+    ("Po", 84),
+    ("At", 85),
+    ("Rn", 86),
+    ("Fr", 87),
+    ("Ra", 88),
+    ("Ac", 89),
+    ("Th", 90),
+    ("Pa", 91),
+    ("U", 92),
+    ("Np", 93),
+    ("Pu", 94),
+    ("Am", 95),
+    ("Cm", 96),
+    ("Bk", 97),
+    ("Cf", 98),
+    ("Es", 99),
+    ("Fm", 100),
+    ("Md", 101),
+    ("No", 102),
+    ("Lr", 103),
+    ("Rf", 104),
+    ("Db", 105),
+    ("Sg", 106),
+    ("Bh", 107),
+    ("Hs", 108),
+    ("Mt", 109),
+    ("Ds", 110),
+    ("Rg", 111),
+    ("Cn", 112),
+    ("Nh", 113),
+    ("Fl", 114),
+    ("Mc", 115),
+    ("Lv", 116),
+    ("Ts", 117),
+    ("Og", 118),
     ("D", 1),
 ];
+
+pub(crate) fn standalone_element_hydrogen_count(atomic_number: u8) -> u8 {
+    match atomic_number {
+        1 => 1,
+        5 | 13 | 33 | 51 | 83 => 3,
+        6 | 14 | 32 | 50 | 82 => 4,
+        7 | 15 => 3,
+        8 | 16 | 31 | 34 | 52 | 84 => 2,
+        9 | 17 | 35 | 49 | 53 | 81 | 85 => 1,
+        _ => 0,
+    }
+}
 
 pub(super) fn make_centered_node_label(text: &str, position: [f64; 2]) -> crate::NodeLabel {
     let font_size = DEFAULT_CENTERED_LABEL_FONT_SIZE;
@@ -789,7 +910,7 @@ pub(super) fn set_label_implicit_hydrogen_label_meta(
     set_meta_object_field(&mut label.meta, IMPLICIT_HYDROGEN_LABEL_META_KEY, meta);
 }
 
-pub(super) fn mark_shortcut_implicit_hydrogen_label(node: &mut crate::Node, label: &str) {
+pub(crate) fn mark_shortcut_implicit_hydrogen_label(node: &mut crate::Node, label: &str) {
     if element_label_replacement(label)
         .is_some_and(|replacement| matches!(replacement, NodeLabelReplacement::Element { .. }))
     {
@@ -1294,6 +1415,7 @@ pub(super) fn typical_valence_for_implicit_hydrogen(
         }
         8 => Some(if charge >= 1 { 3 } else { 2 }),
         9 => Some(1),
+        13 => Some(3),
         17 | 35 | 53 => {
             let hydrogens = match connection_count {
                 0 | 2 | 4 | 6 => 1,
@@ -1301,7 +1423,7 @@ pub(super) fn typical_valence_for_implicit_hydrogen(
             };
             Some(connection_count + radical_count + abs_charge + hydrogens)
         }
-        14 => Some(4),
+        14 | 32 | 50 | 82 => Some(4),
         16 => {
             if charge == 1 {
                 Some(if connection_count <= 3 { 3 } else { 5 })
@@ -1313,6 +1435,10 @@ pub(super) fn typical_valence_for_implicit_hydrogen(
                 Some(6)
             }
         }
+        31 => Some(2),
+        33 | 51 | 83 => Some(3),
+        34 | 52 | 84 => Some(2),
+        49 | 81 | 85 => Some(1),
         _ => None,
     }
 }
@@ -1327,7 +1453,7 @@ pub(super) fn implicit_hydrogen_label_text(node: &crate::Node, current_text: &st
     implicit_hydrogen_label_text_for_count(&node.element, node.num_hydrogens)
 }
 
-pub(super) fn implicit_hydrogen_label_text_for_count(element: &str, num_hydrogens: u8) -> String {
+pub(crate) fn implicit_hydrogen_label_text_for_count(element: &str, num_hydrogens: u8) -> String {
     if num_hydrogens == 0 {
         return element.to_string();
     }

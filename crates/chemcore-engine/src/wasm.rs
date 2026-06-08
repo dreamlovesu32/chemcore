@@ -43,6 +43,8 @@ impl WasmEngine {
             orbital_color: current.orbital_color,
             bracket_kind: current.bracket_kind,
             symbol_kind: current.symbol_kind,
+            element_symbol: current.element_symbol,
+            element_atomic_number: current.element_atomic_number,
             template: current.template,
         });
     }
@@ -84,6 +86,14 @@ impl WasmEngine {
     pub fn set_symbol_options(&mut self, kind: &str) {
         let mut tool = self.inner.state().tool.clone();
         tool.symbol_kind = parse_bracket_kind(kind);
+        self.inner.set_tool_state(tool);
+    }
+
+    #[wasm_bindgen(js_name = setElementOptions)]
+    pub fn set_element_options(&mut self, symbol: &str, atomic_number: u8) {
+        let mut tool = self.inner.state().tool.clone();
+        tool.element_symbol = symbol.to_string();
+        tool.element_atomic_number = atomic_number;
         self.inner.set_tool_state(tool);
     }
 
@@ -823,6 +833,7 @@ fn parse_tool(value: &str) -> Tool {
         "arrow" => Tool::Arrow,
         "bracket" => Tool::Bracket,
         "symbol" => Tool::Symbol,
+        "element" => Tool::Element,
         "delete" => Tool::Delete,
         "text" => Tool::Text,
         "shape" => Tool::Shape,

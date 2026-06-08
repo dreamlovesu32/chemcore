@@ -289,6 +289,17 @@ fn desktop_engine_set_symbol_options(
 }
 
 #[tauri::command]
+fn desktop_engine_set_element_options(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    symbol: String,
+    atomic_number: u8,
+) -> Result<(), String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.set_element_options(session_id, &symbol, atomic_number)
+}
+
+#[tauri::command]
 fn desktop_engine_set_document_style_preset(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
@@ -1214,15 +1225,18 @@ fn write_transient_content(
     }
     fs::write(&path, content)
         .map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
-    Ok((DesktopSavedDocument {
-        file_name: path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("transient.ccjs")
-            .to_string(),
-        path: path.to_string_lossy().to_string(),
-        format: "ccjs".to_string(),
-    }, path))
+    Ok((
+        DesktopSavedDocument {
+            file_name: path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("transient.ccjs")
+                .to_string(),
+            path: path.to_string_lossy().to_string(),
+            format: "ccjs".to_string(),
+        },
+        path,
+    ))
 }
 
 #[tauri::command]
@@ -2640,6 +2654,7 @@ pub fn run() {
             desktop_engine_set_template,
             desktop_engine_set_bracket_options,
             desktop_engine_set_symbol_options,
+            desktop_engine_set_element_options,
             desktop_engine_set_document_style_preset,
             desktop_engine_document_style_preset,
             desktop_engine_object_settings_dialog_json,

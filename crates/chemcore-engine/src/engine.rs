@@ -20,7 +20,9 @@ pub use self::command::{
     FocusedDeleteSource, HistoryEntry, ObjectSettingsPatch, TextEditCommandTarget,
 };
 use self::text_edit::{
-    endpoint_label_world_bounds, refresh_element_valence_recognition_for_all_nodes,
+    element_symbol_info, endpoint_label_world_bounds, implicit_hydrogen_label_text_for_count,
+    make_periodic_element_node_label, mark_shortcut_implicit_hydrogen_label,
+    refresh_element_valence_recognition_for_all_nodes, standalone_element_hydrogen_count,
 };
 pub(crate) use self::text_edit::{
     refresh_attached_node_label_geometry_for_all_nodes,
@@ -969,6 +971,22 @@ impl Engine {
             self.pointer_down_symbol(event);
             return;
         }
+        if self.state.tool.active_tool == Tool::Element {
+            let point = event.point();
+            self.clear_interaction();
+            self.state.selection = SelectionState::default();
+            let symbol = self.state.tool.element_symbol.clone();
+            let atomic_number = self.state.tool.element_atomic_number;
+            self.with_command(
+                EditorCommand::AddElement {
+                    symbol,
+                    atomic_number,
+                    center: CommandAnchor::from(point),
+                },
+                |engine| engine.insert_periodic_element(point),
+            );
+            return;
+        }
         if self.state.tool.active_tool == Tool::Delete {
             self.state.selection = SelectionState::default();
             self.clear_interaction();
@@ -1542,6 +1560,18 @@ impl Engine {
                     changed
                 })
             }
+            EditorCommand::AddElement {
+                symbol,
+                atomic_number,
+                center,
+            } => self.with_command(command.clone(), |engine| {
+                let previous_tool = engine.state.tool.clone();
+                engine.state.tool.element_symbol = symbol;
+                engine.state.tool.element_atomic_number = atomic_number;
+                let changed = engine.insert_periodic_element(point_from_command(&center));
+                engine.state.tool = previous_tool;
+                changed
+            }),
             EditorCommand::MoveTlcSpot { .. }
             | EditorCommand::MoveSelection
             | EditorCommand::RotateSelection
@@ -1835,6 +1865,50 @@ impl Engine {
             .nodes
             .push(crate::Node::carbon(node_id.clone(), local));
         node_id
+    }
+
+    fn insert_periodic_element(&mut self, point: Point) -> bool {
+        let Some((element, atomic_number)) = element_symbol_info(&self.state.tool.element_symbol)
+        else {
+            return false;
+        };
+        self.push_undo_snapshot();
+        let node_id = self.next_id("n");
+        let entry = self
+            .state
+            .document
+            .editable_fragment_mut()
+            .expect("blank document always has an editable fragment");
+        let local = entry.local_point(point);
+        let num_hydrogens = standalone_element_hydrogen_count(atomic_number);
+        let label_text = implicit_hydrogen_label_text_for_count(element, num_hydrogens);
+        let label = if element == "C" && num_hydrogens == 0 {
+            None
+        } else {
+            Some(make_periodic_element_node_label(
+                &label_text,
+                [local.x, local.y],
+            ))
+        };
+        let mut node = crate::Node {
+            id: node_id.clone(),
+            element: element.to_string(),
+            atomic_number,
+            position: [round2(local.x), round2(local.y)],
+            charge: 0,
+            num_hydrogens,
+            is_external_connection_point: false,
+            is_placeholder: false,
+            label,
+            meta: serde_json::Value::Null,
+        };
+        mark_shortcut_implicit_hydrogen_label(&mut node, &label_text);
+        entry.fragment.nodes.push(node);
+        self.state.selection = SelectionState {
+            nodes: vec![node_id],
+            ..SelectionState::default()
+        };
+        true
     }
 
     fn next_id(&mut self, prefix: &str) -> String {
@@ -2400,6 +2474,7 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::AddShape { .. } => "add-shape",
         EditorCommand::AddBracket { .. } => "add-bracket",
         EditorCommand::AddSymbol { .. } => "add-symbol",
+        EditorCommand::AddElement { .. } => "add-element",
         EditorCommand::MoveTlcSpot { .. } => "move-tlc-spot",
         EditorCommand::ApplyArrowStyle { .. } => "apply-arrow-style",
         EditorCommand::CycleBondStyle { .. } => "cycle-bond-style",

@@ -220,6 +220,24 @@ const DELETE_CURSOR_SVG = encodeURIComponent(
 );
 const DELETE_CURSOR = `url("data:image/svg+xml,${DELETE_CURSOR_SVG}") 8 8, crosshair`;
 
+function elementCursor(symbol) {
+  const safeSymbol = String(symbol || "P").replace(/[^A-Za-z]/g, "").slice(0, 2) || "P";
+  const svg = encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34">
+      <rect x="12" y="1" width="2" height="7" fill="#000000"/>
+      <rect x="20" y="1" width="2" height="7" fill="#000000"/>
+      <rect x="12" y="26" width="2" height="7" fill="#000000"/>
+      <rect x="20" y="26" width="2" height="7" fill="#000000"/>
+      <rect x="1" y="12" width="7" height="2" fill="#000000"/>
+      <rect x="1" y="20" width="7" height="2" fill="#000000"/>
+      <rect x="26" y="12" width="7" height="2" fill="#000000"/>
+      <rect x="26" y="20" width="7" height="2" fill="#000000"/>
+      <text x="17" y="21" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" fill="#000000">${safeSymbol}</text>
+    </svg>`,
+  );
+  return `url("data:image/svg+xml,${svg}") 17 17, crosshair`;
+}
+
 const sampleSelect = document.getElementById("sample-select");
 const reloadButton = document.getElementById("reload-button");
 const fitButton = document.getElementById("fit-button");
@@ -352,6 +370,8 @@ const editorState = {
   documentColors: [],
   bracketKind: "round",
   symbolKind: "circle-plus",
+  elementSymbol: "P",
+  elementAtomicNumber: 15,
   template: "ring-6",
 };
 let activeTextEditor = null;
@@ -911,6 +931,7 @@ async function syncEngineToolState() {
   );
   await state.editorEngine.setBracketOptions?.(editorState.bracketKind);
   await state.editorEngine.setSymbolOptions?.(editorState.symbolKind);
+  await state.editorEngine.setElementOptions?.(editorState.elementSymbol, editorState.elementAtomicNumber);
   if (state.editorEngine.setArrowEndpointOptions) {
     await state.editorEngine.setArrowEndpointOptions(
       editorState.arrowType,
@@ -2095,6 +2116,8 @@ function syncCanvasCursor() {
       ? "default"
     : editorState.activeTool === "arrow"
       ? "crosshair"
+    : editorState.activeTool === "element"
+      ? elementCursor(editorState.elementSymbol)
       : "crosshair";
 }
 
@@ -2876,6 +2899,17 @@ function insertTextSymbol(character) {
   syncCanvasCursor();
 }
 
+function insertElementSymbol(symbol) {
+  const text = String(symbol || "");
+  if (!text) {
+    return;
+  }
+  if (activeTextEditor) {
+    textEditorController.insertTextAtSelection(text);
+    focusActiveTextEditor();
+  }
+}
+
 const documentFlow = createDocumentFlow({
   state,
   engineHost,
@@ -3217,6 +3251,7 @@ bindEditorControls({
   applyTextFormatCommand,
   applyTextScript,
   applyChemicalFormat,
+  insertElementSymbol,
   applyTextInlineStyle,
   applySelectionArrangeCommand,
   applyArrowOptionsToSelection,
@@ -3256,6 +3291,7 @@ function routeEditorPointerEvents() {
       || editorState.activeTool === "arrow"
       || editorState.activeTool === "bracket"
       || editorState.activeTool === "symbol"
+      || editorState.activeTool === "element"
       || editorState.activeTool === "select"
       || editorState.activeTool === "text"
       || editorState.activeTool === "shape"

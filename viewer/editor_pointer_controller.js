@@ -30,6 +30,9 @@ export function createEditorPointerController(options) {
     if (tool === "symbol") {
       return "add-symbol";
     }
+    if (tool === "element") {
+      return "add-element";
+    }
     if (tool === "templates") {
       return "insert-template";
     }

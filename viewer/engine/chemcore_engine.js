@@ -1061,6 +1061,15 @@ export class WasmEngine {
         wasm.wasmengine_setDocumentStylePreset(this.__wbg_ptr, ptr0, len0);
     }
     /**
+     * @param {string} symbol
+     * @param {number} atomic_number
+     */
+    setElementOptions(symbol, atomic_number) {
+        const ptr0 = passStringToWasm0(symbol, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.wasmengine_setElementOptions(this.__wbg_ptr, ptr0, len0, atomic_number);
+    }
+    /**
      * @param {string} template
      * @param {string} style
      * @param {string} phase

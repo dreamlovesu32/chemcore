@@ -87,6 +87,7 @@ export const wasmengine_setArrowOptions: (a: number, b: number, c: number, d: nu
 export const wasmengine_setBracketOptions: (a: number, b: number, c: number) => void;
 export const wasmengine_setChemicalCheckForSelection: (a: number, b: number) => number;
 export const wasmengine_setDocumentStylePreset: (a: number, b: number, c: number) => void;
+export const wasmengine_setElementOptions: (a: number, b: number, c: number, d: number) => void;
 export const wasmengine_setOrbitalOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
 export const wasmengine_setShapeOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
 export const wasmengine_setSymbolOptions: (a: number, b: number, c: number) => void;

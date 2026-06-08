@@ -264,6 +264,14 @@ class TauriEngineSession {
     return this.invokeMutation("desktop_engine_set_symbol_options", { kind }, { refresh: "state", dirtyExports: false });
   }
 
+  setElementOptions(symbol, atomicNumber) {
+    return this.invokeMutation(
+      "desktop_engine_set_element_options",
+      { symbol, atomicNumber },
+      { refresh: "state", dirtyExports: false },
+    );
+  }
+
   setDocumentStylePreset(preset) {
     if (this.layoutEngine?.setDocumentStylePreset) {
       this.layoutEngine.setDocumentStylePreset(preset);

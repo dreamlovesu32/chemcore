@@ -395,6 +395,152 @@ function commandIconSvg(name) {
   return icons[name] || "";
 }
 
+const PERIODIC_ELEMENTS = [
+  ["H", 1, "Hydrogen", 1, 1],
+  ["He", 2, "Helium", 18, 1],
+  ["Li", 3, "Lithium", 1, 2],
+  ["Be", 4, "Beryllium", 2, 2],
+  ["B", 5, "Boron", 13, 2],
+  ["C", 6, "Carbon", 14, 2],
+  ["N", 7, "Nitrogen", 15, 2],
+  ["O", 8, "Oxygen", 16, 2],
+  ["F", 9, "Fluorine", 17, 2],
+  ["Ne", 10, "Neon", 18, 2],
+  ["Na", 11, "Sodium", 1, 3],
+  ["Mg", 12, "Magnesium", 2, 3],
+  ["Al", 13, "Aluminum", 13, 3],
+  ["Si", 14, "Silicon", 14, 3],
+  ["P", 15, "Phosphorus", 15, 3],
+  ["S", 16, "Sulfur", 16, 3],
+  ["Cl", 17, "Chlorine", 17, 3],
+  ["Ar", 18, "Argon", 18, 3],
+  ["K", 19, "Potassium", 1, 4],
+  ["Ca", 20, "Calcium", 2, 4],
+  ["Sc", 21, "Scandium", 3, 4],
+  ["Ti", 22, "Titanium", 4, 4],
+  ["V", 23, "Vanadium", 5, 4],
+  ["Cr", 24, "Chromium", 6, 4],
+  ["Mn", 25, "Manganese", 7, 4],
+  ["Fe", 26, "Iron", 8, 4],
+  ["Co", 27, "Cobalt", 9, 4],
+  ["Ni", 28, "Nickel", 10, 4],
+  ["Cu", 29, "Copper", 11, 4],
+  ["Zn", 30, "Zinc", 12, 4],
+  ["Ga", 31, "Gallium", 13, 4],
+  ["Ge", 32, "Germanium", 14, 4],
+  ["As", 33, "Arsenic", 15, 4],
+  ["Se", 34, "Selenium", 16, 4],
+  ["Br", 35, "Bromine", 17, 4],
+  ["Kr", 36, "Krypton", 18, 4],
+  ["Rb", 37, "Rubidium", 1, 5],
+  ["Sr", 38, "Strontium", 2, 5],
+  ["Y", 39, "Yttrium", 3, 5],
+  ["Zr", 40, "Zirconium", 4, 5],
+  ["Nb", 41, "Niobium", 5, 5],
+  ["Mo", 42, "Molybdenum", 6, 5],
+  ["Tc", 43, "Technetium", 7, 5],
+  ["Ru", 44, "Ruthenium", 8, 5],
+  ["Rh", 45, "Rhodium", 9, 5],
+  ["Pd", 46, "Palladium", 10, 5],
+  ["Ag", 47, "Silver", 11, 5],
+  ["Cd", 48, "Cadmium", 12, 5],
+  ["In", 49, "Indium", 13, 5],
+  ["Sn", 50, "Tin", 14, 5],
+  ["Sb", 51, "Antimony", 15, 5],
+  ["Te", 52, "Tellurium", 16, 5],
+  ["I", 53, "Iodine", 17, 5],
+  ["Xe", 54, "Xenon", 18, 5],
+  ["Cs", 55, "Cesium", 1, 6],
+  ["Ba", 56, "Barium", 2, 6],
+  ["La", 57, "Lanthanum", 3, 6],
+  ["Hf", 72, "Hafnium", 4, 6],
+  ["Ta", 73, "Tantalum", 5, 6],
+  ["W", 74, "Tungsten", 6, 6],
+  ["Re", 75, "Rhenium", 7, 6],
+  ["Os", 76, "Osmium", 8, 6],
+  ["Ir", 77, "Iridium", 9, 6],
+  ["Pt", 78, "Platinum", 10, 6],
+  ["Au", 79, "Gold", 11, 6],
+  ["Hg", 80, "Mercury", 12, 6],
+  ["Tl", 81, "Thallium", 13, 6],
+  ["Pb", 82, "Lead", 14, 6],
+  ["Bi", 83, "Bismuth", 15, 6],
+  ["Po", 84, "Polonium", 16, 6],
+  ["At", 85, "Astatine", 17, 6],
+  ["Rn", 86, "Radon", 18, 6],
+  ["Fr", 87, "Francium", 1, 7],
+  ["Ra", 88, "Radium", 2, 7],
+  ["Ac", 89, "Actinium", 3, 7],
+  ["Rf", 104, "Rutherfordium", 4, 7],
+  ["Db", 105, "Dubnium", 5, 7],
+  ["Sg", 106, "Seaborgium", 6, 7],
+  ["Bh", 107, "Bohrium", 7, 7],
+  ["Hs", 108, "Hassium", 8, 7],
+  ["Mt", 109, "Meitnerium", 9, 7],
+  ["Ds", 110, "Darmstadtium", 10, 7],
+  ["Rg", 111, "Roentgenium", 11, 7],
+  ["Cn", 112, "Copernicium", 12, 7],
+  ["Nh", 113, "Nihonium", 13, 7],
+  ["Fl", 114, "Flerovium", 14, 7],
+  ["Mc", 115, "Moscovium", 15, 7],
+  ["Lv", 116, "Livermorium", 16, 7],
+  ["Ts", 117, "Tennessine", 17, 7],
+  ["Og", 118, "Oganesson", 18, 7],
+  ["Ce", 58, "Cerium", 4, 8],
+  ["Pr", 59, "Praseodymium", 5, 8],
+  ["Nd", 60, "Neodymium", 6, 8],
+  ["Pm", 61, "Promethium", 7, 8],
+  ["Sm", 62, "Samarium", 8, 8],
+  ["Eu", 63, "Europium", 9, 8],
+  ["Gd", 64, "Gadolinium", 10, 8],
+  ["Tb", 65, "Terbium", 11, 8],
+  ["Dy", 66, "Dysprosium", 12, 8],
+  ["Ho", 67, "Holmium", 13, 8],
+  ["Er", 68, "Erbium", 14, 8],
+  ["Tm", 69, "Thulium", 15, 8],
+  ["Yb", 70, "Ytterbium", 16, 8],
+  ["Lu", 71, "Lutetium", 17, 8],
+  ["Th", 90, "Thorium", 4, 9],
+  ["Pa", 91, "Protactinium", 5, 9],
+  ["U", 92, "Uranium", 6, 9],
+  ["Np", 93, "Neptunium", 7, 9],
+  ["Pu", 94, "Plutonium", 8, 9],
+  ["Am", 95, "Americium", 9, 9],
+  ["Cm", 96, "Curium", 10, 9],
+  ["Bk", 97, "Berkelium", 11, 9],
+  ["Cf", 98, "Californium", 12, 9],
+  ["Es", 99, "Einsteinium", 13, 9],
+  ["Fm", 100, "Fermium", 14, 9],
+  ["Md", 101, "Mendelevium", 15, 9],
+  ["No", 102, "Nobelium", 16, 9],
+  ["Lr", 103, "Lawrencium", 17, 9],
+];
+
+const ELEMENT_COLORS = {
+  C: ["#000000", "#ffffff"],
+  N: ["#0000d8", "#ffffff"],
+  O: ["#ff0000", "#ffffff"],
+  F: ["#62ee75", "#000000"],
+  Na: ["#ff00d8", "#ffffff"],
+  P: ["#ff72df", "#000000"],
+  S: ["#ecff24", "#000000"],
+  Cl: ["#00f32e", "#ffffff"],
+  Fe: ["#0b6415", "#ffffff"],
+  Ni: ["#6c6d6d", "#000000"],
+  Cu: ["#d58428", "#ffffff"],
+  Ag: ["#dcefff", "#000000"],
+  Au: ["#fff438", "#000000"],
+  Br: ["#8b4c42", "#ffffff"],
+};
+
+function elementIconSvg(symbol = "P") {
+  const safe = String(symbol || "P").replace(/[^A-Za-z]/g, "").slice(0, 2) || "P";
+  return iconSvg(`
+    <path class="cc-element-tick" d="M9 4.5v3M15 4.5v3M9 16.5v3M15 16.5v3M4.5 9h3M4.5 15h3M16.5 9h3M16.5 15h3"/>
+    <text class="cc-element-icon-text" x="12" y="15" text-anchor="middle">${safe}</text>
+  `, "cc-tool-icon cc-element-icon");
+}
+
 export function syncPrimaryChromeIcons(root = document) {
   for (const button of root.querySelectorAll(".icon-button[data-command]")) {
     const svg = commandIconSvg(button.dataset.command);
@@ -413,6 +559,7 @@ export function syncPrimaryChromeIcons(root = document) {
     ["arrow", straightArrowSvg()],
     ["bracket", generatedBracketIconSvg("round")],
     ["symbol", generatedBracketIconSvg("circle-plus")],
+    ["element", elementIconSvg("P")],
     ["shape", commandIconSvg("shape")],
     ["tlc-plate", commandIconSvg("tlc-plate")],
     ["orbital", commandIconSvg("orbital")],
@@ -444,6 +591,9 @@ export function renderSecondaryToolbarHtml(editorState) {
   if (editorState.activeTool === "symbol") {
     return symbolToolbarHtml(editorState);
   }
+  if (editorState.activeTool === "element") {
+    return elementToolbarHtml(editorState);
+  }
   if (editorState.activeTool === "shape") {
     return shapeToolbarHtml(editorState);
   }
@@ -463,6 +613,7 @@ export function syncPrimaryToolButtons(editorState, root = document) {
   syncPrimaryBondToolButton(editorState, root);
   syncPrimaryTemplateToolButton(editorState, root);
   syncPrimarySymbolToolButton(editorState, root);
+  syncPrimaryElementToolButton(editorState, root);
   syncPrimaryOrbitalToolButton(editorState, root);
 }
 
@@ -612,6 +763,17 @@ function syncPrimarySymbolToolButton(editorState, root) {
     return;
   }
   symbolButton.innerHTML = bracketIconSvg(editorState.symbolKind);
+}
+
+function syncPrimaryElementToolButton(editorState, root) {
+  const elementButton = root.querySelector('.tool-button[data-tool="element"]');
+  if (!elementButton) {
+    return;
+  }
+  const symbol = editorState.elementSymbol || "P";
+  elementButton.innerHTML = elementIconSvg(symbol);
+  elementButton.setAttribute("aria-label", `Element ${symbol}`);
+  elementButton.setAttribute("title", `Element ${symbol}`);
 }
 
 function syncPrimaryOrbitalToolButton(editorState, root) {
@@ -917,6 +1079,52 @@ function symbolToolbarHtml(editorState) {
     toolbarButton("symbol-kind-radical-anion", "Radical anion", bracketIconSvg("radical-anion"), editorState.symbolKind === "radical-anion"),
     toolbarButton("symbol-kind-electron", "Electron", bracketIconSvg("electron"), editorState.symbolKind === "electron"),
   ].join("");
+}
+
+function elementToolbarHtml(editorState) {
+  const current = periodicElement(editorState.elementSymbol || "P") || periodicElement("P");
+  const symbol = current?.[0] || "P";
+  const atomicNumber = current?.[1] || 15;
+  const name = current?.[2] || "Phosphorus";
+  return `
+    <div class="element-picker">
+      <button class="secondary-button element-current-button" type="button" data-element-picker-toggle aria-label="Periodic table" title="Periodic table">
+        <span class="periodic-element-symbol">${symbol}</span>
+      </button>
+      <div class="periodic-table-panel" role="menu" aria-label="Periodic table">
+        <div class="periodic-table-title">${atomicNumber} ${name}</div>
+        <div class="periodic-table-grid">
+          ${PERIODIC_ELEMENTS.map((element) => periodicElementButton(element, symbol)).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function periodicElement(symbol) {
+  return PERIODIC_ELEMENTS.find((element) => element[0] === symbol) || null;
+}
+
+function periodicElementButton([symbol, atomicNumber, name, column, row], currentSymbol) {
+  const colors = ELEMENT_COLORS[symbol];
+  const style = [
+    `grid-column:${column}`,
+    `grid-row:${row}`,
+    colors ? `--element-bg:${colors[0]}` : "",
+    colors ? `--element-fg:${colors[1]}` : "",
+  ].filter(Boolean).join(";");
+  return `
+    <button
+      class="periodic-element-button${symbol === currentSymbol ? " is-selected" : ""}${colors ? " has-element-color" : ""}"
+      type="button"
+      role="menuitem"
+      data-secondary-value="element-symbol-${symbol}-${atomicNumber}"
+      title="${atomicNumber} ${name}"
+      aria-label="${atomicNumber} ${name}"
+      style="${style}">
+      ${symbol}
+    </button>
+  `;
 }
 
 function ringSvg(sides, aromatic = false) {

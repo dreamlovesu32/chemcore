@@ -61,6 +61,7 @@ pub enum Tool {
     Arrow,
     Bracket,
     Symbol,
+    Element,
     Delete,
     Text,
     Shape,
@@ -392,6 +393,10 @@ pub struct ToolState {
     pub bracket_kind: BracketKind,
     #[serde(default = "default_symbol_kind")]
     pub symbol_kind: BracketKind,
+    #[serde(default = "default_element_symbol")]
+    pub element_symbol: String,
+    #[serde(default = "default_element_atomic_number")]
+    pub element_atomic_number: u8,
     #[serde(default = "default_template")]
     pub template: String,
 }
@@ -419,6 +424,8 @@ impl Default for ToolState {
             orbital_color: default_shape_color(),
             bracket_kind: BracketKind::Round,
             symbol_kind: default_symbol_kind(),
+            element_symbol: default_element_symbol(),
+            element_atomic_number: default_element_atomic_number(),
             template: default_template(),
         }
     }
@@ -438,6 +445,14 @@ fn default_template() -> String {
 
 fn default_symbol_kind() -> BracketKind {
     BracketKind::CirclePlus
+}
+
+fn default_element_symbol() -> String {
+    "P".to_string()
+}
+
+fn default_element_atomic_number() -> u8 {
+    15
 }
 
 fn default_shape_color() -> String {

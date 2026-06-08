@@ -75,6 +75,11 @@ pub enum EditorCommand {
         kind: BracketKind,
         center: CommandAnchor,
     },
+    AddElement {
+        symbol: String,
+        atomic_number: u8,
+        center: CommandAnchor,
+    },
     MoveTlcSpot {
         object_id: String,
         lane_index: usize,

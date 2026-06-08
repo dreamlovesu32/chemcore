@@ -468,6 +468,54 @@ fn click(engine: &mut Engine, x: f64, y: f64) {
     });
 }
 
+#[test]
+fn element_tool_places_selected_element_with_chemdraw_hydrogens() {
+    let mut engine = Engine::new();
+    let mut tool = ToolState {
+        active_tool: Tool::Element,
+        element_symbol: "Se".to_string(),
+        element_atomic_number: 34,
+        ..ToolState::default()
+    };
+    engine.set_tool_state(tool.clone());
+    click(&mut engine, 40.0, 50.0);
+
+    let fragment = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("blank document has an editable fragment")
+        .fragment;
+    assert_eq!(fragment.nodes.len(), 1);
+    let node = &fragment.nodes[0];
+    assert_eq!(node.element, "Se");
+    assert_eq!(node.atomic_number, 34);
+    assert_eq!(node.num_hydrogens, 2);
+    assert_eq!(
+        node.label.as_ref().map(|label| label.text.as_str()),
+        Some("SeH2")
+    );
+
+    tool.element_symbol = "Au".to_string();
+    tool.element_atomic_number = 79;
+    engine.set_tool_state(tool);
+    click(&mut engine, 70.0, 80.0);
+    let fragment = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("blank document has an editable fragment")
+        .fragment;
+    assert_eq!(fragment.nodes.len(), 2);
+    let node = &fragment.nodes[1];
+    assert_eq!(node.element, "Au");
+    assert_eq!(node.num_hydrogens, 0);
+    assert_eq!(
+        node.label.as_ref().map(|label| label.text.as_str()),
+        Some("Au")
+    );
+}
+
 fn hover(engine: &mut Engine, x: f64, y: f64) {
     engine.pointer_move(PointerEvent {
         x,

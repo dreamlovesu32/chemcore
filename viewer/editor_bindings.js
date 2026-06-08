@@ -314,7 +314,7 @@ function bindToolButtons(options) {
 async function setActiveTool(toolButton, options) {
   const { editorState, state } = options;
   const nextTool = toolButton?.dataset?.tool || editorState.activeTool;
-  if (editorState.activeTool === "text" && nextTool !== "text") {
+  if (editorState.activeTool === "text" && nextTool !== "text" && nextTool !== "element") {
     await options.finishActiveTextEditor(true);
   }
   if (editorState.activeTool === "select" && nextTool !== "select") {
@@ -410,6 +410,9 @@ function bindSecondaryToolbar(options) {
     if (await handleColorPickerClick(event, options)) {
       return;
     }
+    if (handleElementPickerClick(event)) {
+      return;
+    }
     const button = event.target.closest("[data-secondary-value]");
     if (!button) {
       return;
@@ -435,6 +438,37 @@ function bindSecondaryToolbar(options) {
     }
     options.renderSecondaryToolbar();
     options.focusActiveTextEditor();
+  });
+}
+
+function handleElementPickerClick(event) {
+  const picker = event.target.closest(".element-picker");
+  if (!picker) {
+    closeElementPickers();
+    return false;
+  }
+  const toggle = event.target.closest("[data-element-picker-toggle]");
+  if (toggle) {
+    const isOpen = picker.classList.contains("is-open");
+    closeElementPickers(picker);
+    if (!isOpen) {
+      const rect = toggle.getBoundingClientRect();
+      const panelWidth = 760;
+      picker.style.setProperty("--element-panel-left", `${Math.max(4, Math.min(window.innerWidth - panelWidth - 4, rect.left - 4))}px`);
+      picker.style.setProperty("--element-panel-top", `${Math.max(4, rect.bottom + 6)}px`);
+      picker.classList.add("is-open");
+    }
+    event.preventDefault();
+    return true;
+  }
+  return false;
+}
+
+function closeElementPickers(except = null) {
+  document.querySelectorAll(".element-picker.is-open").forEach((picker) => {
+    if (picker !== except) {
+      picker.classList.remove("is-open");
+    }
   });
 }
 
@@ -691,6 +725,15 @@ async function handleSecondaryToolbarValue(value, options) {
     editorState.bracketKind = value.replace("bracket-kind-", "");
   } else if (value?.startsWith("symbol-kind-")) {
     editorState.symbolKind = value.replace("symbol-kind-", "");
+  } else if (value?.startsWith("element-symbol-")) {
+    const [, symbol, atomicNumber] = value.match(/^element-symbol-([A-Za-z]{1,2})-(\d{1,3})$/) || [];
+    if (symbol) {
+      editorState.elementSymbol = symbol;
+      editorState.elementAtomicNumber = Number(atomicNumber) || editorState.elementAtomicNumber || 15;
+      if (options.getActiveTextEditor?.()) {
+        options.insertElementSymbol?.(symbol);
+      }
+    }
   } else if (value?.startsWith("shape-kind-")) {
     editorState.shapeKind = value.replace("shape-kind-", "");
   } else if (value?.startsWith("shape-style-")) {
@@ -723,6 +766,7 @@ async function handleSecondaryToolbarValue(value, options) {
     await options.applyArrowOptionsToSelection();
   }
   options.renderSecondaryToolbar();
+  options.syncCanvasCursor();
   options.focusActiveTextEditor();
 }
 
