@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::env;
 use std::ffi::c_void;
 use std::io::{Cursor, Read, Write};
@@ -9,12 +10,14 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::ptr::{null, null_mut};
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::time::Duration;
+use std::sync::{Mutex, OnceLock};
+use std::thread;
+use std::time::{Duration, SystemTime};
 
 use chemcore_engine::PT_PER_CM;
 use windows_sys::core::GUID;
 use windows_sys::Win32::Foundation::{
-    GlobalFree, ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, HGLOBAL, POINTL, RECT, SIZE,
+    GetLastError, GlobalFree, ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, HGLOBAL, POINTL, RECT, SIZE,
 };
 use windows_sys::Win32::Graphics::Gdi::{DeleteEnhMetaFile, HDC};
 use windows_sys::Win32::System::Com::StructuredStorage::{
@@ -42,7 +45,8 @@ use windows_sys::Win32::System::Registry::{
 };
 use windows_sys::Win32::UI::Shell::ShellExecuteW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    AllowSetForegroundWindow, DispatchMessageW, GetMessageW, TranslateMessage, MSG, SW_SHOWNORMAL,
+    AllowSetForegroundWindow, DispatchMessageW, GetMessageW, KillTimer, PostThreadMessageW,
+    SetTimer, TranslateMessage, MSG, SW_SHOWNORMAL,
 };
 
 mod emf_preview;
@@ -56,6 +60,11 @@ use emf_preview::{
 #[link(name = "ole32")]
 unsafe extern "system" {
     fn CreateDataAdviseHolder(holder: *mut *mut c_void) -> i32;
+}
+
+#[link(name = "kernel32")]
+unsafe extern "system" {
+    fn GetCurrentThreadId() -> u32;
 }
 
 const APP_NAME: &str = "Chemcore";
@@ -98,6 +107,11 @@ const ASFW_ANY_PROCESS: u32 = u32::MAX;
 const DESKTOP_DEV_SERVER_ADDR: &str = "127.0.0.1:8767";
 const CHEMCORE_DESKTOP_EXE_NAME: &str = "chemcore-desktop.exe";
 const CHEMCORE_DESKTOP_ENV: &str = "CHEMCORE_DESKTOP_EXE";
+const OLE_EDIT_SESSION_PREFIX: &str = "chemcore-ole-edit";
+const OLE_EDIT_TIMER_ID: usize = 0xC0CC;
+const OLE_EDIT_POLL_MS: u32 = 750;
+const WM_TIMER: u32 = 0x0113;
+const WM_OLE_EDIT_SESSION_CHANGED: u32 = 0x80CC;
 
 const CLSID_CHEMCORE_DOCUMENT: GUID = GUID {
     data1: 0xcb69f54f,
@@ -187,6 +201,25 @@ const DV_E_FORMATETC: i32 = 0x80040064u32 as i32;
 const DV_E_TYMED: i32 = 0x80040069u32 as i32;
 const OLE_E_NOTRUNNING: i32 = 0x80040005u32 as i32;
 const CLASS_E_NOAGGREGATION: i32 = 0x80040110u32 as i32;
+
+#[derive(Debug, Clone)]
+struct OleEditSession {
+    path: PathBuf,
+    object: usize,
+    last_modified: Option<SystemTime>,
+}
+
+static OLE_EDIT_SESSIONS: OnceLock<Mutex<BTreeMap<String, OleEditSession>>> = OnceLock::new();
+static OLE_EDIT_PENDING_UPDATES: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
+static OLE_EDIT_MAIN_THREAD_ID: OnceLock<u32> = OnceLock::new();
+
+fn ole_edit_sessions() -> &'static Mutex<BTreeMap<String, OleEditSession>> {
+    OLE_EDIT_SESSIONS.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+fn ole_edit_pending_updates() -> &'static Mutex<Vec<String>> {
+    OLE_EDIT_PENDING_UPDATES.get_or_init(|| Mutex::new(Vec::new()))
+}
 
 pub fn run() -> Result<(), String> {
     let mut args = env::args().skip(1);
@@ -722,6 +755,7 @@ fn run_self_test() -> Result<(), String> {
     }
 
     run_persist_storage_self_test()?;
+    run_ole_edit_session_update_self_test()?;
     run_word_docx_package_self_test()?;
 
     println!("{DOCUMENT_DISPLAY_NAME} COM object self-test passed.");
@@ -883,6 +917,114 @@ fn run_persist_storage_self_test() -> Result<(), String> {
             return Err("Enhanced print stream did not contain an EMF payload.".into());
         }
 
+        Ok(())
+    })();
+
+    let _ = std::fs::remove_file(storage_path);
+    result
+}
+
+fn run_ole_edit_session_update_self_test() -> Result<(), String> {
+    let storage_path = env::temp_dir().join(format!(
+        "chemcore-office-edit-session-self-test-{}.ole",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_file(&storage_path);
+
+    let result = (|| unsafe {
+        let mut storage = null_mut();
+        let storage_path_w = wide_path_null(&storage_path);
+        let hr = StgCreateDocfile(
+            storage_path_w.as_ptr(),
+            STGM_CREATE | STGM_READWRITE | STGM_SHARE_EXCLUSIVE,
+            0,
+            &mut storage,
+        );
+        if !hresult_succeeded(hr) || storage.is_null() {
+            return Err(format!(
+                "StgCreateDocfile for OLE edit session self-test failed: 0x{:08X}",
+                hr as u32
+            ));
+        }
+
+        let mut persist_storage = null_mut();
+        let factory = (&CLASS_FACTORY as *const ClassFactory)
+            .cast_mut()
+            .cast::<c_void>();
+        let hr = class_factory_create_instance(
+            factory,
+            null_mut(),
+            &IID_IPERSIST_STORAGE,
+            &mut persist_storage,
+        );
+        if !hresult_succeeded(hr) || persist_storage.is_null() {
+            com_release(storage);
+            return Err(format!(
+                "IClassFactory::CreateInstance(IPersistStorage) edit session self-test failed: 0x{:08X}",
+                hr as u32
+            ));
+        }
+
+        let init_new = (*(*(persist_storage.cast::<*const PersistStorageVtbl>()))).init_new;
+        let hr = init_new(persist_storage, storage);
+        if !hresult_succeeded(hr) {
+            com_release(persist_storage);
+            com_release(storage);
+            return Err(format!(
+                "IPersistStorage::InitNew edit session self-test failed: 0x{:08X}",
+                hr as u32
+            ));
+        }
+
+        let object = owner_from_part::<PersistStorageVtbl>(persist_storage);
+        if object.is_null() {
+            com_release(persist_storage);
+            com_release(storage);
+            return Err("OLE edit session self-test could not resolve object owner.".into());
+        }
+
+        let mut document_json: serde_json::Value =
+            serde_json::from_str(&(*object).payload.chemcore_document_json).map_err(|error| {
+                format!("Initial OLE document JSON self-test parse failed: {error}")
+            })?;
+        document_json["document"]["title"] =
+            serde_json::Value::String("Chemcore OLE edit session self-test".into());
+        let document_json = serde_json::to_string(&document_json).map_err(|error| {
+            format!("Edited OLE document JSON self-test serialize failed: {error}")
+        })?;
+
+        let hr = apply_ole_edit_session_update(object, &document_json);
+        if !hresult_succeeded(hr) {
+            com_release(persist_storage);
+            com_release(storage);
+            return Err(format!(
+                "OLE edit session update self-test failed: 0x{:08X}",
+                hr as u32
+            ));
+        }
+
+        let is_dirty = (*(*(persist_storage.cast::<*const PersistStorageVtbl>()))).is_dirty;
+        let dirty_hr = is_dirty(persist_storage);
+        if dirty_hr != S_OK {
+            com_release(persist_storage);
+            com_release(storage);
+            return Err(format!(
+                "OLE edit session update self-test did not mark object dirty: 0x{:08X}",
+                dirty_hr as u32
+            ));
+        }
+
+        let stored_document = storage_read_stream(storage, OLE_STREAM_DOCUMENT)?;
+        let stored_document = String::from_utf8(stored_document)
+            .map_err(|error| format!("Edited ChemcoreDocument stream is not UTF-8: {error}"))?;
+        if !stored_document.contains("Chemcore OLE edit session self-test") {
+            com_release(persist_storage);
+            com_release(storage);
+            return Err("OLE edit session update self-test did not update storage.".into());
+        }
+
+        com_release(persist_storage);
+        com_release(storage);
         Ok(())
     })();
 
@@ -1064,6 +1206,9 @@ static CLASS_FACTORY: ClassFactory = ClassFactory {
 };
 
 fn run_com_server() -> Result<(), String> {
+    let main_thread_id = unsafe { GetCurrentThreadId() };
+    let _ = OLE_EDIT_MAIN_THREAD_ID.set(main_thread_id);
+    log_ole_event(&format!("COM server main thread id {main_thread_id}"));
     log_ole_event("COM server initializing OLE");
     let hr = unsafe { OleInitialize(null()) };
     if !hresult_succeeded(hr) {
@@ -1099,10 +1244,14 @@ fn run_com_server() -> Result<(), String> {
     }
 
     log_ole_event("COM server class object registered");
+    unsafe {
+        SetTimer(null_mut(), OLE_EDIT_TIMER_ID, OLE_EDIT_POLL_MS, None);
+    }
     run_message_loop();
 
     log_ole_event("COM server message loop exited");
     unsafe {
+        KillTimer(null_mut(), OLE_EDIT_TIMER_ID);
         CoRevokeClassObject(registration_cookie);
         OleUninitialize();
     }
@@ -1116,10 +1265,320 @@ fn run_message_loop() {
         if result <= 0 {
             break;
         }
+        if message.message == WM_TIMER && message.wParam == OLE_EDIT_TIMER_ID {
+            poll_ole_edit_sessions();
+            continue;
+        }
+        if message.message == WM_OLE_EDIT_SESSION_CHANGED {
+            log_ole_event("COM server received OLE edit session change message");
+            apply_pending_ole_edit_session_updates();
+            poll_ole_edit_sessions();
+            continue;
+        }
         unsafe {
             TranslateMessage(&message);
             DispatchMessageW(&message);
         }
+    }
+}
+
+fn register_ole_edit_session(
+    session_id: String,
+    path: PathBuf,
+    object: *mut ChemcoreOleObject,
+) -> Result<(), String> {
+    if object.is_null() {
+        return Err("OLE edit session cannot register a null object.".to_string());
+    }
+    let last_modified = file_modified_time(&path);
+    chemcore_object_add_ref(object);
+    let mut sessions = ole_edit_sessions()
+        .lock()
+        .map_err(|error| error.to_string())?;
+    sessions.insert(
+        session_id.clone(),
+        OleEditSession {
+            path: path.clone(),
+            object: object as usize,
+            last_modified,
+        },
+    );
+    unsafe {
+        SetTimer(null_mut(), OLE_EDIT_TIMER_ID, OLE_EDIT_POLL_MS, None);
+    }
+    start_ole_edit_file_watcher(session_id, path, last_modified);
+    Ok(())
+}
+
+fn ole_edit_session_path_for_object(object: *mut ChemcoreOleObject) -> Option<PathBuf> {
+    if object.is_null() {
+        return None;
+    }
+    let object = object as usize;
+    let sessions = ole_edit_sessions().lock().ok()?;
+    sessions
+        .values()
+        .find(|session| session.object == object && session.path.exists())
+        .map(|session| session.path.clone())
+}
+
+fn file_modified_time(path: &PathBuf) -> Option<SystemTime> {
+    std::fs::metadata(path)
+        .and_then(|metadata| metadata.modified())
+        .ok()
+}
+
+fn start_ole_edit_file_watcher(
+    session_id: String,
+    path: PathBuf,
+    initial_modified: Option<SystemTime>,
+) {
+    let Some(thread_id) = OLE_EDIT_MAIN_THREAD_ID.get().copied() else {
+        return;
+    };
+    thread::spawn(move || {
+        let mut last_modified = initial_modified;
+        loop {
+            thread::sleep(Duration::from_millis(u64::from(OLE_EDIT_POLL_MS)));
+            let Some(modified) = file_modified_time(&path) else {
+                break;
+            };
+            if last_modified.is_some_and(|last| modified <= last) {
+                continue;
+            }
+            last_modified = Some(modified);
+            if let Ok(mut pending) = ole_edit_pending_updates().lock() {
+                if !pending.iter().any(|value| value == &session_id) {
+                    pending.push(session_id.clone());
+                }
+            }
+            log_ole_event(&format!(
+                "OLE edit watcher noticed change for {session_id} at {}",
+                path.display()
+            ));
+            unsafe {
+                let posted = PostThreadMessageW(thread_id, WM_OLE_EDIT_SESSION_CHANGED, 0, 0);
+                if posted == 0 {
+                    log_ole_event(&format!(
+                        "PostThreadMessageW({thread_id}, WM_OLE_EDIT_SESSION_CHANGED) failed: {}",
+                        GetLastError()
+                    ));
+                }
+            }
+        }
+    });
+}
+
+fn poll_ole_edit_sessions() {
+    let candidates = {
+        let Ok(sessions) = ole_edit_sessions().lock() else {
+            return;
+        };
+        sessions
+            .iter()
+            .filter_map(|(session_id, session)| {
+                let modified = file_modified_time(&session.path)?;
+                if session.last_modified.is_some_and(|last| modified <= last) {
+                    return None;
+                }
+                Some((
+                    session_id.clone(),
+                    session.path.clone(),
+                    session.object,
+                    modified,
+                ))
+            })
+            .collect::<Vec<_>>()
+    };
+
+    for (session_id, path, object, modified) in candidates {
+        let document_json = match std::fs::read_to_string(&path) {
+            Ok(value) => value,
+            Err(error) => {
+                log_ole_event(&format!(
+                    "Failed to read OLE edit session {} from {}: {error}",
+                    session_id,
+                    path.display()
+                ));
+                continue;
+            }
+        };
+        let hr = unsafe {
+            apply_ole_edit_session_update(object as *mut ChemcoreOleObject, &document_json)
+        };
+        if hresult_succeeded(hr) {
+            if let Ok(mut sessions) = ole_edit_sessions().lock() {
+                if let Some(session) = sessions.get_mut(&session_id) {
+                    session.last_modified = Some(modified);
+                }
+            }
+        }
+        log_ole_event(&format!(
+            "OLE edit session {session_id} update -> 0x{:08X}",
+            hr as u32
+        ));
+    }
+}
+
+fn apply_pending_ole_edit_session_updates() {
+    let session_ids = {
+        let Ok(mut pending) = ole_edit_pending_updates().lock() else {
+            return;
+        };
+        std::mem::take(&mut *pending)
+    };
+    if session_ids.is_empty() {
+        log_ole_event("OLE edit pending update queue was empty");
+    } else {
+        log_ole_event(&format!(
+            "Applying {} pending OLE edit session update(s)",
+            session_ids.len()
+        ));
+    }
+    for session_id in session_ids {
+        apply_ole_edit_session_update_by_id(&session_id);
+    }
+}
+
+fn apply_ole_edit_session_update_by_id(session_id: &str) {
+    let Some((path, object, modified)) = ({
+        let Ok(sessions) = ole_edit_sessions().lock() else {
+            return;
+        };
+        sessions.get(session_id).and_then(|session| {
+            let modified = file_modified_time(&session.path)?;
+            Some((session.path.clone(), session.object, modified))
+        })
+    }) else {
+        log_ole_event(&format!(
+            "OLE edit session {session_id} was not found for pending update"
+        ));
+        return;
+    };
+    let document_json = match std::fs::read_to_string(&path) {
+        Ok(value) => value,
+        Err(error) => {
+            log_ole_event(&format!(
+                "Failed to read OLE edit session {} from {}: {error}",
+                session_id,
+                path.display()
+            ));
+            return;
+        }
+    };
+    log_ole_event(&format!(
+        "Read OLE edit session {session_id} from {} ({} bytes)",
+        path.display(),
+        document_json.len()
+    ));
+    let hr =
+        unsafe { apply_ole_edit_session_update(object as *mut ChemcoreOleObject, &document_json) };
+    if hresult_succeeded(hr) {
+        if let Ok(mut sessions) = ole_edit_sessions().lock() {
+            if let Some(session) = sessions.get_mut(session_id) {
+                session.last_modified = Some(modified);
+            }
+        }
+    }
+    log_ole_event(&format!(
+        "OLE edit session {session_id} update -> 0x{:08X}",
+        hr as u32
+    ));
+}
+
+unsafe fn apply_ole_edit_session_update(
+    object: *mut ChemcoreOleObject,
+    document_json: &str,
+) -> i32 {
+    log_ole_event("Applying OLE edit session payload to object");
+    if object.is_null() {
+        return E_POINTER;
+    }
+    if document_json.trim().is_empty() {
+        return E_FAIL;
+    }
+    let payload = OleObjectPayload::from_clipboard(ClipboardPayload {
+        chemcore_fragment_json: None,
+        chemcore_document_json: Some(document_json.to_string()),
+        render_list_json: None,
+        cdxml: None,
+        svg: None,
+        text: None,
+    });
+    log_ole_event("Built OLE edit session payload");
+    (*object).payload = payload;
+    (*object).extent_himetric = (*object).payload.extent_himetric();
+    (*object).dirty = true;
+
+    if !(*object).storage.is_null() {
+        log_ole_event("Writing OLE edit session payload to storage");
+        let hr = write_ole_storage_payload(
+            (*object).storage,
+            &(*object).payload,
+            (*object).extent_himetric,
+        );
+        log_ole_event(&format!(
+            "Write OLE edit session payload to storage -> 0x{:08X}",
+            hr as u32
+        ));
+        if !hresult_succeeded(hr) {
+            return hr;
+        }
+    }
+    log_ole_event("Notifying OLE container about edit session payload");
+    notify_ole_object_changed(object);
+    log_ole_event("Finished notifying OLE container about edit session payload");
+    S_OK
+}
+
+unsafe fn notify_ole_object_changed(object: *mut ChemcoreOleObject) {
+    if object.is_null() {
+        return;
+    }
+    if !(*object).ole_advise_holder.is_null() {
+        let holder_vtbl = *((*object)
+            .ole_advise_holder
+            .cast::<*const OleAdviseHolderVtbl>());
+        ((*holder_vtbl).send_on_save)((*object).ole_advise_holder);
+    }
+    if !(*object).data_advise_holder.is_null() {
+        let holder_vtbl = *((*object)
+            .data_advise_holder
+            .cast::<*const DataAdviseHolderVtbl>());
+        let data_object =
+            (&mut (*object).data_object as *mut InterfacePart<DataObjectVtbl>).cast::<c_void>();
+        let hr =
+            ((*holder_vtbl).send_on_data_change)((*object).data_advise_holder, data_object, 0, 0);
+        log_ole_event(&format!(
+            "IDataAdviseHolder::SendOnDataChange -> 0x{:08X}",
+            hr as u32
+        ));
+    }
+    if !(*object).view_advise_sink.is_null()
+        && ((*object).view_advise_aspects == 0
+            || ((*object).view_advise_aspects & DVASPECT_CONTENT) != 0)
+    {
+        let sink_vtbl = *((*object).view_advise_sink.cast::<*const AdviseSinkVtbl>());
+        ((*sink_vtbl).on_view_change)((*object).view_advise_sink, DVASPECT_CONTENT, -1);
+        log_ole_event("IAdviseSink::OnViewChange(DVASPECT_CONTENT)");
+    }
+    if !(*object).client_site.is_null() {
+        let site_vtbl = *((*object).client_site.cast::<*const OleClientSiteVtbl>());
+        let hr = ((*site_vtbl).save_object)((*object).client_site);
+        log_ole_event(&format!(
+            "IOleClientSite::SaveObject -> 0x{:08X}",
+            hr as u32
+        ));
+        let hr = ((*site_vtbl).show_object)((*object).client_site);
+        log_ole_event(&format!(
+            "IOleClientSite::ShowObject -> 0x{:08X}",
+            hr as u32
+        ));
+        let hr = ((*site_vtbl).request_new_object_layout)((*object).client_site);
+        log_ole_event(&format!(
+            "IOleClientSite::RequestNewObjectLayout -> 0x{:08X}",
+            hr as u32
+        ));
     }
 }
 
@@ -1199,8 +1658,12 @@ struct ChemcoreOleObject {
     storage: *mut c_void,
     ole_advise_holder: *mut c_void,
     data_advise_holder: *mut c_void,
+    view_advise_sink: *mut c_void,
+    view_advise_aspects: u32,
+    view_advise_flags: u32,
     payload: OleObjectPayload,
     extent_himetric: SIZE,
+    dirty: bool,
 }
 
 #[repr(C)]
@@ -1243,8 +1706,12 @@ impl ChemcoreOleObject {
             storage: null_mut(),
             ole_advise_holder: null_mut(),
             data_advise_holder: null_mut(),
+            view_advise_sink: null_mut(),
+            view_advise_aspects: 0,
+            view_advise_flags: 0,
             payload,
             extent_himetric,
+            dirty: false,
         }
     }
 
@@ -1263,11 +1730,27 @@ impl Drop for ChemcoreOleObject {
         unsafe {
             com_release(self.client_site);
             self.client_site = null_mut();
+            com_release(self.storage);
+            self.storage = null_mut();
             com_release(self.ole_advise_holder);
             self.ole_advise_holder = null_mut();
             com_release(self.data_advise_holder);
             self.data_advise_holder = null_mut();
+            com_release(self.view_advise_sink);
+            self.view_advise_sink = null_mut();
         }
+    }
+}
+
+unsafe fn replace_object_storage(object: *mut ChemcoreOleObject, storage: *mut c_void) {
+    if object.is_null() || (*object).storage == storage {
+        return;
+    }
+    com_release((*object).storage);
+    (*object).storage = null_mut();
+    if !storage.is_null() {
+        com_add_ref(storage);
+        (*object).storage = storage;
     }
 }
 
@@ -1817,8 +2300,13 @@ unsafe extern "system" fn persist_storage_get_class_id(
     S_OK
 }
 
-unsafe extern "system" fn persist_storage_is_dirty(_this: *mut c_void) -> i32 {
-    S_FALSE
+unsafe extern "system" fn persist_storage_is_dirty(this: *mut c_void) -> i32 {
+    let object = owner_from_part::<PersistStorageVtbl>(this);
+    if !object.is_null() && (*object).dirty {
+        S_OK
+    } else {
+        S_FALSE
+    }
 }
 
 unsafe extern "system" fn persist_storage_init_new(this: *mut c_void, storage: *mut c_void) -> i32 {
@@ -1826,8 +2314,11 @@ unsafe extern "system" fn persist_storage_init_new(this: *mut c_void, storage: *
     if object.is_null() || storage.is_null() {
         return E_POINTER;
     }
-    (*object).storage = storage;
+    replace_object_storage(object, storage);
     let hr = write_ole_storage_payload(storage, &(*object).payload, (*object).extent_himetric);
+    if hresult_succeeded(hr) {
+        (*object).dirty = false;
+    }
     log_ole_event(&format!("IPersistStorage::InitNew -> 0x{:08X}", hr as u32));
     hr
 }
@@ -1837,7 +2328,7 @@ unsafe extern "system" fn persist_storage_load(this: *mut c_void, storage: *mut 
     if object.is_null() || storage.is_null() {
         return E_POINTER;
     }
-    (*object).storage = storage;
+    replace_object_storage(object, storage);
     if let Ok(document) = storage_read_stream(storage, OLE_STREAM_DOCUMENT).and_then(|bytes| {
         String::from_utf8(bytes)
             .map_err(|error| format!("ChemcoreDocument stream is not UTF-8: {error}"))
@@ -1865,6 +2356,7 @@ unsafe extern "system" fn persist_storage_load(this: *mut c_void, storage: *mut 
     }
     (*object).extent_himetric =
         storage_presentation_extent(storage).unwrap_or_else(|| (*object).payload.extent_himetric());
+    (*object).dirty = false;
     log_ole_event("IPersistStorage::Load -> 0x00000000");
     S_OK
 }
@@ -1882,6 +2374,9 @@ unsafe extern "system" fn persist_storage_save(
         return E_POINTER;
     }
     let hr = write_ole_storage_payload(storage, &(*object).payload, (*object).extent_himetric);
+    if hresult_succeeded(hr) {
+        (*object).dirty = false;
+    }
     log_ole_event(&format!("IPersistStorage::Save -> 0x{:08X}", hr as u32));
     hr
 }
@@ -1892,7 +2387,7 @@ unsafe extern "system" fn persist_storage_save_completed(
 ) -> i32 {
     let object = owner_from_part::<PersistStorageVtbl>(this);
     if !object.is_null() {
-        (*object).storage = storage;
+        replace_object_storage(object, storage);
     }
     S_OK
 }
@@ -1900,7 +2395,7 @@ unsafe extern "system" fn persist_storage_save_completed(
 unsafe extern "system" fn persist_storage_hands_off_storage(this: *mut c_void) -> i32 {
     let object = owner_from_part::<PersistStorageVtbl>(this);
     if !object.is_null() {
-        (*object).storage = null_mut();
+        replace_object_storage(object, null_mut());
     }
     S_OK
 }
@@ -3332,6 +3827,31 @@ struct OleAdviseHolderVtbl {
 }
 
 #[repr(C)]
+struct OleClientSiteVtbl {
+    query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
+    add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+    release: unsafe extern "system" fn(*mut c_void) -> u32,
+    save_object: unsafe extern "system" fn(*mut c_void) -> i32,
+    get_moniker: unsafe extern "system" fn(*mut c_void, u32, u32, *mut *mut c_void) -> i32,
+    get_container: unsafe extern "system" fn(*mut c_void, *mut *mut c_void) -> i32,
+    show_object: unsafe extern "system" fn(*mut c_void) -> i32,
+    on_show_window: unsafe extern "system" fn(*mut c_void, i32) -> i32,
+    request_new_object_layout: unsafe extern "system" fn(*mut c_void) -> i32,
+}
+
+#[repr(C)]
+struct AdviseSinkVtbl {
+    query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
+    add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+    release: unsafe extern "system" fn(*mut c_void) -> u32,
+    on_data_change: unsafe extern "system" fn(*mut c_void, *const FORMATETC, *const STGMEDIUM),
+    on_view_change: unsafe extern "system" fn(*mut c_void, u32, i32),
+    on_rename: unsafe extern "system" fn(*mut c_void, *mut c_void),
+    on_save: unsafe extern "system" fn(*mut c_void),
+    on_close: unsafe extern "system" fn(*mut c_void),
+}
+
+#[repr(C)]
 struct OleObjectVtbl {
     query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
     add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
@@ -3715,7 +4235,7 @@ unsafe extern "system" fn ole_object_do_verb(
         return E_POINTER;
     }
     log_ole_event(&format!("IOleObject::DoVerb({verb})"));
-    match launch_desktop_for_payload(&(*object).payload) {
+    match launch_desktop_for_object(object) {
         Ok(()) => {
             log_ole_event(&format!("IOleObject::DoVerb({verb}) -> 0x00000000"));
             S_OK
@@ -4004,28 +4524,49 @@ unsafe extern "system" fn view_object_unfreeze(_this: *mut c_void, _freeze_key: 
 }
 
 unsafe extern "system" fn view_object_set_advise(
-    _this: *mut c_void,
-    _aspects: u32,
-    _advf: u32,
-    _sink: *mut c_void,
+    this: *mut c_void,
+    aspects: u32,
+    advf: u32,
+    sink: *mut c_void,
 ) -> i32 {
+    let object = owner_from_part::<ViewObject2Vtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
+    com_release((*object).view_advise_sink);
+    (*object).view_advise_sink = null_mut();
+    (*object).view_advise_aspects = aspects;
+    (*object).view_advise_flags = advf;
+    if !sink.is_null() {
+        com_add_ref(sink);
+        (*object).view_advise_sink = sink;
+    }
+    log_ole_event(&format!(
+        "IViewObject2::SetAdvise(aspects=0x{aspects:X}, advf=0x{advf:X}, sink={})",
+        if sink.is_null() { "null" } else { "set" }
+    ));
     S_OK
 }
 
 unsafe extern "system" fn view_object_get_advise(
-    _this: *mut c_void,
+    this: *mut c_void,
     aspects: *mut u32,
     advf: *mut u32,
     sink: *mut *mut c_void,
 ) -> i32 {
+    let object = owner_from_part::<ViewObject2Vtbl>(this);
+    if object.is_null() {
+        return E_POINTER;
+    }
     if !aspects.is_null() {
-        *aspects = DVASPECT_CONTENT;
+        *aspects = (*object).view_advise_aspects;
     }
     if !advf.is_null() {
-        *advf = 0;
+        *advf = (*object).view_advise_flags;
     }
     if !sink.is_null() {
-        *sink = null_mut();
+        *sink = (*object).view_advise_sink;
+        com_add_ref(*sink);
     }
     S_OK
 }
@@ -4124,18 +4665,41 @@ unsafe fn com_release(interface: *mut c_void) {
     ((*vtbl).release)(interface);
 }
 
-fn launch_desktop_for_payload(payload: &OleObjectPayload) -> Result<(), String> {
-    let payload_path = env::temp_dir().join(format!(
-        "chemcore-ole-edit-{}-{}.ccjs",
+unsafe fn launch_desktop_for_object(object: *mut ChemcoreOleObject) -> Result<(), String> {
+    if object.is_null() {
+        return Err("Cannot launch OLE editor for a null object.".to_string());
+    }
+    if let Some(payload_path) = ole_edit_session_path_for_object(object) {
+        log_ole_event(&format!(
+            "Reusing OLE edit session payload at {}",
+            payload_path.display()
+        ));
+        let desktop_exe = resolve_desktop_exe()?;
+        ensure_desktop_dev_server_for_debug_exe(&desktop_exe)?;
+        log_ole_event(&format!(
+            "Activating Chemcore desktop for existing OLE edit session from {}",
+            desktop_exe.display()
+        ));
+        unsafe {
+            AllowSetForegroundWindow(ASFW_ANY_PROCESS);
+        }
+        launch_desktop_process(&desktop_exe, &payload_path)?;
+        return Ok(());
+    }
+    let session_id = format!(
+        "{}-{}-{}",
+        OLE_EDIT_SESSION_PREFIX,
         std::process::id(),
         monotonic_millis()
-    ));
-    std::fs::write(&payload_path, &payload.chemcore_document_json)
+    );
+    let payload_path = env::temp_dir().join(format!("{session_id}.ccjs"));
+    std::fs::write(&payload_path, &(*object).payload.chemcore_document_json)
         .map_err(|error| format!("Failed to write temporary OLE edit payload: {error}"))?;
     log_ole_event(&format!(
-        "Wrote OLE edit payload to {}",
+        "Wrote OLE edit session {session_id} payload to {}",
         payload_path.display()
     ));
+    register_ole_edit_session(session_id, payload_path.clone(), object)?;
 
     let desktop_exe = resolve_desktop_exe()?;
     ensure_desktop_dev_server_for_debug_exe(&desktop_exe)?;

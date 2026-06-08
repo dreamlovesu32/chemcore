@@ -102,6 +102,7 @@ const state = {
   currentPath: LABEL_DEBUG_MODE ? SAMPLE_FILES[0] : null,
   currentFileName: null,
   currentFilePath: null,
+  savedDocumentJson: null,
   currentDocument: null,
   editorEngine: null,
   documentEngine: null,
@@ -350,6 +351,7 @@ const TAB_STATE_KEYS = [
   "currentPath",
   "currentFileName",
   "currentFilePath",
+  "savedDocumentJson",
   "currentDocument",
   "editorEngine",
   "documentEngine",
@@ -372,6 +374,7 @@ function createDocumentTab(title = "Untitled") {
     currentPath: null,
     currentFileName: null,
     currentFilePath: null,
+    savedDocumentJson: null,
     currentDocument: null,
     editorEngine: null,
     documentEngine: null,
@@ -430,8 +433,82 @@ function documentTitleFromState() {
   return title || "Untitled";
 }
 
+function currentDocumentSaveFingerprint() {
+  return state.currentDocument ? JSON.stringify(state.currentDocument) : null;
+}
+
+function markCurrentDocumentSaved() {
+  state.savedDocumentJson = currentDocumentSaveFingerprint();
+  const tab = activeDocumentTab();
+  if (tab) {
+    tab.savedDocumentJson = state.savedDocumentJson;
+  }
+  refreshCommandAvailability();
+}
+
+function currentDocumentIsDirty() {
+  const fingerprint = currentDocumentSaveFingerprint();
+  return !!fingerprint && state.savedDocumentJson != null && fingerprint !== state.savedDocumentJson;
+}
+
+function canSaveCurrentDocument() {
+  return currentDocumentIsDirty();
+}
+
+function isOleEditFilePath(path) {
+  const fileName = fileNameFromPath(path).toLowerCase();
+  return fileName.startsWith("chemcore-ole-edit-") && fileName.endsWith(".ccjs");
+}
+
+async function autoSaveOleEditDocumentTab(tab) {
+  if (!desktopFileHost?.writeTransientPath || !tab?.currentFilePath || !isOleEditFilePath(tab.currentFilePath)) {
+    return false;
+  }
+  if (!tab.currentDocument) {
+    return false;
+  }
+  const fingerprint = JSON.stringify(tab.currentDocument);
+  if (tab.savedDocumentJson === fingerprint) {
+    return false;
+  }
+  await desktopFileHost.writeTransientPath(tab.currentFilePath, `${JSON.stringify(tab.currentDocument, null, 2)}\n`);
+  tab.savedDocumentJson = fingerprint;
+  if (tab.id === activeDocumentTabId) {
+    state.savedDocumentJson = fingerprint;
+  }
+  refreshCommandAvailability();
+  return true;
+}
+
+async function autoSaveAllOleEditDocumentTabs() {
+  await finishActiveTextEditor(true);
+  if (state.editorEngine) {
+    await syncDocumentFromEngine();
+  }
+  saveActiveDocumentTabState();
+  for (const tab of documentTabs) {
+    await autoSaveOleEditDocumentTab(tab);
+  }
+}
+
 function fileNameFromPath(path) {
   return String(path || "").split(/[\\/]/).filter(Boolean).pop() || "";
+}
+
+function normalizedFilePathKey(path) {
+  const value = String(path || "").trim();
+  if (!value) {
+    return "";
+  }
+  return value.replace(/\\/g, "/").replace(/\/+/g, "/").toLowerCase();
+}
+
+function documentTabForFilePath(path) {
+  const key = normalizedFilePathKey(path);
+  if (!key) {
+    return null;
+  }
+  return documentTabs.find((tab) => normalizedFilePathKey(tab.currentFilePath) === key) || null;
 }
 
 function escapeHtml(value) {
@@ -519,6 +596,7 @@ async function closeDocumentTab(tabId) {
     await finishActiveTextEditor(true);
     saveActiveDocumentTabState();
   }
+  await autoSaveOleEditDocumentTab(closing);
   await closing.editorEngine?.free?.();
   await closing.documentEngine?.free?.();
   documentTabs.splice(index, 1);
@@ -645,6 +723,7 @@ function bindDesktopWindowChrome() {
         await desktopFileHost.toggleMaximizeWindow?.();
         await syncDesktopMaximizedState();
       } else if (command === "close") {
+        await autoSaveAllOleEditDocumentTabs();
         await desktopFileHost.closeWindow?.();
       }
     });
@@ -1728,8 +1807,11 @@ async function resetEditorEngine() {
   state.lastEditFocusPoint = null;
   clearZoomHandoffs();
   state.currentFileName = null;
+  state.currentFilePath = null;
+  state.savedDocumentJson = null;
   await syncEngineToolState();
   await syncDocumentFromEngine();
+  markCurrentDocumentSaved();
 }
 
 async function resetDocumentEngine() {
@@ -1741,11 +1823,15 @@ async function resetDocumentEngine() {
 function refreshCommandAvailability() {
   const undoButton = document.querySelector('[data-command="undo"]');
   const redoButton = document.querySelector('[data-command="redo"]');
+  const saveButtons = document.querySelectorAll('[data-command="save"]');
   if (undoButton) {
     undoButton.disabled = !state.editorEngine?.canUndo?.();
   }
   if (redoButton) {
     redoButton.disabled = !state.editorEngine?.canRedo?.();
+  }
+  for (const saveButton of saveButtons) {
+    saveButton.disabled = !canSaveCurrentDocument();
   }
   void updateCanvasContextMenuAvailability();
 }
@@ -2679,6 +2765,8 @@ const documentFlow = createDocumentFlow({
   defaultEditorViewBox,
   renderDocument,
   fitView,
+  markCurrentDocumentSaved,
+  refreshCommandAvailability,
   waitForRuntimeReady: () => appRuntimeReady,
 });
 
@@ -2776,6 +2864,7 @@ async function documentSnapshotFromTab(tab) {
     fileName: freshTab.currentFileName || null,
     filePath: freshTab.currentFilePath || null,
     documentJson: JSON.stringify(freshTab.currentDocument),
+    savedDocumentJson: freshTab.savedDocumentJson || null,
     zoomPercent: Number(freshTab.zoomPercent || 100),
   };
 }
@@ -2800,6 +2889,10 @@ async function loadDetachedDocumentPayload(payload) {
   }
   const documentData = JSON.parse(payload.documentJson);
   await loadJsonDocumentIntoEditor(documentData, payload.fileName || null, payload.filePath || null);
+  if (typeof payload.savedDocumentJson === "string") {
+    state.savedDocumentJson = payload.savedDocumentJson;
+    refreshCommandAvailability();
+  }
   if (Number.isFinite(Number(payload.zoomPercent))) {
     setZoomPercent(Number(payload.zoomPercent));
   }
@@ -2842,8 +2935,13 @@ async function openDocumentPathInTab(path) {
   }
   await appRuntimeReady;
   await finishActiveTextEditor(true);
-  const reuseActiveTab = activeDocumentTabIsBlankUntitled();
   saveActiveDocumentTabState();
+  const existingTab = documentTabForFilePath(path);
+  if (existingTab) {
+    await activateDocumentTab(existingTab.id);
+    return;
+  }
+  const reuseActiveTab = activeDocumentTabIsBlankUntitled();
   const previousTabId = activeDocumentTabId;
   let tab = activeDocumentTab();
   if (!reuseActiveTab) {

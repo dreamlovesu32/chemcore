@@ -69,6 +69,7 @@ struct DesktopDetachedDocumentPayload {
     file_name: Option<String>,
     file_path: Option<String>,
     document_json: String,
+    saved_document_json: Option<String>,
     zoom_percent: Option<f64>,
 }
 
@@ -1173,6 +1174,29 @@ fn desktop_file_write_path(
     };
     refresh_native_menu(&app);
     Ok(saved)
+}
+
+#[tauri::command]
+fn desktop_file_write_transient_path(
+    path: String,
+    content: String,
+) -> Result<DesktopSavedDocument, String> {
+    let path = normalize_output_path(path)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Failed to create directory {}: {error}", parent.display()))?;
+    }
+    fs::write(&path, content)
+        .map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
+    Ok(DesktopSavedDocument {
+        file_name: path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("transient.ccjs")
+            .to_string(),
+        path: path.to_string_lossy().to_string(),
+        format: "ccjs".to_string(),
+    })
 }
 
 #[tauri::command]
@@ -2620,6 +2644,7 @@ pub fn run() {
             desktop_file_choose_export_save,
             desktop_file_read_path,
             desktop_file_write_path,
+            desktop_file_write_transient_path,
             desktop_file_write_base64,
             desktop_file_export_emf,
             desktop_recent_files,

@@ -69,6 +69,7 @@ export function createDocumentFlow(options) {
     updateDocumentMeta();
     options.fitView();
     options.renderDocument();
+    options.markCurrentDocumentSaved?.();
   }
 
   async function currentDocumentJsonForSave() {
@@ -161,6 +162,7 @@ export function createDocumentFlow(options) {
       await writable.close();
       options.state.currentFileName = handle.name || suggestedName;
       options.viewerTitle.textContent = options.state.currentDocument?.document?.title || options.state.currentFileName || "Untitled";
+      options.markCurrentDocumentSaved?.();
       return;
     }
     const payload = await savePayloadForFormat("ccjz");
@@ -318,6 +320,7 @@ export function createDocumentFlow(options) {
       if (format !== "svg") {
         options.state.currentFileName = handle.name || options.state.currentFileName;
         options.viewerTitle.textContent = options.state.currentDocument?.document?.title || options.state.currentFileName || "Untitled";
+        options.markCurrentDocumentSaved?.();
       }
       return;
     }
@@ -326,6 +329,11 @@ export function createDocumentFlow(options) {
 
   function desktopFormatForPath(path, fallbackFormat = null) {
     return fallbackFormat || saveFormatFromFileName(path);
+  }
+
+  function isOleEditPath(path) {
+    const fileName = fileNameFromPath(path).toLowerCase();
+    return fileName.startsWith("chemcore-ole-edit-") && fileName.endsWith(".ccjs");
   }
 
   async function desktopContentForFormat(format) {
@@ -340,12 +348,18 @@ export function createDocumentFlow(options) {
 
   async function saveCurrentDocumentToDesktopPath(path, forcedFormat = null) {
     const format = desktopFormatForPath(path, forcedFormat);
-    const saved = await options.desktopFileHost.writePath(path, await desktopContentForFormat(format), format);
+    const content = await desktopContentForFormat(format);
+    const saved = isOleEditPath(path) && options.desktopFileHost.writeTransientPath
+      ? await options.desktopFileHost.writeTransientPath(path, content)
+      : await options.desktopFileHost.writePath(path, content, format);
     if (format !== "svg") {
       options.state.currentFilePath = saved.path || path;
       options.state.currentFileName = saved.fileName || fileNameFromPath(path);
       options.viewerTitle.textContent = options.state.currentDocument?.document?.title || options.state.currentFileName || "Untitled";
       updateDocumentMeta();
+      options.markCurrentDocumentSaved?.();
+    } else {
+      options.refreshCommandAvailability?.();
     }
   }
 
@@ -399,6 +413,7 @@ export function createDocumentFlow(options) {
     updateDocumentMeta();
     options.fitView();
     options.renderDocument();
+    options.markCurrentDocumentSaved?.();
   }
 
   function isAbortError(error) {
@@ -480,6 +495,7 @@ export function createDocumentFlow(options) {
       updateDocumentMeta();
       options.renderDocument();
       options.fitView();
+      options.markCurrentDocumentSaved?.();
     } catch (error) {
       options.viewerTitle.textContent = "Load failed";
       options.viewerStats.textContent = "";

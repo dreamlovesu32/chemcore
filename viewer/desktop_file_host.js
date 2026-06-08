@@ -67,6 +67,10 @@ export class DesktopFileHost {
     return this.invoke("desktop_file_write_path", { path, content, format });
   }
 
+  async writeTransientPath(path, content) {
+    return this.invoke("desktop_file_write_transient_path", { path, content });
+  }
+
   async writeBase64(path, contentBase64) {
     return this.invoke("desktop_file_write_base64", { path, contentBase64 });
   }

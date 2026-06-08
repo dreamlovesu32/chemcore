@@ -1144,7 +1144,9 @@ impl DesktopDocumentService {
             format,
             text,
         };
-        self.add_recent_file(path);
+        if !is_ole_edit_path(&path) {
+            self.add_recent_file(path);
+        }
         Ok(opened)
     }
 
@@ -1592,6 +1594,16 @@ fn document_format_for_path(path: &Path) -> String {
     .to_string()
 }
 
+fn is_ole_edit_path(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| {
+            let lower = name.to_ascii_lowercase();
+            lower.starts_with("chemcore-ole-edit-") && lower.ends_with(".ccjs")
+        })
+        .unwrap_or(false)
+}
+
 fn document_format_for_path_and_bytes(path: &Path, bytes: &[u8]) -> String {
     let format = document_format_for_path(path);
     if format != "ccjz" && bytes.starts_with(&[0x1f, 0x8b]) {
@@ -1866,6 +1878,14 @@ mod tests {
         assert_eq!(document_format_for_path(Path::new("sample.cdxml")), "cdxml");
         assert_eq!(document_format_for_path(Path::new("sample.svg")), "svg");
         assert_eq!(document_format_for_path(Path::new("sample")), "ccjz");
+    }
+
+    #[test]
+    fn detects_ole_edit_transient_paths() {
+        assert!(is_ole_edit_path(Path::new("chemcore-ole-edit-123-456.ccjs")));
+        assert!(is_ole_edit_path(Path::new(r"C:\Temp\chemcore-ole-edit-123-456.ccjs")));
+        assert!(!is_ole_edit_path(Path::new("chemcore-ole-edit-123-456.ccjz")));
+        assert!(!is_ole_edit_path(Path::new("regular-document.ccjs")));
     }
 
     #[test]
