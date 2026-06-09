@@ -85,134 +85,6 @@ function normal(vector) {
   return point(-normalized.y, normalized.x);
 }
 
-const BOND_A = point(4.8, 16.6);
-const BOND_B = point(19.2, 7.4);
-
-function bondIconSvg(type = "single") {
-  const axis = sub(BOND_B, BOND_A);
-  const normalVector = normal(axis);
-  const unitAxis = unit(axis);
-  const offset = 1.42;
-  const shiftedLine = (distance) => linePath(
-    add(BOND_A, mul(normalVector, distance)),
-    add(BOND_B, mul(normalVector, distance)),
-    "cc-bond",
-  );
-
-  if (type === "double") {
-    return iconSvg(`${shiftedLine(-offset)}${shiftedLine(offset)}`, "cc-bond-icon");
-  }
-  if (type === "triple") {
-    return iconSvg(`${shiftedLine(-2.25)}${shiftedLine(0)}${shiftedLine(2.25)}`, "cc-bond-icon");
-  }
-  if (type === "dashed") {
-    const pieces = [];
-    for (let index = 0; index < 6; index += 1) {
-      const startT = 0.02 + index * 0.165;
-      const endT = startT + 0.082;
-      pieces.push(linePath(
-        add(BOND_A, mul(axis, startT)),
-        add(BOND_A, mul(axis, endT)),
-        "cc-bond",
-      ));
-    }
-    return iconSvg(pieces.join(""), "cc-bond-icon");
-  }
-  if (type === "dashed-double") {
-    const solid = shiftedLine(-offset);
-    const dashed = [];
-    const a = add(BOND_A, mul(normalVector, offset));
-    const b = add(BOND_B, mul(normalVector, offset));
-    const dashedAxis = sub(b, a);
-    for (let index = 0; index < 5; index += 1) {
-      const startT = index * 0.205;
-      dashed.push(linePath(
-        add(a, mul(dashedAxis, startT)),
-        add(a, mul(dashedAxis, startT + 0.105)),
-        "cc-bond",
-      ));
-    }
-    return iconSvg(`${solid}${dashed.join("")}`, "cc-bond-icon");
-  }
-  if (type === "bold") {
-    return iconSvg(polygon([
-      add(BOND_A, mul(normalVector, -1.55)),
-      add(BOND_B, mul(normalVector, -1.55)),
-      add(BOND_B, mul(normalVector, 1.55)),
-      add(BOND_A, mul(normalVector, 1.55)),
-    ], "cc-bond-fill"), "cc-bond-icon");
-  }
-  if (type === "bold-dashed") {
-    const pieces = [];
-    for (let index = 0; index < 5; index += 1) {
-      const t = 0.12 + index * 0.18;
-      const center = add(BOND_A, mul(axis, t));
-      const half = 1.35;
-      pieces.push(linePath(
-        add(center, mul(normalVector, -half)),
-        add(center, mul(normalVector, half)),
-        "cc-bond-hash",
-      ));
-    }
-    return iconSvg(pieces.join(""), "cc-bond-icon");
-  }
-  if (type === "wavy") {
-    const segments = [];
-    const halfWaves = 6;
-    const amplitude = 2.1;
-    segments.push(`M${fmt(BOND_A.x)} ${fmt(BOND_A.y)}`);
-    for (let index = 0; index < halfWaves; index += 1) {
-      const t0 = index / halfWaves;
-      const t1 = (index + 1) / halfWaves;
-      const midT = (t0 + t1) * 0.5;
-      const side = index % 2 === 0 ? -1 : 1;
-      const control = add(add(BOND_A, mul(axis, midT)), mul(normalVector, amplitude * side));
-      const endPoint = add(BOND_A, mul(axis, t1));
-      segments.push(`Q${fmt(control.x)} ${fmt(control.y)} ${fmt(endPoint.x)} ${fmt(endPoint.y)}`);
-    }
-    return iconSvg(`<path class="cc-bond" d="${segments.join(" ")}"/>`, "cc-bond-icon");
-  }
-  if (type === "wedge") {
-    return iconSvg(polygon([
-      add(BOND_A, mul(normalVector, -2.45)),
-      add(BOND_A, mul(normalVector, 2.45)),
-      BOND_B,
-    ], "cc-bond-fill"), "cc-bond-icon");
-  }
-  if (type === "hashed-wedge") {
-    const pieces = [];
-    for (let index = 0; index < 6; index += 1) {
-      const t = 0.08 + index * 0.135;
-      const center = add(BOND_A, mul(axis, t));
-      const half = 2.25 - index * 0.32;
-      pieces.push(linePath(
-        add(center, mul(normalVector, -half)),
-        add(center, mul(normalVector, half)),
-        "cc-bond-hash",
-      ));
-    }
-    return iconSvg(pieces.join(""), "cc-bond-icon");
-  }
-  if (type === "hollow-wedge") {
-    const outer = [
-      add(BOND_A, mul(normalVector, -2.45)),
-      add(BOND_A, mul(normalVector, 2.45)),
-      BOND_B,
-    ];
-    const center = point((outer[0].x + outer[1].x) * 0.5, (outer[0].y + outer[1].y) * 0.5);
-    const inner = [
-      center,
-      add(outer[1], mul(unitAxis, -2.3)),
-      add(outer[2], mul(unitAxis, -2.3)),
-    ];
-    return iconSvg(
-      `<path class="cc-bond-fill" fill-rule="evenodd" d="M${fmt(outer[0].x)} ${fmt(outer[0].y)} L${fmt(outer[1].x)} ${fmt(outer[1].y)} L${fmt(outer[2].x)} ${fmt(outer[2].y)} Z M${fmt(inner[0].x)} ${fmt(inner[0].y)} L${fmt(inner[1].x)} ${fmt(inner[1].y)} L${fmt(inner[2].x)} ${fmt(inner[2].y)} Z"/>`,
-      "cc-bond-icon",
-    );
-  }
-  return iconSvg(linePath(BOND_A, BOND_B, "cc-bond"), "cc-bond-icon");
-}
-
 function arrowHead(tip, direction, size = 1, className = "cc-arrow-fill") {
   const axis = unit(direction);
   const side = normal(axis);
@@ -320,44 +192,41 @@ function generatedBracketIconSvg(kind = "round") {
   return iconSvg(`<path class="cc-stroke" d="M10 5c-3 3-3 11 0 14"/><path class="cc-stroke" d="M14 5c3 3 3 11 0 14"/>`, "cc-bracket-icon");
 }
 
-function textFormatIconSvg(kind) {
-  if (kind === "bold") {
-    return iconSvg(
-      `<path class="cc-fill" d="M7.05 4.9h6.08c3 0 4.74 1.34 4.74 3.53 0 1.4-.73 2.48-2.07 3.05 1.63.5 2.6 1.73 2.6 3.4 0 2.62-2.04 4.22-5.37 4.22H7.05zm3.16 5.75h2.57c1.32 0 2.08-.6 2.08-1.68 0-1.02-.74-1.58-2.07-1.58h-2.58zm0 5.88h2.92c1.44 0 2.21-.63 2.21-1.79 0-1.12-.82-1.72-2.3-1.72h-2.83z"/>`,
-      "cc-text-format-icon",
-    );
+function textFormatIconSvg(kind, editorState = null) {
+  return editorState?.textIconSvgs?.[kind] || "";
+}
+
+function selectModeIconSpec(mode = "box") {
+  if (mode === "free") {
+    return {
+      title: "Free selection",
+      svg: iconSvg(
+        `<path class="cc-stroke" d="M7 8.1c2.2-3 8.2-3.1 10.4-.1 2.8 3.8-.4 8.9-6.1 8.8-5.2-.1-8.1-4-6.1-7.2.6-.9 1.4-1.5 2.6-1.9" stroke-dasharray="2.05 2.05"/>`,
+        "cc-tool-icon cc-select-mode-icon",
+      ),
+    };
   }
-  if (kind === "italic") {
-    return iconSvg(
-      `<text class="cc-italic-glyph" x="12" y="18.2" text-anchor="middle">I</text>`,
-      "cc-text-format-icon",
-    );
-  }
-  if (kind === "underline") {
-    return iconSvg(
-      `<path class="cc-text-stroke" d="M7.45 5.35v7.02c0 2.72 1.76 4.34 4.55 4.34s4.55-1.62 4.55-4.34V5.35"/><path class="cc-text-underline" d="M6.45 20.15h11.1"/>`,
-      "cc-text-format-icon",
-    );
-  }
-  if (kind === "chemical") {
-    return iconSvg(
-      `<text class="cc-chemical-main" x="3.8" y="16.2">CH2</text>`,
-      "cc-text-format-icon cc-script-icon",
-    );
-  }
-  if (kind === "subscript") {
-    return iconSvg(
-      `<text class="cc-script-main" x="4.45" y="14.7">X</text><text class="cc-script-sub" x="15.25" y="18.25">2</text>`,
-      "cc-text-format-icon cc-script-icon",
-    );
-  }
-  if (kind === "superscript") {
-    return iconSvg(
-      `<text class="cc-script-main" x="4.45" y="15.25">X</text><text class="cc-script-sup" x="15.18" y="9.15">2</text>`,
-      "cc-text-format-icon cc-script-icon",
-    );
-  }
-  return "";
+  return {
+    title: "Box selection",
+    svg: iconSvg(
+      `<rect class="cc-stroke" x="5.2" y="5.2" width="13.6" height="13.6" rx="1.5" stroke-dasharray="2.1 2.1"/>`,
+      "cc-tool-icon cc-select-mode-icon",
+    ),
+  };
+}
+
+function arrangeIconSvg(kind) {
+  const icons = {
+    "align-left": `<path class="cc-guide" d="M6 5v14"/><path class="cc-stroke-strong" d="M9 7h9"/><path class="cc-stroke-strong" d="M9 12h6"/><path class="cc-stroke-strong" d="M9 17h11"/>`,
+    "align-right": `<path class="cc-guide" d="M18 5v14"/><path class="cc-stroke-strong" d="M6 7h9"/><path class="cc-stroke-strong" d="M9 12h6"/><path class="cc-stroke-strong" d="M4 17h11"/>`,
+    "align-top": `<path class="cc-guide" d="M5 6h14"/><path class="cc-stroke-strong" d="M7 9v9"/><path class="cc-stroke-strong" d="M12 9v6"/><path class="cc-stroke-strong" d="M17 9v11"/>`,
+    "align-bottom": `<path class="cc-guide" d="M5 18h14"/><path class="cc-stroke-strong" d="M7 6v9"/><path class="cc-stroke-strong" d="M12 9v6"/><path class="cc-stroke-strong" d="M17 4v11"/>`,
+    "align-h-center": `<path class="cc-guide" d="M12 4v16"/><path class="cc-stroke-strong" d="M6 7h12"/><path class="cc-stroke-strong" d="M8 12h8"/><path class="cc-stroke-strong" d="M5 17h14"/>`,
+    "align-v-center": `<path class="cc-guide" d="M4 12h16"/><path class="cc-stroke-strong" d="M7 6v12"/><path class="cc-stroke-strong" d="M12 8v8"/><path class="cc-stroke-strong" d="M17 5v14"/>`,
+    "flip-h": `<path class="cc-guide" d="M12 4v16"/><path class="cc-fill-outline" d="M5 7v10l5-5z"/><path class="cc-stroke" d="M19 7v10l-5-5z"/>`,
+    "flip-v": `<path class="cc-guide" d="M4 12h16"/><path class="cc-fill-outline" d="M7 5h10l-5 5z"/><path class="cc-stroke" d="M7 19h10l-5-5z"/>`,
+  };
+  return iconSvg(icons[kind] || "", "cc-arrange-icon");
 }
 
 function commandIconSvg(name) {
@@ -375,7 +244,7 @@ function commandIconSvg(name) {
     "zoom-in": iconSvg(`<circle class="cc-stroke" cx="10.3" cy="10.3" r="6"/><path class="cc-stroke" d="m14.8 14.8 5.2 5.2"/><path class="cc-stroke" d="M10.3 7.2v6.2"/><path class="cc-stroke" d="M7.2 10.3h6.2"/>`, "cc-command-icon"),
     "zoom-out": iconSvg(`<circle class="cc-stroke" cx="10.3" cy="10.3" r="6"/><path class="cc-stroke" d="m14.8 14.8 5.2 5.2"/><path class="cc-stroke" d="M7.2 10.3h6.2"/>`, "cc-command-icon"),
     fit: iconSvg(`<path class="cc-stroke" d="M4.5 9V4.5H9"/><path class="cc-stroke" d="M19.5 9V4.5H15"/><path class="cc-stroke" d="M4.5 15v4.5H9"/><path class="cc-stroke" d="M19.5 15v4.5H15"/><rect class="cc-stroke" x="8.1" y="8.1" width="7.8" height="7.8"/>`, "cc-command-icon"),
-    select: iconSvg(`<path class="cc-fill cc-select-fill" d="M5.2 4.5 18.8 12 12.2 14.1l-2.7 5.8z"/>`, "cc-tool-icon"),
+    select: selectModeIconSpec("box").svg,
     text: iconSvg(`<path class="cc-stroke" d="M7.5 19 12 5.1 16.5 19"/><path class="cc-stroke" d="M9 14.1h6"/>`, "cc-tool-icon"),
     arrow: straightArrowSvg(),
     shape: iconSvg(`<rect class="cc-shape cc-empty-fill" x="5.5" y="5.5" width="10.2" height="10.2"/><circle class="cc-shape cc-empty-fill" cx="16.8" cy="16.8" r="3.45"/>`, "cc-tool-icon"),
@@ -404,7 +273,7 @@ export function syncPrimaryChromeIcons(root = document) {
     deleteToolButton.innerHTML = deleteSvg;
   }
   for (const [tool, svg] of [
-    ["select", commandIconSvg("select")],
+    ["select", selectModeIconSpec("box").svg],
     ["text", commandIconSvg("text")],
     ["arrow", straightArrowSvg()],
     ["bracket", generatedBracketIconSvg("round")],
@@ -464,6 +333,7 @@ export function syncPrimaryToolButtons(editorState, root = document) {
   root.querySelectorAll("[data-tool]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.tool === activeTool);
   });
+  syncPrimarySelectToolButton(editorState, root);
   syncPrimaryBondToolButton(editorState, root);
   syncPrimaryTemplateToolButton(editorState, root);
   syncPrimarySymbolToolButton(editorState, root);
@@ -536,55 +406,72 @@ function secondaryDivider() {
   return `<span class="secondary-divider" aria-hidden="true"></span>`;
 }
 
+export const BOND_TOOL_ICON_TYPES = [
+  "single",
+  "double",
+  "triple",
+  "dashed",
+  "dashed-double",
+  "bold",
+  "bold-dashed",
+  "wedge",
+  "hashed-wedge",
+  "hollow-wedge",
+  "wavy",
+];
+
+export const TEXT_FORMAT_ICON_TYPES = [
+  "bold",
+  "italic",
+  "underline",
+  "chemical",
+  "subscript",
+  "superscript",
+];
+
 const BOND_TOOL_ICON_SPECS = {
   single: {
     title: "Single bond",
-    svg: bondIconSvg("single"),
   },
   double: {
     title: "Double bond",
-    svg: bondIconSvg("double"),
   },
   triple: {
     title: "Triple bond",
-    svg: bondIconSvg("triple"),
   },
   dashed: {
     title: "Dashed bond",
-    svg: bondIconSvg("dashed"),
   },
   "dashed-double": {
     title: "Dashed-solid double bond",
-    svg: bondIconSvg("dashed-double"),
   },
   bold: {
     title: "Bold bond",
-    svg: bondIconSvg("bold"),
   },
   "bold-dashed": {
     title: "Hash bond",
-    svg: bondIconSvg("bold-dashed"),
-  },
-  wavy: {
-    title: "Wavy bond",
-    svg: bondIconSvg("wavy"),
   },
   wedge: {
     title: "Solid wedge",
-    svg: bondIconSvg("wedge"),
   },
   "hashed-wedge": {
     title: "Hash wedge",
-    svg: bondIconSvg("hashed-wedge"),
   },
   "hollow-wedge": {
     title: "Hollow wedge",
-    svg: bondIconSvg("hollow-wedge"),
+  },
+  wavy: {
+    title: "Wavy bond",
   },
 };
 
-function bondToolIconSpec(type = "single") {
-  return BOND_TOOL_ICON_SPECS[type] || BOND_TOOL_ICON_SPECS.single;
+function bondToolIconSpec(type = "single", editorState = null) {
+  const normalizedType = BOND_TOOL_ICON_SPECS[type] ? type : "single";
+  const spec = BOND_TOOL_ICON_SPECS[normalizedType] || BOND_TOOL_ICON_SPECS.single;
+  return {
+    ...spec,
+    svg: editorState?.bondIconSvgs?.[normalizedType] || "",
+  };
 }
 
 function syncPrimaryBondToolButton(editorState, root) {
@@ -592,10 +479,23 @@ function syncPrimaryBondToolButton(editorState, root) {
   if (!bondButton) {
     return;
   }
-  const spec = bondToolIconSpec(editorState.bondType);
-  bondButton.innerHTML = spec.svg;
+  const spec = bondToolIconSpec(editorState.bondType, editorState);
+  if (spec.svg) {
+    bondButton.innerHTML = spec.svg;
+  }
   bondButton.setAttribute("aria-label", spec.title);
   bondButton.setAttribute("title", spec.title);
+}
+
+function syncPrimarySelectToolButton(editorState, root) {
+  const selectButton = root.querySelector('.tool-button[data-tool="select"]');
+  if (!selectButton) {
+    return;
+  }
+  const spec = selectModeIconSpec(editorState.selectMode || "box");
+  selectButton.innerHTML = spec.svg;
+  selectButton.setAttribute("aria-label", spec.title);
+  selectButton.setAttribute("title", spec.title);
 }
 
 function syncPrimaryTemplateToolButton(editorState, root) {
@@ -641,22 +541,24 @@ function syncPrimaryOrbitalToolButton(editorState, root) {
 
 function selectToolbarHtml(editorState) {
   const mode = editorState.selectMode;
+  const free = selectModeIconSpec("free");
+  const box = selectModeIconSpec("box");
   return [
-    toolbarButton("select-free", "Free selection", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6c5-4 14 1 13 7-1 7-12 7-14 1"/></svg>`, mode === "free"),
-    toolbarButton("select-box", "Box selection", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" stroke-dasharray="2 2"/></svg>`, mode === "box"),
+    toolbarButton("select-free", free.title, free.svg, mode === "free"),
+    toolbarButton("select-box", box.title, box.svg, mode === "box"),
     secondaryDivider(),
-    toolbarButton("align-left", "Align left", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14"/><path d="M9 7h9"/><path d="M9 12h6"/><path d="M9 17h11"/></svg>`),
-    toolbarButton("align-right", "Align right", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14"/><path d="M6 7h9"/><path d="M9 12h6"/><path d="M4 17h11"/></svg>`),
-    toolbarButton("align-top", "Align top", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M7 9v9"/><path d="M12 9v6"/><path d="M17 9v11"/></svg>`),
-    toolbarButton("align-bottom", "Align bottom", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18h14"/><path d="M7 6v9"/><path d="M12 9v6"/><path d="M17 4v11"/></svg>`),
-    toolbarButton("align-h-center", "Horizontal center", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16"/><path d="M6 7h12"/><path d="M8 12h8"/><path d="M5 17h14"/></svg>`),
-    toolbarButton("align-v-center", "Vertical center", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"/><path d="M7 6v12"/><path d="M12 8v8"/><path d="M17 5v14"/></svg>`),
+    toolbarButton("align-left", "Align left", arrangeIconSvg("align-left")),
+    toolbarButton("align-right", "Align right", arrangeIconSvg("align-right")),
+    toolbarButton("align-top", "Align top", arrangeIconSvg("align-top")),
+    toolbarButton("align-bottom", "Align bottom", arrangeIconSvg("align-bottom")),
+    toolbarButton("align-h-center", "Horizontal center", arrangeIconSvg("align-h-center")),
+    toolbarButton("align-v-center", "Vertical center", arrangeIconSvg("align-v-center")),
     secondaryDivider(),
     toolbarButton("distribute-v", "Vertical distribute", distributeIconSvg("vertical")),
     toolbarButton("distribute-h", "Horizontal distribute", distributeIconSvg("horizontal")),
     secondaryDivider(),
-    toolbarButton("flip-h", "Flip horizontal", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16"/><path class="filled" d="M5 7v10l5-5z"/><path d="M19 7v10l-5-5z"/></svg>`),
-    toolbarButton("flip-v", "Flip vertical", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"/><path class="filled" d="M7 5h10l-5 5z"/><path d="M7 19h10l-5-5z"/></svg>`),
+    toolbarButton("flip-h", "Flip horizontal", arrangeIconSvg("flip-h")),
+    toolbarButton("flip-v", "Flip vertical", arrangeIconSvg("flip-v")),
     secondaryDivider(),
     colorPickerControl("selection-color", editorState.selectionColor || editorState.textColor, editorState.colorPalette),
   ].join("");
@@ -664,8 +566,11 @@ function selectToolbarHtml(editorState) {
 
 function bondToolbarHtml(editorState) {
   const type = editorState.bondType;
-  return Object.entries(BOND_TOOL_ICON_SPECS)
-    .map(([value, spec]) => toolbarButton(`bond-${value}`, spec.title, spec.svg, type === value))
+  return BOND_TOOL_ICON_TYPES
+    .map((value) => {
+      const spec = bondToolIconSpec(value, editorState);
+      return toolbarButton(`bond-${value}`, spec.title, spec.svg, type === value);
+    })
     .join("");
 }
 
@@ -730,16 +635,16 @@ function distributeIconSvg(axis = "horizontal") {
   if (axis === "vertical") {
     return iconSvg(`
       <path class="cc-guide" d="M5.3 5.2v13.6M18.7 5.2v13.6"/>
-      <rect class="cc-distribute-fill" x="7.2" y="5" width="9.6" height="3.2" rx="0.4"/>
-      <rect class="cc-distribute-fill" x="7.2" y="10.4" width="9.6" height="3.2" rx="0.4"/>
-      <rect class="cc-distribute-fill" x="7.2" y="15.8" width="9.6" height="3.2" rx="0.4"/>
+      <path class="cc-stroke-strong" d="M8 6.6h8"/>
+      <path class="cc-stroke-strong" d="M8 12h8"/>
+      <path class="cc-stroke-strong" d="M8 17.4h8"/>
     `, "cc-distribute-icon");
   }
   return iconSvg(`
     <path class="cc-guide" d="M5.2 5.3h13.6M5.2 18.7h13.6"/>
-    <rect class="cc-distribute-fill" x="5" y="7.2" width="3.2" height="9.6" rx="0.4"/>
-    <rect class="cc-distribute-fill" x="10.4" y="7.2" width="3.2" height="9.6" rx="0.4"/>
-    <rect class="cc-distribute-fill" x="15.8" y="7.2" width="3.2" height="9.6" rx="0.4"/>
+    <path class="cc-stroke-strong" d="M6.6 8v8"/>
+    <path class="cc-stroke-strong" d="M12 8v8"/>
+    <path class="cc-stroke-strong" d="M17.4 8v8"/>
   `, "cc-distribute-icon");
 }
 
@@ -817,13 +722,13 @@ function textToolbarHtml(editorState) {
     ${toolbarButton("text-align-right", "Align right", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M10 10h9"/><path d="M7 14h12"/><path d="M11 18h8"/></svg>`, editorState.textAlign === "right")}
     ${toolbarButton("text-align-justify", "Justify", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M5 10h14"/><path d="M5 14h14"/><path d="M5 18h14"/></svg>`, editorState.textAlign === "justify")}
     ${secondaryDivider()}
-    ${toolbarButton("text-bold", "Bold", textFormatIconSvg("bold"), editorState.textBold)}
-    ${toolbarButton("text-italic", "Italic", textFormatIconSvg("italic"), editorState.textItalic)}
-    ${toolbarButton("text-underline", "Underline", textFormatIconSvg("underline"), editorState.textUnderline)}
+    ${toolbarButton("text-bold", "Bold", textFormatIconSvg("bold", editorState), editorState.textBold)}
+    ${toolbarButton("text-italic", "Italic", textFormatIconSvg("italic", editorState), editorState.textItalic)}
+    ${toolbarButton("text-underline", "Underline", textFormatIconSvg("underline", editorState), editorState.textUnderline)}
     ${secondaryDivider()}
-    ${toolbarButton("text-chemical", "Chemical", textFormatIconSvg("chemical"), editorState.textScript === "chemical")}
-    ${toolbarButton("text-subscript", "Subscript", textFormatIconSvg("subscript"), editorState.textScript === "subscript")}
-    ${toolbarButton("text-superscript", "Superscript", textFormatIconSvg("superscript"), editorState.textScript === "superscript")}
+    ${toolbarButton("text-chemical", "Chemical", textFormatIconSvg("chemical", editorState), editorState.textScript === "chemical")}
+    ${toolbarButton("text-subscript", "Subscript", textFormatIconSvg("subscript", editorState), editorState.textScript === "subscript")}
+    ${toolbarButton("text-superscript", "Superscript", textFormatIconSvg("superscript", editorState), editorState.textScript === "superscript")}
   `;
 }
 

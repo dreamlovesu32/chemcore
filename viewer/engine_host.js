@@ -328,6 +328,14 @@ class TauriEngineSession {
     return this.layoutEngine?.elementPaletteJson?.() || JSON.stringify({ elements: [] });
   }
 
+  bondToolIconSvg(variant, strokeWidth, boldWidth) {
+    return this.layoutEngine?.bondToolIconSvg?.(variant, strokeWidth, boldWidth) || "";
+  }
+
+  textFormatIconSvg(kind) {
+    return this.layoutEngine?.textFormatIconSvg?.(kind) || "";
+  }
+
   applyElementPaletteJson(selectionJson) {
     return this.invokeMutation(
       "desktop_engine_apply_element_palette_json",

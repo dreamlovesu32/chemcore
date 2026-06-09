@@ -1033,23 +1033,16 @@ unsafe fn draw_gdiplus_primitive(
             stroke_width,
             dash_array,
             ..
-        } => {
-            let Some(pen) = create_gdiplus_pen(
-                stroke,
-                transform.gdip_length(*stroke_width),
-                Some("butt"),
-                Some("miter"),
-                dash_array,
-                transform,
-            ) else {
-                return false;
-            };
-            let p1 = transform.gdip_point(*from);
-            let p2 = transform.gdip_point(*to);
-            let ok = GdipDrawLine(graphics, pen, p1.X, p1.Y, p2.X, p2.Y) == GDI_PLUS_OK;
-            GdipDeletePen(pen);
-            ok
-        }
+        } => draw_gdiplus_polyline(
+            graphics,
+            &[*from, *to],
+            stroke,
+            *stroke_width,
+            Some("butt"),
+            Some("miter"),
+            transform,
+            dash_array,
+        ),
         RenderPrimitive::Polyline {
             points,
             stroke,
@@ -1238,6 +1231,18 @@ unsafe fn draw_gdiplus_polyline(
     if points.len() < 2 {
         return true;
     }
+    if transform.emf_recording && !dash_array.is_empty() {
+        return draw_gdiplus_dashed_polyline(
+            graphics,
+            points,
+            color,
+            stroke_width,
+            line_cap,
+            line_join,
+            transform,
+            dash_array,
+        );
+    }
     let Some(pen) = create_gdiplus_pen(
         color,
         transform.gdip_length(stroke_width),
@@ -1253,6 +1258,100 @@ unsafe fn draw_gdiplus_polyline(
         .map(|point| transform.gdip_point(*point))
         .collect();
     let ok = GdipDrawLines(graphics, pen, mapped.as_ptr(), mapped.len() as i32) == GDI_PLUS_OK;
+    GdipDeletePen(pen);
+    ok
+}
+
+fn normalized_dash_pattern(dash_array: &[f64]) -> Vec<f64> {
+    let mut pattern: Vec<f64> = dash_array
+        .iter()
+        .copied()
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .collect();
+    if pattern.len() % 2 == 1 {
+        pattern.extend_from_within(..);
+    }
+    pattern
+}
+
+fn dashed_polyline_segments(points: &[CorePoint], dash_array: &[f64]) -> Vec<[CorePoint; 2]> {
+    let pattern = normalized_dash_pattern(dash_array);
+    if pattern.is_empty() || points.len() < 2 {
+        return Vec::new();
+    }
+    let mut segments = Vec::new();
+    let mut pattern_index = 0usize;
+    let mut remaining = pattern[0];
+    let mut draw_segment = true;
+
+    for pair in points.windows(2) {
+        let from = pair[0];
+        let to = pair[1];
+        let dx = to.x - from.x;
+        let dy = to.y - from.y;
+        let length = (dx * dx + dy * dy).sqrt();
+        if length <= f64::EPSILON {
+            continue;
+        }
+        let unit_x = dx / length;
+        let unit_y = dy / length;
+        let mut offset = 0.0;
+        while offset < length - f64::EPSILON {
+            let step = remaining.min(length - offset);
+            if draw_segment && step > f64::EPSILON {
+                let start = CorePoint {
+                    x: from.x + unit_x * offset,
+                    y: from.y + unit_y * offset,
+                };
+                let end = CorePoint {
+                    x: from.x + unit_x * (offset + step),
+                    y: from.y + unit_y * (offset + step),
+                };
+                segments.push([start, end]);
+            }
+            offset += step;
+            remaining -= step;
+            if remaining <= f64::EPSILON {
+                pattern_index = (pattern_index + 1) % pattern.len();
+                remaining = pattern[pattern_index];
+                draw_segment = pattern_index % 2 == 0;
+            }
+        }
+    }
+
+    segments
+}
+
+unsafe fn draw_gdiplus_dashed_polyline(
+    graphics: *mut GpGraphics,
+    points: &[CorePoint],
+    color: &str,
+    stroke_width: f64,
+    line_cap: Option<&str>,
+    line_join: Option<&str>,
+    transform: &PreviewTransform,
+    dash_array: &[f64],
+) -> bool {
+    let segments = dashed_polyline_segments(points, dash_array);
+    if segments.is_empty() {
+        return true;
+    }
+    let Some(pen) = create_gdiplus_pen(
+        color,
+        transform.gdip_length(stroke_width),
+        line_cap,
+        line_join,
+        &[],
+        transform,
+    ) else {
+        return false;
+    };
+    let mut ok = true;
+    for [from, to] in segments {
+        let p1 = transform.gdip_point(from);
+        let p2 = transform.gdip_point(to);
+        ok &= GdipDrawLine(graphics, pen, p1.X, p1.Y, p2.X, p2.Y) == GDI_PLUS_OK;
+    }
     GdipDeletePen(pen);
     ok
 }

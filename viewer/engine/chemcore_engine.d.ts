@@ -29,6 +29,7 @@ export class WasmEngine {
     beginSelectionRotate(x: number, y: number): boolean;
     beginTextEdit(x: number, y: number): string;
     beginTlcSpotDragJson(x: number, y: number): string | undefined;
+    bondToolIconSvg(variant: string, stroke_width: number, bold_width: number): string;
     canRedo(): boolean;
     canUndo(): boolean;
     centerSelectionOnPage(): boolean;
@@ -100,6 +101,7 @@ export class WasmEngine {
     setTemplate(template: string): void;
     setTool(active_tool: string, bond_variant: string): void;
     stateJson(): string;
+    textFormatIconSvg(kind: string): string;
     textSymbolPaletteJson(): string;
     tlcLaneGuideHitTestJson(x: number, y: number): string | undefined;
     tlcSpotHitTestJson(x: number, y: number): string | undefined;
@@ -144,6 +146,7 @@ export interface InitOutput {
     readonly wasmengine_beginSelectionRotate: (a: number, b: number, c: number) => number;
     readonly wasmengine_beginTextEdit: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_beginTlcSpotDragJson: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly wasmengine_bondToolIconSvg: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly wasmengine_canRedo: (a: number) => number;
     readonly wasmengine_canUndo: (a: number) => number;
     readonly wasmengine_centerSelectionOnPage: (a: number) => number;
@@ -215,6 +218,7 @@ export interface InitOutput {
     readonly wasmengine_setTemplate: (a: number, b: number, c: number) => void;
     readonly wasmengine_setTool: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly wasmengine_stateJson: (a: number) => [number, number, number, number];
+    readonly wasmengine_textFormatIconSvg: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_textSymbolPaletteJson: (a: number) => [number, number];
     readonly wasmengine_tlcLaneGuideHitTestJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_tlcSpotHitTestJson: (a: number, b: number, c: number) => [number, number, number, number];

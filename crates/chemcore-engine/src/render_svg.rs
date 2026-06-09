@@ -63,6 +63,43 @@ pub fn primitives_to_svg(
     svg
 }
 
+pub fn primitives_to_svg_viewbox(
+    primitives: &[RenderPrimitive],
+    view_box: [f64; 4],
+    class_name: Option<&str>,
+) -> String {
+    let mut svg = String::new();
+    let class_attr = class_name
+        .map(|class_name| format!(r#" class="{}""#, escape_attr(class_name)))
+        .unwrap_or_default();
+    writeln!(
+        svg,
+        r#"<svg xmlns="http://www.w3.org/2000/svg"{} viewBox="{} {} {} {}" aria-hidden="true">"#,
+        class_attr,
+        fmt_num(view_box[0]),
+        fmt_num(view_box[1]),
+        fmt_num(view_box[2]),
+        fmt_num(view_box[3])
+    )
+    .expect("write svg root");
+
+    let mut defs = SvgDefs::default();
+    let mut body = String::new();
+    for primitive in primitives {
+        if visible_in_document_svg(primitive) {
+            write_primitive_svg(&mut body, &mut defs, primitive);
+        }
+    }
+    if !defs.body.is_empty() {
+        svg.push_str("  <defs>\n");
+        svg.push_str(&defs.body);
+        svg.push_str("  </defs>\n");
+    }
+    svg.push_str(&body);
+    svg.push_str("</svg>\n");
+    svg
+}
+
 #[derive(Default)]
 struct SvgDefs {
     next_id: usize,

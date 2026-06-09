@@ -1028,7 +1028,7 @@ fn half_arrow_heads_keep_visual_left_and_right_sides_on_curves() {
                     arc = points
                 }
                 RenderPrimitive::Line { from, to, .. } => arc = vec![from, to],
-                RenderPrimitive::Polygon { points, .. } if points.len() == 4 => head = points,
+                RenderPrimitive::FilledPath { points, .. } if points.len() >= 4 => head = points,
                 _ => {}
             }
         }
@@ -1038,19 +1038,33 @@ fn half_arrow_heads_keep_visual_left_and_right_sides_on_curves() {
     let (straight_arc, straight_left) =
         rendered_half_head(ArrowVariant::Solid, ArrowEndpointStyle::Left);
     assert_eq!(straight_arc.len(), 2);
-    assert!(straight_arc[1].x < 90.0);
-    assert_point_close(straight_left[0], Point::new(90.0, 20.0));
-    assert!(straight_left[2].y < straight_left[1].y);
-    assert!(straight_left[3].y < straight_left[2].y);
-    let (_, straight_right) = rendered_half_head(ArrowVariant::Solid, ArrowEndpointStyle::Right);
+    assert_point_close(
+        straight_arc[1],
+        Point::new(90.0 - (8.75 - 2.5 * 2.0 / 3.0), 20.0),
+    );
+    assert_point_close(straight_left[0], Point::new(90.0, 20.5));
+    assert_point_close(straight_left[1], Point::new(80.0, 17.5));
+    assert_point_close(straight_left[3], Point::new(81.25, 20.5));
+    assert!(straight_left[1].y < straight_left[2].y);
+    assert!(straight_left[2].y < straight_left[3].y);
+    let (straight_right_shaft, straight_right) =
+        rendered_half_head(ArrowVariant::Solid, ArrowEndpointStyle::Right);
+    assert_eq!(straight_right_shaft.len(), 2);
+    assert_point_close(
+        straight_right_shaft[1],
+        Point::new(90.0 - (8.75 - 2.5 * 2.0 / 3.0), 20.0),
+    );
+    assert_point_close(straight_right[0], Point::new(90.0, 19.5));
+    assert_point_close(straight_right[1], Point::new(80.0, 22.5));
     assert!(straight_right[1].y > straight_right[2].y);
     assert!(straight_right[2].y > straight_right[3].y);
+    assert_point_close(straight_right[3], Point::new(81.25, 19.5));
 
     let (curved_arc, curved_left) =
         rendered_half_head(ArrowVariant::Curved, ArrowEndpointStyle::Left);
     assert!(curved_arc[curved_arc.len() / 2].y < curved_arc[0].y);
     assert!((*curved_arc.last().unwrap()).distance(Point::new(90.0, 20.0)) > 1.0);
-    assert!(curved_left[3].distance(curved_left[0]) > curved_left[1].distance(curved_left[0]));
+    assert!(curved_left[1].distance(curved_left[0]) > curved_left[3].distance(curved_left[0]));
     let (_, curved_right) = rendered_half_head(ArrowVariant::Curved, ArrowEndpointStyle::Right);
     assert!(curved_right[1].distance(curved_right[0]) > curved_right[3].distance(curved_right[0]));
 
@@ -1058,7 +1072,7 @@ fn half_arrow_heads_keep_visual_left_and_right_sides_on_curves() {
         rendered_half_head(ArrowVariant::CurvedMirror, ArrowEndpointStyle::Left);
     assert!(mirror_arc[mirror_arc.len() / 2].y > mirror_arc[0].y);
     assert!((*mirror_arc.last().unwrap()).distance(Point::new(90.0, 20.0)) > 1.0);
-    assert!(mirror_left[3].distance(mirror_left[0]) > mirror_left[1].distance(mirror_left[0]));
+    assert!(mirror_left[1].distance(mirror_left[0]) > mirror_left[3].distance(mirror_left[0]));
     let (_, mirror_right) =
         rendered_half_head(ArrowVariant::CurvedMirror, ArrowEndpointStyle::Right);
     assert!(mirror_right[1].distance(mirror_right[0]) > mirror_right[3].distance(mirror_right[0]));
@@ -8880,4 +8894,76 @@ fn bracketed_group_without_numeric_count_does_not_store_expansion() {
         .unwrap()
         .fragment;
     assert!(fragment.meta.get("repeatingUnits").is_none());
+}
+
+#[test]
+fn bond_tool_icons_are_rendered_with_kernel_bond_styles() {
+    let dashed = Engine::bond_tool_icon_svg(BondVariant::Dashed, 1.32, 3.68);
+    assert!(
+        dashed.contains(r#"class="chemcore-icon cc-bond-icon""#),
+        "{dashed}"
+    );
+    assert!(dashed.contains(r#"viewBox="0 0 24 24""#), "{dashed}");
+    assert!(dashed.contains(r#"fill="currentColor""#), "{dashed}");
+    assert_eq!(dashed.matches(r##"fill="#ffffff""##).count(), 2, "{dashed}");
+    assert_eq!(dashed.matches("<line ").count(), 0, "{dashed}");
+
+    let single = Engine::bond_tool_icon_svg(BondVariant::Single, 1.32, 3.68);
+    assert!(single.contains(r#"fill="currentColor""#), "{single}");
+
+    let bold = Engine::bond_tool_icon_svg(BondVariant::Bold, 1.32, 3.68);
+    assert!(bold.contains(r#"fill="currentColor""#), "{bold}");
+
+    let wavy = Engine::bond_tool_icon_svg(BondVariant::Wavy, 1.32, 3.68);
+    assert_eq!(wavy.matches(" A ").count(), 8, "{wavy}");
+    assert!(wavy.contains(r#"A 1.8750,1.8750"#), "{wavy}");
+    assert!(wavy.contains(r#"stroke-width="1.32""#), "{wavy}");
+}
+
+#[test]
+fn text_format_icons_are_rendered_with_kernel_text_runs() {
+    let bold = Engine::text_format_icon_svg("bold");
+    assert!(
+        bold.contains(r#"class="chemcore-icon cc-text-format-icon""#),
+        "{bold}"
+    );
+    assert!(bold.contains("<text "), "{bold}");
+    assert!(bold.contains("<tspan"), "{bold}");
+    assert!(bold.contains(r#"font-family="Arial""#), "{bold}");
+    assert!(bold.contains(r#"font-size="16""#), "{bold}");
+    assert!(bold.contains(r#"font-weight="700""#), "{bold}");
+    assert!(bold.contains(">B</tspan>"), "{bold}");
+
+    let italic = Engine::text_format_icon_svg("italic");
+    assert!(italic.contains(r#"font-style="italic""#), "{italic}");
+    assert!(italic.contains(">I</tspan>"), "{italic}");
+
+    let underline = Engine::text_format_icon_svg("underline");
+    assert!(
+        underline.contains(r#"text-decoration="underline""#),
+        "{underline}"
+    );
+    assert!(underline.contains(">U</tspan>"), "{underline}");
+
+    let chemical = Engine::text_format_icon_svg("chemical");
+    assert!(
+        chemical.contains(r#"class="chemcore-icon cc-text-format-icon cc-script-icon""#),
+        "{chemical}"
+    );
+    assert!(chemical.contains(r#"font-size="14""#), "{chemical}");
+    assert!(chemical.contains(">CH</tspan>"), "{chemical}");
+    assert!(chemical.contains(">2</tspan>"), "{chemical}");
+    assert!(chemical.contains("baseline-shift"), "{chemical}");
+
+    let subscript = Engine::text_format_icon_svg("subscript");
+    assert!(subscript.contains(">X</tspan>"), "{subscript}");
+    assert!(subscript.contains(">2</tspan>"), "{subscript}");
+    assert!(subscript.contains(r#"font-size="12""#), "{subscript}");
+    assert!(subscript.contains("baseline-shift"), "{subscript}");
+
+    let superscript = Engine::text_format_icon_svg("superscript");
+    assert!(superscript.contains(">X</tspan>"), "{superscript}");
+    assert!(superscript.contains(">2</tspan>"), "{superscript}");
+    assert!(superscript.contains(r#"font-size="12""#), "{superscript}");
+    assert!(superscript.contains("baseline-shift"), "{superscript}");
 }

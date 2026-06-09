@@ -181,35 +181,6 @@ pub(super) fn is_acs_document_1996_bond_template(bond: &Bond, stroke_width: f64)
             .is_none_or(|spacing| (spacing - 18.0).abs() <= 0.05)
 }
 
-pub(super) fn dash_gap_intervals(length: f64, dash_array: &[f64]) -> Vec<(f64, f64)> {
-    if length <= EPSILON {
-        return Vec::new();
-    }
-    let segments: Vec<f64> = dash_array
-        .iter()
-        .copied()
-        .filter(|value| *value > EPSILON)
-        .collect();
-    if segments.is_empty() {
-        return Vec::new();
-    }
-    let mut gap_intervals = Vec::new();
-    let mut offset = 0.0;
-    let mut gap_segment = false;
-    let mut index = 0usize;
-    while offset < length - EPSILON {
-        let segment_length = segments[index % segments.len()];
-        let next = (offset + segment_length).min(length);
-        if gap_segment && next > offset + EPSILON {
-            gap_intervals.push((offset, next));
-        }
-        offset += segment_length;
-        gap_segment = !gap_segment;
-        index += 1;
-    }
-    gap_intervals
-}
-
 pub(super) fn equal_black_segment_gap_intervals(
     length: f64,
     start_offset: f64,
@@ -260,6 +231,69 @@ pub(super) fn equal_black_segment_gap_intervals(
     intervals
 }
 
+fn chemdraw_dashed_bond_stripe_count(
+    length: f64,
+    stripe_length: f64,
+    target_gap_length: f64,
+) -> usize {
+    let stripe_length = stripe_length.max(EPSILON);
+    let target_gap_length = target_gap_length.max(EPSILON);
+    let period = stripe_length + target_gap_length;
+    if length <= stripe_length + EPSILON || length < period * 1.5 {
+        return 1;
+    }
+
+    let mut stripe_count = if length < period * 6.0 {
+        (length / period).floor() as usize + 1
+    } else {
+        ((length / period).floor() as usize).max(7)
+    };
+    stripe_count = stripe_count.max(1);
+    while stripe_count > 1 && stripe_length * stripe_count as f64 > length + EPSILON {
+        stripe_count -= 1;
+    }
+    stripe_count.max(1)
+}
+
+pub(super) fn chemdraw_dashed_bond_gap_intervals(
+    length: f64,
+    stripe_length: f64,
+    target_gap_length: f64,
+) -> Vec<(f64, f64)> {
+    if length <= EPSILON {
+        return Vec::new();
+    }
+    let stripe_length = stripe_length.max(EPSILON);
+    let target_gap_length = target_gap_length.max(EPSILON);
+    if length <= stripe_length + EPSILON {
+        return Vec::new();
+    }
+
+    let stripe_count = chemdraw_dashed_bond_stripe_count(length, stripe_length, target_gap_length);
+    if stripe_count <= 1 {
+        return vec![(stripe_length, length)];
+    }
+
+    let gap_count = stripe_count - 1;
+    let total_gap_length = (length - stripe_length * stripe_count as f64).max(0.0);
+    let gap_length = total_gap_length / gap_count as f64;
+    let mut intervals = Vec::with_capacity(gap_count);
+    let mut cursor = stripe_length;
+    for index in 0..gap_count {
+        let gap_start = cursor;
+        let gap_end = if index + 1 == gap_count {
+            length - stripe_length
+        } else {
+            gap_start + gap_length
+        };
+        if gap_end > gap_start + EPSILON {
+            intervals.push((gap_start, gap_end));
+        }
+        cursor = gap_end + stripe_length;
+    }
+    intervals
+}
+
 pub(super) fn dashed_bond_knockout_polygons(
     start: Point,
     end: Point,
@@ -275,7 +309,17 @@ pub(super) fn dashed_bond_knockout_polygons(
     let normal = Vector::new(-unit.y, unit.x);
     let half_width =
         stroke_width * 0.5 + stroke_width.max(crate::DASH_GAP_STROKE_EXTRA_PT.value()) * 0.45;
-    dash_gap_intervals(length, dash_array)
+    let stripe_length = dash_array
+        .first()
+        .copied()
+        .filter(|value| *value > EPSILON)
+        .unwrap_or(crate::DEFAULT_HASH_SPACING_PT.value());
+    let target_gap_length = dash_array
+        .get(1)
+        .copied()
+        .filter(|value| *value > EPSILON)
+        .unwrap_or(stripe_length);
+    chemdraw_dashed_bond_gap_intervals(length, stripe_length, target_gap_length)
         .into_iter()
         .map(|(gap_start, gap_end)| {
             let segment_start =

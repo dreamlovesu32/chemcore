@@ -2,8 +2,9 @@ use super::*;
 use crate::Point;
 
 fn non_bond_dash_array(defaults: CdxmlDefaults) -> Value {
-    let _ = defaults;
-    json!([crate::DEFAULT_HASH_SPACING_PT.value()])
+    json!([defaults
+        .hash_spacing
+        .max(crate::DEFAULT_HASH_SPACING_PT.value() * 0.25)])
 }
 
 pub(super) fn append_line_objects(

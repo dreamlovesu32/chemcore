@@ -65,6 +65,7 @@ export function createDocumentFlow(options) {
     await options.state.editorEngine.loadDocumentJson(JSON.stringify(documentData));
     await options.syncEngineToolState();
     await options.syncDocumentFromEngine();
+    options.renderSecondaryToolbar?.();
     options.state.runtimeViewBox = null;
     options.viewerTitle.textContent = options.state.currentDocument?.document?.title || fileName || "Untitled";
     updateDocumentMeta();
@@ -515,6 +516,7 @@ export function createDocumentFlow(options) {
           options.syncDocumentFromEngine();
         }
       }
+      options.renderSecondaryToolbar?.();
       const documentData = options.state.currentDocument;
       options.state.currentDocument = documentData;
       options.viewerTitle.textContent = documentData.document.title || options.state.currentPath;

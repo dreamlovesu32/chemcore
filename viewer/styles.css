@@ -35,7 +35,7 @@
   --tool-rail-gap: 4px;
   --tool-button-width: 44px;
   --tool-button-height: 40px;
-  --tool-icon-size: 28px;
+  --tool-icon-size: var(--icon-svg-size);
   --secondary-button-width: 41px;
   --secondary-button-height: 37px;
   --secondary-arrow-endpoint-width: 46px;
@@ -43,18 +43,20 @@
   --secondary-field-height: 25px;
   --secondary-divider-height: 22px;
   --secondary-divider-margin: 4px;
-  --chrome-svg-stroke-width: 1.8;
-  --cc-bond-stroke-width: 1.72;
-  --cc-bond-hash-stroke-width: 2.05;
-  --cc-arrow-stroke-width: 1.72;
-  --cc-arrow-bold-stroke-width: 2.45;
-  --cc-main-stroke-width: 1.65;
-  --cc-soft-stroke-width: 1.45;
-  --cc-text-stroke-width: 2.25;
-  --cc-select-stroke-width: 1.35;
-  --cc-shadow-stroke-width: 1.2;
-  --cc-shadow-edge-stroke-width: 1.25;
-  --cc-distribute-stroke-width: 0.7;
+  --cc-icon-stroke-thin: 1.65;
+  --cc-icon-stroke-thick: 4.6px;
+  --chrome-svg-stroke-width: var(--cc-icon-stroke-thin);
+  --cc-bond-stroke-width: var(--cc-icon-stroke-thin);
+  --cc-bond-hash-stroke-width: var(--cc-icon-stroke-thick);
+  --cc-arrow-stroke-width: var(--cc-icon-stroke-thin);
+  --cc-arrow-bold-stroke-width: var(--cc-icon-stroke-thick);
+  --cc-main-stroke-width: var(--cc-icon-stroke-thin);
+  --cc-soft-stroke-width: var(--cc-icon-stroke-thin);
+  --cc-text-stroke-width: var(--cc-icon-stroke-thick);
+  --cc-select-stroke-width: var(--cc-icon-stroke-thin);
+  --cc-shadow-stroke-width: var(--cc-icon-stroke-thin);
+  --cc-shadow-edge-stroke-width: var(--cc-icon-stroke-thin);
+  --cc-distribute-stroke-width: var(--cc-icon-stroke-thick);
 }
 
 * {
@@ -362,7 +364,7 @@ body.browser-shell .document-tabbar {
 .document-tab-close svg path {
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.15;
+  stroke-width: var(--cc-icon-stroke-thin);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -458,21 +460,21 @@ body.browser-shell .document-tabbar {
   overflow: visible;
 }
 
-.editor-topbar svg path,
-.editor-topbar svg rect,
-.editor-topbar svg circle,
-.tool-rail svg path,
-.tool-rail svg rect,
-.tool-rail svg circle,
-.tool-rail svg polygon,
-.quick-palette svg path,
-.quick-palette svg rect,
-.quick-palette svg circle,
-.quick-palette svg polygon,
-.toolbar-row-secondary svg path,
-.toolbar-row-secondary svg rect,
-.toolbar-row-secondary svg circle,
-.toolbar-row-secondary svg polygon {
+.editor-topbar svg:not(.cc-bond-icon) path,
+.editor-topbar svg:not(.cc-bond-icon) rect,
+.editor-topbar svg:not(.cc-bond-icon) circle,
+.tool-rail svg:not(.cc-bond-icon) path,
+.tool-rail svg:not(.cc-bond-icon) rect,
+.tool-rail svg:not(.cc-bond-icon) circle,
+.tool-rail svg:not(.cc-bond-icon) polygon,
+.quick-palette svg:not(.cc-bond-icon) path,
+.quick-palette svg:not(.cc-bond-icon) rect,
+.quick-palette svg:not(.cc-bond-icon) circle,
+.quick-palette svg:not(.cc-bond-icon) polygon,
+.toolbar-row-secondary svg:not(.cc-bond-icon) path,
+.toolbar-row-secondary svg:not(.cc-bond-icon) rect,
+.toolbar-row-secondary svg:not(.cc-bond-icon) circle,
+.toolbar-row-secondary svg:not(.cc-bond-icon) polygon {
   fill: none;
   stroke: currentColor;
   stroke-width: var(--chrome-svg-stroke-width);
@@ -496,7 +498,7 @@ body.browser-shell .document-tabbar {
 .cc-element-tick {
   fill: none;
   stroke: currentColor;
-  stroke-width: 1;
+  stroke-width: var(--cc-icon-stroke-thin);
 }
 
 .editor-topbar svg .filled,
@@ -515,7 +517,31 @@ body.browser-shell .document-tabbar {
   color: currentColor;
 }
 
+.chemcore-icon.cc-bond-icon polygon {
+  stroke: none;
+  stroke-width: 0;
+}
+
+.chemcore-icon.cc-bond-icon polygon[fill="currentColor"],
+.chemcore-icon.cc-bond-icon path[fill="currentColor"] {
+  fill: currentColor;
+  stroke: none;
+}
+
+.chemcore-icon.cc-bond-icon polygon[fill="#ffffff"],
+.chemcore-icon.cc-bond-icon path[fill="#ffffff"] {
+  fill: #ffffff;
+  stroke: none;
+}
+
+.chemcore-icon.cc-bond-icon path[fill="none"] {
+  fill: none;
+  stroke: currentColor;
+}
+
 .chemcore-icon .cc-stroke,
+.chemcore-icon .cc-stroke-strong,
+.chemcore-icon .cc-bond-strong,
 .chemcore-icon .cc-bond,
 .chemcore-icon .cc-bond-hash,
 .chemcore-icon .cc-arrow,
@@ -530,6 +556,11 @@ body.browser-shell .document-tabbar {
 
 .chemcore-icon .cc-bond {
   stroke-width: var(--cc-bond-stroke-width);
+  stroke-linecap: butt;
+}
+
+.chemcore-icon .cc-bond-strong {
+  stroke-width: var(--cc-icon-stroke-thick);
   stroke-linecap: butt;
 }
 
@@ -551,6 +582,10 @@ body.browser-shell .document-tabbar {
 .chemcore-icon .cc-stroke,
 .chemcore-icon .cc-guide {
   stroke-width: var(--cc-main-stroke-width);
+}
+
+.chemcore-icon .cc-stroke-strong {
+  stroke-width: var(--cc-icon-stroke-thick);
 }
 
 .chemcore-icon .cc-stroke-soft {
@@ -587,6 +622,14 @@ body.browser-shell .document-tabbar {
 .chemcore-icon .cc-dot {
   fill: currentColor;
   stroke: none;
+}
+
+.chemcore-icon .cc-fill-outline {
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: var(--cc-icon-stroke-thin);
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .chemcore-icon .cc-blue-dot {
@@ -756,7 +799,7 @@ body.browser-shell .document-tabbar {
   height: 16px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: var(--cc-icon-stroke-thin);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -947,7 +990,7 @@ body.browser-shell .document-tabbar {
 .quick-palette-pin svg path {
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: var(--cc-icon-stroke-thin);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -1549,7 +1592,7 @@ body.browser-shell .document-tabbar {
 .selection-mass-precision-button svg path {
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: var(--cc-icon-stroke-thin);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -2057,7 +2100,7 @@ body.browser-shell .document-tabbar {
 .text-symbol-pin svg path {
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: var(--cc-icon-stroke-thin);
   stroke-linecap: round;
   stroke-linejoin: round;
 }

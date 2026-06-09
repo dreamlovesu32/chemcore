@@ -985,6 +985,90 @@ fn object_knockout_polygons(primitives: &[RenderPrimitive]) -> Vec<Vec<chemcore_
         .collect()
 }
 
+fn document_bond_polygon_count_for_object(
+    primitives: &[RenderPrimitive],
+    object_id: &str,
+) -> usize {
+    primitives
+        .iter()
+        .filter(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Polygon {
+                    role,
+                    object_id: primitive_object_id,
+                    ..
+                } | RenderPrimitive::FilledPath {
+                    role,
+                    object_id: primitive_object_id,
+                    ..
+                } if *role == RenderRole::DocumentBond
+                    && primitive_object_id.as_deref() == Some(object_id)
+            )
+        })
+        .count()
+}
+
+fn document_knockout_count_for_object(primitives: &[RenderPrimitive], object_id: &str) -> usize {
+    primitives
+        .iter()
+        .filter(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Polygon {
+                    role,
+                    object_id: primitive_object_id,
+                    ..
+                } if *role == RenderRole::DocumentKnockout
+                    && primitive_object_id.as_deref() == Some(object_id)
+            )
+        })
+        .count()
+}
+
+fn document_knockout_axis_intervals_for_object(
+    primitives: &[RenderPrimitive],
+    object_id: &str,
+) -> Vec<(f64, f64)> {
+    let (axis_from, axis_to, bond_start) = primitives
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                role,
+                object_id: primitive_object_id,
+                points,
+                ..
+            } if *role == RenderRole::DocumentBond
+                && primitive_object_id.as_deref() == Some(object_id) =>
+            {
+                let (axis_from, axis_to) = bond_axis_from_points(points)?;
+                let (bond_start, _) = projection_range_on_axis(points, axis_from, axis_to)?;
+                Some((axis_from, axis_to, bond_start))
+            }
+            _ => None,
+        })
+        .expect("object should have a bond polygon");
+    let mut intervals: Vec<_> = primitives
+        .iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                role,
+                object_id: primitive_object_id,
+                points,
+                ..
+            } if *role == RenderRole::DocumentKnockout
+                && primitive_object_id.as_deref() == Some(object_id) =>
+            {
+                let (start, end) = projection_range_on_axis(points, axis_from, axis_to)?;
+                Some((start - bond_start, end - bond_start))
+            }
+            _ => None,
+        })
+        .collect();
+    intervals.sort_by(|a, b| a.0.total_cmp(&b.0).then_with(|| a.1.total_cmp(&b.1)));
+    intervals
+}
+
 fn render_roundtrip_signature(document: &ChemcoreDocument) -> Vec<String> {
     let primitives: Vec<_> = render_document(document)
         .into_iter()
@@ -3096,7 +3180,7 @@ fn parse_cdxml_imports_table_lines_and_text_boxes() {
         .styles
         .get(line.style_ref.as_deref().expect("line style ref"))
         .expect("line style should exist");
-    assert_eq!(line_style["dashArray"], json!([2.7]));
+    assert_eq!(line_style["dashArray"], json!([2.5]));
     assert!(document
         .objects
         .iter()
@@ -3119,6 +3203,60 @@ fn parse_cdxml_imports_table_lines_and_text_boxes() {
             ..
         } if text == "entry" || runs.iter().any(|run| run.text == "entry")
     )));
+}
+
+#[test]
+fn parse_cdxml_renders_acs_dashed_bond_patterns_like_chemdraw() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.40" BondSpacing="18" LineWidth="0.60" BoldWidth="2" HashSpacing="2.50">
+  <page id="1">
+    <fragment id="2" BoundingBox="80 35 116 45">
+      <n id="3" p="80 40"/>
+      <n id="4" p="116 40"/>
+      <b id="5" B="3" E="4" Display="Dash"/>
+    </fragment>
+    <fragment id="6" BoundingBox="80 65 116 80">
+      <n id="7" p="80 70"/>
+      <n id="8" p="116 70"/>
+      <b id="9" B="7" E="8" Order="2" Display2="Dash"/>
+    </fragment>
+    <fragment id="10" BoundingBox="80 95 116 110">
+      <n id="11" p="80 100"/>
+      <n id="12" p="116 100"/>
+      <b id="13" B="11" E="12" Order="2" Display="Dash" Display2="Dash"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("acs dash patterns")).expect("parse cdxml");
+    let primitives = render_document(&document);
+
+    assert_eq!(
+        document_knockout_count_for_object(&primitives, "obj_mol_001"),
+        6
+    );
+    assert_eq!(
+        document_bond_polygon_count_for_object(&primitives, "obj_mol_002"),
+        2
+    );
+    assert_eq!(
+        document_knockout_count_for_object(&primitives, "obj_mol_002"),
+        6
+    );
+    assert_eq!(
+        document_bond_polygon_count_for_object(&primitives, "obj_mol_003"),
+        2
+    );
+    assert_eq!(
+        document_knockout_count_for_object(&primitives, "obj_mol_003"),
+        12
+    );
+
+    let single_gaps = document_knockout_axis_intervals_for_object(&primitives, "obj_mol_001");
+    assert_eq!(single_gaps.len(), 6, "{single_gaps:?}");
+    assert!((single_gaps[0].0 - 2.5).abs() < 0.01, "{single_gaps:?}");
+    assert!((single_gaps[0].1 - 5.5833).abs() < 0.01, "{single_gaps:?}");
+    assert!((single_gaps[5].0 - 30.4167).abs() < 0.01, "{single_gaps:?}");
+    assert!((single_gaps[5].1 - 33.5).abs() < 0.01, "{single_gaps:?}");
 }
 
 #[test]

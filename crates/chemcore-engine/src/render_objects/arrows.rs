@@ -16,7 +16,7 @@ fn arrow_head_points(from: Point, to: Point, arrow_head: ArrowHeadGeometry) -> V
         to.x - unit.x * head_length - normal.x * head_half_width,
         to.y - unit.y * head_length - normal.y * head_half_width,
     );
-    if arrow_head.head_full && notch_length < head_length - 0.2 {
+    if notch_length < head_length - 0.2 {
         let notch = Point::new(to.x - unit.x * notch_length, to.y - unit.y * notch_length);
         vec![tip, left, notch, right]
     } else {
@@ -317,8 +317,8 @@ fn render_curved_solid_arrow_line(
     } else {
         stroke_width
     };
-    let start_trim = arrow_endpoint_shaft_trim(tail_style, arrow_head);
-    let end_trim = arrow_endpoint_shaft_trim(head_style, arrow_head);
+    let start_trim = curved_arrow_endpoint_shaft_trim(tail_style, arrow_head);
+    let end_trim = curved_arrow_endpoint_shaft_trim(head_style, arrow_head);
     if let Some(path) = curved_arrow_path(start, arrow_head.curve, arrow_arc, start_trim, end_trim)
     {
         push_path(
@@ -338,28 +338,54 @@ fn render_curved_solid_arrow_line(
     if head_style.enabled() {
         let tangent_from = point_at_distance_from_end(&points, arrow_head.center_length)
             .unwrap_or_else(|| points[points.len().saturating_sub(2)]);
-        push_polygon(
-            out,
-            solid_arrow_head_points(tangent_from, end, arrow_head, head_style),
-            stroke,
-            stroke,
-            0.0,
-            RenderRole::DocumentGraphic,
-            object_id.clone(),
-        );
+        if head_style == RenderArrowEndpointStyle::Full {
+            push_polygon(
+                out,
+                arrow_head_points(tangent_from, end, arrow_head),
+                stroke,
+                stroke,
+                0.0,
+                RenderRole::DocumentGraphic,
+                object_id.clone(),
+            );
+        } else {
+            render_solid_arrow_head(
+                out,
+                tangent_from,
+                end,
+                arrow_head,
+                head_style,
+                line_width,
+                stroke,
+                object_id.clone(),
+            );
+        }
     }
     if tail_style.enabled() {
         let tangent_from = point_at_distance_from_start(&points, arrow_head.center_length)
             .unwrap_or_else(|| *points.get(1).unwrap_or(&end));
-        push_polygon(
-            out,
-            solid_arrow_head_points(tangent_from, start, arrow_head, tail_style),
-            stroke,
-            stroke,
-            0.0,
-            RenderRole::DocumentGraphic,
-            object_id,
-        );
+        if tail_style == RenderArrowEndpointStyle::Full {
+            push_polygon(
+                out,
+                arrow_head_points(tangent_from, start, arrow_head),
+                stroke,
+                stroke,
+                0.0,
+                RenderRole::DocumentGraphic,
+                object_id,
+            );
+        } else {
+            render_solid_arrow_head(
+                out,
+                tangent_from,
+                start,
+                arrow_head,
+                tail_style,
+                line_width,
+                stroke,
+                object_id,
+            );
+        }
     }
 }
 
@@ -629,12 +655,15 @@ fn render_solid_arrow_line(
             end,
             arrow_head,
             head_style,
+            line_width,
             stroke,
             object_id.clone(),
         );
     }
     if tail_style.enabled() {
-        render_solid_arrow_head(out, end, start, arrow_head, tail_style, stroke, object_id);
+        render_solid_arrow_head(
+            out, end, start, arrow_head, tail_style, line_width, stroke, object_id,
+        );
     }
 }
 
@@ -750,52 +779,13 @@ fn no_go_bar_points(center: Point, axis: Vector, length: f64, width: f64) -> Vec
     ]
 }
 
-fn solid_arrow_head_points(
-    from: Point,
-    to: Point,
-    arrow_head: ArrowHeadGeometry,
-    style: RenderArrowEndpointStyle,
-) -> Vec<Point> {
-    if style == RenderArrowEndpointStyle::Full {
-        return arrow_head_points(from, to, arrow_head);
-    }
-    let Some((unit, normal, _length)) = arrow_axis(from, to) else {
-        return Vec::new();
-    };
-    let head_length = arrow_head.length;
-    let head_half_width = solid_arrow_head_outer_half_width(arrow_head);
-    let notch_length = arrow_head.center_length.max(0.0).min(head_length);
-    let notch = Point::new(to.x - unit.x * notch_length, to.y - unit.y * notch_length);
-    let right = Point::new(
-        to.x - unit.x * head_length + normal.x * head_half_width,
-        to.y - unit.y * head_length + normal.y * head_half_width,
-    );
-    let left = Point::new(
-        to.x - unit.x * head_length - normal.x * head_half_width,
-        to.y - unit.y * head_length - normal.y * head_half_width,
-    );
-    let inner_half_width = head_half_width * 0.53;
-    let right_inner = Point::new(
-        notch.x + normal.x * inner_half_width,
-        notch.y + normal.y * inner_half_width,
-    );
-    let left_inner = Point::new(
-        notch.x - normal.x * inner_half_width,
-        notch.y - normal.y * inner_half_width,
-    );
-    match style {
-        RenderArrowEndpointStyle::Left => vec![to, notch, left_inner, left],
-        RenderArrowEndpointStyle::Right => vec![to, right, right_inner, notch],
-        RenderArrowEndpointStyle::Full | RenderArrowEndpointStyle::None => Vec::new(),
-    }
-}
-
 fn render_solid_arrow_head(
     out: &mut Vec<RenderPrimitive>,
     from: Point,
     to: Point,
     arrow_head: ArrowHeadGeometry,
     style: RenderArrowEndpointStyle,
+    line_width: f64,
     fill: &str,
     object_id: Option<String>,
 ) {
@@ -818,15 +808,22 @@ fn render_solid_arrow_head(
         }
         return;
     }
-    push_polygon(
-        out,
-        solid_arrow_head_points(from, to, arrow_head, style),
-        fill,
-        fill,
-        0.0,
-        RenderRole::DocumentGraphic,
-        object_id,
-    );
+    if let Some(path) = solid_half_arrow_head_path(from, to, arrow_head, style, line_width) {
+        out.push(RenderPrimitive::FilledPath {
+            role: RenderRole::DocumentGraphic,
+            object_id,
+            node_id: None,
+            bond_id: None,
+            d: path.d,
+            points: path.points,
+            fill: fill.to_string(),
+            fill_rule: None,
+            clip_path_d: None,
+            clip_rule: None,
+            rotate: 0.0,
+            rotate_center: None,
+        });
+    }
 }
 
 struct SolidArrowHeadPath {
@@ -894,6 +891,91 @@ fn solid_full_arrow_head_path(
     })
 }
 
+fn solid_half_arrow_head_path(
+    from: Point,
+    to: Point,
+    arrow_head: ArrowHeadGeometry,
+    style: RenderArrowEndpointStyle,
+    line_width: f64,
+) -> Option<SolidArrowHeadPath> {
+    let (unit, normal, _) = arrow_axis(from, to)?;
+    let head_length = arrow_head.length;
+    let head_half_width = arrow_head.width.max(0.0);
+    let notch_length = arrow_head.center_length.max(0.0).min(head_length);
+    let line_half_width = (line_width * 0.5).max(0.0);
+    let curve_run = (head_length - notch_length).max(0.0);
+    let control_distance = (notch_length - curve_run * 0.59).max(0.0);
+    let control_half_width = line_half_width + (head_half_width - line_half_width).max(0.0) * 0.16;
+
+    let tip = to;
+    let positive_tip_edge = tip.translated(normal.scaled(line_half_width));
+    let negative_tip_edge = tip.translated(normal.scaled(-line_half_width));
+    let positive_notch_edge = tip
+        .translated(unit.scaled(-notch_length))
+        .translated(normal.scaled(line_half_width));
+    let negative_notch_edge = tip
+        .translated(unit.scaled(-notch_length))
+        .translated(normal.scaled(-line_half_width));
+    let positive_outer = to
+        .translated(unit.scaled(-head_length))
+        .translated(normal.scaled(head_half_width));
+    let positive_control = to
+        .translated(unit.scaled(-control_distance))
+        .translated(normal.scaled(control_half_width));
+    let negative_control = to
+        .translated(unit.scaled(-control_distance))
+        .translated(normal.scaled(-control_half_width));
+    let negative_outer = to
+        .translated(unit.scaled(-head_length))
+        .translated(normal.scaled(-head_half_width));
+
+    match style {
+        RenderArrowEndpointStyle::Left => Some(SolidArrowHeadPath {
+            d: format!(
+                "M {},{} L {},{} C {},{} {},{} {},{} Z",
+                positive_tip_edge.x,
+                positive_tip_edge.y,
+                negative_outer.x,
+                negative_outer.y,
+                negative_control.x,
+                negative_control.y,
+                positive_notch_edge.x,
+                positive_notch_edge.y,
+                positive_notch_edge.x,
+                positive_notch_edge.y,
+            ),
+            points: vec![
+                positive_tip_edge,
+                negative_outer,
+                negative_control,
+                positive_notch_edge,
+            ],
+        }),
+        RenderArrowEndpointStyle::Right => Some(SolidArrowHeadPath {
+            d: format!(
+                "M {},{} L {},{} C {},{} {},{} {},{} Z",
+                negative_tip_edge.x,
+                negative_tip_edge.y,
+                positive_outer.x,
+                positive_outer.y,
+                positive_control.x,
+                positive_control.y,
+                negative_notch_edge.x,
+                negative_notch_edge.y,
+                negative_notch_edge.x,
+                negative_notch_edge.y,
+            ),
+            points: vec![
+                negative_tip_edge,
+                positive_outer,
+                positive_control,
+                negative_notch_edge,
+            ],
+        }),
+        RenderArrowEndpointStyle::Full | RenderArrowEndpointStyle::None => None,
+    }
+}
+
 fn solid_arrow_head_outer_half_width(arrow_head: ArrowHeadGeometry) -> f64 {
     arrow_head.width.max(0.0) + 0.05
 }
@@ -904,9 +986,30 @@ fn arrow_endpoint_shaft_trim(
 ) -> f64 {
     match style {
         RenderArrowEndpointStyle::Full => arrow_head.center_length,
-        RenderArrowEndpointStyle::Left | RenderArrowEndpointStyle::Right => arrow_head.length,
+        RenderArrowEndpointStyle::Left | RenderArrowEndpointStyle::Right => {
+            half_arrow_shaft_trim(arrow_head)
+        }
         RenderArrowEndpointStyle::None => 0.0,
     }
+}
+
+fn curved_arrow_endpoint_shaft_trim(
+    style: RenderArrowEndpointStyle,
+    arrow_head: ArrowHeadGeometry,
+) -> f64 {
+    match style {
+        RenderArrowEndpointStyle::Full => arrow_head.center_length,
+        RenderArrowEndpointStyle::Left | RenderArrowEndpointStyle::Right => {
+            half_arrow_shaft_trim(arrow_head)
+        }
+        RenderArrowEndpointStyle::None => 0.0,
+    }
+}
+
+fn half_arrow_shaft_trim(arrow_head: ArrowHeadGeometry) -> f64 {
+    (arrow_head.center_length.max(0.0).min(arrow_head.length)
+        - arrow_head.width.max(0.0) * 2.0 / 3.0)
+        .max(0.0)
 }
 
 #[allow(clippy::too_many_arguments)]

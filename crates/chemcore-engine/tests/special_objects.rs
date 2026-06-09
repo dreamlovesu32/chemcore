@@ -439,15 +439,15 @@ fn parse_cdxml_preserves_default_and_acs_hash_spacing_presets_for_dashed_bonds()
 }
 
 #[test]
-fn parse_cdxml_uses_uniform_non_bond_dash_spacing_for_dashed_lines() {
-    for fixture in ["dash.cdxml", "dash-acs.cdxml"] {
+fn parse_cdxml_uses_document_hash_spacing_for_dashed_lines() {
+    for (fixture, expected_dash) in [("dash.cdxml", 2.7_f64), ("dash-acs.cdxml", 2.5_f64)] {
         let cdxml = read_cdxml_fixture(fixture);
         let mut engine = Engine::new();
         engine
             .load_cdxml_document(&cdxml)
             .expect("cdxml should load into engine");
         let svg = engine.document_svg();
-        let expected_dash = (2.7_f64 * 100.0_f64).round() / 100.0;
+        let expected_dash = (expected_dash * 100.0_f64).round() / 100.0;
         let expected_dash_attr = format!("stroke-dasharray=\"{expected_dash}\"");
 
         assert!(

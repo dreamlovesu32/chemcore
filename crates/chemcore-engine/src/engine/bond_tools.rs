@@ -24,6 +24,131 @@ fn refresh_attached_label_geometry_for_bond_endpoints(
 }
 
 impl Engine {
+    pub fn text_format_icon_svg(kind: &str) -> String {
+        let runs = match kind {
+            "bold" => vec![text_icon_run("B", 16.0, Some(700), None, false, "normal")],
+            "italic" => vec![text_icon_run(
+                "I",
+                16.0,
+                Some(400),
+                Some("italic"),
+                false,
+                "normal",
+            )],
+            "underline" => vec![text_icon_run("U", 16.0, Some(400), None, true, "normal")],
+            "chemical" => vec![
+                text_icon_run("CH", 14.0, Some(400), None, false, "normal"),
+                text_icon_run("2", 14.0, Some(400), None, false, "subscript"),
+            ],
+            "subscript" => vec![
+                text_icon_run("X", 16.0, Some(400), None, false, "normal"),
+                text_icon_run("2", 16.0, Some(400), None, false, "subscript"),
+            ],
+            "superscript" => vec![
+                text_icon_run("X", 16.0, Some(400), None, false, "normal"),
+                text_icon_run("2", 16.0, Some(400), None, false, "superscript"),
+            ],
+            _ => return String::new(),
+        };
+        let fallback_font_size = runs
+            .first()
+            .and_then(|run| run.font_size)
+            .unwrap_or(crate::DEFAULT_TEXT_FONT_SIZE_PT);
+        let y = if kind == "superscript" { 16.8 } else { 17.0 };
+        let primitive = crate::RenderPrimitive::Text {
+            role: crate::RenderRole::DocumentText,
+            object_id: Some("__text_format_icon".to_string()),
+            node_id: None,
+            x: 12.0,
+            y,
+            baseline_offset: Some(fallback_font_size * 0.82),
+            dominant_baseline: None,
+            text: String::new(),
+            font_size: fallback_font_size,
+            font_family: Some("Arial".to_string()),
+            fill: Some("#000000".to_string()),
+            text_anchor: Some("middle".to_string()),
+            line_height: None,
+            preserve_lines: false,
+            box_width: None,
+            runs,
+            rotate: 0.0,
+            rotate_center: None,
+        };
+        let class_name = if matches!(kind, "chemical" | "subscript" | "superscript") {
+            "chemcore-icon cc-text-format-icon cc-script-icon"
+        } else {
+            "chemcore-icon cc-text-format-icon"
+        };
+        crate::primitives_to_svg_viewbox(&[primitive], [0.0, 0.0, 24.0, 24.0], Some(class_name))
+            .replace("#000000", "currentColor")
+    }
+
+    pub fn bond_tool_icon_svg(variant: BondVariant, stroke_width: f64, bold_width: f64) -> String {
+        let mut engine = Engine::new();
+        engine.set_document_style_preset(ACS_DOCUMENT_1996_PRESET);
+        let icon_stroke_width = stroke_width.max(0.1);
+        let geometry_stroke_width = crate::DEFAULT_BOND_STROKE.max(0.1);
+        engine.options.bond_stroke_width = if variant == BondVariant::Wavy {
+            geometry_stroke_width
+        } else {
+            icon_stroke_width
+        };
+        engine.options.graphic_stroke_width = icon_stroke_width;
+        engine.options.bold_bond_width = bold_width.max(engine.options.bond_stroke_width);
+        let mut tool = engine.state.tool.clone();
+        tool.active_tool = Tool::Bond;
+        tool.bond_variant = variant;
+        engine.set_tool_state(tool);
+
+        let bond_length = engine.options.bond_length_world_pt().value();
+        let angle = std::f64::consts::PI - std::f64::consts::FRAC_PI_6;
+        let half_axis = Point::new(
+            angle.cos() * bond_length * 0.5,
+            angle.sin() * bond_length * 0.5,
+        );
+        let center = Point::new(12.0, 12.0);
+        let anchor = BondAnchor {
+            node_id: None,
+            point: Point::new(center.x - half_axis.x, center.y - half_axis.y),
+            label_anchor: None,
+        };
+        let end = BondAnchor {
+            node_id: None,
+            point: Point::new(center.x + half_axis.x, center.y + half_axis.y),
+            label_anchor: None,
+        };
+        let order = match variant {
+            BondVariant::Double | BondVariant::DashedDouble => 2,
+            BondVariant::Triple => 3,
+            _ => 1,
+        };
+        let Some(document) = engine.document_with_preview_bond(&anchor, &end, order) else {
+            return String::new();
+        };
+        let mut primitives = crate::render_document(&document);
+        if variant == BondVariant::Wavy {
+            for primitive in &mut primitives {
+                if let crate::RenderPrimitive::Path {
+                    bond_id: Some(bond_id),
+                    stroke_width,
+                    ..
+                } = primitive
+                {
+                    if bond_id == "__preview_bond" {
+                        *stroke_width = icon_stroke_width;
+                    }
+                }
+            }
+        }
+        crate::primitives_to_svg_viewbox(
+            &primitives,
+            [0.0, 0.0, 24.0, 24.0],
+            Some("chemcore-icon cc-bond-icon"),
+        )
+        .replace("#000000", "currentColor")
+    }
+
     pub(super) fn document_with_preview_bond(
         &self,
         anchor: &BondAnchor,
@@ -190,5 +315,25 @@ impl Engine {
         self.clear_interaction();
         self.note_pending_select_target(PendingSelectTarget::MoleculeBond(bond_id.to_string()));
         true
+    }
+}
+
+fn text_icon_run(
+    text: &str,
+    font_size: f64,
+    font_weight: Option<u32>,
+    font_style: Option<&str>,
+    underline: bool,
+    script: &str,
+) -> crate::LabelRun {
+    crate::LabelRun {
+        text: text.to_string(),
+        font_family: Some("Arial".to_string()),
+        font_size: Some(font_size),
+        fill: Some("#000000".to_string()),
+        font_weight,
+        font_style: font_style.map(ToString::to_string),
+        underline: Some(underline),
+        script: Some(script.to_string()),
     }
 }

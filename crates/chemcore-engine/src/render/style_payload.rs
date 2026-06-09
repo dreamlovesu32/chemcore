@@ -130,10 +130,6 @@ pub(super) fn payload_arrow_head(
             .and_then(JsonValue::as_str)
             .map(arrow_head_kind)?,
         curve: value.get("curve").and_then(JsonValue::as_f64)?,
-        head_full: value
-            .get("head")
-            .and_then(JsonValue::as_str)
-            .is_some_and(|head| head.eq_ignore_ascii_case("full")),
         bold: value.get("bold").and_then(JsonValue::as_bool)?,
         no_go: value
             .get("noGo")

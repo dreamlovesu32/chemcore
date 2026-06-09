@@ -137,6 +137,16 @@ impl WasmEngine {
         self.inner.element_palette_json()
     }
 
+    #[wasm_bindgen(js_name = bondToolIconSvg)]
+    pub fn bond_tool_icon_svg(&self, variant: &str, stroke_width: f64, bold_width: f64) -> String {
+        Engine::bond_tool_icon_svg(parse_bond_variant(variant), stroke_width, bold_width)
+    }
+
+    #[wasm_bindgen(js_name = textFormatIconSvg)]
+    pub fn text_format_icon_svg(&self, kind: &str) -> String {
+        Engine::text_format_icon_svg(kind)
+    }
+
     #[wasm_bindgen(js_name = selectionChemistrySummaryJson)]
     pub fn selection_chemistry_summary_json(&self) -> String {
         self.inner.selection_chemistry_summary_json()

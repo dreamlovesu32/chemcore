@@ -29,6 +29,8 @@ import {
   rectContainsBounds,
 } from "./geometry.js";
 import {
+  BOND_TOOL_ICON_TYPES,
+  TEXT_FORMAT_ICON_TYPES,
   TEXT_FONT_OPTIONS,
   TEXT_FONT_SIZE_OPTIONS,
   formatToolbarFontSize,
@@ -334,6 +336,10 @@ const editorState = {
   activeTool: "bond",
   selectMode: "box",
   bondType: "single",
+  bondIconSvgs: {},
+  bondIconCacheKey: "",
+  textIconSvgs: {},
+  textIconCacheKey: "",
   textFontFamily: "Arial",
   textFontSize: ptToCssPx(DEFAULT_TEXT_FONT_SIZE),
   textColor: "#000000",
@@ -2065,6 +2071,7 @@ async function resetEditorEngine() {
   state.savedRevision = null;
   await syncEngineToolState();
   await syncDocumentFromEngine();
+  renderSecondaryToolbar();
   markCurrentDocumentSaved();
 }
 
@@ -2363,10 +2370,60 @@ async function syncArrowAwareCursorForPoint(point) {
   viewerSvg.style.cursor = overSelection ? "grab" : "default";
 }
 
+function toolbarBondIconWidths() {
+  const styles = getComputedStyle(document.documentElement);
+  const thinPx = parseFloat(styles.getPropertyValue("--cc-icon-stroke-thin")) || 1.65;
+  const thickPx = parseFloat(styles.getPropertyValue("--cc-icon-stroke-thick")) || 4.6;
+  const iconPx = parseFloat(styles.getPropertyValue("--icon-svg-size")) || 30;
+  const scale = 24 / Math.max(1, iconPx);
+  return {
+    thin: thinPx * scale,
+    thick: thickPx * scale,
+    key: `${thinPx}:${thickPx}:${iconPx}`,
+  };
+}
+
+function refreshBondToolIcons() {
+  const iconSvg = state.editorEngine?.bondToolIconSvg;
+  if (typeof iconSvg !== "function") {
+    return;
+  }
+  const widths = toolbarBondIconWidths();
+  const hasCompleteIconSet = BOND_TOOL_ICON_TYPES.every((type) => editorState.bondIconSvgs?.[type]);
+  if (editorState.bondIconCacheKey === widths.key && hasCompleteIconSet) {
+    return;
+  }
+  const icons = {};
+  for (const type of BOND_TOOL_ICON_TYPES) {
+    icons[type] = iconSvg.call(state.editorEngine, type, widths.thin, widths.thick);
+  }
+  editorState.bondIconSvgs = icons;
+  editorState.bondIconCacheKey = widths.key;
+}
+
+function refreshTextFormatIcons() {
+  const iconSvg = state.editorEngine?.textFormatIconSvg;
+  if (typeof iconSvg !== "function") {
+    return;
+  }
+  const hasCompleteIconSet = TEXT_FORMAT_ICON_TYPES.every((type) => editorState.textIconSvgs?.[type]);
+  if (editorState.textIconCacheKey === "kernel-text-v1" && hasCompleteIconSet) {
+    return;
+  }
+  const icons = {};
+  for (const type of TEXT_FORMAT_ICON_TYPES) {
+    icons[type] = iconSvg.call(state.editorEngine, type);
+  }
+  editorState.textIconSvgs = icons;
+  editorState.textIconCacheKey = "kernel-text-v1";
+}
+
 function renderSecondaryToolbar() {
   if (!secondaryToolbar) {
     return;
   }
+  refreshBondToolIcons();
+  refreshTextFormatIcons();
   editorState.documentColors = currentDocumentColors();
   editorState.colorPalette = currentToolbarColorPalette(editorState.documentColors);
   editorState.elementPalette = currentElementPalette();
@@ -3155,6 +3212,7 @@ const documentFlow = createDocumentFlow({
   syncEngineToolState,
   syncDocumentFromEngine,
   syncCoreRenderListFromCurrentDocument,
+  renderSecondaryToolbar,
   resetEditorEngine,
   pageViewBox,
   defaultEditorViewBox,

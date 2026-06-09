@@ -27,6 +27,7 @@ export const wasmengine_beginSelectionResize: (a: number, b: number, c: number, 
 export const wasmengine_beginSelectionRotate: (a: number, b: number, c: number) => number;
 export const wasmengine_beginTextEdit: (a: number, b: number, c: number) => [number, number, number, number];
 export const wasmengine_beginTlcSpotDragJson: (a: number, b: number, c: number) => [number, number, number, number];
+export const wasmengine_bondToolIconSvg: (a: number, b: number, c: number, d: number, e: number) => [number, number];
 export const wasmengine_canRedo: (a: number) => number;
 export const wasmengine_canUndo: (a: number) => number;
 export const wasmengine_centerSelectionOnPage: (a: number) => number;
@@ -98,6 +99,7 @@ export const wasmengine_setSymbolOptions: (a: number, b: number, c: number) => v
 export const wasmengine_setTemplate: (a: number, b: number, c: number) => void;
 export const wasmengine_setTool: (a: number, b: number, c: number, d: number, e: number) => void;
 export const wasmengine_stateJson: (a: number) => [number, number, number, number];
+export const wasmengine_textFormatIconSvg: (a: number, b: number, c: number) => [number, number];
 export const wasmengine_textSymbolPaletteJson: (a: number) => [number, number];
 export const wasmengine_tlcLaneGuideHitTestJson: (a: number, b: number, c: number) => [number, number, number, number];
 export const wasmengine_tlcSpotHitTestJson: (a: number, b: number, c: number) => [number, number, number, number];

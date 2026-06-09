@@ -110,7 +110,6 @@ pub(crate) struct ArrowHeadGeometry {
     width: f64,
     kind: ArrowHeadKind,
     curve: f64,
-    head_full: bool,
     bold: bool,
     no_go: ArrowNoGoGeometry,
 }
@@ -250,6 +249,50 @@ mod tests {
     fn equal_black_segment_gap_intervals_return_empty_when_too_short() {
         let gaps = equal_black_segment_gap_intervals(0.8, 0.0, 0.0, 1.0, 1.5);
         assert!(gaps.is_empty());
+    }
+
+    fn assert_gap_intervals(actual: &[(f64, f64)], expected: &[(f64, f64)]) {
+        assert_eq!(actual.len(), expected.len(), "{actual:?}");
+        for ((actual_start, actual_end), (expected_start, expected_end)) in
+            actual.iter().zip(expected.iter())
+        {
+            assert!(
+                (actual_start - expected_start).abs() < 0.01
+                    && (actual_end - expected_end).abs() < 0.01,
+                "actual={actual:?}, expected={expected:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn chemdraw_dashed_bond_gap_intervals_anchor_black_segments() {
+        assert_gap_intervals(
+            &chemdraw_dashed_bond_gap_intervals(14.4, 2.5, 2.5),
+            &[(2.5, 5.95), (8.45, 11.9)],
+        );
+        assert_gap_intervals(
+            &chemdraw_dashed_bond_gap_intervals(36.0, 2.5, 2.5),
+            &[
+                (2.5, 5.5833333333),
+                (8.0833333333, 11.1666666667),
+                (13.6666666667, 16.75),
+                (19.25, 22.3333333333),
+                (24.8333333333, 27.9166666667),
+                (30.4166666667, 33.5),
+            ],
+        );
+    }
+
+    #[test]
+    fn chemdraw_dashed_bond_gap_intervals_keep_short_bonds_single_segment() {
+        assert_gap_intervals(
+            &chemdraw_dashed_bond_gap_intervals(7.0, 2.5, 2.5),
+            &[(2.5, 7.0)],
+        );
+        assert_gap_intervals(
+            &chemdraw_dashed_bond_gap_intervals(8.0, 2.5, 2.5),
+            &[(2.5, 5.5)],
+        );
     }
 
     #[test]
