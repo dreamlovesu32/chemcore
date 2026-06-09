@@ -460,21 +460,21 @@ body.browser-shell .document-tabbar {
   overflow: visible;
 }
 
-.editor-topbar svg:not(.cc-bond-icon) path,
-.editor-topbar svg:not(.cc-bond-icon) rect,
-.editor-topbar svg:not(.cc-bond-icon) circle,
-.tool-rail svg:not(.cc-bond-icon) path,
-.tool-rail svg:not(.cc-bond-icon) rect,
-.tool-rail svg:not(.cc-bond-icon) circle,
-.tool-rail svg:not(.cc-bond-icon) polygon,
-.quick-palette svg:not(.cc-bond-icon) path,
-.quick-palette svg:not(.cc-bond-icon) rect,
-.quick-palette svg:not(.cc-bond-icon) circle,
-.quick-palette svg:not(.cc-bond-icon) polygon,
-.toolbar-row-secondary svg:not(.cc-bond-icon) path,
-.toolbar-row-secondary svg:not(.cc-bond-icon) rect,
-.toolbar-row-secondary svg:not(.cc-bond-icon) circle,
-.toolbar-row-secondary svg:not(.cc-bond-icon) polygon {
+.editor-topbar svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) path,
+.editor-topbar svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) rect,
+.editor-topbar svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) circle,
+.tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) path,
+.tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) rect,
+.tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) circle,
+.tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) polygon,
+.quick-palette svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) path,
+.quick-palette svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) rect,
+.quick-palette svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) circle,
+.quick-palette svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) polygon,
+.toolbar-row-secondary svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) path,
+.toolbar-row-secondary svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) rect,
+.toolbar-row-secondary svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) circle,
+.toolbar-row-secondary svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon) polygon {
   fill: none;
   stroke: currentColor;
   stroke-width: var(--chrome-svg-stroke-width);
@@ -571,6 +571,10 @@ body.browser-shell .document-tabbar {
 
 .chemcore-icon .cc-arrow {
   stroke-width: var(--cc-arrow-stroke-width);
+}
+
+.chemcore-icon .cc-arrow-butt {
+  stroke-linecap: butt;
 }
 
 .chemcore-icon .cc-arrow-bold {

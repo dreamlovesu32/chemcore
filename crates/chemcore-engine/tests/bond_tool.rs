@@ -731,13 +731,13 @@ fn arrow_tool_defaults_to_small_head_without_selecting_created_arrow() {
 }
 
 #[test]
-fn hollow_and_open_arrow_sizes_use_their_own_three_step_template() {
+fn hollow_and_open_arrow_sizes_use_their_own_two_step_template() {
     for (variant, size, expected) in [
         (ArrowVariant::Hollow, ArrowHeadSize::Large, 12.0),
-        (ArrowVariant::Hollow, ArrowHeadSize::Medium, 9.0),
+        (ArrowVariant::Hollow, ArrowHeadSize::Medium, 6.0),
         (ArrowVariant::Hollow, ArrowHeadSize::Small, 6.0),
         (ArrowVariant::Open, ArrowHeadSize::Large, 12.0),
-        (ArrowVariant::Open, ArrowHeadSize::Medium, 9.0),
+        (ArrowVariant::Open, ArrowHeadSize::Medium, 6.0),
         (ArrowVariant::Open, ArrowHeadSize::Small, 6.0),
     ] {
         let mut engine = Engine::new();

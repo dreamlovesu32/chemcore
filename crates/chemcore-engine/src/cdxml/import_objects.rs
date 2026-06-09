@@ -51,14 +51,8 @@ pub(super) fn append_line_objects(
         );
         if is_arrow {
             let mut arrow_head = BTreeMap::new();
-            arrow_head.insert(
-                "kind".to_string(),
-                json!(node
-                    .attr("ArrowheadType")
-                    .or_else(|| node.attr("ArrowType"))
-                    .unwrap_or("Solid")
-                    .to_ascii_lowercase()),
-            );
+            let cdxml_kind = cdxml_arrow_kind(node);
+            arrow_head.insert("kind".to_string(), json!(cdxml_kind));
             arrow_head.insert(
                 "head".to_string(),
                 json!(canonical_arrow_endpoint(
@@ -94,8 +88,11 @@ pub(super) fn append_line_objects(
             arrow_head.insert(
                 "centerLength".to_string(),
                 json!(cdxml_arrow_size_for_render_scale(
-                    parse_scaled_100(node.attr("ArrowheadCenterSize"))
-                        .or_else(|| parse_scaled_100(node.attr("ArrowShaftSpacing"))),
+                    parse_scaled_100(node.attr("ArrowheadCenterSize")).or_else(|| {
+                        (cdxml_kind != "equilibrium")
+                            .then(|| parse_scaled_100(node.attr("ArrowShaftSpacing")))
+                            .flatten()
+                    }),
                     crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.875,
                     defaults.line_width,
                     stroke_width,
@@ -110,6 +107,17 @@ pub(super) fn append_line_objects(
                     stroke_width,
                 )),
             );
+            if cdxml_kind == "equilibrium" {
+                arrow_head.insert(
+                    "shaftSpacing".to_string(),
+                    json!(cdxml_arrow_size_for_render_scale(
+                        parse_scaled_100(node.attr("ArrowShaftSpacing")),
+                        3.0,
+                        defaults.line_width,
+                        stroke_width,
+                    )),
+                );
+            }
             if let Some(curve) =
                 parse_f64(node.attr("AngularSize")).filter(|value| value.abs() > crate::EPSILON)
             {
@@ -187,6 +195,33 @@ pub(super) fn append_line_objects(
             children: Vec::new(),
         });
         index += 1;
+    }
+}
+
+fn cdxml_arrow_kind(node: &XmlNode) -> &'static str {
+    let explicit_kind = node
+        .attr("ArrowType")
+        .or_else(|| node.attr("ArrowheadType"))
+        .unwrap_or("Solid")
+        .to_ascii_lowercase();
+    if explicit_kind == "equilibrium" {
+        return "equilibrium";
+    }
+    let head = canonical_arrow_endpoint(node.attr("ArrowheadHead").unwrap_or("None"));
+    let tail = canonical_arrow_endpoint(node.attr("ArrowheadTail").unwrap_or("None"));
+    let has_equilibrium_spacing = node.attr("ArrowShaftSpacing").is_some();
+    if explicit_kind == "solid"
+        && has_equilibrium_spacing
+        && head != "none"
+        && head == tail
+        && matches!(head, "half-left" | "half-right")
+    {
+        return "equilibrium";
+    }
+    match explicit_kind.as_str() {
+        "hollow" => "hollow",
+        "angle" | "open" | "retrosynthetic" => "open",
+        _ => "solid",
     }
 }
 

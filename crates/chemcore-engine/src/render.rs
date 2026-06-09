@@ -108,6 +108,7 @@ pub(crate) struct ArrowHeadGeometry {
     length: f64,
     center_length: f64,
     width: f64,
+    shaft_spacing: f64,
     kind: ArrowHeadKind,
     curve: f64,
     bold: bool,
@@ -127,6 +128,7 @@ pub(crate) enum ArrowHeadKind {
     Solid,
     Hollow,
     Open,
+    Equilibrium,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

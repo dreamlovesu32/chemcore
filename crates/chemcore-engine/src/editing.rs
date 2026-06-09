@@ -94,6 +94,7 @@ pub enum ArrowVariant {
     CurvedMirror,
     Hollow,
     Open,
+    Equilibrium,
 }
 
 impl Default for ArrowVariant {

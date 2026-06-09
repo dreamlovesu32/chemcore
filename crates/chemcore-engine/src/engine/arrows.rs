@@ -36,14 +36,17 @@ fn arrow_head_dimensions(size: ArrowHeadSize, bold: bool) -> (f64, f64, f64) {
 fn open_arrow_head_dimensions(size: ArrowHeadSize, bold: bool) -> (f64, f64, f64) {
     let (length, center_length, width) = match size {
         ArrowHeadSize::Large => (12.0, 12.0, 3.0),
-        ArrowHeadSize::Medium => (9.0, 9.0, 2.25),
-        ArrowHeadSize::Small => (6.0, 6.0, 1.5),
+        ArrowHeadSize::Medium | ArrowHeadSize::Small => (6.0, 6.0, 1.5),
     };
     if bold {
         (length * 2.0, center_length * 2.0, width * 2.0)
     } else {
         (length, center_length, width)
     }
+}
+
+fn equilibrium_arrow_shaft_spacing(_size: ArrowHeadSize, _bold: bool) -> f64 {
+    3.0
 }
 
 pub(super) fn arrow_payload_dimensions(
@@ -53,8 +56,22 @@ pub(super) fn arrow_payload_dimensions(
 ) -> (f64, f64, f64) {
     match variant {
         ArrowVariant::Solid => arrow_head_dimensions(size, bold),
-        ArrowVariant::Curved | ArrowVariant::CurvedMirror => arrow_head_dimensions(size, bold),
+        ArrowVariant::Curved | ArrowVariant::CurvedMirror | ArrowVariant::Equilibrium => {
+            arrow_head_dimensions(size, bold)
+        }
         ArrowVariant::Hollow | ArrowVariant::Open => open_arrow_head_dimensions(size, bold),
+    }
+}
+
+fn arrow_payload_shaft_spacing(
+    variant: ArrowVariant,
+    size: ArrowHeadSize,
+    bold: bool,
+) -> Option<f64> {
+    if variant == ArrowVariant::Equilibrium {
+        Some(equilibrium_arrow_shaft_spacing(size, bold))
+    } else {
+        None
     }
 }
 
@@ -71,7 +88,10 @@ pub(super) fn arrow_curve_sweep_degrees(variant: ArrowVariant, curve: ArrowCurve
     match variant {
         ArrowVariant::Curved => -arrow_curve_degrees(curve),
         ArrowVariant::CurvedMirror => arrow_curve_degrees(curve),
-        ArrowVariant::Solid | ArrowVariant::Hollow | ArrowVariant::Open => 0.0,
+        ArrowVariant::Solid
+        | ArrowVariant::Hollow
+        | ArrowVariant::Open
+        | ArrowVariant::Equilibrium => 0.0,
     }
 }
 
@@ -103,6 +123,7 @@ pub(super) fn arrow_variant_name(variant: ArrowVariant) -> &'static str {
         ArrowVariant::CurvedMirror => "curved-mirror",
         ArrowVariant::Hollow => "hollow",
         ArrowVariant::Open => "open",
+        ArrowVariant::Equilibrium => "equilibrium",
     }
 }
 
@@ -237,6 +258,11 @@ impl Engine {
             self.state.tool.arrow_head_size,
             self.state.tool.arrow_bold,
         );
+        let shaft_spacing = arrow_payload_shaft_spacing(
+            self.state.tool.arrow_variant,
+            self.state.tool.arrow_head_size,
+            self.state.tool.arrow_bold,
+        );
         let head_style = self.state.tool.arrow_head_style;
         let tail_style = self.state.tool.arrow_tail_style;
         let head_enabled = arrow_endpoint_enabled(head_style);
@@ -260,9 +286,7 @@ impl Engine {
         );
         let curve =
             arrow_curve_sweep_degrees(self.state.tool.arrow_variant, self.state.tool.arrow_curve);
-        extra.insert(
-            "arrowHead".to_string(),
-            json!({
+        let mut arrow_head_payload = json!({
                 "kind": arrow_variant_name(self.state.tool.arrow_variant),
                 "curve": curve,
                 "head": arrow_endpoint_payload_name(head_style),
@@ -272,8 +296,13 @@ impl Engine {
                 "width": width,
                 "bold": self.state.tool.arrow_bold,
                 "noGo": arrow_no_go_payload_name(self.state.tool.arrow_no_go),
-            }),
-        );
+        });
+        if let Some(shaft_spacing) = shaft_spacing {
+            if let Some(object) = arrow_head_payload.as_object_mut() {
+                object.insert("shaftSpacing".to_string(), json!(shaft_spacing));
+            }
+        }
+        extra.insert("arrowHead".to_string(), arrow_head_payload);
         if let Some(geometry) = crate::default_arrow_arc_geometry_payload(start, end, curve) {
             extra.insert("arrowGeometry".to_string(), geometry);
         }
@@ -356,6 +385,7 @@ impl Engine {
             return false;
         }
         let (length, center_length, width) = arrow_payload_dimensions(variant, head_size, bold);
+        let shaft_spacing = arrow_payload_shaft_spacing(variant, head_size, bold);
         let mut updates = Vec::new();
         for (index, object) in self.state.document.objects.iter().enumerate() {
             if object.object_type != "line" || !selected.contains(&object.id) {
@@ -385,9 +415,7 @@ impl Engine {
                 ),
             );
             let curve_degrees = arrow_curve_sweep_degrees(variant, curve);
-            next_extra.insert(
-                "arrowHead".to_string(),
-                json!({
+            let mut arrow_head_payload = json!({
                     "kind": arrow_variant_name(variant),
                     "curve": curve_degrees,
                     "head": arrow_endpoint_payload_name(head_style),
@@ -397,8 +425,13 @@ impl Engine {
                     "width": width,
                     "bold": bold,
                     "noGo": arrow_no_go_payload_name(no_go),
-                }),
-            );
+            });
+            if let Some(shaft_spacing) = shaft_spacing {
+                if let Some(object) = arrow_head_payload.as_object_mut() {
+                    object.insert("shaftSpacing".to_string(), json!(shaft_spacing));
+                }
+            }
+            next_extra.insert("arrowHead".to_string(), arrow_head_payload);
             if let Some((start, end)) = crate::arrow_payload_line_endpoints(&next_extra) {
                 if let Some(geometry) =
                     crate::default_arrow_arc_geometry_payload(start, end, curve_degrees)

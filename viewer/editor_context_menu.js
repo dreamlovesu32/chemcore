@@ -386,7 +386,12 @@ export function createCanvasContextMenuHost(options) {
       syncEditorArrowStateFromSelectedLine();
       const [endpoint, style] = value.split(":");
       const nextStyle = style || "none";
-      if (endpoint === "head") {
+      if (options.editorState().arrowType === "equilibrium" && (nextStyle === "left" || nextStyle === "right")) {
+        options.editorState().arrowHeadStyle = nextStyle;
+        options.editorState().arrowTailStyle = nextStyle;
+        options.editorState().arrowHead = true;
+        options.editorState().arrowTail = true;
+      } else if (endpoint === "head") {
         options.editorState().arrowHeadStyle = selectedUniformArrowEndpoint("head") === endpointStylePayloadName(nextStyle) ? "none" : nextStyle;
         options.editorState().arrowHead = options.editorState().arrowHeadStyle !== "none";
       } else {
@@ -419,9 +424,10 @@ export function createCanvasContextMenuHost(options) {
     }
     const arrowHead = line.payload?.arrowHead || {};
     const kind = arrowHead.kind || "solid";
-    if (["solid", "curved", "curved-mirror", "hollow", "open"].includes(kind)) {
+    if (["solid", "curved", "curved-mirror", "hollow", "open", "equilibrium"].includes(kind)) {
       options.editorState().arrowType = kind;
     }
+    options.editorState().arrowHeadSize = arrowHeadSizeFromPayload(arrowHead, kind);
     const curve = Math.abs(Number(arrowHead.curve || 0));
     if (curve >= 260) {
       options.editorState().arrowCurve = "270";
@@ -438,7 +444,22 @@ export function createCanvasContextMenuHost(options) {
     options.editorState().arrowTailStyle = tail === "half-left" ? "left" : tail === "half-right" ? "right" : tail;
     options.editorState().arrowHead = options.editorState().arrowHeadStyle !== "none";
     options.editorState().arrowTail = options.editorState().arrowTailStyle !== "none";
+    options.editorState().arrowNoGo = arrowHead.noGo === "cross" || arrowHead.noGo === "hash" ? arrowHead.noGo : "none";
     options.editorState().arrowBold = !!arrowHead.bold;
+  }
+
+  function arrowHeadSizeFromPayload(arrowHead, kind) {
+    const length = Number(arrowHead.length || 0);
+    if (kind === "hollow" || kind === "open") {
+      return length >= 9 ? "large" : "small";
+    }
+    if (length >= 18) {
+      return "large";
+    }
+    if (length >= 12.5) {
+      return "medium";
+    }
+    return "small";
   }
 
   return {

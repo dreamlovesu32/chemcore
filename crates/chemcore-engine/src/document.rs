@@ -345,6 +345,14 @@ fn normalize_arrow_head_payload(extra: &mut BTreeMap<String, Value>) {
         .map(canonical_arrow_no_go)
         .unwrap_or("none");
     arrow_head.insert("noGo".to_string(), json!(no_go));
+
+    if kind == "equilibrium" {
+        let shaft_spacing = object_number(arrow_head, "shaftSpacing")
+            .or_else(|| object_number(arrow_head, "shaft_spacing"))
+            .filter(|value| *value > 0.0)
+            .unwrap_or(3.0);
+        arrow_head.insert("shaftSpacing".to_string(), json!(round2(shaft_spacing)));
+    }
 }
 
 fn object_number(object: &Map<String, Value>, key: &str) -> Option<f64> {
@@ -355,6 +363,7 @@ fn canonical_arrow_head_kind(value: &str) -> &'static str {
     match value.to_ascii_lowercase().as_str() {
         "hollow" => "hollow",
         "angle" | "open" | "retrosynthetic" => "open",
+        "equilibrium" => "equilibrium",
         _ => "solid",
     }
 }

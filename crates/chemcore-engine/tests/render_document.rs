@@ -15,6 +15,18 @@ const fn cdxml_cm_to_pt(value: f64) -> f64 {
 
 const CDXML_EDIT_SCALE: f64 = 1.0;
 
+fn assert_close(left: f64, right: f64) {
+    assert!(
+        (left - right).abs() < 1e-6,
+        "expected {left:.6} to equal {right:.6}"
+    );
+}
+
+fn assert_point_close(left: Point, right: Point) {
+    assert_close(left.x, right.x);
+    assert_close(left.y, right.y);
+}
+
 fn fragment_document(nodes: serde_json::Value, bonds: serde_json::Value) -> ChemcoreDocument {
     serde_json::from_value(json!({
         "format": { "name": "chemcore", "version": "0.1" },
@@ -5415,6 +5427,99 @@ fn render_document_emits_arrow_line_primitives() {
 }
 
 #[test]
+fn render_document_rounds_inner_curved_half_arrow_heads() {
+    let document: ChemcoreDocument = serde_json::from_value(json!({
+        "format": { "name": "chemcore", "version": "0.1" },
+        "document": {
+            "id": "doc_test",
+            "title": "test",
+            "page": { "width": 100.0, "height": 60.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_arrow_default": {
+                "kind": "stroke",
+                "stroke": "#000000",
+                "strokeWidth": 1.0,
+                "lineCap": "butt",
+                "lineJoin": "miter"
+            }
+        },
+        "objects": [{
+            "id": "obj_line_001",
+            "type": "line",
+            "visible": true,
+            "zIndex": 10,
+            "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+            "styleRef": "style_arrow_default",
+            "payload": {
+                "points": [[40.0, 20.0], [60.0, 20.0]],
+                "head": "end",
+                "tail": "none",
+                "arrowHead": {
+                    "kind": "solid",
+                    "length": 10.0,
+                    "centerLength": 8.75,
+                    "width": 2.5,
+                    "curve": -120.0,
+                    "head": "half-right",
+                    "tail": "none",
+                    "bold": false,
+                    "noGo": "none"
+                },
+                "arrowGeometry": {
+                    "center": [50.0, 25.77],
+                    "majorAxisEnd": [61.55, 25.77],
+                    "minorAxisEnd": [50.0, 37.32]
+                }
+            }
+        }],
+        "resources": {}
+    }))
+    .expect("document should deserialize");
+
+    let primitives = render_document(&document);
+    let shaft_end = primitives
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Path {
+                role,
+                object_id,
+                points,
+                ..
+            } if *role == RenderRole::DocumentGraphic
+                && object_id.as_deref() == Some("obj_line_001") =>
+            {
+                points.last().copied()
+            }
+            _ => None,
+        })
+        .expect("inner curved half arrow shaft path");
+    let half_head_points = primitives
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::FilledPath {
+                role,
+                object_id,
+                points,
+                ..
+            } if *role == RenderRole::DocumentGraphic
+                && object_id.as_deref() == Some("obj_line_001")
+                && points.len() == 4 =>
+            {
+                Some(points.clone())
+            }
+            _ => None,
+        })
+        .expect("inner curved half arrow head path");
+
+    let cut_edge = half_head_points[3];
+    assert!(
+        shaft_end.distance(cut_edge) <= 0.65,
+        "inner curved half-arrow shaft should stop at the head cut edge, shaft={shaft_end:?}, head={half_head_points:?}"
+    );
+}
+
+#[test]
 fn render_document_uses_open_arrow_width_as_extra_head_width() {
     let document: ChemcoreDocument = serde_json::from_value(json!({
         "format": { "name": "chemcore", "version": "0.1" },
@@ -5655,6 +5760,147 @@ fn cdxml_acs_hollow_and_open_arrows_keep_chemdraw_head_width() {
 }
 
 #[test]
+fn cdxml_imports_hollow_and_open_arrows_as_two_chemdraw_sizes() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML LineWidth="0.60">
+  <page id="1">
+    <arrow id="1" ArrowheadHead="Full" ArrowheadType="Hollow" HeadSize="1200" ArrowheadCenterSize="1200" ArrowheadWidth="300" ArrowShaftSpacing="1200" Head3D="110 20 0" Tail3D="10 20 0"/>
+    <arrow id="2" ArrowheadHead="Full" ArrowheadType="Hollow" HeadSize="600" ArrowheadCenterSize="600" ArrowheadWidth="150" ArrowShaftSpacing="600" Head3D="110 50 0" Tail3D="10 50 0"/>
+    <arrow id="3" ArrowheadHead="Full" ArrowheadType="Angle" HeadSize="1200" ArrowheadCenterSize="1200" ArrowheadWidth="300" ArrowShaftSpacing="1200" Head3D="110 80 0" Tail3D="10 80 0"/>
+    <arrow id="4" ArrowheadHead="Full" ArrowheadType="Angle" HeadSize="600" ArrowheadCenterSize="600" ArrowheadWidth="150" ArrowShaftSpacing="600" Head3D="110 110 0" Tail3D="10 110 0"/>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("hollow-open-sizes"))
+        .expect("CDXML hollow/open arrows should parse");
+    let arrow_head_for = |object_id: &str| {
+        document
+            .objects
+            .iter()
+            .find(|object| object.id == object_id)
+            .and_then(|object| object.payload.extra.get("arrowHead"))
+            .cloned()
+            .expect("arrowHead payload")
+    };
+    for (object_id, expected_kind, expected_length, expected_width) in [
+        ("obj_line_001", "hollow", 12.0, 3.0),
+        ("obj_line_002", "hollow", 6.0, 1.5),
+        ("obj_line_003", "open", 12.0, 3.0),
+        ("obj_line_004", "open", 6.0, 1.5),
+    ] {
+        let arrow_head = arrow_head_for(object_id);
+        assert_eq!(
+            arrow_head.get("kind").and_then(serde_json::Value::as_str),
+            Some(expected_kind),
+            "{object_id}"
+        );
+        assert_eq!(
+            arrow_head.get("length").and_then(serde_json::Value::as_f64),
+            Some(expected_length),
+            "{object_id}"
+        );
+        assert_eq!(
+            arrow_head
+                .get("centerLength")
+                .and_then(serde_json::Value::as_f64),
+            Some(expected_length),
+            "{object_id}"
+        );
+        assert_eq!(
+            arrow_head.get("width").and_then(serde_json::Value::as_f64),
+            Some(expected_width),
+            "{object_id}"
+        );
+    }
+}
+
+#[test]
+fn cdxml_imports_exports_and_renders_equilibrium_arrows() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML LineWidth="1" BoldWidth="4" BondLength="30" LabelSize="10" CaptionSize="12">
+  <page id="1" BoundingBox="0 0 140 60">
+    <arrow id="1" ArrowheadHead="HalfLeft" ArrowheadTail="HalfLeft" ArrowheadType="Solid"
+      HeadSize="1500" ArrowheadCenterSize="1313" ArrowheadWidth="375" ArrowShaftSpacing="300"
+      Head3D="110 30 0" Tail3D="10 30 0"/>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("equilibrium arrow"))
+        .expect("CDXML equilibrium arrow should parse");
+    let arrow = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "line")
+        .expect("arrow should import as line");
+    let arrow_head = arrow
+        .payload
+        .extra
+        .get("arrowHead")
+        .expect("equilibrium arrow should carry arrowHead payload");
+    assert_eq!(
+        arrow_head.get("kind").and_then(serde_json::Value::as_str),
+        Some("equilibrium")
+    );
+    assert_eq!(
+        arrow_head.get("head").and_then(serde_json::Value::as_str),
+        Some("half-left")
+    );
+    assert_eq!(
+        arrow_head.get("tail").and_then(serde_json::Value::as_str),
+        Some("half-left")
+    );
+    assert_eq!(
+        arrow_head.get("length").and_then(serde_json::Value::as_f64),
+        Some(15.0)
+    );
+    assert_eq!(
+        arrow_head
+            .get("centerLength")
+            .and_then(serde_json::Value::as_f64),
+        Some(13.13)
+    );
+    assert_eq!(
+        arrow_head.get("width").and_then(serde_json::Value::as_f64),
+        Some(3.75)
+    );
+    assert_eq!(
+        arrow_head
+            .get("shaftSpacing")
+            .and_then(serde_json::Value::as_f64),
+        Some(3.0)
+    );
+
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("ArrowheadType=\"Solid\""));
+    assert!(exported.contains("ArrowShaftSpacing=\"300\""));
+    assert!(!exported.contains("ArrowheadType=\"Equilibrium\""));
+
+    let primitives: Vec<_> = render_document(&document)
+        .into_iter()
+        .filter(|primitive| match primitive {
+            RenderPrimitive::Polyline { object_id, .. }
+            | RenderPrimitive::FilledPath { object_id, .. } => {
+                object_id.as_deref() == Some(&arrow.id)
+            }
+            _ => false,
+        })
+        .collect();
+    assert_eq!(primitives.len(), 4);
+    assert_eq!(
+        primitives
+            .iter()
+            .filter(|primitive| matches!(primitive, RenderPrimitive::Polyline { .. }))
+            .count(),
+        2
+    );
+    assert_eq!(
+        primitives
+            .iter()
+            .filter(|primitive| matches!(primitive, RenderPrimitive::FilledPath { .. }))
+            .count(),
+        2
+    );
+}
+
+#[test]
 fn render_document_emits_arrow_no_go_marks_at_current_head_size() {
     let document: ChemcoreDocument = serde_json::from_value(json!({
         "format": { "name": "chemcore", "version": "0.1" },
@@ -5672,55 +5918,107 @@ fn render_document_emits_arrow_no_go_marks_at_current_head_size() {
                 "lineJoin": "miter"
             }
         },
-        "objects": [{
-            "id": "obj_line_001",
-            "type": "line",
-            "visible": true,
-            "zIndex": 10,
-            "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
-            "styleRef": "style_arrow_default",
-            "payload": {
-                "points": [[10.0, 20.0], [110.0, 20.0]],
-                "head": "end",
-                "tail": "none",
-                "arrowHead": {
-                    "kind": "solid",
-                    "length": 10.0,
-                    "centerLength": 8.75,
-                    "width": 2.5,
-                    "curve": 0.0,
-                    "head": "full",
+        "objects": [
+            {
+                "id": "obj_line_001",
+                "type": "line",
+                "visible": true,
+                "zIndex": 10,
+                "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "styleRef": "style_arrow_default",
+                "payload": {
+                    "points": [[10.0, 20.0], [110.0, 20.0]],
+                    "head": "end",
                     "tail": "none",
-                    "bold": false,
-                    "noGo": "hash"
+                    "arrowHead": {
+                        "kind": "solid",
+                        "length": 10.0,
+                        "centerLength": 8.75,
+                        "width": 2.5,
+                        "curve": 0.0,
+                        "head": "full",
+                        "tail": "none",
+                        "bold": false,
+                        "noGo": "hash"
+                    }
+                }
+            },
+            {
+                "id": "obj_line_002",
+                "type": "line",
+                "visible": true,
+                "zIndex": 11,
+                "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "styleRef": "style_arrow_default",
+                "payload": {
+                    "points": [[10.0, 60.0], [110.0, 60.0]],
+                    "head": "end",
+                    "tail": "none",
+                    "arrowHead": {
+                        "kind": "solid",
+                        "length": 10.0,
+                        "centerLength": 8.75,
+                        "width": 2.5,
+                        "curve": 0.0,
+                        "head": "full",
+                        "tail": "none",
+                        "bold": false,
+                        "noGo": "cross"
+                    }
                 }
             }
-        }],
+        ],
         "resources": {}
     }))
     .expect("document should deserialize");
 
     let primitives = render_document(&document);
-    let center_mark_count = primitives
+    let mark_lines_for = |object_id: &str| -> Vec<(Point, Point, f64)> {
+        primitives
+            .iter()
+            .filter_map(|primitive| match primitive {
+                RenderPrimitive::Line {
+                    role,
+                    object_id: primitive_object_id,
+                    from,
+                    to,
+                    stroke_width,
+                    ..
+                } if *role == RenderRole::DocumentGraphic
+                    && primitive_object_id.as_deref() == Some(object_id) =>
+                {
+                    Some((*from, *to, *stroke_width))
+                }
+                _ => None,
+            })
+            .collect()
+    };
+
+    let hash_marks = mark_lines_for("obj_line_001");
+    assert_eq!(hash_marks.len(), 2);
+    for (from, to, stroke_width) in &hash_marks {
+        assert_close(*stroke_width, 0.72);
+        assert_close(from.distance(*to), 10.0 * 0.72 * 5.0_f64.sqrt() * 0.5);
+    }
+    let mut hash_centers: Vec<Point> = hash_marks
         .iter()
-        .filter(|primitive| match primitive {
-            RenderPrimitive::Polygon {
-                role,
-                object_id,
-                points,
-                ..
-            } if *role == RenderRole::DocumentGraphic
-                && object_id.as_deref() == Some("obj_line_001")
-                && points.len() == 4 =>
-            {
-                let center_x =
-                    points.iter().map(|point| point.x).sum::<f64>() / points.len() as f64;
-                center_x > 40.0 && center_x < 80.0
-            }
-            _ => false,
-        })
-        .count();
-    assert_eq!(center_mark_count, 2);
+        .map(|(from, to, _)| Point::new((from.x + to.x) * 0.5, (from.y + to.y) * 0.5))
+        .collect();
+    hash_centers.sort_by(|a, b| a.x.partial_cmp(&b.x).unwrap());
+    assert_point_close(hash_centers[0], Point::new(60.0 - 10.0 * 0.72 * 0.25, 20.0));
+    assert_point_close(hash_centers[1], Point::new(60.0 + 10.0 * 0.72 * 0.25, 20.0));
+    assert_close(hash_centers[0].distance(hash_centers[1]), 10.0 * 0.72 * 0.5);
+
+    let cross_marks = mark_lines_for("obj_line_002");
+    assert_eq!(cross_marks.len(), 2);
+    for (from, to, stroke_width) in &cross_marks {
+        assert_close(*stroke_width, 0.72);
+        assert_close(from.distance(*to), 10.0 * 0.72 * std::f64::consts::SQRT_2);
+        assert_point_close(
+            Point::new((from.x + to.x) * 0.5, (from.y + to.y) * 0.5),
+            Point::new(60.0, 60.0),
+        );
+    }
 }
 
 #[test]

@@ -620,14 +620,35 @@ async function handleSecondaryToolbarValue(value, options) {
     await options.applySelectionArrangeCommand(value);
   } else if (value?.startsWith("bond-")) {
     editorState.bondType = value.replace("bond-", "");
+  } else if (value === "arrow-type-nogo-cross" || value === "arrow-type-nogo-hash") {
+    editorState.arrowType = "solid";
+    editorState.arrowHeadSize = "small";
+    editorState.arrowCurve = "270";
+    editorState.arrowHeadStyle = "full";
+    editorState.arrowTailStyle = "none";
+    editorState.arrowHead = true;
+    editorState.arrowTail = false;
+    editorState.arrowNoGo = value === "arrow-type-nogo-cross" ? "cross" : "hash";
+    editorState.arrowBold = false;
+    arrowOptionChanged = true;
   } else if (value?.startsWith("arrow-type-")) {
+    const previousArrowType = editorState.arrowType;
     editorState.arrowType = value.replace("arrow-type-", "");
-    arrowOptionChanged = normalizeArrowEndpointOptions(editorState);
+    if (isOpenArrowType(editorState.arrowType) && !isOpenArrowType(previousArrowType)) {
+      editorState.arrowHeadSize = "large";
+    }
+    if (editorState.arrowType === "equilibrium" && previousArrowType !== "equilibrium") {
+      editorState.arrowHeadSize = "small";
+    }
+    normalizeArrowToolbarStyle(editorState);
+    arrowOptionChanged = true;
   } else if (value?.startsWith("arrow-size-")) {
     editorState.arrowHeadSize = value.replace("arrow-size-", "");
+    normalizeArrowToolbarStyle(editorState);
     arrowOptionChanged = true;
   } else if (value?.startsWith("arrow-curve-")) {
     editorState.arrowCurve = value.replace("arrow-curve-", "");
+    normalizeCurvedArrowStyle(editorState);
     arrowOptionChanged = true;
   } else if (value === "arrow-line") {
     editorState.arrowHeadStyle = "none";
@@ -645,13 +666,18 @@ async function handleSecondaryToolbarValue(value, options) {
     arrowOptionChanged = true;
   } else if (value === "arrow-head-left" || value === "arrow-head-right") {
     const next = value === "arrow-head-left" ? "left" : "right";
-    editorState.arrowHeadStyle = editorState.arrowHeadStyle === next ? "none" : next;
-    editorState.arrowHead = editorState.arrowHeadStyle !== "none";
+    const shouldCancel = editorState.arrowHeadStyle === next;
+    editorState.arrowHeadStyle = shouldCancel ? "full" : next;
+    normalizeArrowToolbarStyle(editorState);
     arrowOptionChanged = true;
   } else if (value === "arrow-tail-left" || value === "arrow-tail-right") {
     const next = value === "arrow-tail-left" ? "left" : "right";
     editorState.arrowTailStyle = editorState.arrowTailStyle === next ? "none" : next;
     editorState.arrowTail = editorState.arrowTailStyle !== "none";
+    arrowOptionChanged = true;
+  } else if (value === "arrow-head-full") {
+    editorState.arrowHeadStyle = "full";
+    normalizeArrowToolbarStyle(editorState);
     arrowOptionChanged = true;
   } else if (value === "arrow-nogo-cross" || value === "arrow-nogo-hash") {
     const next = value === "arrow-nogo-cross" ? "cross" : "hash";
@@ -799,6 +825,91 @@ function rgbToHex(r, g, b) {
 
 function clampRgb(value) {
   return Math.max(0, Math.min(255, Number.parseInt(String(value || 0), 10) || 0));
+}
+
+function normalizeSolidArrowStyle(editorState) {
+  editorState.arrowType = "solid";
+  editorState.arrowHeadSize = normalizedArrowHeadSize(editorState.arrowHeadSize);
+  editorState.arrowHeadStyle = normalizedArrowHeadStyle(editorState.arrowHeadStyle);
+  editorState.arrowTailStyle = "none";
+  editorState.arrowHead = true;
+  editorState.arrowTail = false;
+  editorState.arrowNoGo = "none";
+  editorState.arrowBold = false;
+}
+
+function normalizedArrowHeadSize(size) {
+  return size === "large" || size === "medium" || size === "small" ? size : "small";
+}
+
+function normalizeArrowToolbarStyle(editorState) {
+  if (editorState.arrowType === "solid") {
+    normalizeSolidArrowStyle(editorState);
+    return;
+  }
+  if (editorState.arrowType === "equilibrium") {
+    normalizeEquilibriumArrowStyle(editorState);
+    return;
+  }
+  if (editorState.arrowType === "curved" || editorState.arrowType === "curved-mirror") {
+    normalizeCurvedArrowStyle(editorState);
+    return;
+  }
+  if (isOpenArrowType(editorState.arrowType)) {
+    normalizeOpenArrowStyle(editorState);
+    return;
+  }
+  normalizeArrowEndpointOptions(editorState);
+}
+
+function normalizeCurvedArrowStyle(editorState) {
+  editorState.arrowType = editorState.arrowType === "curved-mirror" ? "curved-mirror" : "curved";
+  editorState.arrowHeadSize = "small";
+  editorState.arrowCurve = normalizedArrowCurve(editorState.arrowCurve);
+  editorState.arrowHeadStyle = normalizedArrowHeadStyle(editorState.arrowHeadStyle);
+  editorState.arrowTailStyle = "none";
+  editorState.arrowHead = true;
+  editorState.arrowTail = false;
+  editorState.arrowNoGo = "none";
+  editorState.arrowBold = false;
+}
+
+function normalizeEquilibriumArrowStyle(editorState) {
+  editorState.arrowType = "equilibrium";
+  editorState.arrowHeadSize = normalizedArrowHeadSize(editorState.arrowHeadSize);
+  editorState.arrowCurve = "270";
+  editorState.arrowHeadStyle = editorState.arrowHeadStyle === "right" ? "right" : "left";
+  editorState.arrowTailStyle = editorState.arrowHeadStyle;
+  editorState.arrowHead = true;
+  editorState.arrowTail = true;
+  editorState.arrowNoGo = "none";
+  editorState.arrowBold = false;
+}
+
+function normalizedArrowHeadStyle(style) {
+  return style === "left" || style === "right" ? style : "full";
+}
+
+function normalizedArrowCurve(curve) {
+  return curve === "270" || curve === "180" || curve === "120" || curve === "90" ? curve : "270";
+}
+
+function normalizeOpenArrowStyle(editorState) {
+  editorState.arrowHeadSize = normalizedOpenArrowHeadSize(editorState.arrowHeadSize);
+  editorState.arrowHeadStyle = "full";
+  editorState.arrowTailStyle = "none";
+  editorState.arrowHead = true;
+  editorState.arrowTail = false;
+  editorState.arrowNoGo = "none";
+  editorState.arrowBold = false;
+}
+
+function normalizedOpenArrowHeadSize(size) {
+  return size === "large" ? "large" : "small";
+}
+
+function isOpenArrowType(type) {
+  return type === "hollow" || type === "open";
 }
 
 function normalizeArrowEndpointOptions(editorState) {

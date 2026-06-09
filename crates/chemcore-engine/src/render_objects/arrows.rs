@@ -234,6 +234,22 @@ fn render_arrow_line_object(
     }
     let start = points[0];
     let end = *points.last().unwrap_or(&start);
+    if arrow_head.kind == ArrowHeadKind::Equilibrium {
+        render_equilibrium_arrow_line(
+            out,
+            start,
+            end,
+            stroke,
+            stroke_width,
+            arrow_head,
+            arrow_arc,
+            head_style,
+            tail_style,
+            dash_array,
+            object_id,
+        );
+        return;
+    }
     if arrow_head.curve.abs() > crate::EPSILON && arrow_head.kind == ArrowHeadKind::Solid {
         let Some(arrow_arc) = arrow_arc else {
             return;
@@ -291,6 +307,7 @@ fn render_arrow_line_object(
             dash_array,
             object_id,
         ),
+        ArrowHeadKind::Equilibrium => {}
     }
 }
 
@@ -334,9 +351,17 @@ fn render_curved_solid_arrow_line(
             object_id.clone(),
         );
     }
-    render_arrow_no_go_on_points(out, &points, stroke, arrow_head, object_id.clone());
+    render_arrow_no_go_on_points(
+        out,
+        &points,
+        stroke,
+        line_width,
+        arrow_head,
+        object_id.clone(),
+    );
     if head_style.enabled() {
-        let tangent_from = point_at_distance_from_end(&points, arrow_head.center_length)
+        let tangent_distance = arrow_head_tangent_distance(head_style, arrow_head);
+        let tangent_from = point_at_distance_from_end(&points, tangent_distance)
             .unwrap_or_else(|| points[points.len().saturating_sub(2)]);
         if head_style == RenderArrowEndpointStyle::Full {
             push_polygon(
@@ -362,7 +387,8 @@ fn render_curved_solid_arrow_line(
         }
     }
     if tail_style.enabled() {
-        let tangent_from = point_at_distance_from_start(&points, arrow_head.center_length)
+        let tangent_distance = arrow_head_tangent_distance(tail_style, arrow_head);
+        let tangent_from = point_at_distance_from_start(&points, tangent_distance)
             .unwrap_or_else(|| *points.get(1).unwrap_or(&end));
         if tail_style == RenderArrowEndpointStyle::Full {
             push_polygon(
@@ -607,6 +633,276 @@ fn point_at_distance_from_end(points: &[Point], distance: f64) -> Option<Point> 
     point_at_distance_from_start(points, (total - distance).max(0.0))
 }
 
+fn trimmed_polyline_points(points: &[Point], start_trim: f64, end_trim: f64) -> Vec<Point> {
+    if points.len() < 2 {
+        return Vec::new();
+    }
+    let total = polyline_length(points);
+    if start_trim + end_trim >= total - crate::EPSILON {
+        return Vec::new();
+    }
+    let start_distance = start_trim.max(0.0);
+    let end_distance = (total - end_trim.max(0.0)).max(start_distance);
+    let Some(start_point) = point_at_distance_from_start(points, start_distance) else {
+        return Vec::new();
+    };
+    let Some(end_point) = point_at_distance_from_start(points, end_distance) else {
+        return Vec::new();
+    };
+    let mut out = vec![start_point];
+    let mut walked = 0.0;
+    for pair in points.windows(2) {
+        let segment = pair[0].distance(pair[1]);
+        walked += segment;
+        if walked > start_distance + crate::EPSILON && walked < end_distance - crate::EPSILON {
+            out.push(pair[1]);
+        }
+    }
+    out.push(end_point);
+    out
+}
+
+fn offset_polyline_points(points: &[Point], offset: f64) -> Vec<Point> {
+    if points.len() < 2 || offset.abs() <= crate::EPSILON {
+        return points.to_vec();
+    }
+    points
+        .iter()
+        .enumerate()
+        .map(|(index, point)| {
+            let previous = if index == 0 {
+                *point
+            } else {
+                points[index - 1]
+            };
+            let next = if index + 1 >= points.len() {
+                *point
+            } else {
+                points[index + 1]
+            };
+            let tangent = Vector::new(next.x - previous.x, next.y - previous.y).normalized();
+            let normal = Vector::new(-tangent.y, tangent.x);
+            point.translated(normal.scaled(offset))
+        })
+        .collect()
+}
+
+fn reversed_points(points: &[Point]) -> Vec<Point> {
+    points.iter().rev().copied().collect()
+}
+
+fn equilibrium_primary_offset_sign(
+    head_style: RenderArrowEndpointStyle,
+    tail_style: RenderArrowEndpointStyle,
+) -> f64 {
+    if head_style == RenderArrowEndpointStyle::Right
+        || tail_style == RenderArrowEndpointStyle::Right
+    {
+        1.0
+    } else {
+        -1.0
+    }
+}
+
+fn equilibrium_half_style(
+    style: RenderArrowEndpointStyle,
+    fallback: RenderArrowEndpointStyle,
+) -> RenderArrowEndpointStyle {
+    match style {
+        RenderArrowEndpointStyle::Left | RenderArrowEndpointStyle::Right => style,
+        RenderArrowEndpointStyle::Full | RenderArrowEndpointStyle::None => fallback,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_equilibrium_arrow_line(
+    out: &mut Vec<RenderPrimitive>,
+    start: Point,
+    end: Point,
+    stroke: &str,
+    stroke_width: f64,
+    arrow_head: ArrowHeadGeometry,
+    arrow_arc: Option<ArrowArcGeometry>,
+    head_style: RenderArrowEndpointStyle,
+    tail_style: RenderArrowEndpointStyle,
+    dash_array: &[f64],
+    object_id: Option<String>,
+) {
+    if arrow_head.curve.abs() > crate::EPSILON {
+        let Some(arrow_arc) = arrow_arc else {
+            return;
+        };
+        render_curved_equilibrium_arrow_line(
+            out,
+            start,
+            stroke,
+            stroke_width,
+            arrow_head,
+            arrow_arc,
+            head_style,
+            tail_style,
+            dash_array,
+            object_id,
+        );
+        return;
+    }
+    let Some((_unit, normal, _length)) = arrow_axis(start, end) else {
+        return;
+    };
+    let line_width = if arrow_head.bold {
+        stroke_width.max(4.0)
+    } else {
+        stroke_width
+    };
+    let spacing = arrow_head.shaft_spacing.max(line_width);
+    let primary_offset =
+        normal.scaled(equilibrium_primary_offset_sign(head_style, tail_style) * spacing * 0.5);
+    let secondary_offset = primary_offset.scaled(-1.0);
+    let fallback = if primary_offset.x * normal.x + primary_offset.y * normal.y >= 0.0 {
+        RenderArrowEndpointStyle::Right
+    } else {
+        RenderArrowEndpointStyle::Left
+    };
+    if head_style.enabled() {
+        render_solid_arrow_line(
+            out,
+            start.translated(primary_offset),
+            end.translated(primary_offset),
+            stroke,
+            stroke_width,
+            ArrowHeadGeometry {
+                kind: ArrowHeadKind::Solid,
+                ..arrow_head
+            },
+            equilibrium_half_style(head_style, fallback),
+            RenderArrowEndpointStyle::None,
+            dash_array,
+            object_id.clone(),
+        );
+    }
+    if tail_style.enabled() {
+        render_solid_arrow_line(
+            out,
+            end.translated(secondary_offset),
+            start.translated(secondary_offset),
+            stroke,
+            stroke_width,
+            ArrowHeadGeometry {
+                kind: ArrowHeadKind::Solid,
+                ..arrow_head
+            },
+            equilibrium_half_style(tail_style, fallback),
+            RenderArrowEndpointStyle::None,
+            dash_array,
+            object_id,
+        );
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_curved_equilibrium_arrow_line(
+    out: &mut Vec<RenderPrimitive>,
+    start: Point,
+    stroke: &str,
+    stroke_width: f64,
+    arrow_head: ArrowHeadGeometry,
+    arrow_arc: ArrowArcGeometry,
+    head_style: RenderArrowEndpointStyle,
+    tail_style: RenderArrowEndpointStyle,
+    dash_array: &[f64],
+    object_id: Option<String>,
+) {
+    let points = curved_arrow_points(start, arrow_head.curve, arrow_arc);
+    if points.len() < 2 {
+        return;
+    }
+    let line_width = if arrow_head.bold {
+        stroke_width.max(4.0)
+    } else {
+        stroke_width
+    };
+    let spacing = arrow_head.shaft_spacing.max(line_width);
+    let primary_offset = equilibrium_primary_offset_sign(head_style, tail_style) * spacing * 0.5;
+    let fallback = if primary_offset >= 0.0 {
+        RenderArrowEndpointStyle::Right
+    } else {
+        RenderArrowEndpointStyle::Left
+    };
+    let solid_head = ArrowHeadGeometry {
+        kind: ArrowHeadKind::Solid,
+        ..arrow_head
+    };
+    if head_style.enabled() {
+        render_curved_equilibrium_branch(
+            out,
+            &offset_polyline_points(&points, primary_offset),
+            stroke,
+            line_width,
+            solid_head,
+            equilibrium_half_style(head_style, fallback),
+            dash_array,
+            object_id.clone(),
+        );
+    }
+    if tail_style.enabled() {
+        let tail_points = reversed_points(&offset_polyline_points(&points, -primary_offset));
+        render_curved_equilibrium_branch(
+            out,
+            &tail_points,
+            stroke,
+            line_width,
+            solid_head,
+            equilibrium_half_style(tail_style, fallback),
+            dash_array,
+            object_id,
+        );
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_curved_equilibrium_branch(
+    out: &mut Vec<RenderPrimitive>,
+    points: &[Point],
+    stroke: &str,
+    line_width: f64,
+    arrow_head: ArrowHeadGeometry,
+    head_style: RenderArrowEndpointStyle,
+    dash_array: &[f64],
+    object_id: Option<String>,
+) {
+    if points.len() < 2 {
+        return;
+    }
+    let end_trim = curved_arrow_endpoint_shaft_trim(head_style, arrow_head);
+    let shaft_points = trimmed_polyline_points(points, 0.0, end_trim);
+    if shaft_points.len() >= 2 {
+        push_polyline(
+            out,
+            shaft_points,
+            stroke,
+            line_width,
+            dash_array.to_vec(),
+            Some("butt".to_string()),
+            Some("round".to_string()),
+            RenderRole::DocumentGraphic,
+            object_id.clone(),
+        );
+    }
+    let tangent_distance = arrow_head_tangent_distance(head_style, arrow_head);
+    let tangent_from = point_at_distance_from_end(points, tangent_distance)
+        .unwrap_or_else(|| points[points.len().saturating_sub(2)]);
+    render_solid_arrow_head(
+        out,
+        tangent_from,
+        *points.last().unwrap_or(&tangent_from),
+        arrow_head,
+        head_style,
+        line_width,
+        stroke,
+        object_id,
+    );
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_solid_arrow_line(
     out: &mut Vec<RenderPrimitive>,
@@ -647,7 +943,15 @@ fn render_solid_arrow_line(
             object_id.clone(),
         );
     }
-    render_arrow_no_go_on_axis(out, start, end, stroke, arrow_head, object_id.clone());
+    render_arrow_no_go_on_axis(
+        out,
+        start,
+        end,
+        stroke,
+        line_width,
+        arrow_head,
+        object_id.clone(),
+    );
     if head_style.enabled() {
         render_solid_arrow_head(
             out,
@@ -671,6 +975,7 @@ fn render_arrow_no_go_on_points(
     out: &mut Vec<RenderPrimitive>,
     points: &[Point],
     stroke: &str,
+    stroke_width: f64,
     arrow_head: ArrowHeadGeometry,
     object_id: Option<String>,
 ) {
@@ -686,7 +991,16 @@ fn render_arrow_no_go_on_points(
         point_at_distance_from_start(points, (total * 0.5 - 0.1).max(0.0)).unwrap_or(points[0]);
     let after = point_at_distance_from_start(points, (total * 0.5 + 0.1).min(total))
         .unwrap_or_else(|| *points.last().unwrap_or(&points[0]));
-    render_arrow_no_go_mark(out, center, before, after, stroke, arrow_head, object_id);
+    render_arrow_no_go_mark(
+        out,
+        center,
+        before,
+        after,
+        stroke,
+        stroke_width,
+        arrow_head,
+        object_id,
+    );
 }
 
 fn render_arrow_no_go_on_axis(
@@ -694,11 +1008,21 @@ fn render_arrow_no_go_on_axis(
     start: Point,
     end: Point,
     stroke: &str,
+    stroke_width: f64,
     arrow_head: ArrowHeadGeometry,
     object_id: Option<String>,
 ) {
     let center = Point::new((start.x + end.x) * 0.5, (start.y + end.y) * 0.5);
-    render_arrow_no_go_mark(out, center, start, end, stroke, arrow_head, object_id);
+    render_arrow_no_go_mark(
+        out,
+        center,
+        start,
+        end,
+        stroke,
+        stroke_width,
+        arrow_head,
+        object_id,
+    );
 }
 
 fn render_arrow_no_go_mark(
@@ -707,6 +1031,7 @@ fn render_arrow_no_go_mark(
     tangent_from: Point,
     tangent_to: Point,
     stroke: &str,
+    stroke_width: f64,
     arrow_head: ArrowHeadGeometry,
     object_id: Option<String>,
 ) {
@@ -716,42 +1041,40 @@ fn render_arrow_no_go_mark(
     let Some((unit, normal, _length)) = arrow_axis(tangent_from, tangent_to) else {
         return;
     };
-    let bar_width =
-        (arrow_head.length * 0.14).clamp(1.4, 2.6) * if arrow_head.bold { 1.25 } else { 1.0 };
     match arrow_head.no_go {
         ArrowNoGoGeometry::None => {}
         ArrowNoGoGeometry::Cross => {
-            let bar_length = arrow_head.length * 2.05;
+            let mark_length = arrow_head.length * std::f64::consts::SQRT_2;
             for axis in [
                 Vector::new(unit.x + normal.x, unit.y + normal.y).normalized(),
                 Vector::new(unit.x - normal.x, unit.y - normal.y).normalized(),
             ] {
-                push_polygon(
+                push_no_go_mark_line(
                     out,
-                    no_go_bar_points(center, axis, bar_length, bar_width),
+                    center,
+                    axis,
+                    mark_length,
                     stroke,
-                    stroke,
-                    0.0,
-                    RenderRole::DocumentGraphic,
+                    stroke_width,
                     object_id.clone(),
                 );
             }
         }
         ArrowNoGoGeometry::Hash => {
-            let bar_length = arrow_head.length * 2.25;
+            let mark_length = arrow_head.length * 5.0_f64.sqrt() * 0.5;
             let axis = Vector::new(unit.x - normal.x * 2.0, unit.y - normal.y * 2.0).normalized();
-            let offset = unit.scaled(arrow_head.length * 0.36);
+            let offset = unit.scaled(arrow_head.length * 0.5);
             for center in [
                 center.translated(offset.scaled(-0.5)),
                 center.translated(offset.scaled(0.5)),
             ] {
-                push_polygon(
+                push_no_go_mark_line(
                     out,
-                    no_go_bar_points(center, axis, bar_length, bar_width),
+                    center,
+                    axis,
+                    mark_length,
                     stroke,
-                    stroke,
-                    0.0,
-                    RenderRole::DocumentGraphic,
+                    stroke_width,
                     object_id.clone(),
                 );
             }
@@ -759,24 +1082,26 @@ fn render_arrow_no_go_mark(
     }
 }
 
-fn no_go_bar_points(center: Point, axis: Vector, length: f64, width: f64) -> Vec<Point> {
-    let normal = Vector::new(-axis.y, axis.x);
-    let half_length = length * 0.5;
-    let half_width = width * 0.5;
-    vec![
-        center
-            .translated(axis.scaled(-half_length))
-            .translated(normal.scaled(-half_width)),
-        center
-            .translated(axis.scaled(half_length))
-            .translated(normal.scaled(-half_width)),
-        center
-            .translated(axis.scaled(half_length))
-            .translated(normal.scaled(half_width)),
-        center
-            .translated(axis.scaled(-half_length))
-            .translated(normal.scaled(half_width)),
-    ]
+fn push_no_go_mark_line(
+    out: &mut Vec<RenderPrimitive>,
+    center: Point,
+    axis: Vector,
+    length: f64,
+    stroke: &str,
+    stroke_width: f64,
+    object_id: Option<String>,
+) {
+    let half = length.max(0.0) * 0.5;
+    push_line(
+        out,
+        center.translated(axis.scaled(-half)),
+        center.translated(axis.scaled(half)),
+        stroke,
+        stroke_width,
+        Vec::new(),
+        RenderRole::DocumentGraphic,
+        object_id,
+    );
 }
 
 fn render_solid_arrow_head(
@@ -899,9 +1224,10 @@ fn solid_half_arrow_head_path(
     line_width: f64,
 ) -> Option<SolidArrowHeadPath> {
     let (unit, normal, _) = arrow_axis(from, to)?;
-    let head_length = arrow_head.length;
-    let head_half_width = arrow_head.width.max(0.0);
-    let notch_length = arrow_head.center_length.max(0.0).min(head_length);
+    let scale = half_arrow_head_scale(arrow_head, style);
+    let head_length = arrow_head.length * scale;
+    let head_half_width = arrow_head.width.max(0.0) * scale;
+    let notch_length = (arrow_head.center_length * scale).max(0.0).min(head_length);
     let line_half_width = (line_width * 0.5).max(0.0);
     let curve_run = (head_length - notch_length).max(0.0);
     let control_distance = (notch_length - curve_run * 0.59).max(0.0);
@@ -976,6 +1302,39 @@ fn solid_half_arrow_head_path(
     }
 }
 
+fn inner_curved_half_arrow_head(
+    arrow_head: ArrowHeadGeometry,
+    style: RenderArrowEndpointStyle,
+) -> bool {
+    if arrow_head.curve.abs() <= crate::EPSILON {
+        return false;
+    }
+    matches!(
+        (arrow_head.curve.is_sign_negative(), style),
+        (true, RenderArrowEndpointStyle::Right) | (false, RenderArrowEndpointStyle::Left)
+    )
+}
+
+fn half_arrow_head_scale(arrow_head: ArrowHeadGeometry, style: RenderArrowEndpointStyle) -> f64 {
+    if inner_curved_half_arrow_head(arrow_head, style) {
+        0.8
+    } else {
+        1.0
+    }
+}
+
+fn arrow_head_tangent_distance(
+    style: RenderArrowEndpointStyle,
+    arrow_head: ArrowHeadGeometry,
+) -> f64 {
+    match style {
+        RenderArrowEndpointStyle::Left | RenderArrowEndpointStyle::Right => {
+            arrow_head.center_length * half_arrow_head_scale(arrow_head, style)
+        }
+        RenderArrowEndpointStyle::Full | RenderArrowEndpointStyle::None => arrow_head.center_length,
+    }
+}
+
 fn solid_arrow_head_outer_half_width(arrow_head: ArrowHeadGeometry) -> f64 {
     arrow_head.width.max(0.0) + 0.05
 }
@@ -999,6 +1358,14 @@ fn curved_arrow_endpoint_shaft_trim(
 ) -> f64 {
     match style {
         RenderArrowEndpointStyle::Full => arrow_head.center_length,
+        RenderArrowEndpointStyle::Left | RenderArrowEndpointStyle::Right
+            if inner_curved_half_arrow_head(arrow_head, style) =>
+        {
+            let scale = half_arrow_head_scale(arrow_head, style);
+            (arrow_head.center_length * scale)
+                .max(0.0)
+                .min(arrow_head.length * scale)
+        }
         RenderArrowEndpointStyle::Left | RenderArrowEndpointStyle::Right => {
             half_arrow_shaft_trim(arrow_head)
         }

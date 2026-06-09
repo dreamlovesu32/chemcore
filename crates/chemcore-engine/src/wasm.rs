@@ -942,6 +942,7 @@ fn parse_arrow_variant(value: &str) -> ArrowVariant {
         "curved-mirror" => ArrowVariant::CurvedMirror,
         "hollow" => ArrowVariant::Hollow,
         "open" => ArrowVariant::Open,
+        "equilibrium" => ArrowVariant::Equilibrium,
         _ => ArrowVariant::Solid,
     }
 }

@@ -543,7 +543,10 @@ impl<'a> CdxmlDocumentWriter<'a> {
             attrs.push(("ArrowheadHead", head_position.to_string()));
             attrs.push(("ArrowheadTail", tail_position.to_string()));
             let arrow_kind = cdxml_arrow_kind(arrow);
-            attrs.push(("ArrowheadType", arrow_kind.to_string()));
+            attrs.push((
+                "ArrowheadType",
+                cdxml_arrowhead_type_attr(arrow_kind).to_string(),
+            ));
             if let Some(value) = arrow
                 .and_then(|value| value.get("length"))
                 .and_then(Value::as_f64)
@@ -571,6 +574,19 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 if matches!(arrow_kind, "Hollow" | "Angle") {
                     attrs.push(("ArrowShaftSpacing", fmt_num(value)));
                 }
+            }
+            if arrow_kind == "Equilibrium" {
+                let value = arrow
+                    .and_then(|value| {
+                        value
+                            .get("shaftSpacing")
+                            .or_else(|| value.get("shaft_spacing"))
+                    })
+                    .and_then(Value::as_f64)
+                    .unwrap_or(3.0);
+                let value =
+                    cdxml_arrow_size_attribute(value, stroke_width, self.defaults.line_width);
+                attrs.push(("ArrowShaftSpacing", fmt_num(value)));
             }
             if let Some(value) = arrow
                 .and_then(|value| value.get("width"))
@@ -1681,7 +1697,16 @@ fn cdxml_arrow_kind(value: Option<&Value>) -> &'static str {
     {
         "hollow" => "Hollow",
         "open" | "angle" | "retrosynthetic" => "Angle",
+        "equilibrium" => "Equilibrium",
         _ => "Solid",
+    }
+}
+
+fn cdxml_arrowhead_type_attr(arrow_kind: &str) -> &str {
+    if arrow_kind == "Equilibrium" {
+        "Solid"
+    } else {
+        arrow_kind
     }
 }
 
