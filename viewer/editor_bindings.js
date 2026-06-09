@@ -312,7 +312,7 @@ function bindToolButtons(options) {
 }
 
 async function setActiveTool(toolButton, options) {
-  const { editorState, state } = options;
+  const { editorState } = options;
   const nextTool = toolButton?.dataset?.tool || editorState.activeTool;
   const elementPaletteWasOpen = Boolean(document.querySelector('.quick-palette.is-open[data-mode="element"]'));
   if (nextTool === "element") {
@@ -322,29 +322,7 @@ async function setActiveTool(toolButton, options) {
     ));
     return;
   }
-  if (editorState.activeTool === nextTool && !editorState.elementPlacementActive) {
-    return;
-  }
-  editorState.elementPlacementActive = false;
-  if (editorState.activeTool === "text" && nextTool !== "text" && nextTool !== "element") {
-    await options.finishActiveTextEditor(true);
-  }
-  if (editorState.activeTool === "select" && nextTool !== "select") {
-    options.clearActiveSelectionGesture();
-  }
-  if (nextTool !== "bracket") {
-    state.activeBracketDragStart = null;
-  }
-  editorState.activeTool = nextTool;
-  document.querySelectorAll("[data-tool]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.tool === editorState.activeTool);
-  });
-  await options.syncEngineToolState();
-  options.renderSecondaryToolbar();
-  options.syncCanvasCursor();
-  if (options.isEditingRustDocument()) {
-    options.renderEditorOverlay(options.currentEditorRenderList());
-  }
+  await options.activateEditorTool?.(nextTool);
 }
 
 function bindDocumentStylePreset(options) {

@@ -273,6 +273,9 @@ class TauriEngineSession {
   }
 
   setElementOptions(symbol, atomicNumber) {
+    if (this.layoutEngine?.setElementOptions) {
+      this.layoutEngine.setElementOptions(symbol, atomicNumber);
+    }
     return this.invokeMutation(
       "desktop_engine_set_element_options",
       { symbol, atomicNumber },
@@ -326,10 +329,14 @@ class TauriEngineSession {
   }
 
   applyElementPaletteJson(selectionJson) {
-    if (this.layoutEngine?.applyElementPaletteJson) {
-      return this.layoutEngine.applyElementPaletteJson(selectionJson);
-    }
-    return this.invokeMutation("desktop_engine_apply_element_palette_json", { selectionJson }, { refresh: "state", dirtyExports: false });
+    return this.invokeMutation(
+      "desktop_engine_apply_element_palette_json",
+      { selectionJson },
+      { refresh: "state", dirtyExports: false },
+    ).then((changed) => {
+      this.layoutEngine?.applyElementPaletteJson?.(selectionJson);
+      return changed;
+    });
   }
 
   applyObjectSettingsDialogJson(settingsJson) {

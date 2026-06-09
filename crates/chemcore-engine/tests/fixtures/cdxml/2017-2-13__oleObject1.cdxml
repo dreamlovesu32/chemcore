@@ -1,0 +1,1156 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML CreationProgram="ChemDraw 22.2.0.3300" Name="Microsoft PowerPoint - 2017-2-13.pptx" BoundingBox="12.12 21.75 523.05 485.44" WindowPosition="0.0 0.0" WindowSize="711.0 658.5" WindowIsZoomed="yes" FractionalWidths="yes" InterpretChemically="yes" ShowAtomQuery="yes" ShowAtomStereo="no" ShowAtomEnhancedStereo="yes" ShowAtomNumber="no" ShowResidueID="no" ShowBondQuery="yes" ShowBondRxn="yes" ShowBondStereo="no" ShowTerminalCarbonLabels="no" ShowNonTerminalCarbonLabels="no" HideImplicitHydrogens="no" LabelFont="3" LabelSize="10.0" LabelFace="1" CaptionFont="3" CaptionSize="10.0" CaptionFace="1" HashSpacing="2.5" MarginWidth="1.6" LineWidth="0.6" BoldWidth="2.0" BondLength="14.4" BondSpacing="18" ChainAngle="7864320" LabelJustification="Auto" CaptionJustification="Left" AminoAcidTermini="HOH" ShowSequenceTermini="yes" ShowSequenceBonds="yes" ShowSequenceUnlinkedBranches="no" ResidueWrapCount="40" ResidueBlockCount="10" PrintMargins="36.0 36.0 36.0 36.0" color="0" bgcolor="1" MacPrintInfo="0003000002580258000000001b681361000000001b6813610367057b03e00002000002580258000000001b681361000100000064000000010001010100020001270f000100010000000000000000000000000002001901900000000000600000000000000000000100000000000000000000000000000000" ChemPropName="" ChemPropFormula="Chemical Formula: " ChemPropExactMass="Exact Mass: " ChemPropMolWt="Molecular Weight: " ChemPropMOverZ="m/z: " ChemPropAnalysis="Elemental Analysis: " ChemPropBoilingPt="Boiling Point: " ChemPropMeltingPt="Melting Point: " ChemPropCritTemp="Critical Temp: " ChemPropCritPres="Critical Pres: " ChemPropCritVol="Critical Vol: " ChemPropGibbs="Gibbs Energy: " ChemPropLogP="Log P: " ChemPropMR="MR: " ChemPropHenry="Henry's Law: " ChemPropEForm="Heat of Form: " ChemProptPSA="tPSA: " ChemPropCLogP="CLogP: " ChemPropCMR="CMR: " ChemPropLogS="LogS: " ChemPropPKa="pKa: " ChemPropID="" ChemPropFragmentLabel="" RxnAutonumberStart="1" RxnAutonumberConditions="no" RxnAutonumberStyle="Roman" RxnAutonumberFormat="(#)">
+	<colortable>
+		<color r="1.0" g="1.0" b="1.0"/>
+		<color r="0.0" g="0.0" b="0.0"/>
+		<color r="1.0" g="0.0" b="0.0"/>
+		<color r="1.0" g="1.0" b="0.0"/>
+		<color r="0.0" g="1.0" b="0.0"/>
+		<color r="0.0" g="1.0" b="1.0"/>
+		<color r="0.0" g="0.0" b="1.0"/>
+		<color r="1.0" g="0.0" b="1.0"/>
+		<color r="0.7529411764705882" g="0.7529411764705882" b="0.7529411764705882"/>
+	</colortable>
+	<fonttable>
+		<font id="3" charset="iso-8859-1" name="Arial"/>
+		<font id="23" charset="Unknown" name="Symbol"/>
+	</fonttable>
+	<page id="50406404" BoundingBox="0.0 0.0 523.32 769.92" HeaderPosition="36.0" FooterPosition="36.0" PrintTrimMarks="yes" HeightPages="1" WidthPages="1">
+		<group id="8465" BoundingBox="116.74 29.09 309.73 112.68" Z="870">
+			<t id="7609" p="242.62 38.04" BoundingBox="184.42 29.09 300.82 55.39" Z="817" Warning="Chemical Interpretation is not possible for this label" CaptionJustification="Center" Justification="Center" LineHeight="auto" LineStarts="23 34" UTF8Text="Cu(CH3CN)4PF6 (5 mol%)&#10;L (10 mol%)">
+				<s font="3" size="10.0" face="0" color="0">Cu(CH</s>
+				<s font="3" size="10.0" face="32" color="0">3</s>
+				<s font="3" size="10.0" face="0" color="0">CN)</s>
+				<s font="3" size="10.0" face="32" color="0">4</s>
+				<s font="3" size="10.0" face="0" color="0">PF</s>
+				<s font="3" size="10.0" face="32" color="0">6</s>
+				<s font="3" size="10.0" face="0" color="0"> (5 mol%)
+L (10 mol%)</s>
+			</t>
+			<t id="7611" p="116.74 98.08" BoundingBox="116.74 89.13 163.43 100.63" Z="818" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto" UTF8Text="0.05 mmol">
+				<s font="3" size="10.0" face="0" color="0">0.05 mmol</s>
+			</t>
+			<t id="8401" p="241.74 69.33" BoundingBox="193.26 60.08 290.22 112.68" Z="869" Warning="Chemical Interpretation is not possible for this label" CaptionJustification="Center" Justification="Center" LineHeight="auto" LineStarts="20 38 61 80" UTF8Text="Togni I (1.5 equiv)&#10;TMSN3 (2.0 equiv)&#10;DCM (0.6 mL), N2, r.t.&#10;Additive (15 mol%)&#10;">
+				<s font="3" size="10.0" face="0" color="0">Togni I (1.5 equiv)
+</s>
+				<s font="3" size="10.0" face="96" color="0">TMSN3</s>
+				<s font="3" size="10.0" face="0" color="0"> (2.0 equiv)
+DCM (0.6 mL), N</s>
+				<s font="3" size="10.0" face="32" color="0">2</s>
+				<s font="3" size="10.0" face="0" color="0">, r.t.
+</s>
+				<s font="3" size="10.0" face="3" color="0">Additive (15 mol%)
+</s>
+			</t>
+			<graphic id="50406383" SupersededBy="50406414" BoundingBox="309.73 56.29 181.52 56.29" Z="816" GraphicType="Line" ArrowType="FullHead" HeadSize="2250"/>
+			<arrow id="50406414" BoundingBox="181.52 52.4 309.73 59.67" Z="816" FillType="None" ArrowheadType="Solid" ArrowheadHead="Full" HeadSize="2250" ArrowheadCenterSize="1969" ArrowheadWidth="563" Head3D="309.73 56.29 0.0" Tail3D="181.52 56.29 0.0" Center3D="417.87 162.54 0.0" MajorAxisEnd3D="546.08 162.54 0.0" MinorAxisEnd3D="417.87 290.74 0.0"/>
+		</group>
+		<fragment id="5999" BoundingBox="115.25 38.04 174.82 82.48" Z="805">
+			<n id="6000" p="116.04 64.08" Z="804" AS="N"/>
+			<n id="6001" p="128.51 56.88" Z="806" AS="N"/>
+			<n id="6002" p="140.99 64.08" Z="808" AS="N"/>
+			<n id="6003" p="128.51 42.48" Z="810" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="50406405">
+					<n id="8414" p="128.51 42.48" Z="744"/>
+					<n id="8415" p="140.94 35.31" Z="745"/>
+					<n id="8416" p="140.94 20.96" Z="746"/>
+					<n id="8417" p="128.51 13.78" Z="747"/>
+					<n id="8418" p="116.09 20.96" Z="748"/>
+					<n id="8419" p="116.09 35.31" Z="749"/>
+					<n id="8420" p="128.51 56.83" Z="750" NodeType="ExternalConnectionPoint" ExternalConnectionNum="1"/>
+					<b id="8421" Z="751" B="8418" E="8419" Order="2" DoublePosition="Right" BondCircularOrdering="8422 0 0 8426"/>
+					<b id="8422" Z="752" B="8417" E="8418"/>
+					<b id="8423" Z="753" B="8416" E="8417" Order="2" DoublePosition="Right" BondCircularOrdering="8424 0 0 8422"/>
+					<b id="8424" Z="754" B="8415" E="8416"/>
+					<b id="8425" Z="755" B="8414" E="8415" Order="2" DoublePosition="Right" BondCircularOrdering="8426 8427 0 8424"/>
+					<b id="8426" Z="756" B="8414" E="8419"/>
+					<b id="8427" Z="757" B="8420" E="8414"/>
+				</fragment>
+				<t id="0" p="125.18 46.38" BoundingBox="125.18 38.04 137.41 46.38" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="Ph">
+					<s font="3" size="10.0" face="96" color="0">Ph</s>
+				</t>
+			</n>
+			<n id="6004" p="153.46 56.88" Z="812" Element="7" NumHydrogens="1" NeedsClean="yes" AS="N">
+				<t id="0" p="149.85 52.44" BoundingBox="149.85 44.1 157.07 60.78" LabelJustification="Left" LineHeight="variable" LabelAlignment="Above" LineStarts="2 4" UTF8Text="NH">
+					<s font="3" size="10.0" face="96" color="0">NH</s>
+				</t>
+			</n>
+			<n id="6005" p="140.99 78.48" Z="814" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="137.1 82.38" BoundingBox="137.1 73.87 144.87 82.48" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+					<s font="3" size="10.0" face="96" color="0">O</s>
+				</t>
+			</n>
+			<n id="8315" p="165.93 64.08" Z="835" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="50406406">
+					<n id="50405917" p="165.93 64.08" Z="716"/>
+					<n id="50405918" p="165.93 78.43" Z="717"/>
+					<n id="50405919" p="178.35 85.61" Z="718"/>
+					<n id="50405920" p="190.78 78.43" Z="719"/>
+					<n id="50405921" p="190.78 64.08" Z="720"/>
+					<n id="50405922" p="178.35 56.91" Z="721"/>
+					<n id="50405923" p="153.5 56.91" Z="722" NodeType="ExternalConnectionPoint" ExternalConnectionNum="1"/>
+					<b id="50405924" Z="723" B="50405921" E="50405922" Order="2" DoublePosition="Right" BondCircularOrdering="50405925 0 0 50405929"/>
+					<b id="50405925" Z="724" B="50405920" E="50405921"/>
+					<b id="50405926" Z="725" B="50405919" E="50405920" Order="2" DoublePosition="Right" BondCircularOrdering="50405927 0 0 50405925"/>
+					<b id="50405927" Z="726" B="50405918" E="50405919"/>
+					<b id="50405928" Z="727" B="50405917" E="50405918" Order="2" DoublePosition="Right" BondCircularOrdering="50405929 50405930 0 50405927"/>
+					<b id="50405929" Z="728" B="50405917" E="50405922"/>
+					<b id="50405930" Z="729" B="50405923" E="50405917"/>
+				</fragment>
+				<t id="0" p="162.59 67.98" BoundingBox="162.59 59.64 174.82 67.98" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="Ph">
+					<s font="3" size="10.0" face="0" color="0">Ph</s>
+				</t>
+			</n>
+			<b id="6017" Z="807" B="6000" E="6001" Order="2" BS="N"/>
+			<b id="6018" Z="809" B="6001" E="6002" BS="N"/>
+			<b id="6019" Z="811" B="6001" E="6003" BS="N"/>
+			<b id="6020" Z="813" B="6002" E="6004" BS="N"/>
+			<b id="6021" Z="815" B="6002" E="6005" Order="2" BS="N"/>
+			<b id="8316" Z="836" B="6004" E="8315" BS="N"/>
+		</fragment>
+		<fragment id="10138" BoundingBox="313.85 30.13 398.99 72.64" Z="820">
+			<n id="10139" p="340.21 54.24" Z="819" AS="N"/>
+			<n id="10140" p="352.68 47.04" Z="821" Geometry="Tetrahedral" AS="S" BondOrdering="10186 10187 10188 10191"/>
+			<n id="10141" p="365.15 54.24" Z="823" AS="N"/>
+			<n id="10142" p="359.88 34.57" Z="825" NodeType="Nickname" NeedsClean="yes" AS="N" LabelDisplay="Center">
+				<fragment id="50406407">
+					<n id="10144" p="359.88 34.57" Z="758"/>
+					<n id="10145" p="374.23 34.57" Z="759"/>
+					<n id="10146" p="381.4 22.14" Z="760"/>
+					<n id="10147" p="374.23 9.72" Z="761"/>
+					<n id="10148" p="359.88 9.72" Z="762"/>
+					<n id="10149" p="352.7 22.14" Z="763"/>
+					<n id="10150" p="352.7 47.0" Z="764" NodeType="ExternalConnectionPoint" ExternalConnectionNum="1"/>
+					<b id="10151" Z="765" B="10148" E="10149" Order="2" DoublePosition="Right" BondCircularOrdering="10152 0 0 10156"/>
+					<b id="10152" Z="766" B="10147" E="10148"/>
+					<b id="10153" Z="767" B="10146" E="10147" Order="2" DoublePosition="Right" BondCircularOrdering="10154 0 0 10152"/>
+					<b id="10154" Z="768" B="10145" E="10146"/>
+					<b id="10155" Z="769" B="10144" E="10145" Order="2" DoublePosition="Right" BondCircularOrdering="10156 10157 0 10154"/>
+					<b id="10156" Z="770" B="10144" E="10149"/>
+					<b id="10157" Z="771" B="10150" E="10144" Display="WedgedHashBegin"/>
+				</fragment>
+				<t id="0" p="359.88 38.47" BoundingBox="353.76 30.13 365.99 38.47" LabelJustification="Center" Justification="Center" LineHeight="variable" LabelAlignment="Left" UTF8Text="Ph">
+					<s font="3" size="10.0" face="96" color="0">Ph</s>
+				</t>
+			</n>
+			<n id="10158" p="365.15 68.64" Z="827" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N" LabelDisplay="Center">
+				<t id="0" p="361.26 72.54" BoundingBox="361.26 64.03 369.04 72.64" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+					<s font="3" size="10.0" face="96" color="0">O</s>
+				</t>
+			</n>
+			<n id="10159" p="327.74 47.04" Z="829" color="4" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406408">
+					<n id="50406368" p="327.74 47.04" Z="74"/>
+					<n id="50406369" p="334.91 34.61" Z="75" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="331.86 38.54" BoundingBox="331.86 30.2 337.97 38.54" LabelJustification="Left" LineHeight="variable" UTF8Text="F">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="50406370" p="315.31 39.87" Z="76" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="312.25 43.79" BoundingBox="312.25 35.45 318.36 43.79" LabelJustification="Left" LineHeight="variable" UTF8Text="F">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="50406371" p="320.56 59.47" Z="77" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="317.51 63.39" BoundingBox="317.51 55.05 323.62 63.39" LabelJustification="Left" LineHeight="variable" UTF8Text="F">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="50406372" p="340.16 54.22" Z="78" NodeType="ExternalConnectionPoint"/>
+					<b id="50406373" Z="79" B="50406368" E="50406369"/>
+					<b id="50406374" Z="80" B="50406368" E="50406370"/>
+					<b id="50406375" Z="81" B="50406368" E="50406371"/>
+					<b id="50406376" Z="82" B="50406372" E="50406368"/>
+				</fragment>
+				<t id="0" p="331.35 50.97" BoundingBox="313.85 42.45 331.35 53.17" color="4" LabelJustification="Right" Justification="Right" LineHeight="variable" LabelAlignment="Right" UTF8Text="CF3">
+					<s font="3" size="10.0" face="97" color="4">CF3</s>
+				</t>
+			</n>
+			<n id="10170" p="345.48 34.57" Z="831" color="8" NodeType="Nickname" NeedsClean="yes" AS="N" LabelDisplay="Center">
+				<fragment id="50406409">
+					<n id="10172" p="345.48 34.57" Z="772" Element="7" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="341.87 38.47" BoundingBox="341.87 30.13 349.09 38.47" LabelJustification="Left" LineHeight="variable" UTF8Text="N">
+							<s font="3" size="10.0" face="96" color="0">N</s>
+						</t>
+					</n>
+					<n id="10173" p="331.13 34.57" Z="773" Element="7" NumHydrogens="0" Charge="1" NeedsClean="yes">
+						<t id="0" p="327.52 38.47" BoundingBox="327.52 29.02 339.12 38.47" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="N+">
+							<s font="3" size="10.0" face="96" color="0">N+</s>
+						</t>
+					</n>
+					<n id="10174" p="316.78 34.57" Z="774" Element="7" NumHydrogens="0" Charge="-1" NeedsClean="yes">
+						<t id="0" p="323.72 38.47" BoundingBox="314.0 30.13 323.72 38.47" LabelJustification="Right" Justification="Right" LineHeight="variable" LabelAlignment="Right" UTF8Text="N-">
+							<s font="3" size="10.0" face="96" color="0">N-</s>
+						</t>
+					</n>
+					<n id="10175" p="352.65 47.0" Z="775" NodeType="ExternalConnectionPoint" ExternalConnectionNum="1"/>
+					<b id="10176" Z="776" B="10173" E="10174" Order="2"/>
+					<b id="10177" Z="777" B="10172" E="10173" Order="2"/>
+					<b id="10178" Z="778" B="10175" E="10172" Display="WedgeBegin"/>
+				</fragment>
+				<t id="0" p="345.48 38.47" BoundingBox="339.78 30.13 351.17 40.77" color="8" LabelJustification="Center" Justification="Center" LineHeight="variable" LabelAlignment="Right" UTF8Text="N3">
+					<s font="3" size="10.0" face="0" color="8">N</s>
+					<s font="3" size="10.0" face="32" color="8">3</s>
+				</t>
+			</n>
+			<n id="10179" p="377.62 47.04" Z="833" Element="7" NumHydrogens="1" NeedsClean="yes" AS="N">
+				<t id="0" p="374.01 42.6" BoundingBox="374.01 34.26 381.23 50.94" LabelJustification="Left" LineHeight="variable" LabelAlignment="Above" LineStarts="2 4" UTF8Text="NH">
+					<s font="3" size="10.0" face="96" color="0">NH</s>
+				</t>
+			</n>
+			<n id="10180" p="390.09 54.24" Z="837" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="50406410">
+					<n id="50405936" p="390.09 54.24" Z="730"/>
+					<n id="50405937" p="390.09 68.59" Z="731"/>
+					<n id="50405938" p="402.52 75.77" Z="732"/>
+					<n id="50405939" p="414.95 68.59" Z="733"/>
+					<n id="50405940" p="414.95 54.24" Z="734"/>
+					<n id="50405941" p="402.52 47.07" Z="735"/>
+					<n id="50405942" p="377.66 47.07" Z="736" NodeType="ExternalConnectionPoint" ExternalConnectionNum="1"/>
+					<b id="50405943" Z="737" B="50405940" E="50405941" Order="2" DoublePosition="Right" BondCircularOrdering="50405944 0 0 50405948"/>
+					<b id="50405944" Z="738" B="50405939" E="50405940"/>
+					<b id="50405945" Z="739" B="50405938" E="50405939" Order="2" DoublePosition="Right" BondCircularOrdering="50405946 0 0 50405944"/>
+					<b id="50405946" Z="740" B="50405937" E="50405938"/>
+					<b id="50405947" Z="741" B="50405936" E="50405937" Order="2" DoublePosition="Right" BondCircularOrdering="50405948 50405949 0 50405946"/>
+					<b id="50405948" Z="742" B="50405936" E="50405941"/>
+					<b id="50405949" Z="743" B="50405942" E="50405936"/>
+				</fragment>
+				<t id="0" p="386.76 58.14" BoundingBox="386.76 49.8 398.99 58.14" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="Ph">
+					<s font="3" size="10.0" face="0" color="0">Ph</s>
+				</t>
+			</n>
+			<b id="10186" Z="822" B="10139" E="10140" BS="N"/>
+			<b id="10187" Z="824" B="10140" E="10141" BS="N"/>
+			<b id="10188" Z="826" B="10140" E="10142" Display="WedgedHashBegin" BS="N"/>
+			<b id="10189" Z="828" B="10141" E="10158" Order="2" BS="N"/>
+			<b id="10190" Z="830" B="10139" E="10159" BS="N"/>
+			<b id="10191" Z="832" B="10140" E="10170" Display="WedgeBegin" BS="N"/>
+			<b id="10192" Z="834" B="10141" E="10179" BS="N"/>
+			<b id="10193" Z="838" B="10179" E="10180" BS="N"/>
+		</fragment>
+		<fragment id="4812" BoundingBox="420.12 31.54 513.86 94.31" Z="841">
+			<n id="4813" p="453.83 57.76" Z="839" AS="N"/>
+			<n id="4814" p="453.83 72.16" Z="840" Element="7" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="450.22 76.06" BoundingBox="450.22 67.72 457.44 76.06" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="N">
+					<s font="3" size="10.0" face="96" color="0">N</s>
+				</t>
+			</n>
+			<n id="4815" p="478.77 72.16" Z="842" Element="7" NumHydrogens="1" NeedsClean="yes" AS="N">
+				<t id="0" p="482.38 76.06" BoundingBox="467.94 67.72 482.38 76.06" LabelJustification="Right" Justification="Right" LineHeight="variable" LabelAlignment="Right" UTF8Text="NH">
+					<s font="3" size="10.0" face="96" color="0">NH</s>
+				</t>
+			</n>
+			<n id="4816" p="478.77 57.76" Z="843" AS="N"/>
+			<n id="4817" p="466.3 50.56" Z="844" AS="N"/>
+			<n id="4818" p="440.13 53.31" Z="849" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="436.24 57.21" BoundingBox="436.24 48.69 444.02 57.31" LabelJustification="Left" LineHeight="variable" LabelAlignment="Right" UTF8Text="O">
+					<s font="3" size="10.0" face="96" color="0">O</s>
+				</t>
+			</n>
+			<n id="4819" p="431.67 64.96" Z="850" AS="N"/>
+			<n id="4820" p="440.13 76.61" Z="851" Geometry="Tetrahedral" AS="S" BondOrdering="4852 4851 0 7687"/>
+			<n id="4821" p="492.46 76.61" Z="856" Geometry="Tetrahedral" AS="S" BondOrdering="4853 4854 0 7689"/>
+			<n id="4822" p="500.93 64.96" Z="857" AS="N"/>
+			<n id="4823" p="492.46 53.31" Z="858" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="488.57 57.21" BoundingBox="488.57 48.69 496.35 57.31" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+					<s font="3" size="10.0" face="96" color="0">O</s>
+				</t>
+			</n>
+			<n id="4824" p="466.3 36.16" Z="863" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406411">
+					<n id="4826" p="466.3 36.16" Z="797"/>
+					<n id="4827" p="466.3 21.81" Z="798" Element="7" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="462.69 25.71" BoundingBox="462.69 17.37 469.91 25.71" LabelJustification="Left" LineHeight="variable" UTF8Text="N">
+							<s font="3" size="10.0" face="96" color="0">N</s>
+						</t>
+					</n>
+					<n id="4828" p="466.3 50.51" Z="799" NodeType="ExternalConnectionPoint" ExternalConnectionNum="1"/>
+					<b id="4829" Z="800" B="4826" E="4827" Order="3"/>
+					<b id="4830" Z="801" B="4828" E="4826"/>
+				</fragment>
+				<t id="0" p="462.69 40.06" BoundingBox="462.69 31.54 477.13 40.16" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="CN">
+					<s font="3" size="10.0" face="96" color="0">CN</s>
+				</t>
+			</n>
+			<n id="7686" p="435.68 90.31" Z="865" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="50406412">
+					<n id="7713" p="435.68 90.31" Z="779"/>
+					<n id="7714" p="449.33 94.74" Z="780"/>
+					<n id="7715" p="431.25 103.95" Z="781"/>
+					<n id="7716" p="422.03 85.87" Z="782"/>
+					<n id="7717" p="440.12 76.66" Z="783" NodeType="ExternalConnectionPoint" ExternalConnectionNum="1"/>
+					<b id="7718" Z="784" B="7713" E="7714"/>
+					<b id="7719" Z="785" B="7713" E="7715"/>
+					<b id="7720" Z="786" B="7713" E="7716"/>
+					<b id="7721" Z="787" B="7717" E="7713" Display="WedgeBegin"/>
+				</fragment>
+				<t id="0" p="438.46 94.21" BoundingBox="420.12 85.86 438.46 94.31" LabelJustification="Right" Justification="Right" LineHeight="variable" LabelAlignment="Right" UTF8Text="t-Bu">
+					<s font="3" size="10.0" face="96" color="0">t-Bu</s>
+				</t>
+			</n>
+			<n id="7688" p="496.91 90.31" Z="867" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="50406413">
+					<n id="7724" p="496.91 90.31" Z="788"/>
+					<n id="7725" p="510.56 85.87" Z="789"/>
+					<n id="7726" p="501.35 103.95" Z="790"/>
+					<n id="7727" p="483.27 94.74" Z="791"/>
+					<n id="7728" p="492.48 76.66" Z="792" NodeType="ExternalConnectionPoint" ExternalConnectionNum="1"/>
+					<b id="7729" Z="793" B="7724" E="7725"/>
+					<b id="7730" Z="794" B="7724" E="7726"/>
+					<b id="7731" Z="795" B="7724" E="7727"/>
+					<b id="7732" Z="796" B="7728" E="7724" Display="WedgedHashBegin"/>
+				</fragment>
+				<t id="0" p="495.52 94.21" BoundingBox="495.52 85.86 513.86 94.31" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="t-Bu">
+					<s font="3" size="10.0" face="96" color="0">t-Bu</s>
+				</t>
+			</n>
+			<b id="4845" Z="845" B="4813" E="4814" Order="2" DoublePosition="Left" BS="N" BondCircularOrdering="4848 4849 4852 0"/>
+			<b id="4846" Z="846" B="4815" E="4816" BS="N"/>
+			<b id="4847" Z="847" B="4816" E="4817" Order="2" DoublePosition="Right" BS="E" BondCircularOrdering="4846 4856 4857 4848"/>
+			<b id="4848" Z="848" B="4817" E="4813" BS="N"/>
+			<b id="4849" Z="852" B="4813" E="4818" BS="N"/>
+			<b id="4850" Z="853" B="4818" E="4819" BS="N"/>
+			<b id="4851" Z="854" B="4819" E="4820" BS="N"/>
+			<b id="4852" Z="855" B="4820" E="4814" BS="N"/>
+			<b id="4853" Z="859" B="4815" E="4821" BS="N"/>
+			<b id="4854" Z="860" B="4821" E="4822" BS="N"/>
+			<b id="4855" Z="861" B="4822" E="4823" BS="N"/>
+			<b id="4856" Z="862" B="4823" E="4816" BS="N"/>
+			<b id="4857" Z="864" B="4817" E="4824" BS="N"/>
+			<b id="7687" Z="866" B="4820" E="7686" Display="WedgeBegin" BS="N"/>
+			<b id="7689" Z="868" B="4821" E="7688" Display="WedgedHashBegin" BS="N"/>
+		</fragment>
+		<fragment id="50404740" BoundingBox="155.23 127.36 194.68 139.11" Z="877">
+			<n id="50404741" p="158.85 132.69" Z="876" Warning="ChemDraw can't interpret this label." NodeType="Unspecified" NeedsClean="yes" AS="N">
+				<t id="0" p="155.23 136.61" BoundingBox="155.23 127.36 194.68 139.11" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="Additive">
+					<s font="3" size="10.0" face="3" color="0">Additive</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50404829" BoundingBox="158.46 165.66 191.53 177.16" Z="883">
+			<n id="50404828" p="161.79 170.71" Z="882" Warning="An atom in this label has an invalid valence." NodeType="Unspecified" NeedsClean="yes" AS="N">
+				<fragment id="50406415">
+					<n id="50406032" p="155.33 174.63" Z="513"/>
+					<n id="50406033" p="142.9 181.8" Z="514"/>
+					<n id="50406034" p="130.47 174.63" Z="515"/>
+					<n id="50406035" p="118.05 181.8" Z="516"/>
+					<n id="50406036" p="68.34 181.8" Z="517"/>
+					<n id="50406037" p="80.76 174.63" Z="518"/>
+					<n id="50406038" p="93.19 181.8" Z="519"/>
+					<n id="50406039" p="105.62 174.63" Z="520"/>
+					<n id="50406040" p="155.33 196.15" Z="521"/>
+					<n id="50406041" p="142.9 203.33" Z="522"/>
+					<n id="50406042" p="130.47 196.15" Z="523"/>
+					<n id="50406043" p="118.05 203.33" Z="524"/>
+					<n id="50406044" p="68.34 203.33" Z="525"/>
+					<n id="50406045" p="80.76 196.15" Z="526"/>
+					<n id="50406046" p="93.19 203.33" Z="527"/>
+					<n id="50406047" p="105.62 196.15" Z="528"/>
+					<n id="50406048" p="169.68 188.98" Z="529" Element="7" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="166.07 192.9" BoundingBox="166.07 184.56 173.29 192.9" LabelJustification="Left" LineHeight="variable" UTF8Text="N">
+							<s font="3" size="10.0" face="97" color="0">N</s>
+						</t>
+					</n>
+					<n id="50406049" p="184.03 188.98" Z="530" Element="17" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="180.42 192.9" BoundingBox="180.42 184.38 190.42 193.0" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="Cl">
+							<s font="3" size="10.0" face="97" color="0">Cl</s>
+						</t>
+					</n>
+					<b id="50406050" Z="531" B="50406048" E="50406049" Order="2"/>
+					<b id="50406051" Z="532" B="50406046" E="50406047"/>
+					<b id="50406052" Z="533" B="50406045" E="50406046"/>
+					<b id="50406053" Z="534" B="50406044" E="50406045"/>
+					<b id="50406054" Z="535" B="50406043" E="50406047"/>
+					<b id="50406055" Z="536" B="50406042" E="50406043"/>
+					<b id="50406056" Z="537" B="50406041" E="50406042"/>
+					<b id="50406057" Z="538" B="50406040" E="50406041"/>
+					<b id="50406058" Z="539" B="50406038" E="50406039"/>
+					<b id="50406059" Z="540" B="50406037" E="50406038"/>
+					<b id="50406060" Z="541" B="50406036" E="50406037"/>
+					<b id="50406061" Z="542" B="50406035" E="50406039"/>
+					<b id="50406062" Z="543" B="50406034" E="50406035"/>
+					<b id="50406063" Z="544" B="50406033" E="50406034"/>
+					<b id="50406064" Z="545" B="50406032" E="50406033"/>
+				</fragment>
+				<t id="0" p="158.46 174.61" BoundingBox="158.46 165.66 191.53 177.16" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="Bu4NCl">
+					<s font="3" size="10.0" face="96" color="0">Bu4NCl</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50404841" BoundingBox="165.83 204.0 184.16 215.5" Z="890">
+			<n id="50404840" p="169.44 209.05" Z="889" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406416">
+					<n id="50406067" p="162.51 209.05" Z="546" Element="55" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="165.29 212.97" BoundingBox="152.51 204.46 165.29 213.07" LabelJustification="Right" Justification="Right" LineHeight="variable" LabelAlignment="Right" UTF8Text="Cs">
+							<s font="3" size="10.0" face="97" color="0">Cs</s>
+						</t>
+					</n>
+					<n id="50406068" p="176.86 209.05" Z="547" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="173.81 212.97" BoundingBox="173.81 204.63 179.92 212.97" LabelJustification="Left" LineHeight="variable" UTF8Text="F">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<b id="50406069" Z="548" B="50406067" E="50406068"/>
+				</fragment>
+				<t id="0" p="165.83 212.95" BoundingBox="165.83 204.0 184.16 215.5" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="CsF">
+					<s font="3" size="10.0" face="96" color="0">CsF</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50404848" BoundingBox="157.2 223.17 192.76 234.67" Z="895">
+			<n id="50404847" p="160.81 228.22" Z="894" Warning="An atom in this label has an invalid valence." NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406417">
+					<n id="50406072" p="149.13 224.63" Z="549" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="145.52 228.55" BoundingBox="145.52 220.04 152.74 228.65" LabelJustification="Left" LineHeight="variable" UTF8Text="C">
+							<s font="3" size="10.0" face="97" color="0">C</s>
+						</t>
+					</n>
+					<n id="50406073" p="136.7 231.8" Z="550" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="132.81 235.73" BoundingBox="132.81 227.21 140.59 235.83" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406074" p="161.56 231.8" Z="551" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="157.67 235.73" BoundingBox="157.67 227.21 165.45 235.83" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406075" p="173.99 224.63" Z="552" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="170.1 228.55" BoundingBox="170.1 220.04 177.88 228.65" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406076" p="186.41 231.8" Z="553" Element="55" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="182.8 235.73" BoundingBox="182.8 227.21 195.59 235.83" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="Cs">
+							<s font="3" size="10.0" face="97" color="0">Cs</s>
+						</t>
+					</n>
+					<n id="50406077" p="200.76 228.22" Z="554" Element="55" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="197.15 232.14" BoundingBox="197.15 223.63 209.94 232.24" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="Cs">
+							<s font="3" size="10.0" face="97" color="0">Cs</s>
+						</t>
+					</n>
+					<b id="50406078" Z="555" B="50406075" E="50406076"/>
+					<b id="50406079" Z="556" B="50406074" E="50406075"/>
+					<b id="50406080" Z="557" B="50406072" E="50406073" Order="2" DoublePosition="Right"/>
+					<b id="50406081" Z="558" B="50406072" E="50406074"/>
+				</fragment>
+				<t id="0" p="157.2 232.12" BoundingBox="157.2 223.17 192.76 234.67" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="Cs2CO3">
+					<s font="3" size="10.0" face="96" color="0">Cs2CO3</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50404865" BoundingBox="156.92 280.67 193.04 292.17" Z="906">
+			<n id="50404864" p="160.53 285.72" Z="905" Warning="An atom in this label has an invalid valence." NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406418">
+					<n id="50406084" p="148.85 282.13" Z="559" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="145.24 286.06" BoundingBox="145.24 277.54 152.46 286.16" LabelJustification="Left" LineHeight="variable" UTF8Text="C">
+							<s font="3" size="10.0" face="97" color="0">C</s>
+						</t>
+					</n>
+					<n id="50406085" p="136.42 289.31" Z="560" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="132.53 293.23" BoundingBox="132.53 284.72 140.31 293.33" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406086" p="161.28 289.31" Z="561" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="157.39 293.23" BoundingBox="157.39 284.72 165.17 293.33" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406087" p="173.71 282.13" Z="562" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="169.82 286.06" BoundingBox="169.82 277.54 177.59 286.16" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406088" p="186.13 289.31" Z="563" Element="11" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="182.52 293.23" BoundingBox="182.52 284.89 195.31 293.33" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="Na">
+							<s font="3" size="10.0" face="97" color="0">Na</s>
+						</t>
+					</n>
+					<n id="50406089" p="200.48 285.72" Z="564" Element="11" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="196.87 289.65" BoundingBox="196.87 281.31 209.66 289.75" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="Na">
+							<s font="3" size="10.0" face="97" color="0">Na</s>
+						</t>
+					</n>
+					<b id="50406090" Z="565" B="50406087" E="50406088"/>
+					<b id="50406091" Z="566" B="50406086" E="50406087"/>
+					<b id="50406092" Z="567" B="50406084" E="50406085" Order="2" DoublePosition="Right"/>
+					<b id="50406093" Z="568" B="50406084" E="50406086"/>
+				</fragment>
+				<t id="0" p="156.92 289.62" BoundingBox="156.92 280.67 193.04 292.17" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="Na2CO3">
+					<s font="3" size="10.0" face="96" color="0">Na2CO3</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50404874" BoundingBox="155.39 299.84 194.57 311.34" Z="909">
+			<n id="50404873" p="159.0 304.89" Z="908" Warning="An atom in this label has an invalid valence." NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406419">
+					<n id="50406096" p="147.33 301.3" Z="569" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="143.71 305.23" BoundingBox="143.71 296.71 150.94 305.33" LabelJustification="Left" LineHeight="variable" UTF8Text="C">
+							<s font="3" size="10.0" face="97" color="0">C</s>
+						</t>
+					</n>
+					<n id="50406097" p="134.9 308.48" Z="570" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="131.01 312.4" BoundingBox="131.01 303.89 138.79 312.5" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406098" p="159.75 308.48" Z="571" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="155.86 312.4" BoundingBox="155.86 303.89 163.64 312.5" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406099" p="172.18 301.3" Z="572" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="168.29 305.23" BoundingBox="168.29 296.71 176.07 305.33" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406100" p="184.61 308.48" Z="573" Element="11" NumHydrogens="1" NeedsClean="yes">
+						<t id="0" p="181.0 312.4" BoundingBox="181.0 304.06 201.0 312.5" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="NaH">
+							<s font="3" size="10.0" face="97" color="0">NaH</s>
+						</t>
+					</n>
+					<b id="50406101" Z="574" B="50406099" E="50406100"/>
+					<b id="50406102" Z="575" B="50406098" E="50406099"/>
+					<b id="50406103" Z="576" B="50406096" E="50406097" Order="2" DoublePosition="Right"/>
+					<b id="50406104" Z="577" B="50406096" E="50406098"/>
+				</fragment>
+				<t id="0" p="155.39 308.79" BoundingBox="155.39 299.84 194.57 311.34" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="NaHCO3">
+					<s font="3" size="10.0" face="96" color="0">NaHCO3</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50405109" BoundingBox="154.83 184.83 195.11 196.33" Z="912">
+			<n id="50405108" p="158.16 189.88" Z="911" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406420">
+					<n id="50406107" p="151.7 193.79" Z="578"/>
+					<n id="50406108" p="139.27 200.97" Z="579"/>
+					<n id="50406109" p="126.84 193.79" Z="580"/>
+					<n id="50406110" p="114.41 200.97" Z="581"/>
+					<n id="50406111" p="64.7 200.97" Z="582"/>
+					<n id="50406112" p="77.13 193.79" Z="583"/>
+					<n id="50406113" p="89.56 200.97" Z="584"/>
+					<n id="50406114" p="101.99 193.79" Z="585"/>
+					<n id="50406115" p="151.7 215.32" Z="586"/>
+					<n id="50406116" p="139.27 222.49" Z="587"/>
+					<n id="50406117" p="126.84 215.32" Z="588"/>
+					<n id="50406118" p="114.41 222.49" Z="589"/>
+					<n id="50406119" p="64.7 222.49" Z="590"/>
+					<n id="50406120" p="77.13 215.32" Z="591"/>
+					<n id="50406121" p="89.56 222.49" Z="592"/>
+					<n id="50406122" p="101.99 215.32" Z="593"/>
+					<n id="50406123" p="120.63 265.54" Z="594" Element="7" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="117.02 269.47" BoundingBox="117.02 261.13 124.24 269.47" LabelJustification="Left" LineHeight="variable" UTF8Text="N">
+							<s font="3" size="10.0" face="97" color="0">N</s>
+						</t>
+					</n>
+					<n id="50406124" p="133.06 258.37" Z="595" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="129.17 262.29" BoundingBox="129.17 253.78 136.94 262.39" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406125" p="108.2 258.37" Z="596" Element="16" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="104.87 262.29" BoundingBox="104.87 253.78 111.54 262.44" LabelJustification="Left" LineHeight="variable" UTF8Text="S">
+							<s font="3" size="10.0" face="97" color="0">S</s>
+						</t>
+					</n>
+					<n id="50406126" p="101.03 270.8" Z="597" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="97.14 274.72" BoundingBox="97.14 266.2 104.91 274.82" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406127" p="115.38 245.94" Z="598" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="111.49 249.87" BoundingBox="111.49 241.35 119.26 249.97" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406128" p="95.77 251.19" Z="599"/>
+					<n id="50406129" p="83.35 244.02" Z="600" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="80.29 247.94" BoundingBox="80.29 239.6 86.4 247.94" LabelJustification="Left" LineHeight="variable" UTF8Text="F">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="50406130" p="95.77 236.84" Z="601" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="92.72 240.77" BoundingBox="92.72 232.43 98.83 240.77" LabelJustification="Left" LineHeight="variable" UTF8Text="F">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="50406131" p="83.35 258.37" Z="602" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="80.29 262.29" BoundingBox="80.29 253.95 86.4 262.29" LabelJustification="Left" LineHeight="variable" UTF8Text="F">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<b id="50406132" Z="603" B="50406128" E="50406125"/>
+					<b id="50406133" Z="604" B="50406128" E="50406129"/>
+					<b id="50406134" Z="605" B="50406128" E="50406130"/>
+					<b id="50406135" Z="606" B="50406128" E="50406131"/>
+					<b id="50406136" Z="607" B="50406125" E="50406126" Order="2"/>
+					<b id="50406137" Z="608" B="50406125" E="50406127" Order="2"/>
+					<b id="50406138" Z="609" B="50406123" E="50406124" Order="2" DoublePosition="Right"/>
+					<b id="50406139" Z="610" B="50406123" E="50406125"/>
+					<b id="50406140" Z="611" B="50406121" E="50406122"/>
+					<b id="50406141" Z="612" B="50406120" E="50406121"/>
+					<b id="50406142" Z="613" B="50406119" E="50406120"/>
+					<b id="50406143" Z="614" B="50406118" E="50406122"/>
+					<b id="50406144" Z="615" B="50406117" E="50406118"/>
+					<b id="50406145" Z="616" B="50406116" E="50406117"/>
+					<b id="50406146" Z="617" B="50406115" E="50406116"/>
+					<b id="50406147" Z="618" B="50406113" E="50406114"/>
+					<b id="50406148" Z="619" B="50406112" E="50406113"/>
+					<b id="50406149" Z="620" B="50406111" E="50406112"/>
+					<b id="50406150" Z="621" B="50406110" E="50406114"/>
+					<b id="50406151" Z="622" B="50406109" E="50406110"/>
+					<b id="50406152" Z="623" B="50406108" E="50406109"/>
+					<b id="50406153" Z="624" B="50406107" E="50406108"/>
+				</fragment>
+				<t id="0" p="154.83 193.78" BoundingBox="154.83 184.83 195.11 196.33" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="Bu4NOTf">
+					<s font="3" size="10.0" face="96" color="0">Bu4NOTf</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50405115" BoundingBox="165.54 261.5 184.44 273.0" Z="914">
+			<n id="50405114" p="169.16 266.55" Z="913" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406421">
+					<n id="50406156" p="162.23 266.55" Z="625" Element="11" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="165.01 270.48" BoundingBox="152.23 262.14 165.01 270.58" LabelJustification="Right" Justification="Right" LineHeight="variable" LabelAlignment="Right" UTF8Text="Na">
+							<s font="3" size="10.0" face="97" color="0">Na</s>
+						</t>
+					</n>
+					<n id="50406157" p="176.58 266.55" Z="626" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="173.53 270.48" BoundingBox="173.53 262.14 179.63 270.48" LabelJustification="Left" LineHeight="variable" UTF8Text="F">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<b id="50406158" Z="627" B="50406156" E="50406157"/>
+				</fragment>
+				<t id="0" p="165.54 270.45" BoundingBox="165.54 261.5 184.44 273.0" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="NaF">
+					<s font="3" size="10.0" face="96" color="0">NaF</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50405541" BoundingBox="171.66 146.49 178.32 157.99" Z="916">
+			<n id="50405540" p="173.33 151.54" Z="915" Warning="This label has conflicting or unassignable charges." NodeType="Unspecified" NeedsClean="yes" AS="N">
+				<t id="0" p="171.66 155.44" BoundingBox="171.66 146.49 178.32 157.99" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="--">
+					<s font="3" size="10.0" face="96" color="0">--</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50405543" BoundingBox="158.03 242.34 191.93 253.84" Z="918">
+			<n id="50405542" p="161.64 247.39" Z="917" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406422">
+					<n id="50406161" p="327.61 428.25" Z="628" Element="55" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="324.0 432.18" BoundingBox="324.0 423.66 336.79 432.28" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="Cs">
+							<s font="3" size="10.0" face="97" color="0">Cs</s>
+						</t>
+					</n>
+					<n id="50406162" p="315.19 435.43" Z="629" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="311.3 439.35" BoundingBox="311.3 430.84 319.08 439.45" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406163" p="290.33 449.78" Z="630"/>
+					<n id="50406164" p="290.33 435.43" Z="631"/>
+					<n id="50406165" p="302.76 428.25" Z="632"/>
+					<n id="50406166" p="277.9 442.6" Z="633"/>
+					<n id="50406167" p="277.9 428.25" Z="634"/>
+					<n id="50406168" p="302.76 413.9" Z="635" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="298.87 417.83" BoundingBox="298.87 409.31 306.65 417.93" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<b id="50406169" Z="636" B="50406165" E="50406168" Order="2"/>
+					<b id="50406170" Z="637" B="50406164" E="50406165"/>
+					<b id="50406171" Z="638" B="50406164" E="50406166"/>
+					<b id="50406172" Z="639" B="50406164" E="50406167"/>
+					<b id="50406173" Z="640" B="50406163" E="50406164"/>
+					<b id="50406174" Z="641" B="50406162" E="50406165"/>
+					<b id="50406175" Z="642" B="50406161" E="50406162"/>
+				</fragment>
+				<t id="0" p="158.03 251.29" BoundingBox="158.03 242.34 191.93 253.84" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="CsOPiv">
+					<s font="3" size="10.0" face="96" color="0">CsOPiv</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50405786" BoundingBox="162.91 319.03 187.08 330.53" Z="923">
+			<n id="50405785" p="166.24 324.08" Z="922" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406423">
+					<n id="50406178" p="188.52 324.08" Z="643" Element="19" NumHydrogens="1" NeedsClean="yes">
+						<t id="0" p="184.91 328.01" BoundingBox="184.91 319.67 199.35 328.01" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="KH">
+							<s font="3" size="10.0" face="97" color="0">KH</s>
+						</t>
+					</n>
+					<n id="50406179" p="159.82 324.08" Z="644" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="156.76 328.01" BoundingBox="156.76 319.67 162.87 328.01" LabelJustification="Left" LineHeight="variable" UTF8Text="F">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="50406180" p="174.17 324.08" Z="645" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="171.11 328.01" BoundingBox="171.11 319.67 177.22 328.01" LabelJustification="Left" LineHeight="variable" UTF8Text="F">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<b id="50406181" Z="646" B="50406179" E="50406180"/>
+				</fragment>
+				<t id="0" p="162.91 327.98" BoundingBox="162.91 319.03 187.08 330.53" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="KHF2">
+					<s font="3" size="10.0" face="96" color="0">KHF2</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50405796" BoundingBox="164.15 357.37 185.82 368.87" Z="929">
+			<n id="50405795" p="167.48 362.42" Z="928" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406424">
+					<n id="50406184" p="160.56 362.42" Z="647" Element="19" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="156.94 366.35" BoundingBox="156.94 358.0 164.17 366.35" LabelJustification="Left" LineHeight="variable" UTF8Text="K">
+							<s font="3" size="10.0" face="97" color="0">K</s>
+						</t>
+					</n>
+					<n id="50406185" p="174.91 362.42" Z="648" Element="8" NumHydrogens="1" NeedsClean="yes">
+						<t id="0" p="171.02 366.35" BoundingBox="171.02 357.83 186.02 366.45" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="OH">
+							<s font="3" size="10.0" face="97" color="0">OH</s>
+						</t>
+					</n>
+					<b id="50406186" Z="649" B="50406184" E="50406185"/>
+				</fragment>
+				<t id="0" p="164.15 366.32" BoundingBox="164.15 357.37 185.82 368.87" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="KOH">
+					<s font="3" size="10.0" face="96" color="0">KOH</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50405812" BoundingBox="306.57 280.7 317.69 292.2" Z="936">
+			<n id="50405811" p="309.35 285.75" Z="935" color="4" Warning="ChemDraw can't interpret this label." NodeType="Unspecified" NeedsClean="yes" AS="N">
+				<t id="0" p="306.57 289.65" BoundingBox="306.57 280.7 317.69 292.2" color="4" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="77">
+					<s font="3" size="10.0" face="96" color="4">77</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50405814" BoundingBox="433.25 280.7 444.38 292.2" Z="938">
+			<n id="50405813" p="436.03 285.75" Z="937" color="8" Warning="ChemDraw can't interpret this label." NodeType="Unspecified" NeedsClean="yes" AS="N">
+				<t id="0" p="433.25 289.65" BoundingBox="433.25 280.7 444.38 292.2" color="8" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="75">
+					<s font="3" size="10.0" face="96" color="8">75</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50405817" BoundingBox="306.57 299.87 317.69 311.37" Z="940">
+			<n id="50405816" p="309.35 304.92" Z="939" color="4" Warning="ChemDraw can't interpret this label." NodeType="Unspecified" NeedsClean="yes" AS="N">
+				<t id="0" p="306.57 308.82" BoundingBox="306.57 299.87 317.69 311.37" color="4" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="81">
+					<s font="3" size="10.0" face="96" color="4">81</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50405819" BoundingBox="433.25 299.87 444.38 311.37" Z="942">
+			<n id="50405818" p="436.03 304.92" Z="941" color="8" Warning="ChemDraw can't interpret this label." NodeType="Unspecified" NeedsClean="yes" AS="N">
+				<t id="0" p="433.25 308.82" BoundingBox="433.25 299.87 444.38 311.37" color="8" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="74">
+					<s font="3" size="10.0" face="96" color="8">74</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50405979" BoundingBox="152.05 338.2 197.88 349.7" Z="944">
+			<n id="50405978" p="155.38 343.25" Z="943" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406425">
+					<n id="50406191" p="290.95 505.31" Z="650" Element="19" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="287.34 509.24" BoundingBox="287.34 500.9 294.56 509.24" LabelJustification="Left" LineHeight="variable" UTF8Text="K">
+							<s font="3" size="10.0" face="97" color="0">K</s>
+						</t>
+					</n>
+					<n id="50406192" p="290.95 519.66" Z="651" Element="7" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="287.34 523.59" BoundingBox="287.34 515.25 294.56 523.59" LabelJustification="Left" LineHeight="variable" UTF8Text="N">
+							<s font="3" size="10.0" face="97" color="0">N</s>
+						</t>
+					</n>
+					<n id="50406193" p="278.52 526.84" Z="652" Element="14" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="278.52 530.76" BoundingBox="273.79 522.25 283.24 530.91" LabelJustification="Center" Justification="Center" LineHeight="variable" LabelAlignment="Center" UTF8Text="Si">
+							<s font="3" size="10.0" face="97" color="0">Si</s>
+						</t>
+					</n>
+					<n id="50406194" p="266.09 534.01" Z="653"/>
+					<n id="50406195" p="278.52 541.19" Z="654"/>
+					<n id="50406196" p="266.09 519.66" Z="655"/>
+					<n id="50406197" p="303.37 526.84" Z="656" Element="14" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="303.37 530.76" BoundingBox="298.65 522.25 308.1 530.91" LabelJustification="Center" Justification="Center" LineHeight="variable" LabelAlignment="Center" UTF8Text="Si">
+							<s font="3" size="10.0" face="97" color="0">Si</s>
+						</t>
+					</n>
+					<n id="50406198" p="315.8 519.66" Z="657"/>
+					<n id="50406199" p="303.37 541.19" Z="658"/>
+					<n id="50406200" p="315.8 534.01" Z="659"/>
+					<b id="50406201" Z="660" B="50406197" E="50406198"/>
+					<b id="50406202" Z="661" B="50406197" E="50406199"/>
+					<b id="50406203" Z="662" B="50406197" E="50406200"/>
+					<b id="50406204" Z="663" B="50406193" E="50406194"/>
+					<b id="50406205" Z="664" B="50406193" E="50406195"/>
+					<b id="50406206" Z="665" B="50406193" E="50406196"/>
+					<b id="50406207" Z="666" B="50406192" E="50406193"/>
+					<b id="50406208" Z="667" B="50406192" E="50406197"/>
+					<b id="50406209" Z="668" B="50406191" E="50406192"/>
+				</fragment>
+				<t id="0" p="152.05 347.15" BoundingBox="152.05 338.2 197.88 349.7" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="KN(TMS)2">
+					<s font="3" size="10.0" face="96" color="0">KN(TMS)2</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50405982" BoundingBox="160.59 373.89 189.35 388.04" Z="946">
+			<n id="50405981" p="163.93 381.59" Z="945" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406426">
+					<n id="50406212" p="282.22 558.0" Z="669" Element="19" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="278.61 561.93" BoundingBox="278.61 553.58 285.84 561.93" LabelJustification="Left" LineHeight="variable" UTF8Text="K">
+							<s font="3" size="10.0" face="97" color="0">K</s>
+						</t>
+					</n>
+					<n id="50406213" p="294.65 565.18" Z="670" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="290.76 569.1" BoundingBox="290.76 560.58 298.54 569.2" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406214" p="307.08 558.0" Z="671"/>
+					<n id="50406215" p="307.08 543.65" Z="672"/>
+					<n id="50406216" p="319.51 550.83" Z="673"/>
+					<n id="50406217" p="319.51 565.18" Z="674"/>
+					<b id="50406218" Z="675" B="50406214" E="50406215"/>
+					<b id="50406219" Z="676" B="50406214" E="50406216"/>
+					<b id="50406220" Z="677" B="50406214" E="50406217"/>
+					<b id="50406221" Z="678" B="50406213" E="50406214"/>
+					<b id="50406222" Z="679" B="50406212" E="50406213"/>
+				</fragment>
+				<t id="0" p="160.59 385.49" BoundingBox="160.59 373.89 189.35 388.04" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="KOtBu">
+					<s font="3" size="10.0" face="96" color="0">KO</s>
+					<s font="3" size="10.0" face="64" color="0">t</s>
+					<s font="3" size="10.0" face="96" color="0">Bu</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50405987" BoundingBox="161.37 395.71 188.6 407.21" Z="949">
+			<n id="50405986" p="164.15 400.76" Z="948" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406427">
+					<n id="50406225" p="319.92 580.91" Z="680" Element="3" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="316.86 584.84" BoundingBox="316.86 576.5 325.75 584.84" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="Li">
+							<s font="3" size="10.0" face="97" color="0">Li</s>
+						</t>
+					</n>
+					<n id="50406226" p="307.49 588.09" Z="681" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="303.6 592.01" BoundingBox="303.6 583.5 311.38 592.11" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406227" p="295.06 566.56" Z="682" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="291.17 570.49" BoundingBox="291.17 561.97 298.95 570.59" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406228" p="295.06 580.91" Z="683"/>
+					<n id="50406229" p="282.63 588.09" Z="684"/>
+					<b id="50406230" Z="685" B="50406228" E="50406229"/>
+					<b id="50406231" Z="686" B="50406227" E="50406228" Order="2"/>
+					<b id="50406232" Z="687" B="50406226" E="50406228"/>
+					<b id="50406233" Z="688" B="50406225" E="50406226"/>
+				</fragment>
+				<t id="0" p="161.37 404.66" BoundingBox="161.37 395.71 188.6 407.21" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="LiOAc">
+					<s font="3" size="10.0" face="96" color="0">LiOAc</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50405999" BoundingBox="159.28 434.04 190.68 445.54" Z="958">
+			<n id="50405998" p="162.61 439.09" Z="957" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406428">
+					<n id="50406236" p="144.72 435.51" Z="689" Element="47" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="147.78 439.43" BoundingBox="134.45 431.09 147.78 441.53" LabelJustification="Right" Justification="Right" LineHeight="variable" LabelAlignment="Right" UTF8Text="Ag">
+							<s font="3" size="10.0" face="97" color="0">Ag</s>
+						</t>
+					</n>
+					<n id="50406237" p="157.15 442.68" Z="690" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="153.26 446.61" BoundingBox="153.26 438.09 161.04 446.71" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406238" p="169.58 435.51" Z="691" Element="7" NumHydrogens="0" Charge="1" NeedsClean="yes">
+						<t id="0" p="165.97 439.43" BoundingBox="165.97 429.75 177.57 439.43" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="N+">
+							<s font="3" size="10.0" face="97" color="0">N+</s>
+						</t>
+					</n>
+					<n id="50406239" p="169.58 421.16" Z="692" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="165.69 425.08" BoundingBox="165.69 416.56 173.47 425.18" LabelJustification="Left" LineHeight="variable" UTF8Text="O">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="50406240" p="182.01 442.68" Z="693" Element="8" NumHydrogens="0" Charge="-1" NeedsClean="yes">
+						<t id="0" p="178.12 446.61" BoundingBox="178.12 438.09 188.39 446.71" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left" UTF8Text="O-">
+							<s font="3" size="10.0" face="97" color="0">O-</s>
+						</t>
+					</n>
+					<b id="50406241" Z="694" B="50406238" E="50406239" Order="2"/>
+					<b id="50406242" Z="695" B="50406238" E="50406240"/>
+					<b id="50406243" Z="696" B="50406237" E="50406238"/>
+					<b id="50406244" Z="697" B="50406236" E="50406237"/>
+				</fragment>
+				<t id="0" p="159.28 442.99" BoundingBox="159.28 434.04 190.68 445.54" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="AgNO3">
+					<s font="3" size="10.0" face="96" color="0">AgNO3</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50406006" BoundingBox="164.56 453.21 185.4 464.71" Z="963">
+			<n id="50406005" p="167.9 458.26" Z="962" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="50406429">
+					<n id="50406247" p="33.4 292.05" Z="698"/>
+					<n id="50406248" p="20.97 299.23" Z="699"/>
+					<n id="50406249" p="-16.31 292.05" Z="700"/>
+					<n id="50406250" p="-3.89 299.23" Z="701"/>
+					<n id="50406251" p="-3.89 270.53" Z="702"/>
+					<n id="50406252" p="8.54 277.7" Z="703"/>
+					<n id="50406253" p="8.54 292.05" Z="704" Element="7" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="4.93 295.98" BoundingBox="4.93 287.64 12.15 295.98" LabelJustification="Left" LineHeight="variable" UTF8Text="N">
+							<s font="3" size="10.0" face="97" color="0">N</s>
+						</t>
+					</n>
+					<b id="50406254" Z="705" B="50406252" E="50406253"/>
+					<b id="50406255" Z="706" B="50406251" E="50406252"/>
+					<b id="50406256" Z="707" B="50406250" E="50406253"/>
+					<b id="50406257" Z="708" B="50406249" E="50406250"/>
+					<b id="50406258" Z="709" B="50406248" E="50406253"/>
+					<b id="50406259" Z="710" B="50406247" E="50406248"/>
+				</fragment>
+				<t id="0" p="164.56 462.16" BoundingBox="164.56 453.21 185.4 464.71" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="Et3N">
+					<s font="3" size="10.0" face="96" color="0">Et3N</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50406014" BoundingBox="164.43 472.38 185.55 483.88" Z="968">
+			<n id="50406013" p="168.04 477.43" Z="967" Warning="An atom in this label has an invalid valence." NodeType="Unspecified" NeedsClean="yes" AS="N">
+				<fragment id="50406430">
+					<n id="50406262" p="156.12 481.02" Z="711" Element="1" NumHydrogens="0" Isotope="2" NeedsClean="yes">
+						<t id="0" p="152.51 484.94" BoundingBox="152.51 476.6 159.73 484.94" LabelJustification="Left" LineHeight="variable" UTF8Text="D">
+							<s font="3" size="10.0" face="1" color="0">D</s>
+						</t>
+					</n>
+					<n id="50406263" p="168.54 473.84" Z="712" Element="5" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="164.93 477.77" BoundingBox="164.93 469.43 172.16 477.77" LabelJustification="Left" LineHeight="variable" UTF8Text="B">
+							<s font="3" size="10.0" face="97" color="0">B</s>
+						</t>
+					</n>
+					<n id="50406264" p="180.97 481.02" Z="713" Element="92" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="177.36 484.94" BoundingBox="177.36 476.6 184.58 485.04" LabelJustification="Left" LineHeight="variable" UTF8Text="U">
+							<s font="3" size="10.0" face="97" color="0">U</s>
+						</t>
+					</n>
+					<b id="50406265" Z="714" B="50406263" E="50406264"/>
+					<b id="50406266" Z="715" B="50406262" E="50406263"/>
+				</fragment>
+				<t id="0" p="164.43 481.33" BoundingBox="164.43 472.38 185.55 483.88" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="DBU">
+					<s font="3" size="10.0" face="96" color="0">DBU</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50406270" BoundingBox="432.42 165.69 446.87 177.19" Z="971">
+			<n id="50406269" p="436.03 170.74" Z="970" color="8" Warning="An atom in this label has an invalid valence." NodeType="Unspecified" NeedsClean="yes" AS="N">
+				<fragment id="50406431">
+					<n id="50406309" p="443.46 170.74" Z="507" Element="7" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="439.85 174.66" BoundingBox="439.85 166.32 447.07 174.66" LabelJustification="Left" LineHeight="variable" UTF8Text="N">
+							<s font="3" size="10.0" face="97" color="0">N</s>
+						</t>
+					</n>
+					<n id="50406310" p="429.11 170.74" Z="508" Element="1" NumHydrogens="0" Isotope="2" NeedsClean="yes">
+						<t id="0" p="425.5 174.66" BoundingBox="425.5 166.32 432.72 174.66" LabelJustification="Left" LineHeight="variable" UTF8Text="D">
+							<s font="3" size="10.0" face="1" color="0">D</s>
+						</t>
+					</n>
+					<b id="50406311" Z="509" B="50406309" E="50406310"/>
+				</fragment>
+				<t id="0" p="432.42 174.64" BoundingBox="432.42 165.69 446.87 177.19" color="8" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="ND">
+					<s font="3" size="10.0" face="96" color="8">ND</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="50406276" BoundingBox="432.42 472.38 446.87 483.88" Z="973">
+			<n id="50406275" p="436.03 477.43" Z="972" color="8" Warning="An atom in this label has an invalid valence." NodeType="Unspecified" NeedsClean="yes" AS="N">
+				<fragment id="50406432">
+					<n id="50406314" p="443.46 477.43" Z="510" Element="7" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="439.85 481.35" BoundingBox="439.85 473.01 447.07 481.35" LabelJustification="Left" LineHeight="variable" UTF8Text="N">
+							<s font="3" size="10.0" face="97" color="0">N</s>
+						</t>
+					</n>
+					<n id="50406315" p="429.11 477.43" Z="511" Element="1" NumHydrogens="0" Isotope="2" NeedsClean="yes">
+						<t id="0" p="425.5 481.35" BoundingBox="425.5 473.01 432.72 481.35" LabelJustification="Left" LineHeight="variable" UTF8Text="D">
+							<s font="3" size="10.0" face="1" color="0">D</s>
+						</t>
+					</n>
+					<b id="50406316" Z="512" B="50406314" E="50406315"/>
+				</fragment>
+				<t id="0" p="432.42 481.33" BoundingBox="432.42 472.38 446.87 483.88" color="8" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left" UTF8Text="ND">
+					<s font="3" size="10.0" face="96" color="8">ND</s>
+				</t>
+			</n>
+		</fragment>
+		<t id="50404812" p="291.18 136.05" BoundingBox="291.18 127.1 331.75 138.6" Z="873" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="Yield (%)">
+			<s font="3" size="10.0" face="96" color="4">Yield</s>
+			<s font="3" size="10.0" face="96" color="0"> (%)</s>
+		</t>
+		<t id="50404813" p="424.28 136.05" BoundingBox="424.28 127.1 453.73 138.6" Z="874" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="ee (%)">
+			<s font="3" size="10.0" face="96" color="8">ee</s>
+			<s font="3" size="10.0" face="96" color="0"> (%)</s>
+		</t>
+		<t id="50404695" p="29.08 136.3" BoundingBox="29.08 127.35 52.42 138.85" Z="875" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="Entry">
+			<s font="3" size="10.0" face="96" color="0">Entry</s>
+		</t>
+		<t id="50404821" p="38.06 155.47" BoundingBox="38.06 146.52 43.62 158.02" Z="878" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="1">
+			<s font="3" size="10.0" face="96" color="0">1</s>
+		</t>
+		<t id="50404823" p="305.75 155.47" BoundingBox="305.75 146.52 316.87 158.02" Z="879" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="91">
+			<s font="3" size="10.0" face="96" color="4">91</s>
+		</t>
+		<t id="50404824" p="432.43 155.47" BoundingBox="432.43 146.52 443.56 158.02" Z="880" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="74">
+			<s font="3" size="10.0" face="96" color="8">74</s>
+		</t>
+		<t id="50404826" p="38.06 174.64" BoundingBox="38.06 165.69 43.62 177.19" Z="881" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="2">
+			<s font="3" size="10.0" face="96" color="0">2</s>
+		</t>
+		<t id="50404830" p="305.75 174.64" BoundingBox="305.75 165.69 316.87 177.19" Z="884" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="10">
+			<s font="3" size="10.0" face="96" color="4">10</s>
+		</t>
+		<t id="50404833" p="38.06 193.81" BoundingBox="38.06 184.86 43.62 196.36" Z="885" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="3">
+			<s font="3" size="10.0" face="96" color="0">3</s>
+		</t>
+		<t id="50404835" p="305.75 193.81" BoundingBox="305.75 184.86 316.87 196.36" Z="886" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="76">
+			<s font="3" size="10.0" face="96" color="4">76</s>
+		</t>
+		<t id="50404836" p="432.43 193.81" BoundingBox="432.43 184.86 443.56 196.36" Z="887" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="75">
+			<s font="3" size="10.0" face="96" color="8">75</s>
+		</t>
+		<t id="50404838" p="38.06 212.97" BoundingBox="38.06 204.02 43.62 215.52" Z="888" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="4">
+			<s font="3" size="10.0" face="96" color="0">4</s>
+		</t>
+		<t id="50404842" p="305.75 212.97" BoundingBox="305.75 204.02 316.87 215.52" Z="891" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="48">
+			<s font="3" size="10.0" face="96" color="4">48</s>
+		</t>
+		<t id="50404843" p="432.43 212.97" BoundingBox="432.43 204.02 443.56 215.52" Z="892" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="33">
+			<s font="3" size="10.0" face="96" color="8">33</s>
+		</t>
+		<t id="50404845" p="38.06 232.14" BoundingBox="38.06 223.19 43.62 234.69" Z="893" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="5">
+			<s font="3" size="10.0" face="96" color="0">5</s>
+		</t>
+		<t id="50404849" p="305.75 232.14" BoundingBox="305.75 223.19 316.87 234.69" Z="896" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="48">
+			<s font="3" size="10.0" face="96" color="4">48</s>
+		</t>
+		<t id="50404850" p="432.43 232.14" BoundingBox="432.43 223.19 443.56 234.69" Z="897" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="76">
+			<s font="3" size="10.0" face="96" color="8">76</s>
+		</t>
+		<t id="50404852" p="38.06 251.31" BoundingBox="38.06 242.36 43.62 253.86" Z="898" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="6">
+			<s font="3" size="10.0" face="96" color="0">6</s>
+		</t>
+		<t id="50404854" p="305.75 251.31" BoundingBox="305.75 242.36 316.87 253.86" Z="899" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="15">
+			<s font="3" size="10.0" face="96" color="4">15</s>
+		</t>
+		<t id="50404855" p="432.43 251.31" BoundingBox="432.43 242.36 443.56 253.86" Z="900" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="78">
+			<s font="3" size="10.0" face="96" color="8">78</s>
+		</t>
+		<t id="50404857" p="38.06 270.48" BoundingBox="38.06 261.53 43.62 273.03" Z="901" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="7">
+			<s font="3" size="10.0" face="96" color="0">7</s>
+		</t>
+		<t id="50404859" p="305.75 270.48" BoundingBox="305.75 261.53 316.87 273.03" Z="902" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="73">
+			<s font="3" size="10.0" face="96" color="4">73</s>
+		</t>
+		<t id="50404860" p="432.43 270.48" BoundingBox="432.43 261.53 443.56 273.03" Z="903" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="74">
+			<s font="3" size="10.0" face="96" color="8">74</s>
+		</t>
+		<t id="50404862" p="38.06 289.65" BoundingBox="38.06 280.7 43.62 292.2" Z="904" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="8">
+			<s font="3" size="10.0" face="96" color="0">8</s>
+		</t>
+		<t id="50404871" p="38.06 308.82" BoundingBox="38.06 299.87 43.62 311.37" Z="907" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="9">
+			<s font="3" size="10.0" face="96" color="0">9</s>
+		</t>
+		<t id="50405545" p="38.06 327.98" BoundingBox="38.06 319.03 49.18 330.53" Z="919" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="10">
+			<s font="3" size="10.0" face="96" color="0">10</s>
+		</t>
+		<t id="50405547" p="305.75 327.98" BoundingBox="305.75 319.03 316.87 330.53" Z="920" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="75">
+			<s font="3" size="10.0" face="96" color="4">75</s>
+		</t>
+		<t id="50405548" p="432.43 327.98" BoundingBox="432.43 319.03 443.56 330.53" Z="921" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="76">
+			<s font="3" size="10.0" face="96" color="8">76</s>
+		</t>
+		<t id="50405788" p="38.06 347.15" BoundingBox="38.06 338.2 49.18 349.7" Z="924" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="11">
+			<s font="3" size="10.0" face="96" color="0">11</s>
+		</t>
+		<t id="50405790" p="305.75 347.15" BoundingBox="305.75 338.2 316.87 349.7" Z="925" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="64">
+			<s font="3" size="10.0" face="96" color="4">64</s>
+		</t>
+		<t id="50405791" p="432.43 347.15" BoundingBox="432.43 338.2 443.56 349.7" Z="926" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="71">
+			<s font="3" size="10.0" face="96" color="8">71</s>
+		</t>
+		<t id="50405793" p="38.06 366.32" BoundingBox="38.06 357.37 49.18 368.87" Z="927" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="12">
+			<s font="3" size="10.0" face="96" color="0">12</s>
+		</t>
+		<t id="50405797" p="305.75 366.32" BoundingBox="305.75 357.37 316.87 368.87" Z="930" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="78">
+			<s font="3" size="10.0" face="96" color="4">78</s>
+		</t>
+		<t id="50405798" p="432.43 366.32" BoundingBox="432.43 357.37 443.56 368.87" Z="931" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="73">
+			<s font="3" size="10.0" face="96" color="8">73</s>
+		</t>
+		<t id="50405800" p="38.06 385.49" BoundingBox="38.06 376.54 49.18 388.04" Z="932" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="13">
+			<s font="3" size="10.0" face="96" color="0">13</s>
+		</t>
+		<t id="50405802" p="305.75 385.49" BoundingBox="305.75 376.54 316.87 388.04" Z="933" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="71">
+			<s font="3" size="10.0" face="96" color="4">71</s>
+		</t>
+		<t id="50405803" p="432.43 385.49" BoundingBox="432.43 376.54 443.56 388.04" Z="934" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="78">
+			<s font="3" size="10.0" face="96" color="8">78</s>
+		</t>
+		<t id="50405984" p="38.06 404.66" BoundingBox="38.06 395.71 49.18 407.21" Z="947" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="14">
+			<s font="3" size="10.0" face="96" color="0">14</s>
+		</t>
+		<t id="50405988" p="305.75 404.66" BoundingBox="305.75 395.71 316.87 407.21" Z="950" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="96">
+			<s font="3" size="10.0" face="96" color="4">96</s>
+		</t>
+		<t id="50405989" p="432.43 404.66" BoundingBox="432.43 395.71 443.56 407.21" Z="951" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="73">
+			<s font="3" size="10.0" face="96" color="8">73</s>
+		</t>
+		<t id="50405991" p="38.06 423.82" BoundingBox="38.06 414.87 49.18 426.37" Z="952" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="15">
+			<s font="3" size="10.0" face="96" color="0">15</s>
+		</t>
+		<t id="50405992" p="142.25 423.82" BoundingBox="142.25 413.77 204.49 426.07" Z="953" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="Li3PO4 12H2O">
+			<s font="3" size="10.0" face="96" color="0">Li3PO4</s>
+			<s font="23" size="10.0" face="96" color="0"> 12</s>
+			<s font="3" size="10.0" face="96" color="0">H2O</s>
+		</t>
+		<t id="50405993" p="305.75 423.82" BoundingBox="305.75 414.87 316.87 426.37" Z="954" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="70">
+			<s font="3" size="10.0" face="96" color="4">70</s>
+		</t>
+		<t id="50405994" p="432.43 423.82" BoundingBox="432.43 414.87 443.56 426.37" Z="955" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="73">
+			<s font="3" size="10.0" face="96" color="8">73</s>
+		</t>
+		<t id="50405996" p="38.06 442.99" BoundingBox="38.06 434.04 49.18 445.54" Z="956" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="16">
+			<s font="3" size="10.0" face="96" color="0">16</s>
+		</t>
+		<t id="50406000" p="305.75 442.99" BoundingBox="305.75 434.04 316.87 445.54" Z="959" color="4" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="78">
+			<s font="3" size="10.0" face="96" color="4">78</s>
+		</t>
+		<t id="50406001" p="432.43 442.99" BoundingBox="432.43 434.04 443.56 445.54" Z="960" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="73">
+			<s font="3" size="10.0" face="96" color="8">73</s>
+		</t>
+		<t id="50406003" p="38.06 462.16" BoundingBox="38.06 453.21 49.18 464.71" Z="961" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="17">
+			<s font="3" size="10.0" face="96" color="0">17</s>
+		</t>
+		<t id="50406007" p="305.75 462.16" BoundingBox="305.75 453.21 317.15 464.71" Z="964" color="4" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto" UTF8Text="&lt;1">
+			<s font="3" size="10.0" face="0" color="4">&lt;1</s>
+		</t>
+		<t id="50406008" p="432.43 462.16" BoundingBox="432.43 453.21 438.0 464.71" Z="965" color="8" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="3">
+			<s font="3" size="10.0" face="96" color="8">3</s>
+		</t>
+		<t id="50406011" p="38.06 481.33" BoundingBox="38.06 472.38 49.18 483.88" Z="966" Warning="ChemDraw can't interpret this label." LineHeight="auto" UTF8Text="18">
+			<s font="3" size="10.0" face="96" color="0">18</s>
+		</t>
+		<t id="50406015" p="305.75 481.33" BoundingBox="305.75 472.38 311.31 483.88" Z="969" color="4" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto" UTF8Text="8">
+			<s font="3" size="10.0" face="0" color="4">8</s>
+		</t>
+		<t id="50406319" p="463.89 95.5" BoundingBox="463.89 86.25 470.0 98.0" Z="974" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto" UTF8Text="L">
+			<s font="3" size="10.0" face="1" color="0">L</s>
+		</t>
+		<graphic id="50406277" BoundingBox="464.32 387.75 18.77 373.45" Z="802" color="7" GraphicType="Rectangle" RectangleType="RoundEdge Shaded" CornerRadius="600" Center3D="241.54 380.6 0.0" MajorAxisEnd3D="464.32 380.6 0.0" MinorAxisEnd3D="241.54 387.75 0.0"/>
+		<graphic id="50405822" BoundingBox="460.57 158.25 15.02 143.95" Z="803" color="5" GraphicType="Rectangle" RectangleType="RoundEdge Shaded" CornerRadius="600" Center3D="237.79 151.1 0.0" MajorAxisEnd3D="460.57 151.1 0.0" MinorAxisEnd3D="237.79 158.25 0.0"/>
+		<graphic id="10207" BoundingBox="522.25 103.48 412.0 22.48" Z="871" GraphicType="Rectangle" RectangleType="RoundEdge Dashed" CornerRadius="600" Center3D="467.13 62.98 0.0" MajorAxisEnd3D="522.25 62.98 0.0" MinorAxisEnd3D="467.13 103.48 0.0"/>
+		<graphic id="50405023" BoundingBox="465.42 142.39 12.92 120.14" Z="872" color="10" GraphicType="Rectangle" RectangleType="RoundEdge Shaded" CornerRadius="600" Center3D="239.17 131.26 0.0" MajorAxisEnd3D="465.42 131.26 0.0" MinorAxisEnd3D="239.17 142.39 0.0"/>
+		<graphic id="50406402" SupersededBy="50406433" BoundingBox="464.93 485.14 12.42 485.14" Z="910" GraphicType="Line" HeadSize="1000"/>
+		<scheme id="50406434">
+			<step id="50406435" ReactionStepReactants="5999" ReactionStepProducts="10138 4812" ReactionStepArrows="50406383" ReactionStepObjectsAboveArrow="7609" ReactionStepObjectsBelowArrow="8401"/>
+		</scheme>
+		<arrow id="50406433" BoundingBox="12.42 484.84 464.93 485.44" Z="910" FillType="None" ArrowheadType="Solid" HeadSize="1000" ArrowheadCenterSize="875" ArrowheadWidth="250" Head3D="464.93 485.14 0.0" Tail3D="12.42 485.14 0.0" Center3D="479.36 704.01 0.0" MajorAxisEnd3D="931.87 704.01 0.0" MinorAxisEnd3D="479.36 1156.53 0.0"/>
+	</page>
+</CDXML>

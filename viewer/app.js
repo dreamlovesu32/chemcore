@@ -2402,10 +2402,19 @@ function currentElementPalette() {
   if (typeof state.editorEngine?.elementPaletteJson === "function") {
     const paletteJson = state.editorEngine.elementPaletteJson();
     if (typeof paletteJson === "string") {
-      return parseEngineJson(paletteJson, null);
+      return elementPaletteWithCurrentSelection(parseEngineJson(paletteJson, null));
     }
   }
   return null;
+}
+
+function elementPaletteWithCurrentSelection(payload) {
+  if (!payload || !editorState.elementSymbol) {
+    return payload;
+  }
+  const elements = Array.isArray(payload.elements) ? payload.elements : [];
+  const current = elements.find((element) => element?.symbol === editorState.elementSymbol);
+  return current ? { ...payload, current } : payload;
 }
 
 function syncTextSymbolPaletteFromEngine() {
@@ -3095,13 +3104,6 @@ function insertElementSymbol(symbol) {
   }
 }
 
-async function applyElementPaletteSelection(symbol) {
-  if (typeof state.editorEngine?.applyElementPaletteJson === "function") {
-    return state.editorEngine.applyElementPaletteJson(JSON.stringify({ symbol }));
-  }
-  return false;
-}
-
 function setElementPlacementActive(active) {
   const nextActive = Boolean(active) && !activeTextEditor;
   if (editorState.elementPlacementActive === nextActive) {
@@ -3122,9 +3124,11 @@ async function selectElementFromQuickPalette(symbol, atomicNumber = null) {
   if (!normalizedSymbol) {
     return false;
   }
-  const changed = await applyElementPaletteSelection(normalizedSymbol);
+  const nextAtomicNumber = Number(atomicNumber) || editorState.elementAtomicNumber || 15;
+  const changed = editorState.elementSymbol !== normalizedSymbol
+    || editorState.elementAtomicNumber !== nextAtomicNumber;
   editorState.elementSymbol = normalizedSymbol;
-  editorState.elementAtomicNumber = Number(atomicNumber) || editorState.elementAtomicNumber || 15;
+  editorState.elementAtomicNumber = nextAtomicNumber;
   if (activeTextEditor) {
     insertElementSymbol(normalizedSymbol);
   } else {
@@ -3468,6 +3472,7 @@ bindEditorControls({
   saveCurrentDocumentPdf,
   saveCurrentDocumentSvg,
   isAbortError,
+  activateEditorTool,
   runEditorCommand,
   commandEngine,
   setZoomPercent,
@@ -3481,7 +3486,6 @@ bindEditorControls({
   applyTextScript,
   applyChemicalFormat,
   insertElementSymbol,
-  applyElementPaletteSelection,
   applyTextInlineStyle,
   applySelectionArrangeCommand,
   applyArrowOptionsToSelection,

@@ -8,6 +8,9 @@ use chemcore_engine::{
 use serde_json::json;
 use std::collections::BTreeMap;
 
+mod support;
+use support::read_optional_cdxml_fixture;
+
 const fn px(value: f64) -> f64 {
     chemcore_engine::px_to_pt(value)
 }
@@ -8475,8 +8478,9 @@ fn acs_circle_charge_symbol_uses_full_size_internal_sign() {
 
 #[test]
 fn bracket_tool_imports_chemdraw_charge_symbol_kinds() {
-    let cdxml = std::fs::read_to_string("../../tmp/kuohao-acs.cdxml")
-        .expect("kuohao-acs fixture should exist");
+    let Some(cdxml) = read_optional_cdxml_fixture("kuohao-acs.cdxml") else {
+        return;
+    };
     let mut engine = Engine::new();
     engine
         .load_cdxml_document(&cdxml)

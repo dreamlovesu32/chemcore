@@ -116,11 +116,14 @@ pub fn node_attached_electron_symbols(node: &Node) -> Vec<Value> {
 }
 
 pub fn node_effective_num_hydrogens(node: &Node) -> u8 {
+    node_effective_num_hydrogens_override(node).unwrap_or(node.num_hydrogens)
+}
+
+pub fn node_effective_num_hydrogens_override(node: &Node) -> Option<u8> {
     node.meta
         .get(EFFECTIVE_NUM_HYDROGENS_META)
         .and_then(Value::as_u64)
         .map(|value| value.min(u64::from(u8::MAX)) as u8)
-        .unwrap_or(node.num_hydrogens)
 }
 
 pub fn node_has_charge_symbol_invalid(node: &Node) -> bool {

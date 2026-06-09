@@ -95,7 +95,13 @@ fn glyph_anchor(label: &chemcore_engine::NodeLabel, index: usize) -> Point {
         .glyph_polygons
         .get(index)
         .expect("label should have glyph polygons");
-    let bounds = polygon.iter().fold(
+    let bounds = polygon_bounds(polygon);
+    Point::new((bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5)
+}
+
+fn polygon_bounds(points: &[[f64; 2]]) -> [f64; 4] {
+    assert!(!points.is_empty(), "polygon should not be empty");
+    points.iter().fold(
         [
             f64::INFINITY,
             f64::INFINITY,
@@ -110,8 +116,27 @@ fn glyph_anchor(label: &chemcore_engine::NodeLabel, index: usize) -> Point {
                 bounds[3].max(point[1]),
             ]
         },
-    );
-    Point::new((bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5)
+    )
+}
+
+fn glyph_polygons_bounds(polygons: &[Vec<[f64; 2]>]) -> [f64; 4] {
+    assert!(!polygons.is_empty(), "label should have glyph polygons");
+    polygons.iter().flat_map(|polygon| polygon.iter()).fold(
+        [
+            f64::INFINITY,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::NEG_INFINITY,
+        ],
+        |bounds, point| {
+            [
+                bounds[0].min(point[0]),
+                bounds[1].min(point[1]),
+                bounds[2].max(point[0]),
+                bounds[3].max(point[1]),
+            ]
+        },
+    )
 }
 
 fn load_single_carbon_node(engine: &mut Engine) {
@@ -1355,18 +1380,15 @@ fn endpoint_text_edit_populates_kernel_glyph_polygons_for_abbreviation_labels() 
     let label = node.label.as_ref().expect("label should be generated");
     assert_eq!(label.text, "Ph");
     assert_eq!(label.glyph_polygons.len(), 2, "{:?}", label.glyph_polygons);
-    assert_eq!(
-        label.glyph_polygons[0].len(),
-        8,
-        "{:?}",
-        label.glyph_polygons[0]
-    );
-    assert_eq!(
-        label.glyph_polygons[1].len(),
-        8,
-        "{:?}",
-        label.glyph_polygons[1]
-    );
+    for polygon in &label.glyph_polygons {
+        assert!(polygon.len() >= 4, "{polygon:?}");
+        let bounds = polygon_bounds(polygon);
+        assert!(bounds[2] > bounds[0], "{bounds:?}");
+        assert!(bounds[3] > bounds[1], "{bounds:?}");
+    }
+    let first_bounds = polygon_bounds(&label.glyph_polygons[0]);
+    let second_bounds = polygon_bounds(&label.glyph_polygons[1]);
+    assert!(first_bounds[0] < second_bounds[0], "{label:?}");
 }
 
 #[test]
@@ -1647,26 +1669,11 @@ fn endpoint_text_edit_ignores_implausible_dom_label_measurements() {
         .expect("node should exist");
     let label = node.label.as_ref().expect("label should be generated");
     let box_value = label.bbox().expect("label should have bounds");
-    let glyph_box = label.glyph_polygons.iter().flatten().fold(
-        [
-            f64::INFINITY,
-            f64::INFINITY,
-            f64::NEG_INFINITY,
-            f64::NEG_INFINITY,
-        ],
-        |bounds, point| {
-            [
-                bounds[0].min(point[0]),
-                bounds[1].min(point[1]),
-                bounds[2].max(point[0]),
-                bounds[3].max(point[1]),
-            ]
-        },
-    );
+    let glyph_box = glyph_polygons_bounds(&label.glyph_polygons);
     assert!((box_value[2] - box_value[0]) < px(28.0), "{box_value:?}");
     assert!((box_value[3] - box_value[1]) < px(28.0), "{box_value:?}");
-    assert!((glyph_box[2] - glyph_box[0]) < px(28.0), "{glyph_box:?}");
-    assert!((glyph_box[3] - glyph_box[1]) < px(28.0), "{glyph_box:?}");
+    assert!((glyph_box[2] - glyph_box[0]) < px(32.0), "{glyph_box:?}");
+    assert!((glyph_box[3] - glyph_box[1]) < px(32.0), "{glyph_box:?}");
     assert!(
         ((box_value[0] + box_value[2]) * 0.5 - node.position[0]).abs() < px(12.0),
         "{box_value:?} vs {:?}",

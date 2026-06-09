@@ -2,8 +2,6 @@ use super::*;
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 
-const EFFECTIVE_NUM_HYDROGENS_META: &str = "effectiveNumHydrogens";
-
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SelectionChemistrySummary {
@@ -51,7 +49,10 @@ impl Engine {
             exact_mass += mass.exact;
             atom_count += 1;
 
-            let hydrogens = u32::from(summary_implicit_hydrogen_count(entry.fragment, node));
+            let hydrogens = u32::from(super::text_edit::formula_hydrogen_count_for_node(
+                entry.fragment,
+                node.id.as_str(),
+            ));
             if hydrogens > 0 {
                 let hydrogen = hydrogen_mass();
                 add_formula_count(&mut counts, "H", hydrogens);
@@ -88,29 +89,6 @@ fn add_formula_count(counts: &mut BTreeMap<String, u32>, symbol: &str, count: u3
         return;
     }
     *counts.entry(symbol.to_string()).or_insert(0) += count;
-}
-
-fn summary_implicit_hydrogen_count(fragment: &crate::MoleculeFragment, node: &crate::Node) -> u8 {
-    if node.is_placeholder || node.atomic_number == 1 {
-        return 0;
-    }
-    if let Some(value) = node
-        .meta
-        .get(EFFECTIVE_NUM_HYDROGENS_META)
-        .and_then(serde_json::Value::as_u64)
-    {
-        return value.min(u64::from(u8::MAX)) as u8;
-    }
-    if node.atomic_number != 6 {
-        return node.num_hydrogens;
-    }
-    let connection_order: i32 = fragment
-        .bonds
-        .iter()
-        .filter(|bond| bond.begin == node.id || bond.end == node.id)
-        .map(|bond| i32::from(bond.order.max(1)))
-        .sum();
-    (4 - connection_order - node.charge.abs()).clamp(0, 4) as u8
 }
 
 fn render_formula(counts: &BTreeMap<String, u32>) -> String {

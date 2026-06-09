@@ -4,17 +4,12 @@ use chemcore_engine::{
 };
 use serde_json::json;
 
-fn fixture_path(name: &str) -> std::path::PathBuf {
-    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("..")
-        .join("tmp")
-        .join(name)
-}
+mod support;
+use support::read_cdxml_fixture;
 
 #[test]
 fn parse_cdxml_imports_rest_fixture_special_bonds_and_table() {
-    let cdxml = std::fs::read_to_string(fixture_path("rest.cdxml")).expect("rest fixture");
+    let cdxml = read_cdxml_fixture("rest.cdxml");
     let document = parse_cdxml_document(&cdxml, Some("rest")).expect("rest cdxml should parse");
 
     let bonds: Vec<_> = document
@@ -125,7 +120,7 @@ fn parse_cdxml_imports_rest_fixture_special_bonds_and_table() {
 
 #[test]
 fn parse_cdxml_exports_rest_fixture_special_bonds_and_table_tags() {
-    let cdxml = std::fs::read_to_string(fixture_path("rest.cdxml")).expect("rest fixture");
+    let cdxml = read_cdxml_fixture("rest.cdxml");
     let document = parse_cdxml_document(&cdxml, Some("rest")).expect("rest cdxml should parse");
     let exported = document_to_cdxml(&document);
 
@@ -143,7 +138,7 @@ fn parse_cdxml_exports_rest_fixture_special_bonds_and_table_tags() {
 
 #[test]
 fn load_cdxml_document_preserves_rest_fixture_tlc_plate_for_editing() {
-    let cdxml = std::fs::read_to_string(fixture_path("rest.cdxml")).expect("rest fixture");
+    let cdxml = read_cdxml_fixture("rest.cdxml");
     let mut engine = Engine::new();
     engine
         .load_cdxml_document(&cdxml)
@@ -168,7 +163,7 @@ fn load_cdxml_document_preserves_rest_fixture_tlc_plate_for_editing() {
 
 #[test]
 fn parse_cdxml_imports_orbital_fixture_templates_and_styles() {
-    let cdxml = std::fs::read_to_string(fixture_path("orbital.cdxml")).expect("orbital fixture");
+    let cdxml = read_cdxml_fixture("orbital.cdxml");
     let document =
         parse_cdxml_document(&cdxml, Some("orbital")).expect("orbital cdxml should parse");
 
@@ -253,7 +248,7 @@ fn parse_cdxml_imports_orbital_fixture_templates_and_styles() {
 
 #[test]
 fn load_cdxml_document_preserves_orbital_axes_for_editing() {
-    let cdxml = std::fs::read_to_string(fixture_path("orbital.cdxml")).expect("orbital fixture");
+    let cdxml = read_cdxml_fixture("orbital.cdxml");
     let mut engine = Engine::new();
     engine
         .load_cdxml_document(&cdxml)
@@ -286,7 +281,7 @@ fn load_cdxml_document_preserves_orbital_axes_for_editing() {
 
 #[test]
 fn parse_cdxml_exports_orbital_fixture_orbital_tags() {
-    let cdxml = std::fs::read_to_string(fixture_path("orbital.cdxml")).expect("orbital fixture");
+    let cdxml = read_cdxml_fixture("orbital.cdxml");
     let document =
         parse_cdxml_document(&cdxml, Some("orbital")).expect("orbital cdxml should parse");
     let exported = document_to_cdxml(&document);
@@ -310,7 +305,7 @@ fn parse_cdxml_exports_orbital_fixture_orbital_tags() {
 
 #[test]
 fn tlc_plate_spot_drag_updates_rf() {
-    let cdxml = std::fs::read_to_string(fixture_path("rest.cdxml")).expect("rest fixture");
+    let cdxml = read_cdxml_fixture("rest.cdxml");
     let mut engine = Engine::new();
     engine
         .load_cdxml_document(&cdxml)
@@ -413,20 +408,13 @@ fn tlc_plate_spot_drag_updates_rf() {
 
 #[test]
 fn parse_cdxml_preserves_default_and_acs_hash_spacing_presets_for_dashed_bonds() {
-    for (fixture, expected_hash_spacing, expected_margin_width) in
-        [("dash.cdxml", 2.7, 2.0), ("dash-acs.cdxml", 2.5, 1.6)]
-    {
-        let cdxml = std::fs::read_to_string(fixture_path(fixture)).expect("dash fixture");
+    for (fixture, expected_hash_spacing) in [("dash.cdxml", 2.7), ("dash-acs.cdxml", 2.5)] {
+        let cdxml = read_cdxml_fixture(fixture);
         let document = parse_cdxml_document(&cdxml, Some(fixture)).expect("cdxml should parse");
         let defaults = &document.document.meta["import"]["cdxml"]["defaults"];
         assert_eq!(
             defaults["hashSpacing"].as_f64(),
             Some(expected_hash_spacing),
-            "{fixture} defaults"
-        );
-        assert_eq!(
-            defaults["marginWidth"].as_f64(),
-            Some(expected_margin_width),
             "{fixture} defaults"
         );
 
@@ -436,10 +424,11 @@ fn parse_cdxml_preserves_default_and_acs_hash_spacing_presets_for_dashed_bonds()
             Some(expected_hash_spacing),
             "{fixture} bond hash spacing"
         );
+        assert_eq!(bond.margin_width, None, "{fixture} bond margin width");
         assert_eq!(
-            bond.margin_width,
-            Some(expected_margin_width),
-            "{fixture} bond margin width"
+            bond.label_clip_margin,
+            Some(0.0),
+            "{fixture} bond label clip margin"
         );
         assert_eq!(
             bond.line_styles.main,
@@ -450,15 +439,15 @@ fn parse_cdxml_preserves_default_and_acs_hash_spacing_presets_for_dashed_bonds()
 }
 
 #[test]
-fn parse_cdxml_uses_document_hash_spacing_for_dashed_lines() {
-    for (fixture, expected_hash_spacing) in [("dash.cdxml", 2.7), ("dash-acs.cdxml", 2.5)] {
-        let cdxml = std::fs::read_to_string(fixture_path(fixture)).expect("dash fixture");
+fn parse_cdxml_uses_uniform_non_bond_dash_spacing_for_dashed_lines() {
+    for fixture in ["dash.cdxml", "dash-acs.cdxml"] {
+        let cdxml = read_cdxml_fixture(fixture);
         let mut engine = Engine::new();
         engine
             .load_cdxml_document(&cdxml)
             .expect("cdxml should load into engine");
         let svg = engine.document_svg();
-        let expected_dash = (expected_hash_spacing * 100.0_f64).round() / 100.0;
+        let expected_dash = (2.7_f64 * 100.0_f64).round() / 100.0;
         let expected_dash_attr = format!("stroke-dasharray=\"{expected_dash}\"");
 
         assert!(
@@ -472,7 +461,7 @@ fn parse_cdxml_uses_document_hash_spacing_for_dashed_lines() {
 
 #[test]
 fn tlc_plate_guides_use_document_hash_spacing() {
-    let cdxml = std::fs::read_to_string(fixture_path("rest.cdxml")).expect("rest fixture");
+    let cdxml = read_cdxml_fixture("rest.cdxml");
     let mut engine = Engine::new();
     engine
         .load_cdxml_document(&cdxml)

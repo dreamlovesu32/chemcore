@@ -34,7 +34,7 @@
     "verify": "node scripts/verify.mjs",
     "screenshot": "node scripts/viewer-screenshot.mjs",
     "screenshot:svg": "node scripts/viewer-svg-screenshot.mjs",
-    "test": "cargo test && node --check viewer/app.js"
+    "test": "node scripts/test.mjs"
   },
   "keywords": [],
   "author": "",

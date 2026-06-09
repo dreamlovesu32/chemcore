@@ -1393,6 +1393,31 @@ pub(super) fn implicit_hydrogen_count(fragment: &crate::MoleculeFragment, node_i
     (valence - radical_count - connection_count - charge_hydrogen_penalty).clamp(0, 9) as u8
 }
 
+pub(crate) fn formula_hydrogen_count_for_node(
+    fragment: &crate::MoleculeFragment,
+    node_id: &str,
+) -> u8 {
+    let Some(node) = fragment.nodes.iter().find(|node| node.id == node_id) else {
+        return 0;
+    };
+    if node.is_placeholder || node.atomic_number == 1 {
+        return 0;
+    }
+    if let Some(value) = crate::node_effective_num_hydrogens_override(node) {
+        return value;
+    }
+    if node.atomic_number != 6 {
+        return implicit_hydrogen_count(fragment, node_id);
+    }
+    let connection_order: i32 = fragment
+        .bonds
+        .iter()
+        .filter(|bond| bond.begin == node_id || bond.end == node_id)
+        .map(|bond| i32::from(bond.order.max(1)))
+        .sum();
+    (4 - connection_order - node.charge.abs()).clamp(0, 4) as u8
+}
+
 pub(super) fn typical_valence_for_implicit_hydrogen(
     atomic_number: u8,
     charge: i32,

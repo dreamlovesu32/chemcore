@@ -776,7 +776,6 @@ pub(super) fn editor_options_from_document(document: &ChemcoreDocument) -> Edito
     let mut has_bold_width = false;
     let mut has_hash_spacing = false;
     let mut has_bond_spacing = false;
-    let mut has_margin_width = false;
     if let Some(defaults) = document
         .document
         .meta
@@ -806,10 +805,6 @@ pub(super) fn editor_options_from_document(document: &ChemcoreDocument) -> Edito
             options.bond_spacing = value;
             has_bond_spacing = true;
         }
-        if let Some(value) = defaults.get("marginWidth").and_then(JsonValue::as_f64) {
-            options.margin_width = value;
-            has_margin_width = true;
-        }
     }
     if has_cdxml_defaults {
         if let Some(metrics) = infer_cdxml_document_bond_metrics(document) {
@@ -830,14 +825,11 @@ pub(super) fn editor_options_from_document(document: &ChemcoreDocument) -> Edito
             if !has_bond_spacing {
                 options.bond_spacing = metrics.bond_spacing.unwrap_or(options.bond_spacing);
             }
-            if !has_margin_width {
-                options.margin_width = metrics.margin_width.unwrap_or(options.margin_width);
-            }
         }
     }
     options.wedge_width = derived_wedge_width(options.bold_bond_width);
     options.label_clip_margin = if has_cdxml_defaults {
-        crate::cdxml::cdxml_import_label_clip_margin(options.margin_width)
+        0.0
     } else {
         derived_label_clip_margin(options.margin_width)
     };
@@ -872,7 +864,7 @@ fn derived_wedge_width(bold_width: f64) -> f64 {
 }
 
 fn derived_label_clip_margin(margin_width: f64) -> f64 {
-    crate::cdxml::cdxml_import_label_clip_margin(margin_width)
+    (margin_width - crate::ACS_LABEL_GEOMETRY_CLIP_MARGIN_PT.value()).max(0.0)
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -882,7 +874,6 @@ struct InferredBondMetrics {
     bold_width: Option<f64>,
     hash_spacing: Option<f64>,
     bond_spacing: Option<f64>,
-    margin_width: Option<f64>,
 }
 
 fn infer_cdxml_document_bond_metrics(document: &ChemcoreDocument) -> Option<InferredBondMetrics> {
@@ -892,7 +883,6 @@ fn infer_cdxml_document_bond_metrics(document: &ChemcoreDocument) -> Option<Infe
     let mut bold_widths = Vec::new();
     let mut hash_spacings = Vec::new();
     let mut bond_spacings = Vec::new();
-    let mut margin_widths = Vec::new();
     for bond in &entry.fragment.bonds {
         let Some(begin) = entry
             .fragment
@@ -923,9 +913,6 @@ fn infer_cdxml_document_bond_metrics(document: &ChemcoreDocument) -> Option<Infe
         if let Some(value) = bond.bond_spacing.filter(|value| *value > crate::EPSILON) {
             bond_spacings.push(value);
         }
-        if let Some(value) = bond.margin_width.filter(|value| *value > crate::EPSILON) {
-            margin_widths.push(value);
-        }
     }
     Some(InferredBondMetrics {
         bond_length: median_near_default(&mut lengths),
@@ -933,7 +920,6 @@ fn infer_cdxml_document_bond_metrics(document: &ChemcoreDocument) -> Option<Infe
         bold_width: median_near_default(&mut bold_widths),
         hash_spacing: median_near_default(&mut hash_spacings),
         bond_spacing: median_near_default(&mut bond_spacings),
-        margin_width: median_near_default(&mut margin_widths),
     })
 }
 
