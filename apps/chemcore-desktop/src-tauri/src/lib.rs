@@ -328,6 +328,55 @@ fn desktop_engine_object_settings_dialog_json(
 }
 
 #[tauri::command]
+fn desktop_engine_toolbar_color_palette_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    custom_colors_json: String,
+) -> Result<String, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.toolbar_color_palette_json(session_id, &custom_colors_json)
+}
+
+#[tauri::command]
+fn desktop_engine_color_dialog_palette_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    current_color: String,
+    custom_colors_json: String,
+) -> Result<String, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.color_dialog_palette_json(session_id, &current_color, &custom_colors_json)
+}
+
+#[tauri::command]
+fn desktop_engine_text_symbol_palette_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<String, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.text_symbol_palette_json(session_id)
+}
+
+#[tauri::command]
+fn desktop_engine_element_palette_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<String, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.element_palette_json(session_id)
+}
+
+#[tauri::command]
+fn desktop_engine_apply_element_palette_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    selection_json: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.apply_element_palette_json(session_id, &selection_json)
+}
+
+#[tauri::command]
 fn desktop_engine_apply_object_settings_dialog_json(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
@@ -2658,6 +2707,11 @@ pub fn run() {
             desktop_engine_set_document_style_preset,
             desktop_engine_document_style_preset,
             desktop_engine_object_settings_dialog_json,
+            desktop_engine_toolbar_color_palette_json,
+            desktop_engine_color_dialog_palette_json,
+            desktop_engine_text_symbol_palette_json,
+            desktop_engine_element_palette_json,
+            desktop_engine_apply_element_palette_json,
             desktop_engine_apply_object_settings_dialog_json,
             desktop_engine_set_arrow_options,
             desktop_engine_set_arrow_endpoint_options,

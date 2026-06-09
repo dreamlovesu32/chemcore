@@ -151,12 +151,14 @@ export function createEditorPointerController(options) {
       return;
     }
     await options.state().editorEngine.pointerMove(point.x, point.y, event.altKey);
-    if ((editorState.activeTool === "select" || editorState.activeTool === "tlc-plate") && !options.activeSelectionGesture()) {
+    if (!editorState.elementPlacementActive && (editorState.activeTool === "select" || editorState.activeTool === "tlc-plate") && !options.activeSelectionGesture()) {
       await options.updateTlcSpotHover(point);
     } else if (options.activeSelectionGesture()?.kind !== "tlc-spot-drag") {
       options.clearTlcHoverState();
     }
-    if (editorState.activeTool === "select") {
+    if (editorState.elementPlacementActive) {
+      options.syncCanvasCursor();
+    } else if (editorState.activeTool === "select") {
       await options.syncSelectCursorForPoint(point);
     } else if (editorState.activeTool === "arrow"
       || editorState.activeTool === "shape"
@@ -177,6 +179,14 @@ export function createEditorPointerController(options) {
     const point = options.svgPointFromEvent(event);
     options.setLastEditFocusPoint(point);
     const editorState = options.editorState();
+    if (editorState.elementPlacementActive) {
+      event.preventDefault();
+      options.viewerSvg().setPointerCapture?.(event.pointerId);
+      await options.state().editorEngine.pointerDown(point.x, point.y, event.altKey);
+      await options.syncDocumentFromEngine();
+      options.renderEditorOverlay(options.currentEditorRenderList());
+      return;
+    }
     if (editorState.activeTool === "bracket") {
       options.setActiveBracketDragStart(point);
     }

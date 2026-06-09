@@ -10,6 +10,7 @@ export class WasmEngine {
     applyBondStyleToSelection(style: string): boolean;
     applyBracketKindToSelection(kind: string): boolean;
     applyColorToSelection(color: string): boolean;
+    applyElementPaletteJson(selection_json: string): boolean;
     applyLineStyleToSelection(style: string): boolean;
     applyObjectSettingsDialogJson(settings_json: string): boolean;
     applyOrbitalPhaseToSelection(phase: string): boolean;
@@ -35,6 +36,7 @@ export class WasmEngine {
     clearSelection(): boolean;
     clipboardDocumentJson(): string | undefined;
     clipboardSelectionJson(): string | undefined;
+    colorDialogPaletteJson(current_color: string, custom_colors_json: string): string;
     contextHitTestJson(x: number, y: number): string;
     contextMenuJson(hit_json: string, has_paste: boolean): string;
     copySelection(): boolean;
@@ -45,6 +47,7 @@ export class WasmEngine {
     documentJson(): string;
     documentStylePreset(): string;
     documentSvg(): string;
+    elementPaletteJson(): string;
     executeCommandJson(command_json: string): string;
     expandLabelsInSelection(): boolean;
     finishHoverArrowEdit(x: number, y: number, alt_key: boolean): boolean;
@@ -82,6 +85,7 @@ export class WasmEngine {
     selectComponentAtPoint(x: number, y: number, additive: boolean): boolean;
     selectInPolygon(points_json: string, additive: boolean): void;
     selectInRect(x1: number, y1: number, x2: number, y2: number, additive: boolean): void;
+    selectionChemistrySummaryJson(): string;
     selectionContainsPoint(x: number, y: number): boolean;
     selectionNumericDialogJson(kind: string): string;
     setArrowEndpointOptions(variant: string, head_size: string, curve: string, head_style: string, tail_style: string, no_go: string, bold: boolean): void;
@@ -96,8 +100,10 @@ export class WasmEngine {
     setTemplate(template: string): void;
     setTool(active_tool: string, bond_variant: string): void;
     stateJson(): string;
+    textSymbolPaletteJson(): string;
     tlcLaneGuideHitTestJson(x: number, y: number): string | undefined;
     tlcSpotHitTestJson(x: number, y: number): string | undefined;
+    toolbarColorPaletteJson(custom_colors_json: string): string;
     undo(): boolean;
     ungroupSelection(): boolean;
     updateHoverArrowEdit(x: number, y: number, alt_key: boolean): boolean;
@@ -119,6 +125,7 @@ export interface InitOutput {
     readonly wasmengine_applyBondStyleToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyBracketKindToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyColorToSelection: (a: number, b: number, c: number) => number;
+    readonly wasmengine_applyElementPaletteJson: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_applyLineStyleToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyObjectSettingsDialogJson: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_applyOrbitalPhaseToSelection: (a: number, b: number, c: number) => number;
@@ -144,6 +151,7 @@ export interface InitOutput {
     readonly wasmengine_clearSelection: (a: number) => number;
     readonly wasmengine_clipboardDocumentJson: (a: number) => [number, number, number, number];
     readonly wasmengine_clipboardSelectionJson: (a: number) => [number, number, number, number];
+    readonly wasmengine_colorDialogPaletteJson: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly wasmengine_contextHitTestJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_contextMenuJson: (a: number, b: number, c: number, d: number) => [number, number];
     readonly wasmengine_copySelection: (a: number) => number;
@@ -154,6 +162,7 @@ export interface InitOutput {
     readonly wasmengine_documentJson: (a: number) => [number, number, number, number];
     readonly wasmengine_documentStylePreset: (a: number) => [number, number];
     readonly wasmengine_documentSvg: (a: number) => [number, number];
+    readonly wasmengine_elementPaletteJson: (a: number) => [number, number];
     readonly wasmengine_executeCommandJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_expandLabelsInSelection: (a: number) => number;
     readonly wasmengine_finishHoverArrowEdit: (a: number, b: number, c: number, d: number) => number;
@@ -191,6 +200,7 @@ export interface InitOutput {
     readonly wasmengine_selectComponentAtPoint: (a: number, b: number, c: number, d: number) => number;
     readonly wasmengine_selectInPolygon: (a: number, b: number, c: number, d: number) => [number, number];
     readonly wasmengine_selectInRect: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly wasmengine_selectionChemistrySummaryJson: (a: number) => [number, number];
     readonly wasmengine_selectionContainsPoint: (a: number, b: number, c: number) => number;
     readonly wasmengine_selectionNumericDialogJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_setArrowEndpointOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => void;
@@ -205,8 +215,10 @@ export interface InitOutput {
     readonly wasmengine_setTemplate: (a: number, b: number, c: number) => void;
     readonly wasmengine_setTool: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly wasmengine_stateJson: (a: number) => [number, number, number, number];
+    readonly wasmengine_textSymbolPaletteJson: (a: number) => [number, number];
     readonly wasmengine_tlcLaneGuideHitTestJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_tlcSpotHitTestJson: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly wasmengine_toolbarColorPaletteJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_undo: (a: number) => number;
     readonly wasmengine_ungroupSelection: (a: number) => number;
     readonly wasmengine_updateHoverArrowEdit: (a: number, b: number, c: number, d: number) => number;

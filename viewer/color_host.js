@@ -1,47 +1,47 @@
-const BASIC_COLORS = [
-  "#ff7777", "#ffff77", "#77ff77", "#00e878", "#77e6e6", "#006bd6", "#f46bb4", "#ee66ee",
-  "#ff0000", "#ffff00", "#66ff00", "#00ff3b", "#1fd6d6", "#0b75a8", "#ff00dd", "#ff0090",
-  "#8b3d3d", "#ff7438", "#00e800", "#007a68", "#004b88", "#7a7de0", "#820047", "#f20073",
-  "#900000", "#ff7900", "#007000", "#007748", "#0000ff", "#00007d", "#800080", "#7500ff",
-  "#4b0000", "#8a4b00", "#004b00", "#004b4b", "#000075", "#00004b", "#3d003d", "#310075",
-  "#000000", "#808000", "#808040", "#808080", "#408080", "#c0c0c0", "#3a003a", "#ffffff",
-];
-
-const CURATED_CUSTOM_COLORS = [
-  "#111827", "#374151", "#6b7280", "#9ca3af",
-  "#e5e7eb", "#f8fafc", "#334155", "#0f172a",
-  "#0f766e", "#0e7490", "#2563eb", "#4f46e5",
-  "#7c3aed", "#be185d", "#dc2626", "#ea580c",
-];
-
 class ChemcoreColorHost {
-  constructor(root = document.body) {
+  constructor({ root = document.body, getPalette } = {}) {
     this.kind = "chemcore";
     this.root = root;
+    this.getPalette = getPalette;
   }
 
-  chooseColor(initialColor, customColors = []) {
+  async chooseColor(initialColor, customColors = []) {
     const existing = document.querySelector(".color-dialog-backdrop");
     existing?.querySelector(".color-dialog-close")?.click();
+    const palette = await this.palette(initialColor, customColors);
     return new Promise((resolve) => {
       const dialog = new ChemcoreColorDialog({
         root: this.root,
-        initialColor,
-        customColors,
+        palette,
         resolve,
       });
       dialog.open();
     });
   }
+
+  async palette(initialColor, customColors) {
+    const fallback = fallbackColorDialogPalette(initialColor, customColors);
+    if (typeof this.getPalette !== "function") {
+      return fallback;
+    }
+    try {
+      return normalizeColorDialogPalette(await this.getPalette(initialColor, customColors), fallback);
+    } catch (error) {
+      console.warn("[chemcore] failed to load engine color palette", error);
+      return fallback;
+    }
+  }
 }
 
 class ChemcoreColorDialog {
-  constructor({ root, initialColor, customColors, resolve }) {
+  constructor({ root, palette, resolve }) {
     this.root = root;
     this.resolve = resolve;
-    this.selected = normalizeHexColor(initialColor) || "#000000";
+    this.palette = normalizeColorDialogPalette(palette);
+    this.labels = this.palette.labels;
+    this.selected = normalizeHexColor(this.palette.selected) || "#000000";
     this.hsv = rgbToHsv(hexToRgb(this.selected));
-    this.customColors = normalizeCustomColors(customColors);
+    this.customColors = this.palette.customColors;
     this.backdrop = null;
   }
 
@@ -58,19 +58,19 @@ class ChemcoreColorDialog {
 
   html() {
     return `
-      <div class="color-dialog" role="dialog" aria-modal="true" aria-label="Color">
+      <div class="color-dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(this.palette.title)}">
         <div class="color-dialog-titlebar">
-          <span>颜色</span>
-          <button class="color-dialog-close" type="button" aria-label="Close">×</button>
+          <span>${escapeHtml(this.palette.title)}</span>
+          <button class="color-dialog-close" type="button" aria-label="${escapeHtml(this.labels.close)}">x</button>
         </div>
         <div class="color-dialog-body">
           <section class="color-dialog-palette">
-            <p class="color-dialog-label">基本颜色(B):</p>
+            <p class="color-dialog-label">${escapeHtml(this.labels.basic)}</p>
             <div class="color-dialog-basic-grid">
-              ${BASIC_COLORS.map((color) => colorChipHtml(color, this.selected)).join("")}
+              ${this.palette.basicColors.map((color) => colorChipHtml(color, this.selected)).join("")}
             </div>
             <div class="color-dialog-custom">
-              <p class="color-dialog-label">自定义颜色(C):</p>
+              <p class="color-dialog-label">${escapeHtml(this.labels.custom)}</p>
               <div class="color-dialog-custom-grid"></div>
             </div>
           </section>
@@ -86,24 +86,18 @@ class ChemcoreColorDialog {
             <div class="color-dialog-bottom">
               <div class="color-dialog-preview-block">
                 <div class="color-dialog-preview"></div>
-                <span>颜色|纯色(O)</span>
+                <span>${escapeHtml(this.labels.preview)}</span>
               </div>
               <div class="color-dialog-fields">
-                <label class="color-dialog-field"><span>色调(E):</span><input data-hsv-field="h" type="number" min="0" max="359"></label>
-                <label class="color-dialog-field"><span>红(R):</span><input data-rgb-field="r" type="number" min="0" max="255"></label>
-                <label class="color-dialog-field"><span>饱和度(S):</span><input data-hsv-field="s" type="number" min="0" max="100"></label>
-                <label class="color-dialog-field"><span>绿(G):</span><input data-rgb-field="g" type="number" min="0" max="255"></label>
-                <label class="color-dialog-field"><span>亮度(L):</span><input data-hsv-field="v" type="number" min="0" max="100"></label>
-                <label class="color-dialog-field"><span>蓝(U):</span><input data-rgb-field="b" type="number" min="0" max="255"></label>
-                <label class="color-dialog-field color-dialog-hex-field"><span>Hex:</span><input data-color-field="hex"></label>
+                ${this.palette.fields.map((field) => colorFieldHtml(field)).join("")}
               </div>
             </div>
             <div class="color-dialog-add-row">
-              <button type="button" data-color-dialog-add-custom>添加到自定义颜色(A)</button>
+              <button type="button" data-color-dialog-add-custom>${escapeHtml(this.labels.addCustom)}</button>
             </div>
             <div class="color-dialog-actions">
-              <button type="button" data-color-dialog-ok>确定</button>
-              <button type="button" data-color-dialog-cancel>取消</button>
+              <button type="button" data-color-dialog-ok>${escapeHtml(this.labels.ok)}</button>
+              <button type="button" data-color-dialog-cancel>${escapeHtml(this.labels.cancel)}</button>
             </div>
           </section>
         </div>
@@ -178,7 +172,7 @@ class ChemcoreColorDialog {
     const hexInput = this.backdrop.querySelector('[data-color-field="hex"]');
     const rgbInputs = Array.from(this.backdrop.querySelectorAll("[data-rgb-field]"));
     const hsvInputs = Array.from(this.backdrop.querySelectorAll("[data-hsv-field]"));
-    hexInput.addEventListener("change", () => this.sync(hexInput.value));
+    hexInput?.addEventListener("change", () => this.sync(hexInput.value));
     for (const input of rgbInputs) {
       input.addEventListener("change", () => {
         const values = Object.fromEntries(rgbInputs.map((field) => [
@@ -209,8 +203,11 @@ class ChemcoreColorDialog {
     this.backdrop.style.setProperty("--dialog-hue-position", `${(this.hsv.h / 359) * 100}%`);
     this.backdrop.style.setProperty("--dialog-saturation", `${this.hsv.s}%`);
     this.backdrop.style.setProperty("--dialog-value", `${this.hsv.v}%`);
-    this.backdrop.querySelector(".color-dialog-preview").style.setProperty("--swatch", this.selected);
-    this.backdrop.querySelector('[data-color-field="hex"]').value = this.selected.toUpperCase();
+    this.backdrop.querySelector(".color-dialog-preview")?.style.setProperty("--swatch", this.selected);
+    const hexInput = this.backdrop.querySelector('[data-color-field="hex"]');
+    if (hexInput) {
+      hexInput.value = this.selected.toUpperCase();
+    }
     const { r, g, b } = hexToRgb(this.selected);
     for (const input of this.backdrop.querySelectorAll("[data-rgb-field]")) {
       input.value = String({ r, g, b }[input.dataset.rgbField]);
@@ -240,6 +237,9 @@ class ChemcoreColorDialog {
 
   renderCustomColors() {
     const customGrid = this.backdrop.querySelector(".color-dialog-custom-grid");
+    if (!customGrid) {
+      return;
+    }
     customGrid.innerHTML = this.customColors
       .map((color) => colorChipHtml(color, this.selected))
       .join("");
@@ -251,19 +251,89 @@ class ChemcoreColorDialog {
   }
 }
 
-export function createColorHost() {
-  return new ChemcoreColorHost();
+export function createColorHost(options = {}) {
+  return new ChemcoreColorHost(options);
 }
 
 function colorChipHtml(color, selected) {
   return `<button class="color-dialog-chip${normalizeHexColor(color) === normalizeHexColor(selected) ? " is-selected" : ""}" type="button" data-color-dialog-value="${color}" style="--swatch:${color}" aria-label="${color}"></button>`;
 }
 
-function normalizeCustomColors(colors) {
-  const merged = [...colors, ...CURATED_CUSTOM_COLORS]
-    .map(normalizeHexColor)
-    .filter(Boolean);
-  return merged.filter((color, index) => merged.indexOf(color) === index).slice(0, 16);
+function normalizeColorDialogPalette(payload, fallback = fallbackColorDialogPalette("#000000", [])) {
+  const parsed = typeof payload === "string" ? safeJsonParse(payload, null) : payload;
+  const labels = {
+    basic: "Basic colors:",
+    custom: "Custom colors:",
+    preview: "Color | Solid",
+    addCustom: "Add to custom colors",
+    ok: "OK",
+    cancel: "Cancel",
+    close: "Close",
+    ...(parsed?.labels || {}),
+  };
+  return {
+    title: String(parsed?.title || fallback.title || "Color"),
+    selected: normalizeHexColor(parsed?.selected) || normalizeHexColor(fallback.selected) || "#000000",
+    labels,
+    fields: normalizeColorFields(parsed?.fields || fallback.fields),
+    basicColors: normalizeColorList(parsed?.basicColors || fallback.basicColors),
+    customColors: normalizeColorList(parsed?.customColors || fallback.customColors).slice(0, 16),
+  };
+}
+
+function fallbackColorDialogPalette(initialColor, customColors = []) {
+  return {
+    title: "Color",
+    selected: normalizeHexColor(initialColor) || "#000000",
+    labels: {},
+    fields: [
+      { kind: "hsv", key: "h", label: "Hue", min: 0, max: 359 },
+      { kind: "rgb", key: "r", label: "Red", min: 0, max: 255 },
+      { kind: "hsv", key: "s", label: "Saturation", min: 0, max: 100 },
+      { kind: "rgb", key: "g", label: "Green", min: 0, max: 255 },
+      { kind: "hsv", key: "v", label: "Brightness", min: 0, max: 100 },
+      { kind: "rgb", key: "b", label: "Blue", min: 0, max: 255 },
+      { kind: "hex", key: "hex", label: "Hex" },
+    ],
+    basicColors: ["#000000", "#ff0000", "#ffff00", "#00ff00", "#ffffff", "#00ffff", "#0000ff", "#ff00ff"],
+    customColors,
+  };
+}
+
+function normalizeColorFields(fields) {
+  return (Array.isArray(fields) ? fields : [])
+    .map((field) => ({
+      kind: String(field?.kind || ""),
+      key: String(field?.key || ""),
+      label: String(field?.label || field?.key || ""),
+      min: Number.isFinite(Number(field?.min)) ? Number(field.min) : null,
+      max: Number.isFinite(Number(field?.max)) ? Number(field.max) : null,
+    }))
+    .filter((field) => field.key && field.label);
+}
+
+function normalizeColorList(colors) {
+  const out = [];
+  for (const color of colors || []) {
+    const normalized = normalizeHexColor(color);
+    if (normalized && !out.includes(normalized)) {
+      out.push(normalized);
+    }
+  }
+  return out;
+}
+
+function colorFieldHtml(field) {
+  const attr = field.kind === "hsv"
+    ? `data-hsv-field="${escapeHtml(field.key)}"`
+    : field.kind === "rgb"
+      ? `data-rgb-field="${escapeHtml(field.key)}"`
+      : `data-color-field="${escapeHtml(field.key)}"`;
+  const type = field.kind === "hex" ? "text" : "number";
+  const min = field.min == null ? "" : ` min="${field.min}"`;
+  const max = field.max == null ? "" : ` max="${field.max}"`;
+  const extraClass = field.kind === "hex" ? " color-dialog-hex-field" : "";
+  return `<label class="color-dialog-field${extraClass}"><span>${escapeHtml(field.label)}:</span><input ${attr} type="${type}"${min}${max}></label>`;
 }
 
 function normalizeHexColor(value) {
@@ -363,4 +433,20 @@ function clampHue(value) {
 function clampPercent(value) {
   const percent = Number.parseFloat(String(value || 0));
   return Math.max(0, Math.min(100, Number.isFinite(percent) ? percent : 0));
+}
+
+function safeJsonParse(text, fallback) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return fallback;
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }

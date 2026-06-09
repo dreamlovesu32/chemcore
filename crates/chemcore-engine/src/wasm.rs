@@ -112,6 +112,43 @@ impl WasmEngine {
         self.inner.object_settings_dialog_json()
     }
 
+    #[wasm_bindgen(js_name = toolbarColorPaletteJson)]
+    pub fn toolbar_color_palette_json(&self, custom_colors_json: &str) -> String {
+        self.inner.toolbar_color_palette_json(custom_colors_json)
+    }
+
+    #[wasm_bindgen(js_name = colorDialogPaletteJson)]
+    pub fn color_dialog_palette_json(
+        &self,
+        current_color: &str,
+        custom_colors_json: &str,
+    ) -> String {
+        self.inner
+            .color_dialog_palette_json(current_color, custom_colors_json)
+    }
+
+    #[wasm_bindgen(js_name = textSymbolPaletteJson)]
+    pub fn text_symbol_palette_json(&self) -> String {
+        self.inner.text_symbol_palette_json()
+    }
+
+    #[wasm_bindgen(js_name = elementPaletteJson)]
+    pub fn element_palette_json(&self) -> String {
+        self.inner.element_palette_json()
+    }
+
+    #[wasm_bindgen(js_name = selectionChemistrySummaryJson)]
+    pub fn selection_chemistry_summary_json(&self) -> String {
+        self.inner.selection_chemistry_summary_json()
+    }
+
+    #[wasm_bindgen(js_name = applyElementPaletteJson)]
+    pub fn apply_element_palette_json(&mut self, selection_json: &str) -> Result<bool, JsValue> {
+        self.inner
+            .apply_element_palette_json(selection_json)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
     #[wasm_bindgen(js_name = applyObjectSettingsDialogJson)]
     pub fn apply_object_settings_dialog_json(
         &mut self,

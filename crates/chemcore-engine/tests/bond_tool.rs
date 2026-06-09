@@ -479,6 +479,7 @@ fn element_tool_places_selected_element_with_chemdraw_hydrogens() {
     };
     engine.set_tool_state(tool.clone());
     click(&mut engine, 40.0, 50.0);
+    assert!(engine.state().selection.is_empty());
 
     let fragment = engine
         .state()
@@ -500,6 +501,7 @@ fn element_tool_places_selected_element_with_chemdraw_hydrogens() {
     tool.element_atomic_number = 79;
     engine.set_tool_state(tool);
     click(&mut engine, 70.0, 80.0);
+    assert!(engine.state().selection.is_empty());
     let fragment = engine
         .state()
         .document
@@ -514,6 +516,71 @@ fn element_tool_places_selected_element_with_chemdraw_hydrogens() {
         node.label.as_ref().map(|label| label.text.as_str()),
         Some("Au")
     );
+}
+
+#[test]
+fn selection_chemistry_summary_counts_selected_atoms_only() {
+    let mut engine = Engine::new();
+    let mut tool = ToolState {
+        active_tool: Tool::Element,
+        element_symbol: "Se".to_string(),
+        element_atomic_number: 34,
+        ..ToolState::default()
+    };
+    engine.set_tool_state(tool.clone());
+    click(&mut engine, 40.0, 50.0);
+
+    let empty: serde_json::Value =
+        serde_json::from_str(&engine.selection_chemistry_summary_json()).unwrap();
+    assert!(empty.is_null());
+
+    engine.select_at_point(Point::new(40.0, 50.0), false);
+    let summary: serde_json::Value =
+        serde_json::from_str(&engine.selection_chemistry_summary_json()).unwrap();
+    assert_eq!(summary["formula"], "H2Se");
+    assert_eq!(summary["atomCount"], 3);
+    assert!((summary["formulaWeight"].as_f64().unwrap() - 80.987).abs() < 1.0e-9);
+
+    tool.element_symbol = "Au".to_string();
+    tool.element_atomic_number = 79;
+    engine.set_tool_state(tool);
+    click(&mut engine, 70.0, 80.0);
+    engine.select_at_point(Point::new(40.0, 50.0), false);
+    engine.select_at_point(Point::new(70.0, 80.0), true);
+    let summary: serde_json::Value =
+        serde_json::from_str(&engine.selection_chemistry_summary_json()).unwrap();
+    assert_eq!(summary["formula"], "AuH2Se");
+    assert_eq!(summary["atomCount"], 4);
+}
+
+#[test]
+fn selection_chemistry_summary_ignores_selected_bonds() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+
+    engine.select_at_point(Point::new(FIRST_CENTER_X, FIRST_CENTER_Y), false);
+    assert_eq!(engine.state().selection.bonds.len(), 1);
+    assert!(engine.state().selection.nodes.is_empty());
+
+    let summary: serde_json::Value =
+        serde_json::from_str(&engine.selection_chemistry_summary_json()).unwrap();
+    assert!(summary.is_null());
+}
+
+#[test]
+fn selection_chemistry_summary_counts_implicit_carbon_hydrogens() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+    engine.select_component_at_point(Point::new(FIRST_CENTER_X, FIRST_CENTER_Y), false);
+
+    let summary: serde_json::Value =
+        serde_json::from_str(&engine.selection_chemistry_summary_json()).unwrap();
+    assert_eq!(summary["formula"], "C2H6");
+    assert_eq!(summary["atomCount"], 8);
+    assert!((summary["formulaWeight"].as_f64().unwrap() - 30.07).abs() < 1.0e-9);
+    assert!((summary["exactMass"].as_f64().unwrap() - 30.046_950_193_38).abs() < 1.0e-9);
 }
 
 fn hover(engine: &mut Engine, x: f64, y: f64) {

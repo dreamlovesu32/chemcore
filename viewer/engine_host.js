@@ -51,6 +51,7 @@ class TauriEngineSession {
       stateJson: null,
       renderListJson: "[]",
       renderBoundsJson: new Map(),
+      selectionChemistrySummaryJson: "null",
       documentColorsJson: "[]",
       documentStylePreset: "default",
       revision: 0,
@@ -140,6 +141,9 @@ class TauriEngineSession {
     if (snapshot.selectionBoundsJson != null) {
       this.cache.renderBoundsJson.set("selection", snapshot.selectionBoundsJson);
     }
+    if (snapshot.selectionChemistrySummaryJson != null) {
+      this.cache.selectionChemistrySummaryJson = snapshot.selectionChemistrySummaryJson;
+    }
     if (snapshot.documentColorsJson != null) {
       this.cache.documentColorsJson = snapshot.documentColorsJson;
     }
@@ -221,6 +225,10 @@ class TauriEngineSession {
     return this.cache.renderBoundsJson.get(scope) || this.cache.renderBoundsJson.get("all") || "null";
   }
 
+  selectionChemistrySummaryJson() {
+    return this.cache.selectionChemistrySummaryJson || "null";
+  }
+
   async documentCdxml() {
     await this.refreshExports();
     return this.cache.documentCdxml || "";
@@ -298,6 +306,30 @@ class TauriEngineSession {
   async objectSettingsDialogJson() {
     await this.ready();
     return this.invoke("desktop_engine_object_settings_dialog_json", { sessionId: this.sessionId });
+  }
+
+  toolbarColorPaletteJson(customColorsJson = "[]") {
+    return this.layoutEngine?.toolbarColorPaletteJson?.(customColorsJson) || JSON.stringify({ colors: [], otherLabel: "Other..." });
+  }
+
+  colorDialogPaletteJson(currentColor = "#000000", customColorsJson = "[]") {
+    return this.layoutEngine?.colorDialogPaletteJson?.(currentColor, customColorsJson)
+      || JSON.stringify({ selected: currentColor, basicColors: [], customColors: [] });
+  }
+
+  textSymbolPaletteJson() {
+    return this.layoutEngine?.textSymbolPaletteJson?.() || JSON.stringify({ groups: [] });
+  }
+
+  elementPaletteJson() {
+    return this.layoutEngine?.elementPaletteJson?.() || JSON.stringify({ elements: [] });
+  }
+
+  applyElementPaletteJson(selectionJson) {
+    if (this.layoutEngine?.applyElementPaletteJson) {
+      return this.layoutEngine.applyElementPaletteJson(selectionJson);
+    }
+    return this.invokeMutation("desktop_engine_apply_element_palette_json", { selectionJson }, { refresh: "state", dirtyExports: false });
   }
 
   applyObjectSettingsDialogJson(settingsJson) {

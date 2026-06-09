@@ -66,10 +66,7 @@ import {
   editorSourceRunsFromSession as createEditorSourceRunsFromSession,
 } from "./text_editor_render.js";
 import { createTextEditorController } from "./text_editor_controller.js";
-import {
-  createTextSymbolPalette,
-  loadTextSymbolCatalog,
-} from "./text_symbol_palette.js";
+import { createTextSymbolPalette } from "./text_symbol_palette.js";
 import {
   primitiveStrokeWidthValue,
   renderCorePrimitive,
@@ -123,7 +120,14 @@ const state = {
 };
 const engineHost = createEngineHost();
 const desktopFileHost = createDesktopFileHost();
-const colorHost = createColorHost();
+const colorHost = createColorHost({
+  getPalette: (initialColor, customColors = []) => (
+    state.editorEngine?.colorDialogPaletteJson?.(
+      initialColor,
+      JSON.stringify(customColors),
+    )
+  ),
+});
 const commandEngine = createEditorCommandEngine({
   engine: () => state.editorEngine,
   syncDocumentFromEngine,
@@ -223,19 +227,15 @@ const DELETE_CURSOR = `url("data:image/svg+xml,${DELETE_CURSOR_SVG}") 8 8, cross
 function elementCursor(symbol) {
   const safeSymbol = String(symbol || "P").replace(/[^A-Za-z]/g, "").slice(0, 2) || "P";
   const svg = encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34">
-      <rect x="12" y="1" width="2" height="7" fill="#000000"/>
-      <rect x="20" y="1" width="2" height="7" fill="#000000"/>
-      <rect x="12" y="26" width="2" height="7" fill="#000000"/>
-      <rect x="20" y="26" width="2" height="7" fill="#000000"/>
-      <rect x="1" y="12" width="7" height="2" fill="#000000"/>
-      <rect x="1" y="20" width="7" height="2" fill="#000000"/>
-      <rect x="26" y="12" width="7" height="2" fill="#000000"/>
-      <rect x="26" y="20" width="7" height="2" fill="#000000"/>
-      <text x="17" y="21" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" fill="#000000">${safeSymbol}</text>
+    `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+      <rect x="11.5" y="3" width="1" height="4" fill="#000000"/>
+      <rect x="11.5" y="17" width="1" height="4" fill="#000000"/>
+      <rect x="3" y="11.5" width="4" height="1" fill="#000000"/>
+      <rect x="17" y="11.5" width="4" height="1" fill="#000000"/>
+      <text x="12" y="15" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="6pt" font-weight="400" fill="#000000">${safeSymbol}</text>
     </svg>`,
   );
-  return `url("data:image/svg+xml,${svg}") 17 17, crosshair`;
+  return `url("data:image/svg+xml,${svg}") 12 12, crosshair`;
 }
 
 const sampleSelect = document.getElementById("sample-select");
@@ -250,6 +250,7 @@ const viewerStats = document.getElementById("viewer-stats");
 const viewerSvg = document.getElementById("viewer-svg");
 const viewerContainer = document.getElementById("viewer-container");
 const secondaryToolbar = document.getElementById("secondary-toolbar");
+const selectionChemistrySummary = document.getElementById("selection-chemistry-summary");
 const desktopTitlebar = document.getElementById("desktop-titlebar");
 const documentTabsRoot = document.getElementById("document-tabs");
 const documentStyleButton = document.getElementById("document-style-button");
@@ -265,18 +266,9 @@ viewerContainer?.appendChild(textEditorLayer);
 let canvasContextMenuHost = null;
 let canvasContextMenu = null;
 let textSymbolPalette = null;
-const textSymbolCatalogReady = loadTextSymbolCatalog().then((catalog) => {
-  textSymbolPalette = createTextSymbolPalette({
-    mount: viewerContainer,
-    catalog,
-    onSelect: insertTextSymbol,
-  });
-  return textSymbolPalette;
-});
 const appRuntimeReady = Promise.all([
   engineHost.initialize(),
   sharedGlyphProfilesReady,
-  textSymbolCatalogReady,
 ]);
 
 syncPrimaryChromeIcons();
@@ -368,10 +360,14 @@ const editorState = {
   orbitalPhase: "plus",
   orbitalColor: "#000000",
   documentColors: [],
+  colorPalette: null,
   bracketKind: "round",
   symbolKind: "circle-plus",
   elementSymbol: "P",
   elementAtomicNumber: 15,
+  elementPlacementActive: false,
+  elementPalette: null,
+  massDigits: 2,
   template: "ring-6",
 };
 let activeTextEditor = null;
@@ -915,7 +911,8 @@ async function syncEngineToolState() {
     return;
   }
   await state.editorEngine.ready?.();
-  await state.editorEngine.setTool(editorState.activeTool, editorState.bondType);
+  const effectiveTool = editorState.elementPlacementActive ? "element" : editorState.activeTool;
+  await state.editorEngine.setTool(effectiveTool, editorState.bondType);
   await state.editorEngine.setTemplate?.(editorState.template);
   const shapeKind = editorState.activeTool === "tlc-plate" ? "tlc-plate" : editorState.shapeKind;
   await state.editorEngine.setShapeOptions?.(
@@ -1912,6 +1909,7 @@ async function syncDocumentFromEngine() {
     await syncCoreRenderListFromCurrentDocument();
     maybeAutoExpandEditorViewport(state.coreRenderList || []);
   }
+  syncSelectionChemistrySummary();
   refreshCommandAvailability();
 }
 
@@ -1920,6 +1918,7 @@ async function renderSelectionOnlyUpdate(point, syncCursor = syncSelectCursorFor
     await syncCursor(point);
   }
   renderEditorOverlay(syncEditorSelectionRenderListFromEngine());
+  syncSelectionChemistrySummary();
   refreshCommandAvailability();
 }
 
@@ -1934,11 +1933,128 @@ function currentEditorEngineState() {
   return parseEngineJson(state.editorEngine.stateJson());
 }
 
+function formatSelectionSummaryMass(value, digits) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric.toFixed(digits) : "";
+}
+
+function clampMassDigits(value) {
+  const numeric = Math.trunc(Number(value));
+  if (!Number.isFinite(numeric)) {
+    return 2;
+  }
+  return Math.max(0, Math.min(8, numeric));
+}
+
+function setMassDigits(value) {
+  const next = clampMassDigits(value);
+  if (editorState.massDigits === next) {
+    return;
+  }
+  editorState.massDigits = next;
+  syncSelectionChemistrySummary();
+}
+
+function massPrecisionIcon(direction) {
+  const path = direction === "up"
+    ? "M6 9 12 3l6 6"
+    : "M6 5l6 6 6-6";
+  return `<svg viewBox="0 0 24 14" aria-hidden="true"><path d="${path}"/></svg>`;
+}
+
+function makeMassPrecisionControl() {
+  const control = document.createElement("span");
+  control.className = "selection-mass-precision";
+  const value = document.createElement("span");
+  value.className = "selection-mass-precision-value";
+  value.textContent = String(clampMassDigits(editorState.massDigits));
+  const buttons = document.createElement("span");
+  buttons.className = "selection-mass-precision-buttons";
+  const increase = document.createElement("button");
+  increase.className = "selection-mass-precision-button";
+  increase.type = "button";
+  increase.title = "Increase mass decimals";
+  increase.setAttribute("aria-label", "Increase mass decimals");
+  increase.innerHTML = massPrecisionIcon("up");
+  increase.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setMassDigits(editorState.massDigits + 1);
+  });
+  const decrease = document.createElement("button");
+  decrease.className = "selection-mass-precision-button";
+  decrease.type = "button";
+  decrease.title = "Decrease mass decimals";
+  decrease.setAttribute("aria-label", "Decrease mass decimals");
+  decrease.innerHTML = massPrecisionIcon("down");
+  decrease.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setMassDigits(editorState.massDigits - 1);
+  });
+  buttons.append(increase, decrease);
+  control.append(value, buttons);
+  return control;
+}
+
+function makeSelectionSummaryItem(label, value, accessory = null) {
+  const item = document.createElement("span");
+  item.className = "selection-chemistry-summary-item";
+  const labelNode = document.createElement("span");
+  labelNode.className = "selection-chemistry-summary-label";
+  labelNode.textContent = label;
+  const valueNode = document.createElement("span");
+  valueNode.className = "selection-chemistry-summary-value";
+  valueNode.textContent = value;
+  item.append(labelNode, valueNode);
+  if (accessory) {
+    item.append(accessory);
+  }
+  return item;
+}
+
+function appendFormulaText(container, formula) {
+  const parts = String(formula || "").match(/[A-Z][a-z]?|\d+/g) || [];
+  for (const part of parts) {
+    const node = document.createElement(/^\d+$/.test(part) ? "sub" : "span");
+    node.textContent = part;
+    container.append(node);
+  }
+}
+
+function syncSelectionChemistrySummary() {
+  if (!selectionChemistrySummary) {
+    return;
+  }
+  selectionChemistrySummary.replaceChildren();
+  const summary = isEditingRustDocument()
+    ? parseEngineJson(state.editorEngine?.selectionChemistrySummaryJson?.(), null)
+    : null;
+  if (!summary?.formula) {
+    return;
+  }
+  const formula = document.createElement("span");
+  formula.className = "selection-chemistry-summary-item selection-chemistry-summary-formula";
+  appendFormulaText(formula, summary.formula);
+  editorState.massDigits = clampMassDigits(editorState.massDigits);
+  const formulaWeight = formatSelectionSummaryMass(summary.formulaWeight, editorState.massDigits);
+  const exactMass = formatSelectionSummaryMass(summary.exactMass, editorState.massDigits);
+  selectionChemistrySummary.append(formula);
+  selectionChemistrySummary.append(makeMassPrecisionControl());
+  if (formulaWeight) {
+    selectionChemistrySummary.append(makeSelectionSummaryItem("Formula Weight", formulaWeight));
+  }
+  if (exactMass) {
+    selectionChemistrySummary.append(makeSelectionSummaryItem("Exact Mass", exactMass));
+  }
+}
+
 async function resetEditorEngine() {
   await finishActiveTextEditor(false);
   await state.editorEngine?.free?.();
   state.editorEngine = engineHost.createEngineSession();
   await state.editorEngine.ready?.();
+  syncTextSymbolPaletteFromEngine();
   commandEngine.resetRevision();
   state.runtimeViewBox = defaultEditorViewBox();
   state.lastEditFocusPoint = null;
@@ -1983,9 +2099,13 @@ function uniformValue(values) {
 }
 
 async function activateEditorTool(nextTool) {
-  if (!nextTool || editorState.activeTool === nextTool) {
+  if (!nextTool) {
     return false;
   }
+  if (editorState.activeTool === nextTool && !editorState.elementPlacementActive) {
+    return false;
+  }
+  editorState.elementPlacementActive = false;
   if (editorState.activeTool === "text" && nextTool !== "text") {
     await finishActiveTextEditor(true);
   }
@@ -2108,7 +2228,9 @@ function syncCanvasCursor() {
     viewerSvg.style.cursor = "grabbing";
     return;
   }
-  viewerSvg.style.cursor = editorState.activeTool === "text"
+  viewerSvg.style.cursor = editorState.elementPlacementActive
+    ? elementCursor(editorState.elementSymbol)
+    : editorState.activeTool === "text"
     ? "text"
     : editorState.activeTool === "delete"
       ? DELETE_CURSOR
@@ -2116,12 +2238,14 @@ function syncCanvasCursor() {
       ? "default"
     : editorState.activeTool === "arrow"
       ? "crosshair"
-    : editorState.activeTool === "element"
-      ? elementCursor(editorState.elementSymbol)
       : "crosshair";
 }
 
 async function syncSelectCursorForPoint(point) {
+  if (editorState.elementPlacementActive) {
+    syncCanvasCursor();
+    return;
+  }
   if (!viewerSvg || editorState.activeTool !== "select" || !isEditingRustDocument()) {
     syncCanvasCursor();
     return;
@@ -2153,6 +2277,10 @@ function cursorForShapeAction(action) {
 
 async function syncArrowAwareCursorForPoint(point) {
   if (!viewerSvg || !isEditingRustDocument()) {
+    syncCanvasCursor();
+    return;
+  }
+  if (editorState.elementPlacementActive) {
     syncCanvasCursor();
     return;
   }
@@ -2240,7 +2368,10 @@ function renderSecondaryToolbar() {
     return;
   }
   editorState.documentColors = currentDocumentColors();
+  editorState.colorPalette = currentToolbarColorPalette(editorState.documentColors);
+  editorState.elementPalette = currentElementPalette();
   secondaryToolbar.innerHTML = renderSecondaryToolbarHtml(editorState);
+  textSymbolPalette?.setElementPayload?.(editorState.elementPalette);
   syncPrimaryToolButtons(editorState, document);
 }
 
@@ -2255,6 +2386,60 @@ function currentDocumentColors() {
     }
   }
   return [];
+}
+
+function currentToolbarColorPalette(documentColors = []) {
+  if (typeof state.editorEngine?.toolbarColorPaletteJson === "function") {
+    const paletteJson = state.editorEngine.toolbarColorPaletteJson(JSON.stringify(documentColors));
+    if (typeof paletteJson === "string") {
+      return parseEngineJson(paletteJson, null);
+    }
+  }
+  return null;
+}
+
+function currentElementPalette() {
+  if (typeof state.editorEngine?.elementPaletteJson === "function") {
+    const paletteJson = state.editorEngine.elementPaletteJson();
+    if (typeof paletteJson === "string") {
+      return parseEngineJson(paletteJson, null);
+    }
+  }
+  return null;
+}
+
+function syncTextSymbolPaletteFromEngine() {
+  if (typeof state.editorEngine?.textSymbolPaletteJson !== "function") {
+    ensureTextSymbolPalette();
+    return;
+  }
+  const payload = parseEngineJson(state.editorEngine.textSymbolPaletteJson(), null);
+  if (!payload) {
+    ensureTextSymbolPalette();
+    return;
+  }
+  ensureTextSymbolPalette(payload);
+}
+
+function ensureTextSymbolPalette(payload = null) {
+  const elementPayload = currentElementPalette();
+  if (textSymbolPalette) {
+    if (payload) {
+      textSymbolPalette.setPayload(payload);
+    }
+    if (elementPayload) {
+      textSymbolPalette.setElementPayload?.(elementPayload);
+    }
+    return;
+  }
+  textSymbolPalette = createTextSymbolPalette({
+    mount: viewerContainer,
+    payload,
+    elementPayload,
+    onSelect: insertTextSymbol,
+    onElementSelect: selectElementFromQuickPalette,
+    onModeChange: handleQuickPaletteModeChange,
+  });
 }
 
 const textEditorController = createTextEditorController({
@@ -2910,6 +3095,48 @@ function insertElementSymbol(symbol) {
   }
 }
 
+async function applyElementPaletteSelection(symbol) {
+  if (typeof state.editorEngine?.applyElementPaletteJson === "function") {
+    return state.editorEngine.applyElementPaletteJson(JSON.stringify({ symbol }));
+  }
+  return false;
+}
+
+function setElementPlacementActive(active) {
+  const nextActive = Boolean(active) && !activeTextEditor;
+  if (editorState.elementPlacementActive === nextActive) {
+    return;
+  }
+  editorState.elementPlacementActive = nextActive;
+  syncPrimaryToolButtons(editorState, document);
+  syncCanvasCursor();
+}
+
+function handleQuickPaletteModeChange({ open, mode, keepElementPlacement = false } = {}) {
+  setElementPlacementActive((open && mode === "element") || keepElementPlacement);
+  void syncEngineToolState();
+}
+
+async function selectElementFromQuickPalette(symbol, atomicNumber = null) {
+  const normalizedSymbol = String(symbol || "");
+  if (!normalizedSymbol) {
+    return false;
+  }
+  const changed = await applyElementPaletteSelection(normalizedSymbol);
+  editorState.elementSymbol = normalizedSymbol;
+  editorState.elementAtomicNumber = Number(atomicNumber) || editorState.elementAtomicNumber || 15;
+  if (activeTextEditor) {
+    insertElementSymbol(normalizedSymbol);
+  } else {
+    setElementPlacementActive(true);
+  }
+  await syncEngineToolState();
+  renderSecondaryToolbar();
+  syncCanvasCursor();
+  focusActiveTextEditor();
+  return changed;
+}
+
 const documentFlow = createDocumentFlow({
   state,
   engineHost,
@@ -3200,6 +3427,8 @@ async function confirmApplyDocumentStylePreset(preset) {
   return window.confirm(message);
 }
 
+ensureTextSymbolPalette();
+
 bindEditorControls({
   state,
   editorState,
@@ -3252,6 +3481,7 @@ bindEditorControls({
   applyTextScript,
   applyChemicalFormat,
   insertElementSymbol,
+  applyElementPaletteSelection,
   applyTextInlineStyle,
   applySelectionArrangeCommand,
   applyArrowOptionsToSelection,
@@ -3286,7 +3516,8 @@ function editorBondStrokeWidth() {
 
 function routeEditorPointerEvents() {
   return isEditingRustDocument()
-    && (editorState.activeTool === "bond"
+    && (editorState.elementPlacementActive
+      || editorState.activeTool === "bond"
       || editorState.activeTool === "delete"
       || editorState.activeTool === "arrow"
       || editorState.activeTool === "bracket"

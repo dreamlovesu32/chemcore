@@ -91,6 +91,19 @@ export class WasmEngine {
         return ret !== 0;
     }
     /**
+     * @param {string} selection_json
+     * @returns {boolean}
+     */
+    applyElementPaletteJson(selection_json) {
+        const ptr0 = passStringToWasm0(selection_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyElementPaletteJson(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] !== 0;
+    }
+    /**
      * @param {string} style
      * @returns {boolean}
      */
@@ -380,6 +393,27 @@ export class WasmEngine {
         return v1;
     }
     /**
+     * @param {string} current_color
+     * @param {string} custom_colors_json
+     * @returns {string}
+     */
+    colorDialogPaletteJson(current_color, custom_colors_json) {
+        let deferred3_0;
+        let deferred3_1;
+        try {
+            const ptr0 = passStringToWasm0(current_color, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ptr1 = passStringToWasm0(custom_colors_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len1 = WASM_VECTOR_LEN;
+            const ret = wasm.wasmengine_colorDialogPaletteJson(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+            deferred3_0 = ret[0];
+            deferred3_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+        }
+    }
+    /**
      * @param {number} x
      * @param {number} y
      * @returns {string}
@@ -516,6 +550,21 @@ export class WasmEngine {
         let deferred1_1;
         try {
             const ret = wasm.wasmengine_documentSvg(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    elementPaletteJson() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.wasmengine_elementPaletteJson(this.__wbg_ptr);
             deferred1_0 = ret[0];
             deferred1_1 = ret[1];
             return getStringFromWasm0(ret[0], ret[1]);
@@ -972,6 +1021,21 @@ export class WasmEngine {
         wasm.wasmengine_selectInRect(this.__wbg_ptr, x1, y1, x2, y2, additive);
     }
     /**
+     * @returns {string}
+     */
+    selectionChemistrySummaryJson() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.wasmengine_selectionChemistrySummaryJson(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * @param {number} x
      * @param {number} y
      * @returns {boolean}
@@ -1149,6 +1213,21 @@ export class WasmEngine {
         }
     }
     /**
+     * @returns {string}
+     */
+    textSymbolPaletteJson() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.wasmengine_textSymbolPaletteJson(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * @param {number} x
      * @param {number} y
      * @returns {string | undefined}
@@ -1181,6 +1260,24 @@ export class WasmEngine {
             wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
         }
         return v1;
+    }
+    /**
+     * @param {string} custom_colors_json
+     * @returns {string}
+     */
+    toolbarColorPaletteJson(custom_colors_json) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ptr0 = passStringToWasm0(custom_colors_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.wasmengine_toolbarColorPaletteJson(this.__wbg_ptr, ptr0, len0);
+            deferred2_0 = ret[0];
+            deferred2_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
     }
     /**
      * @returns {boolean}

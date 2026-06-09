@@ -9,8 +9,10 @@ mod context_styles;
 mod delete;
 mod groups;
 mod orbitals;
+mod palettes;
 mod presets;
 mod select;
+mod selection_summary;
 mod shapes;
 mod templates;
 mod text_edit;
@@ -1904,10 +1906,7 @@ impl Engine {
         };
         mark_shortcut_implicit_hydrogen_label(&mut node, &label_text);
         entry.fragment.nodes.push(node);
-        self.state.selection = SelectionState {
-            nodes: vec![node_id],
-            ..SelectionState::default()
-        };
+        self.state.selection = SelectionState::default();
         true
     }
 

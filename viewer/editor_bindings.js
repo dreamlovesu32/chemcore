@@ -314,6 +314,18 @@ function bindToolButtons(options) {
 async function setActiveTool(toolButton, options) {
   const { editorState, state } = options;
   const nextTool = toolButton?.dataset?.tool || editorState.activeTool;
+  const elementPaletteWasOpen = Boolean(document.querySelector('.quick-palette.is-open[data-mode="element"]'));
+  if (nextTool === "element") {
+    document.dispatchEvent(new CustomEvent(
+      elementPaletteWasOpen ? "chemcore:quick-palette-toggle" : "chemcore:quick-palette-open-mode",
+      { detail: { mode: "element" } },
+    ));
+    return;
+  }
+  if (editorState.activeTool === nextTool && !editorState.elementPlacementActive) {
+    return;
+  }
+  editorState.elementPlacementActive = false;
   if (editorState.activeTool === "text" && nextTool !== "text" && nextTool !== "element") {
     await options.finishActiveTextEditor(true);
   }
@@ -410,9 +422,6 @@ function bindSecondaryToolbar(options) {
     if (await handleColorPickerClick(event, options)) {
       return;
     }
-    if (handleElementPickerClick(event)) {
-      return;
-    }
     const button = event.target.closest("[data-secondary-value]");
     if (!button) {
       return;
@@ -439,37 +448,7 @@ function bindSecondaryToolbar(options) {
     options.renderSecondaryToolbar();
     options.focusActiveTextEditor();
   });
-}
 
-function handleElementPickerClick(event) {
-  const picker = event.target.closest(".element-picker");
-  if (!picker) {
-    closeElementPickers();
-    return false;
-  }
-  const toggle = event.target.closest("[data-element-picker-toggle]");
-  if (toggle) {
-    const isOpen = picker.classList.contains("is-open");
-    closeElementPickers(picker);
-    if (!isOpen) {
-      const rect = toggle.getBoundingClientRect();
-      const panelWidth = 760;
-      picker.style.setProperty("--element-panel-left", `${Math.max(4, Math.min(window.innerWidth - panelWidth - 4, rect.left - 4))}px`);
-      picker.style.setProperty("--element-panel-top", `${Math.max(4, rect.bottom + 6)}px`);
-      picker.classList.add("is-open");
-    }
-    event.preventDefault();
-    return true;
-  }
-  return false;
-}
-
-function closeElementPickers(except = null) {
-  document.querySelectorAll(".element-picker.is-open").forEach((picker) => {
-    if (picker !== except) {
-      picker.classList.remove("is-open");
-    }
-  });
 }
 
 let suppressColorPickerClickUntil = 0;
@@ -490,11 +469,11 @@ function bindToolbarColorPickers(options) {
       return;
     }
     closeColorPickers(picker);
-    picker.classList.add("is-open");
     const rect = picker.getBoundingClientRect();
     const left = Math.max(4, Math.min(window.innerWidth - 138, (pointerX ?? rect.left) - 5));
     picker.style.setProperty("--color-panel-left", `${left}px`);
     picker.style.setProperty("--color-panel-top", `${Math.min(window.innerHeight - 150, rect.bottom + 6)}px`);
+    picker.classList.add("is-open");
   };
   const targetAtPointer = (event) => {
     const element = document.elementFromPoint(event.clientX, event.clientY);
@@ -554,7 +533,6 @@ function bindToolbarColorPickers(options) {
       return;
     }
     const picker = button.closest(".color-picker");
-    const startsOnArrow = Boolean(event.target.closest("[data-color-picker-arrow]"));
     drag = {
       picker,
       pointerId: event.pointerId,
@@ -562,7 +540,7 @@ function bindToolbarColorPickers(options) {
       timer: window.setTimeout(() => {
         drag.opened = true;
         openPicker(picker, event.clientX);
-      }, startsOnArrow ? 120 : 360),
+      }, 360),
     };
     button.setPointerCapture?.(event.pointerId);
     window.addEventListener("pointermove", handleDragMove);
@@ -601,26 +579,6 @@ async function handleColorPickerClick(event, options) {
     event.preventDefault();
     return true;
   }
-  const arrow = event.target.closest("[data-color-picker-arrow]");
-  const arrowButton = event.target.closest(".color-picker-button");
-  const arrowByPosition = arrowButton && (() => {
-    const rect = arrowButton.getBoundingClientRect();
-    return event.clientX >= rect.right - 15 && event.clientY >= rect.bottom - 15;
-  })();
-  if (arrow || arrowByPosition) {
-    const picker = (arrow || arrowButton).closest(".color-picker");
-    if (picker?.classList.contains("is-open")) {
-      picker.classList.remove("is-open");
-    } else {
-      closeColorPickers(picker);
-      const rect = picker.getBoundingClientRect();
-      picker.style.setProperty("--color-panel-left", `${Math.max(4, Math.min(window.innerWidth - 138, rect.left - 5))}px`);
-      picker.style.setProperty("--color-panel-top", `${Math.min(window.innerHeight - 150, rect.bottom + 6)}px`);
-      picker.classList.add("is-open");
-    }
-    event.preventDefault();
-    return true;
-  }
   return false;
 }
 
@@ -635,6 +593,9 @@ function closeColorPickers(except = null) {
 async function handleSecondaryToolbarValue(value, options) {
   const { editorState } = options;
   let arrowOptionChanged = false;
+  if (editorState.elementPlacementActive && !value?.startsWith("element-symbol-")) {
+    editorState.elementPlacementActive = false;
+  }
   if (value?.startsWith("text-align-")) {
     editorState.textAlign = value.replace("text-align-", "");
     options.applyTextAlignment(editorState.textAlign);
@@ -728,6 +689,7 @@ async function handleSecondaryToolbarValue(value, options) {
   } else if (value?.startsWith("element-symbol-")) {
     const [, symbol, atomicNumber] = value.match(/^element-symbol-([A-Za-z]{1,2})-(\d{1,3})$/) || [];
     if (symbol) {
+      await options.applyElementPaletteSelection?.(symbol);
       editorState.elementSymbol = symbol;
       editorState.elementAtomicNumber = Number(atomicNumber) || editorState.elementAtomicNumber || 15;
       if (options.getActiveTextEditor?.()) {

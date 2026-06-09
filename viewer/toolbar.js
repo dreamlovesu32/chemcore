@@ -34,16 +34,6 @@ export function arrowTypeSupportsHeadSize(type) {
 const ICON_VIEWBOX = "0 0 24 24";
 const ICON_BLACK = "#111318";
 const ICON_BLUE = "#2f6fed";
-export const CHEMDRAW_BASIC_COLORS = [
-  { value: "#000000", title: "Black" },
-  { value: "#ff0000", title: "Red" },
-  { value: "#ffff00", title: "Yellow" },
-  { value: "#00ff00", title: "Green" },
-  { value: "#ffffff", title: "White" },
-  { value: "#00ffff", title: "Cyan" },
-  { value: "#0000ff", title: "Blue" },
-  { value: "#ff00ff", title: "Magenta" },
-];
 
 function iconSvg(content, className = "") {
   const classAttr = className ? ` class="chemcore-icon ${className}"` : ` class="chemcore-icon"`;
@@ -395,149 +385,9 @@ function commandIconSvg(name) {
   return icons[name] || "";
 }
 
-const PERIODIC_ELEMENTS = [
-  ["H", 1, "Hydrogen", 1, 1],
-  ["He", 2, "Helium", 18, 1],
-  ["Li", 3, "Lithium", 1, 2],
-  ["Be", 4, "Beryllium", 2, 2],
-  ["B", 5, "Boron", 13, 2],
-  ["C", 6, "Carbon", 14, 2],
-  ["N", 7, "Nitrogen", 15, 2],
-  ["O", 8, "Oxygen", 16, 2],
-  ["F", 9, "Fluorine", 17, 2],
-  ["Ne", 10, "Neon", 18, 2],
-  ["Na", 11, "Sodium", 1, 3],
-  ["Mg", 12, "Magnesium", 2, 3],
-  ["Al", 13, "Aluminum", 13, 3],
-  ["Si", 14, "Silicon", 14, 3],
-  ["P", 15, "Phosphorus", 15, 3],
-  ["S", 16, "Sulfur", 16, 3],
-  ["Cl", 17, "Chlorine", 17, 3],
-  ["Ar", 18, "Argon", 18, 3],
-  ["K", 19, "Potassium", 1, 4],
-  ["Ca", 20, "Calcium", 2, 4],
-  ["Sc", 21, "Scandium", 3, 4],
-  ["Ti", 22, "Titanium", 4, 4],
-  ["V", 23, "Vanadium", 5, 4],
-  ["Cr", 24, "Chromium", 6, 4],
-  ["Mn", 25, "Manganese", 7, 4],
-  ["Fe", 26, "Iron", 8, 4],
-  ["Co", 27, "Cobalt", 9, 4],
-  ["Ni", 28, "Nickel", 10, 4],
-  ["Cu", 29, "Copper", 11, 4],
-  ["Zn", 30, "Zinc", 12, 4],
-  ["Ga", 31, "Gallium", 13, 4],
-  ["Ge", 32, "Germanium", 14, 4],
-  ["As", 33, "Arsenic", 15, 4],
-  ["Se", 34, "Selenium", 16, 4],
-  ["Br", 35, "Bromine", 17, 4],
-  ["Kr", 36, "Krypton", 18, 4],
-  ["Rb", 37, "Rubidium", 1, 5],
-  ["Sr", 38, "Strontium", 2, 5],
-  ["Y", 39, "Yttrium", 3, 5],
-  ["Zr", 40, "Zirconium", 4, 5],
-  ["Nb", 41, "Niobium", 5, 5],
-  ["Mo", 42, "Molybdenum", 6, 5],
-  ["Tc", 43, "Technetium", 7, 5],
-  ["Ru", 44, "Ruthenium", 8, 5],
-  ["Rh", 45, "Rhodium", 9, 5],
-  ["Pd", 46, "Palladium", 10, 5],
-  ["Ag", 47, "Silver", 11, 5],
-  ["Cd", 48, "Cadmium", 12, 5],
-  ["In", 49, "Indium", 13, 5],
-  ["Sn", 50, "Tin", 14, 5],
-  ["Sb", 51, "Antimony", 15, 5],
-  ["Te", 52, "Tellurium", 16, 5],
-  ["I", 53, "Iodine", 17, 5],
-  ["Xe", 54, "Xenon", 18, 5],
-  ["Cs", 55, "Cesium", 1, 6],
-  ["Ba", 56, "Barium", 2, 6],
-  ["La", 57, "Lanthanum", 3, 6],
-  ["Hf", 72, "Hafnium", 4, 6],
-  ["Ta", 73, "Tantalum", 5, 6],
-  ["W", 74, "Tungsten", 6, 6],
-  ["Re", 75, "Rhenium", 7, 6],
-  ["Os", 76, "Osmium", 8, 6],
-  ["Ir", 77, "Iridium", 9, 6],
-  ["Pt", 78, "Platinum", 10, 6],
-  ["Au", 79, "Gold", 11, 6],
-  ["Hg", 80, "Mercury", 12, 6],
-  ["Tl", 81, "Thallium", 13, 6],
-  ["Pb", 82, "Lead", 14, 6],
-  ["Bi", 83, "Bismuth", 15, 6],
-  ["Po", 84, "Polonium", 16, 6],
-  ["At", 85, "Astatine", 17, 6],
-  ["Rn", 86, "Radon", 18, 6],
-  ["Fr", 87, "Francium", 1, 7],
-  ["Ra", 88, "Radium", 2, 7],
-  ["Ac", 89, "Actinium", 3, 7],
-  ["Rf", 104, "Rutherfordium", 4, 7],
-  ["Db", 105, "Dubnium", 5, 7],
-  ["Sg", 106, "Seaborgium", 6, 7],
-  ["Bh", 107, "Bohrium", 7, 7],
-  ["Hs", 108, "Hassium", 8, 7],
-  ["Mt", 109, "Meitnerium", 9, 7],
-  ["Ds", 110, "Darmstadtium", 10, 7],
-  ["Rg", 111, "Roentgenium", 11, 7],
-  ["Cn", 112, "Copernicium", 12, 7],
-  ["Nh", 113, "Nihonium", 13, 7],
-  ["Fl", 114, "Flerovium", 14, 7],
-  ["Mc", 115, "Moscovium", 15, 7],
-  ["Lv", 116, "Livermorium", 16, 7],
-  ["Ts", 117, "Tennessine", 17, 7],
-  ["Og", 118, "Oganesson", 18, 7],
-  ["Ce", 58, "Cerium", 4, 8],
-  ["Pr", 59, "Praseodymium", 5, 8],
-  ["Nd", 60, "Neodymium", 6, 8],
-  ["Pm", 61, "Promethium", 7, 8],
-  ["Sm", 62, "Samarium", 8, 8],
-  ["Eu", 63, "Europium", 9, 8],
-  ["Gd", 64, "Gadolinium", 10, 8],
-  ["Tb", 65, "Terbium", 11, 8],
-  ["Dy", 66, "Dysprosium", 12, 8],
-  ["Ho", 67, "Holmium", 13, 8],
-  ["Er", 68, "Erbium", 14, 8],
-  ["Tm", 69, "Thulium", 15, 8],
-  ["Yb", 70, "Ytterbium", 16, 8],
-  ["Lu", 71, "Lutetium", 17, 8],
-  ["Th", 90, "Thorium", 4, 9],
-  ["Pa", 91, "Protactinium", 5, 9],
-  ["U", 92, "Uranium", 6, 9],
-  ["Np", 93, "Neptunium", 7, 9],
-  ["Pu", 94, "Plutonium", 8, 9],
-  ["Am", 95, "Americium", 9, 9],
-  ["Cm", 96, "Curium", 10, 9],
-  ["Bk", 97, "Berkelium", 11, 9],
-  ["Cf", 98, "Californium", 12, 9],
-  ["Es", 99, "Einsteinium", 13, 9],
-  ["Fm", 100, "Fermium", 14, 9],
-  ["Md", 101, "Mendelevium", 15, 9],
-  ["No", 102, "Nobelium", 16, 9],
-  ["Lr", 103, "Lawrencium", 17, 9],
-];
-
-const ELEMENT_COLORS = {
-  C: ["#000000", "#ffffff"],
-  N: ["#0000d8", "#ffffff"],
-  O: ["#ff0000", "#ffffff"],
-  F: ["#62ee75", "#000000"],
-  Na: ["#ff00d8", "#ffffff"],
-  P: ["#ff72df", "#000000"],
-  S: ["#ecff24", "#000000"],
-  Cl: ["#00f32e", "#ffffff"],
-  Fe: ["#0b6415", "#ffffff"],
-  Ni: ["#6c6d6d", "#000000"],
-  Cu: ["#d58428", "#ffffff"],
-  Ag: ["#dcefff", "#000000"],
-  Au: ["#fff438", "#000000"],
-  Br: ["#8b4c42", "#ffffff"],
-};
-
-function elementIconSvg(symbol = "P") {
-  const safe = String(symbol || "P").replace(/[^A-Za-z]/g, "").slice(0, 2) || "P";
+function elementIconSvg() {
   return iconSvg(`
-    <path class="cc-element-tick" d="M9 4.5v3M15 4.5v3M9 16.5v3M15 16.5v3M4.5 9h3M4.5 15h3M16.5 9h3M16.5 15h3"/>
-    <text class="cc-element-icon-text" x="12" y="15" text-anchor="middle">${safe}</text>
+    <text class="cc-element-icon-text" x="12" y="16.5" text-anchor="middle">P</text>
   `, "cc-tool-icon cc-element-icon");
 }
 
@@ -559,7 +409,7 @@ export function syncPrimaryChromeIcons(root = document) {
     ["arrow", straightArrowSvg()],
     ["bracket", generatedBracketIconSvg("round")],
     ["symbol", generatedBracketIconSvg("circle-plus")],
-    ["element", elementIconSvg("P")],
+    ["element", elementIconSvg()],
     ["shape", commandIconSvg("shape")],
     ["tlc-plate", commandIconSvg("tlc-plate")],
     ["orbital", commandIconSvg("orbital")],
@@ -592,7 +442,7 @@ export function renderSecondaryToolbarHtml(editorState) {
     return symbolToolbarHtml(editorState);
   }
   if (editorState.activeTool === "element") {
-    return elementToolbarHtml(editorState);
+    return "";
   }
   if (editorState.activeTool === "shape") {
     return shapeToolbarHtml(editorState);
@@ -610,6 +460,10 @@ export function renderSecondaryToolbarHtml(editorState) {
 }
 
 export function syncPrimaryToolButtons(editorState, root = document) {
+  const activeTool = editorState.elementPlacementActive ? null : editorState.activeTool;
+  root.querySelectorAll("[data-tool]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.tool === activeTool);
+  });
   syncPrimaryBondToolButton(editorState, root);
   syncPrimaryTemplateToolButton(editorState, root);
   syncPrimarySymbolToolButton(editorState, root);
@@ -625,14 +479,12 @@ function toolbarButton(value, title, svg, selected = false) {
   `;
 }
 
-function colorPickerControl(prefix, currentColor, documentColors = []) {
+function colorPickerControl(prefix, currentColor, palette = null) {
   const color = normalizedHex(currentColor) || "#000000";
-  const extras = uniqueColors(documentColors).filter((value) => (
-    !CHEMDRAW_BASIC_COLORS.some((basic) => colorsEqual(basic.value, value))
-  ));
-  const swatches = [...CHEMDRAW_BASIC_COLORS, ...extras.map((value) => ({ value, title: value.toUpperCase() }))]
+  const colorPalette = normalizeToolbarColorPalette(palette);
+  const swatches = colorPalette.colors
     .map((entry, index) => `
-      <button class="color-panel-swatch${colorsEqual(color, entry.value) ? " is-selected" : ""}" type="button" data-color-swatch-value="${entry.value}" title="${entry.title}" aria-label="${entry.title}" style="--swatch:${entry.value}; --swatch-index:${index}"></button>
+      <button class="color-panel-swatch${colorsEqual(color, entry.value) ? " is-selected" : ""}" type="button" data-color-swatch-value="${entry.value}" title="${escapeHtml(entry.title)}" aria-label="${escapeHtml(entry.title)}" style="--swatch:${entry.value}; --swatch-index:${index}"></button>
     `)
     .join("");
   return `
@@ -645,7 +497,7 @@ function colorPickerControl(prefix, currentColor, documentColors = []) {
         <div class="color-panel-grid">
           ${swatches}
         </div>
-        <button class="color-panel-other" type="button" data-color-other>Other...</button>
+        <button class="color-panel-other" type="button" data-color-other>${escapeHtml(colorPalette.otherLabel)}</button>
       </div>
     </div>
   `;
@@ -666,18 +518,18 @@ function normalizedHex(value) {
   return null;
 }
 
-function uniqueColors(colors) {
-  const seen = new Set();
-  const out = [];
-  for (const color of colors || []) {
-    const normalized = normalizedHex(color);
-    if (!normalized || seen.has(normalized)) {
-      continue;
-    }
-    seen.add(normalized);
-    out.push(normalized);
-  }
-  return out;
+function normalizeToolbarColorPalette(palette) {
+  const payload = typeof palette === "string" ? safeJsonParse(palette, null) : palette;
+  const colors = (payload?.colors || [])
+    .map((entry) => ({
+      value: normalizedHex(entry?.value),
+      title: String(entry?.title || entry?.value || ""),
+    }))
+    .filter((entry) => entry.value);
+  return {
+    colors,
+    otherLabel: String(payload?.otherLabel || "Other..."),
+  };
 }
 
 function secondaryDivider() {
@@ -770,10 +622,9 @@ function syncPrimaryElementToolButton(editorState, root) {
   if (!elementButton) {
     return;
   }
-  const symbol = editorState.elementSymbol || "P";
-  elementButton.innerHTML = elementIconSvg(symbol);
-  elementButton.setAttribute("aria-label", `Element ${symbol}`);
-  elementButton.setAttribute("title", `Element ${symbol}`);
+  elementButton.innerHTML = elementIconSvg();
+  elementButton.setAttribute("aria-label", "Element");
+  elementButton.setAttribute("title", "Element");
 }
 
 function syncPrimaryOrbitalToolButton(editorState, root) {
@@ -807,7 +658,7 @@ function selectToolbarHtml(editorState) {
     toolbarButton("flip-h", "Flip horizontal", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16"/><path class="filled" d="M5 7v10l5-5z"/><path d="M19 7v10l-5-5z"/></svg>`),
     toolbarButton("flip-v", "Flip vertical", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"/><path class="filled" d="M7 5h10l-5 5z"/><path d="M7 19h10l-5-5z"/></svg>`),
     secondaryDivider(),
-    colorPickerControl("selection-color", editorState.selectionColor || editorState.textColor, editorState.documentColors),
+    colorPickerControl("selection-color", editorState.selectionColor || editorState.textColor, editorState.colorPalette),
   ].join("");
 }
 
@@ -959,7 +810,7 @@ function textToolbarHtml(editorState) {
     <select class="secondary-select" data-text-control="font" aria-label="Font family">${fontOptions}</select>
     <select class="secondary-select" data-text-control="size" aria-label="Font size">${fontSizeOptions}</select>
     ${secondaryDivider()}
-    ${colorPickerControl("text-color", editorState.textColor, editorState.documentColors)}
+    ${colorPickerControl("text-color", editorState.textColor, editorState.colorPalette)}
     ${secondaryDivider()}
     ${toolbarButton("text-align-left", "Align left", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M5 10h9"/><path d="M5 14h12"/><path d="M5 18h8"/></svg>`, editorState.textAlign === "left")}
     ${toolbarButton("text-align-center", "Align center", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"/><path d="M7 10h10"/><path d="M6 14h12"/><path d="M8 18h8"/></svg>`, editorState.textAlign === "center")}
@@ -990,13 +841,13 @@ function shapeToolbarHtml(editorState) {
     ${toolbarButton("shape-style-filled", "Filled", shapeIconSvg("rect", "filled"), editorState.shapeStyle === "filled")}
     ${toolbarButton("shape-style-shadowed", "Shadowed", shapeIconSvg("rect", "shadowed"), editorState.shapeStyle === "shadowed")}
     ${secondaryDivider()}
-    ${colorPickerControl("shape-color", editorState.shapeColor, editorState.documentColors)}
+    ${colorPickerControl("shape-color", editorState.shapeColor, editorState.colorPalette)}
   `;
 }
 
 function tlcPlateToolbarHtml(editorState) {
   return `
-    ${colorPickerControl("shape-color", editorState.shapeColor, editorState.documentColors)}
+    ${colorPickerControl("shape-color", editorState.shapeColor, editorState.colorPalette)}
   `;
 }
 
@@ -1052,7 +903,7 @@ function orbitalToolbarHtml(editorState) {
     ${toolbarButton("orbital-phase-plus", "Primary lobe position", orbitalGlyphSvg(template, style, "plus"), phase === "plus")}
     ${toolbarButton("orbital-phase-minus", "Alternate lobe position", orbitalGlyphSvg(template, style, "minus"), phase === "minus")}
     ${secondaryDivider()}
-    ${colorPickerControl("orbital-color", editorState.orbitalColor || editorState.shapeColor, editorState.documentColors)}
+    ${colorPickerControl("orbital-color", editorState.orbitalColor || editorState.shapeColor, editorState.colorPalette)}
   `;
 }
 
@@ -1082,36 +933,64 @@ function symbolToolbarHtml(editorState) {
 }
 
 function elementToolbarHtml(editorState) {
-  const current = periodicElement(editorState.elementSymbol || "P") || periodicElement("P");
-  const symbol = current?.[0] || "P";
-  const atomicNumber = current?.[1] || 15;
-  const name = current?.[2] || "Phosphorus";
+  const palette = normalizeElementPalette(editorState.elementPalette, editorState.elementSymbol);
+  const symbol = palette.current.symbol;
   return `
     <div class="element-picker">
       <button class="secondary-button element-current-button" type="button" data-element-picker-toggle aria-label="Periodic table" title="Periodic table">
-        <span class="periodic-element-symbol">${symbol}</span>
+        <span class="periodic-element-symbol">P</span>
       </button>
       <div class="periodic-table-panel" role="menu" aria-label="Periodic table">
-        <div class="periodic-table-title">${atomicNumber} ${name}</div>
-        <div class="periodic-table-grid">
-          ${PERIODIC_ELEMENTS.map((element) => periodicElementButton(element, symbol)).join("")}
+        <div class="periodic-table-header">
+          <div class="periodic-table-title">${escapeHtml(palette.title)}</div>
+          <div class="periodic-table-actions">
+            <button class="periodic-table-pin" type="button" data-element-picker-pin aria-label="Pin periodic table" title="Pin">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 4 4v1H6v-1l4-4z"/><path d="M12 15v5"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="periodic-table-content">
+          <div class="periodic-table-grid">
+            ${palette.elements.map((element) => periodicElementButton(element, symbol)).join("")}
+          </div>
         </div>
       </div>
     </div>
   `;
 }
 
-function periodicElement(symbol) {
-  return PERIODIC_ELEMENTS.find((element) => element[0] === symbol) || null;
+function normalizeElementPalette(palette, currentSymbol = "P") {
+  const payload = typeof palette === "string" ? safeJsonParse(palette, null) : palette;
+  const elements = (payload?.elements || [])
+    .map((element) => ({
+      symbol: String(element?.symbol || ""),
+      atomicNumber: Number(element?.atomicNumber) || 0,
+      name: String(element?.name || ""),
+      column: Number(element?.column) || 1,
+      row: Number(element?.row) || 1,
+      color: element?.color || null,
+    }))
+    .filter((element) => element.symbol && element.atomicNumber);
+  const fallback = { symbol: "P", atomicNumber: 15, name: "Phosphorus", column: 15, row: 3, color: null };
+  const current = elements.find((element) => element.symbol === payload?.current?.symbol)
+    || elements.find((element) => element.symbol === currentSymbol)
+    || elements.find((element) => element.symbol === "P")
+    || fallback;
+  return {
+    title: String(payload?.title || "Periodic Table"),
+    current,
+    elements: elements.length ? elements : [fallback],
+  };
 }
 
-function periodicElementButton([symbol, atomicNumber, name, column, row], currentSymbol) {
-  const colors = ELEMENT_COLORS[symbol];
+function periodicElementButton(element, currentSymbol) {
+  const { symbol, atomicNumber, name, column, row } = element;
+  const colors = element.color;
   const style = [
     `grid-column:${column}`,
     `grid-row:${row}`,
-    colors ? `--element-bg:${colors[0]}` : "",
-    colors ? `--element-fg:${colors[1]}` : "",
+    colors?.background ? `--element-bg:${colors.background}` : "",
+    colors?.foreground ? `--element-fg:${colors.foreground}` : "",
   ].filter(Boolean).join(";");
   return `
     <button
@@ -1119,12 +998,28 @@ function periodicElementButton([symbol, atomicNumber, name, column, row], curren
       type="button"
       role="menuitem"
       data-secondary-value="element-symbol-${symbol}-${atomicNumber}"
-      title="${atomicNumber} ${name}"
-      aria-label="${atomicNumber} ${name}"
+      title="${atomicNumber} ${escapeHtml(name)}"
+      aria-label="${atomicNumber} ${escapeHtml(name)}"
       style="${style}">
-      ${symbol}
+      ${escapeHtml(symbol)}
     </button>
   `;
+}
+
+function safeJsonParse(text, fallback) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return fallback;
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 function ringSvg(sides, aromatic = false) {

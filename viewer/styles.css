@@ -14,6 +14,7 @@
   --canvas: #ffffff;
   --chrome-font-size: 16px;
   --editor-topbar-height: 94px;
+  --selection-status-bar-height: 26px;
   --toolbar-primary-height: 52px;
   --toolbar-secondary-height: 42px;
   --toolbar-row-padding-y: 3px;
@@ -79,48 +80,6 @@ body.desktop-shell {
 
 body.browser-shell {
   display: block;
-  --chrome-font-size: 12.16px;
-  --editor-topbar-height: 71.44px;
-  --toolbar-primary-height: 39.52px;
-  --toolbar-secondary-height: 31.92px;
-  --toolbar-row-padding-y: 2.28px;
-  --toolbar-row-padding-x: 6.08px;
-  --toolbar-primary-gap: 5.32px;
-  --toolbar-secondary-gap: 3.04px;
-  --toolbar-group-gap: 2.28px;
-  --toolbar-divider-height: 18.24px;
-  --toolbar-divider-margin: 3.04px;
-  --icon-button-size: 32.68px;
-  --icon-svg-size: 22.8px;
-  --toolbar-control-height: 27.36px;
-  --zoom-input-width: 56.24px;
-  --style-button-min-width: 69.92px;
-  --tool-rail-width: 39.52px;
-  --tool-rail-padding-y: 4.56px;
-  --tool-rail-padding-x: 2.28px;
-  --tool-rail-gap: 3.04px;
-  --tool-button-width: 33.44px;
-  --tool-button-height: 30.4px;
-  --tool-icon-size: 21.28px;
-  --secondary-button-width: 31.16px;
-  --secondary-button-height: 28.12px;
-  --secondary-arrow-endpoint-width: 34.96px;
-  --secondary-script-width: 33.44px;
-  --secondary-field-height: 19px;
-  --secondary-divider-height: 16.72px;
-  --secondary-divider-margin: 3.04px;
-  --chrome-svg-stroke-width: 1.37;
-  --cc-bond-stroke-width: 1.31;
-  --cc-bond-hash-stroke-width: 1.56;
-  --cc-arrow-stroke-width: 1.31;
-  --cc-arrow-bold-stroke-width: 1.86;
-  --cc-main-stroke-width: 1.25;
-  --cc-soft-stroke-width: 1.1;
-  --cc-text-stroke-width: 1.71;
-  --cc-select-stroke-width: 1.03;
-  --cc-shadow-stroke-width: 0.91;
-  --cc-shadow-edge-stroke-width: 0.95;
-  --cc-distribute-stroke-width: 0.53;
 }
 
 button,
@@ -148,7 +107,7 @@ button {
 .editor-shell {
   display: grid;
   grid-template-columns: var(--tool-rail-width) minmax(0, 1fr);
-  grid-template-rows: var(--editor-topbar-height) minmax(0, 1fr);
+  grid-template-rows: var(--editor-topbar-height) minmax(0, 1fr) var(--selection-status-bar-height);
   width: 100vw;
   height: 100vh;
   background: var(--canvas);
@@ -157,7 +116,7 @@ button {
 body.desktop-shell .editor-shell {
   height: auto;
   min-height: 0;
-  grid-template-rows: var(--editor-topbar-height) minmax(0, 1fr);
+  grid-template-rows: var(--editor-topbar-height) minmax(0, 1fr) var(--selection-status-bar-height);
 }
 
 .editor-topbar {
@@ -506,6 +465,10 @@ body.browser-shell .document-tabbar {
 .tool-rail svg rect,
 .tool-rail svg circle,
 .tool-rail svg polygon,
+.quick-palette svg path,
+.quick-palette svg rect,
+.quick-palette svg circle,
+.quick-palette svg polygon,
 .toolbar-row-secondary svg path,
 .toolbar-row-secondary svg rect,
 .toolbar-row-secondary svg circle,
@@ -518,6 +481,7 @@ body.browser-shell .document-tabbar {
 }
 
 .tool-rail svg text,
+.quick-palette svg text,
 .toolbar-row-secondary svg text {
   fill: currentColor;
   stroke: none;
@@ -525,17 +489,19 @@ body.browser-shell .document-tabbar {
 }
 
 .cc-element-icon-text {
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 10pt;
+  font-weight: 400;
 }
 
 .cc-element-tick {
   fill: none;
   stroke: currentColor;
+  stroke-width: 1;
 }
 
 .editor-topbar svg .filled,
 .tool-rail svg .filled,
+.quick-palette svg .filled,
 .toolbar-row-secondary svg .filled {
   fill: currentColor;
   stroke: currentColor;
@@ -844,7 +810,6 @@ body.browser-shell .document-tabbar {
   align-items: center;
   gap: var(--tool-rail-gap);
   padding: var(--tool-rail-padding-y) var(--tool-rail-padding-x);
-  border-right: 1px solid var(--line-strong);
   background: var(--chrome);
   font-size: var(--chrome-font-size);
   user-select: none;
@@ -865,6 +830,149 @@ body.browser-shell .document-tabbar {
   border-color: #8fb0f4;
   background: var(--active-soft);
   color: var(--active);
+}
+
+.quick-palette {
+  --quick-palette-open-width: min(424px, calc(100vw - 104px));
+  --quick-palette-open-height: min(268px, calc(100vh - 92px));
+  position: fixed;
+  right: 18px;
+  bottom: calc(var(--selection-status-bar-height) + 18px);
+  z-index: 13;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.quick-palette-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.quick-palette-toggle,
+.quick-palette-pin,
+.text-symbol-cell {
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.quick-palette-toggle {
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  box-shadow: 0 3px 10px rgba(17, 19, 24, 0.14);
+}
+
+.quick-palette-toggle:hover,
+.quick-palette-toggle.is-selected,
+.quick-palette-pin:hover,
+.text-symbol-cell:hover {
+  border-color: #8fb0f4;
+  background: var(--active-soft);
+  color: var(--active);
+}
+
+.quick-palette-toggle svg {
+  width: 22px;
+  height: 22px;
+}
+
+.quick-palette-panel {
+  width: 0;
+  height: var(--quick-palette-open-height);
+  max-width: calc(100vw - 8px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: none;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(8px);
+  transition: width 140ms ease, opacity 120ms ease, transform 140ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.quick-palette.is-open .quick-palette-panel {
+  width: var(--quick-palette-open-width);
+  border-color: var(--line-strong);
+  box-shadow: 0 8px 26px rgba(17, 19, 24, 0.18);
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.quick-palette-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+  gap: 10px;
+  padding: 4px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--chrome);
+}
+
+.quick-palette-title {
+  color: var(--ink);
+  font-size: 8pt;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.quick-palette-pin {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 5px;
+}
+
+.quick-palette-pin svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.quick-palette-pin svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.quick-palette-pin.is-selected {
+  border-color: #8fb0f4;
+  background: var(--active-soft);
+  color: var(--active);
+}
+
+.quick-palette-content {
+  display: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.quick-palette[data-mode="symbol"] .text-symbol-content,
+.quick-palette[data-mode="element"] .periodic-table-content {
+  display: block;
+}
+
+.quick-palette[data-mode="element"] .periodic-table-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .secondary-button {
@@ -888,7 +996,7 @@ body.browser-shell .document-tabbar {
 
 .element-current-button {
   font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
-  font-size: 18px;
+  font-size: 10pt;
   font-weight: 400;
   line-height: 1;
 }
@@ -899,49 +1007,121 @@ body.browser-shell .document-tabbar {
   left: var(--element-panel-left, 8px);
   z-index: 31;
   display: none;
+  flex-direction: column;
+  width: min(410px, calc(100vw - 92px));
   max-width: calc(100vw - 8px);
-  max-height: calc(100vh - 110px);
-  overflow: auto;
-  padding: 6px;
-  border: 1px solid #8a8f96;
-  border-radius: 2px;
-  background: #eeeeee;
-  box-shadow: 0 2px 7px rgba(17, 19, 24, 0.2);
+  max-height: min(320px, calc(100vh - 150px));
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 8px 26px rgba(17, 19, 24, 0.18);
+  pointer-events: auto;
 }
 
 .element-picker.is-open .periodic-table-panel {
-  display: block;
+  display: flex;
+}
+
+.element-picker.is-measuring .periodic-table-panel {
+  display: flex;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.periodic-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 26px;
+  gap: 10px;
+  padding: 2px 7px;
+  border-bottom: 1px solid var(--line);
+  background: var(--chrome);
+}
+
+.periodic-table-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 .periodic-table-title {
-  height: 25px;
-  padding: 1px 3px 4px;
-  color: #111318;
-  font-size: 17px;
-  line-height: 20px;
+  color: var(--ink);
+  font-size: 8pt;
+  font-weight: 700;
   white-space: nowrap;
 }
 
-.periodic-table-grid {
-  display: grid;
-  grid-template-columns: repeat(18, var(--secondary-button-width));
-  grid-template-rows: repeat(9, var(--secondary-button-height));
-  gap: 0;
+.periodic-table-current {
+  color: var(--muted);
+  font-size: 8pt;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.periodic-table-pin {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.periodic-table-pin svg {
+  width: 16px;
+  height: 16px;
+}
+
+.periodic-table-pin svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.periodic-table-pin:hover,
+.periodic-table-pin.is-selected {
+  border-color: #8fb0f4;
+  background: var(--active-soft);
+  color: var(--active);
+}
+
+.periodic-table-content {
+  overflow: hidden;
+  padding: 12px 14px;
 }
 
 .periodic-element-button {
-  width: var(--secondary-button-width);
-  height: var(--secondary-button-height);
-  padding: 0;
-  border: 1px solid #111318;
-  border-radius: 0;
-  background: #ffffff;
-  color: #000000;
-  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
-  font-size: 20px;
-  line-height: 1;
-  text-align: center;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
   cursor: pointer;
+  pointer-events: auto;
+}
+
+.periodic-element-button:hover {
+  border-color: #8fb0f4;
+  background: var(--active-soft);
+  color: var(--active);
+}
+
+.periodic-element-button.is-selected {
+  border-color: #8fb0f4;
+  background: var(--active-soft);
+  color: var(--active);
+}
+
+.periodic-element-button.has-element-color:hover,
+.periodic-element-button.has-element-color.is-selected {
+  outline: 2px solid #2f6fed;
+  outline-offset: -2px;
 }
 
 .periodic-element-button.has-element-color {
@@ -949,10 +1129,28 @@ body.browser-shell .document-tabbar {
   color: var(--element-fg);
 }
 
-.periodic-element-button:hover,
-.periodic-element-button.is-selected {
-  outline: 2px solid #2f6fed;
-  outline-offset: -2px;
+.periodic-element-symbol {
+  white-space: nowrap;
+}
+
+.periodic-table-grid {
+  display: grid;
+  grid-template-columns: repeat(18, 20px);
+  grid-template-rows: repeat(7, 20px) 10px repeat(2, 20px);
+  gap: 2px;
+  width: max-content;
+}
+
+.periodic-element-button {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  padding: 0;
+  border-radius: 4px;
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  font-size: 8pt;
+  line-height: 1;
+  text-align: center;
 }
 
 .secondary-divider {
@@ -1343,6 +1541,121 @@ body.browser-shell .document-tabbar {
   min-width: 0;
   min-height: 0;
   background: var(--canvas);
+}
+
+.selection-status-bar {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 10px;
+  background: var(--chrome);
+  color: var(--ink);
+  font-size: 10pt;
+  user-select: none;
+}
+
+.selection-chemistry-summary {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  gap: 18px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.selection-chemistry-summary-item {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+  gap: 5px;
+}
+
+.selection-chemistry-summary-formula {
+  flex: 0 1 auto;
+  gap: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 400;
+}
+
+.selection-chemistry-summary-formula sub {
+  font-size: 0.72em;
+  line-height: 0;
+  vertical-align: sub;
+}
+
+.selection-chemistry-summary-label {
+  color: var(--muted);
+}
+
+.selection-chemistry-summary-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.selection-mass-precision {
+  display: inline-flex;
+  align-items: stretch;
+  height: 18px;
+  margin-left: 3px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 9pt;
+  line-height: 1;
+}
+
+.selection-mass-precision-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 0 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.selection-mass-precision-buttons {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  width: 14px;
+  border-left: 1px solid var(--line-strong);
+}
+
+.selection-mass-precision-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.selection-mass-precision-button:hover {
+  background: var(--active-soft);
+  color: var(--active);
+}
+
+.selection-mass-precision-button svg {
+  width: 9px;
+  height: 6px;
+}
+
+.selection-mass-precision-button svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .viewer-container {
@@ -1766,7 +2079,7 @@ body.browser-shell .document-tabbar {
   z-index: 12;
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
   pointer-events: none;
 }
 
@@ -1781,8 +2094,8 @@ body.browser-shell .document-tabbar {
 }
 
 .text-symbol-toggle {
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   border-radius: 6px;
   box-shadow: 0 3px 10px rgba(17, 19, 24, 0.14);
 }
@@ -1796,15 +2109,17 @@ body.browser-shell .document-tabbar {
 }
 
 .text-symbol-toggle svg {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
 }
 
 .text-symbol-panel {
-  width: min(360px, calc(100vw - 92px));
-  max-height: min(440px, calc(100vh - 150px));
+  width: min(410px, calc(100vw - 92px));
+  max-width: calc(100vw - 8px);
+  max-height: min(320px, calc(100vh - 150px));
   display: none;
   flex-direction: column;
+  overflow: hidden;
   border: 1px solid var(--line-strong);
   border-radius: 6px;
   background: var(--surface);
@@ -1820,26 +2135,27 @@ body.browser-shell .document-tabbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 36px;
-  padding: 4px 6px 4px 10px;
+  min-height: 26px;
+  gap: 10px;
+  padding: 2px 7px;
   border-bottom: 1px solid var(--line);
   background: var(--chrome);
 }
 
 .text-symbol-title {
-  font-size: 13px;
+  font-size: 8pt;
   font-weight: 700;
 }
 
 .text-symbol-pin {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   border-radius: 5px;
 }
 
 .text-symbol-pin svg {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 
 .text-symbol-pin svg path {
@@ -1858,11 +2174,12 @@ body.browser-shell .document-tabbar {
 
 .text-symbol-content {
   overflow: auto;
-  padding: 7px;
+  overflow-x: hidden;
+  padding: 12px 10px 12px 18px;
 }
 
 .text-symbol-section {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
 .text-symbol-section:last-child {
@@ -1870,25 +2187,26 @@ body.browser-shell .document-tabbar {
 }
 
 .text-symbol-section-label {
-  margin: 0 0 4px 2px;
+  margin: 0 0 2px 2px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 8pt;
   font-weight: 700;
 }
 
 .text-symbol-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
-  gap: 3px;
+  grid-template-columns: repeat(auto-fill, 20px);
+  grid-auto-rows: 20px;
+  gap: 2px;
 }
 
 .text-symbol-cell {
-  height: 28px;
-  min-width: 28px;
+  height: 20px;
+  min-width: 20px;
   border-radius: 4px;
   padding: 0;
   font-family: Arial, "Helvetica Neue", Helvetica, "Droid Sans Fallback", sans-serif;
-  font-size: 16px;
+  font-size: 8pt;
   line-height: 1;
 }
 

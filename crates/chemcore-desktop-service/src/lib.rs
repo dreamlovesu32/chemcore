@@ -81,6 +81,7 @@ pub struct DesktopEngineSnapshot {
     pub all_bounds_json: Option<String>,
     pub document_bounds_json: Option<String>,
     pub selection_bounds_json: Option<String>,
+    pub selection_chemistry_summary_json: Option<String>,
     pub document_colors_json: Option<String>,
     pub document_style_preset: Option<String>,
     pub revision: Option<u64>,
@@ -200,6 +201,7 @@ impl DesktopDocumentService {
                 | DesktopEngineSnapshotMode::Selection
                 | DesktopEngineSnapshotMode::Document
         );
+        let include_selection_summary = include_selection_bounds;
 
         let primitives = if include_render {
             Some(session.render_list())
@@ -234,6 +236,8 @@ impl DesktopDocumentService {
                 RenderBoundsScope::Selection,
                 include_selection_bounds,
             )?,
+            selection_chemistry_summary_json: include_selection_summary
+                .then(|| session.selection_chemistry_summary_json()),
             document_colors_json: include_document
                 .then(|| serde_json::to_string(&session.document_colors()))
                 .transpose()
@@ -391,6 +395,44 @@ impl DesktopDocumentService {
 
     pub fn object_settings_dialog_json(&self, session_id: SessionId) -> Result<String, String> {
         Ok(self.session(session_id)?.object_settings_dialog_json())
+    }
+
+    pub fn toolbar_color_palette_json(
+        &self,
+        session_id: SessionId,
+        custom_colors_json: &str,
+    ) -> Result<String, String> {
+        Ok(self
+            .session(session_id)?
+            .toolbar_color_palette_json(custom_colors_json))
+    }
+
+    pub fn color_dialog_palette_json(
+        &self,
+        session_id: SessionId,
+        current_color: &str,
+        custom_colors_json: &str,
+    ) -> Result<String, String> {
+        Ok(self
+            .session(session_id)?
+            .color_dialog_palette_json(current_color, custom_colors_json))
+    }
+
+    pub fn text_symbol_palette_json(&self, session_id: SessionId) -> Result<String, String> {
+        Ok(self.session(session_id)?.text_symbol_palette_json())
+    }
+
+    pub fn element_palette_json(&self, session_id: SessionId) -> Result<String, String> {
+        Ok(self.session(session_id)?.element_palette_json())
+    }
+
+    pub fn apply_element_palette_json(
+        &mut self,
+        session_id: SessionId,
+        selection_json: &str,
+    ) -> Result<bool, String> {
+        self.session_mut(session_id)?
+            .apply_element_palette_json(selection_json)
     }
 
     pub fn apply_object_settings_dialog_json(
