@@ -1368,7 +1368,7 @@ mod tests {
                 phase: OrbitalPhase::Plus,
                 color: "#000000".to_string(),
                 center: CommandAnchor::from(Point::new(200.0, 300.0)),
-                end: CommandAnchor::from(Point::new(200.0, 348.0)),
+                end: CommandAnchor::from(Point::new(200.0, 318.0)),
             })
             .expect("add orbital");
         let mut tool = engine.state.tool.clone();
@@ -1376,15 +1376,15 @@ mod tests {
         engine.set_tool_state(tool);
 
         assert_eq!(
-            engine.hover_shape_action_at_point(Point::new(200.0, 348.0)),
+            engine.hover_shape_action_at_point(Point::new(200.0, 318.0)),
             "ellipse-major-positive"
         );
         assert_eq!(
-            engine.begin_hover_shape_edit(Point::new(200.0, 348.0)),
+            engine.begin_hover_shape_edit(Point::new(200.0, 318.0)),
             "ellipse-major-positive"
         );
-        assert!(engine.update_hover_shape_edit(Point::new(248.0, 300.0), false));
-        assert!(engine.finish_hover_shape_edit(Point::new(248.0, 300.0), false));
+        assert!(engine.update_hover_shape_edit(Point::new(218.0, 300.0), false));
+        assert!(engine.finish_hover_shape_edit(Point::new(218.0, 300.0), false));
 
         let orbital = engine
             .state
@@ -1398,7 +1398,7 @@ mod tests {
         let start = shape_payload_point(orbital, "axisStart").expect("axis start");
         let end = shape_payload_point(orbital, "axisEnd").expect("axis end");
         assert_eq!(start, Point::new(200.0, 300.0));
-        assert_eq!(end, Point::new(248.0, 300.0));
-        assert!((start.distance(end) - 48.0).abs() < 0.01);
+        assert_eq!(end, Point::new(218.0, 300.0));
+        assert!((start.distance(end) - 18.0).abs() < 0.01);
     }
 }

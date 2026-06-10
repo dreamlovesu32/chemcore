@@ -1,8 +1,9 @@
 use super::*;
 use crate::Transform;
 
-const DEFAULT_ORBITAL_SIZE_RATIO: f64 = 1.6;
+const DEFAULT_ORBITAL_SIZE_RATIO: f64 = 0.6;
 const OVAL_MINOR_RATIO: f64 = 0.4;
+const ORBITAL_TOOL_ICON_SIZE: f64 = 48.0;
 
 impl Engine {
     pub fn orbital_tool_icon_svg(
@@ -28,11 +29,12 @@ impl Engine {
             | OrbitalTemplate::Dz2 => (Point::new(0.0, 0.0), Point::new(0.0, -1.0)),
             _ => (Point::new(0.0, 0.0), Point::new(1.0, 0.0)),
         };
-        let Some(object) = engine.orbital_scene_object(
+        let Some(object) = engine.orbital_scene_object_with_size(
             anchor,
             current,
             "__orbital_icon".to_string(),
             style_id.clone(),
+            ORBITAL_TOOL_ICON_SIZE,
         ) else {
             return String::new();
         };
@@ -163,11 +165,27 @@ impl Engine {
         object_id: String,
         style_id: String,
     ) -> Option<SceneObject> {
+        self.orbital_scene_object_with_size(
+            anchor,
+            current,
+            object_id,
+            style_id,
+            self.default_orbital_size(),
+        )
+    }
+
+    fn orbital_scene_object_with_size(
+        &self,
+        anchor: Point,
+        current: Point,
+        object_id: String,
+        style_id: String,
+        size: f64,
+    ) -> Option<SceneObject> {
         let template = self.state.tool.orbital_template;
         let style = self.state.tool.orbital_style;
         let phase = self.state.tool.orbital_phase;
         let angle = snapped_orbital_angle(anchor, current);
-        let size = self.default_orbital_size();
         let direction = crate::direction_from_angle(angle);
         let mut extra = BTreeMap::new();
         extra.insert("kind".to_string(), json!("orbital"));
@@ -333,7 +351,7 @@ impl Engine {
     }
 
     fn default_orbital_size(&self) -> f64 {
-        (self.options.bond_length_world_pt().value() * DEFAULT_ORBITAL_SIZE_RATIO).max(12.0)
+        self.options.bond_length_world_pt().value() * DEFAULT_ORBITAL_SIZE_RATIO
     }
 
     fn orbital_draw_anchor_at_point(&self, point: Point) -> Point {
@@ -411,7 +429,7 @@ mod tests {
         let s = engine
             .orbital_scene_object(anchor, current, "s".to_string(), "style_s".to_string())
             .expect("s orbital");
-        assert_eq!(s.payload.bbox, Some([152.0, 252.0, 96.0, 96.0]));
+        assert_eq!(s.payload.bbox, Some([182.0, 282.0, 36.0, 36.0]));
 
         engine.state.tool.orbital_template = OrbitalTemplate::Oval;
         let oval = engine
@@ -422,7 +440,7 @@ mod tests {
                 "style_oval".to_string(),
             )
             .expect("oval orbital");
-        assert_eq!(oval.payload.bbox, Some([152.0, 280.8, 96.0, 38.4]));
+        assert_eq!(oval.payload.bbox, Some([182.0, 292.8, 36.0, 14.4]));
 
         for template in [
             OrbitalTemplate::P,
@@ -435,14 +453,14 @@ mod tests {
             let object = engine
                 .orbital_scene_object(anchor, current, "orb".to_string(), "style_orb".to_string())
                 .expect("orbital object");
-            assert_eq!(object.payload.bbox, Some([164.0, 264.0, 72.0, 120.0]));
+            assert_eq!(object.payload.bbox, Some([186.5, 286.5, 27.0, 45.0]));
             assert_eq!(
                 object.payload.extra.get("axisStart"),
                 Some(&json!([200.0, 300.0]))
             );
             assert_eq!(
                 object.payload.extra.get("axisEnd"),
-                Some(&json!([200.0, 348.0]))
+                Some(&json!([200.0, 318.0]))
             );
         }
     }
@@ -458,7 +476,7 @@ mod tests {
         let s = engine
             .orbital_scene_object(anchor, current, "s".to_string(), "style_s".to_string())
             .expect("s orbital");
-        assert_eq!(s.payload.bbox, Some([176.96, 276.96, 46.08, 46.08]));
+        assert_eq!(s.payload.bbox, Some([191.36, 291.36, 17.28, 17.28]));
 
         engine.state.tool.orbital_template = OrbitalTemplate::Oval;
         let oval = engine
@@ -469,7 +487,7 @@ mod tests {
                 "style_oval".to_string(),
             )
             .expect("oval orbital");
-        assert_eq!(oval.payload.bbox, Some([176.96, 290.78, 46.08, 18.43]));
+        assert_eq!(oval.payload.bbox, Some([191.36, 296.54, 17.28, 6.91]));
 
         for template in [
             OrbitalTemplate::P,
@@ -482,14 +500,14 @@ mod tests {
             let object = engine
                 .orbital_scene_object(anchor, current, "orb".to_string(), "style_orb".to_string())
                 .expect("orbital object");
-            assert_eq!(object.payload.bbox, Some([182.72, 282.72, 34.56, 57.6]));
+            assert_eq!(object.payload.bbox, Some([193.52, 293.52, 12.96, 21.6]));
             assert_eq!(
                 object.payload.extra.get("axisStart"),
                 Some(&json!([200.0, 300.0]))
             );
             assert_eq!(
                 object.payload.extra.get("axisEnd"),
-                Some(&json!([200.0, 323.04]))
+                Some(&json!([200.0, 308.64]))
             );
         }
     }
@@ -515,7 +533,7 @@ mod tests {
             );
             assert_eq!(
                 object.payload.extra.get("axisEnd"),
-                Some(&json!([200.0, 348.0]))
+                Some(&json!([200.0, 318.0]))
             );
         }
     }
