@@ -1,6 +1,6 @@
 [package]
 name = "chemcore-office"
-version = "0.1.0"
+version = "1.0.0-beta"
 description = "Chemcore Windows Office/OLE integration server"
 authors = ["Jiajun Zhang"]
 license = "ISC"

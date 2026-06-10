@@ -1,7 +1,10 @@
 {
   "name": "chemcore-engine",
   "type": "module",
-  "version": "0.1.0",
+  "collaborators": [
+    "Jiajun Zhang"
+  ],
+  "version": "1.0.0-beta",
   "license": "ISC",
   "files": [
     "chemcore_engine_bg.wasm",

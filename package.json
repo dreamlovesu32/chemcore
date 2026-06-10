@@ -1,6 +1,6 @@
 {
   "name": "chemcore",
-  "version": "1.0.0",
+  "version": "1.0.0-beta",
   "description": "`chemcore` 是一个跨平台的化学文档核心。",
   "type": "module",
   "main": "index.js",
@@ -37,7 +37,7 @@
     "test": "node scripts/test.mjs"
   },
   "keywords": [],
-  "author": "",
+  "author": "Jiajun Zhang",
   "license": "ISC",
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.0",

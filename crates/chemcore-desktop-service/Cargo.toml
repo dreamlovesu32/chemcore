@@ -1,8 +1,9 @@
 [package]
 name = "chemcore-desktop-service"
-version = "0.1.0"
+version = "1.0.0-beta"
 edition.workspace = true
 license.workspace = true
+authors.workspace = true
 
 [dependencies]
 chemcore-engine = { path = "../chemcore-engine" }

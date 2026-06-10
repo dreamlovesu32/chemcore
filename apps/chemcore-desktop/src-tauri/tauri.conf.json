@@ -1,7 +1,7 @@
 {
   "$schema": "../../../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Chemcore",
-  "version": "0.1.0",
+  "version": "1.0.0-beta",
   "identifier": "com.chemcore.desktop",
   "build": {
     "frontendDist": "../../../viewer",
@@ -26,12 +26,14 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: asset: http://asset.localhost; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+      "devCsp": "default-src 'self' http://127.0.0.1:8767; script-src 'self' http://127.0.0.1:8767 'wasm-unsafe-eval' 'unsafe-eval'; style-src 'self' http://127.0.0.1:8767 'unsafe-inline'; img-src 'self' http://127.0.0.1:8767 data: blob: asset: http://asset.localhost; font-src 'self' http://127.0.0.1:8767 data:; connect-src 'self' http://127.0.0.1:8767 ws://127.0.0.1:8767 ipc: http://ipc.localhost asset: http://asset.localhost; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
+    "publisher": "Jiajun Zhang",
     "resources": {
       "../../../target/release/chemcore-office.exe": "chemcore-office.exe"
     },
@@ -81,13 +83,14 @@
     ],
     "windows": {
       "webviewInstallMode": {
-        "type": "downloadBootstrapper",
+        "type": "offlineInstaller",
         "silent": true
       },
       "nsis": {
         "installerIcon": "icons/icon.ico",
         "installMode": "perMachine",
-        "displayLanguageSelector": true
+        "displayLanguageSelector": true,
+        "installerHooks": "./installer/office-registration.nsh"
       }
     },
     "android": {
