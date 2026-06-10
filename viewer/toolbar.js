@@ -28,8 +28,17 @@ export function formatToolbarFontSize(value) {
 }
 
 export function arrowTypeSupportsHeadSize(type) {
-  return type === "solid" || type === "curved" || type === "curved-mirror" || type === "equilibrium";
+  return type === "solid" || type === "curved" || type === "curved-mirror" || isEquilibriumArrowType(type);
 }
+
+export const ARROW_TOOL_ICON_TYPES = [
+  "equilibrium-small",
+  "equilibrium-medium",
+  "equilibrium-large",
+  "unequal-equilibrium-small",
+  "unequal-equilibrium-medium",
+  "unequal-equilibrium-large",
+];
 
 export const SHAPE_TOOL_ICON_KINDS = ["circle", "ellipse", "round-rect", "rect", "cross-table"];
 export const SHAPE_TOOL_STYLE_KINDS = ["circle", "ellipse", "round-rect", "rect"];
@@ -697,7 +706,11 @@ function bondToolbarHtml(editorState) {
     .join("");
 }
 
-function arrowIconSvg(type = "solid") {
+function arrowIconSvg(type = "solid", editorState = null) {
+  const cached = editorState?.arrowIconSvgs?.[type];
+  if (cached) {
+    return cached;
+  }
   const icon = KERNEL_ARROW_ICONS[type] || KERNEL_ARROW_ICONS.solid;
   return kernelArrowIconSvg(icon.viewBox, icon.body);
 }
@@ -714,7 +727,7 @@ function currentArrowIconSvg(editorState) {
   if (isOpenArrowType(type)) {
     return currentOpenArrowIconSvg(editorState, type);
   }
-  if (type === "equilibrium") {
+  if (isEquilibriumArrowType(type)) {
     return currentEquilibriumArrowIconSvg(editorState);
   }
   if (type !== "solid") {
@@ -752,7 +765,8 @@ function currentOpenArrowIconSvg(editorState, type = "hollow") {
 }
 
 function currentEquilibriumArrowIconSvg(editorState) {
-  return arrowIconSvg(`equilibrium-${normalizedArrowIconSize(editorState?.arrowHeadSize)}`);
+  const type = editorState?.arrowType === "unequal-equilibrium" ? "unequal-equilibrium" : "equilibrium";
+  return arrowIconSvg(`${type}-${normalizedArrowIconSize(editorState?.arrowHeadSize)}`, editorState);
 }
 
 function currentArrowTitle(editorState) {
@@ -762,8 +776,9 @@ function currentArrowTitle(editorState) {
     const label = type === "open" ? "open hollow arrow" : "hollow arrow";
     return `${size === "large" ? "Large" : "Small"} ${label}`;
   }
-  if (type === "equilibrium") {
-    return `${ARROW_SIZE_TITLES[editorState.arrowHeadSize] || "Small"} equilibrium arrow`;
+  if (isEquilibriumArrowType(type)) {
+    const label = type === "unequal-equilibrium" ? "unequal equilibrium arrow" : "equilibrium arrow";
+    return `${ARROW_SIZE_TITLES[editorState.arrowHeadSize] || "Small"} ${label}`;
   }
   if (type !== "solid") {
     return ARROW_TYPE_TITLES[type] || "Arrow";
@@ -810,6 +825,7 @@ const ARROW_TYPE_TITLES = {
   hollow: "Hollow arrow",
   open: "Open hollow arrow",
   equilibrium: "Equilibrium arrow",
+  "unequal-equilibrium": "Unequal equilibrium arrow",
 };
 
 const ARROW_SIZE_TITLES = {
@@ -1182,6 +1198,10 @@ function isOpenArrowType(type) {
   return type === "hollow" || type === "open";
 }
 
+function isEquilibriumArrowType(type) {
+  return type === "equilibrium" || type === "unequal-equilibrium";
+}
+
 function arrowCurveSvg(curve, mirrored = false) {
   return curvedArrowSvg({ curve, mirrored });
 }
@@ -1274,7 +1294,12 @@ function arrowToolbarHtml(editorState) {
   const mirroredCurvedTypeIcon = currentCurvedArrowIconSvg(editorState, "curved-mirror");
   const hollowTypeIcon = type === "hollow" ? currentOpenArrowIconSvg(editorState, "hollow") : arrowIconSvg("hollow-large");
   const openTypeIcon = type === "open" ? currentOpenArrowIconSvg(editorState, "open") : arrowIconSvg("open-large");
-  const equilibriumTypeIcon = type === "equilibrium" ? currentEquilibriumArrowIconSvg(editorState) : arrowIconSvg("equilibrium-small");
+  const equilibriumTypeIcon = type === "equilibrium"
+    ? currentEquilibriumArrowIconSvg(editorState)
+    : arrowIconSvg("equilibrium-small", editorState);
+  const unequalEquilibriumTypeIcon = type === "unequal-equilibrium"
+    ? currentEquilibriumArrowIconSvg(editorState)
+    : arrowIconSvg("unequal-equilibrium-small", editorState);
   const controls = [
     toolbarButton("arrow-type-solid", "Solid arrow", solidTypeIcon, solidSelected),
     toolbarButton("arrow-type-curved", "Curved arrow", curvedTypeIcon, type === "curved"),
@@ -1284,6 +1309,7 @@ function arrowToolbarHtml(editorState) {
     toolbarButton("arrow-type-nogo-cross", "Cross arrow", arrowIconSvg("nogo-cross"), isCrossNoGo),
     toolbarButton("arrow-type-nogo-hash", "Double slash arrow", arrowIconSvg("nogo-hash"), isHashNoGo),
     toolbarButton("arrow-type-equilibrium", "Equilibrium arrow", equilibriumTypeIcon, type === "equilibrium"),
+    toolbarButton("arrow-type-unequal-equilibrium", "Unequal equilibrium arrow", unequalEquilibriumTypeIcon, type === "unequal-equilibrium"),
   ];
   if (type === "solid" && !hasNoGo) {
     controls.push(
@@ -1302,12 +1328,13 @@ function arrowToolbarHtml(editorState) {
       toolbarButton("arrow-size-large", "Large arrow style", arrowIconSvg(`${type}-large`)),
       toolbarButton("arrow-size-small", "Small arrow style", arrowIconSvg(`${type}-small`)),
     );
-  } else if (type === "equilibrium") {
+  } else if (isEquilibriumArrowType(type)) {
+    const label = type === "unequal-equilibrium" ? "unequal equilibrium arrow" : "equilibrium arrow";
     controls.push(
       secondaryDivider(),
-      toolbarButton("arrow-size-small", "Small equilibrium arrow", arrowIconSvg("equilibrium-small")),
-      toolbarButton("arrow-size-medium", "Medium equilibrium arrow", arrowIconSvg("equilibrium-medium")),
-      toolbarButton("arrow-size-large", "Large equilibrium arrow", arrowIconSvg("equilibrium-large")),
+      toolbarButton("arrow-size-small", `Small ${label}`, arrowIconSvg(`${type}-small`, editorState)),
+      toolbarButton("arrow-size-medium", `Medium ${label}`, arrowIconSvg(`${type}-medium`, editorState)),
+      toolbarButton("arrow-size-large", `Large ${label}`, arrowIconSvg(`${type}-large`, editorState)),
     );
   } else if (isCurvedArrowType(type)) {
     const prefix = type === "curved-mirror" ? "curve-mirror" : "curve";

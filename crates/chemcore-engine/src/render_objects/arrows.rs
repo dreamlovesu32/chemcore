@@ -746,7 +746,7 @@ fn render_equilibrium_arrow_line(
         );
         return;
     }
-    let Some((_unit, normal, _length)) = arrow_axis(start, end) else {
+    let Some((unit, normal, length)) = arrow_axis(start, end) else {
         return;
     };
     let line_width = if arrow_head.bold {
@@ -763,36 +763,53 @@ fn render_equilibrium_arrow_line(
     } else {
         RenderArrowEndpointStyle::Left
     };
+    let is_unequal = arrow_head.equilibrium_ratio > 1.0 + crate::EPSILON;
+    let branch_head = equilibrium_branch_arrow_head(arrow_head, length, line_width, is_unequal);
     if head_style.enabled() {
-        render_solid_arrow_line(
+        let head_tip = if is_unequal {
+            end
+        } else {
+            end.translated(unit.scaled(spacing * 0.5))
+        };
+        render_equilibrium_solid_branch(
             out,
             start.translated(primary_offset),
-            end.translated(primary_offset),
+            head_tip.translated(primary_offset),
             stroke,
-            stroke_width,
+            line_width,
             ArrowHeadGeometry {
                 kind: ArrowHeadKind::Solid,
-                ..arrow_head
+                ..branch_head
             },
             equilibrium_half_style(head_style, fallback),
-            RenderArrowEndpointStyle::None,
             dash_array,
             object_id.clone(),
         );
     }
     if tail_style.enabled() {
-        render_solid_arrow_line(
+        let (tail_start, tail_tip) = if is_unequal {
+            let top_shaft_length =
+                (length - branch_head.center_length + line_width).max(crate::EPSILON);
+            let short_shaft_length = top_shaft_length / arrow_head.equilibrium_ratio.max(1.0);
+            let tail_start = end.translated(unit.scaled(-short_shaft_length));
+            let tail_neck = end.translated(unit.scaled(-short_shaft_length * 2.0));
+            let tail_tip = tail_neck
+                .translated(unit.scaled(-(branch_head.center_length - line_width).max(0.0)));
+            (tail_start, tail_tip)
+        } else {
+            (end, start.translated(unit.scaled(-spacing * 0.5)))
+        };
+        render_equilibrium_solid_branch(
             out,
-            end.translated(secondary_offset),
-            start.translated(secondary_offset),
+            tail_start.translated(secondary_offset),
+            tail_tip.translated(secondary_offset),
             stroke,
-            stroke_width,
+            line_width,
             ArrowHeadGeometry {
                 kind: ArrowHeadKind::Solid,
-                ..arrow_head
+                ..branch_head
             },
             equilibrium_half_style(tail_style, fallback),
-            RenderArrowEndpointStyle::None,
             dash_array,
             object_id,
         );
@@ -828,17 +845,19 @@ fn render_curved_equilibrium_arrow_line(
     } else {
         RenderArrowEndpointStyle::Left
     };
-    let solid_head = ArrowHeadGeometry {
-        kind: ArrowHeadKind::Solid,
-        ..arrow_head
-    };
+    let total = polyline_length(&points);
+    let is_unequal = arrow_head.equilibrium_ratio > 1.0 + crate::EPSILON;
+    let branch_head = equilibrium_branch_arrow_head(arrow_head, total, line_width, is_unequal);
     if head_style.enabled() {
         render_curved_equilibrium_branch(
             out,
             &offset_polyline_points(&points, primary_offset),
             stroke,
             line_width,
-            solid_head,
+            ArrowHeadGeometry {
+                kind: ArrowHeadKind::Solid,
+                ..branch_head
+            },
             equilibrium_half_style(head_style, fallback),
             dash_array,
             object_id.clone(),
@@ -846,17 +865,99 @@ fn render_curved_equilibrium_arrow_line(
     }
     if tail_style.enabled() {
         let tail_points = reversed_points(&offset_polyline_points(&points, -primary_offset));
+        let top_shaft_length = (total - branch_head.center_length + line_width).max(crate::EPSILON);
+        let secondary_length = if is_unequal {
+            let short_shaft_length = top_shaft_length / arrow_head.equilibrium_ratio.max(1.0);
+            (short_shaft_length * 2.0 + (branch_head.center_length - line_width).max(0.0))
+                .min(total)
+        } else {
+            total
+        };
+        let branch_points = if secondary_length < total - crate::EPSILON {
+            trimmed_polyline_points(&tail_points, total - secondary_length, 0.0)
+        } else {
+            tail_points
+        };
         render_curved_equilibrium_branch(
             out,
-            &tail_points,
+            &branch_points,
             stroke,
             line_width,
-            solid_head,
+            ArrowHeadGeometry {
+                kind: ArrowHeadKind::Solid,
+                ..branch_head
+            },
             equilibrium_half_style(tail_style, fallback),
             dash_array,
             object_id,
         );
     }
+}
+
+fn equilibrium_branch_arrow_head(
+    arrow_head: ArrowHeadGeometry,
+    axis_length: f64,
+    line_width: f64,
+    is_unequal: bool,
+) -> ArrowHeadGeometry {
+    let scale = equilibrium_arrow_head_scale(arrow_head, axis_length, line_width, is_unequal);
+    ArrowHeadGeometry {
+        length: arrow_head.length * scale,
+        center_length: arrow_head.center_length * scale,
+        width: arrow_head.width * scale,
+        ..arrow_head
+    }
+}
+
+fn equilibrium_arrow_head_scale(
+    arrow_head: ArrowHeadGeometry,
+    axis_length: f64,
+    line_width: f64,
+    is_unequal: bool,
+) -> f64 {
+    let growth_offset = if is_unequal {
+        0.0
+    } else {
+        line_width.max(0.0) * 2.0
+    };
+    let head_length = (axis_length.max(0.0) * 2.0 / 3.0 + growth_offset)
+        .min(arrow_head.length.max(crate::EPSILON));
+    (head_length / arrow_head.length.max(crate::EPSILON)).clamp(0.05, 1.0)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_equilibrium_solid_branch(
+    out: &mut Vec<RenderPrimitive>,
+    start: Point,
+    tip: Point,
+    stroke: &str,
+    line_width: f64,
+    arrow_head: ArrowHeadGeometry,
+    head_style: RenderArrowEndpointStyle,
+    dash_array: &[f64],
+    object_id: Option<String>,
+) {
+    let Some((unit, _normal, length)) = arrow_axis(start, tip) else {
+        return;
+    };
+    let trim = (arrow_head.center_length - line_width).max(0.0).min(length);
+    let shaft_end = tip.translated(unit.scaled(-trim));
+    if start.distance(shaft_end) > crate::EPSILON {
+        push_polyline(
+            out,
+            vec![start, shaft_end],
+            stroke,
+            line_width,
+            dash_array.to_vec(),
+            Some("butt".to_string()),
+            Some("miter".to_string()),
+            RenderRole::DocumentGraphic,
+            object_id.clone(),
+        );
+    }
+    render_solid_arrow_head(
+        out, start, tip, arrow_head, head_style, line_width, stroke, object_id,
+    );
 }
 
 #[allow(clippy::too_many_arguments)]

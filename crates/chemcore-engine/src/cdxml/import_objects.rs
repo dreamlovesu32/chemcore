@@ -89,7 +89,7 @@ pub(super) fn append_line_objects(
                 "centerLength".to_string(),
                 json!(cdxml_arrow_size_for_render_scale(
                     parse_scaled_100(node.attr("ArrowheadCenterSize")).or_else(|| {
-                        (cdxml_kind != "equilibrium")
+                        (!matches!(cdxml_kind, "equilibrium" | "unequal-equilibrium"))
                             .then(|| parse_scaled_100(node.attr("ArrowShaftSpacing")))
                             .flatten()
                     }),
@@ -107,7 +107,7 @@ pub(super) fn append_line_objects(
                     stroke_width,
                 )),
             );
-            if cdxml_kind == "equilibrium" {
+            if matches!(cdxml_kind, "equilibrium" | "unequal-equilibrium") {
                 arrow_head.insert(
                     "shaftSpacing".to_string(),
                     json!(cdxml_arrow_size_for_render_scale(
@@ -117,6 +117,11 @@ pub(super) fn append_line_objects(
                         stroke_width,
                     )),
                 );
+                if let Some(ratio) = parse_scaled_100(node.attr("ArrowEquilibriumRatio"))
+                    .filter(|value| *value > 1.0)
+                {
+                    arrow_head.insert("equilibriumRatio".to_string(), json!(ratio));
+                }
             }
             if let Some(curve) =
                 parse_f64(node.attr("AngularSize")).filter(|value| value.abs() > crate::EPSILON)
@@ -205,7 +210,13 @@ fn cdxml_arrow_kind(node: &XmlNode) -> &'static str {
         .unwrap_or("Solid")
         .to_ascii_lowercase();
     if explicit_kind == "equilibrium" {
-        return "equilibrium";
+        return if parse_scaled_100(node.attr("ArrowEquilibriumRatio"))
+            .is_some_and(|value| value > 1.0)
+        {
+            "unequal-equilibrium"
+        } else {
+            "equilibrium"
+        };
     }
     let head = canonical_arrow_endpoint(node.attr("ArrowheadHead").unwrap_or("None"));
     let tail = canonical_arrow_endpoint(node.attr("ArrowheadTail").unwrap_or("None"));
@@ -216,7 +227,13 @@ fn cdxml_arrow_kind(node: &XmlNode) -> &'static str {
         && head == tail
         && matches!(head, "half-left" | "half-right")
     {
-        return "equilibrium";
+        return if parse_scaled_100(node.attr("ArrowEquilibriumRatio"))
+            .is_some_and(|value| value > 1.0)
+        {
+            "unequal-equilibrium"
+        } else {
+            "equilibrium"
+        };
     }
     match explicit_kind.as_str() {
         "hollow" => "hollow",

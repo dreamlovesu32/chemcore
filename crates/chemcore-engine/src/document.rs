@@ -346,12 +346,22 @@ fn normalize_arrow_head_payload(extra: &mut BTreeMap<String, Value>) {
         .unwrap_or("none");
     arrow_head.insert("noGo".to_string(), json!(no_go));
 
-    if kind == "equilibrium" {
+    if matches!(kind, "equilibrium" | "unequal-equilibrium") {
         let shaft_spacing = object_number(arrow_head, "shaftSpacing")
             .or_else(|| object_number(arrow_head, "shaft_spacing"))
             .filter(|value| *value > 0.0)
             .unwrap_or(3.0);
         arrow_head.insert("shaftSpacing".to_string(), json!(round2(shaft_spacing)));
+        if kind == "unequal-equilibrium" {
+            let ratio = object_number(arrow_head, "equilibriumRatio")
+                .or_else(|| object_number(arrow_head, "equilibrium_ratio"))
+                .filter(|value| *value > 1.0)
+                .unwrap_or(3.0);
+            arrow_head.insert("equilibriumRatio".to_string(), json!(round2(ratio)));
+        } else {
+            arrow_head.remove("equilibriumRatio");
+            arrow_head.remove("equilibrium_ratio");
+        }
     }
 }
 
@@ -364,6 +374,7 @@ fn canonical_arrow_head_kind(value: &str) -> &'static str {
         "hollow" => "hollow",
         "angle" | "open" | "retrosynthetic" => "open",
         "equilibrium" => "equilibrium",
+        "unequal-equilibrium" | "unequilibrium" | "unbalanced-equilibrium" => "unequal-equilibrium",
         _ => "solid",
     }
 }

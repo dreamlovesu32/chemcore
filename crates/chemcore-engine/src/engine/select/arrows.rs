@@ -162,7 +162,8 @@ pub(super) fn update_arrow_object_curve(engine: &mut Engine, object_id: &str, cu
         .and_then(JsonValue::as_str)
         .unwrap_or("solid")
         .to_ascii_lowercase();
-    if kind != "hollow" && kind != "open" && kind != "equilibrium" {
+    if kind != "hollow" && kind != "open" && kind != "equilibrium" && kind != "unequal-equilibrium"
+    {
         let next_kind = if rounded_curve < -crate::EPSILON {
             "curved"
         } else if rounded_curve > crate::EPSILON {

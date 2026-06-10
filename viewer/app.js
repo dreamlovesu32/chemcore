@@ -33,6 +33,7 @@ import {
   rectContainsBounds,
 } from "./geometry.js";
 import {
+  ARROW_TOOL_ICON_TYPES,
   BOND_TOOL_ICON_TYPES,
   ORBITAL_TOOL_ICON_PHASES,
   ORBITAL_TOOL_ICON_STYLES,
@@ -339,6 +340,8 @@ const editorState = {
   textUnderline: false,
   textScript: "normal",
   arrowType: "solid",
+  arrowIconSvgs: {},
+  arrowIconCacheKey: "",
   arrowHeadSize: "small",
   arrowCurve: "270",
   arrowHeadStyle: "full",
@@ -2397,6 +2400,23 @@ function refreshBondToolIcons() {
   editorState.bondIconCacheKey = widths.key;
 }
 
+function refreshArrowToolIcons() {
+  const iconSvg = state.editorEngine?.arrowToolIconSvg;
+  if (typeof iconSvg !== "function") {
+    return;
+  }
+  const hasCompleteIconSet = ARROW_TOOL_ICON_TYPES.every((type) => editorState.arrowIconSvgs?.[type]);
+  if (editorState.arrowIconCacheKey === "kernel-arrow-v1" && hasCompleteIconSet) {
+    return;
+  }
+  const icons = {};
+  for (const type of ARROW_TOOL_ICON_TYPES) {
+    icons[type] = normalizeKernelArrowIconSvg(iconSvg.call(state.editorEngine, type), type);
+  }
+  editorState.arrowIconSvgs = icons;
+  editorState.arrowIconCacheKey = "kernel-arrow-v1";
+}
+
 function refreshTextFormatIcons() {
   const iconSvg = state.editorEngine?.textFormatIconSvg;
   if (typeof iconSvg !== "function") {
@@ -2498,6 +2518,16 @@ function normalizeKernelShapeIconSvg(svg, key) {
     .replace(/url\(#([^)]+)\)/g, `url(#shape-icon-${safeKey}-$1)`);
 }
 
+function normalizeKernelArrowIconSvg(svg, key) {
+  if (!svg) {
+    return "";
+  }
+  const safeKey = String(key).replace(/[^a-zA-Z0-9_-]/g, "-");
+  return addClassToSvg(svg, "cc-kernel-arrow-icon")
+    .replace(/\bid="([^"]+)"/g, `id="arrow-icon-${safeKey}-$1"`)
+    .replace(/url\(#([^)]+)\)/g, `url(#arrow-icon-${safeKey}-$1)`);
+}
+
 function normalizeKernelSymbolIconSvg(svg, key) {
   if (!svg) {
     return "";
@@ -2530,6 +2560,7 @@ function renderSecondaryToolbar() {
     return;
   }
   refreshBondToolIcons();
+  refreshArrowToolIcons();
   refreshTextFormatIcons();
   refreshShapeToolIcons();
   refreshSymbolToolIcons();

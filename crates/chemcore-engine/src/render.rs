@@ -109,6 +109,7 @@ pub(crate) struct ArrowHeadGeometry {
     center_length: f64,
     width: f64,
     shaft_spacing: f64,
+    equilibrium_ratio: f64,
     kind: ArrowHeadKind,
     curve: f64,
     bold: bool,

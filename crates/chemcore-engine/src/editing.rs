@@ -95,6 +95,7 @@ pub enum ArrowVariant {
     Hollow,
     Open,
     Equilibrium,
+    UnequalEquilibrium,
 }
 
 impl Default for ArrowVariant {

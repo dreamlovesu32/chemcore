@@ -641,7 +641,7 @@ async function handleSecondaryToolbarValue(value, options) {
     if (isOpenArrowType(editorState.arrowType) && !isOpenArrowType(previousArrowType)) {
       editorState.arrowHeadSize = "large";
     }
-    if (editorState.arrowType === "equilibrium" && previousArrowType !== "equilibrium") {
+    if (isEquilibriumArrowType(editorState.arrowType) && !isEquilibriumArrowType(previousArrowType)) {
       editorState.arrowHeadSize = "small";
     }
     normalizeArrowToolbarStyle(editorState);
@@ -908,7 +908,7 @@ function normalizeArrowToolbarStyle(editorState) {
     normalizeSolidArrowStyle(editorState);
     return;
   }
-  if (editorState.arrowType === "equilibrium") {
+  if (isEquilibriumArrowType(editorState.arrowType)) {
     normalizeEquilibriumArrowStyle(editorState);
     return;
   }
@@ -936,7 +936,7 @@ function normalizeCurvedArrowStyle(editorState) {
 }
 
 function normalizeEquilibriumArrowStyle(editorState) {
-  editorState.arrowType = "equilibrium";
+  editorState.arrowType = editorState.arrowType === "unequal-equilibrium" ? "unequal-equilibrium" : "equilibrium";
   editorState.arrowHeadSize = normalizedArrowHeadSize(editorState.arrowHeadSize);
   editorState.arrowCurve = "270";
   editorState.arrowHeadStyle = editorState.arrowHeadStyle === "right" ? "right" : "left";
@@ -971,6 +971,10 @@ function normalizedOpenArrowHeadSize(size) {
 
 function isOpenArrowType(type) {
   return type === "hollow" || type === "open";
+}
+
+function isEquilibriumArrowType(type) {
+  return type === "equilibrium" || type === "unequal-equilibrium";
 }
 
 function normalizeArrowEndpointOptions(editorState) {

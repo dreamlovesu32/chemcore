@@ -49,6 +49,10 @@ fn equilibrium_arrow_shaft_spacing(_size: ArrowHeadSize, _bold: bool) -> f64 {
     3.0
 }
 
+fn unequal_equilibrium_arrow_ratio() -> f64 {
+    3.0
+}
+
 pub(super) fn arrow_payload_dimensions(
     variant: ArrowVariant,
     size: ArrowHeadSize,
@@ -56,9 +60,10 @@ pub(super) fn arrow_payload_dimensions(
 ) -> (f64, f64, f64) {
     match variant {
         ArrowVariant::Solid => arrow_head_dimensions(size, bold),
-        ArrowVariant::Curved | ArrowVariant::CurvedMirror | ArrowVariant::Equilibrium => {
-            arrow_head_dimensions(size, bold)
-        }
+        ArrowVariant::Curved
+        | ArrowVariant::CurvedMirror
+        | ArrowVariant::Equilibrium
+        | ArrowVariant::UnequalEquilibrium => arrow_head_dimensions(size, bold),
         ArrowVariant::Hollow | ArrowVariant::Open => open_arrow_head_dimensions(size, bold),
     }
 }
@@ -68,8 +73,19 @@ fn arrow_payload_shaft_spacing(
     size: ArrowHeadSize,
     bold: bool,
 ) -> Option<f64> {
-    if variant == ArrowVariant::Equilibrium {
+    if matches!(
+        variant,
+        ArrowVariant::Equilibrium | ArrowVariant::UnequalEquilibrium
+    ) {
         Some(equilibrium_arrow_shaft_spacing(size, bold))
+    } else {
+        None
+    }
+}
+
+fn arrow_payload_equilibrium_ratio(variant: ArrowVariant) -> Option<f64> {
+    if variant == ArrowVariant::UnequalEquilibrium {
+        Some(unequal_equilibrium_arrow_ratio())
     } else {
         None
     }
@@ -91,7 +107,8 @@ pub(super) fn arrow_curve_sweep_degrees(variant: ArrowVariant, curve: ArrowCurve
         ArrowVariant::Solid
         | ArrowVariant::Hollow
         | ArrowVariant::Open
-        | ArrowVariant::Equilibrium => 0.0,
+        | ArrowVariant::Equilibrium
+        | ArrowVariant::UnequalEquilibrium => 0.0,
     }
 }
 
@@ -124,6 +141,7 @@ pub(super) fn arrow_variant_name(variant: ArrowVariant) -> &'static str {
         ArrowVariant::Hollow => "hollow",
         ArrowVariant::Open => "open",
         ArrowVariant::Equilibrium => "equilibrium",
+        ArrowVariant::UnequalEquilibrium => "unequal-equilibrium",
     }
 }
 
@@ -146,7 +164,58 @@ pub(super) fn ensure_arrow_style(
         });
 }
 
+fn arrow_icon_variant_and_size(kind: &str) -> Option<(ArrowVariant, ArrowHeadSize)> {
+    let (variant, size) = match kind {
+        "equilibrium-small" => (ArrowVariant::Equilibrium, ArrowHeadSize::Small),
+        "equilibrium-medium" => (ArrowVariant::Equilibrium, ArrowHeadSize::Medium),
+        "equilibrium-large" => (ArrowVariant::Equilibrium, ArrowHeadSize::Large),
+        "unequal-equilibrium-small" => (ArrowVariant::UnequalEquilibrium, ArrowHeadSize::Small),
+        "unequal-equilibrium-medium" => (ArrowVariant::UnequalEquilibrium, ArrowHeadSize::Medium),
+        "unequal-equilibrium-large" => (ArrowVariant::UnequalEquilibrium, ArrowHeadSize::Large),
+        _ => return None,
+    };
+    Some((variant, size))
+}
+
 impl Engine {
+    pub fn arrow_tool_icon_svg(kind: &str) -> String {
+        let Some((variant, size)) = arrow_icon_variant_and_size(kind) else {
+            return String::new();
+        };
+        let mut engine = Engine::new();
+        engine.options.graphic_stroke_width = crate::DEFAULT_BOND_STROKE;
+        let mut tool = engine.state.tool.clone();
+        tool.active_tool = Tool::Arrow;
+        tool.arrow_variant = variant;
+        tool.arrow_head_size = size;
+        tool.arrow_head_style = ArrowEndpointStyle::Left;
+        tool.arrow_tail_style = ArrowEndpointStyle::Left;
+        tool.arrow_bold = false;
+        tool.arrow_no_go = ArrowNoGo::None;
+        engine.set_tool_state(tool);
+
+        let mut document = ChemcoreDocument::blank();
+        document.objects.clear();
+        let style_id = "style_arrow_default".to_string();
+        ensure_arrow_style(
+            &mut document,
+            &style_id,
+            engine.options.graphic_stroke_width,
+        );
+        document.objects.push(engine.arrow_scene_object(
+            Point::new(5.0, 12.0),
+            Point::new(31.0, 12.0),
+            "__arrow_tool_icon".to_string(),
+            style_id,
+        ));
+        crate::primitives_to_svg_viewbox(
+            &crate::render_document(&document),
+            [0.0, 0.0, 36.0, 24.0],
+            Some("chemcore-icon cc-arrow-icon cc-kernel-arrow-icon"),
+        )
+        .replace("#000000", "currentColor")
+    }
+
     pub(super) fn pointer_move_arrow(&mut self, event: PointerEvent) {
         let point = event.point();
         self.state.overlay.hover_endpoint = None;
@@ -263,6 +332,7 @@ impl Engine {
             self.state.tool.arrow_head_size,
             self.state.tool.arrow_bold,
         );
+        let equilibrium_ratio = arrow_payload_equilibrium_ratio(self.state.tool.arrow_variant);
         let head_style = self.state.tool.arrow_head_style;
         let tail_style = self.state.tool.arrow_tail_style;
         let head_enabled = arrow_endpoint_enabled(head_style);
@@ -300,6 +370,11 @@ impl Engine {
         if let Some(shaft_spacing) = shaft_spacing {
             if let Some(object) = arrow_head_payload.as_object_mut() {
                 object.insert("shaftSpacing".to_string(), json!(shaft_spacing));
+            }
+        }
+        if let Some(equilibrium_ratio) = equilibrium_ratio {
+            if let Some(object) = arrow_head_payload.as_object_mut() {
+                object.insert("equilibriumRatio".to_string(), json!(equilibrium_ratio));
             }
         }
         extra.insert("arrowHead".to_string(), arrow_head_payload);
@@ -386,6 +461,7 @@ impl Engine {
         }
         let (length, center_length, width) = arrow_payload_dimensions(variant, head_size, bold);
         let shaft_spacing = arrow_payload_shaft_spacing(variant, head_size, bold);
+        let equilibrium_ratio = arrow_payload_equilibrium_ratio(variant);
         let mut updates = Vec::new();
         for (index, object) in self.state.document.objects.iter().enumerate() {
             if object.object_type != "line" || !selected.contains(&object.id) {
@@ -429,6 +505,11 @@ impl Engine {
             if let Some(shaft_spacing) = shaft_spacing {
                 if let Some(object) = arrow_head_payload.as_object_mut() {
                     object.insert("shaftSpacing".to_string(), json!(shaft_spacing));
+                }
+            }
+            if let Some(equilibrium_ratio) = equilibrium_ratio {
+                if let Some(object) = arrow_head_payload.as_object_mut() {
+                    object.insert("equilibriumRatio".to_string(), json!(equilibrium_ratio));
                 }
             }
             next_extra.insert("arrowHead".to_string(), arrow_head_payload);

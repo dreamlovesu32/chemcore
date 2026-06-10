@@ -365,6 +365,10 @@ class TauriEngineSession {
     return this.layoutEngine?.bondToolIconSvg?.(variant, strokeWidth, boldWidth) || "";
   }
 
+  arrowToolIconSvg(kind) {
+    return this.layoutEngine?.arrowToolIconSvg?.(kind) || "";
+  }
+
   shapeToolIconSvg(kind, style) {
     return this.layoutEngine?.shapeToolIconSvg?.(kind, style) || "";
   }

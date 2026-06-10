@@ -587,6 +587,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 let value =
                     cdxml_arrow_size_attribute(value, stroke_width, self.defaults.line_width);
                 attrs.push(("ArrowShaftSpacing", fmt_num(value)));
+                if let Some(value) = cdxml_arrow_equilibrium_ratio(arrow) {
+                    attrs.push(("ArrowEquilibriumRatio", fmt_num(value * 100.0)));
+                }
             }
             if let Some(value) = arrow
                 .and_then(|value| value.get("width"))
@@ -1697,9 +1700,31 @@ fn cdxml_arrow_kind(value: Option<&Value>) -> &'static str {
     {
         "hollow" => "Hollow",
         "open" | "angle" | "retrosynthetic" => "Angle",
-        "equilibrium" => "Equilibrium",
+        "equilibrium" | "unequal-equilibrium" => "Equilibrium",
         _ => "Solid",
     }
+}
+
+fn cdxml_arrow_equilibrium_ratio(value: Option<&Value>) -> Option<f64> {
+    let value = value?;
+    let kind = value
+        .get("kind")
+        .and_then(Value::as_str)
+        .unwrap_or("solid")
+        .to_ascii_lowercase();
+    let ratio = value
+        .get("equilibriumRatio")
+        .or_else(|| value.get("equilibrium_ratio"))
+        .and_then(Value::as_f64)
+        .filter(|ratio| ratio.is_finite() && *ratio > 1.0)
+        .unwrap_or_else(|| {
+            if kind == "unequal-equilibrium" {
+                3.0
+            } else {
+                1.0
+            }
+        });
+    (ratio > 1.0).then_some(ratio)
 }
 
 fn cdxml_arrowhead_type_attr(arrow_kind: &str) -> &str {

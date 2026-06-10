@@ -131,6 +131,12 @@ pub(super) fn payload_arrow_head(
             .and_then(JsonValue::as_f64)
             .unwrap_or(3.0)
             * scale,
+        equilibrium_ratio: value
+            .get("equilibriumRatio")
+            .or_else(|| value.get("equilibrium_ratio"))
+            .and_then(JsonValue::as_f64)
+            .filter(|value| value.is_finite() && *value > 1.0)
+            .unwrap_or(1.0),
         kind: value
             .get("kind")
             .and_then(JsonValue::as_str)
@@ -160,7 +166,7 @@ pub(super) fn arrow_head_kind(value: &str) -> ArrowHeadKind {
     match value.to_ascii_lowercase().as_str() {
         "hollow" => ArrowHeadKind::Hollow,
         "angle" | "open" | "retrosynthetic" => ArrowHeadKind::Open,
-        "equilibrium" => ArrowHeadKind::Equilibrium,
+        "equilibrium" | "unequal-equilibrium" => ArrowHeadKind::Equilibrium,
         _ => ArrowHeadKind::Solid,
     }
 }

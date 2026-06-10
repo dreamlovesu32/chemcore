@@ -386,7 +386,7 @@ export function createCanvasContextMenuHost(options) {
       syncEditorArrowStateFromSelectedLine();
       const [endpoint, style] = value.split(":");
       const nextStyle = style || "none";
-      if (options.editorState().arrowType === "equilibrium" && (nextStyle === "left" || nextStyle === "right")) {
+      if (isEquilibriumArrowType(options.editorState().arrowType) && (nextStyle === "left" || nextStyle === "right")) {
         options.editorState().arrowHeadStyle = nextStyle;
         options.editorState().arrowTailStyle = nextStyle;
         options.editorState().arrowHead = true;
@@ -424,7 +424,7 @@ export function createCanvasContextMenuHost(options) {
     }
     const arrowHead = line.payload?.arrowHead || {};
     const kind = arrowHead.kind || "solid";
-    if (["solid", "curved", "curved-mirror", "hollow", "open", "equilibrium"].includes(kind)) {
+    if (["solid", "curved", "curved-mirror", "hollow", "open", "equilibrium", "unequal-equilibrium"].includes(kind)) {
       options.editorState().arrowType = kind;
     }
     options.editorState().arrowHeadSize = arrowHeadSizeFromPayload(arrowHead, kind);
@@ -460,6 +460,10 @@ export function createCanvasContextMenuHost(options) {
       return "medium";
     }
     return "small";
+  }
+
+  function isEquilibriumArrowType(type) {
+    return type === "equilibrium" || type === "unequal-equilibrium";
   }
 
   return {

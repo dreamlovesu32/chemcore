@@ -5904,6 +5904,184 @@ fn cdxml_imports_exports_and_renders_equilibrium_arrows() {
     );
 }
 
+fn right_arrow_head_width_from_cdxml(cdxml: &str) -> f64 {
+    let document =
+        parse_cdxml_document(cdxml, Some("equilibrium arrow")).expect("CDXML arrow should parse");
+    render_document(&document)
+        .into_iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::FilledPath { points, .. } => {
+                let bounds = primitive_polygon_bounds(&points);
+                Some((bounds[2], bounds[2] - bounds[0]))
+            }
+            _ => None,
+        })
+        .max_by(|left, right| left.0.partial_cmp(&right.0).unwrap())
+        .map(|(_, width)| (width * 100.0).round() / 100.0)
+        .expect("arrow should render a filled head")
+}
+
+fn rounded_pair(points: &[Point]) -> ([f64; 2], [f64; 2]) {
+    fn round2(value: f64) -> f64 {
+        (value * 100.0).round() / 100.0
+    }
+    (
+        [round2(points[0].x), round2(points[0].y)],
+        [round2(points[1].x), round2(points[1].y)],
+    )
+}
+
+#[test]
+fn cdxml_equilibrium_arrow_heads_scale_with_axis_length_like_chemdraw() {
+    let regular_short = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML LineWidth="1" BoldWidth="4" BondLength="30" LabelSize="10" CaptionSize="12">
+  <page id="1" BoundingBox="0 0 240 80">
+    <arrow id="1" ArrowheadHead="HalfLeft" ArrowheadTail="HalfLeft" ArrowheadType="Solid"
+      HeadSize="2250" ArrowheadCenterSize="1969" ArrowheadWidth="563" ArrowShaftSpacing="300"
+      Head3D="194.66 94.13 0" Tail3D="183.79 94.13 0"/>
+  </page>
+</CDXML>"#;
+    let regular_full = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML LineWidth="1" BoldWidth="4" BondLength="30" LabelSize="10" CaptionSize="12">
+  <page id="1" BoundingBox="0 0 300 80">
+    <arrow id="1" ArrowheadHead="HalfLeft" ArrowheadTail="HalfLeft" ArrowheadType="Solid"
+      HeadSize="2250" ArrowheadCenterSize="1969" ArrowheadWidth="563" ArrowShaftSpacing="300"
+      Head3D="234.50 161.63 0" Tail3D="183.79 161.63 0"/>
+  </page>
+</CDXML>"#;
+    let unequal_short = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML LineWidth="1" BoldWidth="4" BondLength="30" LabelSize="10" CaptionSize="12">
+  <page id="1" BoundingBox="0 0 260 80">
+    <arrow id="1" ArrowheadHead="HalfLeft" ArrowheadTail="HalfLeft" ArrowheadType="Solid"
+      HeadSize="2250" ArrowheadCenterSize="1969" ArrowheadWidth="563" ArrowShaftSpacing="300"
+      ArrowEquilibriumRatio="300" Head3D="208.54 370.50 0" Tail3D="195.79 370.50 0"/>
+  </page>
+</CDXML>"#;
+
+    assert_eq!(right_arrow_head_width_from_cdxml(regular_short), 9.25);
+    assert_eq!(right_arrow_head_width_from_cdxml(regular_full), 22.5);
+    assert_eq!(right_arrow_head_width_from_cdxml(unequal_short), 8.5);
+}
+
+#[test]
+fn cdxml_unequal_equilibrium_arrow_layout_matches_chemdraw() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML LineWidth="1" BoldWidth="4" BondLength="30" LabelSize="10" CaptionSize="12">
+  <page id="1" BoundingBox="180 450 340 490">
+    <arrow id="47" ArrowheadHead="HalfLeft" ArrowheadTail="HalfLeft" ArrowheadType="Solid"
+      HeadSize="2250" ArrowheadCenterSize="1969" ArrowheadWidth="563" ArrowShaftSpacing="300"
+      ArrowEquilibriumRatio="300" Head3D="314.80 468.75 0" Tail3D="198.79 468.75 0"/>
+  </page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(cdxml, Some("unequal equilibrium arrow")).expect("CDXML arrow parses");
+    let primitives = render_document(&document);
+    let mut polylines: Vec<([f64; 2], [f64; 2])> = primitives
+        .iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Polyline { points, .. } => Some(rounded_pair(points)),
+            _ => None,
+        })
+        .collect();
+    polylines.sort_by(|left, right| {
+        left.0[1]
+            .partial_cmp(&right.0[1])
+            .unwrap()
+            .then(left.0[0].partial_cmp(&right.0[0]).unwrap())
+    });
+    assert_eq!(
+        polylines,
+        vec![
+            ([198.79, 467.25], [296.11, 467.25]),
+            ([282.36, 470.25], [249.92, 470.25]),
+        ]
+    );
+
+    let mut head_bounds: Vec<[f64; 4]> = primitives
+        .into_iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::FilledPath { points, .. } => {
+                let bounds = primitive_polygon_bounds(&points);
+                Some([
+                    (bounds[0] * 100.0).round() / 100.0,
+                    (bounds[1] * 100.0).round() / 100.0,
+                    (bounds[2] * 100.0).round() / 100.0,
+                    (bounds[3] * 100.0).round() / 100.0,
+                ])
+            }
+            _ => None,
+        })
+        .collect();
+    head_bounds.sort_by(|left, right| left[0].partial_cmp(&right[0]).unwrap());
+    assert_eq!(
+        head_bounds,
+        vec![
+            [231.23, 469.75, 253.73, 475.88],
+            [292.3, 461.62, 314.8, 467.75],
+        ]
+    );
+}
+
+#[test]
+fn cdxml_imports_exports_and_renders_unequal_equilibrium_arrows() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML LineWidth="1" BoldWidth="4" BondLength="30" LabelSize="10" CaptionSize="12">
+  <page id="1" BoundingBox="0 0 140 60">
+    <arrow id="1" ArrowheadHead="HalfLeft" ArrowheadTail="HalfLeft" ArrowheadType="Solid"
+      HeadSize="1500" ArrowheadCenterSize="1313" ArrowheadWidth="375" ArrowShaftSpacing="300"
+      ArrowEquilibriumRatio="300" Head3D="110 30 0" Tail3D="10 30 0"/>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("unequal equilibrium arrow"))
+        .expect("CDXML unequal equilibrium arrow should parse");
+    let arrow = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "line")
+        .expect("arrow should import as line");
+    let arrow_head = arrow
+        .payload
+        .extra
+        .get("arrowHead")
+        .expect("unequal equilibrium arrow should carry arrowHead payload");
+    assert_eq!(
+        arrow_head.get("kind").and_then(serde_json::Value::as_str),
+        Some("unequal-equilibrium")
+    );
+    assert_eq!(
+        arrow_head
+            .get("equilibriumRatio")
+            .and_then(serde_json::Value::as_f64),
+        Some(3.0)
+    );
+
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("ArrowheadType=\"Solid\""));
+    assert!(exported.contains("ArrowShaftSpacing=\"300\""));
+    assert!(exported.contains("ArrowEquilibriumRatio=\"300\""));
+
+    let mut branch_lengths: Vec<f64> = render_document(&document)
+        .into_iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Polyline {
+                object_id, points, ..
+            } if object_id.as_deref() == Some(&arrow.id) => Some(
+                points
+                    .windows(2)
+                    .map(|pair| pair[0].distance(pair[1]))
+                    .sum::<f64>(),
+            ),
+            _ => None,
+        })
+        .collect();
+    branch_lengths.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    assert_eq!(branch_lengths.len(), 2);
+    assert!(
+        branch_lengths[0] < branch_lengths[1] * 0.45,
+        "unequal equilibrium reverse branch should be much shorter: {branch_lengths:?}"
+    );
+}
+
 #[test]
 fn render_document_emits_arrow_no_go_marks_at_current_head_size() {
     let document: ChemcoreDocument = serde_json::from_value(json!({

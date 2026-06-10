@@ -142,6 +142,11 @@ impl WasmEngine {
         Engine::bond_tool_icon_svg(parse_bond_variant(variant), stroke_width, bold_width)
     }
 
+    #[wasm_bindgen(js_name = arrowToolIconSvg)]
+    pub fn arrow_tool_icon_svg(&self, kind: &str) -> String {
+        Engine::arrow_tool_icon_svg(kind)
+    }
+
     #[wasm_bindgen(js_name = shapeToolIconSvg)]
     pub fn shape_tool_icon_svg(&self, kind: &str, style: &str) -> String {
         Engine::shape_tool_icon_svg(parse_shape_kind(kind), parse_shape_style(style))
@@ -990,6 +995,7 @@ fn parse_arrow_variant(value: &str) -> ArrowVariant {
         "hollow" => ArrowVariant::Hollow,
         "open" => ArrowVariant::Open,
         "equilibrium" => ArrowVariant::Equilibrium,
+        "unequal-equilibrium" => ArrowVariant::UnequalEquilibrium,
         _ => ArrowVariant::Solid,
     }
 }

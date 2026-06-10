@@ -20,6 +20,7 @@ export const wasmengine_applySelectionOrderCommand: (a: number, b: number, c: nu
 export const wasmengine_applyShapeStyleToSelection: (a: number, b: number, c: number) => number;
 export const wasmengine_applyTextEdit: (a: number, b: number, c: number) => [number, number, number];
 export const wasmengine_applyTextStyleToSelection: (a: number, b: number, c: number, d: number, e: number) => number;
+export const wasmengine_arrowToolIconSvg: (a: number, b: number, c: number) => [number, number];
 export const wasmengine_beginHoverArrowEdit: (a: number, b: number, c: number) => [number, number];
 export const wasmengine_beginHoverShapeEdit: (a: number, b: number, c: number) => [number, number];
 export const wasmengine_beginSelectionMove: (a: number, b: number, c: number, d: number, e: number) => number;
