@@ -1,0 +1,749 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML CreationProgram="ChemDraw 14.0.0.117" Name="Microsoft PowerPoint - ¹¤×÷»ã±¨-jc-2017-2-13" BoundingBox="80.89 70.47 439.33 548.0" WindowPosition="0.0 0.0" WindowSize="1114.8 548.4" WindowIsZoomed="yes" FractionalWidths="yes" InterpretChemically="yes" ShowAtomQuery="yes" ShowAtomStereo="no" ShowAtomEnhancedStereo="yes" ShowAtomNumber="no" ShowResidueID="no" ShowBondQuery="yes" ShowBondRxn="yes" ShowBondStereo="no" ShowTerminalCarbonLabels="no" ShowNonTerminalCarbonLabels="no" HideImplicitHydrogens="no" LabelFont="3" LabelSize="10.0" LabelFace="1" CaptionFont="3" CaptionSize="10.0" CaptionFace="1" HashSpacing="2.5" MarginWidth="1.6" LineWidth="0.6" BoldWidth="2.0" BondLength="14.4" BondSpacing="18" ChainAngle="7864320" LabelJustification="Auto" CaptionJustification="Left" AminoAcidTermini="HOH" ShowSequenceTermini="yes" ShowSequenceBonds="yes" ResidueWrapCount="40" ResidueBlockCount="10" ResidueZigZag="yes" NumberResidueBlocks="no" PrintMargins="36.0 36.0 36.0 36.0" color="0" bgcolor="1" MacPrintInfo="0003000002580258000000001b681361000000001b6813610367057b03e00002000002580258000000001b681361000100000064000000010001010100020001270f000100010000000000000000000000000002001901900000000000600000000000000000000100000000000000000000000000000000" ChemPropName="" ChemPropFormula="Chemical Formula: " ChemPropExactMass="Exact Mass: " ChemPropMolWt="Molecular Weight: " ChemPropMOverZ="m/z: " ChemPropAnalysis="Elemental Analysis: " ChemPropBoilingPt="Boiling Point: " ChemPropMeltingPt="Melting Point: " ChemPropCritTemp="Critical Temp: " ChemPropCritPres="Critical Pres: " ChemPropCritVol="Critical Vol: " ChemPropGibbs="Gibbs Energy: " ChemPropLogP="Log P: " ChemPropMR="MR: " ChemPropHenry="Henry's Law: " ChemPropEForm="Heat of Form: " ChemProptPSA="tPSA: " ChemPropCLogP="CLogP: " ChemPropCMR="CMR: " ChemPropLogS="LogS: " ChemPropPKa="pKa: ">
+	<colortable>
+		<color r="1.0" g="1.0" b="1.0"/>
+		<color r="0.0" g="0.0" b="0.0"/>
+		<color r="1.0" g="0.0" b="0.0"/>
+		<color r="1.0" g="1.0" b="0.0"/>
+		<color r="0.0" g="1.0" b="0.0"/>
+		<color r="0.0" g="1.0" b="1.0"/>
+		<color r="0.0" g="0.0" b="1.0"/>
+		<color r="1.0" g="0.0" b="1.0"/>
+	</colortable>
+	<fonttable>
+		<font id="3" charset="iso-8859-1" name="Arial"/>
+	</fonttable>
+	<page id="1904" BoundingBox="0.0 0.0 523.32 769.92" HeaderPosition="36.0" FooterPosition="36.0" PrintTrimMarks="yes" HeightPages="1" WidthPages="1">
+		<fragment id="1077" BoundingBox="87.49 70.47 201.76 225.12" Z="592">
+			<n id="1074" p="88.09 118.2" Z="590" MarginWidth="1.59" AS="N"/>
+			<n id="1076" p="88.09 132.6" Z="591" MarginWidth="1.59" AS="N"/>
+			<n id="1078" p="100.56 139.8" Z="593" MarginWidth="1.59" AS="N"/>
+			<n id="1080" p="113.03 132.6" Z="594" MarginWidth="1.59"/>
+			<n id="1082" p="113.03 118.2" Z="595" MarginWidth="1.59"/>
+			<n id="1084" p="100.56 111.0" Z="596" MarginWidth="1.59" AS="N"/>
+			<n id="1092" p="125.5 139.8" Z="603" MarginWidth="1.59"/>
+			<n id="1094" p="137.97 132.6" Z="604" MarginWidth="1.59"/>
+			<n id="1096" p="137.97 118.2" Z="605" MarginWidth="1.59"/>
+			<n id="1098" p="125.5 111.0" Z="606" MarginWidth="1.59" AS="N"/>
+			<n id="1105" p="125.5 154.2" Z="612" MarginWidth="1.59"/>
+			<n id="1107" p="113.03 161.4" Z="614" MarginWidth="1.59"/>
+			<n id="1109" p="113.03 175.8" Z="615" MarginWidth="1.59"/>
+			<n id="1111" p="125.5 183.0" Z="616" MarginWidth="1.59" AS="N"/>
+			<n id="1113" p="137.97 175.8" Z="617" MarginWidth="1.59"/>
+			<n id="1115" p="137.97 161.4" Z="618" MarginWidth="1.59"/>
+			<n id="1123" p="100.56 154.2" Z="625" MarginWidth="1.59" AS="N"/>
+			<n id="1125" p="88.09 161.4" Z="626" MarginWidth="1.59" AS="N"/>
+			<n id="1127" p="88.09 175.8" Z="627" MarginWidth="1.59" AS="N"/>
+			<n id="1129" p="100.56 183.0" Z="628" MarginWidth="1.59" AS="N"/>
+			<n id="1136" p="150.44 111.0" Z="634" MarginWidth="1.59"/>
+			<n id="1138" p="150.44 154.2" Z="636" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="146.54 158.12" BoundingBox="146.54 149.67 154.34 158.22" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="1140" p="150.44 139.8" Z="638" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="146.54 143.72" BoundingBox="146.54 135.27 154.34 143.82" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="1142" p="150.44 183.0" Z="640" MarginWidth="1.59"/>
+			<n id="1144" p="162.91 118.2" Z="642" MarginWidth="1.59" AS="N"/>
+			<n id="1146" p="175.38 111.0" Z="643" MarginWidth="1.59"/>
+			<n id="1148" p="175.38 96.6" Z="644" MarginWidth="1.59" AS="N"/>
+			<n id="1150" p="162.91 89.4" Z="645" MarginWidth="1.59"/>
+			<n id="1152" p="150.44 96.6" Z="646" MarginWidth="1.59" AS="N"/>
+			<n id="1160" p="150.44 197.4" Z="653" MarginWidth="1.59" AS="N"/>
+			<n id="1162" p="162.91 204.6" Z="654" MarginWidth="1.59"/>
+			<n id="1164" p="175.38 197.4" Z="655" MarginWidth="1.59" AS="N"/>
+			<n id="1166" p="175.38 183.0" Z="656" MarginWidth="1.59"/>
+			<n id="1168" p="162.91 175.8" Z="657" MarginWidth="1.59" AS="N"/>
+			<n id="1176" p="162.91 147.0" Z="664" MarginWidth="1.59" Element="15" NumHydrogens="0" NeedsClean="yes">
+				<t id="0" p="159.59 150.92" BoundingBox="159.59 142.64 166.26 150.92" LabelJustification="Left" LineHeight="variable" LabelAlignment="Below">
+					<s font="3" size="10.0" face="97" color="0">P</s>
+				</t>
+			</n>
+			<n id="1182" p="173.1 136.82" Z="667" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="169.2 140.74" BoundingBox="169.2 132.28 177.0 140.84" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="1184" p="173.1 157.18" Z="669" MarginWidth="1.59" Element="8" NumHydrogens="1" NeedsClean="yes" AS="N">
+				<t id="0" p="169.2 161.11" BoundingBox="169.2 152.65 184.22 161.21" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left">
+					<s font="3" size="10.0" face="97" color="0">OH</s>
+				</t>
+			</n>
+			<n id="1186" p="162.91 75.0" Z="671" MarginWidth="1.59" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="1905">
+					<n id="1425" p="162.91 75.0" Z="554"/>
+					<n id="1426" p="177.26 75.0" Z="555" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="174.21 78.93" BoundingBox="174.21 70.64 180.32 78.93" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="1427" p="162.91 60.65" Z="556" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="159.86 64.57" BoundingBox="159.86 56.29 165.97 64.57" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="1428" p="148.56 75.0" Z="557" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="145.51 78.93" BoundingBox="145.51 70.64 151.62 78.93" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="1429" p="162.91 89.35" Z="558" NodeType="ExternalConnectionPoint"/>
+					<b id="1430" Z="559" B="1425" E="1426"/>
+					<b id="1431" Z="560" B="1425" E="1427"/>
+					<b id="1432" Z="561" B="1425" E="1428"/>
+					<b id="1433" Z="562" B="1429" E="1425"/>
+				</fragment>
+				<t id="0" p="159.31 78.93" BoundingBox="159.31 70.47 176.82 81.13" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left">
+					<s font="3" size="10.0" face="97" color="0">CF3</s>
+				</t>
+			</n>
+			<n id="1188" p="187.86 118.2" Z="673" MarginWidth="1.59" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="1906">
+					<n id="1436" p="187.86 118.2" Z="563"/>
+					<n id="1437" p="180.68 130.63" Z="564" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="177.63 134.55" BoundingBox="177.63 126.27 183.74 134.55" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="1438" p="200.28 125.37" Z="565" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="197.23 129.3" BoundingBox="197.23 121.02 203.34 129.3" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="1439" p="195.03 105.77" Z="566" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="191.98 109.7" BoundingBox="191.98 101.41 198.09 109.7" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="1440" p="175.43 111.02" Z="567" NodeType="ExternalConnectionPoint"/>
+					<b id="1441" Z="568" B="1436" E="1437"/>
+					<b id="1442" Z="569" B="1436" E="1438"/>
+					<b id="1443" Z="570" B="1436" E="1439"/>
+					<b id="1444" Z="571" B="1440" E="1436"/>
+				</fragment>
+				<t id="0" p="184.26 122.12" BoundingBox="184.26 113.67 201.76 124.32" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left">
+					<s font="3" size="10.0" face="97" color="0">CF3</s>
+				</t>
+			</n>
+			<n id="1190" p="187.86 175.8" Z="675" MarginWidth="1.59" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="1907">
+					<n id="1447" p="187.86 175.8" Z="572"/>
+					<n id="1448" p="195.03 188.23" Z="573" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="191.98 192.15" BoundingBox="191.98 183.87 198.09 192.15" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="1449" p="200.28 168.62" Z="574" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="197.23 172.55" BoundingBox="197.23 164.27 203.34 172.55" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="1450" p="180.68 163.37" Z="575" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="177.63 167.3" BoundingBox="177.63 159.01 183.74 167.3" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="1451" p="175.43 182.97" Z="576" NodeType="ExternalConnectionPoint"/>
+					<b id="1452" Z="577" B="1447" E="1448"/>
+					<b id="1453" Z="578" B="1447" E="1449"/>
+					<b id="1454" Z="579" B="1447" E="1450"/>
+					<b id="1455" Z="580" B="1451" E="1447"/>
+				</fragment>
+				<t id="0" p="184.26 179.72" BoundingBox="184.26 171.27 201.76 181.92" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left">
+					<s font="3" size="10.0" face="97" color="0">CF3</s>
+				</t>
+			</n>
+			<n id="1192" p="162.91 219.0" Z="677" MarginWidth="1.59" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="1908">
+					<n id="1458" p="162.91 219.0" Z="581"/>
+					<n id="1459" p="148.56 219.0" Z="582" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="145.51 222.92" BoundingBox="145.51 214.64 151.62 222.92" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="1460" p="162.91 233.35" Z="583" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="159.86 237.27" BoundingBox="159.86 228.99 165.97 237.27" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="1461" p="177.26 219.0" Z="584" Element="9" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="174.21 222.92" BoundingBox="174.21 214.64 180.32 222.92" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">F</s>
+						</t>
+					</n>
+					<n id="1462" p="162.91 204.65" Z="585" NodeType="ExternalConnectionPoint"/>
+					<b id="1463" Z="586" B="1458" E="1459"/>
+					<b id="1464" Z="587" B="1458" E="1460"/>
+					<b id="1465" Z="588" B="1458" E="1461"/>
+					<b id="1466" Z="589" B="1462" E="1458"/>
+				</fragment>
+				<t id="0" p="159.31 222.92" BoundingBox="159.31 214.47 176.82 225.12" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left">
+					<s font="3" size="10.0" face="97" color="0">CF3</s>
+				</t>
+			</n>
+			<b id="1086" Z="597" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1074" E="1076" Order="2" DoublePosition="Right" BondCircularOrdering="1091 0 0 1087"/>
+			<b id="1087" Z="598" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1076" E="1078" BS="N"/>
+			<b id="1088" Z="599" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1078" E="1080" Order="2" DoublePosition="Right" BondCircularOrdering="1087 0 1100 1089"/>
+			<b id="1089" Z="600" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1080" E="1082" BS="N"/>
+			<b id="1090" Z="601" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1082" E="1084" Order="2" DoublePosition="Right" BondCircularOrdering="1089 1104 0 1091"/>
+			<b id="1091" Z="602" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1084" E="1074" BS="N"/>
+			<b id="1100" Z="607" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1080" E="1092" BS="N"/>
+			<b id="1101" Z="608" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1092" E="1094" Order="2" DoublePosition="Right" BondCircularOrdering="1100 1106 1141 1102"/>
+			<b id="1102" Z="609" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1094" E="1096" BS="N"/>
+			<b id="1103" Z="610" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1096" E="1098" Order="2" DoublePosition="Right" BondCircularOrdering="1102 1137 0 1104"/>
+			<b id="1104" Z="611" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1098" E="1082" BS="N"/>
+			<b id="1106" Z="613" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1092" E="1105" BS="N"/>
+			<b id="1117" Z="619" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1105" E="1107" Order="2" DoublePosition="Right" BondCircularOrdering="1122 1106 1131 1118"/>
+			<b id="1118" Z="620" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1107" E="1109" BS="N"/>
+			<b id="1119" Z="621" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1109" E="1111" Order="2" DoublePosition="Right" BondCircularOrdering="1118 1135 0 1120"/>
+			<b id="1120" Z="622" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1111" E="1113" BS="N"/>
+			<b id="1121" Z="623" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1113" E="1115" Order="2" DoublePosition="Right" BondCircularOrdering="1120 1143 1139 1122"/>
+			<b id="1122" Z="624" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1115" E="1105" BS="N"/>
+			<b id="1131" Z="629" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1107" E="1123" BS="N"/>
+			<b id="1132" Z="630" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1123" E="1125" Order="2" DoublePosition="Right" BondCircularOrdering="1131 0 0 1133"/>
+			<b id="1133" Z="631" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1125" E="1127" BS="N"/>
+			<b id="1134" Z="632" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1127" E="1129" Order="2" DoublePosition="Right" BondCircularOrdering="1133 0 0 1135"/>
+			<b id="1135" Z="633" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1129" E="1109" BS="N"/>
+			<b id="1137" Z="635" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1096" E="1136" BS="N"/>
+			<b id="1139" Z="637" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1115" E="1138" BS="N"/>
+			<b id="1141" Z="639" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1094" E="1140" BS="N"/>
+			<b id="1143" Z="641" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1113" E="1142" BS="N"/>
+			<b id="1154" Z="647" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1136" E="1144" Order="2" DoublePosition="Right" BondCircularOrdering="1159 1137 0 1155"/>
+			<b id="1155" Z="648" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1144" E="1146" BS="N"/>
+			<b id="1156" Z="649" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1146" E="1148" Order="2" DoublePosition="Right" BondCircularOrdering="1155 1189 0 1157"/>
+			<b id="1157" Z="650" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1148" E="1150" BS="N"/>
+			<b id="1158" Z="651" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1150" E="1152" Order="2" DoublePosition="Right" BondCircularOrdering="1157 1187 0 1159"/>
+			<b id="1159" Z="652" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1152" E="1136" BS="N"/>
+			<b id="1170" Z="658" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1142" E="1160" Order="2" DoublePosition="Right" BondCircularOrdering="1175 1143 0 1171"/>
+			<b id="1171" Z="659" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1160" E="1162" BS="N"/>
+			<b id="1172" Z="660" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1162" E="1164" Order="2" DoublePosition="Right" BondCircularOrdering="1171 1193 0 1173"/>
+			<b id="1173" Z="661" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1164" E="1166" BS="N"/>
+			<b id="1174" Z="662" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1166" E="1168" Order="2" DoublePosition="Right" BondCircularOrdering="1173 1191 0 1175"/>
+			<b id="1175" Z="663" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1168" E="1142" BS="N"/>
+			<b id="1177" Z="665" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1140" E="1176" BS="N"/>
+			<b id="1181" Z="666" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1138" E="1176" BS="N"/>
+			<b id="1183" Z="668" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1176" E="1182" Order="2"/>
+			<b id="1185" Z="670" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1176" E="1184" BS="N"/>
+			<b id="1187" Z="672" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1150" E="1186" BS="N"/>
+			<b id="1189" Z="674" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1146" E="1188" BS="N"/>
+			<b id="1191" Z="676" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1166" E="1190" BS="N"/>
+			<b id="1193" Z="678" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1162" E="1192" BS="N"/>
+		</fragment>
+		<fragment id="1194" BoundingBox="288.49 312.43 439.33 472.2" Z="681">
+			<n id="1195" p="289.09 363.51" Z="679" MarginWidth="1.59" AS="N"/>
+			<n id="1196" p="289.09 377.91" Z="680" MarginWidth="1.59" AS="N"/>
+			<n id="1197" p="301.56 385.11" Z="682" MarginWidth="1.59" AS="N"/>
+			<n id="1198" p="314.03 377.91" Z="683" MarginWidth="1.59"/>
+			<n id="1199" p="314.03 363.51" Z="684" MarginWidth="1.59"/>
+			<n id="1200" p="301.56 356.31" Z="685" MarginWidth="1.59" AS="N"/>
+			<n id="1201" p="326.5 385.11" Z="692" MarginWidth="1.59"/>
+			<n id="1202" p="338.97 377.91" Z="693" MarginWidth="1.59"/>
+			<n id="1203" p="338.97 363.51" Z="694" MarginWidth="1.59"/>
+			<n id="1204" p="326.5 356.31" Z="695" MarginWidth="1.59" AS="N"/>
+			<n id="1205" p="326.5 399.51" Z="701" MarginWidth="1.59"/>
+			<n id="1206" p="314.03 406.71" Z="703" MarginWidth="1.59"/>
+			<n id="1207" p="314.03 421.11" Z="704" MarginWidth="1.59"/>
+			<n id="1208" p="326.5 428.31" Z="705" MarginWidth="1.59" AS="N"/>
+			<n id="1209" p="338.97 421.11" Z="706" MarginWidth="1.59"/>
+			<n id="1210" p="338.97 406.71" Z="707" MarginWidth="1.59"/>
+			<n id="1211" p="301.56 399.51" Z="714" MarginWidth="1.59" AS="N"/>
+			<n id="1212" p="289.09 406.71" Z="715" MarginWidth="1.59" AS="N"/>
+			<n id="1213" p="289.09 421.11" Z="716" MarginWidth="1.59" AS="N"/>
+			<n id="1214" p="301.56 428.31" Z="717" MarginWidth="1.59" AS="N"/>
+			<n id="1215" p="351.44 356.31" Z="723" MarginWidth="1.59"/>
+			<n id="1216" p="351.44 399.51" Z="725" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="347.54 403.44" BoundingBox="347.54 394.98 355.34 403.54" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="1217" p="351.44 385.11" Z="727" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="347.54 389.04" BoundingBox="347.54 380.58 355.34 389.14" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="1218" p="351.44 428.31" Z="729" MarginWidth="1.59"/>
+			<n id="1219" p="363.91 363.51" Z="731" MarginWidth="1.59" AS="N"/>
+			<n id="1220" p="376.38 356.31" Z="732" MarginWidth="1.59" AS="N"/>
+			<n id="1221" p="376.38 341.91" Z="733" MarginWidth="1.59"/>
+			<n id="1222" p="363.91 334.71" Z="734" MarginWidth="1.59" AS="N"/>
+			<n id="1223" p="351.44 341.91" Z="735" MarginWidth="1.59" AS="N"/>
+			<n id="1224" p="351.44 442.71" Z="742" MarginWidth="1.59" AS="N"/>
+			<n id="1225" p="363.91 449.91" Z="743" MarginWidth="1.59" AS="N"/>
+			<n id="1226" p="376.38 442.71" Z="744" MarginWidth="1.59"/>
+			<n id="1227" p="376.38 428.31" Z="745" MarginWidth="1.59" AS="N"/>
+			<n id="1228" p="363.91 421.11" Z="746" MarginWidth="1.59" AS="N"/>
+			<n id="1229" p="363.91 392.31" Z="753" MarginWidth="1.59" Element="15" NumHydrogens="0" NeedsClean="yes">
+				<t id="0" p="360.59 396.24" BoundingBox="360.59 387.95 367.26 396.24" LabelJustification="Left" LineHeight="variable" LabelAlignment="Below">
+					<s font="3" size="10.0" face="97" color="0">P</s>
+				</t>
+			</n>
+			<n id="1230" p="374.1 382.13" Z="756" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="370.2 386.06" BoundingBox="370.2 377.6 378.0 386.16" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="1231" p="374.1 402.49" Z="758" MarginWidth="1.59" Element="8" NumHydrogens="1" NeedsClean="yes" AS="N">
+				<t id="0" p="370.2 406.42" BoundingBox="370.2 397.96 385.22 406.52" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left">
+					<s font="3" size="10.0" face="97" color="0">OH</s>
+				</t>
+			</n>
+			<n id="1323" p="388.86 334.71" Z="760" MarginWidth="1.59"/>
+			<n id="1325" p="388.86 449.91" Z="762" MarginWidth="1.59"/>
+			<n id="1327" p="388.86 464.31" Z="764" MarginWidth="1.59" AS="N"/>
+			<n id="1329" p="401.33 471.51" Z="765" MarginWidth="1.59" AS="N"/>
+			<n id="1331" p="413.8 464.31" Z="766" MarginWidth="1.59"/>
+			<n id="1333" p="413.8 449.91" Z="767" MarginWidth="1.59"/>
+			<n id="1335" p="401.33 442.71" Z="768" MarginWidth="1.59" AS="N"/>
+			<n id="1343" p="426.27 471.51" Z="775" MarginWidth="1.59" AS="N"/>
+			<n id="1345" p="438.74 464.31" Z="776" MarginWidth="1.59" AS="N"/>
+			<n id="1347" p="438.74 449.91" Z="777" MarginWidth="1.59" AS="N"/>
+			<n id="1349" p="426.27 442.71" Z="778" MarginWidth="1.59" AS="N"/>
+			<n id="1356" p="401.33 341.91" Z="784" MarginWidth="1.59" AS="N"/>
+			<n id="1358" p="413.8 334.71" Z="785" MarginWidth="1.59"/>
+			<n id="1360" p="413.8 320.31" Z="786" MarginWidth="1.59"/>
+			<n id="1362" p="401.33 313.11" Z="787" MarginWidth="1.59" AS="N"/>
+			<n id="1364" p="388.86 320.31" Z="788" MarginWidth="1.59" AS="N"/>
+			<n id="1372" p="426.27 341.91" Z="795" MarginWidth="1.59" AS="N"/>
+			<n id="1374" p="438.74 334.71" Z="796" MarginWidth="1.59" AS="N"/>
+			<n id="1376" p="438.74 320.31" Z="797" MarginWidth="1.59" AS="N"/>
+			<n id="1378" p="426.27 313.11" Z="798" MarginWidth="1.59" AS="N"/>
+			<b id="1276" Z="686" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1195" E="1196" Order="2" DoublePosition="Right" BondCircularOrdering="1281 0 0 1277"/>
+			<b id="1277" Z="687" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1196" E="1197" BS="N"/>
+			<b id="1278" Z="688" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1197" E="1198" Order="2" DoublePosition="Right" BondCircularOrdering="1277 0 1282 1279"/>
+			<b id="1279" Z="689" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1198" E="1199" BS="N"/>
+			<b id="1280" Z="690" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1199" E="1200" Order="2" DoublePosition="Right" BondCircularOrdering="1279 1286 0 1281"/>
+			<b id="1281" Z="691" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1200" E="1195" BS="N"/>
+			<b id="1282" Z="696" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1198" E="1201" BS="N"/>
+			<b id="1283" Z="697" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1201" E="1202" Order="2" DoublePosition="Right" BondCircularOrdering="1282 1287 1301 1284"/>
+			<b id="1284" Z="698" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1202" E="1203" BS="N"/>
+			<b id="1285" Z="699" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1203" E="1204" Order="2" DoublePosition="Right" BondCircularOrdering="1284 1299 0 1286"/>
+			<b id="1286" Z="700" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1204" E="1199" BS="N"/>
+			<b id="1287" Z="702" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1201" E="1205" BS="N"/>
+			<b id="1288" Z="708" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1205" E="1206" Order="2" DoublePosition="Right" BondCircularOrdering="1293 1287 1294 1289"/>
+			<b id="1289" Z="709" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1206" E="1207" BS="N"/>
+			<b id="1290" Z="710" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1207" E="1208" Order="2" DoublePosition="Right" BondCircularOrdering="1289 1298 0 1291"/>
+			<b id="1291" Z="711" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1208" E="1209" BS="N"/>
+			<b id="1292" Z="712" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1209" E="1210" Order="2" DoublePosition="Right" BondCircularOrdering="1291 1302 1300 1293"/>
+			<b id="1293" Z="713" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1210" E="1205" BS="N"/>
+			<b id="1294" Z="718" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1206" E="1211" BS="N"/>
+			<b id="1295" Z="719" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1211" E="1212" Order="2" DoublePosition="Right" BondCircularOrdering="1294 0 0 1296"/>
+			<b id="1296" Z="720" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1212" E="1213" BS="N"/>
+			<b id="1297" Z="721" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1213" E="1214" Order="2" DoublePosition="Right" BondCircularOrdering="1296 0 0 1298"/>
+			<b id="1298" Z="722" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1214" E="1207" BS="N"/>
+			<b id="1299" Z="724" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1203" E="1215" BS="N"/>
+			<b id="1300" Z="726" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1210" E="1216" BS="N"/>
+			<b id="1301" Z="728" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1202" E="1217" BS="N"/>
+			<b id="1302" Z="730" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1209" E="1218" BS="N"/>
+			<b id="1303" Z="736" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1215" E="1219" Order="2" DoublePosition="Right" BondCircularOrdering="1308 1299 0 1304"/>
+			<b id="1304" Z="737" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1219" E="1220" BS="N"/>
+			<b id="1305" Z="738" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1220" E="1221" Order="2" DoublePosition="Right" BondCircularOrdering="1304 0 1324 1306"/>
+			<b id="1306" Z="739" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1221" E="1222" BS="N"/>
+			<b id="1307" Z="740" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1222" E="1223" Order="2" DoublePosition="Right" BondCircularOrdering="1306 0 0 1308"/>
+			<b id="1308" Z="741" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1223" E="1215" BS="N"/>
+			<b id="1309" Z="747" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1218" E="1224" Order="2" DoublePosition="Right" BondCircularOrdering="1314 1302 0 1310"/>
+			<b id="1310" Z="748" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1224" E="1225" BS="N"/>
+			<b id="1311" Z="749" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1225" E="1226" Order="2" DoublePosition="Right" BondCircularOrdering="1310 0 1326 1312"/>
+			<b id="1312" Z="750" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1226" E="1227" BS="N"/>
+			<b id="1313" Z="751" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1227" E="1228" Order="2" DoublePosition="Right" BondCircularOrdering="1312 0 0 1314"/>
+			<b id="1314" Z="752" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1228" E="1218" BS="N"/>
+			<b id="1315" Z="754" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1217" E="1229" BS="N"/>
+			<b id="1316" Z="755" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1216" E="1229" BS="N"/>
+			<b id="1317" Z="757" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1229" E="1230" Order="2"/>
+			<b id="1318" Z="759" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1229" E="1231" BS="N"/>
+			<b id="1324" Z="761" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1221" E="1323" BS="N"/>
+			<b id="1326" Z="763" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1226" E="1325" BS="N"/>
+			<b id="1337" Z="769" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1325" E="1327" Order="2" DoublePosition="Right" BondCircularOrdering="1342 1326 0 1338"/>
+			<b id="1338" Z="770" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1327" E="1329" BS="N"/>
+			<b id="1339" Z="771" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1329" E="1331" Order="2" DoublePosition="Right" BondCircularOrdering="1338 0 1351 1340"/>
+			<b id="1340" Z="772" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1331" E="1333" BS="N"/>
+			<b id="1341" Z="773" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1333" E="1335" Order="2" DoublePosition="Right" BondCircularOrdering="1340 1355 0 1342"/>
+			<b id="1342" Z="774" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1335" E="1325" BS="N"/>
+			<b id="1351" Z="779" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1331" E="1343" BS="N"/>
+			<b id="1352" Z="780" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1343" E="1345" Order="2" DoublePosition="Right" BondCircularOrdering="1351 0 0 1353"/>
+			<b id="1353" Z="781" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1345" E="1347" BS="N"/>
+			<b id="1354" Z="782" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1347" E="1349" Order="2" DoublePosition="Right" BondCircularOrdering="1353 0 0 1355"/>
+			<b id="1355" Z="783" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1349" E="1333" BS="N"/>
+			<b id="1366" Z="789" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1323" E="1356" Order="2" DoublePosition="Right" BondCircularOrdering="1371 1324 0 1367"/>
+			<b id="1367" Z="790" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1356" E="1358" BS="N"/>
+			<b id="1368" Z="791" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1358" E="1360" Order="2" DoublePosition="Right" BondCircularOrdering="1367 1380 1384 1369"/>
+			<b id="1369" Z="792" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1360" E="1362" BS="N"/>
+			<b id="1370" Z="793" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1362" E="1364" Order="2" DoublePosition="Right" BondCircularOrdering="1369 0 0 1371"/>
+			<b id="1371" Z="794" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1364" E="1323" BS="N"/>
+			<b id="1380" Z="799" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1358" E="1372" BS="N"/>
+			<b id="1381" Z="800" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1372" E="1374" Order="2" DoublePosition="Right" BondCircularOrdering="1380 0 0 1382"/>
+			<b id="1382" Z="801" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1374" E="1376" BS="N"/>
+			<b id="1383" Z="802" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1376" E="1378" Order="2" DoublePosition="Right" BondCircularOrdering="1382 0 0 1384"/>
+			<b id="1384" Z="803" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1378" E="1360" BS="N"/>
+		</fragment>
+		<fragment id="1486" BoundingBox="317.89 83.24 425.5 206.72" Z="806">
+			<n id="1487" p="318.49 116.4" Z="804" MarginWidth="1.59" AS="N"/>
+			<n id="1488" p="318.49 130.8" Z="805" MarginWidth="1.59" AS="N"/>
+			<n id="1489" p="330.96 138.0" Z="807" MarginWidth="1.59" AS="N"/>
+			<n id="1490" p="343.43 130.8" Z="808" MarginWidth="1.59"/>
+			<n id="1491" p="343.43 116.4" Z="809" MarginWidth="1.59"/>
+			<n id="1492" p="330.96 109.2" Z="810" MarginWidth="1.59" AS="N"/>
+			<n id="1493" p="355.9 138.0" Z="817" MarginWidth="1.59"/>
+			<n id="1494" p="368.37 130.8" Z="818" MarginWidth="1.59"/>
+			<n id="1495" p="368.37 116.4" Z="819" MarginWidth="1.59"/>
+			<n id="1496" p="355.9 109.2" Z="820" MarginWidth="1.59" AS="N"/>
+			<n id="1497" p="355.9 152.4" Z="826" MarginWidth="1.59"/>
+			<n id="1498" p="343.43 159.6" Z="828" MarginWidth="1.59"/>
+			<n id="1499" p="343.43 174.0" Z="829" MarginWidth="1.59"/>
+			<n id="1500" p="355.9 181.2" Z="830" MarginWidth="1.59" AS="N"/>
+			<n id="1501" p="368.37 174.0" Z="831" MarginWidth="1.59"/>
+			<n id="1502" p="368.37 159.6" Z="832" MarginWidth="1.59"/>
+			<n id="1503" p="330.96 152.4" Z="839" MarginWidth="1.59" AS="N"/>
+			<n id="1504" p="318.49 159.6" Z="840" MarginWidth="1.59" AS="N"/>
+			<n id="1505" p="318.49 174.0" Z="841" MarginWidth="1.59" AS="N"/>
+			<n id="1506" p="330.96 181.2" Z="842" MarginWidth="1.59" AS="N"/>
+			<n id="1507" p="380.84 109.2" Z="848" MarginWidth="1.59"/>
+			<n id="1508" p="380.84 152.4" Z="850" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="376.94 156.32" BoundingBox="376.94 147.87 384.74 156.42" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="1509" p="380.84 138.0" Z="852" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="376.94 141.92" BoundingBox="376.94 133.47 384.74 142.02" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="1510" p="380.84 181.2" Z="854" MarginWidth="1.59"/>
+			<n id="1511" p="393.31 116.4" Z="856" MarginWidth="1.59"/>
+			<n id="1512" p="405.78 109.2" Z="857" MarginWidth="1.59" AS="N"/>
+			<n id="1513" p="405.78 94.8" Z="858" MarginWidth="1.59"/>
+			<n id="1514" p="393.31 87.6" Z="859" MarginWidth="1.59" AS="N"/>
+			<n id="1515" p="380.84 94.8" Z="860" MarginWidth="1.59"/>
+			<n id="1516" p="380.84 195.6" Z="867" MarginWidth="1.59"/>
+			<n id="1517" p="393.31 202.8" Z="868" MarginWidth="1.59" AS="N"/>
+			<n id="1518" p="405.78 195.6" Z="869" MarginWidth="1.59"/>
+			<n id="1519" p="405.78 181.2" Z="870" MarginWidth="1.59" AS="N"/>
+			<n id="1520" p="393.31 174.0" Z="871" MarginWidth="1.59"/>
+			<n id="1521" p="393.31 145.2" Z="878" MarginWidth="1.59" Element="15" NumHydrogens="0" NeedsClean="yes">
+				<t id="0" p="389.99 149.12" BoundingBox="389.99 140.84 396.66 149.12" LabelJustification="Left" LineHeight="variable" LabelAlignment="Below">
+					<s font="3" size="10.0" face="97" color="0">P</s>
+				</t>
+			</n>
+			<n id="1522" p="403.5 135.02" Z="881" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="399.6 138.94" BoundingBox="399.6 130.48 407.4 139.04" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="1523" p="403.5 155.38" Z="883" MarginWidth="1.59" Element="8" NumHydrogens="1" NeedsClean="yes" AS="N">
+				<t id="0" p="399.6 159.31" BoundingBox="399.6 150.85 414.62 159.41" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left">
+					<s font="3" size="10.0" face="97" color="0">OH</s>
+				</t>
+			</n>
+			<n id="1615" p="368.37 87.6" Z="885" MarginWidth="1.59" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="1909">
+					<n id="1837" p="343.52 87.6" Z="533"/>
+					<n id="1838" p="355.94 94.77" Z="534"/>
+					<n id="1839" p="368.37 87.6" Z="535"/>
+					<n id="1840" p="380.8 94.77" Z="536" NodeType="ExternalConnectionPoint"/>
+					<b id="1841" Z="537" B="1838" E="1839"/>
+					<b id="1842" Z="538" B="1837" E="1838"/>
+					<b id="1843" Z="539" B="1840" E="1839"/>
+				</fragment>
+				<t id="0" p="370.32 91.52" BoundingBox="359.75 83.24 370.32 91.52" LabelJustification="Right" Justification="Right" LineHeight="variable" LabelAlignment="Right">
+					<s font="3" size="10.0" face="1" color="0">Pr</s>
+				</t>
+			</n>
+			<n id="1621" p="418.26 87.6" Z="887" MarginWidth="1.59" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="1910">
+					<n id="1846" p="430.68 66.07" Z="540"/>
+					<n id="1847" p="418.26 73.25" Z="541"/>
+					<n id="1848" p="418.26 87.6" Z="542"/>
+					<n id="1849" p="405.83 94.77" Z="543" NodeType="ExternalConnectionPoint"/>
+					<b id="1850" Z="544" B="1847" E="1848"/>
+					<b id="1851" Z="545" B="1846" E="1847"/>
+					<b id="1852" Z="546" B="1849" E="1848"/>
+				</fragment>
+				<t id="0" p="414.93 91.52" BoundingBox="414.93 83.24 425.5 91.52" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left">
+					<s font="3" size="10.0" face="1" color="0">Pr</s>
+				</t>
+			</n>
+			<n id="1629" p="393.31 130.8" Z="889" MarginWidth="1.59" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="1911">
+					<n id="1855" p="405.74 152.32" Z="547"/>
+					<n id="1856" p="405.74 137.97" Z="548"/>
+					<n id="1857" p="393.31 130.8" Z="549"/>
+					<n id="1858" p="393.31 116.45" Z="550" NodeType="ExternalConnectionPoint"/>
+					<b id="1859" Z="551" B="1856" E="1857"/>
+					<b id="1860" Z="552" B="1855" E="1856"/>
+					<b id="1861" Z="553" B="1858" E="1857"/>
+				</fragment>
+				<t id="0" p="389.99 134.72" BoundingBox="389.99 126.44 400.56 134.72" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left">
+					<s font="3" size="10.0" face="1" color="0">Pr</s>
+				</t>
+			</n>
+			<n id="1862" p="368.37 202.8" Z="1028" MarginWidth="1.59" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="1912">
+					<n id="1878" p="355.94 224.32" Z="322"/>
+					<n id="1879" p="368.37 217.15" Z="323"/>
+					<n id="1880" p="368.37 202.8" Z="324"/>
+					<n id="1881" p="380.8 195.62" Z="325" NodeType="ExternalConnectionPoint"/>
+					<b id="1882" Z="326" B="1879" E="1880"/>
+					<b id="1883" Z="327" B="1878" E="1879"/>
+					<b id="1884" Z="328" B="1881" E="1880"/>
+				</fragment>
+				<t id="0" p="370.32 206.72" BoundingBox="359.75 198.44 370.32 206.72" LabelJustification="Right" Justification="Right" LineHeight="variable" LabelAlignment="Right">
+					<s font="3" size="10.0" face="1" color="0">Pr</s>
+				</t>
+			</n>
+			<n id="1864" p="393.31 159.6" Z="1030" MarginWidth="1.59" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="1913">
+					<n id="1887" p="380.89 138.07" Z="331"/>
+					<n id="1888" p="380.89 152.42" Z="332"/>
+					<n id="1889" p="393.31 159.6" Z="333"/>
+					<n id="1890" p="393.31 173.95" Z="334" NodeType="ExternalConnectionPoint"/>
+					<b id="1891" Z="335" B="1888" E="1889"/>
+					<b id="1892" Z="336" B="1887" E="1888"/>
+					<b id="1893" Z="337" B="1890" E="1889"/>
+				</fragment>
+				<t id="0" p="389.99 163.52" BoundingBox="389.99 155.24 400.56 163.52" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left">
+					<s font="3" size="10.0" face="1" color="0">Pr</s>
+				</t>
+			</n>
+			<n id="1866" p="418.26 202.8" Z="1032" MarginWidth="1.59" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="1914">
+					<n id="1896" p="443.11 202.8" Z="340"/>
+					<n id="1897" p="430.68 195.62" Z="341"/>
+					<n id="1898" p="418.26 202.8" Z="342"/>
+					<n id="1899" p="405.83 195.62" Z="343" NodeType="ExternalConnectionPoint"/>
+					<b id="1900" Z="344" B="1897" E="1898"/>
+					<b id="1901" Z="345" B="1896" E="1897"/>
+					<b id="1902" Z="346" B="1899" E="1898"/>
+				</fragment>
+				<t id="0" p="414.93 206.72" BoundingBox="414.93 198.44 425.5 206.72" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left">
+					<s font="3" size="10.0" face="1" color="0">Pr</s>
+				</t>
+			</n>
+			<b id="1568" Z="811" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1487" E="1488" Order="2" DoublePosition="Right" BondCircularOrdering="1573 0 0 1569"/>
+			<b id="1569" Z="812" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1488" E="1489" BS="N"/>
+			<b id="1570" Z="813" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1489" E="1490" Order="2" DoublePosition="Right" BondCircularOrdering="1569 0 1574 1571"/>
+			<b id="1571" Z="814" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1490" E="1491" BS="N"/>
+			<b id="1572" Z="815" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1491" E="1492" Order="2" DoublePosition="Right" BondCircularOrdering="1571 1578 0 1573"/>
+			<b id="1573" Z="816" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1492" E="1487" BS="N"/>
+			<b id="1574" Z="821" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1490" E="1493" BS="N"/>
+			<b id="1575" Z="822" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1493" E="1494" Order="2" DoublePosition="Right" BondCircularOrdering="1574 1579 1593 1576"/>
+			<b id="1576" Z="823" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1494" E="1495" BS="N"/>
+			<b id="1577" Z="824" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1495" E="1496" Order="2" DoublePosition="Right" BondCircularOrdering="1576 1591 0 1578"/>
+			<b id="1578" Z="825" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1496" E="1491" BS="N"/>
+			<b id="1579" Z="827" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1493" E="1497" BS="N"/>
+			<b id="1580" Z="833" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1497" E="1498" Order="2" DoublePosition="Right" BondCircularOrdering="1585 1579 1586 1581"/>
+			<b id="1581" Z="834" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1498" E="1499" BS="N"/>
+			<b id="1582" Z="835" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1499" E="1500" Order="2" DoublePosition="Right" BondCircularOrdering="1581 1590 0 1583"/>
+			<b id="1583" Z="836" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1500" E="1501" BS="N"/>
+			<b id="1584" Z="837" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1501" E="1502" Order="2" DoublePosition="Right" BondCircularOrdering="1583 1594 1592 1585"/>
+			<b id="1585" Z="838" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1502" E="1497" BS="N"/>
+			<b id="1586" Z="843" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1498" E="1503" BS="N"/>
+			<b id="1587" Z="844" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1503" E="1504" Order="2" DoublePosition="Right" BondCircularOrdering="1586 0 0 1588"/>
+			<b id="1588" Z="845" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1504" E="1505" BS="N"/>
+			<b id="1589" Z="846" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1505" E="1506" Order="2" DoublePosition="Right" BondCircularOrdering="1588 0 0 1590"/>
+			<b id="1590" Z="847" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1506" E="1499" BS="N"/>
+			<b id="1591" Z="849" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1495" E="1507" BS="N"/>
+			<b id="1592" Z="851" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1502" E="1508" BS="N"/>
+			<b id="1593" Z="853" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1494" E="1509" BS="N"/>
+			<b id="1594" Z="855" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1501" E="1510" BS="N"/>
+			<b id="1595" Z="861" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1507" E="1511" Order="2" DoublePosition="Right" BondCircularOrdering="1600 1591 1630 1596"/>
+			<b id="1596" Z="862" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1511" E="1512" BS="N"/>
+			<b id="1597" Z="863" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1512" E="1513" Order="2" DoublePosition="Right" BondCircularOrdering="1596 0 1622 1598"/>
+			<b id="1598" Z="864" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1513" E="1514" BS="N"/>
+			<b id="1599" Z="865" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1514" E="1515" Order="2" DoublePosition="Right" BondCircularOrdering="1598 0 1616 1600"/>
+			<b id="1600" Z="866" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1515" E="1507" BS="N"/>
+			<b id="1601" Z="872" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1510" E="1516" Order="2" DoublePosition="Right" BondCircularOrdering="1606 1594 1863 1602"/>
+			<b id="1602" Z="873" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1516" E="1517" BS="N"/>
+			<b id="1603" Z="874" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1517" E="1518" Order="2" DoublePosition="Right" BondCircularOrdering="1602 0 1867 1604"/>
+			<b id="1604" Z="875" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1518" E="1519" BS="N"/>
+			<b id="1605" Z="876" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1519" E="1520" Order="2" DoublePosition="Right" BondCircularOrdering="1604 0 1865 1606"/>
+			<b id="1606" Z="877" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1520" E="1510" BS="N"/>
+			<b id="1607" Z="879" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1509" E="1521" BS="N"/>
+			<b id="1608" Z="880" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1508" E="1521" BS="N"/>
+			<b id="1609" Z="882" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1521" E="1522" Order="2"/>
+			<b id="1610" Z="884" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1521" E="1523" BS="N"/>
+			<b id="1616" Z="886" LineWidth="1.19" B="1515" E="1615" BS="N"/>
+			<b id="1622" Z="888" LineWidth="1.19" B="1513" E="1621" BS="N"/>
+			<b id="1630" Z="890" LineWidth="1.19" B="1511" E="1629" BS="N"/>
+			<b id="1863" Z="1029" LineWidth="1.19" B="1516" E="1862" BS="N"/>
+			<b id="1865" Z="1031" LineWidth="1.19" B="1520" E="1864" BS="N"/>
+			<b id="1867" Z="1033" LineWidth="1.19" B="1518" E="1866" BS="N"/>
+		</fragment>
+		<fragment id="1631" BoundingBox="80.89 295.11 206.79 498.09" Z="893">
+			<n id="1632" p="81.49 367.8" Z="891" MarginWidth="1.59" AS="N"/>
+			<n id="1633" p="81.49 382.2" Z="892" MarginWidth="1.59" AS="N"/>
+			<n id="1634" p="93.96 389.4" Z="894" MarginWidth="1.59" AS="N"/>
+			<n id="1635" p="106.43 382.2" Z="895" MarginWidth="1.59"/>
+			<n id="1636" p="106.43 367.8" Z="896" MarginWidth="1.59"/>
+			<n id="1637" p="93.96 360.6" Z="897" MarginWidth="1.59" AS="N"/>
+			<n id="1638" p="118.9 389.4" Z="904" MarginWidth="1.59"/>
+			<n id="1639" p="131.37 382.2" Z="905" MarginWidth="1.59"/>
+			<n id="1640" p="131.37 367.8" Z="906" MarginWidth="1.59"/>
+			<n id="1641" p="118.9 360.6" Z="907" MarginWidth="1.59" AS="N"/>
+			<n id="1642" p="118.9 403.8" Z="913" MarginWidth="1.59"/>
+			<n id="1643" p="106.43 411.0" Z="915" MarginWidth="1.59"/>
+			<n id="1644" p="106.43 425.4" Z="916" MarginWidth="1.59"/>
+			<n id="1645" p="118.9 432.6" Z="917" MarginWidth="1.59" AS="N"/>
+			<n id="1646" p="131.37 425.4" Z="918" MarginWidth="1.59"/>
+			<n id="1647" p="131.37 411.0" Z="919" MarginWidth="1.59"/>
+			<n id="1648" p="93.96 403.8" Z="926" MarginWidth="1.59" AS="N"/>
+			<n id="1649" p="81.49 411.0" Z="927" MarginWidth="1.59" AS="N"/>
+			<n id="1650" p="81.49 425.4" Z="928" MarginWidth="1.59" AS="N"/>
+			<n id="1651" p="93.96 432.6" Z="929" MarginWidth="1.59" AS="N"/>
+			<n id="1652" p="143.84 360.6" Z="935" MarginWidth="1.59"/>
+			<n id="1653" p="143.84 403.8" Z="937" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="139.94 407.72" BoundingBox="139.94 399.27 147.74 407.82" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="1654" p="143.84 389.4" Z="939" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="139.94 393.32" BoundingBox="139.94 384.87 147.74 393.42" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="1655" p="143.84 432.6" Z="941" MarginWidth="1.59"/>
+			<n id="1656" p="156.31 367.8" Z="943" MarginWidth="1.59" AS="N"/>
+			<n id="1657" p="168.78 360.6" Z="944" MarginWidth="1.59"/>
+			<n id="1658" p="168.78 346.2" Z="945" MarginWidth="1.59" AS="N"/>
+			<n id="1659" p="156.31 339.0" Z="946" MarginWidth="1.59"/>
+			<n id="1660" p="143.84 346.2" Z="947" MarginWidth="1.59" AS="N"/>
+			<n id="1661" p="143.84 447.0" Z="954" MarginWidth="1.59" AS="N"/>
+			<n id="1662" p="156.31 454.2" Z="955" MarginWidth="1.59"/>
+			<n id="1663" p="168.78 447.0" Z="956" MarginWidth="1.59" AS="N"/>
+			<n id="1664" p="168.78 432.6" Z="957" MarginWidth="1.59"/>
+			<n id="1665" p="156.31 425.4" Z="958" MarginWidth="1.59" AS="N"/>
+			<n id="1666" p="156.31 396.6" Z="965" MarginWidth="1.59" Element="15" NumHydrogens="0" NeedsClean="yes">
+				<t id="0" p="152.99 400.52" BoundingBox="152.99 392.24 159.66 400.52" LabelJustification="Left" LineHeight="variable" LabelAlignment="Below">
+					<s font="3" size="10.0" face="97" color="0">P</s>
+				</t>
+			</n>
+			<n id="1667" p="166.5 386.42" Z="968" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="162.6 390.34" BoundingBox="162.6 381.88 170.4 390.44" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="1668" p="166.5 406.78" Z="970" MarginWidth="1.59" Element="8" NumHydrogens="1" NeedsClean="yes" AS="N">
+				<t id="0" p="162.6 410.71" BoundingBox="162.6 402.25 177.62 410.81" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left">
+					<s font="3" size="10.0" face="97" color="0">OH</s>
+				</t>
+			</n>
+			<n id="1669" p="156.31 324.6" Z="972" MarginWidth="1.59"/>
+			<n id="1680" p="181.26 367.8" Z="974" MarginWidth="1.59"/>
+			<n id="1691" p="181.26 425.4" Z="976" MarginWidth="1.59"/>
+			<n id="1702" p="156.31 468.6" Z="978" MarginWidth="1.59"/>
+			<n id="1760" p="168.78 317.4" Z="980" AS="N"/>
+			<n id="1762" p="168.78 303.0" Z="981" AS="N"/>
+			<n id="1764" p="156.31 295.8" Z="982" AS="N"/>
+			<n id="1766" p="143.84 303.0" Z="983" AS="N"/>
+			<n id="1768" p="143.84 317.4" Z="984" AS="N"/>
+			<n id="1776" p="181.26 382.2" Z="991" AS="N"/>
+			<n id="1778" p="193.73 389.4" Z="992" AS="N"/>
+			<n id="1780" p="206.2 382.2" Z="993" AS="N"/>
+			<n id="1782" p="206.2 367.8" Z="994" AS="N"/>
+			<n id="1784" p="193.73 360.6" Z="995" AS="N"/>
+			<n id="1792" p="193.73 432.6" Z="1002" AS="N"/>
+			<n id="1794" p="206.2 425.4" Z="1003" AS="N"/>
+			<n id="1796" p="206.2 411.0" Z="1004" AS="N"/>
+			<n id="1798" p="193.73 403.8" Z="1005" AS="N"/>
+			<n id="1800" p="181.26 411.0" Z="1006" AS="N"/>
+			<n id="1808" p="143.84 475.8" Z="1013" AS="N"/>
+			<n id="1810" p="143.84 490.2" Z="1014" AS="N"/>
+			<n id="1812" p="156.31 497.4" Z="1015" AS="N"/>
+			<n id="1814" p="168.78 490.2" Z="1016" AS="N"/>
+			<n id="1816" p="168.78 475.8" Z="1017" AS="N"/>
+			<b id="1713" Z="898" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1632" E="1633" Order="2" DoublePosition="Right" BondCircularOrdering="1718 0 0 1714"/>
+			<b id="1714" Z="899" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1633" E="1634" BS="N"/>
+			<b id="1715" Z="900" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1634" E="1635" Order="2" DoublePosition="Right" BondCircularOrdering="1714 0 1719 1716"/>
+			<b id="1716" Z="901" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1635" E="1636" BS="N"/>
+			<b id="1717" Z="902" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1636" E="1637" Order="2" DoublePosition="Right" BondCircularOrdering="1716 1723 0 1718"/>
+			<b id="1718" Z="903" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1637" E="1632" BS="N"/>
+			<b id="1719" Z="908" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1635" E="1638" BS="N"/>
+			<b id="1720" Z="909" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1638" E="1639" Order="2" DoublePosition="Right" BondCircularOrdering="1719 1724 1738 1721"/>
+			<b id="1721" Z="910" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1639" E="1640" BS="N"/>
+			<b id="1722" Z="911" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1640" E="1641" Order="2" DoublePosition="Right" BondCircularOrdering="1721 1736 0 1723"/>
+			<b id="1723" Z="912" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1641" E="1636" BS="N"/>
+			<b id="1724" Z="914" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1638" E="1642" BS="N"/>
+			<b id="1725" Z="920" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1642" E="1643" Order="2" DoublePosition="Right" BondCircularOrdering="1730 1724 1731 1726"/>
+			<b id="1726" Z="921" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1643" E="1644" BS="N"/>
+			<b id="1727" Z="922" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1644" E="1645" Order="2" DoublePosition="Right" BondCircularOrdering="1726 1735 0 1728"/>
+			<b id="1728" Z="923" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1645" E="1646" BS="N"/>
+			<b id="1729" Z="924" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1646" E="1647" Order="2" DoublePosition="Right" BondCircularOrdering="1728 1739 1737 1730"/>
+			<b id="1730" Z="925" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1647" E="1642" BS="N"/>
+			<b id="1731" Z="930" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1643" E="1648" BS="N"/>
+			<b id="1732" Z="931" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1648" E="1649" Order="2" DoublePosition="Right" BondCircularOrdering="1731 0 0 1733"/>
+			<b id="1733" Z="932" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1649" E="1650" BS="N"/>
+			<b id="1734" Z="933" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1650" E="1651" Order="2" DoublePosition="Right" BondCircularOrdering="1733 0 0 1735"/>
+			<b id="1735" Z="934" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1651" E="1644" BS="N"/>
+			<b id="1736" Z="936" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1640" E="1652" BS="N"/>
+			<b id="1737" Z="938" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1647" E="1653" BS="N"/>
+			<b id="1738" Z="940" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1639" E="1654" BS="N"/>
+			<b id="1739" Z="942" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1646" E="1655" BS="N"/>
+			<b id="1740" Z="948" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1652" E="1656" Order="2" DoublePosition="Right" BondCircularOrdering="1745 1736 0 1741"/>
+			<b id="1741" Z="949" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1656" E="1657" BS="N"/>
+			<b id="1742" Z="950" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1657" E="1658" Order="2" DoublePosition="Right" BondCircularOrdering="1741 1757 0 1743"/>
+			<b id="1743" Z="951" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1658" E="1659" BS="N"/>
+			<b id="1744" Z="952" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1659" E="1660" Order="2" DoublePosition="Right" BondCircularOrdering="1743 1756 0 1745"/>
+			<b id="1745" Z="953" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1660" E="1652" BS="N"/>
+			<b id="1746" Z="959" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1655" E="1661" Order="2" DoublePosition="Right" BondCircularOrdering="1751 1739 0 1747"/>
+			<b id="1747" Z="960" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1661" E="1662" BS="N"/>
+			<b id="1748" Z="961" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1662" E="1663" Order="2" DoublePosition="Right" BondCircularOrdering="1747 1759 0 1749"/>
+			<b id="1749" Z="962" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1663" E="1664" BS="N"/>
+			<b id="1750" Z="963" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1664" E="1665" Order="2" DoublePosition="Right" BondCircularOrdering="1749 1758 0 1751"/>
+			<b id="1751" Z="964" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1665" E="1655" BS="N"/>
+			<b id="1752" Z="966" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1654" E="1666" BS="N"/>
+			<b id="1753" Z="967" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1653" E="1666" BS="N"/>
+			<b id="1754" Z="969" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1666" E="1667" Order="2"/>
+			<b id="1755" Z="971" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1666" E="1668" BS="N"/>
+			<b id="1756" Z="973" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1659" E="1669" BS="N"/>
+			<b id="1757" Z="975" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1657" E="1680" BS="N"/>
+			<b id="1758" Z="977" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1664" E="1691" BS="N"/>
+			<b id="1759" Z="979" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="1662" E="1702" BS="N"/>
+			<b id="1770" Z="985" LineWidth="1.19" B="1669" E="1760" Order="2" DoublePosition="Right" BondCircularOrdering="1775 1756 0 1771"/>
+			<b id="1771" Z="986" LineWidth="1.19" B="1760" E="1762" BS="N"/>
+			<b id="1772" Z="987" LineWidth="1.19" B="1762" E="1764" Order="2" DoublePosition="Right" BondCircularOrdering="1771 0 0 1773"/>
+			<b id="1773" Z="988" LineWidth="1.19" B="1764" E="1766" BS="N"/>
+			<b id="1774" Z="989" LineWidth="1.19" B="1766" E="1768" Order="2" DoublePosition="Right" BondCircularOrdering="1773 0 0 1775"/>
+			<b id="1775" Z="990" LineWidth="1.19" B="1768" E="1669" BS="N"/>
+			<b id="1786" Z="996" LineWidth="1.19" B="1680" E="1776" Order="2" DoublePosition="Right" BondCircularOrdering="1791 1757 0 1787"/>
+			<b id="1787" Z="997" LineWidth="1.19" B="1776" E="1778" BS="N"/>
+			<b id="1788" Z="998" LineWidth="1.19" B="1778" E="1780" Order="2" DoublePosition="Right" BondCircularOrdering="1787 0 0 1789"/>
+			<b id="1789" Z="999" LineWidth="1.19" B="1780" E="1782" BS="N"/>
+			<b id="1790" Z="1000" LineWidth="1.19" B="1782" E="1784" Order="2" DoublePosition="Right" BondCircularOrdering="1789 0 0 1791"/>
+			<b id="1791" Z="1001" LineWidth="1.19" B="1784" E="1680" BS="N"/>
+			<b id="1802" Z="1007" LineWidth="1.19" B="1691" E="1792" Order="2" DoublePosition="Right" BondCircularOrdering="1807 1758 0 1803"/>
+			<b id="1803" Z="1008" LineWidth="1.19" B="1792" E="1794" BS="N"/>
+			<b id="1804" Z="1009" LineWidth="1.19" B="1794" E="1796" Order="2" DoublePosition="Right" BondCircularOrdering="1803 0 0 1805"/>
+			<b id="1805" Z="1010" LineWidth="1.19" B="1796" E="1798" BS="N"/>
+			<b id="1806" Z="1011" LineWidth="1.19" B="1798" E="1800" Order="2" DoublePosition="Right" BondCircularOrdering="1805 0 0 1807"/>
+			<b id="1807" Z="1012" LineWidth="1.19" B="1800" E="1691" BS="N"/>
+			<b id="1818" Z="1018" LineWidth="1.19" B="1702" E="1808" Order="2" DoublePosition="Right" BondCircularOrdering="1823 1759 0 1819"/>
+			<b id="1819" Z="1019" LineWidth="1.19" B="1808" E="1810" BS="N"/>
+			<b id="1820" Z="1020" LineWidth="1.19" B="1810" E="1812" Order="2" DoublePosition="Right" BondCircularOrdering="1819 0 0 1821"/>
+			<b id="1821" Z="1021" LineWidth="1.19" B="1812" E="1814" BS="N"/>
+			<b id="1822" Z="1022" LineWidth="1.19" B="1814" E="1816" Order="2" DoublePosition="Right" BondCircularOrdering="1821 0 0 1823"/>
+			<b id="1823" Z="1023" LineWidth="1.19" B="1816" E="1702" BS="N"/>
+		</fragment>
+		<t id="1824" p="113.76 255.0" BoundingBox="113.76 245.75 162.21 281.0" Z="1024" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto" LineStarts="11 18 24">
+			<s font="3" size="10.0" face="1" color="0">10 % yield
+66 % A
+4 % BP</s>
+		</t>
+		<t id="1825" p="349.56 255.0" BoundingBox="349.56 245.75 398.01 281.0" Z="1025" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto" LineStarts="11 18 25">
+			<s font="3" size="10.0" face="1" color="0">16 % yield
+63 % A
+11 % BP</s>
+		</t>
+		<t id="1826" p="109.56 520.8" BoundingBox="109.56 511.55 158.01 546.8" Z="1026" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto" LineStarts="11 18 24">
+			<s font="3" size="10.0" face="1" color="0">12 % yield
+53 % A
+6 % BP</s>
+		</t>
+		<t id="1827" p="345.96 522.0" BoundingBox="345.96 512.75 394.41 548.0" Z="1027" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto" LineStarts="11 17 25">
+			<s font="3" size="10.0" face="1" color="0">10 % yield
+87% A
+trace BP</s>
+		</t>
+	</page>
+</CDXML>

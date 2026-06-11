@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML id="5000" BoundingBox="50.25 101.95 210.48 292.33" BoldWidth="2" BondLength="14.4" BondSpacing="18" CaptionColor="0" CaptionFace="0" CaptionFont="3" CaptionJustification="Left" CaptionSize="10" ChainAngle="120" CreationProgram="ChemDraw 18.1.0.535" FractionalWidths="yes" HashSpacing="2.5" HideImplicitHydrogens="no" InterpretChemically="yes" LabelColor="0" LabelFace="96" LabelFont="3" LabelJustification="Unspecified" LabelSize="10" LineWidth="0.6" MarginWidth="1.6" Name="standard_test.cdxml" PrintMargins="36 36 36 36" ShowAtomEnhancedStereo="yes" WindowIsZoomed="yes" WindowPosition="0 0" WindowSize="-32768 -32768" bgcolor="1" color="0">
+  <colortable>
+    <color b="1" g="1" r="1"/>
+    <color b="0" g="0" r="0"/>
+    <color b="0" g="0" r="1"/>
+    <color b="0" g="1" r="1"/>
+    <color b="0" g="1" r="0"/>
+    <color b="1" g="1" r="0"/>
+    <color b="1" g="0" r="0"/>
+    <color b="1" g="0" r="1"/>
+  </colortable>
+  <fonttable>
+    <font id="3" charset="iso-8859-1" name="Arial"/>
+    <font id="4" charset="iso-8859-1" name="Times New Roman"/>
+  </fonttable>
+  <page id="104" BoundingBox="0 0 540 719.75" FooterPosition="36" HeaderPosition="36" HeightPages="1" PrintTrimMarks="yes" WidthPages="1">
+    <fragment id="5" BoundingBox="59.23 101.95 125.78 157.33" Z="66">
+      <n id="2" p="59.53 123.55" Z="64" AS="N"/>
+      <n id="4" p="59.53 137.95" Z="65" AS="N"/>
+      <n id="6" p="72 145.15" Z="67" AS="N" Element="7" NumHydrogens="1">
+        <t id="5007" BoundingBox="68.4 140.77 75.62 157.33" p="68.4 149.05" LabelAlignment="Below" LabelJustification="Left" LineStarts="2 3">
+          <s font="3" size="10" face="96" color="0">NH</s>
+        </t>
+      </n>
+      <n id="8" p="84.47 137.95" Z="68" AS="N"/>
+      <n id="10" p="84.47 123.55" Z="69" AS="N"/>
+      <n id="12" p="72 116.35" Z="70" AS="N"/>
+      <n id="20" p="96.94 145.15" Z="77" AS="N"/>
+      <n id="22" p="109.41 137.95" Z="78" AS="N"/>
+      <n id="24" p="109.41 123.55" Z="79" AS="N"/>
+      <n id="26" p="96.94 116.35" Z="80" AS="N"/>
+      <n id="33" p="72 101.95" Z="86" AS="N"/>
+      <n id="35" p="84.47 109.15" Z="88" AS="N"/>
+      <n id="37" p="121.88 116.35" Z="90" AS="N" Element="8" NumHydrogens="0">
+        <t id="5008" BoundingBox="117.98 111.79 125.78 120.35" p="117.98 120.25" LabelJustification="Left">
+          <s font="3" size="10" face="96" color="0">O</s>
+        </t>
+      </n>
+      <n id="39" p="121.88 101.95" Z="92" AS="N"/>
+      <b id="14" Z="71" B="2" BS="N" E="4" Order="2"/>
+      <b id="15" Z="72" B="4" BS="N" E="6"/>
+      <b id="16" Z="73" B="6" BS="N" E="8"/>
+      <b id="17" Z="74" B="8" BS="N" E="10" Order="2"/>
+      <b id="18" Z="75" B="10" BS="N" E="12"/>
+      <b id="19" Z="76" B="12" BS="N" E="2"/>
+      <b id="28" Z="81" B="8" BS="N" E="20"/>
+      <b id="29" Z="82" B="20" BS="N" E="22"/>
+      <b id="30" Z="83" B="22" BS="N" E="24"/>
+      <b id="31" Z="84" B="24" BS="N" E="26"/>
+      <b id="32" Z="85" B="26" BS="N" E="10"/>
+      <b id="34" Z="87" B="12" BS="N" E="33"/>
+      <b id="36" Z="89" B="12" BS="N" E="35"/>
+      <b id="38" Z="91" B="24" BS="N" E="37"/>
+      <b id="40" Z="93" B="37" BS="N" E="39"/>
+    </fragment>
+    <fragment id="43" BoundingBox="113.23 236.95 179.78 292.33" Z="97">
+      <n id="44" p="113.53 258.55" Z="95" AS="N"/>
+      <n id="45" p="113.53 272.95" Z="96" AS="N"/>
+      <n id="46" p="126 280.15" Z="98" AS="N" Element="7" NumHydrogens="1">
+        <t id="5009" BoundingBox="122.4 275.77 129.62 292.33" p="122.4 284.05" LabelAlignment="Below" LabelJustification="Left" LineStarts="2 3">
+          <s font="3" size="10" face="96" color="0">NH</s>
+        </t>
+      </n>
+      <n id="47" p="138.47 272.95" Z="99" AS="N"/>
+      <n id="48" p="138.47 258.55" Z="100" AS="N"/>
+      <n id="49" p="126 251.35" Z="101" AS="N"/>
+      <n id="50" p="150.94 280.15" Z="108" AS="N"/>
+      <n id="51" p="163.41 272.95" Z="109" AS="N"/>
+      <n id="52" p="163.41 258.55" Z="110" AS="N"/>
+      <n id="53" p="150.94 251.35" Z="111" AS="N"/>
+      <n id="54" p="126 236.95" Z="117" AS="N"/>
+      <n id="55" p="138.47 244.15" Z="119" AS="N"/>
+      <n id="56" p="175.88 251.35" Z="121" AS="N" Element="8" NumHydrogens="0">
+        <t id="5010" BoundingBox="171.98 246.79 179.78 255.35" p="171.98 255.25" LabelJustification="Left">
+          <s font="3" size="10" face="96" color="0">O</s>
+        </t>
+      </n>
+      <n id="57" p="175.88 236.95" Z="123" AS="N"/>
+      <b id="58" Z="102" B="44" BS="N" E="45"/>
+      <b id="59" Z="103" B="45" BS="N" E="46"/>
+      <b id="60" Z="104" B="46" BS="N" E="47"/>
+      <b id="61" Z="105" B="47" BS="N" E="48" Order="2"/>
+      <b id="62" Z="106" B="48" BS="N" E="49"/>
+      <b id="63" Z="107" B="49" BS="N" E="44"/>
+      <b id="64" Z="112" B="47" BS="N" E="50"/>
+      <b id="65" Z="113" B="50" BS="N" E="51"/>
+      <b id="66" Z="114" B="51" BS="N" E="52"/>
+      <b id="67" Z="115" B="52" BS="N" E="53"/>
+      <b id="68" Z="116" B="53" BS="N" E="48"/>
+      <b id="69" Z="118" B="49" BS="N" E="54"/>
+      <b id="70" Z="120" B="49" BS="N" E="55"/>
+      <b id="71" Z="122" B="52" BS="N" E="56"/>
+      <b id="72" Z="124" B="56" BS="N" E="57"/>
+    </fragment>
+    <t id="41" BoundingBox="50.25 160 210.48 178.4" p="50.25 174.25" Z="94">
+      <s font="3" size="10" face="0" color="0">Just some</s>
+      <s font="4" size="16" face="0" color="0"> text to</s>
+      <s font="3" size="10" face="0" color="0"> test conversion</s>
+    </t>
+    <graphic id="99" BoundingBox="198 256.2 198 283.8" Z="125" BracketType="5" GraphicType="Bracket"/>
+    <graphic id="100" BoundingBox="91.8 283.8 91.8 256.2" Z="126" BracketType="5" GraphicType="Bracket"/>
+    <bracketedgroup id="105">
+      <bracketattachment id="106" GraphicID="100"/>
+      <bracketattachment id="107" GraphicID="99"/>
+    </bracketedgroup>
+  </page>
+</CDXML>

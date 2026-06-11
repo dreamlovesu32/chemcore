@@ -1,0 +1,675 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML CreationProgram="ChemDraw 14.0.0.117" Name="Microsoft PowerPoint - ¹¤×÷»ã±¨-jc-2017-2-13" BoundingBox="24.49 93.76 521.3 434.3" WindowPosition="-19200.0 -19232.4" WindowSize="1114.8 548.4" WindowIsZoomed="yes" FractionalWidths="yes" InterpretChemically="yes" ShowAtomQuery="yes" ShowAtomStereo="no" ShowAtomEnhancedStereo="yes" ShowAtomNumber="no" ShowResidueID="no" ShowBondQuery="yes" ShowBondRxn="yes" ShowBondStereo="no" ShowTerminalCarbonLabels="no" ShowNonTerminalCarbonLabels="no" HideImplicitHydrogens="no" LabelFont="3" LabelSize="10.0" LabelFace="1" CaptionFont="3" CaptionSize="10.0" CaptionFace="1" HashSpacing="2.5" MarginWidth="1.6" LineWidth="0.6" BoldWidth="2.0" BondLength="14.4" BondSpacing="18" ChainAngle="7864320" LabelJustification="Auto" CaptionJustification="Left" AminoAcidTermini="HOH" ShowSequenceTermini="yes" ShowSequenceBonds="yes" ResidueWrapCount="40" ResidueBlockCount="10" ResidueZigZag="yes" NumberResidueBlocks="no" PrintMargins="36.0 36.0 36.0 36.0" color="0" bgcolor="1" MacPrintInfo="0003000002580258000000001b681361000000001b6813610367057b03e00002000002580258000000001b681361000100000064000000010001010100020001270f000100010000000000000000000000000002001901900000000000600000000000000000000100000000000000000000000000000000" ChemPropName="" ChemPropFormula="Chemical Formula: " ChemPropExactMass="Exact Mass: " ChemPropMolWt="Molecular Weight: " ChemPropMOverZ="m/z: " ChemPropAnalysis="Elemental Analysis: " ChemPropBoilingPt="Boiling Point: " ChemPropMeltingPt="Melting Point: " ChemPropCritTemp="Critical Temp: " ChemPropCritPres="Critical Pres: " ChemPropCritVol="Critical Vol: " ChemPropGibbs="Gibbs Energy: " ChemPropLogP="Log P: " ChemPropMR="MR: " ChemPropHenry="Henry's Law: " ChemPropEForm="Heat of Form: " ChemProptPSA="tPSA: " ChemPropCLogP="CLogP: " ChemPropCMR="CMR: " ChemPropLogS="LogS: " ChemPropPKa="pKa: ">
+	<colortable>
+		<color r="1.0" g="1.0" b="1.0"/>
+		<color r="0.0" g="0.0" b="0.0"/>
+		<color r="1.0" g="0.0" b="0.0"/>
+		<color r="1.0" g="1.0" b="0.0"/>
+		<color r="0.0" g="1.0" b="0.0"/>
+		<color r="0.0" g="1.0" b="1.0"/>
+		<color r="0.0" g="0.0" b="1.0"/>
+		<color r="1.0" g="0.0" b="1.0"/>
+	</colortable>
+	<fonttable>
+		<font id="3" charset="iso-8859-1" name="Arial"/>
+	</fonttable>
+	<page id="1600" BoundingBox="0.0 0.0 523.32 769.92" HeaderPosition="36.0" FooterPosition="36.0" PrintTrimMarks="yes" HeightPages="1" WidthPages="1">
+		<fragment id="105" BoundingBox="174.88 97.57 293.65 109.32" Z="507">
+			<n id="104" p="178.48 102.9" Z="506" Warning="ChemDraw can't interpret this label." MarginWidth="1.59" NodeType="Unspecified" NeedsClean="yes" AS="N">
+				<t id="0" p="174.88 106.82" BoundingBox="174.88 97.57 293.65 109.32" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left">
+					<s font="3" size="10.0" face="97" color="0">Cu(CH3CN)4PF6 (5 mol%)</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="110" BoundingBox="198.23 132.37 269.21 144.12" Z="510">
+			<n id="109" p="201.83 137.7" Z="509" Warning="ChemDraw can't interpret this label." MarginWidth="1.59" NodeType="Unspecified" NeedsClean="yes" AS="N">
+				<t id="0" p="198.23 141.62" BoundingBox="198.23 132.37 269.21 144.12" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left">
+					<s font="3" size="10.0" face="97" color="0">CH3CN (0.5 ml)</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="114" BoundingBox="355.22 316.93 474.58 392.09" Z="513">
+			<n id="111" p="402.43 337.2" Z="511" MarginWidth="1.59"/>
+			<n id="113" p="402.43 351.6" Z="512" MarginWidth="1.59" Element="7" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="398.83 355.52" BoundingBox="398.83 347.24 406.05 355.52" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">N</s>
+				</t>
+			</n>
+			<n id="117" p="427.37 351.6" Z="514" MarginWidth="1.59" Element="7" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="423.77 355.52" BoundingBox="423.77 347.24 430.99 355.52" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">N</s>
+				</t>
+			</n>
+			<n id="119" p="427.37 337.2" Z="515" MarginWidth="1.59"/>
+			<n id="121" p="414.9 330.0" Z="516" MarginWidth="1.59"/>
+			<n id="129" p="388.73 332.75" Z="521" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="384.83 336.68" BoundingBox="384.83 328.22 392.63 336.78" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="131" p="380.27 344.4" Z="522" MarginWidth="1.59" Geometry="Tetrahedral" BondOrdering="136 137 0 155"/>
+			<n id="133" p="388.73 356.05" Z="523" MarginWidth="1.59" Geometry="Tetrahedral" BondOrdering="138 137 158 0"/>
+			<n id="139" p="441.07 356.05" Z="528" MarginWidth="1.59" Geometry="Tetrahedral" BondOrdering="145 146 165 0"/>
+			<n id="141" p="449.53 344.4" Z="529" MarginWidth="1.59" Geometry="Tetrahedral" BondOrdering="146 147 168 0"/>
+			<n id="143" p="441.07 332.75" Z="530" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="437.17 336.68" BoundingBox="437.17 328.22 444.97 336.78" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="149" p="366.57 348.85" Z="535" MarginWidth="1.59" AS="N"/>
+			<n id="151" p="366.57 363.25" Z="536" MarginWidth="1.59"/>
+			<n id="153" p="380.27 367.7" Z="537" MarginWidth="1.59"/>
+			<n id="159" p="449.53 367.7" Z="542" MarginWidth="1.59"/>
+			<n id="161" p="463.23 363.25" Z="543" MarginWidth="1.59"/>
+			<n id="163" p="463.23 348.85" Z="544" MarginWidth="1.59" AS="N"/>
+			<n id="169" p="355.87 372.89" Z="549" MarginWidth="1.59" AS="N"/>
+			<n id="171" p="358.87 386.97" Z="550" MarginWidth="1.59" AS="N"/>
+			<n id="173" p="372.56 391.42" Z="551" MarginWidth="1.59" AS="N"/>
+			<n id="175" p="383.26 381.78" Z="552" MarginWidth="1.59" AS="N"/>
+			<n id="182" p="446.54 381.78" Z="558" MarginWidth="1.59" AS="N"/>
+			<n id="184" p="457.24 391.42" Z="559" MarginWidth="1.59" AS="N"/>
+			<n id="186" p="470.93 386.97" Z="560" MarginWidth="1.59" AS="N"/>
+			<n id="188" p="473.93 372.89" Z="561" MarginWidth="1.59" AS="N"/>
+			<n id="195" p="422.1 317.53" Z="567" MarginWidth="1.59" AS="N"/>
+			<n id="197" p="407.7 317.53" Z="568" MarginWidth="1.59" AS="N"/>
+			<b id="123" Z="517" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="111" E="113" Order="2" DoublePosition="Left" BondCircularOrdering="128 135 138 0"/>
+			<b id="126" Z="518" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="117" E="119" Order="2" DoublePosition="Left" BondCircularOrdering="0 145 148 127"/>
+			<b id="127" Z="519" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="119" E="121" BS="N"/>
+			<b id="128" Z="520" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="121" E="111" BS="N"/>
+			<b id="135" Z="524" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="111" E="129" BS="N"/>
+			<b id="136" Z="525" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="129" E="131" BS="N"/>
+			<b id="137" Z="526" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="131" E="133" BS="N"/>
+			<b id="138" Z="527" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="133" E="113" BS="N"/>
+			<b id="145" Z="531" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="117" E="139" BS="N"/>
+			<b id="146" Z="532" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="139" E="141" BS="N"/>
+			<b id="147" Z="533" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="141" E="143" BS="N"/>
+			<b id="148" Z="534" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="143" E="119" BS="N"/>
+			<b id="155" Z="538" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="131" E="149" Display="WedgedHashBegin" BS="N"/>
+			<b id="156" Z="539" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="149" E="151" BS="N"/>
+			<b id="157" Z="540" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="151" E="153" Order="2" DoublePosition="Left" BondCircularOrdering="156 177 181 158"/>
+			<b id="158" Z="541" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="153" E="133" Display="WedgedHashEnd" BS="N"/>
+			<b id="165" Z="545" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="139" E="159" Display="WedgeBegin" BS="N"/>
+			<b id="166" Z="546" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="159" E="161" Order="2" DoublePosition="Left" BondCircularOrdering="165 190 194 167"/>
+			<b id="167" Z="547" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="161" E="163" BS="N"/>
+			<b id="168" Z="548" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="163" E="141" Display="WedgeEnd" BS="N"/>
+			<b id="177" Z="553" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="151" E="169" BS="N"/>
+			<b id="178" Z="554" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="169" E="171" Order="2" DoublePosition="Right" BondCircularOrdering="177 0 0 179"/>
+			<b id="179" Z="555" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="171" E="173" BS="N"/>
+			<b id="180" Z="556" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="173" E="175" Order="2" DoublePosition="Right" BondCircularOrdering="179 0 0 181"/>
+			<b id="181" Z="557" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="175" E="153" BS="N"/>
+			<b id="190" Z="562" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="159" E="182" BS="N"/>
+			<b id="191" Z="563" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="182" E="184" Order="2" DoublePosition="Right" BondCircularOrdering="190 0 0 192"/>
+			<b id="192" Z="564" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="184" E="186" BS="N"/>
+			<b id="193" Z="565" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="186" E="188" Order="2" DoublePosition="Right" BondCircularOrdering="192 0 0 194"/>
+			<b id="194" Z="566" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="188" E="161" BS="N"/>
+			<b id="199" Z="569" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="121" E="195" BS="N"/>
+			<b id="200" Z="570" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="195" E="197" BS="N"/>
+			<b id="201" Z="571" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="197" E="121" BS="N"/>
+		</fragment>
+		<fragment id="202" BoundingBox="366.2 185.45 447.45 251.87" Z="574">
+			<n id="203" p="394.63 215.4" Z="572" MarginWidth="1.59"/>
+			<n id="204" p="394.63 229.8" Z="573" MarginWidth="1.59" Element="7" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="391.03 233.72" BoundingBox="391.03 225.44 398.25 233.72" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">N</s>
+				</t>
+			</n>
+			<n id="205" p="419.57 229.8" Z="575" MarginWidth="1.59" Element="7" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="415.97 233.72" BoundingBox="415.97 225.44 423.19 233.72" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">N</s>
+				</t>
+			</n>
+			<n id="206" p="419.57 215.4" Z="576" MarginWidth="1.59"/>
+			<n id="207" p="407.1 208.2" Z="577" MarginWidth="1.59"/>
+			<n id="208" p="380.93 210.95" Z="582" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="377.03 214.88" BoundingBox="377.03 206.42 384.83 214.98" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="209" p="372.47 222.6" Z="583" MarginWidth="1.59" AS="N"/>
+			<n id="210" p="380.93 234.25" Z="584" MarginWidth="1.59" Geometry="Tetrahedral" BondOrdering="237 236 0 267"/>
+			<n id="211" p="433.27 234.25" Z="589" MarginWidth="1.59" Geometry="Tetrahedral" BondOrdering="238 239 0 269"/>
+			<n id="212" p="441.73 222.6" Z="590" MarginWidth="1.59" AS="N"/>
+			<n id="213" p="433.27 210.95" Z="591" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="429.37 214.88" BoundingBox="429.37 206.42 437.17 214.98" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="266" p="376.48 247.95" Z="596" MarginWidth="1.59" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="1601">
+					<n id="611" p="362.45 250.93" Z="445"/>
+					<n id="612" p="352.85 240.26" Z="446"/>
+					<n id="613" p="338.81 243.25" Z="447"/>
+					<n id="614" p="334.37 256.9" Z="448"/>
+					<n id="615" p="343.98 267.56" Z="449"/>
+					<n id="616" p="358.01 264.58" Z="450"/>
+					<n id="617" p="376.48 247.95" Z="451"/>
+					<n id="618" p="380.92 234.3" Z="452" NodeType="ExternalConnectionPoint"/>
+					<b id="619" Z="453" B="615" E="616" Order="2" DoublePosition="Right" BondCircularOrdering="620 0 0 624"/>
+					<b id="620" Z="454" B="614" E="615"/>
+					<b id="621" Z="455" B="613" E="614" Order="2" DoublePosition="Right" BondCircularOrdering="622 0 0 620"/>
+					<b id="622" Z="456" B="612" E="613"/>
+					<b id="623" Z="457" B="611" E="612" Order="2" DoublePosition="Right" BondCircularOrdering="624 625 0 622"/>
+					<b id="624" Z="458" B="611" E="616"/>
+					<b id="625" Z="459" B="611" E="617"/>
+					<b id="626" Z="460" B="618" E="617" Display="WedgeBegin"/>
+				</fragment>
+				<t id="0" p="379.53 251.87" BoundingBox="366.2 245.22 379.53 251.87" LabelJustification="Right" Justification="Right" LineHeight="variable" LabelAlignment="Right">
+					<s font="3" size="10.0" face="97" color="0">Bn</s>
+				</t>
+			</n>
+			<n id="268" p="437.72 247.95" Z="598" MarginWidth="1.59" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="1602">
+					<n id="629" p="428.11 258.61" Z="461"/>
+					<n id="630" p="414.08 255.63" Z="462"/>
+					<n id="631" p="404.48 266.29" Z="463"/>
+					<n id="632" p="408.91 279.94" Z="464"/>
+					<n id="633" p="422.95 282.92" Z="465"/>
+					<n id="634" p="432.55 272.26" Z="466"/>
+					<n id="635" p="437.72 247.95" Z="467"/>
+					<n id="636" p="433.28 234.3" Z="468" NodeType="ExternalConnectionPoint"/>
+					<b id="637" Z="469" B="633" E="634" Order="2" DoublePosition="Right" BondCircularOrdering="638 0 0 642"/>
+					<b id="638" Z="470" B="632" E="633"/>
+					<b id="639" Z="471" B="631" E="632" Order="2" DoublePosition="Right" BondCircularOrdering="640 0 0 638"/>
+					<b id="640" Z="472" B="630" E="631"/>
+					<b id="641" Z="473" B="629" E="630" Order="2" DoublePosition="Right" BondCircularOrdering="642 643 0 640"/>
+					<b id="642" Z="474" B="629" E="634"/>
+					<b id="643" Z="475" B="629" E="635"/>
+					<b id="644" Z="476" B="636" E="635" Display="WedgedHashBegin"/>
+				</fragment>
+				<t id="0" p="434.12 251.87" BoundingBox="434.12 245.22 447.45 251.87" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left">
+					<s font="3" size="10.0" face="97" color="0">Bn</s>
+				</t>
+			</n>
+			<n id="270" p="418.75 199.74" Z="600" MarginWidth="1.59" AS="N"/>
+			<n id="272" p="414.3 186.04" Z="601" MarginWidth="1.59" AS="N"/>
+			<n id="274" p="399.9 186.04" Z="602" MarginWidth="1.59" AS="N"/>
+			<n id="276" p="395.45 199.74" Z="603" MarginWidth="1.59" AS="N"/>
+			<b id="230" Z="578" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="203" E="204" Order="2" DoublePosition="Left" BondCircularOrdering="233 234 237 0"/>
+			<b id="231" Z="579" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="205" E="206" Order="2" DoublePosition="Left" BondCircularOrdering="0 238 241 232"/>
+			<b id="232" Z="580" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="206" E="207" BS="N"/>
+			<b id="233" Z="581" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="207" E="203" BS="N"/>
+			<b id="234" Z="585" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="203" E="208" BS="N"/>
+			<b id="235" Z="586" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="208" E="209" BS="N"/>
+			<b id="236" Z="587" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="209" E="210" BS="N"/>
+			<b id="237" Z="588" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="210" E="204" BS="N"/>
+			<b id="238" Z="592" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="205" E="211" BS="N"/>
+			<b id="239" Z="593" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="211" E="212" BS="N"/>
+			<b id="240" Z="594" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="212" E="213" BS="N"/>
+			<b id="241" Z="595" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="213" E="206" BS="N"/>
+			<b id="267" Z="597" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="210" E="266" Display="WedgeBegin" BS="N"/>
+			<b id="269" Z="599" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="211" E="268" Display="WedgedHashBegin" BS="N"/>
+			<b id="278" Z="604" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="207" E="270" BS="N"/>
+			<b id="279" Z="605" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="270" E="272" BS="N"/>
+			<b id="280" Z="606" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="272" E="274" BS="N"/>
+			<b id="281" Z="607" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="274" E="276" BS="N"/>
+			<b id="282" Z="608" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="276" E="207" BS="N"/>
+		</fragment>
+		<fragment id="451" BoundingBox="199.93 311.13 321.47 383.09" Z="611">
+			<n id="448" p="248.23 319.02" Z="609" MarginWidth="1.59" AS="N"/>
+			<n id="450" p="248.23 333.42" Z="610" MarginWidth="1.59"/>
+			<n id="452" p="260.7 340.62" Z="612" MarginWidth="1.59" Element="7" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="257.1 344.54" BoundingBox="257.1 336.26 264.32 344.54" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">N</s>
+				</t>
+			</n>
+			<n id="454" p="273.17 333.42" Z="613" MarginWidth="1.59"/>
+			<n id="456" p="273.17 319.02" Z="614" MarginWidth="1.59" AS="N"/>
+			<n id="458" p="260.7 311.82" Z="615" MarginWidth="1.59" AS="N"/>
+			<n id="466" p="235.76 340.62" Z="622" MarginWidth="1.59"/>
+			<n id="468" p="285.64 340.62" Z="624" MarginWidth="1.59"/>
+			<n id="470" p="222.6 334.76" Z="626" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="218.7 338.69" BoundingBox="218.7 330.23 226.5 338.79" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="472" p="212.97 345.46" Z="627" MarginWidth="1.59" AS="N"/>
+			<n id="474" p="220.17 357.93" Z="628" MarginWidth="1.59" Geometry="Tetrahedral" BondOrdering="480 481 497 0"/>
+			<n id="476" p="234.25 354.94" Z="629" MarginWidth="1.59" Element="7" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="230.65 358.87" BoundingBox="230.65 350.58 237.87 358.87" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">N</s>
+				</t>
+			</n>
+			<n id="483" p="287.15 354.94" Z="635" MarginWidth="1.59" Element="7" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="283.55 358.87" BoundingBox="283.55 350.58 290.77 358.87" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">N</s>
+				</t>
+			</n>
+			<n id="485" p="301.23 357.93" Z="636" MarginWidth="1.59" Geometry="Tetrahedral" BondOrdering="492 493 0 499"/>
+			<n id="487" p="308.43 345.46" Z="637" MarginWidth="1.59" AS="N"/>
+			<n id="489" p="298.8 334.76" Z="638" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="294.9 338.69" BoundingBox="294.9 330.23 302.7 338.79" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="496" p="214.31 371.09" Z="644" MarginWidth="1.59"/>
+			<n id="498" p="307.09 371.09" Z="646" MarginWidth="1.59"/>
+			<n id="500" p="222.78 382.74" Z="648" MarginWidth="1.59" AS="N"/>
+			<n id="502" p="199.99 372.59" Z="650" MarginWidth="1.59" AS="N"/>
+			<n id="504" p="298.62 382.74" Z="652" MarginWidth="1.59" AS="N"/>
+			<n id="506" p="321.41 372.59" Z="654" MarginWidth="1.59" AS="N"/>
+			<b id="460" Z="616" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="448" E="450" Order="2" DoublePosition="Right" BondCircularOrdering="465 0 467 461"/>
+			<b id="461" Z="617" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="450" E="452" BS="N"/>
+			<b id="462" Z="618" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="452" E="454" Order="2" DoublePosition="Right" BondCircularOrdering="461 0 469 463"/>
+			<b id="463" Z="619" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="454" E="456" BS="N"/>
+			<b id="464" Z="620" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="456" E="458" Order="2" DoublePosition="Right" BondCircularOrdering="463 0 0 465"/>
+			<b id="465" Z="621" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="458" E="448" BS="N"/>
+			<b id="467" Z="623" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="450" E="466" BS="N"/>
+			<b id="469" Z="625" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="454" E="468" BS="N"/>
+			<b id="478" Z="630" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="466" E="470" BS="N"/>
+			<b id="479" Z="631" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="470" E="472" BS="N"/>
+			<b id="480" Z="632" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="472" E="474" BS="N"/>
+			<b id="481" Z="633" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="474" E="476" BS="N"/>
+			<b id="482" Z="634" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="476" E="466" Order="2" DoublePosition="Right" BondCircularOrdering="481 0 467 478"/>
+			<b id="491" Z="639" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="468" E="483" Order="2" DoublePosition="Right" BondCircularOrdering="495 469 0 492"/>
+			<b id="492" Z="640" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="483" E="485" BS="N"/>
+			<b id="493" Z="641" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="485" E="487" BS="N"/>
+			<b id="494" Z="642" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="487" E="489" BS="N"/>
+			<b id="495" Z="643" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="489" E="468" BS="N"/>
+			<b id="497" Z="645" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="474" E="496" Display="WedgeBegin" BS="N"/>
+			<b id="499" Z="647" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="485" E="498" Display="WedgedHashBegin" BS="N"/>
+			<b id="501" Z="649" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="496" E="500" BS="N"/>
+			<b id="503" Z="651" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="496" E="502" BS="N"/>
+			<b id="505" Z="653" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="498" E="504" BS="N"/>
+			<b id="507" Z="655" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="498" E="506" BS="N"/>
+		</fragment>
+		<fragment id="509" BoundingBox="66.56 327.38 167.76 363.15" Z="657">
+			<n id="508" p="110.1 343.56" Z="656" MarginWidth="1.59"/>
+			<n id="510" p="124.5 343.56" Z="658" MarginWidth="1.59"/>
+			<n id="512" p="101.64 331.91" Z="660" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="97.74 335.84" BoundingBox="97.74 327.38 105.54 335.94" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="514" p="87.94 336.36" Z="661" MarginWidth="1.59" AS="N"/>
+			<n id="516" p="87.94 350.76" Z="662" MarginWidth="1.59" Geometry="Tetrahedral" BondOrdering="522 523 0 539"/>
+			<n id="518" p="101.64 355.21" Z="663" MarginWidth="1.59" Element="7" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="98.04 359.14" BoundingBox="98.04 350.85 105.26 359.14" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">N</s>
+				</t>
+			</n>
+			<n id="525" p="132.96 355.21" Z="669" MarginWidth="1.59" Element="7" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="129.36 359.14" BoundingBox="129.36 350.85 136.59 359.14" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">N</s>
+				</t>
+			</n>
+			<n id="527" p="146.66 350.76" Z="670" MarginWidth="1.59" Geometry="Tetrahedral" BondOrdering="534 535 541 0"/>
+			<n id="529" p="146.66 336.36" Z="671" MarginWidth="1.59" AS="N"/>
+			<n id="531" p="132.96 331.91" Z="672" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="129.06 335.84" BoundingBox="129.06 327.38 136.86 335.94" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="538" p="76.29 359.23" Z="678" MarginWidth="1.59" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="1603">
+					<n id="718" p="76.29 359.23" Z="477"/>
+					<n id="719" p="63.18 353.39" Z="478"/>
+					<n id="720" p="51.57 361.82" Z="479"/>
+					<n id="721" p="53.07 376.09" Z="480"/>
+					<n id="722" p="66.18 381.93" Z="481"/>
+					<n id="723" p="77.79 373.5" Z="482"/>
+					<n id="724" p="87.9 350.79" Z="483" NodeType="ExternalConnectionPoint"/>
+					<b id="725" Z="484" B="722" E="723" Order="2" DoublePosition="Right" BondCircularOrdering="726 0 0 730"/>
+					<b id="726" Z="485" B="721" E="722"/>
+					<b id="727" Z="486" B="720" E="721" Order="2" DoublePosition="Right" BondCircularOrdering="728 0 0 726"/>
+					<b id="728" Z="487" B="719" E="720"/>
+					<b id="729" Z="488" B="718" E="719" Order="2" DoublePosition="Right" BondCircularOrdering="730 731 0 728"/>
+					<b id="730" Z="489" B="718" E="723"/>
+					<b id="731" Z="490" B="724" E="718" Display="WedgedHashBegin"/>
+				</fragment>
+				<t id="0" p="79.34 363.15" BoundingBox="66.56 354.87 79.34 363.15" LabelJustification="Right" Justification="Right" LineHeight="variable" LabelAlignment="Right">
+					<s font="3" size="10.0" face="97" color="0">Ph</s>
+				</t>
+			</n>
+			<n id="540" p="158.31 359.23" Z="680" MarginWidth="1.59" NodeType="Nickname" NeedsClean="yes" AS="N">
+				<fragment id="1604">
+					<n id="734" p="158.31 359.23" Z="491"/>
+					<n id="735" p="156.81 373.5" Z="492"/>
+					<n id="736" p="168.42 381.93" Z="493"/>
+					<n id="737" p="181.53 376.09" Z="494"/>
+					<n id="738" p="183.03 361.82" Z="495"/>
+					<n id="739" p="171.42 353.39" Z="496"/>
+					<n id="740" p="146.7 350.79" Z="497" NodeType="ExternalConnectionPoint"/>
+					<b id="741" Z="498" B="738" E="739" Order="2" DoublePosition="Right" BondCircularOrdering="742 0 0 746"/>
+					<b id="742" Z="499" B="737" E="738"/>
+					<b id="743" Z="500" B="736" E="737" Order="2" DoublePosition="Right" BondCircularOrdering="744 0 0 742"/>
+					<b id="744" Z="501" B="735" E="736"/>
+					<b id="745" Z="502" B="734" E="735" Order="2" DoublePosition="Right" BondCircularOrdering="746 747 0 744"/>
+					<b id="746" Z="503" B="734" E="739"/>
+					<b id="747" Z="504" B="740" E="734" Display="WedgeBegin"/>
+				</fragment>
+				<t id="0" p="154.98 363.15" BoundingBox="154.98 354.87 167.76 363.15" LabelJustification="Left" LineHeight="variable" LabelAlignment="Left">
+					<s font="3" size="10.0" face="97" color="0">Ph</s>
+				</t>
+			</n>
+			<b id="511" Z="659" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="508" E="510" BS="N"/>
+			<b id="520" Z="664" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="508" E="512" BS="N"/>
+			<b id="521" Z="665" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="512" E="514" BS="N"/>
+			<b id="522" Z="666" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="514" E="516" BS="N"/>
+			<b id="523" Z="667" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="516" E="518" BS="N"/>
+			<b id="524" Z="668" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="518" E="508" Order="2" DoublePosition="Right" BondCircularOrdering="523 0 511 520"/>
+			<b id="533" Z="673" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="510" E="525" Order="2" DoublePosition="Right" BondCircularOrdering="537 511 0 534"/>
+			<b id="534" Z="674" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="525" E="527" BS="N"/>
+			<b id="535" Z="675" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="527" E="529" BS="N"/>
+			<b id="536" Z="676" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="529" E="531" BS="N"/>
+			<b id="537" Z="677" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="531" E="510" BS="N"/>
+			<b id="539" Z="679" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="516" E="538" Display="WedgedHashBegin" BS="N"/>
+			<b id="541" Z="681" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="527" E="540" Display="WedgeBegin" BS="N"/>
+		</fragment>
+		<fragment id="776" BoundingBox="24.49 100.66 127.91 142.89" Z="686">
+			<n id="773" p="25.09 120.6" Z="684" AS="N"/>
+			<n id="775" p="25.09 135.0" Z="685" AS="N"/>
+			<n id="777" p="37.56 142.2" Z="687" AS="N"/>
+			<n id="779" p="50.03 135.0" Z="688" AS="N"/>
+			<n id="781" p="50.03 120.6" Z="689"/>
+			<n id="783" p="37.56 113.4" Z="690" AS="N"/>
+			<n id="791" p="62.5 113.4" Z="697" AS="N"/>
+			<n id="793" p="74.97 120.6" Z="699" AS="N"/>
+			<n id="795" p="87.44 113.4" Z="701" AS="N"/>
+			<n id="797" p="99.91 120.6" Z="703" AS="N"/>
+			<n id="799" p="112.38 113.4" Z="705" NodeType="Fragment" NeedsClean="yes" AS="N" BondOrdering="800 802">
+				<fragment id="1605">
+					<n id="1606" p="112.38 113.4" Element="7" NumHydrogens="0"/>
+					<n id="1607" p="112.38 84.7"/>
+					<n id="1608" p="99.96 77.52"/>
+					<n id="1609" p="99.96 63.17"/>
+					<n id="1610" p="112.38 56.0"/>
+					<n id="1611" p="124.81 63.17"/>
+					<n id="1612" p="124.81 77.52"/>
+					<n id="1613" p="112.38 41.65"/>
+					<n id="1614" p="112.38 99.05" Element="16" NumHydrogens="0"/>
+					<n id="1615" p="98.03 99.05" Element="8" NumHydrogens="0"/>
+					<n id="1616" p="126.73 99.05" Element="8" NumHydrogens="0"/>
+					<n id="1617" p="99.96 120.57" NodeType="ExternalConnectionPoint"/>
+					<n id="1618" p="124.81 120.57" NodeType="ExternalConnectionPoint"/>
+					<b id="1619" B="1614" E="1615" Order="2"/>
+					<b id="1620" B="1614" E="1616" Order="2"/>
+					<b id="1621" B="1611" E="1612" Order="2"/>
+					<b id="1622" B="1610" E="1611"/>
+					<b id="1623" B="1610" E="1613"/>
+					<b id="1624" B="1609" E="1610" Order="2"/>
+					<b id="1625" B="1608" E="1609"/>
+					<b id="1626" B="1607" E="1608" Order="2"/>
+					<b id="1627" B="1607" E="1612"/>
+					<b id="1628" B="1607" E="1614"/>
+					<b id="1629" B="1606" E="1614"/>
+					<b id="1630" B="1617" E="1606"/>
+					<b id="1631" B="1618" E="1606"/>
+				</fragment>
+				<t id="0" p="108.78 108.94" BoundingBox="108.78 100.66 120.45 117.32" LabelJustification="Left" LineHeight="variable" LabelAlignment="Above" LineStarts="3 4">
+					<s font="3" size="10.0" face="1" color="0">NTs</s>
+				</t>
+			</n>
+			<n id="801" p="124.86 120.6" Z="707" Element="9" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="121.81 124.52" BoundingBox="121.81 116.24 127.91 124.52" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="1" color="0">F</s>
+				</t>
+			</n>
+			<b id="785" Z="691" LineWidth="1.19" B="773" E="775" Order="2" DoublePosition="Right" BondCircularOrdering="790 0 0 786"/>
+			<b id="786" Z="692" LineWidth="1.19" B="775" E="777" BS="N"/>
+			<b id="787" Z="693" LineWidth="1.19" B="777" E="779" Order="2" DoublePosition="Right" BondCircularOrdering="786 0 0 788"/>
+			<b id="788" Z="694" LineWidth="1.19" B="779" E="781" BS="N"/>
+			<b id="789" Z="695" LineWidth="1.19" B="781" E="783" Order="2" DoublePosition="Right" BondCircularOrdering="788 792 0 790"/>
+			<b id="790" Z="696" LineWidth="1.19" B="783" E="773" BS="N"/>
+			<b id="792" Z="698" LineWidth="1.19" B="781" E="791" BS="N"/>
+			<b id="794" Z="700" LineWidth="1.19" B="791" E="793" BS="N"/>
+			<b id="796" Z="702" LineWidth="1.19" B="793" E="795" BS="N"/>
+			<b id="798" Z="704" LineWidth="1.19" B="795" E="797" BS="N"/>
+			<b id="800" Z="706" LineWidth="1.19" B="797" E="799" BS="N"/>
+			<b id="802" Z="708" LineWidth="1.19" B="799" E="801" BS="N"/>
+		</fragment>
+		<fragment id="806" BoundingBox="333.49 93.76 395.39 141.69" Z="711">
+			<n id="803" p="334.09 119.4" Z="709" AS="N"/>
+			<n id="805" p="334.09 133.8" Z="710" AS="N"/>
+			<n id="807" p="346.56 141.0" Z="712" AS="N"/>
+			<n id="809" p="359.03 133.8" Z="713" AS="N"/>
+			<n id="811" p="359.03 119.4" Z="714"/>
+			<n id="813" p="346.56 112.2" Z="715" AS="N"/>
+			<n id="821" p="371.5 112.2" Z="722" Geometry="Tetrahedral" BondOrdering="822 824 0 834"/>
+			<n id="823" p="383.97 119.4" Z="724" AS="N"/>
+			<n id="825" p="394.67 109.76" Z="726" AS="N"/>
+			<n id="827" p="388.82 96.61" Z="727" AS="N"/>
+			<n id="829" p="374.5 98.11" Z="728" NodeType="Fragment" NeedsClean="yes" AS="N" BondOrdering="833 834">
+				<fragment id="1633" ConnectionOrder="1495 1496">
+					<n id="1484" p="374.5 98.11" Z="419" Element="7" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="370.9 102.04" BoundingBox="370.9 93.76 378.12 102.04" Justification="Auto" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">N</s>
+						</t>
+					</n>
+					<n id="1485" p="362.82 124.33" Z="420"/>
+					<n id="1486" p="371.26 135.94" Z="421"/>
+					<n id="1487" p="365.42 149.05" Z="422"/>
+					<n id="1488" p="351.15 150.55" Z="423"/>
+					<n id="1489" p="342.71 138.94" Z="424"/>
+					<n id="1490" p="348.55 125.83" Z="425"/>
+					<n id="1491" p="345.31 163.66" Z="426"/>
+					<n id="1492" p="368.66 111.22" Z="427" Element="16" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="365.33 115.15" BoundingBox="365.33 106.69 372.0 115.25" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">S</s>
+						</t>
+					</n>
+					<n id="1493" p="381.77 117.06" Z="428" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="377.87 120.99" BoundingBox="377.87 112.53 385.67 121.09" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="1494" p="355.55 105.39" Z="429" Element="8" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="351.65 109.31" BoundingBox="351.65 100.85 359.45 109.41" Justification="Auto" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">O</s>
+						</t>
+					</n>
+					<n id="1495" p="388.77 96.61" Z="430" NodeType="ExternalConnectionPoint"/>
+					<n id="1496" p="366.06 86.51" Z="431" NodeType="ExternalConnectionPoint"/>
+					<b id="1497" Z="432" B="1492" E="1493" Order="2"/>
+					<b id="1498" Z="433" B="1492" E="1494" Order="2"/>
+					<b id="1499" Z="434" B="1489" E="1490" Order="2" DoublePosition="Left" BondCircularOrdering="0 1500 1505 0"/>
+					<b id="1500" Z="435" B="1488" E="1489"/>
+					<b id="1501" Z="436" B="1488" E="1491"/>
+					<b id="1502" Z="437" B="1487" E="1488" Order="2" DoublePosition="Left" BondCircularOrdering="0 1503 1500 1501"/>
+					<b id="1503" Z="438" B="1486" E="1487"/>
+					<b id="1504" Z="439" B="1485" E="1486" Order="2" DoublePosition="Left" BondCircularOrdering="1506 1505 1503 0"/>
+					<b id="1505" Z="440" B="1485" E="1490"/>
+					<b id="1506" Z="441" B="1485" E="1492"/>
+					<b id="1507" Z="442" B="1484" E="1492"/>
+					<b id="1508" Z="443" B="1495" E="1484"/>
+					<b id="1509" Z="444" B="1496" E="1484" Display="WedgeEnd"/>
+				</fragment>
+				<t id="0" p="378.1 102.04" BoundingBox="359.2 93.76 378.1 102.14" LabelJustification="Right" Justification="Right" LineHeight="variable" LabelAlignment="Right">
+					<s font="3" size="10.0" face="1" color="0">NTs</s>
+				</t>
+			</n>
+			<b id="815" Z="716" LineWidth="1.19" B="803" E="805" Order="2" DoublePosition="Right" BondCircularOrdering="820 0 0 816"/>
+			<b id="816" Z="717" LineWidth="1.19" B="805" E="807" BS="N"/>
+			<b id="817" Z="718" LineWidth="1.19" B="807" E="809" Order="2" DoublePosition="Right" BondCircularOrdering="816 0 0 818"/>
+			<b id="818" Z="719" LineWidth="1.19" B="809" E="811" BS="N"/>
+			<b id="819" Z="720" LineWidth="1.19" B="811" E="813" Order="2" DoublePosition="Right" BondCircularOrdering="818 822 0 820"/>
+			<b id="820" Z="721" LineWidth="1.19" B="813" E="803" BS="N"/>
+			<b id="822" Z="723" LineWidth="1.19" B="811" E="821" BS="N"/>
+			<b id="824" Z="725" LineWidth="1.19" B="821" E="823" BS="N"/>
+			<b id="831" Z="729" LineWidth="1.19" B="823" E="825" BS="N"/>
+			<b id="832" Z="730" LineWidth="1.19" B="825" E="827" BS="N"/>
+			<b id="833" Z="731" LineWidth="1.19" B="827" E="829" BS="N"/>
+			<b id="834" Z="732" LineWidth="1.19" B="829" E="821" Display="WedgeEnd" BS="N"/>
+		</fragment>
+		<fragment id="835" BoundingBox="224.25 193.33 295.95 244.99" Z="735">
+			<n id="836" p="247.63 213.6" Z="733" MarginWidth="1.59"/>
+			<n id="837" p="247.63 228.0" Z="734" MarginWidth="1.59" Element="7" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="244.03 231.92" BoundingBox="244.03 223.64 251.25 231.92" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">N</s>
+				</t>
+			</n>
+			<n id="838" p="272.57 228.0" Z="736" MarginWidth="1.59" Element="7" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="268.97 231.92" BoundingBox="268.97 223.64 276.19 231.92" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">N</s>
+				</t>
+			</n>
+			<n id="839" p="272.57 213.6" Z="737" MarginWidth="1.59"/>
+			<n id="840" p="260.1 206.4" Z="738" MarginWidth="1.59"/>
+			<n id="841" p="233.93 209.15" Z="743" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="230.03 213.08" BoundingBox="230.03 204.62 237.83 213.18" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="842" p="225.47 220.8" Z="744" MarginWidth="1.59" AS="N"/>
+			<n id="843" p="233.93 232.45" Z="745" MarginWidth="1.59" Geometry="Tetrahedral" BondOrdering="870 869 878 0"/>
+			<n id="844" p="286.27 232.45" Z="750" MarginWidth="1.59" Geometry="Tetrahedral" BondOrdering="871 872 879 0"/>
+			<n id="845" p="294.73 220.8" Z="751" MarginWidth="1.59" AS="N"/>
+			<n id="846" p="286.27 209.15" Z="752" MarginWidth="1.59" Element="8" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="282.37 213.08" BoundingBox="282.37 204.62 290.17 213.18" LabelJustification="Left" LineHeight="variable">
+					<s font="3" size="10.0" face="97" color="0">O</s>
+				</t>
+			</n>
+			<n id="849" p="225.47 244.1" Z="757" MarginWidth="1.59" AS="N"/>
+			<n id="850" p="294.73 244.1" Z="759" MarginWidth="1.59" AS="N"/>
+			<n id="861" p="267.3 193.93" Z="761" MarginWidth="1.59" AS="N"/>
+			<n id="862" p="252.9 193.93" Z="762" MarginWidth="1.59" AS="N"/>
+			<b id="863" Z="739" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="836" E="837" Order="2" DoublePosition="Left" BondCircularOrdering="866 867 870 0"/>
+			<b id="864" Z="740" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="838" E="839" Order="2" DoublePosition="Left" BondCircularOrdering="0 871 874 865"/>
+			<b id="865" Z="741" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="839" E="840" BS="N"/>
+			<b id="866" Z="742" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="840" E="836" BS="N"/>
+			<b id="867" Z="746" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="836" E="841" BS="N"/>
+			<b id="868" Z="747" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="841" E="842" BS="N"/>
+			<b id="869" Z="748" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="842" E="843" BS="N"/>
+			<b id="870" Z="749" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="843" E="837" BS="N"/>
+			<b id="871" Z="753" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="838" E="844" BS="N"/>
+			<b id="872" Z="754" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="844" E="845" BS="N"/>
+			<b id="873" Z="755" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="845" E="846" BS="N"/>
+			<b id="874" Z="756" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="846" E="839" BS="N"/>
+			<b id="878" Z="758" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="849" E="843" Display="WedgedHashEnd" BS="N"/>
+			<b id="879" Z="760" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="844" E="850" Display="WedgeBegin" BS="N"/>
+			<b id="893" Z="763" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="840" E="861" BS="N"/>
+			<b id="894" Z="764" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="861" E="862" BS="N"/>
+			<b id="895" Z="765" HashSpacing="2.49" MarginWidth="1.59" LineWidth="1.19" BoldWidth="2.01" B="862" E="840" BS="N"/>
+		</fragment>
+		<fragment id="1531" BoundingBox="410.89 135.44 521.3 169.29" Z="775">
+			<n id="1532" p="411.49 147.0" Z="773" AS="N"/>
+			<n id="1533" p="411.49 161.4" Z="774" AS="N"/>
+			<n id="1534" p="423.96 168.6" Z="776" AS="N"/>
+			<n id="1535" p="436.43 161.4" Z="777" AS="N"/>
+			<n id="1536" p="436.43 147.0" Z="778"/>
+			<n id="1537" p="423.96 139.8" Z="779" AS="N"/>
+			<n id="1538" p="448.9 139.8" Z="786" AS="N"/>
+			<n id="1539" p="461.37 147.0" Z="788" AS="N"/>
+			<n id="1540" p="473.84 139.8" Z="790" AS="N"/>
+			<n id="1541" p="486.31 147.0" Z="792" AS="N"/>
+			<n id="1542" p="498.78 139.8" Z="794" NodeType="Fragment" NeedsClean="yes" AS="N">
+				<fragment id="1634">
+					<n id="1635" p="498.78 139.8" Element="7" NumHydrogens="1"/>
+					<n id="1636" p="523.64 154.15"/>
+					<n id="1637" p="536.07 146.97"/>
+					<n id="1638" p="548.49 154.15"/>
+					<n id="1639" p="548.49 168.5"/>
+					<n id="1640" p="536.07 175.67"/>
+					<n id="1641" p="523.64 168.5"/>
+					<n id="1642" p="560.92 175.67"/>
+					<n id="1643" p="511.21 146.97" Element="16" NumHydrogens="0"/>
+					<n id="1644" p="518.39 134.55" Element="8" NumHydrogens="0"/>
+					<n id="1645" p="504.04 159.4" Element="8" NumHydrogens="0"/>
+					<n id="1646" p="486.36 146.97" NodeType="ExternalConnectionPoint"/>
+					<b id="1647" B="1643" E="1644" Order="2"/>
+					<b id="1648" B="1643" E="1645" Order="2"/>
+					<b id="1649" B="1640" E="1641" Order="2"/>
+					<b id="1650" B="1639" E="1640"/>
+					<b id="1651" B="1639" E="1642"/>
+					<b id="1652" B="1638" E="1639" Order="2"/>
+					<b id="1653" B="1637" E="1638"/>
+					<b id="1654" B="1636" E="1637" Order="2"/>
+					<b id="1655" B="1636" E="1641"/>
+					<b id="1656" B="1636" E="1643"/>
+					<b id="1657" B="1635" E="1643"/>
+					<b id="1658" B="1646" E="1635"/>
+				</fragment>
+				<t id="0" p="495.18 143.72" BoundingBox="495.18 135.44 521.3 143.82" LabelJustification="Left" LineHeight="variable" WordWrapWidth="1.4" LabelAlignment="Left">
+					<s font="3" size="10.0" face="1" color="0">NHTs</s>
+				</t>
+			</n>
+			<b id="1554" Z="780" LineWidth="1.19" B="1532" E="1533" Order="2" DoublePosition="Right" BondCircularOrdering="1559 0 0 1555"/>
+			<b id="1555" Z="781" LineWidth="1.19" B="1533" E="1534" BS="N"/>
+			<b id="1556" Z="782" LineWidth="1.19" B="1534" E="1535" Order="2" DoublePosition="Right" BondCircularOrdering="1555 0 0 1557"/>
+			<b id="1557" Z="783" LineWidth="1.19" B="1535" E="1536" BS="N"/>
+			<b id="1558" Z="784" LineWidth="1.19" B="1536" E="1537" Order="2" DoublePosition="Right" BondCircularOrdering="1557 1560 0 1559"/>
+			<b id="1559" Z="785" LineWidth="1.19" B="1537" E="1532" BS="N"/>
+			<b id="1560" Z="787" LineWidth="1.19" B="1536" E="1538" BS="N"/>
+			<b id="1561" Z="789" LineWidth="1.19" B="1538" E="1539" BS="N"/>
+			<b id="1562" Z="791" LineWidth="1.19" B="1539" E="1540" BS="N"/>
+			<b id="1563" Z="793" LineWidth="1.19" B="1540" E="1541" BS="N"/>
+			<b id="1564" Z="795" LineWidth="1.19" B="1541" E="1542" BS="N"/>
+		</fragment>
+		<fragment id="1570" BoundingBox="343.56 164.75 350.23 176.5" Z="797">
+			<n id="1569" p="346.88 170.07" Z="796" Warning="An atom in this label has an invalid valence." Element="15" NumHydrogens="0" NeedsClean="yes" AS="N">
+				<t id="0" p="343.56 174.0" BoundingBox="343.56 164.75 350.23 176.5" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto">
+					<s font="3" size="10.0" face="1" color="0">P</s>
+				</t>
+			</n>
+		</fragment>
+		<fragment id="1573" BoundingBox="473.16 167.75 487.05 179.5" Z="799">
+			<n id="1572" p="476.76 173.07" Z="798" Warning="An atom in this label has an invalid valence." NodeType="Unspecified" NeedsClean="yes" AS="N">
+				<fragment id="1660">
+					<n id="1594" p="469.83 173.07" Z="395" Element="5" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="466.23 177.0" BoundingBox="466.23 170.35 473.46 177.0" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">B</s>
+						</t>
+					</n>
+					<n id="1595" p="484.18 173.07" Z="396" Element="15" NumHydrogens="0" NeedsClean="yes">
+						<t id="0" p="480.86 177.0" BoundingBox="480.86 168.72 487.53 177.0" LabelJustification="Left" LineHeight="variable">
+							<s font="3" size="10.0" face="97" color="0">P</s>
+						</t>
+					</n>
+					<b id="1596" Z="397" B="1594" E="1595"/>
+				</fragment>
+				<t id="0" p="473.16 177.0" BoundingBox="473.16 167.75 487.05 179.5" LabelJustification="Left" LabelLineHeight="auto" LineHeight="auto" LabelAlignment="Left">
+					<s font="3" size="10.0" face="1" color="0">BP</s>
+				</t>
+			</n>
+		</fragment>
+		<t id="107" p="198.37 120.6" BoundingBox="198.37 111.35 272.42 123.1" Z="508" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto">
+			<s font="3" size="10.0" face="1" color="0">ligand (6 mol%)</s>
+		</t>
+		<t id="578" p="81.9 217.2" BoundingBox="81.9 207.95 126.4 219.7" Z="682" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto">
+			<s font="3" size="10.0" face="1" color="0">no ligand</s>
+		</t>
+		<t id="585" p="63.3 177.0" BoundingBox="63.3 167.75 125.15 179.5" Z="683" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto">
+			<s font="3" size="10.0" face="1" color="0">A    0.1 mmol</s>
+		</t>
+		<t id="1451" p="235.5 266.7" BoundingBox="235.5 257.45 283.95 292.7" Z="766" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto" LineStarts="11 18 23">
+			<s font="3" size="10.0" face="1" color="0">22 % yield
+32 % A
+8% BP</s>
+		</t>
+		<t id="1452" p="386.7 266.7" BoundingBox="386.7 257.45 429.58 292.7" Z="767" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto" LineStarts="10 17 25">
+			<s font="3" size="10.0" face="1" color="0">7 % yield
+76 % A
+trace BP</s>
+		</t>
+		<t id="1453" p="97.5 408.3" BoundingBox="97.5 399.05 145.95 434.3" Z="768" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto" LineStarts="11 18 23">
+			<s font="3" size="10.0" face="1" color="0">18 % yield
+41 % A
+7% BP</s>
+		</t>
+		<t id="1454" p="84.9 266.7" BoundingBox="84.9 257.45 133.35 292.7" Z="769" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto" LineStarts="11 18 24">
+			<s font="3" size="10.0" face="1" color="0">33 % yield
+16 % A
+18% BP</s>
+		</t>
+		<t id="1458" p="239.7 408.3" BoundingBox="239.7 399.05 288.15 434.3" Z="770" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto" LineStarts="11 18 26">
+			<s font="3" size="10.0" face="1" color="0">14 % yield
+48 % A
+trace BP</s>
+		</t>
+		<t id="1459" p="397.5 408.3" BoundingBox="397.5 399.05 445.95 434.3" Z="771" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto" LineStarts="11 18 26">
+			<s font="3" size="10.0" face="1" color="0">12 % yield
+53 % A
+trace BP</s>
+		</t>
+		<t id="1521" p="210.36 159.0" BoundingBox="210.36 147.12 233.3 161.5" Z="772" Warning="Chemical Interpretation is not possible for this label" LineHeight="auto">
+			<s font="3" size="10.0" face="1" color="0">60</s>
+			<s font="3" size="10.0" face="65" color="0">o</s>
+			<s font="3" size="10.0" face="1" color="0">C</s>
+		</t>
+		<graphic id="1598" SupersededBy="1661" BoundingBox="295.88 126.27 170.44 126.27" Z="505" HashSpacing="2.49" LineWidth="1.19" BoldWidth="2.01" GraphicType="Line" ArrowType="FullHead" HeadSize="1000"/>
+		<scheme id="1662">
+			<step id="1663" ReactionStepReactants="776" ReactionStepProducts="1570 806 1531 1573" ReactionStepArrows="1598" ReactionStepObjectsAboveArrow="107 105" ReactionStepObjectsBelowArrow="110 1521"/>
+		</scheme>
+		<arrow id="1661" BoundingBox="170.44 122.69 295.88 129.25" Z="505" HashSpacing="2.49" LineWidth="1.19" BoldWidth="2.01" FillType="None" ArrowheadType="Solid" ArrowheadHead="Full" HeadSize="1000" ArrowheadCenterSize="875" ArrowheadWidth="250" Head3D="295.88 126.27 0.0" Tail3D="170.44 126.27 0.0" Center3D="391.43 190.47 0.0" MajorAxisEnd3D="516.86 190.47 0.0" MinorAxisEnd3D="391.43 315.9 0.0"/>
+	</page>
+</CDXML>

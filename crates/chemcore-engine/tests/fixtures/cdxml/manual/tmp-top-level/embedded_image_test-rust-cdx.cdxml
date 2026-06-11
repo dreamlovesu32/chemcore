@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML id="0" BoundingBox="124.2 97.5 415.2 141.3" BoldWidth="2" BondLength="14.4" BondSpacing="18" CaptionColor="3" CaptionFace="0" CaptionFont="3" CaptionJustification="Left" CaptionSize="10" ChainAngle="7864320" CreationProgram="ChemDraw 19.1.1.21" FractionalWidths="yes" HashSpacing="2.5" HideImplicitHydrogens="no" InterpretChemically="yes" LabelColor="3" LabelFace="96" LabelFont="3" LabelJustification="Unspecified" LabelSize="10" LineWidth="0.6" MarginWidth="1.6" Name="embedded_imgae_test.cdx" PrintMargins="36 36 36 36" ShowAtomEnhancedStereo="yes" WindowIsZoomed="yes" WindowPosition="0 0" WindowSize="1347 707.25" bgcolor="1" color="0">
+  <colortable>
+    <color b="1" g="1" r="1"/>
+    <color b="0" g="0" r="0"/>
+    <color b="0" g="0" r="1"/>
+    <color b="0" g="1" r="1"/>
+    <color b="0" g="1" r="0"/>
+    <color b="1" g="1" r="0"/>
+    <color b="1" g="0" r="0"/>
+    <color b="1" g="0" r="1"/>
+  </colortable>
+  <fonttable>
+    <font id="3" charset="iso-8859-1" name="Arial"/>
+  </fonttable>
+  <page id="31" BoundingBox="0 0 540 719.75" FooterPosition="36" HeaderPosition="36" HeightPages="1" PrintTrimMarks="yes" WidthPages="1">
+    <embeddedobject id="2" BoundingBox="124.2 97.5 415.2 141.3" Z="1"/>
+  </page>
+</CDXML>

@@ -1,0 +1,392 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML CreationProgram="ChemCore" Name="Imported CDXML" BoundingBox="0 0 664 504" WindowPosition="0 0" WindowSize="-32768 -32768" WindowIsZoomed="yes" FractionalWidths="yes" InterpretChemically="yes" ShowAtomQuery="yes" ShowAtomStereo="no" ShowAtomEnhancedStereo="yes" ShowAtomNumber="no" ShowResidueID="no" ShowBondQuery="yes" ShowBondRxn="yes" ShowBondStereo="no" ShowTerminalCarbonLabels="no" ShowNonTerminalCarbonLabels="no" HideImplicitHydrogens="no" LabelFont="3" LabelSize="10" LabelFace="96" CaptionFont="3" CaptionSize="10" CaptionFace="0" LineWidth="0.99" BoldWidth="2.01" BondLength="14.4" BondSpacing="18" HashSpacing="2.49" MarginWidth="1.59" ChainAngle="120" LabelJustification="Auto" CaptionJustification="Left" PrintMargins="36 36 36 36" color="0" bgcolor="1">
+  <colortable>
+    <color r="1" g="1" b="1"/>
+    <color r="0" g="0" b="0"/>
+    <color r="1" g="0" b="0"/>
+    <color r="1" g="1" b="0"/>
+    <color r="0" g="1" b="0"/>
+    <color r="0" g="1" b="1"/>
+    <color r="0" g="0" b="1"/>
+    <color r="1" g="0" b="1"/>
+    <color r="0.502" g="0.251" b="0.251"/>
+    <color r="0" g="0.502" b="0"/>
+    <color r="0" g="0" b="0.627"/>
+    <color r="0.502" g="0.502" b="0.502"/>
+    <color r="1" g="0.502" b="0"/>
+  </colortable>
+  <fonttable>
+    <font id="3" charset="iso-8859-1" name="Arial"/>
+  </fonttable>
+  <page id="1" BoundingBox="0 0 664 504" HeaderPosition="36" FooterPosition="36" PrintTrimMarks="yes" HeightPages="1" WidthPages="1" Width="664" Height="504">
+    <fragment id="2" BoundingBox="51.33 119.41 510.29 300.05" Z="368">
+      <n id="3" p="123.82 242.68" Z="368" AS="N"/>
+      <n id="4" p="124.81 257.04" Z="368" Element="7" AS="N">
+        <t id="102" p="121.21 260.67" BoundingBox="121.21 252.33 128.43 260.67" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="N">
+          <s font="3" size="10" color="0" face="96">N</s>
+        </t>
+      </n>
+      <n id="5" p="138.78 260.54" Z="368" AS="N"/>
+      <n id="6" p="146.42 248.34" Z="368" AS="N"/>
+      <n id="7" p="137.18 237.3" Z="368" Element="8" AS="N">
+        <t id="103" p="133.3 240.97" BoundingBox="133.3 232.77 141.1 243.27" LabelAlignment="Above" LabelJustification="Left" UTF8Text="O">
+          <s font="3" size="10" color="0" face="96">O</s>
+        </t>
+      </n>
+      <n id="8" p="111 236.56" Z="368" AS="N"/>
+      <n id="9" p="99.67 243.08" Z="368" AS="N"/>
+      <n id="10" p="86.14 238.14" Z="368" Element="8" AS="N">
+        <t id="104" p="82.26 241.81" BoundingBox="82.26 233.61 90.06 244.11" LabelAlignment="Above" LabelJustification="Left" UTF8Text="O">
+          <s font="3" size="10" color="0" face="96">O</s>
+        </t>
+      </n>
+      <n id="11" p="77.27 249.48" Z="368" AS="N"/>
+      <n id="12" p="85.31 261.42" Z="368" AS="N"/>
+      <n id="13" p="99.15 257.47" Z="368" Element="7" AS="N">
+        <t id="105" p="95.55 261.1" BoundingBox="95.55 252.76 102.77 261.1" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="N">
+          <s font="3" size="10" color="0" face="96">N</s>
+        </t>
+      </n>
+      <n id="14" p="118.09 224.03" Z="368" AS="N"/>
+      <n id="15" p="103.69 224.15" Z="368" AS="N"/>
+      <n id="16" p="63.42 253.43" Z="368" AS="N"/>
+      <n id="17" p="62.9 267.82" Z="368" AS="N"/>
+      <n id="18" p="76.43 272.76" Z="368" AS="N"/>
+      <n id="19" p="148.03 271.58" Z="368" AS="N"/>
+      <n id="20" p="161.38 266.2" Z="368" AS="N"/>
+      <n id="21" p="160.39 251.83" Z="368" AS="N"/>
+      <n id="22" p="146.01 285.84" Z="368" AS="N"/>
+      <n id="23" p="157.35 294.71" Z="368" AS="N"/>
+      <n id="24" p="170.7 289.33" Z="368" AS="N"/>
+      <n id="25" p="172.72 275.07" Z="368" AS="N"/>
+      <n id="26" p="51.87 277.07" Z="368" AS="N"/>
+      <n id="27" p="54.35 291.25" Z="368" AS="N"/>
+      <n id="28" p="67.88 296.19" Z="368" AS="N"/>
+      <n id="29" p="78.92 286.94" Z="368" AS="N"/>
+      <n id="30" p="216.15 257.63" Z="368" AS="N"/>
+      <n id="31" p="216.15 272.03" Z="368" AS="N"/>
+      <n id="32" p="228.63 279.23" Z="368" AS="N"/>
+      <n id="33" p="241.1 272.03" Z="368" AS="N"/>
+      <n id="34" p="241.1 257.63" Z="368" AS="N"/>
+      <n id="35" p="228.63 250.43" Z="368" AS="N"/>
+      <n id="36" p="254.79 276.48" Z="368" AS="N"/>
+      <n id="37" p="263.26 264.83" Z="368" Element="7" AS="N">
+        <t id="106" p="259.66 268.46" BoundingBox="259.66 260.12 266.88 268.46" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="N">
+          <s font="3" size="10" color="0" face="96">N</s>
+        </t>
+      </n>
+      <n id="38" p="254.79 253.18" Z="368" AS="N"/>
+      <n id="39" p="259.24 239.48" Z="368" Element="8" AS="N">
+        <t id="107" p="255.36 243.15" BoundingBox="255.36 234.63 263.16 243.25" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="O">
+          <s font="3" size="10" color="0" face="96">O</s>
+        </t>
+      </n>
+      <n id="40" p="259.24 290.18" Z="368" Element="8" AS="N">
+        <t id="108" p="255.36 293.85" BoundingBox="255.36 285.33 263.16 293.95" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="O">
+          <s font="3" size="10" color="0" face="96">O</s>
+        </t>
+      </n>
+      <n id="41" p="277.66 264.83" Z="368" Element="8" AS="N">
+        <t id="109" p="273.78 268.5" BoundingBox="273.78 259.98 281.58 268.6" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="O">
+          <s font="3" size="10" color="0" face="96">O</s>
+        </t>
+      </n>
+      <n id="42" p="284.86 252.36" Z="368" AS="N"/>
+      <n id="43" p="299.26 252.36" Z="368" Element="16" AS="N">
+        <t id="110" p="295.93 256.03" BoundingBox="295.93 247.51 302.6 256.18" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="S">
+          <s font="3" size="10" color="0" face="96">S</s>
+        </t>
+      </n>
+      <n id="44" p="277.66 239.89" Z="368" Element="8" AS="N">
+        <t id="111" p="273.78 243.56" BoundingBox="273.78 235.04 281.58 243.66" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="O">
+          <s font="3" size="10" color="0" face="96">O</s>
+        </t>
+      </n>
+      <n id="45" p="306.46 239.89" Z="368" AS="N"/>
+      <n id="46" p="320.86 239.89" Z="368" AS="N"/>
+      <n id="47" p="328.06 252.36" Z="368" AS="N"/>
+      <n id="48" p="342.46 252.36" Z="368" AS="N"/>
+      <n id="49" p="349.66 239.89" Z="368" AS="N"/>
+      <n id="50" p="342.46 227.42" Z="368" AS="N"/>
+      <n id="51" p="328.06 227.42" Z="368" AS="N"/>
+      <n id="52" p="81.54 143.3" Z="368" AS="N"/>
+      <n id="53" p="81.54 157.7" Z="368" AS="N"/>
+      <n id="54" p="94.01 164.9" Z="368" AS="N"/>
+      <n id="55" p="106.48 157.7" Z="368" AS="N"/>
+      <n id="56" p="106.48 143.3" Z="368" AS="N"/>
+      <n id="57" p="94.01 136.1" Z="368" AS="N"/>
+      <n id="58" p="118.95 136.1" Z="368" AS="N"/>
+      <n id="59" p="131.42 143.3" Z="368" AS="N"/>
+      <n id="60" p="143.89 136.1" Z="368" AS="N"/>
+      <n id="61" p="156.36 143.3" Z="368" AS="N"/>
+      <n id="62" p="168.84 136.1" Z="368" AS="N"/>
+      <n id="63" p="69.07 164.9" Z="368" Element="9" AS="N">
+        <t id="112" p="66.04 168.53" BoundingBox="66.04 160.19 72.15 168.53" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="F">
+          <s font="3" size="10" color="0" face="96">F</s>
+        </t>
+      </n>
+      <n id="64" p="168.84 121.7" Z="368" AS="N"/>
+      <n id="65" p="441.99 252.95" Z="368" AS="N"/>
+      <n id="66" p="441.99 267.35" Z="368" AS="N"/>
+      <n id="67" p="454.46 274.55" Z="368" AS="N"/>
+      <n id="68" p="466.93 267.35" Z="368" AS="N"/>
+      <n id="69" p="466.93 252.95" Z="368" AS="N"/>
+      <n id="70" p="454.46 245.75" Z="368" AS="N"/>
+      <n id="71" p="429.52 245.75" Z="368" NodeType="Nickname" AS="N">
+        <t id="113" p="433.18 249.42" BoundingBox="418.74 240.9 433.18 249.52" LabelAlignment="Auto" LabelJustification="Right" UTF8Text="CN">
+          <s font="3" size="10" color="0" face="96">CN</s>
+        </t>
+      </n>
+      <n id="72" p="479.4 245.75" Z="368" NodeType="Nickname" AS="N">
+        <t id="114" p="475.82 249.42" BoundingBox="475.82 240.9 490.26 249.52" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="CN">
+          <s font="3" size="10" color="0" face="96">CN</s>
+        </t>
+      </n>
+      <n id="73" p="454.46 231.35" Z="368" Element="7" AS="N">
+        <t id="115" p="450.86 234.98" BoundingBox="450.86 226.78 458.06 237.28" LabelAlignment="Above" LabelJustification="Left" UTF8Text="N">
+          <s font="3" size="10" color="0" face="96">N</s>
+        </t>
+      </n>
+      <n id="74" p="429.52 274.55" Z="368" Element="7" AS="N">
+        <t id="116" p="425.92 278.18" BoundingBox="425.92 269.98 433.12 280.48" LabelAlignment="Above" LabelJustification="Left" UTF8Text="N">
+          <s font="3" size="10" color="0" face="96">N</s>
+        </t>
+      </n>
+      <n id="75" p="479.4 274.55" Z="368" Element="7" AS="N">
+        <t id="117" p="475.8 278.18" BoundingBox="475.8 269.98 483 280.48" LabelAlignment="Above" LabelJustification="Left" UTF8Text="N">
+          <s font="3" size="10" color="0" face="96">N</s>
+        </t>
+      </n>
+      <n id="76" p="454.46 288.95" Z="368" Element="7" AS="N">
+        <t id="118" p="450.86 292.58" BoundingBox="450.86 284.24 458.08 292.58" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="N">
+          <s font="3" size="10" color="0" face="96">N</s>
+        </t>
+      </n>
+      <n id="77" p="441.99 224.15" Z="368" NodeType="Nickname" AS="N">
+        <t id="119" p="444.74 227.82" BoundingBox="432.51 219.48 444.74 227.82" LabelAlignment="Auto" LabelJustification="Right" UTF8Text="Ph">
+          <s font="3" size="10" color="0" face="96">Ph</s>
+        </t>
+      </n>
+      <n id="78" p="466.93 224.15" Z="368" NodeType="Nickname" AS="N">
+        <t id="120" p="463.71 227.78" BoundingBox="463.71 219.44 475.95 227.78" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="Ph">
+          <s font="3" size="10" color="0" face="96">Ph</s>
+        </t>
+      </n>
+      <n id="79" p="491.87 267.35" Z="368" NodeType="Nickname" AS="N">
+        <t id="121" p="488.65 270.98" BoundingBox="488.65 262.64 500.89 270.98" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="Ph">
+          <s font="3" size="10" color="0" face="96">Ph</s>
+        </t>
+      </n>
+      <n id="80" p="479.4 288.95" Z="368" NodeType="Nickname" AS="N">
+        <t id="122" p="476.18 292.58" BoundingBox="476.18 284.24 488.42 292.58" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="Ph">
+          <s font="3" size="10" color="0" face="96">Ph</s>
+        </t>
+      </n>
+      <n id="81" p="417.05 267.35" Z="368" NodeType="Nickname" AS="N">
+        <t id="123" p="419.8 271.02" BoundingBox="407.57 262.68 419.8 271.02" LabelAlignment="Auto" LabelJustification="Right" UTF8Text="Ph">
+          <s font="3" size="10" color="0" face="96">Ph</s>
+        </t>
+      </n>
+      <n id="82" p="429.52 288.95" Z="368" NodeType="Nickname" AS="N">
+        <t id="124" p="426.3 292.58" BoundingBox="426.3 284.24 438.54 292.58" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="Ph">
+          <s font="3" size="10" color="0" face="96">Ph</s>
+        </t>
+      </n>
+      <n id="83" p="466.93 296.15" Z="368" NodeType="Nickname" AS="N">
+        <t id="125" p="463.71 299.78" BoundingBox="463.71 291.44 475.95 299.78" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="Ph">
+          <s font="3" size="10" color="0" face="96">Ph</s>
+        </t>
+      </n>
+      <n id="84" p="441.99 296.15" Z="368" NodeType="Nickname" AS="N">
+        <t id="126" p="444.74 299.82" BoundingBox="432.51 291.48 444.74 299.82" LabelAlignment="Auto" LabelJustification="Right" UTF8Text="Ph">
+          <s font="3" size="10" color="0" face="96">Ph</s>
+        </t>
+      </n>
+      <n id="85" p="422.5 145.6" Z="368" AS="N"/>
+      <n id="86" p="422.5 160" Z="368" AS="N"/>
+      <n id="87" p="434.97 167.2" Z="368" AS="N"/>
+      <n id="88" p="447.45 160" Z="368" AS="N"/>
+      <n id="89" p="447.45 145.6" Z="368" AS="N"/>
+      <n id="90" p="434.97 138.4" Z="368" AS="N"/>
+      <n id="91" p="459.92 138.4" Z="368" AS="N"/>
+      <n id="92" p="472.39 145.6" Z="368" AS="N"/>
+      <n id="93" p="484.86 138.4" Z="368" AS="N"/>
+      <n id="94" p="497.33 145.6" Z="368" AS="N"/>
+      <n id="95" p="509.8 138.4" Z="368" AS="N"/>
+      <n id="96" p="459.92 124" Z="368" NodeType="Nickname" AS="N">
+        <t id="127" p="456.34 127.67" BoundingBox="456.34 119.16 470.78 127.77" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="CN">
+          <s font="3" size="10" color="8" face="97">CN</s>
+        </t>
+      </n>
+      <n id="97" p="472.39 160" Z="368" Element="16" AS="N">
+        <t id="128" p="469.06 163.67" BoundingBox="469.06 155.16 475.73 163.82" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="S">
+          <s font="3" size="10" color="14" face="97">S</s>
+        </t>
+      </n>
+      <n id="98" p="484.86 167.2" Z="368" AS="N"/>
+      <n id="99" p="497.33 160" Z="368" NodeType="Nickname" AS="N">
+        <t id="129" p="494.11 163.63" BoundingBox="494.11 155.29 506.89 163.63" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="Ph">
+          <s font="3" size="10" color="14" face="97">Ph</s>
+        </t>
+      </n>
+      <n id="100" p="509.8 124" Z="368" AS="N"/>
+      <n id="101" p="410.03 167.2" Z="368" Element="9" AS="N">
+        <t id="130" p="407 170.83" BoundingBox="407 162.49 413.11 170.83" LabelAlignment="Auto" LabelJustification="Left" UTF8Text="F">
+          <s font="3" size="10" color="0" face="96">F</s>
+        </t>
+      </n>
+      <b id="131" Z="1" B="3" E="4" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="132" Z="1" B="4" E="5" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="133" Z="1" B="5" E="6" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="134" Z="1" B="6" E="7" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="135" Z="1" B="7" E="3" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="136" Z="1" B="3" E="8" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="137" Z="1" B="8" E="9" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="138" Z="1" B="9" E="10" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="139" Z="1" B="10" E="11" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="140" Z="1" B="11" E="12" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="141" Z="1" B="12" E="13" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="142" Z="1" B="13" E="9" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="143" Z="1" B="8" E="14" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="144" Z="1" B="15" E="8" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="145" Z="1" B="15" E="14" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="146" Z="1" B="11" E="16" Order="1" BS="N" Display="WedgeBegin" Display2="WedgeBegin" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="147" Z="1" B="16" E="17" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="148" Z="1" B="17" E="18" Order="2" BS="N" DoublePosition="Left" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="149" Z="1" B="18" E="12" Order="1" BS="N" Display="WedgeEnd" Display2="WedgeEnd" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="150" Z="1" B="5" E="19" Order="1" BS="N" Display="WedgedHashBegin" Display2="WedgedHashBegin" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="151" Z="1" B="19" E="20" Order="2" BS="N" DoublePosition="Left" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="152" Z="1" B="20" E="21" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="153" Z="1" B="21" E="6" Order="1" BS="N" Display="WedgedHashEnd" Display2="WedgedHashEnd" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="154" Z="1" B="19" E="22" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="155" Z="1" B="22" E="23" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="156" Z="1" B="23" E="24" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="157" Z="1" B="24" E="25" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="158" Z="1" B="25" E="20" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="159" Z="1" B="17" E="26" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="160" Z="1" B="26" E="27" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="161" Z="1" B="27" E="28" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="162" Z="1" B="28" E="29" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="163" Z="1" B="29" E="18" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="164" Z="1" B="30" E="31" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="165" Z="1" B="31" E="32" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="166" Z="1" B="32" E="33" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="167" Z="1" B="33" E="34" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="168" Z="1" B="34" E="35" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="169" Z="1" B="35" E="30" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="170" Z="1" B="33" E="36" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="171" Z="1" B="36" E="37" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="172" Z="1" B="37" E="38" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="173" Z="1" B="38" E="34" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="174" Z="1" B="38" E="39" Order="2" BS="N" DoublePosition="Center" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="175" Z="1" B="36" E="40" Order="2" BS="N" DoublePosition="Center" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="176" Z="1" B="37" E="41" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="177" Z="1" B="41" E="42" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="178" Z="1" B="42" E="43" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="179" Z="1" B="42" E="44" Order="2" BS="N" DoublePosition="Center" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="180" Z="1" B="43" E="45" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="181" Z="1" B="45" E="46" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="182" Z="1" B="46" E="47" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="183" Z="1" B="47" E="48" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="184" Z="1" B="48" E="49" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="185" Z="1" B="49" E="50" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="186" Z="1" B="50" E="51" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="187" Z="1" B="51" E="46" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="188" Z="1" B="52" E="53" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="189" Z="1" B="53" E="54" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="190" Z="1" B="54" E="55" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="191" Z="1" B="55" E="56" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="192" Z="1" B="56" E="57" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="193" Z="1" B="57" E="52" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="194" Z="1" B="56" E="58" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="195" Z="1" B="58" E="59" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="196" Z="1" B="59" E="60" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="197" Z="1" B="60" E="61" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="198" Z="1" B="61" E="62" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="199" Z="1" B="53" E="63" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="200" Z="1" B="62" E="64" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="201" Z="1" B="65" E="66" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="202" Z="1" B="66" E="67" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="203" Z="1" B="67" E="68" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="204" Z="1" B="68" E="69" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="205" Z="1" B="69" E="70" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="206" Z="1" B="70" E="65" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="207" Z="1" B="65" E="71" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="208" Z="1" B="69" E="72" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="209" Z="1" B="70" E="73" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="210" Z="1" B="66" E="74" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="211" Z="1" B="68" E="75" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="212" Z="1" B="67" E="76" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="213" Z="1" B="73" E="77" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="214" Z="1" B="73" E="78" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="215" Z="1" B="75" E="79" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="216" Z="1" B="75" E="80" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="217" Z="1" B="74" E="81" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="218" Z="1" B="74" E="82" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="219" Z="1" B="76" E="83" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="220" Z="1" B="76" E="84" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="221" Z="1" B="85" E="86" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="222" Z="1" B="86" E="87" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="223" Z="1" B="87" E="88" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="224" Z="1" B="88" E="89" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="225" Z="1" B="89" E="90" Order="2" BS="N" DoublePosition="Right" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="226" Z="1" B="90" E="85" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="227" Z="1" B="89" E="91" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="228" Z="1" B="92" E="93" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="229" Z="1" B="93" E="94" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="230" Z="1" B="94" E="95" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="231" Z="1" B="91" E="96" Order="1" BS="N" Display="WedgeBegin" Display2="WedgeBegin" color="8" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="232" Z="1" B="91" E="92" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="233" Z="1" B="92" E="97" Order="1" BS="N" Display="WedgedHashBegin" Display2="WedgedHashBegin" color="14" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="234" Z="1" B="97" E="98" Order="1" BS="N" color="14" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="235" Z="1" B="98" E="99" Order="1" BS="N" color="14" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="236" Z="1" B="95" E="100" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+      <b id="237" Z="1" B="86" E="101" Order="1" BS="N" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" MarginWidth="1.59"/>
+    </fragment>
+    <t id="238" p="61.2 223.28" BoundingBox="61.2 214.03 70.66 225.78" Justification="Left" Z="394" UTF8Text="L:">
+      <s font="3" size="10" color="0" face="1">L:</s>
+    </t>
+    <t id="239" p="178.37 225.83" BoundingBox="178.37 216.58 268.43 228.33" Justification="Left" Z="475" UTF8Text="PhthNCO2SCH2Ph:">
+      <s font="3" size="10" color="0" face="1">PhthNCO</s>
+      <s font="3" size="10" color="0" face="33">2</s>
+      <s font="3" size="10" color="0" face="1">SCH</s>
+      <s font="3" size="10" color="0" face="33">2</s>
+      <s font="3" size="10" color="0" face="1">Ph:</s>
+    </t>
+    <t id="240" p="287.89 118" BoundingBox="202.72 108.75 373.06 155.75" Justification="Center" Z="476" UTF8Text="4DPAIPN (2 mol%)
+Cu(MeCN)4PF6 (5 mol%), L (7 mol%)
+TMSCN (4 eq.)
+PhthNCO2SCH2Ph (3 eq.)">
+      <s font="3" size="10" color="0" face="1">4DPAIPN (2 mol%)
+Cu(MeCN)</s>
+      <s font="3" size="10" color="0" face="33">4</s>
+      <s font="3" size="10" color="0" face="1">PF</s>
+      <s font="3" size="10" color="0" face="33">6</s>
+      <s font="3" size="10" color="0" face="1"> (5 mol%), L (7 mol%)
+TMSCN (4 eq.)
+PhthNCO</s>
+      <s font="3" size="10" color="0" face="33">2</s>
+      <s font="3" size="10" color="0" face="1">SCH</s>
+      <s font="3" size="10" color="0" face="33">2</s>
+      <s font="3" size="10" color="0" face="1">Ph</s>
+      <s font="3" size="10" color="0" face="1"> (3 eq.)</s>
+    </t>
+    <t id="241" p="287.8 170.93" BoundingBox="233.46 161.68 342.14 185.18" Justification="Center" Z="477" UTF8Text="CH3CN (0.2 M)  
+420 nm 3W, 10 °C, 24 h">
+      <s font="3" size="10" color="0" face="1">CH</s>
+      <s font="3" size="10" color="0" face="33">3</s>
+      <s font="3" size="10" color="0" face="1">CN (0.2 M)  
+420 nm 3W, 10 °C, 24 h</s>
+    </t>
+    <arrow id="242" Head3D="389.26 157.29 0" Tail3D="194.76 157.29 0" LineWidth="0.99" color="0" Z="478" FillType="None" BoundingBox="194.76 154.56 389.26 159.77" Center3D="480.26 273.54 0" MajorAxisEnd3D="674.76 273.54 0" MinorAxisEnd3D="480.26 468.04 0" ArrowheadHead="Full" ArrowheadTail="None" ArrowheadType="Solid" HeadSize="1000" ArrowheadCenterSize="875" ArrowheadWidth="250"/>
+    <t id="243" p="370.06 226.09" BoundingBox="370.06 216.84 413.43 228.59" Justification="Left" Z="624" UTF8Text="4DPAIPN">
+      <s font="3" size="10" color="0" face="1">4DPAIPN</s>
+    </t>
+    <t id="244" p="462.02 184.66" BoundingBox="420.55 175.71 503.49 198.71" Justification="Center" Z="717" UTF8Text="78% yield, 96% ee
+d.r. &gt; 20:1">
+      <s font="3" size="10" color="0">78% yield, 96% ee
+d.r. &gt; 20:1</s>
+    </t>
+  </page>
+</CDXML>

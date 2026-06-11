@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd"[]>
+<CDXML CreationProgram="ChemDraw 17.0.0.206" Name="Untitled Document-1" BoundingBox="90 90 210 280" WindowPosition="0 0" WindowSize="0 1073741824" WindowIsZoomed="yes" FractionalWidths="yes" InterpretChemically="yes" ShowAtomQuery="yes" ShowAtomStereo="no" ShowAtomEnhancedStereo="yes" ShowAtomNumber="no" ShowResidueID="no" ShowBondQuery="yes" ShowBondRxn="yes" ShowBondStereo="no" ShowTerminalCarbonLabels="no" ShowNonTerminalCarbonLabels="no" HideImplicitHydrogens="no" LabelFont="3" LabelSize="10" LabelFace="96" CaptionFont="4" CaptionSize="12" HashSpacing="2.70" MarginWidth="2" LineWidth="1" BoldWidth="4" BondLength="30" BondSpacing="12" ChainAngle="120" LabelJustification="Auto" CaptionJustification="Left" AminoAcidTermini="HOH" ShowSequenceTermini="yes" ShowSequenceBonds="yes" ShowSequenceUnlinkedBranches="no" ResidueWrapCount="40" ResidueBlockCount="10" ResidueZigZag="yes" NumberResidueBlocks="no" PrintMargins="36 36 36 36" MacPrintInfo="0003000004B004B00000000036CF26BD0000000036D126C00367057B03E00002000004B004B00000000036CF26BD000100000064000000010001010100020001270F000100010000000000000000000000000002001901900000000000600000000000000000000100000000000000000000000000000000" ChemPropName="" ChemPropFormula="Chemical Formula: " ChemPropExactMass="Exact Mass: " ChemPropMolWt="Molecular Weight: " ChemPropMOverZ="m/z: " ChemPropAnalysis="Elemental Analysis: " ChemPropBoilingPt="Boiling Point: " ChemPropMeltingPt="Melting Point: " ChemPropCritTemp="Critical Temp: " ChemPropCritPres="Critical Pres: " ChemPropCritVol="Critical Vol: " ChemPropGibbs="Gibbs Energy: " ChemPropLogP="Log P: " ChemPropMR="MR: " ChemPropHenry="Henry's Law: " ChemPropEForm="Heat of Form: " ChemProptPSA="tPSA: " ChemPropCLogP="CLogP: " ChemPropCMR="CMR: " ChemPropLogS="LogS: " ChemPropPKa="pKa: " ChemPropID="" color="0" bgcolor="1" RxnAutonumberStart="1" RxnAutonumberConditions="no" RxnAutonumberStyle="Roman" RxnAutonumberFormat="(#)">
+  <colortable>
+    <color r="1" g="1" b="1" />
+    <color r="0" g="0" b="0" />
+    <color r="1" g="0" b="0" />
+    <color r="1" g="1" b="0" />
+    <color r="0" g="1" b="0" />
+    <color r="0" g="1" b="1" />
+    <color r="0" g="0" b="1" />
+    <color r="1" g="0" b="1" />
+  </colortable>
+  <fonttable>
+    <font id="3" charset="iso-8859-1" name="Arial" />
+    <font id="4" charset="iso-8859-1" name="Times New Roman" />
+  </fonttable>
+  <page id="55" BoundingBox="0 0 523.20 769.98" HeaderPosition="36" FooterPosition="36" PrintTrimMarks="yes" HeightPages="1" WidthPages="1">
+    <tlcplate id="35" OriginFraction="0.1" SolventFrontFraction="0.1" ShowOrigin="yes" ShowSolventFront="yes" TopLeft="100 100" TopRight="202.37 100" BottomRight="202.37 272.13" BottomLeft="100 272.13" ShowBorders="yes" BoundingBox="99 99 203.37 273.13" Z="32" color="0">
+      <tlclane id="36">
+        <tlcspot id="37" Rf="0.550381" Tail="0" Width="327680" Height="327680" CurveType="128" color="0" />
+      </tlclane>
+      <tlclane id="38">
+        <tlcspot id="39" Rf="0.634804" Tail="0" Width="327680" Height="327680" CurveType="128" color="0" />
+      </tlclane>
+      <tlclane id="40">
+        <tlcspot id="41" Rf="0.15" Tail="0" Width="327680" Height="327680" CurveType="128" color="0" />
+      </tlclane>
+      <tlclane id="42">
+        <tlcspot id="43" Rf="0.15" Tail="0" Width="327680" Height="327680" CurveType="128" color="0" />
+      </tlclane>
+      <tlclane id="44">
+        <tlcspot id="45" Rf="0.15" Tail="0" Width="327680" Height="327680" CurveType="128" color="0" />
+      </tlclane>
+      <tlclane id="46">
+        <tlcspot id="47" Rf="0.15" Tail="0" Width="327680" Height="327680" CurveType="128" color="0" />
+      </tlclane>
+      <tlclane id="48">
+        <tlcspot id="49" Rf="0.15" Tail="0" Width="327680" Height="327680" CurveType="128" color="0" />
+      </tlclane>
+      <tlclane id="50">
+        <tlcspot id="51" Rf="0.15" Tail="0" Width="327680" Height="327680" CurveType="128" color="0" />
+      </tlclane>
+      <tlclane id="52">
+        <tlcspot id="53" Rf="0.15" Tail="0" Width="327680" Height="327680" CurveType="128" color="0" />
+      </tlclane>
+    </tlcplate>
+  </page>
+</CDXML>

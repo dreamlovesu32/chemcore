@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML id="5000" BoundingBox="204.63 314.92 318.57 427.43" BoldWidth="2" BondLength="14.4" BondSpacing="18" CaptionColor="0" CaptionFace="0" CaptionFont="3" CaptionJustification="Left" CaptionSize="10" ChainAngle="7864320" CreationProgram="ChemDraw 18.1.0.535" FractionalWidths="yes" HashSpacing="2.5" HideImplicitHydrogens="no" InterpretChemically="yes" LabelColor="0" LabelFace="96" LabelFont="3" LabelJustification="Unspecified" LabelSize="10" LineWidth="0.6" MarginWidth="1.6" Name="magnesium_citrate.cdx" PrintMargins="36 36 36 36" ShowAtomEnhancedStereo="yes" WindowIsZoomed="yes" WindowPosition="0 0" WindowSize="1314.6 736.8" bgcolor="1" color="0">
+  <colortable>
+    <color b="1" g="1" r="1"/>
+    <color b="0" g="0" r="0"/>
+    <color b="0" g="0" r="1"/>
+    <color b="0" g="1" r="1"/>
+    <color b="0" g="1" r="0"/>
+    <color b="1" g="1" r="0"/>
+    <color b="1" g="0" r="0"/>
+    <color b="1" g="0" r="1"/>
+  </colortable>
+  <fonttable>
+    <font id="3" charset="iso-8859-1" name="Arial"/>
+  </fonttable>
+  <page id="88" BoundingBox="0 0 523.2 769.8" FooterPosition="36" HeaderPosition="36" HeightPages="1" PrintTrimMarks="yes" WidthPages="1">
+    <group id="84" BoundingBox="204.63 314.92 318.57 409.88" Z="83">
+      <fragment id="3" BoundingBox="296.1 340.75 318.57 354.28" Z="2">
+        <n id="2" p="300.27 348.28" Z="1" AS="N" Charge="2" Element="12" NumHydrogens="0">
+          <t id="0" BoundingBox="296.1 340.75 318.57 354.28" p="296.1 352.18" LabelAlignment="Left" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">Mg</s>
+            <s font="3" size="10" face="64" color="0">2</s>
+            <s font="3" size="10" face="96" color="0">+</s>
+          </t>
+        </n>
+      </fragment>
+      <fragment id="5" BoundingBox="296.1 355.15 318.57 368.68" Z="4">
+        <n id="4" p="300.27 362.68" Z="3" AS="N" Charge="2" Element="12" NumHydrogens="0">
+          <t id="0" BoundingBox="296.1 355.15 318.57 368.68" p="296.1 366.58" LabelAlignment="Left" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">Mg</s>
+            <s font="3" size="10" face="64" color="0">2</s>
+            <s font="3" size="10" face="96" color="0">+</s>
+          </t>
+        </n>
+      </fragment>
+      <fragment id="7" BoundingBox="296.1 369.55 318.57 383.08" Z="6">
+        <n id="6" p="300.27 377.08" Z="5" AS="N" Charge="2" Element="12" NumHydrogens="0">
+          <t id="0" BoundingBox="296.1 369.55 318.57 383.08" p="296.1 380.98" LabelAlignment="Left" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">Mg</s>
+            <s font="3" size="10" face="64" color="0">2</s>
+            <s font="3" size="10" face="96" color="0">+</s>
+          </t>
+        </n>
+      </fragment>
+      <fragment id="33" BoundingBox="204.63 314.92 292.28 359.48" Z="32">
+        <n id="8" p="273.4 341.08" Z="7" AS="N"/>
+        <n id="10" p="260.93 348.28" Z="9" AS="N"/>
+        <n id="12" p="248.46 341.08" Z="11" AS="N"/>
+        <n id="14" p="248.46 355.48" Z="13" AS="N" Element="8" NumHydrogens="1">
+          <t id="0" BoundingBox="244.56 350.92 259.58 359.48" p="244.56 359.38" LabelAlignment="Left" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">OH</s>
+          </t>
+        </n>
+        <n id="16" p="248.46 326.68" Z="15" AS="N"/>
+        <n id="18" p="235.99 348.28" Z="17" AS="N"/>
+        <n id="20" p="223.52 341.08" Z="19" AS="N"/>
+        <n id="22" p="273.4 326.68" Z="21" AS="N" Element="8" NumHydrogens="0">
+          <t id="0" BoundingBox="269.5 322.12 277.3 330.68" p="269.5 330.58" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">O</s>
+          </t>
+        </n>
+        <n id="24" p="285.87 348.28" Z="23" AS="N" Charge="-1" Element="8" NumHydrogens="0">
+          <t id="0" BoundingBox="281.97 343.72 292.28 352.28" p="281.97 352.18" LabelAlignment="Left" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">O-</s>
+          </t>
+        </n>
+        <n id="26" p="235.99 319.48" Z="25" AS="N" Element="8" NumHydrogens="0">
+          <t id="0" BoundingBox="232.09 314.92 239.89 323.48" p="232.09 323.38" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">O</s>
+          </t>
+        </n>
+        <n id="28" p="260.93 319.48" Z="27" AS="N" Charge="-1" Element="8" NumHydrogens="0">
+          <t id="0" BoundingBox="257.03 314.92 267.34 323.48" p="257.03 323.38" LabelAlignment="Left" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">O-</s>
+          </t>
+        </n>
+        <n id="30" p="223.52 326.68" Z="29" AS="N" Element="8" NumHydrogens="0">
+          <t id="0" BoundingBox="219.62 322.12 227.42 330.68" p="219.62 330.58" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">O</s>
+          </t>
+        </n>
+        <n id="32" p="211.05 348.28" Z="31" AS="N" Charge="-1" Element="8" NumHydrogens="0">
+          <t id="0" BoundingBox="204.63 343.72 214.95 352.28" p="214.95 352.18" Justification="Unspecified" LabelAlignment="Right" LabelJustification="Unspecified">
+            <s font="3" size="10" face="96" color="0">O-</s>
+          </t>
+        </n>
+        <b id="60" Z="59" B="8" BS="N" E="10"/>
+        <b id="61" Z="60" B="10" BS="N" E="12"/>
+        <b id="62" Z="61" B="12" BS="N" E="14"/>
+        <b id="63" Z="62" B="12" BS="N" E="16"/>
+        <b id="64" Z="63" B="12" BS="N" E="18"/>
+        <b id="65" Z="64" B="18" BS="N" E="20"/>
+        <b id="66" Z="65" B="8" BS="N" E="22" Order="2"/>
+        <b id="67" Z="66" B="8" BS="N" E="24"/>
+        <b id="68" Z="67" B="16" BS="N" E="26" Order="2"/>
+        <b id="69" Z="68" B="16" BS="N" E="28"/>
+        <b id="70" Z="69" B="20" BS="N" E="30" Order="2"/>
+        <b id="71" Z="70" B="20" BS="N" E="32"/>
+      </fragment>
+      <fragment id="59" BoundingBox="204.63 365.32 292.28 409.88" Z="58">
+        <n id="34" p="273.4 391.48" Z="33" AS="N"/>
+        <n id="36" p="260.93 398.68" Z="35" AS="N"/>
+        <n id="38" p="248.46 391.48" Z="37" AS="N"/>
+        <n id="40" p="248.46 405.88" Z="39" AS="N" Element="8" NumHydrogens="1">
+          <t id="0" BoundingBox="244.56 401.32 259.58 409.88" p="244.56 409.78" LabelAlignment="Left" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">OH</s>
+          </t>
+        </n>
+        <n id="42" p="248.46 377.08" Z="41" AS="N"/>
+        <n id="44" p="235.99 398.68" Z="43" AS="N"/>
+        <n id="46" p="223.52 391.48" Z="45" AS="N"/>
+        <n id="48" p="273.4 377.08" Z="47" AS="N" Element="8" NumHydrogens="0">
+          <t id="0" BoundingBox="269.5 372.52 277.3 381.08" p="269.5 380.98" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">O</s>
+          </t>
+        </n>
+        <n id="50" p="285.87 398.68" Z="49" AS="N" Charge="-1" Element="8" NumHydrogens="0">
+          <t id="0" BoundingBox="281.97 394.12 292.28 402.68" p="281.97 402.58" LabelAlignment="Left" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">O-</s>
+          </t>
+        </n>
+        <n id="52" p="235.99 369.88" Z="51" AS="N" Element="8" NumHydrogens="0">
+          <t id="0" BoundingBox="232.09 365.32 239.89 373.88" p="232.09 373.78" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">O</s>
+          </t>
+        </n>
+        <n id="54" p="260.93 369.88" Z="53" AS="N" Charge="-1" Element="8" NumHydrogens="0">
+          <t id="0" BoundingBox="257.03 365.32 267.34 373.88" p="257.03 373.78" LabelAlignment="Left" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">O-</s>
+          </t>
+        </n>
+        <n id="56" p="223.52 377.08" Z="55" AS="N" Element="8" NumHydrogens="0">
+          <t id="0" BoundingBox="219.62 372.52 227.42 381.08" p="219.62 380.98" LabelJustification="Left">
+            <s font="3" size="10" face="96" color="0">O</s>
+          </t>
+        </n>
+        <n id="58" p="211.05 398.68" Z="57" AS="N" Charge="-1" Element="8" NumHydrogens="0">
+          <t id="0" BoundingBox="204.63 394.12 214.95 402.68" p="214.95 402.58" Justification="Unspecified" LabelAlignment="Right" LabelJustification="Unspecified">
+            <s font="3" size="10" face="96" color="0">O-</s>
+          </t>
+        </n>
+        <b id="72" Z="71" B="34" BS="N" E="36"/>
+        <b id="73" Z="72" B="36" BS="N" E="38"/>
+        <b id="74" Z="73" B="38" BS="N" E="40"/>
+        <b id="75" Z="74" B="38" BS="N" E="42"/>
+        <b id="76" Z="75" B="38" BS="N" E="44"/>
+        <b id="77" Z="76" B="44" BS="N" E="46"/>
+        <b id="78" Z="77" B="34" BS="N" E="48" Order="2"/>
+        <b id="79" Z="78" B="34" BS="N" E="50"/>
+        <b id="80" Z="79" B="42" BS="N" E="52" Order="2"/>
+        <b id="81" Z="80" B="42" BS="N" E="54"/>
+        <b id="82" Z="81" B="46" BS="N" E="56" Order="2"/>
+        <b id="83" Z="82" B="46" BS="N" E="58"/>
+      </fragment>
+    </group>
+    <t id="85" BoundingBox="219.58 415.93 303.62 427.43" p="261.6 424.88" Z="84" CaptionJustification="Center" InterpretChemically="no" Justification="Center">
+      <s font="3" size="10" face="0" color="0">Magnesium Citrate</s>
+    </t>
+    <chemicalproperty id="86"/>
+  </page>
+</CDXML>
