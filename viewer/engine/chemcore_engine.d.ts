@@ -11,6 +11,7 @@ export class WasmEngine {
     applyBracketKindToSelection(kind: string): boolean;
     applyColorToSelection(color: string): boolean;
     applyElementPaletteJson(selection_json: string): boolean;
+    applyHoveredBondStyle(style: string): boolean;
     applyLineStyleToSelection(style: string): boolean;
     applyObjectSettingsDialogJson(settings_json: string): boolean;
     applyOrbitalPhaseToSelection(phase: string): boolean;
@@ -66,6 +67,8 @@ export class WasmEngine {
     historyJson(): string;
     hoverArrowAction(x: number, y: number): string;
     hoverShapeAction(x: number, y: number): string;
+    interactionRenderListJson(): string;
+    joinSelection(): boolean;
     lastCommandResultJson(): string;
     loadDocumentCdx(cdx: Uint8Array): void;
     loadDocumentCdxml(cdxml: string): void;
@@ -137,6 +140,7 @@ export interface InitOutput {
     readonly wasmengine_applyBracketKindToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyColorToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyElementPaletteJson: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmengine_applyHoveredBondStyle: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyLineStyleToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyObjectSettingsDialogJson: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_applyOrbitalPhaseToSelection: (a: number, b: number, c: number) => number;
@@ -192,6 +196,8 @@ export interface InitOutput {
     readonly wasmengine_historyJson: (a: number) => [number, number, number, number];
     readonly wasmengine_hoverArrowAction: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_hoverShapeAction: (a: number, b: number, c: number) => [number, number];
+    readonly wasmengine_interactionRenderListJson: (a: number) => [number, number, number, number];
+    readonly wasmengine_joinSelection: (a: number) => number;
     readonly wasmengine_lastCommandResultJson: (a: number) => [number, number, number, number];
     readonly wasmengine_loadDocumentCdx: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_loadDocumentCdxml: (a: number, b: number, c: number) => [number, number];

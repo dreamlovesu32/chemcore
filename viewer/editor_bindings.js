@@ -22,6 +22,36 @@ const HOVER_ENDPOINT_SHORTCUT_LABELS = {
   d: "D",
 };
 
+const TOOL_SHORTCUTS = {
+  " ": { tool: "select" },
+  x: { tool: "bond", secondaryValue: "bond-single" },
+  e: { tool: "arrow" },
+  t: { tool: "text" },
+  g: { tool: "tlc-plate" },
+};
+
+const BOND_TOOL_SHORTCUTS = {
+  "1": "bond-single",
+  "2": "bond-double",
+  "3": "bond-triple",
+  d: "bond-dashed",
+  b: "bond-bold",
+  w: "bond-wavy",
+  y: "bond-wedge",
+  h: "bond-hashed-wedge",
+};
+
+const HOVER_BOND_SHORTCUT_STYLES = {
+  "1": "single-plain",
+  "2": "double-center",
+  "3": "triple-plain",
+  d: "single-dashed",
+  b: "single-bold",
+  w: "single-wavy",
+  y: "single-bold-wedged",
+  h: "single-hashed-wedged",
+};
+
 export function bindEditorControls(options) {
   bindCommandButtons(options);
   bindFileInput(options);
@@ -210,6 +240,14 @@ function bindKeyboard(options) {
     }
     if (await runHoverEndpointShortcut(event, options)) {
       event.preventDefault();
+      return;
+    }
+    if (await runHoverBondShortcut(event, options)) {
+      event.preventDefault();
+      return;
+    }
+    if (await runEditorToolShortcut(event, options)) {
+      event.preventDefault();
     }
   });
 }
@@ -266,6 +304,21 @@ function keyboardCommand(event) {
   if (commandKey && event.key.toLowerCase() === "a") {
     return "select-all";
   }
+  if (commandKey && !event.shiftKey && event.key.toLowerCase() === "g") {
+    return "group-selection";
+  }
+  if (commandKey && event.shiftKey && event.key.toLowerCase() === "g") {
+    return "ungroup-selection";
+  }
+  if (commandKey && !event.shiftKey && event.key.toLowerCase() === "j") {
+    return "join-selection";
+  }
+  if (!commandKey && !event.altKey && event.key === "F2") {
+    return "bring-front";
+  }
+  if (!commandKey && !event.altKey && event.key === "F3") {
+    return "send-back";
+  }
   if (event.key === "Delete" || event.key === "Backspace") {
     return "delete";
   }
@@ -304,6 +357,57 @@ async function runHoverEndpointShortcut(event, options) {
     return false;
   }
   options.renderDocument();
+  return true;
+}
+
+async function runHoverBondShortcut(event, options) {
+  if (!options.isEditingRustDocument() || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.repeat) {
+    return false;
+  }
+  const style = HOVER_BOND_SHORTCUT_STYLES[event.key.toLowerCase()];
+  if (!style) {
+    return false;
+  }
+  const usesCommandEngine = Boolean(options.commandEngine?.executeEngineCommand);
+  const result = usesCommandEngine
+    ? await options.commandEngine.executeEngineCommand(
+      {
+        type: "apply-bond-style",
+        payload: { source: "hover", style },
+      },
+      () => options.state.editorEngine?.applyHoveredBondStyle?.(style),
+    )
+    : { changed: await options.state.editorEngine?.applyHoveredBondStyle?.(style) };
+  const changed = !!result.changed;
+  if (!changed) {
+    return false;
+  }
+  if (!usesCommandEngine) {
+    await options.syncDocumentFromEngine?.();
+  }
+  options.renderDocument();
+  return true;
+}
+
+async function runEditorToolShortcut(event, options) {
+  if (!options.isEditingRustDocument() || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.repeat) {
+    return false;
+  }
+  const key = event.key === " " ? " " : event.key.toLowerCase();
+  const bondValue = BOND_TOOL_SHORTCUTS[key];
+  if (bondValue) {
+    await options.activateEditorTool?.("bond");
+    await handleSecondaryToolbarValue(bondValue, options);
+    return true;
+  }
+  const shortcut = TOOL_SHORTCUTS[key];
+  if (!shortcut) {
+    return false;
+  }
+  await options.activateEditorTool?.(shortcut.tool);
+  if (shortcut.secondaryValue) {
+    await handleSecondaryToolbarValue(shortcut.secondaryValue, options);
+  }
   return true;
 }
 

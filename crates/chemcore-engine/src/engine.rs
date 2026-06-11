@@ -653,13 +653,7 @@ impl Engine {
         None
     }
 
-    pub fn render_list(&self) -> Vec<RenderPrimitive> {
-        let mut out = if let Some(preview_document) = self.preview_document() {
-            render_document(&preview_document)
-        } else {
-            render_document(&self.state.document)
-        };
-        out.extend(self.selection_render_list());
+    fn push_interaction_render_primitives(&self, out: &mut Vec<RenderPrimitive>) {
         if let Some(hover) = &self.state.overlay.hover_text_box {
             out.push(RenderPrimitive::Rect {
                 role: RenderRole::HoverTextBox,
@@ -798,6 +792,29 @@ impl Engine {
                 rotate_center: None,
             });
         }
+    }
+
+    pub fn interaction_render_list(&self) -> Vec<RenderPrimitive> {
+        let mut out = if let Some(preview_document) = self.preview_document() {
+            render_document(&preview_document)
+        } else if self.arrow_edit_drag.is_some() || self.shape_edit_drag.is_some() {
+            render_document(&self.state.document)
+        } else {
+            Vec::new()
+        };
+        out.extend(self.selection_render_list());
+        self.push_interaction_render_primitives(&mut out);
+        out
+    }
+
+    pub fn render_list(&self) -> Vec<RenderPrimitive> {
+        let mut out = if let Some(preview_document) = self.preview_document() {
+            render_document(&preview_document)
+        } else {
+            render_document(&self.state.document)
+        };
+        out.extend(self.selection_render_list());
+        self.push_interaction_render_primitives(&mut out);
         out
     }
 
@@ -1764,13 +1781,10 @@ impl Engine {
                 };
                 self.apply_line_style_to_selection(&style)
             }
-            EditorCommand::ApplyBondStyle { bond_ids, style } => {
-                self.state.selection = SelectionState {
-                    bonds: bond_ids,
-                    ..SelectionState::default()
-                };
-                self.apply_bond_style_to_selection(&style)
-            }
+            EditorCommand::ApplyBondStyle { bond_ids, style } => self
+                .with_command(command.clone(), |engine| {
+                    engine.apply_bond_style_to_bond_ids_untracked(&bond_ids, &style)
+                }),
             EditorCommand::ApplyTextStyle {
                 text_object_ids,
                 label_node_ids,
@@ -1805,6 +1819,7 @@ impl Engine {
                 };
                 self.ungroup_selection()
             }
+            EditorCommand::JoinSelection => self.join_selection(),
             EditorCommand::ScaleSelection { percent } => self.scale_selection(percent),
             EditorCommand::ApplyObjectSettings { settings } => self.apply_object_settings(settings),
             EditorCommand::ApplyObjectSettingsToSelection {
@@ -2543,6 +2558,7 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::CenterSelectionOnPage => "center-selection-on-page",
         EditorCommand::GroupSelection { .. } => "group-selection",
         EditorCommand::UngroupSelection { .. } => "ungroup-selection",
+        EditorCommand::JoinSelection => "join-selection",
         EditorCommand::MoveSelection => "move-selection",
         EditorCommand::RotateSelection => "rotate-selection",
         EditorCommand::ResizeSelection => "resize-selection",

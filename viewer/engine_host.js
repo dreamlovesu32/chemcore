@@ -50,6 +50,7 @@ class TauriEngineSession {
       documentJson: null,
       stateJson: null,
       renderListJson: "[]",
+      interactionRenderListJson: "[]",
       renderBoundsJson: new Map(),
       selectionChemistrySummaryJson: "null",
       documentColorsJson: "[]",
@@ -135,6 +136,9 @@ class TauriEngineSession {
     }
     if (snapshot.renderListJson != null) {
       this.cache.renderListJson = snapshot.renderListJson;
+    }
+    if (snapshot.interactionRenderListJson != null) {
+      this.cache.interactionRenderListJson = snapshot.interactionRenderListJson;
     }
     if (snapshot.allBoundsJson != null) {
       this.cache.renderBoundsJson.set("all", snapshot.allBoundsJson);
@@ -240,6 +244,10 @@ class TauriEngineSession {
 
   renderListJson() {
     return this.cache.renderListJson || "[]";
+  }
+
+  interactionRenderListJson() {
+    return this.cache.interactionRenderListJson || this.cache.renderListJson || "[]";
   }
 
   renderBoundsJson(scope = "all") {
@@ -619,6 +627,10 @@ class TauriEngineSession {
     return this.invokeMutation("desktop_engine_ungroup_selection");
   }
 
+  joinSelection() {
+    return this.invokeMutation("desktop_engine_join_selection");
+  }
+
   applyColorToSelection(color) {
     return this.invokeMutation("desktop_engine_apply_color_to_selection", { color });
   }
@@ -649,6 +661,10 @@ class TauriEngineSession {
 
   applyBondStyleToSelection(style) {
     return this.invokeMutation("desktop_engine_apply_bond_style_to_selection", { style });
+  }
+
+  applyHoveredBondStyle(style) {
+    return this.invokeMutation("desktop_engine_apply_hovered_bond_style", { style });
   }
 
   applyTextStyleToSelection(command, value) {

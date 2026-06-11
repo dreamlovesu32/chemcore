@@ -463,7 +463,11 @@ export function createEditorOverlayRenderer(options) {
       || primitives.some((primitive) => primitive.role === "preview-end");
     const editorState = options.editorState();
     const activeSelectionGesture = options.activeSelectionGesture();
-    const visibleResizeHandles = selectionResizeHandles(primitives);
+    const hideSelectionOverlayDuringGesture = ["move", "resize", "rotate"]
+      .includes(activeSelectionGesture?.kind);
+    const visibleResizeHandles = hideSelectionOverlayDuringGesture
+      ? []
+      : selectionResizeHandles(primitives);
     if (previewActive) {
       const viewBox = options.activeViewBox();
       const pageBackground = normalizeDisplayColor(
@@ -490,11 +494,17 @@ export function createEditorOverlayRenderer(options) {
         continue;
       }
       if (primitive.kind === "line" && primitive.from && primitive.to) {
+        if (hideSelectionOverlayDuringGesture && primitive.role?.startsWith("selection-")) {
+          continue;
+        }
         if (!primitive.role?.startsWith("selection-")) {
           continue;
         }
         renderCorePrimitive(overlay, normalizeSelectionPrimitiveForViewport(primitive), options.corePrimitiveRenderOptions());
       } else if (primitive.kind === "path" && primitive.d) {
+        if (hideSelectionOverlayDuringGesture && primitive.role?.startsWith("selection-")) {
+          continue;
+        }
         if (!primitive.role?.startsWith("selection-")) {
           continue;
         }
@@ -515,6 +525,9 @@ export function createEditorOverlayRenderer(options) {
           "hover-label-glyph": "editor-label-glyph-focus",
           "hover-arrow-handle": "editor-arrow-focus-handle",
         };
+        if (hideSelectionOverlayDuringGesture && primitive.role?.startsWith("selection-")) {
+          continue;
+        }
         if (primitive.role?.startsWith("selection-")) {
           if (primitive.role === "selection-resize-handle") {
             if (activeSelectionGesture || !visibleResizeHandles.some((handle) => handle.sourcePrimitive === primitive)) {
@@ -537,6 +550,9 @@ export function createEditorOverlayRenderer(options) {
           "data-role": primitive.role,
         }));
       } else if (primitive.kind === "circle" && primitive.center) {
+        if (hideSelectionOverlayDuringGesture && primitive.role?.startsWith("selection-")) {
+          continue;
+        }
         if (primitive.role?.startsWith("selection-")) {
           renderCorePrimitive(overlay, normalizeSelectionPrimitiveForViewport(primitive), options.corePrimitiveRenderOptions());
           continue;
@@ -563,7 +579,7 @@ export function createEditorOverlayRenderer(options) {
         }));
       }
     }
-    if (editorState.activeTool === "select" && activeSelectionGesture?.kind === "resize") {
+    if (!hideSelectionOverlayDuringGesture && editorState.activeTool === "select" && activeSelectionGesture?.kind === "resize") {
       const bounds = options.currentRenderBounds("selection") || activeSelectionGesture.bounds;
       if (bounds) {
         const labelOffset = options.screenPxToWorld(8);
@@ -575,7 +591,7 @@ export function createEditorOverlayRenderer(options) {
         }));
         overlay.lastChild.textContent = formatResizeScale(activeSelectionGesture.scale || 1);
       }
-    } else if (editorState.activeTool === "select" && activeSelectionGesture?.kind === "rotate") {
+    } else if (!hideSelectionOverlayDuringGesture && editorState.activeTool === "select" && activeSelectionGesture?.kind === "rotate") {
       const bounds = activeSelectionGesture.bounds;
       const labelOffset = options.screenPxToWorld(8);
       overlay.appendChild(makeSvgNode("text", {
@@ -605,7 +621,9 @@ export function createEditorOverlayRenderer(options) {
       && options.activeTlcLaneHover()) {
       drawTlcSpotGuideOverlay(overlay, options.activeTlcLaneHover());
     }
-    if (editorState.activeTool === "select" && activeSelectionGesture?.dragged) {
+    if (editorState.activeTool === "select"
+      && activeSelectionGesture?.kind === "select"
+      && activeSelectionGesture?.dragged) {
       if (editorState.selectMode === "box") {
         const start = activeSelectionGesture.start;
         const current = activeSelectionGesture.current;

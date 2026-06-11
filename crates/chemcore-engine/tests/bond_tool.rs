@@ -6874,6 +6874,114 @@ fn context_style_commands_apply_to_graphic_text_and_bond_selections() {
 }
 
 #[test]
+fn hovered_bond_style_shortcut_updates_bond_without_changing_selection() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+    click(&mut engine, FIRST_END_X, FIRST_END_Y);
+
+    let first_bond_id = engine
+        .state()
+        .document
+        .editable_fragment()
+        .unwrap()
+        .fragment
+        .bonds[0]
+        .id
+        .clone();
+    assert!(engine.select_all());
+    let before_selection = engine.state().selection.clone();
+
+    engine.set_tool_state(select_tool());
+    let center = bond_center_point(&engine, &first_bond_id);
+    engine.pointer_move(PointerEvent {
+        x: center.x,
+        y: center.y,
+        button: None,
+        alt_key: false,
+    });
+
+    assert!(engine.apply_hovered_bond_style("double-center"));
+    assert_eq!(engine.state().selection, before_selection);
+
+    let fragment = engine
+        .state()
+        .document
+        .editable_fragment()
+        .unwrap()
+        .fragment;
+    let bond = fragment
+        .bonds
+        .iter()
+        .find(|bond| bond.id == first_bond_id)
+        .unwrap();
+    assert_eq!(bond.order, 2);
+    assert_eq!(
+        bond.double.as_ref().map(|double| double.placement),
+        Some(DoubleBondPlacement::Center)
+    );
+}
+
+#[test]
+fn hovered_bond_style_shortcut_accepts_wavy_alias() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+
+    engine.set_tool_state(select_tool());
+    engine.pointer_move(PointerEvent {
+        x: FIRST_CENTER_X,
+        y: FIRST_CENTER_Y,
+        button: None,
+        alt_key: false,
+    });
+
+    assert!(engine.apply_hovered_bond_style("wavy"));
+    let fragment = engine
+        .state()
+        .document
+        .editable_fragment()
+        .unwrap()
+        .fragment;
+    let bond = &fragment.bonds[0];
+    assert_eq!(bond.order, 1);
+    assert_eq!(bond.line_styles.main, BondLinePattern::Wavy);
+}
+
+#[test]
+fn hovered_bond_style_shortcut_noops_without_hover() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+
+    assert!(!engine.apply_hovered_bond_style("double-center"));
+    let fragment = engine
+        .state()
+        .document
+        .editable_fragment()
+        .unwrap()
+        .fragment;
+    let bond = &fragment.bonds[0];
+    assert_eq!(bond.order, 1);
+    assert!(bond.double.is_none());
+}
+
+#[test]
+fn join_selection_is_not_group_selection_fallback() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+    click(&mut engine, FIRST_END_X, FIRST_END_Y);
+    assert!(engine.select_all());
+    let before_document = engine.document_json().unwrap();
+    let before_selection = engine.state().selection.clone();
+
+    assert!(!engine.join_selection());
+    assert_eq!(engine.document_json().unwrap(), before_document);
+    assert_eq!(engine.state().selection, before_selection);
+}
+
+#[test]
 fn chemical_check_context_command_suppresses_invalid_label_marker() {
     let mut engine = Engine::new();
     let document = json!({
@@ -7137,8 +7245,14 @@ fn select_tool_dragging_selected_line_translates_payload_points_on_finish() {
         .document
         .find_scene_object("obj_line")
         .unwrap();
-    assert_eq!(line.payload.extra["points"], json!([[16.0, 23.0], [46.0, 23.0]]));
-    assert_eq!(line.payload.extra["arrowGeometry"]["center"], json!([31.0, 27.0]));
+    assert_eq!(
+        line.payload.extra["points"],
+        json!([[16.0, 23.0], [46.0, 23.0]])
+    );
+    assert_eq!(
+        line.payload.extra["arrowGeometry"]["center"],
+        json!([31.0, 27.0])
+    );
     assert_eq!(
         line.payload.extra["arrowGeometry"]["majorAxisEnd"],
         json!([39.0, 27.0])

@@ -9,6 +9,7 @@ export const wasmengine_applyBondStyleToSelection: (a: number, b: number, c: num
 export const wasmengine_applyBracketKindToSelection: (a: number, b: number, c: number) => number;
 export const wasmengine_applyColorToSelection: (a: number, b: number, c: number) => number;
 export const wasmengine_applyElementPaletteJson: (a: number, b: number, c: number) => [number, number, number];
+export const wasmengine_applyHoveredBondStyle: (a: number, b: number, c: number) => number;
 export const wasmengine_applyLineStyleToSelection: (a: number, b: number, c: number) => number;
 export const wasmengine_applyObjectSettingsDialogJson: (a: number, b: number, c: number) => [number, number, number];
 export const wasmengine_applyOrbitalPhaseToSelection: (a: number, b: number, c: number) => number;
@@ -64,6 +65,8 @@ export const wasmengine_hasClipboard: (a: number) => number;
 export const wasmengine_historyJson: (a: number) => [number, number, number, number];
 export const wasmengine_hoverArrowAction: (a: number, b: number, c: number) => [number, number];
 export const wasmengine_hoverShapeAction: (a: number, b: number, c: number) => [number, number];
+export const wasmengine_interactionRenderListJson: (a: number) => [number, number, number, number];
+export const wasmengine_joinSelection: (a: number) => number;
 export const wasmengine_lastCommandResultJson: (a: number) => [number, number, number, number];
 export const wasmengine_loadDocumentCdx: (a: number, b: number, c: number) => [number, number];
 export const wasmengine_loadDocumentCdxml: (a: number, b: number, c: number) => [number, number];

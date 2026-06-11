@@ -631,6 +631,11 @@ impl WasmEngine {
         self.inner.ungroup_selection()
     }
 
+    #[wasm_bindgen(js_name = joinSelection)]
+    pub fn join_selection(&mut self) -> bool {
+        self.inner.join_selection()
+    }
+
     #[wasm_bindgen(js_name = applyColorToSelection)]
     pub fn apply_color_to_selection(&mut self, color: &str) -> bool {
         self.inner.apply_color_to_selection(color)
@@ -669,6 +674,11 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = applyBondStyleToSelection)]
     pub fn apply_bond_style_to_selection(&mut self, style: &str) -> bool {
         self.inner.apply_bond_style_to_selection(style)
+    }
+
+    #[wasm_bindgen(js_name = applyHoveredBondStyle)]
+    pub fn apply_hovered_bond_style(&mut self, style: &str) -> bool {
+        self.inner.apply_hovered_bond_style(style)
     }
 
     #[wasm_bindgen(js_name = applyTextStyleToSelection)]
@@ -902,6 +912,12 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = renderListJson)]
     pub fn render_list_json(&self) -> Result<String, JsValue> {
         serde_json::to_string(&self.inner.render_list())
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    #[wasm_bindgen(js_name = interactionRenderListJson)]
+    pub fn interaction_render_list_json(&self) -> Result<String, JsValue> {
+        serde_json::to_string(&self.inner.interaction_render_list())
             .map_err(|error| JsValue::from_str(&error.to_string()))
     }
 

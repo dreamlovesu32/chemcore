@@ -89,6 +89,7 @@ pub struct DesktopEngineSnapshot {
     pub document_json: Option<String>,
     pub state_json: Option<String>,
     pub render_list_json: Option<String>,
+    pub interaction_render_list_json: Option<String>,
     pub all_bounds_json: Option<String>,
     pub document_bounds_json: Option<String>,
     pub selection_bounds_json: Option<String>,
@@ -188,6 +189,11 @@ impl DesktopDocumentService {
             .map_err(|error| error.to_string())
     }
 
+    pub fn interaction_render_list_json(&self, session_id: SessionId) -> Result<String, String> {
+        serde_json::to_string(&self.session(session_id)?.interaction_render_list())
+            .map_err(|error| error.to_string())
+    }
+
     pub fn render_bounds_json(&self, session_id: SessionId, scope: &str) -> Result<String, String> {
         serde_json::to_string(&self.render_bounds(session_id, scope)?)
             .map_err(|error| error.to_string())
@@ -211,7 +217,13 @@ impl DesktopDocumentService {
     ) -> Result<String, String> {
         let session = self.session(session_id)?;
         let include_document = mode == DesktopEngineSnapshotMode::Document;
-        let include_render = mode != DesktopEngineSnapshotMode::State;
+        let include_render = mode == DesktopEngineSnapshotMode::Document;
+        let include_interaction_render = matches!(
+            mode,
+            DesktopEngineSnapshotMode::Interaction
+                | DesktopEngineSnapshotMode::Selection
+                | DesktopEngineSnapshotMode::Document
+        );
         let include_all_bounds = mode == DesktopEngineSnapshotMode::Document;
         let include_document_bounds = mode == DesktopEngineSnapshotMode::Document;
         let include_selection_bounds = matches!(
@@ -220,14 +232,27 @@ impl DesktopDocumentService {
                 | DesktopEngineSnapshotMode::Selection
                 | DesktopEngineSnapshotMode::Document
         );
-        let include_selection_summary = include_selection_bounds;
+        let include_selection_summary = matches!(
+            mode,
+            DesktopEngineSnapshotMode::Selection | DesktopEngineSnapshotMode::Document
+        );
 
         let primitives = if include_render {
             Some(session.render_list())
         } else {
             None
         };
+        let interaction_primitives = if include_interaction_render {
+            Some(session.interaction_render_list())
+        } else {
+            None
+        };
         let render_list_json = primitives
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|error| error.to_string())?;
+        let interaction_render_list_json = interaction_primitives
             .as_ref()
             .map(serde_json::to_string)
             .transpose()
@@ -240,6 +265,7 @@ impl DesktopDocumentService {
                 .map_err(|error| error.to_string())?,
             state_json: Some(session.state_json().map_err(|error| error.to_string())?),
             render_list_json,
+            interaction_render_list_json,
             all_bounds_json: bounds_json_for_snapshot(
                 primitives.as_deref(),
                 RenderBoundsScope::All,
@@ -251,7 +277,7 @@ impl DesktopDocumentService {
                 include_document_bounds,
             )?,
             selection_bounds_json: bounds_json_for_snapshot(
-                primitives.as_deref(),
+                interaction_primitives.as_deref(),
                 RenderBoundsScope::Selection,
                 include_selection_bounds,
             )?,
@@ -988,6 +1014,10 @@ impl DesktopDocumentService {
         Ok(self.session_mut(session_id)?.ungroup_selection())
     }
 
+    pub fn join_selection(&mut self, session_id: SessionId) -> Result<bool, String> {
+        Ok(self.session_mut(session_id)?.join_selection())
+    }
+
     pub fn apply_color_to_selection(
         &mut self,
         session_id: SessionId,
@@ -1066,6 +1096,16 @@ impl DesktopDocumentService {
         Ok(self
             .session_mut(session_id)?
             .apply_bond_style_to_selection(style))
+    }
+
+    pub fn apply_hovered_bond_style(
+        &mut self,
+        session_id: SessionId,
+        style: &str,
+    ) -> Result<bool, String> {
+        Ok(self
+            .session_mut(session_id)?
+            .apply_hovered_bond_style(style))
     }
 
     pub fn apply_text_style_to_selection(

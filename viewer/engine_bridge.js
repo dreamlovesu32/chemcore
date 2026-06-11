@@ -14,6 +14,13 @@ export function renderListFromEngine(engine) {
   return parseEngineJson(engine.renderListJson(), []) || [];
 }
 
+export function interactionRenderListFromEngine(engine) {
+  if (engine?.interactionRenderListJson) {
+    return parseEngineJson(engine.interactionRenderListJson(), []) || [];
+  }
+  return renderListFromEngine(engine);
+}
+
 export function renderBoundsFromEngine(engine, scope = "all") {
   if (!engine?.renderBoundsJson) {
     return null;

@@ -804,6 +804,15 @@ pub(crate) fn desktop_engine_ungroup_selection(
 }
 
 #[tauri::command]
+pub(crate) fn desktop_engine_join_selection(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.join_selection(session_id)
+}
+
+#[tauri::command]
 pub(crate) fn desktop_engine_apply_color_to_selection(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
@@ -881,6 +890,16 @@ pub(crate) fn desktop_engine_apply_bond_style_to_selection(
 ) -> Result<bool, String> {
     let mut service = state.service.lock().map_err(|error| error.to_string())?;
     service.apply_bond_style_to_selection(session_id, &style)
+}
+
+#[tauri::command]
+pub(crate) fn desktop_engine_apply_hovered_bond_style(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    style: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.apply_hovered_bond_style(session_id, &style)
 }
 
 #[tauri::command]

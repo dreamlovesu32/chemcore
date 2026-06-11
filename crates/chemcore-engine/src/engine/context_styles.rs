@@ -352,12 +352,44 @@ impl Engine {
     }
 
     fn apply_bond_style_to_selection_untracked(&mut self, style: &str) -> bool {
-        let selected: BTreeSet<String> = self.state.selection.bonds.iter().cloned().collect();
+        let bond_ids = self.state.selection.bonds.clone();
+        self.apply_bond_style_to_bond_ids_untracked(&bond_ids, style)
+    }
+
+    pub fn apply_hovered_bond_style(&mut self, style: &str) -> bool {
+        let style = normalize_bond_style_name(style);
+        let Some(bond_id) = self
+            .state
+            .overlay
+            .hover_bond_center
+            .as_ref()
+            .map(|hover| hover.bond_id.clone())
+        else {
+            return false;
+        };
+        self.with_command(
+            EditorCommand::ApplyBondStyle {
+                bond_ids: vec![bond_id.clone()],
+                style: style.clone(),
+            },
+            |engine| engine.apply_bond_style_to_bond_ids_untracked(&[bond_id.clone()], &style),
+        )
+    }
+
+    pub(crate) fn apply_bond_style_to_bond_ids_untracked(
+        &mut self,
+        bond_ids: &[String],
+        style: &str,
+    ) -> bool {
+        let style = normalize_bond_style_name(style);
+        let selected: BTreeSet<String> = bond_ids.iter().cloned().collect();
         if selected.is_empty() {
             return false;
         }
         self.push_undo_snapshot();
         let stroke_width = self.options.bond_stroke_world_pt().value();
+        let bold_width = self.options.bold_bond_width_world_pt().value();
+        let wedge_width = self.options.wedge_width_world_pt().value();
         let Some(mut entry) = self.state.document.editable_fragment_mut() else {
             self.undo_stack.pop();
             return false;
@@ -366,12 +398,7 @@ impl Engine {
         let mut changed = false;
         for bond in &mut entry.fragment.bonds {
             if selected.contains(&bond.id) {
-                changed |= apply_bond_style_key(
-                    bond,
-                    style,
-                    self.options.bold_bond_width_world_pt().value(),
-                    self.options.wedge_width_world_pt().value(),
-                );
+                changed |= apply_bond_style_key(bond, &style, bold_width, wedge_width);
             }
         }
         if !changed {
@@ -1070,11 +1097,14 @@ fn normalize_line_style_name(style: &str) -> String {
 
 fn normalize_bond_style_name(style: &str) -> String {
     match style.trim().to_ascii_lowercase().replace('_', "-").as_str() {
+        "single-plain" | "single" => "single-plain",
         "single-dashed" | "dashed" => "single-dashed",
         "single-hashed" | "hashed" => "single-hashed",
         "single-hashed-wedged" | "hashed-wedged" | "hashed-wedge" => "single-hashed-wedged",
         "single-bold" | "bold" => "single-bold",
         "single-bold-wedged" | "bold-wedged" | "wedge" | "wedged" => "single-bold-wedged",
+        "single-hollow-wedged" | "hollow-wedged" | "hollow-wedge" => "single-hollow-wedged",
+        "single-wavy" | "wavy" => "single-wavy",
         "double-left" => "double-left",
         "double-right" => "double-right",
         "double-center" | "double" => "double-center",

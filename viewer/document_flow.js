@@ -538,6 +538,7 @@ export function createDocumentFlow(options) {
     await options.state.editorEngine.loadDocumentCdx(cdx);
     await options.syncEngineToolState();
     await options.syncDocumentFromEngine();
+    options.renderSecondaryToolbar?.();
     options.state.runtimeViewBox = null;
     options.viewerTitle.textContent = options.state.currentDocument?.document?.title || fileName || "Imported CDX";
     updateDocumentMeta();
@@ -601,6 +602,7 @@ export function createDocumentFlow(options) {
     await options.state.editorEngine.loadDocumentCdxml(cdxml);
     await options.syncEngineToolState();
     await options.syncDocumentFromEngine();
+    options.renderSecondaryToolbar?.();
     options.state.runtimeViewBox = null;
     options.viewerTitle.textContent = options.state.currentDocument?.document?.title || fileName || "Imported CDXML";
     updateDocumentMeta();

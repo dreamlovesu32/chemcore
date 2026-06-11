@@ -1,4 +1,5 @@
 import {
+  interactionRenderListFromEngine,
   parseEngineJson,
   primitivesForObject,
   renderBoundsFromEngine,
@@ -308,7 +309,7 @@ let activeDocumentPreviewTransform = "";
 
 const syncWindowTitle = () => {
   updateActiveDocumentTabTitle();
-  const title = activeDocumentTab()?.title || String(viewerTitle?.textContent || "Untitled").trim() || "Untitled";
+  const title = documentTitleFromState();
   document.title = `${title} - Chemcore`;
   desktopFileHost?.setWindowTitle?.(title).catch?.(() => {});
 };
@@ -447,6 +448,7 @@ function saveActiveDocumentTabState() {
   }
   tab.zoomPercent = zoomPercent;
   tab.title = documentTitleFromState();
+  syncWindowTitle();
 }
 
 async function restoreDocumentTabState(tab) {
@@ -1566,6 +1568,10 @@ function currentEditorRenderList() {
   return renderListFromEngine(state.editorEngine);
 }
 
+function currentEditorInteractionRenderList() {
+  return interactionRenderListFromEngine(state.editorEngine);
+}
+
 function currentRenderBounds(scope = "all") {
   const engine = isEditingRustDocument() ? state.editorEngine : state.documentEngine;
   return renderBoundsFromEngine(engine, scope);
@@ -1698,15 +1704,15 @@ function syncEditorRenderListFromEngine(options = {}) {
 }
 
 function syncEditorSelectionRenderListFromEngine() {
-  return syncEditorRenderListFromEngine({ autoExpand: false });
+  return currentEditorInteractionRenderList();
 }
 
 function currentEditorOverlayRenderList() {
-  const renderList = state.coreRenderList || currentEditorRenderList();
+  const renderList = currentEditorInteractionRenderList();
   return (renderList || []).filter((primitive) => !isDocumentPreviewPrimitive(primitive));
 }
 
-function currentSelectionOverlayPrimitiveCount(renderList = state.coreRenderList || currentEditorRenderList()) {
+function currentSelectionOverlayPrimitiveCount(renderList = currentEditorInteractionRenderList()) {
   return (renderList || []).filter((primitive) => String(primitive?.role || "").startsWith("selection-")).length;
 }
 
@@ -1784,7 +1790,7 @@ function corePrimitiveRenderOptions() {
 
 const editorOverlayRenderer = createEditorOverlayRenderer({
   currentRenderBounds,
-  currentEditorRenderList,
+  currentEditorRenderList: currentEditorInteractionRenderList,
   screenPxToWorld,
   pointDistance,
   viewerSvg: () => viewerSvg,
@@ -1915,15 +1921,14 @@ const editorPointerController = createEditorPointerController({
   selectionRotateAngleForGesture,
   currentRenderBounds,
   currentEditorRenderList,
+  currentEditorInteractionRenderList,
   currentEditorOverlayRenderList,
   renderEditorOverlay,
-  selectionCoversRenderedDocument,
-  selectionHasLargeOverlay: () => currentSelectionOverlayPrimitiveCount() >= 24,
+  selectionHasLargeOverlay: () => currentSelectionOverlayPrimitiveCount() >= 120,
   selectionBoundsContainsPoint: currentSelectionBoundsContainsPoint,
   applyDocumentObjectPreviewTransform,
   clearDocumentObjectPreviewTransform,
   syncEditorRenderListFromEngine,
-  syncEditorOverlayPreviewTransform,
   updateTlcSpotHover,
   clearTlcHoverState,
   documentHasTlcPlate: currentDocumentHasTlcPlate,
@@ -2391,9 +2396,7 @@ async function syncArrowAwareCursorForPoint(point) {
     viewerSvg.style.cursor = "grab";
     return;
   }
-  if (activeToolCanDragSelection()
-    && (selectionCoversRenderedDocument() || currentSelectionOverlayPrimitiveCount() >= 24)
-    && currentSelectionBoundsContainsPoint(point)) {
+  if (activeToolCanDragSelection() && currentSelectionBoundsContainsPoint(point)) {
     viewerSvg.style.cursor = "grab";
     return;
   }
@@ -2406,7 +2409,7 @@ async function syncArrowAwareCursorForPoint(point) {
     viewerSvg.style.cursor = "nesw-resize";
     return;
   }
-  const overSelection = !!state.editorEngine.selectionContainsPoint?.(point.x, point.y);
+  const overSelection = currentSelectionBoundsContainsPoint(point);
   if ((editorState.activeTool === "select"
     || editorState.activeTool === "bond"
     || editorState.activeTool === "arrow"
@@ -3937,7 +3940,7 @@ function documentPrimitiveHasSelectionAnchor(primitive) {
   ));
 }
 
-function selectedWholeDocumentObjectIds(renderList = currentEditorRenderList()) {
+function selectedWholeDocumentObjectIds(renderList = state.coreRenderList || currentEditorRenderList()) {
   const selection = currentEditorEngineState()?.selection;
   if (!selection || editorSelectionHasItems(selection) === false) {
     return [];
@@ -3963,7 +3966,7 @@ function selectedWholeDocumentObjectIds(renderList = currentEditorRenderList()) 
     .map(([objectId]) => objectId);
 }
 
-function selectionCoversRenderedDocument(renderList = currentEditorRenderList()) {
+function selectionCoversRenderedDocument(renderList = state.coreRenderList || currentEditorRenderList()) {
   const selection = currentEditorEngineState()?.selection;
   if (!selection || editorSelectionHasItems(selection) === false) {
     return false;
@@ -4117,22 +4120,6 @@ function applyDocumentObjectPreviewTransform() {
   }
   activeDocumentPreviewObjectIds = nextIds;
   activeDocumentPreviewTransform = transform;
-  return true;
-}
-
-function syncEditorOverlayPreviewTransform() {
-  const overlay = viewerSvg.querySelector('[data-layer="editor-overlay"]');
-  if (!overlay) {
-    return false;
-  }
-  if (overlay.querySelector('[data-role="preview-document-mask"]')) {
-    return false;
-  }
-  if (activeDocumentPreviewTransform) {
-    overlay.setAttribute("transform", activeDocumentPreviewTransform);
-  } else {
-    overlay.removeAttribute("transform");
-  }
   return true;
 }
 

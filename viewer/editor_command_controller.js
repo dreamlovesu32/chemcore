@@ -99,6 +99,17 @@ export function createEditorCommandController(options) {
       await options.activateEditorTool("select");
       changed = !!(await state.editorEngine.selectAll?.());
       shouldRenderDocument = true;
+    } else if (command === "group-selection") {
+      changed = await executeDocumentCommand("group-selection", () => state.editorEngine.groupSelection?.());
+    } else if (command === "ungroup-selection") {
+      changed = await executeDocumentCommand("ungroup-selection", () => state.editorEngine.ungroupSelection?.());
+    } else if (command === "join-selection") {
+      changed = await executeDocumentCommand("join-selection", () => state.editorEngine.joinSelection?.());
+    } else if (command === "bring-front" || command === "send-back") {
+      changed = await executeDocumentCommand(
+        { type: "apply-selection-order", payload: { command } },
+        () => state.editorEngine.applySelectionOrderCommand?.(command),
+      );
     } else {
       return false;
     }

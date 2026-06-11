@@ -71,6 +71,16 @@ impl Engine {
         true
     }
 
+    pub fn join_selection(&mut self) -> bool {
+        self.with_command(EditorCommand::JoinSelection, |engine| {
+            engine.join_selection_untracked()
+        })
+    }
+
+    fn join_selection_untracked(&mut self) -> bool {
+        false
+    }
+
     pub fn apply_selection_order_command(&mut self, command: &str) -> bool {
         let object_ids = selected_scene_object_ids(&self.state.selection)
             .into_iter()
