@@ -160,6 +160,7 @@ struct SelectionArrangeItem {
 struct NodeMoveOriginal {
     node_id: String,
     position: [f64; 2],
+    label: Option<crate::NodeLabel>,
 }
 
 #[derive(Clone)]
@@ -182,6 +183,7 @@ pub(super) struct SelectionMoveDrag {
     start: Point,
     node_originals: Vec<NodeMoveOriginal>,
     text_originals: Vec<TextMoveOriginal>,
+    fragment_bbox_original: Option<[f64; 4]>,
     mode: SelectionMoveMode,
     preserve_selection_after_drag: bool,
     undo_pushed: bool,
@@ -1517,14 +1519,26 @@ impl Engine {
         }
 
         let mut node_originals = Vec::new();
+        let mut fragment_bbox_original = None;
         let mut mode = SelectionMoveMode::Translate;
         if let Some(entry) = self.state.document.editable_fragment() {
             node_ids.sort();
+            let selected_node_ids: BTreeSet<&str> = node_ids.iter().map(String::as_str).collect();
+            if !entry.fragment.nodes.is_empty()
+                && entry
+                    .fragment
+                    .nodes
+                    .iter()
+                    .all(|node| selected_node_ids.contains(node.id.as_str()))
+            {
+                fragment_bbox_original = Some(entry.fragment.bbox);
+            }
             for node_id in &node_ids {
                 if let Some(node) = entry.fragment.nodes.iter().find(|node| &node.id == node_id) {
                     node_originals.push(NodeMoveOriginal {
                         node_id: node.id.clone(),
                         position: node.position,
+                        label: node.label.clone(),
                     });
                 }
             }
@@ -1557,6 +1571,7 @@ impl Engine {
             start,
             node_originals,
             text_originals,
+            fragment_bbox_original,
             mode,
             preserve_selection_after_drag,
             undo_pushed: false,
@@ -1604,6 +1619,7 @@ impl Engine {
                     node_originals.push(NodeMoveOriginal {
                         node_id: node.id.clone(),
                         position: node.position,
+                        label: node.label.clone(),
                     });
                 }
             }
@@ -1677,6 +1693,7 @@ impl Engine {
                     node_originals.push(NodeMoveOriginal {
                         node_id: node.id.clone(),
                         position: node.position,
+                        label: node.label.clone(),
                     });
                 }
             }

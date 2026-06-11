@@ -99,6 +99,10 @@ pub(super) fn apply_selection_drag_to_document(
                         round2(original.position[0] + delta_x),
                         round2(original.position[1] + delta_y),
                     ];
+                    node.label = original
+                        .label
+                        .as_ref()
+                        .map(|label| translated_node_label_geometry(label, delta_x, delta_y));
                 }
             }
         }
@@ -121,12 +125,25 @@ pub(super) fn apply_selection_drag_to_document(
             }
         }
     }
-    refresh_attached_node_label_geometry_for_all_nodes(
-        entry.fragment,
-        object_translate,
-        stroke_width,
-    );
-    entry.update_bounds();
+    match drag.mode {
+        SelectionMoveMode::Translate => {
+            if let Some(bbox) = drag.fragment_bbox_original {
+                let translated = translate_size_bbox(bbox, delta_x, delta_y);
+                entry.fragment.bbox = translated;
+                entry.object.payload.bbox = Some(translated);
+            } else {
+                entry.update_bounds();
+            }
+        }
+        SelectionMoveMode::TerminalNode { .. } => {
+            refresh_attached_node_label_geometry_for_all_nodes(
+                entry.fragment,
+                object_translate,
+                stroke_width,
+            );
+            entry.update_bounds();
+        }
+    }
 }
 
 pub(super) fn selection_rotate_delta_degrees(
@@ -633,6 +650,10 @@ fn resized_scene_object(
 
 fn translated_scene_object(original: &SceneObject, delta_x: f64, delta_y: f64) -> SceneObject {
     let mut object = original.clone();
+    if original.object_type == "line" {
+        translate_line_payload_points(&mut object, delta_x, delta_y);
+        return object;
+    }
     object.transform.translate = [
         round2(original.transform.translate[0] + delta_x),
         round2(original.transform.translate[1] + delta_y),
@@ -650,6 +671,76 @@ fn translated_scene_object(original: &SceneObject, delta_x: f64, delta_y: f64) -
     object
 }
 
+fn translate_line_payload_points(object: &mut SceneObject, delta_x: f64, delta_y: f64) {
+    translate_extra_point_array(&mut object.payload.extra, "points", delta_x, delta_y);
+    if let Some(geometry) = object
+        .payload
+        .extra
+        .get_mut("arrowGeometry")
+        .and_then(JsonValue::as_object_mut)
+    {
+        for key in ["center", "majorAxisEnd", "minorAxisEnd"] {
+            translate_json_object_point(geometry, key, delta_x, delta_y);
+        }
+        translate_json_object_bbox(geometry, "boundingBox", delta_x, delta_y);
+    }
+    if let Some([x, y, width, height]) = object.payload.bbox {
+        object.payload.bbox = Some([round2(x + delta_x), round2(y + delta_y), width, height]);
+    }
+}
+
+fn translate_extra_point_array(
+    extra: &mut BTreeMap<String, JsonValue>,
+    key: &str,
+    delta_x: f64,
+    delta_y: f64,
+) {
+    let Some(points) = extra.get_mut(key).and_then(JsonValue::as_array_mut) else {
+        return;
+    };
+    for value in points {
+        let Some(point) = json_array_to_point(value) else {
+            continue;
+        };
+        *value = json!([round2(point.x + delta_x), round2(point.y + delta_y)]);
+    }
+}
+
+fn translate_json_object_point(
+    object: &mut serde_json::Map<String, JsonValue>,
+    key: &str,
+    delta_x: f64,
+    delta_y: f64,
+) {
+    let Some(point) = object.get(key).and_then(json_array_to_point) else {
+        return;
+    };
+    object.insert(
+        key.to_string(),
+        json!([round2(point.x + delta_x), round2(point.y + delta_y)]),
+    );
+}
+
+fn translate_json_object_bbox(
+    object: &mut serde_json::Map<String, JsonValue>,
+    key: &str,
+    delta_x: f64,
+    delta_y: f64,
+) {
+    let Some(bbox) = json_array_to_box(object.get(key)) else {
+        return;
+    };
+    object.insert(
+        key.to_string(),
+        json!([
+            round2(bbox[0] + delta_x),
+            round2(bbox[1] + delta_y),
+            round2(bbox[2] + delta_x),
+            round2(bbox[3] + delta_y)
+        ]),
+    );
+}
+
 fn translate_absolute_shape_points(object: &mut SceneObject, delta_x: f64, delta_y: f64) {
     for key in ["center", "majorAxisEnd", "minorAxisEnd"] {
         let Some(point) = object.payload.extra.get(key).and_then(json_array_to_point) else {
@@ -663,6 +754,54 @@ fn translate_absolute_shape_points(object: &mut SceneObject, delta_x: f64, delta
     if let Some([x, y, width, height]) = object.payload.bbox {
         object.payload.bbox = Some([round2(x + delta_x), round2(y + delta_y), width, height]);
     }
+}
+
+fn translated_node_label_geometry(
+    original: &crate::NodeLabel,
+    delta_x: f64,
+    delta_y: f64,
+) -> crate::NodeLabel {
+    let mut label = original.clone();
+    translate_node_label_geometry(&mut label, delta_x, delta_y);
+    label
+}
+
+fn translate_node_label_geometry(label: &mut crate::NodeLabel, delta_x: f64, delta_y: f64) {
+    if delta_x.abs() <= crate::EPSILON && delta_y.abs() <= crate::EPSILON {
+        return;
+    }
+    if let Some(position) = &mut label.position {
+        position[0] = round2(position[0] + delta_x);
+        position[1] = round2(position[1] + delta_y);
+    }
+    if let Some(bounds) = &mut label.box_field {
+        translate_box(bounds, delta_x, delta_y);
+    }
+    if let Some(bounds) = &mut label.box_value {
+        translate_box(bounds, delta_x, delta_y);
+    }
+    for polygon in &mut label.glyph_polygons {
+        for point in polygon {
+            point[0] = round2(point[0] + delta_x);
+            point[1] = round2(point[1] + delta_y);
+        }
+    }
+}
+
+fn translate_box(bounds: &mut [f64; 4], delta_x: f64, delta_y: f64) {
+    bounds[0] = round2(bounds[0] + delta_x);
+    bounds[1] = round2(bounds[1] + delta_y);
+    bounds[2] = round2(bounds[2] + delta_x);
+    bounds[3] = round2(bounds[3] + delta_y);
+}
+
+fn translate_size_bbox(bounds: [f64; 4], delta_x: f64, delta_y: f64) -> [f64; 4] {
+    [
+        round2(bounds[0] + delta_x),
+        round2(bounds[1] + delta_y),
+        bounds[2],
+        bounds[3],
+    ]
 }
 
 fn object_transform_participates_in_render(object: &SceneObject) -> bool {

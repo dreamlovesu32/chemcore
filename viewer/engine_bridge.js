@@ -22,5 +22,7 @@ export function renderBoundsFromEngine(engine, scope = "all") {
 }
 
 export function primitivesForObject(renderList, objectId) {
-  return (renderList || []).filter((primitive) => primitive.objectId === objectId);
+  return (renderList || []).filter((primitive) => (
+    primitive?.objectId || primitive?.object_id || null
+  ) === objectId);
 }

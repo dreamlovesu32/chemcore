@@ -1571,6 +1571,25 @@ function currentRenderBounds(scope = "all") {
   return renderBoundsFromEngine(engine, scope);
 }
 
+function pointInAxisBounds(point, bounds, padding = 0) {
+  return Boolean(point && bounds
+    && point.x >= bounds.minX - padding
+    && point.x <= bounds.maxX + padding
+    && point.y >= bounds.minY - padding
+    && point.y <= bounds.maxY + padding);
+}
+
+function currentSelectionBoundsContainsPoint(point, padding = 0) {
+  if (!isEditingRustDocument()) {
+    return false;
+  }
+  const selection = currentEditorEngineState()?.selection;
+  if (!editorSelectionHasItems(selection)) {
+    return false;
+  }
+  return pointInAxisBounds(point, currentRenderBounds("selection"), padding);
+}
+
 function ensureEditorViewportCapacity(centerWorld = currentViewportCenterWorld()) {
   if (!isEditingRustDocument()) {
     return false;
@@ -1685,6 +1704,10 @@ function syncEditorSelectionRenderListFromEngine() {
 function currentEditorOverlayRenderList() {
   const renderList = state.coreRenderList || currentEditorRenderList();
   return (renderList || []).filter((primitive) => !isDocumentPreviewPrimitive(primitive));
+}
+
+function currentSelectionOverlayPrimitiveCount(renderList = state.coreRenderList || currentEditorRenderList()) {
+  return (renderList || []).filter((primitive) => String(primitive?.role || "").startsWith("selection-")).length;
 }
 
 function corePrimitivesForObject(objectId) {
@@ -1806,6 +1829,15 @@ const contextSelectionCount = (...args) => editorSelectionState.contextSelection
 const contextHasSelection = (...args) => editorSelectionState.contextHasSelection(...args);
 const selectedSceneObjects = (...args) => editorSelectionState.selectedSceneObjects(...args);
 
+function currentDocumentHasTlcPlate() {
+  return (state.currentDocument?.objects || []).some((object) => {
+    const payload = object?.payload || {};
+    const extra = payload.extra || payload;
+    return (object?.type || object?.objectType || object?.object_type) === "shape"
+      && (payload.kind === "tlcPlate" || extra.kind === "tlcPlate");
+  });
+}
+
 const renderEditorOverlay = (...args) => editorOverlayRenderer.renderEditorOverlay(...args);
 const currentSelectionRotateHandle = (...args) => editorOverlayRenderer.currentSelectionRotateHandle(...args);
 const selectionResizeHandleHit = (...args) => editorOverlayRenderer.selectionResizeHandleHit(...args);
@@ -1885,12 +1917,16 @@ const editorPointerController = createEditorPointerController({
   currentEditorRenderList,
   currentEditorOverlayRenderList,
   renderEditorOverlay,
+  selectionCoversRenderedDocument,
+  selectionHasLargeOverlay: () => currentSelectionOverlayPrimitiveCount() >= 24,
+  selectionBoundsContainsPoint: currentSelectionBoundsContainsPoint,
   applyDocumentObjectPreviewTransform,
   clearDocumentObjectPreviewTransform,
   syncEditorRenderListFromEngine,
   syncEditorOverlayPreviewTransform,
   updateTlcSpotHover,
   clearTlcHoverState,
+  documentHasTlcPlate: currentDocumentHasTlcPlate,
   maybeAutoExpandEditorViewport,
   positionActiveTextEditor,
   selectClickTarget,
@@ -2288,6 +2324,21 @@ function cursorForShapeAction(action) {
   }[action] || "";
 }
 
+function activeToolCanDragSelection() {
+  return editorState.activeTool === "select"
+    || editorState.activeTool === "bond"
+    || editorState.activeTool === "arrow"
+    || editorState.activeTool === "bracket"
+    || editorState.activeTool === "symbol"
+    || editorState.activeTool === "element"
+    || editorState.activeTool === "text"
+    || editorState.activeTool === "shape"
+    || editorState.activeTool === "tlc-plate"
+    || editorState.activeTool === "orbital"
+    || editorState.activeTool === "templates"
+    || editorState.activeTool === "chain";
+}
+
 async function syncArrowAwareCursorForPoint(point) {
   if (!viewerSvg || !isEditingRustDocument()) {
     syncCanvasCursor();
@@ -2337,6 +2388,12 @@ async function syncArrowAwareCursorForPoint(point) {
     }
   }
   if (editorState.activeTool === "select" && selectionRotateHandleHit(point)) {
+    viewerSvg.style.cursor = "grab";
+    return;
+  }
+  if (activeToolCanDragSelection()
+    && (selectionCoversRenderedDocument() || currentSelectionOverlayPrimitiveCount() >= 24)
+    && currentSelectionBoundsContainsPoint(point)) {
     viewerSvg.style.cursor = "grab";
     return;
   }
@@ -3822,6 +3879,9 @@ function activeGestureUsesDocumentPreview() {
   if (activeDocumentPreviewObjectIds.size || activeDocumentPreviewLayer) {
     return false;
   }
+  if (["move", "resize", "rotate"].includes(activeSelectionGesture?.kind) && !activeSelectionGesture?.dragged) {
+    return false;
+  }
   return ["move", "resize", "rotate", "arrow-endpoint", "arrow-curve", "shape-resize"]
     .includes(activeSelectionGesture?.kind);
 }
@@ -3863,6 +3923,20 @@ function documentPrimitiveSelectedByState(primitive, selection) {
   return false;
 }
 
+function documentPrimitiveHasSelectionAnchor(primitive) {
+  if (!isDocumentPreviewPrimitive(primitive)) {
+    return false;
+  }
+  if (primitiveBondId(primitive) || primitiveNodeId(primitive)) {
+    return true;
+  }
+  const objectId = primitiveObjectId(primitive);
+  return Boolean(objectId && (
+    primitive.role === "document-graphic"
+    || primitive.role === "document-text"
+  ));
+}
+
 function selectedWholeDocumentObjectIds(renderList = currentEditorRenderList()) {
   const selection = currentEditorEngineState()?.selection;
   if (!selection || editorSelectionHasItems(selection) === false) {
@@ -3874,7 +3948,7 @@ function selectedWholeDocumentObjectIds(renderList = currentEditorRenderList()) 
       continue;
     }
     const objectId = primitiveObjectId(primitive);
-    if (!objectId || primitive.role === "document-knockout") {
+    if (!objectId || primitive.role === "document-knockout" || !documentPrimitiveHasSelectionAnchor(primitive)) {
       continue;
     }
     const entry = objectSelection.get(objectId) || { total: 0, selected: 0 };
@@ -3889,6 +3963,28 @@ function selectedWholeDocumentObjectIds(renderList = currentEditorRenderList()) 
     .map(([objectId]) => objectId);
 }
 
+function selectionCoversRenderedDocument(renderList = currentEditorRenderList()) {
+  const selection = currentEditorEngineState()?.selection;
+  if (!selection || editorSelectionHasItems(selection) === false) {
+    return false;
+  }
+  let selectableCount = 0;
+  for (const primitive of renderList || []) {
+    if (!documentPrimitiveHasSelectionAnchor(primitive)) {
+      continue;
+    }
+    selectableCount += 1;
+    if (!documentPrimitiveSelectedByState(primitive, selection)) {
+      return false;
+    }
+  }
+  return selectableCount > 0;
+}
+
+function documentObjectGroup(objectId) {
+  return viewerSvg.querySelector(`[data-layer="document-content"] [data-object-id="${CSS.escape(objectId)}"]`);
+}
+
 function clearDocumentObjectPreviewTransform() {
   const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
   if (activeDocumentPreviewLayer) {
@@ -3900,7 +3996,7 @@ function clearDocumentObjectPreviewTransform() {
     return;
   }
   for (const objectId of activeDocumentPreviewObjectIds) {
-    const group = viewerSvg.querySelector(`[data-layer="document-content"] > [data-object-id="${CSS.escape(objectId)}"]`);
+    const group = documentObjectGroup(objectId);
     group?.removeAttribute("transform");
     group?.classList.remove("is-preview-transforming");
   }
@@ -3934,12 +4030,33 @@ function applyDocumentObjectPreviewTransform() {
     clearDocumentObjectPreviewTransform();
     return false;
   }
+  const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
   if (activeSelectionGesture.previewUsesLayer) {
-    const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
-    documentLayer?.setAttribute("transform", transform);
+    if (!documentLayer) {
+      clearDocumentObjectPreviewTransform();
+      return false;
+    }
+    documentLayer.setAttribute("transform", transform);
     activeDocumentPreviewLayer = true;
     activeDocumentPreviewObjectIds = new Set();
     activeDocumentPreviewTransform = transform;
+    return true;
+  }
+  if (selectionCoversRenderedDocument()) {
+    if (!documentLayer) {
+      clearDocumentObjectPreviewTransform();
+      return false;
+    }
+    for (const objectId of activeDocumentPreviewObjectIds) {
+      const group = documentObjectGroup(objectId);
+      group?.removeAttribute("transform");
+      group?.classList.remove("is-preview-transforming");
+    }
+    documentLayer.setAttribute("transform", transform);
+    activeDocumentPreviewLayer = true;
+    activeDocumentPreviewObjectIds = new Set();
+    activeDocumentPreviewTransform = transform;
+    activeSelectionGesture.previewUsesLayer = true;
     return true;
   }
   const hasCachedObjectIds = Array.isArray(activeSelectionGesture.previewObjectIds);
@@ -3950,21 +4067,24 @@ function applyDocumentObjectPreviewTransform() {
   }
   activeSelectionGesture.previewObjectIds = objectIds;
   const nextIds = new Set(objectIds);
-  const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
   const allGroups = hasCachedObjectIds
     ? []
-    : [...viewerSvg.querySelectorAll('[data-layer="document-content"] > [data-object-id]')];
+    : [...viewerSvg.querySelectorAll('[data-layer="document-content"] [data-object-id]')];
   const canTransformLayer = !hasCachedObjectIds
     && allGroups.length > 0
     && nextIds.size === allGroups.length
     && allGroups.every((group) => nextIds.has(group.dataset.objectId));
   if (canTransformLayer) {
     for (const objectId of activeDocumentPreviewObjectIds) {
-      const group = viewerSvg.querySelector(`[data-layer="document-content"] > [data-object-id="${CSS.escape(objectId)}"]`);
+      const group = documentObjectGroup(objectId);
       group?.removeAttribute("transform");
       group?.classList.remove("is-preview-transforming");
     }
-    documentLayer?.setAttribute("transform", transform);
+    if (!documentLayer) {
+      clearDocumentObjectPreviewTransform();
+      return false;
+    }
+    documentLayer.setAttribute("transform", transform);
     activeDocumentPreviewLayer = true;
     activeDocumentPreviewObjectIds = new Set();
     activeDocumentPreviewTransform = transform;
@@ -3977,16 +4097,21 @@ function applyDocumentObjectPreviewTransform() {
   }
   for (const objectId of activeDocumentPreviewObjectIds) {
     if (!nextIds.has(objectId)) {
-      const group = viewerSvg.querySelector(`[data-layer="document-content"] > [data-object-id="${CSS.escape(objectId)}"]`);
+      const group = documentObjectGroup(objectId);
       group?.removeAttribute("transform");
       group?.classList.remove("is-preview-transforming");
     }
   }
+  const nextGroups = new Map();
   for (const objectId of nextIds) {
-    const group = viewerSvg.querySelector(`[data-layer="document-content"] > [data-object-id="${CSS.escape(objectId)}"]`);
+    const group = documentObjectGroup(objectId);
     if (!group) {
-      continue;
+      clearDocumentObjectPreviewTransform();
+      return false;
     }
+    nextGroups.set(objectId, group);
+  }
+  for (const [objectId, group] of nextGroups) {
     group.setAttribute("transform", transform);
     group.classList.add("is-preview-transforming");
   }
@@ -3998,6 +4123,9 @@ function applyDocumentObjectPreviewTransform() {
 function syncEditorOverlayPreviewTransform() {
   const overlay = viewerSvg.querySelector('[data-layer="editor-overlay"]');
   if (!overlay) {
+    return false;
+  }
+  if (overlay.querySelector('[data-role="preview-document-mask"]')) {
     return false;
   }
   if (activeDocumentPreviewTransform) {

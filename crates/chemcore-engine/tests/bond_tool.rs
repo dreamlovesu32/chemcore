@@ -7007,6 +7007,153 @@ fn select_tool_dragging_selected_bond_moves_its_endpoints() {
 }
 
 #[test]
+fn select_tool_dragging_selected_label_translates_label_geometry() {
+    let mut engine = Engine::new();
+    load_label_document(
+        &mut engine,
+        "Ph",
+        vec![json!([
+            [px(314.0), px(256.0)],
+            [px(324.0), px(256.0)],
+            [px(324.0), px(264.0)],
+            [px(314.0), px(264.0)]
+        ])],
+        json!([{ "id": "b1", "begin": "n0", "end": "n1", "order": 1 }]),
+    );
+    engine.set_tool_state(select_tool());
+    let start = px_point(318.0, 260.0);
+    let delta = px_point(20.0, 12.0);
+    let end = Point::new(start.x + delta.x, start.y + delta.y);
+
+    assert!(engine.select_component_at_point(start, false));
+    let entry = engine.state().document.editable_fragment().unwrap();
+    let before_node = entry
+        .fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "n1")
+        .unwrap();
+    let before_position = before_node.position;
+    let before_label = before_node.label.as_ref().unwrap().clone();
+    let before_label_position = before_label.position.unwrap();
+    let before_label_box = before_label.bbox().unwrap();
+    let before_glyph_bounds = label_glyph_bounds(&before_label);
+
+    assert!(engine.begin_selection_move_at_point(start, false, false));
+    assert!(engine.update_selection_move(end, false));
+    assert!(engine.finish_selection_move(end, false));
+
+    let entry = engine.state().document.editable_fragment().unwrap();
+    let after_node = entry
+        .fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "n1")
+        .unwrap();
+    let after_label = after_node.label.as_ref().unwrap();
+    let after_label_position = after_label.position.unwrap();
+    let after_label_box = after_label.bbox().unwrap();
+    let after_glyph_bounds = label_glyph_bounds(after_label);
+
+    assert!((after_node.position[0] - round_to_2(before_position[0] + delta.x)).abs() < 0.001);
+    assert!((after_node.position[1] - round_to_2(before_position[1] + delta.y)).abs() < 0.001);
+    assert!(
+        (after_label_position[0] - round_to_2(before_label_position[0] + delta.x)).abs() < 0.001,
+        "label x moved from {:?} to {:?}, expected delta {:?}",
+        before_label_position,
+        after_label_position,
+        delta
+    );
+    assert!(
+        (after_label_position[1] - round_to_2(before_label_position[1] + delta.y)).abs() < 0.001,
+        "label y moved from {:?} to {:?}, expected delta {:?}",
+        before_label_position,
+        after_label_position,
+        delta
+    );
+    for index in 0..4 {
+        let expected_delta = if index % 2 == 0 { delta.x } else { delta.y };
+        assert!(
+            (after_label_box[index] - round_to_2(before_label_box[index] + expected_delta)).abs()
+                < 0.001
+        );
+        assert!(
+            (after_glyph_bounds[index] - round_to_2(before_glyph_bounds[index] + expected_delta))
+                .abs()
+                < 0.001
+        );
+    }
+}
+
+#[test]
+fn select_tool_dragging_selected_line_translates_payload_points_on_finish() {
+    let mut engine = Engine::new();
+    let document = json!({
+        "format": { "name": "chemcore", "version": "0.1", "unit": "pt" },
+        "document": {
+            "id": "doc_line_move",
+            "title": "line move",
+            "page": { "width": 120.0, "height": 80.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_line": {
+                "kind": "line",
+                "stroke": "#111111",
+                "strokeWidth": 1.0,
+                "lineCap": "round",
+                "lineJoin": "round"
+            }
+        },
+        "objects": [{
+            "id": "obj_line",
+            "type": "line",
+            "styleRef": "style_line",
+            "payload": {
+                "points": [[10.0, 20.0], [40.0, 20.0]],
+                "kind": "line",
+                "arrowGeometry": {
+                    "boundingBox": [10.0, 18.0, 40.0, 24.0],
+                    "center": [25.0, 24.0],
+                    "majorAxisEnd": [33.0, 24.0],
+                    "minorAxisEnd": [25.0, 32.0]
+                }
+            }
+        }],
+        "resources": {}
+    });
+    engine
+        .load_document_json(&document.to_string())
+        .expect("line move fixture should load");
+    engine.set_tool_state(select_tool());
+    assert!(engine.select_all());
+
+    let start = Point::new(20.0, 20.0);
+    let end = Point::new(26.0, 23.0);
+    assert!(engine.begin_selection_move_at_point(start, false, false));
+    assert!(engine.finish_selection_move(end, false));
+
+    let line = engine
+        .state()
+        .document
+        .find_scene_object("obj_line")
+        .unwrap();
+    assert_eq!(line.payload.extra["points"], json!([[16.0, 23.0], [46.0, 23.0]]));
+    assert_eq!(line.payload.extra["arrowGeometry"]["center"], json!([31.0, 27.0]));
+    assert_eq!(
+        line.payload.extra["arrowGeometry"]["majorAxisEnd"],
+        json!([39.0, 27.0])
+    );
+    assert_eq!(
+        line.payload.extra["arrowGeometry"]["minorAxisEnd"],
+        json!([31.0, 35.0])
+    );
+    assert_eq!(
+        line.payload.extra["arrowGeometry"]["boundingBox"],
+        json!([16.0, 21.0, 46.0, 27.0])
+    );
+}
+
+#[test]
 fn select_tool_move_undo_redo_returns_to_final_drag_position() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());
