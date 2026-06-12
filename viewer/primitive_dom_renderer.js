@@ -243,6 +243,9 @@ function renderTextPrimitive(svgRoot, primitive, options) {
     "dominant-baseline": primitive.dominantBaseline || primitive.dominant_baseline || "alphabetic",
     "alignment-baseline": primitive.dominantBaseline || primitive.dominant_baseline || undefined,
     "text-anchor": primitive.textAnchor || primitive.text_anchor || "start",
+    "data-role": primitive.role || undefined,
+    "data-object-id": primitive.objectId || primitive.object_id || undefined,
+    "data-node-id": primitive.nodeId || primitive.node_id || undefined,
     fill: primitive.fill ? normalizeDisplayColor(primitive.fill) : undefined,
     "font-family": primitive.fontFamily
       ? displayLabelFontFamily(primitive.fontFamily)

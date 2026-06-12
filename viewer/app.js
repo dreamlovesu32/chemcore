@@ -304,6 +304,7 @@ let activeTitlebarTabDrag = null;
 let detachingDocumentTabId = null;
 let suppressNextDocumentTabClick = false;
 let activeDocumentPreviewObjectIds = new Set();
+let activeDocumentPreviewPrimitiveElements = new Set();
 let activeDocumentPreviewLayer = false;
 let activeDocumentPreviewTransform = "";
 
@@ -3879,7 +3880,11 @@ function isDocumentPreviewPrimitive(primitive) {
 }
 
 function activeGestureUsesDocumentPreview() {
-  if (activeDocumentPreviewObjectIds.size || activeDocumentPreviewLayer) {
+  if (
+    activeDocumentPreviewObjectIds.size
+    || activeDocumentPreviewPrimitiveElements.size
+    || activeDocumentPreviewLayer
+  ) {
     return false;
   }
   if (["move", "resize", "rotate"].includes(activeSelectionGesture?.kind) && !activeSelectionGesture?.dragged) {
@@ -3940,13 +3945,13 @@ function documentPrimitiveHasSelectionAnchor(primitive) {
   ));
 }
 
-function currentDocumentSceneObjects() {
-  const out = [];
+function collectCurrentDocumentSceneObjects() {
+  const objects = [];
   const visit = (object) => {
     if (!object) {
       return;
     }
-    out.push(object);
+    objects.push(object);
     for (const child of object.children || []) {
       visit(child);
     }
@@ -3954,7 +3959,17 @@ function currentDocumentSceneObjects() {
   for (const object of state.currentDocument?.objects || []) {
     visit(object);
   }
-  return out;
+  return objects;
+}
+
+function currentDocumentMoleculeFragments() {
+  return collectCurrentDocumentSceneObjects()
+    .filter((object) => object?.type === "molecule")
+    .map((object) => {
+      const resourceRef = object.payload?.resourceRef || object.payload?.resource_ref;
+      return resourceRef ? state.currentDocument?.resources?.[resourceRef]?.data : null;
+    })
+    .filter(Boolean);
 }
 
 function selectedDocumentPreviewObjectIds() {
@@ -3962,34 +3977,63 @@ function selectedDocumentPreviewObjectIds() {
   if (!selection || editorSelectionHasItems(selection) === false) {
     return [];
   }
-  const objectIds = new Set([
+  return [
     ...(selection.textObjects || []),
     ...(selection.arrowObjects || []),
+  ];
+}
+
+function selectedStructurePreviewNodeIds(selection) {
+  const nodeIds = new Set([
+    ...(selection?.nodes || []),
+    ...(selection?.labelNodes || []),
   ]);
-  const selectedNodeIds = new Set([
-    ...(selection.nodes || []),
-    ...(selection.labelNodes || []),
-  ]);
-  const selectedBondIds = new Set(selection.bonds || []);
-  if (selectedNodeIds.size || selectedBondIds.size) {
-    const moleculeObjects = currentDocumentSceneObjects()
-      .filter((object) => object?.type === "molecule");
-    const matchedMoleculeIds = [];
-    for (const object of moleculeObjects) {
-      const resourceRef = object.payload?.resourceRef || object.payload?.resource_ref;
-      const fragment = resourceRef ? state.currentDocument?.resources?.[resourceRef]?.data : null;
-      const matchesNode = fragment?.nodes?.some((node) => selectedNodeIds.has(node.id));
-      const matchesBond = fragment?.bonds?.some((bond) => selectedBondIds.has(bond.id));
-      if (matchesNode || matchesBond) {
-        objectIds.add(object.id);
-        matchedMoleculeIds.push(object.id);
+  const selectedBondIds = new Set(selection?.bonds || []);
+  if (!selectedBondIds.size) {
+    return nodeIds;
+  }
+  for (const fragment of currentDocumentMoleculeFragments()) {
+    for (const bond of fragment.bonds || []) {
+      if (!selectedBondIds.has(bond.id)) {
+        continue;
+      }
+      if (bond.begin) {
+        nodeIds.add(bond.begin);
+      }
+      if (bond.end) {
+        nodeIds.add(bond.end);
       }
     }
-    if (!matchedMoleculeIds.length && moleculeObjects.length === 1) {
-      objectIds.add(moleculeObjects[0].id);
-    }
   }
-  return [...objectIds];
+  return nodeIds;
+}
+
+function selectedDocumentPreviewPrimitiveElements() {
+  const selection = currentEditorEngineState()?.selection;
+  if (!selection || editorSelectionHasItems(selection) === false) {
+    return [];
+  }
+  const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
+  if (!documentLayer) {
+    return [];
+  }
+  const elements = new Set();
+  const addElementsByDataId = (attribute, id) => {
+    if (!id) {
+      return;
+    }
+    for (const element of documentLayer.querySelectorAll(`[${attribute}="${CSS.escape(id)}"]`)) {
+      elements.add(element);
+    }
+  };
+  for (const nodeId of selectedStructurePreviewNodeIds(selection)) {
+    addElementsByDataId("data-node-id", nodeId);
+  }
+  const selectedBondIds = new Set(selection.bonds || []);
+  for (const bondId of selectedBondIds) {
+    addElementsByDataId("data-bond-id", bondId);
+  }
+  return [...elements];
 }
 
 function selectionCoversRenderedDocument(renderList = state.coreRenderList || currentEditorRenderList()) {
@@ -4011,7 +4055,39 @@ function selectionCoversRenderedDocument(renderList = state.coreRenderList || cu
 }
 
 function documentObjectGroup(objectId) {
-  return viewerSvg.querySelector(`[data-layer="document-content"] [data-object-id="${CSS.escape(objectId)}"]`);
+  return viewerSvg.querySelector(
+    `[data-layer="document-content"] [data-object-id="${CSS.escape(objectId)}"][data-object-type]`,
+  );
+}
+
+function restoreDocumentPreviewElementTransform(element) {
+  if (!element) {
+    return;
+  }
+  const baseTransform = element.dataset.previewBaseTransform;
+  if (baseTransform !== undefined) {
+    if (baseTransform) {
+      element.setAttribute("transform", baseTransform);
+    } else {
+      element.removeAttribute("transform");
+    }
+    delete element.dataset.previewBaseTransform;
+  } else {
+    element.removeAttribute("transform");
+  }
+  element.classList.remove("is-preview-transforming");
+}
+
+function applyDocumentPreviewElementTransform(element, transform) {
+  if (!element) {
+    return;
+  }
+  if (element.dataset.previewBaseTransform === undefined) {
+    element.dataset.previewBaseTransform = element.getAttribute("transform") || "";
+  }
+  const baseTransform = element.dataset.previewBaseTransform;
+  element.setAttribute("transform", baseTransform ? `${transform} ${baseTransform}` : transform);
+  element.classList.add("is-preview-transforming");
 }
 
 function clearDocumentObjectPreviewTransform() {
@@ -4020,7 +4096,7 @@ function clearDocumentObjectPreviewTransform() {
     documentLayer?.removeAttribute("transform");
     activeDocumentPreviewLayer = false;
   }
-  if (!activeDocumentPreviewObjectIds.size) {
+  if (!activeDocumentPreviewObjectIds.size && !activeDocumentPreviewPrimitiveElements.size) {
     activeDocumentPreviewTransform = "";
     return;
   }
@@ -4030,6 +4106,10 @@ function clearDocumentObjectPreviewTransform() {
     group?.classList.remove("is-preview-transforming");
   }
   activeDocumentPreviewObjectIds = new Set();
+  for (const element of activeDocumentPreviewPrimitiveElements) {
+    restoreDocumentPreviewElementTransform(element);
+  }
+  activeDocumentPreviewPrimitiveElements = new Set();
   activeDocumentPreviewTransform = "";
 }
 
@@ -4068,6 +4148,7 @@ function applyDocumentObjectPreviewTransform() {
     documentLayer.setAttribute("transform", transform);
     activeDocumentPreviewLayer = true;
     activeDocumentPreviewObjectIds = new Set();
+    activeDocumentPreviewPrimitiveElements = new Set();
     activeDocumentPreviewTransform = transform;
     return true;
   }
@@ -4081,26 +4162,36 @@ function applyDocumentObjectPreviewTransform() {
       group?.removeAttribute("transform");
       group?.classList.remove("is-preview-transforming");
     }
+    for (const element of activeDocumentPreviewPrimitiveElements) {
+      restoreDocumentPreviewElementTransform(element);
+    }
     documentLayer.setAttribute("transform", transform);
     activeDocumentPreviewLayer = true;
     activeDocumentPreviewObjectIds = new Set();
+    activeDocumentPreviewPrimitiveElements = new Set();
     activeDocumentPreviewTransform = transform;
     activeSelectionGesture.previewUsesLayer = true;
     return true;
   }
   const hasCachedObjectIds = Array.isArray(activeSelectionGesture.previewObjectIds);
+  const hasCachedPrimitiveElements = Array.isArray(activeSelectionGesture.previewPrimitiveElements);
   const objectIds = activeSelectionGesture.previewObjectIds || selectedDocumentPreviewObjectIds();
-  if (!objectIds.length) {
+  const primitiveElements = activeSelectionGesture.previewPrimitiveElements || selectedDocumentPreviewPrimitiveElements();
+  if (!objectIds.length && !primitiveElements.length) {
     clearDocumentObjectPreviewTransform();
     return false;
   }
   activeSelectionGesture.previewObjectIds = objectIds;
+  activeSelectionGesture.previewPrimitiveElements = primitiveElements;
   const nextIds = new Set(objectIds);
-  const allGroups = hasCachedObjectIds
+  const nextPrimitiveElements = new Set(primitiveElements);
+  const allGroups = hasCachedObjectIds || hasCachedPrimitiveElements
     ? []
-    : [...viewerSvg.querySelectorAll('[data-layer="document-content"] [data-object-id]')];
+    : [...viewerSvg.querySelectorAll('[data-layer="document-content"] [data-object-id][data-object-type]')];
   const canTransformLayer = !hasCachedObjectIds
+    && !hasCachedPrimitiveElements
     && allGroups.length > 0
+    && nextPrimitiveElements.size === 0
     && nextIds.size === allGroups.length
     && allGroups.every((group) => nextIds.has(group.dataset.objectId));
   if (canTransformLayer) {
@@ -4109,6 +4200,9 @@ function applyDocumentObjectPreviewTransform() {
       group?.removeAttribute("transform");
       group?.classList.remove("is-preview-transforming");
     }
+    for (const element of activeDocumentPreviewPrimitiveElements) {
+      restoreDocumentPreviewElementTransform(element);
+    }
     if (!documentLayer) {
       clearDocumentObjectPreviewTransform();
       return false;
@@ -4116,6 +4210,7 @@ function applyDocumentObjectPreviewTransform() {
     documentLayer.setAttribute("transform", transform);
     activeDocumentPreviewLayer = true;
     activeDocumentPreviewObjectIds = new Set();
+    activeDocumentPreviewPrimitiveElements = new Set();
     activeDocumentPreviewTransform = transform;
     activeSelectionGesture.previewUsesLayer = true;
     return true;
@@ -4131,6 +4226,11 @@ function applyDocumentObjectPreviewTransform() {
       group?.classList.remove("is-preview-transforming");
     }
   }
+  for (const element of activeDocumentPreviewPrimitiveElements) {
+    if (!nextPrimitiveElements.has(element)) {
+      restoreDocumentPreviewElementTransform(element);
+    }
+  }
   const nextGroups = new Map();
   for (const objectId of nextIds) {
     const group = documentObjectGroup(objectId);
@@ -4144,7 +4244,11 @@ function applyDocumentObjectPreviewTransform() {
     group.setAttribute("transform", transform);
     group.classList.add("is-preview-transforming");
   }
+  for (const element of nextPrimitiveElements) {
+    applyDocumentPreviewElementTransform(element, transform);
+  }
   activeDocumentPreviewObjectIds = nextIds;
+  activeDocumentPreviewPrimitiveElements = nextPrimitiveElements;
   activeDocumentPreviewTransform = transform;
   return true;
 }
@@ -4287,6 +4391,7 @@ function renderDocument() {
   const viewBox = activeViewBox();
   viewerSvg.innerHTML = "";
   activeDocumentPreviewObjectIds = new Set();
+  activeDocumentPreviewPrimitiveElements = new Set();
   activeDocumentPreviewLayer = false;
   activeDocumentPreviewTransform = "";
   applyViewerViewport();
