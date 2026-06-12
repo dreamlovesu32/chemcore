@@ -1688,6 +1688,17 @@ function currentSelectionBoundsContainsPoint(point, padding = 0) {
   return pointInAxisBounds(point, currentRenderBounds("selection"), padding);
 }
 
+function currentSelectionHitContainsPoint(point) {
+  if (!isEditingRustDocument() || !point) {
+    return false;
+  }
+  const selection = currentEditorEngineState()?.selection;
+  if (!editorSelectionHasItems(selection)) {
+    return false;
+  }
+  return !!state.editorEngine?.selectionContainsPoint?.(point.x, point.y);
+}
+
 function currentSelectionHandleZoneContainsPoint(point) {
   const bounds = currentRenderBounds("selection");
   if (!bounds) {
@@ -2053,6 +2064,7 @@ const editorPointerController = createEditorPointerController({
   renderEditorOverlay,
   selectionHasLargeOverlay: () => currentSelectionItemCount() >= 80,
   selectionBoundsContainsPoint: currentSelectionBoundsContainsPoint,
+  selectionHitContainsPoint: currentSelectionHitContainsPoint,
   applyDocumentObjectPreviewTransform,
   clearDocumentObjectPreviewTransform,
   syncEditorRenderListFromEngine,
@@ -2507,7 +2519,7 @@ async function syncArrowAwareCursorForPoint(point) {
   }
   if (
     activeToolCanDragSelection()
-    && currentSelectionBoundsContainsPoint(point)
+    && currentSelectionHitContainsPoint(point)
     && !currentSelectionHandleZoneContainsPoint(point)
   ) {
     viewerSvg.style.cursor = "grab";
@@ -2524,7 +2536,7 @@ async function syncArrowAwareCursorForPoint(point) {
     viewerSvg.style.cursor = "grab";
     return;
   }
-  if (activeToolCanDragSelection() && currentSelectionBoundsContainsPoint(point)) {
+  if (activeToolCanDragSelection() && currentSelectionHitContainsPoint(point)) {
     viewerSvg.style.cursor = "grab";
     return;
   }
@@ -2537,7 +2549,7 @@ async function syncArrowAwareCursorForPoint(point) {
     viewerSvg.style.cursor = "nesw-resize";
     return;
   }
-  const overSelection = currentSelectionBoundsContainsPoint(point);
+  const overSelection = currentSelectionHitContainsPoint(point);
   if ((editorState.activeTool === "select"
     || editorState.activeTool === "bond"
     || editorState.activeTool === "arrow"

@@ -80,14 +80,15 @@ export function createEditorPointerController(options) {
       return null;
     }
     const selectionBounds = options.currentRenderBounds?.("selection");
-    const overSelection = !!options.selectionBoundsContainsPoint?.(point);
+    const overSelectionBounds = !!options.selectionBoundsContainsPoint?.(point);
+    const overSelectionHit = !!options.selectionHitContainsPoint?.(point);
     const inHandleZone = !!selectionBounds
       && editorState.activeTool === "select"
       && selectionHandleZoneContainsPoint(point);
-    if (!overSelection && !inHandleZone) {
+    if (!overSelectionBounds && !overSelectionHit && !inHandleZone) {
       return null;
     }
-    return { overSelection, inHandleZone };
+    return { overSelectionBounds, overSelectionHit, inHandleZone };
   }
 
   function clearVisibleHoverOverlay() {
@@ -119,7 +120,7 @@ export function createEditorPointerController(options) {
         return;
       }
     }
-    if (state.overSelection) {
+    if (state.overSelectionHit) {
       viewerSvg.style.cursor = "grab";
     } else {
       options.syncCanvasCursor?.();
@@ -304,7 +305,7 @@ export function createEditorPointerController(options) {
     if (!options.selectionHasLargeOverlay?.()) {
       return false;
     }
-    if (!options.selectionBoundsContainsPoint?.(point)) {
+    if (!options.selectionHitContainsPoint?.(point)) {
       return false;
     }
     if (selectionHandleZoneContainsPoint(point)) {
