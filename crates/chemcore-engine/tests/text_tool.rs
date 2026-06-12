@@ -1230,8 +1230,8 @@ fn implicit_hydrogen_case(element: &str, bond_order: u8) -> (u8, String) {
 }
 
 #[test]
-fn chlorine_bromine_and_iodine_follow_alternating_implicit_hydrogen_rule() {
-    for element in ["Cl", "Br", "I"] {
+fn third_period_and_later_halogens_follow_alternating_implicit_hydrogen_rule() {
+    for element in ["Cl", "Br", "I", "At"] {
         for (bond_order, expected_hydrogens) in [
             (1, 0),
             (2, 1),
@@ -1261,12 +1261,23 @@ fn chlorine_bromine_and_iodine_follow_alternating_implicit_hydrogen_rule() {
 }
 
 #[test]
-fn phosphorus_and_sulfur_implicit_hydrogen_rules_match_current_valence_table() {
+fn third_period_and_later_group_15_and_16_use_even_odd_expanded_valence_rule() {
     for (element, cases) in [
-        ("P", &[(1_u8, 2_u8), (2, 1), (3, 0), (4, 1), (5, 0)][..]),
+        (
+            "P",
+            &[(1_u8, 2_u8), (2, 1), (3, 0), (4, 1), (5, 0), (6, 0)][..],
+        ),
+        (
+            "As",
+            &[(1_u8, 2_u8), (2, 1), (3, 0), (4, 1), (5, 0), (6, 0)][..],
+        ),
         (
             "S",
-            &[(1_u8, 1_u8), (2, 0), (3, 1), (4, 0), (5, 1), (6, 0)][..],
+            &[(1_u8, 1_u8), (2, 0), (3, 1), (4, 0), (5, 1), (6, 0), (7, 0)][..],
+        ),
+        (
+            "Se",
+            &[(1_u8, 1_u8), (2, 0), (3, 1), (4, 0), (5, 1), (6, 0), (7, 0)][..],
         ),
     ] {
         for &(bond_order, expected_hydrogens) in cases {
@@ -1285,6 +1296,140 @@ fn phosphorus_and_sulfur_implicit_hydrogen_rules_match_current_valence_table() {
                 "{element} bond order {bond_order}"
             );
         }
+    }
+}
+
+fn charged_implicit_hydrogen_case(
+    element: &str,
+    atomic_number: u8,
+    bond_order: u8,
+    charge: i32,
+) -> (u8, String) {
+    let mut engine = Engine::new();
+    let mut nodes = vec![json!({
+        "id": "n1",
+        "element": element,
+        "atomicNumber": atomic_number,
+        "position": [px(300.0), px(260.0)],
+        "charge": charge,
+        "numHydrogens": 0
+    })];
+    let mut bonds: Vec<serde_json::Value> = Vec::new();
+    if bond_order > 0 {
+        nodes.push(json!({
+            "id": "c1",
+            "element": "C",
+            "atomicNumber": 6,
+            "position": [px(340.0), px(260.0)],
+            "charge": 0,
+            "numHydrogens": 0
+        }));
+        bonds.push(json!({
+            "id": "b1",
+            "begin": "n1",
+            "end": "c1",
+            "order": bond_order,
+            "strokeWidth": chemcore_engine::DEFAULT_BOND_STROKE,
+            "lineStyles": {},
+            "lineWeights": {}
+        }));
+    }
+    let document = json!({
+        "format": { "name": "chemcore", "version": "0.1", "unit": "pt" },
+        "document": {
+            "id": "doc_charged_atom",
+            "title": "charged atom",
+            "page": { "width": px(400.0), "height": px(320.0), "background": "#ffffff" }
+        },
+        "styles": {
+            "style_molecule_default": {
+                "kind": "molecule",
+                "stroke": "#000000",
+                "strokeWidth": chemcore_engine::DEFAULT_BOND_STROKE,
+                "fontFamily": "Arial",
+                "fontSize": chemcore_engine::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT
+            }
+        },
+        "objects": [{
+            "id": "obj_molecule_001",
+            "type": "molecule",
+            "visible": true,
+            "zIndex": 10,
+            "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+            "styleRef": "style_molecule_default",
+            "payload": { "resourceRef": "mol_001" }
+        }],
+        "resources": {
+            "mol_001": {
+                "type": "molecule_fragment2d",
+                "encoding": "chemcore.molecule.fragment2d",
+                "data": {
+                    "schema": "chemcore.molecule.fragment2d",
+                    "bbox": [0.0, 0.0, px(400.0), px(320.0)],
+                    "nodes": nodes,
+                    "bonds": bonds
+                }
+            }
+        }
+    });
+    engine
+        .load_document_json(&document.to_string())
+        .expect("charged atom document should load");
+    let session = engine
+        .begin_text_edit(px_point(300.0, 260.0))
+        .expect("charged atom endpoint session should be created");
+    assert!(engine.apply_text_edit(chemcore_engine::TextEditSession {
+        text: element.to_string(),
+        source_runs: Vec::new(),
+        ..session
+    }));
+    let entry = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("editable fragment should exist");
+    let node = entry
+        .fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "n1")
+        .expect("charged node should exist");
+    (
+        node.num_hydrogens,
+        node.label
+            .as_ref()
+            .and_then(|label| label.source_text.clone())
+            .unwrap_or_default(),
+    )
+}
+
+#[test]
+fn third_period_and_later_main_group_charges_reduce_available_implicit_hydrogens() {
+    for (element, atomic_number, bond_order, charge, expected_hydrogens) in [
+        ("P", 15, 1, 1, 1),
+        ("P", 15, 1, -1, 1),
+        ("P", 15, 3, 1, 1),
+        ("S", 16, 1, 1, 0),
+        ("S", 16, 1, -1, 0),
+        ("Cl", 17, 0, 1, 0),
+        ("Cl", 17, 2, 1, 0),
+        ("Se", 34, 3, -1, 0),
+    ] {
+        let (hydrogens, source_text) =
+            charged_implicit_hydrogen_case(element, atomic_number, bond_order, charge);
+        assert_eq!(
+            hydrogens, expected_hydrogens,
+            "{element} bond order {bond_order} charge {charge}"
+        );
+        let expected_text = match expected_hydrogens {
+            0 => element.to_string(),
+            1 => format!("{element}H"),
+            count => format!("{element}H{count}"),
+        };
+        assert_eq!(
+            source_text, expected_text,
+            "{element} bond order {bond_order} charge {charge}"
+        );
     }
 }
 

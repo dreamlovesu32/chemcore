@@ -80,6 +80,10 @@ pub enum EditorCommand {
         atomic_number: u8,
         center: CommandAnchor,
     },
+    ReplaceNodeLabel {
+        node_id: String,
+        label: String,
+    },
     MoveTlcSpot {
         object_id: String,
         lane_index: usize,

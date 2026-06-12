@@ -866,6 +866,10 @@ impl Engine {
             self.pointer_move_symbol(event);
             return;
         }
+        if self.state.tool.active_tool == Tool::Element {
+            self.pointer_move_element(event);
+            return;
+        }
         if self.state.tool.active_tool == Tool::Delete {
             self.drag = None;
             self.state.overlay.hover_bond_center = None;
@@ -1012,6 +1016,37 @@ impl Engine {
             hit_test_endpoint(&self.state.document, point, ENDPOINT_HIT_RADIUS);
     }
 
+    fn pointer_move_element(&mut self, event: PointerEvent) {
+        let point = event.point();
+        self.drag = None;
+        self.state.overlay.hover_bond_center = None;
+        self.state.overlay.hover_arrow = None;
+        self.state.overlay.hover_shape = None;
+        self.state.overlay.preview = None;
+        self.state.overlay.hover_text_box = None;
+        self.state.overlay.hover_endpoint = None;
+
+        if let Some((node_id, bounds)) = self.hit_test_endpoint_label_box(point) {
+            self.state.overlay.hover_text_box = Some(HoverTextBox {
+                bounds,
+                object_id: None,
+                node_id: Some(node_id),
+            });
+            return;
+        }
+        self.state.overlay.hover_endpoint =
+            hit_test_endpoint(&self.state.document, point, ENDPOINT_HIT_RADIUS);
+    }
+
+    fn element_replacement_node_at_point(&self, point: Point) -> Option<String> {
+        self.hit_test_endpoint_label_box(point)
+            .map(|(node_id, _)| node_id)
+            .or_else(|| {
+                hit_test_endpoint(&self.state.document, point, ENDPOINT_HIT_RADIUS)
+                    .map(|hit| hit.node_id)
+            })
+    }
+
     pub fn pointer_down(&mut self, event: PointerEvent) {
         if self.state.tool.active_tool == Tool::Select {
             return;
@@ -1042,8 +1077,18 @@ impl Engine {
         }
         if self.state.tool.active_tool == Tool::Element {
             let point = event.point();
-            self.clear_interaction();
             self.state.selection = SelectionState::default();
+            if let Some(node_id) = self.element_replacement_node_at_point(point) {
+                let label = self.state.tool.element_symbol.clone();
+                let target_node_id = node_id.clone();
+                let target_label = label.clone();
+                self.with_command(
+                    EditorCommand::ReplaceNodeLabel { node_id, label },
+                    |engine| engine.replace_node_label_untracked(&target_node_id, &target_label),
+                );
+                return;
+            }
+            self.clear_interaction();
             let symbol = self.state.tool.element_symbol.clone();
             let atomic_number = self.state.tool.element_atomic_number;
             self.with_command(
@@ -1642,6 +1687,10 @@ impl Engine {
                 engine.state.tool = previous_tool;
                 changed
             }),
+            EditorCommand::ReplaceNodeLabel { node_id, label } => self
+                .with_command(command.clone(), |engine| {
+                    engine.replace_node_label_untracked(&node_id, &label)
+                }),
             EditorCommand::MoveTlcSpot { .. }
             | EditorCommand::MoveSelection
             | EditorCommand::RotateSelection
@@ -2540,6 +2589,7 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::AddBracket { .. } => "add-bracket",
         EditorCommand::AddSymbol { .. } => "add-symbol",
         EditorCommand::AddElement { .. } => "add-element",
+        EditorCommand::ReplaceNodeLabel { .. } => "replace-node-label",
         EditorCommand::MoveTlcSpot { .. } => "move-tlc-spot",
         EditorCommand::ApplyArrowStyle { .. } => "apply-arrow-style",
         EditorCommand::CycleBondStyle { .. } => "cycle-bond-style",

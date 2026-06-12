@@ -562,6 +562,171 @@ fn element_tool_places_selected_element_with_chemdraw_hydrogens() {
 }
 
 #[test]
+fn element_tool_replaces_focused_endpoint_without_adding_node() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, FIRST_START_X, FIRST_START_Y);
+    let target_point = Point::new(FIRST_END_X, FIRST_END_Y);
+    let node_id = node_id_at(&engine, target_point).expect("terminal node should exist");
+
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Element,
+        element_symbol: "Se".to_string(),
+        element_atomic_number: 34,
+        ..ToolState::default()
+    });
+    engine.pointer_move(PointerEvent {
+        x: FIRST_END_HOVER_X,
+        y: FIRST_END_HOVER_Y,
+        button: None,
+        alt_key: false,
+    });
+    assert_eq!(
+        engine
+            .state()
+            .overlay
+            .hover_endpoint
+            .as_ref()
+            .map(|hit| hit.node_id.as_str()),
+        Some(node_id.as_str())
+    );
+
+    click(&mut engine, FIRST_END_HOVER_X, FIRST_END_HOVER_Y);
+
+    let entry = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("editable fragment should exist");
+    assert_eq!(entry.fragment.nodes.len(), 2);
+    let node = entry
+        .fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == node_id)
+        .expect("replaced node should still exist");
+    assert_eq!(node.element, "Se");
+    assert_eq!(node.atomic_number, 34);
+    assert_eq!(node.num_hydrogens, 1);
+    assert_eq!(
+        node.label
+            .as_ref()
+            .and_then(|label| label.source_text.as_deref()),
+        Some("SeH")
+    );
+}
+
+#[test]
+fn element_tool_replaces_structure_label_but_ignores_free_text() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, FIRST_START_X, FIRST_START_Y);
+    let target_point = Point::new(FIRST_END_X, FIRST_END_Y);
+    let node_id = node_id_at(&engine, target_point).expect("terminal node should exist");
+
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Element,
+        element_symbol: "N".to_string(),
+        element_atomic_number: 7,
+        ..ToolState::default()
+    });
+    click(&mut engine, FIRST_END_HOVER_X, FIRST_END_HOVER_Y);
+
+    let label_center = {
+        let entry = engine
+            .state()
+            .document
+            .editable_fragment()
+            .expect("editable fragment should exist");
+        let node = entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == node_id)
+            .expect("nitrogen node should exist");
+        assert_eq!(
+            node.label
+                .as_ref()
+                .and_then(|label| label.source_text.as_deref()),
+            Some("NH2")
+        );
+        let bounds = node
+            .label
+            .as_ref()
+            .and_then(|label| label.bbox())
+            .expect("structure label should have bounds");
+        Point::new((bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5)
+    };
+
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Element,
+        element_symbol: "P".to_string(),
+        element_atomic_number: 15,
+        ..ToolState::default()
+    });
+    engine.pointer_move(PointerEvent {
+        x: label_center.x,
+        y: label_center.y,
+        button: None,
+        alt_key: false,
+    });
+    let hover_label = engine
+        .state()
+        .overlay
+        .hover_text_box
+        .as_ref()
+        .expect("structure label should focus");
+    assert_eq!(hover_label.node_id.as_deref(), Some(node_id.as_str()));
+    assert!(hover_label.object_id.is_none());
+
+    click(&mut engine, label_center.x, label_center.y);
+
+    let entry = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("editable fragment should exist");
+    assert_eq!(entry.fragment.nodes.len(), 2);
+    let node = entry
+        .fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == node_id)
+        .expect("phosphorus node should exist");
+    assert_eq!(node.element, "P");
+    assert_eq!(node.atomic_number, 15);
+    assert_eq!(node.num_hydrogens, 2);
+    assert_eq!(
+        node.label
+            .as_ref()
+            .and_then(|label| label.source_text.as_deref()),
+        Some("PH2")
+    );
+
+    let text_session = engine
+        .begin_text_edit(px_point(120.0, 88.0))
+        .expect("text object session should be created");
+    assert!(engine.apply_text_edit(chemcore_engine::TextEditSession {
+        text: "free text".to_string(),
+        ..text_session
+    }));
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Element,
+        element_symbol: "S".to_string(),
+        element_atomic_number: 16,
+        ..ToolState::default()
+    });
+    engine.pointer_move(PointerEvent {
+        x: px(120.0),
+        y: px(88.0),
+        button: None,
+        alt_key: false,
+    });
+    assert!(engine.state().overlay.hover_text_box.is_none());
+    assert!(engine.state().overlay.hover_endpoint.is_none());
+}
+
+#[test]
 fn selection_chemistry_summary_counts_selected_atoms_only() {
     let mut engine = Engine::new();
     let mut tool = ToolState {
@@ -9147,6 +9312,68 @@ fn hetero_atom_charge_symbols_update_hydrogens_and_invalid_state() {
             .and_then(|value| value.as_bool()),
         Some(true)
     );
+}
+
+#[test]
+fn third_period_hetero_charge_symbols_use_main_group_hydrogen_rule() {
+    fn terminal_hetero_engine(
+        element: &str,
+        atomic_number: u8,
+        symbol_kind: BracketKind,
+    ) -> Engine {
+        let mut engine = Engine::new();
+        load_symbol_direction_document(
+            &mut engine,
+            json!([
+                {"id": "n1", "element": element, "atomicNumber": atomic_number, "position": [100.0, 100.0], "charge": 0, "numHydrogens": 0},
+                {"id": "c1", "element": "C", "atomicNumber": 6, "position": [130.0, 100.0], "charge": 0, "numHydrogens": 0}
+            ]),
+            json!([
+                {"id": "b1", "begin": "n1", "end": "c1", "order": 1}
+            ]),
+        );
+        engine.set_tool_state(ToolState {
+            active_tool: Tool::Symbol,
+            symbol_kind,
+            ..ToolState::default()
+        });
+        click(&mut engine, 100.0, 100.0);
+        engine
+    }
+
+    for (element, atomic_number, symbol_kind, expected_charge, expected_hydrogens) in [
+        ("P", 15, BracketKind::Plus, 1, 1),
+        ("P", 15, BracketKind::Minus, -1, 1),
+        ("S", 16, BracketKind::Plus, 1, 0),
+        ("S", 16, BracketKind::Minus, -1, 0),
+    ] {
+        let engine = terminal_hetero_engine(element, atomic_number, symbol_kind);
+        let node = engine
+            .state()
+            .document
+            .editable_fragment()
+            .unwrap()
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == "n1")
+            .unwrap();
+        assert_eq!(
+            node.charge, expected_charge,
+            "{element} {symbol_kind:?} charge"
+        );
+        assert_eq!(
+            node.num_hydrogens, expected_hydrogens,
+            "{element} {symbol_kind:?} hydrogens"
+        );
+        assert_eq!(
+            node.meta
+                .get("chargeSymbolInvalid")
+                .and_then(|value| value.as_bool()),
+            None,
+            "{element} {symbol_kind:?} should remain valid"
+        );
+    }
 }
 
 #[test]

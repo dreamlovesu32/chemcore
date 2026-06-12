@@ -191,12 +191,47 @@ const ELEMENT_REPLACEMENTS: &[(&str, u8)] = &[
 pub(crate) fn standalone_element_hydrogen_count(atomic_number: u8) -> u8 {
     match atomic_number {
         1 => 1,
-        5 | 13 | 33 | 51 | 83 => 3,
-        6 | 14 | 32 | 50 | 82 => 4,
-        7 | 15 => 3,
-        8 | 16 | 31 | 34 | 52 | 84 => 2,
-        9 | 17 | 35 | 49 | 53 | 81 | 85 => 1,
-        _ => 0,
+        5 => 3,
+        6 => 4,
+        7 => 3,
+        8 => 2,
+        9 => 1,
+        _ => third_period_main_group_valence_series(atomic_number)
+            .map(|(base_valence, _)| base_valence as u8)
+            .unwrap_or(0),
+    }
+}
+
+fn third_period_main_group_valence_series(atomic_number: u8) -> Option<(i32, i32)> {
+    match atomic_number {
+        13 | 31 | 49 | 81 | 113 => Some((3, 3)),
+        14 | 32 | 50 | 82 | 114 => Some((4, 4)),
+        15 | 33 | 51 | 83 | 115 => Some((3, 5)),
+        16 | 34 | 52 | 84 | 116 => Some((2, 6)),
+        17 | 35 | 53 | 85 | 117 => Some((1, 7)),
+        _ => None,
+    }
+}
+
+fn third_period_main_group_target_valence(atomic_number: u8, used_valence: i32) -> Option<i32> {
+    let (base_valence, max_valence) = third_period_main_group_valence_series(atomic_number)?;
+    if used_valence >= max_valence {
+        return Some(max_valence);
+    }
+    let mut target = base_valence;
+    while target < used_valence {
+        target += 2;
+    }
+    Some(target.min(max_valence))
+}
+
+fn implicit_hydrogen_charge_penalty(atomic_number: u8, charge: i32) -> i32 {
+    if third_period_main_group_valence_series(atomic_number).is_some() {
+        charge.abs()
+    } else if charge > 0 {
+        0
+    } else {
+        charge.abs()
     }
 }
 
@@ -854,16 +889,21 @@ pub(super) fn element_valence_is_valid_for_node(
         .sum();
     let radical_count = 0;
     let charge = node.charge;
+    let abs_charge = charge.abs();
     let Some(valence) = typical_valence_for_implicit_hydrogen(
         node.atomic_number,
         charge,
         connection_order,
         radical_count,
-        charge.abs(),
+        abs_charge,
     ) else {
         return true;
     };
-    connection_order <= valence
+    if third_period_main_group_valence_series(node.atomic_number).is_some() {
+        connection_order + radical_count + abs_charge <= valence
+    } else {
+        connection_order <= valence
+    }
 }
 
 pub(super) fn set_node_label_recognition_meta(node: &mut crate::Node, meta: Option<Value>) {
@@ -1389,7 +1429,7 @@ pub(super) fn implicit_hydrogen_count(fragment: &crate::MoleculeFragment, node_i
     ) else {
         return 0;
     };
-    let charge_hydrogen_penalty = if charge > 0 { 0 } else { abs_charge };
+    let charge_hydrogen_penalty = implicit_hydrogen_charge_penalty(node.atomic_number, charge);
     (valence - radical_count - connection_count - charge_hydrogen_penalty).clamp(0, 9) as u8
 }
 
@@ -1425,9 +1465,16 @@ pub(super) fn typical_valence_for_implicit_hydrogen(
     radical_count: i32,
     abs_charge: i32,
 ) -> Option<i32> {
+    if let Some(target_valence) = third_period_main_group_target_valence(
+        atomic_number,
+        connection_count + radical_count + abs_charge,
+    ) {
+        return Some(target_valence);
+    }
+
     match atomic_number {
         5 => Some(if charge == -1 { 4 } else { 3 }),
-        7 | 15 => {
+        7 => {
             if charge == 1 {
                 Some(4)
             } else if charge < 0 {
@@ -1440,30 +1487,6 @@ pub(super) fn typical_valence_for_implicit_hydrogen(
         }
         8 => Some(if charge >= 1 { 3 } else { 2 }),
         9 => Some(1),
-        13 => Some(3),
-        17 | 35 | 53 => {
-            let hydrogens = match connection_count {
-                0 | 2 | 4 | 6 => 1,
-                _ => 0,
-            };
-            Some(connection_count + radical_count + abs_charge + hydrogens)
-        }
-        14 | 32 | 50 | 82 => Some(4),
-        16 => {
-            if charge == 1 {
-                Some(if connection_count <= 3 { 3 } else { 5 })
-            } else if connection_count + radical_count + abs_charge <= 2 {
-                Some(2)
-            } else if connection_count + radical_count + abs_charge <= 4 {
-                Some(4)
-            } else {
-                Some(6)
-            }
-        }
-        31 => Some(2),
-        33 | 51 | 83 => Some(3),
-        34 | 52 | 84 => Some(2),
-        49 | 81 | 85 => Some(1),
         _ => None,
     }
 }

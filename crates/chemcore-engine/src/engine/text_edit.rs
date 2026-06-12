@@ -615,6 +615,10 @@ impl Engine {
             return false;
         };
 
+        self.replace_node_label_untracked(&hovered_node_id, label)
+    }
+
+    pub(super) fn replace_node_label_untracked(&mut self, node_id: &str, label: &str) -> bool {
         self.push_undo_snapshot();
         let Some(mut entry) = self.state.document.editable_fragment_mut() else {
             self.undo_stack.pop();
@@ -625,12 +629,12 @@ impl Engine {
             .fragment
             .nodes
             .iter()
-            .position(|node| node.id == hovered_node_id)
+            .position(|node| node.id == node_id)
         else {
             self.undo_stack.pop();
             return false;
         };
-        let connection_angles = adjacent_angles_for_fragment_node(entry.fragment, &hovered_node_id);
+        let connection_angles = adjacent_angles_for_fragment_node(entry.fragment, node_id);
         let node = &mut entry.fragment.nodes[node_index];
 
         if !apply_node_label_replacement(node, label, &connection_angles) {
@@ -643,7 +647,7 @@ impl Engine {
         refresh_attached_node_label_geometry_for_node(
             entry.fragment,
             object_translate,
-            &hovered_node_id,
+            node_id,
             self.options.bond_stroke_world_pt().value(),
         );
         entry.update_bounds();
@@ -654,15 +658,17 @@ impl Engine {
         self.drag = None;
         self.state.selection = crate::SelectionState::default();
         self.state.overlay.hover_bond_center = None;
+        self.state.overlay.hover_arrow = None;
         self.state.overlay.hover_shape = None;
         self.state.overlay.preview = None;
+        self.state.overlay.hover_text_box = None;
         self.state.overlay.hover_endpoint = Some(EndpointHit {
-            node_id: hovered_node_id.clone(),
+            node_id: node_id.to_string(),
             point: hover_point,
             distance: 0.0,
             label_anchor: None,
         });
-        self.note_pending_select_target(PendingSelectTarget::MoleculeNode(hovered_node_id));
+        self.note_pending_select_target(PendingSelectTarget::MoleculeNode(node_id.to_string()));
         true
     }
 

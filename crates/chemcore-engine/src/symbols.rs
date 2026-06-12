@@ -400,14 +400,46 @@ fn supported_hetero_hydrogens(
     radical_count: i32,
     connection_order: i32,
 ) -> i32 {
-    let abs_charge = charge.abs();
     let Some(valence) =
         typical_symbol_valence(atomic_number, charge, connection_order, radical_count)
     else {
         return 0;
     };
-    let charge_hydrogen_penalty = if charge > 0 { 0 } else { abs_charge };
+    let charge_hydrogen_penalty = symbol_hydrogen_charge_penalty(atomic_number, charge);
     (valence - radical_count - connection_order - charge_hydrogen_penalty).clamp(0, 9)
+}
+
+fn third_period_main_group_valence_series(atomic_number: u8) -> Option<(i32, i32)> {
+    match atomic_number {
+        13 | 31 | 49 | 81 | 113 => Some((3, 3)),
+        14 | 32 | 50 | 82 | 114 => Some((4, 4)),
+        15 | 33 | 51 | 83 | 115 => Some((3, 5)),
+        16 | 34 | 52 | 84 | 116 => Some((2, 6)),
+        17 | 35 | 53 | 85 | 117 => Some((1, 7)),
+        _ => None,
+    }
+}
+
+fn third_period_main_group_target_valence(atomic_number: u8, used_valence: i32) -> Option<i32> {
+    let (base_valence, max_valence) = third_period_main_group_valence_series(atomic_number)?;
+    if used_valence >= max_valence {
+        return Some(max_valence);
+    }
+    let mut target = base_valence;
+    while target < used_valence {
+        target += 2;
+    }
+    Some(target.min(max_valence))
+}
+
+fn symbol_hydrogen_charge_penalty(atomic_number: u8, charge: i32) -> i32 {
+    if third_period_main_group_valence_series(atomic_number).is_some() {
+        charge.abs()
+    } else if charge > 0 {
+        0
+    } else {
+        charge.abs()
+    }
 }
 
 fn typical_symbol_valence(
@@ -416,9 +448,16 @@ fn typical_symbol_valence(
     connection_order: i32,
     radical_count: i32,
 ) -> Option<i32> {
+    if let Some(target_valence) = third_period_main_group_target_valence(
+        atomic_number,
+        connection_order + radical_count + charge.abs(),
+    ) {
+        return Some(target_valence);
+    }
+
     match atomic_number {
         5 => Some(if charge == -1 { 4 } else { 3 }),
-        7 | 15 => {
+        7 => {
             if charge == 1 {
                 Some(4)
             } else if charge < 0 {
@@ -431,25 +470,6 @@ fn typical_symbol_valence(
         }
         8 => Some(if charge >= 1 { 3 } else { 2 }),
         9 => Some(1),
-        14 => Some(4),
-        16 => {
-            if charge == 1 {
-                Some(if connection_order <= 3 { 3 } else { 5 })
-            } else if connection_order + radical_count + charge.abs() <= 2 {
-                Some(2)
-            } else if connection_order + radical_count + charge.abs() <= 4 {
-                Some(4)
-            } else {
-                Some(6)
-            }
-        }
-        17 | 35 | 53 => {
-            let hydrogens = match connection_order {
-                0 | 2 | 4 | 6 => 1,
-                _ => 0,
-            };
-            Some(connection_order + radical_count + charge.abs() + hydrogens)
-        }
         _ => None,
     }
 }
