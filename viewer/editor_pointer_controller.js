@@ -3,6 +3,9 @@ export function createEditorPointerController(options) {
   let hoverMoveFrame = 0;
   let hoverMoveRunning = false;
   let hoverMoveVersion = 0;
+  let selectionInteriorFastPathActive = false;
+  let selectionInteriorSyncRequest = null;
+  let selectionInteriorSyncRunning = false;
 
   async function executeDocumentCommand(command, apply, executeOptions = {}) {
     if (options.commandEngine?.executeEngineCommand) {
@@ -59,7 +62,7 @@ export function createEditorPointerController(options) {
   function scheduleHoverPointerMove(point, altKey) {
     hoverMoveRequest = { point, altKey };
     hoverMoveVersion += 1;
-    if (!hoverMoveFrame && !hoverMoveRunning) {
+    if (!hoverMoveFrame && !hoverMoveRunning && !selectionInteriorSyncRunning) {
       hoverMoveFrame = requestAnimationFrame(drainScheduledHoverPointerMove);
     }
   }
@@ -68,25 +71,18 @@ export function createEditorPointerController(options) {
     return version !== hoverMoveVersion || !!options.activeSelectionGesture();
   }
 
-  function renderSelectionHoverFastPath(point) {
+  function selectionInteriorFastPathApplies(point) {
     const editorState = options.editorState();
     if (editorState.elementPlacementActive
       || (editorState.activeTool !== "select" && !toolSupportsSelectionBoxMove(editorState.activeTool))) {
       return false;
     }
     const overSelection = !!options.selectionBoundsContainsPoint?.(point);
-    if (!overSelection || selectionHandleZoneContainsPoint(point)) {
-      return false;
-    }
-    options.clearTlcHoverState();
+    return overSelection && !selectionHandleZoneContainsPoint(point);
+  }
+
+  function clearVisibleHoverOverlay() {
     const viewerSvg = options.viewerSvg?.();
-    if (viewerSvg) {
-      if (overSelection) {
-        viewerSvg.style.cursor = "grab";
-      } else {
-        options.syncCanvasCursor?.();
-      }
-    }
     const overlay = viewerSvg?.querySelector('[data-layer="editor-overlay"]');
     if (overlay?.querySelector('[data-role^="hover-"], [data-role="preview-end"], [data-role="preview-document-mask"]')) {
       overlay
@@ -96,7 +92,81 @@ export function createEditorPointerController(options) {
         overlay.remove();
       }
     }
+  }
+
+  function requestSelectionInteriorInteractionSync(point, altKey) {
+    selectionInteriorSyncRequest = { point, altKey };
+    if (hoverMoveRunning || selectionInteriorSyncRunning) {
+      return;
+    }
+    void drainSelectionInteriorInteractionSync();
+  }
+
+  async function drainSelectionInteriorInteractionSync() {
+    if (hoverMoveRunning || selectionInteriorSyncRunning || !selectionInteriorSyncRequest) {
+      return;
+    }
+    const request = selectionInteriorSyncRequest;
+    selectionInteriorSyncRequest = null;
+    selectionInteriorSyncRunning = true;
+    try {
+      await options.state().editorEngine.pointerMove(request.point.x, request.point.y, request.altKey);
+    } finally {
+      selectionInteriorSyncRunning = false;
+      if (selectionInteriorSyncRequest) {
+        void drainSelectionInteriorInteractionSync();
+      } else if (hoverMoveRequest && !hoverMoveFrame && !hoverMoveRunning) {
+        hoverMoveFrame = requestAnimationFrame(drainScheduledHoverPointerMove);
+      }
+    }
+  }
+
+  function enterSelectionInteriorFastPath(point, altKey) {
+    const wasActive = selectionInteriorFastPathActive;
+    selectionInteriorFastPathActive = true;
+    cancelScheduledHoverMove();
+    options.clearTlcHoverState();
+    const viewerSvg = options.viewerSvg?.();
+    if (viewerSvg) {
+      viewerSvg.style.cursor = "grab";
+    }
+    clearVisibleHoverOverlay();
     options.positionActiveTextEditor();
+    if (!wasActive) {
+      requestSelectionInteriorInteractionSync(point, altKey);
+    }
+  }
+
+  function leaveSelectionInteriorFastPath(point) {
+    if (!selectionInteriorFastPathActive) {
+      return;
+    }
+    selectionInteriorFastPathActive = false;
+    if (options.editorState().activeTool === "select") {
+      const resizeHandle = options.selectionResizeHandleHit(point);
+      if (resizeHandle) {
+        const viewerSvg = options.viewerSvg?.();
+        if (viewerSvg) {
+          viewerSvg.style.cursor = resizeHandle.cursor;
+        }
+        return;
+      }
+      if (options.selectionRotateHandleHit(point)) {
+        const viewerSvg = options.viewerSvg?.();
+        if (viewerSvg) {
+          viewerSvg.style.cursor = "grab";
+        }
+        return;
+      }
+    }
+    options.syncCanvasCursor?.();
+  }
+
+  function renderSelectionHoverFastPath(point, altKey) {
+    if (!selectionInteriorFastPathApplies(point)) {
+      return false;
+    }
+    enterSelectionInteriorFastPath(point, altKey);
     return true;
   }
 
@@ -115,7 +185,9 @@ export function createEditorPointerController(options) {
       }
     } finally {
       hoverMoveRunning = false;
-      if (hoverMoveRequest && !hoverMoveFrame) {
+      if (selectionInteriorSyncRequest) {
+        void drainSelectionInteriorInteractionSync();
+      } else if (hoverMoveRequest && !hoverMoveFrame && !selectionInteriorSyncRunning) {
         hoverMoveFrame = requestAnimationFrame(drainScheduledHoverPointerMove);
       }
     }
@@ -132,7 +204,7 @@ export function createEditorPointerController(options) {
       }
       return;
     }
-    if (renderSelectionHoverFastPath(point)) {
+    if (renderSelectionHoverFastPath(point, altKey)) {
       return;
     }
     await options.state().editorEngine.pointerMove(point.x, point.y, altKey);
@@ -342,6 +414,12 @@ export function createEditorPointerController(options) {
       options.renderEditorOverlay(options.currentEditorOverlayRenderList());
       return;
     }
+    if (selectionInteriorFastPathApplies(point)) {
+      event.preventDefault();
+      enterSelectionInteriorFastPath(point, event.altKey);
+      return;
+    }
+    leaveSelectionInteriorFastPath(point);
     scheduleHoverPointerMove(point, event.altKey);
   }
 

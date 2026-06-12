@@ -1204,6 +1204,13 @@ impl Engine {
                 return;
             }
         }
+        if self
+            .selection_bounds()
+            .map(|bounds| point_in_bounds(point, AxisBounds::from_array(bounds)))
+            .unwrap_or(false)
+        {
+            return;
+        }
         if let Some((node_id, bounds)) = self.hit_test_endpoint_label_box(point) {
             if self.state.selection.label_nodes.contains(&node_id)
                 || self.state.selection.nodes.contains(&node_id)

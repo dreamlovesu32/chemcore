@@ -5310,6 +5310,9 @@ fn select_tool_does_not_hover_selected_bond_or_atom() {
     hover(&mut engine, FIRST_END_X, FIRST_END_Y);
 
     assert!(engine.state().overlay.hover_endpoint.is_none());
+    let state_json: serde_json::Value =
+        serde_json::from_str(&engine.state_json().expect("state json")).expect("json");
+    assert!(state_json["overlay"]["hoverEndpoint"].is_null());
     assert!(!engine.render_list().iter().any(|primitive| matches!(
         primitive,
         RenderPrimitive::Circle {
