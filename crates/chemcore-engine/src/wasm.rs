@@ -939,6 +939,20 @@ impl WasmEngine {
             None => "null".to_string(),
         }
     }
+
+    #[wasm_bindgen(js_name = selectionBoundsJson)]
+    pub fn selection_bounds_json(&self) -> String {
+        match self.inner.selection_bounds() {
+            Some([min_x, min_y, max_x, max_y]) => serde_json::json!({
+                "minX": min_x,
+                "minY": min_y,
+                "maxX": max_x,
+                "maxY": max_y,
+            })
+            .to_string(),
+            None => "null".to_string(),
+        }
+    }
 }
 
 impl Default for WasmEngine {

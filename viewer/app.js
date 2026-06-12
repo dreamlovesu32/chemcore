@@ -1,5 +1,4 @@
 import {
-  interactionRenderListFromEngine,
   parseEngineJson,
   primitivesForObject,
   renderBoundsFromEngine,
@@ -307,6 +306,18 @@ let activeDocumentPreviewObjectIds = new Set();
 let activeDocumentPreviewPrimitiveElements = new Set();
 let activeDocumentPreviewLayer = false;
 let activeDocumentPreviewTransform = "";
+const editorEngineReadCache = {
+  engine: null,
+  revision: null,
+  stateJson: null,
+  parsedState: null,
+  renderListJson: null,
+  renderList: null,
+  interactionRenderListJson: null,
+  interactionRenderList: null,
+  boundsJsonByScope: new Map(),
+  boundsByScope: new Map(),
+};
 
 const syncWindowTitle = () => {
   updateActiveDocumentTabTitle();
@@ -1565,17 +1576,97 @@ function editorCanvasViewBoxFromBounds(bounds, scale = viewportScale()) {
   );
 }
 
+function editorEngineRevision(engine) {
+  if (!engine?.revision) {
+    return 0;
+  }
+  return Number(engine.revision()) || 0;
+}
+
+function currentEditorEngineReadCache() {
+  const engine = state.editorEngine;
+  if (!engine) {
+    return null;
+  }
+  const revision = editorEngineRevision(engine);
+  const stateJson = engine.stateJson?.() || "";
+  if (
+    editorEngineReadCache.engine !== engine
+    || editorEngineReadCache.revision !== revision
+    || editorEngineReadCache.stateJson !== stateJson
+  ) {
+    editorEngineReadCache.engine = engine;
+    editorEngineReadCache.revision = revision;
+    editorEngineReadCache.stateJson = stateJson;
+    editorEngineReadCache.parsedState = undefined;
+    editorEngineReadCache.renderListJson = null;
+    editorEngineReadCache.renderList = null;
+    editorEngineReadCache.interactionRenderListJson = null;
+    editorEngineReadCache.interactionRenderList = null;
+    editorEngineReadCache.boundsJsonByScope = new Map();
+    editorEngineReadCache.boundsByScope = new Map();
+  }
+  return editorEngineReadCache;
+}
+
+function currentEditorEngineState() {
+  const cache = currentEditorEngineReadCache();
+  if (!cache) {
+    return null;
+  }
+  if (cache.parsedState === undefined) {
+    cache.parsedState = parseEngineJson(cache.stateJson, null);
+  }
+  return cache.parsedState;
+}
+
 function currentEditorRenderList() {
-  return renderListFromEngine(state.editorEngine);
+  const cache = currentEditorEngineReadCache();
+  if (!cache) {
+    return [];
+  }
+  if (!cache.renderList) {
+    cache.renderListJson = state.editorEngine.renderListJson?.() || "[]";
+    cache.renderList = parseEngineJson(cache.renderListJson, []) || [];
+  }
+  return cache.renderList;
 }
 
 function currentEditorInteractionRenderList() {
-  return interactionRenderListFromEngine(state.editorEngine);
+  const cache = currentEditorEngineReadCache();
+  if (!cache) {
+    return [];
+  }
+  if (!cache.interactionRenderList) {
+    cache.interactionRenderListJson = state.editorEngine.interactionRenderListJson?.()
+      || cache.renderListJson
+      || state.editorEngine.renderListJson?.()
+      || "[]";
+    cache.interactionRenderList = parseEngineJson(cache.interactionRenderListJson, []) || [];
+  }
+  return cache.interactionRenderList;
+}
+
+function currentEditorRenderBounds(scope = "all") {
+  const cache = currentEditorEngineReadCache();
+  if (!cache) {
+    return null;
+  }
+  if (!cache.boundsByScope.has(scope)) {
+    const json = scope === "selection" && state.editorEngine.selectionBoundsJson
+      ? state.editorEngine.selectionBoundsJson()
+      : state.editorEngine.renderBoundsJson?.(scope);
+    cache.boundsJsonByScope.set(scope, json || "null");
+    cache.boundsByScope.set(scope, parseEngineJson(json || "null", null));
+  }
+  return cache.boundsByScope.get(scope);
 }
 
 function currentRenderBounds(scope = "all") {
-  const engine = isEditingRustDocument() ? state.editorEngine : state.documentEngine;
-  return renderBoundsFromEngine(engine, scope);
+  if (isEditingRustDocument()) {
+    return currentEditorRenderBounds(scope);
+  }
+  return renderBoundsFromEngine(state.documentEngine, scope);
 }
 
 function pointInAxisBounds(point, bounds, padding = 0) {
@@ -1688,7 +1779,7 @@ async function syncCoreRenderListFromCurrentDocument() {
     return;
   }
   if (state.editorEngine) {
-    state.coreRenderList = renderListFromEngine(state.editorEngine);
+    state.coreRenderList = currentEditorRenderList();
   }
 }
 
@@ -1697,7 +1788,7 @@ function syncEditorRenderListFromEngine(options = {}) {
     return [];
   }
   const autoExpand = options.autoExpand ?? true;
-  state.coreRenderList = renderListFromEngine(state.editorEngine);
+  state.coreRenderList = currentEditorRenderList();
   if (autoExpand) {
     maybeAutoExpandEditorViewport(state.coreRenderList || []);
   }
@@ -1713,8 +1804,15 @@ function currentEditorOverlayRenderList() {
   return (renderList || []).filter((primitive) => !isDocumentPreviewPrimitive(primitive));
 }
 
-function currentSelectionOverlayPrimitiveCount(renderList = currentEditorInteractionRenderList()) {
-  return (renderList || []).filter((primitive) => String(primitive?.role || "").startsWith("selection-")).length;
+function currentSelectionItemCount(selection = currentEditorEngineState()?.selection) {
+  if (!selection) {
+    return 0;
+  }
+  return (selection.nodes?.length || 0)
+    + (selection.bonds?.length || 0)
+    + (selection.labelNodes?.length || selection.label_nodes?.length || 0)
+    + (selection.textObjects?.length || selection.text_objects?.length || 0)
+    + (selection.arrowObjects?.length || selection.arrow_objects?.length || 0);
 }
 
 function corePrimitivesForObject(objectId) {
@@ -1925,7 +2023,7 @@ const editorPointerController = createEditorPointerController({
   currentEditorInteractionRenderList,
   currentEditorOverlayRenderList,
   renderEditorOverlay,
-  selectionHasLargeOverlay: () => currentSelectionOverlayPrimitiveCount() >= 120,
+  selectionHasLargeOverlay: () => currentSelectionItemCount() >= 80,
   selectionBoundsContainsPoint: currentSelectionBoundsContainsPoint,
   applyDocumentObjectPreviewTransform,
   clearDocumentObjectPreviewTransform,
@@ -1968,23 +2066,16 @@ async function syncDocumentFromEngine() {
 }
 
 async function renderSelectionOnlyUpdate(point, syncCursor = syncSelectCursorForPoint) {
+  renderEditorOverlay(syncEditorSelectionRenderListFromEngine());
   if (point) {
     await syncCursor(point);
   }
-  renderEditorOverlay(syncEditorSelectionRenderListFromEngine());
   syncSelectionChemistrySummary();
   refreshCommandAvailability();
 }
 
 async function selectClickTarget(point, additive = false) {
   await state.editorEngine.selectAtPoint(point.x, point.y, additive);
-}
-
-function currentEditorEngineState() {
-  if (!state.editorEngine) {
-    return null;
-  }
-  return parseEngineJson(state.editorEngine.stateJson());
 }
 
 function formatSelectionSummaryMass(value, digits) {

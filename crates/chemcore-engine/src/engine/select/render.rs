@@ -498,6 +498,12 @@ pub(super) fn selected_component_summaries(engine: &Engine) -> Vec<ComponentSele
     let Some(entry) = engine.state.document.editable_fragment() else {
         return Vec::new();
     };
+    if engine.state.selection.nodes.is_empty()
+        && engine.state.selection.label_nodes.is_empty()
+        && engine.state.selection.bonds.is_empty()
+    {
+        return Vec::new();
+    }
     let selected_nodes: BTreeSet<&str> = engine
         .state
         .selection
@@ -519,41 +525,82 @@ pub(super) fn selected_component_summaries(engine: &Engine) -> Vec<ComponentSele
         .iter()
         .map(String::as_str)
         .collect();
-    let mut visited: BTreeSet<String> = BTreeSet::new();
+    let node_index: BTreeMap<&str, usize> = entry
+        .fragment
+        .nodes
+        .iter()
+        .enumerate()
+        .map(|(index, node)| (node.id.as_str(), index))
+        .collect();
+    let mut adjacency = vec![Vec::new(); entry.fragment.nodes.len()];
+    let mut bond_endpoints = Vec::with_capacity(entry.fragment.bonds.len());
+    for bond in &entry.fragment.bonds {
+        let endpoints = node_index
+            .get(bond.begin.as_str())
+            .zip(node_index.get(bond.end.as_str()))
+            .map(|(begin, end)| (*begin, *end));
+        if let Some((begin, end)) = endpoints {
+            adjacency[begin].push(end);
+            adjacency[end].push(begin);
+        }
+        bond_endpoints.push(endpoints);
+    }
+    let mut visited = vec![false; entry.fragment.nodes.len()];
     let mut components = Vec::new();
 
-    for node in &entry.fragment.nodes {
-        if visited.contains(&node.id) {
+    for start_index in 0..entry.fragment.nodes.len() {
+        if visited[start_index] {
             continue;
         }
-        let component_node_ids = connected_component_node_ids(entry.fragment, &node.id);
-        for node_id in &component_node_ids {
-            visited.insert(node_id.clone());
+        let mut stack = vec![start_index];
+        let mut component_node_indices = Vec::new();
+        visited[start_index] = true;
+        while let Some(index) = stack.pop() {
+            component_node_indices.push(index);
+            for neighbor in &adjacency[index] {
+                if !visited[*neighbor] {
+                    visited[*neighbor] = true;
+                    stack.push(*neighbor);
+                }
+            }
         }
-        let component_bond_ids: Vec<String> = entry
-            .fragment
-            .bonds
+        let component_node_lookup: BTreeSet<usize> =
+            component_node_indices.iter().copied().collect();
+        let component_bond_indices: Vec<usize> = bond_endpoints
             .iter()
-            .filter(|bond| {
-                component_node_ids.contains(&bond.begin) && component_node_ids.contains(&bond.end)
+            .enumerate()
+            .filter_map(|(index, endpoints)| {
+                let (begin, end) = (*endpoints)?;
+                (component_node_lookup.contains(&begin) && component_node_lookup.contains(&end))
+                    .then_some(index)
             })
-            .map(|bond| bond.id.clone())
             .collect();
-
-        let component_selected_nodes: Vec<String> = component_node_ids
+        let component_selected_nodes: Vec<String> = component_node_indices
             .iter()
-            .filter(|node_id| selected_nodes.contains(node_id.as_str()))
-            .cloned()
+            .filter_map(|index| {
+                let node_id = &entry.fragment.nodes[*index].id;
+                selected_nodes
+                    .contains(node_id.as_str())
+                    .then(|| node_id.clone())
+            })
             .collect();
-        let component_selected_label_nodes: Vec<String> = component_node_ids
+        let component_selected_label_nodes: Vec<String> = component_node_indices
             .iter()
-            .filter(|node_id| selected_label_nodes.contains(node_id.as_str()))
-            .cloned()
+            .filter_map(|index| {
+                let node_id = &entry.fragment.nodes[*index].id;
+                selected_label_nodes
+                    .contains(node_id.as_str())
+                    .then(|| node_id.clone())
+            })
             .collect();
-        let component_selected_bonds: Vec<String> = component_bond_ids
+        let component_selected_bonds: Vec<String> = component_bond_indices
             .iter()
-            .filter(|bond_id| selected_bonds.contains(bond_id.as_str()))
-            .cloned()
+            .filter_map(|index| {
+                let bond_id = &entry.fragment.bonds[*index].id;
+                selected_bonds
+                    .contains(bond_id.as_str())
+                    .then(|| bond_id.clone())
+            })
             .collect();
         if component_selected_nodes.is_empty()
             && component_selected_label_nodes.is_empty()
@@ -561,18 +608,20 @@ pub(super) fn selected_component_summaries(engine: &Engine) -> Vec<ComponentSele
         {
             continue;
         }
+        let all_nodes_selected = component_node_indices
+            .iter()
+            .all(|index| selected_nodes.contains(entry.fragment.nodes[*index].id.as_str()));
+        let all_bonds_selected = component_bond_indices
+            .iter()
+            .all(|index| selected_bonds.contains(entry.fragment.bonds[*index].id.as_str()));
         components.push(ComponentSelection {
             node_ids: component_selected_nodes,
             label_node_ids: component_selected_label_nodes,
             bond_ids: component_selected_bonds,
-            complete: component_node_ids
-                .iter()
-                .all(|node_id| selected_nodes.contains(node_id.as_str()))
-                && component_bond_ids
-                    .iter()
-                    .all(|bond_id| selected_bonds.contains(bond_id.as_str())),
+            complete: all_nodes_selected && all_bonds_selected,
         });
     }
+
     components
 }
 
@@ -624,6 +673,77 @@ pub(super) fn bracket_object_ids_containing_component(
             }
         })
         .collect()
+}
+
+pub(super) fn component_selection_bounds_fast(
+    entry: &crate::EditableFragment<'_>,
+    component: &ComponentSelection,
+) -> Option<AxisBounds> {
+    let mut out = None;
+    let mut label_node_ids = component.label_node_ids.clone();
+    if component.complete {
+        for node_id in &component.node_ids {
+            if !label_node_ids.iter().any(|existing| existing == node_id) {
+                label_node_ids.push(node_id.clone());
+            }
+        }
+    }
+
+    let mut label_items_added = 0usize;
+    for node_id in &label_node_ids {
+        let Some(node) = entry.fragment.nodes.iter().find(|node| node.id == *node_id) else {
+            continue;
+        };
+        let Some(bounds) = endpoint_label_world_bounds(node, entry.object.transform.translate)
+        else {
+            continue;
+        };
+        include_optional_bounds(&mut out, AxisBounds::from_array(bounds));
+        label_items_added += 1;
+    }
+
+    let include_node_boxes =
+        !component.complete || (component.bond_ids.is_empty() && label_items_added == 0);
+    if include_node_boxes {
+        for node_id in &component.node_ids {
+            let Some(node) = entry.fragment.nodes.iter().find(|node| node.id == *node_id) else {
+                continue;
+            };
+            include_optional_bounds(
+                &mut out,
+                AxisBounds::around_point(
+                    entry.world_point_for_node(node),
+                    SELECTION_NODE_BOX_SIZE / 2.0,
+                ),
+            );
+        }
+    }
+
+    for bond_id in &component.bond_ids {
+        let Some(bond) = entry.fragment.bonds.iter().find(|bond| bond.id == *bond_id) else {
+            continue;
+        };
+        let Some(begin) = entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == bond.begin)
+        else {
+            continue;
+        };
+        let Some(end) = entry.fragment.nodes.iter().find(|node| node.id == bond.end) else {
+            continue;
+        };
+        let begin_point = entry.world_point_for_node(begin);
+        let end_point = entry.world_point_for_node(end);
+        include_optional_bounds(
+            &mut out,
+            AxisBounds::new(begin_point.x, begin_point.y, end_point.x, end_point.y)
+                .expanded(SELECTION_BOND_DOT_RADIUS.max(SELECTION_BOX_STROKE_WIDTH)),
+        );
+    }
+
+    out
 }
 
 pub(super) fn component_selection_items(

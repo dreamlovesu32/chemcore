@@ -444,6 +444,9 @@ impl Engine {
     }
 
     pub fn render_bounds(&self, scope: RenderBoundsScope) -> Option<[f64; 4]> {
+        if scope == RenderBoundsScope::Selection {
+            return self.selection_bounds();
+        }
         let primitives = self.render_list();
         render_primitives_bounds(
             primitives

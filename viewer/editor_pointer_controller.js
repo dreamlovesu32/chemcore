@@ -90,10 +90,12 @@ export function createEditorPointerController(options) {
     }
     const overlay = viewerSvg?.querySelector('[data-layer="editor-overlay"]');
     if (overlay?.querySelector('[data-role^="hover-"], [data-role="preview-end"], [data-role="preview-document-mask"]')) {
-      const overlayList = options.currentEditorOverlayRenderList()
-        .filter((primitive) => !String(primitive?.role || "").startsWith("hover-")
-          && primitive?.role !== "preview-end");
-      options.renderEditorOverlay(overlayList);
+      overlay
+        .querySelectorAll('[data-role^="hover-"], [data-role="preview-end"], [data-role="preview-document-mask"]')
+        .forEach((node) => node.remove());
+      if (!overlay.childNodes.length) {
+        overlay.remove();
+      }
     }
     options.positionActiveTextEditor();
     return true;
@@ -183,6 +185,10 @@ export function createEditorPointerController(options) {
     if (!overSelection) {
       return false;
     }
+    return beginSelectionMoveGesture(point, event, options.syncArrowAwareCursorForPoint);
+  }
+
+  async function beginSelectionMoveGesture(point, event, syncCursor = options.syncSelectCursorForPoint) {
     if (!await options.state().editorEngine.beginSelectionMove?.(point.x, point.y, !!event.shiftKey, event.altKey)) {
       return false;
     }
@@ -193,9 +199,50 @@ export function createEditorPointerController(options) {
       dragged: false,
       additive: !!event.shiftKey,
     });
-    await options.syncArrowAwareCursorForPoint(point);
-    options.renderEditorOverlay(options.currentEditorOverlayRenderList());
+    await syncCursor(point);
+    options.renderEditorOverlay([]);
     return true;
+  }
+
+  function selectionHandleZoneContainsPoint(point) {
+    const bounds = options.currentRenderBounds?.("selection");
+    if (!bounds) {
+      return true;
+    }
+    const edgePad = options.cssPxToPt(14);
+    const rotatePad = options.cssPxToPt(18);
+    const insideExpandedBounds = point.x >= bounds.minX - edgePad
+      && point.x <= bounds.maxX + edgePad
+      && point.y >= bounds.minY - rotatePad
+      && point.y <= bounds.maxY + edgePad;
+    if (!insideExpandedBounds) {
+      return false;
+    }
+    const nearEdge = Math.abs(point.x - bounds.minX) <= edgePad
+      || Math.abs(point.x - bounds.maxX) <= edgePad
+      || Math.abs(point.y - bounds.minY) <= edgePad
+      || Math.abs(point.y - bounds.maxY) <= edgePad;
+    if (nearEdge) {
+      return true;
+    }
+    const rotateHandle = {
+      x: (bounds.minX + bounds.maxX) * 0.5,
+      y: bounds.minY - options.cssPxToPt(18),
+    };
+    return options.pointDistance(point, rotateHandle) <= rotatePad;
+  }
+
+  async function beginLargeSelectionMoveFastPath(point, event) {
+    if (!options.selectionHasLargeOverlay?.()) {
+      return false;
+    }
+    if (!options.selectionBoundsContainsPoint?.(point)) {
+      return false;
+    }
+    if (selectionHandleZoneContainsPoint(point)) {
+      return false;
+    }
+    return beginSelectionMoveGesture(point, event, options.syncSelectCursorForPoint);
   }
 
   async function handleEditorPointerMove(event) {
@@ -338,6 +385,9 @@ export function createEditorPointerController(options) {
         await options.renderSelectionOnlyUpdate(point);
         return;
       }
+      if (await beginLargeSelectionMoveFastPath(point, event)) {
+        return;
+      }
       const resizeHandle = options.selectionResizeHandleHit(point);
       if (resizeHandle && await options.state().editorEngine.beginSelectionResize?.(resizeHandle.name, point.x, point.y)) {
         options.setActiveSelectionGesture({
@@ -350,7 +400,7 @@ export function createEditorPointerController(options) {
           scale: 1,
         });
         await options.syncSelectCursorForPoint(point);
-        options.renderEditorOverlay(options.currentEditorOverlayRenderList());
+        options.renderEditorOverlay([]);
         return;
       }
       const overSelection = !!options.state().editorEngine.selectionContainsPoint?.(point.x, point.y);
@@ -408,20 +458,11 @@ export function createEditorPointerController(options) {
             angle: 0,
           });
           await options.syncSelectCursorForPoint(point);
-          options.renderEditorOverlay(options.currentEditorOverlayRenderList());
+          options.renderEditorOverlay([]);
           return;
         }
       }
-      if (overSelection && await options.state().editorEngine.beginSelectionMove?.(point.x, point.y, !!event.shiftKey, event.altKey)) {
-        options.setActiveSelectionGesture({
-          kind: "move",
-          start: point,
-          current: point,
-          dragged: false,
-          additive: !!event.shiftKey,
-        });
-        await options.syncSelectCursorForPoint(point);
-        options.renderEditorOverlay(options.currentEditorOverlayRenderList());
+      if (overSelection && await beginSelectionMoveGesture(point, event, options.syncSelectCursorForPoint)) {
         return;
       }
       options.setActiveSelectionGesture({

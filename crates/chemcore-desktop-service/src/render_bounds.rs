@@ -29,6 +29,19 @@ pub(crate) fn bounds_json_for_snapshot(
         .map_err(|error| error.to_string())
 }
 
+pub(crate) fn selection_bounds_json_for_snapshot(
+    engine: &Engine,
+    include: bool,
+) -> Result<Option<String>, String> {
+    if !include {
+        return Ok(None);
+    }
+    let bounds = engine.selection_bounds().map(RenderBounds::from);
+    serde_json::to_string(&bounds)
+        .map(Some)
+        .map_err(|error| error.to_string())
+}
+
 pub(crate) fn render_bounds_scope_accepts(
     scope: RenderBoundsScope,
     primitive: &RenderPrimitive,

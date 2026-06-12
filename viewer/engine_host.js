@@ -254,6 +254,10 @@ class TauriEngineSession {
     return this.cache.renderBoundsJson.get(scope) || this.cache.renderBoundsJson.get("all") || "null";
   }
 
+  selectionBoundsJson() {
+    return this.renderBoundsJson("selection");
+  }
+
   selectionChemistrySummaryJson() {
     return this.cache.selectionChemistrySummaryJson || "null";
   }

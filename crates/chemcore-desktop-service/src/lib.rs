@@ -1,4 +1,4 @@
-﻿use chemcore_engine::{
+use chemcore_engine::{
     cdx_to_cdxml, cdxml_to_cdx, ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo,
     ArrowVariant, BondVariant, BracketKind, Engine, OrbitalPhase, OrbitalStyle, OrbitalTemplate,
     Point, PointerEvent, RenderBoundsScope, RenderPrimitive, RenderRole, ShapeKind, ShapeStyle,
@@ -276,9 +276,8 @@ impl DesktopDocumentService {
                 RenderBoundsScope::Document,
                 include_document_bounds,
             )?,
-            selection_bounds_json: bounds_json_for_snapshot(
-                interaction_primitives.as_deref(),
-                RenderBoundsScope::Selection,
+            selection_bounds_json: selection_bounds_json_for_snapshot(
+                session,
                 include_selection_bounds,
             )?,
             selection_chemistry_summary_json: include_selection_summary

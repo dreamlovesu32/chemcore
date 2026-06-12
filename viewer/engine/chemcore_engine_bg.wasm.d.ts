@@ -94,6 +94,7 @@ export const wasmengine_selectAtPoint: (a: number, b: number, c: number, d: numb
 export const wasmengine_selectComponentAtPoint: (a: number, b: number, c: number, d: number) => number;
 export const wasmengine_selectInPolygon: (a: number, b: number, c: number, d: number) => [number, number];
 export const wasmengine_selectInRect: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+export const wasmengine_selectionBoundsJson: (a: number) => [number, number];
 export const wasmengine_selectionChemistrySummaryJson: (a: number) => [number, number];
 export const wasmengine_selectionContainsPoint: (a: number, b: number, c: number) => number;
 export const wasmengine_selectionNumericDialogJson: (a: number, b: number, c: number) => [number, number];

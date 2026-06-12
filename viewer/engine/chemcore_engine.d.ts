@@ -96,6 +96,7 @@ export class WasmEngine {
     selectComponentAtPoint(x: number, y: number, additive: boolean): boolean;
     selectInPolygon(points_json: string, additive: boolean): void;
     selectInRect(x1: number, y1: number, x2: number, y2: number, additive: boolean): void;
+    selectionBoundsJson(): string;
     selectionChemistrySummaryJson(): string;
     selectionContainsPoint(x: number, y: number): boolean;
     selectionNumericDialogJson(kind: string): string;
@@ -225,6 +226,7 @@ export interface InitOutput {
     readonly wasmengine_selectComponentAtPoint: (a: number, b: number, c: number, d: number) => number;
     readonly wasmengine_selectInPolygon: (a: number, b: number, c: number, d: number) => [number, number];
     readonly wasmengine_selectInRect: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly wasmengine_selectionBoundsJson: (a: number) => [number, number];
     readonly wasmengine_selectionChemistrySummaryJson: (a: number) => [number, number];
     readonly wasmengine_selectionContainsPoint: (a: number, b: number, c: number) => number;
     readonly wasmengine_selectionNumericDialogJson: (a: number, b: number, c: number) => [number, number];

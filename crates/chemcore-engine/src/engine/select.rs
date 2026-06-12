@@ -1430,20 +1430,19 @@ impl Engine {
             return bounds;
         }
         for component in selected_component_summaries(self) {
-            let items = component_selection_items(&self.state.document, &entry, &component);
-            if items.is_empty() {
-                continue;
-            }
-            if items.len() == 1 {
-                bounds.push(items[0].bounds);
-            } else {
-                bounds.push(items.iter().skip(1).fold(items[0].bounds, |mut acc, item| {
-                    acc.include_bounds(item.bounds);
-                    acc
-                }));
+            if let Some(component_bounds) = component_selection_bounds_fast(&entry, &component) {
+                bounds.push(component_bounds);
             }
         }
         bounds
+    }
+
+    pub fn selection_bounds(&self) -> Option<[f64; 4]> {
+        let mut out = None;
+        for bounds in self.selection_hit_bounds() {
+            include_optional_bounds(&mut out, bounds);
+        }
+        out.map(|bounds| [bounds.min_x, bounds.min_y, bounds.max_x, bounds.max_y])
     }
 
     fn selection_arrange_items(&self) -> Vec<SelectionArrangeItem> {
