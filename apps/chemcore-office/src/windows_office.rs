@@ -9,7 +9,7 @@ use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::ptr::{null, null_mut};
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, SystemTime};
@@ -48,6 +48,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     AllowSetForegroundWindow, DispatchMessageW, GetMessageW, KillTimer, PostThreadMessageW,
     SetTimer, TranslateMessage, MSG, SW_SHOWNORMAL,
 };
+
+static TEMP_SUFFIX_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 mod emf_preview;
 
@@ -3042,11 +3044,13 @@ fn ole_storage_file_bytes_for_payload(
     result
 }
 
-fn unique_temp_suffix() -> u128 {
-    std::time::SystemTime::now()
+fn unique_temp_suffix() -> String {
+    let sequence = TEMP_SUFFIX_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_nanos())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    format!("{timestamp}-{sequence}")
 }
 
 fn enhanced_print_is_emf(bytes: &[u8]) -> bool {
