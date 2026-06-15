@@ -10,7 +10,7 @@ import { base64ToBytes, bytesToBase64 } from "./binary_helpers.js";
 import { createColorHost } from "./color_host.js";
 import { createObjectSettingsHost } from "./object_settings_host.js";
 import { createNumericDialogHost } from "./numeric_dialog_host.js";
-import { createDesktopFileHost } from "./desktop_file_host.js";
+import { createDesktopFileHost, normalizeDesktopPath } from "./desktop_file_host.js";
 import { createEngineHost } from "./engine_host.js";
 import { bindEditorControls, openColorDialog } from "./editor_bindings.js";
 import { createDocumentFlow } from "./document_flow.js";
@@ -3886,6 +3886,7 @@ const documentFlow = createDocumentFlow({
   markCurrentDocumentSaved,
   currentDocumentIsDirty,
   markCurrentDocumentOfficeSynced,
+  traceEvent: (event, detail = null) => desktopFileHost?.traceEvent?.(event, detail),
   resetCommandEngineRevision: () => commandEngine.resetRevision(),
   refreshCommandAvailability,
   waitForRuntimeReady: () => appRuntimeReady,
@@ -4086,31 +4087,58 @@ async function newDocumentTab() {
 }
 
 async function openDocumentPathInTab(path) {
-  if (!path) {
+  const normalizedPath = normalizeDesktopPath(path);
+  void desktopFileHost?.traceEvent?.("app.openDocumentPathInTab.begin", { path, normalizedPath });
+  if (!normalizedPath) {
+    void desktopFileHost?.traceEvent?.("app.openDocumentPathInTab.skipInvalid", { path });
     return;
   }
   await appRuntimeReady;
   await finishActiveTextEditor(true);
   saveActiveDocumentTabState();
-  const existingTab = documentTabForFilePath(path);
+  const existingTab = documentTabForFilePath(normalizedPath);
   if (existingTab) {
+    void desktopFileHost?.traceEvent?.("app.openDocumentPathInTab.activateExisting", {
+      normalizedPath,
+      tabId: existingTab.id,
+    });
     await activateDocumentTab(existingTab.id);
     return;
   }
   const reuseActiveTab = activeDocumentTabIsBlankUntitled() && !currentDocumentIsDirty();
   const previousTabId = activeDocumentTabId;
   let tab = activeDocumentTab();
+  void desktopFileHost?.traceEvent?.("app.openDocumentPathInTab.plan", {
+    normalizedPath,
+    reuseActiveTab,
+    previousTabId,
+    activeTabId: tab?.id || null,
+  });
   if (!reuseActiveTab) {
-    tab = createDocumentTab(fileNameFromPath(path) || "Loading...");
+    tab = createDocumentTab(fileNameFromPath(normalizedPath) || "Loading...");
     documentTabs.push(tab);
     activeDocumentTabId = tab.id;
+    void desktopFileHost?.traceEvent?.("app.openDocumentPathInTab.createdTab", {
+      normalizedPath,
+      tabId: tab.id,
+    });
     await restoreDocumentTabState(tab);
   }
   try {
-    await openDocumentPath(path);
+    await openDocumentPath(normalizedPath);
     saveActiveDocumentTabState();
     renderDocumentTabs();
+    void desktopFileHost?.traceEvent?.("app.openDocumentPathInTab.ok", {
+      normalizedPath,
+      tabId: activeDocumentTabId,
+    });
   } catch (error) {
+    await desktopFileHost?.traceEvent?.("app.openDocumentPathInTab.error", {
+      normalizedPath,
+      tabId: tab?.id || null,
+      previousTabId,
+      error,
+    });
     if (!reuseActiveTab) {
       await closeDocumentTab(tab.id, { skipUnsavedPrompt: true });
     }

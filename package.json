@@ -14,6 +14,7 @@
     "compare:cdxml-symbol-pixels": "node scripts/compare-cdxml-symbol-pixels.mjs",
     "compare:svg-pixels": "node scripts/compare-svg-pixels.mjs",
     "desktop:build": "node scripts/desktop-tauri.mjs build",
+    "desktop:build-fast": "node scripts/desktop-tauri-fast.mjs",
     "desktop:dev": "node scripts/desktop-tauri.mjs dev",
     "desktop:info": "node scripts/desktop-tauri.mjs info",
     "dev:engine": "node scripts/dev-engine-wasm.mjs",

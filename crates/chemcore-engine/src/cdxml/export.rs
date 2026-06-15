@@ -984,6 +984,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
         let kind =
             payload_string_cdxml(&object.payload, "kind").unwrap_or_else(|| "round".to_string());
         if object.object_type == "symbol" {
+            let color = payload_string_cdxml(&object.payload, "fill")
+                .unwrap_or_else(|| "#000000".to_string());
+            let color_id = self.colors.id_for(&color);
             let symbol_type = match kind.as_str() {
                 "double-dagger" => "DoubleDagger",
                 "dagger" => "Dagger",
@@ -1018,6 +1021,21 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 .unwrap_or_else(|| crate::cdxml_symbol_anchor_height(&kind));
             let center_x = (bbox[0] + bbox[2]) * 0.5;
             let center_y = (bbox[1] + bbox[3]) * 0.5;
+            let symbol_bbox = if kind == "electron" {
+                [
+                    center_x - anchor_width * 0.5,
+                    center_y,
+                    center_x + anchor_width * 0.5,
+                    center_y + anchor_height,
+                ]
+            } else {
+                [
+                    center_x - anchor_width * 0.5,
+                    center_y - anchor_height * 0.5,
+                    center_x + anchor_width * 0.5,
+                    center_y + anchor_height * 0.5,
+                ]
+            };
             write_empty_tag(
                 out,
                 4,
@@ -1026,21 +1044,17 @@ impl<'a> CdxmlDocumentWriter<'a> {
                     ("id", self.alloc_id()),
                     ("GraphicType", "Symbol".to_string()),
                     ("SymbolType", symbol_type.to_string()),
-                    (
-                        "BoundingBox",
-                        fmt_bbox([
-                            center_x - anchor_width * 0.5,
-                            center_y - anchor_height * 0.5,
-                            center_x + anchor_width * 0.5,
-                            center_y + anchor_height * 0.5,
-                        ]),
-                    ),
+                    ("color", color_id),
+                    ("BoundingBox", fmt_bbox(symbol_bbox)),
                     ("Z", object.z_index.to_string()),
                 ],
             );
             return;
         }
 
+        let color = payload_string_cdxml(&object.payload, "stroke")
+            .unwrap_or_else(|| "#000000".to_string());
+        let color_id = self.colors.id_for(&color);
         let bracket_type = match kind.as_str() {
             "square" => "Square",
             "curly" => "Curly",
@@ -1058,6 +1072,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 ("id", self.alloc_id()),
                 ("GraphicType", "Bracket".to_string()),
                 ("BracketType", bracket_type.to_string()),
+                ("color", color_id.clone()),
                 ("BoundingBox", fmt_bbox([left_x, bottom, left_x, top])),
                 ("LipSize", "60".to_string()),
                 ("Z", object.z_index.to_string()),
@@ -1071,6 +1086,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 ("id", self.alloc_id()),
                 ("GraphicType", "Bracket".to_string()),
                 ("BracketType", bracket_type.to_string()),
+                ("color", color_id),
                 ("BoundingBox", fmt_bbox([right_x, top, right_x, bottom])),
                 ("LipSize", "60".to_string()),
                 ("Z", (object.z_index + 1).to_string()),

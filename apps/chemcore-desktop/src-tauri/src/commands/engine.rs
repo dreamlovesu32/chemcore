@@ -33,8 +33,17 @@ pub(crate) fn desktop_engine_load_document_cdxml(
     session_id: SessionId,
     cdxml: String,
 ) -> Result<(), String> {
+    trace_desktop_event(format!(
+        "desktop_engine_load_document_cdxml session_id={session_id} cdxml_len={}",
+        cdxml.len()
+    ));
     let mut service = state.service.lock().map_err(|error| error.to_string())?;
-    service.load_document_cdxml(session_id, &cdxml)
+    let result = service.load_document_cdxml(session_id, &cdxml);
+    trace_desktop_event(format!(
+        "desktop_engine_load_document_cdxml result={}",
+        if result.is_ok() { "ok" } else { "err" }
+    ));
+    result
 }
 
 #[tauri::command]
@@ -101,7 +110,12 @@ pub(crate) fn desktop_engine_snapshot_json(
     mode: DesktopEngineSnapshotMode,
 ) -> Result<String, String> {
     let service = state.service.lock().map_err(|error| error.to_string())?;
-    service.snapshot_json(session_id, mode)
+    let snapshot = service.snapshot_json(session_id, mode)?;
+    trace_desktop_event(format!(
+        "desktop_engine_snapshot_json session_id={session_id} mode={mode:?} len={}",
+        snapshot.len()
+    ));
+    Ok(snapshot)
 }
 
 #[tauri::command]

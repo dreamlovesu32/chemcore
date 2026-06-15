@@ -118,6 +118,11 @@ function bindCommandButtons(options) {
     } catch (error) {
       if (!options.isAbortError(error)) {
         console.error(logMessage, error);
+        void options.desktopFileHost?.traceEvent?.("editorBindings.runSafe.error", {
+          alertPrefix,
+          logMessage,
+          error,
+        });
         window.alert?.(`${alertPrefix}: ${error.message || error}`);
       }
     }
@@ -134,6 +139,11 @@ function bindDesktopCommands(options) {
     } catch (error) {
       if (!options.isAbortError(error)) {
         console.error(logMessage, error);
+        await options.desktopFileHost?.traceEvent?.("editorBindings.desktopRunSafe.error", {
+          alertPrefix,
+          logMessage,
+          error,
+        });
         window.alert?.(`${alertPrefix}: ${error.message || error}`);
       }
     }
@@ -188,11 +198,13 @@ function bindDesktopCommands(options) {
 
   options.desktopFileHost.listenMenu(runCommand);
   options.desktopFileHost.listenOpenPaths(async (paths) => {
+    await options.desktopFileHost?.traceEvent?.("editorBindings.openPaths.begin", { paths });
     for (const path of paths) {
       if (path) {
         await runSafe(() => options.openDocumentPathInTab(path), "Open failed", "Failed to open dropped document");
       }
     }
+    await options.desktopFileHost?.traceEvent?.("editorBindings.openPaths.done", { count: paths.length });
   });
 }
 

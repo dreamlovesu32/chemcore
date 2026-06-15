@@ -58,10 +58,17 @@ pub(crate) fn desktop_file_read_path(
     state: tauri::State<'_, DesktopState>,
     path: String,
 ) -> Result<DesktopOpenedDocument, String> {
+    trace_desktop_event(format!("desktop_file_read_path path={path:?}"));
     let opened = {
         let mut service = state.service.lock().map_err(|error| error.to_string())?;
         service.read_document_file(path)?
     };
+    trace_desktop_event(format!(
+        "desktop_file_read_path result path={:?} format={} text_len={}",
+        opened.path,
+        opened.format,
+        opened.text.len()
+    ));
     refresh_native_menu(&app);
     Ok(opened)
 }

@@ -22,6 +22,10 @@ import {
 import { pdfPreviewBase64FromSvg } from "./export_preview.js";
 
 export function createDocumentFlow(options) {
+  function traceEvent(event, detail = null) {
+    void options.traceEvent?.(event, detail);
+  }
+
   async function waitForRuntimeReady() {
     await options.waitForRuntimeReady?.();
   }
@@ -53,29 +57,64 @@ export function createDocumentFlow(options) {
     }
   }
 
+  async function createLoadedEditorEngine(label, load, detail = null) {
+    traceEvent("documentFlow.createLoadedEngine.begin", { label, detail });
+    const engine = options.engineHost.createEngineSession();
+    try {
+      await engine.ready?.();
+      traceEvent("documentFlow.createLoadedEngine.ready", { label });
+      await load(engine);
+      traceEvent("documentFlow.createLoadedEngine.loaded", { label });
+      return engine;
+    } catch (error) {
+      traceEvent("documentFlow.createLoadedEngine.error", { label, error });
+      await engine.free?.();
+      throw error;
+    }
+  }
+
+  async function replaceEditorDocumentEngine(engine, fileName, filePath, titleFallback) {
+    traceEvent("documentFlow.replaceEngine.begin", { fileName, filePath, titleFallback });
+    const previousEngine = options.state.editorEngine;
+    options.state.currentPath = null;
+    options.state.currentFileName = fileName;
+    options.state.currentFilePath = filePath;
+    options.state.editorEngine = engine;
+    options.resetCommandEngineRevision?.();
+    options.state.lastEditFocusPoint = null;
+    options.clearZoomHandoffs();
+    try {
+      await options.syncEngineToolState();
+      await options.syncDocumentFromEngine();
+      options.renderSecondaryToolbar?.();
+      options.state.runtimeViewBox = null;
+      options.viewerTitle.textContent = options.state.currentDocument?.document?.title || fileName || titleFallback;
+      updateDocumentMeta();
+      options.fitView();
+      options.renderDocument();
+      options.markCurrentDocumentSaved?.();
+      traceEvent("documentFlow.replaceEngine.rendered", {
+        title: options.viewerTitle.textContent,
+        hasPreviousEngine: !!previousEngine,
+      });
+    } finally {
+      traceEvent("documentFlow.replaceEngine.freePrevious.begin", { hasPreviousEngine: !!previousEngine });
+      await previousEngine?.free?.();
+      traceEvent("documentFlow.replaceEngine.freePrevious.done", { hasPreviousEngine: !!previousEngine });
+    }
+  }
+
   async function loadJsonDocumentIntoEditor(documentData, fileName = null, filePath = null) {
     await waitForRuntimeReady();
     validateChemcoreJsonDocument(documentData);
     await options.finishActiveTextEditor(false);
-    options.state.currentPath = null;
-    options.state.currentFileName = fileName;
-    options.state.currentFilePath = filePath;
-    await options.state.editorEngine?.free?.();
-    options.state.editorEngine = options.engineHost.createEngineSession();
-    await options.state.editorEngine.ready?.();
-    options.resetCommandEngineRevision?.();
-    options.state.lastEditFocusPoint = null;
-    options.clearZoomHandoffs();
-    await options.state.editorEngine.loadDocumentJson(JSON.stringify(documentData));
-    await options.syncEngineToolState();
-    await options.syncDocumentFromEngine();
-    options.renderSecondaryToolbar?.();
-    options.state.runtimeViewBox = null;
-    options.viewerTitle.textContent = options.state.currentDocument?.document?.title || fileName || "Untitled";
-    updateDocumentMeta();
-    options.fitView();
-    options.renderDocument();
-    options.markCurrentDocumentSaved?.();
+    const json = JSON.stringify(documentData);
+    const engine = await createLoadedEditorEngine(
+      "json",
+      (nextEngine) => nextEngine.loadDocumentJson(json),
+      { jsonLength: json.length, fileName, filePath },
+    );
+    await replaceEditorDocumentEngine(engine, fileName, filePath, "Untitled");
   }
 
   async function currentDocumentJsonForSave() {
@@ -527,49 +566,26 @@ export function createDocumentFlow(options) {
   async function loadCdxDocumentIntoEditor(cdx, fileName = null, filePath = null) {
     await waitForRuntimeReady();
     await options.finishActiveTextEditor(false);
-    options.state.currentPath = null;
-    options.state.currentFileName = fileName;
-    options.state.currentFilePath = filePath;
-    await options.state.editorEngine?.free?.();
-    options.state.editorEngine = options.engineHost.createEngineSession();
-    await options.state.editorEngine.ready?.();
-    options.resetCommandEngineRevision?.();
-    options.state.lastEditFocusPoint = null;
-    options.clearZoomHandoffs();
-    await options.state.editorEngine.loadDocumentCdx(cdx);
-    await options.syncEngineToolState();
-    await options.syncDocumentFromEngine();
-    options.renderSecondaryToolbar?.();
-    options.state.runtimeViewBox = null;
-    options.viewerTitle.textContent = options.state.currentDocument?.document?.title || fileName || "Imported CDX";
-    updateDocumentMeta();
-    options.fitView();
-    options.renderDocument();
-    options.markCurrentDocumentSaved?.();
+    const engine = await createLoadedEditorEngine(
+      "cdx",
+      (nextEngine) => nextEngine.loadDocumentCdx(cdx),
+      { byteLength: cdx?.byteLength ?? cdx?.length ?? null, fileName, filePath },
+    );
+    await replaceEditorDocumentEngine(engine, fileName, filePath, "Imported CDX");
   }
 
   async function loadSdfDocumentIntoEditor(sdf, fileName = null, filePath = null) {
+    if (typeof sdf !== "string") {
+      throw new Error("SDF document text is unavailable.");
+    }
     await waitForRuntimeReady();
     await options.finishActiveTextEditor(false);
-    options.state.currentPath = null;
-    options.state.currentFileName = fileName;
-    options.state.currentFilePath = filePath;
-    await options.state.editorEngine?.free?.();
-    options.state.editorEngine = options.engineHost.createEngineSession();
-    await options.state.editorEngine.ready?.();
-    options.resetCommandEngineRevision?.();
-    options.state.lastEditFocusPoint = null;
-    options.clearZoomHandoffs();
-    await options.state.editorEngine.loadDocumentSdf(sdf);
-    await options.syncEngineToolState();
-    await options.syncDocumentFromEngine();
-    options.renderSecondaryToolbar?.();
-    options.state.runtimeViewBox = null;
-    options.viewerTitle.textContent = options.state.currentDocument?.document?.title || fileName || "Imported SDF";
-    updateDocumentMeta();
-    options.fitView();
-    options.renderDocument();
-    options.markCurrentDocumentSaved?.();
+    const engine = await createLoadedEditorEngine(
+      "sdf",
+      (nextEngine) => nextEngine.loadDocumentSdf(sdf),
+      { textLength: sdf.length, fileName, filePath },
+    );
+    await replaceEditorDocumentEngine(engine, fileName, filePath, "Imported SDF");
   }
 
   async function openDocumentPath(path) {
@@ -589,27 +605,17 @@ export function createDocumentFlow(options) {
   }
 
   async function loadCdxmlDocumentIntoEditor(cdxml, fileName = null, filePath = null) {
+    if (typeof cdxml !== "string") {
+      throw new Error("CDXML document text is unavailable.");
+    }
     await waitForRuntimeReady();
     await options.finishActiveTextEditor(false);
-    options.state.currentPath = null;
-    options.state.currentFileName = fileName;
-    options.state.currentFilePath = filePath;
-    await options.state.editorEngine?.free?.();
-    options.state.editorEngine = options.engineHost.createEngineSession();
-    await options.state.editorEngine.ready?.();
-    options.resetCommandEngineRevision?.();
-    options.state.lastEditFocusPoint = null;
-    options.clearZoomHandoffs();
-    await options.state.editorEngine.loadDocumentCdxml(cdxml);
-    await options.syncEngineToolState();
-    await options.syncDocumentFromEngine();
-    options.renderSecondaryToolbar?.();
-    options.state.runtimeViewBox = null;
-    options.viewerTitle.textContent = options.state.currentDocument?.document?.title || fileName || "Imported CDXML";
-    updateDocumentMeta();
-    options.fitView();
-    options.renderDocument();
-    options.markCurrentDocumentSaved?.();
+    const engine = await createLoadedEditorEngine(
+      "cdxml",
+      (nextEngine) => nextEngine.loadDocumentCdxml(cdxml),
+      { textLength: cdxml.length, fileName, filePath },
+    );
+    await replaceEditorDocumentEngine(engine, fileName, filePath, "Imported CDXML");
   }
 
   function isAbortError(error) {

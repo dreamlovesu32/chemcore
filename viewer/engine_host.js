@@ -12,8 +12,32 @@ class WasmEngineHost {
   }
 
   createEngineSession() {
-    return new WasmEngine();
+    return createManagedEngineSession(new WasmEngine());
   }
+}
+
+function createManagedEngineSession(session) {
+  if (!session || typeof session !== "object" || session.__chemcoreManagedFree) {
+    return session;
+  }
+  const originalFree = typeof session.free === "function" ? session.free.bind(session) : null;
+  if (!originalFree) {
+    return session;
+  }
+  let freed = false;
+  Object.defineProperty(session, "__chemcoreManagedFree", {
+    configurable: false,
+    enumerable: false,
+    value: true,
+  });
+  session.free = async () => {
+    if (freed) {
+      return false;
+    }
+    freed = true;
+    return originalFree();
+  };
+  return session;
 }
 
 class DesktopHybridEngineHost extends WasmEngineHost {
@@ -82,8 +106,13 @@ class TauriEngineSession {
   }
 
   async free() {
-    await this.ready();
-    return this.invoke("desktop_engine_free", { sessionId: this.sessionId });
+    try {
+      await this.ready();
+      return await this.invoke("desktop_engine_free", { sessionId: this.sessionId });
+    } finally {
+      await this.layoutEngine?.free?.();
+      this.layoutEngine = null;
+    }
   }
 
   async invokeMutation(command, args = {}, options = {}) {
@@ -121,15 +150,22 @@ class TauriEngineSession {
     this.cache.documentSvg = null;
   }
 
+  syncLayoutDocumentJson(json = this.cache.documentJson) {
+    if (typeof json !== "string") {
+      return;
+    }
+    if (this.layoutEngine?.loadDocumentJson) {
+      this.layoutEngine.loadDocumentJson(json);
+    }
+  }
+
   applySnapshot(snapshot) {
     if (!snapshot || typeof snapshot !== "object") {
       return;
     }
     if (snapshot.documentJson != null) {
       this.cache.documentJson = snapshot.documentJson;
-      if (this.layoutEngine?.loadDocumentJson) {
-        this.layoutEngine.loadDocumentJson(snapshot.documentJson);
-      }
+      this.syncLayoutDocumentJson(snapshot.documentJson);
     }
     if (snapshot.stateJson != null) {
       this.cache.stateJson = snapshot.stateJson;
@@ -203,17 +239,13 @@ class TauriEngineSession {
   }
 
   async loadDocumentJson(json) {
-    if (this.layoutEngine?.loadDocumentJson) {
-      this.layoutEngine.loadDocumentJson(json);
-    }
+    this.syncLayoutDocumentJson(json);
     return this.invokeMutation("desktop_engine_load_document_json", { json }, { refresh: "document" });
   }
 
   async loadDocumentCdxml(cdxml) {
     const result = await this.invokeMutation("desktop_engine_load_document_cdxml", { cdxml }, { refresh: "document" });
-    if (this.layoutEngine?.loadDocumentJson) {
-      this.layoutEngine.loadDocumentJson(this.cache.documentJson);
-    }
+    this.syncLayoutDocumentJson();
     return result;
   }
 
@@ -228,9 +260,7 @@ class TauriEngineSession {
 
   async loadDocumentSdf(sdf) {
     const result = await this.invokeMutation("desktop_engine_load_document_sdf", { sdf }, { refresh: "document" });
-    if (this.layoutEngine?.loadDocumentJson) {
-      this.layoutEngine.loadDocumentJson(this.cache.documentJson);
-    }
+    this.syncLayoutDocumentJson();
     return result;
   }
 
@@ -413,9 +443,7 @@ class TauriEngineSession {
   }
 
   applyObjectSettingsDialogJson(settingsJson) {
-    if (this.layoutEngine?.loadDocumentJson) {
-      this.layoutEngine.loadDocumentJson(this.cache.documentJson);
-    }
+    this.syncLayoutDocumentJson();
     return this.invokeMutation("desktop_engine_apply_object_settings_dialog_json", { settingsJson }, { refresh: "all" });
   }
 
@@ -781,9 +809,9 @@ class TauriEngineHost {
   }
 
   createEngineSession() {
-    return new TauriEngineSession(this.invoke, {
+    return createManagedEngineSession(new TauriEngineSession(this.invoke, {
       layoutEngine: new WasmEngine(),
-    });
+    }));
   }
 
   async runSmokeTest() {

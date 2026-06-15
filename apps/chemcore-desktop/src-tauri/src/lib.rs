@@ -6,6 +6,7 @@ use chemcore_desktop_service::{
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -40,6 +41,35 @@ fn current_timestamp_ms() -> u128 {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis())
         .unwrap_or(0)
+}
+
+fn desktop_trace_path() -> PathBuf {
+    if let Ok(path) = std::env::var("CHEMCORE_DRAG_TRACE") {
+        if !path.trim().is_empty() {
+            return PathBuf::from(path);
+        }
+    }
+    let base = std::env::var("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| std::env::temp_dir());
+    base.join("Chemcore").join("desktop-events.log")
+}
+
+fn trace_desktop_event(message: impl AsRef<str>) {
+    let path = desktop_trace_path();
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let timestamp = current_timestamp_ms();
+    let line = format!("{timestamp} {}\n", message.as_ref());
+    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(path) {
+        let _ = file.write_all(line.as_bytes());
+    }
+}
+
+#[tauri::command]
+fn desktop_trace_event(message: String) {
+    trace_desktop_event(format!("frontend {message}"));
 }
 
 impl DesktopState {
@@ -123,6 +153,10 @@ use window_helpers::*;
 
 pub fn run() {
     let startup_paths = startup_file_args();
+    trace_desktop_event(format!(
+        "app_start pid={} startup_paths={startup_paths:?}",
+        std::process::id()
+    ));
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
             let paths = openable_document_args(args.into_iter().skip(1), Some(Path::new(&cwd)));
@@ -263,12 +297,14 @@ pub fn run() {
             desktop_window_take_detached_document,
             desktop_clipboard_write,
             desktop_clipboard_read,
+            desktop_trace_event,
         ])
         .on_menu_event(|app, event| {
             handle_native_menu_event(app, event.id().as_ref());
         })
         .on_window_event(|window, event| {
             if let WindowEvent::DragDrop(DragDropEvent::Drop { paths, .. }) = event {
+                trace_desktop_event(format!("window.drag_drop.drop paths={paths:?}"));
                 let app = window.app_handle();
                 emit_open_paths(
                     app,

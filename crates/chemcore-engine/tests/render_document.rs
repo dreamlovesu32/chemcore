@@ -3819,6 +3819,81 @@ fn parse_cdxml_uses_chemdraw_color_table_offset() {
 }
 
 #[test]
+fn cdxml_electron_symbol_uses_chemdraw_top_anchor_and_color() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.40" LineWidth="0.60" color="0" bgcolor="1">
+  <colortable>
+    <color r="1" g="1" b="1"/>
+    <color r="0" g="0" b="0"/>
+    <color r="1" g="0" b="0"/>
+  </colortable>
+  <page id="1">
+    <graphic id="2" BoundingBox="285.19 130.29 285.19 141.94" Z="1" color="4" GraphicType="Symbol" SymbolType="Electron"/>
+  </page>
+</CDXML>"##;
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(cdxml)
+        .expect("electron symbol cdxml should load");
+    let document = &engine.state().document;
+    let symbol = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "symbol")
+        .expect("electron symbol should import");
+    assert_eq!(
+        symbol
+            .payload
+            .extra
+            .get("kind")
+            .and_then(|value| value.as_str()),
+        Some("electron")
+    );
+    assert_eq!(
+        symbol
+            .payload
+            .extra
+            .get("fill")
+            .and_then(|value| value.as_str()),
+        Some("#ff0000")
+    );
+    let [_, _, width, height] = symbol.payload.bbox.expect("symbol should have bbox");
+    let center = [
+        symbol.transform.translate[0] + width * 0.5,
+        symbol.transform.translate[1] + height * 0.5,
+    ];
+    assert!(
+        (center[0] - 285.19).abs() < 0.01,
+        "electron center x should use the CDXML anchor x, got {center:?}"
+    );
+    assert!(
+        (center[1] - 130.29).abs() < 0.01,
+        "electron center y should use the top of the CDXML anchor bbox, got {center:?}"
+    );
+
+    let exported = document_to_cdxml(document);
+    assert!(exported.contains("SymbolType=\"Electron\""), "{exported}");
+    assert!(exported.contains("color=\"4\""), "{exported}");
+    let reimported =
+        parse_cdxml_document(&exported, Some("electron export")).expect("export should parse");
+    let reimported_symbol = reimported
+        .objects
+        .iter()
+        .find(|object| object.object_type == "symbol")
+        .expect("exported electron should reimport");
+    let [_, _, re_width, re_height] = reimported_symbol
+        .payload
+        .bbox
+        .expect("reimported symbol should have bbox");
+    let re_center = [
+        reimported_symbol.transform.translate[0] + re_width * 0.5,
+        reimported_symbol.transform.translate[1] + re_height * 0.5,
+    ];
+    assert!((re_center[0] - 285.19).abs() < 0.01, "{re_center:?}");
+    assert!((re_center[1] - 130.29).abs() < 0.01, "{re_center:?}");
+}
+
+#[test]
 fn parse_cdxml_color_table_keeps_duplicate_slots() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML color="0" bgcolor="1">

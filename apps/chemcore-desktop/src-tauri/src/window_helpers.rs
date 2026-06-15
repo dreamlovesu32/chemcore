@@ -4,6 +4,7 @@ pub(crate) fn emit_open_paths(app: &tauri::AppHandle, paths: Vec<String>) {
     if paths.is_empty() {
         return;
     }
+    trace_desktop_event(format!("emit_open_paths paths={paths:?}"));
     let target = app
         .webview_windows()
         .into_values()
@@ -11,10 +12,12 @@ pub(crate) fn emit_open_paths(app: &tauri::AppHandle, paths: Vec<String>) {
         .or_else(|| app.get_webview_window("main"))
         .or_else(|| app.webview_windows().into_values().next());
     if let Some(window) = target {
+        trace_desktop_event(format!("emit_open_paths target={}", window.label()));
         focus_webview_window(&window);
         let _ = window.emit(EVENT_DESKTOP_OPEN_PATHS, DesktopOpenPathsPayload { paths });
         return;
     }
+    trace_desktop_event("emit_open_paths queued=no_window");
     if let Some(state) = app.try_state::<DesktopState>() {
         if let Ok(mut pending) = state.pending_open_paths.lock() {
             pending.extend(paths);

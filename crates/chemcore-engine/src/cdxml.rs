@@ -119,7 +119,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<Chemcore
     append_orbital_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
     append_table_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
     append_tlc_plate_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
-    append_bracket_objects(&root, &mut objects, defaults);
+    append_bracket_objects(&root, &mut objects, defaults, &colors);
     append_text_objects(
         &root,
         &mut objects,

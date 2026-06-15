@@ -867,12 +867,14 @@ struct PendingCdxmlBracket {
     bbox: [f64; 4],
     z_index: i32,
     graphic_id: Option<String>,
+    stroke: String,
 }
 
 pub(super) fn append_bracket_objects(
     root: &XmlNode,
     objects: &mut Vec<SceneObject>,
     defaults: CdxmlDefaults,
+    colors: &CdxmlColorTable,
 ) {
     let mut brackets = Vec::new();
     let mut symbol_index = 1;
@@ -895,6 +897,7 @@ pub(super) fn append_bracket_objects(
                     bbox,
                     z_index: parse_i32(node.attr("Z")).unwrap_or(15),
                     graphic_id: node.attr("id").map(ToString::to_string),
+                    stroke: colors.resolve(node.attr("color")),
                 });
             }
             "Symbol" => {
@@ -905,15 +908,15 @@ pub(super) fn append_bracket_objects(
                 let Some(raw_bbox) = parse_bbox(node.attr("BoundingBox")) else {
                     continue;
                 };
-                let cx = (raw_bbox[0] + raw_bbox[2]) * 0.5;
-                let cy = (raw_bbox[1] + raw_bbox[3]) * 0.5;
                 let style = crate::cdxml_symbol_style_from_line_width(defaults.line_width);
                 let metrics =
                     crate::cdxml_symbol_metrics_from_bbox(kind, raw_bbox, defaults.line_width);
                 let (width, height) = (metrics.width, metrics.height);
+                let [cx, cy] = cdxml_symbol_center(kind, raw_bbox);
+                let fill = colors.resolve(node.attr("color"));
                 let mut extra = BTreeMap::new();
                 extra.insert("kind".to_string(), json!(kind));
-                extra.insert("fill".to_string(), json!("#000000"));
+                extra.insert("fill".to_string(), json!(fill));
                 extra.insert(
                     "symbolStyle".to_string(),
                     json!(crate::cdxml_symbol_style_name(style)),
@@ -1002,7 +1005,7 @@ pub(super) fn append_bracket_objects(
         let max_y = lb[3].max(rb[3]);
         let mut extra = BTreeMap::new();
         extra.insert("kind".to_string(), json!(left.kind));
-        extra.insert("stroke".to_string(), json!("#000000"));
+        extra.insert("stroke".to_string(), json!(left.stroke.clone()));
         extra.insert("strokeWidth".to_string(), json!(1.0));
         extra.insert("lipSize".to_string(), json!(60));
         objects.push(SceneObject {
@@ -1031,6 +1034,18 @@ pub(super) fn append_bracket_objects(
         });
         object_index += 1;
     }
+}
+
+fn cdxml_symbol_center(kind: &str, bbox: [f64; 4]) -> [f64; 2] {
+    let center_x = (bbox[0] + bbox[2]) * 0.5;
+    let center_y = if kind == "electron" {
+        // ChemDraw treats the top endpoint of an electron symbol's vertical anchor
+        // as the dot center; the rest of the bbox stores the anchor height.
+        bbox[1]
+    } else {
+        (bbox[1] + bbox[3]) * 0.5
+    };
+    [center_x, center_y]
 }
 
 fn normalized_bbox(bbox: [f64; 4]) -> [f64; 4] {
