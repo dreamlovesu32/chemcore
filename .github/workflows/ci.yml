@@ -22,6 +22,8 @@ jobs:
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
 
       - name: Cache Rust build outputs
         uses: Swatinem/rust-cache@v2
@@ -29,7 +31,7 @@ jobs:
       - name: Install wasm-pack
         uses: taiki-e/install-action@v2
         with:
-          tool: wasm-pack
+          tool: wasm-pack@0.14.0
 
       - name: Install Node dependencies
         run: npm ci
