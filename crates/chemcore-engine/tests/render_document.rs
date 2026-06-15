@@ -105,6 +105,44 @@ fn horizontal_path_span_at_y(d: &str, y: f64) -> Option<f64> {
     Some(max - min)
 }
 
+fn render_primitive_object_id(primitive: &RenderPrimitive) -> Option<&str> {
+    match primitive {
+        RenderPrimitive::Line { object_id, .. }
+        | RenderPrimitive::Circle { object_id, .. }
+        | RenderPrimitive::Polygon { object_id, .. }
+        | RenderPrimitive::Rect { object_id, .. }
+        | RenderPrimitive::Ellipse { object_id, .. }
+        | RenderPrimitive::Polyline { object_id, .. }
+        | RenderPrimitive::Path { object_id, .. }
+        | RenderPrimitive::FilledPath { object_id, .. }
+        | RenderPrimitive::Text { object_id, .. } => object_id.as_deref(),
+    }
+}
+
+fn render_primitive_bond_id(primitive: &RenderPrimitive) -> Option<&str> {
+    match primitive {
+        RenderPrimitive::Line { bond_id, .. }
+        | RenderPrimitive::Polygon { bond_id, .. }
+        | RenderPrimitive::Polyline { bond_id, .. }
+        | RenderPrimitive::Path { bond_id, .. }
+        | RenderPrimitive::FilledPath { bond_id, .. } => bond_id.as_deref(),
+        _ => None,
+    }
+}
+
+fn render_primitive_text_content(primitive: &RenderPrimitive) -> Option<String> {
+    match primitive {
+        RenderPrimitive::Text { text, runs, .. } => {
+            if runs.is_empty() {
+                Some(text.clone())
+            } else {
+                Some(runs.iter().map(|run| run.text.as_str()).collect())
+            }
+        }
+        _ => None,
+    }
+}
+
 fn rects_with_role(engine: &Engine, role_filter: RenderRole) -> Vec<[f64; 4]> {
     engine
         .render_list()
@@ -1887,6 +1925,85 @@ fn parse_cdxml_merges_display_fragments_for_editing_hit_tests() {
         30.0 * CDXML_EDIT_SCALE
     )
     .is_some());
+}
+
+#[test]
+fn render_cdxml_merged_fragment_node_labels_interleave_with_external_graphics_by_source_z() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="18" LineWidth="0.6" BoldWidth="2" HashSpacing="2.5" BondSpacing="18">
+  <page id="1" BoundingBox="0 0 120 80">
+    <fragment id="10" BoundingBox="0 0 30 20" Z="5">
+      <n id="11" p="5 10" Z="5"/>
+      <n id="12" p="25 10" Z="5"/>
+      <b id="13" B="11" E="12" Order="1" Z="30"/>
+    </fragment>
+    <fragment id="20" BoundingBox="40 40 85 65" Z="5">
+      <n id="21" p="52 50" Z="30" Element="18">
+        <t p="54 54" BoundingBox="44 44 54 54" LabelJustification="Right">
+          <s font="3" size="10" color="0">Ar</s>
+        </t>
+      </n>
+      <n id="22" p="74 50" Z="10"/>
+      <b id="23" B="21" E="22" Order="1" Z="10"/>
+    </fragment>
+    <graphic id="30"
+      BoundingBox="58.64 50 50 50"
+      Z="20"
+      GraphicType="Orbital"
+      OvalType="Circle Shaded"
+      OrbitalType="sShaded"
+      Center3D="50 50 0"
+      MajorAxisEnd3D="58.64 50 0"
+      MinorAxisEnd3D="50 58.64 0"/>
+  </page>
+</CDXML>"#;
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(cdxml)
+        .expect("layered cdxml should load");
+    let document = &engine.state().document;
+    let primitives = render_document(&document);
+    let orbital_last = primitives
+        .iter()
+        .enumerate()
+        .filter(|(_, primitive)| {
+            render_primitive_object_id(primitive) == Some("obj_shape_orbital_001")
+        })
+        .map(|(index, _)| index)
+        .max()
+        .expect("orbital should render");
+    let ar_text = primitives
+        .iter()
+        .enumerate()
+        .find_map(|(index, primitive)| {
+            (render_primitive_text_content(primitive).as_deref() == Some("Ar")).then_some(index)
+        })
+        .expect("Ar node label should render");
+    let high_bond = primitives
+        .iter()
+        .enumerate()
+        .find_map(|(index, primitive)| {
+            (render_primitive_bond_id(primitive) == Some("f1_13")).then_some(index)
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "high-Z bond should render; bond ids: {:?}",
+                primitives
+                    .iter()
+                    .filter_map(render_primitive_bond_id)
+                    .collect::<Vec<_>>()
+            )
+        });
+
+    assert!(
+        orbital_last < ar_text,
+        "source node Z should draw the Ar label above the external orbital"
+    );
+    assert!(
+        orbital_last < high_bond,
+        "source bond Z should draw the imported bond above the external orbital"
+    );
 }
 
 #[test]

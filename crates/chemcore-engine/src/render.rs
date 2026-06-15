@@ -41,8 +41,9 @@ use object_render::{
     render_text_object,
 };
 use primitives::{
-    push_bond_polygon, push_knockout_polygon, push_label_knockout_polygon, push_line, push_path,
-    push_polygon, push_polyline, push_text, push_text_for_node, push_text_rotated,
+    push_bond_knockout_polygon, push_bond_polygon, push_knockout_polygon,
+    push_label_knockout_polygon, push_line, push_path, push_polygon, push_polyline, push_text,
+    push_text_for_node, push_text_rotated,
 };
 pub use primitives::{RenderPrimitive, RenderRole};
 
@@ -145,21 +146,73 @@ pub(crate) enum ArrowNoGoGeometry {
 
 pub fn render_document(document: &ChemcoreDocument) -> Vec<RenderPrimitive> {
     let mut out = Vec::new();
-    render_scene_objects(&mut out, document, &document.objects);
-    out
+    let mut sequence = 0;
+    render_scene_objects_layered(&mut out, &mut sequence, document, &document.objects, None);
+    out.sort_by(|a, b| {
+        a.z_index
+            .cmp(&b.z_index)
+            .then_with(|| a.sequence.cmp(&b.sequence))
+    });
+    out.into_iter()
+        .map(|primitive| primitive.primitive)
+        .collect()
 }
 
-fn render_scene_objects(
-    out: &mut Vec<RenderPrimitive>,
+struct LayeredPrimitive {
+    z_index: i32,
+    sequence: usize,
+    primitive: RenderPrimitive,
+}
+
+fn render_scene_objects_layered(
+    out: &mut Vec<LayeredPrimitive>,
+    sequence: &mut usize,
     document: &ChemcoreDocument,
     objects: &[SceneObject],
+    parent_z_index: Option<i32>,
 ) {
     let mut visible_objects: Vec<&SceneObject> =
         objects.iter().filter(|object| object.visible).collect();
     visible_objects.sort_by(|a, b| a.z_index.cmp(&b.z_index).then_with(|| a.id.cmp(&b.id)));
 
     for object in visible_objects {
-        render_scene_object(out, document, object);
+        render_scene_object_layered(out, sequence, document, object, parent_z_index);
+    }
+}
+
+fn render_scene_object_layered(
+    out: &mut Vec<LayeredPrimitive>,
+    sequence: &mut usize,
+    document: &ChemcoreDocument,
+    object: &SceneObject,
+    parent_z_index: Option<i32>,
+) {
+    let object_z_index = parent_z_index.unwrap_or(object.z_index);
+    if object.object_type == "group" {
+        render_scene_objects_layered(
+            out,
+            sequence,
+            document,
+            &object.children,
+            Some(object_z_index),
+        );
+        return;
+    }
+
+    let mut rendered = Vec::new();
+    render_scene_object(&mut rendered, document, object);
+    for primitive in rendered {
+        let z_index = if parent_z_index.is_none() {
+            cdxml_primitive_z_index(document, object, &primitive).unwrap_or(object_z_index)
+        } else {
+            object_z_index
+        };
+        out.push(LayeredPrimitive {
+            z_index,
+            sequence: *sequence,
+            primitive,
+        });
+        *sequence += 1;
     }
 }
 
@@ -174,8 +227,84 @@ fn render_scene_object(
         "text" => render_text_object(out, document, object),
         "shape" => render_shape_object(out, document, object),
         "bracket" | "symbol" => render_bracket_object(out, document, object),
-        "group" => render_scene_objects(out, document, &object.children),
         _ => {}
+    }
+}
+
+fn cdxml_primitive_z_index(
+    document: &ChemcoreDocument,
+    object: &SceneObject,
+    primitive: &RenderPrimitive,
+) -> Option<i32> {
+    if object.object_type != "molecule" {
+        return None;
+    }
+    let fragment = molecule_fragment_for_object(document, object)?;
+    if let Some(node_id) = primitive_node_id(primitive) {
+        if let Some(z_index) = fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == node_id)
+            .and_then(|node| cdxml_meta_z_index(&node.meta))
+        {
+            return Some(z_index);
+        }
+    }
+    if let Some(bond_id) = primitive_bond_id(primitive) {
+        if let Some(z_index) = fragment
+            .bonds
+            .iter()
+            .find(|bond| bond.id == bond_id)
+            .and_then(|bond| cdxml_meta_z_index(&bond.meta))
+        {
+            return Some(z_index);
+        }
+    }
+    None
+}
+
+fn molecule_fragment_for_object<'a>(
+    document: &'a ChemcoreDocument,
+    object: &SceneObject,
+) -> Option<&'a MoleculeFragment> {
+    let resource_ref = object.payload.resource_ref.as_ref()?;
+    let resource = document.resources.get(resource_ref)?;
+    match &resource.data {
+        ResourceData::Fragment(fragment)
+            if resource.resource_type == "molecule_fragment2d"
+                || resource.encoding == "chemcore.molecule.fragment2d" =>
+        {
+            Some(fragment)
+        }
+        _ => None,
+    }
+}
+
+fn cdxml_meta_z_index(meta: &JsonValue) -> Option<i32> {
+    meta.pointer("/import/cdxml/z")
+        .and_then(JsonValue::as_i64)
+        .and_then(|value| i32::try_from(value).ok())
+}
+
+fn primitive_node_id(primitive: &RenderPrimitive) -> Option<&str> {
+    match primitive {
+        RenderPrimitive::Circle { node_id, .. }
+        | RenderPrimitive::Polygon { node_id, .. }
+        | RenderPrimitive::Rect { node_id, .. }
+        | RenderPrimitive::FilledPath { node_id, .. }
+        | RenderPrimitive::Text { node_id, .. } => node_id.as_deref(),
+        _ => None,
+    }
+}
+
+fn primitive_bond_id(primitive: &RenderPrimitive) -> Option<&str> {
+    match primitive {
+        RenderPrimitive::Line { bond_id, .. }
+        | RenderPrimitive::Polygon { bond_id, .. }
+        | RenderPrimitive::Polyline { bond_id, .. }
+        | RenderPrimitive::Path { bond_id, .. }
+        | RenderPrimitive::FilledPath { bond_id, .. } => bond_id.as_deref(),
+        _ => None,
     }
 }
 

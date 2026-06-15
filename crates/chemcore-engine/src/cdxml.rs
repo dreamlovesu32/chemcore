@@ -876,6 +876,7 @@ fn normalize_node(
         meta: json!({
             "import": {
                 "cdxml": {
+                    "z": parse_i32(node.attr("Z")),
                     "nodeType": empty_as_null(node.attr("NodeType")),
                     "labelDisplay": empty_as_null(node.attr("LabelDisplay")),
                     "element": node.attr("Element"),
@@ -1194,7 +1195,7 @@ fn normalize_bond(
         margin_width: None,
         line_styles,
         line_weights,
-        meta: json!({"import": {"cdxml": {"display": empty_as_null(bond.attr("Display")), "doublePosition": empty_as_null(bond.attr("DoublePosition"))}}}),
+        meta: json!({"import": {"cdxml": {"z": parse_i32(bond.attr("Z")), "display": empty_as_null(bond.attr("Display")), "doublePosition": empty_as_null(bond.attr("DoublePosition"))}}}),
     })
 }
 

@@ -51,6 +51,48 @@ export function createSceneRenderer(options) {
     return true;
   }
 
+  function collectRenderableObjects(documentData) {
+    const objects = new Map();
+    const visit = (object, ancestorsRenderable = true) => {
+      if (!object) {
+        return;
+      }
+      const renderable = ancestorsRenderable && shouldRenderSceneObject(object);
+      objects.set(object.id, { object, renderable });
+      for (const child of object.children || []) {
+        visit(child, renderable);
+      }
+    };
+    for (const object of documentData?.objects || []) {
+      visit(object, true);
+    }
+    return objects;
+  }
+
+  function shouldRenderCorePrimitive(primitive, renderableObjects) {
+    const objectId = primitive?.objectId || primitive?.object_id || null;
+    if (!objectId) {
+      return true;
+    }
+    const entry = renderableObjects.get(objectId);
+    return entry ? entry.renderable : true;
+  }
+
+  function renderCorePrimitiveList(parentLayer, documentData) {
+    const corePrimitives = options.coreRenderList?.() || [];
+    if (!corePrimitives.length) {
+      return false;
+    }
+    parentLayer.setAttribute("data-renderer", "core-global");
+    const renderableObjects = collectRenderableObjects(documentData);
+    for (const primitive of corePrimitives) {
+      if (shouldRenderCorePrimitive(primitive, renderableObjects)) {
+        renderCorePrimitive(parentLayer, primitive, options.corePrimitiveRenderOptions());
+      }
+    }
+    return true;
+  }
+
   function renderSceneObject(parentLayer, object, documentData) {
     if (!shouldRenderSceneObject(object)) {
       return;
@@ -84,6 +126,7 @@ export function createSceneRenderer(options) {
 
   return {
     buildRenderList,
+    renderCorePrimitiveList,
     renderSceneObject,
   };
 }

@@ -2140,6 +2140,7 @@ const sceneRenderer = createSceneRenderer({
   toggleLines: () => !(toggleLines && !toggleLines.checked),
   toggleTexts: () => !(toggleTexts && !toggleTexts.checked),
   hasCoreRenderList: () => Boolean(state.coreRenderList?.length),
+  coreRenderList: () => state.coreRenderList || [],
   corePrimitivesForObject,
   corePrimitiveRenderOptions,
 });
@@ -4502,10 +4503,19 @@ function selectionCoversRenderedDocument(renderList = state.coreRenderList || cu
   return selectableCount > 0;
 }
 
-function documentObjectGroup(objectId) {
-  return viewerSvg.querySelector(
-    `[data-layer="document-content"] [data-object-id="${CSS.escape(objectId)}"][data-object-type]`,
-  );
+function documentObjectElements(objectId) {
+  const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
+  if (!documentLayer || !objectId) {
+    return [];
+  }
+  const escapedId = CSS.escape(objectId);
+  const groups = [
+    ...documentLayer.querySelectorAll(`[data-object-id="${escapedId}"][data-object-type]`),
+  ];
+  if (groups.length) {
+    return groups;
+  }
+  return [...documentLayer.querySelectorAll(`[data-object-id="${escapedId}"]`)];
 }
 
 function restoreDocumentPreviewElementTransform(element) {
@@ -4549,9 +4559,9 @@ function clearDocumentObjectPreviewTransform() {
     return;
   }
   for (const objectId of activeDocumentPreviewObjectIds) {
-    const group = documentObjectGroup(objectId);
-    group?.removeAttribute("transform");
-    group?.classList.remove("is-preview-transforming");
+    for (const element of documentObjectElements(objectId)) {
+      restoreDocumentPreviewElementTransform(element);
+    }
   }
   activeDocumentPreviewObjectIds = new Set();
   for (const element of activeDocumentPreviewPrimitiveElements) {
@@ -4606,9 +4616,9 @@ function applyDocumentObjectPreviewTransform() {
       return false;
     }
     for (const objectId of activeDocumentPreviewObjectIds) {
-      const group = documentObjectGroup(objectId);
-      group?.removeAttribute("transform");
-      group?.classList.remove("is-preview-transforming");
+      for (const element of documentObjectElements(objectId)) {
+        restoreDocumentPreviewElementTransform(element);
+      }
     }
     for (const element of activeDocumentPreviewPrimitiveElements) {
       restoreDocumentPreviewElementTransform(element);
@@ -4644,9 +4654,9 @@ function applyDocumentObjectPreviewTransform() {
     && allGroups.every((group) => nextIds.has(group.dataset.objectId));
   if (canTransformLayer) {
     for (const objectId of activeDocumentPreviewObjectIds) {
-      const group = documentObjectGroup(objectId);
-      group?.removeAttribute("transform");
-      group?.classList.remove("is-preview-transforming");
+      for (const element of documentObjectElements(objectId)) {
+        restoreDocumentPreviewElementTransform(element);
+      }
     }
     for (const element of activeDocumentPreviewPrimitiveElements) {
       restoreDocumentPreviewElementTransform(element);
@@ -4669,9 +4679,9 @@ function applyDocumentObjectPreviewTransform() {
   }
   for (const objectId of activeDocumentPreviewObjectIds) {
     if (!nextIds.has(objectId)) {
-      const group = documentObjectGroup(objectId);
-      group?.removeAttribute("transform");
-      group?.classList.remove("is-preview-transforming");
+      for (const element of documentObjectElements(objectId)) {
+        restoreDocumentPreviewElementTransform(element);
+      }
     }
   }
   for (const element of activeDocumentPreviewPrimitiveElements) {
@@ -4679,18 +4689,19 @@ function applyDocumentObjectPreviewTransform() {
       restoreDocumentPreviewElementTransform(element);
     }
   }
-  const nextGroups = new Map();
+  const nextObjectElements = new Map();
   for (const objectId of nextIds) {
-    const group = documentObjectGroup(objectId);
-    if (!group) {
+    const elements = documentObjectElements(objectId);
+    if (!elements.length) {
       clearDocumentObjectPreviewTransform();
       return false;
     }
-    nextGroups.set(objectId, group);
+    nextObjectElements.set(objectId, elements);
   }
-  for (const [objectId, group] of nextGroups) {
-    group.setAttribute("transform", transform);
-    group.classList.add("is-preview-transforming");
+  for (const elements of nextObjectElements.values()) {
+    for (const element of elements) {
+      applyDocumentPreviewElementTransform(element, transform);
+    }
   }
   for (const element of nextPrimitiveElements) {
     applyDocumentPreviewElementTransform(element, transform);
@@ -4856,10 +4867,12 @@ function renderDocument() {
   const documentLayer = makeSvgNode("g", { "data-layer": "document-content" });
   viewerSvg.appendChild(documentLayer);
 
-  const visibleObjects = sceneRenderer.buildRenderList(documentData);
+  if (!sceneRenderer.renderCorePrimitiveList(documentLayer, documentData)) {
+    const visibleObjects = sceneRenderer.buildRenderList(documentData);
 
-  for (const object of visibleObjects) {
-    sceneRenderer.renderSceneObject(documentLayer, object, documentData);
+    for (const object of visibleObjects) {
+      sceneRenderer.renderSceneObject(documentLayer, object, documentData);
+    }
   }
 
   const counts = {};

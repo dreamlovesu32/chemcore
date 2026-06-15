@@ -334,7 +334,16 @@ pub(super) fn push_knockout_polygon(
     points: Vec<Point>,
     object_id: Option<String>,
 ) {
-    push_knockout_polygon_with_node(out, points, object_id, None);
+    push_knockout_polygon_with_ids(out, points, object_id, None, None);
+}
+
+pub(super) fn push_bond_knockout_polygon(
+    out: &mut Vec<RenderPrimitive>,
+    points: Vec<Point>,
+    object_id: Option<String>,
+    bond_id: String,
+) {
+    push_knockout_polygon_with_ids(out, points, object_id, None, Some(bond_id));
 }
 
 pub(super) fn push_label_knockout_polygon(
@@ -343,14 +352,15 @@ pub(super) fn push_label_knockout_polygon(
     object_id: Option<String>,
     node_id: String,
 ) {
-    push_knockout_polygon_with_node(out, points, object_id, Some(node_id));
+    push_knockout_polygon_with_ids(out, points, object_id, Some(node_id), None);
 }
 
-fn push_knockout_polygon_with_node(
+fn push_knockout_polygon_with_ids(
     out: &mut Vec<RenderPrimitive>,
     points: Vec<Point>,
     object_id: Option<String>,
     node_id: Option<String>,
+    bond_id: Option<String>,
 ) {
     let points = compact_polygon_points(points);
     if points.len() < 3 || polygon_area_signed(&points).abs() <= 1.0e-4 {
@@ -360,7 +370,7 @@ fn push_knockout_polygon_with_node(
         role: RenderRole::DocumentKnockout,
         object_id,
         node_id,
-        bond_id: None,
+        bond_id,
         points,
         fill: KNOCKOUT_FILL.to_string(),
         stroke: "none".to_string(),

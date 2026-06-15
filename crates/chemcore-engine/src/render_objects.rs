@@ -224,7 +224,7 @@ fn render_bond_crossing_knockouts(
         );
         let half_length = (under_width * 0.5 / crossing_sin) + margin_width;
         let half_width = (over_width * 0.5) + margin_width;
-        push_knockout_polygon(
+        push_bond_knockout_polygon(
             out,
             vec![
                 center
@@ -241,6 +241,7 @@ fn render_bond_crossing_knockouts(
                     .translated(over_normal.scaled(half_width)),
             ],
             object_id.clone(),
+            over_bond.id.clone(),
         );
     }
 }
