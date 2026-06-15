@@ -3965,7 +3965,7 @@ fn cdxml_electron_symbol_uses_chemdraw_top_anchor_and_color() {
         symbol.transform.translate[0] + width * 0.5,
         symbol.transform.translate[1] + height * 0.5,
     ];
-    let expected_diameter = 11.65 * 4.0 / 9.0;
+    let expected_diameter = 11.65 * 2.0 / 9.0;
     assert!(
         (width - expected_diameter).abs() < 0.01,
         "electron diameter should follow ChemDraw's anchor height ratio, got width={width}"

@@ -726,7 +726,9 @@ pub fn symbol_stroke_width(line_width: f64) -> f64 {
 }
 
 fn cdxml_electron_symbol_diameter(anchor_height: f64) -> f64 {
-    anchor_height * 4.0 / 9.0
+    // ChemDraw's exported SVG doubles CDXML coordinates, so its 4/9 SVG-space
+    // electron diameter maps back to 2/9 in document coordinates.
+    anchor_height * 2.0 / 9.0
 }
 
 pub fn cdxml_symbol_anchor_width(kind: &str, style: CdxmlSymbolStyle) -> f64 {
