@@ -832,6 +832,9 @@ pub(super) fn label_recognition_meta_for_node_text(
     let Some(node) = fragment.nodes.iter().find(|node| node.id == node_id) else {
         return label_recognition_meta_for_text(trimmed, connection_count);
     };
+    if is_bullet_carbon_atom_label(trimmed, node) {
+        return None;
+    }
     if parse_element_hydrogen_label(trimmed)
         .and_then(|parsed| element_label_replacement(parsed.element).map(|_| parsed))
         .is_some()
@@ -848,6 +851,10 @@ pub(super) fn label_recognition_meta_for_node_text(
     }
     crate::recognized_abbreviation_meta_for_connection_count(trimmed, connection_count)
         .or_else(|| Some(crate::invalid_abbreviation_meta(trimmed)))
+}
+
+fn is_bullet_carbon_atom_label(text: &str, node: &crate::Node) -> bool {
+    text == "•" && node.element == "C" && node.atomic_number == 6
 }
 
 pub(super) fn element_hydrogen_label_is_valid_for_node(
@@ -1192,6 +1199,17 @@ fn imported_cdxml_label_geometry_is_authoritative(label: &crate::NodeLabel) -> b
         && label.meta.pointer("/import/cdxml/textPosition").is_some()
 }
 
+fn imported_cdxml_single_character_label_geometry_is_authoritative(
+    label: &crate::NodeLabel,
+    text: &str,
+) -> bool {
+    label.attachment.as_deref() == Some("node")
+        && label.meta.pointer("/import/cdxml/boundingBox").is_some()
+        && label.meta.pointer("/import/cdxml/textPosition").is_some()
+        && !text.contains('\n')
+        && text.chars().count() == 1
+}
+
 fn cdxml_imported_label_flow_override(label: &crate::NodeLabel) -> Option<LabelFlow> {
     match label
         .meta
@@ -1314,6 +1332,9 @@ pub(super) fn refreshed_attached_node_label(
     );
     if let Some(flow) = cdxml_imported_label_flow_override(label) {
         decision.flow = flow;
+    }
+    if imported_cdxml_single_character_label_geometry_is_authoritative(label, &text) {
+        return Some(label.clone());
     }
     if imported_cdxml_label_geometry_is_authoritative(label) {
         if matches!(decision.flow, LabelFlow::Reverse)

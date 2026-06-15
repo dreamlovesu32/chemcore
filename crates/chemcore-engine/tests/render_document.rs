@@ -87,6 +87,24 @@ fn primitive_polygon_bounds(points: &[Point]) -> [f64; 4] {
     )
 }
 
+fn comma_point_token(token: &str) -> Option<Point> {
+    let token = token.trim_end_matches(|ch: char| ch == ',' || ch == ';');
+    let (x, y) = token.split_once(',')?;
+    Some(Point::new(x.parse().ok()?, y.parse().ok()?))
+}
+
+fn horizontal_path_span_at_y(d: &str, y: f64) -> Option<f64> {
+    let xs = d
+        .split_whitespace()
+        .filter_map(comma_point_token)
+        .filter(|point| (point.y - y).abs() < 0.01)
+        .map(|point| point.x)
+        .collect::<Vec<_>>();
+    let min = xs.iter().copied().reduce(f64::min)?;
+    let max = xs.iter().copied().reduce(f64::max)?;
+    Some(max - min)
+}
+
 fn rects_with_role(engine: &Engine, role_filter: RenderRole) -> Vec<[f64; 4]> {
     engine
         .render_list()
@@ -3661,6 +3679,91 @@ fn adding_isolated_bond_to_imported_cdxml_keeps_existing_label_geometry_stable()
 }
 
 #[test]
+fn load_cdxml_document_preserves_single_character_below_label_position() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="14.40" LineWidth="0.60" LabelSize="10" color="0" bgcolor="1">
+  <colortable>
+    <color r="1" g="1" b="1"/>
+    <color r="0" g="0" b="0"/>
+  </colortable>
+  <fonttable>
+    <font id="3" charset="iso-8859-1" name="Arial"/>
+  </fonttable>
+  <page id="p1" BoundingBox="238.76 122.79 310.06 156.07">
+    <fragment id="f1" BoundingBox="238.76 122.79 310.06 156.07">
+      <n id="n1" p="256.05 139.70"/>
+      <n id="n2" p="270.45 139.70" NodeType="Fragment">
+        <t id="t1" p="268.70 143.60" BoundingBox="268.70 138.06 272.20 143.60" LabelJustification="Left" LabelAlignment="Below" UTF8Text="•">
+          <s font="3" size="10" color="0" face="96">•</s>
+        </t>
+      </n>
+      <n id="n3" p="284.85 139.70"/>
+      <b id="b1" B="n1" E="n2" Order="2"/>
+      <b id="b2" B="n2" E="n3" Order="2"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(cdxml)
+        .expect("cdxml should load into engine");
+
+    let entry = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("imported fragment should be editable");
+    let node = entry
+        .fragment
+        .nodes
+        .iter()
+        .find(|node| {
+            node.label
+                .as_ref()
+                .is_some_and(|label| label.source_text.as_deref() == Some("•"))
+        })
+        .expect("bullet label node should import");
+    let label = node.label.as_ref().expect("node should have a label");
+    let position = label.position.expect("bullet label should keep position");
+    let world_position = [
+        entry.object.transform.translate[0] + position[0],
+        entry.object.transform.translate[1] + position[1],
+    ];
+
+    assert_eq!(node.element, "C");
+    assert_eq!(node.atomic_number, 6);
+    assert!(
+        !node.is_placeholder,
+        "the CDXML bullet is a visible carbon atom, not an invalid text placeholder"
+    );
+    assert!(
+        node.meta.get("labelRecognition").is_none(),
+        "the CDXML bullet carbon should not be marked as an invalid functional label"
+    );
+    assert_eq!(label.text, "•");
+    assert!(
+        label.meta.get("labelRecognition").is_none(),
+        "the CDXML bullet carbon label should not carry invalid-label metadata"
+    );
+    assert_eq!(
+        label
+            .meta
+            .pointer("/import/cdxml/labelAlignment")
+            .and_then(serde_json::Value::as_str),
+        Some("Below")
+    );
+    assert!(
+        (world_position[0] - 268.70).abs() < 0.01,
+        "single-character CDXML labels should keep source baseline x, got {world_position:?}"
+    );
+    assert!(
+        (world_position[1] - 143.60).abs() < 0.01,
+        "single-character CDXML labels should keep source baseline y, got {world_position:?}"
+    );
+}
+
+#[test]
 fn parse_cdxml_keeps_numeric_suffix_node_label_anchored_on_letter() {
     fn labeled_nodes(
         document: &ChemcoreDocument,
@@ -3862,6 +3965,15 @@ fn cdxml_electron_symbol_uses_chemdraw_top_anchor_and_color() {
         symbol.transform.translate[0] + width * 0.5,
         symbol.transform.translate[1] + height * 0.5,
     ];
+    let expected_diameter = 11.65 * 4.0 / 9.0;
+    assert!(
+        (width - expected_diameter).abs() < 0.01,
+        "electron diameter should follow ChemDraw's anchor height ratio, got width={width}"
+    );
+    assert!(
+        (height - expected_diameter).abs() < 0.01,
+        "electron diameter should follow ChemDraw's anchor height ratio, got height={height}"
+    );
     assert!(
         (center[0] - 285.19).abs() < 0.01,
         "electron center x should use the CDXML anchor x, got {center:?}"
@@ -3869,6 +3981,21 @@ fn cdxml_electron_symbol_uses_chemdraw_top_anchor_and_color() {
     assert!(
         (center[1] - 130.29).abs() < 0.01,
         "electron center y should use the top of the CDXML anchor bbox, got {center:?}"
+    );
+    let rendered_diameter = render_document(document)
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::FilledPath {
+                object_id, d, fill, ..
+            } if object_id.as_deref() == Some(symbol.id.as_str()) && fill == "#ff0000" => {
+                horizontal_path_span_at_y(d, center[1])
+            }
+            _ => None,
+        })
+        .expect("electron should render as a filled path");
+    assert!(
+        (rendered_diameter - expected_diameter).abs() < 0.01,
+        "rendered electron diameter should match imported geometry, got {rendered_diameter}"
     );
 
     let exported = document_to_cdxml(document);
@@ -3885,6 +4012,8 @@ fn cdxml_electron_symbol_uses_chemdraw_top_anchor_and_color() {
         .payload
         .bbox
         .expect("reimported symbol should have bbox");
+    assert!((re_width - expected_diameter).abs() < 0.01, "{re_width}");
+    assert!((re_height - expected_diameter).abs() < 0.01, "{re_height}");
     let re_center = [
         reimported_symbol.transform.translate[0] + re_width * 0.5,
         reimported_symbol.transform.translate[1] + re_height * 0.5,

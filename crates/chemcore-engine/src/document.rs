@@ -676,6 +676,7 @@ pub(crate) fn normalize_fragment_label_payloads(document: &mut ChemcoreDocument)
                 normalize_node_label_payload(
                     label,
                     node.position,
+                    node.atomic_number,
                     anchor_sides.get(&node.id).copied(),
                 );
             }
@@ -686,6 +687,7 @@ pub(crate) fn normalize_fragment_label_payloads(document: &mut ChemcoreDocument)
 fn normalize_node_label_payload(
     label: &mut NodeLabel,
     node_position: [f64; 2],
+    node_atomic_number: u8,
     anchor_side: Option<ImportedLabelAnchorSide>,
 ) {
     if label.position.is_none() {
@@ -712,13 +714,14 @@ fn normalize_node_label_payload(
     }
     if label.glyph_polygons.is_empty() || label.meta.pointer("/import/cdxml/boundingBox").is_some()
     {
-        rebuild_node_label_glyph_polygons(label, node_position, anchor_side);
+        rebuild_node_label_glyph_polygons(label, node_position, node_atomic_number, anchor_side);
     }
 }
 
 fn rebuild_node_label_glyph_polygons(
     label: &mut NodeLabel,
     node_position: [f64; 2],
+    node_atomic_number: u8,
     anchor_side: Option<ImportedLabelAnchorSide>,
 ) {
     if !label.has_visible_text() {
@@ -781,7 +784,17 @@ fn rebuild_node_label_glyph_polygons(
         )
     };
 
-    align_imported_node_label_glyph_anchor(label, node_position, anchor_side);
+    if !imported_cdxml_bullet_carbon_node_label(label, node_atomic_number) {
+        align_imported_node_label_glyph_anchor(label, node_position, anchor_side);
+    }
+}
+
+fn imported_cdxml_bullet_carbon_node_label(label: &NodeLabel, node_atomic_number: u8) -> bool {
+    node_atomic_number == 6
+        && label.attachment.as_deref() == Some("node")
+        && label.source_text.as_deref().unwrap_or(label.text.as_str()) == "•"
+        && label.meta.pointer("/import/cdxml/boundingBox").is_some()
+        && label.meta.pointer("/import/cdxml/textPosition").is_some()
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

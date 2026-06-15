@@ -870,15 +870,18 @@ fn render_symbol_object_geometry(
             rotate_center,
             &fill,
         ),
-        "electron" => push_symbol_filled_path(
-            out,
-            object_id,
-            dot_symbol_path_d(x + width * 0.5, y + height * 0.5, layout.electron_diameter),
-            bounds,
-            rotate,
-            rotate_center,
-            &fill,
-        ),
+        "electron" => {
+            let diameter = width.min(height);
+            push_symbol_filled_path(
+                out,
+                object_id,
+                dot_symbol_path_d(x + width * 0.5, y + height * 0.5, diameter),
+                bounds,
+                rotate,
+                rotate_center,
+                &fill,
+            );
+        }
         _ => push_symbol_filled_path(
             out,
             object_id,
@@ -900,7 +903,6 @@ struct ChargeSymbolLayout {
     dot_diameter: f64,
     radical_gap: f64,
     lone_pair_gap: f64,
-    electron_diameter: f64,
 }
 
 fn charge_symbol_layout(style: crate::CdxmlSymbolStyle) -> ChargeSymbolLayout {
@@ -913,7 +915,6 @@ fn charge_symbol_layout(style: crate::CdxmlSymbolStyle) -> ChargeSymbolLayout {
             dot_diameter: 1.667,
             radical_gap: 0.7495,
             lone_pair_gap: 2.083,
-            electron_diameter: 1.667,
         },
         crate::CdxmlSymbolStyle::Acs => ChargeSymbolLayout {
             circle_sign_size: 3.9335,
@@ -923,7 +924,6 @@ fn charge_symbol_layout(style: crate::CdxmlSymbolStyle) -> ChargeSymbolLayout {
             dot_diameter: 0.8,
             radical_gap: 0.3,
             lone_pair_gap: 1.0,
-            electron_diameter: 1.6665,
         },
     }
 }
@@ -938,7 +938,6 @@ impl ChargeSymbolLayout {
             dot_diameter: self.dot_diameter * factor,
             radical_gap: self.radical_gap * factor,
             lone_pair_gap: self.lone_pair_gap * factor,
-            electron_diameter: self.electron_diameter * factor,
         }
     }
 }

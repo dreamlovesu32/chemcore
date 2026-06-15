@@ -854,6 +854,11 @@ fn normalize_node(
     let position = parse_xy(node.attr("p"))?;
     let atomic_number = parse_u8(node.attr("Element")).unwrap_or(6);
     let node_type = node.attr("NodeType").unwrap_or("");
+    let label = node_label(node, origin, colors, fonts);
+    let is_bullet_carbon = atomic_number == 6
+        && label
+            .as_ref()
+            .is_some_and(imported_cdxml_bullet_carbon_node_label);
     Some(Node {
         id,
         element: element_symbol(atomic_number).to_string(),
@@ -865,8 +870,9 @@ fn normalize_node(
         charge: parse_i32(node.attr("Charge")).unwrap_or(0),
         num_hydrogens: parse_u8(node.attr("NumHydrogens")).unwrap_or(0),
         is_external_connection_point: node_type == "ExternalConnectionPoint",
-        is_placeholder: matches!(node_type, "Fragment" | "Nickname" | "Unspecified"),
-        label: node_label(node, origin, colors, fonts),
+        is_placeholder: matches!(node_type, "Fragment" | "Nickname" | "Unspecified")
+            && !is_bullet_carbon,
+        label,
         meta: json!({
             "import": {
                 "cdxml": {
@@ -877,6 +883,13 @@ fn normalize_node(
             }
         }),
     })
+}
+
+fn imported_cdxml_bullet_carbon_node_label(label: &NodeLabel) -> bool {
+    label.attachment.as_deref() == Some("node")
+        && label.source_text.as_deref().unwrap_or(label.text.as_str()) == "•"
+        && label.meta.pointer("/import/cdxml/boundingBox").is_some()
+        && label.meta.pointer("/import/cdxml/textPosition").is_some()
 }
 
 fn node_label(

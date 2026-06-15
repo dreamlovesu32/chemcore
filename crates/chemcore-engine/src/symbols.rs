@@ -687,7 +687,10 @@ pub fn cdxml_symbol_metrics_from_anchor(
             "radical-cation" => (6.75, 4.333, None),
             "radical-anion" => (6.75, 1.6665, None),
             "lone-pair" => (5.417, 1.6665, None),
-            "electron" => (1.667, 1.667, None),
+            "electron" => {
+                let diameter = cdxml_electron_symbol_diameter(anchor_height);
+                (diameter, diameter, None)
+            }
             _ => (8.0, 8.0, None),
         },
         CdxmlSymbolStyle::Acs => match kind {
@@ -701,7 +704,10 @@ pub fn cdxml_symbol_metrics_from_anchor(
             "radical-cation" => (3.3, 2.2, None),
             "radical-anion" => (3.3, 0.8, None),
             "lone-pair" => (2.6, 0.8, None),
-            "electron" => (1.6665, 1.6665, None),
+            "electron" => {
+                let diameter = cdxml_electron_symbol_diameter(anchor_height);
+                (diameter, diameter, None)
+            }
             _ => (8.0, 8.0, None),
         },
     };
@@ -717,6 +723,10 @@ pub fn cdxml_symbol_metrics_from_anchor(
 
 pub fn symbol_stroke_width(line_width: f64) -> f64 {
     (line_width * 0.8).max(0.5)
+}
+
+fn cdxml_electron_symbol_diameter(anchor_height: f64) -> f64 {
+    anchor_height * 4.0 / 9.0
 }
 
 pub fn cdxml_symbol_anchor_width(kind: &str, style: CdxmlSymbolStyle) -> f64 {
