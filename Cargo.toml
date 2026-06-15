@@ -11,3 +11,5 @@ resolver = "2"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["Jiajun Zhang"]
+repository = "https://github.com/dreamlovesu32/chemcore"
+homepage = "https://dreamlovesu32.github.io/chemcore/"

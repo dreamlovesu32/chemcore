@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Rendering fidelity discussion
+    url: https://github.com/dreamlovesu32/chemcore/discussions
+    about: Share broader CDXML compatibility observations, comparison screenshots, or non-actionable notes.
+  - name: Security policy
+    url: https://github.com/dreamlovesu32/chemcore/blob/main/SECURITY.md
+    about: Report security-sensitive issues using the documented private channel.

@@ -1,10 +1,12 @@
 [package]
 name = "chemcore-desktop-service"
-version = "1.0.0-beta"
+version = "1.0.0-beta.1"
 description = "Native desktop document service for ChemCore file, preview, and engine sessions."
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
 
 [dependencies]
 chemcore-engine = { path = "../chemcore-engine" }

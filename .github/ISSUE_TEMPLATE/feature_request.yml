@@ -1,0 +1,37 @@
+name: Feature request
+description: Suggest a capability, workflow improvement, or compatibility target.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Workflow or problem
+      description: What research drawing or compatibility workflow should become easier?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the behavior you would expect from ChemCore.
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: References or examples
+      description: Attach shareable CDXML files, screenshots, papers, or editor behavior references.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Drawing/editing interaction
+        - CDXML/CDX compatibility
+        - Office copy/paste
+        - Browser or desktop packaging
+        - Chemistry semantics
+        - Documentation
+        - Other

@@ -1,7 +1,12 @@
 {
   "name": "chemcore",
-  "version": "1.0.0-beta",
-  "description": "A cross-platform chemical structure editor core and desktop application.",
+  "version": "1.0.0-beta.1",
+  "description": "An open-source chemistry structure editor focused on CDXML fidelity and Office workflows.",
+  "homepage": "https://dreamlovesu32.github.io/chemcore/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dreamlovesu32/chemcore.git"
+  },
   "type": "module",
   "main": "index.js",
   "directories": {
@@ -35,7 +40,18 @@
     "screenshot:svg": "node scripts/viewer-svg-screenshot.mjs",
     "test": "node scripts/test.mjs"
   },
-  "keywords": [],
+  "keywords": [
+    "chemistry",
+    "cheminformatics",
+    "cdxml",
+    "chemdraw",
+    "scientific-software",
+    "svg",
+    "wasm",
+    "rust",
+    "tauri",
+    "office"
+  ],
   "author": "Jiajun Zhang",
   "license": "Apache-2.0",
   "devDependencies": {

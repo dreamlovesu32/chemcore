@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a reproducible ChemCore problem.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping make ChemCore sturdier. If the issue involves CDXML fidelity, please attach the smallest CDXML file you can share plus a screenshot from ChemDraw and ChemCore.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact actions, including files opened, tools used, and copy/paste targets.
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. Export or paste ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Attachments
+      description: Attach shareable CDXML/CDX files, screenshots, exported SVG/EMF, or a reduced fixture.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - Browser viewer
+        - Windows desktop app
+        - Office copy/paste
+        - CDXML/CDX import or export
+        - Rust engine/API
+        - Documentation
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, browser, Office version, ChemDraw version, or commit SHA.
+      placeholder: Windows 11, Edge 125, Word 2021, ChemDraw 22, commit abc123

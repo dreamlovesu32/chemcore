@@ -1,10 +1,12 @@
 [package]
 name = "chemcore-office"
-version = "1.0.0-beta"
-description = "Chemcore Windows Office/OLE integration server"
+version = "1.0.0-beta.1"
+description = "ChemCore Windows Office/OLE integration server"
 authors = ["Jiajun Zhang"]
 license = "Apache-2.0"
 edition.workspace = true
+repository.workspace = true
+homepage.workspace = true
 
 [dependencies]
 chemcore-engine = { path = "../../crates/chemcore-engine" }
