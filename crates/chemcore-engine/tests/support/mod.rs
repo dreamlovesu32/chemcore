@@ -12,7 +12,12 @@ pub fn fixture_path(name: &str) -> PathBuf {
     if tracked.exists() {
         return tracked;
     }
-    manifest_dir.join("../..").join("tmp").join(name)
+    let repo_root = manifest_dir.join("../..");
+    let published = repo_root.join(name);
+    if published.exists() {
+        return published;
+    }
+    repo_root.join("tmp").join(name)
 }
 
 pub fn read_cdxml_fixture(name: &str) -> String {

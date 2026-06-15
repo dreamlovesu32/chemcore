@@ -48,9 +48,6 @@ private-scripts/
 *.jpg
 *.jpeg
 *.cdx
-*.cdxml
-!/f1.cdxml
-!/f2.cdxml
 
 # OS/editor
 .DS_Store

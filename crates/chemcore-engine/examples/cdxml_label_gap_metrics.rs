@@ -142,7 +142,7 @@ fn fragment_for_object<'a>(
 fn main() {
     let path = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "tmp/thiocyanation-source.cdxml".to_string());
+        .unwrap_or_else(|| "../../figure2.cdxml".to_string());
     let cdxml = std::fs::read_to_string(&path).expect("cdxml should be readable");
     let document = parse_cdxml_document(&cdxml, Some(&path)).expect("cdxml should parse");
     let primitives = render_document(&document);

@@ -91,7 +91,7 @@ fn union(a: [f64; 4], b: [f64; 4]) -> [f64; 4] {
 fn main() {
     let path = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "tmp/thiocyanation-source.payload.json".to_string());
+        .unwrap_or_else(|| "../../figure2.cdxml".to_string());
     let document = load_document(&path);
     let primitives = render_document(&document);
 

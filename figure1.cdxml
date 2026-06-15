@@ -2,7 +2,7 @@
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
 <CDXML
  CreationProgram="ChemDraw 22.2.0.3300"
- Name="f1.cdxml"
+ Name="figure1.cdxml"
  BoundingBox="1.40 79.12 523 556.62"
  WindowPosition="0 0"
  WindowSize="0 0"

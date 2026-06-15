@@ -65,8 +65,8 @@ function runPowershell(scriptPath, jobsPath) {
 
 async function defaultInputs() {
   const candidates = [
-    "f1.cdxml",
-    "f2.cdxml",
+    "figure1.cdxml",
+    "figure2.cdxml",
   ];
   const existing = [];
   for (const candidate of candidates) {

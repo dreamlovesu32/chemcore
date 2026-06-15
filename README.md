@@ -25,7 +25,7 @@ The generated SVG and EMF files for both ChemDraw and ChemCore are kept in
 [docs/assets/readme/comparison](./docs/assets/readme/comparison/).
 
 The original CDXML files are tracked at the repository root:
-[f1.cdxml](./f1.cdxml) and [f2.cdxml](./f2.cdxml).
+[figure1.cdxml](./figure1.cdxml) and [figure2.cdxml](./figure2.cdxml).
 
 ## Current Status
 

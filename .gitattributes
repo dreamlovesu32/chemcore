@@ -17,11 +17,9 @@
 *.yaml text eol=lf
 *.sh text eol=lf
 *.svg text eol=lf
-crates/chemcore-engine/tests/fixtures/cdxml/**/*.cdxml text eol=lf
 
-# Preserve published ChemDraw source files exactly as exported.
-/f1.cdxml binary
-/f2.cdxml binary
+# Preserve ChemDraw source files exactly as exported.
+*.cdxml binary
 
 # Keep Windows-native scripts in CRLF form for local execution ergonomics.
 *.ps1 text eol=crlf

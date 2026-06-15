@@ -4,7 +4,7 @@
   <text x="28" y="62" font-family="Arial, sans-serif" font-size="13" fill="#4b5563">Source CDXML: Copper-catalyzed site- and enantioselective C-H cyanation of trisubstituted allenes</text>
   <text x="416" y="112" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#111827">ChemDraw export</text>
   <text x="980" y="112" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#111827">ChemCore export</text>
-  <text x="28" y="359" text-anchor="start" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#374151">Figure f1</text>
+  <text x="28" y="359" text-anchor="start" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#374151">Figure 1</text>
   <rect x="146" y="132" width="540" height="454" rx="8" fill="#ffffff" stroke="#d1d5db"/>
   <svg x="187.684" y="150.000" width="456.631" height="418.000" viewBox="0 0 1052 963">
     <path stroke="none" fill="#bfbfbf" transform="matrix(0.1 0 0 0.1 2 -154)" d="M 4085.8,5165 A 172.8,172.8 0 1 0 4431.4,5165A 172.8,172.8 0 1 0 4085.8,5165Z " />
@@ -1031,7 +1031,7 @@
       <text x="144.39" y="254.62" font-size="10" dominant-baseline="alphabetic" text-anchor="start" fill="#000000" font-family="Arial"><tspan font-size="10" font-family="Arial" fill="#000000" font-weight="400" font-style="italic">versus</tspan></text>
       <text x="125.26" y="154.12" font-size="10" dominant-baseline="alphabetic" text-anchor="start" fill="#000000" font-family="Arial"><tspan font-size="10" font-family="Arial" fill="#000000" font-weight="400" font-style="normal">from NF reagent</tspan></text>
   </svg>
-  <text x="28" y="758" text-anchor="start" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#374151">Figure f2</text>
+  <text x="28" y="758" text-anchor="start" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#374151">Figure 2</text>
   <rect x="146" y="620" width="540" height="276" rx="8" fill="#ffffff" stroke="#d1d5db"/>
   <svg x="170.444" y="638.000" width="491.111" height="240.000" viewBox="0 0 884 432">
     <path stroke="none" fill="#000000" transform="matrix(0.1 0 0 0.1 -16 -423)" d="M 5833.2,4808.2 L 3442.4,4808.2 L 3442.4,4796.2 L 5833.2,4796.2 Z " />

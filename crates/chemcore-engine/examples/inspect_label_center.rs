@@ -28,10 +28,10 @@ fn main() {
                 .join("cdxml")
                 .join("manual")
                 .join("desktop")
-                .join("untitled.cdxml")
+                .join("glyph.cdxml")
         });
     let cdxml = std::fs::read_to_string(&cdxml_path).expect("read cdxml");
-    let document = parse_cdxml_document(&cdxml, Some("untitled")).expect("parse");
+    let document = parse_cdxml_document(&cdxml, Some("glyph")).expect("parse");
     let fragment = document
         .resources
         .values()
