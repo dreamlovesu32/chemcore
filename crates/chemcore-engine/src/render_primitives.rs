@@ -8,6 +8,7 @@ use super::{compact_polygon_points, polygon_area_signed, KNOCKOUT_FILL};
 #[serde(rename_all = "kebab-case")]
 pub enum RenderRole {
     DocumentBond,
+    DocumentDiagnostic,
     DocumentGraphic,
     DocumentKnockout,
     DocumentText,

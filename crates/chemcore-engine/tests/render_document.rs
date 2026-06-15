@@ -2116,7 +2116,7 @@ fn cdxml_generic_r_prime_labels_do_not_render_invalid_markers() {
     assert!(!render_document(&document).iter().any(|primitive| matches!(
         primitive,
         RenderPrimitive::Rect {
-            role: RenderRole::DocumentGraphic,
+            role: RenderRole::DocumentDiagnostic,
             stroke: Some(stroke),
             ..
         } if stroke == "#d32f2f"
@@ -6598,7 +6598,7 @@ fn render_document_draws_imported_cdxml_invalid_marker_as_non_focusable_diagnost
             matches!(
                 primitive,
                 RenderPrimitive::Rect {
-                    role: RenderRole::DocumentGraphic,
+                    role: RenderRole::DocumentDiagnostic,
                     stroke: Some(stroke),
                     ..
                 } if stroke == "#d32f2f"
@@ -6614,6 +6614,56 @@ fn render_document_draws_imported_cdxml_invalid_marker_as_non_focusable_diagnost
             ..
         }
     ));
+}
+
+#[test]
+fn export_svg_omits_invalid_label_diagnostics() {
+    let document = fragment_document(
+        json!([
+            {
+                "id": "n1",
+                "element": "N",
+                "atomicNumber": 7,
+                "position": [20.0, 20.0],
+                "charge": 0,
+                "numHydrogens": 0,
+                "label": {
+                    "text": "N",
+                    "sourceText": "N",
+                    "position": [18.0, 20.0],
+                    "box": [18.0, 14.0, 22.0, 20.0],
+                    "fontSize": 10.0,
+                    "runs": [{
+                        "text": "N",
+                        "fontFamily": "Arial",
+                        "fontSize": 10.0,
+                        "fill": "#000000",
+                        "fontWeight": 400,
+                        "fontStyle": "normal",
+                        "script": "normal"
+                    }],
+                    "meta": {
+                        "labelRecognition": { "status": "invalid" }
+                    }
+                }
+            }
+        ]),
+        json!([]),
+    );
+
+    let primitives = render_document(&document);
+    assert!(primitives.iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Rect {
+            role: RenderRole::DocumentDiagnostic,
+            stroke: Some(stroke),
+            ..
+        } if stroke == "#d32f2f"
+    )));
+
+    let svg = document_to_svg(&document);
+    assert!(svg.contains(">N</"));
+    assert!(!svg.contains("#d32f2f"));
 }
 
 #[test]

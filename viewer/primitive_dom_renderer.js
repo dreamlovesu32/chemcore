@@ -170,7 +170,10 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
     };
     if (primitive.role === "document-knockout") {
       attrs.class = "label-knockout-shape";
-    } else if (primitive.role === "document-graphic" && primitive.stroke === "#d32f2f") {
+    } else if (
+      primitive.role === "document-diagnostic"
+      || (primitive.role === "document-graphic" && primitive.stroke === "#d32f2f")
+    ) {
       attrs.class = "document-diagnostic-marker";
     }
     applyGradientFill(svgRoot, attrs, primitive.fillGradient || primitive.fill_gradient, primitive.objectId, "0%", "0%", "0%", "100%");
@@ -214,6 +217,9 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       "data-role": primitive.role || undefined,
       ...primitiveIdentityAttrs(primitive),
     };
+    if (primitive.role === "document-diagnostic") {
+      attrs.class = "document-diagnostic-marker";
+    }
     svgRoot.appendChild(makeSvgNode("circle", attrs));
     return;
   }

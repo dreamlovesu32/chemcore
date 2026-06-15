@@ -675,6 +675,7 @@ pub(super) fn office_preview_primitive_visible(primitive: &RenderPrimitive) -> b
         | RenderPrimitive::Text { role, .. } => role,
     };
     match role {
+        RenderRole::DocumentDiagnostic => return preview_env_enabled(ENV_SHOW_INVALID_MARKERS),
         RenderRole::DocumentKnockout => {
             if preview_primitive_node_id(primitive).is_some() {
                 return false;
@@ -693,6 +694,7 @@ pub(super) fn office_preview_primitive_visible(primitive: &RenderPrimitive) -> b
     matches!(
         role,
         RenderRole::DocumentBond
+            | RenderRole::DocumentDiagnostic
             | RenderRole::DocumentGraphic
             | RenderRole::DocumentKnockout
             | RenderRole::DocumentText
@@ -5713,7 +5715,7 @@ mod tests {
     #[test]
     fn preview_invalid_marker_rect_is_hidden_by_default() {
         let primitive = RenderPrimitive::Rect {
-            role: RenderRole::DocumentGraphic,
+            role: RenderRole::DocumentDiagnostic,
             object_id: Some("o1".to_string()),
             node_id: Some("n1".to_string()),
             x: 1.0,
@@ -5735,7 +5737,7 @@ mod tests {
     #[test]
     fn preview_invalid_label_marker_without_node_id_is_hidden_by_default() {
         let primitive = RenderPrimitive::Rect {
-            role: RenderRole::DocumentGraphic,
+            role: RenderRole::DocumentDiagnostic,
             object_id: None,
             node_id: None,
             x: 1.0,
