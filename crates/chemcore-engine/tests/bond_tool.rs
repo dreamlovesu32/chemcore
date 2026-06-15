@@ -9460,7 +9460,7 @@ fn ordinary_charge_or_radical_on_four_connected_carbon_is_invalid_but_radical_io
             engine.render_list().into_iter().any(|primitive| matches!(
                 primitive,
                 RenderPrimitive::Circle {
-                    role: RenderRole::DocumentGraphic,
+                    role: RenderRole::DocumentDiagnostic,
                     node_id: Some(ref node_id),
                     stroke,
                     ..

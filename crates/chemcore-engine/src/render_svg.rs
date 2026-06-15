@@ -107,6 +107,9 @@ struct SvgDefs {
 }
 
 fn visible_in_document_svg(primitive: &RenderPrimitive) -> bool {
+    if render_primitive_role(primitive) == crate::RenderRole::DocumentDiagnostic {
+        return false;
+    }
     !matches!(
         primitive,
         RenderPrimitive::Rect {
@@ -118,6 +121,20 @@ fn visible_in_document_svg(primitive: &RenderPrimitive) -> bool {
             ..
         }
     )
+}
+
+fn render_primitive_role(primitive: &RenderPrimitive) -> crate::RenderRole {
+    match primitive {
+        RenderPrimitive::Line { role, .. }
+        | RenderPrimitive::Circle { role, .. }
+        | RenderPrimitive::Polygon { role, .. }
+        | RenderPrimitive::Rect { role, .. }
+        | RenderPrimitive::Ellipse { role, .. }
+        | RenderPrimitive::Polyline { role, .. }
+        | RenderPrimitive::Path { role, .. }
+        | RenderPrimitive::FilledPath { role, .. }
+        | RenderPrimitive::Text { role, .. } => *role,
+    }
 }
 
 fn extend_bounds_for_primitive(

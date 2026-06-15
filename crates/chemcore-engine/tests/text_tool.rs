@@ -1724,7 +1724,7 @@ fn nonchemical_endpoint_label_skips_recognition_and_red_box() {
     assert!(!engine.render_list().iter().any(|primitive| matches!(
         primitive,
         RenderPrimitive::Rect {
-            role: RenderRole::DocumentGraphic,
+            role: RenderRole::DocumentDiagnostic,
             stroke: Some(stroke),
             ..
         } if stroke == "#d32f2f"
@@ -2516,7 +2516,7 @@ fn endpoint_label_renders_red_box_for_unrecognized_abbreviation() {
     assert!(engine.render_list().iter().any(|primitive| matches!(
         primitive,
         RenderPrimitive::Rect {
-            role: RenderRole::DocumentGraphic,
+            role: RenderRole::DocumentDiagnostic,
             stroke: Some(stroke),
             ..
         } if stroke == "#d32f2f"
@@ -2712,7 +2712,7 @@ fn neutral_three_connection_oxygen_label_is_invalid() {
     assert!(engine.render_list().iter().any(|primitive| matches!(
         primitive,
         RenderPrimitive::Rect {
-            role: RenderRole::DocumentGraphic,
+            role: RenderRole::DocumentDiagnostic,
             stroke: Some(stroke),
             ..
         } if stroke == "#d32f2f"

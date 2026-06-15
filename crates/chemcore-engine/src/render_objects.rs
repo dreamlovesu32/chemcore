@@ -358,7 +358,7 @@ fn render_fragment_node_invalid_marker(
         object.transform.translate[1] + node.position[1],
     );
     out.push(RenderPrimitive::Circle {
-        role: RenderRole::DocumentGraphic,
+        role: RenderRole::DocumentDiagnostic,
         object_id,
         node_id: Some(node.id.clone()),
         center,
@@ -430,7 +430,7 @@ pub(super) fn render_fragment_label(
             .or_else(|| label_box_world(node, object));
         if let Some(box_value) = invalid_box {
             out.push(RenderPrimitive::Rect {
-                role: RenderRole::DocumentGraphic,
+                role: RenderRole::DocumentDiagnostic,
                 object_id: None,
                 node_id: None,
                 x: box_value.x1,

@@ -2183,6 +2183,7 @@ function shouldHidePrimitiveForActiveEndpointEditor(primitive) {
   return role === "document-text"
     || role === "document-knockout"
     || role === "document-graphic"
+    || role === "document-diagnostic"
     || role === "hover-label-glyph"
     || role === "hover-text-box";
 }

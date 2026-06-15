@@ -202,6 +202,19 @@ pub(super) fn preview_primitive_node_id(primitive: &RenderPrimitive) -> Option<&
 
 pub(super) fn preview_is_invalid_marker_primitive(primitive: &RenderPrimitive) -> bool {
     match primitive {
+        RenderPrimitive::Line { role, .. }
+        | RenderPrimitive::Circle { role, .. }
+        | RenderPrimitive::Polygon { role, .. }
+        | RenderPrimitive::Rect { role, .. }
+        | RenderPrimitive::Ellipse { role, .. }
+        | RenderPrimitive::Polyline { role, .. }
+        | RenderPrimitive::Path { role, .. }
+        | RenderPrimitive::FilledPath { role, .. }
+        | RenderPrimitive::Text { role, .. }
+            if *role == RenderRole::DocumentDiagnostic =>
+        {
+            true
+        }
         RenderPrimitive::Rect {
             role,
             fill,

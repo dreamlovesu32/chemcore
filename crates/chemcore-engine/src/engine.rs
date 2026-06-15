@@ -95,6 +95,7 @@ fn render_bounds_scope_accepts(scope: RenderBoundsScope, primitive: &RenderPrimi
         RenderBoundsScope::Document => {
             let role = render_primitive_role(primitive);
             role != RenderRole::DocumentKnockout
+                && role != RenderRole::DocumentDiagnostic
                 && !render_role_is_selection(role)
                 && !render_role_is_hover(role)
                 && !render_role_is_preview(role)
