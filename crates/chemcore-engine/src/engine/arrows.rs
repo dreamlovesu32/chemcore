@@ -100,6 +100,16 @@ fn arrow_curve_degrees(curve: ArrowCurve) -> f64 {
     }
 }
 
+fn line_object_arrow_curve(object: &SceneObject) -> f64 {
+    object
+        .payload
+        .extra
+        .get("arrowHead")
+        .and_then(|value| value.get("curve"))
+        .and_then(JsonValue::as_f64)
+        .unwrap_or(0.0)
+}
+
 pub(super) fn arrow_curve_sweep_degrees(variant: ArrowVariant, curve: ArrowCurve) -> f64 {
     match variant {
         ArrowVariant::Curved => -arrow_curve_degrees(curve),
@@ -490,7 +500,14 @@ impl Engine {
                     .to_string(),
                 ),
             );
-            let curve_degrees = arrow_curve_sweep_degrees(variant, curve);
+            let curve_degrees = if matches!(
+                variant,
+                ArrowVariant::Hollow | ArrowVariant::Equilibrium | ArrowVariant::UnequalEquilibrium
+            ) {
+                line_object_arrow_curve(object)
+            } else {
+                arrow_curve_sweep_degrees(variant, curve)
+            };
             let mut arrow_head_payload = json!({
                     "kind": arrow_variant_name(variant),
                     "curve": curve_degrees,

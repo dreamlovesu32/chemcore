@@ -1058,6 +1058,120 @@ fn arrow_hover_curve_drag_updates_curve_with_snap_and_selected_arrows_do_not_hov
 }
 
 #[test]
+fn hollow_arrow_center_drag_curves_with_snap_and_smooth_rendering() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Arrow,
+        arrow_variant: ArrowVariant::Hollow,
+        arrow_head_size: ArrowHeadSize::Large,
+        ..ToolState::default()
+    });
+    drag(&mut engine, Point::new(0.0, 0.0), Point::new(100.0, 0.0));
+
+    assert_eq!(
+        engine.begin_hover_arrow_edit(Point::new(50.0, 0.0)),
+        "curve"
+    );
+    assert!(engine.update_hover_arrow_edit(Point::new(50.0, -30.0), false));
+    assert_eq!(engine.active_arrow_edit_degrees(), 120.0);
+    assert!(engine.finish_hover_arrow_edit(Point::new(50.0, -30.0), false));
+
+    let object = engine
+        .state()
+        .document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "line")
+        .expect("hollow arrow object should exist");
+    let object_id = object.id.clone();
+    let arrow_head = object.payload.extra.get("arrowHead").unwrap();
+    assert_eq!(
+        arrow_head.get("kind").and_then(|value| value.as_str()),
+        Some("hollow")
+    );
+    assert_eq!(
+        arrow_head.get("curve").and_then(|value| value.as_f64()),
+        Some(-120.0)
+    );
+    assert!(object.payload.extra.get("arrowGeometry").is_some());
+
+    let (path_d, points) = engine
+        .render_list()
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Path {
+                object_id: primitive_object_id,
+                role: RenderRole::DocumentGraphic,
+                d,
+                points,
+                ..
+            } if primitive_object_id.as_deref() == Some(object_id.as_str()) => Some((d, points)),
+            _ => None,
+        })
+        .expect("curved hollow arrow should render as a smooth outline path");
+    assert!(
+        path_d.contains(" C "),
+        "path should use cubic curves: {path_d}"
+    );
+    assert!(
+        points.iter().any(|point| point.y.abs() > 1.0),
+        "curved hollow outline should leave the straight chord: {points:?}"
+    );
+}
+
+#[test]
+fn hollow_arrow_center_drag_alt_disables_curve_snap() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Arrow,
+        arrow_variant: ArrowVariant::Hollow,
+        arrow_head_size: ArrowHeadSize::Large,
+        ..ToolState::default()
+    });
+    drag(&mut engine, Point::new(0.0, 0.0), Point::new(100.0, 0.0));
+
+    assert_eq!(
+        engine.begin_hover_arrow_edit(Point::new(50.0, 0.0)),
+        "curve"
+    );
+    assert!(engine.finish_hover_arrow_edit(Point::new(50.0, -30.0), true));
+
+    let curve = engine
+        .state()
+        .document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "line")
+        .and_then(|object| object.payload.extra.get("arrowHead"))
+        .and_then(|arrow_head| arrow_head.get("curve"))
+        .and_then(|value| value.as_f64())
+        .expect("hollow arrow should store an unsnapped curve");
+    assert!(curve < -120.0 && curve > -125.0, "curve={curve}");
+    assert!(
+        (curve / 15.0).fract().abs() > 0.01,
+        "alt drag should not snap to 15 degree increments: {curve}"
+    );
+}
+
+#[test]
+fn open_arrow_does_not_expose_center_curve_drag_handle() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Arrow,
+        arrow_variant: ArrowVariant::Open,
+        arrow_head_size: ArrowHeadSize::Large,
+        ..ToolState::default()
+    });
+    drag(&mut engine, Point::new(0.0, 0.0), Point::new(100.0, 0.0));
+
+    assert_eq!(engine.begin_hover_arrow_edit(Point::new(50.0, 0.0)), "");
+    assert_eq!(
+        engine.begin_hover_arrow_edit(Point::new(100.0, 0.0)),
+        "head"
+    );
+}
+
+#[test]
 fn selected_arrow_style_updates_from_arrow_toolbar_options() {
     let mut engine = Engine::new();
     engine.set_tool_state(ToolState {
@@ -1216,11 +1330,17 @@ fn selected_curved_equilibrium_arrow_box_wraps_both_branches() {
     engine.set_tool_state(ToolState {
         active_tool: Tool::Arrow,
         arrow_variant: ArrowVariant::Equilibrium,
-        arrow_curve: ArrowCurve::Arc120,
+        arrow_head_style: ArrowEndpointStyle::Left,
+        arrow_tail_style: ArrowEndpointStyle::Left,
         ..ToolState::default()
     });
 
     drag(&mut engine, Point::new(40.0, 80.0), Point::new(120.0, 80.0));
+    assert_eq!(
+        engine.begin_hover_arrow_edit(Point::new(80.0, 80.0)),
+        "curve"
+    );
+    assert!(engine.finish_hover_arrow_edit(Point::new(80.0, 56.0), false));
 
     let object_id = engine
         .state()
@@ -1231,6 +1351,40 @@ fn selected_curved_equilibrium_arrow_box_wraps_both_branches() {
         .expect("created curved equilibrium arrow object should exist")
         .id
         .clone();
+    let object = engine
+        .state()
+        .document
+        .objects
+        .iter()
+        .find(|object| object.id == object_id)
+        .expect("created curved equilibrium arrow object should exist");
+    assert_eq!(
+        object
+            .payload
+            .extra
+            .get("arrowHead")
+            .and_then(|arrow_head| arrow_head.get("curve"))
+            .and_then(|value| value.as_f64()),
+        Some(-120.0)
+    );
+    let smooth_branch_count = engine
+        .render_list()
+        .into_iter()
+        .filter(|primitive| match primitive {
+            RenderPrimitive::Path {
+                object_id: primitive_object_id,
+                role: RenderRole::DocumentGraphic,
+                d,
+                ..
+            } => primitive_object_id.as_deref() == Some(object_id.as_str()) && d.contains(" C "),
+            _ => false,
+        })
+        .count();
+    assert!(
+        smooth_branch_count >= 2,
+        "curved equilibrium branches should render as smooth paths"
+    );
+    engine.clear_interaction();
     let visual_bounds = rendered_object_bounds(&engine, &object_id);
 
     engine.set_tool_state(select_tool());

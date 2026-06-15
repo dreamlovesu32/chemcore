@@ -250,23 +250,42 @@ fn render_arrow_line_object(
         );
         return;
     }
-    if arrow_head.curve.abs() > crate::EPSILON && arrow_head.kind == ArrowHeadKind::Solid {
+    if arrow_head.curve.abs() > crate::EPSILON
+        && matches!(
+            arrow_head.kind,
+            ArrowHeadKind::Solid | ArrowHeadKind::Hollow
+        )
+    {
         let Some(arrow_arc) = arrow_arc else {
             return;
         };
-        render_curved_solid_arrow_line(
-            out,
-            start,
-            end,
-            stroke,
-            stroke_width,
-            arrow_head,
-            arrow_arc,
-            head_style,
-            tail_style,
-            dash_array,
-            object_id,
-        );
+        match arrow_head.kind {
+            ArrowHeadKind::Solid => render_curved_solid_arrow_line(
+                out,
+                start,
+                end,
+                stroke,
+                stroke_width,
+                arrow_head,
+                arrow_arc,
+                head_style,
+                tail_style,
+                dash_array,
+                object_id,
+            ),
+            ArrowHeadKind::Hollow => render_curved_hollow_arrow_line(
+                out,
+                start,
+                stroke,
+                stroke_width,
+                arrow_head,
+                arrow_arc,
+                head_style.enabled(),
+                tail_style.enabled(),
+                object_id,
+            ),
+            ArrowHeadKind::Open | ArrowHeadKind::Equilibrium => {}
+        }
         return;
     }
     match arrow_head.kind {
@@ -547,6 +566,57 @@ fn curved_arrow_path(
     Some(CurvedArrowPath { d, points })
 }
 
+fn append_smooth_polyline_commands(d: &mut String, points: &[Point], connect_first: bool) {
+    let Some(first) = points.first().copied() else {
+        return;
+    };
+    if connect_first {
+        d.push_str(&format!(" L {} {}", first.x, first.y));
+    } else {
+        d.push_str(&format!("M {} {}", first.x, first.y));
+    }
+    if points.len() < 2 {
+        return;
+    }
+    if points.len() == 2 {
+        let end = points[1];
+        d.push_str(&format!(" L {} {}", end.x, end.y));
+        return;
+    }
+    for index in 0..points.len() - 1 {
+        let p0 = if index == 0 {
+            points[index]
+        } else {
+            points[index - 1]
+        };
+        let p1 = points[index];
+        let p2 = points[index + 1];
+        let p3 = if index + 2 < points.len() {
+            points[index + 2]
+        } else {
+            p2
+        };
+        let c1 = Point::new(p1.x + (p2.x - p0.x) / 6.0, p1.y + (p2.y - p0.y) / 6.0);
+        let c2 = Point::new(p2.x - (p3.x - p1.x) / 6.0, p2.y - (p3.y - p1.y) / 6.0);
+        d.push_str(&format!(
+            " C {} {}, {} {}, {} {}",
+            c1.x, c1.y, c2.x, c2.y, p2.x, p2.y
+        ));
+    }
+}
+
+fn smooth_polyline_path(points: &[Point]) -> Option<CurvedArrowPath> {
+    if points.len() < 2 {
+        return None;
+    }
+    let mut d = String::new();
+    append_smooth_polyline_commands(&mut d, points, false);
+    Some(CurvedArrowPath {
+        d,
+        points: points.to_vec(),
+    })
+}
+
 fn curved_arrow_arc_length(arc: &CurvedArrowArc, start_angle: f64, sweep: f64) -> f64 {
     let steps = ((sweep.abs().to_degrees() / 2.0).ceil() as usize).clamp(16, 256);
     let mut length = 0.0;
@@ -685,6 +755,138 @@ fn offset_polyline_points(points: &[Point], offset: f64) -> Vec<Point> {
             point.translated(normal.scaled(offset))
         })
         .collect()
+}
+
+fn tangent_at_distance(points: &[Point], distance: f64) -> Option<Vector> {
+    let total = polyline_length(points);
+    if total <= crate::EPSILON {
+        return None;
+    }
+    let before = point_at_distance_from_start(points, (distance - 0.1).max(0.0))?;
+    let after = point_at_distance_from_start(points, (distance + 0.1).min(total))?;
+    let tangent = Vector::new(after.x - before.x, after.y - before.y);
+    if tangent.length() <= crate::EPSILON {
+        None
+    } else {
+        Some(tangent.normalized())
+    }
+}
+
+fn offset_point_at_distance(points: &[Point], distance: f64, offset: f64) -> Option<Point> {
+    let point = point_at_distance_from_start(points, distance)?;
+    let tangent = tangent_at_distance(points, distance)?;
+    let normal = Vector::new(-tangent.y, tangent.x);
+    Some(point.translated(normal.scaled(offset)))
+}
+
+struct CurvedHollowArrowOutline {
+    d: String,
+    points: Vec<Point>,
+}
+
+fn curved_hollow_arrow_outline(
+    points: &[Point],
+    arrow_head: ArrowHeadGeometry,
+    has_head: bool,
+    has_tail: bool,
+) -> Option<CurvedHollowArrowOutline> {
+    if points.len() < 2 {
+        return None;
+    }
+    let total = polyline_length(points);
+    if total <= crate::EPSILON {
+        return None;
+    }
+    let shaft_half_width = arrow_head.center_length.max(arrow_head.length) * 0.5;
+    let head_length = arrow_head.length.min(total * 0.45);
+    let head_half_width = hollow_open_arrow_head_half_width(shaft_half_width, arrow_head);
+    let start_trim = if has_tail { head_length } else { 0.0 };
+    let end_trim = if has_head { head_length } else { 0.0 };
+    let shaft_center = trimmed_polyline_points(points, start_trim, end_trim);
+    if shaft_center.len() < 2 {
+        return None;
+    }
+    let negative_shaft = offset_polyline_points(&shaft_center, -shaft_half_width);
+    let positive_shaft = offset_polyline_points(&shaft_center, shaft_half_width);
+    if negative_shaft.len() < 2 || positive_shaft.len() < 2 {
+        return None;
+    }
+    let start = points[0];
+    let end = *points.last().unwrap_or(&start);
+    let mut outline_points = Vec::new();
+    let mut d = String::new();
+
+    if has_tail {
+        let tail_negative = offset_point_at_distance(points, head_length, -head_half_width)?;
+        let tail_positive = offset_point_at_distance(points, head_length, head_half_width)?;
+        d.push_str(&format!(
+            "M {} {} L {} {}",
+            start.x, start.y, tail_negative.x, tail_negative.y
+        ));
+        outline_points.push(start);
+        outline_points.push(tail_negative);
+        append_smooth_polyline_commands(&mut d, &negative_shaft, true);
+        outline_points.extend(negative_shaft.iter().copied());
+        if has_head {
+            let head_distance = (total - head_length).max(0.0);
+            let head_negative = offset_point_at_distance(points, head_distance, -head_half_width)?;
+            let head_positive = offset_point_at_distance(points, head_distance, head_half_width)?;
+            d.push_str(&format!(
+                " L {} {} L {} {} L {} {}",
+                head_negative.x, head_negative.y, end.x, end.y, head_positive.x, head_positive.y
+            ));
+            outline_points.push(head_negative);
+            outline_points.push(end);
+            outline_points.push(head_positive);
+        } else {
+            let end_negative = *negative_shaft.last().unwrap();
+            let end_positive = *positive_shaft.last().unwrap();
+            d.push_str(&format!(
+                " L {} {} L {} {}",
+                end_negative.x, end_negative.y, end_positive.x, end_positive.y
+            ));
+            outline_points.push(end_negative);
+            outline_points.push(end_positive);
+        }
+        let positive_reverse = reversed_points(&positive_shaft);
+        append_smooth_polyline_commands(&mut d, &positive_reverse, true);
+        outline_points.extend(positive_reverse.iter().copied());
+        d.push_str(&format!(" L {} {} Z", tail_positive.x, tail_positive.y));
+        outline_points.push(tail_positive);
+    } else {
+        append_smooth_polyline_commands(&mut d, &negative_shaft, false);
+        outline_points.extend(negative_shaft.iter().copied());
+        if has_head {
+            let head_distance = (total - head_length).max(0.0);
+            let head_negative = offset_point_at_distance(points, head_distance, -head_half_width)?;
+            let head_positive = offset_point_at_distance(points, head_distance, head_half_width)?;
+            d.push_str(&format!(
+                " L {} {} L {} {} L {} {}",
+                head_negative.x, head_negative.y, end.x, end.y, head_positive.x, head_positive.y
+            ));
+            outline_points.push(head_negative);
+            outline_points.push(end);
+            outline_points.push(head_positive);
+        } else {
+            let end_negative = *negative_shaft.last().unwrap();
+            let end_positive = *positive_shaft.last().unwrap();
+            d.push_str(&format!(
+                " L {} {} L {} {}",
+                end_negative.x, end_negative.y, end_positive.x, end_positive.y
+            ));
+            outline_points.push(end_negative);
+            outline_points.push(end_positive);
+        }
+        let positive_reverse = reversed_points(&positive_shaft);
+        append_smooth_polyline_commands(&mut d, &positive_reverse, true);
+        outline_points.extend(positive_reverse.iter().copied());
+        d.push_str(" Z");
+    }
+
+    Some(CurvedHollowArrowOutline {
+        d,
+        points: compact_polygon_points(outline_points),
+    })
 }
 
 fn reversed_points(points: &[Point]) -> Vec<Point> {
@@ -976,10 +1178,11 @@ fn render_curved_equilibrium_branch(
     }
     let end_trim = curved_arrow_endpoint_shaft_trim(head_style, arrow_head);
     let shaft_points = trimmed_polyline_points(points, 0.0, end_trim);
-    if shaft_points.len() >= 2 {
-        push_polyline(
+    if let Some(path) = smooth_polyline_path(&shaft_points) {
+        push_path(
             out,
-            shaft_points,
+            path.d,
+            path.points,
             stroke,
             line_width,
             dash_array.to_vec(),
@@ -1506,6 +1709,43 @@ fn render_hollow_arrow_line(
         } else {
             stroke_width
         },
+        RenderRole::DocumentGraphic,
+        object_id,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_curved_hollow_arrow_line(
+    out: &mut Vec<RenderPrimitive>,
+    start: Point,
+    stroke: &str,
+    stroke_width: f64,
+    arrow_head: ArrowHeadGeometry,
+    arrow_arc: ArrowArcGeometry,
+    has_head: bool,
+    has_tail: bool,
+    object_id: Option<String>,
+) {
+    let points = curved_arrow_points(start, arrow_head.curve, arrow_arc);
+    if points.len() < 2 {
+        return;
+    }
+    let Some(outline) = curved_hollow_arrow_outline(&points, arrow_head, has_head, has_tail) else {
+        return;
+    };
+    push_path(
+        out,
+        outline.d,
+        outline.points,
+        stroke,
+        if arrow_head.bold {
+            stroke_width.max(2.0)
+        } else {
+            stroke_width
+        },
+        Vec::new(),
+        Some("butt".to_string()),
+        Some("round".to_string()),
         RenderRole::DocumentGraphic,
         object_id,
     );

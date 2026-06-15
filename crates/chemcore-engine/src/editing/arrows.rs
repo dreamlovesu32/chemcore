@@ -73,6 +73,21 @@ pub(super) fn line_object_arrow_curve(object: &crate::SceneObject) -> f64 {
         .unwrap_or(0.0)
 }
 
+fn line_object_arrow_kind(object: &crate::SceneObject) -> String {
+    object
+        .payload
+        .extra
+        .get("arrowHead")
+        .and_then(|value| value.get("kind"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("solid")
+        .to_ascii_lowercase()
+}
+
+pub fn arrow_object_has_curve_handle(object: &crate::SceneObject) -> bool {
+    line_object_arrow_kind(object) != "open"
+}
+
 pub fn arrow_object_handle_points(object: &crate::SceneObject, points: &[Point]) -> Vec<Point> {
     if points.len() < 2 {
         return Vec::new();
@@ -82,14 +97,20 @@ pub fn arrow_object_handle_points(object: &crate::SceneObject, points: &[Point])
     let end = *focus_points.last().unwrap_or(&focus_points[0]);
     let center = point_at_distance_from_start(&focus_points, polyline_length(&focus_points) * 0.5)
         .unwrap_or_else(|| Point::new((start.x + end.x) * 0.5, (start.y + end.y) * 0.5));
-    let mut handles = vec![start, center, end];
+    let mut handles = vec![start];
+    if arrow_object_has_curve_handle(object) {
+        handles.push(center);
+    }
+    handles.push(end);
     let head_length = line_object_arrow_dimension(object, "length", 15.0);
     let head_width = line_object_arrow_dimension(object, "width", 3.75);
+    let head_style = line_object_endpoint_style(object, "head", "end");
+    let tail_style = line_object_endpoint_style(object, "tail", "start");
     push_arrow_endpoint_handles(
         &mut handles,
         &focus_points,
         false,
-        line_object_endpoint_style(object, "head", "end"),
+        head_style,
         head_length,
         head_width,
     );
@@ -97,7 +118,7 @@ pub fn arrow_object_handle_points(object: &crate::SceneObject, points: &[Point])
         &mut handles,
         &focus_points,
         true,
-        line_object_endpoint_style(object, "tail", "start"),
+        tail_style,
         head_length,
         head_width,
     );
@@ -135,10 +156,7 @@ pub(super) fn push_arrow_endpoint_handles(
     }
 }
 
-pub(super) fn arrow_object_focus_points(
-    object: &crate::SceneObject,
-    points: &[Point],
-) -> Vec<Point> {
+pub fn arrow_object_focus_points(object: &crate::SceneObject, points: &[Point]) -> Vec<Point> {
     if points.len() < 2 {
         return Vec::new();
     }
@@ -204,14 +222,14 @@ fn line_object_arrow_arc_geometry(object: &crate::SceneObject) -> Option<(Point,
     ))
 }
 
-pub(super) fn polyline_length(points: &[Point]) -> f64 {
+pub fn polyline_length(points: &[Point]) -> f64 {
     points
         .windows(2)
         .map(|pair| pair[0].distance(pair[1]))
         .sum()
 }
 
-pub(super) fn point_at_distance_from_start(points: &[Point], distance: f64) -> Option<Point> {
+pub fn point_at_distance_from_start(points: &[Point], distance: f64) -> Option<Point> {
     if points.len() < 2 {
         return None;
     }

@@ -4,12 +4,13 @@ use super::text_edit::{
 };
 use super::{ArrowEditDragState, ArrowEditMode, EditorCommand, Engine, PendingSelectTarget};
 use crate::{
-    angle_between, arrow_object_handle_points, bracket_object_visual_bounds, direction_from_angle,
+    angle_between, arrow_object_focus_points, arrow_object_handle_points,
+    arrow_object_has_curve_handle, bracket_object_visual_bounds, direction_from_angle,
     fragment_bond_visual_bounds, hit_test_arrow_center, hit_test_bond_center, hit_test_endpoint,
-    line_object_points, line_object_visual_bounds, nearest_angle, round2,
-    shape_object_visual_bounds, HoverTextBox, Point, RenderPrimitive, RenderRole, SceneObject,
-    SelectionState, BOND_CENTER_HIT_RADIUS, DEFAULT_BOND_LENGTH, DRAG_START_THRESHOLD,
-    ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
+    line_object_points, line_object_visual_bounds, nearest_angle, point_at_distance_from_start,
+    polyline_length, round2, shape_object_visual_bounds, HoverTextBox, Point, RenderPrimitive,
+    RenderRole, SceneObject, SelectionState, BOND_CENTER_HIT_RADIUS, DEFAULT_BOND_LENGTH,
+    DRAG_START_THRESHOLD, ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
 };
 use serde_json::{json, Value as JsonValue};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -423,32 +424,36 @@ impl Engine {
         {
             return None;
         }
-        let mut candidates = Vec::new();
-        if let Some(tail) = hover.handles.first() {
-            candidates.push((tail.distance(point), ArrowEditMode::Tail));
-        }
-        if let Some(head) = hover.handles.get(2) {
-            candidates.push((head.distance(point), ArrowEditMode::Head));
-        }
-        if let Some(center) = hover.handles.get(1) {
-            candidates.push((center.distance(point), ArrowEditMode::Curve));
-        }
-        let (_, mode) = candidates
-            .into_iter()
-            .filter(|(distance, _)| *distance <= ENDPOINT_HIT_RADIUS)
-            .min_by(|left, right| left.0.total_cmp(&right.0))?;
         let object = self
             .state
             .document
             .objects
             .iter()
             .find(|object| object.id == hover.object_id)?;
-        Some((
-            hover.object_id,
-            mode,
-            line_object_points(object),
-            object_arrow_curve(object),
-        ))
+        let points = line_object_points(object);
+        if points.len() < 2 {
+            return None;
+        }
+        let focus_points = arrow_object_focus_points(object, &points);
+        if focus_points.len() < 2 {
+            return None;
+        }
+        let mut candidates = Vec::new();
+        candidates.push((focus_points[0].distance(point), ArrowEditMode::Tail));
+        if let Some(head) = focus_points.last() {
+            candidates.push((head.distance(point), ArrowEditMode::Head));
+        }
+        if arrow_object_has_curve_handle(object) {
+            let center =
+                point_at_distance_from_start(&focus_points, polyline_length(&focus_points) * 0.5)
+                    .unwrap_or(hover.center);
+            candidates.push((center.distance(point), ArrowEditMode::Curve));
+        }
+        let (_, mode) = candidates
+            .into_iter()
+            .filter(|(distance, _)| *distance <= ENDPOINT_HIT_RADIUS)
+            .min_by(|left, right| left.0.total_cmp(&right.0))?;
+        Some((hover.object_id, mode, points, object_arrow_curve(object)))
     }
 
     fn apply_arrow_edit_drag(

@@ -21,8 +21,10 @@ pub use self::anchors::{
     default_angle_for_anchor_for_variant, endpoint_from_angle, endpoint_from_angle_for_document,
     nearest_angle, node_by_id, snapped_angle_for_anchor,
 };
-use self::arrows::*;
-pub use self::arrows::{arrow_object_handle_points, line_object_points};
+pub use self::arrows::{
+    arrow_object_focus_points, arrow_object_handle_points, arrow_object_has_curve_handle,
+    line_object_points, point_at_distance_from_start, polyline_length,
+};
 pub use self::geometry::bond_center_focus_length;
 use self::geometry::*;
 pub use self::hit_testing::{
