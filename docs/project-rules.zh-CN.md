@@ -69,9 +69,9 @@ npm run verify
 ## 化学标签
 
 - 隐式氢行为以 `docs/implicit-hydrogen-rules.zh-CN.md` 为当前行为基线。
-- 缩写识别与 functional group 展开计划以 `docs/abbreviation-recognition-rules.zh-CN.md` 为当前设计基线。
-- formula-like 标签的下一阶段价键解析规则以 `docs/valence-label-recognition-rules.zh-CN.md` 为设计基线。
-- 电荷、自由基和孤对符号归属到分子原子后的语义，以 `docs/charge-radical-symbol-rules.zh-CN.md` 为设计基线。
+- 缩写识别与 functional group 展开规则以 `docs/abbreviation-recognition-rules.zh-CN.md` 为当前行为基线。
+- formula-like 标签的价键解析规则以 `docs/valence-label-recognition-rules.zh-CN.md` 为当前行为基线。
+- 电荷、自由基和孤对符号归属到分子原子后的语义，以 `docs/charge-radical-symbol-rules.zh-CN.md` 为规则基线。
 - 标签识别、隐式氢数量、生成标签文本和画键锚点都属于 Rust engine 行为，不应在 viewer 里另写一套。
 
 ## 文本符号和 Glyph

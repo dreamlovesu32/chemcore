@@ -463,7 +463,7 @@ WebView2 Runtime:   147.0.3912.98
 WebView2 location:  C:\Program Files (x86)\Microsoft\EdgeWebView\Application
 MSVC Build Tools:   Visual Studio Build Tools 2022 17.14.21
 Rust:               1.95.0, x86_64-pc-windows-msvc
-Node.js:            <local Node.js install>
+Node.js:            project-supported Node.js runtime in PATH
 ```
 
 当前仍未完成：

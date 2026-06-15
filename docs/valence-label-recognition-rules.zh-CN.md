@@ -1,15 +1,13 @@
-# Chemcore 价键驱动标签识别计划
+# Chemcore 价键驱动标签识别规则
 
-本文档记录下一阶段标签识别引擎的目标：从“缩写表 + 少量组合片段”
-升级为“带连接数上下文的价键解析器”。它不替代 `Boc`、`Fmoc`、`Ts`
+本文档记录 Chemcore 当前价键驱动标签识别规则。它不替代 `Boc`、`Fmoc`、`Ts`
 这类命名取代基模板；它负责解释 `CN`、`CO2Cl`、`CH2COOCH2SO2NHCl`
 这类可以由元素价键和线性书写顺序推出的 formula-like label。
 
-## 目标
+## 行为目标
 
-当前 `abbreviation.rs` 已能识别很多固定 functional group 和组合片段，
-但它仍然依赖人工列出 `CN`、`CF3`、`CONH2`、`CO2Et` 等模式。下一阶段
-应该把这类标签拆成通用规则：
+价键 parser 会把 `CN`、`CF3`、`CONH2`、`CO2Et` 等 formula-like
+标签拆成通用规则处理：
 
 - 读取元素和数量，例如 `CH3` 读作 `C + H + H + H`，
   `CO2Cl` 读作 `C + O + O + Cl`。
@@ -45,17 +43,19 @@ C 正好满价，识别为 methyl。
 
 ### 桥接标签
 
-两键桥接标签要求恰好 2 根外部键。后续实现可以把左外部键接到
-第一个可连接原子，把右外部键接到解析后剩余的右侧 attachment 原子。
-如果无法同时满足左右 attachment 的价键，标签应标记为 invalid。
+两键桥接标签要求恰好 2 根外部键。当前两键桥接由缩写识别入口处理，
+而不是由末端价键 parser 直接生成任意桥接拓扑。如果无法同时满足左右
+attachment 的价键，标签应标记为 invalid。
 
 这条规则会保留现有桥接缩写行为，例如 `NH`、`CO`、`CO2/COO`、`SO2`
 在两键节点上仍合法。
 
 ### 其他连接数
 
-0 根、3 根或更多外部键默认不进入末端 functional group 解析。除非后续
-明确支持某类多齿配体或模板，否则应标记为普通未知标签或 invalid。
+0 根外部键会进入 chemical text 校验：可由价键 tokenizer 读懂的文本会标记为
+`groupKind: "chemical-text"`，但不生成 `functionalGroupExpansion.v1`。
+3 根或更多外部键默认不进入末端 functional group 解析，除非有明确模板支持，
+否则应标记为普通未知标签或 invalid。
 
 ## 元素价态表
 
@@ -98,9 +98,9 @@ C 正好满价，识别为 methyl。
 
 这里的“右侧”指标签书写中位于该原子之后、用于补足该原子价键的 atom
 occurrence。末端标签左侧外部键已经消耗 1 个连接位，所以 `BH3` 可以识别为
-四配位硼并记录 `formalCharge: -1`；但 `BCl3` 第一版不接受，因为它不满足
+四配位硼并记录 `formalCharge: -1`；但 `BCl3` 不接受，因为它不满足
 “右侧至少三个氢”的限制。类似地，`NH3` 可以作为四价带正电氮的候选；
-`NMe4` 第一版不进入这个例外。
+`NMe4` 不进入这个例外。
 
 ## Token 化规则
 
@@ -110,14 +110,16 @@ occurrence。末端标签左侧外部键已经消耗 1 个连接位，所以 `BH
 - 紧跟元素后的数字表示该元素重复次数。
 - `H3` 展开成 3 个氢，`O2` 展开成 2 个氧。
 - `CO2Cl` 展开成 `C, O, O, Cl`。
+- 括号组按子 token 流解析，组后数字表示重复次数；空组、0 次重复和超过
+  32 次重复都视为 invalid。
 - `CH2COOCH2SO2NHCl` 展开成：
 
 ```text
 C, H, H, C, O, O, C, H, H, S, O, O, N, H, Cl
 ```
 
-第一版不解析括号、点号、显式电荷、同位素、芳香小写、环编号或任意 SMILES。
-这些仍应交给模板、后续 parser 或 invalid fallback。
+当前不解析点号、显式电荷、同位素、芳香小写、环编号或任意 SMILES。
+这些输入应交给专门模板或 invalid fallback。
 
 ## 核心解析原则
 
@@ -247,13 +249,13 @@ Cl: N = 1
 
 ## 与现有缩写表的关系
 
-价键解析器应成为末端 formula-like 标签的主路径。旧的缩写/保护基定义不再
+价键解析器是末端 formula-like 标签的主路径。旧的缩写/保护基定义不再
 作为另一套组合 parser 抢优先级，而是作为价键 parser 的一价终止 token：
 `Me`、`Et`、`Boc`、`Fmoc`、`Ts`、`TBDMS` 这类命名基团在价键满足时
 等价于一个只需要 1 个连接位的终止原子。它们的内部展开仍使用原来人工确认的
 模板。
 
-优先级建议：
+当前优先级：
 
 1. 简单元素标签和隐式氢规则，例如 `N`、`O`、`Cl`。
 2. 价键驱动 formula-like parser，例如 `CN`、`CF3`、`CO2Cl`、
@@ -273,7 +275,7 @@ CH2Boc    -> C + H + H + Boc，其中 Boc 消耗 C 的 1 个连接位
 `CN`、`CF3`、`COCl`、`CONH2`、`CO2Et` 这类可以由价键规则推出的标签，
 最终不应再依赖单独 hard-code。
 
-## 元数据建议
+## 元数据
 
 价键 parser 成功时，`meta.labelRecognition` 仍使用现有结构，并额外保留
 来源信息，方便调试和迁移：
@@ -305,12 +307,12 @@ CH2Boc    -> C + H + H + Boc，其中 Boc 消耗 C 的 1 个连接位
 }
 ```
 
-`components` 不必长期稳定为 UI API，但第一阶段很适合用于测试和调试，
+`components` 主要用于测试、调试和导出校验，
 尤其是检查 `CO2`、`SO2`、`CSO`、`COS` 这类容易产生歧义的局部决策。
 
-## 第一批回归用例
+## 回归用例
 
-实现前应先把以下用例写进 Rust 单测：
+以下用例应由 Rust 单测覆盖：
 
 ```text
 CH3                  -> -CH3

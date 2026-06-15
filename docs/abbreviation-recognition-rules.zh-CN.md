@@ -1,338 +1,252 @@
-# Chemcore 缩写识别与基团展开计划
+# Chemcore 缩写识别规则
 
-本文档记录下一步“化学标签缩写识别引擎”的支持范围。目标是先明确哪些标签是合法缩写、它们对应什么基团、以及将来在 engine 中如何存储和展开。
+本文档定义 Chemcore 当前内核对结构端点标签、functional group 缩写和
+formula-like 标签的识别行为。普通自由文本不属于这里的结构标签规则。
 
-下一阶段的 formula-like 标签不应继续完全依赖缩写表。`CN`、`CF3`、
-`CO2Cl`、`CH2COOCH2SO2NHCl` 这类标签应由价键驱动解析器推出。该方向
-单独记录在 `docs/valence-label-recognition-rules.zh-CN.md`。
+识别入口必须带连接数上下文。同一个字符串在不同连接数下可能有不同语义，
+也可能从合法变为非法。
 
-## 参考来源
+## 连接数分流
 
-本次阅读了两份本地开源源码：
+| 外部连接数 | 行为 |
+| ---: | --- |
+| `0` | 只做 chemical text 校验。可由价键 tokenizer 读懂的化学文本会标记为 `groupKind: "chemical-text"`，不生成 `expansion`。 |
+| `1` | 末端取代基。先走价键驱动 parser，再走命名 functional group 模板。 |
+| `2` | 桥接标签。只接受开放桥接片段，或 `N` 加一价末端取代基。 |
+| `>=3` | 当前不识别为 functional group。 |
 
-- Ketcher：`<local-ketcher-source>`
-  - Abbreviation Lookup 的候选来自元素、functional groups、templates、salts/solvents。
-  - functional groups 由 `packages/ketcher-react/src/templates/fg.sdf` 载入。
-  - 相关入口：
-    - `packages/ketcher-react/src/script/ui/state/functionalGroups/index.ts`
-    - `packages/ketcher-react/src/script/ui/dialog/AbbreviationLookup/hooks/useOptions.tsx`
-    - `packages/ketcher-core/src/domain/entities/functionalGroup.ts`
-- ChemCanvas：`<local-chemcanvas-source>`
-  - 工具栏中有一组小型 functional group 清单。
-  - 相关入口：
-    - `chemcanvas/tools.py`
-    - `grouptools_template`
-    - `group_smiles_dict`
+识别成功时，节点和节点 label 都写入 `meta.labelRecognition`。识别失败时，
+化学结构标签保留原始文本，并写入 invalid metadata，渲染层用红色诊断框提示。
 
-结论：Ketcher 是“模板/SUP SGroup 驱动”，缩写对应完整结构；ChemCanvas 是“小型 group 列表 + SMILES 映射”。Chemcore 不应只把缩写当纯文本，也不应把整个 Ketcher template library 全部视为端点缩写。
+## 元数据结构
 
-## Engine 目标模型
+识别成功的 metadata 使用同一层结构：
 
-缩写标签应分成三类：
-
-- `element`：元素标签，例如 `N`、`Cl`。
-- `abbreviation`：合法缩写但暂不展开，至少参与显示、编辑和命中。
-- `functional-group`：有结构定义的缩写，可展开为原子和键。
-
-`functional-group` 还应继续分成两种来源：
-
-- `terminal-fragment`：完整末端基团，例如 `CN`、`NO2`、`Et`、`Ts`、`Boc`。
-- `composite-fragment`：由开放连接片段和末端片段拼出的基团，例如 `CO2Et = CO2 + Et`、`COOSO2Me = COO + SO2 + Me`。
-
-建议每个可展开缩写记录：
-
-- `label`：用户输入和显示的缩写，例如 `NO2`、`Boc`。
-- `aliases`：等价输入，例如 `OMe` 和 `OCH3`。
-- `name`：化学名或常用名。
-- `formula`：人读的缩写结构。
-- `anchorAtom`：外部键连接的原子。
-- `rightAttachment`：组合解析时下一个片段连接的位置；末端片段为空。
-- `expansion`：内部结构，使用 engine 原生的局部 atoms/bonds/attachments 表示；这是附加语义层，不替换用户原始绘制层。
-- `components`：组合缩写的解析结果，例如 `["CO2", "Et"]`。
-- `source`：来自 Ketcher、ChemCanvas 或 Chemcore 自定义确认。
-
-## 第一阶段末端清单
-
-第一阶段支持 Ketcher `fg.sdf` 中的 functional groups，再补入 ChemCanvas 已明确给出 SMILES 的小型 group。重复语义用 alias 归一，例如 `C2H5` 归到 `Et`，`Tos` 归到 `Ts`。其中能拆成组合片段的标签，不应只作为整词特例保存；整词表只作为兼容和校验来源。
-
-| 缩写 | 别名 | 名称 | 展开基团 | 外部锚点 | 来源 |
-| --- | --- | --- | --- | --- | --- |
-| `R` | - | R group / generic substituent | 泛基团，不展开 | label 本身 | ChemCanvas |
-| `Me` | `CH3` | methyl | `-CH3` | C | Ketcher |
-| `Et` | `C2H5` | ethyl | `-CH2CH3` | first C | Ketcher |
-| `Pr` | - | propyl | `-CH2CH2CH3` | first C | Ketcher |
-| `iPr` | - | isopropyl | `-CH(CH3)2` | central C | Ketcher |
-| `Bu` | - | butyl | `-CH2CH2CH2CH3` | first C | Ketcher |
-| `iBu` | - | isobutyl | `-CH2CH(CH3)2` | first C | Ketcher |
-| `sBu` | - | sec-butyl | `-CH(CH3)CH2CH3` | substituted C | Ketcher |
-| `tBu` | - | tert-butyl | `-C(CH3)3` | central C | Ketcher |
-| `Ph` | - | phenyl | `-C6H5` | ipso C | Ketcher + ChemCanvas |
-| `PhCOOH` | - | benzoic acid substituent | Ketcher structure | ring/template atom | Ketcher |
-| `Bn` | - | benzyl | `-CH2Ph` | benzylic C | Ketcher |
-| `Bz` | - | benzoyl | `-C(=O)Ph` | carbonyl C | Ketcher |
-| `Ac` | - | acetyl | `-C(=O)CH3` | carbonyl C | Ketcher |
-| `Piv` | - | pivaloyl | `-C(=O)tBu` | carbonyl C | Ketcher |
-| `CHO` | - | formyl | `-C(=O)H` | carbonyl C | ChemCanvas |
-| `CN` | - | cyano | `-C#N` | C | Ketcher + ChemCanvas |
-| `NCO` | - | isocyanato | `-N=C=O` | N | Ketcher |
-| `NCS` | - | isothiocyanato | `-N=C=S` | N | Ketcher |
-| `SCN` | - | thiocyanato | `-S-C#N` | S | Ketcher |
-| `NO2` | - | nitro | `-N(=O)O` | N | Ketcher + ChemCanvas |
-| `Ts` | `Tos` | tosyl | `-S(=O)2-p-Tol` | S | Ketcher |
-| `Bs` | - | brosyl | `-S(=O)2-p-BrPh` | S | ChemCanvas derived from `OBs` |
-| `Ms` | - | mesyl | `-S(=O)2CH3` | S | Ketcher |
-| `Tf` | - | triflyl | `-S(=O)2CF3` | S | Ketcher |
-| `SO3H` | - | sulfonic acid | `-S(=O)2OH` | S | Ketcher + ChemCanvas |
-| `SO2H` | - | sulfinic acid style label | `-S(=O)OH` or Ketcher structure | S | Ketcher |
-| `SO3` | - | sulfonate fragment | `-S(=O)3-` | S | Ketcher |
-| `SO4H` | - | sulfate monoacid | `-O/SO3H` per Ketcher structure | S/O per template | Ketcher |
-| `SO4` | - | sulfate fragment | Ketcher structure | S/O per template | Ketcher |
-| `PO2` | - | phosphinyl/phosphoryl fragment | Ketcher structure | P | Ketcher |
-| `PO3` | - | phosphate fragment | Ketcher structure | P | Ketcher |
-| `PO3H2` | - | phosphonic acid | `-P(=O)(OH)2` | P | Ketcher |
-| `PO4` | - | phosphate | Ketcher structure | P/O per template | Ketcher |
-| `PO4H2` | - | phosphate acid form | Ketcher structure | P/O per template | Ketcher |
-| `Boc` | - | tert-butyloxycarbonyl | `-C(=O)O-tBu` | carbonyl C | Ketcher |
-| `Cbz` | `Z` later maybe | benzyloxycarbonyl | `-C(=O)OCH2Ph` | carbonyl C | Ketcher |
-| `FMOC` | `Fmoc` | fluorenylmethoxycarbonyl | `-C(=O)OCH2-fluorenyl` | carbonyl C | Ketcher |
-| `TMS` | - | trimethylsilyl | `-Si(CH3)3` | Si | Ketcher |
-| `TBDMS` | - | tert-butyldimethylsilyl | `-Si(CH3)2tBu` | Si | Ketcher |
-| `TBDPS` | - | tert-butyldiphenylsilyl | `-Si(Ph)2tBu` | Si | Ketcher |
-| `CCl3` | - | trichloromethyl | `-CCl3` | C | Ketcher |
-| `CF3` | - | trifluoromethyl | `-CF3` | C | Ketcher |
-| `CPh3` | - | trityl | `-CPh3` | central C | Ketcher |
-| `Cp` | - | cyclopentadienyl | Ketcher structure | ring atom / haptic later | Ketcher |
-| `Cy` | - | cyclohexyl | `-C6H11` | ring C | Ketcher |
-| `Mes` | - | mesityl | 2,4,6-trimethylphenyl | ipso C | Ketcher |
-| `NHPh` | - | anilino | `-NHPh` | N | Ketcher |
-| `Indole` | - | indolyl / indole template | Ketcher structure | template atom | Ketcher |
-| `ster` | - | generic steric label | 不展开；保留标签 | label 本身 | Ketcher |
-
-## 组合缩写语法
-
-除了上面的末端表，Chemcore 应支持一组双连接或开放连接片段。它们本身不是完整末端基团；只有右侧继续接入末端片段，整个标签才算合法 functional group。
-
-| 片段 | 别名 | 结构含义 | 左侧外部连接 | 右侧继续连接 | 示例 |
-| --- | --- | --- | --- | --- | --- |
-| `O` | - | ether / oxy linker, `-O-` | O | O | `OMe`、`OEt`、`OPh`、`OAc`、`OTs` |
-| `CH2` | - | methylene linker, `-CH2-` | C | C | `CH2CH3`、`CH2CH2CH3` |
-| `NH` | - | imino linker, `-NH-` | N | N | `NHTs`、`NHMe`、两键桥接 `NH` |
-| `CO` | - | carbonyl linker, `-C(=O)-` | carbonyl C | carbonyl C | `COMe`、`COPh`、`COCl`、`CONH2` |
-| `CO2` | `COO` | ester/carboxyl linker, `-C(=O)O-` | carbonyl C | O | `CO2Et`、`COOEt`、`COOPh`、`COOCN` |
-| `OCO` | - | reverse ester linker, `-O-C(=O)-` | O | carbonyl C | `OCOEt`、`OCOPh` |
-| `SO` | - | sulfinyl linker, `-S(=O)-` | S | S | `SOMe`、两键桥接 `SO` |
-| `SO2` | - | sulfonyl linker, `-S(=O)2-` | S | S | `SO2Me`、`SO2Cl`、`SO2Ph` |
-
-组合解析的终止片段包括：
-
-- 常见烃基/芳基：`Me`、`Et`、`Pr`、`iPr`、`Bu`、`iBu`、`sBu`、`tBu`、`Ph`、`Bn`、`Cy`、`Mes`。
-- 公式链终止：`CH3`，以及一个或多个 `CH2` 后接 `CH3`，例如 `CH2CH2CH3`。
-- 原子或小端基：`H`、`F`、`Cl`、`Br`、`I`、`OH`、`NH2`、`CN`、`NO2`、`NCO`、`NCS`、`SCN`。
-- 保护基或复杂末端：`Ts`、`Ms`、`Tf`、`Boc`、`Cbz`、`Fmoc`、`TMS`、`TBDMS`、`TBDPS` 等。
-
-组合示例：
-
-```text
-CO2Et          -> CO2 + Et              -> -C(=O)OCH2CH3
-CO2Boc         -> CO2 + Boc             -> -C(=O)O-Boc
-COOEt          -> CO2 + Et              -> -C(=O)OCH2CH3
-COOCH2CH2CH3   -> CO2 + CH2 + CH2 + Me  -> -C(=O)OCH2CH2CH3
-COOSO2Me       -> CO2 + SO2 + Me        -> -C(=O)O-S(=O)2-CH3
-COOCN          -> CO2 + CN              -> -C(=O)O-C#N
-OCOEt          -> OCO + Et              -> -O-C(=O)CH2CH3
-OAc            -> O + Ac                -> -O-C(=O)CH3
-OBs            -> O + Bs                -> -O-S(=O)2-p-BrPh
-SO2Me          -> SO2 + Me              -> -S(=O)2CH3
-SO2Cl          -> SO2 + Cl              -> -S(=O)2Cl
+```json
+{
+  "kind": "functional-group",
+  "status": "recognized",
+  "label": "CO2Et",
+  "canonicalLabel": "CO2Et",
+  "groupKind": "valence-fragment",
+  "source": "valence-parser",
+  "formula": "-C(=O)OEt",
+  "anchorAtom": "C",
+  "components": [],
+  "expansion": {}
+}
 ```
 
-有效性规则：
+字段规则：
 
-- 末端缩写只在恰好 1 根外部键时合法；0 根键、2 根键或更多连接时，末端缩写不能作为 functional group 识别。
-- 在末端上下文里，开放片段不能独立成为完整 functional group。`CO`、`CO2`、`COO`、`OCO`、`SO2`、`CH2` 单独输入时只作为普通文本或未完成缩写处理。
-- 解析用最长匹配。`CO2Et` 必须先命中 `CO2`，不能拆成 `CO` + `2Et`；`OCOEt` 必须先尝试 `OCO`，再尝试 `O`。
-- `COO` 结构上归一到 `CO2`，但显示保留用户输入。`COOH` 可解析为 `COO + H`，canonical 可归到 `CO2H`。
-- 整词表中的 `CO2Et`、`CO2Me`、`CO2tBu`、`COCl`、`COBr`、`CONH2`、`OAc`、`OTs` 等应能通过组合语法得到同一结构；如果整词模板和组合模板冲突，以来源模板为测试基准，修正规则而不是保留两个不同结果。
-- 整词命中只确认“这是合法缩写”，不表示跳过组合解析。像 `CO2Et` 这种已在 Ketcher 表里的词，也应保存 `components = ["CO2", "Et"]`。
-- 组合解析不做任意化学式解析。第一阶段只支持本节列出的片段、终止片段和重复 `CH2` 链。
+- `label` 保留用户输入。
+- `canonicalLabel` 保存归一化标签，例如 `COOH -> CO2H`、`OCH3 -> OMe`、
+  `Tos -> Ts`、`FMOC -> Fmoc`、`t-Bu -> tBu`。
+- `groupKind` 当前取值为 `terminal-fragment`、`valence-fragment`、
+  `bridge-fragment` 或 `chemical-text`。
+- `source: "valence-parser"` 只在 `valence-fragment` 上写入。
+- `chemical-text` 不生成 `expansion`。
+- `expansion.schema` 固定为 `chemcore.functionalGroupExpansion.v1`。
+- `expansion.connectionKind` 当前为 `terminal` 或 `bridge`。
+- `expansion.atoms[].id` 是 expansion 内部局部 id，不污染主分子图节点 id。
+- `expansion.atoms[]` 可携带 `numHydrogens`、`label` 和 `formalCharge`。
+- `expansion.attachments` 用 `external` 表示末端外部连接点，用 `left` /
+  `right` 表示桥接连接点。
+- `complete: false` 表示标签已合法识别，但 expansion 中有不完整或占位拓扑。
 
-## 两键桥接标签
+invalid metadata 使用：
 
-识别必须带连接数上下文。上面的末端缩写只适用于恰好 1 根外部键；如果同一个节点已经连了 2 根键，末端缩写要标红。例如 `Boc`、`Ts`、`CN`、`NO2`、`CO2Et` 在两键节点上都不是合法桥接标签。
-
-桥接缩写只在恰好 2 根外部键时合法。两键节点允许单独使用开放片段作为桥接标签：
-
-```text
-CO      -> -C(=O)-
-CO2/COO -> -C(=O)O-
-OCO     -> -O-C(=O)-
-NH      -> -NH-
-SO      -> -S(=O)-
-SO2     -> -S(=O)2-
-CH2     -> -CH2-
+```json
+{
+  "kind": "functional-label",
+  "status": "invalid",
+  "label": "NotAGroup"
+}
 ```
 
-两键节点还允许 `N` 加一个末端取代基，表示取代氮桥：
+## 命名末端模板
+
+以下命名模板在 1 根外部键时可作为末端取代基识别。外部键连接到
+`anchorAtom`。其中部分模板有完整拓扑展开；尚未完整展开的复杂模板仍保留
+合法识别 metadata，并在 expansion 中标记 `complete: false`。
+
+| canonical | aliases | 名称 | formula / structure | anchorAtom |
+| --- | --- | --- | --- | --- |
+| `R` | `R'`, `R''` | generic substituent | `R` | `R` |
+| `Ar` | - | generic aromatic substituent | `Ar` | `Ar` |
+| `Me` | `CH3` | methyl | `-CH3` | `C` |
+| `Et` | `C2H5` | ethyl | `-CH2CH3` | `C` |
+| `Pr` | - | propyl | `-CH2CH2CH3` | `C` |
+| `nPr` | `n-Pr` | n-propyl | `-CH2CH2CH3` | `C` |
+| `iPr` | `i-Pr` | isopropyl | `-CH(CH3)2` | `C` |
+| `Bu` | - | butyl | `-CH2CH2CH2CH3` | `C` |
+| `nBu` | `n-Bu` | n-butyl | `-CH2CH2CH2CH3` | `C` |
+| `iBu` | `i-Bu` | isobutyl | `-CH2CH(CH3)2` | `C` |
+| `sBu` | `s-Bu` | sec-butyl | `-CH(CH3)CH2CH3` | `C` |
+| `tBu` | `t-Bu` | tert-butyl | `-C(CH3)3` | `C` |
+| `Ph` | - | phenyl | `-C6H5` | `C` |
+| `PhCOOH` | - | benzoic acid substituent | `PhCOOH` | `C` |
+| `Bn` | - | benzyl | `-CH2Ph` | `C` |
+| `Bz` | - | benzoyl | `-C(=O)Ph` | `C` |
+| `Ac` | - | acetyl | `-C(=O)CH3` | `C` |
+| `Piv` | - | pivaloyl | `-C(=O)tBu` | `C` |
+| `CHO` | - | formyl | `-C(=O)H` | `C` |
+| `CN` | - | cyano | `-C#N` | `C` |
+| `NCO` | - | isocyanato | `-N=C=O` | `N` |
+| `NCS` | - | isothiocyanato | `-N=C=S` | `N` |
+| `SCN` | - | thiocyanato | `-S-C#N` | `S` |
+| `NO2` | - | nitro | `-N(=O)O` | `N` |
+| `N3` | - | azido | `-N3` | `N` |
+| `H` | - | hydrogen terminator | `-H` | `H` |
+| `F` | - | fluoro | `-F` | `F` |
+| `Cl` | - | chloro | `-Cl` | `Cl` |
+| `Br` | - | bromo | `-Br` | `Br` |
+| `I` | - | iodo | `-I` | `I` |
+| `OH` | - | hydroxy | `-OH` | `O` |
+| `NH2` | - | amino | `-NH2` | `N` |
+| `Ts` | `Tos` | tosyl | `-S(=O)2-p-Tol` | `S` |
+| `Bs` | - | brosyl | `-S(=O)2-p-BrPh` | `S` |
+| `Ms` | - | mesyl | `-S(=O)2CH3` | `S` |
+| `Tf` | - | triflyl | `-S(=O)2CF3` | `S` |
+| `SO3H` | - | sulfonic acid | `-S(=O)2OH` | `S` |
+| `SO2H` | - | sulfinic acid style label | `-S(=O)OH` | `S` |
+| `SO3` | - | sulfonate fragment | `-S(=O)3-` | `S` |
+| `SO4` | - | sulfate fragment | `SO4` | `S` |
+| `SO4H` | - | sulfate monoacid | `SO4H` | `O` |
+| `PO2` | - | phosphoryl fragment | `PO2` | `P` |
+| `PO3` | - | phosphate fragment | `PO3` | `P` |
+| `PO3H2` | - | phosphonic acid | `-P(=O)(OH)2` | `P` |
+| `PO4` | - | phosphate | `PO4` | `P` |
+| `PO4H2` | - | phosphate acid form | `PO4H2` | `O` |
+| `Boc` | - | tert-butyloxycarbonyl | `-C(=O)O-tBu` | `C` |
+| `Cbz` | - | benzyloxycarbonyl | `-C(=O)OCH2Ph` | `C` |
+| `Fmoc` | `FMOC` | fluorenylmethoxycarbonyl | `-C(=O)OCH2-fluorenyl` | `C` |
+| `TMS` | - | trimethylsilyl | `-Si(CH3)3` | `Si` |
+| `TBDMS` | - | tert-butyldimethylsilyl | `-Si(CH3)2tBu` | `Si` |
+| `TBDPS` | - | tert-butyldiphenylsilyl | `-Si(Ph)2tBu` | `Si` |
+| `CCl3` | - | trichloromethyl | `-CCl3` | `C` |
+| `CF3` | - | trifluoromethyl | `-CF3` | `C` |
+| `CPh3` | - | trityl | `-CPh3` | `C` |
+| `Cp` | - | cyclopentadienyl | `Cp` | `C` |
+| `Cy` | - | cyclohexyl | `-C6H11` | `C` |
+| `Mes` | - | mesityl | `2,4,6-trimethylphenyl` | `C` |
+| `NHPh` | - | anilino | `-NHPh` | `N` |
+| `Indole` | - | indolyl / indole template | `Indole` | `C` |
+| `ster` | - | generic steric label | `ster` | `C` |
+
+## 价键驱动 formula-like 标签
+
+1 根外部键时，内核先尝试价键驱动 parser。parser 将标签 token 化为元素、
+数量、括号组和一价命名模板，再从左到右分配键级，生成
+`groupKind: "valence-fragment"`。
+
+典型结果：
+
+```text
+CH3                  -> -CH3
+CN                   -> -C#N
+CF3                  -> -CF3
+COCl                 -> -C(=O)Cl
+COBr                 -> -C(=O)Br
+CONH2                -> -C(=O)NH2
+COOH                 -> canonical CO2H, formula -C(=O)OH
+CO2Et                -> -C(=O)OEt
+CO2Boc               -> -C(=O)OBoc
+COOSO2Me             -> -C(=O)OS(=O)2Me
+CH2COOCH2SO2NHCl     -> -CH2C(=O)OCH2S(=O)2NHCl
+B(OH)2               -> boronic-acid style terminal fragment
+```
+
+命名模板也能作为价键 parser 的一价终止 token 使用。例如 `CH2Boc` 中，
+`Boc` 消耗前一原子的一个连接位，内部拓扑仍使用 `Boc` 模板展开。
+
+当前 tokenizer 支持：
+
+- 标准大小写元素符号，例如 `Cl`、`Si`、`Na`。
+- 元素后的数字重复，例如 `H3`、`O2`。
+- 括号组及组后的重复数，重复数必须为 `1..=32`。
+- 一价命名模板作为终止 token。
+
+当前价键例外：
+
+- 碱金属按 1 价，碱土金属按 2 价。
+- 过渡金属和若干金属标签作为 unconstrained valence 处理，主要用于
+  chemical text 校验。
+- `B` 在 `BH3` 这类右侧氢补足场景可记录 `formalCharge: -1`。
+- `N` 在 `NH3` 这类右侧氢补足场景可记录 `formalCharge: +1`。
+- `O` 在 `OH2` / `OH3` 这类右侧氢补足场景可记录 `formalCharge: +1` /
+  `+2`。
+- `S` 根据局部书写约定优先识别 `SO2` 为两个 `S=O`，再考虑其他可行价态。
+
+以下模式当前不放宽：
+
+```text
+BCl3
+NMe4
+OCl3
+OCl4
+```
+
+## 桥接标签
+
+2 根外部键时，以下开放片段可单独作为桥接标签：
+
+| label | aliases | formula | left / right attachment |
+| --- | --- | --- | --- |
+| `CO2` | `COO` | `-C(=O)O-` | `C` / `O` |
+| `OCO` | - | `-O-C(=O)-` | `O` / `C` |
+| `SO2` | - | `-S(=O)2-` | `S` / `S` |
+| `SO` | - | `-S(=O)-` | `S` / `S` |
+| `CH2` | - | `-CH2-` | `C` / `C` |
+| `NH` | - | `-NH-` | `N` / `N` |
+| `CO` | - | `-C(=O)-` | `C` / `C` |
+| `O` | - | `-O-` | `O` / `O` |
+
+此外，`N` 加一价末端取代基可作为取代氮桥：
 
 ```text
 NMe  -> -N(Me)-
 NTs  -> -N(Ts)-
-NTos -> -N(Ts)-
+NTos -> canonical NTs
 NCl  -> -N(Cl)-
 ```
 
-`N` 自身仍按元素标签处理，不进入缩写识别；如果两根单键连接，隐式氢规则可以把显示更新为 `NH`。
+两键上下文不接受普通末端模板，例如 `Boc`、`CN`、`NO2`、`CO2Et`。
 
-## Ketcher 完整 functional group 列表
+## 标签显示与反转
 
-`fg.sdf` 当前包含 62 个 functional groups：
+结构标签的显示不是简单逐字符反转。内核会先把显示文本切成化学上有意义的
+组，再按连接方向决定组顺序。
 
-```text
-Ac, Bn, Boc, Bu, Bz, Cbz, C2H5, CCl3, CF3, CN, CO2Et, CO2H,
-CO2Me, CONH2, CO2Pr, CO2tBu, Cp, CPh3, Cy, Et, FMOC, iBu,
-Indole, iPr, Me, Mes, Ms, NCO, NCS, NHPh, NO2, OAc, OCF3,
-OCN, OEt, OMe, Ph, PhCOOH, Piv, PO2, PO3, PO3H2, PO4,
-PO4H2, Pr, sBu, SCN, SO2, SO2Cl, SO2H, SO3, SO3H, SO4,
-SO4H, ster, TBDMS, TBDPS, tBu, Tf, TMS, Tos, Ts
-```
+分组规则：
 
-注意 `C2H5` 与 `Et` 语义重复；`Tos` 与 `Ts` 语义重复；`FMOC` 应接受用户常见输入 `Fmoc`，内部 canonical label 可统一成 `Fmoc` 或保持 Ketcher 原样 `FMOC`，需要 UI 决策。
-（作者评：统一用Et，但可以识别C2H5.其余也一样，用Ts,Fmoc）
+- 含小写字母的命名缩写作为一组，例如 `Ph`、`Boc`、`iPr`、`tBu`。
+- `R`、`TMS`、`TBDMS`、`TBDPS` 作为一整个字母组。
+- 分组后的数字后缀保留在对应组内。
+- `TMS` 的连接点是 `Si`，只允许一个外部连接点。
 
-## ChemCanvas 小型 group 列表
-
-ChemCanvas 工具栏直接列出的 group：
+因此右侧连接时：
 
 ```text
-R, Ph, NO2, CN, CHO, COOH, CONH2, COCH3, COCl, COBr,
-OCH3, OEt, OAc, SO3H, OTs, OBs
+OTMS -> TMSO
 ```
 
-其中 `group_smiles_dict` 给出明确结构：
+而不是逐字符变成 `SMTO`。
 
-```text
-CHO      C=O
-CN       C#N
-COBr     C(=O)Br
-COCH3    C(=O)C
-COCl     C(=O)Cl
-CONH2    C(=O)N
-COOH     C(O=)O
-NO2      N(=O)O
-OAc      OC(=O)C
-OBs      OS(=O)(=O)C1=CC=C(Br)C=C1
-OCH3     OC
-OEt      OCC
-OTs      OS(=O)(=O)C1=CC=C(C)C=C1
-Ph       C1=CC=CC=C1
-SO3H     S(=O)(=O)O
-```
+`iPr`、`nBu`、`tBu` 这类以小写字母开头且后面包含大写字母的末端模板，
+使用 whole-label layout：选择和锚点把整个标签视作一个不可拆的结构标签。
 
-ChemCanvas 的 SMILES 没有显式 attachment atom 字段；对 Chemcore 来说应按“字符串最左侧原子为外部连接锚点”解释，除非后续用专门模板覆盖。
+## 与元素隐式氢的关系
 
-## 不进入端点缩写的 Ketcher 数据
-
-Ketcher Abbreviation Lookup 还会搜索：
-
-- 元素周期表所有元素。
-- `library.sdf` 模板库：糖、环、杂环、氨基酸、核苷酸、冠醚、金属有机模板等。
-- `salts-and-solvents.sdf`：溶剂、盐、缓冲盐等，例如 `DMF`、`DMSO`、`THF`、`DCM`、`NaCl`。
-
-这些不应在第一阶段自动作为端点缩写展开。理由：
-
-- 模板库很多是多锚点或整分子模板，不是单一端点基团。
-- 盐和溶剂通常是独立对象，不是从一个原子拖出的 substituent。
-- 元素已经由元素标签系统处理，不应和 functional group 缩写混在同一个解析结果里。
-
-后续如果需要，可把这些接入“模板搜索/插入”而不是“端点缩写识别”。
-
-## 识别规则
-
-初始规则建议：
-
-- 匹配大小写敏感，但为常见写法提供 alias：
-  - `Fmoc` -> `FMOC`
-  - `Tos` -> `Ts`
-  - `OCH3` -> `OMe`
-  - `COOH` -> `CO2H`
-  - `C2H5` -> `Et`
-- 优先级：
-  1. 元素符号精确匹配。
-  2. functional group canonical label 精确匹配，用于确认合法性和加载来源模板。
-  3. alias 精确匹配，把用户输入归一到 canonical。
-  4. 组合缩写解析；如果 canonical 或 alias 命中的标签可组合，仍记录 `components`。
-  5. 普通文本或未知 superatom，不展开。
-- 不做前缀匹配。`B` 不能误识别成 `Boc`，`C` 不能误识别成 `CN`。
-- 不把带电荷、同位素、点号或括号表达式纳入第一阶段，例如 `NH4+`、`DMSO·H2O`。
-
-## 展开行为
-
-当用户输入合法 functional group 并确认：
-
-- 文档中保留 collapsed label，显示用户输入的缩写。
-- 同时在节点和 label 的 `meta.labelRecognition` 中保存识别结果，包括 `status`、`canonicalLabel`、`components`、`formula`、`anchorAtom` 和 `expansion`。
-- `expansion` 使用 `chemcore.functionalGroupExpansion.v1`，只表达拓扑语义，不包含 label 坐标、glyph polygon、box 或字体样式。
-- `expansion.atoms[].id` 是局部 id，只在 expansion 内有效，不污染主分子图的 `nodes[].id`。
-- `expansion.attachments` 明确外部连接点：末端基团使用 `external`，两键桥接使用 `left`/`right`。
-- `expansion.complete == false` 表示该标签已合法识别，但当前只有局部或占位拓扑；读取方仍可使用原始 label 和 `components`。
-- 外部键连接到 `anchorAtom`。
-- 如果用户继续从缩写标签拖键，锚点应落在 functional group 的 attachment atom，而不是标签文本中心。
-- 用户执行 expand 时，把 collapsed label 替换成 expansion fragment。
-- 用户执行 collapse 时，如果子图完整匹配某个定义，可以折回缩写。
-
-第一阶段实现 collapsed label + metadata + expansion + anchor；真正把主图替换为展开子图的 expand/collapse 命令可作为下一步。
+缩写识别发生在简单元素隐式氢之前。命中 functional group 后，不再按元素串
+逐字符加氢。
 
 示例：
 
-```json
-{
-  "status": "recognized",
-  "label": "CO2Et",
-  "canonicalLabel": "CO2Et",
-  "groupKind": "composite-fragment",
-  "components": [
-    { "label": "CO2" },
-    { "label": "Et" }
-  ],
-  "expansion": {
-    "schema": "chemcore.functionalGroupExpansion.v1",
-    "connectionKind": "terminal",
-    "complete": true,
-    "atoms": [
-      { "id": "c1", "element": "C", "numHydrogens": 0 },
-      { "id": "o1", "element": "O", "numHydrogens": 0 },
-      { "id": "o2", "element": "O", "numHydrogens": 0 },
-      { "id": "c2", "element": "C", "numHydrogens": 2 },
-      { "id": "c3", "element": "C", "numHydrogens": 3 }
-    ],
-    "bonds": [
-      { "begin": "c1", "end": "o1", "order": 2 },
-      { "begin": "c1", "end": "o2", "order": 1 },
-      { "begin": "o2", "end": "c2", "order": 1 },
-      { "begin": "c2", "end": "c3", "order": 1 }
-    ],
-    "attachments": [
-      { "role": "external", "atomId": "c1" }
-    ]
-  }
-}
-```
+- `NO2` 是 nitro group，不是 `N` 加两个普通 `O` 字符。
+- `CN` 是 cyano group，不是自由文本。
+- `TMS` 是一价 trimethylsilyl group，连接点是 `Si`。
+- `CO2Et`、`COOSO2Me`、`CH2CH2CH3` 由价键 parser 解释。
 
-编辑已有端点标签时，不管提交后的标签因为连接方向显示为靠左、上下堆叠或反向，编辑中的文本框都应从锚点按普通左到右文本框展开；提交后再按当前连接方向重新排版。
-
-当用户输入不能识别的端点标签：
-
-- 仍保留用户输入的文本，不静默改写。
-- `meta.labelRecognition.status` 标记为 `invalid`。
-- 渲染时显示红色矩形文本框，使用 label bbox，而不是 glyph 裁剪轮廓。
-
-## 和隐式氢的关系
-
-functional group 缩写不走元素隐式氢规则。比如：
-
-- `NO2` 是 nitro group，不是 N 原子加两个 O 文本。
-- `CN` 是 cyano group，不是 C/N 两个普通字符。
-- `Boc`、`Ts`、`Fmoc` 是保护基/取代基，不能按元素串计算隐式氢。
-- `COOEt`、`COOSO2Me`、`CH2CH2CH3` 先按组合缩写解析，不按 C/O/S/H 的元素串逐字加氢。
-
-因此缩写识别应该发生在简单元素隐式氢之前；一旦命中 functional group，就停止元素加氢。
+普通元素标签和自动加氢规则见 `docs/implicit-hydrogen-rules.zh-CN.md`。
+更完整的价键 parser 规则见 `docs/valence-label-recognition-rules.zh-CN.md`。

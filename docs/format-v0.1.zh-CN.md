@@ -157,8 +157,9 @@
   仍然可以保留逐 token 的样式，比如 `SO2` 里的下标 `2`
 - 归一化后的显示 runs 应当只保留化学上有意义的行内格式，例如上下标；
   不应直接把 CDXML `face` 这类源格式里的字重/字形样式原样当作结构标签显示规则
-- 但为了保真，原始 source runs 仍然可以保留；它们应放在
-  `meta.import.<source>` 下，而不是和归一化显示字段并列
+- 但为了保真，结构标签的原始 source runs 仍然可以保留在
+  `label.meta.sourceRuns`；源格式专属的原始字段仍应放在
+  `meta.import.<source>` 下
 
 这类内容应当保留在分子资源或分子专属 payload 里，而不是建模成独立的文档文本框。
 
@@ -424,14 +425,17 @@ text 对象表示带定位信息的富文本内容。
     "labelRecognition": {
       "kind": "functional-group",
       "status": "recognized",
+      "source": "valence-parser",
       "label": "CO2Et",
       "canonicalLabel": "CO2Et",
-      "groupKind": "composite-fragment",
-      "formula": "-C(=O)OCH2CH3",
+      "groupKind": "valence-fragment",
+      "formula": "-C(=O)OEt",
       "anchorAtom": "C",
       "components": [
-        { "label": "CO2", "kind": "linker" },
-        { "label": "Et", "kind": "terminal" }
+        { "label": "C", "kind": "atom" },
+        { "label": "O", "kind": "atom", "parentIndex": 0, "bondOrderToParent": 2 },
+        { "label": "O", "kind": "atom", "parentIndex": 0, "bondOrderToParent": 1 },
+        { "label": "Et", "kind": "terminal", "parentIndex": 2, "bondOrderToParent": 1 }
       ],
       "expansion": {
         "schema": "chemcore.functionalGroupExpansion.v1",
@@ -462,6 +466,10 @@ text 对象表示带定位信息的富文本内容。
 `expansion` 是附加语义层，不替换主分子图。`atoms[].id` 是局部 id，只在
 该 expansion 内有效；两键桥接标签使用 `attachments` 的 `left` 和 `right`
 角色。`complete: false` 表示该标签合法识别，但当前只保存了局部或占位拓扑。
+`atoms[]` 可以携带 `formalCharge`，用于 `BH3`、`NH3`、`OH2`、`OH3`
+这类价键 parser 识别出的形式电荷例外。`groupKind` 当前可取
+`terminal-fragment`、`valence-fragment`、`bridge-fragment` 或
+`chemical-text`；其中 `chemical-text` 不生成 `expansion`。
 
 键示例：
 
@@ -474,7 +482,7 @@ text 对象表示带定位信息的富文本内容。
   "strokeWidth": 0.6,
   "boldWidth": 2.0,
   "wedgeWidth": 3.0,
-  "labelClipMargin": 0.95,
+  "labelClipMargin": 0.8,
   "hashSpacing": 2.5,
   "bondSpacing": 18.0,
   "marginWidth": 1.6,
@@ -508,9 +516,12 @@ text 对象表示带定位信息的富文本内容。
 - `anchor`：label 内部连接锚点，通常是 `start | center | end`
 - `runs`：归一化显示 runs
 - `lineRuns`：可选，逐渲染行的归一化 runs
+- `lines`：可选，逐渲染行文本，通常与 `lineRuns` 成对出现
 - `glyphPolygons`：可选，局部坐标系下的逐字形 optical polygon；存在时，
   renderer 可优先用它做 label knockout 和 bond clipping，而不是只用粗颗粒
   的 `box`
+- `meta.sourceRuns`：可选，结构标签编辑前的源 runs；用于重新打开编辑器和
+  重新生成方向相关显示文本
 
 键字段：
 
@@ -522,11 +533,18 @@ text 对象表示带定位信息的富文本内容。
 - `hashSpacing`：hash / hashed wedge 模板间距，单位为 pt
 - `bondSpacing`：双键间距百分比，对应 ChemDraw `BondSpacing`
 - `marginWidth`：非端点键键交叉时，上层键周围的白边宽度，单位为 pt；只用于键与键的遮盖关系
-- `stereo.kind`：`solid-wedge | hashed-wedge`
+- `lineStyles`：多线键每条线的线型，字段为 `main | left | right`，值为
+  `solid | dashed | wavy`
+- `lineWeights`：多线键每条线的粗细，字段为 `main | left | right`，值为
+  `normal | bold`
+- `stereo.kind`：`solid-wedge | hashed-wedge | hollow-wedge`
 - `stereo.wideEnd`：`begin | end`
 - `double.placement`：`left | right | center`，其中 `left` / `right` 按
   `begin -> end` 的有向键定义；在页面坐标 y 向下时，`left` 对应键向量
   左法线 `(-dy, dx)`，`right` 对应右法线 `(dy, -dx)`
+- `double.centerExitSide`：可选，用于保存中心双键在分叉端的出口侧偏好
+- `double.frozen`：可选布尔值，表示双键位置已经由用户或导入数据锁定，不再
+  自动重新推断
 
 当前内置绘图模板的关键值：
 
@@ -535,8 +553,8 @@ text 对象表示带定位信息的富文本内容。
 | `strokeWidth` | `1.0` | `0.6` |
 | `boldWidth` | `4.0` | `2.0` |
 | `wedgeWidth` | `6.0` | `3.0` |
-| `labelClipMargin` | `1.35` | `0.95` |
-| `hashSpacing` | `2.9` | `2.5` |
+| `labelClipMargin` | `1.2` | `0.8` |
+| `hashSpacing` | `2.7` | `2.5` |
 | `bondSpacing` | `12.0` | `18.0` |
 | `marginWidth` | `2.0` | `1.6` |
 
@@ -594,6 +612,8 @@ line 对象表示页面上的线性笔画几何。
 - `tail`：`none | start | end | both`
 - `arrowHead`：可选箭头装饰数据；省略或为 `null` 就是普通线
 - `curve`：可选，bezier 或弧线等曲线元数据
+- `arrowGeometry`：可选，曲线箭头的圆弧参考几何，字段为 `center`、
+  `majorAxisEnd`、`minorAxisEnd`
 
 `arrowHead` 的尺寸字段使用 ChemDraw 对应的相对线宽语义。渲染时实际尺寸为字段值乘以当前线宽；导出 CDXML 时再乘以 `100` 写回原始属性：
 
@@ -602,6 +622,11 @@ line 对象表示页面上的线性笔画几何。
 - `width` 对应 CDXML `ArrowheadWidth / 100`，实际宽端半宽参数为 `width * strokeWidth`。对实心箭头，ChemDraw 将该值作为宽端半宽参数，渲染轮廓使用约 `width * strokeWidth + 0.05` 的外侧半宽，并用该半宽的 `7/16` 作为内侧贝塞尔控制点偏移；对开放/空心箭头，该值作为头部相对箭杆半宽的额外宽度参数
 - `curve` 对应 CDXML `AngularSize`，负值和正值分别表示两种弯曲方向
 - `noGo` 对应 CDXML `NoGo`，可取 `none | cross | hash`
+- `kind` 当前可取 `solid | hollow | open | equilibrium | unequal-equilibrium`
+- `bold` 表示箭头线条使用粗线样式
+- `shaftSpacing` 用于平衡箭头双箭杆间距
+- `equilibriumRatio` 用于不等长平衡箭头的长短比例，且只在
+  `kind: "unequal-equilibrium"` 时保留
 - `kind` 为 `hollow` 或 `open` 时使用空心/开口箭头自己的尺寸模板，不复用实心箭头模板
 
 line 的外观主要放在样式里，包括：

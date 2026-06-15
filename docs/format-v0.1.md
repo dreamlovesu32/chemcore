@@ -162,8 +162,9 @@ Examples include `CN`, `Ph`, `N3`, `t-Bu`, `HN`, or stacked hetero labels such a
 - normalized display runs should preserve chemistry-relevant inline formatting
   such as subscript and superscript, but should not directly inherit
   source-format text styling like CDXML `face` weight/style flags
-- raw source runs may still be preserved for import fidelity, but they belong
-  under `meta.import.<source>`, not beside normalized display fields
+- structure-label source runs may still be preserved for import fidelity in
+  `label.meta.sourceRuns`; raw source-format fields still belong under
+  `meta.import.<source>`
 
 They should live inside molecule resources or molecule-specific payloads, not be
 modeled as standalone document text boxes.
@@ -440,14 +441,17 @@ consume `expansion`:
     "labelRecognition": {
       "kind": "functional-group",
       "status": "recognized",
+      "source": "valence-parser",
       "label": "CO2Et",
       "canonicalLabel": "CO2Et",
-      "groupKind": "composite-fragment",
-      "formula": "-C(=O)OCH2CH3",
+      "groupKind": "valence-fragment",
+      "formula": "-C(=O)OEt",
       "anchorAtom": "C",
       "components": [
-        { "label": "CO2", "kind": "linker" },
-        { "label": "Et", "kind": "terminal" }
+        { "label": "C", "kind": "atom" },
+        { "label": "O", "kind": "atom", "parentIndex": 0, "bondOrderToParent": 2 },
+        { "label": "O", "kind": "atom", "parentIndex": 0, "bondOrderToParent": 1 },
+        { "label": "Et", "kind": "terminal", "parentIndex": 2, "bondOrderToParent": 1 }
       ],
       "expansion": {
         "schema": "chemcore.functionalGroupExpansion.v1",
@@ -479,6 +483,10 @@ consume `expansion`:
 molecule graph. Its atom ids are local to the expansion. Bridge labels use
 `left` and `right` attachment roles. `complete: false` means the label was
 recognized, but the current expansion contains a partial or opaque component.
+Atoms may also carry `formalCharge` for valence-parser exceptions such as
+`BH3`, `NH3`, `OH2`, and `OH3`. Current `groupKind` values are
+`terminal-fragment`, `valence-fragment`, `bridge-fragment`, and
+`chemical-text`; `chemical-text` carries no `expansion`.
 
 Example bonds:
 
@@ -491,7 +499,7 @@ Example bonds:
   "strokeWidth": 0.6,
   "boldWidth": 2.0,
   "wedgeWidth": 3.0,
-  "labelClipMargin": 0.95,
+  "labelClipMargin": 0.8,
   "hashSpacing": 2.5,
   "bondSpacing": 18.0,
   "marginWidth": 1.6,
@@ -526,9 +534,12 @@ Molecule label fields:
 - `anchor`: connection anchor inside the label, usually `start | center | end`
 - `runs`: normalized display runs
 - `lineRuns`: optional normalized runs per rendered line
+- `lines`: optional rendered-line text, usually paired with `lineRuns`
 - `glyphPolygons`: optional per-glyph optical polygons in local coordinates; when
   present, renderers may use them for label knockout and bond clipping instead of
   the coarse label `box`
+- `meta.sourceRuns`: optional source runs for reopening the structure-label editor
+  and regenerating direction-dependent display text
 
 Bond fields:
 
@@ -541,9 +552,17 @@ Bond fields:
 - `bondSpacing`: double-bond spacing percentage, matching CDXML `BondSpacing`
 - `marginWidth`: white margin width around the overpassing bond when two bonds
   cross without sharing an endpoint; this applies only to bond-vs-bond crossing
-- `stereo.kind`: `solid-wedge | hashed-wedge`
+- `lineStyles`: line patterns for `main | left | right`, each one of
+  `solid | dashed | wavy`
+- `lineWeights`: line weights for `main | left | right`, each one of
+  `normal | bold`
+- `stereo.kind`: `solid-wedge | hashed-wedge | hollow-wedge`
 - `stereo.wideEnd`: `begin | end`
 - `double.placement`: `left | right | center`
+- `double.centerExitSide`: optional side preference for center double bonds at
+  branched endpoints
+- `double.frozen`: optional boolean that prevents automatic double-bond side
+  inference from replacing an imported or user-chosen placement
 
 Current built-in template values:
 
@@ -552,8 +571,8 @@ Current built-in template values:
 | `strokeWidth` | `1.0` | `0.6` |
 | `boldWidth` | `4.0` | `2.0` |
 | `wedgeWidth` | `6.0` | `3.0` |
-| `labelClipMargin` | `1.35` | `0.95` |
-| `hashSpacing` | `2.9` | `2.5` |
+| `labelClipMargin` | `1.2` | `0.8` |
+| `hashSpacing` | `2.7` | `2.5` |
 | `bondSpacing` | `12.0` | `18.0` |
 | `marginWidth` | `2.0` | `1.6` |
 
@@ -611,6 +630,8 @@ Example:
 - `tail`: `none | start | end | both`
 - `arrowHead`: optional arrow decoration data; omitted or `null` means plain line
 - `curve`: optional curve metadata for bezier or arc-like lines
+- `arrowGeometry`: optional circular-arc reference geometry for curved arrows,
+  with `center`, `majorAxisEnd`, and `minorAxisEnd`
 
 `arrowHead` size fields follow ChemDraw's stroke-width-relative meanings. At render time the real size is the stored value multiplied by the current stroke width; CDXML export writes the stored value back multiplied by `100`:
 
@@ -619,6 +640,10 @@ Example:
 - `width` maps to CDXML `ArrowheadWidth / 100`; the rendered broad-end half-width parameter is `width * strokeWidth`. For solid arrowheads, ChemDraw treats this as the broad-end half-width parameter: the rendered outline uses an outer half-width of about `width * strokeWidth + 0.05` and an inner Bezier control offset of `7/16` of that half-width. For open and hollow arrowheads, this value is the extra head-width parameter relative to the shaft half-width
 - `curve` maps to CDXML `AngularSize`; negative and positive values represent opposite bend directions
 - `noGo` maps to CDXML `NoGo` and may be `none | cross | hash`
+- `kind` may be `solid | hollow | open | equilibrium | unequal-equilibrium`
+- `bold` marks a bold arrow stroke
+- `shaftSpacing` stores the spacing between equilibrium-arrow shafts
+- `equilibriumRatio` stores the long/short ratio for `kind: "unequal-equilibrium"` and is removed for equal equilibrium arrows
 - `hollow` and `open` arrow kinds use their own size template instead of reusing the solid arrow template
 
 Line appearance belongs primarily in styles, including:
