@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML
+  CreationProgram="ChemCore synthetic fixture"
+  Name="synthetic-stacking.cdxml"
+  BondLength="18"
+  LineWidth="0.6"
+  BoldWidth="2"
+  HashSpacing="2.5"
+  BondSpacing="18"
+  MarginWidth="2"
+  LabelFont="3"
+  LabelSize="10"
+>
+  <colortable>
+    <color r="1" g="1" b="1"/>
+    <color r="0" g="0" b="0"/>
+    <color r="1" g="0" b="0"/>
+  </colortable>
+  <fonttable>
+    <font id="3" charset="iso-8859-1" name="Arial"/>
+  </fonttable>
+  <page id="1" BoundingBox="0 0 140 90">
+    <fragment id="10" BoundingBox="18 34 86 58" Z="5">
+      <n id="11" p="30 45" Z="5" NodeType="GenericNickname">
+        <t p="30 48" BoundingBox="18 36 32 49" LabelJustification="Right">
+          <s font="3" size="10" color="0">Ar</s>
+        </t>
+      </n>
+      <n id="12" p="58 45" Z="10"/>
+      <n id="13" p="86 45" Z="20" Element="7" NumHydrogens="0">
+        <t p="88 48" BoundingBox="86 36 98 49">
+          <s font="3" size="10" color="0">N</s>
+        </t>
+      </n>
+      <b id="14" B="11" E="12" Order="1" Display="WedgeBegin" Z="15"/>
+      <b id="15" B="12" E="13" Order="1" Display="Dash" Z="25"/>
+    </fragment>
+    <graphic
+      id="20"
+      BoundingBox="38 45 26 45"
+      Z="8"
+      GraphicType="Orbital"
+      OvalType="Circle Shaded"
+      OrbitalType="sShaded"
+      Center3D="26 45 0"
+      MajorAxisEnd3D="38 45 0"
+      MinorAxisEnd3D="26 57 0"
+    />
+    <graphic
+      id="30"
+      BoundingBox="104 26 122 66"
+      Z="30"
+      GraphicType="Bracket"
+      BracketType="Square"
+    />
+    <graphic
+      id="31"
+      BoundingBox="110 38 110 50"
+      Z="31"
+      color="2"
+      GraphicType="Symbol"
+      SymbolType="Electron"
+    />
+  </page>
+</CDXML>

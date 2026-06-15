@@ -1,10 +1,12 @@
 [package]
 name = "chemcore-desktop"
-version = "1.0.0-beta"
-description = "Chemcore Windows desktop application"
+version = "1.0.0-beta.1"
+description = "ChemCore Windows desktop application"
 authors = ["Jiajun Zhang"]
 license = "Apache-2.0"
 edition.workspace = true
+repository.workspace = true
+homepage.workspace = true
 rust-version = "1.77.2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

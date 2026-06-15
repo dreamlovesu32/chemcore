@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML
+  CreationProgram="ChemCore synthetic fixture"
+  Name="synthetic-reaction.cdxml"
+  BondLength="18"
+  LineWidth="0.6"
+  BoldWidth="2"
+  HashSpacing="2.5"
+  BondSpacing="18"
+  MarginWidth="2"
+  LabelFont="3"
+  LabelSize="10"
+  CaptionFont="3"
+  CaptionSize="10"
+>
+  <colortable>
+    <color r="1" g="1" b="1"/>
+    <color r="0" g="0" b="0"/>
+    <color r="0.85" g="0" b="0"/>
+    <color r="0" g="0" b="1"/>
+  </colortable>
+  <fonttable>
+    <font id="3" charset="iso-8859-1" name="Arial"/>
+  </fonttable>
+  <page id="1" BoundingBox="0 0 240 110">
+    <t id="2" p="24 18" BoundingBox="24 8 126 20" Z="1">
+      <s font="3" size="10" color="0">Synthetic reaction fixture</s>
+    </t>
+    <fragment id="10" BoundingBox="24 36 82 54" Z="2">
+      <n id="11" p="24 45" Z="1"/>
+      <n id="12" p="52 45" Z="2"/>
+      <n id="13" p="80 45" Z="3" Element="8" NumHydrogens="1">
+        <t p="82 48" BoundingBox="80 36 95 49" Z="4">
+          <s font="3" size="10" color="0">OH</s>
+        </t>
+      </n>
+      <b id="14" B="11" E="12" Order="1" Z="5"/>
+      <b id="15" B="12" E="13" Order="1" Z="6"/>
+    </fragment>
+    <arrow
+      id="30"
+      BoundingBox="112 42 158 48"
+      Z="7"
+      FillType="None"
+      ArrowheadHead="Full"
+      ArrowheadType="Solid"
+      HeadSize="1000"
+      ArrowheadCenterSize="875"
+      ArrowheadWidth="250"
+      Head3D="158 45 0"
+      Tail3D="112 45 0"
+      Center3D="135 45 0"
+      MajorAxisEnd3D="158 45 0"
+      MinorAxisEnd3D="135 68 0"
+    />
+    <t id="31" p="135 36" BoundingBox="122 24 148 36" Z="8">
+      <s font="3" size="10" color="0">H</s>
+      <s font="3" size="7.5" color="0" face="32">2</s>
+      <s font="3" size="10" color="0">O</s>
+    </t>
+    <fragment id="40" BoundingBox="182 34 222 58" Z="9">
+      <n id="41" p="182 45" Z="1" Element="8" NumHydrogens="0">
+        <t p="178 48" BoundingBox="170 36 184 49" LabelJustification="Right" Z="2">
+          <s font="3" size="10" color="0">O</s>
+        </t>
+      </n>
+      <n id="42" p="210 45" Z="3"/>
+      <b id="43" B="41" E="42" Order="2" Z="4"/>
+    </fragment>
+  </page>
+</CDXML>

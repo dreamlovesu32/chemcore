@@ -1,8 +1,15 @@
 # ChemCore
 
-ChemCore is an open-source chemistry structure editor built from scratch for everyday research drawing, publication layout, and Office copy/paste workflows at ChemDraw-level fidelity. Maintainer: Jiajun ZHANG / 张家骏, [zhangjiajun21@sioc.ac.cn](mailto:zhangjiajun21@sioc.ac.cn). Feedback, issues, real CDXML files, and contributions are very welcome. The long-term goal is to make ChemCore a free research infrastructure platform that can later grow into automation, batch processing, AI-assisted research interfaces, and more carefully designed scientific software.
+[![CI](https://github.com/dreamlovesu32/chemcore/actions/workflows/ci.yml/badge.svg)](https://github.com/dreamlovesu32/chemcore/actions/workflows/ci.yml)
+[![Demo](https://img.shields.io/badge/demo-GitHub%20Pages-2ea44f)](https://dreamlovesu32.github.io/chemcore/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
+[![Version](https://img.shields.io/badge/version-1.0.0--beta.1-orange)](https://github.com/dreamlovesu32/chemcore/releases/tag/v1.0.0-beta.1)
+
+ChemCore is an open-source chemistry structure editor built from scratch for everyday research drawing, publication layout, and Office copy/paste workflows at ChemDraw-level fidelity. It is a chemistry editor rather than a generic cheminformatics toolkit. Maintainer: Jiajun ZHANG / 张家骏, [zhangjiajun21@sioc.ac.cn](mailto:zhangjiajun21@sioc.ac.cn). Feedback, issues, real CDXML files, and contributions are very welcome. The long-term goal is to make ChemCore a free research infrastructure platform that can later grow into automation, batch processing, AI-assisted research interfaces, and more carefully designed scientific software.
 
 The core architecture is a shared Rust engine with a lightweight Web interface. Rust owns the document model, editing commands, hit testing, chemical label rules, implicit hydrogen logic, CDXML/CDX import/export, render primitive generation, and vector output needed by Office/OLE. The front end mainly collects events, manages UI state, and presents the result. Rust is used because this type of editor depends on long-lived geometry code, format parsers, and interaction state machines where memory safety, testability, performance, and typed boundaries matter. The same engine can compile to WASM for the browser and run as native code for the desktop shell and Windows Office integration; the desktop app uses Tauri/WebView2, so the UI can remain Web-based while behavior stays centralized in the cross-platform core.
+
+![ChemCore editor interface](./docs/assets/readme/product-screenshot.png)
 
 ## Published Figure Comparison
 
@@ -19,6 +26,9 @@ objects, and Office-oriented vector output. The left column is exported by
 ChemDraw; the right column is exported by ChemCore after importing the same
 CDXML files.
 
+These benchmark CDXML files were authored by the maintainer and are included
+for reproducible rendering comparison.
+
 ![ChemDraw and ChemCore CDXML rendering comparison](./docs/assets/readme/comparison/published-cdxml-comparison.svg)
 
 The generated SVG and EMF files for both ChemDraw and ChemCore are kept in
@@ -29,11 +39,12 @@ The original CDXML files are tracked at the repository root:
 
 ## Current Status
 
-Current version: `1.0.0-beta`.
+Current version: `1.0.0-beta.1`.
 
 The Windows installer is coming soon and is still under testing. For now, the
 browser and desktop builds can be run from source, and release binaries can be
-built locally with the commands below.
+built locally with the commands below. The browser demo is published through
+GitHub Pages: <https://dreamlovesu32.github.io/chemcore/>.
 
 ## Product Highlights
 
@@ -157,6 +168,7 @@ chemcore/
   viewer/                          Browser editor host and generated WASM package
   docs/                            Public rules, specs, architecture notes, and assets
   examples/                        Example ChemCore native documents
+  fixtures/                        Public synthetic CDXML regression fixtures
   scripts/                         Build, verification, and regression helpers
   shared/                          Shared JSON data consumed by Rust and viewer code
 ```
@@ -231,9 +243,15 @@ Useful focused commands:
 npm test
 cargo test -p chemcore-engine
 cargo test -p chemcore-office
+cargo test -p chemcore-engine public_cdxml_fixture_svg_golden_snapshots_match --test render_document
 npm run build:engine-wasm
 node --check viewer/app.js
 ```
+
+Public synthetic CDXML fixtures live in [fixtures/cdxml](./fixtures/cdxml/),
+with matching golden SVG snapshots in
+[fixtures/expected/svg](./fixtures/expected/svg/). The comparison and snapshot
+workflow is documented in [Rendering Comparison And Regression Assets](./docs/rendering-comparison.md).
 
 Some scripts compare output against locally installed desktop applications or
 Office. Those flows are optional and may require Windows-specific software,
@@ -253,10 +271,13 @@ needed analysis packages.
 - Glyph kernel: [English](./docs/glyph-kernel.md) / [中文](./docs/glyph-kernel.zh-CN.md)
 - Implicit hydrogen rules: [English](./docs/implicit-hydrogen-rules.md) / [中文](./docs/implicit-hydrogen-rules.zh-CN.md)
 - Project rules: [English](./docs/project-rules.md) / [中文](./docs/project-rules.zh-CN.md)
+- Rendering comparison and regression assets: [English](./docs/rendering-comparison.md) / [中文](./docs/rendering-comparison.zh-CN.md)
 - Rust engine architecture: [English](./docs/rust-engine-architecture.md) / [中文](./docs/rust-engine-architecture.zh-CN.md)
 - Text symbols and glyph profiles: [English](./docs/text-symbol-glyph-profile-rules.md) / [中文](./docs/text-symbol-glyph-profile-rules.zh-CN.md)
 - Valence-driven label recognition: [English](./docs/valence-label-recognition-rules.md) / [中文](./docs/valence-label-recognition-rules.zh-CN.md)
 - Windows desktop and Office architecture: [English](./docs/windows-desktop-office-architecture.md) / [中文](./docs/windows-desktop-office-architecture.zh-CN.md)
+- Release notes: [CHANGELOG.md](./CHANGELOG.md) / [中文](./CHANGELOG.zh-CN.md) / [v1.0.0-beta.1](./docs/releases/v1.0.0-beta.1.md)
+- Roadmap: [English](./ROADMAP.md) / [中文](./ROADMAP.zh-CN.md)
 - [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)
 
 ## License

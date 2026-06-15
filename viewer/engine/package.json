@@ -5,14 +5,19 @@
     "Jiajun Zhang"
   ],
   "description": "Shared Rust engine for ChemCore chemical documents, editing, rendering, and import/export.",
-  "version": "1.0.0-beta",
+  "version": "1.0.0-beta.1",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dreamlovesu32/chemcore"
+  },
   "files": [
     "chemcore_engine_bg.wasm",
     "chemcore_engine.js",
     "chemcore_engine.d.ts"
   ],
   "main": "chemcore_engine.js",
+  "homepage": "https://dreamlovesu32.github.io/chemcore/",
   "types": "chemcore_engine.d.ts",
   "sideEffects": [
     "./snippets/*"

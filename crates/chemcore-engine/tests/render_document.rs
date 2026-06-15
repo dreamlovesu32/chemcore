@@ -1810,6 +1810,50 @@ fn cdxml_import_export_import_is_svg_stable_for_tmp_fixtures() {
 }
 
 #[test]
+fn public_cdxml_fixture_svg_golden_snapshots_match() {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir.join("../..");
+    let fixture_dir = repo_root.join("fixtures").join("cdxml");
+    let expected_dir = repo_root.join("fixtures").join("expected").join("svg");
+    let mut fixtures = std::fs::read_dir(&fixture_dir)
+        .unwrap_or_else(|error| panic!("{}: {error}", fixture_dir.display()))
+        .map(|entry| entry.expect("fixture entry should be readable").path())
+        .filter(|path| path.extension().and_then(|value| value.to_str()) == Some("cdxml"))
+        .collect::<Vec<_>>();
+    fixtures.sort();
+    assert!(
+        !fixtures.is_empty(),
+        "public CDXML fixture directory should contain regression cases"
+    );
+
+    for fixture_path in fixtures {
+        let stem = fixture_path
+            .file_stem()
+            .and_then(|value| value.to_str())
+            .expect("fixture file should have a UTF-8 stem");
+        let expected_path = expected_dir.join(format!("{stem}.svg"));
+        let cdxml = std::fs::read_to_string(&fixture_path)
+            .unwrap_or_else(|error| panic!("{}: {error}", fixture_path.display()));
+        let mut engine = Engine::new();
+        engine
+            .load_cdxml_document(&cdxml)
+            .unwrap_or_else(|error| panic!("{stem}: {error}"));
+        let actual = normalize_svg_snapshot(&engine.document_svg());
+        let expected = normalize_svg_snapshot(
+            &std::fs::read_to_string(&expected_path)
+                .unwrap_or_else(|error| panic!("{}: {error}", expected_path.display())),
+        );
+
+        assert_eq!(actual, expected, "{stem} SVG golden snapshot changed");
+    }
+}
+
+fn normalize_svg_snapshot(value: &str) -> String {
+    let normalized = value.replace("\r\n", "\n");
+    format!("{}\n", normalized.trim_end())
+}
+
+#[test]
 fn cdxml_exported_arrow_fixtures_are_stable_after_first_save() {
     for fixture in ["assets-acs.cdxml", "arrows-acs.cdxml"] {
         let Some(cdxml) = read_optional_cdxml_fixture(fixture) else {
