@@ -7,7 +7,7 @@ areas.
 ## Reporting a Vulnerability
 
 Do not post exploit details publicly. Send security reports to
-zhangjiajun21@sioc.ac.cn with a concise subject such as
+dreamlovesu@hotmail.com with a concise subject such as
 `ChemCore security report`.
 
 Useful private reports should include:
