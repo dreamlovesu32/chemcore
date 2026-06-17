@@ -8,6 +8,7 @@ ChemCore is in public beta. The near-term roadmap focuses on making the editor e
 - Keep CI green for Rust tests, WASM generation, and browser JavaScript syntax checks.
 - Expand synthetic CDXML fixtures and SVG golden snapshots around labels, arrows, brackets, orbitals, reactions, and Office export edge cases.
 - Keep the published-figure comparison as a high-signal fidelity benchmark while moving routine tests to synthetic assets.
+- Keep unsigned Windows installers in the beta channel until clean install, upgrade, uninstall, and Office/OLE registration are repeatedly validated.
 - Release a signed Windows installer after desktop packaging, file association, update behavior, and Office copy/paste validation are stable enough.
 
 ## Fidelity And Compatibility

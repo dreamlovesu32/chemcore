@@ -2,6 +2,16 @@
 
 All notable public changes to ChemCore are tracked here.
 
+## 1.0.0-beta.3
+
+Installer hotfix beta release.
+
+- Fixed the Windows NSIS installer Office/OLE registration hook so it finds `chemcore-office.exe` in the installed application directory instead of assuming the old `resources` subdirectory layout.
+- Kept compatibility with both root-level and `resources`-level Office server layouts so older packaging experiments do not break registration.
+- Hardened post-install registration: the installer now tries machine-wide COM/OLE registration first, then falls back to current-user registration if the machine step cannot run or returns a failure code.
+- Hardened uninstall cleanup by attempting both machine-wide and current-user Office/OLE unregistration.
+- Rebuilt and manually verified the Windows x64 installer after a clean-install trace cleanup.
+
 ## 1.0.0-beta.2
 
 Second public beta release.

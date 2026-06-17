@@ -2,6 +2,16 @@
 
 ChemCore 的公开变更记录会保存在这里。
 
+## 1.0.0-beta.3
+
+安装包热修复 beta 版本。
+
+- 修复 Windows NSIS 安装器里的 Office/OLE 注册 hook：现在会在实际安装目录中查找 `chemcore-office.exe`，不再固定假设它位于旧的 `resources` 子目录。
+- 同时兼容安装目录根部和 `resources` 子目录两种 Office server 布局，避免旧打包实验路径影响注册。
+- 加固安装后注册流程：安装器会优先尝试 machine-wide COM/OLE 注册；如果 machine 注册无法启动或返回失败码，会自动降级为当前用户注册。
+- 加固卸载清理流程：卸载时会同时尝试清理 machine-wide 和 current-user Office/OLE 注册。
+- 重新构建 Windows x64 安装包，并在清理安装痕迹后完成手动干净安装验证。
+
 ## 1.0.0-beta.2
 
 第二个公开 beta release。
