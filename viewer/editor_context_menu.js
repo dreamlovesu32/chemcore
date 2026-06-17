@@ -118,13 +118,13 @@ export function createCanvasContextMenuHost(options) {
 
     const check = document.createElement("span");
     check.className = "canvas-context-menu-check";
-    check.textContent = item.checked ? "鉁?" : "";
+    check.textContent = item.checked ? "*" : "";
     const label = document.createElement("span");
     label.className = "canvas-context-menu-label";
     label.textContent = item.label || "";
     const shortcut = document.createElement("span");
     shortcut.className = "canvas-context-menu-shortcut";
-    shortcut.textContent = item.submenu?.length ? "鈥?" : item.shortcut || "";
+    shortcut.textContent = item.submenu?.length ? ">" : item.shortcut || "";
     button.append(check, label, shortcut);
     entry.appendChild(button);
 

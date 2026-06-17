@@ -49,19 +49,25 @@ impl Engine {
                 continue;
             }
             if node.is_placeholder || node.atomic_number == 0 || node.element.trim().is_empty() {
-                if add_label_expansion_to_summary(
+                if !label_expansion_is_complete(node) {
+                    return None;
+                }
+                if !add_label_expansion_to_summary(
                     node,
                     &mut counts,
                     &mut formula_weight,
                     &mut exact_mass,
                     &mut atom_count,
                 ) {
-                    continue;
+                    return None;
                 }
                 continue;
             }
+            if label_recognition_is_indeterminate(node) {
+                return None;
+            }
             let Some(mass) = node_element_mass(node.element.as_str(), node.atomic_number) else {
-                continue;
+                return None;
             };
             add_formula_count(&mut counts, node.element.as_str(), 1);
             formula_weight += mass.average;
@@ -196,6 +202,28 @@ fn add_label_expansion_to_summary(
     add_expansion_atoms_to_summary(expansion, counts, formula_weight, exact_mass, atom_count)
 }
 
+fn label_expansion_is_complete(node: &crate::Node) -> bool {
+    let Some(expansion) = label_recognition_expansion(node) else {
+        return false;
+    };
+    expansion.get("complete").and_then(JsonValue::as_bool) == Some(true)
+        && expansion
+            .get("atoms")
+            .and_then(JsonValue::as_array)
+            .is_some_and(|atoms| !atoms.is_empty())
+}
+
+fn label_recognition_is_indeterminate(node: &crate::Node) -> bool {
+    let Some(meta) = label_recognition_meta(node) else {
+        return false;
+    };
+    if meta.get("status").and_then(JsonValue::as_str) == Some("invalid") {
+        return true;
+    }
+    meta.get("expansion")
+        .is_some_and(|_| !label_expansion_is_complete(node))
+}
+
 fn add_expansion_atoms_to_summary(
     expansion: &JsonValue,
     counts: &mut BTreeMap<String, u32>,
@@ -258,11 +286,14 @@ fn add_expansion_atoms_to_summary(
     true
 }
 
-fn label_recognition_expansion(node: &crate::Node) -> Option<&JsonValue> {
+fn label_recognition_meta(node: &crate::Node) -> Option<&JsonValue> {
     node.meta
         .get("labelRecognition")
-        .or_else(|| node.label.as_ref()?.meta.get("labelRecognition"))?
-        .get("expansion")
+        .or_else(|| node.label.as_ref()?.meta.get("labelRecognition"))
+}
+
+fn label_recognition_expansion(node: &crate::Node) -> Option<&JsonValue> {
+    label_recognition_meta(node)?.get("expansion")
 }
 
 fn selected_atom_node_ids(selection: &SelectionState) -> BTreeSet<&str> {

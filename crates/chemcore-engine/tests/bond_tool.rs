@@ -845,6 +845,69 @@ fn selection_chemistry_summary_counts_complete_label_expansions() {
     assert!((summary["exactMass"].as_f64().unwrap() - 89.042_266_444_29).abs() < 1.0e-9);
 }
 
+#[test]
+fn selection_chemistry_summary_hides_indeterminate_generic_labels() {
+    for generic_label in ["R", "R'", "R''", "Ar"] {
+        let mut engine = Engine::new();
+        engine.set_tool_state(bond_tool());
+        click(&mut engine, px(300.0), px(260.0));
+        let left_node = engine
+            .state()
+            .document
+            .editable_fragment()
+            .expect("editable fragment should exist")
+            .fragment
+            .nodes
+            .iter()
+            .min_by(|left, right| left.position[0].total_cmp(&right.position[0]))
+            .expect("left node should exist")
+            .clone();
+        let session = engine
+            .begin_text_edit(Point::new(left_node.position[0], left_node.position[1]))
+            .expect("endpoint session should be created");
+        assert!(engine.apply_text_edit(chemcore_engine::TextEditSession {
+            text: generic_label.to_string(),
+            source_runs: Vec::new(),
+            ..session
+        }));
+
+        let label_center = {
+            let entry = engine
+                .state()
+                .document
+                .editable_fragment()
+                .expect("editable fragment should exist");
+            let node = entry
+                .fragment
+                .nodes
+                .iter()
+                .find(|node| node.id == left_node.id)
+                .expect("left node should still exist");
+            assert!(
+                node.is_placeholder,
+                "{generic_label} should remain a generic placeholder"
+            );
+            let expansion = node
+                .meta
+                .get("labelRecognition")
+                .and_then(|value| value.get("expansion"))
+                .expect("generic label should keep recognition metadata");
+            assert_eq!(expansion["complete"], false);
+            let label = node.label.as_ref().expect("label should exist");
+            let bbox = label.bbox().expect("label should have a bbox");
+            Point::new((bbox[0] + bbox[2]) * 0.5, (bbox[1] + bbox[3]) * 0.5)
+        };
+        engine.select_component_at_point(label_center, false);
+
+        let summary: serde_json::Value =
+            serde_json::from_str(&engine.selection_chemistry_summary_json()).unwrap();
+        assert!(
+            summary.is_null(),
+            "{generic_label} makes the selected molecule composition indeterminate"
+        );
+    }
+}
+
 fn hover(engine: &mut Engine, x: f64, y: f64) {
     engine.pointer_move(PointerEvent {
         x,

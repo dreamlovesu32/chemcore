@@ -11,6 +11,9 @@ pub(super) fn classify_node_label_replacement_for_connection_count(
     label: &str,
     connection_count: usize,
 ) -> Option<NodeLabelReplacement<'_>> {
+    if label_prefers_abbreviation_over_element(label, connection_count) {
+        return Some(NodeLabelReplacement::Abbreviation);
+    }
     parse_element_hydrogen_label(label)
         .and_then(|parsed| element_label_replacement(parsed.element))
         .or_else(|| element_label_replacement(label))
@@ -824,6 +827,9 @@ pub(super) fn label_recognition_meta_for_text(
     if trimmed.is_empty() || trimmed == "C" {
         return None;
     }
+    if label_prefers_abbreviation_over_element(trimmed, connection_count) {
+        return crate::recognized_abbreviation_meta_for_connection_count(trimmed, connection_count);
+    }
     if parse_element_hydrogen_label(trimmed)
         .and_then(|parsed| element_label_replacement(parsed.element))
         .or_else(|| element_label_replacement(trimmed))
@@ -855,6 +861,9 @@ pub(super) fn label_recognition_meta_for_node_text(
     if is_bullet_carbon_atom_label(trimmed, node) {
         return None;
     }
+    if label_prefers_abbreviation_over_element(trimmed, connection_count) {
+        return crate::recognized_abbreviation_meta_for_connection_count(trimmed, connection_count);
+    }
     if parse_element_hydrogen_label(trimmed)
         .and_then(|parsed| element_label_replacement(parsed.element).map(|_| parsed))
         .is_some()
@@ -871,6 +880,14 @@ pub(super) fn label_recognition_meta_for_node_text(
     }
     crate::recognized_abbreviation_meta_for_connection_count(trimmed, connection_count)
         .or_else(|| Some(crate::invalid_abbreviation_meta(trimmed)))
+}
+
+fn label_prefers_abbreviation_over_element(label: &str, connection_count: usize) -> bool {
+    let trimmed = label.trim();
+    trimmed == "Ar"
+        && connection_count > 0
+        && crate::recognize_abbreviation_label_for_connection_count(trimmed, connection_count)
+            .is_some_and(|recognition| recognition.canonical_label == "Ar")
 }
 
 fn is_bullet_carbon_atom_label(text: &str, node: &crate::Node) -> bool {
