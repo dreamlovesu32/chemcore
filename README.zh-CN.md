@@ -2,11 +2,11 @@
 
 [![CI](https://github.com/dreamlovesu32/chemcore/actions/workflows/ci.yml/badge.svg)](https://github.com/dreamlovesu32/chemcore/actions/workflows/ci.yml)
 [![在线 Demo](https://img.shields.io/badge/demo-GitHub%20Pages-2ea44f)](https://dreamlovesu32.github.io/chemcore/)
-[![Windows 安装包](https://img.shields.io/badge/Windows-installer-0078d4)](https://github.com/dreamlovesu32/chemcore/releases/download/v1.0.0-beta.1/Chemcore_1.0.0-beta.1_x64-setup.exe)
+[![Windows 安装包](https://img.shields.io/badge/Windows-installer-0078d4)](https://github.com/dreamlovesu32/chemcore/releases/download/v1.0.0-beta.2/Chemcore_1.0.0-beta.2_x64-setup.exe)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0--beta.1-orange)](https://github.com/dreamlovesu32/chemcore/releases/tag/v1.0.0-beta.1)
+[![Version](https://img.shields.io/badge/version-1.0.0--beta.2-orange)](https://github.com/dreamlovesu32/chemcore/releases/tag/v1.0.0-beta.2)
 
-ChemCore 是我从零开始开发的开源化学结构编辑器，目标是无缝衔接 ChemDraw 级别的日常科研绘图、论文排版和 Office 复制粘贴工作流。Windows 用户可以直接下载当前 beta 的 [ChemCore 1.0.0-beta.1 x64 安装包](https://github.com/dreamlovesu32/chemcore/releases/download/v1.0.0-beta.1/Chemcore_1.0.0-beta.1_x64-setup.exe)。这个安装包包含桌面端和 Windows Office/OLE 集成服务；目前还没有代码签名，beta 阶段 Windows 可能会弹出 SmartScreen 提醒。它是化学结构编辑器，不是通用 cheminformatics toolkit。作者：Jiajun ZHANG，邮箱：[dreamlovesu@hotmail.com](mailto:dreamlovesu@hotmail.com)，欢迎试用、反馈、提交 issue 或参与贡献。我希望 ChemCore 能成为一个完全免费的科研基础设施平台；未来还可以继续接入自动化、批量处理、AI 辅助科研接口，以及更多用心打磨的科研软件。ChemCore 只是第一步。
+ChemCore 是我从零开始开发的开源化学结构编辑器，目标是无缝衔接 ChemDraw 级别的日常科研绘图、论文排版和 Office 复制粘贴工作流。Windows 用户可以直接下载当前 beta 的 [ChemCore 1.0.0-beta.2 x64 安装包](https://github.com/dreamlovesu32/chemcore/releases/download/v1.0.0-beta.2/Chemcore_1.0.0-beta.2_x64-setup.exe)。这个安装包包含桌面端和 Windows Office/OLE 集成服务；目前还没有代码签名，beta 阶段 Windows 可能会弹出 SmartScreen 提醒。它是化学结构编辑器，不是通用 cheminformatics toolkit。作者：Jiajun ZHANG，邮箱：[dreamlovesu@hotmail.com](mailto:dreamlovesu@hotmail.com)，欢迎试用、反馈、提交 issue 或参与贡献。我希望 ChemCore 能成为一个完全免费的科研基础设施平台；未来还可以继续接入自动化、批量处理、AI 辅助科研接口，以及更多用心打磨的科研软件。ChemCore 只是第一步。
 
 ChemCore 的核心架构是共享 Rust engine + 轻量 Web 界面。Rust 负责文档模型、编辑命令、命中测试、化学标签逻辑、隐式氢规则、CDXML/CDX 导入导出、渲染 primitive 和 Office/OLE 所需的矢量输出；前端主要负责事件采集、界面状态和显示。选择 Rust，是因为这类软件需要长时间维护的几何计算、格式解析和状态机：内存安全、可测试性、性能和强类型边界都很重要。同一套 Rust 内核既可以编译为 WASM 运行在浏览器端，也可以作为原生库服务桌面端和 Windows Office 集成；桌面壳使用 Tauri/WebView2，因此编辑器 UI 能复用 Web 技术，而核心行为仍由跨平台内核统一保证。
 
@@ -28,9 +28,9 @@ Jiajun ZHANG, Pinhong Chen,* Guosheng Liu*, Copper-Catalyzed Site- and Enantiose
 
 ## 当前状态
 
-当前版本：`1.0.0-beta.1`。
+当前版本：`1.0.0-beta.2`。
 
-Windows x64 安装包已经放在 [v1.0.0-beta.1 release](https://github.com/dreamlovesu32/chemcore/releases/tag/v1.0.0-beta.1) 中，包含 Tauri/WebView2 桌面端、文件关联和 Office/OLE 集成服务。当前安装包仍是 beta 版本，尚未代码签名。浏览器 demo 通过 GitHub Pages 发布：<https://dreamlovesu32.github.io/chemcore/>。
+Windows x64 安装包已经放在 [v1.0.0-beta.2 release](https://github.com/dreamlovesu32/chemcore/releases/tag/v1.0.0-beta.2) 中，包含 Tauri/WebView2 桌面端、文件关联和 Office/OLE 集成服务。当前安装包仍是 beta 版本，尚未代码签名。浏览器 demo 通过 GitHub Pages 发布：<https://dreamlovesu32.github.io/chemcore/>。
 
 ## 产品特色
 
@@ -216,7 +216,7 @@ node --check viewer/app.js
 - 文本符号与 glyph profile：[English](./docs/text-symbol-glyph-profile-rules.md) / [中文](./docs/text-symbol-glyph-profile-rules.zh-CN.md)
 - 价键驱动标签识别：[English](./docs/valence-label-recognition-rules.md) / [中文](./docs/valence-label-recognition-rules.zh-CN.md)
 - Windows 桌面端与 Office 架构：[English](./docs/windows-desktop-office-architecture.md) / [中文](./docs/windows-desktop-office-architecture.zh-CN.md)
-- Release notes：[English](./CHANGELOG.md) / [中文](./CHANGELOG.zh-CN.md) / [v1.0.0-beta.1](./docs/releases/v1.0.0-beta.1.zh-CN.md)
+- Release notes：[English](./CHANGELOG.md) / [中文](./CHANGELOG.zh-CN.md) / [v1.0.0-beta.2](./docs/releases/v1.0.0-beta.2.zh-CN.md)
 - Roadmap：[English](./ROADMAP.md) / [中文](./ROADMAP.zh-CN.md)
 - [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)
 

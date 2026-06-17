@@ -1,6 +1,6 @@
 {
   "name": "chemcore",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "An open-source chemistry structure editor focused on CDXML fidelity and Office workflows.",
   "homepage": "https://dreamlovesu32.github.io/chemcore/",
   "repository": {

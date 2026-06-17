@@ -1,6 +1,6 @@
 [package]
 name = "chemcore-desktop"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 description = "ChemCore Windows desktop application"
 authors = ["Jiajun Zhang"]
 license = "Apache-2.0"
