@@ -37,8 +37,8 @@ use contact::{
 };
 use legacy_render::render_legacy_molecule_object;
 use object_render::{
-    render_bracket_object, render_line_object, render_molecule_object, render_shape_object,
-    render_text_object,
+    render_bracket_object, render_line_object, render_molecule_object,
+    render_molecule_object_targets, render_shape_object, render_text_object,
 };
 use primitives::{
     push_bond_knockout_polygon, push_bond_polygon, push_label_knockout_polygon, push_line,
@@ -155,6 +155,26 @@ pub fn render_document(document: &ChemcoreDocument) -> Vec<RenderPrimitive> {
     out.into_iter()
         .map(|primitive| primitive.primitive)
         .collect()
+}
+
+pub fn render_document_targets(
+    document: &ChemcoreDocument,
+    node_ids: &BTreeSet<String>,
+    bond_ids: &BTreeSet<String>,
+    object_ids: &BTreeSet<String>,
+) -> Vec<RenderPrimitive> {
+    let mut out = Vec::new();
+    for object in document.scene_objects() {
+        if !object.visible {
+            continue;
+        }
+        if object.object_type == "molecule" && (!node_ids.is_empty() || !bond_ids.is_empty()) {
+            render_molecule_object_targets(&mut out, document, object, node_ids, bond_ids);
+        } else if object_ids.contains(&object.id) {
+            render_scene_object(&mut out, document, object);
+        }
+    }
+    out
 }
 
 struct LayeredPrimitive {

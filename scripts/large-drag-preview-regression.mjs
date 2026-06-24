@@ -164,7 +164,10 @@ async function openViewer(browser) {
       originalError(...args);
     };
     window.__chemcoreBackendDomMatch = (targetNodeIds, targetBondIds) => {
-      const renderList = JSON.parse(window.__chemcoreDebug.getRenderListJson());
+      const renderList = JSON.parse(window.__chemcoreDebug.state.editorEngine.renderTargetsJson(JSON.stringify({
+        nodes: targetNodeIds,
+        bonds: targetBondIds,
+      })));
       const targetNodes = new Set(targetNodeIds);
       const targetBonds = new Set(targetBondIds);
       const primitiveMatches = (primitive) => {
@@ -175,24 +178,16 @@ async function openViewer(browser) {
         const bondId = primitive.bondId || primitive.bond_id || "";
         return targetNodes.has(nodeId) || targetBonds.has(bondId);
       };
-      const backendIndices = renderList
-        .map((primitive, index) => (primitiveMatches(primitive) ? index : -1))
-        .filter((index) => index >= 0)
-        .sort((a, b) => a - b);
+      const backendCount = renderList.filter(primitiveMatches).length;
       const selector = [
         ...targetNodeIds.map((id) => `[data-node-id="${CSS.escape(id)}"]`),
         ...targetBondIds.map((id) => `[data-bond-id="${CSS.escape(id)}"]`),
       ].join(",");
-      const domIndices = [...document.querySelectorAll(`[data-layer="document-content"] ${selector}`)]
-        .map((element) => Number(element.getAttribute("data-render-index")))
-        .filter((index) => Number.isFinite(index))
-        .sort((a, b) => a - b);
+      const domCount = [...document.querySelectorAll(`[data-layer="document-content"] ${selector}`)].length;
       return {
-        backendIndices,
-        domIndices,
-        matches: backendIndices.length > 0
-          && backendIndices.length === domIndices.length
-          && backendIndices.every((index, offset) => index === domIndices[offset]),
+        backendCount,
+        domCount,
+        matches: backendCount > 0 && backendCount === domCount,
       };
     };
   });

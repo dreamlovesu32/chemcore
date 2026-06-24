@@ -169,6 +169,75 @@ pub(super) fn render_molecule_object(
     }
 }
 
+pub(super) fn render_molecule_object_targets(
+    out: &mut Vec<RenderPrimitive>,
+    document: &ChemcoreDocument,
+    object: &SceneObject,
+    target_node_ids: &BTreeSet<String>,
+    target_bond_ids: &BTreeSet<String>,
+) {
+    let Some(resource_ref) = object.payload.resource_ref.as_ref() else {
+        return;
+    };
+    let Some(resource) = document.resources.get(resource_ref) else {
+        return;
+    };
+    let ResourceData::Fragment(fragment) = &resource.data else {
+        return;
+    };
+    if resource.resource_type != "molecule_fragment2d"
+        && resource.encoding != "chemcore.molecule.fragment2d"
+    {
+        return;
+    }
+
+    let node_map: BTreeMap<&str, &Node> = fragment
+        .nodes
+        .iter()
+        .map(|node| (node.id.as_str(), node))
+        .collect();
+    let stroke = molecule_stroke(document, object);
+    let object_id = Some(object.id.clone());
+    let contact_kernel =
+        build_main_bond_contact_kernel(document, object, &fragment.bonds, &node_map);
+
+    let mut rendered_bonds: Vec<&Bond> = Vec::new();
+    for bond in &fragment.bonds {
+        let touches_target_node = target_node_ids.contains(&bond.begin)
+            || target_node_ids.contains(&bond.end);
+        if target_bond_ids.contains(&bond.id) || touches_target_node {
+            render_bond_crossing_knockouts(
+                out,
+                document,
+                object,
+                &rendered_bonds,
+                &node_map,
+                bond,
+                object_id.clone(),
+            );
+            render_fragment_bond(
+                out,
+                document,
+                object,
+                &contact_kernel,
+                &fragment.bonds,
+                &node_map,
+                bond,
+                &stroke,
+                object_id.clone(),
+            );
+        }
+        rendered_bonds.push(bond);
+    }
+
+    for node in &fragment.nodes {
+        if target_node_ids.contains(&node.id) {
+            render_fragment_label(out, document, object, node, object_id.clone());
+            render_fragment_node_invalid_marker(out, object, node, object_id.clone());
+        }
+    }
+}
+
 fn render_bond_crossing_knockouts(
     out: &mut Vec<RenderPrimitive>,
     document: &ChemcoreDocument,

@@ -2737,12 +2737,6 @@ function renderDocumentChange(result = null) {
   return true;
 }
 
-function documentPrimitiveMatchesTargets(primitive, nodeIds, bondIds) {
-  const nodeId = primitiveNodeId(primitive);
-  const bondId = primitiveBondId(primitive);
-  return (nodeId && nodeIds.has(nodeId)) || (bondId && bondIds.has(bondId));
-}
-
 function commandTargetSet(values) {
   return [...(values || [])].filter(Boolean);
 }
@@ -2762,14 +2756,39 @@ function collectDocumentPrimitiveTargetElements(documentLayer, nodeIds, bondIds)
   return elements;
 }
 
-function documentPrimitivePatchAnchor(documentLayer, renderIndex) {
-  for (const child of documentLayer.children) {
-    const childIndex = Number(child.getAttribute("data-render-index"));
-    if (Number.isFinite(childIndex) && childIndex > renderIndex) {
-      return child;
+function renderDocumentPrimitivePatch(primitives, nodeIds, bondIds) {
+  const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
+  if (!documentLayer || !Array.isArray(primitives)) {
+    return false;
+  }
+  const targetElements = [...collectDocumentPrimitiveTargetElements(documentLayer, nodeIds, bondIds)];
+  const targetElementSet = new Set(targetElements);
+  let anchor = null;
+  let seenTarget = false;
+  for (const child of [...documentLayer.children]) {
+    if (targetElementSet.has(child)) {
+      seenTarget = true;
+      continue;
+    }
+    if (seenTarget) {
+      anchor = child;
+      break;
     }
   }
-  return null;
+  for (const element of targetElements) {
+    element.remove();
+  }
+  const fragment = document.createDocumentFragment();
+  for (const primitive of primitives) {
+    renderCorePrimitive(fragment, primitive, corePrimitiveRenderOptions());
+  }
+  if (!fragment.childNodes.length) {
+    return false;
+  }
+  documentLayer.insertBefore(fragment, anchor);
+  syncViewerStats();
+  positionActiveTextEditor();
+  return true;
 }
 
 function renderDocumentPrimitiveChange(result = null) {
@@ -2784,42 +2803,12 @@ function renderDocumentPrimitiveChange(result = null) {
   if (targetIdsFromCommandResult(result, "styles").size > 0) {
     return false;
   }
-  const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
-  if (!documentLayer) {
-    return false;
-  }
-  invalidateEditorEngineReadCache();
-  syncEditorRenderListFromEngine({ autoExpand: false });
-  const targetEntries = [];
-  for (let index = 0; index < (state.coreRenderList || []).length; index += 1) {
-    const primitive = state.coreRenderList[index];
-    if (documentPrimitiveMatchesTargets(primitive, nodeIds, bondIds)) {
-      targetEntries.push({ index, primitive });
-    }
-  }
-  if (!targetEntries.length) {
-    return false;
-  }
+  const primitives = parseEngineJson(state.editorEngine?.renderTargetsJson?.(JSON.stringify({
+    nodes: commandTargetSet(nodeIds),
+    bonds: commandTargetSet(bondIds),
+  })) || "[]", []);
   clearDocumentObjectPreviewTransform();
-  for (const element of collectDocumentPrimitiveTargetElements(documentLayer, nodeIds, bondIds)) {
-    element.remove();
-  }
-  for (const { index, primitive } of targetEntries) {
-    const fragment = document.createDocumentFragment();
-    const scratch = makeSvgNode("g", {});
-    renderCorePrimitive(scratch, primitive, {
-      ...corePrimitiveRenderOptions(),
-      renderIndex: index,
-    });
-    fragment.append(...scratch.childNodes);
-    if (!fragment.childNodes.length) {
-      continue;
-    }
-    documentLayer.insertBefore(fragment, documentPrimitivePatchAnchor(documentLayer, index));
-  }
-  syncViewerStats();
-  positionActiveTextEditor();
-  return true;
+  return renderDocumentPrimitivePatch(primitives, nodeIds, bondIds);
 }
 
 function structurePreviewTargetIds(selection = currentEditorEngineState()?.selection) {
@@ -2853,14 +2842,11 @@ async function applyBackendSelectionMovePreview(point, altKey = false) {
   if (!changed) {
     return true;
   }
-  invalidateEditorEngineReadCache();
-  return renderDocumentPrimitiveChange({
-    changed: true,
-    targets: {
-      nodes: commandTargetSet(targets.nodeIds),
-      bonds: commandTargetSet(targets.bondIds),
-    },
-  });
+  const primitives = parseEngineJson(state.editorEngine.renderTargetsJson?.(JSON.stringify({
+    nodes: commandTargetSet(targets.nodeIds),
+    bonds: commandTargetSet(targets.bondIds),
+  })) || "[]", []);
+  return renderDocumentPrimitivePatch(primitives, targets.nodeIds, targets.bondIds);
 }
 
 function syncViewerStats() {

@@ -88,6 +88,7 @@ export const wasmengine_previewTextRuns: (a: number, b: number, c: number) => [n
 export const wasmengine_redo: (a: number) => number;
 export const wasmengine_renderBoundsJson: (a: number, b: number, c: number) => [number, number];
 export const wasmengine_renderListJson: (a: number) => [number, number, number, number];
+export const wasmengine_renderTargetsJson: (a: number, b: number, c: number) => [number, number, number, number];
 export const wasmengine_replaceHoveredEndpointLabel: (a: number, b: number, c: number) => number;
 export const wasmengine_revision: (a: number) => bigint;
 export const wasmengine_rotateSelectionDegrees: (a: number, b: number) => number;

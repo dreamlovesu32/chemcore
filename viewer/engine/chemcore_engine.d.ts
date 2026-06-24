@@ -90,6 +90,7 @@ export class WasmEngine {
     redo(): boolean;
     renderBoundsJson(scope: string): string;
     renderListJson(): string;
+    renderTargetsJson(request_json: string): string;
     replaceHoveredEndpointLabel(label: string): boolean;
     revision(): bigint;
     rotateSelectionDegrees(degrees: number): boolean;
@@ -227,6 +228,7 @@ export interface InitOutput {
     readonly wasmengine_redo: (a: number) => number;
     readonly wasmengine_renderBoundsJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_renderListJson: (a: number) => [number, number, number, number];
+    readonly wasmengine_renderTargetsJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_replaceHoveredEndpointLabel: (a: number, b: number, c: number) => number;
     readonly wasmengine_revision: (a: number) => bigint;
     readonly wasmengine_rotateSelectionDegrees: (a: number, b: number) => number;

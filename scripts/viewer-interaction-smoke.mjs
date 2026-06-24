@@ -215,9 +215,12 @@ async function verifyLargeDragTarget(page, target, kind) {
         }
       }
     }
-    const renderList = JSON.parse(window.__chemcoreDebug.getRenderListJson());
-    const backendIndices = renderList
-      .map((primitive, index) => (
+    const renderList = JSON.parse(window.__chemcoreDebug.state.editorEngine.renderTargetsJson(JSON.stringify({
+      nodes: [nodeId],
+      bonds: [...connectedBonds],
+    })));
+    const backendCount = renderList
+      .filter((primitive) => (
         primitive.role !== "document-knockout"
         && primitive.role !== "document_knockout"
         && (
@@ -225,26 +228,18 @@ async function verifyLargeDragTarget(page, target, kind) {
           || primitive.node_id === nodeId
           || connectedBonds.has(primitive.bondId || primitive.bond_id)
         )
-          ? index
-          : -1
       ))
-      .filter((index) => index >= 0)
-      .sort((a, b) => a - b);
+      .length;
     const selectors = [
       `[data-node-id="${CSS.escape(nodeId)}"]`,
       ...[...connectedBonds].map((bondId) => `[data-bond-id="${CSS.escape(bondId)}"]`),
     ];
-    const domIndices = [...document.querySelectorAll(`[data-layer="document-content"] ${selectors.join(",")}`)]
-      .map((element) => Number(element.getAttribute("data-render-index")))
-      .filter((index) => Number.isFinite(index))
-      .sort((a, b) => a - b);
+    const domCount = [...document.querySelectorAll(`[data-layer="document-content"] ${selectors.join(",")}`)].length;
     return {
       connectedBonds: [...connectedBonds],
-      backendIndices,
-      domIndices,
-      matches: backendIndices.length > 0
-      && backendIndices.length === domIndices.length
-      && backendIndices.every((index, offset) => index === domIndices[offset]),
+      backendCount,
+      domCount,
+      matches: backendCount > 0 && backendCount === domCount,
       partialChildren: document.querySelector('[data-layer="document-partial-bond-preview"]')?.childElementCount || 0,
       gesture: window.__chemcoreDebug.activeSelectionGesture || null,
     };

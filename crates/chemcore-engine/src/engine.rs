@@ -58,13 +58,14 @@ use crate::{
     direction_from_angle, endpoint_from_angle_for_document, hit_test_arrow_center,
     hit_test_bond_center, hit_test_endpoint, hit_test_endpoint_excluding, largest_angular_gap,
     nearest_angle, normalize_angle, px_to_pt, refresh_repeating_units, render_document,
-    render_primitives_bounds, round2, snapped_angle_for_anchor, ArrowCurve, ArrowEndpointStyle,
-    ArrowHeadSize, ArrowNoGo, ArrowVariant, Bond, BondAnchor, BondLinePattern, BondLineStyles,
-    BondLineWeight, BondLineWeights, BondPreview, BondStereo, BondVariant, ChemcoreDocument,
-    DoubleBond, DoubleBondPlacement, DragState, EditableFragment, EditableFragmentMut,
-    EditorOptions, EndpointHit, HoverShape, HoverTextBox, OrbitalPhase, OrbitalStyle,
-    OrbitalTemplate, OverlayState, Point, PointerEvent, RenderPrimitive, RenderRole, SceneObject,
-    SelectionState, ShapeKind, ShapeStyle, Tool, ToolState, BOND_CENTER_FOCUS_WIDTH,
+    render_document_targets, render_primitives_bounds, round2, snapped_angle_for_anchor,
+    ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, Bond, BondAnchor,
+    BondLinePattern, BondLineStyles, BondLineWeight, BondLineWeights, BondPreview, BondStereo,
+    BondVariant, ChemcoreDocument, DoubleBond, DoubleBondPlacement, DragState, EditableFragment,
+    EditableFragmentMut, EditorOptions, EndpointHit, HoverShape, HoverTextBox, OrbitalPhase,
+    OrbitalStyle, OrbitalTemplate, OverlayState, Point, PointerEvent, RenderPrimitive,
+    RenderRole, SceneObject, SelectionState, ShapeKind, ShapeStyle, Tool, ToolState,
+    BOND_CENTER_FOCUS_WIDTH,
     BOND_CENTER_HIT_RADIUS, DRAG_START_THRESHOLD, ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS,
     GLOBAL_SNAP_ANGLES,
 };
@@ -905,6 +906,18 @@ impl Engine {
         out.extend(self.selection_render_list());
         self.push_interaction_render_primitives(&mut out);
         out
+    }
+
+    pub fn render_targets(
+        &self,
+        node_ids: &BTreeSet<String>,
+        bond_ids: &BTreeSet<String>,
+        object_ids: &BTreeSet<String>,
+    ) -> Vec<RenderPrimitive> {
+        let document = self
+            .preview_document()
+            .unwrap_or_else(|| self.state.document.clone());
+        render_document_targets(&document, node_ids, bond_ids, object_ids)
     }
 
     pub fn set_tool_state(&mut self, tool: ToolState) {

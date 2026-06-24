@@ -3,7 +3,20 @@ use crate::{
     BracketKind, Engine, OrbitalPhase, OrbitalStyle, OrbitalTemplate, Point, PointerEvent,
     RenderBoundsScope, ShapeKind, ShapeStyle, Tool, ToolState, WorldPoint, WorldPt,
 };
+use serde::Deserialize;
+use std::collections::BTreeSet;
 use wasm_bindgen::prelude::*;
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RenderTargetsRequest {
+    #[serde(default)]
+    nodes: BTreeSet<String>,
+    #[serde(default)]
+    bonds: BTreeSet<String>,
+    #[serde(default)]
+    objects: BTreeSet<String>,
+}
 
 #[wasm_bindgen]
 pub struct WasmEngine {
@@ -963,6 +976,18 @@ impl WasmEngine {
     pub fn interaction_render_list_json(&self) -> Result<String, JsValue> {
         serde_json::to_string(&self.inner.interaction_render_list())
             .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    #[wasm_bindgen(js_name = renderTargetsJson)]
+    pub fn render_targets_json(&self, request_json: &str) -> Result<String, JsValue> {
+        let request: RenderTargetsRequest = serde_json::from_str(request_json)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        serde_json::to_string(&self.inner.render_targets(
+            &request.nodes,
+            &request.bonds,
+            &request.objects,
+        ))
+        .map_err(|error| JsValue::from_str(&error.to_string()))
     }
 
     #[wasm_bindgen(js_name = renderBoundsJson)]

@@ -276,6 +276,10 @@ class TauriEngineSession {
     return this.cache.renderListJson || "[]";
   }
 
+  renderTargetsJson(requestJson = "{}") {
+    return this.layoutEngine?.renderTargetsJson?.(requestJson) || "[]";
+  }
+
   interactionRenderListJson() {
     return this.cache.interactionRenderListJson || this.cache.renderListJson || "[]";
   }
