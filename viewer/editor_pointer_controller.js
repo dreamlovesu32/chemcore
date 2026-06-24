@@ -104,6 +104,11 @@ export function createEditorPointerController(options) {
     }
   }
 
+  function clearInteractionOverlayNow() {
+    clearVisibleHoverOverlay();
+    options.renderEditorOverlay?.([]);
+  }
+
   function syncSelectionHoverSuppressionCursor(point, state) {
     const viewerSvg = options.viewerSvg?.();
     if (!viewerSvg) {
@@ -930,7 +935,7 @@ export function createEditorPointerController(options) {
       await options.renderSelectionOnlyUpdate(point);
       return;
     }
-    clearVisibleHoverOverlay();
+    clearInteractionOverlayNow();
     const result = await executeDocumentCommand(
       {
         type: pointerCommitCommandType(),
@@ -946,6 +951,8 @@ export function createEditorPointerController(options) {
       options.state().editorEngine.pendingGraphicObjectId?.() || "",
     );
     options.renderDocumentChange?.(result) || options.renderDocument();
+    invalidateEngineReadCache();
+    clearInteractionOverlayNow();
     if (options.editorState().activeTool === "bracket") {
       const start = options.activeBracketDragStart();
       options.setActiveBracketDragStart(null);
