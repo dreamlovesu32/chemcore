@@ -869,6 +869,21 @@ fn normalize_node(
         && label
             .as_ref()
             .is_some_and(imported_cdxml_bullet_carbon_node_label);
+    let radical_count = cdxml_radical_count(node.attr("Radical"));
+    let mut meta = json!({
+        "import": {
+            "cdxml": {
+                "z": parse_i32(node.attr("Z")),
+                "nodeType": empty_as_null(node.attr("NodeType")),
+                "labelDisplay": empty_as_null(node.attr("LabelDisplay")),
+                "element": node.attr("Element"),
+                "radical": empty_as_null(node.attr("Radical")),
+            }
+        }
+    });
+    if radical_count != 0 {
+        meta["radicalCount"] = json!(radical_count);
+    }
     Some(Node {
         id,
         element: element_symbol(atomic_number).to_string(),
@@ -885,17 +900,17 @@ fn normalize_node(
             "Fragment" | "Nickname" | "GenericNickname" | "Unspecified"
         ) && !is_bullet_carbon,
         label,
-        meta: json!({
-            "import": {
-                "cdxml": {
-                    "z": parse_i32(node.attr("Z")),
-                    "nodeType": empty_as_null(node.attr("NodeType")),
-                    "labelDisplay": empty_as_null(node.attr("LabelDisplay")),
-                    "element": node.attr("Element"),
-                }
-            }
-        }),
+        meta,
     })
+}
+
+fn cdxml_radical_count(value: Option<&str>) -> i32 {
+    match value.unwrap_or("").trim().to_ascii_lowercase().as_str() {
+        "" | "none" => 0,
+        "doublet" | "monovalent" | "radical" => 1,
+        "singlet" | "triplet" | "divalent" | "divalentsinglet" | "divalenttriplet" => 2,
+        other => other.parse::<i32>().unwrap_or(0).clamp(0, 9),
+    }
 }
 
 fn imported_cdxml_bullet_carbon_node_label(label: &NodeLabel) -> bool {

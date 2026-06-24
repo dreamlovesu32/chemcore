@@ -942,7 +942,7 @@ pub(super) fn element_valence_is_valid_for_node(
         .filter(|bond| bond.begin == node.id || bond.end == node.id)
         .map(|bond| i32::from(bond.order.max(1)))
         .sum();
-    let radical_count = 0;
+    let radical_count = crate::node_radical_count(node);
     let charge = node.charge;
     let abs_charge = charge.abs();
     let Some(valence) = typical_valence_for_implicit_hydrogen(
@@ -1515,7 +1515,7 @@ pub(super) fn implicit_hydrogen_count(fragment: &crate::MoleculeFragment, node_i
         .filter(|bond| bond.begin == node_id || bond.end == node_id)
         .map(|bond| i32::from(bond.order.max(1)))
         .sum();
-    let radical_count = 0;
+    let radical_count = crate::node_radical_count(node);
     let charge = node.charge;
     let abs_charge = charge.abs();
     let Some(valence) = typical_valence_for_implicit_hydrogen(

@@ -30,11 +30,6 @@ pub(super) fn append_line_objects(
         let is_arrow = node.is("arrow") || has_arrow_attrs(node);
         let line_type = node.attr("LineType").unwrap_or("");
         let bold = line_type.contains("Bold");
-        let stroke_width = if bold {
-            defaults.bold_width
-        } else {
-            defaults.line_width
-        };
         let head_enabled = cdxml_arrow_head_enabled(node);
         let tail_enabled = arrow_endpoint_enabled(node.attr("ArrowheadTail"));
         let mut extra = BTreeMap::new();
@@ -77,9 +72,7 @@ pub(super) fn append_line_objects(
                 "length".to_string(),
                 json!(cdxml_arrow_size_for_render_scale(
                     parse_scaled_100(node.attr("HeadSize")),
-                    crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO,
-                    defaults.line_width,
-                    stroke_width,
+                    crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO
                 )),
             );
             arrow_head.insert(
@@ -90,18 +83,14 @@ pub(super) fn append_line_objects(
                             .then(|| parse_scaled_100(node.attr("ArrowShaftSpacing")))
                             .flatten()
                     }),
-                    crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.875,
-                    defaults.line_width,
-                    stroke_width,
+                    crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.875
                 )),
             );
             arrow_head.insert(
                 "width".to_string(),
                 json!(cdxml_arrow_size_for_render_scale(
                     parse_scaled_100(node.attr("ArrowheadWidth")),
-                    crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.25,
-                    defaults.line_width,
-                    stroke_width,
+                    crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.25
                 )),
             );
             if matches!(cdxml_kind, "equilibrium" | "unequal-equilibrium") {
@@ -109,9 +98,7 @@ pub(super) fn append_line_objects(
                     "shaftSpacing".to_string(),
                     json!(cdxml_arrow_size_for_render_scale(
                         parse_scaled_100(node.attr("ArrowShaftSpacing")),
-                        3.0,
-                        defaults.line_width,
-                        stroke_width,
+                        3.0
                     )),
                 );
                 if let Some(ratio) = parse_scaled_100(node.attr("ArrowEquilibriumRatio"))
@@ -270,17 +257,8 @@ fn canonical_arrow_fill_type(value: &str) -> &'static str {
     }
 }
 
-fn cdxml_arrow_size_for_render_scale(
-    value: Option<f64>,
-    fallback: f64,
-    cdxml_line_width: f64,
-    render_stroke_width: f64,
-) -> f64 {
-    let base = value.unwrap_or(fallback);
-    if render_stroke_width.abs() <= crate::EPSILON {
-        return base;
-    }
-    base * cdxml_line_width.max(crate::EPSILON) / render_stroke_width
+fn cdxml_arrow_size_for_render_scale(value: Option<f64>, fallback: f64) -> f64 {
+    value.unwrap_or(fallback)
 }
 
 fn cdxml_line_style_ref(
@@ -294,14 +272,30 @@ fn cdxml_line_style_ref(
     let bold = line_type.contains("Bold");
     let dashed = line_type.contains("Dashed");
     let color = colors.resolve(node.attr("color"));
+    let stroke_width = parse_f64(node.attr("LineWidth")).unwrap_or(if bold {
+        defaults.bold_width
+    } else {
+        defaults.line_width
+    });
+    let default_stroke_width = if bold {
+        defaults.bold_width
+    } else {
+        defaults.line_width
+    };
     let base = if is_arrow { "arrow" } else { "line" };
-    if !bold && !dashed && color == "#000000" {
+    let default_width = (stroke_width - default_stroke_width).abs() <= crate::EPSILON;
+    if !bold && !dashed && color == "#000000" && default_width {
         return format!("style_{base}_default");
     }
     let style_id = format!(
-        "style_{base}_{}{}{}",
+        "style_{base}_{}{}{}{}",
         if bold { "bold" } else { "regular" },
         if dashed { "_dashed" } else { "" },
+        if default_width {
+            String::new()
+        } else {
+            format!("_w{}", cdxml_style_number(stroke_width))
+        },
         if color == "#000000" {
             String::new()
         } else {
@@ -314,13 +308,29 @@ fn cdxml_line_style_ref(
         json!({
             "kind": "stroke",
             "stroke": color,
-            "strokeWidth": if bold { defaults.bold_width } else { defaults.line_width },
+            "strokeWidth": stroke_width,
             "lineCap": line_cap,
             "lineJoin": line_join,
             "dashArray": if dashed { non_bond_dash_array(defaults) } else { json!([]) },
         })
     });
     style_id
+}
+
+fn cdxml_style_number(value: f64) -> String {
+    let mut text = format!("{:.3}", value.abs());
+    while text.contains('.') && text.ends_with('0') {
+        text.pop();
+    }
+    if text.ends_with('.') {
+        text.pop();
+    }
+    let text = text.replace('.', "p");
+    if value < 0.0 {
+        format!("m{text}")
+    } else {
+        text
+    }
 }
 
 pub(super) fn append_shape_objects(
@@ -951,6 +961,12 @@ pub(super) fn append_bracket_objects(
                 extra.insert("cdxmlBoundingBox".to_string(), json!(raw_bbox));
                 if let Some(stroke_width) = metrics.stroke_width {
                     extra.insert("strokeWidth".to_string(), json!(stroke_width));
+                }
+                if let Some(attribute) = node
+                    .direct_children("represent")
+                    .find_map(|represent| represent.attr("attribute"))
+                {
+                    extra.insert("representAttribute".to_string(), json!(attribute));
                 }
                 objects.push(SceneObject {
                     id: format!("obj_symbol_{symbol_index:03}"),

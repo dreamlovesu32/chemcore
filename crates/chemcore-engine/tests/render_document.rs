@@ -2841,6 +2841,83 @@ fn cdxml_arrow_head_dimensions_are_relative_to_line_width() {
 }
 
 #[test]
+fn cdxml_arrow_line_width_scales_arrow_head_ratios() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML LineWidth="0.6" BondLength="14.4" color="0" bgcolor="1">
+  <page id="1" BoundingBox="0 0 120 40">
+    <arrow id="2" Head3D="100 20 0" Tail3D="0 20 0" Z="1"
+      LineWidth="1.19" FillType="None" ArrowheadType="Solid" ArrowheadHead="Full"
+      HeadSize="800" ArrowheadCenterSize="700" ArrowheadWidth="200"/>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("wide arrow")).expect("cdxml should parse");
+    let arrow = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "line")
+        .expect("arrow should import as line object");
+    let style = arrow
+        .style_ref
+        .as_ref()
+        .and_then(|style_ref| document.styles.get(style_ref))
+        .expect("arrow should use a line-width-specific style");
+    assert_eq!(
+        style.get("strokeWidth").and_then(|value| value.as_f64()),
+        Some(1.19)
+    );
+    let arrow_head = arrow
+        .payload
+        .extra
+        .get("arrowHead")
+        .expect("arrow should keep cdxml arrow payload");
+    assert_eq!(
+        arrow_head.get("length").and_then(|value| value.as_f64()),
+        Some(8.0)
+    );
+    assert_eq!(
+        arrow_head.get("width").and_then(|value| value.as_f64()),
+        Some(2.0)
+    );
+
+    let primitives = render_document(&document);
+    let head_points = primitives
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::FilledPath {
+                role,
+                object_id,
+                points,
+                ..
+            } if *role == RenderRole::DocumentGraphic
+                && object_id.as_deref() == Some(arrow.id.as_str()) =>
+            {
+                Some(points)
+            }
+            _ => None,
+        })
+        .expect("solid arrow head should render as filled path");
+    let head_min_x = head_points
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::INFINITY, f64::min);
+    let head_max_x = head_points
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let head_min_y = head_points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::INFINITY, f64::min);
+    let head_max_y = head_points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    assert!((head_max_x - head_min_x - 9.52).abs() <= 0.001);
+    assert!((head_max_y - head_min_y - 4.86).abs() <= 0.001);
+}
+
+#[test]
 fn cdxml_arrow_element_defaults_missing_head_position_to_full() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
@@ -2880,7 +2957,7 @@ fn cdxml_arrow_element_defaults_missing_head_position_to_full() {
 }
 
 #[test]
-fn cdxml_bold_arrow_head_dimensions_stay_relative_to_cdxml_line_width() {
+fn cdxml_bold_arrow_head_dimensions_scale_with_imported_line_width() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
 <CDXML LineWidth="0.6" BoldWidth="2" BondLength="14.4" color="0" bgcolor="1">
@@ -2929,8 +3006,8 @@ fn cdxml_bold_arrow_head_dimensions_stay_relative_to_cdxml_line_width() {
         .iter()
         .map(|point| point.y)
         .fold(f64::NEG_INFINITY, f64::max);
-    assert!((head_max_x - head_min_x - 27.0).abs() <= 0.001);
-    assert!((head_max_y - head_min_y - 13.62).abs() <= 0.001);
+    assert!((head_max_x - head_min_x - 90.0).abs() <= 0.001);
+    assert!((head_max_y - head_min_y - 45.1).abs() <= 0.001);
 }
 
 #[test]
@@ -4336,6 +4413,57 @@ fn cdxml_electron_symbol_uses_chemdraw_top_anchor_and_color() {
     ];
     assert!((re_center[0] - 285.19).abs() < 0.01, "{re_center:?}");
     assert!((re_center[1] - 130.29).abs() < 0.01, "{re_center:?}");
+}
+
+#[test]
+fn cdxml_represented_radical_symbol_does_not_double_count_node_radical() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.40" LineWidth="0.60" color="0" bgcolor="1">
+  <page id="1">
+    <fragment id="2" BoundingBox="0 0 40 20">
+      <n id="3" p="10 10" Element="7" Radical="Doublet"/>
+      <n id="4" p="24.4 10"/>
+      <b id="5" B="3" E="4"/>
+      <graphic id="6" BoundingBox="10 13 2.5 13" GraphicType="Symbol" SymbolType="Electron">
+        <represent attribute="Radical"/>
+      </graphic>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(cdxml)
+        .expect("radical cdxml should load");
+    let entry = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("editable fragment should exist");
+    let node = entry
+        .fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "3")
+        .expect("radical nitrogen should import");
+    assert_eq!(
+        node.meta
+            .get("radicalCount")
+            .and_then(|value| value.as_i64()),
+        Some(1)
+    );
+    assert_eq!(node.num_hydrogens, 1);
+    let attached = node
+        .meta
+        .get("attachedElectronSymbols")
+        .and_then(|value| value.as_array())
+        .expect("electron symbol should attach to the radical nitrogen");
+    assert_eq!(
+        attached
+            .first()
+            .and_then(|value| value.get("radicalDelta"))
+            .and_then(|value| value.as_i64()),
+        Some(0)
+    );
 }
 
 #[test]

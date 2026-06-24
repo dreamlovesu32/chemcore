@@ -42,6 +42,7 @@ struct SymbolAttachment {
     attachment_source: Option<&'static str>,
     attachment_distance: Option<f64>,
     chemistry: ElectronSymbolChemistry,
+    represent_attribute: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -155,6 +156,12 @@ fn detect_symbol_attachments(document: &ChemcoreDocument) -> Vec<SymbolAttachmen
         let Some(chemistry) = electron_symbol_chemistry(&kind) else {
             continue;
         };
+        let represent_attribute = object
+            .payload
+            .extra
+            .get("representAttribute")
+            .and_then(Value::as_str)
+            .map(ToString::to_string);
         let Some(center) = scene_object_center(object) else {
             continue;
         };
@@ -177,6 +184,7 @@ fn detect_symbol_attachments(document: &ChemcoreDocument) -> Vec<SymbolAttachmen
             attachment_source,
             attachment_distance,
             chemistry,
+            represent_attribute,
         });
     }
     out
@@ -284,11 +292,11 @@ fn refresh_node_attached_electron_symbols(
             .unwrap_or(node_radical_count(node) - old_symbol_radical);
         let charge_delta: i32 = node_attachments
             .iter()
-            .map(|attachment| attachment.chemistry.charge_delta)
+            .map(|attachment| attachment_charge_delta(attachment, base_charge))
             .sum();
         let radical_delta: i32 = node_attachments
             .iter()
-            .map(|attachment| attachment.chemistry.radical_delta)
+            .map(|attachment| attachment_radical_delta(attachment, base_radical))
             .sum();
         let next_charge = base_charge + charge_delta;
         if node.charge != next_charge {
@@ -298,13 +306,19 @@ fn refresh_node_attached_electron_symbols(
         let attached_values: Vec<Value> = node_attachments
             .iter()
             .map(|attachment| {
+                let charge_delta = attachment_charge_delta(attachment, base_charge);
+                let radical_delta = attachment_radical_delta(attachment, base_radical);
                 json!({
                     "symbolObjectId": attachment.symbol_object_id,
                     "sourceSymbolObjectId": attachment.symbol_object_id,
                     "kind": attachment.kind,
-                    "chargeDelta": attachment.chemistry.charge_delta,
-                    "radicalDelta": attachment.chemistry.radical_delta,
-                    "requiresHydrogenRemoval": attachment.chemistry.requires_hydrogen_removal,
+                    "chargeDelta": charge_delta,
+                    "radicalDelta": radical_delta,
+                    "requiresHydrogenRemoval": attachment_requires_hydrogen_removal(
+                        attachment,
+                        base_charge,
+                        base_radical
+                    ),
                 })
             })
             .collect();
@@ -366,7 +380,9 @@ fn effective_hydrogens_and_invalid(
         let ordinary_negative_removals = attachments
             .iter()
             .filter(|attachment| {
-                attachment.chemistry.charge_delta < 0 && attachment.chemistry.radical_delta == 0
+                attachment_charge_delta(attachment, base_charge) < 0
+                    && attachment_radical_delta(attachment, base_radical) == 0
+                    && attachment_requires_hydrogen_removal(attachment, base_charge, base_radical)
             })
             .count() as i32;
         if ordinary_negative_removals == 0 {
@@ -383,7 +399,9 @@ fn effective_hydrogens_and_invalid(
     let neutral_hydrogens = (4 - connection_order).clamp(0, 4);
     let required_removals = attachments
         .iter()
-        .filter(|attachment| attachment.chemistry.requires_hydrogen_removal)
+        .filter(|attachment| {
+            attachment_requires_hydrogen_removal(attachment, base_charge, base_radical)
+        })
         .count() as i32;
     if required_removals == 0 {
         return (Some(neutral_hydrogens as u8), false);
@@ -392,6 +410,39 @@ fn effective_hydrogens_and_invalid(
         return (Some(neutral_hydrogens as u8), true);
     }
     (Some((neutral_hydrogens - required_removals) as u8), false)
+}
+
+fn attachment_charge_delta(attachment: &SymbolAttachment, base_charge: i32) -> i32 {
+    if attachment_represents_attribute(attachment, "charge") && base_charge != 0 {
+        0
+    } else {
+        attachment.chemistry.charge_delta
+    }
+}
+
+fn attachment_radical_delta(attachment: &SymbolAttachment, base_radical: i32) -> i32 {
+    if attachment_represents_attribute(attachment, "radical") && base_radical != 0 {
+        0
+    } else {
+        attachment.chemistry.radical_delta
+    }
+}
+
+fn attachment_requires_hydrogen_removal(
+    attachment: &SymbolAttachment,
+    base_charge: i32,
+    base_radical: i32,
+) -> bool {
+    attachment.chemistry.requires_hydrogen_removal
+        && (attachment_charge_delta(attachment, base_charge) != 0
+            || attachment_radical_delta(attachment, base_radical) != 0)
+}
+
+fn attachment_represents_attribute(attachment: &SymbolAttachment, attribute: &str) -> bool {
+    attachment
+        .represent_attribute
+        .as_deref()
+        .is_some_and(|value| value.eq_ignore_ascii_case(attribute))
 }
 
 fn supported_hetero_hydrogens(
