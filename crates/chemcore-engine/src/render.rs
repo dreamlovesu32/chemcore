@@ -31,9 +31,9 @@ mod style_payload;
 use bond_render::{compute_solid_wedge_points, render_fragment_bond};
 pub use bounds::{render_primitive_bounds, render_primitives_bounds};
 use contact::{
-    bond_ray_is_acute, build_main_bond_contact_kernel, center_double_skips_extension,
-    main_bond_endpoint_geometry, main_contact_is_straight_through, main_contact_side,
-    render_main_bond_contact_patches, MainBondContactKernel,
+    bond_ray_is_acute, build_main_bond_contact_kernel, build_main_bond_contact_kernel_for_nodes,
+    center_double_skips_extension, main_bond_endpoint_geometry, main_contact_is_straight_through,
+    main_contact_side, render_main_bond_contact_patches, MainBondContactKernel,
 };
 use legacy_render::render_legacy_molecule_object;
 use object_render::{

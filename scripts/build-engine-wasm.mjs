@@ -51,11 +51,13 @@ function normalizeGeneratedJson(filePath) {
 
 run("wasm-pack", [
   "build",
-  join(rootDir, "crates", "chemcore-engine"),
   "--target",
   "web",
   "--out-dir",
   join(rootDir, "viewer", "engine"),
+  // Keep local builds deterministic even when wasm-pack's bundled wasm-opt is unavailable or misconfigured.
+  "--no-opt",
+  join(rootDir, "crates", "chemcore-engine"),
   "--features",
   "wasm",
 ], { env: wasmBuildEnv() });

@@ -132,9 +132,32 @@ pub(super) fn build_main_bond_contact_kernel<'a>(
     bonds: &'a [Bond],
     node_map: &BTreeMap<&'a str, &'a Node>,
 ) -> MainBondContactKernel {
+    build_main_bond_contact_kernel_for_node_filter(document, object, bonds, node_map, None)
+}
+
+pub(super) fn build_main_bond_contact_kernel_for_nodes<'a>(
+    document: &ChemcoreDocument,
+    object: &SceneObject,
+    bonds: &'a [Bond],
+    node_map: &BTreeMap<&'a str, &'a Node>,
+    node_ids: &BTreeSet<String>,
+) -> MainBondContactKernel {
+    build_main_bond_contact_kernel_for_node_filter(document, object, bonds, node_map, Some(node_ids))
+}
+
+fn build_main_bond_contact_kernel_for_node_filter<'a>(
+    document: &ChemcoreDocument,
+    object: &SceneObject,
+    bonds: &'a [Bond],
+    node_map: &BTreeMap<&'a str, &'a Node>,
+    node_ids: Option<&BTreeSet<String>>,
+) -> MainBondContactKernel {
     let mut kernel = MainBondContactKernel::default();
 
     for node in node_map.values() {
+        if node_ids.is_some_and(|ids| !ids.contains(&node.id)) {
+            continue;
+        }
         // Labeled nodes are clipped against glyph geometry instead of mitered
         // against neighboring bonds, so the two systems stay independent.
         if node

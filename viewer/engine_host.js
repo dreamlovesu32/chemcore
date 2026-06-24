@@ -90,6 +90,8 @@ class TauriEngineSession {
     };
     this.exportDirty = true;
     this.operation = Promise.resolve();
+    this.pendingSelectionMoveBegin = null;
+    this.localSelectionMoveActive = false;
     this.readyPromise = this.initializeSession();
   }
 
@@ -269,6 +271,9 @@ class TauriEngineSession {
   }
 
   stateJson() {
+    if (this.localSelectionMoveActive && this.layoutEngine?.stateJson) {
+      return this.layoutEngine.stateJson();
+    }
     return this.cache.stateJson || "";
   }
 
@@ -595,14 +600,50 @@ class TauriEngineSession {
   }
 
   beginSelectionMove(x, y, additive, altKey) {
+    if (this.layoutEngine?.beginSelectionMove) {
+      const began = this.layoutEngine.beginSelectionMove(x, y, additive, altKey);
+      if (!began) {
+        return false;
+      }
+      this.localSelectionMoveActive = true;
+      this.pendingSelectionMoveBegin = this.invokeMutation(
+        "desktop_engine_begin_selection_move",
+        { x, y, additive, altKey },
+        { refresh: "interaction", dirtyExports: false },
+      );
+      return true;
+    }
     return this.invokeMutation("desktop_engine_begin_selection_move", { x, y, additive, altKey }, { refresh: "interaction", dirtyExports: false });
   }
 
   updateSelectionMove(x, y, altKey) {
+    if (this.layoutEngine?.updateSelectionMove) {
+      return this.layoutEngine.updateSelectionMove(x, y, altKey);
+    }
     return this.invokeMutation("desktop_engine_update_selection_move", { x, y, altKey }, { refresh: "interaction", dirtyExports: false });
   }
 
   finishSelectionMove(x, y, altKey) {
+    if (this.layoutEngine?.finishSelectionMove) {
+      const changed = this.layoutEngine.finishSelectionMove(x, y, altKey);
+      const pendingBegin = this.pendingSelectionMoveBegin;
+      this.pendingSelectionMoveBegin = null;
+      const finish = async () => {
+        if (pendingBegin) {
+          await pendingBegin.catch(() => false);
+        }
+        try {
+          return await this.invokeMutation("desktop_engine_finish_selection_move", { x, y, altKey });
+        } finally {
+          this.localSelectionMoveActive = false;
+        }
+      };
+      if (changed || pendingBegin) {
+        return finish();
+      }
+      this.localSelectionMoveActive = false;
+      return changed;
+    }
     return this.invokeMutation("desktop_engine_finish_selection_move", { x, y, altKey });
   }
 

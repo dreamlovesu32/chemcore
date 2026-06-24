@@ -334,6 +334,8 @@ let activeDocumentPreviewHiddenElements = new Set();
 let activeDocumentPreviewLayer = false;
 let activeDocumentPreviewBatchLayer = null;
 let activeDocumentPreviewTransform = "";
+let documentPrimitiveNodeElements = new Map();
+let documentPrimitiveBondElements = new Map();
 let documentMoleculeTopologyCache = null;
 const DOCUMENT_PREVIEW_BATCH_ELEMENT_THRESHOLD = 96;
 const editorEngineReadCache = {
@@ -2581,12 +2583,11 @@ function addObjectIdsForPrimitiveTargets(objectIds, nodeIds, bondIds) {
     }
     addFromPrimitive(primitive);
   }
-  const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
   const addFromExistingDom = (attribute, id, remaining) => {
-    if (!documentLayer || !remaining.has(id)) {
+    if (!remaining.has(id)) {
       return;
     }
-    const element = documentLayer.querySelector(`[${attribute}="${CSS.escape(id)}"]`);
+    const element = documentPrimitiveElementsForId(attribute, id)[0];
     const objectElement = element?.closest?.("[data-object-id]");
     const objectId = objectElement?.dataset?.objectId || element?.dataset?.objectId || "";
     if (objectId) {
@@ -2731,6 +2732,7 @@ function renderDocumentChange(result = null) {
     const anchor = findDocumentPatchAnchor(documentLayer, objectId, objectIds, paintOrder);
     documentLayer.insertBefore(node, anchor);
   }
+  rebuildDocumentPrimitiveIndex(documentLayer);
   syncViewerStats();
   renderEditorOverlay();
   positionActiveTextEditor();
@@ -2741,17 +2743,86 @@ function commandTargetSet(values) {
   return [...(values || [])].filter(Boolean);
 }
 
+function primitiveDomIndexForAttribute(attribute) {
+  if (attribute === "data-node-id") {
+    return documentPrimitiveNodeElements;
+  }
+  if (attribute === "data-bond-id") {
+    return documentPrimitiveBondElements;
+  }
+  return null;
+}
+
+function resetDocumentPrimitiveIndex() {
+  documentPrimitiveNodeElements = new Map();
+  documentPrimitiveBondElements = new Map();
+}
+
+function addDocumentPrimitiveIndexEntry(index, id, element) {
+  if (!id || !index) {
+    return;
+  }
+  let elements = index.get(id);
+  if (!elements) {
+    elements = new Set();
+    index.set(id, elements);
+  }
+  elements.add(element);
+}
+
+function removeDocumentPrimitiveIndexEntry(index, id, element) {
+  if (!id || !index) {
+    return;
+  }
+  const elements = index.get(id);
+  if (!elements) {
+    return;
+  }
+  elements.delete(element);
+  if (!elements.size) {
+    index.delete(id);
+  }
+}
+
+function indexDocumentPrimitiveElement(element) {
+  addDocumentPrimitiveIndexEntry(documentPrimitiveNodeElements, element.getAttribute("data-node-id"), element);
+  addDocumentPrimitiveIndexEntry(documentPrimitiveBondElements, element.getAttribute("data-bond-id"), element);
+}
+
+function unindexDocumentPrimitiveElement(element) {
+  removeDocumentPrimitiveIndexEntry(documentPrimitiveNodeElements, element.getAttribute("data-node-id"), element);
+  removeDocumentPrimitiveIndexEntry(documentPrimitiveBondElements, element.getAttribute("data-bond-id"), element);
+}
+
+function indexDocumentPrimitiveTree(root) {
+  if (!root?.querySelectorAll) {
+    return;
+  }
+  if (root.nodeType === Node.ELEMENT_NODE) {
+    indexDocumentPrimitiveElement(root);
+  }
+  root
+    .querySelectorAll("[data-node-id], [data-bond-id]")
+    .forEach(indexDocumentPrimitiveElement);
+}
+
+function rebuildDocumentPrimitiveIndex(documentLayer) {
+  resetDocumentPrimitiveIndex();
+  indexDocumentPrimitiveTree(documentLayer);
+}
+
+function documentPrimitiveElementsForId(attribute, id) {
+  const index = primitiveDomIndexForAttribute(attribute);
+  return index ? [...(index.get(id) || [])].filter((element) => element.isConnected) : [];
+}
+
 function collectDocumentPrimitiveTargetElements(documentLayer, nodeIds, bondIds) {
   const elements = new Set();
   for (const nodeId of nodeIds) {
-    documentLayer
-      .querySelectorAll(`[data-node-id="${CSS.escape(nodeId)}"]`)
-      .forEach((element) => elements.add(element));
+    documentPrimitiveElementsForId("data-node-id", nodeId).forEach((element) => elements.add(element));
   }
   for (const bondId of bondIds) {
-    documentLayer
-      .querySelectorAll(`[data-bond-id="${CSS.escape(bondId)}"]`)
-      .forEach((element) => elements.add(element));
+    documentPrimitiveElementsForId("data-bond-id", bondId).forEach((element) => elements.add(element));
   }
   return elements;
 }
@@ -2776,6 +2847,7 @@ function renderDocumentPrimitivePatch(primitives, nodeIds, bondIds) {
     }
   }
   for (const element of targetElements) {
+    unindexDocumentPrimitiveElement(element);
     element.remove();
   }
   const fragment = document.createDocumentFragment();
@@ -2785,6 +2857,7 @@ function renderDocumentPrimitivePatch(primitives, nodeIds, bondIds) {
   if (!fragment.childNodes.length) {
     return false;
   }
+  indexDocumentPrimitiveTree(fragment);
   documentLayer.insertBefore(fragment, anchor);
   syncViewerStats();
   positionActiveTextEditor();
@@ -2830,6 +2903,20 @@ function selectionNeedsBackendMovePreview(selection = currentEditorEngineState()
   return targets.nodeIds.size > 0 || targets.bondIds.size > 0;
 }
 
+function recordBackendMovePreviewTiming(sample) {
+  const debug = window.__chemcoreDebug;
+  if (!debug) {
+    return;
+  }
+  const stats = debug.backendMovePreviewStats || { samples: [] };
+  stats.samples.push(sample);
+  if (stats.samples.length > 240) {
+    stats.samples.splice(0, stats.samples.length - 240);
+  }
+  stats.last = sample;
+  debug.backendMovePreviewStats = stats;
+}
+
 async function applyBackendSelectionMovePreview(point, altKey = false) {
   const gesture = activeSelectionGesture;
   const selection = gesture?.previewSelection || currentEditorEngineState()?.selection;
@@ -2838,15 +2925,43 @@ async function applyBackendSelectionMovePreview(point, altKey = false) {
   }
   gesture.previewSelection = selection;
   const targets = structurePreviewTargetIds(selection);
-  const changed = await state.editorEngine.updateSelectionMove?.(point.x, point.y, altKey);
+  const started = performance.now();
+  const moveResult = state.editorEngine.updateSelectionMove?.(point.x, point.y, altKey);
+  const changed = moveResult && typeof moveResult.then === "function" ? await moveResult : moveResult;
+  const updatedAt = performance.now();
   if (!changed) {
+    recordBackendMovePreviewTiming({
+      updateMs: updatedAt - started,
+      renderTargetsMs: 0,
+      patchMs: 0,
+      totalMs: updatedAt - started,
+      primitiveCount: 0,
+      nodeCount: targets.nodeIds.size,
+      bondCount: targets.bondIds.size,
+      patched: false,
+      changed: false,
+    });
     return true;
   }
   const primitives = parseEngineJson(state.editorEngine.renderTargetsJson?.(JSON.stringify({
     nodes: commandTargetSet(targets.nodeIds),
     bonds: commandTargetSet(targets.bondIds),
   })) || "[]", []);
-  return renderDocumentPrimitivePatch(primitives, targets.nodeIds, targets.bondIds);
+  const renderedAt = performance.now();
+  const patched = renderDocumentPrimitivePatch(primitives, targets.nodeIds, targets.bondIds);
+  const patchedAt = performance.now();
+  recordBackendMovePreviewTiming({
+    updateMs: updatedAt - started,
+    renderTargetsMs: renderedAt - updatedAt,
+    patchMs: patchedAt - renderedAt,
+    totalMs: patchedAt - started,
+    primitiveCount: primitives.length,
+    nodeCount: targets.nodeIds.size,
+    bondCount: targets.bondIds.size,
+    patched,
+    changed: true,
+  });
+  return patched;
 }
 
 function syncViewerStats() {
@@ -6124,6 +6239,7 @@ function renderDocument() {
       sceneRenderer.renderSceneObject(documentLayer, object, documentData);
     }
   }
+  rebuildDocumentPrimitiveIndex(documentLayer);
 
   syncViewerStats();
   renderEditorOverlay();

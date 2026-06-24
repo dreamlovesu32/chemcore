@@ -5,7 +5,6 @@ export function createEditorPointerController(options) {
   let hoverMoveVersion = 0;
   let selectionHoverSuppressionActive = false;
   let documentPreviewFrame = 0;
-  let backendDocumentPreviewTimer = 0;
   let documentPreviewRunning = false;
   let postCommitHoverBlockPoint = null;
 
@@ -13,7 +12,8 @@ export function createEditorPointerController(options) {
     if (options.commandEngine?.executeEngineCommand) {
       return options.commandEngine.executeEngineCommand(command, apply, executeOptions);
     }
-    const rawResult = await apply();
+    const applyResult = apply();
+    const rawResult = applyResult && typeof applyResult.then === "function" ? await applyResult : applyResult;
     if (rawResult) {
       await options.syncDocumentFromEngine();
     }
@@ -65,10 +65,6 @@ export function createEditorPointerController(options) {
     if (documentPreviewFrame) {
       cancelAnimationFrame(documentPreviewFrame);
       documentPreviewFrame = 0;
-    }
-    if (backendDocumentPreviewTimer) {
-      clearTimeout(backendDocumentPreviewTimer);
-      backendDocumentPreviewTimer = 0;
     }
   }
 
@@ -171,11 +167,29 @@ export function createEditorPointerController(options) {
       }
       try {
         if (gesture.backendDocumentPreviewActive) {
+          if (window.__chemcoreDebug) {
+            const stats = window.__chemcoreDebug.backendPreviewSchedulerStats || { runs: 0, backendRuns: 0, errors: [] };
+            stats.runs += 1;
+            stats.backendRuns += 1;
+            window.__chemcoreDebug.backendPreviewSchedulerStats = stats;
+          }
           await options.applyBackendSelectionMovePreview?.(gesture.current, gesture.altKey);
           clearEditorOverlayRoot();
         } else if (options.applyDocumentObjectPreviewTransform()) {
+          if (window.__chemcoreDebug) {
+            const stats = window.__chemcoreDebug.backendPreviewSchedulerStats || { runs: 0, backendRuns: 0, errors: [] };
+            stats.runs += 1;
+            window.__chemcoreDebug.backendPreviewSchedulerStats = stats;
+          }
           clearEditorOverlayRoot();
         }
+      } catch (error) {
+        if (window.__chemcoreDebug) {
+          const stats = window.__chemcoreDebug.backendPreviewSchedulerStats || { runs: 0, backendRuns: 0, errors: [] };
+          stats.errors.push(String(error?.stack || error?.message || error));
+          window.__chemcoreDebug.backendPreviewSchedulerStats = stats;
+        }
+        throw error;
       } finally {
         documentPreviewRunning = false;
         if (options.activeSelectionGesture() === gesture && gesture.previewDirty) {
@@ -184,35 +198,6 @@ export function createEditorPointerController(options) {
         }
       }
     });
-  }
-
-  function scheduleBackendDocumentPreviewFrame() {
-    if (backendDocumentPreviewTimer) {
-      clearTimeout(backendDocumentPreviewTimer);
-    }
-    backendDocumentPreviewTimer = setTimeout(async () => {
-      backendDocumentPreviewTimer = 0;
-      if (documentPreviewRunning) {
-        scheduleBackendDocumentPreviewFrame();
-        return;
-      }
-      documentPreviewRunning = true;
-      const gesture = options.activeSelectionGesture();
-      if (!gesture?.backendDocumentPreviewActive) {
-        documentPreviewRunning = false;
-        return;
-      }
-      try {
-        await options.applyBackendSelectionMovePreview?.(gesture.current, gesture.altKey);
-        clearEditorOverlayRoot();
-      } finally {
-        documentPreviewRunning = false;
-        if (options.activeSelectionGesture() === gesture && gesture.previewDirty) {
-          gesture.previewDirty = false;
-          scheduleBackendDocumentPreviewFrame();
-        }
-      }
-    }, 80);
   }
 
   function syncSelectionHoverSuppressionCursor(point, state) {
@@ -373,7 +358,14 @@ export function createEditorPointerController(options) {
   }
 
   async function beginSelectionMoveGesture(point, event, syncCursor = options.syncSelectCursorForPoint) {
-    if (!await options.state().editorEngine.beginSelectionMove?.(point.x, point.y, !!event.shiftKey, event.altKey)) {
+    const beginResult = options.state().editorEngine.beginSelectionMove?.(
+      point.x,
+      point.y,
+      !!event.shiftKey,
+      event.altKey,
+    );
+    const began = beginResult && typeof beginResult.then === "function" ? await beginResult : beginResult;
+    if (!began) {
       return false;
     }
     invalidateEngineReadCache();
@@ -563,7 +555,7 @@ export function createEditorPointerController(options) {
         if (options.selectionNeedsBackendMovePreview?.()) {
           gesture.backendDocumentPreviewActive = true;
           gesture.previewDirty = true;
-          scheduleBackendDocumentPreviewFrame();
+          scheduleDocumentPreviewFrame();
           clearEditorOverlayRoot();
           return;
         }

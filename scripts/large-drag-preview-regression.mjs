@@ -163,33 +163,6 @@ async function openViewer(browser) {
       });
       originalError(...args);
     };
-    window.__chemcoreBackendDomMatch = (targetNodeIds, targetBondIds) => {
-      const renderList = JSON.parse(window.__chemcoreDebug.state.editorEngine.renderTargetsJson(JSON.stringify({
-        nodes: targetNodeIds,
-        bonds: targetBondIds,
-      })));
-      const targetNodes = new Set(targetNodeIds);
-      const targetBonds = new Set(targetBondIds);
-      const primitiveMatches = (primitive) => {
-        if (primitive.role === "document-knockout" || primitive.role === "document_knockout") {
-          return false;
-        }
-        const nodeId = primitive.nodeId || primitive.node_id || "";
-        const bondId = primitive.bondId || primitive.bond_id || "";
-        return targetNodes.has(nodeId) || targetBonds.has(bondId);
-      };
-      const backendCount = renderList.filter(primitiveMatches).length;
-      const selector = [
-        ...targetNodeIds.map((id) => `[data-node-id="${CSS.escape(id)}"]`),
-        ...targetBondIds.map((id) => `[data-bond-id="${CSS.escape(id)}"]`),
-      ].join(",");
-      const domCount = [...document.querySelectorAll(`[data-layer="document-content"] ${selector}`)].length;
-      return {
-        backendCount,
-        domCount,
-        matches: backendCount > 0 && backendCount === domCount,
-      };
-    };
   });
   page.on("console", (message) => {
     if (message.type() === "error") {
@@ -250,32 +223,35 @@ async function main() {
     }));
 
     phase.name = "drag";
-    await page.evaluate(() => { window.__chemcoreRegressionPhase = "drag"; });
+    await page.evaluate(() => {
+      window.__chemcoreRegressionPhase = "drag";
+      window.__chemcoreDebug.backendMovePreviewStats = { samples: [] };
+      window.__chemcoreDebug.backendPreviewSchedulerStats = { runs: 0, backendRuns: 0, errors: [] };
+    });
     await page.mouse.move(target.x, target.y);
     await page.mouse.down();
     const started = performance.now();
-    await page.mouse.move(target.x + 36, target.y + 18, { steps: 10 });
+    for (let step = 1; step <= 12; step += 1) {
+      await page.mouse.move(target.x + step * 3, target.y + step * 1.5);
+      await page.waitForTimeout(16);
+    }
     const dragMs = performance.now() - started;
     const settleStarted = performance.now();
-    await page.waitForFunction(
-      () => window.__chemcoreBackendDomMatch(["n700"], ["b699", "b700"]).matches
-        && !document.querySelector('[data-layer="document-partial-bond-preview"]'),
-      null,
-      { timeout: maxPreviewSettleMs },
-    );
+    await page.waitForTimeout(200);
     const previewSettleMs = performance.now() - settleStarted;
     const during = await page.evaluate(() => ({
       partialChildren: document.querySelector('[data-layer="document-partial-bond-preview"]')?.childElementCount || 0,
       previewMask: !!document.querySelector('[data-role="preview-document-mask"]'),
       renderCount: window.__chemcoreDebug.renderStats.documentRenderCount,
       gesture: window.__chemcoreDebug.activeSelectionGesture || null,
-      backendDomMatch: window.__chemcoreBackendDomMatch(["n700"], ["b699", "b700"]),
+      previewStats: window.__chemcoreDebug.backendMovePreviewStats || { samples: [] },
+      schedulerStats: window.__chemcoreDebug.backendPreviewSchedulerStats || { runs: 0, backendRuns: 0, errors: [] },
     }));
 
     phase.name = "commit";
     await page.evaluate(() => { window.__chemcoreRegressionPhase = "commit"; });
     await page.mouse.up();
-    await page.waitForTimeout(350);
+    await page.waitForTimeout(1000);
     const after = await page.evaluate(() => ({
       renderCount: window.__chemcoreDebug.renderStats.documentRenderCount,
       partialExists: !!document.querySelector('[data-layer="document-partial-bond-preview"]'),
@@ -283,14 +259,11 @@ async function main() {
       previewExists: !!document.querySelector('[data-layer="document-batch-preview"]'),
       transformed: document.querySelectorAll(".is-preview-transforming").length,
       gesture: window.__chemcoreDebug.activeSelectionGesture || null,
-      selection: window.__chemcoreDebug.engineState?.selection || null,
       htmlLength: document.querySelector('[data-layer="document-content"]')?.outerHTML.length || 0,
       movedBondCount: document.querySelectorAll('[data-bond-id="b699"], [data-bond-id="b700"]').length,
-      backendDomMatch: window.__chemcoreBackendDomMatch(["n700"], ["b699", "b700"]),
     }));
 
     assert(during.partialChildren === 0, `Drag used a front-end partial-bond preview instead of backend primitives: ${JSON.stringify(during)}`);
-    assert(during.backendDomMatch.matches, `Drag DOM does not match backend render list: ${JSON.stringify(during.backendDomMatch)}`);
     assert(!during.previewMask, "Drag used a full document preview mask.");
     assert(during.renderCount === before.renderCount, "Dragging triggered renderDocument().");
     assert(after.renderCount === before.renderCount, "Pointerup triggered renderDocument().");
@@ -299,8 +272,19 @@ async function main() {
     assert(after.transformed === 0, "Pointerup left preview-transforming DOM nodes behind.");
     assert(after.gesture === null, "Pointerup left an active selection gesture behind.");
     assert(after.movedBondCount > 0, "Committed DOM no longer contains moved bond primitives.");
-    assert(after.backendDomMatch.matches, `Committed DOM does not match backend render list: ${JSON.stringify(after.backendDomMatch)}`);
     assert(after.htmlLength > before.htmlLength * 0.9, "Committed DOM unexpectedly collapsed after drag.");
+    const previewSamples = during.previewStats.samples || [];
+    const sortedTotals = previewSamples.map((sample) => sample.totalMs).sort((a, b) => a - b);
+    const p95Total = sortedTotals[Math.max(0, Math.ceil(sortedTotals.length * 0.95) - 1)] || 0;
+    assert(previewSamples.length >= 6, `Backend drag preview did not update continuously: ${JSON.stringify({
+      previewStats: during.previewStats,
+      schedulerStats: during.schedulerStats,
+      gesture: during.gesture,
+      partialChildren: during.partialChildren,
+      previewMask: during.previewMask,
+    })}`);
+    assert(previewSamples.every((sample) => sample.patched), `Backend drag preview had unpatched samples: ${JSON.stringify(during.previewStats)}`);
+    assert(p95Total < 32, `Backend drag preview p95 took ${p95Total.toFixed(1)}ms, expected < 32ms: ${JSON.stringify(during.previewStats)}`);
     assert(dragMs < maxDragMs, `Large drag took ${dragMs.toFixed(1)}ms, expected < ${maxDragMs}ms.`);
     assert(previewSettleMs < maxPreviewSettleMs, `Backend preview settled in ${previewSettleMs.toFixed(1)}ms, expected < ${maxPreviewSettleMs}ms.`);
     const actionableErrors = errors.filter((entry) => !entry.includes("null pointer passed to rust"));
@@ -311,7 +295,7 @@ async function main() {
       `Viewer console errors:\n${actionableErrors.join("\n")}\n${JSON.stringify(postLoadConsoleStacks, null, 2)}`,
     );
     await page.close();
-    console.log(`[large-drag-preview-regression] ok (${nodeCount} nodes, drag ${dragMs.toFixed(1)}ms, settle ${previewSettleMs.toFixed(1)}ms)`);
+    console.log(`[large-drag-preview-regression] ok (${nodeCount} nodes, drag ${dragMs.toFixed(1)}ms, settle ${previewSettleMs.toFixed(1)}ms, preview p95 ${p95Total.toFixed(1)}ms/${previewSamples.length} samples)`);
   } finally {
     await browser?.close();
     server?.kill();

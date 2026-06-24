@@ -198,14 +198,28 @@ pub(super) fn render_molecule_object_targets(
         .collect();
     let stroke = molecule_stroke(document, object);
     let object_id = Some(object.id.clone());
-    let contact_kernel =
-        build_main_bond_contact_kernel(document, object, &fragment.bonds, &node_map);
+    let mut target_render_bond_ids = BTreeSet::new();
+    let mut contact_node_ids = BTreeSet::new();
+    for bond in &fragment.bonds {
+        let touches_target_node =
+            target_node_ids.contains(&bond.begin) || target_node_ids.contains(&bond.end);
+        if target_bond_ids.contains(&bond.id) || touches_target_node {
+            target_render_bond_ids.insert(bond.id.clone());
+            contact_node_ids.insert(bond.begin.clone());
+            contact_node_ids.insert(bond.end.clone());
+        }
+    }
+    let contact_kernel = build_main_bond_contact_kernel_for_nodes(
+        document,
+        object,
+        &fragment.bonds,
+        &node_map,
+        &contact_node_ids,
+    );
 
     let mut rendered_bonds: Vec<&Bond> = Vec::new();
     for bond in &fragment.bonds {
-        let touches_target_node = target_node_ids.contains(&bond.begin)
-            || target_node_ids.contains(&bond.end);
-        if target_bond_ids.contains(&bond.id) || touches_target_node {
+        if target_render_bond_ids.contains(&bond.id) {
             render_bond_crossing_knockouts(
                 out,
                 document,

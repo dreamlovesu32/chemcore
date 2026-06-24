@@ -2317,13 +2317,9 @@ impl Engine {
         if !self.command_context.is_empty() {
             return apply(self);
         }
-        let before_document = self.state.document.clone();
         self.command_context.push(command);
         let changed = apply(self);
         self.command_context.pop();
-        if changed && !documents_equivalent(&before_document, &self.state.document) {
-            refresh_repeating_units(&mut self.state.document);
-        }
         changed
     }
 
