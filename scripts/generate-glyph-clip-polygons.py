@@ -20,9 +20,9 @@ DEFAULT_OUTPUT = ROOT / "shared" / "glyph_clip_polygons.json"
 
 FONT_SIZE = 240
 PADDING = 160
-NATURAL_OUTSET_RATIO = 0.25
+NATURAL_OUTSET_RATIO = 0.225
 GREEN_INSET_RATIO = 0.22
-CIRCLE_RADIUS_RATIO = 0.50
+CIRCLE_RADIUS_RATIO = 0.45
 
 ANCHOR_MAP = {
     "A": [("midpoint", "c0", 1, 2), ("point", "c0", 0), ("point", "c0", 3)],

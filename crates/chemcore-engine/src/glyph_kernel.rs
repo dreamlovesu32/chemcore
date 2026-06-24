@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::OnceLock;
 
-const LABEL_GLYPH_FALLBACK_OUTSET_HEIGHT_RATIO: f64 = 0.30;
+const LABEL_GLYPH_FALLBACK_OUTSET_HEIGHT_RATIO: f64 = 0.27;
 const CHEMDRAW_BOLD_SUBSCRIPT_SHIFT_DOWN_EM: f64 = 0.215;
 
 #[derive(Debug, Clone, Copy)]
@@ -1213,9 +1213,9 @@ mod tests {
             manifest.coordinate_system,
             GlyphClipCoordinateSystem::HeightCentered
         );
-        assert!((manifest.natural_outset_ratio - 0.25).abs() < 1e-9);
+        assert!((manifest.natural_outset_ratio - 0.225).abs() < 1e-9);
         assert!((manifest.green_inset_ratio - 0.22).abs() < 1e-9);
-        assert!((manifest.circle_radius_ratio - 0.50).abs() < 1e-9);
+        assert!((manifest.circle_radius_ratio - 0.45).abs() < 1e-9);
         assert!(manifest.glyphs.contains_key(&'N'));
         assert!(manifest.glyphs.contains_key(&'+'));
     }

@@ -4882,7 +4882,7 @@ fn render_cdxml_single_character_atom_label_uses_text_primitive() {
         .expect("N label should render as text");
 
     assert!((text.0 - 6.4).abs() < 0.001, "{text:?}");
-    assert!((text.1 - 15.63).abs() < 0.001, "{text:?}");
+    assert!((text.1 - 15.65).abs() < 0.001, "{text:?}");
     assert_eq!(
         text.2
             .iter()
