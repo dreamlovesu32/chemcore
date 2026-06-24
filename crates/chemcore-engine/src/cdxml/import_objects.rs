@@ -35,10 +35,7 @@ pub(super) fn append_line_objects(
         } else {
             defaults.line_width
         };
-        let head_enabled = arrow_endpoint_enabled(node.attr("ArrowheadHead"))
-            || node
-                .attr("ArrowType")
-                .is_some_and(|value| value == "FullHead");
+        let head_enabled = cdxml_arrow_head_enabled(node);
         let tail_enabled = arrow_endpoint_enabled(node.attr("ArrowheadTail"));
         let mut extra = BTreeMap::new();
         extra.insert("kind".to_string(), json!("line"));
@@ -240,6 +237,19 @@ fn cdxml_arrow_kind(node: &XmlNode) -> &'static str {
         "angle" | "open" | "retrosynthetic" => "open",
         _ => "solid",
     }
+}
+
+fn cdxml_arrow_head_enabled(node: &XmlNode) -> bool {
+    if let Some(value) = node.attr("ArrowheadHead") {
+        return arrow_endpoint_enabled(Some(value));
+    }
+    if node
+        .attr("ArrowType")
+        .is_some_and(|value| value == "FullHead")
+    {
+        return true;
+    }
+    node.is("arrow") && node.attr("ArrowheadType").is_some()
 }
 
 fn canonical_arrow_endpoint(value: &str) -> &'static str {

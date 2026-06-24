@@ -212,13 +212,13 @@ pub fn automatic_double_bond_placement_for_segment(
     end_id: &str,
     ignored_bond_id: Option<&str>,
 ) -> DoubleBondPlacement {
-    if segment_has_neighbor_double_bond(fragment, begin_id, end_id, ignored_bond_id) {
-        return DoubleBondPlacement::Center;
-    }
     if let Some(placement) =
         ring_double_bond_placement_for_segment(fragment, begin_id, end_id, ignored_bond_id)
     {
         return placement;
+    }
+    if segment_has_neighbor_double_bond(fragment, begin_id, end_id, ignored_bond_id) {
+        return DoubleBondPlacement::Center;
     }
     let Some(counts) =
         connected_attachment_side_counts_for_segment(fragment, begin_id, end_id, ignored_bond_id)

@@ -54,7 +54,21 @@ pub(super) fn segment_intersection_fraction(
     let edge = Vector::new(second.x - first.x, second.y - first.y);
     let denom = vector_cross(direction, edge);
     if denom.abs() <= EPSILON {
-        return None;
+        let offset = Vector::new(first.x - start.x, first.y - start.y);
+        if vector_cross(offset, direction).abs() > EPSILON {
+            return None;
+        }
+        let length_sq = direction.x * direction.x + direction.y * direction.y;
+        if length_sq <= EPSILON {
+            return None;
+        }
+        let first_t =
+            ((first.x - start.x) * direction.x + (first.y - start.y) * direction.y) / length_sq;
+        let second_t =
+            ((second.x - start.x) * direction.x + (second.y - start.y) * direction.y) / length_sq;
+        let overlap_start = first_t.min(second_t).max(0.0);
+        let overlap_end = first_t.max(second_t).min(1.0);
+        return (overlap_end + EPSILON >= overlap_start).then_some(overlap_end);
     }
     let offset = Vector::new(first.x - start.x, first.y - start.y);
     let t = vector_cross(offset, edge) / denom;
@@ -64,6 +78,42 @@ pub(super) fn segment_intersection_fraction(
     } else {
         None
     }
+}
+
+fn point_is_on_segment(point: Point, first: Point, second: Point) -> bool {
+    let edge = Vector::new(second.x - first.x, second.y - first.y);
+    let point_vector = Vector::new(point.x - first.x, point.y - first.y);
+    if vector_cross(edge, point_vector).abs() > EPSILON {
+        return false;
+    }
+    let dot = point_vector.x * edge.x + point_vector.y * edge.y;
+    if dot < -EPSILON {
+        return false;
+    }
+    dot <= edge.x * edge.x + edge.y * edge.y + EPSILON
+}
+
+fn point_is_inside_or_on_polygon(point: Point, polygon: &[Point]) -> bool {
+    if polygon.len() < 3 {
+        return false;
+    }
+    let mut inside = false;
+    for index in 0..polygon.len() {
+        let first = polygon[index];
+        let second = polygon[(index + 1) % polygon.len()];
+        if point_is_on_segment(point, first, second) {
+            return true;
+        }
+        let crosses = (first.y > point.y) != (second.y > point.y);
+        if crosses {
+            let x_intersection =
+                (second.x - first.x) * (point.y - first.y) / (second.y - first.y) + first.x;
+            if x_intersection > point.x {
+                inside = !inside;
+            }
+        }
+    }
+    inside
 }
 
 pub(super) fn clip_point_out_of_polygons(
@@ -76,6 +126,7 @@ pub(super) fn clip_point_out_of_polygons(
         if polygon.len() < 3 {
             continue;
         }
+        let start_inside = point_is_inside_or_on_polygon(start, polygon);
         let mut polygon_t: Option<f64> = None;
         for index in 0..polygon.len() {
             let next = (index + 1) % polygon.len();
@@ -83,12 +134,15 @@ pub(super) fn clip_point_out_of_polygons(
             else {
                 continue;
             };
-            if t <= EPSILON {
+            if t <= EPSILON && !start_inside {
                 continue;
             }
             if polygon_t.is_none_or(|current| t > current) {
                 polygon_t = Some(t);
             }
+        }
+        if start_inside && polygon_t.is_none() {
+            polygon_t = Some(0.0);
         }
         if let Some(t) = polygon_t {
             if best_t.is_none_or(|current| t > current) {
@@ -173,6 +227,34 @@ pub(super) fn clip_point_out_of_label_geometry(
     clip_point_out_of_polygons(start, end, polygons)
         .map(|point| advance_point_toward(point, end, margin))
         .unwrap_or(start)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn clip_segment_out_of_label_geometry(
+    start: Point,
+    end: Point,
+    start_rect: Option<RectBox>,
+    start_polygons: &[Vec<Point>],
+    end_rect: Option<RectBox>,
+    end_polygons: &[Vec<Point>],
+    margin: f64,
+) -> Option<(Point, Point)> {
+    let direction = Vector::new(end.x - start.x, end.y - start.y);
+    let length_sq = direction.x * direction.x + direction.y * direction.y;
+    if length_sq <= EPSILON {
+        return None;
+    }
+
+    let clipped_start =
+        clip_point_out_of_label_geometry(start, end, start_rect, start_polygons, margin);
+    let clipped_end = clip_point_out_of_label_geometry(end, start, end_rect, end_polygons, margin);
+    let start_t = ((clipped_start.x - start.x) * direction.x
+        + (clipped_start.y - start.y) * direction.y)
+        / length_sq;
+    let end_t = ((clipped_end.x - start.x) * direction.x + (clipped_end.y - start.y) * direction.y)
+        / length_sq;
+
+    (end_t > start_t + EPSILON).then_some((clipped_start, clipped_end))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -261,32 +343,44 @@ pub(super) fn render_fragment_line_with_profiles(
         .get(bond.end.as_str())
         .and_then(|node| node.label.as_ref())
         .is_some_and(|label| label.has_visible_text());
-    let (clipped_start, clipped_end) = if clip_against_label_geometry {
+    let allow_start_join = allow_start_join && !start_has_label;
+    let allow_end_join = allow_end_join && !end_has_label;
+    let start_endpoint_profile_override = if start_has_label {
+        None
+    } else {
+        start_endpoint_profile_override
+    };
+    let end_endpoint_profile_override = if end_has_label {
+        None
+    } else {
+        end_endpoint_profile_override
+    };
+    let Some((clipped_start, clipped_end)) = (if clip_against_label_geometry {
         let label_clip_margin = label_clip_margin_for_bond(bond, stroke_width);
-        // Clip both endpoints before contact profiles are inherited, so label
-        // retreat and shared-node joins compose instead of fighting each other.
-        let clipped_start = clip_point_out_of_label_geometry(
+        clip_segment_out_of_label_geometry(
             start,
             end,
             start_box,
             &start_polygons,
-            label_clip_margin,
-        );
-        let clipped_end = clip_point_out_of_label_geometry(
-            end,
-            clipped_start,
             end_box,
             &end_polygons,
             label_clip_margin,
-        );
-        (clipped_start, clipped_end)
+        )
     } else {
-        (start, end)
+        Some((start, end))
+    }) else {
+        return;
     };
-    let hash_pattern_start = clipped_start;
-    let hash_pattern_end = clipped_end;
-    let mut start_retreat = contact_kernel.endpoint_retreat(&bond.id, &bond.begin);
-    let mut end_retreat = contact_kernel.endpoint_retreat(&bond.id, &bond.end);
+    let mut start_retreat = if start_has_label {
+        0.0
+    } else {
+        contact_kernel.endpoint_retreat(&bond.id, &bond.begin)
+    };
+    let mut end_retreat = if end_has_label {
+        0.0
+    } else {
+        contact_kernel.endpoint_retreat(&bond.id, &bond.end)
+    };
     if is_hash_bond(bond) && line_weight == BondLineWeight::Bold && !dash_array.is_empty() {
         let retreat = hash_contact_retreat_distance_for_bond(bond, stroke_width);
         if !start_has_label && endpoint_has_other_bond(bonds, bond, &bond.begin) {
@@ -318,10 +412,11 @@ pub(super) fn render_fragment_line_with_profiles(
     if end_retreat > EPSILON {
         end_endpoint_profile = None;
     }
-    let use_start_contact_kernel =
-        contact_kernel.uses_endpoint(&bond.id, &bond.begin) || start_endpoint_profile.is_some();
-    let use_end_contact_kernel =
-        contact_kernel.uses_endpoint(&bond.id, &bond.end) || end_endpoint_profile.is_some();
+    let use_start_contact_kernel = !start_has_label
+        && (contact_kernel.uses_endpoint(&bond.id, &bond.begin)
+            || start_endpoint_profile.is_some());
+    let use_end_contact_kernel = !end_has_label
+        && (contact_kernel.uses_endpoint(&bond.id, &bond.end) || end_endpoint_profile.is_some());
     if line_weight == BondLineWeight::Normal && dash_array.is_empty() {
         let allow_main_line_join =
             is_joinable_main_line_render(bond, allow_bold_contacts, line_weight);
@@ -343,40 +438,29 @@ pub(super) fn render_fragment_line_with_profiles(
         }
     }
     if !dash_array.is_empty() {
-        let polygon_points = if line_weight == BondLineWeight::Bold {
-            Some(compute_bold_bond_points(
-                object,
-                bonds,
-                node_map,
-                bond,
-                clipped_start,
-                clipped_end,
-                stroke_width,
-                allow_bold_contacts && !use_start_contact_kernel,
-                allow_bold_contacts && !use_end_contact_kernel,
-                start_endpoint_profile.clone(),
-                end_endpoint_profile.clone(),
-            ))
+        let visual_width = line_weight_stroke_width_for_bond(bond, stroke_width, line_weight);
+        let segment_polygons = if line_weight == BondLineWeight::Bold && is_hash_bond(bond) {
+            hash_bond_segment_polygons(clipped_start, clipped_end, visual_width, stroke_width)
         } else {
-            main_line_polygon_points(
-                object,
-                bonds,
-                node_map,
-                bond,
-                clipped_start,
-                clipped_end,
-                line_weight_stroke_width_for_bond(bond, stroke_width, line_weight),
-                is_joinable_main_line_render(bond, allow_bold_contacts, line_weight)
-                    && allow_start_join
-                    && !use_start_contact_kernel,
-                is_joinable_main_line_render(bond, allow_bold_contacts, line_weight)
-                    && allow_end_join
-                    && !use_end_contact_kernel,
-                start_endpoint_profile.clone(),
-                end_endpoint_profile.clone(),
-            )
+            dashed_bond_segment_polygons(clipped_start, clipped_end, visual_width, &dash_array)
         };
-        if let Some(points) = polygon_points {
+        if !segment_polygons.is_empty() {
+            for points in segment_polygons {
+                push_bond_polygon(
+                    out,
+                    &bond.id,
+                    points,
+                    stroke,
+                    stroke,
+                    0.0,
+                    object_id.clone(),
+                );
+            }
+            return;
+        }
+        if let Some(points) =
+            simple_main_line_polygon_points(clipped_start, clipped_end, visual_width)
+        {
             push_bond_polygon(
                 out,
                 &bond.id,
@@ -385,35 +469,9 @@ pub(super) fn render_fragment_line_with_profiles(
                 stroke,
                 0.0,
                 object_id.clone(),
-            );
-            let knockouts = if line_weight == BondLineWeight::Bold {
-                hash_bond_knockout_polygons(
-                    if is_hash_bond(bond) {
-                        hash_pattern_start
-                    } else {
-                        clipped_start
-                    },
-                    if is_hash_bond(bond) {
-                        hash_pattern_end
-                    } else {
-                        clipped_end
-                    },
-                    line_weight_stroke_width_for_bond(bond, stroke_width, line_weight),
-                    stroke_width,
-                )
-            } else {
-                dashed_bond_knockout_polygons(
-                    clipped_start,
-                    clipped_end,
-                    line_weight_stroke_width_for_bond(bond, stroke_width, line_weight),
-                    &dash_array,
-                )
-            };
-            for knockout in knockouts {
-                push_knockout_polygon(out, knockout, object_id.clone());
-            }
-            return;
+            )
         }
+        return;
     }
     if line_weight == BondLineWeight::Bold && dash_array.is_empty() {
         let direction = Vector::new(
@@ -421,7 +479,7 @@ pub(super) fn render_fragment_line_with_profiles(
             clipped_end.y - clipped_start.y,
         );
         if direction.length() > EPSILON {
-            if !use_start_contact_kernel {
+            if allow_start_join && !use_start_contact_kernel {
                 if let Some(points) = bold_main_line_join_polygon(
                     object,
                     bonds,
@@ -443,7 +501,7 @@ pub(super) fn render_fragment_line_with_profiles(
                     );
                 }
             }
-            if !use_end_contact_kernel {
+            if allow_end_join && !use_end_contact_kernel {
                 if let Some(points) = bold_main_line_join_polygon(
                     object,
                     bonds,
@@ -477,8 +535,8 @@ pub(super) fn render_fragment_line_with_profiles(
                 clipped_start,
                 clipped_end,
                 stroke_width,
-                allow_bold_contacts && !use_start_contact_kernel,
-                allow_bold_contacts && !use_end_contact_kernel,
+                allow_bold_contacts && allow_start_join && !use_start_contact_kernel,
+                allow_bold_contacts && allow_end_join && !use_end_contact_kernel,
                 start_endpoint_profile,
                 end_endpoint_profile,
             ),

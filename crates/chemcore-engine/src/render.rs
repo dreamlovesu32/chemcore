@@ -41,9 +41,8 @@ use object_render::{
     render_text_object,
 };
 use primitives::{
-    push_bond_knockout_polygon, push_bond_polygon, push_knockout_polygon,
-    push_label_knockout_polygon, push_line, push_path, push_polygon, push_polyline, push_text,
-    push_text_for_node, push_text_rotated,
+    push_bond_knockout_polygon, push_bond_polygon, push_label_knockout_polygon, push_line,
+    push_path, push_polygon, push_polyline, push_text, push_text_for_node, push_text_rotated,
 };
 pub use primitives::{RenderPrimitive, RenderRole};
 
@@ -54,8 +53,8 @@ pub(crate) use bounds::{
     shape_object_visual_bounds,
 };
 use labels::{
-    clip_point_out_of_label_geometry, label_box_world, label_polygons_world, render_fragment_line,
-    render_fragment_line_with_profiles, world_point,
+    clip_segment_out_of_label_geometry, label_box_world, label_polygons_world,
+    render_fragment_line, render_fragment_line_with_profiles, world_point,
 };
 use style_payload::*;
 

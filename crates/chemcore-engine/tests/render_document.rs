@@ -1057,24 +1057,35 @@ fn document_bond_polygon_count_for_object(
     primitives: &[RenderPrimitive],
     object_id: &str,
 ) -> usize {
+    document_bond_polygons_for_object(primitives, object_id).len()
+}
+
+fn document_bond_polygons_for_object(
+    primitives: &[RenderPrimitive],
+    object_id: &str,
+) -> Vec<Vec<chemcore_engine::Point>> {
     primitives
         .iter()
-        .filter(|primitive| {
-            matches!(
-                primitive,
-                RenderPrimitive::Polygon {
-                    role,
-                    object_id: primitive_object_id,
-                    ..
-                } | RenderPrimitive::FilledPath {
-                    role,
-                    object_id: primitive_object_id,
-                    ..
-                } if *role == RenderRole::DocumentBond
-                    && primitive_object_id.as_deref() == Some(object_id)
-            )
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                role,
+                object_id: primitive_object_id,
+                points,
+                ..
+            }
+            | RenderPrimitive::FilledPath {
+                role,
+                object_id: primitive_object_id,
+                points,
+                ..
+            } if *role == RenderRole::DocumentBond
+                && primitive_object_id.as_deref() == Some(object_id) =>
+            {
+                Some(points.clone())
+            }
+            _ => None,
         })
-        .count()
+        .collect()
 }
 
 fn document_knockout_count_for_object(primitives: &[RenderPrimitive], object_id: &str) -> usize {
@@ -1094,45 +1105,45 @@ fn document_knockout_count_for_object(primitives: &[RenderPrimitive], object_id:
         .count()
 }
 
-fn document_knockout_axis_intervals_for_object(
+fn document_bond_axis_lengths_for_object(
+    primitives: &[RenderPrimitive],
+    object_id: &str,
+) -> Vec<f64> {
+    let mut lengths: Vec<_> = document_bond_polygons_for_object(primitives, object_id)
+        .iter()
+        .filter_map(|points| bond_axis_length(points))
+        .collect();
+    lengths.sort_by(f64::total_cmp);
+    lengths
+}
+
+fn document_bond_axis_intervals_for_object(
     primitives: &[RenderPrimitive],
     object_id: &str,
 ) -> Vec<(f64, f64)> {
-    let (axis_from, axis_to, bond_start) = primitives
+    let polygons = document_bond_polygons_for_object(primitives, object_id);
+    let (axis_from, axis_to) = polygons
         .iter()
-        .find_map(|primitive| match primitive {
-            RenderPrimitive::Polygon {
-                role,
-                object_id: primitive_object_id,
-                points,
-                ..
-            } if *role == RenderRole::DocumentBond
-                && primitive_object_id.as_deref() == Some(object_id) =>
-            {
-                let (axis_from, axis_to) = bond_axis_from_points(points)?;
-                let (bond_start, _) = projection_range_on_axis(points, axis_from, axis_to)?;
-                Some((axis_from, axis_to, bond_start))
-            }
-            _ => None,
+        .filter_map(|points| {
+            let (axis_from, axis_to) = bond_axis_from_points(points)?;
+            let length = axis_from.distance(axis_to);
+            Some((length, axis_from, axis_to))
         })
-        .expect("object should have a bond polygon");
-    let mut intervals: Vec<_> = primitives
+        .max_by(|left, right| left.0.total_cmp(&right.0))
+        .map(|(_, axis_from, axis_to)| (axis_from, axis_to))
+        .expect("object should have a bond axis");
+    let mut intervals: Vec<_> = polygons
         .iter()
-        .filter_map(|primitive| match primitive {
-            RenderPrimitive::Polygon {
-                role,
-                object_id: primitive_object_id,
-                points,
-                ..
-            } if *role == RenderRole::DocumentKnockout
-                && primitive_object_id.as_deref() == Some(object_id) =>
-            {
-                let (start, end) = projection_range_on_axis(points, axis_from, axis_to)?;
-                Some((start - bond_start, end - bond_start))
-            }
-            _ => None,
-        })
+        .filter_map(|points| projection_range_on_axis(points, axis_from, axis_to))
         .collect();
+    let origin = intervals
+        .iter()
+        .map(|(start, _)| *start)
+        .fold(f64::INFINITY, f64::min);
+    for (start, end) in &mut intervals {
+        *start -= origin;
+        *end -= origin;
+    }
     intervals.sort_by(|a, b| a.0.total_cmp(&b.0).then_with(|| a.1.total_cmp(&b.1)));
     intervals
 }
@@ -2269,7 +2280,7 @@ fn load_cdxml_document_derives_wedge_width_from_imported_bold_width() {
         .fragment
         .bonds[0];
     assert!((bond.wedge_width.unwrap_or_default() - 3.015).abs() < 0.01);
-    assert_eq!(bond.label_clip_margin, Some(0.0));
+    assert_eq!(bond.label_clip_margin, None);
     assert_eq!(bond.margin_width, None);
 }
 
@@ -2310,6 +2321,209 @@ fn load_cdxml_document_does_not_import_margin_width_as_label_retreat() {
         "CDXML MarginWidth should not become label retreat: {normal} {wide_line}"
     );
     assert!((wide_margin - normal).abs() < 0.01, "{wide_margin}");
+}
+
+#[test]
+fn cdxml_imported_bonds_use_engine_glyph_retreat() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="14.40" LineWidth="0.60" BoldWidth="2.00" HashSpacing="2.50" BondSpacing="18" MarginWidth="5.00" LabelSize="10">
+  <page id="p1" BoundingBox="0 0 50 30">
+    <fragment id="f1" BoundingBox="0 0 50 30">
+      <n id="n1" p="10 15"/>
+      <n id="n2" p="24.4 15" Element="7">
+        <t p="20.8 18.9" BoundingBox="20.8 10.56 28.02 18.9" LabelJustification="Left">
+          <s font="3" size="10" color="0" face="96">N</s>
+        </t>
+      </n>
+      <b id="b1" B="n1" E="n2" Display="Bold"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("glyph retreat")).expect("cdxml should parse");
+    let bond = imported_fragment_bond(&document, "obj_mol_001", "b1");
+    assert_eq!(bond.label_clip_margin, None);
+    assert_eq!(bond.margin_width, None);
+
+    let polygon = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                role: RenderRole::DocumentBond,
+                object_id,
+                bond_id,
+                points,
+                ..
+            } if object_id.as_deref() == Some("obj_mol_001")
+                && bond_id.as_deref() == Some("b1") =>
+            {
+                Some(points)
+            }
+            _ => None,
+        })
+        .expect("bold bond polygon should render");
+    let (from, to) = bond_axis_from_points(&polygon).expect("bond axis");
+    let label_endpoint = if from.x > to.x { from } else { to };
+
+    assert!(
+        20.8 - label_endpoint.x > 0.7,
+        "imported bond should retreat from the N glyph using engine glyph clipping: {polygon:?}"
+    );
+}
+
+#[test]
+fn render_document_does_not_join_bold_bond_at_labeled_endpoint() {
+    let document = fragment_document(
+        json!([
+            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 40.0], "charge": 0, "numHydrogens": 0 },
+            {
+                "id": "n2",
+                "element": "N",
+                "atomicNumber": 7,
+                "position": [56.0, 40.0],
+                "charge": 0,
+                "numHydrogens": 0,
+                "label": {
+                    "text": "N",
+                    "position": [56.0, 45.0],
+                    "box": [51.0, 34.0, 61.0, 46.0],
+                    "glyphPolygons": [[
+                        [51.0, 34.0],
+                        [61.0, 34.0],
+                        [61.0, 46.0],
+                        [51.0, 46.0]
+                    ]]
+                }
+            },
+            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [62.0, 28.0], "charge": 0, "numHydrogens": 0 }
+        ]),
+        json!([
+            {
+                "id": "b1",
+                "begin": "n1",
+                "end": "n2",
+                "order": 1,
+                "strokeWidth": 0.85,
+                "lineWeights": { "main": "bold" }
+            },
+            { "id": "b2", "begin": "n2", "end": "n3", "order": 1, "strokeWidth": 0.85 }
+        ]),
+    );
+
+    let polygon = object_bond_polygons_with_ids(&render_document(&document))
+        .into_iter()
+        .find_map(|(bond_id, points)| (bond_id == "b1").then_some(points))
+        .expect("bold bond polygon should render");
+    let max_x = polygon
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::NEG_INFINITY, f64::max);
+
+    assert!(
+        max_x < 51.0,
+        "labeled endpoints should be clipped by glyphs and must not rejoin at the atom point: {polygon:?}"
+    );
+}
+
+#[test]
+fn render_document_retreats_bond_when_label_anchor_lies_on_glyph_boundary() {
+    let document = fragment_document(
+        json!([
+            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 40.0], "charge": 0, "numHydrogens": 0 },
+            {
+                "id": "n2",
+                "element": "N",
+                "atomicNumber": 7,
+                "position": [50.0, 40.0],
+                "charge": 0,
+                "numHydrogens": 0,
+                "label": {
+                    "text": "N",
+                    "position": [50.0, 45.0],
+                    "box": [50.0, 34.0, 60.0, 46.0],
+                    "glyphPolygons": [[
+                        [50.0, 34.0],
+                        [60.0, 34.0],
+                        [60.0, 46.0],
+                        [50.0, 46.0]
+                    ]]
+                }
+            }
+        ]),
+        json!([
+            { "id": "b1", "begin": "n1", "end": "n2", "order": 1, "strokeWidth": 0.85 }
+        ]),
+    );
+
+    let polygon = object_bond_polygons_with_ids(&render_document(&document))
+        .into_iter()
+        .find_map(|(bond_id, points)| (bond_id == "b1").then_some(points))
+        .expect("bond polygon should render");
+    let max_x = polygon
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::NEG_INFINITY, f64::max);
+
+    assert!(
+        max_x < 49.0,
+        "a bond whose atom anchor lies on a glyph edge should still retreat outside the glyph: {polygon:?}"
+    );
+}
+
+#[test]
+fn render_document_allows_bond_between_close_labels_to_disappear() {
+    let document = fragment_document(
+        json!([
+            {
+                "id": "n1",
+                "element": "N",
+                "atomicNumber": 7,
+                "position": [50.0, 40.0],
+                "charge": 0,
+                "numHydrogens": 0,
+                "label": {
+                    "text": "N",
+                    "position": [50.0, 45.0],
+                    "box": [45.0, 34.0, 55.0, 46.0],
+                    "glyphPolygons": [[
+                        [45.0, 34.0],
+                        [55.0, 34.0],
+                        [55.0, 46.0],
+                        [45.0, 46.0]
+                    ]]
+                }
+            },
+            {
+                "id": "n2",
+                "element": "N",
+                "atomicNumber": 7,
+                "position": [60.0, 40.0],
+                "charge": 0,
+                "numHydrogens": 0,
+                "label": {
+                    "text": "N",
+                    "position": [60.0, 45.0],
+                    "box": [55.0, 34.0, 65.0, 46.0],
+                    "glyphPolygons": [[
+                        [55.0, 34.0],
+                        [65.0, 34.0],
+                        [65.0, 46.0],
+                        [55.0, 46.0]
+                    ]]
+                }
+            }
+        ]),
+        json!([
+            { "id": "b1", "begin": "n1", "end": "n2", "order": 1, "strokeWidth": 0.85 }
+        ]),
+    );
+
+    assert!(
+        !object_bond_polygons_with_ids(&render_document(&document))
+            .iter()
+            .any(|(bond_id, _)| bond_id == "b1"),
+        "when label glyph retreats consume the whole segment, the bond should disappear instead of preserving a minimum visible length"
+    );
 }
 
 #[test]
@@ -2624,6 +2838,45 @@ fn cdxml_arrow_head_dimensions_are_relative_to_line_width() {
         .fold(f64::NEG_INFINITY, f64::max);
     assert!((head_max_x - head_min_x - 13.5).abs() <= 0.001);
     assert!((head_max_y - head_min_y - 6.856).abs() <= 0.001);
+}
+
+#[test]
+fn cdxml_arrow_element_defaults_missing_head_position_to_full() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML LineWidth="0.6" BondLength="14.4" color="0" bgcolor="1">
+  <page id="1" BoundingBox="0 0 160 80">
+    <arrow id="2" Head3D="128.21 40 0" Tail3D="0 40 0" Z="1"
+      FillType="None" ArrowheadType="Solid"
+      HeadSize="2250" ArrowheadCenterSize="1969" ArrowheadWidth="563"/>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("arrow")).expect("cdxml should parse");
+    let arrow = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "line")
+        .expect("arrow should import as line object");
+    let arrow_head = arrow
+        .payload
+        .extra
+        .get("arrowHead")
+        .expect("arrow should keep cdxml arrow payload");
+    assert_eq!(
+        arrow_head.get("head").and_then(|value| value.as_str()),
+        Some("full")
+    );
+
+    assert!(render_document(&document).iter().any(|primitive| {
+        matches!(
+            primitive,
+            RenderPrimitive::FilledPath {
+                role: RenderRole::DocumentGraphic,
+                object_id,
+                ..
+            } if object_id.as_deref() == Some(arrow.id.as_str())
+        )
+    }));
 }
 
 #[test]
@@ -3713,32 +3966,62 @@ fn parse_cdxml_renders_acs_dashed_bond_patterns_like_chemdraw() {
     let primitives = render_document(&document);
 
     assert_eq!(
+        document_bond_polygon_count_for_object(&primitives, "obj_mol_001"),
+        7
+    );
+    assert_eq!(
         document_knockout_count_for_object(&primitives, "obj_mol_001"),
-        6
+        0
     );
     assert_eq!(
         document_bond_polygon_count_for_object(&primitives, "obj_mol_002"),
-        2
+        8
     );
     assert_eq!(
         document_knockout_count_for_object(&primitives, "obj_mol_002"),
-        6
+        0
     );
     assert_eq!(
         document_bond_polygon_count_for_object(&primitives, "obj_mol_003"),
-        2
+        14
     );
     assert_eq!(
         document_knockout_count_for_object(&primitives, "obj_mol_003"),
-        12
+        0
     );
 
-    let single_gaps = document_knockout_axis_intervals_for_object(&primitives, "obj_mol_001");
-    assert_eq!(single_gaps.len(), 6, "{single_gaps:?}");
-    assert!((single_gaps[0].0 - 2.5).abs() < 0.01, "{single_gaps:?}");
-    assert!((single_gaps[0].1 - 5.5833).abs() < 0.01, "{single_gaps:?}");
-    assert!((single_gaps[5].0 - 30.4167).abs() < 0.01, "{single_gaps:?}");
-    assert!((single_gaps[5].1 - 33.5).abs() < 0.01, "{single_gaps:?}");
+    let single_segments = document_bond_axis_intervals_for_object(&primitives, "obj_mol_001");
+    assert_eq!(single_segments.len(), 7, "{single_segments:?}");
+    assert!(
+        (single_segments[0].0 - 0.0).abs() < 0.01 && (single_segments[0].1 - 2.5).abs() < 0.01,
+        "{single_segments:?}"
+    );
+    assert!(
+        (single_segments[1].0 - 5.5833).abs() < 0.01
+            && (single_segments[1].1 - 8.0833).abs() < 0.01,
+        "{single_segments:?}"
+    );
+    assert!(
+        (single_segments[6].0 - 33.5).abs() < 0.01 && (single_segments[6].1 - 36.0).abs() < 0.01,
+        "{single_segments:?}"
+    );
+    let solid_dash_lengths = document_bond_axis_lengths_for_object(&primitives, "obj_mol_002");
+    assert!(
+        solid_dash_lengths
+            .iter()
+            .filter(|length| (**length - 2.5).abs() < 0.01)
+            .count()
+            == 7
+            && solid_dash_lengths.iter().any(|length| *length > 35.0),
+        "{solid_dash_lengths:?}"
+    );
+    let double_dash_lengths = document_bond_axis_lengths_for_object(&primitives, "obj_mol_003");
+    assert!(
+        double_dash_lengths
+            .iter()
+            .all(|length| (*length - 2.5).abs() < 0.01),
+        "{double_dash_lengths:?}"
+    );
 }
 
 #[test]
@@ -4162,6 +4445,85 @@ fn parse_cdxml_infers_benzene_double_bond_sides_and_bond_colors() {
         .bonds
         .iter()
         .any(|bond| bond.stroke.as_deref() == Some("#ff0000")));
+}
+
+#[test]
+fn parse_cdxml_auto_dashed_double_bond_uses_ring_inside_side() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.40" BondSpacing="18" LineWidth="0.60" BoldWidth="2.00" HashSpacing="2.50">
+  <page id="1">
+    <fragment id="2" BoundingBox="7 10 33 39">
+      <n id="n1" p="20.00 10.00"/>
+      <n id="n2" p="32.47 17.20"/>
+      <n id="n3" p="32.47 31.60"/>
+      <n id="n4" p="20.00 38.80"/>
+      <n id="n5" p="7.53 31.60"/>
+      <n id="n6" p="7.53 17.20"/>
+      <b id="b1" B="n1" E="n2" Order="1.5" Display2="Dash"/>
+      <b id="b2" B="n2" E="n3"/>
+      <b id="b3" B="n3" E="n4" Order="2"/>
+      <b id="b4" B="n4" E="n5"/>
+      <b id="b5" B="n5" E="n6" Order="2"/>
+      <b id="b6" B="n6" E="n1"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(cdxml, Some("auto dashed ring double")).expect("cdxml should parse");
+    let bond = imported_fragment_bond(&document, "obj_mol_001", "b1");
+    let double = bond
+        .double
+        .as_ref()
+        .expect("auto dashed double should import as a double bond");
+
+    assert_eq!(double.placement, chemcore_engine::DoubleBondPlacement::Left);
+    assert!(
+        !double.frozen,
+        "no explicit DoublePosition means placement should remain auto"
+    );
+    assert_eq!(
+        bond.line_styles.main,
+        chemcore_engine::BondLinePattern::Solid
+    );
+    assert_eq!(
+        bond.line_styles.left,
+        chemcore_engine::BondLinePattern::Dashed
+    );
+    assert_eq!(
+        bond.line_styles.right,
+        chemcore_engine::BondLinePattern::Solid
+    );
+}
+
+#[test]
+fn parse_cdxml_auto_ring_double_prioritizes_ring_side_over_neighbor_double() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.40" BondSpacing="18" LineWidth="0.60">
+  <page id="1">
+    <fragment id="2" BoundingBox="7 10 33 39">
+      <n id="n1" p="20.00 10.00"/>
+      <n id="n2" p="32.47 17.20"/>
+      <n id="n3" p="32.47 31.60"/>
+      <n id="n4" p="20.00 38.80"/>
+      <n id="n5" p="7.53 31.60"/>
+      <n id="n6" p="7.53 17.20"/>
+      <b id="b1" B="n1" E="n2" Order="2"/>
+      <b id="b2" B="n2" E="n3" Order="2"/>
+      <b id="b3" B="n3" E="n4"/>
+      <b id="b4" B="n4" E="n5"/>
+      <b id="b5" B="n5" E="n6"/>
+      <b id="b6" B="n6" E="n1"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("ring priority")).expect("cdxml should parse");
+    let bond = imported_fragment_bond(&document, "obj_mol_001", "b1");
+
+    assert_eq!(
+        bond.double.as_ref().map(|double| double.placement),
+        Some(chemcore_engine::DoubleBondPlacement::Left),
+        "ring membership should choose the inward side before adjacent-double centering"
+    );
 }
 
 #[test]
@@ -4833,6 +5195,94 @@ fn parse_cdxml_matches_default_and_acs_double_bond_spacing_samples() {
             chemcore_engine::BondLinePattern::Dashed
         );
     }
+}
+
+#[test]
+fn parse_cdxml_recognizes_fractional_dashed_double_bond() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="14.40" LineWidth="0.60" BoldWidth="2.00" HashSpacing="2.50" BondSpacing="18" LabelSize="10">
+  <page id="p1" BoundingBox="0 0 50 50">
+    <fragment id="f1" BoundingBox="0 0 50 50">
+      <n id="n1" p="24 10"/>
+      <n id="n2" p="24 34"/>
+      <b id="b1" B="n1" E="n2" Order="1.5" Display2="Dash"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(cdxml, Some("fractional dashed double")).expect("cdxml should parse");
+    let bond = imported_fragment_bond(&document, "obj_mol_001", "b1");
+
+    assert_eq!(bond.order, 2);
+    let double = bond
+        .double
+        .as_ref()
+        .expect("fractional bond should render as a double bond");
+    assert_eq!(
+        double.placement,
+        chemcore_engine::DoubleBondPlacement::Center
+    );
+    assert!(
+        !double.frozen,
+        "Display2 without DoublePosition should keep automatic placement"
+    );
+    assert_eq!(
+        bond.line_styles.right,
+        chemcore_engine::BondLinePattern::Dashed
+    );
+    assert_eq!(
+        bond.meta
+            .pointer("/import/cdxml/display2")
+            .and_then(serde_json::Value::as_str),
+        Some("Dash")
+    );
+
+    let primitives = render_document(&document);
+    let bond_polygons: Vec<_> = primitives
+        .iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                role: RenderRole::DocumentBond,
+                object_id,
+                bond_id,
+                points,
+                ..
+            } if object_id.as_deref() == Some("obj_mol_001")
+                && bond_id.as_deref() == Some("b1") =>
+            {
+                Some(points)
+            }
+            _ => None,
+        })
+        .collect();
+    assert!(
+        bond_polygons.len() > 2,
+        "virtual/solid double bond should render one solid line plus black dash segments: {bond_polygons:?}"
+    );
+    let lengths: Vec<_> = bond_polygons
+        .iter()
+        .filter_map(|points| bond_axis_length(points))
+        .collect();
+    assert!(
+        lengths.iter().any(|length| *length > 18.0)
+            && lengths.iter().any(|length| *length > 2.0 && *length < 3.0),
+        "Display2=\"Dash\" should use the same fixed black segment lengths as dashed bonds: {lengths:?}"
+    );
+    assert!(
+        !primitives.iter().any(|primitive| matches!(
+            primitive,
+            RenderPrimitive::Polygon {
+                role: RenderRole::DocumentKnockout,
+                object_id,
+                node_id: None,
+                ..
+            } if object_id.as_deref() == Some("obj_mol_001")
+        )),
+        "dashed double bonds should draw black dash segments directly, not a solid line with knockout gaps: {primitives:?}"
+    );
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("Display2=\"Dash\""), "{exported}");
 }
 
 #[test]
@@ -7118,9 +7568,17 @@ fn render_document_preserves_dashed_double_line_styles() {
     let polygons = object_bond_polygons(&primitives);
     let knockouts = object_knockout_polygons(&primitives);
 
-    assert_eq!(polygons.len(), 2);
+    assert_eq!(polygons.len(), 14);
     assert!(polygons.iter().all(|points| points.len() == 4));
-    assert!(knockouts.len() >= 2, "{knockouts:?}");
+    assert!(knockouts.is_empty(), "{knockouts:?}");
+    let lengths: Vec<_> = polygons
+        .iter()
+        .filter_map(|points| bond_axis_length(points))
+        .collect();
+    assert!(
+        lengths.iter().all(|length| (*length - 2.7).abs() < 0.01),
+        "{lengths:?}"
+    );
     assert!(!primitives.iter().any(|primitive| matches!(
         primitive,
         RenderPrimitive::Line { role, object_id, .. }
@@ -7333,34 +7791,13 @@ fn render_document_emits_equal_length_cross_segments_for_bold_dashed_bond() {
     let polygons = object_bond_polygons(&primitives);
     let knockouts = object_knockout_polygons(&primitives);
 
-    assert_eq!(polygons.len(), 1);
-    assert_eq!(polygons[0].len(), 4);
-    assert!(polygon_area(&polygons[0]) > 40.0, "{polygons:?}");
-    assert_eq!(knockouts.len(), 10, "{knockouts:?}");
-    assert!(knockouts
+    assert_eq!(polygons.len(), 11);
+    assert!(polygons.iter().all(|points| points.len() == 4));
+    assert!(knockouts.is_empty(), "{knockouts:?}");
+    let black_segments: Vec<_> = polygons
         .iter()
-        .all(|points| points.iter().any(|point| point.y > 40.0)
-            && points.iter().any(|point| point.y < 40.0)));
-    let (axis_from, axis_to) = bond_axis_from_points(&polygons[0]).expect("hash bond axis");
-    let (bond_start, bond_end) =
-        projection_range_on_axis(&polygons[0], axis_from, axis_to).expect("hash bond range");
-    let mut gaps: Vec<_> = knockouts
-        .iter()
-        .filter_map(|points| projection_range_on_axis(points, axis_from, axis_to))
+        .filter_map(|points| bond_axis_length(points))
         .collect();
-    gaps.sort_by(|a, b| a.0.total_cmp(&b.0));
-    let mut black_segments = Vec::new();
-    let mut cursor = bond_start;
-    for (gap_start, gap_end) in gaps {
-        if gap_start > cursor + 1.0e-6 {
-            black_segments.push(gap_start - cursor);
-        }
-        cursor = gap_end;
-    }
-    if bond_end > cursor + 1.0e-6 {
-        black_segments.push(bond_end - cursor);
-    }
-    assert_eq!(black_segments.len(), 11, "{black_segments:?}");
     let first_black = black_segments[0];
     assert!(
         black_segments
@@ -7415,8 +7852,9 @@ fn render_document_emits_main_contact_patches_for_connected_bold_and_dashed_sing
     let primitives = render_document(&document);
     let polygons = centered_bond_polygons(&primitives, chemcore_engine::Point::new(56.0, 40.0));
     assert_eq!(polygons.len(), 2);
-    assert!(polygons.iter().all(|points| points.len() == 5));
-    assert!(object_knockout_polygons(&primitives).len() >= 1);
+    assert!(polygons.iter().any(|points| points.len() == 5));
+    assert!(polygons.iter().any(|points| points.len() == 4));
+    assert!(object_knockout_polygons(&primitives).is_empty());
 }
 
 #[test]
@@ -7746,10 +8184,7 @@ fn render_document_retreats_hash_bond_against_connected_single_bond() {
     );
     let connected_primitives = render_document(&connected);
     let connected_polygons = object_bond_polygons_with_ids(&connected_primitives);
-    let hash_bond = connected_polygons
-        .iter()
-        .find_map(|(bond_id, points)| (bond_id == "b1").then_some(points))
-        .expect("connected hash bond polygon");
+    let hash_bond = object_bond_points_for_id(&connected_primitives, "b1");
     let branch = connected_polygons
         .iter()
         .find_map(|(bond_id, points)| (bond_id == "b2").then_some(points.clone()))
@@ -7757,7 +8192,7 @@ fn render_document_retreats_hash_bond_against_connected_single_bond() {
     let connected_end =
         closest_points_to_target(&hash_bond, chemcore_engine::Point::new(56.0, 40.0), 2);
 
-    assert_eq!(hash_bond.len(), 4);
+    assert!(!hash_bond.is_empty(), "hash bond segments");
     assert!(
         connected_end.iter().all(|point| point.x < 55.0),
         "{hash_bond:?}"
@@ -7768,11 +8203,7 @@ fn render_document_retreats_hash_bond_against_connected_single_bond() {
         "{branch:?}"
     );
     let knockouts = object_knockout_polygons(&connected_primitives);
-    assert!(knockouts.len() >= 1);
-    assert!(
-        knockouts.iter().flatten().any(|point| point.x > 55.0),
-        "{knockouts:?}"
-    );
+    assert!(knockouts.is_empty(), "{knockouts:?}");
 }
 
 #[test]
@@ -7832,7 +8263,7 @@ fn render_document_keeps_hash_bond_label_clip_without_extra_hash_retreat() {
 }
 
 #[test]
-fn render_document_retreats_hash_bond_mother_polygon_against_center_double_outer_line() {
+fn render_document_retreats_hash_bond_segments_against_center_double_outer_line() {
     let document = fragment_document(
         json!([
             { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 40.0], "charge": 0, "numHydrogens": 0 },
@@ -7869,10 +8300,8 @@ fn render_document_retreats_hash_bond_mother_polygon_against_center_double_outer
     );
 
     let primitives = render_document(&document);
-    let hash_bond = object_bond_polygons_with_ids(&primitives)
-        .into_iter()
-        .find_map(|(bond_id, points)| (bond_id == "b2").then_some(points))
-        .expect("hash bond polygon");
+    let hash_bond = object_bond_points_for_id(&primitives, "b2");
+    assert!(!hash_bond.is_empty(), "hash bond segments");
     let connected_end =
         closest_points_to_target(&hash_bond, chemcore_engine::Point::new(56.0, 40.0), 2);
     let unit = chemcore_engine::Point::new(18.0, -28.0);
@@ -7893,7 +8322,7 @@ fn render_document_retreats_hash_bond_mother_polygon_against_center_double_outer
         projections.iter().all(|projection| *projection > 0.05),
         "{hash_bond:?} {projections:?}"
     );
-    assert!(object_knockout_polygons(&primitives).len() >= 1);
+    assert!(object_knockout_polygons(&primitives).is_empty());
 }
 
 #[test]
@@ -8080,10 +8509,8 @@ fn render_document_retreats_hash_bond_against_solid_dashed_center_double_outer_l
     );
 
     let primitives = render_document(&document);
-    let hash_bond = object_bond_polygons_with_ids(&primitives)
-        .into_iter()
-        .find_map(|(bond_id, points)| (bond_id == "b2").then_some(points))
-        .expect("hash bond polygon");
+    let hash_bond = object_bond_points_for_id(&primitives, "b2");
+    assert!(!hash_bond.is_empty(), "hash bond segments");
     let connected_end =
         closest_points_to_target(&hash_bond, chemcore_engine::Point::new(56.0, 40.0), 2);
     let unit = chemcore_engine::Point::new(18.0, -28.0);
@@ -8104,7 +8531,7 @@ fn render_document_retreats_hash_bond_against_solid_dashed_center_double_outer_l
         projections.iter().all(|projection| *projection > 0.05),
         "{hash_bond:?} {projections:?}"
     );
-    assert!(object_knockout_polygons(&primitives).len() >= 1);
+    assert!(object_knockout_polygons(&primitives).is_empty());
 }
 
 #[test]

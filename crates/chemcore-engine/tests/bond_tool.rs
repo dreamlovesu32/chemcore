@@ -10526,7 +10526,8 @@ fn bond_tool_icons_are_rendered_with_kernel_bond_styles() {
     );
     assert!(dashed.contains(r#"viewBox="0 0 24 24""#), "{dashed}");
     assert!(dashed.contains(r#"fill="currentColor""#), "{dashed}");
-    assert_eq!(dashed.matches(r##"fill="#ffffff""##).count(), 2, "{dashed}");
+    assert_eq!(dashed.matches(r##"fill="#ffffff""##).count(), 0, "{dashed}");
+    assert_eq!(dashed.matches("<polygon ").count(), 3, "{dashed}");
     assert_eq!(dashed.matches("<line ").count(), 0, "{dashed}");
 
     let single = Engine::bond_tool_icon_svg(BondVariant::Single, 1.32, 3.68);

@@ -442,8 +442,7 @@ fn parse_cdxml_preserves_default_and_acs_hash_spacing_presets_for_dashed_bonds()
         );
         assert_eq!(bond.margin_width, None, "{fixture} bond margin width");
         assert_eq!(
-            bond.label_clip_margin,
-            Some(0.0),
+            bond.label_clip_margin, None,
             "{fixture} bond label clip margin"
         );
         assert_eq!(

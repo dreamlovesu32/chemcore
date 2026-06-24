@@ -294,21 +294,12 @@ pub(super) fn chemdraw_dashed_bond_gap_intervals(
     intervals
 }
 
-pub(super) fn dashed_bond_knockout_polygons(
+pub(super) fn dashed_bond_segment_polygons(
     start: Point,
     end: Point,
     stroke_width: f64,
     dash_array: &[f64],
 ) -> Vec<Vec<Point>> {
-    let direction = Vector::new(end.x - start.x, end.y - start.y);
-    let length = direction.length();
-    if length <= EPSILON {
-        return Vec::new();
-    }
-    let unit = direction.normalized();
-    let normal = Vector::new(-unit.y, unit.x);
-    let half_width =
-        stroke_width * 0.5 + stroke_width.max(crate::DASH_GAP_STROKE_EXTRA_PT.value()) * 0.45;
     let stripe_length = dash_array
         .first()
         .copied()
@@ -319,39 +310,40 @@ pub(super) fn dashed_bond_knockout_polygons(
         .copied()
         .filter(|value| *value > EPSILON)
         .unwrap_or(stripe_length);
-    chemdraw_dashed_bond_gap_intervals(length, stripe_length, target_gap_length)
-        .into_iter()
-        .map(|(gap_start, gap_end)| {
-            let segment_start =
-                Point::new(start.x + unit.x * gap_start, start.y + unit.y * gap_start);
-            let segment_end = Point::new(start.x + unit.x * gap_end, start.y + unit.y * gap_end);
-            compact_polygon_points(vec![
-                Point::new(
-                    segment_start.x + normal.x * half_width,
-                    segment_start.y + normal.y * half_width,
-                ),
-                Point::new(
-                    segment_end.x + normal.x * half_width,
-                    segment_end.y + normal.y * half_width,
-                ),
-                Point::new(
-                    segment_end.x - normal.x * half_width,
-                    segment_end.y - normal.y * half_width,
-                ),
-                Point::new(
-                    segment_start.x - normal.x * half_width,
-                    segment_start.y - normal.y * half_width,
-                ),
-            ])
-        })
-        .collect()
+    dashed_segment_polygons_for_gap_intervals(
+        start,
+        end,
+        stroke_width * 0.5,
+        &chemdraw_dashed_bond_gap_intervals(start.distance(end), stripe_length, target_gap_length),
+    )
 }
 
-pub(super) fn hash_bond_knockout_polygons(
+pub(super) fn hash_bond_segment_polygons(
     start: Point,
     end: Point,
     visual_width: f64,
     pattern_width: f64,
+) -> Vec<Vec<Point>> {
+    let length = start.distance(end);
+    if length <= EPSILON {
+        return Vec::new();
+    }
+    let scale = pattern_width / VIEWER_BOND_STROKE;
+    let gaps = equal_black_segment_gap_intervals(
+        length,
+        0.0,
+        0.0,
+        HASH_BLACK_SEGMENT_LENGTH * scale,
+        HASH_TARGET_GAP_LENGTH * scale,
+    );
+    dashed_segment_polygons_for_gap_intervals(start, end, visual_width * 0.5, &gaps)
+}
+
+fn dashed_segment_polygons_for_gap_intervals(
+    start: Point,
+    end: Point,
+    half_width: f64,
+    gaps: &[(f64, f64)],
 ) -> Vec<Vec<Point>> {
     let direction = Vector::new(end.x - start.x, end.y - start.y);
     let length = direction.length();
@@ -360,39 +352,44 @@ pub(super) fn hash_bond_knockout_polygons(
     }
     let unit = direction.normalized();
     let normal = Vector::new(-unit.y, unit.x);
-    let half_width = visual_width * 0.5 + visual_width * 0.12;
-    let scale = pattern_width / VIEWER_BOND_STROKE;
-    equal_black_segment_gap_intervals(
-        length,
-        0.0,
-        0.0,
-        HASH_BLACK_SEGMENT_LENGTH * scale,
-        HASH_TARGET_GAP_LENGTH * scale,
-    )
-    .into_iter()
-    .map(|(gap_start, gap_end)| {
-        let segment_start = Point::new(start.x + unit.x * gap_start, start.y + unit.y * gap_start);
-        let segment_end = Point::new(start.x + unit.x * gap_end, start.y + unit.y * gap_end);
-        compact_polygon_points(vec![
-            Point::new(
-                segment_start.x + normal.x * half_width,
-                segment_start.y + normal.y * half_width,
-            ),
-            Point::new(
-                segment_end.x + normal.x * half_width,
-                segment_end.y + normal.y * half_width,
-            ),
-            Point::new(
-                segment_end.x - normal.x * half_width,
-                segment_end.y - normal.y * half_width,
-            ),
-            Point::new(
-                segment_start.x - normal.x * half_width,
-                segment_start.y - normal.y * half_width,
-            ),
-        ])
-    })
-    .collect()
+    let mut segments = Vec::new();
+    let mut cursor = 0.0;
+    for (gap_start, gap_end) in gaps {
+        if *gap_start > cursor + EPSILON {
+            segments.push((cursor, *gap_start));
+        }
+        cursor = (*gap_end).max(cursor);
+    }
+    if length > cursor + EPSILON {
+        segments.push((cursor, length));
+    }
+
+    segments
+        .into_iter()
+        .filter(|(segment_start, segment_end)| segment_end > segment_start)
+        .map(|(segment_start, segment_end)| {
+            let from = Point::new(
+                start.x + unit.x * segment_start,
+                start.y + unit.y * segment_start,
+            );
+            let to = Point::new(
+                start.x + unit.x * segment_end,
+                start.y + unit.y * segment_end,
+            );
+            compact_polygon_points(vec![
+                Point::new(
+                    from.x + normal.x * half_width,
+                    from.y + normal.y * half_width,
+                ),
+                Point::new(to.x + normal.x * half_width, to.y + normal.y * half_width),
+                Point::new(to.x - normal.x * half_width, to.y - normal.y * half_width),
+                Point::new(
+                    from.x - normal.x * half_width,
+                    from.y - normal.y * half_width,
+                ),
+            ])
+        })
+        .collect()
 }
 
 pub(super) fn hashed_wedge_gap_intervals(

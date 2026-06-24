@@ -1160,8 +1160,9 @@ fn normalize_bond(
         _ => None,
     };
     let order = cdxml_bond_order(bond.attr("Order"));
-    let line_styles = cdxml_bond_line_styles(order, display, bond.attr("Display2").unwrap_or(""));
-    let line_weights = cdxml_bond_line_weights(order, display, bond.attr("Display2").unwrap_or(""));
+    let display2 = bond.attr("Display2").unwrap_or("");
+    let mut line_styles = cdxml_bond_line_styles(order, display, display2);
+    let mut line_weights = cdxml_bond_line_weights(order, display, display2);
     let placement = match bond
         .attr("DoublePosition")
         .unwrap_or("")
@@ -1171,11 +1172,20 @@ fn normalize_bond(
         "left" => Some((crate::DoubleBondPlacement::Left, true)),
         "right" => Some((crate::DoubleBondPlacement::Right, true)),
         "center" => Some((crate::DoubleBondPlacement::Center, true)),
-        _ if order == 2 && cdxml_bond_has_imported_line_style(&line_styles, &line_weights) => {
-            Some((crate::DoubleBondPlacement::Center, true))
-        }
         _ => None,
     };
+    if order >= 2 {
+        if let Some((placement, _)) = placement {
+            cdxml_apply_line_style_for_double_placement(
+                order,
+                display,
+                display2,
+                placement,
+                &mut line_styles,
+                &mut line_weights,
+            );
+        }
+    }
     Some(Bond {
         id: bond.attr("id").unwrap_or("").to_string(),
         begin,
@@ -1191,13 +1201,13 @@ fn normalize_bond(
         stroke: bond.attr("color").map(|color| colors.resolve(Some(color))),
         bold_width: Some(bold_width),
         wedge_width: Some(cdxml_import_wedge_width(stroke_width, bold_width)),
-        label_clip_margin: Some(0.0),
+        label_clip_margin: None,
         hash_spacing: Some(hash_spacing),
         bond_spacing: Some(bond_spacing),
         margin_width: None,
         line_styles,
         line_weights,
-        meta: json!({"import": {"cdxml": {"z": parse_i32(bond.attr("Z")), "display": empty_as_null(bond.attr("Display")), "doublePosition": empty_as_null(bond.attr("DoublePosition"))}}}),
+        meta: json!({"import": {"cdxml": {"z": parse_i32(bond.attr("Z")), "display": empty_as_null(bond.attr("Display")), "display2": empty_as_null(bond.attr("Display2")), "doublePosition": empty_as_null(bond.attr("DoublePosition"))}}}),
     })
 }
 
@@ -1214,7 +1224,6 @@ fn infer_unspecified_cdxml_double_bond_placements(fragment: &mut MoleculeFragmen
             if bond.order != 2
                 || bond.double.is_some()
                 || cdxml_bond_has_explicit_double_position(bond)
-                || cdxml_bond_has_imported_line_style(&bond.line_styles, &bond.line_weights)
             {
                 return None;
             }
@@ -1228,6 +1237,10 @@ fn infer_unspecified_cdxml_double_bond_placements(fragment: &mut MoleculeFragmen
         })
         .collect();
     for (index, placement) in inferred {
+        cdxml_apply_imported_line_style_for_current_double_placement(
+            &mut fragment.bonds[index],
+            placement,
+        );
         fragment.bonds[index].double = Some(DoubleBond {
             placement,
             center_exit_side: None,
@@ -1243,16 +1256,77 @@ fn cdxml_bond_has_explicit_double_position(bond: &Bond) -> bool {
         .is_some_and(|value| !value.trim().is_empty())
 }
 
-fn cdxml_bond_has_imported_line_style(
-    line_styles: &BondLineStyles,
-    line_weights: &BondLineWeights,
-) -> bool {
-    line_styles.main != crate::BondLinePattern::Solid
-        || line_styles.left != crate::BondLinePattern::Solid
-        || line_styles.right != crate::BondLinePattern::Solid
-        || line_weights.main != crate::BondLineWeight::Normal
-        || line_weights.left != crate::BondLineWeight::Normal
-        || line_weights.right != crate::BondLineWeight::Normal
+fn cdxml_apply_imported_line_style_for_current_double_placement(
+    bond: &mut Bond,
+    placement: crate::DoubleBondPlacement,
+) {
+    let display = bond
+        .meta
+        .pointer("/import/cdxml/display")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let display2 = bond
+        .meta
+        .pointer("/import/cdxml/display2")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    cdxml_apply_line_style_for_double_placement(
+        bond.order,
+        &display,
+        &display2,
+        placement,
+        &mut bond.line_styles,
+        &mut bond.line_weights,
+    );
+}
+
+fn cdxml_apply_line_style_for_double_placement(
+    order: u8,
+    display: &str,
+    display2: &str,
+    placement: crate::DoubleBondPlacement,
+    line_styles: &mut BondLineStyles,
+    line_weights: &mut BondLineWeights,
+) {
+    if order < 2 {
+        return;
+    }
+    if placement == crate::DoubleBondPlacement::Center {
+        *line_styles = cdxml_bond_line_styles(order, display, display2);
+        *line_weights = cdxml_bond_line_weights(order, display, display2);
+        return;
+    }
+
+    *line_styles = BondLineStyles::default();
+    *line_weights = BondLineWeights::default();
+    if matches!(display, "Dash" | "Hash") {
+        line_styles.main = crate::BondLinePattern::Dashed;
+    } else if display == "Wavy" {
+        line_styles.main = crate::BondLinePattern::Wavy;
+    }
+    if display == "Bold" {
+        line_weights.main = crate::BondLineWeight::Bold;
+    }
+
+    let outer_style = match placement {
+        crate::DoubleBondPlacement::Left => &mut line_styles.left,
+        crate::DoubleBondPlacement::Right => &mut line_styles.right,
+        crate::DoubleBondPlacement::Center => unreachable!(),
+    };
+    if matches!(display2, "Dash" | "Hash") {
+        *outer_style = crate::BondLinePattern::Dashed;
+    }
+
+    let outer_weight = match placement {
+        crate::DoubleBondPlacement::Left => &mut line_weights.left,
+        crate::DoubleBondPlacement::Right => &mut line_weights.right,
+        crate::DoubleBondPlacement::Center => unreachable!(),
+    };
+    if display2 == "Bold" {
+        *outer_weight = crate::BondLineWeight::Bold;
+    }
 }
 
 fn cdxml_import_wedge_width(_stroke_width: f64, bold_width: f64) -> f64 {

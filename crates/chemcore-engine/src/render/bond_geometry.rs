@@ -209,10 +209,9 @@ pub(super) fn apply_segment_endpoint_retreats(
         return (start, end);
     }
     let unit = direction.normalized();
-    let max_total = length * 0.8;
     let desired_total = start_retreat.max(0.0) + end_retreat.max(0.0);
-    let scale = if desired_total > max_total && desired_total > EPSILON {
-        max_total / desired_total
+    let scale = if desired_total > length && desired_total > EPSILON {
+        length / desired_total
     } else {
         1.0
     };

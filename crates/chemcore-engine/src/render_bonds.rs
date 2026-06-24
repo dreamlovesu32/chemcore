@@ -37,15 +37,19 @@ pub(super) fn render_fragment_bond(
         .is_some_and(|label| label.has_visible_text());
 
     let label_clip_margin = label_clip_margin_for_bond(bond, stroke_width);
-    start = clip_point_out_of_label_geometry(
+    let Some((clipped_start, clipped_finish)) = clip_segment_out_of_label_geometry(
         start,
         finish,
         begin_box,
         &begin_polygons,
+        end_box,
+        &end_polygons,
         label_clip_margin,
-    );
-    finish =
-        clip_point_out_of_label_geometry(finish, start, end_box, &end_polygons, label_clip_margin);
+    ) else {
+        return;
+    };
+    start = clipped_start;
+    finish = clipped_finish;
 
     if let Some(stereo) = bond_stereo_kind(bond) {
         render_stereo_bond(
@@ -563,7 +567,9 @@ fn render_stereo_bond(
                     0.0
                 },
                 stroke_width,
-                !contact_kernel.uses_endpoint(&bond.id, &bond.end),
+                begin_has_label,
+                end_has_label,
+                !end_has_label && !contact_kernel.uses_endpoint(&bond.id, &bond.end),
             );
             push_bond_polygon(out, &bond.id, points, stroke, stroke, 0.0, object_id);
         }
@@ -583,7 +589,9 @@ fn render_stereo_bond(
                     0.0
                 },
                 stroke_width,
-                !contact_kernel.uses_endpoint(&bond.id, &bond.begin),
+                end_has_label,
+                begin_has_label,
+                !begin_has_label && !contact_kernel.uses_endpoint(&bond.id, &bond.begin),
             );
             push_bond_polygon(out, &bond.id, points, stroke, stroke, 0.0, object_id);
         }
@@ -647,7 +655,9 @@ fn render_stereo_bond(
                     0.0
                 },
                 stroke_width,
-                !contact_kernel.uses_endpoint(&bond.id, &bond.end),
+                begin_has_label,
+                end_has_label,
+                !end_has_label && !contact_kernel.uses_endpoint(&bond.id, &bond.end),
             );
             push_hollow_wedge(out, &bond.id, points, stroke, stroke_width, object_id);
         }
@@ -667,7 +677,9 @@ fn render_stereo_bond(
                     0.0
                 },
                 stroke_width,
-                !contact_kernel.uses_endpoint(&bond.id, &bond.begin),
+                end_has_label,
+                begin_has_label,
+                !begin_has_label && !contact_kernel.uses_endpoint(&bond.id, &bond.begin),
             );
             push_hollow_wedge(out, &bond.id, points, stroke, stroke_width, object_id);
         }
@@ -846,6 +858,8 @@ fn compute_fragment_solid_wedge_points(
     end: Point,
     end_inset: f64,
     stroke_width: f64,
+    narrow_has_label: bool,
+    wide_has_label: bool,
     allow_endpoint_contacts: bool,
 ) -> Vec<Point> {
     let narrow_node_id = if wide_node_id == bond.begin {
@@ -853,8 +867,16 @@ fn compute_fragment_solid_wedge_points(
     } else {
         bond.begin.as_str()
     };
-    let start_retreat = contact_kernel.endpoint_retreat(&bond.id, narrow_node_id);
-    let end_retreat = contact_kernel.endpoint_retreat(&bond.id, wide_node_id);
+    let start_retreat = if narrow_has_label {
+        0.0
+    } else {
+        contact_kernel.endpoint_retreat(&bond.id, narrow_node_id)
+    };
+    let end_retreat = if wide_has_label {
+        0.0
+    } else {
+        contact_kernel.endpoint_retreat(&bond.id, wide_node_id)
+    };
     let (start, end) = apply_segment_endpoint_retreats(start, end, start_retreat, end_retreat);
     let direction = Vector::new(end.x - start.x, end.y - start.y);
     let length = direction.length();
@@ -884,7 +906,7 @@ fn compute_fragment_solid_wedge_points(
         cap_center.y - normal.y * width,
     );
     let start_profile = endpoint_profile_global(
-        if start_retreat > EPSILON {
+        if narrow_has_label || start_retreat > EPSILON {
             None
         } else {
             contact_kernel.endpoint_profile(&bond.id, narrow_node_id)
@@ -893,7 +915,7 @@ fn compute_fragment_solid_wedge_points(
         vec![tip_plus, tip_minus],
     );
 
-    if end_retreat <= EPSILON {
+    if !wide_has_label && end_retreat <= EPSILON {
         if let Some(profile) = contact_kernel.endpoint_profile(&bond.id, wide_node_id) {
             let end_profile =
                 endpoint_profile_global(Some(profile), true, vec![cap_plus, cap_minus]);

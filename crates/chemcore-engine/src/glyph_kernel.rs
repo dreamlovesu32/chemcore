@@ -670,6 +670,9 @@ fn shape_polygon(placement: &GlyphPlacement) -> Option<Vec<[f64; 2]>> {
     if !placement.visible {
         return None;
     }
+    if !placement.codepoint.is_ascii_uppercase() {
+        return Some(fallback_natural_outset_polygon(placement.ink_box_px));
+    }
     // The shared manifest stores normalized glyph outlines. Height-centered
     // mapping keeps narrow capitals such as I from losing their side margin.
     let manifest = shared_glyph_clip_polygons();
@@ -1261,11 +1264,15 @@ mod tests {
     }
 
     #[test]
-    fn plus_symbol_uses_manifest_natural_outline_geometry() {
+    fn plus_symbol_uses_natural_outset_without_manifest_circle() {
         let placement = layout_glyph('+', ScriptKind::Normal, LayoutConfig::default(), 0.0, 0.0);
         let polygon = shape_polygon(&placement).expect("+ should have clip geometry");
         let bounds = polygon_bounds(&polygon);
-        assert!(polygon.len() >= 12, "{polygon:?}");
+        assert_eq!(
+            polygon,
+            fallback_natural_outset_polygon(placement.ink_box_px)
+        );
+        assert_eq!(polygon.len(), 4, "{polygon:?}");
         assert!(
             bounds[0] < placement.ink_box_px[0],
             "{bounds:?} vs {:?}",
