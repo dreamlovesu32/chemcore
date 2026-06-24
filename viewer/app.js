@@ -4976,6 +4976,21 @@ function selectedStructurePreviewNodeIds(selection) {
   return nodeIds;
 }
 
+function selectedStructurePreviewBondIds(selection, nodeIds = selectedStructurePreviewNodeIds(selection)) {
+  const bondIds = new Set(selection?.bonds || []);
+  if (!nodeIds?.size) {
+    return bondIds;
+  }
+  for (const fragment of currentDocumentMoleculeFragments()) {
+    for (const bond of fragment.bonds || []) {
+      if (nodeIds.has(bond.begin) || nodeIds.has(bond.end)) {
+        bondIds.add(bond.id);
+      }
+    }
+  }
+  return bondIds;
+}
+
 function selectedDocumentPreviewPrimitiveElements() {
   const selection = currentEditorEngineState()?.selection;
   if (!selection || editorSelectionHasItems(selection) === false) {
@@ -4994,10 +5009,11 @@ function selectedDocumentPreviewPrimitiveElements() {
       elements.add(element);
     }
   };
-  for (const nodeId of selectedStructurePreviewNodeIds(selection)) {
+  const nodeIds = selectedStructurePreviewNodeIds(selection);
+  for (const nodeId of nodeIds) {
     addElementsByDataId("data-node-id", nodeId);
   }
-  const selectedBondIds = new Set(selection.bonds || []);
+  const selectedBondIds = selectedStructurePreviewBondIds(selection, nodeIds);
   for (const bondId of selectedBondIds) {
     addElementsByDataId("data-bond-id", bondId);
   }

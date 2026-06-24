@@ -265,6 +265,7 @@ export function createEditorPointerController(options) {
     if (!await options.state().editorEngine.beginSelectionMove?.(point.x, point.y, !!event.shiftKey, event.altKey)) {
       return false;
     }
+    invalidateEngineReadCache();
     options.setActiveSelectionGesture({
       kind: "move",
       start: point,
@@ -845,9 +846,9 @@ export function createEditorPointerController(options) {
         await options.syncArrowAwareCursorForPoint(commitPoint);
         options.renderDocumentChange?.(result) || options.renderDocument();
       } else if (options.editorState().activeTool === "select") {
-        await options.selectClickTarget(point, gesture.additive);
+        await options.selectClickTarget(gesture.start || point, gesture.additive);
         options.clearDocumentObjectPreviewTransform();
-        await options.renderSelectionOnlyUpdate(point);
+        await options.renderSelectionOnlyUpdate(gesture.start || point);
       } else {
         options.clearDocumentObjectPreviewTransform();
         await options.syncArrowAwareCursorForPoint(point);
@@ -912,9 +913,9 @@ export function createEditorPointerController(options) {
           options.clearDocumentObjectPreviewTransform();
           options.renderDocumentChange?.(result) || options.renderDocument();
         } else {
-          await options.selectClickTarget(point, gesture.additive);
+          await options.selectClickTarget(gesture.start || point, gesture.additive);
           options.clearDocumentObjectPreviewTransform();
-          await options.renderSelectionOnlyUpdate(point);
+          await options.renderSelectionOnlyUpdate(gesture.start || point);
         }
         return;
       }
