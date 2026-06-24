@@ -1,5 +1,5 @@
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { availableParallelism, homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -22,6 +22,9 @@ function run(command, args, options = {}) {
 }
 
 function wasmBuildEnv() {
+  const jobs = process.env.CHEMCORE_BUILD_JOBS
+    || process.env.CARGO_BUILD_JOBS
+    || String(Math.max(1, availableParallelism()));
   const remapPrefixes = [
     [rootDir, "."],
     [process.env.CARGO_HOME ?? join(homedir(), ".cargo"), "$CARGO_HOME"],
@@ -37,6 +40,7 @@ function wasmBuildEnv() {
   return {
     ...process.env,
     CARGO_ENCODED_RUSTFLAGS: encodedFlags.join("\x1f"),
+    CARGO_BUILD_JOBS: jobs,
   };
 }
 
