@@ -92,6 +92,8 @@ class TauriEngineSession {
     this.operation = Promise.resolve();
     this.pendingSelectionMoveBegin = null;
     this.localSelectionMoveActive = false;
+    this.pendingArrowEditBegin = null;
+    this.localArrowEditActive = false;
     this.readyPromise = this.initializeSession();
   }
 
@@ -128,6 +130,8 @@ class TauriEngineSession {
       }
       if (refresh === "all" || refresh === "document") {
         await this.refreshSnapshot("document");
+      } else if (refresh === "documentState") {
+        await this.refreshSnapshot("documentState");
       } else if (refresh === "selection") {
         await this.refreshSnapshot("selection");
       } else if (refresh === "interaction") {
@@ -271,7 +275,7 @@ class TauriEngineSession {
   }
 
   stateJson() {
-    if (this.localSelectionMoveActive && this.layoutEngine?.stateJson) {
+    if ((this.localSelectionMoveActive || this.localArrowEditActive) && this.layoutEngine?.stateJson) {
       return this.layoutEngine.stateJson();
     }
     return this.cache.stateJson || "";
@@ -286,6 +290,10 @@ class TauriEngineSession {
   }
 
   interactionRenderListJson() {
+    if ((this.localSelectionMoveActive || this.localArrowEditActive)
+      && this.layoutEngine?.interactionRenderListJson) {
+      return this.layoutEngine.interactionRenderListJson();
+    }
     return this.cache.interactionRenderListJson || this.cache.renderListJson || "[]";
   }
 
@@ -457,6 +465,9 @@ class TauriEngineSession {
   }
 
   setArrowOptions(variant, headSize, head, tail, bold) {
+    if (this.layoutEngine?.setArrowOptions) {
+      this.layoutEngine.setArrowOptions(variant, headSize, head, tail, bold);
+    }
     return this.invokeMutation("desktop_engine_set_arrow_options", {
       variant,
       headSize,
@@ -467,6 +478,9 @@ class TauriEngineSession {
   }
 
   setArrowEndpointOptions(variant, headSize, curve, headStyle, tailStyle, noGo, bold) {
+    if (this.layoutEngine?.setArrowEndpointOptions) {
+      this.layoutEngine.setArrowEndpointOptions(variant, headSize, curve, headStyle, tailStyle, noGo, bold);
+    }
     return this.invokeMutation("desktop_engine_set_arrow_endpoint_options", {
       variant,
       headSize,
@@ -560,14 +574,54 @@ class TauriEngineSession {
   }
 
   beginHoverArrowEdit(x, y) {
+    if (this.layoutEngine?.beginHoverArrowEdit) {
+      const action = this.layoutEngine.beginHoverArrowEdit(x, y);
+      if (!action) {
+        return "";
+      }
+      this.localArrowEditActive = true;
+      this.pendingArrowEditBegin = this.invokeMutation(
+        "desktop_engine_begin_hover_arrow_edit",
+        { x, y },
+        { refresh: "interaction", dirtyExports: false },
+      );
+      return action;
+    }
     return this.invokeMutation("desktop_engine_begin_hover_arrow_edit", { x, y }, { refresh: "interaction", dirtyExports: false });
   }
 
   updateHoverArrowEdit(x, y, altKey) {
+    if (this.layoutEngine?.updateHoverArrowEdit) {
+      return this.layoutEngine.updateHoverArrowEdit(x, y, altKey);
+    }
     return this.invokeMutation("desktop_engine_update_hover_arrow_edit", { x, y, altKey }, { refresh: "interaction", dirtyExports: false });
   }
 
   finishHoverArrowEdit(x, y, altKey) {
+    if (this.layoutEngine?.finishHoverArrowEdit) {
+      const changed = this.layoutEngine.finishHoverArrowEdit(x, y, altKey);
+      const pendingBegin = this.pendingArrowEditBegin;
+      this.pendingArrowEditBegin = null;
+      const finish = async () => {
+        if (pendingBegin) {
+          await pendingBegin.catch(() => false);
+        }
+        try {
+          return await this.invokeMutation(
+            "desktop_engine_finish_hover_arrow_edit",
+            { x, y, altKey },
+            { refresh: "interaction", dirtyExports: false },
+          );
+        } finally {
+          this.localArrowEditActive = false;
+        }
+      };
+      if (changed || pendingBegin) {
+        return finish();
+      }
+      this.localArrowEditActive = false;
+      return changed;
+    }
     return this.invokeMutation(
       "desktop_engine_finish_hover_arrow_edit",
       { x, y, altKey },
@@ -596,6 +650,9 @@ class TauriEngineSession {
   }
 
   activeArrowEditDegrees() {
+    if (this.localArrowEditActive && this.layoutEngine?.activeArrowEditDegrees) {
+      return this.layoutEngine.activeArrowEditDegrees();
+    }
     return 0;
   }
 

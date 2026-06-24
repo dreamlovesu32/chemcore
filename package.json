@@ -36,6 +36,7 @@
     "office:unregister-dev": "cargo run -p chemcore-office -- --unregister-user",
     "office:validate-roundtrip": "powershell -ExecutionPolicy Bypass -File scripts/validate-word-ole-roundtrip.ps1",
     "regression:label-anchor": "node scripts/label-anchor-regression.mjs",
+    "regression:large-object-operations": "node scripts/large-object-operation-regression.mjs",
     "regression:large-drag-preview": "node scripts/large-drag-preview-regression.mjs",
     "regression:text-editor": "node scripts/text-editor-regression.mjs",
     "regression:viewer-interactions": "node scripts/viewer-interaction-smoke.mjs",

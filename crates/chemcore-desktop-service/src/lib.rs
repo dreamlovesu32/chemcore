@@ -80,6 +80,7 @@ pub enum DesktopEngineSnapshotMode {
     State,
     Interaction,
     Selection,
+    DocumentState,
     Document,
 }
 
@@ -216,7 +217,10 @@ impl DesktopDocumentService {
         mode: DesktopEngineSnapshotMode,
     ) -> Result<String, String> {
         let session = self.session(session_id)?;
-        let include_document = mode == DesktopEngineSnapshotMode::Document;
+        let include_document = matches!(
+            mode,
+            DesktopEngineSnapshotMode::Document | DesktopEngineSnapshotMode::DocumentState
+        );
         let include_render = mode == DesktopEngineSnapshotMode::Document;
         let include_interaction_render = matches!(
             mode,

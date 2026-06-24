@@ -257,7 +257,10 @@ registerChemcoreDebug({
     return state.currentDocument;
   },
   renderStats: {
+    captureRenderListStacks: false,
     documentRenderCount: 0,
+    renderListJsonCount: 0,
+    lastRenderListJsonStack: "",
   },
   getRenderListJson() {
     return state.editorEngine?.renderListJson?.() || "[]";
@@ -2135,6 +2138,12 @@ function currentEditorRenderList() {
     return [];
   }
   if (!cache.renderList) {
+    if (window.__chemcoreDebug?.renderStats) {
+      window.__chemcoreDebug.renderStats.renderListJsonCount += 1;
+      if (window.__chemcoreDebug.renderStats.captureRenderListStacks) {
+        window.__chemcoreDebug.renderStats.lastRenderListJsonStack = new Error().stack || "";
+      }
+    }
     cache.renderListJson = state.editorEngine.renderListJson?.() || "[]";
     cache.renderList = parseEngineJson(cache.renderListJson, []) || [];
   }
@@ -2548,11 +2557,19 @@ function targetIdsFromCommandResult(result, key) {
   return ids;
 }
 
-function commandResultHasStyleOnlyChanges(result) {
-  return targetIdsFromCommandResult(result, "styles").size > 0
-    && targetIdsFromCommandResult(result, "objects").size === 0
-    && targetIdsFromCommandResult(result, "nodes").size === 0
-    && targetIdsFromCommandResult(result, "bonds").size === 0;
+function objectStyleRef(object) {
+  return object?.styleRef || object?.style_ref || "";
+}
+
+function addObjectIdsForStyleTargets(objectIds, styleIds, objectMap = currentDocumentSceneObjectMap()) {
+  if (!styleIds.size) {
+    return;
+  }
+  for (const [objectId, object] of objectMap) {
+    if (styleIds.has(objectStyleRef(object))) {
+      objectIds.add(objectId);
+    }
+  }
 }
 
 function addObjectIdsForPrimitiveTargets(objectIds, nodeIds, bondIds) {
@@ -2627,10 +2644,14 @@ function expandObjectIdsWithDescendants(objectIds, objectMap = currentDocumentSc
 }
 
 function objectIdsForCommandResultPatch(result) {
-  if (!result?.changed || commandResultHasStyleOnlyChanges(result)) {
+  if (!result?.changed) {
     return new Set();
   }
   const objectIds = targetIdsFromCommandResult(result, "objects");
+  addObjectIdsForStyleTargets(
+    objectIds,
+    targetIdsFromCommandResult(result, "styles"),
+  );
   addObjectIdsForPrimitiveTargets(
     objectIds,
     targetIdsFromCommandResult(result, "nodes"),
@@ -2659,10 +2680,15 @@ function removeDocumentObjectDom(documentLayer, objectId) {
   }
 }
 
+function renderTargetObjectPrimitives(objectId) {
+  return parseEngineJson(state.editorEngine?.renderTargetsJson?.(JSON.stringify({
+    objects: [objectId],
+  })) || "[]", []);
+}
+
 function renderDocumentObjectPatchNode(objectId, objectMap) {
   const object = objectMap.get(objectId);
-  const primitives = (state.coreRenderList || [])
-    .filter((primitive) => primitiveObjectId(primitive) === objectId);
+  const primitives = renderTargetObjectPrimitives(objectId);
   if (!object && !primitives.length) {
     return null;
   }
@@ -2709,9 +2735,11 @@ function renderDocumentChange(result = null) {
   }
   const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
   const objectIds = objectIdsForCommandResultPatch(result);
-  if (!documentLayer || !objectIds.size) {
-    renderDocument();
+  if (!documentLayer) {
     return true;
+  }
+  if (!objectIds.size) {
+    return renderDocumentPrimitiveChange(result) || true;
   }
   clearDocumentObjectPreviewTransform();
   const objectMap = currentDocumentSceneObjectMap();
@@ -3099,17 +3127,23 @@ const editorPointerController = createEditorPointerController({
   setActiveBracketDragStart: (value) => { state.activeBracketDragStart = value; },
 });
 
-async function syncDocumentFromEngine() {
+async function syncDocumentFromEngine(options = {}) {
   if (!state.editorEngine) {
     return;
+  }
+  const syncRenderList = options.syncRenderList ?? true;
+  if (!syncRenderList && typeof state.editorEngine.refreshSnapshot === "function") {
+    await state.editorEngine.refreshSnapshot("documentState");
   }
   const documentData = parseEngineJson(state.editorEngine.documentJson());
   if (documentData) {
     state.currentDocument = documentData;
     documentMoleculeTopologyCache = null;
     currentDocumentMoleculeTopology();
-    await syncCoreRenderListFromCurrentDocument();
-    maybeAutoExpandEditorViewport(state.coreRenderList || []);
+    if (syncRenderList) {
+      await syncCoreRenderListFromCurrentDocument();
+      maybeAutoExpandEditorViewport(state.coreRenderList || []);
+    }
   }
   syncSelectionChemistrySummary();
   refreshCommandAvailability();

@@ -69,7 +69,9 @@ export function createEditorCommandEngine(options = {}) {
     if (typeof apply === "function") {
       rawResult = await apply(normalized);
       if (executeOptions.sync !== false && rawResult !== false) {
-        await options.syncDocumentFromEngine?.();
+        await options.syncDocumentFromEngine?.({
+          syncRenderList: executeOptions.syncRenderList !== false,
+        });
       }
       result = readEngineResult();
     } else if (activeEngine?.executeCommandJson) {
@@ -77,7 +79,9 @@ export function createEditorCommandEngine(options = {}) {
       const resultJson = await activeEngine.executeCommandJson(commandJson);
       result = parseCommandResultJson(resultJson);
       if (executeOptions.sync !== false && result?.changed) {
-        await options.syncDocumentFromEngine?.();
+        await options.syncDocumentFromEngine?.({
+          syncRenderList: executeOptions.syncRenderList !== false,
+        });
       }
     } else {
       throw new Error(`Command '${normalized.type || "unknown"}' has no engine executor.`);

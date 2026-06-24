@@ -15,7 +15,9 @@ export function createEditorPointerController(options) {
     const applyResult = apply();
     const rawResult = applyResult && typeof applyResult.then === "function" ? await applyResult : applyResult;
     if (rawResult) {
-      await options.syncDocumentFromEngine();
+      await options.syncDocumentFromEngine({
+        syncRenderList: executeOptions.syncRenderList !== false,
+      });
     }
     return {
       changed: !!rawResult,
@@ -480,7 +482,7 @@ export function createEditorPointerController(options) {
         );
         if (hit) {
           gesture.hit = hit;
-          await options.syncDocumentFromEngine();
+          await options.syncDocumentFromEngine({ syncRenderList: false });
         }
         await options.syncSelectCursorForPoint(point);
         if (hit?.objectId) {
@@ -622,7 +624,7 @@ export function createEditorPointerController(options) {
       event.preventDefault();
       options.viewerSvg().setPointerCapture?.(event.pointerId);
       await options.state().editorEngine.pointerDown(point.x, point.y, event.altKey);
-      await options.syncDocumentFromEngine();
+      await options.syncDocumentFromEngine({ syncRenderList: false });
       options.renderEditorOverlay();
       return;
     }
@@ -822,7 +824,7 @@ export function createEditorPointerController(options) {
       pointerDownResult?.changed
       && Number(pointerDownResult.beforeRevision ?? pointerDownResult.before_revision ?? -1) === beforeRevision
     ) {
-      await options.syncDocumentFromEngine();
+      await options.syncDocumentFromEngine({ syncRenderList: false });
       options.renderDocumentChange?.(pointerDownResult) || options.renderDocument();
       return;
     }
@@ -883,11 +885,9 @@ export function createEditorPointerController(options) {
         },
         async () => {
           const changed = !!(await options.state().editorEngine.finishHoverArrowEdit?.(point.x, point.y, event.altKey));
-          if (changed) {
-            await options.state().editorEngine.refreshRenderState?.();
-          }
           return changed;
         },
+        { syncRenderList: false },
       );
       const changed = !!result.changed;
       if (!changed && !gesture.dragged && options.editorState().activeTool === "select") {
@@ -923,11 +923,9 @@ export function createEditorPointerController(options) {
         },
         async () => {
           const changed = !!(await options.state().editorEngine.finishHoverShapeEdit?.(point.x, point.y, event.altKey));
-          if (changed) {
-            await options.state().editorEngine.refreshRenderState?.();
-          }
           return changed;
         },
+        { syncRenderList: false },
       );
       const changed = !!result.changed;
       if (!changed && !gesture.dragged && options.editorState().activeTool === "select") {
@@ -1125,6 +1123,7 @@ export function createEditorPointerController(options) {
         },
       },
       () => options.state().editorEngine.pointerUp(point.x, point.y, event.altKey),
+      { syncRenderList: false },
     );
     const pendingGraphicObjectId = await Promise.resolve(
       options.state().editorEngine.pendingGraphicObjectId?.() || "",
