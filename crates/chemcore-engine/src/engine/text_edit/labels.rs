@@ -294,6 +294,7 @@ pub(super) fn make_centered_node_label_from_runs(
     session: &TextEditSession,
     preserve_measured_box: bool,
     treat_as_literal_text_mode: bool,
+    force_grouped_attached_layout: bool,
     forced_flow: Option<LabelFlow>,
 ) -> crate::NodeLabel {
     let mut decision = label_layout_decision_for_text_mode(
@@ -302,7 +303,7 @@ pub(super) fn make_centered_node_label_from_runs(
         if treat_as_literal_text_mode {
             false
         } else {
-            source_runs_are_chemical(&source_runs)
+            source_runs_are_chemical(&source_runs) || force_grouped_attached_layout
         },
     );
     if let Some(flow) = forced_flow {
@@ -882,6 +883,16 @@ pub(super) fn label_recognition_meta_for_node_text(
         .or_else(|| Some(crate::invalid_abbreviation_meta(trimmed)))
 }
 
+fn recognized_placeholder_label(node: &crate::Node, text: &str, connection_count: usize) -> bool {
+    node.is_placeholder
+        && node
+            .label
+            .as_ref()
+            .is_some_and(is_cdxml_imported_attached_label)
+        && crate::recognize_abbreviation_label_for_connection_count(text.trim(), connection_count)
+            .is_some()
+}
+
 fn label_prefers_abbreviation_over_element(label: &str, connection_count: usize) -> bool {
     let trimmed = label.trim();
     trimmed == "Ar"
@@ -1116,7 +1127,16 @@ pub(super) fn refresh_label_recognition_for_node(
         set_node_implicit_hydrogen_label_meta(&mut fragment.nodes[node_index], None);
         return;
     };
-    if !source_runs_are_chemical(&source_runs_from_node_label(label)) {
+    let source_runs = source_runs_from_node_label(label);
+    let text = label_source_text(label);
+    let connection_count = fragment
+        .bonds
+        .iter()
+        .filter(|bond| bond.begin == node_id || bond.end == node_id)
+        .count();
+    if !source_runs_are_chemical(&source_runs)
+        && !recognized_placeholder_label(&fragment.nodes[node_index], &text, connection_count)
+    {
         let node = &mut fragment.nodes[node_index];
         set_node_label_recognition_meta(node, None);
         if let Some(label) = node.label.as_mut() {
@@ -1124,7 +1144,6 @@ pub(super) fn refresh_label_recognition_for_node(
         }
         return;
     }
-    let text = label_source_text(label);
     let recognition_meta = label_recognition_meta_for_node_text(fragment, node_id, &text);
     let node = &mut fragment.nodes[node_index];
     set_node_label_recognition_meta(node, recognition_meta.clone());
@@ -1193,6 +1212,11 @@ pub(super) fn is_attached_node_label(label: &crate::NodeLabel) -> bool {
     label.attachment.as_deref() == Some("node")
         && label.align.as_deref() == Some("left")
         && label.anchor.as_deref() == Some("start")
+}
+
+fn is_cdxml_imported_attached_label(label: &crate::NodeLabel) -> bool {
+    label.attachment.as_deref() == Some("node")
+        && label.meta.pointer("/import/cdxml/boundingBox").is_some()
 }
 
 fn is_cdxml_imported_right_aligned_attached_label(label: &crate::NodeLabel) -> bool {
@@ -1295,6 +1319,11 @@ fn refreshed_authoritative_imported_label_display(
         Vec::new()
     };
     next_label.lines = if lines.len() > 1 { lines } else { Vec::new() };
+    set_meta_object_field(
+        &mut next_label.meta,
+        "sourceRuns",
+        Some(serde_json::to_value(source_runs).unwrap_or(Value::Array(Vec::new()))),
+    );
 
     if let Some(bbox) = label.bbox() {
         let baseline_y = label
@@ -1328,6 +1357,7 @@ pub(super) fn refreshed_attached_node_label(
     let source_runs = source_runs_from_node_label(label);
     let source_text = label_source_text(label);
     let connection_angles = adjacent_angles_for_fragment_node(fragment, node_id);
+    let connection_count = connection_angles.len();
     let world_anchor =
         attached_node_label_anchor_world(fragment, node_id, object_translate, stroke_width);
     let local_anchor = [
@@ -1343,7 +1373,7 @@ pub(super) fn refreshed_attached_node_label(
         implicit_hydrogen_label_text(node, &source_text)
     };
     let should_use_internal_whole_label_layout =
-        label_should_render_as_whole_group(&text, connection_angles.len());
+        label_should_render_as_whole_group(&text, connection_count);
     if !is_attached_node_label(label)
         && !is_cdxml_imported_right_aligned_attached_label(label)
         && !is_cdxml_imported_single_character_centered_label(label)
@@ -1362,11 +1392,20 @@ pub(super) fn refreshed_attached_node_label(
         .clone()
         .unwrap_or_else(|| DEFAULT_TEXT_FILL.to_string());
     let source_runs = source_runs_for_attached_label(node, source_runs, &text, label);
+    let layout_as_grouped_attached_label =
+        source_runs_are_chemical(&source_runs) || is_cdxml_imported_attached_label(label);
     let mut decision = label_layout_decision_for_text_mode(
         &text,
         &connection_angles,
-        source_runs_are_chemical(&source_runs),
+        layout_as_grouped_attached_label,
     );
+    if is_cdxml_imported_right_aligned_attached_label(label)
+        && layout_as_grouped_attached_label
+        && !should_use_internal_whole_label_layout
+    {
+        decision.flow = LabelFlow::Reverse;
+        decision.anchor = crate::LabelAnchorPolicy::OriginalFirstGroup;
+    }
     if let Some(flow) = cdxml_imported_label_flow_override(label) {
         decision.flow = flow;
     }
@@ -1426,6 +1465,7 @@ pub(super) fn refreshed_attached_node_label(
         &session,
         false,
         false,
+        layout_as_grouped_attached_label,
         cdxml_imported_label_flow_override(label),
     );
     if let Some(import_meta) = label.meta.get("import").cloned() {

@@ -4991,6 +4991,87 @@ fn parse_cdxml_right_aligned_chemical_node_label_reverses_display_groups() {
 }
 
 #[test]
+fn parse_cdxml_normal_face_attached_label_uses_group_layout() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="14.40" LineWidth="0.99" BoldWidth="2.01" HashSpacing="2.49" BondSpacing="18" LabelSize="10">
+  <page id="p1" BoundingBox="0 0 84 44">
+    <fragment id="f1" BoundingBox="0 0 84 44">
+      <n id="n1" p="20 12" NodeType="Fragment">
+        <t p="16.40 15.90" BoundingBox="16.40 4.40 35.20 15.90" LabelJustification="Left" LabelAlignment="Above" UTF8Text="NTs">
+          <s font="3" size="10" color="0" face="1">NTs</s>
+        </t>
+      </n>
+      <n id="n2" p="8 24"/>
+      <n id="n3" p="32 24"/>
+      <b id="b1" B="n1" E="n2"/>
+      <b id="b2" B="n1" E="n3"/>
+      <n id="n4" p="64 12" NodeType="Fragment">
+        <t p="64.00 15.90" BoundingBox="45.20 7.56 64.00 15.90" LabelJustification="Right" Justification="Right" LabelAlignment="Right" UTF8Text="NTs">
+          <s font="3" size="10" color="0" face="1">NTs</s>
+        </t>
+      </n>
+      <n id="n5" p="76 12"/>
+      <n id="n6" p="60 24"/>
+      <b id="b3" B="n4" E="n5"/>
+      <b id="b4" B="n4" E="n6"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(cdxml, Some("normal face labels")).expect("cdxml should parse");
+    let fragment = document
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .expect("fragment should import");
+    let stacked = fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "n1")
+        .and_then(|node| node.label.as_ref())
+        .expect("stacked NTs label should import");
+    assert_eq!(stacked.text, "Ts\nN");
+    assert_eq!(stacked.lines, vec!["Ts", "N"]);
+    assert_eq!(
+        stacked
+            .meta
+            .pointer("/sourceRuns/0/script")
+            .and_then(serde_json::Value::as_str),
+        Some("normal")
+    );
+    assert_eq!(
+        stacked
+            .meta
+            .pointer("/labelRecognition/canonicalLabel")
+            .and_then(serde_json::Value::as_str),
+        Some("NTs")
+    );
+
+    let reversed = fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "n4")
+        .and_then(|node| node.label.as_ref())
+        .expect("right aligned NTs label should import");
+    assert_eq!(reversed.text, "TsN");
+    assert_eq!(
+        reversed
+            .meta
+            .pointer("/sourceRuns/0/script")
+            .and_then(serde_json::Value::as_str),
+        Some("normal")
+    );
+    assert_eq!(
+        reversed
+            .meta
+            .pointer("/labelRecognition/components/1/label")
+            .and_then(serde_json::Value::as_str),
+        Some("Ts")
+    );
+}
+
+#[test]
 fn parse_cdxml_attached_sulfur_label_uses_elliptical_clip_geometry() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >

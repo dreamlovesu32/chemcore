@@ -158,6 +158,7 @@ pub(crate) fn make_periodic_element_node_label(text: &str, position: [f64; 2]) -
         &session,
         false,
         false,
+        false,
         None,
     )
 }
@@ -962,6 +963,7 @@ impl Engine {
             &editing_session,
             false,
             false,
+            false,
             None,
         );
         build_endpoint_label_edit_layout_from_label(
@@ -1413,6 +1415,7 @@ pub(super) fn apply_node_label_text_edit(
         session.fill.as_deref().unwrap_or(DEFAULT_TEXT_FILL),
         connection_angles,
         session,
+        false,
         false,
         false,
         None,

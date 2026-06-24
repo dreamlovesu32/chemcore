@@ -601,6 +601,16 @@ fn merge_molecule_objects_for_editing(
             merged.bonds.push(bond);
         }
     }
+    let merged_stroke_width = merged
+        .bonds
+        .first()
+        .map(|bond| bond.stroke_width)
+        .unwrap_or(crate::DEFAULT_BOND_STROKE);
+    crate::engine::refresh_attached_node_label_geometry_for_all_nodes(
+        &mut merged,
+        origin,
+        merged_stroke_width,
+    );
 
     let target_resource = "mol_cdxml_merged".to_string();
     resources.insert(
