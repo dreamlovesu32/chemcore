@@ -37,6 +37,7 @@
     "office:validate-roundtrip": "powershell -ExecutionPolicy Bypass -File scripts/validate-word-ole-roundtrip.ps1",
     "regression:label-anchor": "node scripts/label-anchor-regression.mjs",
     "regression:text-editor": "node scripts/text-editor-regression.mjs",
+    "regression:viewer-interactions": "node scripts/viewer-interaction-smoke.mjs",
     "verify": "node scripts/verify.mjs",
     "screenshot": "node scripts/viewer-screenshot.mjs",
     "screenshot:svg": "node scripts/viewer-svg-screenshot.mjs",

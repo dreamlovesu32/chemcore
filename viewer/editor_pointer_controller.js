@@ -273,6 +273,7 @@ export function createEditorPointerController(options) {
       return;
     }
     await options.state().editorEngine.pointerMove(point.x, point.y, altKey);
+    invalidateEngineReadCache();
     if (hoverMoveStale(version)) {
       return;
     }
