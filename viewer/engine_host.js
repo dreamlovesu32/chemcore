@@ -94,6 +94,7 @@ class TauriEngineSession {
     this.localSelectionMoveActive = false;
     this.pendingArrowEditBegin = null;
     this.localArrowEditActive = false;
+    this.activeTool = "";
     this.readyPromise = this.initializeSession();
   }
 
@@ -154,6 +155,54 @@ class TauriEngineSession {
     this.cache.documentCdx = null;
     this.cache.documentSdf = null;
     this.cache.documentSvg = null;
+  }
+
+  syncCacheFromLayout({ document = false, interaction = false } = {}) {
+    if (!this.layoutEngine) {
+      return;
+    }
+    if (document && this.layoutEngine.documentJson) {
+      this.cache.documentJson = this.layoutEngine.documentJson();
+    }
+    if (this.layoutEngine.stateJson) {
+      this.cache.stateJson = this.layoutEngine.stateJson();
+    }
+    if (interaction && this.layoutEngine.interactionRenderListJson) {
+      this.cache.interactionRenderListJson = this.layoutEngine.interactionRenderListJson();
+    }
+    if (this.layoutEngine.lastCommandResultJson) {
+      this.cache.lastCommandResultJson = this.layoutEngine.lastCommandResultJson();
+    }
+    if (this.layoutEngine.revision) {
+      this.cache.revision = Number(this.layoutEngine.revision());
+    }
+    if (this.layoutEngine.canUndo) {
+      this.cache.canUndo = !!this.layoutEngine.canUndo();
+    }
+    if (this.layoutEngine.canRedo) {
+      this.cache.canRedo = !!this.layoutEngine.canRedo();
+    }
+  }
+
+  runNativeMutationInBackground(command, args = {}, options = {}) {
+    void this.invokeMutation(command, args, options).catch((error) => {
+      console.warn("[chemcore] background native mutation failed", command, error);
+    });
+  }
+
+  activeToolUsesLocalPointer() {
+    return [
+      "bond",
+      "arrow",
+      "bracket",
+      "symbol",
+      "element",
+      "shape",
+      "tlc-plate",
+      "orbital",
+      "templates",
+      "chain",
+    ].includes(this.activeTool);
   }
 
   syncLayoutDocumentJson(json = this.cache.documentJson) {
@@ -336,14 +385,24 @@ class TauriEngineSession {
   }
 
   setTool(activeTool, bondVariant) {
+    this.activeTool = activeTool;
+    if (this.layoutEngine?.setTool) {
+      this.layoutEngine.setTool(activeTool, bondVariant);
+    }
     return this.invokeMutation("desktop_engine_set_tool", { activeTool, bondVariant }, { refresh: "state", dirtyExports: false });
   }
 
   setShapeOptions(kind, style, color) {
+    if (this.layoutEngine?.setShapeOptions) {
+      this.layoutEngine.setShapeOptions(kind, style, color);
+    }
     return this.invokeMutation("desktop_engine_set_shape_options", { kind, style, color }, { refresh: "state", dirtyExports: false });
   }
 
   setOrbitalOptions(template, style, phase, color) {
+    if (this.layoutEngine?.setOrbitalOptions) {
+      this.layoutEngine.setOrbitalOptions(template, style, phase, color);
+    }
     return this.invokeMutation("desktop_engine_set_orbital_options", {
       template,
       style,
@@ -353,14 +412,23 @@ class TauriEngineSession {
   }
 
   setTemplate(template) {
+    if (this.layoutEngine?.setTemplate) {
+      this.layoutEngine.setTemplate(template);
+    }
     return this.invokeMutation("desktop_engine_set_template", { template }, { refresh: "state", dirtyExports: false });
   }
 
   setBracketOptions(kind) {
+    if (this.layoutEngine?.setBracketOptions) {
+      this.layoutEngine.setBracketOptions(kind);
+    }
     return this.invokeMutation("desktop_engine_set_bracket_options", { kind }, { refresh: "state", dirtyExports: false });
   }
 
   setSymbolOptions(kind) {
+    if (this.layoutEngine?.setSymbolOptions) {
+      this.layoutEngine.setSymbolOptions(kind);
+    }
     return this.invokeMutation("desktop_engine_set_symbol_options", { kind }, { refresh: "state", dirtyExports: false });
   }
 
@@ -515,14 +583,45 @@ class TauriEngineSession {
   }
 
   pointerMove(x, y, altKey) {
+    if (this.activeToolUsesLocalPointer() && this.layoutEngine?.pointerMove) {
+      this.layoutEngine.pointerMove(x, y, altKey);
+      this.syncCacheFromLayout({ interaction: true });
+      this.runNativeMutationInBackground(
+        "desktop_engine_pointer_move",
+        { x, y, altKey },
+        { refresh: "interaction", dirtyExports: false },
+      );
+      return undefined;
+    }
     return this.invokeMutation("desktop_engine_pointer_move", { x, y, altKey }, { refresh: "interaction", dirtyExports: false });
   }
 
   pointerDown(x, y, altKey) {
+    if (this.activeToolUsesLocalPointer() && this.layoutEngine?.pointerDown) {
+      this.layoutEngine.pointerDown(x, y, altKey);
+      this.syncCacheFromLayout({ interaction: true });
+      this.runNativeMutationInBackground(
+        "desktop_engine_pointer_down",
+        { x, y, altKey },
+        { refresh: "interaction", dirtyExports: false },
+      );
+      return undefined;
+    }
     return this.invokeMutation("desktop_engine_pointer_down", { x, y, altKey }, { refresh: "interaction", dirtyExports: false });
   }
 
   pointerUp(x, y, altKey) {
+    if (this.activeToolUsesLocalPointer() && this.layoutEngine?.pointerUp) {
+      this.layoutEngine.pointerUp(x, y, altKey);
+      this.markExportsDirty();
+      this.syncCacheFromLayout({ document: true, interaction: true });
+      this.runNativeMutationInBackground(
+        "desktop_engine_pointer_up",
+        { x, y, altKey },
+        { refresh: "documentState" },
+      );
+      return undefined;
+    }
     return this.invokeMutation("desktop_engine_pointer_up", { x, y, altKey }, { refresh: "document" });
   }
 
@@ -885,6 +984,16 @@ class TauriEngineSession {
   }
 
   beginTextEdit(x, y) {
+    if (this.layoutEngine?.beginTextEdit) {
+      const sessionJson = this.layoutEngine.beginTextEdit(x, y);
+      this.syncCacheFromLayout({ interaction: true });
+      this.runNativeMutationInBackground(
+        "desktop_engine_begin_text_edit",
+        { x, y },
+        { refresh: "interaction", dirtyExports: false },
+      );
+      return sessionJson;
+    }
     return this.invokeMutation("desktop_engine_begin_text_edit", { x, y }, { refresh: "interaction", dirtyExports: false });
   }
 
@@ -901,6 +1010,9 @@ class TauriEngineSession {
   }
 
   async pendingGraphicObjectId() {
+    if (this.layoutEngine?.pendingGraphicObjectId) {
+      return this.layoutEngine.pendingGraphicObjectId();
+    }
     await this.ready();
     return this.invoke("desktop_engine_pending_graphic_object_id", { sessionId: this.sessionId });
   }

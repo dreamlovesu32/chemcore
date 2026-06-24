@@ -4014,7 +4014,7 @@ async function openTextEditorAt(point, options = {}) {
   const sessionJson = await state.editorEngine?.beginTextEdit?.(point.x, point.y);
   const session = parseEngineJson(sessionJson, null);
   if (!session) {
-    renderEditorOverlay(currentEditorRenderList());
+    renderEditorOverlay(currentEditorInteractionRenderList());
     return;
   }
   const nextSession = { ...session };
@@ -4026,7 +4026,7 @@ async function openTextEditorAt(point, options = {}) {
   if (Number.isFinite(lineHeight) && lineHeight > 0) {
     nextSession.lineHeight = lineHeight;
   }
-  renderEditorOverlay(currentEditorRenderList());
+  renderEditorOverlay(currentEditorInteractionRenderList());
   openTextEditorSession(nextSession);
   if (options.bracketObjectId && activeTextEditor) {
     activeTextEditor.bracketLabelObjectId = String(options.bracketObjectId);
@@ -4045,7 +4045,7 @@ function openTextEditorSession(session) {
   if (targetResult) {
     renderDocumentChange(targetResult);
   } else {
-    renderEditorOverlay(currentEditorRenderList());
+    renderEditorOverlay(currentEditorInteractionRenderList());
   }
 }
 

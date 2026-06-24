@@ -441,6 +441,34 @@ async function drawShape(page) {
   return result.objectId;
 }
 
+async function drawBracketOpensTextEditor(page) {
+  await page.locator('button[data-tool="bracket"]').click();
+  await resetRenderStats(page);
+  await page.mouse.move(910, 560);
+  await page.mouse.down();
+  await page.mouse.move(1050, 700, { steps: 8 });
+  const started = performance.now();
+  await page.mouse.up();
+  await page.waitForFunction(() => !!window.__chemcoreDebug.activeTextEditor, null, { timeout: 1000 });
+  const elapsed = performance.now() - started;
+  const result = await page.evaluate(() => {
+    const brackets = (window.__chemcoreDebug.document.objects || [])
+      .filter((object) => (object.type || object.objectType || object.object_type) === "bracket");
+    return {
+      bracketCount: brackets.length,
+      activeTextEditor: !!window.__chemcoreDebug.activeTextEditor,
+      bracketLabelObjectId: window.__chemcoreDebug.activeTextEditor?.bracketLabelObjectId || null,
+      documentRenderCount: window.__chemcoreDebug.renderStats.documentRenderCount || 0,
+      renderListJsonCount: window.__chemcoreDebug.renderStats.renderListJsonCount || 0,
+    };
+  });
+  assert(result.bracketCount > 0, `Bracket was not created: ${JSON.stringify(result)}`);
+  assert(result.activeTextEditor, `Bracket text editor did not open: ${JSON.stringify(result)}`);
+  assert(result.bracketLabelObjectId, `Bracket text editor is not linked to bracket: ${JSON.stringify(result)}`);
+  assert(elapsed < 350, `Bracket text editor opened too slowly: ${elapsed.toFixed(1)}ms`);
+  assertNoFullRefresh("bracket draw text editor", result);
+}
+
 let server = null;
 let browser = null;
 try {
@@ -453,6 +481,7 @@ try {
   await dragArrowCurve(page, arrowId);
   const shapeId = await drawShape(page);
   await assertShapePointerDown(page, shapeId);
+  await drawBracketOpensTextEditor(page);
   await page.close();
   assert(!errors.length, `Viewer console errors:\n${errors.join("\n")}`);
   console.log(`[large-object-operation-regression] ok (${nodeCount} nodes)`);
