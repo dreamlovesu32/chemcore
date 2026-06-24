@@ -2374,7 +2374,7 @@ body.browser-shell .document-tabbar {
 }
 
 .editor-endpoint-halo {
-  fill: none;
+  fill: rgba(47, 111, 237, 0.24);
   stroke: rgba(47, 111, 237, 0.78);
   stroke-width: 1.4px;
   vector-effect: non-scaling-stroke;
@@ -2535,7 +2535,7 @@ body.browser-shell .document-tabbar {
 }
 
 .editor-preview-end {
-  fill: none;
+  fill: rgba(47, 111, 237, 0.16);
   stroke: rgba(47, 111, 237, 0.5);
   stroke-width: 0.8px;
   vector-effect: non-scaling-stroke;

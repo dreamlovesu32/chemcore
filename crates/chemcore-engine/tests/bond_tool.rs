@@ -4325,7 +4325,7 @@ fn drag_preview_interaction_render_list_only_contains_preview_geometry() {
             role: RenderRole::PreviewEnd,
             fill,
             ..
-        } if fill == "none"
+        } if fill == "rgba(47,111,237,0.16)"
     )));
     assert!(interaction.iter().all(|primitive| !matches!(
         primitive,
@@ -4341,7 +4341,7 @@ fn drag_preview_interaction_render_list_only_contains_preview_geometry() {
 }
 
 #[test]
-fn bond_tool_endpoint_hover_and_preview_handles_do_not_fill_over_bonds() {
+fn bond_tool_endpoint_hover_and_preview_handles_use_tinted_not_white_fill() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());
     click(&mut engine, px(300.0), px(260.0));
@@ -4354,7 +4354,7 @@ fn bond_tool_endpoint_hover_and_preview_handles_do_not_fill_over_bonds() {
             role: RenderRole::HoverEndpoint,
             fill,
             ..
-        } if fill == "none"
+        } if fill == "rgba(47,111,237,0.24)"
     )));
 
     engine.pointer_down(PointerEvent {
@@ -4376,7 +4376,7 @@ fn bond_tool_endpoint_hover_and_preview_handles_do_not_fill_over_bonds() {
             role: RenderRole::PreviewEnd,
             fill,
             ..
-        } if fill == "none"
+        } if fill == "rgba(47,111,237,0.16)"
     )));
 }
 

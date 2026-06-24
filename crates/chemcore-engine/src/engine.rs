@@ -818,7 +818,7 @@ impl Engine {
                     node_id: Some(hover.node_id.clone()),
                     center: hover.point,
                     radius: ENDPOINT_FOCUS_RADIUS,
-                    fill: "none".to_string(),
+                    fill: "rgba(47,111,237,0.24)".to_string(),
                     stroke: "rgba(47,111,237,0.78)".to_string(),
                     stroke_width: HOVER_ENDPOINT_STROKE_WIDTH,
                 });
@@ -851,7 +851,7 @@ impl Engine {
                 node_id: None,
                 center: preview.end,
                 radius: PREVIEW_END_RADIUS,
-                fill: "none".to_string(),
+                fill: "rgba(47,111,237,0.16)".to_string(),
                 stroke: "rgba(47,111,237,0.86)".to_string(),
                 stroke_width: PREVIEW_END_STROKE_WIDTH,
             });
