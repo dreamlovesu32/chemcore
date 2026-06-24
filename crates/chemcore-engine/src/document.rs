@@ -224,10 +224,15 @@ pub fn parse_document_json(json: &str) -> Result<ChemcoreDocument, String> {
 }
 
 pub(crate) fn normalize_arrow_object_payloads(document: &mut ChemcoreDocument) {
-    for object in &mut document.objects {
+    normalize_arrow_objects(&mut document.objects);
+}
+
+fn normalize_arrow_objects(objects: &mut [SceneObject]) {
+    for object in objects {
         if object.object_type == "line" {
             normalize_arrow_payload_extra(&mut object.payload.extra);
         }
+        normalize_arrow_objects(&mut object.children);
     }
 }
 

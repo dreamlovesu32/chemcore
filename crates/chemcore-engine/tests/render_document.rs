@@ -2901,6 +2901,37 @@ fn cdxml_arrow_head_dimensions_are_relative_to_line_width() {
 }
 
 #[test]
+fn cdxml_grouped_arrow_keeps_renderable_head_payload() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML LineWidth="0.6" BondLength="14.4" color="0" bgcolor="1">
+  <page id="1" BoundingBox="0 0 180 80">
+    <group id="group1">
+      <graphic id="g1" SupersededBy="a1" GraphicType="Line" ArrowType="FullHead"
+        HeadSize="2250" Head3D="150 40 0" Tail3D="20 40 0"/>
+      <arrow id="a1" BoundingBox="20 36 150 44" Z="1" FillType="None"
+        ArrowheadType="Solid" ArrowheadHead="Full" HeadSize="2250"
+        ArrowheadCenterSize="1969" ArrowheadWidth="563"
+        Head3D="150 40 0" Tail3D="20 40 0"/>
+    </group>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("grouped arrow")).expect("cdxml should parse");
+    let primitives = render_document(&document);
+    assert!(
+        primitives.iter().any(|primitive| matches!(
+            primitive,
+            RenderPrimitive::FilledPath {
+                role: RenderRole::DocumentGraphic,
+                object_id,
+                ..
+            } if object_id.as_deref() == Some("obj_line_001")
+        )),
+        "grouped arrow should render a filled arrow head: {primitives:?}"
+    );
+}
+
+#[test]
 fn cdxml_arrow_line_width_scales_arrow_head_ratios() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
