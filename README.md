@@ -12,6 +12,16 @@ The core architecture is a shared Rust engine with a lightweight Web interface. 
 
 ![ChemCore editor interface](./docs/assets/readme/product-screenshot.png)
 
+## Project History
+
+ChemCore development started on April 23, 2026. The early development history is
+published on the [`history/pre-public-release`](https://github.com/dreamlovesu32/chemcore/tree/history/pre-public-release)
+branch so readers can follow how the project grew before the public release.
+
+ChemCore 项目始于 2026 年 4 月 23 日。早期开发历史已公开保留在
+[`history/pre-public-release`](https://github.com/dreamlovesu32/chemcore/tree/history/pre-public-release)
+分支，方便读者了解项目在公开发布前的演进过程。
+
 ## Published Figure Comparison
 
 The comparison below uses CDXML source files from a published paper by the
