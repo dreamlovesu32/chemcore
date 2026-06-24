@@ -249,10 +249,15 @@ function bindBrowserFileDrop(options) {
       event.dataTransfer.dropEffect = "copy";
     }
   };
+  const openDroppedFile = options.openDroppedDocumentFileInTab || options.openDocumentFileInTab;
+  const bindTargets = [window, document, document.documentElement, document.body, options.viewerContainer]
+    .filter(Boolean);
   const captureOptions = { capture: true };
-  window.addEventListener("dragover", preventFileNavigation, captureOptions);
-  window.addEventListener("dragenter", preventFileNavigation, captureOptions);
-  window.addEventListener("drop", async (event) => {
+  for (const target of bindTargets) {
+    target.addEventListener("dragover", preventFileNavigation, captureOptions);
+    target.addEventListener("dragenter", preventFileNavigation, captureOptions);
+  }
+  const handleDrop = async (event) => {
     if (!hasFiles(event)) {
       return;
     }
@@ -260,12 +265,15 @@ function bindBrowserFileDrop(options) {
     preventFileNavigation(event);
     for (const file of files) {
       await runSafe(
-        () => options.openDocumentFileInTab(file),
+        () => openDroppedFile(file),
         "Open failed",
         "Failed to open dropped document",
       );
     }
-  }, captureOptions);
+  };
+  for (const target of bindTargets) {
+    target.addEventListener("drop", handleDrop, captureOptions);
+  }
 }
 
 function bindZoomInput(options) {

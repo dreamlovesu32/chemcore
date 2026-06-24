@@ -4669,6 +4669,37 @@ async function openDocumentFileInTab(file) {
   }
 }
 
+async function openDroppedDocumentFileInTab(file) {
+  if (!file) {
+    return;
+  }
+  await appRuntimeReady;
+  await finishActiveTextEditor(true);
+  const reuseActiveTab = activeDocumentTabIsBlankUntitled() && !currentDocumentIsDirty();
+  saveActiveDocumentTabState();
+  const previousTabId = activeDocumentTabId;
+  let tab = activeDocumentTab();
+  if (!reuseActiveTab) {
+    tab = createDocumentTab(file.name || "Loading...");
+    documentTabs.push(tab);
+    activeDocumentTabId = tab.id;
+    await restoreDocumentTabState(tab);
+  }
+  try {
+    await openDocumentFile(file);
+    saveActiveDocumentTabState();
+    renderDocumentTabs();
+  } catch (error) {
+    if (!reuseActiveTab) {
+      await closeDocumentTab(tab.id, { skipUnsavedPrompt: true });
+    }
+    if (previousTabId && activeDocumentTabId !== previousTabId) {
+      await activateDocumentTab(previousTabId);
+    }
+    throw error;
+  }
+}
+
 async function chooseAndOpenDocumentTab() {
   if (desktopFileHost?.available) {
     const path = await desktopFileHost.chooseOpenPath();
@@ -4719,6 +4750,7 @@ bindEditorControls({
   chooseAndOpenDocumentTab,
   openDocumentPathInTab,
   openDocumentFileInTab,
+  openDroppedDocumentFileInTab,
   getZoomPercent: () => zoomPercent,
   setTextFontSize: (size) => {
     const fontSize = normalizeToolbarFontSize(Math.max(5, Math.min(288, size)));
@@ -4750,6 +4782,7 @@ bindEditorControls({
   fitView,
   resetEditorEngine,
   openDocumentFile,
+  viewerContainer,
   focusActiveTextEditor,
   applyTextAlignment,
   applyTextFormatCommand,
