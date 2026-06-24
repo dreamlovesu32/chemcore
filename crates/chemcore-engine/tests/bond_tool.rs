@@ -4287,6 +4287,50 @@ fn drag_preview_renders_document_geometry_instead_of_overlay_line() {
 }
 
 #[test]
+fn drag_preview_interaction_render_list_only_contains_preview_geometry() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+
+    engine.pointer_down(PointerEvent {
+        x: FIRST_END_X,
+        y: FIRST_END_Y,
+        button: Some(0),
+        alt_key: false,
+    });
+    engine.pointer_move(PointerEvent {
+        x: px(370.0),
+        y: px(292.0),
+        button: None,
+        alt_key: false,
+    });
+
+    let interaction = engine.interaction_render_list();
+    assert!(interaction.iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Path { role, .. }
+            | RenderPrimitive::Polygon { role, .. }
+            | RenderPrimitive::FilledPath { role, .. }
+            if *role == RenderRole::PreviewBond
+    )));
+    assert!(interaction.iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Circle { role, .. } if *role == RenderRole::PreviewEnd
+    )));
+    assert!(interaction.iter().all(|primitive| !matches!(
+        primitive,
+        RenderPrimitive::Path { role, .. }
+            | RenderPrimitive::Polygon { role, .. }
+            | RenderPrimitive::FilledPath { role, .. }
+            if *role == RenderRole::DocumentBond
+    )));
+    assert!(
+        interaction.len() <= 8,
+        "preview interaction list should stay small: {interaction:?}"
+    );
+}
+
+#[test]
 fn alt_drag_from_endpoint_uses_mouse_distance_without_snap() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());

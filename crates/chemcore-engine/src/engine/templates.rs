@@ -196,6 +196,20 @@ impl Engine {
         Some(document)
     }
 
+    pub(super) fn template_preview_overlay_document(&self) -> Option<ChemcoreDocument> {
+        let drag = self.template_drag.as_ref()?;
+        if !drag.has_dragged {
+            return None;
+        }
+        let plan = self.template_ring_plan(drag, drag.current)?;
+        let mut document = ChemcoreDocument::blank();
+        document.format = self.state.document.format.clone();
+        document.document = self.state.document.document.clone();
+        document.styles = self.state.document.styles.clone();
+        insert_ring_plan_into_document(&mut document, plan, true, &mut 0, self)?;
+        Some(document)
+    }
+
     pub(super) fn template_chain_count_label(&self) -> Option<(Point, usize)> {
         let drag = self.template_drag.as_ref()?;
         if !drag.has_dragged || !selected_chain_template(&self.state.tool.template) {

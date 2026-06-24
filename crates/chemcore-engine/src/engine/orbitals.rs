@@ -137,6 +137,25 @@ impl Engine {
         Some(document)
     }
 
+    pub(super) fn orbital_preview_overlay_document(&self) -> Option<ChemcoreDocument> {
+        let drag = self.orbital_drag.as_ref()?;
+        if !drag.has_dragged {
+            return None;
+        }
+        let mut document = self.preview_document_shell();
+        let style_id = "__preview_orbital_style".to_string();
+        document
+            .styles
+            .insert(style_id.clone(), self.pending_orbital_style());
+        document.objects.push(self.orbital_scene_object(
+            drag.anchor,
+            drag.current,
+            "__preview_orbital".to_string(),
+            style_id,
+        )?);
+        Some(document)
+    }
+
     pub(super) fn insert_orbital_from_drag(&mut self, drag: &OrbitalDragState) -> bool {
         let object_id = self.next_id("obj_shape_orbital");
         let style_id = format!("style_{object_id}");

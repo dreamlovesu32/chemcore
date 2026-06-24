@@ -145,6 +145,24 @@ impl Engine {
         Some(document)
     }
 
+    pub(super) fn shape_preview_overlay_document(&self) -> Option<ChemcoreDocument> {
+        let drag = self.shape_drag.as_ref()?;
+        if !drag.has_dragged {
+            return None;
+        }
+        let mut document = self.preview_document_shell();
+        let style_id = "__preview_shape_style".to_string();
+        document
+            .styles
+            .insert(style_id.clone(), self.pending_shape_style());
+        document.objects.push(self.shape_scene_object_from_drag(
+            drag,
+            "__preview_shape".to_string(),
+            style_id,
+        )?);
+        Some(document)
+    }
+
     pub(super) fn insert_shape_from_drag(&mut self, drag: &ShapeDragState) -> bool {
         let object_id = self.next_id("obj_shape");
         let style_id = format!("style_{object_id}");

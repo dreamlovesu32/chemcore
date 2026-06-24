@@ -464,6 +464,30 @@ export function createEditorOverlayRenderer(options) {
     return `${rounded}${String.fromCharCode(176)}`;
   }
 
+  function primitiveObjectId(primitive) {
+    return primitive?.objectId || primitive?.object_id || "";
+  }
+
+  function primitiveNodeId(primitive) {
+    return primitive?.nodeId || primitive?.node_id || "";
+  }
+
+  function primitiveBondId(primitive) {
+    return primitive?.bondId || primitive?.bond_id || "";
+  }
+
+  function isLocalPreviewPrimitive(primitive) {
+    if (!primitive) {
+      return false;
+    }
+    if (primitive.role === "preview-bond" || primitive.role === "preview-end") {
+      return true;
+    }
+    return primitiveObjectId(primitive).startsWith("__preview_")
+      || primitiveNodeId(primitive).startsWith("__preview_")
+      || primitiveBondId(primitive).startsWith("__preview_");
+  }
+
   function renderEditorOverlay(renderList = null) {
     const viewerSvg = options.viewerSvg();
     if (!options.isEditingRustDocument()) {
@@ -480,8 +504,7 @@ export function createEditorOverlayRenderer(options) {
     if (previewTransform) {
       overlay.setAttribute("transform", previewTransform);
     }
-    const previewActive = options.activeGestureUsesDocumentPreview()
-      || primitives.some((primitive) => primitive.role === "preview-end");
+    const previewActive = options.activeGestureUsesDocumentPreview();
     const editorState = options.editorState();
     const activeSelectionGesture = options.activeSelectionGesture();
     const hasSelectionOverlayPrimitives = primitives
@@ -511,6 +534,10 @@ export function createEditorOverlayRenderer(options) {
     }
     for (const primitive of primitives) {
       if (options.shouldHidePrimitiveForActiveEndpointEditor(primitive)) {
+        continue;
+      }
+      if (isLocalPreviewPrimitive(primitive)) {
+        renderCorePrimitive(overlay, primitive, options.corePrimitiveRenderOptions());
         continue;
       }
       if (options.isDocumentPreviewPrimitive(primitive)) {

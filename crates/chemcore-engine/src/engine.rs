@@ -161,6 +161,77 @@ fn render_role_is_preview(role: RenderRole) -> bool {
     matches!(role, RenderRole::PreviewBond | RenderRole::PreviewEnd)
 }
 
+fn render_primitive_role_mut(primitive: &mut RenderPrimitive) -> &mut RenderRole {
+    match primitive {
+        RenderPrimitive::Line { role, .. }
+        | RenderPrimitive::Circle { role, .. }
+        | RenderPrimitive::Polygon { role, .. }
+        | RenderPrimitive::Rect { role, .. }
+        | RenderPrimitive::Ellipse { role, .. }
+        | RenderPrimitive::Polyline { role, .. }
+        | RenderPrimitive::Path { role, .. }
+        | RenderPrimitive::FilledPath { role, .. }
+        | RenderPrimitive::Text { role, .. } => role,
+    }
+}
+
+fn preview_primitive_ids(
+    primitive: &RenderPrimitive,
+) -> (Option<&str>, Option<&str>, Option<&str>) {
+    match primitive {
+        RenderPrimitive::Line {
+            object_id, bond_id, ..
+        }
+        | RenderPrimitive::Polyline {
+            object_id, bond_id, ..
+        }
+        | RenderPrimitive::Path {
+            object_id, bond_id, ..
+        } => (object_id.as_deref(), None, bond_id.as_deref()),
+        RenderPrimitive::Circle {
+            object_id, node_id, ..
+        }
+        | RenderPrimitive::Rect {
+            object_id, node_id, ..
+        }
+        | RenderPrimitive::Text {
+            object_id, node_id, ..
+        } => (object_id.as_deref(), node_id.as_deref(), None),
+        RenderPrimitive::Polygon {
+            object_id,
+            node_id,
+            bond_id,
+            ..
+        }
+        | RenderPrimitive::FilledPath {
+            object_id,
+            node_id,
+            bond_id,
+            ..
+        } => (object_id.as_deref(), node_id.as_deref(), bond_id.as_deref()),
+        RenderPrimitive::Ellipse { object_id, .. } => (object_id.as_deref(), None, None),
+    }
+}
+
+fn is_preview_id(id: Option<&str>) -> bool {
+    id.is_some_and(|id| id.starts_with("__preview_"))
+}
+
+fn mark_preview_primitives(primitives: &mut [RenderPrimitive]) {
+    for primitive in primitives {
+        let role = render_primitive_role(primitive);
+        if render_role_is_preview(role) {
+            continue;
+        }
+        let (object_id, node_id, bond_id) = preview_primitive_ids(primitive);
+        if is_preview_id(bond_id) {
+            *render_primitive_role_mut(primitive) = RenderRole::PreviewBond;
+        } else if is_preview_id(object_id) || is_preview_id(node_id) {
+            *render_primitive_role_mut(primitive) = RenderRole::PreviewBond;
+        }
+    }
+}
+
 fn connected_component_node_ids_for_fragment(
     fragment: &crate::MoleculeFragment,
     start_node_id: &str,
@@ -809,8 +880,11 @@ impl Engine {
     }
 
     pub fn interaction_render_list(&self) -> Vec<RenderPrimitive> {
-        let mut out = if let Some(preview_document) = self.preview_document() {
-            render_document(&preview_document)
+        let mut out = if let Some(preview_document) = self.preview_overlay_document() {
+            let mut primitives = render_document(&preview_document);
+            mark_preview_primitives(&mut primitives);
+            primitives.retain(|primitive| render_role_is_preview(render_primitive_role(primitive)));
+            primitives
         } else if self.arrow_edit_drag.is_some() || self.shape_edit_drag.is_some() {
             render_document(&self.state.document)
         } else {
@@ -1561,6 +1635,42 @@ impl Engine {
             }
         };
         self.document_with_preview_bond(&drag.anchor, &end_anchor, self.pending_bond_order())
+    }
+
+    fn preview_document_shell(&self) -> ChemcoreDocument {
+        let mut document = self.state.document.clone();
+        document.objects.clear();
+        document.resources.clear();
+        document
+    }
+
+    fn preview_overlay_document(&self) -> Option<ChemcoreDocument> {
+        if let Some(preview_document) = self.template_preview_overlay_document() {
+            return Some(preview_document);
+        }
+        if let Some(preview_document) = self.shape_preview_overlay_document() {
+            return Some(preview_document);
+        }
+        if let Some(preview_document) = self.orbital_preview_overlay_document() {
+            return Some(preview_document);
+        }
+        if let Some(preview_document) = self.bracket_preview_overlay_document() {
+            return Some(preview_document);
+        }
+        if let Some(drag) = self.arrow_drag.as_ref().filter(|drag| drag.has_dragged) {
+            let end = drag.end?;
+            let mut document = self.preview_document_shell();
+            let style_id = self.arrow_style_id();
+            ensure_arrow_style(&mut document, &style_id, self.options.graphic_stroke_width);
+            document.objects.push(self.arrow_scene_object(
+                drag.start,
+                end,
+                "__preview_arrow".to_string(),
+                style_id,
+            ));
+            return Some(document);
+        }
+        self.preview_bond_overlay_document()
     }
 
     pub fn undo(&mut self) -> bool {

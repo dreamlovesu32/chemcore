@@ -232,6 +232,157 @@ impl Engine {
         Some(document)
     }
 
+    pub(super) fn preview_bond_overlay_document(&self) -> Option<ChemcoreDocument> {
+        let drag = self.drag.as_ref()?;
+        if !drag.has_dragged {
+            return None;
+        }
+        let end_anchor = if let Some(target) = drag.target.clone() {
+            target
+        } else {
+            BondAnchor {
+                node_id: None,
+                point: drag.preview_end?,
+                label_anchor: None,
+            }
+        };
+        self.document_with_preview_bond_overlay(
+            &drag.anchor,
+            &end_anchor,
+            self.pending_bond_order(),
+        )
+    }
+
+    fn document_with_preview_bond_overlay(
+        &self,
+        anchor: &BondAnchor,
+        end: &BondAnchor,
+        order: u8,
+    ) -> Option<ChemcoreDocument> {
+        let source = self.state.document.editable_fragment()?;
+        if let (Some(begin_id), Some(end_id)) = (&anchor.node_id, &end.node_id) {
+            if begin_id == end_id || self.bond_exists_in_fragment(source.fragment, begin_id, end_id)
+            {
+                return None;
+            }
+        }
+
+        let mut document = self.preview_document_shell();
+        let resource_id = "__preview_molecule_resource".to_string();
+        let mut object = source.object.clone();
+        object.children.clear();
+        object.payload.resource_ref = Some(resource_id.clone());
+        object.payload.bbox = Some(source.fragment.bbox);
+        document.objects.push(object);
+        document.resources.insert(
+            resource_id,
+            crate::Resource {
+                resource_type: "molecule_fragment2d".to_string(),
+                encoding: "chemcore.molecule.fragment2d".to_string(),
+                data: crate::ResourceData::Fragment(crate::MoleculeFragment::blank()),
+                meta: serde_json::Value::Null,
+            },
+        );
+
+        let mut copied_node_ids = std::collections::BTreeSet::new();
+        for node_id in [&anchor.node_id, &end.node_id].into_iter().flatten() {
+            copied_node_ids.insert(node_id.clone());
+            for bond in &source.fragment.bonds {
+                if bond.begin == *node_id || bond.end == *node_id {
+                    copied_node_ids.insert(bond.begin.clone());
+                    copied_node_ids.insert(bond.end.clone());
+                }
+            }
+        }
+
+        let object_translate = source.object.transform.translate;
+        let stroke_width = self.options.bond_stroke_world_pt().value();
+        let mut entry = document.editable_fragment_mut()?;
+        entry.fragment.nodes.extend(
+            source
+                .fragment
+                .nodes
+                .iter()
+                .filter(|node| copied_node_ids.contains(&node.id))
+                .cloned(),
+        );
+        entry.fragment.bonds.extend(
+            source
+                .fragment
+                .bonds
+                .iter()
+                .filter(|bond| {
+                    copied_node_ids.contains(&bond.begin) && copied_node_ids.contains(&bond.end)
+                })
+                .cloned(),
+        );
+
+        let begin_id = match &anchor.node_id {
+            Some(node_id) => node_id.clone(),
+            None => {
+                let node_id = "__preview_node_begin".to_string();
+                entry.fragment.nodes.push(crate::Node::carbon(
+                    node_id.clone(),
+                    entry.local_point(anchor.point),
+                ));
+                node_id
+            }
+        };
+        let end_id = match &end.node_id {
+            Some(node_id) => node_id.clone(),
+            None => {
+                let node_id = "__preview_node_end".to_string();
+                entry.fragment.nodes.push(crate::Node::carbon(
+                    node_id.clone(),
+                    entry.local_point(end.point),
+                ));
+                node_id
+            }
+        };
+        if begin_id == end_id || self.bond_exists_in_fragment(source.fragment, &begin_id, &end_id) {
+            return None;
+        }
+
+        entry.fragment.bonds.push(Bond {
+            id: "__preview_bond".to_string(),
+            begin: begin_id.clone(),
+            end: end_id.clone(),
+            order: order.max(1),
+            double: self.pending_double_state_for_new_bond(&begin_id, &end_id, order.max(1)),
+            stereo: self.pending_bond_stereo(),
+            stroke_width,
+            stroke: None,
+            bold_width: Some(self.options.bold_bond_width_world_pt().value()),
+            wedge_width: Some(self.options.wedge_width_world_pt().value()),
+            label_clip_margin: Some(self.options.label_clip_margin_world_pt().value()),
+            hash_spacing: Some(self.options.hash_spacing_world_pt().value()),
+            bond_spacing: Some(self.options.bond_spacing_percent()),
+            margin_width: Some(self.options.margin_width_world_pt().value()),
+            line_styles: self.pending_line_styles(),
+            line_weights: self.pending_line_weights(),
+            meta: serde_json::Value::Null,
+        });
+        update_terminal_double_bond_placement_after_new_attachment(
+            entry.fragment,
+            &begin_id,
+            "__preview_bond",
+        );
+        update_terminal_double_bond_placement_after_new_attachment(
+            entry.fragment,
+            &end_id,
+            "__preview_bond",
+        );
+        refresh_attached_label_geometry_for_bond_endpoints(
+            entry.fragment,
+            object_translate,
+            stroke_width,
+            &begin_id,
+            &end_id,
+        );
+        entry.update_bounds();
+        Some(document)
+    }
+
     pub fn cycle_bond_center_style(&mut self, bond_id: &str) -> bool {
         self.with_command(
             EditorCommand::CycleBondStyle {

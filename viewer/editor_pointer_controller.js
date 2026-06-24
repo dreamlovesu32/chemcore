@@ -345,6 +345,17 @@ export function createEditorPointerController(options) {
     options.positionActiveTextEditor();
   }
 
+  function readLastCommandResult() {
+    return options.parseEngineJson(
+      options.state().editorEngine.lastCommandResultJson?.(),
+      null,
+    );
+  }
+
+  function engineRevision() {
+    return Number(options.state().editorEngine.revision?.() || 0);
+  }
+
   async function handleEditorPointerMove(event) {
     const point = options.svgPointFromEvent(event);
     const editorState = options.editorState();
@@ -681,9 +692,19 @@ export function createEditorPointerController(options) {
     if (editorState.activeTool === "bracket") {
       options.setActiveBracketDragStart(point);
     }
+    const beforeRevision = engineRevision();
     await options.state().editorEngine.pointerDown(point.x, point.y, event.altKey);
-    await options.syncDocumentFromEngine();
-    options.renderEditorOverlay();
+    const pointerDownResult = readLastCommandResult();
+    if (
+      pointerDownResult?.changed
+      && Number(pointerDownResult.beforeRevision ?? pointerDownResult.before_revision ?? -1) === beforeRevision
+    ) {
+      await options.syncDocumentFromEngine();
+      options.renderDocumentChange?.(pointerDownResult) || options.renderDocument();
+      return;
+    }
+    invalidateEngineReadCache();
+    options.renderEditorOverlay(options.currentEditorInteractionRenderList?.() || []);
   }
 
   async function handleEditorPointerUp(event) {

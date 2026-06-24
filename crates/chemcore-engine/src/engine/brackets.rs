@@ -185,6 +185,27 @@ impl Engine {
         Some(document)
     }
 
+    pub(super) fn bracket_preview_overlay_document(&self) -> Option<ChemcoreDocument> {
+        let drag = self.bracket_drag.as_ref()?;
+        if !drag.has_dragged {
+            return None;
+        }
+        let mut document = self.preview_document_shell();
+        if self.state.tool.active_tool == Tool::Symbol {
+            document.objects.push(self.bracket_symbol_scene_object(
+                self.bracket_symbol_insert_point(drag),
+                "__preview_symbol".to_string(),
+            ));
+        } else {
+            document.objects.push(self.bracket_scene_object(
+                drag.start,
+                drag.current,
+                "__preview_bracket".to_string(),
+            )?);
+        }
+        Some(document)
+    }
+
     pub(super) fn insert_bracket_from_drag(&mut self, drag: &BracketDragState) -> bool {
         let object_id = self.next_id("obj_bracket");
         let Some(object) = self.bracket_scene_object(drag.start, drag.current, object_id.clone())
