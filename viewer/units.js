@@ -1,8 +1,11 @@
-// Browser layout uses CSS pixels. OS/browser scaling affects device pixels via
-// devicePixelRatio, while CSS geometry remains 96 CSS px per CSS inch.
+// Browser layout uses CSS pixels. We keep chemistry coordinates in points, then
+// apply one app-level display scale when mapping points onto the interactive UI.
 export const CSS_PX_PER_INCH = 96.0;
 export const PT_PER_INCH = 72.0;
 export const CM_PER_INCH = 2.54;
+const DISPLAY_SCALE_STORAGE_KEY = "chemcore:display-scale";
+const MIN_DISPLAY_SCALE = 0.25;
+const MAX_DISPLAY_SCALE = 4.0;
 
 export const CSS_PX_PER_PT = CSS_PX_PER_INCH / PT_PER_INCH;
 export const PT_PER_CSS_PX = PT_PER_INCH / CSS_PX_PER_INCH;
@@ -12,25 +15,90 @@ export const CM_PER_PT = CM_PER_INCH / PT_PER_INCH;
 export const devicePixelRatioValue = () =>
   Number(globalThis.window?.devicePixelRatio || globalThis.devicePixelRatio || 1) || 1;
 
-export const devicePxPerInch = () => CSS_PX_PER_INCH * devicePixelRatioValue();
-export const devicePxPerPt = () => CSS_PX_PER_PT * devicePixelRatioValue();
+function clampDisplayScale(value) {
+  if (value == null || value === "") {
+    return null;
+  }
+  const numeric = Number(value);
+  return Number.isFinite(numeric)
+    ? Math.max(MIN_DISPLAY_SCALE, Math.min(MAX_DISPLAY_SCALE, numeric))
+    : null;
+}
 
-export const ptToCssPx = (pt) => pt * CSS_PX_PER_PT;
-export const cssPxToPt = (px) => px * PT_PER_CSS_PX;
+function displayScaleFromUrl() {
+  try {
+    const raw = globalThis.window
+      ? new URL(globalThis.window.location.href).searchParams.get("displayScale")
+      : null;
+    return clampDisplayScale(raw);
+  } catch {
+    return null;
+  }
+}
+
+function displayScaleFromStorage() {
+  try {
+    return clampDisplayScale(globalThis.localStorage?.getItem(DISPLAY_SCALE_STORAGE_KEY));
+  } catch {
+    return null;
+  }
+}
+
+let displayScaleOverride = displayScaleFromUrl() ?? displayScaleFromStorage();
+
+export function setDisplayScaleOverride(value) {
+  displayScaleOverride = clampDisplayScale(value);
+  try {
+    if (displayScaleOverride == null) {
+      globalThis.localStorage?.removeItem(DISPLAY_SCALE_STORAGE_KEY);
+    } else {
+      globalThis.localStorage?.setItem(DISPLAY_SCALE_STORAGE_KEY, String(displayScaleOverride));
+    }
+  } catch {
+    // Display scaling must not depend on storage availability.
+  }
+  return displayScaleOverride;
+}
+
+export const isDesktopShell = () => Boolean(globalThis.__TAURI__?.core?.invoke);
+
+export const defaultDisplayScale = () => {
+  if (isDesktopShell()) {
+    return 1.0;
+  }
+  return devicePixelRatioValue();
+};
+
+export const displayScaleValue = () => displayScaleOverride ?? defaultDisplayScale();
+export const cssPxPerPtValue = () => CSS_PX_PER_PT * displayScaleValue();
+export const ptPerCssPxValue = () => 1 / cssPxPerPtValue();
+
+export const devicePxPerInch = () => CSS_PX_PER_INCH * devicePixelRatioValue();
+export const devicePxPerPt = () => cssPxPerPtValue() * devicePixelRatioValue();
+
+export const ptToCssPx = (pt) => pt * cssPxPerPtValue();
+export const cssPxToPt = (px) => px * ptPerCssPxValue();
 
 export const ptToDevicePx = (pt) => ptToCssPx(pt) * devicePixelRatioValue();
 export const devicePxToPt = (px) => cssPxToPt(px / devicePixelRatioValue());
 
 export const displayMetrics = () => {
   const devicePixelRatio = devicePixelRatioValue();
+  const displayScale = displayScaleValue();
+  const cssPxPerPt = cssPxPerPtValue();
   return {
     cssPxPerInch: CSS_PX_PER_INCH,
-    cssPxPerPt: CSS_PX_PER_PT,
-    ptPerCssPx: PT_PER_CSS_PX,
+    baseCssPxPerPt: CSS_PX_PER_PT,
+    cssPxPerPt,
+    ptPerCssPx: 1 / cssPxPerPt,
     devicePixelRatio,
-    displayScalePercent: devicePixelRatio * 100,
+    displayScale,
+    displayScalePercent: displayScale * 100,
+    displayScaleSource: displayScaleOverride == null
+      ? (isDesktopShell() ? "desktop-default" : "browser-device-pixel-ratio")
+      : "override",
     devicePxPerInch: CSS_PX_PER_INCH * devicePixelRatio,
-    devicePxPerPt: CSS_PX_PER_PT * devicePixelRatio,
+    devicePxPerPt: cssPxPerPt * devicePixelRatio,
   };
 };
 

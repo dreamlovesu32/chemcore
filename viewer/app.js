@@ -86,11 +86,11 @@ import {
   renderCorePrimitive,
 } from "./primitive_dom_renderer.js";
 import {
-  CSS_PX_PER_PT,
   ptToCssPx,
   cssPxToPt,
   displayMetrics,
   mapLengthArray,
+  setDisplayScaleOverride,
 } from "./units.js";
 
 const SAMPLE_FILES = [];
@@ -244,6 +244,9 @@ registerChemcoreDebug({
     await syncDocumentFromEngine();
     renderDocument();
     return state.currentDocument;
+  },
+  setDisplayScale(scale = null) {
+    return applyDisplayScaleOverride(scale);
   },
   worldToClient(x, y) {
     const matrix = viewerSvg?.getScreenCTM?.();
@@ -1576,7 +1579,7 @@ function visibleWorldSize(scale = viewportScale()) {
 }
 
 function viewportScaleForZoom(percent) {
-  return CSS_PX_PER_PT * (closestZoomStep(percent) / 100);
+  return state.displayMetrics.cssPxPerPt * (closestZoomStep(percent) / 100);
 }
 
 function visibleWorldRect(scale = viewportScale()) {
@@ -1646,7 +1649,7 @@ function activeViewBox() {
 }
 
 function viewportScale() {
-  return CSS_PX_PER_PT * zoomScale();
+  return state.displayMetrics.cssPxPerPt * zoomScale();
 }
 
 function zoomScale() {
@@ -1659,12 +1662,26 @@ function refreshDisplayMetrics() {
   state.displayMetrics = next;
   if (
     previous
-    && Math.abs(previous.devicePixelRatio - next.devicePixelRatio) > 0.001
+    && (
+      Math.abs(previous.devicePixelRatio - next.devicePixelRatio) > 0.001
+      || Math.abs(previous.cssPxPerPt - next.cssPxPerPt) > 0.001
+    )
     && viewerSvg
   ) {
     applyViewerViewport();
   }
   return next;
+}
+
+function applyDisplayScaleOverride(scale) {
+  const centerWorld = currentViewportCenterWorld();
+  setDisplayScaleOverride(scale);
+  refreshDisplayMetrics();
+  applyViewerViewport({
+    centerWorld,
+  });
+  updateDocumentMeta();
+  return state.displayMetrics;
 }
 
 let displayResolutionQuery = null;
@@ -2013,7 +2030,7 @@ function fitZoomPercentForViewBox(viewBox) {
   const width = Math.max(1, viewerContainer.clientWidth);
   const height = Math.max(1, viewerContainer.clientHeight);
   const scale = Math.min(width / Math.max(1, viewBox.width), height / Math.max(1, viewBox.height));
-  return zoomStepAtOrBelow((scale / CSS_PX_PER_PT) * 100);
+  return zoomStepAtOrBelow((scale / state.displayMetrics.cssPxPerPt) * 100);
 }
 
 function editorCanvasViewBoxFromBounds(bounds, scale = viewportScale()) {
