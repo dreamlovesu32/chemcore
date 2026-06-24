@@ -5,6 +5,8 @@ export function createEditorPointerController(options) {
   let hoverMoveVersion = 0;
   let selectionHoverSuppressionActive = false;
   let documentPreviewFrame = 0;
+  let backendDocumentPreviewTimer = 0;
+  let documentPreviewRunning = false;
   let postCommitHoverBlockPoint = null;
 
   async function executeDocumentCommand(command, apply, executeOptions = {}) {
@@ -63,6 +65,10 @@ export function createEditorPointerController(options) {
     if (documentPreviewFrame) {
       cancelAnimationFrame(documentPreviewFrame);
       documentPreviewFrame = 0;
+    }
+    if (backendDocumentPreviewTimer) {
+      clearTimeout(backendDocumentPreviewTimer);
+      backendDocumentPreviewTimer = 0;
     }
   }
 
@@ -152,19 +158,61 @@ export function createEditorPointerController(options) {
   }
 
   function scheduleDocumentPreviewFrame() {
-    if (documentPreviewFrame) {
+    if (documentPreviewFrame || documentPreviewRunning) {
       return;
     }
-    documentPreviewFrame = requestAnimationFrame(() => {
+    documentPreviewFrame = requestAnimationFrame(async () => {
       documentPreviewFrame = 0;
+      documentPreviewRunning = true;
       const gesture = options.activeSelectionGesture();
-      if (!gesture || !gesture.localDocumentPreviewActive) {
+      if (!gesture || (!gesture.localDocumentPreviewActive && !gesture.backendDocumentPreviewActive)) {
+        documentPreviewRunning = false;
         return;
       }
-      if (options.applyDocumentObjectPreviewTransform()) {
-        clearEditorOverlayRoot();
+      try {
+        if (gesture.backendDocumentPreviewActive) {
+          await options.applyBackendSelectionMovePreview?.(gesture.current, gesture.altKey);
+          clearEditorOverlayRoot();
+        } else if (options.applyDocumentObjectPreviewTransform()) {
+          clearEditorOverlayRoot();
+        }
+      } finally {
+        documentPreviewRunning = false;
+        if (options.activeSelectionGesture() === gesture && gesture.previewDirty) {
+          gesture.previewDirty = false;
+          scheduleDocumentPreviewFrame();
+        }
       }
     });
+  }
+
+  function scheduleBackendDocumentPreviewFrame() {
+    if (backendDocumentPreviewTimer) {
+      clearTimeout(backendDocumentPreviewTimer);
+    }
+    backendDocumentPreviewTimer = setTimeout(async () => {
+      backendDocumentPreviewTimer = 0;
+      if (documentPreviewRunning) {
+        scheduleBackendDocumentPreviewFrame();
+        return;
+      }
+      documentPreviewRunning = true;
+      const gesture = options.activeSelectionGesture();
+      if (!gesture?.backendDocumentPreviewActive) {
+        documentPreviewRunning = false;
+        return;
+      }
+      try {
+        await options.applyBackendSelectionMovePreview?.(gesture.current, gesture.altKey);
+        clearEditorOverlayRoot();
+      } finally {
+        documentPreviewRunning = false;
+        if (options.activeSelectionGesture() === gesture && gesture.previewDirty) {
+          gesture.previewDirty = false;
+          scheduleBackendDocumentPreviewFrame();
+        }
+      }
+    }, 80);
   }
 
   function syncSelectionHoverSuppressionCursor(point, state) {
@@ -511,6 +559,14 @@ export function createEditorPointerController(options) {
           gesture.dragged = true;
         }
         gesture.current = point;
+        gesture.altKey = event.altKey;
+        if (options.selectionNeedsBackendMovePreview?.()) {
+          gesture.backendDocumentPreviewActive = true;
+          gesture.previewDirty = true;
+          scheduleBackendDocumentPreviewFrame();
+          clearEditorOverlayRoot();
+          return;
+        }
         if (gesture.localDocumentPreviewActive) {
           scheduleDocumentPreviewFrame();
           return;
@@ -904,6 +960,8 @@ export function createEditorPointerController(options) {
         const commitPreviewDom = !!gesture.localDocumentPreviewActive
           && !!options.canCommitDocumentObjectPreviewTransform?.()
           && typeof options.commitDocumentObjectPreviewTransform === "function";
+        const commitBackendPreview = !!gesture.backendDocumentPreviewActive
+          && typeof options.renderDocumentPrimitiveChange === "function";
         const result = await executeDocumentCommand(
           {
             type: "move-selection",
@@ -914,22 +972,25 @@ export function createEditorPointerController(options) {
             },
           },
           () => options.state().editorEngine.finishSelectionMove(commitPoint.x, commitPoint.y, event.altKey),
-          commitPreviewDom ? { sync: false, deferDocumentSync: true } : {},
+          (commitPreviewDom || commitBackendPreview) ? { sync: false, deferDocumentSync: true } : {},
         );
         suppressHoverUntilPointerLeavesPoint(commitPoint);
-        if (commitPreviewDom && result.changed) {
+        if (commitBackendPreview && result.changed) {
+          options.renderDocumentPrimitiveChange(result);
+          options.clearDocumentObjectPreviewTransform();
+        } else if (commitPreviewDom && result.changed) {
           options.commitDocumentObjectPreviewTransform();
           options.clearDocumentObjectPreviewTransform();
         } else {
           options.clearDocumentObjectPreviewTransform();
         }
-        if (commitPreviewDom && result.changed) {
+        if ((commitPreviewDom || commitBackendPreview) && result.changed) {
           clearEditorOverlayRoot();
         } else {
           await clearEngineHoverOverlay();
         }
         options.syncCanvasCursor?.();
-        if (commitPreviewDom && result.changed) {
+        if ((commitPreviewDom || commitBackendPreview) && result.changed) {
           await options.renderSelectionOnlyUpdate(commitPoint, null, {
             deferEngineReads: true,
             useInteractionList: false,
@@ -995,6 +1056,8 @@ export function createEditorPointerController(options) {
           const commitPreviewDom = !!gesture.localDocumentPreviewActive
             && !!options.canCommitDocumentObjectPreviewTransform?.()
             && typeof options.commitDocumentObjectPreviewTransform === "function";
+          const commitBackendPreview = !!gesture.backendDocumentPreviewActive
+            && typeof options.renderDocumentPrimitiveChange === "function";
           const result = await executeDocumentCommand(
             {
               type: "move-selection",
@@ -1005,10 +1068,20 @@ export function createEditorPointerController(options) {
               },
             },
             () => options.state().editorEngine.finishSelectionMove(commitPoint.x, commitPoint.y, event.altKey),
-            commitPreviewDom ? { sync: false, deferDocumentSync: true } : {},
+            (commitPreviewDom || commitBackendPreview) ? { sync: false, deferDocumentSync: true } : {},
           );
           suppressHoverUntilPointerLeavesPoint(commitPoint);
-          if (commitPreviewDom && result.changed) {
+          if (commitBackendPreview && result.changed) {
+            options.renderDocumentPrimitiveChange(result);
+            options.clearDocumentObjectPreviewTransform();
+            clearEditorOverlayRoot();
+            options.syncCanvasCursor?.();
+            await options.renderSelectionOnlyUpdate(commitPoint, null, {
+              deferEngineReads: true,
+              useInteractionList: false,
+            });
+            options.scheduleDeferredDocumentSync?.();
+          } else if (commitPreviewDom && result.changed) {
             options.commitDocumentObjectPreviewTransform();
             options.clearDocumentObjectPreviewTransform();
             clearEditorOverlayRoot();

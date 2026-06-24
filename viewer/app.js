@@ -2737,6 +2737,132 @@ function renderDocumentChange(result = null) {
   return true;
 }
 
+function documentPrimitiveMatchesTargets(primitive, nodeIds, bondIds) {
+  const nodeId = primitiveNodeId(primitive);
+  const bondId = primitiveBondId(primitive);
+  return (nodeId && nodeIds.has(nodeId)) || (bondId && bondIds.has(bondId));
+}
+
+function commandTargetSet(values) {
+  return [...(values || [])].filter(Boolean);
+}
+
+function collectDocumentPrimitiveTargetElements(documentLayer, nodeIds, bondIds) {
+  const elements = new Set();
+  for (const nodeId of nodeIds) {
+    documentLayer
+      .querySelectorAll(`[data-node-id="${CSS.escape(nodeId)}"]`)
+      .forEach((element) => elements.add(element));
+  }
+  for (const bondId of bondIds) {
+    documentLayer
+      .querySelectorAll(`[data-bond-id="${CSS.escape(bondId)}"]`)
+      .forEach((element) => elements.add(element));
+  }
+  return elements;
+}
+
+function documentPrimitivePatchAnchor(documentLayer, renderIndex) {
+  for (const child of documentLayer.children) {
+    const childIndex = Number(child.getAttribute("data-render-index"));
+    if (Number.isFinite(childIndex) && childIndex > renderIndex) {
+      return child;
+    }
+  }
+  return null;
+}
+
+function renderDocumentPrimitiveChange(result = null) {
+  if (!isEditingRustDocument() || !state.currentDocument || !result?.changed) {
+    return false;
+  }
+  const nodeIds = targetIdsFromCommandResult(result, "nodes");
+  const bondIds = targetIdsFromCommandResult(result, "bonds");
+  if (!nodeIds.size && !bondIds.size) {
+    return false;
+  }
+  if (targetIdsFromCommandResult(result, "styles").size > 0) {
+    return false;
+  }
+  const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
+  if (!documentLayer) {
+    return false;
+  }
+  invalidateEditorEngineReadCache();
+  syncEditorRenderListFromEngine({ autoExpand: false });
+  const targetEntries = [];
+  for (let index = 0; index < (state.coreRenderList || []).length; index += 1) {
+    const primitive = state.coreRenderList[index];
+    if (documentPrimitiveMatchesTargets(primitive, nodeIds, bondIds)) {
+      targetEntries.push({ index, primitive });
+    }
+  }
+  if (!targetEntries.length) {
+    return false;
+  }
+  clearDocumentObjectPreviewTransform();
+  for (const element of collectDocumentPrimitiveTargetElements(documentLayer, nodeIds, bondIds)) {
+    element.remove();
+  }
+  for (const { index, primitive } of targetEntries) {
+    const fragment = document.createDocumentFragment();
+    const scratch = makeSvgNode("g", {});
+    renderCorePrimitive(scratch, primitive, {
+      ...corePrimitiveRenderOptions(),
+      renderIndex: index,
+    });
+    fragment.append(...scratch.childNodes);
+    if (!fragment.childNodes.length) {
+      continue;
+    }
+    documentLayer.insertBefore(fragment, documentPrimitivePatchAnchor(documentLayer, index));
+  }
+  syncViewerStats();
+  positionActiveTextEditor();
+  return true;
+}
+
+function structurePreviewTargetIds(selection = currentEditorEngineState()?.selection) {
+  const nodeIds = activeStructurePreviewNodeIds(selection);
+  const bondIds = selectedStructurePreviewBondIds(selection, nodeIds);
+  const topology = currentDocumentMoleculeTopology();
+  for (const nodeId of nodeIds) {
+    for (const entry of topology.bondsByNode.get(nodeId) || []) {
+      if (entry.bond?.id) {
+        bondIds.add(entry.bond.id);
+      }
+    }
+  }
+  return { nodeIds, bondIds };
+}
+
+function selectionNeedsBackendMovePreview(selection = currentEditorEngineState()?.selection) {
+  const targets = structurePreviewTargetIds(selection);
+  return targets.nodeIds.size > 0 || targets.bondIds.size > 0;
+}
+
+async function applyBackendSelectionMovePreview(point, altKey = false) {
+  const gesture = activeSelectionGesture;
+  const selection = gesture?.previewSelection || currentEditorEngineState()?.selection;
+  if (gesture?.kind !== "move" || !point || !selectionNeedsBackendMovePreview(selection)) {
+    return false;
+  }
+  gesture.previewSelection = selection;
+  const targets = structurePreviewTargetIds(selection);
+  const changed = await state.editorEngine.updateSelectionMove?.(point.x, point.y, altKey);
+  if (!changed) {
+    return true;
+  }
+  invalidateEditorEngineReadCache();
+  return renderDocumentPrimitiveChange({
+    changed: true,
+    targets: {
+      nodes: commandTargetSet(targets.nodeIds),
+      bonds: commandTargetSet(targets.bondIds),
+    },
+  });
+}
+
 function syncViewerStats() {
   const counts = {};
   for (const object of state.currentDocument?.objects || []) {
@@ -2821,6 +2947,7 @@ const editorPointerController = createEditorPointerController({
   syncDocumentFromEngine,
   renderDocument,
   renderDocumentChange,
+  renderDocumentPrimitiveChange,
   renderSelectionOnlyUpdate,
   selectionResizeHandleHit,
   selectionRotateHandleHit,
@@ -2836,6 +2963,8 @@ const editorPointerController = createEditorPointerController({
   selectionHasLargeOverlay: () => currentSelectionItemCount() >= 80,
   selectionBoundsContainsPoint: currentSelectionBoundsContainsPoint,
   selectionHitContainsPoint: currentSelectionHitContainsPoint,
+  selectionNeedsBackendMovePreview,
+  applyBackendSelectionMovePreview,
   applyDocumentObjectPreviewTransform,
   clearDocumentObjectPreviewTransform,
   commitDocumentObjectPreviewTransform,

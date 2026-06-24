@@ -23,11 +23,12 @@ export function primitiveStrokeWidthValue(primitive, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
-function primitiveIdentityAttrs(primitive) {
+function primitiveIdentityAttrs(primitive, options = {}) {
   return {
     "data-object-id": primitive.objectId || primitive.object_id || undefined,
     "data-node-id": primitive.nodeId || primitive.node_id || undefined,
     "data-bond-id": primitive.bondId || primitive.bond_id || undefined,
+    "data-render-index": Number.isInteger(options.renderIndex) ? String(options.renderIndex) : undefined,
   };
 }
 
@@ -45,7 +46,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       stroke: primitive.stroke || CHEMDRAW_INK,
       "stroke-width": strokeWidth,
       "data-role": primitive.role || undefined,
-      ...primitiveIdentityAttrs(primitive),
+      ...primitiveIdentityAttrs(primitive, options),
     };
     if ((primitive.dashArray || primitive.dash_array)?.length) {
       attrs["stroke-dasharray"] = (primitive.dashArray || primitive.dash_array).join(" ");
@@ -67,7 +68,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       "stroke-linecap": primitive.lineCap || primitive.line_cap || undefined,
       "stroke-linejoin": primitive.lineJoin || primitive.line_join || undefined,
       "data-role": primitive.role || undefined,
-      ...primitiveIdentityAttrs(primitive),
+      ...primitiveIdentityAttrs(primitive, options),
     };
     if (primitive.role === "document-bond") {
       attrs.class = "mol-bond-stroked";
@@ -86,7 +87,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       "stroke-linecap": primitive.lineCap || primitive.line_cap || undefined,
       "stroke-linejoin": primitive.lineJoin || primitive.line_join || undefined,
       "data-role": primitive.role || undefined,
-      ...primitiveIdentityAttrs(primitive),
+      ...primitiveIdentityAttrs(primitive, options),
     };
     if (primitive.role === "document-bond") {
       attrs.class = "mol-bond-stroked";
@@ -105,7 +106,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       "fill-rule": primitive.fillRule || primitive.fill_rule || undefined,
       stroke: "none",
       "data-role": primitive.role || undefined,
-      ...primitiveIdentityAttrs(primitive),
+      ...primitiveIdentityAttrs(primitive, options),
     };
     const clipPathD = primitive.clipPathD || primitive.clip_path_d;
     if (clipPathD) {
@@ -141,7 +142,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       stroke: strokeWidth > 0 ? (primitive.stroke || primitive.fill || CHEMDRAW_INK) : "none",
       "stroke-width": strokeWidth,
       "data-role": primitive.role || undefined,
-      ...primitiveIdentityAttrs(primitive),
+      ...primitiveIdentityAttrs(primitive, options),
     };
     if (primitive.role === "document-bond") {
       attrs.class = strokeWidth > 0 ? "mol-bond-stroked" : "mol-bond-filled";
@@ -164,7 +165,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       stroke: primitive.stroke || "none",
       "stroke-width": primitiveStrokeWidthValue(primitive, 1),
       "data-role": primitive.role || undefined,
-      ...primitiveIdentityAttrs(primitive),
+      ...primitiveIdentityAttrs(primitive, options),
       rx: primitive.rx,
       ry: primitive.ry,
     };
@@ -193,7 +194,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       stroke: primitive.stroke || "none",
       "stroke-width": primitiveStrokeWidthValue(primitive, 1),
       "data-role": primitive.role || undefined,
-      ...primitiveIdentityAttrs(primitive),
+      ...primitiveIdentityAttrs(primitive, options),
     };
     const rotate = Number(primitive.rotate || 0);
     if (Math.abs(rotate) > 0.0001) {
@@ -215,7 +216,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       stroke: primitive.stroke || "none",
       "stroke-width": primitiveStrokeWidthValue(primitive, 1),
       "data-role": primitive.role || undefined,
-      ...primitiveIdentityAttrs(primitive),
+      ...primitiveIdentityAttrs(primitive, options),
     };
     if (primitive.role === "document-diagnostic") {
       attrs.class = "document-diagnostic-marker";
@@ -261,7 +262,7 @@ function renderTextPrimitive(svgRoot, primitive, options) {
     "alignment-baseline": primitive.dominantBaseline || primitive.dominant_baseline || undefined,
     "text-anchor": primitive.textAnchor || primitive.text_anchor || "start",
     "data-role": primitive.role || undefined,
-    ...primitiveIdentityAttrs(primitive),
+    ...primitiveIdentityAttrs(primitive, options),
     fill: primitive.fill ? normalizeDisplayColor(primitive.fill) : undefined,
     "font-family": primitive.fontFamily
       ? displayLabelFontFamily(primitive.fontFamily)

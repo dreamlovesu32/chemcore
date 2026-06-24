@@ -46,7 +46,11 @@ export function createSceneRenderer(options) {
     }
     objectLayer.setAttribute("data-renderer", "core");
     corePrimitives.forEach((primitive) => {
-      renderCorePrimitive(objectLayer, primitive, options.corePrimitiveRenderOptions());
+      const renderIndex = Number.isInteger(primitive.__renderIndex) ? primitive.__renderIndex : undefined;
+      renderCorePrimitive(objectLayer, primitive, {
+        ...options.corePrimitiveRenderOptions(),
+        renderIndex,
+      });
     });
     return true;
   }
@@ -85,9 +89,13 @@ export function createSceneRenderer(options) {
     }
     parentLayer.setAttribute("data-renderer", "core-global");
     const renderableObjects = collectRenderableObjects(documentData);
-    for (const primitive of corePrimitives) {
+    for (let index = 0; index < corePrimitives.length; index += 1) {
+      const primitive = corePrimitives[index];
       if (shouldRenderCorePrimitive(primitive, renderableObjects)) {
-        renderCorePrimitive(parentLayer, primitive, options.corePrimitiveRenderOptions());
+        renderCorePrimitive(parentLayer, primitive, {
+          ...options.corePrimitiveRenderOptions(),
+          renderIndex: index,
+        });
       }
     }
     return true;

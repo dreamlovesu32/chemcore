@@ -10,6 +10,7 @@ const port = Number(process.env.CHEMCORE_DESKTOP_DEV_PORT || 8767);
 const baseUrl = `http://${host}:${port}/viewer/`;
 const nodeCount = Number(process.env.CHEMCORE_LARGE_DRAG_NODE_COUNT || 1400);
 const maxDragMs = Number(process.env.CHEMCORE_LARGE_DRAG_MAX_MS || 1800);
+const maxPreviewSettleMs = Number(process.env.CHEMCORE_LARGE_DRAG_SETTLE_MAX_MS || 900);
 
 function assert(condition, message) {
   if (!condition) {
@@ -72,10 +73,11 @@ function makeLargeChainDocument(count) {
   for (let index = 0; index < count; index += 1) {
     const column = index % columns;
     const row = Math.floor(index / columns);
+    const isTargetLabelAtom = index === 700;
     nodes.push({
       id: `n${index}`,
-      element: "C",
-      atomicNumber: 6,
+      element: isTargetLabelAtom ? "O" : "C",
+      atomicNumber: isTargetLabelAtom ? 8 : 6,
       position: [40 + column * spacing, 40 + row * spacing],
       charge: 0,
       numHydrogens: 0,
@@ -161,6 +163,38 @@ async function openViewer(browser) {
       });
       originalError(...args);
     };
+    window.__chemcoreBackendDomMatch = (targetNodeIds, targetBondIds) => {
+      const renderList = JSON.parse(window.__chemcoreDebug.getRenderListJson());
+      const targetNodes = new Set(targetNodeIds);
+      const targetBonds = new Set(targetBondIds);
+      const primitiveMatches = (primitive) => {
+        if (primitive.role === "document-knockout" || primitive.role === "document_knockout") {
+          return false;
+        }
+        const nodeId = primitive.nodeId || primitive.node_id || "";
+        const bondId = primitive.bondId || primitive.bond_id || "";
+        return targetNodes.has(nodeId) || targetBonds.has(bondId);
+      };
+      const backendIndices = renderList
+        .map((primitive, index) => (primitiveMatches(primitive) ? index : -1))
+        .filter((index) => index >= 0)
+        .sort((a, b) => a - b);
+      const selector = [
+        ...targetNodeIds.map((id) => `[data-node-id="${CSS.escape(id)}"]`),
+        ...targetBondIds.map((id) => `[data-bond-id="${CSS.escape(id)}"]`),
+      ].join(",");
+      const domIndices = [...document.querySelectorAll(`[data-layer="document-content"] ${selector}`)]
+        .map((element) => Number(element.getAttribute("data-render-index")))
+        .filter((index) => Number.isFinite(index))
+        .sort((a, b) => a - b);
+      return {
+        backendIndices,
+        domIndices,
+        matches: backendIndices.length > 0
+          && backendIndices.length === domIndices.length
+          && backendIndices.every((index, offset) => index === domIndices[offset]),
+      };
+    };
   });
   page.on("console", (message) => {
     if (message.type() === "error") {
@@ -227,11 +261,20 @@ async function main() {
     const started = performance.now();
     await page.mouse.move(target.x + 36, target.y + 18, { steps: 10 });
     const dragMs = performance.now() - started;
+    const settleStarted = performance.now();
+    await page.waitForFunction(
+      () => window.__chemcoreBackendDomMatch(["n700"], ["b699", "b700"]).matches
+        && !document.querySelector('[data-layer="document-partial-bond-preview"]'),
+      null,
+      { timeout: maxPreviewSettleMs },
+    );
+    const previewSettleMs = performance.now() - settleStarted;
     const during = await page.evaluate(() => ({
       partialChildren: document.querySelector('[data-layer="document-partial-bond-preview"]')?.childElementCount || 0,
       previewMask: !!document.querySelector('[data-role="preview-document-mask"]'),
       renderCount: window.__chemcoreDebug.renderStats.documentRenderCount,
       gesture: window.__chemcoreDebug.activeSelectionGesture || null,
+      backendDomMatch: window.__chemcoreBackendDomMatch(["n700"], ["b699", "b700"]),
     }));
 
     phase.name = "commit";
@@ -248,9 +291,11 @@ async function main() {
       selection: window.__chemcoreDebug.engineState?.selection || null,
       htmlLength: document.querySelector('[data-layer="document-content"]')?.outerHTML.length || 0,
       movedBondCount: document.querySelectorAll('[data-bond-id="b699"], [data-bond-id="b700"]').length,
+      backendDomMatch: window.__chemcoreBackendDomMatch(["n700"], ["b699", "b700"]),
     }));
 
-    assert(during.partialChildren > 0, `Drag did not render a local partial-bond preview. target=${JSON.stringify(target)} before=${JSON.stringify(before)} during=${JSON.stringify(during)}`);
+    assert(during.partialChildren === 0, `Drag used a front-end partial-bond preview instead of backend primitives: ${JSON.stringify(during)}`);
+    assert(during.backendDomMatch.matches, `Drag DOM does not match backend render list: ${JSON.stringify(during.backendDomMatch)}`);
     assert(!during.previewMask, "Drag used a full document preview mask.");
     assert(during.renderCount === before.renderCount, "Dragging triggered renderDocument().");
     assert(after.renderCount === before.renderCount, "Pointerup triggered renderDocument().");
@@ -259,8 +304,10 @@ async function main() {
     assert(after.transformed === 0, "Pointerup left preview-transforming DOM nodes behind.");
     assert(after.gesture === null, "Pointerup left an active selection gesture behind.");
     assert(after.movedBondCount > 0, "Committed DOM no longer contains moved bond primitives.");
+    assert(after.backendDomMatch.matches, `Committed DOM does not match backend render list: ${JSON.stringify(after.backendDomMatch)}`);
     assert(after.htmlLength > before.htmlLength * 0.9, "Committed DOM unexpectedly collapsed after drag.");
     assert(dragMs < maxDragMs, `Large drag took ${dragMs.toFixed(1)}ms, expected < ${maxDragMs}ms.`);
+    assert(previewSettleMs < maxPreviewSettleMs, `Backend preview settled in ${previewSettleMs.toFixed(1)}ms, expected < ${maxPreviewSettleMs}ms.`);
     const actionableErrors = errors.filter((entry) => !entry.includes("null pointer passed to rust"));
     const consoleStacks = await page.evaluate(() => window.__chemcoreRegressionConsoleErrors || []);
     const postLoadConsoleStacks = consoleStacks.filter((entry) => entry.phase !== "open" && entry.phase !== "load");
@@ -269,7 +316,7 @@ async function main() {
       `Viewer console errors:\n${actionableErrors.join("\n")}\n${JSON.stringify(postLoadConsoleStacks, null, 2)}`,
     );
     await page.close();
-    console.log(`[large-drag-preview-regression] ok (${nodeCount} nodes, drag ${dragMs.toFixed(1)}ms)`);
+    console.log(`[large-drag-preview-regression] ok (${nodeCount} nodes, drag ${dragMs.toFixed(1)}ms, settle ${previewSettleMs.toFixed(1)}ms)`);
   } finally {
     await browser?.close();
     server?.kill();
