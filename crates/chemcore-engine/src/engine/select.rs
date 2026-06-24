@@ -4,13 +4,16 @@ use super::text_edit::{
 };
 use super::{ArrowEditDragState, ArrowEditMode, EditorCommand, Engine, PendingSelectTarget};
 use crate::{
-    angle_between, arrow_object_focus_points, arrow_object_handle_points,
-    arrow_object_has_curve_handle, bracket_object_visual_bounds, direction_from_angle,
-    fragment_bond_visual_bounds, hit_test_arrow_center, hit_test_bond_center, hit_test_endpoint,
-    line_object_points, line_object_visual_bounds, nearest_angle, point_at_distance_from_start,
+    angle_between, arrow_endpoint_style_handle_point, arrow_object_focus_points,
+    arrow_object_handle_points, arrow_object_has_curve_handle, bracket_object_visual_bounds,
+    direction_from_angle, fragment_bond_visual_bounds, hit_test_arrow_center,
+    hit_test_bond_center, hit_test_endpoint,
+    line_object_arrow_dimension, line_object_endpoint_style, line_object_points,
+    line_object_visual_bounds, nearest_angle, point_at_distance_from_start,
     polyline_length, round2, shape_object_visual_bounds, HoverTextBox, Point, RenderPrimitive,
-    RenderRole, SceneObject, SelectionState, BOND_CENTER_HIT_RADIUS, DEFAULT_BOND_LENGTH,
-    DRAG_START_THRESHOLD, ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
+    RenderRole, SceneObject, SelectionState,
+    BOND_CENTER_HIT_RADIUS, DEFAULT_BOND_LENGTH, DRAG_START_THRESHOLD, ENDPOINT_FOCUS_RADIUS,
+    ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
 };
 use serde_json::{json, Value as JsonValue};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -303,6 +306,8 @@ impl Engine {
         match self.hover_arrow_edit_mode_at_point(point) {
             Some(ArrowEditMode::Head) => "head",
             Some(ArrowEditMode::Tail) => "tail",
+            Some(ArrowEditMode::HeadStyle) => "head-style",
+            Some(ArrowEditMode::TailStyle) => "tail-style",
             Some(ArrowEditMode::Curve) => "curve",
             None => "",
         }
@@ -332,6 +337,8 @@ impl Engine {
         match mode {
             ArrowEditMode::Head => "head",
             ArrowEditMode::Tail => "tail",
+            ArrowEditMode::HeadStyle => "head-style",
+            ArrowEditMode::TailStyle => "tail-style",
             ArrowEditMode::Curve => "curve",
         }
     }
@@ -415,45 +422,81 @@ impl Engine {
         &self,
         point: Point,
     ) -> Option<(String, ArrowEditMode, Vec<Point>, f64)> {
-        let hover = hit_test_arrow_center(&self.state.document, point, BOND_CENTER_HIT_RADIUS)?;
-        if self
-            .state
-            .selection
-            .arrow_objects
-            .contains(&hover.object_id)
-        {
-            return None;
-        }
-        let object = self
+        let mut best: Option<(f64, String, ArrowEditMode, Vec<Point>, f64)> = None;
+        for object in self
             .state
             .document
             .scene_objects()
             .into_iter()
-            .find(|object| object.id == hover.object_id)?;
-        let points = line_object_points(object);
-        if points.len() < 2 {
-            return None;
+            .filter(|object| object.object_type == "line" && object.visible)
+        {
+            if self.state.selection.arrow_objects.contains(&object.id) {
+                continue;
+            }
+            let points = line_object_points(object);
+            if points.len() < 2 {
+                continue;
+            }
+            let focus_points = arrow_object_focus_points(object, &points);
+            if focus_points.len() < 2 {
+                continue;
+            }
+            let mut candidates = Vec::new();
+            candidates.push((focus_points[0].distance(point), ArrowEditMode::Tail));
+            if let Some(head) = focus_points.last() {
+                candidates.push((head.distance(point), ArrowEditMode::Head));
+            }
+            if arrow_object_has_curve_handle(object) {
+                if let Some(center) = point_at_distance_from_start(
+                    &focus_points,
+                    polyline_length(&focus_points) * 0.5,
+                ) {
+                    candidates.push((center.distance(point), ArrowEditMode::Curve));
+                }
+            }
+            let head_length = line_object_arrow_dimension(object, "length", 15.0);
+            let head_width = line_object_arrow_dimension(object, "width", 3.75);
+            let head_style = line_object_endpoint_style(object, "head", "end");
+            let tail_style = line_object_endpoint_style(object, "tail", "start");
+            if let Some(handle) = arrow_endpoint_style_handle_point(
+                &focus_points,
+                false,
+                head_style,
+                head_length,
+                head_width,
+            ) {
+                candidates.push((handle.distance(point), ArrowEditMode::HeadStyle));
+            }
+            if let Some(handle) = arrow_endpoint_style_handle_point(
+                &focus_points,
+                true,
+                tail_style,
+                head_length,
+                head_width,
+            ) {
+                candidates.push((handle.distance(point), ArrowEditMode::TailStyle));
+            }
+            let Some((distance, mode)) = candidates
+                .into_iter()
+                .filter(|(distance, _)| *distance <= ENDPOINT_HIT_RADIUS)
+                .min_by(|left, right| left.0.total_cmp(&right.0))
+            else {
+                continue;
+            };
+            if best
+                .as_ref()
+                .is_none_or(|(current, _, _, _, _)| distance < *current)
+            {
+                best = Some((
+                    distance,
+                    object.id.clone(),
+                    mode,
+                    points,
+                    object_arrow_curve(object),
+                ));
+            }
         }
-        let focus_points = arrow_object_focus_points(object, &points);
-        if focus_points.len() < 2 {
-            return None;
-        }
-        let mut candidates = Vec::new();
-        candidates.push((focus_points[0].distance(point), ArrowEditMode::Tail));
-        if let Some(head) = focus_points.last() {
-            candidates.push((head.distance(point), ArrowEditMode::Head));
-        }
-        if arrow_object_has_curve_handle(object) {
-            let center =
-                point_at_distance_from_start(&focus_points, polyline_length(&focus_points) * 0.5)
-                    .unwrap_or(hover.center);
-            candidates.push((center.distance(point), ArrowEditMode::Curve));
-        }
-        let (_, mode) = candidates
-            .into_iter()
-            .filter(|(distance, _)| *distance <= ENDPOINT_HIT_RADIUS)
-            .min_by(|left, right| left.0.total_cmp(&right.0))?;
-        Some((hover.object_id, mode, points, object_arrow_curve(object)))
+        best.map(|(_, object_id, mode, points, curve)| (object_id, mode, points, curve))
     }
 
     fn apply_arrow_edit_drag(
@@ -484,6 +527,12 @@ impl Engine {
                 let curve = snapped_arrow_curve_from_point(start, end, point, alt_key);
                 drag.current_degrees = curve.abs().round();
                 update_arrow_object_curve(self, &drag.object_id, curve)
+            }
+            ArrowEditMode::HeadStyle => {
+                update_arrow_object_head_dimensions(self, &drag.object_id, start, end, point, false)
+            }
+            ArrowEditMode::TailStyle => {
+                update_arrow_object_head_dimensions(self, &drag.object_id, start, end, point, true)
             }
         }
     }
@@ -2066,6 +2115,8 @@ fn arrow_edit_mode_name(mode: ArrowEditMode) -> &'static str {
     match mode {
         ArrowEditMode::Head => "move-head",
         ArrowEditMode::Tail => "move-tail",
+        ArrowEditMode::HeadStyle => "set-head-style",
+        ArrowEditMode::TailStyle => "set-tail-style",
         ArrowEditMode::Curve => "set-curve",
     }
 }

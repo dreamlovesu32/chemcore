@@ -447,6 +447,13 @@ export function createEditorPointerController(options) {
     return options.currentEditorInteractionRenderList?.() || [];
   }
 
+  async function refreshHoverOverlayAtPoint(point, event) {
+    await options.state().editorEngine.pointerMove(point.x, point.y, event?.altKey || false);
+    invalidateEngineReadCache();
+    options.renderEditorOverlay(currentInteractionRenderList());
+    await options.syncArrowAwareCursorForPoint(point);
+  }
+
   async function updateEngineDragPreview(point, event) {
     event.preventDefault();
     cancelScheduledHoverMove();
@@ -898,8 +905,8 @@ export function createEditorPointerController(options) {
         return;
       }
       if (changed) {
-        await options.syncArrowAwareCursorForPoint(point);
         options.renderDocumentChange?.(result) || options.renderDocument();
+        await refreshHoverOverlayAtPoint(point, event);
       } else {
         options.clearDocumentObjectPreviewTransform();
         await options.renderSelectionOnlyUpdate(point, options.syncArrowAwareCursorForPoint);
@@ -936,8 +943,8 @@ export function createEditorPointerController(options) {
         return;
       }
       if (changed) {
-        await options.syncArrowAwareCursorForPoint(point);
         options.renderDocumentChange?.(result) || options.renderDocument();
+        await refreshHoverOverlayAtPoint(point, event);
       } else {
         options.clearDocumentObjectPreviewTransform();
         await options.renderSelectionOnlyUpdate(point, options.syncArrowAwareCursorForPoint);

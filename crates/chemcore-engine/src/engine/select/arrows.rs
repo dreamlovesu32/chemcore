@@ -179,3 +179,63 @@ pub(super) fn update_arrow_object_curve(engine: &mut Engine, object_id: &str, cu
     refresh_arrow_arc_geometry(object);
     true
 }
+
+pub(super) fn update_arrow_object_head_dimensions(
+    engine: &mut Engine,
+    object_id: &str,
+    start: Point,
+    end: Point,
+    point: Point,
+    tail: bool,
+) -> bool {
+    let Some(object) = engine
+        .state
+        .document
+        .find_scene_object_mut(object_id)
+        .filter(|object| object.object_type == "line")
+    else {
+        return false;
+    };
+    let tip = if tail { start } else { end };
+    let pivot = if tail { end } else { start };
+    let axis_length = tip.distance(pivot);
+    if axis_length <= crate::EPSILON {
+        return false;
+    }
+    let ux = (tip.x - pivot.x) / axis_length;
+    let uy = (tip.y - pivot.y) / axis_length;
+    let vx = tip.x - point.x;
+    let vy = tip.y - point.y;
+    let length = (vx * ux + vy * uy).clamp(2.0, axis_length * 0.75);
+    let width = (vx * -uy + vy * ux).abs().clamp(0.5, length);
+
+    let mut arrow_head = object
+        .payload
+        .extra
+        .get("arrowHead")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let Some(arrow_head_object) = arrow_head.as_object_mut() else {
+        return false;
+    };
+    let length = (length * 1000.0).round() / 1000.0;
+    let width = (width * 1000.0).round() / 1000.0;
+    arrow_head_object.insert("length".to_string(), json!(length));
+    arrow_head_object.insert("width".to_string(), json!(width));
+    if arrow_head_object
+        .get("centerLength")
+        .and_then(JsonValue::as_f64)
+        .is_some_and(|value| value > length)
+    {
+        arrow_head_object.insert("centerLength".to_string(), json!(length));
+    }
+    if object.payload.extra.get("arrowHead") == Some(&arrow_head) {
+        return false;
+    }
+    object
+        .payload
+        .extra
+        .insert("arrowHead".to_string(), arrow_head);
+    refresh_arrow_arc_geometry(object);
+    true
+}

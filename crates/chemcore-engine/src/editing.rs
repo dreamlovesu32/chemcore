@@ -22,7 +22,8 @@ pub use self::anchors::{
     nearest_angle, node_by_id, snapped_angle_for_anchor,
 };
 pub use self::arrows::{
-    arrow_object_focus_points, arrow_object_handle_points, arrow_object_has_curve_handle,
+    arrow_endpoint_style_handle_point, arrow_object_focus_points, arrow_object_handle_points,
+    arrow_object_has_curve_handle, line_object_arrow_dimension, line_object_endpoint_style,
     line_object_points, point_at_distance_from_start, polyline_length,
 };
 pub use self::geometry::bond_center_focus_length;

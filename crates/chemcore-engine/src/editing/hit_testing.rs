@@ -236,7 +236,13 @@ pub fn hit_test_arrow_center(
                     let end = *focus_points.last().unwrap_or(&focus_points[0]);
                     Point::new((start.x + end.x) * 0.5, (start.y + end.y) * 0.5)
                 });
-        let distance = point_to_polyline_distance(point, &focus_points);
+        let handles = arrow_object_handle_points(object, &points);
+        let handle_distance = handles
+            .iter()
+            .map(|handle| handle.distance(point))
+            .min_by(|left, right| left.total_cmp(right))
+            .unwrap_or(f64::INFINITY);
+        let distance = point_to_polyline_distance(point, &focus_points).min(handle_distance);
         if distance > radius
             || best
                 .as_ref()
@@ -249,7 +255,7 @@ pub fn hit_test_arrow_center(
             HoverArrow {
                 object_id: object.id.clone(),
                 center,
-                handles: arrow_object_handle_points(object, &points),
+                handles,
             },
         ));
     }

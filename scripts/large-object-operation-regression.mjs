@@ -183,6 +183,16 @@ async function assertNoPreviewMask(page, label) {
   assert(maskCount === 0, `${label} displayed full-page preview mask: ${maskCount}`);
 }
 
+async function assertObjectHiddenForPreview(page, objectId, label) {
+  const result = await page.evaluate((id) => {
+    const elements = Array.from(document.querySelectorAll(`[data-object-id="${CSS.escape(id)}"]`));
+    const visible = elements.filter((element) => getComputedStyle(element).visibility !== "hidden");
+    return { total: elements.length, visible: visible.length };
+  }, objectId);
+  assert(result.total > 0, `${label} has no original object DOM: ${JSON.stringify(result)}`);
+  assert(result.visible === 0, `${label} left original object visible: ${JSON.stringify(result)}`);
+}
+
 async function drawCurvedArrow(page) {
   await page.locator('button[data-tool="arrow"]').click();
   await page.evaluate(() => {
@@ -278,6 +288,7 @@ async function dragArrowCurve(page, objectId) {
   assertNoFullRefresh("arrow curve pointerdown", await renderStats(page));
   await page.mouse.move(handle.x, handle.y + 70, { steps: 12 });
   await assertNoPreviewMask(page, "arrow curve drag");
+  await assertObjectHiddenForPreview(page, objectId, "arrow curve drag");
   await page.mouse.up();
   await page.waitForTimeout(500);
   const result = await page.evaluate((id) => {
@@ -291,6 +302,45 @@ async function dragArrowCurve(page, objectId) {
   assert(result.domCount > 0, `Arrow curve DOM disappeared: ${JSON.stringify(result)}`);
   assert(result.curve !== null, `Arrow curve did not remain editable: ${JSON.stringify(result)}`);
   assertNoFullRefresh("arrow curve drag", await renderStats(page));
+}
+
+async function dragArrowStyleHandle(page, objectId) {
+  await page.locator('button[data-tool="select"]').click();
+  await page.evaluate(() => window.__chemcoreDebug.state.editorEngine.clearSelection?.());
+  const handle = await findArrowHandle(page, objectId, "head-style");
+  const before = await page.evaluate((id) => {
+    const object = (window.__chemcoreDebug.document.objects || []).find((candidate) => candidate.id === id);
+    const arrowHead = object?.payload?.arrowHead || object?.payload?.extra?.arrowHead || {};
+    return {
+      length: Number(arrowHead.length || 0),
+      width: Number(arrowHead.width || 0),
+    };
+  }, objectId);
+  await resetRenderStats(page);
+  await page.mouse.move(handle.x, handle.y);
+  await page.mouse.down();
+  await page.waitForTimeout(80);
+  await assertNoPreviewMask(page, "arrow style pointerdown");
+  assertNoFullRefresh("arrow style pointerdown", await renderStats(page));
+  await page.mouse.move(handle.x - 26, handle.y - 22, { steps: 8 });
+  await assertObjectHiddenForPreview(page, objectId, "arrow style drag");
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const after = await page.evaluate((id) => {
+    const object = (window.__chemcoreDebug.document.objects || []).find((candidate) => candidate.id === id);
+    const arrowHead = object?.payload?.arrowHead || object?.payload?.extra?.arrowHead || {};
+    return {
+      length: Number(arrowHead.length || 0),
+      width: Number(arrowHead.width || 0),
+      domCount: document.querySelectorAll(`[data-object-id="${CSS.escape(id)}"]`).length,
+    };
+  }, objectId);
+  assert(after.domCount > 0, `Arrow style DOM disappeared: ${JSON.stringify(after)}`);
+  assert(
+    Math.abs(after.length - before.length) > 0.01 || Math.abs(after.width - before.width) > 0.01,
+    `Arrow style handle did not change dimensions: before=${JSON.stringify(before)} after=${JSON.stringify(after)}`,
+  );
+  assertNoFullRefresh("arrow style drag", await renderStats(page));
 }
 
 async function assertArrowEndpointPointerDown(page, objectId) {
@@ -399,6 +449,7 @@ try {
   const { page, errors } = await openViewer(browser);
   const arrowId = await drawCurvedArrow(page);
   await assertArrowEndpointPointerDown(page, arrowId);
+  await dragArrowStyleHandle(page, arrowId);
   await dragArrowCurve(page, arrowId);
   const shapeId = await drawShape(page);
   await assertShapePointerDown(page, shapeId);

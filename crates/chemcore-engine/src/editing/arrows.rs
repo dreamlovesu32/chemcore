@@ -20,7 +20,7 @@ pub fn line_object_points(object: &crate::SceneObject) -> Vec<Point> {
         .collect()
 }
 
-pub(super) fn line_object_endpoint_style(
+pub fn line_object_endpoint_style(
     object: &crate::SceneObject,
     key: &str,
     expected: &str,
@@ -49,7 +49,7 @@ pub(super) fn line_object_endpoint_style(
         .unwrap_or(ArrowEndpointStyle::None)
 }
 
-pub(super) fn line_object_arrow_dimension(
+pub fn line_object_arrow_dimension(
     object: &crate::SceneObject,
     key: &str,
     fallback: f64,
@@ -148,12 +148,47 @@ pub(super) fn push_arrow_endpoint_handles(
         *points.last().unwrap_or(&points[0])
     };
     let side_points = arrow_tip_side_points(tangent_from, tip, length, half_width);
-    match style {
-        ArrowEndpointStyle::Full => handles.extend(side_points),
-        ArrowEndpointStyle::Left => handles.push(side_points[1]),
-        ArrowEndpointStyle::Right => handles.push(side_points[0]),
-        ArrowEndpointStyle::None => {}
+    if let Some(point) = arrow_endpoint_style_handle_point_from_sides(style, side_points) {
+        handles.push(point);
     }
+}
+
+fn arrow_endpoint_style_handle_point_from_sides(
+    style: ArrowEndpointStyle,
+    side_points: [Point; 2],
+) -> Option<Point> {
+    match style {
+        ArrowEndpointStyle::Full | ArrowEndpointStyle::Right => Some(side_points[0]),
+        ArrowEndpointStyle::Left => Some(side_points[1]),
+        ArrowEndpointStyle::None => None,
+    }
+}
+
+pub fn arrow_endpoint_style_handle_point(
+    points: &[Point],
+    tail: bool,
+    style: ArrowEndpointStyle,
+    length: f64,
+    half_width: f64,
+) -> Option<Point> {
+    if style == ArrowEndpointStyle::None || points.len() < 2 {
+        return None;
+    }
+    let tangent_from = if tail {
+        point_at_distance_from_start(points, length).unwrap_or(points[1])
+    } else {
+        point_at_distance_from_end(points, length)
+            .unwrap_or_else(|| points[points.len().saturating_sub(2)])
+    };
+    let tip = if tail {
+        points[0]
+    } else {
+        *points.last().unwrap_or(&points[0])
+    };
+    arrow_endpoint_style_handle_point_from_sides(
+        style,
+        arrow_tip_side_points(tangent_from, tip, length, half_width),
+    )
 }
 
 pub fn arrow_object_focus_points(object: &crate::SceneObject, points: &[Point]) -> Vec<Point> {

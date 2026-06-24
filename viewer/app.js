@@ -334,6 +334,7 @@ let forceWindowClose = false;
 let activeDocumentPreviewObjectIds = new Set();
 let activeDocumentPreviewPrimitiveElements = new Set();
 let activeDocumentPreviewHiddenElements = new Set();
+let activeDocumentEditPreviewHiddenElements = new Set();
 let activeDocumentPreviewLayer = false;
 let activeDocumentPreviewBatchLayer = null;
 let activeDocumentPreviewTransform = "";
@@ -2999,7 +3000,13 @@ function syncViewerStats() {
     .join(" | ");
 }
 
-const renderEditorOverlay = (...args) => editorOverlayRenderer.renderEditorOverlay(...args);
+function renderEditorOverlay(renderList = null) {
+  const effectiveRenderList = activeGestureUsesObjectEditPreview() && !renderList
+    ? currentEditorInteractionRenderList()
+    : renderList;
+  syncObjectEditPreviewHiddenElements(effectiveRenderList || []);
+  editorOverlayRenderer.renderEditorOverlay(effectiveRenderList);
+}
 const currentSelectionRotateHandle = (...args) => editorOverlayRenderer.currentSelectionRotateHandle(...args);
 const selectionResizeHandleHit = (...args) => editorOverlayRenderer.selectionResizeHandleHit(...args);
 const selectionResizeGestureScale = (...args) => editorOverlayRenderer.selectionResizeGestureScale(...args);
@@ -3597,6 +3604,10 @@ async function syncArrowAwareCursorForPoint(point) {
   const arrowAction = await state.editorEngine.hoverArrowAction?.(point.x, point.y) || "";
   if (arrowAction === "head" || arrowAction === "tail") {
     viewerSvg.style.cursor = "move";
+    return;
+  }
+  if (arrowAction === "head-style" || arrowAction === "tail-style") {
+    viewerSvg.style.cursor = "nwse-resize";
     return;
   }
   if (arrowAction === "curve") {
@@ -5598,6 +5609,41 @@ function clearDocumentPartialBondPreview() {
     restoreDocumentPreviewElementVisibility(element);
   }
   activeDocumentPreviewHiddenElements = new Set();
+  activeDocumentEditPreviewHiddenElements = new Set();
+}
+
+function activeGestureUsesObjectEditPreview() {
+  return ["arrow-endpoint", "arrow-curve", "shape-resize"].includes(activeSelectionGesture?.kind);
+}
+
+function objectIdsFromDocumentPreviewPrimitives(renderList = []) {
+  const ids = new Set();
+  for (const primitive of renderList || []) {
+    const objectId = primitiveObjectId(primitive);
+    if (objectId && isDocumentPreviewPrimitive(primitive)) {
+      ids.add(objectId);
+    }
+  }
+  return ids;
+}
+
+function syncObjectEditPreviewHiddenElements(renderList = []) {
+  const nextElements = new Set();
+  if (activeGestureUsesObjectEditPreview()) {
+    for (const objectId of objectIdsFromDocumentPreviewPrimitives(renderList)) {
+      for (const element of documentObjectElements(objectId)) {
+        hideDocumentPreviewElement(element);
+        nextElements.add(element);
+      }
+    }
+  }
+  for (const element of activeDocumentEditPreviewHiddenElements) {
+    if (!nextElements.has(element)) {
+      restoreDocumentPreviewElementVisibility(element);
+      activeDocumentPreviewHiddenElements.delete(element);
+    }
+  }
+  activeDocumentEditPreviewHiddenElements = nextElements;
 }
 
 function commitDocumentPartialBondPreview() {
@@ -6246,6 +6292,7 @@ function renderDocument() {
   activeDocumentPreviewObjectIds = new Set();
   activeDocumentPreviewPrimitiveElements = new Set();
   activeDocumentPreviewHiddenElements = new Set();
+  activeDocumentEditPreviewHiddenElements = new Set();
   activeDocumentPreviewLayer = false;
   activeDocumentPreviewBatchLayer = null;
   activeDocumentPreviewTransform = "";

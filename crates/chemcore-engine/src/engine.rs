@@ -319,6 +319,8 @@ enum ArrowEditMode {
     Head,
     Tail,
     Curve,
+    HeadStyle,
+    TailStyle,
 }
 
 #[derive(Debug, Clone)]
