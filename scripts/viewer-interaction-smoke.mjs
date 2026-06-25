@@ -129,6 +129,7 @@ async function verifyCreationDragKeepsCanvasVisibleAfterToolSwitch(browser) {
   const cases = [
     { tool: "arrow", start: [-70, 80], end: [100, 80], expectedObjects: 1 },
     { tool: "shape", start: [-70, 150], end: [60, 250], expectedObjects: 1 },
+    { tool: "orbital", start: [120, 170], end: [210, 250], expectedObjects: 1 },
     { tool: "bracket", start: [170, 90], end: [310, 240], expectedObjects: 1, closeText: true },
   ];
 
@@ -168,7 +169,34 @@ async function verifyCreationDragKeepsCanvasVisibleAfterToolSwitch(browser) {
     assert(during.display !== "none" && during.childCount > 0 && during.hasBondDom, `${item.tool} drag blanked the canvas: ${JSON.stringify(during)}`);
 
     await page.mouse.up();
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(80);
+    const afterPointerUpOverlay = await page.evaluate(() => {
+      const overlay = document.querySelector('[data-layer="editor-overlay"]');
+      return {
+        hoverCount: overlay?.querySelectorAll('[data-role^="hover-"]').length || 0,
+        previewCount: overlay?.querySelectorAll('[data-role^="preview-"]').length || 0,
+        overlayChildren: overlay?.childElementCount || 0,
+      };
+    });
+    assert(
+      afterPointerUpOverlay.hoverCount === 0 && afterPointerUpOverlay.previewCount === 0,
+      `${item.tool} left hover/preview overlay after pointerup: ${JSON.stringify(afterPointerUpOverlay)}`,
+    );
+    await page.mouse.move(center.x - 260, center.y - 220);
+    await page.waitForTimeout(120);
+    const afterMoveOverlay = await page.evaluate(() => {
+      const overlay = document.querySelector('[data-layer="editor-overlay"]');
+      return {
+        hoverCount: overlay?.querySelectorAll('[data-role^="hover-"]').length || 0,
+        previewCount: overlay?.querySelectorAll('[data-role^="preview-"]').length || 0,
+        overlayChildren: overlay?.childElementCount || 0,
+      };
+    });
+    assert(
+      afterMoveOverlay.hoverCount === 0 && afterMoveOverlay.previewCount === 0,
+      `${item.tool} hover/preview followed the cursor after commit: ${JSON.stringify(afterMoveOverlay)}`,
+    );
+    await page.waitForTimeout(50);
     if (item.closeText) {
       await page.keyboard.press("Escape");
       await page.waitForTimeout(50);
@@ -245,6 +273,8 @@ async function verifyDragHandleCursors(browser) {
   await page.mouse.move(arrowEnd.x, arrowEnd.y);
   await page.mouse.up();
   await page.waitForTimeout(120);
+  await page.mouse.move(arrowEnd.x + 40, arrowEnd.y + 40);
+  await page.waitForTimeout(40);
   await waitForCanvasCursor(page, arrowEnd.x, arrowEnd.y, ["move"], "Arrow endpoint");
 
   await page.locator('button[data-tool="shape"]').click();
@@ -256,6 +286,8 @@ async function verifyDragHandleCursors(browser) {
   await page.mouse.move(shapeEnd.x, shapeEnd.y);
   await page.mouse.up();
   await page.waitForTimeout(120);
+  await page.mouse.move(shapeEnd.x + 40, shapeEnd.y + 40);
+  await page.waitForTimeout(40);
   await waitForCanvasCursor(
     page,
     shapeEnd.x,

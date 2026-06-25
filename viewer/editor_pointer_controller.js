@@ -184,6 +184,15 @@ export function createEditorPointerController(options) {
     clearEditorOverlayRoot();
   }
 
+  async function clearPostCommitInteraction(point = null) {
+    suppressHoverUntilPointerLeavesPoint(point);
+    await options.state().editorEngine?.clearInteraction?.();
+    invalidateEngineReadCache();
+    clearEditorOverlayRoot();
+    options.clearTlcHoverState?.();
+    options.syncCanvasCursor?.();
+  }
+
   function scheduleDocumentPreviewFrame() {
     if (documentPreviewFrame || documentPreviewRunning) {
       return;
@@ -1343,7 +1352,7 @@ export function createEditorPointerController(options) {
     ) || commitResult?.targets?.objects?.[0] || commitResult?.created?.objects?.[0] || "";
     options.renderDocumentChange?.(commitResult) || options.renderDocument();
     invalidateEngineReadCache();
-    clearInteractionOverlayNow();
+    await clearPostCommitInteraction(point);
     if (options.editorState().activeTool === "bracket") {
       const start = options.activeBracketDragStart();
       options.setActiveBracketDragStart(null);
