@@ -15,11 +15,23 @@ export function createEditorPointerController(options) {
 
   async function executeDocumentCommand(command, apply, executeOptions = {}) {
     if (options.commandEngine?.executeEngineCommand) {
-      return options.commandEngine.executeEngineCommand(command, apply, executeOptions);
+      const result = await options.commandEngine.executeEngineCommand(command, apply, executeOptions);
+      if (executeOptions.sync === false && executeOptions.deferDocumentSync && result?.changed) {
+        await options.syncDocumentFromEngine?.({
+          syncRenderList: false,
+          refreshSnapshot: false,
+        });
+      }
+      return result;
     }
     const applyResult = apply();
     const rawResult = applyResult && typeof applyResult.then === "function" ? await applyResult : applyResult;
-    if (rawResult) {
+    if (rawResult && executeOptions.sync === false && executeOptions.deferDocumentSync) {
+      await options.syncDocumentFromEngine?.({
+        syncRenderList: false,
+        refreshSnapshot: false,
+      });
+    } else if (rawResult) {
       await options.syncDocumentFromEngine({
         syncRenderList: executeOptions.syncRenderList !== false,
       });

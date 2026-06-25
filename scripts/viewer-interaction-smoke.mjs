@@ -204,10 +204,14 @@ async function verifyCreationDragKeepsCanvasVisibleAfterToolSwitch(browser) {
     const after = await page.evaluate(() => {
       const flatten = (objects) => objects.flatMap((object) => [object, ...flatten(object.children || [])]);
       const command = JSON.parse(window.__chemcoreDebug.state.editorEngine.lastCommandResultJson?.() || "null");
+      const objectIds = command?.targets?.objects?.length
+        ? command.targets.objects
+        : command?.created?.objects || [];
       return {
         changed: !!command?.changed,
         targets: command?.targets || null,
         created: command?.created || null,
+        objectIds,
         objectCount: flatten(window.__chemcoreDebug.engineState.document.objects || [])
           .filter((object) => (object.type || object.objectType || object.object_type) !== "molecule")
           .length,
@@ -217,6 +221,21 @@ async function verifyCreationDragKeepsCanvasVisibleAfterToolSwitch(browser) {
     assert(after.changed, `${item.tool} first drag after tool switch did not commit: ${JSON.stringify(after)}`);
     assert(after.objectCount >= before.objectCount + item.expectedObjects, `${item.tool} first drag after tool switch did not create an object: ${JSON.stringify({ before, after })}`);
     assert(!after.shieldActive, `${item.tool} pointerup left pointer shield active.`);
+    if (after.objectIds?.length) {
+      await page.locator('button[data-tool="select"]').click();
+      await page.waitForTimeout(120);
+      const selectState = await page.evaluate((objectIds) => ({
+        objectDomCount: objectIds.reduce(
+          (count, objectId) => count + document.querySelectorAll(`[data-layer="document-content"] [data-object-id="${CSS.escape(objectId)}"]`).length,
+          0,
+        ),
+        selectionCount: document.querySelectorAll('[data-layer="editor-overlay"] [data-role^="selection-"]').length,
+        hoverCount: document.querySelectorAll('[data-layer="editor-overlay"] [data-role^="hover-"]').length,
+        previewCount: document.querySelectorAll('[data-layer="editor-overlay"] [data-role^="preview-"]').length,
+      }), after.objectIds);
+      assert(selectState.objectDomCount > 0, `${item.tool} object disappeared after switching to select: ${JSON.stringify({ after, selectState })}`);
+      assert(selectState.hoverCount === 0 && selectState.previewCount === 0, `${item.tool} switching to select left hover/preview overlay: ${JSON.stringify(selectState)}`);
+    }
   }
 
   await page.close();
@@ -1145,6 +1164,37 @@ async function verifyLargeFileCommitLatency(page) {
     },
     null,
     3000,
+  );
+
+  await resetViewerUi(page);
+  await page.locator('button[data-tool="orbital"]').click();
+  await page.waitForFunction(() => getComputedStyle(document.querySelector("#viewer-svg")).pointerEvents === "none");
+  const orbitalStart = { x: bondStart.x + 210, y: bondStart.y + 70 };
+  const orbitalEnd = { x: orbitalStart.x + 90, y: orbitalStart.y + 85 };
+  await page.mouse.move(orbitalStart.x, orbitalStart.y);
+  await page.mouse.down();
+  await page.mouse.move(orbitalEnd.x, orbitalEnd.y, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForFunction(() => {
+    const command = JSON.parse(window.__chemcoreDebug.state.editorEngine.lastCommandResultJson?.() || "null");
+    return !!(command?.targets?.objects?.[0] || command?.created?.objects?.[0]);
+  }, null, { timeout: 1500 });
+  const orbitalObjectId = await page.evaluate(() => {
+    const command = JSON.parse(window.__chemcoreDebug.state.editorEngine.lastCommandResultJson?.() || "null");
+    return command?.targets?.objects?.[0] || command?.created?.objects?.[0] || "";
+  });
+  await page.locator('button[data-tool="select"]').click();
+  await page.waitForTimeout(160);
+  const orbitalSelectState = await page.evaluate((objectId) => ({
+    objectDomCount: document.querySelectorAll(`[data-layer="document-content"] [data-object-id="${CSS.escape(objectId)}"]`).length,
+    selectionCount: document.querySelectorAll('[data-layer="editor-overlay"] [data-role^="selection-"]').length,
+    hoverCount: document.querySelectorAll('[data-layer="editor-overlay"] [data-role^="hover-"]').length,
+    previewCount: document.querySelectorAll('[data-layer="editor-overlay"] [data-role^="preview-"]').length,
+  }), orbitalObjectId);
+  assert(orbitalSelectState.objectDomCount > 0, `Large CDXML orbital disappeared after switching to select: ${JSON.stringify({ orbitalObjectId, orbitalSelectState })}`);
+  assert(
+    orbitalSelectState.hoverCount === 0 && orbitalSelectState.previewCount === 0,
+    `Large CDXML orbital switch to select left hover/preview overlay: ${JSON.stringify({ orbitalObjectId, orbitalSelectState })}`,
   );
 
   return { bracketMs, symbolMs, bondMs };
