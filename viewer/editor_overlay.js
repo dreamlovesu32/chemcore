@@ -715,6 +715,7 @@ export function createEditorOverlayRenderer(options) {
     currentSelectionRotateHandle,
     selectionRotateHandleHit,
     selectionResizeHandleHit,
+    selectionResizePivot,
     selectionResizeGestureScale,
     selectionRotateAngleForGesture,
     renderEditorOverlay,

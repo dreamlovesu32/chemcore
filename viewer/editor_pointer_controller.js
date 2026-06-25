@@ -1,6 +1,7 @@
 export function createEditorPointerController(options) {
   let hoverMoveRequest = null;
   let hoverMoveFrame = 0;
+  let hoverMoveTimer = 0;
   let hoverMoveRunning = false;
   let hoverMoveVersion = 0;
   let selectionHoverSuppressionActive = false;
@@ -61,6 +62,10 @@ export function createEditorPointerController(options) {
   function cancelScheduledHoverMove() {
     hoverMoveRequest = null;
     hoverMoveVersion += 1;
+    if (hoverMoveTimer) {
+      clearTimeout(hoverMoveTimer);
+      hoverMoveTimer = 0;
+    }
     if (hoverMoveFrame) {
       cancelAnimationFrame(hoverMoveFrame);
       hoverMoveFrame = 0;
@@ -82,10 +87,22 @@ export function createEditorPointerController(options) {
     }
   }
 
-  function scheduleHoverPointerMove(point, altKey) {
+  function scheduleHoverPointerMove(point, altKey, delayMs = 0) {
     hoverMoveRequest = { point, altKey };
     hoverMoveVersion += 1;
-    if (!hoverMoveFrame && !hoverMoveRunning) {
+    if (hoverMoveTimer || hoverMoveFrame || hoverMoveRunning) {
+      return;
+    }
+    if (delayMs > 0) {
+      hoverMoveTimer = setTimeout(() => {
+        hoverMoveTimer = 0;
+        if (!hoverMoveFrame && !hoverMoveRunning && hoverMoveRequest) {
+          hoverMoveFrame = requestAnimationFrame(drainScheduledHoverPointerMove);
+        }
+      }, delayMs);
+      return;
+    }
+    if (!hoverMoveFrame) {
       hoverMoveFrame = requestAnimationFrame(drainScheduledHoverPointerMove);
     }
   }
@@ -317,6 +334,19 @@ export function createEditorPointerController(options) {
       return;
     }
     if (renderSelectionHoverFastPath(point)) {
+      return;
+    }
+    if (
+      options.editorState().activeTool === "select"
+      && !options.documentBoundsContainsPoint?.(point, 8)
+    ) {
+      await options.state().editorEngine.clearInteraction?.();
+      invalidateEngineReadCache();
+      if (hoverMoveStale(version)) {
+        return;
+      }
+      options.renderEditorOverlay(options.currentEditorOverlayRenderList());
+      options.syncCanvasCursor?.();
       return;
     }
     await options.state().editorEngine.pointerMove(point.x, point.y, altKey);
@@ -734,7 +764,22 @@ export function createEditorPointerController(options) {
       return;
     }
     leaveSelectionHoverSuppression(point);
-    scheduleHoverPointerMove(point, event.altKey);
+    if (
+      editorState.activeTool === "select"
+      && !options.documentBoundsContainsPoint?.(point, 8)
+    ) {
+      cancelScheduledHoverMove();
+      await options.state().editorEngine.clearInteraction?.();
+      invalidateEngineReadCache();
+      options.renderEditorOverlay(options.currentEditorOverlayRenderList());
+      options.syncCanvasCursor?.();
+      return;
+    }
+    scheduleHoverPointerMove(
+      point,
+      event.altKey,
+      options.hoverPointerMoveDelayMs?.(editorState.activeTool) || 0,
+    );
   }
 
   async function handleEditorPointerDown(event) {
@@ -765,6 +810,18 @@ export function createEditorPointerController(options) {
     if (editorState.activeTool === "select") {
       event.preventDefault();
       options.viewerSvg().setPointerCapture?.(event.pointerId);
+      if (!options.documentBoundsContainsPoint?.(point, 8)) {
+        options.setActiveSelectionGesture({
+          kind: "select",
+          start: point,
+          current: point,
+          points: [point],
+          dragged: false,
+          additive: !!event.shiftKey,
+        });
+        options.renderEditorOverlay(options.currentEditorOverlayRenderList());
+        return;
+      }
       await options.state().editorEngine.pointerMove(point.x, point.y, event.altKey);
       const tlcSpotHit = options.parseEngineJson(
         await options.state().editorEngine.beginTlcSpotDragJson?.(point.x, point.y),

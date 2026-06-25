@@ -2427,6 +2427,17 @@ function primitiveMatchesActiveTextEditorTarget(primitive) {
   return false;
 }
 
+function currentDocumentBoundsContainsPoint(point, paddingPx = 0) {
+  if (!isEditingRustDocument() || !point) {
+    return true;
+  }
+  const bounds = currentRenderBounds("document") || currentRenderBounds("all");
+  if (!bounds) {
+    return true;
+  }
+  return pointInAxisBounds(point, bounds, screenPxToWorld(paddingPx));
+}
+
 function shouldHidePrimitiveForActiveEndpointEditor(primitive) {
   if (primitiveMatchesActiveTextEditorTarget(primitive)) {
     return true;
@@ -3098,6 +3109,7 @@ function renderCanvasDragPreview(renderList = []) {
 }
 const currentSelectionRotateHandle = (...args) => editorOverlayRenderer.currentSelectionRotateHandle(...args);
 const selectionResizeHandleHit = (...args) => editorOverlayRenderer.selectionResizeHandleHit(...args);
+const selectionResizePivot = (...args) => editorOverlayRenderer.selectionResizePivot(...args);
 const selectionResizeGestureScale = (...args) => editorOverlayRenderer.selectionResizeGestureScale(...args);
 const selectionRotateAngleForGesture = (...args) => editorOverlayRenderer.selectionRotateAngleForGesture(...args);
 const selectionRotateHandleHit = (...args) => editorOverlayRenderer.selectionRotateHandleHit(...args);
@@ -3185,6 +3197,7 @@ const editorPointerController = createEditorPointerController({
   selectionHasLargeOverlay: () => currentSelectionItemCount() >= 80,
   selectionBoundsContainsPoint: currentSelectionBoundsContainsPoint,
   selectionHitContainsPoint: currentSelectionHitContainsPoint,
+  documentBoundsContainsPoint: currentDocumentBoundsContainsPoint,
   selectionNeedsBackendMovePreview,
   applyBackendSelectionMovePreview,
   applyDocumentObjectPreviewTransform,
@@ -3201,6 +3214,12 @@ const editorPointerController = createEditorPointerController({
   selectClickTarget,
   cursorForShapeAction,
   syncCanvasCursor,
+  hoverPointerMoveDelayMs: (tool) => (
+    tool === "select"
+    && (viewerSvg?.querySelector('[data-layer="document-content"]')?.childElementCount || 0) > 1000
+      ? 120
+      : 0
+  ),
   awaitPendingToolActivation: () => activeToolActivationPromise,
   renderDragCapturePreview: renderCanvasDragPreview,
   clearDragCapturePreview: clearCanvasDragPreview,
@@ -3290,6 +3309,11 @@ async function renderSelectionOnlyUpdate(point, syncCursor = syncSelectCursorFor
 }
 
 async function selectClickTarget(point, additive = false) {
+  if (!additive && !currentDocumentBoundsContainsPoint(point, 8)) {
+    await state.editorEngine.clearSelection?.();
+    invalidateEditorEngineReadCache();
+    return;
+  }
   await state.editorEngine.selectAtPoint(point.x, point.y, additive);
 }
 
@@ -5349,6 +5373,7 @@ function activeToolUsesContainerPointerEvents() {
     || editorState.activeTool === "bracket"
     || editorState.activeTool === "symbol"
     || editorState.activeTool === "element"
+    || editorState.activeTool === "select"
     || editorState.activeTool === "shape"
     || editorState.activeTool === "tlc-plate"
     || editorState.activeTool === "orbital"

@@ -365,10 +365,15 @@ function largeFileTargetFinder() {
 
 async function verifyLargeDragTarget(page, target, kind) {
   await page.keyboard.press("Escape").catch(() => {});
+  await page.evaluate(() => {
+    window.__chemcoreDebug.state.editorEngine.clearSelection?.();
+    window.__chemcoreDebug.state.editorEngine.clearInteraction?.();
+    window.__chemcoreDebug.clearActiveSelectionGesture?.();
+    document.querySelector('[data-layer="editor-overlay"]')?.replaceChildren();
+  });
   await page.locator('button[data-tool="select"]').click();
   await page.mouse.move(target.x, target.y);
-  await page.mouse.click(target.x, target.y);
-  await page.waitForTimeout(120);
+  await page.waitForTimeout(180);
   await page.mouse.move(target.x, target.y);
   await page.mouse.down();
   await page.mouse.move(target.x + 24, target.y + 12, { steps: 6 });
@@ -466,6 +471,84 @@ async function verifyLargeDragTarget(page, target, kind) {
   assert(after.transformed === 0, `${kind} drag left transformed document nodes behind.`);
   assert(after.previews === 0, `${kind} drag left preview overlay behind.`);
   assert(after.gesture === null, `${kind} drag left an active selection gesture behind.`);
+}
+
+function selectionItemCount(selection) {
+  if (!selection) {
+    return 0;
+  }
+  return (selection.textObjects?.length || 0)
+    + (selection.arrowObjects?.length || 0)
+    + (selection.labelNodes?.length || 0)
+    + (selection.nodes?.length || 0)
+    + (selection.bonds?.length || 0);
+}
+
+async function verifyLargeFileSelectionLatency(page, target) {
+  await page.locator('button[data-tool="select"]').click();
+  await page.waitForFunction(() => getComputedStyle(document.querySelector("#viewer-svg")).pointerEvents === "none");
+  const blank = { x: 1180, y: 820 };
+
+  await page.mouse.move(target.x, target.y);
+  let stepStarted = Date.now();
+  await page.mouse.down();
+  const selectDownMs = Date.now() - stepStarted;
+  stepStarted = Date.now();
+  await page.mouse.up();
+  const selectUpMs = Date.now() - stepStarted;
+  await page.waitForFunction(() => {
+    const selection = window.__chemcoreDebug.engineState?.selection;
+    const count = (selection?.textObjects?.length || 0)
+      + (selection?.arrowObjects?.length || 0)
+      + (selection?.labelNodes?.length || 0)
+      + (selection?.nodes?.length || 0)
+      + (selection?.bonds?.length || 0);
+    return count > 0 && (document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0) > 0;
+  }, null, { timeout: 1000 });
+  const selected = await page.evaluate(() => ({
+    overlayChildren: document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0,
+    selection: window.__chemcoreDebug.engineState?.selection || null,
+  }));
+  assert(selectionItemCount(selected.selection) > 0 && selected.overlayChildren > 0, `Large CDXML selection box did not appear: ${JSON.stringify(selected)}`);
+  assert(
+    selectDownMs + selectUpMs < 500,
+    `Large CDXML selection box appeared too slowly: ${JSON.stringify({ selectDownMs, selectUpMs, selected })}`,
+  );
+
+  await page.mouse.move(blank.x, blank.y);
+  stepStarted = Date.now();
+  await page.mouse.down();
+  const clearDownMs = Date.now() - stepStarted;
+  stepStarted = Date.now();
+  await page.mouse.up();
+  const clearUpMs = Date.now() - stepStarted;
+  await page.waitForFunction(() => {
+    const selection = window.__chemcoreDebug.engineState?.selection;
+    const count = (selection?.textObjects?.length || 0)
+      + (selection?.arrowObjects?.length || 0)
+      + (selection?.labelNodes?.length || 0)
+      + (selection?.nodes?.length || 0)
+      + (selection?.bonds?.length || 0);
+    return count === 0 && (document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0) === 0;
+  }, null, { timeout: 1000 });
+  const cleared = await page.evaluate(() => ({
+    overlayChildren: document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0,
+    selection: window.__chemcoreDebug.engineState?.selection || null,
+  }));
+  assert(selectionItemCount(cleared.selection) === 0 && cleared.overlayChildren === 0, `Large CDXML blank click did not clear selection: ${JSON.stringify(cleared)}`);
+  assert(
+    clearDownMs + clearUpMs < 350,
+    `Large CDXML blank click cleared selection too slowly: ${JSON.stringify({ clearDownMs, clearUpMs, cleared })}`,
+  );
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.evaluate(() => {
+    window.__chemcoreDebug.state.editorEngine.clearSelection?.();
+    window.__chemcoreDebug.state.editorEngine.clearInteraction?.();
+    window.__chemcoreDebug.clearActiveSelectionGesture?.();
+    document.querySelector('[data-layer="editor-overlay"]')?.replaceChildren();
+  });
+  await page.mouse.move(blank.x, blank.y);
+  await page.waitForTimeout(30);
 }
 
 async function resetViewerUi(page) {
@@ -626,6 +709,7 @@ async function verifyLargeFileHoverAndDrag(browser) {
   });
   assert(hover > 0, "Large CDXML select hover did not render a hover overlay.");
 
+  await verifyLargeFileSelectionLatency(page, targets.hover);
   await verifyLargeDragTarget(page, targets.label, "Label");
   await verifyLargeDragTarget(page, targets.atom, "Atom");
   const latency = await verifyLargeFileCommitLatency(page);
