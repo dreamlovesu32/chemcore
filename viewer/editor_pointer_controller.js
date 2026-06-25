@@ -765,14 +765,6 @@ export function createEditorPointerController(options) {
       event.preventDefault();
       return;
     }
-    if (
-      editorState.activeTool === "select"
-      && options.renderFastSelectHover?.(point)
-    ) {
-      cancelScheduledHoverMove();
-      leaveSelectionHoverSuppression(point);
-      return;
-    }
     const selectionHoverSuppression = selectionHoverSuppressionState(point);
     if (selectionHoverSuppression) {
       event.preventDefault();
@@ -780,6 +772,13 @@ export function createEditorPointerController(options) {
       return;
     }
     leaveSelectionHoverSuppression(point);
+    if (
+      editorState.activeTool === "select"
+      && options.renderFastSelectHover?.(point)
+    ) {
+      cancelScheduledHoverMove();
+      return;
+    }
     if (
       editorState.activeTool === "select"
       && !options.documentBoundsContainsPoint?.(point, 8)

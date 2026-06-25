@@ -2566,16 +2566,21 @@ function renderFastSelectHover(point) {
     window.__chemcoreDebug.fastSelectHoverStats.hits += 1;
     window.__chemcoreDebug.fastSelectHoverStats.last = { point, hover };
   }
-  renderEditorOverlay(hover.handles.map((center) => ({
-    kind: "circle",
-    role: "hover-shape-handle",
-    objectId: hover.objectId,
-    center,
-    radius: screenPxToWorld(2),
-    fill: "#ffffff",
-    stroke: "rgba(47,111,237,0.82)",
-    strokeWidth: screenPxToWorld(1),
-  })));
+  const selectionPrimitives = currentEditorOverlayRenderList()
+    .filter((primitive) => String(primitive?.role || "").startsWith("selection-"));
+  renderEditorOverlay([
+    ...selectionPrimitives,
+    ...hover.handles.map((center) => ({
+      kind: "circle",
+      role: "hover-shape-handle",
+      objectId: hover.objectId,
+      center,
+      radius: screenPxToWorld(2),
+      fill: "#ffffff",
+      stroke: "rgba(47,111,237,0.82)",
+      strokeWidth: screenPxToWorld(1),
+    })),
+  ]);
   return true;
 }
 

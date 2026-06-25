@@ -223,6 +223,82 @@ async function verifyCreationDragKeepsCanvasVisibleAfterToolSwitch(browser) {
   assert(!errors.length, `Viewer console errors during creation visibility regression: ${errors.join("\n")}`);
 }
 
+async function verifySelectedObjectSuppressesHover(browser) {
+  const { page, errors } = await openViewer(browser);
+  const box = await page.locator("#viewer-container").boundingBox();
+  const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const shapeStart = { x: center.x - 90, y: center.y - 70 };
+  const shapeEnd = { x: center.x + 70, y: center.y + 60 };
+  const shapeCenter = { x: (shapeStart.x + shapeEnd.x) * 0.5, y: (shapeStart.y + shapeEnd.y) * 0.5 };
+  const bracketStart = { x: center.x + 150, y: center.y - 90 };
+  const bracketEnd = { x: center.x + 230, y: center.y + 60 };
+  const bracketHover = { x: bracketStart.x, y: (bracketStart.y + bracketEnd.y) * 0.5 };
+
+  await page.locator('button[data-tool="shape"]').click();
+  await page.mouse.move(shapeStart.x, shapeStart.y);
+  await page.mouse.down();
+  await page.mouse.move(shapeEnd.x, shapeEnd.y, { steps: 6 });
+  await page.mouse.up();
+  await page.mouse.move(shapeEnd.x + 80, shapeEnd.y + 80);
+  await page.waitForTimeout(80);
+
+  await page.locator('button[data-tool="bracket"]').click();
+  await page.mouse.move(bracketStart.x, bracketStart.y);
+  await page.mouse.down();
+  await page.mouse.move(bracketEnd.x, bracketEnd.y, { steps: 6 });
+  await page.mouse.up();
+  await page.keyboard.press("Escape");
+  await page.mouse.move(bracketEnd.x + 80, bracketEnd.y + 80);
+  await page.waitForTimeout(80);
+
+  await page.locator('button[data-tool="select"]').click();
+  await page.mouse.click(shapeCenter.x, shapeCenter.y);
+  await page.waitForFunction(() => {
+    const overlay = document.querySelector('[data-layer="editor-overlay"]');
+    return (overlay?.querySelectorAll('[data-role^="selection-"]').length || 0) > 0;
+  }, null, { timeout: 1200 });
+
+  for (const point of [shapeEnd, shapeCenter]) {
+    await page.mouse.move(point.x, point.y);
+    await page.waitForTimeout(180);
+    const overlayState = await page.evaluate(() => {
+      const overlay = document.querySelector('[data-layer="editor-overlay"]');
+      return {
+        selectionCount: overlay?.querySelectorAll('[data-role^="selection-"]').length || 0,
+        hoverCount: overlay?.querySelectorAll('[data-role^="hover-"]').length || 0,
+        previewCount: overlay?.querySelectorAll('[data-role^="preview-"]').length || 0,
+      };
+    });
+    assert(overlayState.selectionCount > 0, `Selected object lost its selection overlay: ${JSON.stringify(overlayState)}`);
+    assert(
+      overlayState.hoverCount === 0 && overlayState.previewCount === 0,
+      `Selected object showed stale hover/preview overlay: ${JSON.stringify(overlayState)}`,
+    );
+  }
+
+  await page.mouse.move(bracketHover.x, bracketHover.y);
+  await page.waitForTimeout(180);
+  const fastHoverOverlayState = await page.evaluate(() => {
+    const overlay = document.querySelector('[data-layer="editor-overlay"]');
+    return {
+      selectionCount: overlay?.querySelectorAll('[data-role^="selection-"]').length || 0,
+      hoverCount: overlay?.querySelectorAll('[data-role^="hover-"]').length || 0,
+      previewCount: overlay?.querySelectorAll('[data-role^="preview-"]').length || 0,
+    };
+  });
+  assert(
+    fastHoverOverlayState.selectionCount > 0,
+    `Fast hover over another object removed the selection overlay: ${JSON.stringify(fastHoverOverlayState)}`,
+  );
+  assert(
+    fastHoverOverlayState.previewCount === 0,
+    `Fast hover over another object left preview overlay: ${JSON.stringify(fastHoverOverlayState)}`,
+  );
+
+  await page.close();
+  assert(!errors.length, `Viewer console errors during selected hover suppression regression: ${errors.join("\n")}`);
+}
+
 async function waitForCanvasCursor(page, x, y, expected, label) {
   await page.mouse.move(x, y);
   await page.waitForFunction(
@@ -1120,6 +1196,7 @@ try {
   });
   await verifyBondDrawing(browser);
   await verifyCreationDragKeepsCanvasVisibleAfterToolSwitch(browser);
+  await verifySelectedObjectSuppressesHover(browser);
   await verifyDragHandleCursors(browser);
   await verifyLargeFileHoverAndDrag(browser);
   console.log("[viewer-interaction-smoke] ok");
