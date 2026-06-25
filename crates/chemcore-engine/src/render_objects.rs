@@ -448,7 +448,7 @@ fn render_fragment_node_invalid_marker(
         radius: crate::ENDPOINT_FOCUS_RADIUS,
         fill: "none".to_string(),
         stroke: "#d32f2f".to_string(),
-        stroke_width: 1.0,
+        stroke_width: 0.5,
     });
 }
 
@@ -515,14 +515,14 @@ pub(super) fn render_fragment_label(
             out.push(RenderPrimitive::Rect {
                 role: RenderRole::DocumentDiagnostic,
                 object_id: None,
-                node_id: None,
+                node_id: Some(node.id.clone()),
                 x: box_value.x1,
                 y: box_value.y1,
                 width: (box_value.x2 - box_value.x1).max(0.0),
                 height: (box_value.y2 - box_value.y1).max(0.0),
                 fill: Some("none".to_string()),
                 stroke: Some("#d32f2f".to_string()),
-                stroke_width: 1.0,
+                stroke_width: 0.5,
                 rx: None,
                 ry: None,
                 dash_array: Vec::new(),

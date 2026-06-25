@@ -344,6 +344,7 @@ let activeDocumentPreviewObjectIds = new Set();
 let activeDocumentPreviewPrimitiveElements = new Set();
 let activeDocumentPreviewHiddenElements = new Set();
 let activeDocumentEditPreviewHiddenElements = new Set();
+let activeDocumentDiagnosticPreviewHiddenElements = new Set();
 let activeDocumentPreviewLayer = false;
 let activeDocumentPreviewBatchLayer = null;
 let activeDocumentPreviewTransform = "";
@@ -3015,6 +3016,7 @@ async function applyBackendSelectionMovePreview(point, altKey = false) {
   if (gesture?.kind !== "move" || !point || !selectionNeedsBackendMovePreview(selection)) {
     return false;
   }
+  hideDocumentDiagnosticsForPreview();
   gesture.previewSelection = selection;
   const targets = structurePreviewTargetIds(selection);
   const started = performance.now();
@@ -3041,6 +3043,7 @@ async function applyBackendSelectionMovePreview(point, altKey = false) {
   })) || "[]", []);
   const renderedAt = performance.now();
   const patched = renderDocumentPrimitivePatch(primitives, targets.nodeIds, targets.bondIds);
+  hideDocumentDiagnosticsForPreview();
   const patchedAt = performance.now();
   recordBackendMovePreviewTiming({
     updateMs: updatedAt - started,
@@ -5807,6 +5810,32 @@ function restoreDocumentPreviewElementVisibility(element) {
   }
 }
 
+function hideDocumentDiagnosticsForPreview() {
+  const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
+  if (!documentLayer) {
+    return;
+  }
+  for (const element of documentLayer.querySelectorAll(".document-diagnostic-marker")) {
+    if (element.dataset.previewDiagnosticBaseVisibility === undefined) {
+      element.dataset.previewDiagnosticBaseVisibility = element.style.visibility || "";
+    }
+    element.style.visibility = "hidden";
+    activeDocumentDiagnosticPreviewHiddenElements.add(element);
+  }
+}
+
+function restoreDocumentDiagnosticsForPreview() {
+  for (const element of activeDocumentDiagnosticPreviewHiddenElements) {
+    if (element.dataset.previewDiagnosticBaseVisibility !== undefined) {
+      element.style.visibility = element.dataset.previewDiagnosticBaseVisibility;
+      delete element.dataset.previewDiagnosticBaseVisibility;
+    } else {
+      element.style.visibility = "";
+    }
+  }
+  activeDocumentDiagnosticPreviewHiddenElements = new Set();
+}
+
 function clearDocumentPartialBondPreview() {
   viewerSvg.querySelectorAll('[data-layer="document-partial-bond-preview"]').forEach((layer) => layer.remove());
   for (const element of activeDocumentPreviewHiddenElements) {
@@ -5910,6 +5939,7 @@ function removeDocumentPreviewBatchLayer() {
 function clearDocumentObjectPreviewTransform() {
   const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
   clearDocumentPartialBondPreview();
+  restoreDocumentDiagnosticsForPreview();
   removeDocumentPreviewBatchLayer();
   if (activeDocumentPreviewLayer) {
     documentLayer?.removeAttribute("transform");
@@ -5979,6 +6009,7 @@ function commitDocumentObjectPreviewTransform() {
   activeDocumentPreviewObjectIds = new Set();
   activeDocumentPreviewPrimitiveElements = new Set();
   activeDocumentPreviewTransform = "";
+  restoreDocumentDiagnosticsForPreview();
   return true;
 }
 
@@ -6203,6 +6234,7 @@ function applyDocumentObjectPreviewTransform() {
     clearDocumentObjectPreviewTransform();
     return false;
   }
+  hideDocumentDiagnosticsForPreview();
   const selection = activeSelectionGesture.previewSelection
     || currentEditorEngineState()?.selection;
   activeSelectionGesture.previewSelection = selection;
@@ -6513,6 +6545,7 @@ function renderDocument() {
   activeDocumentPreviewPrimitiveElements = new Set();
   activeDocumentPreviewHiddenElements = new Set();
   activeDocumentEditPreviewHiddenElements = new Set();
+  activeDocumentDiagnosticPreviewHiddenElements = new Set();
   activeDocumentPreviewLayer = false;
   activeDocumentPreviewBatchLayer = null;
   activeDocumentPreviewTransform = "";

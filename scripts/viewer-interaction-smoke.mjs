@@ -348,18 +348,44 @@ function largeFileTargetFinder() {
         y: rect.y + rect.height / 2,
         w: rect.width,
         h: rect.height,
+        diagnostic: element.classList.contains("document-diagnostic-marker"),
       };
     })
+    .filter((entry) => !entry.diagnostic)
     .filter((entry) => entry.w >= 3
       && entry.h >= 2
       && entry.x > 80
       && entry.x < innerWidth - 80
       && entry.y > 120
       && entry.y < innerHeight - 80)[0] || null;
+  const invalidDiagnostic = [...document.querySelectorAll(".document-diagnostic-marker[data-node-id]")]
+    .map((marker) => {
+      const id = marker.getAttribute("data-node-id");
+      const anchor = [...document.querySelectorAll(`[data-node-id="${CSS.escape(id)}"]`)]
+        .find((element) => element !== marker && !element.classList.contains("document-diagnostic-marker"));
+      if (!anchor) {
+        return null;
+      }
+      const markerRect = marker.getBoundingClientRect();
+      const anchorRect = anchor.getBoundingClientRect();
+      return {
+        id,
+        x: anchorRect.x + anchorRect.width / 2,
+        y: anchorRect.y + anchorRect.height / 2,
+        markerX: markerRect.x + markerRect.width / 2,
+        markerY: markerRect.y + markerRect.height / 2,
+      };
+    })
+    .filter(Boolean)
+    .find((entry) => entry.x > 80
+      && entry.x < innerWidth - 80
+      && entry.y > 120
+      && entry.y < innerHeight - 80) || null;
   return {
     hover,
     label: entries.find((entry) => entry.label && entry.degree > 0) || null,
     atom: entries.find((entry) => !entry.label && (!entry.element || entry.element === "C") && entry.degree > 0) || null,
+    invalidDiagnostic,
   };
 }
 
@@ -551,6 +577,59 @@ async function verifyLargeFileSelectionLatency(page, target) {
   await page.waitForTimeout(30);
 }
 
+async function verifyDiagnosticMarkerHidesDuringDrag(page, target) {
+  if (!target) {
+    return;
+  }
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.evaluate(() => {
+    window.__chemcoreDebug.state.editorEngine.clearSelection?.();
+    window.__chemcoreDebug.state.editorEngine.clearInteraction?.();
+    window.__chemcoreDebug.clearActiveSelectionGesture?.();
+    document.querySelector('[data-layer="editor-overlay"]')?.replaceChildren();
+  });
+  await page.locator('button[data-tool="select"]').click();
+  const before = await page.evaluate((nodeId) => {
+    const markers = [...document.querySelectorAll(`.document-diagnostic-marker[data-node-id="${CSS.escape(nodeId)}"]`)];
+    return {
+      count: markers.length,
+      totalDiagnostics: document.querySelectorAll(".document-diagnostic-marker").length,
+      visibleDiagnostics: [...document.querySelectorAll(".document-diagnostic-marker")]
+        .filter((element) => getComputedStyle(element).visibility !== "hidden").length,
+    };
+  }, target.id);
+  if (!before.count) {
+    return;
+  }
+  await page.mouse.move(target.x, target.y);
+  await page.waitForTimeout(180);
+  await page.mouse.down();
+  await page.mouse.move(target.x + 42, target.y + 18, { steps: 6 });
+  const during = await page.evaluate((nodeId) => {
+    const markers = [...document.querySelectorAll(`.document-diagnostic-marker[data-node-id="${CSS.escape(nodeId)}"]`)];
+    return {
+      count: markers.length,
+      totalDiagnostics: document.querySelectorAll(".document-diagnostic-marker").length,
+      visibleDiagnostics: [...document.querySelectorAll(".document-diagnostic-marker")]
+        .filter((element) => getComputedStyle(element).visibility !== "hidden").length,
+      previewDiagnostics: document.querySelectorAll('[data-layer="document-partial-bond-preview"] .document-diagnostic-marker').length,
+    };
+  }, target.id);
+  await page.mouse.up();
+  await page.waitForFunction(() => [...document.querySelectorAll(".document-diagnostic-marker")]
+    .some((element) => getComputedStyle(element).visibility !== "hidden"), null, { timeout: 1000 });
+  const after = await page.evaluate(() => ({
+    totalDiagnostics: document.querySelectorAll(".document-diagnostic-marker").length,
+    visibleDiagnostics: [...document.querySelectorAll(".document-diagnostic-marker")]
+      .filter((element) => getComputedStyle(element).visibility !== "hidden").length,
+  }));
+  assert(during.count === before.count, `Diagnostic marker duplicated during drag: ${JSON.stringify({ before, during, target })}`);
+  assert(during.totalDiagnostics <= before.totalDiagnostics + 2, `Diagnostic marker count ballooned during drag: ${JSON.stringify({ before, during, target })}`);
+  assert(during.previewDiagnostics === 0, `Diagnostic markers were drawn into partial preview layer: ${JSON.stringify({ before, during, target })}`);
+  assert(during.visibleDiagnostics === 0, `Diagnostic markers remained visible during drag: ${JSON.stringify({ before, during, target })}`);
+  assert(after.totalDiagnostics <= before.totalDiagnostics + 2 && after.visibleDiagnostics > 0, `Diagnostic markers did not restore after drag: ${JSON.stringify({ before, during, after, target })}`);
+}
+
 async function resetViewerUi(page) {
   await page.keyboard.press("Escape").catch(() => {});
   await page.waitForTimeout(30);
@@ -710,6 +789,7 @@ async function verifyLargeFileHoverAndDrag(browser) {
   assert(hover > 0, "Large CDXML select hover did not render a hover overlay.");
 
   await verifyLargeFileSelectionLatency(page, targets.hover);
+  await verifyDiagnosticMarkerHidesDuringDrag(page, targets.invalidDiagnostic);
   await verifyLargeDragTarget(page, targets.label, "Label");
   await verifyLargeDragTarget(page, targets.atom, "Atom");
   const latency = await verifyLargeFileCommitLatency(page);

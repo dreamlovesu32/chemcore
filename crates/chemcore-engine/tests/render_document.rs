@@ -7917,9 +7917,10 @@ fn render_document_draws_imported_cdxml_invalid_marker_as_non_focusable_diagnost
         marker,
         RenderPrimitive::Rect {
             object_id: None,
-            node_id: None,
+            node_id: Some(node_id),
+            stroke_width,
             ..
-        }
+        } if node_id == "n1" && (stroke_width - 0.5).abs() < 1.0e-6
     ));
 }
 
