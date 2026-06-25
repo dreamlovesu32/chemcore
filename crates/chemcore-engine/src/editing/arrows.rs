@@ -49,11 +49,7 @@ pub fn line_object_endpoint_style(
         .unwrap_or(ArrowEndpointStyle::None)
 }
 
-pub fn line_object_arrow_dimension(
-    object: &crate::SceneObject,
-    key: &str,
-    fallback: f64,
-) -> f64 {
+pub fn line_object_arrow_dimension(object: &crate::SceneObject, key: &str, fallback: f64) -> f64 {
     object
         .payload
         .extra
@@ -61,6 +57,32 @@ pub fn line_object_arrow_dimension(
         .and_then(|value| value.get(key))
         .and_then(serde_json::Value::as_f64)
         .unwrap_or(fallback)
+}
+
+pub fn line_object_graphic_stroke_width(
+    document: &crate::ChemcoreDocument,
+    object: &crate::SceneObject,
+) -> f64 {
+    object
+        .payload
+        .extra
+        .get("strokeWidth")
+        .or_else(|| object.payload.extra.get("stroke_width"))
+        .and_then(serde_json::Value::as_f64)
+        .or_else(|| {
+            object
+                .style_ref
+                .as_ref()
+                .and_then(|style_ref| document.styles.get(style_ref))
+                .and_then(|style| {
+                    style
+                        .get("strokeWidth")
+                        .or_else(|| style.get("stroke_width"))
+                        .and_then(serde_json::Value::as_f64)
+                })
+        })
+        .filter(|value| value.is_finite() && *value > crate::EPSILON)
+        .unwrap_or(crate::DEFAULT_BOND_STROKE)
 }
 
 pub(super) fn line_object_arrow_curve(object: &crate::SceneObject) -> f64 {
@@ -88,7 +110,11 @@ pub fn arrow_object_has_curve_handle(object: &crate::SceneObject) -> bool {
     line_object_arrow_kind(object) != "open"
 }
 
-pub fn arrow_object_handle_points(object: &crate::SceneObject, points: &[Point]) -> Vec<Point> {
+pub fn arrow_object_handle_points(
+    object: &crate::SceneObject,
+    points: &[Point],
+    stroke_width: f64,
+) -> Vec<Point> {
     if points.len() < 2 {
         return Vec::new();
     }
@@ -102,39 +128,41 @@ pub fn arrow_object_handle_points(object: &crate::SceneObject, points: &[Point])
         handles.push(center);
     }
     handles.push(end);
-    let head_length = line_object_arrow_dimension(object, "length", 15.0);
-    let head_width = line_object_arrow_dimension(object, "width", 3.75);
+    let scale = if stroke_width > crate::EPSILON {
+        stroke_width
+    } else {
+        crate::DEFAULT_BOND_STROKE
+    };
+    let head_length = line_object_arrow_dimension(object, "length", 15.0) * scale;
+    let head_width = line_object_arrow_dimension(object, "width", 3.75) * scale;
     let head_style = line_object_endpoint_style(object, "head", "end");
     let tail_style = line_object_endpoint_style(object, "tail", "start");
-    push_arrow_endpoint_handles(
-        &mut handles,
+    handles.extend(arrow_endpoint_style_handle_points(
         &focus_points,
         false,
         head_style,
         head_length,
         head_width,
-    );
-    push_arrow_endpoint_handles(
-        &mut handles,
+    ));
+    handles.extend(arrow_endpoint_style_handle_points(
         &focus_points,
         true,
         tail_style,
         head_length,
         head_width,
-    );
+    ));
     handles
 }
 
-pub(super) fn push_arrow_endpoint_handles(
-    handles: &mut Vec<Point>,
+pub fn arrow_endpoint_style_handle_points(
     points: &[Point],
     tail: bool,
     style: ArrowEndpointStyle,
     length: f64,
     half_width: f64,
-) {
+) -> Vec<Point> {
     if style == ArrowEndpointStyle::None || points.len() < 2 {
-        return;
+        return Vec::new();
     }
     let tangent_from = if tail {
         point_at_distance_from_start(points, length).unwrap_or(points[1])
@@ -147,48 +175,18 @@ pub(super) fn push_arrow_endpoint_handles(
     } else {
         *points.last().unwrap_or(&points[0])
     };
-    let side_points = arrow_tip_side_points(tangent_from, tip, length, half_width);
-    if let Some(point) = arrow_endpoint_style_handle_point_from_sides(style, side_points) {
-        handles.push(point);
-    }
-}
-
-fn arrow_endpoint_style_handle_point_from_sides(
-    style: ArrowEndpointStyle,
-    side_points: [Point; 2],
-) -> Option<Point> {
+    let visual_half_width = if style == ArrowEndpointStyle::Full {
+        half_width + 0.05
+    } else {
+        half_width
+    };
+    let side_points = arrow_tip_side_points(tangent_from, tip, length, visual_half_width);
     match style {
-        ArrowEndpointStyle::Full | ArrowEndpointStyle::Right => Some(side_points[0]),
-        ArrowEndpointStyle::Left => Some(side_points[1]),
-        ArrowEndpointStyle::None => None,
+        ArrowEndpointStyle::Full => side_points.to_vec(),
+        ArrowEndpointStyle::Right => vec![side_points[0]],
+        ArrowEndpointStyle::Left => vec![side_points[1]],
+        ArrowEndpointStyle::None => Vec::new(),
     }
-}
-
-pub fn arrow_endpoint_style_handle_point(
-    points: &[Point],
-    tail: bool,
-    style: ArrowEndpointStyle,
-    length: f64,
-    half_width: f64,
-) -> Option<Point> {
-    if style == ArrowEndpointStyle::None || points.len() < 2 {
-        return None;
-    }
-    let tangent_from = if tail {
-        point_at_distance_from_start(points, length).unwrap_or(points[1])
-    } else {
-        point_at_distance_from_end(points, length)
-            .unwrap_or_else(|| points[points.len().saturating_sub(2)])
-    };
-    let tip = if tail {
-        points[0]
-    } else {
-        *points.last().unwrap_or(&points[0])
-    };
-    arrow_endpoint_style_handle_point_from_sides(
-        style,
-        arrow_tip_side_points(tangent_from, tip, length, half_width),
-    )
 }
 
 pub fn arrow_object_focus_points(object: &crate::SceneObject, points: &[Point]) -> Vec<Point> {

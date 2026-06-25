@@ -119,8 +119,11 @@ export function createDocumentFlow(options) {
 
   async function currentDocumentJsonForSave() {
     await options.finishActiveTextEditor(true);
-    if (options.state.editorEngine && !options.state.currentPath) {
-      await options.syncDocumentFromEngine();
+    if (options.state.editorEngine?.documentJson) {
+      const json = await options.state.editorEngine.documentJson();
+      if (json && String(json).trim()) {
+        return `${String(json).trimEnd()}\n`;
+      }
     }
     if (!options.state.currentDocument) {
       throw new Error("No document to save.");

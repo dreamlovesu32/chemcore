@@ -236,7 +236,8 @@ pub fn hit_test_arrow_center(
                     let end = *focus_points.last().unwrap_or(&focus_points[0]);
                     Point::new((start.x + end.x) * 0.5, (start.y + end.y) * 0.5)
                 });
-        let handles = arrow_object_handle_points(object, &points);
+        let stroke_width = line_object_graphic_stroke_width(document, object);
+        let handles = arrow_object_handle_points(object, &points, stroke_width);
         let handle_distance = handles
             .iter()
             .map(|handle| handle.distance(point))

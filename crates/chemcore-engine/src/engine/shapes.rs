@@ -525,12 +525,18 @@ impl Engine {
     }
 
     pub fn hover_shape_action_at_point(&self, point: Point) -> &'static str {
+        if let Some(action) = self.bracket_side_action_at_point(point) {
+            return action;
+        }
         self.shape_edit_target_at_point(point)
             .map(|target| target.handle.action_name())
             .unwrap_or("")
     }
 
     pub fn begin_hover_shape_edit(&mut self, point: Point) -> &'static str {
+        if let Some(action) = self.begin_bracket_side_edit(point) {
+            return action;
+        }
         let Some(target) = self.shape_edit_target_at_point(point) else {
             return "";
         };
@@ -552,15 +558,20 @@ impl Engine {
         self.selection_resize_drag = None;
         self.shape_drag = None;
         self.bracket_drag = None;
+        self.bracket_edit_drag = None;
         self.state.overlay.hover_shape = None;
         self.state.overlay.preview = None;
         action
     }
 
-    pub fn update_hover_shape_edit(&mut self, point: Point, _alt_key: bool) -> bool {
+    pub fn update_hover_shape_edit(&mut self, point: Point, alt_key: bool) -> bool {
         let command = self.hover_shape_edit_command();
         self.with_transient_command(command, |engine| {
-            engine.update_hover_shape_edit_untracked(point)
+            if engine.bracket_edit_drag.is_some() {
+                engine.update_bracket_side_edit(point, alt_key)
+            } else {
+                engine.update_hover_shape_edit_untracked(point)
+            }
         })
     }
 
@@ -597,10 +608,14 @@ impl Engine {
         true
     }
 
-    pub fn finish_hover_shape_edit(&mut self, point: Point, _alt_key: bool) -> bool {
+    pub fn finish_hover_shape_edit(&mut self, point: Point, alt_key: bool) -> bool {
         let command = self.hover_shape_edit_command();
         self.with_command(command, |engine| {
-            engine.finish_hover_shape_edit_untracked(point)
+            if engine.bracket_edit_drag.is_some() {
+                engine.finish_bracket_side_edit(point, alt_key)
+            } else {
+                engine.finish_hover_shape_edit_untracked(point)
+            }
         })
     }
 
@@ -623,6 +638,12 @@ impl Engine {
     }
 
     fn hover_shape_edit_command(&self) -> EditorCommand {
+        if let Some(drag) = &self.bracket_edit_drag {
+            return EditorCommand::EditShapeGeometry {
+                object_id: Some(drag.object_id.clone()),
+                action: drag.handle.action_name().to_string(),
+            };
+        }
         let (object_id, action) = self
             .shape_edit_drag
             .as_ref()
@@ -637,7 +658,9 @@ impl Engine {
     }
 
     pub(super) fn refresh_shape_hover(&mut self, point: Point) {
-        self.state.overlay.hover_shape = self.shape_hover_at_point(point);
+        self.state.overlay.hover_shape = self
+            .bracket_hover_at_point(point)
+            .or_else(|| self.shape_hover_at_point(point));
         self.state.overlay.hover_endpoint = None;
         self.state.overlay.hover_bond_center = None;
         self.state.overlay.hover_arrow = None;

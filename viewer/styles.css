@@ -94,6 +94,11 @@ button {
   color: inherit;
 }
 
+#viewer-svg [data-layer="document-content"],
+#viewer-svg [data-layer="document-content"] * {
+  pointer-events: none;
+}
+
 .visually-hidden {
   position: absolute !important;
   width: 1px !important;
@@ -173,6 +178,30 @@ body.desktop-shell .desktop-titlebar {
   flex: 1 1 auto;
   align-self: stretch;
   min-width: 24px;
+}
+
+.canvas-pointer-shield {
+  position: fixed;
+  inset: 0;
+  display: none;
+  cursor: inherit;
+  pointer-events: auto;
+  z-index: 1000;
+}
+
+.canvas-pointer-shield.is-active {
+  display: block;
+}
+
+.canvas-drag-preview-svg {
+  position: fixed;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+#viewer-svg.is-pointer-capture-disabled {
+  pointer-events: none;
 }
 
 .desktop-modal-window-drag-strip,

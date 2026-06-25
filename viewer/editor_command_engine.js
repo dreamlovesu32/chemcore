@@ -71,6 +71,7 @@ export function createEditorCommandEngine(options = {}) {
       if (executeOptions.sync !== false && rawResult !== false) {
         await options.syncDocumentFromEngine?.({
           syncRenderList: executeOptions.syncRenderList !== false,
+          refreshSnapshot: executeOptions.refreshSnapshot !== false,
         });
       }
       result = readEngineResult();
@@ -81,6 +82,7 @@ export function createEditorCommandEngine(options = {}) {
       if (executeOptions.sync !== false && result?.changed) {
         await options.syncDocumentFromEngine?.({
           syncRenderList: executeOptions.syncRenderList !== false,
+          refreshSnapshot: executeOptions.refreshSnapshot !== false,
         });
       }
     } else {

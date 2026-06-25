@@ -6,6 +6,10 @@ export function createEditorPointerController(options) {
   let selectionHoverSuppressionActive = false;
   let documentPreviewFrame = 0;
   let documentPreviewRunning = false;
+  let engineDragPreviewFrame = 0;
+  let engineDragPreviewRunning = false;
+  let engineDragPreviewRequest = null;
+  let engineCreationDrag = null;
   let postCommitHoverBlockPoint = null;
 
   async function executeDocumentCommand(command, apply, executeOptions = {}) {
@@ -67,6 +71,14 @@ export function createEditorPointerController(options) {
     if (documentPreviewFrame) {
       cancelAnimationFrame(documentPreviewFrame);
       documentPreviewFrame = 0;
+    }
+  }
+
+  function cancelEngineDragPreviewFrame() {
+    engineDragPreviewRequest = null;
+    if (engineDragPreviewFrame) {
+      cancelAnimationFrame(engineDragPreviewFrame);
+      engineDragPreviewFrame = 0;
     }
   }
 
@@ -447,6 +459,67 @@ export function createEditorPointerController(options) {
     return options.currentEditorInteractionRenderList?.() || [];
   }
 
+  function editorCommandAnchor(point) {
+    return { x: point.x, y: point.y };
+  }
+
+  function creationCommandForDrag(tool, start, end) {
+    const editorState = options.editorState();
+    if (tool === "arrow") {
+      return {
+        type: "add-arrow",
+        begin: editorCommandAnchor(start),
+        end: editorCommandAnchor(end),
+        variant: editorState.arrowType,
+        headSize: editorState.arrowHeadSize,
+        curve: editorState.arrowCurve,
+        headStyle: editorState.arrowHeadStyle,
+        tailStyle: editorState.arrowTailStyle,
+        head: editorState.arrowHeadStyle !== "none",
+        tail: editorState.arrowTailStyle !== "none",
+        bold: !!editorState.arrowBold,
+        noGo: editorState.arrowNoGo || "none",
+      };
+    }
+    if (tool === "shape" || tool === "tlc-plate") {
+      return {
+        type: "add-shape",
+        kind: tool === "tlc-plate" ? "tlc-plate" : editorState.shapeKind,
+        style: editorState.shapeStyle,
+        color: editorState.shapeColor,
+        begin: editorCommandAnchor(start),
+        end: editorCommandAnchor(end),
+      };
+    }
+    if (tool === "bracket") {
+      return {
+        type: "add-bracket",
+        kind: editorState.bracketKind,
+        begin: editorCommandAnchor(start),
+        end: editorCommandAnchor(end),
+      };
+    }
+    if (tool === "symbol") {
+      return {
+        type: "add-symbol",
+        kind: editorState.symbolKind,
+        center: editorCommandAnchor(end),
+      };
+    }
+    return null;
+  }
+
+  async function executeCreationCommand(command) {
+    if (!command) {
+      return null;
+    }
+    return executeDocumentCommand(
+      command,
+      () => options.state().editorEngine.executeCommandJson?.(JSON.stringify(command)),
+      { sync: false, deferDocumentSync: true },
+    );
+  }
+
   async function refreshHoverOverlayAtPoint(point, event) {
     await options.state().editorEngine.pointerMove(point.x, point.y, event?.altKey || false);
     invalidateEngineReadCache();
@@ -455,13 +528,56 @@ export function createEditorPointerController(options) {
   }
 
   async function updateEngineDragPreview(point, event) {
-    event.preventDefault();
     cancelScheduledHoverMove();
     leaveSelectionHoverSuppression(point);
     await options.state().editorEngine.pointerMove(point.x, point.y, event.altKey);
     invalidateEngineReadCache();
-    options.renderEditorOverlay(currentInteractionRenderList());
+    let renderList = currentInteractionRenderList();
+    if (!renderList.length && engineCreationDrag?.start) {
+      await options.state().editorEngine.clearInteraction?.();
+      await options.state().editorEngine.pointerDown(
+        engineCreationDrag.start.x,
+        engineCreationDrag.start.y,
+        event.altKey,
+      );
+      await options.state().editorEngine.pointerMove(point.x, point.y, event.altKey);
+      invalidateEngineReadCache();
+      renderList = currentInteractionRenderList();
+    }
+    if (engineCreationDrag?.start && options.renderDragCapturePreview) {
+      options.renderDragCapturePreview(renderList);
+    } else {
+      options.renderEditorOverlay(renderList);
+    }
     options.positionActiveTextEditor();
+  }
+
+  async function drainEngineDragPreviewFrame() {
+    engineDragPreviewFrame = 0;
+    if (engineDragPreviewRunning) {
+      return;
+    }
+    engineDragPreviewRunning = true;
+    try {
+      const request = engineDragPreviewRequest;
+      engineDragPreviewRequest = null;
+      if (request) {
+        await updateEngineDragPreview(request.point, request);
+      }
+    } finally {
+      engineDragPreviewRunning = false;
+      if (engineDragPreviewRequest && !engineDragPreviewFrame) {
+        engineDragPreviewFrame = requestAnimationFrame(drainEngineDragPreviewFrame);
+      }
+    }
+  }
+
+  function scheduleEngineDragPreview(point, event) {
+    event.preventDefault();
+    engineDragPreviewRequest = { point, altKey: event.altKey };
+    if (!engineDragPreviewFrame && !engineDragPreviewRunning) {
+      engineDragPreviewFrame = requestAnimationFrame(drainEngineDragPreviewFrame);
+    }
   }
 
   function readLastCommandResult() {
@@ -476,6 +592,7 @@ export function createEditorPointerController(options) {
   }
 
   async function handleEditorPointerMove(event) {
+    options.noteEditorPointerActivity?.();
     const point = options.svgPointFromEvent(event);
     const editorState = options.editorState();
     const gesture = options.activeSelectionGesture();
@@ -490,7 +607,7 @@ export function createEditorPointerController(options) {
         );
         if (hit) {
           gesture.hit = hit;
-          await options.syncDocumentFromEngine({ syncRenderList: false });
+          await options.syncDocumentFromEngine({ syncRenderList: false, refreshSnapshot: false });
         }
         await options.syncSelectCursorForPoint(point);
         if (hit?.objectId) {
@@ -602,7 +719,12 @@ export function createEditorPointerController(options) {
       && toolUsesEngineDragPreview(editorState.activeTool)
       && options.routeEditorPointerEvents()
     ) {
-      await updateEngineDragPreview(point, event);
+      event.preventDefault();
+      if (engineCreationDrag?.start) {
+        await updateEngineDragPreview(point, event);
+      } else {
+        scheduleEngineDragPreview(point, event);
+      }
       return;
     }
     const selectionHoverSuppression = selectionHoverSuppressionState(point);
@@ -616,11 +738,15 @@ export function createEditorPointerController(options) {
   }
 
   async function handleEditorPointerDown(event) {
+    options.noteEditorPointerActivity?.();
+    await options.awaitPendingToolActivation?.();
     if (!options.routeEditorPointerEvents() || event.button !== 0) {
       return;
     }
     cancelScheduledHoverMove();
     cancelDocumentPreviewFrame();
+    cancelEngineDragPreviewFrame();
+    engineCreationDrag = null;
     postCommitHoverBlockPoint = null;
     const point = options.svgPointFromEvent(event);
     options.setLastEditFocusPoint(point);
@@ -632,7 +758,7 @@ export function createEditorPointerController(options) {
       event.preventDefault();
       options.viewerSvg().setPointerCapture?.(event.pointerId);
       await options.state().editorEngine.pointerDown(point.x, point.y, event.altKey);
-      await options.syncDocumentFromEngine({ syncRenderList: false });
+      await options.syncDocumentFromEngine({ syncRenderList: false, refreshSnapshot: false });
       options.renderEditorOverlay();
       return;
     }
@@ -760,7 +886,11 @@ export function createEditorPointerController(options) {
       return;
     }
     event.preventDefault();
-    options.viewerSvg().setPointerCapture?.(event.pointerId);
+    if (toolUsesEngineDragPreview(editorState.activeTool)) {
+      options.setCanvasPointerShieldActive?.(true);
+    } else {
+      options.viewerSvg().setPointerCapture?.(event.pointerId);
+    }
     if (editorState.activeTool === "arrow") {
       const arrowEditAction = await options.state().editorEngine.beginHoverArrowEdit?.(point.x, point.y) || "";
       if (arrowEditAction) {
@@ -777,10 +907,8 @@ export function createEditorPointerController(options) {
         return;
       }
     }
-    if (editorState.activeTool === "arrow" && await beginSelectionBoxMove(point, event)) {
-      return;
-    }
     if (editorState.activeTool === "shape"
+      || editorState.activeTool === "bracket"
       || editorState.activeTool === "tlc-plate"
       || editorState.activeTool === "orbital") {
       if (editorState.activeTool === "tlc-plate") {
@@ -819,20 +947,23 @@ export function createEditorPointerController(options) {
         return;
       }
     }
-    if (await beginSelectionBoxMove(point, event)) {
-      return;
-    }
     if (editorState.activeTool === "bracket") {
       options.setActiveBracketDragStart(point);
     }
     const beforeRevision = engineRevision();
     await options.state().editorEngine.pointerDown(point.x, point.y, event.altKey);
     const pointerDownResult = readLastCommandResult();
+    if (toolUsesEngineDragPreview(editorState.activeTool)) {
+      engineCreationDrag = {
+        tool: editorState.activeTool,
+        start: point,
+      };
+    }
     if (
       pointerDownResult?.changed
       && Number(pointerDownResult.beforeRevision ?? pointerDownResult.before_revision ?? -1) === beforeRevision
     ) {
-      await options.syncDocumentFromEngine({ syncRenderList: false });
+      await options.syncDocumentFromEngine({ syncRenderList: false, refreshSnapshot: false });
       options.renderDocumentChange?.(pointerDownResult) || options.renderDocument();
       return;
     }
@@ -841,6 +972,7 @@ export function createEditorPointerController(options) {
   }
 
   async function handleEditorPointerUp(event) {
+    options.noteEditorPointerActivity?.();
     if (options.editorState().activeTool === "text" && !options.activeSelectionGesture()) {
       return;
     }
@@ -852,7 +984,15 @@ export function createEditorPointerController(options) {
     event.preventDefault();
     cancelScheduledHoverMove();
     cancelDocumentPreviewFrame();
+    if (!options.activeSelectionGesture() && toolUsesEngineDragPreview(options.editorState().activeTool)) {
+      await updateEngineDragPreview(point, event);
+    }
+    cancelEngineDragPreviewFrame();
+    if (engineDragPreviewRunning) {
+      await drainEngineDragPreviewFrame();
+    }
     options.viewerSvg().releasePointerCapture?.(event.pointerId);
+    options.setCanvasPointerShieldActive?.(false);
     const gesture = options.activeSelectionGesture();
     if (gesture?.kind === "tlc-spot-drag") {
       const result = await executeDocumentCommand(
@@ -914,6 +1054,7 @@ export function createEditorPointerController(options) {
       return;
     }
     if ((options.editorState().activeTool === "select"
+      || options.editorState().activeTool === "bracket"
       || options.editorState().activeTool === "shape"
       || options.editorState().activeTool === "tlc-plate"
       || options.editorState().activeTool === "orbital")
@@ -993,7 +1134,6 @@ export function createEditorPointerController(options) {
             deferEngineReads: true,
             useInteractionList: false,
           });
-          options.scheduleDeferredDocumentSync?.();
         } else {
           options.renderDocumentChange?.(result) || options.renderDocument();
         }
@@ -1078,7 +1218,6 @@ export function createEditorPointerController(options) {
               deferEngineReads: true,
               useInteractionList: false,
             });
-            options.scheduleDeferredDocumentSync?.();
           } else if (commitPreviewDom && result.changed) {
             options.commitDocumentObjectPreviewTransform();
             options.clearDocumentObjectPreviewTransform();
@@ -1088,7 +1227,6 @@ export function createEditorPointerController(options) {
               deferEngineReads: true,
               useInteractionList: false,
             });
-            options.scheduleDeferredDocumentSync?.();
           } else {
             await clearEngineHoverOverlay();
             options.syncCanvasCursor?.();
@@ -1131,18 +1269,24 @@ export function createEditorPointerController(options) {
         },
       },
       () => options.state().editorEngine.pointerUp(point.x, point.y, event.altKey),
-      { syncRenderList: false },
+      { sync: false, deferDocumentSync: true },
     );
+    let commitResult = result;
+    if (!commitResult?.changed && engineCreationDrag?.start) {
+      commitResult = await executeCreationCommand(
+        creationCommandForDrag(engineCreationDrag.tool, engineCreationDrag.start, point),
+      ) || commitResult;
+    }
     const pendingGraphicObjectId = await Promise.resolve(
       options.state().editorEngine.pendingGraphicObjectId?.() || "",
-    );
-    options.renderDocumentChange?.(result) || options.renderDocument();
+    ) || commitResult?.targets?.objects?.[0] || commitResult?.created?.objects?.[0] || "";
+    options.renderDocumentChange?.(commitResult) || options.renderDocument();
     invalidateEngineReadCache();
     clearInteractionOverlayNow();
     if (options.editorState().activeTool === "bracket") {
       const start = options.activeBracketDragStart();
       options.setActiveBracketDragStart(null);
-      if (start && options.pointDistance(start, point) >= options.cssPxToPt(4)) {
+      if (commitResult?.changed && start && options.pointDistance(start, point) >= options.cssPxToPt(4)) {
         await options.openTextEditorAt(
           options.bracketLabelAnchorPoint(start, point),
           {
@@ -1152,6 +1296,7 @@ export function createEditorPointerController(options) {
         );
       }
     }
+    engineCreationDrag = null;
   }
 
   async function handleEditorPointerLeave() {
@@ -1192,7 +1337,10 @@ export function createEditorPointerController(options) {
     cancelDocumentPreviewFrame();
     postCommitHoverBlockPoint = null;
     options.setActiveSelectionGesture(null);
+    engineCreationDrag = null;
     options.clearDocumentObjectPreviewTransform();
+    options.clearDragCapturePreview?.();
+    options.setCanvasPointerShieldActive?.(false);
     await clearEngineHoverOverlay();
     options.syncCanvasCursor();
   }

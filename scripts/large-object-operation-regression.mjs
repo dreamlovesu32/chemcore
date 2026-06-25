@@ -185,12 +185,27 @@ async function assertNoPreviewMask(page, label) {
 
 async function assertObjectHiddenForPreview(page, objectId, label) {
   const result = await page.evaluate((id) => {
-    const elements = Array.from(document.querySelectorAll(`[data-object-id="${CSS.escape(id)}"]`));
+    const elements = Array.from(document.querySelectorAll(`[data-layer="document-content"] [data-object-id="${CSS.escape(id)}"]`));
     const visible = elements.filter((element) => getComputedStyle(element).visibility !== "hidden");
     return { total: elements.length, visible: visible.length };
   }, objectId);
   assert(result.total > 0, `${label} has no original object DOM: ${JSON.stringify(result)}`);
   assert(result.visible === 0, `${label} left original object visible: ${JSON.stringify(result)}`);
+}
+
+async function assertObjectEditPreviewVisible(page, objectId, label) {
+  const result = await page.evaluate((id) => {
+    const elements = Array.from(document.querySelectorAll(`[data-layer="editor-overlay"] [data-object-id="${CSS.escape(id)}"]`));
+    const visible = elements.filter((element) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.visibility !== "hidden"
+        && style.display !== "none"
+        && (rect.width > 0 || rect.height > 0);
+    });
+    return { total: elements.length, visible: visible.length };
+  }, objectId);
+  assert(result.visible > 0, `${label} did not render a live edit preview: ${JSON.stringify(result)}`);
 }
 
 async function drawCurvedArrow(page) {
@@ -213,18 +228,20 @@ async function drawCurvedArrow(page) {
   await page.mouse.up();
   await page.waitForTimeout(400);
   const result = await page.evaluate(() => {
-    const lines = (window.__chemcoreDebug.document.objects || [])
-      .filter((object) => (object.type || object.objectType || object.object_type) === "line");
-    const object = lines[lines.length - 1] || null;
+    const command = JSON.parse(window.__chemcoreDebug.state.editorEngine.lastCommandResultJson?.() || "null");
+    const objectId = command?.targets?.objects?.[0] || command?.created?.objects?.[0] || null;
     return {
-      objectId: object?.id || null,
-      lineCount: lines.length,
-      domCount: object?.id
-        ? document.querySelectorAll(`[data-object-id="${CSS.escape(object.id)}"]`).length
+      objectId,
+      changed: !!command?.changed,
+      primitiveCount: objectId
+        ? JSON.parse(window.__chemcoreDebug.state.editorEngine.renderTargetsJson(JSON.stringify({ objects: [objectId] })) || "[]").length
+        : 0,
+      domCount: objectId
+        ? document.querySelectorAll(`[data-object-id="${CSS.escape(objectId)}"]`).length
         : 0,
     };
   });
-  assert(result.objectId, `Curved arrow was not created: ${JSON.stringify(result)}`);
+  assert(result.changed && result.objectId, `Curved arrow was not created: ${JSON.stringify(result)}`);
   assert(result.domCount > 0, `Curved arrow DOM was not patched: ${JSON.stringify(result)}`);
   assertNoFullRefresh("curved arrow draw", await renderStats(page));
   return result.objectId;
@@ -289,6 +306,7 @@ async function dragArrowCurve(page, objectId) {
   await page.mouse.move(handle.x, handle.y + 70, { steps: 12 });
   await assertNoPreviewMask(page, "arrow curve drag");
   await assertObjectHiddenForPreview(page, objectId, "arrow curve drag");
+  await assertObjectEditPreviewVisible(page, objectId, "arrow curve drag");
   await page.mouse.up();
   await page.waitForTimeout(500);
   const result = await page.evaluate((id) => {
@@ -324,6 +342,7 @@ async function dragArrowStyleHandle(page, objectId) {
   assertNoFullRefresh("arrow style pointerdown", await renderStats(page));
   await page.mouse.move(handle.x - 26, handle.y - 22, { steps: 8 });
   await assertObjectHiddenForPreview(page, objectId, "arrow style drag");
+  await assertObjectEditPreviewVisible(page, objectId, "arrow style drag");
   await page.mouse.up();
   await page.waitForTimeout(400);
   const after = await page.evaluate((id) => {
@@ -412,6 +431,9 @@ async function assertShapePointerDown(page, objectId) {
   await page.waitForTimeout(80);
   await assertNoPreviewMask(page, "shape handle pointerdown");
   assertNoFullRefresh("shape handle pointerdown", await renderStats(page));
+  await page.mouse.move(handle.x + 80, handle.y + 50, { steps: 12 });
+  await assertObjectHiddenForPreview(page, objectId, "shape handle drag");
+  await assertObjectEditPreviewVisible(page, objectId, "shape handle drag");
   await page.mouse.up();
 }
 
@@ -424,18 +446,17 @@ async function drawShape(page) {
   await page.mouse.up();
   await page.waitForTimeout(350);
   const result = await page.evaluate(() => {
-    const shapes = (window.__chemcoreDebug.document.objects || [])
-      .filter((object) => (object.type || object.objectType || object.object_type) === "shape");
-    const object = shapes[shapes.length - 1] || null;
+    const command = JSON.parse(window.__chemcoreDebug.state.editorEngine.lastCommandResultJson?.() || "null");
+    const objectId = command?.targets?.objects?.[0] || command?.created?.objects?.[0] || null;
     return {
-      objectId: object?.id || null,
-      shapeCount: shapes.length,
-      domCount: object?.id
-        ? document.querySelectorAll(`[data-object-id="${CSS.escape(object.id)}"]`).length
+      objectId,
+      changed: !!command?.changed,
+      domCount: objectId
+        ? document.querySelectorAll(`[data-object-id="${CSS.escape(objectId)}"]`).length
         : 0,
     };
   });
-  assert(result.objectId, `Shape was not created: ${JSON.stringify(result)}`);
+  assert(result.changed && result.objectId, `Shape was not created: ${JSON.stringify(result)}`);
   assert(result.domCount > 0, `Shape DOM was not patched: ${JSON.stringify(result)}`);
   assertNoFullRefresh("shape draw", await renderStats(page));
   return result.objectId;
@@ -452,8 +473,12 @@ async function drawBracketOpensTextEditor(page) {
   await page.waitForFunction(() => !!window.__chemcoreDebug.activeTextEditor, null, { timeout: 1000 });
   const elapsed = performance.now() - started;
   const result = await page.evaluate(() => {
+    const isBracketLike = (object) => {
+      const type = object.type || object.objectType || object.object_type;
+      return type === "bracket" || (type === "group" && object.meta?.kind === "bracket-group");
+    };
     const brackets = (window.__chemcoreDebug.document.objects || [])
-      .filter((object) => (object.type || object.objectType || object.object_type) === "bracket");
+      .filter(isBracketLike);
     return {
       bracketCount: brackets.length,
       activeTextEditor: !!window.__chemcoreDebug.activeTextEditor,

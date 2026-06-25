@@ -1250,7 +1250,9 @@ fn remove_text_object_from_siblings(
 fn clear_bracket_links_to_text(objects: &mut [crate::SceneObject], text_object_id: &str) -> bool {
     let mut changed = false;
     for object in objects {
-        if object.object_type == "bracket"
+        if (object.object_type == "bracket"
+            || (object.object_type == "group"
+                && object.meta.get("kind").and_then(Value::as_str) == Some("bracket-group")))
             && object
                 .meta
                 .get("linkedTextObjectId")

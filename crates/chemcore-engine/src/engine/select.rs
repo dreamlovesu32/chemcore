@@ -4,16 +4,15 @@ use super::text_edit::{
 };
 use super::{ArrowEditDragState, ArrowEditMode, EditorCommand, Engine, PendingSelectTarget};
 use crate::{
-    angle_between, arrow_endpoint_style_handle_point, arrow_object_focus_points,
+    angle_between, arrow_endpoint_style_handle_points, arrow_object_focus_points,
     arrow_object_handle_points, arrow_object_has_curve_handle, bracket_object_visual_bounds,
-    direction_from_angle, fragment_bond_visual_bounds, hit_test_arrow_center,
-    hit_test_bond_center, hit_test_endpoint,
-    line_object_arrow_dimension, line_object_endpoint_style, line_object_points,
-    line_object_visual_bounds, nearest_angle, point_at_distance_from_start,
-    polyline_length, round2, shape_object_visual_bounds, HoverTextBox, Point, RenderPrimitive,
-    RenderRole, SceneObject, SelectionState,
-    BOND_CENTER_HIT_RADIUS, DEFAULT_BOND_LENGTH, DRAG_START_THRESHOLD, ENDPOINT_FOCUS_RADIUS,
-    ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
+    direction_from_angle, fragment_bond_visual_bounds, hit_test_arrow_center, hit_test_bond_center,
+    hit_test_endpoint, line_object_arrow_dimension, line_object_endpoint_style,
+    line_object_graphic_stroke_width, line_object_points, line_object_visual_bounds, nearest_angle,
+    point_at_distance_from_start, polyline_length, round2, shape_object_visual_bounds,
+    ArrowEndpointStyle, HoverTextBox, Point, RenderPrimitive, RenderRole, SceneObject,
+    SelectionState, BOND_CENTER_HIT_RADIUS, DEFAULT_BOND_LENGTH, DRAG_START_THRESHOLD,
+    ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
 };
 use serde_json::{json, Value as JsonValue};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -454,11 +453,12 @@ impl Engine {
                     candidates.push((center.distance(point), ArrowEditMode::Curve));
                 }
             }
-            let head_length = line_object_arrow_dimension(object, "length", 15.0);
-            let head_width = line_object_arrow_dimension(object, "width", 3.75);
+            let stroke_width = line_object_graphic_stroke_width(&self.state.document, object);
+            let head_length = line_object_arrow_dimension(object, "length", 15.0) * stroke_width;
+            let head_width = line_object_arrow_dimension(object, "width", 3.75) * stroke_width;
             let head_style = line_object_endpoint_style(object, "head", "end");
             let tail_style = line_object_endpoint_style(object, "tail", "start");
-            if let Some(handle) = arrow_endpoint_style_handle_point(
+            for handle in arrow_endpoint_style_handle_points(
                 &focus_points,
                 false,
                 head_style,
@@ -467,7 +467,7 @@ impl Engine {
             ) {
                 candidates.push((handle.distance(point), ArrowEditMode::HeadStyle));
             }
-            if let Some(handle) = arrow_endpoint_style_handle_point(
+            for handle in arrow_endpoint_style_handle_points(
                 &focus_points,
                 true,
                 tail_style,
@@ -1401,7 +1401,9 @@ impl Engine {
             }
             return;
         }
-        self.state.overlay.hover_shape = self.shape_hover_at_point(point);
+        self.state.overlay.hover_shape = self
+            .bracket_hover_at_point(point)
+            .or_else(|| self.shape_hover_at_point(point));
     }
 
     fn select_hit_at_point(&self, point: Point) -> Option<SelectHit> {

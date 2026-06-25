@@ -1031,6 +1031,27 @@ impl<'a> CdxmlDocumentWriter<'a> {
             "curly" => "Curly",
             _ => "Round",
         };
+        if let Some(side) = object.payload.extra.get("side").and_then(Value::as_str) {
+            let bracket_bbox = match side {
+                "right" => [bbox[2], bbox[1], bbox[2], bbox[3]],
+                _ => [bbox[0], bbox[3], bbox[0], bbox[1]],
+            };
+            write_empty_tag(
+                out,
+                4,
+                "graphic",
+                vec![
+                    ("id", self.alloc_id()),
+                    ("GraphicType", "Bracket".to_string()),
+                    ("BracketType", bracket_type.to_string()),
+                    ("color", color_id),
+                    ("BoundingBox", fmt_bbox(bracket_bbox)),
+                    ("LipSize", "60".to_string()),
+                    ("Z", object.z_index.to_string()),
+                ],
+            );
+            return;
+        }
         let left_x = bbox[0];
         let right_x = bbox[2];
         let top = bbox[1];

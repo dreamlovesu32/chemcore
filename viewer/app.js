@@ -222,10 +222,19 @@ const {
 let canvasContextMenuHost = null;
 let canvasContextMenu = null;
 let textSymbolPalette = null;
+const canvasPointerShield = document.createElement("div");
+canvasPointerShield.className = "canvas-pointer-shield";
+document.body.appendChild(canvasPointerShield);
+const canvasDragPreviewSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+canvasDragPreviewSvg.classList.add("canvas-drag-preview-svg");
+canvasPointerShield.appendChild(canvasDragPreviewSvg);
+let activeToolActivationPromise = Promise.resolve();
+let canvasPointerShieldActive = false;
 let resolveAppInitialDocumentReady = null;
 const appInitialDocumentReady = new Promise((resolve) => {
   resolveAppInitialDocumentReady = resolve;
 });
+let lastEditorPointerActivityAt = 0;
 registerChemcoreDebug({
   state,
   getEngineState: () => currentEditorEngineState(),
@@ -552,7 +561,7 @@ function currentDocumentRevision() {
 }
 
 function markCurrentDocumentSaved() {
-  state.savedDocumentJson = currentDocumentSaveFingerprint();
+  state.savedDocumentJson = null;
   state.savedRevision = currentDocumentRevision();
   const tab = activeDocumentTab();
   if (tab) {
@@ -645,9 +654,12 @@ function documentTabIsDirty(tab) {
 }
 
 async function buildOleEditPayloadForTab(tab) {
-  const documentJson = tab?.currentDocument
-    ? `${JSON.stringify(tab.currentDocument, null, 2)}\n`
-    : tab?.editorEngine?.documentJson?.();
+  const rawDocumentJson = await tab?.editorEngine?.documentJson?.();
+  const documentJson = rawDocumentJson
+    ? `${String(rawDocumentJson).trimEnd()}\n`
+    : tab?.currentDocument
+      ? `${JSON.stringify(tab.currentDocument, null, 2)}\n`
+      : null;
   if (!documentJson || !String(documentJson).trim()) {
     return null;
   }
@@ -727,7 +739,6 @@ async function autoSaveAllOleEditDocumentTabs() {
 
 async function handleDocumentCommandCommitted(event) {
   if (event.deferDocumentSync) {
-    scheduleDeferredDocumentSync();
     renderDocumentTabs();
     syncWindowTitle();
     refreshCommandAvailability();
@@ -2457,6 +2468,7 @@ const editorOverlayRenderer = createEditorOverlayRenderer({
   isEditingRustDocument,
   activeDocumentPreviewTransform: () => activeDocumentPreviewTransform,
   activeGestureUsesDocumentPreview,
+  activeGestureUsesObjectEditPreview,
   activeViewBox,
   currentPageBackground: () => state.currentDocument?.document?.page?.background,
   defaultPageBackground: () => CHEMDRAW_PAGE_BACKGROUND,
@@ -2731,6 +2743,14 @@ function renderDocumentChange(result = null) {
     renderDocument();
     return true;
   }
+  if (result.deferDocumentSync && renderDocumentPrimitiveChange(result)) {
+    renderEditorOverlay();
+    return true;
+  }
+  if (renderDocumentObjectPrimitiveChange(result)) {
+    renderEditorOverlay();
+    return true;
+  }
   const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
   const objectIds = objectIdsForCommandResultPatch(result);
   if (!documentLayer) {
@@ -2761,6 +2781,41 @@ function renderDocumentChange(result = null) {
   rebuildDocumentPrimitiveIndex(documentLayer);
   syncViewerStats();
   renderEditorOverlay();
+  positionActiveTextEditor();
+  return true;
+}
+
+function renderDocumentObjectPrimitiveChange(result = null) {
+  const objectIds = targetIdsFromCommandResult(result, "objects");
+  if (!objectIds.size) {
+    return false;
+  }
+  const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
+  if (!documentLayer) {
+    return false;
+  }
+  let patched = false;
+  for (const objectId of objectIds) {
+    const primitives = renderTargetObjectPrimitives(objectId);
+    if (!primitives.length) {
+      continue;
+    }
+    removeDocumentObjectDom(documentLayer, objectId);
+    const group = makeSvgNode("g", {
+      "data-object-id": objectId,
+      "data-renderer": "core-patch",
+    });
+    for (const primitive of primitives) {
+      renderCorePrimitive(group, primitive, corePrimitiveRenderOptions());
+    }
+    documentLayer.appendChild(group);
+    indexDocumentPrimitiveTree(group);
+    patched = true;
+  }
+  if (!patched) {
+    return false;
+  }
+  syncViewerStats();
   positionActiveTextEditor();
   return true;
 }
@@ -3001,11 +3056,45 @@ function syncViewerStats() {
 }
 
 function renderEditorOverlay(renderList = null) {
-  const effectiveRenderList = activeGestureUsesObjectEditPreview() && !renderList
+  const objectEditPreviewActive = activeGestureUsesObjectEditPreview();
+  const effectiveRenderList = objectEditPreviewActive && !renderList
     ? currentEditorInteractionRenderList()
     : renderList;
-  syncObjectEditPreviewHiddenElements(effectiveRenderList || []);
+  syncObjectEditPreviewHiddenElements(objectEditPreviewActive ? effectiveRenderList || [] : []);
   editorOverlayRenderer.renderEditorOverlay(effectiveRenderList);
+}
+
+function syncCanvasDragPreviewViewport() {
+  canvasDragPreviewSvg.style.left = "0";
+  canvasDragPreviewSvg.style.top = "0";
+  canvasDragPreviewSvg.style.width = "100vw";
+  canvasDragPreviewSvg.style.height = "100vh";
+  canvasDragPreviewSvg.setAttribute("viewBox", `0 0 ${window.innerWidth} ${window.innerHeight}`);
+}
+
+function clearCanvasDragPreview() {
+  canvasDragPreviewSvg.replaceChildren();
+  canvasDragPreviewSvg.removeAttribute("viewBox");
+}
+
+function renderCanvasDragPreview(renderList = []) {
+  canvasDragPreviewSvg.replaceChildren();
+  if (!renderList?.length) {
+    return;
+  }
+  syncCanvasDragPreviewViewport();
+  const matrix = viewerSvg.getScreenCTM?.();
+  const target = matrix
+    ? makeSvgNode("g", {
+        transform: `matrix(${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f})`,
+      })
+    : canvasDragPreviewSvg;
+  for (const primitive of renderList) {
+    renderCorePrimitive(target, primitive, corePrimitiveRenderOptions());
+  }
+  if (target !== canvasDragPreviewSvg) {
+    canvasDragPreviewSvg.appendChild(target);
+  }
 }
 const currentSelectionRotateHandle = (...args) => editorOverlayRenderer.currentSelectionRotateHandle(...args);
 const selectionResizeHandleHit = (...args) => editorOverlayRenderer.selectionResizeHandleHit(...args);
@@ -3112,6 +3201,18 @@ const editorPointerController = createEditorPointerController({
   selectClickTarget,
   cursorForShapeAction,
   syncCanvasCursor,
+  awaitPendingToolActivation: () => activeToolActivationPromise,
+  renderDragCapturePreview: renderCanvasDragPreview,
+  clearDragCapturePreview: clearCanvasDragPreview,
+  setCanvasPointerShieldActive: (active) => {
+    const enabled = Boolean(active);
+    canvasPointerShieldActive = enabled;
+    canvasPointerShield.classList.toggle("is-active", enabled);
+    syncViewerSvgPointerEventMode();
+    if (!enabled) {
+      clearCanvasDragPreview();
+    }
+  },
   commandEngine,
   bracketLabelAnchorPoint,
   bracketLabelTextOptions: () => ({
@@ -3127,6 +3228,7 @@ const editorPointerController = createEditorPointerController({
   setActiveTlcSpotHover: (value) => { activeTlcSpotHover = value; },
   setActiveTlcLaneHover: (value) => { activeTlcLaneHover = value; },
   setLastEditFocusPoint: (value) => { state.lastEditFocusPoint = value; },
+  noteEditorPointerActivity: () => { lastEditorPointerActivityAt = performance.now(); },
   activeBracketDragStart: () => state.activeBracketDragStart,
   setActiveBracketDragStart: (value) => { state.activeBracketDragStart = value; },
 });
@@ -3136,7 +3238,8 @@ async function syncDocumentFromEngine(options = {}) {
     return;
   }
   const syncRenderList = options.syncRenderList ?? true;
-  if (!syncRenderList && typeof state.editorEngine.refreshSnapshot === "function") {
+  const refreshSnapshot = options.refreshSnapshot ?? true;
+  if (!syncRenderList && refreshSnapshot && typeof state.editorEngine.refreshSnapshot === "function") {
     await state.editorEngine.refreshSnapshot("documentState");
   }
   const documentData = parseEngineJson(state.editorEngine.documentJson());
@@ -3159,7 +3262,8 @@ function scheduleDeferredDocumentSync() {
   }
   deferredDocumentSyncHandle = window.setTimeout(async () => {
     deferredDocumentSyncHandle = 0;
-    if (activeSelectionGesture) {
+    const recentlyActive = performance.now() - lastEditorPointerActivityAt < 1000;
+    if (activeSelectionGesture || activeTextEditor || recentlyActive) {
       scheduleDeferredDocumentSync();
       return;
     }
@@ -3356,28 +3460,45 @@ function uniformValue(values) {
 }
 
 async function activateEditorTool(nextTool) {
+  const activation = activateEditorToolNow(nextTool);
+  activeToolActivationPromise = activation.catch(() => {});
+  return activation;
+}
+
+async function activateEditorToolNow(nextTool) {
   if (!nextTool) {
     return false;
   }
+  canvasPointerShieldActive = false;
+  canvasPointerShield.classList.remove("is-active");
+  syncViewerSvgPointerEventMode();
+  clearCanvasDragPreview();
   if (editorState.activeTool === nextTool && !editorState.elementPlacementActive) {
     return false;
   }
+  const previousTool = editorState.activeTool;
+  activeSelectionGesture = null;
   editorState.elementPlacementActive = false;
+  editorState.activeTool = nextTool;
+  syncViewerSvgPointerEventMode();
   if (activeTextEditor && nextTool !== "element") {
     await closeActiveTextEditorForToolAction();
   }
-  if (editorState.activeTool === "select" && nextTool !== "select") {
+  if (previousTool === "select" && nextTool !== "select") {
     activeSelectionGesture = null;
     await state.editorEngine?.clearSelection?.();
+    invalidateEditorEngineReadCache();
   }
   if (nextTool !== "bracket") {
     state.activeBracketDragStart = null;
   }
-  editorState.activeTool = nextTool;
+  await state.editorEngine?.clearInteraction?.();
   document.querySelectorAll("[data-tool]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.tool === editorState.activeTool);
   });
   await syncEngineToolState();
+  syncViewerSvgPointerEventMode();
+  invalidateEditorEngineReadCache();
   renderSecondaryToolbar();
   syncCanvasCursor();
   if (isEditingRustDocument()) {
@@ -3474,19 +3595,30 @@ function handleViewerWheel(event) {
   setZoomPercent(nextZoomStep(direction));
 }
 
+function setCanvasCursorStyle(cursor) {
+  const value = cursor || "default";
+  if (viewerSvg) {
+    viewerSvg.style.cursor = value;
+  }
+  if (viewerContainer) {
+    viewerContainer.style.cursor = value;
+  }
+  canvasPointerShield.style.cursor = value;
+}
+
 function syncCanvasCursor() {
   if (!viewerSvg) {
     return;
   }
   if (activeSelectionGesture?.kind === "resize") {
-    viewerSvg.style.cursor = activeSelectionGesture.cursor || "default";
+    setCanvasCursorStyle(activeSelectionGesture.cursor || "default");
     return;
   }
   if (activeSelectionGesture?.kind === "move" || activeSelectionGesture?.kind === "rotate") {
-    viewerSvg.style.cursor = "grabbing";
+    setCanvasCursorStyle("grabbing");
     return;
   }
-  viewerSvg.style.cursor = editorState.elementPlacementActive
+  setCanvasCursorStyle(editorState.elementPlacementActive
     ? elementCursor(editorState.elementSymbol)
     : editorState.activeTool === "text"
     ? "text"
@@ -3496,7 +3628,7 @@ function syncCanvasCursor() {
       ? "default"
     : editorState.activeTool === "arrow"
       ? "crosshair"
-      : "crosshair";
+      : "crosshair");
 }
 
 async function syncSelectCursorForPoint(point) {
@@ -3547,35 +3679,35 @@ async function syncArrowAwareCursorForPoint(point) {
     return;
   }
   if (activeSelectionGesture?.kind === "tlc-spot-drag") {
-    viewerSvg.style.cursor = "grabbing";
+    setCanvasCursorStyle("grabbing");
     return;
   }
   if (activeSelectionGesture?.kind === "move") {
-    viewerSvg.style.cursor = "grabbing";
+    setCanvasCursorStyle("grabbing");
     return;
   }
   if (activeSelectionGesture?.kind === "rotate") {
-    viewerSvg.style.cursor = "grabbing";
+    setCanvasCursorStyle("grabbing");
     return;
   }
   if (activeSelectionGesture?.kind === "resize") {
-    viewerSvg.style.cursor = activeSelectionGesture.cursor || "default";
+    setCanvasCursorStyle(activeSelectionGesture.cursor || "default");
     return;
   }
   if (activeSelectionGesture?.kind === "arrow-endpoint") {
-    viewerSvg.style.cursor = "move";
+    setCanvasCursorStyle("move");
     return;
   }
   if (activeSelectionGesture?.kind === "arrow-curve") {
-    viewerSvg.style.cursor = "nesw-resize";
+    setCanvasCursorStyle("nesw-resize");
     return;
   }
   if (activeSelectionGesture?.kind === "shape-resize") {
-    viewerSvg.style.cursor = activeSelectionGesture.cursor || "nwse-resize";
+    setCanvasCursorStyle(activeSelectionGesture.cursor || "nwse-resize");
     return;
   }
   if ((editorState.activeTool === "select" || editorState.activeTool === "tlc-plate") && activeTlcSpotHover) {
-    viewerSvg.style.cursor = "grab";
+    setCanvasCursorStyle("grab");
     return;
   }
   if (
@@ -3583,35 +3715,35 @@ async function syncArrowAwareCursorForPoint(point) {
     && currentSelectionHitContainsPoint(point)
     && !currentSelectionHandleZoneContainsPoint(point)
   ) {
-    viewerSvg.style.cursor = "grab";
+    setCanvasCursorStyle("grab");
     return;
   }
   if (editorState.activeTool === "select") {
     const resizeHandle = selectionResizeHandleHit(point);
     if (resizeHandle) {
-      viewerSvg.style.cursor = resizeHandle.cursor;
+      setCanvasCursorStyle(resizeHandle.cursor);
       return;
     }
   }
   if (editorState.activeTool === "select" && selectionRotateHandleHit(point)) {
-    viewerSvg.style.cursor = "grab";
+    setCanvasCursorStyle("grab");
     return;
   }
   if (activeToolCanDragSelection() && currentSelectionHitContainsPoint(point)) {
-    viewerSvg.style.cursor = "grab";
+    setCanvasCursorStyle("grab");
     return;
   }
   const arrowAction = await state.editorEngine.hoverArrowAction?.(point.x, point.y) || "";
   if (arrowAction === "head" || arrowAction === "tail") {
-    viewerSvg.style.cursor = "move";
+    setCanvasCursorStyle("move");
     return;
   }
   if (arrowAction === "head-style" || arrowAction === "tail-style") {
-    viewerSvg.style.cursor = "nwse-resize";
+    setCanvasCursorStyle("nwse-resize");
     return;
   }
   if (arrowAction === "curve") {
-    viewerSvg.style.cursor = "nesw-resize";
+    setCanvasCursorStyle("nesw-resize");
     return;
   }
   const overSelection = currentSelectionHitContainsPoint(point);
@@ -3628,33 +3760,34 @@ async function syncArrowAwareCursorForPoint(point) {
     || editorState.activeTool === "templates"
     || editorState.activeTool === "chain")
     && overSelection) {
-    viewerSvg.style.cursor = "grab";
+    setCanvasCursorStyle("grab");
     return;
   }
   if (editorState.activeTool === "select"
+    || editorState.activeTool === "bracket"
     || editorState.activeTool === "shape"
     || editorState.activeTool === "tlc-plate"
     || editorState.activeTool === "orbital") {
     const shapeAction = await state.editorEngine.hoverShapeAction?.(point.x, point.y) || "";
     const shapeCursor = cursorForShapeAction(shapeAction);
     if (shapeCursor) {
-      viewerSvg.style.cursor = shapeCursor;
+      setCanvasCursorStyle(shapeCursor);
       return;
     }
   }
   if (editorState.activeTool === "arrow") {
-    viewerSvg.style.cursor = "crosshair";
+    setCanvasCursorStyle("crosshair");
     return;
   }
   if (editorState.activeTool === "shape" || editorState.activeTool === "tlc-plate" || editorState.activeTool === "orbital") {
-    viewerSvg.style.cursor = "crosshair";
+    setCanvasCursorStyle("crosshair");
     return;
   }
   if (editorState.activeTool === "chain") {
-    viewerSvg.style.cursor = "crosshair";
+    setCanvasCursorStyle("crosshair");
     return;
   }
-  viewerSvg.style.cursor = overSelection ? "grab" : "default";
+  setCanvasCursorStyle(overSelection ? "grab" : "default");
 }
 
 function toolbarBondIconWidths() {
@@ -4011,8 +4144,33 @@ function focusActiveTextEditor() {
 
 async function openTextEditorAt(point, options = {}) {
   await finishActiveTextEditor(true);
-  const sessionJson = await state.editorEngine?.beginTextEdit?.(point.x, point.y);
-  const session = parseEngineJson(sessionJson, null);
+  const session = options.bracketObjectId
+    ? {
+        target: {
+          kind: "text-object",
+          objectId: null,
+          x: point.x,
+          y: point.y,
+        },
+        text: "",
+        sourceRuns: [],
+        fontFamily: "Arial",
+        fontSize: Number(options.fontSize) > 0 ? Number(options.fontSize) : DEFAULT_TEXT_FONT_SIZE,
+        fill: "#000000",
+        align: "left",
+        lineHeight: Number(options.lineHeight) > 0
+          ? Number(options.lineHeight)
+          : DEFAULT_TEXT_FONT_SIZE * 1.2,
+        box: [
+          0,
+          0,
+          cssPxToPt(8),
+          Number(options.lineHeight) > 0 ? Number(options.lineHeight) : DEFAULT_TEXT_FONT_SIZE * 1.2,
+        ],
+        preserveLines: true,
+        defaultChemical: false,
+      }
+    : parseEngineJson(await state.editorEngine?.beginTextEdit?.(point.x, point.y), null);
   if (!session) {
     renderEditorOverlay(currentEditorInteractionRenderList());
     return;
@@ -5142,6 +5300,7 @@ bindEditorControls({
 
 renderSecondaryToolbar();
 syncCanvasCursor();
+syncViewerSvgPointerEventMode();
 bindBrowserBeforeUnloadGuard();
 
 function svgPointFromEvent(event) {
@@ -5182,6 +5341,26 @@ function routeEditorPointerEvents() {
       || editorState.activeTool === "orbital"
       || editorState.activeTool === "templates"
       || editorState.activeTool === "chain");
+}
+
+function activeToolUsesContainerPointerEvents() {
+  return editorState.activeTool === "bond"
+    || editorState.activeTool === "arrow"
+    || editorState.activeTool === "bracket"
+    || editorState.activeTool === "symbol"
+    || editorState.activeTool === "element"
+    || editorState.activeTool === "shape"
+    || editorState.activeTool === "tlc-plate"
+    || editorState.activeTool === "orbital"
+    || editorState.activeTool === "templates"
+    || editorState.activeTool === "chain";
+}
+
+function syncViewerSvgPointerEventMode() {
+  viewerSvg?.classList.toggle(
+    "is-pointer-capture-disabled",
+    canvasPointerShieldActive || activeToolUsesContainerPointerEvents(),
+  );
 }
 
 function isDocumentPreviewPrimitive(primitive) {
@@ -6229,9 +6408,25 @@ function bracketLabelAnchorPoint(start, end) {
   };
 }
 
+function handleViewerContainerPointerEvent(handler) {
+  return (event) => {
+    if (event.target === viewerSvg || viewerSvg?.contains?.(event.target)) {
+      return;
+    }
+    void handler(event);
+  };
+}
+
 viewerSvg?.addEventListener("pointermove", editorPointerController.handleEditorPointerMove);
 viewerSvg?.addEventListener("pointerdown", editorPointerController.handleEditorPointerDown);
 viewerSvg?.addEventListener("pointerup", editorPointerController.handleEditorPointerUp);
+viewerContainer?.addEventListener("pointermove", handleViewerContainerPointerEvent(editorPointerController.handleEditorPointerMove));
+viewerContainer?.addEventListener("pointerdown", handleViewerContainerPointerEvent(editorPointerController.handleEditorPointerDown));
+viewerContainer?.addEventListener("pointerup", handleViewerContainerPointerEvent(editorPointerController.handleEditorPointerUp));
+viewerContainer?.addEventListener("pointercancel", handleViewerContainerPointerEvent(editorPointerController.handleEditorPointerCancel));
+canvasPointerShield.addEventListener("pointermove", editorPointerController.handleEditorPointerMove);
+canvasPointerShield.addEventListener("pointerup", editorPointerController.handleEditorPointerUp);
+canvasPointerShield.addEventListener("pointercancel", editorPointerController.handleEditorPointerCancel);
 viewerSvg?.addEventListener("dblclick", editorPointerController.handleEditorDoubleClick);
 viewerSvg?.addEventListener("pointercancel", async () => {
   await editorPointerController.handleEditorPointerCancel();
@@ -6307,7 +6502,10 @@ function renderDocument() {
     fill: pageBackground,
     "data-layer": "page-background",
   }));
-  const documentLayer = makeSvgNode("g", { "data-layer": "document-content" });
+  const documentLayer = makeSvgNode("g", {
+    "data-layer": "document-content",
+    "pointer-events": "none",
+  });
   viewerSvg.appendChild(documentLayer);
 
   if (!sceneRenderer.renderCorePrimitiveList(documentLayer, documentData)) {

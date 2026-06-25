@@ -93,18 +93,197 @@ async function verifyBondDrawing(browser) {
   await page.mouse.up();
   await page.waitForTimeout(250);
   const result = await page.evaluate(() => {
-    const docText = JSON.stringify(window.__chemcoreDebug.document || {});
+    const command = JSON.parse(window.__chemcoreDebug.state.editorEngine.lastCommandResultJson?.() || "null");
     return {
       previewLeft: !!document.querySelector('[data-role^="preview-"]'),
-      bondWords: (docText.match(/bond/g) || []).length,
+      changed: !!command?.changed,
+      bondTargets: command?.targets?.bonds?.length || command?.created?.bonds?.length || 0,
       hasRenderedBond: /data-bond-id=/.test(document.querySelector("#viewer-svg")?.outerHTML || ""),
     };
   });
   await page.close();
   assert(hadPreview, "Bond drag did not show a preview.");
   assert(!result.previewLeft, "Bond preview remained after pointerup.");
-  assert(result.bondWords >= 2 && result.hasRenderedBond, "Bond drag did not commit a rendered bond.");
+  assert(result.changed && result.bondTargets > 0 && result.hasRenderedBond, "Bond drag did not commit a rendered bond.");
   assert(!errors.length, `Viewer console errors during bond drawing: ${errors.join("\n")}`);
+}
+
+async function verifyCreationDragKeepsCanvasVisibleAfterToolSwitch(browser) {
+  const { page, errors } = await openViewer(browser);
+  const box = await page.locator("#viewer-container").boundingBox();
+  const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+
+  await page.locator('button[data-tool="bond"]').click();
+  await page.mouse.move(center.x - 80, center.y);
+  await page.mouse.down();
+  await page.mouse.move(center.x + 40, center.y, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+
+  const baseline = await page.evaluate(() => ({
+    hasBondDom: !!document.querySelector('[data-layer="document-content"] [data-bond-id]'),
+    documentChildren: document.querySelector('[data-layer="document-content"]')?.childElementCount || 0,
+  }));
+  assert(baseline.hasBondDom && baseline.documentChildren > 0, `Baseline visible document was not rendered: ${JSON.stringify(baseline)}`);
+
+  const cases = [
+    { tool: "arrow", start: [-70, 80], end: [100, 80], expectedObjects: 1 },
+    { tool: "shape", start: [-70, 150], end: [60, 250], expectedObjects: 1 },
+    { tool: "bracket", start: [170, 90], end: [310, 240], expectedObjects: 1, closeText: true },
+  ];
+
+  for (const item of cases) {
+    await page.locator(`button[data-tool="${item.tool}"]`).click();
+    const before = await page.evaluate(() => {
+      const flatten = (objects) => objects.flatMap((object) => [object, ...flatten(object.children || [])]);
+      return {
+        objectCount: flatten(window.__chemcoreDebug.engineState.document.objects || [])
+          .filter((object) => (object.type || object.objectType || object.object_type) !== "molecule")
+          .length,
+        shieldActive: document.querySelector(".canvas-pointer-shield")?.classList.contains("is-active") || false,
+      };
+    });
+    assert(!before.shieldActive, `${item.tool} tool started with pointer shield still active.`);
+
+    const [startDx, startDy] = item.start;
+    const [endDx, endDy] = item.end;
+    await page.mouse.move(center.x + startDx, center.y + startDy);
+    await page.mouse.down();
+    await page.mouse.move(center.x + endDx, center.y + endDy, { steps: 8 });
+
+    const during = await page.evaluate(() => {
+      const layer = document.querySelector('[data-layer="document-content"]');
+      const style = layer ? getComputedStyle(layer) : null;
+      return {
+        visibility: layer?.style.visibility || "",
+        computedVisibility: style?.visibility || "",
+        display: style?.display || "",
+        childCount: layer?.childElementCount || 0,
+        hasBondDom: !!document.querySelector('[data-layer="document-content"] [data-bond-id]'),
+        shieldActive: document.querySelector(".canvas-pointer-shield")?.classList.contains("is-active") || false,
+        previewCount: document.querySelectorAll('[data-layer="editor-overlay"] [data-role^="preview-"], [data-layer="editor-overlay"] [data-object-id], .canvas-drag-preview-svg > *').length,
+      };
+    });
+    assert(during.visibility !== "hidden" && during.computedVisibility !== "hidden", `${item.tool} drag hid the document layer: ${JSON.stringify(during)}`);
+    assert(during.display !== "none" && during.childCount > 0 && during.hasBondDom, `${item.tool} drag blanked the canvas: ${JSON.stringify(during)}`);
+
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+    if (item.closeText) {
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(50);
+    }
+    const after = await page.evaluate(() => {
+      const flatten = (objects) => objects.flatMap((object) => [object, ...flatten(object.children || [])]);
+      const command = JSON.parse(window.__chemcoreDebug.state.editorEngine.lastCommandResultJson?.() || "null");
+      return {
+        changed: !!command?.changed,
+        targets: command?.targets || null,
+        created: command?.created || null,
+        objectCount: flatten(window.__chemcoreDebug.engineState.document.objects || [])
+          .filter((object) => (object.type || object.objectType || object.object_type) !== "molecule")
+          .length,
+        shieldActive: document.querySelector(".canvas-pointer-shield")?.classList.contains("is-active") || false,
+      };
+    });
+    assert(after.changed, `${item.tool} first drag after tool switch did not commit: ${JSON.stringify(after)}`);
+    assert(after.objectCount >= before.objectCount + item.expectedObjects, `${item.tool} first drag after tool switch did not create an object: ${JSON.stringify({ before, after })}`);
+    assert(!after.shieldActive, `${item.tool} pointerup left pointer shield active.`);
+  }
+
+  await page.close();
+  assert(!errors.length, `Viewer console errors during creation visibility regression: ${errors.join("\n")}`);
+}
+
+async function waitForCanvasCursor(page, x, y, expected, label) {
+  await page.mouse.move(x, y);
+  await page.waitForFunction(
+    ({ x: px, y: py, values }) => {
+      const hit = document.elementFromPoint(px, py);
+      const cursors = [
+        hit ? getComputedStyle(hit).cursor : "",
+        getComputedStyle(document.querySelector("#viewer-container")).cursor,
+        getComputedStyle(document.querySelector("#viewer-svg")).cursor,
+        getComputedStyle(document.querySelector(".canvas-pointer-shield")).cursor,
+      ];
+      return cursors.some((cursor) => values.includes(cursor));
+    },
+    { x, y, values: expected },
+    { timeout: 1200 },
+  );
+  const actual = await page.evaluate(({ x: px, y: py }) => {
+    const hit = document.elementFromPoint(px, py);
+    return {
+      hit: hit?.id || hit?.className || hit?.tagName || "",
+      hitCursor: hit ? getComputedStyle(hit).cursor : "",
+      containerCursor: getComputedStyle(document.querySelector("#viewer-container")).cursor,
+      svgCursor: getComputedStyle(document.querySelector("#viewer-svg")).cursor,
+      shieldCursor: getComputedStyle(document.querySelector(".canvas-pointer-shield")).cursor,
+    };
+  }, { x, y });
+  assert(
+    expected.includes(actual.hitCursor)
+      || expected.includes(actual.containerCursor)
+      || expected.includes(actual.svgCursor)
+      || expected.includes(actual.shieldCursor),
+    `${label} cursor did not switch to ${expected.join("/")} at drag point: ${JSON.stringify(actual)}`,
+  );
+  return actual;
+}
+
+async function verifyDragHandleCursors(browser) {
+  const { page, errors } = await openViewer(browser);
+  const box = await page.locator("#viewer-container").boundingBox();
+  const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+
+  await page.locator('button[data-tool="arrow"]').click();
+  await page.waitForFunction(() => getComputedStyle(document.querySelector("#viewer-svg")).pointerEvents === "none");
+  const arrowStart = { x: center.x - 140, y: center.y - 80 };
+  const arrowEnd = { x: center.x + 80, y: center.y - 80 };
+  await page.mouse.move(arrowStart.x, arrowStart.y);
+  await page.mouse.down();
+  await page.mouse.move(arrowEnd.x, arrowEnd.y);
+  await page.mouse.up();
+  await page.waitForTimeout(120);
+  await waitForCanvasCursor(page, arrowEnd.x, arrowEnd.y, ["move"], "Arrow endpoint");
+
+  await page.locator('button[data-tool="shape"]').click();
+  await page.waitForFunction(() => getComputedStyle(document.querySelector("#viewer-svg")).pointerEvents === "none");
+  const shapeStart = { x: center.x - 130, y: center.y + 30 };
+  const shapeEnd = { x: center.x - 20, y: center.y + 140 };
+  await page.mouse.move(shapeStart.x, shapeStart.y);
+  await page.mouse.down();
+  await page.mouse.move(shapeEnd.x, shapeEnd.y);
+  await page.mouse.up();
+  await page.waitForTimeout(120);
+  await waitForCanvasCursor(
+    page,
+    shapeEnd.x,
+    shapeEnd.y,
+    ["nwse-resize", "nesw-resize", "ew-resize", "ns-resize"],
+    "Shape resize handle",
+  );
+
+  await page.locator('button[data-tool="bracket"]').click();
+  await page.waitForFunction(() => getComputedStyle(document.querySelector("#viewer-svg")).pointerEvents === "none");
+  const bracketStart = { x: center.x + 70, y: center.y + 20 };
+  const bracketEnd = { x: center.x + 210, y: center.y + 160 };
+  await page.mouse.move(bracketStart.x, bracketStart.y);
+  await page.mouse.down();
+  await page.mouse.move(bracketEnd.x, bracketEnd.y);
+  await page.mouse.up();
+  await page.waitForTimeout(120);
+  await page.keyboard.press("Escape");
+  await waitForCanvasCursor(
+    page,
+    bracketStart.x,
+    bracketStart.y + 70,
+    ["nwse-resize", "nesw-resize", "ew-resize", "ns-resize"],
+    "Bracket resize handle",
+  );
+
+  await page.close();
+  assert(!errors.length, `Viewer console errors during cursor regression: ${errors.join("\n")}`);
 }
 
 function largeFileTargetFinder() {
@@ -289,6 +468,140 @@ async function verifyLargeDragTarget(page, target, kind) {
   assert(after.gesture === null, `${kind} drag left an active selection gesture behind.`);
 }
 
+async function resetViewerUi(page) {
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.waitForTimeout(30);
+}
+
+async function measureCommitLatency(page, label, action, predicate, predicateArg = null, thresholdMs = 350) {
+  const started = await page.evaluate(() => performance.now());
+  const actionStarted = Date.now();
+  await action();
+  const actionMs = Date.now() - actionStarted;
+  const waitStarted = Date.now();
+  await page.waitForFunction(predicate, predicateArg, { timeout: 1500 });
+  const waitMs = Date.now() - waitStarted;
+  const elapsed = await page.evaluate((start) => performance.now() - start, started);
+  assert(elapsed < thresholdMs, `${label} committed too slowly: ${elapsed.toFixed(1)}ms (action=${actionMs}ms wait=${waitMs}ms)`);
+  return elapsed;
+}
+
+async function verifyLargeFileCommitLatency(page) {
+  const box = await page.locator("#viewer-container").boundingBox();
+  const bracketStart = { x: box.x + box.width - 360, y: box.y + box.height - 330 };
+  const bracketEnd = { x: bracketStart.x + 130, y: bracketStart.y + 120 };
+  await resetViewerUi(page);
+  await page.locator('button[data-tool="bracket"]').click();
+  await page.waitForFunction(() => getComputedStyle(document.querySelector("#viewer-svg")).pointerEvents === "none");
+  await page.evaluate(() => {
+    const engine = window.__chemcoreDebug.state.editorEngine;
+    window.__viewerSmokeEngineTimings = [];
+    for (const name of ["pointerMove", "interactionRenderListJson"]) {
+      const original = engine?.[name];
+      if (typeof original !== "function" || original.__viewerSmokeWrapped) {
+        continue;
+      }
+      const wrapped = function (...args) {
+        const start = performance.now();
+        const result = original.apply(this, args);
+        window.__viewerSmokeEngineTimings.push({
+          name,
+          ms: performance.now() - start,
+        });
+        return result;
+      };
+      wrapped.__viewerSmokeWrapped = true;
+      engine[name] = wrapped;
+    }
+  });
+  const bracketBefore = await page.evaluate(() => ({
+    activeTool: window.__chemcoreDebug.engineState?.tool?.activeTool
+      || window.__chemcoreDebug.engineState?.tool?.active_tool
+      || null,
+    selection: window.__chemcoreDebug.engineState?.selection || null,
+    activeGesture: window.__chemcoreDebug.activeSelectionGesture || null,
+    overlayChildren: document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0,
+    documentChildren: document.querySelector('[data-layer="document-content"]')?.childElementCount || 0,
+    documentPointerEvents: document.querySelector('[data-layer="document-content"]')?.getAttribute("pointer-events") || getComputedStyle(document.querySelector('[data-layer="document-content"]')).pointerEvents,
+    totalSvgElements: document.querySelectorAll("#viewer-svg *").length,
+  }));
+  const bracketMs = await measureCommitLatency(
+    page,
+    "Large CDXML bracket label editor",
+    async () => {
+      let stepStarted = Date.now();
+      await page.mouse.move(bracketStart.x, bracketStart.y);
+      const moveMs = Date.now() - stepStarted;
+      stepStarted = Date.now();
+      await page.mouse.down();
+      const shieldAfterDown = await page.evaluate(() => document.querySelector(".canvas-pointer-shield")?.className || "");
+      const downMs = Date.now() - stepStarted;
+      stepStarted = Date.now();
+      await page.mouse.move(bracketEnd.x, bracketEnd.y);
+      const dragMs = Date.now() - stepStarted;
+      stepStarted = Date.now();
+      await page.mouse.up();
+      const upMs = Date.now() - stepStarted;
+      await page.evaluate((timing) => {
+        window.__viewerSmokeBracketTiming = timing;
+      }, { moveMs, downMs, dragMs, upMs, shieldAfterDown });
+    },
+    () => !!window.__chemcoreDebug.activeTextEditor?.bracketLabelObjectId,
+    null,
+    60000,
+  );
+  const bracketTiming = await page.evaluate(() => window.__viewerSmokeBracketTiming || null);
+  const engineTimings = await page.evaluate(() => window.__viewerSmokeEngineTimings || []);
+  const bracketActiveMs = (bracketTiming?.downMs || 0) + (bracketTiming?.dragMs || 0) + (bracketTiming?.upMs || 0);
+  assert(bracketActiveMs < 1500, `Large CDXML bracket label editor committed too slowly: ${bracketMs.toFixed(1)}ms ${JSON.stringify({ bracketTiming, bracketActiveMs, bracketBefore, engineTimings: engineTimings.slice(-20) })}`);
+
+  await resetViewerUi(page);
+  await page.locator('button[data-tool="symbol"]').click();
+  await page.waitForFunction(() => getComputedStyle(document.querySelector("#viewer-svg")).pointerEvents === "none");
+  const symbolPoint = { x: bracketStart.x - 70, y: bracketStart.y + 35 };
+  const symbolMs = await measureCommitLatency(
+    page,
+    "Large CDXML charge symbol",
+    async () => {
+      await page.mouse.click(symbolPoint.x, symbolPoint.y);
+    },
+    () => {
+      const result = JSON.parse(window.__chemcoreDebug.state.editorEngine.lastCommandResultJson?.() || "null");
+      const objectId = result?.targets?.objects?.[0]
+        || result?.created?.objects?.[0]
+        || result?.updated?.objects?.[0]
+        || "";
+      return result?.changed
+        && objectId.startsWith("obj_symbol")
+        && document.querySelectorAll(`[data-object-id="${CSS.escape(objectId)}"]`).length > 0;
+    },
+  );
+
+  await resetViewerUi(page);
+  await page.locator('button[data-tool="bond"]').click();
+  await page.waitForFunction(() => getComputedStyle(document.querySelector("#viewer-svg")).pointerEvents === "none");
+  const bondStart = { x: bracketStart.x - 160, y: bracketStart.y + 170 };
+  const bondEnd = { x: bondStart.x + 115, y: bondStart.y };
+  const bondMs = await measureCommitLatency(
+    page,
+    "Large CDXML bond hover cleanup",
+    async () => {
+      await page.mouse.move(bondStart.x, bondStart.y);
+      await page.mouse.down();
+      await page.mouse.move(bondEnd.x, bondEnd.y);
+      await page.mouse.up();
+    },
+    () => {
+      const overlay = document.querySelector('[data-layer="editor-overlay"]');
+      return !overlay?.querySelector('[data-role^="preview-"], [data-role^="hover-"]');
+    },
+    null,
+    3000,
+  );
+
+  return { bracketMs, symbolMs, bondMs };
+}
+
 async function verifyLargeFileHoverAndDrag(browser) {
   if (!existsSync(largeCdxml)) {
     console.log(`[viewer-interaction-smoke] skipping large-file hover; missing ${largeCdxml}`);
@@ -315,7 +628,9 @@ async function verifyLargeFileHoverAndDrag(browser) {
 
   await verifyLargeDragTarget(page, targets.label, "Label");
   await verifyLargeDragTarget(page, targets.atom, "Atom");
+  const latency = await verifyLargeFileCommitLatency(page);
   await page.close();
+  console.log(`[viewer-interaction-smoke] large commit latency bracket=${latency.bracketMs.toFixed(1)}ms symbol=${latency.symbolMs.toFixed(1)}ms bond=${latency.bondMs.toFixed(1)}ms`);
   assert(!errors.length, `Viewer console errors during large-file hover: ${errors.join("\n")}`);
 }
 
@@ -328,6 +643,8 @@ try {
     executablePath: existsSync(edgePath) ? edgePath : undefined,
   });
   await verifyBondDrawing(browser);
+  await verifyCreationDragKeepsCanvasVisibleAfterToolSwitch(browser);
+  await verifyDragHandleCursors(browser);
   await verifyLargeFileHoverAndDrag(browser);
   console.log("[viewer-interaction-smoke] ok");
 } finally {

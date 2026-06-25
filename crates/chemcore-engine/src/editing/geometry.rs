@@ -359,13 +359,36 @@ mod tests {
     }
 
     #[test]
-    fn arrow_center_hover_uses_one_style_point_per_arrowhead() {
+    fn arrow_center_hover_uses_both_style_points_for_full_arrowheads() {
         let document = arrow_hover_test_document("none", "none", "full", "full");
         let hover = hit_test_arrow_center(&document, Point::new(50.0, 0.0), 5.0)
             .expect("arrow center should focus");
-        assert_eq!(hover.handles.len(), 5);
-        assert!(hover.handles.contains(&Point::new(85.0, 3.75)));
-        assert!(hover.handles.contains(&Point::new(15.0, -3.75)));
+        assert_eq!(hover.handles.len(), 7);
+        assert!(hover.handles.contains(&Point::new(85.0, 3.8)));
+        assert!(hover.handles.contains(&Point::new(85.0, -3.8)));
+        assert!(hover.handles.contains(&Point::new(15.0, 3.8)));
+        assert!(hover.handles.contains(&Point::new(15.0, -3.8)));
+    }
+
+    #[test]
+    fn arrow_head_style_handles_scale_to_rendered_triangle_vertices() {
+        let mut document = arrow_hover_test_document("none", "none", "full", "none");
+        document.styles.insert(
+            "style_arrow_thin".to_string(),
+            serde_json::json!({
+                "kind": "graphic",
+                "stroke": "#000000",
+                "strokeWidth": 0.6
+            }),
+        );
+        document.objects[0].style_ref = Some("style_arrow_thin".to_string());
+
+        let hover = hit_test_arrow_center(&document, Point::new(50.0, 0.0), 5.0)
+            .expect("arrow center should focus");
+        assert!(hover.handles.contains(&Point::new(91.0, 2.3)));
+        assert!(hover.handles.contains(&Point::new(91.0, -2.3)));
+        assert!(!hover.handles.contains(&Point::new(85.0, 3.8)));
+        assert!(!hover.handles.contains(&Point::new(85.0, -3.8)));
     }
 
     #[test]
@@ -394,8 +417,8 @@ mod tests {
             .expect("curved arrow center should focus near the arc");
         assert_eq!(
             hover.handles.len(),
-            5,
-            "base handles plus one style handle per enabled endpoint"
+            6,
+            "base handles plus each visible endpoint side handle"
         );
     }
 

@@ -509,6 +509,7 @@ export function createEditorOverlayRenderer(options) {
       overlay.setAttribute("transform", previewTransform);
     }
     const previewActive = options.activeGestureUsesDocumentPreview();
+    const objectEditPreviewActive = options.activeGestureUsesObjectEditPreview?.() || false;
     const editorState = options.editorState();
     const activeSelectionGesture = options.activeSelectionGesture();
     const previewMaskActive = previewActive && gestureUsesFullDocumentMask(activeSelectionGesture);
@@ -546,7 +547,7 @@ export function createEditorOverlayRenderer(options) {
         continue;
       }
       if (options.isDocumentPreviewPrimitive(primitive)) {
-        if (previewActive) {
+        if (previewActive || objectEditPreviewActive) {
           renderCorePrimitive(overlay, primitive, options.corePrimitiveRenderOptions());
         }
         continue;

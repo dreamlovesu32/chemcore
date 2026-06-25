@@ -63,9 +63,8 @@ use crate::{
     BondLinePattern, BondLineStyles, BondLineWeight, BondLineWeights, BondPreview, BondStereo,
     BondVariant, ChemcoreDocument, DoubleBond, DoubleBondPlacement, DragState, EditableFragment,
     EditableFragmentMut, EditorOptions, EndpointHit, HoverShape, HoverTextBox, OrbitalPhase,
-    OrbitalStyle, OrbitalTemplate, OverlayState, Point, PointerEvent, RenderPrimitive,
-    RenderRole, SceneObject, SelectionState, ShapeKind, ShapeStyle, Tool, ToolState,
-    BOND_CENTER_FOCUS_WIDTH,
+    OrbitalStyle, OrbitalTemplate, OverlayState, Point, PointerEvent, RenderPrimitive, RenderRole,
+    SceneObject, SelectionState, ShapeKind, ShapeStyle, Tool, ToolState, BOND_CENTER_FOCUS_WIDTH,
     BOND_CENTER_HIT_RADIUS, DRAG_START_THRESHOLD, ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS,
     GLOBAL_SNAP_ANGLES,
 };
@@ -292,6 +291,7 @@ pub struct Engine {
     template_drag: Option<templates::TemplateDrag>,
     shape_drag: Option<ShapeDragState>,
     shape_edit_drag: Option<ShapeEditDragState>,
+    bracket_edit_drag: Option<BracketEditDragState>,
     bracket_drag: Option<BracketDragState>,
     pending_select_target: Option<PendingSelectTarget>,
     pointer_bond_target: Option<String>,
@@ -418,6 +418,23 @@ struct ShapeEditDragState {
     changed: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BracketEditHandle {
+    Top,
+    Bottom,
+}
+
+#[derive(Debug, Clone)]
+struct BracketEditDragState {
+    object_id: String,
+    handle: BracketEditHandle,
+    original_object: SceneObject,
+    start_pointer: Point,
+    has_dragged: bool,
+    undo_pushed: bool,
+    changed: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct BracketDragState {
@@ -479,6 +496,7 @@ impl Engine {
             template_drag: None,
             shape_drag: None,
             shape_edit_drag: None,
+            bracket_edit_drag: None,
             bracket_drag: None,
             pending_select_target: None,
             pointer_bond_target: None,
@@ -889,14 +907,59 @@ impl Engine {
             mark_preview_primitives(&mut primitives);
             primitives.retain(|primitive| render_role_is_preview(render_primitive_role(primitive)));
             primitives
-        } else if self.arrow_edit_drag.is_some() || self.shape_edit_drag.is_some() {
-            render_document(&self.state.document)
+        } else if let Some(object_id) = self.object_edit_preview_object_id() {
+            let object_ids = BTreeSet::from([object_id.to_string()]);
+            render_document_targets(
+                &self.state.document,
+                &BTreeSet::new(),
+                &BTreeSet::new(),
+                &object_ids,
+            )
         } else {
             Vec::new()
         };
-        out.extend(self.selection_render_list());
+        if !self.has_active_creation_drag() {
+            out.extend(self.selection_render_list());
+        }
         self.push_interaction_render_primitives(&mut out);
         out
+    }
+
+    fn has_active_creation_drag(&self) -> bool {
+        self.drag.as_ref().is_some_and(|drag| drag.has_dragged)
+            || self
+                .arrow_drag
+                .as_ref()
+                .is_some_and(|drag| drag.has_dragged)
+            || self.template_drag.is_some()
+            || self
+                .shape_drag
+                .as_ref()
+                .is_some_and(|drag| drag.has_dragged)
+            || self
+                .orbital_drag
+                .as_ref()
+                .is_some_and(|drag| drag.has_dragged)
+            || self
+                .bracket_drag
+                .as_ref()
+                .is_some_and(|drag| drag.has_dragged)
+    }
+
+    fn object_edit_preview_object_id(&self) -> Option<&str> {
+        self.arrow_edit_drag
+            .as_ref()
+            .map(|drag| drag.object_id.as_str())
+            .or_else(|| {
+                self.shape_edit_drag
+                    .as_ref()
+                    .map(|drag| drag.object_id.as_str())
+            })
+            .or_else(|| {
+                self.bracket_edit_drag
+                    .as_ref()
+                    .map(|drag| drag.object_id.as_str())
+            })
     }
 
     pub fn render_list(&self) -> Vec<RenderPrimitive> {
@@ -1381,6 +1444,7 @@ impl Engine {
         self.template_drag = None;
         self.shape_drag = None;
         self.shape_edit_drag = None;
+        self.bracket_edit_drag = None;
         self.bracket_drag = None;
         self.pointer_bond_target = None;
         self.state.overlay = OverlayState::default();
@@ -1649,9 +1713,6 @@ impl Engine {
         if let Some(preview_document) = self.orbital_preview_document() {
             return Some(preview_document);
         }
-        if let Some(preview_document) = self.bracket_preview_document() {
-            return Some(preview_document);
-        }
         if let Some(drag) = self.arrow_drag.as_ref().filter(|drag| drag.has_dragged) {
             let end = drag.end?;
             let mut document = self.state.document.clone();
@@ -1683,10 +1744,13 @@ impl Engine {
     }
 
     fn preview_document_shell(&self) -> ChemcoreDocument {
-        let mut document = self.state.document.clone();
-        document.objects.clear();
-        document.resources.clear();
-        document
+        ChemcoreDocument {
+            format: self.state.document.format.clone(),
+            document: self.state.document.document.clone(),
+            styles: self.state.document.styles.clone(),
+            objects: Vec::new(),
+            resources: BTreeMap::new(),
+        }
     }
 
     fn preview_overlay_document(&self) -> Option<ChemcoreDocument> {
@@ -2461,7 +2525,7 @@ impl Engine {
         for id in self
             .state
             .document
-            .objects
+            .scene_objects()
             .iter()
             .map(|object| object.id.as_str())
         {

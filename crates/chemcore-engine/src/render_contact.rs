@@ -142,7 +142,13 @@ pub(super) fn build_main_bond_contact_kernel_for_nodes<'a>(
     node_map: &BTreeMap<&'a str, &'a Node>,
     node_ids: &BTreeSet<String>,
 ) -> MainBondContactKernel {
-    build_main_bond_contact_kernel_for_node_filter(document, object, bonds, node_map, Some(node_ids))
+    build_main_bond_contact_kernel_for_node_filter(
+        document,
+        object,
+        bonds,
+        node_map,
+        Some(node_ids),
+    )
 }
 
 fn build_main_bond_contact_kernel_for_node_filter<'a>(

@@ -90,6 +90,7 @@ class TauriEngineSession {
     };
     this.exportDirty = true;
     this.operation = Promise.resolve();
+    this.nativeBackgroundOperation = Promise.resolve();
     this.pendingSelectionMoveBegin = null;
     this.localSelectionMoveActive = false;
     this.pendingArrowEditBegin = null;
@@ -125,6 +126,7 @@ class TauriEngineSession {
     const dirtyExports = options.dirtyExports ?? (refresh === "all" || refresh === "document");
     const run = async () => {
       await this.ready();
+      await this.nativeBackgroundOperation.catch(() => {});
       const result = await this.invoke(command, { sessionId: this.sessionId, ...args });
       if (dirtyExports) {
         this.markExportsDirty();
@@ -185,7 +187,31 @@ class TauriEngineSession {
   }
 
   runNativeMutationInBackground(command, args = {}, options = {}) {
-    void this.invokeMutation(command, args, options).catch((error) => {
+    const refresh = options.refresh ?? "document";
+    const dirtyExports = options.dirtyExports ?? (refresh === "all" || refresh === "document" || refresh === "documentState");
+    const run = async () => {
+      await this.ready();
+      const result = await this.invoke(command, { sessionId: this.sessionId, ...args });
+      if (dirtyExports) {
+        this.markExportsDirty();
+      }
+      if (!this.layoutEngine) {
+        if (refresh === "all" || refresh === "document") {
+          await this.refreshSnapshot("document");
+        } else if (refresh === "documentState") {
+          await this.refreshSnapshot("documentState");
+        } else if (refresh === "selection") {
+          await this.refreshSnapshot("selection");
+        } else if (refresh === "interaction") {
+          await this.refreshSnapshot("interaction");
+        } else if (refresh === "state") {
+          await this.refreshSnapshot("state");
+        }
+      }
+      return result;
+    };
+    this.nativeBackgroundOperation = this.nativeBackgroundOperation.catch(() => {}).then(run);
+    void this.nativeBackgroundOperation.catch((error) => {
       console.warn("[chemcore] background native mutation failed", command, error);
     });
   }
@@ -278,6 +304,7 @@ class TauriEngineSession {
       return this;
     }
     await this.ready();
+    await this.nativeBackgroundOperation.catch(() => {});
     const [documentCdxml, documentSvg] = await Promise.all([
       this.invoke("desktop_engine_document_cdxml", { sessionId: this.sessionId }),
       this.invoke("desktop_engine_document_svg", { sessionId: this.sessionId }),
@@ -320,6 +347,9 @@ class TauriEngineSession {
   }
 
   documentJson() {
+    if (this.layoutEngine?.documentJson) {
+      return this.layoutEngine.documentJson();
+    }
     return this.cache.documentJson || "";
   }
 
@@ -359,6 +389,9 @@ class TauriEngineSession {
   }
 
   async documentCdxml() {
+    if (this.layoutEngine?.documentCdxml) {
+      return this.layoutEngine.documentCdxml();
+    }
     await this.refreshExports();
     return this.cache.documentCdxml || "";
   }
@@ -371,11 +404,17 @@ class TauriEngineSession {
   }
 
   async documentSdf() {
+    if (this.layoutEngine?.documentSdf) {
+      return this.layoutEngine.documentSdf();
+    }
     await this.ready();
     return this.invoke("desktop_engine_document_sdf", { sessionId: this.sessionId });
   }
 
   async documentSvg() {
+    if (this.layoutEngine?.documentSvg) {
+      return this.layoutEngine.documentSvg();
+    }
     await this.refreshExports();
     return this.cache.documentSvg || "";
   }
@@ -388,6 +427,13 @@ class TauriEngineSession {
     this.activeTool = activeTool;
     if (this.layoutEngine?.setTool) {
       this.layoutEngine.setTool(activeTool, bondVariant);
+      this.syncCacheFromLayout({ interaction: true });
+      this.runNativeMutationInBackground(
+        "desktop_engine_set_tool",
+        { activeTool, bondVariant },
+        { refresh: "state", dirtyExports: false },
+      );
+      return undefined;
     }
     return this.invokeMutation("desktop_engine_set_tool", { activeTool, bondVariant }, { refresh: "state", dirtyExports: false });
   }
@@ -395,6 +441,13 @@ class TauriEngineSession {
   setShapeOptions(kind, style, color) {
     if (this.layoutEngine?.setShapeOptions) {
       this.layoutEngine.setShapeOptions(kind, style, color);
+      this.syncCacheFromLayout({ interaction: true });
+      this.runNativeMutationInBackground(
+        "desktop_engine_set_shape_options",
+        { kind, style, color },
+        { refresh: "state", dirtyExports: false },
+      );
+      return undefined;
     }
     return this.invokeMutation("desktop_engine_set_shape_options", { kind, style, color }, { refresh: "state", dirtyExports: false });
   }
@@ -402,6 +455,13 @@ class TauriEngineSession {
   setOrbitalOptions(template, style, phase, color) {
     if (this.layoutEngine?.setOrbitalOptions) {
       this.layoutEngine.setOrbitalOptions(template, style, phase, color);
+      this.syncCacheFromLayout({ interaction: true });
+      this.runNativeMutationInBackground(
+        "desktop_engine_set_orbital_options",
+        { template, style, phase, color },
+        { refresh: "state", dirtyExports: false },
+      );
+      return undefined;
     }
     return this.invokeMutation("desktop_engine_set_orbital_options", {
       template,
@@ -414,6 +474,13 @@ class TauriEngineSession {
   setTemplate(template) {
     if (this.layoutEngine?.setTemplate) {
       this.layoutEngine.setTemplate(template);
+      this.syncCacheFromLayout({ interaction: true });
+      this.runNativeMutationInBackground(
+        "desktop_engine_set_template",
+        { template },
+        { refresh: "state", dirtyExports: false },
+      );
+      return undefined;
     }
     return this.invokeMutation("desktop_engine_set_template", { template }, { refresh: "state", dirtyExports: false });
   }
@@ -421,6 +488,13 @@ class TauriEngineSession {
   setBracketOptions(kind) {
     if (this.layoutEngine?.setBracketOptions) {
       this.layoutEngine.setBracketOptions(kind);
+      this.syncCacheFromLayout({ interaction: true });
+      this.runNativeMutationInBackground(
+        "desktop_engine_set_bracket_options",
+        { kind },
+        { refresh: "state", dirtyExports: false },
+      );
+      return undefined;
     }
     return this.invokeMutation("desktop_engine_set_bracket_options", { kind }, { refresh: "state", dirtyExports: false });
   }
@@ -428,6 +502,13 @@ class TauriEngineSession {
   setSymbolOptions(kind) {
     if (this.layoutEngine?.setSymbolOptions) {
       this.layoutEngine.setSymbolOptions(kind);
+      this.syncCacheFromLayout({ interaction: true });
+      this.runNativeMutationInBackground(
+        "desktop_engine_set_symbol_options",
+        { kind },
+        { refresh: "state", dirtyExports: false },
+      );
+      return undefined;
     }
     return this.invokeMutation("desktop_engine_set_symbol_options", { kind }, { refresh: "state", dirtyExports: false });
   }
@@ -435,6 +516,13 @@ class TauriEngineSession {
   setElementOptions(symbol, atomicNumber) {
     if (this.layoutEngine?.setElementOptions) {
       this.layoutEngine.setElementOptions(symbol, atomicNumber);
+      this.syncCacheFromLayout({ interaction: true });
+      this.runNativeMutationInBackground(
+        "desktop_engine_set_element_options",
+        { symbol, atomicNumber },
+        { refresh: "state", dirtyExports: false },
+      );
+      return undefined;
     }
     return this.invokeMutation(
       "desktop_engine_set_element_options",
@@ -535,6 +623,13 @@ class TauriEngineSession {
   setArrowOptions(variant, headSize, head, tail, bold) {
     if (this.layoutEngine?.setArrowOptions) {
       this.layoutEngine.setArrowOptions(variant, headSize, head, tail, bold);
+      this.syncCacheFromLayout({ interaction: true });
+      this.runNativeMutationInBackground(
+        "desktop_engine_set_arrow_options",
+        { variant, headSize, head, tail, bold },
+        { refresh: "state", dirtyExports: false },
+      );
+      return undefined;
     }
     return this.invokeMutation("desktop_engine_set_arrow_options", {
       variant,
@@ -548,6 +643,13 @@ class TauriEngineSession {
   setArrowEndpointOptions(variant, headSize, curve, headStyle, tailStyle, noGo, bold) {
     if (this.layoutEngine?.setArrowEndpointOptions) {
       this.layoutEngine.setArrowEndpointOptions(variant, headSize, curve, headStyle, tailStyle, noGo, bold);
+      this.syncCacheFromLayout({ interaction: true });
+      this.runNativeMutationInBackground(
+        "desktop_engine_set_arrow_endpoint_options",
+        { variant, headSize, curve, headStyle, tailStyle, noGo, bold },
+        { refresh: "state", dirtyExports: false },
+      );
+      return undefined;
     }
     return this.invokeMutation("desktop_engine_set_arrow_endpoint_options", {
       variant,
@@ -669,6 +771,9 @@ class TauriEngineSession {
   }
 
   hoverArrowAction(x, y) {
+    if (this.layoutEngine?.hoverArrowAction) {
+      return this.layoutEngine.hoverArrowAction(x, y);
+    }
     return this.invoke("desktop_engine_hover_arrow_action", { sessionId: this.sessionId, x, y });
   }
 
@@ -699,6 +804,10 @@ class TauriEngineSession {
   finishHoverArrowEdit(x, y, altKey) {
     if (this.layoutEngine?.finishHoverArrowEdit) {
       const changed = this.layoutEngine.finishHoverArrowEdit(x, y, altKey);
+      if (changed) {
+        this.markExportsDirty();
+        this.syncCacheFromLayout({ document: true, interaction: true });
+      }
       const pendingBegin = this.pendingArrowEditBegin;
       this.pendingArrowEditBegin = null;
       const finish = async () => {
@@ -706,11 +815,15 @@ class TauriEngineSession {
           await pendingBegin.catch(() => false);
         }
         try {
-          return await this.invokeMutation(
+          const nativeChanged = await this.invokeMutation(
             "desktop_engine_finish_hover_arrow_edit",
             { x, y, altKey },
             { refresh: "interaction", dirtyExports: false },
           );
+          if (changed) {
+            this.syncCacheFromLayout({ document: true, interaction: true });
+          }
+          return Boolean(nativeChanged || changed);
         } finally {
           this.localArrowEditActive = false;
         }

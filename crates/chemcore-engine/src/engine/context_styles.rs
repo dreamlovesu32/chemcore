@@ -249,14 +249,8 @@ impl Engine {
         if selected.is_empty() {
             return false;
         }
-        let ids = self
-            .state
-            .document
-            .scene_objects()
-            .into_iter()
-            .filter(|object| selected.contains(&object.id) && object.object_type == "bracket")
-            .map(|object| object.id.clone())
-            .collect::<Vec<_>>();
+        let mut ids = Vec::new();
+        collect_selected_bracket_kind_target_ids(&self.state.document.objects, &selected, &mut ids);
         if ids.is_empty() {
             return false;
         }
@@ -1138,6 +1132,34 @@ fn normalize_text_style_command(command: &str) -> String {
         _ => "bold",
     }
     .to_string()
+}
+
+fn collect_selected_bracket_kind_target_ids(
+    objects: &[SceneObject],
+    selected: &BTreeSet<String>,
+    out: &mut Vec<String>,
+) {
+    for object in objects {
+        if selected.contains(&object.id) {
+            if object.object_type == "bracket" {
+                out.push(object.id.clone());
+            } else if object.object_type == "group"
+                && object.meta.get("kind").and_then(JsonValue::as_str) == Some("bracket-group")
+            {
+                collect_child_bracket_ids(object, out);
+            }
+        }
+        collect_selected_bracket_kind_target_ids(&object.children, selected, out);
+    }
+}
+
+fn collect_child_bracket_ids(object: &SceneObject, out: &mut Vec<String>) {
+    for child in &object.children {
+        if child.object_type == "bracket" {
+            out.push(child.id.clone());
+        }
+        collect_child_bracket_ids(child, out);
+    }
 }
 
 fn selected_object_style_color(document: &ChemcoreDocument, object: &SceneObject) -> String {

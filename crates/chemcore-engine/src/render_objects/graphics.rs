@@ -532,7 +532,17 @@ pub(crate) fn render_bracket_object(
     let rotate = object.transform.rotate;
     let rotate_center = Point::new(tx + width * 0.5, ty + height * 0.5);
     let kind = payload_string(&object.payload, "kind").unwrap_or_else(|| "round".to_string());
-    let bounds = bracket_path_bounds(tx, ty, width, height, &kind, rotate_center, rotate);
+    let side = payload_string(&object.payload, "side");
+    let bounds = bracket_path_bounds(
+        tx,
+        ty,
+        width,
+        height,
+        &kind,
+        side.as_deref(),
+        rotate_center,
+        rotate,
+    );
     let transform_center = (rotate.abs() > crate::EPSILON).then_some(rotate_center);
     if object.object_type == "symbol" {
         let symbol_layout_scale = cdxml_editing_scale(document).unwrap_or(1.0);
@@ -556,7 +566,7 @@ pub(crate) fn render_bracket_object(
         role: RenderRole::DocumentGraphic,
         object_id: Some(object.id.clone()),
         bond_id: None,
-        d: bracket_pair_path_d(tx, ty, width, height, &kind),
+        d: bracket_path_d(tx, ty, width, height, &kind, side.as_deref()),
         points: bounds,
         stroke: payload_string(&object.payload, "stroke").unwrap_or_else(|| "#000000".to_string()),
         stroke_width: payload_number(&object.payload, "strokeWidth").unwrap_or(px_to_pt(1.0)),
@@ -566,6 +576,20 @@ pub(crate) fn render_bracket_object(
         rotate,
         rotate_center: transform_center,
     });
+}
+
+fn bracket_path_d(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    kind: &str,
+    side: Option<&str>,
+) -> String {
+    if let Some(side) = side {
+        return bracket_side_path_d(x, y, width, height, kind, side);
+    }
+    bracket_pair_path_d(x, y, width, height, kind)
 }
 
 fn bracket_pair_path_d(x: f64, y: f64, width: f64, height: f64, kind: &str) -> String {
@@ -655,15 +679,118 @@ fn bracket_pair_path_d(x: f64, y: f64, width: f64, height: f64, kind: &str) -> S
     }
 }
 
+fn bracket_side_path_d(x: f64, y: f64, width: f64, height: f64, kind: &str, side: &str) -> String {
+    let right = x + width;
+    let bottom = y + height;
+    let side = if side == "right" { "right" } else { "left" };
+    match kind {
+        "square" => {
+            if side == "right" {
+                format!(
+                    "M {},{} L {},{} L {},{} L {},{}",
+                    x, y, right, y, right, bottom, x, bottom
+                )
+            } else {
+                format!(
+                    "M {},{} L {},{} L {},{} L {},{}",
+                    right, y, x, y, x, bottom, right, bottom
+                )
+            }
+        }
+        "curly" => {
+            let depth = width.max(0.0);
+            let half_depth = depth * 0.5;
+            let middle = y + height * 0.5;
+            let c_large = height * 0.039805;
+            let c_small = height * 0.032308;
+            let top_inner = y + half_depth;
+            let bottom_inner = bottom - half_depth;
+            if side == "right" {
+                let re = x;
+                let rm = x + half_depth;
+                format!(
+                    concat!(
+                        "M {re},{bottom} ",
+                        "C {re_c},{bottom} {rm},{b_cs} {rm},{bi} ",
+                        "C {rm},{bi} {rm},{mbi} {rm},{mbi} ",
+                        "C {rm},{mbi_c} {rm_c},{middle} {right},{middle} ",
+                        "C {rm_c},{middle} {rm},{mti_c} {rm},{mti} ",
+                        "C {rm},{mti} {rm},{y_cs} {re_c},{y} ",
+                        "C {re},{y} {re},{y} {re},{y}"
+                    ),
+                    re = re,
+                    re_c = re + c_large,
+                    rm = rm,
+                    rm_c = rm + c_small,
+                    right = right,
+                    y = y,
+                    bottom = bottom,
+                    middle = middle,
+                    y_cs = y + c_small,
+                    b_cs = bottom - c_small,
+                    bi = bottom_inner,
+                    mti = middle - half_depth,
+                    mbi = middle + half_depth,
+                    mti_c = middle - half_depth + c_large,
+                    mbi_c = middle + half_depth - c_large,
+                )
+            } else {
+                let le = right;
+                let lm = x + half_depth;
+                format!(
+                    concat!(
+                        "M {le},{y} ",
+                        "C {le_c},{y} {lm},{y_cs} {lm},{ti} ",
+                        "C {lm},{ti} {lm},{mti} {lm},{mti} ",
+                        "C {lm},{mti_c} {lm_c},{middle} {x},{middle} ",
+                        "C {lm_c},{middle} {lm},{mbi_c} {lm},{mbi} ",
+                        "C {lm},{mbi} {lm},{b_cs} {le_c},{bottom} ",
+                        "C {le},{bottom} {le},{bottom} {le},{bottom}"
+                    ),
+                    le = le,
+                    le_c = le - c_large,
+                    lm = lm,
+                    lm_c = lm - c_small,
+                    x = x,
+                    y = y,
+                    bottom = bottom,
+                    middle = middle,
+                    y_cs = y + c_small,
+                    b_cs = bottom - c_small,
+                    ti = top_inner,
+                    mti = middle - half_depth,
+                    mbi = middle + half_depth,
+                    mti_c = middle - half_depth + c_large,
+                    mbi_c = middle + half_depth - c_large,
+                )
+            }
+        }
+        _ => {
+            if side == "right" {
+                format!("M {},{} A {height},{height} 0 0 0 {},{}", x, bottom, x, y)
+            } else {
+                format!(
+                    "M {},{} A {height},{height} 0 0 0 {},{}",
+                    right, y, right, bottom
+                )
+            }
+        }
+    }
+}
+
 fn bracket_path_bounds(
     x: f64,
     y: f64,
     width: f64,
     height: f64,
     kind: &str,
+    side: Option<&str>,
     rotate_center: Point,
     rotate: f64,
 ) -> Vec<Point> {
+    if side.is_some() {
+        return rotated_rect_points_around(x, y, width, height, rotate_center, rotate);
+    }
     if kind == "round" {
         let depth = round_bracket_depth(width, height);
         return rotated_rect_points_around(

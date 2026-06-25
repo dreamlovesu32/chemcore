@@ -287,7 +287,7 @@ pub(super) fn scene_object_selection_bounds(
     if object.object_type == "line" {
         return line_object_visual_bounds(document, object)
             .map(AxisBounds::from_array)
-            .or_else(|| arrow_object_selection_bounds(object))
+            .or_else(|| arrow_object_selection_bounds(document, object))
             .or_else(|| object_bbox_selection_bounds(object));
     }
     if matches!(object.object_type.as_str(), "bracket" | "symbol") {
@@ -295,7 +295,7 @@ pub(super) fn scene_object_selection_bounds(
             .map(AxisBounds::from_array)
             .or_else(|| object_bbox_selection_bounds(object));
     }
-    arrow_object_selection_bounds(object)
+    arrow_object_selection_bounds(document, object)
 }
 
 fn group_object_selection_bounds(
@@ -348,12 +348,16 @@ fn molecule_fragment_selection_bounds(
         })
 }
 
-pub(super) fn arrow_object_selection_bounds(object: &crate::SceneObject) -> Option<AxisBounds> {
+pub(super) fn arrow_object_selection_bounds(
+    document: &crate::ChemcoreDocument,
+    object: &crate::SceneObject,
+) -> Option<AxisBounds> {
     let points = line_object_points(object);
     if points.len() < 2 {
         return None;
     }
-    let mut handles = arrow_object_handle_points(object, &points).into_iter();
+    let stroke_width = line_object_graphic_stroke_width(document, object);
+    let mut handles = arrow_object_handle_points(object, &points, stroke_width).into_iter();
     let first = handles.next()?;
     let mut bounds = AxisBounds::around_point(first, 0.0);
     for handle in handles {
@@ -691,7 +695,11 @@ fn collect_bracket_object_ids_containing_points(
         if !object.visible {
             continue;
         }
-        if object.object_type == "bracket" {
+        if object.object_type == "bracket"
+            || (object.object_type == "group"
+                && object.meta.get("kind").and_then(serde_json::Value::as_str)
+                    == Some("bracket-group"))
+        {
             if let Some(bounds) = object_bbox_selection_bounds(object) {
                 if sample_points
                     .iter()

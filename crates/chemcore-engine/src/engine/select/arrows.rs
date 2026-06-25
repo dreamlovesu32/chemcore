@@ -188,6 +188,12 @@ pub(super) fn update_arrow_object_head_dimensions(
     point: Point,
     tail: bool,
 ) -> bool {
+    let stroke_width = engine
+        .state
+        .document
+        .find_scene_object(object_id)
+        .map(|object| line_object_graphic_stroke_width(&engine.state.document, object))
+        .unwrap_or(crate::DEFAULT_BOND_STROKE);
     let Some(object) = engine
         .state
         .document
@@ -206,8 +212,21 @@ pub(super) fn update_arrow_object_head_dimensions(
     let uy = (tip.y - pivot.y) / axis_length;
     let vx = tip.x - point.x;
     let vy = tip.y - point.y;
-    let length = (vx * ux + vy * uy).clamp(2.0, axis_length * 0.75);
-    let width = (vx * -uy + vy * ux).abs().clamp(0.5, length);
+    let visual_length = (vx * ux + vy * uy).clamp(2.0, axis_length * 0.75);
+    let visual_width = (vx * -uy + vy * ux).abs().clamp(0.5, visual_length);
+    let endpoint_style = line_object_endpoint_style(
+        object,
+        if tail { "tail" } else { "head" },
+        if tail { "start" } else { "end" },
+    );
+    let payload_visual_width = if endpoint_style == ArrowEndpointStyle::Full {
+        (visual_width - 0.05).max(0.5)
+    } else {
+        visual_width
+    };
+    let scale = stroke_width.max(crate::EPSILON);
+    let length = visual_length / scale;
+    let width = payload_visual_width / scale;
 
     let mut arrow_head = object
         .payload

@@ -57,6 +57,7 @@ pub fn refresh_repeating_units(document: &mut ChemcoreDocument) -> bool {
         }
         if object.object_type == "group" {
             changed |= set_meta_object_field(&mut object.meta, "repeatUnitId", None);
+            changed |= set_meta_object_field(&mut object.meta, "repeatUnitRole", None);
             changed |= set_meta_object_field(&mut object.meta, "repeatUnitGroup", None);
             changed |= set_meta_object_field(&mut object.meta, "repeatUnitBracketObjectId", None);
             changed |= set_meta_object_field(&mut object.meta, "repeatUnitCountTextObjectId", None);
@@ -143,12 +144,12 @@ fn bracket_candidates(document: &ChemcoreDocument) -> Vec<BracketCandidate> {
     document
         .scene_objects()
         .into_iter()
-        .filter(|object| object.object_type == "bracket" && object.visible)
+        .filter(|object| scene_object_is_bracket_candidate(object) && object.visible)
         .filter_map(|object| {
             let bounds = object_world_bounds(object)?;
             Some(BracketCandidate {
                 object_id: object.id.clone(),
-                kind: payload_string(object, "kind").unwrap_or_else(|| "round".to_string()),
+                kind: bracket_candidate_kind(object),
                 repeat_count: object
                     .meta
                     .get("repeatCount")
@@ -159,6 +160,24 @@ fn bracket_candidates(document: &ChemcoreDocument) -> Vec<BracketCandidate> {
             })
         })
         .collect()
+}
+
+fn scene_object_is_bracket_candidate(object: &SceneObject) -> bool {
+    object.object_type == "bracket"
+        || (object.object_type == "group"
+            && object.meta.get("kind").and_then(Value::as_str) == Some("bracket-group"))
+}
+
+fn bracket_candidate_kind(object: &SceneObject) -> String {
+    payload_string(object, "kind")
+        .or_else(|| {
+            object
+                .children
+                .iter()
+                .find(|child| child.object_type == "bracket")
+                .and_then(|child| payload_string(child, "kind"))
+        })
+        .unwrap_or_else(|| "round".to_string())
 }
 
 fn text_count_candidates(document: &ChemcoreDocument) -> Vec<RepeatCountCandidate> {

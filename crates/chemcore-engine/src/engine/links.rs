@@ -76,7 +76,7 @@ impl Engine {
     ) -> bool {
         let mut changed = false;
         if let Some(bracket) = self.state.document.find_scene_object_mut(bracket_id) {
-            if bracket.object_type == "bracket" {
+            if scene_object_is_bracket_like(bracket) {
                 changed |= set_meta_object_field(
                     &mut bracket.meta,
                     "linkedTextObjectId",
@@ -108,7 +108,7 @@ impl Engine {
     ) -> bool {
         let mut changed = false;
         if let Some(bracket) = self.state.document.find_scene_object_mut(bracket_id) {
-            if bracket.object_type == "bracket" {
+            if scene_object_is_bracket_like(bracket) {
                 changed |= set_meta_object_field(&mut bracket.meta, "linkedTextObjectId", None);
                 changed |=
                     set_meta_object_field(&mut bracket.meta, "bracketLabelTextObjectId", None);
@@ -165,7 +165,7 @@ fn selected_bracket_text_pair(
     let text_id = selection.text_objects[0].clone();
     let bracket = document.find_scene_object(&bracket_id)?;
     let text = document.find_scene_object(&text_id)?;
-    (bracket.object_type == "bracket" && text.object_type == "text").then_some(
+    (scene_object_is_bracket_like(bracket) && text.object_type == "text").then_some(
         SelectedBracketTextPair {
             bracket_id,
             text_id,
@@ -185,6 +185,12 @@ fn objects_are_linked(document: &ChemcoreDocument, bracket_id: &str, text_id: &s
         .and_then(Value::as_str)
         == Some(bracket_id);
     bracket_matches || text_matches
+}
+
+fn scene_object_is_bracket_like(object: &SceneObject) -> bool {
+    object.object_type == "bracket"
+        || (object.object_type == "group"
+            && object.meta.get("kind").and_then(Value::as_str) == Some("bracket-group"))
 }
 
 fn imported_repeat_unit_label_pairs(document: &ChemcoreDocument) -> Vec<(String, String)> {

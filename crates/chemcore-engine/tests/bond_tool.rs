@@ -1226,6 +1226,118 @@ fn arrow_hover_curve_drag_updates_curve_with_snap_and_selected_arrows_do_not_hov
 }
 
 #[test]
+fn arrow_curve_drag_interaction_preview_only_renders_edited_arrow() {
+    let mut engine = Engine::new();
+    let document = json!({
+        "format": { "name": "chemcore", "version": "0.1", "unit": "pt" },
+        "document": {
+            "id": "doc_arrow_preview",
+            "title": "arrow preview",
+            "page": { "width": 200.0, "height": 120.0, "background": "#ffffff" }
+        },
+        "styles": {},
+        "objects": [
+            {
+                "id": "obj_arrow",
+                "type": "line",
+                "visible": true,
+                "zIndex": 10,
+                "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": {
+                    "points": [[0.0, 0.0], [100.0, 0.0]],
+                    "head": "end",
+                    "tail": "none",
+                    "arrowHead": {
+                        "kind": "solid",
+                        "head": "full",
+                        "tail": "none",
+                        "length": 15.0,
+                        "width": 3.75,
+                        "curve": 0.0
+                    }
+                }
+            },
+            {
+                "id": "obj_other",
+                "type": "line",
+                "visible": true,
+                "zIndex": 10,
+                "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": {
+                    "points": [[0.0, 60.0], [100.0, 60.0]],
+                    "head": "end",
+                    "tail": "none",
+                    "arrowHead": {
+                        "kind": "solid",
+                        "head": "full",
+                        "tail": "none",
+                        "length": 15.0,
+                        "width": 3.75,
+                        "curve": 0.0
+                    }
+                }
+            }
+        ],
+        "resources": {}
+    });
+    engine
+        .load_document_json(&document.to_string())
+        .expect("document should load");
+
+    assert_eq!(
+        engine.begin_hover_arrow_edit(Point::new(50.0, 0.0)),
+        "curve"
+    );
+    assert!(engine.update_hover_arrow_edit(Point::new(50.0, -30.0), false));
+
+    let preview_object_ids: BTreeMap<String, usize> = engine
+        .interaction_render_list()
+        .into_iter()
+        .filter(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Line {
+                    role: RenderRole::DocumentGraphic,
+                    ..
+                } | RenderPrimitive::Path {
+                    role: RenderRole::DocumentGraphic,
+                    ..
+                } | RenderPrimitive::FilledPath {
+                    role: RenderRole::DocumentGraphic,
+                    ..
+                } | RenderPrimitive::Polygon {
+                    role: RenderRole::DocumentGraphic,
+                    ..
+                } | RenderPrimitive::Rect {
+                    role: RenderRole::DocumentGraphic,
+                    ..
+                } | RenderPrimitive::Ellipse {
+                    role: RenderRole::DocumentGraphic,
+                    ..
+                } | RenderPrimitive::Polyline {
+                    role: RenderRole::DocumentGraphic,
+                    ..
+                }
+            )
+        })
+        .filter_map(|primitive| primitive_object_id(&primitive).map(str::to_string))
+        .fold(BTreeMap::new(), |mut counts, object_id| {
+            *counts.entry(object_id).or_default() += 1;
+            counts
+        });
+
+    assert!(
+        preview_object_ids.contains_key("obj_arrow"),
+        "edited arrow should be rendered as the live preview: {preview_object_ids:?}"
+    );
+    assert_eq!(
+        preview_object_ids.get("obj_other"),
+        None,
+        "unrelated objects must stay out of the edit preview so they are not hidden: {preview_object_ids:?}"
+    );
+}
+
+#[test]
 fn hollow_arrow_center_drag_curves_with_snap_and_smooth_rendering() {
     let mut engine = Engine::new();
     engine.set_tool_state(ToolState {
@@ -9495,22 +9607,33 @@ fn bracket_tool_drag_creates_bracket_object() {
         Point::new(180.0, 220.0),
     );
 
-    let bracket = engine
+    let bracket_group = engine
         .state()
         .document
         .objects
         .iter()
-        .find(|object| object.object_type == "bracket")
-        .expect("dragging bracket tool should create bracket object");
+        .find(|object| object.object_type == "group")
+        .expect("dragging bracket tool should create bracket group");
     assert_eq!(
-        bracket
-            .payload
-            .extra
+        bracket_group
+            .meta
             .get("kind")
             .and_then(|value| value.as_str()),
-        Some("square")
+        Some("bracket-group")
     );
-    assert_eq!(bracket.payload.bbox, Some([0.0, 0.0, 60.0, 90.0]));
+    assert_eq!(bracket_group.payload.bbox, Some([120.0, 130.0, 60.0, 90.0]));
+    let sides: Vec<_> = bracket_group
+        .children
+        .iter()
+        .filter(|object| object.object_type == "bracket")
+        .collect();
+    assert_eq!(sides.len(), 2);
+    assert!(sides.iter().all(|side| side
+        .payload
+        .extra
+        .get("kind")
+        .and_then(|value| value.as_str())
+        == Some("square")));
 }
 
 #[test]
@@ -10328,7 +10451,7 @@ fn double_click_component_selection_includes_enclosing_bracket() {
         .document
         .objects
         .iter()
-        .find(|object| object.object_type == "bracket")
+        .find(|object| object.object_type == "group")
         .map(|object| object.id.clone())
         .unwrap();
 
