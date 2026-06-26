@@ -10,6 +10,7 @@ const SELECTION_RESIZE_HANDLE_SCREEN_PX = 1.5;
 const SELECTION_ROTATE_HANDLE_RADIUS_SCREEN_PX = 2.0;
 const SELECTION_ROTATE_HANDLE_OFFSET_SCREEN_PX = 18;
 const SELECTION_CENTER_CROSS_HALF_SCREEN_PX = 5;
+const OBJECT_CONTROL_HANDLE_RADIUS_SCREEN_PX = 1;
 const EDITOR_OVERLAY_LAYER_SELECTOR = '[data-layer="editor-overlay"]';
 
 export function createEditorOverlayRenderer(options) {
@@ -25,6 +26,26 @@ export function createEditorOverlayRenderer(options) {
   function resetEditorOverlayRoot(overlay) {
     overlay.replaceChildren();
     overlay.removeAttribute("transform");
+  }
+
+  function isObjectControlHandleRole(role) {
+    return role === "hover-arrow-handle" || role === "hover-shape-handle";
+  }
+
+  function screenPxToOverlayWorld(overlay, px) {
+    const matrix = overlay?.ownerSVGElement?.getScreenCTM?.();
+    const scale = Math.max(Math.abs(matrix?.a || 0), Math.abs(matrix?.d || 0));
+    return scale > Number.EPSILON ? px / scale : options.screenPxToWorld(px);
+  }
+
+  function appendObjectControlHandle(overlay, center, role) {
+    overlay.appendChild(makeSvgNode("circle", {
+      cx: center.x,
+      cy: center.y,
+      r: screenPxToOverlayWorld(overlay, OBJECT_CONTROL_HANDLE_RADIUS_SCREEN_PX),
+      class: "editor-object-control-handle",
+      "data-role": role,
+    }));
   }
 
   function appendTlcRfLabel(overlay, hit) {
@@ -582,7 +603,6 @@ export function createEditorOverlayRenderer(options) {
         const classByRole = {
           "hover-text-box": "editor-text-box-focus",
           "hover-label-glyph": "editor-label-glyph-focus",
-          "hover-arrow-handle": "editor-arrow-focus-handle",
         };
         if (hideSelectionOverlayDuringGesture && primitive.role?.startsWith("selection-")) {
           continue;
@@ -594,6 +614,13 @@ export function createEditorOverlayRenderer(options) {
             }
           }
           renderCorePrimitive(overlay, normalizeSelectionPrimitiveForViewport(primitive, selectionBounds), options.corePrimitiveRenderOptions());
+          continue;
+        }
+        if (isObjectControlHandleRole(primitive.role)) {
+          appendObjectControlHandle(overlay, {
+            x: primitive.x + primitive.width * 0.5,
+            y: primitive.y + primitive.height * 0.5,
+          }, primitive.role);
           continue;
         }
         const className = classByRole[primitive.role];
@@ -620,11 +647,13 @@ export function createEditorOverlayRenderer(options) {
           "hover-endpoint": "editor-endpoint-halo",
           "hover-bond-center": "editor-bond-center-halo",
           "hover-arrow-center": "editor-arrow-center-halo",
-          "hover-arrow-handle": "editor-arrow-focus-handle",
-          "hover-shape-handle": "editor-arrow-focus-handle",
           "preview-end": "editor-preview-end",
           "selection-bond-dot": "editor-selection-bond-dot",
         };
+        if (isObjectControlHandleRole(primitive.role)) {
+          appendObjectControlHandle(overlay, primitive.center, primitive.role);
+          continue;
+        }
         const className = classByRole[primitive.role];
         if (!className) {
           continue;

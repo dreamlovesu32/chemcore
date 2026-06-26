@@ -304,12 +304,46 @@ async function findArrowHandle(page, objectId, action) {
   return handle;
 }
 
+async function assertObjectControlHandleStyle(page, role, label) {
+  const result = await page.evaluate((expectedRole) => {
+    const handle = document.querySelector(`.editor-object-control-handle[data-role="${CSS.escape(expectedRole)}"]`);
+    if (!handle) {
+      return { found: false };
+    }
+    const svg = handle.ownerSVGElement;
+    const matrix = svg?.getScreenCTM?.();
+    const scale = Math.max(Math.abs(matrix?.a || 1), Math.abs(matrix?.d || 1));
+    const radiusPx = Number(handle.getAttribute("r") || 0) * scale;
+    const style = getComputedStyle(handle);
+    return {
+      found: true,
+      tagName: handle.tagName.toLowerCase(),
+      radiusPx,
+      fill: style.fill,
+      stroke: style.stroke,
+    };
+  }, role);
+  assert(
+    result.found
+      && result.tagName === "circle"
+      && Math.abs(result.radiusPx - 1) < 0.2
+      && (result.fill === "none" || result.fill === "rgba(0, 0, 0, 0)"),
+    `${label} control handle style was not unified: ${JSON.stringify(result)}`,
+  );
+}
+
 async function dragArrowCurve(page, objectId) {
   await page.locator('button[data-tool="select"]').click();
   await page.evaluate(() => window.__chemcoreDebug.state.editorEngine.clearSelection?.());
   const handle = await findArrowHandle(page, objectId, "curve");
   await resetRenderStats(page);
   await page.mouse.move(handle.x, handle.y);
+  await page.waitForFunction(
+    () => !!document.querySelector('.editor-object-control-handle[data-role="hover-arrow-handle"]'),
+    null,
+    { timeout: 1000 },
+  );
+  await assertObjectControlHandleStyle(page, "hover-arrow-handle", "Arrow");
   await page.mouse.down();
   await page.waitForTimeout(80);
   await assertNoPreviewMask(page, "arrow curve pointerdown");

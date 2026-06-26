@@ -2510,7 +2510,7 @@ function fastBracketHoverAtPoint(point) {
   const objects = collectCurrentDocumentSceneObjects()
     .filter((object) => sceneObjectType(object) === "bracket" && object.visible !== false)
     .sort((a, b) => (Number(b.zIndex ?? b.z_index ?? 0) - Number(a.zIndex ?? a.z_index ?? 0)));
-  const pad = screenPxToWorld(9);
+  const pad = screenPxToWorld(10);
   for (const object of objects) {
     const bbox = object.payload?.bbox;
     if (!Array.isArray(bbox) || bbox.length < 4) {
@@ -2579,7 +2579,7 @@ function renderFastSelectHover(point) {
       role: "hover-shape-handle",
       objectId: hover.objectId,
       center,
-      radius: screenPxToWorld(2),
+      radius: screenPxToWorld(1),
       fill: "#ffffff",
       stroke: "rgba(47,111,237,0.82)",
       strokeWidth: screenPxToWorld(1),

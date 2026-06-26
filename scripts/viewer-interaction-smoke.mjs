@@ -918,8 +918,28 @@ async function verifyBracketHoverFocus(page, target) {
     fastHover: window.__chemcoreDebug.fastSelectHoverStats || null,
     overlayChildren: document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0,
     handles: document.querySelectorAll('[data-role="hover-shape-handle"]').length,
+    handleStyle: (() => {
+      const handle = document.querySelector('.editor-object-control-handle[data-role="hover-shape-handle"]');
+      if (!handle) {
+        return null;
+      }
+      const matrix = handle.ownerSVGElement?.getScreenCTM?.();
+      const scale = Math.max(Math.abs(matrix?.a || 1), Math.abs(matrix?.d || 1));
+      const style = getComputedStyle(handle);
+      return {
+        tagName: handle.tagName.toLowerCase(),
+        radiusPx: Number(handle.getAttribute("r") || 0) * scale,
+        fill: style.fill,
+      };
+    })(),
   }));
   assert(elapsed < 350, `Large CDXML bracket hover focus was delayed: ${JSON.stringify({ elapsed, target, debug })}`);
+  assert(
+    debug.handleStyle?.tagName === "circle"
+      && Math.abs(debug.handleStyle.radiusPx - 1) < 0.2
+      && (debug.handleStyle.fill === "none" || debug.handleStyle.fill === "rgba(0, 0, 0, 0)"),
+    `Large CDXML bracket hover control handle style was not unified: ${JSON.stringify({ target, debug })}`,
+  );
 }
 
 async function verifyMixedObjectFollowsStructureDrag(page, structureTarget, objectTarget, kind) {

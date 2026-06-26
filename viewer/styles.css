@@ -2426,8 +2426,9 @@ body.browser-shell .document-tabbar {
   filter: drop-shadow(0 0 4px rgba(47, 111, 237, 0.35));
 }
 
-.editor-arrow-focus-handle {
-  fill: #ffffff;
+.editor-arrow-focus-handle,
+.editor-object-control-handle {
+  fill: none;
   stroke: rgba(47, 111, 237, 0.86);
   stroke-width: 1.1px;
   vector-effect: non-scaling-stroke;
