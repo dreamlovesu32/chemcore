@@ -2842,7 +2842,7 @@ fn document_target_maps(document: &ChemcoreDocument) -> DocumentTargetMaps {
     for (style_id, style) in &document.styles {
         maps.styles.insert(style_id.clone(), style.clone());
     }
-    if let Some(entry) = document.editable_fragment() {
+    for entry in document.editable_fragments() {
         for node in &entry.fragment.nodes {
             maps.nodes.insert(
                 node.id.clone(),
@@ -2912,6 +2912,106 @@ fn union_target_ids<const N: usize>(groups: [&[String]; N]) -> Vec<String> {
         ids.extend(group.iter().cloned());
     }
     ids.into_iter().collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        DocumentInfo, FormatInfo, MoleculeFragment, Node, ObjectPayload, Page, Resource,
+        ResourceData, Transform,
+    };
+
+    fn molecule_object(id: &str, resource_ref: &str) -> SceneObject {
+        SceneObject {
+            id: id.to_string(),
+            object_type: "molecule".to_string(),
+            name: id.to_string(),
+            visible: true,
+            locked: false,
+            z_index: 10,
+            transform: Transform::identity(),
+            style_ref: None,
+            meta: JsonValue::Null,
+            payload: ObjectPayload {
+                resource_ref: Some(resource_ref.to_string()),
+                bbox: Some([0.0, 0.0, 80.0, 80.0]),
+                extra: BTreeMap::new(),
+            },
+            children: Vec::new(),
+        }
+    }
+
+    fn molecule_resource(node: Node) -> Resource {
+        Resource {
+            resource_type: "molecule_fragment2d".to_string(),
+            encoding: "chemcore.molecule.fragment2d".to_string(),
+            data: ResourceData::Fragment(MoleculeFragment {
+                schema: "chemcore.molecule.fragment2d".to_string(),
+                bbox: [0.0, 0.0, 80.0, 80.0],
+                nodes: vec![node],
+                bonds: Vec::new(),
+                meta: JsonValue::Null,
+            }),
+            meta: JsonValue::Null,
+        }
+    }
+
+    fn two_molecule_document() -> ChemcoreDocument {
+        let mut resources = BTreeMap::new();
+        resources.insert(
+            "mol_a".to_string(),
+            molecule_resource(Node::carbon("node_a".to_string(), Point::new(10.0, 10.0))),
+        );
+        resources.insert(
+            "mol_b".to_string(),
+            molecule_resource(Node::carbon("node_b".to_string(), Point::new(40.0, 40.0))),
+        );
+        ChemcoreDocument {
+            format: FormatInfo {
+                name: "chemcore".to_string(),
+                version: "0.1".to_string(),
+                unit: "pt".to_string(),
+            },
+            document: DocumentInfo {
+                id: "doc_multi_molecule".to_string(),
+                title: "multi molecule".to_string(),
+                page: Page {
+                    width: 100.0,
+                    height: 100.0,
+                    background: "#ffffff".to_string(),
+                },
+                meta: JsonValue::Null,
+            },
+            styles: BTreeMap::new(),
+            objects: vec![
+                molecule_object("obj_mol_a", "mol_a"),
+                molecule_object("obj_mol_b", "mol_b"),
+            ],
+            resources,
+        }
+    }
+
+    #[test]
+    fn command_target_delta_tracks_nodes_in_later_molecule_objects() {
+        let before = two_molecule_document();
+        let mut after = before.clone();
+        let entry = after
+            .editable_fragment_mut_for_object("obj_mol_b")
+            .expect("second molecule should be editable");
+        entry.fragment.nodes[0].position = [52.0, 44.0];
+
+        let delta = document_target_delta(&before, &after);
+
+        assert!(
+            delta.updated.nodes.contains(&"node_b".to_string()),
+            "updated node in second molecule should be reported for incremental rendering: {delta:?}"
+        );
+        assert!(
+            !delta.updated.nodes.contains(&"node_a".to_string()),
+            "unchanged node in first molecule should not be reported: {delta:?}"
+        );
+    }
 }
 
 fn point_from_command(anchor: &CommandAnchor) -> Point {

@@ -866,6 +866,26 @@ async function verifyLargeDragTarget(page, target, kind) {
   assert(after.transformed === 0, `${kind} drag left transformed document nodes behind.`);
   assert(after.previews === 0, `${kind} drag left preview overlay behind.`);
   assert(after.gesture === null, `${kind} drag left an active selection gesture behind.`);
+  const commandTargets = await page.evaluate((nodeId) => {
+    const raw = window.__chemcoreDebug.state.editorEngine.lastCommandResultJson?.() || "null";
+    const result = JSON.parse(raw);
+    const targetNodes = new Set([
+      ...(result?.targets?.nodes || []),
+      ...(result?.updated?.nodes || []),
+      ...(result?.created?.nodes || []),
+      ...(result?.deleted?.nodes || []),
+    ]);
+    return {
+      changed: !!result?.changed,
+      nodeIncluded: targetNodes.has(nodeId),
+      nodes: [...targetNodes].slice(0, 20),
+      command: result?.command || null,
+    };
+  }, target.id);
+  assert(
+    commandTargets.changed && commandTargets.nodeIncluded,
+    `${kind} drag commit did not report the moved node for incremental rendering: ${JSON.stringify({ target, commandTargets })}`,
+  );
 }
 
 function selectionItemCount(selection) {

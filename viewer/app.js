@@ -3190,8 +3190,7 @@ function renderDocumentObjectIdPatch(objectIds = new Set()) {
     return false;
   }
   const objectMap = currentDocumentSceneObjectMap();
-  const patchIds = [...objectIds]
-    .filter((objectId) => sceneObjectType(objectMap.get(objectId)) !== "molecule");
+  const patchIds = [...objectIds];
   if (!patchIds.length) {
     return false;
   }
