@@ -735,7 +735,9 @@ export function createEditorPointerController(options) {
         }
         gesture.current = point;
         gesture.altKey = event.altKey;
-        if (options.selectionNeedsBackendMovePreview?.(gesture.previewSelection)) {
+        const previewSelection = gesture.previewSelection || options.currentEditorEngineState?.()?.selection;
+        if (options.selectionNeedsBackendMovePreview?.(previewSelection)) {
+          gesture.previewSelection = previewSelection;
           gesture.backendDocumentPreviewActive = true;
           gesture.previewDirty = true;
           options.hideDocumentDiagnosticsForPreview?.();

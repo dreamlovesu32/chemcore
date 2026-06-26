@@ -774,6 +774,20 @@ async function verifyLargeDragTarget(page, target, kind) {
   await page.mouse.move(target.x, target.y);
   await page.waitForTimeout(180);
   await page.mouse.move(target.x, target.y);
+  const beforeNodePosition = await page.evaluate((nodeId) => {
+    const rects = [...document.querySelectorAll(`[data-layer="document-content"] [data-node-id="${CSS.escape(nodeId)}"]`)]
+      .filter((element) => getComputedStyle(element).visibility !== "hidden")
+      .map((element) => element.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0);
+    if (!rects.length) {
+      return null;
+    }
+    const left = Math.min(...rects.map((rect) => rect.left));
+    const top = Math.min(...rects.map((rect) => rect.top));
+    const right = Math.max(...rects.map((rect) => rect.right));
+    const bottom = Math.max(...rects.map((rect) => rect.bottom));
+    return { x: (left + right) * 0.5, y: (top + bottom) * 0.5 };
+  }, target.id);
   await page.mouse.down();
   await page.mouse.move(target.x + 24, target.y + 12, { steps: 6 });
   const backendDomMatches = (nodeId) => {
@@ -844,6 +858,44 @@ async function verifyLargeDragTarget(page, target, kind) {
     );
     throw new Error(`${kind} backend DOM did not match: ${JSON.stringify(diagnostics).slice(0, 1600)}`);
   }
+  const duringNodePosition = await page.evaluate(([nodeId, before]) => {
+    const elements = [...document.querySelectorAll(`[data-layer="document-content"] [data-node-id="${CSS.escape(nodeId)}"]`)]
+      .filter((element) => getComputedStyle(element).visibility !== "hidden");
+    const rects = elements
+      .map((element) => element.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0);
+    if (!rects.length) {
+      return { count: 0, oldVisibleCount: 0, x: null, y: null };
+    }
+    const left = Math.min(...rects.map((rect) => rect.left));
+    const top = Math.min(...rects.map((rect) => rect.top));
+    const right = Math.max(...rects.map((rect) => rect.right));
+    const bottom = Math.max(...rects.map((rect) => rect.bottom));
+    const oldVisibleCount = before
+      ? rects.filter((rect) => {
+        const cx = rect.left + rect.width * 0.5;
+        const cy = rect.top + rect.height * 0.5;
+        return Math.hypot(cx - before.x, cy - before.y) < 3;
+      }).length
+      : 0;
+    return {
+      count: rects.length,
+      oldVisibleCount,
+      x: (left + right) * 0.5,
+      y: (top + bottom) * 0.5,
+    };
+  }, [target.id, beforeNodePosition]);
+  const previewMoved = beforeNodePosition && duringNodePosition.x != null
+    ? Math.hypot(duringNodePosition.x - beforeNodePosition.x, duringNodePosition.y - beforeNodePosition.y)
+    : 0;
+  assert(
+    previewMoved > 6,
+    `${kind} did not visually follow drag before mouseup: ${JSON.stringify({ target, beforeNodePosition, duringNodePosition, previewMoved })}`,
+  );
+  assert(
+    duringNodePosition.oldVisibleCount === 0,
+    `${kind} left a visible stale node primitive at the drag origin: ${JSON.stringify({ target, beforeNodePosition, duringNodePosition })}`,
+  );
   const during = await page.evaluate(() => {
     const partial = document.querySelector('[data-layer="document-partial-bond-preview"]');
     return {
@@ -994,6 +1046,11 @@ async function verifyLargeRegionSelectionDoesNotDragGroup(page, target) {
     (moved.command?.targets?.nodes || []).includes(target.id),
     `Large CDXML region-selected molecule drag did not report moved node target: ${JSON.stringify({ target, moved })}`,
   );
+  await page.evaluate(async () => {
+    window.__chemcoreDebug.state.editorEngine.clearSelection?.();
+    window.__chemcoreDebug.state.editorEngine.clearInteraction?.();
+    await window.__chemcoreDebug.syncDocument?.();
+  });
 }
 
 function selectionItemCount(selection) {
@@ -1246,7 +1303,15 @@ async function verifyMixedObjectFollowsStructureDrag(page, structureTarget, obje
     const top = Math.min(...rects.map((rect) => rect.top));
     const right = Math.max(...rects.map((rect) => rect.right));
     const bottom = Math.max(...rects.map((rect) => rect.bottom));
-    return { count: rects.length, x: (left + right) * 0.5, y: (top + bottom) * 0.5 };
+    return {
+      count: rects.length,
+      x: (left + right) * 0.5,
+      y: (top + bottom) * 0.5,
+      centers: rects.slice(0, 200).map((rect) => ({
+        x: rect.left + rect.width * 0.5,
+        y: rect.top + rect.height * 0.5,
+      })),
+    };
   }, objectTarget.id);
   await page.mouse.move(dragPoint.x, dragPoint.y);
   await page.mouse.down();
@@ -1273,7 +1338,7 @@ async function verifyMixedObjectFollowsStructureDrag(page, structureTarget, obje
     }), objectTarget.id);
     throw new Error(`${kind} mixed drag did not apply preview transform: ${JSON.stringify({ diagnostics, structureTarget, dragPoint, objectTarget })}`);
   }
-  const during = await page.evaluate((objectId) => {
+  const during = await page.evaluate(([objectId, beforeCenters]) => {
     const rects = [...document.querySelectorAll(`[data-layer="document-content"] [data-object-id="${CSS.escape(objectId)}"]`)]
       .filter((element) => !element.classList.contains("document-diagnostic-marker"))
       .map((element) => element.getBoundingClientRect())
@@ -1282,24 +1347,33 @@ async function verifyMixedObjectFollowsStructureDrag(page, structureTarget, obje
     const top = Math.min(...rects.map((rect) => rect.top));
     const right = Math.max(...rects.map((rect) => rect.right));
     const bottom = Math.max(...rects.map((rect) => rect.bottom));
+    const staleCenters = rects.filter((rect) => {
+      const cx = rect.left + rect.width * 0.5;
+      const cy = rect.top + rect.height * 0.5;
+      return (beforeCenters || []).some((before) => Math.hypot(cx - before.x, cy - before.y) < 2);
+    }).length;
     return {
       count: rects.length,
       x: (left + right) * 0.5,
       y: (top + bottom) * 0.5,
+      staleCenters,
       transforming: [...document.querySelectorAll(`[data-layer="document-content"] [data-object-id="${CSS.escape(objectId)}"]`)]
         .filter((element) => element.classList.contains("is-preview-transforming")).length,
     };
-  }, objectTarget.id);
+  }, [objectTarget.id, before.centers]);
   await page.mouse.up();
   await page.waitForTimeout(150);
   const moved = Math.hypot(during.x - before.x, during.y - before.y);
   assert(before.count > 0 && during.count > 0, `${kind} mixed drag target was not rendered: ${JSON.stringify({ before, during, objectTarget })}`);
   assert(moved > 12, `${kind} did not follow mixed molecule drag preview: ${JSON.stringify({ before, during, moved, structureTarget, objectTarget })}`);
   assert(during.transforming > 0, `${kind} mixed drag did not use object preview transform: ${JSON.stringify({ before, during, objectTarget })}`);
+  assert(during.staleCenters === 0, `${kind} left stale object primitives at the drag origin: ${JSON.stringify({ before, during, structureTarget, objectTarget })}`);
 }
 
 async function resetViewerUi(page) {
   await page.keyboard.press("Escape").catch(() => {});
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.waitForFunction(() => !window.__chemcoreDebug?.activeTextEditor, null, { timeout: 800 }).catch(() => {});
   await page.waitForTimeout(30);
 }
 
@@ -1405,12 +1479,13 @@ async function verifyLargeFileCommitLatency(page) {
     },
     () => {
       const result = JSON.parse(window.__chemcoreDebug.state.editorEngine.lastCommandResultJson?.() || "null");
-      const objectId = result?.targets?.objects?.[0]
-        || result?.created?.objects?.[0]
-        || result?.updated?.objects?.[0]
-        || "";
+      const objectId = [
+        ...(result?.targets?.objects || []),
+        ...(result?.created?.objects || []),
+        ...(result?.updated?.objects || []),
+      ].find((id) => String(id || "").startsWith("obj_symbol")) || "";
       return result?.changed
-        && objectId.startsWith("obj_symbol")
+        && objectId
         && document.querySelectorAll(`[data-object-id="${CSS.escape(objectId)}"]`).length > 0;
     },
   );
@@ -1503,10 +1578,18 @@ async function verifyLargeFileHoverAndDrag(browser) {
   await verifyLargeRegionSelectionDoesNotDragGroup(page, targets.atom);
   targets = await page.evaluate(largeFileTargetFinder);
   await verifyLargeDragTarget(page, targets.label, "Label");
-  const latency = await verifyLargeFileCommitLatency(page);
+  targets = await page.evaluate(largeFileTargetFinder);
+  await verifyMixedObjectFollowsStructureDrag(page, targets.atom || targets.label, targets.textObject || targets.bracket, "Large CDXML text/bracket");
   await page.close();
+  const { page: latencyPage, errors: latencyErrors } = await openViewer(browser);
+  await latencyPage.locator('input[type="file"]').setInputFiles(largeCdxml);
+  await latencyPage.waitForFunction(() => (window.__chemcoreDebug?.document?.objects?.length || 0) > 0, null, {
+    timeout: 60000,
+  });
+  const latency = await verifyLargeFileCommitLatency(latencyPage);
+  await latencyPage.close();
   console.log(`[viewer-interaction-smoke] large commit latency bracket=${latency.bracketMs.toFixed(1)}ms symbol=${latency.symbolMs.toFixed(1)}ms bond=${latency.bondMs.toFixed(1)}ms`);
-  assert(!errors.length, `Viewer console errors during large-file hover: ${errors.join("\n")}`);
+  assert(!errors.length && !latencyErrors.length, `Viewer console errors during large-file hover: ${[...errors, ...latencyErrors].join("\n")}`);
 }
 
 let server = null;

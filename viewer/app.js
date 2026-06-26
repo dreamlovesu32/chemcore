@@ -3546,6 +3546,7 @@ const editorPointerController = createEditorPointerController({
   selectionRotateAngleForGesture,
   currentRenderBounds,
   currentEditorRenderList,
+  currentEditorEngineState,
   currentEditorInteractionRenderList,
   currentEditorOverlayRenderList,
   renderEditorOverlay,
