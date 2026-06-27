@@ -316,6 +316,11 @@ impl Engine {
         {
             return true;
         }
+        if let Some(hit) = self.select_hit_at_point(point) {
+            if selection_contains_hit(&self.state.selection, &hit) {
+                return true;
+            }
+        }
         let mut selection_bounds = None;
         for bounds in hit_bounds {
             include_optional_bounds(&mut selection_bounds, bounds);

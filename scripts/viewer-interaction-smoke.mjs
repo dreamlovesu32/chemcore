@@ -664,15 +664,15 @@ async function verifyDragHandleCursors(browser) {
     page,
     bracketCursorTargets.body.x,
     bracketCursorTargets.body.y,
-    ["grab"],
+    ["default"],
     "Unselected bracket body",
   );
   await waitForCanvasCursor(
     page,
     bracketCursorTargets.top.x,
     bracketCursorTargets.top.y,
-    ["nwse-resize", "nesw-resize", "ew-resize", "ns-resize"],
-    "Unselected bracket resize handle",
+    ["default"],
+    "Unselected bracket endpoint",
   );
 
   await page.close();

@@ -2763,8 +2763,6 @@ function renderFastSelectHover(point) {
     window.__chemcoreDebug.fastSelectHoverStats.hits += 1;
     window.__chemcoreDebug.fastSelectHoverStats.last = { point, hover };
   }
-  const cursor = cursorForShapeAction(hover.action);
-  setCanvasCursorStyle(cursor || "grab");
   const selectionPrimitives = currentEditorOverlayRenderList()
     .filter((primitive) => String(primitive?.role || "").startsWith("selection-"));
   renderEditorOverlay([
@@ -4413,19 +4411,6 @@ async function syncArrowAwareCursorForPoint(point) {
     setCanvasCursorStyle("grab");
     return;
   }
-  const arrowAction = await state.editorEngine.hoverArrowAction?.(point.x, point.y) || "";
-  if (arrowAction === "head" || arrowAction === "tail") {
-    setCanvasCursorStyle("move");
-    return;
-  }
-  if (arrowAction === "head-style" || arrowAction === "tail-style") {
-    setCanvasCursorStyle("nwse-resize");
-    return;
-  }
-  if (arrowAction === "curve") {
-    setCanvasCursorStyle("nesw-resize");
-    return;
-  }
   const overSelection = overSelectionBox;
   if ((editorState.activeTool === "select"
     || editorState.activeTool === "bond"
@@ -4443,8 +4428,7 @@ async function syncArrowAwareCursorForPoint(point) {
     setCanvasCursorStyle("grab");
     return;
   }
-  if (editorState.activeTool === "select"
-    || editorState.activeTool === "bracket"
+  if (editorState.activeTool === "bracket"
     || editorState.activeTool === "shape"
     || editorState.activeTool === "tlc-plate"
     || editorState.activeTool === "orbital") {
@@ -4454,8 +4438,19 @@ async function syncArrowAwareCursorForPoint(point) {
       setCanvasCursorStyle(shapeCursor);
       return;
     }
-    if (editorState.activeTool === "select" && fastBracketHoverAtPoint(point)) {
-      setCanvasCursorStyle("grab");
+  }
+  if (editorState.activeTool === "arrow") {
+    const arrowAction = await state.editorEngine.hoverArrowAction?.(point.x, point.y) || "";
+    if (arrowAction === "head" || arrowAction === "tail") {
+      setCanvasCursorStyle("move");
+      return;
+    }
+    if (arrowAction === "head-style" || arrowAction === "tail-style") {
+      setCanvasCursorStyle("nwse-resize");
+      return;
+    }
+    if (arrowAction === "curve") {
+      setCanvasCursorStyle("nesw-resize");
       return;
     }
   }

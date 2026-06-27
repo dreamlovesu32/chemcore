@@ -968,6 +968,27 @@ export function createEditorPointerController(options) {
         await options.renderSelectionOnlyUpdate(point);
         return;
       }
+      const hitAtPoint = options.parseEngineJson(
+        await options.state().editorEngine.contextHitTestJson?.(point.x, point.y),
+        null,
+      );
+      if (hitAtPoint?.objectType === "bracket") {
+        const bracketEditAction = await options.state().editorEngine.beginHoverShapeEdit?.(point.x, point.y) || "";
+        if (bracketEditAction) {
+          options.setActiveSelectionGesture({
+            kind: "shape-resize",
+            action: bracketEditAction,
+            cursor: options.cursorForShapeAction(bracketEditAction) || "nwse-resize",
+            start: point,
+            current: point,
+            dragged: false,
+            additive: !!event.shiftKey,
+          });
+          await options.syncArrowAwareCursorForPoint(point);
+          options.renderEditorOverlay(currentInteractionRenderList());
+          return;
+        }
+      }
       const overSelectionInterior = (
         !!options.selectionBoundsContainsPoint?.(point)
         || !!options.selectionHitContainsPoint?.(point)
@@ -990,10 +1011,7 @@ export function createEditorPointerController(options) {
         clearEditorOverlayRoot();
         return;
       }
-      const overSelection = !!options.state().editorEngine.selectionContainsPoint?.(point.x, point.y);
-      const shapeEditAction = overSelection
-        ? ""
-        : await options.state().editorEngine.beginHoverShapeEdit?.(point.x, point.y) || "";
+      const shapeEditAction = await options.state().editorEngine.beginHoverShapeEdit?.(point.x, point.y) || "";
       if (shapeEditAction) {
         options.setActiveSelectionGesture({
           kind: "shape-resize",

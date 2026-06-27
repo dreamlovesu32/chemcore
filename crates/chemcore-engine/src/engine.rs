@@ -1478,16 +1478,35 @@ impl Engine {
 
     fn selection_for_pending_target(&self, target: &PendingSelectTarget) -> Option<SelectionState> {
         match target {
-            PendingSelectTarget::GraphicObject(object_id) => self
-                .state
-                .document
-                .objects
-                .iter()
-                .any(|object| object.id == *object_id && object.object_type != "text")
-                .then(|| SelectionState {
+            PendingSelectTarget::GraphicObject(object_id) => {
+                let object = self
+                    .state
+                    .document
+                    .objects
+                    .iter()
+                    .find(|object| object.id == *object_id)?;
+                if object.object_type == "text" {
+                    return None;
+                }
+                if object.object_type == "group"
+                    && object.meta.get("kind").and_then(JsonValue::as_str) == Some("bracket-group")
+                {
+                    let arrow_objects: Vec<String> = object
+                        .children
+                        .iter()
+                        .filter(|child| child.visible && child.object_type != "text")
+                        .map(|child| child.id.clone())
+                        .collect();
+                    return (!arrow_objects.is_empty()).then_some(SelectionState {
+                        arrow_objects,
+                        ..SelectionState::default()
+                    });
+                }
+                Some(SelectionState {
                     arrow_objects: vec![object_id.clone()],
                     ..SelectionState::default()
-                }),
+                })
+            }
             PendingSelectTarget::SceneObjects {
                 arrow_objects,
                 text_objects,
