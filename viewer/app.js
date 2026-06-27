@@ -2693,101 +2693,6 @@ function bracketPairLocalHit(point, x, y, width, height, kind, pad) {
     || bracketSideLocalHit(point, rightX, y, depth, height, kind, "right", pad);
 }
 
-function fastBracketHoverAtPoint(point) {
-  if (!isEditingRustDocument() || !point) {
-    return null;
-  }
-  const objects = collectCurrentDocumentSceneObjects(currentEditorDocumentData())
-    .filter((object) => sceneObjectType(object) === "bracket" && object.visible !== false)
-    .sort((a, b) => (Number(b.zIndex ?? b.z_index ?? 0) - Number(a.zIndex ?? a.z_index ?? 0)));
-  for (const object of objects) {
-    const bbox = object.payload?.bbox;
-    if (!Array.isArray(bbox) || bbox.length < 4) {
-      continue;
-    }
-    const [x, y, width, height] = bbox.map(Number);
-    if (width <= 0 || height <= 0) {
-      continue;
-    }
-    const translate = object.transform?.translate || [0, 0];
-    const tx = Number(translate[0] || 0) + x;
-    const ty = Number(translate[1] || 0) + y;
-    const rotate = Number(object.transform?.rotate || 0);
-    const center = { x: tx + width * 0.5, y: ty + height * 0.5 };
-    const local = rotatePointAround(point, center, -rotate);
-    const kind = object.payload?.kind || object.payload?.extra?.kind || "round";
-    const side = object.payload?.side || object.payload?.extra?.side || "";
-    const pad = cssPxToPt(10) + bracketStrokeHitPadding(object);
-    const contains = side
-      ? bracketSideLocalHit(local, tx, ty, width, height, kind, side, pad)
-      : bracketPairLocalHit(local, tx, ty, width, height, kind, pad);
-    if (!contains) {
-      continue;
-    }
-    const depth = kind === "round" && !side ? bracketPairDepth(width, height, kind) : 0;
-    const leftX = tx - depth;
-    const rightX = tx + width + depth;
-    const handlePoints = side
-      ? [
-        { x: tx + bracketSideHandleX(kind, side, width), y: ty },
-        { x: tx + bracketSideHandleX(kind, side, width), y: ty + height },
-      ]
-      : [
-        { x: leftX, y: ty },
-        { x: leftX, y: ty + height },
-        { x: rightX, y: ty },
-        { x: rightX, y: ty + height },
-      ];
-    const handles = handlePoints.map((handle) => rotatePointAround(handle, center, rotate));
-    const nearestHandle = side
-      ? handles
-        .map((handle, index) => ({
-          distance: pointDistance(point, handle),
-          action: index === 0 ? "n" : "s",
-        }))
-        .sort((a, b) => a.distance - b.distance)[0]
-      : null;
-    return {
-      objectId: object.id,
-      handles,
-      action: nearestHandle && nearestHandle.distance <= cssPxToPt(10) ? nearestHandle.action : "",
-    };
-  }
-  return null;
-}
-
-function renderFastSelectHover(point) {
-  if (window.__chemcoreDebug) {
-    window.__chemcoreDebug.fastSelectHoverStats = window.__chemcoreDebug.fastSelectHoverStats || { calls: 0, hits: 0, last: null };
-    window.__chemcoreDebug.fastSelectHoverStats.calls += 1;
-    window.__chemcoreDebug.fastSelectHoverStats.last = { point };
-  }
-  const hover = fastBracketHoverAtPoint(point);
-  if (!hover) {
-    return false;
-  }
-  if (window.__chemcoreDebug) {
-    window.__chemcoreDebug.fastSelectHoverStats.hits += 1;
-    window.__chemcoreDebug.fastSelectHoverStats.last = { point, hover };
-  }
-  const selectionPrimitives = currentEditorOverlayRenderList()
-    .filter((primitive) => String(primitive?.role || "").startsWith("selection-"));
-  renderEditorOverlay([
-    ...selectionPrimitives,
-    ...hover.handles.map((center) => ({
-      kind: "circle",
-      role: "hover-shape-handle",
-      objectId: hover.objectId,
-      center,
-      radius: screenPxToWorld(1.5),
-      fill: "#ffffff",
-      stroke: "rgba(47,111,237,0.82)",
-      strokeWidth: screenPxToWorld(1),
-    })),
-  ]);
-  return true;
-}
-
 function shouldHidePrimitiveForActiveEndpointEditor(primitive) {
   if (primitiveMatchesActiveTextEditorTarget(primitive)) {
     return true;
@@ -3870,7 +3775,6 @@ const editorPointerController = createEditorPointerController({
   selectClickTarget,
   cursorForShapeAction,
   syncCanvasCursor,
-  renderFastSelectHover,
   setCanvasCursorStyle,
   hoverPointerMoveDelayMs: (tool) => (
     tool === "select"

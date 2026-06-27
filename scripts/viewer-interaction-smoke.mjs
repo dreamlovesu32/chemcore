@@ -1556,6 +1556,102 @@ async function verifyBracketHoverFocus(page, target) {
   );
 }
 
+async function verifyAllSquareBracketsHover(page) {
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.evaluate(() => {
+    window.__chemcoreDebug.state.editorEngine.clearSelection?.();
+    window.__chemcoreDebug.state.editorEngine.clearInteraction?.();
+    window.__chemcoreDebug.clearActiveSelectionGesture?.();
+    document.querySelector('[data-layer="editor-overlay"]')?.replaceChildren();
+  });
+  await page.locator('button[data-tool="select"]').click();
+  const targets = await page.evaluate(() => {
+    const documentData = JSON.parse(window.__chemcoreDebug.state.editorEngine.documentJson?.() || "null")
+      || window.__chemcoreDebug.document;
+    const visit = (object, out = []) => {
+      if (!object) {
+        return out;
+      }
+      out.push(object);
+      for (const child of object.children || []) {
+        visit(child, out);
+      }
+      return out;
+    };
+    const objectType = (object) => object?.type || object?.objectType || object?.object_type;
+    const bracketKind = (object) => object?.payload?.kind || object?.payload?.extra?.kind || "round";
+    const bracketSide = (object) => object?.payload?.side || object?.payload?.extra?.side || "";
+    return (documentData.objects || [])
+      .flatMap((object) => visit(object, []))
+      .filter((object) => objectType(object) === "bracket" && object.visible !== false && bracketKind(object) === "square")
+      .map((object) => {
+        const bbox = object.payload?.bbox || [];
+        const translate = object.transform?.translate || [0, 0];
+        const tx = Number(translate[0] || 0) + Number(bbox[0] || 0);
+        const ty = Number(translate[1] || 0) + Number(bbox[1] || 0);
+        const width = Number(bbox[2] || 0);
+        const height = Number(bbox[3] || 0);
+        const side = bracketSide(object);
+        const xCandidates = side
+          ? [side === "right" ? tx + width : tx, tx + width * 0.5, side === "right" ? tx : tx + width]
+          : [tx, tx + width, tx + width * 0.5];
+        const yCandidates = [ty + height * 0.25, ty + height * 0.5, ty + height * 0.75, ty, ty + height];
+        for (const x of xCandidates) {
+          for (const y of yCandidates) {
+            const client = window.__chemcoreDebug.worldToClient(x, y);
+            if (!client
+              || client.x <= 80
+              || client.x >= innerWidth - 80
+              || client.y <= 120
+              || client.y >= innerHeight - 80) {
+              continue;
+            }
+            const hit = JSON.parse(window.__chemcoreDebug.state.editorEngine.contextHitTestJson?.(x, y) || "null");
+            if (hit?.objectId === object.id) {
+              return {
+                id: object.id,
+                x: client.x,
+                y: client.y,
+                worldX: x,
+                worldY: y,
+                side,
+              };
+            }
+          }
+        }
+        return null;
+      })
+      .filter(Boolean);
+  });
+  assert(targets.length >= 20, `Large CDXML exposed too few square bracket hover targets: ${JSON.stringify(targets)}`);
+  const failures = [];
+  for (const target of targets) {
+    await page.evaluate(() => {
+      window.__chemcoreDebug.state.editorEngine.clearInteraction?.();
+      document.querySelector('[data-layer="editor-overlay"]')?.replaceChildren();
+    });
+    await page.mouse.move(Math.max(1, target.x - 30), Math.max(1, target.y - 30));
+    await page.waitForTimeout(20);
+    await page.mouse.move(target.x, target.y);
+    try {
+      await page.waitForFunction(() => {
+        const overlay = document.querySelector('[data-layer="editor-overlay"]');
+        return (overlay?.querySelectorAll('[data-role="hover-shape-handle"]').length || 0) > 0;
+      }, null, { timeout: 800 });
+    } catch {
+      const debug = await page.evaluate((probe) => ({
+        target: probe,
+        hit: JSON.parse(window.__chemcoreDebug.state.editorEngine.contextHitTestJson?.(probe.worldX, probe.worldY) || "null"),
+        interaction: JSON.parse(window.__chemcoreDebug.state.editorEngine.interactionRenderListJson?.() || "[]"),
+        handles: document.querySelectorAll('[data-role="hover-shape-handle"]').length,
+        overlayChildren: document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0,
+      }), target);
+      failures.push(debug);
+    }
+  }
+  assert(!failures.length, `Large CDXML square bracket hover failures: ${JSON.stringify(failures.slice(0, 5))}`);
+}
+
 async function verifyMixedObjectFollowsStructureDrag(page, structureTarget, objectTarget, kind) {
   if (!structureTarget || !objectTarget) {
     return;
@@ -2076,6 +2172,7 @@ async function verifyLargeFileHoverAndDrag(browser) {
   await verifyDiagnosticMarkerHidesDuringDrag(page, targets.invalidDiagnostic, targets.textObject || targets.bracket || targets.label || targets.atom);
   targets = await page.evaluate(largeFileTargetFinder);
   await verifyBracketHoverFocus(page, targets.bracket);
+  await verifyAllSquareBracketsHover(page);
   await verifyLargeRegionSelectionDoesNotDragGroup(page, targets.atom);
   targets = await page.evaluate(largeFileTargetFinder);
   await verifyLargeDragTarget(page, targets.label, "Label");

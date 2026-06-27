@@ -288,6 +288,10 @@ class TauriEngineSession {
     ].includes(this.activeTool);
   }
 
+  pointerMoveUsesLocalPointer() {
+    return this.activeTool === "select" || this.activeToolUsesLocalPointer();
+  }
+
   syncLayoutDocumentJson(json = this.cache.documentJson) {
     if (typeof json !== "string") {
       return;
@@ -768,7 +772,7 @@ class TauriEngineSession {
   }
 
   pointerMove(x, y, altKey) {
-    if (this.activeToolUsesLocalPointer() && this.layoutEngine?.pointerMove) {
+    if (this.pointerMoveUsesLocalPointer() && this.layoutEngine?.pointerMove) {
       this.layoutEngine.pointerMove(x, y, altKey);
       this.syncCacheFromLayout({ interaction: true });
       this.runCoalescedNativeMutationInBackground(

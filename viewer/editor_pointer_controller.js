@@ -887,13 +887,6 @@ export function createEditorPointerController(options) {
     leaveSelectionHoverSuppression(point);
     if (
       editorState.activeTool === "select"
-      && options.renderFastSelectHover?.(point)
-    ) {
-      cancelScheduledHoverMove();
-      return;
-    }
-    if (
-      editorState.activeTool === "select"
       && !options.documentBoundsContainsPoint?.(point, 8)
     ) {
       cancelScheduledHoverMove();
