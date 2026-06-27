@@ -715,7 +715,7 @@ fn bracket_side_hover(object: &SceneObject, point: Point) -> Option<BracketHover
         .map(|(_, handle)| handle);
     if active_handle.is_some() || bracket_side_contains_point(object, point) {
         return Some(BracketHoverHit {
-            active_handle: active_handle.or_else(|| nearest.map(|(_, handle)| handle)),
+            active_handle,
             handles,
         });
     }

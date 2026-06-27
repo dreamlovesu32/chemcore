@@ -196,7 +196,11 @@ export function createEditorPointerController(options) {
   }
 
   function clearInteractionOverlayBeforeCommit() {
-    return clearInteractionOverlayNow();
+    const cleared = clearInteractionOverlayNow();
+    if (cleared && window.__chemcoreDebug) {
+      window.__chemcoreDebug.creationPreviewClearedBeforeCommitAt = performance.now();
+    }
+    return cleared;
   }
 
   function waitForNextFrame() {
@@ -297,25 +301,38 @@ export function createEditorPointerController(options) {
     });
   }
 
+  function setSelectionHoverSuppressionCursor(cursor) {
+    const viewerSvg = options.viewerSvg?.();
+    if (options.setCanvasCursorStyle) {
+      options.setCanvasCursorStyle(cursor);
+    } else if (viewerSvg) {
+      viewerSvg.style.cursor = cursor;
+    }
+  }
+
   function syncSelectionHoverSuppressionCursor(point, state) {
     const viewerSvg = options.viewerSvg?.();
     if (!viewerSvg) {
       return;
     }
-    if ((state.overSelectionHit || state.overSelectionBounds) && !state.inHandleZone) {
-      viewerSvg.style.cursor = "grab";
+    if (options.editorState().activeTool === "select") {
+      const resizeHandle = state.inHandleZone ? options.selectionResizeHandleHit(point) : null;
+      if (resizeHandle) {
+        setSelectionHoverSuppressionCursor(resizeHandle.cursor);
+        return;
+      }
+      if (state.inHandleZone && options.selectionRotateHandleHit(point)) {
+        setSelectionHoverSuppressionCursor("grab");
+        return;
+      }
+    }
+    if (state.overSelectionHit || state.overSelectionBounds) {
+      setSelectionHoverSuppressionCursor("grab");
       return;
     }
-    if (options.editorState().activeTool === "select") {
-      const resizeHandle = options.selectionResizeHandleHit(point);
-      if (resizeHandle) {
-        viewerSvg.style.cursor = resizeHandle.cursor;
-        return;
-      }
-      if (options.selectionRotateHandleHit(point)) {
-        viewerSvg.style.cursor = "grab";
-        return;
-      }
+    if (state.inHandleZone) {
+      setSelectionHoverSuppressionCursor("grab");
+      return;
     }
     options.syncCanvasCursor?.();
   }
@@ -344,19 +361,24 @@ export function createEditorPointerController(options) {
     }
     selectionHoverSuppressionActive = false;
     if (point && options.editorState().activeTool === "select") {
-      const resizeHandle = options.selectionResizeHandleHit(point);
+      const overSelectionBounds = !!options.selectionBoundsContainsPoint?.(point);
+      const overSelectionHit = !!options.selectionHitContainsPoint?.(point);
+      const inHandleZone = selectionHandleZoneContainsPoint(point);
+      if ((overSelectionBounds || overSelectionHit) && !inHandleZone) {
+        setSelectionHoverSuppressionCursor("grab");
+        return;
+      }
+      const resizeHandle = inHandleZone ? options.selectionResizeHandleHit(point) : null;
       if (resizeHandle) {
-        const viewerSvg = options.viewerSvg?.();
-        if (viewerSvg) {
-          viewerSvg.style.cursor = resizeHandle.cursor;
-        }
+        setSelectionHoverSuppressionCursor(resizeHandle.cursor);
         return;
       }
       if (options.selectionRotateHandleHit(point)) {
-        const viewerSvg = options.viewerSvg?.();
-        if (viewerSvg) {
-          viewerSvg.style.cursor = "grab";
-        }
+        setSelectionHoverSuppressionCursor("grab");
+        return;
+      }
+      if (overSelectionBounds || overSelectionHit || inHandleZone) {
+        setSelectionHoverSuppressionCursor("grab");
         return;
       }
     }

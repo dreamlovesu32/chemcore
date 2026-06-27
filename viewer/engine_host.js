@@ -7,7 +7,7 @@ class WasmEngineHost {
   }
 
   async initialize() {
-    await initializeChemcoreEngine(new URL("./engine/chemcore_engine_bg.wasm?v=20260626-selection-drag-preview-3", import.meta.url));
+    await initializeChemcoreEngine(new URL("./engine/chemcore_engine_bg.wasm?v=20260627-bracket-hit-cursor", import.meta.url));
     return this;
   }
 

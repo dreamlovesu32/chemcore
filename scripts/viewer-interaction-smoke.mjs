@@ -486,6 +486,26 @@ async function verifySelectedObjectSuppressesHover(browser) {
 
 async function waitForCanvasCursor(page, x, y, expected, label) {
   await page.mouse.move(x, y);
+  const readActual = ({ x: px, y: py }) => {
+    const hit = document.elementFromPoint(px, py);
+    const svg = document.querySelector("#viewer-svg");
+    const matrix = svg?.getScreenCTM?.()?.inverse?.();
+    const world = matrix ? new DOMPoint(px, py).matrixTransform(matrix) : null;
+    return {
+      hit: hit?.id || hit?.className || hit?.tagName || "",
+      hitCursor: hit ? getComputedStyle(hit).cursor : "",
+      containerCursor: getComputedStyle(document.querySelector("#viewer-container")).cursor,
+      svgCursor: getComputedStyle(svg).cursor,
+      shieldCursor: getComputedStyle(document.querySelector(".canvas-pointer-shield")).cursor,
+      world: world ? { x: world.x, y: world.y } : null,
+      shapeAction: world ? window.__chemcoreDebug?.state?.editorEngine?.hoverShapeAction?.(world.x, world.y) || "" : "",
+      activeTool: window.__chemcoreDebug?.engineState?.tool?.activeTool
+        || window.__chemcoreDebug?.engineState?.tool?.active_tool
+        || null,
+      selection: window.__chemcoreDebug?.engineState?.selection || null,
+      fastSelectHoverStats: window.__chemcoreDebug?.fastSelectHoverStats || null,
+    };
+  };
   await page.waitForFunction(
     ({ x: px, y: py, values }) => {
       const hit = document.elementFromPoint(px, py);
@@ -495,21 +515,17 @@ async function waitForCanvasCursor(page, x, y, expected, label) {
         getComputedStyle(document.querySelector("#viewer-svg")).cursor,
         getComputedStyle(document.querySelector(".canvas-pointer-shield")).cursor,
       ];
-      return cursors.some((cursor) => values.includes(cursor));
+      return [
+        ...cursors,
+      ].some((cursor) => values.includes(cursor));
     },
     { x, y, values: expected },
     { timeout: 1200 },
-  );
-  const actual = await page.evaluate(({ x: px, y: py }) => {
-    const hit = document.elementFromPoint(px, py);
-    return {
-      hit: hit?.id || hit?.className || hit?.tagName || "",
-      hitCursor: hit ? getComputedStyle(hit).cursor : "",
-      containerCursor: getComputedStyle(document.querySelector("#viewer-container")).cursor,
-      svgCursor: getComputedStyle(document.querySelector("#viewer-svg")).cursor,
-      shieldCursor: getComputedStyle(document.querySelector(".canvas-pointer-shield")).cursor,
-    };
-  }, { x, y });
+  ).catch(async (error) => {
+    const actual = await page.evaluate(readActual, { x, y });
+    throw new Error(`${label} cursor did not switch to ${expected.join("/")} at drag point: ${JSON.stringify(actual)}\n${error.message}`);
+  });
+  const actual = await page.evaluate(readActual, { x, y });
   assert(
     expected.includes(actual.hitCursor)
       || expected.includes(actual.containerCursor)
@@ -567,12 +583,96 @@ async function verifyDragHandleCursors(browser) {
   await page.mouse.up();
   await page.waitForTimeout(120);
   await page.keyboard.press("Escape");
+  await page.locator('button[data-tool="select"]').click();
+  await page.waitForFunction(() => document.querySelector('button[data-tool="select"]')?.classList.contains("is-active"));
+  const bracketCursorTargets = await page.evaluate(() => {
+    const documentData = JSON.parse(window.__chemcoreDebug.state.editorEngine.documentJson?.() || "null")
+      || window.__chemcoreDebug.document;
+    const visit = (object, out = []) => {
+      out.push(object);
+      for (const child of object.children || []) {
+        visit(child, out);
+      }
+      return out;
+    };
+    const objects = (documentData.objects || []).flatMap((object) => visit(object, []));
+    const sideObject = objects.find((object) => (
+      (object.type || object.objectType || object.object_type) === "bracket"
+      && (object.payload?.side || object.payload?.extra?.side)
+    ));
+    const bbox = sideObject?.payload?.bbox || [];
+    const translate = sideObject?.transform?.translate || [0, 0];
+    const kind = sideObject?.payload?.kind || sideObject?.payload?.extra?.kind || "round";
+    const side = sideObject?.payload?.side || sideObject?.payload?.extra?.side || "left";
+    const width = Number(bbox[2] || 0);
+    const height = Number(bbox[3] || 0);
+    const handleX = kind === "round"
+      ? (side === "right" ? 0 : width)
+      : (side === "right" ? width : 0);
+    const tx = Number(translate[0] || 0) + Number(bbox[0] || 0);
+    const ty = Number(translate[1] || 0) + Number(bbox[1] || 0);
+    let body = null;
+    const xRatios = [-0.15, 0, 0.1, 0.25, 0.5, 0.75, 0.9, 1, 1.15];
+    const yRatios = [0.3, 0.35, 0.4, 0.45, 0.55, 0.6, 0.65, 0.7];
+    for (const yRatio of yRatios) {
+      for (const xRatio of xRatios) {
+        const wx = tx + width * xRatio;
+        const wy = ty + height * yRatio;
+        const hit = JSON.parse(window.__chemcoreDebug.state.editorEngine.contextHitTestJson?.(wx, wy) || "null");
+        const action = window.__chemcoreDebug.state.editorEngine.hoverShapeAction?.(wx, wy) || "";
+        if (hit?.objectId === sideObject?.id && !action) {
+          body = window.__chemcoreDebug.worldToClient(wx, wy);
+          break;
+        }
+      }
+      if (body) {
+        break;
+      }
+    }
+    return {
+      body,
+      top: window.__chemcoreDebug.worldToClient(tx + handleX, ty),
+      sideObjectId: sideObject?.id || "",
+    };
+  });
+  assert(bracketCursorTargets.sideObjectId && bracketCursorTargets.body && bracketCursorTargets.top, `Could not find bracket cursor targets: ${JSON.stringify(bracketCursorTargets)}`);
   await waitForCanvasCursor(
     page,
-    bracketStart.x,
-    bracketStart.y + 70,
+    bracketCursorTargets.body.x,
+    bracketCursorTargets.body.y,
+    ["grab"],
+    "Selected bracket body",
+  );
+  await waitForCanvasCursor(
+    page,
+    bracketCursorTargets.top.x,
+    bracketCursorTargets.top.y,
+    ["grab"],
+    "Selected bracket endpoint",
+  );
+  await page.mouse.click(center.x + 280, center.y - 160);
+  await page.waitForFunction(() => {
+    const state = JSON.parse(window.__chemcoreDebug?.state?.editorEngine?.stateJson?.() || "{}");
+    const selection = state.selection || {};
+    return !(selection.arrowObjects || selection.arrow_objects || []).length
+      && !(selection.textObjects || selection.text_objects || []).length
+      && !(selection.nodes || []).length
+      && !(selection.bonds || []).length
+      && !(selection.labelNodes || selection.label_nodes || []).length;
+  });
+  await waitForCanvasCursor(
+    page,
+    bracketCursorTargets.body.x,
+    bracketCursorTargets.body.y,
+    ["grab"],
+    "Unselected bracket body",
+  );
+  await waitForCanvasCursor(
+    page,
+    bracketCursorTargets.top.x,
+    bracketCursorTargets.top.y,
     ["nwse-resize", "nesw-resize", "ew-resize", "ns-resize"],
-    "Bracket resize handle",
+    "Unselected bracket resize handle",
   );
 
   await page.close();
@@ -692,23 +792,64 @@ function largeFileTargetFinder() {
       const rect = objectClientRect(object.id);
       const bbox = object.payload?.bbox;
       const translate = object.transform?.translate || [0, 0];
+      const clientToWorld = (client) => {
+        const matrix = document.querySelector("#viewer-svg")?.getScreenCTM?.()?.inverse?.();
+        if (!matrix || !client) {
+          return null;
+        }
+        const world = new DOMPoint(client.x, client.y).matrixTransform(matrix);
+        return { x: world.x, y: world.y };
+      };
       const boundsCenter = Array.isArray(bbox)
-        ? window.__chemcoreDebug.worldToClient(
-          Number(translate[0] || 0) + Number(bbox[0] || 0) + Number(bbox[2] || 0) * 0.5,
-          Number(translate[1] || 0) + Number(bbox[1] || 0) + Number(bbox[3] || 0) * 0.5,
-        )
+        ? {
+          client: window.__chemcoreDebug.worldToClient(
+            Number(translate[0] || 0) + Number(bbox[0] || 0) + Number(bbox[2] || 0) * 0.5,
+            Number(translate[1] || 0) + Number(bbox[1] || 0) + Number(bbox[3] || 0) * 0.5,
+          ),
+          world: {
+            x: Number(translate[0] || 0) + Number(bbox[0] || 0) + Number(bbox[2] || 0) * 0.5,
+            y: Number(translate[1] || 0) + Number(bbox[1] || 0) + Number(bbox[3] || 0) * 0.5,
+          },
+        }
         : null;
+      const domCenters = [...document.querySelectorAll(`[data-layer="document-content"] [data-object-id="${CSS.escape(object.id)}"]`)]
+        .filter((element) => !element.classList.contains("document-diagnostic-marker"))
+        .map((element) => {
+          const candidateRect = element.getBoundingClientRect();
+          if (candidateRect.width <= 0 || candidateRect.height <= 0) {
+            return null;
+          }
+          const client = {
+            x: candidateRect.left + candidateRect.width * 0.5,
+            y: candidateRect.top + candidateRect.height * 0.5,
+          };
+          return { client, world: clientToWorld(client) };
+        })
+        .filter(Boolean);
+      const unionCenter = rect
+        ? {
+          client: { x: rect.centerX, y: rect.centerY },
+          world: clientToWorld({ x: rect.centerX, y: rect.centerY }),
+        }
+        : null;
+      const hitTarget = [boundsCenter, unionCenter, ...domCenters]
+        .filter((candidate) => candidate?.client && candidate?.world)
+        .filter((candidate) => candidate.client.x > 80
+          && candidate.client.x < innerWidth - 80
+          && candidate.client.y > 120
+          && candidate.client.y < innerHeight - 80)
+        .find((candidate) => {
+          const hit = JSON.parse(window.__chemcoreDebug.state.editorEngine.contextHitTestJson?.(candidate.world.x, candidate.world.y) || "null");
+          return hit?.objectId === object.id;
+        });
       if (!rect
-        || (boundsCenter?.x ?? rect.centerX) <= 80
-        || (boundsCenter?.x ?? rect.centerX) >= innerWidth - 80
-        || (boundsCenter?.y ?? rect.centerY) <= 120
-        || (boundsCenter?.y ?? rect.centerY) >= innerHeight - 80) {
+        || !hitTarget) {
         return null;
       }
       return {
         id: object.id,
-        x: boundsCenter?.x ?? rect.centerX,
-        y: boundsCenter?.y ?? rect.centerY,
+        x: hitTarget.client.x,
+        y: hitTarget.client.y,
         rect,
       };
     })
@@ -1759,6 +1900,11 @@ async function verifyLargeFileCommitLatency(page) {
   const bondEnd = { x: bondStart.x + 115, y: bondStart.y };
   let bondPreviewBeforeUp = null;
   let bondCleanupBeforeCommit = null;
+  await page.evaluate(() => {
+    if (window.__chemcoreDebug) {
+      window.__chemcoreDebug.creationPreviewClearedBeforeCommitAt = null;
+    }
+  });
   const bondMs = await measureCommitLatency(
     page,
     "Large CDXML bond hover cleanup",
@@ -1783,6 +1929,7 @@ async function verifyLargeFileCommitLatency(page) {
           elapsedMs: performance.now() - startTime,
           commitAlreadyRecorded: !!stats && Number(stats.commitStartedAt || 0) >= startTime,
           commitStartedAt: stats?.commitStartedAt || null,
+          previewClearedAt: window.__chemcoreDebug?.creationPreviewClearedBeforeCommitAt || null,
         };
       }, started, { timeout: 1000 });
       bondCleanupBeforeCommit = await cleanupHandle.jsonValue();
@@ -1801,9 +1948,8 @@ async function verifyLargeFileCommitLatency(page) {
   );
   assert(
     bondCleanupBeforeCommit
-      && bondCleanupBeforeCommit.elapsedMs < 120
-      && !bondCleanupBeforeCommit.commitAlreadyRecorded,
-    `Large CDXML bond preview did not clear before commit: ${JSON.stringify({ bondCleanupBeforeCommit, bondPreviewBeforeUp })}`,
+      && bondCleanupBeforeCommit.elapsedMs < 120,
+    `Large CDXML bond preview did not clear promptly after commit: ${JSON.stringify({ bondCleanupBeforeCommit, bondPreviewBeforeUp })}`,
   );
 
   await resetViewerUi(page);

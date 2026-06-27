@@ -1892,6 +1892,21 @@ fn select_tool_bracket_side_hit_testing_ignores_interior_space() {
     assert!(engine.state().selection.arrow_objects.is_empty());
     assert!(!engine.begin_selection_move_at_point(between_sides, false, false));
 
+    let left_stroke = Point::new(40.5, 55.0);
+    engine.pointer_move(PointerEvent {
+        x: left_stroke.x,
+        y: left_stroke.y,
+        button: None,
+        alt_key: false,
+    });
+    assert!(engine.state().overlay.hover_shape.is_some());
+    assert_eq!(
+        engine.hover_shape_action_at_point(left_stroke),
+        "",
+        "bracket side strokes should select/move the bracket, not start endpoint resize"
+    );
+    assert_eq!(engine.begin_hover_shape_edit(left_stroke), "");
+
     engine.select_in_rect(Point::new(49.0, 55.0), Point::new(55.0, 60.0), false);
     assert!(
         engine.state().selection.arrow_objects.is_empty(),
@@ -1903,7 +1918,7 @@ fn select_tool_bracket_side_hit_testing_ignores_interior_space() {
         vec!["obj_left_bracket".to_string()]
     );
 
-    engine.select_at_point(Point::new(40.5, 55.0), false);
+    engine.select_at_point(left_stroke, false);
     assert_eq!(
         engine.state().selection.arrow_objects,
         vec!["obj_left_bracket".to_string()]

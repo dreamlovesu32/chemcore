@@ -11,7 +11,7 @@ import { createColorHost } from "./color_host.js";
 import { createObjectSettingsHost } from "./object_settings_host.js";
 import { createNumericDialogHost } from "./numeric_dialog_host.js";
 import { createDesktopFileHost, normalizeDesktopPath } from "./desktop_file_host.js";
-import { createEngineHost } from "./engine_host.js?v=20260626-selection-drag-preview-3";
+import { createEngineHost } from "./engine_host.js?v=20260627-bracket-hit-cursor";
 import { bindEditorControls, openColorDialog } from "./editor_bindings.js?v=20260627-browser-drop-tabs";
 import { createDocumentFlow } from "./document_flow.js";
 import {
@@ -59,7 +59,7 @@ import {
 import { createSceneRenderer } from "./scene_renderer.js";
 import { createEditorOverlayRenderer } from "./editor_overlay.js?v=20260627-hover-scale";
 import { createEditorSelectionState } from "./editor_selection_state.js";
-import { createEditorPointerController } from "./editor_pointer_controller.js?v=20260627-hover-cleanup";
+import { createEditorPointerController } from "./editor_pointer_controller.js?v=20260627-selection-hover-cursor";
 import { createCanvasContextMenuHost } from "./editor_context_menu.js";
 import { createEditorCommandController } from "./editor_command_controller.js";
 import { createEditorCommandEngine } from "./editor_command_engine.js?v=20260626-interaction-feedback";
@@ -367,6 +367,8 @@ const editorEngineReadCache = {
   renderList: null,
   interactionRenderListJson: null,
   interactionRenderList: null,
+  documentJson: null,
+  parsedDocument: null,
   boundsJsonByScope: new Map(),
   boundsByScope: new Map(),
 };
@@ -380,6 +382,8 @@ function invalidateEditorEngineReadCache() {
   editorEngineReadCache.renderList = null;
   editorEngineReadCache.interactionRenderListJson = null;
   editorEngineReadCache.interactionRenderList = null;
+  editorEngineReadCache.documentJson = null;
+  editorEngineReadCache.parsedDocument = null;
   editorEngineReadCache.boundsJsonByScope = new Map();
   editorEngineReadCache.boundsByScope = new Map();
 }
@@ -2135,6 +2139,8 @@ function currentEditorEngineReadCache() {
     editorEngineReadCache.renderList = null;
     editorEngineReadCache.interactionRenderListJson = null;
     editorEngineReadCache.interactionRenderList = null;
+    editorEngineReadCache.documentJson = null;
+    editorEngineReadCache.parsedDocument = null;
     editorEngineReadCache.boundsJsonByScope = new Map();
     editorEngineReadCache.boundsByScope = new Map();
   }
@@ -2153,6 +2159,18 @@ function currentEditorEngineState() {
     cache.parsedState = parseEngineJson(cache.stateJson, null);
   }
   return cache.parsedState;
+}
+
+function currentEditorDocumentData() {
+  const cache = currentEditorEngineReadCache();
+  if (!cache || !state.editorEngine?.documentJson) {
+    return state.currentDocument;
+  }
+  if (!cache.parsedDocument) {
+    cache.documentJson = state.editorEngine.documentJson() || "";
+    cache.parsedDocument = parseEngineJson(cache.documentJson, null) || state.currentDocument;
+  }
+  return cache.parsedDocument || state.currentDocument;
 }
 
 function currentEditorRenderList() {
@@ -2672,7 +2690,7 @@ function fastBracketHoverAtPoint(point) {
   if (!isEditingRustDocument() || !point) {
     return null;
   }
-  const objects = collectCurrentDocumentSceneObjects()
+  const objects = collectCurrentDocumentSceneObjects(currentEditorDocumentData())
     .filter((object) => sceneObjectType(object) === "bracket" && object.visible !== false)
     .sort((a, b) => (Number(b.zIndex ?? b.z_index ?? 0) - Number(a.zIndex ?? a.z_index ?? 0)));
   for (const object of objects) {
@@ -2713,9 +2731,19 @@ function fastBracketHoverAtPoint(point) {
         { x: rightX, y: ty },
         { x: rightX, y: ty + height },
       ];
+    const handles = handlePoints.map((handle) => rotatePointAround(handle, center, rotate));
+    const nearestHandle = side
+      ? handles
+        .map((handle, index) => ({
+          distance: pointDistance(point, handle),
+          action: index === 0 ? "n" : "s",
+        }))
+        .sort((a, b) => a.distance - b.distance)[0]
+      : null;
     return {
       objectId: object.id,
-      handles: handlePoints.map((handle) => rotatePointAround(handle, center, rotate)),
+      handles,
+      action: nearestHandle && nearestHandle.distance <= cssPxToPt(10) ? nearestHandle.action : "",
     };
   }
   return null;
@@ -2735,6 +2763,8 @@ function renderFastSelectHover(point) {
     window.__chemcoreDebug.fastSelectHoverStats.hits += 1;
     window.__chemcoreDebug.fastSelectHoverStats.last = { point, hover };
   }
+  const cursor = cursorForShapeAction(hover.action);
+  setCanvasCursorStyle(cursor || "grab");
   const selectionPrimitives = currentEditorOverlayRenderList()
     .filter((primitive) => String(primitive?.role || "").startsWith("selection-"));
   renderEditorOverlay([
@@ -3836,6 +3866,7 @@ const editorPointerController = createEditorPointerController({
   cursorForShapeAction,
   syncCanvasCursor,
   renderFastSelectHover,
+  setCanvasCursorStyle,
   hoverPointerMoveDelayMs: (tool) => (
     tool === "select"
     && (viewerSvg?.querySelector('[data-layer="document-content"]')?.childElementCount || 0) > 1000
@@ -4421,6 +4452,10 @@ async function syncArrowAwareCursorForPoint(point) {
     const shapeCursor = cursorForShapeAction(shapeAction);
     if (shapeCursor) {
       setCanvasCursorStyle(shapeCursor);
+      return;
+    }
+    if (editorState.activeTool === "select" && fastBracketHoverAtPoint(point)) {
+      setCanvasCursorStyle("grab");
       return;
     }
   }
@@ -6250,7 +6285,7 @@ function documentPrimitiveHasSelectionAnchor(primitive) {
   ));
 }
 
-function collectCurrentDocumentSceneObjects() {
+function collectCurrentDocumentSceneObjects(documentData = state.currentDocument) {
   const objects = [];
   const visit = (object) => {
     if (!object) {
@@ -6261,7 +6296,7 @@ function collectCurrentDocumentSceneObjects() {
       visit(child);
     }
   };
-  for (const object of state.currentDocument?.objects || []) {
+  for (const object of documentData?.objects || []) {
     visit(object);
   }
   return objects;
