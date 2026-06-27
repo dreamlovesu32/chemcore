@@ -239,6 +239,68 @@ function makeManyFragmentDocument(count) {
   };
 }
 
+function makeWideBracketSideDocument() {
+  return {
+    format: { name: "chemcore", version: "0.1", unit: "pt" },
+    document: {
+      id: "doc_wide_bracket_hit_test",
+      title: "Wide bracket hit test",
+      page: { width: 240, height: 120, background: "#ffffff" },
+      meta: null,
+    },
+    objects: [
+      {
+        id: "obj_bracket_group",
+        type: "group",
+        name: "bracket-group",
+        visible: true,
+        locked: false,
+        zIndex: 9,
+        transform: { translate: [0, 0], rotate: 0, scale: [1, 1] },
+        meta: { kind: "bracket-group" },
+        payload: { bbox: [40, 20, 118, 70] },
+        children: [
+          {
+            id: "obj_left_bracket",
+            type: "bracket",
+            name: "left bracket",
+            visible: true,
+            locked: false,
+            zIndex: 10,
+            transform: { translate: [40, 20], rotate: 0, scale: [1, 1] },
+            payload: {
+              bbox: [0, 0, 18, 70],
+              kind: "square",
+              side: "left",
+              stroke: "#000000",
+              strokeWidth: 1,
+            },
+            children: [],
+          },
+          {
+            id: "obj_right_bracket",
+            type: "bracket",
+            name: "right bracket",
+            visible: true,
+            locked: false,
+            zIndex: 11,
+            transform: { translate: [140, 20], rotate: 0, scale: [1, 1] },
+            payload: {
+              bbox: [0, 0, 18, 70],
+              kind: "square",
+              side: "right",
+              stroke: "#000000",
+              strokeWidth: 1,
+            },
+            children: [],
+          },
+        ],
+      },
+    ],
+    resources: {},
+  };
+}
+
 async function openViewer(browser) {
   const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
   const errors = [];
@@ -979,6 +1041,107 @@ async function assertSquareBracketHandleDrag(page) {
   assertNoFullRefresh("square bracket handle drag", result);
 }
 
+async function assertBracketInteriorDoesNotHitBracket(page) {
+  const setup = await page.evaluate(async (doc) => {
+    await window.__chemcoreDebug.loadDocumentForTest(doc);
+    await window.__chemcoreDebug.state.editorEngine.clearSelection?.();
+    await window.__chemcoreDebug.state.editorEngine.clearInteraction?.();
+    document.querySelector('[data-layer="editor-overlay"]')?.replaceChildren();
+    const documentData = JSON.parse(window.__chemcoreDebug.state.editorEngine.documentJson());
+    const objects = [];
+    const visit = (object) => {
+      objects.push(object);
+      for (const child of object.children || []) {
+        visit(child);
+      }
+    };
+    for (const object of documentData.objects || []) {
+      visit(object);
+    }
+    const left = objects.find((object) => object.id === "obj_left_bracket");
+    const right = objects.find((object) => object.id === "obj_right_bracket");
+    const before = {
+      left: [...(left?.transform?.translate || [])],
+      right: [...(right?.transform?.translate || [])],
+    };
+    const leftInterior = window.__chemcoreDebug.worldToClient(49, 55);
+    const leftDragEnd = window.__chemcoreDebug.worldToClient(55, 60);
+    const betweenSides = window.__chemcoreDebug.worldToClient(100, 55);
+    const leftStroke = window.__chemcoreDebug.worldToClient(40.5, 55);
+    return { before, leftInterior, leftDragEnd, betweenSides, leftStroke };
+  }, makeWideBracketSideDocument());
+  assert(setup.leftInterior && setup.betweenSides && setup.leftStroke, `Bracket hit setup failed: ${JSON.stringify(setup)}`);
+  await page.locator('button[data-tool="select"]').click();
+  await page.waitForFunction(() => document.querySelector('button[data-tool="select"]')?.classList.contains("is-active"));
+
+  await page.mouse.move(setup.leftInterior.x, setup.leftInterior.y);
+  await page.waitForTimeout(100);
+  let hover = await page.evaluate(() => ({
+    handles: document.querySelectorAll('[data-layer="editor-overlay"] [data-role="hover-shape-handle"]').length,
+    fastHover: window.__chemcoreDebug.fastSelectHoverStats || null,
+  }));
+  assert(hover.handles === 0, `Bracket interior incorrectly showed hover handles: ${JSON.stringify(hover)}`);
+
+  await page.mouse.move(setup.betweenSides.x, setup.betweenSides.y);
+  await page.waitForTimeout(100);
+  hover = await page.evaluate(() => ({
+    handles: document.querySelectorAll('[data-layer="editor-overlay"] [data-role="hover-shape-handle"]').length,
+    fastHover: window.__chemcoreDebug.fastSelectHoverStats || null,
+  }));
+  assert(hover.handles === 0, `Space between bracket sides incorrectly showed hover handles: ${JSON.stringify(hover)}`);
+
+  await page.mouse.move(setup.leftStroke.x, setup.leftStroke.y);
+  await page.waitForTimeout(100);
+  hover = await page.evaluate(() => ({
+    handles: document.querySelectorAll('[data-layer="editor-overlay"] [data-role="hover-shape-handle"]').length,
+    fastHover: window.__chemcoreDebug.fastSelectHoverStats || null,
+  }));
+  assert(hover.handles > 0, `Bracket stroke did not show hover handles: ${JSON.stringify(hover)}`);
+
+  await page.evaluate(() => {
+    window.__chemcoreDebug.state.editorEngine.clearSelection?.();
+    window.__chemcoreDebug.state.editorEngine.clearInteraction?.();
+    document.querySelector('[data-layer="editor-overlay"]')?.replaceChildren();
+  });
+  await page.mouse.move(setup.leftInterior.x, setup.leftInterior.y);
+  await page.mouse.down();
+  await page.mouse.move(setup.leftDragEnd.x, setup.leftDragEnd.y, { steps: 4 });
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  const result = await page.evaluate((before) => {
+    const documentData = JSON.parse(window.__chemcoreDebug.state.editorEngine.documentJson());
+    const objects = [];
+    const visit = (object) => {
+      objects.push(object);
+      for (const child of object.children || []) {
+        visit(child);
+      }
+    };
+    for (const object of documentData.objects || []) {
+      visit(object);
+    }
+    const left = objects.find((object) => object.id === "obj_left_bracket");
+    const right = objects.find((object) => object.id === "obj_right_bracket");
+    const selection = window.__chemcoreDebug.engineState?.selection || {};
+    return {
+      before,
+      leftTranslate: left?.transform?.translate || null,
+      rightTranslate: right?.transform?.translate || null,
+      selection,
+      handles: document.querySelectorAll('[data-layer="editor-overlay"] [data-role="hover-shape-handle"]').length,
+    };
+  }, setup.before);
+  assert(
+    JSON.stringify(result.leftTranslate) === JSON.stringify(setup.before.left)
+      && JSON.stringify(result.rightTranslate) === JSON.stringify(setup.before.right),
+    `Dragging bracket interior moved a bracket: ${JSON.stringify(result)}`,
+  );
+  assert(
+    !(result.selection?.arrowObjects?.length || result.selection?.arrow_objects?.length),
+    `Dragging bracket interior selected a bracket: ${JSON.stringify(result)}`,
+  );
+}
+
 let server = null;
 let browser = null;
 try {
@@ -995,6 +1158,7 @@ try {
   await assertShapePointerDown(page, shapeId);
   await drawBracketOpensTextEditor(page);
   await assertSquareBracketHandleDrag(page);
+  await assertBracketInteriorDoesNotHitBracket(page);
   await assertBlankBondPointerDownUsesFragmentBounds(page);
   await page.close();
   assert(!errors.length, `Viewer console errors:\n${errors.join("\n")}`);

@@ -722,6 +722,33 @@ fn bracket_side_hover(object: &SceneObject, point: Point) -> Option<BracketHover
     None
 }
 
+pub(super) fn bracket_object_hit_at_point(object: &SceneObject, point: Point) -> bool {
+    object.object_type == "bracket" && object.visible && bracket_side_contains_point(object, point)
+}
+
+pub(super) fn bracket_object_region_selected<FP, FS>(
+    object: &SceneObject,
+    mut point_inside: FP,
+    mut segment_selected: FS,
+) -> bool
+where
+    FP: FnMut(Point) -> bool,
+    FS: FnMut(Point, Point) -> bool,
+{
+    if object.object_type != "bracket" || !object.visible {
+        return false;
+    }
+    let Some(polylines) = bracket_object_world_polylines(object) else {
+        return false;
+    };
+    polylines.iter().any(|polyline| {
+        polyline.iter().copied().any(&mut point_inside)
+            || polyline
+                .windows(2)
+                .any(|segment| segment_selected(segment[0], segment[1]))
+    })
+}
+
 fn bracket_handle_points(object: &SceneObject) -> Option<(Vec<Point>, Vec<BracketEditHandle>)> {
     if bracket_side(object).is_some() {
         return bracket_side_handle_points(object);
@@ -810,22 +837,50 @@ fn bracket_side_contains_point(object: &SceneObject, point: Point) -> bool {
     let ty = object.transform.translate[1] + y;
     let center = Point::new(tx + width * 0.5, ty + height * 0.5);
     let local = rotate_point_around(point, center, -object.transform.rotate);
-    let pad = ENDPOINT_HIT_RADIUS;
-    if bracket_side(object).is_none() {
-        return bracket_pair_contains_local_point(
-            local,
-            tx,
-            ty,
-            width,
-            height,
-            bracket_kind(object),
-            pad,
-        );
+    let pad = ENDPOINT_HIT_RADIUS + bracket_stroke_hit_padding(object);
+    let kind = bracket_kind(object);
+    if let Some(side) = bracket_side(object) {
+        return bracket_side_contains_local_point(local, tx, ty, width, height, kind, side, pad);
     }
-    local.x >= tx - pad
-        && local.x <= tx + width + pad
-        && local.y >= ty - pad
-        && local.y <= ty + height + pad
+    bracket_pair_contains_local_point(local, tx, ty, width, height, kind, pad)
+}
+
+fn bracket_object_world_polylines(object: &SceneObject) -> Option<Vec<Vec<Point>>> {
+    let [x, y, width, height] = object.payload.bbox?;
+    if width <= crate::EPSILON || height <= crate::EPSILON {
+        return None;
+    }
+    let tx = object.transform.translate[0] + x;
+    let ty = object.transform.translate[1] + y;
+    let center = Point::new(tx + width * 0.5, ty + height * 0.5);
+    let kind = bracket_kind(object);
+    let polylines = if let Some(side) = bracket_side(object) {
+        bracket_side_local_polylines(tx, ty, width, height, kind, side)
+    } else {
+        bracket_pair_local_polylines(tx, ty, width, height, kind)
+    };
+    Some(
+        polylines
+            .into_iter()
+            .map(|polyline| {
+                polyline
+                    .into_iter()
+                    .map(|point| rotate_point_around(point, center, object.transform.rotate))
+                    .collect()
+            })
+            .collect(),
+    )
+}
+
+fn bracket_stroke_hit_padding(object: &SceneObject) -> f64 {
+    object
+        .payload
+        .extra
+        .get("strokeWidth")
+        .and_then(JsonValue::as_f64)
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .unwrap_or_else(|| crate::px_to_pt(1.0))
+        * 0.5
 }
 
 fn bracket_pair_contains_local_point(
@@ -838,33 +893,12 @@ fn bracket_pair_contains_local_point(
     pad: f64,
 ) -> bool {
     let right = x + width;
-    let bottom = y + height;
     match kind {
         "square" => {
-            let lip = square_bracket_pair_lip(width, height);
-            point_to_segment_distance_local(point, Point::new(x, y), Point::new(x, bottom)) <= pad
-                || point_to_segment_distance_local(
-                    point,
-                    Point::new(right, y),
-                    Point::new(right, bottom),
-                ) <= pad
-                || point_to_segment_distance_local(point, Point::new(x, y), Point::new(x + lip, y))
-                    <= pad
-                || point_to_segment_distance_local(
-                    point,
-                    Point::new(x, bottom),
-                    Point::new(x + lip, bottom),
-                ) <= pad
-                || point_to_segment_distance_local(
-                    point,
-                    Point::new(right - lip, y),
-                    Point::new(right, y),
-                ) <= pad
-                || point_to_segment_distance_local(
-                    point,
-                    Point::new(right - lip, bottom),
-                    Point::new(right, bottom),
-                ) <= pad
+            point_to_polylines_distance(
+                point,
+                &bracket_pair_local_polylines(x, y, width, height, kind),
+            ) <= pad
         }
         _ => {
             let side_width = if kind == "curly" {
@@ -872,16 +906,335 @@ fn bracket_pair_contains_local_point(
             } else {
                 round_bracket_pair_depth(width, height)
             };
-            (point.x >= x - side_width - pad
-                && point.x <= x + side_width + pad
-                && point.y >= y - pad
-                && point.y <= bottom + pad)
-                || (point.x >= right - side_width - pad
-                    && point.x <= right + side_width + pad
-                    && point.y >= y - pad
-                    && point.y <= bottom + pad)
+            let (left_x, right_x) = if kind == "round" {
+                (x - side_width, right)
+            } else {
+                (x, right - side_width)
+            };
+            bracket_side_contains_local_point(
+                point,
+                left_x,
+                y,
+                side_width,
+                height,
+                kind,
+                BracketSide::Left,
+                pad,
+            ) || bracket_side_contains_local_point(
+                point,
+                right_x,
+                y,
+                side_width,
+                height,
+                kind,
+                BracketSide::Right,
+                pad,
+            )
         }
     }
+}
+
+fn bracket_side_contains_local_point(
+    point: Point,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    kind: &str,
+    side: BracketSide,
+    pad: f64,
+) -> bool {
+    if width <= crate::EPSILON || height <= crate::EPSILON {
+        return false;
+    }
+    match kind {
+        "square" => {
+            point_to_polylines_distance(
+                point,
+                &bracket_side_local_polylines(x, y, width, height, kind, side),
+            ) <= pad
+        }
+        "curly" => {
+            point_to_polyline_distance(
+                point,
+                &curly_bracket_side_polyline(x, y, width, height, side),
+            ) <= pad
+        }
+        _ => {
+            point_to_polyline_distance(
+                point,
+                &round_bracket_side_polyline(x, y, width, height, side),
+            ) <= pad
+        }
+    }
+}
+
+fn bracket_pair_local_polylines(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    kind: &str,
+) -> Vec<Vec<Point>> {
+    let right = x + width;
+    let bottom = y + height;
+    if kind == "square" {
+        let lip = square_bracket_pair_lip(width, height);
+        return vec![
+            vec![
+                Point::new(x + lip, y),
+                Point::new(x, y),
+                Point::new(x, bottom),
+                Point::new(x + lip, bottom),
+            ],
+            vec![
+                Point::new(right - lip, y),
+                Point::new(right, y),
+                Point::new(right, bottom),
+                Point::new(right - lip, bottom),
+            ],
+        ];
+    }
+    let side_width = if kind == "curly" {
+        curly_bracket_pair_depth(width, height)
+    } else {
+        round_bracket_pair_depth(width, height)
+    };
+    let (left_x, right_x) = if kind == "round" {
+        (x - side_width, right)
+    } else {
+        (x, right - side_width)
+    };
+    vec![
+        bracket_side_local_polyline(left_x, y, side_width, height, kind, BracketSide::Left),
+        bracket_side_local_polyline(right_x, y, side_width, height, kind, BracketSide::Right),
+    ]
+}
+
+fn bracket_side_local_polylines(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    kind: &str,
+    side: BracketSide,
+) -> Vec<Vec<Point>> {
+    vec![bracket_side_local_polyline(x, y, width, height, kind, side)]
+}
+
+fn bracket_side_local_polyline(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    kind: &str,
+    side: BracketSide,
+) -> Vec<Point> {
+    match kind {
+        "square" => square_bracket_side_polyline(x, y, width, height, side),
+        "curly" => curly_bracket_side_polyline(x, y, width, height, side),
+        _ => round_bracket_side_polyline(x, y, width, height, side),
+    }
+}
+
+fn square_bracket_side_polyline(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    side: BracketSide,
+) -> Vec<Point> {
+    let right = x + width;
+    let bottom = y + height;
+    match side {
+        BracketSide::Left => vec![
+            Point::new(right, y),
+            Point::new(x, y),
+            Point::new(x, bottom),
+            Point::new(right, bottom),
+        ],
+        BracketSide::Right => vec![
+            Point::new(x, y),
+            Point::new(right, y),
+            Point::new(right, bottom),
+            Point::new(x, bottom),
+        ],
+    }
+}
+
+fn round_bracket_side_polyline(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    side: BracketSide,
+) -> Vec<Point> {
+    let chord_half = height * 0.5;
+    let base = (height * height - chord_half * chord_half).max(0.0).sqrt();
+    let sample_count = 24;
+    (0..=sample_count)
+        .map(|index| {
+            let t = index as f64 / sample_count as f64;
+            let local_y = y + height * t;
+            let dy = (t - 0.5) * height;
+            let sagitta = ((height * height - dy * dy).max(0.0).sqrt() - base)
+                .max(0.0)
+                .min(width);
+            let local_x = match side {
+                BracketSide::Left => x + width - sagitta,
+                BracketSide::Right => x + sagitta,
+            };
+            Point::new(local_x, local_y)
+        })
+        .collect()
+}
+
+fn curly_bracket_side_polyline(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    side: BracketSide,
+) -> Vec<Point> {
+    let right = x + width;
+    let bottom = y + height;
+    let half_depth = width * 0.5;
+    let middle = y + height * 0.5;
+    let c_large = height * 0.039805;
+    let c_small = height * 0.032308;
+    let top_inner = y + half_depth;
+    let bottom_inner = bottom - half_depth;
+    let mut points = Vec::new();
+    match side {
+        BracketSide::Left => {
+            let le = right;
+            let lm = x + half_depth;
+            append_cubic_samples(
+                &mut points,
+                Point::new(le, y),
+                Point::new(le - c_large, y),
+                Point::new(lm, y + c_small),
+                Point::new(lm, top_inner),
+            );
+            append_cubic_samples(
+                &mut points,
+                Point::new(lm, top_inner),
+                Point::new(lm, top_inner),
+                Point::new(lm, middle - half_depth),
+                Point::new(lm, middle - half_depth),
+            );
+            append_cubic_samples(
+                &mut points,
+                Point::new(lm, middle - half_depth),
+                Point::new(lm, middle - half_depth + c_large),
+                Point::new(lm - c_small, middle),
+                Point::new(x, middle),
+            );
+            append_cubic_samples(
+                &mut points,
+                Point::new(x, middle),
+                Point::new(lm - c_small, middle),
+                Point::new(lm, middle + half_depth - c_large),
+                Point::new(lm, middle + half_depth),
+            );
+            append_cubic_samples(
+                &mut points,
+                Point::new(lm, middle + half_depth),
+                Point::new(lm, middle + half_depth),
+                Point::new(lm, bottom - c_small),
+                Point::new(le - c_large, bottom),
+            );
+            append_cubic_samples(
+                &mut points,
+                Point::new(le - c_large, bottom),
+                Point::new(le, bottom),
+                Point::new(le, bottom),
+                Point::new(le, bottom),
+            );
+        }
+        BracketSide::Right => {
+            let re = x;
+            let rm = x + half_depth;
+            append_cubic_samples(
+                &mut points,
+                Point::new(re, bottom),
+                Point::new(re + c_large, bottom),
+                Point::new(rm, bottom - c_small),
+                Point::new(rm, bottom_inner),
+            );
+            append_cubic_samples(
+                &mut points,
+                Point::new(rm, bottom_inner),
+                Point::new(rm, bottom_inner),
+                Point::new(rm, middle + half_depth),
+                Point::new(rm, middle + half_depth),
+            );
+            append_cubic_samples(
+                &mut points,
+                Point::new(rm, middle + half_depth),
+                Point::new(rm, middle + half_depth - c_large),
+                Point::new(rm + c_small, middle),
+                Point::new(right, middle),
+            );
+            append_cubic_samples(
+                &mut points,
+                Point::new(right, middle),
+                Point::new(rm + c_small, middle),
+                Point::new(rm, middle - half_depth + c_large),
+                Point::new(rm, middle - half_depth),
+            );
+            append_cubic_samples(
+                &mut points,
+                Point::new(rm, middle - half_depth),
+                Point::new(rm, middle - half_depth),
+                Point::new(rm, y + c_small),
+                Point::new(re + c_large, y),
+            );
+            append_cubic_samples(
+                &mut points,
+                Point::new(re + c_large, y),
+                Point::new(re, y),
+                Point::new(re, y),
+                Point::new(re, y),
+            );
+        }
+    }
+    points
+}
+
+fn append_cubic_samples(points: &mut Vec<Point>, p0: Point, p1: Point, p2: Point, p3: Point) {
+    let sample_count = 8;
+    let start = if points.is_empty() { 0 } else { 1 };
+    for index in start..=sample_count {
+        let t = index as f64 / sample_count as f64;
+        points.push(cubic_point(p0, p1, p2, p3, t));
+    }
+}
+
+fn cubic_point(p0: Point, p1: Point, p2: Point, p3: Point, t: f64) -> Point {
+    let mt = 1.0 - t;
+    let mt2 = mt * mt;
+    let t2 = t * t;
+    Point::new(
+        p0.x * mt2 * mt + p1.x * 3.0 * mt2 * t + p2.x * 3.0 * mt * t2 + p3.x * t2 * t,
+        p0.y * mt2 * mt + p1.y * 3.0 * mt2 * t + p2.y * 3.0 * mt * t2 + p3.y * t2 * t,
+    )
+}
+
+fn point_to_polyline_distance(point: Point, points: &[Point]) -> f64 {
+    points
+        .windows(2)
+        .map(|segment| point_to_segment_distance_local(point, segment[0], segment[1]))
+        .min_by(|left, right| left.total_cmp(right))
+        .unwrap_or(f64::INFINITY)
+}
+
+fn point_to_polylines_distance(point: Point, polylines: &[Vec<Point>]) -> f64 {
+    polylines
+        .iter()
+        .map(|polyline| point_to_polyline_distance(point, polyline))
+        .min_by(|left, right| left.total_cmp(right))
+        .unwrap_or(f64::INFINITY)
 }
 
 fn point_to_segment_distance_local(point: Point, start: Point, end: Point) -> f64 {

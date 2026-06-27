@@ -1575,6 +1575,12 @@ impl Engine {
                         object_id: object.id.clone(),
                     });
                 }
+            } else if object.object_type == "bracket" {
+                if super::brackets::bracket_object_hit_at_point(object, point) {
+                    return Some(SelectHit::ArrowObject {
+                        object_id: object.id.clone(),
+                    });
+                }
             } else {
                 let Some(bounds) = scene_object_selection_bounds(&self.state.document, object)
                 else {
@@ -1636,6 +1642,16 @@ impl Engine {
             if !matches!(object.object_type.as_str(), "bracket" | "symbol" | "shape")
                 || !object.visible
             {
+                continue;
+            }
+            if object.object_type == "bracket" {
+                if super::brackets::bracket_object_region_selected(
+                    object,
+                    &mut point_inside,
+                    &mut segment_selected,
+                ) {
+                    selection.arrow_objects.push(object.id.clone());
+                }
                 continue;
             }
             let Some(bounds) = scene_object_selection_bounds(&self.state.document, object) else {
