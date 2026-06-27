@@ -319,6 +319,71 @@ async function assertBlankBondPointerDownUsesFragmentBounds(page) {
   );
 }
 
+async function drawBondUsesPrimitivePatch(page) {
+  const result = await page.evaluate(async () => {
+    const debug = window.__chemcoreDebug;
+    await debug.resetEditorEngine();
+    const engine = debug.state.editorEngine;
+    debug.objectPrimitivePatchStats = null;
+    debug.renderStats.captureRenderListStacks = true;
+    debug.renderStats.documentRenderCount = 0;
+    debug.renderStats.renderListJsonCount = 0;
+    debug.renderStats.lastRenderListJsonStack = "";
+    const command = {
+      type: "add-bond",
+      begin: { x: 100, y: 100 },
+      end: { x: 148, y: 100 },
+      order: 1,
+      variant: "single",
+    };
+    const start = performance.now();
+    const commandResult = await debug.commandEngine.executeEngineCommand(
+      command,
+      () => engine.executeCommandJson(JSON.stringify(command)),
+      { sync: false, deferDocumentSync: true, source: "regression" },
+    );
+    const commandMs = performance.now() - start;
+    const renderStart = performance.now();
+    const patched = debug.renderDocumentChange(commandResult);
+    const renderMs = performance.now() - renderStart;
+    const targetBondIds = commandResult?.targets?.bonds || [];
+    const targetNodeIds = commandResult?.targets?.nodes || [];
+    const countTargetDom = (attribute, ids) => ids.reduce((count, id) => (
+      count + document.querySelectorAll(`[${attribute}="${CSS.escape(id)}"]`).length
+    ), 0);
+    return {
+      changed: !!commandResult?.changed,
+      patched,
+      targets: commandResult?.targets || null,
+      created: commandResult?.created || null,
+      commandMs,
+      renderMs,
+      targetBondDomCount: countTargetDom("data-bond-id", targetBondIds),
+      targetNodeDomCount: countTargetDom("data-node-id", targetNodeIds),
+      objectPrimitivePatchStats: debug.objectPrimitivePatchStats || null,
+      documentRenderCount: debug.renderStats.documentRenderCount || 0,
+      renderListJsonCount: debug.renderStats.renderListJsonCount || 0,
+    };
+  });
+  timingSamples.push({
+    label: "bond command patch",
+    kind: "creation",
+    totalMs: result.commandMs + result.renderMs,
+    executeMs: result.commandMs,
+  });
+  assert(result.changed && result.patched, `Bond was not patched: ${JSON.stringify(result)}`);
+  assert((result.targets?.nodes || []).length > 0, `Bond command did not target nodes: ${JSON.stringify(result)}`);
+  assert((result.targets?.bonds || []).length > 0, `Bond command did not target bonds: ${JSON.stringify(result)}`);
+  assert(result.targetBondDomCount > 0, `Bond primitive DOM was not patched: ${JSON.stringify(result)}`);
+  assert(
+    !result.objectPrimitivePatchStats?.patched,
+    `Bond creation repainted the molecule object instead of primitive targets: ${JSON.stringify(result.objectPrimitivePatchStats)}`,
+  );
+  assertNoFullRefresh("bond draw", result);
+  await page.evaluate((doc) => window.__chemcoreDebug.loadDocumentForTest(doc), makeLargeChainDocument(nodeCount));
+  await page.waitForFunction(() => window.__chemcoreDebug?.document?.resources?.mol_large?.data?.nodes?.length > 0);
+}
+
 async function renderStats(page) {
   return page.evaluate(() => ({
     documentRenderCount: window.__chemcoreDebug.renderStats.documentRenderCount || 0,
@@ -824,6 +889,7 @@ try {
   server = await ensureServer();
   browser = await chromium.launch({ headless: true });
   const { page, errors } = await openViewer(browser);
+  await drawBondUsesPrimitivePatch(page);
   const arrowId = await drawCurvedArrow(page);
   await assertArrowEndpointPointerDown(page, arrowId);
   await dragArrowStyleHandle(page, arrowId);

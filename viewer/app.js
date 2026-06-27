@@ -266,6 +266,8 @@ registerChemcoreDebug({
     fitView();
     return state.currentDocument;
   },
+  resetEditorEngine,
+  renderDocumentChange,
   renderStats: {
     captureRenderListStacks: false,
     documentRenderCount: 0,
@@ -3047,12 +3049,16 @@ function renderDocumentChange(result = null) {
     renderDocument();
     return true;
   }
-  if (result.deferDocumentSync && (
-    renderDocumentObjectPrimitiveChange(result)
-    || renderDocumentPrimitiveChange(result)
-  )) {
-    renderEditorOverlay();
-    return true;
+  if (result.deferDocumentSync) {
+    const patchPrimitiveTargetsFirst = targetIdsFromCommandResult(result, "nodes").size > 0
+      || targetIdsFromCommandResult(result, "bonds").size > 0;
+    const patched = patchPrimitiveTargetsFirst
+      ? (renderDocumentPrimitiveChange(result) || renderDocumentObjectPrimitiveChange(result))
+      : (renderDocumentObjectPrimitiveChange(result) || renderDocumentPrimitiveChange(result));
+    if (patched) {
+      renderEditorOverlay();
+      return true;
+    }
   }
   if (renderDocumentObjectPrimitiveChange(result)) {
     renderEditorOverlay();
