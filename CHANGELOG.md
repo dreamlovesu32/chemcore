@@ -7,6 +7,10 @@ All notable public changes to ChemCore are tracked here.
 Agent-focused CLI expansion, installable entry points, and another round of
 desktop/browser stabilization.
 
+- Added formal CLI protocol/version reporting, machine-facing protocol
+  contracts, an agent demo corpus, an agent POC workflow note,
+  release-quality matrices, and a split `agent/` CLI module layout to keep the
+  expanded agent surface maintainable.
 - Packaged an installed `chemcore-cli` entry point alongside the desktop app, with installer PATH registration, `chemcore-entrypoints.json`, an installed agent guide, and `guide`/`doctor` discovery for machine callers.
 - Clarified the CLI's two invocation modes: one-shot PowerShell commands for independent work, and JSONL `session` for repeated operations on the same loaded document.
 - Expanded the CLI agent workflow with `targets`, `context`, `detail`, `capture`, and `copy`, covering stable selectors, nearby-object summaries, raw object/detail lookup, precise crops, and Office/OLE clipboard payload generation.

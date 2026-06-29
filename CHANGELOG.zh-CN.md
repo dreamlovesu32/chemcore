@@ -4,6 +4,10 @@ ChemCore 的公开变更记录会保存在这里。
 
 ## 1.0.0-beta.5
 
+- 加入正式的 CLI 协议/版本报告、面向机器的 protocol contract、agent demo
+  corpus、agent POC 工作流说明、发布质量矩阵，并把扩展后的 agent CLI 代码拆成
+  `agent/` 模块目录，降低后续维护成本。
+
 面向 agent 的 CLI 扩展、安装入口完善，以及桌面端/浏览器端的进一步稳定化。
 
 - 将 `chemcore-cli` 作为桌面端安装包的一部分安装，加入安装器 PATH 注册、`chemcore-entrypoints.json`、随包 agent 指南，并可通过 `guide` / `doctor` 让机器调用方发现入口和文档。
