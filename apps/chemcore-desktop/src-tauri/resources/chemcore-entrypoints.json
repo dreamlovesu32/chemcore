@@ -25,7 +25,8 @@
         "chemcore-cli doctor --pretty",
         "chemcore-cli capabilities --pretty",
         "chemcore-cli examples basic --pretty",
-        "chemcore-cli schema context --pretty"
+        "chemcore-cli schema context --pretty",
+        "chemcore-cli schema detail --pretty"
       ]
     },
     "officeOleHelper": {
@@ -55,6 +56,7 @@
     "Run `chemcore-cli examples basic --pretty` for a minimal command script that creates an editable document.",
     "Run `chemcore-cli targets <document> --out targets.json --pretty` before precise capture or copy.",
     "Run `chemcore-cli context <document> --target <selector> --out context.json --capture-out context.png --scale 5` to inspect nearby objects and relationships.",
+    "Run `chemcore-cli detail <document> --target <selector> --out detail.json --pretty` to expand one id into exact object/molecule/node/bond JSON.",
     "Run `chemcore-cli capture <document> --target <selector> --out crop.png --scale 6` for deterministic high-resolution cropped inspection.",
     "Run `chemcore-cli copy <document> --target <selector>` to place an editable Office/OLE payload on the Windows clipboard."
   ]

@@ -58,6 +58,8 @@ fn run() -> CliResult<()> {
             .map_err(|error| CliError::for_command("capture", error)),
         "context" => agent::context_command(&args[1..])
             .map_err(|error| CliError::for_command("context", error)),
+        "detail" | "details" | "describe" | "show" => agent::detail_command(&args[1..])
+            .map_err(|error| CliError::for_command("detail", error)),
         "copy" => {
             agent::copy_command(&args[1..]).map_err(|error| CliError::for_command("copy", error))
         }
@@ -1004,6 +1006,8 @@ mod tests {
         assert_eq!(protocol::schema_topic_key("context"), Some("context"));
         assert_eq!(protocol::schema_topic_key("nearby"), Some("context"));
         assert_eq!(protocol::schema_topic_key("neighbors"), Some("context"));
+        assert_eq!(protocol::schema_topic_key("detail"), Some("detail"));
+        assert_eq!(protocol::schema_topic_key("object-detail"), Some("detail"));
         assert_eq!(protocol::schema_topic_key("clipboard"), Some("copy"));
         assert_eq!(
             protocol::schema_topic_key("command-script"),

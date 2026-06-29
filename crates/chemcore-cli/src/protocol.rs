@@ -65,6 +65,12 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         example: "chemcore-cli context input.cdxml --target molecule:1 --radius 80 --out context.json --capture-out context.png --scale 5 --pretty",
     },
     CommandSpec {
+        name: "detail",
+        summary: "Return one target's detail JSON after targets/context discovery.",
+        usage: "chemcore-cli detail <input> --target <object:id|molecule:index|node:id|bond:id> [--summary-only] [--include-resource] [--out <detail.json>] [--pretty]",
+        example: "chemcore-cli detail input.cdxml --target object:obj_round_bracket --out object-detail.json --pretty",
+    },
+    CommandSpec {
         name: "copy",
         summary: "Copy all content or a target object/molecule/node/bond as a ChemCore Office/OLE clipboard payload.",
         usage: "chemcore-cli copy <input> [--target <object:id|molecule:index|node:id|bond:id|all>] [--office-helper <chemcore-office.exe>] [--payload <payload.json>] [--no-copy] [--pretty]",
@@ -188,7 +194,15 @@ fn classify_cli_error(message: &str) -> &'static str {
 }
 
 fn command_spec(name: &str) -> Option<CommandSpec> {
+    let name = canonical_command_name(name);
     COMMAND_SPECS.iter().copied().find(|spec| spec.name == name)
+}
+
+fn canonical_command_name(name: &str) -> &str {
+    match name {
+        "details" | "describe" | "show" => "detail",
+        _ => name,
+    }
 }
 
 fn command_suggestions(input: &str) -> Vec<Value> {
@@ -285,6 +299,12 @@ fn protocol_schemas_json() -> Value {
             "screenshot": "Pass --capture-out <path.svg|path.png> to render the same context bounds.",
             "usage": command_spec("context").map(|spec| spec.usage).unwrap_or("")
         },
+        "detail": {
+            "description": "Returns a single object's, molecule's, node's, or bond's detail JSON. Use targets/context first to discover selectors, then detail to expand one selector.",
+            "rawPolicy": "By default, detail includes raw JSON for the selected entity. Use --summary-only for ids/bounds/relationship metadata only. Use --include-resource to embed the referenced molecule/text/json resource when inspecting an object.",
+            "aliases": ["details", "describe", "show"],
+            "usage": command_spec("detail").map(|spec| spec.usage).unwrap_or("")
+        },
         "copy": {
             "targets": ["all", "object", "molecule", "node", "bond"],
             "clipboard": "Windows Office/OLE via chemcore-office.exe --copy-clipboard-payload.",
@@ -313,7 +333,8 @@ fn capabilities_value() -> Value {
             "chemcore-cli about --pretty",
             "chemcore-cli examples basic --pretty",
             "chemcore-cli schema command-script --pretty",
-            "chemcore-cli schema context --pretty"
+            "chemcore-cli schema context --pretty",
+            "chemcore-cli schema detail --pretty"
         ],
         "commands": command_specs_json(),
         "formats": {
@@ -355,7 +376,8 @@ pub(crate) fn about_value() -> Value {
                     "chemcore-cli doctor --pretty",
                     "chemcore-cli capabilities --pretty",
                     "chemcore-cli examples basic --pretty",
-                    "chemcore-cli schema context --pretty"
+                    "chemcore-cli schema context --pretty",
+                    "chemcore-cli schema detail --pretty"
                 ]
             },
             "officeOleHelper": {
@@ -385,6 +407,7 @@ pub(crate) fn about_value() -> Value {
             "Run `chemcore-cli examples basic --pretty` for a minimal command script that creates an editable document.",
             "Run `chemcore-cli targets <document> --out targets.json --pretty` before precise capture or copy.",
             "Run `chemcore-cli context <document> --target <selector> --out context.json --capture-out context.png --scale 5` to inspect nearby objects and relationships.",
+            "Run `chemcore-cli detail <document> --target <selector> --out detail.json --pretty` to expand one id into exact object/molecule/node/bond JSON.",
             "Run `chemcore-cli capture <document> --target <selector> --out crop.png --scale 6` for deterministic high-resolution cropped inspection.",
             "Run `chemcore-cli copy <document> --target <selector>` to place an editable Office/OLE payload on the Windows clipboard."
         ]
@@ -425,6 +448,7 @@ fn examples_value(topic: &str) -> Result<Value, String> {
         "powershell": [
             "chemcore-cli targets example.ccjs --out example-targets.json --pretty",
             "chemcore-cli context example.ccjs --target molecule:0 --radius 80 --out molecule-0-context.json --capture-out molecule-0-context.png --scale 5 --pretty",
+            "chemcore-cli detail example.ccjs --target molecule:0 --out molecule-0-detail.json --pretty",
             "chemcore-cli capture example.ccjs --target molecule:0 --out molecule-0.png --scale 6 --expand-rel 0.15 --pretty",
             "chemcore-cli copy example.ccjs --target molecule:0 --pretty"
         ],
@@ -560,7 +584,7 @@ pub(crate) fn schema_command(args: &[String]) -> Result<(), String> {
         json!({ "ok": true, "topic": topic, "schema": schema })
     } else {
         return Err(format!(
-            "Unknown schema topic '{topic}'. Expected commands, targets, bounds, capture, context, copy, command-script, or all."
+            "Unknown schema topic '{topic}'. Expected commands, targets, bounds, capture, context, detail, copy, command-script, or all."
         ));
     };
     write_json_value(value, output.as_deref(), pretty)
@@ -572,6 +596,7 @@ pub(crate) fn schema_topic_key(topic: &str) -> Option<&'static str> {
         "bounds" => Some("bounds"),
         "capture" => Some("capture"),
         "context" | "nearby" | "neighbors" => Some("context"),
+        "detail" | "details" | "describe" | "show" | "object-detail" => Some("detail"),
         "copy" | "clipboard" => Some("copy"),
         "examples" => Some("commandScript"),
         "command-script" | "commandScript" | "commands-json" => Some("commandScript"),
