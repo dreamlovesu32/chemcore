@@ -1,6 +1,8 @@
 # ChemCore CLI Command Guide
 
-This guide is written for callers that use `chemcore-cli` directly. A caller should not need to read the ChemCore source code to know how to open files, create objects, edit objects, inspect results, or recover from command errors.
+This guide describes direct `chemcore-cli` usage: opening files, creating
+objects, editing objects, inspecting results, and recovering from command
+errors.
 
 ## 1. Start The CLI
 
@@ -45,10 +47,9 @@ chemcore-cli doctor --pretty
 chemcore-cli capabilities --pretty
 ```
 
-`--pretty` only changes JSON whitespace: compact JSON becomes line-broken and
-indented. It does not change fields, values, output files, exit code, schema,
-ordering, or command behavior. Without `--pretty`, JSON is compact single-line
-JSON.
+`--pretty` formats JSON with line breaks and indentation. Fields, values,
+output files, exit code, schema, ordering, and command behavior stay the same.
+Default JSON is compact single-line JSON.
 
 ## Invocation Modes
 
@@ -58,8 +59,8 @@ Use a PowerShell one-shot command when each operation can start a process, read
 its input files, write its output files, print one JSON result, and exit. This is
 the simplest mode for independent inspection, conversion, export, copy, precise
 capture, or a single `new`/`run` edit batch. One-shot commands are stateless:
-edits persist only through explicit output paths such as `--out`,
-`--results`, or `--document-json`.
+edits are written through explicit output paths such as `--out`, `--results`,
+or `--document-json`.
 
 ```powershell
 chemcore-cli targets input.cdxml --out targets.json --pretty
@@ -71,8 +72,7 @@ Use a JSONL session when many operations target the same document. Start one
 long-lived process with `chemcore-cli session [input]`, then write one JSON
 request per stdin line and read one JSON response per stdout line. A session
 keeps the document in memory, so repeated `targets`, `detail`, `context`,
-`capture`, `execute`, and `save` operations avoid repeated process startup and
-file import.
+`capture`, `execute`, and `save` operations reuse the same loaded document.
 
 ```powershell
 chemcore-cli session input.cdxml
@@ -85,10 +85,10 @@ chemcore-cli session input.cdxml
 {"id":4,"op":"exit"}
 ```
 
-The automatic CDXML/CDX import cache is not a third invocation mode. It only
-speeds repeated one-shot commands by caching the normalized imported document on
-disk. `session` is still the fastest and clearest mode for long iterative work
-on one large file.
+The automatic CDXML/CDX import cache belongs to one-shot mode. It stores the
+normalized imported document on disk so repeated one-shot commands can reuse
+import work. JSONL session is the mode for long iterative work on one large
+file.
 
 ## 2. File Commands
 
@@ -135,16 +135,17 @@ File output policy:
 
 Import cache policy:
 
-- CDXML/CDX input uses an automatic normalized-document import cache to speed repeated CLI invocations. The cache key includes the source content, format, CLI version, and executable stamp, so changed files or rebuilt binaries miss the cache.
+- CDXML/CDX input uses an automatic normalized-document import cache to speed repeated CLI invocations. The cache key includes the source content, format, CLI version, and executable stamp; changed files or rebuilt binaries create new cache entries.
 - Use `CHEMCORE_CLI_DISABLE_CACHE=1` to disable import caching. Use `CHEMCORE_CLI_CACHE_DIR=<path>` to place the cache in a specific directory. `chemcore-cli doctor --pretty` reports the effective cache settings.
 
 Error output policy:
 
 - Error JSON includes `error.kind`, `message`, `hint`, `fix`, `usage`, `examples`, and `suggestions`.
 - Missing argument errors use `error.kind="missing_argument"` and include `error.fix.action="provide_required_argument"` plus machine-readable `missing` and `expected` fields.
-- Agents should read `error.fix` first, then fall back to `usage` and `examples`.
+- `error.fix` is the primary repair object. `usage` and `examples` provide command context.
 
-`new` starts from a blank ChemCore internal document. It does not need an input format. The save format is inferred from `--out`:
+`new` starts from a blank ChemCore internal document. The command takes a command
+script and an output path. The save format is inferred from `--out`:
 
 ```powershell
 npm run cli -- new --out blank.ccjs --quiet
@@ -152,7 +153,7 @@ npm run cli -- new commands.json --out figure.cdxml
 npm run cli -- new commands.json --out figure.svg
 ```
 
-Use `--save-format` when the output path has no clear extension or when writing to stdout:
+Use `--save-format` when the output path has an ambiguous extension or when writing to stdout:
 
 ```powershell
 npm run cli -- new commands.json --out output --save-format cdxml
@@ -175,7 +176,7 @@ Supported formats:
 | `cdxml` | yes | yes | ChemDraw XML |
 | `cdx` | yes | yes | ChemDraw binary |
 | `sdf` | yes | yes | MDL SD file |
-| `svg` | no | yes | vector export |
+| `svg` | - | yes | vector export |
 
 ## 3. Command Script Format
 
@@ -232,7 +233,7 @@ Coordinates use ChemCore document coordinates. `x` increases to the right, and `
 
 ## 4. Execution Reports, Ids, And Internal JSON
 
-Pass `--results` when using `new` or `run`. `results.json` is the primary machine-readable record for whether commands executed, whether they changed the document, which ids were created/updated/deleted, what failed, and which input/output files were involved. By default it is a lightweight audit report, not a stored history stack.
+Pass `--results` when using `new` or `run`. `results.json` is the primary machine-readable record for whether commands executed, whether they changed the document, which ids were created/updated/deleted, what failed, and which input/output files were involved. By default it is a lightweight audit report.
 
 ```powershell
 npm run cli -- run input.cdxml commands.json --out output.cdxml --results results.json --document-json after.ccjs --pretty
@@ -284,9 +285,9 @@ npm run cli -- run input.cdxml commands.json --out output.cdxml --results result
 | `executedCount` | number of commands that reached the engine and returned an engine result |
 | `failedIndex` | 0-based index of the failed command, or `null` |
 | `commands` | per-command reports |
-| `document` | document hash/revision before and after the script. Use this to verify whether the document changed without storing a full snapshot |
+| `document` | document hash/revision before and after the script, useful for change detection while keeping reports small |
 | `io` | operation name plus input/script/output paths for this invocation |
-| `final` | optional inspect snapshot after the script stops, present only when `--inspect-after` is used |
+| `final` | optional inspect snapshot after the script stops, present when `--inspect-after` is used |
 | `documentJson` | result of `--document-json` |
 | `save` | result of `--out` |
 | `error` | top-level failure reason |
@@ -348,7 +349,7 @@ When the CLI fails, the process exits non-zero and prints an error to stderr. If
 | --- | --- |
 | `ok` | whether this command succeeded |
 | `executed` | whether it reached the engine and returned `engineResult` |
-| `changed` | whether it changed the document. A valid no-op is `false` |
+| `changed` | whether it changed the document. A valid unchanged result is `false` |
 | `commandType` | original `type` value |
 | `document` | document hash/revision before and after this command |
 | `changeSummary` | selector-form summary of created/updated/deleted ids, intended for agent history |
@@ -356,16 +357,16 @@ When the CLI fails, the process exits non-zero and prints an error to stderr. If
 | `updated` | updated node, bond, scene object, and style ids |
 | `deleted` | deleted node, bond, scene object, and style ids |
 | `engineResult` | raw ChemCore engine result |
-| `after` | optional inspect snapshot after this command, present only when `--inspect-after` is used |
+| `after` | optional inspect snapshot after this command, present when `--inspect-after` is used |
 
 Decision table:
 
 | Situation | Meaning |
 | --- | --- |
 | `ok=true, executed=true, changed=true` | command executed and changed the document |
-| `ok=true, executed=true, changed=false` | command was valid but produced no change |
-| `ok=false, executed=false` | command did not execute. Read `error.message` |
-| top-level `ok=false` and `save.skipped=true` | script failed, so `--out` was not saved |
+| `ok=true, executed=true, changed=false` | command was valid and left the document unchanged |
+| `ok=false, executed=false` | command execution was rejected or skipped. Read `error.message` |
+| top-level `ok=false` and `save.skipped=true` | script failed and `--out` save was skipped |
 
 ### 4.3 Failed Command Report
 
@@ -393,18 +394,18 @@ Common `error.stage` values:
 
 | stage | Meaning |
 | --- | --- |
-| `read-script` | command JSON could not be read or was not an object/array |
-| `execute-command` | invalid field, invalid enum value, missing field, or context-only command |
+| `read-script` | command JSON read/parsing rejected the script shape |
+| `execute-command` | invalid field, invalid enum value, missing field, or command requiring interaction context |
 | `inspect-after` | optional inspect after one command failed |
 | `inspect-final` | optional final inspect failed |
 | `write-document-json` | `--document-json` write failed |
 | `save-output` | `--out` save failed |
 
-If a script fails, earlier successful commands remain in the in-memory document and are visible in `document`, command entries, and `--document-json` if requested. The target `--out` file is not saved.
+If a script fails, earlier successful commands remain in the in-memory document and are visible in `document`, command entries, and `--document-json` if requested. The target `--out` save reports `save.skipped=true`.
 
 ### 4.4 Optional After Snapshots
 
-By default, command reports do not include `after` snapshots and the top-level report does not include `final`. This keeps reports small for large documents and long command scripts. The CLI reports what changed; the caller or agent should maintain history with git, temporary files, or its own log.
+Default command reports include change summaries. `--inspect-after` adds per-command `after` snapshots and a top-level `final` snapshot. The CLI reports what changed; the caller or agent can maintain history with git, temporary files, or its own log.
 
 Pass `--inspect-after` when a command-by-command structural snapshot is useful:
 
@@ -463,7 +464,7 @@ npm run cli -- run input.cdxml commands.json --results results.json --inspect-af
 
 ### 4.5 Getting Object Ids
 
-Editing existing objects requires ids. Get ids from `inspect`, `targets`, `results.commands[i].created`, or `results.commands[i].changeSummary`. Use `results.commands[i].after` only when `--inspect-after` was requested.
+Editing existing objects requires ids. Get ids from `inspect`, `targets`, `results.commands[i].created`, or `results.commands[i].changeSummary`. When `--inspect-after` is requested, `results.commands[i].after` also contains ids from the post-command snapshot.
 
 Write `--results` when creating objects:
 
@@ -521,8 +522,8 @@ npm run cli -- run input.cdxml commands.json --out after.ccjs --results results.
 
 ### 4.7 Agent Target, Context, Detail, Capture, And Copy Workflow
 
-Use this workflow when an agent needs exact ids, exact crops, or nearby-object
-context without guessing coordinates:
+Use this selector-based workflow when an agent needs exact ids, exact crops, or
+nearby-object context:
 
 ```powershell
 chemcore-cli targets input.cdxml --out targets.json --pretty
@@ -543,12 +544,12 @@ bond:<bond-id>
 bounds:<minX>,<minY>,<maxX>,<maxY>
 ```
 
-`bounds:` is accepted by capture-style crops. `detail` accepts one object,
-molecule, node, or bond selector; it does not accept `all` or `bounds`.
+`bounds:` is accepted by capture-style crops. `detail` accepts one
+`object:<id>`, `molecule:<index>`, `node:<id>`, or `bond:<id>` selector.
 
 `targets` returns stable selectors and bounds grouped under `objects`,
-`molecules`, `nodes`, and `bonds`. Run it before `context`, `detail`,
-`capture`, or `copy` when the caller does not already know the exact selector.
+`molecules`, `nodes`, and `bonds`. It is the discovery step before `context`,
+`detail`, `capture`, or `copy`.
 
 `context` returns nearby object summaries, molecule summaries, node summaries,
 bond summaries, bounds, direction, distance, overlap flags, group ancestry,
@@ -558,9 +559,9 @@ returned selector when raw JSON is needed.
 `detail` returns one selected entity. By default, it includes raw JSON for that
 entity. Add `--summary-only` when ids, bounds, and relationship metadata are
 sufficient. Add `--include-resource` for an object when the referenced resource
-must be embedded in the response.
+is part of the requested response.
 
-`capture` writes the rendered crop to `--out` and writes only a JSON manifest to
+`capture` writes the rendered crop to `--out` and writes a JSON manifest to
 stdout. If `--out` is omitted, it writes a PNG to the OS temp `chemcore-cli`
 directory and reports `output.defaulted=true` plus the exact `output.path`.
 It also emits a `warnings[]` entry with `kind="default_output_path"`.
@@ -580,17 +581,16 @@ used.
 
 `copy` places an editable ChemCore Office/OLE payload on the Windows clipboard.
 If `--payload` is omitted, the payload JSON is written to the OS temp
-`chemcore-cli` directory and a `default_payload_path` warning is emitted. Use `--payload payload.json --no-copy` to write the
-clipboard payload without touching the clipboard.
+`chemcore-cli` directory and a `default_payload_path` warning is emitted.
+`--payload payload.json --no-copy` writes the clipboard payload JSON file.
 
 `session` starts a long-lived JSON Lines process for agents. The first stdout
 line is a compact `ready` event. Then send one compact JSON request per line and
 read one compact JSON response per line. A session keeps one document open in
 memory, so repeated `targets`, `detail`, `context`, `capture`, `execute`, and
-`save` operations avoid repeated process startup and file import. The session
-does not persist undo history; `execute` responses report before/after revision
-and per-command results so the caller can maintain history with git, files, or
-its own log.
+`save` operations reuse the same loaded document. `execute` responses report
+before/after revision and per-command results, which gives the caller enough
+data for git, file-based, or log-based history.
 
 ```json
 {"id":1,"op":"open","input":"input.cdxml"}

@@ -1,8 +1,8 @@
 # Chemcore Agent Guide
 
-This guide is for automation agents using Chemcore without source-code context.
-Use the CLI for machine workflows. Use the desktop GUI for interactive editing
-and visual inspection.
+This guide gives automation agents a source-code-independent map of Chemcore.
+The CLI covers machine workflows. The desktop GUI covers interactive editing and
+visual inspection.
 
 ## First Contact
 
@@ -19,13 +19,12 @@ chemcore-cli capabilities --pretty
 Installed builds add the CLI directory to PATH. Open a new terminal after
 installing, then call `chemcore-cli` directly.
 
-The CLI prints JSON by default. Without `--pretty`, JSON is compact single-line
-JSON. `--pretty` only changes JSON whitespace: compact JSON becomes line-broken
-and indented. It does not change fields, values, output files, exit code,
-schema, ordering, or command behavior.
+The CLI prints compact single-line JSON by default. `--pretty` formats JSON with
+line breaks and indentation. Fields, values, output files, exit code, schema,
+ordering, and command behavior stay the same.
 
-Use `--out <path>` when complete output matters. For large payloads and guide
-content, read the file written by `--out` instead of relying on a console buffer.
+For complete output, pass `--out <path>`. Large payloads and guide content are
+available from the file written by `--out`.
 
 This quick guide is installed as `chemcore-agent-guide.md`. The detailed English
 CLI guide is installed as `chemcore-cli-guide.md`. To include guide Markdown in
@@ -50,8 +49,8 @@ chemcore-cli capture input.cdxml --target molecule:0 --out molecule.png --scale 
 
 Use a JSONL session for repeated work on one document. Start one long-lived
 process, write one JSON request per stdin line, and read one JSON response per
-stdout line. This keeps the document in memory and avoids repeated startup and
-file import.
+stdout line. This keeps the document in memory and reuses the same loaded
+document.
 
 ```powershell
 chemcore-cli session input.cdxml
@@ -63,9 +62,9 @@ chemcore-cli session input.cdxml
 {"id":3,"op":"exit"}
 ```
 
-The CDXML/CDX import cache is not a third mode. It only speeds repeated
-one-shot commands. Prefer `session` for long iterative work on the same large
-file.
+The CDXML/CDX import cache belongs to one-shot mode. It stores normalized import
+results on disk so repeated one-shot commands can reuse import work. JSONL
+session is the mode for long iterative work on the same large file.
 
 ## Core Rule
 
@@ -75,9 +74,10 @@ Use a layered workflow:
 2. Inspect the neighborhood with `context`.
 3. Expand one id with `detail`.
 4. Render an exact crop with `capture`.
-5. Copy to Office with `copy` only when the clipboard is the goal.
+5. Copy to Office with `copy` for editable Office clipboard payloads.
 
-This keeps console output small and avoids guessing coordinates.
+This keeps console output small and uses selectors instead of coordinate
+guessing.
 
 ## Selectors
 
@@ -92,7 +92,8 @@ bond:<bond-id>
 bounds:<minX>,<minY>,<maxX>,<maxY>
 ```
 
-`bounds:` is for capture-style crops. `detail` does not accept `all` or `bounds`.
+`bounds:` is for capture-style crops. `detail` accepts one `object:<id>`,
+`molecule:<index>`, `node:<id>`, or `bond:<id>` selector.
 Use `inspect` for whole-document summaries.
 
 ## Discover Targets
@@ -139,9 +140,8 @@ Default behavior:
 - `node:<id>` returns summary plus `raw.node`.
 - `bond:<id>` returns summary plus `raw.bond`.
 
-Use `--summary-only` when you only need ids, bounds, and relationship metadata.
-Use `--include-resource` when inspecting an object and you need the referenced
-resource expanded as raw JSON.
+`--summary-only` returns ids, bounds, and relationship metadata. `--include-resource`
+expands the referenced resource as raw JSON when inspecting an object.
 
 Aliases for `detail`: `details`, `describe`, `show`.
 
@@ -203,10 +203,9 @@ chemcore-cli run input.cdxml commands.json --out edited.cdxml --results run-resu
 
 Execution reports include per-command success, document hash/revision changes,
 created/updated/deleted targets, diagnostics, and invocation input/output paths.
-They do not store per-command document snapshots by default. Use `--inspect-after
-summary,objects,molecules` only when a structural snapshot after each command is
-needed. Use `--continue-on-error` for batch experiments where one failure should
-not stop later commands.
+Default execution reports contain change summaries. `--inspect-after
+summary,objects,molecules` adds a structural snapshot after each command.
+`--continue-on-error` keeps later commands running after a failure.
 
 ## Copy To Office
 
@@ -218,27 +217,27 @@ chemcore-cli copy input.cdxml --target molecule:0 --pretty
 chemcore-cli copy input.cdxml --target object:obj_shape_001 --payload payload.json --no-copy --pretty
 ```
 
-`--payload` is useful for debugging. `--no-copy` writes the payload without
-touching the clipboard.
+`--payload` is useful for debugging. `--no-copy` writes the payload JSON file.
 
-## Output Discipline
+## Output Policy
 
-Deterministic output policy for agents:
+Deterministic output behavior:
 
 - `new` and `run` are stateless command invocations. The CLI reports what each
-  step changed; the caller should maintain history with git, temp files, or its
-  own log.
+  step changed; the caller can maintain history with git, temp files, or its own
+  log.
 - File-writing commands verify the written file before reporting success.
-- Omit `capture --out` only when a temp PNG path is acceptable; explicit paths
-  are still better for artifacts the caller wants to keep. Treat
-  `warnings[].kind=default_output_path` as a reminder to move or recapture the
-  file if it should persist.
-- Always use `--out` for `targets`, `context`, `detail`, and `inspect` when the
-  document may be large.
-- Use `context` before `detail` when exploring unknown documents.
-- Use `detail --summary-only` unless raw object JSON is needed.
-- Use `guide --include-content --out guide.json` for guide Markdown content.
-- Treat stdout as a JSON status channel, not an image or payload channel.
+- `capture` with `--out` writes the requested image path. When `capture` omits
+  `--out`, it writes a temp PNG path and reports
+  `warnings[].kind=default_output_path`.
+- `targets`, `context`, `detail`, and `inspect` accept `--out` for file-backed
+  JSON output.
+- `context` is the neighborhood discovery step before `detail`.
+- `detail --summary-only` returns ids, bounds, and relationship metadata.
+- `guide --include-content --out guide.json` writes guide Markdown content into
+  JSON.
+- stdout carries JSON status manifests. Images and payloads are written as
+  files.
 
 ## Troubleshooting
 
@@ -253,9 +252,9 @@ examples.
 
 Missing argument:
 
-Read `error.fix` first. Missing-argument errors include
-`fix.action=provide_required_argument`, `fix.missing`, `fix.expected`, usage, and
-an example command.
+`error.fix` is the primary repair object. Missing-argument errors include
+`fix.action=provide_required_argument`, `fix.missing`, `fix.expected`, usage,
+and an example command.
 
 Ambiguous capture output:
 
@@ -265,7 +264,7 @@ chemcore-cli capture input.cdxml --target molecule:0 --out crop
 
 Use `.png`, `.svg`, or pass `--format png|svg`.
 
-Target not found:
+Target lookup failure:
 
 ```powershell
 chemcore-cli targets input.cdxml --out targets.json --pretty
@@ -275,5 +274,5 @@ Then copy a selector exactly from `targets.json`.
 
 Large output:
 
-Use `--out` and read the file. Do not rely on a console buffer for full document
-JSON, full guide content, or large detail payloads.
+Use `--out` and read the file for full document JSON, full guide content, or
+large detail payloads.

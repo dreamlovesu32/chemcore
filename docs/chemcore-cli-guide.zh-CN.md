@@ -1,6 +1,6 @@
 # ChemCore CLI 命令指南
 
-这份文档给调用方直接使用 `chemcore-cli`。调用方不需要阅读 ChemCore 源代码，只需要按这里的命令行和 JSON 字段组织输入。
+这份文档说明 `chemcore-cli` 的直接用法：打开文件、创建对象、编辑对象、检查结果，以及从命令错误中恢复。
 
 ## 1. 启动 CLI
 
@@ -45,15 +45,13 @@ chemcore-cli doctor --pretty
 chemcore-cli capabilities --pretty
 ```
 
-`--pretty` 只改变 JSON 的空白字符布局：把紧凑单行 JSON 输出成带换行和
-缩进的 JSON。它不改变字段、值、输出文件、退出码、schema、排序或命令行为。
-不加 `--pretty` 时，JSON 是紧凑单行 JSON。
+`--pretty` 会把紧凑单行 JSON 格式化为带换行和缩进的 JSON。字段、值、输出文件、退出码、schema、排序和命令行为保持一致。默认 JSON 是紧凑单行 JSON。
 
 ## 调用模式
 
 ChemCore CLI 有两种调用模式。
 
-当每个操作都可以启动一个进程、读取输入文件、写输出文件、打印一次 JSON 结果并退出时，用 PowerShell 单命令模式。这是独立检查、转换、导出、复制、精确截图，或单次 `new`/`run` 编辑批处理的最简单模式。单命令模式是无状态的：编辑只会通过显式输出路径持久化，例如 `--out`、`--results` 或 `--document-json`。
+当每个操作都可以启动一个进程、读取输入文件、写输出文件、打印一次 JSON 结果并退出时，用 PowerShell 单命令模式。这是独立检查、转换、导出、复制、精确截图，或单次 `new`/`run` 编辑批处理的最简单模式。单命令模式是无状态的：编辑通过显式输出路径写出，例如 `--out`、`--results` 或 `--document-json`。
 
 ```powershell
 chemcore-cli targets input.cdxml --out targets.json --pretty
@@ -61,7 +59,7 @@ chemcore-cli capture input.cdxml --target molecule:0 --out molecule.png --scale 
 chemcore-cli run input.cdxml commands.json --out edited.cdxml --results results.json --pretty
 ```
 
-当很多操作都针对同一个文档时，用 JSONL session。用 `chemcore-cli session [input]` 启动一个长驻进程，然后向 stdin 每行写一个 JSON 请求，从 stdout 每行读一个 JSON 响应。session 会把文档保持在内存里，所以反复执行 `targets`、`detail`、`context`、`capture`、`execute` 和 `save` 时，不需要每步重新启动进程和重新导入文件。
+当很多操作都针对同一个文档时，用 JSONL session。用 `chemcore-cli session [input]` 启动一个长驻进程，然后向 stdin 每行写一个 JSON 请求，从 stdout 每行读一个 JSON 响应。session 会把文档保持在内存里，反复执行 `targets`、`detail`、`context`、`capture`、`execute` 和 `save` 时复用同一份已载入文档。
 
 ```powershell
 chemcore-cli session input.cdxml
@@ -74,7 +72,7 @@ chemcore-cli session input.cdxml
 {"id":4,"op":"exit"}
 ```
 
-自动 CDXML/CDX 导入缓存不是第三种调用模式。它只是通过磁盘上的归一化导入文档缓存，加速重复的单命令调用。对同一个大文件做长时间迭代时，`session` 仍然是最快、边界最清晰的模式。
+自动 CDXML/CDX 导入缓存属于单命令模式。它把归一化导入文档存到磁盘，让重复的单命令调用复用导入结果。JSONL session 是同一个大文件长时间迭代时的调用模式。
 
 ## 2. 文件命令
 
@@ -116,7 +114,7 @@ npm run cli -- convert input.cdxml output.ccjs
 
 - `capture` 可以省略 `--out`；此时会把 PNG 写到系统临时目录下的 `chemcore-cli` 子目录，在 `output.path` 返回真实路径，并给出 `default_output_path` warning。
 - `copy` 可以省略 `--payload`；此时会把剪贴板 payload JSON 写到系统临时目录下的 `chemcore-cli` 子目录，在 `payload.path` 返回真实路径，并给出 `default_payload_path` warning。
-- `new`、`convert`、`export` 会创建主要文档文件，必须显式给输出路径。
+- `new`、`convert`、`export` 会创建主要文档文件，需要显式给输出路径。
 - 所有写文件命令都会在写完后检查目标是否存在、是否为普通文件、以及字节数是否符合预期或最低要求。校验失败就是命令失败。
 
 导入缓存规则：
@@ -128,9 +126,9 @@ npm run cli -- convert input.cdxml output.ccjs
 
 - 错误 JSON 包含 `error.kind`、`message`、`hint`、`fix`、`usage`、`examples` 和 `suggestions`。
 - 缺参数错误使用 `error.kind="missing_argument"`，并包含 `error.fix.action="provide_required_argument"`，以及机器可读的 `missing` 和 `expected` 字段。
-- agent 应优先读取 `error.fix`，再回退到 `usage` 和 `examples`。
+- `error.fix` 是主要修复对象，`usage` 和 `examples` 提供命令上下文。
 
-`new` 从空白 ChemCore 内部文档开始，不需要指定输入格式。保存格式由 `--out` 后缀决定：
+`new` 从空白 ChemCore 内部文档开始。命令接收命令脚本和输出路径。保存格式由 `--out` 后缀决定：
 
 ```powershell
 npm run cli -- new --out blank.ccjs --quiet
@@ -218,7 +216,7 @@ npm run cli -- convert input.cdxml output --format svg
 
 ## 4. 执行报告、id 和内部 JSON
 
-机器人调用 `new` 或 `run` 时应始终写 `--results`。`results.json` 是机器判断命令是否执行、是否修改文档、新建/更新/删除了哪些 id、失败原因、以及本次读写了哪些文件的主要依据。默认它是轻量审计报告，不是完整历史栈。
+机器人调用 `new` 或 `run` 时传入 `--results`。`results.json` 是机器判断命令是否执行、是否修改文档、新建/更新/删除了哪些 id、失败原因、以及本次读写了哪些文件的主要依据。默认它是轻量审计报告。
 
 ```powershell
 npm run cli -- run input.cdxml commands.json --out output.cdxml --results results.json --document-json after.ccjs --pretty
@@ -272,12 +270,12 @@ npm run cli -- run input.cdxml commands.json --out output.cdxml --results result
 | `executedCount` | 成功进入 engine 并返回结果的命令数 |
 | `failedIndex` | 失败命令的 0-based index；全部成功时为 `null` |
 | `commands` | 每条命令的执行报告 |
-| `document` | 脚本执行前后的文档 hash 和 revision。用它判断文档是否变化，不需要保存完整快照 |
+| `document` | 脚本执行前后的文档 hash 和 revision，用于在保持报告精简的同时判断文档是否变化 |
 | `io` | 本次调用的操作名、输入文件、命令脚本、输出文件 |
-| `final` | 脚本结束后的可选 inspect 快照。只有显式使用 `--inspect-after` 时才有 |
+| `final` | 脚本结束后的可选 inspect 快照，使用 `--inspect-after` 时出现 |
 | `documentJson` | `--document-json` 写出结果 |
 | `save` | `--out` 写出结果 |
-| `error` | 顶层失败原因；成功时没有该字段 |
+| `error` | 顶层失败原因；成功时省略该字段 |
 
 CLI 失败时进程退出码为非 0，并在 stderr 打印错误；如果传了 `--results`，仍会尽量写出结构化报告。
 
@@ -346,7 +344,7 @@ CLI 失败时进程退出码为非 0，并在 stderr 打印错误；如果传了
 | `updated` | 被修改的节点、键、scene object、style id |
 | `deleted` | 被删除的节点、键、scene object、style id |
 | `engineResult` | ChemCore engine 原始结果 |
-| `after` | 这条命令执行后的可选 inspect 快照。只有显式使用 `--inspect-after` 时才有 |
+| `after` | 这条命令执行后的可选 inspect 快照，使用 `--inspect-after` 时出现 |
 
 判断规则：
 
@@ -355,7 +353,7 @@ CLI 失败时进程退出码为非 0，并在 stderr 打印错误；如果传了
 | `ok=true, executed=true, changed=true` | 命令执行成功，并修改了文档 |
 | `ok=true, executed=true, changed=false` | 命令合法执行，但没有产生修改 |
 | `ok=false, executed=false` | 命令没有成功执行；看 `error.message` |
-| 顶层 `ok=false` 且 `save.skipped=true` | 脚本失败，目标 `--out` 没有保存 |
+| 顶层 `ok=false` 且 `save.skipped=true` | 脚本失败，`--out` 保存被跳过 |
 
 ### 4.3 命令失败报告
 
@@ -383,18 +381,18 @@ CLI 失败时进程退出码为非 0，并在 stderr 打印错误；如果传了
 
 | stage | 含义 |
 | --- | --- |
-| `read-script` | 命令 JSON 文件无法读取或不是 object/array |
+| `read-script` | 命令 JSON 读取或解析阶段拒绝脚本形状 |
 | `execute-command` | 单条命令字段错误、枚举值错误、缺字段，或命令需要当前没有的交互上下文 |
 | `inspect-after` | 可选的命令后 inspect 失败 |
 | `inspect-final` | 可选的脚本结束后 inspect 失败 |
 | `write-document-json` | `--document-json` 写出失败 |
 | `save-output` | `--out` 保存失败 |
 
-脚本失败时，已经成功的前序命令会保留在内存文档中，并体现在 `document`、命令条目、以及按需写出的 `--document-json` 中；目标 `--out` 不会保存。
+脚本失败时，已经成功的前序命令会保留在内存文档中，并体现在 `document`、命令条目、以及按需写出的 `--document-json` 中；目标 `--out` 保存会报告 `save.skipped=true`。
 
 ### 4.4 可选 after 快照
 
-默认命令报告不包含 `after` 快照，顶层报告也不包含 `final`。这样大文件和长脚本的 results 不会迅速膨胀。CLI 只报告本次发生了什么；历史、回退和分支实验应由调用方或 agent 用 git、临时文件或自己的日志维护。
+默认命令报告包含变化摘要。`--inspect-after` 会添加每条命令的 `after` 快照和顶层 `final` 快照。CLI 报告本次发生了什么；历史、回退和分支实验可由调用方或 agent 用 git、临时文件或自己的日志维护。
 
 需要逐条命令的结构快照时，显式使用 `--inspect-after`：
 
@@ -453,7 +451,7 @@ npm run cli -- run input.cdxml commands.json --results results.json --inspect-af
 
 ### 4.5 获取对象 id
 
-编辑已有对象时需要 id。id 从 `inspect`、`targets`、`results.commands[i].created` 或 `results.commands[i].changeSummary` 获取。只有显式使用 `--inspect-after` 时，才从 `results.commands[i].after` 获取。
+编辑已有对象时需要 id。id 从 `inspect`、`targets`、`results.commands[i].created` 或 `results.commands[i].changeSummary` 获取。使用 `--inspect-after` 时，`results.commands[i].after` 也包含命令后快照里的 id。
 
 创建时写 `--results`：
 
@@ -511,7 +509,7 @@ npm run cli -- run input.cdxml commands.json --out after.ccjs --results results.
 
 ### 4.7 agent 的 target、context、detail、capture、copy 工作流
 
-agent 需要精确 id、精确截图或周边对象信息时，按这个顺序走，不要猜坐标：
+agent 需要精确 id、精确截图或周边对象信息时，使用这个 selector 工作流：
 
 ```powershell
 chemcore-cli targets input.cdxml --out targets.json --pretty
@@ -532,22 +530,20 @@ bond:<bond-id>
 bounds:<minX>,<minY>,<maxX>,<maxY>
 ```
 
-`bounds:` 用于截图类裁剪。`detail` 只接受单个 object、molecule、node 或 bond
-selector；不接受 `all` 或 `bounds`。
+`bounds:` 用于截图类裁剪。`detail` 接受单个 `object:<id>`、`molecule:<index>`、`node:<id>` 或 `bond:<id>` selector。
 
 `targets` 返回稳定 selector 和 bounds，按 `objects`、`molecules`、`nodes`、
-`bonds` 分组。调用方不知道精确 selector 时，先跑 `targets`，再跑 `context`、
-`detail`、`capture` 或 `copy`。
+`bonds` 分组。它是 `context`、`detail`、`capture` 和 `copy` 前面的发现步骤。
 
 `context` 返回目标周边的对象摘要、分子摘要、节点摘要、键摘要、bounds、方向、
-距离、重叠标记、group 祖先、子对象 id 和 link 元数据。`context` 只返回摘要。
+距离、重叠标记、group 祖先、子对象 id 和 link 元数据。`context` 返回摘要。
 需要原始 JSON 时，把返回的 selector 交给 `detail`。
 
-`detail` 返回一个被选实体。默认包含该实体的 raw JSON。只需要 id、bounds 和关系
-元数据时，加 `--summary-only`。查看对象并且需要嵌入引用资源时，加
+`detail` 返回一个被选实体。默认包含该实体的 raw JSON。需要 id、bounds 和关系
+元数据摘要时，加 `--summary-only`。查看对象并且需要嵌入引用资源时，加
 `--include-resource`。
 
-`capture` 把渲染后的裁剪图写入 `--out`，stdout 只输出 JSON manifest。省略
+`capture` 把渲染后的裁剪图写入 `--out`，stdout 输出 JSON manifest。省略
 `--out` 时，会把 PNG 写到系统临时目录下的 `chemcore-cli` 子目录，并返回
 `output.defaulted=true`、真实的 `output.path`，以及 `kind="default_output_path"` 的
 `warnings[]` 条目。SVG 是矢量。PNG 默认
@@ -564,16 +560,15 @@ node、bond 和 object 目标。`context` 使用 `--capture-out` 写截图时，
 `capture.render` 下返回同样的字段。
 
 `copy` 把可编辑 ChemCore Office/OLE payload 放到 Windows 剪贴板。调试剪贴板
-payload 时，用 `--payload payload.json --no-copy`，这样只写 payload，不碰剪贴板。
+payload 时，用 `--payload payload.json --no-copy` 写出 payload JSON 文件。
 省略 `--payload` 时，payload JSON 会写到系统临时目录下的 `chemcore-cli` 子目录。
 同时会给出 `kind="default_payload_path"` 的 `warnings[]` 条目。
 
 `session` 启动一个给 agent 使用的长驻 JSON Lines 进程。第一行 stdout 是紧凑的
 `ready` event；之后每输入一行紧凑 JSON request，就读取一行紧凑 JSON response。
 session 会把一个文档保持在内存里，所以反复执行 `targets`、`detail`、`context`、
-`capture`、`execute` 和 `save` 时，不需要每步重新启动进程、重新打开文件和重新导入。
-session 不持久化 undo 历史；`execute` 会返回 before/after revision 和每条命令结果，
-调用方可以用 git、临时文件或自己的日志维护历史。
+`capture`、`execute` 和 `save` 时复用同一份已载入文档。`execute` 会返回
+before/after revision 和每条命令结果，调用方可以用 git、临时文件或自己的日志维护历史。
 
 ```json
 {"id":1,"op":"open","input":"input.cdxml"}
@@ -1311,7 +1306,7 @@ acs-document-1996
 }
 ```
 
-`settings` 字段都可以只传需要修改的项。
+`settings` 字段都可以传需要修改的项。
 
 ## 14. 文档读写命令脚本
 
