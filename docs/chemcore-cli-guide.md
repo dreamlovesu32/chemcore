@@ -65,7 +65,7 @@ chemcore-cli inspect <input> [--include summary,objects,molecules,resources,styl
 chemcore-cli targets <input> [--out <path>] [--pretty]
 chemcore-cli context <input> --target <selector> [--radius <pt>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]
 chemcore-cli detail <input> --target <object:id|molecule:index|node:id|bond:id> [--summary-only] [--include-resource] [--out <detail.json>] [--pretty]
-chemcore-cli capture <input> --target <selector> --out <path.svg|path.png> [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--pretty]
+chemcore-cli capture <input> --target <selector> [--out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--pretty]
 chemcore-cli copy <input> [--target <selector>] [--payload <payload.json>] [--no-copy] [--pretty]
 chemcore-cli new [commands.json|-] --out <path> [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--pretty] [--quiet]
 chemcore-cli run <input> <commands.json|-> [--out <path>] [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--pretty] [--quiet]
@@ -84,6 +84,13 @@ npm run cli -- run input.cdxml commands.json --out output.cdxml --results result
 npm run cli -- convert input.cdxml output.svg
 npm run cli -- convert input.cdxml output.ccjs
 ```
+
+File output policy:
+
+- `capture` may omit `--out`; it then writes a PNG into the OS temp `chemcore-cli` directory and reports the exact path in `output.path`.
+- `copy` may omit `--payload`; it then writes the clipboard payload JSON into the OS temp `chemcore-cli` directory and reports the exact path in `payload.path`.
+- `new`, `convert`, and `export` require explicit output paths because they create primary document files.
+- Every file-writing command verifies after writing that the target exists, is a regular file, and has the expected or minimum byte size. A failed verification is a command failure.
 
 `new` starts from a blank ChemCore internal document. It does not need an input format. The save format is inferred from `--out`:
 
@@ -502,16 +509,20 @@ sufficient. Add `--include-resource` for an object when the referenced resource
 must be embedded in the response.
 
 `capture` writes the rendered crop to `--out` and writes only a JSON manifest to
-stdout. SVG output is vector. PNG output defaults to `--scale 4`; use
-`--scale`, `--width`, or `--height` when the caller needs a sharper or bounded
-raster image. Use absolute expansion (`--expand`, `--expand-left`,
+stdout. If `--out` is omitted, it writes a PNG to the OS temp `chemcore-cli`
+directory and reports `output.defaulted=true` plus the exact `output.path`.
+SVG output is vector. PNG output defaults to `--scale 4`; use `--scale`,
+`--width`, or `--height` when the caller needs a sharper or bounded
+raster image. The manifest includes `output.verified=true` and `output.bytes`
+after the file is verified on disk. Use absolute expansion (`--expand`, `--expand-left`,
 `--expand-right`, `--expand-top`, `--expand-bottom`) and proportional expansion
 (`--expand-rel`, `--expand-rel-left`, `--expand-rel-right`, `--expand-rel-top`,
 `--expand-rel-bottom`) to include surrounding context.
 
 `copy` places an editable ChemCore Office/OLE payload on the Windows clipboard.
-Use `--payload payload.json --no-copy` to write the clipboard payload manifest
-without touching the clipboard.
+If `--payload` is omitted, the payload JSON is written to the OS temp
+`chemcore-cli` directory. Use `--payload payload.json --no-copy` to write the
+clipboard payload without touching the clipboard.
 
 ## 5. Molecule Objects
 

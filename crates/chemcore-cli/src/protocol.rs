@@ -103,7 +103,7 @@ const COMMAND_SPECS: &[CommandSpec] = &[
     CommandSpec {
         name: "capture",
         summary: "Render a deterministic cropped SVG or high-resolution PNG for an object, molecule, node, bond, all content, or explicit bounds.",
-        usage: "chemcore-cli capture <input> --target <object:id|molecule:index|node:id|bond:id|all> --out <path.svg|path.png> [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--expand-left <pt>] [--pretty]",
+        usage: "chemcore-cli capture <input> --target <object:id|molecule:index|node:id|bond:id|all> [--out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--expand-left <pt>] [--pretty]",
         example: "chemcore-cli capture input.cdxml --target molecule:0 --out mol-0.png --scale 6 --expand-rel 0.15",
     },
     CommandSpec {
@@ -322,7 +322,8 @@ fn protocol_schemas_json() -> Value {
         "jsonOutput": {
             "default": "Commands that print JSON emit compact single-line JSON unless --pretty is present.",
             "pretty": "--pretty only changes JSON whitespace: compact JSON becomes line-broken and indented. It does not change fields, values, output files, exit code, schema, ordering, or command behavior.",
-            "out": "When complete output matters, pass --out <path> and read that file instead of relying on a console buffer."
+            "out": "When complete output matters, pass --out <path> and read that file instead of relying on a console buffer.",
+            "writeVerification": "When the CLI writes a file, it verifies after the write that the target exists, is a regular file, and has the expected or minimum byte size. Verification failures are command errors."
         },
         "target": {
             "description": "Capture target selector.",
@@ -344,7 +345,9 @@ fn protocol_schemas_json() -> Value {
             "formats": ["svg", "png"],
             "resolution": "PNG defaults to --scale 4. Use --scale, --width, or --height for sharper or bounded raster output.",
             "expansion": "Use --expand/--padding for absolute pt expansion, --expand-left/right/top/bottom for per-side absolute expansion, and --expand-rel or --expand-rel-x/y for relative expansion based on target size.",
-            "stdout": "JSON manifest only; rendered image data is written to --out.",
+            "defaultOutput": "If --out is omitted, capture writes a PNG into the OS temp chemcore-cli directory and returns output.defaulted=true plus the exact path in the JSON manifest.",
+            "stdout": "JSON manifest only; rendered image data is written to --out or the default temp capture path.",
+            "verification": "Capture manifests include output.verified=true and output.bytes after the rendered file is verified on disk.",
             "usage": command_spec("capture").map(|spec| spec.usage).unwrap_or("")
         },
         "context": {
@@ -368,6 +371,7 @@ fn protocol_schemas_json() -> Value {
             "targets": ["all", "object", "molecule", "node", "bond"],
             "clipboard": "Windows Office/OLE via chemcore-office.exe --copy-clipboard-payload.",
             "stdout": "JSON manifest only; large clipboard payloads are written to a payload file.",
+            "defaultPayload": "If --payload is omitted, copy writes the payload JSON into the OS temp chemcore-cli directory and reports payload.defaulted=true, payload.verified=true, and payload.bytes.",
             "usage": command_spec("copy").map(|spec| spec.usage).unwrap_or("")
         },
         "commandScript": {
@@ -390,7 +394,8 @@ fn capabilities_value() -> Value {
         "stdout": {
             "default": "json",
             "pretty": "--pretty only changes JSON whitespace: compact JSON becomes line-broken and indented. It does not change fields, values, output files, exit code, schema, ordering, or command behavior.",
-            "largeOutputPolicy": "For payloads that may exceed console buffers, pass --out <path> and read that file. capture always writes image data to --out and returns a JSON manifest."
+            "largeOutputPolicy": "For payloads that may exceed console buffers, pass --out <path> and read that file. capture writes image data to --out or a default temp PNG path and returns a JSON manifest.",
+            "writeVerification": "File-writing commands verify the written file before reporting success."
         },
         "documentation": documentation_metadata(),
         "nextSteps": [

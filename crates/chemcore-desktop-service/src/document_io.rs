@@ -55,23 +55,34 @@ impl DesktopDocumentService {
             fs::create_dir_all(parent).map_err(|error| {
                 format!("Failed to create directory {}: {error}", parent.display())
             })?;
+            if !parent.is_dir() {
+                return Err(format!(
+                    "Failed to verify output directory {} after creating it.",
+                    parent.display()
+                ));
+            }
         }
         let format = format
             .map(normalize_document_format)
             .filter(|value| !value.is_empty())
             .unwrap_or_else(|| document_format_for_path(&path));
+        let expected_bytes;
         if format == "ccjz" {
             let bytes = compress_gzip_text(content)?;
-            fs::write(&path, bytes)
+            expected_bytes = bytes.len() as u64;
+            fs::write(&path, bytes.as_slice())
                 .map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
         } else if format == "cdx" {
             let bytes = cdxml_to_cdx(content)?;
-            fs::write(&path, bytes)
+            expected_bytes = bytes.len() as u64;
+            fs::write(&path, bytes.as_slice())
                 .map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
         } else {
-            fs::write(&path, content)
+            expected_bytes = content.len() as u64;
+            fs::write(&path, content.as_bytes())
                 .map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
         }
+        verify_written_file_exact(&path, expected_bytes)?;
         self.add_recent_file(path.clone());
         Ok(DesktopSavedDocument {
             file_name: file_name_for_path(&path),
@@ -130,4 +141,27 @@ impl DesktopDocumentService {
         fs::write(path, format!("{json}\n"))
             .map_err(|error| format!("Failed to write {}: {error}", path.display()))
     }
+}
+
+fn verify_written_file_exact(path: &Path, expected_bytes: u64) -> Result<(), String> {
+    let metadata = fs::metadata(path).map_err(|error| {
+        format!(
+            "Failed to verify saved document {} after writing: {error}",
+            path.display()
+        )
+    })?;
+    if !metadata.is_file() {
+        return Err(format!(
+            "Failed to verify saved document {} after writing: path is not a regular file.",
+            path.display()
+        ));
+    }
+    let bytes = metadata.len();
+    if bytes != expected_bytes {
+        return Err(format!(
+            "Failed to verify saved document {} after writing: file has {bytes} bytes, expected {expected_bytes}.",
+            path.display()
+        ));
+    }
+    Ok(())
 }

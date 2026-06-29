@@ -64,7 +64,7 @@ chemcore-cli inspect <input> [--include summary,objects,molecules,resources,styl
 chemcore-cli targets <input> [--out <path>] [--pretty]
 chemcore-cli context <input> --target <selector> [--radius <pt>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]
 chemcore-cli detail <input> --target <object:id|molecule:index|node:id|bond:id> [--summary-only] [--include-resource] [--out <detail.json>] [--pretty]
-chemcore-cli capture <input> --target <selector> --out <path.svg|path.png> [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--pretty]
+chemcore-cli capture <input> --target <selector> [--out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--pretty]
 chemcore-cli copy <input> [--target <selector>] [--payload <payload.json>] [--no-copy] [--pretty]
 chemcore-cli new [commands.json|-] --out <path> [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--pretty] [--quiet]
 chemcore-cli run <input> <commands.json|-> [--out <path>] [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--pretty] [--quiet]
@@ -83,6 +83,13 @@ npm run cli -- run input.cdxml commands.json --out output.cdxml --results result
 npm run cli -- convert input.cdxml output.svg
 npm run cli -- convert input.cdxml output.ccjs
 ```
+
+文件输出规则：
+
+- `capture` 可以省略 `--out`；此时会把 PNG 写到系统临时目录下的 `chemcore-cli` 子目录，并在 `output.path` 返回真实路径。
+- `copy` 可以省略 `--payload`；此时会把剪贴板 payload JSON 写到系统临时目录下的 `chemcore-cli` 子目录，并在 `payload.path` 返回真实路径。
+- `new`、`convert`、`export` 会创建主要文档文件，必须显式给输出路径。
+- 所有写文件命令都会在写完后检查目标是否存在、是否为普通文件、以及字节数是否符合预期或最低要求。校验失败就是命令失败。
 
 `new` 从空白 ChemCore 内部文档开始，不需要指定输入格式。保存格式由 `--out` 后缀决定：
 
@@ -501,15 +508,19 @@ selector；不接受 `all` 或 `bounds`。
 元数据时，加 `--summary-only`。查看对象并且需要嵌入引用资源时，加
 `--include-resource`。
 
-`capture` 把渲染后的裁剪图写入 `--out`，stdout 只输出 JSON manifest。SVG 是矢量。
-PNG 默认 `--scale 4`；需要更清晰或固定像素预算时，用 `--scale`、`--width` 或
-`--height`。用绝对扩展（`--expand`、`--expand-left`、`--expand-right`、
+`capture` 把渲染后的裁剪图写入 `--out`，stdout 只输出 JSON manifest。省略
+`--out` 时，会把 PNG 写到系统临时目录下的 `chemcore-cli` 子目录，并返回
+`output.defaulted=true` 和真实的 `output.path`。SVG 是矢量。PNG 默认
+`--scale 4`；需要更清晰或固定像素预算时，用 `--scale`、`--width` 或
+`--height`。文件落盘校验通过后，manifest 会包含 `output.verified=true` 和
+`output.bytes`。用绝对扩展（`--expand`、`--expand-left`、`--expand-right`、
 `--expand-top`、`--expand-bottom`）和相对扩展（`--expand-rel`、
 `--expand-rel-left`、`--expand-rel-right`、`--expand-rel-top`、
 `--expand-rel-bottom`）把周边内容纳入截图。
 
 `copy` 把可编辑 ChemCore Office/OLE payload 放到 Windows 剪贴板。调试剪贴板
-payload 时，用 `--payload payload.json --no-copy`，这样只写 manifest，不碰剪贴板。
+payload 时，用 `--payload payload.json --no-copy`，这样只写 payload，不碰剪贴板。
+省略 `--payload` 时，payload JSON 会写到系统临时目录下的 `chemcore-cli` 子目录。
 
 ## 5. 分子对象
 

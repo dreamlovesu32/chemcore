@@ -1,4 +1,7 @@
-use crate::{document_json, load_engine_from_file, write_json_value, write_text_output};
+use crate::{
+    document_json, ensure_output_parent_path, load_engine_from_file, verify_file_written,
+    verify_file_written_exact, write_json_value, write_text_output,
+};
 use chemcore_engine::{
     document_to_cdxml, document_to_svg, primitives_to_svg_viewbox, render_document,
     render_document_targets, render_primitives_bounds, Bond, ChemcoreDocument, Engine, Node,
@@ -13,6 +16,7 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_CAPTURE_SCALE: f64 = 4.0;
+const DEFAULT_OUTPUT_DIR_NAME: &str = "chemcore-cli";
 const MAX_CAPTURE_SIDE_PX: u32 = 32_000;
 const MAX_CAPTURE_PIXELS: u64 = 120_000_000;
 
@@ -487,19 +491,7 @@ pub(crate) fn capture_command(args: &[String]) -> Result<(), String> {
         "capture requires --target <object:id|molecule:index|node:id|bond:id|all> or --bounds."
             .to_string()
     })?;
-    let output = output.ok_or_else(|| "capture requires --out <path.svg|path.png>.".to_string())?;
-    if output == "-" {
-        return Err(
-            "capture writes image data to --out; stdout is reserved for the JSON manifest."
-                .to_string(),
-        );
-    }
-    let format = format
-        .or_else(|| infer_capture_format_from_path(&output))
-        .ok_or_else(|| {
-            "Capture output format is ambiguous; use --out <path.svg|path.png> or --format svg|png."
-                .to_string()
-        })?;
+    let (output, format, output_defaulted) = resolve_capture_output(output, format)?;
 
     let engine = load_engine_from_file(&input)?;
     let document = engine_document(&engine)?;
@@ -515,6 +507,9 @@ pub(crate) fn capture_command(args: &[String]) -> Result<(), String> {
             "output": {
                 "path": output,
                 "format": format.as_str(),
+                "defaulted": output_defaulted,
+                "verified": true,
+                "bytes": render_output.bytes,
                 "pixelSize": render_output.pixel_size.map(PixelSize::to_json),
             },
             "bounds": bounds_json(bounds),
@@ -608,8 +603,9 @@ pub(crate) fn copy_command(args: &[String]) -> Result<(), String> {
     let document = engine_document(&engine)?;
     let clipboard_document = clipboard_document_for_target(&document, &target)?;
     let payload = clipboard_payload_for_document(&clipboard_document)?;
+    let payload_defaulted = payload_path.is_none();
     let payload_path = payload_path.unwrap_or_else(default_clipboard_payload_path);
-    write_clipboard_payload_file(&payload_path, &payload)?;
+    let payload_bytes = write_clipboard_payload_file(&payload_path, &payload)?;
 
     let copied_helper = if copy_to_clipboard {
         Some(copy_payload_to_office_clipboard(
@@ -619,9 +615,6 @@ pub(crate) fn copy_command(args: &[String]) -> Result<(), String> {
     } else {
         None
     };
-    let payload_bytes = fs::metadata(&payload_path)
-        .ok()
-        .map(|metadata| metadata.len());
     write_json_value(
         json!({
             "ok": true,
@@ -629,6 +622,8 @@ pub(crate) fn copy_command(args: &[String]) -> Result<(), String> {
             "target": target.to_json(),
             "payload": {
                 "path": payload_path.display().to_string(),
+                "defaulted": payload_defaulted,
+                "verified": true,
                 "bytes": payload_bytes,
             },
             "clipboard": {
@@ -885,6 +880,8 @@ pub(crate) fn context_command(args: &[String]) -> Result<(), String> {
                 "ok": true,
                 "path": capture_output,
                 "format": format.as_str(),
+                "verified": true,
+                "bytes": render_output.bytes,
                 "pixelSize": render_output.pixel_size.map(PixelSize::to_json),
                 "viewBox": view_box_json(query_view_box),
             }),
@@ -2008,6 +2005,55 @@ fn view_box_json(view_box: [f64; 4]) -> Value {
 
 struct CaptureWriteResult {
     pixel_size: Option<PixelSize>,
+    bytes: u64,
+}
+
+fn resolve_capture_output(
+    output: Option<String>,
+    format: Option<CaptureFormat>,
+) -> Result<(String, CaptureFormat, bool), String> {
+    if let Some(output) = output {
+        if output == "-" {
+            return Err(
+                "capture writes image data to a file; stdout is reserved for the JSON manifest."
+                    .to_string(),
+            );
+        }
+        let format = format
+            .or_else(|| infer_capture_format_from_path(&output))
+            .ok_or_else(|| {
+                "Capture output format is ambiguous; use --out <path.svg|path.png> or --format svg|png."
+                    .to_string()
+            })?;
+        return Ok((output, format, false));
+    }
+
+    let format = format.unwrap_or(CaptureFormat::Png);
+    Ok((
+        default_capture_output_path(format).display().to_string(),
+        format,
+        true,
+    ))
+}
+
+fn default_capture_output_path(format: CaptureFormat) -> PathBuf {
+    default_output_dir().join(format!(
+        "capture-{}-{}.{}",
+        std::process::id(),
+        timestamp_millis(),
+        format.as_str()
+    ))
+}
+
+fn default_output_dir() -> PathBuf {
+    std::env::temp_dir().join(DEFAULT_OUTPUT_DIR_NAME)
+}
+
+fn timestamp_millis() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default()
 }
 
 fn write_capture_output(
@@ -2020,14 +2066,18 @@ fn write_capture_output(
     let svg = primitives_to_svg_viewbox(primitives, view_box, None);
     match format {
         CaptureFormat::Svg => {
-            write_text_output(Some(output), &svg)?;
-            Ok(CaptureWriteResult { pixel_size: None })
+            let bytes = write_text_output(Some(output), &svg)?;
+            Ok(CaptureWriteResult {
+                pixel_size: None,
+                bytes,
+            })
         }
         CaptureFormat::Png => {
             let pixel_size = pixel_size_for_view_box(view_box, raster)?;
-            write_svg_png_output(&svg, view_box, output, pixel_size)?;
+            let bytes = write_svg_png_output(&svg, view_box, output, pixel_size)?;
             Ok(CaptureWriteResult {
                 pixel_size: Some(pixel_size),
+                bytes,
             })
         }
     }
@@ -2084,7 +2134,7 @@ fn write_svg_png_output(
     view_box: [f64; 4],
     output: &str,
     pixel_size: PixelSize,
-) -> Result<(), String> {
+) -> Result<u64, String> {
     let svg = svg_with_explicit_size(svg, view_box);
     let options = usvg::Options::default();
     let tree = usvg::Tree::from_str(&svg, &options)
@@ -2101,7 +2151,8 @@ fn write_svg_png_output(
     ensure_output_parent_path(Path::new(output))?;
     pixmap
         .save_png(output)
-        .map_err(|error| format!("Failed to write PNG {output}: {error}"))
+        .map_err(|error| format!("Failed to write PNG {output}: {error}"))?;
+    verify_file_written(Path::new(output), 8, "PNG capture")
 }
 
 fn svg_with_explicit_size(svg: &str, view_box: [f64; 4]) -> String {
@@ -2313,40 +2364,24 @@ fn clipboard_payload_for_document(document: &ChemcoreDocument) -> Result<Value, 
 }
 
 fn default_clipboard_payload_path() -> PathBuf {
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_millis())
-        .unwrap_or_default();
-    std::env::temp_dir().join(format!(
-        "chemcore-cli-copy-{}-{timestamp}.json",
-        std::process::id()
+    default_output_dir().join(format!(
+        "copy-payload-{}-{}.json",
+        std::process::id(),
+        timestamp_millis()
     ))
 }
 
-fn write_clipboard_payload_file(path: &Path, payload: &Value) -> Result<(), String> {
+fn write_clipboard_payload_file(path: &Path, payload: &Value) -> Result<u64, String> {
     ensure_output_parent_path(path)?;
     let text = serde_json::to_string_pretty(payload).map_err(|error| error.to_string())?;
-    fs::write(path, text).map_err(|error| {
+    let expected_bytes = text.len() as u64;
+    fs::write(path, text.as_bytes()).map_err(|error| {
         format!(
             "Failed to write clipboard payload {}: {error}",
             path.display()
         )
-    })
-}
-
-fn ensure_output_parent_path(path: &Path) -> Result<(), String> {
-    let Some(parent) = path.parent() else {
-        return Ok(());
-    };
-    if parent.as_os_str().is_empty() {
-        return Ok(());
-    }
-    fs::create_dir_all(parent).map_err(|error| {
-        format!(
-            "Failed to create output directory {}: {error}",
-            parent.display()
-        )
-    })
+    })?;
+    verify_file_written_exact(path, expected_bytes, "clipboard payload")
 }
 
 #[cfg(windows)]
@@ -2451,6 +2486,30 @@ mod tests {
             Some(CaptureFormat::Svg)
         );
         assert!(parse_capture_format("jpeg").is_err());
+    }
+
+    #[test]
+    fn capture_output_defaults_to_temp_png() {
+        let (path, format, defaulted) = resolve_capture_output(None, None).unwrap();
+        assert_eq!(format, CaptureFormat::Png);
+        assert!(defaulted);
+        assert!(Path::new(&path).starts_with(default_output_dir()));
+        assert_eq!(
+            Path::new(&path)
+                .extension()
+                .and_then(|value| value.to_str()),
+            Some("png")
+        );
+    }
+
+    #[test]
+    fn explicit_capture_output_without_extension_requires_format() {
+        assert!(resolve_capture_output(Some("capture".to_string()), None).is_err());
+        let (path, format, defaulted) =
+            resolve_capture_output(Some("capture".to_string()), Some(CaptureFormat::Svg)).unwrap();
+        assert_eq!(path, "capture");
+        assert_eq!(format, CaptureFormat::Svg);
+        assert!(!defaulted);
     }
 
     #[test]

@@ -982,7 +982,8 @@ fn write_optional_document_json(
     let Some(path) = path else {
         return;
     };
-    match document_json(engine).and_then(|text| write_text_output(Some(path), &format!("{text}\n")))
+    match document_json(engine)
+        .and_then(|text| write_text_output(Some(path), &format!("{text}\n")).map(|_| ()))
     {
         Ok(()) => set_report_field(
             &mut execution.report,
@@ -1069,6 +1070,7 @@ fn write_engine_output(engine: &Engine, path: &str, format: Option<&str>) -> Res
         "svg" => service.write_document_file(path, &engine.document_svg(), Some("svg")),
         _ => Err(format!("Unsupported output format '{format}'.")),
     }?;
+    verify_file_written(Path::new(path), 1, "document output")?;
     Ok(())
 }
 
@@ -1118,24 +1120,29 @@ fn write_json_value(value: Value, path: Option<&str>, pretty: bool) -> Result<()
         serde_json::to_string(&value)
     }
     .map_err(|error| error.to_string())?;
-    write_text_output(path, &format!("{text}\n"))
+    write_text_output(path, &format!("{text}\n")).map(|_| ())
 }
 
-fn write_text_output(path: Option<&str>, text: &str) -> Result<(), String> {
+fn write_text_output(path: Option<&str>, text: &str) -> Result<u64, String> {
     match path {
-        Some("-") | None => write_stdout_text(text),
+        Some("-") | None => write_stdout_text(text).map(|_| text.len() as u64),
         Some(path) => {
             ensure_output_parent(path)?;
-            fs::write(path, text).map_err(|error| format!("Failed to write {path}: {error}"))
+            fs::write(path, text).map_err(|error| format!("Failed to write {path}: {error}"))?;
+            verify_file_written_exact(Path::new(path), text.len() as u64, "text output")
         }
     }
 }
 
-fn ensure_output_parent(path: &str) -> Result<(), String> {
+pub(crate) fn ensure_output_parent(path: &str) -> Result<(), String> {
     if path == "-" {
         return Ok(());
     }
-    let Some(parent) = Path::new(path).parent() else {
+    ensure_output_parent_path(Path::new(path))
+}
+
+pub(crate) fn ensure_output_parent_path(path: &Path) -> Result<(), String> {
+    let Some(parent) = path.parent() else {
         return Ok(());
     };
     if parent.as_os_str().is_empty() {
@@ -1146,7 +1153,52 @@ fn ensure_output_parent(path: &str) -> Result<(), String> {
             "Failed to create output directory {}: {error}",
             parent.display()
         )
-    })
+    })?;
+    if !parent.is_dir() {
+        return Err(format!(
+            "Failed to verify output directory {} after creating it.",
+            parent.display()
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn verify_file_written(path: &Path, min_bytes: u64, label: &str) -> Result<u64, String> {
+    let metadata = fs::metadata(path).map_err(|error| {
+        format!(
+            "Failed to verify {label} at {} after writing: {error}",
+            path.display()
+        )
+    })?;
+    if !metadata.is_file() {
+        return Err(format!(
+            "Failed to verify {label} at {} after writing: path is not a regular file.",
+            path.display()
+        ));
+    }
+    let bytes = metadata.len();
+    if bytes < min_bytes {
+        return Err(format!(
+            "Failed to verify {label} at {} after writing: file has {bytes} bytes, expected at least {min_bytes}.",
+            path.display()
+        ));
+    }
+    Ok(bytes)
+}
+
+pub(crate) fn verify_file_written_exact(
+    path: &Path,
+    expected_bytes: u64,
+    label: &str,
+) -> Result<u64, String> {
+    let bytes = verify_file_written(path, expected_bytes, label)?;
+    if bytes != expected_bytes {
+        return Err(format!(
+            "Failed to verify {label} at {} after writing: file has {bytes} bytes, expected {expected_bytes}.",
+            path.display()
+        ));
+    }
+    Ok(bytes)
 }
 
 fn write_stdout_text(text: &str) -> Result<(), String> {
@@ -1235,6 +1287,18 @@ mod tests {
         assert_eq!(infer_format_from_path("out.svg").as_deref(), Some("svg"));
         assert_eq!(infer_format_from_path("out.json").as_deref(), Some("json"));
         assert_eq!(infer_format_from_path("-"), None);
+    }
+
+    #[test]
+    fn text_file_output_is_verified_after_write() {
+        let path = std::env::temp_dir().join(format!(
+            "chemcore-cli-write-verify-{}.json",
+            std::process::id()
+        ));
+        let bytes = write_text_output(Some(path.to_str().unwrap()), "{\"ok\":true}\n").unwrap();
+        assert_eq!(bytes, 12);
+        assert_eq!(fs::metadata(&path).unwrap().len(), 12);
+        let _ = fs::remove_file(path);
     }
 
     #[test]

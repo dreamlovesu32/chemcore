@@ -123,6 +123,11 @@ analysis.
 chemcore-cli capture input.cdxml --target molecule:0 --out molecule.png --scale 6 --expand-rel 0.15 --pretty
 ```
 
+If `--out` is omitted, `capture` writes a PNG to the OS temp `chemcore-cli`
+directory and returns the exact path with `output.defaulted=true`. Capture
+manifests include `output.verified=true` and `output.bytes` after the image file
+is verified on disk.
+
 Use fixed pixel dimensions when the model needs a predictable image budget:
 
 ```powershell
@@ -192,6 +197,9 @@ Deterministic output policy for agents:
 - `new` and `run` are stateless command invocations. The CLI reports what each
   step changed; the caller should maintain history with git, temp files, or its
   own log.
+- File-writing commands verify the written file before reporting success.
+- Omit `capture --out` only when a temp PNG path is acceptable; explicit paths
+  are still better for artifacts the caller wants to keep.
 - Always use `--out` for `targets`, `context`, `detail`, and `inspect` when the
   document may be large.
 - Use `context` before `detail` when exploring unknown documents.
