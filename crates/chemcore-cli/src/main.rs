@@ -1,58 +1,68 @@
+mod agent;
+mod protocol;
+
 use chemcore_desktop_service::DesktopDocumentService;
 use chemcore_engine::Engine;
+use protocol::{
+    capabilities_command, doctor_command, schema_command, schema_or_capabilities_for_help,
+    CliError, CliResult,
+};
 use serde_json::Map;
 use serde_json::{json, Value};
 use std::fs;
 use std::io::{self, Read, Write};
 use std::path::Path;
 
-const HELP: &str = r#"ChemCore CLI
-
-Usage:
-  chemcore-cli inspect <input> [--include summary,objects,molecules,resources,styles] [--out <path>] [--pretty]
-  chemcore-cli new [commands.json|-] --out <path> [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--continue-on-error] [--pretty] [--quiet]
-  chemcore-cli convert <input> <output> [--format <format>]
-  chemcore-cli export <input> <output> [--format <format>]
-  chemcore-cli run <input> <commands.json|-> [--out <path>] [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--continue-on-error] [--pretty] [--quiet]
-
-Formats:
-  json, ccjs, ccjz, cdxml, cdx, sdf, svg
-
-Examples:
-  chemcore-cli inspect figure1.cdxml --pretty
-  chemcore-cli new --out blank.ccjs
-  chemcore-cli new commands.json --out generated.cdxml --results results.json --pretty
-  chemcore-cli convert figure1.cdxml figure1.svg
-  chemcore-cli run figure1.cdxml commands.json --out edited.cdxml --results results.json --pretty
-"#;
-
 fn main() {
-    if let Err(error) = run() {
-        eprintln!("error: {error}");
-        std::process::exit(1);
-    }
+    let exit_code = match run() {
+        Ok(()) => 0,
+        Err(error) => {
+            if let Err(write_error) = write_json_value(error.to_json(), None, false) {
+                eprintln!("failed to write cli error json: {write_error}");
+            }
+            1
+        }
+    };
+    std::process::exit(exit_code);
 }
 
-fn run() -> Result<(), String> {
+fn run() -> CliResult<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     let Some(command) = args.first().map(String::as_str) else {
-        print!("{HELP}");
+        capabilities_command(&[]).map_err(CliError::message)?;
         return Ok(());
     };
     if matches!(command, "-h" | "--help" | "help") {
-        print!("{HELP}");
+        let help_args = if command == "help" { &args[1..] } else { &[] };
+        schema_or_capabilities_for_help(help_args).map_err(CliError::message)?;
         return Ok(());
     }
 
     match command {
-        "inspect" => inspect_command(&args[1..]),
-        "new" => new_command(&args[1..]),
-        "convert" => convert_command(&args[1..]),
-        "export" => convert_command(&args[1..]),
-        "run" => run_command_script(&args[1..]),
-        other => Err(format!(
-            "Unknown command '{other}'. Run chemcore-cli --help."
-        )),
+        "capabilities" => capabilities_command(&args[1..]).map_err(CliError::message),
+        "schema" => schema_command(&args[1..]).map_err(CliError::message),
+        "doctor" => doctor_command(&args[1..]).map_err(CliError::message),
+        "targets" => agent::targets_command(&args[1..])
+            .map_err(|error| CliError::for_command("targets", error)),
+        "capture" => agent::capture_command(&args[1..])
+            .map_err(|error| CliError::for_command("capture", error)),
+        "copy" => {
+            agent::copy_command(&args[1..]).map_err(|error| CliError::for_command("copy", error))
+        }
+        "inspect" => {
+            inspect_command(&args[1..]).map_err(|error| CliError::for_command("inspect", error))
+        }
+        "new" => new_command(&args[1..]).map_err(|error| CliError::for_command("new", error)),
+        "convert" => {
+            convert_command(&args[1..]).map_err(|error| CliError::for_command("convert", error))
+        }
+        "export" => {
+            convert_command(&args[1..]).map_err(|error| CliError::for_command("export", error))
+        }
+        "run" => {
+            run_command_script(&args[1..]).map_err(|error| CliError::for_command("run", error))
+        }
+        other => Err(CliError::unknown_command(other)),
     }
 }
 
@@ -858,8 +868,12 @@ fn ensure_output_parent(path: &str) -> Result<(), String> {
     if parent.as_os_str().is_empty() {
         return Ok(());
     }
-    fs::create_dir_all(parent)
-        .map_err(|error| format!("Failed to create output directory {}: {error}", parent.display()))
+    fs::create_dir_all(parent).map_err(|error| {
+        format!(
+            "Failed to create output directory {}: {error}",
+            parent.display()
+        )
+    })
 }
 
 fn write_stdout_text(text: &str) -> Result<(), String> {
@@ -944,6 +958,42 @@ mod tests {
         assert_eq!(infer_format_from_path("out.svg").as_deref(), Some("svg"));
         assert_eq!(infer_format_from_path("out.json").as_deref(), Some("json"));
         assert_eq!(infer_format_from_path("-"), None);
+    }
+
+    #[test]
+    fn parses_agent_target_selectors() {
+        assert_eq!(
+            agent::parse_target_selector("all").unwrap(),
+            agent::TargetSelector::All
+        );
+        assert_eq!(
+            agent::parse_target_selector("object:obj_1").unwrap(),
+            agent::TargetSelector::Object("obj_1".to_string())
+        );
+        assert_eq!(
+            agent::parse_target_selector("mol:2").unwrap(),
+            agent::TargetSelector::Molecule(2)
+        );
+        assert_eq!(
+            agent::parse_target_selector("atom:n_1").unwrap(),
+            agent::TargetSelector::Node("n_1".to_string())
+        );
+        assert_eq!(
+            agent::parse_target_selector("bond:b_1").unwrap(),
+            agent::TargetSelector::Bond("b_1".to_string())
+        );
+        assert!(agent::parse_target_selector("molecule:not-a-number").is_err());
+    }
+
+    #[test]
+    fn schema_topics_accept_agent_friendly_aliases() {
+        assert_eq!(protocol::schema_topic_key("target"), Some("target"));
+        assert_eq!(protocol::schema_topic_key("targets"), Some("target"));
+        assert_eq!(protocol::schema_topic_key("clipboard"), Some("copy"));
+        assert_eq!(
+            protocol::schema_topic_key("command-script"),
+            Some("commandScript")
+        );
     }
 
     #[test]

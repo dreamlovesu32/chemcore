@@ -13,20 +13,22 @@ if (!args.length) {
 }
 
 if (args[0] === "dev" || args[0] === "build") {
-  const officeArgs = ["build", "-p", "chemcore-office"];
-  if (args[0] === "build") {
-    officeArgs.push("--release");
-  }
-  const officeResult = spawnSync("cargo", officeArgs, {
-    cwd: rootDir,
-    stdio: "inherit",
-    shell: false,
-  });
-  if (officeResult.error) {
-    throw officeResult.error;
-  }
-  if (officeResult.status !== 0) {
-    process.exit(officeResult.status ?? 1);
+  for (const packageName of ["chemcore-office", "chemcore-cli"]) {
+    const cargoArgs = ["build", "-p", packageName];
+    if (args[0] === "build") {
+      cargoArgs.push("--release");
+    }
+    const cargoResult = spawnSync("cargo", cargoArgs, {
+      cwd: rootDir,
+      stdio: "inherit",
+      shell: false,
+    });
+    if (cargoResult.error) {
+      throw cargoResult.error;
+    }
+    if (cargoResult.status !== 0) {
+      process.exit(cargoResult.status ?? 1);
+    }
   }
 }
 

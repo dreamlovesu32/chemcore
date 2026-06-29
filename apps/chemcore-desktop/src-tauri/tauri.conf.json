@@ -35,6 +35,7 @@
     "targets": ["nsis"],
     "publisher": "Jiajun Zhang",
     "resources": {
+      "../../../target/release/chemcore-cli.exe": "chemcore-cli.exe",
       "../../../target/release/chemcore-office.exe": "chemcore-office.exe"
     },
     "icon": [
