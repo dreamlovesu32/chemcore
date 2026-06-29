@@ -293,6 +293,11 @@ const cliBinary = join(rootDir, "target", "debug", process.platform === "win32" 
 
 const jsCheckFiles = [
   "viewer/app.js",
+  "viewer/app_window_lifecycle.js",
+  "viewer/browser_document_tabs.js",
+  "viewer/editor_document_renderer.js",
+  "viewer/editor_toolbar_host.js",
+  "viewer/editor_viewport_host.js",
   "viewer/engine_host.js",
   "viewer/editor_command_engine.js",
   "viewer/editor_pointer_controller.js",
