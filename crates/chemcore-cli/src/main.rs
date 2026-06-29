@@ -4,8 +4,8 @@ mod protocol;
 use chemcore_desktop_service::DesktopDocumentService;
 use chemcore_engine::Engine;
 use protocol::{
-    about_command, capabilities_command, doctor_command, examples_command, schema_command,
-    schema_or_capabilities_for_help, CliError, CliResult,
+    about_command, capabilities_command, doctor_command, examples_command, guide_command,
+    schema_command, schema_or_capabilities_for_help, CliError, CliResult,
 };
 use serde_json::Map;
 use serde_json::{json, Value};
@@ -52,6 +52,7 @@ fn run() -> CliResult<()> {
         "doctor" => doctor_command(&args[1..]).map_err(CliError::message),
         "about" => about_command(&args[1..]).map_err(CliError::message),
         "examples" => examples_command(&args[1..]).map_err(CliError::message),
+        "guide" => guide_command(&args[1..]).map_err(CliError::message),
         "targets" => agent::targets_command(&args[1..])
             .map_err(|error| CliError::for_command("targets", error)),
         "capture" => agent::capture_command(&args[1..])
@@ -1008,6 +1009,8 @@ mod tests {
         assert_eq!(protocol::schema_topic_key("neighbors"), Some("context"));
         assert_eq!(protocol::schema_topic_key("detail"), Some("detail"));
         assert_eq!(protocol::schema_topic_key("object-detail"), Some("detail"));
+        assert_eq!(protocol::schema_topic_key("guide"), Some("guide"));
+        assert_eq!(protocol::schema_topic_key("agent-guide"), Some("guide"));
         assert_eq!(protocol::schema_topic_key("clipboard"), Some("copy"));
         assert_eq!(
             protocol::schema_topic_key("command-script"),

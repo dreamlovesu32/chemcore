@@ -1,5 +1,9 @@
 use crate::write_json_value;
 use serde_json::{json, Value};
+use std::fs;
+use std::path::{Path, PathBuf};
+
+const AGENT_GUIDE_FILE: &str = "chemcore-agent-guide.md";
 
 #[derive(Clone, Copy)]
 struct CommandSpec {
@@ -39,6 +43,12 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         summary: "Return ready-to-run JSON command scripts and CLI workflows.",
         usage: "chemcore-cli examples [basic|capture-copy|all] [--pretty] [--out <path>]",
         example: "chemcore-cli examples basic --pretty",
+    },
+    CommandSpec {
+        name: "guide",
+        summary: "Locate the installed agent usage guide and optionally include its content.",
+        usage: "chemcore-cli guide [--include-content] [--pretty] [--out <path>]",
+        example: "chemcore-cli guide --pretty",
     },
     CommandSpec {
         name: "inspect",
@@ -305,6 +315,11 @@ fn protocol_schemas_json() -> Value {
             "aliases": ["details", "describe", "show"],
             "usage": command_spec("detail").map(|spec| spec.usage).unwrap_or("")
         },
+        "guide": {
+            "description": "Returns the installed agent guide location and short quick-start workflow. Use --include-content only when the caller wants the full Markdown inside JSON.",
+            "file": AGENT_GUIDE_FILE,
+            "usage": command_spec("guide").map(|spec| spec.usage).unwrap_or("")
+        },
         "copy": {
             "targets": ["all", "object", "molecule", "node", "bond"],
             "clipboard": "Windows Office/OLE via chemcore-office.exe --copy-clipboard-payload.",
@@ -329,7 +344,11 @@ fn capabilities_value() -> Value {
             "default": "json",
             "largeOutputPolicy": "Prefer --out for large payloads. capture always writes image data to --out and returns a manifest."
         },
+        "documentation": {
+            "agentGuide": agent_guide_metadata()
+        },
         "nextSteps": [
+            "chemcore-cli guide --pretty",
             "chemcore-cli about --pretty",
             "chemcore-cli examples basic --pretty",
             "chemcore-cli schema command-script --pretty",
@@ -392,9 +411,14 @@ pub(crate) fn about_value() -> Value {
         "packaging": {
             "selfDescriptionFile": "chemcore-entrypoints.json",
             "selfDescriptionInstalledPathHint": "<install-dir>\\resources\\chemcore-entrypoints.json",
+            "agentGuideFile": AGENT_GUIDE_FILE,
+            "agentGuideInstalledPathHint": "<install-dir>\\resources\\chemcore-agent-guide.md",
             "installer": "NSIS x64",
             "windowsAppPaths": ["chemcore-cli.exe"],
             "consoleNote": "For console agents, prefer the explicit installedPathHints from this file or from `chemcore-cli doctor`; Windows App Paths are also registered for ShellExecute-style launchers."
+        },
+        "documentation": {
+            "agentGuide": agent_guide_metadata()
         },
         "formats": {
             "editableInput": ["ccjs", "ccjz", "cdxml", "cdx", "sdf"],
@@ -403,6 +427,7 @@ pub(crate) fn about_value() -> Value {
             "clipboardOutput": ["windows-office-ole", "chemcore-payload-json"]
         },
         "agentWorkflow": [
+            "Run `chemcore-cli guide --pretty` first when using Chemcore without source-code context.",
             "Run `chemcore-cli doctor --pretty` to identify the executable directory and install state.",
             "Run `chemcore-cli examples basic --pretty` for a minimal command script that creates an editable document.",
             "Run `chemcore-cli targets <document> --out targets.json --pretty` before precise capture or copy.",
@@ -434,6 +459,7 @@ fn examples_value(topic: &str) -> Result<Value, String> {
         "summary": "Create a small editable document from stdin, inspect it, list targets, and export SVG.",
         "commandScript": basic_script,
         "powershell": [
+            "chemcore-cli guide --pretty",
             "$script = '[{\"type\":\"add-bond\",\"begin\":{\"x\":100,\"y\":120},\"end\":{\"x\":145,\"y\":120},\"order\":1,\"variant\":\"single\"},{\"type\":\"add-text\",\"position\":{\"x\":120,\"y\":82},\"text\":\"agent example\"}]'",
             "$script | chemcore-cli new - --out example.ccjs --results example-results.json --pretty",
             "chemcore-cli inspect example.ccjs --include summary,objects,molecules --out example-inspect.json --pretty",
@@ -469,6 +495,143 @@ fn examples_value(topic: &str) -> Result<Value, String> {
         other => Err(format!(
             "Unknown examples topic '{other}'. Expected basic, capture-copy, or all."
         )),
+    }
+}
+
+fn guide_value(include_content: bool) -> Value {
+    let metadata = agent_guide_metadata();
+    let mut value = json!({
+        "ok": true,
+        "guide": metadata,
+        "quickStart": [
+            "chemcore-cli guide --pretty",
+            "chemcore-cli doctor --pretty",
+            "chemcore-cli targets input.cdxml --out targets.json --pretty",
+            "chemcore-cli context input.cdxml --target molecule:0 --out context.json --capture-out context.png --scale 5 --pretty",
+            "chemcore-cli detail input.cdxml --target object:<id> --out detail.json --pretty",
+            "chemcore-cli capture input.cdxml --target object:<id> --out crop.png --scale 6 --expand-rel 0.15 --pretty"
+        ],
+        "outputPolicy": {
+            "default": "metadata only",
+            "fullGuide": "Pass --include-content and usually --out guide.json to avoid flooding console output."
+        }
+    });
+    if include_content {
+        if let Some(path) = found_agent_guide_path() {
+            match fs::read_to_string(&path) {
+                Ok(content) => {
+                    set_json_field(
+                        &mut value,
+                        "content",
+                        json!({
+                            "path": path.display().to_string(),
+                            "format": "markdown",
+                            "text": content,
+                        }),
+                    );
+                }
+                Err(error) => {
+                    set_json_field(
+                        &mut value,
+                        "contentError",
+                        json!({
+                            "path": path.display().to_string(),
+                            "message": error.to_string(),
+                        }),
+                    );
+                }
+            }
+        } else {
+            set_json_field(
+                &mut value,
+                "contentError",
+                json!({
+                    "message": format!("{AGENT_GUIDE_FILE} was not found in known install or development locations."),
+                }),
+            );
+        }
+    }
+    value
+}
+
+fn agent_guide_metadata() -> Value {
+    let candidates = agent_guide_path_candidates();
+    let found = candidates.iter().find(|path| path.is_file()).cloned();
+    json!({
+        "file": AGENT_GUIDE_FILE,
+        "found": found.is_some(),
+        "path": found.as_ref().map(|path| path.display().to_string()),
+        "pathCandidates": candidates.iter().map(|path| path.display().to_string()).collect::<Vec<_>>(),
+        "installedPathHints": [
+            "<install-dir>\\resources\\chemcore-agent-guide.md",
+            "<install-dir>\\chemcore-agent-guide.md"
+        ],
+        "discoveryCommand": "chemcore-cli guide --pretty",
+        "contentCommand": "chemcore-cli guide --include-content --out chemcore-agent-guide.json --pretty",
+        "summary": "Machine-oriented usage guide for Chemcore CLI discovery, precise capture, context lookup, detail lookup, editing, and Office clipboard workflows."
+    })
+}
+
+fn found_agent_guide_path() -> Option<PathBuf> {
+    agent_guide_path_candidates()
+        .into_iter()
+        .find(|path| path.is_file())
+}
+
+fn agent_guide_path_candidates() -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            push_guide_candidate(&mut candidates, dir.join(AGENT_GUIDE_FILE));
+            push_guide_candidate(
+                &mut candidates,
+                dir.join("resources").join(AGENT_GUIDE_FILE),
+            );
+            if let Some(parent) = dir.parent() {
+                push_guide_candidate(
+                    &mut candidates,
+                    parent.join("resources").join(AGENT_GUIDE_FILE),
+                );
+            }
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        push_guide_candidate(
+            &mut candidates,
+            cwd.join("apps")
+                .join("chemcore-desktop")
+                .join("src-tauri")
+                .join("resources")
+                .join(AGENT_GUIDE_FILE),
+        );
+        push_guide_candidate(
+            &mut candidates,
+            cwd.join("target").join("release").join(AGENT_GUIDE_FILE),
+        );
+    }
+    candidates
+}
+
+fn push_guide_candidate(candidates: &mut Vec<PathBuf>, path: PathBuf) {
+    if !candidates
+        .iter()
+        .any(|candidate| same_path(candidate, &path))
+    {
+        candidates.push(path);
+    }
+}
+
+fn same_path(left: &Path, right: &Path) -> bool {
+    left.to_string_lossy()
+        .eq_ignore_ascii_case(&right.to_string_lossy())
+}
+
+fn set_json_field(value: &mut Value, key: &str, field: Value) {
+    if !value.is_object() {
+        *value = json!({});
+    }
+    if let Some(object) = value.as_object_mut() {
+        object.insert(key.to_string(), field);
     }
 }
 
@@ -526,6 +689,30 @@ pub(crate) fn examples_command(args: &[String]) -> Result<(), String> {
         index += 1;
     }
     write_json_value(examples_value(&topic)?, output.as_deref(), pretty)
+}
+
+pub(crate) fn guide_command(args: &[String]) -> Result<(), String> {
+    let mut output = None;
+    let mut pretty = false;
+    let mut include_content = false;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--out" | "-o" => {
+                index += 1;
+                output = Some(
+                    args.get(index)
+                        .ok_or_else(|| "--out requires a path.".to_string())?
+                        .clone(),
+                );
+            }
+            "--include-content" | "--content" => include_content = true,
+            "--pretty" => pretty = true,
+            value => return Err(format!("Unexpected guide argument '{value}'.")),
+        }
+        index += 1;
+    }
+    write_json_value(guide_value(include_content), output.as_deref(), pretty)
 }
 
 pub(crate) fn schema_or_capabilities_for_help(args: &[String]) -> Result<(), String> {
@@ -597,6 +784,7 @@ pub(crate) fn schema_topic_key(topic: &str) -> Option<&'static str> {
         "capture" => Some("capture"),
         "context" | "nearby" | "neighbors" => Some("context"),
         "detail" | "details" | "describe" | "show" | "object-detail" => Some("detail"),
+        "guide" | "agent-guide" | "docs" | "documentation" => Some("guide"),
         "copy" | "clipboard" => Some("copy"),
         "examples" => Some("commandScript"),
         "command-script" | "commandScript" | "commands-json" => Some("commandScript"),
@@ -632,6 +820,9 @@ pub(crate) fn doctor_command(args: &[String]) -> Result<(), String> {
             "tempDir": std::env::temp_dir().display().to_string(),
             "pathContainsExeDir": path_contains_exe_dir,
             "commands": COMMAND_SPECS.iter().map(|spec| spec.name).collect::<Vec<_>>(),
+            "documentation": {
+                "agentGuide": agent_guide_metadata()
+            },
             "formats": {
                 "editableInput": ["ccjs", "ccjz", "cdxml", "cdx", "sdf"],
                 "documentOutput": ["json", "ccjs", "ccjz", "cdxml", "cdx", "sdf", "svg"],

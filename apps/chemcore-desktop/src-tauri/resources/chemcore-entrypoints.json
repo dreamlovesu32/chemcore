@@ -21,6 +21,7 @@
         "<install-dir>\\resources\\chemcore-cli.exe"
       ],
       "discovery": [
+        "chemcore-cli guide --pretty",
         "chemcore-cli about --pretty",
         "chemcore-cli doctor --pretty",
         "chemcore-cli capabilities --pretty",
@@ -42,8 +43,21 @@
     "installer": "NSIS x64",
     "selfDescriptionFile": "chemcore-entrypoints.json",
     "selfDescriptionInstalledPathHint": "<install-dir>\\resources\\chemcore-entrypoints.json",
+    "agentGuideFile": "chemcore-agent-guide.md",
+    "agentGuideInstalledPathHint": "<install-dir>\\resources\\chemcore-agent-guide.md",
     "windowsAppPaths": ["chemcore-cli.exe"],
     "consoleNote": "For console agents, prefer the explicit installedPathHints from this file or from `chemcore-cli doctor`; Windows App Paths are also registered for ShellExecute-style launchers."
+  },
+  "documentation": {
+    "agentGuide": {
+      "file": "chemcore-agent-guide.md",
+      "installedPathHints": [
+        "<install-dir>\\resources\\chemcore-agent-guide.md",
+        "<install-dir>\\chemcore-agent-guide.md"
+      ],
+      "discoveryCommand": "chemcore-cli guide --pretty",
+      "contentCommand": "chemcore-cli guide --include-content --out chemcore-agent-guide.json --pretty"
+    }
   },
   "formats": {
     "editableInput": ["ccjs", "ccjz", "cdxml", "cdx", "sdf"],
@@ -52,6 +66,7 @@
     "clipboardOutput": ["windows-office-ole", "chemcore-payload-json"]
   },
   "agentWorkflow": [
+    "Run `chemcore-cli guide --pretty` first when using Chemcore without source-code context.",
     "Run `chemcore-cli doctor --pretty` to identify the executable directory and install state.",
     "Run `chemcore-cli examples basic --pretty` for a minimal command script that creates an editable document.",
     "Run `chemcore-cli targets <document> --out targets.json --pretty` before precise capture or copy.",
