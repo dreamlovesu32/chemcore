@@ -12,6 +12,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+const DEFAULT_CAPTURE_SCALE: f64 = 4.0;
+const MAX_CAPTURE_SIDE_PX: u32 = 32_000;
+const MAX_CAPTURE_PIXELS: u64 = 120_000_000;
+
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum TargetSelector {
     All,
@@ -66,6 +70,117 @@ impl TargetSelector {
                 "bounds": bounds_json(*bounds),
             }),
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CaptureFormat {
+    Svg,
+    Png,
+}
+
+impl CaptureFormat {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Svg => "svg",
+            Self::Png => "png",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct CropExpansion {
+    abs_left: f64,
+    abs_top: f64,
+    abs_right: f64,
+    abs_bottom: f64,
+    rel_left: f64,
+    rel_top: f64,
+    rel_right: f64,
+    rel_bottom: f64,
+}
+
+impl CropExpansion {
+    fn uniform_abs(value: f64) -> Self {
+        Self {
+            abs_left: value,
+            abs_top: value,
+            abs_right: value,
+            abs_bottom: value,
+            rel_left: 0.0,
+            rel_top: 0.0,
+            rel_right: 0.0,
+            rel_bottom: 0.0,
+        }
+    }
+
+    fn left_for(self, width: f64) -> f64 {
+        self.abs_left + width * self.rel_left
+    }
+
+    fn right_for(self, width: f64) -> f64 {
+        self.abs_right + width * self.rel_right
+    }
+
+    fn top_for(self, height: f64) -> f64 {
+        self.abs_top + height * self.rel_top
+    }
+
+    fn bottom_for(self, height: f64) -> f64 {
+        self.abs_bottom + height * self.rel_bottom
+    }
+
+    fn to_json(self) -> Value {
+        json!({
+            "absolute": {
+                "left": self.abs_left,
+                "top": self.abs_top,
+                "right": self.abs_right,
+                "bottom": self.abs_bottom,
+            },
+            "relative": {
+                "left": self.rel_left,
+                "top": self.rel_top,
+                "right": self.rel_right,
+                "bottom": self.rel_bottom,
+            }
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct RasterOptions {
+    scale: f64,
+    width: Option<u32>,
+    height: Option<u32>,
+}
+
+impl Default for RasterOptions {
+    fn default() -> Self {
+        Self {
+            scale: DEFAULT_CAPTURE_SCALE,
+            width: None,
+            height: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct PixelSize {
+    width: u32,
+    height: u32,
+    scale_x: f64,
+    scale_y: f64,
+}
+
+impl PixelSize {
+    fn to_json(self) -> Value {
+        json!({
+            "width": self.width,
+            "height": self.height,
+            "scaleX": self.scale_x,
+            "scaleY": self.scale_y,
+        })
     }
 }
 
@@ -124,7 +239,9 @@ pub(crate) fn capture_command(args: &[String]) -> Result<(), String> {
     let mut input = None;
     let mut target = None;
     let mut output = None;
-    let mut padding = 8.0;
+    let mut format = None;
+    let mut expansion = CropExpansion::uniform_abs(8.0);
+    let mut raster = RasterOptions::default();
     let mut pretty = false;
     let mut index = 0;
     while index < args.len() {
@@ -182,13 +299,176 @@ pub(crate) fn capture_command(args: &[String]) -> Result<(), String> {
                         .clone(),
                 );
             }
+            "--format" | "-f" => {
+                index += 1;
+                format =
+                    Some(parse_capture_format(args.get(index).ok_or_else(|| {
+                        "--format requires svg or png.".to_string()
+                    })?)?);
+            }
             "--padding" => {
                 index += 1;
-                padding = parse_non_negative_f64(
+                let value = parse_non_negative_f64(
                     "--padding",
                     args.get(index)
                         .ok_or_else(|| "--padding requires a number.".to_string())?,
                 )?;
+                expansion.abs_left = value;
+                expansion.abs_top = value;
+                expansion.abs_right = value;
+                expansion.abs_bottom = value;
+            }
+            "--expand" => {
+                index += 1;
+                let value = parse_non_negative_f64(
+                    "--expand",
+                    args.get(index)
+                        .ok_or_else(|| "--expand requires a number.".to_string())?,
+                )?;
+                expansion.abs_left = value;
+                expansion.abs_top = value;
+                expansion.abs_right = value;
+                expansion.abs_bottom = value;
+            }
+            "--expand-x" => {
+                index += 1;
+                let value = parse_non_negative_f64(
+                    "--expand-x",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-x requires a number.".to_string())?,
+                )?;
+                expansion.abs_left = value;
+                expansion.abs_right = value;
+            }
+            "--expand-y" => {
+                index += 1;
+                let value = parse_non_negative_f64(
+                    "--expand-y",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-y requires a number.".to_string())?,
+                )?;
+                expansion.abs_top = value;
+                expansion.abs_bottom = value;
+            }
+            "--expand-left" => {
+                index += 1;
+                expansion.abs_left = parse_non_negative_f64(
+                    "--expand-left",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-left requires a number.".to_string())?,
+                )?;
+            }
+            "--expand-right" => {
+                index += 1;
+                expansion.abs_right = parse_non_negative_f64(
+                    "--expand-right",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-right requires a number.".to_string())?,
+                )?;
+            }
+            "--expand-top" => {
+                index += 1;
+                expansion.abs_top = parse_non_negative_f64(
+                    "--expand-top",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-top requires a number.".to_string())?,
+                )?;
+            }
+            "--expand-bottom" => {
+                index += 1;
+                expansion.abs_bottom = parse_non_negative_f64(
+                    "--expand-bottom",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-bottom requires a number.".to_string())?,
+                )?;
+            }
+            "--expand-rel" => {
+                index += 1;
+                let value = parse_non_negative_f64(
+                    "--expand-rel",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-rel requires a fraction.".to_string())?,
+                )?;
+                expansion.rel_left = value;
+                expansion.rel_top = value;
+                expansion.rel_right = value;
+                expansion.rel_bottom = value;
+            }
+            "--expand-rel-x" => {
+                index += 1;
+                let value = parse_non_negative_f64(
+                    "--expand-rel-x",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-rel-x requires a fraction.".to_string())?,
+                )?;
+                expansion.rel_left = value;
+                expansion.rel_right = value;
+            }
+            "--expand-rel-y" => {
+                index += 1;
+                let value = parse_non_negative_f64(
+                    "--expand-rel-y",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-rel-y requires a fraction.".to_string())?,
+                )?;
+                expansion.rel_top = value;
+                expansion.rel_bottom = value;
+            }
+            "--expand-rel-left" => {
+                index += 1;
+                expansion.rel_left = parse_non_negative_f64(
+                    "--expand-rel-left",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-rel-left requires a fraction.".to_string())?,
+                )?;
+            }
+            "--expand-rel-right" => {
+                index += 1;
+                expansion.rel_right = parse_non_negative_f64(
+                    "--expand-rel-right",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-rel-right requires a fraction.".to_string())?,
+                )?;
+            }
+            "--expand-rel-top" => {
+                index += 1;
+                expansion.rel_top = parse_non_negative_f64(
+                    "--expand-rel-top",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-rel-top requires a fraction.".to_string())?,
+                )?;
+            }
+            "--expand-rel-bottom" => {
+                index += 1;
+                expansion.rel_bottom = parse_non_negative_f64(
+                    "--expand-rel-bottom",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-rel-bottom requires a fraction.".to_string())?,
+                )?;
+            }
+            "--scale" => {
+                index += 1;
+                raster.scale = parse_positive_f64(
+                    "--scale",
+                    args.get(index)
+                        .ok_or_else(|| "--scale requires a positive number.".to_string())?,
+                )?;
+            }
+            "--width" => {
+                index += 1;
+                raster.width = Some(parse_positive_u32(
+                    "--width",
+                    args.get(index)
+                        .ok_or_else(|| "--width requires a positive integer.".to_string())?,
+                )?);
+            }
+            "--height" => {
+                index += 1;
+                raster.height = Some(parse_positive_u32(
+                    "--height",
+                    args.get(index)
+                        .ok_or_else(|| "--height requires a positive integer.".to_string())?,
+                )?);
             }
             "--pretty" => pretty = true,
             value if input.is_none() => input = Some(value.to_string()),
@@ -201,22 +481,26 @@ pub(crate) fn capture_command(args: &[String]) -> Result<(), String> {
         "capture requires --target <object:id|molecule:index|node:id|bond:id|all> or --bounds."
             .to_string()
     })?;
-    let output = output.ok_or_else(|| "capture requires --out <path.svg>.".to_string())?;
+    let output = output.ok_or_else(|| "capture requires --out <path.svg|path.png>.".to_string())?;
     if output == "-" {
         return Err(
             "capture writes image data to --out; stdout is reserved for the JSON manifest."
                 .to_string(),
         );
     }
-    ensure_svg_output_path(&output)?;
+    let format = format
+        .or_else(|| infer_capture_format_from_path(&output))
+        .ok_or_else(|| {
+            "Capture output format is ambiguous; use --out <path.svg|path.png> or --format svg|png."
+                .to_string()
+        })?;
 
     let engine = load_engine_from_file(&input)?;
     let document = engine_document(&engine)?;
     let bounds = target_bounds(&document, &target)?;
-    let view_box = expanded_view_box(bounds, padding);
+    let view_box = expanded_view_box(bounds, expansion);
     let primitives = render_document(&document);
-    let svg = primitives_to_svg_viewbox(&primitives, view_box, None);
-    write_text_output(Some(&output), &svg)?;
+    let render_output = write_capture_output(&primitives, view_box, &output, format, raster)?;
     write_json_value(
         json!({
             "ok": true,
@@ -224,11 +508,12 @@ pub(crate) fn capture_command(args: &[String]) -> Result<(), String> {
             "target": target.to_json(),
             "output": {
                 "path": output,
-                "format": "svg",
+                "format": format.as_str(),
+                "pixelSize": render_output.pixel_size.map(PixelSize::to_json),
             },
             "bounds": bounds_json(bounds),
             "viewBox": view_box_json(view_box),
-            "padding": padding,
+            "expansion": expansion.to_json(),
         }),
         None,
         pretty,
@@ -355,6 +640,254 @@ pub(crate) fn copy_command(args: &[String]) -> Result<(), String> {
     )
 }
 
+pub(crate) fn context_command(args: &[String]) -> Result<(), String> {
+    let mut input = None;
+    let mut target = None;
+    let mut output = None;
+    let mut capture_output = None;
+    let mut capture_format = None;
+    let mut expansion = CropExpansion::uniform_abs(30.0);
+    let mut raster = RasterOptions::default();
+    let mut limit = 200usize;
+    let mut pretty = false;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--target" | "-t" | "--around" => {
+                index += 1;
+                target = Some(parse_target_selector(
+                    args.get(index)
+                        .ok_or_else(|| "--target requires a selector.".to_string())?,
+                )?);
+            }
+            "--object" => {
+                index += 1;
+                target = Some(TargetSelector::Object(
+                    args.get(index)
+                        .ok_or_else(|| "--object requires an object id.".to_string())?
+                        .clone(),
+                ));
+            }
+            "--molecule" => {
+                index += 1;
+                target = Some(TargetSelector::Molecule(parse_usize_arg(
+                    "--molecule",
+                    args.get(index),
+                )?));
+            }
+            "--node" => {
+                index += 1;
+                target = Some(TargetSelector::Node(
+                    args.get(index)
+                        .ok_or_else(|| "--node requires a node id.".to_string())?
+                        .clone(),
+                ));
+            }
+            "--bond" => {
+                index += 1;
+                target = Some(TargetSelector::Bond(
+                    args.get(index)
+                        .ok_or_else(|| "--bond requires a bond id.".to_string())?
+                        .clone(),
+                ));
+            }
+            "--out" | "-o" => {
+                index += 1;
+                output = Some(
+                    args.get(index)
+                        .ok_or_else(|| "--out requires a path.".to_string())?
+                        .clone(),
+                );
+            }
+            "--capture-out" | "--screenshot-out" => {
+                index += 1;
+                capture_output = Some(
+                    args.get(index)
+                        .ok_or_else(|| "--capture-out requires a path.".to_string())?
+                        .clone(),
+                );
+            }
+            "--format" | "-f" => {
+                index += 1;
+                capture_format =
+                    Some(parse_capture_format(args.get(index).ok_or_else(|| {
+                        "--format requires svg or png.".to_string()
+                    })?)?);
+            }
+            "--limit" => {
+                index += 1;
+                limit = parse_usize_arg("--limit", args.get(index))?;
+            }
+            "--radius" | "--padding" | "--expand" => {
+                index += 1;
+                let value = parse_non_negative_f64(
+                    args[index - 1].as_str(),
+                    args.get(index)
+                        .ok_or_else(|| format!("{} requires a number.", args[index - 1]))?,
+                )?;
+                expansion.abs_left = value;
+                expansion.abs_top = value;
+                expansion.abs_right = value;
+                expansion.abs_bottom = value;
+            }
+            "--expand-x" => {
+                index += 1;
+                let value = parse_non_negative_f64(
+                    "--expand-x",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-x requires a number.".to_string())?,
+                )?;
+                expansion.abs_left = value;
+                expansion.abs_right = value;
+            }
+            "--expand-y" => {
+                index += 1;
+                let value = parse_non_negative_f64(
+                    "--expand-y",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-y requires a number.".to_string())?,
+                )?;
+                expansion.abs_top = value;
+                expansion.abs_bottom = value;
+            }
+            "--expand-left" => {
+                index += 1;
+                expansion.abs_left = parse_non_negative_f64(
+                    "--expand-left",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-left requires a number.".to_string())?,
+                )?;
+            }
+            "--expand-right" => {
+                index += 1;
+                expansion.abs_right = parse_non_negative_f64(
+                    "--expand-right",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-right requires a number.".to_string())?,
+                )?;
+            }
+            "--expand-top" => {
+                index += 1;
+                expansion.abs_top = parse_non_negative_f64(
+                    "--expand-top",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-top requires a number.".to_string())?,
+                )?;
+            }
+            "--expand-bottom" => {
+                index += 1;
+                expansion.abs_bottom = parse_non_negative_f64(
+                    "--expand-bottom",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-bottom requires a number.".to_string())?,
+                )?;
+            }
+            "--expand-rel" => {
+                index += 1;
+                let value = parse_non_negative_f64(
+                    "--expand-rel",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-rel requires a fraction.".to_string())?,
+                )?;
+                expansion.rel_left = value;
+                expansion.rel_top = value;
+                expansion.rel_right = value;
+                expansion.rel_bottom = value;
+            }
+            "--expand-rel-x" => {
+                index += 1;
+                let value = parse_non_negative_f64(
+                    "--expand-rel-x",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-rel-x requires a fraction.".to_string())?,
+                )?;
+                expansion.rel_left = value;
+                expansion.rel_right = value;
+            }
+            "--expand-rel-y" => {
+                index += 1;
+                let value = parse_non_negative_f64(
+                    "--expand-rel-y",
+                    args.get(index)
+                        .ok_or_else(|| "--expand-rel-y requires a fraction.".to_string())?,
+                )?;
+                expansion.rel_top = value;
+                expansion.rel_bottom = value;
+            }
+            "--scale" => {
+                index += 1;
+                raster.scale = parse_positive_f64(
+                    "--scale",
+                    args.get(index)
+                        .ok_or_else(|| "--scale requires a positive number.".to_string())?,
+                )?;
+            }
+            "--width" => {
+                index += 1;
+                raster.width = Some(parse_positive_u32(
+                    "--width",
+                    args.get(index)
+                        .ok_or_else(|| "--width requires a positive integer.".to_string())?,
+                )?);
+            }
+            "--height" => {
+                index += 1;
+                raster.height = Some(parse_positive_u32(
+                    "--height",
+                    args.get(index)
+                        .ok_or_else(|| "--height requires a positive integer.".to_string())?,
+                )?);
+            }
+            "--pretty" => pretty = true,
+            value if input.is_none() => input = Some(value.to_string()),
+            value => return Err(format!("Unexpected context argument '{value}'.")),
+        }
+        index += 1;
+    }
+    let input = input.ok_or_else(|| "context requires an input file.".to_string())?;
+    let target = target.ok_or_else(|| {
+        "context requires --target <object:id|molecule:index|node:id|bond:id|all>.".to_string()
+    })?;
+    let engine = load_engine_from_file(&input)?;
+    let document = engine_document(&engine)?;
+    let target_bounds = target_bounds(&document, &target)?;
+    let query_view_box = expanded_view_box(target_bounds, expansion);
+    let query_bounds = view_box_to_bounds(query_view_box);
+    let mut report = context_report(
+        &input,
+        &document,
+        &target,
+        target_bounds,
+        query_bounds,
+        expansion,
+        limit,
+    )?;
+
+    if let Some(capture_output) = capture_output.as_deref() {
+        let format = capture_format
+            .or_else(|| infer_capture_format_from_path(capture_output))
+            .ok_or_else(|| {
+                "--capture-out format is ambiguous; use .svg/.png or --format svg|png.".to_string()
+            })?;
+        let primitives = render_document(&document);
+        let render_output =
+            write_capture_output(&primitives, query_view_box, capture_output, format, raster)?;
+        set_object_field(
+            &mut report,
+            "capture",
+            json!({
+                "ok": true,
+                "path": capture_output,
+                "format": format.as_str(),
+                "pixelSize": render_output.pixel_size.map(PixelSize::to_json),
+                "viewBox": view_box_json(query_view_box),
+            }),
+        );
+    }
+
+    write_json_value(report, output.as_deref(), pretty)
+}
+
 pub(crate) fn parse_target_selector(value: &str) -> Result<TargetSelector, String> {
     let value = value.trim();
     if value.eq_ignore_ascii_case("all") {
@@ -401,6 +934,389 @@ fn parse_non_negative_f64(name: &str, value: &str) -> Result<f64, String> {
         return Err(format!("{name} requires a finite non-negative number."));
     }
     Ok(number)
+}
+
+fn parse_positive_f64(name: &str, value: &str) -> Result<f64, String> {
+    let number = value
+        .parse::<f64>()
+        .map_err(|_| format!("{name} requires a positive number."))?;
+    if !number.is_finite() || number <= 0.0 {
+        return Err(format!("{name} requires a finite positive number."));
+    }
+    Ok(number)
+}
+
+fn parse_positive_u32(name: &str, value: &str) -> Result<u32, String> {
+    let number = value
+        .parse::<u32>()
+        .map_err(|_| format!("{name} requires a positive integer."))?;
+    if number == 0 {
+        return Err(format!("{name} requires a positive integer."));
+    }
+    Ok(number)
+}
+
+fn parse_capture_format(value: &str) -> Result<CaptureFormat, String> {
+    match value
+        .trim()
+        .trim_start_matches('.')
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "svg" => Ok(CaptureFormat::Svg),
+        "png" => Ok(CaptureFormat::Png),
+        _ => Err(format!(
+            "Unsupported capture format '{value}'. Expected svg or png."
+        )),
+    }
+}
+
+fn infer_capture_format_from_path(path: &str) -> Option<CaptureFormat> {
+    Path::new(path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .and_then(|extension| parse_capture_format(extension).ok())
+}
+
+fn context_report(
+    input: &str,
+    document: &ChemcoreDocument,
+    target: &TargetSelector,
+    target_box: [f64; 4],
+    query_bounds: [f64; 4],
+    expansion: CropExpansion,
+    limit: usize,
+) -> Result<Value, String> {
+    let object_infos = collect_scene_object_infos(document);
+    let mut objects = object_infos
+        .iter()
+        .filter(|info| bounds_intersect(info.bounds, query_bounds))
+        .map(|info| {
+            json!({
+                "selector": format!("object:{}", info.id),
+                "kind": "object",
+                "id": info.id,
+                "type": info.object_type,
+                "name": info.name,
+                "visible": info.visible,
+                "bounds": bounds_json(info.bounds),
+                "spatial": spatial_relation_json(target_box, info.bounds),
+                "relationships": object_relationship_json(info),
+                "isTarget": target_matches_object(target, info),
+            })
+        })
+        .collect::<Vec<_>>();
+    sort_context_entries(&mut objects);
+    objects.truncate(limit);
+
+    let mut molecules = document
+        .editable_fragments()
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, entry)| {
+            let bounds = target_bounds(document, &TargetSelector::Molecule(index)).ok()?;
+            bounds_intersect(bounds, query_bounds).then(|| {
+                json!({
+                    "selector": format!("molecule:{index}"),
+                    "kind": "molecule",
+                    "index": index,
+                    "objectId": entry.object.id,
+                    "resourceRef": entry.object.payload.resource_ref,
+                    "nodeCount": entry.fragment.nodes.len(),
+                    "bondCount": entry.fragment.bonds.len(),
+                    "bounds": bounds_json(bounds),
+                    "spatial": spatial_relation_json(target_box, bounds),
+                    "isTarget": matches!(target, TargetSelector::Molecule(target_index) if *target_index == index),
+                })
+            })
+        })
+        .collect::<Vec<_>>();
+    sort_context_entries(&mut molecules);
+    molecules.truncate(limit);
+
+    let mut nodes = Vec::new();
+    let mut bonds = Vec::new();
+    for (molecule_index, entry) in document.editable_fragments().into_iter().enumerate() {
+        for node in &entry.fragment.nodes {
+            let bounds = node_fast_bounds(entry.object, node);
+            if bounds_intersect(bounds, query_bounds) {
+                nodes.push(json!({
+                    "selector": format!("node:{}", node.id),
+                    "kind": "node",
+                    "id": node.id,
+                    "moleculeIndex": molecule_index,
+                    "objectId": entry.object.id,
+                    "element": node.element,
+                    "atomicNumber": node.atomic_number,
+                    "bounds": bounds_json(bounds),
+                    "spatial": spatial_relation_json(target_box, bounds),
+                    "isTarget": matches!(target, TargetSelector::Node(id) if id == &node.id),
+                }));
+            }
+        }
+        for bond in &entry.fragment.bonds {
+            let Some(bounds) = bond_fast_bounds(entry.object, &entry.fragment.nodes, bond) else {
+                continue;
+            };
+            if bounds_intersect(bounds, query_bounds) {
+                bonds.push(json!({
+                    "selector": format!("bond:{}", bond.id),
+                    "kind": "bond",
+                    "id": bond.id,
+                    "moleculeIndex": molecule_index,
+                    "objectId": entry.object.id,
+                    "begin": bond.begin,
+                    "end": bond.end,
+                    "order": bond.order,
+                    "bounds": bounds_json(bounds),
+                    "spatial": spatial_relation_json(target_box, bounds),
+                    "isTarget": matches!(target, TargetSelector::Bond(id) if id == &bond.id),
+                }));
+            }
+        }
+    }
+    sort_context_entries(&mut nodes);
+    sort_context_entries(&mut bonds);
+    nodes.truncate(limit);
+    bonds.truncate(limit);
+
+    Ok(json!({
+        "ok": true,
+        "input": input,
+        "target": target.to_json(),
+        "bounds": {
+            "target": bounds_json(target_box),
+            "query": bounds_json(query_bounds),
+        },
+        "expansion": expansion.to_json(),
+        "counts": {
+            "objects": objects.len(),
+            "molecules": molecules.len(),
+            "nodes": nodes.len(),
+            "bonds": bonds.len(),
+            "limit": limit,
+        },
+        "relationships": target_relationships_json(target, &object_infos),
+        "context": {
+            "objects": objects,
+            "molecules": molecules,
+            "nodes": nodes,
+            "bonds": bonds,
+        }
+    }))
+}
+
+#[derive(Debug, Clone)]
+struct SceneObjectInfo {
+    id: String,
+    object_type: String,
+    name: String,
+    visible: bool,
+    bounds: [f64; 4],
+    parent_id: Option<String>,
+    ancestor_ids: Vec<String>,
+    child_ids: Vec<String>,
+    linked_object_ids: Vec<String>,
+    link_kind: Option<String>,
+    group_kind: Option<String>,
+}
+
+fn collect_scene_object_infos(document: &ChemcoreDocument) -> Vec<SceneObjectInfo> {
+    let mut out = Vec::new();
+    collect_scene_object_infos_inner(document, &document.objects, None, &[], &mut out);
+    out
+}
+
+fn collect_scene_object_infos_inner(
+    document: &ChemcoreDocument,
+    objects: &[SceneObject],
+    parent_id: Option<&str>,
+    ancestors: &[String],
+    out: &mut Vec<SceneObjectInfo>,
+) {
+    for object in objects {
+        let mut next_ancestors = ancestors.to_vec();
+        if let Some(parent_id) = parent_id {
+            next_ancestors.push(parent_id.to_string());
+        }
+        if let Ok(bounds) = target_bounds(document, &TargetSelector::Object(object.id.clone())) {
+            out.push(SceneObjectInfo {
+                id: object.id.clone(),
+                object_type: object.object_type.clone(),
+                name: object.name.clone(),
+                visible: object.visible,
+                bounds,
+                parent_id: parent_id.map(str::to_string),
+                ancestor_ids: next_ancestors.clone(),
+                child_ids: object
+                    .children
+                    .iter()
+                    .map(|child| child.id.clone())
+                    .collect(),
+                linked_object_ids: linked_object_ids(object),
+                link_kind: object
+                    .meta
+                    .get("linkKind")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+                group_kind: object
+                    .meta
+                    .get("kind")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+            });
+        }
+        collect_scene_object_infos_inner(
+            document,
+            &object.children,
+            Some(object.id.as_str()),
+            &next_ancestors,
+            out,
+        );
+    }
+}
+
+fn linked_object_ids(object: &SceneObject) -> Vec<String> {
+    [
+        "linkedTextObjectId",
+        "linkedBracketObjectId",
+        "bracketLabelTextObjectId",
+        "bracketObjectId",
+    ]
+    .into_iter()
+    .filter_map(|key| {
+        object
+            .meta
+            .get(key)
+            .and_then(Value::as_str)
+            .map(str::to_string)
+    })
+    .collect()
+}
+
+fn object_relationship_json(info: &SceneObjectInfo) -> Value {
+    json!({
+        "parentId": info.parent_id,
+        "ancestorIds": info.ancestor_ids,
+        "childIds": info.child_ids,
+        "isGroup": info.object_type == "group",
+        "groupKind": info.group_kind,
+        "linkedObjectIds": info.linked_object_ids,
+        "linkKind": info.link_kind,
+    })
+}
+
+fn target_relationships_json(target: &TargetSelector, infos: &[SceneObjectInfo]) -> Value {
+    match target {
+        TargetSelector::Object(id) => infos
+            .iter()
+            .find(|info| &info.id == id)
+            .map(object_relationship_json)
+            .unwrap_or(Value::Null),
+        TargetSelector::Molecule(index) => json!({
+            "moleculeIndex": index,
+        }),
+        TargetSelector::Node(id) => json!({
+            "nodeId": id,
+        }),
+        TargetSelector::Bond(id) => json!({
+            "bondId": id,
+        }),
+        TargetSelector::All | TargetSelector::Bounds(_) => Value::Null,
+    }
+}
+
+fn target_matches_object(target: &TargetSelector, info: &SceneObjectInfo) -> bool {
+    matches!(target, TargetSelector::Object(id) if id == &info.id)
+}
+
+fn spatial_relation_json(target: [f64; 4], other: [f64; 4]) -> Value {
+    let target_center = bounds_center(target);
+    let other_center = bounds_center(other);
+    let dx = other_center[0] - target_center[0];
+    let dy = other_center[1] - target_center[1];
+    let gap_x = axis_gap(target[0], target[2], other[0], other[2]);
+    let gap_y = axis_gap(target[1], target[3], other[1], other[3]);
+    let edge_gap = (gap_x * gap_x + gap_y * gap_y).sqrt();
+    json!({
+        "direction": direction_for_delta(dx, dy, gap_x, gap_y),
+        "centerDelta": { "x": dx, "y": dy },
+        "centerDistance": (dx * dx + dy * dy).sqrt(),
+        "edgeGap": edge_gap,
+        "overlapsTarget": bounds_intersect(target, other),
+        "containsTarget": bounds_contains(other, target),
+        "insideTarget": bounds_contains(target, other),
+    })
+}
+
+fn sort_context_entries(entries: &mut [Value]) {
+    entries.sort_by(|left, right| {
+        let left_gap = left
+            .pointer("/spatial/edgeGap")
+            .and_then(Value::as_f64)
+            .unwrap_or(f64::INFINITY);
+        let right_gap = right
+            .pointer("/spatial/edgeGap")
+            .and_then(Value::as_f64)
+            .unwrap_or(f64::INFINITY);
+        left_gap
+            .partial_cmp(&right_gap)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+}
+
+fn bounds_center(bounds: [f64; 4]) -> [f64; 2] {
+    [(bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5]
+}
+
+fn axis_gap(a_min: f64, a_max: f64, b_min: f64, b_max: f64) -> f64 {
+    if a_max < b_min {
+        b_min - a_max
+    } else if b_max < a_min {
+        a_min - b_max
+    } else {
+        0.0
+    }
+}
+
+fn direction_for_delta(dx: f64, dy: f64, gap_x: f64, gap_y: f64) -> &'static str {
+    if gap_x == 0.0 && gap_y == 0.0 {
+        return "overlap";
+    }
+    if gap_x >= gap_y {
+        if dx < 0.0 {
+            "left"
+        } else {
+            "right"
+        }
+    } else if dy < 0.0 {
+        "above"
+    } else {
+        "below"
+    }
+}
+
+fn bounds_intersect(a: [f64; 4], b: [f64; 4]) -> bool {
+    a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1]
+}
+
+fn bounds_contains(outer: [f64; 4], inner: [f64; 4]) -> bool {
+    outer[0] <= inner[0] && outer[1] <= inner[1] && outer[2] >= inner[2] && outer[3] >= inner[3]
+}
+
+fn view_box_to_bounds(view_box: [f64; 4]) -> [f64; 4] {
+    [
+        view_box[0],
+        view_box[1],
+        view_box[0] + view_box[2],
+        view_box[1] + view_box[3],
+    ]
+}
+
+fn set_object_field(value: &mut Value, key: &str, field: Value) {
+    if let Some(object) = value.as_object_mut() {
+        object.insert(key.to_string(), field);
+    }
 }
 
 fn parse_bounds_arg(value: &str) -> Result<[f64; 4], String> {
@@ -661,11 +1577,17 @@ fn bond_exists(document: &ChemcoreDocument, bond_id: &str) -> bool {
         .any(|entry| entry.fragment.bonds.iter().any(|bond| bond.id == bond_id))
 }
 
-fn expanded_view_box(bounds: [f64; 4], padding: f64) -> [f64; 4] {
-    let min_x = bounds[0] - padding;
-    let min_y = bounds[1] - padding;
-    let width = (bounds[2] - bounds[0] + padding * 2.0).max(1.0);
-    let height = (bounds[3] - bounds[1] + padding * 2.0).max(1.0);
+fn expanded_view_box(bounds: [f64; 4], expansion: CropExpansion) -> [f64; 4] {
+    let width = (bounds[2] - bounds[0]).max(1.0);
+    let height = (bounds[3] - bounds[1]).max(1.0);
+    let left = expansion.left_for(width);
+    let right = expansion.right_for(width);
+    let top = expansion.top_for(height);
+    let bottom = expansion.bottom_for(height);
+    let min_x = bounds[0] - left;
+    let min_y = bounds[1] - top;
+    let width = (width + left + right).max(1.0);
+    let height = (height + top + bottom).max(1.0);
     [min_x, min_y, width, height]
 }
 
@@ -690,16 +1612,114 @@ fn view_box_json(view_box: [f64; 4]) -> Value {
     })
 }
 
-fn ensure_svg_output_path(path: &str) -> Result<(), String> {
-    let extension = Path::new(path)
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .map(|extension| extension.to_ascii_lowercase());
-    if extension.as_deref() != Some("svg") {
-        return Err("capture currently writes SVG only. Use --out <path.svg>; for example: chemcore-cli capture input.cdxml --target all --out capture.svg."
-            .to_string());
+struct CaptureWriteResult {
+    pixel_size: Option<PixelSize>,
+}
+
+fn write_capture_output(
+    primitives: &[RenderPrimitive],
+    view_box: [f64; 4],
+    output: &str,
+    format: CaptureFormat,
+    raster: RasterOptions,
+) -> Result<CaptureWriteResult, String> {
+    let svg = primitives_to_svg_viewbox(primitives, view_box, None);
+    match format {
+        CaptureFormat::Svg => {
+            write_text_output(Some(output), &svg)?;
+            Ok(CaptureWriteResult { pixel_size: None })
+        }
+        CaptureFormat::Png => {
+            let pixel_size = pixel_size_for_view_box(view_box, raster)?;
+            write_svg_png_output(&svg, view_box, output, pixel_size)?;
+            Ok(CaptureWriteResult {
+                pixel_size: Some(pixel_size),
+            })
+        }
+    }
+}
+
+fn pixel_size_for_view_box(view_box: [f64; 4], raster: RasterOptions) -> Result<PixelSize, String> {
+    let source_width = view_box[2].max(1.0);
+    let source_height = view_box[3].max(1.0);
+    let (width, height) = match (raster.width, raster.height) {
+        (Some(width), Some(height)) => (width, height),
+        (Some(width), None) => {
+            let height = ((width as f64) * source_height / source_width)
+                .round()
+                .max(1.0) as u32;
+            (width, height)
+        }
+        (None, Some(height)) => {
+            let width = ((height as f64) * source_width / source_height)
+                .round()
+                .max(1.0) as u32;
+            (width, height)
+        }
+        (None, None) => (
+            (source_width * raster.scale).round().max(1.0) as u32,
+            (source_height * raster.scale).round().max(1.0) as u32,
+        ),
+    };
+    validate_png_size(width, height)?;
+    Ok(PixelSize {
+        width,
+        height,
+        scale_x: width as f64 / source_width,
+        scale_y: height as f64 / source_height,
+    })
+}
+
+fn validate_png_size(width: u32, height: u32) -> Result<(), String> {
+    if width > MAX_CAPTURE_SIDE_PX || height > MAX_CAPTURE_SIDE_PX {
+        return Err(format!(
+            "PNG capture dimensions {width}x{height} exceed the side limit {MAX_CAPTURE_SIDE_PX}px. Use --scale, --width, or --height to request a smaller image."
+        ));
+    }
+    let pixels = width as u64 * height as u64;
+    if pixels > MAX_CAPTURE_PIXELS {
+        return Err(format!(
+            "PNG capture dimensions {width}x{height} require {pixels} pixels, above the limit {MAX_CAPTURE_PIXELS}. Use --scale, --width, or --height to request a smaller image."
+        ));
     }
     Ok(())
+}
+
+fn write_svg_png_output(
+    svg: &str,
+    view_box: [f64; 4],
+    output: &str,
+    pixel_size: PixelSize,
+) -> Result<(), String> {
+    let svg = svg_with_explicit_size(svg, view_box);
+    let options = usvg::Options::default();
+    let tree = usvg::Tree::from_str(&svg, &options)
+        .map_err(|error| format!("Failed to parse capture SVG for PNG output: {error}"))?;
+    let mut pixmap = tiny_skia::Pixmap::new(pixel_size.width, pixel_size.height)
+        .ok_or_else(|| "Failed to allocate PNG pixmap.".to_string())?;
+    pixmap.fill(tiny_skia::Color::WHITE);
+    let mut pixmap_mut = pixmap.as_mut();
+    resvg::render(
+        &tree,
+        tiny_skia::Transform::from_scale(pixel_size.scale_x as f32, pixel_size.scale_y as f32),
+        &mut pixmap_mut,
+    );
+    ensure_output_parent_path(Path::new(output))?;
+    pixmap
+        .save_png(output)
+        .map_err(|error| format!("Failed to write PNG {output}: {error}"))
+}
+
+fn svg_with_explicit_size(svg: &str, view_box: [f64; 4]) -> String {
+    svg.replacen(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\"",
+        &format!(
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\"",
+            view_box[2].max(1.0),
+            view_box[3].max(1.0)
+        ),
+        1,
+    )
 }
 
 fn clipboard_document_for_target(
@@ -1013,4 +2033,67 @@ fn resolve_office_helper(office_helper: Option<&str>) -> Result<PathBuf, String>
             .collect::<Vec<_>>()
             .join("; ")
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_close(actual: f64, expected: f64) {
+        assert!(
+            (actual - expected).abs() < 0.000_001,
+            "expected {expected}, got {actual}"
+        );
+    }
+
+    #[test]
+    fn infers_png_capture_format_from_output_path() {
+        assert_eq!(
+            infer_capture_format_from_path("capture.png"),
+            Some(CaptureFormat::Png)
+        );
+        assert_eq!(
+            infer_capture_format_from_path("capture.SVG"),
+            Some(CaptureFormat::Svg)
+        );
+        assert!(parse_capture_format("jpeg").is_err());
+    }
+
+    #[test]
+    fn expands_view_box_with_absolute_and_relative_sides() {
+        let view_box = expanded_view_box(
+            [10.0, 20.0, 30.0, 60.0],
+            CropExpansion {
+                abs_left: 1.0,
+                abs_top: 2.0,
+                abs_right: 3.0,
+                abs_bottom: 4.0,
+                rel_left: 0.1,
+                rel_top: 0.25,
+                rel_right: 0.2,
+                rel_bottom: 0.0,
+            },
+        );
+        assert_close(view_box[0], 7.0);
+        assert_close(view_box[1], 8.0);
+        assert_close(view_box[2], 30.0);
+        assert_close(view_box[3], 56.0);
+    }
+
+    #[test]
+    fn derives_png_height_from_fixed_width() {
+        let pixel_size = pixel_size_for_view_box(
+            [0.0, 0.0, 100.0, 50.0],
+            RasterOptions {
+                scale: 4.0,
+                width: Some(1000),
+                height: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(pixel_size.width, 1000);
+        assert_eq!(pixel_size.height, 500);
+        assert_close(pixel_size.scale_x, 10.0);
+        assert_close(pixel_size.scale_y, 10.0);
+    }
 }

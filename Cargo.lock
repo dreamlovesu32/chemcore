@@ -625,7 +625,10 @@ version = "1.0.0-beta.4"
 dependencies = [
  "chemcore-desktop-service",
  "chemcore-engine",
+ "resvg",
  "serde_json",
+ "tiny-skia",
+ "usvg",
 ]
 
 [[package]]

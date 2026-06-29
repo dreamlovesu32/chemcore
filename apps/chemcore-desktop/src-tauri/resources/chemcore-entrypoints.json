@@ -1,0 +1,61 @@
+{
+  "schema": "chemcore.entrypoints.v1",
+  "product": {
+    "name": "Chemcore",
+    "version": "1.0.0-beta.4",
+    "identifier": "com.chemcore.desktop",
+    "description": "Chemcore is a desktop, browser, and CLI chemical drawing toolkit with editable ChemCore JSON, CDXML/CDX, SDF, SVG, and Office/OLE clipboard workflows."
+  },
+  "entrypoints": {
+    "gui": {
+      "name": "Chemcore desktop",
+      "executable": "chemcore-desktop.exe",
+      "installedPathHint": "<install-dir>\\chemcore-desktop.exe",
+      "fileAssociations": ["ccjz", "ccjs", "cdxml", "cdx", "sdf", "sd"]
+    },
+    "cli": {
+      "name": "chemcore-cli",
+      "executable": "chemcore-cli.exe",
+      "installedPathHints": [
+        "<install-dir>\\chemcore-cli.exe",
+        "<install-dir>\\resources\\chemcore-cli.exe"
+      ],
+      "discovery": [
+        "chemcore-cli about --pretty",
+        "chemcore-cli doctor --pretty",
+        "chemcore-cli capabilities --pretty",
+        "chemcore-cli examples basic --pretty",
+        "chemcore-cli schema context --pretty"
+      ]
+    },
+    "officeOleHelper": {
+      "executable": "chemcore-office.exe",
+      "installedPathHints": [
+        "<install-dir>\\chemcore-office.exe",
+        "<install-dir>\\resources\\chemcore-office.exe"
+      ],
+      "purpose": "Registers the editable Chemcore OLE server and accepts CLI clipboard payloads for Office paste."
+    }
+  },
+  "packaging": {
+    "installer": "NSIS x64",
+    "selfDescriptionFile": "chemcore-entrypoints.json",
+    "selfDescriptionInstalledPathHint": "<install-dir>\\resources\\chemcore-entrypoints.json",
+    "windowsAppPaths": ["chemcore-cli.exe"],
+    "consoleNote": "For console agents, prefer the explicit installedPathHints from this file or from `chemcore-cli doctor`; Windows App Paths are also registered for ShellExecute-style launchers."
+  },
+  "formats": {
+    "editableInput": ["ccjs", "ccjz", "cdxml", "cdx", "sdf"],
+    "documentOutput": ["json", "ccjs", "ccjz", "cdxml", "cdx", "sdf", "svg"],
+    "captureOutput": ["svg", "png"],
+    "clipboardOutput": ["windows-office-ole", "chemcore-payload-json"]
+  },
+  "agentWorkflow": [
+    "Run `chemcore-cli doctor --pretty` to identify the executable directory and install state.",
+    "Run `chemcore-cli examples basic --pretty` for a minimal command script that creates an editable document.",
+    "Run `chemcore-cli targets <document> --out targets.json --pretty` before precise capture or copy.",
+    "Run `chemcore-cli context <document> --target <selector> --out context.json --capture-out context.png --scale 5` to inspect nearby objects and relationships.",
+    "Run `chemcore-cli capture <document> --target <selector> --out crop.png --scale 6` for deterministic high-resolution cropped inspection.",
+    "Run `chemcore-cli copy <document> --target <selector>` to place an editable Office/OLE payload on the Windows clipboard."
+  ]
+}

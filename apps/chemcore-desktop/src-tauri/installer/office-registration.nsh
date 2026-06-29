@@ -61,6 +61,9 @@
     Goto chemcore_cli_register_machine
 
   chemcore_cli_found_resources:
+    DetailPrint "Copying Chemcore CLI from resources to the install root..."
+    CopyFiles /SILENT "$INSTDIR\resources\chemcore-cli.exe" "$INSTDIR\chemcore-cli.exe"
+    IfFileExists "$INSTDIR\chemcore-cli.exe" chemcore_cli_found_root
     StrCpy $2 "$INSTDIR\resources\chemcore-cli.exe"
     StrCpy $3 "$INSTDIR\resources"
 
@@ -117,4 +120,5 @@
   DetailPrint "Unregistering Chemcore CLI app path..."
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\App Paths\chemcore-cli.exe"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\App Paths\chemcore-cli.exe"
+  Delete "$INSTDIR\chemcore-cli.exe"
 !macroend

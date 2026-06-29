@@ -29,6 +29,18 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         example: "chemcore-cli doctor --pretty",
     },
     CommandSpec {
+        name: "about",
+        summary: "Return product metadata, installed entrypoints, packaging notes, and agent guidance.",
+        usage: "chemcore-cli about [--pretty] [--out <path>]",
+        example: "chemcore-cli about --pretty",
+    },
+    CommandSpec {
+        name: "examples",
+        summary: "Return ready-to-run JSON command scripts and CLI workflows.",
+        usage: "chemcore-cli examples [basic|capture-copy|all] [--pretty] [--out <path>]",
+        example: "chemcore-cli examples basic --pretty",
+    },
+    CommandSpec {
         name: "inspect",
         summary: "Inspect a document and write JSON summary/object/molecule/resource data.",
         usage: "chemcore-cli inspect <input> [--include summary,objects,molecules,resources,styles] [--out <path>] [--pretty]",
@@ -42,9 +54,15 @@ const COMMAND_SPECS: &[CommandSpec] = &[
     },
     CommandSpec {
         name: "capture",
-        summary: "Render a deterministic cropped SVG for an object, molecule, node, bond, all content, or explicit bounds.",
-        usage: "chemcore-cli capture <input> --target <object:id|molecule:index|node:id|bond:id|all> --out <path.svg> [--padding <pt>] [--pretty]",
-        example: "chemcore-cli capture input.cdxml --target molecule:0 --out mol-0.svg --padding 8",
+        summary: "Render a deterministic cropped SVG or high-resolution PNG for an object, molecule, node, bond, all content, or explicit bounds.",
+        usage: "chemcore-cli capture <input> --target <object:id|molecule:index|node:id|bond:id|all> --out <path.svg|path.png> [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--expand-left <pt>] [--pretty]",
+        example: "chemcore-cli capture input.cdxml --target molecule:0 --out mol-0.png --scale 6 --expand-rel 0.15",
+    },
+    CommandSpec {
+        name: "context",
+        summary: "Report nearby objects/components around a target, including bounds, ids, spatial relation, group/link metadata, and optional screenshot.",
+        usage: "chemcore-cli context <input> --target <selector> [--radius <pt>] [--expand-left <pt>] [--expand-rel <fraction>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]",
+        example: "chemcore-cli context input.cdxml --target molecule:1 --radius 80 --out context.json --capture-out context.png --scale 5 --pretty",
     },
     CommandSpec {
         name: "copy",
@@ -129,7 +147,8 @@ impl CliError {
             examples: vec![
                 "chemcore-cli capabilities".to_string(),
                 "chemcore-cli targets input.cdxml --out targets.json".to_string(),
-                "chemcore-cli capture input.cdxml --target molecule:0 --out mol.svg".to_string(),
+                "chemcore-cli capture input.cdxml --target molecule:0 --out mol.png --scale 6"
+                    .to_string(),
             ],
             suggestions: command_suggestions(command),
         }
@@ -255,9 +274,16 @@ fn protocol_schemas_json() -> Value {
             "example": "-20,-10,140,80"
         },
         "capture": {
-            "formats": ["svg"],
+            "formats": ["svg", "png"],
+            "resolution": "PNG defaults to --scale 4. Use --scale, --width, or --height for sharper or bounded raster output.",
+            "expansion": "Use --expand/--padding for absolute pt expansion, --expand-left/right/top/bottom for per-side absolute expansion, and --expand-rel or --expand-rel-x/y for relative expansion based on target size.",
             "stdout": "JSON manifest only; rendered image data is written to --out.",
             "usage": command_spec("capture").map(|spec| spec.usage).unwrap_or("")
+        },
+        "context": {
+            "description": "Returns objects, molecules, nodes, and bonds near a target. Entries include selector ids, bounds, center/edge distance, direction, overlap flags, group ancestry, child ids, and link metadata.",
+            "screenshot": "Pass --capture-out <path.svg|path.png> to render the same context bounds.",
+            "usage": command_spec("context").map(|spec| spec.usage).unwrap_or("")
         },
         "copy": {
             "targets": ["all", "object", "molecule", "node", "bond"],
@@ -283,15 +309,143 @@ fn capabilities_value() -> Value {
             "default": "json",
             "largeOutputPolicy": "Prefer --out for large payloads. capture always writes image data to --out and returns a manifest."
         },
+        "nextSteps": [
+            "chemcore-cli about --pretty",
+            "chemcore-cli examples basic --pretty",
+            "chemcore-cli schema command-script --pretty",
+            "chemcore-cli schema context --pretty"
+        ],
         "commands": command_specs_json(),
         "formats": {
             "editableInput": ["ccjs", "ccjz", "cdxml", "cdx", "sdf"],
             "documentOutput": ["json", "ccjs", "ccjz", "cdxml", "cdx", "sdf", "svg"],
-            "captureOutput": ["svg"],
+            "captureOutput": ["svg", "png"],
             "clipboardOutput": ["windows-office-ole", "chemcore-payload-json"]
         },
         "schemas": protocol_schemas_json()
     })
+}
+
+pub(crate) fn about_value() -> Value {
+    json!({
+        "ok": true,
+        "schema": "chemcore.entrypoints.v1",
+        "product": {
+            "name": "Chemcore",
+            "version": env!("CARGO_PKG_VERSION"),
+            "identifier": "com.chemcore.desktop",
+            "description": "Chemcore is a desktop, browser, and CLI chemical drawing toolkit with editable ChemCore JSON, CDXML/CDX, SDF, SVG, and Office/OLE clipboard workflows."
+        },
+        "entrypoints": {
+            "gui": {
+                "name": "Chemcore desktop",
+                "executable": "chemcore-desktop.exe",
+                "installedPathHint": "<install-dir>\\chemcore-desktop.exe",
+                "fileAssociations": ["ccjz", "ccjs", "cdxml", "cdx", "sdf", "sd"]
+            },
+            "cli": {
+                "name": "chemcore-cli",
+                "executable": "chemcore-cli.exe",
+                "installedPathHints": [
+                    "<install-dir>\\chemcore-cli.exe",
+                    "<install-dir>\\resources\\chemcore-cli.exe"
+                ],
+                "discovery": [
+                    "chemcore-cli about --pretty",
+                    "chemcore-cli doctor --pretty",
+                    "chemcore-cli capabilities --pretty",
+                    "chemcore-cli examples basic --pretty",
+                    "chemcore-cli schema context --pretty"
+                ]
+            },
+            "officeOleHelper": {
+                "executable": "chemcore-office.exe",
+                "installedPathHints": [
+                    "<install-dir>\\chemcore-office.exe",
+                    "<install-dir>\\resources\\chemcore-office.exe"
+                ],
+                "purpose": "Registers the editable Chemcore OLE server and accepts CLI clipboard payloads for Office paste."
+            }
+        },
+        "packaging": {
+            "selfDescriptionFile": "chemcore-entrypoints.json",
+            "selfDescriptionInstalledPathHint": "<install-dir>\\resources\\chemcore-entrypoints.json",
+            "installer": "NSIS x64",
+            "windowsAppPaths": ["chemcore-cli.exe"],
+            "consoleNote": "For console agents, prefer the explicit installedPathHints from this file or from `chemcore-cli doctor`; Windows App Paths are also registered for ShellExecute-style launchers."
+        },
+        "formats": {
+            "editableInput": ["ccjs", "ccjz", "cdxml", "cdx", "sdf"],
+            "documentOutput": ["json", "ccjs", "ccjz", "cdxml", "cdx", "sdf", "svg"],
+            "captureOutput": ["svg", "png"],
+            "clipboardOutput": ["windows-office-ole", "chemcore-payload-json"]
+        },
+        "agentWorkflow": [
+            "Run `chemcore-cli doctor --pretty` to identify the executable directory and install state.",
+            "Run `chemcore-cli examples basic --pretty` for a minimal command script that creates an editable document.",
+            "Run `chemcore-cli targets <document> --out targets.json --pretty` before precise capture or copy.",
+            "Run `chemcore-cli context <document> --target <selector> --out context.json --capture-out context.png --scale 5` to inspect nearby objects and relationships.",
+            "Run `chemcore-cli capture <document> --target <selector> --out crop.png --scale 6` for deterministic high-resolution cropped inspection.",
+            "Run `chemcore-cli copy <document> --target <selector>` to place an editable Office/OLE payload on the Windows clipboard."
+        ]
+    })
+}
+
+fn examples_value(topic: &str) -> Result<Value, String> {
+    let basic_script = json!([
+        {
+            "type": "add-bond",
+            "begin": { "x": 100.0, "y": 120.0 },
+            "end": { "x": 145.0, "y": 120.0 },
+            "order": 1,
+            "variant": "single"
+        },
+        {
+            "type": "add-text",
+            "position": { "x": 120.0, "y": 82.0 },
+            "text": "agent example"
+        }
+    ]);
+    let basic = json!({
+        "name": "basic",
+        "summary": "Create a small editable document from stdin, inspect it, list targets, and export SVG.",
+        "commandScript": basic_script,
+        "powershell": [
+            "$script = '[{\"type\":\"add-bond\",\"begin\":{\"x\":100,\"y\":120},\"end\":{\"x\":145,\"y\":120},\"order\":1,\"variant\":\"single\"},{\"type\":\"add-text\",\"position\":{\"x\":120,\"y\":82},\"text\":\"agent example\"}]'",
+            "$script | chemcore-cli new - --out example.ccjs --results example-results.json --pretty",
+            "chemcore-cli inspect example.ccjs --include summary,objects,molecules --out example-inspect.json --pretty",
+            "chemcore-cli targets example.ccjs --out example-targets.json --pretty",
+            "chemcore-cli convert example.ccjs example.svg"
+        ]
+    });
+    let capture_copy = json!({
+        "name": "capture-copy",
+        "summary": "Use target discovery to crop a high-resolution PNG, inspect surrounding context, and copy the same target to Office.",
+        "requires": ["An existing editable input document such as example.ccjs"],
+        "powershell": [
+            "chemcore-cli targets example.ccjs --out example-targets.json --pretty",
+            "chemcore-cli context example.ccjs --target molecule:0 --radius 80 --out molecule-0-context.json --capture-out molecule-0-context.png --scale 5 --pretty",
+            "chemcore-cli capture example.ccjs --target molecule:0 --out molecule-0.png --scale 6 --expand-rel 0.15 --pretty",
+            "chemcore-cli copy example.ccjs --target molecule:0 --pretty"
+        ],
+        "notes": [
+            "Use object:<id>, molecule:<index>, node:<id>, bond:<id>, or all as target selectors.",
+            "Use --expand-left/right/top/bottom for directional absolute expansion, or --expand-rel for proportional context.",
+            "Use --width or --height when a model needs a fixed pixel budget.",
+            "Use --payload payload.json with copy when debugging Office/OLE clipboard data.",
+            "capture writes deterministic SVG or PNG; stdout remains a JSON manifest."
+        ]
+    });
+    match topic {
+        "basic" => Ok(json!({ "ok": true, "examples": [basic] })),
+        "capture-copy" | "copy" | "capture" => {
+            Ok(json!({ "ok": true, "examples": [capture_copy] }))
+        }
+        "all" => Ok(json!({ "ok": true, "examples": [basic, capture_copy] })),
+        other => Err(format!(
+            "Unknown examples topic '{other}'. Expected basic, capture-copy, or all."
+        )),
+    }
 }
 
 fn parse_common_json_output_args(args: &[String]) -> Result<(Option<String>, bool), String> {
@@ -319,6 +473,35 @@ fn parse_common_json_output_args(args: &[String]) -> Result<(Option<String>, boo
 pub(crate) fn capabilities_command(args: &[String]) -> Result<(), String> {
     let (output, pretty) = parse_common_json_output_args(args)?;
     write_json_value(capabilities_value(), output.as_deref(), pretty)
+}
+
+pub(crate) fn about_command(args: &[String]) -> Result<(), String> {
+    let (output, pretty) = parse_common_json_output_args(args)?;
+    write_json_value(about_value(), output.as_deref(), pretty)
+}
+
+pub(crate) fn examples_command(args: &[String]) -> Result<(), String> {
+    let mut topic = "all".to_string();
+    let mut output = None;
+    let mut pretty = false;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--out" | "-o" => {
+                index += 1;
+                output = Some(
+                    args.get(index)
+                        .ok_or_else(|| "--out requires a path.".to_string())?
+                        .clone(),
+                );
+            }
+            "--pretty" => pretty = true,
+            value if !value.starts_with('-') && topic == "all" => topic = value.to_string(),
+            value => return Err(format!("Unexpected examples argument '{value}'.")),
+        }
+        index += 1;
+    }
+    write_json_value(examples_value(&topic)?, output.as_deref(), pretty)
 }
 
 pub(crate) fn schema_or_capabilities_for_help(args: &[String]) -> Result<(), String> {
@@ -377,7 +560,7 @@ pub(crate) fn schema_command(args: &[String]) -> Result<(), String> {
         json!({ "ok": true, "topic": topic, "schema": schema })
     } else {
         return Err(format!(
-            "Unknown schema topic '{topic}'. Expected commands, targets, capture, copy, command-script, or all."
+            "Unknown schema topic '{topic}'. Expected commands, targets, bounds, capture, context, copy, command-script, or all."
         ));
     };
     write_json_value(value, output.as_deref(), pretty)
@@ -388,7 +571,9 @@ pub(crate) fn schema_topic_key(topic: &str) -> Option<&'static str> {
         "target" | "targets" => Some("target"),
         "bounds" => Some("bounds"),
         "capture" => Some("capture"),
+        "context" | "nearby" | "neighbors" => Some("context"),
         "copy" | "clipboard" => Some("copy"),
+        "examples" => Some("commandScript"),
         "command-script" | "commandScript" | "commands-json" => Some("commandScript"),
         _ => None,
     }
@@ -425,7 +610,7 @@ pub(crate) fn doctor_command(args: &[String]) -> Result<(), String> {
             "formats": {
                 "editableInput": ["ccjs", "ccjz", "cdxml", "cdx", "sdf"],
                 "documentOutput": ["json", "ccjs", "ccjz", "cdxml", "cdx", "sdf", "svg"],
-                "captureOutput": ["svg"],
+                "captureOutput": ["svg", "png"],
                 "clipboardOutput": ["windows-office-ole", "chemcore-payload-json"]
             }
         }),

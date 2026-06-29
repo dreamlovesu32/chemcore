@@ -4,8 +4,8 @@ mod protocol;
 use chemcore_desktop_service::DesktopDocumentService;
 use chemcore_engine::Engine;
 use protocol::{
-    capabilities_command, doctor_command, schema_command, schema_or_capabilities_for_help,
-    CliError, CliResult,
+    about_command, capabilities_command, doctor_command, examples_command, schema_command,
+    schema_or_capabilities_for_help, CliError, CliResult,
 };
 use serde_json::Map;
 use serde_json::{json, Value};
@@ -37,15 +37,27 @@ fn run() -> CliResult<()> {
         schema_or_capabilities_for_help(help_args).map_err(CliError::message)?;
         return Ok(());
     }
+    if args[1..]
+        .iter()
+        .any(|argument| matches!(argument.as_str(), "-h" | "--help"))
+    {
+        schema_or_capabilities_for_help(std::slice::from_ref(&args[0]))
+            .map_err(CliError::message)?;
+        return Ok(());
+    }
 
     match command {
         "capabilities" => capabilities_command(&args[1..]).map_err(CliError::message),
         "schema" => schema_command(&args[1..]).map_err(CliError::message),
         "doctor" => doctor_command(&args[1..]).map_err(CliError::message),
+        "about" => about_command(&args[1..]).map_err(CliError::message),
+        "examples" => examples_command(&args[1..]).map_err(CliError::message),
         "targets" => agent::targets_command(&args[1..])
             .map_err(|error| CliError::for_command("targets", error)),
         "capture" => agent::capture_command(&args[1..])
             .map_err(|error| CliError::for_command("capture", error)),
+        "context" => agent::context_command(&args[1..])
+            .map_err(|error| CliError::for_command("context", error)),
         "copy" => {
             agent::copy_command(&args[1..]).map_err(|error| CliError::for_command("copy", error))
         }
@@ -989,6 +1001,9 @@ mod tests {
     fn schema_topics_accept_agent_friendly_aliases() {
         assert_eq!(protocol::schema_topic_key("target"), Some("target"));
         assert_eq!(protocol::schema_topic_key("targets"), Some("target"));
+        assert_eq!(protocol::schema_topic_key("context"), Some("context"));
+        assert_eq!(protocol::schema_topic_key("nearby"), Some("context"));
+        assert_eq!(protocol::schema_topic_key("neighbors"), Some("context"));
         assert_eq!(protocol::schema_topic_key("clipboard"), Some("copy"));
         assert_eq!(
             protocol::schema_topic_key("command-script"),
