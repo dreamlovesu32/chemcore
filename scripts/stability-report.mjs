@@ -289,12 +289,15 @@ const syntheticEditedReport = join(outputDir, "synthetic-large-edited.report.jso
 const syntheticEdited = join(outputDir, "synthetic-large-edited.ccjs");
 const privateInspect = join(outputDir, "private-large.inspect.json");
 const privateSvg = join(outputDir, "private-large.svg");
+const cliBinary = join(rootDir, "target", "debug", process.platform === "win32" ? "chemcore-cli.exe" : "chemcore-cli");
 
 const jsCheckFiles = [
   "viewer/app.js",
   "viewer/engine_host.js",
   "viewer/editor_command_engine.js",
   "viewer/editor_pointer_controller.js",
+  "viewer/editor_selection_hit_model.js",
+  "viewer/editor_tool_model.js",
   "viewer/toolbar.js",
   "scripts/generate-stability-fixtures.mjs",
   "scripts/stability-user-paths.mjs",
@@ -309,9 +312,8 @@ const cliTasks = [
   {
     id: "cli-new-agent-commands",
     layer: "CLI",
-    command: "cargo",
+    command: cliBinary,
     args: [
-      "run", "-q", "-p", "chemcore-cli", "--",
       "new", rel(fixtureCommands),
       "--out", rel(cliGenerated),
       "--results", rel(cliGeneratedReport),
@@ -324,9 +326,8 @@ const cliTasks = [
   {
     id: "cli-inspect-synthetic-large",
     layer: "CLI",
-    command: "cargo",
+    command: cliBinary,
     args: [
-      "run", "-q", "-p", "chemcore-cli", "--",
       "inspect", rel(fixtureLarge),
       "--include", "summary,objects,molecules,resources",
       "--out", rel(syntheticInspect),
@@ -336,21 +337,20 @@ const cliTasks = [
   {
     id: "cli-convert-synthetic-ccjs-cdxml",
     layer: "CLI",
-    command: "cargo",
-    args: ["run", "-q", "-p", "chemcore-cli", "--", "convert", rel(fixtureLarge), rel(syntheticCdxml)],
+    command: cliBinary,
+    args: ["convert", rel(fixtureLarge), rel(syntheticCdxml)],
   },
   {
     id: "cli-convert-synthetic-cdxml-svg",
     layer: "CLI",
-    command: "cargo",
-    args: ["run", "-q", "-p", "chemcore-cli", "--", "convert", rel(syntheticCdxml), rel(syntheticSvg)],
+    command: cliBinary,
+    args: ["convert", rel(syntheticCdxml), rel(syntheticSvg)],
   },
   {
     id: "cli-run-agent-commands-on-synthetic-cdxml",
     layer: "CLI",
-    command: "cargo",
+    command: cliBinary,
     args: [
-      "run", "-q", "-p", "chemcore-cli", "--",
       "run", rel(syntheticCdxml), rel(fixtureCommands),
       "--out", rel(syntheticEdited),
       "--results", rel(syntheticEditedReport),
@@ -366,9 +366,8 @@ if (privateCdxmlExists) {
     {
       id: "cli-inspect-private-large-cdxml",
       layer: "CLI Private Large File",
-      command: "cargo",
+      command: cliBinary,
       args: [
-        "run", "-q", "-p", "chemcore-cli", "--",
         "inspect", privateCdxml,
         "--include", "summary,objects,molecules,resources",
         "--out", rel(privateInspect),
@@ -378,8 +377,8 @@ if (privateCdxmlExists) {
     {
       id: "cli-convert-private-large-cdxml-svg",
       layer: "CLI Private Large File",
-      command: "cargo",
-      args: ["run", "-q", "-p", "chemcore-cli", "--", "convert", privateCdxml, rel(privateSvg)],
+      command: cliBinary,
+      args: ["convert", privateCdxml, rel(privateSvg)],
       timeoutMs: commandTimeoutMs,
     },
   );
@@ -428,7 +427,16 @@ const stages = [
   },
   {
     name: "cli",
-    tasks: cliTasks,
+    tasks: [
+      {
+        id: "cli-build",
+        layer: "CLI Build",
+        command: "cargo",
+        args: ["build", "-p", "chemcore-cli"],
+        timeoutMs: commandTimeoutMs,
+      },
+      ...cliTasks,
+    ],
   },
   {
     name: "browser and desktop-like interaction",

@@ -1,3 +1,17 @@
+import {
+  toolSupportsSelectionBoxMove,
+  toolUsesEngineDragPreview,
+} from "./editor_tool_model.js";
+import {
+  BRACKET_LABEL_OPEN_DRAG_THRESHOLD_SCREEN_PX,
+  DOCUMENT_BOUNDS_HIT_PAD_SCREEN_PX,
+  SELECTION_DRAG_THRESHOLD_SCREEN_PX,
+  SELECTION_FREEHAND_POINT_SPACING_SCREEN_PX,
+  SELECTION_POST_COMMIT_HOVER_BLOCK_SCREEN_PX,
+  TLC_SPOT_DRAG_THRESHOLD_SCREEN_PX,
+  selectionHandleZoneContainsPoint as selectionHandleZoneContainsPointModel,
+} from "./editor_selection_hit_model.js";
+
 export function createEditorPointerController(options) {
   let hoverMoveRequest = null;
   let hoverMoveFrame = 0;
@@ -122,7 +136,7 @@ export function createEditorPointerController(options) {
     if (!postCommitHoverBlockPoint || !point) {
       return false;
     }
-    if (options.pointDistance(postCommitHoverBlockPoint, point) <= options.cssPxToPt(4)) {
+    if (options.pointDistance(postCommitHoverBlockPoint, point) <= options.cssPxToPt(SELECTION_POST_COMMIT_HOVER_BLOCK_SCREEN_PX)) {
       return true;
     }
     postCommitHoverBlockPoint = null;
@@ -435,7 +449,7 @@ export function createEditorPointerController(options) {
     }
     if (
       options.editorState().activeTool === "select"
-      && !options.documentBoundsContainsPoint?.(point, 8)
+      && !options.documentBoundsContainsPoint?.(point, DOCUMENT_BOUNDS_HIT_PAD_SCREEN_PX)
     ) {
       await options.state().editorEngine.clearInteraction?.();
       invalidateEngineReadCache();
@@ -471,19 +485,6 @@ export function createEditorPointerController(options) {
     } else if (toolSupportsSelectionBoxMove(editorState.activeTool)) {
       await options.syncArrowAwareCursorForPoint(point);
     }
-  }
-
-  function toolSupportsSelectionBoxMove(tool) {
-    return tool === "bond"
-      || tool === "arrow"
-      || tool === "bracket"
-      || tool === "symbol"
-      || tool === "element"
-      || tool === "shape"
-      || tool === "tlc-plate"
-      || tool === "orbital"
-      || tool === "templates"
-      || tool === "chain";
   }
 
   async function beginSelectionBoxMove(point, event) {
@@ -529,55 +530,13 @@ export function createEditorPointerController(options) {
   }
 
   function selectionHandleZoneContainsPoint(point) {
-    const bounds = options.currentRenderBounds?.("selection");
-    if (!bounds) {
-      return true;
-    }
-    if (options.selectedContentHitContainsPoint?.(point)) {
-      return false;
-    }
-    const edgePad = options.screenPxToWorld?.(14) ?? options.cssPxToPt(14);
-    const rotatePad = options.screenPxToWorld?.(18) ?? options.cssPxToPt(18);
-    const width = Math.max(0, Number(bounds.maxX || 0) - Number(bounds.minX || 0));
-    const height = Math.max(0, Number(bounds.maxY || 0) - Number(bounds.minY || 0));
-    const strictlyInsideBounds = point.x > bounds.minX
-      && point.x < bounds.maxX
-      && point.y > bounds.minY
-      && point.y < bounds.maxY;
-    if (strictlyInsideBounds && (width <= edgePad * 4 || height <= edgePad * 4)) {
-      return false;
-    }
-    const insideExpandedBounds = point.x >= bounds.minX - edgePad
-      && point.x <= bounds.maxX + edgePad
-      && point.y >= bounds.minY - rotatePad
-      && point.y <= bounds.maxY + edgePad;
-    if (!insideExpandedBounds) {
-      return false;
-    }
-    const nearEdge = Math.abs(point.x - bounds.minX) <= edgePad
-      || Math.abs(point.x - bounds.maxX) <= edgePad
-      || Math.abs(point.y - bounds.minY) <= edgePad
-      || Math.abs(point.y - bounds.maxY) <= edgePad;
-    if (nearEdge) {
-      return true;
-    }
-    const rotateHandle = {
-      x: (bounds.minX + bounds.maxX) * 0.5,
-      y: bounds.minY - (options.screenPxToWorld?.(18) ?? options.cssPxToPt(18)),
-    };
-    return options.pointDistance(point, rotateHandle) <= rotatePad;
-  }
-
-  function toolUsesEngineDragPreview(tool) {
-    return tool === "bond"
-      || tool === "arrow"
-      || tool === "bracket"
-      || tool === "symbol"
-      || tool === "shape"
-      || tool === "tlc-plate"
-      || tool === "orbital"
-      || tool === "templates"
-      || tool === "chain";
+    return selectionHandleZoneContainsPointModel({
+      point,
+      bounds: options.currentRenderBounds?.("selection"),
+      pointDistance: options.pointDistance,
+      toWorld: (screenPx) => options.screenPxToWorld?.(screenPx) ?? options.cssPxToPt(screenPx),
+      selectedContentHitContainsPoint: options.selectedContentHitContainsPoint,
+    });
   }
 
   function primaryButtonIsDown(event) {
@@ -739,7 +698,7 @@ export function createEditorPointerController(options) {
       event.preventDefault();
       if (gesture.kind === "tlc-spot-drag") {
         gesture.current = point;
-        gesture.dragged = options.pointDistance(gesture.start, point) >= options.cssPxToPt(1.5);
+        gesture.dragged = options.pointDistance(gesture.start, point) >= options.cssPxToPt(TLC_SPOT_DRAG_THRESHOLD_SCREEN_PX);
         const hit = options.parseEngineJson(
           await options.state().editorEngine.updateTlcSpotDragJson?.(point.x, point.y),
           null,
@@ -760,7 +719,7 @@ export function createEditorPointerController(options) {
         return;
       }
       if (gesture.kind === "arrow-endpoint" || gesture.kind === "arrow-curve") {
-        if (options.pointDistance(gesture.start, point) >= options.cssPxToPt(3)) {
+        if (options.pointDistance(gesture.start, point) >= options.cssPxToPt(SELECTION_DRAG_THRESHOLD_SCREEN_PX)) {
           gesture.dragged = true;
         }
         gesture.current = point;
@@ -774,7 +733,7 @@ export function createEditorPointerController(options) {
         return;
       }
       if (gesture.kind === "shape-resize") {
-        if (options.pointDistance(gesture.start, point) >= options.cssPxToPt(3)) {
+        if (options.pointDistance(gesture.start, point) >= options.cssPxToPt(SELECTION_DRAG_THRESHOLD_SCREEN_PX)) {
           gesture.dragged = true;
         }
         gesture.current = point;
@@ -813,7 +772,7 @@ export function createEditorPointerController(options) {
         return;
       }
       if (gesture.kind === "move") {
-        if (options.pointDistance(gesture.start, point) >= options.cssPxToPt(3)) {
+        if (options.pointDistance(gesture.start, point) >= options.cssPxToPt(SELECTION_DRAG_THRESHOLD_SCREEN_PX)) {
           gesture.dragged = true;
         }
         gesture.current = point;
@@ -843,13 +802,13 @@ export function createEditorPointerController(options) {
         options.renderEditorOverlay(currentInteractionRenderList());
         return;
       }
-      if (options.pointDistance(gesture.start, point) >= options.cssPxToPt(3)) {
+      if (options.pointDistance(gesture.start, point) >= options.cssPxToPt(SELECTION_DRAG_THRESHOLD_SCREEN_PX)) {
         gesture.dragged = true;
       }
       gesture.current = point;
       if (editorState.selectMode === "free") {
         const lastPoint = gesture.points[gesture.points.length - 1];
-        if (!lastPoint || options.pointDistance(lastPoint, point) >= options.cssPxToPt(2)) {
+        if (!lastPoint || options.pointDistance(lastPoint, point) >= options.cssPxToPt(SELECTION_FREEHAND_POINT_SPACING_SCREEN_PX)) {
           gesture.points.push(point);
         }
       }
@@ -887,7 +846,7 @@ export function createEditorPointerController(options) {
     leaveSelectionHoverSuppression(point);
     if (
       editorState.activeTool === "select"
-      && !options.documentBoundsContainsPoint?.(point, 8)
+      && !options.documentBoundsContainsPoint?.(point, DOCUMENT_BOUNDS_HIT_PAD_SCREEN_PX)
     ) {
       cancelScheduledHoverMove();
       await options.state().editorEngine.clearInteraction?.();
@@ -931,7 +890,7 @@ export function createEditorPointerController(options) {
     if (editorState.activeTool === "select") {
       event.preventDefault();
       options.viewerSvg().setPointerCapture?.(event.pointerId);
-      if (!options.documentBoundsContainsPoint?.(point, 8)) {
+      if (!options.documentBoundsContainsPoint?.(point, DOCUMENT_BOUNDS_HIT_PAD_SCREEN_PX)) {
         options.setActiveSelectionGesture({
           kind: "select",
           start: point,
@@ -1460,61 +1419,6 @@ export function createEditorPointerController(options) {
         });
         return;
       }
-      if (gesture.kind === "move") {
-        if (gesture.dragged) {
-          const commitPoint = gesture.current || point;
-          const commitPreviewDom = !!gesture.localDocumentPreviewActive
-            && !!options.canCommitDocumentObjectPreviewTransform?.()
-            && typeof options.commitDocumentObjectPreviewTransform === "function";
-          const commitBackendPreview = !!gesture.backendDocumentPreviewActive
-            && typeof options.renderDocumentPrimitiveChange === "function";
-          const result = await executeDocumentCommand(
-            {
-              type: "move-selection",
-              payload: {
-                start: gesture.start,
-                end: commitPoint,
-                altKey: event.altKey,
-              },
-            },
-            () => options.state().editorEngine.finishSelectionMove(commitPoint.x, commitPoint.y, event.altKey),
-            (commitPreviewDom || commitBackendPreview) ? { sync: false, deferDocumentSync: true } : {},
-          );
-          suppressHoverUntilPointerLeavesPoint(commitPoint);
-          if (commitBackendPreview && result.changed) {
-            options.renderDocumentPrimitiveChange(result);
-            options.clearDocumentObjectPreviewTransform();
-            clearEditorOverlayRoot();
-            options.syncCanvasCursor?.();
-            await syncDeferredDocumentModelAfterCommit();
-            await options.renderSelectionOnlyUpdate(commitPoint, null, {
-              deferEngineReads: true,
-              useInteractionList: false,
-            });
-          } else if (commitPreviewDom && result.changed) {
-            options.commitDocumentObjectPreviewTransform();
-            options.clearDocumentObjectPreviewTransform();
-            clearEditorOverlayRoot();
-            options.syncCanvasCursor?.();
-            await syncDeferredDocumentModelAfterCommit();
-            await options.renderSelectionOnlyUpdate(commitPoint, null, {
-              deferEngineReads: true,
-              useInteractionList: false,
-            });
-          } else {
-            await clearEngineHoverOverlay();
-            options.syncCanvasCursor?.();
-            options.clearDocumentObjectPreviewTransform();
-            options.renderDocumentChange?.(result) || options.renderDocument();
-          }
-          clearEditorOverlayRoot();
-        } else {
-          await options.selectClickTarget(gesture.start || point, gesture.additive);
-          options.clearDocumentObjectPreviewTransform();
-          await options.renderSelectionOnlyUpdate(gesture.start || point);
-        }
-        return;
-      }
       if (!gesture.dragged) {
         await options.selectClickTarget(point, gesture.additive);
       } else if (options.editorState().selectMode === "box") {
@@ -1594,7 +1498,7 @@ export function createEditorPointerController(options) {
     if (options.editorState().activeTool === "bracket") {
       const start = options.activeBracketDragStart();
       options.setActiveBracketDragStart(null);
-      if (commitResult?.changed && start && options.pointDistance(start, point) >= options.cssPxToPt(4)) {
+      if (commitResult?.changed && start && options.pointDistance(start, point) >= options.cssPxToPt(BRACKET_LABEL_OPEN_DRAG_THRESHOLD_SCREEN_PX)) {
         await options.openTextEditorAt(
           options.bracketLabelAnchorPoint(start, point),
           {

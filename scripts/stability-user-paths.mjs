@@ -5,6 +5,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { makeSyntheticLargeDocument } from "./generate-stability-fixtures.mjs";
+import { engineToolForUiTool } from "../viewer/editor_tool_model.js";
 
 const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const host = "127.0.0.1";
@@ -169,12 +170,160 @@ async function documentSnapshot(page) {
   });
 }
 
+async function documentGeometrySnapshot(page) {
+  return page.evaluate(() => {
+    const parse = (text) => {
+      try {
+        return JSON.parse(text || "null");
+      } catch {
+        return null;
+      }
+    };
+    const debug = window.__chemcoreDebug;
+    const engine = debug?.state?.editorEngine;
+    const doc = parse(engine?.documentJson?.()) || debug?.document || null;
+    const engineState = parse(engine?.stateJson?.()) || null;
+    const nodes = [];
+    const bonds = [];
+    for (const [resourceId, resource] of Object.entries(doc?.resources || {})) {
+      for (const node of resource?.data?.nodes || []) {
+        const [x, y] = node.position || [];
+        const client = typeof debug?.worldToClient === "function"
+          ? debug.worldToClient(Number(x), Number(y))
+          : null;
+        nodes.push({
+          id: node.id,
+          resourceId,
+          x: Number(x),
+          y: Number(y),
+          clientX: client?.x ?? null,
+          clientY: client?.y ?? null,
+        });
+      }
+      for (const bond of resource?.data?.bonds || []) {
+        bonds.push({
+          id: bond.id,
+          resourceId,
+          begin: bond.begin,
+          end: bond.end,
+          order: bond.order ?? null,
+        });
+      }
+    }
+    const objectAnchor = (object) => {
+      const payload = object?.payload || {};
+      if (Array.isArray(payload.bbox)) {
+        return { x: Number(payload.bbox[0]), y: Number(payload.bbox[1]) };
+      }
+      if (Array.isArray(payload.geometry?.boundingBox)) {
+        return {
+          x: Number(payload.geometry.boundingBox[0]),
+          y: Number(payload.geometry.boundingBox[1]),
+        };
+      }
+      if (payload.begin && payload.end) {
+        return {
+          x: Math.min(Number(payload.begin.x || payload.begin[0] || 0), Number(payload.end.x || payload.end[0] || 0)),
+          y: Math.min(Number(payload.begin.y || payload.begin[1] || 0), Number(payload.end.y || payload.end[1] || 0)),
+        };
+      }
+      if (payload.center) {
+        return {
+          x: Number(payload.center.x || payload.center[0] || 0),
+          y: Number(payload.center.y || payload.center[1] || 0),
+        };
+      }
+      return null;
+    };
+    const objects = [];
+    const visit = (object, parentId = null) => {
+      if (!object) {
+        return;
+      }
+      objects.push({
+        id: object.id,
+        type: object.type || object.objectType || object.object_type || "",
+        parentId,
+        anchor: objectAnchor(object),
+        childCount: object.children?.length || 0,
+      });
+      for (const child of object.children || []) {
+        visit(child, object.id);
+      }
+    };
+    for (const object of doc?.objects || []) {
+      visit(object);
+    }
+    const selection = engineState?.selection || {};
+    const selected = {
+      nodes: selection.nodes || [],
+      bonds: selection.bonds || [],
+      labelNodes: selection.labelNodes || selection.label_nodes || [],
+      textObjects: selection.textObjects || selection.text_objects || [],
+      arrowObjects: selection.arrowObjects || selection.arrow_objects || [],
+    };
+    return {
+      nodes,
+      bonds,
+      objects,
+      selected,
+      activeGestureKind: debug?.activeSelectionGesture?.kind || "",
+      leftoverPreviewLayerCount: document.querySelectorAll(
+        '[data-layer="document-partial-bond-preview"], [data-layer="document-batch-preview"], .is-preview-transforming',
+      ).length,
+      backendMovePreviewLast: debug?.backendMovePreviewStats?.last || null,
+    };
+  });
+}
+
 function assertSnapshotContains(before, after, label) {
   const afterIds = new Set(after.objectIds);
   const missing = before.objectIds.filter((id) => !afterIds.has(id));
   assert(!missing.length, `${label} removed existing objects: ${JSON.stringify({ missing: missing.slice(0, 20), before, after })}`);
   assert(after.nodeCount >= before.nodeCount, `${label} reduced node count: ${JSON.stringify({ before, after })}`);
   assert(after.bondCount >= before.bondCount, `${label} reduced bond count: ${JSON.stringify({ before, after })}`);
+}
+
+function selectionAnchorCount(selection) {
+  return (selection?.nodes?.length || 0)
+    + (selection?.bonds?.length || 0)
+    + (selection?.labelNodes?.length || 0)
+    + (selection?.textObjects?.length || 0)
+    + (selection?.arrowObjects?.length || 0);
+}
+
+function pointDelta(before, after) {
+  if (!before || !after) {
+    return Infinity;
+  }
+  return Math.hypot(Number(after.x) - Number(before.x), Number(after.y) - Number(before.y));
+}
+
+function byId(entries) {
+  return new Map(entries.map((entry) => [entry.id, entry]));
+}
+
+async function selectionBoundsClientCenter(page) {
+  return page.evaluate(() => {
+    const parse = (text) => {
+      try {
+        return JSON.parse(text || "null");
+      } catch {
+        return null;
+      }
+    };
+    const debug = window.__chemcoreDebug;
+    const bounds = parse(debug?.state?.editorEngine?.renderBoundsJson?.("selection") || "null");
+    if (!bounds || typeof debug?.worldToClient !== "function") {
+      return null;
+    }
+    const world = {
+      x: (Number(bounds.minX) + Number(bounds.maxX)) / 2,
+      y: (Number(bounds.minY) + Number(bounds.maxY)) / 2,
+    };
+    const client = debug.worldToClient(world.x, world.y);
+    return client ? { x: client.x, y: client.y, world } : null;
+  });
 }
 
 async function firstVisibleNodeTarget(page) {
@@ -231,10 +380,6 @@ async function firstVisibleNodeTarget(page) {
   });
 }
 
-function expectedEngineToolForUiTool(tool) {
-  return tool === "chain" ? "templates" : tool;
-}
-
 async function verifyPaletteAccessibleUnderTools(page) {
   const tools = ["bond", "select", "text", "arrow", "bracket", "symbol", "shape", "orbital", "templates", "chain"];
   for (const tool of tools) {
@@ -279,7 +424,7 @@ async function verifyPaletteAccessibleUnderTools(page) {
 
     await page.evaluate(() => document.querySelector(".canvas-pointer-shield")?.classList.add("is-active"));
     await page.locator(".quick-palette-toggle-symbol").click();
-    const expectedEngineTool = expectedEngineToolForUiTool(tool);
+    const expectedEngineTool = engineToolForUiTool(tool);
     try {
       await page.waitForFunction(({ expectedTool, expectedEngineTool }) => {
         const state = window.__chemcoreDebug?.editorState || {};
@@ -332,7 +477,7 @@ async function verifyPaletteAccessibleUnderTools(page) {
         && symbolState.activeTool === tool
         && symbolState.activeButtons.includes(tool)
         && !symbolState.elementPlacementActive
-        && symbolState.engineTool === expectedEngineToolForUiTool(tool)
+        && symbolState.engineTool === engineToolForUiTool(tool)
         && !symbolState.shieldActive,
       `Symbol quick palette failed under ${tool}: ${JSON.stringify(symbolState)}`,
     );
@@ -360,6 +505,118 @@ async function verifySelectAtomDragDoesNotCreateBonds(page) {
   const after = await documentSnapshot(page);
   assert(after.bondCount === before.bondCount, `Select atom drags created bonds: ${JSON.stringify({ before, after })}`);
   assert(after.activeTool === "select" && after.engineTool === "select", `Select drag left wrong tool state: ${JSON.stringify(after)}`);
+}
+
+async function verifyPartialSelectionDragKeepsTopology(page) {
+  const box = await viewerBox(page);
+  const y = box.y + box.height / 2 - 30;
+  await dragOnCanvas(page, "bond", { x: box.x + 350, y }, { x: box.x + 470, y });
+  let geometry = await documentGeometrySnapshot(page);
+  assert(geometry.nodes.length >= 2 && geometry.bonds.length >= 1, `Initial chain bond was not created: ${JSON.stringify(geometry)}`);
+  const firstRight = [...geometry.nodes].sort((a, b) => b.x - a.x)[0];
+  assert(Number.isFinite(firstRight.clientX) && Number.isFinite(firstRight.clientY), `Right endpoint is not visible: ${JSON.stringify(firstRight)}`);
+  await dragOnCanvas(
+    page,
+    "bond",
+    { x: firstRight.clientX, y: firstRight.clientY },
+    { x: firstRight.clientX + 120, y: firstRight.clientY },
+  );
+  geometry = await documentGeometrySnapshot(page);
+  assert(geometry.nodes.length >= 3 && geometry.bonds.length >= 2, `Three-node chain was not created: ${JSON.stringify(geometry)}`);
+  const sortedNodes = [...geometry.nodes].sort((a, b) => a.x - b.x);
+  const left = sortedNodes[0];
+  const middle = sortedNodes[Math.floor(sortedNodes.length / 2)];
+  const terminal = sortedNodes[sortedNodes.length - 1];
+  const beforeByNode = byId(geometry.nodes);
+
+  await activateTool(page, "select");
+  await page.mouse.click(terminal.clientX, terminal.clientY);
+  await page.waitForTimeout(160);
+  const selected = await documentGeometrySnapshot(page);
+  assert(
+    selected.selected.nodes.includes(terminal.id)
+      && !selected.selected.nodes.includes(left.id)
+      && selected.selected.bonds.length === 0,
+    `Terminal-only selection failed: ${JSON.stringify({ terminal, left, selected: selected.selected })}`,
+  );
+
+  await page.mouse.move(terminal.clientX, terminal.clientY);
+  await page.mouse.down();
+  await page.mouse.move(terminal.clientX + 86, terminal.clientY - 34, { steps: 8 });
+  await page.waitForTimeout(80);
+  const duringDrag = await documentGeometrySnapshot(page);
+  assert(duringDrag.activeGestureKind === "move", `Partial selection did not enter move gesture: ${JSON.stringify(duringDrag)}`);
+  const usedBackendPreview = !!duringDrag.backendMovePreviewLast?.changed
+    && !!duringDrag.backendMovePreviewLast?.patched
+    && duringDrag.backendMovePreviewLast.nodeCount > 0;
+  assert(
+    duringDrag.leftoverPreviewLayerCount > 0 || usedBackendPreview,
+    `Partial node drag did not use a recognized preview path: ${JSON.stringify(duringDrag)}`,
+  );
+  await page.mouse.up();
+  await page.waitForTimeout(260);
+
+  const after = await documentGeometrySnapshot(page);
+  const afterByNode = byId(after.nodes);
+  assert(after.nodes.length === geometry.nodes.length, `Partial drag changed node count: ${JSON.stringify({ before: geometry, after })}`);
+  assert(after.bonds.length === geometry.bonds.length, `Partial drag changed bond count: ${JSON.stringify({ before: geometry, after })}`);
+  assert(pointDelta(beforeByNode.get(terminal.id), afterByNode.get(terminal.id)) > 5, `Terminal atom did not move: ${JSON.stringify({ terminal, after })}`);
+  assert(pointDelta(beforeByNode.get(left.id), afterByNode.get(left.id)) < 0.5, `Unselected left atom moved: ${JSON.stringify({ left, after })}`);
+  assert(pointDelta(beforeByNode.get(middle.id), afterByNode.get(middle.id)) < 0.5, `Unselected middle atom moved: ${JSON.stringify({ middle, after })}`);
+  assert(after.leftoverPreviewLayerCount === 0, `Partial drag left preview DOM behind: ${JSON.stringify(after)}`);
+}
+
+async function verifyMixedSelectionDragCommitsCleanly(page) {
+  const box = await viewerBox(page);
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await dragOnCanvas(page, "bond", { x: cx - 260, y: cy - 80 }, { x: cx - 135, y: cy - 40 });
+  await dragOnCanvas(page, "arrow", { x: cx - 45, y: cy - 90 }, { x: cx + 115, y: cy - 90 });
+  await dragOnCanvas(page, "shape", { x: cx + 165, y: cy - 120 }, { x: cx + 260, y: cy - 30 });
+  await clickCanvas(page, "symbol", { x: cx + 315, y: cy - 70 });
+
+  const before = await documentGeometrySnapshot(page);
+  assert(before.nodes.length >= 2 && before.objects.length >= 3, `Mixed setup did not create enough content: ${JSON.stringify(before)}`);
+  await activateTool(page, "select");
+  await page.mouse.move(cx - 300, cy - 155);
+  await page.mouse.down();
+  await page.mouse.move(cx + 345, cy + 5, { steps: 7 });
+  await page.mouse.up();
+  await page.waitForTimeout(180);
+
+  const selected = await documentGeometrySnapshot(page);
+  assert(
+    selected.selected.nodes.length > 0 && selected.selected.arrowObjects.length > 0,
+    `Mixed marquee did not select both structure and graphic objects: ${JSON.stringify(selected.selected)}`,
+  );
+  assert(selectionAnchorCount(selected.selected) >= 3, `Mixed marquee selected too little: ${JSON.stringify(selected.selected)}`);
+
+  const center = await selectionBoundsClientCenter(page);
+  assert(center, `No selection bounds for mixed drag: ${JSON.stringify(selected)}`);
+  await page.mouse.move(center.x, center.y);
+  await page.mouse.down();
+  await page.mouse.move(center.x + 92, center.y + 58, { steps: 10 });
+  await page.waitForTimeout(80);
+  const duringDrag = await documentGeometrySnapshot(page);
+  assert(duringDrag.activeGestureKind === "move", `Mixed selection did not enter move gesture: ${JSON.stringify(duringDrag)}`);
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+
+  const after = await documentGeometrySnapshot(page);
+  const beforeNodes = byId(before.nodes);
+  const afterNodes = byId(after.nodes);
+  const beforeObjects = byId(before.objects.filter((object) => object.anchor));
+  const afterObjects = byId(after.objects.filter((object) => object.anchor));
+  const movedNodeCount = before.nodes.filter((node) => pointDelta(node, afterNodes.get(node.id)) > 5).length;
+  const movedObjectCount = [...beforeObjects.values()]
+    .filter((object) => pointDelta(object.anchor, afterObjects.get(object.id)?.anchor) > 5)
+    .length;
+  assert(after.nodes.length === before.nodes.length, `Mixed drag changed node count: ${JSON.stringify({ before, after })}`);
+  assert(after.bonds.length === before.bonds.length, `Mixed drag changed bond count: ${JSON.stringify({ before, after })}`);
+  assert(after.objects.length >= before.objects.length, `Mixed drag removed objects: ${JSON.stringify({ before, after })}`);
+  assert(movedNodeCount > 0, `Mixed drag did not move selected structure: ${JSON.stringify({ before, after })}`);
+  assert(movedObjectCount > 0, `Mixed drag did not move selected graphic objects: ${JSON.stringify({ before, after })}`);
+  assert(after.leftoverPreviewLayerCount === 0, `Mixed drag left preview DOM behind: ${JSON.stringify(after)}`);
 }
 
 async function verifyBracketLabelCommitPreservesNewObjects(page) {
@@ -477,6 +734,8 @@ try {
   const scenarios = [
     ["quick palettes under every tool", verifyPaletteAccessibleUnderTools],
     ["select atom drag does not draw bonds", verifySelectAtomDragDoesNotCreateBonds],
+    ["partial selection drag keeps topology", verifyPartialSelectionDragKeepsTopology],
+    ["mixed selection drag commits cleanly", verifyMixedSelectionDragCommitsCleanly],
     ["bracket label commit preserves new objects", verifyBracketLabelCommitPreservesNewObjects],
     ["synthetic large mixed operations", verifySyntheticLargeMixedOperations],
   ];

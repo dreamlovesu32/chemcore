@@ -59,7 +59,7 @@ import {
 import { createSceneRenderer } from "./scene_renderer.js";
 import { createEditorOverlayRenderer } from "./editor_overlay.js?v=20260627-hover-scale";
 import { createEditorSelectionState } from "./editor_selection_state.js";
-import { createEditorPointerController } from "./editor_pointer_controller.js?v=20260629-palette-select-guard";
+import { createEditorPointerController } from "./editor_pointer_controller.js?v=20260629-deep-stability";
 import { createCanvasContextMenuHost } from "./editor_context_menu.js";
 import { createEditorCommandController } from "./editor_command_controller.js";
 import { createEditorCommandEngine } from "./editor_command_engine.js?v=20260626-interaction-feedback";
@@ -85,6 +85,14 @@ import {
   primitiveStrokeWidthValue,
   renderCorePrimitive,
 } from "./primitive_dom_renderer.js";
+import {
+  engineTemplateForEditorState,
+  engineToolForEditorState,
+} from "./editor_tool_model.js";
+import {
+  DOCUMENT_BOUNDS_HIT_PAD_SCREEN_PX,
+  selectionHandleZoneContainsPoint,
+} from "./editor_selection_hit_model.js";
 import {
   ptToCssPx,
   cssPxToPt,
@@ -1456,12 +1464,8 @@ async function syncEngineToolState() {
     return;
   }
   await state.editorEngine.ready?.();
-  const effectiveTool = editorState.elementPlacementActive
-    ? "element"
-    : editorState.activeTool === "chain"
-      ? "templates"
-      : editorState.activeTool;
-  const effectiveTemplate = editorState.activeTool === "chain" ? "chain" : editorState.template;
+  const effectiveTool = engineToolForEditorState(editorState);
+  const effectiveTemplate = engineTemplateForEditorState(editorState);
   await state.editorEngine.setTool(effectiveTool, editorState.bondType);
   await state.editorEngine.setTemplate?.(effectiveTemplate);
   const shapeKind = editorState.activeTool === "tlc-plate" ? "tlc-plate" : editorState.shapeKind;
@@ -2280,43 +2284,13 @@ function currentSelectedContentHitContainsPoint(point) {
 }
 
 function currentSelectionHandleZoneContainsPoint(point) {
-  const bounds = currentRenderBounds("selection");
-  if (!bounds) {
-    return true;
-  }
-  if (currentSelectedContentHitContainsPoint(point)) {
-    return false;
-  }
-  const edgePad = screenPxToWorld(14);
-  const rotatePad = screenPxToWorld(18);
-  const width = Math.max(0, Number(bounds.maxX || 0) - Number(bounds.minX || 0));
-  const height = Math.max(0, Number(bounds.maxY || 0) - Number(bounds.minY || 0));
-  const strictlyInsideBounds = point.x > bounds.minX
-    && point.x < bounds.maxX
-    && point.y > bounds.minY
-    && point.y < bounds.maxY;
-  if (strictlyInsideBounds && (width <= edgePad * 4 || height <= edgePad * 4)) {
-    return false;
-  }
-  const insideExpandedBounds = point.x >= bounds.minX - edgePad
-    && point.x <= bounds.maxX + edgePad
-    && point.y >= bounds.minY - rotatePad
-    && point.y <= bounds.maxY + edgePad;
-  if (!insideExpandedBounds) {
-    return false;
-  }
-  const nearEdge = Math.abs(point.x - bounds.minX) <= edgePad
-    || Math.abs(point.x - bounds.maxX) <= edgePad
-    || Math.abs(point.y - bounds.minY) <= edgePad
-    || Math.abs(point.y - bounds.maxY) <= edgePad;
-  if (nearEdge) {
-    return true;
-  }
-  const rotateHandle = {
-    x: (bounds.minX + bounds.maxX) * 0.5,
-    y: bounds.minY - screenPxToWorld(18),
-  };
-  return pointDistance(point, rotateHandle) <= rotatePad;
+  return selectionHandleZoneContainsPoint({
+    point,
+    bounds: currentRenderBounds("selection"),
+    pointDistance,
+    toWorld: screenPxToWorld,
+    selectedContentHitContainsPoint: currentSelectedContentHitContainsPoint,
+  });
 }
 
 function ensureEditorViewportCapacity(centerWorld = currentViewportCenterWorld()) {
@@ -3874,7 +3848,7 @@ async function renderSelectionOnlyUpdate(point, syncCursor = syncSelectCursorFor
 }
 
 async function selectClickTarget(point, additive = false) {
-  if (!additive && !currentDocumentBoundsContainsPoint(point, 8)) {
+  if (!additive && !currentDocumentBoundsContainsPoint(point, DOCUMENT_BOUNDS_HIT_PAD_SCREEN_PX)) {
     await state.editorEngine.clearSelection?.();
     invalidateEditorEngineReadCache();
     return;
