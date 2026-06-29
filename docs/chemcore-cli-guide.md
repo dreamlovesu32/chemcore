@@ -87,10 +87,16 @@ npm run cli -- convert input.cdxml output.ccjs
 
 File output policy:
 
-- `capture` may omit `--out`; it then writes a PNG into the OS temp `chemcore-cli` directory and reports the exact path in `output.path`.
-- `copy` may omit `--payload`; it then writes the clipboard payload JSON into the OS temp `chemcore-cli` directory and reports the exact path in `payload.path`.
+- `capture` may omit `--out`; it then writes a PNG into the OS temp `chemcore-cli` directory, reports the exact path in `output.path`, and emits a `default_output_path` warning.
+- `copy` may omit `--payload`; it then writes the clipboard payload JSON into the OS temp `chemcore-cli` directory, reports the exact path in `payload.path`, and emits a `default_payload_path` warning.
 - `new`, `convert`, and `export` require explicit output paths because they create primary document files.
 - Every file-writing command verifies after writing that the target exists, is a regular file, and has the expected or minimum byte size. A failed verification is a command failure.
+
+Error output policy:
+
+- Error JSON includes `error.kind`, `message`, `hint`, `fix`, `usage`, `examples`, and `suggestions`.
+- Missing argument errors use `error.kind="missing_argument"` and include `error.fix.action="provide_required_argument"` plus machine-readable `missing` and `expected` fields.
+- Agents should read `error.fix` first, then fall back to `usage` and `examples`.
 
 `new` starts from a blank ChemCore internal document. It does not need an input format. The save format is inferred from `--out`:
 
@@ -511,6 +517,7 @@ must be embedded in the response.
 `capture` writes the rendered crop to `--out` and writes only a JSON manifest to
 stdout. If `--out` is omitted, it writes a PNG to the OS temp `chemcore-cli`
 directory and reports `output.defaulted=true` plus the exact `output.path`.
+It also emits a `warnings[]` entry with `kind="default_output_path"`.
 SVG output is vector. PNG output defaults to `--scale 4`; use `--scale`,
 `--width`, or `--height` when the caller needs a sharper or bounded
 raster image. The manifest includes `output.verified=true` and `output.bytes`
@@ -521,7 +528,7 @@ after the file is verified on disk. Use absolute expansion (`--expand`, `--expan
 
 `copy` places an editable ChemCore Office/OLE payload on the Windows clipboard.
 If `--payload` is omitted, the payload JSON is written to the OS temp
-`chemcore-cli` directory. Use `--payload payload.json --no-copy` to write the
+`chemcore-cli` directory and a `default_payload_path` warning is emitted. Use `--payload payload.json --no-copy` to write the
 clipboard payload without touching the clipboard.
 
 ## 5. Molecule Objects

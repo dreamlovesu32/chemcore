@@ -158,6 +158,8 @@ pub(crate) struct CliError {
     argument: Option<String>,
     usage: Option<String>,
     examples: Vec<String>,
+    hint: Option<String>,
+    fix: Option<Value>,
     suggestions: Vec<Value>,
 }
 
@@ -172,22 +174,30 @@ impl CliError {
             argument: None,
             usage: None,
             examples: Vec::new(),
+            hint: Some("Read error.message, then rerun with corrected input.".to_string()),
+            fix: None,
             suggestions: Vec::new(),
         }
     }
 
     pub(crate) fn for_command(command: &str, message: String) -> Self {
         let spec = command_spec(command);
+        let kind = classify_cli_error(&message);
+        let fix = command_error_fix(kind, command, &message, spec);
+        let suggestions = command_error_suggestions(kind, command, &message, spec, fix.clone());
+        let argument = command_error_argument(kind, &message);
         Self {
-            kind: classify_cli_error(&message).to_string(),
+            kind: kind.to_string(),
             message,
             command: Some(command.to_string()),
-            argument: None,
+            argument,
             usage: spec.map(|spec| spec.usage.to_string()),
             examples: spec
                 .map(|spec| vec![spec.example.to_string()])
                 .unwrap_or_default(),
-            suggestions: Vec::new(),
+            hint: command_error_hint(kind, command),
+            fix,
+            suggestions,
         }
     }
 
@@ -204,6 +214,14 @@ impl CliError {
                 "chemcore-cli capture input.cdxml --target molecule:0 --out mol.png --scale 6"
                     .to_string(),
             ],
+            hint: Some(
+                "Choose one of the suggested commands or run chemcore-cli capabilities."
+                    .to_string(),
+            ),
+            fix: Some(json!({
+                "action": "choose_command",
+                "helpCommand": "chemcore-cli capabilities",
+            })),
             suggestions: command_suggestions(command),
         }
     }
@@ -218,10 +236,148 @@ impl CliError {
                 "argument": self.argument,
                 "usage": self.usage,
                 "examples": self.examples,
+                "hint": self.hint,
+                "fix": self.fix,
                 "suggestions": self.suggestions,
             }
         })
     }
+}
+
+fn command_error_hint(kind: &str, command: &str) -> Option<String> {
+    match kind {
+        "missing_argument" => Some(format!(
+            "Add the required argument or value, then rerun. Use `chemcore-cli help {command}` for the exact format."
+        )),
+        "unexpected_argument" => Some(format!(
+            "Remove the unexpected argument or move it to the correct position. Use `chemcore-cli help {command}` for accepted arguments."
+        )),
+        "invalid_format" => Some(format!(
+            "Use a supported format or add the required --format value. Use `chemcore-cli schema {command}` when available."
+        )),
+        _ => None,
+    }
+}
+
+fn command_error_argument(kind: &str, message: &str) -> Option<String> {
+    match kind {
+        "missing_argument" => missing_argument_name(message)
+            .as_str()
+            .filter(|value| !value.is_empty())
+            .map(str::to_string),
+        "unexpected_argument" => quoted_argument(message),
+        _ => None,
+    }
+}
+
+fn command_error_fix(
+    kind: &str,
+    command: &str,
+    message: &str,
+    spec: Option<CommandSpec>,
+) -> Option<Value> {
+    match kind {
+        "missing_argument" => Some(json!({
+            "action": "provide_required_argument",
+            "missing": missing_argument_name(message),
+            "expected": missing_argument_expected(message),
+            "usage": spec.map(|spec| spec.usage),
+            "example": spec.map(|spec| spec.example),
+            "helpCommand": format!("chemcore-cli help {command}"),
+        })),
+        "unexpected_argument" => Some(json!({
+            "action": "use_supported_arguments",
+            "usage": spec.map(|spec| spec.usage),
+            "example": spec.map(|spec| spec.example),
+            "helpCommand": format!("chemcore-cli help {command}"),
+        })),
+        "invalid_format" => Some(json!({
+            "action": "use_supported_format_or_pass_format",
+            "usage": spec.map(|spec| spec.usage),
+            "example": spec.map(|spec| spec.example),
+            "helpCommand": format!("chemcore-cli help {command}"),
+        })),
+        _ => None,
+    }
+}
+
+fn quoted_argument(message: &str) -> Option<String> {
+    let start = message.find('\'')?;
+    let rest = &message[start + 1..];
+    let end = rest.find('\'')?;
+    Some(rest[..end].to_string())
+}
+
+fn command_error_suggestions(
+    kind: &str,
+    command: &str,
+    message: &str,
+    spec: Option<CommandSpec>,
+    fix: Option<Value>,
+) -> Vec<Value> {
+    if let Some(fix) = fix {
+        return vec![fix];
+    }
+    match kind {
+        "target_not_found" => vec![json!({
+            "action": "discover_targets",
+            "usage": "chemcore-cli targets <input> --out targets.json --pretty",
+            "example": "chemcore-cli targets input.cdxml --out targets.json --pretty",
+        })],
+        "invalid_command_json" => vec![json!({
+            "action": "fix_command_json",
+            "expected": "A JSON object command or an array of command objects.",
+            "schemaCommand": "chemcore-cli schema command-script --pretty",
+        })],
+        _ if message.contains("Unknown schema topic") => vec![json!({
+            "action": "choose_schema_topic",
+            "accepted": ["commands", "targets", "bounds", "capture", "context", "detail", "guide", "copy", "json-output", "command-script", "all"],
+            "example": "chemcore-cli schema capture --pretty",
+        })],
+        _ => spec
+            .map(|spec| {
+                vec![json!({
+                    "action": "retry_command",
+                    "command": command,
+                    "usage": spec.usage,
+                    "example": spec.example,
+                })]
+            })
+            .unwrap_or_default(),
+    }
+}
+
+fn missing_argument_name(message: &str) -> Value {
+    let trimmed = message.trim();
+    if let Some(first) = trimmed.split_whitespace().next() {
+        if first.starts_with("--") || first.starts_with('-') {
+            return json!(first);
+        }
+    }
+    let Some((_, rest)) = trimmed.split_once(" requires ") else {
+        return Value::Null;
+    };
+    let expected = rest.trim().trim_end_matches('.');
+    if let Some(first) = expected.split_whitespace().next() {
+        if first.starts_with("--") || first.starts_with('<') {
+            return json!(first.trim_end_matches(','));
+        }
+    }
+    json!(expected.trim_end_matches(';'))
+}
+
+fn missing_argument_expected(message: &str) -> Value {
+    let trimmed = message.trim().trim_end_matches('.');
+    if let Some((_, rest)) = trimmed.split_once(" requires ") {
+        return json!(rest.trim());
+    }
+    if let Some((_, rest)) = trimmed.split_once("missing") {
+        let rest = rest.trim();
+        if !rest.is_empty() {
+            return json!(rest);
+        }
+    }
+    Value::Null
 }
 
 fn classify_cli_error(message: &str) -> &'static str {
@@ -323,6 +479,7 @@ fn protocol_schemas_json() -> Value {
             "default": "Commands that print JSON emit compact single-line JSON unless --pretty is present.",
             "pretty": "--pretty only changes JSON whitespace: compact JSON becomes line-broken and indented. It does not change fields, values, output files, exit code, schema, ordering, or command behavior.",
             "out": "When complete output matters, pass --out <path> and read that file instead of relying on a console buffer.",
+            "errors": "Error JSON includes error.kind, message, hint, fix, usage, examples, and suggestions. Missing argument errors include fix.action=provide_required_argument and machine-readable missing/expected fields.",
             "writeVerification": "When the CLI writes a file, it verifies after the write that the target exists, is a regular file, and has the expected or minimum byte size. Verification failures are command errors."
         },
         "target": {
@@ -345,7 +502,7 @@ fn protocol_schemas_json() -> Value {
             "formats": ["svg", "png"],
             "resolution": "PNG defaults to --scale 4. Use --scale, --width, or --height for sharper or bounded raster output.",
             "expansion": "Use --expand/--padding for absolute pt expansion, --expand-left/right/top/bottom for per-side absolute expansion, and --expand-rel or --expand-rel-x/y for relative expansion based on target size.",
-            "defaultOutput": "If --out is omitted, capture writes a PNG into the OS temp chemcore-cli directory and returns output.defaulted=true plus the exact path in the JSON manifest.",
+            "defaultOutput": "If --out is omitted, capture writes a PNG into the OS temp chemcore-cli directory and returns output.defaulted=true plus the exact path and a default_output_path warning in the JSON manifest.",
             "stdout": "JSON manifest only; rendered image data is written to --out or the default temp capture path.",
             "verification": "Capture manifests include output.verified=true and output.bytes after the rendered file is verified on disk.",
             "usage": command_spec("capture").map(|spec| spec.usage).unwrap_or("")
@@ -371,7 +528,7 @@ fn protocol_schemas_json() -> Value {
             "targets": ["all", "object", "molecule", "node", "bond"],
             "clipboard": "Windows Office/OLE via chemcore-office.exe --copy-clipboard-payload.",
             "stdout": "JSON manifest only; large clipboard payloads are written to a payload file.",
-            "defaultPayload": "If --payload is omitted, copy writes the payload JSON into the OS temp chemcore-cli directory and reports payload.defaulted=true, payload.verified=true, and payload.bytes.",
+            "defaultPayload": "If --payload is omitted, copy writes the payload JSON into the OS temp chemcore-cli directory and reports payload.defaulted=true, payload.verified=true, payload.bytes, and a default_payload_path warning.",
             "usage": command_spec("copy").map(|spec| spec.usage).unwrap_or("")
         },
         "commandScript": {

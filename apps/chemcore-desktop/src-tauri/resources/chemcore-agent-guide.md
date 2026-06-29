@@ -124,9 +124,9 @@ chemcore-cli capture input.cdxml --target molecule:0 --out molecule.png --scale 
 ```
 
 If `--out` is omitted, `capture` writes a PNG to the OS temp `chemcore-cli`
-directory and returns the exact path with `output.defaulted=true`. Capture
-manifests include `output.verified=true` and `output.bytes` after the image file
-is verified on disk.
+directory and returns the exact path with `output.defaulted=true` plus a
+`default_output_path` warning. Capture manifests include `output.verified=true`
+and `output.bytes` after the image file is verified on disk.
 
 Use fixed pixel dimensions when the model needs a predictable image budget:
 
@@ -199,7 +199,9 @@ Deterministic output policy for agents:
   own log.
 - File-writing commands verify the written file before reporting success.
 - Omit `capture --out` only when a temp PNG path is acceptable; explicit paths
-  are still better for artifacts the caller wants to keep.
+  are still better for artifacts the caller wants to keep. Treat
+  `warnings[].kind=default_output_path` as a reminder to move or recapture the
+  file if it should persist.
 - Always use `--out` for `targets`, `context`, `detail`, and `inspect` when the
   document may be large.
 - Use `context` before `detail` when exploring unknown documents.
@@ -217,6 +219,12 @@ chemcore-cli captur input.cdxml --target molecule:0 --out crop.png
 
 The CLI returns JSON suggestions with nearby command names, purpose, usage, and
 examples.
+
+Missing argument:
+
+Read `error.fix` first. Missing-argument errors include
+`fix.action=provide_required_argument`, `fix.missing`, `fix.expected`, usage, and
+an example command.
 
 Ambiguous capture output:
 

@@ -155,7 +155,9 @@ fn new_command(args: &[String]) -> Result<(), String> {
         index += 1;
     }
 
-    let output = output.ok_or_else(|| "new requires --out <path>.".to_string())?;
+    let output = output.ok_or_else(|| {
+        "new requires --out <path>; primary document output has no default path.".to_string()
+    })?;
     if document_json_output.as_deref() == Some("-") && !quiet && results.is_none() {
         return Err("Use --results or --quiet when --document-json is '-'.".to_string());
     }
@@ -319,7 +321,10 @@ fn convert_command(args: &[String]) -> Result<(), String> {
         index += 1;
     }
     let input = input.ok_or_else(|| "convert/export requires an input file.".to_string())?;
-    let output = output.ok_or_else(|| "convert/export requires an output path.".to_string())?;
+    let output = output.ok_or_else(|| {
+        "convert/export requires an output path; primary document output has no default path."
+            .to_string()
+    })?;
     let engine = load_engine_from_file(&input)?;
     write_engine_output(&engine, &output, format.as_deref())
 }
@@ -483,6 +488,7 @@ fn run_command_script(args: &[String]) -> Result<(), String> {
                     "ok": true,
                     "skipped": true,
                     "reason": "--out was not provided",
+                    "warning": "No output document was saved. Pass --out <path> to save the edited document.",
                 }),
             );
         }
@@ -1347,6 +1353,47 @@ mod tests {
             protocol::schema_topic_key("command-script"),
             Some("commandScript")
         );
+    }
+
+    #[test]
+    fn missing_argument_errors_include_machine_readable_fix() {
+        let error = protocol::CliError::for_command(
+            "capture",
+            "capture requires --target <object:id|molecule:index|node:id|bond:id|all> or --bounds."
+                .to_string(),
+        )
+        .to_json();
+
+        assert_eq!(error["error"]["kind"], "missing_argument");
+        assert_eq!(error["error"]["argument"], "--target");
+        assert_eq!(error["error"]["fix"]["action"], "provide_required_argument");
+        assert_eq!(error["error"]["fix"]["missing"], "--target");
+        assert!(error["error"]["fix"]["usage"]
+            .as_str()
+            .unwrap()
+            .contains("chemcore-cli capture"));
+        assert_eq!(
+            error["error"]["suggestions"][0]["action"],
+            "provide_required_argument"
+        );
+    }
+
+    #[test]
+    fn missing_flag_value_errors_include_expected_value() {
+        let error = protocol::CliError::for_command(
+            "capture",
+            "--scale requires a positive number.".to_string(),
+        )
+        .to_json();
+
+        assert_eq!(error["error"]["kind"], "missing_argument");
+        assert_eq!(error["error"]["argument"], "--scale");
+        assert_eq!(error["error"]["fix"]["missing"], "--scale");
+        assert_eq!(error["error"]["fix"]["expected"], "a positive number");
+        assert!(error["error"]["hint"]
+            .as_str()
+            .unwrap()
+            .contains("chemcore-cli help capture"));
     }
 
     #[test]

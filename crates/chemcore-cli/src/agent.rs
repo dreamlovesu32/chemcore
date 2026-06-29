@@ -504,6 +504,7 @@ pub(crate) fn capture_command(args: &[String]) -> Result<(), String> {
             "ok": true,
             "input": input,
             "target": target.to_json(),
+            "warnings": default_capture_warnings(output_defaulted, &output),
             "output": {
                 "path": output,
                 "format": format.as_str(),
@@ -620,6 +621,7 @@ pub(crate) fn copy_command(args: &[String]) -> Result<(), String> {
             "ok": true,
             "input": input,
             "target": target.to_json(),
+            "warnings": default_payload_warnings(payload_defaulted, &payload_path),
             "payload": {
                 "path": payload_path.display().to_string(),
                 "defaulted": payload_defaulted,
@@ -2056,6 +2058,30 @@ fn timestamp_millis() -> u128 {
         .unwrap_or_default()
 }
 
+fn default_capture_warnings(defaulted: bool, path: &str) -> Vec<Value> {
+    if defaulted {
+        vec![json!({
+            "kind": "default_output_path",
+            "message": "--out was not provided; capture wrote a PNG to the default temp path. Pass --out <path> to choose a persistent location.",
+            "path": path,
+        })]
+    } else {
+        Vec::new()
+    }
+}
+
+fn default_payload_warnings(defaulted: bool, path: &Path) -> Vec<Value> {
+    if defaulted {
+        vec![json!({
+            "kind": "default_payload_path",
+            "message": "--payload was not provided; copy wrote the clipboard payload JSON to the default temp path. Pass --payload <path> to choose a persistent location.",
+            "path": path.display().to_string(),
+        })]
+    } else {
+        Vec::new()
+    }
+}
+
 fn write_capture_output(
     primitives: &[RenderPrimitive],
     view_box: [f64; 4],
@@ -2510,6 +2536,19 @@ mod tests {
         assert_eq!(path, "capture");
         assert_eq!(format, CaptureFormat::Svg);
         assert!(!defaulted);
+    }
+
+    #[test]
+    fn default_output_warnings_are_machine_readable() {
+        let capture_warnings = default_capture_warnings(true, "capture.png");
+        assert_eq!(capture_warnings[0]["kind"], "default_output_path");
+        assert_eq!(capture_warnings[0]["path"], "capture.png");
+        assert!(default_capture_warnings(false, "capture.png").is_empty());
+
+        let payload_warnings = default_payload_warnings(true, Path::new("payload.json"));
+        assert_eq!(payload_warnings[0]["kind"], "default_payload_path");
+        assert_eq!(payload_warnings[0]["path"], "payload.json");
+        assert!(default_payload_warnings(false, Path::new("payload.json")).is_empty());
     }
 
     #[test]
