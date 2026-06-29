@@ -625,6 +625,7 @@ version = "1.0.0-beta.4"
 dependencies = [
  "chemcore-desktop-service",
  "chemcore-engine",
+ "fontdb",
  "resvg",
  "serde_json",
  "sha2",

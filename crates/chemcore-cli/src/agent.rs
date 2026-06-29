@@ -15,6 +15,7 @@ use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
 #[cfg(windows)]
 use std::process::Command;
+use std::sync::{Arc, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_CAPTURE_SCALE: f64 = 4.0;
@@ -3402,8 +3403,21 @@ fn write_svg_png_output(
     output: &str,
     pixel_size: PixelSize,
 ) -> Result<u64, String> {
+    let pixmap = render_svg_png_pixmap(svg, view_box, pixel_size)?;
+    ensure_output_parent_path(Path::new(output))?;
+    pixmap
+        .save_png(output)
+        .map_err(|error| format!("Failed to write PNG {output}: {error}"))?;
+    verify_file_written(Path::new(output), 8, "PNG capture")
+}
+
+fn render_svg_png_pixmap(
+    svg: &str,
+    view_box: [f64; 4],
+    pixel_size: PixelSize,
+) -> Result<tiny_skia::Pixmap, String> {
     let svg = svg_with_explicit_size(svg, view_box);
-    let options = usvg::Options::default();
+    let options = usvg_options_with_system_fonts();
     let tree = usvg::Tree::from_str(&svg, &options)
         .map_err(|error| format!("Failed to parse capture SVG for PNG output: {error}"))?;
     let mut pixmap = tiny_skia::Pixmap::new(pixel_size.width, pixel_size.height)
@@ -3415,11 +3429,25 @@ fn write_svg_png_output(
         tiny_skia::Transform::from_scale(pixel_size.scale_x as f32, pixel_size.scale_y as f32),
         &mut pixmap_mut,
     );
-    ensure_output_parent_path(Path::new(output))?;
-    pixmap
-        .save_png(output)
-        .map_err(|error| format!("Failed to write PNG {output}: {error}"))?;
-    verify_file_written(Path::new(output), 8, "PNG capture")
+    Ok(pixmap)
+}
+
+fn usvg_options_with_system_fonts() -> usvg::Options<'static> {
+    let mut options = usvg::Options::default();
+    options.fontdb = capture_font_database();
+    options.font_family = "Arial".to_string();
+    options
+}
+
+fn capture_font_database() -> Arc<fontdb::Database> {
+    static FONT_DB: OnceLock<Arc<fontdb::Database>> = OnceLock::new();
+    FONT_DB
+        .get_or_init(|| {
+            let mut database = fontdb::Database::new();
+            database.load_system_fonts();
+            Arc::new(database)
+        })
+        .clone()
 }
 
 fn svg_with_explicit_size(svg: &str, view_box: [f64; 4]) -> String {
@@ -3831,6 +3859,31 @@ mod tests {
         assert_eq!(pixel_size.height, 500);
         assert_close(pixel_size.scale_x, 10.0);
         assert_close(pixel_size.scale_y, 10.0);
+    }
+
+    #[test]
+    fn png_capture_renders_svg_text() {
+        let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 30"><text x="5" y="22" font-size="22" font-family="sans-serif" fill="#000000">CN</text></svg>"##;
+        let pixmap = render_svg_png_pixmap(
+            svg,
+            [0.0, 0.0, 80.0, 30.0],
+            PixelSize {
+                width: 800,
+                height: 300,
+                scale_x: 10.0,
+                scale_y: 10.0,
+            },
+        )
+        .unwrap();
+        let dark_pixels = pixmap
+            .data()
+            .chunks_exact(4)
+            .filter(|pixel| pixel[0] < 240 || pixel[1] < 240 || pixel[2] < 240)
+            .count();
+        assert!(
+            dark_pixels > 500,
+            "text-only SVG should produce visible non-white PNG pixels, got {dark_pixels}"
+        );
     }
 
     #[test]
