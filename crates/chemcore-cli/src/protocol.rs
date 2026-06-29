@@ -505,11 +505,12 @@ fn protocol_schemas_json() -> Value {
             "defaultOutput": "If --out is omitted, capture writes a PNG into the OS temp chemcore-cli directory and returns output.defaulted=true plus the exact path and a default_output_path warning in the JSON manifest.",
             "stdout": "JSON manifest only; rendered image data is written to --out or the default temp capture path.",
             "verification": "Capture manifests include output.verified=true and output.bytes after the rendered file is verified on disk.",
+            "render": "Capture manifests include render.mode, render.primitiveCount, and render.targets. These describe how many render primitives and nearby node/bond/object targets were used to produce the crop.",
             "usage": command_spec("capture").map(|spec| spec.usage).unwrap_or("")
         },
         "context": {
             "description": "Returns objects, molecules, nodes, and bonds near a target. Entries include selector ids, bounds, center/edge distance, direction, overlap flags, group ancestry, child ids, and link metadata.",
-            "screenshot": "Pass --capture-out <path.svg|path.png> to render the same context bounds.",
+            "screenshot": "Pass --capture-out <path.svg|path.png> to render the same context bounds. The capture object includes render.mode, render.primitiveCount, and render.targets when a screenshot is written.",
             "usage": command_spec("context").map(|spec| spec.usage).unwrap_or("")
         },
         "detail": {

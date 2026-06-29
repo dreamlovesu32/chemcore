@@ -525,6 +525,11 @@ selector；不接受 `all` 或 `bounds`。
 `--expand-rel-left`、`--expand-rel-right`、`--expand-rel-top`、
 `--expand-rel-bottom`）把周边内容纳入截图。
 
+截图 manifest 还包含 `render.mode`、`render.primitiveCount` 和
+`render.targets`。这些字段说明本次裁剪如何渲染，以及截图范围内包含了多少
+node、bond 和 object 目标。`context` 使用 `--capture-out` 写截图时，会在
+`capture.render` 下返回同样的字段。
+
 `copy` 把可编辑 ChemCore Office/OLE payload 放到 Windows 剪贴板。调试剪贴板
 payload 时，用 `--payload payload.json --no-copy`，这样只写 payload，不碰剪贴板。
 省略 `--payload` 时，payload JSON 会写到系统临时目录下的 `chemcore-cli` 子目录。

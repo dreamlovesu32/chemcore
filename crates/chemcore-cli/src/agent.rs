@@ -188,6 +188,33 @@ impl PixelSize {
     }
 }
 
+struct CaptureRender {
+    primitives: Vec<RenderPrimitive>,
+    mode: &'static str,
+    targets: RegionRenderTargets,
+}
+
+#[derive(Default)]
+struct RegionRenderTargets {
+    nodes: BTreeSet<String>,
+    bonds: BTreeSet<String>,
+    objects: BTreeSet<String>,
+}
+
+impl RegionRenderTargets {
+    fn is_empty(&self) -> bool {
+        self.nodes.is_empty() && self.bonds.is_empty() && self.objects.is_empty()
+    }
+
+    fn to_json(&self) -> Value {
+        json!({
+            "nodes": self.nodes.len(),
+            "bonds": self.bonds.len(),
+            "objects": self.objects.len(),
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 struct DetailOptions {
     include_raw: bool,
@@ -223,7 +250,8 @@ pub(crate) fn targets_command(args: &[String]) -> Result<(), String> {
     let nodes = node_target_entries(&document);
     let bonds = bond_target_entries(&document);
     let target_count = 1 + objects.len() + molecules.len() + nodes.len() + bonds.len();
-    let all_bounds = target_bounds(&document, &TargetSelector::All).ok();
+    let all_bounds = target_bounds_fast(&document, &TargetSelector::All)
+        .or_else(|| target_bounds(&document, &TargetSelector::All).ok());
     write_json_value(
         json!({
             "ok": true,
@@ -497,8 +525,10 @@ pub(crate) fn capture_command(args: &[String]) -> Result<(), String> {
     let document = engine_document(&engine)?;
     let bounds = target_bounds(&document, &target)?;
     let view_box = expanded_view_box(bounds, expansion);
-    let primitives = render_document(&document);
-    let render_output = write_capture_output(&primitives, view_box, &output, format, raster)?;
+    let render = capture_render_primitives(&document, &target, view_box);
+    let render_output =
+        write_capture_output(&render.primitives, view_box, &output, format, raster)?;
+    let primitive_count = render.primitives.len();
     write_json_value(
         json!({
             "ok": true,
@@ -516,6 +546,11 @@ pub(crate) fn capture_command(args: &[String]) -> Result<(), String> {
             "bounds": bounds_json(bounds),
             "viewBox": view_box_json(view_box),
             "expansion": expansion.to_json(),
+            "render": {
+                "mode": render.mode,
+                "primitiveCount": primitive_count,
+                "targets": render.targets.to_json(),
+            },
         }),
         None,
         pretty,
@@ -872,9 +907,15 @@ pub(crate) fn context_command(args: &[String]) -> Result<(), String> {
             .ok_or_else(|| {
                 "--capture-out format is ambiguous; use .svg/.png or --format svg|png.".to_string()
             })?;
-        let primitives = render_document(&document);
-        let render_output =
-            write_capture_output(&primitives, query_view_box, capture_output, format, raster)?;
+        let render = capture_render_primitives(&document, &target, query_view_box);
+        let render_output = write_capture_output(
+            &render.primitives,
+            query_view_box,
+            capture_output,
+            format,
+            raster,
+        )?;
+        let primitive_count = render.primitives.len();
         set_object_field(
             &mut report,
             "capture",
@@ -886,6 +927,11 @@ pub(crate) fn context_command(args: &[String]) -> Result<(), String> {
                 "bytes": render_output.bytes,
                 "pixelSize": render_output.pixel_size.map(PixelSize::to_json),
                 "viewBox": view_box_json(query_view_box),
+                "render": {
+                    "mode": render.mode,
+                    "primitiveCount": primitive_count,
+                    "targets": render.targets.to_json(),
+                },
             }),
         );
     }
@@ -1103,7 +1149,8 @@ fn context_report(
         .into_iter()
         .enumerate()
         .filter_map(|(index, entry)| {
-            let bounds = target_bounds(document, &TargetSelector::Molecule(index)).ok()?;
+            let bounds = target_bounds_fast(document, &TargetSelector::Molecule(index))
+                .or_else(|| target_bounds(document, &TargetSelector::Molecule(index)).ok())?;
             bounds_intersect(bounds, query_bounds).then(|| {
                 json!({
                     "selector": format!("molecule:{index}"),
@@ -1246,7 +1293,10 @@ fn object_detail_json(
         "styleRef": object.style_ref,
         "resourceRef": object.payload.resource_ref,
         "childCount": object.children.len(),
-        "bounds": optional_bounds_json(target_bounds(document, &TargetSelector::Object(id.to_string())).ok()),
+        "bounds": optional_bounds_json(
+            target_bounds_fast(document, &TargetSelector::Object(id.to_string()))
+                .or_else(|| target_bounds(document, &TargetSelector::Object(id.to_string())).ok())
+        ),
         "relationships": info.map(object_relationship_json).unwrap_or(Value::Null),
         "references": object_references_json(document, object),
     });
@@ -1281,7 +1331,10 @@ fn molecule_detail_json(
         "nodeCount": entry.fragment.nodes.len(),
         "bondCount": entry.fragment.bonds.len(),
         "fragmentBbox": entry.fragment.bbox,
-        "bounds": optional_bounds_json(target_bounds(document, &TargetSelector::Molecule(index)).ok()),
+        "bounds": optional_bounds_json(
+            target_bounds_fast(document, &TargetSelector::Molecule(index))
+                .or_else(|| target_bounds(document, &TargetSelector::Molecule(index)).ok())
+        ),
         "relationships": info.map(object_relationship_json).unwrap_or(Value::Null),
         "references": object_references_json(document, entry.object),
     });
@@ -1532,7 +1585,11 @@ fn collect_scene_object_infos_inner(
         if let Some(parent_id) = parent_id {
             next_ancestors.push(parent_id.to_string());
         }
-        if let Ok(bounds) = target_bounds(document, &TargetSelector::Object(object.id.clone())) {
+        if let Some(bounds) =
+            target_bounds_fast(document, &TargetSelector::Object(object.id.clone())).or_else(|| {
+                target_bounds(document, &TargetSelector::Object(object.id.clone())).ok()
+            })
+        {
             out.push(SceneObjectInfo {
                 id: object.id.clone(),
                 object_type: object.object_type.clone(),
@@ -1706,6 +1763,242 @@ fn view_box_to_bounds(view_box: [f64; 4]) -> [f64; 4] {
     ]
 }
 
+fn capture_render_primitives(
+    document: &ChemcoreDocument,
+    target: &TargetSelector,
+    view_box: [f64; 4],
+) -> CaptureRender {
+    if matches!(target, TargetSelector::All) {
+        return CaptureRender {
+            primitives: render_document(document),
+            mode: "full-document",
+            targets: RegionRenderTargets::default(),
+        };
+    }
+
+    let targets = region_render_targets(document, view_box_to_bounds(view_box));
+    if targets.is_empty() {
+        return CaptureRender {
+            primitives: Vec::new(),
+            mode: "region-empty",
+            targets,
+        };
+    }
+
+    let primitives =
+        render_document_targets(document, &targets.nodes, &targets.bonds, &targets.objects);
+    CaptureRender {
+        primitives,
+        mode: "region-targets",
+        targets,
+    }
+}
+
+fn region_render_targets(
+    document: &ChemcoreDocument,
+    query_bounds: [f64; 4],
+) -> RegionRenderTargets {
+    let mut targets = RegionRenderTargets::default();
+    collect_region_scene_object_targets(document, &document.objects, query_bounds, &mut targets);
+    targets
+}
+
+fn collect_region_scene_object_targets(
+    document: &ChemcoreDocument,
+    objects: &[SceneObject],
+    query_bounds: [f64; 4],
+    targets: &mut RegionRenderTargets,
+) {
+    for object in objects {
+        if !object.visible {
+            continue;
+        }
+
+        if object.object_type == "molecule"
+            && collect_region_molecule_targets(document, object, query_bounds, targets)
+        {
+            continue;
+        }
+
+        if object.object_type == "group" {
+            collect_region_scene_object_targets(document, &object.children, query_bounds, targets);
+            if scene_object_fast_bounds(document, object)
+                .is_some_and(|bounds| bounds_intersect(bounds, query_bounds))
+            {
+                targets.objects.insert(object.id.clone());
+            }
+            continue;
+        }
+
+        let bounds = scene_object_fast_bounds(document, object)
+            .or_else(|| target_bounds(document, &TargetSelector::Object(object.id.clone())).ok());
+        if bounds.is_some_and(|bounds| bounds_intersect(bounds, query_bounds)) {
+            targets.objects.insert(object.id.clone());
+        }
+    }
+}
+
+fn collect_region_molecule_targets(
+    document: &ChemcoreDocument,
+    object: &SceneObject,
+    query_bounds: [f64; 4],
+    targets: &mut RegionRenderTargets,
+) -> bool {
+    let Some(resource_ref) = object.payload.resource_ref.as_ref() else {
+        return false;
+    };
+    let Some(fragment) = document
+        .resources
+        .get(resource_ref)
+        .and_then(|resource| resource.data.as_fragment())
+    else {
+        return false;
+    };
+
+    for node in &fragment.nodes {
+        if bounds_intersect(node_fast_bounds(object, node), query_bounds) {
+            targets.nodes.insert(node.id.clone());
+        }
+    }
+    for bond in &fragment.bonds {
+        let Some(bounds) = bond_fast_bounds(object, &fragment.nodes, bond) else {
+            continue;
+        };
+        if bounds_intersect(bounds, query_bounds) {
+            targets.bonds.insert(bond.id.clone());
+        }
+    }
+    true
+}
+
+fn target_bounds_fast(document: &ChemcoreDocument, target: &TargetSelector) -> Option<[f64; 4]> {
+    match target {
+        TargetSelector::All => document_fast_bounds(document),
+        TargetSelector::Bounds(bounds) => Some(*bounds),
+        TargetSelector::Object(id) => document
+            .find_scene_object(id)
+            .and_then(|object| scene_object_fast_bounds(document, object)),
+        TargetSelector::Molecule(index) => {
+            let fragments = document.editable_fragments();
+            let entry = fragments.get(*index)?;
+            molecule_object_fast_bounds(document, entry.object)
+        }
+        TargetSelector::Node(id) => {
+            for entry in document.editable_fragments() {
+                if let Some(node) = entry.fragment.nodes.iter().find(|node| &node.id == id) {
+                    return Some(node_fast_bounds(entry.object, node));
+                }
+            }
+            None
+        }
+        TargetSelector::Bond(id) => {
+            for entry in document.editable_fragments() {
+                if let Some(bond) = entry.fragment.bonds.iter().find(|bond| &bond.id == id) {
+                    return bond_fast_bounds(entry.object, &entry.fragment.nodes, bond);
+                }
+            }
+            None
+        }
+    }
+}
+
+fn document_fast_bounds(document: &ChemcoreDocument) -> Option<[f64; 4]> {
+    let mut out = None;
+    for object in &document.objects {
+        if !object.visible {
+            continue;
+        }
+        if let Some(bounds) = scene_object_fast_bounds(document, object) {
+            include_bounds(&mut out, bounds);
+        }
+    }
+    out
+}
+
+fn scene_object_fast_bounds(document: &ChemcoreDocument, object: &SceneObject) -> Option<[f64; 4]> {
+    if !object.visible {
+        return None;
+    }
+    if object.object_type == "group" {
+        let mut out = None;
+        for child in &object.children {
+            if let Some(bounds) = scene_object_fast_bounds(document, child) {
+                include_bounds(&mut out, bounds);
+            }
+        }
+        return out.or_else(|| scene_object_bbox_bounds(object));
+    }
+    if object.object_type == "molecule" {
+        return molecule_object_fast_bounds(document, object);
+    }
+    scene_object_bbox_bounds(object)
+}
+
+fn molecule_object_fast_bounds(
+    document: &ChemcoreDocument,
+    object: &SceneObject,
+) -> Option<[f64; 4]> {
+    scene_object_bbox_bounds(object).or_else(|| {
+        let resource_ref = object.payload.resource_ref.as_ref()?;
+        let fragment = document.resources.get(resource_ref)?.data.as_fragment()?;
+        local_bbox_world_bounds(object, fragment.bbox)
+    })
+}
+
+fn scene_object_bbox_bounds(object: &SceneObject) -> Option<[f64; 4]> {
+    local_bbox_world_bounds(object, object.payload.bbox?)
+}
+
+fn local_bbox_world_bounds(object: &SceneObject, bbox: [f64; 4]) -> Option<[f64; 4]> {
+    let [x, y, width, height] = bbox;
+    if width <= 0.0 || height <= 0.0 {
+        return None;
+    }
+    let tx = object.transform.translate[0];
+    let ty = object.transform.translate[1];
+    let min_x = tx + x;
+    let min_y = ty + y;
+    let max_x = tx + x + width;
+    let max_y = ty + y + height;
+    if object.transform.rotate.abs() <= f64::EPSILON {
+        return Some([min_x, min_y, max_x, max_y]);
+    }
+
+    let center = [(min_x + max_x) * 0.5, (min_y + max_y) * 0.5];
+    let mut bounds = rotate_point_bounds([min_x, min_y], center, object.transform.rotate);
+    for point in [[max_x, min_y], [max_x, max_y], [min_x, max_y]] {
+        let rotated = rotate_point_bounds(point, center, object.transform.rotate);
+        bounds[0] = bounds[0].min(rotated[0]);
+        bounds[1] = bounds[1].min(rotated[1]);
+        bounds[2] = bounds[2].max(rotated[2]);
+        bounds[3] = bounds[3].max(rotated[3]);
+    }
+    Some(bounds)
+}
+
+fn include_bounds(out: &mut Option<[f64; 4]>, bounds: [f64; 4]) {
+    *out = Some(match *out {
+        Some(current) => [
+            current[0].min(bounds[0]),
+            current[1].min(bounds[1]),
+            current[2].max(bounds[2]),
+            current[3].max(bounds[3]),
+        ],
+        None => bounds,
+    });
+}
+
+fn rotate_point_bounds(point: [f64; 2], center: [f64; 2], degrees: f64) -> [f64; 4] {
+    let radians = degrees.to_radians();
+    let cos = radians.cos();
+    let sin = radians.sin();
+    let dx = point[0] - center[0];
+    let dy = point[1] - center[1];
+    let x = center[0] + dx * cos - dy * sin;
+    let y = center[1] + dx * sin + dy * cos;
+    [x, y, x, y]
+}
+
 fn set_object_field(value: &mut Value, key: &str, field: Value) {
     if let Some(object) = value.as_object_mut() {
         object.insert(key.to_string(), field);
@@ -1751,8 +2044,8 @@ fn collect_object_target_entries(
     entries: &mut Vec<Value>,
 ) {
     for object in objects {
-        let bounds = target_bounds(document, &TargetSelector::Object(object.id.clone()))
-            .ok()
+        let bounds = target_bounds_fast(document, &TargetSelector::Object(object.id.clone()))
+            .or_else(|| target_bounds(document, &TargetSelector::Object(object.id.clone())).ok())
             .map(bounds_json);
         entries.push(json!({
             "selector": format!("object:{}", object.id),
@@ -1784,8 +2077,8 @@ fn molecule_target_entries(document: &ChemcoreDocument) -> Vec<Value> {
         .into_iter()
         .enumerate()
         .map(|(index, entry)| {
-            let bounds = target_bounds(document, &TargetSelector::Molecule(index))
-                .ok()
+            let bounds = target_bounds_fast(document, &TargetSelector::Molecule(index))
+                .or_else(|| target_bounds(document, &TargetSelector::Molecule(index)).ok())
                 .map(bounds_json);
             json!({
                 "selector": format!("molecule:{index}"),
@@ -1885,6 +2178,9 @@ fn bond_fast_bounds(object: &SceneObject, nodes: &[Node], bond: &Bond) -> Option
 fn target_bounds(document: &ChemcoreDocument, target: &TargetSelector) -> Result<[f64; 4], String> {
     if let TargetSelector::Bounds(bounds) = target {
         return Ok(*bounds);
+    }
+    if let Some(bounds) = target_bounds_fast(document, target) {
+        return Ok(bounds);
     }
     let primitives = render_primitives_for_target(document, target)?;
     render_primitives_bounds(primitives.iter()).ok_or_else(|| {

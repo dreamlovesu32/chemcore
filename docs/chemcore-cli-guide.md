@@ -526,6 +526,12 @@ after the file is verified on disk. Use absolute expansion (`--expand`, `--expan
 (`--expand-rel`, `--expand-rel-left`, `--expand-rel-right`, `--expand-rel-top`,
 `--expand-rel-bottom`) to include surrounding context.
 
+Capture manifests also include `render.mode`, `render.primitiveCount`, and
+`render.targets`. These fields report how the crop was rendered and how many
+nearby node, bond, and object targets were included in the crop. `context`
+includes the same render fields under `capture.render` when `--capture-out` is
+used.
+
 `copy` places an editable ChemCore Office/OLE payload on the Windows clipboard.
 If `--payload` is omitted, the payload JSON is written to the OS temp
 `chemcore-cli` directory and a `default_payload_path` warning is emitted. Use `--payload payload.json --no-copy` to write the
