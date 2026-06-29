@@ -68,6 +68,8 @@ fn run() -> CliResult<()> {
         "copy" => {
             agent::copy_command(&args[1..]).map_err(|error| CliError::for_command("copy", error))
         }
+        "session" => agent::session_command(&args[1..])
+            .map_err(|error| CliError::for_command("session", error)),
         "inspect" => {
             inspect_command(&args[1..]).map_err(|error| CliError::for_command("inspect", error))
         }

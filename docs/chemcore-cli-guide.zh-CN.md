@@ -66,6 +66,7 @@ chemcore-cli context <input> --target <selector> [--radius <pt>] [--out <context
 chemcore-cli detail <input> --target <object:id|molecule:index|node:id|bond:id> [--summary-only] [--include-resource] [--out <detail.json>] [--pretty]
 chemcore-cli capture <input> --target <selector> [--out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--pretty]
 chemcore-cli copy <input> [--target <selector>] [--payload <payload.json>] [--no-copy] [--pretty]
+chemcore-cli session [input]
 chemcore-cli new [commands.json|-] --out <path> [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--pretty] [--quiet]
 chemcore-cli run <input> <commands.json|-> [--out <path>] [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--pretty] [--quiet]
 chemcore-cli convert <input> <output> [--format <format>]
@@ -534,6 +535,22 @@ node、bond 和 object 目标。`context` 使用 `--capture-out` 写截图时，
 payload 时，用 `--payload payload.json --no-copy`，这样只写 payload，不碰剪贴板。
 省略 `--payload` 时，payload JSON 会写到系统临时目录下的 `chemcore-cli` 子目录。
 同时会给出 `kind="default_payload_path"` 的 `warnings[]` 条目。
+
+`session` 启动一个给 agent 使用的长驻 JSON Lines 进程。第一行 stdout 是紧凑的
+`ready` event；之后每输入一行紧凑 JSON request，就读取一行紧凑 JSON response。
+session 会把一个文档保持在内存里，所以反复执行 `targets`、`detail`、`context`、
+`capture`、`execute` 和 `save` 时，不需要每步重新启动进程、重新打开文件和重新导入。
+session 不持久化 undo 历史；`execute` 会返回 before/after revision 和每条命令结果，
+调用方可以用 git、临时文件或自己的日志维护历史。
+
+```json
+{"id":1,"op":"open","input":"input.cdxml"}
+{"id":2,"op":"targets"}
+{"id":3,"op":"capture","target":"molecule:0","out":"molecule.png","width":1800}
+{"id":4,"op":"execute","command":{"type":"add-text","position":{"x":40,"y":40},"text":"note"}}
+{"id":5,"op":"save","out":"edited.ccjs"}
+{"id":6,"op":"exit"}
+```
 
 ## 5. 分子对象
 

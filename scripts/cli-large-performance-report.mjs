@@ -117,10 +117,118 @@ async function runCommand(task) {
   return finishTask(task, started, exit.code, exit.signal, timedOut, stdout, stderr);
 }
 
-function finishTask(task, started, exitCode, signal, timedOut, stdout, stderr) {
+async function runTask(task) {
+  if (task.session) {
+    return runSessionTask(task);
+  }
+  return runCommand(task);
+}
+
+async function runSessionTask(task) {
+  const started = Date.now();
+  const timeoutMs = task.timeoutMs || commandTimeoutMs;
+  let stdoutBytes = 0;
+  let stderr = "";
+  let timedOut = false;
+  let buffer = "";
+  const responses = [];
+  const child = spawn(task.command, task.args, {
+    cwd: rootDir,
+    env: { ...process.env, ...(task.env || {}) },
+    shell: false,
+    windowsHide: true,
+  });
+
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    killProcessTree(child);
+  }, timeoutMs);
+
+  child.stdout?.on("data", (chunk) => {
+    const text = chunk.toString();
+    stdoutBytes += Buffer.byteLength(text);
+    buffer += text;
+    let newlineIndex = buffer.indexOf("\n");
+    while (newlineIndex >= 0) {
+      const line = buffer.slice(0, newlineIndex).trim();
+      buffer = buffer.slice(newlineIndex + 1);
+      if (line) {
+        try {
+          const message = JSON.parse(line);
+          responses.push(summarizeSessionMessage(message));
+          if (message.event === "ready") {
+            for (const request of task.session.requests) {
+              child.stdin.write(`${JSON.stringify(request)}\n`);
+            }
+          }
+        } catch (error) {
+          responses.push({ ok: false, error: `Invalid session JSON response: ${error.message}` });
+        }
+      }
+      newlineIndex = buffer.indexOf("\n");
+    }
+  });
+  child.stderr?.on("data", (chunk) => {
+    stderr = appendBounded(stderr, chunk.toString());
+  });
+
+  const exit = await new Promise((resolve) => {
+    child.on("error", (error) => {
+      stderr = appendBounded(stderr, error.stack || error.message);
+      resolve({ code: 1, signal: null });
+    });
+    child.on("close", (code, signal) => resolve({ code, signal }));
+  });
+  clearTimeout(timeout);
+  const elapsedMs = Date.now() - started;
+  const failedResponses = responses.filter((response) => response.ok === false);
+  const ok = !timedOut && exit.code === 0 && failedResponses.length === 0;
+  const result = {
+    id: task.id,
+    group: task.group || "",
+    description: task.description || "",
+    command: commandLine(task.command, task.args),
+    ok,
+    exitCode: exit.code,
+    signal: exit.signal,
+    timedOut,
+    elapsedMs,
+    stdoutBytes,
+    stderrBytes: Buffer.byteLength(stderr),
+    stdoutTail: "",
+    stderrTail: tail(stderr),
+    parsed: {
+      protocol: "chemcore-cli-session-jsonl-v1",
+      responseCount: responses.length,
+      failedResponses: failedResponses.length,
+      responses,
+    },
+    artifacts: collectArtifacts(task),
+  };
+  console.log(`[cli-large-performance] ${ok ? "ok" : "fail"} ${task.id} (${(elapsedMs / 1000).toFixed(2)}s)`);
+  return result;
+}
+
+function summarizeSessionMessage(message) {
+  const result = message.result || {};
+  const capture = result.capture || result;
+  return {
+    ok: message.ok,
+    event: message.event || null,
+    id: message.id ?? null,
+    op: message.op || null,
+    error: message.error?.message || null,
+    targetCount: result.targetCount ?? null,
+    revision: result.revision ?? result.document?.afterRevision ?? null,
+    render: capture.render || null,
+    artifacts: result.output?.path || result.capture?.path || result.path || null,
+  };
+}
+
+function finishTask(task, started, exitCode, signal, timedOut, stdout, stderr, parsedOverride = undefined) {
   const elapsedMs = Date.now() - started;
   const ok = !timedOut && exitCode === 0;
-  const parsed = parseTaskJson(task, stdout);
+  const parsed = parsedOverride === undefined ? parseTaskJson(task, stdout) : parsedOverride;
   const artifacts = collectArtifacts(task);
   const result = {
     id: task.id,
@@ -285,7 +393,7 @@ const discoveryTasks = [
 
 const allResults = [];
 for (const task of [...setupTasks, ...discoveryTasks]) {
-  allResults.push(await runCommand(task));
+  allResults.push(await runTask(task));
 }
 
 const discoveredTargets = discoverProbeTargets(targetsColdPath);
@@ -340,13 +448,42 @@ const measuredTasks = [
   ], {
     artifacts: [{ label: "capture", path: taskOutput("capture-molecule", "png") }],
   }),
+  cliTask("session-read-capture-sequence", "session", ["session", rel(fixtureLargeCdxml)], {
+    session: {
+      requests: [
+        { id: 1, op: "status" },
+        { id: 2, op: "detail", target: "molecule:0", summaryOnly: true },
+        {
+          id: 3,
+          op: "context",
+          target: discoveredTargets.node,
+          radius: 120,
+          captureOut: rel(taskOutput("session-context-node", "png")),
+          scale: 6,
+        },
+        {
+          id: 4,
+          op: "capture",
+          target: discoveredTargets.bond,
+          out: rel(taskOutput("session-capture-bond", "png")),
+          width: 1800,
+          expand: 160,
+        },
+        { id: 5, op: "exit" },
+      ],
+    },
+    artifacts: [
+      { label: "context", path: taskOutput("session-context-node", "png") },
+      { label: "capture", path: taskOutput("session-capture-bond", "png") },
+    ],
+  }),
   cliTask("convert-cdxml-to-svg", "convert", ["convert", rel(fixtureLargeCdxml), rel(taskOutput("synthetic-large", "svg"))], {
     artifacts: [{ label: "svg", path: taskOutput("synthetic-large", "svg") }],
   }),
 ];
 
 for (const task of measuredTasks) {
-  allResults.push(await runCommand(task));
+  allResults.push(await runTask(task));
 }
 
 const failures = allResults.filter((result) => !result.ok);
@@ -464,6 +601,12 @@ function renderMarkdownReport(data) {
 }
 
 function renderSummary(result) {
+  if (result.parsed?.protocol === "chemcore-cli-session-jsonl-v1") {
+    return (result.parsed.responses || [])
+      .filter((response) => response.render)
+      .map((response) => `${response.op}:${response.render.mode} primitives=${response.render.primitiveCount}`)
+      .join("; ");
+  }
   const capture = result.parsed?.capture || result.parsed;
   const render = capture?.render;
   if (!render) {

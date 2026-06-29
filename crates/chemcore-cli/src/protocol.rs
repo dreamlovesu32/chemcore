@@ -125,6 +125,12 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         example: "chemcore-cli copy input.cdxml --target object:obj_arrow_1 --pretty",
     },
     CommandSpec {
+        name: "session",
+        summary: "Start a long-lived JSONL agent session that keeps one document open for repeated targets, detail, context, capture, execute, and save operations.",
+        usage: "chemcore-cli session [input]",
+        example: "chemcore-cli session input.cdxml",
+    },
+    CommandSpec {
         name: "new",
         summary: "Create a new document, optionally by applying a JSON command script.",
         usage: "chemcore-cli new [commands.json|-] --out <path> [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--continue-on-error] [--pretty] [--quiet]",
@@ -331,7 +337,7 @@ fn command_error_suggestions(
         })],
         _ if message.contains("Unknown schema topic") => vec![json!({
             "action": "choose_schema_topic",
-            "accepted": ["commands", "targets", "bounds", "capture", "context", "detail", "guide", "copy", "json-output", "command-script", "all"],
+            "accepted": ["commands", "targets", "bounds", "capture", "context", "detail", "guide", "copy", "session", "json-output", "command-script", "all"],
             "example": "chemcore-cli schema capture --pretty",
         })],
         _ => spec
@@ -518,6 +524,13 @@ fn protocol_schemas_json() -> Value {
             "rawPolicy": "By default, detail includes raw JSON for the selected entity. Use --summary-only for ids/bounds/relationship metadata only. Use --include-resource to embed the referenced molecule/text/json resource when inspecting an object.",
             "aliases": ["details", "describe", "show"],
             "usage": command_spec("detail").map(|spec| spec.usage).unwrap_or("")
+        },
+        "session": {
+            "description": "Starts a JSON Lines protocol over stdin/stdout. The process keeps one Engine and parsed ChemCore document in memory until close or exit.",
+            "operations": ["open", "targets", "detail", "context", "capture", "execute", "save", "status", "close", "exit"],
+            "ready": "The first stdout line is a ready event. Send one compact JSON request per line and read one compact JSON response per line.",
+            "historyPolicy": "The session does not persist undo history. execute responses report before/after revision and per-command results; callers should maintain history with git, files, or their own log.",
+            "usage": command_spec("session").map(|spec| spec.usage).unwrap_or("")
         },
         "guide": {
             "description": "Returns installed guide metadata. Use --kind agent for the quick agent guide, --kind detailed for the detailed English CLI guide, or --kind all for both.",
@@ -1055,7 +1068,7 @@ pub(crate) fn schema_command(args: &[String]) -> Result<(), String> {
         json!({ "ok": true, "topic": topic, "schema": schema })
     } else {
         return Err(format!(
-            "Unknown schema topic '{topic}'. Expected commands, targets, bounds, capture, context, detail, guide, copy, json-output, command-script, or all."
+            "Unknown schema topic '{topic}'. Expected commands, targets, bounds, capture, context, detail, guide, copy, session, json-output, command-script, or all."
         ));
     };
     write_json_value(value, output.as_deref(), pretty)
@@ -1070,6 +1083,7 @@ pub(crate) fn schema_topic_key(topic: &str) -> Option<&'static str> {
         "detail" | "details" | "describe" | "show" | "object-detail" => Some("detail"),
         "guide" | "agent-guide" | "docs" | "documentation" => Some("guide"),
         "copy" | "clipboard" => Some("copy"),
+        "session" | "jsonl" | "daemon" => Some("session"),
         "json-output" | "jsonOutput" | "stdout" | "output" | "pretty" => Some("jsonOutput"),
         "examples" => Some("commandScript"),
         "command-script" | "commandScript" | "commands-json" => Some("commandScript"),

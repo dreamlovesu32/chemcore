@@ -67,6 +67,7 @@ chemcore-cli context <input> --target <selector> [--radius <pt>] [--out <context
 chemcore-cli detail <input> --target <object:id|molecule:index|node:id|bond:id> [--summary-only] [--include-resource] [--out <detail.json>] [--pretty]
 chemcore-cli capture <input> --target <selector> [--out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--pretty]
 chemcore-cli copy <input> [--target <selector>] [--payload <payload.json>] [--no-copy] [--pretty]
+chemcore-cli session [input]
 chemcore-cli new [commands.json|-] --out <path> [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--pretty] [--quiet]
 chemcore-cli run <input> <commands.json|-> [--out <path>] [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--pretty] [--quiet]
 chemcore-cli convert <input> <output> [--format <format>]
@@ -536,6 +537,24 @@ used.
 If `--payload` is omitted, the payload JSON is written to the OS temp
 `chemcore-cli` directory and a `default_payload_path` warning is emitted. Use `--payload payload.json --no-copy` to write the
 clipboard payload without touching the clipboard.
+
+`session` starts a long-lived JSON Lines process for agents. The first stdout
+line is a compact `ready` event. Then send one compact JSON request per line and
+read one compact JSON response per line. A session keeps one document open in
+memory, so repeated `targets`, `detail`, `context`, `capture`, `execute`, and
+`save` operations avoid repeated process startup and file import. The session
+does not persist undo history; `execute` responses report before/after revision
+and per-command results so the caller can maintain history with git, files, or
+its own log.
+
+```json
+{"id":1,"op":"open","input":"input.cdxml"}
+{"id":2,"op":"targets"}
+{"id":3,"op":"capture","target":"molecule:0","out":"molecule.png","width":1800}
+{"id":4,"op":"execute","command":{"type":"add-text","position":{"x":40,"y":40},"text":"note"}}
+{"id":5,"op":"save","out":"edited.ccjs"}
+{"id":6,"op":"exit"}
+```
 
 ## 5. Molecule Objects
 
