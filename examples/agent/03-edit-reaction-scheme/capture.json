@@ -1,0 +1,65 @@
+﻿{
+  "bounds": {
+    "height": 600.0,
+    "maxX": 900.0,
+    "maxY": 600.0,
+    "minX": 0.0,
+    "minY": 0.0,
+    "width": 900.0
+  },
+  "expansion": {
+    "absolute": {
+      "bottom": 8.0,
+      "left": 8.0,
+      "right": 8.0,
+      "top": 8.0
+    },
+    "relative": {
+      "bottom": 0.0,
+      "left": 0.0,
+      "right": 0.0,
+      "top": 0.0
+    }
+  },
+  "input": "D:\\Projects\\chemcore\\examples\\agent\\03-edit-reaction-scheme\\output.ccjs",
+  "ok": true,
+  "output": {
+    "bytes": 33620,
+    "defaulted": false,
+    "format": "png",
+    "path": "D:\\Projects\\chemcore\\examples\\agent\\03-edit-reaction-scheme\\crop.png",
+    "pixelSize": {
+      "height": 941,
+      "scaleX": 1.5283842794759825,
+      "scaleY": 1.5275974025974026,
+      "width": 1400
+    },
+    "verified": true
+  },
+  "render": {
+    "mode": "full-document",
+    "primitiveCount": 5,
+    "targets": {
+      "bonds": 0,
+      "nodes": 0,
+      "objects": 0
+    }
+  },
+  "target": {
+    "kind": "all",
+    "selector": "all"
+  },
+  "viewBox": {
+    "height": 616.0,
+    "value": [
+      -8.0,
+      -8.0,
+      916.0,
+      616.0
+    ],
+    "width": 916.0,
+    "x": -8.0,
+    "y": -8.0
+  },
+  "warnings": []
+}

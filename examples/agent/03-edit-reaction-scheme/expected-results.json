@@ -1,0 +1,437 @@
+{
+  "commandCount": 4,
+  "commands": [
+    {
+      "beforeRevision": 0,
+      "changeSummary": {
+        "createdCount": 1,
+        "createdSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [
+            "object:obj_text_1"
+          ],
+          "styles": []
+        },
+        "deletedCount": 0,
+        "deletedSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [],
+          "styles": []
+        },
+        "touchedSelectors": [
+          "object:obj_text_1"
+        ],
+        "updatedCount": 0,
+        "updatedSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [],
+          "styles": []
+        }
+      },
+      "changed": true,
+      "command": {
+        "position": {
+          "x": 80.0,
+          "y": 120.0
+        },
+        "text": "PhBr",
+        "type": "add-text"
+      },
+      "commandType": "add-text",
+      "created": {
+        "objects": [
+          "obj_text_1"
+        ]
+      },
+      "deleted": {},
+      "diagnostics": {},
+      "document": {
+        "afterHash": "4a4a4fae7e88505d888661b2697e540b8e84374585b86c95d0f339b08b50f17f",
+        "afterRevision": 1,
+        "beforeHash": "a4f30dc5e25ff4588c7f076e24f13a22dd1e4f815a71df8c898bc464dfdcebfd",
+        "beforeRevision": 0,
+        "hashAlgorithm": "sha256",
+        "hashChanged": true,
+        "hashInput": "chemcore-document-json-v1"
+      },
+      "engineResult": {
+        "beforeRevision": 0,
+        "canRedo": false,
+        "canUndo": true,
+        "changed": true,
+        "command": {
+          "defaultChemical": false,
+          "position": {
+            "x": 80.0,
+            "y": 120.0
+          },
+          "text": "PhBr",
+          "type": "add-text"
+        },
+        "created": {
+          "objects": [
+            "obj_text_1"
+          ]
+        },
+        "redoDepth": 0,
+        "revision": 1,
+        "targets": {
+          "objects": [
+            "obj_text_1"
+          ]
+        },
+        "undoDepth": 1
+      },
+      "executed": true,
+      "index": 0,
+      "ok": true,
+      "revision": 1,
+      "targets": {
+        "objects": [
+          "obj_text_1"
+        ]
+      },
+      "updated": {}
+    },
+    {
+      "beforeRevision": 1,
+      "changeSummary": {
+        "createdCount": 1,
+        "createdSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [
+            "object:obj_line_2"
+          ],
+          "styles": []
+        },
+        "deletedCount": 0,
+        "deletedSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [],
+          "styles": []
+        },
+        "touchedSelectors": [
+          "object:obj_line_2"
+        ],
+        "updatedCount": 0,
+        "updatedSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [],
+          "styles": []
+        }
+      },
+      "changed": true,
+      "command": {
+        "begin": {
+          "x": 150.0,
+          "y": 120.0
+        },
+        "bold": false,
+        "curve": "arc270",
+        "end": {
+          "x": 245.0,
+          "y": 120.0
+        },
+        "head": true,
+        "headSize": "small",
+        "headStyle": "full",
+        "noGo": "none",
+        "tail": false,
+        "tailStyle": "none",
+        "type": "add-arrow",
+        "variant": "solid"
+      },
+      "commandType": "add-arrow",
+      "created": {
+        "objects": [
+          "obj_line_2"
+        ]
+      },
+      "deleted": {},
+      "diagnostics": {},
+      "document": {
+        "afterHash": "089b3b27623a7fea19bc8dd8df89be76d2a5e4f25b31d2033ddb5cbb3c005335",
+        "afterRevision": 2,
+        "beforeHash": "4a4a4fae7e88505d888661b2697e540b8e84374585b86c95d0f339b08b50f17f",
+        "beforeRevision": 1,
+        "hashAlgorithm": "sha256",
+        "hashChanged": true,
+        "hashInput": "chemcore-document-json-v1"
+      },
+      "engineResult": {
+        "beforeRevision": 1,
+        "canRedo": false,
+        "canUndo": true,
+        "changed": true,
+        "command": {
+          "begin": {
+            "x": 150.0,
+            "y": 120.0
+          },
+          "bold": false,
+          "curve": "arc270",
+          "end": {
+            "x": 245.0,
+            "y": 120.0
+          },
+          "head": true,
+          "head_size": "small",
+          "head_style": "full",
+          "no_go": "none",
+          "tail": false,
+          "tail_style": "none",
+          "type": "add-arrow",
+          "variant": "solid"
+        },
+        "created": {
+          "objects": [
+            "obj_line_2"
+          ]
+        },
+        "redoDepth": 0,
+        "revision": 2,
+        "targets": {
+          "objects": [
+            "obj_line_2"
+          ]
+        },
+        "undoDepth": 2
+      },
+      "executed": true,
+      "index": 1,
+      "ok": true,
+      "revision": 2,
+      "targets": {
+        "objects": [
+          "obj_line_2"
+        ]
+      },
+      "updated": {}
+    },
+    {
+      "beforeRevision": 2,
+      "changeSummary": {
+        "createdCount": 1,
+        "createdSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [
+            "object:obj_text_3"
+          ],
+          "styles": []
+        },
+        "deletedCount": 0,
+        "deletedSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [],
+          "styles": []
+        },
+        "touchedSelectors": [
+          "object:obj_text_3"
+        ],
+        "updatedCount": 0,
+        "updatedSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [],
+          "styles": []
+        }
+      },
+      "changed": true,
+      "command": {
+        "position": {
+          "x": 285.0,
+          "y": 120.0
+        },
+        "text": "PhOH",
+        "type": "add-text"
+      },
+      "commandType": "add-text",
+      "created": {
+        "objects": [
+          "obj_text_3"
+        ]
+      },
+      "deleted": {},
+      "diagnostics": {},
+      "document": {
+        "afterHash": "18d1ba4d610034e291dd1fd546be84e4fb04a7cea6953f7cc5ead7624683bb49",
+        "afterRevision": 3,
+        "beforeHash": "089b3b27623a7fea19bc8dd8df89be76d2a5e4f25b31d2033ddb5cbb3c005335",
+        "beforeRevision": 2,
+        "hashAlgorithm": "sha256",
+        "hashChanged": true,
+        "hashInput": "chemcore-document-json-v1"
+      },
+      "engineResult": {
+        "beforeRevision": 2,
+        "canRedo": false,
+        "canUndo": true,
+        "changed": true,
+        "command": {
+          "defaultChemical": false,
+          "position": {
+            "x": 285.0,
+            "y": 120.0
+          },
+          "text": "PhOH",
+          "type": "add-text"
+        },
+        "created": {
+          "objects": [
+            "obj_text_3"
+          ]
+        },
+        "redoDepth": 0,
+        "revision": 3,
+        "targets": {
+          "objects": [
+            "obj_text_3"
+          ]
+        },
+        "undoDepth": 3
+      },
+      "executed": true,
+      "index": 2,
+      "ok": true,
+      "revision": 3,
+      "targets": {
+        "objects": [
+          "obj_text_3"
+        ]
+      },
+      "updated": {}
+    },
+    {
+      "beforeRevision": 3,
+      "changeSummary": {
+        "createdCount": 1,
+        "createdSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [
+            "object:obj_text_4"
+          ],
+          "styles": []
+        },
+        "deletedCount": 0,
+        "deletedSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [],
+          "styles": []
+        },
+        "touchedSelectors": [
+          "object:obj_text_4"
+        ],
+        "updatedCount": 0,
+        "updatedSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [],
+          "styles": []
+        }
+      },
+      "changed": true,
+      "command": {
+        "position": {
+          "x": 175.0,
+          "y": 92.0
+        },
+        "text": "Cu, base",
+        "type": "add-text"
+      },
+      "commandType": "add-text",
+      "created": {
+        "objects": [
+          "obj_text_4"
+        ]
+      },
+      "deleted": {},
+      "diagnostics": {},
+      "document": {
+        "afterHash": "30ac278fe9d034e7504fe503fc3bb3461fda6ffe4e29ee04a294f8754bb8f1f9",
+        "afterRevision": 4,
+        "beforeHash": "18d1ba4d610034e291dd1fd546be84e4fb04a7cea6953f7cc5ead7624683bb49",
+        "beforeRevision": 3,
+        "hashAlgorithm": "sha256",
+        "hashChanged": true,
+        "hashInput": "chemcore-document-json-v1"
+      },
+      "engineResult": {
+        "beforeRevision": 3,
+        "canRedo": false,
+        "canUndo": true,
+        "changed": true,
+        "command": {
+          "defaultChemical": false,
+          "position": {
+            "x": 175.0,
+            "y": 92.0
+          },
+          "text": "Cu, base",
+          "type": "add-text"
+        },
+        "created": {
+          "objects": [
+            "obj_text_4"
+          ]
+        },
+        "redoDepth": 0,
+        "revision": 4,
+        "targets": {
+          "objects": [
+            "obj_text_4"
+          ]
+        },
+        "undoDepth": 4
+      },
+      "executed": true,
+      "index": 3,
+      "ok": true,
+      "revision": 4,
+      "targets": {
+        "objects": [
+          "obj_text_4"
+        ]
+      },
+      "updated": {}
+    }
+  ],
+  "continueOnError": false,
+  "document": {
+    "afterHash": "30ac278fe9d034e7504fe503fc3bb3461fda6ffe4e29ee04a294f8754bb8f1f9",
+    "afterRevision": 4,
+    "beforeHash": "a4f30dc5e25ff4588c7f076e24f13a22dd1e4f815a71df8c898bc464dfdcebfd",
+    "beforeRevision": 0,
+    "hashAlgorithm": "sha256",
+    "hashChanged": true,
+    "hashInput": "chemcore-document-json-v1"
+  },
+  "executedCount": 4,
+  "failedCount": 0,
+  "failedIndex": null,
+  "failedIndices": [],
+  "io": {
+    "input": null,
+    "operation": "new",
+    "output": {
+      "format": "ccjs",
+      "path": "D:\\Projects\\chemcore\\examples\\agent\\03-edit-reaction-scheme\\output.ccjs"
+    },
+    "script": "D:\\Projects\\chemcore\\examples\\agent\\03-edit-reaction-scheme\\commands.json"
+  },
+  "ok": true,
+  "save": {
+    "format": "ccjs",
+    "ok": true,
+    "path": "D:\\Projects\\chemcore\\examples\\agent\\03-edit-reaction-scheme\\output.ccjs"
+  }
+}

@@ -1,0 +1,25 @@
+﻿{
+  "clipboard": {
+    "copied": false,
+    "format": "windows-office-ole",
+    "helper": null
+  },
+  "document": {
+    "objects": 1,
+    "resources": 4
+  },
+  "input": "..\\..\\..\\figure1.cdxml",
+  "ok": true,
+  "payload": {
+    "bytes": 365401,
+    "defaulted": false,
+    "path": "payload.json",
+    "verified": true
+  },
+  "target": {
+    "id": "obj_bracket_001",
+    "kind": "object",
+    "selector": "object:obj_bracket_001"
+  },
+  "warnings": []
+}

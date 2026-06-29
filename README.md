@@ -86,6 +86,7 @@ target arrow itself, the partly overlapping molecule
 
 ```bash
 chemcore-cli guide
+chemcore-cli version --pretty
 chemcore-cli targets figure1.cdxml --pretty
 chemcore-cli detail figure1.cdxml --target object:obj_bracket_001 --pretty
 chemcore-cli context figure1.cdxml --target object:obj_line_001 --radius 45 --expand-left 10 --expand-right 10 --expand-top 34 --expand-bottom 34 --capture-out tmp/line-context.png --out tmp/line-context.json --pretty
@@ -335,7 +336,9 @@ needed analysis packages.
 - Architecture overview: [English](./docs/architecture.md) / [中文](./docs/architecture.zh-CN.md)
 - Bond rendering rules: [English](./docs/bond-rendering-rules.md) / [中文](./docs/bond-rendering-rules.zh-CN.md)
 - Charge and radical symbol rules: [English](./docs/charge-radical-symbol-rules.md) / [中文](./docs/charge-radical-symbol-rules.zh-CN.md)
+- Agent POC workflow: [English](./docs/agent-poc-workflow.md) / [中文](./docs/agent-poc-workflow.zh-CN.md)
 - ChemCore CLI command guide: [English](./docs/chemcore-cli-guide.md) / [中文](./docs/chemcore-cli-guide.zh-CN.md)
+- CLI protocol contracts: [docs/protocol](./docs/protocol/README.md)
 - Document commit contract: [English](./docs/document-commit-contract.md) / [中文](./docs/document-commit-contract.zh-CN.md)
 - Editor command history: [English](./docs/editor-command-history.md) / [中文](./docs/editor-command-history.zh-CN.md)
 - Format v0.1: [English](./docs/format-v0.1.md) / [中文](./docs/format-v0.1.zh-CN.md)
@@ -348,6 +351,7 @@ needed analysis packages.
 - Text symbols and glyph profiles: [English](./docs/text-symbol-glyph-profile-rules.md) / [中文](./docs/text-symbol-glyph-profile-rules.zh-CN.md)
 - Valence-driven label recognition: [English](./docs/valence-label-recognition-rules.md) / [中文](./docs/valence-label-recognition-rules.zh-CN.md)
 - Windows desktop and Office architecture: [English](./docs/windows-desktop-office-architecture.md) / [中文](./docs/windows-desktop-office-architecture.zh-CN.md)
+- Release quality matrix: [English](./docs/release-quality.md) / [中文](./docs/release-quality.zh-CN.md)
 - Release notes: [CHANGELOG.md](./CHANGELOG.md) / [中文](./CHANGELOG.zh-CN.md)
 - Roadmap: [English](./ROADMAP.md) / [中文](./ROADMAP.zh-CN.md)
 - [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)

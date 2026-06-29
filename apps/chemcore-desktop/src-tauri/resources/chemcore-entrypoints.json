@@ -23,9 +23,11 @@
       "discovery": [
         "chemcore-cli guide --pretty",
         "chemcore-cli guide --kind detailed --pretty",
+        "chemcore-cli version --pretty",
         "chemcore-cli about --pretty",
         "chemcore-cli doctor --pretty",
         "chemcore-cli capabilities --pretty",
+        "chemcore-cli schema protocol --pretty",
         "chemcore-cli examples basic --pretty",
         "chemcore-cli schema context --pretty",
         "chemcore-cli schema detail --pretty"
@@ -91,6 +93,7 @@
     "clipboardOutput": ["windows-office-ole", "chemcore-payload-json"]
   },
   "agentWorkflow": [
+    "Run `chemcore-cli version --pretty` to read product and protocol versions.",
     "Run `chemcore-cli guide --pretty` first when using Chemcore without source-code context.",
     "Run `chemcore-cli guide --kind detailed --pretty` to locate the detailed English CLI guide.",
     "Run `chemcore-cli doctor --pretty` to identify the executable directory and install state.",

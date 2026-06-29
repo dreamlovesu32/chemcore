@@ -43,6 +43,7 @@ directory to PATH. Open a new terminal after installing, then start with:
 ```powershell
 chemcore-cli guide --pretty
 chemcore-cli guide --kind detailed --pretty
+chemcore-cli version --pretty
 chemcore-cli doctor --pretty
 chemcore-cli capabilities --pretty
 ```
@@ -95,12 +96,14 @@ file.
 Opening a file means passing the file path to `inspect`, `run`, `convert`, or `export`.
 
 ```text
+chemcore-cli --version
+chemcore-cli version [--pretty] [--out <path>]
 chemcore-cli guide [--kind agent|detailed|all] [--include-content] [--pretty] [--out <path>]
 chemcore-cli about [--pretty] [--out <path>]
 chemcore-cli capabilities [--pretty] [--out <path>]
 chemcore-cli doctor [--pretty] [--out <path>]
 chemcore-cli examples [basic|capture-copy|all] [--pretty] [--out <path>]
-chemcore-cli schema [commands|targets|capture|context|detail|guide|copy|json-output|command-script|all] [--pretty] [--out <path>]
+chemcore-cli schema [protocol|commands|targets|capture|context|detail|guide|copy|json-output|command-script|all] [--pretty] [--out <path>]
 chemcore-cli inspect <input> [--include summary,objects,molecules,resources,styles] [--out <path>] [--pretty]
 chemcore-cli targets <input> [--out <path>] [--pretty]
 chemcore-cli context <input> --target <selector> [--target <selector> ...] [--targets <selector;selector>] [--radius <pt>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]
@@ -143,6 +146,13 @@ Error output policy:
 - Error JSON includes `error.kind`, `message`, `hint`, `fix`, `usage`, `examples`, and `suggestions`.
 - Missing argument errors use `error.kind="missing_argument"` and include `error.fix.action="provide_required_argument"` plus machine-readable `missing` and `expected` fields.
 - `error.fix` is the primary repair object. `usage` and `examples` provide command context.
+
+Protocol contract:
+
+- `chemcore-cli --version` prints a single text line for shell checks.
+- `chemcore-cli version --pretty` returns product and protocol versions as JSON.
+- `chemcore-cli schema protocol --pretty` returns the runtime protocol ids.
+- Machine-facing contracts are documented in [docs/protocol](./protocol/README.md).
 
 `new` starts from a blank ChemCore internal document. The command takes a command
 script and an output path. The save format is inferred from `--out`:

@@ -5,6 +5,12 @@ use std::path::{Path, PathBuf};
 
 const AGENT_GUIDE_FILE: &str = "chemcore-agent-guide.md";
 const DETAILED_CLI_GUIDE_FILE: &str = "chemcore-cli-guide.md";
+pub(crate) const CLI_PROTOCOL_VERSION: &str = "chemcore-cli-protocol.v1";
+pub(crate) const SELECTOR_PROTOCOL_VERSION: &str = "chemcore-selector.v1";
+pub(crate) const SESSION_PROTOCOL_VERSION: &str = "chemcore-cli-session-jsonl.v1";
+pub(crate) const CAPTURE_MANIFEST_VERSION: &str = "chemcore-cli-capture-manifest.v1";
+pub(crate) const ERROR_MODEL_VERSION: &str = "chemcore-cli-error.v1";
+pub(crate) const ENTRYPOINTS_SCHEMA_VERSION: &str = "chemcore.entrypoints.v1";
 
 #[derive(Clone, Copy)]
 struct GuideSpec {
@@ -53,6 +59,12 @@ struct CommandSpec {
 
 const COMMAND_SPECS: &[CommandSpec] = &[
     CommandSpec {
+        name: "version",
+        summary: "Return ChemCore CLI product and protocol versions as JSON.",
+        usage: "chemcore-cli version [--pretty] [--out <path>]",
+        example: "chemcore-cli version --pretty",
+    },
+    CommandSpec {
         name: "capabilities",
         summary: "Return the machine-readable CLI protocol, commands, formats, and examples.",
         usage: "chemcore-cli capabilities [--pretty] [--out <path>]",
@@ -61,7 +73,7 @@ const COMMAND_SPECS: &[CommandSpec] = &[
     CommandSpec {
         name: "schema",
         summary: "Return machine-readable command, target, and capture schemas.",
-        usage: "chemcore-cli schema [commands|targets|capture|context|detail|guide|copy|json-output|command-script|all] [--pretty] [--out <path>]",
+        usage: "chemcore-cli schema [protocol|commands|targets|capture|context|detail|guide|copy|json-output|command-script|all] [--pretty] [--out <path>]",
         example: "chemcore-cli schema capture --pretty",
     },
     CommandSpec {
@@ -337,7 +349,7 @@ fn command_error_suggestions(
         })],
         _ if message.contains("Unknown schema topic") => vec![json!({
             "action": "choose_schema_topic",
-            "accepted": ["commands", "targets", "bounds", "capture", "context", "detail", "guide", "copy", "session", "json-output", "command-script", "all"],
+            "accepted": ["protocol", "commands", "targets", "bounds", "capture", "context", "detail", "guide", "copy", "session", "json-output", "command-script", "all"],
             "example": "chemcore-cli schema capture --pretty",
         })],
         _ => spec
@@ -481,6 +493,15 @@ fn command_specs_json() -> Vec<Value> {
 
 fn protocol_schemas_json() -> Value {
     json!({
+        "protocol": {
+            "cli": CLI_PROTOCOL_VERSION,
+            "selector": SELECTOR_PROTOCOL_VERSION,
+            "session": SESSION_PROTOCOL_VERSION,
+            "captureManifest": CAPTURE_MANIFEST_VERSION,
+            "errorModel": ERROR_MODEL_VERSION,
+            "entrypoints": ENTRYPOINTS_SCHEMA_VERSION,
+            "compatibility": "v1 fields are intended to remain backward compatible throughout the 1.0 beta line unless explicitly marked experimental."
+        },
         "jsonOutput": {
             "default": "Commands that print JSON emit compact single-line JSON unless --pretty is present.",
             "pretty": "--pretty only changes JSON whitespace: compact JSON becomes line-broken and indented. It does not change fields, values, output files, exit code, schema, ordering, or command behavior.",
@@ -532,6 +553,7 @@ fn protocol_schemas_json() -> Value {
         },
         "session": {
             "description": "Starts a JSON Lines protocol over stdin/stdout. The process keeps one Engine and parsed ChemCore document in memory until close or exit.",
+            "protocol": SESSION_PROTOCOL_VERSION,
             "operations": ["open", "targets", "detail", "context", "capture", "execute", "save", "status", "close", "exit"],
             "ready": "The first stdout line is a ready event. Send one compact JSON request per line and read one compact JSON response per line.",
             "historyPolicy": "The session does not persist undo history. execute responses report before/after revision and per-command results; callers should maintain history with git, files, or their own log.",
@@ -566,7 +588,8 @@ fn capabilities_value() -> Value {
         "ok": true,
         "name": "chemcore-cli",
         "version": env!("CARGO_PKG_VERSION"),
-        "protocol": "chemcore-cli-agent",
+        "protocol": CLI_PROTOCOL_VERSION,
+        "protocols": protocol_versions_value(),
         "stdout": {
             "default": "json",
             "pretty": "--pretty only changes JSON whitespace: compact JSON becomes line-broken and indented. It does not change fields, values, output files, exit code, schema, ordering, or command behavior.",
@@ -597,7 +620,8 @@ fn capabilities_value() -> Value {
 pub(crate) fn about_value() -> Value {
     json!({
         "ok": true,
-        "schema": "chemcore.entrypoints.v1",
+        "schema": ENTRYPOINTS_SCHEMA_VERSION,
+        "protocols": protocol_versions_value(),
         "product": {
             "name": "Chemcore",
             "version": env!("CARGO_PKG_VERSION"),
@@ -669,6 +693,32 @@ pub(crate) fn about_value() -> Value {
             "Run `chemcore-cli capture <document> --target <selector> --out crop.png --scale 6` for deterministic high-resolution cropped inspection.",
             "Run `chemcore-cli copy <document> --target <selector>` to place an editable Office/OLE payload on the Windows clipboard."
         ]
+    })
+}
+
+pub(crate) fn version_text() -> String {
+    format!("chemcore-cli {}", env!("CARGO_PKG_VERSION"))
+}
+
+fn protocol_versions_value() -> Value {
+    json!({
+        "cli": CLI_PROTOCOL_VERSION,
+        "selector": SELECTOR_PROTOCOL_VERSION,
+        "session": SESSION_PROTOCOL_VERSION,
+        "captureManifest": CAPTURE_MANIFEST_VERSION,
+        "errorModel": ERROR_MODEL_VERSION,
+        "entrypoints": ENTRYPOINTS_SCHEMA_VERSION,
+    })
+}
+
+pub(crate) fn version_value() -> Value {
+    json!({
+        "ok": true,
+        "product": "Chemcore",
+        "cli": "chemcore-cli",
+        "version": env!("CARGO_PKG_VERSION"),
+        "protocol": CLI_PROTOCOL_VERSION,
+        "protocols": protocol_versions_value(),
     })
 }
 
@@ -949,6 +999,11 @@ pub(crate) fn capabilities_command(args: &[String]) -> Result<(), String> {
     write_json_value(capabilities_value(), output.as_deref(), pretty)
 }
 
+pub(crate) fn version_command(args: &[String]) -> Result<(), String> {
+    let (output, pretty) = parse_common_json_output_args(args)?;
+    write_json_value(version_value(), output.as_deref(), pretty)
+}
+
 pub(crate) fn about_command(args: &[String]) -> Result<(), String> {
     let (output, pretty) = parse_common_json_output_args(args)?;
     write_json_value(about_value(), output.as_deref(), pretty)
@@ -1073,7 +1128,7 @@ pub(crate) fn schema_command(args: &[String]) -> Result<(), String> {
         json!({ "ok": true, "topic": topic, "schema": schema })
     } else {
         return Err(format!(
-            "Unknown schema topic '{topic}'. Expected commands, targets, bounds, capture, context, detail, guide, copy, session, json-output, command-script, or all."
+            "Unknown schema topic '{topic}'. Expected protocol, commands, targets, bounds, capture, context, detail, guide, copy, session, json-output, command-script, or all."
         ));
     };
     write_json_value(value, output.as_deref(), pretty)
@@ -1081,6 +1136,7 @@ pub(crate) fn schema_command(args: &[String]) -> Result<(), String> {
 
 pub(crate) fn schema_topic_key(topic: &str) -> Option<&'static str> {
     match topic {
+        "protocol" | "protocols" | "version" | "versions" => Some("protocol"),
         "target" | "targets" => Some("target"),
         "bounds" => Some("bounds"),
         "capture" => Some("capture"),

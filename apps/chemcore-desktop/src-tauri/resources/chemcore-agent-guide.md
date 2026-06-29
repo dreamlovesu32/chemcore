@@ -11,6 +11,7 @@ Run these commands first:
 ```powershell
 chemcore-cli guide --pretty
 chemcore-cli guide --kind detailed --pretty
+chemcore-cli version --pretty
 chemcore-cli doctor --pretty
 chemcore-cli about --pretty
 chemcore-cli capabilities --pretty
@@ -25,6 +26,10 @@ ordering, and command behavior stay the same.
 
 For complete output, pass `--out <path>`. Large payloads and guide content are
 available from the file written by `--out`.
+
+Use `chemcore-cli --version` for a one-line shell version check. Use
+`chemcore-cli version --pretty` and `chemcore-cli schema protocol --pretty` when
+an agent needs product and protocol versions as JSON.
 
 This quick guide is installed as `chemcore-agent-guide.md`. The detailed English
 CLI guide is installed as `chemcore-cli-guide.md`. To include guide Markdown in

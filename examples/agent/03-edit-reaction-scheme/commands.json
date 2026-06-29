@@ -1,0 +1,31 @@
+[
+  {
+    "type": "add-text",
+    "position": { "x": 80.0, "y": 120.0 },
+    "text": "PhBr"
+  },
+  {
+    "type": "add-arrow",
+    "begin": { "x": 150.0, "y": 120.0 },
+    "end": { "x": 245.0, "y": 120.0 },
+    "variant": "solid",
+    "headSize": "small",
+    "curve": "arc270",
+    "headStyle": "full",
+    "tailStyle": "none",
+    "head": true,
+    "tail": false,
+    "bold": false,
+    "noGo": "none"
+  },
+  {
+    "type": "add-text",
+    "position": { "x": 285.0, "y": 120.0 },
+    "text": "PhOH"
+  },
+  {
+    "type": "add-text",
+    "position": { "x": 175.0, "y": 92.0 },
+    "text": "Cu, base"
+  }
+]

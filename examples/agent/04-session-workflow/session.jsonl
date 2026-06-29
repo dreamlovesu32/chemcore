@@ -1,0 +1,5 @@
+{"id":1,"op":"targets"}
+{"id":2,"op":"detail","target":"object:obj_bracket_001","summaryOnly":true}
+{"id":3,"op":"context","target":"object:obj_line_001","radius":45,"limit":20}
+{"id":4,"op":"capture","target":["object:obj_bracket_001","object:obj_text_008"],"out":"session-selection.png","width":1400}
+{"id":5,"op":"exit"}

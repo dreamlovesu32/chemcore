@@ -41,6 +41,7 @@ npm.cmd run cli -- --help
 ```powershell
 chemcore-cli guide --pretty
 chemcore-cli guide --kind detailed --pretty
+chemcore-cli version --pretty
 chemcore-cli doctor --pretty
 chemcore-cli capabilities --pretty
 ```
@@ -79,12 +80,14 @@ chemcore-cli session input.cdxml
 打开文件就是把文件路径作为 `inspect`、`run`、`convert` 或 `export` 的输入参数。
 
 ```text
+chemcore-cli --version
+chemcore-cli version [--pretty] [--out <path>]
 chemcore-cli guide [--kind agent|detailed|all] [--include-content] [--pretty] [--out <path>]
 chemcore-cli about [--pretty] [--out <path>]
 chemcore-cli capabilities [--pretty] [--out <path>]
 chemcore-cli doctor [--pretty] [--out <path>]
 chemcore-cli examples [basic|capture-copy|all] [--pretty] [--out <path>]
-chemcore-cli schema [commands|targets|capture|context|detail|guide|copy|json-output|command-script|all] [--pretty] [--out <path>]
+chemcore-cli schema [protocol|commands|targets|capture|context|detail|guide|copy|json-output|command-script|all] [--pretty] [--out <path>]
 chemcore-cli inspect <input> [--include summary,objects,molecules,resources,styles] [--out <path>] [--pretty]
 chemcore-cli targets <input> [--out <path>] [--pretty]
 chemcore-cli context <input> --target <selector> [--target <selector> ...] [--targets <selector;selector>] [--radius <pt>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]
@@ -127,6 +130,13 @@ npm run cli -- convert input.cdxml output.ccjs
 - 错误 JSON 包含 `error.kind`、`message`、`hint`、`fix`、`usage`、`examples` 和 `suggestions`。
 - 缺参数错误使用 `error.kind="missing_argument"`，并包含 `error.fix.action="provide_required_argument"`，以及机器可读的 `missing` 和 `expected` 字段。
 - `error.fix` 是主要修复对象，`usage` 和 `examples` 提供命令上下文。
+
+协议 contract：
+
+- `chemcore-cli --version` 输出一行纯文本，适合 shell 检查。
+- `chemcore-cli version --pretty` 以 JSON 返回产品版本和协议版本。
+- `chemcore-cli schema protocol --pretty` 返回当前运行时的协议 id。
+- 面向机器的稳定 contract 放在 [docs/protocol](./protocol/README.md)。
 
 `new` 从空白 ChemCore 内部文档开始。命令接收命令脚本和输出路径。保存格式由 `--out` 后缀决定：
 

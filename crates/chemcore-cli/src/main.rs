@@ -5,7 +5,8 @@ use chemcore_desktop_service::DesktopDocumentService;
 use chemcore_engine::Engine;
 use protocol::{
     about_command, capabilities_command, doctor_command, examples_command, guide_command,
-    schema_command, schema_or_capabilities_for_help, CliError, CliResult,
+    schema_command, schema_or_capabilities_for_help, version_command, version_text, CliError,
+    CliResult,
 };
 use serde_json::Map;
 use serde_json::{json, Value};
@@ -38,6 +39,10 @@ fn run() -> CliResult<()> {
         capabilities_command(&[]).map_err(CliError::message)?;
         return Ok(());
     };
+    if matches!(command, "-V" | "--version") {
+        println!("{}", version_text());
+        return Ok(());
+    }
     if matches!(command, "-h" | "--help" | "help") {
         let help_args = if command == "help" { &args[1..] } else { &[] };
         schema_or_capabilities_for_help(help_args).map_err(CliError::message)?;
@@ -53,6 +58,7 @@ fn run() -> CliResult<()> {
     }
 
     match command {
+        "version" => version_command(&args[1..]).map_err(CliError::message),
         "capabilities" => capabilities_command(&args[1..]).map_err(CliError::message),
         "schema" => schema_command(&args[1..]).map_err(CliError::message),
         "doctor" => doctor_command(&args[1..]).map_err(CliError::message),
@@ -1506,6 +1512,8 @@ mod tests {
 
     #[test]
     fn schema_topics_accept_agent_friendly_aliases() {
+        assert_eq!(protocol::schema_topic_key("protocol"), Some("protocol"));
+        assert_eq!(protocol::schema_topic_key("version"), Some("protocol"));
         assert_eq!(protocol::schema_topic_key("target"), Some("target"));
         assert_eq!(protocol::schema_topic_key("targets"), Some("target"));
         assert_eq!(protocol::schema_topic_key("context"), Some("context"));
@@ -1524,6 +1532,23 @@ mod tests {
         assert_eq!(
             protocol::schema_topic_key("command-script"),
             Some("commandScript")
+        );
+    }
+
+    #[test]
+    fn version_metadata_is_machine_readable() {
+        assert_eq!(
+            protocol::version_text(),
+            format!("chemcore-cli {}", env!("CARGO_PKG_VERSION"))
+        );
+        let value = protocol::version_value();
+        assert_eq!(value["ok"], true);
+        assert_eq!(value["cli"], "chemcore-cli");
+        assert_eq!(value["version"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(value["protocol"], protocol::CLI_PROTOCOL_VERSION);
+        assert_eq!(
+            value["protocols"]["session"],
+            protocol::SESSION_PROTOCOL_VERSION
         );
     }
 
