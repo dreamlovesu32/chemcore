@@ -1487,6 +1487,20 @@ mod tests {
             agent::parse_target_selector("bond:b_1").unwrap(),
             agent::TargetSelector::Bond("b_1".to_string())
         );
+        assert_eq!(
+            agent::parse_target_selector("object:obj_1;bond:b_1").unwrap(),
+            agent::TargetSelector::Selection(vec![
+                agent::TargetSelector::Object("obj_1".to_string()),
+                agent::TargetSelector::Bond("b_1".to_string()),
+            ])
+        );
+        assert_eq!(
+            agent::parse_target_selector("selection:node:n_1;bond:b_1").unwrap(),
+            agent::TargetSelector::Selection(vec![
+                agent::TargetSelector::Node("n_1".to_string()),
+                agent::TargetSelector::Bond("b_1".to_string()),
+            ])
+        );
         assert!(agent::parse_target_selector("molecule:not-a-number").is_err());
     }
 

@@ -103,13 +103,13 @@ const COMMAND_SPECS: &[CommandSpec] = &[
     CommandSpec {
         name: "capture",
         summary: "Render a deterministic cropped SVG or high-resolution PNG for an object, molecule, node, bond, all content, or explicit bounds.",
-        usage: "chemcore-cli capture <input> --target <object:id|molecule:index|node:id|bond:id|all> [--out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--expand-left <pt>] [--pretty]",
-        example: "chemcore-cli capture input.cdxml --target molecule:0 --out mol-0.png --scale 6 --expand-rel 0.15",
+        usage: "chemcore-cli capture <input> --target <selector> [--target <selector> ...] [--targets <selector;selector>] [--out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--expand-left <pt>] [--pretty]",
+        example: "chemcore-cli capture input.cdxml --target molecule:0 --target object:obj_label --out selection.png --scale 6 --expand-rel 0.15",
     },
     CommandSpec {
         name: "context",
         summary: "Report nearby objects/components around a target, including bounds, ids, spatial relation, group/link metadata, and optional screenshot.",
-        usage: "chemcore-cli context <input> --target <selector> [--radius <pt>] [--expand-left <pt>] [--expand-rel <fraction>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]",
+        usage: "chemcore-cli context <input> --target <selector> [--target <selector> ...] [--targets <selector;selector>] [--radius <pt>] [--expand-left <pt>] [--expand-rel <fraction>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]",
         example: "chemcore-cli context input.cdxml --target molecule:1 --radius 80 --out context.json --capture-out context.png --scale 5 --pretty",
     },
     CommandSpec {
@@ -495,9 +495,12 @@ fn protocol_schemas_json() -> Value {
                 "object:<scene-object-id>",
                 "molecule:<zero-based-molecule-index>",
                 "node:<node-id>",
-                "bond:<bond-id>"
+                "bond:<bond-id>",
+                "bounds:<minX>,<minY>,<maxX>,<maxY>",
+                "selection:<selector;selector>"
             ],
-            "examples": ["object:obj_round_bracket", "molecule:0", "node:n_4", "bond:b_5"]
+            "multiSelect": "For capture/context, repeat --target, pass --targets <selector;selector>, use selection:<selector;selector>, or in JSONL session pass target/targets as an array. The crop box is the minimum bounds union, matching the GUI selection box.",
+            "examples": ["object:obj_round_bracket", "molecule:0", "node:n_4", "bond:b_5", "selection:object:obj_a;object:obj_b"]
         },
         "bounds": {
             "description": "World-space crop bounds in points.",
@@ -512,10 +515,12 @@ fn protocol_schemas_json() -> Value {
             "stdout": "JSON manifest only; rendered image data is written to --out or the default temp capture path.",
             "verification": "Capture manifests include output.verified=true and output.bytes after the rendered file is verified on disk.",
             "render": "Capture manifests include render.mode, render.primitiveCount, and render.targets. These describe how many render primitives and nearby node/bond/object targets were used to produce the crop.",
+            "multiSelect": "Multiple targets are cropped by their minimum union bounds. The rendered image includes everything visible inside that box plus requested expansion.",
             "usage": command_spec("capture").map(|spec| spec.usage).unwrap_or("")
         },
         "context": {
-            "description": "Returns objects, molecules, nodes, and bonds near a target. Entries include selector ids, bounds, center/edge distance, direction, overlap flags, group ancestry, child ids, and link metadata.",
+            "description": "Returns objects, molecules, nodes, and bonds near a target or multi-target selection. Entries include selector ids, bounds, center/edge distance, direction, overlap flags, selectionBoxRelation, group ancestry, child ids, and link metadata.",
+            "selectionBox": "context.selectionBox.contents lists objects/molecules/nodes/bonds inside the target box. Each item reports selectionBoxRelation=inside or partial and isTarget=true only for explicitly selected targets.",
             "screenshot": "Pass --capture-out <path.svg|path.png> to render the same context bounds. The capture object includes render.mode, render.primitiveCount, and render.targets when a screenshot is written.",
             "usage": command_spec("context").map(|spec| spec.usage).unwrap_or("")
         },

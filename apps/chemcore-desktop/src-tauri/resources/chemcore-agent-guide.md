@@ -94,6 +94,10 @@ bounds:<minX>,<minY>,<maxX>,<maxY>
 
 `bounds:` is for capture-style crops. `detail` accepts one `object:<id>`,
 `molecule:<index>`, `node:<id>`, or `bond:<id>` selector.
+`capture` and `context` accept multiple targets through repeated `--target`,
+`--targets <selector;selector>`, `selection:<selector;selector>`, or a JSONL
+session `target`/`targets` array. The crop box is the minimum bounds union,
+matching the GUI selection box.
 Use `inspect` for whole-document summaries.
 
 ## Discover Targets
@@ -109,6 +113,9 @@ The output groups stable selectors under `objects`, `molecules`, `nodes`, and
 
 Use `context` to ask what is around a target. It returns ids, bounds, directions,
 distances, and relationship metadata. It can also screenshot the same query box.
+For multi-target context, `selectionBox.contents` lists items inside the target
+box. `selectionBoxRelation` is `inside` or `partial`; `isTarget=true` marks the
+explicitly selected targets.
 
 ```powershell
 chemcore-cli context input.cdxml --target object:obj_shape_001 --radius 80 --out context.json --capture-out context.png --scale 5 --pretty
@@ -152,6 +159,12 @@ analysis.
 
 ```powershell
 chemcore-cli capture input.cdxml --target molecule:0 --out molecule.png --scale 6 --expand-rel 0.15 --pretty
+```
+
+Multiple targets use the same bounds logic as the GUI selection box:
+
+```powershell
+chemcore-cli capture input.cdxml --target object:obj_a --target object:obj_b --out selection.png --width 1800 --pretty
 ```
 
 If `--out` is omitted, `capture` writes a PNG to the OS temp `chemcore-cli`

@@ -103,9 +103,9 @@ chemcore-cli examples [basic|capture-copy|all] [--pretty] [--out <path>]
 chemcore-cli schema [commands|targets|capture|context|detail|guide|copy|json-output|command-script|all] [--pretty] [--out <path>]
 chemcore-cli inspect <input> [--include summary,objects,molecules,resources,styles] [--out <path>] [--pretty]
 chemcore-cli targets <input> [--out <path>] [--pretty]
-chemcore-cli context <input> --target <selector> [--radius <pt>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]
+chemcore-cli context <input> --target <selector> [--target <selector> ...] [--targets <selector;selector>] [--radius <pt>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]
 chemcore-cli detail <input> --target <object:id|molecule:index|node:id|bond:id> [--summary-only] [--include-resource] [--out <detail.json>] [--pretty]
-chemcore-cli capture <input> --target <selector> [--out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--pretty]
+chemcore-cli capture <input> --target <selector> [--target <selector> ...] [--targets <selector;selector>] [--out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--pretty]
 chemcore-cli copy <input> [--target <selector>] [--payload <payload.json>] [--no-copy] [--pretty]
 chemcore-cli session [input]
 chemcore-cli new [commands.json|-] --out <path> [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--pretty] [--quiet]
@@ -542,19 +542,26 @@ molecule:<zero-based-molecule-index>
 node:<node-id>
 bond:<bond-id>
 bounds:<minX>,<minY>,<maxX>,<maxY>
+selection:<selector;selector>
 ```
 
 `bounds:` is accepted by capture-style crops. `detail` accepts one
 `object:<id>`, `molecule:<index>`, `node:<id>`, or `bond:<id>` selector.
+`capture` and `context` accept multiple targets through repeated `--target`,
+`--targets <selector;selector>`, `selection:<selector;selector>`, or a JSONL
+session `target`/`targets` array. The target box is the minimum bounds union,
+matching the GUI selection box.
 
 `targets` returns stable selectors and bounds grouped under `objects`,
 `molecules`, `nodes`, and `bonds`. It is the discovery step before `context`,
 `detail`, `capture`, or `copy`.
 
 `context` returns nearby object summaries, molecule summaries, node summaries,
-bond summaries, bounds, direction, distance, overlap flags, group ancestry,
-child ids, and link metadata. It returns summaries by design. Use `detail` on a
-returned selector when raw JSON is needed.
+bond summaries, bounds, direction, distance, overlap flags, selection-box
+relation, group ancestry, child ids, and link metadata. `selectionBox.contents`
+lists items inside the target box; each item has `selectionBoxRelation="inside"`
+or `"partial"` and `isTarget=true` only for explicitly selected targets. Use
+`detail` on a returned selector when raw JSON is needed.
 
 `detail` returns one selected entity. By default, it includes raw JSON for that
 entity. Add `--summary-only` when ids, bounds, and relationship metadata are
@@ -562,7 +569,9 @@ sufficient. Add `--include-resource` for an object when the referenced resource
 is part of the requested response.
 
 `capture` writes the rendered crop to `--out` and writes a JSON manifest to
-stdout. If `--out` is omitted, it writes a PNG to the OS temp `chemcore-cli`
+stdout. For multiple targets, the crop is the target box minimum union and the
+image shows everything visible in that box plus requested expansion. If `--out`
+is omitted, it writes a PNG to the OS temp `chemcore-cli`
 directory and reports `output.defaulted=true` plus the exact `output.path`.
 It also emits a `warnings[]` entry with `kind="default_output_path"`.
 SVG output is vector. PNG output defaults to `--scale 4`; use `--scale`,

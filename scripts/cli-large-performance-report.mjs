@@ -427,6 +427,21 @@ const measuredTasks = [
       { label: "capture", path: taskOutput("context-node", "png") },
     ],
   }),
+  cliTask("context-selection-with-png", "context-capture", [
+    "context", rel(fixtureLargeCdxml),
+    "--target", discoveredTargets.node,
+    "--target", discoveredTargets.bond,
+    "--expand", "120",
+    "--out", rel(taskOutput("context-selection", "json")),
+    "--capture-out", rel(taskOutput("context-selection", "png")),
+    "--width", "1800",
+  ], {
+    jsonOutputPath: taskOutput("context-selection", "json"),
+    artifacts: [
+      { label: "context", path: taskOutput("context-selection", "json") },
+      { label: "capture", path: taskOutput("context-selection", "png") },
+    ],
+  }),
   cliTask("capture-node-high-scale", "capture", [
     "capture", rel(fixtureLargeCdxml),
     "--target", discoveredTargets.node,

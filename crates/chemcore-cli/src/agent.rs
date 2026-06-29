@@ -30,6 +30,7 @@ pub(crate) enum TargetSelector {
     Node(String),
     Bond(String),
     Bounds([f64; 4]),
+    Selection(Vec<TargetSelector>),
 }
 
 impl TargetSelector {
@@ -44,6 +45,14 @@ impl TargetSelector {
                 "bounds:{},{},{},{}",
                 bounds[0], bounds[1], bounds[2], bounds[3]
             ),
+            Self::Selection(targets) => format!(
+                "selection:{}",
+                targets
+                    .iter()
+                    .map(TargetSelector::selector)
+                    .collect::<Vec<_>>()
+                    .join(";")
+            ),
         }
     }
 
@@ -55,6 +64,7 @@ impl TargetSelector {
             Self::Node(_) => "node",
             Self::Bond(_) => "bond",
             Self::Bounds(_) => "bounds",
+            Self::Selection(_) => "selection",
         }
     }
 
@@ -74,6 +84,12 @@ impl TargetSelector {
                 "kind": self.kind(),
                 "selector": self.selector(),
                 "bounds": bounds_json(*bounds),
+            }),
+            Self::Selection(targets) => json!({
+                "kind": self.kind(),
+                "selector": self.selector(),
+                "targetCount": targets.len(),
+                "targets": targets.iter().map(TargetSelector::to_json).collect::<Vec<_>>(),
             }),
         }
     }
@@ -275,6 +291,48 @@ fn targets_report(input: &str, document: &ChemcoreDocument) -> Value {
     })
 }
 
+fn add_target_arg(target: &mut Option<TargetSelector>, next: TargetSelector) -> Result<(), String> {
+    match target.take() {
+        None => *target = Some(next),
+        Some(existing) => {
+            let mut targets = Vec::new();
+            collect_selection_targets(existing, &mut targets);
+            collect_selection_targets(next, &mut targets);
+            *target = Some(target_from_selection_targets(targets)?);
+        }
+    }
+    Ok(())
+}
+
+fn collect_selection_targets(target: TargetSelector, out: &mut Vec<TargetSelector>) {
+    match target {
+        TargetSelector::Selection(targets) => {
+            for target in targets {
+                collect_selection_targets(target, out);
+            }
+        }
+        target => out.push(target),
+    }
+}
+
+fn target_from_selection_targets(
+    mut targets: Vec<TargetSelector>,
+) -> Result<TargetSelector, String> {
+    if targets.is_empty() {
+        return Err("Selection requires at least one target.".to_string());
+    }
+    if targets.len() == 1 {
+        return Ok(targets.remove(0));
+    }
+    if targets
+        .iter()
+        .any(|target| matches!(target, TargetSelector::All))
+    {
+        return Err("Multi-target selection uses object, molecule, node, bond, or bounds selectors; use all by itself for whole-document capture.".to_string());
+    }
+    Ok(TargetSelector::Selection(targets))
+}
+
 pub(crate) fn capture_command(args: &[String]) -> Result<(), String> {
     let mut input = None;
     let mut target = None;
@@ -288,48 +346,72 @@ pub(crate) fn capture_command(args: &[String]) -> Result<(), String> {
         match args[index].as_str() {
             "--target" | "-t" => {
                 index += 1;
-                target = Some(parse_target_selector(
-                    args.get(index)
-                        .ok_or_else(|| "--target requires a selector.".to_string())?,
-                )?);
+                add_target_arg(
+                    &mut target,
+                    parse_target_selector(
+                        args.get(index)
+                            .ok_or_else(|| "--target requires a selector.".to_string())?,
+                    )?,
+                )?;
+            }
+            "--targets" => {
+                index += 1;
+                add_target_arg(
+                    &mut target,
+                    parse_target_selection_arg(args.get(index).ok_or_else(|| {
+                        "--targets requires selectors separated by semicolons.".to_string()
+                    })?)?,
+                )?;
             }
             "--object" => {
                 index += 1;
-                target = Some(TargetSelector::Object(
-                    args.get(index)
-                        .ok_or_else(|| "--object requires an object id.".to_string())?
-                        .clone(),
-                ));
+                add_target_arg(
+                    &mut target,
+                    TargetSelector::Object(
+                        args.get(index)
+                            .ok_or_else(|| "--object requires an object id.".to_string())?
+                            .clone(),
+                    ),
+                )?;
             }
             "--molecule" => {
                 index += 1;
-                target = Some(TargetSelector::Molecule(parse_usize_arg(
-                    "--molecule",
-                    args.get(index),
-                )?));
+                add_target_arg(
+                    &mut target,
+                    TargetSelector::Molecule(parse_usize_arg("--molecule", args.get(index))?),
+                )?;
             }
             "--node" => {
                 index += 1;
-                target = Some(TargetSelector::Node(
-                    args.get(index)
-                        .ok_or_else(|| "--node requires a node id.".to_string())?
-                        .clone(),
-                ));
+                add_target_arg(
+                    &mut target,
+                    TargetSelector::Node(
+                        args.get(index)
+                            .ok_or_else(|| "--node requires a node id.".to_string())?
+                            .clone(),
+                    ),
+                )?;
             }
             "--bond" => {
                 index += 1;
-                target = Some(TargetSelector::Bond(
-                    args.get(index)
-                        .ok_or_else(|| "--bond requires a bond id.".to_string())?
-                        .clone(),
-                ));
+                add_target_arg(
+                    &mut target,
+                    TargetSelector::Bond(
+                        args.get(index)
+                            .ok_or_else(|| "--bond requires a bond id.".to_string())?
+                            .clone(),
+                    ),
+                )?;
             }
             "--bounds" => {
                 index += 1;
-                target = Some(TargetSelector::Bounds(parse_bounds_arg(
-                    args.get(index)
-                        .ok_or_else(|| "--bounds requires minX,minY,maxX,maxY.".to_string())?,
-                )?));
+                add_target_arg(
+                    &mut target,
+                    TargetSelector::Bounds(parse_bounds_arg(
+                        args.get(index)
+                            .ok_or_else(|| "--bounds requires minX,minY,maxX,maxY.".to_string())?,
+                    )?),
+                )?;
             }
             "--out" | "-o" => {
                 index += 1;
@@ -518,7 +600,7 @@ pub(crate) fn capture_command(args: &[String]) -> Result<(), String> {
     }
     let input = input.ok_or_else(|| "capture requires an input file.".to_string())?;
     let target = target.ok_or_else(|| {
-        "capture requires --target <object:id|molecule:index|node:id|bond:id|all> or --bounds."
+        "capture requires --target <object:id|molecule:index|node:id|bond:id|all>, repeated --target values, --targets, or --bounds."
             .to_string()
     })?;
     let (output, format, output_defaulted) = resolve_capture_output(output, format)?;
@@ -1051,6 +1133,7 @@ fn session_ready_json(session: Option<&SessionDocument>) -> Value {
             "request": {"id": 1, "op": "help"},
             "open": {"id": 2, "op": "open", "input": "input.cdxml"},
             "capture": {"id": 3, "op": "capture", "target": "molecule:0", "out": "crop.png", "scale": 6},
+            "captureSelection": {"id": 4, "op": "capture", "target": ["object:obj_a", "object:obj_b"], "out": "selection.png", "width": 1800},
             "exit": {"id": 99, "op": "exit"},
         }
     })
@@ -1064,15 +1147,15 @@ fn session_help_json() -> Value {
             "open": {"required": ["input"], "description": "Load a document into the session."},
             "targets": {"description": "Return stable selectors and bounds for the open document."},
             "detail": {"required": ["target"], "description": "Return one object/molecule/node/bond detail JSON."},
-            "context": {"required": ["target"], "optional": ["radius", "captureOut", "scale", "width", "height", "limit"], "description": "Return nearby summaries and optionally a screenshot."},
-            "capture": {"required": ["target"], "optional": ["out", "format", "scale", "width", "height", "expand", "expandRel"], "description": "Write a precise crop; out may be omitted for a verified temp PNG."},
+            "context": {"required": ["target"], "optional": ["targets", "radius", "captureOut", "scale", "width", "height", "limit"], "description": "Return nearby summaries and optionally a screenshot. target/targets may be a selector string or an array of selector strings."},
+            "capture": {"required": ["target"], "optional": ["targets", "out", "format", "scale", "width", "height", "expand", "expandRel"], "description": "Write a precise crop; target/targets may be a selector string or an array. Multi-target crops use the minimum union bounds."},
             "execute": {"required": ["command or commands"], "optional": ["continueOnError"], "description": "Run one or more engine JSON commands against the in-memory document."},
             "save": {"required": ["out"], "optional": ["format"], "description": "Save the current in-memory document."},
             "status": {"description": "Return the open document summary."},
             "close": {"description": "Close the open document without saving."},
             "exit": {"description": "Terminate the session process."}
         },
-        "targetSelectors": ["all", "object:<id>", "molecule:<index>", "node:<id>", "bond:<id>", "bounds:minX,minY,maxX,maxY"]
+        "targetSelectors": ["all", "object:<id>", "molecule:<index>", "node:<id>", "bond:<id>", "bounds:minX,minY,maxX,maxY", "selection:<selector;selector>"]
     })
 }
 
@@ -1105,8 +1188,11 @@ fn request_required_target(request: &Value) -> Result<TargetSelector, String> {
 }
 
 fn request_target(request: &Value) -> Result<Option<TargetSelector>, String> {
-    if let Some(target) = request.get("target").and_then(Value::as_str) {
-        return parse_target_selector(target).map(Some);
+    if let Some(target) = request.get("target") {
+        return parse_target_value(target).map(Some);
+    }
+    if let Some(targets) = request.get("targets") {
+        return parse_target_value(targets).map(Some);
     }
     if let Some(id) = request.get("object").and_then(Value::as_str) {
         return Ok(Some(TargetSelector::Object(id.to_string())));
@@ -1126,6 +1212,25 @@ fn request_target(request: &Value) -> Result<Option<TargetSelector>, String> {
             .map(Some);
     }
     Ok(None)
+}
+
+fn parse_target_value(value: &Value) -> Result<TargetSelector, String> {
+    if let Some(target) = value.as_str() {
+        return parse_target_selector(target);
+    }
+    let Some(values) = value.as_array() else {
+        return Err(
+            "target must be a selector string or an array of selector strings.".to_string(),
+        );
+    };
+    let mut targets = Vec::new();
+    for value in values {
+        let Some(target) = value.as_str() else {
+            return Err("target arrays must contain selector strings.".to_string());
+        };
+        collect_selection_targets(parse_target_selector(target)?, &mut targets);
+    }
+    target_from_selection_targets(targets)
 }
 
 fn parse_bounds_value(value: &Value) -> Result<[f64; 4], String> {
@@ -1350,41 +1455,62 @@ pub(crate) fn context_command(args: &[String]) -> Result<(), String> {
         match args[index].as_str() {
             "--target" | "-t" | "--around" => {
                 index += 1;
-                target = Some(parse_target_selector(
-                    args.get(index)
-                        .ok_or_else(|| "--target requires a selector.".to_string())?,
-                )?);
+                add_target_arg(
+                    &mut target,
+                    parse_target_selector(
+                        args.get(index)
+                            .ok_or_else(|| "--target requires a selector.".to_string())?,
+                    )?,
+                )?;
+            }
+            "--targets" => {
+                index += 1;
+                add_target_arg(
+                    &mut target,
+                    parse_target_selection_arg(args.get(index).ok_or_else(|| {
+                        "--targets requires selectors separated by semicolons.".to_string()
+                    })?)?,
+                )?;
             }
             "--object" => {
                 index += 1;
-                target = Some(TargetSelector::Object(
-                    args.get(index)
-                        .ok_or_else(|| "--object requires an object id.".to_string())?
-                        .clone(),
-                ));
+                add_target_arg(
+                    &mut target,
+                    TargetSelector::Object(
+                        args.get(index)
+                            .ok_or_else(|| "--object requires an object id.".to_string())?
+                            .clone(),
+                    ),
+                )?;
             }
             "--molecule" => {
                 index += 1;
-                target = Some(TargetSelector::Molecule(parse_usize_arg(
-                    "--molecule",
-                    args.get(index),
-                )?));
+                add_target_arg(
+                    &mut target,
+                    TargetSelector::Molecule(parse_usize_arg("--molecule", args.get(index))?),
+                )?;
             }
             "--node" => {
                 index += 1;
-                target = Some(TargetSelector::Node(
-                    args.get(index)
-                        .ok_or_else(|| "--node requires a node id.".to_string())?
-                        .clone(),
-                ));
+                add_target_arg(
+                    &mut target,
+                    TargetSelector::Node(
+                        args.get(index)
+                            .ok_or_else(|| "--node requires a node id.".to_string())?
+                            .clone(),
+                    ),
+                )?;
             }
             "--bond" => {
                 index += 1;
-                target = Some(TargetSelector::Bond(
-                    args.get(index)
-                        .ok_or_else(|| "--bond requires a bond id.".to_string())?
-                        .clone(),
-                ));
+                add_target_arg(
+                    &mut target,
+                    TargetSelector::Bond(
+                        args.get(index)
+                            .ok_or_else(|| "--bond requires a bond id.".to_string())?
+                            .clone(),
+                    ),
+                )?;
             }
             "--out" | "-o" => {
                 index += 1;
@@ -1541,7 +1667,7 @@ pub(crate) fn context_command(args: &[String]) -> Result<(), String> {
     }
     let input = input.ok_or_else(|| "context requires an input file.".to_string())?;
     let target = target.ok_or_else(|| {
-        "context requires --target <object:id|molecule:index|node:id|bond:id|all>.".to_string()
+        "context requires --target <object:id|molecule:index|node:id|bond:id|all> or multiple targets via repeated --target or --targets.".to_string()
     })?;
     let engine = load_engine_from_file(&input)?;
     let document = engine_document(&engine)?;
@@ -1685,9 +1811,12 @@ pub(crate) fn parse_target_selector(value: &str) -> Result<TargetSelector, Strin
     if value.eq_ignore_ascii_case("all") {
         return Ok(TargetSelector::All);
     }
+    if value.contains(';') {
+        return parse_target_selection_arg(value);
+    }
     let Some((kind, id)) = value.split_once(':') else {
         return Err(format!(
-            "Invalid target selector '{value}'. Expected all, object:<id>, molecule:<index>, node:<id>, or bond:<id>."
+            "Invalid target selector '{value}'. Expected all, object:<id>, molecule:<index>, node:<id>, bond:<id>, bounds:<minX,minY,maxX,maxY>, or selection:<selector;selector>."
         ));
     };
     let id = id.trim();
@@ -1705,10 +1834,23 @@ pub(crate) fn parse_target_selector(value: &str) -> Result<TargetSelector, Strin
         "node" | "atom" => Ok(TargetSelector::Node(id.to_string())),
         "bond" => Ok(TargetSelector::Bond(id.to_string())),
         "bounds" => parse_bounds_arg(id).map(TargetSelector::Bounds),
+        "selection" | "targets" => parse_target_selection_arg(id),
         _ => Err(format!(
-            "Invalid target selector '{value}'. Expected all, object:<id>, molecule:<index>, node:<id>, or bond:<id>."
+            "Invalid target selector '{value}'. Expected all, object:<id>, molecule:<index>, node:<id>, bond:<id>, bounds:<minX,minY,maxX,maxY>, or selection:<selector;selector>."
         )),
     }
+}
+
+fn parse_target_selection_arg(value: &str) -> Result<TargetSelector, String> {
+    let mut targets = Vec::new();
+    for part in value
+        .split(';')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+    {
+        collect_selection_targets(parse_target_selector(part)?, &mut targets);
+    }
+    target_from_selection_targets(targets)
 }
 
 fn parse_usize_arg(name: &str, value: Option<&String>) -> Result<usize, String> {
@@ -1793,13 +1935,12 @@ fn context_report(
                 "visible": info.visible,
                 "bounds": bounds_json(info.bounds),
                 "spatial": spatial_relation_json(target_box, info.bounds),
+                "selectionBoxRelation": selection_box_relation(target_box, info.bounds),
                 "relationships": object_relationship_json(info),
                 "isTarget": target_matches_object(target, info),
             })
         })
         .collect::<Vec<_>>();
-    sort_context_entries(&mut objects);
-    objects.truncate(limit);
 
     let mut molecules = document
         .editable_fragments()
@@ -1819,13 +1960,12 @@ fn context_report(
                     "bondCount": entry.fragment.bonds.len(),
                     "bounds": bounds_json(bounds),
                     "spatial": spatial_relation_json(target_box, bounds),
-                    "isTarget": matches!(target, TargetSelector::Molecule(target_index) if *target_index == index),
+                    "selectionBoxRelation": selection_box_relation(target_box, bounds),
+                    "isTarget": target_matches_molecule(target, index),
                 })
             })
         })
         .collect::<Vec<_>>();
-    sort_context_entries(&mut molecules);
-    molecules.truncate(limit);
 
     let mut nodes = Vec::new();
     let mut bonds = Vec::new();
@@ -1843,7 +1983,8 @@ fn context_report(
                     "atomicNumber": node.atomic_number,
                     "bounds": bounds_json(bounds),
                     "spatial": spatial_relation_json(target_box, bounds),
-                    "isTarget": matches!(target, TargetSelector::Node(id) if id == &node.id),
+                    "selectionBoxRelation": selection_box_relation(target_box, bounds),
+                    "isTarget": target_matches_node(target, &node.id),
                 }));
             }
         }
@@ -1863,13 +2004,20 @@ fn context_report(
                     "order": bond.order,
                     "bounds": bounds_json(bounds),
                     "spatial": spatial_relation_json(target_box, bounds),
-                    "isTarget": matches!(target, TargetSelector::Bond(id) if id == &bond.id),
+                    "selectionBoxRelation": selection_box_relation(target_box, bounds),
+                    "isTarget": target_matches_bond(target, &bond.id),
                 }));
             }
         }
     }
+    let selection_box =
+        selection_box_summary(target_box, &objects, &molecules, &nodes, &bonds, limit);
+    sort_context_entries(&mut objects);
+    sort_context_entries(&mut molecules);
     sort_context_entries(&mut nodes);
     sort_context_entries(&mut bonds);
+    objects.truncate(limit);
+    molecules.truncate(limit);
     nodes.truncate(limit);
     bonds.truncate(limit);
 
@@ -1881,6 +2029,7 @@ fn context_report(
             "target": bounds_json(target_box),
             "query": bounds_json(query_bounds),
         },
+        "selectionBox": selection_box,
         "expansion": expansion.to_json(),
         "counts": {
             "objects": objects.len(),
@@ -1913,7 +2062,7 @@ fn detail_report(
         }
         TargetSelector::Node(id) => node_detail_json(document, id, options)?,
         TargetSelector::Bond(id) => bond_detail_json(document, id, options)?,
-        TargetSelector::All | TargetSelector::Bounds(_) => {
+        TargetSelector::All | TargetSelector::Bounds(_) | TargetSelector::Selection(_) => {
             return Err(
                 "detail requires object:<id>, molecule:<index>, node:<id>, or bond:<id>. Use inspect for whole-document JSON."
                     .to_string(),
@@ -2329,12 +2478,130 @@ fn target_relationships_json(target: &TargetSelector, infos: &[SceneObjectInfo])
         TargetSelector::Bond(id) => json!({
             "bondId": id,
         }),
+        TargetSelector::Selection(targets) => json!({
+            "targets": targets
+                .iter()
+                .map(|target| json!({
+                    "target": target.to_json(),
+                    "relationships": target_relationships_json(target, infos),
+                }))
+                .collect::<Vec<_>>(),
+        }),
         TargetSelector::All | TargetSelector::Bounds(_) => Value::Null,
     }
 }
 
 fn target_matches_object(target: &TargetSelector, info: &SceneObjectInfo) -> bool {
-    matches!(target, TargetSelector::Object(id) if id == &info.id)
+    match target {
+        TargetSelector::Object(id) => id == &info.id,
+        TargetSelector::Selection(targets) => targets
+            .iter()
+            .any(|target| target_matches_object(target, info)),
+        _ => false,
+    }
+}
+
+fn target_matches_molecule(target: &TargetSelector, index: usize) -> bool {
+    match target {
+        TargetSelector::Molecule(target_index) => *target_index == index,
+        TargetSelector::Selection(targets) => targets
+            .iter()
+            .any(|target| target_matches_molecule(target, index)),
+        _ => false,
+    }
+}
+
+fn target_matches_node(target: &TargetSelector, id: &str) -> bool {
+    match target {
+        TargetSelector::Node(target_id) => target_id == id,
+        TargetSelector::Selection(targets) => {
+            targets.iter().any(|target| target_matches_node(target, id))
+        }
+        _ => false,
+    }
+}
+
+fn target_matches_bond(target: &TargetSelector, id: &str) -> bool {
+    match target {
+        TargetSelector::Bond(target_id) => target_id == id,
+        TargetSelector::Selection(targets) => {
+            targets.iter().any(|target| target_matches_bond(target, id))
+        }
+        _ => false,
+    }
+}
+
+fn selection_box_relation(target_box: [f64; 4], bounds: [f64; 4]) -> &'static str {
+    if bounds_contains(target_box, bounds) {
+        "inside"
+    } else if bounds_intersect(target_box, bounds) {
+        "partial"
+    } else {
+        "outside"
+    }
+}
+
+fn selection_box_summary(
+    target_box: [f64; 4],
+    objects: &[Value],
+    molecules: &[Value],
+    nodes: &[Value],
+    bonds: &[Value],
+    limit: usize,
+) -> Value {
+    json!({
+        "bounds": bounds_json(target_box),
+        "contents": {
+            "objects": selection_box_entries(objects, limit),
+            "molecules": selection_box_entries(molecules, limit),
+            "nodes": selection_box_entries(nodes, limit),
+            "bonds": selection_box_entries(bonds, limit),
+        }
+    })
+}
+
+fn selection_box_entries(entries: &[Value], limit: usize) -> Value {
+    let mut count = 0usize;
+    let mut items = Vec::new();
+    for entry in entries {
+        let relation = entry
+            .get("selectionBoxRelation")
+            .and_then(Value::as_str)
+            .unwrap_or("outside");
+        if relation == "outside" {
+            continue;
+        }
+        count += 1;
+        if items.len() < limit {
+            items.push(selection_box_entry_summary(entry));
+        }
+    }
+    json!({
+        "count": count,
+        "truncated": count > items.len(),
+        "items": items,
+    })
+}
+
+fn selection_box_entry_summary(entry: &Value) -> Value {
+    let mut summary = Map::new();
+    for key in [
+        "selector",
+        "kind",
+        "id",
+        "index",
+        "objectId",
+        "type",
+        "name",
+        "bounds",
+        "selectionBoxRelation",
+        "isTarget",
+    ] {
+        if let Some(value) = entry.get(key) {
+            summary.insert(key.to_string(), value.clone());
+        }
+    }
+    Value::Object(summary)
 }
 
 fn spatial_relation_json(target: [f64; 4], other: [f64; 4]) -> Value {
@@ -2532,6 +2799,13 @@ fn target_bounds_fast(document: &ChemcoreDocument, target: &TargetSelector) -> O
     match target {
         TargetSelector::All => document_fast_bounds(document),
         TargetSelector::Bounds(bounds) => Some(*bounds),
+        TargetSelector::Selection(targets) => {
+            let mut out = None;
+            for target in targets {
+                include_bounds(&mut out, target_bounds_fast(document, target)?);
+            }
+            out
+        }
         TargetSelector::Object(id) => document
             .find_scene_object(id)
             .and_then(|object| scene_object_fast_bounds(document, object)),
@@ -2836,6 +3110,13 @@ fn target_bounds(document: &ChemcoreDocument, target: &TargetSelector) -> Result
     if let TargetSelector::Bounds(bounds) = target {
         return Ok(*bounds);
     }
+    if let TargetSelector::Selection(targets) = target {
+        let mut out = None;
+        for target in targets {
+            include_bounds(&mut out, target_bounds(document, target)?);
+        }
+        return out.ok_or_else(|| "Selection target has no members.".to_string());
+    }
     if let Some(bounds) = target_bounds_fast(document, target) {
         return Ok(bounds);
     }
@@ -2855,6 +3136,13 @@ fn render_primitives_for_target(
     match target {
         TargetSelector::All => Ok(render_document(document)),
         TargetSelector::Bounds(_) => Ok(render_document(document)),
+        TargetSelector::Selection(targets) => {
+            let mut primitives = Vec::new();
+            for target in targets {
+                primitives.extend(render_primitives_for_target(document, target)?);
+            }
+            Ok(primitives)
+        }
         TargetSelector::Object(id) => {
             if document.find_scene_object(id).is_none() {
                 return Err(format!("Object target not found: {id}. Run 'chemcore-cli targets <input>' to list valid selectors."));
@@ -3166,6 +3454,9 @@ fn clipboard_document_for_target(
         }
         TargetSelector::Bounds(_) => {
             return Err("Bounds targets cannot be copied as editable Office objects.".to_string())
+        }
+        TargetSelector::Selection(_) => {
+            return Err("Selection targets cannot be copied as a single editable Office object. Use copy all, object, molecule, node, or bond.".to_string())
         }
     };
     clipboard_document.document.id = "doc_clipboard_selection".to_string();

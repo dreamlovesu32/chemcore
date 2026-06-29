@@ -87,9 +87,9 @@ chemcore-cli examples [basic|capture-copy|all] [--pretty] [--out <path>]
 chemcore-cli schema [commands|targets|capture|context|detail|guide|copy|json-output|command-script|all] [--pretty] [--out <path>]
 chemcore-cli inspect <input> [--include summary,objects,molecules,resources,styles] [--out <path>] [--pretty]
 chemcore-cli targets <input> [--out <path>] [--pretty]
-chemcore-cli context <input> --target <selector> [--radius <pt>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]
+chemcore-cli context <input> --target <selector> [--target <selector> ...] [--targets <selector;selector>] [--radius <pt>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]
 chemcore-cli detail <input> --target <object:id|molecule:index|node:id|bond:id> [--summary-only] [--include-resource] [--out <detail.json>] [--pretty]
-chemcore-cli capture <input> --target <selector> [--out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--pretty]
+chemcore-cli capture <input> --target <selector> [--target <selector> ...] [--targets <selector;selector>] [--out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--pretty]
 chemcore-cli copy <input> [--target <selector>] [--payload <payload.json>] [--no-copy] [--pretty]
 chemcore-cli session [input]
 chemcore-cli new [commands.json|-] --out <path> [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--pretty] [--quiet]
@@ -528,22 +528,25 @@ molecule:<zero-based-molecule-index>
 node:<node-id>
 bond:<bond-id>
 bounds:<minX>,<minY>,<maxX>,<maxY>
+selection:<selector;selector>
 ```
 
 `bounds:` 用于截图类裁剪。`detail` 接受单个 `object:<id>`、`molecule:<index>`、`node:<id>` 或 `bond:<id>` selector。
+`capture` 和 `context` 可以用重复 `--target`、`--targets <selector;selector>`、`selection:<selector;selector>`，或 JSONL session 的 `target`/`targets` 数组传入多个目标。目标框是这些目标 bounds 的最小并集，和 GUI 选择框一致。
 
 `targets` 返回稳定 selector 和 bounds，按 `objects`、`molecules`、`nodes`、
 `bonds` 分组。它是 `context`、`detail`、`capture` 和 `copy` 前面的发现步骤。
 
 `context` 返回目标周边的对象摘要、分子摘要、节点摘要、键摘要、bounds、方向、
-距离、重叠标记、group 祖先、子对象 id 和 link 元数据。`context` 返回摘要。
-需要原始 JSON 时，把返回的 selector 交给 `detail`。
+距离、重叠标记、selection-box relation、group 祖先、子对象 id 和 link 元数据。
+`selectionBox.contents` 列出目标框内的项目；每项包含 `selectionBoxRelation="inside"`
+或 `"partial"`，并且只有显式选中的目标才有 `isTarget=true`。需要原始 JSON 时，把返回的 selector 交给 `detail`。
 
 `detail` 返回一个被选实体。默认包含该实体的 raw JSON。需要 id、bounds 和关系
 元数据摘要时，加 `--summary-only`。查看对象并且需要嵌入引用资源时，加
 `--include-resource`。
 
-`capture` 把渲染后的裁剪图写入 `--out`，stdout 输出 JSON manifest。省略
+`capture` 把渲染后的裁剪图写入 `--out`，stdout 输出 JSON manifest。多个目标会按最小并集目标框裁剪，图中显示这个框里可见的内容以及指定扩展范围。省略
 `--out` 时，会把 PNG 写到系统临时目录下的 `chemcore-cli` 子目录，并返回
 `output.defaulted=true`、真实的 `output.path`，以及 `kind="default_output_path"` 的
 `warnings[]` 条目。SVG 是矢量。PNG 默认
