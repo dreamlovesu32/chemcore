@@ -2403,10 +2403,8 @@ body.browser-shell .document-tabbar {
 }
 
 .editor-endpoint-halo {
-  fill: rgba(47, 111, 237, 0.24);
-  stroke: rgba(47, 111, 237, 0.78);
-  stroke-width: 1.4px;
-  vector-effect: non-scaling-stroke;
+  fill: rgba(47, 111, 237, 0.82);
+  stroke: none;
   filter: drop-shadow(0 0 4px rgba(47, 111, 237, 0.55));
 }
 

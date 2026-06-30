@@ -272,23 +272,41 @@ pub(super) fn resolved_anchor_point_for_angle(
     label_anchor.glyph_point
 }
 
-pub(super) fn point_in_bond_center_focus(point: Point, start: Point, end: Point) -> bool {
+pub(super) fn point_in_bond_center_hit(
+    point: Point,
+    start: Point,
+    end: Point,
+    width: f64,
+    radius: f64,
+) -> bool {
+    point_in_bond_center_rect(
+        point,
+        start,
+        end,
+        bond_center_hit_length(start, end, radius),
+        width,
+    )
+}
+
+fn point_in_bond_center_rect(
+    point: Point,
+    start: Point,
+    end: Point,
+    length: f64,
+    width: f64,
+) -> bool {
     let dx = end.x - start.x;
     let dy = end.y - start.y;
-    let length = dx.hypot(dy);
-    if length <= crate::EPSILON {
-        return false;
-    }
-    let focus_length = bond_center_focus_length(start, end);
-    if focus_length <= crate::EPSILON {
+    let bond_length = dx.hypot(dy);
+    if bond_length <= crate::EPSILON || length <= crate::EPSILON || width <= crate::EPSILON {
         return false;
     }
     let center = Point::new((start.x + end.x) / 2.0, (start.y + end.y) / 2.0);
-    let ux = dx / length;
-    let uy = dy / length;
+    let ux = dx / bond_length;
+    let uy = dy / bond_length;
     let local_x = (point.x - center.x) * ux + (point.y - center.y) * uy;
     let local_y = -(point.x - center.x) * uy + (point.y - center.y) * ux;
-    local_x.abs() <= focus_length / 2.0 && local_y.abs() <= BOND_CENTER_FOCUS_WIDTH / 2.0
+    local_x.abs() <= length / 2.0 && local_y.abs() <= width / 2.0
 }
 
 pub fn bond_center_focus_length(start: Point, end: Point) -> f64 {
@@ -296,9 +314,22 @@ pub fn bond_center_focus_length(start: Point, end: Point) -> f64 {
     (length * 0.5).max(0.0)
 }
 
-pub(super) fn bond_center_focus_radius(start: Point, end: Point) -> f64 {
-    let half_length = bond_center_focus_length(start, end) / 2.0;
-    let half_width = BOND_CENTER_FOCUS_WIDTH / 2.0;
+pub(super) fn bond_center_hit_length(start: Point, end: Point, radius: f64) -> f64 {
+    let length = start.distance(end);
+    if length <= radius.max(0.0) {
+        length
+    } else {
+        bond_center_focus_length(start, end)
+    }
+}
+
+pub(super) fn bond_center_hit_radius(start: Point, end: Point, width: f64, radius: f64) -> f64 {
+    bond_center_rect_radius(bond_center_hit_length(start, end, radius), width)
+}
+
+fn bond_center_rect_radius(length: f64, width: f64) -> f64 {
+    let half_length = length / 2.0;
+    let half_width = width / 2.0;
     half_length.hypot(half_width)
 }
 

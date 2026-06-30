@@ -199,12 +199,22 @@ pub(super) fn render_molecule_object_targets(
     let stroke = molecule_stroke(document, object);
     let object_id = Some(object.id.clone());
     let mut target_render_bond_ids = BTreeSet::new();
-    let mut contact_node_ids = BTreeSet::new();
     for bond in &fragment.bonds {
         let touches_target_node =
             target_node_ids.contains(&bond.begin) || target_node_ids.contains(&bond.end);
         if target_bond_ids.contains(&bond.id) || touches_target_node {
             target_render_bond_ids.insert(bond.id.clone());
+        }
+    }
+    expand_target_render_bond_ids_for_crossings(
+        &mut target_render_bond_ids,
+        object,
+        &fragment.bonds,
+        &node_map,
+    );
+    let mut contact_node_ids = BTreeSet::new();
+    for bond in &fragment.bonds {
+        if target_render_bond_ids.contains(&bond.id) {
             contact_node_ids.insert(bond.begin.clone());
             contact_node_ids.insert(bond.end.clone());
         }
@@ -243,6 +253,7 @@ pub(super) fn render_molecule_object_targets(
         }
         rendered_bonds.push(bond);
     }
+    render_main_bond_contact_patches(out, &contact_kernel, &stroke, object_id.clone());
 
     for node in &fragment.nodes {
         if target_node_ids.contains(&node.id) {
@@ -250,6 +261,39 @@ pub(super) fn render_molecule_object_targets(
             render_fragment_node_invalid_marker(out, object, node, object_id.clone());
         }
     }
+}
+
+fn expand_target_render_bond_ids_for_crossings(
+    target_render_bond_ids: &mut BTreeSet<String>,
+    object: &SceneObject,
+    bonds: &[Bond],
+    node_map: &BTreeMap<&str, &Node>,
+) {
+    if target_render_bond_ids.is_empty() {
+        return;
+    }
+    let mut extra = BTreeSet::new();
+    let target_indices: Vec<usize> = bonds
+        .iter()
+        .enumerate()
+        .filter_map(|(index, bond)| target_render_bond_ids.contains(&bond.id).then_some(index))
+        .collect();
+    for target_index in target_indices {
+        for other_index in 0..bonds.len() {
+            if target_index == other_index {
+                continue;
+            }
+            let (under_bond, over_bond) = if target_index < other_index {
+                (&bonds[target_index], &bonds[other_index])
+            } else {
+                (&bonds[other_index], &bonds[target_index])
+            };
+            if bonds_have_crossing_margin(object, node_map, over_bond, under_bond) {
+                extra.insert(over_bond.id.clone());
+            }
+        }
+    }
+    target_render_bond_ids.extend(extra);
 }
 
 fn render_bond_crossing_knockouts(
@@ -331,6 +375,31 @@ fn render_bond_crossing_knockouts(
             over_bond.id.clone(),
         );
     }
+}
+
+fn bonds_have_crossing_margin(
+    object: &SceneObject,
+    node_map: &BTreeMap<&str, &Node>,
+    over_bond: &Bond,
+    under_bond: &Bond,
+) -> bool {
+    if bonds_share_endpoint(over_bond, under_bond) {
+        return false;
+    }
+    let Some((over_start, over_end)) = bond_world_segment(object, node_map, over_bond) else {
+        return false;
+    };
+    let Some((under_start, under_end)) = bond_world_segment(object, node_map, under_bond) else {
+        return false;
+    };
+    let over_vector = Vector::new(over_end.x - over_start.x, over_end.y - over_start.y);
+    let under_vector = Vector::new(under_end.x - under_start.x, under_end.y - under_start.y);
+    if over_vector.length() <= EPSILON || under_vector.length() <= EPSILON {
+        return false;
+    }
+    let crossing_sin = vector_cross(over_vector.normalized(), under_vector.normalized()).abs();
+    crossing_sin > 0.1
+        && interior_segment_intersection(over_start, over_end, under_start, under_end).is_some()
 }
 
 fn bond_world_segment(

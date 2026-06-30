@@ -1,8 +1,8 @@
 use crate::{
     angle_between, angle_in_clockwise_arc, angular_distance, css_px, direction_from_angle,
     fragment_bond_visual_bounds, largest_angular_gap, normalize_angle, split_label_groups,
-    world_pt, Bond, ChemcoreDocument, EditableFragment, Node, Point, Vector, WorldPoint, WorldPt,
-    DEFAULT_BOND_LENGTH,
+    world_pt, Bond, ChemcoreDocument, EditableFragment, Node, Point, SceneObject, Vector,
+    WorldPoint, WorldPt, DEFAULT_BOND_LENGTH,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, VecDeque};
@@ -48,6 +48,7 @@ pub const BOND_CENTER_FOCUS_LENGTH: f64 = BOND_CENTER_FOCUS_LENGTH_PT.value();
 pub const BOND_CENTER_FOCUS_WIDTH: f64 = BOND_CENTER_FOCUS_WIDTH_PT.value();
 pub const BOND_CENTER_HIT_RADIUS: f64 = BOND_CENTER_HIT_RADIUS_PT.value();
 pub const DRAG_START_THRESHOLD: f64 = DRAG_START_THRESHOLD_PT.value();
+pub const ENDPOINT_HOVER_RADIUS_BOLD_WIDTH_SCALE: f64 = 1.5;
 pub const BLANK_CANVAS_DEFAULT_ANGLE: f64 = 330.0;
 pub const GLOBAL_SNAP_ANGLES: &[f64] = &[
     0.0, 15.0, 30.0, 45.0, 60.0, 75.0, 90.0, 105.0, 120.0, 135.0, 150.0, 165.0, 180.0, 195.0,
@@ -359,6 +360,72 @@ impl EditorOptions {
     }
 }
 
+pub fn bond_hover_width(document: &ChemcoreDocument, object: &SceneObject, bond: &Bond) -> f64 {
+    let stroke_width = bond_stroke_width_for_editing(document, object, bond);
+    bond.bold_width
+        .filter(|width| width.is_finite() && *width > crate::EPSILON)
+        .unwrap_or_else(|| default_bold_bond_width_for_stroke(stroke_width))
+        .max(stroke_width)
+}
+
+pub fn endpoint_hover_radius_for_node(
+    document: &ChemcoreDocument,
+    object_id: &str,
+    node_id: &str,
+) -> f64 {
+    let mut hover_width: Option<f64> = None;
+    for entry in document.editable_fragments() {
+        if !object_id.is_empty() && entry.object.id != object_id {
+            continue;
+        }
+        if !entry.fragment.nodes.iter().any(|node| node.id == node_id) {
+            continue;
+        }
+        for bond in &entry.fragment.bonds {
+            if bond.begin == node_id || bond.end == node_id {
+                let width = bond_hover_width(document, entry.object, bond);
+                hover_width = Some(hover_width.map_or(width, |current| current.max(width)));
+            }
+        }
+    }
+    hover_width.unwrap_or_else(|| {
+        crate::BOLD_BOND_WIDTH_PT
+            .value()
+            .max(crate::DEFAULT_BOND_STROKE)
+    }) * ENDPOINT_HOVER_RADIUS_BOLD_WIDTH_SCALE
+}
+
+fn bond_stroke_width_for_editing(
+    document: &ChemcoreDocument,
+    object: &SceneObject,
+    bond: &Bond,
+) -> f64 {
+    if bond.stroke_width.is_finite() && bond.stroke_width > crate::EPSILON {
+        return bond.stroke_width;
+    }
+    object
+        .style_ref
+        .as_ref()
+        .and_then(|style_ref| document.styles.get(style_ref))
+        .and_then(|style| {
+            style
+                .get("strokeWidth")
+                .or_else(|| style.get("stroke_width"))
+                .and_then(serde_json::Value::as_f64)
+        })
+        .filter(|width| width.is_finite() && *width > crate::EPSILON)
+        .unwrap_or(crate::DEFAULT_BOND_STROKE)
+}
+
+fn default_bold_bond_width_for_stroke(stroke_width: f64) -> f64 {
+    let base = if crate::DEFAULT_BOND_STROKE_PT > crate::EPSILON {
+        stroke_width / crate::DEFAULT_BOND_STROKE_PT
+    } else {
+        1.0
+    };
+    (crate::BOLD_BOND_WIDTH_PT.value() * base).max(stroke_width)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolState {
     pub active_tool: Tool,
@@ -523,6 +590,8 @@ pub struct BondCenterHit {
     pub end: Point,
     pub order: u8,
     pub distance: f64,
+    #[serde(default)]
+    pub width: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]

@@ -281,11 +281,35 @@ pub fn parse_document_json(json: &str) -> Result<ChemcoreDocument, String> {
     ensure_document_json_pt_unit(&mut value)?;
     let mut document: ChemcoreDocument =
         serde_json::from_value(value).map_err(|error| error.to_string())?;
+    validate_molecule_fragment_resources(&document)?;
     normalize_text_object_payloads(&mut document);
     normalize_shape_object_payloads(&mut document);
     normalize_arrow_object_payloads(&mut document);
     normalize_fragment_label_payloads(&mut document);
     Ok(document)
+}
+
+fn validate_molecule_fragment_resources(document: &ChemcoreDocument) -> Result<(), String> {
+    for (id, resource) in &document.resources {
+        let declares_fragment = resource.resource_type == "molecule_fragment2d"
+            || resource.encoding == "chemcore.molecule.fragment2d";
+        if declares_fragment && !matches!(&resource.data, ResourceData::Fragment(_)) {
+            let detail = match &resource.data {
+                ResourceData::Json(value) => {
+                    serde_json::from_value::<MoleculeFragment>(value.clone())
+                        .err()
+                        .map(|error| format!(" {error}"))
+                        .unwrap_or_default()
+                }
+                ResourceData::Text(_) => " resource data is text, not an object".to_string(),
+                ResourceData::Fragment(_) => String::new(),
+            };
+            return Err(format!(
+                "Resource {id} is declared as molecule_fragment2d but data is not a valid chemcore.molecule.fragment2d fragment.{detail}"
+            ));
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn normalize_arrow_object_payloads(document: &mut ChemcoreDocument) {
@@ -1314,7 +1338,9 @@ impl ResourceData {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MoleculeFragment {
+    #[serde(default = "default_molecule_fragment_schema")]
     pub schema: String,
+    #[serde(default = "default_molecule_fragment_bbox")]
     pub bbox: [f64; 4],
     #[serde(default)]
     pub nodes: Vec<Node>,
@@ -1334,6 +1360,14 @@ impl MoleculeFragment {
             meta: Value::Null,
         }
     }
+}
+
+fn default_molecule_fragment_schema() -> String {
+    "chemcore.molecule.fragment2d".to_string()
+}
+
+fn default_molecule_fragment_bbox() -> [f64; 4] {
+    [0.0, 0.0, DEFAULT_PAGE_WIDTH, DEFAULT_PAGE_HEIGHT]
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1870,6 +1904,113 @@ mod tests {
             "stale glyph polygon should be rebuilt using current kernel geometry: {:?}",
             label.glyph_polygons[0]
         );
+    }
+
+    #[test]
+    fn parse_document_json_accepts_legacy_fragment_without_schema_or_bbox() {
+        let document = parse_document_json(
+            &json!({
+                "format": { "name": "chemcore", "version": "0.1" },
+                "document": {
+                    "id": "doc_legacy_fragment",
+                    "title": "legacy fragment",
+                    "page": { "width": 90.0, "height": 40.0, "background": "#ffffff" }
+                },
+                "objects": [{
+                    "id": "obj_molecule_001",
+                    "type": "molecule",
+                    "visible": true,
+                    "zIndex": 10,
+                    "payload": { "resourceRef": "mol_001" }
+                }],
+                "resources": {
+                    "mol_001": {
+                        "type": "molecule_fragment2d",
+                        "encoding": "chemcore.molecule.fragment2d",
+                        "data": {
+                            "nodes": [{
+                                "id": "n1",
+                                "element": "C",
+                                "atomicNumber": 6,
+                                "position": [10.0, 10.0],
+                                "charge": 0,
+                                "numHydrogens": 0
+                            }],
+                            "bonds": []
+                        }
+                    }
+                }
+            })
+            .to_string(),
+        )
+        .expect("legacy fragment should parse with default schema and bbox");
+
+        let fragment = document
+            .resources
+            .get("mol_001")
+            .and_then(|resource| resource.data.as_fragment())
+            .expect("fragment resource");
+        assert_eq!(fragment.schema, "chemcore.molecule.fragment2d");
+        assert_eq!(fragment.nodes.len(), 1);
+    }
+
+    #[test]
+    fn parse_document_json_rejects_invalid_declared_fragment_resources() {
+        let error = parse_document_json(
+            &json!({
+                "format": { "name": "chemcore", "version": "0.1" },
+                "document": {
+                    "id": "doc_invalid_fragment",
+                    "title": "invalid fragment",
+                    "page": { "width": 90.0, "height": 40.0, "background": "#ffffff" }
+                },
+                "objects": [{
+                    "id": "obj_molecule_001",
+                    "type": "molecule",
+                    "visible": true,
+                    "zIndex": 10,
+                    "payload": { "resourceRef": "mol_001" }
+                }],
+                "resources": {
+                    "mol_001": {
+                        "type": "molecule_fragment2d",
+                        "encoding": "chemcore.molecule.fragment2d",
+                        "data": {
+                            "schema": "chemcore.molecule.fragment2d",
+                            "bbox": [0.0, 0.0, 90.0, 40.0],
+                            "nodes": [{
+                                "id": "n1",
+                                "element": "C",
+                                "atomicNumber": 6,
+                                "position": [10.0, 10.0],
+                                "charge": 0,
+                                "numHydrogens": 0
+                            }, {
+                                "id": "n2",
+                                "element": "C",
+                                "atomicNumber": 6,
+                                "position": [30.0, 10.0],
+                                "charge": 0,
+                                "numHydrogens": 0
+                            }],
+                            "bonds": [{
+                                "id": "b1",
+                                "begin": "n1",
+                                "end": "n2",
+                                "order": 1,
+                                "stereo": "wedge",
+                                "strokeWidth": 1.0
+                            }]
+                        }
+                    }
+                }
+            })
+            .to_string(),
+        )
+        .unwrap_err();
+
+        assert!(error.contains("mol_001"));
+        assert!(error.contains("molecule_fragment2d"));
     }
 
     #[test]

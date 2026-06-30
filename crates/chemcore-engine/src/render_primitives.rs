@@ -309,6 +309,29 @@ pub(super) fn push_polygon(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
+pub(super) fn push_node_polygon(
+    out: &mut Vec<RenderPrimitive>,
+    node_id: &str,
+    points: Vec<Point>,
+    fill: &str,
+    stroke: &str,
+    stroke_width: f64,
+    role: RenderRole,
+    object_id: Option<String>,
+) {
+    out.push(RenderPrimitive::Polygon {
+        role,
+        object_id,
+        node_id: Some(node_id.to_string()),
+        bond_id: None,
+        points,
+        fill: fill.to_string(),
+        stroke: stroke.to_string(),
+        stroke_width,
+    });
+}
+
 pub(super) fn push_bond_polygon(
     out: &mut Vec<RenderPrimitive>,
     bond_id: &str,

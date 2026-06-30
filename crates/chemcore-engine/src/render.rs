@@ -42,7 +42,8 @@ use object_render::{
 };
 use primitives::{
     push_bond_knockout_polygon, push_bond_polygon, push_label_knockout_polygon, push_line,
-    push_path, push_polygon, push_polyline, push_text, push_text_for_node, push_text_rotated,
+    push_node_polygon, push_path, push_polygon, push_polyline, push_text, push_text_for_node,
+    push_text_rotated,
 };
 pub use primitives::{RenderPrimitive, RenderRole};
 

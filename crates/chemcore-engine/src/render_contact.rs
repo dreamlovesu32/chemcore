@@ -45,6 +45,7 @@ impl MainBondEndpointKey {
 
 #[derive(Debug, Clone)]
 struct MainBondContactPatch {
+    node_id: String,
     points: Vec<Point>,
     stroke: Option<String>,
 }
@@ -89,6 +90,7 @@ pub(super) struct MainBondContour {
 #[derive(Debug, Clone, Copy)]
 pub(super) struct MainBondEndpointGeometry<'a> {
     pub(super) bond: &'a Bond,
+    pub(super) center_node_id: &'a str,
     pub(super) center: Point,
     pub(super) axis: Vector,
     pub(super) base_plus: Point,
@@ -249,6 +251,7 @@ fn build_main_bond_contact_kernel_for_node_filter<'a>(
                     }
                     if let Some(points) = contact.bridge {
                         kernel.patches.push(MainBondContactPatch {
+                            node_id: node.id.clone(),
                             points,
                             stroke: shared_contact_stroke(&geometries),
                         });
@@ -270,8 +273,9 @@ pub(super) fn render_main_bond_contact_patches(
 ) {
     for patch in &kernel.patches {
         let stroke = patch.stroke.as_deref().unwrap_or(stroke);
-        push_polygon(
+        push_node_polygon(
             out,
+            &patch.node_id,
             patch.points.clone(),
             stroke,
             stroke,
@@ -337,6 +341,7 @@ pub(super) fn main_bond_endpoint_geometry<'a>(
                     Vector::new(tip_minus.x - base_minus.x, tip_minus.y - base_minus.y);
                 Some(MainBondEndpointGeometry {
                     bond,
+                    center_node_id: node_id,
                     center,
                     axis,
                     base_plus,
@@ -382,6 +387,7 @@ pub(super) fn main_bond_endpoint_geometry<'a>(
                     Vector::new(tip_minus.x - base_minus.x, tip_minus.y - base_minus.y);
                 Some(MainBondEndpointGeometry {
                     bond,
+                    center_node_id: node_id,
                     center,
                     axis,
                     base_plus,
@@ -428,6 +434,7 @@ pub(super) fn main_bond_endpoint_geometry<'a>(
                     Vector::new(cap_minus.x - base_minus.x, cap_minus.y - base_minus.y);
                 Some(MainBondEndpointGeometry {
                     bond,
+                    center_node_id: node_id,
                     center,
                     axis,
                     base_plus,
@@ -465,6 +472,7 @@ pub(super) fn main_bond_endpoint_geometry<'a>(
     );
     Some(MainBondEndpointGeometry {
         bond,
+        center_node_id: node_id,
         center,
         axis,
         base_plus,
@@ -613,6 +621,7 @@ fn push_two_bond_contact_triangles(
     ] {
         if is_valid_contact_polygon(&points) {
             out.push(MainBondContactPatch {
+                node_id: geometry.center_node_id.to_string(),
                 points,
                 stroke: geometry.bond.stroke.clone(),
             });
@@ -671,6 +680,7 @@ fn append_multi_bond_main_contact(
         ]);
         if is_valid_contact_polygon(&points) {
             kernel.patches.push(MainBondContactPatch {
+                node_id: node_id.to_string(),
                 points,
                 stroke: current.bond.stroke.clone(),
             });

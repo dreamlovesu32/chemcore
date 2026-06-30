@@ -1,5 +1,6 @@
-use chemcore_engine::Engine;
+use chemcore_engine::{Engine, RenderPrimitive};
 use serde_json::{json, Value};
+use std::collections::BTreeSet;
 
 fn execute(engine: &mut Engine, command: Value) -> Value {
     let result = engine
@@ -88,6 +89,44 @@ fn document_bond_count(value: &Value) -> usize {
         .sum()
 }
 
+fn crossing_document_value() -> Value {
+    json!({
+        "format": { "name": "chemcore", "version": "0.1" },
+        "document": {
+            "id": "doc_crossing",
+            "title": "crossing",
+            "page": { "width": 140.0, "height": 140.0, "background": "#ffffff" }
+        },
+        "objects": [{
+            "id": "obj_molecule_001",
+            "type": "molecule",
+            "visible": true,
+            "zIndex": 10,
+            "payload": { "resourceRef": "mol_001" }
+        }],
+        "resources": {
+            "mol_001": {
+                "type": "molecule_fragment2d",
+                "encoding": "chemcore.molecule.fragment2d",
+                "data": {
+                    "schema": "chemcore.molecule.fragment2d",
+                    "bbox": [20.0, 20.0, 100.0, 100.0],
+                    "nodes": [
+                        { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 60.0], "charge": 0, "numHydrogens": 0 },
+                        { "id": "n2", "element": "C", "atomicNumber": 6, "position": [100.0, 60.0], "charge": 0, "numHydrogens": 0 },
+                        { "id": "n3", "element": "C", "atomicNumber": 6, "position": [60.0, 20.0], "charge": 0, "numHydrogens": 0 },
+                        { "id": "n4", "element": "C", "atomicNumber": 6, "position": [60.0, 100.0], "charge": 0, "numHydrogens": 0 }
+                    ],
+                    "bonds": [
+                        { "id": "b_under", "begin": "n1", "end": "n2", "order": 1, "strokeWidth": 1.0, "marginWidth": 2.0 },
+                        { "id": "b_over", "begin": "n3", "end": "n4", "order": 1, "strokeWidth": 1.0, "marginWidth": 2.0 }
+                    ]
+                }
+            }
+        }
+    })
+}
+
 #[test]
 fn execute_command_json_add_bond_tracks_revision_and_targets() {
     let mut engine = Engine::new();
@@ -111,6 +150,74 @@ fn execute_command_json_add_bond_tracks_revision_and_targets() {
     assert_eq!(result["created"]["bonds"].as_array().unwrap().len(), 1);
     assert_eq!(result["canUndo"], true);
     assert_eq!(engine.revision(), 1);
+}
+
+#[test]
+fn add_bond_from_existing_atom_marks_existing_endpoint_for_incremental_render() {
+    let mut engine = Engine::new();
+    let first = execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": { "x": 100.0, "y": 100.0 },
+            "end": { "x": 148.0, "y": 100.0 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+    let existing_node_id = created_node_id(&first, 0);
+    let existing_bond_id = created_bond_id(&first);
+
+    let second = execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": { "nodeId": existing_node_id, "x": 100.0, "y": 100.0 },
+            "end": { "x": 124.0, "y": 141.57 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+    let new_bond_id = created_bond_id(&second);
+
+    assert_eq!(second["changed"], true);
+    assert!(
+        second["targets"]["nodes"]
+            .as_array()
+            .expect("target nodes")
+            .iter()
+            .any(|node| node.as_str() == Some(existing_node_id.as_str())),
+        "existing endpoint should be included so desktop incremental render refreshes bond contacts: {second}"
+    );
+
+    let target_nodes: BTreeSet<String> = second["targets"]["nodes"]
+        .as_array()
+        .expect("target nodes")
+        .iter()
+        .filter_map(|node| node.as_str().map(ToString::to_string))
+        .collect();
+    let target_bonds: BTreeSet<String> = second["targets"]["bonds"]
+        .as_array()
+        .expect("target bonds")
+        .iter()
+        .filter_map(|bond| bond.as_str().map(ToString::to_string))
+        .collect();
+    let rendered_bonds: BTreeSet<String> = engine
+        .render_targets(&target_nodes, &target_bonds, &BTreeSet::new())
+        .into_iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Line { bond_id, .. }
+            | RenderPrimitive::Polygon { bond_id, .. }
+            | RenderPrimitive::Polyline { bond_id, .. }
+            | RenderPrimitive::Path { bond_id, .. }
+            | RenderPrimitive::FilledPath { bond_id, .. } => bond_id,
+            _ => None,
+        })
+        .collect();
+    assert!(
+        rendered_bonds.contains(&existing_bond_id) && rendered_bonds.contains(&new_bond_id),
+        "desktop partial render should redraw both bonds at the changed junction: {rendered_bonds:?}"
+    );
 }
 
 #[test]
@@ -217,6 +324,57 @@ fn move_targets_moves_bond_endpoints_by_delta() {
     let document = document_value(&engine);
     assert_eq!(node_position(&document, &first_node_id), (110.0, 95.0));
     assert_eq!(node_position(&document, &second_node_id), (158.0, 95.0));
+}
+
+#[test]
+fn moving_under_crossing_bond_marks_over_bond_for_incremental_render() {
+    let mut engine = Engine::new();
+    engine
+        .load_document_json(&crossing_document_value().to_string())
+        .expect("document should load");
+
+    let moved = execute(
+        &mut engine,
+        json!({
+            "type": "move-targets",
+            "targets": { "bonds": ["b_under"] },
+            "delta": { "dx": 0.0, "dy": 60.0 }
+        }),
+    );
+
+    let target_bonds: BTreeSet<String> = moved["targets"]["bonds"]
+        .as_array()
+        .expect("target bonds")
+        .iter()
+        .filter_map(|bond| bond.as_str().map(ToString::to_string))
+        .collect();
+    assert!(
+        target_bonds.contains("b_under") && target_bonds.contains("b_over"),
+        "moving the lower crossing bond must also refresh the upper knockout owner: {moved}"
+    );
+
+    let target_nodes: BTreeSet<String> = moved["targets"]["nodes"]
+        .as_array()
+        .expect("target nodes")
+        .iter()
+        .filter_map(|node| node.as_str().map(ToString::to_string))
+        .collect();
+    let rendered_bonds: BTreeSet<String> = engine
+        .render_targets(&target_nodes, &target_bonds, &BTreeSet::new())
+        .into_iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Line { bond_id, .. }
+            | RenderPrimitive::Polygon { bond_id, .. }
+            | RenderPrimitive::Polyline { bond_id, .. }
+            | RenderPrimitive::Path { bond_id, .. }
+            | RenderPrimitive::FilledPath { bond_id, .. } => bond_id,
+            _ => None,
+        })
+        .collect();
+    assert!(
+        rendered_bonds.contains("b_over"),
+        "desktop partial render should return the refreshed upper bond: {rendered_bonds:?}"
+    );
 }
 
 #[test]

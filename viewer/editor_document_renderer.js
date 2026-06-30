@@ -573,7 +573,19 @@ export function createEditorDocumentRenderer(options) {
     if (!documentLayer || !Array.isArray(primitives)) {
       return false;
     }
-    const targetElements = [...collectDocumentPrimitiveTargetElements(documentLayer, nodeIds, bondIds)];
+    const patchNodeIds = new Set(nodeIds || []);
+    const patchBondIds = new Set(bondIds || []);
+    for (const primitive of primitives) {
+      const nodeId = primitiveNodeId(primitive);
+      const bondId = primitiveBondId(primitive);
+      if (nodeId) {
+        patchNodeIds.add(nodeId);
+      }
+      if (bondId) {
+        patchBondIds.add(bondId);
+      }
+    }
+    const targetElements = [...collectDocumentPrimitiveTargetElements(documentLayer, patchNodeIds, patchBondIds)];
     const targetElementSet = new Set(targetElements);
     let anchor = null;
     let seenTarget = false;

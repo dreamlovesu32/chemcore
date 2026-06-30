@@ -28,7 +28,7 @@ pub fn hit_test_endpoint_excluding(
                 for label_anchor in label_anchors {
                     let distance = point.distance(label_anchor.glyph_point);
                     let inside_box = point_in_box(point, label_anchor.glyph_box);
-                    if !inside_box && distance > radius {
+                    if !inside_box {
                         continue;
                     }
                     let mut anchor = label_anchor;
@@ -162,9 +162,11 @@ pub fn hit_test_bond_center(
                 (begin_point.y + end_point.y) / 2.0,
             );
             let distance = point.distance(center);
-            let focus_radius = bond_center_focus_radius(begin_point, end_point);
-            if point_in_bond_center_focus(point, begin_point, end_point)
-                && distance <= radius.max(focus_radius)
+            let hover_width = bond_hover_width(document, entry.object, bond);
+            let hit_width = hover_width.max(BOND_CENTER_FOCUS_WIDTH);
+            let hit_radius = bond_center_hit_radius(begin_point, end_point, hit_width, radius);
+            if point_in_bond_center_hit(point, begin_point, end_point, hit_width, radius)
+                && distance <= radius.max(hit_radius)
                 && best.as_ref().map_or(true, |hit| distance < hit.distance)
             {
                 best = Some(BondCenterHit {
@@ -174,6 +176,7 @@ pub fn hit_test_bond_center(
                     end: end_point,
                     order: bond.order,
                     distance,
+                    width: hover_width,
                 });
             }
         }

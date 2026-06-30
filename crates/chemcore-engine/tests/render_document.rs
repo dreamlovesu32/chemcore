@@ -379,6 +379,59 @@ fn render_document_adds_margin_knockout_for_later_crossing_bond() {
 }
 
 #[test]
+fn render_targets_for_under_crossing_bond_include_over_bond_dependency() {
+    let document = fragment_document(
+        json!([
+            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 60.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n2", "element": "C", "atomicNumber": 6, "position": [100.0, 60.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [60.0, 20.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n4", "element": "C", "atomicNumber": 6, "position": [60.0, 100.0], "charge": 0, "numHydrogens": 0 }
+        ]),
+        json!([
+            { "id": "b_under", "begin": "n1", "end": "n2", "order": 1, "strokeWidth": 1.0, "marginWidth": 2.0 },
+            { "id": "b_over", "begin": "n3", "end": "n4", "order": 1, "strokeWidth": 1.0, "marginWidth": 2.0 }
+        ]),
+    );
+    let mut engine = Engine::new();
+    engine
+        .load_document_json(&serde_json::to_string(&document).unwrap())
+        .expect("document should load");
+
+    let primitives = engine.render_targets(
+        &BTreeSet::new(),
+        &BTreeSet::from(["b_under".to_string()]),
+        &BTreeSet::new(),
+    );
+
+    assert!(
+        primitives.iter().any(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Polygon {
+                    role: RenderRole::DocumentBond,
+                    bond_id,
+                    ..
+                } if bond_id.as_deref() == Some("b_over")
+            )
+        }),
+        "targeting the lower crossing bond should also return the upper bond for desktop patching: {primitives:?}"
+    );
+    assert!(
+        primitives.iter().any(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Polygon {
+                    role: RenderRole::DocumentKnockout,
+                    bond_id,
+                    ..
+                } if bond_id.as_deref() == Some("b_over")
+            )
+        }),
+        "upper-bond knockout depends on the lower crossing bond: {primitives:?}"
+    );
+}
+
+#[test]
 fn render_document_does_not_add_margin_knockout_for_shared_endpoint_bonds() {
     let document = fragment_document(
         json!([

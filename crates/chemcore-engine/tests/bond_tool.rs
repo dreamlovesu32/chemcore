@@ -3,7 +3,7 @@ use chemcore_engine::{
     ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondLinePattern, BondLineWeight,
     BondVariant, BracketKind, DoubleBondPlacement, Engine, Point, PointerEvent, RenderPrimitive,
     RenderRole, ShapeKind, ShapeStyle, TextEditSession, TextEditTarget, Tool, ToolState,
-    DEFAULT_BOND_LENGTH, DEFAULT_BOND_STROKE, ENDPOINT_FOCUS_RADIUS,
+    DEFAULT_BOND_LENGTH, DEFAULT_BOND_STROKE,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -30,6 +30,15 @@ fn polygon_area(points: &[Point]) -> f64 {
         area += points[index].x * points[next].y - points[next].x * points[index].y;
     }
     (area * 0.5).abs()
+}
+
+fn polygon_edge_lengths(points: &[Point]) -> Vec<f64> {
+    let mut lengths = Vec::new();
+    for index in 0..points.len() {
+        let next = (index + 1) % points.len();
+        lengths.push(points[index].distance(points[next]));
+    }
+    lengths
 }
 
 fn rect_path_coordinate_bounds(d: &str) -> [f64; 4] {
@@ -3936,10 +3945,51 @@ fn hover_focuses_existing_endpoint() {
     let hover = engine.state().overlay.hover_endpoint.as_ref().unwrap();
     assert_eq!(hover.point.x, FIRST_END_X);
     assert_eq!(hover.point.y, FIRST_END_Y);
+    let expected_radius = engine.options().bold_bond_width * 1.5;
     assert!(engine.render_list().iter().any(|primitive| matches!(
         primitive,
-        RenderPrimitive::Circle { radius, .. } if (*radius - ENDPOINT_FOCUS_RADIUS).abs() < 0.001
+        RenderPrimitive::Circle {
+            role: RenderRole::HoverEndpoint,
+            radius,
+            ..
+        } if (*radius - expected_radius).abs() < 0.001
     )));
+}
+
+#[test]
+fn hover_bond_center_rect_uses_half_bond_length_and_bold_width() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+
+    hover(&mut engine, FIRST_CENTER_X, FIRST_CENTER_Y);
+
+    let expected_width = engine.options().bold_bond_width;
+    let expected_length = Point::new(FIRST_START_X, FIRST_START_Y)
+        .distance(Point::new(FIRST_END_X, FIRST_END_Y))
+        * 0.5;
+    let hover = engine.state().overlay.hover_bond_center.as_ref().unwrap();
+    assert!((hover.width - expected_width).abs() < 0.001);
+
+    let points = engine
+        .render_list()
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                role: RenderRole::HoverBondCenter,
+                points,
+                ..
+            } => Some(points.clone()),
+            _ => None,
+        })
+        .expect("hover bond center polygon should render");
+    let mut lengths = polygon_edge_lengths(&points);
+    lengths.sort_by(f64::total_cmp);
+
+    assert!((lengths[0] - expected_width).abs() < 0.001, "{lengths:?}");
+    assert!((lengths[1] - expected_width).abs() < 0.001, "{lengths:?}");
+    assert!((lengths[2] - expected_length).abs() < 0.001, "{lengths:?}");
+    assert!((lengths[3] - expected_length).abs() < 0.001, "{lengths:?}");
 }
 
 #[test]
@@ -4139,8 +4189,7 @@ fn labeled_node_center_no_longer_focuses_plain_endpoint() {
         "id": "b1",
         "begin": "n0",
         "end": "n1",
-        "order": 1,
-        "stereo": "none"
+        "order": 1
     }]);
     load_label_document(&mut engine, "CuF3", glyph_polygons, bonds);
     engine.set_tool_state(bond_tool());
@@ -4845,7 +4894,7 @@ fn bond_tool_endpoint_hover_and_preview_handles_use_tinted_not_white_fill() {
             role: RenderRole::HoverEndpoint,
             fill,
             ..
-        } if fill == "rgba(47,111,237,0.24)"
+        } if fill == "rgba(47,111,237,0.82)"
     )));
 
     engine.pointer_down(PointerEvent {

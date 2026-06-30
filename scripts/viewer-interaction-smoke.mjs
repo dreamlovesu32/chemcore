@@ -11,7 +11,8 @@ const port = Number(process.env.CHEMCORE_DESKTOP_DEV_PORT || 8767);
 const baseUrl = `http://${host}:${port}/viewer/`;
 const edgePath = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
 const largeCdxml = process.env.CHEMCORE_STABILITY_PRIVATE_CDXML || process.env.CHEMCORE_INTERACTION_SMOKE_CDXML || "";
-const ENDPOINT_FEEDBACK_RADIUS_PX = 3.75;
+const PREVIEW_END_FEEDBACK_RADIUS_PX = 3.75;
+const HOVER_ENDPOINT_FEEDBACK_RADIUS_PX = 8;
 
 function waitForPort(timeoutMs = 5000) {
   const deadline = Date.now() + timeoutMs;
@@ -163,7 +164,7 @@ async function verifyBondDrawing(browser) {
   await page.close();
   assert(previewState.hadPreview, "Bond drag did not show a preview.");
   assert(
-    Math.abs(previewState.previewEndRadiusPx - ENDPOINT_FEEDBACK_RADIUS_PX) < 0.35,
+    Math.abs(previewState.previewEndRadiusPx - PREVIEW_END_FEEDBACK_RADIUS_PX) < 0.35,
     `Bond preview endpoint radius was not unified: ${JSON.stringify(previewState)}`,
   );
   assert(!result.previewLeft && result.dragPreviewChildren === 0, `Bond preview remained after pointerup: ${JSON.stringify(result)}`);
@@ -343,8 +344,8 @@ async function verifyEndpointFeedbackRules(browser) {
   const bondHover = await interactionFeedbackState(page);
   assert(bondHover.hoverEndpointCount > 0, `Bond tool did not show endpoint hover: ${JSON.stringify(bondHover)}`);
   assert(
-    Math.abs(bondHover.endpointRadiusPx - ENDPOINT_FEEDBACK_RADIUS_PX) < 0.35,
-    `Endpoint hover radius was not unified: ${JSON.stringify(bondHover)}`,
+    Math.abs(bondHover.endpointRadiusPx - HOVER_ENDPOINT_FEEDBACK_RADIUS_PX) < 0.35,
+    `Endpoint hover radius did not track bold bond width: ${JSON.stringify(bondHover)}`,
   );
 
   for (const tool of ["arrow", "bracket", "symbol", "shape", "orbital", "templates"]) {

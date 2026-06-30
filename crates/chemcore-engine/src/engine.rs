@@ -56,18 +56,18 @@ use self::presets::{
 use crate::{
     adjacent_directions, anchor_from_point, angle_between, bond_center_focus_length, can_draw_bond,
     can_focus_bond_center, can_focus_endpoint, default_angle_for_anchor_for_variant,
-    direction_from_angle, endpoint_from_angle_for_document, hit_test_arrow_center,
-    hit_test_bond_center, hit_test_endpoint, hit_test_endpoint_excluding, largest_angular_gap,
-    nearest_angle, normalize_angle, px_to_pt, refresh_repeating_units, render_document,
-    render_document_targets, render_primitives_bounds, round2, snapped_angle_for_anchor,
-    ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, Bond, BondAnchor,
-    BondLinePattern, BondLineStyles, BondLineWeight, BondLineWeights, BondPreview, BondStereo,
-    BondVariant, ChemcoreDocument, DoubleBond, DoubleBondPlacement, DragState, EditableFragment,
-    EditableFragmentMut, EditorOptions, EndpointHit, HoverShape, HoverTextBox, OrbitalPhase,
-    OrbitalStyle, OrbitalTemplate, OverlayState, Point, PointerEvent, RenderPrimitive, RenderRole,
-    ResourceData, SceneObject, SelectionState, ShapeKind, ShapeStyle, Tool, ToolState,
-    BOND_CENTER_FOCUS_WIDTH, BOND_CENTER_HIT_RADIUS, DRAG_START_THRESHOLD, ENDPOINT_FOCUS_RADIUS,
-    ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
+    direction_from_angle, endpoint_from_angle_for_document, endpoint_hover_radius_for_node,
+    hit_test_arrow_center, hit_test_bond_center, hit_test_endpoint, hit_test_endpoint_excluding,
+    largest_angular_gap, nearest_angle, normalize_angle, px_to_pt, refresh_repeating_units,
+    render_document, render_document_targets, render_primitives_bounds, round2,
+    snapped_angle_for_anchor, ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo,
+    ArrowVariant, Bond, BondAnchor, BondLinePattern, BondLineStyles, BondLineWeight,
+    BondLineWeights, BondPreview, BondStereo, BondVariant, ChemcoreDocument, DoubleBond,
+    DoubleBondPlacement, DragState, EditableFragment, EditableFragmentMut, EditorOptions,
+    EndpointHit, HoverShape, HoverTextBox, Node, OrbitalPhase, OrbitalStyle, OrbitalTemplate,
+    OverlayState, Point, PointerEvent, RenderPrimitive, RenderRole, ResourceData, SceneObject,
+    SelectionState, ShapeKind, ShapeStyle, Tool, ToolState, Vector, BOND_CENTER_HIT_RADIUS,
+    DRAG_START_THRESHOLD, ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
@@ -75,7 +75,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 const HOVER_STROKE_WIDTH: f64 = crate::px_to_pt(1.1);
 const HOVER_LABEL_STROKE_WIDTH: f64 = crate::px_to_pt(1.1);
-const HOVER_ENDPOINT_STROKE_WIDTH: f64 = crate::px_to_pt(1.4);
 const HOVER_BOND_CENTER_STROKE_WIDTH: f64 = crate::px_to_pt(1.2);
 const PREVIEW_END_RADIUS: f64 = crate::px_to_pt(1.5);
 const PREVIEW_END_STROKE_WIDTH: f64 = crate::px_to_pt(1.2);
@@ -841,10 +840,14 @@ impl Engine {
                     object_id: None,
                     node_id: Some(hover.node_id.clone()),
                     center: hover.point,
-                    radius: ENDPOINT_FOCUS_RADIUS,
-                    fill: "rgba(47,111,237,0.24)".to_string(),
-                    stroke: "rgba(47,111,237,0.78)".to_string(),
-                    stroke_width: HOVER_ENDPOINT_STROKE_WIDTH,
+                    radius: endpoint_hover_radius_for_node(
+                        &self.state.document,
+                        &hover.object_id,
+                        &hover.node_id,
+                    ),
+                    fill: "rgba(47,111,237,0.82)".to_string(),
+                    stroke: "rgba(47,111,237,0.96)".to_string(),
+                    stroke_width: 0.0,
                 });
             }
         }
@@ -860,7 +863,7 @@ impl Engine {
                         hover.begin,
                         hover.end,
                         focus_length,
-                        BOND_CENTER_FOCUS_WIDTH,
+                        hover.width,
                     ),
                     fill: "rgba(47,111,237,0.11)".to_string(),
                     stroke: "rgba(47,111,237,0.72)".to_string(),
@@ -3598,25 +3601,50 @@ fn document_target_delta_with_scope(
     after: &ChemcoreDocument,
     scope: CommandDeltaScope,
 ) -> CommandTargetDelta {
-    let before = document_target_maps(before);
-    let after = document_target_maps(after);
-    let (created_nodes, updated_nodes, deleted_nodes) = if scope.molecule_components {
-        diff_target_map(&before.nodes, &after.nodes)
+    let before_maps = document_target_maps(before);
+    let after_maps = document_target_maps(after);
+    let (created_nodes, mut updated_nodes, deleted_nodes) = if scope.molecule_components {
+        diff_target_map(&before_maps.nodes, &after_maps.nodes)
     } else {
         (Vec::new(), Vec::new(), Vec::new())
     };
-    let (created_bonds, updated_bonds, deleted_bonds) = if scope.molecule_components {
-        diff_target_map(&before.bonds, &after.bonds)
+    let (created_bonds, mut updated_bonds, deleted_bonds) = if scope.molecule_components {
+        diff_target_map(&before_maps.bonds, &after_maps.bonds)
     } else {
         (Vec::new(), Vec::new(), Vec::new())
     };
+    if scope.molecule_components {
+        expand_updated_nodes_with_changed_bond_endpoints(
+            &mut updated_nodes,
+            &created_bonds,
+            &updated_bonds,
+            &deleted_bonds,
+            &before_maps.bonds,
+            &after_maps.bonds,
+            &after_maps.nodes,
+        );
+        expand_updated_bonds_with_visual_dependencies(
+            &mut updated_bonds,
+            &created_nodes,
+            &updated_nodes,
+            &deleted_nodes,
+            &created_bonds,
+            &deleted_bonds,
+            before,
+            after,
+        );
+    }
     let (created_objects, updated_objects, deleted_objects) = if scope.objects {
-        diff_target_map_by(&before.objects, &after.objects, scene_object_shallow_eq)
+        diff_target_map_by(
+            &before_maps.objects,
+            &after_maps.objects,
+            scene_object_shallow_eq,
+        )
     } else {
         (Vec::new(), Vec::new(), Vec::new())
     };
     let (created_styles, updated_styles, deleted_styles) = if scope.styles {
-        diff_target_map(&before.styles, &after.styles)
+        diff_target_map(&before_maps.styles, &after_maps.styles)
     } else {
         (Vec::new(), Vec::new(), Vec::new())
     };
@@ -3660,6 +3688,206 @@ fn document_target_maps(document: &ChemcoreDocument) -> DocumentTargetMaps<'_> {
         }
     }
     maps
+}
+
+fn expand_updated_nodes_with_changed_bond_endpoints(
+    updated_nodes: &mut Vec<String>,
+    created_bonds: &[String],
+    updated_bonds: &[String],
+    deleted_bonds: &[String],
+    before_bonds: &BTreeMap<&str, &Bond>,
+    after_bonds: &BTreeMap<&str, &Bond>,
+    after_nodes: &BTreeMap<&str, &Node>,
+) {
+    let mut nodes: BTreeSet<String> = updated_nodes.iter().cloned().collect();
+    let mut add_existing_endpoint = |node_id: &str| {
+        if after_nodes.contains_key(node_id) {
+            nodes.insert(node_id.to_string());
+        }
+    };
+    for bond_id in created_bonds.iter().chain(updated_bonds) {
+        if let Some(bond) = after_bonds.get(bond_id.as_str()) {
+            add_existing_endpoint(&bond.begin);
+            add_existing_endpoint(&bond.end);
+        }
+    }
+    for bond_id in updated_bonds.iter().chain(deleted_bonds) {
+        if let Some(bond) = before_bonds.get(bond_id.as_str()) {
+            add_existing_endpoint(&bond.begin);
+            add_existing_endpoint(&bond.end);
+        }
+    }
+    *updated_nodes = nodes.into_iter().collect();
+}
+
+#[derive(Debug, Clone)]
+struct TargetBondSegment {
+    id: String,
+    begin: String,
+    end: String,
+    start: Point,
+    end_point: Point,
+}
+
+fn expand_updated_bonds_with_visual_dependencies(
+    updated_bonds: &mut Vec<String>,
+    created_nodes: &[String],
+    updated_nodes: &[String],
+    deleted_nodes: &[String],
+    created_bonds: &[String],
+    deleted_bonds: &[String],
+    before: &ChemcoreDocument,
+    after: &ChemcoreDocument,
+) {
+    let created_bonds: BTreeSet<String> = created_bonds.iter().cloned().collect();
+    let changed_nodes: BTreeSet<String> = created_nodes
+        .iter()
+        .chain(updated_nodes)
+        .chain(deleted_nodes)
+        .cloned()
+        .collect();
+    if updated_bonds.is_empty()
+        && created_bonds.is_empty()
+        && deleted_bonds.is_empty()
+        && changed_nodes.is_empty()
+    {
+        return;
+    }
+    let after_bonds: BTreeSet<String> = after
+        .editable_fragments()
+        .into_iter()
+        .flat_map(|entry| entry.fragment.bonds.iter().map(|bond| bond.id.clone()))
+        .collect();
+    let mut affected_bonds: BTreeSet<String> = updated_bonds
+        .iter()
+        .chain(&created_bonds)
+        .chain(deleted_bonds)
+        .cloned()
+        .collect();
+    let mut visual_bonds: BTreeSet<String> = updated_bonds.iter().cloned().collect();
+
+    for segments in collect_target_bond_segments(before)
+        .into_iter()
+        .chain(collect_target_bond_segments(after))
+    {
+        for segment in &segments {
+            if changed_nodes.contains(&segment.begin) || changed_nodes.contains(&segment.end) {
+                affected_bonds.insert(segment.id.clone());
+                if after_bonds.contains(&segment.id) && !created_bonds.contains(&segment.id) {
+                    visual_bonds.insert(segment.id.clone());
+                }
+            }
+        }
+
+        let affected_indices: Vec<usize> = segments
+            .iter()
+            .enumerate()
+            .filter_map(|(index, segment)| affected_bonds.contains(&segment.id).then_some(index))
+            .collect();
+        for affected_index in affected_indices {
+            for other_index in 0..segments.len() {
+                if affected_index == other_index {
+                    continue;
+                }
+                let (under, over) = if affected_index < other_index {
+                    (&segments[affected_index], &segments[other_index])
+                } else {
+                    (&segments[other_index], &segments[affected_index])
+                };
+                if target_bond_segments_cross(under, over)
+                    && after_bonds.contains(&over.id)
+                    && !created_bonds.contains(&over.id)
+                {
+                    visual_bonds.insert(over.id.clone());
+                }
+            }
+        }
+    }
+
+    *updated_bonds = visual_bonds.into_iter().collect();
+}
+
+fn collect_target_bond_segments(document: &ChemcoreDocument) -> Vec<Vec<TargetBondSegment>> {
+    let mut groups = Vec::new();
+    for entry in document.editable_fragments() {
+        let node_map: BTreeMap<&str, &Node> = entry
+            .fragment
+            .nodes
+            .iter()
+            .map(|node| (node.id.as_str(), node))
+            .collect();
+        let mut segments = Vec::new();
+        for bond in &entry.fragment.bonds {
+            let (Some(begin), Some(end)) = (
+                node_map.get(bond.begin.as_str()),
+                node_map.get(bond.end.as_str()),
+            ) else {
+                continue;
+            };
+            let start = entry.world_point_for_node(begin);
+            let end_point = entry.world_point_for_node(end);
+            if start.distance(end_point) <= crate::EPSILON {
+                continue;
+            }
+            segments.push(TargetBondSegment {
+                id: bond.id.clone(),
+                begin: bond.begin.clone(),
+                end: bond.end.clone(),
+                start,
+                end_point,
+            });
+        }
+        groups.push(segments);
+    }
+    groups
+}
+
+fn target_bond_segments_cross(first: &TargetBondSegment, second: &TargetBondSegment) -> bool {
+    if first.begin == second.begin
+        || first.begin == second.end
+        || first.end == second.begin
+        || first.end == second.end
+    {
+        return false;
+    }
+    let first_vector = Vector::new(
+        first.end_point.x - first.start.x,
+        first.end_point.y - first.start.y,
+    );
+    let second_vector = Vector::new(
+        second.end_point.x - second.start.x,
+        second.end_point.y - second.start.y,
+    );
+    if first_vector.length() <= crate::EPSILON || second_vector.length() <= crate::EPSILON {
+        return false;
+    }
+    let crossing_sin =
+        target_vector_cross(first_vector.normalized(), second_vector.normalized()).abs();
+    if crossing_sin <= 0.1 {
+        return false;
+    }
+    target_segment_intersection(first.start, first.end_point, second.start, second.end_point)
+        .is_some()
+}
+
+fn target_segment_intersection(a1: Point, a2: Point, b1: Point, b2: Point) -> Option<Point> {
+    let a = Vector::new(a2.x - a1.x, a2.y - a1.y);
+    let b = Vector::new(b2.x - b1.x, b2.y - b1.y);
+    let denom = target_vector_cross(a, b);
+    if denom.abs() <= crate::EPSILON {
+        return None;
+    }
+    let offset = Vector::new(b1.x - a1.x, b1.y - a1.y);
+    let t = target_vector_cross(offset, b) / denom;
+    let u = target_vector_cross(offset, a) / denom;
+    if t <= 1.0e-6 || t >= 1.0 - 1.0e-6 || u <= 1.0e-6 || u >= 1.0 - 1.0e-6 {
+        return None;
+    }
+    Some(Point::new(a1.x + a.x * t, a1.y + a.y * t))
+}
+
+fn target_vector_cross(first: Vector, second: Vector) -> f64 {
+    first.x * second.y - first.y * second.x
 }
 
 fn diff_target_map<T: PartialEq>(

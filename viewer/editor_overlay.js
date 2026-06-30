@@ -11,10 +11,10 @@ const SELECTION_ROTATE_HANDLE_RADIUS_SCREEN_PX = 2.0;
 const SELECTION_ROTATE_HANDLE_OFFSET_SCREEN_PX = 18;
 const SELECTION_CENTER_CROSS_HALF_SCREEN_PX = 5;
 const OBJECT_CONTROL_HANDLE_RADIUS_SCREEN_PX = 1.5;
-const HOVER_ENDPOINT_RADIUS_SCREEN_PX = 3.75;
+const PREVIEW_END_RADIUS_SCREEN_PX = 3.75;
 const HOVER_CENTER_RADIUS_SCREEN_PX = 3.75;
-const HOVER_BOND_CENTER_LENGTH_SCREEN_PX = 30;
-const HOVER_BOND_CENTER_WIDTH_SCREEN_PX = 8;
+const TEMP_LABEL_FONT_SCREEN_PX = 12;
+const TEMP_LABEL_OFFSET_SCREEN_PX = 8;
 const EDITOR_OVERLAY_LAYER_SELECTOR = '[data-layer="editor-overlay"]';
 
 export function createEditorOverlayRenderer(options) {
@@ -53,52 +53,21 @@ export function createEditorOverlayRenderer(options) {
   }
 
   function hoverCircleRadiusForRole(overlay, primitive) {
-    if (primitive.role === "hover-endpoint" || primitive.role === "preview-end") {
-      return screenPxToOverlayWorld(overlay, HOVER_ENDPOINT_RADIUS_SCREEN_PX);
+    if (primitive.role === "preview-end") {
+      return screenPxToOverlayWorld(overlay, PREVIEW_END_RADIUS_SCREEN_PX);
     }
-    if (primitive.role === "hover-bond-center" || primitive.role === "hover-arrow-center") {
+    if (primitive.role === "hover-arrow-center") {
       return screenPxToOverlayWorld(overlay, HOVER_CENTER_RADIUS_SCREEN_PX);
     }
     return primitive.radius;
   }
 
-  function normalizeHoverBondCenterPoints(overlay, primitive) {
-    if (primitive.role !== "hover-bond-center" || !Array.isArray(primitive.points) || primitive.points.length < 4) {
-      return primitive.points;
-    }
-    const points = primitive.points;
-    const center = points.reduce((sum, point) => ({
-      x: sum.x + Number(point.x || 0),
-      y: sum.y + Number(point.y || 0),
-    }), { x: 0, y: 0 });
-    center.x /= points.length;
-    center.y /= points.length;
-    let longest = null;
-    for (let index = 0; index < points.length; index += 1) {
-      const from = points[index];
-      const to = points[(index + 1) % points.length];
-      const dx = Number(to.x || 0) - Number(from.x || 0);
-      const dy = Number(to.y || 0) - Number(from.y || 0);
-      const length = Math.hypot(dx, dy);
-      if (!longest || length > longest.length) {
-        longest = { dx, dy, length };
-      }
-    }
-    if (!longest || longest.length <= Number.EPSILON) {
-      return primitive.points;
-    }
-    const ux = longest.dx / longest.length;
-    const uy = longest.dy / longest.length;
-    const px = -uy;
-    const py = ux;
-    const halfLength = screenPxToOverlayWorld(overlay, HOVER_BOND_CENTER_LENGTH_SCREEN_PX) * 0.5;
-    const halfWidth = screenPxToOverlayWorld(overlay, HOVER_BOND_CENTER_WIDTH_SCREEN_PX) * 0.5;
-    return [
-      { x: center.x - ux * halfLength - px * halfWidth, y: center.y - uy * halfLength - py * halfWidth },
-      { x: center.x + ux * halfLength - px * halfWidth, y: center.y + uy * halfLength - py * halfWidth },
-      { x: center.x + ux * halfLength + px * halfWidth, y: center.y + uy * halfLength + py * halfWidth },
-      { x: center.x - ux * halfLength + px * halfWidth, y: center.y - uy * halfLength + py * halfWidth },
-    ];
+  function appendTemporaryTextLabel(overlay, attrs, text) {
+    overlay.appendChild(makeSvgNode("text", {
+      ...attrs,
+      style: `font-size:${screenPxToOverlayWorld(overlay, TEMP_LABEL_FONT_SCREEN_PX)}px`,
+    }));
+    overlay.lastChild.textContent = text;
   }
 
   function appendTlcRfLabel(overlay, hit) {
@@ -647,7 +616,7 @@ export function createEditorOverlayRenderer(options) {
         if (!className) {
           continue;
         }
-        const points = normalizeHoverBondCenterPoints(overlay, primitive);
+        const points = primitive.points;
         overlay.appendChild(makeSvgNode("polygon", {
           points: points.map((point) => `${point.x},${point.y}`).join(" "),
           class: className,
@@ -724,36 +693,33 @@ export function createEditorOverlayRenderer(options) {
     if (!hideSelectionOverlayDuringGesture && editorState.activeTool === "select" && activeSelectionGesture?.kind === "resize") {
       const bounds = selectionBounds || activeSelectionGesture.bounds;
       if (bounds) {
-        const labelOffset = options.screenPxToWorld(8);
-        overlay.appendChild(makeSvgNode("text", {
+        const labelOffset = screenPxToOverlayWorld(overlay, TEMP_LABEL_OFFSET_SCREEN_PX);
+        appendTemporaryTextLabel(overlay, {
           x: bounds.maxX + labelOffset,
           y: bounds.minY - labelOffset,
           class: "editor-selection-resize-label",
           "data-role": "selection-resize-scale",
-        }));
-        overlay.lastChild.textContent = formatResizeScale(activeSelectionGesture.scale || 1);
+        }, formatResizeScale(activeSelectionGesture.scale || 1));
       }
     } else if (!hideSelectionOverlayDuringGesture && editorState.activeTool === "select" && activeSelectionGesture?.kind === "rotate") {
       const bounds = activeSelectionGesture.bounds;
-      const labelOffset = options.screenPxToWorld(8);
-      overlay.appendChild(makeSvgNode("text", {
+      const labelOffset = screenPxToOverlayWorld(overlay, TEMP_LABEL_OFFSET_SCREEN_PX);
+      appendTemporaryTextLabel(overlay, {
         x: bounds.maxX + labelOffset,
         y: bounds.minY - labelOffset,
         class: "editor-selection-rotate-angle",
         "data-role": "selection-rotate-angle",
-      }));
-      overlay.lastChild.textContent = formatRotationAngle(activeSelectionGesture.angle || 0);
+      }, formatRotationAngle(activeSelectionGesture.angle || 0));
     } else if ((editorState.activeTool === "select" || editorState.activeTool === "arrow")
       && activeSelectionGesture?.kind === "arrow-curve") {
-      const labelOffset = options.screenPxToWorld(8);
+      const labelOffset = screenPxToOverlayWorld(overlay, TEMP_LABEL_OFFSET_SCREEN_PX);
       const point = activeSelectionGesture.current || activeSelectionGesture.start;
-      overlay.appendChild(makeSvgNode("text", {
+      appendTemporaryTextLabel(overlay, {
         x: point.x + labelOffset,
         y: point.y - labelOffset,
         class: "editor-selection-rotate-angle",
         "data-role": "arrow-curve-angle",
-      }));
-      overlay.lastChild.textContent = formatRotationAngle(activeSelectionGesture.angle || 0);
+      }, formatRotationAngle(activeSelectionGesture.angle || 0));
     } else if ((editorState.activeTool === "select" || editorState.activeTool === "tlc-plate")
       && activeSelectionGesture?.kind === "tlc-spot-drag") {
       const hit = activeSelectionGesture.hit;
