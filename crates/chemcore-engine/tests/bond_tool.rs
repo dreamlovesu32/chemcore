@@ -11166,8 +11166,7 @@ fn bracket_label_count_links_with_new_bracket_group() {
         .iter()
         .find(|object| {
             object.object_type == "group"
-                && object.meta.get("kind").and_then(|value| value.as_str())
-                    == Some("bracket-group")
+                && object.meta.get("kind").and_then(|value| value.as_str()) == Some("bracket-group")
         })
         .map(|object| object.id.clone())
         .expect("dragging bracket tool should create a bracket group");

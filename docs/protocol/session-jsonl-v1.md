@@ -41,7 +41,7 @@ Successful responses include:
 Failed responses include:
 
 ```json
-{"ok":false,"id":1,"op":"targets","error":{"kind":"command_error","message":"..."}}
+{"ok":false,"id":1,"op":"targets","error":{"kind":"operation_failed","message":"..."}}
 ```
 
 ## History Policy

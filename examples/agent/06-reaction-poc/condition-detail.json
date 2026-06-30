@@ -1,0 +1,105 @@
+{
+  "detail": {
+    "bounds": {
+      "height": 14.5,
+      "maxX": 204.23000000000002,
+      "maxY": 139.85,
+      "minX": 120.33000000000001,
+      "minY": 125.35,
+      "width": 83.9
+    },
+    "childCount": 0,
+    "id": "obj_text_008",
+    "kind": "object",
+    "locked": false,
+    "name": "text 8",
+    "raw": {
+      "object": {
+        "id": "obj_text_008",
+        "locked": false,
+        "meta": {
+          "role": "free_text",
+          "source": "cdxml",
+          "textId": "1176604518"
+        },
+        "name": "text 8",
+        "payload": {
+          "align": "left",
+          "baselineOffset": 8.95,
+          "box": [
+            0.0,
+            0.0,
+            80.58,
+            11.5
+          ],
+          "fontSize": 10.0,
+          "lineHeight": 11.5,
+          "preserveLines": true,
+          "runs": [
+            {
+              "fill": "#000000",
+              "fontFamily": "Arial",
+              "fontSize": 10.0,
+              "fontStyle": "normal",
+              "fontWeight": 400,
+              "script": "normal",
+              "text": "Cu(II)-bound NCR",
+              "underline": false
+            }
+          ],
+          "text": "Cu(II)-bound NCR",
+          "valign": "top"
+        },
+        "styleRef": "style_text_008",
+        "transform": {
+          "rotate": 0.0,
+          "scale": [
+            1.0,
+            1.0
+          ],
+          "translate": [
+            121.93,
+            125.0
+          ]
+        },
+        "type": "text",
+        "visible": true,
+        "zIndex": 659
+      }
+    },
+    "references": {
+      "resource": null,
+      "style": {
+        "fill": "#000000",
+        "fontFamily": "Arial",
+        "fontSize": 10.0,
+        "id": "style_text_008",
+        "kind": "text",
+        "stroke": null,
+        "strokeWidth": null
+      }
+    },
+    "relationships": {
+      "ancestorIds": [],
+      "childIds": [],
+      "groupKind": null,
+      "isGroup": false,
+      "linkKind": null,
+      "linkedObjectIds": [],
+      "parentId": null
+    },
+    "resourceRef": null,
+    "selector": "object:obj_text_008",
+    "styleRef": "style_text_008",
+    "type": "text",
+    "visible": true,
+    "zIndex": 659
+  },
+  "input": "D:\\Projects\\chemcore\\figure1.cdxml",
+  "ok": true,
+  "target": {
+    "id": "obj_text_008",
+    "kind": "object",
+    "selector": "object:obj_text_008"
+  }
+}

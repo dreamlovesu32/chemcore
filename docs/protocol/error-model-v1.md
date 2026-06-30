@@ -27,8 +27,17 @@ then use `fix` and `suggestions` when present.
 
 - `unknown_command`
 - `missing_argument`
-- `invalid_argument`
-- `command_error`
+- `unexpected_argument`
+- `invalid_format`
+- `invalid_command_json`
+- `target_not_found`
+- `command_failed`
+
+JSONL session responses may also use these request-level kinds:
+
+- `invalid_json`
+- `missing_operation`
+- `operation_failed`
 
 Missing argument errors include `fix.action="provide_required_argument"` and
 machine-readable `missing` and `expected` fields when the CLI can infer them.

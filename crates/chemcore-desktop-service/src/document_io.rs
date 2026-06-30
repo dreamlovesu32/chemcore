@@ -51,7 +51,7 @@ impl DesktopDocumentService {
         format: Option<&str>,
     ) -> Result<DesktopSavedDocument, String> {
         let path = normalize_path(path)?;
-        if let Some(parent) = path.parent() {
+        if let Some(parent) = output_parent_path(&path) {
             fs::create_dir_all(parent).map_err(|error| {
                 format!("Failed to create directory {}: {error}", parent.display())
             })?;
@@ -164,4 +164,13 @@ fn verify_written_file_exact(path: &Path, expected_bytes: u64) -> Result<(), Str
         ));
     }
     Ok(())
+}
+
+fn output_parent_path(path: &Path) -> Option<&Path> {
+    let parent = path.parent()?;
+    if parent.as_os_str().is_empty() || parent.components().next().is_none() {
+        None
+    } else {
+        Some(parent)
+    }
 }

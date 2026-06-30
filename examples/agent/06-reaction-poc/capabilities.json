@@ -1,0 +1,335 @@
+{
+  "commands": [
+    {
+      "example": "chemcore-cli version --pretty",
+      "name": "version",
+      "summary": "Return ChemCore CLI product and protocol versions as JSON.",
+      "usage": "chemcore-cli version [--pretty] [--out <path>]"
+    },
+    {
+      "example": "chemcore-cli capabilities --pretty",
+      "name": "capabilities",
+      "summary": "Return the machine-readable CLI protocol, commands, formats, and examples.",
+      "usage": "chemcore-cli capabilities [--pretty] [--out <path>]"
+    },
+    {
+      "example": "chemcore-cli schema capture --pretty",
+      "name": "schema",
+      "summary": "Return machine-readable command, target, and capture schemas.",
+      "usage": "chemcore-cli schema [protocol|commands|targets|capture|context|detail|guide|copy|json-output|command-script|all] [--pretty] [--out <path>]"
+    },
+    {
+      "example": "chemcore-cli doctor --pretty",
+      "name": "doctor",
+      "summary": "Report CLI installation paths, environment, and runtime capabilities.",
+      "usage": "chemcore-cli doctor [--pretty] [--out <path>]"
+    },
+    {
+      "example": "chemcore-cli about --pretty",
+      "name": "about",
+      "summary": "Return product metadata, installed entrypoints, packaging notes, and agent guidance.",
+      "usage": "chemcore-cli about [--pretty] [--out <path>]"
+    },
+    {
+      "example": "chemcore-cli examples basic --pretty",
+      "name": "examples",
+      "summary": "Return ready-to-run JSON command scripts and CLI workflows.",
+      "usage": "chemcore-cli examples [basic|capture-copy|all] [--pretty] [--out <path>]"
+    },
+    {
+      "example": "chemcore-cli guide --pretty",
+      "name": "guide",
+      "summary": "Locate the installed agent and detailed CLI guides and optionally include their Markdown content.",
+      "usage": "chemcore-cli guide [--kind agent|detailed|all] [--include-content] [--pretty] [--out <path>]"
+    },
+    {
+      "example": "chemcore-cli inspect input.cdxml --include summary,objects,molecules --out inspect.json --pretty",
+      "name": "inspect",
+      "summary": "Inspect a document and write JSON summary/object/molecule/resource data.",
+      "usage": "chemcore-cli inspect <input> [--include summary,objects,molecules,resources,styles] [--out <path>] [--pretty]"
+    },
+    {
+      "example": "chemcore-cli targets input.cdxml --out targets.json --pretty",
+      "name": "targets",
+      "summary": "List stable capture targets, object ids, molecule indices, node ids, bond ids, and bounds.",
+      "usage": "chemcore-cli targets <input> [--out <path>] [--pretty]"
+    },
+    {
+      "example": "chemcore-cli capture input.cdxml --target molecule:0 --target object:obj_label --out selection.png --scale 6 --expand-rel 0.15",
+      "name": "capture",
+      "summary": "Render a deterministic cropped SVG or high-resolution PNG for an object, molecule, node, bond, all content, or explicit bounds.",
+      "usage": "chemcore-cli capture <input> --target <selector> [--target <selector> ...] [--targets <selector;selector>] [--out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--expand-left <pt>] [--pretty]"
+    },
+    {
+      "example": "chemcore-cli context input.cdxml --target molecule:1 --radius 80 --out context.json --capture-out context.png --scale 5 --pretty",
+      "name": "context",
+      "summary": "Report nearby objects/components around a target, including bounds, ids, spatial relation, group/link metadata, and optional screenshot.",
+      "usage": "chemcore-cli context <input> --target <selector> [--target <selector> ...] [--targets <selector;selector>] [--radius <pt>] [--expand-left <pt>] [--expand-rel <fraction>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]"
+    },
+    {
+      "example": "chemcore-cli detail input.cdxml --target object:obj_round_bracket --out object-detail.json --pretty",
+      "name": "detail",
+      "summary": "Return one target's detail JSON after targets/context discovery.",
+      "usage": "chemcore-cli detail <input> --target <object:id|molecule:index|node:id|bond:id> [--summary-only] [--include-resource] [--out <detail.json>] [--pretty]"
+    },
+    {
+      "example": "chemcore-cli copy input.cdxml --target object:obj_arrow_1 --pretty",
+      "name": "copy",
+      "summary": "Copy all content or a target object/molecule/node/bond as a ChemCore Office/OLE clipboard payload.",
+      "usage": "chemcore-cli copy <input> [--target <object:id|molecule:index|node:id|bond:id|all>] [--office-helper <chemcore-office.exe>] [--payload <payload.json>] [--no-copy] [--pretty]"
+    },
+    {
+      "example": "chemcore-cli session input.cdxml",
+      "name": "session",
+      "summary": "Start a long-lived JSONL agent session that keeps one document open for repeated targets, detail, context, capture, execute, and save operations.",
+      "usage": "chemcore-cli session [input]"
+    },
+    {
+      "example": "chemcore-cli new commands.json --out generated.cdxml --results results.json --pretty",
+      "name": "new",
+      "summary": "Create a new document, optionally by applying a JSON command script.",
+      "usage": "chemcore-cli new [commands.json|-] --out <path> [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--continue-on-error] [--pretty] [--quiet]"
+    },
+    {
+      "example": "chemcore-cli run input.cdxml commands.json --out edited.cdxml --results results.json --pretty",
+      "name": "run",
+      "summary": "Load a document, execute a JSON command script, and optionally save the edited document.",
+      "usage": "chemcore-cli run <input> <commands.json|-> [--out <path>] [--save-format <format>] [--results <path>] [--document-json <path>] [--inspect-after <include|none>] [--continue-on-error] [--pretty] [--quiet]"
+    },
+    {
+      "example": "chemcore-cli convert input.cdxml output.svg",
+      "name": "convert",
+      "summary": "Convert an editable document between ChemCore, CDXML/CDX, SDF, and SVG export formats.",
+      "usage": "chemcore-cli convert <input> <output> [--format <format>]"
+    },
+    {
+      "example": "chemcore-cli export input.cdxml output.svg",
+      "name": "export",
+      "summary": "Alias of convert for export-oriented workflows.",
+      "usage": "chemcore-cli export <input> <output> [--format <format>]"
+    }
+  ],
+  "documentation": {
+    "agentGuide": {
+      "contentCommand": "chemcore-cli guide --kind agent --include-content --out chemcore-agent-guide.json --pretty",
+      "discoveryCommand": "chemcore-cli guide --kind agent --pretty",
+      "file": "chemcore-agent-guide.md",
+      "found": true,
+      "installedPathHints": [
+        "<install-dir>\\resources\\chemcore-agent-guide.md",
+        "<install-dir>\\chemcore-agent-guide.md"
+      ],
+      "key": "agent",
+      "language": "en",
+      "path": "D:\\Projects\\chemcore\\target\\debug\\chemcore-agent-guide.md",
+      "pathCandidates": [
+        "D:\\Projects\\chemcore\\examples\\agent\\06-reaction-poc\\apps\\chemcore-desktop\\src-tauri\\resources\\chemcore-agent-guide.md",
+        "D:\\Projects\\chemcore\\examples\\agent\\06-reaction-poc\\docs\\chemcore-agent-guide.md",
+        "D:\\Projects\\chemcore\\examples\\agent\\06-reaction-poc\\target\\release\\chemcore-agent-guide.md",
+        "D:\\Projects\\chemcore\\target\\debug\\chemcore-agent-guide.md",
+        "D:\\Projects\\chemcore\\target\\debug\\resources\\chemcore-agent-guide.md",
+        "D:\\Projects\\chemcore\\target\\resources\\chemcore-agent-guide.md"
+      ],
+      "summary": "Quick machine-oriented guide for Chemcore CLI discovery, precise capture, context lookup, detail lookup, editing, and Office clipboard workflows.",
+      "title": "Chemcore Agent Guide"
+    },
+    "detailedGuide": {
+      "contentCommand": "chemcore-cli guide --kind detailed --include-content --out chemcore-cli-guide.json --pretty",
+      "discoveryCommand": "chemcore-cli guide --kind detailed --pretty",
+      "file": "chemcore-cli-guide.md",
+      "found": true,
+      "installedPathHints": [
+        "<install-dir>\\resources\\chemcore-cli-guide.md",
+        "<install-dir>\\chemcore-cli-guide.md"
+      ],
+      "key": "detailed",
+      "language": "en",
+      "path": "D:\\Projects\\chemcore\\target\\debug\\chemcore-cli-guide.md",
+      "pathCandidates": [
+        "D:\\Projects\\chemcore\\examples\\agent\\06-reaction-poc\\apps\\chemcore-desktop\\src-tauri\\resources\\chemcore-cli-guide.md",
+        "D:\\Projects\\chemcore\\examples\\agent\\06-reaction-poc\\docs\\chemcore-cli-guide.md",
+        "D:\\Projects\\chemcore\\examples\\agent\\06-reaction-poc\\target\\release\\chemcore-cli-guide.md",
+        "D:\\Projects\\chemcore\\target\\debug\\chemcore-cli-guide.md",
+        "D:\\Projects\\chemcore\\target\\debug\\resources\\chemcore-cli-guide.md",
+        "D:\\Projects\\chemcore\\target\\resources\\chemcore-cli-guide.md"
+      ],
+      "summary": "Detailed command and JSON workflow guide for callers that use chemcore-cli directly.",
+      "title": "ChemCore CLI Command Guide"
+    }
+  },
+  "formats": {
+    "captureOutput": [
+      "svg",
+      "png"
+    ],
+    "clipboardOutput": [
+      "windows-office-ole",
+      "chemcore-payload-json"
+    ],
+    "documentOutput": [
+      "json",
+      "ccjs",
+      "ccjz",
+      "cdxml",
+      "cdx",
+      "sdf",
+      "svg"
+    ],
+    "editableInput": [
+      "ccjs",
+      "ccjz",
+      "cdxml",
+      "cdx",
+      "sdf"
+    ]
+  },
+  "name": "chemcore-cli",
+  "nextSteps": [
+    "chemcore-cli guide --pretty",
+    "chemcore-cli guide --kind detailed --pretty",
+    "chemcore-cli about --pretty",
+    "chemcore-cli examples basic --pretty",
+    "chemcore-cli schema command-script --pretty",
+    "chemcore-cli schema context --pretty",
+    "chemcore-cli schema detail --pretty"
+  ],
+  "ok": true,
+  "protocol": "chemcore-cli-protocol.v1",
+  "protocols": {
+    "captureManifest": "chemcore-cli-capture-manifest.v1",
+    "cli": "chemcore-cli-protocol.v1",
+    "entrypoints": "chemcore.entrypoints.v1",
+    "errorModel": "chemcore-cli-error.v1",
+    "selector": "chemcore-selector.v1",
+    "session": "chemcore-cli-session-jsonl.v1"
+  },
+  "schemas": {
+    "bounds": {
+      "description": "World-space crop bounds in points.",
+      "example": "-20,-10,140,80",
+      "format": "minX,minY,maxX,maxY"
+    },
+    "capture": {
+      "defaultOutput": "If --out is omitted, capture writes a PNG into the OS temp chemcore-cli directory and returns output.defaulted=true plus the exact path and a default_output_path warning in the JSON manifest.",
+      "expansion": "Use --expand/--padding for absolute pt expansion, --expand-left/right/top/bottom for per-side absolute expansion, and --expand-rel or --expand-rel-x/y for relative expansion based on target size.",
+      "formats": [
+        "svg",
+        "png"
+      ],
+      "multiSelect": "Multiple targets are cropped by their minimum union bounds. The rendered image includes everything visible inside that box plus requested expansion.",
+      "render": "Capture manifests include render.mode, render.primitiveCount, and render.targets. These describe how many render primitives and nearby node/bond/object targets were used to produce the crop.",
+      "resolution": "PNG defaults to --scale 4. Use --scale, --width, or --height for sharper or bounded raster output.",
+      "stdout": "JSON manifest only; rendered image data is written to --out or the default temp capture path.",
+      "usage": "chemcore-cli capture <input> --target <selector> [--target <selector> ...] [--targets <selector;selector>] [--out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--expand <pt>] [--expand-rel <fraction>] [--expand-left <pt>] [--pretty]",
+      "verification": "Capture manifests include output.verified=true and output.bytes after the rendered file is verified on disk."
+    },
+    "commandScript": {
+      "audit": "new/run results are lightweight by default. They include top-level and per-command document hash/revision transitions plus selector-form created/updated/deleted summaries.",
+      "errorPointers": "Execution reports include command index, commandType, document transition, changeSummary, and engine error message.",
+      "historyPolicy": "The CLI does not maintain an undo stack or per-step snapshot history. Agents should maintain history with git, temp files, or their own logs.",
+      "input": "A JSON object command or an array of command objects.",
+      "snapshots": "Per-command after snapshots and the top-level final snapshot are opt-in with --inspect-after <include>. Use --inspect-after none or --no-inspect-after to force no snapshots.",
+      "stdin": "Use '-' for commands.json to read JSON from stdin."
+    },
+    "context": {
+      "description": "Returns objects, molecules, nodes, and bonds near a target or multi-target selection. Entries include selector ids, bounds, center/edge distance, direction, overlap flags, selectionBoxRelation, group ancestry, child ids, and link metadata.",
+      "screenshot": "Pass --capture-out <path.svg|path.png> to render the same context bounds. The capture object includes render.mode, render.primitiveCount, and render.targets when a screenshot is written.",
+      "selectionBox": "context.selectionBox.contents lists objects/molecules/nodes/bonds inside the target box. Each item reports selectionBoxRelation=inside or partial and isTarget=true only for explicitly selected targets.",
+      "usage": "chemcore-cli context <input> --target <selector> [--target <selector> ...] [--targets <selector;selector>] [--radius <pt>] [--expand-left <pt>] [--expand-rel <fraction>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]"
+    },
+    "copy": {
+      "clipboard": "Windows Office/OLE via chemcore-office.exe --copy-clipboard-payload.",
+      "defaultPayload": "If --payload is omitted, copy writes the payload JSON into the OS temp chemcore-cli directory and reports payload.defaulted=true, payload.verified=true, payload.bytes, and a default_payload_path warning.",
+      "stdout": "JSON manifest only; large clipboard payloads are written to a payload file.",
+      "targets": [
+        "all",
+        "object",
+        "molecule",
+        "node",
+        "bond"
+      ],
+      "usage": "chemcore-cli copy <input> [--target <object:id|molecule:index|node:id|bond:id|all>] [--office-helper <chemcore-office.exe>] [--payload <payload.json>] [--no-copy] [--pretty]"
+    },
+    "detail": {
+      "aliases": [
+        "details",
+        "describe",
+        "show"
+      ],
+      "description": "Returns a single object's, molecule's, node's, or bond's detail JSON. Use targets/context first to discover selectors, then detail to expand one selector.",
+      "rawPolicy": "By default, detail includes raw JSON for the selected entity. Use --summary-only for ids/bounds/relationship metadata only. Use --include-resource to embed the referenced molecule/text/json resource when inspecting an object.",
+      "usage": "chemcore-cli detail <input> --target <object:id|molecule:index|node:id|bond:id> [--summary-only] [--include-resource] [--out <detail.json>] [--pretty]"
+    },
+    "guide": {
+      "content": "Use --include-content with --out <path> when the caller needs Markdown text inside JSON.",
+      "description": "Returns installed guide metadata. Use --kind agent for the quick agent guide, --kind detailed for the detailed English CLI guide, or --kind all for both.",
+      "files": [
+        "chemcore-agent-guide.md",
+        "chemcore-cli-guide.md"
+      ],
+      "usage": "chemcore-cli guide [--kind agent|detailed|all] [--include-content] [--pretty] [--out <path>]"
+    },
+    "jsonOutput": {
+      "default": "Commands that print JSON emit compact single-line JSON unless --pretty is present.",
+      "errors": "Error JSON includes error.kind, message, hint, fix, usage, examples, and suggestions. Missing argument errors include fix.action=provide_required_argument and machine-readable missing/expected fields.",
+      "out": "When complete output matters, pass --out <path> and read that file instead of relying on a console buffer.",
+      "pretty": "--pretty only changes JSON whitespace: compact JSON becomes line-broken and indented. It does not change fields, values, output files, exit code, schema, ordering, or command behavior.",
+      "writeVerification": "When the CLI writes a file, it verifies after the write that the target exists, is a regular file, and has the expected or minimum byte size. Verification failures are command errors."
+    },
+    "protocol": {
+      "captureManifest": "chemcore-cli-capture-manifest.v1",
+      "cli": "chemcore-cli-protocol.v1",
+      "compatibility": "v1 fields are intended to remain backward compatible throughout the 1.0 beta line unless explicitly marked experimental.",
+      "entrypoints": "chemcore.entrypoints.v1",
+      "errorModel": "chemcore-cli-error.v1",
+      "selector": "chemcore-selector.v1",
+      "session": "chemcore-cli-session-jsonl.v1"
+    },
+    "session": {
+      "description": "Starts a JSON Lines protocol over stdin/stdout. The process keeps one Engine and parsed ChemCore document in memory until close or exit.",
+      "historyPolicy": "The session does not persist undo history. execute responses report before/after revision and per-command results; callers should maintain history with git, files, or their own log.",
+      "operations": [
+        "open",
+        "targets",
+        "detail",
+        "context",
+        "capture",
+        "execute",
+        "save",
+        "status",
+        "close",
+        "exit"
+      ],
+      "protocol": "chemcore-cli-session-jsonl.v1",
+      "ready": "The first stdout line is a ready event. Send one compact JSON request per line and read one compact JSON response per line.",
+      "usage": "chemcore-cli session [input]"
+    },
+    "target": {
+      "accepted": [
+        "all",
+        "object:<scene-object-id>",
+        "molecule:<zero-based-molecule-index>",
+        "node:<node-id>",
+        "bond:<bond-id>",
+        "bounds:<minX>,<minY>,<maxX>,<maxY>",
+        "selection:<selector;selector>"
+      ],
+      "description": "Capture target selector.",
+      "examples": [
+        "object:obj_round_bracket",
+        "molecule:0",
+        "node:n_4",
+        "bond:b_5",
+        "selection:object:obj_a;object:obj_b"
+      ],
+      "multiSelect": "For capture/context, repeat --target, pass --targets <selector;selector>, use selection:<selector;selector>, or in JSONL session pass target/targets as an array. The crop box is the minimum bounds union, matching the GUI selection box."
+    }
+  },
+  "stdout": {
+    "default": "json",
+    "largeOutputPolicy": "For payloads that may exceed console buffers, pass --out <path> and read that file. capture writes image data to --out or a default temp PNG path and returns a JSON manifest.",
+    "pretty": "--pretty only changes JSON whitespace: compact JSON becomes line-broken and indented. It does not change fields, values, output files, exit code, schema, ordering, or command behavior.",
+    "writeVerification": "File-writing commands verify the written file before reporting success."
+  },
+  "version": "1.0.0-beta.5"
+}

@@ -1,0 +1,286 @@
+{
+  "commandCount": 2,
+  "commands": [
+    {
+      "beforeRevision": 0,
+      "changeSummary": {
+        "createdCount": 2,
+        "createdSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [
+            "object:obj_shape_1176604687"
+          ],
+          "styles": [
+            "style:style_obj_shape_1176604687"
+          ]
+        },
+        "deletedCount": 0,
+        "deletedSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [],
+          "styles": []
+        },
+        "touchedSelectors": [
+          "object:obj_shape_1176604687",
+          "style:style_obj_shape_1176604687"
+        ],
+        "updatedCount": 0,
+        "updatedSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [],
+          "styles": []
+        }
+      },
+      "changed": true,
+      "command": {
+        "begin": {
+          "x": 116.0,
+          "y": 122.0
+        },
+        "color": "#1f5fbf",
+        "end": {
+          "x": 212.0,
+          "y": 144.0
+        },
+        "kind": "rect",
+        "style": "dashed",
+        "type": "add-shape"
+      },
+      "commandType": "add-shape",
+      "created": {
+        "objects": [
+          "obj_shape_1176604687"
+        ],
+        "styles": [
+          "style_obj_shape_1176604687"
+        ]
+      },
+      "deleted": {},
+      "diagnostics": {},
+      "document": {
+        "afterHash": "6a0b0caa72e05b695f1fa4b89320e56ddf7597735e2fe1a7f9512a5077d0052d",
+        "afterRevision": 1,
+        "beforeHash": "399eda43208575da2d725116ffe6f777f6de13e0b321e1673e91928279bfbddd",
+        "beforeRevision": 0,
+        "hashAlgorithm": "sha256",
+        "hashChanged": true,
+        "hashInput": "chemcore-document-json-v1"
+      },
+      "engineResult": {
+        "beforeRevision": 0,
+        "canRedo": false,
+        "canUndo": true,
+        "changed": true,
+        "command": {
+          "begin": {
+            "x": 116.0,
+            "y": 122.0
+          },
+          "color": "#1f5fbf",
+          "end": {
+            "x": 212.0,
+            "y": 144.0
+          },
+          "kind": "rect",
+          "style": "dashed",
+          "type": "add-shape"
+        },
+        "created": {
+          "objects": [
+            "obj_shape_1176604687"
+          ],
+          "styles": [
+            "style_obj_shape_1176604687"
+          ]
+        },
+        "redoDepth": 0,
+        "revision": 1,
+        "targets": {
+          "objects": [
+            "obj_shape_1176604687"
+          ],
+          "styles": [
+            "style_obj_shape_1176604687"
+          ]
+        },
+        "undoDepth": 1
+      },
+      "executed": true,
+      "index": 0,
+      "ok": true,
+      "revision": 1,
+      "targets": {
+        "objects": [
+          "obj_shape_1176604687"
+        ],
+        "styles": [
+          "style_obj_shape_1176604687"
+        ]
+      },
+      "updated": {}
+    },
+    {
+      "beforeRevision": 1,
+      "changeSummary": {
+        "createdCount": 1,
+        "createdSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [
+            "object:obj_text_1176604688"
+          ],
+          "styles": []
+        },
+        "deletedCount": 0,
+        "deletedSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [],
+          "styles": []
+        },
+        "touchedSelectors": [
+          "object:obj_text_1176604688"
+        ],
+        "updatedCount": 0,
+        "updatedSelectors": {
+          "bonds": [],
+          "nodes": [],
+          "objects": [],
+          "styles": []
+        }
+      },
+      "changed": true,
+      "command": {
+        "box": [
+          0.0,
+          0.0,
+          220.0,
+          10.0
+        ],
+        "fill": "#1f5fbf",
+        "fontFamily": "Arial",
+        "fontSize": 8.0,
+        "lineHeight": 9.5,
+        "position": {
+          "x": 120.0,
+          "y": 174.0
+        },
+        "runs": [
+          {
+            "fill": "#1f5fbf",
+            "fontSize": 8.0,
+            "script": "normal",
+            "text": "agent note: verify condition label before manuscript use"
+          }
+        ],
+        "type": "add-text"
+      },
+      "commandType": "add-text",
+      "created": {
+        "objects": [
+          "obj_text_1176604688"
+        ]
+      },
+      "deleted": {},
+      "diagnostics": {},
+      "document": {
+        "afterHash": "ab44a5842b75905dc6ae411319977ac33a5c860e2be6c7459a1e5eabc9a5d528",
+        "afterRevision": 2,
+        "beforeHash": "6a0b0caa72e05b695f1fa4b89320e56ddf7597735e2fe1a7f9512a5077d0052d",
+        "beforeRevision": 1,
+        "hashAlgorithm": "sha256",
+        "hashChanged": true,
+        "hashInput": "chemcore-document-json-v1"
+      },
+      "engineResult": {
+        "beforeRevision": 1,
+        "canRedo": false,
+        "canUndo": true,
+        "changed": true,
+        "command": {
+          "box": [
+            0.0,
+            0.0,
+            220.0,
+            10.0
+          ],
+          "defaultChemical": false,
+          "fill": "#1f5fbf",
+          "fontFamily": "Arial",
+          "fontSize": 8.0,
+          "lineHeight": 9.5,
+          "position": {
+            "x": 120.0,
+            "y": 174.0
+          },
+          "sourceRuns": [
+            {
+              "fill": "#1f5fbf",
+              "fontSize": 8.0,
+              "script": "normal",
+              "text": "agent note: verify condition label before manuscript use"
+            }
+          ],
+          "type": "add-text"
+        },
+        "created": {
+          "objects": [
+            "obj_text_1176604688"
+          ]
+        },
+        "redoDepth": 0,
+        "revision": 2,
+        "targets": {
+          "objects": [
+            "obj_text_1176604688"
+          ]
+        },
+        "undoDepth": 2
+      },
+      "executed": true,
+      "index": 1,
+      "ok": true,
+      "revision": 2,
+      "targets": {
+        "objects": [
+          "obj_text_1176604688"
+        ]
+      },
+      "updated": {}
+    }
+  ],
+  "continueOnError": false,
+  "document": {
+    "afterHash": "ab44a5842b75905dc6ae411319977ac33a5c860e2be6c7459a1e5eabc9a5d528",
+    "afterRevision": 2,
+    "beforeHash": "399eda43208575da2d725116ffe6f777f6de13e0b321e1673e91928279bfbddd",
+    "beforeRevision": 0,
+    "hashAlgorithm": "sha256",
+    "hashChanged": true,
+    "hashInput": "chemcore-document-json-v1"
+  },
+  "executedCount": 2,
+  "failedCount": 0,
+  "failedIndex": null,
+  "failedIndices": [],
+  "io": {
+    "input": {
+      "path": "D:\\Projects\\chemcore\\figure1.cdxml"
+    },
+    "operation": "run",
+    "output": {
+      "format": "cdxml",
+      "path": "output.cdxml"
+    },
+    "script": "commands.json"
+  },
+  "ok": true,
+  "save": {
+    "format": "cdxml",
+    "ok": true,
+    "path": "output.cdxml"
+  }
+}

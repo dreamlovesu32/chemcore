@@ -1,0 +1,15 @@
+{
+  "cli": "chemcore-cli",
+  "ok": true,
+  "product": "Chemcore",
+  "protocol": "chemcore-cli-protocol.v1",
+  "protocols": {
+    "captureManifest": "chemcore-cli-capture-manifest.v1",
+    "cli": "chemcore-cli-protocol.v1",
+    "entrypoints": "chemcore.entrypoints.v1",
+    "errorModel": "chemcore-cli-error.v1",
+    "selector": "chemcore-selector.v1",
+    "session": "chemcore-cli-session-jsonl.v1"
+  },
+  "version": "1.0.0-beta.5"
+}

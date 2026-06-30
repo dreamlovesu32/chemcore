@@ -29,6 +29,8 @@
     "emf:compare-oracle": "node scripts/compare-emf-oracle.mjs",
     "emf:inspect": "node scripts/emf-inspect.mjs",
     "emf:render-preview": "node scripts/render-emf-preview.mjs",
+    "examples:agent": "powershell -ExecutionPolicy Bypass -File examples/agent/run-all.ps1",
+    "poc:agent": "powershell -ExecutionPolicy Bypass -File examples/agent/06-reaction-poc/run.ps1",
     "office:print-registration": "cargo run -p chemcore-office -- --print-registration",
     "office:register-dev": "cargo run -p chemcore-office -- --register-user",
     "office:serve": "cargo run -p chemcore-office -- --serve",

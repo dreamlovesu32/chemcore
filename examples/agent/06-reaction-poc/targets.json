@@ -1,0 +1,6301 @@
+{
+  "input": "D:\\Projects\\chemcore\\figure1.cdxml",
+  "ok": true,
+  "targetCount": 313,
+  "targets": {
+    "all": {
+      "bounds": {
+        "height": 441.9599999999999,
+        "maxX": 523.0,
+        "maxY": 555.8199999999999,
+        "minX": 1.28,
+        "minY": 113.86,
+        "width": 521.72
+      },
+      "selector": "all"
+    },
+    "bonds": [
+      {
+        "begin": "f1_1176604346",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 241.18,
+          "maxY": 249.38,
+          "minX": 218.78,
+          "minY": 241.38,
+          "width": 22.400000000000006
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f1_1176604347",
+        "id": "f1_1176604362",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f1_1176604362"
+      },
+      {
+        "begin": "f1_1176604347",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 255.58,
+          "maxY": 249.38,
+          "minX": 233.18,
+          "minY": 241.38,
+          "width": 22.400000000000006
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f1_1176604350",
+        "id": "f1_1176604363",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f1_1176604363"
+      },
+      {
+        "begin": "f1_1176604346",
+        "bounds": {
+          "height": 20.870000000000005,
+          "maxX": 226.78,
+          "maxY": 262.25,
+          "minX": 212.31,
+          "minY": 241.38,
+          "width": 14.469999999999999
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f1_1176604351",
+        "id": "f1_1176604364",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f1_1176604364"
+      },
+      {
+        "begin": "f1_1176604350",
+        "bounds": {
+          "height": 20.47,
+          "maxX": 262.78000000000003,
+          "maxY": 249.38,
+          "minX": 247.58,
+          "minY": 228.91,
+          "width": 15.200000000000017
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f1_1176604352",
+        "id": "f1_1176604365",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f1_1176604365"
+      },
+      {
+        "begin": "f1_1176604350",
+        "bounds": {
+          "height": 20.470000000000027,
+          "maxX": 262.78000000000003,
+          "maxY": 261.85,
+          "minX": 247.58,
+          "minY": 241.38,
+          "width": 15.200000000000017
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f1_1176604359",
+        "id": "f1_1176604366",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f1_1176604366"
+      },
+      {
+        "begin": "f1_1176604359",
+        "bounds": {
+          "height": 8.569999999999993,
+          "maxX": 277.17,
+          "maxY": 262.42,
+          "minX": 254.78000000000003,
+          "minY": 253.85000000000002,
+          "width": 22.389999999999986
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f1_1176604360",
+        "id": "f1_1176604367",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f1_1176604367"
+      },
+      {
+        "begin": "f1_1176604346",
+        "bounds": {
+          "height": 20.25999999999999,
+          "maxX": 226.78,
+          "maxY": 249.38,
+          "minX": 211.22,
+          "minY": 229.12,
+          "width": 15.560000000000002
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f1_1176604361",
+        "id": "f1_1176604368",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f1_1176604368"
+      },
+      {
+        "begin": "f2_1176604372",
+        "bounds": {
+          "height": 20.469999999999985,
+          "maxX": 466.64000000000004,
+          "maxY": 140.04999999999998,
+          "minX": 451.44000000000005,
+          "minY": 119.58,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f2_1176604373",
+        "id": "f2_1176604388",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f2_1176604388"
+      },
+      {
+        "begin": "f2_1176604373",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 481.04,
+          "maxY": 140.04999999999998,
+          "minX": 458.64000000000004,
+          "minY": 132.04999999999998,
+          "width": 22.399999999999977
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f2_1176604374",
+        "id": "f2_1176604389",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f2_1176604389"
+      },
+      {
+        "begin": "f2_1176604374",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 495.44000000000005,
+          "maxY": 140.04999999999998,
+          "minX": 473.04,
+          "minY": 132.04999999999998,
+          "width": 22.400000000000034
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f2_1176604377",
+        "id": "f2_1176604390",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f2_1176604390"
+      },
+      {
+        "begin": "f2_1176604373",
+        "bounds": {
+          "height": 20.47,
+          "maxX": 466.64000000000004,
+          "maxY": 152.51999999999998,
+          "minX": 451.44000000000005,
+          "minY": 132.04999999999998,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f2_1176604378",
+        "id": "f2_1176604391",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f2_1176604391"
+      },
+      {
+        "begin": "f2_1176604377",
+        "bounds": {
+          "height": 20.469999999999985,
+          "maxX": 502.64000000000004,
+          "maxY": 140.04999999999998,
+          "minX": 487.44000000000005,
+          "minY": 119.58,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f2_1176604379",
+        "id": "f2_1176604392",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f2_1176604392"
+      },
+      {
+        "begin": "f2_1176604377",
+        "bounds": {
+          "height": 20.47,
+          "maxX": 502.64000000000004,
+          "maxY": 152.51999999999998,
+          "minX": 487.44000000000005,
+          "minY": 132.04999999999998,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f2_1176604386",
+        "id": "f2_1176604393",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f2_1176604393"
+      },
+      {
+        "begin": "f2_1176604386",
+        "bounds": {
+          "height": 8.370000000000005,
+          "maxX": 517.03,
+          "maxY": 152.89,
+          "minX": 494.64000000000004,
+          "minY": 144.51999999999998,
+          "width": 22.38999999999993
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f2_1176604387",
+        "id": "f2_1176604394",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f2_1176604394"
+      },
+      {
+        "begin": "f3_1176604396",
+        "bounds": {
+          "height": 20.46999999999997,
+          "maxX": 21.0,
+          "maxY": 413.51,
+          "minX": 5.800000000000001,
+          "minY": 393.04,
+          "width": 15.2
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f3_1176604397",
+        "id": "f3_1176604407",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f3_1176604407"
+      },
+      {
+        "begin": "f3_1176604397",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 35.4,
+          "maxY": 413.51,
+          "minX": 13.0,
+          "minY": 405.51,
+          "width": 22.4
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f3_1176604398",
+        "id": "f3_1176604408",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f3_1176604408"
+      },
+      {
+        "begin": "f3_1176604398",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 49.8,
+          "maxY": 413.51,
+          "minX": 27.4,
+          "minY": 405.51,
+          "width": 22.4
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f3_1176604401",
+        "id": "f3_1176604409",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f3_1176604409"
+      },
+      {
+        "begin": "f3_1176604397",
+        "bounds": {
+          "height": 20.470000000000027,
+          "maxX": 21.0,
+          "maxY": 425.98,
+          "minX": 5.800000000000001,
+          "minY": 405.51,
+          "width": 15.2
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f3_1176604402",
+        "id": "f3_1176604410",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f3_1176604410"
+      },
+      {
+        "begin": "f3_1176604401",
+        "bounds": {
+          "height": 20.46999999999997,
+          "maxX": 57.0,
+          "maxY": 413.51,
+          "minX": 41.8,
+          "minY": 393.04,
+          "width": 15.200000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f3_1176604403",
+        "id": "f3_1176604411",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f3_1176604411"
+      },
+      {
+        "begin": "f3_1176604401",
+        "bounds": {
+          "height": 20.470000000000027,
+          "maxX": 57.0,
+          "maxY": 425.98,
+          "minX": 41.8,
+          "minY": 405.51,
+          "width": 15.200000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f3_1176604404",
+        "id": "f3_1176604412",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f3_1176604412"
+      },
+      {
+        "begin": "f3_1176604404",
+        "bounds": {
+          "height": 20.46999999999997,
+          "maxX": 57.0,
+          "maxY": 438.45,
+          "minX": 41.8,
+          "minY": 417.98,
+          "width": 15.200000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f3_1176604405",
+        "id": "f3_1176604413",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f3_1176604413"
+      },
+      {
+        "begin": "f3_1176604404",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 71.4,
+          "maxY": 425.98,
+          "minX": 49.0,
+          "minY": 417.98,
+          "width": 22.400000000000006
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f3_1176604406",
+        "id": "f3_1176604414",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f3_1176604414"
+      },
+      {
+        "begin": "f4_1176604416",
+        "bounds": {
+          "height": 20.470000000000027,
+          "maxX": 302.42,
+          "maxY": 408.67,
+          "minX": 287.22,
+          "minY": 388.2,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f4_1176604417",
+        "id": "f4_1176604432",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f4_1176604432"
+      },
+      {
+        "begin": "f4_1176604417",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 316.82000000000005,
+          "maxY": 408.67,
+          "minX": 294.42,
+          "minY": 400.67,
+          "width": 22.400000000000034
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f4_1176604418",
+        "id": "f4_1176604433",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f4_1176604433"
+      },
+      {
+        "begin": "f4_1176604418",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 331.22,
+          "maxY": 408.67,
+          "minX": 308.82000000000005,
+          "minY": 400.67,
+          "width": 22.399999999999977
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f4_1176604421",
+        "id": "f4_1176604434",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f4_1176604434"
+      },
+      {
+        "begin": "f4_1176604417",
+        "bounds": {
+          "height": 20.46999999999997,
+          "maxX": 302.42,
+          "maxY": 421.14,
+          "minX": 287.22,
+          "minY": 400.67,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f4_1176604422",
+        "id": "f4_1176604435",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f4_1176604435"
+      },
+      {
+        "begin": "f4_1176604421",
+        "bounds": {
+          "height": 20.470000000000027,
+          "maxX": 338.42,
+          "maxY": 408.67,
+          "minX": 323.22,
+          "minY": 388.2,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f4_1176604423",
+        "id": "f4_1176604436",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f4_1176604436"
+      },
+      {
+        "begin": "f4_1176604421",
+        "bounds": {
+          "height": 20.46999999999997,
+          "maxX": 338.42,
+          "maxY": 421.14,
+          "minX": 323.22,
+          "minY": 400.67,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f4_1176604430",
+        "id": "f4_1176604437",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f4_1176604437"
+      },
+      {
+        "begin": "f4_1176604430",
+        "bounds": {
+          "height": 8.049999999999955,
+          "maxX": 352.82000000000005,
+          "maxY": 421.14,
+          "minX": 330.42,
+          "minY": 413.09000000000003,
+          "width": 22.400000000000034
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f4_1176604431",
+        "id": "f4_1176604438",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f4_1176604438"
+      },
+      {
+        "begin": "f5_1176602970",
+        "bounds": {
+          "height": 13.120000000000005,
+          "maxX": 459.72,
+          "maxY": 253.25,
+          "minX": 442.86,
+          "minY": 240.13,
+          "width": 16.860000000000014
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602971",
+        "id": "f5_1176602997",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176602997"
+      },
+      {
+        "begin": "f5_1176602971",
+        "bounds": {
+          "height": 13.120000000000005,
+          "maxX": 468.59000000000003,
+          "maxY": 253.25,
+          "minX": 451.72,
+          "minY": 240.13,
+          "width": 16.870000000000005
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602972",
+        "id": "f5_1176602998",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176602998"
+      },
+      {
+        "begin": "f5_1176602970",
+        "bounds": {
+          "height": 12.170000000000016,
+          "maxX": 450.86,
+          "maxY": 253.25,
+          "minX": 433.51000000000005,
+          "minY": 241.07999999999998,
+          "width": 17.349999999999966
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602973",
+        "id": "f5_1176602999",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176602999"
+      },
+      {
+        "begin": "f5_1176602973",
+        "bounds": {
+          "height": 15.610000000000014,
+          "maxX": 441.51000000000005,
+          "maxY": 256.69,
+          "minX": 426.66,
+          "minY": 241.07999999999998,
+          "width": 14.850000000000023
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602974",
+        "id": "f5_1176603000",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603000"
+      },
+      {
+        "begin": "f5_1176602974",
+        "bounds": {
+          "height": 16.870000000000005,
+          "maxX": 439.77000000000004,
+          "maxY": 265.56,
+          "minX": 426.66,
+          "minY": 248.69,
+          "width": 13.110000000000014
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602975",
+        "id": "f5_1176603001",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603001"
+      },
+      {
+        "begin": "f5_1176602975",
+        "bounds": {
+          "height": 10.129999999999995,
+          "maxX": 449.79,
+          "maxY": 265.56,
+          "minX": 431.77000000000004,
+          "minY": 255.43,
+          "width": 18.019999999999982
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602976",
+        "id": "f5_1176603002",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603002"
+      },
+      {
+        "begin": "f5_1176602976",
+        "bounds": {
+          "height": 18.180000000000007,
+          "maxX": 450.86,
+          "maxY": 263.43,
+          "minX": 441.79,
+          "minY": 245.25,
+          "width": 9.069999999999993
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602970",
+        "id": "f5_1176603003",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f5_1176603003"
+      },
+      {
+        "begin": "f5_1176602972",
+        "bounds": {
+          "height": 18.180000000000007,
+          "maxX": 469.66,
+          "maxY": 263.43,
+          "minX": 460.59000000000003,
+          "minY": 245.25,
+          "width": 9.069999999999993
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602977",
+        "id": "f5_1176603004",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f5_1176603004"
+      },
+      {
+        "begin": "f5_1176602977",
+        "bounds": {
+          "height": 10.129999999999995,
+          "maxX": 479.68,
+          "maxY": 265.56,
+          "minX": 461.66,
+          "minY": 255.43,
+          "width": 18.019999999999982
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602978",
+        "id": "f5_1176603005",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603005"
+      },
+      {
+        "begin": "f5_1176602978",
+        "bounds": {
+          "height": 16.870000000000005,
+          "maxX": 484.79,
+          "maxY": 265.56,
+          "minX": 471.68,
+          "minY": 248.69,
+          "width": 13.110000000000014
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602979",
+        "id": "f5_1176603006",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603006"
+      },
+      {
+        "begin": "f5_1176602979",
+        "bounds": {
+          "height": 15.610000000000014,
+          "maxX": 484.79,
+          "maxY": 256.69,
+          "minX": 469.94000000000005,
+          "minY": 241.07999999999998,
+          "width": 14.849999999999966
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602980",
+        "id": "f5_1176603007",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603007"
+      },
+      {
+        "begin": "f5_1176602980",
+        "bounds": {
+          "height": 12.170000000000016,
+          "maxX": 477.94000000000005,
+          "maxY": 253.25,
+          "minX": 460.59000000000003,
+          "minY": 241.07999999999998,
+          "width": 17.350000000000023
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602972",
+        "id": "f5_1176603008",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603008"
+      },
+      {
+        "begin": "f5_1176602974",
+        "bounds": {
+          "height": 10.129999999999995,
+          "maxX": 434.66,
+          "maxY": 258.82,
+          "minX": 416.64000000000004,
+          "minY": 248.69,
+          "width": 18.019999999999982
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602981",
+        "id": "f5_1176603009",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603009"
+      },
+      {
+        "begin": "f5_1176602981",
+        "bounds": {
+          "height": 18.180000000000007,
+          "maxX": 424.64000000000004,
+          "maxY": 269.0,
+          "minX": 415.57000000000005,
+          "minY": 250.82,
+          "width": 9.069999999999993
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602982",
+        "id": "f5_1176603010",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603010"
+      },
+      {
+        "begin": "f5_1176602982",
+        "bounds": {
+          "height": 12.170000000000016,
+          "maxX": 432.92,
+          "maxY": 273.17,
+          "minX": 415.57000000000005,
+          "minY": 261.0,
+          "width": 17.349999999999966
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602983",
+        "id": "f5_1176603011",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f5_1176603011"
+      },
+      {
+        "begin": "f5_1176602983",
+        "bounds": {
+          "height": 15.610000000000014,
+          "maxX": 439.77000000000004,
+          "maxY": 273.17,
+          "minX": 424.92,
+          "minY": 257.56,
+          "width": 14.850000000000023
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602975",
+        "id": "f5_1176603012",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603012"
+      },
+      {
+        "begin": "f5_1176602978",
+        "bounds": {
+          "height": 15.610000000000014,
+          "maxX": 486.53000000000003,
+          "maxY": 273.17,
+          "minX": 471.68,
+          "minY": 257.56,
+          "width": 14.850000000000023
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602984",
+        "id": "f5_1176603013",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603013"
+      },
+      {
+        "begin": "f5_1176602984",
+        "bounds": {
+          "height": 12.170000000000016,
+          "maxX": 495.88000000000005,
+          "maxY": 273.17,
+          "minX": 478.53000000000003,
+          "minY": 261.0,
+          "width": 17.350000000000023
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602985",
+        "id": "f5_1176603014",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f5_1176603014"
+      },
+      {
+        "begin": "f5_1176602985",
+        "bounds": {
+          "height": 18.180000000000007,
+          "maxX": 495.88000000000005,
+          "maxY": 269.0,
+          "minX": 486.81,
+          "minY": 250.82,
+          "width": 9.07000000000005
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602986",
+        "id": "f5_1176603015",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603015"
+      },
+      {
+        "begin": "f5_1176602986",
+        "bounds": {
+          "height": 10.129999999999995,
+          "maxX": 494.81,
+          "maxY": 258.82,
+          "minX": 476.79,
+          "minY": 248.69,
+          "width": 18.019999999999982
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602979",
+        "id": "f5_1176603016",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603016"
+      },
+      {
+        "begin": "f5_1176602982",
+        "bounds": {
+          "height": 14.019999999999982,
+          "maxX": 423.57000000000005,
+          "maxY": 275.02,
+          "minX": 407.29,
+          "minY": 261.0,
+          "width": 16.28000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602987",
+        "id": "f5_1176603017",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603017"
+      },
+      {
+        "begin": "f5_1176602987",
+        "bounds": {
+          "height": 18.180000000000007,
+          "maxX": 416.36,
+          "maxY": 285.2,
+          "minX": 407.29,
+          "minY": 267.02,
+          "width": 9.069999999999993
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602988",
+        "id": "f5_1176603018",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f5_1176603018"
+      },
+      {
+        "begin": "f5_1176602988",
+        "bounds": {
+          "height": 12.170000000000016,
+          "maxX": 425.71000000000004,
+          "maxY": 289.37,
+          "minX": 408.36,
+          "minY": 277.2,
+          "width": 17.350000000000023
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602989",
+        "id": "f5_1176603019",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603019"
+      },
+      {
+        "begin": "f5_1176602989",
+        "bounds": {
+          "height": 14.019999999999982,
+          "maxX": 433.99,
+          "maxY": 289.37,
+          "minX": 417.71000000000004,
+          "minY": 275.35,
+          "width": 16.279999999999973
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602990",
+        "id": "f5_1176603020",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f5_1176603020"
+      },
+      {
+        "begin": "f5_1176602990",
+        "bounds": {
+          "height": 18.180000000000007,
+          "maxX": 433.99,
+          "maxY": 283.35,
+          "minX": 424.92,
+          "minY": 265.17,
+          "width": 9.069999999999993
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602983",
+        "id": "f5_1176603021",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603021"
+      },
+      {
+        "begin": "f5_1176602984",
+        "bounds": {
+          "height": 18.180000000000007,
+          "maxX": 486.53000000000003,
+          "maxY": 283.35,
+          "minX": 477.46000000000004,
+          "minY": 265.17,
+          "width": 9.069999999999993
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602991",
+        "id": "f5_1176603022",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603022"
+      },
+      {
+        "begin": "f5_1176602991",
+        "bounds": {
+          "height": 14.019999999999982,
+          "maxX": 493.74,
+          "maxY": 289.37,
+          "minX": 477.46000000000004,
+          "minY": 275.35,
+          "width": 16.279999999999973
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602992",
+        "id": "f5_1176603023",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f5_1176603023"
+      },
+      {
+        "begin": "f5_1176602992",
+        "bounds": {
+          "height": 12.170000000000016,
+          "maxX": 503.09000000000003,
+          "maxY": 289.37,
+          "minX": 485.74,
+          "minY": 277.2,
+          "width": 17.350000000000023
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602993",
+        "id": "f5_1176603024",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603024"
+      },
+      {
+        "begin": "f5_1176602993",
+        "bounds": {
+          "height": 18.180000000000007,
+          "maxX": 504.16,
+          "maxY": 285.2,
+          "minX": 495.09000000000003,
+          "minY": 267.02,
+          "width": 9.069999999999993
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602994",
+        "id": "f5_1176603025",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f5_1176603025"
+      },
+      {
+        "begin": "f5_1176602994",
+        "bounds": {
+          "height": 14.019999999999982,
+          "maxX": 504.16,
+          "maxY": 275.02,
+          "minX": 487.88000000000005,
+          "minY": 261.0,
+          "width": 16.279999999999973
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602985",
+        "id": "f5_1176603026",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603026"
+      },
+      {
+        "begin": "f5_1176602971",
+        "bounds": {
+          "height": 16.870000000000005,
+          "maxX": 464.84000000000003,
+          "maxY": 248.13,
+          "minX": 451.72,
+          "minY": 231.26,
+          "width": 13.120000000000005
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602995",
+        "id": "f5_1176603027",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603027"
+      },
+      {
+        "begin": "f5_1176602996",
+        "bounds": {
+          "height": 16.870000000000005,
+          "maxX": 459.72,
+          "maxY": 248.13,
+          "minX": 446.61,
+          "minY": 231.26,
+          "width": 13.110000000000014
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176602971",
+        "id": "f5_1176603028",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176603028"
+      },
+      {
+        "begin": "f5_1176602995",
+        "bounds": {
+          "height": 10.129999999999995,
+          "maxX": 475.08000000000004,
+          "maxY": 239.26,
+          "minX": 456.84000000000003,
+          "minY": 229.13,
+          "width": 18.24000000000001
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176604576",
+        "id": "f5_1176604577",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176604577"
+      },
+      {
+        "begin": "f5_1176602996",
+        "bounds": {
+          "height": 10.759999999999991,
+          "maxX": 454.61,
+          "maxY": 239.26,
+          "minX": 436.78000000000003,
+          "minY": 228.5,
+          "width": 17.829999999999984
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f5_1176604578",
+        "id": "f5_1176604579",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f5_1176604579"
+      },
+      {
+        "begin": "f6_1176604583",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 78.48,
+          "maxY": 249.38,
+          "minX": 56.08,
+          "minY": 241.38,
+          "width": 22.400000000000006
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f6_1176604584",
+        "id": "f6_1176604603",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f6_1176604603"
+      },
+      {
+        "begin": "f6_1176604584",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 92.88,
+          "maxY": 249.38,
+          "minX": 70.48,
+          "minY": 241.38,
+          "width": 22.39999999999999
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f6_1176604591",
+        "id": "f6_1176604604",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f6_1176604604"
+      },
+      {
+        "begin": "f6_1176604583",
+        "bounds": {
+          "height": 20.870000000000005,
+          "maxX": 64.08,
+          "maxY": 262.25,
+          "minX": 49.61,
+          "minY": 241.38,
+          "width": 14.469999999999999
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f6_1176604592",
+        "id": "f6_1176604605",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f6_1176604605"
+      },
+      {
+        "begin": "f6_1176604591",
+        "bounds": {
+          "height": 20.47,
+          "maxX": 100.08,
+          "maxY": 249.38,
+          "minX": 84.88,
+          "minY": 228.91,
+          "width": 15.200000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f6_1176604593",
+        "id": "f6_1176604606",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f6_1176604606"
+      },
+      {
+        "begin": "f6_1176604591",
+        "bounds": {
+          "height": 20.470000000000027,
+          "maxX": 100.08,
+          "maxY": 261.85,
+          "minX": 84.88,
+          "minY": 241.38,
+          "width": 15.200000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f6_1176604600",
+        "id": "f6_1176604607",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f6_1176604607"
+      },
+      {
+        "begin": "f6_1176604600",
+        "bounds": {
+          "height": 8.569999999999993,
+          "maxX": 114.47,
+          "maxY": 262.42,
+          "minX": 92.08,
+          "minY": 253.85000000000002,
+          "width": 22.39
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f6_1176604601",
+        "id": "f6_1176604608",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f6_1176604608"
+      },
+      {
+        "begin": "f6_1176604583",
+        "bounds": {
+          "height": 20.25999999999999,
+          "maxX": 64.08,
+          "maxY": 249.38,
+          "minX": 48.53,
+          "minY": 229.12,
+          "width": 15.549999999999997
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f6_1176604602",
+        "id": "f6_1176604609",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f6_1176604609"
+      },
+      {
+        "begin": "f7_1176604614",
+        "bounds": {
+          "height": 15.199999999999989,
+          "maxX": 369.58000000000004,
+          "maxY": 259.38,
+          "minX": 349.11,
+          "minY": 244.18,
+          "width": 20.470000000000027
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604615",
+        "id": "f7_1176604666",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f7_1176604666"
+      },
+      {
+        "begin": "f7_1176604614",
+        "bounds": {
+          "height": 15.199999999999989,
+          "maxX": 357.11,
+          "maxY": 259.38,
+          "minX": 336.64000000000004,
+          "minY": 244.18,
+          "width": 20.46999999999997
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604616",
+        "id": "f7_1176604667",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f7_1176604667"
+      },
+      {
+        "begin": "f7_1176604614",
+        "bounds": {
+          "height": 20.470000000000027,
+          "maxX": 357.11,
+          "maxY": 252.18,
+          "minX": 341.91,
+          "minY": 231.70999999999998,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604617",
+        "id": "f7_1176604668",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f7_1176604668"
+      },
+      {
+        "begin": "f7_1176604614",
+        "bounds": {
+          "height": 20.470000000000027,
+          "maxX": 364.31,
+          "maxY": 252.18,
+          "minX": 349.11,
+          "minY": 231.70999999999998,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604618",
+        "id": "f7_1176604669",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f7_1176604669"
+      },
+      {
+        "begin": "f7_1176604616",
+        "bounds": {
+          "height": 15.199999999999989,
+          "maxX": 344.64000000000004,
+          "maxY": 259.38,
+          "minX": 324.17,
+          "minY": 244.18,
+          "width": 20.470000000000027
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604619",
+        "id": "f7_1176604670",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f7_1176604670"
+      },
+      {
+        "begin": "f7_1176604619",
+        "bounds": {
+          "height": 15.199999999999989,
+          "maxX": 332.17,
+          "maxY": 259.38,
+          "minX": 311.70000000000005,
+          "minY": 244.18,
+          "width": 20.46999999999997
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604620",
+        "id": "f7_1176604671",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f7_1176604671"
+      },
+      {
+        "begin": "f7_1176604620",
+        "bounds": {
+          "height": 22.399999999999977,
+          "maxX": 319.70000000000005,
+          "maxY": 273.78,
+          "minX": 311.70000000000005,
+          "minY": 251.38,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604621",
+        "id": "f7_1176604672",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f7_1176604672"
+      },
+      {
+        "begin": "f7_1176604621",
+        "bounds": {
+          "height": 15.200000000000045,
+          "maxX": 332.17,
+          "maxY": 280.98,
+          "minX": 311.70000000000005,
+          "minY": 265.78,
+          "width": 20.46999999999997
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604622",
+        "id": "f7_1176604673",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f7_1176604673"
+      },
+      {
+        "begin": "f7_1176604622",
+        "bounds": {
+          "height": 15.200000000000045,
+          "maxX": 344.64000000000004,
+          "maxY": 280.98,
+          "minX": 324.17,
+          "minY": 265.78,
+          "width": 20.470000000000027
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604623",
+        "id": "f7_1176604674",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f7_1176604674"
+      },
+      {
+        "begin": "f7_1176604623",
+        "bounds": {
+          "height": 22.399999999999977,
+          "maxX": 344.64000000000004,
+          "maxY": 273.78,
+          "minX": 336.64000000000004,
+          "minY": 251.38,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604616",
+        "id": "f7_1176604675",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f7_1176604675"
+      },
+      {
+        "begin": "f7_1176604615",
+        "bounds": {
+          "height": 15.29000000000002,
+          "maxX": 382.15000000000003,
+          "maxY": 259.38,
+          "minX": 361.58000000000004,
+          "minY": 244.08999999999997,
+          "width": 20.569999999999993
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604624",
+        "id": "f7_1176604676",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f7_1176604676"
+      },
+      {
+        "begin": "f7_1176604615",
+        "bounds": {
+          "height": 22.399999999999977,
+          "maxX": 369.6,
+          "maxY": 273.78,
+          "minX": 361.58000000000004,
+          "minY": 251.38,
+          "width": 8.019999999999982
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604625",
+        "id": "f7_1176604677",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f7_1176604677"
+      },
+      {
+        "begin": "f7_1176604624",
+        "bounds": {
+          "height": 15.180000000000007,
+          "maxX": 394.63000000000005,
+          "maxY": 259.27,
+          "minX": 374.15000000000003,
+          "minY": 244.08999999999997,
+          "width": 20.480000000000018
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604648",
+        "id": "f7_1176604680",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f7_1176604680"
+      },
+      {
+        "begin": "f7_1176604624",
+        "bounds": {
+          "height": 22.399999999999977,
+          "maxX": 382.15000000000003,
+          "maxY": 252.08999999999997,
+          "minX": 374.15000000000003,
+          "minY": 229.69,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604649",
+        "id": "f7_1176604681",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f7_1176604681"
+      },
+      {
+        "begin": "f7_1176604624",
+        "bounds": {
+          "height": 15.199999999999989,
+          "maxX": 394.62,
+          "maxY": 252.08999999999997,
+          "minX": 374.15000000000003,
+          "minY": 236.89,
+          "width": 20.46999999999997
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604650",
+        "id": "f7_1176604682",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f7_1176604682"
+      },
+      {
+        "begin": "f7_1176604623",
+        "bounds": {
+          "height": 15.200000000000045,
+          "maxX": 357.11,
+          "maxY": 280.98,
+          "minX": 336.64000000000004,
+          "minY": 265.78,
+          "width": 20.46999999999997
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f7_1176604685",
+        "id": "f7_1176604686",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f7_1176604686"
+      },
+      {
+        "begin": "f8_1176602673",
+        "bounds": {
+          "height": 15.199999999999989,
+          "maxX": 468.52000000000004,
+          "maxY": 411.68,
+          "minX": 448.05,
+          "minY": 396.48,
+          "width": 20.470000000000027
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602674",
+        "id": "f8_1176602752",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602752"
+      },
+      {
+        "begin": "f8_1176602674",
+        "bounds": {
+          "height": 15.199999999999989,
+          "maxX": 480.99,
+          "maxY": 411.68,
+          "minX": 460.52000000000004,
+          "minY": 396.48,
+          "width": 20.46999999999997
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602675",
+        "id": "f8_1176602753",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602753"
+      },
+      {
+        "begin": "f8_1176602673",
+        "bounds": {
+          "height": 13.860000000000014,
+          "maxX": 456.05,
+          "maxY": 411.68,
+          "minX": 434.90000000000003,
+          "minY": 397.82,
+          "width": 21.149999999999977
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602676",
+        "id": "f8_1176602754",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602754"
+      },
+      {
+        "begin": "f8_1176602676",
+        "bounds": {
+          "height": 18.69999999999999,
+          "maxX": 442.90000000000003,
+          "maxY": 416.52,
+          "minX": 425.26000000000005,
+          "minY": 397.82,
+          "width": 17.639999999999986
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602677",
+        "id": "f8_1176602755",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602755"
+      },
+      {
+        "begin": "f8_1176602677",
+        "bounds": {
+          "height": 20.470000000000027,
+          "maxX": 440.46000000000004,
+          "maxY": 428.99,
+          "minX": 425.26000000000005,
+          "minY": 408.52,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602678",
+        "id": "f8_1176602756",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602756"
+      },
+      {
+        "begin": "f8_1176602678",
+        "bounds": {
+          "height": 10.990000000000009,
+          "maxX": 454.55,
+          "maxY": 428.99,
+          "minX": 432.46000000000004,
+          "minY": 418.0,
+          "width": 22.089999999999975
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602679",
+        "id": "f8_1176602757",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602757"
+      },
+      {
+        "begin": "f8_1176602679",
+        "bounds": {
+          "height": 22.319999999999993,
+          "maxX": 456.05,
+          "maxY": 426.0,
+          "minX": 446.55,
+          "minY": 403.68,
+          "width": 9.5
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602673",
+        "id": "f8_1176602758",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f8_1176602758"
+      },
+      {
+        "begin": "f8_1176602675",
+        "bounds": {
+          "height": 22.319999999999993,
+          "maxX": 482.5,
+          "maxY": 426.0,
+          "minX": 472.99,
+          "minY": 403.68,
+          "width": 9.509999999999991
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602680",
+        "id": "f8_1176602759",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 2,
+        "selector": "bond:f8_1176602759"
+      },
+      {
+        "begin": "f8_1176602680",
+        "bounds": {
+          "height": 10.990000000000009,
+          "maxX": 496.58000000000004,
+          "maxY": 428.99,
+          "minX": 474.5,
+          "minY": 418.0,
+          "width": 22.08000000000004
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602681",
+        "id": "f8_1176602760",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602760"
+      },
+      {
+        "begin": "f8_1176602681",
+        "bounds": {
+          "height": 20.470000000000027,
+          "maxX": 503.78000000000003,
+          "maxY": 428.99,
+          "minX": 488.58000000000004,
+          "minY": 408.52,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602682",
+        "id": "f8_1176602761",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602761"
+      },
+      {
+        "begin": "f8_1176602682",
+        "bounds": {
+          "height": 18.69999999999999,
+          "maxX": 503.78000000000003,
+          "maxY": 416.52,
+          "minX": 486.15000000000003,
+          "minY": 397.82,
+          "width": 17.629999999999995
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602683",
+        "id": "f8_1176602762",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602762"
+      },
+      {
+        "begin": "f8_1176602683",
+        "bounds": {
+          "height": 13.860000000000014,
+          "maxX": 494.15000000000003,
+          "maxY": 411.68,
+          "minX": 472.99,
+          "minY": 397.82,
+          "width": 21.160000000000025
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602675",
+        "id": "f8_1176602763",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602763"
+      },
+      {
+        "begin": "f8_1176602678",
+        "bounds": {
+          "height": 21.160000000000025,
+          "maxX": 440.46000000000004,
+          "maxY": 442.15000000000003,
+          "minX": 426.6,
+          "minY": 420.99,
+          "width": 13.860000000000014
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602684",
+        "id": "f8_1176602764",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602764"
+      },
+      {
+        "begin": "f8_1176602681",
+        "bounds": {
+          "height": 21.160000000000025,
+          "maxX": 502.44000000000005,
+          "maxY": 442.15000000000003,
+          "minX": 488.58000000000004,
+          "minY": 420.99,
+          "width": 13.860000000000014
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602700",
+        "id": "f8_1176602765",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602765"
+      },
+      {
+        "begin": "f8_1176602674",
+        "bounds": {
+          "height": 16.470000000000027,
+          "maxX": 480.17,
+          "maxY": 404.48,
+          "minX": 460.52000000000004,
+          "minY": 388.01,
+          "width": 19.649999999999977
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602716",
+        "id": "f8_1176602766",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602766"
+      },
+      {
+        "begin": "f8_1176602716",
+        "bounds": {
+          "height": 21.689999999999998,
+          "maxX": 480.17,
+          "maxY": 396.01,
+          "minX": 467.72,
+          "minY": 374.32,
+          "width": 12.449999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602717",
+        "id": "f8_1176602767",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602767"
+      },
+      {
+        "begin": "f8_1176602717",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 475.72,
+          "maxY": 382.32,
+          "minX": 453.32000000000005,
+          "minY": 374.32,
+          "width": 22.399999999999977
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602718",
+        "id": "f8_1176602768",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602768"
+      },
+      {
+        "begin": "f8_1176602718",
+        "bounds": {
+          "height": 21.689999999999998,
+          "maxX": 461.32000000000005,
+          "maxY": 396.01,
+          "minX": 448.87,
+          "minY": 374.32,
+          "width": 12.450000000000045
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602719",
+        "id": "f8_1176602769",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602769"
+      },
+      {
+        "begin": "f8_1176602719",
+        "bounds": {
+          "height": 16.470000000000027,
+          "maxX": 468.52000000000004,
+          "maxY": 404.48,
+          "minX": 448.87,
+          "minY": 388.01,
+          "width": 19.650000000000034
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602674",
+        "id": "f8_1176602770",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602770"
+      },
+      {
+        "begin": "f8_1176602677",
+        "bounds": {
+          "height": 9.5,
+          "maxX": 433.26000000000005,
+          "maxY": 416.52,
+          "minX": 410.94000000000005,
+          "minY": 407.02,
+          "width": 22.319999999999993
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602720",
+        "id": "f8_1176602771",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602771"
+      },
+      {
+        "begin": "f8_1176602682",
+        "bounds": {
+          "height": 9.5,
+          "maxX": 518.1,
+          "maxY": 416.52,
+          "minX": 495.78000000000003,
+          "minY": 407.02,
+          "width": 22.319999999999993
+        },
+        "boundsSource": "geometry-fast",
+        "end": "f8_1176602736",
+        "id": "f8_1176602772",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "order": 1,
+        "selector": "bond:f8_1176602772"
+      },
+      {
+        "begin": "1176604266",
+        "bounds": {
+          "height": 20.47,
+          "maxX": 54.910000000000004,
+          "maxY": 141.88,
+          "minX": 39.71,
+          "minY": 121.41,
+          "width": 15.200000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604267",
+        "id": "1176604277",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "order": 1,
+        "selector": "bond:1176604277"
+      },
+      {
+        "begin": "1176604267",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 69.31,
+          "maxY": 141.88,
+          "minX": 46.910000000000004,
+          "minY": 133.88,
+          "width": 22.4
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604268",
+        "id": "1176604278",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "order": 2,
+        "selector": "bond:1176604278"
+      },
+      {
+        "begin": "1176604268",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 83.71000000000001,
+          "maxY": 141.88,
+          "minX": 61.31,
+          "minY": 133.88,
+          "width": 22.400000000000006
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604271",
+        "id": "1176604279",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "order": 2,
+        "selector": "bond:1176604279"
+      },
+      {
+        "begin": "1176604267",
+        "bounds": {
+          "height": 20.47,
+          "maxX": 54.910000000000004,
+          "maxY": 154.35,
+          "minX": 39.71,
+          "minY": 133.88,
+          "width": 15.200000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604272",
+        "id": "1176604280",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "order": 1,
+        "selector": "bond:1176604280"
+      },
+      {
+        "begin": "1176604271",
+        "bounds": {
+          "height": 20.47,
+          "maxX": 90.91,
+          "maxY": 141.88,
+          "minX": 75.71000000000001,
+          "minY": 121.41,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604273",
+        "id": "1176604281",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "order": 1,
+        "selector": "bond:1176604281"
+      },
+      {
+        "begin": "1176604271",
+        "bounds": {
+          "height": 20.47,
+          "maxX": 90.91,
+          "maxY": 154.35,
+          "minX": 75.71000000000001,
+          "minY": 133.88,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604274",
+        "id": "1176604282",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "order": 1,
+        "selector": "bond:1176604282"
+      },
+      {
+        "begin": "1176604274",
+        "bounds": {
+          "height": 20.47,
+          "maxX": 90.91,
+          "maxY": 166.82,
+          "minX": 75.71000000000001,
+          "minY": 146.35,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604275",
+        "id": "1176604283",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "order": 1,
+        "selector": "bond:1176604283"
+      },
+      {
+        "begin": "1176604274",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 105.31,
+          "maxY": 154.35,
+          "minX": 82.91,
+          "minY": 146.35,
+          "width": 22.400000000000006
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604276",
+        "id": "1176604284",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "order": 1,
+        "selector": "bond:1176604284"
+      },
+      {
+        "begin": "1176604287",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 274.45,
+          "maxY": 143.70000000000002,
+          "minX": 252.05,
+          "minY": 135.70000000000002,
+          "width": 22.399999999999977
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604288",
+        "id": "1176604297",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "order": 2,
+        "selector": "bond:1176604297"
+      },
+      {
+        "begin": "1176604288",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 288.85,
+          "maxY": 143.70000000000002,
+          "minX": 266.45,
+          "minY": 135.70000000000002,
+          "width": 22.400000000000034
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604291",
+        "id": "1176604298",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "order": 2,
+        "selector": "bond:1176604298"
+      },
+      {
+        "begin": "1176604291",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 303.25,
+          "maxY": 143.70000000000002,
+          "minX": 280.85,
+          "minY": 135.70000000000002,
+          "width": 22.399999999999977
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604292",
+        "id": "1176604299",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "order": 1,
+        "selector": "bond:1176604299"
+      },
+      {
+        "begin": "1176604292",
+        "bounds": {
+          "height": 20.470000000000013,
+          "maxX": 310.45,
+          "maxY": 143.70000000000002,
+          "minX": 295.25,
+          "minY": 123.23,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604293",
+        "id": "1176604300",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "order": 1,
+        "selector": "bond:1176604300"
+      },
+      {
+        "begin": "1176604292",
+        "bounds": {
+          "height": 20.47,
+          "maxX": 310.45,
+          "maxY": 156.17000000000002,
+          "minX": 295.25,
+          "minY": 135.70000000000002,
+          "width": 15.199999999999989
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604294",
+        "id": "1176604301",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "order": 1,
+        "selector": "bond:1176604301"
+      },
+      {
+        "begin": "1176604287",
+        "bounds": {
+          "height": 20.470000000000013,
+          "maxX": 260.05,
+          "maxY": 143.70000000000002,
+          "minX": 244.85,
+          "minY": 123.23,
+          "width": 15.200000000000017
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604295",
+        "id": "1176604302",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "order": 1,
+        "selector": "bond:1176604302"
+      },
+      {
+        "begin": "1176604287",
+        "bounds": {
+          "height": 20.47,
+          "maxX": 260.05,
+          "maxY": 156.17000000000002,
+          "minX": 244.85,
+          "minY": 135.70000000000002,
+          "width": 15.200000000000017
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604296",
+        "id": "1176604303",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "order": 1,
+        "selector": "bond:1176604303"
+      },
+      {
+        "begin": "1176604306",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 91.82,
+          "maxY": 533.91,
+          "minX": 69.42,
+          "minY": 525.91,
+          "width": 22.39999999999999
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604307",
+        "id": "1176604316",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "order": 2,
+        "selector": "bond:1176604316"
+      },
+      {
+        "begin": "1176604307",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 106.22,
+          "maxY": 533.91,
+          "minX": 83.82,
+          "minY": 525.91,
+          "width": 22.400000000000006
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604310",
+        "id": "1176604317",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "order": 2,
+        "selector": "bond:1176604317"
+      },
+      {
+        "begin": "1176604310",
+        "bounds": {
+          "height": 8.0,
+          "maxX": 120.62,
+          "maxY": 533.91,
+          "minX": 98.22,
+          "minY": 525.91,
+          "width": 22.400000000000006
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604311",
+        "id": "1176604318",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "order": 1,
+        "selector": "bond:1176604318"
+      },
+      {
+        "begin": "1176604311",
+        "bounds": {
+          "height": 20.469999999999914,
+          "maxX": 127.82000000000001,
+          "maxY": 533.91,
+          "minX": 112.62,
+          "minY": 513.44,
+          "width": 15.200000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604312",
+        "id": "1176604319",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "order": 1,
+        "selector": "bond:1176604319"
+      },
+      {
+        "begin": "1176604311",
+        "bounds": {
+          "height": 20.470000000000027,
+          "maxX": 127.82000000000001,
+          "maxY": 546.38,
+          "minX": 112.62,
+          "minY": 525.91,
+          "width": 15.200000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604313",
+        "id": "1176604320",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "order": 1,
+        "selector": "bond:1176604320"
+      },
+      {
+        "begin": "1176604306",
+        "bounds": {
+          "height": 20.469999999999914,
+          "maxX": 77.42,
+          "maxY": 533.91,
+          "minX": 62.22,
+          "minY": 513.44,
+          "width": 15.200000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604314",
+        "id": "1176604321",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "order": 1,
+        "selector": "bond:1176604321"
+      },
+      {
+        "begin": "1176604306",
+        "bounds": {
+          "height": 20.470000000000027,
+          "maxX": 77.42,
+          "maxY": 546.38,
+          "minX": 62.22,
+          "minY": 525.91,
+          "width": 15.200000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "end": "1176604315",
+        "id": "1176604322",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "order": 1,
+        "selector": "bond:1176604322"
+      }
+    ],
+    "molecules": [
+      {
+        "bondCount": 107,
+        "bounds": {
+          "height": 326.57,
+          "maxX": 523.0,
+          "maxY": 444.15,
+          "minX": 1.28,
+          "minY": 117.58,
+          "width": 521.72
+        },
+        "index": 0,
+        "nodeCount": 105,
+        "objectId": "obj_cdxml_merged_molecule",
+        "resourceRef": "mol_cdxml_merged",
+        "selector": "molecule:0"
+      },
+      {
+        "bondCount": 8,
+        "bounds": {
+          "height": 45.75,
+          "maxX": 104.93,
+          "maxY": 166.72,
+          "minX": 33.63,
+          "minY": 120.97,
+          "width": 71.30000000000001
+        },
+        "index": 1,
+        "nodeCount": 9,
+        "objectId": "obj_mol_001",
+        "resourceRef": "mol_001",
+        "selector": "molecule:1"
+      },
+      {
+        "bondCount": 7,
+        "bounds": {
+          "height": 33.27999999999999,
+          "maxX": 310.06,
+          "maxY": 156.07,
+          "minX": 238.76,
+          "minY": 122.79,
+          "width": 71.30000000000001
+        },
+        "index": 2,
+        "nodeCount": 8,
+        "objectId": "obj_mol_002",
+        "resourceRef": "mol_002",
+        "selector": "molecule:2"
+      },
+      {
+        "bondCount": 7,
+        "bounds": {
+          "height": 33.27999999999997,
+          "maxX": 127.43,
+          "maxY": 546.28,
+          "minX": 57.89,
+          "minY": 513.0,
+          "width": 69.54
+        },
+        "index": 3,
+        "nodeCount": 8,
+        "objectId": "obj_mol_003",
+        "resourceRef": "mol_003",
+        "selector": "molecule:3"
+      }
+    ],
+    "nodes": [
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 226.78,
+          "maxY": 249.38,
+          "minX": 218.78,
+          "minY": 241.38,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f1_1176604346",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          222.78,
+          245.38
+        ],
+        "selector": "node:f1_1176604346"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 5.539999999999964,
+          "maxX": 238.93,
+          "maxY": 249.27999999999997,
+          "minX": 235.43,
+          "minY": 243.74,
+          "width": 3.5
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f1_1176604347",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          237.18,
+          245.38
+        ],
+        "selector": "node:f1_1176604347"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 255.58,
+          "maxY": 249.38,
+          "minX": 247.58,
+          "minY": 241.38,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f1_1176604350",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          251.58,
+          245.38
+        ],
+        "selector": "node:f1_1176604350"
+      },
+      {
+        "atomicNumber": 18,
+        "bounds": {
+          "height": 8.339999999999975,
+          "maxX": 217.98,
+          "maxY": 260.96999999999997,
+          "minX": 207.98,
+          "minY": 252.63,
+          "width": 10.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "Ar",
+        "hasLabel": true,
+        "id": "f1_1176604351",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          216.31,
+          258.25
+        ],
+        "selector": "node:f1_1176604351"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.620000000000005,
+          "maxX": 269.64000000000004,
+          "maxY": 236.68,
+          "minX": 255.2,
+          "minY": 228.06,
+          "width": 14.440000000000055
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f1_1176604352",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          258.78000000000003,
+          232.91
+        ],
+        "selector": "node:f1_1176604352"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 262.78000000000003,
+          "maxY": 261.85,
+          "minX": 254.78000000000003,
+          "minY": 253.85000000000002,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f1_1176604359",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          258.78000000000003,
+          257.85
+        ],
+        "selector": "node:f1_1176604359"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 11.430000000000007,
+          "maxX": 279.86,
+          "maxY": 265.32,
+          "minX": 268.19000000000005,
+          "minY": 253.89,
+          "width": 11.669999999999959
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f1_1176604360",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          273.17,
+          258.42
+        ],
+        "selector": "node:f1_1176604360"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.439999999999998,
+          "maxX": 218.03,
+          "maxY": 235.83999999999997,
+          "minX": 204.14,
+          "minY": 227.39999999999998,
+          "width": 13.890000000000015
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f1_1176604361",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          215.22,
+          233.12
+        ],
+        "selector": "node:f1_1176604361"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.340000000000003,
+          "maxX": 456.05,
+          "maxY": 127.28,
+          "minX": 446.92,
+          "minY": 118.94,
+          "width": 9.129999999999995
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f2_1176604372",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          455.44000000000005,
+          123.58
+        ],
+        "selector": "node:f2_1176604372"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 466.64000000000004,
+          "maxY": 140.04999999999998,
+          "minX": 458.64000000000004,
+          "minY": 132.04999999999998,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f2_1176604373",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          462.64000000000004,
+          136.04999999999998
+        ],
+        "selector": "node:f2_1176604373"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 5.539999999999992,
+          "maxX": 478.79,
+          "maxY": 139.95,
+          "minX": 475.29,
+          "minY": 134.41,
+          "width": 3.5
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f2_1176604374",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          477.04,
+          136.04999999999998
+        ],
+        "selector": "node:f2_1176604374"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 495.44000000000005,
+          "maxY": 140.04999999999998,
+          "minX": 487.44000000000005,
+          "minY": 132.04999999999998,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f2_1176604377",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          491.44000000000005,
+          136.04999999999998
+        ],
+        "selector": "node:f2_1176604377"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.340000000000003,
+          "maxX": 455.21000000000004,
+          "maxY": 152.22,
+          "minX": 444.17,
+          "minY": 143.88,
+          "width": 11.04000000000002
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f2_1176604378",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          455.44000000000005,
+          148.51999999999998
+        ],
+        "selector": "node:f2_1176604378"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 10.499999999999986,
+          "maxX": 509.51000000000005,
+          "maxY": 129.54999999999998,
+          "minX": 495.61,
+          "minY": 119.05,
+          "width": 13.900000000000034
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f2_1176604379",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          498.64000000000004,
+          123.58
+        ],
+        "selector": "node:f2_1176604379"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 502.64000000000004,
+          "maxY": 152.51999999999998,
+          "minX": 494.64000000000004,
+          "minY": 144.51999999999998,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f2_1176604386",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          498.64000000000004,
+          148.51999999999998
+        ],
+        "selector": "node:f2_1176604386"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.340000000000003,
+          "maxX": 516.6700000000001,
+          "maxY": 152.56,
+          "minX": 509.45000000000005,
+          "minY": 144.22,
+          "width": 7.220000000000027
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f2_1176604387",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          513.03,
+          148.89
+        ],
+        "selector": "node:f2_1176604387"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.350000000000023,
+          "maxX": 10.42,
+          "maxY": 400.74,
+          "minX": 1.28,
+          "minY": 392.39,
+          "width": 9.14
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f3_1176604396",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          9.8,
+          397.04
+        ],
+        "selector": "node:f3_1176604396"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 21.0,
+          "maxY": 413.51,
+          "minX": 13.0,
+          "minY": 405.51,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f3_1176604397",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          17.0,
+          409.51
+        ],
+        "selector": "node:f3_1176604397"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 5.5400000000000205,
+          "maxX": 33.15,
+          "maxY": 413.41,
+          "minX": 29.65,
+          "minY": 407.87,
+          "width": 3.5
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f3_1176604398",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          31.4,
+          409.51
+        ],
+        "selector": "node:f3_1176604398"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 49.8,
+          "maxY": 413.51,
+          "minX": 41.8,
+          "minY": 405.51,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f3_1176604401",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          45.8,
+          409.51
+        ],
+        "selector": "node:f3_1176604401"
+      },
+      {
+        "atomicNumber": 18,
+        "bounds": {
+          "height": 8.339999999999975,
+          "maxX": 11.47,
+          "maxY": 424.7,
+          "minX": 1.47,
+          "minY": 416.36,
+          "width": 10.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "Ar",
+        "hasLabel": true,
+        "id": "f3_1176604402",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          9.8,
+          421.98
+        ],
+        "selector": "node:f3_1176604402"
+      },
+      {
+        "atomicNumber": 1,
+        "bounds": {
+          "height": 8.340000000000032,
+          "maxX": 56.64,
+          "maxY": 400.71000000000004,
+          "minX": 49.42,
+          "minY": 392.37,
+          "width": 7.219999999999999
+        },
+        "boundsSource": "geometry-fast",
+        "element": "H",
+        "hasLabel": true,
+        "id": "f3_1176604403",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          53.0,
+          397.04
+        ],
+        "selector": "node:f3_1176604403"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 57.0,
+          "maxY": 425.98,
+          "minX": 49.0,
+          "minY": 417.98,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f3_1176604404",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          53.0,
+          421.98
+        ],
+        "selector": "node:f3_1176604404"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.339999999999975,
+          "maxX": 49.44,
+          "maxY": 438.12,
+          "minX": 42.22,
+          "minY": 429.78000000000003,
+          "width": 7.219999999999999
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f3_1176604405",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          45.8,
+          434.45
+        ],
+        "selector": "node:f3_1176604405"
+      },
+      {
+        "atomicNumber": 1,
+        "bounds": {
+          "height": 8.340000000000032,
+          "maxX": 71.03999999999999,
+          "maxY": 425.65000000000003,
+          "minX": 63.82,
+          "minY": 417.31,
+          "width": 7.219999999999992
+        },
+        "boundsSource": "geometry-fast",
+        "element": "H",
+        "hasLabel": true,
+        "id": "f3_1176604406",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          67.4,
+          421.98
+        ],
+        "selector": "node:f3_1176604406"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.340000000000032,
+          "maxX": 291.83000000000004,
+          "maxY": 395.90000000000003,
+          "minX": 282.70000000000005,
+          "minY": 387.56,
+          "width": 9.129999999999995
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f4_1176604416",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          291.22,
+          392.2
+        ],
+        "selector": "node:f4_1176604416"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 302.42,
+          "maxY": 408.67,
+          "minX": 294.42,
+          "minY": 400.67,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f4_1176604417",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          298.42,
+          404.67
+        ],
+        "selector": "node:f4_1176604417"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 5.539999999999964,
+          "maxX": 314.57000000000005,
+          "maxY": 408.57,
+          "minX": 311.07000000000005,
+          "minY": 403.03000000000003,
+          "width": 3.5
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f4_1176604418",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          312.82000000000005,
+          404.67
+        ],
+        "selector": "node:f4_1176604418"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 331.22,
+          "maxY": 408.67,
+          "minX": 323.22,
+          "minY": 400.67,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f4_1176604421",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          327.22,
+          404.67
+        ],
+        "selector": "node:f4_1176604421"
+      },
+      {
+        "atomicNumber": 18,
+        "bounds": {
+          "height": 8.340000000000032,
+          "maxX": 292.89000000000004,
+          "maxY": 419.86,
+          "minX": 282.89000000000004,
+          "minY": 411.52,
+          "width": 10.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "Ar",
+        "hasLabel": true,
+        "id": "f4_1176604422",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          291.22,
+          417.14
+        ],
+        "selector": "node:f4_1176604422"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.620000000000005,
+          "maxX": 345.28000000000003,
+          "maxY": 395.97,
+          "minX": 330.84000000000003,
+          "minY": 387.35,
+          "width": 14.439999999999998
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f4_1176604423",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          334.42,
+          392.2
+        ],
+        "selector": "node:f4_1176604423"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 338.42,
+          "maxY": 421.14,
+          "minX": 330.42,
+          "minY": 413.14,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f4_1176604430",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          334.42,
+          417.14
+        ],
+        "selector": "node:f4_1176604430"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.339999999999975,
+          "maxX": 352.46000000000004,
+          "maxY": 420.76,
+          "minX": 345.24,
+          "minY": 412.42,
+          "width": 7.220000000000027
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f4_1176604431",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          348.82000000000005,
+          417.09000000000003
+        ],
+        "selector": "node:f4_1176604431"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 450.86,
+          "maxY": 253.25,
+          "minX": 442.86,
+          "minY": 245.25,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602970",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          446.86,
+          249.25
+        ],
+        "selector": "node:f5_1176602970"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 459.72,
+          "maxY": 248.13,
+          "minX": 451.72,
+          "minY": 240.13,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602971",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          455.72,
+          244.13
+        ],
+        "selector": "node:f5_1176602971"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 468.59000000000003,
+          "maxY": 253.25,
+          "minX": 460.59000000000003,
+          "minY": 245.25,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602972",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          464.59000000000003,
+          249.25
+        ],
+        "selector": "node:f5_1176602972"
+      },
+      {
+        "atomicNumber": 8,
+        "bounds": {
+          "height": 6.920000000000016,
+          "maxX": 440.64000000000004,
+          "maxY": 248.12,
+          "minX": 434.41,
+          "minY": 241.2,
+          "width": 6.230000000000018
+        },
+        "boundsSource": "geometry-fast",
+        "element": "O",
+        "hasLabel": true,
+        "id": "f5_1176602973",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          437.51000000000005,
+          245.07999999999998
+        ],
+        "selector": "node:f5_1176602973"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 434.66,
+          "maxY": 256.69,
+          "minX": 426.66,
+          "minY": 248.69,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602974",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          430.66,
+          252.69
+        ],
+        "selector": "node:f5_1176602974"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 439.77000000000004,
+          "maxY": 265.56,
+          "minX": 431.77000000000004,
+          "minY": 257.56,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602975",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          435.77000000000004,
+          261.56
+        ],
+        "selector": "node:f5_1176602975"
+      },
+      {
+        "atomicNumber": 7,
+        "bounds": {
+          "height": 6.710000000000036,
+          "maxX": 448.71000000000004,
+          "maxY": 262.37,
+          "minX": 442.93,
+          "minY": 255.65999999999997,
+          "width": 5.78000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "element": "N",
+        "hasLabel": true,
+        "id": "f5_1176602976",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          445.79,
+          259.43
+        ],
+        "selector": "node:f5_1176602976"
+      },
+      {
+        "atomicNumber": 7,
+        "bounds": {
+          "height": 6.710000000000036,
+          "maxX": 468.58000000000004,
+          "maxY": 262.37,
+          "minX": 462.8,
+          "minY": 255.65999999999997,
+          "width": 5.78000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "element": "N",
+        "hasLabel": true,
+        "id": "f5_1176602977",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          465.66,
+          259.43
+        ],
+        "selector": "node:f5_1176602977"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 479.68,
+          "maxY": 265.56,
+          "minX": 471.68,
+          "minY": 257.56,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602978",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          475.68,
+          261.56
+        ],
+        "selector": "node:f5_1176602978"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 484.79,
+          "maxY": 256.69,
+          "minX": 476.79,
+          "minY": 248.69,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602979",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          480.79,
+          252.69
+        ],
+        "selector": "node:f5_1176602979"
+      },
+      {
+        "atomicNumber": 8,
+        "bounds": {
+          "height": 6.920000000000016,
+          "maxX": 477.07000000000005,
+          "maxY": 248.12,
+          "minX": 470.84000000000003,
+          "minY": 241.2,
+          "width": 6.230000000000018
+        },
+        "boundsSource": "geometry-fast",
+        "element": "O",
+        "hasLabel": true,
+        "id": "f5_1176602980",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          473.94000000000005,
+          245.07999999999998
+        ],
+        "selector": "node:f5_1176602980"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 424.64000000000004,
+          "maxY": 258.82,
+          "minX": 416.64000000000004,
+          "minY": 250.82,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602981",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          420.64000000000004,
+          254.82
+        ],
+        "selector": "node:f5_1176602981"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 423.57000000000005,
+          "maxY": 269.0,
+          "minX": 415.57000000000005,
+          "minY": 261.0,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602982",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          419.57000000000005,
+          265.0
+        ],
+        "selector": "node:f5_1176602982"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 432.92,
+          "maxY": 273.17,
+          "minX": 424.92,
+          "minY": 265.17,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602983",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          428.92,
+          269.17
+        ],
+        "selector": "node:f5_1176602983"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 486.53000000000003,
+          "maxY": 273.17,
+          "minX": 478.53000000000003,
+          "minY": 265.17,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602984",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          482.53000000000003,
+          269.17
+        ],
+        "selector": "node:f5_1176602984"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 495.88000000000005,
+          "maxY": 269.0,
+          "minX": 487.88000000000005,
+          "minY": 261.0,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602985",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          491.88000000000005,
+          265.0
+        ],
+        "selector": "node:f5_1176602985"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 494.81,
+          "maxY": 258.82,
+          "minX": 486.81,
+          "minY": 250.82,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602986",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          490.81,
+          254.82
+        ],
+        "selector": "node:f5_1176602986"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 415.29,
+          "maxY": 275.02,
+          "minX": 407.29,
+          "minY": 267.02,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602987",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          411.29,
+          271.02
+        ],
+        "selector": "node:f5_1176602987"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 416.36,
+          "maxY": 285.2,
+          "minX": 408.36,
+          "minY": 277.2,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602988",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          412.36,
+          281.2
+        ],
+        "selector": "node:f5_1176602988"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 425.71000000000004,
+          "maxY": 289.37,
+          "minX": 417.71000000000004,
+          "minY": 281.37,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602989",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          421.71000000000004,
+          285.37
+        ],
+        "selector": "node:f5_1176602989"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 433.99,
+          "maxY": 283.35,
+          "minX": 425.99,
+          "minY": 275.35,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602990",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          429.99,
+          279.35
+        ],
+        "selector": "node:f5_1176602990"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 485.46000000000004,
+          "maxY": 283.35,
+          "minX": 477.46000000000004,
+          "minY": 275.35,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602991",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          481.46000000000004,
+          279.35
+        ],
+        "selector": "node:f5_1176602991"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 493.74,
+          "maxY": 289.37,
+          "minX": 485.74,
+          "minY": 281.37,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602992",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          489.74,
+          285.37
+        ],
+        "selector": "node:f5_1176602992"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 503.09000000000003,
+          "maxY": 285.2,
+          "minX": 495.09000000000003,
+          "minY": 277.2,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602993",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          499.09000000000003,
+          281.2
+        ],
+        "selector": "node:f5_1176602993"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 504.16,
+          "maxY": 275.02,
+          "minX": 496.16,
+          "minY": 267.02,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602994",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          500.16,
+          271.02
+        ],
+        "selector": "node:f5_1176602994"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 464.84000000000003,
+          "maxY": 239.26,
+          "minX": 456.84000000000003,
+          "minY": 231.26,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602995",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          460.84000000000003,
+          235.26
+        ],
+        "selector": "node:f5_1176602995"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 454.61,
+          "maxY": 239.26,
+          "minX": 446.61,
+          "minY": 231.26,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f5_1176602996",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          450.61,
+          235.26
+        ],
+        "selector": "node:f5_1176602996"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 6.930000000000007,
+          "maxX": 491.09000000000003,
+          "maxY": 236.17000000000002,
+          "minX": 467.98,
+          "minY": 229.24,
+          "width": 23.110000000000014
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f5_1176604576",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          471.08000000000004,
+          233.13
+        ],
+        "selector": "node:f5_1176604576"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 6.929999999999978,
+          "maxX": 443.91,
+          "maxY": 235.54,
+          "minX": 420.8,
+          "minY": 228.61,
+          "width": 23.110000000000014
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f5_1176604578",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          440.78000000000003,
+          232.5
+        ],
+        "selector": "node:f5_1176604578"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 64.08,
+          "maxY": 249.38,
+          "minX": 56.08,
+          "minY": 241.38,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f6_1176604583",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          60.08,
+          245.38
+        ],
+        "selector": "node:f6_1176604583"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 5.539999999999964,
+          "maxX": 76.23,
+          "maxY": 249.27999999999997,
+          "minX": 72.73,
+          "minY": 243.74,
+          "width": 3.5
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f6_1176604584",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          74.48,
+          245.38
+        ],
+        "selector": "node:f6_1176604584"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 92.88,
+          "maxY": 249.38,
+          "minX": 84.88,
+          "minY": 241.38,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f6_1176604591",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          88.88,
+          245.38
+        ],
+        "selector": "node:f6_1176604591"
+      },
+      {
+        "atomicNumber": 18,
+        "bounds": {
+          "height": 8.339999999999975,
+          "maxX": 55.28,
+          "maxY": 260.96999999999997,
+          "minX": 45.28,
+          "minY": 252.63,
+          "width": 10.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "Ar",
+        "hasLabel": true,
+        "id": "f6_1176604592",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          53.61,
+          258.25
+        ],
+        "selector": "node:f6_1176604592"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.620000000000005,
+          "maxX": 106.95,
+          "maxY": 236.68,
+          "minX": 92.5,
+          "minY": 228.06,
+          "width": 14.450000000000003
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f6_1176604593",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          96.08,
+          232.91
+        ],
+        "selector": "node:f6_1176604593"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 100.08,
+          "maxY": 261.85,
+          "minX": 92.08,
+          "minY": 253.85000000000002,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f6_1176604600",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          96.08,
+          257.85
+        ],
+        "selector": "node:f6_1176604600"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 10.5,
+          "maxX": 119.44,
+          "maxY": 264.34,
+          "minX": 102.94,
+          "minY": 253.83999999999997,
+          "width": 16.5
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f6_1176604601",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          110.47,
+          258.42
+        ],
+        "selector": "node:f6_1176604601"
+      },
+      {
+        "atomicNumber": 1,
+        "bounds": {
+          "height": 8.340000000000003,
+          "maxX": 56.17,
+          "maxY": 236.79,
+          "minX": 48.949999999999996,
+          "minY": 228.45,
+          "width": 7.220000000000006
+        },
+        "boundsSource": "geometry-fast",
+        "element": "H",
+        "hasLabel": true,
+        "id": "f6_1176604602",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          52.53,
+          233.12
+        ],
+        "selector": "node:f6_1176604602"
+      },
+      {
+        "atomicNumber": 16,
+        "bounds": {
+          "height": 8.620000000000005,
+          "maxX": 356.45000000000005,
+          "maxY": 251.95,
+          "minX": 349.78000000000003,
+          "minY": 243.32999999999998,
+          "width": 6.670000000000016
+        },
+        "boundsSource": "geometry-fast",
+        "element": "S",
+        "hasLabel": true,
+        "id": "f7_1176604614",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          353.11,
+          248.18
+        ],
+        "selector": "node:f7_1176604614"
+      },
+      {
+        "atomicNumber": 7,
+        "bounds": {
+          "height": 8.340000000000032,
+          "maxX": 369.23,
+          "maxY": 259.05,
+          "minX": 362.0,
+          "minY": 250.70999999999998,
+          "width": 7.230000000000018
+        },
+        "boundsSource": "geometry-fast",
+        "element": "N",
+        "hasLabel": true,
+        "id": "f7_1176604615",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          365.58000000000004,
+          255.38
+        ],
+        "selector": "node:f7_1176604615"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 344.64000000000004,
+          "maxY": 259.38,
+          "minX": 336.64000000000004,
+          "minY": 251.38,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f7_1176604616",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          340.64000000000004,
+          255.38
+        ],
+        "selector": "node:f7_1176604616"
+      },
+      {
+        "atomicNumber": 8,
+        "bounds": {
+          "height": 8.619999999999976,
+          "maxX": 349.8,
+          "maxY": 239.48,
+          "minX": 342.03000000000003,
+          "minY": 230.86,
+          "width": 7.769999999999982
+        },
+        "boundsSource": "geometry-fast",
+        "element": "O",
+        "hasLabel": true,
+        "id": "f7_1176604617",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          345.91,
+          235.70999999999998
+        ],
+        "selector": "node:f7_1176604617"
+      },
+      {
+        "atomicNumber": 8,
+        "bounds": {
+          "height": 8.619999999999976,
+          "maxX": 364.20000000000005,
+          "maxY": 239.48,
+          "minX": 356.43,
+          "minY": 230.86,
+          "width": 7.770000000000039
+        },
+        "boundsSource": "geometry-fast",
+        "element": "O",
+        "hasLabel": true,
+        "id": "f7_1176604618",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          360.31,
+          235.70999999999998
+        ],
+        "selector": "node:f7_1176604618"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 332.17,
+          "maxY": 252.18,
+          "minX": 324.17,
+          "minY": 244.18,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f7_1176604619",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          328.17,
+          248.18
+        ],
+        "selector": "node:f7_1176604619"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 319.70000000000005,
+          "maxY": 259.38,
+          "minX": 311.70000000000005,
+          "minY": 251.38,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f7_1176604620",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          315.70000000000005,
+          255.38
+        ],
+        "selector": "node:f7_1176604620"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 319.70000000000005,
+          "maxY": 273.78,
+          "minX": 311.70000000000005,
+          "minY": 265.78,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f7_1176604621",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          315.70000000000005,
+          269.78
+        ],
+        "selector": "node:f7_1176604621"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 332.17,
+          "maxY": 280.98,
+          "minX": 324.17,
+          "minY": 272.98,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f7_1176604622",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          328.17,
+          276.98
+        ],
+        "selector": "node:f7_1176604622"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 344.64000000000004,
+          "maxY": 273.78,
+          "minX": 336.64000000000004,
+          "minY": 265.78,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f7_1176604623",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          340.64000000000004,
+          269.78
+        ],
+        "selector": "node:f7_1176604623"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 382.15000000000003,
+          "maxY": 252.08999999999997,
+          "minX": 374.15000000000003,
+          "minY": 244.08999999999997,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f7_1176604624",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          378.15000000000003,
+          248.08999999999997
+        ],
+        "selector": "node:f7_1176604624"
+      },
+      {
+        "atomicNumber": 9,
+        "bounds": {
+          "height": 8.339999999999975,
+          "maxX": 368.68,
+          "maxY": 273.45,
+          "minX": 362.57000000000005,
+          "minY": 265.11,
+          "width": 6.109999999999957
+        },
+        "boundsSource": "geometry-fast",
+        "element": "F",
+        "hasLabel": true,
+        "id": "f7_1176604625",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          365.6,
+          269.78
+        ],
+        "selector": "node:f7_1176604625"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 394.63000000000005,
+          "maxY": 259.27,
+          "minX": 386.63000000000005,
+          "minY": 251.26999999999998,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f7_1176604648",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          390.63000000000005,
+          255.26999999999998
+        ],
+        "selector": "node:f7_1176604648"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 382.15000000000003,
+          "maxY": 237.69,
+          "minX": 374.15000000000003,
+          "minY": 229.69,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f7_1176604649",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          378.15000000000003,
+          233.69
+        ],
+        "selector": "node:f7_1176604649"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.340000000000003,
+          "maxX": 399.52000000000004,
+          "maxY": 244.56,
+          "minX": 387.29,
+          "minY": 236.22,
+          "width": 12.230000000000018
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f7_1176604650",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          390.62,
+          240.89
+        ],
+        "selector": "node:f7_1176604650"
+      },
+      {
+        "atomicNumber": 17,
+        "bounds": {
+          "height": 8.620000000000005,
+          "maxX": 358.97,
+          "maxY": 280.75,
+          "minX": 349.53000000000003,
+          "minY": 272.13,
+          "width": 9.439999999999998
+        },
+        "boundsSource": "geometry-fast",
+        "element": "Cl",
+        "hasLabel": true,
+        "id": "f7_1176604685",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          353.11,
+          276.98
+        ],
+        "selector": "node:f7_1176604685"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 456.05,
+          "maxY": 411.68,
+          "minX": 448.05,
+          "minY": 403.68,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f8_1176602673",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          452.05,
+          407.68
+        ],
+        "selector": "node:f8_1176602673"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 468.52000000000004,
+          "maxY": 404.48,
+          "minX": 460.52000000000004,
+          "minY": 396.48,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f8_1176602674",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          464.52000000000004,
+          400.48
+        ],
+        "selector": "node:f8_1176602674"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 480.99,
+          "maxY": 411.68,
+          "minX": 472.99,
+          "minY": 403.68,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f8_1176602675",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          476.99,
+          407.68
+        ],
+        "selector": "node:f8_1176602675"
+      },
+      {
+        "atomicNumber": 8,
+        "bounds": {
+          "height": 8.620000000000005,
+          "maxX": 442.8,
+          "maxY": 405.59000000000003,
+          "minX": 435.02000000000004,
+          "minY": 396.97,
+          "width": 7.779999999999973
+        },
+        "boundsSource": "geometry-fast",
+        "element": "O",
+        "hasLabel": true,
+        "id": "f8_1176602676",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          438.90000000000003,
+          401.82
+        ],
+        "selector": "node:f8_1176602676"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 433.26000000000005,
+          "maxY": 416.52,
+          "minX": 425.26000000000005,
+          "minY": 408.52,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f8_1176602677",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          429.26000000000005,
+          412.52
+        ],
+        "selector": "node:f8_1176602677"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 440.46000000000004,
+          "maxY": 428.99,
+          "minX": 432.46000000000004,
+          "minY": 420.99,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f8_1176602678",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          436.46000000000004,
+          424.99
+        ],
+        "selector": "node:f8_1176602678"
+      },
+      {
+        "atomicNumber": 7,
+        "bounds": {
+          "height": 8.340000000000032,
+          "maxX": 454.19000000000005,
+          "maxY": 425.67,
+          "minX": 446.97,
+          "minY": 417.33,
+          "width": 7.220000000000027
+        },
+        "boundsSource": "geometry-fast",
+        "element": "N",
+        "hasLabel": true,
+        "id": "f8_1176602679",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          450.55,
+          422.0
+        ],
+        "selector": "node:f8_1176602679"
+      },
+      {
+        "atomicNumber": 7,
+        "bounds": {
+          "height": 8.340000000000032,
+          "maxX": 482.14000000000004,
+          "maxY": 425.67,
+          "minX": 474.92,
+          "minY": 417.33,
+          "width": 7.220000000000027
+        },
+        "boundsSource": "geometry-fast",
+        "element": "N",
+        "hasLabel": true,
+        "id": "f8_1176602680",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          478.5,
+          422.0
+        ],
+        "selector": "node:f8_1176602680"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 496.58000000000004,
+          "maxY": 428.99,
+          "minX": 488.58000000000004,
+          "minY": 420.99,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f8_1176602681",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          492.58000000000004,
+          424.99
+        ],
+        "selector": "node:f8_1176602681"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 503.78000000000003,
+          "maxY": 416.52,
+          "minX": 495.78000000000003,
+          "minY": 408.52,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f8_1176602682",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          499.78000000000003,
+          412.52
+        ],
+        "selector": "node:f8_1176602682"
+      },
+      {
+        "atomicNumber": 8,
+        "bounds": {
+          "height": 8.620000000000005,
+          "maxX": 494.05,
+          "maxY": 405.59000000000003,
+          "minX": 486.27000000000004,
+          "minY": 396.97,
+          "width": 7.779999999999973
+        },
+        "boundsSource": "geometry-fast",
+        "element": "O",
+        "hasLabel": true,
+        "id": "f8_1176602683",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          490.15000000000003,
+          401.82
+        ],
+        "selector": "node:f8_1176602683"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.339999999999975,
+          "maxX": 433.35,
+          "maxY": 441.82,
+          "minX": 421.12,
+          "minY": 433.48,
+          "width": 12.230000000000018
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f8_1176602684",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          430.6,
+          438.15000000000003
+        ],
+        "selector": "node:f8_1176602684"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.339999999999975,
+          "maxX": 507.34000000000003,
+          "maxY": 441.82,
+          "minX": 495.11,
+          "minY": 433.48,
+          "width": 12.230000000000018
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f8_1176602700",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          498.44000000000005,
+          438.15000000000003
+        ],
+        "selector": "node:f8_1176602700"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 480.17,
+          "maxY": 396.01,
+          "minX": 472.17,
+          "minY": 388.01,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f8_1176602716",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          476.17,
+          392.01
+        ],
+        "selector": "node:f8_1176602716"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 475.72,
+          "maxY": 382.32,
+          "minX": 467.72,
+          "minY": 374.32,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f8_1176602717",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          471.72,
+          378.32
+        ],
+        "selector": "node:f8_1176602717"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 461.32000000000005,
+          "maxY": 382.32,
+          "minX": 453.32000000000005,
+          "minY": 374.32,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f8_1176602718",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          457.32000000000005,
+          378.32
+        ],
+        "selector": "node:f8_1176602718"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 456.87,
+          "maxY": 396.01,
+          "minX": 448.87,
+          "minY": 388.01,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "f8_1176602719",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          452.87,
+          392.01
+        ],
+        "selector": "node:f8_1176602719"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.339999999999975,
+          "maxX": 417.69000000000005,
+          "maxY": 414.69,
+          "minX": 405.46000000000004,
+          "minY": 406.35,
+          "width": 12.230000000000018
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f8_1176602720",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          414.94000000000005,
+          411.02
+        ],
+        "selector": "node:f8_1176602720"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.339999999999975,
+          "maxX": 523.0,
+          "maxY": 414.69,
+          "minX": 510.77000000000004,
+          "minY": 406.35,
+          "width": 12.229999999999961
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "f8_1176602736",
+        "moleculeIndex": 0,
+        "objectId": "obj_cdxml_merged_molecule",
+        "position": [
+          514.1,
+          411.02
+        ],
+        "selector": "node:f8_1176602736"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.340000000000018,
+          "maxX": 44.32,
+          "maxY": 129.11,
+          "minX": 35.190000000000005,
+          "minY": 120.77,
+          "width": 9.129999999999995
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "1176604266",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "position": [
+          43.71,
+          125.41
+        ],
+        "selector": "node:1176604266"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 54.910000000000004,
+          "maxY": 141.88,
+          "minX": 46.910000000000004,
+          "minY": 133.88,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "1176604267",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "position": [
+          50.910000000000004,
+          137.88
+        ],
+        "selector": "node:1176604267"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 5.539999999999992,
+          "maxX": 67.06,
+          "maxY": 141.78,
+          "minX": 63.56,
+          "minY": 136.24,
+          "width": 3.5
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "1176604268",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "position": [
+          65.31,
+          137.88
+        ],
+        "selector": "node:1176604268"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 83.71000000000001,
+          "maxY": 141.88,
+          "minX": 75.71000000000001,
+          "minY": 133.88,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "1176604271",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "position": [
+          79.71000000000001,
+          137.88
+        ],
+        "selector": "node:1176604271"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.340000000000003,
+          "maxX": 43.480000000000004,
+          "maxY": 154.05,
+          "minX": 32.440000000000005,
+          "minY": 145.71,
+          "width": 11.04
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "1176604272",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "position": [
+          43.71,
+          150.35
+        ],
+        "selector": "node:1176604272"
+      },
+      {
+        "atomicNumber": 1,
+        "bounds": {
+          "height": 8.34999999999998,
+          "maxX": 90.56,
+          "maxY": 129.07999999999998,
+          "minX": 83.33000000000001,
+          "minY": 120.73,
+          "width": 7.22999999999999
+        },
+        "boundsSource": "geometry-fast",
+        "element": "H",
+        "hasLabel": true,
+        "id": "1176604273",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "position": [
+          86.91,
+          125.41
+        ],
+        "selector": "node:1176604273"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 90.91,
+          "maxY": 154.35,
+          "minX": 82.91,
+          "minY": 146.35,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "1176604274",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "position": [
+          86.91,
+          150.35
+        ],
+        "selector": "node:1176604274"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.340000000000003,
+          "maxX": 83.36,
+          "maxY": 166.49,
+          "minX": 76.13,
+          "minY": 158.15,
+          "width": 7.230000000000004
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "1176604275",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "position": [
+          79.71000000000001,
+          162.82
+        ],
+        "selector": "node:1176604275"
+      },
+      {
+        "atomicNumber": 1,
+        "bounds": {
+          "height": 8.339999999999975,
+          "maxX": 104.96000000000001,
+          "maxY": 154.01999999999998,
+          "minX": 97.72999999999999,
+          "minY": 145.68,
+          "width": 7.230000000000018
+        },
+        "boundsSource": "geometry-fast",
+        "element": "H",
+        "hasLabel": true,
+        "id": "1176604276",
+        "moleculeIndex": 1,
+        "objectId": "obj_mol_001",
+        "position": [
+          101.31,
+          150.35
+        ],
+        "selector": "node:1176604276"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 260.05,
+          "maxY": 143.70000000000002,
+          "minX": 252.05,
+          "minY": 135.70000000000002,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "1176604287",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "position": [
+          256.05,
+          139.70000000000002
+        ],
+        "selector": "node:1176604287"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 5.539999999999992,
+          "maxX": 272.2,
+          "maxY": 143.6,
+          "minX": 268.7,
+          "minY": 138.06,
+          "width": 3.5
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "1176604288",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "position": [
+          270.45,
+          139.70000000000002
+        ],
+        "selector": "node:1176604288"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 288.85,
+          "maxY": 143.70000000000002,
+          "minX": 280.85,
+          "minY": 135.70000000000002,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "1176604291",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "position": [
+          284.85,
+          139.70000000000002
+        ],
+        "selector": "node:1176604291"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 303.25,
+          "maxY": 143.70000000000002,
+          "minX": 295.25,
+          "minY": 135.70000000000002,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "1176604292",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "position": [
+          299.25,
+          139.70000000000002
+        ],
+        "selector": "node:1176604292"
+      },
+      {
+        "atomicNumber": 1,
+        "bounds": {
+          "height": 8.340000000000003,
+          "maxX": 310.09,
+          "maxY": 130.9,
+          "minX": 302.87,
+          "minY": 122.56,
+          "width": 7.21999999999997
+        },
+        "boundsSource": "geometry-fast",
+        "element": "H",
+        "hasLabel": true,
+        "id": "1176604293",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "position": [
+          306.45,
+          127.23
+        ],
+        "selector": "node:1176604293"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.340000000000003,
+          "maxX": 310.09,
+          "maxY": 155.84,
+          "minX": 302.87,
+          "minY": 147.5,
+          "width": 7.21999999999997
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "1176604294",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "position": [
+          306.45,
+          152.17000000000002
+        ],
+        "selector": "node:1176604294"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.340000000000003,
+          "maxX": 249.45999999999998,
+          "maxY": 130.93,
+          "minX": 240.32999999999998,
+          "minY": 122.59,
+          "width": 9.129999999999995
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "1176604295",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "position": [
+          248.85,
+          127.23
+        ],
+        "selector": "node:1176604295"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.340000000000003,
+          "maxX": 248.62,
+          "maxY": 155.87,
+          "minX": 237.57999999999998,
+          "minY": 147.53,
+          "width": 11.04000000000002
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "1176604296",
+        "moleculeIndex": 2,
+        "objectId": "obj_mol_002",
+        "position": [
+          248.85,
+          152.17000000000002
+        ],
+        "selector": "node:1176604296"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 77.42,
+          "maxY": 533.91,
+          "minX": 69.42,
+          "minY": 525.91,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "1176604306",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "position": [
+          73.42,
+          529.91
+        ],
+        "selector": "node:1176604306"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 5.539999999999964,
+          "maxX": 89.57,
+          "maxY": 533.81,
+          "minX": 86.07,
+          "minY": 528.27,
+          "width": 3.5
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "1176604307",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "position": [
+          87.82,
+          529.91
+        ],
+        "selector": "node:1176604307"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 106.22,
+          "maxY": 533.91,
+          "minX": 98.22,
+          "minY": 525.91,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "1176604310",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "position": [
+          102.22,
+          529.91
+        ],
+        "selector": "node:1176604310"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.0,
+          "maxX": 120.62,
+          "maxY": 533.91,
+          "minX": 112.62,
+          "minY": 525.91,
+          "width": 8.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": false,
+        "id": "1176604311",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "position": [
+          116.62,
+          529.91
+        ],
+        "selector": "node:1176604311"
+      },
+      {
+        "atomicNumber": 1,
+        "bounds": {
+          "height": 8.340000000000032,
+          "maxX": 127.46,
+          "maxY": 521.11,
+          "minX": 120.24000000000001,
+          "minY": 512.77,
+          "width": 7.219999999999985
+        },
+        "boundsSource": "geometry-fast",
+        "element": "H",
+        "hasLabel": true,
+        "id": "1176604312",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "position": [
+          123.82000000000001,
+          517.44
+        ],
+        "selector": "node:1176604312"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.339999999999918,
+          "maxX": 127.46,
+          "maxY": 546.05,
+          "minX": 120.24000000000001,
+          "minY": 537.71,
+          "width": 7.219999999999985
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "1176604313",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "position": [
+          123.82000000000001,
+          542.38
+        ],
+        "selector": "node:1176604313"
+      },
+      {
+        "atomicNumber": 6,
+        "bounds": {
+          "height": 8.340000000000032,
+          "maxX": 66.83,
+          "maxY": 521.14,
+          "minX": 57.7,
+          "minY": 512.8,
+          "width": 9.129999999999995
+        },
+        "boundsSource": "geometry-fast",
+        "element": "C",
+        "hasLabel": true,
+        "id": "1176604314",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "position": [
+          66.22,
+          517.44
+        ],
+        "selector": "node:1176604314"
+      },
+      {
+        "atomicNumber": 18,
+        "bounds": {
+          "height": 8.340000000000032,
+          "maxX": 67.89,
+          "maxY": 545.1,
+          "minX": 57.89,
+          "minY": 536.76,
+          "width": 10.0
+        },
+        "boundsSource": "geometry-fast",
+        "element": "Ar",
+        "hasLabel": true,
+        "id": "1176604315",
+        "moleculeIndex": 3,
+        "objectId": "obj_mol_003",
+        "position": [
+          66.22,
+          542.38
+        ],
+        "selector": "node:1176604315"
+      }
+    ],
+    "objects": [
+      {
+        "bounds": {
+          "height": 326.57,
+          "maxX": 523.0,
+          "maxY": 444.15,
+          "minX": 1.28,
+          "minY": 117.58,
+          "width": 521.72
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_cdxml_merged_molecule",
+        "locked": false,
+        "name": "molecule",
+        "parentId": null,
+        "resourceRef": "mol_cdxml_merged",
+        "selector": "object:obj_cdxml_merged_molecule",
+        "type": "molecule",
+        "visible": true,
+        "zIndex": 557
+      },
+      {
+        "bounds": {
+          "height": 3.1000000000000227,
+          "maxX": 205.99,
+          "maxY": 141.5,
+          "minX": 118.15,
+          "minY": 138.39999999999998,
+          "width": 87.84
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_line_001",
+        "locked": false,
+        "name": "line 1",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_line_001",
+        "type": "line",
+        "visible": true,
+        "zIndex": 589
+      },
+      {
+        "bounds": {
+          "height": 3.1000000000000227,
+          "maxX": 414.45,
+          "maxY": 143.75,
+          "minX": 340.08,
+          "minY": 140.64999999999998,
+          "width": 74.37
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_line_002",
+        "locked": false,
+        "name": "line 2",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_line_002",
+        "type": "line",
+        "visible": true,
+        "zIndex": 660
+      },
+      {
+        "bounds": {
+          "height": 9.694047269972657,
+          "maxX": 126.02162081875723,
+          "maxY": 499.33423363308776,
+          "minX": 117.3186896306995,
+          "minY": 489.6401863631151,
+          "width": 8.702931188057732
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_line_003",
+        "locked": false,
+        "name": "line 3",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_line_003",
+        "type": "line",
+        "visible": true,
+        "zIndex": 688
+      },
+      {
+        "bounds": {
+          "height": 9.745462601597467,
+          "maxX": 115.71320590225683,
+          "maxY": 514.0406163492223,
+          "minX": 107.04415745338069,
+          "minY": 504.29515374762485,
+          "width": 8.66904844887614
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_line_004",
+        "locked": false,
+        "name": "line 4",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_line_004",
+        "type": "line",
+        "visible": true,
+        "zIndex": 689
+      },
+      {
+        "bounds": {
+          "height": 3.1000000000000227,
+          "maxX": 251.48,
+          "maxY": 414.43,
+          "minX": 90.09,
+          "minY": 411.33,
+          "width": 161.39
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_line_005",
+        "locked": false,
+        "name": "line 5",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_line_005",
+        "type": "line",
+        "visible": true,
+        "zIndex": 696
+      },
+      {
+        "bounds": {
+          "height": 67.36000000000001,
+          "maxX": 384.5,
+          "maxY": 447.68,
+          "minX": 383.9,
+          "minY": 380.32,
+          "width": 0.6000000000000227
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_line_006",
+        "locked": false,
+        "name": "line 6",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_line_006",
+        "type": "line",
+        "visible": true,
+        "zIndex": 699
+      },
+      {
+        "bounds": {
+          "height": 88.54999999999995,
+          "maxX": 205.76000000000002,
+          "maxY": 555.8199999999999,
+          "minX": 38.46,
+          "minY": 467.27,
+          "width": 167.3
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_shape_001",
+        "locked": false,
+        "name": "shape 1",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_shape_001",
+        "type": "shape",
+        "visible": true,
+        "zIndex": 690
+      },
+      {
+        "bounds": {
+          "height": 84.05000000000001,
+          "maxX": 513.01,
+          "maxY": 301.5,
+          "minX": 307.51,
+          "minY": 217.45,
+          "width": 205.5
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_shape_002",
+        "locked": false,
+        "name": "shape 2",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_shape_002",
+        "type": "shape",
+        "visible": true,
+        "zIndex": 846
+      },
+      {
+        "bounds": {
+          "height": 17.279999999999973,
+          "maxX": 221.57,
+          "maxY": 266.89,
+          "minX": 204.29,
+          "minY": 249.61,
+          "width": 17.28
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_shape_orbital_002",
+        "locked": false,
+        "name": "orbital 2",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_shape_orbital_002",
+        "type": "shape",
+        "visible": true,
+        "zIndex": 555
+      },
+      {
+        "bounds": {
+          "height": 33.52999999999999,
+          "maxX": 294.62,
+          "maxY": 147.39,
+          "minX": 274.5,
+          "minY": 113.86,
+          "width": 20.120000000000005
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_shape_orbital_003",
+        "locked": false,
+        "name": "orbital 3",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_shape_orbital_003",
+        "type": "shape",
+        "visible": true,
+        "zIndex": 657
+      },
+      {
+        "bounds": {
+          "height": 17.279999999999973,
+          "maxX": 58.88,
+          "maxY": 266.89,
+          "minX": 41.6,
+          "minY": 249.61,
+          "width": 17.28
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_shape_orbital_004",
+        "locked": false,
+        "name": "orbital 4",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_shape_orbital_004",
+        "type": "shape",
+        "visible": true,
+        "zIndex": 778
+      },
+      {
+        "bounds": {
+          "height": 2.5900000000000034,
+          "maxX": 286.48999999999995,
+          "maxY": 131.59,
+          "minX": 283.9,
+          "minY": 129.0,
+          "width": 2.589999999999975
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_symbol_001",
+        "locked": false,
+        "name": "symbol 1",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_symbol_001",
+        "type": "symbol",
+        "visible": true,
+        "zIndex": 658
+      },
+      {
+        "bounds": {
+          "height": 2.590000000000032,
+          "maxX": 103.96000000000001,
+          "maxY": 520.14,
+          "minX": 101.37,
+          "minY": 517.55,
+          "width": 2.5900000000000034
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_symbol_002",
+        "locked": false,
+        "name": "symbol 2",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_symbol_002",
+        "type": "symbol",
+        "visible": true,
+        "zIndex": 680
+      },
+      {
+        "bounds": {
+          "height": 51.0,
+          "maxX": 317.82,
+          "maxY": 165.0,
+          "minX": 230.07,
+          "minY": 114.0,
+          "width": 87.75
+        },
+        "children": 2,
+        "depth": 0,
+        "id": "obj_bracket_001",
+        "locked": false,
+        "name": "bracket-group",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_bracket_001",
+        "type": "group",
+        "visible": true,
+        "zIndex": 694
+      },
+      {
+        "bounds": {
+          "height": 51.0,
+          "maxX": 233.76999999999998,
+          "maxY": 165.0,
+          "minX": 230.07,
+          "minY": 114.0,
+          "width": 3.6999999999999886
+        },
+        "children": 0,
+        "depth": 1,
+        "id": "obj_bracket_001_left",
+        "locked": false,
+        "name": "bracket-left",
+        "parentId": "obj_bracket_001",
+        "resourceRef": null,
+        "selector": "object:obj_bracket_001_left",
+        "type": "bracket",
+        "visible": true,
+        "zIndex": 695
+      },
+      {
+        "bounds": {
+          "height": 51.0,
+          "maxX": 317.82,
+          "maxY": 165.0,
+          "minX": 314.12,
+          "minY": 114.0,
+          "width": 3.6999999999999886
+        },
+        "children": 0,
+        "depth": 1,
+        "id": "obj_bracket_001_right",
+        "locked": false,
+        "name": "bracket-right",
+        "parentId": "obj_bracket_001",
+        "resourceRef": null,
+        "selector": "object:obj_bracket_001_right",
+        "type": "bracket",
+        "visible": true,
+        "zIndex": 694
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 395.97,
+          "maxY": 142.85,
+          "minX": 352.96999999999997,
+          "minY": 128.35,
+          "width": 43.00000000000006
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_001",
+        "locked": false,
+        "name": "text 1",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_001",
+        "type": "text",
+        "visible": true,
+        "zIndex": 606
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 160.38000000000002,
+          "maxY": 495.96999999999997,
+          "minX": 109.08000000000001,
+          "minY": 481.46999999999997,
+          "width": 51.30000000000001
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_002",
+        "locked": false,
+        "name": "text 2",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_002",
+        "type": "text",
+        "visible": true,
+        "zIndex": 686
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 377.4200000000001,
+          "maxY": 298.56,
+          "minX": 360.92,
+          "minY": 284.06,
+          "width": 16.500000000000057
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_003",
+        "locked": false,
+        "name": "text 3",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_003",
+        "type": "text",
+        "visible": true,
+        "zIndex": 841
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 290.59999999999997,
+          "maxY": 93.97000000000001,
+          "minX": -0.20000000000000018,
+          "minY": 79.47000000000001,
+          "width": 290.79999999999995
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_004",
+        "locked": false,
+        "name": "text 4",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_004",
+        "type": "text",
+        "visible": true,
+        "zIndex": 556
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 520.41,
+          "maxY": 173.6,
+          "minX": 442.03,
+          "minY": 159.1,
+          "width": 78.38
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_005",
+        "locked": false,
+        "name": "text 5",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_005",
+        "type": "text",
+        "visible": true,
+        "zIndex": 624
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 333.95000000000016,
+          "maxY": 371.59999999999997,
+          "minX": 0.5499999999999998,
+          "minY": 357.09999999999997,
+          "width": 333.40000000000015
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_006",
+        "locked": false,
+        "name": "text 6",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_006",
+        "type": "text",
+        "visible": true,
+        "zIndex": 625
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 372.71999999999997,
+          "maxY": 450.21999999999997,
+          "minX": 258.91999999999996,
+          "minY": 435.71999999999997,
+          "width": 113.80000000000001
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_007",
+        "locked": false,
+        "name": "text 7",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_007",
+        "type": "text",
+        "visible": true,
+        "zIndex": 652
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 204.23000000000002,
+          "maxY": 139.85,
+          "minX": 120.33000000000001,
+          "minY": 125.35,
+          "width": 83.9
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_008",
+        "locked": false,
+        "name": "text 8",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_008",
+        "type": "text",
+        "visible": true,
+        "zIndex": 659
+      },
+      {
+        "bounds": {
+          "height": 37.5,
+          "maxX": 196.60999999999999,
+          "maxY": 547.97,
+          "minX": 150.41,
+          "minY": 510.47,
+          "width": 46.19999999999999
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_009",
+        "locked": false,
+        "name": "text 9",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_009",
+        "type": "text",
+        "visible": true,
+        "zIndex": 691
+      },
+      {
+        "bounds": {
+          "height": 26.0,
+          "maxX": 287.37,
+          "maxY": 302.4,
+          "minX": 198.77,
+          "minY": 276.4,
+          "width": 88.6
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_010",
+        "locked": false,
+        "name": "text 10",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_010",
+        "type": "text",
+        "visible": true,
+        "zIndex": 692
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 436.94000000000005,
+          "maxY": 339.4,
+          "minX": 155.34,
+          "minY": 324.9,
+          "width": 281.6
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_011",
+        "locked": false,
+        "name": "text 11",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_011",
+        "type": "text",
+        "visible": true,
+        "zIndex": 693
+      },
+      {
+        "bounds": {
+          "height": 26.25,
+          "maxX": 205.59,
+          "maxY": 412.95,
+          "minX": 136.29,
+          "minY": 386.7,
+          "width": 69.30000000000001
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_012",
+        "locked": false,
+        "name": "text 12",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_012",
+        "type": "text",
+        "visible": true,
+        "zIndex": 697
+      },
+      {
+        "bounds": {
+          "height": 26.25,
+          "maxX": 242.34,
+          "maxY": 445.95,
+          "minX": 99.54,
+          "minY": 419.7,
+          "width": 142.8
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_013",
+        "locked": false,
+        "name": "text 13",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_013",
+        "type": "text",
+        "visible": true,
+        "zIndex": 698
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 454.83,
+          "maxY": 509.72,
+          "minX": 237.63,
+          "minY": 495.22,
+          "width": 217.2
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_014",
+        "locked": false,
+        "name": "text 14",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_014",
+        "type": "text",
+        "visible": true,
+        "zIndex": 700
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 396.42999999999995,
+          "maxY": 534.37,
+          "minX": 237.63,
+          "minY": 519.87,
+          "width": 158.79999999999995
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_015",
+        "locked": false,
+        "name": "text 15",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_015",
+        "type": "text",
+        "visible": true,
+        "zIndex": 701
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 496.72999999999996,
+          "maxY": 558.75,
+          "minX": 237.63,
+          "minY": 544.25,
+          "width": 259.09999999999997
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_016",
+        "locked": false,
+        "name": "text 16",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_016",
+        "type": "text",
+        "visible": true,
+        "zIndex": 702
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 231.27999999999997,
+          "maxY": 507.96999999999997,
+          "minX": 221.88,
+          "minY": 493.46999999999997,
+          "width": 9.399999999999977
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_017",
+        "locked": false,
+        "name": "text 17",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_017",
+        "type": "text",
+        "visible": true,
+        "zIndex": 703
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 231.27999999999997,
+          "maxY": 533.5699999999999,
+          "minX": 221.88,
+          "minY": 519.0699999999999,
+          "width": 9.399999999999977
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_018",
+        "locked": false,
+        "name": "text 18",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_018",
+        "type": "text",
+        "visible": true,
+        "zIndex": 704
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 231.27999999999997,
+          "maxY": 558.3199999999999,
+          "minX": 221.88,
+          "minY": 543.8199999999999,
+          "width": 9.399999999999977
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_019",
+        "locked": false,
+        "name": "text 19",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_019",
+        "type": "text",
+        "visible": true,
+        "zIndex": 705
+      },
+      {
+        "bounds": {
+          "height": 26.0,
+          "maxX": 126.91999999999999,
+          "maxY": 302.4,
+          "minX": 38.32000000000001,
+          "minY": 276.4,
+          "width": 88.59999999999998
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_020",
+        "locked": false,
+        "name": "text 20",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_020",
+        "type": "text",
+        "visible": true,
+        "zIndex": 793
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 479.61,
+          "maxY": 302.9,
+          "minX": 432.40999999999997,
+          "minY": 288.4,
+          "width": 47.200000000000045
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_021",
+        "locked": false,
+        "name": "text 21",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_021",
+        "type": "text",
+        "visible": true,
+        "zIndex": 845
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 471.21000000000004,
+          "maxY": 458.72999999999996,
+          "minX": 456.81,
+          "minY": 444.22999999999996,
+          "width": 14.400000000000034
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_022",
+        "locked": false,
+        "name": "text 22",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_022",
+        "type": "text",
+        "visible": true,
+        "zIndex": 944
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 220.15999999999994,
+          "maxY": 208.01999999999998,
+          "minX": 41.16,
+          "minY": 193.51999999999998,
+          "width": 178.99999999999994
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_023",
+        "locked": false,
+        "name": "text 23",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_023",
+        "type": "text",
+        "visible": true,
+        "zIndex": 945
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 175.48999999999998,
+          "maxY": 260.52,
+          "minX": 142.79,
+          "minY": 246.01999999999998,
+          "width": 32.69999999999999
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_024",
+        "locked": false,
+        "name": "text 24",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_024",
+        "type": "text",
+        "visible": true,
+        "zIndex": 946
+      },
+      {
+        "bounds": {
+          "height": 14.5,
+          "maxX": 199.85999999999999,
+          "maxY": 160.01999999999998,
+          "minX": 123.66000000000001,
+          "minY": 145.51999999999998,
+          "width": 76.19999999999997
+        },
+        "children": 0,
+        "depth": 0,
+        "id": "obj_text_025",
+        "locked": false,
+        "name": "text 25",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_text_025",
+        "type": "text",
+        "visible": true,
+        "zIndex": 947
+      },
+      {
+        "bounds": {
+          "height": 45.75,
+          "maxX": 104.93,
+          "maxY": 166.72,
+          "minX": 33.63,
+          "minY": 120.97,
+          "width": 71.30000000000001
+        },
+        "children": 1,
+        "depth": 0,
+        "id": "obj_group_001",
+        "locked": false,
+        "name": "group 1",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_group_001",
+        "type": "group",
+        "visible": true,
+        "zIndex": 653
+      },
+      {
+        "bounds": {
+          "height": 45.75,
+          "maxX": 104.93,
+          "maxY": 166.72,
+          "minX": 33.63,
+          "minY": 120.97,
+          "width": 71.30000000000001
+        },
+        "children": 0,
+        "depth": 1,
+        "id": "obj_mol_001",
+        "locked": false,
+        "name": "molecule 1",
+        "parentId": "obj_group_001",
+        "resourceRef": "mol_001",
+        "selector": "object:obj_mol_001",
+        "type": "molecule",
+        "visible": true,
+        "zIndex": 572
+      },
+      {
+        "bounds": {
+          "height": 33.27999999999999,
+          "maxX": 310.06,
+          "maxY": 156.07,
+          "minX": 238.76,
+          "minY": 122.79,
+          "width": 71.30000000000001
+        },
+        "children": 1,
+        "depth": 0,
+        "id": "obj_group_002",
+        "locked": false,
+        "name": "group 2",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_group_002",
+        "type": "group",
+        "visible": true,
+        "zIndex": 656
+      },
+      {
+        "bounds": {
+          "height": 33.27999999999999,
+          "maxX": 310.06,
+          "maxY": 156.07,
+          "minX": 238.76,
+          "minY": 122.79,
+          "width": 71.30000000000001
+        },
+        "children": 0,
+        "depth": 1,
+        "id": "obj_mol_002",
+        "locked": false,
+        "name": "molecule 2",
+        "parentId": "obj_group_002",
+        "resourceRef": "mol_002",
+        "selector": "object:obj_mol_002",
+        "type": "molecule",
+        "visible": true,
+        "zIndex": 591
+      },
+      {
+        "bounds": {
+          "height": 42.849999999999966,
+          "maxX": 127.43,
+          "maxY": 546.28,
+          "minX": 57.89,
+          "minY": 503.43,
+          "width": 69.54
+        },
+        "children": 2,
+        "depth": 0,
+        "id": "obj_group_003",
+        "locked": false,
+        "name": "group 3",
+        "parentId": null,
+        "resourceRef": null,
+        "selector": "object:obj_group_003",
+        "type": "group",
+        "visible": true,
+        "zIndex": 685
+      },
+      {
+        "bounds": {
+          "height": 33.27999999999997,
+          "maxX": 127.43,
+          "maxY": 546.28,
+          "minX": 57.89,
+          "minY": 513.0,
+          "width": 69.54
+        },
+        "children": 0,
+        "depth": 1,
+        "id": "obj_mol_003",
+        "locked": false,
+        "name": "molecule 3",
+        "parentId": "obj_group_003",
+        "resourceRef": "mol_003",
+        "selector": "object:obj_mol_003",
+        "type": "molecule",
+        "visible": true,
+        "zIndex": 668
+      },
+      {
+        "bounds": {
+          "height": 33.55000000000001,
+          "maxX": 112.67,
+          "maxY": 536.98,
+          "minX": 92.54,
+          "minY": 503.43,
+          "width": 20.129999999999995
+        },
+        "children": 0,
+        "depth": 1,
+        "id": "obj_shape_orbital_001",
+        "locked": false,
+        "name": "orbital 1",
+        "parentId": "obj_group_003",
+        "resourceRef": null,
+        "selector": "object:obj_shape_orbital_001",
+        "type": "shape",
+        "visible": true,
+        "zIndex": 679
+      }
+    ]
+  }
+}

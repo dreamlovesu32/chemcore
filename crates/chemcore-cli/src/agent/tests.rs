@@ -1,3 +1,4 @@
+use super::session::{session_help_json, session_ready_json};
 use super::*;
 
 fn assert_close(actual: f64, expected: f64) {
@@ -176,4 +177,13 @@ fn detail_report_can_suppress_raw_or_include_molecule_fragment() {
         molecule["detail"]["raw"]["fragment"]["schema"],
         "chemcore.molecule.fragment2d"
     );
+}
+
+#[test]
+fn session_reports_canonical_protocol_id() {
+    let ready = session_ready_json(None);
+    assert_eq!(ready["protocol"], crate::protocol::SESSION_PROTOCOL_VERSION);
+
+    let help = session_help_json();
+    assert_eq!(help["protocol"], crate::protocol::SESSION_PROTOCOL_VERSION);
 }

@@ -1,8 +1,8 @@
+use super::links::scene_object_is_bracket_like;
 use super::{
     EditorCommand, Engine, PendingSelectTarget, TextCommandContent, TextEditCommandTarget,
     TextEditLayoutRequest,
 };
-use super::links::scene_object_is_bracket_like;
 use crate::{
     build_label_glyph_polygons, decide_label_layout, layout_label_text, round2, round6, Bond,
     BondLineWeight, DoubleBondPlacement, EndpointHit, LabelFlow, LabelRun, Point, WorldPoint,

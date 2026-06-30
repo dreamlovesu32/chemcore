@@ -1,4 +1,5 @@
 use super::*;
+use crate::protocol::SESSION_PROTOCOL_VERSION;
 
 pub(super) struct SessionDocument {
     input: String,
@@ -382,7 +383,7 @@ pub(super) fn session_ready_json(session: Option<&SessionDocument>) -> Value {
     json!({
         "ok": true,
         "event": "ready",
-        "protocol": "chemcore-cli-session-jsonl-v1",
+        "protocol": SESSION_PROTOCOL_VERSION,
         "input": session.map(|document| document.input.clone()),
         "document": session.map(SessionDocument::summary_json),
         "help": {
@@ -397,7 +398,7 @@ pub(super) fn session_ready_json(session: Option<&SessionDocument>) -> Value {
 
 pub(super) fn session_help_json() -> Value {
     json!({
-        "protocol": "chemcore-cli-session-jsonl-v1",
+        "protocol": SESSION_PROTOCOL_VERSION,
         "transport": "stdin/stdout JSON Lines; one compact JSON response per request.",
         "operations": {
             "open": {"required": ["input"], "description": "Load a document into the session."},

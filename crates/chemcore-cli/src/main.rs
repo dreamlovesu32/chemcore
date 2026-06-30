@@ -1193,7 +1193,7 @@ fn current_exe_cache_stamp() -> String {
 }
 
 fn write_import_cache(path: &Path, document_json: &str) -> Result<u64, String> {
-    if let Some(parent) = path.parent() {
+    if let Some(parent) = output_parent_path(path) {
         fs::create_dir_all(parent).map_err(|error| {
             format!(
                 "Failed to create import cache directory {}: {error}",
@@ -1312,12 +1312,9 @@ pub(crate) fn ensure_output_parent(path: &str) -> Result<(), String> {
 }
 
 pub(crate) fn ensure_output_parent_path(path: &Path) -> Result<(), String> {
-    let Some(parent) = path.parent() else {
+    let Some(parent) = output_parent_path(path) else {
         return Ok(());
     };
-    if parent.as_os_str().is_empty() {
-        return Ok(());
-    }
     fs::create_dir_all(parent).map_err(|error| {
         format!(
             "Failed to create output directory {}: {error}",
@@ -1331,6 +1328,15 @@ pub(crate) fn ensure_output_parent_path(path: &Path) -> Result<(), String> {
         ));
     }
     Ok(())
+}
+
+fn output_parent_path(path: &Path) -> Option<&Path> {
+    let parent = path.parent()?;
+    if parent.as_os_str().is_empty() || parent.components().next().is_none() {
+        None
+    } else {
+        Some(parent)
+    }
 }
 
 pub(crate) fn verify_file_written(path: &Path, min_bytes: u64, label: &str) -> Result<u64, String> {
@@ -1472,6 +1478,14 @@ mod tests {
     }
 
     #[test]
+    fn bare_relative_output_paths_do_not_require_parent_directories() {
+        assert!(output_parent_path(Path::new("output.cdxml")).is_none());
+        assert!(output_parent_path(Path::new("results.json")).is_none());
+        ensure_output_parent_path(Path::new("output.cdxml")).unwrap();
+        ensure_output_parent("results.json").unwrap();
+    }
+
+    #[test]
     fn parses_agent_target_selectors() {
         assert_eq!(
             agent::parse_target_selector("all").unwrap(),
@@ -1550,6 +1564,45 @@ mod tests {
             value["protocols"]["session"],
             protocol::SESSION_PROTOCOL_VERSION
         );
+    }
+
+    #[test]
+    fn protocol_docs_include_runtime_protocol_ids() {
+        let cli_doc = include_str!("../../../docs/protocol/chemcore-cli-protocol-v1.md");
+        let selector_doc = include_str!("../../../docs/protocol/selector-v1.md");
+        let session_doc = include_str!("../../../docs/protocol/session-jsonl-v1.md");
+        let capture_doc = include_str!("../../../docs/protocol/capture-manifest-v1.md");
+        let error_doc = include_str!("../../../docs/protocol/error-model-v1.md");
+        let entrypoints_doc = include_str!("../../../docs/protocol/entrypoints-v1.md");
+
+        assert!(cli_doc.contains(protocol::CLI_PROTOCOL_VERSION));
+        assert!(selector_doc.contains(protocol::SELECTOR_PROTOCOL_VERSION));
+        assert!(session_doc.contains(protocol::SESSION_PROTOCOL_VERSION));
+        assert!(capture_doc.contains(protocol::CAPTURE_MANIFEST_VERSION));
+        assert!(error_doc.contains(protocol::ERROR_MODEL_VERSION));
+        assert!(entrypoints_doc.contains(protocol::ENTRYPOINTS_SCHEMA_VERSION));
+    }
+
+    #[test]
+    fn error_model_doc_lists_runtime_error_kinds() {
+        let error_doc = include_str!("../../../docs/protocol/error-model-v1.md");
+        for kind in [
+            "unknown_command",
+            "missing_argument",
+            "unexpected_argument",
+            "invalid_format",
+            "invalid_command_json",
+            "target_not_found",
+            "command_failed",
+            "invalid_json",
+            "missing_operation",
+            "operation_failed",
+        ] {
+            assert!(
+                error_doc.contains(kind),
+                "error model doc should list runtime error kind {kind}"
+            );
+        }
     }
 
     #[test]

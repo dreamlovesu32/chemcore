@@ -1584,6 +1584,32 @@ mod tests {
     }
 
     #[test]
+    fn write_document_file_accepts_bare_relative_output_path() {
+        let mut service = DesktopDocumentService::new();
+        let file_name = format!(
+            "chemcore-desktop-service-bare-output-{}-{}.cdxml",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML CreationProgram="ChemCore" BoundingBox="0 0 100 80">
+  <page id="1" BoundingBox="0 0 100 80"/>
+</CDXML>
+"#;
+        let _ = fs::remove_file(&file_name);
+        let saved = service.write_document_file(&file_name, cdxml, Some("cdxml"));
+        let exists = Path::new(&file_name).is_file();
+        let _ = fs::remove_file(&file_name);
+
+        let saved = saved.unwrap();
+        assert_eq!(saved.file_name, file_name);
+        assert!(exists);
+    }
+
+    #[test]
     fn cdx_file_round_trip_uses_binary_storage_and_cdxml_text_payload() {
         let mut service = DesktopDocumentService::new();
         let path = std::env::temp_dir().join(format!(

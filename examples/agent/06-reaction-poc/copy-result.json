@@ -1,0 +1,24 @@
+﻿{
+  "clipboard": {
+    "copied": false,
+    "format": "windows-office-ole",
+    "helper": null
+  },
+  "document": {
+    "objects": 45,
+    "resources": 4
+  },
+  "input": "output.cdxml",
+  "ok": true,
+  "payload": {
+    "bytes": 1012617,
+    "defaulted": false,
+    "path": "office-payload.json",
+    "verified": true
+  },
+  "target": {
+    "kind": "all",
+    "selector": "all"
+  },
+  "warnings": []
+}

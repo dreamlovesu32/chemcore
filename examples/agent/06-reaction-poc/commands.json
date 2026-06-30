@@ -1,0 +1,27 @@
+[
+  {
+    "type": "add-shape",
+    "kind": "rect",
+    "style": "dashed",
+    "color": "#1f5fbf",
+    "begin": { "x": 116.0, "y": 122.0 },
+    "end": { "x": 212.0, "y": 144.0 }
+  },
+  {
+    "type": "add-text",
+    "position": { "x": 120.0, "y": 174.0 },
+    "runs": [
+      {
+        "text": "agent note: verify condition label before manuscript use",
+        "script": "normal",
+        "fontSize": 8.0,
+        "fill": "#1f5fbf"
+      }
+    ],
+    "fontFamily": "Arial",
+    "fontSize": 8.0,
+    "fill": "#1f5fbf",
+    "lineHeight": 9.5,
+    "box": [0.0, 0.0, 220.0, 10.0]
+  }
+]
