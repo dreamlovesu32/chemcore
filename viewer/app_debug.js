@@ -17,6 +17,7 @@ export function registerChemcoreDebug({
   renderStats,
   getRenderListJson,
   worldToClient,
+  clientPointToWorld,
 }) {
   if (typeof window === "undefined") {
     return;
@@ -63,5 +64,6 @@ export function registerChemcoreDebug({
     renderStats,
     getRenderListJson,
     worldToClient,
+    clientPointToWorld,
   };
 }

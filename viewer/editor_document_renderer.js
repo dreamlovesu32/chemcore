@@ -1879,7 +1879,7 @@ export function createEditorDocumentRenderer(options) {
     const selectedObjectIds = selectedDocumentPreviewObjectIds(selection);
     const partialBondState = partialMovingStructureBondPreviewState(selection, nodeIds);
     const hasPartialBonds = partialBondState.partialBonds.length > 0;
-    const partialBondDelta = hasPartialBonds ? selectionGestureDelta(activeSelectionGesture) : null;
+    const partialBondDelta = hasPartialBonds ? selectionGestureDelta(activeSelectionGesture()) : null;
     if (hasPartialBonds && !partialBondDelta) {
       clearDocumentObjectPreviewTransform();
       return false;

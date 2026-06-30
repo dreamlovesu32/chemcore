@@ -368,6 +368,22 @@ export function createEditorViewportHost(options) {
     rememberProgrammaticScrollPosition();
   }
 
+  function clientPointToWorld(clientX, clientY) {
+    if (!viewerContainer) {
+      return currentViewportCenterWorld();
+    }
+    const rect = viewerContainer.getBoundingClientRect();
+    const viewBox = activeViewBox();
+    const scale = viewportScale();
+    if (scale <= 0) {
+      return currentViewportCenterWorld();
+    }
+    return {
+      x: viewBox.x + (viewerContainer.scrollLeft + clientX - rect.left) / scale,
+      y: viewBox.y + (viewerContainer.scrollTop + clientY - rect.top) / scale,
+    };
+  }
+
   function applyViewerViewport(options = {}) {
     if (!viewerSvg) {
       return;
@@ -388,7 +404,9 @@ export function createEditorViewportHost(options) {
 
     const scrollDelta = options.scrollDelta;
     const centerWorld = options.centerWorld;
-    if (!viewerContainer || (!scrollDelta && !centerWorld)) {
+    const anchorWorld = options.anchorWorld;
+    const anchorClient = options.anchorClient;
+    if (!viewerContainer || (!scrollDelta && !centerWorld && !anchorWorld)) {
       if (getActiveTextEditor()?.root) {
         renderActiveTextEditorFromModel(currentEditorSelectionOffsets());
       }
@@ -398,6 +416,11 @@ export function createEditorViewportHost(options) {
     requestAnimationFrame(() => {
       if (getActiveTextEditor()?.root) {
         renderActiveTextEditorFromModel(currentEditorSelectionOffsets());
+      }
+      if (anchorWorld && anchorClient) {
+        scrollViewerToWorldPointAtClient(anchorWorld, anchorClient.x, anchorClient.y);
+        positionActiveTextEditor();
+        return;
       }
       if (centerWorld) {
         scrollViewerToWorldPoint(centerWorld, true);
@@ -445,7 +468,10 @@ export function createEditorViewportHost(options) {
     );
   }
 
-  function ensureEditorViewportCapacity(centerWorld = currentViewportCenterWorld()) {
+  function ensureEditorViewportCapacity(
+    centerWorld = currentViewportCenterWorld(),
+    viewportOptions = null,
+  ) {
     if (!isEditingRustDocument()) {
       return false;
     }
@@ -463,7 +489,7 @@ export function createEditorViewportHost(options) {
       next.y = centerWorld.y - metrics.minCanvasHeight / 2;
       next.height = metrics.minCanvasHeight;
     }
-    setRuntimeViewBox(next, { centerWorld });
+    setRuntimeViewBox(next, viewportOptions || { centerWorld });
     return true;
   }
 
@@ -580,11 +606,18 @@ export function createEditorViewportHost(options) {
   function setZoomPercent(nextZoom, options = {}) {
     const previousZoom = zoomPercent;
     const targetZoom = closestZoomStep(nextZoom);
+    const anchorWorld = options.anchorWorld || null;
+    const anchorClient = options.anchorClient || null;
     const { centerWorld, handoff } = options.centerWorld
       ? { centerWorld: options.centerWorld, handoff: null }
-      : planZoomCenter(targetZoom);
+      : anchorWorld && anchorClient
+        ? { centerWorld: currentViewportCenterWorld(), handoff: null }
+        : planZoomCenter(targetZoom);
     zoomPercent = targetZoom;
     syncZoomControl();
+    if (anchorWorld && anchorClient) {
+      clearZoomHandoffs();
+    }
     if (handoff) {
       state.zoomHandoffs.push(handoff);
     } else if (targetZoom > previousZoom) {
@@ -593,10 +626,13 @@ export function createEditorViewportHost(options) {
         last.toZoom = targetZoom;
       }
     }
-    if (ensureEditorViewportCapacity(centerWorld)) {
+    const viewportOptions = anchorWorld && anchorClient
+      ? { anchorWorld, anchorClient }
+      : { centerWorld };
+    if (ensureEditorViewportCapacity(centerWorld, viewportOptions)) {
       return;
     }
-    applyViewerViewport({ centerWorld });
+    applyViewerViewport(viewportOptions);
   }
 
   function handleViewerWheel(event) {
@@ -608,7 +644,18 @@ export function createEditorViewportHost(options) {
       return;
     }
     const direction = event.deltaY < 0 ? 1 : -1;
-    setZoomPercent(nextZoomStep(direction));
+    const selectionBounds = isEditingRustDocument() ? currentRenderBounds("selection") : null;
+    if (selectionBounds) {
+      setZoomPercent(nextZoomStep(direction));
+      return;
+    }
+    setZoomPercent(nextZoomStep(direction), {
+      anchorWorld: clientPointToWorld(event.clientX, event.clientY),
+      anchorClient: {
+        x: event.clientX,
+        y: event.clientY,
+      },
+    });
   }
 
   function fitView() {
@@ -696,6 +743,7 @@ export function createEditorViewportHost(options) {
     nextZoomStep,
     scrollViewerToWorldPoint,
     scrollViewerToWorldPointAtClient,
+    clientPointToWorld,
     applyViewerViewport,
     setRuntimeViewBox,
     fitZoomPercentForViewBox,

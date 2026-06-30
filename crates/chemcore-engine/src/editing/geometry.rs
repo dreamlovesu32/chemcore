@@ -453,6 +453,27 @@ mod tests {
         );
     }
 
+    #[test]
+    fn transformed_line_render_and_arrow_hit_test_share_world_points() {
+        let mut document = arrow_hover_test_document("none", "none", "none", "none");
+        document.objects[0].transform.translate = [12.0, -7.0];
+
+        let hover = hit_test_arrow_center(&document, Point::new(62.0, -7.0), 5.0)
+            .expect("transformed arrow should hit at rendered center");
+        assert_eq!(hover.center, Point::new(62.0, -7.0));
+
+        let rendered = crate::render_document(&document);
+        let rendered_line = rendered
+            .iter()
+            .find_map(|primitive| match primitive {
+                crate::RenderPrimitive::Polyline { points, .. } => Some(points),
+                _ => None,
+            })
+            .expect("line object should render as a polyline");
+        assert_eq!(rendered_line.first().copied(), Some(Point::new(12.0, -7.0)));
+        assert_eq!(rendered_line.last().copied(), Some(Point::new(112.0, -7.0)));
+    }
+
     fn arrow_hover_test_document(
         head: &str,
         tail: &str,

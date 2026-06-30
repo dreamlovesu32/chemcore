@@ -647,12 +647,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             let Some(minor) = payload_point_cdxml(&object.payload, "minorAxisEnd") else {
                 return;
             };
-            let bbox = [
-                object.transform.translate[0] + x,
-                object.transform.translate[1] + y,
-                object.transform.translate[0] + x + width,
-                object.transform.translate[1] + y + height,
-            ];
+            let bbox = [x, y, x + width, y + height];
             let mut oval_type = String::new();
             if kind == "circle" {
                 oval_type.push_str("Circle");

@@ -269,13 +269,16 @@ fn rotated_scene_object(original: &SceneObject, center: Point, degrees: f64) -> 
             center,
             degrees,
         ),
-        "shape" if shape_uses_absolute_points(original) => rotate_payload_points_to_next_local(
-            &mut object,
-            Point::new(0.0, 0.0),
-            Point::new(0.0, 0.0),
-            center,
-            degrees,
-        ),
+        "shape" if shape_uses_absolute_points(original) => {
+            rotate_payload_points_to_next_local(
+                &mut object,
+                Point::new(0.0, 0.0),
+                Point::new(0.0, 0.0),
+                center,
+                degrees,
+            );
+            object.transform = crate::Transform::identity();
+        }
         "shape" | "bracket" | "symbol" => {
             rotate_bbox_based_object(&mut object, original, center, degrees);
         }
@@ -326,7 +329,13 @@ fn rotate_payload_points_to_next_local(
     center: Point,
     degrees: f64,
 ) {
-    for key in ["center", "majorAxisEnd", "minorAxisEnd"] {
+    for key in [
+        "center",
+        "majorAxisEnd",
+        "minorAxisEnd",
+        "axisStart",
+        "axisEnd",
+    ] {
         rotate_extra_point(
             &mut object.payload.extra,
             key,
@@ -631,11 +640,16 @@ fn resized_scene_object(
     scale_y: f64,
 ) -> SceneObject {
     let mut object = original.clone();
+    let absolute_points = shape_uses_absolute_points(original);
     let scale_transform = object_transform_participates_in_render(original);
-    let original_translate = Point::new(
-        original.transform.translate[0],
-        original.transform.translate[1],
-    );
+    let original_translate = if absolute_points {
+        Point::new(0.0, 0.0)
+    } else {
+        Point::new(
+            original.transform.translate[0],
+            original.transform.translate[1],
+        )
+    };
     let next_translate = if scale_transform {
         scale_point_from_pivot(original_translate, pivot, scale_x, scale_y)
     } else {
@@ -684,6 +698,9 @@ fn resized_scene_object(
             .map(|child| resized_scene_object(child, pivot, scale_x, scale_y))
             .collect();
     }
+    if absolute_points {
+        object.transform = crate::Transform::identity();
+    }
     object
 }
 
@@ -693,13 +710,15 @@ fn translated_scene_object(original: &SceneObject, delta_x: f64, delta_y: f64) -
         translate_line_payload_points(&mut object, delta_x, delta_y);
         return object;
     }
+    if shape_uses_absolute_points(&object) {
+        translate_absolute_shape_points(&mut object, delta_x, delta_y);
+        object.transform = crate::Transform::identity();
+        return object;
+    }
     object.transform.translate = [
         round2(original.transform.translate[0] + delta_x),
         round2(original.transform.translate[1] + delta_y),
     ];
-    if shape_uses_absolute_points(&object) {
-        translate_absolute_shape_points(&mut object, delta_x, delta_y);
-    }
     if original.object_type == "group" {
         object.children = original
             .children
@@ -781,7 +800,13 @@ fn translate_json_object_bbox(
 }
 
 fn translate_absolute_shape_points(object: &mut SceneObject, delta_x: f64, delta_y: f64) {
-    for key in ["center", "majorAxisEnd", "minorAxisEnd"] {
+    for key in [
+        "center",
+        "majorAxisEnd",
+        "minorAxisEnd",
+        "axisStart",
+        "axisEnd",
+    ] {
         let Some(point) = object.payload.extra.get(key).and_then(json_array_to_point) else {
             continue;
         };
@@ -851,7 +876,7 @@ fn shape_uses_absolute_points(object: &SceneObject) -> bool {
                 .get("kind")
                 .and_then(JsonValue::as_str)
                 .unwrap_or("rect"),
-            "circle" | "ellipse"
+            "circle" | "ellipse" | "orbital"
         )
 }
 
@@ -975,7 +1000,13 @@ fn resize_payload_named_points(
     scale_x: f64,
     scale_y: f64,
 ) {
-    for key in ["center", "majorAxisEnd", "minorAxisEnd"] {
+    for key in [
+        "center",
+        "majorAxisEnd",
+        "minorAxisEnd",
+        "axisStart",
+        "axisEnd",
+    ] {
         resize_extra_point(
             &mut object.payload.extra,
             key,
@@ -1158,4 +1189,68 @@ fn json_array_to_point(value: &JsonValue) -> Option<Point> {
         coords.first()?.as_f64()?,
         coords.get(1)?.as_f64()?,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn orbital_scene_object() -> SceneObject {
+        let mut extra = BTreeMap::new();
+        extra.insert("kind".to_string(), json!("orbital"));
+        extra.insert("orbitalTemplate".to_string(), json!("p"));
+        extra.insert("axisStart".to_string(), json!([10.0, 20.0]));
+        extra.insert("axisEnd".to_string(), json!([30.0, 60.0]));
+        SceneObject {
+            id: "orbital_1".to_string(),
+            object_type: "shape".to_string(),
+            name: "orbital".to_string(),
+            visible: true,
+            locked: false,
+            z_index: 0,
+            transform: crate::Transform {
+                translate: [100.0, 50.0],
+                rotate: 0.0,
+                scale: [1.0, 1.0],
+            },
+            style_ref: None,
+            meta: JsonValue::Null,
+            payload: crate::ObjectPayload {
+                resource_ref: None,
+                bbox: Some([5.0, 6.0, 40.0, 70.0]),
+                extra,
+            },
+            children: Vec::new(),
+        }
+    }
+
+    fn payload_point(object: &SceneObject, key: &str) -> [f64; 2] {
+        let point = object
+            .payload
+            .extra
+            .get(key)
+            .and_then(json_array_to_point)
+            .expect("payload point");
+        [point.x, point.y]
+    }
+
+    #[test]
+    fn translated_orbital_moves_absolute_points_without_transform() {
+        let moved = translated_scene_object(&orbital_scene_object(), 7.25, -3.5);
+
+        assert_eq!(moved.transform, crate::Transform::identity());
+        assert_eq!(payload_point(&moved, "axisStart"), [17.25, 16.5]);
+        assert_eq!(payload_point(&moved, "axisEnd"), [37.25, 56.5]);
+        assert_eq!(moved.payload.bbox, Some([12.25, 2.5, 40.0, 70.0]));
+    }
+
+    #[test]
+    fn resized_orbital_scales_absolute_points_without_transform() {
+        let resized = resized_scene_object(&orbital_scene_object(), Point::new(0.0, 0.0), 2.0, 0.5);
+
+        assert_eq!(resized.transform, crate::Transform::identity());
+        assert_eq!(payload_point(&resized, "axisStart"), [20.0, 10.0]);
+        assert_eq!(payload_point(&resized, "axisEnd"), [60.0, 30.0]);
+        assert_eq!(resized.payload.bbox, Some([10.0, 3.0, 80.0, 35.0]));
+    }
 }

@@ -256,6 +256,9 @@ registerChemcoreDebug({
     const point = new DOMPoint(x, y).matrixTransform(matrix);
     return { x: point.x, y: point.y };
   },
+  clientPointToWorld(x, y) {
+    return clientPointToWorld(x, y);
+  },
 });
 const appRuntimeReady = Promise.all([
   engineHost.initialize(),
@@ -1225,6 +1228,7 @@ function syncZoomControl(...args) { return editorViewportHost.syncZoomControl(..
 function nextZoomStep(...args) { return editorViewportHost.nextZoomStep(...args); }
 function scrollViewerToWorldPoint(...args) { return editorViewportHost.scrollViewerToWorldPoint(...args); }
 function scrollViewerToWorldPointAtClient(...args) { return editorViewportHost.scrollViewerToWorldPointAtClient(...args); }
+function clientPointToWorld(...args) { return editorViewportHost.clientPointToWorld(...args); }
 function applyViewerViewport(...args) { return editorViewportHost.applyViewerViewport(...args); }
 function setRuntimeViewBox(...args) { return editorViewportHost.setRuntimeViewBox(...args); }
 function fitZoomPercentForViewBox(...args) { return editorViewportHost.fitZoomPercentForViewBox(...args); }
@@ -2177,11 +2181,17 @@ async function syncDocumentFromEngine(options = {}) {
   const documentData = parseEngineJson(state.editorEngine.documentJson());
   if (documentData) {
     state.currentDocument = documentData;
-    resetDocumentRenderState();
-    currentDocumentMoleculeTopology();
     if (syncRenderList) {
+      resetDocumentRenderState();
+      currentDocumentMoleculeTopology();
       await syncCoreRenderListFromCurrentDocument();
       maybeAutoExpandEditorViewport(state.coreRenderList || []);
+    } else {
+      currentDocumentMoleculeTopology();
+      const documentLayer = viewerSvg?.querySelector('[data-layer="document-content"]');
+      if (documentLayer) {
+        rebuildDocumentPrimitiveIndex(documentLayer);
+      }
     }
   }
   syncSelectionChemistrySummary();

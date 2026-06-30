@@ -117,7 +117,7 @@ pub(crate) fn render_line_object(
     document: &ChemcoreDocument,
     object: &SceneObject,
 ) {
-    let points = payload_points(&object.payload, "points");
+    let points = object_payload_points_world(object, "points");
     if points.len() < 2 {
         return;
     }
@@ -145,7 +145,7 @@ pub(crate) fn render_line_object(
         .unwrap_or_default();
     let object_id = Some(object.id.clone());
     let arrow_head = payload_arrow_head(&object.payload, "arrowHead", stroke_width);
-    let arrow_arc = payload_arrow_arc_geometry(&object.payload, "arrowGeometry");
+    let arrow_arc = object_payload_arrow_arc_geometry_world(object, "arrowGeometry");
     if let Some(arrow_head) = arrow_head.filter(|arrow_head| arrow_head.length > 0.0) {
         let head_style = payload_arrow_endpoint_style(&object.payload, "head", "end");
         let tail_style = payload_arrow_endpoint_style(&object.payload, "tail", "start");
@@ -177,6 +177,35 @@ pub(crate) fn render_line_object(
         RenderRole::DocumentGraphic,
         object_id,
     );
+}
+
+fn object_payload_points_world(object: &SceneObject, key: &str) -> Vec<Point> {
+    let tx = object.transform.translate[0];
+    let ty = object.transform.translate[1];
+    payload_points(&object.payload, key)
+        .into_iter()
+        .map(|point| Point::new(tx + point.x, ty + point.y))
+        .collect()
+}
+
+fn object_payload_arrow_arc_geometry_world(
+    object: &SceneObject,
+    key: &str,
+) -> Option<ArrowArcGeometry> {
+    let tx = object.transform.translate[0];
+    let ty = object.transform.translate[1];
+    let geometry = payload_arrow_arc_geometry(&object.payload, key)?;
+    Some(ArrowArcGeometry {
+        center: Point::new(tx + geometry.center.x, ty + geometry.center.y),
+        major_axis_end: Point::new(
+            tx + geometry.major_axis_end.x,
+            ty + geometry.major_axis_end.y,
+        ),
+        minor_axis_end: Point::new(
+            tx + geometry.minor_axis_end.x,
+            ty + geometry.minor_axis_end.y,
+        ),
+    })
 }
 
 fn endpoint_flag_enabled(value: &str, expected: &str) -> bool {
