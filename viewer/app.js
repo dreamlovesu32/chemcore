@@ -346,6 +346,7 @@ if (viewerTitle) {
 
 const editorState = {
   activeTool: "bond",
+  secondaryToolbarTool: "bond",
   selectMode: "box",
   bondType: "single",
   bondIconSvgs: {},
@@ -2412,6 +2413,9 @@ async function activateEditorToolNow(nextTool) {
   activeSelectionGesture = null;
   editorState.elementPlacementActive = false;
   editorState.activeTool = nextTool;
+  if (nextTool !== "delete") {
+    editorState.secondaryToolbarTool = nextTool;
+  }
   syncViewerSvgPointerEventMode();
   if (activeTextEditor && nextTool !== "element") {
     await closeActiveTextEditorForToolAction();
@@ -3362,6 +3366,7 @@ function insertTextSymbol(character) {
   }
   state.pendingTextSymbol = symbol;
   editorState.activeTool = "text";
+  editorState.secondaryToolbarTool = "text";
   void syncEngineToolState();
   renderSecondaryToolbar();
   syncCanvasCursor();

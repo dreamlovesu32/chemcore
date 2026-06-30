@@ -368,6 +368,9 @@ export function createEditorDocumentRenderer(options) {
   }
   
   function renderDocumentChange(result = null) {
+    if (result && result.changed === false) {
+      return true;
+    }
     if (!isEditingRustDocument() || !state.currentDocument || !result?.changed) {
       renderDocument();
       return true;
@@ -445,10 +448,22 @@ export function createEditorDocumentRenderer(options) {
       }
       return false;
     }
+    const objectMap = currentDocumentSceneObjectMap();
+    const deletedObjectIds = new Set(result?.deleted?.objects || []);
     let patched = false;
+    for (const objectId of deletedObjectIds) {
+      const removed = removeDocumentObjectDomTree(documentLayer, objectId, objectMap);
+      if (removed > 0) {
+        debugSample.entries.push({ objectId, primitiveCount: 0, appended: false, removed });
+        patched = true;
+      }
+    }
     for (const objectId of topmostObjectIds(objectIds)) {
+      if (deletedObjectIds.has(objectId)) {
+        continue;
+      }
       const primitives = renderTargetObjectPrimitives(objectId);
-      const entry = { objectId, primitiveCount: primitives.length, appended: false };
+      const entry = { objectId, primitiveCount: primitives.length, appended: false, removed: 0 };
       debugSample.entries.push(entry);
       if (!primitives.length) {
         continue;
@@ -475,6 +490,7 @@ export function createEditorDocumentRenderer(options) {
     if (!patched) {
       return false;
     }
+    rebuildDocumentPrimitiveIndex(documentLayer);
     syncViewerStats();
     positionActiveTextEditor();
     return true;
@@ -603,11 +619,17 @@ export function createEditorDocumentRenderer(options) {
       unindexDocumentPrimitiveElement(element);
       element.remove();
     }
+    const removedCount = targetElements.length;
     const fragment = document.createDocumentFragment();
     for (const primitive of primitives) {
       renderCorePrimitive(fragment, primitive, corePrimitiveRenderOptions());
     }
     if (!fragment.childNodes.length) {
+      if (removedCount > 0) {
+        syncViewerStats();
+        positionActiveTextEditor();
+        return true;
+      }
       return false;
     }
     indexDocumentPrimitiveTree(fragment);

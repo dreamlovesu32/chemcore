@@ -497,6 +497,12 @@ body.browser-shell .document-tabbar {
   background: var(--active);
 }
 
+.icon-button[data-tool="delete"].is-active {
+  border-color: #8fb0f4;
+  background: var(--active-soft);
+  color: var(--active);
+}
+
 .icon-button:active,
 .tool-button:active,
 .secondary-button:active,

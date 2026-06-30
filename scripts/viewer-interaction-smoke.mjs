@@ -504,6 +504,237 @@ async function verifyCreationDragKeepsCanvasVisibleAfterToolSwitch(browser) {
   assert(!errors.length, `Viewer console errors during creation visibility regression: ${errors.join("\n")}`);
 }
 
+async function verifyDeleteToolTemporaryToolbarAndEmptyDocument(browser) {
+  const { page, errors } = await openViewer(browser);
+  const box = await page.locator("#viewer-container").boundingBox();
+  const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const shapes = [
+    {
+      start: { x: center.x - 180, y: center.y - 90 },
+      end: { x: center.x - 80, y: center.y + 10 },
+    },
+    {
+      start: { x: center.x + 60, y: center.y - 70 },
+      end: { x: center.x + 170, y: center.y + 40 },
+    },
+  ];
+
+  await page.locator('button[data-tool="shape"]').click();
+  for (const shape of shapes) {
+    await page.mouse.move(shape.start.x, shape.start.y);
+    await page.mouse.down();
+    await page.mouse.move(shape.end.x, shape.end.y, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(80);
+  }
+
+  const beforeDelete = await page.evaluate(() => {
+    const flatten = (objects) => objects.flatMap((object) => [object, ...flatten(object.children || [])]);
+    const shapeButton = document.querySelector('.tool-button[data-tool="shape"]');
+    return {
+      activeTool: window.__chemcoreDebug.editorState.activeTool,
+      objectCount: flatten(window.__chemcoreDebug.engineState.document.objects || [])
+        .filter((object) => (object.type || object.objectType || object.object_type) !== "molecule")
+        .length,
+      secondaryShapeButtons: document.querySelectorAll('#secondary-toolbar [data-secondary-value^="shape-"]').length,
+      activeBackground: getComputedStyle(shapeButton).backgroundColor,
+      activeBorderColor: getComputedStyle(shapeButton).borderColor,
+      activeColor: getComputedStyle(shapeButton).color,
+    };
+  });
+  assert(beforeDelete.activeTool === "shape", `Shape tool was not active before delete: ${JSON.stringify(beforeDelete)}`);
+  assert(beforeDelete.objectCount >= 2, `Shape setup did not create objects before delete: ${JSON.stringify(beforeDelete)}`);
+  assert(beforeDelete.secondaryShapeButtons > 0, `Shape secondary toolbar was not visible before delete: ${JSON.stringify(beforeDelete)}`);
+
+  await page.locator('button[data-tool="delete"]').click();
+  await page.waitForTimeout(120);
+  const deleteToolbarState = await page.evaluate(() => {
+    const deleteButton = document.querySelector('.icon-button[data-tool="delete"]');
+    return {
+      activeTool: window.__chemcoreDebug.editorState.activeTool,
+      secondaryToolbarTool: window.__chemcoreDebug.editorState.secondaryToolbarTool,
+      deleteActive: deleteButton?.classList.contains("is-active") || false,
+      deleteBackground: getComputedStyle(deleteButton).backgroundColor,
+      deleteBorderColor: getComputedStyle(deleteButton).borderColor,
+      deleteColor: getComputedStyle(deleteButton).color,
+      secondaryShapeButtons: document.querySelectorAll('#secondary-toolbar [data-secondary-value^="shape-"]').length,
+      secondaryHtml: document.querySelector("#secondary-toolbar")?.innerHTML || "",
+    };
+  });
+  assert(deleteToolbarState.activeTool === "delete", `Delete tool did not become active: ${JSON.stringify(deleteToolbarState)}`);
+  assert(deleteToolbarState.secondaryToolbarTool === "shape", `Delete tool did not preserve shape as secondary toolbar source: ${JSON.stringify(deleteToolbarState)}`);
+  assert(deleteToolbarState.secondaryShapeButtons > 0, `Delete tool hid the previous secondary toolbar: ${JSON.stringify(deleteToolbarState)}`);
+  assert(deleteToolbarState.deleteActive, `Delete button did not receive active state: ${JSON.stringify(deleteToolbarState)}`);
+  assert(
+    deleteToolbarState.deleteBackground === beforeDelete.activeBackground
+      && deleteToolbarState.deleteBorderColor === beforeDelete.activeBorderColor
+      && deleteToolbarState.deleteColor === beforeDelete.activeColor,
+    `Delete active style did not match tool active style: ${JSON.stringify({ beforeDelete, deleteToolbarState })}`,
+  );
+
+  await page.locator('#secondary-toolbar [data-secondary-value="shape-kind-rect"]').click();
+  await page.waitForTimeout(120);
+  const restoredToolState = await page.evaluate(() => ({
+    activeTool: window.__chemcoreDebug.editorState.activeTool,
+    shapeKind: window.__chemcoreDebug.editorState.shapeKind,
+  }));
+  assert(
+    restoredToolState.activeTool === "shape" && restoredToolState.shapeKind === "rect",
+    `Clicking secondary toolbar while delete was active did not restore the previous tool: ${JSON.stringify(restoredToolState)}`,
+  );
+
+  const shapeSelectionTarget = await page.evaluate(() => {
+    const flatten = (objects) => objects.flatMap((object) => [object, ...flatten(object.children || [])]);
+    const shapeIds = flatten(window.__chemcoreDebug.engineState.document.objects || [])
+      .filter((object) => (object.type || object.objectType || object.object_type) === "shape")
+      .map((object) => object.id);
+    for (const objectId of shapeIds) {
+      const rect = [...document.querySelectorAll(`[data-layer="document-content"] [data-object-id="${CSS.escape(objectId)}"]`)]
+        .map((element) => element.getBoundingClientRect())
+        .filter((candidate) => candidate.width > 8 && candidate.height > 8)
+        .sort((a, b) => (b.width * b.height) - (a.width * a.height))[0];
+      if (!rect) {
+        continue;
+      }
+      return {
+        objectId,
+        center: { x: rect.left + rect.width * 0.5, y: rect.top + rect.height * 0.5 },
+      };
+    }
+    return null;
+  });
+  assert(shapeSelectionTarget, "Could not find a rendered hollow shape target for delete-hit regression.");
+
+  await page.locator('button[data-tool="delete"]').click();
+  await page.mouse.click(shapeSelectionTarget.center.x, shapeSelectionTarget.center.y);
+  await page.waitForTimeout(160);
+  const unselectedInteriorDeleteState = await page.evaluate((objectId) => {
+    const flatten = (objects) => objects.flatMap((object) => [object, ...flatten(object.children || [])]);
+    return {
+      activeTool: window.__chemcoreDebug.editorState.activeTool,
+      objectExists: flatten(window.__chemcoreDebug.engineState.document.objects || []).some((object) => object.id === objectId),
+      lastCommand: JSON.parse(window.__chemcoreDebug.state.editorEngine.lastCommandResultJson?.() || "null"),
+    };
+  }, shapeSelectionTarget.objectId);
+  assert(
+    unselectedInteriorDeleteState.objectExists && unselectedInteriorDeleteState.lastCommand?.changed === false,
+    `Unselected hollow shape interior acted like a delete hit: ${JSON.stringify(unselectedInteriorDeleteState)}`,
+  );
+
+  await page.evaluate(async () => {
+    await window.__chemcoreDebug.resetEditorEngine();
+  });
+  await page.waitForFunction(() => document.querySelector('[data-layer="document-content"]'));
+  await page.locator('button[data-tool="bond"]').click();
+  const bondSegments = [
+    { start: { x: center.x - 160, y: center.y - 70 }, end: { x: center.x - 60, y: center.y - 70 } },
+    { start: { x: center.x + 60, y: center.y + 50 }, end: { x: center.x + 160, y: center.y + 50 } },
+  ];
+  for (const segment of bondSegments) {
+    await page.mouse.move(segment.start.x, segment.start.y);
+    await page.mouse.down();
+    await page.mouse.move(segment.end.x, segment.end.y, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForTimeout(120);
+  }
+
+  const documentStructureState = async () => page.evaluate(() => {
+    const doc = JSON.parse(window.__chemcoreDebug.state.editorEngine.documentJson?.() || "null")
+      || window.__chemcoreDebug.document;
+    const visit = (object, out = []) => {
+      if (!object) {
+        return out;
+      }
+      out.push(object);
+      for (const child of object.children || []) {
+        visit(child, out);
+      }
+      return out;
+    };
+    let nodeCount = 0;
+    let bondCount = 0;
+    for (const object of (doc.objects || []).flatMap((candidate) => visit(candidate, []))) {
+      if ((object.type || object.objectType || object.object_type) !== "molecule") {
+        continue;
+      }
+      const resourceRef = object.payload?.resourceRef || object.payload?.resource_ref;
+      const fragment = resourceRef ? doc.resources?.[resourceRef]?.data : object.payload?.fragment;
+      nodeCount += fragment?.nodes?.length || 0;
+      bondCount += fragment?.bonds?.length || 0;
+    }
+    return {
+      nodeCount,
+      bondCount,
+      bondDomCount: document.querySelectorAll('[data-layer="document-content"] [data-bond-id]').length,
+      nodeDomCount: document.querySelectorAll('[data-layer="document-content"] [data-node-id]').length,
+      documentChildren: document.querySelector('[data-layer="document-content"]')?.childElementCount || 0,
+      hoverCount: document.querySelectorAll('[data-layer="editor-overlay"] [data-role^="hover-"]').length,
+      previewCount: document.querySelectorAll('[data-layer="editor-overlay"] [data-role^="preview-"]').length,
+    };
+  });
+  const beforeBondDelete = await documentStructureState();
+  assert(
+    beforeBondDelete.bondCount === 2 && beforeBondDelete.bondDomCount === 2,
+    `Bond setup did not create two rendered bonds: ${JSON.stringify(beforeBondDelete)}`,
+  );
+
+  await page.locator('button[data-tool="delete"]').click();
+  await page.waitForTimeout(80);
+  const deletedCenters = [];
+  const deleteOneVisibleBond = async () => {
+    const beforeCount = await documentBondCount(page);
+    const targets = await page.evaluate(() => {
+      const byId = new Map();
+      for (const element of document.querySelectorAll('[data-layer="document-content"] [data-bond-id]')) {
+        const bondId = element.getAttribute("data-bond-id") || "";
+        if (!bondId || byId.has(bondId)) {
+          continue;
+        }
+        const rect = element.getBoundingClientRect();
+        byId.set(bondId, {
+          bondId,
+          x: rect.left + rect.width * 0.5,
+          y: rect.top + rect.height * 0.5,
+        });
+      }
+      return [...byId.values()];
+    });
+    assert(targets.length > 0, `No visible bond target remained before delete: ${JSON.stringify(await documentStructureState())}`);
+    await page.mouse.click(targets[0].x, targets[0].y);
+    await page.waitForTimeout(160);
+    const afterCount = await documentBondCount(page);
+    assert(afterCount < beforeCount, `Delete tool did not remove the visible bond: ${JSON.stringify({ beforeCount, afterCount, targets, dom: await documentStructureState() })}`);
+    deletedCenters.push(targets[0]);
+  };
+
+  while ((await documentBondCount(page)) > 0) {
+    await deleteOneVisibleBond();
+  }
+  await page.waitForTimeout(240);
+  for (const point of deletedCenters) {
+    await page.mouse.move(point.x, point.y);
+    await page.waitForTimeout(80);
+  }
+  const afterDeleteAll = {
+    ...(await documentStructureState()),
+    lastPatch: await page.evaluate(() => window.__chemcoreDebug.objectPrimitivePatchStats || null),
+  };
+  assert(
+    afterDeleteAll.nodeCount === 0
+      && afterDeleteAll.bondCount === 0
+      && afterDeleteAll.bondDomCount === 0
+      && afterDeleteAll.nodeDomCount === 0,
+    `Deleting every bond left or resurrected document content: ${JSON.stringify(afterDeleteAll)}`,
+  );
+  assert(
+    afterDeleteAll.hoverCount === 0 && afterDeleteAll.previewCount === 0,
+    `Deleting every bond left stale hover or preview feedback: ${JSON.stringify(afterDeleteAll)}`,
+  );
+
+  await page.close();
+  assert(!errors.length, `Viewer console errors during delete temporary toolbar regression: ${errors.join("\n")}`);
+}
+
 async function verifySelectedObjectSuppressesHover(browser) {
   const { page, errors } = await openViewer(browser);
   const box = await page.locator("#viewer-container").boundingBox();
@@ -2451,6 +2682,7 @@ try {
   await verifyQuickPaletteAndSelectDragRegression(browser);
   await verifyEndpointFeedbackRules(browser);
   await verifyCreationDragKeepsCanvasVisibleAfterToolSwitch(browser);
+  await verifyDeleteToolTemporaryToolbarAndEmptyDocument(browser);
   await verifySelectedObjectSuppressesHover(browser);
   await verifyDragHandleCursors(browser);
   await verifyLargeFileHoverAndDrag(browser);

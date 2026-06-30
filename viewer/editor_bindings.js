@@ -681,6 +681,15 @@ function bindSecondaryToolbar(options) {
 
 let suppressColorPickerClickUntil = 0;
 
+async function restoreSecondaryToolbarToolIfDeleteIsTemporary(options) {
+  const nextTool = options.editorState?.secondaryToolbarTool;
+  if (options.editorState?.activeTool !== "delete" || !nextTool || nextTool === "delete") {
+    return false;
+  }
+  await options.activateEditorTool?.(nextTool);
+  return true;
+}
+
 function bindToolbarColorPickers(options) {
   let drag = null;
   const stopDragListeners = () => {
@@ -821,6 +830,7 @@ function closeColorPickers(except = null) {
 async function handleSecondaryToolbarValue(value, options) {
   const { editorState } = options;
   let arrowOptionChanged = false;
+  await restoreSecondaryToolbarToolIfDeleteIsTemporary(options);
   if (editorState.elementPlacementActive && !value?.startsWith("element-symbol-")) {
     editorState.elementPlacementActive = false;
   }
@@ -1059,6 +1069,7 @@ function currentColorForPrefix(prefix, options) {
 async function applyToolbarColor(prefix, color, options) {
   const normalized = normalizeHexColor(color) || "#000000";
   const { editorState } = options;
+  await restoreSecondaryToolbarToolIfDeleteIsTemporary(options);
   if (prefix === "orbital-color") {
     editorState.orbitalColor = normalized;
     await options.syncEngineToolState();

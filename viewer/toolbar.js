@@ -464,40 +464,43 @@ export function syncPrimaryChromeIcons(root = document) {
 }
 
 export function renderSecondaryToolbarHtml(editorState) {
-  if (editorState.activeTool === "bond") {
+  const activeTool = editorState.activeTool === "delete"
+    ? (editorState.secondaryToolbarTool || "bond")
+    : editorState.activeTool;
+  if (activeTool === "bond") {
     return bondToolbarHtml(editorState);
   }
-  if (editorState.activeTool === "delete") {
+  if (activeTool === "delete") {
     return "";
   }
-  if (editorState.activeTool === "text") {
+  if (activeTool === "text") {
     return textToolbarHtml(editorState);
   }
-  if (editorState.activeTool === "arrow") {
+  if (activeTool === "arrow") {
     return arrowToolbarHtml(editorState);
   }
-  if (editorState.activeTool === "bracket") {
+  if (activeTool === "bracket") {
     return bracketToolbarHtml(editorState);
   }
-  if (editorState.activeTool === "symbol") {
+  if (activeTool === "symbol") {
     return symbolToolbarHtml(editorState);
   }
-  if (editorState.activeTool === "element") {
+  if (activeTool === "element") {
     return "";
   }
-  if (editorState.activeTool === "shape") {
+  if (activeTool === "shape") {
     return shapeToolbarHtml(editorState);
   }
-  if (editorState.activeTool === "tlc-plate") {
+  if (activeTool === "tlc-plate") {
     return tlcPlateToolbarHtml(editorState);
   }
-  if (editorState.activeTool === "orbital") {
+  if (activeTool === "orbital") {
     return orbitalToolbarHtml(editorState);
   }
-  if (editorState.activeTool === "templates") {
+  if (activeTool === "templates") {
     return templatesToolbarHtml(editorState);
   }
-  if (editorState.activeTool === "chain") {
+  if (activeTool === "chain") {
     return "";
   }
   return selectToolbarHtml(editorState);
