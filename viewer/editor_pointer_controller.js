@@ -200,13 +200,15 @@ export function createEditorPointerController(options) {
     } else {
       clearEditorOverlayRoot();
     }
+    options.clearDocumentBondCreationPreview?.();
   }
 
   function clearInteractionOverlayNow() {
     cancelScheduledHoverMove();
     const clearedOverlay = clearEditorOverlayRoot();
     const clearedDragPreview = !!options.clearDragCapturePreview?.();
-    return clearedOverlay || clearedDragPreview;
+    const clearedBondCreationPreview = !!options.clearDocumentBondCreationPreview?.();
+    return clearedOverlay || clearedDragPreview || clearedBondCreationPreview;
   }
 
   function clearInteractionOverlayBeforeCommit() {
@@ -236,6 +238,7 @@ export function createEditorPointerController(options) {
     invalidateEngineReadCache();
     clearEditorOverlayRoot();
     options.clearDragCapturePreview?.();
+    options.clearDocumentBondCreationPreview?.();
     options.clearTlcHoverState?.();
     options.syncCanvasCursor?.();
   }
@@ -601,6 +604,10 @@ export function createEditorPointerController(options) {
     return null;
   }
 
+  function overlayWithoutDocumentBondPreview(renderList = []) {
+    return (renderList || []).filter((primitive) => primitive?.role !== "preview-bond");
+  }
+
   async function executeCreationCommand(command) {
     if (!command) {
       return null;
@@ -642,9 +649,18 @@ export function createEditorPointerController(options) {
       }
       renderList = currentInteractionRenderList();
     }
-    if (engineCreationDrag?.start && options.renderDragCapturePreview) {
+    if (
+      engineCreationDrag?.tool === "bond"
+      && typeof options.applyDocumentBondCreationPreview === "function"
+      && options.applyDocumentBondCreationPreview()
+    ) {
+      options.clearDragCapturePreview?.();
+      options.renderEditorOverlay(overlayWithoutDocumentBondPreview(renderList));
+    } else if (engineCreationDrag?.start && options.renderDragCapturePreview) {
+      options.clearDocumentBondCreationPreview?.();
       options.renderDragCapturePreview(renderList);
     } else {
+      options.clearDocumentBondCreationPreview?.();
       options.renderEditorOverlay(renderList);
     }
     options.positionActiveTextEditor();
@@ -873,6 +889,7 @@ export function createEditorPointerController(options) {
     cancelEngineDragPreviewFrame();
     engineCreationDrag = null;
     postCommitHoverBlockPoint = null;
+    options.clearDocumentBondCreationPreview?.();
     const point = options.svgPointFromEvent(event);
     options.setLastEditFocusPoint(point);
     const editorState = options.editorState();
@@ -882,8 +899,16 @@ export function createEditorPointerController(options) {
     if (editorState.elementPlacementActive) {
       event.preventDefault();
       options.viewerSvg().setPointerCapture?.(event.pointerId);
+      const beforeRevision = engineRevision();
       await options.state().editorEngine.pointerDown(point.x, point.y, event.altKey);
-      await options.syncDocumentFromEngine({ syncRenderList: false, refreshSnapshot: false });
+      const pointerDownResult = readLastCommandResult();
+      if (
+        pointerDownResult?.changed
+        && Number(pointerDownResult.beforeRevision ?? pointerDownResult.before_revision ?? -1) === beforeRevision
+      ) {
+        await options.syncDocumentFromEngine({ syncRenderList: false, refreshSnapshot: false });
+        options.renderDocumentChange?.(pointerDownResult) || options.renderDocument();
+      }
       options.renderEditorOverlay();
       return;
     }

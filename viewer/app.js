@@ -1926,9 +1926,11 @@ function collectCurrentDocumentSceneObjects(...args) { return editorDocumentRend
 function currentDocumentMoleculeTopology(...args) { return editorDocumentRenderer.currentDocumentMoleculeTopology(...args); }
 function syncObjectEditPreviewHiddenElements(...args) { return editorDocumentRenderer.syncObjectEditPreviewHiddenElements(...args); }
 function clearDocumentObjectPreviewTransform(...args) { return editorDocumentRenderer.clearDocumentObjectPreviewTransform(...args); }
+function clearDocumentBondCreationPreview(...args) { return editorDocumentRenderer.clearDocumentBondCreationPreview(...args); }
 function commitDocumentObjectPreviewTransform(...args) { return editorDocumentRenderer.commitDocumentObjectPreviewTransform(...args); }
 function canCommitDocumentObjectPreviewTransform(...args) { return editorDocumentRenderer.canCommitDocumentObjectPreviewTransform(...args); }
 function applyDocumentObjectPreviewTransform(...args) { return editorDocumentRenderer.applyDocumentObjectPreviewTransform(...args); }
+function applyDocumentBondCreationPreview(...args) { return editorDocumentRenderer.applyDocumentBondCreationPreview(...args); }
 function hideDocumentDiagnosticsForPreview(...args) { return editorDocumentRenderer.hideDocumentDiagnosticsForPreview(...args); }
 function resetDocumentRenderState(...args) { return editorDocumentRenderer.resetDocumentRenderState(...args); }
 function renderEditorOverlay(renderList = null) {
@@ -2107,8 +2109,10 @@ const editorPointerController = createEditorPointerController({
   selectionNeedsBackendMovePreview,
   applyBackendSelectionMovePreview,
   applyDocumentObjectPreviewTransform,
+  applyDocumentBondCreationPreview,
   hideDocumentDiagnosticsForPreview,
   clearDocumentObjectPreviewTransform,
+  clearDocumentBondCreationPreview,
   commitDocumentObjectPreviewTransform,
   canCommitDocumentObjectPreviewTransform,
   scheduleDeferredDocumentSync,

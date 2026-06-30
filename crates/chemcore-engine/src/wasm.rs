@@ -990,6 +990,12 @@ impl WasmEngine {
         .map_err(|error| JsValue::from_str(&error.to_string()))
     }
 
+    #[wasm_bindgen(js_name = previewRenderTargetsJson)]
+    pub fn preview_render_targets_json(&self) -> Result<String, JsValue> {
+        serde_json::to_string(&self.inner.preview_render_targets())
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
     #[wasm_bindgen(js_name = renderBoundsJson)]
     pub fn render_bounds_json(&self, scope: &str) -> String {
         let scope = match scope {

@@ -83,6 +83,7 @@ export const wasmengine_pendingGraphicObjectId: (a: number) => [number, number];
 export const wasmengine_pointerDown: (a: number, b: number, c: number, d: number) => void;
 export const wasmengine_pointerMove: (a: number, b: number, c: number, d: number) => void;
 export const wasmengine_pointerUp: (a: number, b: number, c: number, d: number) => void;
+export const wasmengine_previewRenderTargetsJson: (a: number) => [number, number, number, number];
 export const wasmengine_previewTextEditLayout: (a: number, b: number, c: number) => [number, number, number, number];
 export const wasmengine_previewTextRuns: (a: number, b: number, c: number) => [number, number, number, number];
 export const wasmengine_redo: (a: number) => number;

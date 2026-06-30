@@ -144,7 +144,7 @@ async function verifyBondDrawing(browser) {
     const matrix = previewEnd?.getScreenCTM?.();
     const scale = matrix ? Math.hypot(matrix.a, matrix.b) : 1;
     return {
-      hadPreview: !!document.querySelector('[data-role="preview-bond"]'),
+      hadPreview: !!document.querySelector('[data-role="preview-bond"], [data-layer="document-bond-creation-preview"] [data-bond-id="__preview_bond"]'),
       previewEndRadiusPx: previewEnd ? Number(previewEnd.getAttribute("r") || 0) * scale : 0,
     };
   });
@@ -154,6 +154,7 @@ async function verifyBondDrawing(browser) {
     const command = JSON.parse(window.__chemcoreDebug.state.editorEngine.lastCommandResultJson?.() || "null");
     return {
       previewLeft: !!document.querySelector('[data-role^="preview-"]'),
+      creationPreviewLeft: !!document.querySelector('[data-layer="document-bond-creation-preview"]'),
       dragPreviewChildren: document.querySelector(".canvas-drag-preview-svg")?.childElementCount || 0,
       changed: !!command?.changed,
       bondTargets: command?.targets?.bonds?.length || command?.created?.bonds?.length || 0,
@@ -166,7 +167,7 @@ async function verifyBondDrawing(browser) {
     Math.abs(previewState.previewEndRadiusPx - ENDPOINT_FEEDBACK_RADIUS_PX) < 0.35,
     `Bond preview endpoint radius did not track bold bond width: ${JSON.stringify(previewState)}`,
   );
-  assert(!result.previewLeft && result.dragPreviewChildren === 0, `Bond preview remained after pointerup: ${JSON.stringify(result)}`);
+  assert(!result.previewLeft && !result.creationPreviewLeft && result.dragPreviewChildren === 0, `Bond preview remained after pointerup: ${JSON.stringify(result)}`);
   assert(result.changed && result.bondTargets > 0 && result.hasRenderedBond, "Bond drag did not commit a rendered bond.");
   assert(!errors.length, `Viewer console errors during bond drawing: ${errors.join("\n")}`);
 }
@@ -234,6 +235,203 @@ async function documentBondCount(page) {
     }
     return count;
   });
+}
+
+async function drawTwoBondJunction(page, center) {
+  await page.locator('button[data-tool="bond"]').click();
+  await page.mouse.move(center.x, center.y);
+  await page.mouse.down();
+  await page.mouse.move(center.x - 95, center.y - 48, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(120);
+  await page.mouse.move(center.x, center.y);
+  await page.mouse.down();
+  await page.mouse.move(center.x + 95, center.y - 48, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(180);
+  return page.evaluate(() => {
+    const doc = JSON.parse(window.__chemcoreDebug.state.editorEngine.documentJson?.() || "null")
+      || window.__chemcoreDebug.document;
+    const objectType = (object) => object?.type || object?.objectType || object?.object_type;
+    const visit = (object, out = []) => {
+      if (!object) {
+        return out;
+      }
+      out.push(object);
+      for (const child of object.children || []) {
+        visit(child, out);
+      }
+      return out;
+    };
+    for (const object of (doc.objects || []).flatMap((candidate) => visit(candidate, []))) {
+      if (objectType(object) !== "molecule") {
+        continue;
+      }
+      const resourceRef = object.payload?.resourceRef || object.payload?.resource_ref;
+      const fragment = resourceRef ? doc.resources?.[resourceRef]?.data : object.payload?.fragment;
+      if (!fragment?.nodes?.length || !fragment?.bonds?.length) {
+        continue;
+      }
+      const translate = object.transform?.translate || [0, 0];
+      const node = fragment.nodes.find((candidate) => (
+        fragment.bonds.filter((bond) => bond.begin === candidate.id || bond.end === candidate.id).length >= 2
+      ));
+      if (!node) {
+        continue;
+      }
+      const adjacentBonds = fragment.bonds
+        .filter((bond) => bond.begin === node.id || bond.end === node.id)
+        .map((bond) => {
+          const otherId = bond.begin === node.id ? bond.end : bond.begin;
+          const other = fragment.nodes.find((candidate) => candidate.id === otherId);
+          return { bondId: bond.id, otherX: Number(other?.position?.[0] || 0) };
+        });
+      const leftBond = adjacentBonds.sort((a, b) => a.otherX - b.otherX)[0];
+      const x = Number(translate[0] || 0) + Number(node.position[0] || 0);
+      const y = Number(translate[1] || 0) + Number(node.position[1] || 0);
+      const client = window.__chemcoreDebug.worldToClient(x, y);
+      return client ? { x: client.x, y: client.y, nodeId: node.id, leftBondId: leftBond?.bondId || "" } : null;
+    }
+    return null;
+  });
+}
+
+async function firstEndpointWithAdjacentBond(page) {
+  return page.evaluate(() => {
+    const doc = JSON.parse(window.__chemcoreDebug.state.editorEngine.documentJson?.() || "null")
+      || window.__chemcoreDebug.document;
+    const objectType = (object) => object?.type || object?.objectType || object?.object_type;
+    const visit = (object, out = []) => {
+      if (!object) {
+        return out;
+      }
+      out.push(object);
+      for (const child of object.children || []) {
+        visit(child, out);
+      }
+      return out;
+    };
+    for (const object of (doc.objects || []).flatMap((candidate) => visit(candidate, []))) {
+      if (objectType(object) !== "molecule") {
+        continue;
+      }
+      const resourceRef = object.payload?.resourceRef || object.payload?.resource_ref;
+      const fragment = resourceRef ? doc.resources?.[resourceRef]?.data : object.payload?.fragment;
+      const bond = fragment?.bonds?.[0];
+      const node = bond ? fragment.nodes.find((candidate) => candidate.id === bond.begin) : null;
+      if (!node) {
+        continue;
+      }
+      const translate = object.transform?.translate || [0, 0];
+      const x = Number(translate[0] || 0) + Number(node.position[0] || 0);
+      const y = Number(translate[1] || 0) + Number(node.position[1] || 0);
+      const client = window.__chemcoreDebug.worldToClient(x, y);
+      return client ? { x: client.x, y: client.y, nodeId: node.id, bondId: bond.id } : null;
+    }
+    return null;
+  });
+}
+
+async function documentBondMaxX(page, bondId) {
+  return page.evaluate((id) => {
+    const escapeCss = window.CSS?.escape || ((value) => String(value).replace(/["\\]/g, "\\$&"));
+    const elements = [...document.querySelectorAll(`[data-layer="document-content"] [data-bond-id="${escapeCss(id)}"]`)];
+    let maxX = -Infinity;
+    for (const element of elements) {
+      if (element.tagName.toLowerCase() === "polygon" || element.tagName.toLowerCase() === "polyline") {
+        for (const pair of (element.getAttribute("points") || "").trim().split(/\s+/)) {
+          const [x] = pair.split(",").map(Number);
+          if (Number.isFinite(x)) {
+            maxX = Math.max(maxX, x);
+          }
+        }
+      } else if (element.hasAttribute("x1") || element.hasAttribute("x2")) {
+        maxX = Math.max(maxX, Number(element.getAttribute("x1")), Number(element.getAttribute("x2")));
+      }
+    }
+    return Number.isFinite(maxX) ? maxX : null;
+  }, bondId);
+}
+
+async function verifyBondCreationUsesKernelLocalPreview(browser) {
+  const { page, errors } = await openViewer(browser);
+  const box = await page.locator("#viewer-container").boundingBox();
+  const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+
+  await page.locator('button[data-tool="bond"]').click();
+  await page.mouse.move(center.x - 70, center.y);
+  await page.mouse.down();
+  await page.mouse.move(center.x + 40, center.y, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(160);
+
+  const endpoint = await firstEndpointWithAdjacentBond(page);
+  assert(endpoint?.bondId, `Could not locate endpoint for kernel bond preview: ${JSON.stringify(endpoint)}`);
+  await page.locator('button[data-tool="bond"]').click();
+  await page.mouse.move(endpoint.x, endpoint.y);
+  await page.mouse.down();
+  await page.mouse.move(endpoint.x - 70, endpoint.y - 45, { steps: 8 });
+  const preview = await page.evaluate((bondId) => {
+    const escapeCss = window.CSS?.escape || ((value) => String(value).replace(/["\\]/g, "\\$&"));
+    const layer = document.querySelector('[data-layer="document-bond-creation-preview"]');
+    const original = document.querySelector(`[data-layer="document-content"] [data-bond-id="${escapeCss(bondId)}"]`);
+    return {
+      hasLayer: !!layer,
+      hasPreviewBond: !!layer?.querySelector('[data-bond-id="__preview_bond"]'),
+      hasExistingBond: !!layer?.querySelector(`[data-bond-id="${escapeCss(bondId)}"]`),
+      originalHidden: original?.style.visibility === "hidden",
+      overlayPreviewBond: !!document.querySelector('[data-layer="editor-overlay"] [data-role="preview-bond"]'),
+      dragPreviewChildren: document.querySelector(".canvas-drag-preview-svg")?.childElementCount || 0,
+    };
+  }, endpoint.bondId);
+  await page.mouse.up();
+  await page.waitForTimeout(180);
+  const cleared = await page.evaluate(() => !document.querySelector('[data-layer="document-bond-creation-preview"]'));
+  await page.close();
+  assert(preview.hasLayer && preview.hasPreviewBond && preview.hasExistingBond && preview.originalHidden, `Bond creation did not use kernel local preview: ${JSON.stringify(preview)}`);
+  assert(!preview.overlayPreviewBond && preview.dragPreviewChildren === 0, `Bond creation kept duplicate frontend preview: ${JSON.stringify(preview)}`);
+  assert(cleared, "Bond creation local preview remained after commit.");
+  assert(!errors.length, `Viewer console errors during kernel bond preview: ${errors.join("\n")}`);
+}
+
+async function verifyElementEndpointPatchUpdatesConnectedBonds(browser) {
+  const { page, errors } = await openViewer(browser);
+  const box = await page.locator("#viewer-container").boundingBox();
+  const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const junction = await drawTwoBondJunction(page, center);
+  assert(junction?.leftBondId, `Could not create junction for element patch regression: ${JSON.stringify(junction)}`);
+  const beforeMaxX = await documentBondMaxX(page, junction.leftBondId);
+  assert(Number.isFinite(beforeMaxX), `Could not read original bond DOM: ${JSON.stringify({ junction, beforeMaxX })}`);
+
+  await page.locator(".quick-palette-toggle-element").click();
+  await page.mouse.move(junction.x, junction.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(180);
+
+  const after = await page.evaluate((bondId) => {
+    const command = JSON.parse(window.__chemcoreDebug.state.editorEngine.lastCommandResultJson?.() || "null");
+    const escapeCss = window.CSS?.escape || ((value) => String(value).replace(/["\\]/g, "\\$&"));
+    const labelText = [...document.querySelectorAll('[data-layer="document-content"] [data-node-id]')]
+      .map((element) => element.textContent || "")
+      .join("\n");
+    return {
+      changed: !!command?.changed,
+      updatedBonds: command?.updated?.bonds || [],
+      targetBonds: command?.targets?.bonds || [],
+      hasBondDom: !!document.querySelector(`[data-layer="document-content"] [data-bond-id="${escapeCss(bondId)}"]`),
+      labelText,
+    };
+  }, junction.leftBondId);
+  const afterMaxX = await documentBondMaxX(page, junction.leftBondId);
+  await page.close();
+
+  assert(after.changed && after.hasBondDom, `Element endpoint replacement did not commit/render: ${JSON.stringify(after)}`);
+  assert(
+    Number.isFinite(afterMaxX) && afterMaxX < beforeMaxX - 2,
+    `Connected bond DOM did not update after endpoint element replacement: ${JSON.stringify({ beforeMaxX, afterMaxX, after })}`,
+  );
+  assert(!errors.length, `Viewer console errors during element endpoint patch: ${errors.join("\n")}`);
 }
 
 async function verifyQuickPaletteAndSelectDragRegression(browser) {
@@ -2551,12 +2749,15 @@ async function verifyLargeFileCommitLatency(page) {
         dragChildren: document.querySelector(".canvas-drag-preview-svg")?.childElementCount || 0,
         dragRoles: [...document.querySelectorAll(".canvas-drag-preview-svg [data-role]")]
           .map((node) => node.getAttribute("data-role") || ""),
+        creationPreviewChildren: document.querySelector('[data-layer="document-bond-creation-preview"]')?.childElementCount || 0,
+        creationPreviewBond: !!document.querySelector('[data-layer="document-bond-creation-preview"] [data-bond-id="__preview_bond"]'),
       }));
       const started = await page.evaluate(() => performance.now());
       const upPromise = page.mouse.up();
       const cleanupHandle = await page.waitForFunction((startTime) => {
         const dragChildren = document.querySelector(".canvas-drag-preview-svg")?.childElementCount || 0;
-        if (dragChildren !== 0) {
+        const creationPreview = document.querySelector('[data-layer="document-bond-creation-preview"]');
+        if (dragChildren !== 0 || creationPreview) {
           return false;
         }
         const stats = window.__chemcoreDebug?.creationCommitStats?.last || null;
@@ -2578,7 +2779,7 @@ async function verifyLargeFileCommitLatency(page) {
     3000,
   );
   assert(
-    bondPreviewBeforeUp?.dragChildren > 0,
+    bondPreviewBeforeUp?.dragChildren > 0 || bondPreviewBeforeUp?.creationPreviewChildren > 0,
     `Large CDXML bond drag did not expose a preview before pointerup: ${JSON.stringify(bondPreviewBeforeUp)}`,
   );
   assert(
@@ -2679,6 +2880,8 @@ try {
     executablePath: existsSync(edgePath) ? edgePath : undefined,
   });
   await verifyBondDrawing(browser);
+  await verifyBondCreationUsesKernelLocalPreview(browser);
+  await verifyElementEndpointPatchUpdatesConnectedBonds(browser);
   await verifyQuickPaletteAndSelectDragRegression(browser);
   await verifyEndpointFeedbackRules(browser);
   await verifyCreationDragKeepsCanvasVisibleAfterToolSwitch(browser);

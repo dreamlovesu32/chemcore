@@ -429,6 +429,10 @@ class TauriEngineSession {
     return this.layoutEngine?.renderTargetsJson?.(requestJson) || "[]";
   }
 
+  previewRenderTargetsJson() {
+    return this.layoutEngine?.previewRenderTargetsJson?.() || "{}";
+  }
+
   interactionRenderListJson() {
     if (this.hasLocalInteraction() && this.layoutEngine?.interactionRenderListJson) {
       return this.layoutEngine.interactionRenderListJson();

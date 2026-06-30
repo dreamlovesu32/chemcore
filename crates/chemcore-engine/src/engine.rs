@@ -991,6 +991,30 @@ impl Engine {
         render_document_targets(&self.state.document, node_ids, bond_ids, object_ids)
     }
 
+    pub fn preview_render_targets(&self) -> CommandTargets {
+        let Some(drag) = self.drag.as_ref().filter(|drag| drag.has_dragged) else {
+            return CommandTargets::default();
+        };
+        let mut nodes = BTreeSet::new();
+        nodes.insert(
+            drag.anchor
+                .node_id
+                .clone()
+                .unwrap_or_else(|| "__preview_node_begin".to_string()),
+        );
+        nodes.insert(
+            drag.target
+                .as_ref()
+                .and_then(|target| target.node_id.clone())
+                .unwrap_or_else(|| "__preview_node_end".to_string()),
+        );
+        CommandTargets {
+            nodes: nodes.into_iter().collect(),
+            bonds: vec!["__preview_bond".to_string()],
+            ..Default::default()
+        }
+    }
+
     pub fn set_tool_state(&mut self, tool: ToolState) {
         let previous_tool = self.state.tool.active_tool;
         let next_tool = tool.active_tool;

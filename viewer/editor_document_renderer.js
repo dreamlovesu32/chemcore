@@ -17,6 +17,7 @@ export function createEditorDocumentRenderer(options) {
   let activeDocumentPreviewObjectIds = new Set();
   let activeDocumentPreviewPrimitiveElements = new Set();
   let activeDocumentPreviewHiddenElements = new Set();
+  let activeDocumentCreationPreviewHiddenElements = new Set();
   let activeDocumentEditPreviewHiddenElements = new Set();
   let activeDocumentDiagnosticPreviewHiddenElements = new Set();
   let activeDocumentPreviewLayer = false;
@@ -30,6 +31,7 @@ export function createEditorDocumentRenderer(options) {
     activeDocumentPreviewObjectIds = new Set();
     activeDocumentPreviewPrimitiveElements = new Set();
     activeDocumentPreviewHiddenElements = new Set();
+    activeDocumentCreationPreviewHiddenElements = new Set();
     activeDocumentEditPreviewHiddenElements = new Set();
     activeDocumentDiagnosticPreviewHiddenElements = new Set();
     activeDocumentPreviewLayer = false;
@@ -1372,6 +1374,104 @@ export function createEditorDocumentRenderer(options) {
     }
     activeDocumentDiagnosticPreviewHiddenElements = new Set();
   }
+
+  function isPreviewTargetId(id) {
+    return String(id || "").startsWith("__preview_");
+  }
+
+  function ensureDocumentBondCreationPreviewLayer() {
+    let layer = viewerSvg.querySelector('[data-layer="document-bond-creation-preview"]');
+    if (layer) {
+      layer.replaceChildren();
+      return layer;
+    }
+    const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
+    if (!documentLayer) {
+      return null;
+    }
+    layer = makeSvgNode("g", {
+      "data-layer": "document-bond-creation-preview",
+      "pointer-events": "none",
+    });
+    const editorOverlay = viewerSvg.querySelector('[data-layer="editor-overlay"]');
+    if (editorOverlay) {
+      viewerSvg.insertBefore(layer, editorOverlay);
+    } else {
+      viewerSvg.insertBefore(layer, documentLayer.nextSibling);
+    }
+    return layer;
+  }
+
+  function clearDocumentBondCreationPreview() {
+    let cleared = false;
+    viewerSvg.querySelectorAll('[data-layer="document-bond-creation-preview"]').forEach((layer) => {
+      layer.remove();
+      cleared = true;
+    });
+    for (const element of activeDocumentCreationPreviewHiddenElements) {
+      restoreDocumentPreviewElementVisibility(element);
+      activeDocumentPreviewHiddenElements.delete(element);
+      cleared = true;
+    }
+    activeDocumentCreationPreviewHiddenElements = new Set();
+    return cleared;
+  }
+
+  function applyDocumentBondCreationPreview() {
+    if (!isEditingRustDocument() || !state.editorEngine?.previewRenderTargetsJson || !state.editorEngine?.renderTargetsJson) {
+      clearDocumentBondCreationPreview();
+      return false;
+    }
+    const targets = parseEngineJson(state.editorEngine.previewRenderTargetsJson() || "{}", {});
+    const nodeIds = new Set(targets?.nodes || []);
+    const bondIds = new Set(targets?.bonds || []);
+    if (!bondIds.has("__preview_bond")) {
+      clearDocumentBondCreationPreview();
+      return false;
+    }
+    const primitives = parseEngineJson(state.editorEngine.renderTargetsJson(JSON.stringify({
+      nodes: commandTargetSet(nodeIds),
+      bonds: commandTargetSet(bondIds),
+      objects: commandTargetSet(targets?.objects || []),
+    })) || "[]", []);
+    if (!Array.isArray(primitives) || !primitives.length) {
+      clearDocumentBondCreationPreview();
+      return false;
+    }
+    const layer = ensureDocumentBondCreationPreviewLayer();
+    const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
+    if (!layer || !documentLayer) {
+      clearDocumentBondCreationPreview();
+      return false;
+    }
+    for (const primitive of primitives) {
+      const nodeId = primitiveNodeId(primitive);
+      const bondId = primitiveBondId(primitive);
+      if (nodeId && !isPreviewTargetId(nodeId)) {
+        nodeIds.add(nodeId);
+      }
+      if (bondId && !isPreviewTargetId(bondId)) {
+        bondIds.add(bondId);
+      }
+    }
+    const existingNodeIds = new Set([...nodeIds].filter((id) => !isPreviewTargetId(id)));
+    const existingBondIds = new Set([...bondIds].filter((id) => !isPreviewTargetId(id)));
+    const nextHidden = collectDocumentPrimitiveTargetElements(documentLayer, existingNodeIds, existingBondIds);
+    for (const element of activeDocumentCreationPreviewHiddenElements) {
+      if (!nextHidden.has(element)) {
+        restoreDocumentPreviewElementVisibility(element);
+        activeDocumentPreviewHiddenElements.delete(element);
+      }
+    }
+    for (const element of nextHidden) {
+      hideDocumentPreviewElement(element);
+    }
+    activeDocumentCreationPreviewHiddenElements = nextHidden;
+    for (const primitive of primitives) {
+      renderCorePrimitive(layer, primitive, corePrimitiveRenderOptions());
+    }
+    return true;
+  }
   
   function clearDocumentPartialBondPreview() {
     viewerSvg.querySelectorAll('[data-layer="document-partial-bond-preview"]').forEach((layer) => layer.remove());
@@ -1475,6 +1575,7 @@ export function createEditorDocumentRenderer(options) {
   
   function clearDocumentObjectPreviewTransform() {
     const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
+    clearDocumentBondCreationPreview();
     clearDocumentPartialBondPreview();
     restoreDocumentDiagnosticsForPreview();
     removeDocumentPreviewBatchLayer();
@@ -1968,9 +2069,11 @@ export function createEditorDocumentRenderer(options) {
     currentDocumentMoleculeTopology,
     syncObjectEditPreviewHiddenElements,
     clearDocumentObjectPreviewTransform,
+    clearDocumentBondCreationPreview,
     commitDocumentObjectPreviewTransform,
     canCommitDocumentObjectPreviewTransform,
     applyDocumentObjectPreviewTransform,
+    applyDocumentBondCreationPreview,
     hideDocumentDiagnosticsForPreview,
   };
 }

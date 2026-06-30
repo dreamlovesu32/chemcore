@@ -85,6 +85,7 @@ export class WasmEngine {
     pointerDown(x: number, y: number, alt_key: boolean): void;
     pointerMove(x: number, y: number, alt_key: boolean): void;
     pointerUp(x: number, y: number, alt_key: boolean): void;
+    previewRenderTargetsJson(): string;
     previewTextEditLayout(request_json: string): string;
     previewTextRuns(session_json: string): string;
     redo(): boolean;
@@ -223,6 +224,7 @@ export interface InitOutput {
     readonly wasmengine_pointerDown: (a: number, b: number, c: number, d: number) => void;
     readonly wasmengine_pointerMove: (a: number, b: number, c: number, d: number) => void;
     readonly wasmengine_pointerUp: (a: number, b: number, c: number, d: number) => void;
+    readonly wasmengine_previewRenderTargetsJson: (a: number) => [number, number, number, number];
     readonly wasmengine_previewTextEditLayout: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_previewTextRuns: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_redo: (a: number) => number;
