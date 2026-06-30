@@ -37,6 +37,8 @@ pub use self::hit_testing::{
 pub const ENDPOINT_FOCUS_RADIUS_PT: WorldPt = css_px(1.5).to_world_pt();
 pub const ENDPOINT_HIT_RADIUS_PT: WorldPt = css_px(10.0).to_world_pt();
 pub const BOND_HIT_RADIUS_PT: WorldPt = css_px(6.0).to_world_pt();
+pub const GRAPHIC_EDGE_HIT_RADIUS_PT: WorldPt = css_px(8.0).to_world_pt();
+pub const ARROW_HIT_RADIUS_PT: WorldPt = GRAPHIC_EDGE_HIT_RADIUS_PT;
 pub const BOND_CENTER_FOCUS_LENGTH_PT: WorldPt = world_pt(22.677_165_354_330_71);
 pub const BOND_CENTER_FOCUS_WIDTH_PT: WorldPt = world_pt(5.669_291_338_582_678);
 pub const BOND_CENTER_HIT_RADIUS_PT: WorldPt = BOND_CENTER_FOCUS_LENGTH_PT;
@@ -44,6 +46,8 @@ pub const DRAG_START_THRESHOLD_PT: WorldPt = css_px(4.0).to_world_pt();
 pub const ENDPOINT_FOCUS_RADIUS: f64 = ENDPOINT_FOCUS_RADIUS_PT.value();
 pub const ENDPOINT_HIT_RADIUS: f64 = ENDPOINT_HIT_RADIUS_PT.value();
 pub const BOND_HIT_RADIUS: f64 = BOND_HIT_RADIUS_PT.value();
+pub const GRAPHIC_EDGE_HIT_RADIUS: f64 = GRAPHIC_EDGE_HIT_RADIUS_PT.value();
+pub const ARROW_HIT_RADIUS: f64 = ARROW_HIT_RADIUS_PT.value();
 pub const BOND_CENTER_FOCUS_LENGTH: f64 = BOND_CENTER_FOCUS_LENGTH_PT.value();
 pub const BOND_CENTER_FOCUS_WIDTH: f64 = BOND_CENTER_FOCUS_WIDTH_PT.value();
 pub const BOND_CENTER_HIT_RADIUS: f64 = BOND_CENTER_HIT_RADIUS_PT.value();

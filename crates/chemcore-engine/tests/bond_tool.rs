@@ -3,7 +3,7 @@ use chemcore_engine::{
     ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondLinePattern, BondLineWeight,
     BondVariant, BracketKind, DoubleBondPlacement, Engine, Point, PointerEvent, RenderPrimitive,
     RenderRole, ShapeKind, ShapeStyle, TextEditSession, TextEditTarget, Tool, ToolState,
-    DEFAULT_BOND_LENGTH, DEFAULT_BOND_STROKE,
+    ARROW_HIT_RADIUS, DEFAULT_BOND_LENGTH, DEFAULT_BOND_STROKE, GRAPHIC_EDGE_HIT_RADIUS,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -1235,6 +1235,32 @@ fn arrow_hover_curve_drag_updates_curve_with_snap_and_selected_arrows_do_not_hov
 }
 
 #[test]
+fn arrow_body_hover_and_selection_use_graphic_edge_radius() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Arrow,
+        ..ToolState::default()
+    });
+    drag(&mut engine, Point::new(0.0, 0.0), Point::new(100.0, 0.0));
+
+    let near_body = Point::new(50.0, ARROW_HIT_RADIUS - px(0.25));
+    let far_body = Point::new(50.0, ARROW_HIT_RADIUS + px(0.25));
+
+    hover(&mut engine, far_body.x, far_body.y);
+    assert!(engine.state().overlay.hover_arrow.is_none());
+
+    hover(&mut engine, near_body.x, near_body.y);
+    assert!(engine.state().overlay.hover_arrow.is_some());
+
+    engine.set_tool_state(select_tool());
+    engine.select_at_point(far_body, false);
+    assert!(engine.state().selection.arrow_objects.is_empty());
+
+    engine.select_at_point(near_body, false);
+    assert_eq!(engine.state().selection.arrow_objects.len(), 1);
+}
+
+#[test]
 fn arrow_curve_drag_interaction_preview_only_renders_edited_arrow() {
     let mut engine = Engine::new();
     let document = json!({
@@ -1932,6 +1958,15 @@ fn select_tool_bracket_side_hit_testing_ignores_interior_space() {
         engine.state().selection.arrow_objects,
         vec!["obj_left_bracket".to_string()]
     );
+    let left_near_edge = Point::new(40.0 + GRAPHIC_EDGE_HIT_RADIUS + 0.25, 55.0);
+    engine.select_at_point(left_near_edge, false);
+    assert_eq!(
+        engine.state().selection.arrow_objects,
+        vec!["obj_left_bracket".to_string()]
+    );
+    let left_far_edge = Point::new(40.0 + GRAPHIC_EDGE_HIT_RADIUS + 0.75, 55.0);
+    engine.select_at_point(left_far_edge, false);
+    assert!(engine.state().selection.arrow_objects.is_empty());
     engine.select_at_point(Point::new(157.5, 55.0), false);
     assert_eq!(
         engine.state().selection.arrow_objects,
@@ -7467,6 +7502,19 @@ fn select_tool_shape_hover_and_hit_testing_follow_shape_geometry() {
         engine.state().selection.arrow_objects,
         vec!["obj_circle_loaded".to_string()]
     );
+    engine.select_at_point(
+        Point::new(60.0 + GRAPHIC_EDGE_HIT_RADIUS - px(0.25), 40.0),
+        false,
+    );
+    assert_eq!(
+        engine.state().selection.arrow_objects,
+        vec!["obj_circle_loaded".to_string()]
+    );
+    engine.select_at_point(
+        Point::new(60.0 + GRAPHIC_EDGE_HIT_RADIUS + px(0.25), 40.0),
+        false,
+    );
+    assert!(engine.state().selection.arrow_objects.is_empty());
 
     engine.select_at_point(Point::new(63.5, 63.5), false);
     assert!(engine.state().selection.arrow_objects.is_empty());

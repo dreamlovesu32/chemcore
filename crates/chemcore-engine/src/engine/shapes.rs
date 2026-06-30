@@ -1019,7 +1019,7 @@ fn shape_circle_hover(object: &SceneObject, point: Point) -> Option<Point> {
         return None;
     }
     let distance = center.distance(point);
-    if (distance - radius).abs() > ENDPOINT_HIT_RADIUS {
+    if (distance - radius).abs() > GRAPHIC_EDGE_HIT_RADIUS {
         return None;
     }
     let direction = if distance <= crate::EPSILON {
@@ -1105,7 +1105,7 @@ fn shape_oval_hit(object: &SceneObject, point: Point, include_fill: bool) -> Opt
     }
     let radial = normalized.sqrt();
     let edge_distance = ((radial - 1.0).abs()) * rx.min(ry);
-    (edge_distance <= ENDPOINT_HIT_RADIUS).then_some(())
+    (edge_distance <= GRAPHIC_EDGE_HIT_RADIUS).then_some(())
 }
 
 fn shape_rect_hit(object: &SceneObject, point: Point, include_fill: bool) -> Option<()> {
@@ -1118,14 +1118,14 @@ fn shape_rect_hit(object: &SceneObject, point: Point, include_fill: bool) -> Opt
     {
         return Some(());
     }
-    let on_vertical = (point.x - bounds[0]).abs() <= ENDPOINT_HIT_RADIUS
-        || (point.x - bounds[2]).abs() <= ENDPOINT_HIT_RADIUS;
-    let on_horizontal = (point.y - bounds[1]).abs() <= ENDPOINT_HIT_RADIUS
-        || (point.y - bounds[3]).abs() <= ENDPOINT_HIT_RADIUS;
-    let within_y =
-        point.y >= bounds[1] - ENDPOINT_HIT_RADIUS && point.y <= bounds[3] + ENDPOINT_HIT_RADIUS;
-    let within_x =
-        point.x >= bounds[0] - ENDPOINT_HIT_RADIUS && point.x <= bounds[2] + ENDPOINT_HIT_RADIUS;
+    let on_vertical = (point.x - bounds[0]).abs() <= GRAPHIC_EDGE_HIT_RADIUS
+        || (point.x - bounds[2]).abs() <= GRAPHIC_EDGE_HIT_RADIUS;
+    let on_horizontal = (point.y - bounds[1]).abs() <= GRAPHIC_EDGE_HIT_RADIUS
+        || (point.y - bounds[3]).abs() <= GRAPHIC_EDGE_HIT_RADIUS;
+    let within_y = point.y >= bounds[1] - GRAPHIC_EDGE_HIT_RADIUS
+        && point.y <= bounds[3] + GRAPHIC_EDGE_HIT_RADIUS;
+    let within_x = point.x >= bounds[0] - GRAPHIC_EDGE_HIT_RADIUS
+        && point.x <= bounds[2] + GRAPHIC_EDGE_HIT_RADIUS;
     ((on_vertical && within_y) || (on_horizontal && within_x)).then_some(())
 }
 

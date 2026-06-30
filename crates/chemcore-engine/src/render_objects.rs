@@ -206,6 +206,7 @@ pub(super) fn render_molecule_object_targets(
             target_render_bond_ids.insert(bond.id.clone());
         }
     }
+    expand_target_render_bond_ids_for_contact_nodes(&mut target_render_bond_ids, &fragment.bonds);
     expand_target_render_bond_ids_for_crossings(
         &mut target_render_bond_ids,
         object,
@@ -255,10 +256,35 @@ pub(super) fn render_molecule_object_targets(
     }
     render_main_bond_contact_patches(out, &contact_kernel, &stroke, object_id.clone());
 
+    let mut label_render_node_ids = target_node_ids.clone();
+    label_render_node_ids.extend(contact_node_ids);
     for node in &fragment.nodes {
-        if target_node_ids.contains(&node.id) {
+        if label_render_node_ids.contains(&node.id) {
             render_fragment_label(out, document, object, node, object_id.clone());
             render_fragment_node_invalid_marker(out, object, node, object_id.clone());
+        }
+    }
+}
+
+fn expand_target_render_bond_ids_for_contact_nodes(
+    target_render_bond_ids: &mut BTreeSet<String>,
+    bonds: &[Bond],
+) {
+    if target_render_bond_ids.is_empty() {
+        return;
+    }
+
+    let mut contact_node_ids = BTreeSet::new();
+    for bond in bonds {
+        if target_render_bond_ids.contains(&bond.id) {
+            contact_node_ids.insert(bond.begin.clone());
+            contact_node_ids.insert(bond.end.clone());
+        }
+    }
+
+    for bond in bonds {
+        if contact_node_ids.contains(&bond.begin) || contact_node_ids.contains(&bond.end) {
+            target_render_bond_ids.insert(bond.id.clone());
         }
     }
 }

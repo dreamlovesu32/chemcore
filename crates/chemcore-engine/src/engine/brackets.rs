@@ -837,7 +837,7 @@ fn bracket_side_contains_point(object: &SceneObject, point: Point) -> bool {
     let ty = object.transform.translate[1] + y;
     let center = Point::new(tx + width * 0.5, ty + height * 0.5);
     let local = rotate_point_around(point, center, -object.transform.rotate);
-    let pad = ENDPOINT_HIT_RADIUS + bracket_stroke_hit_padding(object);
+    let pad = GRAPHIC_EDGE_HIT_RADIUS + bracket_stroke_hit_padding(object);
     let kind = bracket_kind(object);
     if let Some(side) = bracket_side(object) {
         return bracket_side_contains_local_point(local, tx, ty, width, height, kind, side, pad);

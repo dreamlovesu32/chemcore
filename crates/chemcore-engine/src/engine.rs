@@ -66,8 +66,9 @@ use crate::{
     DoubleBondPlacement, DragState, EditableFragment, EditableFragmentMut, EditorOptions,
     EndpointHit, HoverShape, HoverTextBox, Node, OrbitalPhase, OrbitalStyle, OrbitalTemplate,
     OverlayState, Point, PointerEvent, RenderPrimitive, RenderRole, ResourceData, SceneObject,
-    SelectionState, ShapeKind, ShapeStyle, Tool, ToolState, Vector, BOND_CENTER_HIT_RADIUS,
-    DRAG_START_THRESHOLD, ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
+    SelectionState, ShapeKind, ShapeStyle, Tool, ToolState, Vector, ARROW_HIT_RADIUS,
+    BOND_CENTER_HIT_RADIUS, DRAG_START_THRESHOLD, ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
+    GRAPHIC_EDGE_HIT_RADIUS,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};

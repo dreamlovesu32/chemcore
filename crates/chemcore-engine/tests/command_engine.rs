@@ -89,6 +89,34 @@ fn document_bond_count(value: &Value) -> usize {
         .sum()
 }
 
+fn rendered_bond_ids(primitives: &[RenderPrimitive]) -> BTreeSet<String> {
+    primitives
+        .iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Line { bond_id, .. }
+            | RenderPrimitive::Polygon { bond_id, .. }
+            | RenderPrimitive::Polyline { bond_id, .. }
+            | RenderPrimitive::Path { bond_id, .. }
+            | RenderPrimitive::FilledPath { bond_id, .. } => bond_id.clone(),
+            _ => None,
+        })
+        .collect()
+}
+
+fn rendered_node_ids(primitives: &[RenderPrimitive]) -> BTreeSet<String> {
+    primitives
+        .iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Circle { node_id, .. }
+            | RenderPrimitive::Polygon { node_id, .. }
+            | RenderPrimitive::Rect { node_id, .. }
+            | RenderPrimitive::FilledPath { node_id, .. }
+            | RenderPrimitive::Text { node_id, .. } => node_id.clone(),
+            _ => None,
+        })
+        .collect()
+}
+
 fn crossing_document_value() -> Value {
     json!({
         "format": { "name": "chemcore", "version": "0.1" },
@@ -120,6 +148,62 @@ fn crossing_document_value() -> Value {
                     "bonds": [
                         { "id": "b_under", "begin": "n1", "end": "n2", "order": 1, "strokeWidth": 1.0, "marginWidth": 2.0 },
                         { "id": "b_over", "begin": "n3", "end": "n4", "order": 1, "strokeWidth": 1.0, "marginWidth": 2.0 }
+                    ]
+                }
+            }
+        }
+    })
+}
+
+fn shared_junction_document_value() -> Value {
+    json!({
+        "format": { "name": "chemcore", "version": "0.1" },
+        "document": {
+            "id": "doc_shared_junction",
+            "title": "shared junction",
+            "page": { "width": 140.0, "height": 140.0, "background": "#ffffff" }
+        },
+        "objects": [{
+            "id": "obj_molecule_001",
+            "type": "molecule",
+            "visible": true,
+            "zIndex": 10,
+            "payload": { "resourceRef": "mol_001" }
+        }],
+        "resources": {
+            "mol_001": {
+                "type": "molecule_fragment2d",
+                "encoding": "chemcore.molecule.fragment2d",
+                "data": {
+                    "schema": "chemcore.molecule.fragment2d",
+                    "bbox": [20.0, 20.0, 100.0, 100.0],
+                    "nodes": [
+                        {
+                            "id": "n0",
+                            "element": "O",
+                            "atomicNumber": 8,
+                            "position": [60.0, 60.0],
+                            "charge": 0,
+                            "numHydrogens": 0,
+                            "label": {
+                                "text": "O",
+                                "position": [60.0, 60.0],
+                                "box": [56.0, 54.0, 64.0, 66.0],
+                                "align": "center",
+                                "anchor": "middle",
+                                "fontSize": 12.0,
+                                "glyphPolygons": [[[56.0, 54.0], [64.0, 54.0], [64.0, 66.0], [56.0, 66.0]]]
+                            }
+                        },
+                        { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 60.0], "charge": 0, "numHydrogens": 0 },
+                        { "id": "n2", "element": "C", "atomicNumber": 6, "position": [90.0, 95.0], "charge": 0, "numHydrogens": 0 },
+                        { "id": "n3", "element": "C", "atomicNumber": 6, "position": [110.0, 25.0], "charge": 0, "numHydrogens": 0 },
+                        { "id": "n4", "element": "C", "atomicNumber": 6, "position": [125.0, 45.0], "charge": 0, "numHydrogens": 0 }
+                    ],
+                    "bonds": [
+                        { "id": "b_dragged", "begin": "n0", "end": "n1", "order": 1, "strokeWidth": 1.0, "marginWidth": 2.0 },
+                        { "id": "b_neighbor", "begin": "n0", "end": "n2", "order": 1, "strokeWidth": 1.0, "marginWidth": 2.0 },
+                        { "id": "b_unrelated", "begin": "n3", "end": "n4", "order": 1, "strokeWidth": 1.0, "marginWidth": 2.0 }
                     ]
                 }
             }
@@ -202,21 +286,37 @@ fn add_bond_from_existing_atom_marks_existing_endpoint_for_incremental_render() 
         .iter()
         .filter_map(|bond| bond.as_str().map(ToString::to_string))
         .collect();
-    let rendered_bonds: BTreeSet<String> = engine
-        .render_targets(&target_nodes, &target_bonds, &BTreeSet::new())
-        .into_iter()
-        .filter_map(|primitive| match primitive {
-            RenderPrimitive::Line { bond_id, .. }
-            | RenderPrimitive::Polygon { bond_id, .. }
-            | RenderPrimitive::Polyline { bond_id, .. }
-            | RenderPrimitive::Path { bond_id, .. }
-            | RenderPrimitive::FilledPath { bond_id, .. } => bond_id,
-            _ => None,
-        })
-        .collect();
+    let rendered = engine.render_targets(&target_nodes, &target_bonds, &BTreeSet::new());
+    let rendered_bonds = rendered_bond_ids(&rendered);
     assert!(
         rendered_bonds.contains(&existing_bond_id) && rendered_bonds.contains(&new_bond_id),
         "desktop partial render should redraw both bonds at the changed junction: {rendered_bonds:?}"
+    );
+}
+
+#[test]
+fn render_targets_for_moved_terminal_node_include_shared_junction_bonds() {
+    let mut engine = Engine::new();
+    engine
+        .load_document_json(&shared_junction_document_value().to_string())
+        .expect("document should load");
+
+    let target_nodes = BTreeSet::from(["n1".to_string()]);
+    let rendered = engine.render_targets(&target_nodes, &BTreeSet::new(), &BTreeSet::new());
+    let rendered_bonds = rendered_bond_ids(&rendered);
+    let rendered_nodes = rendered_node_ids(&rendered);
+
+    assert!(
+        rendered_bonds.contains("b_dragged") && rendered_bonds.contains("b_neighbor"),
+        "moving a terminal atom must refresh all bonds sharing the affected junction: {rendered_bonds:?}"
+    );
+    assert!(
+        !rendered_bonds.contains("b_unrelated"),
+        "partial render should stay local to the changed junction: {rendered_bonds:?}"
+    );
+    assert!(
+        rendered_nodes.contains("n0"),
+        "partial render should refresh labels at affected bond contact nodes: {rendered_nodes:?}"
     );
 }
 
@@ -359,18 +459,8 @@ fn moving_under_crossing_bond_marks_over_bond_for_incremental_render() {
         .iter()
         .filter_map(|node| node.as_str().map(ToString::to_string))
         .collect();
-    let rendered_bonds: BTreeSet<String> = engine
-        .render_targets(&target_nodes, &target_bonds, &BTreeSet::new())
-        .into_iter()
-        .filter_map(|primitive| match primitive {
-            RenderPrimitive::Line { bond_id, .. }
-            | RenderPrimitive::Polygon { bond_id, .. }
-            | RenderPrimitive::Polyline { bond_id, .. }
-            | RenderPrimitive::Path { bond_id, .. }
-            | RenderPrimitive::FilledPath { bond_id, .. } => bond_id,
-            _ => None,
-        })
-        .collect();
+    let rendered = engine.render_targets(&target_nodes, &target_bonds, &BTreeSet::new());
+    let rendered_bonds = rendered_bond_ids(&rendered);
     assert!(
         rendered_bonds.contains("b_over"),
         "desktop partial render should return the refreshed upper bond: {rendered_bonds:?}"

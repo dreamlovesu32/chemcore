@@ -14,8 +14,8 @@ use crate::{
     line_object_graphic_stroke_width, line_object_points, line_object_visual_bounds, nearest_angle,
     point_at_distance_from_start, polyline_length, round2, shape_object_visual_bounds,
     ArrowEndpointStyle, HoverTextBox, Point, RenderPrimitive, RenderRole, SceneObject,
-    SelectionState, BOND_CENTER_HIT_RADIUS, DEFAULT_BOND_LENGTH, DRAG_START_THRESHOLD,
-    ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
+    SelectionState, ARROW_HIT_RADIUS, BOND_CENTER_HIT_RADIUS, DEFAULT_BOND_LENGTH,
+    DRAG_START_THRESHOLD, ENDPOINT_FOCUS_RADIUS, ENDPOINT_HIT_RADIUS, GLOBAL_SNAP_ANGLES,
 };
 use serde_json::{json, Value as JsonValue};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -1508,9 +1508,7 @@ impl Engine {
             self.state.overlay.hover_bond_center = Some(center);
             return;
         }
-        if let Some(arrow) =
-            hit_test_arrow_center(&self.state.document, point, BOND_CENTER_HIT_RADIUS)
-        {
+        if let Some(arrow) = hit_test_arrow_center(&self.state.document, point, ARROW_HIT_RADIUS) {
             if !self
                 .state
                 .selection
@@ -1591,7 +1589,7 @@ impl Engine {
                 }
             }
         }
-        hit_test_arrow_center(&self.state.document, point, BOND_CENTER_HIT_RADIUS).map(|arrow| {
+        hit_test_arrow_center(&self.state.document, point, ARROW_HIT_RADIUS).map(|arrow| {
             SelectHit::ArrowObject {
                 object_id: arrow.object_id,
             }

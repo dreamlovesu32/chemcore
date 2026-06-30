@@ -250,7 +250,7 @@ impl Engine {
         }
         self.state.overlay.preview = None;
         self.state.overlay.hover_arrow =
-            hit_test_arrow_center(&self.state.document, point, BOND_CENTER_HIT_RADIUS);
+            hit_test_arrow_center(&self.state.document, point, ARROW_HIT_RADIUS);
     }
 
     pub(super) fn pointer_down_arrow(&mut self, event: PointerEvent) {

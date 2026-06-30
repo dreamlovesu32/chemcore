@@ -23,6 +23,8 @@ export function createEditorDocumentRenderer(options) {
   let activeDocumentPreviewLayer = false;
   let activeDocumentPreviewBatchLayer = null;
   let activeDocumentPreviewTransform = "";
+  let activeBackendPreviewPatchNodeIds = new Set();
+  let activeBackendPreviewPatchBondIds = new Set();
   let documentPrimitiveNodeElements = new Map();
   let documentPrimitiveBondElements = new Map();
   let documentMoleculeTopologyCache = null;
@@ -37,6 +39,8 @@ export function createEditorDocumentRenderer(options) {
     activeDocumentPreviewLayer = false;
     activeDocumentPreviewBatchLayer = null;
     activeDocumentPreviewTransform = "";
+    activeBackendPreviewPatchNodeIds = new Set();
+    activeBackendPreviewPatchBondIds = new Set();
     documentPrimitiveNodeElements = new Map();
     documentPrimitiveBondElements = new Map();
     documentMoleculeTopologyCache = null;
@@ -585,15 +589,11 @@ export function createEditorDocumentRenderer(options) {
     }
     return elements;
   }
-  
-  function renderDocumentPrimitivePatch(primitives, nodeIds, bondIds) {
-    const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
-    if (!documentLayer || !Array.isArray(primitives)) {
-      return false;
-    }
+
+  function collectPrimitivePatchIds(primitives, nodeIds, bondIds) {
     const patchNodeIds = new Set(nodeIds || []);
     const patchBondIds = new Set(bondIds || []);
-    for (const primitive of primitives) {
+    for (const primitive of primitives || []) {
       const nodeId = primitiveNodeId(primitive);
       const bondId = primitiveBondId(primitive);
       if (nodeId) {
@@ -603,6 +603,26 @@ export function createEditorDocumentRenderer(options) {
         patchBondIds.add(bondId);
       }
     }
+    return { nodeIds: patchNodeIds, bondIds: patchBondIds };
+  }
+
+  function setDifference(previous, current) {
+    const difference = new Set();
+    for (const id of previous || []) {
+      if (!current?.has(id)) {
+        difference.add(id);
+      }
+    }
+    return difference;
+  }
+  
+  function renderDocumentPrimitivePatch(primitives, nodeIds, bondIds) {
+    const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
+    if (!documentLayer || !Array.isArray(primitives)) {
+      return false;
+    }
+    const { nodeIds: patchNodeIds, bondIds: patchBondIds } =
+      collectPrimitivePatchIds(primitives, nodeIds, bondIds);
     const targetElements = [...collectDocumentPrimitiveTargetElements(documentLayer, patchNodeIds, patchBondIds)];
     const targetElementSet = new Set(targetElements);
     let anchor = null;
@@ -686,14 +706,18 @@ export function createEditorDocumentRenderer(options) {
       return false;
     }
     const objectIds = targetIdsFromCommandResult(result, "objects");
+    const previousBackendNodeIds = new Set(activeBackendPreviewPatchNodeIds);
+    const previousBackendBondIds = new Set(activeBackendPreviewPatchBondIds);
     clearDocumentObjectPreviewTransform();
     let patched = false;
-    if (nodeIds.size || bondIds.size) {
+    const renderNodeIds = new Set([...nodeIds, ...previousBackendNodeIds]);
+    const renderBondIds = new Set([...bondIds, ...previousBackendBondIds]);
+    if (renderNodeIds.size || renderBondIds.size) {
       const primitives = parseEngineJson(state.editorEngine?.renderTargetsJson?.(JSON.stringify({
-        nodes: commandTargetSet(nodeIds),
-        bonds: commandTargetSet(bondIds),
+        nodes: commandTargetSet(renderNodeIds),
+        bonds: commandTargetSet(renderBondIds),
       })) || "[]", []);
-      patched = renderDocumentPrimitivePatch(primitives, nodeIds, bondIds) || patched;
+      patched = renderDocumentPrimitivePatch(primitives, renderNodeIds, renderBondIds) || patched;
     }
     patched = renderDocumentObjectIdPatch(objectIds) || patched;
     return patched;
@@ -860,12 +884,29 @@ export function createEditorDocumentRenderer(options) {
       });
       return objectPreviewed;
     }
-    const primitives = parseEngineJson(state.editorEngine.renderTargetsJson?.(JSON.stringify({
-      nodes: commandTargetSet(targets.nodeIds),
-      bonds: commandTargetSet(targets.bondIds),
+    const currentNodeIds = new Set(targets.nodeIds);
+    const currentBondIds = new Set(targets.bondIds);
+    let renderNodeIds = currentNodeIds;
+    let renderBondIds = currentBondIds;
+    let primitives = parseEngineJson(state.editorEngine.renderTargetsJson?.(JSON.stringify({
+      nodes: commandTargetSet(renderNodeIds),
+      bonds: commandTargetSet(renderBondIds),
     })) || "[]", []);
+    let patchIds = collectPrimitivePatchIds(primitives, currentNodeIds, currentBondIds);
+    const staleNodeIds = setDifference(activeBackendPreviewPatchNodeIds, patchIds.nodeIds);
+    const staleBondIds = setDifference(activeBackendPreviewPatchBondIds, patchIds.bondIds);
+    if (staleNodeIds.size || staleBondIds.size) {
+      renderNodeIds = new Set([...currentNodeIds, ...staleNodeIds]);
+      renderBondIds = new Set([...currentBondIds, ...staleBondIds]);
+      primitives = parseEngineJson(state.editorEngine.renderTargetsJson?.(JSON.stringify({
+        nodes: commandTargetSet(renderNodeIds),
+        bonds: commandTargetSet(renderBondIds),
+      })) || "[]", []);
+    }
     const renderedAt = performance.now();
-    const patched = renderDocumentPrimitivePatch(primitives, targets.nodeIds, targets.bondIds);
+    const patched = renderDocumentPrimitivePatch(primitives, renderNodeIds, renderBondIds);
+    activeBackendPreviewPatchNodeIds = patchIds.nodeIds;
+    activeBackendPreviewPatchBondIds = patchIds.bondIds;
     hideDocumentDiagnosticsForPreview();
     const patchedAt = performance.now();
     recordBackendMovePreviewTiming({
@@ -874,8 +915,8 @@ export function createEditorDocumentRenderer(options) {
       patchMs: patchedAt - renderedAt,
       totalMs: patchedAt - started,
       primitiveCount: primitives.length,
-      nodeCount: targets.nodeIds.size,
-      bondCount: targets.bondIds.size,
+      nodeCount: renderNodeIds.size,
+      bondCount: renderBondIds.size,
       objectPreviewed,
       objectPreviewIds,
       selection: previewSelectionDebugSummary(selection),
@@ -1579,6 +1620,8 @@ export function createEditorDocumentRenderer(options) {
     clearDocumentPartialBondPreview();
     restoreDocumentDiagnosticsForPreview();
     removeDocumentPreviewBatchLayer();
+    activeBackendPreviewPatchNodeIds = new Set();
+    activeBackendPreviewPatchBondIds = new Set();
     if (activeDocumentPreviewLayer) {
       documentLayer?.removeAttribute("transform");
       activeDocumentPreviewLayer = false;
