@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDXML CreationProgram="ChemSema public atom-query fixture"
+ BoundingBox="0 0 260 180"
+ ShowAtomQuery="yes"
+ ShowTerminalCarbonLabels="no"
+ ShowNonTerminalCarbonLabels="no"
+ BondLength="30" LineWidth="0.6" BoldWidth="2" HashSpacing="2.5"
+ MarginWidth="1.6" LabelFont="3" LabelSize="10"
+ CaptionFont="3" CaptionSize="10">
+  <colortable>
+    <color r="1" g="1" b="1"/>
+    <color r="0" g="0" b="0"/>
+  </colortable>
+  <fonttable>
+    <font id="3" charset="iso-8859-1" name="Arial"/>
+  </fonttable>
+  <page id="1" BoundingBox="0 0 260 180">
+    <fragment id="10">
+      <n id="101" p="55 55" Element="7"
+       FreeSites="2" RingBondCount="SimpleRing"
+       UnsaturatedBonds="MustBePresent"
+       SubstituentsExactly="3" Translation="Narrow">
+        <objecttag Name="query" TagType="Unknown">
+          <t id="301" p="45 55" BoundingBox="22 48 45 56">
+            <s font="3" size="7.5" color="0">X3SRL</s>
+          </t>
+        </objecttag>
+      </n>
+      <n id="102" p="85 55"/>
+      <b id="201" B="101" E="102"/>
+    </fragment>
+    <fragment id="20">
+      <n id="103" p="55 115" NodeType="ElementList"
+       ElementList="NOT 7 8 15" GenericList="R X"/>
+      <n id="104" p="85 115"/>
+      <b id="202" B="103" E="104"/>
+    </fragment>
+    <fragment id="30">
+      <n id="105" p="155 55" AbnormalValence="yes"
+       ShowTerminalCarbonLabels="yes"/>
+      <n id="106" p="185 55"/>
+      <b id="203" B="105" E="106"/>
+    </fragment>
+  </page>
+</CDXML>

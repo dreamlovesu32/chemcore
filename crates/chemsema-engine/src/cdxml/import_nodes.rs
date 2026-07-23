@@ -17,13 +17,29 @@ pub(super) fn normalize_node(
     let atomic_number = parse_u8(node.attr("Element")).unwrap_or(6);
     let charge = parse_i32(node.attr("Charge")).unwrap_or(0);
     let node_type = node.attr("NodeType").unwrap_or("");
+    let (element_list, element_list_excluded) = parse_element_list(node.attr("ElementList"));
+    let (generic_list, generic_list_excluded) = parse_generic_list(node.attr("GenericList"));
     let mut label = node_label(node, origin, colors, fonts, defaults);
     if let Some(label) = &mut label {
         if label.position.is_none() {
             label.position = Some(local_position);
         }
     }
-    if label.is_none() && atomic_number != 6 {
+    if label.is_none() && (!element_list.is_empty() || !generic_list.is_empty()) {
+        let mut parts: Vec<String> = element_list
+            .iter()
+            .map(|value| element_symbol(*value).to_string())
+            .collect();
+        parts.extend(generic_list.iter().cloned());
+        let excluded = element_list_excluded || generic_list_excluded;
+        let generated_text = format!("{}{}", if excluded { "NOT " } else { "" }, parts.join(", "));
+        let mut generated =
+            crate::engine::make_periodic_element_node_label(&generated_text, local_position);
+        generated.font_size = Some(defaults.label_size);
+        generated.font_family = fonts.get(&defaults.label_font.to_string()).cloned();
+        generated.meta = json!({"queryListLabel": {"source": "cdxml-generated"}});
+        label = Some(generated);
+    } else if label.is_none() && atomic_number != 6 {
         let element = element_symbol(atomic_number);
         let generated_text = match charge {
             0 => element.to_string(),
@@ -127,9 +143,83 @@ pub(super) fn normalize_node(
                 .and_then(|value| parse_cdxml_bool(Some(value))),
             atom_number_position: None,
             stereo_position: None,
+            element_list,
+            element_list_excluded,
+            generic_list,
+            generic_list_excluded,
+            free_sites: parse_u8(node.attr("FreeSites")),
+            show_atom_query: node
+                .attr("ShowAtomQuery")
+                .and_then(|value| parse_cdxml_bool(Some(value))),
+            ring_bond_count: cdxml_ring_bond_count(node.attr("RingBondCount")),
+            unsaturated_bonds: cdxml_unsaturated_bonds(node.attr("UnsaturatedBonds")),
+            substituents_up_to: parse_u8(node.attr("SubstituentsUpTo")),
+            substituents_exactly: parse_u8(node.attr("SubstituentsExactly")),
+            translation: cdxml_query_translation(node.attr("Translation")),
+            abnormal_valence: parse_cdxml_bool(node.attr("AbnormalValence")).unwrap_or(false),
+            show_terminal_carbon_label: node
+                .attr("ShowTerminalCarbonLabels")
+                .and_then(|value| parse_cdxml_bool(Some(value))),
+            show_non_terminal_carbon_label: node
+                .attr("ShowNonTerminalCarbonLabels")
+                .and_then(|value| parse_cdxml_bool(Some(value))),
         },
         meta,
     })
+}
+
+fn parse_element_list(value: Option<&str>) -> (Vec<u8>, bool) {
+    let mut tokens = value.unwrap_or("").split_whitespace();
+    let first = tokens.next();
+    let excluded = first.is_some_and(|value| value.eq_ignore_ascii_case("NOT"));
+    let values = first
+        .filter(|_| !excluded)
+        .into_iter()
+        .chain(tokens)
+        .filter_map(|value| value.parse::<u8>().ok())
+        .collect();
+    (values, excluded)
+}
+
+fn parse_generic_list(value: Option<&str>) -> (Vec<String>, bool) {
+    let mut tokens = value.unwrap_or("").split_whitespace();
+    let first = tokens.next();
+    let excluded = first.is_some_and(|value| value.eq_ignore_ascii_case("NOT"));
+    let values = first
+        .filter(|_| !excluded)
+        .into_iter()
+        .chain(tokens)
+        .map(ToString::to_string)
+        .collect();
+    (values, excluded)
+}
+
+fn cdxml_ring_bond_count(value: Option<&str>) -> crate::RingBondCount {
+    match value.unwrap_or("") {
+        "NoRingBonds" => crate::RingBondCount::NoRingBonds,
+        "AsDrawn" => crate::RingBondCount::AsDrawn,
+        "SimpleRing" => crate::RingBondCount::SimpleRing,
+        "Fusion" => crate::RingBondCount::Fusion,
+        "SpiroOrHigher" => crate::RingBondCount::SpiroOrHigher,
+        _ => crate::RingBondCount::Unspecified,
+    }
+}
+
+fn cdxml_unsaturated_bonds(value: Option<&str>) -> crate::UnsaturatedBonds {
+    match value.unwrap_or("") {
+        "MustBeAbsent" => crate::UnsaturatedBonds::MustBeAbsent,
+        "MustBePresent" => crate::UnsaturatedBonds::MustBePresent,
+        _ => crate::UnsaturatedBonds::Unspecified,
+    }
+}
+
+fn cdxml_query_translation(value: Option<&str>) -> crate::QueryTranslation {
+    match value.unwrap_or("") {
+        "Broad" => crate::QueryTranslation::Broad,
+        "Narrow" => crate::QueryTranslation::Narrow,
+        "Any" => crate::QueryTranslation::Any,
+        _ => crate::QueryTranslation::Equal,
+    }
 }
 
 pub(super) fn cdxml_atom_radical(value: Option<&str>) -> crate::AtomRadical {

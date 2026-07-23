@@ -26,6 +26,31 @@ use super::{
     CdxmlDefaults, CdxmlJustification,
 };
 
+fn format_query_list(values: &[String], excluded: bool) -> String {
+    let body = values.join(" ");
+    if excluded {
+        format!("NOT {body}")
+    } else {
+        body
+    }
+}
+
+fn node_has_native_query_annotation(node: &Node) -> bool {
+    let properties = &node.atom_properties;
+    properties.isotopic_abundance != crate::IsotopicAbundance::Unspecified
+        || properties.free_sites.is_some()
+        || properties.ring_bond_count != crate::RingBondCount::Unspecified
+        || properties.unsaturated_bonds != crate::UnsaturatedBonds::Unspecified
+        || properties.substituents_up_to.is_some()
+        || properties.substituents_exactly.is_some()
+        || properties.translation != crate::QueryTranslation::Equal
+        || node
+            .meta
+            .pointer("/import/cdxml/restrictImplicitHydrogens")
+            .and_then(Value::as_bool)
+            == Some(true)
+}
+
 pub fn document_to_cdxml(document: &ChemSemaDocument) -> String {
     let generated = CdxmlDocumentWriter::new(document).write();
     let Some(source) = document.interchange.get("cdxml") else {
@@ -182,11 +207,8 @@ impl<'a> CdxmlDocumentWriter<'a> {
             && (annotation_role.is_some_and(|role| matches!(role, "atom_number" | "stereo"))
                 || (annotation_role == Some("query")
                     && attached_node_id.is_some_and(|node_id| {
-                        object.payload.extra.get("text").and_then(Value::as_str) == Some("I")
-                            && document_node(self.document, node_id).is_some_and(|node| {
-                                node.atom_properties.isotopic_abundance
-                                    != crate::IsotopicAbundance::Unspecified
-                            })
+                        document_node(self.document, node_id)
+                            .is_some_and(node_has_native_query_annotation)
                     })))
         {
             // These are cached displays of node semantics. The node attributes
@@ -480,9 +502,15 @@ impl<'a> CdxmlDocumentWriter<'a> {
         let is_plain_carbon =
             node.atomic_number == 6 && label_text.is_none() && !node.is_placeholder;
         let is_nickname = node.is_placeholder;
+        let is_query_list = !node.atom_properties.element_list.is_empty()
+            || !node.atom_properties.generic_list.is_empty();
         let mut attrs = vec![("id", cdxml_id.to_string()), ("p", fmt_point(point))];
         attrs.push(("Z", object.z_index.to_string()));
-        if !is_plain_carbon && node.atomic_number > 0 && (!is_nickname || node.atomic_number != 6) {
+        if !is_query_list
+            && !is_plain_carbon
+            && node.atomic_number > 0
+            && (!is_nickname || node.atomic_number != 6)
+        {
             attrs.push(("Element", node.atomic_number.to_string()));
         }
         let imported_node_type = node
@@ -490,20 +518,37 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .pointer("/import/cdxml/nodeType")
             .and_then(Value::as_str)
             .filter(|value| !value.is_empty());
-        if node.is_external_connection_point {
+        if is_query_list {
+            attrs.push(("NodeType", "ElementList".to_string()));
+        } else if node.is_external_connection_point {
             attrs.push(("NodeType", "ExternalConnectionPoint".to_string()));
         } else if let Some(node_type) = imported_node_type {
             attrs.push(("NodeType", node_type.to_string()));
         } else if is_nickname {
             attrs.push(("NodeType", "Nickname".to_string()));
         }
-        if let Some(element_list) = node
-            .meta
-            .pointer("/import/cdxml/elementList")
-            .and_then(Value::as_str)
-            .filter(|value| !value.is_empty())
-        {
-            attrs.push(("ElementList", element_list.to_string()));
+        if !node.atom_properties.element_list.is_empty() {
+            attrs.push((
+                "ElementList",
+                format_query_list(
+                    &node
+                        .atom_properties
+                        .element_list
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>(),
+                    node.atom_properties.element_list_excluded,
+                ),
+            ));
+        }
+        if !node.atom_properties.generic_list.is_empty() {
+            attrs.push((
+                "GenericList",
+                format_query_list(
+                    &node.atom_properties.generic_list,
+                    node.atom_properties.generic_list_excluded,
+                ),
+            ));
         }
         if let Some(label) = node.label.as_ref() {
             if let Some(display) = imported_cdxml_label_attr(label, "labelDisplay") {
@@ -563,6 +608,64 @@ impl<'a> CdxmlDocumentWriter<'a> {
             attrs.push((
                 "ShowAtomStereo",
                 if show { "yes" } else { "no" }.to_string(),
+            ));
+        }
+        if let Some(value) = node.atom_properties.free_sites {
+            attrs.push(("FreeSites", value.to_string()));
+        }
+        if let Some(value) = node.atom_properties.show_atom_query {
+            attrs.push((
+                "ShowAtomQuery",
+                if value { "yes" } else { "no" }.to_string(),
+            ));
+        }
+        let ring_bond_count = match node.atom_properties.ring_bond_count {
+            crate::RingBondCount::Unspecified => None,
+            crate::RingBondCount::NoRingBonds => Some("NoRingBonds"),
+            crate::RingBondCount::AsDrawn => Some("AsDrawn"),
+            crate::RingBondCount::SimpleRing => Some("SimpleRing"),
+            crate::RingBondCount::Fusion => Some("Fusion"),
+            crate::RingBondCount::SpiroOrHigher => Some("SpiroOrHigher"),
+        };
+        if let Some(value) = ring_bond_count {
+            attrs.push(("RingBondCount", value.to_string()));
+        }
+        let unsaturated_bonds = match node.atom_properties.unsaturated_bonds {
+            crate::UnsaturatedBonds::Unspecified => None,
+            crate::UnsaturatedBonds::MustBeAbsent => Some("MustBeAbsent"),
+            crate::UnsaturatedBonds::MustBePresent => Some("MustBePresent"),
+        };
+        if let Some(value) = unsaturated_bonds {
+            attrs.push(("UnsaturatedBonds", value.to_string()));
+        }
+        if let Some(value) = node.atom_properties.substituents_up_to {
+            attrs.push(("SubstituentsUpTo", value.to_string()));
+        }
+        if let Some(value) = node.atom_properties.substituents_exactly {
+            attrs.push(("SubstituentsExactly", value.to_string()));
+        }
+        let translation = match node.atom_properties.translation {
+            crate::QueryTranslation::Equal => None,
+            crate::QueryTranslation::Broad => Some("Broad"),
+            crate::QueryTranslation::Narrow => Some("Narrow"),
+            crate::QueryTranslation::Any => Some("Any"),
+        };
+        if let Some(value) = translation {
+            attrs.push(("Translation", value.to_string()));
+        }
+        if node.atom_properties.abnormal_valence {
+            attrs.push(("AbnormalValence", "yes".to_string()));
+        }
+        if let Some(value) = node.atom_properties.show_terminal_carbon_label {
+            attrs.push((
+                "ShowTerminalCarbonLabels",
+                if value { "yes" } else { "no" }.to_string(),
+            ));
+        }
+        if let Some(value) = node.atom_properties.show_non_terminal_carbon_label {
+            attrs.push((
+                "ShowNonTerminalCarbonLabels",
+                if value { "yes" } else { "no" }.to_string(),
             ));
         }
         if let Some(num_hydrogens) = cdxml_node_num_hydrogens_for_export(node) {

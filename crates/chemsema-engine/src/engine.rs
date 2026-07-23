@@ -37,13 +37,12 @@ pub use self::command::{
     TextCommandDisplayMode, TextEditCommandTarget,
 };
 use self::text_edit::{
-    element_symbol_info, endpoint_label_world_bounds, implicit_hydrogen_label_text_for_count,
-    mark_shortcut_implicit_hydrogen_label, refresh_element_valence_recognition_for_all_nodes,
-    standalone_element_hydrogen_count,
+    element_symbol_info, endpoint_label_world_bounds, mark_shortcut_implicit_hydrogen_label,
+    refresh_element_valence_recognition_for_all_nodes, standalone_element_hydrogen_count,
 };
 pub(crate) use self::text_edit::{
-    formula_hydrogen_count_for_node, make_periodic_element_node_label,
-    refresh_attached_node_label_geometry_for_all_nodes,
+    formula_hydrogen_count_for_node, implicit_hydrogen_label_text_for_count,
+    make_periodic_element_node_label, refresh_attached_node_label_geometry_for_all_nodes,
     refresh_attached_node_label_geometry_for_all_nodes_with_profile,
     refresh_attached_node_label_geometry_for_node,
     refresh_attached_node_label_geometry_for_node_without_implicit_hydrogen_refresh,

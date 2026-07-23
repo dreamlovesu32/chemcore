@@ -558,9 +558,24 @@ text 对象表示带定位信息的富文本内容。
 | `showAtomStereo` | 布尔 | 逐原子覆盖立体化学标记的显隐 |
 | `atomNumberPosition` | 对象 | 可选的 `auto`、角度、偏移或绝对定位意图 |
 | `stereoPosition` | 对象 | 可选的 `auto`、角度、偏移或绝对定位意图 |
+| `elementList` | 整数数组 | 元素列表查询允许的原子序数 |
+| `elementListExcluded` | 布尔 | 将 `elementList` 解释为排除（`NOT`）列表 |
+| `genericList` | 字符串数组 | 通用昵称列表，可与 `elementList` 共存 |
+| `genericListExcluded` | 布尔 | 将 `genericList` 解释为排除（`NOT`）列表 |
+| `freeSites` | 整数 | 允许增加的取代位点上限 |
+| `showAtomQuery` | 布尔 | 逐原子覆盖查询标记显隐 |
+| `ringBondCount` | 字符串 | `unspecified`、`no-ring-bonds`、`as-drawn`、`simple-ring`、`fusion` 或 `spiro-or-higher` |
+| `unsaturatedBonds` | 字符串 | `unspecified`、`must-be-absent` 或 `must-be-present` |
+| `substituentsUpTo` | 整数 | 非氢相邻键数量上限 |
+| `substituentsExactly` | 整数 | 非氢相邻键的精确数量 |
+| `translation` | 字符串 | `equal`、`broad`、`narrow` 或 `any` 查询翻译规则 |
+| `abnormalValence` | 布尔 | 允许实际画出的价态且不触发常规价态诊断 |
+| `showTerminalCarbonLabel` | 布尔 | 逐节点覆盖端点碳标签显隐 |
+| `showNonTerminalCarbonLabel` | 布尔 | 逐节点覆盖非端点碳标签显隐 |
 
 缺失字段继承文档或样式默认值；`isotopicAbundance` 与 `radical`
-分别默认为 `unspecified` 和 `none`，其余字段默认为不存在。附着的电子符号仍是
+分别默认为 `unspecified` 和 `none`；查询枚举默认为 `unspecified`/`equal`，
+列表排除和异常价态标记默认为 `false`，其余字段默认为不存在。附着的电子符号仍是
 可独立选择的对象，但其附着关系会参与原子的有效自由基化学语义。
 
 带缩写识别的节点仍保留原始绘制信息；机器可读的解释附加在

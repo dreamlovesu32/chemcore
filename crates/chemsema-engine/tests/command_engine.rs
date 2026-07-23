@@ -1597,6 +1597,17 @@ fn atom_properties_command_round_trips_through_ccjs_cdxml_and_cdx() {
         ("radical", "doublet"),
         ("atom-number", "42"),
         ("stereo", "R"),
+        ("element-list", "NOT 7 8"),
+        ("generic-list", "R X"),
+        ("free-sites", "2"),
+        ("show-atom-query", "true"),
+        ("ring-bond-count", "simple-ring"),
+        ("unsaturated-bonds", "must-be-present"),
+        ("substituents-exactly", "3"),
+        ("translation", "narrow"),
+        ("abnormal-valence", "true"),
+        ("show-terminal-carbon-label", "true"),
+        ("show-non-terminal-carbon-label", "false"),
     ] {
         let result = execute(
             &mut engine,
@@ -1618,6 +1629,19 @@ fn atom_properties_command_round_trips_through_ccjs_cdxml_and_cdx() {
     assert_eq!(node["atomProperties"]["showAtomNumber"], true);
     assert_eq!(node["atomProperties"]["cipStereo"], "R");
     assert_eq!(node["atomProperties"]["showAtomStereo"], true);
+    assert_eq!(node["atomProperties"]["elementList"], json!([7, 8]));
+    assert_eq!(node["atomProperties"]["elementListExcluded"], true);
+    assert_eq!(node["atomProperties"]["genericList"], json!(["R", "X"]));
+    assert_eq!(node["atomProperties"]["freeSites"], 2);
+    assert_eq!(node["atomProperties"]["showAtomQuery"], true);
+    assert_eq!(node["atomProperties"]["ringBondCount"], "simple-ring");
+    assert_eq!(
+        node["atomProperties"]["unsaturatedBonds"],
+        "must-be-present"
+    );
+    assert_eq!(node["atomProperties"]["substituentsExactly"], 3);
+    assert_eq!(node["atomProperties"]["translation"], "narrow");
+    assert_eq!(node["atomProperties"]["abnormalValence"], true);
     let rendered_text = engine
         .render_list()
         .iter()
@@ -1632,7 +1656,7 @@ fn atom_properties_command_round_trips_through_ccjs_cdxml_and_cdx() {
             _ => None,
         })
         .collect::<Vec<_>>();
-    for expected in ["13", "I", "•", "42", "(R)"] {
+    for expected in ["13", "•", "42", "(R)", "X3SRLI"] {
         assert!(
             rendered_text.iter().any(|text| text == expected),
             "missing rendered atom decoration {expected}: {rendered_text:?}"
@@ -1648,6 +1672,18 @@ fn atom_properties_command_round_trips_through_ccjs_cdxml_and_cdx() {
         "ShowAtomNumber=\"yes\"",
         "ShowAtomStereo=\"yes\"",
         "AS=\"R\"",
+        "ElementList=\"NOT 7 8\"",
+        "NodeType=\"ElementList\"",
+        "GenericList=\"R X\"",
+        "FreeSites=\"2\"",
+        "ShowAtomQuery=\"yes\"",
+        "RingBondCount=\"SimpleRing\"",
+        "UnsaturatedBonds=\"MustBePresent\"",
+        "SubstituentsExactly=\"3\"",
+        "Translation=\"Narrow\"",
+        "AbnormalValence=\"yes\"",
+        "ShowTerminalCarbonLabels=\"yes\"",
+        "ShowNonTerminalCarbonLabels=\"no\"",
     ] {
         assert!(cdxml.contains(attribute), "missing {attribute}\n{cdxml}");
     }
@@ -1671,6 +1707,24 @@ fn atom_properties_command_round_trips_through_ccjs_cdxml_and_cdx() {
     assert_eq!(reopened_node["atomProperties"]["radical"], "doublet");
     assert_eq!(reopened_node["atomProperties"]["atomNumber"], "42");
     assert_eq!(reopened_node["atomProperties"]["cipStereo"], "R");
+    assert_eq!(
+        reopened_node["atomProperties"]["elementList"],
+        json!([7, 8])
+    );
+    assert_eq!(
+        reopened_node["atomProperties"]["genericList"],
+        json!(["R", "X"])
+    );
+    assert_eq!(
+        reopened_node["atomProperties"]["ringBondCount"],
+        "simple-ring"
+    );
+    assert_eq!(
+        reopened_node["atomProperties"]["unsaturatedBonds"],
+        "must-be-present"
+    );
+    assert_eq!(reopened_node["atomProperties"]["translation"], "narrow");
+    assert_eq!(reopened_node["atomProperties"]["abnormalValence"], true);
 }
 
 #[test]

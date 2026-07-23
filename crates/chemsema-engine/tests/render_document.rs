@@ -11,6 +11,7 @@ mod support;
 mod render_document {
     use super::*;
 
+    mod atom_queries;
     mod bond_endpoints;
     mod colors_labels;
     mod crossings_selection;

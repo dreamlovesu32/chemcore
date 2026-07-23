@@ -1,6 +1,7 @@
 use super::*;
 use crate::{
-    round2, AtomRadical, IsotopicAbundance, MoleculeFragment, Node, ObjectPayload, Vector,
+    round2, AtomRadical, IsotopicAbundance, MoleculeFragment, Node, ObjectPayload,
+    QueryTranslation, RingBondCount, UnsaturatedBonds, Vector,
 };
 use serde_json::Map;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -22,6 +23,115 @@ fn parse_optional_bool(value: Option<&str>) -> Option<bool> {
     }
 }
 
+fn parse_optional_u8(value: Option<&str>) -> Result<Option<u8>, ()> {
+    match value {
+        None => Ok(None),
+        Some(value) => value.parse::<u8>().map(Some).map_err(|_| ()),
+    }
+}
+
+fn parse_atom_query_list(value: Option<&str>) -> (Vec<String>, bool) {
+    let mut tokens = value.unwrap_or("").split_whitespace();
+    let first = tokens.next();
+    let excluded = first.is_some_and(|value| value.eq_ignore_ascii_case("NOT"));
+    let values = first
+        .filter(|_| !excluded)
+        .into_iter()
+        .chain(tokens)
+        .map(ToString::to_string)
+        .collect();
+    (values, excluded)
+}
+
+fn refresh_atom_query_list_label(node: &mut Node) -> bool {
+    let generated = node
+        .label
+        .as_ref()
+        .is_some_and(|label| label.meta.pointer("/queryListLabel/source").is_some());
+    if !generated && node.label.is_some() {
+        return false;
+    }
+    let mut values: Vec<String> = node
+        .atom_properties
+        .element_list
+        .iter()
+        .map(|value| crate::cdxml::element_symbol(*value).to_string())
+        .collect();
+    values.extend(node.atom_properties.generic_list.iter().cloned());
+    if values.is_empty() {
+        if generated {
+            node.label = None;
+            return true;
+        }
+        return false;
+    }
+    let excluded =
+        node.atom_properties.element_list_excluded || node.atom_properties.generic_list_excluded;
+    let text = format!(
+        "{}{}",
+        if excluded { "NOT " } else { "" },
+        values.join(", ")
+    );
+    let mut label = crate::engine::make_periodic_element_node_label(&text, node.position);
+    label.meta = serde_json::json!({"queryListLabel": {"source": "editor-generated"}});
+    replace_if_different(&mut node.label, Some(label))
+}
+
+fn refresh_carbon_display_labels(
+    fragment: &mut MoleculeFragment,
+    selected: &BTreeSet<String>,
+    show_terminal_default: bool,
+    show_non_terminal_default: bool,
+) -> bool {
+    let plans: Vec<(String, bool, u8)> = fragment
+        .nodes
+        .iter()
+        .filter(|node| selected.contains(&node.id) && node.atomic_number == 6)
+        .map(|node| {
+            let bond_count = fragment
+                .bonds
+                .iter()
+                .filter(|bond| bond.begin == node.id || bond.end == node.id)
+                .count();
+            let show = if bond_count <= 1 {
+                node.atom_properties
+                    .show_terminal_carbon_label
+                    .unwrap_or(show_terminal_default)
+            } else {
+                node.atom_properties
+                    .show_non_terminal_carbon_label
+                    .unwrap_or(show_non_terminal_default)
+            };
+            (
+                node.id.clone(),
+                show,
+                crate::engine::formula_hydrogen_count_for_node(fragment, &node.id),
+            )
+        })
+        .collect();
+    let mut changed = false;
+    for (node_id, show, hydrogens) in plans {
+        let Some(node) = fragment.nodes.iter_mut().find(|node| node.id == node_id) else {
+            continue;
+        };
+        let generated = node
+            .label
+            .as_ref()
+            .is_some_and(|label| label.meta.pointer("/carbonDisplayLabel/source").is_some());
+        if show && (node.label.is_none() || generated) {
+            let text = crate::engine::implicit_hydrogen_label_text_for_count("C", hydrogens);
+            let mut label = crate::engine::make_periodic_element_node_label(&text, node.position);
+            label.meta = serde_json::json!({"carbonDisplayLabel": {"source": "editor-generated"}});
+            changed |= replace_if_different(&mut node.num_hydrogens, hydrogens);
+            changed |= replace_if_different(&mut node.label, Some(label));
+        } else if !show && generated {
+            node.label = None;
+            changed = true;
+        }
+    }
+    changed
+}
+
 enum AtomPropertyUpdate {
     Isotope(Option<i16>),
     Abundance(IsotopicAbundance),
@@ -30,6 +140,18 @@ enum AtomPropertyUpdate {
     ShowAtomNumber(Option<bool>),
     Stereo(Option<String>),
     ShowStereo(Option<bool>),
+    ElementList(Vec<u8>, bool),
+    GenericList(Vec<String>, bool),
+    FreeSites(Option<u8>),
+    ShowAtomQuery(Option<bool>),
+    RingBondCount(RingBondCount),
+    UnsaturatedBonds(UnsaturatedBonds),
+    SubstituentsUpTo(Option<u8>),
+    SubstituentsExactly(Option<u8>),
+    Translation(QueryTranslation),
+    AbnormalValence(bool),
+    ShowTerminalCarbonLabel(Option<bool>),
+    ShowNonTerminalCarbonLabel(Option<bool>),
 }
 
 fn sync_linked_atom_annotation_objects(
@@ -737,9 +859,92 @@ impl Engine {
                 }
                 AtomPropertyUpdate::ShowStereo(parsed)
             }
+            "element-list" => {
+                let (values, excluded) = parse_atom_query_list(normalized);
+                let mut parsed = Vec::new();
+                for value in values {
+                    let Ok(value) = value.parse::<u8>() else {
+                        return false;
+                    };
+                    parsed.push(value);
+                }
+                AtomPropertyUpdate::ElementList(parsed, excluded)
+            }
+            "generic-list" => {
+                let (values, excluded) = parse_atom_query_list(normalized);
+                AtomPropertyUpdate::GenericList(values, excluded)
+            }
+            "free-sites" => AtomPropertyUpdate::FreeSites(match parse_optional_u8(normalized) {
+                Ok(value) => value,
+                Err(()) => return false,
+            }),
+            "show-atom-query" => AtomPropertyUpdate::ShowAtomQuery(parse_optional_bool(normalized)),
+            "ring-bond-count" => {
+                AtomPropertyUpdate::RingBondCount(match normalized.unwrap_or("unspecified") {
+                    "unspecified" => RingBondCount::Unspecified,
+                    "no-ring-bonds" => RingBondCount::NoRingBonds,
+                    "as-drawn" => RingBondCount::AsDrawn,
+                    "simple-ring" => RingBondCount::SimpleRing,
+                    "fusion" => RingBondCount::Fusion,
+                    "spiro-or-higher" => RingBondCount::SpiroOrHigher,
+                    _ => return false,
+                })
+            }
+            "unsaturated-bonds" => {
+                AtomPropertyUpdate::UnsaturatedBonds(match normalized.unwrap_or("unspecified") {
+                    "unspecified" => UnsaturatedBonds::Unspecified,
+                    "must-be-absent" => UnsaturatedBonds::MustBeAbsent,
+                    "must-be-present" => UnsaturatedBonds::MustBePresent,
+                    _ => return false,
+                })
+            }
+            "substituents-up-to" => {
+                AtomPropertyUpdate::SubstituentsUpTo(match parse_optional_u8(normalized) {
+                    Ok(value) => value,
+                    Err(()) => return false,
+                })
+            }
+            "substituents-exactly" => {
+                AtomPropertyUpdate::SubstituentsExactly(match parse_optional_u8(normalized) {
+                    Ok(value) => value,
+                    Err(()) => return false,
+                })
+            }
+            "translation" => AtomPropertyUpdate::Translation(match normalized.unwrap_or("equal") {
+                "equal" => QueryTranslation::Equal,
+                "broad" => QueryTranslation::Broad,
+                "narrow" => QueryTranslation::Narrow,
+                "any" => QueryTranslation::Any,
+                _ => return false,
+            }),
+            "abnormal-valence" => AtomPropertyUpdate::AbnormalValence(
+                parse_optional_bool(normalized).unwrap_or(false),
+            ),
+            "show-terminal-carbon-label" => {
+                AtomPropertyUpdate::ShowTerminalCarbonLabel(parse_optional_bool(normalized))
+            }
+            "show-non-terminal-carbon-label" => {
+                AtomPropertyUpdate::ShowNonTerminalCarbonLabel(parse_optional_bool(normalized))
+            }
             _ => return false,
         };
 
+        let show_terminal_default = self
+            .state
+            .document
+            .document
+            .meta
+            .pointer("/import/cdxml/defaults/showTerminalCarbonLabels")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
+        let show_non_terminal_default = self
+            .state
+            .document
+            .document
+            .meta
+            .pointer("/import/cdxml/defaults/showNonTerminalCarbonLabels")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
         self.push_undo_snapshot();
         let Some(entry) = self.state.document.editable_fragment_mut() else {
             self.undo_stack.pop();
@@ -750,7 +955,7 @@ impl Engine {
             if !selected.contains(&node.id) {
                 continue;
             }
-            changed |= match &update {
+            let node_changed = match &update {
                 AtomPropertyUpdate::Isotope(next) => {
                     replace_if_different(&mut node.atom_properties.isotope_mass, *next)
                 }
@@ -790,7 +995,74 @@ impl Engine {
                 AtomPropertyUpdate::ShowStereo(next) => {
                     replace_if_different(&mut node.atom_properties.show_atom_stereo, *next)
                 }
+                AtomPropertyUpdate::ElementList(values, excluded) => {
+                    replace_if_different(&mut node.atom_properties.element_list, values.clone())
+                        | replace_if_different(
+                            &mut node.atom_properties.element_list_excluded,
+                            *excluded,
+                        )
+                }
+                AtomPropertyUpdate::GenericList(values, excluded) => {
+                    replace_if_different(&mut node.atom_properties.generic_list, values.clone())
+                        | replace_if_different(
+                            &mut node.atom_properties.generic_list_excluded,
+                            *excluded,
+                        )
+                }
+                AtomPropertyUpdate::FreeSites(next) => {
+                    replace_if_different(&mut node.atom_properties.free_sites, *next)
+                }
+                AtomPropertyUpdate::ShowAtomQuery(next) => {
+                    replace_if_different(&mut node.atom_properties.show_atom_query, *next)
+                }
+                AtomPropertyUpdate::RingBondCount(next) => {
+                    replace_if_different(&mut node.atom_properties.ring_bond_count, *next)
+                }
+                AtomPropertyUpdate::UnsaturatedBonds(next) => {
+                    replace_if_different(&mut node.atom_properties.unsaturated_bonds, *next)
+                }
+                AtomPropertyUpdate::SubstituentsUpTo(next) => {
+                    replace_if_different(&mut node.atom_properties.substituents_up_to, *next)
+                }
+                AtomPropertyUpdate::SubstituentsExactly(next) => {
+                    replace_if_different(&mut node.atom_properties.substituents_exactly, *next)
+                }
+                AtomPropertyUpdate::Translation(next) => {
+                    replace_if_different(&mut node.atom_properties.translation, *next)
+                }
+                AtomPropertyUpdate::AbnormalValence(next) => {
+                    replace_if_different(&mut node.atom_properties.abnormal_valence, *next)
+                }
+                AtomPropertyUpdate::ShowTerminalCarbonLabel(next) => replace_if_different(
+                    &mut node.atom_properties.show_terminal_carbon_label,
+                    *next,
+                ),
+                AtomPropertyUpdate::ShowNonTerminalCarbonLabel(next) => replace_if_different(
+                    &mut node.atom_properties.show_non_terminal_carbon_label,
+                    *next,
+                ),
             };
+            changed |= node_changed;
+            if node_changed
+                && matches!(
+                    update,
+                    AtomPropertyUpdate::ElementList(_, _) | AtomPropertyUpdate::GenericList(_, _)
+                )
+            {
+                changed |= refresh_atom_query_list_label(node);
+            }
+        }
+        if matches!(
+            update,
+            AtomPropertyUpdate::ShowTerminalCarbonLabel(_)
+                | AtomPropertyUpdate::ShowNonTerminalCarbonLabel(_)
+        ) {
+            changed |= refresh_carbon_display_labels(
+                entry.fragment,
+                &selected,
+                show_terminal_default,
+                show_non_terminal_default,
+            );
         }
         drop(entry);
         changed |= sync_linked_atom_annotation_objects(

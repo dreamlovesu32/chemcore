@@ -44,6 +44,7 @@ pub(super) fn normalize_fragment(
             }
         }),
     };
+    apply_cdxml_carbon_label_display(&mut fragment, defaults, fonts);
     crate::engine::refresh_attached_node_label_geometry_for_all_nodes_with_profile(
         &mut fragment,
         origin,
@@ -54,6 +55,52 @@ pub(super) fn normalize_fragment(
     );
     infer_cdxml_ring_double_bond_placements(&mut fragment);
     Some(fragment)
+}
+
+fn apply_cdxml_carbon_label_display(
+    fragment: &mut MoleculeFragment,
+    defaults: CdxmlDefaults,
+    fonts: &BTreeMap<String, String>,
+) {
+    let plans: Vec<(String, u8)> = fragment
+        .nodes
+        .iter()
+        .filter(|node| node.atomic_number == 6 && node.label.is_none() && !node.is_placeholder)
+        .filter_map(|node| {
+            let bond_count = fragment
+                .bonds
+                .iter()
+                .filter(|bond| bond.begin == node.id || bond.end == node.id)
+                .count();
+            let show = if bond_count <= 1 {
+                node.atom_properties
+                    .show_terminal_carbon_label
+                    .unwrap_or(defaults.show_terminal_carbon_labels)
+            } else {
+                node.atom_properties
+                    .show_non_terminal_carbon_label
+                    .unwrap_or(defaults.show_non_terminal_carbon_labels)
+            };
+            show.then(|| {
+                (
+                    node.id.clone(),
+                    crate::engine::formula_hydrogen_count_for_node(fragment, &node.id),
+                )
+            })
+        })
+        .collect();
+    for (node_id, hydrogen_count) in plans {
+        let Some(node) = fragment.nodes.iter_mut().find(|node| node.id == node_id) else {
+            continue;
+        };
+        node.num_hydrogens = hydrogen_count;
+        let text = crate::engine::implicit_hydrogen_label_text_for_count("C", hydrogen_count);
+        let mut label = crate::engine::make_periodic_element_node_label(&text, node.position);
+        label.font_size = Some(defaults.label_size);
+        label.font_family = fonts.get(&defaults.label_font.to_string()).cloned();
+        label.meta = json!({"carbonDisplayLabel": {"source": "cdxml-generated"}});
+        node.label = Some(label);
+    }
 }
 
 pub(super) fn split_cdxml_fragment_components(

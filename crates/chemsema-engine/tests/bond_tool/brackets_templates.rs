@@ -1343,6 +1343,18 @@ fn engine_provides_context_menu_and_numeric_dialog_schemas() {
         .is_some_and(|items| items.iter().any(|item| {
             item.get("label").and_then(serde_json::Value::as_str) == Some("Radical")
         })));
+    let atom_query = atom_menu
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some("Atom Query"))
+        .expect("atom menu exposes atom query editing");
+    assert!(atom_query
+        .get("submenu")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|items| items.iter().any(|item| {
+            item.get("label").and_then(serde_json::Value::as_str) == Some("Element List...")
+        })));
 
     let scale: serde_json::Value =
         serde_json::from_str(&engine.selection_numeric_dialog_json("scale")).unwrap();
@@ -1355,6 +1367,11 @@ fn engine_provides_context_menu_and_numeric_dialog_schemas() {
     assert_eq!(isotope["field"]["valueKind"], "integer");
     assert_eq!(isotope["field"]["minimum"], 1);
     assert_eq!(isotope["field"]["maximum"], i16::MAX);
+    let element_list: serde_json::Value =
+        serde_json::from_str(&engine.atom_property_dialog_json("element-list")).unwrap();
+    assert_eq!(element_list["kind"], "atom-property");
+    assert_eq!(element_list["property"], "element-list");
+    assert_eq!(element_list["field"]["valueKind"], "text");
     assert!(engine.select_all());
     let molecule_menu: serde_json::Value =
         serde_json::from_str(&engine.context_menu_json(&hit, false)).unwrap();

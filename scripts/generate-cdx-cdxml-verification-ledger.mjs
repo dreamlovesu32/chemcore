@@ -13,6 +13,8 @@ const cdxml = [
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "colors.rs"),
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "export.rs"),
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "import_objects.rs"),
+  join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "import_nodes.rs"),
+  join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "import_fragments.rs"),
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "text_runs.rs"),
 ].map((path) => readFileSync(path, "utf8")).join("\n");
 
@@ -22,6 +24,12 @@ const propertyBody = cdx.slice(cdx.indexOf("fn property_schema"), cdx.indexOf("f
 const explicitPropertyTags = new Set([...propertyBody.matchAll(/(0x[0-9A-Fa-f]{4})\s*=>\s*\("/g)]
   .map((match) => match[1].toUpperCase().replace("0X", "0x")));
 const directCdxmlAttributes = new Set([...cdxml.matchAll(/\.attr\("([^"]+)"\)/g)].map((match) => match[1]));
+const nativeSemanticProperties = new Set([
+  "Isotope", "IsotopicAbundance", "Radical", "AtomNumber", "ShowAtomNumber", "AS",
+  "ShowAtomStereo", "ElementList", "GenericList", "FreeSites", "RingBondCount",
+  "UnsaturatedBonds", "SubstituentsUpTo", "SubstituentsExactly", "Translation",
+  "AbnormalValence", "ShowTerminalCarbonLabels", "ShowNonTerminalCarbonLabels",
+]);
 const lexicalCdxTypes = new Set([
   "CDXString", "CDXBoolean", "CDXBooleanImplied", "INT8", "UINT8", "INT16", "UINT16",
   "INT32", "UINT32", "FLOAT64", "CDXCoordinate", "CDXPoint2D", "CDXPoint3D", "CDXRectangle",
@@ -51,7 +59,7 @@ const behaviorStatus = (family, name) => {
   return behavior.default;
 };
 const cdxImplementation = (property) => {
-  if (explicitPropertyTags.has(property.tag) || ["CDXFontTable", "CDXColorTable"].includes(property.cdxType)) return "native-semantic";
+  if (nativeSemanticProperties.has(property.cdxmlName) || explicitPropertyTags.has(property.tag) || ["CDXFontTable", "CDXColorTable"].includes(property.cdxType)) return "native-semantic";
   if (lexicalCdxTypes.has(property.cdxType)) return "typed-interchange";
   if (property.cdxType === "varies") return "context-dependent-interchange";
   return "opaque-by-spec";

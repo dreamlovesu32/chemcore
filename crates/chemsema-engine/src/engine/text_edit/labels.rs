@@ -1321,7 +1321,7 @@ pub(super) fn element_valence_is_valid_for_node(
     fragment: &crate::MoleculeFragment,
     node: &crate::Node,
 ) -> bool {
-    if node.is_placeholder || node.atomic_number == 1 {
+    if node.is_placeholder || node.atomic_number == 1 || node.atom_properties.abnormal_valence {
         return true;
     }
     if node.atomic_number == 6 {
@@ -2182,6 +2182,9 @@ pub(super) fn implicit_hydrogen_count(fragment: &crate::MoleculeFragment, node_i
     }
     if let Some(num_hydrogens) = smiles_semantic_num_hydrogens(node) {
         return num_hydrogens;
+    }
+    if node.atom_properties.abnormal_valence {
+        return 0;
     }
     if node.is_placeholder || node.atomic_number == 1 || node.atomic_number == 6 {
         return 0;

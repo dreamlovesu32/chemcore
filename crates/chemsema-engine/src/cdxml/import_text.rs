@@ -10,6 +10,11 @@ pub(in crate::cdxml) fn append_text_objects(
     display_fragment_ids: &BTreeSet<String>,
     bonded_node_ids: &BTreeSet<String>,
 ) {
+    let native_query_node_ids: BTreeSet<String> = descendants(root)
+        .into_iter()
+        .filter(|node| node.is("n") && cdxml_node_has_native_query_semantics(node))
+        .filter_map(|node| node.attr("id").map(ToString::to_string))
+        .collect();
     let mut index = 1;
     let node_positions: BTreeMap<String, [f64; 2]> = descendants(root)
         .into_iter()
@@ -44,6 +49,29 @@ pub(in crate::cdxml) fn append_text_objects(
         display_fragment_ids,
         bonded_node_ids,
     );
+    objects.retain(|object| {
+        object.meta.get("role").and_then(Value::as_str) != Some("query")
+            || object
+                .meta
+                .get("attachedNodeId")
+                .and_then(Value::as_str)
+                .is_none_or(|node_id| !native_query_node_ids.contains(node_id))
+    });
+}
+
+fn cdxml_node_has_native_query_semantics(node: &XmlNode) -> bool {
+    [
+        "IsotopicAbundance",
+        "FreeSites",
+        "RingBondCount",
+        "UnsaturatedBonds",
+        "SubstituentsUpTo",
+        "SubstituentsExactly",
+        "Translation",
+        "ImplicitHydrogens",
+    ]
+    .iter()
+    .any(|name| node.attr(name).is_some())
 }
 
 pub(in crate::cdxml) fn append_synthesized_enhanced_stereo_text_objects(

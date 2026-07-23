@@ -546,10 +546,25 @@ It must not store CDXML object tags or cached text boxes as its meaning.
 | `showAtomStereo` | boolean | Per-atom override for the stereochemistry indicator |
 | `atomNumberPosition` | object | Optional `auto`, angle, offset, or absolute placement intent |
 | `stereoPosition` | object | Optional `auto`, angle, offset, or absolute placement intent |
+| `elementList` | integer array | Allowed atomic numbers for an element-list query |
+| `elementListExcluded` | boolean | Treat `elementList` as an excluded (`NOT`) list |
+| `genericList` | string array | Allowed generic nicknames; may coexist with `elementList` |
+| `genericListExcluded` | boolean | Treat `genericList` as an excluded (`NOT`) list |
+| `freeSites` | integer | Maximum additional substituent sites |
+| `showAtomQuery` | boolean | Per-atom override for query-indicator visibility |
+| `ringBondCount` | string | `unspecified`, `no-ring-bonds`, `as-drawn`, `simple-ring`, `fusion`, or `spiro-or-higher` |
+| `unsaturatedBonds` | string | `unspecified`, `must-be-absent`, or `must-be-present` |
+| `substituentsUpTo` | integer | Maximum number of non-hydrogen neighboring bonds |
+| `substituentsExactly` | integer | Exact number of non-hydrogen neighboring bonds |
+| `translation` | string | `equal`, `broad`, `narrow`, or `any` query translation |
+| `abnormalValence` | boolean | Permit the actual drawn valence without normal-valence diagnostics |
+| `showTerminalCarbonLabel` | boolean | Per-node override for terminal carbon labels |
+| `showNonTerminalCarbonLabel` | boolean | Per-node override for nonterminal carbon labels |
 
 Missing fields use the document/style defaults. `isotopicAbundance` and
-`radical` default to `unspecified` and `none`; the remaining fields default to
-absent. Attached electron-symbol objects remain independently selectable, but
+`radical` default to `unspecified` and `none`; query enums default to
+`unspecified`/`equal`, list-exclusion and abnormal-valence flags default to
+`false`, and the remaining fields default to absent. Attached electron-symbol objects remain independently selectable, but
 their attachment contributes to the atom's effective radical chemistry.
 
 Abbreviation labels keep the original drawing data and add machine-readable

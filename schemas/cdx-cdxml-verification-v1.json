@@ -17,11 +17,11 @@
     "cdxmlAttributes": 384,
     "cdxmlDeclarations": 762,
     "losslessUncovered": 0,
-    "nativeSemanticCdxProperties": 127,
-    "typedInterchangeCdxProperties": 120,
-    "opaqueBySpecCdxProperties": 14,
+    "nativeSemanticCdxProperties": 20,
+    "typedInterchangeCdxProperties": 223,
+    "opaqueBySpecCdxProperties": 18,
     "contextDependentCdxProperties": 1,
-    "nativeSemanticCdxmlAttributes": 128,
+    "nativeSemanticCdxmlAttributes": 54,
     "verifiedBehaviorObjects": 35,
     "verifiedBehaviorCdxProperties": 262,
     "verifiedBehaviorCdxmlAttributes": 384,
@@ -35,7 +35,7 @@
       "cdxmlName": "CDXML",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -45,7 +45,7 @@
       "cdxmlName": "page",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -55,7 +55,7 @@
       "cdxmlName": "group",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -65,7 +65,7 @@
       "cdxmlName": "fragment",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -75,7 +75,7 @@
       "cdxmlName": "n",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -85,7 +85,7 @@
       "cdxmlName": "b",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -95,7 +95,7 @@
       "cdxmlName": "t",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -105,7 +105,7 @@
       "cdxmlName": "graphic",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -115,7 +115,7 @@
       "cdxmlName": "bracketedgroup",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -125,7 +125,7 @@
       "cdxmlName": "bracketattachment",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -135,7 +135,7 @@
       "cdxmlName": "crossingbond",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -145,7 +145,7 @@
       "cdxmlName": "curve",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -155,7 +155,7 @@
       "cdxmlName": "embeddedobject",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -165,7 +165,7 @@
       "cdxmlName": "table",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -175,7 +175,7 @@
       "cdxmlName": "altgroup",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -185,7 +185,7 @@
       "cdxmlName": "templategrid",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -195,7 +195,7 @@
       "cdxmlName": "regnum",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -205,7 +205,7 @@
       "cdxmlName": "scheme",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -215,7 +215,7 @@
       "cdxmlName": "step",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -225,7 +225,7 @@
       "cdxmlName": "spectrum",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -235,7 +235,7 @@
       "cdxmlName": "objecttag",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -245,7 +245,7 @@
       "cdxmlName": "sequence",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -255,7 +255,7 @@
       "cdxmlName": "crossreference",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -266,7 +266,7 @@
       "publishedTag": "0x8020",
       "schemaStatus": "verified-with-erratum",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -277,7 +277,7 @@
       "publishedTag": "0x8021",
       "schemaStatus": "verified-with-erratum",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -288,7 +288,7 @@
       "publishedTag": "0x8022",
       "schemaStatus": "verified-with-erratum",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -299,7 +299,7 @@
       "publishedTag": "0x8023",
       "schemaStatus": "verified-with-erratum",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -310,7 +310,7 @@
       "publishedTag": "0x8024",
       "schemaStatus": "verified-with-erratum",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -321,7 +321,7 @@
       "publishedTag": "0x8025",
       "schemaStatus": "verified-with-erratum",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -331,7 +331,7 @@
       "cdxmlName": "splitter",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -342,7 +342,7 @@
       "publishedTag": "0x8026",
       "schemaStatus": "verified-with-erratum",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     },
     {
@@ -383,7 +383,7 @@
       "publishedTag": "0x8027",
       "schemaStatus": "verified-with-erratum",
       "storageStatus": "verified",
-      "implementation": "native-object-tag",
+      "implementation": "interchange-object",
       "behaviorStatus": "verified"
     }
   ],
@@ -397,7 +397,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/CreationUserName.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -425,7 +425,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/CreationProgram.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -439,7 +439,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/ModificationUserName.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -467,7 +467,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/ModificationProgram.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -481,7 +481,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Name.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -495,7 +495,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Comment.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -509,7 +509,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/ZOrder.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -593,7 +593,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Visible.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -635,7 +635,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/2DPosition.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -649,7 +649,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/3DPosition.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -663,7 +663,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/2DExtent.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -691,7 +691,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BoundingBox.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -705,7 +705,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/RotationAngle.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -719,7 +719,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/3DHead.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -733,7 +733,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/3DTail.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -747,7 +747,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/TopLeft.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -761,7 +761,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/TopRight.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -775,7 +775,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BottomRight.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -789,7 +789,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BottomLeft.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -803,7 +803,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/3DCenter.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -817,7 +817,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/3DMajorAxisEnd.htm",
       "schemaStatus": "verified-with-erratum",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -831,7 +831,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/3DMinorAxisEnd.htm",
       "schemaStatus": "verified-with-erratum",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -859,7 +859,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/ForegroundColor.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -873,7 +873,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BackgroundColor.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -887,7 +887,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Node_Type.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -901,7 +901,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Node_LabelDisplay.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -915,7 +915,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Node_Element.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -929,7 +929,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_ElementList.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -957,7 +957,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_Isotope.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -971,7 +971,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_Charge.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -985,7 +985,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_Radical.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -999,7 +999,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_RestrictFreeSites.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1013,7 +1013,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_RestrictImplicitHydrogens.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1027,7 +1027,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_RestrictRingBondCount.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1041,7 +1041,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_RestrictUnsaturatedBonds.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1083,7 +1083,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_AbnormalValence.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1097,7 +1097,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_NumHydrogens.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1181,7 +1181,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_GenericNickname.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1209,7 +1209,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_RestrictSubstituentsUpTo.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1223,7 +1223,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_RestrictSubstituentsExactly.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1251,7 +1251,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_Translation.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1265,7 +1265,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_AtomNumber.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1293,7 +1293,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_ShowStereo.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1307,7 +1307,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_ShowAtomNumber.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1349,7 +1349,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_IsotopicAbundance.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1377,7 +1377,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_GenericList.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1391,7 +1391,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_ShowTerminalCarbonLabels.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1405,7 +1405,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_ShowNonTerminalCarbonLabels.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1419,7 +1419,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_HideImplicitHydrogens.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1433,7 +1433,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_ShowEnhancedStereo.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1531,7 +1531,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Mole_Weight.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1545,7 +1545,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Frag_ConnectionOrder.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1559,7 +1559,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_Order.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1573,7 +1573,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_Display.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1587,7 +1587,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_Display2.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1601,7 +1601,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_DoublePosition.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1615,7 +1615,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_Begin.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1629,7 +1629,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_End.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1671,7 +1671,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_BeginAttach.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1685,7 +1685,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_EndAttach.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1699,7 +1699,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_CIPStereochemistry.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1713,7 +1713,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_BondOrdering.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1755,7 +1755,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_CrossingBonds.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1797,7 +1797,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Justification.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1811,7 +1811,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineHeight.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1825,7 +1825,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/WordWrapWidth.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1839,7 +1839,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1853,7 +1853,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelAlignment.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1867,7 +1867,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelLineHeight.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1881,7 +1881,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/CaptionLineHeight.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1895,7 +1895,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/InterpretChemically.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1937,7 +1937,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/PrintMargins.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1951,7 +1951,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/ChainAngle.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1965,7 +1965,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BondSpacing.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1979,7 +1979,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BondLength.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1993,7 +1993,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BoldWidth.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2007,7 +2007,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineWidth.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2021,7 +2021,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/MarginWidth.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2035,7 +2035,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/HashSpacing.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2049,7 +2049,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelStyle.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "opaque-by-spec",
       "editMode": "rawBase64",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2063,7 +2063,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/CaptionStyle.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "opaque-by-spec",
       "editMode": "rawBase64",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2077,7 +2077,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/CaptionJustification.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2091,7 +2091,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/FractionalWidths.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2119,7 +2119,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/WidthPages.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2133,7 +2133,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/HeightPages.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2161,7 +2161,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Width.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2175,7 +2175,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Height.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2203,7 +2203,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Header.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2217,7 +2217,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/HeaderPosition.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2231,7 +2231,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Footer.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2245,7 +2245,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/FooterPosition.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2259,7 +2259,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/PrintTrimMarks.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2273,7 +2273,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelStyleFont.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2287,7 +2287,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/CaptionStyleFont.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2301,7 +2301,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelStyleSize.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2315,7 +2315,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/CaptionStyleSize.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2329,7 +2329,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelStyleFace.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2343,7 +2343,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/CaptionStyleFace.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2385,7 +2385,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BondSpacingAbs.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2399,7 +2399,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelJustification.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2469,7 +2469,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Window_IsZoomed.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2483,7 +2483,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Window_Position.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2497,7 +2497,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Window_Size.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2511,7 +2511,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Graphic_Type.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2525,7 +2525,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Line_Type.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2539,7 +2539,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Arrow_Type.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2553,7 +2553,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Rectangle_Type.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2567,7 +2567,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Oval_Type.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2581,7 +2581,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Orbital_Type.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2595,7 +2595,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bracket_Type.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2609,7 +2609,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Symbol_Type.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2637,7 +2637,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/ArrowHead_Size.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2651,7 +2651,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Arc_AngularSize.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2665,7 +2665,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bracket_LipSize.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2735,7 +2735,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BracketedObjects.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2749,7 +2749,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bracket_RepeatCount.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2791,7 +2791,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bracket_GraphicID.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2847,7 +2847,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/ArrowHead_Type.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2861,7 +2861,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/ArrowHead_CenterSize.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2875,7 +2875,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/ArrowHead_Width.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2903,7 +2903,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Arrow_ShaftSpacing.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2917,7 +2917,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Arrow_EquilibriumRatio.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2931,7 +2931,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Arrow_ArrowHead_Head.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2945,7 +2945,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Arrow_ArrowHead_Tail.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2959,7 +2959,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Fill_Type.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2973,7 +2973,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Curve_Spacing.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -2987,7 +2987,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Closed.htm",
       "schemaStatus": "verified-with-erratum",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -3001,7 +3001,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Arrow_Dipole.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -3015,7 +3015,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Arrow_NoGo.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -3029,7 +3029,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/CornerRadius.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -3169,7 +3169,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/PNG.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "opaque-by-spec",
       "editMode": "rawBase64",
       "behaviorStatus": "verified",
       "formatRule": "Official type is uninterpreted bytes; rawBase64 is authoritative."
@@ -3183,7 +3183,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/JPEG.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "opaque-by-spec",
       "editMode": "rawBase64",
       "behaviorStatus": "verified",
       "formatRule": "Official type is uninterpreted bytes; rawBase64 is authoritative."
@@ -3449,7 +3449,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/TLC_Tail.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -3477,7 +3477,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/NamedAlternativeGroup_TextFrame.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -3519,7 +3519,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/GeometricFeature.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -3533,7 +3533,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/RelationValue.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -3547,7 +3547,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BasisObjects.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -3561,7 +3561,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/ConstraintType.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -3869,7 +3869,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Positioning.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -3883,7 +3883,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/PositioningAngle.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -3897,7 +3897,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/PositioningOffset.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "native-semantic",
+      "implementation": "typed-interchange",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -13418,7 +13418,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -13701,7 +13701,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14065,7 +14065,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14085,7 +14085,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14113,7 +14113,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14167,7 +14167,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14221,7 +14221,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14269,7 +14269,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14297,7 +14297,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14325,7 +14325,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14345,7 +14345,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14365,7 +14365,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14473,7 +14473,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14517,7 +14517,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14561,7 +14561,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14605,7 +14605,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14641,7 +14641,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14664,7 +14664,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14780,7 +14780,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14864,7 +14864,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14900,7 +14900,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14944,7 +14944,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15034,7 +15034,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15174,7 +15174,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15218,7 +15218,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15262,7 +15262,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15287,7 +15287,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15323,7 +15323,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15343,7 +15343,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15363,7 +15363,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15431,7 +15431,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15459,7 +15459,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15487,7 +15487,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15558,7 +15558,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15614,7 +15614,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15650,7 +15650,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15674,7 +15674,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15694,7 +15694,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15714,7 +15714,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15826,7 +15826,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15918,7 +15918,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -16010,7 +16010,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -16086,7 +16086,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -16106,7 +16106,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -16169,7 +16169,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -16203,7 +16203,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -16237,7 +16237,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -16899,7 +16899,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -17095,7 +17095,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -17298,7 +17298,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -17366,7 +17366,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -17969,7 +17969,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -18003,7 +18003,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -18305,7 +18305,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -18325,7 +18325,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -18479,7 +18479,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -18638,7 +18638,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -19068,7 +19068,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -19405,7 +19405,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -19425,7 +19425,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -19465,7 +19465,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -19501,7 +19501,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -19969,7 +19969,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20239,7 +20239,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20306,7 +20306,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20382,7 +20382,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20410,7 +20410,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20484,7 +20484,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20555,7 +20555,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20583,7 +20583,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20667,7 +20667,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20694,7 +20694,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20714,7 +20714,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20763,7 +20763,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20783,7 +20783,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20826,7 +20826,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20886,7 +20886,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20921,7 +20921,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -21191,7 +21191,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -21245,7 +21245,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -21285,7 +21285,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -21499,7 +21499,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -21519,7 +21519,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -21666,7 +21666,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -21693,7 +21693,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -21890,7 +21890,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -21980,7 +21980,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22000,7 +22000,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22025,7 +22025,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22049,7 +22049,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22510,7 +22510,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -23499,7 +23499,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -23522,7 +23522,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -23545,7 +23545,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -23568,7 +23568,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -23588,7 +23588,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -23608,7 +23608,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -23651,7 +23651,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "native-semantic",
+        "implementation": "typed-interchange",
         "editMode": "value",
         "behaviorStatus": "verified"
       }

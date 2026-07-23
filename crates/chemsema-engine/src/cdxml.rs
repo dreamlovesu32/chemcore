@@ -38,6 +38,7 @@ use self::import_objects::{
 pub(crate) use self::import_scaling::normalize_cdxml_document_for_editing;
 use self::import_topology::*;
 use self::line_spacing::*;
+pub(crate) use self::parse_values::element_symbol;
 use self::parse_values::*;
 use self::text_runs::{label_display_runs, label_display_runs_from_source_runs, label_source_run};
 pub(crate) use self::xml::parse_xml_tree;

@@ -116,7 +116,7 @@ pub(super) fn nonempty_string(value: Option<&str>) -> Option<String> {
         .map(ToString::to_string)
 }
 
-pub(super) fn element_symbol(atomic_number: u8) -> &'static str {
+pub(crate) fn element_symbol(atomic_number: u8) -> &'static str {
     const SYMBOLS: [&str; 119] = [
         "", "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg", "Al", "Si", "P", "S",
         "Cl", "Ar", "K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga",

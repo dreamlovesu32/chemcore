@@ -98,6 +98,48 @@ impl Engine {
                     }
                 })
             }
+            "element-list" | "generic-list" => {
+                let value = self
+                    .selected_uniform_atom_query_value(property)
+                    .unwrap_or_default();
+                json!({
+                    "kind": "atom-property",
+                    "property": property,
+                    "title": if property == "element-list" { "Element List" } else { "Generic List" },
+                    "field": {
+                        "key": "value",
+                        "label": if property == "element-list" { "Atomic numbers (prefix NOT to exclude)" } else { "Generic names (prefix NOT to exclude)" },
+                        "value": value,
+                        "inputMode": "text",
+                        "valueKind": "text",
+                        "allowEmpty": true
+                    }
+                })
+            }
+            "free-sites" | "substituents-up-to" | "substituents-exactly" => {
+                let value = self
+                    .selected_uniform_atom_query_value(property)
+                    .unwrap_or_default();
+                json!({
+                    "kind": "atom-property",
+                    "property": property,
+                    "title": match property {
+                        "free-sites" => "Free Sites",
+                        "substituents-up-to" => "Substituents Up To",
+                        _ => "Substituents Exactly"
+                    },
+                    "field": {
+                        "key": "value",
+                        "label": "Count",
+                        "value": value,
+                        "inputMode": "numeric",
+                        "valueKind": "integer",
+                        "minimum": 0,
+                        "maximum": 255,
+                        "allowEmpty": true
+                    }
+                })
+            }
             _ => json!({
                 "kind": "",
                 "property": "",
@@ -236,6 +278,7 @@ impl Engine {
                 json!({"label": "Interpret Chemically", "command": "interpret-chemically", "value": if self.selected_interpret_chemically_enabled() { "off" } else { "on" }, "checked": self.selected_interpret_chemically_enabled()}),
                 self.implicit_hydrogen_menu(),
                 self.atom_properties_menu(),
+                self.atom_query_menu(),
                 separator(),
                 self.color_menu(),
                 self.object_settings_item(),
@@ -683,6 +726,110 @@ impl Engine {
                     ]
                 }
             ]
+        })
+    }
+
+    fn atom_query_menu(&self) -> JsonValue {
+        json!({
+            "label": "Atom Query",
+            "submenu": [
+                atom_property_item("Element List...", "element-list", "__prompt__", false),
+                atom_property_item("Generic List...", "generic-list", "__prompt__", false),
+                atom_property_item("Free Sites...", "free-sites", "__prompt__", false),
+                atom_property_item("Substituents Up To...", "substituents-up-to", "__prompt__", false),
+                atom_property_item("Substituents Exactly...", "substituents-exactly", "__prompt__", false),
+                separator(),
+                atom_property_item("Show Query Indicator", "show-atom-query", "true", false),
+                atom_property_item("Hide Query Indicator", "show-atom-query", "false", false),
+                separator(),
+                {
+                    "label": "Ring Bond Count",
+                    "submenu": [
+                        atom_property_item("Unspecified", "ring-bond-count", "unspecified", false),
+                        atom_property_item("No Ring Bonds", "ring-bond-count", "no-ring-bonds", false),
+                        atom_property_item("As Drawn", "ring-bond-count", "as-drawn", false),
+                        atom_property_item("Simple Ring", "ring-bond-count", "simple-ring", false),
+                        atom_property_item("Fusion", "ring-bond-count", "fusion", false),
+                        atom_property_item("Spiro or Higher", "ring-bond-count", "spiro-or-higher", false)
+                    ]
+                },
+                {
+                    "label": "Unsaturated Bonds",
+                    "submenu": [
+                        atom_property_item("Unspecified", "unsaturated-bonds", "unspecified", false),
+                        atom_property_item("Must Be Absent", "unsaturated-bonds", "must-be-absent", false),
+                        atom_property_item("Must Be Present", "unsaturated-bonds", "must-be-present", false)
+                    ]
+                },
+                {
+                    "label": "Translation",
+                    "submenu": [
+                        atom_property_item("Equal", "translation", "equal", false),
+                        atom_property_item("Broad", "translation", "broad", false),
+                        atom_property_item("Narrow", "translation", "narrow", false),
+                        atom_property_item("Any", "translation", "any", false)
+                    ]
+                },
+                separator(),
+                atom_property_item("Allow Abnormal Valence", "abnormal-valence", "true", false),
+                atom_property_item("Use Normal Valence", "abnormal-valence", "false", false),
+                separator(),
+                atom_property_item("Show Terminal Carbon Labels", "show-terminal-carbon-label", "true", false),
+                atom_property_item("Hide Terminal Carbon Labels", "show-terminal-carbon-label", "false", false),
+                atom_property_item("Show Nonterminal Carbon Labels", "show-non-terminal-carbon-label", "true", false),
+                atom_property_item("Hide Nonterminal Carbon Labels", "show-non-terminal-carbon-label", "false", false)
+            ]
+        })
+    }
+
+    fn selected_uniform_atom_query_value(&self, property: &str) -> Option<String> {
+        uniform_node_value(self.selected_label_nodes(), |node| match property {
+            "element-list" => {
+                let value = node
+                    .atom_properties
+                    .element_list
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                format!(
+                    "{}{}",
+                    if node.atom_properties.element_list_excluded && !value.is_empty() {
+                        "NOT "
+                    } else {
+                        ""
+                    },
+                    value
+                )
+            }
+            "generic-list" => {
+                let value = node.atom_properties.generic_list.join(" ");
+                format!(
+                    "{}{}",
+                    if node.atom_properties.generic_list_excluded && !value.is_empty() {
+                        "NOT "
+                    } else {
+                        ""
+                    },
+                    value
+                )
+            }
+            "free-sites" => node
+                .atom_properties
+                .free_sites
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            "substituents-up-to" => node
+                .atom_properties
+                .substituents_up_to
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            "substituents-exactly" => node
+                .atom_properties
+                .substituents_exactly
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            _ => String::new(),
         })
     }
 

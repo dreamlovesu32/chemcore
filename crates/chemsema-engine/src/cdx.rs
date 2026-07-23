@@ -796,6 +796,20 @@ const ISOTOPIC_ABUNDANCE: &[(i16, &str)] = &[
     (4, "Deficient"),
     (5, "Nonnatural"),
 ];
+const RING_BOND_COUNT: &[(i16, &str)] = &[
+    (-1, "Unspecified"),
+    (0, "NoRingBonds"),
+    (1, "AsDrawn"),
+    (2, "SimpleRing"),
+    (3, "Fusion"),
+    (4, "SpiroOrHigher"),
+];
+const UNSATURATED_BONDS: &[(i16, &str)] = &[
+    (0, "Unspecified"),
+    (1, "MustBeAbsent"),
+    (2, "MustBePresent"),
+];
+const QUERY_TRANSLATION: &[(i16, &str)] = &[(0, "Equal"), (1, "Broad"), (2, "Narrow"), (3, "Any")];
 const BOND_STEREO: &[(i16, &str)] = &[(0, "U"), (1, "N"), (2, "E"), (3, "Z")];
 const NODE_TYPE: &[(i16, &str)] = &[
     (0, "Unspecified"),
@@ -1117,6 +1131,28 @@ mod tests {
                 .and_then(serde_json::Value::as_bool),
             Some(true)
         );
+    }
+
+    #[test]
+    fn cdx_atom_query_enums_use_chemdraw_binary_values() {
+        for (name, value, tag, byte) in [
+            ("RingBondCount", "NoRingBonds", 0x0425, 0_u8),
+            ("RingBondCount", "AsDrawn", 0x0425, 1),
+            ("RingBondCount", "SimpleRing", 0x0425, 2),
+            ("RingBondCount", "Fusion", 0x0425, 3),
+            ("RingBondCount", "SpiroOrHigher", 0x0425, 4),
+            ("UnsaturatedBonds", "MustBeAbsent", 0x0426, 1),
+            ("UnsaturatedBonds", "MustBePresent", 0x0426, 2),
+            ("Translation", "Broad", 0x0438, 1),
+            ("Translation", "Narrow", 0x0438, 2),
+            ("Translation", "Any", 0x0438, 3),
+        ] {
+            let encoded = encode_property(name, value).expect("query enum should encode");
+            assert_eq!(encoded, (tag, vec![byte]), "{name}={value}");
+            let (_, decoded) =
+                decode_property(tag, &[byte], None).expect("query enum should decode");
+            assert_eq!(decoded, value);
+        }
     }
 
     #[test]

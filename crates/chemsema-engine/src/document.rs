@@ -1964,6 +1964,37 @@ pub enum IsotopicAbundance {
     Nonnatural,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RingBondCount {
+    #[default]
+    Unspecified,
+    NoRingBonds,
+    AsDrawn,
+    SimpleRing,
+    Fusion,
+    SpiroOrHigher,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum UnsaturatedBonds {
+    #[default]
+    Unspecified,
+    MustBeAbsent,
+    MustBePresent,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum QueryTranslation {
+    #[default]
+    Equal,
+    Broad,
+    Narrow,
+    Any,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IndicatorPosition {
@@ -2013,6 +2044,34 @@ pub struct AtomProperties {
     pub atom_number_position: Option<IndicatorPosition>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stereo_position: Option<IndicatorPosition>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub element_list: Vec<u8>,
+    #[serde(default)]
+    pub element_list_excluded: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub generic_list: Vec<String>,
+    #[serde(default)]
+    pub generic_list_excluded: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub free_sites: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub show_atom_query: Option<bool>,
+    #[serde(default, skip_serializing_if = "is_default_ring_bond_count")]
+    pub ring_bond_count: RingBondCount,
+    #[serde(default, skip_serializing_if = "is_default_unsaturated_bonds")]
+    pub unsaturated_bonds: UnsaturatedBonds,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub substituents_up_to: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub substituents_exactly: Option<u8>,
+    #[serde(default, skip_serializing_if = "is_default_query_translation")]
+    pub translation: QueryTranslation,
+    #[serde(default)]
+    pub abnormal_valence: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub show_terminal_carbon_label: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub show_non_terminal_carbon_label: Option<bool>,
 }
 
 impl AtomProperties {
@@ -2027,6 +2086,18 @@ fn is_default_isotopic_abundance(value: &IsotopicAbundance) -> bool {
 
 fn is_default_atom_radical(value: &AtomRadical) -> bool {
     *value == AtomRadical::None
+}
+
+fn is_default_ring_bond_count(value: &RingBondCount) -> bool {
+    *value == RingBondCount::Unspecified
+}
+
+fn is_default_unsaturated_bonds(value: &UnsaturatedBonds) -> bool {
+    *value == UnsaturatedBonds::Unspecified
+}
+
+fn is_default_query_translation(value: &QueryTranslation) -> bool {
+    *value == QueryTranslation::Equal
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

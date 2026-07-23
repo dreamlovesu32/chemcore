@@ -169,6 +169,7 @@ pub(super) fn render_molecule_object(
                     out,
                     document,
                     object,
+                    fragment,
                     node,
                     object_id.clone(),
                 );
@@ -274,7 +275,14 @@ pub(super) fn render_molecule_object_targets(
                 &stroke,
                 object_id.clone(),
             );
-            render_fragment_atom_query_annotations(out, document, object, node, object_id.clone());
+            render_fragment_atom_query_annotations(
+                out,
+                document,
+                object,
+                fragment,
+                node,
+                object_id.clone(),
+            );
             render_fragment_node_invalid_marker(out, object, node, object_id.clone());
         }
     }
@@ -369,36 +377,6 @@ fn render_fragment_atom_properties(
             bounds.x1 - font_size * 0.1875,
             annotation_top,
             &mass.to_string(),
-            annotation_size,
-            font_family.clone(),
-            &fill,
-            "end",
-            false,
-            object_id.clone(),
-            &node.id,
-        );
-    }
-
-    let default_show_query = document
-        .document
-        .meta
-        .pointer("/import/cdxml/defaults/showAtomQuery")
-        .and_then(JsonValue::as_bool)
-        .unwrap_or(true);
-    if !has_linked_isotopic_abundance_annotation(document, &node.id)
-        && default_show_query
-        && properties.isotopic_abundance != crate::IsotopicAbundance::Unspecified
-    {
-        let mass_width = properties
-            .isotope_mass
-            .map(|mass| annotation_text_width(&mass.to_string(), annotation_size))
-            .unwrap_or(0.0);
-        push_atom_property_text(
-            out,
-            document,
-            bounds.x1 - font_size * 0.1875 - mass_width,
-            (bounds.y1 + bounds.y2 - annotation_size) * 0.5,
-            "I",
             annotation_size,
             font_family.clone(),
             &fill,
@@ -542,18 +520,6 @@ fn has_linked_atom_annotation(document: &ChemSemaDocument, node_id: &str, roles:
                 .get("role")
                 .and_then(JsonValue::as_str)
                 .is_some_and(|role| roles.contains(&role))
-    })
-}
-
-fn has_linked_isotopic_abundance_annotation(document: &ChemSemaDocument, node_id: &str) -> bool {
-    document.scene_objects().into_iter().any(|object| {
-        object
-            .meta
-            .get("attachedNodeId")
-            .and_then(JsonValue::as_str)
-            == Some(node_id)
-            && object.meta.get("role").and_then(JsonValue::as_str) == Some("query")
-            && object.payload.extra.get("text").and_then(JsonValue::as_str) == Some("I")
     })
 }
 
@@ -786,34 +752,61 @@ fn render_fragment_atom_query_annotations(
     out: &mut Vec<RenderPrimitive>,
     document: &ChemSemaDocument,
     object: &SceneObject,
+    fragment: &MoleculeFragment,
     node: &Node,
     object_id: Option<String>,
 ) {
-    let show_atom_query = document
-        .document
-        .meta
-        .pointer("/import/cdxml/defaults/showAtomQuery")
-        .and_then(JsonValue::as_bool)
-        .unwrap_or(true);
-    if !show_atom_query
-        || node
+    let show_atom_query = node.atom_properties.show_atom_query.unwrap_or_else(|| {
+        document
+            .document
             .meta
-            .pointer("/import/cdxml/restrictImplicitHydrogens")
+            .pointer("/import/cdxml/defaults/showAtomQuery")
             .and_then(JsonValue::as_bool)
-            != Some(true)
-    {
+            .unwrap_or(true)
+    });
+    if !show_atom_query {
         return;
     }
 
-    // CDXML's ImplicitHydrogens property is the atom-query restriction
-    // kCDXProp_Atom_RestrictImplicitHydrogens. ChemDraw displays it as an
-    // auxiliary H query marker; it is independent of both the authored atom
-    // label and NumHydrogens, so it must not be folded into either one.
+    let properties = &node.atom_properties;
+    let mut query = String::new();
+    if let Some(value) = properties.substituents_exactly {
+        query.push_str(&format!("X{value}"));
+    } else if let Some(value) = properties.substituents_up_to {
+        query.push_str(&format!("U{value}"));
+    } else if let Some(value) = properties.free_sites {
+        query.push('*');
+        if value != 1 {
+            query.push_str(&value.to_string());
+        }
+    }
+    if properties.unsaturated_bonds != crate::UnsaturatedBonds::Unspecified {
+        query.push('S');
+    }
+    if properties.ring_bond_count != crate::RingBondCount::Unspecified {
+        query.push('R');
+    }
+    if properties.translation != crate::QueryTranslation::Equal {
+        query.push('L');
+    }
+    if properties.isotopic_abundance != crate::IsotopicAbundance::Unspecified {
+        query.push('I');
+    }
+    let restrict_implicit_hydrogens = node
+        .meta
+        .pointer("/import/cdxml/restrictImplicitHydrogens")
+        .and_then(JsonValue::as_bool)
+        == Some(true);
+    if query.is_empty() && !restrict_implicit_hydrogens {
+        return;
+    }
+
     let font_size = node
         .label
         .as_ref()
         .map(fragment_label_font_size)
         .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT);
+    let query_size = font_size * 0.75;
     let font_family = node
         .label
         .as_ref()
@@ -836,36 +829,215 @@ fn render_fragment_atom_query_annotations(
                 .and_then(|style_ref| document.styles.get(style_ref))
                 .and_then(|style| style_string(style, "fill"))
         });
-    let node_world = world_point(object, node);
-    let x = node_world.x + font_size * 0.17;
-    let baseline_y = label_box_world(node, object)
-        .map(|label_box| label_box.y1 - font_size * 0.07)
-        .unwrap_or(node_world.y - font_size * 0.55);
-    push_text_for_node(
+    let center = world_point(object, node);
+    let bounds = label_box_world(node, object).unwrap_or(RectBox {
+        x1: center.x - font_size * 0.3,
+        y1: center.y - font_size * 0.45,
+        x2: center.x + font_size * 0.3,
+        y2: center.y + font_size * 0.45,
+    });
+    if restrict_implicit_hydrogens {
+        push_text_for_node(
+            out,
+            center.x + font_size * 0.17,
+            bounds.y1 - font_size * 0.07,
+            Some(font_size * 0.82),
+            String::new(),
+            font_size,
+            font_family.clone(),
+            fill.clone(),
+            Some("start".to_string()),
+            vec![LabelRun {
+                text: "H".to_string(),
+                font_family: font_family.clone(),
+                font_size: Some(font_size),
+                fill: fill.clone(),
+                font_weight: Some(400),
+                font_style: Some("normal".to_string()),
+                underline: Some(false),
+                outline: Some(false),
+                shadow: Some(false),
+                script: Some("normal".to_string()),
+            }],
+            object_id.clone(),
+            Some(node.id.clone()),
+        );
+    }
+    if query.is_empty() {
+        return;
+    }
+    let direction = query_connection_direction(fragment, node);
+    let horizontal = direction.x.abs() >= direction.y.abs();
+    let left_annotation_width = properties
+        .isotope_mass
+        .map(|mass| annotation_text_width(&mass.to_string(), query_size))
+        .unwrap_or(0.0);
+    let (x, y, anchor) = if horizontal && direction.x >= 0.0 {
+        (
+            bounds.x1 - font_size * 0.1875 - left_annotation_width,
+            (bounds.y1 + bounds.y2 - query_size) * 0.5,
+            "end",
+        )
+    } else if horizontal {
+        (
+            bounds.x2 + font_size * 0.1875,
+            (bounds.y1 + bounds.y2 - query_size) * 0.5,
+            "start",
+        )
+    } else if direction.y < 0.0 {
+        (
+            (bounds.x1 + bounds.x2) * 0.5,
+            bounds.y2 + query_size * 0.15,
+            "middle",
+        )
+    } else {
+        (
+            (bounds.x1 + bounds.x2) * 0.5,
+            bounds.y1 - query_size * 1.05,
+            "middle",
+        )
+    };
+    push_atom_query_text(
         out,
+        document,
         x,
-        baseline_y,
-        Some(font_size * 0.82),
-        String::new(),
-        font_size,
-        font_family.clone(),
-        fill.clone(),
-        Some("start".to_string()),
-        vec![LabelRun {
-            text: "H".to_string(),
-            font_family,
-            font_size: Some(font_size),
-            fill,
+        y,
+        &query,
+        query_size,
+        font_family,
+        fill.as_deref().unwrap_or("#000000"),
+        anchor,
+        object_id,
+        &node.id,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn push_atom_query_text(
+    out: &mut Vec<RenderPrimitive>,
+    document: &ChemSemaDocument,
+    x: f64,
+    y: f64,
+    text: &str,
+    query_size: f64,
+    font_family: Option<String>,
+    fill: &str,
+    anchor: &str,
+    object_id: Option<String>,
+    node_id: &str,
+) {
+    let mut runs = Vec::new();
+    let mut width = 0.0;
+    if let Some(rest) = text.strip_prefix('*') {
+        let star_size = query_size + 0.8;
+        width += annotation_text_width("*", star_size);
+        runs.push(LabelRun {
+            text: "*".to_string(),
+            font_family: Some("Symbol".to_string()),
+            font_size: Some(star_size),
+            fill: Some(fill.to_string()),
             font_weight: Some(400),
             font_style: Some("normal".to_string()),
             underline: Some(false),
             outline: Some(false),
             shadow: Some(false),
             script: Some("normal".to_string()),
-        }],
+        });
+        if !rest.is_empty() {
+            width += annotation_text_width(rest, query_size);
+            runs.push(LabelRun {
+                text: rest.to_string(),
+                font_family: font_family.clone(),
+                font_size: Some(query_size),
+                fill: Some(fill.to_string()),
+                font_weight: Some(400),
+                font_style: Some("normal".to_string()),
+                underline: Some(false),
+                outline: Some(false),
+                shadow: Some(false),
+                script: Some("normal".to_string()),
+            });
+        }
+    } else {
+        width = annotation_text_width(text, query_size);
+        runs.push(LabelRun {
+            text: text.to_string(),
+            font_family: font_family.clone(),
+            font_size: Some(query_size),
+            fill: Some(fill.to_string()),
+            font_weight: Some(400),
+            font_style: Some("normal".to_string()),
+            underline: Some(false),
+            outline: Some(false),
+            shadow: Some(false),
+            script: Some("normal".to_string()),
+        });
+    }
+    let left = match anchor {
+        "end" => x - width,
+        "middle" => x - width * 0.5,
+        _ => x,
+    };
+    out.push(RenderPrimitive::Rect {
+        role: RenderRole::DocumentKnockout,
+        object_id: object_id.clone(),
+        node_id: Some(node_id.to_string()),
+        x: left - 0.35,
+        y: y - query_size * 0.18,
+        width: width + 0.7,
+        height: query_size + 1.15,
+        fill: Some(document.document.page.background.clone()),
+        stroke: None,
+        stroke_width: 0.0,
+        rx: None,
+        ry: None,
+        dash_array: Vec::new(),
+        fill_gradient: None,
+    });
+    push_text_for_node(
+        out,
+        x,
+        y,
+        Some(query_size * 0.82),
+        String::new(),
+        query_size,
+        font_family,
+        Some(fill.to_string()),
+        Some(anchor.to_string()),
+        runs,
         object_id,
-        Some(node.id.clone()),
+        Some(node_id.to_string()),
     );
+}
+
+fn query_connection_direction(fragment: &MoleculeFragment, node: &Node) -> Vector {
+    let positions: BTreeMap<&str, Point> = fragment
+        .nodes
+        .iter()
+        .map(|candidate| (candidate.id.as_str(), candidate.point()))
+        .collect();
+    let mut directions = Vec::new();
+    for bond in &fragment.bonds {
+        let other_id = if bond.begin == node.id {
+            Some(bond.end.as_str())
+        } else if bond.end == node.id {
+            Some(bond.begin.as_str())
+        } else {
+            None
+        };
+        if let Some(other) = other_id.and_then(|id| positions.get(id)) {
+            let vector = Vector::new(other.x - node.position[0], other.y - node.position[1]);
+            let length = vector.x.hypot(vector.y);
+            if length > crate::EPSILON {
+                directions.push(vector.y.atan2(vector.x).to_degrees());
+            }
+        }
+    }
+    if directions.is_empty() {
+        return Vector::new(-1.0, 0.0);
+    }
+    let open_angle = crate::largest_angular_gap(&directions).center.to_radians();
+    Vector::new(-open_angle.cos(), -open_angle.sin())
 }
 
 fn expand_target_render_bond_ids_for_contact_nodes(
