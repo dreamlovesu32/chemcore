@@ -386,7 +386,7 @@ fn molfile_to_fragment(molfile: &Molfile, record: &SdfRecord) -> (MoleculeFragme
             ],
             charge: atom.charge,
             num_hydrogens: 0,
-            is_external_connection_point: false,
+            external_connection: None,
             is_placeholder: atomic_number == 0,
             label: None,
             atom_properties: crate::AtomProperties::default(),

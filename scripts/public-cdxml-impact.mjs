@@ -55,7 +55,7 @@ function featuresFromInspection(inspection) {
     for (const node of molecule.nodes ?? []) {
       if (node.label) features.add("text");
       if (node.isPlaceholder) features.add("nickname");
-      if (node.isExternalConnectionPoint) features.add("external-connection");
+      if (node.externalConnection) features.add("external-connection");
       const nodeType = node.meta?.import?.cdxml?.nodeType;
       if (nodeType === "MultiAttachment") features.add("multi-attachment");
       if (node.meta?.import?.cdxml?.hDot || node.meta?.import?.cdxml?.hDash) features.add("hydrogen-marker");

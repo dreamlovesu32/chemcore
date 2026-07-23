@@ -2,7 +2,8 @@ use crate::{
     legacy_mol::{parse_molblock, LegacyAtom, LegacyBond as LegacyMolBond, LegacyMol},
     point_at_distance_from_start, px_to_pt, rotate_point_around, Bond, BondLinePattern,
     BondLineWeight, ChemSemaDocument, DoubleBondPlacement, LabelRun, MoleculeFragment, Node,
-    ObjectPayload, Point, ResourceData, SceneObject, Vector, DEFAULT_BOND_STROKE, EPSILON,
+    ObjectPayload, Point, ResourceData, SceneObject, Vector, DEFAULT_BOND_STROKE,
+    DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT, EPSILON,
 };
 use serde_json::Value as JsonValue;
 use std::collections::{BTreeMap, BTreeSet};

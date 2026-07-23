@@ -845,6 +845,21 @@ const NODE_TYPE: &[(i16, &str)] = &[
     (12, "ExternalConnectionPoint"),
     (13, "LinkNode"),
 ];
+const EXTERNAL_CONNECTION_TYPE: &[(i16, &str)] = &[
+    (0, "Unspecified"),
+    (1, "Diamond"),
+    (2, "Star"),
+    (3, "PolymerBead"),
+    (4, "Wavy"),
+    (5, "Residue"),
+    (6, "Peptide"),
+    (7, "DNA"),
+    (8, "RNA"),
+    (9, "Terminus"),
+    (10, "Sulfide"),
+    (11, "Nucleotide"),
+    (12, "UnlinkedBranch"),
+];
 const LABEL_DISPLAY: &[(i16, &str)] = &[
     (0, "Auto"),
     (1, "Left"),
@@ -1611,6 +1626,20 @@ mod tests {
             decode_property(0x0A3A, &[], None),
             Some(("Dipole", "yes".to_string()))
         );
+    }
+
+    #[test]
+    fn cdx_external_connection_types_cover_the_complete_chemdraw_enum() {
+        for (value, name) in EXTERNAL_CONNECTION_TYPE {
+            let encoded =
+                encode_property("ExternalConnectionType", name).expect("type should encode");
+            assert_eq!(encoded, (0x0440, vec![*value as u8]), "{name}");
+            assert_eq!(
+                decode_property(0x0440, &encoded.1, None),
+                Some(("ExternalConnectionType", (*name).to_string())),
+                "{name}"
+            );
+        }
     }
 
     #[test]

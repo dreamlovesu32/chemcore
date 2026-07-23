@@ -7,6 +7,24 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use std::fmt::Write;
 
+fn exported_external_connection_type(value: crate::ExternalConnectionType) -> Option<&'static str> {
+    match value {
+        crate::ExternalConnectionType::Unspecified => None,
+        crate::ExternalConnectionType::Diamond => Some("Diamond"),
+        crate::ExternalConnectionType::Star => Some("Star"),
+        crate::ExternalConnectionType::PolymerBead => Some("PolymerBead"),
+        crate::ExternalConnectionType::Wavy => Some("Wavy"),
+        crate::ExternalConnectionType::Residue => Some("Residue"),
+        crate::ExternalConnectionType::Peptide => Some("Peptide"),
+        crate::ExternalConnectionType::Dna => Some("DNA"),
+        crate::ExternalConnectionType::Rna => Some("RNA"),
+        crate::ExternalConnectionType::Terminus => Some("Terminus"),
+        crate::ExternalConnectionType::Sulfide => Some("Sulfide"),
+        crate::ExternalConnectionType::Nucleotide => Some("Nucleotide"),
+        crate::ExternalConnectionType::UnlinkedBranch => Some("UnlinkedBranch"),
+    }
+}
+
 mod defaults;
 mod interchange;
 mod mapping;
@@ -522,12 +540,22 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .filter(|value| !value.is_empty());
         if is_query_list {
             attrs.push(("NodeType", "ElementList".to_string()));
-        } else if node.is_external_connection_point {
+        } else if node.external_connection.is_some() {
             attrs.push(("NodeType", "ExternalConnectionPoint".to_string()));
         } else if let Some(node_type) = imported_node_type {
             attrs.push(("NodeType", node_type.to_string()));
         } else if is_nickname {
             attrs.push(("NodeType", "Nickname".to_string()));
+        }
+        if let Some(connection) = node.external_connection.as_ref() {
+            if let Some(connection_type) =
+                exported_external_connection_type(connection.connection_type)
+            {
+                attrs.push(("ExternalConnectionType", connection_type.to_string()));
+            }
+            if let Some(number) = connection.number {
+                attrs.push(("ExternalConnectionNum", number.to_string()));
+            }
         }
         if !node.atom_properties.element_list.is_empty() {
             attrs.push((

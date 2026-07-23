@@ -172,7 +172,7 @@ function nodeSignature(node) {
     isotope: node.isotope ?? null,
     radical: node.radical ?? null,
     placeholder: node.isPlaceholder ?? false,
-    externalConnectionPoint: node.isExternalConnectionPoint ?? false,
+    externalConnection: node.externalConnection ?? null,
     label: label
       ? {
           sourceText: label.sourceText ?? null,

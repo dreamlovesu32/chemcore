@@ -544,6 +544,30 @@ text 对象表示带定位信息的富文本内容。
 }
 ```
 
+外部连接点不用布尔标记或 `atomProperties.atomNumber` 表示，而使用唯一的
+来源无关对象：
+
+```json
+{
+  "id": "e1",
+  "element": "",
+  "atomicNumber": 0,
+  "position": [120, 80],
+  "charge": 0,
+  "numHydrogens": 0,
+  "externalConnection": {
+    "type": "polymer-bead",
+    "number": 2
+  }
+}
+```
+
+`type` 必须是 `unspecified`、`diamond`、`star`、`polymer-bead`、`wavy`、
+`residue`、`peptide`、`dna`、`rna`、`terminus`、`sulfide`、`nucleotide`
+或 `unlinked-branch`。`number` 是可选的连接关系编号，不是菱形内自动显示
+的顺序号。旧 `isExternalConnectionPoint: true` 只在读取边界迁移为
+`{ "type": "unspecified" }`，规范写出不得再包含该布尔字段。
+
 `atomProperties` 是可编辑原子装饰的来源无关语义层，不得把 CDXML
 `objecttag` 或缓存文本框当作其语义。
 

@@ -199,6 +199,7 @@ fn imported_document_text_style(
 
 pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSemaDocument, String> {
     let root = parse_xml_tree(cdxml)?;
+    validate_external_connection_values(&root)?;
     let source_tree = interchange_object_from_xml(&root);
     let defaults = cdxml_defaults(&root);
     let colors = CdxmlColorTable::from_cdxml(&root);

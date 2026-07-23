@@ -419,6 +419,7 @@ fn remove_scene_objects_by_id(
 pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     let mut value: Value = serde_json::from_str(json).map_err(|error| error.to_string())?;
     ensure_document_json_pt_unit(&mut value)?;
+    migrate_legacy_external_connection_points(&mut value);
     let mut document: ChemSemaDocument =
         serde_json::from_value(value).map_err(|error| error.to_string())?;
     validate_scene_object_types(&document.objects)?;
@@ -429,6 +430,34 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     normalize_arrow_object_payloads(&mut document);
     normalize_fragment_label_payloads(&mut document);
     Ok(document)
+}
+
+fn migrate_legacy_external_connection_points(value: &mut Value) {
+    let Some(resources) = value.get_mut("resources").and_then(Value::as_object_mut) else {
+        return;
+    };
+    for resource in resources.values_mut() {
+        let Some(nodes) = resource
+            .get_mut("data")
+            .and_then(|data| data.get_mut("nodes"))
+            .and_then(Value::as_array_mut)
+        else {
+            continue;
+        };
+        for node in nodes {
+            let Some(node) = node.as_object_mut() else {
+                continue;
+            };
+            if let Some(Value::Bool(is_external)) = node.remove("isExternalConnectionPoint") {
+                if is_external && !node.contains_key("externalConnection") {
+                    node.insert(
+                        "externalConnection".to_string(),
+                        json!({ "type": "unspecified" }),
+                    );
+                }
+            }
+        }
+    }
 }
 
 fn validate_scene_object_types(objects: &[SceneObject]) -> Result<(), String> {
@@ -1898,8 +1927,8 @@ pub struct Node {
     pub position: [f64; 2],
     pub charge: i32,
     pub num_hydrogens: u8,
-    #[serde(default)]
-    pub is_external_connection_point: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_connection: Option<ExternalConnection>,
     #[serde(default)]
     pub is_placeholder: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1919,7 +1948,7 @@ impl Node {
             position: [round2(point.x), round2(point.y)],
             charge: 0,
             num_hydrogens: 0,
-            is_external_connection_point: false,
+            external_connection: None,
             is_placeholder: false,
             label: None,
             atom_properties: AtomProperties::default(),
@@ -1930,6 +1959,43 @@ impl Node {
     pub fn point(&self) -> Point {
         Point::new(self.position[0], self.position[1])
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalConnection {
+    #[serde(rename = "type")]
+    pub connection_type: ExternalConnectionType,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub number: Option<u16>,
+}
+
+impl Default for ExternalConnection {
+    fn default() -> Self {
+        Self {
+            connection_type: ExternalConnectionType::Unspecified,
+            number: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ExternalConnectionType {
+    #[default]
+    Unspecified,
+    Diamond,
+    Star,
+    PolymerBead,
+    Wavy,
+    Residue,
+    Peptide,
+    Dna,
+    Rna,
+    Terminus,
+    Sulfide,
+    Nucleotide,
+    UnlinkedBranch,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -2505,10 +2571,15 @@ fn fragment_content_bbox(nodes: &[Node]) -> Option<[f64; 4]> {
     let mut found = false;
 
     for node in nodes {
-        min_x = min_x.min(node.position[0] - DEFAULT_TEXT_BLOCK_PADDING_PT);
-        min_y = min_y.min(node.position[1] - DEFAULT_TEXT_BLOCK_PADDING_PT);
-        max_x = max_x.max(node.position[0] + DEFAULT_TEXT_BLOCK_PADDING_PT);
-        max_y = max_y.max(node.position[1] + DEFAULT_TEXT_BLOCK_PADDING_PT);
+        let node_padding = if node.external_connection.is_some() {
+            DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT * 0.75 + DEFAULT_BOND_STROKE_PT * 2.0
+        } else {
+            DEFAULT_TEXT_BLOCK_PADDING_PT
+        };
+        min_x = min_x.min(node.position[0] - node_padding);
+        min_y = min_y.min(node.position[1] - node_padding);
+        max_x = max_x.max(node.position[0] + node_padding);
+        max_y = max_y.max(node.position[1] + node_padding);
         found = true;
 
         if let Some(label) = &node.label {
@@ -2827,7 +2898,7 @@ mod tests {
                         charge: 0,
                         atom_properties: AtomProperties::default(),
                         num_hydrogens: 0,
-                        is_external_connection_point: false,
+                        external_connection: None,
                         is_placeholder: false,
                         label: Some(NodeLabel {
                             text: "N".to_string(),
@@ -3277,7 +3348,7 @@ mod tests {
                         charge: 0,
                         atom_properties: AtomProperties::default(),
                         num_hydrogens: 0,
-                        is_external_connection_point: false,
+                        external_connection: None,
                         is_placeholder: false,
                         label: Some(NodeLabel {
                             text: "N".to_string(),

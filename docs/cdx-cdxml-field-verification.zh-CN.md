@@ -136,7 +136,7 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x043D` | `LinkCountLow` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | Low end of repeat count for link nodes. Official lexical/binary codec is available; value is editable. |
 | `0x043E` | `LinkCountHigh` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | High end of repeat count for link nodes. Official lexical/binary codec is available; value is editable. |
 | `0x043F` | `IsotopicAbundance` | `INT8` | `native-semantic/value` | `verified` | `verified` | `verified` | Isotopic abundance of this atom's isotope. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
-| `0x0440` | `ExternalConnectionType` | `INT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | Type of external connection, for atoms of type kCDXNodeType_ExternalConnectionPoint. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
+| `0x0440` | `ExternalConnectionType` | `INT8` | `native-semantic/value` | `verified` | `verified` | `verified` | Native `node.externalConnection.type`; ChemDraw probe verifies binary values 0–12 and their distinct rendering families. |
 | `0x0441` | `GenericList` | `CDXGenericList` | `native-semantic/value` | `verified` | `verified` | `verified` | A list of generic nicknames. Official lexical/binary codec is available; value is editable. |
 | `0x0442` | `ShowTerminalCarbonLabels` | `CDXBooleanImplied` | `native-semantic/value` | `verified` | `verified` | `verified` | Signifies whether terminal carbons (carbons with zero or one bond) should display a text label with the element symbol and appropriate hydrogens. Official lexical/binary codec is available; value is editable. |
 | `0x0443` | `ShowNonTerminalCarbonLabels` | `CDXBooleanImplied` | `native-semantic/value` | `verified` | `verified` | `verified` | Signifies whether non-terminal carbons (carbons with more than one bond) should display a text label with the element symbol and appropriate hydrogens. Official lexical/binary codec is available; value is editable. |
@@ -676,8 +676,8 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `ElementList` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `EnhancedStereoGroupNum` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `EnhancedStereoType` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
-| `ExternalConnectionNum` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ExternalConnectionType` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `ExternalConnectionNum` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ExternalConnectionType` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `FreeSites` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `GenericList` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `GenericNickname` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |

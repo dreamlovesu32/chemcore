@@ -88,7 +88,8 @@ impl Engine {
                 num_hydrogens: atom
                     .explicit_hydrogens
                     .saturating_add(sanitization.implicit_hydrogens[index]),
-                is_external_connection_point: atom.atomic_number == 0,
+                external_connection: (atom.atomic_number == 0)
+                    .then(crate::ExternalConnection::default),
                 is_placeholder: atom.atomic_number == 0,
                 label: None,
                 atom_properties: crate::AtomProperties::default(),

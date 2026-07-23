@@ -532,6 +532,31 @@ Example node label:
 }
 ```
 
+External connection points use one source-independent object rather than a
+boolean flag or `atomProperties.atomNumber`:
+
+```json
+{
+  "id": "e1",
+  "element": "",
+  "atomicNumber": 0,
+  "position": [120, 80],
+  "charge": 0,
+  "numHydrogens": 0,
+  "externalConnection": {
+    "type": "polymer-bead",
+    "number": 2
+  }
+}
+```
+
+`type` is one of `unspecified`, `diamond`, `star`, `polymer-bead`, `wavy`,
+`residue`, `peptide`, `dna`, `rna`, `terminus`, `sulfide`, `nucleotide`, or
+`unlinked-branch`. `number` is an optional connection-relation number, not the
+ordinal that ChemDraw draws inside a diamond. Readers migrate legacy
+`isExternalConnectionPoint: true` to `{ "type": "unspecified" }`; canonical
+writers must not emit the legacy boolean.
+
 `atomProperties` is the source-independent home for editable atom decorations.
 It must not store CDXML object tags or cached text boxes as its meaning.
 

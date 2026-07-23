@@ -21,8 +21,16 @@ pub(super) fn render_fragment_bond(
     let stroke_width = bond_stroke_width(document, object, bond);
     let actual_start = bond_endpoint_world(object, begin, bond, "begin");
     let actual_finish = bond_endpoint_world(object, end, bond, "end");
-    let mut start = actual_start;
-    let mut finish = actual_finish;
+    let mut start = retreat_segment_endpoint(
+        actual_start,
+        actual_finish,
+        external_connection_endpoint_retreat(document, begin, actual_start, actual_finish),
+    );
+    let mut finish = retreat_segment_endpoint(
+        actual_finish,
+        actual_start,
+        external_connection_endpoint_retreat(document, end, actual_finish, actual_start),
+    );
     let begin_box = label_box_world(begin, object);
     let end_box = label_box_world(end, object);
     let begin_polygons = label_clip_polygons_world(begin, object);
@@ -189,6 +197,68 @@ pub(super) fn render_fragment_bond(
         bond.line_weights.main,
         object_id,
     );
+}
+
+fn external_connection_endpoint_retreat(
+    document: &ChemSemaDocument,
+    node: &Node,
+    from: Point,
+    to: Point,
+) -> f64 {
+    let Some(connection) = node.external_connection.as_ref() else {
+        return 0.0;
+    };
+    if connection.connection_type == crate::ExternalConnectionType::Wavy {
+        return 0.0;
+    }
+    let length = from.distance(to);
+    if length <= EPSILON {
+        return 0.0;
+    }
+    let line_width = document
+        .document
+        .meta
+        .pointer("/import/cdxml/defaults/lineWidth")
+        .and_then(JsonValue::as_f64)
+        .unwrap_or(DEFAULT_BOND_STROKE);
+    let label_size = document
+        .document
+        .meta
+        .pointer("/import/cdxml/defaults/labelSize")
+        .and_then(JsonValue::as_f64)
+        .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT);
+    if connection.connection_type == crate::ExternalConnectionType::PolymerBead {
+        return label_size * 0.75 + line_width * 2.0;
+    }
+    let radius_x = label_size * 0.375 + line_width;
+    let radius_y = if matches!(
+        connection.connection_type,
+        crate::ExternalConnectionType::Residue
+            | crate::ExternalConnectionType::Peptide
+            | crate::ExternalConnectionType::Dna
+            | crate::ExternalConnectionType::Rna
+            | crate::ExternalConnectionType::Terminus
+            | crate::ExternalConnectionType::Sulfide
+    ) {
+        radius_x * (2.0 / 3.0)
+    } else {
+        radius_x
+    };
+    let unit_x = (to.x - from.x) / length;
+    let unit_y = (to.y - from.y) / length;
+    1.0 / (unit_x.abs() / radius_x + unit_y.abs() / radius_y)
+}
+
+fn retreat_segment_endpoint(from: Point, to: Point, distance: f64) -> Point {
+    let length = from.distance(to);
+    if length <= EPSILON || distance <= 0.0 {
+        return from;
+    }
+    let scale = (distance / length).min(1.0);
+    Point::new(
+        from.x + (to.x - from.x) * scale,
+        from.y + (to.y - from.y) * scale,
+    )
 }
 
 fn imported_cdxml_dative_bond(bond: &Bond) -> bool {

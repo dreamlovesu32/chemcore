@@ -861,6 +861,7 @@ mod tests {
             margin_width: None,
             line_styles: Default::default(),
             line_weights: Default::default(),
+            properties: Default::default(),
             meta: serde_json::Value::Null,
         }
     }

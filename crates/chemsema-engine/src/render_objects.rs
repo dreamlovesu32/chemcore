@@ -167,6 +167,15 @@ pub(super) fn render_molecule_object(
             for node in &fragment.nodes {
                 render_fragment_label(out, document, object, node, object_id.clone());
                 render_fragment_atom_properties(out, document, object, node, object_id.clone());
+                render_external_connection_marker(
+                    out,
+                    document,
+                    object,
+                    fragment,
+                    node,
+                    &stroke,
+                    object_id.clone(),
+                );
                 render_fragment_cdxml_node_markers(
                     out,
                     document,
@@ -290,6 +299,15 @@ pub(super) fn render_molecule_object_targets(
         if label_render_node_ids.contains(&node.id) {
             render_fragment_label(out, document, object, node, object_id.clone());
             render_fragment_atom_properties(out, document, object, node, object_id.clone());
+            render_external_connection_marker(
+                out,
+                document,
+                object,
+                fragment,
+                node,
+                &stroke,
+                object_id.clone(),
+            );
             render_fragment_cdxml_node_markers(
                 out,
                 document,
@@ -840,6 +858,302 @@ fn annotation_text_width(text: &str, font_size: f64) -> f64 {
     text.chars()
         .map(|character| crate::glyph_kernel::shared_estimated_char_width(character, font_size))
         .sum()
+}
+
+fn render_external_connection_marker(
+    out: &mut Vec<RenderPrimitive>,
+    document: &ChemSemaDocument,
+    object: &SceneObject,
+    fragment: &MoleculeFragment,
+    node: &Node,
+    stroke: &str,
+    object_id: Option<String>,
+) {
+    let Some(connection) = node.external_connection.as_ref() else {
+        return;
+    };
+    let center = world_point(object, node);
+    let label_size = external_connection_label_size(document);
+    let line_width = external_connection_line_width(document);
+    let diamond_radius = label_size * 0.375 + line_width;
+    let node_id = Some(node.id.clone());
+
+    match connection.connection_type {
+        crate::ExternalConnectionType::Unspecified | crate::ExternalConnectionType::Diamond => {
+            push_external_connection_diamond(
+                out,
+                center,
+                diamond_radius,
+                diamond_radius,
+                stroke,
+                stroke,
+                0.0,
+                object_id.clone(),
+                node_id.clone(),
+            );
+            let ordinal = fragment
+                .nodes
+                .iter()
+                .filter(|candidate| candidate.external_connection.is_some())
+                .position(|candidate| candidate.id == node.id)
+                .map(|index| index + 1)
+                .unwrap_or(1);
+            push_text_for_node(
+                out,
+                center.x,
+                center.y + label_size * 0.27,
+                None,
+                ordinal.to_string(),
+                label_size * 0.72,
+                Some("Arial".to_string()),
+                Some("#ffffff".to_string()),
+                Some("middle".to_string()),
+                Vec::new(),
+                object_id,
+                node_id,
+            );
+        }
+        crate::ExternalConnectionType::Star => {
+            push_text_for_node(
+                out,
+                center.x,
+                center.y + label_size * 0.30,
+                None,
+                "*".to_string(),
+                label_size,
+                Some("Symbol".to_string()),
+                Some(stroke.to_string()),
+                Some("middle".to_string()),
+                Vec::new(),
+                object_id,
+                node_id,
+            );
+        }
+        crate::ExternalConnectionType::PolymerBead => {
+            let radius = label_size * 0.75 + line_width * 2.0;
+            for layer in 0..32 {
+                let t = layer as f64 / 31.0;
+                let layer_radius = radius * (1.0 - 0.8428 * t);
+                let shift = radius * 0.4844 * t;
+                let channel = (255.0 * (t * std::f64::consts::FRAC_PI_2).sin()).round() as u8;
+                let fill = format!("#{channel:02x}{channel:02x}{channel:02x}");
+                out.push(RenderPrimitive::Circle {
+                    role: RenderRole::DocumentGraphic,
+                    object_id: object_id.clone(),
+                    node_id: node_id.clone(),
+                    center: Point::new(center.x - shift, center.y - shift),
+                    radius: layer_radius,
+                    fill,
+                    stroke: "none".to_string(),
+                    stroke_width: 0.0,
+                });
+            }
+            out.push(RenderPrimitive::Circle {
+                role: RenderRole::DocumentGraphic,
+                object_id,
+                node_id,
+                center,
+                radius,
+                fill: "none".to_string(),
+                stroke: stroke.to_string(),
+                stroke_width: line_width,
+            });
+        }
+        crate::ExternalConnectionType::Wavy => {
+            render_external_connection_wavy(
+                out, document, object, fragment, node, stroke, object_id,
+            );
+        }
+        crate::ExternalConnectionType::Residue
+        | crate::ExternalConnectionType::Peptide
+        | crate::ExternalConnectionType::Dna
+        | crate::ExternalConnectionType::Rna
+        | crate::ExternalConnectionType::Terminus
+        | crate::ExternalConnectionType::Sulfide => {
+            push_external_connection_diamond(
+                out,
+                center,
+                diamond_radius,
+                diamond_radius * (2.0 / 3.0),
+                "#b3b3b3",
+                stroke,
+                line_width,
+                object_id,
+                node_id,
+            );
+        }
+        crate::ExternalConnectionType::Nucleotide
+        | crate::ExternalConnectionType::UnlinkedBranch => {
+            push_external_connection_diamond(
+                out,
+                center,
+                diamond_radius,
+                diamond_radius,
+                stroke,
+                stroke,
+                0.0,
+                object_id,
+                node_id,
+            );
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn push_external_connection_diamond(
+    out: &mut Vec<RenderPrimitive>,
+    center: Point,
+    radius_x: f64,
+    radius_y: f64,
+    fill: &str,
+    stroke: &str,
+    stroke_width: f64,
+    object_id: Option<String>,
+    node_id: Option<String>,
+) {
+    out.push(RenderPrimitive::Polygon {
+        role: RenderRole::DocumentGraphic,
+        object_id,
+        node_id,
+        bond_id: None,
+        points: vec![
+            Point::new(center.x - radius_x, center.y),
+            Point::new(center.x, center.y - radius_y),
+            Point::new(center.x + radius_x, center.y),
+            Point::new(center.x, center.y + radius_y),
+        ],
+        fill: fill.to_string(),
+        stroke: stroke.to_string(),
+        stroke_width,
+    });
+}
+
+fn render_external_connection_wavy(
+    out: &mut Vec<RenderPrimitive>,
+    document: &ChemSemaDocument,
+    object: &SceneObject,
+    fragment: &MoleculeFragment,
+    node: &Node,
+    stroke: &str,
+    object_id: Option<String>,
+) {
+    let center = world_point(object, node);
+    let line_width = external_connection_line_width(document);
+    let raw_span = external_connection_label_size(document) * 1.5 + line_width * 4.0;
+    let span = raw_span.round();
+    let connected_axis = fragment.bonds.iter().find_map(|bond| {
+        let other_id = if bond.begin == node.id {
+            Some(bond.end.as_str())
+        } else if bond.end == node.id {
+            Some(bond.begin.as_str())
+        } else {
+            None
+        }?;
+        let other = fragment
+            .nodes
+            .iter()
+            .find(|candidate| candidate.id == other_id)?;
+        let other = world_point(object, other);
+        let vector = Vector::new(center.x - other.x, center.y - other.y);
+        (vector.length() > EPSILON).then(|| vector.scaled(1.0 / vector.length()))
+    });
+    // ChemDraw orients a connected marker perpendicular to its first incident
+    // bond. An unconnected marker has no molecular direction, so its documented
+    // canonical orientation is vertical (a horizontal connection axis).
+    let axis = match connected_axis {
+        Some(axis) => axis,
+        None => Vector::new(1.0, 0.0),
+    };
+    let tangent = Vector::new(-axis.y, axis.x);
+    let start = Point::new(
+        center.x - tangent.x * span * 0.5,
+        center.y - tangent.y * span * 0.5,
+    );
+    let segments = (raw_span * 2.0).ceil().max(1.0) as usize;
+    let advance = span / segments as f64;
+    let amplitude = 0.5;
+    let mut d = format!("M {:.4} {:.4}", start.x, start.y);
+    let mut points = vec![start];
+    for index in 0..segments {
+        let phase = index % 4;
+        let (
+            from_offset,
+            control1_offset,
+            control2_offset,
+            to_offset,
+            control1_fraction,
+            control2_fraction,
+        ) = match phase {
+            0 => (0.0, -0.552 * amplitude, -amplitude, -amplitude, 0.0, 0.448),
+            1 => (-amplitude, -amplitude, -0.552 * amplitude, 0.0, 0.552, 1.0),
+            2 => (0.0, 0.552 * amplitude, amplitude, amplitude, 0.0, 0.448),
+            _ => (amplitude, amplitude, 0.552 * amplitude, 0.0, 0.552, 1.0),
+        };
+        let segment_start = Point::new(
+            start.x + tangent.x * advance * index as f64 + axis.x * from_offset,
+            start.y + tangent.y * advance * index as f64 + axis.y * from_offset,
+        );
+        if index > 0 {
+            points.push(segment_start);
+        }
+        let next = Point::new(
+            start.x + tangent.x * advance * (index + 1) as f64 + axis.x * to_offset,
+            start.y + tangent.y * advance * (index + 1) as f64 + axis.y * to_offset,
+        );
+        let c1 = Point::new(
+            start.x
+                + tangent.x * advance * (index as f64 + control1_fraction)
+                + axis.x * control1_offset,
+            start.y
+                + tangent.y * advance * (index as f64 + control1_fraction)
+                + axis.y * control1_offset,
+        );
+        let c2 = Point::new(
+            start.x
+                + tangent.x * advance * (index as f64 + control2_fraction)
+                + axis.x * control2_offset,
+            start.y
+                + tangent.y * advance * (index as f64 + control2_fraction)
+                + axis.y * control2_offset,
+        );
+        d.push_str(&format!(
+            " C {:.4} {:.4} {:.4} {:.4} {:.4} {:.4}",
+            c1.x, c1.y, c2.x, c2.y, next.x, next.y
+        ));
+        points.extend([c1, c2, next]);
+    }
+    out.push(RenderPrimitive::Path {
+        role: RenderRole::DocumentGraphic,
+        object_id,
+        bond_id: None,
+        d,
+        points,
+        stroke: stroke.to_string(),
+        stroke_width: line_width,
+        dash_array: Vec::new(),
+        line_cap: Some("butt".to_string()),
+        line_join: Some("round".to_string()),
+        rotate: 0.0,
+        rotate_center: None,
+    });
+}
+
+fn external_connection_label_size(document: &ChemSemaDocument) -> f64 {
+    document
+        .document
+        .meta
+        .pointer("/import/cdxml/defaults/labelSize")
+        .and_then(JsonValue::as_f64)
+        .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT)
+}
+
+fn external_connection_line_width(document: &ChemSemaDocument) -> f64 {
+    document
+        .document
+        .meta
+        .pointer("/import/cdxml/defaults/lineWidth")
+        .and_then(JsonValue::as_f64)
+        .unwrap_or(DEFAULT_BOND_STROKE)
 }
 
 fn render_fragment_cdxml_node_markers(

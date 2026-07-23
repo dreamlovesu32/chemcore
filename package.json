@@ -39,6 +39,7 @@
     "probe:chemdraw-cdxml-fields": "node scripts/chemdraw-cdxml-field-probe.mjs",
     "probe:chemdraw-atom-queries": "node scripts/chemdraw-atom-query-probe.mjs",
     "probe:chemdraw-bond-query-reaction": "node scripts/chemdraw-bond-query-reaction-probe.mjs",
+    "probe:chemdraw-external-connections": "node scripts/chemdraw-external-connection-probe.mjs",
     "emf:inspect": "node scripts/emf-inspect.mjs",
     "emf:render-preview": "node scripts/render-emf-preview.mjs",
     "examples:agent": "powershell -ExecutionPolicy Bypass -File examples/agent/run-all.ps1",

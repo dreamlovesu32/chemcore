@@ -67,6 +67,10 @@ pub(super) fn property_schema(tag: u16) -> Option<PropertySchema> {
         0x043B => ("ShowAtomStereo", PropertyKind::Boolean),
         0x043C => ("ShowAtomNumber", PropertyKind::Boolean),
         0x043F => ("IsotopicAbundance", PropertyKind::Enum8(ISOTOPIC_ABUNDANCE)),
+        0x0440 => (
+            "ExternalConnectionType",
+            PropertyKind::Enum8(EXTERNAL_CONNECTION_TYPE),
+        ),
         0x0444 => ("HideImplicitHydrogens", PropertyKind::Boolean),
         0x0445 => ("ShowAtomEnhancedStereo", PropertyKind::Boolean),
         0x0504 => ("Weight", PropertyKind::Float64),

@@ -1,5 +1,23 @@
 use super::*;
 
+pub(super) fn validate_external_connection_values(root: &XmlNode) -> Result<(), String> {
+    for node in descendants(root)
+        .into_iter()
+        .filter(|node| node.is("n") && node.attr("NodeType") == Some("ExternalConnectionPoint"))
+    {
+        cdxml_external_connection_type(node.attr("ExternalConnectionType"))?;
+        if let Some(value) = node.attr("ExternalConnectionNum") {
+            value.parse::<u16>().map_err(|_| {
+                format!(
+                    "invalid ExternalConnectionNum `{value}` on node `{}`",
+                    node.attr("id").unwrap_or("<missing id>")
+                )
+            })?;
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn normalize_node(
     node: &XmlNode,
     origin: [f64; 2],
@@ -123,7 +141,17 @@ pub(super) fn normalize_node(
         position: local_position,
         charge,
         num_hydrogens: explicit_num_hydrogens.unwrap_or(0),
-        is_external_connection_point: node_type == "ExternalConnectionPoint",
+        external_connection: (node_type == "ExternalConnectionPoint").then(|| {
+            crate::ExternalConnection {
+                connection_type: cdxml_external_connection_type(
+                    node.attr("ExternalConnectionType"),
+                )
+                .expect("external connection values are validated before normalization"),
+                number: node
+                    .attr("ExternalConnectionNum")
+                    .and_then(|value| value.parse::<u16>().ok()),
+            }
+        }),
         is_placeholder: matches!(
             node_type,
             "Fragment" | "Nickname" | "GenericNickname" | "Unspecified"
@@ -169,6 +197,28 @@ pub(super) fn normalize_node(
         },
         meta,
     })
+}
+
+fn cdxml_external_connection_type(
+    value: Option<&str>,
+) -> Result<crate::ExternalConnectionType, String> {
+    let connection_type = match value {
+        None | Some("Unspecified") => crate::ExternalConnectionType::Unspecified,
+        Some("Diamond") => crate::ExternalConnectionType::Diamond,
+        Some("Star") => crate::ExternalConnectionType::Star,
+        Some("PolymerBead") => crate::ExternalConnectionType::PolymerBead,
+        Some("Wavy") => crate::ExternalConnectionType::Wavy,
+        Some("Residue") => crate::ExternalConnectionType::Residue,
+        Some("Peptide") => crate::ExternalConnectionType::Peptide,
+        Some("DNA") => crate::ExternalConnectionType::Dna,
+        Some("RNA") => crate::ExternalConnectionType::Rna,
+        Some("Terminus") => crate::ExternalConnectionType::Terminus,
+        Some("Sulfide") => crate::ExternalConnectionType::Sulfide,
+        Some("Nucleotide") => crate::ExternalConnectionType::Nucleotide,
+        Some("UnlinkedBranch") => crate::ExternalConnectionType::UnlinkedBranch,
+        Some(value) => return Err(format!("invalid ExternalConnectionType `{value}`")),
+    };
+    Ok(connection_type)
 }
 
 fn parse_element_list(value: Option<&str>) -> (Vec<u8>, bool) {

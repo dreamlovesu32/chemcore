@@ -79,6 +79,28 @@ impl Engine {
                     }
                 })
             }
+            "external-connection-number" => {
+                let value = self
+                    .selected_uniform_external_connection_number()
+                    .flatten()
+                    .map(|value| value.to_string())
+                    .unwrap_or_default();
+                json!({
+                    "kind": "atom-property",
+                    "property": "external-connection-number",
+                    "title": "External Connection Number",
+                    "field": {
+                        "key": "value",
+                        "label": "Connection number",
+                        "value": value,
+                        "inputMode": "numeric",
+                        "valueKind": "integer",
+                        "minimum": 1,
+                        "maximum": u16::MAX,
+                        "allowEmpty": true
+                    }
+                })
+            }
             "stereo" => {
                 let value = self
                     .selected_uniform_atom_stereo()
@@ -278,6 +300,7 @@ impl Engine {
                 separator(),
                 json!({"label": "Interpret Chemically", "command": "interpret-chemically", "value": if self.selected_interpret_chemically_enabled() { "off" } else { "on" }, "checked": self.selected_interpret_chemically_enabled()}),
                 self.implicit_hydrogen_menu(),
+                self.external_connection_menu(),
                 self.atom_properties_menu(),
                 self.atom_query_menu(),
                 separator(),
@@ -909,6 +932,40 @@ impl Engine {
         })
     }
 
+    fn external_connection_menu(&self) -> JsonValue {
+        let current = uniform_node_value(self.selected_label_nodes(), |node| {
+            node.external_connection
+                .as_ref()
+                .map(|connection| connection.connection_type)
+        })
+        .flatten();
+        let checked = |value| current == Some(value);
+        json!({
+            "label": "External Connection",
+            "submenu": [
+                atom_property_item("None", "external-connection-type", "none", current.is_none()),
+                separator(),
+                atom_property_item("Unspecified (Diamond)", "external-connection-type", "unspecified", checked(crate::ExternalConnectionType::Unspecified)),
+                atom_property_item("Diamond", "external-connection-type", "diamond", checked(crate::ExternalConnectionType::Diamond)),
+                atom_property_item("Star", "external-connection-type", "star", checked(crate::ExternalConnectionType::Star)),
+                atom_property_item("Polymer Bead", "external-connection-type", "polymer-bead", checked(crate::ExternalConnectionType::PolymerBead)),
+                atom_property_item("Wavy", "external-connection-type", "wavy", checked(crate::ExternalConnectionType::Wavy)),
+                separator(),
+                atom_property_item("Residue", "external-connection-type", "residue", checked(crate::ExternalConnectionType::Residue)),
+                atom_property_item("Peptide", "external-connection-type", "peptide", checked(crate::ExternalConnectionType::Peptide)),
+                atom_property_item("DNA", "external-connection-type", "dna", checked(crate::ExternalConnectionType::Dna)),
+                atom_property_item("RNA", "external-connection-type", "rna", checked(crate::ExternalConnectionType::Rna)),
+                atom_property_item("Terminus", "external-connection-type", "terminus", checked(crate::ExternalConnectionType::Terminus)),
+                atom_property_item("Sulfide", "external-connection-type", "sulfide", checked(crate::ExternalConnectionType::Sulfide)),
+                atom_property_item("Nucleotide", "external-connection-type", "nucleotide", checked(crate::ExternalConnectionType::Nucleotide)),
+                atom_property_item("Unlinked Branch", "external-connection-type", "unlinked-branch", checked(crate::ExternalConnectionType::UnlinkedBranch)),
+                separator(),
+                atom_property_item("Set Connection Number...", "external-connection-number", "__prompt__", false),
+                atom_property_item("Clear Connection Number", "external-connection-number", "", false)
+            ]
+        })
+    }
+
     fn selected_uniform_atom_query_value(&self, property: &str) -> Option<String> {
         uniform_node_value(self.selected_label_nodes(), |node| match property {
             "element-list" => {
@@ -981,6 +1038,14 @@ impl Engine {
     fn selected_uniform_atom_number(&self) -> Option<Option<String>> {
         uniform_node_value(self.selected_label_nodes(), |node| {
             node.atom_properties.atom_number.clone()
+        })
+    }
+
+    fn selected_uniform_external_connection_number(&self) -> Option<Option<u16>> {
+        uniform_node_value(self.selected_label_nodes(), |node| {
+            node.external_connection
+                .as_ref()
+                .and_then(|connection| connection.number)
         })
     }
 

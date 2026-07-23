@@ -120,6 +120,8 @@ fn refresh_carbon_display_labels(
 }
 
 enum AtomPropertyUpdate {
+    ExternalConnectionType(Option<crate::ExternalConnectionType>),
+    ExternalConnectionNumber(Option<u16>),
     Isotope(Option<i16>),
     Abundance(IsotopicAbundance),
     Radical(AtomRadical),
@@ -814,6 +816,34 @@ impl Engine {
                 },
                 None => None,
             }),
+            "external-connection-type" => {
+                AtomPropertyUpdate::ExternalConnectionType(match normalized.unwrap_or("none") {
+                    "none" => None,
+                    "unspecified" => Some(crate::ExternalConnectionType::Unspecified),
+                    "diamond" => Some(crate::ExternalConnectionType::Diamond),
+                    "star" => Some(crate::ExternalConnectionType::Star),
+                    "polymer-bead" => Some(crate::ExternalConnectionType::PolymerBead),
+                    "wavy" => Some(crate::ExternalConnectionType::Wavy),
+                    "residue" => Some(crate::ExternalConnectionType::Residue),
+                    "peptide" => Some(crate::ExternalConnectionType::Peptide),
+                    "dna" => Some(crate::ExternalConnectionType::Dna),
+                    "rna" => Some(crate::ExternalConnectionType::Rna),
+                    "terminus" => Some(crate::ExternalConnectionType::Terminus),
+                    "sulfide" => Some(crate::ExternalConnectionType::Sulfide),
+                    "nucleotide" => Some(crate::ExternalConnectionType::Nucleotide),
+                    "unlinked-branch" => Some(crate::ExternalConnectionType::UnlinkedBranch),
+                    _ => return false,
+                })
+            }
+            "external-connection-number" => {
+                AtomPropertyUpdate::ExternalConnectionNumber(match normalized {
+                    Some(value) => match value.parse::<u16>() {
+                        Ok(value) if value > 0 => Some(value),
+                        _ => return false,
+                    },
+                    None => None,
+                })
+            }
             "isotopic-abundance" => {
                 AtomPropertyUpdate::Abundance(match normalized.unwrap_or("unspecified") {
                     "unspecified" => IsotopicAbundance::Unspecified,
@@ -956,6 +986,50 @@ impl Engine {
                 continue;
             }
             let node_changed = match &update {
+                AtomPropertyUpdate::ExternalConnectionType(next) => {
+                    let mut node_changed = false;
+                    match next {
+                        Some(connection_type) => {
+                            let number = node
+                                .external_connection
+                                .as_ref()
+                                .and_then(|connection| connection.number);
+                            node_changed |= replace_if_different(
+                                &mut node.external_connection,
+                                Some(crate::ExternalConnection {
+                                    connection_type: *connection_type,
+                                    number,
+                                }),
+                            );
+                            node_changed |= replace_if_different(&mut node.element, String::new());
+                            node_changed |= replace_if_different(&mut node.atomic_number, 0);
+                            node_changed |= replace_if_different(&mut node.charge, 0);
+                            node_changed |= replace_if_different(&mut node.num_hydrogens, 0);
+                            node_changed |= replace_if_different(&mut node.label, None);
+                            node_changed |= replace_if_different(&mut node.is_placeholder, false);
+                            node_changed |= replace_if_different(
+                                &mut node.atom_properties,
+                                crate::AtomProperties::default(),
+                            );
+                        }
+                        None => {
+                            node_changed |=
+                                replace_if_different(&mut node.external_connection, None);
+                            if node.atomic_number == 0 {
+                                node_changed |=
+                                    replace_if_different(&mut node.element, "C".to_string());
+                                node_changed |= replace_if_different(&mut node.atomic_number, 6);
+                            }
+                        }
+                    }
+                    node_changed
+                }
+                AtomPropertyUpdate::ExternalConnectionNumber(next) => {
+                    let Some(connection) = node.external_connection.as_mut() else {
+                        continue;
+                    };
+                    replace_if_different(&mut connection.number, *next)
+                }
                 AtomPropertyUpdate::Isotope(next) => {
                     replace_if_different(&mut node.atom_properties.isotope_mass, *next)
                 }
@@ -1556,7 +1630,7 @@ fn expansion_atom_to_node(atom: &JsonValue, id: String, position: Point) -> Node
             .get("numHydrogens")
             .and_then(JsonValue::as_u64)
             .unwrap_or(0) as u8,
-        is_external_connection_point: false,
+        external_connection: None,
         is_placeholder: false,
         label: label
             .filter(|text| atomic_number == 0 || text != &element)

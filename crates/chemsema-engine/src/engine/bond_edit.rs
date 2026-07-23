@@ -432,7 +432,7 @@ impl Engine {
             position: [round2(local.x), round2(local.y)],
             charge: 0,
             num_hydrogens,
-            is_external_connection_point: false,
+            external_connection: None,
             is_placeholder: false,
             label,
             atom_properties: crate::AtomProperties::default(),

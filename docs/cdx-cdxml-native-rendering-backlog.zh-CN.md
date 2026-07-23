@@ -35,7 +35,7 @@
 | 2 | `NR-002` | 原子同位素、丰度、自由基和原子编号 | 完成 | 完成 | 完成 | 完成 | [x] |
 | 3 | `NR-003` | 原子查询与碳标签显示规则 | 完成 | 完成 | 完成 | 完成 | [x] |
 | 4 | `NR-004` | 键查询、反应属性和显示标记 | 完成 | 完成 | 完成 | 完成 | [x] |
-| 5 | `NR-005` | 外部连接点视觉类型 | 完成 | 部分 | 部分 | 部分 | [ ] |
+| 5 | `NR-005` | 外部连接点视觉类型 | 完成 | 完成 | 完成 | 完成 | [x] |
 | 6 | `NR-006` | 光谱对象 | 完成 | 部分 | 未做 | 部分 | [ ] |
 | 7 | `NR-007` | ChemicalProperty | 完成 | 部分 | 未做 | 部分 | [ ] |
 | 8 | `NR-008` | Geometry 与 Constraint | 完成 | 部分 | 未做 | 部分 | [ ] |
@@ -130,15 +130,24 @@
 - GUI、SVG、PNG 和 EMF 共用 `RenderPrimitive::Text`；右键菜单和 JSON 命令可编辑全部原生字段，并支持继承、撤销、复制和往返。
 - CCJS/CDXML/CDX 往返、命令、菜单、绘制和既有全量内核回归均已覆盖。完整规则见 [键查询、反应属性与显示标记规则](bond-query-reaction-editing-rules.zh-CN.md)。
 
-### [ ] NR-005 外部连接点视觉类型
+### [x] NR-005 外部连接点视觉类型
 
 **范围**：`ExternalConnectionType` 及其不同视觉形式。
 
-**现状**：未连接的 `MultiAttachment` 三线标记已有局部实现，但连接类型的完整视觉枚举尚未覆盖。
+**现状**：已完成。
 
 **目标**：逐一复核枚举的端点几何、方向和连接后行为，并纳入键端退让。
 
 **验收**：每个官方枚举均有 ChemDraw 对照；连接与未连接、旋转和缩放行为稳定。
+
+**完成记录（2026-07-23）**：
+
+- 静默 ChemDraw 探针覆盖缺省值、0–12 全枚举、字号、线宽、键长、方向、未连接和多键状态，并同时保存 CDXML、CDX、SVG 与 EMF 证据；`Wavy` 未连接时 ChemDraw 的 EMF 导出会使 COM 服务异常，因此可重复探针明确排除此无效组合。
+- CCJS 使用唯一原生对象 `node.externalConnection = { type, number? }`；旧 `isExternalConnectionPoint` 仅在 JSON 读取边界迁移，写出不再产生旧布尔字段，也不借用 `AtomNumber`。
+- CDX `0x0440` 已按实际 ChemDraw 枚举 0–12 完整编解码；CDXML 的 `ExternalConnectionType` 与 `ExternalConnectionNum` 原生导入、编辑和导出。
+- 默认/菱形、星形、聚合物珠、波浪、灰色扁菱形生物类型及无编号黑菱形均由共享绘制原语生成，GUI、SVG、PNG、EMF 共用；键端按照标记边界退让，`Wavy` 明确保持键到中心。
+- 右键菜单可创建、切换、移除全部类型并编辑连接编号；转换、撤销、复制和 CCJS/CDX/CDXML 往返均使用同一字段。
+- 实测尺寸函数、编号行为和方向规则见 [外部连接点规则](external-connection-rules.zh-CN.md)。
 
 ### [ ] NR-006 光谱对象
 
