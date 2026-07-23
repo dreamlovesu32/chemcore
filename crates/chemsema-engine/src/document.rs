@@ -1995,6 +1995,78 @@ pub enum QueryTranslation {
     Any,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AtomReactionStereo {
+    #[default]
+    Unspecified,
+    Inversion,
+    Retention,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BondQueryOrder {
+    Single,
+    Aromatic,
+    Double,
+    Triple,
+}
+
+impl BondQueryOrder {
+    pub fn cdxml_value(self) -> &'static str {
+        match self {
+            Self::Single => "1",
+            Self::Aromatic => "1.5",
+            Self::Double => "2",
+            Self::Triple => "3",
+        }
+    }
+
+    pub fn mnemonic(self) -> &'static str {
+        match self {
+            Self::Single => "S",
+            Self::Aromatic => "A",
+            Self::Double => "D",
+            Self::Triple => "T",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BondTopology {
+    #[default]
+    Unspecified,
+    Ring,
+    Chain,
+    RingOrChain,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BondReactionParticipation {
+    #[default]
+    Unspecified,
+    ReactionCenter,
+    MakeOrBreak,
+    ChangeType,
+    MakeAndChange,
+    NotReactionCenter,
+    NoChange,
+    Unmapped,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BondAbsoluteStereo {
+    #[default]
+    Unspecified,
+    None,
+    E,
+    Z,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IndicatorPosition {
@@ -2068,6 +2140,10 @@ pub struct AtomProperties {
     pub translation: QueryTranslation,
     #[serde(default)]
     pub abnormal_valence: bool,
+    #[serde(default)]
+    pub reaction_change: bool,
+    #[serde(default, skip_serializing_if = "is_default_atom_reaction_stereo")]
+    pub reaction_stereo: AtomReactionStereo,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub show_terminal_carbon_label: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2098,6 +2174,63 @@ fn is_default_unsaturated_bonds(value: &UnsaturatedBonds) -> bool {
 
 fn is_default_query_translation(value: &QueryTranslation) -> bool {
     *value == QueryTranslation::Equal
+}
+
+fn is_default_atom_reaction_stereo(value: &AtomReactionStereo) -> bool {
+    *value == AtomReactionStereo::Unspecified
+}
+
+pub(crate) fn parse_query_string_list(value: Option<&str>) -> (Vec<String>, bool) {
+    let mut tokens = value.unwrap_or("").split_whitespace();
+    let first = tokens.next();
+    let excluded = first.is_some_and(|value| value.eq_ignore_ascii_case("NOT"));
+    let values = first
+        .filter(|_| !excluded)
+        .into_iter()
+        .chain(tokens)
+        .map(ToString::to_string)
+        .collect();
+    (values, excluded)
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BondProperties {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub query_orders: Vec<BondQueryOrder>,
+    #[serde(default, skip_serializing_if = "is_default_bond_topology")]
+    pub topology: BondTopology,
+    #[serde(
+        default,
+        skip_serializing_if = "is_default_bond_reaction_participation"
+    )]
+    pub reaction_participation: BondReactionParticipation,
+    #[serde(default, skip_serializing_if = "is_default_bond_absolute_stereo")]
+    pub absolute_stereo: BondAbsoluteStereo,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub show_query: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub show_reaction: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub show_stereo: Option<bool>,
+}
+
+impl BondProperties {
+    pub fn is_default(&self) -> bool {
+        self == &Self::default()
+    }
+}
+
+fn is_default_bond_topology(value: &BondTopology) -> bool {
+    *value == BondTopology::Unspecified
+}
+
+fn is_default_bond_reaction_participation(value: &BondReactionParticipation) -> bool {
+    *value == BondReactionParticipation::Unspecified
+}
+
+fn is_default_bond_absolute_stereo(value: &BondAbsoluteStereo) -> bool {
+    *value == BondAbsoluteStereo::Unspecified
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2226,6 +2359,8 @@ pub struct Bond {
     pub begin: String,
     pub end: String,
     pub order: u8,
+    #[serde(default, skip_serializing_if = "BondProperties::is_default")]
+    pub properties: BondProperties,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub double: Option<DoubleBond>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

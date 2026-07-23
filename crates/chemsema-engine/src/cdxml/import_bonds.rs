@@ -167,6 +167,23 @@ pub(super) fn normalize_bond(
         begin,
         end,
         order,
+        properties: crate::BondProperties {
+            query_orders: cdxml_bond_query_orders(bond.attr("Order")),
+            topology: cdxml_bond_topology(bond.attr("Topology")),
+            reaction_participation: cdxml_bond_reaction_participation(
+                bond.attr("RxnParticipation"),
+            ),
+            absolute_stereo: cdxml_bond_absolute_stereo(bond.attr("BS")),
+            show_query: bond
+                .attr("ShowBondQuery")
+                .and_then(|value| parse_cdxml_bool(Some(value))),
+            show_reaction: bond
+                .attr("ShowBondRxn")
+                .and_then(|value| parse_cdxml_bool(Some(value))),
+            show_stereo: bond
+                .attr("ShowBondStereo")
+                .and_then(|value| parse_cdxml_bool(Some(value))),
+        },
         double: placement.map(|(placement, frozen)| crate::DoubleBond {
             placement,
             center_exit_side: None,
@@ -342,6 +359,55 @@ pub(super) fn cdxml_bond_order(value: Option<&str>) -> u8 {
         2
     } else {
         1
+    }
+}
+
+fn cdxml_bond_query_orders(value: Option<&str>) -> Vec<crate::BondQueryOrder> {
+    let tokens = value.unwrap_or("").split_whitespace().collect::<Vec<_>>();
+    if tokens.len() < 2 {
+        return Vec::new();
+    }
+    tokens
+        .into_iter()
+        .map(|token| match token {
+            "1" => Some(crate::BondQueryOrder::Single),
+            "1.5" => Some(crate::BondQueryOrder::Aromatic),
+            "2" => Some(crate::BondQueryOrder::Double),
+            "3" => Some(crate::BondQueryOrder::Triple),
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>()
+        .unwrap_or_default()
+}
+
+fn cdxml_bond_topology(value: Option<&str>) -> crate::BondTopology {
+    match value.unwrap_or("") {
+        "Ring" => crate::BondTopology::Ring,
+        "Chain" => crate::BondTopology::Chain,
+        "RingOrChain" => crate::BondTopology::RingOrChain,
+        _ => crate::BondTopology::Unspecified,
+    }
+}
+
+fn cdxml_bond_reaction_participation(value: Option<&str>) -> crate::BondReactionParticipation {
+    match value.unwrap_or("") {
+        "ReactionCenter" => crate::BondReactionParticipation::ReactionCenter,
+        "MakeOrBreak" => crate::BondReactionParticipation::MakeOrBreak,
+        "ChangeType" => crate::BondReactionParticipation::ChangeType,
+        "MakeAndChange" => crate::BondReactionParticipation::MakeAndChange,
+        "NotReactionCenter" => crate::BondReactionParticipation::NotReactionCenter,
+        "NoChange" => crate::BondReactionParticipation::NoChange,
+        "Unmapped" => crate::BondReactionParticipation::Unmapped,
+        _ => crate::BondReactionParticipation::Unspecified,
+    }
+}
+
+fn cdxml_bond_absolute_stereo(value: Option<&str>) -> crate::BondAbsoluteStereo {
+    match value.unwrap_or("") {
+        "N" => crate::BondAbsoluteStereo::None,
+        "E" => crate::BondAbsoluteStereo::E,
+        "Z" => crate::BondAbsoluteStereo::Z,
+        _ => crate::BondAbsoluteStereo::Unspecified,
     }
 }
 

@@ -133,6 +133,7 @@ impl Engine {
                     begin: node_ids[bond.begin].clone(),
                     end: node_ids[bond.end].clone(),
                     order,
+                    properties: Default::default(),
                     double: (order == 2).then_some(DoubleBond {
                         placement: DoubleBondPlacement::Center,
                         center_exit_side: None,

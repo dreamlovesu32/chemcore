@@ -48,7 +48,7 @@ fn parse_cdxml_automatically_positions_query_tags_relative_to_their_bonds() {
 }
 
 #[test]
-fn parse_cdxml_synthesizes_combined_bond_order_query_mnemonic() {
+fn parse_cdxml_keeps_combined_bond_order_query_native_and_renders_its_mnemonic() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML BondLength="30" LineWidth="1" BoldWidth="4" HashSpacing="2.7">
   <page id="1"><fragment id="2">
@@ -58,13 +58,103 @@ fn parse_cdxml_synthesizes_combined_bond_order_query_mnemonic() {
 </CDXML>"##;
     let document = parse_cdxml_document(cdxml, Some("combined bond-order query"))
         .expect("combined bond-order query should parse");
-    let label = document
-        .objects
+    let bond = document
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .and_then(|fragment| fragment.bonds.first())
+        .expect("query bond should import");
+    assert_eq!(
+        bond.properties.query_orders,
+        vec![
+            chemsema_engine::BondQueryOrder::Single,
+            chemsema_engine::BondQueryOrder::Double
+        ]
+    );
+    assert!(
+        document.objects.iter().all(|object| {
+            object.meta.get("role").and_then(|value| value.as_str()) != Some("query")
+        }),
+        "native query fields must not create a second editable text object"
+    );
+    assert!(render_document(&document)
         .iter()
-        .find(|object| object.meta.get("role").and_then(|value| value.as_str()) == Some("query"))
-        .expect("combined bond order should synthesize a visible query mnemonic");
-    assert_eq!(label.payload.extra.get("text"), Some(&json!("S/D")));
-    assert_eq!(label.meta.get("synthetic"), Some(&json!(true)));
+        .any(|primitive| match primitive {
+            RenderPrimitive::Text { text, runs, .. } => {
+                text == "S/D"
+                    || runs.iter().map(|run| run.text.as_str()).collect::<String>() == "S/D"
+            }
+            _ => false,
+        }));
+}
+
+#[test]
+fn bond_annotation_visibility_inherits_document_and_keeps_query_order_visible() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelSize="10" ShowBondQuery="no" ShowBondRxn="no" ShowBondStereo="no">
+  <page id="1"><fragment id="2">
+    <n id="3" p="0 0"/><n id="4" p="30 0"/>
+    <b id="5" B="3" E="4" Order="1 2" Topology="Ring"
+       RxnParticipation="MakeAndChange" BS="E"/>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("bond annotation inheritance"))
+        .expect("bond annotations should parse");
+    let texts = render_document(&document)
+        .iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Text { text, runs, .. } => Some(if text.is_empty() {
+                runs.iter().map(|run| run.text.as_str()).collect::<String>()
+            } else {
+                text.clone()
+            }),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert!(texts.iter().any(|text| text == "S/D"), "{texts:?}");
+    assert!(!texts
+        .iter()
+        .any(|text| text.contains("Rng") || text.contains("Rxn")));
+    assert!(!texts.iter().any(|text| text == "(E)"));
+}
+
+#[test]
+fn bond_annotation_side_is_independent_of_bond_endpoint_order() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelSize="10" ShowBondStereo="yes">
+  <page id="1"><fragment id="2">
+    <n id="3" p="0 0"/><n id="4" p="30 20"/>
+    <b id="5" B="3" E="4" Order="1 2" Topology="Ring"
+       RxnParticipation="MakeAndChange" BS="E"/>
+    <b id="6" B="4" E="3" Order="1 2" Topology="Ring"
+       RxnParticipation="MakeAndChange" BS="E"/>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("reversed bond annotations"))
+        .expect("bond annotations should parse");
+    let mut positions = render_document(&document)
+        .iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Text {
+                x, y, text, runs, ..
+            } => {
+                let rendered = if text.is_empty() {
+                    runs.iter().map(|run| run.text.as_str()).collect::<String>()
+                } else {
+                    text.clone()
+                };
+                matches!(rendered.as_str(), "RngRxnS/D" | "(E)").then_some((rendered, *x, *y))
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    positions.sort_by(|left, right| left.0.cmp(&right.0));
+    assert_eq!(positions.len(), 4, "{positions:?}");
+    for pair in positions.chunks_exact(2) {
+        assert_eq!(pair[0].0, pair[1].0);
+        assert!((pair[0].1 - pair[1].1).abs() < 1.0e-9, "{pair:?}");
+        assert!((pair[0].2 - pair[1].2).abs() < 1.0e-9, "{pair:?}");
+    }
 }
 
 #[test]

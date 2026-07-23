@@ -570,6 +570,8 @@ text 对象表示带定位信息的富文本内容。
 | `substituentsExactly` | 整数 | 非氢相邻键的精确数量 |
 | `translation` | 字符串 | `equal`、`broad`、`narrow` 或 `any` 查询翻译规则 |
 | `abnormalValence` | 布尔 | 允许实际画出的价态且不触发常规价态诊断 |
+| `reactionChange` | 布尔 | 原子在反应中发生变化 |
+| `reactionStereo` | 字符串 | `unspecified`、`inversion` 或 `retention` |
 | `showTerminalCarbonLabel` | 布尔 | 逐节点覆盖端点碳标签显隐 |
 | `showNonTerminalCarbonLabel` | 布尔 | 逐节点覆盖非端点碳标签显隐 |
 
@@ -662,6 +664,15 @@ text 对象表示带定位信息的富文本内容。
   "hashSpacing": 2.5,
   "bondSpacing": 18.0,
   "marginWidth": 1.6,
+  "properties": {
+    "queryOrders": ["single", "double"],
+    "topology": "ring",
+    "reactionParticipation": "make-and-change",
+    "absoluteStereo": "e",
+    "showQuery": true,
+    "showReaction": true,
+    "showStereo": true
+  },
   "stereo": {
     "kind": "solid-wedge",
     "wideEnd": "end"
@@ -719,6 +730,16 @@ CDXML/CDX 根绘图默认值保存在 `document.meta.import.cdxml.defaults`。�
 键字段：
 
 - `order`：数字键级
+- `properties.queryOrders`：零个或多个官方查询键级
+  `single | aromatic | double | triple`；两个及以上值表示查询键，其助记
+  文本是该键型的可见表达
+- `properties.topology`：`unspecified | ring | chain | ring-or-chain`
+- `properties.reactionParticipation`：`unspecified | reaction-center |
+  make-or-break | change-type | make-and-change | not-reaction-center |
+  no-change | unmapped`
+- `properties.absoluteStereo`：`unspecified | none | e | z`
+- `properties.showQuery`、`showReaction`、`showStereo`：可选的逐键显示
+  覆盖；缺省时继承对应文档默认值
 - `strokeWidth`：普通键线宽，单位为 pt
 - `boldWidth`：粗实键模板宽度，单位为 pt
 - `wedgeWidth`：实锲形键和空心锲形键宽端总宽，单位为 pt；CDXML 源模板导入时按 `1.5 * BoldWidth` 派生，不从键长反推

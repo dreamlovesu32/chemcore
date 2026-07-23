@@ -810,6 +810,24 @@ const UNSATURATED_BONDS: &[(i16, &str)] = &[
     (2, "MustBePresent"),
 ];
 const QUERY_TRANSLATION: &[(i16, &str)] = &[(0, "Equal"), (1, "Broad"), (2, "Narrow"), (3, "Any")];
+const ATOM_REACTION_STEREO: &[(i16, &str)] =
+    &[(0, "Unspecified"), (1, "Inversion"), (2, "Retention")];
+const BOND_TOPOLOGY: &[(i16, &str)] = &[
+    (0, "Unspecified"),
+    (1, "Ring"),
+    (2, "Chain"),
+    (3, "RingOrChain"),
+];
+const BOND_REACTION_PARTICIPATION: &[(i16, &str)] = &[
+    (0, "Unspecified"),
+    (1, "ReactionCenter"),
+    (2, "MakeOrBreak"),
+    (3, "ChangeType"),
+    (4, "MakeAndChange"),
+    (5, "NotReactionCenter"),
+    (6, "NoChange"),
+    (7, "Unmapped"),
+];
 const BOND_STEREO: &[(i16, &str)] = &[(0, "U"), (1, "N"), (2, "E"), (3, "Z")];
 const NODE_TYPE: &[(i16, &str)] = &[
     (0, "Unspecified"),

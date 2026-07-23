@@ -14,6 +14,7 @@ const cdxml = [
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "export.rs"),
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "import_objects.rs"),
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "import_nodes.rs"),
+  join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "import_bonds.rs"),
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "import_fragments.rs"),
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "text_runs.rs"),
 ].map((path) => readFileSync(path, "utf8")).join("\n");
@@ -29,6 +30,8 @@ const nativeSemanticProperties = new Set([
   "ShowAtomStereo", "ElementList", "GenericList", "FreeSites", "RingBondCount",
   "UnsaturatedBonds", "SubstituentsUpTo", "SubstituentsExactly", "Translation",
   "AbnormalValence", "ShowTerminalCarbonLabels", "ShowNonTerminalCarbonLabels",
+  "RxnChange", "RxnStereo", "Topology", "RxnParticipation", "BS",
+  "ShowBondQuery", "ShowBondRxn", "ShowBondStereo",
 ]);
 const lexicalCdxTypes = new Set([
   "CDXString", "CDXBoolean", "CDXBooleanImplied", "INT8", "UINT8", "INT16", "UINT16",

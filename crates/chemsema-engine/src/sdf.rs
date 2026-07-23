@@ -414,6 +414,7 @@ fn molfile_to_fragment(molfile: &Molfile, record: &SdfRecord) -> (MoleculeFragme
                 begin: format!("n{}", bond.begin + 1),
                 end: format!("n{}", bond.end + 1),
                 order,
+                properties: Default::default(),
                 double: (order == 2).then_some(DoubleBond {
                     placement: DoubleBondPlacement::Center,
                     center_exit_side: None,

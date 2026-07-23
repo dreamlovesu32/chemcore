@@ -15,6 +15,11 @@ pub(in crate::cdxml) fn append_text_objects(
         .filter(|node| node.is("n") && cdxml_node_has_native_query_semantics(node))
         .filter_map(|node| node.attr("id").map(ToString::to_string))
         .collect();
+    let native_annotation_bond_ids: BTreeSet<String> = descendants(root)
+        .into_iter()
+        .filter(|node| node.is("b") && cdxml_bond_has_native_annotation_semantics(node))
+        .filter_map(|node| node.attr("id").map(ToString::to_string))
+        .collect();
     let mut index = 1;
     let node_positions: BTreeMap<String, [f64; 2]> = descendants(root)
         .into_iter()
@@ -36,6 +41,7 @@ pub(in crate::cdxml) fn append_text_objects(
         CdxmlTextObjectRole::FreeText,
         None,
         None,
+        None,
         false,
         auto_position_enhanced_stereo,
         &node_positions,
@@ -49,14 +55,29 @@ pub(in crate::cdxml) fn append_text_objects(
         display_fragment_ids,
         bonded_node_ids,
     );
-    objects.retain(|object| {
-        object.meta.get("role").and_then(Value::as_str) != Some("query")
-            || object
-                .meta
-                .get("attachedNodeId")
-                .and_then(Value::as_str)
-                .is_none_or(|node_id| !native_query_node_ids.contains(node_id))
-    });
+    objects.retain(
+        |object| match object.meta.get("role").and_then(Value::as_str) {
+            Some("query")
+                if object
+                    .meta
+                    .get("attachedNodeId")
+                    .and_then(Value::as_str)
+                    .is_some_and(|node_id| native_query_node_ids.contains(node_id)) =>
+            {
+                false
+            }
+            Some("query" | "stereo")
+                if object
+                    .meta
+                    .get("attachedBondId")
+                    .and_then(Value::as_str)
+                    .is_some_and(|bond_id| native_annotation_bond_ids.contains(bond_id)) =>
+            {
+                false
+            }
+            _ => true,
+        },
+    );
 }
 
 fn cdxml_node_has_native_query_semantics(node: &XmlNode) -> bool {
@@ -69,9 +90,19 @@ fn cdxml_node_has_native_query_semantics(node: &XmlNode) -> bool {
         "SubstituentsExactly",
         "Translation",
         "ImplicitHydrogens",
+        "RxnChange",
+        "RxnStereo",
     ]
     .iter()
     .any(|name| node.attr(name).is_some())
+}
+
+fn cdxml_bond_has_native_annotation_semantics(bond: &XmlNode) -> bool {
+    bond.attr("Order")
+        .is_some_and(|value| value.split_whitespace().count() >= 2)
+        || ["Topology", "RxnParticipation", "BS"]
+            .iter()
+            .any(|name| bond.attr(name).is_some())
 }
 
 pub(in crate::cdxml) fn append_synthesized_enhanced_stereo_text_objects(
@@ -209,149 +240,6 @@ pub(in crate::cdxml) fn append_synthesized_enhanced_stereo_text_objects(
     }
 }
 
-pub(in crate::cdxml) fn append_synthesized_bond_query_text_objects(
-    root: &XmlNode,
-    objects: &mut Vec<SceneObject>,
-    styles: &mut BTreeMap<String, Value>,
-    defaults: CdxmlDefaults,
-    colors: &CdxmlColorTable,
-    fonts: &BTreeMap<String, String>,
-) {
-    let node_positions: BTreeMap<&str, [f64; 2]> = descendants(root)
-        .into_iter()
-        .filter(|node| node.is("n"))
-        .filter_map(|node| Some((node.attr("id")?, parse_xy(node.attr("p"))?)))
-        .collect();
-    let font_size = defaults.label_size * 0.75;
-    let font_id = defaults.label_font.to_string();
-    let font_family = fonts
-        .get(&font_id)
-        .cloned()
-        .unwrap_or_else(|| "Arial".to_string());
-    let fill = colors.resolve(Some(&defaults.color.to_string()));
-    let mut index = objects
-        .iter()
-        .filter(|object| object.object_type == "text")
-        .count()
-        + 1;
-
-    for bond in descendants(root).into_iter().filter(|node| node.is("b")) {
-        let Some(label) = synthesized_bond_query_label(bond.attr("Order")) else {
-            continue;
-        };
-        if bond.direct_children("objecttag").any(|tag| {
-            tag.attr("Name") == Some("query")
-                && !tag
-                    .attr("Visible")
-                    .is_some_and(|value| value.eq_ignore_ascii_case("no"))
-        }) {
-            continue;
-        }
-        let Some((begin, end)) = bond.attr("B").zip(bond.attr("E")).and_then(|(begin, end)| {
-            Some((*node_positions.get(begin)?, *node_positions.get(end)?))
-        }) else {
-            continue;
-        };
-        let midpoint = [(begin[0] + end[0]) * 0.5, (begin[1] + end[1]) * 0.5];
-        let bond_length = (end[0] - begin[0]).hypot(end[1] - begin[1]);
-        let vertical_fraction = if bond_length > crate::EPSILON {
-            ((end[1] - begin[1]) / bond_length).abs()
-        } else {
-            0.0
-        };
-        let width = estimated_annotation_text_width(&label, font_size);
-        let height = font_size * 0.86;
-        // ChemDraw anchors the synthetic query mnemonic just left of the bond
-        // midpoint and above the shaft. The offset follows the bond slope so
-        // horizontal and conventional 30-degree bonds retain the same gap.
-        let left = midpoint[0] + font_size * (-0.475 + 0.424 * vertical_fraction);
-        let top = midpoint[1] + font_size * (-1.169 + 0.372 * vertical_fraction);
-        let style_id = format!("style_text_auto_query_{index:03}");
-        styles.insert(
-            style_id.clone(),
-            json!({
-                "kind": "text",
-                "fontFamily": font_family,
-                "fontSize": font_size,
-                "fontWeight": 400,
-                "fill": fill,
-                "stroke": null,
-            }),
-        );
-        let mut extra = BTreeMap::new();
-        extra.insert("text".to_string(), json!(label));
-        extra.insert("box".to_string(), json!([0.0, 0.0, width, height]));
-        extra.insert("align".to_string(), json!("left"));
-        extra.insert("valign".to_string(), json!("top"));
-        extra.insert("lineHeight".to_string(), json!(font_size * 1.15));
-        extra.insert("fontSize".to_string(), json!(font_size));
-        extra.insert("anchorOffsetX".to_string(), json!(0.0));
-        extra.insert("baselineOffset".to_string(), json!(font_size * 0.82));
-        extra.insert("preserveLines".to_string(), json!(true));
-        extra.insert(
-            "runs".to_string(),
-            json!([LabelRun {
-                text: label.clone(),
-                font_family: Some(font_family.clone()),
-                font_size: Some(font_size),
-                fill: Some(fill.clone()),
-                font_weight: Some(400),
-                font_style: Some("normal".to_string()),
-                underline: Some(false),
-                outline: Some(false),
-                shadow: Some(false),
-                script: Some("normal".to_string()),
-            }]),
-        );
-        objects.push(SceneObject {
-            id: format!("obj_text_auto_query_{index:03}"),
-            object_type: "text".to_string(),
-            name: format!("bond query label {}", bond.attr("id").unwrap_or("")),
-            visible: true,
-            locked: false,
-            z_index: parse_i32(bond.attr("Z")).unwrap_or(30),
-            transform: Transform {
-                translate: [round2(left), round2(top)],
-                rotate: 0.0,
-                scale: [1.0, 1.0],
-            },
-            style_ref: Some(style_id),
-            meta: json!({
-                "source": "cdxml",
-                "role": "query",
-                "synthetic": true,
-                "bondId": bond.attr("id"),
-                "order": bond.attr("Order"),
-            }),
-            payload: ObjectPayload {
-                resource_ref: None,
-                bbox: None,
-                extra,
-            },
-            children: Vec::new(),
-        });
-        index += 1;
-    }
-}
-
-pub(super) fn synthesized_bond_query_label(order: Option<&str>) -> Option<String> {
-    let tokens = order?.split_whitespace().collect::<Vec<_>>();
-    if tokens.len() < 2 {
-        return None;
-    }
-    tokens
-        .into_iter()
-        .map(|token| match token {
-            "1" => Some("S"),
-            "1.5" => Some("A"),
-            "2" => Some("D"),
-            "3" => Some("T"),
-            _ => None,
-        })
-        .collect::<Option<Vec<_>>>()
-        .map(|parts| parts.join("/"))
-}
-
 pub(super) fn enhanced_stereo_label_direction(
     node_id: &str,
     position: [f64; 2],
@@ -400,6 +288,7 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
     text_role: CdxmlTextObjectRole,
     containing_node_position: Option<[f64; 2]>,
     containing_node_id: Option<String>,
+    containing_bond_id: Option<String>,
     automatic_object_tag: bool,
     auto_position_enhanced_stereo: bool,
     node_positions: &BTreeMap<String, [f64; 2]>,
@@ -479,6 +368,13 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
     } else {
         containing_node_id
     };
+    let next_containing_bond_id = if node.is("b") {
+        node.attr("id")
+            .map(ToString::to_string)
+            .or(containing_bond_id)
+    } else {
+        containing_bond_id
+    };
     let next_automatic_object_tag = if object_tag_role.is_some() {
         uses_automatic_object_tag_positioning(node)
     } else {
@@ -513,6 +409,7 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
             current_z.unwrap_or(30),
             next_text_role,
             next_containing_node_id.as_deref(),
+            next_containing_bond_id.as_deref(),
             visible,
             auto_bracket_label_right_x,
             (next_text_role == CdxmlTextObjectRole::EnhancedStereo
@@ -550,6 +447,7 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
             next_text_role,
             next_containing_node_position,
             next_containing_node_id.clone(),
+            next_containing_bond_id.clone(),
             next_automatic_object_tag,
             auto_position_enhanced_stereo,
             node_positions,
@@ -577,6 +475,7 @@ pub(super) fn text_object(
     z_index: i32,
     role: CdxmlTextObjectRole,
     containing_node_id: Option<&str>,
+    containing_bond_id: Option<&str>,
     visible: bool,
     auto_bracket_label_right_x: Option<f64>,
     auto_enhanced_stereo_anchor: Option<[f64; 2]>,
@@ -753,6 +652,7 @@ pub(super) fn text_object(
             "source": "cdxml",
             "role": role.as_str(),
             "attachedNodeId": containing_node_id,
+            "attachedBondId": containing_bond_id,
             "textId": node.attr("id"),
             "import": {
                 "cdxml": {

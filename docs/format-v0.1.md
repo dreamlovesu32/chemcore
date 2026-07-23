@@ -558,6 +558,8 @@ It must not store CDXML object tags or cached text boxes as its meaning.
 | `substituentsExactly` | integer | Exact number of non-hydrogen neighboring bonds |
 | `translation` | string | `equal`, `broad`, `narrow`, or `any` query translation |
 | `abnormalValence` | boolean | Permit the actual drawn valence without normal-valence diagnostics |
+| `reactionChange` | boolean | The atom changes during a reaction |
+| `reactionStereo` | string | `unspecified`, `inversion`, or `retention` |
 | `showTerminalCarbonLabel` | boolean | Per-node override for terminal carbon labels |
 | `showNonTerminalCarbonLabel` | boolean | Per-node override for nonterminal carbon labels |
 
@@ -653,6 +655,15 @@ Example bonds:
   "hashSpacing": 2.5,
   "bondSpacing": 18.0,
   "marginWidth": 1.6,
+  "properties": {
+    "queryOrders": ["single", "double"],
+    "topology": "ring",
+    "reactionParticipation": "make-and-change",
+    "absoluteStereo": "e",
+    "showQuery": true,
+    "showReaction": true,
+    "showStereo": true
+  },
   "stereo": {
     "kind": "solid-wedge",
     "wideEnd": "end"
@@ -718,6 +729,16 @@ source id in CCJS.
 Bond fields:
 
 - `order`: numeric bond order
+- `properties.queryOrders`: zero or more official query bond orders,
+  `single | aromatic | double | triple`; two or more values describe a query
+  bond whose mnemonic is its visible bond-type expression
+- `properties.topology`: `unspecified | ring | chain | ring-or-chain`
+- `properties.reactionParticipation`: `unspecified | reaction-center |
+  make-or-break | change-type | make-and-change | not-reaction-center |
+  no-change | unmapped`
+- `properties.absoluteStereo`: `unspecified | none | e | z`
+- `properties.showQuery`, `showReaction`, `showStereo`: optional per-bond
+  visibility overrides; absence inherits the corresponding document default
 - `strokeWidth`: normal bond stroke width in pt
 - `boldWidth`: bold bond template width in pt
 - `wedgeWidth`: solid and hollow wedge wide-end template width in pt; CDXML source templates derive it as `1.5 * BoldWidth`

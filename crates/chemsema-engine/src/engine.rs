@@ -1,5 +1,6 @@
 mod arrows;
 mod bond_edit;
+mod bond_properties;
 mod bond_styles;
 mod bond_tools;
 mod brackets;
@@ -1269,6 +1270,17 @@ fn editor_command_is_immediate(command: &EditorCommand) -> bool {
     )
 }
 
+fn editor_command_is_selection_semantic(command: &EditorCommand) -> bool {
+    matches!(
+        command,
+        EditorCommand::SetInterpretChemicallyForSelection { .. }
+            | EditorCommand::SetImplicitHydrogenCountForSelection { .. }
+            | EditorCommand::SetAtomPropertyForSelection { .. }
+            | EditorCommand::SetBondPropertyForSelection { .. }
+            | EditorCommand::SetChemicalCheckForSelection { .. }
+    )
+}
+
 fn editor_command_type_name(command: &EditorCommand) -> &'static str {
     match command {
         EditorCommand::Undo => "undo",
@@ -1323,6 +1335,7 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
             "set-implicit-hydrogen-count-for-selection"
         }
         EditorCommand::SetAtomPropertyForSelection { .. } => "set-atom-property-for-selection",
+        EditorCommand::SetBondPropertyForSelection { .. } => "set-bond-property-for-selection",
         EditorCommand::SetChemicalCheckForSelection { .. } => "set-chemical-check-for-selection",
         EditorCommand::ExpandLabelsInSelection => "expand-labels-in-selection",
         EditorCommand::CenterSelectionOnPage => "center-selection-on-page",

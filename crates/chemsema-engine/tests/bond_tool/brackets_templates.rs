@@ -1323,6 +1323,7 @@ fn engine_provides_context_menu_and_numeric_dialog_schemas() {
         .filter_map(|item| item.get("label").and_then(serde_json::Value::as_str))
         .collect::<Vec<_>>();
     assert!(labels.contains(&"Bond Type"));
+    assert!(labels.contains(&"Bond Query & Reaction"));
     assert!(labels.contains(&"Object Settings..."));
     assert!(!labels.contains(&"Insert Image..."));
 
@@ -1354,6 +1355,12 @@ fn engine_provides_context_menu_and_numeric_dialog_schemas() {
         .and_then(serde_json::Value::as_array)
         .is_some_and(|items| items.iter().any(|item| {
             item.get("label").and_then(serde_json::Value::as_str) == Some("Element List...")
+        })));
+    assert!(atom_query
+        .get("submenu")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|items| items.iter().any(|item| {
+            item.get("label").and_then(serde_json::Value::as_str) == Some("Reaction Stereo")
         })));
 
     let scale: serde_json::Value =

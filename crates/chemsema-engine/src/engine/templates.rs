@@ -1710,6 +1710,7 @@ fn insert_ring_bond(
         begin: begin_id.to_string(),
         end: end_id.to_string(),
         order: order.max(1),
+        properties: Default::default(),
         double: double_placement.map(|placement| DoubleBond {
             placement,
             center_exit_side: None,

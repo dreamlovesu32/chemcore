@@ -162,7 +162,10 @@ fn export_cdxml_emits_chemdraw_document_with_native_fragment() {
     assert!(cdxml.contains("HeaderPosition=\"36\""));
     assert!(cdxml.contains("<fragment"));
     assert!(cdxml.contains("Order=\"2\""));
-    assert!(cdxml.contains("BS=\"N\""));
+    assert!(
+        !cdxml.contains(" BS="),
+        "unspecified bond stereo must remain absent instead of becoming explicit BS=N"
+    );
     assert!(cdxml.contains("BondSpacing=\"18\""));
     assert!(cdxml.contains("MarginWidth=\"1.6\""));
     assert!(cdxml.contains("NodeType=\"Nickname\""));

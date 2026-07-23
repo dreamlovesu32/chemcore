@@ -17,11 +17,11 @@
     "cdxmlAttributes": 384,
     "cdxmlDeclarations": 762,
     "losslessUncovered": 0,
-    "nativeSemanticCdxProperties": 20,
-    "typedInterchangeCdxProperties": 223,
+    "nativeSemanticCdxProperties": 28,
+    "typedInterchangeCdxProperties": 215,
     "opaqueBySpecCdxProperties": 18,
     "contextDependentCdxProperties": 1,
-    "nativeSemanticCdxmlAttributes": 54,
+    "nativeSemanticCdxmlAttributes": 76,
     "verifiedBehaviorObjects": 35,
     "verifiedBehaviorCdxProperties": 262,
     "verifiedBehaviorCdxmlAttributes": 384,
@@ -1055,7 +1055,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_RestrictRxnChange.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1069,7 +1069,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Atom_RestrictRxnStereo.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1643,7 +1643,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_RestrictTopology.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1657,7 +1657,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_RestrictRxnParticipation.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1699,7 +1699,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_CIPStereochemistry.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1727,7 +1727,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_ShowQuery.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1741,7 +1741,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_ShowStereo.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -1769,7 +1769,7 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Bond_ShowRxn.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
       "formatRule": "Official lexical/binary codec is available; value is editable."
@@ -14473,7 +14473,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14864,7 +14864,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15174,7 +15174,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15343,7 +15343,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15363,7 +15363,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15459,7 +15459,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15487,7 +15487,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15512,7 +15512,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15558,7 +15558,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15614,7 +15614,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15650,7 +15650,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15674,7 +15674,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15694,7 +15694,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -15714,7 +15714,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -16106,7 +16106,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -16135,7 +16135,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -16169,7 +16169,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -16203,7 +16203,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -16237,7 +16237,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -16262,7 +16262,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -21913,7 +21913,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -21937,7 +21937,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },

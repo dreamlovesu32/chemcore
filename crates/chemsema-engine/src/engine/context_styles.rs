@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
-    round2, AtomRadical, IsotopicAbundance, MoleculeFragment, Node, ObjectPayload,
-    QueryTranslation, RingBondCount, UnsaturatedBonds, Vector,
+    round2, AtomRadical, AtomReactionStereo, IsotopicAbundance, MoleculeFragment, Node,
+    ObjectPayload, QueryTranslation, RingBondCount, UnsaturatedBonds, Vector,
 };
 use serde_json::Map;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -28,19 +28,6 @@ fn parse_optional_u8(value: Option<&str>) -> Result<Option<u8>, ()> {
         None => Ok(None),
         Some(value) => value.parse::<u8>().map(Some).map_err(|_| ()),
     }
-}
-
-fn parse_atom_query_list(value: Option<&str>) -> (Vec<String>, bool) {
-    let mut tokens = value.unwrap_or("").split_whitespace();
-    let first = tokens.next();
-    let excluded = first.is_some_and(|value| value.eq_ignore_ascii_case("NOT"));
-    let values = first
-        .filter(|_| !excluded)
-        .into_iter()
-        .chain(tokens)
-        .map(ToString::to_string)
-        .collect();
-    (values, excluded)
 }
 
 fn refresh_atom_query_list_label(node: &mut Node) -> bool {
@@ -150,6 +137,8 @@ enum AtomPropertyUpdate {
     SubstituentsExactly(Option<u8>),
     Translation(QueryTranslation),
     AbnormalValence(bool),
+    ReactionChange(bool),
+    ReactionStereo(AtomReactionStereo),
     ShowTerminalCarbonLabel(Option<bool>),
     ShowNonTerminalCarbonLabel(Option<bool>),
 }
@@ -860,7 +849,7 @@ impl Engine {
                 AtomPropertyUpdate::ShowStereo(parsed)
             }
             "element-list" => {
-                let (values, excluded) = parse_atom_query_list(normalized);
+                let (values, excluded) = crate::document::parse_query_string_list(normalized);
                 let mut parsed = Vec::new();
                 for value in values {
                     let Ok(value) = value.parse::<u8>() else {
@@ -871,7 +860,7 @@ impl Engine {
                 AtomPropertyUpdate::ElementList(parsed, excluded)
             }
             "generic-list" => {
-                let (values, excluded) = parse_atom_query_list(normalized);
+                let (values, excluded) = crate::document::parse_query_string_list(normalized);
                 AtomPropertyUpdate::GenericList(values, excluded)
             }
             "free-sites" => AtomPropertyUpdate::FreeSites(match parse_optional_u8(normalized) {
@@ -920,6 +909,17 @@ impl Engine {
             "abnormal-valence" => AtomPropertyUpdate::AbnormalValence(
                 parse_optional_bool(normalized).unwrap_or(false),
             ),
+            "reaction-change" => {
+                AtomPropertyUpdate::ReactionChange(parse_optional_bool(normalized).unwrap_or(false))
+            }
+            "reaction-stereo" => {
+                AtomPropertyUpdate::ReactionStereo(match normalized.unwrap_or("unspecified") {
+                    "unspecified" => AtomReactionStereo::Unspecified,
+                    "inversion" => AtomReactionStereo::Inversion,
+                    "retention" => AtomReactionStereo::Retention,
+                    _ => return false,
+                })
+            }
             "show-terminal-carbon-label" => {
                 AtomPropertyUpdate::ShowTerminalCarbonLabel(parse_optional_bool(normalized))
             }
@@ -1032,6 +1032,12 @@ impl Engine {
                 }
                 AtomPropertyUpdate::AbnormalValence(next) => {
                     replace_if_different(&mut node.atom_properties.abnormal_valence, *next)
+                }
+                AtomPropertyUpdate::ReactionChange(next) => {
+                    replace_if_different(&mut node.atom_properties.reaction_change, *next)
+                }
+                AtomPropertyUpdate::ReactionStereo(next) => {
+                    replace_if_different(&mut node.atom_properties.reaction_stereo, *next)
                 }
                 AtomPropertyUpdate::ShowTerminalCarbonLabel(next) => replace_if_different(
                     &mut node.atom_properties.show_terminal_carbon_label,
@@ -1601,6 +1607,7 @@ fn expansion_bond(
         begin,
         end,
         order,
+        properties: Default::default(),
         double: (order == 2).then_some(DoubleBond {
             placement: DoubleBondPlacement::Center,
             center_exit_side: None,
@@ -1917,6 +1924,7 @@ fn line_style_json(style: &str, color: &str, stroke_width: f64, dash_spacing: f6
 
 fn apply_bond_style_key(bond: &mut Bond, style: &str, bold_width: f64, wedge_width: f64) -> bool {
     let before = serde_json::to_value(&*bond).ok();
+    bond.properties.query_orders.clear();
     bond.bold_width = Some(bold_width);
     bond.wedge_width = Some(wedge_width);
     match style {

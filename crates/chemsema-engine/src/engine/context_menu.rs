@@ -247,6 +247,7 @@ impl Engine {
             items.extend([
                 separator(),
                 self.bond_type_menu(),
+                self.bond_query_reaction_menu(),
                 separator(),
                 self.color_menu(),
                 self.object_settings_item(),
@@ -599,6 +600,110 @@ impl Engine {
         bond_type_menu(self.selected_uniform_bond_style().as_deref())
     }
 
+    fn bond_query_reaction_menu(&self) -> JsonValue {
+        let query_orders = uniform_value(
+            self.selected_bonds()
+                .into_iter()
+                .map(|bond| {
+                    bond.properties
+                        .query_orders
+                        .iter()
+                        .map(|value| value.mnemonic())
+                        .collect::<Vec<_>>()
+                        .join("/")
+                })
+                .collect(),
+        );
+        let topology = uniform_value(
+            self.selected_bonds()
+                .into_iter()
+                .map(|bond| format!("{:?}", bond.properties.topology).to_ascii_lowercase())
+                .collect(),
+        );
+        let reaction = uniform_value(
+            self.selected_bonds()
+                .into_iter()
+                .map(|bond| {
+                    format!("{:?}", bond.properties.reaction_participation).to_ascii_lowercase()
+                })
+                .collect(),
+        );
+        let absolute_stereo = uniform_value(
+            self.selected_bonds()
+                .into_iter()
+                .map(|bond| format!("{:?}", bond.properties.absolute_stereo).to_ascii_lowercase())
+                .collect(),
+        );
+        let show_query = uniform_value(
+            self.selected_bonds()
+                .into_iter()
+                .map(|bond| bond.properties.show_query)
+                .collect(),
+        );
+        let show_reaction = uniform_value(
+            self.selected_bonds()
+                .into_iter()
+                .map(|bond| bond.properties.show_reaction)
+                .collect(),
+        );
+        let show_stereo = uniform_value(
+            self.selected_bonds()
+                .into_iter()
+                .map(|bond| bond.properties.show_stereo)
+                .collect(),
+        );
+        json!({
+            "label": "Bond Query & Reaction",
+            "submenu": [
+                {
+                    "label": "Query Order",
+                    "submenu": [
+                        bond_property_item("None", "query-orders", "none", query_orders.as_deref() == Some("")),
+                        bond_property_item("Single or Double (S/D)", "query-orders", "single-double", query_orders.as_deref() == Some("S/D")),
+                        bond_property_item("Single or Aromatic (S/A)", "query-orders", "single-aromatic", query_orders.as_deref() == Some("S/A")),
+                        bond_property_item("Double or Aromatic (D/A)", "query-orders", "double-aromatic", query_orders.as_deref() == Some("D/A"))
+                    ]
+                },
+                {
+                    "label": "Topology",
+                    "submenu": [
+                        bond_property_item("Unspecified", "topology", "unspecified", topology.as_deref() == Some("unspecified")),
+                        bond_property_item("Ring", "topology", "ring", topology.as_deref() == Some("ring")),
+                        bond_property_item("Chain", "topology", "chain", topology.as_deref() == Some("chain")),
+                        bond_property_item("Ring or Chain", "topology", "ring-or-chain", topology.as_deref() == Some("ringorchain"))
+                    ]
+                },
+                {
+                    "label": "Reaction Participation",
+                    "submenu": [
+                        bond_property_item("Unspecified", "reaction-participation", "unspecified", reaction.as_deref() == Some("unspecified")),
+                        bond_property_item("Reaction Center", "reaction-participation", "reaction-center", reaction.as_deref() == Some("reactioncenter")),
+                        bond_property_item("Make or Break", "reaction-participation", "make-or-break", reaction.as_deref() == Some("makeorbreak")),
+                        bond_property_item("Change Type", "reaction-participation", "change-type", reaction.as_deref() == Some("changetype")),
+                        bond_property_item("Make and Change", "reaction-participation", "make-and-change", reaction.as_deref() == Some("makeandchange")),
+                        separator(),
+                        bond_property_item("Not Reaction Center", "reaction-participation", "not-reaction-center", reaction.as_deref() == Some("notreactioncenter")),
+                        bond_property_item("No Change", "reaction-participation", "no-change", reaction.as_deref() == Some("nochange")),
+                        bond_property_item("Unmapped", "reaction-participation", "unmapped", reaction.as_deref() == Some("unmapped"))
+                    ]
+                },
+                {
+                    "label": "Absolute Stereo",
+                    "submenu": [
+                        bond_property_item("Unspecified", "absolute-stereo", "unspecified", absolute_stereo.as_deref() == Some("unspecified")),
+                        bond_property_item("None", "absolute-stereo", "none", absolute_stereo.as_deref() == Some("none")),
+                        bond_property_item("E", "absolute-stereo", "e", absolute_stereo.as_deref() == Some("e")),
+                        bond_property_item("Z", "absolute-stereo", "z", absolute_stereo.as_deref() == Some("z"))
+                    ]
+                },
+                separator(),
+                bond_visibility_menu("Show Query", "show-query", show_query),
+                bond_visibility_menu("Show Reaction", "show-reaction", show_reaction),
+                bond_visibility_menu("Show Stereo", "show-stereo", show_stereo)
+            ]
+        })
+    }
+
     fn orbital_template_menu(&self) -> JsonValue {
         orbital_template_menu(self.selected_uniform_orbital_template().as_deref())
     }
@@ -730,6 +835,12 @@ impl Engine {
     }
 
     fn atom_query_menu(&self) -> JsonValue {
+        let reaction_change = uniform_node_value(self.selected_label_nodes(), |node| {
+            node.atom_properties.reaction_change
+        });
+        let reaction_stereo = uniform_node_value(self.selected_label_nodes(), |node| {
+            format!("{:?}", node.atom_properties.reaction_stereo).to_ascii_lowercase()
+        });
         json!({
             "label": "Atom Query",
             "submenu": [
@@ -773,6 +884,22 @@ impl Engine {
                 separator(),
                 atom_property_item("Allow Abnormal Valence", "abnormal-valence", "true", false),
                 atom_property_item("Use Normal Valence", "abnormal-valence", "false", false),
+                separator(),
+                {
+                    "label": "Reaction Change",
+                    "submenu": [
+                        atom_property_item("No Change", "reaction-change", "false", reaction_change == Some(false)),
+                        atom_property_item("Changed", "reaction-change", "true", reaction_change == Some(true))
+                    ]
+                },
+                {
+                    "label": "Reaction Stereo",
+                    "submenu": [
+                        atom_property_item("Unspecified", "reaction-stereo", "unspecified", reaction_stereo.as_deref() == Some("unspecified")),
+                        atom_property_item("Inversion", "reaction-stereo", "inversion", reaction_stereo.as_deref() == Some("inversion")),
+                        atom_property_item("Retention", "reaction-stereo", "retention", reaction_stereo.as_deref() == Some("retention"))
+                    ]
+                },
                 separator(),
                 atom_property_item("Show Terminal Carbon Labels", "show-terminal-carbon-label", "true", false),
                 atom_property_item("Hide Terminal Carbon Labels", "show-terminal-carbon-label", "false", false),
@@ -1277,6 +1404,26 @@ fn atom_property_item(label: &str, property: &str, value: &str, checked: bool) -
         "command": "atom-property",
         "value": format!("{property}:{value}"),
         "checked": checked
+    })
+}
+
+fn bond_property_item(label: &str, property: &str, value: &str, checked: bool) -> JsonValue {
+    json!({
+        "label": label,
+        "command": "bond-property",
+        "value": format!("{property}:{value}"),
+        "checked": checked
+    })
+}
+
+fn bond_visibility_menu(label: &str, property: &str, current: Option<Option<bool>>) -> JsonValue {
+    json!({
+        "label": label,
+        "submenu": [
+            bond_property_item("Inherit Document Setting", property, "inherit", current == Some(None)),
+            bond_property_item("Show", property, "true", current == Some(Some(true))),
+            bond_property_item("Hide", property, "false", current == Some(Some(false)))
+        ]
     })
 }
 

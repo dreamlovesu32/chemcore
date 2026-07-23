@@ -24,8 +24,7 @@ pub(super) use import_graphics::{
 pub(super) use import_images::append_embedded_image_objects;
 pub(super) use import_lines::{append_curve_objects, append_line_objects};
 pub(super) use import_text::{
-    append_synthesized_bond_query_text_objects, append_synthesized_enhanced_stereo_text_objects,
-    append_text_objects,
+    append_synthesized_enhanced_stereo_text_objects, append_text_objects,
 };
 
 const CHEMDRAW_AUTO_BRACKET_LABEL_GAP_EM: f64 = 0.1875;

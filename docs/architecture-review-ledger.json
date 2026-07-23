@@ -22,7 +22,7 @@
       "reason": "The function owns one transaction lifecycle: load, execute, scope-check, report, and persist."
     },
     "crates/chemsema-engine/src/cdxml.rs:parse_cdxml_document": {
-      "lines": 225,
+      "lines": 217,
       "owner": "CDXML document parser",
       "reason": "One ordered document parse pipeline preserves table, page, object, normalization, and verification precedence."
     },
@@ -30,6 +30,11 @@
       "lines": 219,
       "owner": "CDXML line/arrow serialization",
       "reason": "The exhaustive line-object writer keeps mutually dependent ArrowType and endpoint fields in one precedence table."
+    },
+    "crates/chemsema-engine/src/cdxml/export.rs:write_node": {
+      "lines": 219,
+      "owner": "CDXML atom serialization",
+      "reason": "One exhaustive node writer keeps atom identity, query, reaction, label, style, and source-interchange precedence in the official attribute order."
     },
     "crates/chemsema-engine/src/cdxml/export.rs:write_shape_object": {
       "lines": 260,
@@ -47,12 +52,12 @@
       "reason": "Bracket geometry, attachments, repeat semantics, and linked labels are one source-order-sensitive import transaction."
     },
     "crates/chemsema-engine/src/engine/command_runtime.rs:execute_command": {
-      "lines": 347,
+      "lines": 346,
       "owner": "Exhaustive editor command dispatcher",
       "reason": "Immediate and creation command families are already separated; the remaining body is an exhaustive variant-to-domain dispatch with shared completion semantics."
     },
     "crates/chemsema-engine/src/engine/chemistry.rs:insert_smiles_untracked": {
-      "lines": 204,
+      "lines": 205,
       "owner": "SMILES insertion transaction",
       "reason": "Sanitization, layout, stereochemical projection, object creation, and selection form one undoable insertion transaction."
     },
@@ -62,12 +67,22 @@
       "reason": "The function creates one chemistry graph while preserving target filtering, stereochemistry, and source authority."
     },
     "crates/chemsema-engine/src/engine/context_menu.rs:context_menu_items": {
-      "lines": 209,
+      "lines": 211,
       "owner": "Kernel context-menu schema",
       "reason": "One ordered schema builder applies selection precedence and exposes mutually exclusive semantic commands."
     },
+    "crates/chemsema-engine/src/engine/context_styles.rs:$file": {
+      "lines": 2046,
+      "owner": "Selection style and semantic property commands",
+      "reason": "The module is the shared selection mutation boundary for object styles, text styles, atom properties, and their undo/geometry synchronization; bond-property ownership is already split into bond_properties.rs."
+    },
+    "crates/chemsema-engine/src/engine/context_styles.rs:set_atom_property_for_selection_untracked": {
+      "lines": 308,
+      "owner": "Atom semantic property transaction",
+      "reason": "One exhaustive property transaction validates every atom-property enum, applies one undo snapshot, synchronizes linked annotations, and refreshes chemistry and label geometry without partial mutation."
+    },
     "crates/chemsema-engine/src/engine/text_edit/labels.rs:$file": {
-      "lines": 2047,
+      "lines": 2049,
       "owner": "Chemical label layout",
       "reason": "The module is the single authority for label recognition, layout, glyph geometry, and attachment refresh."
     },
@@ -77,7 +92,7 @@
       "reason": "One record parser preserves V2000 atom, bond, property, charge, isotope, and alias ordering."
     },
     "crates/chemsema-engine/src/render_objects.rs:render_fragment_atom_properties": {
-      "lines": 237,
+      "lines": 208,
       "owner": "Atom property rendering",
       "reason": "The function renders one ordered atom-property layer so charge, radical, query, map, and diagnostic placement share the same anchor."
     },

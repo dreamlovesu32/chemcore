@@ -1396,6 +1396,7 @@ mod tests {
             begin: "n1".to_string(),
             end: "n2".to_string(),
             order: 1,
+            properties: Default::default(),
             double: None,
             stereo: None,
             stroke_width: DEFAULT_BOND_STROKE,

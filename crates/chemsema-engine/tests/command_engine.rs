@@ -1606,6 +1606,8 @@ fn atom_properties_command_round_trips_through_ccjs_cdxml_and_cdx() {
         ("substituents-exactly", "3"),
         ("translation", "narrow"),
         ("abnormal-valence", "true"),
+        ("reaction-change", "true"),
+        ("reaction-stereo", "inversion"),
         ("show-terminal-carbon-label", "true"),
         ("show-non-terminal-carbon-label", "false"),
     ] {
@@ -1642,6 +1644,8 @@ fn atom_properties_command_round_trips_through_ccjs_cdxml_and_cdx() {
     assert_eq!(node["atomProperties"]["substituentsExactly"], 3);
     assert_eq!(node["atomProperties"]["translation"], "narrow");
     assert_eq!(node["atomProperties"]["abnormalValence"], true);
+    assert_eq!(node["atomProperties"]["reactionChange"], true);
+    assert_eq!(node["atomProperties"]["reactionStereo"], "inversion");
     let rendered_text = engine
         .render_list()
         .iter()
@@ -1656,7 +1660,7 @@ fn atom_properties_command_round_trips_through_ccjs_cdxml_and_cdx() {
             _ => None,
         })
         .collect::<Vec<_>>();
-    for expected in ["13", "•", "42", "(R)", "X3SRLI"] {
+    for expected in ["13", "•", "42", "(R)", "X3SRCTLI"] {
         assert!(
             rendered_text.iter().any(|text| text == expected),
             "missing rendered atom decoration {expected}: {rendered_text:?}"
@@ -1682,6 +1686,8 @@ fn atom_properties_command_round_trips_through_ccjs_cdxml_and_cdx() {
         "SubstituentsExactly=\"3\"",
         "Translation=\"Narrow\"",
         "AbnormalValence=\"yes\"",
+        "RxnChange=\"yes\"",
+        "RxnStereo=\"Inversion\"",
         "ShowTerminalCarbonLabels=\"yes\"",
         "ShowNonTerminalCarbonLabels=\"no\"",
     ] {
@@ -1725,6 +1731,126 @@ fn atom_properties_command_round_trips_through_ccjs_cdxml_and_cdx() {
     );
     assert_eq!(reopened_node["atomProperties"]["translation"], "narrow");
     assert_eq!(reopened_node["atomProperties"]["abnormalValence"], true);
+    assert_eq!(reopened_node["atomProperties"]["reactionChange"], true);
+    assert_eq!(
+        reopened_node["atomProperties"]["reactionStereo"],
+        "inversion"
+    );
+}
+
+#[test]
+fn bond_query_reaction_command_round_trips_through_ccjs_cdxml_and_cdx() {
+    let mut engine = Engine::new();
+    let add = execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": { "x": 100.0, "y": 100.0 },
+            "end": { "x": 148.0, "y": 100.0 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+    let bond_id = created_bond_id(&add);
+    execute(
+        &mut engine,
+        json!({
+            "type": "select-targets",
+            "targets": { "bonds": [bond_id] }
+        }),
+    );
+    for (property, value) in [
+        ("query-orders", "single-double"),
+        ("topology", "ring"),
+        ("reaction-participation", "make-and-change"),
+        ("absolute-stereo", "e"),
+        ("show-query", "true"),
+        ("show-reaction", "true"),
+        ("show-stereo", "true"),
+    ] {
+        let result = execute(
+            &mut engine,
+            json!({
+                "type": "set-bond-property-for-selection",
+                "property": property,
+                "value": value
+            }),
+        );
+        assert_eq!(result["changed"], true, "{property}");
+    }
+
+    let bond = find_bond(&document_value(&engine), &bond_id);
+    assert_eq!(
+        bond["properties"]["queryOrders"],
+        json!(["single", "double"])
+    );
+    assert_eq!(bond["properties"]["topology"], "ring");
+    assert_eq!(
+        bond["properties"]["reactionParticipation"],
+        "make-and-change"
+    );
+    assert_eq!(bond["properties"]["absoluteStereo"], "e");
+    assert_eq!(bond["properties"]["showQuery"], true);
+    assert_eq!(bond["properties"]["showReaction"], true);
+    assert_eq!(bond["properties"]["showStereo"], true);
+
+    let rendered_text = engine
+        .render_list()
+        .iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Text { text, runs, .. } => Some(if text.is_empty() {
+                runs.iter().map(|run| run.text.as_str()).collect()
+            } else {
+                text.clone()
+            }),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        rendered_text.iter().any(|text| text == "RngRxnS/D"),
+        "{rendered_text:?}"
+    );
+    assert!(
+        rendered_text.iter().any(|text| text == "(E)"),
+        "{rendered_text:?}"
+    );
+
+    let cdxml = engine.document_cdxml();
+    for attribute in [
+        "Order=\"1 2\"",
+        "Topology=\"Ring\"",
+        "RxnParticipation=\"MakeAndChange\"",
+        "BS=\"E\"",
+        "ShowBondQuery=\"yes\"",
+        "ShowBondRxn=\"yes\"",
+        "ShowBondStereo=\"yes\"",
+    ] {
+        assert!(cdxml.contains(attribute), "missing {attribute}\n{cdxml}");
+    }
+
+    let cdx = engine.document_cdx().expect("CDX export");
+    let reopened = chemsema_engine::parse_cdx_document(&cdx, None).expect("CDX import");
+    let reopened = serde_json::to_value(reopened).expect("CCJS");
+    let reopened_bond = reopened["resources"]
+        .as_object()
+        .expect("resources")
+        .values()
+        .find_map(|resource| resource["data"]["bonds"].as_array())
+        .and_then(|bonds| bonds.first())
+        .expect("reopened bond");
+    assert_eq!(
+        reopened_bond["properties"]["queryOrders"],
+        json!(["single", "double"])
+    );
+    assert_eq!(reopened_bond["properties"]["topology"], "ring");
+    assert_eq!(
+        reopened_bond["properties"]["reactionParticipation"],
+        "make-and-change"
+    );
+    assert_eq!(reopened_bond["properties"]["absoluteStereo"], "e");
+    assert_eq!(reopened_bond["properties"]["showQuery"], true);
+    assert_eq!(reopened_bond["properties"]["showReaction"], true);
+    assert_eq!(reopened_bond["properties"]["showStereo"], true);
 }
 
 #[test]

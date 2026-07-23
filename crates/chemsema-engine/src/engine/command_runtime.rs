@@ -286,6 +286,27 @@ impl Engine {
             .unwrap_or_else(|| self.unchanged_command_result())
     }
 
+    fn execute_selection_semantic_command(&mut self, command: EditorCommand) -> bool {
+        match command {
+            EditorCommand::SetInterpretChemicallyForSelection { enabled } => {
+                self.set_interpret_chemically_for_selection(enabled)
+            }
+            EditorCommand::SetImplicitHydrogenCountForSelection { count } => {
+                self.set_implicit_hydrogen_count_for_selection(count)
+            }
+            EditorCommand::SetAtomPropertyForSelection { property, value } => {
+                self.set_atom_property_for_selection(&property, value.as_deref())
+            }
+            EditorCommand::SetBondPropertyForSelection { property, value } => {
+                self.set_bond_property_for_selection(&property, value.as_deref())
+            }
+            EditorCommand::SetChemicalCheckForSelection { enabled } => {
+                self.set_chemical_check_for_selection(enabled)
+            }
+            _ => unreachable!("selection semantic commands are classified before dispatch"),
+        }
+    }
+
     pub fn execute_command(&mut self, command: EditorCommand) -> Result<CommandResult, String> {
         self.last_command_result = None;
         if editor_command_is_immediate(&command) {
@@ -293,6 +314,10 @@ impl Engine {
         }
         if editor_command_is_creation(&command) {
             let changed = self.execute_creation_command(command)?;
+            return Ok(self.completed_command_result(changed));
+        }
+        if editor_command_is_selection_semantic(&command) {
+            let changed = self.execute_selection_semantic_command(command);
             return Ok(self.completed_command_result(changed));
         }
         let changed = match command.clone() {
@@ -513,17 +538,12 @@ impl Engine {
                 }
                 self.apply_text_style_to_selection(&command, &value)
             }
-            EditorCommand::SetInterpretChemicallyForSelection { enabled } => {
-                self.set_interpret_chemically_for_selection(enabled)
-            }
-            EditorCommand::SetImplicitHydrogenCountForSelection { count } => {
-                self.set_implicit_hydrogen_count_for_selection(count)
-            }
-            EditorCommand::SetAtomPropertyForSelection { property, value } => {
-                self.set_atom_property_for_selection(&property, value.as_deref())
-            }
-            EditorCommand::SetChemicalCheckForSelection { enabled } => {
-                self.set_chemical_check_for_selection(enabled)
+            EditorCommand::SetInterpretChemicallyForSelection { .. }
+            | EditorCommand::SetImplicitHydrogenCountForSelection { .. }
+            | EditorCommand::SetAtomPropertyForSelection { .. }
+            | EditorCommand::SetBondPropertyForSelection { .. }
+            | EditorCommand::SetChemicalCheckForSelection { .. } => {
+                unreachable!("selection semantic commands are dispatched before the main match")
             }
             EditorCommand::ExpandLabelsInSelection => self.expand_labels_in_selection(),
             EditorCommand::CenterSelectionOnPage => self.center_selection_on_page(),

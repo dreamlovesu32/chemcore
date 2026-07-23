@@ -150,6 +150,7 @@ impl Engine {
             begin: begin_id.clone(),
             end: end_id.clone(),
             order,
+            properties: Default::default(),
             double: pending_double,
             stereo: pending_stereo,
             stroke_width,

@@ -114,8 +114,8 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x0424` | `ImplicitHydrogens` | `CDXBooleanImplied` | `typed-interchange/value` | `verified` | `verified` | `verified` | Signifies that implicit hydrogens are not allowed on this atom. Official lexical/binary codec is available; value is editable. |
 | `0x0425` | `RingBondCount` | `INT8` | `native-semantic/value` | `verified` | `verified` | `verified` | The number of ring bonds attached to an atom. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
 | `0x0426` | `UnsaturatedBonds` | `INT8` | `native-semantic/value` | `verified` | `verified` | `verified` | Indicates whether unsaturation should be present or absent. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
-| `0x0427` | `RxnChange` | `CDXBooleanImplied` | `typed-interchange/value` | `verified` | `verified` | `verified` | If present, signifies that the reaction change of an atom must be as specified. Official lexical/binary codec is available; value is editable. |
-| `0x0428` | `RxnStereo` | `INT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | The change of stereochemistry of an atom during a reaction. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
+| `0x0427` | `RxnChange` | `CDXBooleanImplied` | `native-semantic/value` | `verified` | `verified` | `verified` | If present, signifies that the reaction change of an atom must be as specified. Official lexical/binary codec is available; value is editable. |
+| `0x0428` | `RxnStereo` | `INT8` | `native-semantic/value` | `verified` | `verified` | `verified` | The change of stereochemistry of an atom during a reaction. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
 | `0x0429` | `AbnormalValence` | `CDXBooleanImplied` | `native-semantic/value` | `verified` | `verified` | `verified` | Signifies that an abnormal valence for an atom is permitted. Official lexical/binary codec is available; value is editable. |
 | `0x042B` | `NumHydrogens` | `UINT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | The number of (explicit) hydrogens in a labeled atom consisting of one heavy atom and (optionally) the symbol H (e.g., CH 3 ). Official lexical/binary codec is available; value is editable. |
 | `0x042E` | `HDot` | `CDXBooleanImplied` | `typed-interchange/value` | `verified` | `verified` | `verified` | Signifies the presence of an implicit hydrogen with stereochemistry specified equivalent to an explicit H atom with a wedged bond. Official lexical/binary codec is available; value is editable. |
@@ -156,16 +156,16 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x0603` | `DoublePosition` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | The position of the second line of a double bond. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
 | `0x0604` | `B` | `CDXObjectID` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for bonds. The ID of the CDX node object at the first end of a bond. Official lexical/binary codec is available; value is editable. |
 | `0x0605` | `E` | `CDXObjectID` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for bonds. The ID of the CDX node object at the second end of a bond. Official lexical/binary codec is available; value is editable. |
-| `0x0606` | `Topology` | `INT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | Indicates the desired topology of a bond in a query. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
-| `0x0607` | `RxnParticipation` | `INT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | Specifies that a bond is affected by a reaction. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
+| `0x0606` | `Topology` | `INT8` | `native-semantic/value` | `verified` | `verified` | `verified` | Indicates the desired topology of a bond in a query. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
+| `0x0607` | `RxnParticipation` | `INT8` | `native-semantic/value` | `verified` | `verified` | `verified` | Specifies that a bond is affected by a reaction. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
 | `0x0608` | `BeginAttach` | `UINT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | Indicates where within the Bond_Begin node a bond is attached. Official lexical/binary codec is available; value is editable. |
 | `0x0609` | `EndAttach` | `UINT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | Indicates where within the Bond_End node a bond is attached. Official lexical/binary codec is available; value is editable. |
-| `0x060A` | `BS` | `INT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | The bond's absolute stereochemistry according to the Cahn-Ingold-Prelog system. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
+| `0x060A` | `BS` | `INT8` | `native-semantic/value` | `verified` | `verified` | `verified` | The bond's absolute stereochemistry according to the Cahn-Ingold-Prelog system. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
 | `0x060B` | `BondCircularOrdering` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | Ordered list of attached bond IDs. Official lexical/binary codec is available; value is editable. |
-| `0x060C` | `ShowBondQuery` | `CDXBoolean` | `typed-interchange/value` | `verified` | `verified` | `verified` | Show the query indicator if non-zero. Official lexical/binary codec is available; value is editable. |
-| `0x060D` | `ShowBondStereo` | `CDXBoolean` | `typed-interchange/value` | `verified` | `verified` | `verified` | Show the stereochemistry indicator if non-zero. Official lexical/binary codec is available; value is editable. |
+| `0x060C` | `ShowBondQuery` | `CDXBoolean` | `native-semantic/value` | `verified` | `verified` | `verified` | Show the query indicator if non-zero. Official lexical/binary codec is available; value is editable. |
+| `0x060D` | `ShowBondStereo` | `CDXBoolean` | `native-semantic/value` | `verified` | `verified` | `verified` | Show the stereochemistry indicator if non-zero. Official lexical/binary codec is available; value is editable. |
 | `0x060E` | `CrossingBonds` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | The set of bonds that cross a given bond. Official lexical/binary codec is available; value is editable. |
-| `0x060F` | `ShowBondRxn` | `CDXBoolean` | `typed-interchange/value` | `verified` | `verified` | `verified` | Show the reaction-change indicator if non-zero. Official lexical/binary codec is available; value is editable. |
+| `0x060F` | `ShowBondRxn` | `CDXBoolean` | `native-semantic/value` | `verified` | `verified` | `verified` | Show the reaction-change indicator if non-zero. Official lexical/binary codec is available; value is editable. |
 | `0x0700` | `(not used)` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for text objects. The text of a text object. Official lexical/binary codec is available; value is editable. |
 | `0x0701` | `Justification` | `INT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | The horizontal justification of a text object. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
 | `0x0702` | `LineHeight` | `UINT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | The line height of a text object. Official lexical/binary codec is available; value is editable. |
@@ -417,7 +417,7 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `ArrowShaftSpacing` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `ArrowSource` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `ArrowTarget` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `BoldWidth` | 12 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `BoldWidth` | 12 | `native-semantic` | `verified` | `verified` | `verified` |
 | `CaptionFace` | 4 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `CaptionFont` | 4 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `CaptionSize` | 4 | `typed-interchange` | `verified` | `verified` | `verified` |
@@ -425,42 +425,42 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `Dipole` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `FadePercent` | 5 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `FillType` | 4 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `HashSpacing` | 9 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `HashSpacing` | 9 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Head3D` | 3 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `HeadSize` | 4 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `LineType` | 6 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `LineWidth` | 16 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `LineWidth` | 16 | `native-semantic` | `verified` | `verified` | `verified` |
 | `MajorAxisEnd3D` | 4 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `MinorAxisEnd3D` | 4 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `NoGo` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `Tail3D` | 3 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `B` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `BeginAttach` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `B` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `BeginAttach` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `BeginExternalNum` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `BondCircularOrdering` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `BondLength` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `BondSpacing` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `BondSpacingAbs` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `BS` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `BondSpacing` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
+| `BondSpacingAbs` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
+| `BS` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Connectivity` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `CrossingBonds` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `CrossingBonds` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `CrossingBondss` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `Display` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `Display2` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `DoublePosition` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `E` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `EndAttach` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `Display` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `Display2` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `DoublePosition` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `E` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `EndAttach` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `EndExternalNum` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `LabelFace` | 10 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `LabelFont` | 10 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `LabelSize` | 10 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `MarginWidth` | 8 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `Order` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `RxnParticipation` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ShowBondQuery` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ShowBondRxn` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ShowBondStereo` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `Topology` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `Order` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `RxnParticipation` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ShowBondQuery` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ShowBondRxn` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ShowBondStereo` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
+| `Topology` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `BioShapeType` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `CylinderDistance` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `CylinderHeight` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
@@ -695,8 +695,8 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `NumHydrogens` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Radical` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `RingBondCount` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
-| `RxnChange` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `RxnStereo` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `RxnChange` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `RxnStereo` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `ShowAtomID` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `SubstituentsExactly` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `SubstituentsUpTo` | 1 | `native-semantic` | `verified` | `verified` | `verified` |

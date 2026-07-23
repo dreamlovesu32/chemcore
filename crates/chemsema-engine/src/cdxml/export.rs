@@ -44,6 +44,8 @@ fn node_has_native_query_annotation(node: &Node) -> bool {
         || properties.substituents_up_to.is_some()
         || properties.substituents_exactly.is_some()
         || properties.translation != crate::QueryTranslation::Equal
+        || properties.reaction_change
+        || properties.reaction_stereo != crate::AtomReactionStereo::Unspecified
         || node
             .meta
             .pointer("/import/cdxml/restrictImplicitHydrogens")
@@ -656,6 +658,17 @@ impl<'a> CdxmlDocumentWriter<'a> {
         if node.atom_properties.abnormal_valence {
             attrs.push(("AbnormalValence", "yes".to_string()));
         }
+        if node.atom_properties.reaction_change {
+            attrs.push(("RxnChange", "yes".to_string()));
+        }
+        let reaction_stereo = match node.atom_properties.reaction_stereo {
+            crate::AtomReactionStereo::Unspecified => None,
+            crate::AtomReactionStereo::Inversion => Some("Inversion"),
+            crate::AtomReactionStereo::Retention => Some("Retention"),
+        };
+        if let Some(value) = reaction_stereo {
+            attrs.push(("RxnStereo", value.to_string()));
+        }
         if let Some(value) = node.atom_properties.show_terminal_carbon_label {
             attrs.push((
                 "ShowTerminalCarbonLabels",
@@ -799,10 +812,59 @@ impl<'a> CdxmlDocumentWriter<'a> {
             ("E", end.clone()),
             (
                 "Order",
-                preserved_cdxml_bond_order(bond).unwrap_or_else(|| bond.order.max(1).to_string()),
+                if bond.properties.query_orders.len() >= 2 {
+                    bond.properties
+                        .query_orders
+                        .iter()
+                        .map(|value| value.cdxml_value())
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                } else {
+                    preserved_cdxml_bond_order(bond)
+                        .unwrap_or_else(|| bond.order.max(1).to_string())
+                },
             ),
-            ("BS", "N".to_string()),
         ];
+        let topology = match bond.properties.topology {
+            crate::BondTopology::Unspecified => None,
+            crate::BondTopology::Ring => Some("Ring"),
+            crate::BondTopology::Chain => Some("Chain"),
+            crate::BondTopology::RingOrChain => Some("RingOrChain"),
+        };
+        if let Some(value) = topology {
+            attrs.push(("Topology", value.to_string()));
+        }
+        let reaction = match bond.properties.reaction_participation {
+            crate::BondReactionParticipation::Unspecified => None,
+            crate::BondReactionParticipation::ReactionCenter => Some("ReactionCenter"),
+            crate::BondReactionParticipation::MakeOrBreak => Some("MakeOrBreak"),
+            crate::BondReactionParticipation::ChangeType => Some("ChangeType"),
+            crate::BondReactionParticipation::MakeAndChange => Some("MakeAndChange"),
+            crate::BondReactionParticipation::NotReactionCenter => Some("NotReactionCenter"),
+            crate::BondReactionParticipation::NoChange => Some("NoChange"),
+            crate::BondReactionParticipation::Unmapped => Some("Unmapped"),
+        };
+        if let Some(value) = reaction {
+            attrs.push(("RxnParticipation", value.to_string()));
+        }
+        let absolute_stereo = match bond.properties.absolute_stereo {
+            crate::BondAbsoluteStereo::Unspecified => None,
+            crate::BondAbsoluteStereo::None => Some("N"),
+            crate::BondAbsoluteStereo::E => Some("E"),
+            crate::BondAbsoluteStereo::Z => Some("Z"),
+        };
+        if let Some(value) = absolute_stereo {
+            attrs.push(("BS", value.to_string()));
+        }
+        for (name, value) in [
+            ("ShowBondQuery", bond.properties.show_query),
+            ("ShowBondRxn", bond.properties.show_reaction),
+            ("ShowBondStereo", bond.properties.show_stereo),
+        ] {
+            if let Some(value) = value {
+                attrs.push((name, if value { "yes" } else { "no" }.to_string()));
+            }
+        }
         let crossing_bonds: Vec<_> = imported_cdxml_crossing_bonds(bond)
             .filter_map(|source_id| {
                 self.bond_ids

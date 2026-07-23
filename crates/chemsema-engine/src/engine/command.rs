@@ -513,6 +513,11 @@ pub enum EditorCommand {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         value: Option<String>,
     },
+    SetBondPropertyForSelection {
+        property: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        value: Option<String>,
+    },
     SetChemicalCheckForSelection {
         enabled: bool,
     },

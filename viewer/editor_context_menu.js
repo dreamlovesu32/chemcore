@@ -264,6 +264,48 @@ export function createCanvasContextMenuHost(options) {
     ) || [];
   }
 
+  async function executeAtomProperty(value, executeDocumentCommand) {
+    const separatorIndex = value.indexOf(":");
+    const property = separatorIndex >= 0 ? value.slice(0, separatorIndex) : value;
+    let propertyValue = separatorIndex >= 0 ? value.slice(separatorIndex + 1) : "";
+    if (propertyValue === "__prompt__") {
+      const entered = await options.atomPropertyDialogHost?.choose(property);
+      if (entered == null) {
+        await finishTemporaryContextSelection();
+        return false;
+      }
+      propertyValue = entered;
+    }
+    return executeDocumentCommand(
+      {
+        type: "set-atom-property-for-selection",
+        payload: { property, value: propertyValue || null },
+      },
+      () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
+        type: "set-atom-property-for-selection",
+        property,
+        value: propertyValue || null,
+      })),
+    );
+  }
+
+  async function executeBondProperty(value, executeDocumentCommand) {
+    const separatorIndex = value.indexOf(":");
+    const property = separatorIndex >= 0 ? value.slice(0, separatorIndex) : value;
+    const propertyValue = separatorIndex >= 0 ? value.slice(separatorIndex + 1) : "";
+    return executeDocumentCommand(
+      {
+        type: "set-bond-property-for-selection",
+        payload: { property, value: propertyValue || null },
+      },
+      () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
+        type: "set-bond-property-for-selection",
+        property,
+        value: propertyValue || null,
+      })),
+    );
+  }
+
   async function runCanvasContextMenuCommand(command, value) {
     if (!command || command === "noop") {
       return;
@@ -391,28 +433,9 @@ export function createCanvasContextMenuHost(options) {
         })),
       );
     } else if (command === "atom-property") {
-      const separatorIndex = value.indexOf(":");
-      const property = separatorIndex >= 0 ? value.slice(0, separatorIndex) : value;
-      let propertyValue = separatorIndex >= 0 ? value.slice(separatorIndex + 1) : "";
-      if (propertyValue === "__prompt__") {
-        const entered = await options.atomPropertyDialogHost?.choose(property);
-        if (entered == null) {
-          await finishTemporaryContextSelection();
-          return;
-        }
-        propertyValue = entered;
-      }
-      changed = await executeDocumentCommand(
-        {
-          type: "set-atom-property-for-selection",
-          payload: { property, value: propertyValue || null },
-        },
-        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
-          type: "set-atom-property-for-selection",
-          property,
-          value: propertyValue || null,
-        })),
-      );
+      changed = await executeAtomProperty(value, executeDocumentCommand);
+    } else if (command === "bond-property") {
+      changed = await executeBondProperty(value, executeDocumentCommand);
     } else if (command === "expand-label") {
       changed = await executeDocumentCommand("expand-labels", () => options.state().editorEngine?.expandLabelsInSelection?.());
     } else if (command === "center-page") {

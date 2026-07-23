@@ -152,6 +152,17 @@ pub(super) fn render_molecule_object(
                 );
             }
             render_main_bond_contact_patches(out, &contact_kernel, &stroke, object_id.clone());
+            for bond in &fragment.bonds {
+                render_fragment_bond_annotations(
+                    out,
+                    document,
+                    object,
+                    &node_map,
+                    bond,
+                    &stroke,
+                    object_id.clone(),
+                );
+            }
 
             for node in &fragment.nodes {
                 render_fragment_label(out, document, object, node, object_id.clone());
@@ -259,6 +270,19 @@ pub(super) fn render_molecule_object_targets(
         }
     }
     render_main_bond_contact_patches(out, &contact_kernel, &stroke, object_id.clone());
+    for bond in &fragment.bonds {
+        if target_render_bond_ids.contains(&bond.id) {
+            render_fragment_bond_annotations(
+                out,
+                document,
+                object,
+                &node_map,
+                bond,
+                &stroke,
+                object_id.clone(),
+            );
+        }
+    }
 
     let mut label_render_node_ids = target_node_ids.clone();
     label_render_node_ids.extend(contact_node_ids);
@@ -286,6 +310,195 @@ pub(super) fn render_molecule_object_targets(
             render_fragment_node_invalid_marker(out, object, node, object_id.clone());
         }
     }
+}
+
+fn render_fragment_bond_annotations(
+    out: &mut Vec<RenderPrimitive>,
+    document: &ChemSemaDocument,
+    object: &SceneObject,
+    node_map: &BTreeMap<&str, &Node>,
+    bond: &Bond,
+    fill: &str,
+    object_id: Option<String>,
+) {
+    let show_query = bond.properties.show_query.unwrap_or_else(|| {
+        document
+            .document
+            .meta
+            .pointer("/import/cdxml/defaults/showBondQuery")
+            .and_then(JsonValue::as_bool)
+            .unwrap_or(true)
+    });
+    let show_reaction = bond.properties.show_reaction.unwrap_or_else(|| {
+        document
+            .document
+            .meta
+            .pointer("/import/cdxml/defaults/showBondRxn")
+            .and_then(JsonValue::as_bool)
+            .unwrap_or(true)
+    });
+    let show_stereo = bond.properties.show_stereo.unwrap_or_else(|| {
+        document
+            .document
+            .meta
+            .pointer("/import/cdxml/defaults/showBondStereo")
+            .and_then(JsonValue::as_bool)
+            .unwrap_or(false)
+    });
+
+    let mut query = String::new();
+    if show_query {
+        query.push_str(match bond.properties.topology {
+            crate::BondTopology::Unspecified => "",
+            crate::BondTopology::Ring => "Rng",
+            crate::BondTopology::Chain => "Chn",
+            crate::BondTopology::RingOrChain => "R/C",
+        });
+    }
+    if show_reaction
+        && matches!(
+            bond.properties.reaction_participation,
+            crate::BondReactionParticipation::ReactionCenter
+                | crate::BondReactionParticipation::MakeOrBreak
+                | crate::BondReactionParticipation::ChangeType
+                | crate::BondReactionParticipation::MakeAndChange
+        )
+    {
+        query.push_str("Rxn");
+    }
+    if bond.properties.query_orders.len() >= 2 {
+        query.push_str(
+            &bond
+                .properties
+                .query_orders
+                .iter()
+                .map(|value| value.mnemonic())
+                .collect::<Vec<_>>()
+                .join("/"),
+        );
+    }
+    let stereo = if show_stereo {
+        match bond.properties.absolute_stereo {
+            crate::BondAbsoluteStereo::E => Some("(E)"),
+            crate::BondAbsoluteStereo::Z => Some("(Z)"),
+            crate::BondAbsoluteStereo::Unspecified | crate::BondAbsoluteStereo::None => None,
+        }
+    } else {
+        None
+    };
+    if query.is_empty() && stereo.is_none() {
+        return;
+    }
+
+    let (Some(begin), Some(end)) = (
+        node_map.get(bond.begin.as_str()),
+        node_map.get(bond.end.as_str()),
+    ) else {
+        return;
+    };
+    let begin = world_point(object, begin);
+    let end = world_point(object, end);
+    let mut axis = Vector::new(end.x - begin.x, end.y - begin.y);
+    let length = axis.length();
+    if length <= EPSILON {
+        return;
+    }
+    axis = axis.scaled(1.0 / length);
+    if axis.x < -EPSILON || (axis.x.abs() <= EPSILON && axis.y < 0.0) {
+        axis = axis.scaled(-1.0);
+    }
+    let normal = Vector::new(-axis.y, axis.x);
+    let midpoint = Point::new((begin.x + end.x) * 0.5, (begin.y + end.y) * 0.5);
+    let label_size = document
+        .document
+        .meta
+        .pointer("/import/cdxml/defaults/labelSize")
+        .and_then(JsonValue::as_f64)
+        .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT);
+    let font_size = label_size * 0.75;
+    let font_family = object
+        .style_ref
+        .as_ref()
+        .and_then(|style_ref| document.styles.get(style_ref))
+        .and_then(|style| style_string(style, "fontFamily"));
+
+    if let Some(stereo) = stereo {
+        push_bond_annotation_text(
+            out,
+            midpoint,
+            normal,
+            -1.0,
+            stereo,
+            true,
+            font_size,
+            font_family.clone(),
+            fill,
+            object_id.clone(),
+        );
+    }
+    if !query.is_empty() {
+        push_bond_annotation_text(
+            out,
+            midpoint,
+            normal,
+            if stereo.is_some() { 1.0 } else { -1.0 },
+            &query,
+            false,
+            font_size,
+            font_family,
+            fill,
+            object_id,
+        );
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn push_bond_annotation_text(
+    out: &mut Vec<RenderPrimitive>,
+    midpoint: Point,
+    normal: Vector,
+    side: f64,
+    text: &str,
+    italic: bool,
+    font_size: f64,
+    font_family: Option<String>,
+    fill: &str,
+    object_id: Option<String>,
+) {
+    let width = annotation_text_width(text, font_size);
+    let height = font_size * 1.061_333_333;
+    let horizontal_gap = font_size * 0.29;
+    let vertical_gap = font_size * if side > 0.0 { 0.29 } else { 0.11 };
+    let center = Point::new(
+        midpoint.x + side * normal.x * (width * 0.5 + horizontal_gap),
+        midpoint.y + side * normal.y * (height * 0.5 + vertical_gap),
+    );
+    let top = center.y - height * 0.5;
+    push_text_for_node(
+        out,
+        center.x,
+        top,
+        Some(font_size * 0.82),
+        String::new(),
+        font_size,
+        font_family.clone(),
+        Some(fill.to_string()),
+        Some("middle".to_string()),
+        vec![LabelRun {
+            text: text.to_string(),
+            font_family,
+            font_size: Some(font_size),
+            fill: Some(fill.to_string()),
+            font_weight: Some(400),
+            font_style: Some(if italic { "italic" } else { "normal" }.to_string()),
+            underline: Some(false),
+            outline: Some(false),
+            shadow: Some(false),
+            script: Some("normal".to_string()),
+        }],
+        object_id,
+        None,
+    );
 }
 
 fn render_fragment_atom_properties(
@@ -785,6 +998,12 @@ fn render_fragment_atom_query_annotations(
     }
     if properties.ring_bond_count != crate::RingBondCount::Unspecified {
         query.push('R');
+    }
+    if properties.reaction_change {
+        query.push('C');
+    }
+    if properties.reaction_stereo != crate::AtomReactionStereo::Unspecified {
+        query.push('T');
     }
     if properties.translation != crate::QueryTranslation::Equal {
         query.push('L');
