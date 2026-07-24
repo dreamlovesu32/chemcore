@@ -1394,6 +1394,7 @@ fn render_arrow_no_go_on_axis(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_arrow_no_go_mark(
     out: &mut Vec<RenderPrimitive>,
     center: Point,
@@ -1473,6 +1474,7 @@ fn push_no_go_mark_line(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_solid_arrow_head(
     out: &mut Vec<RenderPrimitive>,
     from: Point,
@@ -1520,6 +1522,7 @@ fn render_solid_arrow_head(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn render_curve_solid_arrow_head(
     out: &mut Vec<RenderPrimitive>,
     from: Point,

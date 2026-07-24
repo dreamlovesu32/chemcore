@@ -550,12 +550,8 @@ fn two_bond_main_contact(
         return None;
     }
 
-    let Some(first_inner_side) = main_contact_side(first.axis, second.axis) else {
-        return None;
-    };
-    let Some(second_inner_side) = main_contact_side(second.axis, first.axis) else {
-        return None;
-    };
+    let first_inner_side = main_contact_side(first.axis, second.axis)?;
+    let second_inner_side = main_contact_side(second.axis, first.axis)?;
 
     // Intersect the inner pair and outer pair separately. Each bond receives
     // its own endpoint profile, while the bridge patch fills any shared wedge.

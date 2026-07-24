@@ -106,7 +106,7 @@ pub(super) fn render_spectrum_object(
         let major_step = nice_step(x_span / target_ticks);
         let minor_step = major_step * 0.5;
         for value in tick_values(x_min, x_max, minor_step) {
-            let x = spectrum_x_position(&spectrum, value, left, right);
+            let x = spectrum_x_position(spectrum, value, left, right);
             let is_major = is_multiple(value, major_step);
             line(
                 Point::new(x, bottom),
@@ -280,7 +280,6 @@ fn push_spectrum_text(
         shadow: Some(shadow),
         script: Some(script.to_string()),
         fill: Some(fill.to_string()),
-        ..Default::default()
     };
     push_text_rotated(
         out,

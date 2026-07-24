@@ -397,7 +397,9 @@ impl Engine {
 
     pub(super) fn restore_history_before_snapshot(&mut self, entry: &HistoryEntry) {
         match &entry.snapshot {
-            HistorySnapshot::Document { before, .. } => self.restore_document(before.clone()),
+            HistorySnapshot::Document { before, .. } => {
+                self.restore_document(before.as_ref().clone())
+            }
             HistorySnapshot::SceneObjects { before_objects, .. } => {
                 self.restore_scene_object_snapshots(before_objects);
             }
@@ -408,7 +410,7 @@ impl Engine {
         match &entry.snapshot {
             HistorySnapshot::Document {
                 after: Some(after), ..
-            } => self.restore_document(after.clone()),
+            } => self.restore_document(after.as_ref().clone()),
             HistorySnapshot::SceneObjects {
                 after_objects: Some(after_objects),
                 ..

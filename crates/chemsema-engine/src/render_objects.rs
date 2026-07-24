@@ -842,22 +842,22 @@ fn push_atom_property_text(
         dash_array: Vec::new(),
         fill_gradient: None,
     });
-    let runs = italic
-        .then(|| {
-            vec![LabelRun {
-                text: text.to_string(),
-                font_family: font_family.clone(),
-                font_size: Some(font_size),
-                fill: Some(fill.to_string()),
-                font_weight: None,
-                font_style: Some("italic".to_string()),
-                underline: None,
-                outline: None,
-                shadow: None,
-                script: Some("normal".to_string()),
-            }]
-        })
-        .unwrap_or_default();
+    let runs = if italic {
+        vec![LabelRun {
+            text: text.to_string(),
+            font_family: font_family.clone(),
+            font_size: Some(font_size),
+            fill: Some(fill.to_string()),
+            font_weight: None,
+            font_style: Some("italic".to_string()),
+            underline: None,
+            outline: None,
+            shadow: None,
+            script: Some("normal".to_string()),
+        }]
+    } else {
+        Default::default()
+    };
     push_text_for_node(
         out,
         x,

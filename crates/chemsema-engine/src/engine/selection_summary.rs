@@ -66,9 +66,7 @@ impl Engine {
             if label_recognition_is_indeterminate(node) {
                 return None;
             }
-            let Some(mass) = node_element_mass(node.element.as_str(), node.atomic_number) else {
-                return None;
-            };
+            let mass = node_element_mass(node.element.as_str(), node.atomic_number)?;
             add_formula_count(&mut counts, node.element.as_str(), 1);
             formula_weight += mass.average;
             exact_mass += mass.exact;

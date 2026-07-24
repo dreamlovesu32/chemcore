@@ -87,26 +87,26 @@ pub(super) fn resolve_desktop_exe() -> Result<PathBuf, String> {
     ))
 }
 
-pub(super) fn desktop_exe_candidates_for_server_path(server_path: &PathBuf) -> Vec<PathBuf> {
+pub(super) fn desktop_exe_candidates_for_server_path(server_path: &Path) -> Vec<PathBuf> {
     let mut candidates = Vec::new();
     let Some(server_dir) = server_path.parent() else {
         return candidates;
     };
 
-    push_desktop_exe_candidates(&mut candidates, &server_dir.to_path_buf());
+    push_desktop_exe_candidates(&mut candidates, server_dir);
     if server_dir
         .file_name()
         .and_then(|name| name.to_str())
         .is_some_and(|name| name.eq_ignore_ascii_case("resources"))
     {
         if let Some(app_dir) = server_dir.parent() {
-            push_desktop_exe_candidates(&mut candidates, &app_dir.to_path_buf());
+            push_desktop_exe_candidates(&mut candidates, app_dir);
         }
     }
     candidates
 }
 
-pub(super) fn push_desktop_exe_candidates(candidates: &mut Vec<PathBuf>, dir: &PathBuf) {
+pub(super) fn push_desktop_exe_candidates(candidates: &mut Vec<PathBuf>, dir: &Path) {
     for name in [CHEMSEMA_DESKTOP_EXE_NAME, "ChemSema.exe", "chemsema.exe"] {
         let candidate = dir.join(name);
         if !candidates.contains(&candidate) {
@@ -116,8 +116,8 @@ pub(super) fn push_desktop_exe_candidates(candidates: &mut Vec<PathBuf>, dir: &P
 }
 
 pub(super) fn launch_desktop_process(
-    desktop_exe: &PathBuf,
-    payload_path: &PathBuf,
+    desktop_exe: &Path,
+    payload_path: &Path,
 ) -> Result<(), String> {
     let mut command = Command::new(desktop_exe);
     command.arg(payload_path);
@@ -141,16 +141,11 @@ pub(super) fn launch_desktop_process(
     }
 }
 
-pub(super) fn shell_execute_desktop(
-    desktop_exe: &PathBuf,
-    payload_path: &PathBuf,
-) -> Result<(), String> {
+pub(super) fn shell_execute_desktop(desktop_exe: &Path, payload_path: &Path) -> Result<(), String> {
     let operation = wide_null("open");
     let file = wide_path_null(desktop_exe);
     let parameters = wide_null(&quote_path(payload_path));
-    let directory = desktop_exe
-        .parent()
-        .map(|parent| wide_path_null(&parent.to_path_buf()));
+    let directory = desktop_exe.parent().map(wide_path_null);
     let directory_ptr = directory
         .as_ref()
         .map(|value| value.as_ptr())
@@ -175,7 +170,7 @@ pub(super) fn shell_execute_desktop(
     Err(format!("ShellExecuteW returned {result}"))
 }
 
-pub(super) fn ensure_desktop_dev_server_for_debug_exe(desktop_exe: &PathBuf) -> Result<(), String> {
+pub(super) fn ensure_desktop_dev_server_for_debug_exe(desktop_exe: &Path) -> Result<(), String> {
     let Some(debug_dir) = desktop_exe.parent() else {
         return Ok(());
     };

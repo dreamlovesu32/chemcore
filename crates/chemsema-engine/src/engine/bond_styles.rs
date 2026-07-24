@@ -209,8 +209,6 @@ fn substituent_signed_side_score_for_segment(
 fn placement_from_signed_side_score(score: f64) -> DoubleBondPlacement {
     if score > crate::EPSILON {
         DoubleBondPlacement::Left
-    } else if score < -crate::EPSILON {
-        DoubleBondPlacement::Right
     } else {
         DoubleBondPlacement::Right
     }
@@ -323,7 +321,7 @@ fn segment_has_neighbor_double_bond(
     ignored_bond_id: Option<&str>,
 ) -> bool {
     fragment.bonds.iter().any(|bond| {
-        !ignored_bond_id.is_some_and(|ignored| bond.id == ignored)
+        ignored_bond_id.is_none_or(|ignored| bond.id != ignored)
             && bond.order == 2
             && (bond.begin == begin_id
                 || bond.end == begin_id
@@ -468,7 +466,7 @@ fn cycle_path_bond_orders(
     let mut orders = Vec::with_capacity(path.len() - 1);
     for pair in path.windows(2) {
         let bond = fragment.bonds.iter().find(|bond| {
-            !ignored_bond_id.is_some_and(|ignored| bond.id == ignored)
+            ignored_bond_id.is_none_or(|ignored| bond.id != ignored)
                 && ((bond.begin == pair[0] && bond.end == pair[1])
                     || (bond.begin == pair[1] && bond.end == pair[0]))
         })?;

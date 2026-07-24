@@ -534,6 +534,7 @@ impl DesktopDocumentService {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn set_arrow_endpoint_options(
         &mut self,
         session_id: SessionId,
@@ -592,6 +593,7 @@ impl DesktopDocumentService {
             ))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn apply_arrow_endpoint_options_to_selection(
         &mut self,
         session_id: SessionId,
@@ -1396,8 +1398,8 @@ mod tests {
         let render_list: Value =
             serde_json::from_str(&service.render_list_json(session_id).unwrap()).unwrap();
 
-        assert!(document["objects"].as_array().unwrap().len() >= 1);
-        assert!(render_list.as_array().unwrap().len() >= 1);
+        assert!(!document["objects"].as_array().unwrap().is_empty());
+        assert!(!render_list.as_array().unwrap().is_empty());
         assert!(service.can_undo(session_id).unwrap());
         assert!(service.undo(session_id).unwrap());
     }

@@ -347,6 +347,7 @@ fn is_one(value: &f64) -> bool {
     (*value - 1.0).abs() <= crate::EPSILON
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn push_line(
     out: &mut Vec<RenderPrimitive>,
     from: Point,
@@ -467,6 +468,7 @@ fn push_knockout_polygon_with_ids(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn push_polyline(
     out: &mut Vec<RenderPrimitive>,
     points: Vec<Point>,
@@ -520,6 +522,7 @@ pub(super) fn push_path(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn push_text(
     out: &mut Vec<RenderPrimitive>,
     x: f64,

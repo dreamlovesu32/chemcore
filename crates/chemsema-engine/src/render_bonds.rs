@@ -1,5 +1,6 @@
 use super::*;
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn render_fragment_bond(
     out: &mut Vec<RenderPrimitive>,
     document: &ChemSemaDocument,
@@ -1328,6 +1329,7 @@ fn compute_fragment_solid_wedge_points(
     points
 }
 
+#[allow(clippy::too_many_arguments)]
 fn compute_fragment_hashed_wedge_points(
     bonds: &[Bond],
     bond: &Bond,

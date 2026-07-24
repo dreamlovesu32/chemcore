@@ -71,7 +71,6 @@ pub(super) fn label_anchor_geometries(
         .copied()
         .enumerate()
         .max_by(|left, right| left.1.x.total_cmp(&right.1.x))
-        .map(|(index, point)| (index, point))
         .unwrap_or((0, first_glyph_point));
     let right_group_index = rightmost_group_anchor_index(label, glyph_points.len());
     let right_group_point = right_group_index.and_then(|index| glyph_points.get(index).copied());

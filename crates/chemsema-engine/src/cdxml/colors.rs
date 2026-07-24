@@ -36,9 +36,11 @@ impl Default for CdxmlColorTable {
 
 impl CdxmlColorTable {
     pub(super) fn for_export(background: &str) -> Self {
-        let mut table = Self::default();
-        table.background =
-            normalize_hex_color(background).unwrap_or_else(|| DEFAULT_BACKGROUND.to_string());
+        let mut table = Self {
+            background: normalize_hex_color(background)
+                .unwrap_or_else(|| DEFAULT_BACKGROUND.to_string()),
+            ..Self::default()
+        };
         if table.background != DEFAULT_BACKGROUND {
             let background = table.background.clone();
             table.insert_table_color(&background);

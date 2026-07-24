@@ -490,7 +490,7 @@ fn delete_tool_click_degrades_triple_to_side_double() {
     let bond = entry.fragment.bonds.first().expect("bond should exist");
     let bond_id = bond.id.clone();
     let center = bond_center_point(&engine, &bond_id);
-    drop(entry);
+    let _ = entry;
 
     engine.set_tool_state(delete_tool());
     click(&mut engine, center.x, center.y);
@@ -530,7 +530,7 @@ fn delete_tool_click_on_endpoint_removes_all_connected_bonds() {
         .find(|node| node.id == branch_node_id)
         .expect("branch node should exist");
     let branch_point = (branch_node.position[0], branch_node.position[1]);
-    drop(entry);
+    let _ = entry;
 
     engine.set_tool_state(delete_tool());
     click(&mut engine, branch_point.0, branch_point.1);
@@ -552,7 +552,7 @@ fn delete_tool_click_on_label_removes_only_label() {
         .as_ref()
         .and_then(|label| label.bbox())
         .expect("label box");
-    drop(entry);
+    let _ = entry;
 
     engine.set_tool_state(delete_tool());
     click(

@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SpectrumClass {
+    #[default]
     Unknown,
     Chromatogram,
     Infrared,
@@ -13,12 +14,6 @@ pub enum SpectrumClass {
     Raman,
     Fluorescence,
     Atomic,
-}
-
-impl Default for SpectrumClass {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 impl SpectrumClass {
@@ -69,9 +64,10 @@ impl SpectrumClass {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SpectrumXAxisType {
+    #[default]
     Unknown,
     Wavenumbers,
     Microns,
@@ -79,12 +75,6 @@ pub enum SpectrumXAxisType {
     MassUnits,
     PartsPerMillion,
     Other,
-}
-
-impl Default for SpectrumXAxisType {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 impl SpectrumXAxisType {
@@ -126,21 +116,16 @@ impl SpectrumXAxisType {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SpectrumYAxisType {
+    #[default]
     Unknown,
     Absorbance,
     Transmittance,
     PercentTransmittance,
     Other,
     ArbitraryUnits,
-}
-
-impl Default for SpectrumYAxisType {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 impl SpectrumYAxisType {

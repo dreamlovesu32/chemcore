@@ -448,6 +448,7 @@ impl Engine {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn apply_arrow_options_to_selection(
         &mut self,
         variant: ArrowVariant,
@@ -483,6 +484,7 @@ impl Engine {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn apply_arrow_options_to_selection_untracked(
         &mut self,
         variant: ArrowVariant,

@@ -305,13 +305,7 @@ fn expand_opaque_component(
 fn expand_alkyl_chain(builder: &mut ExpansionBuilder, len: usize) -> FragmentExpansion {
     let mut atoms = Vec::new();
     for index in 0..len {
-        let hydrogens = if len == 1 {
-            3
-        } else if index + 1 == len {
-            3
-        } else {
-            2
-        };
+        let hydrogens = if len == 1 || index + 1 == len { 3 } else { 2 };
         atoms.push(builder.add_atom("C", Some(hydrogens)));
     }
     for pair in atoms.windows(2) {

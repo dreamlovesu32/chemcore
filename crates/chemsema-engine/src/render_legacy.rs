@@ -166,11 +166,11 @@ fn legacy_atom_needs_label(parsed: &LegacyMol, atom_index: usize) -> bool {
         .is_some_and(|atom| atom.symbol != "C" || legacy_atom_degree(parsed, atom_index) == 0)
 }
 
-fn legacy_bond_neighbors<'a>(
-    parsed: &'a LegacyMol,
+fn legacy_bond_neighbors(
+    parsed: &LegacyMol,
     atom_index: usize,
     excluded_atom_index: usize,
-) -> Vec<&'a LegacyAtom> {
+) -> Vec<&LegacyAtom> {
     parsed
         .bonds
         .iter()
@@ -279,6 +279,7 @@ fn legacy_choose_double_bond_side(parsed: &LegacyMol, bond: &LegacyMolBond) -> f
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_legacy_bond(
     out: &mut Vec<RenderPrimitive>,
     parsed: &LegacyMol,
@@ -392,6 +393,7 @@ fn render_legacy_bond(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_legacy_double_bond(
     out: &mut Vec<RenderPrimitive>,
     parsed: &LegacyMol,
@@ -465,6 +467,7 @@ fn render_legacy_double_bond(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_legacy_triple_bond(
     out: &mut Vec<RenderPrimitive>,
     parsed: &LegacyMol,

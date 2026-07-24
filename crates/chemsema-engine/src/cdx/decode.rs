@@ -141,7 +141,7 @@ pub(super) fn decode_font_style(data: &[u8]) -> Option<(u16, u16, f64, u16)> {
 }
 
 pub(super) fn decode_u32_array(data: &[u8]) -> Option<String> {
-    if data.len() % 4 != 0 {
+    if !data.len().is_multiple_of(4) {
         return None;
     }
     Some(

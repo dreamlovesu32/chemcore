@@ -998,7 +998,7 @@ fn parse_cdxml_imports_table_lines_and_text_boxes() {
         .iter()
         .find(|object| object.object_type == "line")
         .expect("plain table line should import");
-    assert!(line.payload.extra.get("arrowHead").is_none());
+    assert!(!line.payload.extra.contains_key("arrowHead"));
     let line_style = document
         .styles
         .get(line.style_ref.as_deref().expect("line style ref"))

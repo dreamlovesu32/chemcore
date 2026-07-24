@@ -1,5 +1,6 @@
 use super::*;
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_preview_text(
     dc: HDC,
     x: f64,
@@ -139,6 +140,7 @@ pub(super) fn preview_packaged_attached_start_layout_mode(
     PreviewAttachedStartLayoutMode::Default
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn preview_attached_label_replay_nudge_px(
     _node_id: Option<&str>,
     _runs: &[chemsema_engine::LabelRun],
@@ -176,6 +178,7 @@ pub(super) fn preview_attached_label_replay_phase_policy_name() -> Option<String
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn preview_attached_label_replay_y_nudge_px(
     node_id: Option<&str>,
     runs: &[chemsema_engine::LabelRun],
@@ -246,6 +249,7 @@ pub(super) fn preview_attached_label_replay_default_family_y_nudge_px(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn preview_attached_label_replay_phase_policy_y_nudge_px(
     node_id: Option<&str>,
     runs: &[chemsema_engine::LabelRun],
@@ -343,6 +347,7 @@ pub(super) fn preview_attached_label_replay_text_hint(
     None
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn preview_attached_label_replay_top_nudge_px(
     _node_id: Option<&str>,
     _runs: &[chemsema_engine::LabelRun],
@@ -531,6 +536,7 @@ pub(super) fn preview_line_width_f32(
         .sum()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_preview_text_run(
     dc: HDC,
     x: i32,
@@ -713,9 +719,7 @@ pub(super) unsafe fn preview_structure_label_dx_array(
         return Some(Vec::new());
     }
     let wide: Vec<u16> = run.text.encode_utf16().collect();
-    let Some(font) = create_gdiplus_font(run, default_font_size, default_family, transform) else {
-        return None;
-    };
+    let font = create_gdiplus_font(run, default_font_size, default_family, transform)?;
     let Some(format) = create_gdiplus_string_format() else {
         GdipDeleteFont(font);
         return None;
@@ -1043,6 +1047,7 @@ pub(super) unsafe fn delete_preview_pen(pen: HGDIOBJ) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_preview_line(
     dc: HDC,
     from: POINT,
@@ -1067,6 +1072,7 @@ pub(super) unsafe fn draw_preview_line(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_preview_polyline(
     dc: HDC,
     points: &[CorePoint],
@@ -1093,6 +1099,7 @@ pub(super) unsafe fn draw_preview_polyline(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_preview_polyline_points(
     dc: HDC,
     points: &[POINT],

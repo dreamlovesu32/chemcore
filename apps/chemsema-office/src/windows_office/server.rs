@@ -123,7 +123,7 @@ pub(super) fn file_modified_time(path: &PathBuf) -> Option<SystemTime> {
         .ok()
 }
 
-pub(super) fn ole_edit_session_notify_path(path: &PathBuf) -> PathBuf {
+pub(super) fn ole_edit_session_notify_path(path: &Path) -> PathBuf {
     let file_name = path
         .file_name()
         .and_then(|name| name.to_str())
@@ -131,7 +131,7 @@ pub(super) fn ole_edit_session_notify_path(path: &PathBuf) -> PathBuf {
     path.with_file_name(format!("{file_name}.notify.json"))
 }
 
-pub(super) fn write_ole_edit_session_notify_file(path: &PathBuf) -> Result<(), String> {
+pub(super) fn write_ole_edit_session_notify_file(path: &Path) -> Result<(), String> {
     let Some(thread_id) = OLE_EDIT_MAIN_THREAD_ID.get().copied() else {
         return Ok(());
     };

@@ -589,10 +589,10 @@ const CDXML_EDITING_OUTPUT_SCALE: f64 = 1.0;
 /// attachment position is then the external connection point of that fragment.
 /// When that point also omits `p`, its incident bond continues the direction of
 /// the adjacent, positioned bond by one document bond length.
-
+///
 /// Explicit compatibility rule for topology-only output emitted by
 /// `CreationProgram="CDXMLWriter"`. Other CDXML producers must provide `n@p`.
-
+///
 #[derive(Debug)]
 struct CdxmlFragmentComponent {
     fragment: MoleculeFragment,

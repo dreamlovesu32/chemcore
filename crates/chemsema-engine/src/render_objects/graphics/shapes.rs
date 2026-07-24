@@ -303,6 +303,7 @@ pub(super) fn push_shape_shadow_path(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn push_shape_ellipse_fill(
     out: &mut Vec<RenderPrimitive>,
     object_id: &str,
@@ -368,6 +369,7 @@ pub(super) fn shape_shadow_clip_path(points: &[Point], original_shape_path: &str
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn push_shape_rect_fill(
     out: &mut Vec<RenderPrimitive>,
     object_id: &str,
@@ -399,6 +401,7 @@ pub(super) fn push_shape_rect_fill(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn push_shaded_ellipse_layers(
     out: &mut Vec<RenderPrimitive>,
     object_id: &str,
@@ -447,6 +450,7 @@ pub(super) fn push_shaded_ellipse_layers(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn push_shaded_rect_layers(
     out: &mut Vec<RenderPrimitive>,
     object_id: &str,

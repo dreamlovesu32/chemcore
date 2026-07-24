@@ -68,13 +68,12 @@ fn main() {
                 object_id: Some(object_id),
                 ..
             } if *role == chemsema_engine::RenderRole::DocumentGraphic
-                && object_id.contains("symbol") =>
+                && object_id.contains("symbol")
+                && circle_diameter.is_none() =>
             {
-                if circle_diameter.is_none() {
-                    if let Some([min_x, min_y, max_x, max_y]) = bbox_points(points) {
-                        circle_diameter = Some((max_x - min_x).max(max_y - min_y));
-                        circle_stroke_width = Some(*stroke_width);
-                    }
+                if let Some([min_x, min_y, max_x, max_y]) = bbox_points(points) {
+                    circle_diameter = Some((max_x - min_x).max(max_y - min_y));
+                    circle_stroke_width = Some(*stroke_width);
                 }
             }
             _ => {}

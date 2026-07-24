@@ -849,7 +849,7 @@ fn hollow_arrow_center_drag_curves_with_snap_and_smooth_rendering() {
         arrow_head.get("curve").and_then(|value| value.as_f64()),
         Some(-120.0)
     );
-    assert!(object.payload.extra.get("arrowGeometry").is_some());
+    assert!(object.payload.extra.contains_key("arrowGeometry"));
 
     let (path_d, points) = engine
         .render_list()

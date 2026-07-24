@@ -148,7 +148,7 @@ pub(super) fn render_tlc_plate_shape_object(
         .extra
         .get("lanes")
         .and_then(serde_json::Value::as_array)
-        .map(|value| value.clone())
+        .cloned()
         .unwrap_or_default();
     for lane in lanes {
         let offset = lane
@@ -172,7 +172,7 @@ pub(super) fn render_tlc_plate_shape_object(
         for spot in lane
             .get("spots")
             .and_then(serde_json::Value::as_array)
-            .map(|value| value.clone())
+            .cloned()
             .unwrap_or_default()
         {
             let rf = spot
@@ -200,6 +200,7 @@ pub(super) fn render_tlc_plate_shape_object(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn push_tlc_graphic_line(
     out: &mut Vec<RenderPrimitive>,
     object: &SceneObject,

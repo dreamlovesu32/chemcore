@@ -1,5 +1,6 @@
 use super::*;
 
+#[allow(clippy::too_many_arguments)]
 pub(in crate::cdxml) fn append_text_objects(
     root: &XmlNode,
     objects: &mut Vec<SceneObject>,
@@ -278,6 +279,7 @@ pub(super) fn estimated_annotation_text_width(text: &str, font_size: f64) -> f64
         * font_size
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(in crate::cdxml) fn append_text_objects_recursive(
     node: &XmlNode,
     skip_text: bool,
@@ -344,7 +346,7 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
                 && node.attr("Element").is_some()
                 && node
                     .attr("id")
-                    .map_or(true, |id| bonded_node_ids.contains(id)))
+                    .is_none_or(|id| bonded_node_ids.contains(id)))
     };
     let next_placeholder_depth = if node.is("n")
         && matches!(
@@ -471,6 +473,7 @@ pub(super) fn uses_automatic_object_tag_positioning(node: &XmlNode) -> bool {
         .is_none_or(|value| value.eq_ignore_ascii_case("auto"))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn text_object(
     node: &XmlNode,
     index: usize,

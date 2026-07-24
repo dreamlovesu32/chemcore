@@ -168,11 +168,10 @@ fn sync_linked_atom_annotation_objects(
                     }
                     changed |= replace_if_different(&mut object.visible, value.is_some());
                 }
-                (Some("atom_number"), AtomPropertyUpdate::ShowAtomNumber(value)) => {
-                    if let Some(value) = value {
-                        changed |= replace_if_different(&mut object.visible, *value);
-                    }
+                (Some("atom_number"), AtomPropertyUpdate::ShowAtomNumber(Some(value))) => {
+                    changed |= replace_if_different(&mut object.visible, *value)
                 }
+                (Some("atom_number"), AtomPropertyUpdate::ShowAtomNumber(None)) => {}
                 (Some("stereo" | "enhanced_stereo"), AtomPropertyUpdate::Stereo(value)) => {
                     if let Some(value) = value {
                         changed |= replace_if_different(
@@ -463,7 +462,7 @@ impl Engine {
         let mut changed = false;
         for object_id in ids {
             if let Some(object) = self.state.document.find_scene_object_mut(&object_id) {
-                changed |= set_payload_string(&mut object.payload.extra, "kind", &kind);
+                changed |= set_payload_string(&mut object.payload.extra, "kind", kind);
             }
         }
         if !changed {
@@ -580,7 +579,10 @@ impl Engine {
                 bond_ids: vec![bond_id.clone()],
                 style: style.clone(),
             },
-            |engine| engine.apply_bond_style_to_bond_ids_untracked(&[bond_id.clone()], &style),
+            |engine| {
+                engine
+                    .apply_bond_style_to_bond_ids_untracked(std::slice::from_ref(&bond_id), &style)
+            },
         )
     }
 
@@ -1034,11 +1036,11 @@ impl Engine {
                     replace_if_different(&mut node.atom_properties.isotope_mass, *next)
                 }
                 AtomPropertyUpdate::Abundance(next) => {
-                    replace_if_different(&mut node.atom_properties.isotopic_abundance, next.clone())
+                    replace_if_different(&mut node.atom_properties.isotopic_abundance, *next)
                 }
                 AtomPropertyUpdate::Radical(next) => {
                     let mut node_changed =
-                        replace_if_different(&mut node.atom_properties.radical, next.clone());
+                        replace_if_different(&mut node.atom_properties.radical, *next);
                     if !crate::node_attached_electron_symbols(node).is_empty() {
                         let meta = node.meta.as_object_mut().expect("node meta is an object");
                         node_changed |= replace_if_different(
@@ -1144,7 +1146,7 @@ impl Engine {
                 show_non_terminal_default,
             );
         }
-        drop(entry);
+        let _ = entry;
         changed |= sync_linked_atom_annotation_objects(
             &mut self.state.document.objects,
             &selected,
@@ -1284,7 +1286,7 @@ impl Engine {
             stroke_width,
         );
         entry.update_bounds();
-        drop(entry);
+        let _ = entry;
         refresh_element_valence_recognition_for_all_nodes(
             self.state
                 .document

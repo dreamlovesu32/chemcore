@@ -154,7 +154,7 @@ pub(crate) fn decode_hex_bytes(value: &str) -> Option<Vec<u8>> {
         .chars()
         .filter(|character| !character.is_ascii_whitespace())
         .collect();
-    if compact.len() % 2 != 0 {
+    if !compact.len().is_multiple_of(2) {
         return None;
     }
     (0..compact.len())

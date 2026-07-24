@@ -284,6 +284,6 @@ pub(super) fn apply_arrange_items_to_document(engine: &mut Engine, items: &[Sele
         stroke_width,
     );
     entry.update_bounds();
-    drop(entry);
+    let _ = entry;
     engine.refresh_symbol_chemistry();
 }

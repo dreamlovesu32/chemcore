@@ -108,9 +108,9 @@ pub(super) fn cdxml_embedded_fragment_connection_position(
         .filter_map(|bond| Some((bond.attr("B")?, bond.attr("E")?)))
         .collect();
 
-    for (external_id, external) in nested_nodes
+    if let Some((external_id, external)) = nested_nodes
         .iter()
-        .filter(|(_, child)| child.attr("NodeType") == Some("ExternalConnectionPoint"))
+        .find(|(_, child)| child.attr("NodeType") == Some("ExternalConnectionPoint"))
     {
         if let Some(point) = parse_xy(external.attr("p")) {
             return Some(point);

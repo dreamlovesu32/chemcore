@@ -54,7 +54,7 @@ impl Engine {
 
     pub(super) fn pointer_down_orbital(&mut self, event: PointerEvent) {
         let point = event.point();
-        if self.begin_hover_shape_edit(point) != "" {
+        if !self.begin_hover_shape_edit(point).is_empty() {
             return;
         }
         let anchor = self.orbital_draw_anchor_at_point(point);

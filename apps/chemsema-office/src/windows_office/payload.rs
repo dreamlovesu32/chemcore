@@ -171,9 +171,9 @@ pub(super) fn write_emf_payload_object(
     payload: &OleObjectPayload,
 ) -> Result<(), String> {
     let extent = payload.extent_himetric();
-    let emf = enhanced_metafile_bits_for_payload(&payload, extent)
+    let emf = enhanced_metafile_bits_for_payload(payload, extent)
         .map_err(|hr| format!("Failed to render EMF: 0x{:08X}", hr as u32))?;
-    std::fs::write(&output_path, emf)
+    std::fs::write(output_path, emf)
         .map_err(|error| format!("Failed to write EMF {}: {error}", output_path.display()))?;
     Ok(())
 }

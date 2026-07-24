@@ -648,6 +648,7 @@ pub(super) fn outer_bond_boundary_line_pair_for_endpoint(
     Some((boundaries, center))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn centered_double_line_boundary_pair_for_endpoint(
     object: &SceneObject,
     node_map: &BTreeMap<&str, &Node>,
@@ -1105,6 +1106,7 @@ pub(super) fn bond_axis_line_for_endpoint(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn center_double_endpoint_profile_for_line_side(
     object: &SceneObject,
     contact_kernel: &MainBondContactKernel,

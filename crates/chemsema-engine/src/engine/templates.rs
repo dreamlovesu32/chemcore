@@ -486,6 +486,7 @@ impl Engine {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn plan_template_command_output(
         &self,
         template: String,
@@ -532,6 +533,7 @@ impl Engine {
         ))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn insert_template_command(
         &mut self,
         template: String,
@@ -587,6 +589,7 @@ impl Engine {
         changed
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn template_drag_from_command(
         &self,
         x: f64,
@@ -686,7 +689,7 @@ impl Engine {
 
     fn template_alternating_six_cycle_for_single_bond(&self, bond_id: &str) -> Option<Vec<String>> {
         alternating_six_cycle_for_single_bond(
-            &self.state.document.editable_fragment()?.fragment,
+            self.state.document.editable_fragment()?.fragment,
             bond_id,
         )
     }
@@ -1227,6 +1230,7 @@ fn centered_ring_plan(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn fused_bond_ring_plan(
     ring_size: usize,
     aromatic: bool,
@@ -1659,6 +1663,7 @@ fn template_stroke_width(document: &ChemSemaDocument, plan: &RingPlan, engine: &
         .unwrap_or(style_width)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn insert_ring_bond(
     entry: &mut crate::EditableFragmentMut<'_>,
     begin_id: &str,

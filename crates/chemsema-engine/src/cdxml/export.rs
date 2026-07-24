@@ -266,9 +266,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
         out.push_str(">\n");
         self.write_color_table(&mut out);
         self.write_font_table(&mut out);
-        write!(
+        writeln!(
             out,
-            "  <page id=\"{}\" BoundingBox=\"{}\" HeaderPosition=\"36\" FooterPosition=\"36\" PrintTrimMarks=\"yes\" HeightPages=\"1\" WidthPages=\"1\" Width=\"{}\" Height=\"{}\">\n",
+            "  <page id=\"{}\" BoundingBox=\"{}\" HeaderPosition=\"36\" FooterPosition=\"36\" PrintTrimMarks=\"yes\" HeightPages=\"1\" WidthPages=\"1\" Width=\"{}\" Height=\"{}\">",
             self.alloc_id(),
             root_bbox,
             fmt_num(width),
@@ -1455,7 +1455,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
 
     fn write_curve_object(&mut self, out: &mut String, object: &SceneObject) {
         let points = payload_points_cdxml(&object.payload, "curvePoints");
-        if points.len() < 6 || (points.len() - 3) % 3 != 0 {
+        if points.len() < 6 || !(points.len() - 3).is_multiple_of(3) {
             return;
         }
         let translated = points
@@ -2171,6 +2171,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn write_runs(
         &mut self,
         out: &mut String,

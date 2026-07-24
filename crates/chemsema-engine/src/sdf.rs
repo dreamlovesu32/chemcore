@@ -609,7 +609,7 @@ fn export_record_title(
         })
         .filter(|value| !value.trim().is_empty())
         .or_else(|| (!object.name.trim().is_empty()).then_some(object.name.as_str()))
-        .or_else(|| Some(document.document.title.as_str()))
+        .or(Some(document.document.title.as_str()))
         .unwrap_or("ChemSema Molecule")
         .trim()
         .chars()

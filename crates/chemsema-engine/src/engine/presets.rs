@@ -471,7 +471,7 @@ fn object_settings_dialog_field(
         "value": display_value.map(round3),
         "values": {
             "cm": value.value.map(|value| if unit == "%" { round3(value) } else { round3(value / crate::PT_PER_CM) }),
-            "pt": value.value.map(|value| if unit == "%" { round3(value) } else { round3(value) }),
+            "pt": value.value.map(round3),
         },
         "unit": unit,
         "mixed": value.mixed,

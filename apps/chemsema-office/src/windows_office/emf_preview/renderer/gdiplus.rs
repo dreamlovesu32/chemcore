@@ -241,6 +241,7 @@ pub(super) unsafe fn draw_gdiplus_primitive(
     ok
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_gdiplus_polyline(
     graphics: *mut GpGraphics,
     points: &[CorePoint],
@@ -340,7 +341,7 @@ pub(super) fn dashed_polyline_segments(
             if remaining <= f64::EPSILON {
                 pattern_index = (pattern_index + 1) % pattern.len();
                 remaining = pattern[pattern_index];
-                draw_segment = pattern_index % 2 == 0;
+                draw_segment = pattern_index.is_multiple_of(2);
             }
         }
     }
@@ -348,6 +349,7 @@ pub(super) fn dashed_polyline_segments(
     segments
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_gdiplus_dashed_polyline(
     graphics: *mut GpGraphics,
     points: &[CorePoint],
@@ -382,6 +384,7 @@ pub(super) unsafe fn draw_gdiplus_dashed_polyline(
     ok
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_gdiplus_polygon(
     graphics: *mut GpGraphics,
     role: RenderRole,
@@ -483,6 +486,7 @@ pub(super) unsafe fn fill_gdiplus_polygon(
     ok
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_gdiplus_rect(
     graphics: *mut GpGraphics,
     x: f64,
@@ -527,6 +531,7 @@ pub(super) unsafe fn draw_gdiplus_rect(
     ok
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_gdiplus_ellipse(
     graphics: *mut GpGraphics,
     x: f64,
@@ -571,6 +576,7 @@ pub(super) unsafe fn draw_gdiplus_ellipse(
     ok
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_gdiplus_path(
     graphics: *mut GpGraphics,
     d: &str,
@@ -720,6 +726,7 @@ pub(super) unsafe fn create_gdiplus_solid_brush(color: &str) -> Option<*mut GpBr
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_gdiplus_text(
     graphics: *mut GpGraphics,
     x: f64,
@@ -1101,6 +1108,7 @@ pub(super) unsafe fn gdiplus_measure_text_width(
     ok.then_some(bounds.Width.max(0.0))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_gdiplus_text_run(
     graphics: *mut GpGraphics,
     x: f32,
@@ -1252,6 +1260,7 @@ pub(super) fn preview_gdiplus_text_top(
         + (top_nudge_px / (transform.scale * transform.record_scale.max(1.0))) as f32
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn preview_packaged_node_label_line_rect(
     node_id: Option<&str>,
     _text_anchor: Option<&str>,

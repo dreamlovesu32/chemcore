@@ -1656,7 +1656,6 @@ impl Engine {
             {
                 self.state.overlay.hover_arrow = Some(arrow);
             }
-            return;
         }
     }
 
@@ -1771,8 +1770,10 @@ impl Engine {
         FS: FnMut(Point, Point) -> bool,
         FB: FnMut(AxisBounds) -> bool,
     {
-        let mut selection = SelectionState::default();
-        selection.region = true;
+        let mut selection = SelectionState {
+            region: true,
+            ..SelectionState::default()
+        };
         for object in self.state.document.scene_objects() {
             if object.object_type != "text" || !object.visible {
                 continue;

@@ -294,11 +294,9 @@ fn parse_cdxml_imports_arrows_shapes_and_text_objects() {
     };
     let arrow_document =
         parse_cdxml_document(&arrows, Some("arrows")).expect("arrows should parse");
-    assert!(arrow_document
-        .objects
-        .iter()
-        .any(|object| object.object_type == "line"
-            && object.payload.extra.get("arrowHead").is_some()));
+    assert!(arrow_document.objects.iter().any(
+        |object| object.object_type == "line" && object.payload.extra.contains_key("arrowHead")
+    ));
     assert!(render_document(&arrow_document)
         .iter()
         .any(|primitive| matches!(
@@ -1324,8 +1322,8 @@ fn parse_document_json_normalizes_text_and_shape_payloads_at_import_boundary() {
             .and_then(|value| value.as_f64()),
         Some(10.0)
     );
-    assert!(text.payload.extra.get("lineHeight").is_some());
-    assert!(text.payload.extra.get("box").is_some());
+    assert!(text.payload.extra.contains_key("lineHeight"));
+    assert!(text.payload.extra.contains_key("box"));
     assert_eq!(
         text.payload
             .extra

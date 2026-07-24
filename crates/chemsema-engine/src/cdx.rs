@@ -172,7 +172,7 @@ impl<'a> CdxReader<'a> {
 
     fn apply_property(&mut self, node: &mut CdxNode, tag: u16, data: &[u8]) -> Result<(), String> {
         if node.name == "spectrum" && tag == 0x0A86 {
-            if data.is_empty() || data.len() % 8 != 0 {
+            if data.is_empty() || !data.len().is_multiple_of(8) {
                 return Err(format!(
                     "invalid CDX Spectrum_DataPoint payload length {}",
                     data.len()

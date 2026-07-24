@@ -333,6 +333,7 @@ pub(crate) fn desktop_engine_set_arrow_options(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn desktop_engine_set_arrow_endpoint_options(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
@@ -372,6 +373,7 @@ pub(crate) fn desktop_engine_apply_arrow_options_to_selection(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn desktop_engine_apply_arrow_endpoint_options_to_selection(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,

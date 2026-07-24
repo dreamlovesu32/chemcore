@@ -60,8 +60,8 @@ pub(super) fn xml_from_interchange(
         name: source.name.clone(),
         attrs: source
             .properties
-            .iter()
-            .map(|(_, property)| (property.name.clone(), property.value.clone()))
+            .values()
+            .map(|property| (property.name.clone(), property.value.clone()))
             .collect(),
         text: source.text.clone(),
         children: source.children.iter().map(xml_from_interchange).collect(),

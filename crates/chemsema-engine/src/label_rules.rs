@@ -411,7 +411,6 @@ pub fn layout_label_text(text: &str, decision: &LabelLayoutDecision) -> LabelLay
             }
         }
         LabelFlow::StackAbove => stacked_layout(
-            &groups,
             decision,
             if groups.len() > 1 {
                 vec![groups[1..].concat(), groups[0].clone()]
@@ -421,7 +420,6 @@ pub fn layout_label_text(text: &str, decision: &LabelLayoutDecision) -> LabelLay
             if groups.len() > 1 { 1 } else { 0 },
         ),
         LabelFlow::StackBelow => stacked_layout(
-            &groups,
             decision,
             if groups.len() > 1 {
                 vec![groups[0].clone(), groups[1..].concat()]
@@ -434,13 +432,12 @@ pub fn layout_label_text(text: &str, decision: &LabelLayoutDecision) -> LabelLay
 }
 
 fn stacked_layout(
-    groups: &[String],
     decision: &LabelLayoutDecision,
     lines: Vec<String>,
     anchor_line: usize,
 ) -> LabelLayout {
     let rendered_text = lines.join("\n");
-    let anchor_char = if groups.is_empty() { 0 } else { 0 };
+    let anchor_char = 0;
     LabelLayout {
         flow: decision.flow.clone(),
         anchor: decision.anchor.clone(),

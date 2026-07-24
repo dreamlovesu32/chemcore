@@ -195,6 +195,7 @@ pub(super) fn render_svg_preview_bitmap(svg: &str) -> Option<SvgPreviewBitmap> {
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_preview_image(
     dc: HDC,
     x: f64,
@@ -272,7 +273,7 @@ pub(super) unsafe fn draw_preview_image(
     };
     let top_left = transform.xy(min_x, min_y);
     let bottom_right = transform.xy(max_x, max_y);
-    let mut info = BITMAPINFO {
+    let info = BITMAPINFO {
         bmiHeader: BITMAPINFOHEADER {
             biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
             biWidth: bitmap.width,
@@ -299,7 +300,7 @@ pub(super) unsafe fn draw_preview_image(
         bitmap.width,
         bitmap.height,
         bitmap.bgra.as_ptr().cast::<c_void>(),
-        &mut info,
+        &info,
         DIB_RGB_COLORS,
         SRCCOPY,
     ) != 0
@@ -311,7 +312,7 @@ pub(super) unsafe fn draw_svg_preview(dc: HDC, bounds: &RECT, payload: &OleObjec
     };
     let target_width = (bounds.right - bounds.left).max(1);
     let target_height = (bounds.bottom - bounds.top).max(1);
-    let mut info = BITMAPINFO {
+    let info = BITMAPINFO {
         bmiHeader: BITMAPINFOHEADER {
             biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
             biWidth: bitmap.width,
@@ -338,7 +339,7 @@ pub(super) unsafe fn draw_svg_preview(dc: HDC, bounds: &RECT, payload: &OleObjec
         bitmap.width,
         bitmap.height,
         bitmap.bgra.as_ptr().cast::<c_void>(),
-        &mut info,
+        &info,
         DIB_RGB_COLORS,
         SRCCOPY,
     );

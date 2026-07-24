@@ -57,7 +57,7 @@ impl Engine {
 
     pub(super) fn pointer_down_bracket(&mut self, event: PointerEvent) {
         let point = event.point();
-        if self.begin_hover_shape_edit(point) != "" {
+        if !self.begin_hover_shape_edit(point).is_empty() {
             return;
         }
         self.clear_interaction();
@@ -615,6 +615,7 @@ impl BracketEditHandle {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn bracket_side_scene_object(
     object_id: String,
     side: BracketSide,
@@ -942,6 +943,7 @@ fn bracket_pair_contains_local_point(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn bracket_side_contains_local_point(
     point: Point,
     x: f64,

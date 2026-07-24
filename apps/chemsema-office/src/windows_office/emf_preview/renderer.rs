@@ -250,14 +250,9 @@ pub(super) unsafe fn enhanced_metafile_gdiplus_dual_preview(
         .iter()
         .filter(|primitive| office_preview_primitive_visible(primitive))
         .collect();
-    let Some(primitive_bounds) = render_primitives_bounds(visible.iter().copied()) else {
-        return None;
-    };
-    let Some(transform) =
-        PreviewTransform::from_bounds(draw_bounds, source_bounds.unwrap_or(primitive_bounds))
-    else {
-        return None;
-    };
+    let primitive_bounds = render_primitives_bounds(visible.iter().copied())?;
+    let transform =
+        PreviewTransform::from_bounds(draw_bounds, source_bounds.unwrap_or(primitive_bounds))?;
     let transform = transform.for_emf_recording(office_presentation);
     let ref_dc = CreateCompatibleDC(null_mut());
     if ref_dc.is_null() {
@@ -343,18 +338,16 @@ pub(super) unsafe fn enhanced_metafile_gdiplus_dual_preview(
             &transform,
             bond_context.as_ref(),
             label_context.as_ref(),
+        ) && !draw_gdi_primitive_in_gdiplus(
+            graphics,
+            primitive,
+            &transform,
+            &mut gdi_cache,
+            bond_context.as_ref(),
+            label_context.as_ref(),
         ) {
-            if !draw_gdi_primitive_in_gdiplus(
-                graphics,
-                primitive,
-                &transform,
-                &mut gdi_cache,
-                bond_context.as_ref(),
-                label_context.as_ref(),
-            ) {
-                ok = false;
-                break;
-            }
+            ok = false;
+            break;
         }
     }
     gdi_cache.delete_objects();
@@ -426,9 +419,6 @@ struct SvgPreviewBitmap {
     height: i32,
     bgra: Vec<u8>,
 }
-
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_arguments)]
 
 struct GdiplusTextLineLayout {
     width: f32,

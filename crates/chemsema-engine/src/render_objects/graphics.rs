@@ -359,8 +359,6 @@ impl ShapeGeometry {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-
 const SHADED_LEVELS: &[&str] = &[
     "#000000", "#0f0f0f", "#1e1e1e", "#2d2d2d", "#3b3b3b", "#494949", "#565656", "#636363",
     "#6f6f6f", "#7b7b7b", "#868686", "#919191", "#9b9b9b", "#a5a5a5", "#aeaeae", "#b7b7b7",
@@ -383,9 +381,6 @@ const RECT_SHADED_INSET_RATIO: f64 = 0.058_648_052_902_278_19;
 const ROUND_RECT_SHADED_INSET_RATIO: f64 = 0.127_129_977_460_556;
 const RECT_SHADED_REMAIN_RATIO: f64 = 0.111_976_487_876_561_09;
 
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_arguments)]
 #[cfg(test)]
 mod tests {
     use super::*;

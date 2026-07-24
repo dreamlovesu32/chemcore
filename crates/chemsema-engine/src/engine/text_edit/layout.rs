@@ -25,9 +25,7 @@ pub(super) fn normalize_text_edit_selection(
     text: &str,
     selection: Option<&TextEditSelection>,
 ) -> Option<TextEditSelectionState> {
-    let Some(selection) = selection else {
-        return None;
-    };
+    let selection = selection?;
     let text_length = text.chars().count();
     let anchor = selection.anchor.min(text_length);
     let focus = selection.focus.min(text_length);
@@ -100,6 +98,7 @@ pub(super) fn measure_text_edit_line_width(runs: &[LabelRun], default_font_size:
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn build_text_edit_layout_geometry(
     text: String,
     source_runs: Vec<LabelRun>,

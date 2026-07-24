@@ -274,7 +274,7 @@ fn primitive_polygon_bounds(points: &[Point]) -> [f64; 4] {
 }
 
 fn comma_point_token(token: &str) -> Option<Point> {
-    let token = token.trim_end_matches(|ch: char| ch == ',' || ch == ';');
+    let token = token.trim_end_matches([',', ';']);
     let (x, y) = token.split_once(',')?;
     Some(Point::new(x.parse().ok()?, y.parse().ok()?))
 }
@@ -1417,7 +1417,7 @@ fn closest_points_to_target(
     target: chemsema_engine::Point,
     count: usize,
 ) -> Vec<chemsema_engine::Point> {
-    let mut indexed: Vec<_> = points.iter().copied().collect();
+    let mut indexed: Vec<_> = points.to_vec();
     indexed.sort_by(|a, b| a.distance(target).total_cmp(&b.distance(target)));
     indexed.into_iter().take(count).collect()
 }

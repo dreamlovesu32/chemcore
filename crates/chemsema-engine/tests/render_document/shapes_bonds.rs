@@ -419,8 +419,10 @@ fn render_document_respects_explicit_small_fragment_label_font_size() {
         .into_iter()
         .find_map(|primitive| match primitive {
             RenderPrimitive::Text {
-                role, font_size, ..
-            } if role == RenderRole::DocumentText => Some(font_size),
+                role: RenderRole::DocumentText,
+                font_size,
+                ..
+            } => Some(font_size),
             _ => None,
         })
         .expect("fragment label text");

@@ -1933,7 +1933,7 @@ fn inspect_document_command_returns_agent_friendly_summary() {
         .unwrap()
         .iter()
         .any(|object| object["type"] == "text"));
-    assert!(inspected["output"]["styles"].as_array().unwrap().len() >= 1);
+    assert!(!inspected["output"]["styles"].as_array().unwrap().is_empty());
 }
 
 #[test]

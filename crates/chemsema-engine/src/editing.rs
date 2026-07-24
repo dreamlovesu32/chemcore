@@ -96,9 +96,10 @@ pub enum BondVariant {
     HollowWedge,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ArrowVariant {
+    #[default]
     Solid,
     Curved,
     CurvedMirror,
@@ -108,73 +109,48 @@ pub enum ArrowVariant {
     UnequalEquilibrium,
 }
 
-impl Default for ArrowVariant {
-    fn default() -> Self {
-        Self::Solid
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ArrowHeadSize {
     Large,
     Medium,
+    #[default]
     Small,
 }
 
-impl Default for ArrowHeadSize {
-    fn default() -> Self {
-        Self::Small
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ArrowEndpointStyle {
+    #[default]
     None,
     Full,
     Left,
     Right,
 }
 
-impl Default for ArrowEndpointStyle {
-    fn default() -> Self {
-        Self::None
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ArrowNoGo {
+    #[default]
     None,
     Cross,
     Hash,
 }
 
-impl Default for ArrowNoGo {
-    fn default() -> Self {
-        Self::None
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ArrowCurve {
+    #[default]
     Arc270,
     Arc180,
     Arc120,
     Arc90,
 }
 
-impl Default for ArrowCurve {
-    fn default() -> Self {
-        Self::Arc270
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ShapeKind {
+    #[default]
     Circle,
     Ellipse,
     RoundRect,
@@ -183,15 +159,10 @@ pub enum ShapeKind {
     TlcPlate,
 }
 
-impl Default for ShapeKind {
-    fn default() -> Self {
-        Self::Circle
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ShapeStyle {
+    #[default]
     Solid,
     Dashed,
     Shaded,
@@ -199,15 +170,10 @@ pub enum ShapeStyle {
     Shadowed,
 }
 
-impl Default for ShapeStyle {
-    fn default() -> Self {
-        Self::Solid
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum OrbitalTemplate {
+    #[default]
     S,
     P,
     Dxy,
@@ -217,42 +183,27 @@ pub enum OrbitalTemplate {
     Lobe,
 }
 
-impl Default for OrbitalTemplate {
-    fn default() -> Self {
-        Self::S
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum OrbitalStyle {
+    #[default]
     Hollow,
     Shaded,
     Filled,
 }
 
-impl Default for OrbitalStyle {
-    fn default() -> Self {
-        Self::Hollow
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum OrbitalPhase {
+    #[default]
     Plus,
     Minus,
 }
 
-impl Default for OrbitalPhase {
-    fn default() -> Self {
-        Self::Plus
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum BracketKind {
+    #[default]
     Round,
     Square,
     Curly,
@@ -266,12 +217,6 @@ pub enum BracketKind {
     Minus,
     RadicalAnion,
     Electron,
-}
-
-impl Default for BracketKind {
-    fn default() -> Self {
-        Self::Round
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

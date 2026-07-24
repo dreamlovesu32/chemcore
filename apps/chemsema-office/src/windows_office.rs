@@ -6,7 +6,7 @@ use std::mem::zeroed;
 use std::net::{SocketAddr, TcpStream};
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::process::CommandExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::ptr::{null, null_mut};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
@@ -625,6 +625,7 @@ struct StreamVtbl {
     clone: unsafe extern "system" fn(*mut c_void, *mut *mut c_void) -> i32,
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

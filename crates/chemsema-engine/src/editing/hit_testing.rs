@@ -114,7 +114,7 @@ pub fn hit_test_bond(document: &ChemSemaDocument, point: Point, radius: f64) -> 
             let begin_point = entry.world_point_for_node(begin);
             let end_point = entry.world_point_for_node(end);
             let distance = point_to_segment_distance(point, begin_point, end_point);
-            if distance <= radius && best.as_ref().map_or(true, |hit| distance < hit.distance) {
+            if distance <= radius && best.as_ref().is_none_or(|hit| distance < hit.distance) {
                 best = Some(BondHit {
                     bond_id: bond.id.clone(),
                     begin: begin_point,
@@ -167,7 +167,7 @@ pub fn hit_test_bond_center(
             let hit_radius = bond_center_hit_radius(begin_point, end_point, hit_width, radius);
             if point_in_bond_center_hit(point, begin_point, end_point, hit_width, radius)
                 && distance <= radius.max(hit_radius)
-                && best.as_ref().map_or(true, |hit| distance < hit.distance)
+                && best.as_ref().is_none_or(|hit| distance < hit.distance)
             {
                 best = Some(BondCenterHit {
                     bond_id: bond.id.clone(),

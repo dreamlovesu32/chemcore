@@ -676,9 +676,9 @@ pub enum TextEditCommandTarget {
 #[serde(tag = "snapshotKind", rename_all = "kebab-case")]
 pub enum HistorySnapshot {
     Document {
-        before: ChemSemaDocument,
+        before: Box<ChemSemaDocument>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        after: Option<ChemSemaDocument>,
+        after: Option<Box<ChemSemaDocument>>,
     },
     SceneObjects {
         before_objects: Vec<SceneObject>,
@@ -700,7 +700,7 @@ impl HistoryEntry {
         Self {
             command,
             snapshot: HistorySnapshot::Document {
-                before,
+                before: Box::new(before),
                 after: None,
             },
         }

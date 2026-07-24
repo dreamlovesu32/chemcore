@@ -363,7 +363,7 @@ pub(super) fn word_rtf_object_for_payload(payload: &OleObjectPayload) -> Result<
     rtf.push_str("{\\*\\picprop\\shplid1025");
     rtf.push_str("{\\sp{\\sn shapeType}{\\sv 75}}");
     rtf.push_str("{\\sp{\\sn fLine}{\\sv 0}}");
-    rtf.push_str("}");
+    rtf.push('}');
     rtf.push_str(&format!("\\picscalex{scale_x}\\picscaley{scale_y}"));
     rtf.push_str(&format!(
         "\\picw{}\\pich{}\\picwgoal{width_twips}\\pichgoal{height_twips}\\emfblip ",

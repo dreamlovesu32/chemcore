@@ -87,7 +87,7 @@ impl Engine {
             self.options.bond_stroke_world_pt().value(),
         );
         entry.update_bounds();
-        drop(entry);
+        let _ = entry;
         self.refresh_symbol_chemistry();
         self.state.selection = crate::SelectionState::default();
         self.clear_interaction();

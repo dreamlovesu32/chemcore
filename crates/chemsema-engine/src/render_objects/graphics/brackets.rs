@@ -269,6 +269,7 @@ pub(super) fn bracket_side_path_d(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn bracket_path_bounds(
     x: f64,
     y: f64,
@@ -339,6 +340,7 @@ pub(super) fn bracket_symbol_path_d(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn render_symbol_object_geometry(
     out: &mut Vec<RenderPrimitive>,
     object: &SceneObject,

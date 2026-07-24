@@ -262,7 +262,7 @@ fn infer_chemical_scripts(chars: &[char]) -> Vec<&'static str> {
     let mut index = 0usize;
     while index < chars.len() {
         if !chars[index].is_ascii_digit() {
-            if is_charge_marker(&chars, index) {
+            if is_charge_marker(chars, index) {
                 scripts[index] = "superscript";
             }
             index += 1;
@@ -272,7 +272,7 @@ fn infer_chemical_scripts(chars: &[char]) -> Vec<&'static str> {
         while index < chars.len() && chars[index].is_ascii_digit() {
             index += 1;
         }
-        if index < chars.len() && is_charge_marker(&chars, index) {
+        if index < chars.len() && is_charge_marker(chars, index) {
             scripts[start..=index].fill("superscript");
             index += 1;
         } else if start > 0 && (chars[start - 1].is_ascii_alphabetic() || chars[start - 1] == ')') {

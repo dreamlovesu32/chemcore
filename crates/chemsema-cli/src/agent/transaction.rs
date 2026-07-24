@@ -804,10 +804,8 @@ fn selector_exists(document: &ChemSemaDocument, selector: &str) -> bool {
                 document.resources.contains_key(id)
             } else if let Some(id) = selector.strip_prefix("style:") {
                 document.styles.contains_key(id)
-            } else if selector == "document" || selector == "document:page" {
-                true
             } else {
-                false
+                selector == "document" || selector == "document:page"
             }
         }
     }

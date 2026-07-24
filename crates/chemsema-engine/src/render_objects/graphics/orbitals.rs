@@ -212,6 +212,7 @@ pub(super) fn render_orbital_shape_object(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn render_orbital_ellipse_style(
     out: &mut Vec<RenderPrimitive>,
     object_id: &str,
@@ -508,6 +509,7 @@ pub(super) fn render_orbital_lobe_style(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn render_orbital_ring(
     out: &mut Vec<RenderPrimitive>,
     object: &SceneObject,
@@ -696,6 +698,7 @@ pub(super) fn push_shaded_dz2_ring_layers(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn push_orbital_outline(
     out: &mut Vec<RenderPrimitive>,
     object_id: &str,

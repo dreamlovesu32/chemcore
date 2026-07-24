@@ -42,6 +42,7 @@ impl Engine {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn add_bond_between_with_style_override(
         &mut self,
         anchor: BondAnchor,
@@ -79,6 +80,7 @@ impl Engine {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn add_bond_between_untracked(
         &mut self,
         anchor: BondAnchor,

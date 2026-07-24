@@ -1,5 +1,6 @@
 use super::*;
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_preview_svg_path(
     dc: HDC,
     d: &str,
@@ -254,6 +255,7 @@ pub(super) fn preview_closed_linear_path_points(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_preview_svg_polygon_path(
     dc: HDC,
     points: &[CorePoint],
@@ -294,6 +296,7 @@ pub(super) unsafe fn draw_preview_svg_polygon_path(
     delete_preview_pen(pen);
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_preview_svg_polyline_path(
     dc: HDC,
     commands: &[PreviewPathCommand],
@@ -402,6 +405,7 @@ pub(super) fn parse_preview_path(d: &str) -> Option<Vec<PreviewPathCommand>> {
     parser.parse()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn append_preview_arc_cubics(
     out: &mut Vec<PreviewPathCommand>,
     start: CorePoint,
@@ -496,6 +500,7 @@ pub(super) fn is_oval_bounds_path(d: &str, points: &[CorePoint]) -> bool {
     points.len() == 2 && (d.contains(" A ") || d.contains(" C ")) && !d.contains(" L ")
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_preview_oval_bounds(
     dc: HDC,
     points: &[CorePoint],
@@ -540,6 +545,7 @@ pub(super) unsafe fn draw_preview_oval_bounds(
     delete_preview_pen(pen);
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn draw_preview_polygon(
     dc: HDC,
     role: RenderRole,

@@ -292,6 +292,7 @@ fn line_baseline_offset(line_index: usize, line_height: f64, line_advances: &[f6
         .sum()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn build_label_glyph_geometry_with_profile(
     runs: &[LabelRun],
     line_runs: &[Vec<LabelRun>],

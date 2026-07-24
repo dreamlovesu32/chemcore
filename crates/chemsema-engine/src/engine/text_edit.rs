@@ -1159,6 +1159,7 @@ impl Engine {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn build_endpoint_text_edit_layout(
         &self,
         node_id: &str,

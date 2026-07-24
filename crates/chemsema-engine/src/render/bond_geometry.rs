@@ -97,6 +97,7 @@ pub(super) fn vector_cross(first: Vector, second: Vector) -> f64 {
     first.x * second.y - first.y * second.x
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn compute_bold_bond_points(
     object: &SceneObject,
     bonds: &[Bond],
@@ -226,6 +227,7 @@ pub(super) fn apply_segment_endpoint_retreats(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn bold_band_cap_points(
     object: &SceneObject,
     bonds: &[Bond],
@@ -871,9 +873,9 @@ pub(super) fn paired_boundary_line_join_points(
         (Some(a), Some(b)) => {
             if is_trivial_boundary_assignment(a.2) && !is_trivial_boundary_assignment(b.2) {
                 Some((b.0, b.1))
-            } else if is_trivial_boundary_assignment(b.2) && !is_trivial_boundary_assignment(a.2) {
-                Some((a.0, a.1))
-            } else if a.1 <= b.1 {
+            } else if (is_trivial_boundary_assignment(b.2) && !is_trivial_boundary_assignment(a.2))
+                || a.1 <= b.1
+            {
                 Some((a.0, a.1))
             } else {
                 Some((b.0, b.1))
@@ -1082,6 +1084,7 @@ pub(super) fn main_line_far_boundary_for_wide_bond(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn bold_main_line_join_polygon(
     object: &SceneObject,
     bonds: &[Bond],

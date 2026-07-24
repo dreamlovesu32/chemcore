@@ -304,6 +304,7 @@ pub(super) fn endpoint_session_box_size(session: &TextEditSession) -> Option<(f6
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn make_centered_node_label_from_runs(
     text: &str,
     position: [f64; 2],
@@ -1305,7 +1306,7 @@ pub(super) fn element_hydrogen_label_is_valid_for_node(
             && node.atomic_number == 6
             && element_valence_is_valid_for_node(fragment, node);
     }
-    if !parse_element_hydrogen_label(trimmed).is_some_and(|parsed| parsed.element == node.element)
+    if parse_element_hydrogen_label(trimmed).is_none_or(|parsed| parsed.element != node.element)
         && trimmed != node.element
     {
         return false;
@@ -1416,8 +1417,8 @@ pub(super) fn mark_user_edited_implicit_hydrogen_label(node: &mut crate::Node) -
         return false;
     };
     let source_text = label_source_text(label);
-    if !parse_element_hydrogen_label(source_text.trim())
-        .is_some_and(|parsed| parsed.element == node.element)
+    if parse_element_hydrogen_label(source_text.trim())
+        .is_none_or(|parsed| parsed.element != node.element)
     {
         return false;
     }

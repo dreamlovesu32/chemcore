@@ -216,9 +216,7 @@ fn mark_preview_primitives(primitives: &mut [RenderPrimitive]) {
             continue;
         }
         let (object_id, node_id, bond_id) = preview_primitive_ids(primitive);
-        if is_preview_id(bond_id) {
-            *primitive.role_mut() = RenderRole::PreviewBond;
-        } else if is_preview_id(object_id) || is_preview_id(node_id) {
+        if is_preview_id(bond_id) || is_preview_id(object_id) || is_preview_id(node_id) {
             *primitive.role_mut() = RenderRole::PreviewBond;
         }
     }
@@ -500,7 +498,7 @@ fn history_entry_is_open_for_command(entry: &HistoryEntry, command: &EditorComma
 
 fn history_entry_before_document(entry: &HistoryEntry) -> Option<&ChemSemaDocument> {
     match &entry.snapshot {
-        HistorySnapshot::Document { before, .. } => Some(before),
+        HistorySnapshot::Document { before, .. } => Some(before.as_ref()),
         HistorySnapshot::SceneObjects { .. } => None,
     }
 }
@@ -518,7 +516,7 @@ fn capture_history_after_snapshot_for_document(
 ) {
     match &mut entry.snapshot {
         HistorySnapshot::Document { after, .. } => {
-            *after = Some(document.clone());
+            *after = Some(Box::new(document.clone()));
         }
         HistorySnapshot::SceneObjects {
             before_objects,
@@ -804,6 +802,7 @@ struct TargetBondSegment {
     end_point: Point,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn expand_updated_bonds_with_visual_dependencies(
     updated_bonds: &mut Vec<String>,
     created_nodes: &[String],

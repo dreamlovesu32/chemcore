@@ -686,7 +686,7 @@ fn load_cdxml_document_preserves_display_fragments_for_editing_hit_tests() {
         .iter()
         .any(|object| object.id == "obj_cdxml_merged_molecule"));
     assert!(hit_test_bond_center(
-        &document,
+        document,
         Point::new(85.0 * CDXML_EDIT_SCALE, 15.0 * CDXML_EDIT_SCALE),
         30.0 * CDXML_EDIT_SCALE
     )
@@ -803,7 +803,7 @@ fn render_cdxml_fragment_node_labels_interleave_with_external_graphics_by_source
         .load_cdxml_document(cdxml)
         .expect("layered cdxml should load");
     let document = &engine.state().document;
-    let primitives = render_document(&document);
+    let primitives = render_document(document);
     let orbital_last = primitives
         .iter()
         .enumerate()

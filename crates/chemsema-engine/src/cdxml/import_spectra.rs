@@ -8,11 +8,11 @@ pub(in crate::cdxml) fn append_spectrum_objects(
     colors: &CdxmlColorTable,
     fonts: &BTreeMap<String, String>,
 ) -> Result<(), String> {
-    let mut index = 1usize;
-    for node in descendants(root)
-        .into_iter()
-        .filter(|node| node.is("spectrum"))
-    {
+    for (index, node) in (1usize..).zip(
+        descendants(root)
+            .into_iter()
+            .filter(|node| node.is("spectrum")),
+    ) {
         let source_id = node.attr("id").unwrap_or("<missing id>");
         let bbox = parse_bbox(node.attr("BoundingBox")).ok_or_else(|| {
             format!("CDXML spectrum '{source_id}' is missing a valid BoundingBox")
@@ -112,7 +112,6 @@ pub(in crate::cdxml) fn append_spectrum_objects(
             payload,
             children: Vec::new(),
         });
-        index += 1;
     }
     Ok(())
 }

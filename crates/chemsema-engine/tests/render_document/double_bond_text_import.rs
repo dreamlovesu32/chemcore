@@ -1720,8 +1720,8 @@ fn parse_cdxml_left_justification_does_not_override_connection_aware_label_layou
     let label = |node_id: &str| {
         document
             .resources
-            .iter()
-            .filter_map(|(_, resource)| resource.data.as_fragment())
+            .values()
+            .filter_map(|resource| resource.data.as_fragment())
             .flat_map(|fragment| fragment.nodes.iter())
             .find(|node| node.id == node_id)
             .and_then(|node| node.label.as_ref())

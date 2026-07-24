@@ -152,7 +152,7 @@ pub(super) fn current_server_path() -> Result<PathBuf, String> {
     env::current_exe().map_err(|error| format!("Failed to resolve chemsema-office.exe: {error}"))
 }
 
-pub(super) fn quote_path(path: &PathBuf) -> String {
+pub(super) fn quote_path(path: &Path) -> String {
     format!("\"{}\"", path.display())
 }
 
@@ -246,7 +246,7 @@ pub(super) fn wide_null(value: &str) -> Vec<u16> {
     value.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-pub(super) fn wide_path_null(path: &PathBuf) -> Vec<u16> {
+pub(super) fn wide_path_null(path: &Path) -> Vec<u16> {
     path.as_os_str()
         .encode_wide()
         .chain(std::iter::once(0))

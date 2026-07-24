@@ -140,7 +140,7 @@ pub(super) fn preview_bond_context_from_document(
                         })
                     }),
                     allow_pen,
-                    order: bond.order as u8,
+                    order: bond.order,
                     start_projection: begin_world.x * axis.x + begin_world.y * axis.y,
                     end_projection: end_world.x * axis.x + end_world.y * axis.y,
                     axis_normal_projection: begin_world.x * -axis.y + begin_world.y * axis.x,

@@ -541,23 +541,20 @@ impl Engine {
             .chain(self.state.selection.label_nodes.iter())
             .map(String::as_str)
             .collect();
-        self.state
-            .document
-            .editable_fragment()
-            .map_or(true, |entry| {
-                entry
-                    .fragment
-                    .nodes
-                    .iter()
-                    .filter(|node| selected.contains(node.id.as_str()))
-                    .all(|node| {
-                        node.label
-                            .as_ref()
-                            .and_then(|label| label.meta.get("defaultChemical"))
-                            .and_then(JsonValue::as_bool)
-                            .unwrap_or(true)
-                    })
-            })
+        self.state.document.editable_fragment().is_none_or(|entry| {
+            entry
+                .fragment
+                .nodes
+                .iter()
+                .filter(|node| selected.contains(node.id.as_str()))
+                .all(|node| {
+                    node.label
+                        .as_ref()
+                        .and_then(|label| label.meta.get("defaultChemical"))
+                        .and_then(JsonValue::as_bool)
+                        .unwrap_or(true)
+                })
+        })
     }
 
     fn selected_implicit_hydrogen_override(&self) -> Option<Option<u8>> {
@@ -1981,7 +1978,7 @@ fn shape_style_for_object(document: &crate::ChemSemaDocument, object: &SceneObje
     }
     if style.is_some_and(|style| {
         style.get("fill").is_some_and(|value| !value.is_null())
-            && !style.get("stroke").is_some_and(|value| !value.is_null())
+            && style.get("stroke").is_none_or(|value| value.is_null())
     }) {
         return "filled".to_string();
     }
