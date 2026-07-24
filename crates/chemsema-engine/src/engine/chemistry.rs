@@ -237,6 +237,14 @@ impl Engine {
         let molecule = self.chemical_molecule_for_targets(targets)?;
         let properties = molecular_properties(&molecule).map_err(|error| error.to_string())?;
         match format {
+            ChemicalAnalysisFormat::ChemicalGraphV2 => {
+                let (_, graph, _) = self.chemical_graph_v2_for_targets(targets)?;
+                Ok(json!({
+                    "format": "chemical-graph-v2",
+                    "value": graph.normalized()?,
+                    "provider": "chemsema-chemical-graph",
+                }))
+            }
             ChemicalAnalysisFormat::Smiles => {
                 let (value, canonical, canonical_reason) = match write_canonical_smiles(&molecule) {
                     Ok(value) => (value, true, None),
@@ -268,7 +276,8 @@ impl Engine {
                     let (name, value) = match format {
                         ChemicalAnalysisFormat::Inchi => ("inchi", result.inchi),
                         ChemicalAnalysisFormat::InchiKey => ("inchi-key", result.inchikey),
-                        ChemicalAnalysisFormat::Smiles => unreachable!(),
+                        ChemicalAnalysisFormat::Smiles
+                        | ChemicalAnalysisFormat::ChemicalGraphV2 => unreachable!(),
                     };
                     Ok(json!({
                         "format": name,
@@ -285,7 +294,8 @@ impl Engine {
                         "format": match format {
                             ChemicalAnalysisFormat::Inchi => "inchi",
                             ChemicalAnalysisFormat::InchiKey => "inchi-key",
-                            ChemicalAnalysisFormat::Smiles => unreachable!(),
+                            ChemicalAnalysisFormat::Smiles
+                            | ChemicalAnalysisFormat::ChemicalGraphV2 => unreachable!(),
                         },
                         "molfile": molfile,
                         "provider": "IUPAC InChI WebAssembly",

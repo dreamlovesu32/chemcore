@@ -1,0 +1,834 @@
+{
+  "$defs": {
+    "AromaticityModelV2": {
+      "oneOf": [
+        {
+          "const": "explicit-aromatic-bonds",
+          "description": "Aromatic bonds are authoritative. Kekule and aromatic encodings are not\nsilently considered identical until an adapter normalizes them.",
+          "type": "string"
+        }
+      ]
+    },
+    "AtomV2": {
+      "additionalProperties": false,
+      "properties": {
+        "atomicNumber": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "formalCharge": {
+          "format": "int16",
+          "maximum": 32767,
+          "minimum": -32768,
+          "type": "integer"
+        },
+        "id": {
+          "type": "string"
+        },
+        "implicitHydrogens": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "isotope": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "radical": {
+          "$ref": "#/$defs/RadicalStateV2"
+        }
+      },
+      "required": [
+        "id",
+        "atomicNumber",
+        "formalCharge",
+        "radical",
+        "implicitHydrogens"
+      ],
+      "type": "object"
+    },
+    "BondKindV2": {
+      "enum": [
+        "single",
+        "double",
+        "triple",
+        "quadruple",
+        "aromatic",
+        "dative"
+      ],
+      "type": "string"
+    },
+    "BondV2": {
+      "additionalProperties": false,
+      "properties": {
+        "atoms": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "dativeDirection": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/BondKindV2"
+        }
+      },
+      "required": [
+        "id",
+        "atoms",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "ChemicalGraphV2": {
+      "additionalProperties": false,
+      "properties": {
+        "assumptions": {
+          "items": {
+            "$ref": "#/$defs/GraphAssumptionV2"
+          },
+          "type": "array"
+        },
+        "atoms": {
+          "items": {
+            "$ref": "#/$defs/AtomV2"
+          },
+          "type": "array"
+        },
+        "bonds": {
+          "items": {
+            "$ref": "#/$defs/BondV2"
+          },
+          "type": "array"
+        },
+        "components": {
+          "items": {
+            "$ref": "#/$defs/ComponentV2"
+          },
+          "type": "array"
+        },
+        "interactions": {
+          "items": {
+            "$ref": "#/$defs/MultiCenterInteractionV2"
+          },
+          "type": "array"
+        },
+        "schema": {
+          "type": "string"
+        },
+        "semantics": {
+          "$ref": "#/$defs/GraphSemanticsV2"
+        },
+        "stereo": {
+          "items": {
+            "$ref": "#/$defs/StereoElementV2"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema",
+        "semantics",
+        "atoms",
+        "bonds",
+        "stereo",
+        "components",
+        "assumptions",
+        "interactions"
+      ],
+      "type": "object"
+    },
+    "ComponentV2": {
+      "additionalProperties": false,
+      "properties": {
+        "atoms": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "count": {
+          "description": "V2 represents discrete molecular compositions only. Fractional and\nnonstoichiometric substances require a future substance profile.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "atoms",
+        "count"
+      ],
+      "type": "object"
+    },
+    "ConformationDescriptorV2": {
+      "enum": [
+        "synperiplanar",
+        "antiperiplanar",
+        "synclinal",
+        "anticlinal",
+        "eclipsed",
+        "staggered",
+        "gauche",
+        "bisecting",
+        "eclipsing",
+        "s-cis",
+        "s-trans",
+        "chair",
+        "boat",
+        "twist-boat",
+        "envelope",
+        "half-chair",
+        "crown",
+        "tub",
+        "in",
+        "out"
+      ],
+      "type": "string"
+    },
+    "DoubleBondRelationV2": {
+      "enum": [
+        "together",
+        "opposite"
+      ],
+      "type": "string"
+    },
+    "EnhancedStereoKindV2": {
+      "enum": [
+        "absolute",
+        "and",
+        "or"
+      ],
+      "type": "string"
+    },
+    "ExtendedStereoClassV2": {
+      "enum": [
+        "relative-configuration",
+        "pseudoasymmetric-center",
+        "nontetrahedral-center",
+        "polyhedral-center",
+        "axial",
+        "planar",
+        "helical",
+        "spiro",
+        "phane",
+        "fullerene",
+        "ring-assembly"
+      ],
+      "type": "string"
+    },
+    "ExtendedStereoDescriptorV2": {
+      "type": "string"
+    },
+    "GraphAssumptionV2": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "detail": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "type": "object"
+    },
+    "GraphProfileV2": {
+      "enum": [
+        "molecular-entity",
+        "discrete-composition"
+      ],
+      "type": "string"
+    },
+    "GraphSemanticsV2": {
+      "additionalProperties": false,
+      "properties": {
+        "aromaticityModel": {
+          "$ref": "#/$defs/AromaticityModelV2"
+        },
+        "hydrogenModel": {
+          "$ref": "#/$defs/HydrogenModelV2"
+        },
+        "normalization": {
+          "type": "string"
+        },
+        "profile": {
+          "$ref": "#/$defs/GraphProfileV2"
+        },
+        "valenceModel": {
+          "$ref": "#/$defs/ValenceModelV2"
+        }
+      },
+      "required": [
+        "profile",
+        "aromaticityModel",
+        "hydrogenModel",
+        "valenceModel",
+        "normalization"
+      ],
+      "type": "object"
+    },
+    "HydrogenModelV2": {
+      "oneOf": [
+        {
+          "const": "resolved-counts",
+          "description": "Every atom stores the resolved implicit-hydrogen count used by identity.",
+          "type": "string"
+        }
+      ]
+    },
+    "InteractionCenterV2": {
+      "additionalProperties": false,
+      "properties": {
+        "atoms": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "role": {
+          "$ref": "#/$defs/InteractionRoleV2"
+        }
+      },
+      "required": [
+        "role",
+        "atoms"
+      ],
+      "type": "object"
+    },
+    "InteractionKindV2": {
+      "enum": [
+        "coordination",
+        "delocalized-bond"
+      ],
+      "type": "string"
+    },
+    "InteractionRoleV2": {
+      "enum": [
+        "donor",
+        "acceptor",
+        "shared"
+      ],
+      "type": "string"
+    },
+    "MultiCenterInteractionV2": {
+      "additionalProperties": false,
+      "properties": {
+        "centers": {
+          "items": {
+            "$ref": "#/$defs/InteractionCenterV2"
+          },
+          "type": "array"
+        },
+        "electronCount": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/InteractionKindV2"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "centers"
+      ],
+      "type": "object"
+    },
+    "NomenclatureNameKindV1": {
+      "enum": [
+        "preferred-iupac-name"
+      ],
+      "type": "string"
+    },
+    "RadicalStateV2": {
+      "enum": [
+        "none",
+        "singlet",
+        "doublet",
+        "triplet"
+      ],
+      "type": "string"
+    },
+    "StereoCarrierV2": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "atom",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "bond",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "atomSet",
+              "type": "string"
+            },
+            "value": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "axis",
+              "type": "string"
+            },
+            "value": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "plane",
+              "type": "string"
+            },
+            "value": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "torsion",
+              "type": "string"
+            },
+            "value": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "lonePair",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "duplicateAtom",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "conjugatedDoubleBondPair",
+              "type": "string"
+            },
+            "value": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "StereoElementV2": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "center": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "tetrahedral",
+              "type": "string"
+            },
+            "parity": {
+              "$ref": "#/$defs/TetrahedralParityV2"
+            },
+            "references": {
+              "items": {
+                "$ref": "#/$defs/StereoReferenceV2"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "center",
+            "references",
+            "parity"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "bond": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "doubleBond",
+              "type": "string"
+            },
+            "leftReference": {
+              "type": "string"
+            },
+            "relation": {
+              "$ref": "#/$defs/DoubleBondRelationV2"
+            },
+            "rightReference": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "bond",
+            "leftReference",
+            "rightReference",
+            "relation"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "groupKind": {
+              "$ref": "#/$defs/EnhancedStereoKindV2"
+            },
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "enhancedGroup",
+              "type": "string"
+            },
+            "members": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "groupKind",
+            "members"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "carriers": {
+              "items": {
+                "$ref": "#/$defs/StereoCarrierV2"
+              },
+              "type": "array"
+            },
+            "class": {
+              "$ref": "#/$defs/ExtendedStereoClassV2"
+            },
+            "descriptor": {
+              "$ref": "#/$defs/ExtendedStereoDescriptorV2"
+            },
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "extended",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "class",
+            "descriptor",
+            "carriers"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "carriers": {
+              "items": {
+                "$ref": "#/$defs/StereoCarrierV2"
+              },
+              "type": "array"
+            },
+            "descriptor": {
+              "$ref": "#/$defs/ConformationDescriptorV2"
+            },
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "conformation",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "descriptor",
+            "carriers"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "carriers": {
+              "items": {
+                "$ref": "#/$defs/StereoCarrierV2"
+              },
+              "type": "array"
+            },
+            "descriptor": {
+              "$ref": "#/$defs/UnspecifiedStereoDescriptorV2"
+            },
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "unspecified",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "descriptor",
+            "carriers"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "StereoReferenceV2": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "atom",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "implicitHydrogen",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "TetrahedralParityV2": {
+      "enum": [
+        "clockwise",
+        "anticlockwise"
+      ],
+      "type": "string"
+    },
+    "UnspecifiedStereoDescriptorV2": {
+      "enum": [
+        "lower-xi",
+        "capital-xi",
+        "wavy"
+      ],
+      "type": "string"
+    },
+    "ValenceModelV2": {
+      "enum": [
+        "chem-sema2026"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "graph": {
+      "$ref": "#/$defs/ChemicalGraphV2"
+    },
+    "moleculeId": {
+      "type": "string"
+    },
+    "requestedNames": {
+      "items": {
+        "$ref": "#/$defs/NomenclatureNameKindV1"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "moleculeId",
+    "graph",
+    "requestedNames"
+  ],
+  "title": "NomenclatureRequestV1",
+  "type": "object"
+}

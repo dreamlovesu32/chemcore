@@ -57,6 +57,15 @@ test("real ChemSema and NMR WASM modules generate a native result tab", async ()
   const engine = new WasmEngine();
   engine.loadDocumentCdxml(ETHANE_CDXML);
   assert.equal(engine.selectAll(), true);
+  const nativeGraph = JSON.parse(engine.chemicalGraphV2Json());
+  assert.equal(nativeGraph.schema, "chemsema-nomenclature/chemical-graph/2");
+  assert.equal(nativeGraph.semantics.normalization, "chemsema-chemical-graph-normalization/1");
+  assert.equal("position" in nativeGraph.atoms[0], false);
+  const nomenclatureRequest = JSON.parse(engine.nomenclatureRequestJson());
+  assert.equal(nomenclatureRequest.schema, "chemsema.nomenclature-request.v1");
+  assert.deepEqual(nomenclatureRequest.graph, nativeGraph);
+  const nmrRequest = JSON.parse(engine.nmrPredictionRequestJson("1H"));
+  assert.deepEqual(nmrRequest.graph, nativeGraph);
 
   const provider = createBundledNmrProvider({
     initialize: () => initNmr({ module_or_path: nmrWasm }),

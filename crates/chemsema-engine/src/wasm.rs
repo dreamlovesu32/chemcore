@@ -475,6 +475,20 @@ impl WasmEngine {
             .map_err(|error| JsValue::from_str(&error))
     }
 
+    #[wasm_bindgen(js_name = chemicalGraphV2Json)]
+    pub fn chemical_graph_v2_json(&self) -> Result<String, JsValue> {
+        self.inner
+            .chemical_graph_v2_json()
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    #[wasm_bindgen(js_name = nomenclatureRequestJson)]
+    pub fn nomenclature_request_json(&self) -> Result<String, JsValue> {
+        self.inner
+            .nomenclature_request_json()
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
     #[wasm_bindgen(js_name = selectionContainsPoint)]
     pub fn selection_contains_point(&self, x: f64, y: f64) -> bool {
         self.inner

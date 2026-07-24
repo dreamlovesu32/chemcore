@@ -221,6 +221,9 @@ fn chemistry_command(args: &[String]) -> Result<(), String> {
                     .replace('_', "-")
                     .as_str()
                 {
+                    "chemical-graph-v2" | "chemicalgraphv2" | "cgv2" => {
+                        ChemicalAnalysisFormat::ChemicalGraphV2
+                    }
                     "smiles" => ChemicalAnalysisFormat::Smiles,
                     "inchi" => ChemicalAnalysisFormat::Inchi,
                     "inchikey" | "inchi-key" => ChemicalAnalysisFormat::InchiKey,

@@ -38,6 +38,7 @@ export class WasmEngine {
     canUndo(): boolean;
     centerSelectionOnPage(): boolean;
     chainToolIconSvg(stroke_width: number): string;
+    chemicalGraphV2Json(): string;
     clearInteraction(): void;
     clearSelection(): boolean;
     clipboardCdxml(): string | undefined;
@@ -81,6 +82,7 @@ export class WasmEngine {
     constructor();
     nmrPredictionRequestJson(nucleus: string): string;
     nmrResultDocumentJson(response_json: string): string;
+    nomenclatureRequestJson(): string;
     objectSettingsDialogJson(): string;
     orbitalToolIconSvg(template: string, style: string, phase: string): string;
     pasteCdx(cdx: Uint8Array): boolean;
@@ -184,6 +186,7 @@ export interface InitOutput {
     readonly wasmengine_canUndo: (a: number) => number;
     readonly wasmengine_centerSelectionOnPage: (a: number) => number;
     readonly wasmengine_chainToolIconSvg: (a: number, b: number) => [number, number];
+    readonly wasmengine_chemicalGraphV2Json: (a: number) => [number, number, number, number];
     readonly wasmengine_clearInteraction: (a: number) => void;
     readonly wasmengine_clearSelection: (a: number) => number;
     readonly wasmengine_clipboardCdxml: (a: number) => [number, number];
@@ -227,6 +230,7 @@ export interface InitOutput {
     readonly wasmengine_new: () => number;
     readonly wasmengine_nmrPredictionRequestJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_nmrResultDocumentJson: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly wasmengine_nomenclatureRequestJson: (a: number) => [number, number, number, number];
     readonly wasmengine_objectSettingsDialogJson: (a: number) => [number, number];
     readonly wasmengine_orbitalToolIconSvg: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly wasmengine_pasteCdx: (a: number, b: number, c: number) => [number, number, number];

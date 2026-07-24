@@ -1,0 +1,18 @@
+{
+  "schema": "chemsema-nomenclature/chemical-graph/2",
+  "semantics": {
+    "profile": "molecular-entity",
+    "aromaticityModel": "explicit-aromatic-bonds",
+    "hydrogenModel": "resolved-counts",
+    "valenceModel": "chem-sema2026",
+    "normalization": "chemsema-chemical-graph-normalization/1"
+  },
+  "atoms": [
+    {"id": "r1", "atomicNumber": 0, "isotope": null, "formalCharge": 0, "radical": "none", "implicitHydrogens": 0}
+  ],
+  "bonds": [],
+  "stereo": [],
+  "components": [{"id": "component-1", "atoms": ["r1"], "count": 1}],
+  "assumptions": [],
+  "interactions": []
+}

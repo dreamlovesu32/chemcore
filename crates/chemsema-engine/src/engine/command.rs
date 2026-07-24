@@ -127,6 +127,7 @@ pub enum DocumentCommandFormat {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ChemicalAnalysisFormat {
+    ChemicalGraphV2,
     Smiles,
     Inchi,
     InchiKey,

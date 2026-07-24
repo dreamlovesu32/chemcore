@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/chemsema-chemical-graph",
   "crates/chemsema-chemistry",
   "crates/chemsema-inchi",
   "crates/chemsema-engine",

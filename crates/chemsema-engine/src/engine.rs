@@ -4,6 +4,7 @@ mod bond_properties;
 mod bond_styles;
 mod bond_tools;
 mod brackets;
+mod chemical_graph;
 mod chemistry;
 mod clipboard;
 mod command;

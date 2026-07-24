@@ -1,0 +1,109 @@
+# ChemicalGraphV2 semantic contract
+
+## Scope
+
+`chemsema-nomenclature/chemical-graph/2` is ChemSema's presentation-independent
+semantic graph for determined molecular entities and discrete integer
+compositions. It is the shared input boundary for nomenclature, NMR prediction,
+identity comparison, and external-format adapters.
+
+It is not a drawing document, query language, reaction model, polymer model, or
+general substance formulation. Coordinates, fonts, colors, captions, selection
+state, and cached geometry must never enter this graph.
+
+The normative machine schema is
+[`schemas/chemical-graph-v2.schema.json`](../schemas/chemical-graph-v2.schema.json).
+The Rust model is authoritative and the test suite requires the checked-in
+schema to match it byte-semantically.
+Normative positive and negative examples live in
+[`fixtures/chemical-graph-v2`](../fixtures/chemical-graph-v2).
+
+## Required semantics
+
+Every graph declares:
+
+- `profile`: `molecular-entity` or `discrete-composition`;
+- `aromaticityModel`: currently `explicit-aromatic-bonds`;
+- `hydrogenModel`: currently `resolved-counts`;
+- `valenceModel`: currently `chem-sema2026`;
+- `normalization`: currently
+  `chemsema-chemical-graph-normalization/1`.
+
+An aromatic encoding and an alternating Kekule encoding are not silently
+identical. An importing adapter must normalize them under an explicitly
+supported aromaticity model before constructing V2. Resolved implicit hydrogen
+counts participate in identity.
+
+`molecular-entity` requires exactly one connected component with count one.
+`discrete-composition` allows multiple connected components with positive
+integer counts. Fractional occupancy, nonstoichiometric solids, Markush/query
+structures, polymers, and reactions are explicit unsupported boundaries rather
+than hidden approximations.
+
+## Identity and normalization
+
+`validate()` rejects unknown schemas, unknown JSON fields, missing references,
+duplicate ids, duplicate pairwise bonds, invalid dative directions, malformed
+stereo, disconnected declared components, invalid interaction roles, and empty
+or duplicate assumptions.
+
+`normalized()` gives deterministic array/set ordering while preserving source
+ids. It is useful for stable transport but is not a canonical molecular
+identifier.
+
+`is_isomorphic_to()` is the exact identity operation. It compares atom
+attributes, resolved hydrogens, pairwise bond kind and dative direction,
+components and counts, stereo elements and enhanced groups, and multicenter
+interactions. Source ids, array order, component/interaction ids, and audit
+assumptions do not affect identity.
+
+## Stereo and multicenter interactions
+
+Tetrahedral and double-bond stereo use semantic references rather than drawing
+geometry. Extended stereo descriptors are structured by class; arbitrary
+descriptor strings are not accepted. Coordination geometries carry a positive
+permutation index, and fullerene/ring-assembly descriptors carry validated
+locants.
+
+Pairwise dative bonds use a typed donor/acceptor direction. Its V2 JSON wire
+form remains `donorId->acceptorId` for compatibility; parsing validates both
+endpoints instead of treating it as an arbitrary string. Interactions
+whose identity cannot be represented by a pairwise bond use:
+
+- `coordination`: exactly one donor center and one or more acceptor centers;
+- `delocalized-bond`: at least three atoms in shared centers.
+
+`electronCount` is optional because source formats do not always state it. If
+present it is identity-relevant and must be positive for a delocalized bond.
+Nomenclature symbols such as eta, kappa, and mu are derived by naming rules and
+are not stored as drawing strings.
+
+## Product interfaces
+
+- Rust: `Engine::chemical_graph_v2_json()`;
+- WebAssembly: `chemicalGraphV2Json()`;
+- CLI:
+  `chemsema-cli chemistry input.ccjs --format chemical-graph-v2 --pretty`;
+- nomenclature provider envelope:
+  `Engine::nomenclature_request_json()` /
+  `nomenclatureRequestJson()`, governed by
+  [`schemas/nomenclature-request-v1.schema.json`](../schemas/nomenclature-request-v1.schema.json);
+- NMR: `nmr_prediction_request_json()` embeds the same validated graph instead
+  of rebuilding a second representation.
+
+Nomenclature and NMR providers must reject a schema or normalization contract
+they do not understand. They must not ignore unknown identity-relevant fields.
+
+## Adapter loss policy
+
+| External representation | Intended use | Required boundary |
+| --- | --- | --- |
+| V3000 Mol/SDF | broad structure interchange | reject or report query atoms, S-groups, polymers, variable attachment, and unsupported enhanced stereo |
+| CommonChem/rdkitjson | toolkit JSON bridge | require an explicit mapping for toolkit-specific aromaticity and stereo |
+| SMILES/CXSMILES | compact transport | record the parser/aromaticity/valence model; reject unrepresentable document semantics |
+| InChI/InChIKey | identity and search | never treat it as a lossless editable-graph round trip |
+| CML | scientific data exchange | accept only a declared convention/profile; reject silently ignored identity extensions |
+| CDX/CDXML | ChemDraw document fidelity | keep drawing and document fields in CCJS; export only resolved chemical facts to V2 |
+
+Every adapter must return either a validated graph or an explicit unsupported/
+partial result with a loss ledger. Silent field dropping is prohibited.

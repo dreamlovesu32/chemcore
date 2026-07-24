@@ -118,7 +118,7 @@ const COMMAND_SPECS: &[CommandSpec] = &[
     CommandSpec {
         name: "chemistry",
         summary: "Generate a chemical identifier for a complete molecule using the shared Rust chemistry kernel.",
-        usage: "chemsema-cli chemistry <input> [--format smiles|inchi|inchi-key] [--node <id> ...] [--out <json>] [--pretty]",
+        usage: "chemsema-cli chemistry <input> [--format chemical-graph-v2|smiles|inchi|inchi-key] [--node <id> ...] [--out <json>] [--pretty]",
         example: "chemsema-cli chemistry molecule.ccjs --format smiles --pretty",
     },
     CommandSpec {
@@ -724,6 +724,7 @@ fn capabilities_value() -> Value {
         "formats": {
             "editableInput": ["ccjs", "ccjz", "cdxml", "cdx", "sdf"],
             "documentOutput": ["json", "ccjs", "ccjz", "cdxml", "cdx", "sdf", "svg", "png", "emf"],
+            "chemicalAnalysis": ["chemical-graph-v2", "smiles", "inchi", "inchi-key"],
             "captureOutput": ["svg", "png"],
             "clipboardOutput": ["windows-office-ole", "chemsema-payload-json"]
         },
@@ -793,6 +794,7 @@ pub(crate) fn about_value() -> Value {
         "formats": {
             "editableInput": ["ccjs", "ccjz", "cdxml", "cdx", "sdf"],
             "documentOutput": ["json", "ccjs", "ccjz", "cdxml", "cdx", "sdf", "svg", "png", "emf"],
+            "chemicalAnalysis": ["chemical-graph-v2", "smiles", "inchi", "inchi-key"],
             "captureOutput": ["svg", "png"],
             "clipboardOutput": ["windows-office-ole", "chemsema-payload-json"]
         },
@@ -1312,6 +1314,7 @@ pub(crate) fn doctor_command(args: &[String]) -> Result<(), String> {
             "formats": {
                 "editableInput": ["ccjs", "ccjz", "cdxml", "cdx", "sdf"],
                 "documentOutput": ["json", "ccjs", "ccjz", "cdxml", "cdx", "sdf", "svg", "png", "emf"],
+                "chemicalAnalysis": ["chemical-graph-v2", "smiles", "inchi", "inchi-key"],
                 "captureOutput": ["svg", "png"],
                 "clipboardOutput": ["windows-office-ole", "chemsema-payload-json"]
             }

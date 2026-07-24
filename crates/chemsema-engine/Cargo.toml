@@ -13,6 +13,7 @@ crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 base64 = "0.22"
+chemsema-chemical-graph = { path = "../chemsema-chemical-graph" }
 chemsema-chemistry = { path = "../chemsema-chemistry" }
 chemsema-inchi = { path = "../chemsema-inchi" }
 encoding_rs = "0.8"
