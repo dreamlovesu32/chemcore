@@ -242,6 +242,11 @@ export function createEditorCommandController(options) {
       changed = await executeDocumentCommand("ungroup-selection", () => state.editorEngine.ungroupSelection?.());
     } else if (command === "link-selection") {
       changed = await executeDocumentCommand("link-selection", () => state.editorEngine.linkSelection?.());
+    } else if (command === "set-link-policy") {
+      changed = await executeDocumentCommand(
+        { type: "set-link-policy", payload: { policy: commandPayload?.policy || "auto" } },
+        () => state.editorEngine.setLinkPolicyForSelection?.(commandPayload?.policy || "auto"),
+      );
     } else if (command === "unlink-selection") {
       changed = await executeDocumentCommand("unlink-selection", () => state.editorEngine.unlinkSelection?.());
     } else if (command === "join-selection") {

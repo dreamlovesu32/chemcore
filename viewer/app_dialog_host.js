@@ -8,6 +8,57 @@ const REPEAT_UNIT_UNGROUP_WARNING_KEY = "chemsema:hide-repeat-unit-ungroup-warni
 export function createAppDialogHost({ state }) {
   let activeUnsavedChangesDialog = null;
   let activeRepeatUnitUngroupDialog = null;
+  let activeKernelNoticeDialog = null;
+
+  function showKernelNoticeDialog(spec) {
+    if (!spec?.message || activeKernelNoticeDialog) {
+      return activeKernelNoticeDialog || Promise.resolve();
+    }
+    activeKernelNoticeDialog = new Promise((resolve) => {
+      const previousFocus = document.activeElement;
+      const root = document.createElement("div");
+      root.className = "repeat-unit-ungroup-dialog";
+      root.setAttribute("role", "alertdialog");
+      root.setAttribute("aria-modal", "true");
+      const backdrop = document.createElement("div");
+      backdrop.className = "repeat-unit-ungroup-backdrop";
+      const panel = document.createElement("section");
+      panel.className = "repeat-unit-ungroup-panel";
+      const heading = document.createElement("h2");
+      heading.className = "repeat-unit-ungroup-title";
+      heading.textContent = spec.title || "ChemSema";
+      const message = document.createElement("p");
+      message.className = "repeat-unit-ungroup-message";
+      message.textContent = spec.message;
+      const actions = document.createElement("div");
+      actions.className = "repeat-unit-ungroup-actions";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "is-primary";
+      button.textContent = spec.buttons?.[0]?.label || "OK";
+      actions.append(button);
+      panel.append(heading, message, actions);
+      root.append(backdrop, panel);
+      const finish = () => {
+        root.remove();
+        document.removeEventListener("keydown", onKeyDown, true);
+        activeKernelNoticeDialog = null;
+        previousFocus?.focus?.({ preventScroll: true });
+        resolve();
+      };
+      const onKeyDown = (event) => {
+        if (event.key === "Escape" || event.key === "Enter") {
+          event.preventDefault();
+          finish();
+        }
+      };
+      button.addEventListener("click", finish);
+      document.addEventListener("keydown", onKeyDown, true);
+      document.body.append(root);
+      button.focus({ preventScroll: true });
+    });
+    return activeKernelNoticeDialog;
+  }
 
   function makeUnsavedChangesButton(label, decision, className = "") {
     const button = document.createElement("button");
@@ -214,6 +265,7 @@ export function createAppDialogHost({ state }) {
 
   return {
     showUnsavedChangesDialog,
+    showKernelNoticeDialog,
     confirmRepeatUnitUngroupIfNeeded,
   };
 }

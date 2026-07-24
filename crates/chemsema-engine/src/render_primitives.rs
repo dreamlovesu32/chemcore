@@ -20,6 +20,8 @@ pub enum RenderRole {
     HoverArrowHandle,
     HoverShapeHandle,
     HoverTextBox,
+    LinkFocusBox,
+    LinkFocusConnector,
     PreviewBond,
     PreviewEnd,
     SelectionBox,

@@ -1,5 +1,5 @@
 export function createTextEditCommitHost(scope) {
-  const { getActiveTextEditor, setActiveTextEditor, textEditorLayer, commandResultForTextEditorTarget, window, renderDocumentChange, renderEditorOverlay, currentEditorRenderList, editorSessionToEngineSession, commandEngine, state, editorRootBaseStyle, editorState, defaultTextEditorLineHeight, runsPlainText, editorRootFontFamily, normalizeEditorSourceRunsModel, applyTextInlineStyle, isEditingRustDocument } = scope;
+  const { getActiveTextEditor, setActiveTextEditor, textEditorLayer, commandResultForTextEditorTarget, window, renderDocumentChange, renderEditorOverlay, currentEditorRenderList, editorSessionToEngineSession, commandEngine, state, editorRootBaseStyle, editorState, defaultTextEditorLineHeight, runsPlainText, editorRootFontFamily, normalizeEditorSourceRunsModel, applyTextInlineStyle, isEditingRustDocument, showKernelNoticeDialog } = scope;
 
   async function finishActiveTextEditor(commit = true) {
     if (!getActiveTextEditor()) {
@@ -36,6 +36,17 @@ export function createTextEditCommitHost(scope) {
         : state.editorEngine?.applyTextEdit?.(engineSessionJson),
     );
     renderDocumentChange(result);
+    const pendingDialogJson = await state.editorEngine?.takePendingDialogJson?.();
+    if (pendingDialogJson) {
+      try {
+        const pendingDialog = JSON.parse(pendingDialogJson);
+        if (pendingDialog?.message) {
+          await showKernelNoticeDialog?.(pendingDialog);
+        }
+      } catch {
+        // The engine returns either a valid dialog specification or JSON null.
+      }
+    }
     return Boolean(result.changed);
   }
 

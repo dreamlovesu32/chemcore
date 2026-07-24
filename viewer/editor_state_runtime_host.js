@@ -1,5 +1,5 @@
 export function createEditorStateRuntimeHost(scope) {
-  const { state, editorState, document, selectionChemistrySummary, isEditingRustDocument, parseEngineJson, renderDocumentPrimitiveChange, currentEditorRenderList, currentEditorInteractionRenderList, syncEditorSelectionRenderListFromEngine, currentDocumentBoundsContainsPoint, documentBoundsHitPadScreenPx, invalidateEditorEngineReadCache, renderEditorOverlay, syncSelectCursorForPoint, finishActiveTextEditor, engineHost, syncTextSymbolPaletteFromEngine, commandEngine, defaultEditorViewBox, clearZoomHandoffs, syncEngineToolState, syncDocumentFromEngine, renderSecondaryToolbar, markCurrentDocumentSaved, canSaveCurrentDocument, updateCanvasContextMenuAvailability } = scope;
+  const { state, editorState, document, selectionChemistrySummary, isEditingRustDocument, parseEngineJson, renderDocumentPrimitiveChange, currentEditorRenderList, currentEditorInteractionRenderList, syncEditorSelectionRenderListFromEngine, currentDocumentBoundsContainsPoint, documentBoundsHitPadScreenPx, invalidateEditorEngineReadCache, renderEditorOverlay, syncSelectCursorForPoint, finishActiveTextEditor, engineHost, syncTextSymbolPaletteFromEngine, commandEngine, transientNotificationHost, defaultEditorViewBox, clearZoomHandoffs, syncEngineToolState, syncDocumentFromEngine, renderSecondaryToolbar, markCurrentDocumentSaved, canSaveCurrentDocument, updateCanvasContextMenuAvailability } = scope;
 
   async function renderSelectionOnlyUpdate(point, syncCursor = syncSelectCursorForPoint, options = {}) {
     const renderList = options.useInteractionList === false
@@ -138,6 +138,41 @@ export function createEditorStateRuntimeHost(scope) {
     }
     if (exactMass) {
       selectionChemistrySummary.append(makeSelectionSummaryItem("Exact Mass", exactMass));
+    }
+    const paste = document.createElement("button");
+    paste.type = "button";
+    paste.className = "selection-analysis-paste";
+    paste.textContent = "Paste";
+    paste.title = "Paste analysis as linked text";
+    paste.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void pasteSelectionAnalysisCaption();
+    });
+    selectionChemistrySummary.append(paste);
+  }
+
+  async function pasteSelectionAnalysisCaption() {
+    try {
+      const result = await commandEngine.executeEngineCommand(
+        {
+          type: "paste-analysis-caption",
+          payload: { digits: clampMassDigits(editorState.massDigits) },
+        },
+        () => state.editorEngine?.pasteSelectionAnalysisCaption?.(
+          clampMassDigits(editorState.massDigits),
+        ),
+      );
+      renderDocumentPrimitiveChange(result);
+      invalidateEditorEngineReadCache();
+      syncSelectionChemistrySummary();
+      refreshCommandAvailability();
+    } catch (error) {
+      console.error("[chemsema] failed to paste linked analysis text", error);
+      transientNotificationHost?.show?.(
+        `Could not paste analysis text: ${error instanceof Error ? error.message : String(error)}`,
+        { error: true, duration: 3600 },
+      );
     }
   }
 

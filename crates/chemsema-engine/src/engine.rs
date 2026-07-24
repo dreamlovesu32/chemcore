@@ -1,3 +1,4 @@
+mod analysis_captions;
 mod arrows;
 mod bond_edit;
 mod bond_properties;
@@ -295,6 +296,7 @@ pub struct Engine {
     redo_stack: Vec<HistoryEntry>,
     command_context: Vec<EditorCommand>,
     command_before_snapshot: Option<ChemSemaDocument>,
+    pending_dialog: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1001,6 +1003,7 @@ fn scene_object_shallow_eq(before: &SceneObject, after: &SceneObject) -> bool {
         && before.z_index == after.z_index
         && before.transform == after.transform
         && before.style_ref == after.style_ref
+        && before.link_policy == after.link_policy
         && before.meta == after.meta
         && before.payload == after.payload
 }
@@ -1070,6 +1073,7 @@ mod tests {
             z_index: 10,
             transform: Transform::identity(),
             style_ref: None,
+            link_policy: Default::default(),
             meta: JsonValue::Null,
             payload: ObjectPayload {
                 resource_ref: Some(resource_ref.to_string()),
@@ -1130,6 +1134,7 @@ mod tests {
                 molecule_object("obj_mol_a", "mol_a"),
                 molecule_object("obj_mol_b", "mol_b"),
             ],
+            links: Vec::new(),
             resources,
             interchange: BTreeMap::new(),
         }
@@ -1236,8 +1241,20 @@ fn scene_object_selection_from_ids(
         }
         if object.object_type == "text" {
             selection.text_objects.push(object.id.clone());
+        } else if object.object_type == "molecule" {
+            selection.molecule_objects.push(object.id.clone());
         } else {
             selection.arrow_objects.push(object.id.clone());
+        }
+    }
+    for entry in document.editable_fragments() {
+        for node in &entry.fragment.nodes {
+            if selected.contains(node.id.as_str()) {
+                selection.nodes.push(node.id.clone());
+                if node.label.is_some() {
+                    selection.label_nodes.push(node.id.clone());
+                }
+            }
         }
     }
     selection
@@ -1283,6 +1300,16 @@ fn editor_command_is_selection_semantic(command: &EditorCommand) -> bool {
             | EditorCommand::SetAtomPropertyForSelection { .. }
             | EditorCommand::SetBondPropertyForSelection { .. }
             | EditorCommand::SetChemicalCheckForSelection { .. }
+    )
+}
+
+fn editor_command_is_relationship(command: &EditorCommand) -> bool {
+    matches!(
+        command,
+        EditorCommand::LinkSelection { .. }
+            | EditorCommand::UnlinkSelection { .. }
+            | EditorCommand::SetLinkPolicy { .. }
+            | EditorCommand::PasteAnalysisCaption { .. }
     )
 }
 
@@ -1347,6 +1374,8 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::GroupSelection { .. } => "group-selection",
         EditorCommand::UngroupSelection { .. } => "ungroup-selection",
         EditorCommand::LinkSelection { .. } => "link-selection",
+        EditorCommand::PasteAnalysisCaption { .. } => "paste-analysis-caption",
+        EditorCommand::SetLinkPolicy { .. } => "set-link-policy",
         EditorCommand::UnlinkSelection { .. } => "unlink-selection",
         EditorCommand::JoinSelection => "join-selection",
         EditorCommand::MoveTargets { .. } => "move-targets",

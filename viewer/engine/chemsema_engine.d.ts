@@ -90,6 +90,7 @@ export class WasmEngine {
     pasteClipboard(): boolean;
     pasteClipboardJson(json: string): boolean;
     pasteDocumentJson(json: string): boolean;
+    pasteSelectionAnalysisCaption(digits: number): boolean;
     pendingGraphicObjectId(): string;
     pointerDown(x: number, y: number, alt_key: boolean): void;
     pointerMove(x: number, y: number, alt_key: boolean): void;
@@ -110,6 +111,7 @@ export class WasmEngine {
     selectComponentAtPoint(x: number, y: number, additive: boolean): boolean;
     selectInPolygon(points_json: string, additive: boolean): void;
     selectInRect(x1: number, y1: number, x2: number, y2: number, additive: boolean): void;
+    selectLinkedAtPoint(x: number, y: number, additive: boolean): boolean;
     selectionBoundsJson(): string;
     selectionCanLinkBracketText(): boolean;
     selectionCanUnlinkBracketText(): boolean;
@@ -123,6 +125,7 @@ export class WasmEngine {
     setChemicalCheckForSelection(enabled: boolean): boolean;
     setDocumentStylePreset(preset: string): void;
     setElementOptions(symbol: string, atomic_number: number): void;
+    setLinkPolicyForSelection(policy: string): boolean;
     setOrbitalOptions(template: string, style: string, phase: string, color: string): void;
     setShapeOptions(kind: string, style: string, color: string): void;
     setSymbolOptions(kind: string): void;
@@ -131,6 +134,7 @@ export class WasmEngine {
     shapeToolIconSvg(kind: string, style: string): string;
     stateJson(): string;
     symbolToolIconSvg(kind: string): string;
+    takePendingDialogJson(): string;
     textFormatIconSvg(kind: string): string;
     textSymbolPaletteJson(): string;
     tlcLaneGuideHitTestJson(x: number, y: number): string | undefined;
@@ -238,6 +242,7 @@ export interface InitOutput {
     readonly wasmengine_pasteClipboard: (a: number) => number;
     readonly wasmengine_pasteClipboardJson: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_pasteDocumentJson: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmengine_pasteSelectionAnalysisCaption: (a: number, b: number) => number;
     readonly wasmengine_pendingGraphicObjectId: (a: number) => [number, number];
     readonly wasmengine_pointerDown: (a: number, b: number, c: number, d: number) => void;
     readonly wasmengine_pointerMove: (a: number, b: number, c: number, d: number) => void;
@@ -258,6 +263,7 @@ export interface InitOutput {
     readonly wasmengine_selectComponentAtPoint: (a: number, b: number, c: number, d: number) => number;
     readonly wasmengine_selectInPolygon: (a: number, b: number, c: number, d: number) => [number, number];
     readonly wasmengine_selectInRect: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly wasmengine_selectLinkedAtPoint: (a: number, b: number, c: number, d: number) => number;
     readonly wasmengine_selectionBoundsJson: (a: number) => [number, number];
     readonly wasmengine_selectionCanLinkBracketText: (a: number) => number;
     readonly wasmengine_selectionCanUnlinkBracketText: (a: number) => number;
@@ -271,6 +277,7 @@ export interface InitOutput {
     readonly wasmengine_setChemicalCheckForSelection: (a: number, b: number) => number;
     readonly wasmengine_setDocumentStylePreset: (a: number, b: number, c: number) => void;
     readonly wasmengine_setElementOptions: (a: number, b: number, c: number, d: number) => void;
+    readonly wasmengine_setLinkPolicyForSelection: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_setOrbitalOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
     readonly wasmengine_setShapeOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly wasmengine_setSymbolOptions: (a: number, b: number, c: number) => void;
@@ -279,6 +286,7 @@ export interface InitOutput {
     readonly wasmengine_shapeToolIconSvg: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly wasmengine_stateJson: (a: number) => [number, number, number, number];
     readonly wasmengine_symbolToolIconSvg: (a: number, b: number, c: number) => [number, number];
+    readonly wasmengine_takePendingDialogJson: (a: number) => [number, number];
     readonly wasmengine_textFormatIconSvg: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_textSymbolPaletteJson: (a: number) => [number, number];
     readonly wasmengine_tlcLaneGuideHitTestJson: (a: number, b: number, c: number) => [number, number, number, number];

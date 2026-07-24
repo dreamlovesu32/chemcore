@@ -165,6 +165,7 @@ pub(in crate::cdxml) fn append_shape_objects(
             z_index: parse_i32(node.attr("Z")).unwrap_or(15),
             transform,
             style_ref: Some(style_id),
+            link_policy: Default::default(),
             meta: json!({"source": "cdxml", "graphicId": node.attr("id")}),
             payload,
             children: Vec::new(),
@@ -291,6 +292,7 @@ pub(in crate::cdxml) fn append_orbital_shape_objects(
             z_index: parse_i32(node.attr("Z")).unwrap_or(15),
             transform,
             style_ref: Some(style_id),
+            link_policy: Default::default(),
             meta: json!({"source": "cdxml", "graphicId": node.attr("id"), "orbitalType": orbital_type}),
             payload: ObjectPayload {
                 resource_ref: None,
@@ -387,6 +389,7 @@ pub(in crate::cdxml) fn append_table_shape_objects(
                 scale: [1.0, 1.0],
             },
             style_ref: Some(style_id),
+            link_policy: Default::default(),
             meta: json!({"source": "cdxml", "tableId": node.attr("id")}),
             payload: ObjectPayload {
                 resource_ref: None,
@@ -556,6 +559,7 @@ pub(in crate::cdxml) fn append_tlc_plate_shape_objects(
                 scale: [1.0, 1.0],
             },
             style_ref: Some(style_id),
+            link_policy: Default::default(),
             meta: json!({"source": "cdxml", "tlcPlateId": node.attr("id")}),
             payload: ObjectPayload {
                 resource_ref: None,

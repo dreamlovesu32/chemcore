@@ -249,6 +249,7 @@ export function createAppWindowLifecycleHost(options) {
     bindDesktopWindowChrome,
     syncDesktopMaximizedState,
     confirmRepeatUnitUngroupIfNeeded: dialogs.confirmRepeatUnitUngroupIfNeeded,
+    showKernelNoticeDialog: dialogs.showKernelNoticeDialog,
     prepareDocumentTabForDirtyCheck,
     saveDocumentTabBeforeClose,
     confirmUnsavedChangesForTab,

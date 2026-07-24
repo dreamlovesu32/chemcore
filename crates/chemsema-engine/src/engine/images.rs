@@ -192,6 +192,7 @@ impl Engine {
                 scale: [1.0, 1.0],
             },
             style_ref: None,
+            link_policy: Default::default(),
             meta: json!({ "kind": "image" }),
             payload: ObjectPayload {
                 resource_ref: Some(resource_id),

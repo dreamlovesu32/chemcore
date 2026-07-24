@@ -428,7 +428,8 @@ pub(super) struct SceneObjectInfo {
     pub(super) ancestor_ids: Vec<String>,
     pub(super) child_ids: Vec<String>,
     pub(super) linked_object_ids: Vec<String>,
-    pub(super) link_kind: Option<String>,
+    pub(super) link_kinds: Vec<String>,
+    pub(super) link_policy: chemsema_engine::LinkPolicy,
     pub(super) group_kind: Option<String>,
 }
 
@@ -468,12 +469,9 @@ pub(super) fn collect_scene_object_infos_inner(
                     .iter()
                     .map(|child| child.id.clone())
                     .collect(),
-                linked_object_ids: linked_object_ids(object),
-                link_kind: object
-                    .meta
-                    .get("linkKind")
-                    .and_then(Value::as_str)
-                    .map(str::to_string),
+                linked_object_ids: linked_object_ids(document, &object.id),
+                link_kinds: link_kinds(document, &object.id),
+                link_policy: object.link_policy,
                 group_kind: object
                     .meta
                     .get("kind")
@@ -491,22 +489,38 @@ pub(super) fn collect_scene_object_infos_inner(
     }
 }
 
-pub(super) fn linked_object_ids(object: &SceneObject) -> Vec<String> {
-    [
-        "linkedTextObjectId",
-        "linkedBracketObjectId",
-        "bracketLabelTextObjectId",
-        "bracketObjectId",
-    ]
-    .into_iter()
-    .filter_map(|key| {
-        object
-            .meta
-            .get(key)
-            .and_then(Value::as_str)
-            .map(str::to_string)
-    })
-    .collect()
+pub(super) fn linked_object_ids(document: &ChemSemaDocument, entity_id: &str) -> Vec<String> {
+    document
+        .links
+        .iter()
+        .filter(|relation| {
+            relation
+                .endpoints
+                .iter()
+                .any(|endpoint| endpoint.entity_id == entity_id)
+        })
+        .flat_map(|relation| relation.endpoints.iter())
+        .filter(|endpoint| endpoint.entity_id != entity_id)
+        .map(|endpoint| endpoint.entity_id.clone())
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+pub(super) fn link_kinds(document: &ChemSemaDocument, entity_id: &str) -> Vec<String> {
+    document
+        .links
+        .iter()
+        .filter(|relation| {
+            relation
+                .endpoints
+                .iter()
+                .any(|endpoint| endpoint.entity_id == entity_id)
+        })
+        .map(|relation| relation.kind.clone())
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 pub(super) fn object_relationship_json(info: &SceneObjectInfo) -> Value {
@@ -517,7 +531,8 @@ pub(super) fn object_relationship_json(info: &SceneObjectInfo) -> Value {
         "isGroup": info.object_type == "group",
         "groupKind": info.group_kind,
         "linkedObjectIds": info.linked_object_ids,
-        "linkKind": info.link_kind,
+        "linkKinds": info.link_kinds,
+        "linkPolicy": info.link_policy,
     })
 }
 

@@ -235,6 +235,9 @@ impl Engine {
                 chemical_analysis_submenu(),
             ]);
         }
+        if !self.state.selection.is_empty() {
+            items.extend([separator(), self.link_menu()]);
+        }
 
         if selected_count > 1 || selected_types.contains("group") {
             items.extend([
@@ -251,17 +254,6 @@ impl Engine {
                 separator(),
                 self.color_menu(),
             ]);
-            if self.selection_can_link_bracket_text() {
-                items.extend([
-                    separator(),
-                    json!({"label": "Link", "command": "link", "shortcut": "Ctrl+L"}),
-                ]);
-            } else if self.selection_can_unlink_bracket_text() {
-                items.extend([
-                    separator(),
-                    json!({"label": "Unlink", "command": "unlink", "shortcut": "Ctrl+Shift+L"}),
-                ]);
-            }
             items.extend([
                 group_menu(
                     selected_types.contains("group"),
@@ -455,7 +447,33 @@ impl Engine {
     }
 
     fn selected_scene_object_count(&self) -> usize {
-        self.state.selection.text_objects.len() + self.state.selection.arrow_objects.len()
+        self.state.selection.text_objects.len()
+            + self.state.selection.arrow_objects.len()
+            + self.state.selection.molecule_objects.len()
+    }
+
+    fn link_menu(&self) -> JsonValue {
+        let selected = self.selected_scene_objects();
+        let all_auto = !selected.is_empty()
+            && selected
+                .iter()
+                .all(|object| object.link_policy == crate::LinkPolicy::Auto);
+        let all_linked = !selected.is_empty()
+            && selected
+                .iter()
+                .all(|object| object.link_policy == crate::LinkPolicy::Linked);
+        let all_unlinked = !selected.is_empty()
+            && selected
+                .iter()
+                .all(|object| object.link_policy == crate::LinkPolicy::Unlinked);
+        json!({
+            "label": "Link",
+            "submenu": [
+                {"label": "Auto", "command": "link-policy", "value": "auto", "checked": all_auto},
+                {"label": "Link", "command": "link", "shortcut": "Ctrl+L", "disabled": !self.selection_can_link(), "checked": all_linked},
+                {"label": "Unlink", "command": "unlink", "shortcut": "Ctrl+Shift+L", "disabled": !self.selection_can_unlink(), "checked": all_unlinked}
+            ]
+        })
     }
 
     fn selected_object_types(&self) -> BTreeSet<&str> {
@@ -465,6 +483,7 @@ impl Engine {
             .text_objects
             .iter()
             .chain(self.state.selection.arrow_objects.iter())
+            .chain(self.state.selection.molecule_objects.iter())
             .map(String::as_str)
             .collect();
         self.state
@@ -483,6 +502,7 @@ impl Engine {
             .text_objects
             .iter()
             .chain(self.state.selection.arrow_objects.iter())
+            .chain(self.state.selection.molecule_objects.iter())
             .map(String::as_str)
             .collect();
         if selected.len() != 1 {
@@ -1071,6 +1091,7 @@ impl Engine {
             .text_objects
             .iter()
             .chain(self.state.selection.arrow_objects.iter())
+            .chain(self.state.selection.molecule_objects.iter())
             .map(String::as_str)
             .collect();
         self.state

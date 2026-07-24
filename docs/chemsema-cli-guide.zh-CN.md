@@ -1333,7 +1333,8 @@ electron
 执行 `select-targets` 或 `select-all` 后，GUI 风格的选择命令可以省略 id 数组，
 直接作用在当前选区上。这包括 `apply-selection-arrange`、`scale-selection`、
 `center-selection-on-page`、`apply-selection-color`、`apply-selection-order`、
-`group-selection`、`ungroup-selection`、`link-selection`、`unlink-selection`、
+`group-selection`、`ungroup-selection`、`link-selection`、`set-link-policy`、
+`unlink-selection`、`paste-analysis-caption`、
 `apply-text-style`、`apply-bond-style`、`apply-line-style`、图形/括号/轨道样式命令、
 `apply-object-settings-to-selection`、`delete-selection` 和 `cut-selection`。
 
@@ -1500,13 +1501,32 @@ backward
 
 ```json
 {
+  "type": "set-link-policy",
+  "objectIds": ["bracket_1", "text_1"],
+  "policy": "auto"
+}
+```
+
+```json
+{
   "type": "unlink-selection",
   "object_ids": ["bracket_1", "text_1"]
 }
 ```
 
-省略 `object_ids` 时，会使用当前选区。链接和取消链接要求选区里有一个类似括号的
-图形对象和一个文本对象。
+省略对象 id 时，会使用当前选区。`policy` 只能是 `auto`、`linked` 或
+`unlinked`。只有选区恰好匹配一种已注册的有类型 Link 签名时才能显式 Link；
+例如两个分子不能 Link。完整数据和交互契约见
+[`link-model.zh-CN.md`](link-model.zh-CN.md)。
+
+选中完整且唯一的单分子后，可以把当前分析结果粘贴成有关联的分析文本：
+
+```json
+{
+  "type": "paste-analysis-caption",
+  "digits": 2
+}
+```
 
 ## 13. 文档样式和对象设置
 

@@ -126,6 +126,7 @@ pub(in crate::cdxml) fn append_curve_objects(
             z_index: parse_i32(node.attr("Z")).unwrap_or(18),
             transform: Transform::identity(),
             style_ref: Some(style_id),
+            link_policy: Default::default(),
             meta: json!({"source": "cdxml", "curveId": node.attr("id")}),
             payload: ObjectPayload {
                 resource_ref: None,
@@ -367,6 +368,7 @@ pub(in crate::cdxml) fn append_line_objects(
             z_index: parse_i32(node.attr("Z")).unwrap_or(if is_arrow { 20 } else { 18 }),
             transform: Transform::identity(),
             style_ref: Some(style_ref),
+            link_policy: Default::default(),
             meta: json!({"source": "cdxml", "graphicId": node.attr("id"), "import": {"cdxml": {"kind": if is_arrow { "arrow" } else { "line" }, "lineType": empty_as_null(node.attr("LineType"))}}}),
             payload: ObjectPayload {
                 resource_ref: None,

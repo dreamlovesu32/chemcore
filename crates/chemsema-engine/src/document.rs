@@ -28,6 +28,8 @@ pub struct ChemSemaDocument {
     #[serde(default)]
     pub objects: Vec<SceneObject>,
     #[serde(default)]
+    pub links: Vec<LinkRelation>,
+    #[serde(default)]
     pub resources: BTreeMap<String, Resource>,
     /// Lossless, editable trees for interchange-format information that does
     /// not yet have a source-independent CCJS field.  This is deliberately a
@@ -151,6 +153,7 @@ impl ChemSemaDocument {
                 z_index: 10,
                 transform: Transform::identity(),
                 style_ref: Some("style_molecule_default".to_string()),
+                link_policy: LinkPolicy::Auto,
                 meta: Value::Null,
                 payload: ObjectPayload {
                     resource_ref: Some("mol_editor".to_string()),
@@ -160,6 +163,7 @@ impl ChemSemaDocument {
                 },
                 children: Vec::new(),
             }],
+            links: Vec::new(),
             resources,
             interchange: BTreeMap::new(),
         }
@@ -423,6 +427,7 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     migrate_legacy_external_connection_points(&mut value);
     let mut document: ChemSemaDocument =
         serde_json::from_value(value).map_err(|error| error.to_string())?;
+    migrate_legacy_bracket_links(&mut document);
     validate_scene_object_types(&document.objects)?;
     validate_spectrum_objects(&document.objects)?;
     validate_molecule_fragment_resources(&document)?;
@@ -431,7 +436,166 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     normalize_shape_object_payloads(&mut document);
     normalize_arrow_object_payloads(&mut document);
     normalize_fragment_label_payloads(&mut document);
+    validate_link_relations(&document)?;
     Ok(document)
+}
+
+fn migrate_legacy_bracket_links(document: &mut ChemSemaDocument) {
+    let existing = document
+        .links
+        .iter()
+        .flat_map(|relation| {
+            relation
+                .endpoints
+                .iter()
+                .map(|endpoint| endpoint.entity_id.clone())
+        })
+        .collect::<BTreeSet<_>>();
+    let pairs = document
+        .scene_objects()
+        .into_iter()
+        .filter_map(|object| {
+            let text_id = object
+                .meta
+                .get("linkedTextObjectId")
+                .and_then(Value::as_str)?;
+            Some((object.id.clone(), text_id.to_string()))
+        })
+        .collect::<Vec<_>>();
+    let mut next = document.links.len() + 1;
+    for (bracket_id, text_id) in pairs {
+        if existing.contains(&bracket_id) || existing.contains(&text_id) {
+            continue;
+        }
+        document.links.push(LinkRelation {
+            id: format!("link_migrated_{next}"),
+            kind: "bracket-repeat-label".to_string(),
+            endpoints: vec![
+                LinkEndpoint {
+                    entity_id: bracket_id,
+                    role: "bracket".to_string(),
+                },
+                LinkEndpoint {
+                    entity_id: text_id,
+                    role: "label".to_string(),
+                },
+            ],
+            data: json!({"inference": "declared"}),
+        });
+        next += 1;
+    }
+    clear_legacy_link_meta(&mut document.objects);
+}
+
+fn clear_legacy_link_meta(objects: &mut [SceneObject]) {
+    const LEGACY_FIELDS: [&str; 6] = [
+        "linkedTextObjectId",
+        "bracketLabelTextObjectId",
+        "linkKind",
+        "linkedBracketObjectId",
+        "bracketObjectId",
+        "repeatUnitDetached",
+    ];
+    for object in objects {
+        if let Some(meta) = object.meta.as_object_mut() {
+            for field in LEGACY_FIELDS {
+                meta.remove(field);
+            }
+            if meta.is_empty() {
+                object.meta = Value::Null;
+            }
+        }
+        clear_legacy_link_meta(&mut object.children);
+    }
+}
+
+fn validate_link_relations(document: &ChemSemaDocument) -> Result<(), String> {
+    let scene_ids = document
+        .scene_objects()
+        .into_iter()
+        .map(|object| object.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let node_ids = document
+        .editable_fragments()
+        .into_iter()
+        .flat_map(|entry| entry.fragment.nodes.iter().map(|node| node.id.as_str()))
+        .collect::<BTreeSet<_>>();
+    let mut relation_ids = BTreeSet::new();
+    for relation in &document.links {
+        if relation.id.trim().is_empty() || !relation_ids.insert(relation.id.as_str()) {
+            return Err(format!(
+                "link relation id '{}' is empty or duplicated",
+                relation.id
+            ));
+        }
+        let endpoint_ids = relation
+            .endpoints
+            .iter()
+            .map(|endpoint| endpoint.entity_id.as_str())
+            .collect::<BTreeSet<_>>();
+        if endpoint_ids.len() != relation.endpoints.len() {
+            return Err(format!(
+                "link relation '{}' repeats an endpoint",
+                relation.id
+            ));
+        }
+        for endpoint in &relation.endpoints {
+            if !scene_ids.contains(endpoint.entity_id.as_str())
+                && !node_ids.contains(endpoint.entity_id.as_str())
+            {
+                return Err(format!(
+                    "link relation '{}' references missing entity '{}'",
+                    relation.id, endpoint.entity_id
+                ));
+            }
+        }
+        let role = |name: &str| {
+            relation
+                .endpoints
+                .iter()
+                .find(|endpoint| endpoint.role == name)
+        };
+        let object_type = |endpoint: &LinkEndpoint| {
+            document
+                .find_scene_object(&endpoint.entity_id)
+                .map(|object| object.object_type.as_str())
+        };
+        let valid = match relation.kind.as_str() {
+            "bracket-repeat-label" => {
+                relation.endpoints.len() == 2
+                    && role("bracket").is_some_and(|endpoint| {
+                        document
+                            .find_scene_object(&endpoint.entity_id)
+                            .is_some_and(|object| {
+                                object.object_type == "bracket"
+                                    || (object.object_type == "group"
+                                        && object.meta.get("kind").and_then(Value::as_str)
+                                            == Some("bracket-group"))
+                            })
+                    })
+                    && role("label").and_then(object_type) == Some("text")
+            }
+            "analysis-caption" => {
+                relation.endpoints.len() == 2
+                    && role("source").and_then(object_type) == Some("molecule")
+                    && role("caption").and_then(object_type) == Some("text")
+            }
+            "atom-symbol" => {
+                relation.endpoints.len() == 2
+                    && role("atom")
+                        .is_some_and(|endpoint| node_ids.contains(endpoint.entity_id.as_str()))
+                    && role("symbol").and_then(object_type) == Some("symbol")
+            }
+            _ => false,
+        };
+        if !valid {
+            return Err(format!(
+                "link relation '{}' has invalid kind or endpoint signature '{}'",
+                relation.id, relation.kind
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn migrate_legacy_external_connection_points(value: &mut Value) {
@@ -1949,11 +2113,39 @@ pub struct SceneObject {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style_ref: Option<String>,
     #[serde(default)]
+    pub link_policy: LinkPolicy,
+    #[serde(default)]
     pub meta: Value,
     #[serde(default)]
     pub payload: ObjectPayload,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub children: Vec<SceneObject>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum LinkPolicy {
+    #[default]
+    Auto,
+    Linked,
+    Unlinked,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkRelation {
+    pub id: String,
+    pub kind: String,
+    pub endpoints: Vec<LinkEndpoint>,
+    #[serde(default)]
+    pub data: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkEndpoint {
+    pub entity_id: String,
+    pub role: String,
 }
 
 impl SceneObject {

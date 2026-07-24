@@ -181,19 +181,30 @@ fn bracket_candidate_kind(object: &SceneObject) -> String {
 }
 
 fn text_count_candidates(document: &ChemSemaDocument) -> Vec<RepeatCountCandidate> {
+    let linked_brackets = document
+        .links
+        .iter()
+        .filter(|relation| relation.kind == "bracket-repeat-label")
+        .filter_map(|relation| {
+            let bracket = relation
+                .endpoints
+                .iter()
+                .find(|endpoint| endpoint.role == "bracket")?;
+            let label = relation
+                .endpoints
+                .iter()
+                .find(|endpoint| endpoint.role == "label")?;
+            Some((label.entity_id.as_str(), bracket.entity_id.as_str()))
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
     document
         .scene_objects()
         .into_iter()
         .filter(|object| object.object_type == "text" && object.visible)
         .filter_map(|object| {
-            if object.meta.get("linkKind").and_then(Value::as_str) != Some("bracket-label") {
-                return None;
-            }
-            let linked_bracket_object_id = object
-                .meta
-                .get("linkedBracketObjectId")
-                .and_then(Value::as_str)
-                .map(ToString::to_string)?;
+            let linked_bracket_object_id = linked_brackets
+                .get(object.id.as_str())
+                .map(|value| (*value).to_string())?;
             let text = payload_string(object, "text")?;
             let trimmed = text.trim();
             if trimmed.is_empty() || !trimmed.chars().all(|character| character.is_ascii_digit()) {

@@ -76,7 +76,7 @@ logStep("wait-engine");
 await page.waitForFunction(() => window.__chemsemaDebug?.state?.editorEngine && window.__chemsemaDebug?.document);
 
 logStep("new-doc");
-await page.click('[data-command="new"]');
+await page.locator('[data-command="new"]:visible').first().click();
 await page.waitForFunction(() => window.__chemsemaDebug?.document && Array.isArray(window.__chemsemaDebug.document.objects));
 
 const svg = page.locator("#viewer-svg");

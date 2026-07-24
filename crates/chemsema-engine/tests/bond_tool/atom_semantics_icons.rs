@@ -658,33 +658,27 @@ fn bracket_label_count_links_with_bracket_and_selects_with_component() {
         .iter()
         .find(|object| object.object_type == "text")
         .expect("bracket label commit should create text");
-    assert_eq!(
-        count_text
-            .meta
-            .get("linkKind")
-            .and_then(|value| value.as_str()),
-        Some("bracket-label")
-    );
-    assert_eq!(
-        count_text
-            .meta
-            .get("linkedBracketObjectId")
-            .and_then(|value| value.as_str()),
-        Some("obj_bracket_1")
-    );
     let text_id = count_text.id.clone();
     let bracket = engine
         .state()
         .document
         .find_scene_object("obj_bracket_1")
         .expect("bracket should remain a top-level object");
-    assert_eq!(
-        bracket
-            .meta
-            .get("linkedTextObjectId")
-            .and_then(|value| value.as_str()),
-        Some(text_id.as_str())
-    );
+    let relation = engine
+        .state()
+        .document
+        .links
+        .iter()
+        .find(|relation| relation.kind == "bracket-repeat-label")
+        .expect("bracket label should create a typed relation");
+    assert!(relation
+        .endpoints
+        .iter()
+        .any(|endpoint| endpoint.role == "bracket" && endpoint.entity_id == bracket.id));
+    assert!(relation
+        .endpoints
+        .iter()
+        .any(|endpoint| endpoint.role == "label" && endpoint.entity_id == text_id));
 
     assert!(engine.select_component_at_point(Point::new(20.0, 0.0), false));
     assert!(engine
@@ -750,24 +744,23 @@ fn bracket_label_count_links_with_new_bracket_group() {
         .iter()
         .find(|object| object.object_type == "text")
         .expect("bracket group label commit should create text");
-    assert_eq!(
-        text.meta
-            .get("linkedBracketObjectId")
-            .and_then(|value| value.as_str()),
-        Some(bracket_id.as_str())
-    );
+    let text_id = text.id.clone();
     let bracket = engine
         .state()
         .document
         .find_scene_object(&bracket_id)
         .expect("bracket group should remain in the document");
-    assert_eq!(
-        bracket
-            .meta
-            .get("linkedTextObjectId")
-            .and_then(|value| value.as_str()),
-        Some(text.id.as_str())
-    );
+    assert!(engine.state().document.links.iter().any(|relation| {
+        relation.kind == "bracket-repeat-label"
+            && relation
+                .endpoints
+                .iter()
+                .any(|endpoint| endpoint.entity_id == bracket.id)
+            && relation
+                .endpoints
+                .iter()
+                .any(|endpoint| endpoint.entity_id == text_id)
+    }));
 }
 
 #[test]
@@ -796,8 +789,10 @@ fn unlinking_repeat_unit_link_detaches_count_label() {
         .into_iter()
         .find(|object| object.object_type == "text")
         .expect("unlink should keep the count text object");
-    assert!(count_text.meta.get("linkKind").is_none());
-    assert!(count_text.meta.get("linkedBracketObjectId").is_none());
+    assert_eq!(
+        count_text.link_policy,
+        chemsema_engine::LinkPolicy::Unlinked
+    );
     let bracket = engine
         .state()
         .document
@@ -806,7 +801,7 @@ fn unlinking_repeat_unit_link_detaches_count_label() {
         .find(|object| object.id == "obj_bracket_1")
         .expect("unlink should keep the bracket object");
     assert!(bracket.meta.get("repeatUnitId").is_none());
-    assert!(bracket.meta.get("linkedTextObjectId").is_none());
+    assert!(engine.state().document.links.is_empty());
 }
 
 #[test]

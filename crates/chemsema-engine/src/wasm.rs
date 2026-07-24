@@ -364,6 +364,14 @@ impl WasmEngine {
         )
     }
 
+    #[wasm_bindgen(js_name = selectLinkedAtPoint)]
+    pub fn select_linked_at_point(&mut self, x: f64, y: f64, additive: bool) -> bool {
+        self.inner.select_linked_at_point(
+            Point::from_world(WorldPoint::new(WorldPt(x), WorldPt(y))),
+            additive,
+        )
+    }
+
     #[wasm_bindgen(js_name = selectInRect)]
     pub fn select_in_rect(&mut self, x1: f64, y1: f64, x2: f64, y2: f64, additive: bool) {
         self.inner.select_in_rect(
@@ -687,19 +695,36 @@ impl WasmEngine {
         self.inner.unlink_selection()
     }
 
+    #[wasm_bindgen(js_name = setLinkPolicyForSelection)]
+    pub fn set_link_policy_for_selection(&mut self, policy: &str) -> Result<bool, JsValue> {
+        let policy = serde_json::from_value(serde_json::Value::String(policy.to_string()))
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        Ok(self.inner.set_link_policy_for_selection(policy))
+    }
+
     #[wasm_bindgen(js_name = selectionCanLinkBracketText)]
     pub fn selection_can_link_bracket_text(&self) -> bool {
-        self.inner.selection_can_link_bracket_text()
+        self.inner.selection_can_link()
     }
 
     #[wasm_bindgen(js_name = selectionCanUnlinkBracketText)]
     pub fn selection_can_unlink_bracket_text(&self) -> bool {
-        self.inner.selection_can_unlink_bracket_text()
+        self.inner.selection_can_unlink()
     }
 
     #[wasm_bindgen(js_name = selectionHasRepeatUnitGroups)]
     pub fn selection_has_repeat_unit_groups(&self) -> bool {
         self.inner.selection_has_repeat_unit_groups()
+    }
+
+    #[wasm_bindgen(js_name = pasteSelectionAnalysisCaption)]
+    pub fn paste_selection_analysis_caption(&mut self, digits: u8) -> bool {
+        self.inner.paste_selection_analysis_caption(digits)
+    }
+
+    #[wasm_bindgen(js_name = takePendingDialogJson)]
+    pub fn take_pending_dialog_json(&mut self) -> String {
+        self.inner.take_pending_dialog_json()
     }
 
     #[wasm_bindgen(js_name = joinSelection)]

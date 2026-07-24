@@ -1176,6 +1176,14 @@ export class WasmEngine {
         return ret[0] !== 0;
     }
     /**
+     * @param {number} digits
+     * @returns {boolean}
+     */
+    pasteSelectionAnalysisCaption(digits) {
+        const ret = wasm.wasmengine_pasteSelectionAnalysisCaption(this.__wbg_ptr, digits);
+        return ret !== 0;
+    }
+    /**
      * @returns {string}
      */
     pendingGraphicObjectId() {
@@ -1434,6 +1442,16 @@ export class WasmEngine {
         wasm.wasmengine_selectInRect(this.__wbg_ptr, x1, y1, x2, y2, additive);
     }
     /**
+     * @param {number} x
+     * @param {number} y
+     * @param {boolean} additive
+     * @returns {boolean}
+     */
+    selectLinkedAtPoint(x, y, additive) {
+        const ret = wasm.wasmengine_selectLinkedAtPoint(this.__wbg_ptr, x, y, additive);
+        return ret !== 0;
+    }
+    /**
      * @returns {string}
      */
     selectionBoundsJson() {
@@ -1583,6 +1601,19 @@ export class WasmEngine {
         wasm.wasmengine_setElementOptions(this.__wbg_ptr, ptr0, len0, atomic_number);
     }
     /**
+     * @param {string} policy
+     * @returns {boolean}
+     */
+    setLinkPolicyForSelection(policy) {
+        const ptr0 = passStringToWasm0(policy, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_setLinkPolicyForSelection(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] !== 0;
+    }
+    /**
      * @param {string} template
      * @param {string} style
      * @param {string} phase
@@ -1698,6 +1729,21 @@ export class WasmEngine {
             return getStringFromWasm0(ret[0], ret[1]);
         } finally {
             wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    takePendingDialogJson() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.wasmengine_takePendingDialogJson(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
         }
     }
     /**

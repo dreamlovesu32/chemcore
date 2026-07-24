@@ -26,8 +26,10 @@ Status key:
 | Z order | Bring/send front/back | `apply-selection-order` with ids or current selection | CLI guide | Done |
 | Grouping | Group | `group-selection` with ids or current selection | CLI guide and tests | Done |
 | Grouping | Ungroup | `ungroup-selection` with ids or current selection | CLI guide | Done |
-| Links | Link bracket/text | `link-selection` with ids or current selection | CLI guide | Done |
-| Links | Unlink bracket/text | `unlink-selection` with ids or current selection | CLI guide | Done |
+| Links | Link a compatible typed pair | `link-selection` with ids or current selection | Link model, CLI guide, tests | Done |
+| Links | Set Auto/Linked/Unlinked policy | `set-link-policy` with ids or current selection | Link model, CLI guide, tests | Done |
+| Links | Unlink selected entities | `unlink-selection` with ids or current selection | Link model, CLI guide, tests | Done |
+| Analysis | Paste linked analysis caption | `paste-analysis-caption` for one complete molecule | Link model and tests | Done |
 | Styling | Text style/alignment | `apply-text-style` with ids or current selection | CLI guide and skill reference | Done |
 | Styling | Bond style | `apply-bond-style` with ids or current selection | CLI guide and skill reference | Done |
 | Styling | Object settings/bond width | `apply-object-settings-to-selection` with ids or current selection | CLI guide and skill reference | Done |

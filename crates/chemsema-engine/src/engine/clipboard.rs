@@ -1,6 +1,8 @@
 use super::text_edit::refresh_attached_node_label_geometry_for_all_nodes;
 use super::{EditorCommand, Engine, RenderBoundsScope};
-use crate::{Bond, ChemSemaDocument, Node, Resource, ResourceData, SceneObject, SelectionState};
+use crate::{
+    Bond, ChemSemaDocument, LinkRelation, Node, Resource, ResourceData, SceneObject, SelectionState,
+};
 use chemsema_chemical_graph::{MultiCenterInteractionV2, StereoElementV2};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -21,6 +23,8 @@ pub(super) struct ClipboardContent {
     scene_objects: Vec<SceneObject>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     resources: BTreeMap<String, Resource>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    links: Vec<LinkRelation>,
 }
 
 impl Engine {
@@ -117,6 +121,7 @@ impl Engine {
             interactions: Vec::new(),
             scene_objects: document.objects,
             resources,
+            links: document.links,
         };
         self.clipboard = Some(content);
         Ok(self.paste_clipboard())
@@ -191,30 +196,51 @@ impl Engine {
             entry.update_bounds();
         }
 
+        let mut entity_id_map = id_map.clone();
         let mut resource_id_map = BTreeMap::new();
         for (source_id, resource) in &content.resources {
             let target_id = self.next_id("res");
+            let mut resource = resource.clone();
+            remap_clipboard_resource(self, &mut resource, &mut entity_id_map);
             self.state
                 .document
                 .resources
-                .insert(target_id.clone(), resource.clone());
+                .insert(target_id.clone(), resource);
             resource_id_map.insert(source_id.clone(), target_id);
         }
         let mut pasted_scene_ids = Vec::new();
         let mut pasted_molecule_ids = Vec::new();
         for source in &content.scene_objects {
+            let source_id = source.id.clone();
             let mut object = super::select::drag::translated_scene_object(
                 source,
                 CLIPBOARD_PASTE_OFFSET_PT,
                 CLIPBOARD_PASTE_OFFSET_PT,
             );
             remap_clipboard_scene_object(self, &mut object, &resource_id_map);
+            entity_id_map.insert(source_id, object.id.clone());
             if object.object_type == "molecule" {
                 pasted_molecule_ids.push(object.id.clone());
             } else {
                 pasted_scene_ids.push(object.id.clone());
             }
             self.state.document.objects.push(object);
+        }
+        for relation in &content.links {
+            let mut relation = relation.clone();
+            let mut complete = true;
+            for endpoint in &mut relation.endpoints {
+                if let Some(next) = entity_id_map.get(&endpoint.entity_id) {
+                    endpoint.entity_id = next.clone();
+                } else {
+                    complete = false;
+                    break;
+                }
+            }
+            if complete {
+                relation.id = self.next_id("link");
+                self.state.document.links.push(relation);
+            }
         }
         self.state.selection = SelectionState {
             arrow_objects: pasted_scene_ids,
@@ -265,16 +291,21 @@ impl Engine {
             .into_iter()
             .filter(|candidate| {
                 selected_molecule_objects.contains(candidate.object.id.as_str())
-                    && candidate
-                        .fragment
-                        .nodes
-                        .iter()
-                        .all(|node| node_ids.contains(&node.id))
-                    && candidate
-                        .fragment
-                        .bonds
-                        .iter()
-                        .all(|bond| selected_bonds.contains(bond.id.as_str()))
+                    && (self
+                        .state
+                        .selection
+                        .molecule_objects
+                        .contains(&candidate.object.id)
+                        || (candidate
+                            .fragment
+                            .nodes
+                            .iter()
+                            .all(|node| node_ids.contains(&node.id))
+                            && candidate
+                                .fragment
+                                .bonds
+                                .iter()
+                                .all(|bond| selected_bonds.contains(bond.id.as_str()))))
             })
             .map(|candidate| candidate.object.id.clone())
             .collect();
@@ -330,6 +361,7 @@ impl Engine {
             .iter()
             .map(String::as_str)
             .collect();
+        selected_scene_ids.extend(self.state.selection.text_objects.iter().map(String::as_str));
         selected_scene_ids.extend(fully_selected_molecule_ids.iter().map(String::as_str));
         let mut scene_objects = Vec::new();
         let mut resources = BTreeMap::new();
@@ -345,6 +377,29 @@ impl Engine {
         if nodes.is_empty() && scene_objects.is_empty() {
             return None;
         }
+        let mut selected_entity_ids = selected_scene_ids
+            .iter()
+            .map(|id| (*id).to_string())
+            .chain(node_ids.iter().cloned())
+            .collect::<BTreeSet<_>>();
+        for resource in resources.values() {
+            if let ResourceData::Fragment(fragment) = &resource.data {
+                selected_entity_ids.extend(fragment.nodes.iter().map(|node| node.id.clone()));
+            }
+        }
+        let links = self
+            .state
+            .document
+            .links
+            .iter()
+            .filter(|relation| {
+                relation
+                    .endpoints
+                    .iter()
+                    .all(|endpoint| selected_entity_ids.contains(&endpoint.entity_id))
+            })
+            .cloned()
+            .collect();
 
         Some(ClipboardContent {
             nodes,
@@ -353,6 +408,7 @@ impl Engine {
             interactions,
             scene_objects,
             resources,
+            links,
         })
     }
 
@@ -396,6 +452,30 @@ impl Engine {
         if let Some((_, resource_ref, resource)) = selected_molecule {
             document.resources.insert(resource_ref, resource);
         }
+        let mut retained = document
+            .scene_objects()
+            .into_iter()
+            .map(|object| object.id.clone())
+            .collect::<BTreeSet<_>>();
+        for object in document.scene_objects() {
+            let Some(resource_id) = object.payload.resource_ref.as_ref() else {
+                continue;
+            };
+            let Some(ResourceData::Fragment(fragment)) = document
+                .resources
+                .get(resource_id)
+                .map(|resource| &resource.data)
+            else {
+                continue;
+            };
+            retained.extend(fragment.nodes.iter().map(|node| node.id.clone()));
+        }
+        document.links.retain(|relation| {
+            relation
+                .endpoints
+                .iter()
+                .all(|endpoint| retained.contains(&endpoint.entity_id))
+        });
         if let Some(bounds) = self.render_bounds(RenderBoundsScope::Selection) {
             set_clipboard_selection_bounds_meta(&mut document, bounds);
         }
@@ -585,6 +665,48 @@ fn remap_clipboard_scene_object(
     for child in &mut object.children {
         remap_clipboard_scene_object(engine, child, resource_id_map);
     }
+}
+
+fn remap_clipboard_resource(
+    engine: &mut Engine,
+    resource: &mut Resource,
+    entity_ids: &mut BTreeMap<String, String>,
+) {
+    let ResourceData::Fragment(fragment) = &mut resource.data else {
+        return;
+    };
+    let mut node_ids = BTreeMap::new();
+    for node in &mut fragment.nodes {
+        let source_id = node.id.clone();
+        let target_id = engine.next_id("n");
+        node.id = target_id.clone();
+        node_ids.insert(source_id.clone(), target_id.clone());
+        entity_ids.insert(source_id, target_id);
+    }
+    let mut bond_ids = BTreeMap::new();
+    for bond in &mut fragment.bonds {
+        let source_id = bond.id.clone();
+        let target_id = engine.next_id("b");
+        bond.id = target_id.clone();
+        bond.begin = node_ids
+            .get(&bond.begin)
+            .expect("clipboard resource bond begin was retained")
+            .clone();
+        bond.end = node_ids
+            .get(&bond.end)
+            .expect("clipboard resource bond end was retained")
+            .clone();
+        bond_ids.insert(source_id, target_id);
+    }
+    let (stereo, interactions) = remap_clipboard_semantics(
+        engine,
+        &fragment.stereo,
+        &fragment.interactions,
+        &node_ids,
+        &bond_ids,
+    );
+    fragment.stereo = stereo;
+    fragment.interactions = interactions;
 }
 
 fn clone_selected_scene_objects(

@@ -1,8 +1,8 @@
 use crate::{
     ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondAnchor,
     BondLineWeights, BondVariant, BracketKind, ChemSemaDocument, DoubleBondPlacement, LabelRun,
-    ObjectSettings, OrbitalPhase, OrbitalStyle, OrbitalTemplate, Point, SceneObject, ShapeKind,
-    ShapeStyle,
+    LinkPolicy, ObjectSettings, OrbitalPhase, OrbitalStyle, OrbitalTemplate, Point, SceneObject,
+    ShapeKind, ShapeStyle,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -536,6 +536,15 @@ pub enum EditorCommand {
         #[serde(default, alias = "objectIds")]
         object_ids: Vec<String>,
     },
+    PasteAnalysisCaption {
+        #[serde(default = "default_analysis_caption_digits")]
+        digits: u8,
+    },
+    SetLinkPolicy {
+        #[serde(default, alias = "objectIds")]
+        object_ids: Vec<String>,
+        policy: LinkPolicy,
+    },
     UnlinkSelection {
         #[serde(default, alias = "objectIds")]
         object_ids: Vec<String>,
@@ -623,6 +632,10 @@ pub enum EditorCommand {
         center: CommandAnchor,
         end: CommandAnchor,
     },
+}
+
+const fn default_analysis_caption_digits() -> u8 {
+    2
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]

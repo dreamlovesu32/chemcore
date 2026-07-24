@@ -285,6 +285,7 @@ impl Engine {
                 scale: [1.0, 1.0],
             },
             style_ref: None,
+            link_policy: Default::default(),
             meta: json!({
                 "source": "editor",
                 "kind": "bracket-group",
@@ -345,6 +346,7 @@ impl Engine {
                 scale: [1.0, 1.0],
             },
             style_ref: None,
+            link_policy: Default::default(),
             meta: json!({
                 "source": "editor",
             }),
@@ -663,6 +665,7 @@ fn bracket_side_scene_object(
             scale: [1.0, 1.0],
         },
         style_ref: None,
+        link_policy: Default::default(),
         meta: json!({
             "source": "editor",
             "bracketSide": side.name(),

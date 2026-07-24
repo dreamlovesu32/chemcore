@@ -1,4 +1,6 @@
-use crate::{AtomRadical, ChemSemaDocument, Node, Point, SceneObject};
+use crate::{
+    AtomRadical, ChemSemaDocument, LinkEndpoint, LinkPolicy, LinkRelation, Node, Point, SceneObject,
+};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 
@@ -49,7 +51,6 @@ struct SymbolAttachment {
 #[derive(Debug, Clone)]
 struct AttachmentCandidate {
     node_id: String,
-    source: &'static str,
     distance: f64,
 }
 
@@ -96,8 +97,9 @@ pub fn electron_symbol_chemistry(kind: &str) -> Option<ElectronSymbolChemistry> 
 }
 
 pub fn refresh_attached_electron_symbols(document: &mut ChemSemaDocument) -> bool {
+    let mut changed = refresh_atom_symbol_links(document);
     let attachments = detect_symbol_attachments(document);
-    let mut changed = refresh_symbol_object_attachment_payloads(document, &attachments);
+    changed |= refresh_symbol_object_attachment_payloads(document, &attachments);
     changed |= refresh_node_attached_electron_symbols(document, &attachments);
     changed
 }
@@ -184,18 +186,48 @@ fn detect_symbol_attachments(document: &ChemSemaDocument) -> Vec<SymbolAttachmen
         let Some(center) = scene_object_center(object) else {
             continue;
         };
-        let candidate = nearest_attachment_candidate(entry.fragment, object_translate, center);
-        let (node_id, attachment_source, attachment_distance) = if let Some(candidate) =
-            candidate.filter(|candidate| candidate.distance <= ELECTRON_SYMBOL_ATTACH_RADIUS)
-        {
-            (
-                Some(candidate.node_id),
-                Some(candidate.source),
-                Some(candidate.distance),
-            )
-        } else {
-            (None, None, None)
-        };
+        let linked_node_id = document
+            .links
+            .iter()
+            .filter(|relation| relation.kind == "atom-symbol")
+            .find(|relation| {
+                relation
+                    .endpoints
+                    .iter()
+                    .any(|endpoint| endpoint.role == "symbol" && endpoint.entity_id == object.id)
+            })
+            .and_then(|relation| {
+                relation
+                    .endpoints
+                    .iter()
+                    .find(|endpoint| endpoint.role == "atom")
+            })
+            .map(|endpoint| endpoint.entity_id.clone());
+        let (node_id, attachment_source, attachment_distance) =
+            if let Some(node_id) = linked_node_id {
+                let distance = entry
+                    .fragment
+                    .nodes
+                    .iter()
+                    .find(|node| node.id == node_id)
+                    .map(|node| {
+                        center.distance(Point::new(
+                            node.position[0] + object_translate[0],
+                            node.position[1] + object_translate[1],
+                        ))
+                    });
+                (
+                    Some(node_id),
+                    Some(if object.link_policy == LinkPolicy::Linked {
+                        "explicit"
+                    } else {
+                        "auto"
+                    }),
+                    distance,
+                )
+            } else {
+                (None, None, None)
+            };
         out.push(SymbolAttachment {
             symbol_object_id: object.id.clone(),
             kind,
@@ -207,6 +239,86 @@ fn detect_symbol_attachments(document: &ChemSemaDocument) -> Vec<SymbolAttachmen
         });
     }
     out
+}
+
+fn refresh_atom_symbol_links(document: &mut ChemSemaDocument) -> bool {
+    let Some(entry) = document.editable_fragment() else {
+        return false;
+    };
+    let object_translate = entry.object.transform.translate;
+    let candidates = document
+        .objects
+        .iter()
+        .filter(|object| {
+            object.object_type == "symbol"
+                && object.visible
+                && electron_symbol_chemistry(
+                    object
+                        .payload
+                        .extra
+                        .get("kind")
+                        .and_then(Value::as_str)
+                        .unwrap_or(""),
+                )
+                .is_some()
+        })
+        .map(|object| {
+            let candidate = scene_object_center(object)
+                .and_then(|center| {
+                    nearest_attachment_candidate(entry.fragment, object_translate, center)
+                })
+                .filter(|candidate| candidate.distance <= ELECTRON_SYMBOL_ATTACH_RADIUS);
+            (object.id.clone(), object.link_policy, candidate)
+        })
+        .collect::<Vec<_>>();
+    let auto_symbols = candidates
+        .iter()
+        .filter(|(_, policy, _)| *policy == LinkPolicy::Auto)
+        .map(|(id, _, _)| id.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    let unlinked_symbols = candidates
+        .iter()
+        .filter(|(_, policy, _)| *policy == LinkPolicy::Unlinked)
+        .map(|(id, _, _)| id.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    let before = document.links.len();
+    document.links.retain(|relation| {
+        if relation.kind != "atom-symbol" {
+            return true;
+        }
+        let symbol_id = relation
+            .endpoints
+            .iter()
+            .find(|endpoint| endpoint.role == "symbol")
+            .map(|endpoint| endpoint.entity_id.as_str());
+        !symbol_id.is_some_and(|id| auto_symbols.contains(id) || unlinked_symbols.contains(id))
+    });
+    let mut changed = before != document.links.len();
+    for (symbol_id, policy, candidate) in candidates {
+        if policy != LinkPolicy::Auto {
+            continue;
+        }
+        let Some(candidate) = candidate else {
+            continue;
+        };
+        document.links.push(LinkRelation {
+            id: format!("link_auto_atom_{}_{}", symbol_id, candidate.node_id),
+            kind: "atom-symbol".to_string(),
+            endpoints: vec![
+                LinkEndpoint {
+                    entity_id: candidate.node_id,
+                    role: "atom".to_string(),
+                },
+                LinkEndpoint {
+                    entity_id: symbol_id,
+                    role: "symbol".to_string(),
+                },
+            ],
+            data: Value::Null,
+        });
+        changed = true;
+    }
+    changed
 }
 
 fn refresh_symbol_object_attachment_payloads(
@@ -579,11 +691,20 @@ fn nearest_attachment_candidate(
     object_translate: [f64; 2],
     point: Point,
 ) -> Option<AttachmentCandidate> {
-    fragment
+    let mut candidates = fragment
         .nodes
         .iter()
         .map(|node| best_candidate_for_node(node, object_translate, point))
-        .min_by(|left, right| left.distance.total_cmp(&right.distance))
+        .collect::<Vec<_>>();
+    candidates.sort_by(|left, right| left.distance.total_cmp(&right.distance));
+    let nearest = candidates.first()?.clone();
+    if candidates
+        .get(1)
+        .is_some_and(|next| (next.distance - nearest.distance).abs() <= 1.0e-6)
+    {
+        return None;
+    }
+    Some(nearest)
 }
 
 fn best_candidate_for_node(
@@ -597,7 +718,6 @@ fn best_candidate_for_node(
     );
     let mut best = AttachmentCandidate {
         node_id: node.id.clone(),
-        source: "endpoint",
         distance: point.distance(node_point),
     };
     if let Some(label) = &node.label {
@@ -612,7 +732,6 @@ fn best_candidate_for_node(
             if distance < best.distance {
                 best = AttachmentCandidate {
                     node_id: node.id.clone(),
-                    source: "label",
                     distance,
                 };
             }

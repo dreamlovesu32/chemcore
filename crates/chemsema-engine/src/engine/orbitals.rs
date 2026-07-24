@@ -327,6 +327,7 @@ impl Engine {
             z_index: self.next_shape_z_index(),
             transform,
             style_ref: Some(style_id),
+            link_policy: Default::default(),
             meta: json!({
                 "source": "editor",
                 "orbital": true,

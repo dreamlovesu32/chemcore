@@ -682,6 +682,18 @@ impl DesktopDocumentService {
             .select_component_at_point(point(x, y), additive))
     }
 
+    pub fn select_linked_at_point(
+        &mut self,
+        session_id: SessionId,
+        x: f64,
+        y: f64,
+        additive: bool,
+    ) -> Result<bool, String> {
+        Ok(self
+            .session_mut(session_id)?
+            .select_linked_at_point(point(x, y), additive))
+    }
+
     pub fn select_in_rect(
         &mut self,
         session_id: SessionId,
@@ -1037,6 +1049,32 @@ impl DesktopDocumentService {
 
     pub fn unlink_selection(&mut self, session_id: SessionId) -> Result<bool, String> {
         Ok(self.session_mut(session_id)?.unlink_selection())
+    }
+
+    pub fn set_link_policy_for_selection(
+        &mut self,
+        session_id: SessionId,
+        policy: &str,
+    ) -> Result<bool, String> {
+        let policy = serde_json::from_value(serde_json::Value::String(policy.to_string()))
+            .map_err(|error| error.to_string())?;
+        Ok(self
+            .session_mut(session_id)?
+            .set_link_policy_for_selection(policy))
+    }
+
+    pub fn paste_selection_analysis_caption(
+        &mut self,
+        session_id: SessionId,
+        digits: u8,
+    ) -> Result<bool, String> {
+        Ok(self
+            .session_mut(session_id)?
+            .paste_selection_analysis_caption(digits))
+    }
+
+    pub fn take_pending_dialog_json(&mut self, session_id: SessionId) -> Result<String, String> {
+        Ok(self.session_mut(session_id)?.take_pending_dialog_json())
     }
 
     pub fn join_selection(&mut self, session_id: SessionId) -> Result<bool, String> {

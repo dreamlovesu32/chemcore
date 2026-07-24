@@ -94,6 +94,7 @@ pub(in crate::cdxml) fn append_bracket_objects(
                         scale: [1.0, 1.0],
                     },
                     style_ref: None,
+                    link_policy: Default::default(),
                     meta: json!({"source": "cdxml", "graphicId": node.attr("id")}),
                     payload: ObjectPayload {
                         resource_ref: None,
@@ -229,6 +230,7 @@ pub(in crate::cdxml) fn append_bracket_objects(
             z_index: left.z_index.min(right.z_index),
             transform: Transform::identity(),
             style_ref: None,
+            link_policy: Default::default(),
             meta,
             payload: ObjectPayload {
                 resource_ref: None,
@@ -282,6 +284,7 @@ pub(in crate::cdxml) fn append_bracket_objects(
                 scale: [1.0, 1.0],
             },
             style_ref: None,
+            link_policy: Default::default(),
             meta: json!({
                 "source": "cdxml",
                 "graphicId": bracket.graphic_id.clone(),
@@ -337,6 +340,7 @@ pub(super) fn cdxml_bracket_side_scene_object(
             scale: [1.0, 1.0],
         },
         style_ref: None,
+        link_policy: Default::default(),
         meta: json!({
             "source": "cdxml",
             "graphicId": bracket.graphic_id.clone(),

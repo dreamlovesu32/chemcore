@@ -1375,6 +1375,102 @@ impl Engine {
         true
     }
 
+    pub fn select_linked_at_point(&mut self, point: Point, additive: bool) -> bool {
+        let Some(hit) = self.component_select_hit_at_point(point) else {
+            return false;
+        };
+        let mut seeds = BTreeSet::new();
+        match &hit {
+            SelectHit::TextObject { object_id } | SelectHit::ArrowObject { object_id } => {
+                seeds.insert(object_id.clone());
+            }
+            SelectHit::Label { node_id } | SelectHit::Node { node_id } => {
+                seeds.insert(node_id.clone());
+                if let Some(entry) = self
+                    .state
+                    .document
+                    .editable_fragments()
+                    .into_iter()
+                    .find(|entry| entry.fragment.nodes.iter().any(|node| node.id == *node_id))
+                {
+                    seeds.insert(entry.object.id.clone());
+                }
+            }
+            SelectHit::Bond { bond_id } => {
+                if let Some(entry) = self
+                    .state
+                    .document
+                    .editable_fragments()
+                    .into_iter()
+                    .find(|entry| entry.fragment.bonds.iter().any(|bond| bond.id == *bond_id))
+                {
+                    seeds.insert(entry.object.id.clone());
+                }
+            }
+        }
+        let mut linked = seeds.clone();
+        let mut pending = seeds.into_iter().collect::<Vec<_>>();
+        while let Some(entity_id) = pending.pop() {
+            for relation in self.state.document.links.iter().filter(|relation| {
+                relation
+                    .endpoints
+                    .iter()
+                    .any(|endpoint| endpoint.entity_id == entity_id)
+            }) {
+                for endpoint in &relation.endpoints {
+                    if linked.insert(endpoint.entity_id.clone()) {
+                        pending.push(endpoint.entity_id.clone());
+                    }
+                }
+            }
+        }
+        if linked.len() < 2 {
+            self.select_at_point(point, additive);
+            return true;
+        }
+        let mut selection = if additive {
+            self.state.selection.clone()
+        } else {
+            SelectionState::default()
+        };
+        selection.region = false;
+        for entity_id in linked {
+            if let Some(object) = self.state.document.find_scene_object(&entity_id) {
+                match object.object_type.as_str() {
+                    "text" => push_unique(&mut selection.text_objects, entity_id),
+                    "molecule" => push_unique(&mut selection.molecule_objects, entity_id),
+                    _ => push_unique(&mut selection.arrow_objects, entity_id),
+                }
+            } else if self
+                .state
+                .document
+                .editable_fragments()
+                .into_iter()
+                .any(|entry| entry.fragment.nodes.iter().any(|node| node.id == entity_id))
+            {
+                push_unique(&mut selection.nodes, entity_id.clone());
+                if self
+                    .state
+                    .document
+                    .editable_fragments()
+                    .into_iter()
+                    .any(|entry| {
+                        entry
+                            .fragment
+                            .nodes
+                            .iter()
+                            .any(|node| node.id == entity_id && node.label.is_some())
+                    })
+                {
+                    push_unique(&mut selection.label_nodes, entity_id);
+                }
+            }
+        }
+        self.state.selection = selection;
+        self.clear_interaction();
+        true
+    }
+
     fn ancestor_group_id_for_hit(&self, hit: &SelectHit) -> Option<String> {
         match hit {
             SelectHit::TextObject { object_id } | SelectHit::ArrowObject { object_id } => self

@@ -903,6 +903,20 @@ class TauriEngineSession {
     return this.invokeMutation("desktop_engine_select_component_at_point", { x, y, additive }, { refresh: "selection", dirtyExports: false });
   }
 
+  selectLinkedAtPoint(x, y, additive) {
+    if (this.layoutEngine?.selectLinkedAtPoint) {
+      const result = this.layoutEngine.selectLinkedAtPoint(x, y, additive);
+      this.syncLocalMutationState();
+      this.runNativeMutationInBackground(
+        "desktop_engine_select_linked_at_point",
+        { x, y, additive },
+        { refresh: "selection", dirtyExports: false },
+      );
+      return result;
+    }
+    return this.invokeMutation("desktop_engine_select_linked_at_point", { x, y, additive }, { refresh: "selection", dirtyExports: false });
+  }
+
   selectInRect(x1, y1, x2, y2, additive) {
     if (this.layoutEngine?.selectInRect) {
       const result = this.layoutEngine.selectInRect(x1, y1, x2, y2, additive);
@@ -1281,6 +1295,23 @@ class TauriEngineSession {
 
   unlinkSelection() {
     return this.invokeMutation("desktop_engine_unlink_selection");
+  }
+
+  setLinkPolicyForSelection(policy) {
+    return this.invokeMutation("desktop_engine_set_link_policy_for_selection", { policy });
+  }
+
+  pasteSelectionAnalysisCaption(digits) {
+    return this.invokeMutation("desktop_engine_paste_selection_analysis_caption", { digits });
+  }
+
+  takePendingDialogJson() {
+    if (this.layoutEngine?.takePendingDialogJson) {
+      const value = this.layoutEngine.takePendingDialogJson();
+      void this.invoke("desktop_engine_take_pending_dialog_json", { sessionId: this.sessionId });
+      return value;
+    }
+    return this.invoke("desktop_engine_take_pending_dialog_json", { sessionId: this.sessionId });
   }
 
   joinSelection() {

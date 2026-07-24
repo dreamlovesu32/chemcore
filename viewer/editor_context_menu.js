@@ -347,6 +347,11 @@ export function createCanvasContextMenuHost(options) {
       changed = await executeDocumentCommand("ungroup-selection", () => options.state().editorEngine?.ungroupSelection?.());
     } else if (command === "link") {
       changed = await executeDocumentCommand("link-selection", () => options.state().editorEngine?.linkSelection?.());
+    } else if (command === "link-policy") {
+      changed = await executeDocumentCommand(
+        { type: "set-link-policy", payload: { policy: value } },
+        () => options.state().editorEngine?.setLinkPolicyForSelection?.(value),
+      );
     } else if (command === "unlink") {
       changed = await executeDocumentCommand("unlink-selection", () => options.state().editorEngine?.unlinkSelection?.());
     } else if (command === "color") {

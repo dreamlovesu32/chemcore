@@ -191,6 +191,7 @@ impl Engine {
                 scale: [1.0, 1.0],
             },
             style_ref: source_object.style_ref.clone(),
+            link_policy: Default::default(),
             meta: json!({
                 "nmrPrediction": {
                     "sourceMoleculeObjectId": source_object.id,
@@ -579,6 +580,7 @@ fn spectrum_object(response: &PredictionResponse) -> SceneObject {
             scale: [1.0, 1.0],
         },
         style_ref: None,
+        link_policy: Default::default(),
         meta: json!({
             "nmrPrediction": {
                 "nucleus": response.nucleus,
@@ -798,6 +800,7 @@ fn text_object(
             scale: [1.0, 1.0],
         },
         style_ref: None,
+        link_policy: Default::default(),
         meta: json!({"interpretChemically": false}),
         payload: ObjectPayload {
             resource_ref: None,

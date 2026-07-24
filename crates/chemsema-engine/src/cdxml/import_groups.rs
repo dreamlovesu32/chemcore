@@ -138,6 +138,7 @@ pub(super) fn cdxml_group_object(
         z_index,
         transform: Transform::identity(),
         style_ref: None,
+        link_policy: Default::default(),
         meta: json!({
             "source": "cdxml",
             "groupId": node.attr("id"),

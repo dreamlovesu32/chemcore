@@ -1599,7 +1599,7 @@ When `object_ids` is omitted, the command uses the current selection.
 
 When `object_ids` is omitted, the command uses the current selection.
 
-### 12.5 Link And Unlink
+### 12.5 Link Policy And Typed Links
 
 ```json
 {
@@ -1610,13 +1610,33 @@ When `object_ids` is omitted, the command uses the current selection.
 
 ```json
 {
+  "type": "set-link-policy",
+  "objectIds": ["bracket_1", "text_1"],
+  "policy": "auto"
+}
+```
+
+```json
+{
   "type": "unlink-selection",
   "object_ids": ["bracket_1", "text_1"]
 }
 ```
 
-When `object_ids` is omitted, the command uses the current selection. Link and
-unlink expect one bracket-like graphic object and one text object.
+When object ids are omitted, the command uses the current selection. `policy`
+is `auto`, `linked`, or `unlinked`. Explicit Link is accepted only when the
+selection matches exactly one registered typed-link signature; two molecules
+are deliberately not linkable. See `docs/link-model.zh-CN.md` for the complete
+data and interaction contract.
+
+To paste the current complete single-molecule analysis as a linked caption:
+
+```json
+{
+  "type": "paste-analysis-caption",
+  "digits": 2
+}
+```
 
 ## 13. Document Style And Object Settings
 

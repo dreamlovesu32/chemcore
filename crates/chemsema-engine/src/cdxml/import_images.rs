@@ -121,6 +121,7 @@ pub(in crate::cdxml) fn append_embedded_image_objects(
                 scale: [1.0, 1.0],
             },
             style_ref: None,
+            link_policy: Default::default(),
             meta: json!({
                 "kind": "image",
                 "import": { "cdxml": { "id": node.attr("id"), "attribute": attribute } }

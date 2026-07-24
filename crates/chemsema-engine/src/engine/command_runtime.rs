@@ -307,6 +307,36 @@ impl Engine {
         }
     }
 
+    fn execute_relationship_command(&mut self, command: EditorCommand) -> bool {
+        match command {
+            EditorCommand::PasteAnalysisCaption { digits } => {
+                self.paste_selection_analysis_caption(digits)
+            }
+            EditorCommand::LinkSelection { object_ids } => {
+                if !object_ids.is_empty() {
+                    self.state.selection =
+                        scene_object_selection_from_ids(&self.state.document, &object_ids);
+                }
+                self.link_selection()
+            }
+            EditorCommand::SetLinkPolicy { object_ids, policy } => {
+                if !object_ids.is_empty() {
+                    self.state.selection =
+                        scene_object_selection_from_ids(&self.state.document, &object_ids);
+                }
+                self.set_link_policy_for_selection(policy)
+            }
+            EditorCommand::UnlinkSelection { object_ids } => {
+                if !object_ids.is_empty() {
+                    self.state.selection =
+                        scene_object_selection_from_ids(&self.state.document, &object_ids);
+                }
+                self.unlink_selection()
+            }
+            _ => unreachable!("relationship commands are classified before dispatch"),
+        }
+    }
+
     pub fn execute_command(&mut self, command: EditorCommand) -> Result<CommandResult, String> {
         self.last_command_result = None;
         if editor_command_is_immediate(&command) {
@@ -318,6 +348,10 @@ impl Engine {
         }
         if editor_command_is_selection_semantic(&command) {
             let changed = self.execute_selection_semantic_command(command);
+            return Ok(self.completed_command_result(changed));
+        }
+        if editor_command_is_relationship(&command) {
+            let changed = self.execute_relationship_command(command);
             return Ok(self.completed_command_result(changed));
         }
         let changed = match command.clone() {
@@ -545,6 +579,12 @@ impl Engine {
             | EditorCommand::SetChemicalCheckForSelection { .. } => {
                 unreachable!("selection semantic commands are dispatched before the main match")
             }
+            EditorCommand::LinkSelection { .. }
+            | EditorCommand::UnlinkSelection { .. }
+            | EditorCommand::SetLinkPolicy { .. }
+            | EditorCommand::PasteAnalysisCaption { .. } => {
+                unreachable!("relationship commands are dispatched before the main match")
+            }
             EditorCommand::ExpandLabelsInSelection => self.expand_labels_in_selection(),
             EditorCommand::CenterSelectionOnPage => self.center_selection_on_page(),
             EditorCommand::GroupSelection { object_ids } => {
@@ -560,20 +600,6 @@ impl Engine {
                         scene_object_selection_from_ids(&self.state.document, &object_ids);
                 }
                 self.ungroup_selection()
-            }
-            EditorCommand::LinkSelection { object_ids } => {
-                if !object_ids.is_empty() {
-                    self.state.selection =
-                        scene_object_selection_from_ids(&self.state.document, &object_ids);
-                }
-                self.link_selection()
-            }
-            EditorCommand::UnlinkSelection { object_ids } => {
-                if !object_ids.is_empty() {
-                    self.state.selection =
-                        scene_object_selection_from_ids(&self.state.document, &object_ids);
-                }
-                self.unlink_selection()
             }
             EditorCommand::JoinSelection => self.join_selection(),
             EditorCommand::MoveTargets { targets, delta } => self

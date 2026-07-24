@@ -428,6 +428,7 @@ impl Engine {
             z_index: 20,
             transform: crate::Transform::identity(),
             style_ref: Some(style_id),
+            link_policy: Default::default(),
             meta: json!({"source": "chemsema-editor"}),
             payload: crate::ObjectPayload {
                 resource_ref: None,

@@ -675,7 +675,7 @@ fn protocol_schemas_json() -> Value {
                     "description": "Scales explicit nodes, bonds, objects, or labelNodes by scaleX/scaleY around optional pivot. Use unequal factors for scripted stretch."
                 },
                 "selection-layout": {
-                    "description": "After select-targets or select-all, GUI selection commands such as apply-selection-arrange, scale-selection, center-selection-on-page, apply-selection-color, delete-selection, group-selection, ungroup-selection, link-selection, and unlink-selection operate on the current selection."
+                    "description": "After select-targets or select-all, GUI selection commands such as apply-selection-arrange, scale-selection, center-selection-on-page, apply-selection-color, delete-selection, group-selection, ungroup-selection, link-selection, set-link-policy, unlink-selection, and paste-analysis-caption operate on the current selection."
                 },
                 "apply-object-settings-to-selection": {
                     "description": "Applies bondLength, lineWidth, boldWidth, bondSpacing, marginWidth, or hashSpacing to explicit bond_ids/object_ids. Use this for bond width and other object setting changes."

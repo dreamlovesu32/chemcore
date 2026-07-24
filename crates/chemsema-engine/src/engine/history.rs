@@ -81,6 +81,8 @@ impl Engine {
         self.command_context.pop();
         let command_before_snapshot = self.command_before_snapshot.take();
         if applied {
+            self.mark_moved_analysis_captions_fixed(&command);
+            self.reconcile_links_after_document_change();
             let delta_scope = self.command_delta_scope(&command);
             if self.command_needs_repeating_unit_refresh(&command, delta_scope) {
                 refresh_repeating_units(&mut self.state.document);
@@ -336,6 +338,7 @@ impl Engine {
             | EditorCommand::GroupSelection { .. }
             | EditorCommand::UngroupSelection { .. }
             | EditorCommand::LinkSelection { .. }
+            | EditorCommand::SetLinkPolicy { .. }
             | EditorCommand::UnlinkSelection { .. }
             | EditorCommand::JoinSelection => true,
             EditorCommand::MoveSelection
@@ -388,6 +391,7 @@ impl Engine {
         self.state.selection = SelectionState::default();
         self.clear_interaction();
         self.pending_select_target = None;
+        self.pending_dialog = None;
         self.next_id = self.infer_next_id();
     }
 
@@ -511,6 +515,19 @@ impl Engine {
                     if let Ok(value) = suffix.parse::<u64>() {
                         max_id = max_id.max(value);
                     }
+                }
+            }
+        }
+        for id in self
+            .state
+            .document
+            .links
+            .iter()
+            .map(|relation| relation.id.as_str())
+        {
+            if let Some((_, suffix)) = id.rsplit_once('_') {
+                if let Ok(value) = suffix.parse::<u64>() {
+                    max_id = max_id.max(value);
                 }
             }
         }

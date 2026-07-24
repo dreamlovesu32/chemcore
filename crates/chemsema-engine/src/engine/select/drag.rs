@@ -1231,6 +1231,7 @@ mod tests {
                 scale: [1.0, 1.0],
             },
             style_ref: None,
+            link_policy: Default::default(),
             meta: JsonValue::Null,
             payload: crate::ObjectPayload {
                 resource_ref: None,

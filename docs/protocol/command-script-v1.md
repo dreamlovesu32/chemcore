@@ -61,7 +61,8 @@ by JSONL session `execute`.
 
 Selection-driven commands include `apply-selection-arrange`, `scale-selection`,
 `center-selection-on-page`, `apply-selection-color`, `apply-selection-order`,
-`group-selection`, `ungroup-selection`, `link-selection`, `unlink-selection`,
+`group-selection`, `ungroup-selection`, `link-selection`, `set-link-policy`,
+`unlink-selection`, `paste-analysis-caption`,
 style commands, `apply-object-settings-to-selection`, `delete-selection`, and
 `cut-selection`.
 

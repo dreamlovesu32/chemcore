@@ -168,6 +168,7 @@ fn group_selected_in_siblings_with_meta(
             z_index,
             transform: Transform::identity(),
             style_ref: None,
+            link_policy: Default::default(),
             meta,
             payload: ObjectPayload {
                 resource_ref: None,

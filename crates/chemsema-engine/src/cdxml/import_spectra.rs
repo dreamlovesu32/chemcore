@@ -105,6 +105,7 @@ pub(in crate::cdxml) fn append_spectrum_objects(
                 scale: [1.0, 1.0],
             },
             style_ref: Some(style_id),
+            link_policy: Default::default(),
             meta: json!({
                 "source": "cdxml",
                 "spectrumId": node.attr("id"),

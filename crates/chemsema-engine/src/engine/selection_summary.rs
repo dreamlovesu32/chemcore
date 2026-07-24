@@ -25,15 +25,63 @@ impl Engine {
     }
 
     pub fn selection_chemistry_summary(&self) -> Option<SelectionChemistrySummary> {
-        let selected_node_ids = selected_atom_node_ids(&self.state.selection);
-        let entry = self.state.document.editable_fragment()?;
+        self.chemistry_summary_for_selection(&self.state.selection)
+    }
+
+    pub(super) fn chemistry_summary_for_molecule_object(
+        &self,
+        object_id: &str,
+    ) -> Option<SelectionChemistrySummary> {
+        let entry = self
+            .state
+            .document
+            .editable_fragments()
+            .into_iter()
+            .find(|entry| entry.object.id == object_id)?;
+        let selection = SelectionState {
+            molecule_objects: vec![object_id.to_string()],
+            nodes: entry
+                .fragment
+                .nodes
+                .iter()
+                .map(|node| node.id.clone())
+                .collect(),
+            bonds: entry
+                .fragment
+                .bonds
+                .iter()
+                .map(|bond| bond.id.clone())
+                .collect(),
+            ..SelectionState::default()
+        };
+        self.chemistry_summary_for_selection(&selection)
+    }
+
+    fn chemistry_summary_for_selection(
+        &self,
+        selection: &SelectionState,
+    ) -> Option<SelectionChemistrySummary> {
+        let selected_node_ids = selected_atom_node_ids(selection);
+        let entry = self
+            .state
+            .document
+            .editable_fragments()
+            .into_iter()
+            .find(|entry| {
+                selection.molecule_objects.contains(&entry.object.id)
+                    || entry
+                        .fragment
+                        .nodes
+                        .iter()
+                        .any(|node| selected_node_ids.contains(node.id.as_str()))
+            })?;
         let mut counts = BTreeMap::<String, u32>::new();
         let mut formula_weight = 0.0;
         let mut exact_mass = 0.0;
         let mut atom_count = 0_u32;
         let repeating_atom_ids = add_selected_repeating_units_to_summary(
             &entry.fragment.meta,
-            &self.state.selection,
+            selection,
             &selected_node_ids,
             &mut counts,
             &mut formula_weight,

@@ -200,7 +200,13 @@ fn update_text_object_fields(
     width: f64,
     height: f64,
 ) -> bool {
-    let next_payload = make_text_payload(text, source_runs, display_runs, session, width, height);
+    let mut next_payload =
+        make_text_payload(text, source_runs, display_runs, session, width, height);
+    if let Some(analysis_caption) = object.payload.extra.get("analysisCaption").cloned() {
+        next_payload
+            .extra
+            .insert("analysisCaption".to_string(), analysis_caption);
+    }
     let changed =
         object.transform.translate != [x, y] || object.payload.extra != next_payload.extra;
     if !changed {
@@ -215,7 +221,7 @@ fn update_text_object_fields(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn make_text_object(
+pub(super) fn make_text_object(
     object_id: &str,
     x: f64,
     y: f64,
@@ -240,6 +246,7 @@ fn make_text_object(
             scale: [1.0, 1.0],
         },
         style_ref: None,
+        link_policy: Default::default(),
         meta: Value::Null,
         payload: make_text_payload(text, source_runs, display_runs, session, width, height),
         children: Vec::new(),
@@ -746,7 +753,74 @@ impl Engine {
     fn apply_text_edit_untracked(&mut self, session: TextEditSession) -> bool {
         match &session.target {
             TextEditTarget::TextObject { object_id, .. } => {
-                self.apply_text_object_edit(object_id.as_deref(), &session)
+                let generated_values = object_id.as_deref().and_then(|object_id| {
+                    self.state
+                        .document
+                        .find_scene_object(object_id)
+                        .and_then(|object| object.payload.extra.get("analysisCaption"))
+                        .and_then(|data| data.get("generatedValues"))
+                        .cloned()
+                });
+                let changed = self.apply_text_object_edit(object_id.as_deref(), &session);
+                if changed {
+                    if let (Some(object_id), Some(values)) =
+                        (object_id.as_deref(), generated_values.as_ref())
+                    {
+                        let generated_values_preserved =
+                            ["formula", "formulaWeight", "exactMass"].iter().all(|key| {
+                                values
+                                    .get(key)
+                                    .and_then(Value::as_str)
+                                    .is_some_and(|value| session.text.contains(value))
+                            });
+                        if !generated_values_preserved {
+                            let other_endpoints = self
+                                .state
+                                .document
+                                .links
+                                .iter()
+                                .filter(|relation| {
+                                    relation.kind == "analysis-caption"
+                                        && relation
+                                            .endpoints
+                                            .iter()
+                                            .any(|endpoint| endpoint.entity_id == object_id)
+                                })
+                                .flat_map(|relation| relation.endpoints.iter())
+                                .filter(|endpoint| endpoint.entity_id != object_id)
+                                .map(|endpoint| endpoint.entity_id.clone())
+                                .collect::<Vec<_>>();
+                            self.state.document.links.retain(|relation| {
+                                !(relation.kind == "analysis-caption"
+                                    && relation
+                                        .endpoints
+                                        .iter()
+                                        .any(|endpoint| endpoint.entity_id == object_id))
+                            });
+                            if let Some(object) =
+                                self.state.document.find_scene_object_mut(object_id)
+                            {
+                                object.link_policy = crate::LinkPolicy::Unlinked;
+                            }
+                            for endpoint_id in other_endpoints {
+                                if let Some(object) =
+                                    self.state.document.find_scene_object_mut(&endpoint_id)
+                                {
+                                    if object.link_policy == crate::LinkPolicy::Linked {
+                                        object.link_policy = crate::LinkPolicy::Auto;
+                                    }
+                                }
+                            }
+                            self.pending_dialog = Some(json!({
+                                "kind": "notice",
+                                "title": "ChemSema",
+                                "message": "This change to the text has caused auto-updating to be disabled.",
+                                "buttons": [{"id": "ok", "label": "OK", "primary": true}]
+                            }));
+                        }
+                    }
+                }
+                changed
             }
             TextEditTarget::EndpointLabel { node_id, .. } => {
                 self.apply_endpoint_text_edit(node_id, &session)
@@ -1433,7 +1507,12 @@ impl Engine {
             self.undo_stack.pop();
             return false;
         }
-        clear_bracket_links_to_text(&mut self.state.document.objects, object_id);
+        self.state.document.links.retain(|relation| {
+            !relation
+                .endpoints
+                .iter()
+                .any(|endpoint| endpoint.entity_id == object_id)
+        });
         crate::refresh_repeating_units(&mut self.state.document);
         self.state.selection = crate::SelectionState::default();
         self.clear_interaction();
@@ -1565,37 +1644,6 @@ fn remove_text_object_from_siblings(
     siblings
         .iter_mut()
         .any(|object| remove_text_object_from_siblings(&mut object.children, object_id))
-}
-
-fn clear_bracket_links_to_text(objects: &mut [crate::SceneObject], text_object_id: &str) -> bool {
-    let mut changed = false;
-    for object in objects {
-        if (object.object_type == "bracket"
-            || (object.object_type == "group"
-                && object.meta.get("kind").and_then(Value::as_str) == Some("bracket-group")))
-            && object
-                .meta
-                .get("linkedTextObjectId")
-                .and_then(Value::as_str)
-                == Some(text_object_id)
-        {
-            changed |= remove_meta_field(&mut object.meta, "linkedTextObjectId");
-            changed |= remove_meta_field(&mut object.meta, "bracketLabelTextObjectId");
-        }
-        changed |= clear_bracket_links_to_text(&mut object.children, text_object_id);
-    }
-    changed
-}
-
-fn remove_meta_field(meta_value: &mut Value, key: &str) -> bool {
-    let Some(object) = meta_value.as_object_mut() else {
-        return false;
-    };
-    let changed = object.remove(key).is_some();
-    if object.is_empty() {
-        *meta_value = Value::Null;
-    }
-    changed
 }
 
 pub(super) fn apply_node_label_replacement(

@@ -731,33 +731,29 @@ fn collect_linked_bracket_count_text_ids(
     bracket_id: &str,
     out: &mut Vec<String>,
 ) {
-    for object in document.scene_objects() {
-        if object.object_type != "text" || !object.visible {
-            continue;
-        }
-        if object
-            .meta
-            .get("linkKind")
-            .and_then(serde_json::Value::as_str)
-            != Some("bracket-label")
-        {
-            continue;
-        }
-        if object
-            .meta
-            .get("linkedBracketObjectId")
-            .and_then(serde_json::Value::as_str)
-            != Some(bracket_id)
-        {
-            continue;
-        }
-        if object
-            .meta
-            .get("repeatUnitRole")
-            .and_then(serde_json::Value::as_str)
-            == Some("count")
-        {
-            push_unique_string(out, object.id.clone());
+    for relation in document
+        .links
+        .iter()
+        .filter(|relation| relation.kind == "bracket-repeat-label")
+    {
+        let matches_bracket = relation
+            .endpoints
+            .iter()
+            .any(|endpoint| endpoint.role == "bracket" && endpoint.entity_id == bracket_id);
+        let text_id = relation
+            .endpoints
+            .iter()
+            .find(|endpoint| endpoint.role == "label")
+            .map(|endpoint| endpoint.entity_id.as_str());
+        if matches_bracket {
+            if let Some(text_id) = text_id {
+                if document
+                    .find_scene_object(text_id)
+                    .is_some_and(|object| object.object_type == "text" && object.visible)
+                {
+                    push_unique_string(out, text_id.to_string());
+                }
+            }
         }
     }
 }

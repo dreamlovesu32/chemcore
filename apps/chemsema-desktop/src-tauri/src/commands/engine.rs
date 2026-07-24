@@ -459,6 +459,18 @@ pub(crate) fn desktop_engine_select_component_at_point(
 }
 
 #[tauri::command]
+pub(crate) fn desktop_engine_select_linked_at_point(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    x: f64,
+    y: f64,
+    additive: bool,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.select_linked_at_point(session_id, x, y, additive)
+}
+
+#[tauri::command]
 pub(crate) fn desktop_engine_select_in_rect(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
@@ -836,6 +848,35 @@ pub(crate) fn desktop_engine_link_selection(
 ) -> Result<bool, String> {
     let mut service = state.service.lock().map_err(|error| error.to_string())?;
     service.link_selection(session_id)
+}
+
+#[tauri::command]
+pub(crate) fn desktop_engine_set_link_policy_for_selection(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    policy: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.set_link_policy_for_selection(session_id, &policy)
+}
+
+#[tauri::command]
+pub(crate) fn desktop_engine_paste_selection_analysis_caption(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    digits: u8,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.paste_selection_analysis_caption(session_id, digits)
+}
+
+#[tauri::command]
+pub(crate) fn desktop_engine_take_pending_dialog_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<String, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.take_pending_dialog_json(session_id)
 }
 
 #[tauri::command]

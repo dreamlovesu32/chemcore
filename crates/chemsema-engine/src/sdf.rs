@@ -97,6 +97,7 @@ pub fn parse_sdf_document(sdf: &str, title: Option<&str>) -> Result<ChemSemaDocu
                 scale: [1.0, 1.0],
             },
             style_ref: Some("style_molecule_default".to_string()),
+            link_policy: Default::default(),
             meta: json!({
                 "source": "sdf",
                 "recordIndex": index + 1,
@@ -143,6 +144,7 @@ pub fn parse_sdf_document(sdf: &str, title: Option<&str>) -> Result<ChemSemaDocu
         style: DocumentStyleInfo::default(),
         styles: default_sdf_styles(),
         objects,
+        links: Vec::new(),
         resources,
         interchange: BTreeMap::new(),
     })

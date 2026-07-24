@@ -1703,6 +1703,23 @@ body.native-frame-shell .document-tab-close svg {
   font-variant-numeric: tabular-nums;
 }
 
+.selection-analysis-paste {
+  min-width: 44px;
+  height: 20px;
+  padding: 0 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: default;
+}
+
+.selection-analysis-paste:hover {
+  border-color: var(--accent);
+  background: var(--surface-raised);
+}
+
 .selection-mass-precision {
   display: inline-flex;
   align-items: stretch;

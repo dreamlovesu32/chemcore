@@ -1560,7 +1560,9 @@ export function createEditorPointerController(options) {
       return;
     }
     const point = options.svgPointFromEvent(event);
-    const changed = !!(await options.state().editorEngine.selectComponentAtPoint?.(point.x, point.y, event.shiftKey));
+    const changed = event.altKey
+      ? !!(await options.state().editorEngine.selectLinkedAtPoint?.(point.x, point.y, event.shiftKey))
+      : !!(await options.state().editorEngine.selectComponentAtPoint?.(point.x, point.y, event.shiftKey));
     if (!changed) {
       return;
     }

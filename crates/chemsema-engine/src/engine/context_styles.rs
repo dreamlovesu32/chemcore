@@ -145,6 +145,15 @@ enum AtomPropertyUpdate {
     ShowNonTerminalCarbonLabel(Option<bool>),
 }
 
+fn selected_atom_property_node_ids(selection: &crate::SelectionState) -> BTreeSet<String> {
+    selection
+        .nodes
+        .iter()
+        .chain(selection.label_nodes.iter())
+        .cloned()
+        .collect()
+}
+
 fn sync_linked_atom_annotation_objects(
     objects: &mut [crate::SceneObject],
     selected: &BTreeSet<String>,
@@ -797,14 +806,7 @@ impl Engine {
         property: &str,
         value: Option<&str>,
     ) -> bool {
-        let selected: BTreeSet<String> = self
-            .state
-            .selection
-            .nodes
-            .iter()
-            .chain(self.state.selection.label_nodes.iter())
-            .cloned()
-            .collect();
+        let selected = selected_atom_property_node_ids(&self.state.selection);
         if selected.is_empty() {
             return false;
         }
@@ -1147,6 +1149,15 @@ impl Engine {
             );
         }
         let _ = entry;
+        self.finish_atom_property_update(selected, update, changed)
+    }
+
+    fn finish_atom_property_update(
+        &mut self,
+        selected: BTreeSet<String>,
+        update: AtomPropertyUpdate,
+        mut changed: bool,
+    ) -> bool {
         changed |= sync_linked_atom_annotation_objects(
             &mut self.state.document.objects,
             &selected,

@@ -34,6 +34,7 @@ impl Engine {
             redo_stack: Vec::new(),
             command_context: Vec::new(),
             command_before_snapshot: None,
+            pending_dialog: None,
         }
     }
 
@@ -99,6 +100,7 @@ impl Engine {
         self.command_context.clear();
         self.revision = 0;
         self.last_command_result = None;
+        self.pending_dialog = None;
         self.next_id = self.infer_next_id();
         Ok(())
     }
@@ -147,6 +149,7 @@ impl Engine {
         self.redo_stack.clear();
         self.command_context.clear();
         self.revision = 0;
+        self.pending_dialog = None;
         self.last_command_result = None;
         self.next_id = self.infer_next_id();
         Ok(())

@@ -1393,6 +1393,7 @@ editorStateRuntimeHost = createEditorStateRuntimeHost({
   engineHost,
   syncTextSymbolPaletteFromEngine,
   commandEngine,
+  transientNotificationHost,
   defaultEditorViewBox,
   clearZoomHandoffs,
   syncEngineToolState,
@@ -1931,6 +1932,7 @@ textEditCommitHost = createTextEditCommitHost({
   normalizeEditorSourceRunsModel,
   applyTextInlineStyle: (...args) => applyTextInlineStyle(...args),
   isEditingRustDocument,
+  showKernelNoticeDialog: (...args) => appWindowLifecycleHost.showKernelNoticeDialog(...args),
 });
 function finishActiveTextEditor(...args) { return textEditCommitHost.finishActiveTextEditor(...args); }
 function buildCommittedTextSession(...args) { return textEditCommitHost.buildCommittedTextSession(...args); }

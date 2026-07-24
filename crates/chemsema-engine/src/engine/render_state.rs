@@ -2,6 +2,7 @@ use super::*;
 
 impl Engine {
     pub(super) fn push_interaction_render_primitives(&self, out: &mut Vec<RenderPrimitive>) {
+        self.push_link_focus_primitives(out);
         if let Some(hover) = &self.state.overlay.hover_text_box {
             out.push(RenderPrimitive::Rect {
                 role: RenderRole::HoverTextBox,
@@ -175,6 +176,95 @@ impl Engine {
         }
     }
 
+    fn push_link_focus_primitives(&self, out: &mut Vec<RenderPrimitive>) {
+        let focused_id = self
+            .state
+            .overlay
+            .hover_text_box
+            .as_ref()
+            .and_then(|hover| hover.object_id.as_deref().or(hover.node_id.as_deref()))
+            .or_else(|| {
+                self.state
+                    .overlay
+                    .hover_arrow
+                    .as_ref()
+                    .map(|hover| hover.object_id.as_str())
+            })
+            .or_else(|| {
+                self.state
+                    .overlay
+                    .hover_shape
+                    .as_ref()
+                    .map(|hover| hover.object_id.as_str())
+            })
+            .or_else(|| {
+                self.state
+                    .overlay
+                    .hover_endpoint
+                    .as_ref()
+                    .map(|hover| hover.node_id.as_str())
+            });
+        let Some(focused_id) = focused_id else {
+            return;
+        };
+        let Some(source_bounds) = link_entity_bounds(self, focused_id) else {
+            return;
+        };
+        let source_center = Point::new(
+            (source_bounds[0] + source_bounds[2]) * 0.5,
+            (source_bounds[1] + source_bounds[3]) * 0.5,
+        );
+        let mut rendered = std::collections::BTreeSet::new();
+        for endpoint in self
+            .state
+            .document
+            .links
+            .iter()
+            .filter(|relation| {
+                relation
+                    .endpoints
+                    .iter()
+                    .any(|endpoint| endpoint.entity_id == focused_id)
+            })
+            .flat_map(|relation| relation.endpoints.iter())
+            .filter(|endpoint| endpoint.entity_id != focused_id)
+        {
+            if !rendered.insert(endpoint.entity_id.as_str()) {
+                continue;
+            }
+            let Some(bounds) = link_entity_bounds(self, &endpoint.entity_id) else {
+                continue;
+            };
+            let center = Point::new((bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5);
+            out.push(RenderPrimitive::Line {
+                role: RenderRole::LinkFocusConnector,
+                object_id: Some(endpoint.entity_id.clone()),
+                bond_id: None,
+                from: source_center,
+                to: center,
+                stroke: "rgba(0,153,170,0.7)".to_string(),
+                stroke_width: HOVER_STROKE_WIDTH,
+                dash_array: vec![3.0, 2.0],
+            });
+            out.push(RenderPrimitive::Rect {
+                role: RenderRole::LinkFocusBox,
+                object_id: Some(endpoint.entity_id.clone()),
+                node_id: None,
+                x: bounds[0],
+                y: bounds[1],
+                width: (bounds[2] - bounds[0]).max(0.0),
+                height: (bounds[3] - bounds[1]).max(0.0),
+                fill: Some("rgba(0,153,170,0.06)".to_string()),
+                stroke: Some("rgba(0,153,170,0.9)".to_string()),
+                stroke_width: HOVER_STROKE_WIDTH,
+                rx: None,
+                ry: None,
+                dash_array: vec![3.0, 2.0],
+                fill_gradient: None,
+            });
+        }
+    }
+
     pub fn interaction_render_list(&self) -> Vec<RenderPrimitive> {
         let mut out = if let Some(preview_document) = self.preview_overlay_document() {
             let mut primitives = render_document(&preview_document);
@@ -282,4 +372,27 @@ impl Engine {
             ..Default::default()
         }
     }
+}
+
+fn link_entity_bounds(engine: &Engine, entity_id: &str) -> Option<[f64; 4]> {
+    if let Some(object) = engine.state.document.find_scene_object(entity_id) {
+        return select::object_selection_bounds_for_render(&engine.state.document, object);
+    }
+    for entry in engine.state.document.editable_fragments() {
+        if let Some(node) = entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == entity_id)
+        {
+            let pad = crate::px_to_pt(5.0);
+            return Some([
+                node.position[0] + entry.object.transform.translate[0] - pad,
+                node.position[1] + entry.object.transform.translate[1] - pad,
+                node.position[0] + entry.object.transform.translate[0] + pad,
+                node.position[1] + entry.object.transform.translate[1] + pad,
+            ]);
+        }
+    }
+    None
 }

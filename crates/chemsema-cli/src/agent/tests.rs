@@ -408,6 +408,7 @@ fn document_diff_reports_creation_deletion_and_unchanged_documents() {
         z_index: 20,
         transform: chemsema_engine::Transform::identity(),
         style_ref: None,
+        link_policy: Default::default(),
         meta: Value::Null,
         payload: chemsema_engine::ObjectPayload {
             resource_ref: None,

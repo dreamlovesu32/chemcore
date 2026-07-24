@@ -260,6 +260,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
                     scale: [1.0, 1.0],
                 },
                 style_ref: Some("style_molecule_default".to_string()),
+                link_policy: Default::default(),
                 meta: component_meta,
                 payload: ObjectPayload {
                     resource_ref: Some(resource_id),
@@ -401,6 +402,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         },
         styles,
         objects,
+        links: Vec::new(),
         resources,
         interchange: BTreeMap::from([(
             "cdxml".to_string(),
