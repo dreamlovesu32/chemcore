@@ -12,6 +12,34 @@ use std::collections::{BTreeMap, BTreeSet};
 pub const CHEMICAL_GRAPH_V2_SCHEMA: &str = "chemsema-nomenclature/chemical-graph/2";
 pub const NORMALIZATION_VERSION: &str = "chemsema-chemical-graph-normalization/1";
 pub const NOMENCLATURE_REQUEST_V1_SCHEMA: &str = "chemsema.nomenclature-request.v1";
+pub const MAPPING_REPORT_V1_SCHEMA: &str = "chemsema.chemical-graph-mapping-report.v1";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum MoleculeFormatV1 {
+    ChemicalGraphV2,
+    Cdxml,
+    Cdx,
+    Smiles,
+    SdfV2000,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GraphMappingReportV1 {
+    pub schema: String,
+    pub target: MoleculeFormatV1,
+    pub lossless: bool,
+    pub diagnostics: Vec<GraphMappingDiagnosticV1>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GraphMappingDiagnosticV1 {
+    pub code: String,
+    pub path: String,
+    pub message: String,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -76,6 +104,12 @@ pub enum NomenclatureNameKindV1 {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ChemicalGraphV2 {
     pub schema: String,
+    /// Informational declaration of the fixed V2 normalization contract.
+    ///
+    /// The original V2 wire contract predates this object. Its omission is
+    /// therefore equivalent to the one supported V2 value; it is not a
+    /// per-document switch between identity models.
+    #[serde(default)]
     pub semantics: GraphSemanticsV2,
     pub atoms: Vec<AtomV2>,
     pub bonds: Vec<BondV2>,
@@ -325,12 +359,50 @@ pub enum ExtendedStereoDescriptorV2 {
     S,
     LowerR,
     LowerS,
+    Cis,
+    Trans,
+    LowerC,
+    LowerT,
+    Endo,
+    Exo,
+    Syn,
+    Anti,
+    SeqCis,
+    SeqTrans,
+    PolyhedralA,
+    PolyhedralC,
     Ra,
     Sa,
     Rp,
     Sp,
     M,
     P,
+    Cisoid,
+    Transoid,
+    AxR,
+    AxS,
+    AxM,
+    AxP,
+    PlR,
+    PlS,
+    SpiroR,
+    SpiroS,
+    PhaneR,
+    PhaneS,
+    FullereneR,
+    FullereneS,
+    FullereneA,
+    FullereneC,
+    AssemblyR,
+    AssemblyS,
+    AssemblyE,
+    AssemblyZ,
+    TrigonalPyramidal,
+    TShaped,
+    Seesaw,
+    TrigonalBipyramidal,
+    SquarePyramidal,
+    Octahedral,
     Coordination {
         geometry: CoordinationGeometryV2,
         permutation_index: u16,
@@ -377,12 +449,50 @@ impl ExtendedStereoDescriptorV2 {
             Self::S => "S".to_string(),
             Self::LowerR => "r".to_string(),
             Self::LowerS => "s".to_string(),
+            Self::Cis => "cis".to_string(),
+            Self::Trans => "trans".to_string(),
+            Self::LowerC => "c".to_string(),
+            Self::LowerT => "t".to_string(),
+            Self::Endo => "endo".to_string(),
+            Self::Exo => "exo".to_string(),
+            Self::Syn => "syn".to_string(),
+            Self::Anti => "anti".to_string(),
+            Self::SeqCis => "seqCis".to_string(),
+            Self::SeqTrans => "seqTrans".to_string(),
+            Self::PolyhedralA => "A".to_string(),
+            Self::PolyhedralC => "C".to_string(),
             Self::Ra => "Ra".to_string(),
             Self::Sa => "Sa".to_string(),
             Self::Rp => "Rp".to_string(),
             Self::Sp => "Sp".to_string(),
             Self::M => "M".to_string(),
             Self::P => "P".to_string(),
+            Self::Cisoid => "cisoid".to_string(),
+            Self::Transoid => "transoid".to_string(),
+            Self::AxR => "axR".to_string(),
+            Self::AxS => "axS".to_string(),
+            Self::AxM => "axM".to_string(),
+            Self::AxP => "axP".to_string(),
+            Self::PlR => "plR".to_string(),
+            Self::PlS => "plS".to_string(),
+            Self::SpiroR => "spiroR".to_string(),
+            Self::SpiroS => "spiroS".to_string(),
+            Self::PhaneR => "phaneR".to_string(),
+            Self::PhaneS => "phaneS".to_string(),
+            Self::FullereneR => "fullereneR".to_string(),
+            Self::FullereneS => "fullereneS".to_string(),
+            Self::FullereneA => "fullereneA".to_string(),
+            Self::FullereneC => "fullereneC".to_string(),
+            Self::AssemblyR => "assemblyR".to_string(),
+            Self::AssemblyS => "assemblyS".to_string(),
+            Self::AssemblyE => "assemblyE".to_string(),
+            Self::AssemblyZ => "assemblyZ".to_string(),
+            Self::TrigonalPyramidal => "tp".to_string(),
+            Self::TShaped => "tshape".to_string(),
+            Self::Seesaw => "seesaw".to_string(),
+            Self::TrigonalBipyramidal => "tbpy".to_string(),
+            Self::SquarePyramidal => "spy".to_string(),
+            Self::Octahedral => "oc".to_string(),
             Self::Coordination {
                 geometry,
                 permutation_index,
@@ -413,12 +523,50 @@ impl ExtendedStereoDescriptorV2 {
             "S" => return Ok(Self::S),
             "r" => return Ok(Self::LowerR),
             "s" => return Ok(Self::LowerS),
+            "cis" => return Ok(Self::Cis),
+            "trans" => return Ok(Self::Trans),
+            "c" => return Ok(Self::LowerC),
+            "t" => return Ok(Self::LowerT),
+            "endo" => return Ok(Self::Endo),
+            "exo" => return Ok(Self::Exo),
+            "syn" => return Ok(Self::Syn),
+            "anti" => return Ok(Self::Anti),
+            "seqCis" => return Ok(Self::SeqCis),
+            "seqTrans" => return Ok(Self::SeqTrans),
+            "A" => return Ok(Self::PolyhedralA),
+            "C" => return Ok(Self::PolyhedralC),
             "Ra" => return Ok(Self::Ra),
             "Sa" => return Ok(Self::Sa),
             "Rp" => return Ok(Self::Rp),
             "Sp" => return Ok(Self::Sp),
             "M" => return Ok(Self::M),
             "P" => return Ok(Self::P),
+            "cisoid" => return Ok(Self::Cisoid),
+            "transoid" => return Ok(Self::Transoid),
+            "axR" => return Ok(Self::AxR),
+            "axS" => return Ok(Self::AxS),
+            "axM" => return Ok(Self::AxM),
+            "axP" => return Ok(Self::AxP),
+            "plR" => return Ok(Self::PlR),
+            "plS" => return Ok(Self::PlS),
+            "spiroR" => return Ok(Self::SpiroR),
+            "spiroS" => return Ok(Self::SpiroS),
+            "phaneR" => return Ok(Self::PhaneR),
+            "phaneS" => return Ok(Self::PhaneS),
+            "fullereneR" => return Ok(Self::FullereneR),
+            "fullereneS" => return Ok(Self::FullereneS),
+            "fullereneA" => return Ok(Self::FullereneA),
+            "fullereneC" => return Ok(Self::FullereneC),
+            "assemblyR" => return Ok(Self::AssemblyR),
+            "assemblyS" => return Ok(Self::AssemblyS),
+            "assemblyE" => return Ok(Self::AssemblyE),
+            "assemblyZ" => return Ok(Self::AssemblyZ),
+            "tp" => return Ok(Self::TrigonalPyramidal),
+            "tshape" => return Ok(Self::TShaped),
+            "seesaw" => return Ok(Self::Seesaw),
+            "tbpy" => return Ok(Self::TrigonalBipyramidal),
+            "spy" => return Ok(Self::SquarePyramidal),
+            "oc" => return Ok(Self::Octahedral),
             _ => {}
         }
         if let Some((prefix, locants)) = value.split_once('-') {
@@ -562,8 +710,6 @@ pub struct MultiCenterInteractionV2 {
     pub id: String,
     pub kind: InteractionKindV2,
     pub centers: Vec<InteractionCenterV2>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub electron_count: Option<u16>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
@@ -589,6 +735,75 @@ pub enum InteractionRoleV2 {
 }
 
 impl ChemicalGraphV2 {
+    pub fn assess_mapping_to(
+        &self,
+        target: MoleculeFormatV1,
+    ) -> Result<GraphMappingReportV1, String> {
+        self.validate()?;
+        let mut diagnostics = Vec::new();
+        let mut reject = |code: &str, path: String, message: String| {
+            diagnostics.push(GraphMappingDiagnosticV1 {
+                code: code.to_string(),
+                path,
+                message,
+            });
+        };
+        match target {
+            MoleculeFormatV1::ChemicalGraphV2 => {}
+            MoleculeFormatV1::Cdxml | MoleculeFormatV1::Cdx => {
+                for (index, interaction) in self.interactions.iter().enumerate() {
+                    let (code, message) = match interaction.kind {
+                        InteractionKindV2::Coordination => (
+                            "requires-document-multicenter-encoding",
+                            "A graph-only CDX/CDXML mapping cannot preserve this coordination interaction without constructing explicit MultiAttachment proxy geometry.",
+                        ),
+                        InteractionKindV2::DelocalizedBond => (
+                            "unsupported-delocalized-interaction",
+                            "CDX/CDXML MultiAttachment expresses directed coordination, not a standalone shared delocalized interaction.",
+                        ),
+                    };
+                    reject(code, format!("/interactions/{index}"), message.to_string());
+                }
+                for (index, element) in self.stereo.iter().enumerate() {
+                    if matches!(
+                        element,
+                        StereoElementV2::Extended { .. }
+                            | StereoElementV2::Conformation { .. }
+                            | StereoElementV2::Unspecified { .. }
+                    ) {
+                        reject(
+                            "unsupported-stereo-class",
+                            format!("/stereo/{index}"),
+                            "The current CDX/CDXML adapter has no verified native mapping for this stereo class.".to_string(),
+                        );
+                    }
+                }
+            }
+            MoleculeFormatV1::Smiles => {
+                assess_linear_notation_limits(self, &mut reject, "SMILES");
+            }
+            MoleculeFormatV1::SdfV2000 => {
+                assess_linear_notation_limits(self, &mut reject, "SDF V2000");
+                for (index, bond) in self.bonds.iter().enumerate() {
+                    if bond.kind == BondKindV2::Dative {
+                        reject(
+                            "unsupported-dative-bond",
+                            format!("/bonds/{index}"),
+                            "The ChemSema SDF V2000 adapter cannot preserve dative direction."
+                                .to_string(),
+                        );
+                    }
+                }
+            }
+        }
+        Ok(GraphMappingReportV1 {
+            schema: MAPPING_REPORT_V1_SCHEMA.to_string(),
+            target,
+            lossless: diagnostics.is_empty(),
+            diagnostics,
+        })
+    }
+
     pub fn validate(&self) -> Result<(), String> {
         if self.schema != CHEMICAL_GRAPH_V2_SCHEMA {
             return Err(format!("unsupported graph schema '{}'", self.schema));
@@ -696,6 +911,7 @@ impl ChemicalGraphV2 {
             .iter()
             .map(|bond| (bond.id.as_str(), bond))
             .collect::<BTreeMap<_, _>>();
+        let mut enhanced_members = BTreeSet::new();
         for element in &self.stereo {
             match element {
                 StereoElementV2::Tetrahedral {
@@ -756,6 +972,9 @@ impl ChemicalGraphV2 {
                     if members.is_empty()
                         || unique.len() != members.len()
                         || unique.iter().any(|member| !non_group_ids.contains(member))
+                        || unique
+                            .iter()
+                            .any(|member| !enhanced_members.insert(*member))
                     {
                         return Err(format!("enhanced stereo group '{id}' has invalid members"));
                     }
@@ -844,12 +1063,6 @@ impl ChemicalGraphV2 {
                     {
                         return Err(format!(
                             "delocalized interaction '{}' requires at least three shared atoms",
-                            interaction.id
-                        ));
-                    }
-                    if interaction.electron_count == Some(0) {
-                        return Err(format!(
-                            "delocalized interaction '{}' has zero electrons",
                             interaction.id
                         ));
                     }
@@ -1040,6 +1253,41 @@ impl ChemicalGraphV2 {
             self,
             other,
         ))
+    }
+}
+
+fn assess_linear_notation_limits(
+    graph: &ChemicalGraphV2,
+    reject: &mut impl FnMut(&str, String, String),
+    format: &str,
+) {
+    for index in 0..graph.interactions.len() {
+        reject(
+            "unsupported-multicenter-interaction",
+            format!("/interactions/{index}"),
+            format!("{format} cannot preserve this native multicenter interaction"),
+        );
+    }
+    for (index, element) in graph.stereo.iter().enumerate() {
+        if !matches!(
+            element,
+            StereoElementV2::Tetrahedral { .. } | StereoElementV2::DoubleBond { .. }
+        ) {
+            reject(
+                "unsupported-stereo-class",
+                format!("/stereo/{index}"),
+                format!("{format} cannot preserve this native stereo element"),
+            );
+        }
+    }
+    for (index, component) in graph.components.iter().enumerate() {
+        if component.count != 1 {
+            reject(
+                "unsupported-component-count",
+                format!("/components/{index}/count"),
+                format!("{format} cannot preserve an integer component multiplier"),
+            );
+        }
     }
 }
 
@@ -1388,10 +1636,7 @@ where
                 })
                 .collect::<Vec<_>>();
             centers.sort();
-            format!(
-                "{:?}:{:?}:{centers:?}",
-                interaction.kind, interaction.electron_count
-            )
+            format!("{:?}:{centers:?}", interaction.kind)
         })
         .collect::<Vec<_>>();
     result.sort();
@@ -1420,28 +1665,80 @@ fn validate_extended_descriptor(
         (class, descriptor),
         (
             ExtendedStereoClassV2::RelativeConfiguration,
-            ExtendedStereoDescriptorV2::R | ExtendedStereoDescriptorV2::S
+            ExtendedStereoDescriptorV2::R
+                | ExtendedStereoDescriptorV2::S
+                | ExtendedStereoDescriptorV2::Cis
+                | ExtendedStereoDescriptorV2::Trans
+                | ExtendedStereoDescriptorV2::LowerC
+                | ExtendedStereoDescriptorV2::LowerT
+                | ExtendedStereoDescriptorV2::Endo
+                | ExtendedStereoDescriptorV2::Exo
+                | ExtendedStereoDescriptorV2::Syn
+                | ExtendedStereoDescriptorV2::Anti
+                | ExtendedStereoDescriptorV2::SeqCis
+                | ExtendedStereoDescriptorV2::SeqTrans
         ) | (
             ExtendedStereoClassV2::PseudoasymmetricCenter,
             ExtendedStereoDescriptorV2::LowerR | ExtendedStereoDescriptorV2::LowerS
         ) | (
             ExtendedStereoClassV2::Axial,
-            ExtendedStereoDescriptorV2::Ra | ExtendedStereoDescriptorV2::Sa
+            ExtendedStereoDescriptorV2::Ra
+                | ExtendedStereoDescriptorV2::Sa
+                | ExtendedStereoDescriptorV2::AxR
+                | ExtendedStereoDescriptorV2::AxS
+                | ExtendedStereoDescriptorV2::AxM
+                | ExtendedStereoDescriptorV2::AxP
         ) | (
-            ExtendedStereoClassV2::Planar | ExtendedStereoClassV2::Phane,
-            ExtendedStereoDescriptorV2::Rp | ExtendedStereoDescriptorV2::Sp
+            ExtendedStereoClassV2::Planar,
+            ExtendedStereoDescriptorV2::Rp
+                | ExtendedStereoDescriptorV2::Sp
+                | ExtendedStereoDescriptorV2::PlR
+                | ExtendedStereoDescriptorV2::PlS
+                | ExtendedStereoDescriptorV2::Cisoid
+                | ExtendedStereoDescriptorV2::Transoid
+        ) | (
+            ExtendedStereoClassV2::Phane,
+            ExtendedStereoDescriptorV2::Rp
+                | ExtendedStereoDescriptorV2::Sp
+                | ExtendedStereoDescriptorV2::PhaneR
+                | ExtendedStereoDescriptorV2::PhaneS
         ) | (
             ExtendedStereoClassV2::Helical,
             ExtendedStereoDescriptorV2::M | ExtendedStereoDescriptorV2::P
         ) | (
             ExtendedStereoClassV2::Spiro,
-            ExtendedStereoDescriptorV2::R | ExtendedStereoDescriptorV2::S
+            ExtendedStereoDescriptorV2::R
+                | ExtendedStereoDescriptorV2::S
+                | ExtendedStereoDescriptorV2::SpiroR
+                | ExtendedStereoDescriptorV2::SpiroS
         ) | (
-            ExtendedStereoClassV2::NontetrahedralCenter | ExtendedStereoClassV2::PolyhedralCenter,
-            ExtendedStereoDescriptorV2::Coordination { .. }
+            ExtendedStereoClassV2::NontetrahedralCenter,
+            ExtendedStereoDescriptorV2::TrigonalPyramidal
+                | ExtendedStereoDescriptorV2::TShaped
+                | ExtendedStereoDescriptorV2::Seesaw
+                | ExtendedStereoDescriptorV2::TrigonalBipyramidal
+                | ExtendedStereoDescriptorV2::SquarePyramidal
+                | ExtendedStereoDescriptorV2::Octahedral
+                | ExtendedStereoDescriptorV2::Coordination { .. }
         ) | (
-            ExtendedStereoClassV2::Fullerene | ExtendedStereoClassV2::RingAssembly,
-            ExtendedStereoDescriptorV2::HelicalLocants { .. }
+            ExtendedStereoClassV2::PolyhedralCenter,
+            ExtendedStereoDescriptorV2::PolyhedralA
+                | ExtendedStereoDescriptorV2::PolyhedralC
+                | ExtendedStereoDescriptorV2::Coordination { .. }
+        ) | (
+            ExtendedStereoClassV2::Fullerene,
+            ExtendedStereoDescriptorV2::FullereneR
+                | ExtendedStereoDescriptorV2::FullereneS
+                | ExtendedStereoDescriptorV2::FullereneA
+                | ExtendedStereoDescriptorV2::FullereneC
+                | ExtendedStereoDescriptorV2::HelicalLocants { .. }
+        ) | (
+            ExtendedStereoClassV2::RingAssembly,
+            ExtendedStereoDescriptorV2::AssemblyR
+                | ExtendedStereoDescriptorV2::AssemblyS
+                | ExtendedStereoDescriptorV2::AssemblyE
+                | ExtendedStereoDescriptorV2::AssemblyZ
+                | ExtendedStereoDescriptorV2::HelicalLocants { .. }
         )
     );
     if !compatible {
@@ -1604,9 +1901,31 @@ mod tests {
                     atoms: vec!["c1".to_string()],
                 },
             ],
-            electron_count: Some(2),
         });
         assert!(graph.validate().is_err());
+    }
+
+    #[test]
+    fn accepts_the_original_v2_wire_shape_without_semantics() {
+        let value = serde_json::json!({
+            "schema": CHEMICAL_GRAPH_V2_SCHEMA,
+            "atoms": [{
+                "id": "c1",
+                "atomicNumber": 6,
+                "isotope": null,
+                "formalCharge": 0,
+                "radical": "none",
+                "implicitHydrogens": 4
+            }],
+            "bonds": [],
+            "stereo": [],
+            "components": [{"id": "component-1", "atoms": ["c1"], "count": 1}],
+            "assumptions": [],
+            "interactions": []
+        });
+        let graph: ChemicalGraphV2 = serde_json::from_value(value).unwrap();
+        assert_eq!(graph.semantics, GraphSemanticsV2::default());
+        graph.validate().unwrap();
     }
 
     #[test]
@@ -1644,6 +1963,76 @@ mod tests {
         assert!(left.is_isomorphic_to(&right).unwrap());
         right.atoms[0].implicit_hydrogens = 3;
         assert!(!left.is_isomorphic_to(&right).unwrap());
+    }
+
+    #[test]
+    fn mapping_report_never_hides_identity_loss() {
+        let mut graph = methane();
+        graph.atoms.extend([
+            AtomV2 {
+                id: "c2".to_string(),
+                atomic_number: 6,
+                isotope: None,
+                formal_charge: 0,
+                radical: RadicalStateV2::None,
+                implicit_hydrogens: 0,
+            },
+            AtomV2 {
+                id: "c3".to_string(),
+                atomic_number: 6,
+                isotope: None,
+                formal_charge: 0,
+                radical: RadicalStateV2::None,
+                implicit_hydrogens: 0,
+            },
+        ]);
+        graph.components[0].atoms.extend(["c2".into(), "c3".into()]);
+        graph.interactions.push(MultiCenterInteractionV2 {
+            id: "delocalized-1".to_string(),
+            kind: InteractionKindV2::DelocalizedBond,
+            centers: vec![
+                InteractionCenterV2 {
+                    role: InteractionRoleV2::Shared,
+                    atoms: vec!["c1".to_string()],
+                },
+                InteractionCenterV2 {
+                    role: InteractionRoleV2::Shared,
+                    atoms: vec!["c2".to_string(), "c3".to_string()],
+                },
+            ],
+        });
+        graph.validate().unwrap();
+        assert!(
+            graph
+                .assess_mapping_to(MoleculeFormatV1::ChemicalGraphV2)
+                .unwrap()
+                .lossless
+        );
+        for target in [
+            MoleculeFormatV1::Cdxml,
+            MoleculeFormatV1::Cdx,
+            MoleculeFormatV1::Smiles,
+            MoleculeFormatV1::SdfV2000,
+        ] {
+            let report = graph.assess_mapping_to(target).unwrap();
+            assert!(!report.lossless);
+            assert!(report.diagnostics.iter().all(|item| {
+                !item.code.is_empty() && item.path.starts_with('/') && !item.message.is_empty()
+            }));
+        }
+
+        graph.interactions[0].kind = InteractionKindV2::Coordination;
+        graph.interactions[0].centers[0].role = InteractionRoleV2::Donor;
+        graph.interactions[0].centers[1].role = InteractionRoleV2::Acceptor;
+        graph.validate().unwrap();
+        for target in [MoleculeFormatV1::Cdxml, MoleculeFormatV1::Cdx] {
+            let report = graph.assess_mapping_to(target).unwrap();
+            assert!(!report.lossless);
+            assert!(report
+                .diagnostics
+                .iter()
+                .any(|diagnostic| { diagnostic.code == "requires-document-multicenter-encoding" }));
+        }
     }
 
     #[test]
@@ -1704,6 +2093,60 @@ mod tests {
         assert!(
             validate_extended_descriptor("x1", ExtendedStereoClassV2::Axial, &descriptor).is_err()
         );
+    }
+
+    #[test]
+    fn accepts_all_descriptors_supported_by_the_existing_nomenclature_v2_contract() {
+        let cases = [
+            ("r", ExtendedStereoClassV2::PseudoasymmetricCenter),
+            ("s", ExtendedStereoClassV2::PseudoasymmetricCenter),
+            ("cis", ExtendedStereoClassV2::RelativeConfiguration),
+            ("trans", ExtendedStereoClassV2::RelativeConfiguration),
+            ("c", ExtendedStereoClassV2::RelativeConfiguration),
+            ("t", ExtendedStereoClassV2::RelativeConfiguration),
+            ("endo", ExtendedStereoClassV2::RelativeConfiguration),
+            ("exo", ExtendedStereoClassV2::RelativeConfiguration),
+            ("syn", ExtendedStereoClassV2::RelativeConfiguration),
+            ("anti", ExtendedStereoClassV2::RelativeConfiguration),
+            ("seqCis", ExtendedStereoClassV2::RelativeConfiguration),
+            ("seqTrans", ExtendedStereoClassV2::RelativeConfiguration),
+            ("A", ExtendedStereoClassV2::PolyhedralCenter),
+            ("C", ExtendedStereoClassV2::PolyhedralCenter),
+            ("M", ExtendedStereoClassV2::Helical),
+            ("P", ExtendedStereoClassV2::Helical),
+            ("cisoid", ExtendedStereoClassV2::Planar),
+            ("transoid", ExtendedStereoClassV2::Planar),
+            ("axR", ExtendedStereoClassV2::Axial),
+            ("axS", ExtendedStereoClassV2::Axial),
+            ("axM", ExtendedStereoClassV2::Axial),
+            ("axP", ExtendedStereoClassV2::Axial),
+            ("plR", ExtendedStereoClassV2::Planar),
+            ("plS", ExtendedStereoClassV2::Planar),
+            ("spiroR", ExtendedStereoClassV2::Spiro),
+            ("spiroS", ExtendedStereoClassV2::Spiro),
+            ("phaneR", ExtendedStereoClassV2::Phane),
+            ("phaneS", ExtendedStereoClassV2::Phane),
+            ("fullereneR", ExtendedStereoClassV2::Fullerene),
+            ("fullereneS", ExtendedStereoClassV2::Fullerene),
+            ("fullereneA", ExtendedStereoClassV2::Fullerene),
+            ("fullereneC", ExtendedStereoClassV2::Fullerene),
+            ("assemblyR", ExtendedStereoClassV2::RingAssembly),
+            ("assemblyS", ExtendedStereoClassV2::RingAssembly),
+            ("assemblyE", ExtendedStereoClassV2::RingAssembly),
+            ("assemblyZ", ExtendedStereoClassV2::RingAssembly),
+            ("tp", ExtendedStereoClassV2::NontetrahedralCenter),
+            ("tshape", ExtendedStereoClassV2::NontetrahedralCenter),
+            ("seesaw", ExtendedStereoClassV2::NontetrahedralCenter),
+            ("tbpy", ExtendedStereoClassV2::NontetrahedralCenter),
+            ("spy", ExtendedStereoClassV2::NontetrahedralCenter),
+            ("oc", ExtendedStereoClassV2::NontetrahedralCenter),
+        ];
+        for (wire, class) in cases {
+            let descriptor: ExtendedStereoDescriptorV2 =
+                serde_json::from_value(serde_json::json!(wire)).unwrap();
+            assert_eq!(descriptor.wire_value(), wire);
+            validate_extended_descriptor(wire, class, &descriptor).unwrap();
+        }
     }
 
     #[test]

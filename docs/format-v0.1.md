@@ -554,6 +554,30 @@ Readers of older CCJS documents must default missing `outline` and `shadow` to
 `molecule_fragment2d` resources store nodes and bonds in local coordinates.
 Fields should describe chemistry and rendering intent directly.
 
+In addition to `nodes` and `bonds`, a fragment may contain:
+
+- `stereo`: source-independent `StereoElementV2` records for enhanced,
+  nontraditional, conformational, or otherwise identity-bearing
+  stereochemistry that cannot be reconstructed from bond glyphs alone;
+- `interactions`: source-independent `MultiCenterInteractionV2` records for
+  coordination and delocalized multicenter relationships.
+
+Both fields default to empty for older CCJS documents. Their atom and bond
+references use IDs local to the fragment. Copy, paste, component splitting, and
+deletion must remap or prune all references atomically. CDXML
+`EnhancedStereoType`/`EnhancedStereoGroupNum` map to `stereo`;
+`NodeType="MultiAttachment"` plus one or more proxy bonds to distinct acceptor
+atoms maps to one donor center and one or more acceptor centers in
+`interactions`. Existing proxy geometry is preserved for imported-document
+round trips. Native graph-only coordination data is not advertised as a
+lossless CDX/CDXML export until an adapter explicitly constructs the required
+proxy geometry.
+The CDXML proxy node is retained only for drawing and source round-trip and is
+not an atom in ChemicalGraph. Missing attachment atoms, repeated attachments,
+or invalid/repeated acceptors are import errors rather than lossy
+normalizations. An unbonded MultiAttachment remains a drawing marker and does
+not invent a molecular interaction.
+
 Example node label:
 
 ```json

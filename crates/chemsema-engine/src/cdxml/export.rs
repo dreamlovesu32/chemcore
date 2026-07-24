@@ -53,6 +53,77 @@ fn format_query_list(values: &[String], excluded: bool) -> String {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CdxmlEnhancedStereo {
+    kind: &'static str,
+    group_number: Option<u32>,
+}
+
+fn cdxml_enhanced_stereo_by_node(
+    fragment: &MoleculeFragment,
+) -> BTreeMap<String, CdxmlEnhancedStereo> {
+    use chemsema_chemical_graph::{EnhancedStereoKindV2, StereoElementV2};
+
+    let mut groups = fragment
+        .stereo
+        .iter()
+        .filter_map(|element| {
+            let StereoElementV2::EnhancedGroup {
+                id,
+                group_kind,
+                members,
+            } = element
+            else {
+                return None;
+            };
+            Some((id, *group_kind, members))
+        })
+        .collect::<Vec<_>>();
+    groups.sort_by(|left, right| left.0.cmp(right.0));
+    let mut next_and = 1u32;
+    let mut next_or = 1u32;
+    let mut result = BTreeMap::new();
+    for (id, kind, members) in groups {
+        let (source_kind, group_number) = match kind {
+            EnhancedStereoKindV2::Absolute => ("Absolute", None),
+            EnhancedStereoKindV2::And => {
+                let number = trailing_positive_integer(id).unwrap_or(next_and);
+                next_and = next_and.max(number + 1);
+                ("And", Some(number))
+            }
+            EnhancedStereoKindV2::Or => {
+                let number = trailing_positive_integer(id).unwrap_or(next_or);
+                next_or = next_or.max(number + 1);
+                ("Or", Some(number))
+            }
+        };
+        for member in members {
+            if let Some(node_id) = member.strip_prefix("tetrahedral-") {
+                result.insert(
+                    node_id.to_string(),
+                    CdxmlEnhancedStereo {
+                        kind: source_kind,
+                        group_number,
+                    },
+                );
+            }
+        }
+    }
+    result
+}
+
+fn trailing_positive_integer(value: &str) -> Option<u32> {
+    let digits = value
+        .chars()
+        .rev()
+        .take_while(|character| character.is_ascii_digit())
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+    digits.parse::<u32>().ok().filter(|number| *number > 0)
+}
+
 fn node_has_native_query_annotation(node: &Node) -> bool {
     let properties = &node.atom_properties;
     properties.isotopic_abundance != crate::IsotopicAbundance::Unspecified
@@ -608,8 +679,15 @@ impl<'a> CdxmlDocumentWriter<'a> {
         }
         self.node_ids.extend(node_ids.clone());
         for (object, fragment) in &components {
+            let enhanced_stereo = cdxml_enhanced_stereo_by_node(fragment);
             for node in &fragment.nodes {
-                self.write_node(out, object, node, &node_ids[&node.id]);
+                self.write_node(
+                    out,
+                    object,
+                    node,
+                    &node_ids[&node.id],
+                    enhanced_stereo.get(&node.id),
+                );
             }
         }
         for (object, fragment) in &components {
@@ -628,7 +706,14 @@ impl<'a> CdxmlDocumentWriter<'a> {
         out.push_str("    </fragment>\n");
     }
 
-    fn write_node(&mut self, out: &mut String, object: &SceneObject, node: &Node, cdxml_id: &str) {
+    fn write_node(
+        &mut self,
+        out: &mut String,
+        object: &SceneObject,
+        node: &Node,
+        cdxml_id: &str,
+        enhanced_stereo: Option<&CdxmlEnhancedStereo>,
+    ) {
         let point = object_local_point(object, node.position);
         let label_text = node
             .label
@@ -677,6 +762,12 @@ impl<'a> CdxmlDocumentWriter<'a> {
             }
             if let Some(number) = connection.number {
                 attrs.push(("ExternalConnectionNum", number.to_string()));
+            }
+        }
+        if let Some(stereo) = enhanced_stereo {
+            attrs.push(("EnhancedStereoType", stereo.kind.to_string()));
+            if let Some(group_number) = stereo.group_number {
+                attrs.push(("EnhancedStereoGroupNum", group_number.to_string()));
             }
         }
         if !node.atom_properties.element_list.is_empty() {

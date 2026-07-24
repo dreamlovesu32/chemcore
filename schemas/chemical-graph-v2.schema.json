@@ -287,15 +287,6 @@
           },
           "type": "array"
         },
-        "electronCount": {
-          "format": "uint16",
-          "maximum": 65535,
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
         "id": {
           "type": "string"
         },
@@ -777,7 +768,15 @@
       "type": "string"
     },
     "semantics": {
-      "$ref": "#/$defs/GraphSemanticsV2"
+      "$ref": "#/$defs/GraphSemanticsV2",
+      "default": {
+        "aromaticityModel": "explicit-aromatic-bonds",
+        "hydrogenModel": "resolved-counts",
+        "normalization": "chemsema-chemical-graph-normalization/1",
+        "profile": "molecular-entity",
+        "valenceModel": "chem-sema2026"
+      },
+      "description": "Informational declaration of the fixed V2 normalization contract.\n\nThe original V2 wire contract predates this object. Its omission is\ntherefore equivalent to the one supported V2 value; it is not a\nper-document switch between identity models."
     },
     "stereo": {
       "items": {
@@ -788,7 +787,6 @@
   },
   "required": [
     "schema",
-    "semantics",
     "atoms",
     "bonds",
     "stereo",

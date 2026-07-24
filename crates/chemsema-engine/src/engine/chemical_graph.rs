@@ -1,10 +1,11 @@
-use super::{ChemicalAnalysisFormat, CommandTargetSet, Engine};
+use super::{CommandTargetSet, Engine};
 use crate::{AtomRadical, Bond, MoleculeFragment, SceneObject};
 use chemsema_chemical_graph::{
-    AtomV2, BondKindV2, BondV2, ChemicalGraphV2, ComponentV2, DativeDirectionV2,
-    DoubleBondRelationV2, GraphAssumptionV2, GraphSemanticsV2, NomenclatureRequestV1,
-    RadicalStateV2, StereoElementV2, StereoReferenceV2, TetrahedralParityV2,
-    CHEMICAL_GRAPH_V2_SCHEMA,
+    AtomV2, BondKindV2, BondV2, ChemicalGraphV2, ComponentV2, CoordinationGeometryV2,
+    DativeDirectionV2, DoubleBondRelationV2, ExtendedStereoClassV2, ExtendedStereoDescriptorV2,
+    GraphAssumptionV2, GraphProfileV2, GraphSemanticsV2, MultiCenterInteractionV2,
+    NomenclatureRequestV1, RadicalStateV2, StereoCarrierV2, StereoElementV2, StereoReferenceV2,
+    TetrahedralParityV2, CHEMICAL_GRAPH_V2_SCHEMA,
 };
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -33,7 +34,7 @@ impl Engine {
         targets: &CommandTargetSet,
     ) -> Result<(&SceneObject, ChemicalGraphV2, MoleculeFragment), String> {
         let (object, fragment) = self.complete_molecule_fragment_for_targets(targets)?;
-        let analysis = self.chemical_analysis_output(ChemicalAnalysisFormat::Smiles, targets)?;
+        let analysis = self.chemical_graph_stereo_analysis(targets)?;
         let graph = graph_from_fragment(&fragment, &analysis)?;
         Ok((object, graph, fragment))
     }
@@ -126,6 +127,13 @@ impl Engine {
             {
                 continue;
             }
+            let bond_ids = bonds
+                .iter()
+                .map(|bond| bond.id.clone())
+                .collect::<BTreeSet<_>>();
+            let owned_node_ids = nodes.iter().map(|id| (*id).to_string()).collect();
+            let (stereo, interactions) =
+                crate::subset_molecule_semantics(entry.fragment, &owned_node_ids, &bond_ids);
             let fragment = MoleculeFragment {
                 schema: entry.fragment.schema.clone(),
                 bbox: entry.fragment.bbox,
@@ -137,6 +145,8 @@ impl Engine {
                     .cloned()
                     .collect(),
                 bonds: bonds.into_iter().cloned().collect(),
+                stereo,
+                interactions,
                 meta: entry.fragment.meta.clone(),
             };
             if crate::molecule_fragment_connected_components(&fragment).len() == 1 {
@@ -157,6 +167,7 @@ fn graph_from_fragment(
     let atoms = fragment
         .nodes
         .iter()
+        .filter(|node| !is_multicenter_proxy(node))
         .map(|node| {
             if node.is_placeholder
                 || node.external_connection.is_some()
@@ -196,11 +207,13 @@ fn graph_from_fragment(
     let bonds = fragment
         .bonds
         .iter()
+        .filter(|bond| !bond_meets_multicenter_proxy(fragment, bond))
         .map(bond_v2)
         .collect::<Result<Vec<_>, String>>()?;
     let mut stereo = tetrahedral_stereo(fragment, analysis)?;
     stereo.extend(double_bond_stereo(fragment, analysis)?);
-    let components = molecule_components(fragment)
+    merge_native_stereo(&mut stereo, &fragment.stereo)?;
+    let components = molecule_components(fragment, &fragment.interactions)
         .into_iter()
         .enumerate()
         .map(|(index, atoms)| ComponentV2 {
@@ -209,9 +222,13 @@ fn graph_from_fragment(
             count: 1,
         })
         .collect::<Vec<_>>();
+    let mut semantics = GraphSemanticsV2::default();
+    if components.len() > 1 {
+        semantics.profile = GraphProfileV2::DiscreteComposition;
+    }
     let graph = ChemicalGraphV2 {
         schema: CHEMICAL_GRAPH_V2_SCHEMA.to_string(),
-        semantics: GraphSemanticsV2::default(),
+        semantics,
         atoms,
         bonds,
         stereo,
@@ -222,10 +239,74 @@ fn graph_from_fragment(
                 "Resolved by the ChemSema chemistry layer before semantic export.".to_string(),
             ),
         }],
-        interactions: Vec::new(),
+        interactions: fragment.interactions.clone(),
     };
     graph.validate()?;
     Ok(graph)
+}
+
+fn is_multicenter_proxy(node: &crate::Node) -> bool {
+    node.meta
+        .pointer("/import/cdxml/nodeType")
+        .and_then(Value::as_str)
+        == Some("MultiAttachment")
+}
+
+fn bond_meets_multicenter_proxy(fragment: &MoleculeFragment, bond: &Bond) -> bool {
+    fragment
+        .nodes
+        .iter()
+        .any(|node| is_multicenter_proxy(node) && (node.id == bond.begin || node.id == bond.end))
+}
+
+fn merge_native_stereo(
+    generated: &mut Vec<StereoElementV2>,
+    native: &[StereoElementV2],
+) -> Result<(), String> {
+    let mut positions = generated
+        .iter()
+        .enumerate()
+        .map(|(index, element)| (stereo_id(element).to_string(), index))
+        .collect::<BTreeMap<_, _>>();
+    for element in native
+        .iter()
+        .filter(|element| !matches!(element, StereoElementV2::EnhancedGroup { .. }))
+    {
+        let id = stereo_id(element);
+        if let Some(index) = positions.get(id).copied() {
+            if generated[index] != *element {
+                return Err(format!(
+                    "native stereo '{id}' conflicts with stereochemistry derived from the molecule"
+                ));
+            }
+        } else {
+            positions.insert(id.to_string(), generated.len());
+            generated.push(element.clone());
+        }
+    }
+    for element in native
+        .iter()
+        .filter(|element| matches!(element, StereoElementV2::EnhancedGroup { .. }))
+    {
+        let id = stereo_id(element);
+        if positions.contains_key(id) {
+            return Err(format!("native stereo repeats id '{id}'"));
+        }
+        positions.insert(id.to_string(), generated.len());
+        generated.push(element.clone());
+    }
+    Ok(())
+}
+
+fn stereo_id(element: &StereoElementV2) -> &str {
+    match element {
+        StereoElementV2::Tetrahedral { id, .. }
+        | StereoElementV2::DoubleBond { id, .. }
+        | StereoElementV2::EnhancedGroup { id, .. }
+        | StereoElementV2::Extended { id, .. }
+        | StereoElementV2::Conformation { id, .. }
+        | StereoElementV2::Unspecified { id, .. } => id,
+    }
 }
 
 fn bond_v2(bond: &Bond) -> Result<BondV2, String> {
@@ -241,7 +322,12 @@ fn bond_v2(bond: &Bond) -> Result<BondV2, String> {
         .meta
         .pointer("/chemistry/smiles/kind")
         .and_then(Value::as_str)
-        == Some("aromatic");
+        == Some("aromatic")
+        || bond
+            .meta
+            .pointer("/import/cdxml/aromatic")
+            .and_then(Value::as_bool)
+            == Some(true);
     let dative_donor = bond
         .meta
         .pointer("/chemistry/smiles/dativeDonorNode")
@@ -249,8 +335,7 @@ fn bond_v2(bond: &Bond) -> Result<BondV2, String> {
     let kind = if dative_donor.is_some()
         || bond
             .meta
-            .get("cdxml")
-            .and_then(|value| value.get("order"))
+            .pointer("/import/cdxml/order")
             .and_then(Value::as_str)
             .is_some_and(|value| value.eq_ignore_ascii_case("dative"))
     {
@@ -347,6 +432,48 @@ fn tetrahedral_stereo(
                 Some("anticlockwise") => TetrahedralParityV2::Anticlockwise,
                 _ => return Err("tetrahedral center omitted semantic parity".to_string()),
             };
+            if references.iter().any(|reference| {
+                matches!(
+                    reference,
+                    StereoReferenceV2::Atom(atom)
+                        if fragment
+                            .nodes
+                            .iter()
+                            .any(|node| node.id == *atom && is_multicenter_proxy(node))
+                )
+            }) {
+                let mut carriers = vec![StereoCarrierV2::Atom(center_node.id.clone())];
+                for reference in &references {
+                    match reference {
+                        StereoReferenceV2::Atom(atom) => {
+                            if let Some(donor_atoms) = multicenter_proxy_donor_atoms(fragment, atom)
+                            {
+                                carriers.push(StereoCarrierV2::AtomSet(donor_atoms));
+                            } else {
+                                carriers.push(StereoCarrierV2::Atom(atom.clone()));
+                            }
+                        }
+                        StereoReferenceV2::ImplicitHydrogen => {
+                            return Err(format!(
+                                "coordination center '{}' cannot use an implicit-hydrogen ligand",
+                                center_node.id
+                            ))
+                        }
+                    }
+                }
+                return Ok(StereoElementV2::Extended {
+                    id: format!("coordination-{}", center_node.id),
+                    class: ExtendedStereoClassV2::NontetrahedralCenter,
+                    descriptor: ExtendedStereoDescriptorV2::Coordination {
+                        geometry: CoordinationGeometryV2::Tetrahedral,
+                        permutation_index: match parity {
+                            TetrahedralParityV2::Clockwise => 1,
+                            TetrahedralParityV2::Anticlockwise => 2,
+                        },
+                    },
+                    carriers,
+                });
+            }
             Ok(StereoElementV2::Tetrahedral {
                 id: format!("tetrahedral-{}", center_node.id),
                 center: center_node.id.clone(),
@@ -355,6 +482,23 @@ fn tetrahedral_stereo(
             })
         })
         .collect()
+}
+
+fn multicenter_proxy_donor_atoms(
+    fragment: &MoleculeFragment,
+    proxy_id: &str,
+) -> Option<Vec<String>> {
+    fragment
+        .interactions
+        .iter()
+        .find(|interaction| interaction.id == format!("cdxml-multi-{proxy_id}"))
+        .and_then(|interaction| {
+            interaction
+                .centers
+                .iter()
+                .find(|center| center.role == chemsema_chemical_graph::InteractionRoleV2::Donor)
+                .map(|center| center.atoms.clone())
+        })
 }
 
 fn double_bond_stereo(
@@ -456,13 +600,21 @@ fn adjacent_reference(fragment: &MoleculeFragment, bond: &Bond, center: &str) ->
     })
 }
 
-fn molecule_components(fragment: &MoleculeFragment) -> Vec<Vec<String>> {
+fn molecule_components(
+    fragment: &MoleculeFragment,
+    interactions: &[MultiCenterInteractionV2],
+) -> Vec<Vec<String>> {
     let mut adjacency = fragment
         .nodes
         .iter()
+        .filter(|node| !is_multicenter_proxy(node))
         .map(|node| (node.id.as_str(), Vec::new()))
         .collect::<BTreeMap<_, Vec<&str>>>();
-    for bond in &fragment.bonds {
+    for bond in fragment
+        .bonds
+        .iter()
+        .filter(|bond| !bond_meets_multicenter_proxy(fragment, bond))
+    {
         adjacency
             .get_mut(bond.begin.as_str())
             .expect("fragment bond endpoint")
@@ -471,6 +623,23 @@ fn molecule_components(fragment: &MoleculeFragment) -> Vec<Vec<String>> {
             .get_mut(bond.end.as_str())
             .expect("fragment bond endpoint")
             .push(bond.begin.as_str());
+    }
+    for interaction in interactions {
+        let participants = interaction
+            .centers
+            .iter()
+            .flat_map(|center| center.atoms.iter().map(String::as_str))
+            .collect::<Vec<_>>();
+        for left in &participants {
+            for right in &participants {
+                if left != right {
+                    adjacency
+                        .get_mut(left)
+                        .expect("native interaction atom")
+                        .push(right);
+                }
+            }
+        }
     }
     let mut remaining = adjacency.keys().copied().collect::<BTreeSet<_>>();
     let mut components = Vec::new();

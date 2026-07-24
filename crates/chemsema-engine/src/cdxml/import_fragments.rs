@@ -7,7 +7,7 @@ pub(super) fn normalize_fragment(
     defaults: CdxmlDefaults,
     colors: &CdxmlColorTable,
     fonts: &BTreeMap<String, String>,
-) -> Option<MoleculeFragment> {
+) -> Result<Option<MoleculeFragment>, String> {
     let origin = [bbox[0], bbox[1]];
     let nodes: Vec<Node> = fragment
         .direct_children("n")
@@ -22,7 +22,7 @@ pub(super) fn normalize_fragment(
         })
         .collect();
     if nodes.is_empty() {
-        return None;
+        return Ok(None);
     }
     let mut fragment = MoleculeFragment {
         schema: "chemsema.molecule.fragment2d".to_string(),
@@ -34,6 +34,8 @@ pub(super) fn normalize_fragment(
         ],
         nodes,
         bonds,
+        stereo: Vec::new(),
+        interactions: Vec::new(),
         meta: json!({
             "import": {
                 "cdxml": {
@@ -54,7 +56,164 @@ pub(super) fn normalize_fragment(
         )),
     );
     infer_cdxml_ring_double_bond_placements(&mut fragment);
-    Some(fragment)
+    import_native_cdxml_molecule_semantics(&mut fragment)?;
+    Ok(Some(fragment))
+}
+
+fn import_native_cdxml_molecule_semantics(fragment: &mut MoleculeFragment) -> Result<(), String> {
+    use chemsema_chemical_graph::{
+        EnhancedStereoKindV2, InteractionCenterV2, InteractionKindV2, InteractionRoleV2,
+        MultiCenterInteractionV2, StereoElementV2,
+    };
+
+    let known_nodes = fragment
+        .nodes
+        .iter()
+        .map(|node| node.id.as_str())
+        .collect::<BTreeSet<_>>();
+    for proxy in fragment.nodes.iter().filter(|node| {
+        node.meta
+            .pointer("/import/cdxml/nodeType")
+            .and_then(Value::as_str)
+            == Some("MultiAttachment")
+    }) {
+        let incident = fragment
+            .bonds
+            .iter()
+            .filter(|bond| bond.begin == proxy.id || bond.end == proxy.id)
+            .collect::<Vec<_>>();
+        if incident.is_empty() {
+            // ChemDraw also uses an unbonded MultiAttachment node as a
+            // standalone display marker. It has no molecular relationship to
+            // normalize until a proxy bond identifies the other center.
+            continue;
+        }
+        let source = proxy
+            .meta
+            .pointer("/import/cdxml/attachments")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                format!(
+                    "CDXML MultiAttachment node '{}' has no Attachments list",
+                    proxy.id
+                )
+            })?;
+        let attachments = source
+            .split_whitespace()
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        let unique = attachments
+            .iter()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        if attachments.is_empty()
+            || unique.len() != attachments.len()
+            || unique
+                .iter()
+                .any(|atom| *atom == proxy.id || !known_nodes.contains(atom))
+        {
+            return Err(format!(
+                "CDXML MultiAttachment node '{}' has an empty, repeated, self, or missing attachment",
+                proxy.id
+            ));
+        }
+        let mut acceptors = BTreeSet::new();
+        for bond in incident {
+            let acceptor = if bond.begin == proxy.id {
+                bond.end.clone()
+            } else {
+                bond.begin.clone()
+            };
+            let acceptor_is_proxy = fragment.nodes.iter().any(|node| {
+                node.id == acceptor
+                    && node
+                        .meta
+                        .pointer("/import/cdxml/nodeType")
+                        .and_then(Value::as_str)
+                        == Some("MultiAttachment")
+            });
+            if acceptor_is_proxy
+                || attachments.contains(&acceptor)
+                || !acceptors.insert(acceptor.clone())
+            {
+                return Err(format!(
+                    "CDXML MultiAttachment node '{}' has an invalid or repeated acceptor '{}'",
+                    proxy.id, acceptor
+                ));
+            }
+        }
+        let mut centers = vec![InteractionCenterV2 {
+            role: InteractionRoleV2::Donor,
+            atoms: attachments,
+        }];
+        centers.extend(acceptors.into_iter().map(|acceptor| InteractionCenterV2 {
+            role: InteractionRoleV2::Acceptor,
+            atoms: vec![acceptor],
+        }));
+        fragment.interactions.push(MultiCenterInteractionV2 {
+            id: format!("cdxml-multi-{}", proxy.id),
+            kind: InteractionKindV2::Coordination,
+            centers,
+        });
+    }
+
+    let mut groups = BTreeMap::<(String, u32), (EnhancedStereoKindV2, Vec<String>)>::new();
+    for node in &fragment.nodes {
+        let Some(source_kind) = node
+            .meta
+            .pointer("/import/cdxml/enhancedStereoType")
+            .and_then(Value::as_str)
+        else {
+            continue;
+        };
+        let (kind_key, kind) = match source_kind.to_ascii_lowercase().as_str() {
+            "absolute" => ("absolute", EnhancedStereoKindV2::Absolute),
+            "and" => ("and", EnhancedStereoKindV2::And),
+            "or" => ("or", EnhancedStereoKindV2::Or),
+            _ => {
+                return Err(format!(
+                    "CDXML node '{}' has unsupported EnhancedStereoType '{}'",
+                    node.id, source_kind
+                ))
+            }
+        };
+        let group_number = node
+            .meta
+            .pointer("/import/cdxml/enhancedStereoGroupNum")
+            .and_then(Value::as_str)
+            .map(|value| {
+                value.parse::<u32>().map_err(|_| {
+                    format!(
+                        "CDXML node '{}' has invalid EnhancedStereoGroupNum '{}'",
+                        node.id, value
+                    )
+                })
+            })
+            .transpose()?
+            .unwrap_or(1);
+        if group_number == 0 {
+            return Err(format!(
+                "CDXML node '{}' has zero EnhancedStereoGroupNum",
+                node.id
+            ));
+        }
+        groups
+            .entry((kind_key.to_string(), group_number))
+            .or_insert_with(|| (kind, Vec::new()))
+            .1
+            .push(format!("tetrahedral-{}", node.id));
+    }
+    fragment.stereo.extend(groups.into_iter().map(
+        |((kind, number), (group_kind, mut members))| {
+            members.sort();
+            StereoElementV2::EnhancedGroup {
+                id: format!("cdxml-enhanced-{kind}-{number}"),
+                group_kind,
+                members,
+            }
+        },
+    ));
+    Ok(())
 }
 
 fn apply_cdxml_carbon_label_display(
@@ -134,6 +293,12 @@ pub(super) fn split_cdxml_fragment_components(
                 .filter(|bond| node_ids.contains(&bond.begin) && node_ids.contains(&bond.end))
                 .cloned()
                 .collect();
+            let bond_ids = bonds
+                .iter()
+                .map(|bond| bond.id.clone())
+                .collect::<BTreeSet<_>>();
+            let (stereo, interactions) =
+                crate::subset_molecule_semantics(&fragment, &node_ids, &bond_ids);
             if !cdxml_component_has_visible_molecule_content(&nodes, &bonds) {
                 return None;
             }
@@ -170,6 +335,8 @@ pub(super) fn split_cdxml_fragment_components(
                 ],
                 nodes,
                 bonds,
+                stereo,
+                interactions,
                 meta: fragment.meta.clone(),
             };
             annotate_cdxml_component_fragment_meta(

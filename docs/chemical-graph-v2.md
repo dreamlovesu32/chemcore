@@ -18,9 +18,9 @@ schema to match it byte-semantically.
 Normative positive and negative examples live in
 [`fixtures/chemical-graph-v2`](../fixtures/chemical-graph-v2).
 
-## Required semantics
+## Fixed semantics
 
-Every graph declares:
+Every newly emitted graph declares:
 
 - `profile`: `molecular-entity` or `discrete-composition`;
 - `aromaticityModel`: currently `explicit-aromatic-bonds`;
@@ -28,6 +28,11 @@ Every graph declares:
 - `valenceModel`: currently `chem-sema2026`;
 - `normalization`: currently
   `chemsema-chemical-graph-normalization/1`.
+
+The original V2 wire contract did not contain the `semantics` object. Readers
+therefore accept its omission as exactly the fixed values above. The object is
+not a per-document switch; any present value must match the supported V2
+contract.
 
 An aromatic encoding and an alternating Kekule encoding are not silently
 identical. An importing adapter must normalize them under an explicitly
@@ -73,8 +78,10 @@ whose identity cannot be represented by a pairwise bond use:
 - `coordination`: exactly one donor center and one or more acceptor centers;
 - `delocalized-bond`: at least three atoms in shared centers.
 
-`electronCount` is optional because source formats do not always state it. If
-present it is identity-relevant and must be positive for a delocalized bond.
+V2 does not carry an interaction electron count. Electron count is a variable
+molecular fact, so adding it under the established V2 schema would let older
+readers silently ignore identity-bearing data. A future version may add it only
+with a new schema identifier and an explicit adapter.
 Nomenclature symbols such as eta, kappa, and mu are derived by naming rules and
 are not stored as drawing strings.
 
@@ -107,3 +114,10 @@ they do not understand. They must not ignore unknown identity-relevant fields.
 
 Every adapter must return either a validated graph or an explicit unsupported/
 partial result with a loss ledger. Silent field dropping is prohibited.
+The Rust API `ChemicalGraphV2::assess_mapping_to()` produces the versioned
+`chemsema.chemical-graph-mapping-report.v1` ledger for the implemented
+ChemicalGraph, CDX/CDXML, SMILES, and SDF V2000 boundaries.
+Imported CCJS documents can preserve existing CDXML MultiAttachment proxy
+geometry during source round-trip. A graph-only CDX/CDXML mapping cannot assume
+that presentation geometry exists, so the mapping report rejects coordination
+interactions until an adapter explicitly constructs that document encoding.

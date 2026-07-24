@@ -86,6 +86,44 @@ const CHIRAL_ALCOHOL_CDXML: &str = r#"<?xml version="1.0" encoding="UTF-8" ?>
   </page>
 </CDXML>"#;
 
+const MULTICENTER_CDXML: &str = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML BondLength="30" LabelFont="3" LabelSize="10" LineWidth="0.6">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <colortable><color r="1" g="1" b="1"/><color r="0" g="0" b="0"/></colortable>
+  <page id="1" BoundingBox="0 0 300 200">
+    <fragment id="2">
+      <n id="1" p="40 100"/>
+      <n id="2" p="70 100"/>
+      <n id="3" p="100 100"/>
+      <n id="4" p="70 70" NodeType="MultiAttachment" Attachments="1 2 3"/>
+      <n id="5" p="70 40" Element="26" NumHydrogens="0"/>
+      <b id="11" B="1" E="2" Order="1.5" Display="Dash"/>
+      <b id="12" B="2" E="3" Order="1.5" Display="Dash"/>
+      <b id="14" B="3" E="1" Order="1.5" Display="Dash"/>
+      <b id="13" B="4" E="5" Order="1"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+
+const COORDINATION_STEREO_CDXML: &str = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML BondLength="30" LabelFont="3" LabelSize="10" LineWidth="0.6">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1"><fragment id="2">
+    <n id="1" p="20 80"/>
+    <n id="2" p="80 80"/>
+    <n id="27" p="35 60" NodeType="MultiAttachment" Attachments="1"/>
+    <n id="28" p="65 60" NodeType="MultiAttachment" Attachments="2"/>
+    <n id="30" p="50 40" Element="22" NumHydrogens="0"
+      Geometry="Tetrahedral" BondOrdering="34 31 36 32"/>
+    <n id="33" p="20 20" Element="17"/>
+    <n id="35" p="80 20" Element="9"/>
+    <b id="31" B="28" E="30"/>
+    <b id="32" B="27" E="30"/>
+    <b id="34" B="30" E="33" Display="WedgeBegin"/>
+    <b id="36" B="30" E="35" Display="WedgedHashBegin"/>
+  </fragment></page>
+</CDXML>"#;
+
 fn spectrum_object(document: &chemsema_engine::ChemSemaDocument) -> &chemsema_engine::SceneObject {
     document
         .scene_objects()
@@ -571,6 +609,151 @@ fn nmr_request_emits_true_chemical_graph_v2_tetrahedral_stereo() {
         request["assignedCipDescriptors"].as_array().unwrap().len(),
         1
     );
+}
+
+#[test]
+fn cdxml_enhanced_stereo_is_native_and_roundtrips() {
+    let source = CHIRAL_ALCOHOL_CDXML.replace(
+        "<n id=\"11\"",
+        "<n id=\"11\" EnhancedStereoType=\"Or\" EnhancedStereoGroupNum=\"2\"",
+    );
+    let mut engine = Engine::new();
+    engine.load_cdxml_document(&source).expect("source loads");
+    assert!(engine.select_all());
+    let graph: Value =
+        serde_json::from_str(&engine.chemical_graph_v2_json().expect("graph exports"))
+            .expect("graph JSON");
+    let group = graph["stereo"]
+        .as_array()
+        .expect("stereo")
+        .iter()
+        .find(|element| element["kind"] == "enhancedGroup")
+        .expect("native enhanced group");
+    assert_eq!(group["groupKind"], "or");
+    assert_eq!(group["members"], json!(["tetrahedral-11"]));
+
+    let exported = engine.document_cdxml();
+    assert!(exported.contains("EnhancedStereoType=\"Or\""));
+    assert!(exported.contains("EnhancedStereoGroupNum=\"2\""));
+}
+
+#[test]
+fn cdxml_multiattachment_becomes_native_interaction_without_proxy_atoms() {
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(MULTICENTER_CDXML)
+        .expect("multi-center source loads");
+    assert!(engine.select_all());
+    let graph: Value =
+        serde_json::from_str(&engine.chemical_graph_v2_json().expect("graph exports"))
+            .expect("graph JSON");
+    assert_eq!(graph["atoms"].as_array().unwrap().len(), 4);
+    assert!(graph["atoms"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|atom| atom["id"] != "4"));
+    assert_eq!(graph["bonds"].as_array().unwrap().len(), 3);
+    assert!(graph["bonds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|bond| bond["kind"] == "aromatic"));
+    assert!(graph["atoms"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|atom| atom["atomicNumber"] == 6)
+        .all(|atom| atom["implicitHydrogens"] == 1));
+    assert_eq!(graph["interactions"].as_array().unwrap().len(), 1);
+    let centers = graph["interactions"][0]["centers"].as_array().unwrap();
+    assert_eq!(
+        centers
+            .iter()
+            .find(|center| center["role"] == "donor")
+            .unwrap()["atoms"],
+        json!(["1", "2", "3"])
+    );
+    assert_eq!(
+        centers
+            .iter()
+            .find(|center| center["role"] == "acceptor")
+            .unwrap()["atoms"],
+        json!(["5"])
+    );
+    assert_eq!(graph["components"].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn multicenter_ligands_turn_metal_wedges_into_coordination_stereo() {
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(COORDINATION_STEREO_CDXML)
+        .expect("coordination stereo loads");
+    assert!(engine.select_all());
+    let graph: Value =
+        serde_json::from_str(&engine.chemical_graph_v2_json().expect("graph exports"))
+            .expect("graph JSON");
+    assert_eq!(graph["interactions"].as_array().unwrap().len(), 2);
+    let stereo = graph["stereo"].as_array().unwrap();
+    assert_eq!(stereo.len(), 1);
+    assert_eq!(stereo[0]["kind"], "extended");
+    assert_eq!(stereo[0]["class"], "nontetrahedral-center");
+    assert!(stereo[0]["descriptor"]
+        .as_str()
+        .unwrap()
+        .starts_with("tetrahedral-"));
+    assert_eq!(stereo[0]["carriers"].as_array().unwrap().len(), 5);
+    assert!(stereo.iter().all(|item| item["kind"] != "tetrahedral"));
+}
+
+#[test]
+fn malformed_cdxml_multiattachment_is_rejected_instead_of_dropped() {
+    let missing = MULTICENTER_CDXML.replace("Attachments=\"1 2 3\"", "Attachments=\"1 2 missing\"");
+    let error = parse_cdxml_document(&missing, None).expect_err("missing atom must fail");
+    assert!(error.contains("missing attachment"));
+
+    let ambiguous = MULTICENTER_CDXML.replace(
+        "<b id=\"13\" B=\"4\" E=\"5\" Order=\"1\"/>",
+        "<b id=\"13\" B=\"4\" E=\"5\" Order=\"1\"/><b id=\"15\" B=\"4\" E=\"5\" Order=\"1\"/>",
+    );
+    let error = parse_cdxml_document(&ambiguous, None).expect_err("repeated acceptor must fail");
+    assert!(error.contains("invalid or repeated acceptor"));
+}
+
+#[test]
+fn native_molecule_semantics_survive_cross_document_copy_and_paste() {
+    let source = CHIRAL_ALCOHOL_CDXML.replace(
+        "<n id=\"11\"",
+        "<n id=\"11\" EnhancedStereoType=\"And\" EnhancedStereoGroupNum=\"3\"",
+    );
+    let mut origin = Engine::new();
+    origin.load_cdxml_document(&source).expect("source loads");
+    assert!(origin.select_all());
+    let clipboard = origin
+        .clipboard_document_json()
+        .expect("clipboard serializes")
+        .expect("selected document");
+
+    let mut destination = Engine::new();
+    destination
+        .load_document_json(&clipboard)
+        .expect("cross-document clipboard opens");
+    assert!(destination.select_all());
+    let graph: Value = serde_json::from_str(
+        &destination
+            .chemical_graph_v2_json()
+            .expect("pasted graph exports"),
+    )
+    .expect("graph JSON");
+    let group = graph["stereo"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|element| element["kind"] == "enhancedGroup")
+        .expect("enhanced group survives");
+    assert_eq!(group["groupKind"], "and");
+    assert_eq!(group["members"], json!(["tetrahedral-11"]));
 }
 
 #[test]

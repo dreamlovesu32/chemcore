@@ -308,6 +308,25 @@ impl Engine {
         }
     }
 
+    /// Minimal chemistry analysis used by ChemicalGraph export.
+    ///
+    /// Graph construction needs resolved stereo, but it must not pay for or
+    /// depend on canonical SMILES generation. Highly symmetric coordination
+    /// drawings can make canonical linearization disproportionately expensive
+    /// even though their native graph is already determined.
+    pub(super) fn chemical_graph_stereo_analysis(
+        &self,
+        targets: &CommandTargetSet,
+    ) -> Result<Value, String> {
+        let molecule = self.chemical_molecule_for_targets(targets)?;
+        let sanitization = sanitize(&molecule).map_err(|error| error.to_string())?;
+        Ok(json!({
+            "implicitHydrogens": sanitization.implicit_hydrogens,
+            "doubleBondStereo": sanitization.double_bond_stereo,
+            "tetrahedralCenters": sanitization.tetrahedral_centers,
+        }))
+    }
+
     fn chemical_molecule_for_targets(
         &self,
         targets: &CommandTargetSet,
@@ -729,6 +748,32 @@ fn infer_wedge_chirality(
             .iter()
             .find(|node| node.id == center_id)
             .unwrap();
+        if let Some(source_order) = center_node
+            .meta
+            .pointer("/import/cdxml/bondOrdering")
+            .and_then(Value::as_str)
+        {
+            let ordered = source_order
+                .split_whitespace()
+                .filter_map(|bond_id| {
+                    let bond = fragment.bonds.iter().find(|bond| bond.id == bond_id)?;
+                    let other = if bond.begin == center_id {
+                        bond.end.as_str()
+                    } else if bond.end == center_id {
+                        bond.begin.as_str()
+                    } else {
+                        return None;
+                    };
+                    index_by_id.get(other).copied()
+                })
+                .collect::<Vec<_>>();
+            if ordered.len() == neighbors.len()
+                && ordered.iter().copied().collect::<BTreeSet<_>>().len() == neighbors.len()
+                && ordered.iter().all(|neighbor| neighbors.contains(neighbor))
+            {
+                neighbors = ordered;
+            }
+        }
         let elevated_id = if center_id == display_bond.begin {
             display_bond.end.as_str()
         } else {

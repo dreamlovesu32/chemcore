@@ -450,6 +450,8 @@ fn molfile_to_fragment(molfile: &Molfile, record: &SdfRecord) -> (MoleculeFragme
         bbox: [0.0, 0.0, round2(width), round2(height)],
         nodes,
         bonds,
+        stereo: Vec::new(),
+        interactions: Vec::new(),
         meta: json!({
             "import": {
                 "sdf": {

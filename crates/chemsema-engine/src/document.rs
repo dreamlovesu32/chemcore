@@ -632,6 +632,123 @@ fn parse_indexed_id(id: &str, prefix: &str) -> Option<usize> {
     id.strip_prefix(prefix)?.parse().ok()
 }
 
+pub(crate) fn subset_molecule_semantics(
+    fragment: &MoleculeFragment,
+    node_ids: &BTreeSet<String>,
+    bond_ids: &BTreeSet<String>,
+) -> (
+    Vec<chemsema_chemical_graph::StereoElementV2>,
+    Vec<chemsema_chemical_graph::MultiCenterInteractionV2>,
+) {
+    use chemsema_chemical_graph::{StereoCarrierV2, StereoElementV2, StereoReferenceV2};
+
+    let carrier_is_inside = |carrier: &StereoCarrierV2| match carrier {
+        StereoCarrierV2::Atom(atom)
+        | StereoCarrierV2::LonePair(atom)
+        | StereoCarrierV2::DuplicateAtom(atom) => node_ids.contains(atom),
+        StereoCarrierV2::Bond(bond) => bond_ids.contains(bond),
+        StereoCarrierV2::AtomSet(atoms) | StereoCarrierV2::Plane(atoms) => {
+            atoms.iter().all(|atom| node_ids.contains(atom))
+        }
+        StereoCarrierV2::Axis(atoms) => atoms.iter().all(|atom| node_ids.contains(atom)),
+        StereoCarrierV2::ConjugatedDoubleBondPair(bonds) => {
+            bonds.iter().all(|bond| bond_ids.contains(bond))
+        }
+        StereoCarrierV2::Torsion(atoms) => atoms.iter().all(|atom| node_ids.contains(atom)),
+    };
+    let mut stereo = fragment
+        .stereo
+        .iter()
+        .filter(|element| match element {
+            StereoElementV2::Tetrahedral {
+                center, references, ..
+            } => {
+                node_ids.contains(center)
+                    && references.iter().all(|reference| match reference {
+                        StereoReferenceV2::Atom(atom) => node_ids.contains(atom),
+                        StereoReferenceV2::ImplicitHydrogen => true,
+                    })
+            }
+            StereoElementV2::DoubleBond {
+                bond,
+                left_reference,
+                right_reference,
+                ..
+            } => {
+                bond_ids.contains(bond)
+                    && node_ids.contains(left_reference)
+                    && node_ids.contains(right_reference)
+            }
+            StereoElementV2::EnhancedGroup { .. } => false,
+            StereoElementV2::Extended { carriers, .. }
+            | StereoElementV2::Conformation { carriers, .. }
+            | StereoElementV2::Unspecified { carriers, .. } => {
+                carriers.iter().all(&carrier_is_inside)
+            }
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let retained_ids = stereo
+        .iter()
+        .map(|element| stereo_element_id(element).to_string())
+        .collect::<BTreeSet<_>>();
+    stereo.extend(fragment.stereo.iter().filter_map(|element| {
+        let StereoElementV2::EnhancedGroup { members, .. } = element else {
+            return None;
+        };
+        members
+            .iter()
+            .all(|member| {
+                retained_ids.contains(member.as_str())
+                    || member
+                        .strip_prefix("tetrahedral-")
+                        .is_some_and(|node| node_ids.contains(node))
+            })
+            .then(|| element.clone())
+    }));
+    let interactions = fragment
+        .interactions
+        .iter()
+        .filter(|interaction| {
+            interaction
+                .centers
+                .iter()
+                .flat_map(|center| &center.atoms)
+                .all(|atom| node_ids.contains(atom))
+        })
+        .cloned()
+        .collect();
+    (stereo, interactions)
+}
+
+pub(crate) fn retain_valid_molecule_semantics(fragment: &mut MoleculeFragment) {
+    let node_ids = fragment
+        .nodes
+        .iter()
+        .map(|node| node.id.clone())
+        .collect::<BTreeSet<_>>();
+    let bond_ids = fragment
+        .bonds
+        .iter()
+        .map(|bond| bond.id.clone())
+        .collect::<BTreeSet<_>>();
+    let (stereo, interactions) = subset_molecule_semantics(fragment, &node_ids, &bond_ids);
+    fragment.stereo = stereo;
+    fragment.interactions = interactions;
+}
+
+fn stereo_element_id(element: &chemsema_chemical_graph::StereoElementV2) -> &str {
+    use chemsema_chemical_graph::StereoElementV2;
+    match element {
+        StereoElementV2::Tetrahedral { id, .. }
+        | StereoElementV2::DoubleBond { id, .. }
+        | StereoElementV2::EnhancedGroup { id, .. }
+        | StereoElementV2::Extended { id, .. }
+        | StereoElementV2::Conformation { id, .. }
+        | StereoElementV2::Unspecified { id, .. } => id,
+    }
+}
+
 #[derive(Debug)]
 struct LegacyMoleculeComponent {
     fragment: MoleculeFragment,
@@ -663,6 +780,11 @@ fn split_legacy_fragment_components(fragment: &MoleculeFragment) -> Vec<LegacyMo
                 .filter(|bond| node_ids.contains(&bond.begin) && node_ids.contains(&bond.end))
                 .cloned()
                 .collect();
+            let bond_ids = bonds
+                .iter()
+                .map(|bond| bond.id.clone())
+                .collect::<BTreeSet<_>>();
+            let (stereo, interactions) = subset_molecule_semantics(fragment, &node_ids, &bond_ids);
             if !component_has_visible_molecule_content(&nodes, &bonds) {
                 return None;
             }
@@ -691,6 +813,8 @@ fn split_legacy_fragment_components(fragment: &MoleculeFragment) -> Vec<LegacyMo
                 ],
                 nodes,
                 bonds,
+                stereo,
+                interactions,
                 meta: fragment.meta.clone(),
             };
             annotate_legacy_component_fragment_meta(
@@ -724,6 +848,20 @@ pub(crate) fn molecule_fragment_connected_components(
             .entry(bond.end.as_str())
             .or_default()
             .push(bond.begin.as_str());
+    }
+    for interaction in &fragment.interactions {
+        let participants = interaction
+            .centers
+            .iter()
+            .flat_map(|center| center.atoms.iter().map(String::as_str))
+            .collect::<Vec<_>>();
+        for left in &participants {
+            for right in &participants {
+                if left != right {
+                    adjacency.entry(left).or_default().push(right);
+                }
+            }
+        }
     }
 
     let mut visited = BTreeSet::new();
@@ -1957,6 +2095,14 @@ pub struct MoleculeFragment {
     pub nodes: Vec<Node>,
     #[serde(default)]
     pub bonds: Vec<Bond>,
+    /// Source-independent molecular stereochemistry that cannot be recovered
+    /// solely from bond drawing glyphs. References use fragment node/bond IDs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stereo: Vec<chemsema_chemical_graph::StereoElementV2>,
+    /// Native multicenter molecular relationships. CDXML MultiAttachment
+    /// proxy nodes are a presentation/transport encoding of this field.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub interactions: Vec<chemsema_chemical_graph::MultiCenterInteractionV2>,
     #[serde(default)]
     pub meta: Value,
 }
@@ -1968,6 +2114,8 @@ impl MoleculeFragment {
             bbox: [0.0, 0.0, DEFAULT_PAGE_WIDTH, DEFAULT_PAGE_HEIGHT],
             nodes: Vec::new(),
             bonds: Vec::new(),
+            stereo: Vec::new(),
+            interactions: Vec::new(),
             meta: Value::Null,
         }
     }
@@ -3015,6 +3163,8 @@ mod tests {
                         meta: Value::Null,
                     }],
                     bonds: Vec::new(),
+                    stereo: Vec::new(),
+                    interactions: Vec::new(),
                     meta: Value::Null,
                 }),
                 meta: Value::Null,
@@ -3461,6 +3611,8 @@ mod tests {
                         meta: Value::Null,
                     }],
                     bonds: Vec::new(),
+                    stereo: Vec::new(),
+                    interactions: Vec::new(),
                     meta: Value::Null,
                 }),
                 meta: Value::Null,

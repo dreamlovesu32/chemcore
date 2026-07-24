@@ -1,6 +1,7 @@
 use super::text_edit::refresh_attached_node_label_geometry_for_all_nodes;
 use super::{EditorCommand, Engine, RenderBoundsScope};
 use crate::{Bond, ChemSemaDocument, Node, Resource, ResourceData, SceneObject, SelectionState};
+use chemsema_chemical_graph::{MultiCenterInteractionV2, StereoElementV2};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -12,6 +13,10 @@ pub(super) struct ClipboardContent {
     nodes: Vec<Node>,
     #[serde(default)]
     bonds: Vec<Bond>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    stereo: Vec<StereoElementV2>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    interactions: Vec<MultiCenterInteractionV2>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     scene_objects: Vec<SceneObject>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -108,6 +113,8 @@ impl Engine {
         let content = ClipboardContent {
             nodes: Vec::new(),
             bonds: Vec::new(),
+            stereo: Vec::new(),
+            interactions: Vec::new(),
             scene_objects: document.objects,
             resources,
         };
@@ -129,6 +136,7 @@ impl Engine {
         let mut id_map = BTreeMap::new();
         let mut pasted_node_ids = Vec::new();
         let mut pasted_bond_ids = Vec::new();
+        let mut bond_id_map = BTreeMap::new();
         let mut nodes_to_insert = Vec::new();
         let mut bonds_to_insert = Vec::new();
 
@@ -149,11 +157,19 @@ impl Engine {
             };
             let mut next = bond.clone();
             next.id = self.next_id("b");
+            bond_id_map.insert(bond.id.clone(), next.id.clone());
             next.begin = begin.clone();
             next.end = end.clone();
             pasted_bond_ids.push(next.id.clone());
             bonds_to_insert.push(next);
         }
+        let (stereo_to_insert, interactions_to_insert) = remap_clipboard_semantics(
+            self,
+            &content.stereo,
+            &content.interactions,
+            &id_map,
+            &bond_id_map,
+        );
 
         if !nodes_to_insert.is_empty() {
             let stroke_width = self.options.bond_stroke_world_pt().value();
@@ -163,6 +179,8 @@ impl Engine {
             };
             entry.fragment.nodes.extend(nodes_to_insert);
             entry.fragment.bonds.extend(bonds_to_insert);
+            entry.fragment.stereo.extend(stereo_to_insert);
+            entry.fragment.interactions.extend(interactions_to_insert);
 
             let object_translate = entry.object.transform.translate;
             refresh_attached_node_label_geometry_for_all_nodes(
@@ -295,6 +313,15 @@ impl Engine {
                     .collect()
             })
             .unwrap_or_default();
+        let bond_ids = bonds
+            .iter()
+            .map(|bond| bond.id.clone())
+            .collect::<BTreeSet<_>>();
+        let (stereo, interactions) = entry
+            .as_ref()
+            .filter(|_| !active_molecule_is_complete)
+            .map(|entry| crate::subset_molecule_semantics(entry.fragment, &node_ids, &bond_ids))
+            .unwrap_or_default();
 
         let mut selected_scene_ids: BTreeSet<&str> = self
             .state
@@ -322,6 +349,8 @@ impl Engine {
         Some(ClipboardContent {
             nodes,
             bonds,
+            stereo,
+            interactions,
             scene_objects,
             resources,
         })
@@ -420,6 +449,15 @@ impl Engine {
         let mut fragment = entry.fragment.clone();
         fragment.nodes = nodes;
         fragment.bonds = bonds;
+        let bond_ids = fragment
+            .bonds
+            .iter()
+            .map(|bond| bond.id.clone())
+            .collect::<BTreeSet<_>>();
+        let (stereo, interactions) =
+            crate::subset_molecule_semantics(entry.fragment, &node_ids, &bond_ids);
+        fragment.stereo = stereo;
+        fragment.interactions = interactions;
         fragment.bbox = fragment_clipboard_bounds(&fragment.nodes);
 
         let mut object = entry.object.clone();
@@ -568,6 +606,123 @@ fn clone_selected_scene_objects(
         clone.children = children;
         out.push(clone);
     }
+}
+
+fn remap_clipboard_semantics(
+    engine: &mut Engine,
+    stereo: &[StereoElementV2],
+    interactions: &[MultiCenterInteractionV2],
+    node_ids: &BTreeMap<String, String>,
+    bond_ids: &BTreeMap<String, String>,
+) -> (Vec<StereoElementV2>, Vec<MultiCenterInteractionV2>) {
+    use chemsema_chemical_graph::{StereoCarrierV2, StereoReferenceV2};
+
+    let source_stereo_ids = stereo
+        .iter()
+        .map(|element| match element {
+            StereoElementV2::Tetrahedral { id, .. }
+            | StereoElementV2::DoubleBond { id, .. }
+            | StereoElementV2::EnhancedGroup { id, .. }
+            | StereoElementV2::Extended { id, .. }
+            | StereoElementV2::Conformation { id, .. }
+            | StereoElementV2::Unspecified { id, .. } => id,
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let stereo_ids = source_stereo_ids
+        .iter()
+        .map(|id| (id.clone(), engine.next_id("stereo")))
+        .collect::<BTreeMap<_, _>>();
+    let map_atom = |id: &mut String| {
+        *id = node_ids
+            .get(id)
+            .expect("clipboard semantic atom was retained")
+            .clone();
+    };
+    let map_bond = |id: &mut String| {
+        *id = bond_ids
+            .get(id)
+            .expect("clipboard semantic bond was retained")
+            .clone();
+    };
+    let map_carrier = |carrier: &mut StereoCarrierV2| match carrier {
+        StereoCarrierV2::Atom(atom)
+        | StereoCarrierV2::LonePair(atom)
+        | StereoCarrierV2::DuplicateAtom(atom) => map_atom(atom),
+        StereoCarrierV2::Bond(bond) => map_bond(bond),
+        StereoCarrierV2::AtomSet(atoms) | StereoCarrierV2::Plane(atoms) => {
+            atoms.iter_mut().for_each(&map_atom)
+        }
+        StereoCarrierV2::Axis(atoms) => atoms.iter_mut().for_each(&map_atom),
+        StereoCarrierV2::Torsion(atoms) => atoms.iter_mut().for_each(&map_atom),
+        StereoCarrierV2::ConjugatedDoubleBondPair(bonds) => bonds.iter_mut().for_each(&map_bond),
+    };
+    let remapped_stereo = stereo
+        .iter()
+        .cloned()
+        .map(|mut element| {
+            match &mut element {
+                StereoElementV2::Tetrahedral {
+                    id,
+                    center,
+                    references,
+                    ..
+                } => {
+                    *id = stereo_ids[id].clone();
+                    map_atom(center);
+                    for reference in references {
+                        if let StereoReferenceV2::Atom(atom) = reference {
+                            map_atom(atom);
+                        }
+                    }
+                }
+                StereoElementV2::DoubleBond {
+                    id,
+                    bond,
+                    left_reference,
+                    right_reference,
+                    ..
+                } => {
+                    *id = stereo_ids[id].clone();
+                    map_bond(bond);
+                    map_atom(left_reference);
+                    map_atom(right_reference);
+                }
+                StereoElementV2::EnhancedGroup { id, members, .. } => {
+                    *id = stereo_ids[id].clone();
+                    for member in members {
+                        *member = stereo_ids
+                            .get(member)
+                            .expect("clipboard enhanced stereo member was retained")
+                            .clone();
+                    }
+                }
+                StereoElementV2::Extended { id, carriers, .. }
+                | StereoElementV2::Conformation { id, carriers, .. }
+                | StereoElementV2::Unspecified { id, carriers, .. } => {
+                    *id = stereo_ids[id].clone();
+                    carriers.iter_mut().for_each(&map_carrier);
+                }
+            }
+            element
+        })
+        .collect();
+    let remapped_interactions = interactions
+        .iter()
+        .cloned()
+        .map(|mut interaction| {
+            interaction.id = engine.next_id("interaction");
+            for atom in interaction
+                .centers
+                .iter_mut()
+                .flat_map(|center| center.atoms.iter_mut())
+            {
+                map_atom(atom);
+            }
+            interaction
+        })
+        .collect();
+    (remapped_stereo, remapped_interactions)
 }
 
 fn fragment_clipboard_bounds(nodes: &[Node]) -> [f64; 4] {

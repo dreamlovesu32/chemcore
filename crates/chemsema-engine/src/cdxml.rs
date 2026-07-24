@@ -227,7 +227,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
             continue;
         };
         let Some(resource) =
-            normalize_fragment(fragment, bbox, &node_positions, defaults, &colors, &fonts)
+            normalize_fragment(fragment, bbox, &node_positions, defaults, &colors, &fonts)?
         else {
             continue;
         };

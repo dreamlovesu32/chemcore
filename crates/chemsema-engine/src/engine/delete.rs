@@ -274,6 +274,7 @@ impl Engine {
             .bonds
             .retain(|bond| bond.begin != node_id && bond.end != node_id);
         prune_unconnected_fragment_nodes(entry.fragment);
+        crate::retain_valid_molecule_semantics(entry.fragment);
         refresh_attached_node_label_geometry_for_all_nodes(
             entry.fragment,
             object_translate,
@@ -302,6 +303,7 @@ impl Engine {
             .bonds
             .retain(|bond| bond.begin != node_id && bond.end != node_id);
         entry.fragment.nodes.retain(|node| node.id != node_id);
+        crate::retain_valid_molecule_semantics(entry.fragment);
         refresh_attached_node_label_geometry_for_all_nodes(
             entry.fragment,
             object_translate,
@@ -472,6 +474,7 @@ fn delete_fragment_selection(
     fragment
         .nodes
         .retain(|node| !nodes_to_remove.contains(&node.id));
+    crate::retain_valid_molecule_semantics(fragment);
     fragment.bonds.len() != previous_bonds || fragment.nodes.len() != previous_nodes
 }
 
@@ -480,6 +483,13 @@ fn prune_unconnected_fragment_nodes(fragment: &mut crate::MoleculeFragment) {
         .bonds
         .iter()
         .flat_map(|bond| [bond.begin.clone(), bond.end.clone()])
+        .chain(
+            fragment
+                .interactions
+                .iter()
+                .flat_map(|interaction| interaction.centers.iter())
+                .flat_map(|center| center.atoms.iter().cloned()),
+        )
         .collect();
     fragment
         .nodes

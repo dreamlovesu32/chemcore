@@ -13,15 +13,18 @@
 规范中的合法和非法样例位于
 [`fixtures/chemical-graph-v2`](../fixtures/chemical-graph-v2)。
 
-## 必须声明的语义
+## 固定语义
 
-每张图必须声明：
+新导出的图必须声明：
 
 - `profile`：`molecular-entity` 或 `discrete-composition`；
 - `aromaticityModel`：目前为 `explicit-aromatic-bonds`；
 - `hydrogenModel`：目前为 `resolved-counts`；
 - `valenceModel`：目前为 `chem-sema2026`；
 - `normalization`：目前为 `chemsema-chemical-graph-normalization/1`。
+
+最初的 V2 线上契约没有 `semantics` 对象，因此读取器会把缺失值严格解释为上述固定值。
+该对象不是每个文档自行选择规则的开关；只要出现，就必须与受支持的 V2 契约一致。
 
 芳香键形式与交替 Kekulé 形式不会被偷偷视为相同。导入适配器必须先使用明确支持的芳香性
 模型完成规范化，再生成 V2。已经解析的隐式氢数参与化学身份。
@@ -53,8 +56,9 @@
 - `coordination`：恰好一个供体中心、一个或多个受体中心；
 - `delocalized-bond`：至少三个原子组成 shared 中心。
 
-`electronCount` 可选，因为来源格式不一定提供；一旦存在便参与身份，离域键的电子数必须
-为正。eta、kappa、mu 等命名符号由命名规则推导，不作为绘图字符串存储。
+V2 不携带相互作用电子数。电子数是可变分子事实；若在既有 V2 schema 下增加，旧读取器会
+静默忽略影响身份的信息。未来只有使用新 schema 并提供显式适配器后才能增加。eta、
+kappa、mu 等命名符号由命名规则推导，不作为绘图字符串存储。
 
 ## 产品入口
 
@@ -82,3 +86,10 @@
 
 所有适配器只能返回“通过校验的完整图”或带损失清单的明确 unsupported/partial 结果，禁止
 静默丢字段。
+Rust API `ChemicalGraphV2::assess_mapping_to()` 会针对当前实现的 ChemicalGraph、
+CDX/CDXML、SMILES 和 SDF V2000 边界生成带版本号的
+`chemsema.chemical-graph-mapping-report.v1` 损失清单。
+从 CDXML 导入的 CCJS 文档可以在源格式往返时保留已有的 MultiAttachment
+代理几何；但仅有 ChemicalGraph 时不能假定这些表现层几何存在。因此，在适配器
+尚未明确构造这套文档编码之前，映射报告会拒绝把配位相互作用声明为无损
+CDX/CDXML 映射。

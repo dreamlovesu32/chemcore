@@ -2340,13 +2340,29 @@ pub(crate) fn formula_hydrogen_count_for_node(
     if node.atomic_number != 6 {
         return implicit_hydrogen_count(fragment, node_id);
     }
-    let connection_order: i32 = fragment
+    let connection_order_twice: i32 = fragment
         .bonds
         .iter()
         .filter(|bond| bond.begin == node_id || bond.end == node_id)
-        .map(|bond| i32::from(bond.order.max(1)))
+        .map(|bond| {
+            let aromatic = bond
+                .meta
+                .pointer("/chemistry/smiles/kind")
+                .and_then(Value::as_str)
+                == Some("aromatic")
+                || bond
+                    .meta
+                    .pointer("/import/cdxml/aromatic")
+                    .and_then(Value::as_bool)
+                    == Some(true);
+            if aromatic {
+                3
+            } else {
+                2 * i32::from(bond.order.max(1))
+            }
+        })
         .sum();
-    (4 - connection_order - node.charge.abs()).clamp(0, 4) as u8
+    ((8 - connection_order_twice - 2 * node.charge.abs()).clamp(0, 8) / 2) as u8
 }
 
 pub(super) fn typical_valence_for_implicit_hydrogen(

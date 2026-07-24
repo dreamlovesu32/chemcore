@@ -1091,6 +1091,8 @@ mod tests {
                 bbox: [0.0, 0.0, 80.0, 80.0],
                 nodes: vec![node],
                 bonds: Vec::new(),
+                stereo: Vec::new(),
+                interactions: Vec::new(),
                 meta: JsonValue::Null,
             }),
             meta: JsonValue::Null,

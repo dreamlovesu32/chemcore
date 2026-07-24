@@ -21,8 +21,7 @@
       "centers": [
         {"role": "shared", "atoms": ["c1"]},
         {"role": "shared", "atoms": ["c1"]}
-      ],
-      "electronCount": 2
+      ]
     }
   ]
 }
