@@ -1,8 +1,8 @@
-use super::Engine;
+use super::{ChemicalAnalysisFormat, CommandTargetSet, Engine};
 use crate::{
-    round2, ChemSemaDocument, LabelRun, MoleculeFragment, NmrAssignment, NmrAssignmentQuality,
-    NmrNucleus, NodeLabel, ObjectPayload, Resource, ResourceData, SceneObject, SpectrumClass,
-    SpectrumData, SpectrumXAxisType, SpectrumYAxisType, Transform,
+    round2, AtomRadical, ChemSemaDocument, LabelRun, MoleculeFragment, NmrAssignment,
+    NmrAssignmentQuality, NmrNucleus, NodeLabel, ObjectPayload, Resource, ResourceData,
+    SceneObject, SpectrumClass, SpectrumData, SpectrumXAxisType, SpectrumYAxisType, Transform,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -16,6 +16,244 @@ const SPECTRUM_LEFT: f64 = 14.4;
 const SPECTRUM_TOP: f64 = 119.85;
 const SPECTRUM_WIDTH: f64 = 450.0;
 const SPECTRUM_HEIGHT: f64 = 200.0;
+
+fn tetrahedral_stereo_from_analysis(
+    fragment: &MoleculeFragment,
+    analysis: &Value,
+) -> Result<(Vec<Value>, Vec<Value>), String> {
+    let mut stereo = Vec::new();
+    let mut descriptors = BTreeMap::<String, String>::new();
+    let centers = analysis
+        .get("tetrahedralCenters")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "chemistry analysis omitted tetrahedralCenters".to_string())?;
+    for center in centers {
+        let atom_index = center
+            .get("atomIndex")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| "tetrahedral center omitted atomIndex".to_string())?
+            as usize;
+        let center_node = fragment
+            .nodes
+            .get(atom_index)
+            .ok_or_else(|| "tetrahedral center atomIndex is outside the fragment".to_string())?;
+        let references = center
+            .get("ligandOrder")
+            .and_then(Value::as_array)
+            .ok_or_else(|| "tetrahedral center omitted ligandOrder".to_string())?
+            .iter()
+            .map(|ligand| match ligand.get("kind").and_then(Value::as_str) {
+                Some("atom") => {
+                    let index = ligand
+                        .get("value")
+                        .and_then(Value::as_u64)
+                        .ok_or_else(|| "atom ligand omitted value".to_string())?
+                        as usize;
+                    let node = fragment
+                        .nodes
+                        .get(index)
+                        .ok_or_else(|| "atom ligand index is outside the fragment".to_string())?;
+                    Ok(json!({"kind": "atom", "value": node.id}))
+                }
+                Some("hydrogen") => Ok(json!({"kind": "implicitHydrogen"})),
+                _ => Err("tetrahedral center has an unsupported ligand kind".to_string()),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        if references.len() != 4 {
+            return Err(format!(
+                "tetrahedral center '{}' does not have four semantic references",
+                center_node.id
+            ));
+        }
+        let parity = match center.get("smilesParity").and_then(Value::as_str) {
+            Some("clockwise") => "clockwise",
+            Some("anticlockwise") => "anticlockwise",
+            _ => return Err("tetrahedral center omitted semantic parity".to_string()),
+        };
+        if let Some(cip) = center
+            .get("cip")
+            .and_then(Value::as_str)
+            .filter(|value| matches!(*value, "R" | "S" | "r" | "s"))
+        {
+            descriptors.insert(center_node.id.clone(), cip.to_string());
+        }
+        stereo.push(json!({
+            "kind": "tetrahedral",
+            "id": format!("tetrahedral-{}", center_node.id),
+            "center": center_node.id,
+            "references": references,
+            "parity": parity,
+        }));
+    }
+    let descriptors = descriptors
+        .into_iter()
+        .map(|(atom_id, descriptor)| {
+            json!({
+                "atomId": atom_id,
+                "descriptor": descriptor,
+            })
+        })
+        .collect();
+    Ok((stereo, descriptors))
+}
+
+fn double_bond_stereo(fragment: &MoleculeFragment, analysis: &Value) -> Result<Vec<Value>, String> {
+    let mut result = BTreeMap::<String, Value>::new();
+    let analyzed = analysis
+        .get("doubleBondStereo")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "chemistry analysis omitted doubleBondStereo".to_string())?;
+    for stereo in analyzed {
+        let bond_index = stereo
+            .get("bondIndex")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| "double-bond stereo omitted bondIndex".to_string())?
+            as usize;
+        let begin_reference_index = stereo
+            .get("beginReferenceBond")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| "double-bond stereo omitted beginReferenceBond".to_string())?
+            as usize;
+        let end_reference_index = stereo
+            .get("endReferenceBond")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| "double-bond stereo omitted endReferenceBond".to_string())?
+            as usize;
+        let bond = fragment
+            .bonds
+            .get(bond_index)
+            .ok_or_else(|| "double-bond stereo bondIndex is outside the fragment".to_string())?;
+        let begin_reference_bond = fragment.bonds.get(begin_reference_index).ok_or_else(|| {
+            "double-bond stereo beginReferenceBond is outside the fragment".to_string()
+        })?;
+        let end_reference_bond = fragment.bonds.get(end_reference_index).ok_or_else(|| {
+            "double-bond stereo endReferenceBond is outside the fragment".to_string()
+        })?;
+        let other_endpoint = |reference: &crate::Bond, center: &str| {
+            if reference.begin == center {
+                Some(reference.end.clone())
+            } else if reference.end == center {
+                Some(reference.begin.clone())
+            } else {
+                None
+            }
+        };
+        let left_reference = other_endpoint(begin_reference_bond, &bond.begin)
+            .ok_or_else(|| "begin reference bond does not meet the double bond".to_string())?;
+        let right_reference = other_endpoint(end_reference_bond, &bond.end)
+            .ok_or_else(|| "end reference bond does not meet the double bond".to_string())?;
+        let relation = match stereo.get("configuration").and_then(Value::as_str) {
+            Some("z") => "together",
+            Some("e") => "opposite",
+            _ => return Err("double-bond stereo omitted E/Z configuration".to_string()),
+        };
+        result.insert(
+            bond.id.clone(),
+            json!({
+                "kind": "doubleBond",
+                "id": format!("double-bond-{}", bond.id),
+                "bond": bond.id,
+                "leftReference": left_reference,
+                "rightReference": right_reference,
+                "relation": relation,
+            }),
+        );
+    }
+
+    // CDXML can carry a semantic cis/trans relation directly even when it did
+    // not originate from directional SMILES bonds. This is a separate explicit
+    // input representation, not a geometry-derived guess.
+    for bond in &fragment.bonds {
+        if result.contains_key(&bond.id) {
+            continue;
+        }
+        let Some(relation) = bond
+            .stereo
+            .as_ref()
+            .and_then(|stereo| match stereo.kind.as_str() {
+                "cis" => Some("together"),
+                "trans" => Some("opposite"),
+                _ => None,
+            })
+        else {
+            continue;
+        };
+        let left_reference = fragment.bonds.iter().find_map(|candidate| {
+            if candidate.id == bond.id {
+                None
+            } else if candidate.begin == bond.begin && candidate.end != bond.end {
+                Some(candidate.end.as_str())
+            } else if candidate.end == bond.begin && candidate.begin != bond.end {
+                Some(candidate.begin.as_str())
+            } else {
+                None
+            }
+        });
+        let right_reference = fragment.bonds.iter().find_map(|candidate| {
+            if candidate.id == bond.id {
+                None
+            } else if candidate.begin == bond.end && candidate.end != bond.begin {
+                Some(candidate.end.as_str())
+            } else if candidate.end == bond.end && candidate.begin != bond.begin {
+                Some(candidate.begin.as_str())
+            } else {
+                None
+            }
+        });
+        if let (Some(left_reference), Some(right_reference)) = (left_reference, right_reference) {
+            result.insert(
+                bond.id.clone(),
+                json!({
+                    "kind": "doubleBond",
+                    "id": format!("double-bond-{}", bond.id),
+                    "bond": bond.id,
+                    "leftReference": left_reference,
+                    "rightReference": right_reference,
+                    "relation": relation,
+                }),
+            );
+        }
+    }
+    Ok(result.into_values().collect())
+}
+
+fn molecule_components(fragment: &MoleculeFragment) -> Vec<Vec<String>> {
+    let mut adjacency = BTreeMap::<&str, Vec<&str>>::new();
+    for node in &fragment.nodes {
+        adjacency.entry(node.id.as_str()).or_default();
+    }
+    for bond in &fragment.bonds {
+        adjacency
+            .entry(bond.begin.as_str())
+            .or_default()
+            .push(bond.end.as_str());
+        adjacency
+            .entry(bond.end.as_str())
+            .or_default()
+            .push(bond.begin.as_str());
+    }
+
+    let mut remaining = adjacency.keys().copied().collect::<BTreeSet<_>>();
+    let mut components = Vec::new();
+    while let Some(start) = remaining.iter().next().copied() {
+        let mut pending = vec![start];
+        let mut atoms = Vec::new();
+        remaining.remove(start);
+        while let Some(atom) = pending.pop() {
+            atoms.push(atom.to_string());
+            if let Some(neighbors) = adjacency.get(atom) {
+                for neighbor in neighbors {
+                    if remaining.remove(neighbor) {
+                        pending.push(neighbor);
+                    }
+                }
+            }
+        }
+        atoms.sort();
+        components.push(atoms);
+    }
+    components
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -108,32 +346,35 @@ impl Engine {
             _ => return Err("NMR nucleus must be 1H or 13C".to_string()),
         };
         let (object, fragment) = self.selected_single_molecule_fragment()?;
+        let analysis = self.chemical_analysis_output(
+            ChemicalAnalysisFormat::Smiles,
+            &CommandTargetSet {
+                objects: vec![object.id.clone()],
+                ..CommandTargetSet::default()
+            },
+        )?;
+        let (mut stereo, assigned_cip_descriptors) =
+            tetrahedral_stereo_from_analysis(&fragment, &analysis)?;
         let atoms = fragment
             .nodes
             .iter()
             .map(|node| {
-                let stereo = node
-                    .atom_properties
-                    .cip_stereo
-                    .as_deref()
-                    .map(|value| match value {
-                        "R" => "R",
-                        "S" => "S",
-                        "r" => "r",
-                        "s" => "s",
-                        _ => "unknown",
-                    });
+                let radical = match node.atom_properties.radical {
+                    AtomRadical::None => "none",
+                    AtomRadical::Singlet => "singlet",
+                    AtomRadical::Doublet => "doublet",
+                    AtomRadical::Triplet => "triplet",
+                };
                 json!({
                     "id": node.id,
                     "atomicNumber": node.atomic_number,
                     "isotope": node.atom_properties.isotope_mass.filter(|value| *value > 0),
                     "formalCharge": node.charge,
-                    "radicalElectrons": node.atom_properties.radical.electron_count(),
+                    "radical": radical,
                     "implicitHydrogens": crate::engine::formula_hydrogen_count_for_node(
                         &fragment,
                         &node.id,
                     ),
-                    "stereo": stereo,
                 })
             })
             .collect::<Vec<_>>();
@@ -160,32 +401,42 @@ impl Engine {
                         ));
                     }
                 };
-                let stereo = bond
-                    .stereo
-                    .as_ref()
-                    .map(|stereo| match stereo.kind.as_str() {
-                        "solid" | "bold" | "wedge" => "up",
-                        "hash" | "hashed" | "dash" => "down",
-                        "cis" => "cis",
-                        "trans" => "trans",
-                        _ => "either",
-                    });
                 Ok(json!({
                     "id": bond.id,
-                    "begin": bond.begin,
-                    "end": bond.end,
-                    "order": order,
-                    "stereo": stereo,
+                    "atoms": [bond.begin.clone(), bond.end.clone()],
+                    "kind": order,
+                    "dativeDirection": null,
                 }))
             })
             .collect::<Result<Vec<_>, _>>()?;
+        stereo.extend(double_bond_stereo(&fragment, &analysis)?);
+        let components = molecule_components(&fragment)
+            .into_iter()
+            .enumerate()
+            .map(|(index, atoms)| {
+                json!({
+                    "id": format!("component-{}", index + 1),
+                    "atoms": atoms,
+                    "count": 1,
+                })
+            })
+            .collect::<Vec<_>>();
         Ok(json!({
-            "schema": "chemsema.nmr-prediction-request.v1",
-            "molecule": {
-                "id": object.id,
+            "schema": "chemsema.nmr-prediction-request.v2",
+            "moleculeId": object.id,
+            "graph": {
+                "schema": "chemsema-nomenclature/chemical-graph/2",
                 "atoms": atoms,
                 "bonds": bonds,
+                "stereo": stereo,
+                "components": components,
+                "assumptions": [{
+                    "code": "implicit-hydrogens-resolved",
+                    "detail": "Resolved from the selected ChemSema molecular fragment before NMR prediction."
+                }],
+                "interactions": [],
             },
+            "assignedCipDescriptors": assigned_cip_descriptors,
             "nucleus": nucleus,
             "conditions": {
                 "solvent": "CDCl3",

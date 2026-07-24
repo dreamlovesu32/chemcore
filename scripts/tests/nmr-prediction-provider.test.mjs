@@ -12,18 +12,25 @@ const wasmPath = new URL("../../viewer/nmr-engine/chemsema_nmr_bg.wasm", import.
 
 function methaneRequest() {
   return {
-    schema: "chemsema.nmr-prediction-request.v1",
-    molecule: {
-      id: "methane",
+    schema: "chemsema.nmr-prediction-request.v2",
+    moleculeId: "methane",
+    graph: {
+      schema: "chemsema-nomenclature/chemical-graph/2",
       atoms: [{
         id: "c1",
         atomicNumber: 6,
+        isotope: null,
         formalCharge: 0,
-        radicalElectrons: 0,
+        radical: "none",
         implicitHydrogens: 4,
       }],
       bonds: [],
+      stereo: [],
+      components: [{ id: "component-1", atoms: ["c1"], count: 1 }],
+      assumptions: [],
+      interactions: [],
     },
+    assignedCipDescriptors: [],
     nucleus: "1H",
     conditions: {
       solvent: "CDCl3",
@@ -42,7 +49,7 @@ test("bundled NMR provider initializes once and preserves structured requests", 
     capabilitiesJson: () => JSON.stringify({ schema: "test.capabilities" }),
     predictJson: (requestJson) => JSON.stringify({
       schema: "test.response",
-      moleculeId: JSON.parse(requestJson).molecule.id,
+      moleculeId: JSON.parse(requestJson).moleculeId,
     }),
   });
 

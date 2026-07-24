@@ -65,6 +65,27 @@ const HETEROATOM_MOLECULE_CDXML: &str = r#"<?xml version="1.0" encoding="UTF-8" 
   </page>
 </CDXML>"#;
 
+const CHIRAL_ALCOHOL_CDXML: &str = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML BondLength="30" LabelFont="3" LabelSize="10" LineWidth="0.6">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <colortable><color r="1" g="1" b="1"/><color r="0" g="0" b="0"/></colortable>
+  <page id="1" BoundingBox="0 0 300 200">
+    <fragment id="2">
+      <n id="8" p="40 120"/>
+      <n id="9" p="70 100"/>
+      <n id="10" p="100 120"/>
+      <n id="11" p="130 100"/>
+      <n id="12" p="160 120"/>
+      <n id="13" p="130 60" Element="8"/>
+      <b id="21" B="8" E="9" Order="1"/>
+      <b id="22" B="9" E="10" Order="1"/>
+      <b id="23" B="10" E="11" Order="1"/>
+      <b id="24" B="11" E="12" Order="1" Display="WedgedHashBegin"/>
+      <b id="25" B="11" E="13" Order="1"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+
 fn spectrum_object(document: &chemsema_engine::ChemSemaDocument) -> &chemsema_engine::SceneObject {
     document
         .scene_objects()
@@ -415,16 +436,20 @@ fn prediction_response_builds_the_chemdraw_style_page_from_native_objects() {
             .expect("request builds"),
     )
     .expect("request JSON");
-    assert_eq!(request["schema"], "chemsema.nmr-prediction-request.v1");
+    assert_eq!(request["schema"], "chemsema.nmr-prediction-request.v2");
+    assert_eq!(
+        request["graph"]["schema"],
+        "chemsema-nomenclature/chemical-graph/2"
+    );
     assert_eq!(request["nucleus"], "1H");
-    assert_eq!(request["molecule"]["atoms"][0]["id"], "3");
+    assert_eq!(request["graph"]["atoms"][0]["id"], "3");
 
     let response = json!({
         "schema": "chemsema.nmr-prediction-response.v2",
         "engineVersion": "0.1.0",
         "ruleSetVersion": "test.v1",
         "status": "complete",
-        "moleculeId": request["molecule"]["id"],
+        "moleculeId": request["moleculeId"],
         "nucleus": "1H",
         "conditions": {
             "solvent": "CDCl3",
@@ -485,7 +510,7 @@ fn prediction_response_builds_the_chemdraw_style_page_from_native_objects() {
 }
 
 #[test]
-fn nmr_request_preserves_resolved_cip_stereochemistry() {
+fn nmr_request_does_not_treat_an_unresolved_atom_label_as_v2_stereochemistry() {
     let cdxml = ASSIGNED_MOLECULE_CDXML.replace("<n id=\"3\"", "<n id=\"3\" AS=\"R\"");
     let mut engine = Engine::new();
     engine
@@ -499,7 +524,84 @@ fn nmr_request_preserves_resolved_cip_stereochemistry() {
     )
     .expect("request JSON");
 
-    assert_eq!(request["molecule"]["atoms"][0]["stereo"], "R");
+    assert!(request["graph"]["stereo"].as_array().unwrap().is_empty());
+    assert!(request["assignedCipDescriptors"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
+fn nmr_request_emits_true_chemical_graph_v2_tetrahedral_stereo() {
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(CHIRAL_ALCOHOL_CDXML)
+        .expect("chiral alcohol loads");
+    assert!(engine.select_all());
+    let request: Value = serde_json::from_str(
+        &engine
+            .nmr_prediction_request_json("1H")
+            .expect("request builds"),
+    )
+    .expect("request JSON");
+
+    assert_eq!(request["schema"], "chemsema.nmr-prediction-request.v2");
+    assert_eq!(
+        request["graph"]["schema"],
+        "chemsema-nomenclature/chemical-graph/2"
+    );
+    let stereo = request["graph"]["stereo"].as_array().expect("stereo array");
+    let tetrahedral = stereo
+        .iter()
+        .find(|element| element["kind"] == "tetrahedral")
+        .expect("tetrahedral element");
+    assert_eq!(tetrahedral["center"], "11");
+    assert_eq!(
+        tetrahedral["references"]
+            .as_array()
+            .expect("references")
+            .len(),
+        4
+    );
+    assert!(matches!(
+        tetrahedral["parity"].as_str(),
+        Some("clockwise" | "anticlockwise")
+    ));
+    assert_eq!(
+        request["assignedCipDescriptors"].as_array().unwrap().len(),
+        1
+    );
+}
+
+#[test]
+fn nmr_request_emits_semantic_v2_double_bond_stereo_from_smiles() {
+    let mut engine = Engine::new();
+    execute(
+        &mut engine,
+        json!({
+            "type": "insert-smiles",
+            "smiles": "F/C=C/F",
+            "x": 80.0,
+            "y": 80.0
+        }),
+    );
+    assert!(engine.select_all());
+    let request: Value = serde_json::from_str(
+        &engine
+            .nmr_prediction_request_json("1H")
+            .expect("request builds"),
+    )
+    .expect("request JSON");
+    let double_bond = request["graph"]["stereo"]
+        .as_array()
+        .expect("stereo array")
+        .iter()
+        .find(|element| element["kind"] == "doubleBond")
+        .expect("double-bond stereo element");
+
+    assert_eq!(double_bond["relation"], "opposite");
+    assert!(double_bond["leftReference"].is_string());
+    assert!(double_bond["rightReference"].is_string());
 }
 
 #[test]
@@ -520,6 +622,6 @@ fn nmr_request_allows_labels_belonging_to_the_selected_complete_molecule() {
     )
     .expect("request JSON");
 
-    assert_eq!(request["molecule"]["atoms"].as_array().unwrap().len(), 3);
-    assert_eq!(request["molecule"]["atoms"][2]["atomicNumber"], 8);
+    assert_eq!(request["graph"]["atoms"].as_array().unwrap().len(), 3);
+    assert_eq!(request["graph"]["atoms"][2]["atomicNumber"], 8);
 }
