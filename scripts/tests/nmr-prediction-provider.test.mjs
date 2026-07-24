@@ -67,7 +67,14 @@ test("tracked WASM provider predicts a real molecule with response v2", async ()
   });
 
   const capabilities = await provider.capabilities();
+  assert.equal(capabilities.schema, "chemsema.nmr-capabilities.v2");
   assert.equal(capabilities.responseSchema, "chemsema.nmr-prediction-response.v2");
+  const proton = capabilities.nuclei.find(({ nucleus }) => nucleus === "1H");
+  assert.equal(proton.firstOrderSpectrumOnly, false);
+  assert.equal(
+    proton.higherOrderSpectrumScope,
+    "exact-homonuclear-ab-two-spin",
+  );
 
   const response = await provider.predict(methaneRequest());
   assert.equal(response.schema, "chemsema.nmr-prediction-response.v2");
