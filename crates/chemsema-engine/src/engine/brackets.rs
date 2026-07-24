@@ -292,6 +292,7 @@ impl Engine {
             payload: crate::ObjectPayload {
                 resource_ref: None,
                 bbox: Some([round2(x1), round2(y1), round2(width), round2(height)]),
+                spectrum: None,
                 extra: BTreeMap::new(),
             },
             children: vec![left, right],
@@ -350,6 +351,7 @@ impl Engine {
             payload: crate::ObjectPayload {
                 resource_ref: None,
                 bbox: Some([0.0, 0.0, width, height]),
+                spectrum: None,
                 extra,
             },
             children: Vec::new(),
@@ -667,6 +669,7 @@ fn bracket_side_scene_object(
         payload: crate::ObjectPayload {
             resource_ref: None,
             bbox: Some([0.0, 0.0, round2(side_width), round2(pair_height)]),
+            spectrum: None,
             extra,
         },
         children: Vec::new(),

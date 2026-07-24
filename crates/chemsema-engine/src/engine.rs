@@ -17,6 +17,7 @@ mod history;
 mod images;
 mod io;
 mod links;
+mod nmr_results;
 mod orbitals;
 mod palettes;
 mod pointer;
@@ -25,6 +26,7 @@ mod render_state;
 mod select;
 mod selection_summary;
 mod shapes;
+mod spectra;
 mod templates;
 mod text_edit;
 mod tlc;
@@ -1072,6 +1074,7 @@ mod tests {
             payload: ObjectPayload {
                 resource_ref: Some(resource_ref.to_string()),
                 bbox: Some([0.0, 0.0, 80.0, 80.0]),
+                spectrum: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),
@@ -1361,6 +1364,7 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::ApplyDocumentStyle { .. } => "apply-document-style",
         EditorCommand::SetArrowGeometry { .. } => "set-arrow-geometry",
         EditorCommand::SetShapeGeometry { .. } => "set-shape-geometry",
+        EditorCommand::SetSpectrumData { .. } => "set-spectrum-data",
         EditorCommand::ReplaceHoveredEndpointLabel { .. } => "replace-hovered-endpoint-label",
         EditorCommand::AddOrbital { .. } => "add-orbital",
     }

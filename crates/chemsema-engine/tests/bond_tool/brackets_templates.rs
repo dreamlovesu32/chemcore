@@ -1395,10 +1395,36 @@ fn engine_provides_context_menu_and_numeric_dialog_schemas() {
                     })
                 })
     }));
+    assert!(molecule_menu.as_array().unwrap().iter().any(|item| {
+        item.get("label").and_then(serde_json::Value::as_str) == Some("NMR Prediction")
+            && item
+                .get("submenu")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|items| {
+                    [
+                        ("1H", "Generate ¹H NMR Spectrum"),
+                        ("13C", "Generate ¹³C NMR Spectrum"),
+                    ]
+                    .iter()
+                    .all(|(value, label)| {
+                        items.iter().any(|item| {
+                            item.get("command").and_then(serde_json::Value::as_str)
+                                == Some("nmr-predict")
+                                && item.get("value").and_then(serde_json::Value::as_str)
+                                    == Some(*value)
+                                && item.get("label").and_then(serde_json::Value::as_str)
+                                    == Some(*label)
+                        })
+                    })
+                })
+    }));
     let selected_canvas_menu: serde_json::Value =
         serde_json::from_str(&engine.context_menu_json(r#"{"kind":"canvas"}"#, false)).unwrap();
     assert!(selected_canvas_menu.as_array().unwrap().iter().any(|item| {
         item.get("label").and_then(serde_json::Value::as_str) == Some("Chemical Analysis")
+    }));
+    assert!(selected_canvas_menu.as_array().unwrap().iter().any(|item| {
+        item.get("label").and_then(serde_json::Value::as_str) == Some("NMR Prediction")
     }));
     assert!(engine
         .apply_selection_numeric_dialog_json(r#"{"kind":"scale","value":110}"#)

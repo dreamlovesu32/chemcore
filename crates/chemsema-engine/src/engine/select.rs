@@ -1452,6 +1452,7 @@ impl Engine {
                 | crate::SceneObjectKind::Symbol
                 | crate::SceneObjectKind::Shape
                 | crate::SceneObjectKind::Image
+                | crate::SceneObjectKind::Spectrum
                 | crate::SceneObjectKind::Group => selection.arrow_objects.push(object.id.clone()),
                 crate::SceneObjectKind::Molecule => {}
             }
@@ -1712,7 +1713,7 @@ impl Engine {
         for object in objects {
             if !matches!(
                 object.object_type.as_str(),
-                "curve" | "bracket" | "symbol" | "shape" | "image"
+                "curve" | "bracket" | "symbol" | "shape" | "image" | "spectrum"
             ) || !object.visible
             {
                 continue;
@@ -1800,7 +1801,7 @@ impl Engine {
         for object in self.state.document.scene_objects() {
             if !matches!(
                 object.object_type.as_str(),
-                "curve" | "bracket" | "symbol" | "shape" | "image"
+                "curve" | "bracket" | "symbol" | "shape" | "image" | "spectrum"
             ) || !object.visible
             {
                 continue;
@@ -2082,6 +2083,18 @@ impl Engine {
         if self.state.selection.is_empty() {
             return None;
         }
+        if self
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .any(|object| {
+                object.object_type == "spectrum"
+                    && self.state.selection.arrow_objects.contains(&object.id)
+            })
+        {
+            return None;
+        }
         let mut node_ids = selected_movable_node_ids(self);
         let text_ids = selected_text_object_ids(self);
         if node_ids.is_empty() && text_ids.is_empty() {
@@ -2237,6 +2250,22 @@ impl Engine {
     fn selection_overlay_behavior(&self) -> SelectionOverlayBehavior {
         let base = SelectionOverlayBehavior::default();
         let selection = &self.state.selection;
+        if self
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .any(|object| {
+                object.object_type == "spectrum" && selection.arrow_objects.contains(&object.id)
+            })
+        {
+            return SelectionOverlayBehavior {
+                show_rotate_handle: false,
+                show_rotate_glyph: false,
+                use_global_bounds_only: true,
+                ..base
+            };
+        }
         let only_single_graphic = selection.arrow_objects.len() == 1
             && selection.text_objects.is_empty()
             && selection.nodes.is_empty()

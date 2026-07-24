@@ -20,3 +20,9 @@ function run(command, args) {
 
 run("cargo", ["test"]);
 run(process.execPath, ["--check", "viewer/app.js"]);
+run(process.execPath, [
+  "--test",
+  "scripts/tests/nmr-prediction-host.test.mjs",
+  "scripts/tests/nmr-prediction-provider.test.mjs",
+  "scripts/tests/nmr-prediction-e2e.test.mjs",
+]);

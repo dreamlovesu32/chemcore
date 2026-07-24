@@ -386,6 +386,30 @@ export function createBrowserDocumentTabs(options) {
     saveActiveDocumentTabState();
     renderDocumentTabs();
   }
+
+  async function openGeneratedDocumentTab(documentData, title = "Untitled") {
+    await appRuntimeReady;
+    await finishActiveTextEditor(true);
+    saveActiveDocumentTabState();
+    const previousTabId = documentTabRuntime.activeDocumentTabId;
+    const tab = createDocumentTab(title);
+    documentTabs.push(tab);
+    documentTabRuntime.activeDocumentTabId = tab.id;
+    await restoreDocumentTabState(tab);
+    try {
+      await loadJsonDocumentIntoEditor(documentData, null, null);
+      state.unsavedDocument = true;
+      saveActiveDocumentTabState();
+      renderDocumentTabs();
+      fitView();
+    } catch (error) {
+      await closeDocumentTab(tab.id, { skipUnsavedPrompt: true });
+      if (previousTabId && documentTabRuntime.activeDocumentTabId !== previousTabId) {
+        await activateDocumentTab(previousTabId);
+      }
+      throw error;
+    }
+  }
   
   async function openDocumentPathInTab(path) {
     const normalizedPath = normalizeDesktopPath(path);
@@ -565,6 +589,7 @@ export function createBrowserDocumentTabs(options) {
     takeBrowserPendingDocument,
     loadBrowserPendingDocumentPayload,
     newDocumentTab,
+    openGeneratedDocumentTab,
     openDocumentPathInTab,
     openDocumentFileInTab,
     openDroppedDocumentFileInTab,

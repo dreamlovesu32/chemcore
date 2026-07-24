@@ -495,6 +495,7 @@ fn visible_root_object_is_selected_for_clipboard(
         | crate::SceneObjectKind::Symbol
         | crate::SceneObjectKind::Shape
         | crate::SceneObjectKind::Image
+        | crate::SceneObjectKind::Spectrum
         | crate::SceneObjectKind::Group => selected_graphics.contains(object.id.as_str()),
         crate::SceneObjectKind::Molecule => selected_molecules.contains(object.id.as_str()),
     }

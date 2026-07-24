@@ -172,6 +172,7 @@ fn group_selected_in_siblings_with_meta(
             payload: ObjectPayload {
                 resource_ref: None,
                 bbox: None,
+                spectrum: None,
                 extra: BTreeMap::new(),
             },
             children: selected,

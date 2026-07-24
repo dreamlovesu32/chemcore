@@ -119,6 +119,7 @@ pub(in crate::cdxml) fn append_shape_objects(
                         round2(bbox[2] - bbox[0]),
                         round2(bbox[3] - bbox[1]),
                     ]),
+                    spectrum: None,
                     extra,
                 },
             )
@@ -150,6 +151,7 @@ pub(in crate::cdxml) fn append_shape_objects(
                         round2(bbox[2] - bbox[0]),
                         round2(bbox[3] - bbox[1]),
                     ]),
+                    spectrum: None,
                     extra,
                 },
             )
@@ -293,6 +295,7 @@ pub(in crate::cdxml) fn append_orbital_shape_objects(
             payload: ObjectPayload {
                 resource_ref: None,
                 bbox: payload_bbox,
+                spectrum: None,
                 extra,
             },
             children: Vec::new(),
@@ -393,6 +396,7 @@ pub(in crate::cdxml) fn append_table_shape_objects(
                     round2(bbox[2] - bbox[0]),
                     round2(bbox[3] - bbox[1]),
                 ]),
+                spectrum: None,
                 extra,
             },
             children: Vec::new(),
@@ -561,6 +565,7 @@ pub(in crate::cdxml) fn append_tlc_plate_shape_objects(
                     round2(bbox[2] - bbox[0]),
                     round2(bbox[3] - bbox[1]),
                 ]),
+                spectrum: None,
                 extra,
             },
             children: Vec::new(),

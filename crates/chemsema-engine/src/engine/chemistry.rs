@@ -93,6 +93,7 @@ impl Engine {
                 is_placeholder: atom.atomic_number == 0,
                 label: None,
                 atom_properties: crate::AtomProperties::default(),
+                nmr_assignments: Vec::new(),
                 meta: json!({
                     "chemistry": {
                         "smiles": {

@@ -166,6 +166,7 @@ pub(super) fn render_molecule_object(
 
             for node in &fragment.nodes {
                 render_fragment_label(out, document, object, node, object_id.clone());
+                render_fragment_nmr_assignments(out, document, object, node, object_id.clone());
                 render_fragment_atom_properties(out, document, object, node, object_id.clone());
                 render_external_connection_marker(
                     out,
@@ -298,6 +299,7 @@ pub(super) fn render_molecule_object_targets(
     for node in &fragment.nodes {
         if label_render_node_ids.contains(&node.id) {
             render_fragment_label(out, document, object, node, object_id.clone());
+            render_fragment_nmr_assignments(out, document, object, node, object_id.clone());
             render_fragment_atom_properties(out, document, object, node, object_id.clone());
             render_external_connection_marker(
                 out,
@@ -517,6 +519,24 @@ fn push_bond_annotation_text(
         object_id,
         None,
     );
+}
+
+fn render_fragment_nmr_assignments(
+    out: &mut Vec<RenderPrimitive>,
+    document: &ChemSemaDocument,
+    object: &SceneObject,
+    node: &Node,
+    object_id: Option<String>,
+) {
+    for assignment in &node.nmr_assignments {
+        if assignment.validate().is_err() {
+            continue;
+        }
+        let mut annotation_node = node.clone();
+        annotation_node.label = Some(assignment.label.clone());
+        annotation_node.nmr_assignments.clear();
+        render_fragment_label(out, document, object, &annotation_node, object_id.clone());
+    }
 }
 
 fn render_fragment_atom_properties(

@@ -110,6 +110,7 @@ pub(super) fn normalize_node(
     let radical = cdxml_atom_radical(node.attr("Radical"));
     let radical_count = radical.electron_count();
     let explicit_num_hydrogens = parse_u8(node.attr("NumHydrogens"));
+    let nmr_assignments = parse_nmr_assignments(node, origin, colors, fonts, defaults);
     let mut meta = json!({
         "import": {
             "cdxml": {
@@ -195,8 +196,87 @@ pub(super) fn normalize_node(
                 .attr("ShowNonTerminalCarbonLabels")
                 .and_then(|value| parse_cdxml_bool(Some(value))),
         },
+        nmr_assignments,
         meta,
     })
+}
+
+fn parse_nmr_assignments(
+    node: &XmlNode,
+    origin: [f64; 2],
+    colors: &CdxmlColorTable,
+    fonts: &BTreeMap<String, String>,
+    defaults: CdxmlDefaults,
+) -> Vec<crate::NmrAssignment> {
+    node.direct_children("objecttag")
+        .filter(|tag| tag.attr("Name") == Some("/CS/CD/assign"))
+        .filter_map(|tag| {
+            let mut label = node_label(tag, origin, colors, fonts, defaults)?;
+            let shift_ppm = label.text.trim().parse::<f64>().ok()?;
+            if !shift_ppm.is_finite() {
+                return None;
+            }
+            if let Some(text) = tag.direct_children("t").next() {
+                if let Some(point) = parse_xy(text.attr("p")) {
+                    label.position =
+                        Some([round2(point[0] - origin[0]), round2(point[1] - origin[1])]);
+                }
+                if label.bbox().is_none() {
+                    label.box_field = parse_bbox(text.attr("BoundingBox")).map(|bbox| {
+                        [
+                            round2(bbox[0] - origin[0]),
+                            round2(bbox[1] - origin[1]),
+                            round2(bbox[2] - origin[0]),
+                            round2(bbox[3] - origin[1]),
+                        ]
+                    });
+                }
+            }
+            label.meta["defaultChemical"] = json!(false);
+            label.meta["chemicalCheck"] = json!(false);
+            let (range_low_ppm, range_high_ppm) =
+                parse_nmr_assignment_range(tag.attr("Value"), shift_ppm);
+            let quality = match label
+                .fill
+                .as_deref()
+                .unwrap_or("")
+                .to_ascii_lowercase()
+                .as_str()
+            {
+                "#0000ff" => crate::NmrAssignmentQuality::Good,
+                "#ff00ff" => crate::NmrAssignmentQuality::Medium,
+                "#ff0000" => crate::NmrAssignmentQuality::Rough,
+                _ => crate::NmrAssignmentQuality::Unknown,
+            };
+            Some(crate::NmrAssignment {
+                nucleus: crate::NmrNucleus::Unknown,
+                shift_ppm,
+                range_low_ppm,
+                range_high_ppm,
+                quality,
+                label,
+            })
+        })
+        .collect()
+}
+
+fn parse_nmr_assignment_range(value: Option<&str>, shift_ppm: f64) -> (f64, f64) {
+    let value = value.unwrap_or("").trim().trim_end_matches(',');
+    let separator = value
+        .char_indices()
+        .skip(1)
+        .find_map(|(index, character)| (character == '-').then_some(index));
+    let Some(separator) = separator else {
+        return (shift_ppm, shift_ppm);
+    };
+    let low = value[..separator].trim().parse::<f64>().ok();
+    let high = value[separator + 1..].trim().parse::<f64>().ok();
+    match (low, high) {
+        (Some(low), Some(high)) if low.is_finite() && high.is_finite() && low <= high => {
+            (low, high)
+        }
+        _ => (shift_ppm, shift_ppm),
+    }
 }
 
 fn cdxml_external_connection_type(

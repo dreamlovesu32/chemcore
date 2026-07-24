@@ -1264,6 +1264,39 @@ For `circle` and `ellipse`, `begin` is the center and `end` is the major-axis en
 
 `style` values: `plain`, `dashed`, `filled`, `shaded`, `faded`, `shadowed`.
 
+### 8.4 Edit Native Spectrum Data
+
+Updates every semantic field of an existing `spectrum` object. The data array is
+replaced atomically and the command is undoable.
+
+```json
+{
+  "type": "set-spectrum-data",
+  "objectId": "obj_spectrum_1",
+  "spectrum": {
+    "class": "nmr",
+    "xLow": 0,
+    "xSpacing": 0.5,
+    "xType": "parts-per-million",
+    "xAxisLabel": "ppm",
+    "yLow": 0,
+    "yScale": 1,
+    "yType": "arbitrary-units",
+    "yAxisLabel": "intensity",
+    "dataPoints": [0, 0.2, 1, 0.3, 0]
+  }
+}
+```
+
+NMR prediction uses a separate deterministic provider. The engine exposes a
+versioned prediction request for exactly one fully selected molecule and turns
+a successful `chemsema.nmr-prediction-response.v2` response into a new native
+result document. The GUI exposes these adapters through the `NMR Prediction`
+context submenu; prediction data is never substituted when the provider or a
+verified rule is unavailable. Browser and desktop builds ship the same
+independent `viewer/nmr-engine` WASM provider and initialize it on the first
+prediction; the document engine does not link the prediction crate.
+
 ## 9. Brackets And Symbols
 
 ### 9.1 Create Bracket

@@ -52,6 +52,12 @@ run(process.execPath, ["scripts/check-cdx-cdxml-field-ledger.mjs"]);
 const generatedBefore = generatedEngineSnapshot();
 run(process.execPath, ["scripts/build-engine-wasm.mjs"]);
 run(process.execPath, ["--check", "viewer/app.js"]);
+run(process.execPath, [
+  "--test",
+  "scripts/tests/nmr-prediction-host.test.mjs",
+  "scripts/tests/nmr-prediction-provider.test.mjs",
+  "scripts/tests/nmr-prediction-e2e.test.mjs",
+]);
 
 const generatedAfter = generatedEngineSnapshot();
 const generatedChanges = changedGeneratedFiles(generatedBefore, generatedAfter);

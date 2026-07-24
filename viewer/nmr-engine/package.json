@@ -1,0 +1,24 @@
+{
+  "name": "chemsema-nmr-wasm",
+  "type": "module",
+  "collaborators": [
+    "Jiajun Zhang"
+  ],
+  "description": "WASM application adapter for ChemSema NMR",
+  "version": "0.1.0",
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dreamlovesu32/chemsema-nmr"
+  },
+  "files": [
+    "chemsema_nmr_bg.wasm",
+    "chemsema_nmr.js",
+    "chemsema_nmr.d.ts"
+  ],
+  "main": "chemsema_nmr.js",
+  "types": "chemsema_nmr.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

@@ -412,6 +412,7 @@ fn document_diff_reports_creation_deletion_and_unchanged_documents() {
         payload: chemsema_engine::ObjectPayload {
             resource_ref: None,
             bbox: Some([0.0, 0.0, 10.0, 10.0]),
+            spectrum: None,
             extra: BTreeMap::new(),
         },
         children: Vec::new(),

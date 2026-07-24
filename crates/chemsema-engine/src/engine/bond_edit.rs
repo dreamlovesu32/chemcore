@@ -436,6 +436,7 @@ impl Engine {
             is_placeholder: false,
             label,
             atom_properties: crate::AtomProperties::default(),
+            nmr_assignments: Vec::new(),
             meta: serde_json::Value::Null,
         };
         mark_shortcut_implicit_hydrogen_label(&mut node, &label_text);

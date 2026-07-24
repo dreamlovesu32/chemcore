@@ -103,7 +103,8 @@ fn scene_object_selection_coverage(
         | crate::SceneObjectKind::Bracket
         | crate::SceneObjectKind::Symbol
         | crate::SceneObjectKind::Shape
-        | crate::SceneObjectKind::Image => {
+        | crate::SceneObjectKind::Image
+        | crate::SceneObjectKind::Spectrum => {
             selected_coverage(selection.arrow_objects.iter(), &object.id)
         }
         crate::SceneObjectKind::Molecule => {
@@ -284,6 +285,9 @@ pub(super) fn scene_object_selection_bounds(
             .or_else(|| object_bbox_selection_bounds(object));
     }
     if object.object_type == "image" {
+        return object_bbox_selection_bounds(object);
+    }
+    if object.object_type == "spectrum" {
         return object_bbox_selection_bounds(object);
     }
     if object.object_type == "group" {

@@ -130,6 +130,7 @@ pub(in crate::cdxml) fn append_curve_objects(
             payload: ObjectPayload {
                 resource_ref: None,
                 bbox: Some([min_x, min_y, max_x - min_x, max_y - min_y]),
+                spectrum: None,
                 extra,
             },
             children: Vec::new(),
@@ -370,6 +371,7 @@ pub(in crate::cdxml) fn append_line_objects(
             payload: ObjectPayload {
                 resource_ref: None,
                 bbox: None,
+                spectrum: None,
                 extra,
             },
             children: Vec::new(),

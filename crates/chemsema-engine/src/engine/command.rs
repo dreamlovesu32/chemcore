@@ -606,6 +606,11 @@ pub enum EditorCommand {
         begin: CommandAnchor,
         end: CommandAnchor,
     },
+    SetSpectrumData {
+        #[serde(alias = "objectId")]
+        object_id: String,
+        spectrum: crate::SpectrumData,
+    },
     ReplaceHoveredEndpointLabel {
         label: String,
     },

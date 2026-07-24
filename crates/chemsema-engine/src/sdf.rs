@@ -104,6 +104,7 @@ pub fn parse_sdf_document(sdf: &str, title: Option<&str>) -> Result<ChemSemaDocu
             payload: ObjectPayload {
                 resource_ref: Some(resource_id),
                 bbox: Some([0.0, 0.0, round2(width), round2(height)]),
+                spectrum: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),
@@ -390,6 +391,7 @@ fn molfile_to_fragment(molfile: &Molfile, record: &SdfRecord) -> (MoleculeFragme
             is_placeholder: atomic_number == 0,
             label: None,
             atom_properties: crate::AtomProperties::default(),
+            nmr_assignments: Vec::new(),
             meta: json!({
                 "import": {
                     "sdf": {

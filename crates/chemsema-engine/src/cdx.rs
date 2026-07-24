@@ -171,6 +171,30 @@ impl<'a> CdxReader<'a> {
     }
 
     fn apply_property(&mut self, node: &mut CdxNode, tag: u16, data: &[u8]) -> Result<(), String> {
+        if node.name == "spectrum" && tag == 0x0A86 {
+            if data.is_empty() || data.len() % 8 != 0 {
+                return Err(format!(
+                    "invalid CDX Spectrum_DataPoint payload length {}",
+                    data.len()
+                ));
+            }
+            let text = node.text.get_or_insert_with(String::new);
+            for chunk in data.chunks_exact(8) {
+                let value = f64::from_le_bytes(
+                    chunk
+                        .try_into()
+                        .expect("chunks_exact(8) yields eight-byte slices"),
+                );
+                if !value.is_finite() {
+                    return Err("CDX Spectrum_DataPoint contains a non-finite value".to_string());
+                }
+                if !text.is_empty() {
+                    text.push(' ');
+                }
+                text.push_str(&fmt_num(value));
+            }
+            return Ok(());
+        }
         if tag == 0x0100 {
             if let Some(table) = parse_font_table(data) {
                 self.font_table = Some(table.clone());
@@ -438,7 +462,36 @@ impl<'a> CdxWriter<'a> {
             if key == "id" {
                 continue;
             }
-            if let Some((prop_tag, bytes)) = encode_property(key, value) {
+            if node.name == "spectrum" && matches!(key.as_str(), "YLow" | "YScale") {
+                // YLow/YScale are the CDXML storage transform. CDX stores the
+                // decoded double array directly, as ChemDraw's own writer does.
+                continue;
+            }
+            let spectrum_enum_value = if node.name == "spectrum" {
+                match key.as_str() {
+                    "Class" => Some(
+                        crate::SpectrumClass::from_cdxml(Some(value))?
+                            .cdx_value()
+                            .to_string(),
+                    ),
+                    "XType" => Some(
+                        crate::SpectrumXAxisType::from_cdxml(Some(value))?
+                            .cdx_value()
+                            .to_string(),
+                    ),
+                    "YType" => Some(
+                        crate::SpectrumYAxisType::from_cdxml(Some(value))?
+                            .cdx_value()
+                            .to_string(),
+                    ),
+                    _ => None,
+                }
+            } else {
+                None
+            };
+            if let Some((prop_tag, bytes)) =
+                encode_property(key, spectrum_enum_value.as_deref().unwrap_or(value))
+            {
                 write_property(out, prop_tag, &bytes);
                 written_properties.insert(prop_tag);
             }
@@ -458,6 +511,38 @@ impl<'a> CdxWriter<'a> {
         if node.name == "t" {
             write_property(out, 0x0700, &encode_cdx_string(node));
             written_properties.insert(0x0700);
+        }
+        if node.name == "spectrum" {
+            let y_low = node
+                .attr("YLow")
+                .map(str::parse::<f64>)
+                .transpose()
+                .map_err(|_| "invalid spectrum YLow while writing CDX".to_string())?
+                .unwrap_or(0.0);
+            let y_scale = node
+                .attr("YScale")
+                .map(str::parse::<f64>)
+                .transpose()
+                .map_err(|_| "invalid spectrum YScale while writing CDX".to_string())?
+                .unwrap_or(1.0);
+            let mut bytes = Vec::new();
+            for token in node.full_text().split_whitespace() {
+                let raw = token.parse::<f64>().map_err(|_| {
+                    format!("invalid spectrum data point '{token}' while writing CDX")
+                })?;
+                let value = y_low + raw * y_scale;
+                if !value.is_finite() {
+                    return Err(format!(
+                        "non-finite spectrum data point '{token}' while writing CDX"
+                    ));
+                }
+                bytes.extend_from_slice(&value.to_le_bytes());
+            }
+            if bytes.is_empty() {
+                return Err("spectrum has no data points while writing CDX".to_string());
+            }
+            write_property(out, 0x0A86, &bytes);
+            written_properties.insert(0x0A86);
         }
         for represent in node.direct_children("represent") {
             let Some(object) = represent.attr("object") else {

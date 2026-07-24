@@ -74,15 +74,18 @@ pub(super) fn collect_document_colors(document: &ChemSemaDocument, colors: &mut 
             continue;
         };
         for node in &fragment.nodes {
-            let Some(label) = &node.label else {
-                continue;
-            };
-            if let Some(fill) = &label.fill {
-                colors.ensure(fill);
-            }
-            for run in &label.runs {
-                if let Some(fill) = &run.fill {
+            for label in node.label.iter().chain(
+                node.nmr_assignments
+                    .iter()
+                    .map(|assignment| &assignment.label),
+            ) {
+                if let Some(fill) = &label.fill {
                     colors.ensure(fill);
+                }
+                for run in &label.runs {
+                    if let Some(fill) = &run.fill {
+                        colors.ensure(fill);
+                    }
                 }
             }
         }
@@ -124,15 +127,18 @@ pub(super) fn collect_document_fonts(document: &ChemSemaDocument, fonts: &mut Cd
             continue;
         };
         for node in &fragment.nodes {
-            let Some(label) = &node.label else {
-                continue;
-            };
-            if let Some(font_family) = &label.font_family {
-                fonts.ensure(font_family);
-            }
-            for run in &label.runs {
-                if let Some(font_family) = &run.font_family {
+            for label in node.label.iter().chain(
+                node.nmr_assignments
+                    .iter()
+                    .map(|assignment| &assignment.label),
+            ) {
+                if let Some(font_family) = &label.font_family {
                     fonts.ensure(font_family);
+                }
+                for run in &label.runs {
+                    if let Some(font_family) = &run.font_family {
+                        fonts.ensure(font_family);
+                    }
                 }
             }
         }

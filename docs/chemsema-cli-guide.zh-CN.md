@@ -1164,6 +1164,31 @@ faded
 shadowed
 ```
 
+### 8.4 修改原生光谱数据
+
+一次性替换已有 `spectrum` 对象的全部语义字段，命令支持撤销。
+
+```json
+{
+  "type": "set-spectrum-data",
+  "objectId": "obj_spectrum_1",
+  "spectrum": {
+    "class": "nmr",
+    "xLow": 0,
+    "xSpacing": 0.5,
+    "xType": "parts-per-million",
+    "xAxisLabel": "ppm",
+    "yLow": 0,
+    "yScale": 1,
+    "yType": "arbitrary-units",
+    "yAxisLabel": "intensity",
+    "dataPoints": [0, 0.2, 1, 0.3, 0]
+  }
+}
+```
+
+目前没有光谱预测命令，也没有预测右键菜单入口。
+
 ## 9. 括号和符号对象
 
 ### 9.1 创建括号

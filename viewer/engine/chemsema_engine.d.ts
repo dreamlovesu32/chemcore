@@ -79,6 +79,8 @@ export class WasmEngine {
     loadDocumentJson(json: string): void;
     loadDocumentSdf(sdf: string): void;
     constructor();
+    nmrPredictionRequestJson(nucleus: string): string;
+    nmrResultDocumentJson(response_json: string): string;
     objectSettingsDialogJson(): string;
     orbitalToolIconSvg(template: string, style: string, phase: string): string;
     pasteCdx(cdx: Uint8Array): boolean;
@@ -223,6 +225,8 @@ export interface InitOutput {
     readonly wasmengine_loadDocumentJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_loadDocumentSdf: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_new: () => number;
+    readonly wasmengine_nmrPredictionRequestJson: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly wasmengine_nmrResultDocumentJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_objectSettingsDialogJson: (a: number) => [number, number];
     readonly wasmengine_orbitalToolIconSvg: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly wasmengine_pasteCdx: (a: number, b: number, c: number) => [number, number, number];

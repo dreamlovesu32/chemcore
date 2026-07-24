@@ -10,6 +10,8 @@ mod import_graphics;
 mod import_images;
 #[path = "import_lines.rs"]
 mod import_lines;
+#[path = "import_spectra.rs"]
+mod import_spectra;
 #[path = "import_text.rs"]
 mod import_text;
 
@@ -23,6 +25,7 @@ pub(super) use import_graphics::{
 };
 pub(super) use import_images::append_embedded_image_objects;
 pub(super) use import_lines::{append_curve_objects, append_line_objects};
+pub(super) use import_spectra::append_spectrum_objects;
 pub(super) use import_text::{
     append_synthesized_enhanced_stereo_text_objects, append_text_objects,
 };
@@ -61,6 +64,7 @@ pub(super) enum CdxmlTextObjectRole {
     Query,
     Stereo,
     EnhancedStereo,
+    NmrAssignment,
 }
 
 impl CdxmlTextObjectRole {
@@ -72,6 +76,7 @@ impl CdxmlTextObjectRole {
             "query" => Self::Query,
             "stereo" => Self::Stereo,
             "enhancedstereo" => Self::EnhancedStereo,
+            "/CS/CD/assign" => Self::NmrAssignment,
             _ => return None,
         })
     }
@@ -85,6 +90,7 @@ impl CdxmlTextObjectRole {
             Self::Query => "query",
             Self::Stereo => "stereo",
             Self::EnhancedStereo => "enhanced_stereo",
+            Self::NmrAssignment => "nmr_assignment",
         }
     }
 

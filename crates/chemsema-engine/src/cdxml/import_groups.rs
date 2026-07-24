@@ -151,6 +151,7 @@ pub(super) fn cdxml_group_object(
         payload: ObjectPayload {
             resource_ref: None,
             bbox: payload_bbox,
+            spectrum: None,
             extra: BTreeMap::new(),
         },
         children,
@@ -195,6 +196,7 @@ pub(super) fn object_matches_cdxml_node(
                     })
         }
         "t" => object.meta.get("textId").and_then(Value::as_str) == Some(source_id),
+        "spectrum" => object.meta.get("spectrumId").and_then(Value::as_str) == Some(source_id),
         _ => false,
     }
 }

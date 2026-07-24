@@ -46,7 +46,7 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x800C` | `regnum` | `interchange-object` | `verified` | `verified` | `verified` |
 | `0x800D` | `scheme` | `interchange-object` | `verified` | `verified` | `verified` |
 | `0x800E` | `step` | `interchange-object` | `verified` | `verified` | `verified` |
-| `0x8010` | `spectrum` | `interchange-object` | `verified` | `verified` | `verified` |
+| `0x8010` | `spectrum` | `native-spectrum` | `verified` | `verified` | `verified` |
 | `0x8011` | `objecttag` | `interchange-object` | `verified` | `verified` | `verified` |
 | `0x8013` | `sequence` | `interchange-object` | `verified` | `verified` | `verified` |
 | `0x8014` | `crossreference` | `interchange-object` | `verified` | `verified` | `verified` |
@@ -268,16 +268,16 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x0A70` | `PNG` | `Unformatted` | `opaque-by-spec/rawBase64` | `verified` | `verified` | `verified` | A binary PNG data object. Official type is uninterpreted bytes; rawBase64 is authoritative. |
 | `0x0A71` | `JPEG` | `Unformatted` | `opaque-by-spec/rawBase64` | `verified` | `verified` | `verified` | A binary JPEG data object. Official type is uninterpreted bytes; rawBase64 is authoritative. |
 | `0x0A72` | `BMP` | `Unformatted` | `opaque-by-spec/rawBase64` | `verified` | `verified` | `verified` | A binary BMP data object. Official type is uninterpreted bytes; rawBase64 is authoritative. |
-| `0x0A80` | `XSpacing` | `FLOAT64` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for spectra. The spacing in logical units (ppm, Hz, wavenumbers) between points along the X-axis of an evenly-spaced grid. Official lexical/binary codec is available; value is editable. |
-| `0x0A81` | `XLow` | `FLOAT64` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for spectra. The first data point for the X-axis of an evenly-spaced grid. Official lexical/binary codec is available; value is editable. |
-| `0x0A82` | `XType` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | The type of units the X-axis represents. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
-| `0x0A83` | `YType` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | The type of units the Y-axis represents. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
-| `0x0A84` | `XAxisLabel` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | A label for the X-axis. Official lexical/binary codec is available; value is editable. |
-| `0x0A85` | `YAxisLabel` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | A label for the Y-axis. Official lexical/binary codec is available; value is editable. |
-| `0x0A86` | `(not used)` | `FLOAT64` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for spectra. The Y-axis values for the spectrum. It is an array of double values corresponding to X-axis values. Official lexical/binary codec is available; value is editable. |
-| `0x0A87` | `Class` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | The type of spectrum represented. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
-| `0x0A88` | `YLow` | `FLOAT64` | `typed-interchange/value` | `verified` | `verified` | `verified` | Y value to be used to offset data when storing XML. Official lexical/binary codec is available; value is editable. |
-| `0x0A89` | `YScale` | `FLOAT64` | `typed-interchange/value` | `verified` | `verified` | `verified` | Y scaling used to scale data when storing XML. Official lexical/binary codec is available; value is editable. |
+| `0x0A80` | `XSpacing` | `FLOAT64` | `native-spectrum` | `verified` | `verified` | `verified` | Required for spectra. The spacing in logical units (ppm, Hz, wavenumbers) between points along the X-axis of an evenly-spaced grid. Native `payload.spectrum.xSpacing`; value is editable. |
+| `0x0A81` | `XLow` | `FLOAT64` | `native-spectrum` | `verified` | `verified` | `verified` | Required for spectra. The first data point for the X-axis of an evenly-spaced grid. Native `payload.spectrum.xLow`; value is editable. |
+| `0x0A82` | `XType` | `INT16` | `native-spectrum` | `verified` | `verified` | `verified` | Native `payload.spectrum.xType`; complete CDX enum mapping is verified and editable. |
+| `0x0A83` | `YType` | `INT16` | `native-spectrum` | `verified` | `verified` | `verified` | Native `payload.spectrum.yType`; complete CDX enum mapping is verified and editable. |
+| `0x0A84` | `XAxisLabel` | `CDXString` | `native-spectrum` | `verified` | `verified` | `verified` | Native `payload.spectrum.xAxisLabel`; value is editable and rendered. |
+| `0x0A85` | `YAxisLabel` | `CDXString` | `native-spectrum` | `verified` | `verified` | `verified` | Native `payload.spectrum.yAxisLabel`; value is editable and rendered. |
+| `0x0A86` | `(not used)` | `FLOAT64` | `native-spectrum` | `verified` | `verified` | `verified` | Required Y array. CDX stores all values in one contiguous FLOAT64 property; native `payload.spectrum.dataPoints` preserves every value. |
+| `0x0A87` | `Class` | `INT16` | `native-spectrum` | `verified` | `verified` | `verified` | Native `payload.spectrum.class`; complete CDX enum mapping is verified and editable. |
+| `0x0A88` | `YLow` | `FLOAT64` | `native-spectrum` | `verified` | `verified` | `verified` | Native `payload.spectrum.yLow`; CDXML storage offset. CDX writes decoded values directly. |
+| `0x0A89` | `YScale` | `FLOAT64` | `native-spectrum` | `verified` | `verified` | `verified` | Native `payload.spectrum.yScale`; CDXML storage scale. CDX writes decoded values directly. |
 | `0x0AA0` | `OriginFraction` | `FLOAT64` | `typed-interchange/value` | `verified` | `verified` | `verified` | The distance of the origin line from the bottom of a TLC Plate, as a fraction of the total height of the plate. Official lexical/binary codec is available; value is editable. |
 | `0x0AA1` | `SolventFrontFraction` | `FLOAT64` | `typed-interchange/value` | `verified` | `verified` | `verified` | The distance of the solvent front from the top of a TLC Plate, as a fraction of the total height of the plate. Official lexical/binary codec is available; value is editable. |
 | `0x0AA2` | `ShowOrigin` | `CDXBoolean` | `typed-interchange/value` | `verified` | `verified` | `verified` | Show the origin line near the base of the TLC Plate if non-zero. Official lexical/binary codec is available; value is editable. |

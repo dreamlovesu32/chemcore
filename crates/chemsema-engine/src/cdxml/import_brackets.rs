@@ -98,6 +98,7 @@ pub(in crate::cdxml) fn append_bracket_objects(
                     payload: ObjectPayload {
                         resource_ref: None,
                         bbox: Some([0.0, 0.0, width, height]),
+                        spectrum: None,
                         extra,
                     },
                     children: Vec::new(),
@@ -232,6 +233,7 @@ pub(in crate::cdxml) fn append_bracket_objects(
             payload: ObjectPayload {
                 resource_ref: None,
                 bbox: Some([round2(min_x), round2(min_y), pair_width, pair_height]),
+                spectrum: None,
                 extra: BTreeMap::new(),
             },
             children: vec![left_child, right_child],
@@ -288,6 +290,7 @@ pub(in crate::cdxml) fn append_bracket_objects(
             payload: ObjectPayload {
                 resource_ref: None,
                 bbox: Some([0.0, 0.0, round2(depth), round2(length)]),
+                spectrum: None,
                 extra,
             },
             children: Vec::new(),
@@ -342,6 +345,7 @@ pub(super) fn cdxml_bracket_side_scene_object(
         payload: ObjectPayload {
             resource_ref: None,
             bbox: Some([0.0, 0.0, round2(side_width), round2(side_height)]),
+            spectrum: None,
             extra,
         },
         children: Vec::new(),

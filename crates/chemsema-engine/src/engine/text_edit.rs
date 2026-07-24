@@ -325,6 +325,7 @@ fn make_text_payload(
             round6(local_box[2]),
             round6(local_box[3]),
         ]),
+        spectrum: None,
         extra,
     }
 }

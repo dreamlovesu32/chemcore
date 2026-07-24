@@ -75,6 +75,7 @@ pub(in crate::cdxml) fn append_text_objects(
             {
                 false
             }
+            Some("nmr_assignment") => false,
             _ => true,
         },
     );
@@ -232,6 +233,7 @@ pub(in crate::cdxml) fn append_synthesized_enhanced_stereo_text_objects(
             payload: ObjectPayload {
                 resource_ref: None,
                 bbox: None,
+                spectrum: None,
                 extra,
             },
             children: Vec::new(),
@@ -668,6 +670,7 @@ pub(super) fn text_object(
         payload: ObjectPayload {
             resource_ref: None,
             bbox: None,
+            spectrum: None,
             extra,
         },
         children: Vec::new(),

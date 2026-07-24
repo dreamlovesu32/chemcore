@@ -32,8 +32,8 @@ use self::import_nodes::*;
 use self::import_objects::{
     append_bracket_objects, append_curve_objects, append_embedded_image_objects,
     append_line_objects, append_orbital_shape_objects, append_shape_objects,
-    append_synthesized_enhanced_stereo_text_objects, append_table_shape_objects,
-    append_text_objects, append_tlc_plate_shape_objects,
+    append_spectrum_objects, append_synthesized_enhanced_stereo_text_objects,
+    append_table_shape_objects, append_text_objects, append_tlc_plate_shape_objects,
 };
 pub(crate) use self::import_scaling::normalize_cdxml_document_for_editing;
 use self::import_topology::*;
@@ -269,6 +269,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
                         round2(component.bbox_abs[2] - component.bbox_abs[0]),
                         round2(component.bbox_abs[3] - component.bbox_abs[1]),
                     ]),
+                    spectrum: None,
                     extra: BTreeMap::new(),
                 },
                 children: Vec::new(),
@@ -282,6 +283,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
     append_orbital_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
     append_table_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
     append_tlc_plate_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
+    append_spectrum_objects(&root, &mut objects, &mut styles, defaults, &colors, &fonts)?;
     append_embedded_image_objects(&root, &mut objects, &mut resources);
     append_bracket_objects(&root, &mut objects, defaults, &colors);
     append_text_objects(
@@ -414,7 +416,43 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
     crate::normalize_arrow_object_payloads(&mut document);
     crate::normalize_fragment_label_payloads(&mut document);
     restore_authored_multiline_character_attachment_geometry(&mut document);
+    infer_nmr_assignment_nucleus(&mut document);
     Ok(document)
+}
+
+fn infer_nmr_assignment_nucleus(document: &mut ChemSemaDocument) {
+    let text = document
+        .scene_objects()
+        .into_iter()
+        .filter(|object| object.object_type == "text")
+        .filter_map(|object| object.payload.extra.get("text").and_then(Value::as_str))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let nucleus = if text.contains("ChemNMR 13C Estimation")
+        || text.contains("Protocol of the C-13 NMR Prediction")
+    {
+        crate::NmrNucleus::Carbon13
+    } else if text.contains("ChemNMR 1H Estimation")
+        || text.contains("Protocol of the H-1 NMR Prediction")
+    {
+        crate::NmrNucleus::Hydrogen1
+    } else {
+        return;
+    };
+    for resource in document.resources.values_mut() {
+        let Some(fragment) = resource.data.as_fragment_mut() else {
+            continue;
+        };
+        for assignment in fragment
+            .nodes
+            .iter_mut()
+            .flat_map(|node| node.nmr_assignments.iter_mut())
+        {
+            if assignment.nucleus == crate::NmrNucleus::Unknown {
+                assignment.nucleus = nucleus;
+            }
+        }
+    }
 }
 
 fn restore_authored_multiline_character_attachment_geometry(document: &mut ChemSemaDocument) {

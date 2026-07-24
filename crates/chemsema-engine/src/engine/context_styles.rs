@@ -1658,6 +1658,7 @@ fn expansion_atom_to_node(atom: &JsonValue, id: String, position: Point) -> Node
                 meta: JsonValue::Null,
             }),
         atom_properties: crate::AtomProperties::default(),
+        nmr_assignments: Vec::new(),
         meta: json!({"source": "label-expansion"}),
     }
 }

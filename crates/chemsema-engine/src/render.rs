@@ -26,6 +26,8 @@ mod legacy_render;
 mod object_render;
 #[path = "render_primitives.rs"]
 mod primitives;
+#[path = "render_spectrum.rs"]
+mod spectrum_render;
 #[path = "render/style_payload.rs"]
 mod style_payload;
 
@@ -46,6 +48,7 @@ use primitives::{
     push_polygon, push_polyline, push_text, push_text_for_node, push_text_rotated,
 };
 pub use primitives::{RenderPrimitive, RenderRole};
+use spectrum_render::render_spectrum_object;
 
 use bond_geometry::*;
 use bond_metrics::*;
@@ -1063,6 +1066,7 @@ fn render_scene_object(
         crate::SceneObjectKind::Text => render_text_object(out, document, object),
         crate::SceneObjectKind::Shape => render_shape_object(out, document, object),
         crate::SceneObjectKind::Image => render_image_object(out, document, object),
+        crate::SceneObjectKind::Spectrum => render_spectrum_object(out, document, object),
         crate::SceneObjectKind::Bracket | crate::SceneObjectKind::Symbol => {
             render_bracket_object(out, document, object)
         }

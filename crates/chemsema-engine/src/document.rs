@@ -155,6 +155,7 @@ impl ChemSemaDocument {
                 payload: ObjectPayload {
                     resource_ref: Some("mol_editor".to_string()),
                     bbox: Some([0.0, 0.0, DEFAULT_PAGE_WIDTH, DEFAULT_PAGE_HEIGHT]),
+                    spectrum: None,
                     extra: BTreeMap::new(),
                 },
                 children: Vec::new(),
@@ -423,6 +424,7 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     let mut document: ChemSemaDocument =
         serde_json::from_value(value).map_err(|error| error.to_string())?;
     validate_scene_object_types(&document.objects)?;
+    validate_spectrum_objects(&document.objects)?;
     validate_molecule_fragment_resources(&document)?;
     split_disconnected_molecule_objects(&mut document);
     normalize_text_object_payloads(&mut document);
@@ -469,6 +471,56 @@ fn validate_scene_object_types(objects: &[SceneObject]) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_spectrum_objects(objects: &[SceneObject]) -> Result<(), String> {
+    for object in objects {
+        let spectrum = object.payload.spectrum.as_ref();
+        if object.object_type == "spectrum" {
+            let spectrum = spectrum.ok_or_else(|| {
+                format!(
+                    "spectrum object '{}' is missing payload.spectrum",
+                    object.id
+                )
+            })?;
+            spectrum
+                .validate()
+                .map_err(|error| format!("{error} on object '{}'", object.id))?;
+            let Some([x, y, width, height]) = object.payload.bbox else {
+                return Err(format!(
+                    "spectrum object '{}' is missing payload.bbox",
+                    object.id
+                ));
+            };
+            if ![x, y, width, height].into_iter().all(f64::is_finite)
+                || width <= EPSILON
+                || height <= EPSILON
+            {
+                return Err(format!(
+                    "spectrum object '{}' has an invalid payload.bbox",
+                    object.id
+                ));
+            }
+            if object.transform.rotate.abs() > EPSILON {
+                return Err(format!("spectrum object '{}' cannot be rotated", object.id));
+            }
+            if (object.transform.scale[0] - 1.0).abs() > EPSILON
+                || (object.transform.scale[1] - 1.0).abs() > EPSILON
+            {
+                return Err(format!(
+                    "spectrum object '{}' must store its edited size in payload.bbox",
+                    object.id
+                ));
+            }
+        } else if spectrum.is_some() {
+            return Err(format!(
+                "non-spectrum object '{}' contains payload.spectrum",
+                object.id
+            ));
+        }
+        validate_spectrum_objects(&object.children)?;
+    }
+    Ok(())
+}
+
 fn validate_molecule_fragment_resources(document: &ChemSemaDocument) -> Result<(), String> {
     for (id, resource) in &document.resources {
         let declares_fragment = resource.resource_type == "molecule_fragment2d"
@@ -487,6 +539,15 @@ fn validate_molecule_fragment_resources(document: &ChemSemaDocument) -> Result<(
             return Err(format!(
                 "Resource {id} is declared as molecule_fragment2d but data is not a valid chemsema.molecule.fragment2d fragment.{detail}"
             ));
+        }
+        if let ResourceData::Fragment(fragment) = &resource.data {
+            for node in &fragment.nodes {
+                for assignment in &node.nmr_assignments {
+                    assignment
+                        .validate()
+                        .map_err(|error| format!("{error} on node '{}'", node.id))?;
+                }
+            }
         }
     }
     Ok(())
@@ -1794,6 +1855,8 @@ pub struct ObjectPayload {
     pub resource_ref: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bbox: Option<[f64; 4]>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spectrum: Option<crate::SpectrumData>,
     #[serde(flatten, default)]
     pub extra: BTreeMap<String, Value>,
 }
@@ -1935,6 +1998,8 @@ pub struct Node {
     pub label: Option<NodeLabel>,
     #[serde(default, skip_serializing_if = "AtomProperties::is_default")]
     pub atom_properties: AtomProperties,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub nmr_assignments: Vec<crate::NmrAssignment>,
     #[serde(default)]
     pub meta: Value,
 }
@@ -1952,6 +2017,7 @@ impl Node {
             is_placeholder: false,
             label: None,
             atom_properties: AtomProperties::default(),
+            nmr_assignments: Vec::new(),
             meta: Value::Null,
         }
     }
@@ -2897,6 +2963,7 @@ mod tests {
                         position: [10.0, 10.0],
                         charge: 0,
                         atom_properties: AtomProperties::default(),
+                        nmr_assignments: Vec::new(),
                         num_hydrogens: 0,
                         external_connection: None,
                         is_placeholder: false,
@@ -3347,6 +3414,7 @@ mod tests {
                         position: [30.0, 30.0],
                         charge: 0,
                         atom_properties: AtomProperties::default(),
+                        nmr_assignments: Vec::new(),
                         num_hydrogens: 0,
                         external_connection: None,
                         is_placeholder: false,

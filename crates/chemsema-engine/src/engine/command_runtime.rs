@@ -647,6 +647,12 @@ impl Engine {
                     point_from_command(&end),
                 )
             }),
+            EditorCommand::SetSpectrumData {
+                object_id,
+                spectrum,
+            } => self.with_command(command.clone(), |engine| {
+                engine.set_spectrum_data_direct(&object_id, spectrum)
+            }),
             EditorCommand::ReplaceHoveredEndpointLabel { label } => {
                 self.replace_hovered_endpoint_label(&label)
             }

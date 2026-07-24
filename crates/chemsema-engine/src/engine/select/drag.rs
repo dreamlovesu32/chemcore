@@ -280,7 +280,9 @@ fn rotated_scene_object(original: &SceneObject, center: Point, degrees: f64) -> 
             object.transform.translate = [round2(next_translate.x), round2(next_translate.y)];
             object.transform.rotate = round2(object.transform.rotate + degrees);
         }
-        crate::SceneObjectKind::Molecule | crate::SceneObjectKind::Group => {}
+        crate::SceneObjectKind::Molecule
+        | crate::SceneObjectKind::Spectrum
+        | crate::SceneObjectKind::Group => {}
     }
     object
 }
@@ -720,7 +722,8 @@ pub(in crate::engine) fn translated_scene_object(
         | crate::SceneObjectKind::Bracket
         | crate::SceneObjectKind::Symbol
         | crate::SceneObjectKind::Shape
-        | crate::SceneObjectKind::Image => {
+        | crate::SceneObjectKind::Image
+        | crate::SceneObjectKind::Spectrum => {
             object.transform.translate = [
                 round2(original.transform.translate[0] + delta_x),
                 round2(original.transform.translate[1] + delta_y),
@@ -871,7 +874,8 @@ fn object_transform_participates_in_render(object: &SceneObject) -> bool {
         crate::SceneObjectKind::Text
         | crate::SceneObjectKind::Bracket
         | crate::SceneObjectKind::Symbol
-        | crate::SceneObjectKind::Image => true,
+        | crate::SceneObjectKind::Image
+        | crate::SceneObjectKind::Spectrum => true,
         crate::SceneObjectKind::Shape => !shape_uses_absolute_points(object),
         crate::SceneObjectKind::Molecule
         | crate::SceneObjectKind::Line
@@ -1231,6 +1235,7 @@ mod tests {
             payload: crate::ObjectPayload {
                 resource_ref: None,
                 bbox: Some([5.0, 6.0, 40.0, 70.0]),
+                spectrum: None,
                 extra,
             },
             children: Vec::new(),

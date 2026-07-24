@@ -224,6 +224,12 @@ pub(super) fn scene_object_fast_bounds(
     if object.object_type == "molecule" {
         return molecule_object_fast_bounds(document, object);
     }
+    if object.object_type == "spectrum" {
+        let object_ids = BTreeSet::from([object.id.clone()]);
+        let primitives =
+            render_document_targets(document, &BTreeSet::new(), &BTreeSet::new(), &object_ids);
+        return render_primitives_bounds(primitives.iter());
+    }
     scene_object_bbox_bounds(object)
 }
 

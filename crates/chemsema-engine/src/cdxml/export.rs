@@ -241,12 +241,134 @@ impl<'a> CdxmlDocumentWriter<'a> {
             crate::SceneObjectKind::Curve => self.write_curve_object(out, object),
             crate::SceneObjectKind::Shape => self.write_shape_object(out, object),
             crate::SceneObjectKind::Image => self.write_image_object(out, object),
+            crate::SceneObjectKind::Spectrum => self.write_spectrum_object(out, object),
             crate::SceneObjectKind::Bracket | crate::SceneObjectKind::Symbol => {
                 self.write_bracket_object(out, object)
             }
             crate::SceneObjectKind::Text => self.write_text_object(out, object),
             crate::SceneObjectKind::Group => self.write_group_object(out, object),
         }
+    }
+
+    fn write_spectrum_object(&mut self, out: &mut String, object: &SceneObject) {
+        let Some(spectrum) = object.payload.spectrum.as_ref() else {
+            return;
+        };
+        if spectrum.validate().is_err() {
+            return;
+        }
+        let Some([x, y, width, height]) = object.payload.bbox else {
+            return;
+        };
+        if width <= crate::EPSILON || height <= crate::EPSILON {
+            return;
+        }
+        let left = object.transform.translate[0] + x;
+        let top = object.transform.translate[1] + y;
+        let right = left + width;
+        let bottom = top + height;
+        let style = object_style(self.document, object);
+        let stroke = style
+            .and_then(|style| style_nullable_string_value(style, "stroke"))
+            .unwrap_or_else(|| "#000000".to_string());
+        let line_width = style
+            .and_then(|style| style_number_value(style, "strokeWidth"))
+            .unwrap_or(self.defaults.line_width);
+        let font_family = style
+            .and_then(|style| style_string_value(style, "fontFamily"))
+            .unwrap_or_else(|| self.document.style.label_style.font_family.clone());
+        let font_size = style
+            .and_then(|style| style_number_value(style, "fontSize"))
+            .unwrap_or(self.document.style.label_style.font_size);
+        let mut face = 0u32;
+        if style
+            .and_then(|style| style_number_value(style, "fontWeight"))
+            .unwrap_or(400.0)
+            >= 600.0
+        {
+            face |= 1;
+        }
+        if style
+            .and_then(|style| style_string_value(style, "fontStyle"))
+            .as_deref()
+            == Some("italic")
+        {
+            face |= 2;
+        }
+        if style
+            .and_then(|style| style.get("underline"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            face |= 4;
+        }
+        if style
+            .and_then(|style| style.get("outline"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            face |= 8;
+        }
+        if style
+            .and_then(|style| style.get("shadow"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            face |= 16;
+        }
+        face |= match style
+            .and_then(|style| style_string_value(style, "script"))
+            .unwrap_or_else(|| "normal".to_string())
+            .as_str()
+        {
+            "subscript" => 32,
+            "superscript" => 64,
+            "chemical" => 96,
+            _ => 0,
+        };
+        let mut attrs = vec![
+            ("id", self.alloc_id()),
+            ("BoundingBox", fmt_bbox([left, top, right, bottom])),
+            ("Z", object.z_index.to_string()),
+            ("XSpacing", fmt_num(spectrum.x_spacing)),
+            ("XLow", fmt_num(spectrum.x_low)),
+            ("XType", spectrum.x_type.as_cdxml().to_string()),
+            ("YType", spectrum.y_type.as_cdxml().to_string()),
+            ("Class", spectrum.class.as_cdxml().to_string()),
+            ("LineWidth", fmt_num(line_width)),
+            ("color", self.colors.id_for(&stroke)),
+            ("LabelFont", self.fonts.id_for(&font_family)),
+            ("LabelSize", fmt_num(font_size)),
+        ];
+        if face != 0 {
+            attrs.push(("LabelFace", face.to_string()));
+        }
+        if !spectrum.x_axis_label.is_empty() {
+            attrs.push(("XAxisLabel", spectrum.x_axis_label.clone()));
+        }
+        if !spectrum.y_axis_label.is_empty() {
+            attrs.push(("YAxisLabel", spectrum.y_axis_label.clone()));
+        }
+        if spectrum.y_low.abs() > crate::EPSILON {
+            attrs.push(("YLow", fmt_num(spectrum.y_low)));
+        }
+        if (spectrum.y_scale - 1.0).abs() > crate::EPSILON {
+            attrs.push(("YScale", fmt_num(spectrum.y_scale)));
+        }
+        write_open_tag(out, 4, "spectrum", attrs);
+        out.push('\n');
+        for chunk in spectrum.data_points.chunks(8) {
+            out.push_str("      ");
+            out.push_str(
+                &chunk
+                    .iter()
+                    .map(|value| fmt_num(*value))
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            );
+            out.push('\n');
+        }
+        out.push_str("    </spectrum>\n");
     }
 
     fn write_image_object(&mut self, out: &mut String, object: &SceneObject) {
@@ -727,9 +849,16 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 .clone()
                 .unwrap_or_else(|| "N".to_string()),
         ));
-        if let Some(label) = node.label.as_ref().filter(|label| label.has_visible_text()) {
+        if node.label.as_ref().is_some_and(NodeLabel::has_visible_text)
+            || !node.nmr_assignments.is_empty()
+        {
             write_open_tag(out, 6, "n", attrs);
-            self.write_node_label(out, object, node, label);
+            if let Some(label) = node.label.as_ref().filter(|label| label.has_visible_text()) {
+                self.write_node_label(out, object, node, label);
+            }
+            for assignment in &node.nmr_assignments {
+                self.write_nmr_assignment(out, object, node, assignment);
+            }
             out.push_str("      </n>\n");
         } else {
             write_empty_tag(out, 6, "n", attrs);
@@ -742,6 +871,17 @@ impl<'a> CdxmlDocumentWriter<'a> {
         object: &SceneObject,
         node: &Node,
         label: &NodeLabel,
+    ) {
+        self.write_node_label_at(out, object, node, label, 8);
+    }
+
+    fn write_node_label_at(
+        &mut self,
+        out: &mut String,
+        object: &SceneObject,
+        node: &Node,
+        label: &NodeLabel,
+        indent: usize,
     ) {
         let text = label.source_text.as_deref().unwrap_or(&label.text);
         let Some(font_size) = label.font_size else {
@@ -776,6 +916,11 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 },
             ),
             ("UTF8Text", text.to_string()),
+            (
+                "color",
+                self.colors
+                    .id_for(label.fill.as_deref().unwrap_or("#000000")),
+            ),
         ];
         if let Some(justification) = imported_cdxml_label_attr(label, "justification") {
             attrs.push(("Justification", justification.to_string()));
@@ -810,9 +955,41 @@ impl<'a> CdxmlDocumentWriter<'a> {
         } else if let Some(line_starts) = cdxml_label_line_starts(label) {
             attrs.push(("LineStarts", line_starts));
         }
-        write_open_tag(out, 8, "t", attrs);
-        self.write_label_runs(out, 10, label, text, font_size);
-        out.push_str("        </t>\n");
+        write_open_tag(out, indent, "t", attrs);
+        self.write_label_runs(out, indent + 2, label, text, font_size);
+        writeln!(out, "{:indent$}</t>", "", indent = indent)
+            .expect("writing node label close tag should not fail");
+    }
+
+    fn write_nmr_assignment(
+        &mut self,
+        out: &mut String,
+        object: &SceneObject,
+        node: &Node,
+        assignment: &crate::NmrAssignment,
+    ) {
+        if assignment.validate().is_err() {
+            return;
+        }
+        write_open_tag(
+            out,
+            8,
+            "objecttag",
+            vec![
+                ("TagType", "String".to_string()),
+                ("Name", "/CS/CD/assign".to_string()),
+                (
+                    "Value",
+                    format!(
+                        "{}-{},",
+                        fmt_num(assignment.range_low_ppm),
+                        fmt_num(assignment.range_high_ppm)
+                    ),
+                ),
+            ],
+        );
+        self.write_node_label_at(out, object, node, &assignment.label, 10);
+        out.push_str("        </objecttag>\n");
     }
 
     fn write_bond(

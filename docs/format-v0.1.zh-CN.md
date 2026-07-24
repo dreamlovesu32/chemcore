@@ -174,6 +174,7 @@ CDX/CDXML 的字段全集大于当前跨格式场景模型。不能因为暂时�
 - `symbol`
 - `shape`
 - `image`
+- `spectrum`
 - `group`
 
 其他图形原语以后再增加。
@@ -190,12 +191,13 @@ CDX/CDXML 的字段全集大于当前跨格式场景模型。不能因为暂时�
 - `symbol`：可独立选择和编辑的 ChemDraw 符号对象
 - `shape`：简单的填充或描边区域
 - `image`：由明确图片资源支撑、可定位的栅格图片
+- `spectrum`：带明确坐标轴和单位语义的采样光谱
 - `group`：逻辑组合和共同变换
 
 这个拆分是刻意的：
 
 - `molecule` 负责化学语义
-- `text`、`line`、`bracket`、`shape`、`image` 负责文档图形
+- `text`、`line`、`bracket`、`shape`、`image`、`spectrum` 负责文档图形
 - `group` 只负责收纳和变换
 
 重要原则：属于 `molecule` 的 label 是分子资源内部标签。
@@ -345,6 +347,65 @@ image 对象把栅格资源放置到场景中，本地 `bbox` 定义显示矩形
 ```
 
 CDX/CDXML 的栅格载荷映射到该对象时不改变原始字节。OLE、EMF、WMF、TIFF、PDF、PICT 等暂不能原生解码的复合载荷继续作为不透明资源保存，并显示带尺寸和格式名称的占位图，而不是静默空白；往返导出时原始字节仍然是权威数据。
+
+## Spectrum 对象
+
+光谱对象把等间距 X 采样及其 Y 值直接存入场景对象。导入光谱和预测生成的结果都使用
+同一个对象；对象本身不拥有也不调用预测服务。
+
+```json
+{
+  "id": "obj_spectrum_1",
+  "type": "spectrum",
+  "visible": true,
+  "locked": false,
+  "zIndex": 18,
+  "transform": {
+    "translate": [40, 40],
+    "rotate": 0,
+    "scale": [1, 1]
+  },
+  "styleRef": "style_spectrum_1",
+  "payload": {
+    "bbox": [0, 0, 240, 120],
+    "spectrum": {
+      "class": "nmr",
+      "xLow": 0,
+      "xSpacing": 0.5,
+      "xType": "parts-per-million",
+      "xAxisLabel": "ppm",
+      "yLow": 0,
+      "yScale": 1,
+      "yType": "arbitrary-units",
+      "yAxisLabel": "intensity",
+      "dataPoints": [0, 0.1, 0.8, 0.2, 0]
+    }
+  }
+}
+```
+
+规则：
+
+- `dataPoints` 是必填、非空且全部为有限数的数组。
+- 第 `i` 个实际 Y 值为 `yLow + dataPoints[i] * yScale`。
+- `xLow` 表示第一个采样，`xSpacing` 表示等间距；另一端坐标为
+  `xLow + dataPoints.length * xSpacing`。
+- CDXML 可以用 `yLow`、`yScale` 保存压缩变换；CDX 直接保存展开后的
+  `FLOAT64` 数组，因此 CDX 导入后的 `yLow = 0`、`yScale = 1`。
+- 第一个采样绘制在右边缘，与 ChemDraw 光谱方向一致。拉伸只修改 `bbox`，
+  不修改采样值。
+- 光谱支持移动、拉伸、组合、层级、颜色、复制粘贴、删除、锁定和显隐；
+  不支持旋转，`rotate` 必须为 `0`，`scale` 必须保持 `[1, 1]`。
+- 绘制时使用有上限、保留极值的降采样；存储的原始采样始终不变且具有权威性。
+
+`class` 可选值：`unknown`、`chromatogram`、`infrared`、`uv-vis`、
+`x-ray-diffraction`、`mass-spectrum`、`nmr`、`raman`、`fluorescence`、`atomic`。
+
+`xType` 可选值：`unknown`、`wavenumbers`、`microns`、`hertz`、
+`mass-units`、`parts-per-million`、`other`。
+
+`yType` 可选值：`unknown`、`absorbance`、`transmittance`、
+`percent-transmittance`、`other`、`arbitrary-units`。
 
 ## Molecule 对象
 
@@ -603,6 +664,12 @@ text 对象表示带定位信息的富文本内容。
 分别默认为 `unspecified` 和 `none`；查询枚举默认为 `unspecified`/`equal`，
 列表排除和异常价态标记默认为 `false`，其余字段默认为不存在。附着的电子符号仍是
 可独立选择的对象，但其附着关系会参与原子的有效自由基化学语义。
+
+`nmrAssignments` 是预测或导入的原子位移赋值的来源无关、可编辑字段。每一项包含
+`nucleus`（`1H`、`13C` 或 `unknown`）、`shiftPpm`、`rangeLowPpm`、
+`rangeHighPpm`、`quality`（`good`、`medium`、`rough` 或 `unknown`），
+以及普通 `NodeLabel` 字段 `label`。ChemDraw `/CS/CD/assign` objecttag
+必须映射到这里，不得同时生成第二个自由文本对象。
 
 带缩写识别的节点仍保留原始绘制信息；机器可读的解释附加在
 `meta.labelRecognition` 上。读取方如果只想还原画面，可以忽略 `meta`；

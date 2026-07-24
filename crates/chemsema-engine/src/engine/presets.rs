@@ -601,7 +601,7 @@ fn bond_uses_hash_spacing(bond: &Bond) -> bool {
 fn object_has_line_width_setting(object: &SceneObject) -> bool {
     matches!(
         object.object_type.as_str(),
-        "line" | "shape" | "bracket" | "symbol"
+        "line" | "shape" | "bracket" | "symbol" | "spectrum"
     )
 }
 

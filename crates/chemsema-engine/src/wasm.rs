@@ -461,6 +461,20 @@ impl WasmEngine {
         self.inner.context_menu_json(hit_json, has_paste)
     }
 
+    #[wasm_bindgen(js_name = nmrResultDocumentJson)]
+    pub fn nmr_result_document_json(&self, response_json: &str) -> Result<String, JsValue> {
+        self.inner
+            .nmr_result_document_json(response_json)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    #[wasm_bindgen(js_name = nmrPredictionRequestJson)]
+    pub fn nmr_prediction_request_json(&self, nucleus: &str) -> Result<String, JsValue> {
+        self.inner
+            .nmr_prediction_request_json(nucleus)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
     #[wasm_bindgen(js_name = selectionContainsPoint)]
     pub fn selection_contains_point(&self, x: f64, y: f64) -> bool {
         self.inner

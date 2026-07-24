@@ -15,6 +15,7 @@ export function createDocumentTabStateHost(scope) {
       currentFilePath: null,
       savedDocumentJson: null,
       savedRevision: null,
+      unsavedDocument: false,
       oleSyncedDocumentJson: null,
       oleSyncedRevision: null,
       currentDocument: null,
@@ -92,10 +93,12 @@ export function createDocumentTabStateHost(scope) {
   function markCurrentDocumentSaved() {
     state.savedDocumentJson = null;
     state.savedRevision = currentDocumentRevision();
+    state.unsavedDocument = false;
     const tab = activeDocumentTab();
     if (tab) {
       tab.savedDocumentJson = state.savedDocumentJson;
       tab.savedRevision = state.savedRevision;
+      tab.unsavedDocument = false;
     }
     refreshCommandAvailability();
     renderDocumentTabs();
@@ -129,6 +132,9 @@ export function createDocumentTabStateHost(scope) {
 
   function currentDocumentIsDirty() {
     if (activeTextEditorIsDirty()) {
+      return true;
+    }
+    if (state.unsavedDocument) {
       return true;
     }
     const revision = currentDocumentRevision();
@@ -176,6 +182,9 @@ export function createDocumentTabStateHost(scope) {
       return false;
     }
     if (tab.id === getActiveDocumentTabId() && activeTextEditorIsDirty()) {
+      return true;
+    }
+    if (tab.unsavedDocument) {
       return true;
     }
     const revision = tabDocumentRevision(tab);

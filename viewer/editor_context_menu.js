@@ -415,6 +415,16 @@ export function createCanvasContextMenuHost(options) {
       await copyChemicalAnalysis(value);
       await finishTemporaryContextSelection();
       return;
+    } else if (command === "nmr-predict") {
+      try {
+        await options.nmrPredictionHost.predict(value);
+      } catch (error) {
+        const message = String(error?.message || error || "NMR prediction failed")
+          .replace(/^Error:\s*/i, "");
+        options.transientNotificationHost?.show(message, { error: true, duration: 4200 });
+      }
+      await finishTemporaryContextSelection();
+      return;
     } else if (command === "chemical-check" || command === "interpret-chemically") {
       changed = await executeDocumentCommand(
         { type: "apply-text-style", payload: { changes: { interpretChemically: value !== "off" } } },

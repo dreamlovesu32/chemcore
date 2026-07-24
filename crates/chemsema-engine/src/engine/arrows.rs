@@ -432,6 +432,7 @@ impl Engine {
             payload: crate::ObjectPayload {
                 resource_ref: None,
                 bbox: None,
+                spectrum: None,
                 extra,
             },
             children: Vec::new(),

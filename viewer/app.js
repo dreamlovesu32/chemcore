@@ -15,6 +15,8 @@ import { createSmilesDialogHost } from "./smiles_dialog_host.js";
 import { createTransientNotificationHost } from "./transient_notification_host.js";
 import { createUiActionRunner } from "./ui_action_runner.js";
 import { createInchiHost } from "./inchi_host.js";
+import { createNmrPredictionHost } from "./nmr_prediction_host.js";
+import { createBundledNmrProvider } from "./nmr_prediction_provider.js";
 import { createImageImportHost } from "./image_import_host.js";
 import { createDesktopFileHost, normalizeDesktopPath } from "./desktop_file_host.js";
 import { createEngineHost } from "./engine_host.js?v=20260723-native-images";
@@ -114,6 +116,7 @@ const state = {
   currentFilePath: null,
   savedDocumentJson: null,
   savedRevision: null,
+  unsavedDocument: false,
   oleSyncedDocumentJson: null,
   oleSyncedRevision: null,
   currentDocument: null,
@@ -184,6 +187,12 @@ const uiActions = createUiActionRunner({
   trace: (scope, detail) => desktopFileHost?.traceEvent?.(scope, detail),
 });
 const inchiHost = createInchiHost();
+const bundledNmrProvider = createBundledNmrProvider();
+const nmrPredictionHost = createNmrPredictionHost({
+  engine: () => state.editorEngine,
+  provider: () => bundledNmrProvider,
+  openDocumentTab: (documentData, title) => openGeneratedDocumentTab(documentData, title),
+});
 const isDesktopShell = !!desktopFileHost?.usesCustomWindowChrome;
 const isNativeFrameShell = !!desktopFileHost?.available && !isDesktopShell;
 let sharedGlyphProfiles = null;
@@ -480,6 +489,7 @@ const TAB_STATE_KEYS = [
   "currentFilePath",
   "savedDocumentJson",
   "savedRevision",
+  "unsavedDocument",
   "oleSyncedDocumentJson",
   "oleSyncedRevision",
   "currentDocument",
@@ -1191,6 +1201,7 @@ canvasContextMenuHost = createCanvasContextMenuHost({
   smilesDialogHost,
   transientNotificationHost,
   inchiHost,
+  nmrPredictionHost,
   commandEngine,
   openColorDialog,
   isEditingRustDocument,
@@ -2016,6 +2027,7 @@ function loadDetachedDocumentPayload(...args) { return browserDocumentTabs.loadD
 function takeBrowserPendingDocument(...args) { return browserDocumentTabs.takeBrowserPendingDocument(...args); }
 function loadBrowserPendingDocumentPayload(...args) { return browserDocumentTabs.loadBrowserPendingDocumentPayload(...args); }
 function newDocumentTab(...args) { return browserDocumentTabs.newDocumentTab(...args); }
+function openGeneratedDocumentTab(...args) { return browserDocumentTabs.openGeneratedDocumentTab(...args); }
 function openDocumentPathInTab(...args) { return browserDocumentTabs.openDocumentPathInTab(...args); }
 function openDocumentFileInTab(...args) { return browserDocumentTabs.openDocumentFileInTab(...args); }
 function openDroppedDocumentFileInTab(...args) { return browserDocumentTabs.openDroppedDocumentFileInTab(...args); }

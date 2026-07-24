@@ -132,14 +132,19 @@ try {
         throw "ChemDraw did not create $output"
       }
     }
-    $doc.Close() | Out-Null
+    $doc.Modified = $false
+    $doc.Close($false, "") | Out-Null
     [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($doc) | Out-Null
     $doc = $null
+    Start-Sleep -Milliseconds 200
   }
 }
 finally {
   if ($doc) {
-    try { $doc.Close() | Out-Null } catch {}
+    try {
+      $doc.Modified = $false
+      $doc.Close($false, "") | Out-Null
+    } catch {}
     [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($doc) | Out-Null
   }
   if ($app) {

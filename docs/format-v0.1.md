@@ -140,6 +140,7 @@ Each scene object shares a common envelope:
 - `symbol`
 - `shape`
 - `image`
+- `spectrum`
 - `group`
 
 Other graphical primitives can be added later.
@@ -157,12 +158,13 @@ types:
 - `symbol`: independently selectable ChemDraw symbol objects
 - `shape`: simple filled or stroked regions
 - `image`: placed raster image backed by an explicit image resource
+- `spectrum`: sampled scientific spectrum with explicit axes and unit semantics
 - `group`: logical grouping and shared transform
 
 This split is intentional.
 
 - `molecule` owns chemistry semantics
-- `text`, `line`, `bracket`, `shape`, and `image` are document graphics
+- `text`, `line`, `bracket`, `shape`, `image`, and `spectrum` are document graphics
 - `group` owns containment and transform only
 
 Important: labels that belong to a `molecule` are molecule-owned structure labels.
@@ -327,6 +329,69 @@ CDX/CDXML raster payloads map to this object without changing their bytes.
 Unsupported compound payloads such as OLE, EMF, WMF, TIFF, PDF, or PICT remain
 opaque resources and render a sized diagnostic placeholder instead of silently
 disappearing. Their original bytes remain authoritative for round-trip export.
+
+## Spectrum Object
+
+A spectrum object stores evenly spaced X samples and their Y values directly in
+the scene object. Imported spectra and generated prediction results use this
+same object; the object itself does not own or invoke a prediction service.
+
+```json
+{
+  "id": "obj_spectrum_1",
+  "type": "spectrum",
+  "visible": true,
+  "locked": false,
+  "zIndex": 18,
+  "transform": {
+    "translate": [40, 40],
+    "rotate": 0,
+    "scale": [1, 1]
+  },
+  "styleRef": "style_spectrum_1",
+  "payload": {
+    "bbox": [0, 0, 240, 120],
+    "spectrum": {
+      "class": "nmr",
+      "xLow": 0,
+      "xSpacing": 0.5,
+      "xType": "parts-per-million",
+      "xAxisLabel": "ppm",
+      "yLow": 0,
+      "yScale": 1,
+      "yType": "arbitrary-units",
+      "yAxisLabel": "intensity",
+      "dataPoints": [0, 0.1, 0.8, 0.2, 0]
+    }
+  }
+}
+```
+
+Rules:
+
+- `dataPoints` is a required non-empty finite-number array.
+- Decoded Y value `i` is `yLow + dataPoints[i] * yScale`.
+- `xLow` identifies the first sample and `xSpacing` the evenly spaced interval;
+  the opposite axis endpoint is `xLow + dataPoints.length * xSpacing`.
+- CDXML may retain `yLow` and `yScale` as a storage transform. CDX stores the
+  decoded `FLOAT64` array, so CDX import uses `yLow = 0` and `yScale = 1`.
+- The first sample is drawn at the right edge, matching ChemDraw spectrum
+  orientation. Resizing changes `bbox`, not the sample values.
+- Spectrum objects may move, resize, group, reorder, recolor, copy/paste,
+  delete, lock, and hide. They do not rotate; `rotate` must be `0` and `scale`
+  must remain `[1, 1]`.
+- Rendering uses bounded extrema-preserving downsampling. The stored samples
+  always remain authoritative and unchanged.
+
+`class` values are `unknown`, `chromatogram`, `infrared`, `uv-vis`,
+`x-ray-diffraction`, `mass-spectrum`, `nmr`, `raman`, `fluorescence`, and
+`atomic`.
+
+`xType` values are `unknown`, `wavenumbers`, `microns`, `hertz`, `mass-units`,
+`parts-per-million`, and `other`.
+
+`yType` values are `unknown`, `absorbance`, `transmittance`,
+`percent-transmittance`, `other`, and `arbitrary-units`.
 
 ## Molecule Object
 
@@ -593,6 +658,13 @@ Missing fields use the document/style defaults. `isotopicAbundance` and
 `unspecified`/`equal`, list-exclusion and abnormal-valence flags default to
 `false`, and the remaining fields default to absent. Attached electron-symbol objects remain independently selectable, but
 their attachment contributes to the atom's effective radical chemistry.
+
+`nmrAssignments` is the source-independent, editable home for predicted or
+imported atom assignments. Each entry contains `nucleus` (`1H`, `13C`, or
+`unknown`), `shiftPpm`, `rangeLowPpm`, `rangeHighPpm`, `quality` (`good`,
+`medium`, `rough`, or `unknown`), and a normal `NodeLabel` in `label`.
+ChemDraw `/CS/CD/assign` object tags map to this field; they must not create a
+second free-text object.
 
 Abbreviation labels keep the original drawing data and add machine-readable
 semantics under `meta.labelRecognition`. Readers that only need visual
