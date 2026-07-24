@@ -73,7 +73,7 @@ test("tracked WASM provider predicts a real molecule with response v2", async ()
   assert.equal(proton.firstOrderSpectrumOnly, false);
   assert.equal(
     proton.higherOrderSpectrumScope,
-    "exact-homonuclear-ab-two-spin",
+    "exact-homonuclear-spin-half-networks-up-to-eight-spins",
   );
 
   const response = await provider.predict(methaneRequest());

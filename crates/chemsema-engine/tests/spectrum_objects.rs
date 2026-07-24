@@ -509,7 +509,13 @@ fn prediction_response_builds_the_chemdraw_style_page_from_native_objects() {
                 "sourceId": "test-source"
             }]
         }],
-        "couplings": [],
+        "couplings": [{
+            "siteIds": ["h-3", "p-3"],
+            "atomIds": ["3", "3"],
+            "nuclei": ["1H", "31P"],
+            "valueHz": 10.9,
+            "ruleId": "test-phosphorus-coupling"
+        }],
         "peaks": [{
             "assignmentIndexes": [0],
             "centerPpm": 0.91,
@@ -536,6 +542,10 @@ fn prediction_response_builds_the_chemdraw_style_page_from_native_objects() {
     let spectrum = spectrum_object(&result);
     assert_eq!(spectrum.transform.translate, [14.4, 119.85]);
     assert_eq!(spectrum.payload.bbox, Some([0.0, 0.0, 450.0, 200.0]));
+    assert_eq!(
+        spectrum.meta["nmrPrediction"]["peakLinks"][0]["atomIds"],
+        json!(["3"])
+    );
     assert_eq!(
         spectrum.payload.spectrum.as_ref().expect("spectrum").class,
         SpectrumClass::Nmr

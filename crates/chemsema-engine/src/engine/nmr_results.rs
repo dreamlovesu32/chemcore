@@ -300,7 +300,7 @@ fn validate_prediction_response(response: &PredictionResponse) -> Result<(), Str
             || coupling
                 .nuclei
                 .iter()
-                .any(|nucleus| !matches!(nucleus.as_str(), "1H" | "19F"))
+                .any(|nucleus| !matches!(nucleus.as_str(), "1H" | "19F" | "31P"))
             || !coupling.value_hz.is_finite()
         {
             return Err("NMR prediction contains an invalid coupling".to_string());
@@ -548,6 +548,24 @@ fn quality_legend_object() -> SceneObject {
 
 fn spectrum_object(response: &PredictionResponse) -> SceneObject {
     let spectrum = simulated_spectrum(response);
+    let peak_links = response
+        .peaks
+        .iter()
+        .map(|peak| {
+            let mut atom_ids = peak
+                .assignment_indexes
+                .iter()
+                .flat_map(|index| response.assignments[*index].atom_ids.iter().cloned())
+                .collect::<Vec<_>>();
+            atom_ids.sort();
+            atom_ids.dedup();
+            json!({
+                "assignmentIndexes": peak.assignment_indexes,
+                "centerPpm": peak.center_ppm,
+                "atomIds": atom_ids,
+            })
+        })
+        .collect::<Vec<_>>();
     SceneObject {
         id: "obj_nmr_spectrum".to_string(),
         object_type: "spectrum".to_string(),
@@ -561,7 +579,12 @@ fn spectrum_object(response: &PredictionResponse) -> SceneObject {
             scale: [1.0, 1.0],
         },
         style_ref: None,
-        meta: json!({"nmrPrediction": true}),
+        meta: json!({
+            "nmrPrediction": {
+                "nucleus": response.nucleus,
+                "peakLinks": peak_links,
+            }
+        }),
         payload: ObjectPayload {
             resource_ref: None,
             bbox: Some([0.0, 0.0, SPECTRUM_WIDTH, SPECTRUM_HEIGHT]),

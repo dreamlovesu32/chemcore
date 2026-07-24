@@ -56,6 +56,44 @@ test("NMR host reports a missing predictor instead of silently substituting data
   await assert.rejects(() => host.predict("13C"), /rules are not installed/i);
 });
 
+test("NMR host applies explicit prediction settings before provider execution", async () => {
+  let captured = null;
+  const host = createNmrPredictionHost({
+    engine: () => ({
+      nmrPredictionRequestJson: () => JSON.stringify({
+        nucleus: "1H",
+        conditions: {
+          solvent: "CDCl3",
+          frequencyMHz: 400,
+          temperatureKelvin: 298.15,
+        },
+      }),
+      nmrResultDocumentJson: () => "{}",
+    }),
+    provider: () => ({
+      predict(request) {
+        captured = request;
+        return { schema: "response" };
+      },
+    }),
+    openDocumentTab() {},
+  });
+
+  await host.predict("1H", {
+    solvent: "DMSO-d6",
+    frequencyMHz: 600,
+  });
+  assert.deepEqual(captured.conditions, {
+    solvent: "DMSO-d6",
+    frequencyMHz: 600,
+    temperatureKelvin: 298.15,
+  });
+  await assert.rejects(
+    () => host.predict("1H", { solvent: "benzene-d6" }),
+    /unsupported nmr solvent/i,
+  );
+});
+
 test("generated NMR result opens in a new unsaved editor tab", async () => {
   const state = {};
   const documentTabs = [{ id: "source", title: "Source" }];
