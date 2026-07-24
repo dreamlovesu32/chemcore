@@ -1305,6 +1305,28 @@ class TauriEngineSession {
     return this.invokeMutation("desktop_engine_paste_selection_analysis_caption", { digits });
   }
 
+  async chemicalPropertyDialogJson() {
+    await this.ready();
+    return this.invoke("desktop_engine_chemical_property_dialog_json", { sessionId: this.sessionId });
+  }
+
+  applyChemicalPropertyDialogJson(payloadJson) {
+    return this.invokeMutation("desktop_engine_apply_chemical_property_dialog_json", { payloadJson });
+  }
+
+  deleteSelectedChemicalProperty() {
+    return this.invokeMutation("desktop_engine_delete_selected_chemical_property");
+  }
+
+  async chemicalPropertyRequestsJson() {
+    await this.ready();
+    return this.invoke("desktop_engine_chemical_property_requests_json", { sessionId: this.sessionId });
+  }
+
+  applyChemicalPropertyResultJson(payloadJson) {
+    return this.invokeMutation("desktop_engine_apply_chemical_property_result_json", { payloadJson });
+  }
+
   takePendingDialogJson() {
     if (this.layoutEngine?.takePendingDialogJson) {
       const value = this.layoutEngine.takePendingDialogJson();

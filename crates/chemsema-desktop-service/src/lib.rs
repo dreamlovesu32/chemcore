@@ -1073,6 +1073,41 @@ impl DesktopDocumentService {
             .paste_selection_analysis_caption(digits))
     }
 
+    pub fn chemical_property_dialog_json(&self, session_id: SessionId) -> Result<String, String> {
+        Ok(self.session(session_id)?.chemical_property_dialog_json())
+    }
+
+    pub fn apply_chemical_property_dialog_json(
+        &mut self,
+        session_id: SessionId,
+        payload_json: &str,
+    ) -> Result<bool, String> {
+        self.session_mut(session_id)?
+            .apply_chemical_property_dialog_json(payload_json)
+    }
+
+    pub fn delete_selected_chemical_property(
+        &mut self,
+        session_id: SessionId,
+    ) -> Result<bool, String> {
+        Ok(self
+            .session_mut(session_id)?
+            .delete_selected_chemical_property())
+    }
+
+    pub fn chemical_property_requests_json(&self, session_id: SessionId) -> Result<String, String> {
+        self.session(session_id)?.chemical_property_requests_json()
+    }
+
+    pub fn apply_chemical_property_result_json(
+        &mut self,
+        session_id: SessionId,
+        payload_json: &str,
+    ) -> Result<bool, String> {
+        self.session_mut(session_id)?
+            .apply_chemical_property_result_json(payload_json)
+    }
+
     pub fn take_pending_dialog_json(&mut self, session_id: SessionId) -> Result<String, String> {
         Ok(self.session_mut(session_id)?.take_pending_dialog_json())
     }
@@ -1487,6 +1522,37 @@ mod tests {
         assert_eq!(isotope["field"]["valueKind"], "integer");
         assert_eq!(isotope["field"]["minimum"], 1);
         assert_eq!(isotope["field"]["maximum"], i16::MAX);
+    }
+
+    #[test]
+    fn native_session_exposes_chemical_property_dialog_and_mutation() {
+        let mut service = DesktopDocumentService::new();
+        let session_id = service.create_session();
+        service
+            .load_document_cdxml(
+                session_id,
+                include_str!(
+                    "../../chemsema-engine/tests/fixtures/cdxml/chemical-property-basic.cdxml"
+                ),
+            )
+            .unwrap();
+        assert!(service
+            .select_component_at_point(session_id, 52.0, 45.0, false)
+            .unwrap());
+
+        let dialog: Value =
+            serde_json::from_str(&service.chemical_property_dialog_json(session_id).unwrap())
+                .unwrap();
+        assert_eq!(dialog["kind"], "chemical-property");
+        assert!(service
+            .apply_chemical_property_dialog_json(
+                session_id,
+                r#"{"typeCode":1,"typeName":"ChemicalName","value":"ethane","isActive":true}"#,
+            )
+            .unwrap());
+        let document: Value =
+            serde_json::from_str(&service.document_json(session_id).unwrap()).unwrap();
+        assert_eq!(document["chemicalProperties"].as_array().unwrap().len(), 2);
     }
 
     #[test]

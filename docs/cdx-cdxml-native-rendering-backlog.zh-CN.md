@@ -37,7 +37,7 @@
 | 4 | `NR-004` | 键查询、反应属性和显示标记 | 完成 | 完成 | 完成 | 完成 | [x] |
 | 5 | `NR-005` | 外部连接点视觉类型 | 完成 | 完成 | 完成 | 完成 | [x] |
 | 6 | `NR-006` | 光谱对象 | 完成 | 完成 | 完成 | 完成 | [x] |
-| 7 | `NR-007` | ChemicalProperty | 完成 | 部分 | 未做 | 部分 | [ ] |
+| 7 | `NR-007` | ChemicalProperty | 完成 | 完成 | 完成 | 完成 | [x] |
 | 8 | `NR-008` | Geometry 与 Constraint | 完成 | 部分 | 未做 | 部分 | [ ] |
 | 9 | `NR-009` | ColoredMolecularArea | 完成 | 部分 | 未做 | 部分 | [ ] |
 | 10 | `NR-010` | 独立 Border | 完成 | 部分 | 未做 | 部分 | [ ] |
@@ -168,7 +168,7 @@
 - 光谱支持数据命令编辑、移动、拉伸、组合、层级、颜色、线宽、复制粘贴、删除、锁定、显隐、撤销和跨格式导出；旋转被明确禁止，不存在预测入口或预测实现。
 - CCJS 严格校验、CDXML/CDX 往返、绘制、编辑、删除后不复活以及大数组降采样均已纳入内核回归。
 
-### [ ] NR-007 ChemicalProperty
+### [x] NR-007 ChemicalProperty
 
 **范围**：`chemicalproperty` 的显示文本、关联对象、位置、计算结果和格式字段。
 
@@ -177,6 +177,17 @@
 **目标**：区分“文件提供值”和“可重新计算值”，保持显示位置和来源关系可编辑。
 
 **验收**：值为空、固定值、重新计算、关联对象移动和删除均有确定行为；导入后不擅自改变原值。
+
+**完成记录（2026-07-24）**：
+
+- CCJS 新增一等 `chemicalProperties` 逻辑对象，明确保存类型码/名称、有序 `BasisObjects`、显示对象、激活状态、值来源、计算状态和最后计算值；不存在的类型、显式 `Unspecified`、`ChemicalName` 与大于 `0x8000` 的自定义 CDX 类型严格区分。
+- CDXML/CDX 导入把 `chemicalproperty` 提升为原生语义，显示仍复用标准文本对象；导出根据当前对象 ID 重建 `BasisObjects` 和 `ChemicalPropertyDisplayID`，删除后的源对象不会由交换层复活。
+- 右键 “Chemical Property...” 可对完整单分子创建、对显示文本编辑或删除属性；内核提供同一对话框 schema，Web、桌面和 WASM 走同一可撤销命令。
+- 激活的 `ChemicalName` 使用 Chemical Graph V2 的规范结构指纹判定失效：平移、旋转和布局变化不触发重新计算，拓扑、元素、键级等结构变化才标为 `stale`；请求使用版本化命名接口，结果写回显示文本并标为 `current`。
+- 文件提供值在导入时原样保留；固定值不自动变化。手工编辑活动显示文本会明确关闭自动更新并显示提示。删除显示文本只移除显示关联；删除最后一个 basis 会删除逻辑属性并把显示文本降为普通文本。
+- `chemical-property-display` 是标准 ChemicalProperty 关系在内核 Link 图中的原生表示，与通用自动 Link 推断分开；复制粘贴、Alt+双击、删除、撤销和 CCJS 保存重开均重映射并验证端点。
+- CDXML 允许仅有名称的自定义类型；CDX 无法表示这种类型，导出会明确报错，绝不静默省略。带数值码的未知自定义类型可稳定 CDX 往返。
+- 空属性、活动/固定、结构失效、结果回填、显示和 basis 删除、复制粘贴、CDXML/CDX 引用重写及菜单入口均已有回归；详细契约见 [ChemicalProperty 原生模型](chemical-property-model.zh-CN.md)。
 
 ### [ ] NR-008 Geometry 与 Constraint
 

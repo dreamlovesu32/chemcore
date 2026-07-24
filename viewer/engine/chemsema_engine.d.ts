@@ -10,6 +10,8 @@ export class WasmEngine {
     applyBondStyleToSelection(style: string): boolean;
     applyBracketKindToSelection(kind: string): boolean;
     applyBracketLabelText(bracket_id: string, session_json: string): boolean;
+    applyChemicalPropertyDialogJson(payload_json: string): boolean;
+    applyChemicalPropertyResultJson(payload_json: string): boolean;
     applyColorToSelection(color: string): boolean;
     applyElementPaletteJson(selection_json: string): boolean;
     applyHoveredBondStyle(style: string): boolean;
@@ -39,6 +41,8 @@ export class WasmEngine {
     centerSelectionOnPage(): boolean;
     chainToolIconSvg(stroke_width: number): string;
     chemicalGraphV2Json(): string;
+    chemicalPropertyDialogJson(): string;
+    chemicalPropertyRequestsJson(): string;
     clearInteraction(): void;
     clearSelection(): boolean;
     clipboardCdxml(): string | undefined;
@@ -49,6 +53,7 @@ export class WasmEngine {
     contextMenuJson(hit_json: string, has_paste: boolean): string;
     copySelection(): boolean;
     cutSelection(): boolean;
+    deleteSelectedChemicalProperty(): boolean;
     deleteSelection(): boolean;
     documentCdx(): Uint8Array;
     documentCdxml(): string;
@@ -162,6 +167,8 @@ export interface InitOutput {
     readonly wasmengine_applyBondStyleToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyBracketKindToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyBracketLabelText: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
+    readonly wasmengine_applyChemicalPropertyDialogJson: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmengine_applyChemicalPropertyResultJson: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_applyColorToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyElementPaletteJson: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_applyHoveredBondStyle: (a: number, b: number, c: number) => number;
@@ -191,6 +198,8 @@ export interface InitOutput {
     readonly wasmengine_centerSelectionOnPage: (a: number) => number;
     readonly wasmengine_chainToolIconSvg: (a: number, b: number) => [number, number];
     readonly wasmengine_chemicalGraphV2Json: (a: number) => [number, number, number, number];
+    readonly wasmengine_chemicalPropertyDialogJson: (a: number) => [number, number];
+    readonly wasmengine_chemicalPropertyRequestsJson: (a: number) => [number, number, number, number];
     readonly wasmengine_clearInteraction: (a: number) => void;
     readonly wasmengine_clearSelection: (a: number) => number;
     readonly wasmengine_clipboardCdxml: (a: number) => [number, number];
@@ -201,6 +210,7 @@ export interface InitOutput {
     readonly wasmengine_contextMenuJson: (a: number, b: number, c: number, d: number) => [number, number];
     readonly wasmengine_copySelection: (a: number) => number;
     readonly wasmengine_cutSelection: (a: number) => number;
+    readonly wasmengine_deleteSelectedChemicalProperty: (a: number) => number;
     readonly wasmengine_deleteSelection: (a: number) => number;
     readonly wasmengine_documentCdx: (a: number) => [number, number, number, number];
     readonly wasmengine_documentCdxml: (a: number) => [number, number];

@@ -150,7 +150,9 @@ pub fn document_to_cdxml(document: &ChemSemaDocument) -> String {
     let Ok(mut root) = super::parse_xml_tree(&generated) else {
         return generated;
     };
-    merge_interchange_tree(&mut root, &source.root);
+    let mut source_root = source.root.clone();
+    retain_native_chemical_properties(&mut source_root, &document.chemical_properties);
+    merge_interchange_tree(&mut root, &source_root);
     serialize_cdxml_tree(&root)
 }
 
@@ -159,6 +161,7 @@ struct CdxmlDocumentWriter<'a> {
     next_id: u64,
     node_ids: BTreeMap<String, String>,
     bond_ids: BTreeMap<(String, String), String>,
+    entity_ids: BTreeMap<String, String>,
     colors: CdxmlColorTable,
     fonts: CdxmlFontTable,
     defaults: CdxmlDefaults,
@@ -187,11 +190,25 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .and_then(Value::as_str)
             .unwrap_or(&document.style.label_style.fill);
         defaults.color = colors.id_for(foreground).parse().unwrap_or(0);
+        let preserved_next_id = document
+            .chemical_properties
+            .iter()
+            .filter_map(|property| property.source_id.as_deref())
+            .filter_map(|id| id.parse::<u64>().ok())
+            .max()
+            .unwrap_or(0)
+            .max(if document.chemical_properties.is_empty() {
+                0
+            } else {
+                max_interchange_numeric_id(document)
+            })
+            .saturating_add(1);
         Self {
             document,
-            next_id: 1,
+            next_id: preserved_next_id.max(1),
             node_ids: BTreeMap::new(),
             bond_ids: BTreeMap::new(),
+            entity_ids: BTreeMap::new(),
             colors,
             fonts,
             defaults,
@@ -284,6 +301,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .collect();
         objects.sort_by(|a, b| a.z_index.cmp(&b.z_index).then_with(|| a.id.cmp(&b.id)));
         self.write_scene_objects(&mut out, &objects);
+        self.write_chemical_properties(&mut out);
 
         out.push_str("  </page>\n");
         out.push_str("</CDXML>\n");
@@ -398,7 +416,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             _ => 0,
         };
         let mut attrs = vec![
-            ("id", self.alloc_id()),
+            ("id", self.object_cdxml_id(object)),
             ("BoundingBox", fmt_bbox([left, top, right, bottom])),
             ("Z", object.z_index.to_string()),
             ("XSpacing", fmt_num(spectrum.x_spacing)),
@@ -503,7 +521,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
         let right = left + width * scale_x;
         let bottom = top + height * scale_y;
         let mut attrs = vec![
-            ("id", self.alloc_id().to_string()),
+            ("id", self.object_cdxml_id(object)),
             ("BoundingBox", fmt_bbox([left, top, right, bottom])),
             ("Z", object.z_index.to_string()),
             (attribute, encode_hex_bytes(&bytes)),
@@ -572,7 +590,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
         writeln!(
             out,
             "    <group id=\"{}\" BoundingBox=\"{}\" Z=\"{}\">",
-            self.alloc_id(),
+            self.object_cdxml_id(object),
             fmt_bbox(bbox),
             object.z_index
         )
@@ -645,6 +663,10 @@ impl<'a> CdxmlDocumentWriter<'a> {
         }
 
         let fragment_id = self.alloc_id();
+        for (object, _) in &components {
+            self.entity_ids
+                .insert(object.id.clone(), fragment_id.clone());
+        }
         let bbox = components
             .iter()
             .filter_map(|(object, fragment)| molecule_world_bbox(object, fragment))
@@ -678,6 +700,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             }
         }
         self.node_ids.extend(node_ids.clone());
+        self.entity_ids.extend(node_ids.clone());
         for (object, fragment) in &components {
             let enhanced_stereo = cdxml_enhanced_stereo_by_node(fragment);
             for node in &fragment.nodes {
@@ -1091,6 +1114,8 @@ impl<'a> CdxmlDocumentWriter<'a> {
         node_ids: &BTreeMap<String, String>,
         crossing_scope: &str,
     ) {
+        self.entity_ids
+            .insert(bond.id.clone(), cdxml_id.to_string());
         let (Some(begin), Some(end)) = (node_ids.get(&bond.begin), node_ids.get(&bond.end)) else {
             return;
         };
@@ -1262,7 +1287,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .and_then(|style| style_number_array(style, "dashArray"))
             .is_some_and(|dash_array| !dash_array.is_empty());
         let mut attrs = vec![
-            ("id", self.alloc_id()),
+            ("id", self.object_cdxml_id(object)),
             ("Head3D", fmt_point3(head)),
             ("Tail3D", fmt_point3(tail)),
             ("LineWidth", fmt_num(stroke_width)),
@@ -1480,7 +1505,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .and_then(|style| style_number_value(style, "strokeWidth"))
             .unwrap_or(crate::DEFAULT_BOND_STROKE);
         let mut attrs = vec![
-            ("id", self.alloc_id()),
+            ("id", self.object_cdxml_id(object)),
             ("CurvePoints", curve_points),
             (
                 "CurveType",
@@ -1581,7 +1606,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             push_cdxml_shape_type_flag(&mut oval_type, filled, "Filled");
             push_cdxml_shape_type_flag(&mut oval_type, shadowed, "Shadowed");
             let mut attrs = vec![
-                ("id", self.alloc_id()),
+                ("id", self.object_cdxml_id(object)),
                 ("GraphicType", "Oval".to_string()),
                 ("BoundingBox", fmt_bbox(bbox)),
                 ("Center3D", fmt_point3(center)),
@@ -1625,7 +1650,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 [left, mid_y, mid_x, bottom],
                 [mid_x, mid_y, right, bottom],
             ];
-            let table_id = self.alloc_id();
+            let table_id = self.object_cdxml_id(object);
             let color_id = self.colors.id_for(color);
             write_open_tag(
                 out,
@@ -1660,7 +1685,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             return;
         }
         if kind == "tlcPlate" {
-            let plate_id = self.alloc_id();
+            let plate_id = self.object_cdxml_id(object);
             let color_id = self.colors.id_for(color);
             let origin_fraction = object
                 .payload
@@ -1772,7 +1797,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
         push_cdxml_shape_type_flag(&mut rectangle_type, filled, "Filled");
         push_cdxml_shape_type_flag(&mut rectangle_type, shadowed, "Shadow");
         let mut attrs = vec![
-            ("id", self.alloc_id()),
+            ("id", self.object_cdxml_id(object)),
             ("GraphicType", "Rectangle".to_string()),
             ("BoundingBox", fmt_bbox(bbox)),
             ("RectangleType", rectangle_type),
@@ -1812,7 +1837,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .unwrap_or_else(|| "plus".to_string());
         let orbital_type = cdxml_orbital_type(&template, &render_style, &phase);
         let mut attrs = vec![
-            ("id", self.alloc_id()),
+            ("id", self.object_cdxml_id(object)),
             ("GraphicType", "Orbital".to_string()),
             ("OrbitalType", orbital_type.to_string()),
             ("color", self.colors.id_for(color)),
@@ -1927,7 +1952,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             let symbol_bbox =
                 cdxml_symbol_anchor_bbox(center_x, center_y, anchor_width, anchor_height);
             let attrs = vec![
-                ("id", self.alloc_id()),
+                ("id", self.object_cdxml_id(object)),
                 ("GraphicType", "Symbol".to_string()),
                 ("SymbolType", symbol_type.to_string()),
                 ("color", color_id),
@@ -1987,7 +2012,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 4,
                 "graphic",
                 vec![
-                    ("id", self.alloc_id()),
+                    ("id", self.object_cdxml_id(object)),
                     ("GraphicType", "Bracket".to_string()),
                     ("BracketType", bracket_type.to_string()),
                     ("color", color_id),
@@ -2007,7 +2032,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             4,
             "graphic",
             vec![
-                ("id", self.alloc_id()),
+                ("id", self.object_cdxml_id(object)),
                 ("GraphicType", "Bracket".to_string()),
                 ("BracketType", bracket_type.to_string()),
                 ("color", color_id.clone()),
@@ -2034,7 +2059,12 @@ impl<'a> CdxmlDocumentWriter<'a> {
 
     fn write_text_object(&mut self, out: &mut String, object: &SceneObject) {
         let text = payload_string_cdxml(&object.payload, "text").unwrap_or_default();
-        if text.trim().is_empty() {
+        let is_chemical_property_display = self
+            .document
+            .chemical_properties
+            .iter()
+            .any(|property| property.display_object_id.as_deref() == Some(object.id.as_str()));
+        if text.trim().is_empty() && !is_chemical_property_display {
             return;
         }
         let style = object_style(self.document, object);
@@ -2080,7 +2110,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             object.transform.translate[1] + box_value[1] + box_value[3],
         ];
         let mut attrs = vec![
-            ("id", self.alloc_id()),
+            ("id", self.object_cdxml_id(object)),
             ("p", fmt_point(anchor)),
             ("BoundingBox", fmt_bbox(bbox)),
             (
@@ -2242,6 +2272,64 @@ impl<'a> CdxmlDocumentWriter<'a> {
         id.to_string()
     }
 
+    fn object_cdxml_id(&mut self, object: &SceneObject) -> String {
+        if let Some(id) = self.entity_ids.get(&object.id) {
+            return id.clone();
+        }
+        let id = if self
+            .document
+            .chemical_properties
+            .iter()
+            .any(|property| property.display_object_id.as_deref() == Some(object.id.as_str()))
+        {
+            object
+                .meta
+                .get("textId")
+                .and_then(Value::as_str)
+                .filter(|id| id.parse::<u64>().is_ok())
+                .map(ToString::to_string)
+                .unwrap_or_else(|| self.alloc_id())
+        } else {
+            self.alloc_id()
+        };
+        self.entity_ids.insert(object.id.clone(), id.clone());
+        id
+    }
+
+    fn write_chemical_properties(&mut self, out: &mut String) {
+        for property in &self.document.chemical_properties {
+            let id = property
+                .source_id
+                .clone()
+                .unwrap_or_else(|| self.alloc_id());
+            let mut attrs = vec![("id", id)];
+            if let Some(value) = property.property_type.cdxml_value() {
+                attrs.push(("ChemicalPropertyType", value));
+            }
+            if property.is_active {
+                attrs.push(("ChemicalPropertyIsActive", "yes".to_string()));
+            }
+            if let Some(display_id) = property
+                .display_object_id
+                .as_deref()
+                .and_then(|entity_id| self.entity_ids.get(entity_id))
+            {
+                attrs.push(("ChemicalPropertyDisplayID", display_id.clone()));
+            }
+            let basis = property
+                .basis_entity_ids
+                .iter()
+                .filter_map(|entity_id| self.entity_ids.get(entity_id).cloned())
+                .chain(property.unresolved_basis_ids.iter().cloned())
+                .collect::<Vec<_>>();
+            if !basis.is_empty() {
+                attrs.push(("BasisObjects", basis.join(" ")));
+            }
+            write_open_tag(out, 4, "chemicalproperty", attrs);
+            out.push_str("</chemicalproperty>\n");
+        }
+    }
+
     fn cdxml_tlc_spot_extent(&self, extent: Option<f64>) -> f64 {
         let Some(extent) = extent else {
             return 327680.0;
@@ -2251,6 +2339,22 @@ impl<'a> CdxmlDocumentWriter<'a> {
         }
         (extent / self.editing_scale.max(crate::EPSILON) * 65536.0).round()
     }
+}
+
+fn max_interchange_numeric_id(document: &ChemSemaDocument) -> u64 {
+    fn visit(node: &crate::InterchangeObject) -> u64 {
+        node.id
+            .as_deref()
+            .and_then(|id| id.parse::<u64>().ok())
+            .unwrap_or(0)
+            .max(node.children.iter().map(visit).max().unwrap_or(0))
+    }
+
+    document
+        .interchange
+        .get("cdxml")
+        .map(|source| visit(&source.root))
+        .unwrap_or(0)
 }
 
 #[derive(Debug, Clone)]

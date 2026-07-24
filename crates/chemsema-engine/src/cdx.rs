@@ -50,6 +50,7 @@ pub fn parse_cdx_document(bytes: &[u8], title: Option<&str>) -> Result<ChemSemaD
 }
 
 pub fn document_to_cdx(document: &ChemSemaDocument) -> Result<Vec<u8>, String> {
+    validate_cdx_chemical_property_types(document)?;
     let cdxml = document_to_cdxml(document);
     let mut root = crate::cdxml::parse_xml_tree(&cdxml)?;
     let source = document.interchange.get("cdx").map(|source| &source.root);
@@ -57,6 +58,18 @@ pub fn document_to_cdx(document: &ChemSemaDocument) -> Result<Vec<u8>, String> {
         overlay_unmodeled_cdx_values(&mut root, source);
     }
     CdxWriter::new(source).write(&root)
+}
+
+fn validate_cdx_chemical_property_types(document: &ChemSemaDocument) -> Result<(), String> {
+    for property in &document.chemical_properties {
+        if property.property_type.code.is_none() && property.property_type.name.is_some() {
+            return Err(format!(
+                "chemical property '{}' has a CDXML-only named custom type; CDX requires a numeric custom type code greater than 0x8000",
+                property.id
+            ));
+        }
+    }
+    Ok(())
 }
 
 pub fn cdx_to_cdxml(bytes: &[u8]) -> Result<String, String> {

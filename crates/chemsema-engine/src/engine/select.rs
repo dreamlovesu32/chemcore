@@ -1397,6 +1397,7 @@ impl Engine {
                 }
             }
             SelectHit::Bond { bond_id } => {
+                seeds.insert(bond_id.clone());
                 if let Some(entry) = self
                     .state
                     .document
@@ -1464,6 +1465,14 @@ impl Engine {
                 {
                     push_unique(&mut selection.label_nodes, entity_id);
                 }
+            } else if self
+                .state
+                .document
+                .editable_fragments()
+                .into_iter()
+                .any(|entry| entry.fragment.bonds.iter().any(|bond| bond.id == entity_id))
+            {
+                push_unique(&mut selection.bonds, entity_id);
             }
         }
         self.state.selection = selection;

@@ -2114,6 +2114,42 @@ body.native-frame-shell .document-tab-close svg {
   color: #ffffff;
 }
 
+.chemical-property-dialog .numeric-dialog-panel {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.chemical-property-dialog .numeric-dialog-field {
+  grid-template-columns: minmax(150px, 1fr) minmax(180px, 1.4fr) 0;
+  margin-top: 8px;
+}
+
+.chemical-property-dialog .numeric-dialog-field input {
+  width: 100%;
+}
+
+.chemical-property-dialog .chemical-property-checkbox {
+  grid-template-columns: 20px 1fr;
+}
+
+.chemical-property-dialog .chemical-property-checkbox input {
+  width: 16px;
+  height: 16px;
+}
+
+.chemical-property-help {
+  margin: 10px 0 0;
+  color: #5d6672;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.chemical-property-dialog .numeric-dialog-error {
+  min-height: 18px;
+  margin-top: 6px;
+  color: #b44747;
+  font-size: 12px;
+}
+
 .smiles-dialog {
   position: fixed;
   inset: 0;

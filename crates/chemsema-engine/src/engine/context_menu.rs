@@ -214,6 +214,7 @@ impl Engine {
                     separator(),
                     nmr_prediction_submenu(),
                     chemical_analysis_submenu(),
+                    item("Chemical Property...", "chemical-property-dialog", ""),
                 ]);
             }
             items.extend([
@@ -233,6 +234,13 @@ impl Engine {
                 separator(),
                 nmr_prediction_submenu(),
                 chemical_analysis_submenu(),
+                item("Chemical Property...", "chemical-property-dialog", ""),
+            ]);
+        }
+        if self.selection_has_chemical_property() {
+            items.extend([
+                separator(),
+                item("Chemical Property...", "chemical-property-dialog", ""),
             ]);
         }
         if !self.state.selection.is_empty() {

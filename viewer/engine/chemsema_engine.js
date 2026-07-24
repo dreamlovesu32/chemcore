@@ -97,6 +97,32 @@ export class WasmEngine {
         return ret[0] !== 0;
     }
     /**
+     * @param {string} payload_json
+     * @returns {boolean}
+     */
+    applyChemicalPropertyDialogJson(payload_json) {
+        const ptr0 = passStringToWasm0(payload_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyChemicalPropertyDialogJson(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] !== 0;
+    }
+    /**
+     * @param {string} payload_json
+     * @returns {boolean}
+     */
+    applyChemicalPropertyResultJson(payload_json) {
+        const ptr0 = passStringToWasm0(payload_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyChemicalPropertyResultJson(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] !== 0;
+    }
+    /**
      * @param {string} color
      * @returns {boolean}
      */
@@ -471,6 +497,42 @@ export class WasmEngine {
             wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
         }
     }
+    /**
+     * @returns {string}
+     */
+    chemicalPropertyDialogJson() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.wasmengine_chemicalPropertyDialogJson(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    chemicalPropertyRequestsJson() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ret = wasm.wasmengine_chemicalPropertyRequestsJson(this.__wbg_ptr);
+            var ptr1 = ret[0];
+            var len1 = ret[1];
+            if (ret[3]) {
+                ptr1 = 0; len1 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
+    }
     clearInteraction() {
         wasm.wasmengine_clearInteraction(this.__wbg_ptr);
     }
@@ -592,6 +654,13 @@ export class WasmEngine {
      */
     cutSelection() {
         const ret = wasm.wasmengine_cutSelection(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @returns {boolean}
+     */
+    deleteSelectedChemicalProperty() {
+        const ret = wasm.wasmengine_deleteSelectedChemicalProperty(this.__wbg_ptr);
         return ret !== 0;
     }
     /**

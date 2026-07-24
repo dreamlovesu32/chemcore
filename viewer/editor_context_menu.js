@@ -416,6 +416,23 @@ export function createCanvasContextMenuHost(options) {
       }
       await finishTemporaryContextSelection();
       return;
+    } else if (command === "chemical-property-dialog") {
+      const decision = await options.chemicalPropertyDialogHost?.choose();
+      if (decision?.action === "apply") {
+        changed = await executeDocumentCommand(
+          { type: "apply-chemical-property", payload: decision.payload },
+          () => options.state().editorEngine?.applyChemicalPropertyDialogJson?.(
+            JSON.stringify(decision.payload),
+          ),
+        );
+      } else if (decision?.action === "delete") {
+        changed = await executeDocumentCommand(
+          "delete-chemical-property",
+          () => options.state().editorEngine?.deleteSelectedChemicalProperty?.(),
+        );
+      }
+      await finishTemporaryContextSelection();
+      return;
     } else if (command === "chemical-copy") {
       await copyChemicalAnalysis(value);
       await finishTemporaryContextSelection();

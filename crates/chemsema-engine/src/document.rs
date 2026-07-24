@@ -29,6 +29,8 @@ pub struct ChemSemaDocument {
     pub objects: Vec<SceneObject>,
     #[serde(default)]
     pub links: Vec<LinkRelation>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub chemical_properties: Vec<ChemicalProperty>,
     #[serde(default)]
     pub resources: BTreeMap<String, Resource>,
     /// Lossless, editable trees for interchange-format information that does
@@ -164,6 +166,7 @@ impl ChemSemaDocument {
                 children: Vec::new(),
             }],
             links: Vec::new(),
+            chemical_properties: Vec::new(),
             resources,
             interchange: BTreeMap::new(),
         }
@@ -436,6 +439,7 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     normalize_shape_object_payloads(&mut document);
     normalize_arrow_object_payloads(&mut document);
     normalize_fragment_label_payloads(&mut document);
+    validate_chemical_properties(&document)?;
     validate_link_relations(&document)?;
     Ok(document)
 }
@@ -520,6 +524,11 @@ fn validate_link_relations(document: &ChemSemaDocument) -> Result<(), String> {
         .into_iter()
         .flat_map(|entry| entry.fragment.nodes.iter().map(|node| node.id.as_str()))
         .collect::<BTreeSet<_>>();
+    let bond_ids = document
+        .editable_fragments()
+        .into_iter()
+        .flat_map(|entry| entry.fragment.bonds.iter().map(|bond| bond.id.as_str()))
+        .collect::<BTreeSet<_>>();
     let mut relation_ids = BTreeSet::new();
     for relation in &document.links {
         if relation.id.trim().is_empty() || !relation_ids.insert(relation.id.as_str()) {
@@ -542,6 +551,7 @@ fn validate_link_relations(document: &ChemSemaDocument) -> Result<(), String> {
         for endpoint in &relation.endpoints {
             if !scene_ids.contains(endpoint.entity_id.as_str())
                 && !node_ids.contains(endpoint.entity_id.as_str())
+                && !bond_ids.contains(endpoint.entity_id.as_str())
             {
                 return Err(format!(
                     "link relation '{}' references missing entity '{}'",
@@ -586,12 +596,111 @@ fn validate_link_relations(document: &ChemSemaDocument) -> Result<(), String> {
                         .is_some_and(|endpoint| node_ids.contains(endpoint.entity_id.as_str()))
                     && role("symbol").and_then(object_type) == Some("symbol")
             }
+            "chemical-property-display" => {
+                let property_id = relation
+                    .data
+                    .get("chemicalPropertyId")
+                    .and_then(Value::as_str);
+                let Some(property) = property_id.and_then(|id| {
+                    document
+                        .chemical_properties
+                        .iter()
+                        .find(|property| property.id == id)
+                }) else {
+                    return Err(format!(
+                        "link relation '{}' references a missing chemical property",
+                        relation.id
+                    ));
+                };
+                let display = role("display");
+                let basis = relation
+                    .endpoints
+                    .iter()
+                    .filter(|endpoint| endpoint.role == "basis")
+                    .map(|endpoint| endpoint.entity_id.as_str())
+                    .collect::<Vec<_>>();
+                display.and_then(object_type) == Some("text")
+                    && property.display_object_id.as_deref()
+                        == display.map(|endpoint| endpoint.entity_id.as_str())
+                    && basis
+                        == property
+                            .basis_entity_ids
+                            .iter()
+                            .map(String::as_str)
+                            .collect::<Vec<_>>()
+            }
             _ => false,
         };
         if !valid {
             return Err(format!(
                 "link relation '{}' has invalid kind or endpoint signature '{}'",
                 relation.id, relation.kind
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_chemical_properties(document: &ChemSemaDocument) -> Result<(), String> {
+    let scene_ids = document
+        .scene_objects()
+        .into_iter()
+        .map(|object| object.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let node_ids = document
+        .editable_fragments()
+        .into_iter()
+        .flat_map(|entry| entry.fragment.nodes.iter().map(|node| node.id.as_str()))
+        .collect::<BTreeSet<_>>();
+    let bond_ids = document
+        .editable_fragments()
+        .into_iter()
+        .flat_map(|entry| entry.fragment.bonds.iter().map(|bond| bond.id.as_str()))
+        .collect::<BTreeSet<_>>();
+    let mut ids = BTreeSet::new();
+    for property in &document.chemical_properties {
+        if property.id.trim().is_empty() || !ids.insert(property.id.as_str()) {
+            return Err(format!(
+                "chemical property id '{}' is empty or duplicated",
+                property.id
+            ));
+        }
+        property.property_type.validate()?;
+        let mut basis = BTreeSet::new();
+        for entity_id in &property.basis_entity_ids {
+            if !basis.insert(entity_id.as_str()) {
+                return Err(format!(
+                    "chemical property '{}' repeats basis entity '{}'",
+                    property.id, entity_id
+                ));
+            }
+            if !scene_ids.contains(entity_id.as_str())
+                && !node_ids.contains(entity_id.as_str())
+                && !bond_ids.contains(entity_id.as_str())
+            {
+                return Err(format!(
+                    "chemical property '{}' references missing basis entity '{}'",
+                    property.id, entity_id
+                ));
+            }
+        }
+        if let Some(display_id) = property.display_object_id.as_deref() {
+            if document
+                .find_scene_object(display_id)
+                .is_none_or(|object| object.object_type != "text")
+            {
+                return Err(format!(
+                    "chemical property '{}' display '{}' is not a text object",
+                    property.id, display_id
+                ));
+            }
+        }
+        if !property.is_active
+            && property.calculation_state != ChemicalPropertyCalculationState::Static
+        {
+            return Err(format!(
+                "inactive chemical property '{}' must have static calculation state",
+                property.id
             ));
         }
     }
@@ -2146,6 +2255,115 @@ pub struct LinkRelation {
 pub struct LinkEndpoint {
     pub entity_id: String,
     pub role: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChemicalProperty {
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_id: Option<String>,
+    pub property_type: ChemicalPropertyType,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub basis_entity_ids: Vec<String>,
+    /// Source object ids that could not be mapped to a native scene, atom, or
+    /// bond entity. They remain explicit so editing a partially-supported
+    /// document never silently drops the official BasisObjects entries.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unresolved_basis_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_object_id: Option<String>,
+    #[serde(default)]
+    pub is_active: bool,
+    #[serde(default)]
+    pub value_origin: ChemicalPropertyValueOrigin,
+    #[serde(default)]
+    pub calculation_state: ChemicalPropertyCalculationState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_calculated_value: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChemicalPropertyType {
+    /// `None` is the official "property absent/undefined" state, which is
+    /// different from the explicit Unspecified value 0.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+impl ChemicalPropertyType {
+    pub fn undefined() -> Self {
+        Self::default()
+    }
+
+    pub fn unspecified() -> Self {
+        Self {
+            code: Some(0),
+            name: Some("Unspecified".to_string()),
+        }
+    }
+
+    pub fn chemical_name() -> Self {
+        Self {
+            code: Some(1),
+            name: Some("ChemicalName".to_string()),
+        }
+    }
+
+    pub fn is_chemical_name(&self) -> bool {
+        self.code == Some(1) || self.name.as_deref() == Some("ChemicalName")
+    }
+
+    pub fn cdxml_value(&self) -> Option<String> {
+        self.code
+            .map(|code| code.to_string())
+            .or_else(|| self.name.clone())
+    }
+
+    fn validate(&self) -> Result<(), String> {
+        if self.code == Some(0)
+            && self
+                .name
+                .as_deref()
+                .is_some_and(|name| name != "Unspecified")
+        {
+            return Err("chemical property type code 0 must be named Unspecified".to_string());
+        }
+        if self.code == Some(1)
+            && self
+                .name
+                .as_deref()
+                .is_some_and(|name| name != "ChemicalName")
+        {
+            return Err("chemical property type code 1 must be named ChemicalName".to_string());
+        }
+        if self.code.is_none() && self.name.as_deref().is_some_and(str::is_empty) {
+            return Err("chemical property custom type name cannot be empty".to_string());
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ChemicalPropertyValueOrigin {
+    #[default]
+    Imported,
+    Authored,
+    Calculated,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ChemicalPropertyCalculationState {
+    #[default]
+    Static,
+    Current,
+    Stale,
+    Unsupported,
 }
 
 impl SceneObject {

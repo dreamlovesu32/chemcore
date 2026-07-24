@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML BondLength="14.4" LabelFont="3" LabelSize="10" CaptionFont="3" CaptionSize="10">
+  <fonttable>
+    <font id="3" charset="iso-8859-1" name="Arial"/>
+  </fonttable>
+  <colortable>
+    <color r="1" g="1" b="1"/>
+    <color r="0" g="0" b="0"/>
+  </colortable>
+  <page id="1" BoundingBox="0 0 160 120">
+    <fragment id="10" BoundingBox="30 30 80 55">
+      <n id="11" p="40 45"/>
+      <n id="12" p="65 45"/>
+      <b id="13" B="11" E="12" Order="1"/>
+    </fragment>
+    <t id="20" p="42 85" BoundingBox="42 76 96 88"
+       CaptionJustification="Left" UTF8Text="ethane">
+      <s font="3" size="10" color="0">ethane</s>
+    </t>
+    <chemicalproperty id="30" ChemicalPropertyType="ChemicalName"
+      ChemicalPropertyDisplayID="20" ChemicalPropertyIsActive="yes"
+      BasisObjects="10 11 13"/>
+  </page>
+</CDXML>

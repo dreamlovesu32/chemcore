@@ -5,6 +5,17 @@ pub(super) fn merge_interchange_tree(
     source: &crate::InterchangeObject,
 ) {
     for property in source.properties.values() {
+        if source.name == "chemicalproperty"
+            && matches!(
+                property.name.as_str(),
+                "ChemicalPropertyType"
+                    | "ChemicalPropertyDisplayID"
+                    | "ChemicalPropertyIsActive"
+                    | "BasisObjects"
+            )
+        {
+            continue;
+        }
         generated
             .attrs
             .entry(property.name.clone())
@@ -35,6 +46,44 @@ pub(super) fn merge_interchange_tree(
     }
     ordered.append(&mut remaining);
     generated.children = ordered;
+}
+
+pub(super) fn retain_native_chemical_properties(
+    source: &mut crate::InterchangeObject,
+    properties: &[crate::ChemicalProperty],
+) {
+    let allowed_ids = properties
+        .iter()
+        .filter_map(|property| property.source_id.as_deref())
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut remaining_without_id = properties
+        .iter()
+        .filter(|property| property.source_id.is_none())
+        .count();
+    retain_native_chemical_properties_recursive(source, &allowed_ids, &mut remaining_without_id);
+}
+
+fn retain_native_chemical_properties_recursive(
+    source: &mut crate::InterchangeObject,
+    allowed_ids: &std::collections::BTreeSet<&str>,
+    remaining_without_id: &mut usize,
+) {
+    source.children.retain(|child| {
+        if child.name != "chemicalproperty" {
+            return true;
+        }
+        if let Some(id) = child.id.as_deref() {
+            return allowed_ids.contains(id);
+        }
+        if *remaining_without_id == 0 {
+            return false;
+        }
+        *remaining_without_id -= 1;
+        true
+    });
+    for child in &mut source.children {
+        retain_native_chemical_properties_recursive(child, allowed_ids, remaining_without_id);
+    }
 }
 
 pub(super) fn interchange_xml_exact_match(

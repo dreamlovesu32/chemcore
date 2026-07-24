@@ -25,6 +25,13 @@ impl Engine {
             .into_iter()
             .flat_map(|entry| entry.fragment.nodes.iter().map(|node| node.id.clone()))
             .collect::<BTreeSet<_>>();
+        let bond_ids = self
+            .state
+            .document
+            .editable_fragments()
+            .into_iter()
+            .flat_map(|entry| entry.fragment.bonds.iter().map(|bond| bond.id.clone()))
+            .collect::<BTreeSet<_>>();
         let invalid_analysis_endpoints = self
             .state
             .document
@@ -35,6 +42,7 @@ impl Engine {
                 relation.endpoints.iter().any(|endpoint| {
                     !scene_ids.contains(&endpoint.entity_id)
                         && !node_ids.contains(&endpoint.entity_id)
+                        && !bond_ids.contains(&endpoint.entity_id)
                 })
             })
             .flat_map(|relation| relation.endpoints.iter())
@@ -53,7 +61,9 @@ impl Engine {
         let before = self.state.document.links.len();
         self.state.document.links.retain(|relation| {
             relation.endpoints.iter().all(|endpoint| {
-                scene_ids.contains(&endpoint.entity_id) || node_ids.contains(&endpoint.entity_id)
+                scene_ids.contains(&endpoint.entity_id)
+                    || node_ids.contains(&endpoint.entity_id)
+                    || bond_ids.contains(&endpoint.entity_id)
             })
         });
         let mut changed = before != self.state.document.links.len();
@@ -99,6 +109,7 @@ impl Engine {
         changed |= refresh_repeating_units(&mut self.state.document);
         changed |= crate::refresh_attached_electron_symbols(&mut self.state.document);
         changed |= self.refresh_analysis_captions();
+        changed |= self.reconcile_chemical_properties_after_document_change();
         changed
     }
 
@@ -204,6 +215,41 @@ impl Engine {
         }
         self.push_undo_snapshot();
         let mut changed = false;
+        if policy == LinkPolicy::Unlinked {
+            let detached_property_ids = self
+                .state
+                .document
+                .chemical_properties
+                .iter()
+                .filter(|property| {
+                    property
+                        .display_object_id
+                        .as_ref()
+                        .is_some_and(|display_id| ids.contains(display_id))
+                })
+                .map(|property| property.id.clone())
+                .collect::<Vec<_>>();
+            for property_id in detached_property_ids {
+                let display_id = self
+                    .state
+                    .document
+                    .chemical_properties
+                    .iter_mut()
+                    .find(|property| property.id == property_id)
+                    .and_then(|property| {
+                        property.is_active = false;
+                        property.calculation_state =
+                            crate::ChemicalPropertyCalculationState::Static;
+                        property.display_object_id.take()
+                    });
+                if let Some(display_id) = display_id {
+                    if let Some(display) = self.state.document.find_scene_object_mut(&display_id) {
+                        display.payload.extra.remove("chemicalPropertyId");
+                    }
+                    changed = true;
+                }
+            }
+        }
         for id in &ids {
             if let Some(object) = self.state.document.find_scene_object_mut(id) {
                 if object.link_policy != policy {

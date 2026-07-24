@@ -62,9 +62,14 @@ by JSONL session `execute`.
 Selection-driven commands include `apply-selection-arrange`, `scale-selection`,
 `center-selection-on-page`, `apply-selection-color`, `apply-selection-order`,
 `group-selection`, `ungroup-selection`, `link-selection`, `set-link-policy`,
-`unlink-selection`, `paste-analysis-caption`,
+`unlink-selection`, `paste-analysis-caption`, `apply-chemical-property`,
 style commands, `apply-object-settings-to-selection`, `delete-selection`, and
 `cut-selection`.
+
+`apply-chemical-property` creates a property when `propertyId` is omitted and
+the current selection is one complete molecule; with `propertyId`, it edits
+that logical property. `delete-chemical-property` and
+`apply-chemical-property-result` address a property by id.
 
 Target-driven commands that do not depend on current selection include
 `move-targets`, `rotate-targets`, `scale-targets`, and `delete-targets`.

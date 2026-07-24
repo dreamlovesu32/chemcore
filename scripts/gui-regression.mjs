@@ -15,6 +15,7 @@ const tmpDir = join(rootDir, "tmp", "gui-regression");
 const guiCase = process.env.CHEMSEMA_GUI_CASE || "";
 const exactTieOnly = guiCase === "exact-tie-double";
 const selectionSummaryOnly = guiCase === "selection-summary";
+const chemicalPropertyOnly = guiCase === "chemical-property";
 
 function waitForPort(timeoutMs = 5000) {
   const deadline = Date.now() + timeoutMs;
@@ -833,6 +834,53 @@ async function verifyZoomAndStyleMenu(page) {
   assert.equal(styleState.preset, "acs-document-1996", `Style preset was not applied: ${JSON.stringify(styleState)}`);
 }
 
+async function verifyChemicalPropertyDialog(page) {
+  await drawBondWithMouse(page);
+  await page.locator('button[data-tool="select"]').click();
+  const bond = page.locator("[data-bond-id]").first();
+  const box = await bond.boundingBox();
+  assert(box, "ChemicalProperty regression could not locate the molecule bond.");
+  await page.keyboard.press("Control+A");
+  await page.waitForFunction(() => {
+    const bounds = window.__chemsemaDebug?.state?.editorEngine?.selectionBoundsJson?.();
+    return bounds && JSON.parse(bounds) != null;
+  });
+  const viewer = await page.locator("#viewer-container").boundingBox();
+  assert(viewer, "ChemicalProperty regression could not locate the viewer.");
+  await page.mouse.click(viewer.x + 12, viewer.y + 12, { button: "right" });
+  const command = page.locator(
+    '.canvas-context-menu button[data-canvas-context-command="chemical-property-dialog"]',
+  );
+  await command.waitFor({ state: "visible" });
+  await command.click();
+
+  const dialog = page.locator(".chemical-property-dialog");
+  await dialog.waitFor({ state: "visible" });
+  await dialog.locator('input[name="value"]').fill("ethane");
+  await dialog.locator('input[name="isActive"]').check();
+  await dialog.locator('button[type="submit"]').click();
+  await page.waitForFunction(() => {
+    const properties = window.__chemsemaDebug?.document?.chemicalProperties;
+    return Array.isArray(properties)
+      && properties.length === 1
+      && properties[0]?.propertyType?.code === 1
+      && properties[0]?.isActive === true;
+  });
+  const result = await page.evaluate(() => {
+    const documentValue = window.__chemsemaDebug.document;
+    const property = documentValue.chemicalProperties[0];
+    const display = documentValue.objects.find((object) => object.id === property.displayObjectId);
+    return {
+      value: display?.payload?.text,
+      relation: documentValue.links.find(
+        (candidate) => candidate.kind === "chemical-property-display",
+      ),
+    };
+  });
+  assert.equal(result.value, "ethane");
+  assert.equal(result.relation?.endpoints?.length, 2);
+}
+
 let server = null;
 let browser = null;
 try {
@@ -849,7 +897,7 @@ try {
   await installBrowserMocks(context);
   const errors = [];
 
-  if (!selectionSummaryOnly) {
+  if (!selectionSummaryOnly && !chemicalPropertyOnly) {
     const fixturePath = await createOpenFixture(context, errors);
     await verifyOpenButton(context, errors, fixturePath);
 
@@ -861,6 +909,10 @@ try {
   if (selectionSummaryOnly) {
     const page = await openViewer(context, errors);
     await verifySelectionOverlayConsistency(page);
+    await page.close();
+  } else if (chemicalPropertyOnly) {
+    const page = await openViewer(context, errors);
+    await verifyChemicalPropertyDialog(page);
     await page.close();
   } else if (!exactTieOnly) {
     const page = await openViewer(context, errors);
@@ -889,11 +941,17 @@ try {
     await verifySaveAsFormats(savePage);
     await verifyZoomAndStyleMenu(savePage);
     await savePage.close();
+
+    const chemicalPropertyPage = await openViewer(context, errors);
+    await verifyChemicalPropertyDialog(chemicalPropertyPage);
+    await chemicalPropertyPage.close();
   }
 
   assert.equal(errors.length, 0, `GUI regression saw console/page errors:\n${errors.join("\n")}`);
   console.log(selectionSummaryOnly
     ? "[gui-regression] ok (selection summary and minimum selection box)"
+    : chemicalPropertyOnly
+      ? "[gui-regression] ok (ChemicalProperty context menu and kernel dialog)"
     : exactTieOnly
       ? "[gui-regression] ok (exact-tie double bond)"
       : "[gui-regression] ok (open, save-as ccjs/cdxml/svg, ctrl+s ccjz, copy/paste/cut, image drop/paste/context-menu, cross-tab structured clipboard, detached desktop tab, toolbar icons, cursors, selection overlay, delete tool, exact-tie double bond, zoom, style)");

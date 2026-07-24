@@ -16,6 +16,7 @@ const cdxml = [
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "import_nodes.rs"),
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "import_bonds.rs"),
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "import_fragments.rs"),
+  join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "import_chemical_properties.rs"),
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "text_runs.rs"),
 ].map((path) => readFileSync(path, "utf8")).join("\n");
 
@@ -32,7 +33,10 @@ const nativeSemanticProperties = new Set([
   "AbnormalValence", "ShowTerminalCarbonLabels", "ShowNonTerminalCarbonLabels",
   "RxnChange", "RxnStereo", "Topology", "RxnParticipation", "BS",
   "ShowBondQuery", "ShowBondRxn", "ShowBondStereo",
+  "BasisObjects", "ChemicalPropertyType", "ChemicalPropertyDisplayID",
+  "ChemicalPropertyIsActive",
 ]);
+const nativeSemanticObjects = new Set(["chemicalproperty"]);
 const lexicalCdxTypes = new Set([
   "CDXString", "CDXBoolean", "CDXBooleanImplied", "INT8", "UINT8", "INT16", "UINT16",
   "INT32", "UINT32", "FLOAT64", "CDXCoordinate", "CDXPoint2D", "CDXPoint3D", "CDXRectangle",
@@ -96,7 +100,9 @@ const objects = official.cdx.objects.map((object) => ({
   storageStatus: "verified",
   implementation: Number.parseInt(object.tag.slice(2), 16) < 0x8000
     ? "property-backed-helper"
-    : explicitObjects.has(object.cdxmlName) ? "native-object-tag" : "interchange-object",
+    : explicitObjects.has(object.cdxmlName) || nativeSemanticObjects.has(object.cdxmlName)
+      ? "native-object-tag"
+      : "interchange-object",
   behaviorStatus: behaviorStatus("objects", object.cdxmlName),
 }));
 const attributesByName = new Map();

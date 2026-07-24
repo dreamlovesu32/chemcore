@@ -722,6 +722,43 @@ impl WasmEngine {
         self.inner.paste_selection_analysis_caption(digits)
     }
 
+    #[wasm_bindgen(js_name = chemicalPropertyDialogJson)]
+    pub fn chemical_property_dialog_json(&self) -> String {
+        self.inner.chemical_property_dialog_json()
+    }
+
+    #[wasm_bindgen(js_name = applyChemicalPropertyDialogJson)]
+    pub fn apply_chemical_property_dialog_json(
+        &mut self,
+        payload_json: &str,
+    ) -> Result<bool, JsValue> {
+        self.inner
+            .apply_chemical_property_dialog_json(payload_json)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    #[wasm_bindgen(js_name = deleteSelectedChemicalProperty)]
+    pub fn delete_selected_chemical_property(&mut self) -> bool {
+        self.inner.delete_selected_chemical_property()
+    }
+
+    #[wasm_bindgen(js_name = chemicalPropertyRequestsJson)]
+    pub fn chemical_property_requests_json(&self) -> Result<String, JsValue> {
+        self.inner
+            .chemical_property_requests_json()
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    #[wasm_bindgen(js_name = applyChemicalPropertyResultJson)]
+    pub fn apply_chemical_property_result_json(
+        &mut self,
+        payload_json: &str,
+    ) -> Result<bool, JsValue> {
+        self.inner
+            .apply_chemical_property_result_json(payload_json)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
     #[wasm_bindgen(js_name = takePendingDialogJson)]
     pub fn take_pending_dialog_json(&mut self) -> String {
         self.inner.take_pending_dialog_json()

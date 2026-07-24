@@ -763,6 +763,9 @@ impl Engine {
                 });
                 let changed = self.apply_text_object_edit(object_id.as_deref(), &session);
                 if changed {
+                    if let Some(object_id) = object_id.as_deref() {
+                        self.detach_edited_chemical_property_display(object_id);
+                    }
                     if let (Some(object_id), Some(values)) =
                         (object_id.as_deref(), generated_values.as_ref())
                     {

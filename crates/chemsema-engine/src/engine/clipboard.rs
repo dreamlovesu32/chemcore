@@ -1,7 +1,8 @@
 use super::text_edit::refresh_attached_node_label_geometry_for_all_nodes;
 use super::{EditorCommand, Engine, RenderBoundsScope};
 use crate::{
-    Bond, ChemSemaDocument, LinkRelation, Node, Resource, ResourceData, SceneObject, SelectionState,
+    Bond, ChemSemaDocument, ChemicalProperty, LinkRelation, Node, Resource, ResourceData,
+    SceneObject, SelectionState,
 };
 use chemsema_chemical_graph::{MultiCenterInteractionV2, StereoElementV2};
 use serde::{Deserialize, Serialize};
@@ -25,6 +26,8 @@ pub(super) struct ClipboardContent {
     resources: BTreeMap<String, Resource>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     links: Vec<LinkRelation>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    chemical_properties: Vec<ChemicalProperty>,
 }
 
 impl Engine {
@@ -122,6 +125,7 @@ impl Engine {
             scene_objects: document.objects,
             resources,
             links: document.links,
+            chemical_properties: document.chemical_properties,
         };
         self.clipboard = Some(content);
         Ok(self.paste_clipboard())
@@ -226,6 +230,7 @@ impl Engine {
             }
             self.state.document.objects.push(object);
         }
+        let pasted_link_start = self.state.document.links.len();
         for relation in &content.links {
             let mut relation = relation.clone();
             let mut complete = true;
@@ -240,6 +245,40 @@ impl Engine {
             if complete {
                 relation.id = self.next_id("link");
                 self.state.document.links.push(relation);
+            }
+        }
+        for property in &content.chemical_properties {
+            let mut property = property.clone();
+            let source_property_id = property.id.clone();
+            property.id = self.next_id("chemical_property");
+            entity_id_map.insert(source_property_id, property.id.clone());
+            property.source_id = None;
+            property.basis_entity_ids = property
+                .basis_entity_ids
+                .iter()
+                .filter_map(|id| entity_id_map.get(id).cloned())
+                .collect();
+            property.display_object_id = property
+                .display_object_id
+                .as_ref()
+                .and_then(|id| entity_id_map.get(id))
+                .cloned();
+            property.unresolved_basis_ids.clear();
+            self.state.document.chemical_properties.push(property);
+        }
+        for relation in &mut self.state.document.links[pasted_link_start..] {
+            if relation.kind != "chemical-property-display" {
+                continue;
+            }
+            let Some(source_id) = relation
+                .data
+                .get("chemicalPropertyId")
+                .and_then(serde_json::Value::as_str)
+            else {
+                continue;
+            };
+            if let Some(property_id) = entity_id_map.get(source_id) {
+                relation.data["chemicalPropertyId"] = serde_json::json!(property_id);
             }
         }
         self.state.selection = SelectionState {
@@ -385,6 +424,7 @@ impl Engine {
         for resource in resources.values() {
             if let ResourceData::Fragment(fragment) = &resource.data {
                 selected_entity_ids.extend(fragment.nodes.iter().map(|node| node.id.clone()));
+                selected_entity_ids.extend(fragment.bonds.iter().map(|bond| bond.id.clone()));
             }
         }
         let links = self
@@ -400,6 +440,23 @@ impl Engine {
             })
             .cloned()
             .collect();
+        let chemical_properties = self
+            .state
+            .document
+            .chemical_properties
+            .iter()
+            .filter(|property| {
+                property
+                    .basis_entity_ids
+                    .iter()
+                    .all(|id| selected_entity_ids.contains(id))
+                    && property
+                        .display_object_id
+                        .as_ref()
+                        .is_none_or(|id| selected_entity_ids.contains(id))
+            })
+            .cloned()
+            .collect();
 
         Some(ClipboardContent {
             nodes,
@@ -409,6 +466,7 @@ impl Engine {
             scene_objects,
             resources,
             links,
+            chemical_properties,
         })
     }
 
@@ -469,12 +527,23 @@ impl Engine {
                 continue;
             };
             retained.extend(fragment.nodes.iter().map(|node| node.id.clone()));
+            retained.extend(fragment.bonds.iter().map(|bond| bond.id.clone()));
         }
         document.links.retain(|relation| {
             relation
                 .endpoints
                 .iter()
                 .all(|endpoint| retained.contains(&endpoint.entity_id))
+        });
+        document.chemical_properties.retain(|property| {
+            property
+                .basis_entity_ids
+                .iter()
+                .all(|id| retained.contains(id))
+                && property
+                    .display_object_id
+                    .as_ref()
+                    .is_none_or(|id| retained.contains(id))
         });
         if let Some(bounds) = self.render_bounds(RenderBoundsScope::Selection) {
             set_clipboard_selection_bounds_meta(&mut document, bounds);

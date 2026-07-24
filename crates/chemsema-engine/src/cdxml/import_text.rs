@@ -27,6 +27,12 @@ pub(in crate::cdxml) fn append_text_objects(
         .filter(|node| node.is("n"))
         .filter_map(|node| Some((node.attr("id")?.to_string(), parse_xy(node.attr("p"))?)))
         .collect();
+    let chemical_property_display_ids = descendants(root)
+        .into_iter()
+        .filter(|node| node.is("chemicalproperty"))
+        .filter_map(|node| node.attr("ChemicalPropertyDisplayID"))
+        .map(ToString::to_string)
+        .collect::<BTreeSet<_>>();
     let auto_position_enhanced_stereo = !root
         .attr("CreationProgram")
         .is_some_and(|program| program.starts_with("ChemDraw JS"));
@@ -46,6 +52,7 @@ pub(in crate::cdxml) fn append_text_objects(
         false,
         auto_position_enhanced_stereo,
         &node_positions,
+        &chemical_property_display_ids,
         None,
         &mut index,
         objects,
@@ -297,6 +304,7 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
     automatic_object_tag: bool,
     auto_position_enhanced_stereo: bool,
     node_positions: &BTreeMap<String, [f64; 2]>,
+    chemical_property_display_ids: &BTreeSet<String>,
     containing_bond_points: Option<([f64; 2], [f64; 2])>,
     index: &mut usize,
     objects: &mut Vec<SceneObject>,
@@ -403,6 +411,9 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
         };
     let current_z = parse_i32(node.attr("Z")).or(inherited_z);
     if node.is("t") && !skip_text && placeholder_depth <= 1 {
+        let is_chemical_property_display = node
+            .attr("id")
+            .is_some_and(|id| chemical_property_display_ids.contains(id));
         let visible = text_visible
             && (force_text_visible
                 || !node
@@ -429,6 +440,7 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
             defaults,
             colors,
             fonts,
+            is_chemical_property_display,
         ) {
             objects.push(object);
             *index += 1;
@@ -456,6 +468,7 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
             next_automatic_object_tag,
             auto_position_enhanced_stereo,
             node_positions,
+            chemical_property_display_ids,
             next_containing_bond_points,
             index,
             objects,
@@ -490,6 +503,7 @@ pub(super) fn text_object(
     defaults: CdxmlDefaults,
     colors: &CdxmlColorTable,
     fonts: &BTreeMap<String, String>,
+    allow_empty: bool,
 ) -> Option<SceneObject> {
     let text = node
         .attr("UTF8Text")
@@ -497,7 +511,7 @@ pub(super) fn text_object(
         .unwrap_or_else(|| node.full_text())
         .trim()
         .to_string();
-    if text.is_empty() {
+    if text.is_empty() && !allow_empty {
         return None;
     }
     let bbox = parse_bbox(node.attr("BoundingBox"));

@@ -6,6 +6,7 @@ mod bond_styles;
 mod bond_tools;
 mod brackets;
 mod chemical_graph;
+mod chemical_properties;
 mod chemistry;
 mod clipboard;
 mod command;
@@ -709,7 +710,7 @@ fn document_target_delta_with_scope(
             after,
         );
     }
-    let (created_objects, updated_objects, deleted_objects) = if scope.objects {
+    let (mut created_objects, mut updated_objects, mut deleted_objects) = if scope.objects {
         diff_target_map_by(
             &before_maps.objects,
             &after_maps.objects,
@@ -718,6 +719,25 @@ fn document_target_delta_with_scope(
     } else {
         (Vec::new(), Vec::new(), Vec::new())
     };
+    if scope.objects {
+        let before_properties = before
+            .chemical_properties
+            .iter()
+            .map(|property| (property.id.as_str(), property))
+            .collect::<BTreeMap<_, _>>();
+        let after_properties = after
+            .chemical_properties
+            .iter()
+            .map(|property| (property.id.as_str(), property))
+            .collect::<BTreeMap<_, _>>();
+        let (created, updated, deleted) = diff_target_map(&before_properties, &after_properties);
+        created_objects.extend(created);
+        updated_objects.extend(updated);
+        deleted_objects.extend(deleted);
+        created_objects.sort();
+        updated_objects.sort();
+        deleted_objects.sort();
+    }
     let (created_styles, updated_styles, deleted_styles) = if scope.styles {
         diff_target_map(&before_maps.styles, &after_maps.styles)
     } else {
@@ -1135,6 +1155,7 @@ mod tests {
                 molecule_object("obj_mol_b", "mol_b"),
             ],
             links: Vec::new(),
+            chemical_properties: Vec::new(),
             resources,
             interchange: BTreeMap::new(),
         }
@@ -1310,6 +1331,24 @@ fn editor_command_is_relationship(command: &EditorCommand) -> bool {
             | EditorCommand::UnlinkSelection { .. }
             | EditorCommand::SetLinkPolicy { .. }
             | EditorCommand::PasteAnalysisCaption { .. }
+            | EditorCommand::ApplyChemicalProperty { .. }
+            | EditorCommand::ApplyChemicalPropertyResult { .. }
+            | EditorCommand::DeleteChemicalProperty { .. }
+    )
+}
+
+fn editor_command_is_style(command: &EditorCommand) -> bool {
+    matches!(
+        command,
+        EditorCommand::ApplyArrowStyle { .. }
+            | EditorCommand::ApplyShapeStyle { .. }
+            | EditorCommand::ApplyBracketKind { .. }
+            | EditorCommand::ApplyOrbitalTemplate { .. }
+            | EditorCommand::ApplyOrbitalStyle { .. }
+            | EditorCommand::ApplyOrbitalPhase { .. }
+            | EditorCommand::ApplyLineStyle { .. }
+            | EditorCommand::ApplyBondStyle { .. }
+            | EditorCommand::ApplyTextStyle { .. }
     )
 }
 
@@ -1375,6 +1414,9 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::UngroupSelection { .. } => "ungroup-selection",
         EditorCommand::LinkSelection { .. } => "link-selection",
         EditorCommand::PasteAnalysisCaption { .. } => "paste-analysis-caption",
+        EditorCommand::ApplyChemicalProperty { .. } => "apply-chemical-property",
+        EditorCommand::ApplyChemicalPropertyResult { .. } => "apply-chemical-property-result",
+        EditorCommand::DeleteChemicalProperty { .. } => "delete-chemical-property",
         EditorCommand::SetLinkPolicy { .. } => "set-link-policy",
         EditorCommand::UnlinkSelection { .. } => "unlink-selection",
         EditorCommand::JoinSelection => "join-selection",

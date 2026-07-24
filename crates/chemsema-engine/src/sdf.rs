@@ -145,6 +145,7 @@ pub fn parse_sdf_document(sdf: &str, title: Option<&str>) -> Result<ChemSemaDocu
         styles: default_sdf_styles(),
         objects,
         links: Vec::new(),
+        chemical_properties: Vec::new(),
         resources,
         interchange: BTreeMap::new(),
     })

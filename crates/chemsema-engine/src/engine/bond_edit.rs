@@ -246,6 +246,7 @@ impl Engine {
             styles: self.state.document.styles.clone(),
             objects: Vec::new(),
             links: Vec::new(),
+            chemical_properties: Vec::new(),
             resources: BTreeMap::new(),
             interchange: BTreeMap::new(),
         }

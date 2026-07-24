@@ -1638,6 +1638,31 @@ To paste the current complete single-molecule analysis as a linked caption:
 }
 ```
 
+### 12.6 Standard ChemicalProperty
+
+Create a ChemicalProperty for the currently selected complete single molecule:
+
+```json
+{
+  "type": "apply-chemical-property",
+  "property_type": { "code": 1, "name": "ChemicalName" },
+  "value": "ethane",
+  "isActive": true
+}
+```
+
+Pass `propertyId` to edit an existing property. Delete it with:
+
+```json
+{
+  "type": "delete-chemical-property",
+  "propertyId": "chemical_property_30"
+}
+```
+
+See `docs/chemical-property-model.zh-CN.md` for the complete type, activity,
+provider, and CDX/CDXML rules.
+
 ## 13. Document Style And Object Settings
 
 ### 13.1 Apply Document Style Preset

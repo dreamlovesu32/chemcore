@@ -540,6 +540,23 @@ pub enum EditorCommand {
         #[serde(default = "default_analysis_caption_digits")]
         digits: u8,
     },
+    ApplyChemicalProperty {
+        #[serde(default, alias = "propertyId", skip_serializing_if = "Option::is_none")]
+        property_id: Option<String>,
+        property_type: crate::ChemicalPropertyType,
+        value: String,
+        #[serde(alias = "isActive")]
+        is_active: bool,
+    },
+    ApplyChemicalPropertyResult {
+        #[serde(alias = "propertyId")]
+        property_id: String,
+        value: String,
+    },
+    DeleteChemicalProperty {
+        #[serde(alias = "propertyId")]
+        property_id: String,
+    },
     SetLinkPolicy {
         #[serde(default, alias = "objectIds")]
         object_ids: Vec<String>,

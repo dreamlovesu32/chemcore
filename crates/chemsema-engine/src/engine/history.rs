@@ -75,6 +75,7 @@ impl Engine {
         };
         let before_redo_stack = self.redo_stack.clone();
         let undo_len = self.undo_stack.len();
+        let chemical_property_fingerprints = self.chemical_property_basis_fingerprints();
         self.command_context.push(command.clone());
         self.command_before_snapshot = before_document;
         let applied = apply(self);
@@ -82,6 +83,7 @@ impl Engine {
         let command_before_snapshot = self.command_before_snapshot.take();
         if applied {
             self.mark_moved_analysis_captions_fixed(&command);
+            self.mark_changed_chemical_properties_stale(&chemical_property_fingerprints);
             self.reconcile_links_after_document_change();
             let delta_scope = self.command_delta_scope(&command);
             if self.command_needs_repeating_unit_refresh(&command, delta_scope) {
@@ -524,6 +526,19 @@ impl Engine {
             .links
             .iter()
             .map(|relation| relation.id.as_str())
+        {
+            if let Some((_, suffix)) = id.rsplit_once('_') {
+                if let Ok(value) = suffix.parse::<u64>() {
+                    max_id = max_id.max(value);
+                }
+            }
+        }
+        for id in self
+            .state
+            .document
+            .chemical_properties
+            .iter()
+            .map(|property| property.id.as_str())
         {
             if let Some((_, suffix)) = id.rsplit_once('_') {
                 if let Ok(value) = suffix.parse::<u64>() {

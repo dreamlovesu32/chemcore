@@ -52,9 +52,9 @@
       "reason": "Bracket geometry, attachments, repeat semantics, and linked labels are one source-order-sensitive import transaction."
     },
     "crates/chemsema-engine/src/engine/command_runtime.rs:execute_command": {
-      "lines": 346,
+      "lines": 259,
       "owner": "Exhaustive editor command dispatcher",
-      "reason": "Immediate and creation command families are already separated; the remaining body is an exhaustive variant-to-domain dispatch with shared completion semantics."
+      "reason": "Immediate, creation, semantic, relationship, and style command families are separated; the remaining body is an exhaustive variant-to-domain dispatch with shared completion semantics."
     },
     "crates/chemsema-engine/src/engine/chemistry.rs:insert_smiles_untracked": {
       "lines": 205,

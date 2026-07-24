@@ -871,6 +871,53 @@ pub(crate) fn desktop_engine_paste_selection_analysis_caption(
 }
 
 #[tauri::command]
+pub(crate) fn desktop_engine_chemical_property_dialog_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<String, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.chemical_property_dialog_json(session_id)
+}
+
+#[tauri::command]
+pub(crate) fn desktop_engine_apply_chemical_property_dialog_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    payload_json: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.apply_chemical_property_dialog_json(session_id, &payload_json)
+}
+
+#[tauri::command]
+pub(crate) fn desktop_engine_delete_selected_chemical_property(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.delete_selected_chemical_property(session_id)
+}
+
+#[tauri::command]
+pub(crate) fn desktop_engine_chemical_property_requests_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<String, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.chemical_property_requests_json(session_id)
+}
+
+#[tauri::command]
+pub(crate) fn desktop_engine_apply_chemical_property_result_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    payload_json: String,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.apply_chemical_property_result_json(session_id, &payload_json)
+}
+
+#[tauri::command]
 pub(crate) fn desktop_engine_take_pending_dialog_json(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,

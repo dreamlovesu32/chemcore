@@ -10,6 +10,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 mod colors;
 mod export;
 mod import_bonds;
+mod import_chemical_properties;
 mod import_defaults;
 mod import_fragments;
 mod import_groups;
@@ -25,6 +26,7 @@ pub(crate) mod xml;
 use self::colors::CdxmlColorTable;
 pub use self::export::document_to_cdxml;
 use self::import_bonds::*;
+use self::import_chemical_properties::import_chemical_properties;
 use self::import_defaults::*;
 use self::import_fragments::*;
 use self::import_groups::*;
@@ -305,6 +307,8 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         &colors,
         &fonts,
     );
+    let (chemical_properties, chemical_property_links) =
+        import_chemical_properties(&root, &objects, &resources);
     apply_cdxml_groups(&root, &mut objects);
     let label_style = imported_document_text_style(
         defaults.label_font,
@@ -403,6 +407,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         styles,
         objects,
         links: Vec::new(),
+        chemical_properties,
         resources,
         interchange: BTreeMap::from([(
             "cdxml".to_string(),
@@ -413,6 +418,19 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
             },
         )]),
     };
+    document.links.extend(chemical_property_links);
+    let linked_scene_ids = document
+        .links
+        .iter()
+        .filter(|relation| relation.kind == "chemical-property-display")
+        .flat_map(|relation| relation.endpoints.iter())
+        .map(|endpoint| endpoint.entity_id.clone())
+        .collect::<BTreeSet<_>>();
+    for entity_id in linked_scene_ids {
+        if let Some(object) = document.find_scene_object_mut(&entity_id) {
+            object.link_policy = crate::LinkPolicy::Linked;
+        }
+    }
     crate::normalize_text_object_payloads(&mut document);
     crate::normalize_shape_object_payloads(&mut document);
     crate::normalize_arrow_object_payloads(&mut document);

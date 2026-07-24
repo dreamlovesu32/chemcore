@@ -30,6 +30,7 @@ Status key:
 | Links | Set Auto/Linked/Unlinked policy | `set-link-policy` with ids or current selection | Link model, CLI guide, tests | Done |
 | Links | Unlink selected entities | `unlink-selection` with ids or current selection | Link model, CLI guide, tests | Done |
 | Analysis | Paste linked analysis caption | `paste-analysis-caption` for one complete molecule | Link model and tests | Done |
+| Chemical property | Create/edit/delete a standard ChemicalProperty | `apply-chemical-property`; `delete-chemical-property` | ChemicalProperty model and integration tests | Done |
 | Styling | Text style/alignment | `apply-text-style` with ids or current selection | CLI guide and skill reference | Done |
 | Styling | Bond style | `apply-bond-style` with ids or current selection | CLI guide and skill reference | Done |
 | Styling | Object settings/bond width | `apply-object-settings-to-selection` with ids or current selection | CLI guide and skill reference | Done |

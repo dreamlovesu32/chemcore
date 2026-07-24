@@ -77,6 +77,8 @@ Link 不是通用约束系统，也不是任意对象之间的用户连线。只
 - `analysis-caption`：一个完整单分子对象 `source` + 一个文本对象 `caption`；
 - `bracket-repeat-label`：一个括号对象 `bracket` + 一个纯数字文本对象 `label`；
 - `atom-symbol`：一个原子 node `atom` + 一个支持化学语义的 symbol 对象 `symbol`。
+- `chemical-property-display`：一个或多个有序 `basis` 端点 + 一个标准文本
+  `display`；关系由原生 ChemicalProperty 逻辑对象声明，不参与通用 Link 自动推断。
 
 关系类型、端点数量、端点角色和对象类型均由内核验证。未知关系不得静默降级。
 
@@ -174,6 +176,9 @@ Exact Mass: 194.0804
   恢复 ChemSema Link 策略；不得依赖 ChemSema 私有属性。
 - 分析文本导出为普通标准文本。按产品决定，ChemSema 的自动更新关系不映射为
   CDX/CDXML `chemicalproperty`，再次导入时也是普通文本。
+- 原生 ChemicalProperty 与分析文本是两个不同功能。只有
+  `chemicalProperties` 中的 `chemical-property-display` 会写成标准
+  CDX/CDXML `chemicalproperty`；它的通用 `linkPolicy` 仍不写入标准文件。
 
 ## 9. 生命周期与历史
 

@@ -1334,9 +1334,25 @@ electron
 直接作用在当前选区上。这包括 `apply-selection-arrange`、`scale-selection`、
 `center-selection-on-page`、`apply-selection-color`、`apply-selection-order`、
 `group-selection`、`ungroup-selection`、`link-selection`、`set-link-policy`、
-`unlink-selection`、`paste-analysis-caption`、
+`unlink-selection`、`paste-analysis-caption`、`apply-chemical-property`、
 `apply-text-style`、`apply-bond-style`、`apply-line-style`、图形/括号/轨道样式命令、
 `apply-object-settings-to-selection`、`delete-selection` 和 `cut-selection`。
+
+对当前选中的完整单分子创建标准 ChemicalProperty：
+
+```json
+{
+  "type": "apply-chemical-property",
+  "property_type": { "code": 1, "name": "ChemicalName" },
+  "value": "ethane",
+  "isActive": true
+}
+```
+
+传入 `propertyId` 时编辑已有属性。删除使用
+`{"type":"delete-chemical-property","propertyId":"chemical_property_30"}`。
+完整类型、活动状态、重新计算和 CDX/CDXML 边界见
+`chemical-property-model.zh-CN.md`。
 
 ### 11.2 移动对象、节点、键
 

@@ -312,6 +312,40 @@ impl Engine {
             EditorCommand::PasteAnalysisCaption { digits } => {
                 self.paste_selection_analysis_caption(digits)
             }
+            EditorCommand::ApplyChemicalProperty {
+                property_id,
+                property_type,
+                value,
+                is_active,
+            } => self.with_command(
+                EditorCommand::ApplyChemicalProperty {
+                    property_id: property_id.clone(),
+                    property_type: property_type.clone(),
+                    value: value.clone(),
+                    is_active,
+                },
+                |engine| {
+                    engine.apply_chemical_property_untracked(
+                        property_id.as_deref(),
+                        property_type,
+                        &value,
+                        is_active,
+                    )
+                },
+            ),
+            EditorCommand::ApplyChemicalPropertyResult { property_id, value } => self.with_command(
+                EditorCommand::ApplyChemicalPropertyResult {
+                    property_id: property_id.clone(),
+                    value: value.clone(),
+                },
+                |engine| engine.apply_chemical_property_result_untracked(&property_id, &value),
+            ),
+            EditorCommand::DeleteChemicalProperty { property_id } => self.with_command(
+                EditorCommand::DeleteChemicalProperty {
+                    property_id: property_id.clone(),
+                },
+                |engine| engine.delete_chemical_property_untracked(&property_id, true),
+            ),
             EditorCommand::LinkSelection { object_ids } => {
                 if !object_ids.is_empty() {
                     self.state.selection =
@@ -337,6 +371,93 @@ impl Engine {
         }
     }
 
+    fn execute_style_command(&mut self, command: EditorCommand) -> bool {
+        match command.clone() {
+            EditorCommand::ApplyArrowStyle {
+                object_ids,
+                variant,
+                head_size,
+                curve,
+                head_style,
+                tail_style,
+                head,
+                tail,
+                bold,
+                no_go,
+            } => {
+                self.select_scene_objects_for_style(object_ids);
+                self.apply_arrow_options_to_selection(
+                    variant, head_size, curve, head_style, tail_style, head, tail, bold, no_go,
+                )
+            }
+            EditorCommand::ApplyShapeStyle { object_ids, style } => {
+                self.select_scene_objects_for_style(object_ids);
+                self.apply_shape_style_to_selection(&style)
+            }
+            EditorCommand::ApplyBracketKind { object_ids, kind } => {
+                self.select_scene_objects_for_style(object_ids);
+                self.apply_bracket_kind_to_selection(&kind)
+            }
+            EditorCommand::ApplyOrbitalTemplate {
+                object_ids,
+                template,
+            } => {
+                self.select_scene_objects_for_style(object_ids);
+                self.apply_orbital_template_to_selection(&template)
+            }
+            EditorCommand::ApplyOrbitalStyle { object_ids, style } => {
+                self.select_scene_objects_for_style(object_ids);
+                self.apply_orbital_style_to_selection(&style)
+            }
+            EditorCommand::ApplyOrbitalPhase { object_ids, phase } => {
+                self.select_scene_objects_for_style(object_ids);
+                self.apply_orbital_phase_to_selection(&phase)
+            }
+            EditorCommand::ApplyLineStyle { object_ids, style } => {
+                self.select_scene_objects_for_style(object_ids);
+                self.apply_line_style_to_selection(&style)
+            }
+            EditorCommand::ApplyBondStyle { bond_ids, style } => {
+                let bond_ids = if bond_ids.is_empty() {
+                    self.state.selection.bonds.clone()
+                } else {
+                    bond_ids
+                };
+                self.with_command(command, |engine| {
+                    engine.apply_bond_style_to_bond_ids_untracked(&bond_ids, &style)
+                })
+            }
+            EditorCommand::ApplyTextStyle {
+                text_object_ids,
+                label_node_ids,
+                node_ids,
+                command,
+                value,
+            } => {
+                if !text_object_ids.is_empty() || !label_node_ids.is_empty() || !node_ids.is_empty()
+                {
+                    self.state.selection = SelectionState {
+                        text_objects: text_object_ids,
+                        label_nodes: label_node_ids,
+                        nodes: node_ids,
+                        ..SelectionState::default()
+                    };
+                }
+                self.apply_text_style_to_selection(&command, &value)
+            }
+            _ => unreachable!("style commands are classified before dispatch"),
+        }
+    }
+
+    fn select_scene_objects_for_style(&mut self, object_ids: Vec<String>) {
+        if !object_ids.is_empty() {
+            self.state.selection = SelectionState {
+                arrow_objects: object_ids,
+                ..SelectionState::default()
+            };
+        }
+    }
+
     pub fn execute_command(&mut self, command: EditorCommand) -> Result<CommandResult, String> {
         self.last_command_result = None;
         if editor_command_is_immediate(&command) {
@@ -352,6 +473,10 @@ impl Engine {
         }
         if editor_command_is_relationship(&command) {
             let changed = self.execute_relationship_command(command);
+            return Ok(self.completed_command_result(changed));
+        }
+        if editor_command_is_style(&command) {
+            let changed = self.execute_style_command(command);
             return Ok(self.completed_command_result(changed));
         }
         let changed = match command.clone() {
@@ -409,27 +534,16 @@ impl Engine {
                     editor_command_type_name(&command)
                 ));
             }
-            EditorCommand::ApplyArrowStyle {
-                object_ids,
-                variant,
-                head_size,
-                curve,
-                head_style,
-                tail_style,
-                head,
-                tail,
-                bold,
-                no_go,
-            } => {
-                if !object_ids.is_empty() {
-                    self.state.selection = SelectionState {
-                        arrow_objects: object_ids,
-                        ..SelectionState::default()
-                    };
-                }
-                self.apply_arrow_options_to_selection(
-                    variant, head_size, curve, head_style, tail_style, head, tail, bold, no_go,
-                )
+            EditorCommand::ApplyArrowStyle { .. }
+            | EditorCommand::ApplyShapeStyle { .. }
+            | EditorCommand::ApplyBracketKind { .. }
+            | EditorCommand::ApplyOrbitalTemplate { .. }
+            | EditorCommand::ApplyOrbitalStyle { .. }
+            | EditorCommand::ApplyOrbitalPhase { .. }
+            | EditorCommand::ApplyLineStyle { .. }
+            | EditorCommand::ApplyBondStyle { .. }
+            | EditorCommand::ApplyTextStyle { .. } => {
+                unreachable!("style commands are dispatched before the main match")
             }
             EditorCommand::CycleBondStyle { bond_id, variant } => {
                 let previous_tool = self.state.tool.clone();
@@ -487,91 +601,6 @@ impl Engine {
                 self.apply_selection_order_command(&command)
             }
             EditorCommand::ApplySelectionColor { color } => self.apply_color_to_selection(&color),
-            EditorCommand::ApplyShapeStyle { object_ids, style } => {
-                if !object_ids.is_empty() {
-                    self.state.selection = SelectionState {
-                        arrow_objects: object_ids,
-                        ..SelectionState::default()
-                    };
-                }
-                self.apply_shape_style_to_selection(&style)
-            }
-            EditorCommand::ApplyBracketKind { object_ids, kind } => {
-                if !object_ids.is_empty() {
-                    self.state.selection = SelectionState {
-                        arrow_objects: object_ids,
-                        ..SelectionState::default()
-                    };
-                }
-                self.apply_bracket_kind_to_selection(&kind)
-            }
-            EditorCommand::ApplyOrbitalTemplate {
-                object_ids,
-                template,
-            } => {
-                if !object_ids.is_empty() {
-                    self.state.selection = SelectionState {
-                        arrow_objects: object_ids,
-                        ..SelectionState::default()
-                    };
-                }
-                self.apply_orbital_template_to_selection(&template)
-            }
-            EditorCommand::ApplyOrbitalStyle { object_ids, style } => {
-                if !object_ids.is_empty() {
-                    self.state.selection = SelectionState {
-                        arrow_objects: object_ids,
-                        ..SelectionState::default()
-                    };
-                }
-                self.apply_orbital_style_to_selection(&style)
-            }
-            EditorCommand::ApplyOrbitalPhase { object_ids, phase } => {
-                if !object_ids.is_empty() {
-                    self.state.selection = SelectionState {
-                        arrow_objects: object_ids,
-                        ..SelectionState::default()
-                    };
-                }
-                self.apply_orbital_phase_to_selection(&phase)
-            }
-            EditorCommand::ApplyLineStyle { object_ids, style } => {
-                if !object_ids.is_empty() {
-                    self.state.selection = SelectionState {
-                        arrow_objects: object_ids,
-                        ..SelectionState::default()
-                    };
-                }
-                self.apply_line_style_to_selection(&style)
-            }
-            EditorCommand::ApplyBondStyle { bond_ids, style } => {
-                let bond_ids = if bond_ids.is_empty() {
-                    self.state.selection.bonds.clone()
-                } else {
-                    bond_ids
-                };
-                self.with_command(command.clone(), |engine| {
-                    engine.apply_bond_style_to_bond_ids_untracked(&bond_ids, &style)
-                })
-            }
-            EditorCommand::ApplyTextStyle {
-                text_object_ids,
-                label_node_ids,
-                node_ids,
-                command,
-                value,
-            } => {
-                if !text_object_ids.is_empty() || !label_node_ids.is_empty() || !node_ids.is_empty()
-                {
-                    self.state.selection = SelectionState {
-                        text_objects: text_object_ids,
-                        label_nodes: label_node_ids,
-                        nodes: node_ids,
-                        ..SelectionState::default()
-                    };
-                }
-                self.apply_text_style_to_selection(&command, &value)
-            }
             EditorCommand::SetInterpretChemicallyForSelection { .. }
             | EditorCommand::SetImplicitHydrogenCountForSelection { .. }
             | EditorCommand::SetAtomPropertyForSelection { .. }
@@ -582,7 +611,10 @@ impl Engine {
             EditorCommand::LinkSelection { .. }
             | EditorCommand::UnlinkSelection { .. }
             | EditorCommand::SetLinkPolicy { .. }
-            | EditorCommand::PasteAnalysisCaption { .. } => {
+            | EditorCommand::PasteAnalysisCaption { .. }
+            | EditorCommand::ApplyChemicalProperty { .. }
+            | EditorCommand::ApplyChemicalPropertyResult { .. }
+            | EditorCommand::DeleteChemicalProperty { .. } => {
                 unreachable!("relationship commands are dispatched before the main match")
             }
             EditorCommand::ExpandLabelsInSelection => self.expand_labels_in_selection(),
