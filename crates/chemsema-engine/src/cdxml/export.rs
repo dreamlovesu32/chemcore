@@ -5,6 +5,14 @@ use crate::{
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
+
+fn plasmid_map_point(center: Point, radius: f64, angle_degrees: f64) -> Point {
+    let radians = angle_degrees.to_radians();
+    Point::new(
+        center.x + radius * radians.sin(),
+        center.y - radius * radians.cos(),
+    )
+}
 use std::fmt::Write;
 
 fn exported_external_connection_type(value: crate::ExternalConnectionType) -> Option<&'static str> {
@@ -162,6 +170,7 @@ pub fn document_to_cdxml(document: &ChemSemaDocument) -> String {
     let mut source_root = source.root.clone();
     retain_native_chemical_properties(&mut source_root, &document.chemical_properties);
     retain_native_annotations(&mut source_root, &document.objects);
+    retain_native_plasmid_maps(&mut source_root, &document.objects);
     merge_interchange_tree(&mut root, &source_root);
     serialize_cdxml_tree(&root)
 }
@@ -2210,6 +2219,10 @@ impl<'a> CdxmlDocumentWriter<'a> {
             self.write_gel_electrophoresis_shape_object(out, object, bbox);
             return;
         }
+        if kind == "plasmidMap" {
+            self.write_plasmid_map_shape_object(out, object);
+            return;
+        }
         if kind == "tlcPlate" {
             let plate_id = self.object_cdxml_id(object);
             let color_id = self.colors.id_for(color);
@@ -2561,6 +2574,239 @@ impl<'a> CdxmlDocumentWriter<'a> {
         }
         write_indent(out, 4);
         out.push_str("</gepplate>\n");
+    }
+
+    fn write_plasmid_map_shape_object(&mut self, out: &mut String, object: &SceneObject) {
+        let (Some([x, y, width, height]), Some(plasmid)) =
+            (object.payload.bbox, object.payload.plasmid_map.as_ref())
+        else {
+            return;
+        };
+        let center = Point::new(
+            object.transform.translate[0] + x + width * 0.5,
+            object.transform.translate[1] + y + height * 0.5,
+        );
+        let color_id = self.colors.id_for(&plasmid.color);
+        write_open_tag(
+            out,
+            4,
+            "plasmidmap",
+            vec![
+                ("id", self.object_cdxml_id(object)),
+                ("NumberBasePairs", plasmid.number_base_pairs.to_string()),
+                ("RingRadius", fmt_num((plasmid.radius * 65536.0).round())),
+                ("p", fmt_point(center)),
+                ("LineWidth", fmt_num(plasmid.line_width)),
+                ("BoldWidth", fmt_num(plasmid.bold_width)),
+                ("MarginWidth", fmt_num(plasmid.margin_width)),
+                ("LabelFont", plasmid.label_font.to_string()),
+                ("LabelSize", fmt_num(plasmid.label_size)),
+                ("LabelFace", plasmid.label_face.to_string()),
+                ("color", color_id.clone()),
+                (
+                    "Visible",
+                    if object.visible { "yes" } else { "no" }.to_string(),
+                ),
+                ("Z", object.z_index.to_string()),
+            ],
+        );
+        self.write_plasmid_map_center(out, plasmid, center, &color_id);
+        self.write_plasmid_map_regions(out, plasmid, center);
+        self.write_plasmid_map_markers(out, plasmid, center);
+        write_indent(out, 4);
+        out.push_str("</plasmidmap>\n");
+    }
+
+    fn write_plasmid_map_center(
+        &mut self,
+        out: &mut String,
+        plasmid: &crate::PlasmidMapData,
+        center: Point,
+        color_id: &str,
+    ) {
+        if plasmid.show_base_pairs {
+            write_open_tag(
+                out,
+                6,
+                "t",
+                vec![
+                    ("p", fmt_point(center)),
+                    ("CaptionJustification", "Center".to_string()),
+                    ("Justification", "Center".to_string()),
+                    ("LineHeight", "auto".to_string()),
+                ],
+            );
+            write_text_tag(
+                out,
+                8,
+                "s",
+                vec![
+                    ("font", plasmid.label_font.to_string()),
+                    ("size", fmt_num(plasmid.label_size)),
+                    ("color", color_id.to_string()),
+                ],
+                &format!("{} bp", plasmid.number_base_pairs),
+            );
+            write_indent(out, 6);
+            out.push_str("</t>\n");
+        }
+        let major = Point::new(center.x + plasmid.radius, center.y);
+        let minor = Point::new(center.x, center.y + plasmid.radius);
+        write_empty_tag(
+            out,
+            6,
+            "graphic",
+            vec![
+                (
+                    "BoundingBox",
+                    fmt_bbox([major.x, major.y, center.x, center.y]),
+                ),
+                ("GraphicType", "Oval".to_string()),
+                ("OvalType", "Circle".to_string()),
+                ("Center3D", fmt_point3(center)),
+                ("MajorAxisEnd3D", fmt_point3(major)),
+                ("MinorAxisEnd3D", fmt_point3(minor)),
+                ("color", color_id.to_string()),
+            ],
+        );
+    }
+
+    fn write_plasmid_map_regions(
+        &mut self,
+        out: &mut String,
+        plasmid: &crate::PlasmidMapData,
+        center: Point,
+    ) {
+        let major = Point::new(center.x + plasmid.radius, center.y);
+        let minor = Point::new(center.x, center.y + plasmid.radius);
+        for region in &plasmid.regions {
+            let start_point = plasmid_map_point(
+                center,
+                plasmid.radius + region.offset,
+                plasmid.angle_degrees(region.start),
+            );
+            let end_point = plasmid_map_point(
+                center,
+                plasmid.radius + region.offset,
+                plasmid.angle_degrees(region.end),
+            );
+            let mut attrs = vec![
+                ("id", self.alloc_id()),
+                ("RegionStart", region.start.to_string()),
+                ("RegionEnd", region.end.to_string()),
+                ("RegionOffset", fmt_num((region.offset * 100.0).round())),
+                (
+                    "FillType",
+                    if region.filled {
+                        "Solid"
+                    } else if region.shaded {
+                        "Shaded"
+                    } else if region.faded {
+                        "Faded"
+                    } else {
+                        "None"
+                    }
+                    .to_string(),
+                ),
+                ("ArrowheadType", "Hollow".to_string()),
+                ("HeadSize", "600".to_string()),
+                ("ArrowheadCenterSize", "600".to_string()),
+                ("ArrowheadWidth", "150".to_string()),
+                ("AngularSize", "300".to_string()),
+                ("ArrowShaftSpacing", fmt_num((region.width * 100.0).round())),
+                ("Head3D", fmt_point3(end_point)),
+                ("Tail3D", fmt_point3(start_point)),
+                ("Center3D", fmt_point3(center)),
+                ("MajorAxisEnd3D", fmt_point3(major)),
+                ("MinorAxisEnd3D", fmt_point3(minor)),
+                (
+                    "alpha",
+                    fmt_num((region.alpha.clamp(0.0, 1.0) * 65535.0).round()),
+                ),
+                ("color", self.colors.id_for(&region.color)),
+            ];
+            if region.arrow_at_start {
+                attrs.push(("ArrowheadHead", "Full".to_string()));
+            }
+            if region.arrow_at_end {
+                attrs.push(("ArrowheadTail", "Full".to_string()));
+            }
+            write_empty_tag(out, 6, "plasmidregion", attrs);
+        }
+    }
+
+    fn write_plasmid_map_markers(
+        &mut self,
+        out: &mut String,
+        plasmid: &crate::PlasmidMapData,
+        center: Point,
+    ) {
+        for marker in &plasmid.markers {
+            let position_angle = plasmid.angle_degrees(marker.position);
+            let label_angle = marker.label_angle.unwrap_or(position_angle);
+            let ring_point = plasmid_map_point(center, plasmid.radius, position_angle);
+            let label_point = plasmid_map_point(
+                center,
+                plasmid.radius + marker.offset.max(plasmid.margin_width),
+                label_angle,
+            );
+            let marker_angle =
+                marker.position as f64 / plasmid.number_base_pairs as f64 * 600.0 * 65536.0;
+            write_open_tag(
+                out,
+                6,
+                "plasmidmarker",
+                vec![
+                    ("id", self.alloc_id()),
+                    ("MarkerOffset", fmt_num((marker.offset * 100.0).round())),
+                    ("MarkerAngle", fmt_num(marker_angle.round())),
+                    ("TagType", "Long".to_string()),
+                    ("CaptionJustification", "Center".to_string()),
+                    ("Name", "marker".to_string()),
+                    ("Value", marker.position.to_string()),
+                    ("color", self.colors.id_for(&marker.color)),
+                ],
+            );
+            write_open_tag(
+                out,
+                8,
+                "t",
+                vec![
+                    ("p", fmt_point(label_point)),
+                    ("CaptionJustification", "Center".to_string()),
+                    ("Justification", "Center".to_string()),
+                    ("LineHeight", "auto".to_string()),
+                ],
+            );
+            write_text_tag(
+                out,
+                10,
+                "s",
+                vec![
+                    ("font", plasmid.label_font.to_string()),
+                    ("size", fmt_num(plasmid.label_size)),
+                    ("color", self.colors.id_for(&marker.color)),
+                ],
+                &marker.label,
+            );
+            write_indent(out, 8);
+            out.push_str("</t>\n");
+            write_empty_tag(
+                out,
+                8,
+                "arrow",
+                vec![
+                    ("id", self.alloc_id()),
+                    ("FillType", "None".to_string()),
+                    ("ArrowheadType", "Solid".to_string()),
+                    ("Head3D", fmt_point3(ring_point)),
+                    ("Tail3D", fmt_point3(label_point)),
+                    ("color", self.colors.id_for(&marker.color)),
+                ],
+            );
+            write_indent(out, 6);
+            out.push_str("</plasmidmarker>\n");
+        }
     }
 
     fn write_orbital_shape_object(

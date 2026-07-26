@@ -441,6 +441,7 @@ impl Engine {
                 table: None,
                 stoichiometry_grid: None,
                 gel_electrophoresis: None,
+                plasmid_map: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),

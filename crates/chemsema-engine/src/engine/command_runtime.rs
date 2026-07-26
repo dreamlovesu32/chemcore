@@ -637,6 +637,20 @@ impl Engine {
             } => self.with_command(command.clone(), |engine| {
                 engine.set_table_borders(&object_id, row, column, &sides, line_style, width, &color)
             }),
+            EditorCommand::SetPlasmidMap {
+                object_id,
+                data,
+                finalize_insert,
+            } => {
+                data.validate()?;
+                let changed = self.with_command(command.clone(), |engine| {
+                    engine.set_plasmid_map_direct(&object_id, data)
+                });
+                if changed && finalize_insert {
+                    self.coalesce_plasmid_insert_history(&object_id);
+                }
+                changed
+            }
             EditorCommand::SetTextRuns { object_id, content } => self
                 .with_command(command.clone(), |engine| {
                     engine.set_text_runs_direct(&object_id, content)

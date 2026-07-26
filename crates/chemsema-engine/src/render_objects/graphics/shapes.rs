@@ -22,6 +22,10 @@ pub(crate) fn render_shape_object(
         render_gel_electrophoresis_object(out, object, style);
         return;
     }
+    if payload_string(&object.payload, "kind").as_deref() == Some("plasmidMap") {
+        render_plasmid_map_object(out, object, style);
+        return;
+    }
     let Some(geometry) = ShapeGeometry::from_object(object) else {
         return;
     };

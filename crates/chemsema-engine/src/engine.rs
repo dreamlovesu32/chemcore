@@ -25,6 +25,7 @@ mod molecular_coloring;
 mod nmr_results;
 mod orbitals;
 mod palettes;
+mod plasmids;
 mod pointer;
 mod presets;
 mod render_state;
@@ -404,6 +405,10 @@ enum ShapeEditHandle {
     NorthWest,
     SouthEast,
     SouthWest,
+    PlasmidMarkerLabel(usize),
+    PlasmidRegionStart(usize),
+    PlasmidRegionEnd(usize),
+    PlasmidRegionOffset(usize),
 }
 
 #[derive(Debug, Clone)]
@@ -1155,6 +1160,7 @@ mod tests {
                 table: None,
                 stoichiometry_grid: None,
                 gel_electrophoresis: None,
+                plasmid_map: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),
@@ -1803,6 +1809,7 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::AddTable { .. } => "add-table",
         EditorCommand::EditTable { .. } => "edit-table",
         EditorCommand::SetTableBorders { .. } => "set-table-borders",
+        EditorCommand::SetPlasmidMap { .. } => "set-plasmid-map",
         EditorCommand::AddBracket { .. } => "add-bracket",
         EditorCommand::AddSymbol { .. } => "add-symbol",
         EditorCommand::AddElement { .. } => "add-element",
@@ -1984,21 +1991,8 @@ fn tlc_lane_guide_points(geometry: &TlcPlateGeometry, lane_index: usize) -> Vec<
         Point::new(left, bottom),
     ]
     .into_iter()
-    .map(|point| rotate_point(point, geometry.center, geometry.rotate))
+    .map(|point| crate::rotate_point_around(point, geometry.center, geometry.rotate))
     .collect()
-}
-
-fn rotate_point(point: Point, center: Point, degrees: f64) -> Point {
-    if degrees.abs() <= crate::EPSILON {
-        return point;
-    }
-    let radians = degrees.to_radians();
-    let dx = point.x - center.x;
-    let dy = point.y - center.y;
-    Point::new(
-        center.x + dx * radians.cos() - dy * radians.sin(),
-        center.y + dx * radians.sin() + dy * radians.cos(),
-    )
 }
 
 fn collect_document_colors(document: &ChemSemaDocument) -> Vec<String> {

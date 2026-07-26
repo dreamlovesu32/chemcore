@@ -344,6 +344,31 @@ export function createCanvasContextMenuHost(options) {
       }
       return { handled: true, changed: false };
     }
+    if (command === "plasmid-map-dialog") {
+      let spec = null;
+      try {
+        spec = JSON.parse(value || "null");
+      } catch {
+        spec = null;
+      }
+      const decision = await options.plasmidMapDialogHost?.choose(spec);
+      if (!decision) {
+        return { handled: true, changed: false };
+      }
+      const changed = await executeDocumentCommand(
+        {
+          type: "set-plasmid-map",
+          objectId: spec.objectId,
+          data: decision,
+        },
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
+          type: "set-plasmid-map",
+          objectId: spec.objectId,
+          data: decision,
+        })),
+      );
+      return { handled: true, changed };
+    }
     if (command === "text-line-spacing") {
       await options.numericDialogHost.choose("line-height");
       return { handled: true, changed: false };

@@ -659,8 +659,8 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `SymbolType` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `Integral` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `DisplayName` | 3 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `MarkerAngle` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `MarkerOffset` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `MarkerAngle` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
+| `MarkerOffset` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Persistent` | 3 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `TagType` | 3 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `Value` | 3 | `native-semantic` | `verified` | `verified` | `verified` |
@@ -715,11 +715,11 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `PrintTrimMarks` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `SplitterPositions` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `WidthPages` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `NumberBasePairs` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `RingRadius` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `RegionEnd` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `RegionOffset` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `RegionStart` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `NumberBasePairs` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `RingRadius` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `RegionEnd` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `RegionOffset` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `RegionStart` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `RegistryAuthority` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `RegistryNumber` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `attribute` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |

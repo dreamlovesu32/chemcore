@@ -1101,6 +1101,8 @@ async function handleSecondaryToolbarValue(value, options) {
     editorState.shapeStyle = nextShapeStyle;
   } else if (value === "chromatography-kind-tlc-plate" || value === "chromatography-kind-gel-plate") {
     editorState.chromatographyKind = value.replace("chromatography-kind-", "");
+  } else if (value === "biodraw-kind-plasmid-map") {
+    editorState.bioDrawKind = "plasmid-map";
   } else if (value?.startsWith("shape-style-")) {
     const shapeSelection = shapeSelectionFromToolbarValue(value);
     if (shapeSelection) {

@@ -19,6 +19,7 @@ pub(crate) fn parse_tool(value: &str) -> Tool {
         "text" => Tool::Text,
         "shape" => Tool::Shape,
         "tlc-plate" | "tlcPlate" => Tool::TlcPlate,
+        "biodraw" | "bio-draw" => Tool::BioDraw,
         "orbital" => Tool::Orbital,
         "templates" => Tool::Templates,
         _ => Tool::Select,
@@ -46,6 +47,8 @@ pub(crate) fn parse_shape_kind(value: &str) -> ShapeKind {
         "round-rect" | "roundRect" => ShapeKind::RoundRect,
         "rect" => ShapeKind::Rect,
         "tlc-plate" | "tlcPlate" => ShapeKind::TlcPlate,
+        "gel-plate" | "gelPlate" => ShapeKind::GelPlate,
+        "plasmid-map" | "plasmidMap" => ShapeKind::PlasmidMap,
         _ => ShapeKind::Circle,
     }
 }

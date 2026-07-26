@@ -37,6 +37,7 @@ export function createEditorRuntimeHost(scope) {
         || editorState.activeTool === "shape"
         || editorState.activeTool === "table"
         || editorState.activeTool === "tlc-plate"
+        || editorState.activeTool === "biodraw"
         || editorState.activeTool === "orbital"
         || editorState.activeTool === "templates"
         || editorState.activeTool === "chain");
@@ -52,6 +53,7 @@ export function createEditorRuntimeHost(scope) {
       || editorState.activeTool === "shape"
       || editorState.activeTool === "table"
       || editorState.activeTool === "tlc-plate"
+      || editorState.activeTool === "biodraw"
       || editorState.activeTool === "orbital"
       || editorState.activeTool === "templates"
       || editorState.activeTool === "chain";

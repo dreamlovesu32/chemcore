@@ -125,6 +125,7 @@ pub(in crate::cdxml) fn append_shape_objects(
                     table: None,
                     stoichiometry_grid: None,
                     gel_electrophoresis: None,
+                    plasmid_map: None,
                     extra,
                 },
             )
@@ -162,6 +163,7 @@ pub(in crate::cdxml) fn append_shape_objects(
                     table: None,
                     stoichiometry_grid: None,
                     gel_electrophoresis: None,
+                    plasmid_map: None,
                     extra,
                 },
             )
@@ -313,6 +315,7 @@ pub(in crate::cdxml) fn append_orbital_shape_objects(
                 table: None,
                 stoichiometry_grid: None,
                 gel_electrophoresis: None,
+                plasmid_map: None,
                 extra,
             },
             children: Vec::new(),
@@ -509,6 +512,7 @@ pub(in crate::cdxml) fn append_table_shape_objects(
                 }),
                 stoichiometry_grid: None,
                 gel_electrophoresis: None,
+                plasmid_map: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),
@@ -819,6 +823,7 @@ pub(in crate::cdxml) fn append_tlc_plate_shape_objects(
                 table: None,
                 stoichiometry_grid: None,
                 gel_electrophoresis: None,
+                plasmid_map: None,
                 extra,
             },
             children: Vec::new(),
@@ -993,6 +998,186 @@ pub(in crate::cdxml) fn append_gel_electrophoresis_objects(
                 table: None,
                 stoichiometry_grid: None,
                 gel_electrophoresis: Some(data),
+                plasmid_map: None,
+                extra,
+            },
+            children: Vec::new(),
+        });
+        index += 1;
+    }
+}
+
+pub(in crate::cdxml) fn append_plasmid_map_objects(
+    root: &XmlNode,
+    objects: &mut Vec<SceneObject>,
+    styles: &mut BTreeMap<String, Value>,
+    defaults: CdxmlDefaults,
+    colors: &CdxmlColorTable,
+) {
+    let mut index = 1usize;
+    for node in descendants(root) {
+        if !node.is("plasmidmap") || node.attr("SupersededBy").is_some() {
+            continue;
+        }
+        let Some(center) = parse_xyz2(node.attr("p")) else {
+            continue;
+        };
+        let ring = node
+            .children
+            .iter()
+            .find(|child| child.is("graphic") && child.attr("GraphicType") == Some("Oval"));
+        let radius = ring
+            .and_then(|graphic| {
+                let center = parse_xyz2(graphic.attr("Center3D"))?;
+                let major = parse_xyz2(graphic.attr("MajorAxisEnd3D"))?;
+                Some(((major[0] - center[0]).powi(2) + (major[1] - center[1]).powi(2)).sqrt())
+            })
+            .or_else(|| parse_f64(node.attr("RingRadius")).map(|value| value / 65536.0));
+        let Some(radius) = radius.filter(|radius| *radius > crate::EPSILON) else {
+            continue;
+        };
+        let Some(number_base_pairs) = node
+            .attr("NumberBasePairs")
+            .and_then(|value| value.parse::<u64>().ok())
+            .filter(|value| *value > 0)
+        else {
+            continue;
+        };
+        let color = colors.resolve(node.attr("color"));
+        let regions = node
+            .children
+            .iter()
+            .filter(|child| child.is("plasmidregion"))
+            .enumerate()
+            .filter_map(|(region_index, region)| {
+                let start = region.attr("RegionStart")?.parse::<u64>().ok()?;
+                let end = region.attr("RegionEnd")?.parse::<u64>().ok()?;
+                Some(crate::PlasmidRegion {
+                    id: region
+                        .attr("id")
+                        .map(str::to_string)
+                        .unwrap_or_else(|| format!("region_{}", region_index + 1)),
+                    start,
+                    end,
+                    offset: parse_f64(region.attr("RegionOffset")).unwrap_or(0.0) / 100.0,
+                    arrow_at_start: region.attr("ArrowheadHead") == Some("Full"),
+                    arrow_at_end: region.attr("ArrowheadTail") == Some("Full"),
+                    filled: matches!(region.attr("FillType"), Some("Solid" | "Filled")),
+                    shaded: region.attr("FillType") == Some("Shaded"),
+                    faded: region.attr("FillType") == Some("Faded"),
+                    width: parse_f64(region.attr("ArrowShaftSpacing")).unwrap_or(600.0) / 100.0,
+                    color: colors.resolve(region.attr("color")),
+                    alpha: normalize_cdxml_alpha(
+                        parse_f64(region.attr("alpha")).unwrap_or(65535.0),
+                    ),
+                })
+            })
+            .collect::<Vec<_>>();
+        let markers = descendants(node)
+            .into_iter()
+            .filter(|child| child.is("plasmidmarker"))
+            .enumerate()
+            .filter_map(|(marker_index, marker)| {
+                let position = marker.attr("Value")?.parse::<u64>().ok()?;
+                let text = marker.children.iter().find(|child| child.is("t"));
+                let label = text
+                    .map(XmlNode::full_text)
+                    .filter(|label| !label.is_empty())
+                    .unwrap_or_else(|| position.to_string());
+                let label_point = text.and_then(|text| parse_xyz2(text.attr("p")));
+                let (offset, label_angle) = label_point.map_or((48.0, None), |point| {
+                    let dx = point[0] - center[0];
+                    let dy = point[1] - center[1];
+                    let distance = (dx * dx + dy * dy).sqrt();
+                    let angle = dx.atan2(-dy).to_degrees().rem_euclid(360.0);
+                    (distance - radius, Some(angle))
+                });
+                Some(crate::PlasmidMarker {
+                    id: marker
+                        .attr("id")
+                        .map(str::to_string)
+                        .unwrap_or_else(|| format!("marker_{}", marker_index + 1)),
+                    position,
+                    label,
+                    offset,
+                    label_angle,
+                    color: colors.resolve(marker.attr("color")),
+                })
+            })
+            .collect::<Vec<_>>();
+        let label_size = parse_f64(node.attr("LabelSize")).unwrap_or(defaults.label_size);
+        let marker_extent = markers
+            .iter()
+            .map(|marker| marker.offset.max(0.0) + label_size * 2.0)
+            .fold(0.0, f64::max);
+        let region_extent = regions
+            .iter()
+            .map(|region| region.offset.max(0.0) + region.width * 0.5)
+            .fold(0.0, f64::max);
+        let extent = radius + marker_extent.max(region_extent).max(label_size);
+        let bbox = [
+            round2(center[0] - extent),
+            round2(center[1] - extent),
+            round2(center[0] + extent),
+            round2(center[1] + extent),
+        ];
+        let style_id = format!("style_shape_plasmid_{index:03}");
+        styles.insert(
+            style_id.clone(),
+            json!({
+                "kind": "shape",
+                "fill": null,
+                "stroke": color,
+                "strokeWidth": parse_f64(node.attr("LineWidth")).unwrap_or(defaults.line_width),
+                "dashArray": [],
+            }),
+        );
+        let mut extra = BTreeMap::new();
+        extra.insert("kind".to_string(), json!("plasmidMap"));
+        objects.push(SceneObject {
+            id: format!("obj_shape_plasmid_{index:03}"),
+            object_type: "shape".to_string(),
+            name: format!("plasmid map {index}"),
+            visible: parse_yes_no(node.attr("Visible"), true),
+            locked: false,
+            z_index: parse_i32(node.attr("Z")).unwrap_or(15),
+            transform: Transform {
+                translate: [bbox[0], bbox[1]],
+                rotate: 0.0,
+                scale: [1.0, 1.0],
+            },
+            style_ref: Some(style_id),
+            link_policy: Default::default(),
+            meta: json!({"source": "cdxml", "plasmidMapId": node.attr("id")}),
+            payload: ObjectPayload {
+                resource_ref: None,
+                bbox: Some([0.0, 0.0, round2(extent * 2.0), round2(extent * 2.0)]),
+                spectrum: None,
+                geometry: None,
+                constraint: None,
+                table: None,
+                stoichiometry_grid: None,
+                gel_electrophoresis: None,
+                plasmid_map: Some(crate::PlasmidMapData {
+                    number_base_pairs,
+                    radius,
+                    show_base_pairs: node
+                        .children
+                        .iter()
+                        .any(|child| child.is("t") && child.full_text().contains("bp")),
+                    line_width: parse_f64(node.attr("LineWidth")).unwrap_or(defaults.line_width),
+                    bold_width: parse_f64(node.attr("BoldWidth")).unwrap_or(defaults.bold_width),
+                    margin_width: parse_f64(node.attr("MarginWidth"))
+                        .unwrap_or(defaults.margin_width),
+                    label_font: parse_i32(node.attr("LabelFont"))
+                        .unwrap_or(defaults.label_font as i32),
+                    label_size,
+                    label_face: parse_i32(node.attr("LabelFace"))
+                        .unwrap_or(defaults.label_face as i32),
+                    color,
+                    regions,
+                    markers,
+                }),
                 extra,
             },
             children: Vec::new(),

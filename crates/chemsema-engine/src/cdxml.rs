@@ -39,9 +39,10 @@ use self::import_nodes::*;
 use self::import_objects::{
     append_bracket_objects, append_curve_objects, append_embedded_image_objects,
     append_gel_electrophoresis_objects, append_line_objects, append_orbital_shape_objects,
-    append_shape_objects, append_spectrum_objects, append_synthesized_enhanced_stereo_text_objects,
-    append_table_shape_objects, append_text_objects, append_tlc_plate_shape_objects,
-    associate_table_cell_contents, import_reactions_and_stoichiometry_grids,
+    append_plasmid_map_objects, append_shape_objects, append_spectrum_objects,
+    append_synthesized_enhanced_stereo_text_objects, append_table_shape_objects,
+    append_text_objects, append_tlc_plate_shape_objects, associate_table_cell_contents,
+    import_reactions_and_stoichiometry_grids,
 };
 pub(crate) use self::import_scaling::normalize_cdxml_document_for_editing;
 use self::import_topology::*;
@@ -284,6 +285,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
                     table: None,
                     stoichiometry_grid: None,
                     gel_electrophoresis: None,
+                    plasmid_map: None,
                     extra: BTreeMap::new(),
                 },
                 children: Vec::new(),
@@ -291,18 +293,27 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
             molecule_index += 1;
         }
     }
-    append_line_objects(&root, &mut objects, &mut styles, defaults, &colors);
-    append_curve_objects(&root, &mut objects, &mut styles, defaults, &colors);
-    append_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
-    append_orbital_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
-    append_table_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
-    append_tlc_plate_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
-    append_gel_electrophoresis_objects(&root, &mut objects, &mut styles, defaults, &colors);
-    append_spectrum_objects(&root, &mut objects, &mut styles, defaults, &colors, &fonts)?;
-    append_embedded_image_objects(&root, &mut objects, &mut resources);
-    append_bracket_objects(&root, &mut objects, defaults, &colors);
+    let generic_root = root_without_plasmid_maps(&root);
+    append_line_objects(&generic_root, &mut objects, &mut styles, defaults, &colors);
+    append_curve_objects(&generic_root, &mut objects, &mut styles, defaults, &colors);
+    append_shape_objects(&generic_root, &mut objects, &mut styles, defaults, &colors);
+    append_orbital_shape_objects(&generic_root, &mut objects, &mut styles, defaults, &colors);
+    append_table_shape_objects(&generic_root, &mut objects, &mut styles, defaults, &colors);
+    append_tlc_plate_shape_objects(&generic_root, &mut objects, &mut styles, defaults, &colors);
+    append_gel_electrophoresis_objects(&generic_root, &mut objects, &mut styles, defaults, &colors);
+    append_plasmid_map_objects(&root, &mut objects, &mut styles, defaults, &colors);
+    append_spectrum_objects(
+        &generic_root,
+        &mut objects,
+        &mut styles,
+        defaults,
+        &colors,
+        &fonts,
+    )?;
+    append_embedded_image_objects(&generic_root, &mut objects, &mut resources);
+    append_bracket_objects(&generic_root, &mut objects, defaults, &colors);
     append_text_objects(
-        &root,
+        &generic_root,
         &mut objects,
         &mut styles,
         defaults,
@@ -312,16 +323,16 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         &bonded_node_ids,
     );
     append_synthesized_enhanced_stereo_text_objects(
-        &root,
+        &generic_root,
         &mut objects,
         &mut styles,
         defaults,
         &colors,
         &fonts,
     );
-    associate_table_cell_contents(&root, &mut objects);
+    associate_table_cell_contents(&generic_root, &mut objects);
     append_geometry_constraint_objects(
-        &root,
+        &generic_root,
         &mut objects,
         &resources,
         &mut styles,
@@ -648,6 +659,19 @@ struct CdxmlFragmentComponent {
     bbox_abs: [f64; 4],
     component_index: usize,
     component_count: usize,
+}
+
+fn root_without_plasmid_maps(root: &XmlNode) -> XmlNode {
+    let mut copy = root.clone();
+    remove_plasmid_map_children(&mut copy);
+    copy
+}
+
+fn remove_plasmid_map_children(node: &mut XmlNode) {
+    node.children.retain(|child| !child.is("plasmidmap"));
+    for child in &mut node.children {
+        remove_plasmid_map_children(child);
+    }
 }
 
 #[cfg(test)]

@@ -27,12 +27,12 @@
       "reason": "The function owns one transaction lifecycle: load, execute, scope-check, report, and persist."
     },
     "crates/chemsema-engine/src/cdxml/export.rs:$file": {
-      "lines": 2446,
+      "lines": 3032,
       "owner": "CDXML serialization boundary",
       "reason": "The module owns source-order-aware serialization for every native document object; object-family writers remain separate functions and share one ID, style, and interchange context."
     },
     "crates/chemsema-engine/src/cdxml.rs:parse_cdxml_document": {
-      "lines": 256,
+      "lines": 272,
       "owner": "CDXML document parser",
       "reason": "One ordered document parse pipeline preserves table, page, object, normalization, and verification precedence."
     },
@@ -47,34 +47,49 @@
       "reason": "One exhaustive node writer keeps atom identity, query, reaction, label, style, and source-interchange precedence in the official attribute order."
     },
     "crates/chemsema-engine/src/cdxml/export.rs:write_shape_object": {
-      "lines": 213,
+      "lines": 331,
       "owner": "CDXML graphic serialization",
       "reason": "The exhaustive graphic writer maps one normalized shape payload to the official Graphic attributes."
     },
     "crates/chemsema-engine/src/cdxml/import_lines.rs:append_line_objects": {
-      "lines": 219,
+      "lines": 222,
       "owner": "CDXML line/arrow import",
       "reason": "The function resolves the interdependent ArrowType, endpoint, curve, and style fields as one official-field rule."
     },
     "crates/chemsema-engine/src/cdxml/import_brackets.rs:append_bracket_objects": {
-      "lines": 301,
+      "lines": 310,
       "owner": "CDXML bracket import",
       "reason": "Bracket geometry, attachments, repeat semantics, and linked labels are one source-order-sensitive import transaction."
     },
+    "crates/chemsema-engine/src/cdxml/import_graphics.rs:append_tlc_plate_shape_objects": {
+      "lines": 224,
+      "owner": "CDXML TLC plate import",
+      "reason": "The function imports one nested TLC plate transaction whose plate geometry, lanes, spots, visibility, styling, and source IDs must be resolved together."
+    },
+    "crates/chemsema-engine/src/cdxml/import_stoichiometry.rs:append_stoichiometry_grids": {
+      "lines": 207,
+      "owner": "CDXML stoichiometry grid import",
+      "reason": "The function constructs one dependency-closed reaction table from nested rows, cells, molecule references, authored values, and link semantics."
+    },
     "crates/chemsema-engine/src/document.rs:$file": {
-      "lines": 2630,
+      "lines": 2803,
       "owner": "Native document schema and normalization",
       "reason": "The module is the authoritative serialized document model and its version-normalization boundary; format-specific importers, renderers, and editor behavior are owned by separate modules."
     },
     "crates/chemsema-engine/src/engine/command_runtime.rs:execute_command": {
-      "lines": 284,
+      "lines": 302,
       "owner": "Exhaustive editor command dispatcher",
       "reason": "Immediate, creation, semantic, relationship, and style command families are separated; the remaining body is an exhaustive variant-to-domain dispatch with shared completion semantics."
     },
     "crates/chemsema-engine/src/engine/clipboard.rs:clipboard_content_from_selection": {
-      "lines": 207,
+      "lines": 210,
       "owner": "Portable clipboard graph extraction",
       "reason": "The function builds one dependency-closed clipboard transaction across molecule subsets, scene objects, table cell contents, resources, links, and chemical properties."
+    },
+    "crates/chemsema-engine/src/engine/clipboard.rs:paste_clipboard_untracked": {
+      "lines": 200,
+      "owner": "Portable clipboard paste transaction",
+      "reason": "The function restores one dependency-closed clipboard payload while remapping every object, resource, molecule, group, and link identity in a single undoable transaction."
     },
     "crates/chemsema-engine/src/engine/chemistry.rs:insert_smiles_untracked": {
       "lines": 209,
@@ -87,12 +102,12 @@
       "reason": "The function creates one chemistry graph while preserving target filtering, stereochemistry, and source authority."
     },
     "crates/chemsema-engine/src/engine/context_menu.rs:$file": {
-      "lines": 2281,
+      "lines": 2465,
       "owner": "Kernel context-menu schema",
       "reason": "The module owns the complete kernel-generated context-menu contract, with object-family menus and value normalization separated into named helpers."
     },
     "crates/chemsema-engine/src/engine/context_menu.rs:context_menu_items": {
-      "lines": 267,
+      "lines": 335,
       "owner": "Kernel context-menu schema",
       "reason": "One ordered schema builder applies selection precedence and exposes mutually exclusive semantic commands."
     },
@@ -107,7 +122,7 @@
       "reason": "One exhaustive property transaction validates every atom-property enum, applies one undo snapshot, synchronizes linked annotations, and refreshes chemistry and label geometry without partial mutation."
     },
     "crates/chemsema-engine/src/engine/select.rs:$file": {
-      "lines": 2187,
+      "lines": 2192,
       "owner": "Selection state machine",
       "reason": "The module owns shared selection state and gesture transitions; arrange, arrow, drag, geometry, and rendering families are already split into dedicated child modules."
     },
@@ -130,6 +145,11 @@
       "lines": 205,
       "owner": "Orbital renderer",
       "reason": "Orbital template, phase, fill, outline, and rotation are one geometry rule with shared axes."
+    },
+    "crates/chemsema-engine/src/render_objects/graphics/tables.rs:render_tlc_plate_shape_object": {
+      "lines": 209,
+      "owner": "TLC plate renderer",
+      "reason": "The function renders one nested TLC plate layer so plate rotation, origin and solvent guides, lanes, spots, labels, visibility, and style share one coordinate system."
     },
     "crates/chemsema-engine/src/render_svg.rs:write_primitive_svg": {
       "lines": 272,
@@ -162,22 +182,22 @@
       "reason": "One ordered overlay layer prevents selection, focus, hover, preview, and text affordances from changing z-order."
     },
     "viewer/editor_pointer_controller.js:handleEditorPointerDown": {
-      "lines": 276,
+      "lines": 277,
       "owner": "Pointer-down state transition",
       "reason": "One gesture state-machine entry preserves capture and precedence across selection, arrow, shape, text, and creation tools."
     },
     "viewer/editor_pointer_controller.js:handleEditorPointerUp": {
-      "lines": 238,
+      "lines": 264,
       "owner": "Pointer-up state transition",
       "reason": "Geometry and move commits are already separate; this function retains the ordered state-machine transition and shared cleanup."
     },
     "viewer/app.js:$file": {
-      "lines": 2031,
+      "lines": 2043,
       "owner": "Browser and desktop viewer composition root",
       "reason": "The file wires independently implemented hosts and controllers into one runtime; editing, tabs, dialogs, rendering, viewport, files, and lifecycle behavior are owned by imported modules."
     },
     "viewer/editor_context_menu.js:runCanvasContextMenuCommand": {
-      "lines": 311,
+      "lines": 248,
       "owner": "Canvas context-menu command router",
       "reason": "The function is one exhaustive asynchronous router from kernel menu command identifiers to domain hosts, with shared menu-close and error-settlement semantics."
     },

@@ -127,6 +127,7 @@ pub(super) fn append_geometry_constraint_objects(
                 table: None,
                 stoichiometry_grid: None,
                 gel_electrophoresis: None,
+                plasmid_map: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),

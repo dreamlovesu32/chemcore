@@ -179,6 +179,7 @@ fn group_selected_in_siblings_with_meta(
                 table: None,
                 stoichiometry_grid: None,
                 gel_electrophoresis: None,
+                plasmid_map: None,
                 extra: BTreeMap::new(),
             },
             children: selected,

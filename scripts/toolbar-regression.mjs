@@ -99,4 +99,21 @@ assert.equal(
   "the left chromatography tool title should retain the chosen gel tool",
 );
 
+const bioDrawHtml = renderSecondaryToolbarHtml({
+  ...baseEditorState,
+  activeTool: "biodraw",
+  bioDrawKind: "plasmid-map",
+  shapeColor: "#000000",
+});
+assert.match(
+  bioDrawHtml,
+  /class="secondary-button is-selected"[^>]*data-secondary-value="biodraw-kind-plasmid-map"/,
+  "BioDraw toolbar should expose and retain the plasmid-map tool",
+);
+assert.match(
+  bioDrawHtml,
+  /data-color-prefix="shape-color"/,
+  "BioDraw toolbar should expose the shared object color control",
+);
+
 console.log("[toolbar-regression] ok");

@@ -344,6 +344,13 @@ pub enum EditorCommand {
         width: f64,
         color: String,
     },
+    SetPlasmidMap {
+        #[serde(alias = "objectId")]
+        object_id: String,
+        data: crate::PlasmidMapData,
+        #[serde(default, alias = "finalizeInsert")]
+        finalize_insert: bool,
+    },
     AddBracket {
         kind: BracketKind,
         begin: CommandAnchor,

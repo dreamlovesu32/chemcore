@@ -14,7 +14,11 @@ impl Engine {
                             *lane_x,
                             geometry.origin_y - (geometry.origin_y - geometry.solvent_y) * *rf,
                         );
-                        let center = rotate_point(local_center, geometry.center, geometry.rotate);
+                        let center = crate::rotate_point_around(
+                            local_center,
+                            geometry.center,
+                            geometry.rotate,
+                        );
                         let distance = center.distance(point);
                         if distance > geometry.spot_radius + px_to_pt(6.0) {
                             continue;
@@ -45,7 +49,11 @@ impl Engine {
                             continue;
                         }
                         let local_center = Point::new(lane_x, gel_band_y(&geometry, band.value));
-                        let center = rotate_point(local_center, geometry.center, geometry.rotate);
+                        let center = crate::rotate_point_around(
+                            local_center,
+                            geometry.center,
+                            geometry.rotate,
+                        );
                         let distance = center.distance(point);
                         if distance > band.width.max(band.height) * 0.5 + px_to_pt(6.0) {
                             continue;
@@ -164,7 +172,11 @@ impl Engine {
                         spot_index: 0,
                         rf: round2(rf),
                         value_kind: "rf".to_string(),
-                        center: rotate_point(local_center, geometry.center, geometry.rotate),
+                        center: crate::rotate_point_around(
+                            local_center,
+                            geometry.center,
+                            geometry.rotate,
+                        ),
                         guide_points,
                     });
                 }
@@ -190,7 +202,11 @@ impl Engine {
                         spot_index: 0,
                         rf: round2(value),
                         value_kind: "band-value".to_string(),
-                        center: rotate_point(local_center, geometry.center, geometry.rotate),
+                        center: crate::rotate_point_around(
+                            local_center,
+                            geometry.center,
+                            geometry.rotate,
+                        ),
                         guide_points,
                     });
                 }
@@ -209,7 +225,7 @@ impl Engine {
         let object = self.state.document.find_scene_object_mut(object_id)?;
         if object.payload.gel_electrophoresis.is_some() {
             let geometry = gel_plate_geometry(object)?;
-            let local_point = rotate_point(point, geometry.center, -geometry.rotate);
+            let local_point = crate::rotate_point_around(point, geometry.center, -geometry.rotate);
             let fraction = ((local_point.y - geometry.top) / geometry.height).clamp(0.0, 1.0);
             let value = match geometry.axis_direction {
                 GelAxisDirection::HigherAtTop => {
@@ -236,12 +252,12 @@ impl Engine {
                 spot_index,
                 rf: round2(value),
                 value_kind: "band-value".to_string(),
-                center: rotate_point(local_center, geometry.center, geometry.rotate),
+                center: crate::rotate_point_around(local_center, geometry.center, geometry.rotate),
                 guide_points: gel_lane_guide_points(&geometry, lane_index),
             });
         }
         let geometry = tlc_plate_geometry(object)?;
-        let local_point = rotate_point(point, geometry.center, -geometry.rotate);
+        let local_point = crate::rotate_point_around(point, geometry.center, -geometry.rotate);
         let denominator = (geometry.origin_y - geometry.solvent_y).abs();
         if denominator <= crate::EPSILON {
             return None;
@@ -264,7 +280,7 @@ impl Engine {
             spot_index,
             rf: round2(rf),
             value_kind: "rf".to_string(),
-            center: rotate_point(local_center, geometry.center, geometry.rotate),
+            center: crate::rotate_point_around(local_center, geometry.center, geometry.rotate),
             guide_points: tlc_lane_guide_points(&geometry, lane_index),
         })
     }
@@ -277,7 +293,7 @@ impl Engine {
     ) -> Option<f64> {
         let object = self.state.document.find_scene_object(object_id)?;
         if let Some(geometry) = gel_plate_geometry(object) {
-            let local_point = rotate_point(point, geometry.center, -geometry.rotate);
+            let local_point = crate::rotate_point_around(point, geometry.center, -geometry.rotate);
             geometry.lane_centers.get(lane_index)?;
             let fraction = ((local_point.y - geometry.top) / geometry.height).clamp(0.0, 1.0);
             let value = match geometry.axis_direction {
@@ -291,7 +307,7 @@ impl Engine {
             return Some(round2(value));
         }
         let geometry = tlc_plate_geometry(object)?;
-        let local_point = rotate_point(point, geometry.center, -geometry.rotate);
+        let local_point = crate::rotate_point_around(point, geometry.center, -geometry.rotate);
         let denominator = (geometry.origin_y - geometry.solvent_y).abs();
         if denominator <= crate::EPSILON {
             return None;
@@ -416,6 +432,6 @@ fn gel_lane_guide_points(geometry: &GelPlateGeometry, lane_index: usize) -> Vec<
         Point::new(left, geometry.top + geometry.height),
     ]
     .into_iter()
-    .map(|point| rotate_point(point, geometry.center, geometry.rotate))
+    .map(|point| crate::rotate_point_around(point, geometry.center, geometry.rotate))
     .collect()
 }

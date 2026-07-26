@@ -119,6 +119,46 @@ struct CdxTextRun {
     color: u16,
 }
 
+fn decode_plasmid_property(
+    object_name: &str,
+    tag: u16,
+    data: &[u8],
+) -> Option<(&'static str, String)> {
+    let name = match (object_name, tag) {
+        ("plasmidmap", 0x1300) => "NumberBasePairs",
+        ("plasmidmap", 0x1307) => "RingRadius",
+        ("plasmidregion", 0x1304) => "RegionStart",
+        ("plasmidregion", 0x1305) => "RegionEnd",
+        ("plasmidregion", 0x1306) => "RegionOffset",
+        ("plasmidmarker", 0x1302) => "MarkerOffset",
+        ("plasmidmarker", 0x1303) => "MarkerAngle",
+        ("plasmidmarker", 0x0D05) => "Value",
+        _ => return None,
+    };
+    let bytes: [u8; 4] = data.try_into().ok()?;
+    Some((name, i32::from_le_bytes(bytes).to_string()))
+}
+
+fn encode_plasmid_property(
+    object_name: &str,
+    property_name: &str,
+    value: &str,
+) -> Option<(u16, Vec<u8>)> {
+    let tag = match (object_name, property_name) {
+        ("plasmidmap", "NumberBasePairs") => 0x1300,
+        ("plasmidmap", "RingRadius") => 0x1307,
+        ("plasmidregion", "RegionStart") => 0x1304,
+        ("plasmidregion", "RegionEnd") => 0x1305,
+        ("plasmidregion", "RegionOffset") => 0x1306,
+        ("plasmidmarker", "MarkerOffset") => 0x1302,
+        ("plasmidmarker", "MarkerAngle") => 0x1303,
+        ("plasmidmarker", "Value") => 0x0D05,
+        _ => return None,
+    };
+    let numeric = value.parse::<i32>().ok()?;
+    Some((tag, numeric.to_le_bytes().to_vec()))
+}
+
 struct CdxReader<'a> {
     bytes: &'a [u8],
     offset: usize,
@@ -194,6 +234,10 @@ impl<'a> CdxReader<'a> {
     }
 
     fn apply_property(&mut self, node: &mut CdxNode, tag: u16, data: &[u8]) -> Result<(), String> {
+        if let Some((name, value)) = decode_plasmid_property(&node.name, tag, data) {
+            node.attrs.insert(name.to_string(), value);
+            return Ok(());
+        }
         if node.name == "spectrum" && tag == 0x0A86 {
             if data.is_empty() || !data.len().is_multiple_of(8) {
                 return Err(format!(
@@ -512,8 +556,12 @@ impl<'a> CdxWriter<'a> {
             } else {
                 None
             };
-            if let Some((prop_tag, bytes)) =
-                encode_property(key, spectrum_enum_value.as_deref().unwrap_or(value))
+            if let Some((prop_tag, bytes)) = encode_plasmid_property(
+                &node.name,
+                key,
+                spectrum_enum_value.as_deref().unwrap_or(value),
+            )
+            .or_else(|| encode_property(key, spectrum_enum_value.as_deref().unwrap_or(value)))
             {
                 write_property(out, prop_tag, &bytes);
                 written_properties.insert(prop_tag);

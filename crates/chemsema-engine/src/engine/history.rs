@@ -1,6 +1,39 @@
 use super::*;
 
 impl Engine {
+    pub(super) fn coalesce_plasmid_insert_history(&mut self, target_object_id: &str) {
+        if self.undo_stack.len() < 2 {
+            return;
+        }
+        let previous = self.undo_stack.len() - 2;
+        let can_coalesce = matches!(
+            self.undo_stack[previous].command,
+            EditorCommand::AddShape {
+                kind: ShapeKind::PlasmidMap,
+                ..
+            }
+        ) && matches!(
+            self.undo_stack[previous + 1].command,
+            EditorCommand::SetPlasmidMap {
+                ref object_id,
+                finalize_insert: true,
+                ..
+            } if object_id == target_object_id
+        ) && matches!(
+            &self.undo_stack[previous].snapshot,
+            HistorySnapshot::Document { before, .. }
+                if before.find_scene_object(target_object_id).is_none()
+                    && self.state.document.find_scene_object(target_object_id).is_some()
+        );
+        if !can_coalesce {
+            return;
+        }
+        self.undo_stack.pop();
+        if let Some(entry) = self.undo_stack.last_mut() {
+            capture_history_after_snapshot_for_document(entry, &self.state.document);
+        }
+    }
+
     pub fn undo(&mut self) -> bool {
         let Some(mut entry) = self.undo_stack.pop() else {
             return false;

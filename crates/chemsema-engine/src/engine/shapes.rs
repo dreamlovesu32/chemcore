@@ -3,6 +3,7 @@ use crate::round2;
 
 const DEFAULT_SHAPE_CLICK_RADIUS: f64 = 7.7;
 const ACS_SHAPE_CLICK_RADIUS: f64 = 7.2;
+const DEFAULT_PLASMID_MAP_RADIUS: f64 = 34.0;
 
 impl Engine {
     pub fn shape_tool_icon_svg(kind: ShapeKind, style: ShapeStyle) -> String {
@@ -33,7 +34,7 @@ impl Engine {
             ShapeKind::RoundRect | ShapeKind::Rect => {
                 (icon_point(5.5, 6.2), icon_point(18.5, 17.7))
             }
-            ShapeKind::TlcPlate | ShapeKind::GelPlate => {
+            ShapeKind::TlcPlate | ShapeKind::GelPlate | ShapeKind::PlasmidMap => {
                 (icon_point(5.5, 6.2), icon_point(18.5, 17.7))
             }
         };
@@ -110,7 +111,10 @@ impl Engine {
         } else {
             drag.has_dragged = true;
         }
-        if !drag.has_dragged && drag.anchor.kind == ShapeDrawAnchorKind::Free {
+        if !drag.has_dragged
+            && drag.anchor.kind == ShapeDrawAnchorKind::Free
+            && self.state.tool.shape_kind != ShapeKind::PlasmidMap
+        {
             return;
         }
         let Some((begin, end)) = self.shape_command_points_from_drag(&drag) else {
@@ -176,7 +180,19 @@ impl Engine {
             .document
             .styles
             .insert(style_id, self.pending_shape_style());
+        let plasmid_dialog = object.payload.plasmid_map.as_ref().map(|data| {
+            json!({
+                "kind": "plasmid-map",
+                "mode": "insert",
+                "title": "Insert Plasmid Map",
+                "objectId": object_id,
+                "data": data,
+            })
+        });
         self.state.document.objects.push(object);
+        if let Some(dialog) = plasmid_dialog {
+            self.pending_dialog = Some(dialog);
+        }
         self.note_pending_select_target(PendingSelectTarget::GraphicObject(object_id));
         true
     }
@@ -230,7 +246,16 @@ impl Engine {
         style_id: String,
     ) -> Option<SceneObject> {
         match anchor.kind {
-            ShapeDrawAnchorKind::Free => None,
+            ShapeDrawAnchorKind::Free => (self.state.tool.shape_kind == ShapeKind::PlasmidMap)
+                .then(|| {
+                    self.shape_scene_object_from_centered_radius(
+                        anchor.point,
+                        DEFAULT_PLASMID_MAP_RADIUS,
+                        object_id,
+                        style_id,
+                    )
+                })
+                .flatten(),
             ShapeDrawAnchorKind::Endpoint => self.shape_scene_object_from_centered_radius(
                 anchor.point,
                 self.shape_click_radius(),
@@ -243,7 +268,8 @@ impl Engine {
                     ShapeKind::Rect
                     | ShapeKind::RoundRect
                     | ShapeKind::TlcPlate
-                    | ShapeKind::GelPlate => self.shape_scene_object(
+                    | ShapeKind::GelPlate
+                    | ShapeKind::PlasmidMap => self.shape_scene_object(
                         Point::new(bounds[0], bounds[1]),
                         Point::new(bounds[2], bounds[3]),
                         object_id,
@@ -282,14 +308,16 @@ impl Engine {
                 object_id,
                 style_id,
             ),
-            ShapeKind::Rect | ShapeKind::RoundRect | ShapeKind::TlcPlate | ShapeKind::GelPlate => {
-                self.shape_scene_object(
-                    Point::new(center.x - radius, center.y - radius),
-                    Point::new(center.x + radius, center.y + radius),
-                    object_id,
-                    style_id,
-                )
-            }
+            ShapeKind::Rect
+            | ShapeKind::RoundRect
+            | ShapeKind::TlcPlate
+            | ShapeKind::GelPlate
+            | ShapeKind::PlasmidMap => self.shape_scene_object(
+                Point::new(center.x - radius, center.y - radius),
+                Point::new(center.x + radius, center.y + radius),
+                object_id,
+                style_id,
+            ),
         }
     }
 
@@ -298,7 +326,14 @@ impl Engine {
             return Some((drag.start, drag.current));
         }
         match drag.anchor.kind {
-            ShapeDrawAnchorKind::Free => None,
+            ShapeDrawAnchorKind::Free => (self.state.tool.shape_kind == ShapeKind::PlasmidMap)
+                .then(|| {
+                    let radius = DEFAULT_PLASMID_MAP_RADIUS;
+                    (
+                        Point::new(drag.anchor.point.x - radius, drag.anchor.point.y - radius),
+                        Point::new(drag.anchor.point.x + radius, drag.anchor.point.y + radius),
+                    )
+                }),
             ShapeDrawAnchorKind::Endpoint => {
                 let radius = self.shape_click_radius();
                 Some(match self.state.tool.shape_kind {
@@ -311,7 +346,8 @@ impl Engine {
                     ShapeKind::Rect
                     | ShapeKind::RoundRect
                     | ShapeKind::TlcPlate
-                    | ShapeKind::GelPlate => (
+                    | ShapeKind::GelPlate
+                    | ShapeKind::PlasmidMap => (
                         Point::new(drag.anchor.point.x - radius, drag.anchor.point.y - radius),
                         Point::new(drag.anchor.point.x + radius, drag.anchor.point.y + radius),
                     ),
@@ -336,7 +372,8 @@ impl Engine {
                     ShapeKind::Rect
                     | ShapeKind::RoundRect
                     | ShapeKind::TlcPlate
-                    | ShapeKind::GelPlate => (
+                    | ShapeKind::GelPlate
+                    | ShapeKind::PlasmidMap => (
                         Point::new(bounds[0], bounds[1]),
                         Point::new(bounds[2], bounds[3]),
                     ),
@@ -413,7 +450,11 @@ impl Engine {
                     None,
                 )
             }
-            ShapeKind::RoundRect | ShapeKind::Rect | ShapeKind::TlcPlate | ShapeKind::GelPlate => {
+            ShapeKind::RoundRect
+            | ShapeKind::Rect
+            | ShapeKind::TlcPlate
+            | ShapeKind::GelPlate
+            | ShapeKind::PlasmidMap => {
                 let x1 = start.x.min(current.x);
                 let y1 = start.y.min(current.y);
                 let width = (current.x - start.x).abs();
@@ -428,6 +469,7 @@ impl Engine {
                         ShapeKind::RoundRect => "roundRect",
                         ShapeKind::TlcPlate => "tlcPlate",
                         ShapeKind::GelPlate => "gelPlate",
+                        ShapeKind::PlasmidMap => "plasmidMap",
                         _ => "rect",
                     }),
                 );
@@ -516,6 +558,15 @@ impl Engine {
                 )
             }
         };
+        let plasmid_map =
+            (self.state.tool.shape_kind == ShapeKind::PlasmidMap).then(|| crate::PlasmidMapData {
+                radius: bbox[2].min(bbox[3]) * 0.5,
+                line_width: self.options.graphic_stroke_width,
+                bold_width: self.options.bold_bond_width,
+                margin_width: self.options.margin_width,
+                color: self.state.tool.shape_color.clone(),
+                ..Default::default()
+            });
         Some(SceneObject {
             id: object_id,
             object_type: "shape".to_string(),
@@ -538,6 +589,7 @@ impl Engine {
                 table: None,
                 stoichiometry_grid: None,
                 gel_electrophoresis,
+                plasmid_map,
                 extra,
             },
             children: Vec::new(),
@@ -794,6 +846,7 @@ impl Engine {
                 shape_rect_hit(object, point, true).is_some()
             }
             ShapeObjectKind::Orbital => shape_rect_hit(object, point, true).is_some(),
+            ShapeObjectKind::PlasmidMap => plasmid_map_hover(object, point).is_some(),
         }
     }
 
@@ -879,6 +932,18 @@ impl Engine {
                         handles: hit.handles,
                     });
                 }
+                ShapeObjectKind::PlasmidMap => {
+                    let Some(hit) = plasmid_map_hover(object, point) else {
+                        continue;
+                    };
+                    return Some(ShapeTarget {
+                        object_id: object.id.clone(),
+                        object: object.clone(),
+                        handle: hit.active_handle.unwrap_or(ShapeEditHandle::CircleRadius),
+                        active_handle: hit.active_handle,
+                        handles: hit.handles,
+                    });
+                }
             }
         }
         None
@@ -929,6 +994,7 @@ enum ShapeObjectKind {
     Rect,
     RoundRect,
     Orbital,
+    PlasmidMap,
 }
 
 struct ShapeTarget {
@@ -960,6 +1026,10 @@ impl ShapeEditHandle {
             Self::NorthWest => "nw",
             Self::SouthEast => "se",
             Self::SouthWest => "sw",
+            Self::PlasmidMarkerLabel(_) => "plasmid-marker-label",
+            Self::PlasmidRegionStart(_) => "plasmid-region-start",
+            Self::PlasmidRegionEnd(_) => "plasmid-region-end",
+            Self::PlasmidRegionOffset(_) => "plasmid-region-offset",
         }
     }
 }
@@ -977,6 +1047,7 @@ fn shape_object_kind(object: &SceneObject) -> Option<ShapeObjectKind> {
         "roundRect" | "round-rect" => Some(ShapeObjectKind::RoundRect),
         "rect" => Some(ShapeObjectKind::Rect),
         "orbital" => Some(ShapeObjectKind::Orbital),
+        "plasmidMap" | "plasmid-map" => Some(ShapeObjectKind::PlasmidMap),
         _ => None,
     }
 }
@@ -1054,6 +1125,7 @@ fn shape_object_with_direct_geometry(
             }
         }
         ShapeObjectKind::Orbital => return None,
+        ShapeObjectKind::PlasmidMap => return None,
     }
     Some(object)
 }
@@ -1074,6 +1146,164 @@ fn shape_circle_hover(object: &SceneObject, point: Point) -> Option<Point> {
         crate::Vector::new(point.x - center.x, point.y - center.y).normalized()
     };
     Some(center.translated(direction.scaled(radius)))
+}
+
+fn plasmid_map_hover(object: &SceneObject, point: Point) -> Option<ShapeHoverHit> {
+    let plasmid = object.payload.plasmid_map.as_ref()?;
+    let center = plasmid_map_center(object)?;
+    let rotate = object.transform.rotate;
+    let mut handles = Vec::with_capacity(plasmid.markers.len() + plasmid.regions.len() * 3);
+    let mut candidates = Vec::new();
+
+    for (index, marker) in plasmid.markers.iter().enumerate() {
+        let angle = marker
+            .label_angle
+            .unwrap_or_else(|| plasmid.angle_degrees(marker.position));
+        let handle = plasmid_map_point(
+            center,
+            plasmid.radius + marker.offset.max(plasmid.margin_width),
+            angle,
+            rotate,
+        );
+        handles.push(handle);
+        candidates.push((handle, ShapeEditHandle::PlasmidMarkerLabel(index)));
+    }
+    for (index, region) in plasmid.regions.iter().enumerate() {
+        let start = plasmid.angle_degrees(region.start);
+        let end = plasmid.angle_degrees(region.end);
+        let sweep = (end - start).rem_euclid(360.0);
+        let radius = plasmid.radius + region.offset;
+        let start_point = plasmid_map_point(center, radius, start, rotate);
+        let end_point = plasmid_map_point(center, radius, end, rotate);
+        let offset_point = plasmid_map_point(center, radius, start + sweep * 0.5, rotate);
+        handles.extend([start_point, end_point, offset_point]);
+        candidates.extend([
+            (start_point, ShapeEditHandle::PlasmidRegionStart(index)),
+            (end_point, ShapeEditHandle::PlasmidRegionEnd(index)),
+            (offset_point, ShapeEditHandle::PlasmidRegionOffset(index)),
+        ]);
+    }
+    let active_handle = candidates
+        .into_iter()
+        .filter_map(|(handle_point, handle)| {
+            let distance = handle_point.distance(point);
+            (distance <= ENDPOINT_HIT_RADIUS).then_some((distance, handle))
+        })
+        .min_by(|left, right| left.0.total_cmp(&right.0))
+        .map(|(_, handle)| handle);
+    let ring_hit = (center.distance(point) - plasmid.radius).abs() <= GRAPHIC_EDGE_HIT_RADIUS;
+    let region_hit = plasmid.regions.iter().any(|region| {
+        let radial = center.distance(point);
+        let radius = plasmid.radius + region.offset;
+        if (radial - radius).abs() > region.width * 0.5 + GRAPHIC_EDGE_HIT_RADIUS {
+            return false;
+        }
+        let angle = plasmid_map_angle(center, point, rotate);
+        angle_in_clockwise_sweep(
+            angle,
+            plasmid.angle_degrees(region.start),
+            plasmid.angle_degrees(region.end),
+        )
+    });
+    if active_handle.is_some() || ring_hit || region_hit {
+        Some(ShapeHoverHit {
+            active_handle,
+            handles,
+        })
+    } else {
+        None
+    }
+}
+
+fn edited_plasmid_map_object_from_handle(
+    original: &SceneObject,
+    handle: ShapeEditHandle,
+    point: Point,
+) -> Option<SceneObject> {
+    let center = plasmid_map_center(original)?;
+    let rotate = original.transform.rotate;
+    let mut object = original.clone();
+    let plasmid = object.payload.plasmid_map.as_mut()?;
+    match handle {
+        ShapeEditHandle::PlasmidMarkerLabel(index) => {
+            let marker = plasmid.markers.get_mut(index)?;
+            marker.offset = (center.distance(point) - plasmid.radius).max(plasmid.margin_width);
+            marker.offset = round2(marker.offset);
+            marker.label_angle = Some(round2(plasmid_map_angle(center, point, rotate)));
+        }
+        ShapeEditHandle::PlasmidRegionStart(index) => {
+            let position = plasmid_map_position(plasmid, center, point, rotate);
+            plasmid.regions.get_mut(index)?.start = position;
+        }
+        ShapeEditHandle::PlasmidRegionEnd(index) => {
+            let position = plasmid_map_position(plasmid, center, point, rotate);
+            plasmid.regions.get_mut(index)?.end = position;
+        }
+        ShapeEditHandle::PlasmidRegionOffset(index) => {
+            plasmid.regions.get_mut(index)?.offset =
+                round2(center.distance(point) - plasmid.radius);
+        }
+        _ => return None,
+    }
+    resize_plasmid_object_bounds(&mut object, center);
+    Some(object)
+}
+
+fn plasmid_map_center(object: &SceneObject) -> Option<Point> {
+    let [x, y, width, height] = object.payload.bbox?;
+    Some(Point::new(
+        object.transform.translate[0] + x + width * 0.5,
+        object.transform.translate[1] + y + height * 0.5,
+    ))
+}
+
+fn plasmid_map_point(center: Point, radius: f64, angle: f64, rotate: f64) -> Point {
+    let radians = (angle + rotate).to_radians();
+    Point::new(
+        center.x + radius * radians.sin(),
+        center.y - radius * radians.cos(),
+    )
+}
+
+fn plasmid_map_angle(center: Point, point: Point, rotate: f64) -> f64 {
+    ((point.x - center.x).atan2(center.y - point.y).to_degrees() - rotate).rem_euclid(360.0)
+}
+
+fn plasmid_map_position(
+    plasmid: &crate::PlasmidMapData,
+    center: Point,
+    point: Point,
+    rotate: f64,
+) -> u64 {
+    let angle = plasmid_map_angle(center, point, rotate);
+    ((angle / 360.0 * plasmid.number_base_pairs as f64).round() as u64 + 1)
+        .clamp(1, plasmid.number_base_pairs)
+}
+
+fn angle_in_clockwise_sweep(angle: f64, start: f64, end: f64) -> bool {
+    let sweep = (end - start).rem_euclid(360.0);
+    let relative = (angle - start).rem_euclid(360.0);
+    relative <= sweep + crate::EPSILON
+}
+
+fn resize_plasmid_object_bounds(object: &mut SceneObject, center: Point) {
+    let Some(plasmid) = object.payload.plasmid_map.as_ref() else {
+        return;
+    };
+    let marker_extent = plasmid
+        .markers
+        .iter()
+        .map(|marker| marker.offset.max(plasmid.margin_width) + plasmid.label_size * 2.0)
+        .fold(0.0, f64::max);
+    let region_extent = plasmid
+        .regions
+        .iter()
+        .map(|region| region.offset + region.width * 0.5)
+        .fold(0.0, f64::max);
+    let extent = (plasmid.radius + marker_extent.max(region_extent))
+        .max(plasmid.radius + plasmid.label_size);
+    object.transform.translate = [center.x - extent, center.y - extent];
+    object.payload.bbox = Some([0.0, 0.0, extent * 2.0, extent * 2.0]);
 }
 
 fn shape_ellipse_hover(object: &SceneObject, point: Point) -> Option<ShapeHoverHit> {
@@ -1289,6 +1519,9 @@ fn resized_shape_object_from_handle(
             resized_rect_object(original, handle, point)
         }
         ShapeObjectKind::Orbital => rotated_orbital_object_from_handle(original, handle, point),
+        ShapeObjectKind::PlasmidMap => {
+            edited_plasmid_map_object_from_handle(original, handle, point)
+        }
     }
 }
 
@@ -1603,5 +1836,86 @@ mod tests {
         assert_eq!(start, Point::new(200.0, 300.0));
         assert_eq!(end, Point::new(218.0, 300.0));
         assert!((start.distance(end) - 18.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn plasmid_handles_edit_independent_semantics_and_undo() {
+        let mut engine = Engine::new();
+        engine
+            .load_cdxml_document(include_str!("../../tests/fixtures/cdxml/plasmid-map.cdxml"))
+            .expect("plasmid fixture loads");
+        let object = engine
+            .state
+            .document
+            .objects
+            .iter()
+            .find(|object| object.payload.plasmid_map.is_some())
+            .cloned()
+            .expect("plasmid object");
+        let center = plasmid_map_center(&object).expect("center");
+        let original = object.payload.plasmid_map.as_ref().expect("data").clone();
+        let marker = &original.markers[0];
+        let marker_handle = plasmid_map_point(
+            center,
+            original.radius + marker.offset,
+            marker
+                .label_angle
+                .unwrap_or_else(|| original.angle_degrees(marker.position)),
+            object.transform.rotate,
+        );
+        assert_eq!(
+            engine.begin_hover_shape_edit(marker_handle),
+            "plasmid-marker-label"
+        );
+        let marker_target = plasmid_map_point(center, original.radius + 72.0, 90.0, 0.0);
+        assert!(engine.finish_hover_shape_edit(marker_target, false));
+        let edited = engine
+            .state
+            .document
+            .find_scene_object(&object.id)
+            .and_then(|object| object.payload.plasmid_map.as_ref())
+            .expect("edited data");
+        assert_eq!(edited.markers[0].position, marker.position);
+        assert_eq!(edited.markers[0].offset, 72.0);
+        assert_eq!(edited.markers[0].label_angle, Some(90.0));
+
+        assert!(engine.undo());
+        let restored_object = engine
+            .state
+            .document
+            .find_scene_object(&object.id)
+            .cloned()
+            .expect("restored object");
+        let restored = restored_object
+            .payload
+            .plasmid_map
+            .as_ref()
+            .expect("restored data");
+        assert_eq!(restored, &original);
+
+        let region = &restored.regions[0];
+        let start_handle = plasmid_map_point(
+            center,
+            restored.radius + region.offset,
+            restored.angle_degrees(region.start),
+            restored_object.transform.rotate,
+        );
+        assert_eq!(
+            engine.begin_hover_shape_edit(start_handle),
+            "plasmid-region-start"
+        );
+        assert!(engine.finish_hover_shape_edit(
+            plasmid_map_point(center, restored.radius + region.offset, 180.0, 0.0),
+            false,
+        ));
+        let edited_region = &engine
+            .state
+            .document
+            .find_scene_object(&object.id)
+            .and_then(|object| object.payload.plasmid_map.as_ref())
+            .expect("region data")
+            .regions[0];
+        assert_eq!(edited_region.start, 6001);
+        assert_eq!(edited_region.end, region.end);
     }
 }

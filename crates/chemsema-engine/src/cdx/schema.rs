@@ -447,6 +447,9 @@ pub(super) fn legacy_chemsema_object_name(tag: u16) -> Option<&'static str> {
         0x8020 => "chemicalproperty",
         0x8021 => "arrow",
         0x8025 => "bioshape",
+        0x8026 => "plasmidmap",
+        0x8027 => "plasmidmarker",
+        0x8028 => "plasmidregion",
         0x802B => "annotation",
         _ => return None,
     })
@@ -486,6 +489,9 @@ pub(super) fn object_tag(name: &str) -> Option<u16> {
         "tlcspot" => 0x801F,
         "chemicalproperty" => 0x8020,
         "arrow" => 0x8021,
+        "plasmidmap" => 0x8026,
+        "plasmidmarker" => 0x8027,
+        "plasmidregion" => 0x8028,
         "coloredmoleculararea" | "ColoredMolecularArea" => 0x8032,
         _ => return None,
     })

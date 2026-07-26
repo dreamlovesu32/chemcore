@@ -53,7 +53,7 @@ export function createEditorPointerController(options) {
     if (tool === "arrow") {
       return "add-arrow";
     }
-    if (tool === "shape" || tool === "tlc-plate" || tool === "orbital") {
+    if (tool === "shape" || tool === "tlc-plate" || tool === "biodraw" || tool === "orbital") {
       return "add-shape";
     }
     if (tool === "table") {
@@ -582,12 +582,14 @@ export function createEditorPointerController(options) {
         noGo: editorState.arrowNoGo || "none",
       };
     }
-    if (tool === "shape" || tool === "tlc-plate") {
+    if (tool === "shape" || tool === "tlc-plate" || tool === "biodraw") {
       return {
         type: "add-shape",
         kind: tool === "tlc-plate"
           ? (editorState.chromatographyKind || "tlc-plate")
-          : editorState.shapeKind,
+          : tool === "biodraw"
+            ? (editorState.bioDrawKind || "plasmid-map")
+            : editorState.shapeKind,
         style: editorState.shapeStyle,
         color: editorState.shapeColor,
         begin: editorCommandAnchor(start),
@@ -1102,6 +1104,7 @@ export function createEditorPointerController(options) {
     if (editorState.activeTool === "shape"
       || editorState.activeTool === "bracket"
       || editorState.activeTool === "tlc-plate"
+      || editorState.activeTool === "biodraw"
       || editorState.activeTool === "orbital") {
       if (editorState.activeTool === "tlc-plate") {
         const tlcSpotHit = options.parseEngineJson(
@@ -1379,6 +1382,7 @@ export function createEditorPointerController(options) {
       || options.editorState().activeTool === "bracket"
       || options.editorState().activeTool === "shape"
       || options.editorState().activeTool === "tlc-plate"
+      || options.editorState().activeTool === "biodraw"
       || options.editorState().activeTool === "orbital")
       && gesture?.kind === "shape-resize") {
       await commitShapeGeometryGesture(point, event, gesture);
@@ -1504,6 +1508,31 @@ export function createEditorPointerController(options) {
             rows: decision.rows,
             columns: decision.columns,
           }) || commitResult;
+        }
+      } else if (pendingDialog?.kind === "plasmid-map") {
+        const decision = await options.plasmidMapDialogHost?.choose(pendingDialog);
+        if (decision) {
+          commitResult = await executeDocumentCommand(
+            {
+              type: "set-plasmid-map",
+              objectId: pendingDialog.objectId,
+              data: decision,
+              finalizeInsert: true,
+            },
+            () => options.state().editorEngine.executeCommandJson(JSON.stringify({
+              type: "set-plasmid-map",
+              objectId: pendingDialog.objectId,
+              data: decision,
+              finalizeInsert: true,
+            })),
+            { sync: false, deferDocumentSync: true },
+          ) || commitResult;
+        } else if (pendingDialog.mode === "insert") {
+          commitResult = await executeDocumentCommand(
+            { type: "undo" },
+            () => options.state().editorEngine.executeCommandJson('{"type":"undo"}'),
+            { sync: false, deferDocumentSync: true },
+          ) || commitResult;
         }
       }
     }

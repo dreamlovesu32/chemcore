@@ -1174,6 +1174,7 @@ fn parse_tool(value: &str) -> Tool {
         "shape" => Tool::Shape,
         "table" => Tool::Table,
         "tlc-plate" | "tlcPlate" => Tool::TlcPlate,
+        "biodraw" | "bio-draw" => Tool::BioDraw,
         "orbital" => Tool::Orbital,
         "templates" | "chain" => Tool::Templates,
         _ => Tool::Select,
@@ -1230,6 +1231,7 @@ fn parse_shape_kind(value: &str) -> ShapeKind {
         "rect" => ShapeKind::Rect,
         "tlc-plate" | "tlcPlate" => ShapeKind::TlcPlate,
         "gel-plate" | "gelPlate" => ShapeKind::GelPlate,
+        "plasmid-map" | "plasmidMap" => ShapeKind::PlasmidMap,
         _ => ShapeKind::Circle,
     }
 }

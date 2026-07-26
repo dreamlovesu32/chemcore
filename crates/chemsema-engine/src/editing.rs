@@ -77,6 +77,7 @@ pub enum Tool {
     Shape,
     Table,
     TlcPlate,
+    BioDraw,
     Orbital,
     Templates,
 }
@@ -158,6 +159,7 @@ pub enum ShapeKind {
     Rect,
     TlcPlate,
     GelPlate,
+    PlasmidMap,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]

@@ -338,6 +338,7 @@ fn make_text_payload(
         table: None,
         stoichiometry_grid: None,
         gel_electrophoresis: None,
+        plasmid_map: None,
         extra,
     }
 }

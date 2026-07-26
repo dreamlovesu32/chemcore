@@ -320,6 +320,7 @@ fn append_stoichiometry_grids(
                 table: None,
                 stoichiometry_grid: Some(grid),
                 gel_electrophoresis: None,
+                plasmid_map: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),

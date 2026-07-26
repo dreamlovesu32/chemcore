@@ -396,7 +396,7 @@ pub(super) fn render_tlc_plate_shape_object(
             Point::new(tx, ty + height),
         ]
         .into_iter()
-        .map(|point| rotate_gel_point(point, center, rotate))
+        .map(|point| crate::rotate_point_around(point, center, rotate))
         .collect();
         let transparent = payload_bool(&object.payload, "transparent").unwrap_or(false);
         let alpha = payload_number(&object.payload, "alpha").unwrap_or(1.0);
@@ -521,7 +521,11 @@ pub(super) fn render_tlc_plate_shape_object(
             out.push(RenderPrimitive::Ellipse {
                 role: RenderRole::DocumentGraphic,
                 object_id: Some(object.id.clone()),
-                center: rotate_gel_point(Point::new(lane_x, spot_y), plate_center, rotate),
+                center: crate::rotate_point_around(
+                    Point::new(lane_x, spot_y),
+                    plate_center,
+                    rotate,
+                ),
                 rx: spot_width * 0.5,
                 ry: spot_height * 0.5,
                 rotate,
@@ -536,7 +540,7 @@ pub(super) fn render_tlc_plate_shape_object(
                 .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false)
             {
-                let label_point = rotate_gel_point(
+                let label_point = crate::rotate_point_around(
                     Point::new(lane_x + spot_width * 0.5 + 2.0, spot_y),
                     plate_center,
                     rotate,
@@ -595,7 +599,9 @@ pub(super) fn render_gel_electrophoresis_object(
         .unwrap_or([[0.0, 0.0], [width, 0.0], [width, height], [0.0, height]]);
     let plate_points = corners
         .into_iter()
-        .map(|point| rotate_gel_point(Point::new(tx + point[0], ty + point[1]), center, rotate))
+        .map(|point| {
+            crate::rotate_point_around(Point::new(tx + point[0], ty + point[1]), center, rotate)
+        })
         .collect::<Vec<_>>();
     if gel.show_borders {
         out.push(RenderPrimitive::Polygon {
@@ -621,7 +627,7 @@ pub(super) fn render_gel_electrophoresis_object(
         }
         let lane_x = tx + width * (lane_index as f64 + 1.0) / (lanes.len() as f64 + 1.0);
         if !lane.label_text.is_empty() {
-            let label_point = rotate_gel_point(
+            let label_point = crate::rotate_point_around(
                 Point::new(lane_x, ty - gel.margin_width.max(2.0)),
                 center,
                 rotate,
@@ -696,8 +702,11 @@ pub(super) fn render_gel_electrophoresis_object(
                 rotate_center: Some(center),
             });
             if band.show_value {
-                let value_point =
-                    rotate_gel_point(Point::new(right + gel.margin_width, band_y), center, rotate);
+                let value_point = crate::rotate_point_around(
+                    Point::new(right + gel.margin_width, band_y),
+                    center,
+                    rotate,
+                );
                 out.push(RenderPrimitive::Text {
                     role: RenderRole::DocumentText,
                     object_id: Some(object.id.clone()),
@@ -771,19 +780,6 @@ fn color_with_alpha(color: &str, alpha: f64) -> String {
         }
     }
     color.to_string()
-}
-
-fn rotate_gel_point(point: Point, center: Point, degrees: f64) -> Point {
-    if degrees.abs() <= crate::EPSILON {
-        return point;
-    }
-    let radians = degrees.to_radians();
-    let dx = point.x - center.x;
-    let dy = point.y - center.y;
-    Point::new(
-        center.x + dx * radians.cos() - dy * radians.sin(),
-        center.y + dx * radians.sin() + dy * radians.cos(),
-    )
 }
 
 #[allow(clippy::too_many_arguments)]

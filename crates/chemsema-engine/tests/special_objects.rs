@@ -1,6 +1,7 @@
 use chemsema_engine::{
-    document_to_cdxml, parse_cdxml_document, render_document, Bond, BondLinePattern,
-    ChemSemaDocument, Engine, Point, RenderPrimitive, RenderRole, ResourceData,
+    document_to_cdx, document_to_cdxml, parse_cdx_document, parse_cdxml_document, render_document,
+    Bond, BondLinePattern, ChemSemaDocument, Engine, Point, RenderPrimitive, RenderRole,
+    ResourceData,
 };
 use serde_json::json;
 
@@ -195,6 +196,133 @@ fn gel_electrophoresis_import_render_and_export_are_native() {
         .expect("round-tripped gel data");
     assert_eq!(reparsed_gel.lanes.len(), 2);
     assert_eq!(reparsed_gel.lanes[0].bands[0].value, 75.0);
+}
+
+#[test]
+fn plasmid_map_import_render_and_export_are_native() {
+    let Some(cdxml) = read_optional_cdxml_fixture("plasmid-map.cdxml") else {
+        return;
+    };
+    let document =
+        parse_cdxml_document(&cdxml, Some("plasmid-map")).expect("plasmid fixture should parse");
+    let map = document
+        .objects
+        .iter()
+        .find(|object| object.payload.plasmid_map.is_some())
+        .expect("native plasmid map");
+    assert_eq!(map.payload.extra.get("kind"), Some(&json!("plasmidMap")));
+    let plasmid = map
+        .payload
+        .plasmid_map
+        .as_ref()
+        .expect("typed plasmid data");
+    assert_eq!(plasmid.number_base_pairs, 12_000);
+    assert_eq!(
+        (plasmid.regions[0].start, plasmid.regions[0].end),
+        (1_000, 11_000)
+    );
+    assert!(plasmid.regions[0].arrow_at_end);
+    assert_eq!(
+        plasmid
+            .markers
+            .iter()
+            .map(|marker| marker.position)
+            .collect::<Vec<_>>(),
+        vec![1_000, 11_000]
+    );
+    let [_, _, width, height] = map.payload.bbox.expect("plasmid selection bounds");
+    let expected_marker_extent = 2.0 * (34.0 + 48.18 + 12.0 * 2.0);
+    assert!(width >= expected_marker_extent, "{width}");
+    assert_eq!(width, height);
+
+    let region_offset_cdxml = cdxml.replacen("RegionOffset=\"0\"", "RegionOffset=\"9000\"", 1);
+    let region_offset_document =
+        parse_cdxml_document(&region_offset_cdxml, Some("plasmid-region-offset"))
+            .expect("offset plasmid fixture should parse");
+    let region_offset_width = region_offset_document
+        .objects
+        .iter()
+        .find(|object| object.payload.plasmid_map.is_some())
+        .and_then(|object| object.payload.bbox)
+        .map(|bbox| bbox[2])
+        .expect("offset plasmid selection bounds");
+    assert!(
+        region_offset_width >= 2.0 * (34.0 + 90.0 + 3.0),
+        "{region_offset_width}"
+    );
+
+    let primitives = render_document(&document);
+    assert!(primitives.iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Ellipse {
+            object_id: Some(id),
+            ..
+        } if id == &map.id
+    )));
+    assert!(primitives.iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Text {
+            object_id: Some(id),
+            text,
+            ..
+        } if id == &map.id && text == "12000 bp"
+    )));
+
+    let exported = document_to_cdxml(&document);
+    for token in [
+        "<plasmidmap",
+        "NumberBasePairs=\"12000\"",
+        "<plasmidregion",
+        "RegionStart=\"1000\"",
+        "<plasmidmarker",
+        "Value=\"11000\"",
+    ] {
+        assert!(exported.contains(token), "missing {token}: {exported}");
+    }
+    let reparsed = parse_cdxml_document(&exported, Some("plasmid-roundtrip"))
+        .expect("round trip should parse");
+    let reparsed_plasmid = reparsed
+        .objects
+        .iter()
+        .find_map(|object| object.payload.plasmid_map.as_ref())
+        .expect("round-tripped plasmid data");
+    assert_eq!(reparsed_plasmid.number_base_pairs, 12_000);
+    assert_eq!(reparsed_plasmid.regions.len(), 1);
+    assert_eq!(reparsed_plasmid.markers.len(), 2);
+
+    let cdx = document_to_cdx(&document).expect("plasmid CDX should write");
+    let reopened =
+        parse_cdx_document(&cdx, Some("plasmid-cdx")).expect("plasmid CDX should reopen");
+    let reopened_plasmid = reopened
+        .objects
+        .iter()
+        .find_map(|object| object.payload.plasmid_map.as_ref())
+        .expect("CDX preserves native plasmid data");
+    assert_eq!(reopened_plasmid.number_base_pairs, 12_000);
+    assert_eq!(
+        (
+            reopened_plasmid.regions[0].start,
+            reopened_plasmid.regions[0].end,
+            reopened_plasmid.regions[0].arrow_at_end,
+        ),
+        (
+            plasmid.regions[0].start,
+            plasmid.regions[0].end,
+            plasmid.regions[0].arrow_at_end,
+        )
+    );
+    assert_eq!(
+        reopened_plasmid
+            .markers
+            .iter()
+            .map(|marker| marker.position)
+            .collect::<Vec<_>>(),
+        plasmid
+            .markers
+            .iter()
+            .map(|marker| marker.position)
+            .collect::<Vec<_>>()
+    );
 }
 
 #[test]

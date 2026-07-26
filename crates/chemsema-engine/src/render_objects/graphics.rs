@@ -7,6 +7,8 @@ mod brackets;
 mod curves;
 #[path = "graphics/orbitals.rs"]
 mod orbitals;
+#[path = "graphics/plasmids.rs"]
+mod plasmids;
 #[path = "graphics/shapes.rs"]
 mod shapes;
 #[path = "graphics/tables.rs"]
@@ -14,6 +16,7 @@ mod tables;
 
 use brackets::*;
 use orbitals::*;
+use plasmids::*;
 use shapes::*;
 use tables::*;
 

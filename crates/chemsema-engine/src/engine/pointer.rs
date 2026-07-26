@@ -43,7 +43,10 @@ impl Engine {
             self.pointer_move_orbital(event);
             return;
         }
-        if matches!(self.state.tool.active_tool, Tool::Shape | Tool::TlcPlate) {
+        if matches!(
+            self.state.tool.active_tool,
+            Tool::Shape | Tool::TlcPlate | Tool::BioDraw
+        ) {
             self.pointer_move_shape(event);
             return;
         }
@@ -269,7 +272,10 @@ impl Engine {
             self.pointer_down_orbital(event);
             return;
         }
-        if matches!(self.state.tool.active_tool, Tool::Shape | Tool::TlcPlate) {
+        if matches!(
+            self.state.tool.active_tool,
+            Tool::Shape | Tool::TlcPlate | Tool::BioDraw
+        ) {
             self.pointer_down_shape(event);
             return;
         }
@@ -427,7 +433,10 @@ impl Engine {
             self.pointer_up_orbital(event);
             return;
         }
-        if matches!(self.state.tool.active_tool, Tool::Shape | Tool::TlcPlate) {
+        if matches!(
+            self.state.tool.active_tool,
+            Tool::Shape | Tool::TlcPlate | Tool::BioDraw
+        ) {
             self.pointer_up_shape(event);
             return;
         }

@@ -72,6 +72,7 @@
     "regression:stability-user-paths": "node scripts/stability-user-paths.mjs",
     "regression:text-editor": "node scripts/text-editor-regression.mjs",
     "regression:toolbar": "node scripts/toolbar-regression.mjs",
+    "regression:plasmid-map": "node scripts/plasmid-map-regression.mjs",
     "regression:ui-actions": "node scripts/ui-action-runner-regression.mjs",
     "regression:viewer-interactions": "node scripts/viewer-interaction-smoke.mjs",
     "check:legacy-redirects": "node scripts/check-legacy-redirects.mjs",

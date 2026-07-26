@@ -273,6 +273,23 @@ impl Engine {
                 ));
             }
         }
+        if let Some(object) = self.selected_single_plasmid_map() {
+            items.extend([
+                separator(),
+                item(
+                    "Plasmid Map...",
+                    "plasmid-map-dialog",
+                    &json!({
+                        "kind": "plasmid-map",
+                        "mode": "edit",
+                        "title": "Plasmid Map",
+                        "objectId": object.id,
+                        "data": object.payload.plasmid_map,
+                    })
+                    .to_string(),
+                ),
+            ]);
+        }
         if matches!(
             single_object_type.as_deref(),
             Some("geometry" | "constraint")
@@ -1444,6 +1461,17 @@ impl Engine {
             .into_iter()
             .filter(|object| selected.contains(object.id.as_str()))
             .collect()
+    }
+
+    fn selected_single_plasmid_map(&self) -> Option<&SceneObject> {
+        let selected = self.selected_scene_objects();
+        if selected.len() != 1 {
+            return None;
+        }
+        selected
+            .first()
+            .copied()
+            .filter(|object| object.payload.plasmid_map.is_some())
     }
 
     pub(crate) fn selected_bonds(&self) -> Vec<&Bond> {

@@ -15,6 +15,7 @@ import { createChemicalPropertyDialogHost } from "./chemical_property_dialog_hos
 import { createAnnotationDialogHost } from "./annotation_dialog_host.js";
 import { createSmilesDialogHost } from "./smiles_dialog_host.js";
 import { createTableDialogHost } from "./table_dialog_host.js";
+import { createPlasmidMapDialogHost } from "./plasmid_map_dialog_host.js";
 import { createTransientNotificationHost } from "./transient_notification_host.js";
 import { createUiActionRunner } from "./ui_action_runner.js";
 import { createInchiHost } from "./inchi_host.js";
@@ -193,6 +194,9 @@ const tableDialogHost = createTableDialogHost({
   onApply: async (result) => {
     renderDocumentChange(result);
   },
+});
+const plasmidMapDialogHost = createPlasmidMapDialogHost({
+  root: document.body,
 });
 const transientNotificationHost = createTransientNotificationHost({
   root: document.body,
@@ -471,6 +475,7 @@ const editorState = {
   arrowBold: false,
   arrowNoGo: "none",
   shapeKind: "circle",
+  bioDrawKind: "plasmid-map",
   shapeStyle: "solid",
   shapeStyleByKind: {},
   shapeIconSvgs: {},
@@ -669,7 +674,9 @@ async function syncEngineToolState() {
   await state.editorEngine.setTemplate?.(effectiveTemplate);
   const shapeKind = editorState.activeTool === "tlc-plate"
     ? editorState.chromatographyKind
-    : editorState.shapeKind;
+    : editorState.activeTool === "biodraw"
+      ? editorState.bioDrawKind
+      : editorState.shapeKind;
   await state.editorEngine.setShapeOptions?.(
     shapeKind,
     editorState.shapeStyle,
@@ -1224,6 +1231,7 @@ canvasContextMenuHost = createCanvasContextMenuHost({
   annotationDialogHost,
   smilesDialogHost,
   tableDialogHost,
+  plasmidMapDialogHost,
   transientNotificationHost,
   inchiHost,
   nmrPredictionHost,
@@ -1333,6 +1341,7 @@ const editorPointerController = createEditorPointerController({
   },
   commandEngine,
   tableDialogHost,
+  plasmidMapDialogHost,
   bracketLabelAnchorPoint,
   bracketLabelTextOptions: () => ({
     fontSize: BRACKET_LABEL_FONT_SIZE,

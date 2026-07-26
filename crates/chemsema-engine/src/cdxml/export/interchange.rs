@@ -126,6 +126,31 @@ pub(super) fn retain_native_annotations(
     retain_native_annotations_recursive(source, &allowed_ids);
 }
 
+pub(super) fn retain_native_plasmid_maps(
+    source: &mut crate::InterchangeObject,
+    objects: &[crate::SceneObject],
+) {
+    let has_native_map = objects.iter().any(scene_object_contains_native_plasmid);
+    if has_native_map {
+        remove_plasmid_maps_recursive(source);
+    }
+}
+
+fn scene_object_contains_native_plasmid(object: &crate::SceneObject) -> bool {
+    object.payload.plasmid_map.is_some()
+        || object
+            .children
+            .iter()
+            .any(scene_object_contains_native_plasmid)
+}
+
+fn remove_plasmid_maps_recursive(source: &mut crate::InterchangeObject) {
+    source.children.retain(|child| child.name != "plasmidmap");
+    for child in &mut source.children {
+        remove_plasmid_maps_recursive(child);
+    }
+}
+
 fn annotation_objects(object: &crate::SceneObject) -> Vec<&crate::SceneObject> {
     let mut objects = Vec::new();
     if matches!(
