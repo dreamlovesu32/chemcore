@@ -103,6 +103,7 @@ fn scene_object_selection_coverage(
         | crate::SceneObjectKind::Bracket
         | crate::SceneObjectKind::Symbol
         | crate::SceneObjectKind::Shape
+        | crate::SceneObjectKind::Table
         | crate::SceneObjectKind::Image
         | crate::SceneObjectKind::Spectrum
         | crate::SceneObjectKind::Geometry
@@ -286,10 +287,7 @@ pub(super) fn scene_object_selection_bounds(
             .or_else(|| shape_object_selection_bounds(object))
             .or_else(|| object_bbox_selection_bounds(object));
     }
-    if object.object_type == "image" {
-        return object_bbox_selection_bounds(object);
-    }
-    if object.object_type == "spectrum" {
+    if matches!(object.object_type.as_str(), "image" | "spectrum" | "table") {
         return object_bbox_selection_bounds(object);
     }
     if matches!(

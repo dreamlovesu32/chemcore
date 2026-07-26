@@ -176,6 +176,7 @@ fn group_selected_in_siblings_with_meta(
                 spectrum: None,
                 geometry: None,
                 constraint: None,
+                table: None,
                 extra: BTreeMap::new(),
             },
             children: selected,

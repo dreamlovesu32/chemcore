@@ -192,6 +192,19 @@ impl Engine {
                 engine.state.tool = previous_tool;
                 changed
             }),
+            EditorCommand::AddTable {
+                begin,
+                end,
+                rows,
+                columns,
+            } => self.with_command(command, |engine| {
+                engine.insert_table(
+                    point_from_command(&begin),
+                    point_from_command(&end),
+                    rows,
+                    columns,
+                )
+            }),
             EditorCommand::AddBracket { kind, begin, end } => {
                 self.with_command(command, |engine| {
                     let previous_tool = engine.state.tool.clone();
@@ -528,6 +541,7 @@ impl Engine {
             | EditorCommand::AddBond { .. }
             | EditorCommand::AddArrow { .. }
             | EditorCommand::AddShape { .. }
+            | EditorCommand::AddTable { .. }
             | EditorCommand::AddBracket { .. }
             | EditorCommand::AddSymbol { .. }
             | EditorCommand::AddElement { .. }
@@ -538,6 +552,25 @@ impl Engine {
             }
             EditorCommand::Undo => self.undo(),
             EditorCommand::Redo => self.redo(),
+            EditorCommand::EditTable {
+                object_id,
+                row,
+                column,
+                action,
+            } => self.with_command(command.clone(), |engine| {
+                engine.edit_table(&object_id, row, column, &action)
+            }),
+            EditorCommand::SetTableBorders {
+                object_id,
+                row,
+                column,
+                sides,
+                line_style,
+                width,
+                color,
+            } => self.with_command(command.clone(), |engine| {
+                engine.set_table_borders(&object_id, row, column, &sides, line_style, width, &color)
+            }),
             EditorCommand::SetTextRuns { object_id, content } => self
                 .with_command(command.clone(), |engine| {
                     engine.set_text_runs_direct(&object_id, content)

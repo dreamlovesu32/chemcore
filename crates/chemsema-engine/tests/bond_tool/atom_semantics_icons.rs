@@ -1040,19 +1040,8 @@ fn shape_tool_icons_are_rendered_in_double_size_viewbox() {
         }
     }
 
-    let cross_table = Engine::shape_tool_icon_svg(ShapeKind::CrossTable, ShapeStyle::Solid);
-    assert!(
-        cross_table.contains(r#"viewBox="0 0 48 48""#),
-        "{cross_table}"
-    );
-
     let round_rect = Engine::shape_tool_icon_svg(ShapeKind::RoundRect, ShapeStyle::Solid);
     assert!(round_rect.contains("M 8.4,31.68"), "{round_rect}");
     assert!(round_rect.contains("39.6,16.08"), "{round_rect}");
     assert!(round_rect.contains(r#"stroke-width="2""#), "{round_rect}");
-
-    assert!(
-        cross_table.matches(r#"stroke-width="2""#).count() >= 3,
-        "{cross_table}"
-    );
 }

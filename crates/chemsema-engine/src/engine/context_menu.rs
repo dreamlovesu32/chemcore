@@ -276,6 +276,10 @@ impl Engine {
                 item("Annotation Properties...", "annotation-dialog", "selected"),
             ]);
         }
+        if single_object_type.as_deref() == Some("table") {
+            items.extend(self.table_cell_context_menu_items(hit));
+            return items;
+        }
         let annotation_items = self.annotation_menu_values();
         if !annotation_items.is_empty() {
             items.extend([
@@ -469,6 +473,126 @@ impl Engine {
             }
         }
         items
+    }
+
+    fn table_cell_context_menu_items(&self, hit: &JsonValue) -> Vec<JsonValue> {
+        let object_id = hit
+            .get("objectId")
+            .and_then(JsonValue::as_str)
+            .unwrap_or("");
+        let row = hit
+            .pointer("/tableCell/row")
+            .and_then(JsonValue::as_u64)
+            .unwrap_or(0);
+        let column = hit
+            .pointer("/tableCell/column")
+            .and_then(JsonValue::as_u64)
+            .unwrap_or(0);
+        let value = |action: &str| format!("{object_id}:{row}:{column}:{action}");
+        let border_dialog = self.table_border_dialog_spec(object_id, row, column);
+        vec![
+            separator(),
+            item("Borders...", "table-borders-dialog", border_dialog),
+            item("Add Row Before", "table-edit", value("add-row-before")),
+            item("Add Row After", "table-edit", value("add-row-after")),
+            item(
+                "Add Column Before",
+                "table-edit",
+                value("add-column-before"),
+            ),
+            item("Add Column After", "table-edit", value("add-column-after")),
+            item("Delete Row", "table-edit", value("delete-row")),
+            item("Delete Column", "table-edit", value("delete-column")),
+            item("Clear Contents", "table-edit", value("clear-contents")),
+            item(
+                "Size To Fit Contents",
+                "table-edit",
+                value("size-to-fit-contents"),
+            ),
+            submenu(
+                "Align",
+                vec![
+                    item("Left", "table-edit", value("align-left")),
+                    item("Center", "table-edit", value("align-center")),
+                    item("Right", "table-edit", value("align-right")),
+                    separator(),
+                    item("Top", "table-edit", value("align-top")),
+                    item("Middle", "table-edit", value("align-middle")),
+                    item("Bottom", "table-edit", value("align-bottom")),
+                ],
+            ),
+            separator(),
+            order_subitems_flat(),
+            separator(),
+            self.object_settings_item(),
+        ]
+    }
+
+    fn table_border_dialog_spec(&self, object_id: &str, row: u64, column: u64) -> String {
+        self.state
+            .document
+            .find_scene_object(object_id)
+            .and_then(|object| object.payload.table.as_ref())
+            .and_then(|table| {
+                let cell = table
+                    .cells
+                    .iter()
+                    .find(|cell| cell.row == row as usize && cell.column == column as usize)?;
+                let borders = [
+                    (
+                        "top",
+                        cell.borders
+                            .top
+                            .clone()
+                            .unwrap_or_else(|| table.default_border.clone()),
+                    ),
+                    (
+                        "left",
+                        cell.borders
+                            .left
+                            .clone()
+                            .unwrap_or_else(|| table.default_border.clone()),
+                    ),
+                    (
+                        "bottom",
+                        cell.borders
+                            .bottom
+                            .clone()
+                            .unwrap_or_else(|| table.default_border.clone()),
+                    ),
+                    (
+                        "right",
+                        cell.borders
+                            .right
+                            .clone()
+                            .unwrap_or_else(|| table.default_border.clone()),
+                    ),
+                ];
+                let sides = borders
+                    .iter()
+                    .filter(|(_, border)| border.visible)
+                    .map(|(side, _)| *side)
+                    .collect::<Vec<_>>();
+                let representative = borders
+                    .iter()
+                    .find(|(_, border)| border.visible)
+                    .map(|(_, border)| border)
+                    .unwrap_or(&table.default_border);
+                serde_json::to_string(&json!({
+                    "kind": "table-borders",
+                    "title": "Table Borders",
+                    "objectId": object_id,
+                    "row": row,
+                    "column": column,
+                    "setting": if sides.is_empty() { "none" } else if sides.len() == 4 { "all" } else { "custom" },
+                    "sides": sides,
+                    "lineStyle": representative.line_style,
+                    "width": representative.width,
+                    "color": representative.color,
+                }))
+                .ok()
+            })
+            .unwrap_or_default()
     }
 
     fn clipboard_items(&self, include_select_all: bool, has_paste: bool) -> Vec<JsonValue> {
@@ -1591,7 +1715,8 @@ fn nmr_prediction_submenu() -> JsonValue {
     )
 }
 
-fn item(label: &str, command: &str, value: &str) -> JsonValue {
+fn item(label: &str, command: &str, value: impl Into<String>) -> JsonValue {
+    let value = value.into();
     if value.is_empty() {
         json!({ "label": label, "command": command })
     } else {

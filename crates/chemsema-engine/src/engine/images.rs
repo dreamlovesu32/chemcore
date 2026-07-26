@@ -200,6 +200,7 @@ impl Engine {
                 spectrum: None,
                 geometry: None,
                 constraint: None,
+                table: None,
                 extra: BTreeMap::from([
                     ("fit".to_string(), json!("stretch")),
                     ("opacity".to_string(), json!(1.0)),

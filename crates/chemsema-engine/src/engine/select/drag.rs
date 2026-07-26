@@ -279,6 +279,7 @@ fn rotated_scene_object(original: &SceneObject, center: Point, degrees: f64) -> 
             object.transform = crate::Transform::identity();
         }
         crate::SceneObjectKind::Shape
+        | crate::SceneObjectKind::Table
         | crate::SceneObjectKind::Bracket
         | crate::SceneObjectKind::Symbol
         | crate::SceneObjectKind::Image => {
@@ -745,6 +746,7 @@ pub(in crate::engine) fn translated_scene_object(
         | crate::SceneObjectKind::Bracket
         | crate::SceneObjectKind::Symbol
         | crate::SceneObjectKind::Shape
+        | crate::SceneObjectKind::Table
         | crate::SceneObjectKind::Image
         | crate::SceneObjectKind::Spectrum => {
             object.transform.translate = [
@@ -895,6 +897,7 @@ fn translate_box(bounds: &mut [f64; 4], delta_x: f64, delta_y: f64) {
 fn object_transform_participates_in_render(object: &SceneObject) -> bool {
     match object.kind() {
         crate::SceneObjectKind::Text
+        | crate::SceneObjectKind::Table
         | crate::SceneObjectKind::Bracket
         | crate::SceneObjectKind::Symbol
         | crate::SceneObjectKind::Image
@@ -1164,6 +1167,14 @@ fn resize_text_dimensions(object: &mut SceneObject, scale_x: f64, scale_y: f64) 
 }
 
 fn resize_graphic_dimensions(object: &mut SceneObject, scale_x: f64, scale_y: f64) {
+    if let Some(table) = object.payload.table.as_mut() {
+        for guide in &mut table.column_guides {
+            *guide = round2(*guide * scale_x.abs());
+        }
+        for guide in &mut table.row_guides {
+            *guide = round2(*guide * scale_y.abs());
+        }
+    }
     let dimension_scale = if (scale_x - 1.0).abs() <= crate::EPSILON {
         scale_y
     } else if (scale_y - 1.0).abs() <= crate::EPSILON {
@@ -1264,6 +1275,7 @@ mod tests {
                 spectrum: None,
                 geometry: None,
                 constraint: None,
+                table: None,
                 extra,
             },
             children: Vec::new(),

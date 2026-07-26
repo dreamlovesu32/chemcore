@@ -1,64 +1,140 @@
 use super::*;
 
-pub(super) fn render_cross_table_shape_object(
-    out: &mut Vec<RenderPrimitive>,
-    object: &SceneObject,
-    style: ShapeStyleSpec,
-) {
-    let Some([x, y, width, height]) = object.payload.bbox else {
+pub(crate) fn render_table_object(out: &mut Vec<RenderPrimitive>, object: &SceneObject) {
+    let Some(table) = object.payload.table.as_ref() else {
         return;
     };
-    if width <= crate::EPSILON || height <= crate::EPSILON {
+    let (Some(&left), Some(&right), Some(&top), Some(&bottom)) = (
+        table.column_guides.first(),
+        table.column_guides.last(),
+        table.row_guides.first(),
+        table.row_guides.last(),
+    ) else {
         return;
-    }
-    let tx = object.transform.translate[0] + x;
-    let ty = object.transform.translate[1] + y;
-    let outer = ShapeGeometry::Rect {
-        x: tx,
-        y: ty,
-        width,
-        height,
-        corner_radius: None,
-        rounded: false,
-        rotate: object.transform.rotate,
     };
-    render_shape_geometry(out, &object.id, &outer, style.clone());
-
-    let stroke = style
-        .stroke
-        .clone()
-        .unwrap_or_else(|| style.base_color().to_string());
-    let stroke_width = if style.stroke_width > crate::EPSILON {
-        style.stroke_width
-    } else {
-        px_to_pt(1.0)
-    };
-    let dash_array = style.dash_array;
-    let mid_x = tx + width * 0.5;
-    let mid_y = ty + height * 0.5;
-    let vertical = vec![Point::new(mid_x, ty), Point::new(mid_x, ty + height)];
-    let horizontal = vec![Point::new(tx, mid_y), Point::new(tx + width, mid_y)];
-    for points in [vertical, horizontal] {
-        let d = format!(
-            "M {:.4} {:.4} L {:.4} {:.4}",
-            points[0].x, points[0].y, points[1].x, points[1].y
-        );
-        out.push(RenderPrimitive::Path {
+    let tx = object.transform.translate[0];
+    let ty = object.transform.translate[1];
+    for cell in &table.cells {
+        if cell.row >= table.rows || cell.column >= table.columns {
+            continue;
+        }
+        let x1 = tx + table.column_guides[cell.column];
+        let x2 = tx + table.column_guides[cell.column + 1];
+        let y1 = ty + table.row_guides[cell.row];
+        let y2 = ty + table.row_guides[cell.row + 1];
+        out.push(RenderPrimitive::Rect {
             role: RenderRole::DocumentGraphic,
             object_id: Some(object.id.clone()),
-            bond_id: None,
-            d,
-            points,
-            stroke: stroke.clone(),
-            stroke_width,
-            dash_array: dash_array.clone(),
-            line_cap: Some("square".to_string()),
-            line_join: Some("miter".to_string()),
-            rotate: object.transform.rotate,
-            rotate_center: (object.transform.rotate.abs() > crate::EPSILON)
-                .then_some(Point::new(tx + width * 0.5, ty + height * 0.5)),
+            node_id: None,
+            x: x1,
+            y: y1,
+            width: x2 - x1,
+            height: y2 - y1,
+            fill: Some("#ffffff".to_string()),
+            stroke: None,
+            stroke_width: 0.0,
+            rx: None,
+            ry: None,
+            dash_array: Vec::new(),
+            fill_gradient: None,
         });
+        for (border, from, to) in [
+            (
+                cell.borders.top.as_ref().unwrap_or(&table.default_border),
+                Point::new(x1, y1),
+                Point::new(x2, y1),
+            ),
+            (
+                cell.borders.left.as_ref().unwrap_or(&table.default_border),
+                Point::new(x1, y1),
+                Point::new(x1, y2),
+            ),
+            (
+                cell.borders
+                    .bottom
+                    .as_ref()
+                    .unwrap_or(&table.default_border),
+                Point::new(x1, y2),
+                Point::new(x2, y2),
+            ),
+            (
+                cell.borders.right.as_ref().unwrap_or(&table.default_border),
+                Point::new(x2, y1),
+                Point::new(x2, y2),
+            ),
+        ] {
+            if !border.visible || border.width <= crate::EPSILON {
+                continue;
+            }
+            let points = if border.line_style == crate::TableLineStyle::Wavy {
+                table_wavy_points(from, to, border.width)
+            } else {
+                vec![from, to]
+            };
+            let d = points
+                .iter()
+                .enumerate()
+                .map(|(index, point)| {
+                    format!(
+                        "{} {:.4} {:.4}",
+                        if index == 0 { "M" } else { "L" },
+                        point.x,
+                        point.y
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+            out.push(RenderPrimitive::Path {
+                role: RenderRole::DocumentGraphic,
+                object_id: Some(object.id.clone()),
+                bond_id: None,
+                d,
+                points,
+                stroke: border.color.clone(),
+                stroke_width: if border.line_style == crate::TableLineStyle::Bold {
+                    border.width * 2.0
+                } else {
+                    border.width
+                },
+                dash_array: match border.line_style {
+                    crate::TableLineStyle::Solid => Vec::new(),
+                    crate::TableLineStyle::Dashed => vec![2.5, 2.5],
+                    crate::TableLineStyle::Bold | crate::TableLineStyle::Wavy => Vec::new(),
+                },
+                line_cap: Some("butt".to_string()),
+                line_join: Some("miter".to_string()),
+                rotate: object.transform.rotate,
+                rotate_center: (object.transform.rotate.abs() > crate::EPSILON).then_some(
+                    Point::new(tx + (left + right) * 0.5, ty + (top + bottom) * 0.5),
+                ),
+            });
+        }
     }
+}
+
+fn table_wavy_points(from: Point, to: Point, width: f64) -> Vec<Point> {
+    let dx = to.x - from.x;
+    let dy = to.y - from.y;
+    let length = dx.hypot(dy);
+    if length <= crate::EPSILON {
+        return vec![from, to];
+    }
+    let wavelength = 4.0_f64.max(width * 4.0);
+    let wave_count = (length / wavelength).max(1.0).round() as usize;
+    let steps = wave_count * 8;
+    let nx = -dy / length;
+    let ny = dx / length;
+    let amplitude = (width * 1.5).max(0.75);
+    (0..=steps)
+        .map(|index| {
+            let fraction = index as f64 / steps as f64;
+            let offset = (fraction * wave_count as f64 * std::f64::consts::TAU).sin() * amplitude;
+            Point::new(
+                from.x + dx * fraction + nx * offset,
+                from.y + dy * fraction + ny * offset,
+            )
+        })
+        .collect()
 }
 
 pub(super) fn render_tlc_plate_shape_object(

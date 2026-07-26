@@ -398,6 +398,38 @@ export function createCanvasContextMenuHost(options) {
         { type: "apply-shape-style", payload: { changes: { shapeStyle: value } } },
         () => options.state().editorEngine?.applyShapeStyleToSelection?.(value),
       );
+    } else if (command === "table-edit") {
+      const [objectId, rowText, columnText, action] = value.split(":");
+      changed = await executeDocumentCommand(
+        {
+          type: "edit-table",
+          objectId,
+          row: Number(rowText),
+          column: Number(columnText),
+          action,
+        },
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
+          type: "edit-table",
+          objectId,
+          row: Number(rowText),
+          column: Number(columnText),
+          action,
+        })),
+      );
+    } else if (command === "table-borders-dialog") {
+      let spec = null;
+      try {
+        spec = JSON.parse(value || "null");
+      } catch {
+        spec = null;
+      }
+      if (!spec) {
+        await finishTemporaryContextSelection();
+        return;
+      }
+      await options.tableDialogHost?.chooseBorders(spec);
+      await finishTemporaryContextSelection();
+      return;
     } else if (command === "orbital-template") {
       changed = await executeDocumentCommand(
         { type: "apply-orbital-style", payload: { changes: { template: value } } },

@@ -53,6 +53,15 @@ fn format_query_list(values: &[String], excluded: bool) -> String {
     }
 }
 
+fn table_border_line_type(style: crate::TableLineStyle) -> Option<&'static str> {
+    match style {
+        crate::TableLineStyle::Solid => None,
+        crate::TableLineStyle::Dashed => Some("Dashed"),
+        crate::TableLineStyle::Bold => Some("Bold"),
+        crate::TableLineStyle::Wavy => Some("Wavy"),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CdxmlEnhancedStereo {
     kind: &'static str,
@@ -339,6 +348,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             crate::SceneObjectKind::Line => self.write_line_object(out, object),
             crate::SceneObjectKind::Curve => self.write_curve_object(out, object),
             crate::SceneObjectKind::Shape => self.write_shape_object(out, object),
+            crate::SceneObjectKind::Table => self.write_table_object(out, object),
             crate::SceneObjectKind::Image => self.write_image_object(out, object),
             crate::SceneObjectKind::Spectrum => self.write_spectrum_object(out, object),
             crate::SceneObjectKind::Bracket | crate::SceneObjectKind::Symbol => {
@@ -349,6 +359,95 @@ impl<'a> CdxmlDocumentWriter<'a> {
             crate::SceneObjectKind::Geometry => self.write_geometry_object(out, object),
             crate::SceneObjectKind::Constraint => self.write_constraint_object(out, object),
         }
+    }
+
+    fn write_table_object(&mut self, out: &mut String, object: &SceneObject) {
+        let Some(table) = object.payload.table.as_ref() else {
+            return;
+        };
+        let (Some(&left), Some(&right), Some(&top), Some(&bottom)) = (
+            table.column_guides.first(),
+            table.column_guides.last(),
+            table.row_guides.first(),
+            table.row_guides.last(),
+        ) else {
+            return;
+        };
+        let tx = object.transform.translate[0];
+        let ty = object.transform.translate[1];
+        let bbox = [tx + left, ty + top, tx + right, ty + bottom];
+        let mut attrs = vec![
+            ("id", self.object_cdxml_id(object)),
+            ("BoundingBox", fmt_bbox(bbox)),
+            ("color", self.colors.id_for(&table.default_border.color)),
+            ("LineWidth", fmt_num(table.default_border.width)),
+            ("Z", object.z_index.to_string()),
+        ];
+        if let Some(line_type) = table_border_line_type(table.default_border.line_style) {
+            attrs.push(("LineType", line_type.to_string()));
+        }
+        write_open_tag(out, 4, "table", attrs);
+        for cell in &table.cells {
+            if cell.row >= table.rows || cell.column >= table.columns {
+                continue;
+            }
+            let bounds = [
+                tx + table.column_guides[cell.column],
+                ty + table.row_guides[cell.row],
+                tx + table.column_guides[cell.column + 1],
+                ty + table.row_guides[cell.row + 1],
+            ];
+            write_open_tag(
+                out,
+                6,
+                "page",
+                vec![
+                    ("id", self.alloc_id()),
+                    ("BoundingBox", fmt_bbox(bounds)),
+                    ("BoundsInParent", fmt_bbox(bounds)),
+                    ("HeaderPosition", "36".to_string()),
+                    ("FooterPosition", "36".to_string()),
+                    ("PrintTrimMarks", "yes".to_string()),
+                    ("HeightPages", "1".to_string()),
+                    ("WidthPages", "1".to_string()),
+                ],
+            );
+            for (side, border) in [
+                ("top", cell.borders.top.as_ref()),
+                ("left", cell.borders.left.as_ref()),
+                ("bottom", cell.borders.bottom.as_ref()),
+                ("right", cell.borders.right.as_ref()),
+            ] {
+                let Some(border) = border else {
+                    continue;
+                };
+                let mut attrs = vec![
+                    ("id", self.alloc_id()),
+                    ("Side", side.to_string()),
+                    (
+                        "LineWidth",
+                        fmt_num(if border.visible { border.width } else { 0.0 }),
+                    ),
+                    ("color", self.colors.id_for(&border.color)),
+                ];
+                if let Some(line_type) = table_border_line_type(border.line_style) {
+                    attrs.push(("LineType", line_type.to_string()));
+                }
+                write_empty_tag(out, 8, "border", attrs);
+            }
+            for content_id in &cell.content_object_ids {
+                let Some(content) = self.document.find_scene_object(content_id) else {
+                    continue;
+                };
+                if content.visible {
+                    self.write_scene_object(out, content);
+                }
+            }
+            write_indent(out, 6);
+            out.push_str("</page>\n");
+        }
+        write_indent(out, 4);
+        out.push_str("</table>\n");
     }
 
     fn write_geometry_object(&mut self, out: &mut String, object: &SceneObject) {
@@ -735,8 +834,14 @@ impl<'a> CdxmlDocumentWriter<'a> {
 
     fn write_scene_objects(&mut self, out: &mut String, objects: &[&SceneObject]) {
         let mut emitted = std::collections::BTreeSet::new();
+        let table_content_ids = objects
+            .iter()
+            .filter_map(|object| object.payload.table.as_ref())
+            .flat_map(|table| table.cells.iter())
+            .flat_map(|cell| cell.content_object_ids.iter().cloned())
+            .collect::<std::collections::BTreeSet<_>>();
         for object in objects {
-            if emitted.contains(&object.id) {
+            if emitted.contains(&object.id) || table_content_ids.contains(&object.id) {
                 continue;
             }
             if object.object_type == "molecule" {
@@ -1902,53 +2007,6 @@ impl<'a> CdxmlDocumentWriter<'a> {
         ];
         if kind == "orbital" {
             self.write_orbital_shape_object(out, object, color, style);
-            return;
-        }
-        if kind == "crossTable" {
-            let left = bbox[0];
-            let top = bbox[1];
-            let mid_x = left + width * 0.5;
-            let mid_y = top + height * 0.5;
-            let right = bbox[2];
-            let bottom = bbox[3];
-            let cell_bounds = [
-                [left, top, mid_x, mid_y],
-                [mid_x, top, right, mid_y],
-                [left, mid_y, mid_x, bottom],
-                [mid_x, mid_y, right, bottom],
-            ];
-            let table_id = self.object_cdxml_id(object);
-            let color_id = self.colors.id_for(color);
-            write_open_tag(
-                out,
-                4,
-                "table",
-                vec![
-                    ("id", table_id),
-                    ("BoundingBox", fmt_bbox(bbox)),
-                    ("color", color_id.clone()),
-                    ("Z", object.z_index.to_string()),
-                ],
-            );
-            for bounds in cell_bounds {
-                write_empty_tag(
-                    out,
-                    6,
-                    "page",
-                    vec![
-                        ("id", self.alloc_id()),
-                        ("BoundingBox", fmt_bbox(bounds)),
-                        ("HeaderPosition", "36".to_string()),
-                        ("FooterPosition", "36".to_string()),
-                        ("PrintTrimMarks", "yes".to_string()),
-                        ("HeightPages", "1".to_string()),
-                        ("WidthPages", "1".to_string()),
-                        ("BoundsInParent", fmt_bbox(bounds)),
-                    ],
-                );
-            }
-            write_indent(out, 4);
-            out.push_str("</table>\n");
             return;
         }
         if kind == "tlcPlate" {

@@ -700,6 +700,7 @@ mod tests {
                 spectrum: None,
                 geometry,
                 constraint,
+                table: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),

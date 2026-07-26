@@ -46,12 +46,30 @@ impl Engine {
         }
         if !selection.arrow_objects.is_empty() || !selection.molecule_objects.is_empty() {
             self.push_undo_snapshot();
-            let selected_graphics: BTreeSet<&str> = selection
+            let mut selected_graphic_ids: BTreeSet<String> = selection
                 .arrow_objects
                 .iter()
                 .chain(selection.molecule_objects.iter())
-                .map(String::as_str)
+                .cloned()
                 .collect();
+            for object_id in &selection.arrow_objects {
+                let Some(table) = self
+                    .state
+                    .document
+                    .find_scene_object(object_id)
+                    .and_then(|object| object.payload.table.as_ref())
+                else {
+                    continue;
+                };
+                selected_graphic_ids.extend(
+                    table
+                        .cells
+                        .iter()
+                        .flat_map(|cell| cell.content_object_ids.iter().cloned()),
+                );
+            }
+            let selected_graphics: BTreeSet<&str> =
+                selected_graphic_ids.iter().map(String::as_str).collect();
             let removed = self
                 .state
                 .document

@@ -170,6 +170,7 @@ impl ChemSemaDocument {
                     spectrum: None,
                     geometry: None,
                     constraint: None,
+                    table: None,
                     extra: BTreeMap::new(),
                 },
                 children: Vec::new(),
@@ -442,6 +443,12 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     migrate_legacy_bracket_links(&mut document);
     validate_scene_object_types(&document.objects)?;
     validate_spectrum_objects(&document.objects)?;
+    let scene_ids = document
+        .scene_objects()
+        .into_iter()
+        .map(|object| object.id.clone())
+        .collect::<BTreeSet<_>>();
+    validate_table_objects(&document.objects, &scene_ids, &mut BTreeSet::new())?;
     validate_geometry_constraint_objects(&document)?;
     validate_molecule_fragment_resources(&document)?;
     split_disconnected_molecule_objects(&mut document);
@@ -831,6 +838,117 @@ fn validate_spectrum_objects(objects: &[SceneObject]) -> Result<(), String> {
             ));
         }
         validate_spectrum_objects(&object.children)?;
+    }
+    Ok(())
+}
+
+fn validate_table_objects(
+    objects: &[SceneObject],
+    scene_ids: &BTreeSet<String>,
+    owned_content_ids: &mut BTreeSet<String>,
+) -> Result<(), String> {
+    for object in objects {
+        match (object.object_type.as_str(), object.payload.table.as_ref()) {
+            ("table", Some(table)) => {
+                if table.rows == 0
+                    || table.columns == 0
+                    || table.row_guides.len() != table.rows + 1
+                    || table.column_guides.len() != table.columns + 1
+                    || table.cells.len() != table.rows * table.columns
+                {
+                    return Err(format!(
+                        "table object '{}' has inconsistent grid dimensions",
+                        object.id
+                    ));
+                }
+                let strictly_increasing = |guides: &[f64]| {
+                    guides.iter().all(|value| value.is_finite())
+                        && guides
+                            .windows(2)
+                            .all(|pair| pair[1] - pair[0] > crate::EPSILON)
+                };
+                if !strictly_increasing(&table.row_guides)
+                    || !strictly_increasing(&table.column_guides)
+                {
+                    return Err(format!(
+                        "table object '{}' has invalid row or column guides",
+                        object.id
+                    ));
+                }
+                let valid_border = |border: &TableBorder| {
+                    border.width.is_finite()
+                        && border.width >= 0.0
+                        && border.color.len() == 7
+                        && border.color.starts_with('#')
+                        && border.color[1..]
+                            .chars()
+                            .all(|character| character.is_ascii_hexdigit())
+                };
+                if !valid_border(&table.default_border) {
+                    return Err(format!(
+                        "table object '{}' has an invalid default border",
+                        object.id
+                    ));
+                }
+                let mut positions = BTreeSet::new();
+                let mut ids = BTreeSet::new();
+                for cell in &table.cells {
+                    if cell.row >= table.rows
+                        || cell.column >= table.columns
+                        || !positions.insert((cell.row, cell.column))
+                        || cell.id.trim().is_empty()
+                        || !ids.insert(cell.id.as_str())
+                    {
+                        return Err(format!(
+                            "table object '{}' has an invalid or duplicated cell",
+                            object.id
+                        ));
+                    }
+                    if [
+                        cell.borders.top.as_ref(),
+                        cell.borders.left.as_ref(),
+                        cell.borders.bottom.as_ref(),
+                        cell.borders.right.as_ref(),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .any(|border| !valid_border(border))
+                    {
+                        return Err(format!(
+                            "table object '{}' has an invalid cell border",
+                            object.id
+                        ));
+                    }
+                    let mut cell_content_ids = BTreeSet::new();
+                    for content_id in &cell.content_object_ids {
+                        if content_id == &object.id
+                            || !scene_ids.contains(content_id)
+                            || !cell_content_ids.insert(content_id.as_str())
+                            || !owned_content_ids.insert(content_id.clone())
+                        {
+                            return Err(format!(
+                                "table object '{}' cell '{}' has an invalid, missing, or multiply owned content object '{}'",
+                                object.id, cell.id, content_id
+                            ));
+                        }
+                    }
+                }
+            }
+            ("table", None) => {
+                return Err(format!(
+                    "table object '{}' is missing payload.table",
+                    object.id
+                ));
+            }
+            (_, Some(_)) => {
+                return Err(format!(
+                    "non-table object '{}' contains payload.table",
+                    object.id
+                ));
+            }
+            _ => {}
+        }
+        validate_table_objects(&object.children, scene_ids, owned_content_ids)?;
     }
     Ok(())
 }
@@ -2626,6 +2744,100 @@ impl Default for Transform {
     }
 }
 
+/// Native table geometry and formatting.
+///
+/// Coordinates are local to the owning scene object.  Row and column guides
+/// include both outer edges, so their lengths are `rows + 1` and
+/// `columns + 1`.  Borders are stored per cell because CDXML does the same:
+/// the two cells adjacent to a shared edge may each carry an explicit border.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TableData {
+    pub rows: usize,
+    pub columns: usize,
+    pub row_guides: Vec<f64>,
+    pub column_guides: Vec<f64>,
+    pub cells: Vec<TableCell>,
+    pub default_border: TableBorder,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TableCell {
+    pub id: String,
+    pub row: usize,
+    pub column: usize,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content_object_ids: Vec<String>,
+    #[serde(default)]
+    pub borders: TableCellBorders,
+    #[serde(default)]
+    pub horizontal_alignment: TableHorizontalAlignment,
+    #[serde(default)]
+    pub vertical_alignment: TableVerticalAlignment,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct TableCellBorders {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top: Option<TableBorder>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub left: Option<TableBorder>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bottom: Option<TableBorder>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub right: Option<TableBorder>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TableBorder {
+    pub visible: bool,
+    pub line_style: TableLineStyle,
+    pub width: f64,
+    pub color: String,
+}
+
+impl Default for TableBorder {
+    fn default() -> Self {
+        Self {
+            visible: true,
+            line_style: TableLineStyle::Solid,
+            width: 0.75,
+            color: "#000000".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum TableLineStyle {
+    #[default]
+    Solid,
+    Dashed,
+    Bold,
+    Wavy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum TableHorizontalAlignment {
+    #[default]
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum TableVerticalAlignment {
+    Top,
+    #[default]
+    Middle,
+    Bottom,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ObjectPayload {
@@ -2639,6 +2851,8 @@ pub struct ObjectPayload {
     pub geometry: Option<GeometryData>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub constraint: Option<ConstraintData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub table: Option<TableData>,
     #[serde(flatten, default)]
     pub extra: BTreeMap<String, Value>,
 }

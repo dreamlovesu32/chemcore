@@ -56,6 +56,9 @@ export function createEditorPointerController(options) {
     if (tool === "shape" || tool === "tlc-plate" || tool === "orbital") {
       return "add-shape";
     }
+    if (tool === "table") {
+      return "add-table";
+    }
     if (tool === "bracket") {
       return "add-bracket";
     }
@@ -1482,7 +1485,27 @@ export function createEditorPointerController(options) {
     );
     const executedAt = performance.now();
     let commitResult = result;
-    if (!commitResult?.changed && engineCreationDrag?.start) {
+    const pendingDialogJson = await Promise.resolve(
+      options.state().editorEngine.takePendingDialogJson?.() || "",
+    );
+    if (pendingDialogJson) {
+      const pendingDialog = JSON.parse(pendingDialogJson);
+      if (pendingDialog?.kind === "insert-table") {
+        const decision = await options.tableDialogHost?.chooseInsert(pendingDialog);
+        if (decision) {
+          const [beginX, beginY] = pendingDialog.bounds.begin;
+          const [endX, endY] = pendingDialog.bounds.end;
+          commitResult = await executeCreationCommand({
+            type: "add-table",
+            begin: editorCommandAnchor({ x: beginX, y: beginY }),
+            end: editorCommandAnchor({ x: endX, y: endY }),
+            rows: decision.rows,
+            columns: decision.columns,
+          }) || commitResult;
+        }
+      }
+    }
+    if (!commitResult?.changed && engineCreationDrag?.start && engineCreationDrag.tool !== "table") {
       commitResult = await executeCreationCommand(
         creationCommandForDrag(engineCreationDrag.tool, engineCreationDrag.start, point),
       ) || commitResult;

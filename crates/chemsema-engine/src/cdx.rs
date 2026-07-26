@@ -1031,6 +1031,7 @@ const SYMBOL_TYPE: &[(i16, &str)] = &[
     (12, "Relative"),
 ];
 const LINE_TYPE: &[(i16, &str)] = &[(0, "Solid"), (1, "Dashed"), (2, "Bold"), (4, "Wavy")];
+const TABLE_SIDE: &[(i16, &str)] = &[(1, "top"), (2, "left"), (3, "bottom"), (4, "right")];
 const RECTANGLE_TYPE: &[(i16, &str)] = &[
     (0, "Plain"),
     (1, "RoundEdge"),
@@ -1791,6 +1792,7 @@ mod tests {
             ("CaptionLineHeight", "auto", 0x0707, vec![1, 0], "auto"),
             ("BondSpacing", "12.5", 0x0804, vec![125, 0], "12.5"),
             ("BondSpacingAbs", "1.25", 0x0822, vec![0, 64, 1, 0], "1.25"),
+            ("Side", "left", 0x0825, vec![2, 0], "left"),
             ("BracketType", "Square", 0x0A06, vec![3, 0], "Square"),
             ("BracketType", "Round", 0x0A06, vec![5, 0], "Round"),
             (
@@ -1871,7 +1873,8 @@ mod tests {
         assert_eq!(object_tag("tlcspot"), Some(0x801F));
         assert_eq!(object_tag("chemicalproperty"), Some(0x8020));
         assert_eq!(object_tag("arrow"), Some(0x8021));
-        assert_eq!(object_tag("border"), Some(0x802A));
+        assert_eq!(object_tag("border"), Some(0x801A));
+        assert_eq!(legacy_chemsema_object_name(0x801A), Some("border"));
         assert_eq!(legacy_chemsema_object_name(0x8021), Some("arrow"));
 
         let chemdraw = r#"<CDXML CreationProgram="ChemSema" ModificationProgram="ChemSema/1.0.0-beta.1;cdx-tags=chemdraw"><geometry id="2" /></CDXML>"#;

@@ -32,6 +32,7 @@ mod select;
 mod selection_summary;
 mod shapes;
 mod spectra;
+mod tables;
 mod templates;
 mod text_edit;
 mod tlc;
@@ -1149,6 +1150,7 @@ mod tests {
                 spectrum: None,
                 geometry: None,
                 constraint: None,
+                table: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),
@@ -1702,6 +1704,7 @@ fn editor_command_is_creation(command: &EditorCommand) -> bool {
             | EditorCommand::AddBond { .. }
             | EditorCommand::AddArrow { .. }
             | EditorCommand::AddShape { .. }
+            | EditorCommand::AddTable { .. }
             | EditorCommand::AddBracket { .. }
             | EditorCommand::AddSymbol { .. }
             | EditorCommand::AddElement { .. }
@@ -1788,6 +1791,9 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::AddBond { .. } => "add-bond",
         EditorCommand::AddArrow { .. } => "add-arrow",
         EditorCommand::AddShape { .. } => "add-shape",
+        EditorCommand::AddTable { .. } => "add-table",
+        EditorCommand::EditTable { .. } => "edit-table",
+        EditorCommand::SetTableBorders { .. } => "set-table-borders",
         EditorCommand::AddBracket { .. } => "add-bracket",
         EditorCommand::AddSymbol { .. } => "add-symbol",
         EditorCommand::AddElement { .. } => "add-element",

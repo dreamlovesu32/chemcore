@@ -137,6 +137,7 @@ async function openLargeCdxmlViewer(browser) {
 }
 
 const {
+  verifyNativeTableToolWorkflow,
   verifyBondDrawing,
   verifyBondCreationUsesKernelLocalPreview,
   verifyElementEndpointPatchUpdatesConnectedBonds,
@@ -172,6 +173,7 @@ try {
     headless: true,
     executablePath: existsSync(edgePath) ? edgePath : undefined,
   });
+  await verifyNativeTableToolWorkflow(browser);
   await verifyBondDrawing(browser);
   await verifyBondCreationUsesKernelLocalPreview(browser);
   await verifyElementEndpointPatchUpdatesConnectedBonds(browser);

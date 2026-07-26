@@ -124,6 +124,7 @@ pub(super) fn append_geometry_constraint_objects(
                 spectrum: None,
                 geometry,
                 constraint,
+                table: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),

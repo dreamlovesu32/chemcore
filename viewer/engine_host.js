@@ -326,6 +326,7 @@ class TauriEngineSession {
       "symbol",
       "element",
       "shape",
+      "table",
       "tlc-plate",
       "orbital",
       "templates",

@@ -2075,12 +2075,14 @@ body.native-frame-shell .document-tab-close svg {
   gap: 8px;
 }
 
-.numeric-dialog-field input {
+.numeric-dialog-field input,
+.numeric-dialog-field select {
   width: 96px;
   height: 28px;
   padding: 2px 5px;
   border: 1px solid #b9c1cc;
   border-radius: 2px;
+  background: #ffffff;
 }
 
 .numeric-dialog-field input.is-invalid {
@@ -2112,6 +2114,39 @@ body.native-frame-shell .document-tab-close svg {
   border-color: #245ed0;
   background: #2f6fed;
   color: #ffffff;
+}
+
+.table-borders-dialog .numeric-dialog-panel {
+  width: min(380px, calc(100vw - 32px));
+}
+
+.table-border-settings {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 8px 10px 10px;
+  border: 1px solid #d5dae1;
+  border-radius: 4px;
+}
+
+.table-border-settings legend {
+  padding: 0 4px;
+  color: #5d6672;
+  font-size: 12px;
+}
+
+.table-border-settings label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.table-borders-dialog .numeric-dialog-field,
+.table-insert-dialog .numeric-dialog-field {
+  margin-top: 8px;
 }
 
 .chemical-property-dialog .numeric-dialog-panel {

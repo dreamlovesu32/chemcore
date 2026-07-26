@@ -75,6 +75,7 @@ pub enum Tool {
     Delete,
     Text,
     Shape,
+    Table,
     TlcPlate,
     Orbital,
     Templates,
@@ -155,7 +156,6 @@ pub enum ShapeKind {
     Ellipse,
     RoundRect,
     Rect,
-    CrossTable,
     TlcPlate,
 }
 
@@ -628,6 +628,15 @@ pub struct HoverShape {
     pub handles: Vec<Point>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HoverTableCell {
+    pub object_id: String,
+    pub row: usize,
+    pub column: usize,
+    pub bounds: [f64; 4],
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DragState {
@@ -647,6 +656,7 @@ pub struct OverlayState {
     pub hover_text_box: Option<HoverTextBox>,
     pub hover_arrow: Option<HoverArrow>,
     pub hover_shape: Option<HoverShape>,
+    pub hover_table_cell: Option<HoverTableCell>,
     pub preview: Option<BondPreview>,
 }
 

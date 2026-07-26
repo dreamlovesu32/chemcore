@@ -338,6 +338,7 @@ impl Engine {
                 spectrum: None,
                 geometry: None,
                 constraint: None,
+                table: None,
                 extra,
             },
             children: Vec::new(),

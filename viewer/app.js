@@ -14,6 +14,7 @@ import { createAtomPropertyDialogHost } from "./atom_property_dialog_host.js";
 import { createChemicalPropertyDialogHost } from "./chemical_property_dialog_host.js";
 import { createAnnotationDialogHost } from "./annotation_dialog_host.js";
 import { createSmilesDialogHost } from "./smiles_dialog_host.js";
+import { createTableDialogHost } from "./table_dialog_host.js";
 import { createTransientNotificationHost } from "./transient_notification_host.js";
 import { createUiActionRunner } from "./ui_action_runner.js";
 import { createInchiHost } from "./inchi_host.js";
@@ -180,6 +181,14 @@ const annotationDialogHost = createAnnotationDialogHost({
 });
 const smilesDialogHost = createSmilesDialogHost({
   root: document.body,
+  commandEngine,
+  onApply: async (result) => {
+    renderDocumentChange(result);
+  },
+});
+const tableDialogHost = createTableDialogHost({
+  root: document.body,
+  engine: () => state.editorEngine,
   commandEngine,
   onApply: async (result) => {
     renderDocumentChange(result);
@@ -1211,6 +1220,7 @@ canvasContextMenuHost = createCanvasContextMenuHost({
   chemicalPropertyDialogHost,
   annotationDialogHost,
   smilesDialogHost,
+  tableDialogHost,
   transientNotificationHost,
   inchiHost,
   nmrPredictionHost,
@@ -1319,6 +1329,7 @@ const editorPointerController = createEditorPointerController({
     return false;
   },
   commandEngine,
+  tableDialogHost,
   bracketLabelAnchorPoint,
   bracketLabelTextOptions: () => ({
     fontSize: BRACKET_LABEL_FONT_SIZE,
@@ -1634,6 +1645,7 @@ async function syncArrowAwareCursorForPoint(point) {
     || editorState.activeTool === "element"
     || editorState.activeTool === "text"
     || editorState.activeTool === "shape"
+    || editorState.activeTool === "table"
     || editorState.activeTool === "tlc-plate"
     || editorState.activeTool === "orbital"
     || editorState.activeTool === "templates"
@@ -1672,7 +1684,7 @@ async function syncArrowAwareCursorForPoint(point) {
     setCanvasCursorStyle("crosshair");
     return;
   }
-  if (editorState.activeTool === "shape" || editorState.activeTool === "tlc-plate" || editorState.activeTool === "orbital") {
+  if (editorState.activeTool === "shape" || editorState.activeTool === "table" || editorState.activeTool === "tlc-plate" || editorState.activeTool === "orbital") {
     setCanvasCursorStyle("crosshair");
     return;
   }

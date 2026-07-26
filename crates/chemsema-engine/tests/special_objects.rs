@@ -36,10 +36,11 @@ fn parse_cdxml_imports_rest_fixture_special_bonds_and_table() {
     let table = document
         .objects
         .iter()
-        .find(|object| object.id == "obj_shape_table_001")
-        .expect("table shape should import");
-    assert_eq!(table.object_type, "shape");
-    assert_eq!(table.payload.extra.get("kind"), Some(&json!("crossTable")));
+        .find(|object| object.id == "obj_table_001")
+        .expect("table should import");
+    assert_eq!(table.object_type, "table");
+    let table_data = table.payload.table.as_ref().expect("native table data");
+    assert_eq!((table_data.rows, table_data.columns), (2, 2));
     let tlc = document
         .objects
         .iter()
@@ -97,11 +98,11 @@ fn parse_cdxml_imports_rest_fixture_special_bonds_and_table() {
                     role: RenderRole::DocumentGraphic,
                     object_id: Some(object_id),
                     ..
-                } if object_id == "obj_shape_table_001"
+                } if object_id == "obj_table_001"
             )
         })
         .collect();
-    assert_eq!(table_graphics.len(), 3, "{table_graphics:?}");
+    assert_eq!(table_graphics.len(), 16, "{table_graphics:?}");
     assert!(primitives.iter().any(|primitive| matches!(
         primitive,
         RenderPrimitive::Rect {

@@ -1,6 +1,81 @@
 export function createEditorInteractionScenarios(scope) {
   const { assert, openViewer, ENDPOINT_FEEDBACK_RADIUS_PX } = scope;
 
+  async function verifyNativeTableToolWorkflow(browser) {
+    const { page, errors } = await openViewer(browser);
+    await page.locator('button[data-tool="table"]').click();
+    const box = await page.locator("#viewer-container").boundingBox();
+    const start = { x: box.x + box.width / 2 - 120, y: box.y + box.height / 2 - 70 };
+    const end = { x: start.x + 240, y: start.y + 140 };
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 6 });
+    await page.mouse.up();
+    const insertDialog = page.locator(".table-insert-dialog");
+    await insertDialog.waitFor({ state: "visible" });
+    await insertDialog.locator('input[name="rows"]').fill("3");
+    await insertDialog.locator('input[name="columns"]').fill("4");
+    await insertDialog.locator('button[type="submit"]').click();
+    await page.waitForFunction(() => {
+      const doc = JSON.parse(window.__chemsemaDebug?.state?.editorEngine?.documentJson?.() || "null");
+      return doc?.objects?.some((object) => object.type === "table"
+        && object.payload?.table?.rows === 3
+        && object.payload?.table?.columns === 4);
+    });
+
+    const cell = await page.evaluate(() => {
+      const doc = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+      const table = doc.objects.find((object) => object.type === "table");
+      const data = table.payload.table;
+      const x = table.transform.translate[0] + (data.columnGuides[0] + data.columnGuides[1]) * 0.5;
+      const y = table.transform.translate[1] + (data.rowGuides[0] + data.rowGuides[1]) * 0.5;
+      const client = window.__chemsemaDebug.worldToClient(x, y);
+      return { x: client.x, y: client.y, id: table.id };
+    });
+    await page.mouse.move(cell.x, cell.y);
+    await page.waitForFunction((tableId) => {
+      const state = JSON.parse(window.__chemsemaDebug.state.editorEngine.stateJson());
+      return state.overlay?.hoverTableCell?.objectId === tableId
+        || state.overlay?.hover_table_cell?.object_id === tableId;
+    }, cell.id);
+
+    await page.mouse.click(cell.x, cell.y, { button: "right" });
+    await page.locator('.canvas-context-menu:not([hidden]) [data-canvas-context-command="table-edit"]')
+      .filter({ hasText: "Add Row After" })
+      .click();
+    await page.waitForFunction((tableId) => {
+      const doc = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+      return doc.objects.find((object) => object.id === tableId)?.payload?.table?.rows === 4;
+    }, cell.id);
+
+    await page.mouse.click(cell.x, cell.y, { button: "right" });
+    await page.locator('.canvas-context-menu:not([hidden]) [data-canvas-context-command="table-borders-dialog"]')
+      .click();
+    const bordersDialog = page.locator(".table-borders-dialog");
+    await bordersDialog.waitFor({ state: "visible" });
+    await bordersDialog.locator('input[name="setting"][value="all"]').check();
+    await bordersDialog.locator('select[name="lineStyle"]').selectOption("dashed");
+    await bordersDialog.locator('input[name="width"]').fill("1.25");
+    await bordersDialog.locator('input[name="color"]').fill("#204080");
+    await bordersDialog.locator('button[type="submit"]').click();
+    await page.waitForFunction((tableId) => {
+      const doc = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+      const cellData = doc.objects
+        .find((object) => object.id === tableId)
+        ?.payload?.table?.cells?.find((candidate) => candidate.row === 0 && candidate.column === 0);
+      return ["top", "left", "bottom", "right"].every((side) => {
+        const border = cellData?.borders?.[side];
+        return border?.visible
+          && border.lineStyle === "dashed"
+          && border.width === 1.25
+          && border.color === "#204080";
+      });
+    }, cell.id);
+
+    await page.close();
+    assert(!errors.length, `Viewer console errors during table workflow: ${errors.join("\n")}`);
+  }
+
   async function verifyBondDrawing(browser) {
     const { page, errors } = await openViewer(browser);
     await page.locator('button[data-tool="bond"]').click();
@@ -1563,5 +1638,5 @@ export function createEditorInteractionScenarios(scope) {
     assert(!errors.length, `Viewer console errors during cursor regression: ${errors.join("\n")}`);
   }
 
-  return { verifyBondDrawing, verifyBondCreationUsesKernelLocalPreview, verifyElementEndpointPatchUpdatesConnectedBonds, verifyJunctionDragUsesBackendPrimitivePatch, verifyTransformedArrowRenderHitAndSelection, verifyCursorAnchoredWheelZoom, verifyQuickPaletteAndSelectDragRegression, verifyEndpointFeedbackRules, verifyGraphicObjectDragTracksPointerAndSelection, verifyCreationDragKeepsCanvasVisibleAfterToolSwitch, verifyDeleteToolTemporaryToolbarAndEmptyDocument, verifySelectedObjectSuppressesHover, verifyDragHandleCursors };
+  return { verifyNativeTableToolWorkflow, verifyBondDrawing, verifyBondCreationUsesKernelLocalPreview, verifyElementEndpointPatchUpdatesConnectedBonds, verifyJunctionDragUsesBackendPrimitivePatch, verifyTransformedArrowRenderHitAndSelection, verifyCursorAnchoredWheelZoom, verifyQuickPaletteAndSelectDragRegression, verifyEndpointFeedbackRules, verifyGraphicObjectDragTracksPointerAndSelection, verifyCreationDragKeepsCanvasVisibleAfterToolSwitch, verifyDeleteToolTemporaryToolbarAndEmptyDocument, verifySelectedObjectSuppressesHover, verifyDragHandleCursors };
 }

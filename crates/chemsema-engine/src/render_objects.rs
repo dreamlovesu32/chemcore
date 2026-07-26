@@ -9,7 +9,9 @@ mod graphics;
 mod text;
 
 pub(super) use arrows::render_line_object;
-pub(super) use graphics::{render_bracket_object, render_curve_object, render_shape_object};
+pub(super) use graphics::{
+    render_bracket_object, render_curve_object, render_shape_object, render_table_object,
+};
 pub(super) use text::render_text_object;
 
 fn text_anchor(align: &str) -> String {

@@ -108,6 +108,7 @@ pub fn parse_sdf_document(sdf: &str, title: Option<&str>) -> Result<ChemSemaDocu
                 spectrum: None,
                 geometry: None,
                 constraint: None,
+                table: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),

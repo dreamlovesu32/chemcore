@@ -54,7 +54,7 @@ export const ARROW_TOOL_ICON_TYPES = [
   "unequal-equilibrium-large",
 ];
 
-export const SHAPE_TOOL_ICON_KINDS = ["circle", "ellipse", "round-rect", "rect", "cross-table"];
+export const SHAPE_TOOL_ICON_KINDS = ["circle", "ellipse", "round-rect", "rect"];
 export const SHAPE_TOOL_STYLE_KINDS = ["circle", "ellipse", "round-rect", "rect"];
 export const SHAPE_TOOL_ICON_STYLES = ["solid", "dashed", "shaded", "filled", "shadowed"];
 export const ORBITAL_TOOL_ICON_TEMPLATES = ["s", "p", "dxy", "oval", "hybrid", "dz2", "lobe"];
@@ -238,9 +238,7 @@ function shapeIconSvg(kind = "rect", style = "solid", editorState = null) {
     ? `<circle class="${fill} cc-shape" cx="12" cy="12" r="6.2"${dash}/>`
     : normalizedKind === "ellipse"
       ? `<ellipse class="${fill} cc-shape" cx="12" cy="12" rx="7.2" ry="4.5"${dash}/>`
-      : normalizedKind === "cross-table"
-        ? `<rect class="${fill} cc-shape" x="5.5" y="6.2" width="13" height="11.5"${dash}/><path class="cc-shape" d="M12 6.2v11.5M5.5 11.95h13"${dash}/>`
-        : `<rect class="${fill} cc-shape" x="5.5" y="6.2" width="13" height="11.5"${normalizedKind === "round-rect" ? ` rx="2.6"` : ""}${dash}/>`;
+      : `<rect class="${fill} cc-shape" x="5.5" y="6.2" width="13" height="11.5"${normalizedKind === "round-rect" ? ` rx="2.6"` : ""}${dash}/>`;
   return iconSvg(`${shadow}${mark}`, "cc-shape-icon");
 }
 
@@ -253,7 +251,6 @@ const SHAPE_KIND_TITLES = {
   ellipse: "Ellipse",
   "round-rect": "Rounded rectangle",
   rect: "Rectangle",
-  "cross-table": "Cross table",
 };
 
 const SHAPE_STYLE_TITLES = {
@@ -429,6 +426,7 @@ function commandIconSvg(name) {
     text: iconSvg(`<path class="cc-stroke" d="M7.5 19 12 5.1 16.5 19"/><path class="cc-stroke" d="M9 14.1h6"/>`, "cc-tool-icon"),
     arrow: straightArrowSvg(),
     shape: iconSvg(`<rect class="cc-shape cc-empty-fill" x="5.5" y="5.5" width="10.2" height="10.2"/><circle class="cc-shape cc-empty-fill" cx="16.8" cy="16.8" r="3.45"/>`, "cc-tool-icon"),
+    table: iconSvg(`<rect class="cc-shape cc-empty-fill" x="4.5" y="4.5" width="15" height="15"/><path class="cc-shape" d="M12 4.5v15M4.5 12h15"/>`, "cc-tool-icon"),
     "tlc-plate": iconSvg(`<rect class="cc-shape cc-empty-fill" x="8.2" y="3.8" width="7.6" height="15.2" rx="0.55"/><path class="cc-shape" d="M9.4 7.1h5.2" stroke-dasharray="1.05 1.05"/><path class="cc-shape" d="M9.4 16.25h5.2"/><circle class="cc-shape-fill" cx="10.15" cy="14.65" r="0.55"/><circle class="cc-shape-fill" cx="12" cy="12.2" r="0.68"/><circle class="cc-shape-fill" cx="13.85" cy="9.95" r="0.55"/>`, "cc-tool-icon"),
     orbital: iconSvg(`<path class="cc-shape cc-empty-fill" d="M12 4c3.35 0 5.35 2.67 5.35 6.25 0 3.26-2 6.17-5.35 9.5-3.35-3.33-5.35-6.24-5.35-9.5C6.65 6.67 8.65 4 12 4Z"/><path class="cc-shape" d="M12 4c0 0 2 2.55 2 6.25S12 19.75 12 19.75"/>`, "cc-tool-icon"),
   };
@@ -465,6 +463,7 @@ export function syncPrimaryChromeIcons(root = document) {
     ["bracket", generatedBracketIconSvg("round")],
     ["element", elementIconSvg()],
     ["shape", commandIconSvg("shape")],
+    ["table", commandIconSvg("table")],
     ["tlc-plate", commandIconSvg("tlc-plate")],
     ["orbital", commandIconSvg("orbital")],
     ["templates", generatedRingSvg(6)],

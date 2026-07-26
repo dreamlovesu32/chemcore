@@ -1223,7 +1223,6 @@ circle
 ellipse
 round-rect
 rect
-cross-table
 tlc-plate
 ```
 

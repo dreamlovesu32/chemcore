@@ -173,6 +173,7 @@ CDX/CDXML 的字段全集大于当前跨格式场景模型。不能因为暂时�
 - `bracket`
 - `symbol`
 - `shape`
+- `table`
 - `image`
 - `spectrum`
 - `group`
@@ -190,6 +191,7 @@ CDX/CDXML 的字段全集大于当前跨格式场景模型。不能因为暂时�
 - `bracket`：括号类图形对象
 - `symbol`：可独立选择和编辑的 ChemDraw 符号对象
 - `shape`：简单的填充或描边区域
+- `table`：带任意行列、单元格内容关系和逐边样式的原生表格
 - `image`：由明确图片资源支撑、可定位的栅格图片
 - `spectrum`：带明确坐标轴和单位语义的采样光谱
 - `group`：逻辑组合和共同变换
@@ -197,7 +199,7 @@ CDX/CDXML 的字段全集大于当前跨格式场景模型。不能因为暂时�
 这个拆分是刻意的：
 
 - `molecule` 负责化学语义
-- `text`、`line`、`bracket`、`shape`、`image`、`spectrum` 负责文档图形
+- `text`、`line`、`bracket`、`shape`、`table`、`image`、`spectrum` 负责文档图形
 - `group` 只负责收纳和变换
 
 重要原则：属于 `molecule` 的 label 是分子资源内部标签。
@@ -1057,6 +1059,43 @@ shape 的外观主要放在样式里，包括：
 - `shaded`：对应 CDXML `Shaded`
 - `shadow`：对应 CDXML `Shadow` / `Shadowed`
 - `shadowSize`：对应 CDXML `ShadowSize / 100`，是相对于 `strokeWidth` 的无量纲倍率；实际阴影偏移为 `shadowSize × strokeWidth`
+
+## Table 对象
+
+table 是一等场景对象，不是 shape 的一种 kind。`payload.table` 必须包含：
+
+- `rows`、`columns`：正整数；
+- `rowGuides`、`columnGuides`：严格递增的局部坐标，长度分别为 `rows + 1`、`columns + 1`；
+- `cells`：恰好覆盖每个 row/column 位置；
+- `defaultBorder`：默认 `visible`、`lineStyle`、`width`、`color`。
+
+每个 cell 包含唯一 `id`、`row`、`column`、`contentObjectIds`、`borders`、`horizontalAlignment` 和 `verticalAlignment`。`borders` 的 top/left/bottom/right 是可选覆盖；缺失时继承 `defaultBorder`。`lineStyle` 的规范值为 `solid`、`dashed`、`bold`、`wavy`。
+
+```json
+{
+  "id": "obj_table_1",
+  "type": "table",
+  "transform": { "translate": [120, 80], "rotate": 0, "scale": [1, 1] },
+  "payload": {
+    "bbox": [0, 0, 160, 80],
+    "table": {
+      "rows": 2,
+      "columns": 2,
+      "rowGuides": [0, 40, 80],
+      "columnGuides": [0, 80, 160],
+      "cells": [],
+      "defaultBorder": {
+        "visible": true,
+        "lineStyle": "solid",
+        "width": 0.75,
+        "color": "#000000"
+      }
+    }
+  }
+}
+```
+
+详细导入、渲染和交互规则见 `table-tool-rules.zh-CN.md`。
 
 ## Group 对象
 

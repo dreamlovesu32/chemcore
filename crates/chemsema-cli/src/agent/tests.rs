@@ -416,6 +416,7 @@ fn document_diff_reports_creation_deletion_and_unchanged_documents() {
             spectrum: None,
             geometry: None,
             constraint: None,
+            table: None,
             extra: BTreeMap::new(),
         },
         children: Vec::new(),

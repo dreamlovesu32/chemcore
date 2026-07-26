@@ -146,6 +146,10 @@ impl Engine {
             }
             return;
         }
+        if self.state.tool.active_tool == Tool::Table {
+            self.pointer_move_table(event);
+            return;
+        }
         if !can_focus_endpoint(&self.state.tool) {
             self.clear_interaction();
             return;
@@ -251,6 +255,10 @@ impl Engine {
         }
         if self.state.tool.active_tool == Tool::Arrow {
             self.pointer_down_arrow(event);
+            return;
+        }
+        if self.state.tool.active_tool == Tool::Table {
+            self.pointer_down_table(event);
             return;
         }
         if self.state.tool.active_tool == Tool::Templates {
@@ -397,6 +405,10 @@ impl Engine {
     pub fn pointer_up(&mut self, event: PointerEvent) {
         if self.state.tool.active_tool == Tool::Arrow {
             self.pointer_up_arrow(event);
+            return;
+        }
+        if self.state.tool.active_tool == Tool::Table {
+            self.pointer_up_table(event);
             return;
         }
         if self.state.tool.active_tool == Tool::Text {

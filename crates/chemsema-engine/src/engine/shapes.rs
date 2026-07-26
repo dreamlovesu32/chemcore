@@ -33,9 +33,7 @@ impl Engine {
             ShapeKind::RoundRect | ShapeKind::Rect => {
                 (icon_point(5.5, 6.2), icon_point(18.5, 17.7))
             }
-            ShapeKind::CrossTable | ShapeKind::TlcPlate => {
-                (icon_point(5.5, 6.2), icon_point(18.5, 17.7))
-            }
+            ShapeKind::TlcPlate => (icon_point(5.5, 6.2), icon_point(18.5, 17.7)),
         };
         let Some(object) = engine.shape_scene_object(start, current, object_id, style_id.clone())
         else {
@@ -240,15 +238,13 @@ impl Engine {
             ShapeDrawAnchorKind::Label => {
                 let bounds = anchor.bounds?;
                 match self.state.tool.shape_kind {
-                    ShapeKind::Rect
-                    | ShapeKind::RoundRect
-                    | ShapeKind::CrossTable
-                    | ShapeKind::TlcPlate => self.shape_scene_object(
-                        Point::new(bounds[0], bounds[1]),
-                        Point::new(bounds[2], bounds[3]),
-                        object_id,
-                        style_id,
-                    ),
+                    ShapeKind::Rect | ShapeKind::RoundRect | ShapeKind::TlcPlate => self
+                        .shape_scene_object(
+                            Point::new(bounds[0], bounds[1]),
+                            Point::new(bounds[2], bounds[3]),
+                            object_id,
+                            style_id,
+                        ),
                     ShapeKind::Circle | ShapeKind::Ellipse => {
                         let width = (bounds[2] - bounds[0]).abs();
                         let height = (bounds[3] - bounds[1]).abs();
@@ -282,15 +278,13 @@ impl Engine {
                 object_id,
                 style_id,
             ),
-            ShapeKind::Rect
-            | ShapeKind::RoundRect
-            | ShapeKind::CrossTable
-            | ShapeKind::TlcPlate => self.shape_scene_object(
-                Point::new(center.x - radius, center.y - radius),
-                Point::new(center.x + radius, center.y + radius),
-                object_id,
-                style_id,
-            ),
+            ShapeKind::Rect | ShapeKind::RoundRect | ShapeKind::TlcPlate => self
+                .shape_scene_object(
+                    Point::new(center.x - radius, center.y - radius),
+                    Point::new(center.x + radius, center.y + radius),
+                    object_id,
+                    style_id,
+                ),
         }
     }
 
@@ -309,10 +303,7 @@ impl Engine {
                             .point
                             .translated(direction_from_angle(0.0).scaled(radius)),
                     ),
-                    ShapeKind::Rect
-                    | ShapeKind::RoundRect
-                    | ShapeKind::CrossTable
-                    | ShapeKind::TlcPlate => (
+                    ShapeKind::Rect | ShapeKind::RoundRect | ShapeKind::TlcPlate => (
                         Point::new(drag.anchor.point.x - radius, drag.anchor.point.y - radius),
                         Point::new(drag.anchor.point.x + radius, drag.anchor.point.y + radius),
                     ),
@@ -334,10 +325,7 @@ impl Engine {
                                 .translated(direction_from_angle(0.0).scaled(radius)),
                         )
                     }
-                    ShapeKind::Rect
-                    | ShapeKind::RoundRect
-                    | ShapeKind::CrossTable
-                    | ShapeKind::TlcPlate => (
+                    ShapeKind::Rect | ShapeKind::RoundRect | ShapeKind::TlcPlate => (
                         Point::new(bounds[0], bounds[1]),
                         Point::new(bounds[2], bounds[3]),
                     ),
@@ -412,10 +400,7 @@ impl Engine {
                     extra,
                 )
             }
-            ShapeKind::RoundRect
-            | ShapeKind::Rect
-            | ShapeKind::CrossTable
-            | ShapeKind::TlcPlate => {
+            ShapeKind::RoundRect | ShapeKind::Rect | ShapeKind::TlcPlate => {
                 let x1 = start.x.min(current.x);
                 let y1 = start.y.min(current.y);
                 let width = (current.x - start.x).abs();
@@ -428,7 +413,6 @@ impl Engine {
                     "kind".to_string(),
                     json!(match self.state.tool.shape_kind {
                         ShapeKind::RoundRect => "roundRect",
-                        ShapeKind::CrossTable => "crossTable",
                         ShapeKind::TlcPlate => "tlcPlate",
                         _ => "rect",
                     }),
@@ -496,6 +480,7 @@ impl Engine {
                 spectrum: None,
                 geometry: None,
                 constraint: None,
+                table: None,
                 extra,
             },
             children: Vec::new(),

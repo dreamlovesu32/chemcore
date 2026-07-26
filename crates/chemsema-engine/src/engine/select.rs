@@ -42,6 +42,7 @@ mod render;
 
 use self::arrange::*;
 use self::arrows::*;
+pub(in crate::engine) use self::drag::translated_scene_object;
 use self::drag::*;
 use self::geometry::*;
 use self::render::*;
@@ -1590,6 +1591,7 @@ impl Engine {
                 | crate::SceneObjectKind::Bracket
                 | crate::SceneObjectKind::Symbol
                 | crate::SceneObjectKind::Shape
+                | crate::SceneObjectKind::Table
                 | crate::SceneObjectKind::Image
                 | crate::SceneObjectKind::Spectrum
                 | crate::SceneObjectKind::Geometry
@@ -1671,10 +1673,23 @@ impl Engine {
                     .scene_objects()
                     .into_iter()
                     .find(|object| object.id == object_id);
+                let table_cell = object
+                    .filter(|object| object.object_type == "table")
+                    .and_then(|object| {
+                        self.table_cell_at_point(&object.id, point)
+                            .map(|(row, column, bounds)| {
+                                json!({
+                                    "row": row,
+                                    "column": column,
+                                    "bounds": bounds,
+                                })
+                            })
+                    });
                 json!({
                     "kind": "object",
                     "objectId": object_id,
                     "objectType": object.map(|object| object.object_type.as_str()).unwrap_or(""),
+                    "tableCell": table_cell,
                     "selected": selected,
                 })
             }
@@ -1857,6 +1872,7 @@ impl Engine {
                     | "bracket"
                     | "symbol"
                     | "shape"
+                    | "table"
                     | "image"
                     | "spectrum"
                     | "geometry"
@@ -1950,7 +1966,7 @@ impl Engine {
         for object in self.state.document.scene_objects() {
             if !matches!(
                 object.object_type.as_str(),
-                "curve" | "bracket" | "symbol" | "shape" | "image" | "spectrum"
+                "curve" | "bracket" | "symbol" | "shape" | "table" | "image" | "spectrum"
             ) || !object.visible
             {
                 continue;
@@ -2518,9 +2534,8 @@ impl Engine {
                 ..base
             };
         }
-        if object.object_type == "shape" && kind == "crossTable" {
+        if object.object_type == "table" {
             return SelectionOverlayBehavior {
-                show_resize_handles: false,
                 show_rotate_handle: false,
                 show_rotate_glyph: false,
                 use_global_bounds_only: true,

@@ -296,6 +296,9 @@ impl Engine {
             EditorCommand::AddArrow { .. }
             | EditorCommand::ApplyArrowStyle { .. }
             | EditorCommand::AddShape { .. }
+            | EditorCommand::AddTable { .. }
+            | EditorCommand::EditTable { .. }
+            | EditorCommand::SetTableBorders { .. }
             | EditorCommand::AddBracket { .. }
             | EditorCommand::AddSymbol { .. }
             | EditorCommand::AddOrbital { .. }

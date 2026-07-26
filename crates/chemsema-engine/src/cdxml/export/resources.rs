@@ -68,6 +68,22 @@ pub(super) fn collect_document_colors(document: &ChemSemaDocument, colors: &mut 
                 }
             }
         }
+        if let Some(table) = object.payload.table.as_ref() {
+            colors.ensure(&table.default_border.color);
+            for cell in &table.cells {
+                for border in [
+                    cell.borders.top.as_ref(),
+                    cell.borders.left.as_ref(),
+                    cell.borders.bottom.as_ref(),
+                    cell.borders.right.as_ref(),
+                ]
+                .into_iter()
+                .flatten()
+                {
+                    colors.ensure(&border.color);
+                }
+            }
+        }
     }
     for resource in document.resources.values() {
         let Some(fragment) = resource.data.as_fragment() else {

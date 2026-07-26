@@ -434,6 +434,22 @@ impl Engine {
             .iter()
             .map(String::as_str)
             .collect();
+        for object_id in &self.state.selection.arrow_objects {
+            let Some(table) = self
+                .state
+                .document
+                .find_scene_object(object_id)
+                .and_then(|object| object.payload.table.as_ref())
+            else {
+                continue;
+            };
+            selected_scene_ids.extend(
+                table
+                    .cells
+                    .iter()
+                    .flat_map(|cell| cell.content_object_ids.iter().map(String::as_str)),
+            );
+        }
         selected_scene_ids.extend(self.state.selection.text_objects.iter().map(String::as_str));
         selected_scene_ids.extend(fully_selected_molecule_ids.iter().map(String::as_str));
         let mut scene_objects = Vec::new();
@@ -528,6 +544,22 @@ impl Engine {
         let mut selected_object_ids: BTreeSet<String> =
             self.state.selection.text_objects.iter().cloned().collect();
         selected_object_ids.extend(self.state.selection.arrow_objects.iter().cloned());
+        for object_id in &self.state.selection.arrow_objects {
+            let Some(table) = self
+                .state
+                .document
+                .find_scene_object(object_id)
+                .and_then(|object| object.payload.table.as_ref())
+            else {
+                continue;
+            };
+            selected_object_ids.extend(
+                table
+                    .cells
+                    .iter()
+                    .flat_map(|cell| cell.content_object_ids.iter().cloned()),
+            );
+        }
 
         let mut objects = Vec::new();
         for object in &self.state.document.objects {
@@ -747,6 +779,7 @@ fn visible_root_object_is_selected_for_clipboard(
         | crate::SceneObjectKind::Bracket
         | crate::SceneObjectKind::Symbol
         | crate::SceneObjectKind::Shape
+        | crate::SceneObjectKind::Table
         | crate::SceneObjectKind::Image
         | crate::SceneObjectKind::Spectrum
         | crate::SceneObjectKind::Geometry
@@ -826,6 +859,16 @@ fn remap_clipboard_scene_object(
             &mut constraint.unresolved_basis_ids,
             entity_id_map,
         );
+    }
+    if let Some(table) = object.payload.table.as_mut() {
+        for (index, cell) in table.cells.iter_mut().enumerate() {
+            cell.id = format!("{}_cell_{}_{}_{}", object.id, cell.row, cell.column, index);
+            cell.content_object_ids = cell
+                .content_object_ids
+                .iter()
+                .filter_map(|id| entity_id_map.get(id).cloned())
+                .collect();
+        }
     }
     for child in &mut object.children {
         remap_clipboard_scene_object(child, resource_id_map, entity_id_map);

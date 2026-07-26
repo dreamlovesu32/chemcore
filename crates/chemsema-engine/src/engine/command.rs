@@ -320,6 +320,30 @@ pub enum EditorCommand {
         begin: CommandAnchor,
         end: CommandAnchor,
     },
+    AddTable {
+        begin: CommandAnchor,
+        end: CommandAnchor,
+        rows: usize,
+        columns: usize,
+    },
+    EditTable {
+        #[serde(alias = "objectId")]
+        object_id: String,
+        row: usize,
+        column: usize,
+        action: String,
+    },
+    SetTableBorders {
+        #[serde(alias = "objectId")]
+        object_id: String,
+        row: usize,
+        column: usize,
+        sides: Vec<String>,
+        #[serde(alias = "lineStyle")]
+        line_style: crate::TableLineStyle,
+        width: f64,
+        color: String,
+    },
     AddBracket {
         kind: BracketKind,
         begin: CommandAnchor,

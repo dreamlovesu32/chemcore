@@ -139,6 +139,7 @@ Each scene object shares a common envelope:
 - `bracket`
 - `symbol`
 - `shape`
+- `table`
 - `image`
 - `spectrum`
 - `group`
@@ -157,6 +158,7 @@ types:
 - `bracket`: bracket-like graphical objects
 - `symbol`: independently selectable ChemDraw symbol objects
 - `shape`: simple filled or stroked regions
+- `table`: native arbitrary grids with cell content relationships and per-edge styles
 - `image`: placed raster image backed by an explicit image resource
 - `spectrum`: sampled scientific spectrum with explicit axes and unit semantics
 - `group`: logical grouping and shared transform
@@ -164,7 +166,7 @@ types:
 This split is intentional.
 
 - `molecule` owns chemistry semantics
-- `text`, `line`, `bracket`, `shape`, `image`, and `spectrum` are document graphics
+- `text`, `line`, `bracket`, `shape`, `table`, `image`, and `spectrum` are document graphics
 - `group` owns containment and transform only
 
 Important: labels that belong to a `molecule` are molecule-owned structure labels.
@@ -1101,6 +1103,19 @@ Shape appearance belongs primarily in styles, including:
 - `shaded`, mapped from CDXML `Shaded`
 - `shadow`, mapped from CDXML `Shadow` / `Shadowed`
 - `shadowSize`, mapped from CDXML `ShadowSize / 100`; it is a dimensionless multiplier of `strokeWidth`, so the rendered shadow offset is `shadowSize × strokeWidth`
+
+## Table Object
+
+A table is a first-class scene object, not a shape kind. `payload.table` stores
+positive `rows` and `columns`, strictly increasing local `rowGuides` and
+`columnGuides`, one cell for every row/column position, and `defaultBorder`.
+Each cell stores a unique id, its row and column, `contentObjectIds`, four
+optional border overrides, and horizontal/vertical alignment. Missing edge
+overrides inherit `defaultBorder`. The normative line styles are `solid`,
+`dashed`, `bold`, and `wavy`.
+
+See `table-tool-rules.zh-CN.md` for the verified CDX/CDXML mapping and editor
+behavior.
 
 ## Group Object
 

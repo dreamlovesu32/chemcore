@@ -133,6 +133,7 @@ pub(super) fn property_schema(tag: u16) -> Option<PropertySchema> {
         0x081F => ("CaptionFace", PropertyKind::Int16),
         0x0822 => ("BondSpacingAbs", PropertyKind::Coordinate),
         0x0823 => ("LabelJustification", PropertyKind::Enum8(JUSTIFICATION)),
+        0x0825 => ("Side", PropertyKind::Enum(TABLE_SIDE)),
         0x0900 => ("WindowIsZoomed", PropertyKind::BooleanImplied),
         0x0901 => ("WindowPosition", PropertyKind::Point2D),
         0x0902 => ("WindowSize", PropertyKind::Point2D),
@@ -291,6 +292,7 @@ pub(super) fn property_tag(name: &str) -> Option<u16> {
         "CaptionFace" => 0x081F,
         "BondSpacingAbs" => 0x0822,
         "LabelJustification" => 0x0823,
+        "Side" => 0x0825,
         "WindowIsZoomed" => 0x0900,
         "WindowPosition" => 0x0901,
         "WindowSize" => 0x0902,
@@ -436,6 +438,7 @@ pub(super) fn object_name(tag: u16) -> Option<&'static str> {
 
 pub(super) fn legacy_chemsema_object_name(tag: u16) -> Option<&'static str> {
     Some(match tag {
+        0x801A => "border",
         0x801B => "geometry",
         0x801C => "constraint",
         0x801D => "tlcplate",
@@ -444,7 +447,6 @@ pub(super) fn legacy_chemsema_object_name(tag: u16) -> Option<&'static str> {
         0x8020 => "chemicalproperty",
         0x8021 => "arrow",
         0x8025 => "bioshape",
-        0x802A => "border",
         0x802B => "annotation",
         _ => return None,
     })
@@ -476,6 +478,7 @@ pub(super) fn object_tag(name: &str) -> Option<u16> {
         "bracketedgroup" => 0x8017,
         "bracketattachment" => 0x8018,
         "crossingbond" => 0x8019,
+        "border" => 0x801A,
         "geometry" => 0x801B,
         "constraint" => 0x801C,
         "tlcplate" => 0x801D,
@@ -483,7 +486,6 @@ pub(super) fn object_tag(name: &str) -> Option<u16> {
         "tlcspot" => 0x801F,
         "chemicalproperty" => 0x8020,
         "arrow" => 0x8021,
-        "border" => 0x802A,
         "coloredmoleculararea" | "ColoredMolecularArea" => 0x8032,
         _ => return None,
     })

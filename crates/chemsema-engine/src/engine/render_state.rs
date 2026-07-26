@@ -82,6 +82,24 @@ impl Engine {
                 });
             }
         }
+        if let Some(hover) = &self.state.overlay.hover_table_cell {
+            out.push(RenderPrimitive::Rect {
+                role: RenderRole::HoverObjectBox,
+                object_id: Some(hover.object_id.clone()),
+                node_id: None,
+                x: hover.bounds[0],
+                y: hover.bounds[1],
+                width: hover.bounds[2] - hover.bounds[0],
+                height: hover.bounds[3] - hover.bounds[1],
+                fill: Some("rgba(47,111,237,0.08)".to_string()),
+                stroke: Some("rgba(47,111,237,0.82)".to_string()),
+                stroke_width: HOVER_STROKE_WIDTH,
+                rx: None,
+                ry: None,
+                dash_array: Vec::new(),
+                fill_gradient: None,
+            });
+        }
         if let Some(hover) = &self.state.overlay.hover_endpoint {
             if let Some(label_anchor) = &hover.label_anchor {
                 out.push(RenderPrimitive::Rect {

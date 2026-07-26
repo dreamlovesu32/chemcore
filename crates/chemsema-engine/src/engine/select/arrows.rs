@@ -10,6 +10,22 @@ pub(super) fn selected_text_object_ids(engine: &Engine) -> BTreeSet<String> {
         .cloned()
         .collect();
     ids.extend(engine.state.selection.arrow_objects.iter().cloned());
+    for object_id in &engine.state.selection.arrow_objects {
+        let Some(table) = engine
+            .state
+            .document
+            .find_scene_object(object_id)
+            .and_then(|object| object.payload.table.as_ref())
+        else {
+            continue;
+        };
+        ids.extend(
+            table
+                .cells
+                .iter()
+                .flat_map(|cell| cell.content_object_ids.iter().cloned()),
+        );
+    }
     ids.retain(|object_id| !overlay.selected_group_hides_object(object_id));
     ids
 }

@@ -122,6 +122,7 @@ pub(in crate::cdxml) fn append_shape_objects(
                     spectrum: None,
                     geometry: None,
                     constraint: None,
+                    table: None,
                     extra,
                 },
             )
@@ -156,6 +157,7 @@ pub(in crate::cdxml) fn append_shape_objects(
                     spectrum: None,
                     geometry: None,
                     constraint: None,
+                    table: None,
                     extra,
                 },
             )
@@ -304,6 +306,7 @@ pub(in crate::cdxml) fn append_orbital_shape_objects(
                 spectrum: None,
                 geometry: None,
                 constraint: None,
+                table: None,
                 extra,
             },
             children: Vec::new(),
@@ -356,7 +359,7 @@ pub(super) fn cdxml_orbital_family(
 pub(in crate::cdxml) fn append_table_shape_objects(
     root: &XmlNode,
     objects: &mut Vec<SceneObject>,
-    styles: &mut BTreeMap<String, Value>,
+    _styles: &mut BTreeMap<String, Value>,
     defaults: CdxmlDefaults,
     colors: &CdxmlColorTable,
 ) {
@@ -365,54 +368,224 @@ pub(in crate::cdxml) fn append_table_shape_objects(
         if !node.is("table") || node.attr("SupersededBy").is_some() {
             continue;
         }
-        let Some(bbox) = parse_bbox(node.attr("BoundingBox")) else {
+        let pages = node.direct_children("page").collect::<Vec<_>>();
+        if pages.is_empty() {
             continue;
+        }
+        let page_bounds = pages
+            .iter()
+            .filter_map(|page| {
+                parse_ordered_bbox(
+                    page.attr("BoundsInParent")
+                        .or_else(|| page.attr("BoundingBox")),
+                )
+            })
+            .map(|bounds| {
+                [
+                    bounds[0].min(bounds[2]),
+                    bounds[1].min(bounds[3]),
+                    bounds[0].max(bounds[2]),
+                    bounds[1].max(bounds[3]),
+                ]
+            })
+            .collect::<Vec<_>>();
+        if page_bounds.len() != pages.len() {
+            continue;
+        }
+        let mut column_guides = page_bounds
+            .iter()
+            .flat_map(|bounds| [bounds[0], bounds[2]])
+            .collect::<Vec<_>>();
+        let mut row_guides = page_bounds
+            .iter()
+            .flat_map(|bounds| [bounds[1], bounds[3]])
+            .collect::<Vec<_>>();
+        column_guides.sort_by(f64::total_cmp);
+        row_guides.sort_by(f64::total_cmp);
+        column_guides.dedup_by(|left, right| (*left - *right).abs() <= crate::EPSILON);
+        row_guides.dedup_by(|left, right| (*left - *right).abs() <= crate::EPSILON);
+        if column_guides.len() < 2 || row_guides.len() < 2 {
+            continue;
+        }
+        let left = column_guides[0];
+        let top = row_guides[0];
+        let right = *column_guides.last().unwrap_or(&left);
+        let bottom = *row_guides.last().unwrap_or(&top);
+        let default_border = crate::TableBorder {
+            visible: parse_f64(node.attr("LineWidth")).unwrap_or(defaults.line_width)
+                > crate::EPSILON,
+            line_style: table_line_style(node.attr("LineType")),
+            width: parse_f64(node.attr("LineWidth")).unwrap_or(defaults.line_width),
+            color: colors.resolve(node.attr("color")),
         };
-        let color = colors.resolve(node.attr("color"));
-        let style_id = format!("style_shape_table_{index:03}");
-        styles.insert(
-            style_id.clone(),
-            json!({
-                "kind": "shape",
-                "fill": Value::Null,
-                "stroke": color,
-                "strokeWidth": defaults.line_width,
-                "dashArray": json!([]),
-            }),
-        );
-        let mut extra = BTreeMap::new();
-        extra.insert("kind".to_string(), json!("crossTable"));
+        let rows = row_guides.len() - 1;
+        let columns = column_guides.len() - 1;
+        let cells = pages
+            .iter()
+            .zip(page_bounds.iter())
+            .filter_map(|(page, bounds)| {
+                let row = row_guides
+                    .iter()
+                    .position(|guide| (*guide - bounds[1]).abs() <= crate::EPSILON)?;
+                let column = column_guides
+                    .iter()
+                    .position(|guide| (*guide - bounds[0]).abs() <= crate::EPSILON)?;
+                let mut borders = crate::TableCellBorders::default();
+                for border_node in page.direct_children("border") {
+                    let width =
+                        parse_f64(border_node.attr("LineWidth")).unwrap_or(default_border.width);
+                    let border = crate::TableBorder {
+                        visible: width > crate::EPSILON,
+                        line_style: table_line_style(border_node.attr("LineType")),
+                        width,
+                        color: colors
+                            .resolve(border_node.attr("color").or_else(|| node.attr("color"))),
+                    };
+                    match border_node.attr("Side").unwrap_or("undefined") {
+                        "top" => borders.top = Some(border),
+                        "left" => borders.left = Some(border),
+                        "bottom" => borders.bottom = Some(border),
+                        "right" => borders.right = Some(border),
+                        _ => {}
+                    }
+                }
+                Some(crate::TableCell {
+                    id: page
+                        .attr("id")
+                        .map(|id| format!("cell_cdxml_{id}"))
+                        .unwrap_or_else(|| format!("cell_{index}_{row}_{column}")),
+                    row,
+                    column,
+                    content_object_ids: Vec::new(),
+                    borders,
+                    horizontal_alignment: Default::default(),
+                    vertical_alignment: Default::default(),
+                })
+            })
+            .collect::<Vec<_>>();
+        if cells.len() != rows * columns {
+            continue;
+        }
         objects.push(SceneObject {
-            id: format!("obj_shape_table_{index:03}"),
-            object_type: "shape".to_string(),
-            name: format!("table shape {index}"),
+            id: format!("obj_table_{index:03}"),
+            object_type: "table".to_string(),
+            name: format!("table {index}"),
             visible: true,
             locked: false,
             z_index: parse_i32(node.attr("Z")).unwrap_or(15),
             transform: Transform {
-                translate: [round2(bbox[0]), round2(bbox[1])],
+                translate: [round2(left), round2(top)],
                 rotate: 0.0,
                 scale: [1.0, 1.0],
             },
-            style_ref: Some(style_id),
+            style_ref: None,
             link_policy: Default::default(),
             meta: json!({"source": "cdxml", "tableId": node.attr("id")}),
             payload: ObjectPayload {
                 resource_ref: None,
-                bbox: Some([
-                    0.0,
-                    0.0,
-                    round2(bbox[2] - bbox[0]),
-                    round2(bbox[3] - bbox[1]),
-                ]),
+                bbox: Some([0.0, 0.0, round2(right - left), round2(bottom - top)]),
                 spectrum: None,
                 geometry: None,
                 constraint: None,
-                extra,
+                table: Some(crate::TableData {
+                    rows,
+                    columns,
+                    row_guides: row_guides
+                        .into_iter()
+                        .map(|guide| round2(guide - top))
+                        .collect(),
+                    column_guides: column_guides
+                        .into_iter()
+                        .map(|guide| round2(guide - left))
+                        .collect(),
+                    cells,
+                    default_border,
+                }),
+                extra: BTreeMap::new(),
             },
             children: Vec::new(),
         });
         index += 1;
+    }
+}
+
+fn table_line_style(value: Option<&str>) -> crate::TableLineStyle {
+    match value.unwrap_or("Solid") {
+        value if value.contains("Dashed") => crate::TableLineStyle::Dashed,
+        value if value.contains("Bold") => crate::TableLineStyle::Bold,
+        value if value.contains("Wavy") => crate::TableLineStyle::Wavy,
+        _ => crate::TableLineStyle::Solid,
+    }
+}
+
+pub(in crate::cdxml) fn associate_table_cell_contents(root: &XmlNode, objects: &mut [SceneObject]) {
+    let mut page_sources = BTreeMap::<String, BTreeSet<String>>::new();
+    for table in descendants(root)
+        .into_iter()
+        .filter(|node| node.is("table"))
+    {
+        for page in table.direct_children("page") {
+            let Some(page_id) = page.attr("id") else {
+                continue;
+            };
+            let sources = descendants(page)
+                .into_iter()
+                .filter(|node| !matches!(node.name.as_str(), "page" | "border"))
+                .filter_map(|node| node.attr("id").map(ToString::to_string))
+                .collect();
+            page_sources.insert(page_id.to_string(), sources);
+        }
+    }
+    let object_sources = objects
+        .iter()
+        .filter(|object| object.object_type != "table")
+        .map(|object| {
+            let mut values = BTreeSet::new();
+            collect_id_meta_values(&object.meta, &mut values);
+            (object.id.clone(), values)
+        })
+        .collect::<Vec<_>>();
+    for object in objects
+        .iter_mut()
+        .filter(|object| object.object_type == "table")
+    {
+        let Some(table) = object.payload.table.as_mut() else {
+            continue;
+        };
+        for cell in &mut table.cells {
+            let Some(page_id) = cell.id.strip_prefix("cell_cdxml_") else {
+                continue;
+            };
+            let Some(sources) = page_sources.get(page_id) else {
+                continue;
+            };
+            cell.content_object_ids = object_sources
+                .iter()
+                .filter(|(_, object_ids)| !object_ids.is_disjoint(sources))
+                .map(|(object_id, _)| object_id.clone())
+                .collect();
+        }
+    }
+}
+
+fn collect_id_meta_values(value: &Value, values: &mut BTreeSet<String>) {
+    match value {
+        Value::Object(object) => {
+            for (key, value) in object {
+                if key.ends_with("Id") {
+                    if let Some(value) = value.as_str() {
+                        values.insert(value.to_string());
+                    }
+                }
+                collect_id_meta_values(value, values);
+            }
+        }
+        Value::Array(array) => {
+            for value in array {
+                collect_id_meta_values(value, values);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -580,6 +753,7 @@ pub(in crate::cdxml) fn append_tlc_plate_shape_objects(
                 spectrum: None,
                 geometry: None,
                 constraint: None,
+                table: None,
                 extra,
             },
             children: Vec::new(),

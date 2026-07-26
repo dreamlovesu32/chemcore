@@ -220,15 +220,17 @@
 
 **规则与证据**：见 [分子着色与结构高亮规则](molecular-coloring-rules.zh-CN.md)。
 
-### [ ] NR-010 独立 Border
+### [x] NR-010 Table Tool、表格与单元格 Border
 
-**范围**：独立 `border` 对象；表格和 TLC 内部已有实现不能代替独立对象。
+**范围**：`table`、作为单元格的 `page`、单元格子对象和 `border`。
 
-**现状**：部分宿主对象会画边框，但独立边框对象没有完整场景语义。
+**官方语义纠正**：`border` 不是独立场景对象。官方 SDK 明确规定它只作为表格单元格 `page` 的一条边存在；相邻单元格各自保存共享边的一份描述，冲突值没有定义。因此不得再把它设计成可自由放置的顶层图形，也不得把 `table` 压平成固定 2×2 的 `shape/crossTable`。
 
-**目标**：复核边型、线宽、圆角、阴影、填充、层级和宿主关系。
+**完成状态**：已建立原生 `table` 对象、任意行列导线、逐单元格内容引用、四边覆盖、隐藏边、Solid/Dashed/Bold/Wavy 字段、CDX/CDXML/CCJS 往返、SVG/EMF 共用渲染、选择工具移动与拉伸、Table Tool 单元格聚焦、拖拽后行列对话框，以及 Borders、行列增删、清空、适应内容和对齐菜单。旧 Shape 面板中的 `cross-table` 已删除。
 
-**验收**：独立、嵌套、旋转和非默认样式均覆盖；SVG 与 EMF 的笔画边界一致。
+**入口**：`Tools palette -> Table Tool -> 拖出外框 -> Insert Table (Rows/Columns)`；编辑入口为 `Table Tool -> 聚焦/右键单元格 -> Borders.../行列命令`。
+
+**规则与证据**：见 [Table Tool 与表格对象规则](table-tool-rules.zh-CN.md)。
 
 ### [ ] NR-011 StoichiometryGrid
 

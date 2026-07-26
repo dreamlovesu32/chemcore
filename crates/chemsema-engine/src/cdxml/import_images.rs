@@ -132,6 +132,7 @@ pub(in crate::cdxml) fn append_embedded_image_objects(
                 spectrum: None,
                 geometry: None,
                 constraint: None,
+                table: None,
                 extra: BTreeMap::from([
                     ("fit".to_string(), json!("stretch")),
                     ("opacity".to_string(), json!(1.0)),

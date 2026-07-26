@@ -10,6 +10,7 @@ pub enum SceneObjectKind {
     Bracket,
     Symbol,
     Shape,
+    Table,
     Image,
     Spectrum,
     Geometry,
@@ -18,7 +19,7 @@ pub enum SceneObjectKind {
 }
 
 impl SceneObjectKind {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Molecule,
         Self::Text,
         Self::Line,
@@ -26,6 +27,7 @@ impl SceneObjectKind {
         Self::Bracket,
         Self::Symbol,
         Self::Shape,
+        Self::Table,
         Self::Image,
         Self::Spectrum,
         Self::Geometry,
@@ -42,6 +44,7 @@ impl SceneObjectKind {
             Self::Bracket => "bracket",
             Self::Symbol => "symbol",
             Self::Shape => "shape",
+            Self::Table => "table",
             Self::Image => "image",
             Self::Spectrum => "spectrum",
             Self::Geometry => "geometry",
@@ -59,6 +62,7 @@ impl SceneObjectKind {
             "bracket" => Ok(Self::Bracket),
             "symbol" => Ok(Self::Symbol),
             "shape" => Ok(Self::Shape),
+            "table" => Ok(Self::Table),
             "image" => Ok(Self::Image),
             "spectrum" => Ok(Self::Spectrum),
             "geometry" => Ok(Self::Geometry),
@@ -76,6 +80,7 @@ impl SceneObjectKind {
                 | Self::Bracket
                 | Self::Symbol
                 | Self::Shape
+                | Self::Table
                 | Self::Image
                 | Self::Spectrum
                 | Self::Geometry

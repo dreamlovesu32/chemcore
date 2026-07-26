@@ -45,7 +45,6 @@ pub(crate) fn parse_shape_kind(value: &str) -> ShapeKind {
         "ellipse" => ShapeKind::Ellipse,
         "round-rect" | "roundRect" => ShapeKind::RoundRect,
         "rect" => ShapeKind::Rect,
-        "cross-table" | "crossTable" => ShapeKind::CrossTable,
         "tlc-plate" | "tlcPlate" => ShapeKind::TlcPlate,
         _ => ShapeKind::Circle,
     }

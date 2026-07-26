@@ -260,7 +260,7 @@
     },
     {
       "object": "Border",
-      "tag": "0x802A",
+      "tag": "0x801A",
       "sdkName": "kCDXObj_Border",
       "cdxmlName": "border",
       "publishedTag": "0x8020",

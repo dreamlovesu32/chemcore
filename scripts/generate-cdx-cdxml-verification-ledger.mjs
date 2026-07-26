@@ -53,7 +53,7 @@ const chemDrawObjectTagOverrides = new Map(Object.entries({
   tlcspot: "0x801F",
   chemicalproperty: "0x8020",
   arrow: "0x8021",
-  border: "0x802A",
+  border: "0x801A",
 }));
 
 const behaviorStatus = (family, name) => {
@@ -220,7 +220,7 @@ const lines = [
   "",
   "## ChemDraw 二进制对象 tag 勘误",
   "",
-  "- ChemDraw 12.0.2 与 21.0.0.28 的实际 CDX 输出一致使用：`Geometry=0x801b`、`Constraint=0x801c`、`TLCPlate=0x801d`、`TLCLane=0x801e`、`TLCSpot=0x801f`、`ChemicalProperty=0x8020`、`Arrow=0x8021`、`Border=0x802a`。发布版静态对象表从 Geometry 起发生了偏移；账本保留其原值为 `publishedTag`，运行时值记为 `tag` 并标为 `verified-with-erratum`。",
+  "- ChemDraw 12.0.2 与 21.0.0.28 的实际 CDX 输出一致使用：`Border=0x801a`、`Geometry=0x801b`、`Constraint=0x801c`、`TLCPlate=0x801d`、`TLCLane=0x801e`、`TLCSpot=0x801f`、`ChemicalProperty=0x8020`、`Arrow=0x8021`。发布版静态对象表从 Border 起发生了偏移；账本保留其原值为 `publishedTag`，运行时值记为 `tag` 并标为 `verified-with-erratum`。",
   "- 导入器仍识别 ChemSema beta 阶段写出的偏移 tag，但新文件统一写 ChemDraw 实际 tag；这属于格式级兼容，不按单个样例分支。",
   "",
 ];

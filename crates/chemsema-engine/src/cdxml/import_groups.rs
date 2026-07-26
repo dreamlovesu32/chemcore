@@ -155,6 +155,7 @@ pub(super) fn cdxml_group_object(
             spectrum: None,
             geometry: None,
             constraint: None,
+            table: None,
             extra: BTreeMap::new(),
         },
         children,

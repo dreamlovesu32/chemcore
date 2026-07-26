@@ -1172,6 +1172,7 @@ fn parse_tool(value: &str) -> Tool {
         "delete" => Tool::Delete,
         "text" => Tool::Text,
         "shape" => Tool::Shape,
+        "table" => Tool::Table,
         "tlc-plate" | "tlcPlate" => Tool::TlcPlate,
         "orbital" => Tool::Orbital,
         "templates" | "chain" => Tool::Templates,
@@ -1227,7 +1228,6 @@ fn parse_shape_kind(value: &str) -> ShapeKind {
         "ellipse" => ShapeKind::Ellipse,
         "round-rect" | "roundRect" => ShapeKind::RoundRect,
         "rect" => ShapeKind::Rect,
-        "cross-table" | "crossTable" => ShapeKind::CrossTable,
         "tlc-plate" | "tlcPlate" => ShapeKind::TlcPlate,
         _ => ShapeKind::Circle,
     }

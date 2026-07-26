@@ -41,6 +41,7 @@ use self::import_objects::{
     append_line_objects, append_orbital_shape_objects, append_shape_objects,
     append_spectrum_objects, append_synthesized_enhanced_stereo_text_objects,
     append_table_shape_objects, append_text_objects, append_tlc_plate_shape_objects,
+    associate_table_cell_contents,
 };
 pub(crate) use self::import_scaling::normalize_cdxml_document_for_editing;
 use self::import_topology::*;
@@ -280,6 +281,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
                     spectrum: None,
                     geometry: None,
                     constraint: None,
+                    table: None,
                     extra: BTreeMap::new(),
                 },
                 children: Vec::new(),
@@ -314,6 +316,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         &colors,
         &fonts,
     );
+    associate_table_cell_contents(&root, &mut objects);
     append_geometry_constraint_objects(
         &root,
         &mut objects,

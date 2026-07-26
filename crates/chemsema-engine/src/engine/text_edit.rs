@@ -335,6 +335,7 @@ fn make_text_payload(
         spectrum: None,
         geometry: None,
         constraint: None,
+        table: None,
         extra,
     }
 }
