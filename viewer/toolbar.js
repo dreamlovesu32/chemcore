@@ -428,6 +428,7 @@ function commandIconSvg(name) {
     shape: iconSvg(`<rect class="cc-shape cc-empty-fill" x="5.5" y="5.5" width="10.2" height="10.2"/><circle class="cc-shape cc-empty-fill" cx="16.8" cy="16.8" r="3.45"/>`, "cc-tool-icon"),
     table: iconSvg(`<rect class="cc-shape cc-empty-fill" x="4.5" y="4.5" width="15" height="15"/><path class="cc-shape" d="M12 4.5v15M4.5 12h15"/>`, "cc-tool-icon"),
     "tlc-plate": iconSvg(`<rect class="cc-shape cc-empty-fill" x="8.2" y="3.8" width="7.6" height="15.2" rx="0.55"/><path class="cc-shape" d="M9.4 7.1h5.2" stroke-dasharray="1.05 1.05"/><path class="cc-shape" d="M9.4 16.25h5.2"/><circle class="cc-shape-fill" cx="10.15" cy="14.65" r="0.55"/><circle class="cc-shape-fill" cx="12" cy="12.2" r="0.68"/><circle class="cc-shape-fill" cx="13.85" cy="9.95" r="0.55"/>`, "cc-tool-icon"),
+    "gel-plate": iconSvg(`<rect class="cc-shape cc-empty-fill" x="7.4" y="3.8" width="9.2" height="15.2" rx="0.55"/><path class="cc-shape" d="M9.1 7.2h2.25M12.9 6.2h2.1M9.25 10.2h2M12.75 9.1h2.4M9 13.1h2.5M12.9 12.5h2M9.2 16.2h2.1M12.7 15.6h2.5" stroke-width="1.35" stroke-linecap="round"/>`, "cc-tool-icon"),
     orbital: iconSvg(`<path class="cc-shape cc-empty-fill" d="M12 4c3.35 0 5.35 2.67 5.35 6.25 0 3.26-2 6.17-5.35 9.5-3.35-3.33-5.35-6.24-5.35-9.5C6.65 6.67 8.65 4 12 4Z"/><path class="cc-shape" d="M12 4c0 0 2 2.55 2 6.25S12 19.75 12 19.75"/>`, "cc-tool-icon"),
   };
   return icons[name] || "";
@@ -533,6 +534,7 @@ export function syncPrimaryToolButtons(editorState, root = document) {
   syncPrimarySymbolToolButton(editorState, root);
   syncPrimaryElementToolButton(editorState, root);
   syncPrimaryShapeToolButton(editorState, root);
+  syncPrimaryChromatographyToolButton(editorState, root);
   syncPrimaryOrbitalToolButton(editorState, root);
 }
 
@@ -795,6 +797,18 @@ function syncPrimaryShapeToolButton(editorState, root) {
   shapeButton.innerHTML = shapeIconSvg(kind, style, editorState);
   shapeButton.setAttribute("aria-label", title);
   shapeButton.setAttribute("title", title);
+}
+
+function syncPrimaryChromatographyToolButton(editorState, root) {
+  const chromatographyButton = root.querySelector('.tool-button[data-tool="tlc-plate"]');
+  if (!chromatographyButton) {
+    return;
+  }
+  const isGelPlate = editorState.chromatographyKind === "gel-plate";
+  const title = isGelPlate ? "Gel electrophoresis plate" : "TLC plate";
+  chromatographyButton.innerHTML = commandIconSvg(isGelPlate ? "gel-plate" : "tlc-plate");
+  chromatographyButton.setAttribute("aria-label", title);
+  chromatographyButton.setAttribute("title", title);
 }
 
 function syncPrimaryOrbitalToolButton(editorState, root) {
@@ -1573,6 +1587,19 @@ function shapeStyleForKind(editorState, kind) {
 
 function tlcPlateToolbarHtml(editorState) {
   return `
+    ${toolbarButton(
+      "chromatography-kind-tlc-plate",
+      "TLC plate",
+      commandIconSvg("tlc-plate"),
+      editorState.chromatographyKind !== "gel-plate",
+    )}
+    ${toolbarButton(
+      "chromatography-kind-gel-plate",
+      "Gel electrophoresis plate",
+      commandIconSvg("gel-plate"),
+      editorState.chromatographyKind === "gel-plate",
+    )}
+    ${secondaryDivider()}
     ${colorPickerControl("shape-color", editorState.shapeColor, editorState.colorPalette)}
   `;
 }

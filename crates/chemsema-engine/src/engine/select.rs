@@ -2530,9 +2530,8 @@ impl Engine {
                 ..base
             };
         }
-        if object.object_type == "shape" && kind == "tlcPlate" {
+        if object.object_type == "shape" && matches!(kind, "tlcPlate" | "gelPlate") {
             return SelectionOverlayBehavior {
-                show_resize_handles: false,
                 rotate_handle_shape: SelectionRotateHandleShape::Square,
                 show_rotate_glyph: false,
                 show_center_cross: true,

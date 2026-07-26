@@ -585,7 +585,9 @@ export function createEditorPointerController(options) {
     if (tool === "shape" || tool === "tlc-plate") {
       return {
         type: "add-shape",
-        kind: tool === "tlc-plate" ? "tlc-plate" : editorState.shapeKind,
+        kind: tool === "tlc-plate"
+          ? (editorState.chromatographyKind || "tlc-plate")
+          : editorState.shapeKind,
         style: editorState.shapeStyle,
         color: editorState.shapeColor,
         begin: editorCommandAnchor(start),

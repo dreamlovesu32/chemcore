@@ -476,6 +476,7 @@ const editorState = {
   shapeIconSvgs: {},
   shapeIconCacheKey: "",
   shapeColor: "#000000",
+  chromatographyKind: "tlc-plate",
   orbitalTemplate: "s",
   orbitalStyle: "shaded",
   orbitalPhase: "plus",
@@ -666,7 +667,9 @@ async function syncEngineToolState() {
   const effectiveTemplate = engineTemplateForEditorState(editorState);
   await state.editorEngine.setTool(effectiveTool, editorState.bondType);
   await state.editorEngine.setTemplate?.(effectiveTemplate);
-  const shapeKind = editorState.activeTool === "tlc-plate" ? "tlc-plate" : editorState.shapeKind;
+  const shapeKind = editorState.activeTool === "tlc-plate"
+    ? editorState.chromatographyKind
+    : editorState.shapeKind;
   await state.editorEngine.setShapeOptions?.(
     shapeKind,
     editorState.shapeStyle,

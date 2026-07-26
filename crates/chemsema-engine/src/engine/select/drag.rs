@@ -1283,6 +1283,7 @@ mod tests {
                 constraint: None,
                 table: None,
                 stoichiometry_grid: None,
+                gel_electrophoresis: None,
                 extra,
             },
             children: Vec::new(),

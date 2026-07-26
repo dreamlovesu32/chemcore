@@ -418,6 +418,7 @@ fn document_diff_reports_creation_deletion_and_unchanged_documents() {
             constraint: None,
             table: None,
             stoichiometry_grid: None,
+            gel_electrophoresis: None,
             extra: BTreeMap::new(),
         },
         children: Vec::new(),

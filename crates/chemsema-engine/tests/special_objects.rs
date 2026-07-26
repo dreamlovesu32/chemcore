@@ -105,7 +105,7 @@ fn parse_cdxml_imports_rest_fixture_special_bonds_and_table() {
     assert_eq!(table_graphics.len(), 16, "{table_graphics:?}");
     assert!(primitives.iter().any(|primitive| matches!(
         primitive,
-        RenderPrimitive::Rect {
+        RenderPrimitive::Polygon {
             role: RenderRole::DocumentGraphic,
             object_id: Some(object_id),
             ..
@@ -113,12 +113,137 @@ fn parse_cdxml_imports_rest_fixture_special_bonds_and_table() {
     )));
     assert!(primitives.iter().any(|primitive| matches!(
         primitive,
-        RenderPrimitive::Circle {
+        RenderPrimitive::Ellipse {
             role: RenderRole::DocumentGraphic,
             object_id: Some(object_id),
             ..
         } if object_id == "obj_shape_tlc_001"
     )));
+}
+
+#[test]
+fn gel_electrophoresis_import_render_and_export_are_native() {
+    let Some(cdxml) = read_optional_cdxml_fixture("gel-electrophoresis.cdxml") else {
+        return;
+    };
+    let document = parse_cdxml_document(&cdxml, Some("gel-electrophoresis"))
+        .expect("gel electrophoresis fixture should parse");
+    let plate = document
+        .objects
+        .iter()
+        .find(|object| object.payload.gel_electrophoresis.is_some())
+        .expect("native gel plate");
+    assert_eq!(plate.payload.extra.get("kind"), Some(&json!("gelPlate")));
+    let gel = plate
+        .payload
+        .gel_electrophoresis
+        .as_ref()
+        .expect("typed gel data");
+    assert_eq!(gel.lanes.len(), 2);
+    assert_eq!(gel.lanes[0].label_text, "A");
+    assert_eq!(gel.lanes[0].bands[0].value, 75.0);
+    assert!((gel.lanes[0].bands[0].alpha - 0.500_007_6).abs() < 0.001);
+    assert_eq!(gel.lanes[1].bands[0].curve_type, 0);
+
+    let primitives = render_document(&document);
+    assert!(primitives.iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Polygon {
+            object_id: Some(id),
+            ..
+        } if id == &plate.id
+    )));
+    assert_eq!(
+        primitives
+            .iter()
+            .filter(|primitive| matches!(
+                primitive,
+                RenderPrimitive::FilledPath {
+                    object_id: Some(id),
+                    ..
+                } if id == &plate.id
+            ))
+            .count(),
+        2
+    );
+    assert!(primitives.iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Text {
+            object_id: Some(id),
+            text,
+            ..
+        } if id == &plate.id && text == "75"
+    )));
+
+    let exported = document_to_cdxml(&document);
+    for token in [
+        "<gepplate",
+        "<geplane",
+        "<gepband",
+        "BandValue=\"75\"",
+        "ShowScale=\"yes\"",
+        "LabelText=\"A\"",
+    ] {
+        assert!(exported.contains(token), "missing {token}: {exported}");
+    }
+    let reparsed = parse_cdxml_document(&exported, Some("gel-roundtrip"))
+        .expect("exported gel plate should parse");
+    let reparsed_gel = reparsed
+        .objects
+        .iter()
+        .find_map(|object| object.payload.gel_electrophoresis.as_ref())
+        .expect("round-tripped gel data");
+    assert_eq!(reparsed_gel.lanes.len(), 2);
+    assert_eq!(reparsed_gel.lanes[0].bands[0].value, 75.0);
+}
+
+#[test]
+fn gel_band_drag_updates_semantic_band_value() {
+    let Some(cdxml) = read_optional_cdxml_fixture("gel-electrophoresis.cdxml") else {
+        return;
+    };
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(&cdxml)
+        .expect("gel electrophoresis fixture should load");
+    let plate = engine
+        .state()
+        .document
+        .objects
+        .iter()
+        .find(|object| object.payload.gel_electrophoresis.is_some())
+        .expect("gel plate");
+    let [_, _, width, height] = plate.payload.bbox.expect("gel bbox");
+    let gel = plate
+        .payload
+        .gel_electrophoresis
+        .as_ref()
+        .expect("gel data");
+    let lane_x = plate.transform.translate[0] + width / 3.0;
+    let plate_y = plate.transform.translate[1];
+    let start_range = gel.start_range;
+    let end_range = gel.end_range;
+    let y_for_value =
+        |value: f64| plate_y + height * (1.0 - (value - start_range) / (end_range - start_range));
+    let begin = engine
+        .begin_tlc_spot_drag(Point::new(lane_x, y_for_value(75.0)))
+        .expect("gel band drag should begin");
+    assert_eq!(begin.value_kind, "band-value");
+    let finished = engine
+        .finish_tlc_spot_drag(Point::new(lane_x, y_for_value(50.0)))
+        .expect("gel band drag should finish");
+    assert!((finished.rf - 50.0).abs() < 0.02, "{finished:?}");
+    let value = engine
+        .state()
+        .document
+        .objects
+        .iter()
+        .find_map(|object| object.payload.gel_electrophoresis.as_ref())
+        .and_then(|gel| gel.lanes.first())
+        .and_then(|lane| lane.bands.first())
+        .map(|band| band.value)
+        .expect("updated band value");
+    assert!((value - 50.0).abs() < 0.02, "{value}");
 }
 
 #[test]

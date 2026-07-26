@@ -33,7 +33,9 @@ impl Engine {
             ShapeKind::RoundRect | ShapeKind::Rect => {
                 (icon_point(5.5, 6.2), icon_point(18.5, 17.7))
             }
-            ShapeKind::TlcPlate => (icon_point(5.5, 6.2), icon_point(18.5, 17.7)),
+            ShapeKind::TlcPlate | ShapeKind::GelPlate => {
+                (icon_point(5.5, 6.2), icon_point(18.5, 17.7))
+            }
         };
         let Some(object) = engine.shape_scene_object(start, current, object_id, style_id.clone())
         else {
@@ -238,13 +240,15 @@ impl Engine {
             ShapeDrawAnchorKind::Label => {
                 let bounds = anchor.bounds?;
                 match self.state.tool.shape_kind {
-                    ShapeKind::Rect | ShapeKind::RoundRect | ShapeKind::TlcPlate => self
-                        .shape_scene_object(
-                            Point::new(bounds[0], bounds[1]),
-                            Point::new(bounds[2], bounds[3]),
-                            object_id,
-                            style_id,
-                        ),
+                    ShapeKind::Rect
+                    | ShapeKind::RoundRect
+                    | ShapeKind::TlcPlate
+                    | ShapeKind::GelPlate => self.shape_scene_object(
+                        Point::new(bounds[0], bounds[1]),
+                        Point::new(bounds[2], bounds[3]),
+                        object_id,
+                        style_id,
+                    ),
                     ShapeKind::Circle | ShapeKind::Ellipse => {
                         let width = (bounds[2] - bounds[0]).abs();
                         let height = (bounds[3] - bounds[1]).abs();
@@ -278,13 +282,14 @@ impl Engine {
                 object_id,
                 style_id,
             ),
-            ShapeKind::Rect | ShapeKind::RoundRect | ShapeKind::TlcPlate => self
-                .shape_scene_object(
+            ShapeKind::Rect | ShapeKind::RoundRect | ShapeKind::TlcPlate | ShapeKind::GelPlate => {
+                self.shape_scene_object(
                     Point::new(center.x - radius, center.y - radius),
                     Point::new(center.x + radius, center.y + radius),
                     object_id,
                     style_id,
-                ),
+                )
+            }
         }
     }
 
@@ -303,7 +308,10 @@ impl Engine {
                             .point
                             .translated(direction_from_angle(0.0).scaled(radius)),
                     ),
-                    ShapeKind::Rect | ShapeKind::RoundRect | ShapeKind::TlcPlate => (
+                    ShapeKind::Rect
+                    | ShapeKind::RoundRect
+                    | ShapeKind::TlcPlate
+                    | ShapeKind::GelPlate => (
                         Point::new(drag.anchor.point.x - radius, drag.anchor.point.y - radius),
                         Point::new(drag.anchor.point.x + radius, drag.anchor.point.y + radius),
                     ),
@@ -325,7 +333,10 @@ impl Engine {
                                 .translated(direction_from_angle(0.0).scaled(radius)),
                         )
                     }
-                    ShapeKind::Rect | ShapeKind::RoundRect | ShapeKind::TlcPlate => (
+                    ShapeKind::Rect
+                    | ShapeKind::RoundRect
+                    | ShapeKind::TlcPlate
+                    | ShapeKind::GelPlate => (
                         Point::new(bounds[0], bounds[1]),
                         Point::new(bounds[2], bounds[3]),
                     ),
@@ -349,7 +360,7 @@ impl Engine {
         object_id: String,
         style_id: String,
     ) -> Option<SceneObject> {
-        let (transform, bbox, extra) = match self.state.tool.shape_kind {
+        let (transform, bbox, extra, gel_electrophoresis) = match self.state.tool.shape_kind {
             ShapeKind::Circle => {
                 let radius = start.distance(current);
                 if radius <= crate::EPSILON {
@@ -372,6 +383,7 @@ impl Engine {
                         radius * 2.0,
                     ],
                     extra,
+                    None,
                 )
             }
             ShapeKind::Ellipse => {
@@ -398,9 +410,10 @@ impl Engine {
                         major_radius * 2.0,
                     ],
                     extra,
+                    None,
                 )
             }
-            ShapeKind::RoundRect | ShapeKind::Rect | ShapeKind::TlcPlate => {
+            ShapeKind::RoundRect | ShapeKind::Rect | ShapeKind::TlcPlate | ShapeKind::GelPlate => {
                 let x1 = start.x.min(current.x);
                 let y1 = start.y.min(current.y);
                 let width = (current.x - start.x).abs();
@@ -414,6 +427,7 @@ impl Engine {
                     json!(match self.state.tool.shape_kind {
                         ShapeKind::RoundRect => "roundRect",
                         ShapeKind::TlcPlate => "tlcPlate",
+                        ShapeKind::GelPlate => "gelPlate",
                         _ => "rect",
                     }),
                 );
@@ -444,6 +458,46 @@ impl Engine {
                         .collect();
                     extra.insert("lanes".to_string(), json!(lanes));
                 }
+                let gel_electrophoresis =
+                    (self.state.tool.shape_kind == ShapeKind::GelPlate).then(|| {
+                        let lane_count = suggested_tlc_lane_count(width);
+                        let lanes = (0..lane_count)
+                            .map(|index| crate::GelLane {
+                                id: format!("lane_{}", index + 1),
+                                label_text: format!("{}", index + 1),
+                                visible: true,
+                                bands: vec![crate::GelBand {
+                                    id: format!("band_{}_1", index + 1),
+                                    value: 0.5,
+                                    width: (width / (lane_count as f64 + 1.0) * 0.7)
+                                        .clamp(6.0, 24.0),
+                                    height: 3.0,
+                                    curve_type: 128,
+                                    show_value: false,
+                                    visible: true,
+                                    color: self.state.tool.shape_color.clone(),
+                                    alpha: 1.0,
+                                    z_index: 0,
+                                }],
+                            })
+                            .collect();
+                        crate::GelElectrophoresisData {
+                            lanes,
+                            line_width: self.options.graphic_stroke_width,
+                            bold_width: self.options.bold_bond_width,
+                            axis_width: self.options.graphic_stroke_width,
+                            margin_width: self.options.margin_width,
+                            hash_spacing: self.options.hash_spacing,
+                            color: self.state.tool.shape_color.clone(),
+                            corners: Some([
+                                [0.0, 0.0],
+                                [width, 0.0],
+                                [width, height],
+                                [0.0, height],
+                            ]),
+                            ..Default::default()
+                        }
+                    });
                 if self.state.tool.shape_kind == ShapeKind::RoundRect {
                     extra.insert(
                         "cornerRadius".to_string(),
@@ -458,6 +512,7 @@ impl Engine {
                     },
                     [0.0, 0.0, width, height],
                     extra,
+                    gel_electrophoresis,
                 )
             }
         };
@@ -482,6 +537,7 @@ impl Engine {
                 constraint: None,
                 table: None,
                 stoichiometry_grid: None,
+                gel_electrophoresis,
                 extra,
             },
             children: Vec::new(),

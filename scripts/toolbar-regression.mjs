@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { renderSecondaryToolbarHtml } from "../viewer/toolbar.js";
+import {
+  renderSecondaryToolbarHtml,
+  syncPrimaryToolButtons,
+} from "../viewer/toolbar.js";
 
 const baseEditorState = {
   activeTool: "bond",
@@ -46,5 +49,54 @@ assert.match(textHtml, /<input[^>]+data-text-control="font"[^>]+list="text-font-
 assert.match(textHtml, /value="Aptos Display"/, "font family control should retain an imported custom family");
 assert.match(textHtml, /data-secondary-value="text-outline"/, "text toolbar should expose outline");
 assert.match(textHtml, /data-secondary-value="text-shadow"/, "text toolbar should expose shadow");
+
+const chromatographyHtml = renderSecondaryToolbarHtml({
+  ...baseEditorState,
+  activeTool: "tlc-plate",
+  chromatographyKind: "gel-plate",
+  shapeColor: "#000000",
+});
+assert.match(
+  chromatographyHtml,
+  /data-secondary-value="chromatography-kind-tlc-plate"/,
+  "chromatography toolbar should expose the TLC plate",
+);
+assert.match(
+  chromatographyHtml,
+  /class="secondary-button is-selected"[^>]*data-secondary-value="chromatography-kind-gel-plate"/,
+  "chromatography toolbar should expose and retain the gel plate",
+);
+
+const chromatographyButton = {
+  dataset: { tool: "tlc-plate" },
+  innerHTML: "",
+  attributes: {},
+  classList: { toggle() {} },
+  setAttribute(name, value) {
+    this.attributes[name] = value;
+  },
+};
+const chromatographyRoot = {
+  querySelectorAll(selector) {
+    return selector === "[data-tool]" ? [chromatographyButton] : [];
+  },
+  querySelector(selector) {
+    return selector === '.tool-button[data-tool="tlc-plate"]' ? chromatographyButton : null;
+  },
+};
+syncPrimaryToolButtons(
+  { ...baseEditorState, activeTool: "select", chromatographyKind: "gel-plate" },
+  chromatographyRoot,
+);
+assert.match(
+  chromatographyButton.innerHTML,
+  /M9\.1 7\.2h2\.25/,
+  "the left chromatography tool should retain the chosen gel icon after switching to select",
+);
+assert.equal(
+  chromatographyButton.attributes.title,
+  "Gel electrophoresis plate",
+  "the left chromatography tool title should retain the chosen gel tool",
+);
 
 console.log("[toolbar-regression] ok");

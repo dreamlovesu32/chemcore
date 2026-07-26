@@ -157,6 +157,7 @@ pub enum ShapeKind {
     RoundRect,
     Rect,
     TlcPlate,
+    GelPlate,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]

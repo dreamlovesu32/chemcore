@@ -1,4 +1,7 @@
 export function parseEngineJson(json, defaultValue = null) {
+  if (json === undefined || json === null || json === "") {
+    return defaultValue;
+  }
   try {
     return JSON.parse(json);
   } catch (error) {

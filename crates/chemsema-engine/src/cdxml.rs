@@ -38,8 +38,8 @@ use self::import_groups::*;
 use self::import_nodes::*;
 use self::import_objects::{
     append_bracket_objects, append_curve_objects, append_embedded_image_objects,
-    append_line_objects, append_orbital_shape_objects, append_shape_objects,
-    append_spectrum_objects, append_synthesized_enhanced_stereo_text_objects,
+    append_gel_electrophoresis_objects, append_line_objects, append_orbital_shape_objects,
+    append_shape_objects, append_spectrum_objects, append_synthesized_enhanced_stereo_text_objects,
     append_table_shape_objects, append_text_objects, append_tlc_plate_shape_objects,
     associate_table_cell_contents, import_reactions_and_stoichiometry_grids,
 };
@@ -283,6 +283,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
                     constraint: None,
                     table: None,
                     stoichiometry_grid: None,
+                    gel_electrophoresis: None,
                     extra: BTreeMap::new(),
                 },
                 children: Vec::new(),
@@ -296,6 +297,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
     append_orbital_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
     append_table_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
     append_tlc_plate_shape_objects(&root, &mut objects, &mut styles, defaults, &colors);
+    append_gel_electrophoresis_objects(&root, &mut objects, &mut styles, defaults, &colors);
     append_spectrum_objects(&root, &mut objects, &mut styles, defaults, &colors, &fonts)?;
     append_embedded_image_objects(&root, &mut objects, &mut resources);
     append_bracket_objects(&root, &mut objects, defaults, &colors);

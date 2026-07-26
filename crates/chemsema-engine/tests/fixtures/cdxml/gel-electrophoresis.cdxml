@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd">
+<CDXML CreationProgram="ChemDraw 21.0" BoundingBox="40 40 220 220"
+ LabelFont="3" LabelSize="10" LineWidth="1" BoldWidth="4"
+ HashSpacing="2.7" MarginWidth="2" BondLength="30">
+  <colortable><color r="1" g="0" b="0"/></colortable>
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1" BoundingBox="40 40 220 220">
+    <gepplate id="10" BoundingBox="60 60 180 200"
+      TopLeft="60 60" TopRight="180 60" BottomRight="180 200" BottomLeft="60 200"
+      StartRange="10" EndRange="100" UnitID="0" ShowScale="yes"
+      ShowBorders="yes" Transparent="no" LineWidth="1" BoldWidth="4"
+      AxisWidth="1" MarginWidth="2" HashSpacing="2.7" LabelFont="3"
+      LabelSize="10" LabelFace="0" LabelsAngle="0" LabelText="Protein"
+      alpha="65535" color="0" Z="12">
+      <geplane id="11" LabelText="A" Visible="yes">
+        <gepband id="12" BandValue="75" Width="786432" Height="196608"
+          CurveType="128" ShowValue="yes" Visible="yes" alpha="32768"
+          color="1" Z="1"/>
+      </geplane>
+      <geplane id="13" LabelText="B" Visible="yes">
+        <gepband id="14" BandValue="25" Width="655360" Height="262144"
+          CurveType="0" ShowValue="no" Visible="yes" alpha="65535"
+          color="0" Z="2"/>
+      </geplane>
+    </gepplate>
+  </page>
+</CDXML>

@@ -2206,6 +2206,10 @@ impl<'a> CdxmlDocumentWriter<'a> {
             self.write_orbital_shape_object(out, object, color, style);
             return;
         }
+        if kind == "gelPlate" {
+            self.write_gel_electrophoresis_shape_object(out, object, bbox);
+            return;
+        }
         if kind == "tlcPlate" {
             let plate_id = self.object_cdxml_id(object);
             let color_id = self.colors.id_for(color);
@@ -2250,14 +2254,108 @@ impl<'a> CdxmlDocumentWriter<'a> {
                     ("BottomLeft", fmt_point(Point::new(bbox[0], bbox[3]))),
                     ("ShowBorders", bool_attr("showBorders", true)),
                     ("ShowSideTicks", bool_attr("showSideTicks", true)),
+                    ("Transparent", bool_attr("transparent", false)),
                     ("BoundingBox", fmt_bbox(bbox)),
                     ("Z", object.z_index.to_string()),
                     ("color", color_id.clone()),
+                    (
+                        "alpha",
+                        fmt_num(
+                            object
+                                .payload
+                                .extra
+                                .get("alpha")
+                                .and_then(Value::as_f64)
+                                .unwrap_or(1.0)
+                                .clamp(0.0, 1.0)
+                                * 65535.0,
+                        ),
+                    ),
+                    (
+                        "HashSpacing",
+                        fmt_num(
+                            object
+                                .payload
+                                .extra
+                                .get("dashSpacing")
+                                .and_then(Value::as_f64)
+                                .unwrap_or(self.defaults.hash_spacing),
+                        ),
+                    ),
+                    (
+                        "BoldWidth",
+                        fmt_num(
+                            object
+                                .payload
+                                .extra
+                                .get("boldWidth")
+                                .and_then(Value::as_f64)
+                                .unwrap_or(self.defaults.bold_width),
+                        ),
+                    ),
+                    (
+                        "MarginWidth",
+                        fmt_num(
+                            object
+                                .payload
+                                .extra
+                                .get("marginWidth")
+                                .and_then(Value::as_f64)
+                                .unwrap_or(self.defaults.margin_width),
+                        ),
+                    ),
+                    (
+                        "LabelFont",
+                        object
+                            .payload
+                            .extra
+                            .get("labelFont")
+                            .and_then(Value::as_u64)
+                            .unwrap_or(3)
+                            .to_string(),
+                    ),
+                    (
+                        "LabelSize",
+                        fmt_num(
+                            object
+                                .payload
+                                .extra
+                                .get("labelSize")
+                                .and_then(Value::as_f64)
+                                .unwrap_or(10.0),
+                        ),
+                    ),
+                    (
+                        "LabelFace",
+                        object
+                            .payload
+                            .extra
+                            .get("labelFace")
+                            .and_then(Value::as_u64)
+                            .unwrap_or(0)
+                            .to_string(),
+                    ),
                 ],
             );
             if let Some(lanes) = object.payload.extra.get("lanes").and_then(Value::as_array) {
                 for lane in lanes {
-                    write_open_tag(out, 6, "tlclane", vec![("id", self.alloc_id())]);
+                    write_open_tag(
+                        out,
+                        6,
+                        "tlclane",
+                        vec![
+                            ("id", self.alloc_id()),
+                            (
+                                "Visible",
+                                if lane.get("visible").and_then(Value::as_bool).unwrap_or(true) {
+                                    "yes"
+                                } else {
+                                    "no"
+                                }
+                                .to_string(),
+                            ),
+                        ],
+                    );
                     if let Some(spots) = lane.get("spots").and_then(Value::as_array) {
                         for spot in spots {
                             let mut attrs = vec![
@@ -2295,6 +2393,22 @@ impl<'a> CdxmlDocumentWriter<'a> {
                             ];
                             if spot.get("showRf").and_then(Value::as_bool).unwrap_or(false) {
                                 attrs.push(("ShowRf", "yes".to_string()));
+                            }
+                            if !spot.get("visible").and_then(Value::as_bool).unwrap_or(true) {
+                                attrs.push(("Visible", "no".to_string()));
+                            }
+                            if let Some(alpha) = spot.get("alpha").and_then(Value::as_f64) {
+                                attrs.push((
+                                    "alpha",
+                                    fmt_num((alpha.clamp(0.0, 1.0) * 65535.0).round()),
+                                ));
+                            }
+                            if let Some(spot_color) = spot.get("color").and_then(Value::as_str) {
+                                attrs.retain(|(name, _)| *name != "color");
+                                attrs.push(("color", self.colors.id_for(spot_color)));
+                            }
+                            if let Some(z) = spot.get("zIndex").and_then(Value::as_i64) {
+                                attrs.push(("Z", z.to_string()));
                             }
                             write_empty_tag(out, 8, "tlcspot", attrs);
                         }
@@ -2342,6 +2456,111 @@ impl<'a> CdxmlDocumentWriter<'a> {
             attrs.push(("ShadowSize", fmt_num(shadow_size * 100.0)));
         }
         write_empty_tag(out, 4, "graphic", attrs);
+    }
+
+    fn write_gel_electrophoresis_shape_object(
+        &mut self,
+        out: &mut String,
+        object: &SceneObject,
+        bbox: [f64; 4],
+    ) {
+        let Some([x, y, width, height]) = object.payload.bbox else {
+            return;
+        };
+        let Some(gel) = object.payload.gel_electrophoresis.as_ref() else {
+            return;
+        };
+        let color_id = self.colors.id_for(&gel.color);
+        let corners =
+            gel.corners
+                .unwrap_or([[0.0, 0.0], [width, 0.0], [width, height], [0.0, height]]);
+        let absolute = corners.map(|point| {
+            Point::new(
+                object.transform.translate[0] + x + point[0],
+                object.transform.translate[1] + y + point[1],
+            )
+        });
+        let yes_no = |value: bool| if value { "yes" } else { "no" }.to_string();
+        write_open_tag(
+            out,
+            4,
+            "gepplate",
+            vec![
+                ("id", self.object_cdxml_id(object)),
+                ("BoundingBox", fmt_bbox(bbox)),
+                ("TopLeft", fmt_point(absolute[0])),
+                ("TopRight", fmt_point(absolute[1])),
+                ("BottomRight", fmt_point(absolute[2])),
+                ("BottomLeft", fmt_point(absolute[3])),
+                ("StartRange", fmt_num(gel.start_range)),
+                ("EndRange", fmt_num(gel.end_range)),
+                ("UnitID", gel.unit_id.to_string()),
+                ("ShowScale", yes_no(gel.show_scale)),
+                ("ShowBorders", yes_no(gel.show_borders)),
+                ("Transparent", yes_no(gel.transparent)),
+                ("LineWidth", fmt_num(gel.line_width)),
+                ("BoldWidth", fmt_num(gel.bold_width)),
+                ("AxisWidth", fmt_num(gel.axis_width)),
+                ("MarginWidth", fmt_num(gel.margin_width)),
+                ("HashSpacing", fmt_num(gel.hash_spacing)),
+                ("LabelFont", gel.label_font.to_string()),
+                ("LabelSize", fmt_num(gel.label_size)),
+                ("LabelFace", gel.label_face.to_string()),
+                ("LabelsAngle", fmt_num(gel.labels_angle)),
+                ("LabelText", gel.label_text.clone()),
+                (
+                    "alpha",
+                    fmt_num((gel.alpha.clamp(0.0, 1.0) * 65535.0).round()),
+                ),
+                ("Visible", yes_no(object.visible)),
+                ("Z", object.z_index.to_string()),
+                ("color", color_id),
+            ],
+        );
+        for lane in &gel.lanes {
+            write_open_tag(
+                out,
+                6,
+                "geplane",
+                vec![
+                    ("id", self.alloc_id()),
+                    ("LabelText", lane.label_text.clone()),
+                    ("Visible", yes_no(lane.visible)),
+                ],
+            );
+            for band in &lane.bands {
+                write_empty_tag(
+                    out,
+                    8,
+                    "gepband",
+                    vec![
+                        ("id", self.alloc_id()),
+                        ("BandValue", fmt_num(band.value)),
+                        (
+                            "Width",
+                            fmt_num(self.cdxml_tlc_spot_extent(Some(band.width))),
+                        ),
+                        (
+                            "Height",
+                            fmt_num(self.cdxml_tlc_spot_extent(Some(band.height))),
+                        ),
+                        ("CurveType", band.curve_type.to_string()),
+                        ("ShowValue", yes_no(band.show_value)),
+                        ("Visible", yes_no(band.visible)),
+                        (
+                            "alpha",
+                            fmt_num((band.alpha.clamp(0.0, 1.0) * 65535.0).round()),
+                        ),
+                        ("color", self.colors.id_for(&band.color)),
+                        ("Z", band.z_index.to_string()),
+                    ],
+                );
+            }
+            write_indent(out, 6);
+            out.push_str("</geplane>\n");
+        }
+        write_indent(out, 4);
+        out.push_str("</gepplate>\n");
     }
 
     fn write_orbital_shape_object(

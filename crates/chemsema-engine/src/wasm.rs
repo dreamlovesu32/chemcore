@@ -1229,6 +1229,7 @@ fn parse_shape_kind(value: &str) -> ShapeKind {
         "round-rect" | "roundRect" => ShapeKind::RoundRect,
         "rect" => ShapeKind::Rect,
         "tlc-plate" | "tlcPlate" => ShapeKind::TlcPlate,
+        "gel-plate" | "gelPlate" => ShapeKind::GelPlate,
         _ => ShapeKind::Circle,
     }
 }

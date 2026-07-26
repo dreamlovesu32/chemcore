@@ -400,15 +400,15 @@ pub enum EditorCommand {
         node_id: String,
         label: String,
     },
-    MoveTlcSpot {
+    MoveChromatographyMark {
         #[serde(alias = "objectId")]
         object_id: String,
         #[serde(alias = "laneIndex")]
         lane_index: usize,
         #[serde(alias = "spotIndex")]
         spot_index: usize,
-        #[serde(alias = "beforeRf")]
-        before_rf: f64,
+        #[serde(alias = "beforeRf", alias = "beforeValue")]
+        before_value: f64,
     },
     ApplyArrowStyle {
         #[serde(default, alias = "objectIds")]

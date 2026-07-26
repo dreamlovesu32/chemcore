@@ -575,6 +575,7 @@ impl Engine {
                     },
                 }),
                 stoichiometry_grid: None,
+                gel_electrophoresis: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),

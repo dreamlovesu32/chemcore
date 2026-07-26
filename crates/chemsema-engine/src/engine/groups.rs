@@ -178,6 +178,7 @@ fn group_selected_in_siblings_with_meta(
                 constraint: None,
                 table: None,
                 stoichiometry_grid: None,
+                gel_electrophoresis: None,
                 extra: BTreeMap::new(),
             },
             children: selected,

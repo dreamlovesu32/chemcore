@@ -174,6 +174,7 @@ impl ChemSemaDocument {
                     constraint: None,
                     table: None,
                     stoichiometry_grid: None,
+                    gel_electrophoresis: None,
                     extra: BTreeMap::new(),
                 },
                 children: Vec::new(),
@@ -454,6 +455,7 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
         .collect::<BTreeSet<_>>();
     validate_table_objects(&document.objects, &scene_ids, &mut BTreeSet::new())?;
     validate_stoichiometry_objects(&document, &scene_ids)?;
+    validate_gel_electrophoresis_objects(&document.objects)?;
     validate_geometry_constraint_objects(&document)?;
     validate_molecule_fragment_resources(&document)?;
     split_disconnected_molecule_objects(&mut document);
@@ -954,6 +956,44 @@ fn validate_table_objects(
             _ => {}
         }
         validate_table_objects(&object.children, scene_ids, owned_content_ids)?;
+    }
+    Ok(())
+}
+
+fn validate_gel_electrophoresis_objects(objects: &[SceneObject]) -> Result<(), String> {
+    for object in objects {
+        if let Some(gel) = object.payload.gel_electrophoresis.as_ref() {
+            if object.object_type != "shape"
+                || object.payload.extra.get("kind").and_then(Value::as_str) != Some("gelPlate")
+            {
+                return Err(format!(
+                    "non-gel shape '{}' contains payload.gelElectrophoresis",
+                    object.id
+                ));
+            }
+            gel.validate()
+                .map_err(|error| format!("{error} on object '{}'", object.id))?;
+            let Some([x, y, width, height]) = object.payload.bbox else {
+                return Err(format!("gel plate '{}' is missing payload.bbox", object.id));
+            };
+            if ![x, y, width, height].into_iter().all(f64::is_finite)
+                || width <= EPSILON
+                || height <= EPSILON
+            {
+                return Err(format!(
+                    "gel plate '{}' has invalid payload.bbox",
+                    object.id
+                ));
+            }
+        } else if object.object_type == "shape"
+            && object.payload.extra.get("kind").and_then(Value::as_str) == Some("gelPlate")
+        {
+            return Err(format!(
+                "gel plate '{}' is missing payload.gelElectrophoresis",
+                object.id
+            ));
+        }
+        validate_gel_electrophoresis_objects(&object.children)?;
     }
     Ok(())
 }
@@ -2986,6 +3026,8 @@ pub struct ObjectPayload {
     pub table: Option<TableData>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stoichiometry_grid: Option<crate::StoichiometryGridData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gel_electrophoresis: Option<crate::GelElectrophoresisData>,
     #[serde(flatten, default)]
     pub extra: BTreeMap<String, Value>,
 }

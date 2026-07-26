@@ -124,6 +124,7 @@ pub(in crate::cdxml) fn append_shape_objects(
                     constraint: None,
                     table: None,
                     stoichiometry_grid: None,
+                    gel_electrophoresis: None,
                     extra,
                 },
             )
@@ -160,6 +161,7 @@ pub(in crate::cdxml) fn append_shape_objects(
                     constraint: None,
                     table: None,
                     stoichiometry_grid: None,
+                    gel_electrophoresis: None,
                     extra,
                 },
             )
@@ -310,6 +312,7 @@ pub(in crate::cdxml) fn append_orbital_shape_objects(
                 constraint: None,
                 table: None,
                 stoichiometry_grid: None,
+                gel_electrophoresis: None,
                 extra,
             },
             children: Vec::new(),
@@ -505,6 +508,7 @@ pub(in crate::cdxml) fn append_table_shape_objects(
                     default_border,
                 }),
                 stoichiometry_grid: None,
+                gel_electrophoresis: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),
@@ -679,11 +683,34 @@ pub(in crate::cdxml) fn append_tlc_plate_shape_objects(
                         if let Some(tail) = parse_f64(spot.attr("Tail")) {
                             json_spot.insert("tail".to_string(), json!(tail));
                         }
+                        json_spot.insert(
+                            "showRf".to_string(),
+                            json!(parse_yes_no(spot.attr("ShowRf"), false)),
+                        );
+                        json_spot.insert(
+                            "visible".to_string(),
+                            json!(parse_yes_no(spot.attr("Visible"), true)),
+                        );
+                        json_spot.insert(
+                            "alpha".to_string(),
+                            json!(normalize_cdxml_alpha(
+                                parse_f64(spot.attr("alpha")).unwrap_or(65535.0)
+                            )),
+                        );
+                        json_spot.insert(
+                            "color".to_string(),
+                            json!(colors.resolve(spot.attr("color"))),
+                        );
+                        json_spot.insert(
+                            "zIndex".to_string(),
+                            json!(parse_i32(spot.attr("Z")).unwrap_or(0)),
+                        );
                         Value::Object(json_spot)
                     })
                     .collect();
                 json!({
                     "offset": round2((lane_index as f64 + 1.0) / (lane_count as f64 + 1.0)),
+                    "visible": parse_yes_no(lane.attr("Visible"), true),
                     "spots": spots,
                 })
             })
@@ -728,7 +755,39 @@ pub(in crate::cdxml) fn append_tlc_plate_shape_objects(
         );
         extra.insert(
             "dashSpacing".to_string(),
-            json!(round2(defaults.hash_spacing)),
+            json!(round2(
+                parse_f64(node.attr("HashSpacing")).unwrap_or(defaults.hash_spacing)
+            )),
+        );
+        extra.insert(
+            "transparent".to_string(),
+            json!(parse_yes_no(node.attr("Transparent"), false)),
+        );
+        extra.insert(
+            "alpha".to_string(),
+            json!(normalize_cdxml_alpha(
+                parse_f64(node.attr("alpha")).unwrap_or(65535.0)
+            )),
+        );
+        extra.insert(
+            "boldWidth".to_string(),
+            json!(parse_f64(node.attr("BoldWidth")).unwrap_or(defaults.bold_width)),
+        );
+        extra.insert(
+            "marginWidth".to_string(),
+            json!(parse_f64(node.attr("MarginWidth")).unwrap_or(defaults.margin_width)),
+        );
+        extra.insert(
+            "labelFont".to_string(),
+            json!(parse_i32(node.attr("LabelFont")).unwrap_or(3)),
+        );
+        extra.insert(
+            "labelSize".to_string(),
+            json!(parse_f64(node.attr("LabelSize")).unwrap_or(10.0)),
+        );
+        extra.insert(
+            "labelFace".to_string(),
+            json!(parse_i32(node.attr("LabelFace")).unwrap_or(0)),
         );
         extra.insert("lanes".to_string(), json!(lanes));
         objects.push(SceneObject {
@@ -759,11 +818,198 @@ pub(in crate::cdxml) fn append_tlc_plate_shape_objects(
                 constraint: None,
                 table: None,
                 stoichiometry_grid: None,
+                gel_electrophoresis: None,
                 extra,
             },
             children: Vec::new(),
         });
         index += 1;
+    }
+}
+
+pub(in crate::cdxml) fn append_gel_electrophoresis_objects(
+    root: &XmlNode,
+    objects: &mut Vec<SceneObject>,
+    styles: &mut BTreeMap<String, Value>,
+    defaults: CdxmlDefaults,
+    colors: &CdxmlColorTable,
+) {
+    let mut index = 1;
+    for node in descendants(root) {
+        if !node.is("gepplate") || node.attr("SupersededBy").is_some() {
+            continue;
+        }
+        let absolute_corners = [
+            parse_xyz2(node.attr("TopLeft")),
+            parse_xyz2(node.attr("TopRight")),
+            parse_xyz2(node.attr("BottomRight")),
+            parse_xyz2(node.attr("BottomLeft")),
+        ];
+        let bbox = absolute_corners
+            .iter()
+            .flatten()
+            .fold(None, |acc: Option<[f64; 4]>, point| {
+                Some(match acc {
+                    Some([left, top, right, bottom]) => [
+                        left.min(point[0]),
+                        top.min(point[1]),
+                        right.max(point[0]),
+                        bottom.max(point[1]),
+                    ],
+                    None => [point[0], point[1], point[0], point[1]],
+                })
+            })
+            .or_else(|| parse_bbox(node.attr("BoundingBox")));
+        let Some(bbox) = bbox else {
+            continue;
+        };
+        let color = colors.resolve(node.attr("color"));
+        let style_id = format!("style_shape_gel_{index:03}");
+        styles.insert(
+            style_id.clone(),
+            json!({
+                "kind": "shape",
+                "fill": "#ffffff",
+                "stroke": color,
+                "strokeWidth": parse_f64(node.attr("LineWidth")).unwrap_or(defaults.line_width),
+                "dashArray": [],
+            }),
+        );
+        let lanes = node
+            .children
+            .iter()
+            .filter(|child| child.is("geplane"))
+            .enumerate()
+            .map(|(lane_index, lane)| crate::GelLane {
+                id: lane
+                    .attr("id")
+                    .map(str::to_string)
+                    .unwrap_or_else(|| format!("lane_{}", lane_index + 1)),
+                label_text: lane.attr("LabelText").unwrap_or("").to_string(),
+                visible: parse_yes_no(lane.attr("Visible"), true),
+                bands: lane
+                    .children
+                    .iter()
+                    .filter(|child| child.is("gepband"))
+                    .enumerate()
+                    .map(|(band_index, band)| crate::GelBand {
+                        id: band.attr("id").map(str::to_string).unwrap_or_else(|| {
+                            format!("band_{}_{}", lane_index + 1, band_index + 1)
+                        }),
+                        value: parse_f64(band.attr("BandValue")).unwrap_or(0.5),
+                        width: normalize_tlc_spot_extent(
+                            parse_f64(band.attr("Width")).unwrap_or(18.0),
+                        ),
+                        height: normalize_tlc_spot_extent(
+                            parse_f64(band.attr("Height")).unwrap_or(3.0),
+                        ),
+                        curve_type: parse_i32(band.attr("CurveType")).unwrap_or(128),
+                        show_value: parse_yes_no(band.attr("ShowValue"), false),
+                        visible: parse_yes_no(band.attr("Visible"), true),
+                        color: colors.resolve(band.attr("color")),
+                        alpha: normalize_cdxml_alpha(
+                            parse_f64(band.attr("alpha")).unwrap_or(65535.0),
+                        ),
+                        z_index: parse_i32(band.attr("Z")).unwrap_or(0),
+                    })
+                    .collect(),
+            })
+            .collect();
+        let corners = absolute_corners
+            .into_iter()
+            .collect::<Option<Vec<_>>>()
+            .and_then(|points| {
+                (points.len() == 4).then(|| {
+                    [
+                        [
+                            round2(points[0][0] - bbox[0]),
+                            round2(points[0][1] - bbox[1]),
+                        ],
+                        [
+                            round2(points[1][0] - bbox[0]),
+                            round2(points[1][1] - bbox[1]),
+                        ],
+                        [
+                            round2(points[2][0] - bbox[0]),
+                            round2(points[2][1] - bbox[1]),
+                        ],
+                        [
+                            round2(points[3][0] - bbox[0]),
+                            round2(points[3][1] - bbox[1]),
+                        ],
+                    ]
+                })
+            });
+        let data = crate::GelElectrophoresisData {
+            lanes,
+            start_range: parse_f64(node.attr("StartRange")).unwrap_or(0.0),
+            end_range: parse_f64(node.attr("EndRange")).unwrap_or(1.0),
+            unit_id: parse_i32(node.attr("UnitID")).unwrap_or(0),
+            show_scale: parse_yes_no(node.attr("ShowScale"), false),
+            show_borders: parse_yes_no(node.attr("ShowBorders"), true),
+            transparent: parse_yes_no(node.attr("Transparent"), false),
+            line_width: parse_f64(node.attr("LineWidth")).unwrap_or(defaults.line_width),
+            bold_width: parse_f64(node.attr("BoldWidth")).unwrap_or(defaults.bold_width),
+            axis_width: parse_f64(node.attr("AxisWidth")).unwrap_or(defaults.line_width),
+            margin_width: parse_f64(node.attr("MarginWidth")).unwrap_or(defaults.margin_width),
+            hash_spacing: parse_f64(node.attr("HashSpacing")).unwrap_or(defaults.hash_spacing),
+            label_font: parse_i32(node.attr("LabelFont")).unwrap_or(3),
+            label_size: parse_f64(node.attr("LabelSize")).unwrap_or(10.0),
+            label_face: parse_i32(node.attr("LabelFace")).unwrap_or(0),
+            labels_angle: parse_f64(node.attr("LabelsAngle")).unwrap_or(0.0),
+            label_text: node.attr("LabelText").unwrap_or("").to_string(),
+            color: color.clone(),
+            alpha: normalize_cdxml_alpha(parse_f64(node.attr("alpha")).unwrap_or(65535.0)),
+            corners,
+        };
+        let mut extra = BTreeMap::new();
+        extra.insert("kind".to_string(), json!("gelPlate"));
+        objects.push(SceneObject {
+            id: format!("obj_shape_gel_{index:03}"),
+            object_type: "shape".to_string(),
+            name: format!("gel electrophoresis plate {index}"),
+            visible: parse_yes_no(node.attr("Visible"), true),
+            locked: false,
+            z_index: parse_i32(node.attr("Z")).unwrap_or(15),
+            transform: Transform {
+                translate: [round2(bbox[0]), round2(bbox[1])],
+                rotate: 0.0,
+                scale: [1.0, 1.0],
+            },
+            style_ref: Some(style_id),
+            link_policy: Default::default(),
+            meta: json!({"source": "cdxml", "gelPlateId": node.attr("id")}),
+            payload: ObjectPayload {
+                resource_ref: None,
+                bbox: Some([
+                    0.0,
+                    0.0,
+                    round2(bbox[2] - bbox[0]),
+                    round2(bbox[3] - bbox[1]),
+                ]),
+                spectrum: None,
+                geometry: None,
+                constraint: None,
+                table: None,
+                stoichiometry_grid: None,
+                gel_electrophoresis: Some(data),
+                extra,
+            },
+            children: Vec::new(),
+        });
+        index += 1;
+    }
+}
+
+fn parse_yes_no(value: Option<&str>, default_value: bool) -> bool {
+    value.map_or(default_value, |value| value.eq_ignore_ascii_case("yes"))
+}
+
+fn normalize_cdxml_alpha(value: f64) -> f64 {
+    if value > 1.0 {
+        (value / 65535.0).clamp(0.0, 1.0)
+    } else {
+        value.clamp(0.0, 1.0)
     }
 }
 

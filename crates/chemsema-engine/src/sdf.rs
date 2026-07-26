@@ -110,6 +110,7 @@ pub fn parse_sdf_document(sdf: &str, title: Option<&str>) -> Result<ChemSemaDocu
                 constraint: None,
                 table: None,
                 stoichiometry_grid: None,
+                gel_electrophoresis: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),

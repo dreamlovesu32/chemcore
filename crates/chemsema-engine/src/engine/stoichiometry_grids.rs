@@ -222,6 +222,7 @@ impl Engine {
                 constraint: None,
                 table: None,
                 stoichiometry_grid: Some(grid),
+                gel_electrophoresis: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),

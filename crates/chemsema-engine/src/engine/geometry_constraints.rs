@@ -440,6 +440,7 @@ impl Engine {
                 constraint,
                 table: None,
                 stoichiometry_grid: None,
+                gel_electrophoresis: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),

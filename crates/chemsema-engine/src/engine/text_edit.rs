@@ -337,6 +337,7 @@ fn make_text_payload(
         constraint: None,
         table: None,
         stoichiometry_grid: None,
+        gel_electrophoresis: None,
         extra,
     }
 }

@@ -653,7 +653,7 @@ impl Engine {
                 .with_command(command.clone(), |engine| {
                     engine.replace_node_label_untracked(&node_id, &label)
                 }),
-            EditorCommand::MoveTlcSpot { .. }
+            EditorCommand::MoveChromatographyMark { .. }
             | EditorCommand::MoveSelection
             | EditorCommand::RotateSelection
             | EditorCommand::ResizeSelection

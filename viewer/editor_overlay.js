@@ -101,10 +101,14 @@ export function createEditorOverlayRenderer(options) {
       class: "tlc-spot-rf-label",
       "data-role": "tlc-spot-rf-label",
     });
-    text.appendChild(makeSvgNode("tspan", {})).textContent = "R";
-    text.appendChild(makeSvgNode("tspan", {
-      class: "tlc-spot-rf-subscript",
-    })).textContent = "f";
+    if (hit.valueKind === "band-value") {
+      text.appendChild(makeSvgNode("tspan", {})).textContent = "Value";
+    } else {
+      text.appendChild(makeSvgNode("tspan", {})).textContent = "R";
+      text.appendChild(makeSvgNode("tspan", {
+        class: "tlc-spot-rf-subscript",
+      })).textContent = "f";
+    }
     text.appendChild(makeSvgNode("tspan", {
       dx: options.screenPxToWorld(2),
     })).textContent = ` = ${rfValue}`;

@@ -306,6 +306,138 @@ export function createCanvasContextMenuHost(options) {
     );
   }
 
+  async function runCanvasContextMenuDialogCommand(command, value, executeDocumentCommand) {
+    if (command === "stoichiometry-datum-dialog") {
+      let spec = null;
+      try {
+        spec = JSON.parse(value || "null");
+      } catch {
+        spec = null;
+      }
+      if (spec) {
+        await options.numericDialogHost?.choosePayload?.(spec, async (nextValue) => {
+          const payload = {
+            type: "set-stoichiometry-datum",
+            objectId: spec.objectId,
+            componentId: spec.componentId,
+            rowId: spec.rowId,
+            value: String(nextValue),
+            unit: spec.field?.unit || null,
+          };
+          return executeDocumentCommand(
+            payload,
+            () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify(payload)),
+          );
+        });
+      }
+      return { handled: true, changed: false };
+    }
+    if (command === "table-borders-dialog") {
+      let spec = null;
+      try {
+        spec = JSON.parse(value || "null");
+      } catch {
+        spec = null;
+      }
+      if (spec) {
+        await options.tableDialogHost?.chooseBorders(spec);
+      }
+      return { handled: true, changed: false };
+    }
+    if (command === "text-line-spacing") {
+      await options.numericDialogHost.choose("line-height");
+      return { handled: true, changed: false };
+    }
+    if (command === "smiles-dialog") {
+      const point = activeContextMenuState?.point;
+      if (point) {
+        await options.smilesDialogHost?.open(point);
+      }
+      return { handled: true, changed: false };
+    }
+    if (command === "chemical-property-dialog") {
+      const decision = await options.chemicalPropertyDialogHost?.choose();
+      if (decision?.action === "apply") {
+        const changed = await executeDocumentCommand(
+          { type: "apply-chemical-property", payload: decision.payload },
+          () => options.state().editorEngine?.applyChemicalPropertyDialogJson?.(
+            JSON.stringify(decision.payload),
+          ),
+        );
+        return { handled: true, changed };
+      }
+      if (decision?.action === "delete") {
+        const changed = await executeDocumentCommand(
+          "delete-chemical-property",
+          () => options.state().editorEngine?.deleteSelectedChemicalProperty?.(),
+        );
+        return { handled: true, changed };
+      }
+      return { handled: true, changed: false };
+    }
+    if (command === "create-annotation") {
+      const decision = await options.annotationDialogHost?.choose(value);
+      if (!decision) {
+        return { handled: true, changed: false };
+      }
+      const changed = await executeDocumentCommand(
+        {
+          type: "create-annotation",
+          annotation: decision.annotation,
+          properties: decision.properties,
+        },
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
+          type: "create-annotation",
+          annotation: decision.annotation,
+          properties: decision.properties,
+        })),
+      );
+      return { handled: true, changed };
+    }
+    if (command === "annotation-dialog") {
+      const decision = await options.annotationDialogHost?.choose("selected");
+      if (!decision?.objectId) {
+        return { handled: true, changed: false };
+      }
+      const changed = await executeDocumentCommand(
+        {
+          type: "update-annotation",
+          objectId: decision.objectId,
+          properties: decision.properties,
+        },
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
+          type: "update-annotation",
+          objectId: decision.objectId,
+          properties: decision.properties,
+        })),
+      );
+      return { handled: true, changed };
+    }
+    if (command === "chemical-copy") {
+      await copyChemicalAnalysis(value);
+      return { handled: true, changed: false };
+    }
+    if (command === "nmr-predict") {
+      try {
+        await options.nmrPredictionHost.predict(value);
+      } catch (error) {
+        const message = String(error?.message || error || "NMR prediction failed")
+          .replace(/^Error:\s*/i, "");
+        options.transientNotificationHost?.show(message, { error: true, duration: 4200 });
+      }
+      return { handled: true, changed: false };
+    }
+    if (command === "object-settings") {
+      await options.objectSettingsHost.chooseObjectSettings();
+      return { handled: true, changed: false };
+    }
+    if (command === "scale-dialog" || command === "rotate-dialog") {
+      await options.numericDialogHost.choose(command === "scale-dialog" ? "scale" : "rotate");
+      return { handled: true, changed: false };
+    }
+    return { handled: false, changed: false };
+  }
+
   async function runCanvasContextMenuCommand(command, value) {
     if (!command || command === "noop") {
       return;
@@ -325,6 +457,19 @@ export function createCanvasContextMenuHost(options) {
       }
       return !!result.changed;
     };
+    const dialogResult = await runCanvasContextMenuDialogCommand(
+      command,
+      value,
+      executeDocumentCommand,
+    );
+    if (dialogResult.handled) {
+      if (!dialogResult.changed) {
+        options.renderEditorOverlay();
+        options.refreshCommandAvailability();
+      }
+      await finishTemporaryContextSelection();
+      return;
+    }
     if (["cut", "copy", "paste", "delete", "select-all"].includes(command)) {
       changed = await options.runEditorCommand(command);
     } else if (command === "insert-image") {
@@ -444,48 +589,6 @@ export function createCanvasContextMenuHost(options) {
           entityId: entityId || null,
         })),
       );
-    } else if (command === "stoichiometry-datum-dialog") {
-      let spec = null;
-      try {
-        spec = JSON.parse(value || "null");
-      } catch {
-        spec = null;
-      }
-      if (!spec) {
-        await finishTemporaryContextSelection();
-        return;
-      }
-      await options.numericDialogHost?.choosePayload?.(spec, async (nextValue) => {
-        const payload = {
-          type: "set-stoichiometry-datum",
-          objectId: spec.objectId,
-          componentId: spec.componentId,
-          rowId: spec.rowId,
-          value: String(nextValue),
-          unit: spec.field?.unit || null,
-        };
-        const result = await executeDocumentCommand(
-          payload,
-          () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify(payload)),
-        );
-        return !!result;
-      });
-      await finishTemporaryContextSelection();
-      return;
-    } else if (command === "table-borders-dialog") {
-      let spec = null;
-      try {
-        spec = JSON.parse(value || "null");
-      } catch {
-        spec = null;
-      }
-      if (!spec) {
-        await finishTemporaryContextSelection();
-        return;
-      }
-      await options.tableDialogHost?.chooseBorders(spec);
-      await finishTemporaryContextSelection();
-      return;
     } else if (command === "orbital-template") {
       changed = await executeDocumentCommand(
         { type: "apply-orbital-style", payload: { changes: { template: value } } },
@@ -524,84 +627,6 @@ export function createCanvasContextMenuHost(options) {
         { type: "apply-text-style", payload: { changes: { [styleCommand]: styleValue } } },
         () => options.state().editorEngine?.applyTextStyleToSelection?.(styleCommand, styleValue),
       );
-    } else if (command === "text-line-spacing") {
-      await options.numericDialogHost.choose("line-height");
-      await finishTemporaryContextSelection();
-      return;
-    } else if (command === "smiles-dialog") {
-      const point = activeContextMenuState?.point;
-      if (point) {
-        await options.smilesDialogHost?.open(point);
-      }
-      await finishTemporaryContextSelection();
-      return;
-    } else if (command === "chemical-property-dialog") {
-      const decision = await options.chemicalPropertyDialogHost?.choose();
-      if (decision?.action === "apply") {
-        changed = await executeDocumentCommand(
-          { type: "apply-chemical-property", payload: decision.payload },
-          () => options.state().editorEngine?.applyChemicalPropertyDialogJson?.(
-            JSON.stringify(decision.payload),
-          ),
-        );
-      } else if (decision?.action === "delete") {
-        changed = await executeDocumentCommand(
-          "delete-chemical-property",
-          () => options.state().editorEngine?.deleteSelectedChemicalProperty?.(),
-        );
-      }
-      await finishTemporaryContextSelection();
-      return;
-    } else if (command === "create-annotation") {
-      const decision = await options.annotationDialogHost?.choose(value);
-      if (!decision) {
-        await finishTemporaryContextSelection();
-        return;
-      }
-      changed = await executeDocumentCommand(
-        {
-          type: "create-annotation",
-          annotation: decision.annotation,
-          properties: decision.properties,
-        },
-        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
-          type: "create-annotation",
-          annotation: decision.annotation,
-          properties: decision.properties,
-        })),
-      );
-    } else if (command === "annotation-dialog") {
-      const decision = await options.annotationDialogHost?.choose("selected");
-      if (!decision?.objectId) {
-        await finishTemporaryContextSelection();
-        return;
-      }
-      changed = await executeDocumentCommand(
-        {
-          type: "update-annotation",
-          objectId: decision.objectId,
-          properties: decision.properties,
-        },
-        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
-          type: "update-annotation",
-          objectId: decision.objectId,
-          properties: decision.properties,
-        })),
-      );
-    } else if (command === "chemical-copy") {
-      await copyChemicalAnalysis(value);
-      await finishTemporaryContextSelection();
-      return;
-    } else if (command === "nmr-predict") {
-      try {
-        await options.nmrPredictionHost.predict(value);
-      } catch (error) {
-        const message = String(error?.message || error || "NMR prediction failed")
-          .replace(/^Error:\s*/i, "");
-        options.transientNotificationHost?.show(message, { error: true, duration: 4200 });
-      }
-      await finishTemporaryContextSelection();
-      return;
     } else if (command === "chemical-check" || command === "interpret-chemically") {
       changed = await executeDocumentCommand(
         { type: "apply-text-style", payload: { changes: { interpretChemically: value !== "off" } } },
@@ -627,18 +652,6 @@ export function createCanvasContextMenuHost(options) {
       changed = await executeDocumentCommand("expand-labels", () => options.state().editorEngine?.expandLabelsInSelection?.());
     } else if (command === "center-page") {
       changed = await executeDocumentCommand("center-selection-on-page", () => options.state().editorEngine?.centerSelectionOnPage?.());
-    } else if (command === "object-settings") {
-      await options.objectSettingsHost.chooseObjectSettings();
-      await finishTemporaryContextSelection();
-      return;
-    } else if (command === "scale-dialog") {
-      await options.numericDialogHost.choose("scale");
-      await finishTemporaryContextSelection();
-      return;
-    } else if (command === "rotate-dialog") {
-      await options.numericDialogHost.choose("rotate");
-      await finishTemporaryContextSelection();
-      return;
     } else if (command === "edit-text") {
       const point = activeContextMenuState?.point;
       if (point) {
