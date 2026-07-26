@@ -4,7 +4,7 @@ use crate::{
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
 fn exported_external_connection_type(value: crate::ExternalConnectionType) -> Option<&'static str> {
@@ -169,6 +169,9 @@ pub fn document_to_cdxml(document: &ChemSemaDocument) -> String {
 struct CdxmlDocumentWriter<'a> {
     document: &'a ChemSemaDocument,
     next_id: u64,
+    reserved_ids: BTreeSet<u64>,
+    used_ids: BTreeSet<u64>,
+    source_page_id: Option<String>,
     node_ids: BTreeMap<String, String>,
     bond_ids: BTreeMap<(String, String), String>,
     entity_ids: BTreeMap<String, String>,
@@ -200,30 +203,27 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .and_then(Value::as_str)
             .unwrap_or(&document.style.label_style.fill);
         defaults.color = colors.id_for(foreground).parse().unwrap_or(0);
-        let has_native_reference_objects = !document.chemical_properties.is_empty()
-            || document.scene_objects().iter().any(|object| {
-                matches!(
-                    object.kind(),
-                    crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
-                )
-            });
-        let preserved_interchange_id = if has_native_reference_objects {
-            max_interchange_numeric_id(document)
-        } else {
-            0
-        };
-        let preserved_next_id = document
-            .chemical_properties
-            .iter()
-            .filter_map(|property| property.source_id.as_deref())
-            .filter_map(|id| id.parse::<u64>().ok())
-            .max()
-            .unwrap_or(0)
-            .max(preserved_interchange_id)
-            .saturating_add(1);
+        let source_root = document.interchange.get("cdxml").map(|source| &source.root);
+        let mut reserved_ids = BTreeSet::new();
+        if let Some(root) = source_root {
+            collect_interchange_numeric_ids(root, &mut reserved_ids);
+        }
+        reserved_ids.extend(
+            document
+                .chemical_properties
+                .iter()
+                .filter_map(|property| property.source_id.as_deref())
+                .filter_map(|id| id.parse::<u64>().ok()),
+        );
+        let source_page_id = source_root
+            .and_then(|root| root.children.iter().find(|child| child.name == "page"))
+            .and_then(|page| page.id.clone());
         Self {
             document,
-            next_id: preserved_next_id.max(1),
+            next_id: 1,
+            reserved_ids,
+            used_ids: BTreeSet::new(),
+            source_page_id,
             node_ids: BTreeMap::new(),
             bond_ids: BTreeMap::new(),
             entity_ids: BTreeMap::new(),
@@ -302,10 +302,13 @@ impl<'a> CdxmlDocumentWriter<'a> {
         out.push_str(">\n");
         self.write_color_table(&mut out);
         self.write_font_table(&mut out);
+        let page_id = self
+            .claim_source_id(self.source_page_id.clone())
+            .unwrap_or_else(|| self.alloc_id());
         writeln!(
             out,
             "  <page id=\"{}\" BoundingBox=\"{}\" HeaderPosition=\"36\" FooterPosition=\"36\" PrintTrimMarks=\"yes\" HeightPages=\"1\" WidthPages=\"1\" Width=\"{}\" Height=\"{}\">",
-            self.alloc_id(),
+            page_id,
             root_bbox,
             fmt_num(width),
             fmt_num(height)
@@ -967,7 +970,27 @@ impl<'a> CdxmlDocumentWriter<'a> {
             return;
         }
 
-        let fragment_id = self.alloc_id();
+        let source_fragment_id = components
+            .first()
+            .and_then(|(object, _)| {
+                object
+                    .meta
+                    .pointer("/import/cdxml/fragmentId")
+                    .and_then(Value::as_str)
+            })
+            .filter(|source_id| {
+                components.iter().all(|(object, _)| {
+                    object
+                        .meta
+                        .pointer("/import/cdxml/fragmentId")
+                        .and_then(Value::as_str)
+                        == Some(*source_id)
+                })
+            })
+            .map(ToString::to_string);
+        let fragment_id = self
+            .claim_source_id(source_fragment_id)
+            .unwrap_or_else(|| self.alloc_id());
         for (object, _) in &components {
             self.entity_ids
                 .insert(object.id.clone(), fragment_id.clone());
@@ -1001,11 +1024,10 @@ impl<'a> CdxmlDocumentWriter<'a> {
         let mut node_ids = BTreeMap::new();
         for (_, fragment) in &components {
             for node in &fragment.nodes {
-                let cdxml_id = self
-                    .entity_ids
-                    .get(&node.id)
-                    .cloned()
-                    .unwrap_or_else(|| self.alloc_id());
+                let cdxml_id = self.entity_ids.get(&node.id).cloned().unwrap_or_else(|| {
+                    self.claim_source_id(Some(node.id.clone()))
+                        .unwrap_or_else(|| self.alloc_id())
+                });
                 node_ids.insert(node.id.clone(), cdxml_id);
             }
         }
@@ -1350,8 +1372,17 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .unwrap_or_else(|| cdxml_node_label_alignment(label));
         let label_justification = imported_cdxml_label_attr(label, "labelJustification")
             .unwrap_or_else(|| cdxml_justification(label.align.as_deref()));
+        let label_id = self
+            .claim_source_id(
+                label
+                    .meta
+                    .pointer("/import/cdxml/sourceId")
+                    .and_then(Value::as_str)
+                    .map(ToString::to_string),
+            )
+            .unwrap_or_else(|| self.alloc_id());
         let mut attrs = vec![
-            ("id", self.alloc_id()),
+            ("id", label_id),
             ("p", fmt_point(position)),
             ("BoundingBox", fmt_bbox(bbox)),
             ("LabelAlignment", label_alignment.to_string()),
@@ -1590,7 +1621,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
         collect_cdxml_bond_export_keys(self.document, &self.document.objects, &mut keys);
         for key in keys {
             if !self.bond_ids.contains_key(&key) {
-                let cdxml_id = self.alloc_id();
+                let cdxml_id = self
+                    .claim_source_id(self.imported_bond_source_id(&key))
+                    .unwrap_or_else(|| self.alloc_id());
                 self.bond_ids.insert(key, cdxml_id);
             }
         }
@@ -1605,7 +1638,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .collect::<Vec<_>>();
         for node_id in node_ids {
             if !self.entity_ids.contains_key(&node_id) {
-                let cdxml_id = self.alloc_id();
+                let cdxml_id = self
+                    .claim_source_id(Some(node_id.clone()))
+                    .unwrap_or_else(|| self.alloc_id());
                 self.node_ids.insert(node_id.clone(), cdxml_id.clone());
                 self.entity_ids.insert(node_id, cdxml_id);
             }
@@ -2592,31 +2627,74 @@ impl<'a> CdxmlDocumentWriter<'a> {
     }
 
     fn alloc_id(&mut self) -> String {
+        while self.reserved_ids.contains(&self.next_id) || self.used_ids.contains(&self.next_id) {
+            self.next_id += 1;
+        }
         let id = self.next_id;
+        self.used_ids.insert(id);
         self.next_id += 1;
         id.to_string()
+    }
+
+    fn claim_source_id(&mut self, source_id: Option<String>) -> Option<String> {
+        let source_id = source_id?;
+        let numeric_id = source_id.parse::<u64>().ok().filter(|id| *id > 0)?;
+        self.used_ids.insert(numeric_id).then_some(source_id)
+    }
+
+    fn imported_bond_source_id(&self, key: &(String, String)) -> Option<String> {
+        self.document
+            .scene_objects()
+            .into_iter()
+            .filter(|object| object.object_type == "molecule")
+            .filter(|object| cdxml_bond_crossing_scope(object) == key.0)
+            .filter_map(|object| {
+                object
+                    .payload
+                    .resource_ref
+                    .as_ref()
+                    .and_then(|resource_ref| self.document.resources.get(resource_ref))
+                    .and_then(|resource| resource.data.as_fragment())
+            })
+            .flat_map(|fragment| fragment.bonds.iter())
+            .find(|bond| bond.id == key.1)
+            .and_then(|bond| {
+                bond.meta
+                    .pointer("/import/cdxml/sourceId")
+                    .and_then(Value::as_str)
+            })
+            .map(ToString::to_string)
     }
 
     fn object_cdxml_id(&mut self, object: &SceneObject) -> String {
         if let Some(id) = self.entity_ids.get(&object.id) {
             return id.clone();
         }
-        let native_annotation_source_id = matches!(
-            object.kind(),
-            crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
-        )
-        .then(|| {
-            object
-                .meta
-                .pointer("/import/cdxml/sourceId")
-                .and_then(Value::as_str)
-                .filter(|id| id.parse::<u64>().is_ok())
-                .map(ToString::to_string)
-        })
-        .flatten();
-        let id = if let Some(source_id) = native_annotation_source_id {
-            source_id
-        } else if self
+        let imported_source_id = object
+            .meta
+            .pointer("/import/cdxml/sourceId")
+            .or_else(|| object.meta.pointer("/import/cdxml/id"))
+            .or_else(|| object.meta.pointer("/import/cdxml/groupId"))
+            .and_then(Value::as_str)
+            .or_else(|| {
+                [
+                    "textId",
+                    "graphicId",
+                    "curveId",
+                    "tableId",
+                    "tlcPlateId",
+                    "spectrumId",
+                    "groupId",
+                ]
+                .into_iter()
+                .find_map(|name| object.meta.get(name).and_then(Value::as_str))
+            })
+            .map(ToString::to_string);
+        if let Some(id) = self.claim_source_id(imported_source_id) {
+            self.entity_ids.insert(object.id.clone(), id.clone());
+            return id;
+        }
+        let id = if self
             .document
             .chemical_properties
             .iter()
@@ -2727,20 +2805,18 @@ fn constraint_label_position(
     }
 }
 
-fn max_interchange_numeric_id(document: &ChemSemaDocument) -> u64 {
-    fn visit(node: &crate::InterchangeObject) -> u64 {
-        node.id
-            .as_deref()
-            .and_then(|id| id.parse::<u64>().ok())
-            .unwrap_or(0)
-            .max(node.children.iter().map(visit).max().unwrap_or(0))
+fn collect_interchange_numeric_ids(node: &crate::InterchangeObject, ids: &mut BTreeSet<u64>) {
+    if let Some(id) = node
+        .id
+        .as_deref()
+        .and_then(|id| id.parse::<u64>().ok())
+        .filter(|id| *id > 0)
+    {
+        ids.insert(id);
     }
-
-    document
-        .interchange
-        .get("cdxml")
-        .map(|source| visit(&source.root))
-        .unwrap_or(0)
+    for child in &node.children {
+        collect_interchange_numeric_ids(child, ids);
+    }
 }
 
 #[derive(Debug, Clone)]

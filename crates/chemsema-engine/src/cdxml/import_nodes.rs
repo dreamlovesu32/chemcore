@@ -528,6 +528,7 @@ pub(super) fn node_label(
                 "cdxml": {
                     "textPosition": text_position,
                     "boundingBox": bbox,
+                    "sourceId": empty_as_null(text_el.attr("id")),
                     "labelDisplay": empty_as_null(label_display),
                     "labelAlignment": empty_as_null(text_el.attr("LabelAlignment")),
                     "labelJustification": empty_as_null(text_el.attr("LabelJustification")),

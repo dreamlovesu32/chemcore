@@ -27,7 +27,7 @@
       "reason": "The function owns one transaction lifecycle: load, execute, scope-check, report, and persist."
     },
     "crates/chemsema-engine/src/cdxml/export.rs:$file": {
-      "lines": 2378,
+      "lines": 2446,
       "owner": "CDXML serialization boundary",
       "reason": "The module owns source-order-aware serialization for every native document object; object-family writers remain separate functions and share one ID, style, and interchange context."
     },
