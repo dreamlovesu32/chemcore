@@ -7,7 +7,9 @@ class WasmEngineHost {
   }
 
   async initialize() {
-    await initializeChemSemaEngine(new URL("./engine/chemsema_engine_bg.wasm?v=20260723-native-images", import.meta.url));
+    await initializeChemSemaEngine({
+      module_or_path: new URL("./engine/chemsema_engine_bg.wasm?v=20260726-molecular-coloring", import.meta.url),
+    });
     return this;
   }
 

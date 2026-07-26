@@ -27,7 +27,7 @@
       "reason": "The function owns one transaction lifecycle: load, execute, scope-check, report, and persist."
     },
     "crates/chemsema-engine/src/cdxml/export.rs:$file": {
-      "lines": 2306,
+      "lines": 2330,
       "owner": "CDXML serialization boundary",
       "reason": "The module owns source-order-aware serialization for every native document object; object-family writers remain separate functions and share one ID, style, and interchange context."
     },
@@ -42,7 +42,7 @@
       "reason": "The exhaustive line-object writer keeps mutually dependent ArrowType and endpoint fields in one precedence table."
     },
     "crates/chemsema-engine/src/cdxml/export.rs:write_node": {
-      "lines": 242,
+      "lines": 245,
       "owner": "CDXML atom serialization",
       "reason": "One exhaustive node writer keeps atom identity, query, reaction, label, style, and source-interchange precedence in the official attribute order."
     },
@@ -62,17 +62,17 @@
       "reason": "Bracket geometry, attachments, repeat semantics, and linked labels are one source-order-sensitive import transaction."
     },
     "crates/chemsema-engine/src/document.rs:$file": {
-      "lines": 2383,
+      "lines": 2486,
       "owner": "Native document schema and normalization",
       "reason": "The module is the authoritative serialized document model and its version-normalization boundary; format-specific importers, renderers, and editor behavior are owned by separate modules."
     },
     "crates/chemsema-engine/src/engine/command_runtime.rs:execute_command": {
-      "lines": 262,
+      "lines": 264,
       "owner": "Exhaustive editor command dispatcher",
       "reason": "Immediate, creation, semantic, relationship, and style command families are separated; the remaining body is an exhaustive variant-to-domain dispatch with shared completion semantics."
     },
     "crates/chemsema-engine/src/engine/chemistry.rs:insert_smiles_untracked": {
-      "lines": 207,
+      "lines": 209,
       "owner": "SMILES insertion transaction",
       "reason": "Sanitization, layout, stereochemical projection, object creation, and selection form one undoable insertion transaction."
     },
@@ -82,17 +82,17 @@
       "reason": "The function creates one chemistry graph while preserving target filtering, stereochemistry, and source authority."
     },
     "crates/chemsema-engine/src/engine/context_menu.rs:$file": {
-      "lines": 2046,
+      "lines": 2161,
       "owner": "Kernel context-menu schema",
       "reason": "The module owns the complete kernel-generated context-menu contract, with object-family menus and value normalization separated into named helpers."
     },
     "crates/chemsema-engine/src/engine/context_menu.rs:context_menu_items": {
-      "lines": 242,
+      "lines": 263,
       "owner": "Kernel context-menu schema",
       "reason": "One ordered schema builder applies selection precedence and exposes mutually exclusive semantic commands."
     },
     "crates/chemsema-engine/src/engine/context_styles.rs:$file": {
-      "lines": 2123,
+      "lines": 2125,
       "owner": "Selection style and semantic property commands",
       "reason": "The module is the shared selection mutation boundary for object styles, text styles, atom properties, and their undo/geometry synchronization; bond-property ownership is already split into bond_properties.rs."
     },
@@ -172,12 +172,12 @@
       "reason": "The file wires independently implemented hosts and controllers into one runtime; editing, tabs, dialogs, rendering, viewport, files, and lifecycle behavior are owned by imported modules."
     },
     "viewer/editor_context_menu.js:runCanvasContextMenuCommand": {
-      "lines": 248,
+      "lines": 279,
       "owner": "Canvas context-menu command router",
       "reason": "The function is one exhaustive asynchronous router from kernel menu command identifiers to domain hosts, with shared menu-close and error-settlement semantics."
     },
     "viewer/primitive_dom_renderer.js:renderCorePrimitive": {
-      "lines": 243,
+      "lines": 250,
       "owner": "DOM primitive renderer",
       "reason": "One exhaustive primitive dispatch keeps identity attributes, roles, transforms, and SVG z-order consistent."
     }

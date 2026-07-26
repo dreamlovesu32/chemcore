@@ -392,6 +392,7 @@ fn molfile_to_fragment(molfile: &Molfile, record: &SdfRecord) -> (MoleculeFragme
             ],
             charge: atom.charge,
             num_hydrogens: 0,
+            highlight_color: None,
             external_connection: None,
             is_placeholder: atomic_number == 0,
             label: None,
@@ -421,6 +422,7 @@ fn molfile_to_fragment(molfile: &Molfile, record: &SdfRecord) -> (MoleculeFragme
                 begin: format!("n{}", bond.begin + 1),
                 end: format!("n{}", bond.end + 1),
                 order,
+                highlight_color: None,
                 properties: Default::default(),
                 double: (order == 2).then_some(DoubleBond {
                     placement: DoubleBondPlacement::Center,
@@ -455,6 +457,7 @@ fn molfile_to_fragment(molfile: &Molfile, record: &SdfRecord) -> (MoleculeFragme
         bbox: [0.0, 0.0, round2(width), round2(height)],
         nodes,
         bonds,
+        colored_areas: Vec::new(),
         stereo: Vec::new(),
         interactions: Vec::new(),
         meta: json!({

@@ -167,6 +167,9 @@ pub(super) fn normalize_bond(
         begin,
         end,
         order,
+        highlight_color: bond
+            .attr("highlightColor")
+            .map(|color| colors.resolve(Some(color))),
         properties: crate::BondProperties {
             query_orders: cdxml_bond_query_orders(bond.attr("Order")),
             topology: cdxml_bond_topology(bond.attr("Topology")),

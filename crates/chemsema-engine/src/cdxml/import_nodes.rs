@@ -142,6 +142,9 @@ pub(super) fn normalize_node(
         position: local_position,
         charge,
         num_hydrogens: explicit_num_hydrogens.unwrap_or(0),
+        highlight_color: node
+            .attr("highlightColor")
+            .map(|color| colors.resolve(Some(color))),
         external_connection: (node_type == "ExternalConnectionPoint").then(|| {
             crate::ExternalConnection {
                 connection_type: cdxml_external_connection_type(

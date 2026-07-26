@@ -843,6 +843,7 @@ mod tests {
             stereo: None,
             stroke_width: 0.85,
             stroke: None,
+            highlight_color: None,
             bold_width: None,
             wedge_width: None,
             label_clip_margin: None,

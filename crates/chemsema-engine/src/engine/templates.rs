@@ -1715,6 +1715,7 @@ fn insert_ring_bond(
         begin: begin_id.to_string(),
         end: end_id.to_string(),
         order: order.max(1),
+        highlight_color: None,
         properties: Default::default(),
         double: double_placement.map(|placement| DoubleBond {
             placement,

@@ -39,7 +39,7 @@
 | 6 | `NR-006` | 光谱对象 | 完成 | 完成 | 完成 | 完成 | [x] |
 | 7 | `NR-007` | ChemicalProperty | 完成 | 完成 | 完成 | 完成 | [x] |
 | 8 | `NR-008` | Geometry 与 Constraint | 完成 | 完成 | 完成 | 完成 | [x] |
-| 9 | `NR-009` | ColoredMolecularArea | 完成 | 部分 | 未做 | 部分 | [ ] |
+| 9 | `NR-009` | ColoredMolecularArea 与结构高亮 | 完成 | 完成 | 完成 | 完成 | [x] |
 | 10 | `NR-010` | 独立 Border | 完成 | 部分 | 未做 | 部分 | [ ] |
 | 11 | `NR-011` | StoichiometryGrid | 完成 | 部分 | 未做 | 部分 | [ ] |
 | 12 | `NR-012` | 凝胶电泳对象 | 完成 | 部分 | 未做 | 部分 | [ ] |
@@ -208,15 +208,17 @@
 - 右键菜单按有序选择签名仅显示合法类型；显式标签原子与隐式原子统一作为点。属性修改使用内核生成的对话框 schema，原生标注没有缩放或旋转柄。
 - 规则、ChemDraw 实测和验收边界见 [Geometry / Constraint 原生对象设计](geometry-constraint-model.zh-CN.md)；解析、往返、递归求值、生命周期、拖拽和真实浏览器右键对话框均有回归。
 
-### [ ] NR-009 ColoredMolecularArea
+### [x] NR-009 ColoredMolecularArea 与结构高亮
 
-**范围**：`coloredmoleculararea` 的目标原子/键、颜色、范围和显示层级。
+**范围**：`coloredmoleculararea` 的环键、颜色、范围和显示层级，以及原子/键 `highlightColor` 结构高亮。
 
-**现状**：可存储，未原生绘制。
+**现状**：已原生解析、编辑、绘制并无损往返。
 
 **目标**：根据分子拓扑和官方规则生成稳定区域，不把 ChemDraw 的缓存几何当作唯一语义。
 
-**验收**：开链、环、稠环、跨片段和不同颜色/透明度均覆盖；区域随分子编辑正确更新。
+**验收**：结构高亮覆盖开链、环和任意原子/键选择；环填充覆盖单环与稠环的无弦环，拒绝不完整环和跨片段引用；不同颜色、删除、复制与分子编辑均正确更新。官方 `coloredmoleculararea` 没有透明度字段，禁止借用 root/page 的 `alpha`/`bgalpha` 或发明有损字段。
+
+**规则与证据**：见 [分子着色与结构高亮规则](molecular-coloring-rules.zh-CN.md)。
 
 ### [ ] NR-010 独立 Border
 

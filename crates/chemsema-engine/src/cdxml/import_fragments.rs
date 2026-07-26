@@ -21,6 +21,42 @@ pub(super) fn normalize_fragment(
             normalize_bond(bond, index, &node_ids, &nodes, defaults, colors)
         })
         .collect();
+    let known_bonds = bonds
+        .iter()
+        .map(|bond| bond.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let colored_areas = fragment
+        .children
+        .iter()
+        .filter(|area| area.is("ColoredMolecularArea") || area.is("coloredmoleculararea"))
+        .enumerate()
+        .map(|(index, area)| {
+            let basis_bonds = area
+                .attr("BasisObjects")
+                .ok_or_else(|| "ColoredMolecularArea is missing BasisObjects.".to_string())?
+                .split_whitespace()
+                .map(str::to_string)
+                .collect::<Vec<_>>();
+            if basis_bonds.is_empty()
+                || !basis_bonds
+                    .iter()
+                    .all(|bond_id| known_bonds.contains(bond_id.as_str()))
+            {
+                return Err(format!(
+                    "ColoredMolecularArea '{}' references a missing or non-bond basis object.",
+                    area.attr("id").unwrap_or("<missing id>")
+                ));
+            }
+            Ok(crate::ColoredMolecularArea {
+                id: area
+                    .attr("id")
+                    .map(str::to_string)
+                    .unwrap_or_else(|| format!("colored_area_{}", index + 1)),
+                color: colors.resolve(area.attr("bgcolor")),
+                basis_bonds,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
     if nodes.is_empty() {
         return Ok(None);
     }
@@ -34,6 +70,7 @@ pub(super) fn normalize_fragment(
         ],
         nodes,
         bonds,
+        colored_areas,
         stereo: Vec::new(),
         interactions: Vec::new(),
         meta: json!({
@@ -56,6 +93,16 @@ pub(super) fn normalize_fragment(
         )),
     );
     infer_cdxml_ring_double_bond_placements(&mut fragment);
+    if let Some(area) = fragment
+        .colored_areas
+        .iter()
+        .find(|area| crate::ordered_colored_area_node_ids(&fragment, &area.basis_bonds).is_none())
+    {
+        return Err(format!(
+            "ColoredMolecularArea '{}' must reference exactly one connected simple ring.",
+            area.id
+        ));
+    }
     import_native_cdxml_molecule_semantics(&mut fragment)?;
     Ok(Some(fragment))
 }
@@ -299,6 +346,12 @@ pub(super) fn split_cdxml_fragment_components(
                 .collect::<BTreeSet<_>>();
             let (stereo, interactions) =
                 crate::subset_molecule_semantics(&fragment, &node_ids, &bond_ids);
+            let colored_areas = fragment
+                .colored_areas
+                .iter()
+                .filter(|area| area.basis_bonds.iter().all(|id| bond_ids.contains(id)))
+                .cloned()
+                .collect();
             if !cdxml_component_has_visible_molecule_content(&nodes, &bonds) {
                 return None;
             }
@@ -335,6 +388,7 @@ pub(super) fn split_cdxml_fragment_components(
                 ],
                 nodes,
                 bonds,
+                colored_areas,
                 stereo,
                 interactions,
                 meta: fragment.meta.clone(),

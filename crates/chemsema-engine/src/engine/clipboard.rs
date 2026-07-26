@@ -1,8 +1,8 @@
 use super::text_edit::refresh_attached_node_label_geometry_for_all_nodes;
 use super::{EditorCommand, Engine, RenderBoundsScope};
 use crate::{
-    Bond, ChemSemaDocument, ChemicalProperty, LinkRelation, Node, Resource, ResourceData,
-    SceneObject, SelectionState,
+    Bond, ChemSemaDocument, ChemicalProperty, ColoredMolecularArea, LinkRelation, Node, Resource,
+    ResourceData, SceneObject, SelectionState,
 };
 use chemsema_chemical_graph::{MultiCenterInteractionV2, StereoElementV2};
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,8 @@ pub(super) struct ClipboardContent {
     nodes: Vec<Node>,
     #[serde(default)]
     bonds: Vec<Bond>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    colored_areas: Vec<ColoredMolecularArea>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     stereo: Vec<StereoElementV2>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -120,6 +122,7 @@ impl Engine {
         let content = ClipboardContent {
             nodes: Vec::new(),
             bonds: Vec::new(),
+            colored_areas: Vec::new(),
             stereo: Vec::new(),
             interactions: Vec::new(),
             scene_objects: document.objects,
@@ -179,6 +182,22 @@ impl Engine {
             &id_map,
             &bond_id_map,
         );
+        let colored_areas_to_insert = content
+            .colored_areas
+            .iter()
+            .filter_map(|area| {
+                let basis_bonds = area
+                    .basis_bonds
+                    .iter()
+                    .map(|id| bond_id_map.get(id).cloned())
+                    .collect::<Option<Vec<_>>>()?;
+                Some(ColoredMolecularArea {
+                    id: self.next_id("colored_area"),
+                    color: area.color.clone(),
+                    basis_bonds,
+                })
+            })
+            .collect::<Vec<_>>();
 
         if !nodes_to_insert.is_empty() {
             let stroke_width = self.options.bond_stroke_world_pt().value();
@@ -188,6 +207,7 @@ impl Engine {
             };
             entry.fragment.nodes.extend(nodes_to_insert);
             entry.fragment.bonds.extend(bonds_to_insert);
+            entry.fragment.colored_areas.extend(colored_areas_to_insert);
             entry.fragment.stereo.extend(stereo_to_insert);
             entry.fragment.interactions.extend(interactions_to_insert);
 
@@ -393,6 +413,19 @@ impl Engine {
             .filter(|_| !active_molecule_is_complete)
             .map(|entry| crate::subset_molecule_semantics(entry.fragment, &node_ids, &bond_ids))
             .unwrap_or_default();
+        let colored_areas = entry
+            .as_ref()
+            .filter(|_| !active_molecule_is_complete)
+            .map(|entry| {
+                entry
+                    .fragment
+                    .colored_areas
+                    .iter()
+                    .filter(|area| area.basis_bonds.iter().all(|id| bond_ids.contains(id)))
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default();
 
         let mut selected_scene_ids: BTreeSet<&str> = self
             .state
@@ -468,6 +501,7 @@ impl Engine {
         Some(ClipboardContent {
             nodes,
             bonds,
+            colored_areas,
             stereo,
             interactions,
             scene_objects,
@@ -634,6 +668,11 @@ impl Engine {
             crate::subset_molecule_semantics(entry.fragment, &node_ids, &bond_ids);
         fragment.stereo = stereo;
         fragment.interactions = interactions;
+        fragment.colored_areas.retain(|area| {
+            area.basis_bonds
+                .iter()
+                .all(|bond_id| bond_ids.contains(bond_id))
+        });
         fragment.bbox = fragment_clipboard_bounds(&fragment.nodes);
 
         let mut object = entry.object.clone();
@@ -877,6 +916,19 @@ fn remap_clipboard_resource(
             .expect("clipboard resource bond end was retained")
             .clone();
         bond_ids.insert(source_id, target_id);
+    }
+    for area in &mut fragment.colored_areas {
+        area.id = engine.next_id("colored_area");
+        area.basis_bonds = area
+            .basis_bonds
+            .iter()
+            .map(|id| {
+                bond_ids
+                    .get(id)
+                    .expect("clipboard colored area bond was retained")
+                    .clone()
+            })
+            .collect();
     }
     let (stereo, interactions) = remap_clipboard_semantics(
         engine,

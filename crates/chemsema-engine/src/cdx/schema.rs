@@ -48,6 +48,7 @@ pub(super) fn property_schema(tag: u16) -> Option<PropertySchema> {
         0x020F => ("MinorAxisEnd3D", PropertyKind::Point3D),
         0x0301 => ("color", PropertyKind::UInt16),
         0x0302 => ("bgcolor", PropertyKind::Int16),
+        0x0308 => ("highlightColor", PropertyKind::UInt16),
         0x0400 => ("NodeType", PropertyKind::Enum(NODE_TYPE)),
         0x0401 => ("LabelDisplay", PropertyKind::Enum8(LABEL_DISPLAY)),
         0x0402 => ("Element", PropertyKind::Int16),
@@ -222,6 +223,7 @@ pub(super) fn property_tag(name: &str) -> Option<u16> {
         "MinorAxisEnd3D" => 0x020F,
         "color" => 0x0301,
         "bgcolor" => 0x0302,
+        "highlightColor" => 0x0308,
         "NodeType" => 0x0400,
         "LabelDisplay" => 0x0401,
         "Element" => 0x0402,
@@ -427,6 +429,7 @@ pub(super) fn object_name(tag: u16) -> Option<&'static str> {
         0x8025 => "tlcspot",
         0x8026 => "chemicalproperty",
         0x8027 => "arrow",
+        0x8032 => "coloredmoleculararea",
         _ => return None,
     })
 }
@@ -481,6 +484,7 @@ pub(super) fn object_tag(name: &str) -> Option<u16> {
         "chemicalproperty" => 0x8020,
         "arrow" => 0x8021,
         "border" => 0x802A,
+        "coloredmoleculararea" | "ColoredMolecularArea" => 0x8032,
         _ => return None,
     })
 }

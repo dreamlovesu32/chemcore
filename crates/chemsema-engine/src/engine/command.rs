@@ -457,6 +457,14 @@ pub enum EditorCommand {
     ApplySelectionColor {
         color: String,
     },
+    ApplyMolecularHighlight {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        color: Option<String>,
+    },
+    ApplyRingFill {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        color: Option<String>,
+    },
     ApplyShapeStyle {
         #[serde(default, alias = "objectIds")]
         object_ids: Vec<String>,

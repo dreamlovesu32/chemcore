@@ -561,6 +561,16 @@ In addition to `nodes` and `bonds`, a fragment may contain:
   stereochemistry that cannot be reconstructed from bond glyphs alone;
 - `interactions`: source-independent `MultiCenterInteractionV2` records for
   coordination and delocalized multicenter relationships.
+- `coloredAreas`: native ring-fill records with `id`, an explicit `#RRGGBB`
+  `color`, and `basisBonds` that form exactly one connected simple cycle.
+
+Nodes and bonds may independently carry `highlightColor: "#RRGGBB"`.
+Highlight color is a molecular emphasis layer, not the normal label/bond
+foreground color. Its geometry is derived at render time. `coloredAreas`
+likewise stores no cached polygon: its current boundary is the ordered cycle
+of the referenced bonds. Invalid, cross-fragment, or incomplete-cycle
+references are rejected. The official CDXML `coloredmoleculararea` element has
+no opacity attribute, so CCJS does not invent a non-roundtrippable alpha field.
 
 Both fields default to empty for older CCJS documents. Their atom and bond
 references use IDs local to the fragment. Copy, paste, component splitting, and

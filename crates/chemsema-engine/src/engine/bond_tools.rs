@@ -220,6 +220,7 @@ impl Engine {
             begin: begin_id.clone(),
             end: end_id.clone(),
             order: order.max(1),
+            highlight_color: None,
             properties: Default::default(),
             double: self.pending_double_state_for_new_bond(&begin_id, &end_id, order.max(1)),
             stereo: self.pending_bond_stereo(),
@@ -373,6 +374,7 @@ impl Engine {
             begin: begin_id.clone(),
             end: end_id.clone(),
             order: order.max(1),
+            highlight_color: None,
             properties: Default::default(),
             double: self.pending_double_state_for_new_bond_in_anchor_fragment(
                 anchor,

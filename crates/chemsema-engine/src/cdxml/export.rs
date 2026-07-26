@@ -930,6 +930,28 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 };
                 self.write_bond(out, bond, &cdxml_id, &node_ids, &crossing_scope);
             }
+            for area in &fragment.colored_areas {
+                let basis_objects = area
+                    .basis_bonds
+                    .iter()
+                    .filter_map(|bond_id| {
+                        self.bond_ids
+                            .get(&(crossing_scope.clone(), bond_id.clone()))
+                            .cloned()
+                    })
+                    .collect::<Vec<_>>();
+                if basis_objects.len() != area.basis_bonds.len() {
+                    continue;
+                }
+                writeln!(
+                    out,
+                    "      <ColoredMolecularArea id=\"{}\" bgcolor=\"{}\" BasisObjects=\"{}\"/>",
+                    self.alloc_id(),
+                    self.colors.id_for(&area.color),
+                    basis_objects.join(" ")
+                )
+                .expect("writing colored molecular area should not fail");
+            }
         }
         out.push_str("    </fragment>\n");
     }
@@ -961,6 +983,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
             || !node.atom_properties.generic_list.is_empty();
         let mut attrs = vec![("id", cdxml_id.to_string()), ("p", fmt_point(point))];
         attrs.push(("Z", object.z_index.to_string()));
+        if let Some(color) = &node.highlight_color {
+            attrs.push(("highlightColor", self.colors.id_for(color)));
+        }
         if !is_query_list
             && !is_plain_carbon
             && node.atomic_number > 0
@@ -1422,6 +1447,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
         }
         if let Some(stroke) = &bond.stroke {
             attrs.push(("color", self.colors.id_for(stroke)));
+        }
+        if let Some(color) = &bond.highlight_color {
+            attrs.push(("highlightColor", self.colors.id_for(color)));
         }
         if let Some(double) = &bond.double {
             attrs.push((

@@ -1643,6 +1643,7 @@ fn expansion_atom_to_node(atom: &JsonValue, id: String, position: Point) -> Node
             .get("numHydrogens")
             .and_then(JsonValue::as_u64)
             .unwrap_or(0) as u8,
+        highlight_color: None,
         external_connection: None,
         is_placeholder: false,
         label: label
@@ -1695,6 +1696,7 @@ fn expansion_bond(
         begin,
         end,
         order,
+        highlight_color: None,
         properties: Default::default(),
         double: (order == 2).then_some(DoubleBond {
             placement: DoubleBondPlacement::Center,

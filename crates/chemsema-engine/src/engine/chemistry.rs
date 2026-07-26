@@ -88,6 +88,7 @@ impl Engine {
                 num_hydrogens: atom
                     .explicit_hydrogens
                     .saturating_add(sanitization.implicit_hydrogens[index]),
+                highlight_color: None,
                 external_connection: (atom.atomic_number == 0)
                     .then(crate::ExternalConnection::default),
                 is_placeholder: atom.atomic_number == 0,
@@ -135,6 +136,7 @@ impl Engine {
                     begin: node_ids[bond.begin].clone(),
                     end: node_ids[bond.end].clone(),
                     order,
+                    highlight_color: None,
                     properties: Default::default(),
                     double: (order == 2).then_some(DoubleBond {
                         placement: DoubleBondPlacement::Center,

@@ -138,6 +138,16 @@ pub(super) fn render_molecule_object(
             let contact_kernel =
                 build_main_bond_contact_kernel(document, object, &fragment.bonds, &node_map);
 
+            render_fragment_molecular_colors(
+                out,
+                document,
+                object,
+                fragment,
+                &node_map,
+                object_id.clone(),
+                None,
+                None,
+            );
             for bond in &fragment.bonds {
                 render_fragment_bond(
                     out,
@@ -204,6 +214,112 @@ pub(super) fn render_molecule_object(
     }
 }
 
+fn render_fragment_molecular_colors(
+    out: &mut Vec<RenderPrimitive>,
+    document: &ChemSemaDocument,
+    object: &SceneObject,
+    fragment: &MoleculeFragment,
+    node_map: &BTreeMap<&str, &Node>,
+    object_id: Option<String>,
+    target_node_ids: Option<&BTreeSet<String>>,
+    target_bond_ids: Option<&BTreeSet<String>>,
+) {
+    for area in &fragment.colored_areas {
+        if target_bond_ids.is_some_and(|target_ids| {
+            !area
+                .basis_bonds
+                .iter()
+                .any(|bond_id| target_ids.contains(bond_id))
+        }) {
+            continue;
+        }
+        let Some(node_ids) = crate::ordered_colored_area_node_ids(fragment, &area.basis_bonds)
+        else {
+            continue;
+        };
+        let points = node_ids
+            .iter()
+            .filter_map(|node_id| node_map.get(node_id.as_str()))
+            .map(|node| world_point(object, node))
+            .collect::<Vec<_>>();
+        if points.len() != node_ids.len() {
+            continue;
+        }
+        out.push(RenderPrimitive::Polygon {
+            role: RenderRole::DocumentMolecularColor,
+            object_id: object_id.clone(),
+            node_id: None,
+            bond_id: area.basis_bonds.iter().min().cloned(),
+            points,
+            fill: area.color.clone(),
+            stroke: area.color.clone(),
+            stroke_width: 0.0,
+        });
+    }
+
+    let default_bold_width = document
+        .document
+        .meta
+        .pointer("/import/cdxml/defaults/boldWidth")
+        .and_then(JsonValue::as_f64)
+        .or_else(|| document.style.defaults.get("boldWidth").copied())
+        .unwrap_or(BOLD_BOND_WIDTH);
+    let default_margin_width = document
+        .document
+        .meta
+        .pointer("/import/cdxml/defaults/marginWidth")
+        .and_then(JsonValue::as_f64)
+        .or_else(|| document.style.defaults.get("marginWidth").copied())
+        .unwrap_or(crate::DEFAULT_BOND_MARGIN_WIDTH_PT.value());
+
+    for bond in &fragment.bonds {
+        if target_bond_ids.is_some_and(|target_ids| !target_ids.contains(&bond.id)) {
+            continue;
+        }
+        let Some(color) = bond.highlight_color.as_ref() else {
+            continue;
+        };
+        let (Some(begin), Some(end)) = (
+            node_map.get(bond.begin.as_str()),
+            node_map.get(bond.end.as_str()),
+        ) else {
+            continue;
+        };
+        let radius = bond.bold_width.unwrap_or(default_bold_width)
+            + bond.margin_width.unwrap_or(default_margin_width);
+        out.push(RenderPrimitive::Polyline {
+            role: RenderRole::DocumentMolecularColor,
+            object_id: object_id.clone(),
+            bond_id: Some(bond.id.clone()),
+            points: vec![world_point(object, begin), world_point(object, end)],
+            stroke: color.clone(),
+            stroke_width: radius * 2.0,
+            dash_array: Vec::new(),
+            line_cap: Some("round".to_string()),
+            line_join: Some("round".to_string()),
+        });
+    }
+    for node in &fragment.nodes {
+        if target_node_ids.is_some_and(|target_ids| !target_ids.contains(&node.id)) {
+            continue;
+        }
+        let Some(color) = node.highlight_color.as_ref() else {
+            continue;
+        };
+        let radius = default_bold_width + default_margin_width;
+        out.push(RenderPrimitive::Circle {
+            role: RenderRole::DocumentMolecularColor,
+            object_id: object_id.clone(),
+            node_id: Some(node.id.clone()),
+            center: world_point(object, node),
+            radius,
+            fill: color.clone(),
+            stroke: color.clone(),
+            stroke_width: 0.0,
+        });
+    }
+}
+
 pub(super) fn render_molecule_object_targets(
     out: &mut Vec<RenderPrimitive>,
     document: &ChemSemaDocument,
@@ -264,6 +380,16 @@ pub(super) fn render_molecule_object_targets(
         &contact_node_ids,
     );
 
+    render_fragment_molecular_colors(
+        out,
+        document,
+        object,
+        fragment,
+        &node_map,
+        object_id.clone(),
+        Some(target_node_ids),
+        Some(&target_render_bond_ids),
+    );
     for bond in &fragment.bonds {
         if target_render_bond_ids.contains(&bond.id) {
             render_fragment_bond(

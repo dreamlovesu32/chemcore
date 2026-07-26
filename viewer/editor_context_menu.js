@@ -362,6 +362,37 @@ export function createCanvasContextMenuHost(options) {
         await finishTemporaryContextSelection();
       }, { colorHost: options.colorHost });
       return;
+    } else if (command === "molecular-highlight" || command === "molecular-highlight-remove") {
+      changed = await executeDocumentCommand(
+        { type: "apply-molecular-highlight", color: command.endsWith("-remove") ? null : value },
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
+          type: "apply-molecular-highlight",
+          color: command.endsWith("-remove") ? null : value,
+        })),
+      );
+    } else if (command === "ring-fill" || command === "ring-fill-remove") {
+      changed = await executeDocumentCommand(
+        { type: "apply-ring-fill", color: command.endsWith("-remove") ? null : value },
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
+          type: "apply-ring-fill",
+          color: command.endsWith("-remove") ? null : value,
+        })),
+      );
+    } else if (command === "molecular-highlight-other" || command === "ring-fill-other") {
+      const commandType = command === "molecular-highlight-other"
+        ? "apply-molecular-highlight"
+        : "apply-ring-fill";
+      options.openColorDialog("#00ff00", async (color) => {
+        await executeDocumentCommand(
+          { type: commandType, color },
+          () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
+            type: commandType,
+            color,
+          })),
+        );
+        await finishTemporaryContextSelection();
+      }, { colorHost: options.colorHost });
+      return;
     } else if (command === "shape-style") {
       changed = await executeDocumentCommand(
         { type: "apply-shape-style", payload: { changes: { shapeStyle: value } } },

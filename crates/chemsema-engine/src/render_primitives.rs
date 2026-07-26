@@ -11,6 +11,7 @@ pub enum RenderRole {
     DocumentDiagnostic,
     DocumentGraphic,
     DocumentKnockout,
+    DocumentMolecularColor,
     DocumentText,
     HoverEndpoint,
     HoverLabelGlyph,

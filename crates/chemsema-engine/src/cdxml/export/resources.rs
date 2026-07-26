@@ -74,6 +74,9 @@ pub(super) fn collect_document_colors(document: &ChemSemaDocument, colors: &mut 
             continue;
         };
         for node in &fragment.nodes {
+            if let Some(color) = &node.highlight_color {
+                colors.ensure(color);
+            }
             for label in node.label.iter().chain(
                 node.nmr_assignments
                     .iter()
@@ -90,9 +93,15 @@ pub(super) fn collect_document_colors(document: &ChemSemaDocument, colors: &mut 
             }
         }
         for bond in &fragment.bonds {
+            if let Some(color) = &bond.highlight_color {
+                colors.ensure(color);
+            }
             if let Some(stroke) = &bond.stroke {
                 colors.ensure(stroke);
             }
+        }
+        for area in &fragment.colored_areas {
+            colors.ensure(&area.color);
         }
     }
 }

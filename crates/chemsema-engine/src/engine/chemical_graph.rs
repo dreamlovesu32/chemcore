@@ -134,6 +134,13 @@ impl Engine {
             let owned_node_ids = nodes.iter().map(|id| (*id).to_string()).collect();
             let (stereo, interactions) =
                 crate::subset_molecule_semantics(entry.fragment, &owned_node_ids, &bond_ids);
+            let colored_areas = entry
+                .fragment
+                .colored_areas
+                .iter()
+                .filter(|area| area.basis_bonds.iter().all(|id| bond_ids.contains(id)))
+                .cloned()
+                .collect();
             let fragment = MoleculeFragment {
                 schema: entry.fragment.schema.clone(),
                 bbox: entry.fragment.bbox,
@@ -145,6 +152,7 @@ impl Engine {
                     .cloned()
                     .collect(),
                 bonds: bonds.into_iter().cloned().collect(),
+                colored_areas,
                 stereo,
                 interactions,
                 meta: entry.fragment.meta.clone(),

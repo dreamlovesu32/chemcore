@@ -929,6 +929,32 @@ fn validate_molecule_fragment_resources(document: &ChemSemaDocument) -> Result<(
         }
         if let ResourceData::Fragment(fragment) = &resource.data {
             for node in &fragment.nodes {
+                if let Some(color) = &node.highlight_color {
+                    validate_native_rgb_color(color, "node highlight", &node.id)?;
+                }
+            }
+            for bond in &fragment.bonds {
+                if let Some(color) = &bond.highlight_color {
+                    validate_native_rgb_color(color, "bond highlight", &bond.id)?;
+                }
+            }
+            let mut area_ids = BTreeSet::new();
+            for area in &fragment.colored_areas {
+                validate_native_rgb_color(&area.color, "colored molecular area", &area.id)?;
+                if !area_ids.insert(area.id.as_str()) {
+                    return Err(format!(
+                        "Resource {id} has duplicate colored molecular area id '{}'.",
+                        area.id
+                    ));
+                }
+                if ordered_colored_area_node_ids(fragment, &area.basis_bonds).is_none() {
+                    return Err(format!(
+                        "Resource {id} colored molecular area '{}' must reference exactly one connected simple ring.",
+                        area.id
+                    ));
+                }
+            }
+            for node in &fragment.nodes {
                 for assignment in &node.nmr_assignments {
                     assignment
                         .validate()
@@ -938,6 +964,21 @@ fn validate_molecule_fragment_resources(document: &ChemSemaDocument) -> Result<(
         }
     }
     Ok(())
+}
+
+fn validate_native_rgb_color(color: &str, kind: &str, id: &str) -> Result<(), String> {
+    if color.len() == 7
+        && color.starts_with('#')
+        && color[1..]
+            .chars()
+            .all(|character| character.is_ascii_hexdigit())
+    {
+        Ok(())
+    } else {
+        Err(format!(
+            "{kind} '{id}' color must be an explicit #RRGGBB value."
+        ))
+    }
 }
 
 fn split_disconnected_molecule_objects(document: &mut ChemSemaDocument) {
@@ -1122,6 +1163,74 @@ pub(crate) fn retain_valid_molecule_semantics(fragment: &mut MoleculeFragment) {
     let (stereo, interactions) = subset_molecule_semantics(fragment, &node_ids, &bond_ids);
     fragment.stereo = stereo;
     fragment.interactions = interactions;
+    retain_valid_colored_molecular_areas(fragment);
+}
+
+/// Return the ring atoms in traversal order when `basis_bonds` describes one
+/// connected simple cycle. This is the sole geometry rule used by import,
+/// editing, rendering, deletion, and export.
+pub(crate) fn ordered_colored_area_node_ids(
+    fragment: &MoleculeFragment,
+    basis_bonds: &[String],
+) -> Option<Vec<String>> {
+    if basis_bonds.len() < 3 {
+        return None;
+    }
+    let requested = basis_bonds
+        .iter()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    if requested.len() != basis_bonds.len() {
+        return None;
+    }
+    let mut adjacency = BTreeMap::<&str, Vec<&str>>::new();
+    for bond_id in requested {
+        let bond = fragment.bonds.iter().find(|bond| bond.id == bond_id)?;
+        if bond.begin == bond.end {
+            return None;
+        }
+        adjacency
+            .entry(bond.begin.as_str())
+            .or_default()
+            .push(bond.end.as_str());
+        adjacency
+            .entry(bond.end.as_str())
+            .or_default()
+            .push(bond.begin.as_str());
+    }
+    if adjacency.len() != basis_bonds.len()
+        || adjacency.values().any(|neighbors| neighbors.len() != 2)
+    {
+        return None;
+    }
+    let start = *adjacency.keys().next()?;
+    let mut ordered = Vec::with_capacity(adjacency.len());
+    let mut previous: Option<&str> = None;
+    let mut current = start;
+    loop {
+        if ordered.iter().any(|node_id| node_id == current) {
+            return (current == start && ordered.len() == adjacency.len()).then_some(ordered);
+        }
+        ordered.push(current.to_string());
+        let neighbors = adjacency.get(current)?;
+        let next = if Some(neighbors[0]) != previous {
+            neighbors[0]
+        } else {
+            neighbors[1]
+        };
+        previous = Some(current);
+        current = next;
+    }
+}
+
+pub(crate) fn retain_valid_colored_molecular_areas(fragment: &mut MoleculeFragment) {
+    let valid = fragment
+        .colored_areas
+        .iter()
+        .filter(|area| ordered_colored_area_node_ids(fragment, &area.basis_bonds).is_some())
+        .cloned()
+        .collect();
+    fragment.colored_areas = valid;
 }
 
 fn stereo_element_id(element: &chemsema_chemical_graph::StereoElementV2) -> &str {
@@ -1172,6 +1281,12 @@ fn split_legacy_fragment_components(fragment: &MoleculeFragment) -> Vec<LegacyMo
                 .map(|bond| bond.id.clone())
                 .collect::<BTreeSet<_>>();
             let (stereo, interactions) = subset_molecule_semantics(fragment, &node_ids, &bond_ids);
+            let colored_areas = fragment
+                .colored_areas
+                .iter()
+                .filter(|area| area.basis_bonds.iter().all(|id| bond_ids.contains(id)))
+                .cloned()
+                .collect();
             if !component_has_visible_molecule_content(&nodes, &bonds) {
                 return None;
             }
@@ -1200,6 +1315,7 @@ fn split_legacy_fragment_components(fragment: &MoleculeFragment) -> Vec<LegacyMo
                 ],
                 nodes,
                 bonds,
+                colored_areas,
                 stereo,
                 interactions,
                 meta: fragment.meta.clone(),
@@ -2623,6 +2739,15 @@ pub struct MoleculeFragment {
     pub nodes: Vec<Node>,
     #[serde(default)]
     pub bonds: Vec<Bond>,
+    /// Native ChemDraw molecular-area objects. Every entry names the bonds
+    /// forming one simple ring; geometry is always derived from current atom
+    /// coordinates so edits cannot leave a stale polygon behind.
+    #[serde(
+        default,
+        rename = "coloredAreas",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub colored_areas: Vec<ColoredMolecularArea>,
     /// Source-independent molecular stereochemistry that cannot be recovered
     /// solely from bond drawing glyphs. References use fragment node/bond IDs.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2642,6 +2767,7 @@ impl MoleculeFragment {
             bbox: [0.0, 0.0, DEFAULT_PAGE_WIDTH, DEFAULT_PAGE_HEIGHT],
             nodes: Vec::new(),
             bonds: Vec::new(),
+            colored_areas: Vec::new(),
             stereo: Vec::new(),
             interactions: Vec::new(),
             meta: Value::Null,
@@ -2667,6 +2793,8 @@ pub struct Node {
     pub charge: i32,
     pub num_hydrogens: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub highlight_color: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_connection: Option<ExternalConnection>,
     #[serde(default)]
     pub is_placeholder: bool,
@@ -2689,6 +2817,7 @@ impl Node {
             position: [round2(point.x), round2(point.y)],
             charge: 0,
             num_hydrogens: 0,
+            highlight_color: None,
             external_connection: None,
             is_placeholder: false,
             label: None,
@@ -3167,6 +3296,8 @@ pub struct Bond {
     pub begin: String,
     pub end: String,
     pub order: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub highlight_color: Option<String>,
     #[serde(default, skip_serializing_if = "BondProperties::is_default")]
     pub properties: BondProperties,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3195,6 +3326,16 @@ pub struct Bond {
     pub line_weights: BondLineWeights,
     #[serde(default)]
     pub meta: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ColoredMolecularArea {
+    pub id: String,
+    pub color: String,
+    /// Bond IDs must form exactly one connected simple cycle.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub basis_bonds: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3641,6 +3782,7 @@ mod tests {
                         atom_properties: AtomProperties::default(),
                         nmr_assignments: Vec::new(),
                         num_hydrogens: 0,
+                        highlight_color: None,
                         external_connection: None,
                         is_placeholder: false,
                         label: Some(NodeLabel {
@@ -3691,6 +3833,7 @@ mod tests {
                         meta: Value::Null,
                     }],
                     bonds: Vec::new(),
+                    colored_areas: Vec::new(),
                     stereo: Vec::new(),
                     interactions: Vec::new(),
                     meta: Value::Null,
@@ -4094,6 +4237,7 @@ mod tests {
                         atom_properties: AtomProperties::default(),
                         nmr_assignments: Vec::new(),
                         num_hydrogens: 0,
+                        highlight_color: None,
                         external_connection: None,
                         is_placeholder: false,
                         label: Some(NodeLabel {
@@ -4139,6 +4283,7 @@ mod tests {
                         meta: Value::Null,
                     }],
                     bonds: Vec::new(),
+                    colored_areas: Vec::new(),
                     stereo: Vec::new(),
                     interactions: Vec::new(),
                     meta: Value::Null,

@@ -32,6 +32,12 @@ function primitiveIdentityAttrs(primitive, options = {}) {
   };
 }
 
+function primitiveInteractionAttrs(primitive) {
+  return primitive?.role === "document-molecular-color"
+    ? { "pointer-events": "none" }
+    : {};
+}
+
 function distanceBetweenPoints(a, b) {
   const dx = Number(a?.x || 0) - Number(b?.x || 0);
   const dy = Number(a?.y || 0) - Number(b?.y || 0);
@@ -99,6 +105,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       "stroke-width": strokeWidth,
       "data-role": primitive.role || undefined,
       ...primitiveIdentityAttrs(primitive, options),
+      ...primitiveInteractionAttrs(primitive),
     };
     if ((primitive.dashArray || primitive.dash_array)?.length) {
       attrs["stroke-dasharray"] = (primitive.dashArray || primitive.dash_array).join(" ");
@@ -121,6 +128,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       "stroke-linejoin": primitive.lineJoin || primitive.line_join || undefined,
       "data-role": primitive.role || undefined,
       ...primitiveIdentityAttrs(primitive, options),
+      ...primitiveInteractionAttrs(primitive),
     };
     if (primitive.role === "document-bond") {
       attrs.class = "mol-bond-stroked";
@@ -140,6 +148,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       "stroke-linejoin": primitive.lineJoin || primitive.line_join || undefined,
       "data-role": primitive.role || undefined,
       ...primitiveIdentityAttrs(primitive, options),
+      ...primitiveInteractionAttrs(primitive),
     };
     if (primitive.role === "document-bond") {
       attrs.class = "mol-bond-stroked";
@@ -159,6 +168,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       stroke: "none",
       "data-role": primitive.role || undefined,
       ...primitiveIdentityAttrs(primitive, options),
+      ...primitiveInteractionAttrs(primitive),
     };
     const clipPathD = primitive.clipPathD || primitive.clip_path_d;
     if (clipPathD) {
@@ -214,6 +224,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       "stroke-width": strokeWidth,
       "data-role": primitive.role || undefined,
       ...primitiveIdentityAttrs(primitive, options),
+      ...primitiveInteractionAttrs(primitive),
     };
     if (primitive.role === "document-bond") {
       attrs.class = strokeWidth > 0 ? "mol-bond-stroked" : "mol-bond-filled";
@@ -265,6 +276,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       "stroke-width": primitiveStrokeWidthValue(primitive, 1),
       "data-role": primitive.role || undefined,
       ...primitiveIdentityAttrs(primitive, options),
+      ...primitiveInteractionAttrs(primitive),
       rx: primitive.rx,
       ry: primitive.ry,
     };
@@ -316,6 +328,7 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
       "stroke-width": primitiveStrokeWidthValue(primitive, 1),
       "data-role": primitive.role || undefined,
       ...primitiveIdentityAttrs(primitive, options),
+      ...primitiveInteractionAttrs(primitive),
     };
     if (primitive.role === "document-diagnostic") {
       attrs.class = "document-diagnostic-marker";

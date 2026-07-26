@@ -21,7 +21,7 @@ import { createNmrPredictionHost } from "./nmr_prediction_host.js";
 import { createBundledNmrProvider } from "./nmr_prediction_provider.js";
 import { createImageImportHost } from "./image_import_host.js";
 import { createDesktopFileHost, normalizeDesktopPath } from "./desktop_file_host.js";
-import { createEngineHost } from "./engine_host.js?v=20260723-native-images";
+import { createEngineHost } from "./engine_host.js?v=20260726-molecular-coloring-2";
 import { bindEditorControls, openColorDialog } from "./editor_bindings.js?v=20260627-browser-drop-tabs";
 import { createDocumentFlow } from "./document_flow.js";
 import { createBrowserDocumentTabs } from "./browser_document_tabs.js";
@@ -49,7 +49,7 @@ import { createEditorStateRuntimeHost } from "./editor_state_runtime_host.js";
 import { createEditorToolbarHost } from "./editor_toolbar_host.js";
 import { createEditorViewportHost } from "./editor_viewport_host.js";
 import { createEditorPointerController } from "./editor_pointer_controller.js?v=20260629-deep-stability";
-import { createCanvasContextMenuHost } from "./editor_context_menu.js?v=20260723-bond-query-reaction";
+import { createCanvasContextMenuHost } from "./editor_context_menu.js?v=20260726-molecular-coloring";
 import { createEditorCommandController } from "./editor_command_controller.js";
 import { createEditorCommandEngine } from "./editor_command_engine.js?v=20260626-interaction-feedback";
 import {
@@ -74,7 +74,7 @@ import { createTextEditActionHost } from "./text_edit_action_host.js";
 import {
   primitiveStrokeWidthValue,
   renderCorePrimitive,
-} from "./primitive_dom_renderer.js";
+} from "./primitive_dom_renderer.js?v=20260726-molecular-coloring";
 import {
   engineTemplateForEditorState,
   engineToolForEditorState,

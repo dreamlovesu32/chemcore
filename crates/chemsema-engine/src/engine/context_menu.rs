@@ -246,6 +246,27 @@ impl Engine {
         if !self.state.selection.is_empty() {
             items.extend([separator(), self.link_menu()]);
         }
+        if self.selection_has_molecular_coloring_targets() {
+            items.extend([
+                separator(),
+                molecular_color_menu(
+                    "Highlight",
+                    "molecular-highlight",
+                    "molecular-highlight-other",
+                    "molecular-highlight-remove",
+                    self.selected_uniform_molecular_highlight().as_deref(),
+                ),
+            ]);
+            if !self.selected_ring_cycles().is_empty() {
+                items.push(molecular_color_menu(
+                    "Ring Fill",
+                    "ring-fill",
+                    "ring-fill-other",
+                    "ring-fill-remove",
+                    self.selected_uniform_ring_fill().as_deref(),
+                ));
+            }
+        }
         if matches!(
             single_object_type.as_deref(),
             Some("geometry" | "constraint")
@@ -1211,6 +1232,87 @@ impl Engine {
         uniform_value(colors)
     }
 
+    fn selection_has_molecular_coloring_targets(&self) -> bool {
+        !self.state.selection.nodes.is_empty()
+            || !self.state.selection.label_nodes.is_empty()
+            || !self.state.selection.bonds.is_empty()
+            || !self.state.selection.molecule_objects.is_empty()
+    }
+
+    fn selected_uniform_molecular_highlight(&self) -> Option<String> {
+        let selected_nodes = self
+            .state
+            .selection
+            .nodes
+            .iter()
+            .chain(self.state.selection.label_nodes.iter())
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        let selected_bonds = self
+            .state
+            .selection
+            .bonds
+            .iter()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        let selected_objects = self
+            .state
+            .selection
+            .molecule_objects
+            .iter()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        let mut colors = Vec::new();
+        for entry in self.state.document.editable_fragments() {
+            let whole = selected_objects.contains(entry.object.id.as_str());
+            colors.extend(
+                entry
+                    .fragment
+                    .nodes
+                    .iter()
+                    .filter(|node| whole || selected_nodes.contains(node.id.as_str()))
+                    .map(|node| node.highlight_color.clone()),
+            );
+            colors.extend(
+                entry
+                    .fragment
+                    .bonds
+                    .iter()
+                    .filter(|bond| whole || selected_bonds.contains(bond.id.as_str()))
+                    .map(|bond| bond.highlight_color.clone()),
+            );
+        }
+        let first = colors.first()?.as_ref()?.clone();
+        colors
+            .iter()
+            .all(|color| color.as_deref() == Some(first.as_str()))
+            .then_some(first)
+    }
+
+    fn selected_uniform_ring_fill(&self) -> Option<String> {
+        let cycles = self.selected_ring_cycles();
+        let mut colors = Vec::new();
+        for cycle in cycles {
+            let color = self
+                .state
+                .document
+                .editable_fragments()
+                .into_iter()
+                .flat_map(|entry| entry.fragment.colored_areas.iter())
+                .find(|area| {
+                    area.basis_bonds.len() == cycle.len()
+                        && area.basis_bonds.iter().all(|id| cycle.contains(id))
+                })
+                .map(|area| area.color.clone());
+            colors.push(color);
+        }
+        let first = colors.first()?.as_ref()?.clone();
+        colors
+            .iter()
+            .all(|color| color.as_deref() == Some(first.as_str()))
+            .then_some(first)
+    }
+
     fn selected_uniform_shape_style(&self) -> Option<String> {
         uniform_value(
             self.selected_scene_objects()
@@ -1561,6 +1663,31 @@ fn color_menu(current: Option<&str>) -> JsonValue {
             checked_item("Purple", "color", "#800080", current == Some("#800080")),
             checked_item("Gray", "color", "#808080", current == Some("#808080")),
             item("Other...", "color-other", ""),
+        ],
+    )
+}
+
+fn molecular_color_menu(
+    label: &str,
+    command: &str,
+    other_command: &str,
+    remove_command: &str,
+    current: Option<&str>,
+) -> JsonValue {
+    submenu(
+        label,
+        vec![
+            checked_item("Black", command, "#000000", current == Some("#000000")),
+            checked_item("Red", command, "#ff0000", current == Some("#ff0000")),
+            checked_item("Yellow", command, "#ffff00", current == Some("#ffff00")),
+            checked_item("Green", command, "#00ff00", current == Some("#00ff00")),
+            checked_item("Cyan", command, "#00ffff", current == Some("#00ffff")),
+            checked_item("Blue", command, "#0000ff", current == Some("#0000ff")),
+            checked_item("Magenta", command, "#ff00ff", current == Some("#ff00ff")),
+            separator(),
+            item("Other...", other_command, ""),
+            separator(),
+            item("Remove", remove_command, ""),
         ],
     )
 }

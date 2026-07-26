@@ -1298,6 +1298,7 @@ mod tests {
             begin: "n1".to_string(),
             end: "n2".to_string(),
             order: 1,
+            highlight_color: None,
             properties: Default::default(),
             double: None,
             stereo: None,

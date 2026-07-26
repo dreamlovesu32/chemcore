@@ -21,6 +21,7 @@ mod history;
 mod images;
 mod io;
 mod links;
+mod molecular_coloring;
 mod nmr_results;
 mod orbitals;
 mod palettes;
@@ -691,6 +692,12 @@ fn document_target_delta_with_scope(
         (Vec::new(), Vec::new(), Vec::new())
     };
     if scope.molecule_components {
+        expand_updated_bonds_with_colored_area_changes(
+            &mut updated_bonds,
+            before,
+            after,
+            &after_maps.bonds,
+        );
         expand_updated_nodes_with_changed_bond_endpoints(
             &mut updated_nodes,
             &created_bonds,
@@ -784,6 +791,46 @@ fn document_target_maps(document: &ChemSemaDocument) -> DocumentTargetMaps<'_> {
         }
     }
     maps
+}
+
+fn expand_updated_bonds_with_colored_area_changes(
+    updated_bonds: &mut Vec<String>,
+    before: &ChemSemaDocument,
+    after: &ChemSemaDocument,
+    after_bonds: &BTreeMap<&str, &Bond>,
+) {
+    let area_map = |document: &ChemSemaDocument| {
+        document
+            .editable_fragments()
+            .into_iter()
+            .flat_map(|entry| {
+                entry
+                    .fragment
+                    .colored_areas
+                    .iter()
+                    .map(move |area| ((entry.object.id.clone(), area.id.clone()), area.clone()))
+            })
+            .collect::<BTreeMap<_, _>>()
+    };
+    let before_areas = area_map(before);
+    let after_areas = area_map(after);
+    let mut changed_bonds = updated_bonds.iter().cloned().collect::<BTreeSet<_>>();
+    for key in before_areas.keys().chain(after_areas.keys()) {
+        if before_areas.get(key) == after_areas.get(key) {
+            continue;
+        }
+        for bond_id in before_areas
+            .get(key)
+            .into_iter()
+            .chain(after_areas.get(key))
+            .flat_map(|area| area.basis_bonds.iter())
+        {
+            if after_bonds.contains_key(bond_id.as_str()) {
+                changed_bonds.insert(bond_id.clone());
+            }
+        }
+    }
+    *updated_bonds = changed_bonds.into_iter().collect();
 }
 
 fn expand_updated_nodes_with_changed_bond_endpoints(
@@ -1117,6 +1164,7 @@ mod tests {
                 bbox: [0.0, 0.0, 80.0, 80.0],
                 nodes: vec![node],
                 bonds: Vec::new(),
+                colored_areas: Vec::new(),
                 stereo: Vec::new(),
                 interactions: Vec::new(),
                 meta: JsonValue::Null,
@@ -1716,6 +1764,8 @@ fn editor_command_is_style(command: &EditorCommand) -> bool {
             | EditorCommand::ApplyOrbitalPhase { .. }
             | EditorCommand::ApplyLineStyle { .. }
             | EditorCommand::ApplyBondStyle { .. }
+            | EditorCommand::ApplyMolecularHighlight { .. }
+            | EditorCommand::ApplyRingFill { .. }
             | EditorCommand::ApplyTextStyle { .. }
     )
 }
@@ -1759,6 +1809,8 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::ApplySelectionArrange { .. } => "apply-selection-arrange",
         EditorCommand::ApplySelectionOrder { .. } => "apply-selection-order",
         EditorCommand::ApplySelectionColor { .. } => "apply-selection-color",
+        EditorCommand::ApplyMolecularHighlight { .. } => "apply-molecular-highlight",
+        EditorCommand::ApplyRingFill { .. } => "apply-ring-fill",
         EditorCommand::ApplyShapeStyle { .. } => "apply-shape-style",
         EditorCommand::ApplyBracketKind { .. } => "apply-bracket-kind",
         EditorCommand::ApplyOrbitalTemplate { .. } => "apply-orbital-template",

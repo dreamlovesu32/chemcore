@@ -455,6 +455,10 @@ impl Engine {
                     engine.apply_bond_style_to_bond_ids_untracked(&bond_ids, &style)
                 })
             }
+            EditorCommand::ApplyMolecularHighlight { color } => {
+                self.apply_molecular_highlight(color.as_deref())
+            }
+            EditorCommand::ApplyRingFill { color } => self.apply_ring_fill(color.as_deref()),
             EditorCommand::ApplyTextStyle {
                 text_object_ids,
                 label_node_ids,
@@ -570,6 +574,8 @@ impl Engine {
             | EditorCommand::ApplyOrbitalPhase { .. }
             | EditorCommand::ApplyLineStyle { .. }
             | EditorCommand::ApplyBondStyle { .. }
+            | EditorCommand::ApplyMolecularHighlight { .. }
+            | EditorCommand::ApplyRingFill { .. }
             | EditorCommand::ApplyTextStyle { .. } => {
                 unreachable!("style commands are dispatched before the main match")
             }
