@@ -35,6 +35,14 @@ export function createNumericDialogHost({ root = document.body, engine, commandE
       });
       return dialog.open();
     },
+    async choosePayload(payload, apply) {
+      const dialog = new NumericDialog({
+        root,
+        payload,
+        apply,
+      });
+      return dialog.open();
+    },
   };
 }
 
@@ -59,7 +67,7 @@ class NumericDialog {
           <div class="numeric-dialog-title" data-desktop-window-drag-region>${escapeHtml(this.payload.title || "Value")}</div>
           <label class="numeric-dialog-field">
             <span>${escapeHtml(field.label || "Value")}</span>
-            <input name="value" type="text" inputmode="decimal" value="${escapeHtml(formatNumber(field.value))}">
+            <input name="value" type="text" inputmode="${escapeHtml(field.inputMode || "decimal")}" value="${escapeHtml(formatFieldValue(field.value, field.inputMode))}">
             <em>${escapeHtml(field.unit || "")}</em>
           </label>
           <div class="numeric-dialog-actions">
@@ -94,8 +102,16 @@ class NumericDialog {
 
   async submit() {
     const input = this.backdrop.querySelector("input");
-    const value = Number(String(input?.value || "").trim());
+    const rawValue = String(input?.value || "").trim();
+    const value = rawValue === "" && this.payload.field?.allowEmpty
+      ? ""
+      : this.payload.field?.inputMode === "text"
+        ? rawValue
+        : Number(rawValue);
     try {
+      if (typeof value === "number" && !Number.isFinite(value)) {
+        throw new Error("A finite number is required.");
+      }
       const changed = await this.apply(value);
       this.close(changed);
     } catch {
@@ -113,6 +129,10 @@ class NumericDialog {
 function formatNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? String(Math.round(number * 1000) / 1000) : "";
+}
+
+function formatFieldValue(value, inputMode) {
+  return inputMode === "text" ? String(value ?? "") : formatNumber(value);
 }
 
 function escapeHtml(value) {

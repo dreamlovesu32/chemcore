@@ -339,6 +339,7 @@ impl Engine {
                 geometry: None,
                 constraint: None,
                 table: None,
+                stoichiometry_grid: None,
                 extra,
             },
             children: Vec::new(),

@@ -41,7 +41,7 @@
 | 8 | `NR-008` | Geometry 与 Constraint | 完成 | 完成 | 完成 | 完成 | [x] |
 | 9 | `NR-009` | ColoredMolecularArea 与结构高亮 | 完成 | 完成 | 完成 | 完成 | [x] |
 | 10 | `NR-010` | 独立 Border | 完成 | 部分 | 未做 | 部分 | [ ] |
-| 11 | `NR-011` | StoichiometryGrid | 完成 | 部分 | 未做 | 部分 | [ ] |
+| 11 | `NR-011` | StoichiometryGrid | 完成 | 完成 | 完成 | 完成 | [x] |
 | 12 | `NR-012` | 凝胶电泳对象 | 完成 | 部分 | 未做 | 部分 | [ ] |
 | 13 | `NR-013` | 质粒图对象 | 完成 | 部分 | 未做 | 部分 | [ ] |
 | 14 | `NR-014` | BioShape/BioDraw 对象 | 完成 | 部分 | 未做 | 部分 | [ ] |
@@ -232,7 +232,7 @@
 
 **规则与证据**：见 [Table Tool 与表格对象规则](table-tool-rules.zh-CN.md)。
 
-### [ ] NR-011 StoichiometryGrid
+### [x] NR-011 StoichiometryGrid
 
 **范围**：`stoichiometrygrid`、`sgcomponent`、`sgdatum` 及列、行、属性类型、值和编辑状态。
 
@@ -241,6 +241,14 @@
 **目标**：建立网格、组件、数据项和化学对象引用模型，支持原生表格显示与编辑。
 
 **验收**：行列增删、只读/隐藏、反应物/产物引用和多种数据类型均可往返；布局与 ChemDraw 对齐。
+
+**2026-07-26 进展**：
+
+- CCJS 已建立原生 `ReactionSchemeData/ReactionStepData/StoichiometryGridData`，反应引用不再伪装成普通表格或重复写入通用 Link。
+- 右键分析、单元格编辑、行列显隐和删除、组件角色、自动计算、冲突状态、跟随/固定锚点、解绑冻结、Alt+双击关系选择和跨标签页复制重映射已接通统一命令链路。
+- GUI、SVG、PNG 和 EMF 共用同一组网格、文字和线条绘制原语；CDXML 官方字段可原生导入、编辑和导出。
+- 官方 CDX 对象/属性表没有 StoichiometryGrid 标签；保存含表文档为 CDX 会明确拒绝并要求 CCJS/CDXML，不做静默丢失或私有 fallback。
+- 详细模型、计算、Link 和生命周期规则见 [反应步骤与化学计量表规则](stoichiometry-grid-rules.zh-CN.md)。
 
 ### [ ] NR-012 凝胶电泳对象
 

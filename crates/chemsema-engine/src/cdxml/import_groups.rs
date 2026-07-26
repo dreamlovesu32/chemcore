@@ -156,6 +156,7 @@ pub(super) fn cdxml_group_object(
             geometry: None,
             constraint: None,
             table: None,
+            stoichiometry_grid: None,
             extra: BTreeMap::new(),
         },
         children,

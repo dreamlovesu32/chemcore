@@ -1445,6 +1445,7 @@ impl Engine {
             }
         }
         let mut linked = seeds.clone();
+        linked.extend(self.stoichiometry_relation_bundle(&seeds));
         let mut pending = seeds.into_iter().collect::<Vec<_>>();
         while let Some(entity_id) = pending.pop() {
             for relation in self.state.document.links.iter().filter(|relation| {
@@ -1592,6 +1593,7 @@ impl Engine {
                 | crate::SceneObjectKind::Symbol
                 | crate::SceneObjectKind::Shape
                 | crate::SceneObjectKind::Table
+                | crate::SceneObjectKind::StoichiometryGrid
                 | crate::SceneObjectKind::Image
                 | crate::SceneObjectKind::Spectrum
                 | crate::SceneObjectKind::Geometry
@@ -1685,11 +1687,15 @@ impl Engine {
                                 })
                             })
                     });
+                let stoichiometry_cell = object
+                    .filter(|object| object.object_type == "stoichiometry-grid")
+                    .and_then(|object| self.stoichiometry_cell_at_point(&object.id, point));
                 json!({
                     "kind": "object",
                     "objectId": object_id,
                     "objectType": object.map(|object| object.object_type.as_str()).unwrap_or(""),
                     "tableCell": table_cell,
+                    "stoichiometryCell": stoichiometry_cell,
                     "selected": selected,
                 })
             }

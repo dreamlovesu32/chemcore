@@ -336,6 +336,7 @@ fn make_text_payload(
         geometry: None,
         constraint: None,
         table: None,
+        stoichiometry_grid: None,
         extra,
     }
 }

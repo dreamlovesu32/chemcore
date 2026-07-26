@@ -51,6 +51,16 @@ pub fn parse_cdx_document(bytes: &[u8], title: Option<&str>) -> Result<ChemSemaD
 
 pub fn document_to_cdx(document: &ChemSemaDocument) -> Result<Vec<u8>, String> {
     validate_cdx_chemical_property_types(document)?;
+    if document
+        .scene_objects()
+        .into_iter()
+        .any(|object| object.object_type == "stoichiometry-grid")
+    {
+        return Err(
+            "CDX has no verified StoichiometryGrid object or property tags; save as CCJS or CDXML"
+                .to_string(),
+        );
+    }
     let cdxml = document_to_cdxml(document);
     let mut root = crate::cdxml::parse_xml_tree(&cdxml)?;
     let source = document.interchange.get("cdx").map(|source| &source.root);

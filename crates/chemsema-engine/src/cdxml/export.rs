@@ -323,6 +323,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .collect();
         objects.sort_by(|a, b| a.z_index.cmp(&b.z_index).then_with(|| a.id.cmp(&b.id)));
         self.write_scene_objects(&mut out, &objects);
+        self.write_reaction_schemes(&mut out);
         self.write_chemical_properties(&mut out);
 
         out.push_str("  </page>\n");
@@ -352,6 +353,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
             crate::SceneObjectKind::Curve => self.write_curve_object(out, object),
             crate::SceneObjectKind::Shape => self.write_shape_object(out, object),
             crate::SceneObjectKind::Table => self.write_table_object(out, object),
+            crate::SceneObjectKind::StoichiometryGrid => {
+                self.write_stoichiometry_grid_object(out, object)
+            }
             crate::SceneObjectKind::Image => self.write_image_object(out, object),
             crate::SceneObjectKind::Spectrum => self.write_spectrum_object(out, object),
             crate::SceneObjectKind::Bracket | crate::SceneObjectKind::Symbol => {
@@ -451,6 +455,164 @@ impl<'a> CdxmlDocumentWriter<'a> {
         }
         write_indent(out, 4);
         out.push_str("</table>\n");
+    }
+
+    fn write_stoichiometry_grid_object(&mut self, out: &mut String, object: &SceneObject) {
+        let Some(grid) = object.payload.stoichiometry_grid.as_ref() else {
+            return;
+        };
+        let [x, y, width, height] = object.payload.bbox.unwrap_or([0.0, 0.0, 1.0, 1.0]);
+        let bbox = [
+            object.transform.translate[0] + x,
+            object.transform.translate[1] + y,
+            object.transform.translate[0] + x + width,
+            object.transform.translate[1] + y + height,
+        ];
+        write_open_tag(
+            out,
+            4,
+            "stoichiometrygrid",
+            vec![
+                ("id", self.object_cdxml_id(object)),
+                ("BoundingBox", fmt_bbox(bbox)),
+                (
+                    "Visible",
+                    if object.visible { "yes" } else { "no" }.to_string(),
+                ),
+                ("LineWidth", fmt_num(grid.style.line_width)),
+                ("BoldWidth", fmt_num(grid.style.bold_width)),
+                ("MarginWidth", fmt_num(grid.style.margin_width)),
+                ("color", self.colors.id_for(&grid.style.color)),
+                ("LabelFont", self.fonts.id_for(&grid.style.label_font)),
+                ("LabelSize", fmt_num(grid.style.label_size)),
+                ("LabelFace", grid.style.label_face.to_string()),
+                ("Z", object.z_index.to_string()),
+            ],
+        );
+        for component in &grid.components {
+            let reference_id = (object.link_policy != crate::LinkPolicy::Unlinked)
+                .then(|| {
+                    component
+                        .reference_entity_id
+                        .as_ref()
+                        .and_then(|entity_id| self.document.find_scene_object(entity_id))
+                        .map(|source| self.object_cdxml_id(source))
+                        .or_else(|| component.unresolved_reference_id.clone())
+                })
+                .flatten();
+            let mut attrs = vec![
+                ("id", component.id.clone()),
+                (
+                    "ComponentIsHeader",
+                    if component.is_header { "yes" } else { "no" }.to_string(),
+                ),
+                (
+                    "ComponentIsReactant",
+                    if component.role == crate::StoichiometryComponentRole::Reactant {
+                        "yes"
+                    } else {
+                        "no"
+                    }
+                    .to_string(),
+                ),
+                (
+                    "Visible",
+                    if component.visible { "yes" } else { "no" }.to_string(),
+                ),
+                ("Width", fmt_num(component.width)),
+            ];
+            if let Some(reference_id) = reference_id {
+                attrs.push(("ComponentReferenceID", reference_id));
+            }
+            write_open_tag(out, 6, "sgcomponent", attrs);
+            for datum in grid
+                .data
+                .iter()
+                .filter(|datum| datum.component_id == component.id)
+            {
+                let Some(row) = grid.rows.iter().find(|row| row.id == datum.row_id) else {
+                    continue;
+                };
+                write_empty_tag(
+                    out,
+                    8,
+                    "sgdatum",
+                    vec![
+                        ("id", datum.id.clone()),
+                        ("SGPropertyType", row.property_type.clone()),
+                        ("SGDataType", row.data_type.clone()),
+                        (
+                            "SGDataValue",
+                            if datum.value.display.is_empty() {
+                                datum.value.canonical.clone()
+                            } else {
+                                datum.value.display.clone()
+                            },
+                        ),
+                        (
+                            "IsEdited",
+                            if datum.is_edited { "yes" } else { "no" }.to_string(),
+                        ),
+                        (
+                            "IsHidden",
+                            if datum.is_hidden { "yes" } else { "no" }.to_string(),
+                        ),
+                        (
+                            "IsReadOnly",
+                            if datum.is_read_only { "yes" } else { "no" }.to_string(),
+                        ),
+                        (
+                            "Visible",
+                            if datum.visible { "yes" } else { "no" }.to_string(),
+                        ),
+                    ],
+                );
+            }
+            out.push_str("      </sgcomponent>\n");
+        }
+        out.push_str("    </stoichiometrygrid>\n");
+    }
+
+    fn write_reaction_schemes(&mut self, out: &mut String) {
+        for scheme in &self.document.reaction_schemes.clone() {
+            write_open_tag(out, 4, "scheme", vec![("id", self.alloc_id())]);
+            for step in &scheme.steps {
+                let mut attrs = vec![("id", self.alloc_id())];
+                for (name, ids) in [
+                    ("ReactionStepReactants", &step.reactant_entity_ids),
+                    ("ReactionStepProducts", &step.product_entity_ids),
+                    ("ReactionStepPlusses", &step.plus_object_ids),
+                    ("ReactionStepArrows", &step.arrow_object_ids),
+                    ("ReactionStepObjectsAboveArrow", &step.objects_above_arrow),
+                    ("ReactionStepObjectsBelowArrow", &step.objects_below_arrow),
+                ] {
+                    let value = ids
+                        .iter()
+                        .filter_map(|id| self.entity_ids.get(id).cloned())
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    if !value.is_empty() {
+                        attrs.push((name, value));
+                    }
+                }
+                let mappings = step
+                    .atom_mappings
+                    .iter()
+                    .filter_map(|mapping| {
+                        Some(format!(
+                            "{} {}",
+                            self.entity_ids.get(&mapping.reactant_atom_id)?,
+                            self.entity_ids.get(&mapping.product_atom_id)?
+                        ))
+                    })
+                    .collect::<Vec<_>>();
+                if !mappings.is_empty() {
+                    attrs.push(("ReactionStepAtomMap", mappings.join(" ")));
+                }
+                write_empty_tag(out, 6, "step", attrs);
+            }
+            out.push_str("    </scheme>\n");
+        }
     }
 
     fn write_geometry_object(&mut self, out: &mut String, object: &SceneObject) {
@@ -2682,6 +2844,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
                     "graphicId",
                     "curveId",
                     "tableId",
+                    "stoichiometryGridId",
                     "tlcPlateId",
                     "spectrumId",
                     "groupId",

@@ -112,6 +112,224 @@ pub(crate) fn render_table_object(out: &mut Vec<RenderPrimitive>, object: &Scene
     }
 }
 
+pub(crate) fn render_stoichiometry_grid_object(
+    out: &mut Vec<RenderPrimitive>,
+    object: &SceneObject,
+) {
+    let Some(grid) = object.payload.stoichiometry_grid.as_ref() else {
+        return;
+    };
+    let tx = object.transform.translate[0];
+    let ty = object.transform.translate[1];
+    let label_width = grid
+        .components
+        .iter()
+        .find(|component| component.is_header)
+        .map(|component| component.width)
+        .unwrap_or(86.0);
+    let visible_components = grid
+        .components
+        .iter()
+        .filter(|component| component.visible && !component.is_header)
+        .collect::<Vec<_>>();
+    let visible_rows = grid
+        .rows
+        .iter()
+        .filter(|row| row.visible)
+        .collect::<Vec<_>>();
+    let header_height = 28.0;
+    let total_width = label_width
+        + visible_components
+            .iter()
+            .map(|component| component.width)
+            .sum::<f64>();
+    let total_height = header_height + visible_rows.iter().map(|row| row.height).sum::<f64>();
+    if total_width <= crate::EPSILON || total_height <= crate::EPSILON {
+        return;
+    }
+    out.push(RenderPrimitive::Rect {
+        role: RenderRole::DocumentGraphic,
+        object_id: Some(object.id.clone()),
+        node_id: None,
+        x: tx,
+        y: ty,
+        width: total_width,
+        height: total_height,
+        fill: Some("#ffffff".to_string()),
+        stroke: Some(grid.style.color.clone()),
+        stroke_width: grid.style.line_width,
+        rx: None,
+        ry: None,
+        dash_array: Vec::new(),
+        fill_gradient: None,
+    });
+    let mut x = tx + label_width;
+    push_stoichiometry_line(
+        out,
+        object,
+        Point::new(x, ty),
+        Point::new(x, ty + total_height),
+        grid,
+    );
+    for component in &visible_components {
+        let center_x = x + component.width * 0.5;
+        let title = component
+            .reference_entity_id
+            .as_deref()
+            .or(component.unresolved_reference_id.as_deref())
+            .unwrap_or_else(|| match component.role {
+                crate::StoichiometryComponentRole::Product => "Product",
+                crate::StoichiometryComponentRole::Reagent => "Reagent",
+                crate::StoichiometryComponentRole::Condition => "Condition",
+                _ => "Reactant",
+            });
+        push_stoichiometry_text(
+            out,
+            object,
+            center_x,
+            ty + header_height * 0.55,
+            title,
+            false,
+            "middle",
+            grid,
+        );
+        x += component.width;
+        push_stoichiometry_line(
+            out,
+            object,
+            Point::new(x, ty),
+            Point::new(x, ty + total_height),
+            grid,
+        );
+    }
+    let mut y = ty + header_height;
+    push_stoichiometry_line(
+        out,
+        object,
+        Point::new(tx, y),
+        Point::new(tx + total_width, y),
+        grid,
+    );
+    for row in visible_rows {
+        push_stoichiometry_text(
+            out,
+            object,
+            tx + grid.style.margin_width,
+            y + row.height * 0.55,
+            &row.label,
+            false,
+            "start",
+            grid,
+        );
+        let mut cell_x = tx + label_width;
+        for component in &visible_components {
+            if let Some(datum) = grid.data.iter().find(|datum| {
+                datum.component_id == component.id
+                    && datum.row_id == row.id
+                    && datum.visible
+                    && !datum.is_hidden
+            }) {
+                let text = if datum.value.display.is_empty() {
+                    datum.value.canonical.as_str()
+                } else {
+                    datum.value.display.as_str()
+                };
+                let rendered = match datum.value.unit.as_deref() {
+                    Some(unit) if !unit.is_empty() && !text.is_empty() => {
+                        format!("{text} {unit}")
+                    }
+                    _ => text.to_string(),
+                };
+                push_stoichiometry_text(
+                    out,
+                    object,
+                    cell_x + component.width * 0.5,
+                    y + row.height * 0.55,
+                    &rendered,
+                    datum.is_edited || datum.origin == crate::StoichiometryValueOrigin::Authored,
+                    "middle",
+                    grid,
+                );
+            }
+            cell_x += component.width;
+        }
+        y += row.height;
+        push_stoichiometry_line(
+            out,
+            object,
+            Point::new(tx, y),
+            Point::new(tx + total_width, y),
+            grid,
+        );
+    }
+}
+
+fn push_stoichiometry_line(
+    out: &mut Vec<RenderPrimitive>,
+    object: &SceneObject,
+    from: Point,
+    to: Point,
+    grid: &crate::StoichiometryGridData,
+) {
+    out.push(RenderPrimitive::Line {
+        role: RenderRole::DocumentGraphic,
+        object_id: Some(object.id.clone()),
+        bond_id: None,
+        from,
+        to,
+        stroke: grid.style.color.clone(),
+        stroke_width: grid.style.line_width,
+        dash_array: Vec::new(),
+    });
+}
+
+#[allow(clippy::too_many_arguments)]
+fn push_stoichiometry_text(
+    out: &mut Vec<RenderPrimitive>,
+    object: &SceneObject,
+    x: f64,
+    y: f64,
+    text: &str,
+    bold: bool,
+    anchor: &str,
+    grid: &crate::StoichiometryGridData,
+) {
+    if text.is_empty() {
+        return;
+    }
+    out.push(RenderPrimitive::Text {
+        role: RenderRole::DocumentText,
+        object_id: Some(object.id.clone()),
+        node_id: None,
+        x,
+        y,
+        baseline_offset: None,
+        dominant_baseline: Some("central".to_string()),
+        text: text.to_string(),
+        font_size: grid.style.label_size,
+        font_family: Some(grid.style.label_font.clone()),
+        fill: Some(grid.style.color.clone()),
+        text_anchor: Some(anchor.to_string()),
+        line_height: None,
+        preserve_lines: false,
+        box_width: None,
+        runs: vec![crate::LabelRun {
+            text: text.to_string(),
+            font_family: Some(grid.style.label_font.clone()),
+            font_size: Some(grid.style.label_size),
+            fill: Some(grid.style.color.clone()),
+            font_weight: Some(if bold { 700 } else { 400 }),
+            font_style: Some("normal".to_string()),
+            underline: Some(false),
+            outline: Some(false),
+            shadow: Some(false),
+            script: Some("normal".to_string()),
+        }],
+        rotate: 0.0,
+        rotate_center: None,
+    });
+}
+
 fn table_wavy_points(from: Point, to: Point, width: f64) -> Vec<Point> {
     let dx = to.x - from.x;
     let dy = to.y - from.y;

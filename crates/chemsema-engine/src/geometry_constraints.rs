@@ -701,6 +701,7 @@ mod tests {
                 geometry,
                 constraint,
                 table: None,
+                stoichiometry_grid: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),

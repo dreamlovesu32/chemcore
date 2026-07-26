@@ -32,6 +32,7 @@ mod select;
 mod selection_summary;
 mod shapes;
 mod spectra;
+mod stoichiometry_grids;
 mod tables;
 mod templates;
 mod text_edit;
@@ -1151,6 +1152,7 @@ mod tests {
                 geometry: None,
                 constraint: None,
                 table: None,
+                stoichiometry_grid: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),
@@ -1208,6 +1210,7 @@ mod tests {
                 molecule_object("obj_mol_b", "mol_b"),
             ],
             links: Vec::new(),
+            reaction_schemes: Vec::new(),
             chemical_properties: Vec::new(),
             resources,
             interchange: BTreeMap::new(),
@@ -1753,6 +1756,10 @@ fn editor_command_is_relationship(command: &EditorCommand) -> bool {
             | EditorCommand::DeleteChemicalProperty { .. }
             | EditorCommand::CreateAnnotation { .. }
             | EditorCommand::UpdateAnnotation { .. }
+            | EditorCommand::AnalyzeStoichiometry { .. }
+            | EditorCommand::SetStoichiometryDatum { .. }
+            | EditorCommand::EditStoichiometryGrid { .. }
+            | EditorCommand::BindStoichiometryGrid { .. }
     )
 }
 
@@ -1845,6 +1852,10 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::DeleteChemicalProperty { .. } => "delete-chemical-property",
         EditorCommand::CreateAnnotation { .. } => "create-annotation",
         EditorCommand::UpdateAnnotation { .. } => "update-annotation",
+        EditorCommand::AnalyzeStoichiometry { .. } => "analyze-stoichiometry",
+        EditorCommand::SetStoichiometryDatum { .. } => "set-stoichiometry-datum",
+        EditorCommand::EditStoichiometryGrid { .. } => "edit-stoichiometry-grid",
+        EditorCommand::BindStoichiometryGrid { .. } => "bind-stoichiometry-grid",
         EditorCommand::SetLinkPolicy { .. } => "set-link-policy",
         EditorCommand::UnlinkSelection { .. } => "unlink-selection",
         EditorCommand::JoinSelection => "join-selection",

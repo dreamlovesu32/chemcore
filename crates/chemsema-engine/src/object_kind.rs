@@ -11,6 +11,7 @@ pub enum SceneObjectKind {
     Symbol,
     Shape,
     Table,
+    StoichiometryGrid,
     Image,
     Spectrum,
     Geometry,
@@ -19,7 +20,7 @@ pub enum SceneObjectKind {
 }
 
 impl SceneObjectKind {
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 14] = [
         Self::Molecule,
         Self::Text,
         Self::Line,
@@ -28,6 +29,7 @@ impl SceneObjectKind {
         Self::Symbol,
         Self::Shape,
         Self::Table,
+        Self::StoichiometryGrid,
         Self::Image,
         Self::Spectrum,
         Self::Geometry,
@@ -45,6 +47,7 @@ impl SceneObjectKind {
             Self::Symbol => "symbol",
             Self::Shape => "shape",
             Self::Table => "table",
+            Self::StoichiometryGrid => "stoichiometry-grid",
             Self::Image => "image",
             Self::Spectrum => "spectrum",
             Self::Geometry => "geometry",
@@ -63,6 +66,7 @@ impl SceneObjectKind {
             "symbol" => Ok(Self::Symbol),
             "shape" => Ok(Self::Shape),
             "table" => Ok(Self::Table),
+            "stoichiometry-grid" => Ok(Self::StoichiometryGrid),
             "image" => Ok(Self::Image),
             "spectrum" => Ok(Self::Spectrum),
             "geometry" => Ok(Self::Geometry),
@@ -81,6 +85,7 @@ impl SceneObjectKind {
                 | Self::Symbol
                 | Self::Shape
                 | Self::Table
+                | Self::StoichiometryGrid
                 | Self::Image
                 | Self::Spectrum
                 | Self::Geometry

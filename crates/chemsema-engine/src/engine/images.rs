@@ -201,6 +201,7 @@ impl Engine {
                 geometry: None,
                 constraint: None,
                 table: None,
+                stoichiometry_grid: None,
                 extra: BTreeMap::from([
                     ("fit".to_string(), json!("stretch")),
                     ("opacity".to_string(), json!(1.0)),

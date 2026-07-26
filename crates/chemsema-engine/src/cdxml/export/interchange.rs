@@ -40,6 +40,40 @@ pub(super) fn merge_interchange_tree(
                         | "Visible"
                         | "Z"
                 ))
+            || (source.name == "stoichiometrygrid"
+                && matches!(
+                    property.name.as_str(),
+                    "BoundingBox"
+                        | "Visible"
+                        | "LineWidth"
+                        | "BoldWidth"
+                        | "MarginWidth"
+                        | "color"
+                        | "LabelFont"
+                        | "LabelSize"
+                        | "LabelFace"
+                        | "Z"
+                ))
+            || (source.name == "sgcomponent"
+                && matches!(
+                    property.name.as_str(),
+                    "ComponentIsHeader"
+                        | "ComponentIsReactant"
+                        | "ComponentReferenceID"
+                        | "Visible"
+                        | "Width"
+                ))
+            || (source.name == "sgdatum"
+                && matches!(
+                    property.name.as_str(),
+                    "SGPropertyType"
+                        | "SGDataType"
+                        | "SGDataValue"
+                        | "IsEdited"
+                        | "IsHidden"
+                        | "IsReadOnly"
+                        | "Visible"
+                ))
         {
             continue;
         }

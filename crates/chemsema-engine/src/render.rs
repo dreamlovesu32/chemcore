@@ -44,7 +44,8 @@ use geometry_constraint_render::render_geometry_constraint_object;
 use legacy_render::render_legacy_molecule_object;
 use object_render::{
     render_bracket_object, render_curve_object, render_line_object, render_molecule_object,
-    render_molecule_object_targets, render_shape_object, render_table_object, render_text_object,
+    render_molecule_object_targets, render_shape_object, render_stoichiometry_grid_object,
+    render_table_object, render_text_object,
 };
 use primitives::{
     push_bond_polygon, push_label_knockout_polygon, push_line, push_node_polygon, push_path,
@@ -1069,6 +1070,7 @@ fn render_scene_object(
         crate::SceneObjectKind::Text => render_text_object(out, document, object),
         crate::SceneObjectKind::Shape => render_shape_object(out, document, object),
         crate::SceneObjectKind::Table => render_table_object(out, object),
+        crate::SceneObjectKind::StoichiometryGrid => render_stoichiometry_grid_object(out, object),
         crate::SceneObjectKind::Image => render_image_object(out, document, object),
         crate::SceneObjectKind::Spectrum => render_spectrum_object(out, document, object),
         crate::SceneObjectKind::Bracket | crate::SceneObjectKind::Symbol => {

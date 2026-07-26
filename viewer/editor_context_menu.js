@@ -416,6 +416,62 @@ export function createCanvasContextMenuHost(options) {
           action,
         })),
       );
+    } else if (command === "analyze-stoichiometry") {
+      changed = await executeDocumentCommand(
+        { type: "analyze-stoichiometry", reactionStepId: null },
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
+          type: "analyze-stoichiometry",
+          reactionStepId: null,
+        })),
+      );
+    } else if (command === "stoichiometry-grid-edit") {
+      const first = value.indexOf(":");
+      const second = value.indexOf(":", first + 1);
+      const objectId = first >= 0 ? value.slice(0, first) : value;
+      const action = first >= 0 && second >= 0 ? value.slice(first + 1, second) : "";
+      const entityId = second >= 0 ? value.slice(second + 1) : "";
+      changed = await executeDocumentCommand(
+        {
+          type: "edit-stoichiometry-grid",
+          objectId,
+          action,
+          entityId: entityId || null,
+        },
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
+          type: "edit-stoichiometry-grid",
+          objectId,
+          action,
+          entityId: entityId || null,
+        })),
+      );
+    } else if (command === "stoichiometry-datum-dialog") {
+      let spec = null;
+      try {
+        spec = JSON.parse(value || "null");
+      } catch {
+        spec = null;
+      }
+      if (!spec) {
+        await finishTemporaryContextSelection();
+        return;
+      }
+      await options.numericDialogHost?.choosePayload?.(spec, async (nextValue) => {
+        const payload = {
+          type: "set-stoichiometry-datum",
+          objectId: spec.objectId,
+          componentId: spec.componentId,
+          rowId: spec.rowId,
+          value: String(nextValue),
+          unit: spec.field?.unit || null,
+        };
+        const result = await executeDocumentCommand(
+          payload,
+          () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify(payload)),
+        );
+        return !!result;
+      });
+      await finishTemporaryContextSelection();
+      return;
     } else if (command === "table-borders-dialog") {
       let spec = null;
       try {

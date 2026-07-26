@@ -37,6 +37,8 @@ pub struct ChemSemaDocument {
     #[serde(default)]
     pub links: Vec<LinkRelation>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reaction_schemes: Vec<crate::ReactionSchemeData>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub chemical_properties: Vec<ChemicalProperty>,
     #[serde(default)]
     pub resources: BTreeMap<String, Resource>,
@@ -171,11 +173,13 @@ impl ChemSemaDocument {
                     geometry: None,
                     constraint: None,
                     table: None,
+                    stoichiometry_grid: None,
                     extra: BTreeMap::new(),
                 },
                 children: Vec::new(),
             }],
             links: Vec::new(),
+            reaction_schemes: Vec::new(),
             chemical_properties: Vec::new(),
             resources,
             interchange: BTreeMap::new(),
@@ -449,6 +453,7 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
         .map(|object| object.id.clone())
         .collect::<BTreeSet<_>>();
     validate_table_objects(&document.objects, &scene_ids, &mut BTreeSet::new())?;
+    validate_stoichiometry_objects(&document, &scene_ids)?;
     validate_geometry_constraint_objects(&document)?;
     validate_molecule_fragment_resources(&document)?;
     split_disconnected_molecule_objects(&mut document);
@@ -949,6 +954,132 @@ fn validate_table_objects(
             _ => {}
         }
         validate_table_objects(&object.children, scene_ids, owned_content_ids)?;
+    }
+    Ok(())
+}
+
+fn validate_stoichiometry_objects(
+    document: &ChemSemaDocument,
+    scene_ids: &BTreeSet<String>,
+) -> Result<(), String> {
+    let node_ids = document
+        .editable_fragments()
+        .into_iter()
+        .flat_map(|entry| entry.fragment.nodes.iter().map(|node| node.id.as_str()))
+        .collect::<BTreeSet<_>>();
+    let mut scheme_ids = BTreeSet::new();
+    let mut step_ids = BTreeSet::new();
+    for scheme in &document.reaction_schemes {
+        if scheme.id.trim().is_empty() || !scheme_ids.insert(scheme.id.as_str()) {
+            return Err(format!(
+                "reaction scheme id '{}' is empty or duplicated",
+                scheme.id
+            ));
+        }
+        for step in &scheme.steps {
+            if step.id.trim().is_empty() || !step_ids.insert(step.id.as_str()) {
+                return Err(format!(
+                    "reaction step id '{}' is empty or duplicated",
+                    step.id
+                ));
+            }
+            for entity_id in step
+                .reactant_entity_ids
+                .iter()
+                .chain(step.product_entity_ids.iter())
+                .chain(step.arrow_object_ids.iter())
+                .chain(step.plus_object_ids.iter())
+                .chain(step.objects_above_arrow.iter())
+                .chain(step.objects_below_arrow.iter())
+            {
+                if !scene_ids.contains(entity_id) {
+                    return Err(format!(
+                        "reaction step '{}' references missing scene object '{}'",
+                        step.id, entity_id
+                    ));
+                }
+            }
+            for mapping in &step.atom_mappings {
+                if !node_ids.contains(mapping.reactant_atom_id.as_str())
+                    || !node_ids.contains(mapping.product_atom_id.as_str())
+                {
+                    return Err(format!(
+                        "reaction step '{}' contains an atom mapping with a missing atom",
+                        step.id
+                    ));
+                }
+            }
+        }
+    }
+    validate_stoichiometry_scene_objects(&document.objects, scene_ids, &step_ids)
+}
+
+fn validate_stoichiometry_scene_objects(
+    objects: &[SceneObject],
+    scene_ids: &BTreeSet<String>,
+    step_ids: &BTreeSet<&str>,
+) -> Result<(), String> {
+    for object in objects {
+        match (
+            object.object_type.as_str(),
+            object.payload.stoichiometry_grid.as_ref(),
+        ) {
+            ("stoichiometry-grid", Some(grid)) => {
+                grid.validate()
+                    .map_err(|error| format!("{error} on object '{}'", object.id))?;
+                if grid
+                    .source_reaction_step_id
+                    .as_deref()
+                    .is_some_and(|id| !step_ids.contains(id))
+                {
+                    return Err(format!(
+                        "stoichiometry grid '{}' references missing reaction step",
+                        object.id
+                    ));
+                }
+                for component in &grid.components {
+                    if component
+                        .reference_entity_id
+                        .as_ref()
+                        .is_some_and(|id| !scene_ids.contains(id))
+                    {
+                        return Err(format!(
+                            "stoichiometry grid '{}' component '{}' references missing scene object",
+                            object.id, component.id
+                        ));
+                    }
+                }
+                let Some([x, y, width, height]) = object.payload.bbox else {
+                    return Err(format!(
+                        "stoichiometry grid '{}' is missing payload.bbox",
+                        object.id
+                    ));
+                };
+                if ![x, y, width, height].into_iter().all(f64::is_finite)
+                    || width <= EPSILON
+                    || height <= EPSILON
+                {
+                    return Err(format!(
+                        "stoichiometry grid '{}' has an invalid payload.bbox",
+                        object.id
+                    ));
+                }
+            }
+            ("stoichiometry-grid", None) => {
+                return Err(format!(
+                    "stoichiometry grid '{}' is missing payload.stoichiometryGrid",
+                    object.id
+                ));
+            }
+            (_, Some(_)) => {
+                return Err(format!(
+                    "non-stoichiometry-grid object '{}' contains payload.stoichiometryGrid",
+                    object.id
+                ));
+            }
+            _ => {}
+        }
+        validate_stoichiometry_scene_objects(&object.children, scene_ids, step_ids)?;
     }
     Ok(())
 }
@@ -2853,6 +2984,8 @@ pub struct ObjectPayload {
     pub constraint: Option<ConstraintData>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub table: Option<TableData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stoichiometry_grid: Option<crate::StoichiometryGridData>,
     #[serde(flatten, default)]
     pub extra: BTreeMap<String, Value>,
 }

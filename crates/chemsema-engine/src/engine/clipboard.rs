@@ -30,6 +30,8 @@ pub(super) struct ClipboardContent {
     links: Vec<LinkRelation>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     chemical_properties: Vec<ChemicalProperty>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    reaction_schemes: Vec<crate::ReactionSchemeData>,
 }
 
 impl Engine {
@@ -129,6 +131,7 @@ impl Engine {
             resources,
             links: document.links,
             chemical_properties: document.chemical_properties,
+            reaction_schemes: document.reaction_schemes,
         };
         self.clipboard = Some(content);
         Ok(self.paste_clipboard())
@@ -237,6 +240,11 @@ impl Engine {
         for source in &content.scene_objects {
             preallocate_clipboard_scene_ids(self, source, &mut entity_id_map);
         }
+        for scheme in &content.reaction_schemes {
+            for step in &scheme.steps {
+                entity_id_map.insert(step.id.clone(), self.next_id("reaction_step"));
+            }
+        }
         for source in &content.scene_objects {
             let mut object = super::select::drag::translated_scene_object(
                 source,
@@ -250,6 +258,28 @@ impl Engine {
                 pasted_scene_ids.push(object.id.clone());
             }
             self.state.document.objects.push(object);
+        }
+        for scheme in &content.reaction_schemes {
+            let mut scheme = scheme.clone();
+            scheme.id = self.next_id("reaction_scheme");
+            scheme.steps = scheme
+                .steps
+                .into_iter()
+                .filter_map(|mut step| {
+                    step.id = entity_id_map.get(&step.id)?.clone();
+                    remap_reaction_step(&mut step, &entity_id_map).then_some(step)
+                })
+                .collect();
+            if !scheme.steps.is_empty() {
+                self.state.document.reaction_schemes.push(scheme);
+            }
+        }
+        for object_id in &pasted_scene_ids {
+            reconcile_pasted_stoichiometry_grid(
+                &mut self.state.document,
+                object_id,
+                &entity_id_map,
+            );
         }
         let pasted_link_start = self.state.document.links.len();
         for relation in &content.links {
@@ -513,6 +543,8 @@ impl Engine {
             })
             .cloned()
             .collect();
+        let reaction_schemes =
+            selected_reaction_schemes(&self.state.document, &selected_entity_ids);
 
         Some(ClipboardContent {
             nodes,
@@ -524,6 +556,7 @@ impl Engine {
             resources,
             links,
             chemical_properties,
+            reaction_schemes,
         })
     }
 
@@ -638,6 +671,8 @@ impl Engine {
                     .as_ref()
                     .is_none_or(|id| retained.contains(id))
         });
+        document.reaction_schemes = selected_reaction_schemes(&document, &retained);
+        freeze_unbound_stoichiometry_grids(&mut document);
         if let Some(bounds) = self.render_bounds(RenderBoundsScope::Selection) {
             set_clipboard_selection_bounds_meta(&mut document, bounds);
         }
@@ -780,6 +815,7 @@ fn visible_root_object_is_selected_for_clipboard(
         | crate::SceneObjectKind::Symbol
         | crate::SceneObjectKind::Shape
         | crate::SceneObjectKind::Table
+        | crate::SceneObjectKind::StoichiometryGrid
         | crate::SceneObjectKind::Image
         | crate::SceneObjectKind::Spectrum
         | crate::SceneObjectKind::Geometry
@@ -870,8 +906,172 @@ fn remap_clipboard_scene_object(
                 .collect();
         }
     }
+    if let Some(grid) = object.payload.stoichiometry_grid.as_mut() {
+        for component in &mut grid.components {
+            component.reference_entity_id = component
+                .reference_entity_id
+                .as_ref()
+                .and_then(|id| entity_id_map.get(id))
+                .cloned();
+        }
+        grid.source_reaction_step_id = grid
+            .source_reaction_step_id
+            .as_ref()
+            .and_then(|id| entity_id_map.get(id))
+            .cloned();
+        if grid.source_reaction_step_id.is_none() {
+            grid.binding_state = crate::StoichiometryBindingState::Detached;
+            object.link_policy = crate::LinkPolicy::Unlinked;
+            for datum in &mut grid.data {
+                if datum.origin == crate::StoichiometryValueOrigin::Calculated {
+                    datum.origin = crate::StoichiometryValueOrigin::Imported;
+                }
+            }
+        }
+    }
     for child in &mut object.children {
         remap_clipboard_scene_object(child, resource_id_map, entity_id_map);
+    }
+}
+
+fn selected_reaction_schemes(
+    document: &ChemSemaDocument,
+    selected_entity_ids: &BTreeSet<String>,
+) -> Vec<crate::ReactionSchemeData> {
+    document
+        .reaction_schemes
+        .iter()
+        .filter_map(|scheme| {
+            let steps = scheme
+                .steps
+                .iter()
+                .filter(|step| {
+                    reaction_step_entity_ids(step).all(|id| selected_entity_ids.contains(id))
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            (!steps.is_empty()).then(|| crate::ReactionSchemeData {
+                id: scheme.id.clone(),
+                steps,
+            })
+        })
+        .collect()
+}
+
+fn reaction_step_entity_ids(step: &crate::ReactionStepData) -> impl Iterator<Item = &String> {
+    step.reactant_entity_ids
+        .iter()
+        .chain(step.product_entity_ids.iter())
+        .chain(step.arrow_object_ids.iter())
+        .chain(step.plus_object_ids.iter())
+        .chain(step.objects_above_arrow.iter())
+        .chain(step.objects_below_arrow.iter())
+}
+
+fn remap_reaction_step(
+    step: &mut crate::ReactionStepData,
+    entity_id_map: &BTreeMap<String, String>,
+) -> bool {
+    let remap_ids = |ids: &mut Vec<String>| {
+        *ids = ids
+            .iter()
+            .filter_map(|id| entity_id_map.get(id).cloned())
+            .collect();
+    };
+    remap_ids(&mut step.reactant_entity_ids);
+    remap_ids(&mut step.product_entity_ids);
+    remap_ids(&mut step.arrow_object_ids);
+    remap_ids(&mut step.plus_object_ids);
+    remap_ids(&mut step.objects_above_arrow);
+    remap_ids(&mut step.objects_below_arrow);
+    step.atom_mappings = step
+        .atom_mappings
+        .iter()
+        .filter_map(|mapping| {
+            Some(crate::ReactionAtomMapping {
+                reactant_atom_id: entity_id_map.get(&mapping.reactant_atom_id)?.clone(),
+                product_atom_id: entity_id_map.get(&mapping.product_atom_id)?.clone(),
+                origin: mapping.origin,
+            })
+        })
+        .collect();
+    !step.reactant_entity_ids.is_empty()
+        && !step.product_entity_ids.is_empty()
+        && !step.arrow_object_ids.is_empty()
+}
+
+fn reconcile_pasted_stoichiometry_grid(
+    document: &mut ChemSemaDocument,
+    object_id: &str,
+    entity_id_map: &BTreeMap<String, String>,
+) {
+    let valid_steps = document
+        .reaction_schemes
+        .iter()
+        .flat_map(|scheme| scheme.steps.iter())
+        .map(|step| step.id.clone())
+        .collect::<BTreeSet<_>>();
+    let Some(object) = document.find_scene_object_mut(object_id) else {
+        return;
+    };
+    let Some(grid) = object.payload.stoichiometry_grid.as_mut() else {
+        return;
+    };
+    if let Some(source_id) = grid.source_reaction_step_id.clone() {
+        if !valid_steps.contains(&source_id) {
+            grid.source_reaction_step_id = entity_id_map.get(&source_id).cloned();
+        }
+    }
+    if grid
+        .source_reaction_step_id
+        .as_deref()
+        .is_none_or(|id| !valid_steps.contains(id))
+    {
+        grid.source_reaction_step_id = None;
+        grid.binding_state = crate::StoichiometryBindingState::Detached;
+        object.link_policy = crate::LinkPolicy::Unlinked;
+        for datum in &mut grid.data {
+            if datum.origin == crate::StoichiometryValueOrigin::Calculated {
+                datum.origin = crate::StoichiometryValueOrigin::Imported;
+            }
+        }
+    }
+}
+
+fn freeze_unbound_stoichiometry_grids(document: &mut ChemSemaDocument) {
+    let valid_steps = document
+        .reaction_schemes
+        .iter()
+        .flat_map(|scheme| scheme.steps.iter())
+        .map(|step| step.id.clone())
+        .collect::<BTreeSet<_>>();
+    freeze_unbound_stoichiometry_scene_objects(&mut document.objects, &valid_steps);
+}
+
+fn freeze_unbound_stoichiometry_scene_objects(
+    objects: &mut [SceneObject],
+    valid_steps: &BTreeSet<String>,
+) {
+    for object in objects {
+        let Some(grid) = object.payload.stoichiometry_grid.as_mut() else {
+            freeze_unbound_stoichiometry_scene_objects(&mut object.children, valid_steps);
+            continue;
+        };
+        let binding_valid = grid
+            .source_reaction_step_id
+            .as_ref()
+            .is_some_and(|id| valid_steps.contains(id));
+        if !binding_valid {
+            grid.source_reaction_step_id = None;
+            grid.binding_state = crate::StoichiometryBindingState::Detached;
+            object.link_policy = crate::LinkPolicy::Unlinked;
+            for datum in &mut grid.data {
+                if datum.origin == crate::StoichiometryValueOrigin::Calculated {
+                    datum.origin = crate::StoichiometryValueOrigin::Imported;
+                }
+            }
+        }
+        freeze_unbound_stoichiometry_scene_objects(&mut object.children, valid_steps);
     }
 }
 

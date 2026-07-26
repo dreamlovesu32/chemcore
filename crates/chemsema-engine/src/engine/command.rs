@@ -599,6 +599,43 @@ pub enum EditorCommand {
         object_id: String,
         properties: AnnotationPropertiesPatch,
     },
+    AnalyzeStoichiometry {
+        #[serde(
+            default,
+            alias = "reactionStepId",
+            skip_serializing_if = "Option::is_none"
+        )]
+        reaction_step_id: Option<String>,
+    },
+    SetStoichiometryDatum {
+        #[serde(alias = "objectId")]
+        object_id: String,
+        #[serde(alias = "componentId")]
+        component_id: String,
+        #[serde(alias = "rowId")]
+        row_id: String,
+        value: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        unit: Option<String>,
+    },
+    EditStoichiometryGrid {
+        #[serde(alias = "objectId")]
+        object_id: String,
+        action: String,
+        #[serde(default, alias = "entityId", skip_serializing_if = "Option::is_none")]
+        entity_id: Option<String>,
+    },
+    BindStoichiometryGrid {
+        #[serde(alias = "objectId")]
+        object_id: String,
+        #[serde(
+            default,
+            alias = "reactionStepId",
+            skip_serializing_if = "Option::is_none"
+        )]
+        reaction_step_id: Option<String>,
+        policy: LinkPolicy,
+    },
     SetLinkPolicy {
         #[serde(default, alias = "objectIds")]
         object_ids: Vec<String>,

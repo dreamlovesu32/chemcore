@@ -20,6 +20,7 @@ use tables::*;
 pub(crate) use brackets::render_bracket_object;
 pub(crate) use curves::render_curve_object;
 pub(crate) use shapes::render_shape_object;
+pub(crate) use tables::render_stoichiometry_grid_object;
 pub(crate) use tables::render_table_object;
 
 #[derive(Clone, Copy)]

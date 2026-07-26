@@ -41,7 +41,7 @@ use self::import_objects::{
     append_line_objects, append_orbital_shape_objects, append_shape_objects,
     append_spectrum_objects, append_synthesized_enhanced_stereo_text_objects,
     append_table_shape_objects, append_text_objects, append_tlc_plate_shape_objects,
-    associate_table_cell_contents,
+    associate_table_cell_contents, import_reactions_and_stoichiometry_grids,
 };
 pub(crate) use self::import_scaling::normalize_cdxml_document_for_editing;
 use self::import_topology::*;
@@ -282,6 +282,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
                     geometry: None,
                     constraint: None,
                     table: None,
+                    stoichiometry_grid: None,
                     extra: BTreeMap::new(),
                 },
                 children: Vec::new(),
@@ -326,6 +327,8 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         &colors,
         &fonts,
     );
+    let reaction_schemes =
+        import_reactions_and_stoichiometry_grids(&root, &mut objects, defaults, &colors, &fonts);
     let (chemical_properties, chemical_property_links) =
         import_chemical_properties(&root, &objects, &resources);
     apply_cdxml_groups(&root, &mut objects);
@@ -426,6 +429,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         styles,
         objects,
         links: Vec::new(),
+        reaction_schemes,
         chemical_properties,
         resources,
         interchange: BTreeMap::from([(

@@ -243,6 +243,12 @@ impl Engine {
                 item("Chemical Property...", "chemical-property-dialog", ""),
             ]);
         }
+        if self.can_analyze_stoichiometry() {
+            items.extend([
+                separator(),
+                item("Analyze Stoichiometry", "analyze-stoichiometry", ""),
+            ]);
+        }
         if !self.state.selection.is_empty() {
             items.extend([separator(), self.link_menu()]);
         }
@@ -278,6 +284,51 @@ impl Engine {
         }
         if single_object_type.as_deref() == Some("table") {
             items.extend(self.table_cell_context_menu_items(hit));
+            return items;
+        }
+        if single_object_type.as_deref() == Some("stoichiometry-grid") {
+            if let Some(object_id) = self.state.selection.arrow_objects.first() {
+                items.extend(self.stoichiometry_cell_context_menu_items(hit, object_id));
+                items.extend([
+                    separator(),
+                    submenu(
+                        "Stoichiometry Grid",
+                        vec![
+                            item(
+                                "Refresh Calculations",
+                                "stoichiometry-grid-edit",
+                                &format!("{object_id}:refresh:"),
+                            ),
+                            item(
+                                "Add Concentration Row",
+                                "stoichiometry-grid-edit",
+                                &format!("{object_id}:add-row:Concentration"),
+                            ),
+                            item(
+                                "Add Volume Row",
+                                "stoichiometry-grid-edit",
+                                &format!("{object_id}:add-row:Volume"),
+                            ),
+                            item(
+                                "Add Density Row",
+                                "stoichiometry-grid-edit",
+                                &format!("{object_id}:add-row:Density"),
+                            ),
+                            item(
+                                "Add Yield Row",
+                                "stoichiometry-grid-edit",
+                                &format!("{object_id}:add-row:Yield"),
+                            ),
+                            separator(),
+                            item(
+                                "Detach from Reaction",
+                                "stoichiometry-grid-edit",
+                                &format!("{object_id}:detach:"),
+                            ),
+                        ],
+                    ),
+                ]);
+            }
             return items;
         }
         let annotation_items = self.annotation_menu_values();
@@ -526,6 +577,124 @@ impl Engine {
             separator(),
             self.object_settings_item(),
         ]
+    }
+
+    fn stoichiometry_cell_context_menu_items(
+        &self,
+        hit: &JsonValue,
+        object_id: &str,
+    ) -> Vec<JsonValue> {
+        let Some(cell) = hit.get("stoichiometryCell") else {
+            return Vec::new();
+        };
+        let Some(component_id) = cell.get("componentId").and_then(JsonValue::as_str) else {
+            return Vec::new();
+        };
+        if cell.get("header").and_then(JsonValue::as_bool) == Some(true) {
+            return vec![
+                separator(),
+                item(
+                    "Hide/Show Component",
+                    "stoichiometry-grid-edit",
+                    format!("{object_id}:toggle-component-visible:{component_id}"),
+                ),
+                item(
+                    "Delete Component",
+                    "stoichiometry-grid-edit",
+                    format!("{object_id}:delete-component:{component_id}"),
+                ),
+            ];
+        }
+        let Some(row_id) = cell.get("rowId").and_then(JsonValue::as_str) else {
+            return Vec::new();
+        };
+        let cell_id = format!("{component_id}|{row_id}");
+        let mut entries = vec![separator()];
+        if cell.get("readOnly").and_then(JsonValue::as_bool) != Some(true) {
+            entries.push(item(
+                "Edit Value...",
+                "stoichiometry-datum-dialog",
+                json!({
+                    "title": cell.get("label").and_then(JsonValue::as_str).unwrap_or("Stoichiometry Value"),
+                    "objectId": object_id,
+                    "componentId": component_id,
+                    "rowId": row_id,
+                    "field": {
+                        "label": cell.get("label").and_then(JsonValue::as_str).unwrap_or("Value"),
+                        "value": cell.get("value").and_then(JsonValue::as_str).unwrap_or(""),
+                        "unit": cell.get("unit").and_then(JsonValue::as_str).unwrap_or(""),
+                        "allowEmpty": true,
+                        "inputMode": if cell.get("dataType").and_then(JsonValue::as_str) == Some("Number") {
+                            "decimal"
+                        } else {
+                            "text"
+                        }
+                    }
+                })
+                .to_string(),
+            ));
+        }
+        entries.extend([
+            item(
+                if cell.get("hidden").and_then(JsonValue::as_bool) == Some(true) {
+                    "Show Cell"
+                } else {
+                    "Hide Cell"
+                },
+                "stoichiometry-grid-edit",
+                format!("{object_id}:toggle-datum-hidden:{cell_id}"),
+            ),
+            item(
+                if cell.get("readOnly").and_then(JsonValue::as_bool) == Some(true) {
+                    "Make Cell Editable"
+                } else {
+                    "Make Cell Read-only"
+                },
+                "stoichiometry-grid-edit",
+                format!("{object_id}:toggle-datum-read-only:{cell_id}"),
+            ),
+            separator(),
+            item(
+                "Hide/Show Row",
+                "stoichiometry-grid-edit",
+                format!("{object_id}:toggle-row-visible:{row_id}"),
+            ),
+            item(
+                "Delete Row",
+                "stoichiometry-grid-edit",
+                format!("{object_id}:delete-row:{row_id}"),
+            ),
+            item(
+                "Hide/Show Component",
+                "stoichiometry-grid-edit",
+                format!("{object_id}:toggle-component-visible:{component_id}"),
+            ),
+            item(
+                "Delete Component",
+                "stoichiometry-grid-edit",
+                format!("{object_id}:delete-component:{component_id}"),
+            ),
+            submenu(
+                "Component Role",
+                [
+                    ("Reactant", "reactant"),
+                    ("Product", "product"),
+                    ("Reagent", "reagent"),
+                    ("Condition", "condition"),
+                    ("Unspecified", "unspecified"),
+                ]
+                .into_iter()
+                .map(|(label, role)| {
+                    item(
+                        label,
+                        "stoichiometry-grid-edit",
+                        format!("{object_id}:set-component-role-{role}:{component_id}"),
+                    )
+                })
+                .collect(),
+            ),
+        ]);
+        entries
     }
 
     fn table_border_dialog_spec(&self, object_id: &str, row: u64, column: u64) -> String {

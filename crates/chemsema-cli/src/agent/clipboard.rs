@@ -341,6 +341,8 @@ pub(super) fn clipboard_document_for_object(
         .ok_or_else(|| format!("Object target not found: {object_id}."))?;
     let mut out = document.clone();
     out.objects = objects;
+    out.reaction_schemes.clear();
+    freeze_stoichiometry_grids_for_subset(&mut out.objects);
     Ok(out)
 }
 
@@ -427,6 +429,8 @@ pub(super) fn clipboard_document_for_fragment_target(
 
         let mut out = document.clone();
         out.objects = vec![object];
+        out.reaction_schemes.clear();
+        freeze_stoichiometry_grids_for_subset(&mut out.objects);
         out.resources.insert(resource_ref, resource);
         return Ok(out);
     }
@@ -434,6 +438,22 @@ pub(super) fn clipboard_document_for_fragment_target(
         (Some(id), _) => Err(format!("Node target not found: {id}.")),
         (_, Some(id)) => Err(format!("Bond target not found: {id}.")),
         _ => Err("No fragment target was provided.".to_string()),
+    }
+}
+
+fn freeze_stoichiometry_grids_for_subset(objects: &mut [SceneObject]) {
+    for object in objects {
+        if let Some(grid) = object.payload.stoichiometry_grid.as_mut() {
+            grid.source_reaction_step_id = None;
+            grid.binding_state = chemsema_engine::StoichiometryBindingState::Detached;
+            object.link_policy = chemsema_engine::LinkPolicy::Unlinked;
+            for datum in &mut grid.data {
+                if datum.origin == chemsema_engine::StoichiometryValueOrigin::Calculated {
+                    datum.origin = chemsema_engine::StoichiometryValueOrigin::Imported;
+                }
+            }
+        }
+        freeze_stoichiometry_grids_for_subset(&mut object.children);
     }
 }
 

@@ -104,6 +104,7 @@ fn scene_object_selection_coverage(
         | crate::SceneObjectKind::Symbol
         | crate::SceneObjectKind::Shape
         | crate::SceneObjectKind::Table
+        | crate::SceneObjectKind::StoichiometryGrid
         | crate::SceneObjectKind::Image
         | crate::SceneObjectKind::Spectrum
         | crate::SceneObjectKind::Geometry

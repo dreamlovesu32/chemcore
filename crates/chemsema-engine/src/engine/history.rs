@@ -299,6 +299,10 @@ impl Engine {
             | EditorCommand::AddTable { .. }
             | EditorCommand::EditTable { .. }
             | EditorCommand::SetTableBorders { .. }
+            | EditorCommand::AnalyzeStoichiometry { .. }
+            | EditorCommand::SetStoichiometryDatum { .. }
+            | EditorCommand::EditStoichiometryGrid { .. }
+            | EditorCommand::BindStoichiometryGrid { .. }
             | EditorCommand::AddBracket { .. }
             | EditorCommand::AddSymbol { .. }
             | EditorCommand::AddOrbital { .. }

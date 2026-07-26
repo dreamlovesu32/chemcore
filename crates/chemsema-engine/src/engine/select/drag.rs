@@ -280,6 +280,7 @@ fn rotated_scene_object(original: &SceneObject, center: Point, degrees: f64) -> 
         }
         crate::SceneObjectKind::Shape
         | crate::SceneObjectKind::Table
+        | crate::SceneObjectKind::StoichiometryGrid
         | crate::SceneObjectKind::Bracket
         | crate::SceneObjectKind::Symbol
         | crate::SceneObjectKind::Image => {
@@ -295,6 +296,9 @@ fn rotated_scene_object(original: &SceneObject, center: Point, degrees: f64) -> 
         | crate::SceneObjectKind::Geometry
         | crate::SceneObjectKind::Constraint
         | crate::SceneObjectKind::Group => {}
+    }
+    if let Some(grid) = object.payload.stoichiometry_grid.as_mut() {
+        grid.anchor_mode = crate::StoichiometryAnchorMode::Fixed;
     }
     object
 }
@@ -747,6 +751,7 @@ pub(in crate::engine) fn translated_scene_object(
         | crate::SceneObjectKind::Symbol
         | crate::SceneObjectKind::Shape
         | crate::SceneObjectKind::Table
+        | crate::SceneObjectKind::StoichiometryGrid
         | crate::SceneObjectKind::Image
         | crate::SceneObjectKind::Spectrum => {
             object.transform.translate = [
@@ -898,6 +903,7 @@ fn object_transform_participates_in_render(object: &SceneObject) -> bool {
     match object.kind() {
         crate::SceneObjectKind::Text
         | crate::SceneObjectKind::Table
+        | crate::SceneObjectKind::StoichiometryGrid
         | crate::SceneObjectKind::Bracket
         | crate::SceneObjectKind::Symbol
         | crate::SceneObjectKind::Image
@@ -1276,6 +1282,7 @@ mod tests {
                 geometry: None,
                 constraint: None,
                 table: None,
+                stoichiometry_grid: None,
                 extra,
             },
             children: Vec::new(),

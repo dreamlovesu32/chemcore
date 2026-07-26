@@ -110,12 +110,14 @@ impl Engine {
         changed |= crate::refresh_attached_electron_symbols(&mut self.state.document);
         changed |= self.refresh_analysis_captions();
         changed |= self.reconcile_chemical_properties_after_document_change();
+        changed |= self.refresh_stoichiometry_after_document_change();
         changed
     }
 
     pub fn selection_can_link(&self) -> bool {
-        compatible_selection_link(&self.state.document, &self.state.selection)
-            .is_some_and(|candidate| !relation_exists(&self.state.document, &candidate))
+        self.selection_can_link_stoichiometry()
+            || compatible_selection_link(&self.state.document, &self.state.selection)
+                .is_some_and(|candidate| !relation_exists(&self.state.document, &candidate))
     }
 
     pub fn selection_can_link_bracket_text(&self) -> bool {
@@ -161,6 +163,14 @@ impl Engine {
     }
 
     fn link_selection_untracked(&mut self) -> bool {
+        if self.selection_can_link_stoichiometry() {
+            self.push_undo_snapshot();
+            let changed = self.link_stoichiometry_selection_untracked();
+            if !changed {
+                self.undo_stack.pop();
+            }
+            return changed;
+        }
         let Some(mut relation) =
             compatible_selection_link(&self.state.document, &self.state.selection)
         else {
@@ -215,6 +225,19 @@ impl Engine {
         }
         self.push_undo_snapshot();
         let mut changed = false;
+        let selected_grid_ids = ids
+            .iter()
+            .filter(|id| {
+                self.state
+                    .document
+                    .find_scene_object(id)
+                    .is_some_and(|object| object.object_type == "stoichiometry-grid")
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        for grid_id in selected_grid_ids {
+            changed |= self.bind_stoichiometry_grid_untracked(&grid_id, None, policy);
+        }
         if policy == LinkPolicy::Unlinked {
             let detached_property_ids = self
                 .state
@@ -653,6 +676,7 @@ mod tests {
                 geometry: None,
                 constraint: None,
                 table: None,
+                stoichiometry_grid: None,
                 extra: BTreeMap::from([
                     ("text".to_string(), json!(text)),
                     ("box".to_string(), json!([0.0, 0.0, 8.0, 12.0])),
@@ -681,6 +705,7 @@ mod tests {
                 geometry: None,
                 constraint: None,
                 table: None,
+                stoichiometry_grid: None,
                 extra: BTreeMap::from([
                     ("kind".to_string(), json!("square")),
                     ("box".to_string(), json!([0.0, 0.0, 40.0, 40.0])),

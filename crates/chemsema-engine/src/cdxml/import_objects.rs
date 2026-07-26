@@ -12,6 +12,8 @@ mod import_images;
 mod import_lines;
 #[path = "import_spectra.rs"]
 mod import_spectra;
+#[path = "import_stoichiometry.rs"]
+mod import_stoichiometry;
 #[path = "import_text.rs"]
 mod import_text;
 
@@ -26,6 +28,7 @@ pub(super) use import_graphics::{
 pub(super) use import_images::append_embedded_image_objects;
 pub(super) use import_lines::{append_curve_objects, append_line_objects};
 pub(super) use import_spectra::append_spectrum_objects;
+pub(super) use import_stoichiometry::import_reactions_and_stoichiometry_grids;
 pub(super) use import_text::{
     append_synthesized_enhanced_stereo_text_objects, append_text_objects,
 };

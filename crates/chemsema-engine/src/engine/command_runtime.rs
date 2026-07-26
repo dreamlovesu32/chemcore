@@ -387,6 +387,72 @@ impl Engine {
                         .unwrap_or(false)
                 },
             ),
+            EditorCommand::AnalyzeStoichiometry { reaction_step_id } => self.with_command(
+                EditorCommand::AnalyzeStoichiometry {
+                    reaction_step_id: reaction_step_id.clone(),
+                },
+                |engine| engine.analyze_stoichiometry_untracked(reaction_step_id.as_deref()),
+            ),
+            EditorCommand::SetStoichiometryDatum {
+                object_id,
+                component_id,
+                row_id,
+                value,
+                unit,
+            } => self.with_command(
+                EditorCommand::SetStoichiometryDatum {
+                    object_id: object_id.clone(),
+                    component_id: component_id.clone(),
+                    row_id: row_id.clone(),
+                    value: value.clone(),
+                    unit: unit.clone(),
+                },
+                |engine| {
+                    engine.set_stoichiometry_datum_untracked(
+                        &object_id,
+                        &component_id,
+                        &row_id,
+                        &value,
+                        unit.as_deref(),
+                    )
+                },
+            ),
+            EditorCommand::EditStoichiometryGrid {
+                object_id,
+                action,
+                entity_id,
+            } => self.with_command(
+                EditorCommand::EditStoichiometryGrid {
+                    object_id: object_id.clone(),
+                    action: action.clone(),
+                    entity_id: entity_id.clone(),
+                },
+                |engine| {
+                    engine.edit_stoichiometry_grid_untracked(
+                        &object_id,
+                        &action,
+                        entity_id.as_deref(),
+                    )
+                },
+            ),
+            EditorCommand::BindStoichiometryGrid {
+                object_id,
+                reaction_step_id,
+                policy,
+            } => self.with_command(
+                EditorCommand::BindStoichiometryGrid {
+                    object_id: object_id.clone(),
+                    reaction_step_id: reaction_step_id.clone(),
+                    policy,
+                },
+                |engine| {
+                    engine.bind_stoichiometry_grid_untracked(
+                        &object_id,
+                        reaction_step_id.as_deref(),
+                        policy,
+                    )
+                },
+            ),
             EditorCommand::LinkSelection { object_ids } => {
                 if !object_ids.is_empty() {
                     self.state.selection =
@@ -681,7 +747,11 @@ impl Engine {
             | EditorCommand::PasteAnalysisCaption { .. }
             | EditorCommand::ApplyChemicalProperty { .. }
             | EditorCommand::ApplyChemicalPropertyResult { .. }
-            | EditorCommand::DeleteChemicalProperty { .. } => {
+            | EditorCommand::DeleteChemicalProperty { .. }
+            | EditorCommand::AnalyzeStoichiometry { .. }
+            | EditorCommand::SetStoichiometryDatum { .. }
+            | EditorCommand::EditStoichiometryGrid { .. }
+            | EditorCommand::BindStoichiometryGrid { .. } => {
                 unreachable!("relationship commands are dispatched before the main match")
             }
             EditorCommand::CreateAnnotation { .. } | EditorCommand::UpdateAnnotation { .. } => {
