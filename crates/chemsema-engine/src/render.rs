@@ -18,6 +18,8 @@ mod bond_render;
 mod bounds;
 #[path = "render_contact.rs"]
 mod contact;
+#[path = "render/geometry_constraints.rs"]
+mod geometry_constraint_render;
 #[path = "render/labels.rs"]
 mod labels;
 #[path = "render_legacy.rs"]
@@ -38,6 +40,7 @@ use contact::{
     center_double_skips_extension, main_bond_endpoint_geometry, main_contact_is_straight_through,
     main_contact_side, render_main_bond_contact_patches, MainBondContactKernel,
 };
+use geometry_constraint_render::render_geometry_constraint_object;
 use legacy_render::render_legacy_molecule_object;
 use object_render::{
     render_bracket_object, render_curve_object, render_line_object, render_molecule_object,
@@ -1069,6 +1072,9 @@ fn render_scene_object(
         crate::SceneObjectKind::Spectrum => render_spectrum_object(out, document, object),
         crate::SceneObjectKind::Bracket | crate::SceneObjectKind::Symbol => {
             render_bracket_object(out, document, object)
+        }
+        crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint => {
+            render_geometry_constraint_object(out, document, object)
         }
         crate::SceneObjectKind::Group => {}
     }

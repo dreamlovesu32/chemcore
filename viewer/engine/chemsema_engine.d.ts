@@ -5,6 +5,7 @@ export class WasmEngine {
     free(): void;
     [Symbol.dispose](): void;
     activeArrowEditDegrees(): number;
+    annotationDialogJson(annotation: string): string;
     applyArrowEndpointOptionsToSelection(variant: string, head_size: string, curve: string, head_style: string, tail_style: string, no_go: string, bold: boolean): boolean;
     applyArrowOptionsToSelection(variant: string, head_size: string, head: boolean, tail: boolean, bold: boolean): boolean;
     applyBondStyleToSelection(style: string): boolean;
@@ -162,6 +163,7 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_wasmengine_free: (a: number, b: number) => void;
     readonly wasmengine_activeArrowEditDegrees: (a: number) => number;
+    readonly wasmengine_annotationDialogJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_applyArrowEndpointOptionsToSelection: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => number;
     readonly wasmengine_applyArrowOptionsToSelection: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
     readonly wasmengine_applyBondStyleToSelection: (a: number, b: number, c: number) => number;
@@ -314,8 +316,8 @@ export interface InitOutput {
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
-    readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;
+    readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_start: () => void;
 }
 

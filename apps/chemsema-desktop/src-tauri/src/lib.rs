@@ -245,6 +245,7 @@ pub fn run() {
             desktop_engine_rotate_selection_degrees,
             desktop_engine_selection_numeric_dialog_json,
             desktop_engine_atom_property_dialog_json,
+            desktop_engine_annotation_dialog_json,
             desktop_engine_apply_selection_numeric_dialog_json,
             desktop_engine_apply_selection_order_command,
             desktop_engine_group_selection,

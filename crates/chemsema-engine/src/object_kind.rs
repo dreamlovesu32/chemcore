@@ -12,11 +12,13 @@ pub enum SceneObjectKind {
     Shape,
     Image,
     Spectrum,
+    Geometry,
+    Constraint,
     Group,
 }
 
 impl SceneObjectKind {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 12] = [
         Self::Molecule,
         Self::Text,
         Self::Line,
@@ -26,6 +28,8 @@ impl SceneObjectKind {
         Self::Shape,
         Self::Image,
         Self::Spectrum,
+        Self::Geometry,
+        Self::Constraint,
         Self::Group,
     ];
 
@@ -40,6 +44,8 @@ impl SceneObjectKind {
             Self::Shape => "shape",
             Self::Image => "image",
             Self::Spectrum => "spectrum",
+            Self::Geometry => "geometry",
+            Self::Constraint => "constraint",
             Self::Group => "group",
         }
     }
@@ -55,6 +61,8 @@ impl SceneObjectKind {
             "shape" => Ok(Self::Shape),
             "image" => Ok(Self::Image),
             "spectrum" => Ok(Self::Spectrum),
+            "geometry" => Ok(Self::Geometry),
+            "constraint" => Ok(Self::Constraint),
             "group" => Ok(Self::Group),
             _ => Err(format!("Unsupported scene object type '{value}'")),
         }
@@ -70,6 +78,8 @@ impl SceneObjectKind {
                 | Self::Shape
                 | Self::Image
                 | Self::Spectrum
+                | Self::Geometry
+                | Self::Constraint
                 | Self::Group
         )
     }

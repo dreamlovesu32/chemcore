@@ -104,7 +104,9 @@ fn scene_object_selection_coverage(
         | crate::SceneObjectKind::Symbol
         | crate::SceneObjectKind::Shape
         | crate::SceneObjectKind::Image
-        | crate::SceneObjectKind::Spectrum => {
+        | crate::SceneObjectKind::Spectrum
+        | crate::SceneObjectKind::Geometry
+        | crate::SceneObjectKind::Constraint => {
             selected_coverage(selection.arrow_objects.iter(), &object.id)
         }
         crate::SceneObjectKind::Molecule => {
@@ -289,6 +291,24 @@ pub(super) fn scene_object_selection_bounds(
     }
     if object.object_type == "spectrum" {
         return object_bbox_selection_bounds(object);
+    }
+    if matches!(
+        object.kind(),
+        crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+    ) {
+        let primitives = crate::render_document_targets(
+            document,
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+            &BTreeSet::from([object.id.clone()]),
+        );
+        return crate::render_primitives_bounds(
+            primitives
+                .iter()
+                .filter(|primitive| primitive.object_id() == Some(object.id.as_str())),
+        )
+        .map(AxisBounds::from_array)
+        .or_else(|| object_bbox_selection_bounds(object));
     }
     if object.object_type == "group" {
         return group_object_selection_bounds(document, object);

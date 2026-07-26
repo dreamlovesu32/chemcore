@@ -39,6 +39,7 @@ pub(in crate::cdxml) fn append_text_objects(
     append_text_objects_recursive(
         root,
         false,
+        false,
         true,
         false,
         false,
@@ -243,6 +244,8 @@ pub(in crate::cdxml) fn append_synthesized_enhanced_stereo_text_objects(
                 resource_ref: None,
                 bbox: None,
                 spectrum: None,
+                geometry: None,
+                constraint: None,
                 extra,
             },
             children: Vec::new(),
@@ -291,6 +294,7 @@ pub(super) fn estimated_annotation_text_width(text: &str, font_size: f64) -> f64
 pub(in crate::cdxml) fn append_text_objects_recursive(
     node: &XmlNode,
     skip_text: bool,
+    inside_native_annotation: bool,
     text_visible: bool,
     force_text_visible: bool,
     prefer_parameterized_bracket_label: bool,
@@ -410,7 +414,7 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
             auto_bracket_label_right_x
         };
     let current_z = parse_i32(node.attr("Z")).or(inherited_z);
-    if node.is("t") && !skip_text && placeholder_depth <= 1 {
+    if node.is("t") && !skip_text && !inside_native_annotation && placeholder_depth <= 1 {
         let is_chemical_property_display = node
             .attr("id")
             .is_some_and(|id| chemical_property_display_ids.contains(id));
@@ -450,6 +454,9 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
         append_text_objects_recursive(
             child,
             next_skip_text,
+            inside_native_annotation
+                || node.is("constraint")
+                || (node.is("geometry") && node.attr("GeometricFeature").is_some()),
             next_text_visible,
             next_force_text_visible,
             if node.is("graphic") {
@@ -690,6 +697,8 @@ pub(super) fn text_object(
             resource_ref: None,
             bbox: None,
             spectrum: None,
+            geometry: None,
+            constraint: None,
             extra,
         },
         children: Vec::new(),

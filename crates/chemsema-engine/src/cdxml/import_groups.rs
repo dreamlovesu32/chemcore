@@ -153,6 +153,8 @@ pub(super) fn cdxml_group_object(
             resource_ref: None,
             bbox: payload_bbox,
             spectrum: None,
+            geometry: None,
+            constraint: None,
             extra: BTreeMap::new(),
         },
         children,

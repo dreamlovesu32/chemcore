@@ -2,13 +2,26 @@ use super::*;
 
 pub(super) fn add_hit_to_selection(selection: &mut SelectionState, hit: SelectHit) {
     match hit {
-        SelectHit::TextObject { object_id } => push_unique(&mut selection.text_objects, object_id),
+        SelectHit::TextObject { object_id } => {
+            push_unique(&mut selection.ordered_entities, object_id.clone());
+            push_unique(&mut selection.text_objects, object_id);
+        }
         SelectHit::ArrowObject { object_id } => {
+            push_unique(&mut selection.ordered_entities, object_id.clone());
             push_unique(&mut selection.arrow_objects, object_id)
         }
-        SelectHit::Label { node_id } => push_unique(&mut selection.label_nodes, node_id),
-        SelectHit::Node { node_id } => push_unique(&mut selection.nodes, node_id),
-        SelectHit::Bond { bond_id } => push_unique(&mut selection.bonds, bond_id),
+        SelectHit::Label { node_id } => {
+            push_unique(&mut selection.ordered_entities, node_id.clone());
+            push_unique(&mut selection.label_nodes, node_id);
+        }
+        SelectHit::Node { node_id } => {
+            push_unique(&mut selection.ordered_entities, node_id.clone());
+            push_unique(&mut selection.nodes, node_id);
+        }
+        SelectHit::Bond { bond_id } => {
+            push_unique(&mut selection.ordered_entities, bond_id.clone());
+            push_unique(&mut selection.bonds, bond_id);
+        }
     }
 }
 
@@ -32,6 +45,9 @@ pub(super) fn merge_selection(
     }
     let mut merged = current;
     merged.region = merged.region || next.region;
+    for entity_id in next.ordered_entities {
+        push_unique(&mut merged.ordered_entities, entity_id);
+    }
     for object_id in next.text_objects {
         push_unique(&mut merged.text_objects, object_id);
     }

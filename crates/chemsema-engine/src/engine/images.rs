@@ -198,6 +198,8 @@ impl Engine {
                 resource_ref: Some(resource_id),
                 bbox: Some([0.0, 0.0, width, height]),
                 spectrum: None,
+                geometry: None,
+                constraint: None,
                 extra: BTreeMap::from([
                     ("fit".to_string(), json!("stretch")),
                     ("opacity".to_string(), json!(1.0)),

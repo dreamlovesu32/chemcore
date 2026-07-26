@@ -433,6 +433,42 @@ export function createCanvasContextMenuHost(options) {
       }
       await finishTemporaryContextSelection();
       return;
+    } else if (command === "create-annotation") {
+      const decision = await options.annotationDialogHost?.choose(value);
+      if (!decision) {
+        await finishTemporaryContextSelection();
+        return;
+      }
+      changed = await executeDocumentCommand(
+        {
+          type: "create-annotation",
+          annotation: decision.annotation,
+          properties: decision.properties,
+        },
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
+          type: "create-annotation",
+          annotation: decision.annotation,
+          properties: decision.properties,
+        })),
+      );
+    } else if (command === "annotation-dialog") {
+      const decision = await options.annotationDialogHost?.choose("selected");
+      if (!decision?.objectId) {
+        await finishTemporaryContextSelection();
+        return;
+      }
+      changed = await executeDocumentCommand(
+        {
+          type: "update-annotation",
+          objectId: decision.objectId,
+          properties: decision.properties,
+        },
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify({
+          type: "update-annotation",
+          objectId: decision.objectId,
+          properties: decision.properties,
+        })),
+      );
     } else if (command === "chemical-copy") {
       await copyChemicalAnalysis(value);
       await finishTemporaryContextSelection();

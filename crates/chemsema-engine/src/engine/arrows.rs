@@ -434,6 +434,8 @@ impl Engine {
                 resource_ref: None,
                 bbox: None,
                 spectrum: None,
+                geometry: None,
+                constraint: None,
                 extra,
             },
             children: Vec::new(),

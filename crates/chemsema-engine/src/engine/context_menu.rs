@@ -246,6 +246,28 @@ impl Engine {
         if !self.state.selection.is_empty() {
             items.extend([separator(), self.link_menu()]);
         }
+        if matches!(
+            single_object_type.as_deref(),
+            Some("geometry" | "constraint")
+        ) {
+            items.extend([
+                separator(),
+                item("Annotation Properties...", "annotation-dialog", "selected"),
+            ]);
+        }
+        let annotation_items = self.annotation_menu_values();
+        if !annotation_items.is_empty() {
+            items.extend([
+                separator(),
+                submenu(
+                    "Annotation",
+                    annotation_items
+                        .into_iter()
+                        .map(|(label, value)| item(label, "create-annotation", value))
+                        .collect(),
+                ),
+            ]);
+        }
 
         if selected_count > 1 || selected_types.contains("group") {
             items.extend([

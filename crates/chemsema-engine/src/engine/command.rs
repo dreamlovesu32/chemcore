@@ -557,6 +557,16 @@ pub enum EditorCommand {
         #[serde(alias = "propertyId")]
         property_id: String,
     },
+    CreateAnnotation {
+        annotation: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        properties: Option<AnnotationPropertiesPatch>,
+    },
+    UpdateAnnotation {
+        #[serde(alias = "objectId")]
+        object_id: String,
+        properties: AnnotationPropertiesPatch,
+    },
     SetLinkPolicy {
         #[serde(default, alias = "objectIds")]
         object_ids: Vec<String>,
@@ -653,6 +663,53 @@ pub enum EditorCommand {
 
 const fn default_analysis_caption_digits() -> u8 {
     2
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnnotationPropertiesPatch {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relation_value: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minimum: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub maximum: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub point_is_directed: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ignore_unconnected_atoms: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dihedral_is_chiral: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_value: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text_override: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub positioning_type: Option<crate::AnnotationPositioningType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub position_x: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub position_y: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub positioning_angle: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub positioning_offset_x: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub positioning_offset_y: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub indicator_visible: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub font_family: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub font_size: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fill: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bold: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub italic: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub underline: Option<bool>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]

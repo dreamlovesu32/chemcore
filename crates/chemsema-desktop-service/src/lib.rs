@@ -1016,6 +1016,14 @@ impl DesktopDocumentService {
             .atom_property_dialog_json(property))
     }
 
+    pub fn annotation_dialog_json(
+        &self,
+        session_id: SessionId,
+        annotation: &str,
+    ) -> Result<String, String> {
+        Ok(self.session(session_id)?.annotation_dialog_json(annotation))
+    }
+
     pub fn apply_selection_numeric_dialog_json(
         &mut self,
         session_id: SessionId,
@@ -1522,6 +1530,47 @@ mod tests {
         assert_eq!(isotope["field"]["valueKind"], "integer");
         assert_eq!(isotope["field"]["minimum"], 1);
         assert_eq!(isotope["field"]["maximum"], i16::MAX);
+    }
+
+    #[test]
+    fn native_session_exposes_annotation_dialog_and_mutation() {
+        let mut service = DesktopDocumentService::new();
+        let session_id = service.create_session();
+        service
+            .load_document_cdxml(
+                session_id,
+                r#"<CDXML BondLength="14.4"><page id="1">
+                  <fragment id="10"><n id="101" p="40 40"/><n id="102" p="60 40"/><b id="103" B="101" E="102"/></fragment>
+                  <constraint id="201" ConstraintType="Distance" ConstraintMin="0" ConstraintMax="0" BasisObjects="101 102">
+                    <objecttag TagType="Unknown" Name="distance"><t p="50 35"><s>0 Å</s></t></objecttag>
+                  </constraint>
+                </page></CDXML>"#,
+            )
+            .unwrap();
+        service
+            .select_at_point(session_id, 50.0, 35.0, false)
+            .unwrap();
+        let dialog: Value = serde_json::from_str(
+            &service
+                .annotation_dialog_json(session_id, "selected")
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(dialog["kind"], "annotation-properties");
+        assert_eq!(dialog["annotation"], "distance");
+        let object_id = dialog["objectId"].as_str().unwrap();
+        assert!(service
+            .execute_command_json(
+                session_id,
+                &serde_json::json!({
+                    "type": "update-annotation",
+                    "objectId": object_id,
+                    "properties": { "minimum": 0.5, "maximum": 1.5 }
+                })
+                .to_string(),
+            )
+            .unwrap()
+            .contains("\"changed\":true"));
     }
 
     #[test]

@@ -38,7 +38,7 @@
 | 5 | `NR-005` | 外部连接点视觉类型 | 完成 | 完成 | 完成 | 完成 | [x] |
 | 6 | `NR-006` | 光谱对象 | 完成 | 完成 | 完成 | 完成 | [x] |
 | 7 | `NR-007` | ChemicalProperty | 完成 | 完成 | 完成 | 完成 | [x] |
-| 8 | `NR-008` | Geometry 与 Constraint | 完成 | 部分 | 未做 | 部分 | [ ] |
+| 8 | `NR-008` | Geometry 与 Constraint | 完成 | 完成 | 完成 | 完成 | [x] |
 | 9 | `NR-009` | ColoredMolecularArea | 完成 | 部分 | 未做 | 部分 | [ ] |
 | 10 | `NR-010` | 独立 Border | 完成 | 部分 | 未做 | 部分 | [ ] |
 | 11 | `NR-011` | StoichiometryGrid | 完成 | 部分 | 未做 | 部分 | [ ] |
@@ -189,15 +189,24 @@
 - CDXML 允许仅有名称的自定义类型；CDX 无法表示这种类型，导出会明确报错，绝不静默省略。带数值码的未知自定义类型可稳定 CDX 往返。
 - 空属性、活动/固定、结构失效、结果回填、显示和 basis 删除、复制粘贴、CDXML/CDX 引用重写及菜单入口均已有回归；详细契约见 [ChemicalProperty 原生模型](chemical-property-model.zh-CN.md)。
 
-### [ ] NR-008 Geometry 与 Constraint
+### [x] NR-008 Geometry 与 Constraint
 
 **范围**：`geometry`、`constraint` 及其引用对象、几何类型、约束值和显示属性。
 
-**现状**：字段可保留，但缺少原生几何辅助图形和约束编辑语义。
+**现状**：已建立原生 Geometry/Constraint 对象、强 basis 引用、递归求值器、共享渲染和内核属性对话框。
 
 **目标**：建立对象引用、测量/约束值与可视辅助线之间的明确模型。
 
 **验收**：引用失效、对象移动、角度/距离等主要类型均有规则；显示和隐藏不影响约束数据往返。
+
+**2026-07-26 完成**：
+
+- CCJS 以明确字段覆盖全部官方 Geometry/Constraint 类型、显示文字、指示线、字体样式与 `auto`/`angle`/`offset`/`absolute` 定位；依赖图允许派生对象继续作为 basis，并明确拒绝循环和类型不匹配。
+- CDXML/CDX 均按官方对象与 INT8 枚举读写 `GeometricFeature`、`ConstraintType`、`BasisObjects`、范围和布尔属性；CDX 导出统一重写对象 ID 与强引用。
+- GUI、SVG、PNG 与 EMF 共用递归求值和渲染语义。basis 拖动时实时重算；单独拖标注只产生临时预览，松手回位且不写文档、不触发自动保存、不进入撤销栈。
+- 删除 basis 会递归级联删除依赖标注；同标签页、跨标签页和跨端复制只在 basis 完整时携带标注，并统一重映射强引用。
+- 右键菜单按有序选择签名仅显示合法类型；显式标签原子与隐式原子统一作为点。属性修改使用内核生成的对话框 schema，原生标注没有缩放或旋转柄。
+- 规则、ChemDraw 实测和验收边界见 [Geometry / Constraint 原生对象设计](geometry-constraint-model.zh-CN.md)；解析、往返、递归求值、生命周期、拖拽和真实浏览器右键对话框均有回归。
 
 ### [ ] NR-009 ColoredMolecularArea
 

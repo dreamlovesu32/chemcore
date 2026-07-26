@@ -346,6 +346,34 @@ impl Engine {
                 },
                 |engine| engine.delete_chemical_property_untracked(&property_id, true),
             ),
+            EditorCommand::CreateAnnotation {
+                annotation,
+                properties,
+            } => self.with_command(
+                EditorCommand::CreateAnnotation {
+                    annotation: annotation.clone(),
+                    properties: properties.clone(),
+                },
+                |engine| {
+                    engine
+                        .create_annotation_untracked(&annotation, properties)
+                        .unwrap_or(false)
+                },
+            ),
+            EditorCommand::UpdateAnnotation {
+                object_id,
+                properties,
+            } => self.with_command(
+                EditorCommand::UpdateAnnotation {
+                    object_id: object_id.clone(),
+                    properties: properties.clone(),
+                },
+                |engine| {
+                    engine
+                        .update_annotation_untracked(&object_id, properties)
+                        .unwrap_or(false)
+                },
+            ),
             EditorCommand::LinkSelection { object_ids } => {
                 if !object_ids.is_empty() {
                     self.state.selection =
@@ -615,6 +643,9 @@ impl Engine {
             | EditorCommand::ApplyChemicalProperty { .. }
             | EditorCommand::ApplyChemicalPropertyResult { .. }
             | EditorCommand::DeleteChemicalProperty { .. } => {
+                unreachable!("relationship commands are dispatched before the main match")
+            }
+            EditorCommand::CreateAnnotation { .. } | EditorCommand::UpdateAnnotation { .. } => {
                 unreachable!("relationship commands are dispatched before the main match")
             }
             EditorCommand::ExpandLabelsInSelection => self.expand_labels_in_selection(),

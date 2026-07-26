@@ -7,6 +7,7 @@ mod document;
 mod editing;
 mod engine;
 mod geometry;
+mod geometry_constraints;
 mod glyph_kernel;
 mod label_rules;
 mod legacy_mol;

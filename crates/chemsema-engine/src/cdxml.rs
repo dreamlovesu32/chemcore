@@ -13,6 +13,7 @@ mod import_bonds;
 mod import_chemical_properties;
 mod import_defaults;
 mod import_fragments;
+mod import_geometry_constraints;
 mod import_groups;
 mod import_nodes;
 mod import_objects;
@@ -29,6 +30,10 @@ use self::import_bonds::*;
 use self::import_chemical_properties::import_chemical_properties;
 use self::import_defaults::*;
 use self::import_fragments::*;
+use self::import_geometry_constraints::{
+    annotation_basis_links, append_geometry_constraint_objects,
+    normalize_imported_annotation_displays,
+};
 use self::import_groups::*;
 use self::import_nodes::*;
 use self::import_objects::{
@@ -273,6 +278,8 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
                         round2(component.bbox_abs[3] - component.bbox_abs[1]),
                     ]),
                     spectrum: None,
+                    geometry: None,
+                    constraint: None,
                     extra: BTreeMap::new(),
                 },
                 children: Vec::new(),
@@ -302,6 +309,15 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
     append_synthesized_enhanced_stereo_text_objects(
         &root,
         &mut objects,
+        &mut styles,
+        defaults,
+        &colors,
+        &fonts,
+    );
+    append_geometry_constraint_objects(
+        &root,
+        &mut objects,
+        &resources,
         &mut styles,
         defaults,
         &colors,
@@ -418,6 +434,10 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
             },
         )]),
     };
+    document
+        .links
+        .extend(annotation_basis_links(&document.objects));
+    normalize_imported_annotation_displays(&mut document);
     document.links.extend(chemical_property_links);
     let linked_scene_ids = document
         .links
@@ -645,5 +665,90 @@ mod interchange_tests {
         assert!(saved.contains("<annotation"));
         assert!(saved.contains("Keyword=\"source\""));
         assert!(saved.contains("Content=\"confidential\""));
+    }
+
+    #[test]
+    fn native_constraint_imports_as_one_live_annotation_and_roundtrips_through_cdx() {
+        let source = r#"<CDXML BondLength="14.4" LineWidth="0.6" HashSpacing="2.5">
+  <colortable><color r="1" g="1" b="1"/><color r="0" g="0" b="0"/></colortable>
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <fragment id="10"><n id="101" p="40 40"/><n id="102" p="60 40"/><b id="103" B="101" E="102"/></fragment>
+    <constraint id="201" ConstraintType="Distance" ConstraintMin="0" ConstraintMax="0" BasisObjects="101 102">
+      <objecttag TagType="Unknown" Name="distance"><t p="44.37 37.23"><s font="3" size="7.5" color="0">0 Å</s></t></objecttag>
+    </constraint>
+  </page>
+</CDXML>"#;
+        let document = parse_cdxml_document(source, Some("distance")).expect("constraint parses");
+        let constraints = document
+            .scene_objects()
+            .into_iter()
+            .filter(|object| object.kind() == crate::SceneObjectKind::Constraint)
+            .collect::<Vec<_>>();
+        assert_eq!(constraints.len(), 1);
+        assert!(
+            constraints[0]
+                .payload
+                .constraint
+                .as_ref()
+                .expect("constraint payload")
+                .display
+                .auto_value
+        );
+        assert_eq!(
+            constraints[0]
+                .payload
+                .constraint
+                .as_ref()
+                .expect("constraint payload")
+                .display
+                .positioning_type,
+            crate::AnnotationPositioningType::Auto
+        );
+        assert!(!document
+            .scene_objects()
+            .iter()
+            .any(|object| object.kind() == crate::SceneObjectKind::Text));
+        let saved = document_to_cdxml(&document);
+        assert!(saved.contains("<constraint"));
+        assert!(saved.contains(">0 Å</s>"));
+        assert!(!saved.contains("PositioningType=\"auto\""));
+
+        let cdx = crate::document_to_cdx(&document).expect("constraint exports to CDX");
+        let reopened = crate::parse_cdx_document(&cdx, Some("distance")).expect("CDX reopens");
+        let reopened_constraint = reopened
+            .scene_objects()
+            .into_iter()
+            .find(|object| object.kind() == crate::SceneObjectKind::Constraint)
+            .expect("constraint survives CDX");
+        assert_eq!(
+            reopened_constraint
+                .payload
+                .constraint
+                .as_ref()
+                .expect("constraint payload")
+                .basis_entity_ids
+                .len(),
+            2
+        );
+    }
+
+    #[test]
+    fn edited_constraint_text_imports_as_an_explicit_non_updating_value() {
+        let source = r#"<CDXML BondLength="14.4"><page id="1">
+          <fragment id="10"><n id="101" p="40 40"/><n id="102" p="60 40"/></fragment>
+          <constraint id="201" ConstraintType="Distance" ConstraintMin="0" ConstraintMax="0" BasisObjects="101 102">
+            <objecttag TagType="Unknown" Name="distance"><t p="50 35"><s>custom</s></t></objecttag>
+          </constraint>
+        </page></CDXML>"#;
+        let document = parse_cdxml_document(source, Some("edited")).expect("constraint parses");
+        let constraint = document
+            .scene_objects()
+            .into_iter()
+            .find_map(|object| object.payload.constraint.as_ref())
+            .expect("constraint payload");
+        assert!(!constraint.display.auto_value);
+        assert_eq!(constraint.display.text_override.as_deref(), Some("custom"));
+        assert!(document_to_cdxml(&document).contains(">custom</s>"));
     }
 }

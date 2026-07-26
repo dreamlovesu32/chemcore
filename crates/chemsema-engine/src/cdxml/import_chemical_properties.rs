@@ -114,7 +114,7 @@ fn parse_property_type(value: Option<&str>) -> ChemicalPropertyType {
     }
 }
 
-fn source_entity_map(
+pub(super) fn source_entity_map(
     root: &XmlNode,
     objects: &[SceneObject],
     resources: &BTreeMap<String, Resource>,

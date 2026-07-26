@@ -6,6 +6,9 @@ pub(super) fn enum_name(value: i16, values: &'static [(i16, &'static str)]) -> &
 }
 
 pub(super) fn enum_value(name: &str, values: &'static [(i16, &'static str)]) -> Option<i16> {
+    if let Ok(value) = name.parse::<i16>() {
+        return Some(value);
+    }
     values
         .iter()
         .find_map(|(value, candidate)| candidate.eq_ignore_ascii_case(name).then_some(*value))

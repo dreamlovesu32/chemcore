@@ -5,14 +5,41 @@ pub(super) fn merge_interchange_tree(
     source: &crate::InterchangeObject,
 ) {
     for property in source.properties.values() {
-        if source.name == "chemicalproperty"
+        if (source.name == "chemicalproperty"
             && matches!(
                 property.name.as_str(),
                 "ChemicalPropertyType"
                     | "ChemicalPropertyDisplayID"
                     | "ChemicalPropertyIsActive"
                     | "BasisObjects"
-            )
+            ))
+            || (source.name == "geometry"
+                && matches!(
+                    property.name.as_str(),
+                    "GeometricFeature"
+                        | "BasisObjects"
+                        | "RelationValue"
+                        | "PointIsDirected"
+                        | "BoundingBox"
+                        | "Name"
+                        | "Visible"
+                        | "Z"
+                ))
+            || (source.name == "constraint"
+                && matches!(
+                    property.name.as_str(),
+                    "ConstraintType"
+                        | "BasisObjects"
+                        | "ConstraintMin"
+                        | "ConstraintMax"
+                        | "IgnoreUnconnectedAtoms"
+                        | "DihedralIsChiral"
+                        | "PointIsDirected"
+                        | "BoundingBox"
+                        | "Name"
+                        | "Visible"
+                        | "Z"
+                ))
         {
             continue;
         }
@@ -46,6 +73,57 @@ pub(super) fn merge_interchange_tree(
     }
     ordered.append(&mut remaining);
     generated.children = ordered;
+}
+
+pub(super) fn retain_native_annotations(
+    source: &mut crate::InterchangeObject,
+    objects: &[crate::SceneObject],
+) {
+    let allowed_ids = objects
+        .iter()
+        .flat_map(annotation_objects)
+        .filter_map(|object| {
+            object
+                .meta
+                .pointer("/import/cdxml/sourceId")
+                .and_then(serde_json::Value::as_str)
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    retain_native_annotations_recursive(source, &allowed_ids);
+}
+
+fn annotation_objects(object: &crate::SceneObject) -> Vec<&crate::SceneObject> {
+    let mut objects = Vec::new();
+    if matches!(
+        object.kind(),
+        crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+    ) {
+        objects.push(object);
+    }
+    for child in &object.children {
+        objects.extend(annotation_objects(child));
+    }
+    objects
+}
+
+fn retain_native_annotations_recursive(
+    source: &mut crate::InterchangeObject,
+    allowed_ids: &std::collections::BTreeSet<&str>,
+) {
+    source.children.retain(|child| {
+        let native_geometry =
+            child.name == "geometry" && child.properties.contains_key("GeometricFeature");
+        if !native_geometry && child.name != "constraint" {
+            return true;
+        }
+        child
+            .id
+            .as_deref()
+            .is_some_and(|id| allowed_ids.contains(id))
+    });
+    for child in &mut source.children {
+        retain_native_annotations_recursive(child, allowed_ids);
+    }
 }
 
 pub(super) fn retain_native_chemical_properties(

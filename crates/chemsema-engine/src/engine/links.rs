@@ -650,6 +650,8 @@ mod tests {
                 resource_ref: None,
                 bbox: Some([0.0, 0.0, 8.0, 12.0]),
                 spectrum: None,
+                geometry: None,
+                constraint: None,
                 extra: BTreeMap::from([
                     ("text".to_string(), json!(text)),
                     ("box".to_string(), json!([0.0, 0.0, 8.0, 12.0])),
@@ -675,6 +677,8 @@ mod tests {
                 resource_ref: None,
                 bbox: Some([0.0, 0.0, 40.0, 40.0]),
                 spectrum: None,
+                geometry: None,
+                constraint: None,
                 extra: BTreeMap::from([
                     ("kind".to_string(), json!("square")),
                     ("box".to_string(), json!([0.0, 0.0, 40.0, 40.0])),

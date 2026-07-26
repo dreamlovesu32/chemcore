@@ -557,6 +557,10 @@ pub struct SelectionState {
     pub label_nodes: Vec<String>,
     #[serde(default)]
     pub region: bool,
+    /// Entity ids in the order the user explicitly selected them. Aggregate
+    /// and region selections intentionally leave this empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ordered_entities: Vec<String>,
     pub nodes: Vec<String>,
     pub bonds: Vec<String>,
 }

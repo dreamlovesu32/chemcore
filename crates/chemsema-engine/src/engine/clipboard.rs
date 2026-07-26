@@ -215,14 +215,15 @@ impl Engine {
         let mut pasted_scene_ids = Vec::new();
         let mut pasted_molecule_ids = Vec::new();
         for source in &content.scene_objects {
-            let source_id = source.id.clone();
+            preallocate_clipboard_scene_ids(self, source, &mut entity_id_map);
+        }
+        for source in &content.scene_objects {
             let mut object = super::select::drag::translated_scene_object(
                 source,
                 CLIPBOARD_PASTE_OFFSET_PT,
                 CLIPBOARD_PASTE_OFFSET_PT,
             );
-            remap_clipboard_scene_object(self, &mut object, &resource_id_map);
-            entity_id_map.insert(source_id, object.id.clone());
+            remap_clipboard_scene_object(&mut object, &resource_id_map, &entity_id_map);
             if object.object_type == "molecule" {
                 pasted_molecule_ids.push(object.id.clone());
             } else {
@@ -427,6 +428,12 @@ impl Engine {
                 selected_entity_ids.extend(fragment.bonds.iter().map(|bond| bond.id.clone()));
             }
         }
+        retain_copyable_annotations(&mut scene_objects, &selected_entity_ids);
+        selected_entity_ids = scene_objects
+            .iter()
+            .flat_map(scene_object_ids)
+            .chain(selected_entity_ids)
+            .collect();
         let links = self
             .state
             .document
@@ -515,6 +522,26 @@ impl Engine {
             .into_iter()
             .map(|object| object.id.clone())
             .collect::<BTreeSet<_>>();
+        for object in document.scene_objects() {
+            let Some(resource_id) = object.payload.resource_ref.as_ref() else {
+                continue;
+            };
+            let Some(ResourceData::Fragment(fragment)) = document
+                .resources
+                .get(resource_id)
+                .map(|resource| &resource.data)
+            else {
+                continue;
+            };
+            retained.extend(fragment.nodes.iter().map(|node| node.id.clone()));
+            retained.extend(fragment.bonds.iter().map(|bond| bond.id.clone()));
+        }
+        retain_copyable_annotations(&mut document.objects, &retained);
+        retained = document
+            .scene_objects()
+            .into_iter()
+            .map(|object| object.id.clone())
+            .collect();
         for object in document.scene_objects() {
             let Some(resource_id) = object.payload.resource_ref.as_ref() else {
                 continue;
@@ -683,6 +710,8 @@ fn visible_root_object_is_selected_for_clipboard(
         | crate::SceneObjectKind::Shape
         | crate::SceneObjectKind::Image
         | crate::SceneObjectKind::Spectrum
+        | crate::SceneObjectKind::Geometry
+        | crate::SceneObjectKind::Constraint
         | crate::SceneObjectKind::Group => selected_graphics.contains(object.id.as_str()),
         crate::SceneObjectKind::Molecule => selected_molecules.contains(object.id.as_str()),
     }
@@ -720,20 +749,102 @@ fn collect_scene_object_resources(
     }
 }
 
-fn remap_clipboard_scene_object(
+fn preallocate_clipboard_scene_ids(
     engine: &mut Engine,
+    object: &SceneObject,
+    entity_id_map: &mut BTreeMap<String, String>,
+) {
+    entity_id_map.insert(object.id.clone(), engine.next_id("object"));
+    for child in &object.children {
+        preallocate_clipboard_scene_ids(engine, child, entity_id_map);
+    }
+}
+
+fn remap_clipboard_scene_object(
     object: &mut SceneObject,
     resource_id_map: &BTreeMap<String, String>,
+    entity_id_map: &BTreeMap<String, String>,
 ) {
-    object.id = engine.next_id("object");
+    object.id = entity_id_map
+        .get(&object.id)
+        .expect("clipboard scene id was preallocated")
+        .clone();
     if let Some(resource_id) = object.payload.resource_ref.as_mut() {
         if let Some(target_id) = resource_id_map.get(resource_id) {
             *resource_id = target_id.clone();
         }
     }
-    for child in &mut object.children {
-        remap_clipboard_scene_object(engine, child, resource_id_map);
+    if let Some(geometry) = object.payload.geometry.as_mut() {
+        remap_annotation_ids(
+            &mut geometry.basis_entity_ids,
+            &mut geometry.unresolved_basis_ids,
+            entity_id_map,
+        );
     }
+    if let Some(constraint) = object.payload.constraint.as_mut() {
+        remap_annotation_ids(
+            &mut constraint.basis_entity_ids,
+            &mut constraint.unresolved_basis_ids,
+            entity_id_map,
+        );
+    }
+    for child in &mut object.children {
+        remap_clipboard_scene_object(child, resource_id_map, entity_id_map);
+    }
+}
+
+fn remap_annotation_ids(
+    basis_entity_ids: &mut Vec<String>,
+    unresolved_basis_ids: &mut Vec<String>,
+    entity_id_map: &BTreeMap<String, String>,
+) {
+    *basis_entity_ids = basis_entity_ids
+        .iter()
+        .filter_map(|id| entity_id_map.get(id).cloned())
+        .collect();
+    unresolved_basis_ids.clear();
+}
+
+fn annotation_basis_ids(object: &SceneObject) -> &[String] {
+    object
+        .payload
+        .geometry
+        .as_ref()
+        .map(|geometry| geometry.basis_entity_ids.as_slice())
+        .or_else(|| {
+            object
+                .payload
+                .constraint
+                .as_ref()
+                .map(|constraint| constraint.basis_entity_ids.as_slice())
+        })
+        .unwrap_or(&[])
+}
+
+fn retain_copyable_annotations(
+    objects: &mut Vec<SceneObject>,
+    selected_entity_ids: &BTreeSet<String>,
+) {
+    objects.retain_mut(|object| {
+        retain_copyable_annotations(&mut object.children, selected_entity_ids);
+        if matches!(
+            object.kind(),
+            crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+        ) {
+            return annotation_basis_ids(object)
+                .iter()
+                .all(|basis_id| selected_entity_ids.contains(basis_id));
+        }
+        true
+    });
+}
+
+fn scene_object_ids(object: &SceneObject) -> Vec<String> {
+    let mut ids = vec![object.id.clone()];
+    for child in &object.children {
+        ids.extend(scene_object_ids(child));
+    }
+    ids
 }
 
 fn remap_clipboard_resource(

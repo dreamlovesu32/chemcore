@@ -86,6 +86,8 @@ pub(in crate::cdxml) fn append_spectrum_objects(
                 round2(bbox[3] - bbox[1]),
             ]),
             spectrum: None,
+            geometry: None,
+            constraint: None,
             extra: BTreeMap::new(),
         };
         payload.spectrum = Some(spectrum);

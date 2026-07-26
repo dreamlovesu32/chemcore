@@ -76,6 +76,15 @@ pub(super) fn apply_selection_drag_to_document(
         else {
             continue;
         };
+        if !drag.node_originals.is_empty()
+            && matches!(
+                original.object.kind(),
+                crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+            )
+        {
+            *object = original.object.clone();
+            continue;
+        }
         if matches!(drag.mode, SelectionMoveMode::Translate) {
             *object = translated_scene_object(&original.object, delta_x, delta_y);
         }
@@ -282,6 +291,8 @@ fn rotated_scene_object(original: &SceneObject, center: Point, degrees: f64) -> 
         }
         crate::SceneObjectKind::Molecule
         | crate::SceneObjectKind::Spectrum
+        | crate::SceneObjectKind::Geometry
+        | crate::SceneObjectKind::Constraint
         | crate::SceneObjectKind::Group => {}
     }
     object
@@ -626,6 +637,12 @@ fn resized_scene_object(
     scale_x: f64,
     scale_y: f64,
 ) -> SceneObject {
+    if matches!(
+        original.kind(),
+        crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+    ) {
+        return original.clone();
+    }
     let mut object = original.clone();
     let absolute_points = shape_uses_absolute_points(original);
     let scale_transform = object_transform_participates_in_render(original);
@@ -715,6 +732,12 @@ pub(in crate::engine) fn translated_scene_object(
                 .iter()
                 .map(|child| translated_scene_object(child, delta_x, delta_y))
                 .collect();
+        }
+        crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint => {
+            object.transform.translate = [
+                round2(original.transform.translate[0] + delta_x),
+                round2(original.transform.translate[1] + delta_y),
+            ];
         }
         crate::SceneObjectKind::Molecule
         | crate::SceneObjectKind::Text
@@ -880,6 +903,8 @@ fn object_transform_participates_in_render(object: &SceneObject) -> bool {
         crate::SceneObjectKind::Molecule
         | crate::SceneObjectKind::Line
         | crate::SceneObjectKind::Curve
+        | crate::SceneObjectKind::Geometry
+        | crate::SceneObjectKind::Constraint
         | crate::SceneObjectKind::Group => false,
     }
 }
@@ -1237,6 +1262,8 @@ mod tests {
                 resource_ref: None,
                 bbox: Some([5.0, 6.0, 40.0, 70.0]),
                 spectrum: None,
+                geometry: None,
+                constraint: None,
                 extra,
             },
             children: Vec::new(),

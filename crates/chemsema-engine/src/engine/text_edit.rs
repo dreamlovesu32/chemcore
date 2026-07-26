@@ -333,6 +333,8 @@ fn make_text_payload(
             round6(local_box[3]),
         ]),
         spectrum: None,
+        geometry: None,
+        constraint: None,
         extra,
     }
 }

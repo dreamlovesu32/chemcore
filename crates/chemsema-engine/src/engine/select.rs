@@ -63,6 +63,26 @@ fn selection_state_has_items(selection: &SelectionState) -> bool {
         || !selection.text_objects.is_empty()
 }
 
+fn selection_contains_native_annotation(engine: &Engine) -> bool {
+    engine
+        .state
+        .selection
+        .arrow_objects
+        .iter()
+        .any(|object_id| {
+            engine
+                .state
+                .document
+                .find_scene_object(object_id)
+                .is_some_and(|object| {
+                    matches!(
+                        object.kind(),
+                        crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+                    )
+                })
+        })
+}
+
 #[derive(Clone)]
 enum SelectHit {
     TextObject { object_id: String },
@@ -224,6 +244,8 @@ pub(super) struct SelectionMoveDrag {
     mode: SelectionMoveMode,
     preserve_selection_after_drag: bool,
     clear_selection_after_drag: bool,
+    transient_only: bool,
+    preview_point: Option<Point>,
     undo_pushed: bool,
     changed: bool,
 }
@@ -615,10 +637,15 @@ impl Engine {
         &mut self,
         point: Point,
         additive: bool,
-        _alt_key: bool,
+        alt_key: bool,
     ) -> bool {
         let mut preserve_selection_after_drag = true;
-        let direct_hit = self.select_hit_at_point(point);
+        let direct_hit = if alt_key {
+            self.chemistry_select_hit_at_point(point)
+                .or_else(|| self.select_hit_at_point(point))
+        } else {
+            self.select_hit_at_point(point)
+        };
         let clear_selection_after_drag = direct_hit.as_ref().is_some_and(|hit| match hit {
             SelectHit::ArrowObject { object_id } => self
                 .state
@@ -893,6 +920,13 @@ impl Engine {
             .selection_drag
             .as_ref()
             .is_some_and(|drag| drag.clear_selection_after_drag);
+        let transient_only = self
+            .selection_drag
+            .as_ref()
+            .is_some_and(|drag| drag.transient_only);
+        // A native annotation drag is a render-only preview. Releasing it
+        // drops the preview; the persistent document never held the offset.
+        let committed_change = changed && !transient_only;
         self.selection_drag = None;
         if changed {
             if clear_selection_after_drag {
@@ -902,7 +936,7 @@ impl Engine {
         } else {
             self.hover_select_target(point);
         }
-        changed
+        committed_change
     }
 
     pub fn apply_selection_arrange_command(&mut self, command: &str) -> bool {
@@ -1558,6 +1592,8 @@ impl Engine {
                 | crate::SceneObjectKind::Shape
                 | crate::SceneObjectKind::Image
                 | crate::SceneObjectKind::Spectrum
+                | crate::SceneObjectKind::Geometry
+                | crate::SceneObjectKind::Constraint
                 | crate::SceneObjectKind::Group => selection.arrow_objects.push(object.id.clone()),
                 crate::SceneObjectKind::Molecule => {}
             }
@@ -1817,7 +1853,14 @@ impl Engine {
         for object in objects {
             if !matches!(
                 object.object_type.as_str(),
-                "curve" | "bracket" | "symbol" | "shape" | "image" | "spectrum"
+                "curve"
+                    | "bracket"
+                    | "symbol"
+                    | "shape"
+                    | "image"
+                    | "spectrum"
+                    | "geometry"
+                    | "constraint"
             ) || !object.visible
             {
                 continue;
@@ -2156,6 +2199,14 @@ impl Engine {
         if node_originals.is_empty() && text_originals.is_empty() {
             return None;
         }
+        let transient_only = node_originals.is_empty()
+            && !text_originals.is_empty()
+            && text_originals.iter().all(|original| {
+                matches!(
+                    original.object.kind(),
+                    crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+                )
+            });
 
         Some(SelectionMoveDrag {
             start,
@@ -2164,6 +2215,8 @@ impl Engine {
             mode,
             preserve_selection_after_drag,
             clear_selection_after_drag,
+            transient_only,
+            preview_point: None,
             undo_pushed: false,
             changed: false,
         })
@@ -2174,7 +2227,13 @@ impl Engine {
             return;
         };
         let changed = selection_drag_changes_document(&drag, point, alt_key);
-        if changed && !drag.undo_pushed {
+        if drag.transient_only {
+            drag.preview_point = changed.then_some(point);
+            drag.changed = changed;
+            self.selection_drag = Some(drag);
+            return;
+        }
+        if changed && !drag.undo_pushed && !drag.transient_only {
             self.push_undo_snapshot();
             drag.undo_pushed = true;
         }
@@ -2185,8 +2244,29 @@ impl Engine {
         self.selection_drag = Some(drag);
     }
 
+    pub(super) fn selection_move_preview_document(&self) -> Option<crate::ChemSemaDocument> {
+        let drag = self
+            .selection_drag
+            .as_ref()
+            .filter(|drag| drag.transient_only)?;
+        let point = drag.preview_point?;
+        let delta_x = point.x - drag.start.x;
+        let delta_y = point.y - drag.start.y;
+        let mut document = self.state.document.clone();
+        for original in &drag.text_originals {
+            let Some(object) = document.find_scene_object_mut(&original.object_id) else {
+                continue;
+            };
+            *object = translated_scene_object(&original.object, delta_x, delta_y);
+        }
+        Some(document)
+    }
+
     fn build_selection_rotate_drag(&self, start: Point) -> Option<SelectionRotateDrag> {
         if self.state.selection.is_empty() {
+            return None;
+        }
+        if selection_contains_native_annotation(self) {
             return None;
         }
         if self
@@ -2263,6 +2343,9 @@ impl Engine {
         _start: Point,
     ) -> Option<SelectionResizeDrag> {
         if self.state.selection.is_empty() {
+            return None;
+        }
+        if selection_contains_native_annotation(self) {
             return None;
         }
         let bounds = self.selection_rotation_bounds()?;
@@ -2395,6 +2478,18 @@ impl Engine {
             .get("kind")
             .and_then(JsonValue::as_str)
             .unwrap_or("");
+        if matches!(
+            object.kind(),
+            crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+        ) {
+            return SelectionOverlayBehavior {
+                show_resize_handles: false,
+                show_rotate_handle: false,
+                show_rotate_glyph: false,
+                use_global_bounds_only: true,
+                ..base
+            };
+        }
         if object.object_type == "line" {
             return SelectionOverlayBehavior {
                 show_resize_handles: false,

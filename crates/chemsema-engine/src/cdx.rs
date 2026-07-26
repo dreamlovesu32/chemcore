@@ -1004,6 +1004,17 @@ const BRACKET_TYPE: &[(i16, &str)] = &[
 ];
 const POSITIONING_TYPE: &[(i16, &str)] =
     &[(0, "auto"), (1, "angle"), (2, "offset"), (3, "absolute")];
+const GEOMETRIC_FEATURE: &[(i16, &str)] = &[
+    (1, "PointFromPointPointDistance"),
+    (2, "PointFromPointPointPercentage"),
+    (3, "PointFromPointNormalDistance"),
+    (4, "LineFromPoints"),
+    (5, "PlaneFromPoints"),
+    (6, "PlaneFromPointLine"),
+    (7, "CentroidFromPoints"),
+    (8, "NormalFromPointPlane"),
+];
+const CONSTRAINT_TYPE: &[(i16, &str)] = &[(1, "Distance"), (2, "Angle"), (3, "ExclusionSphere")];
 const SYMBOL_TYPE: &[(i16, &str)] = &[
     (0, "LonePair"),
     (1, "Electron"),
@@ -1668,7 +1679,12 @@ mod tests {
     #[test]
     fn cdx_geometry_and_constraint_properties_use_the_official_tags_and_types() {
         for (name, value, tag, bytes) in [
-            ("GeometricFeature", "3", 0x0B80, vec![3]),
+            (
+                "GeometricFeature",
+                "PointFromPointNormalDistance",
+                0x0B80,
+                vec![3],
+            ),
             (
                 "RelationValue",
                 "12.5",
@@ -1681,7 +1697,7 @@ mod tests {
                 0x0B82,
                 [17_u32.to_le_bytes(), 23_u32.to_le_bytes()].concat(),
             ),
-            ("ConstraintType", "2", 0x0B83, vec![2]),
+            ("ConstraintType", "Angle", 0x0B83, vec![2]),
         ] {
             let encoded = encode_property(name, value).expect("property should encode");
             assert_eq!(encoded, (tag, bytes.clone()), "{name}={value}");
@@ -1691,6 +1707,14 @@ mod tests {
                 "{name}={value}"
             );
         }
+        assert_eq!(
+            encode_property("GeometricFeature", "3"),
+            Some((0x0B80, vec![3]))
+        );
+        assert_eq!(
+            encode_property("ConstraintType", "2"),
+            Some((0x0B83, vec![2]))
+        );
 
         assert_eq!(property_tag("ExternalConnectionID"), None);
         assert_eq!(property_tag("BracketedObjects"), None);

@@ -174,6 +174,8 @@ fn group_selected_in_siblings_with_meta(
                 resource_ref: None,
                 bbox: None,
                 spectrum: None,
+                geometry: None,
+                constraint: None,
                 extra: BTreeMap::new(),
             },
             children: selected,

@@ -15,6 +15,7 @@ mod context_menu;
 mod context_styles;
 mod delete;
 mod document_commands;
+mod geometry_constraints;
 mod groups;
 mod history;
 mod images;
@@ -37,10 +38,10 @@ mod tlc;
 pub(crate) use self::context_styles::expand_complete_labels_in_fragment;
 
 pub use self::command::{
-    ChemicalAnalysisFormat, CommandAnchor, CommandDelta, CommandDoubleBond, CommandResult,
-    CommandTargetDelta, CommandTargetSet, CommandTargets, DocumentCommandFormat, EditorCommand,
-    FocusedDeleteSource, HistoryEntry, HistorySnapshot, ObjectSettingsPatch, TextCommandContent,
-    TextCommandDisplayMode, TextEditCommandTarget,
+    AnnotationPropertiesPatch, ChemicalAnalysisFormat, CommandAnchor, CommandDelta,
+    CommandDoubleBond, CommandResult, CommandTargetDelta, CommandTargetSet, CommandTargets,
+    DocumentCommandFormat, EditorCommand, FocusedDeleteSource, HistoryEntry, HistorySnapshot,
+    ObjectSettingsPatch, TextCommandContent, TextCommandDisplayMode, TextEditCommandTarget,
 };
 use self::text_edit::{
     element_symbol_info, endpoint_label_world_bounds, mark_shortcut_implicit_hydrogen_label,
@@ -1099,6 +1100,8 @@ mod tests {
                 resource_ref: Some(resource_ref.to_string()),
                 bbox: Some([0.0, 0.0, 80.0, 80.0]),
                 spectrum: None,
+                geometry: None,
+                constraint: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),
@@ -1180,6 +1183,369 @@ mod tests {
             !delta.updated.nodes.contains(&"node_a".to_string()),
             "unchanged node in first molecule should not be reported: {delta:?}"
         );
+    }
+
+    fn distance_annotation_engine() -> Engine {
+        let source = r#"<CDXML BondLength="14.4"><page id="1">
+          <fragment id="10"><n id="101" p="40 40"/><n id="102" p="60 40"/><b id="103" B="101" E="102"/></fragment>
+          <constraint id="201" ConstraintType="Distance" ConstraintMin="0" ConstraintMax="0" BasisObjects="101 102">
+            <objecttag TagType="Unknown" Name="distance"><t p="50 35"><s>0 Å</s></t></objecttag>
+          </constraint>
+        </page></CDXML>"#;
+        let mut engine = Engine::new();
+        engine
+            .load_cdxml_document(source)
+            .expect("distance constraint loads");
+        engine
+    }
+
+    #[test]
+    fn annotation_drag_is_transient_and_does_not_create_undo_history() {
+        let mut engine = distance_annotation_engine();
+        let annotation_id = engine
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .find(|object| object.kind() == crate::SceneObjectKind::Constraint)
+            .expect("constraint exists")
+            .id
+            .clone();
+        let bounds = super::select::object_selection_bounds_for_render(
+            &engine.state.document,
+            engine
+                .state
+                .document
+                .find_scene_object(&annotation_id)
+                .expect("constraint exists"),
+        )
+        .expect("constraint has visual bounds");
+        let start = Point::new((bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5);
+        engine.state.selection = SelectionState {
+            arrow_objects: vec![annotation_id],
+            ..SelectionState::default()
+        };
+        let before = engine.document_json().expect("document serializes");
+        let before_render =
+            serde_json::to_string(&engine.render_list()).expect("render list serializes");
+        assert!(engine.begin_selection_move_at_point(start, false, false));
+        let end = Point::new(start.x + 30.0, start.y + 30.0);
+        assert!(engine.update_selection_move(end, false));
+        assert_eq!(engine.document_json().expect("preview serializes"), before);
+        assert_ne!(
+            serde_json::to_string(&engine.render_list()).expect("render list serializes"),
+            before_render
+        );
+        assert!(!engine.finish_selection_move(end, false));
+        assert_eq!(engine.document_json().expect("document serializes"), before);
+        assert_eq!(
+            serde_json::to_string(&engine.render_list()).expect("render list serializes"),
+            before_render
+        );
+        assert!(!engine.can_undo());
+    }
+
+    #[test]
+    fn labeled_atoms_are_valid_ordered_annotation_points() {
+        let mut engine = distance_annotation_engine();
+        let node_ids = engine
+            .state
+            .document
+            .editable_fragment()
+            .expect("fragment exists")
+            .fragment
+            .nodes
+            .iter()
+            .map(|node| node.id.clone())
+            .collect::<Vec<_>>();
+        engine.state.selection = SelectionState {
+            label_nodes: node_ids,
+            ..SelectionState::default()
+        };
+        assert!(engine
+            .annotation_menu_values()
+            .iter()
+            .any(|(_, value)| *value == "distance"));
+    }
+
+    #[test]
+    fn deleting_a_basis_entity_cascades_annotations_and_their_links() {
+        let mut engine = distance_annotation_engine();
+        let node_id = engine
+            .state
+            .document
+            .editable_fragment()
+            .expect("fragment exists")
+            .fragment
+            .nodes[0]
+            .id
+            .clone();
+        engine.state.selection = SelectionState {
+            nodes: vec![node_id],
+            ..SelectionState::default()
+        };
+        assert!(engine.delete_selection());
+        assert!(!engine.state.document.scene_objects().iter().any(|object| {
+            matches!(
+                object.kind(),
+                crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+            )
+        }));
+        assert!(engine
+            .state
+            .document
+            .links
+            .iter()
+            .all(|relation| relation.kind != "annotation-basis"));
+    }
+
+    #[test]
+    fn copying_annotation_with_all_basis_entities_remaps_strong_references() {
+        let mut engine = distance_annotation_engine();
+        let node_ids = engine
+            .state
+            .document
+            .editable_fragment()
+            .expect("fragment exists")
+            .fragment
+            .nodes
+            .iter()
+            .map(|node| node.id.clone())
+            .collect::<Vec<_>>();
+        let annotation_id = engine
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .find(|object| object.kind() == crate::SceneObjectKind::Constraint)
+            .expect("constraint exists")
+            .id
+            .clone();
+        engine.state.selection = SelectionState {
+            nodes: node_ids,
+            arrow_objects: vec![annotation_id],
+            ..SelectionState::default()
+        };
+        assert!(engine.copy_selection());
+        assert!(engine.paste_clipboard());
+        let constraints = engine
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .filter(|object| object.kind() == crate::SceneObjectKind::Constraint)
+            .collect::<Vec<_>>();
+        assert_eq!(constraints.len(), 2);
+        let pasted = constraints
+            .into_iter()
+            .find(|object| engine.state.selection.arrow_objects.contains(&object.id))
+            .expect("pasted constraint is selected");
+        let basis = &pasted
+            .payload
+            .constraint
+            .as_ref()
+            .expect("constraint payload")
+            .basis_entity_ids;
+        assert_eq!(basis.len(), 2);
+        assert!(basis
+            .iter()
+            .all(|id| engine.state.selection.nodes.contains(id)));
+        let serialized = engine.document_json().expect("document serializes");
+        crate::parse_document_json(&serialized).expect("pasted document validates");
+    }
+
+    #[test]
+    fn moving_selected_basis_and_annotation_moves_live_value_exactly_once() {
+        let mut engine = distance_annotation_engine();
+        let node_ids = engine
+            .state
+            .document
+            .editable_fragment()
+            .expect("fragment exists")
+            .fragment
+            .nodes
+            .iter()
+            .map(|node| node.id.clone())
+            .collect::<Vec<_>>();
+        let annotation_id = engine
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .find(|object| object.kind() == crate::SceneObjectKind::Constraint)
+            .expect("constraint exists")
+            .id
+            .clone();
+        let annotation_before = engine
+            .state
+            .document
+            .find_scene_object(&annotation_id)
+            .expect("constraint exists")
+            .clone();
+        let bounds_before = super::select::object_selection_bounds_for_render(
+            &engine.state.document,
+            &annotation_before,
+        )
+        .expect("constraint has visual bounds");
+        let start = Point::new(
+            (bounds_before[0] + bounds_before[2]) * 0.5,
+            (bounds_before[1] + bounds_before[3]) * 0.5,
+        );
+        engine.state.selection = SelectionState {
+            nodes: node_ids,
+            arrow_objects: vec![annotation_id.clone()],
+            ..SelectionState::default()
+        };
+        assert!(engine.begin_selection_move_at_point(start, false, false));
+        let end = Point::new(start.x + 30.0, start.y + 20.0);
+        assert!(engine.update_selection_move(end, false));
+        assert!(engine.finish_selection_move(end, false));
+
+        let annotation_after = engine
+            .state
+            .document
+            .find_scene_object(&annotation_id)
+            .expect("constraint remains");
+        assert_eq!(annotation_after.transform, annotation_before.transform);
+        let bounds_after = super::select::object_selection_bounds_for_render(
+            &engine.state.document,
+            annotation_after,
+        )
+        .expect("constraint has moved visual bounds");
+        assert!((bounds_after[0] - bounds_before[0] - 30.0).abs() < 0.05);
+        assert!((bounds_after[1] - bounds_before[1] - 20.0).abs() < 0.05);
+    }
+
+    #[test]
+    fn cross_tab_document_copy_omits_annotation_without_complete_basis() {
+        let mut engine = distance_annotation_engine();
+        let node_id = engine
+            .state
+            .document
+            .editable_fragment()
+            .expect("fragment exists")
+            .fragment
+            .nodes[0]
+            .id
+            .clone();
+        let annotation_id = engine
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .find(|object| object.kind() == crate::SceneObjectKind::Constraint)
+            .expect("constraint exists")
+            .id
+            .clone();
+        engine.state.selection = SelectionState {
+            nodes: vec![node_id],
+            arrow_objects: vec![annotation_id],
+            ..SelectionState::default()
+        };
+        let json = engine
+            .clipboard_document_json()
+            .expect("clipboard document serializes")
+            .expect("selection creates clipboard document");
+        let document = crate::parse_document_json(&json).expect("clipboard document validates");
+        assert!(!document.scene_objects().iter().any(|object| {
+            matches!(
+                object.kind(),
+                crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+            )
+        }));
+        assert!(document
+            .links
+            .iter()
+            .all(|relation| relation.kind != "annotation-basis"));
+    }
+
+    #[test]
+    fn annotation_property_dialog_and_command_edit_explicit_display_state() {
+        let mut engine = distance_annotation_engine();
+        let annotation_id = engine
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .find(|object| object.kind() == crate::SceneObjectKind::Constraint)
+            .expect("constraint exists")
+            .id
+            .clone();
+        engine.state.selection = SelectionState {
+            arrow_objects: vec![annotation_id.clone()],
+            ..SelectionState::default()
+        };
+        let dialog: JsonValue =
+            serde_json::from_str(&engine.annotation_dialog_json("selected")).expect("dialog JSON");
+        let field_keys = dialog["fields"]
+            .as_array()
+            .expect("dialog fields")
+            .iter()
+            .filter_map(|field| field["key"].as_str())
+            .collect::<BTreeSet<_>>();
+        for key in [
+            "minimum",
+            "maximum",
+            "autoValue",
+            "textOverride",
+            "positioningType",
+            "indicatorVisible",
+            "fontFamily",
+            "fontSize",
+            "fill",
+        ] {
+            assert!(field_keys.contains(key), "missing dialog field {key}");
+        }
+        engine
+            .execute_command_json(
+                &serde_json::json!({
+                    "type": "update-annotation",
+                    "objectId": annotation_id,
+                    "properties": {
+                        "autoValue": false,
+                        "textOverride": "measured",
+                        "positioningType": "absolute",
+                        "positionX": 75.0,
+                        "positionY": 55.0,
+                        "indicatorVisible": false,
+                        "fontFamily": "Times New Roman",
+                        "fontSize": 9.0,
+                        "fill": "#ff0000",
+                        "bold": true,
+                        "italic": true,
+                        "underline": true
+                    }
+                })
+                .to_string(),
+            )
+            .expect("annotation update succeeds");
+        let constraint = engine
+            .state
+            .document
+            .find_scene_object(
+                engine
+                    .state
+                    .selection
+                    .arrow_objects
+                    .first()
+                    .expect("annotation remains selected"),
+            )
+            .and_then(|object| object.payload.constraint.as_ref())
+            .expect("constraint payload");
+        assert!(!constraint.display.auto_value);
+        assert_eq!(
+            constraint.display.text_override.as_deref(),
+            Some("measured")
+        );
+        assert_eq!(
+            constraint.display.positioning_type,
+            crate::AnnotationPositioningType::Absolute
+        );
+        assert_eq!(constraint.display.position, Some([75.0, 55.0]));
+        assert!(!constraint.display.indicator_visible);
+        assert_eq!(constraint.display.font_weight, 700);
+        crate::parse_document_json(&engine.document_json().expect("document serializes"))
+            .expect("edited annotation validates");
     }
 }
 
@@ -1334,6 +1700,8 @@ fn editor_command_is_relationship(command: &EditorCommand) -> bool {
             | EditorCommand::ApplyChemicalProperty { .. }
             | EditorCommand::ApplyChemicalPropertyResult { .. }
             | EditorCommand::DeleteChemicalProperty { .. }
+            | EditorCommand::CreateAnnotation { .. }
+            | EditorCommand::UpdateAnnotation { .. }
     )
 }
 
@@ -1417,6 +1785,8 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::ApplyChemicalProperty { .. } => "apply-chemical-property",
         EditorCommand::ApplyChemicalPropertyResult { .. } => "apply-chemical-property-result",
         EditorCommand::DeleteChemicalProperty { .. } => "delete-chemical-property",
+        EditorCommand::CreateAnnotation { .. } => "create-annotation",
+        EditorCommand::UpdateAnnotation { .. } => "update-annotation",
         EditorCommand::SetLinkPolicy { .. } => "set-link-policy",
         EditorCommand::UnlinkSelection { .. } => "unlink-selection",
         EditorCommand::JoinSelection => "join-selection",

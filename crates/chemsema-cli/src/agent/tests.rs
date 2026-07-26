@@ -414,6 +414,8 @@ fn document_diff_reports_creation_deletion_and_unchanged_documents() {
             resource_ref: None,
             bbox: Some([0.0, 0.0, 10.0, 10.0]),
             spectrum: None,
+            geometry: None,
+            constraint: None,
             extra: BTreeMap::new(),
         },
         children: Vec::new(),

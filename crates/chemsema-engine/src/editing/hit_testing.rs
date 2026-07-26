@@ -293,25 +293,29 @@ pub fn hit_test_arrow_center(
 
 pub fn select_at(document: &ChemSemaDocument, point: Point) -> SelectionState {
     if let Some(endpoint) = hit_test_endpoint(document, point, ENDPOINT_HIT_RADIUS) {
+        let node_id = endpoint.node_id;
         return SelectionState {
             text_objects: Vec::new(),
             arrow_objects: Vec::new(),
             molecule_objects: Vec::new(),
             label_nodes: Vec::new(),
             region: false,
-            nodes: vec![endpoint.node_id],
+            ordered_entities: vec![node_id.clone()],
+            nodes: vec![node_id],
             bonds: Vec::new(),
         };
     }
     if let Some(bond) = hit_test_bond(document, point, BOND_HIT_RADIUS) {
+        let bond_id = bond.bond_id;
         return SelectionState {
             text_objects: Vec::new(),
             arrow_objects: Vec::new(),
             molecule_objects: Vec::new(),
             label_nodes: Vec::new(),
             region: false,
+            ordered_entities: vec![bond_id.clone()],
             nodes: Vec::new(),
-            bonds: vec![bond.bond_id],
+            bonds: vec![bond_id],
         };
     }
     SelectionState::default()

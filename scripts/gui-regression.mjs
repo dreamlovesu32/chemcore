@@ -16,6 +16,7 @@ const guiCase = process.env.CHEMSEMA_GUI_CASE || "";
 const exactTieOnly = guiCase === "exact-tie-double";
 const selectionSummaryOnly = guiCase === "selection-summary";
 const chemicalPropertyOnly = guiCase === "chemical-property";
+const annotationOnly = guiCase === "annotation";
 
 function waitForPort(timeoutMs = 5000) {
   const deadline = Date.now() + timeoutMs;
@@ -881,6 +882,73 @@ async function verifyChemicalPropertyDialog(page) {
   assert.equal(result.relation?.endpoints?.length, 2);
 }
 
+async function verifyAnnotationDialog(page) {
+  const cdxml = `<CDXML BondLength="14.4"><page id="1">
+    <fragment id="10"><n id="101" p="80 100"/><n id="102" p="140 100"/><b id="103" B="101" E="102"/></fragment>
+    <constraint id="201" ConstraintType="Distance" ConstraintMin="0.5" ConstraintMax="1.5" BasisObjects="101 102">
+      <objecttag TagType="Unknown" Name="distance"><t p="110 90"><s>1.0 Å</s></t></objecttag>
+    </constraint>
+  </page></CDXML>`;
+  await page.evaluate(async (source) => {
+    const debug = window.__chemsemaDebug;
+    await debug.state.editorEngine.loadDocumentCdxml(source);
+    await debug.loadDocumentForTest(
+      JSON.parse(debug.state.editorEngine.documentJson()),
+    );
+  }, cdxml);
+  await page.locator('button[data-tool="select"]').click();
+  const annotationId = await page.evaluate(() => {
+    const documentValue = JSON.parse(
+      window.__chemsemaDebug.state.editorEngine.documentJson(),
+    );
+    return documentValue.objects.find((object) => object.type === "constraint")?.id;
+  });
+  assert(annotationId, "Imported annotation did not create a native constraint object.");
+  const annotationPoint = await page.evaluate(
+    () => window.__chemsemaDebug.worldToClient(110, 90),
+  );
+  await page.mouse.click(annotationPoint.x, annotationPoint.y, { button: "right" });
+  const propertiesCommand = page.locator(
+    '.canvas-context-menu button[data-canvas-context-command="annotation-dialog"]',
+  );
+  await propertiesCommand.waitFor({ state: "visible" });
+  await propertiesCommand.click();
+
+  const dialog = page.locator(".annotation-dialog");
+  await dialog.waitFor({ state: "visible" });
+  assert.equal(await dialog.locator('select[name="positioningType"]').inputValue(), "auto");
+  await dialog.locator('input[name="minimum"]').fill("0.75");
+  await dialog.locator('input[name="maximum"]').fill("1.75");
+  await dialog.locator('button[type="submit"]').click();
+  await page.waitForFunction(() => {
+    const documentValue = JSON.parse(
+      window.__chemsemaDebug.state.editorEngine.documentJson(),
+    );
+    return documentValue.objects.some(
+      (object) => object.type === "constraint"
+        && object.payload?.constraint?.constraintType === "distance"
+        && object.payload.constraint.minimum === 0.75
+        && object.payload.constraint.maximum === 1.75,
+    );
+  });
+  const result = await page.evaluate(() => {
+    const documentValue = JSON.parse(
+      window.__chemsemaDebug.state.editorEngine.documentJson(),
+    );
+    const annotation = documentValue.objects.find(
+      (object) => object.type === "constraint",
+    );
+    return {
+      basis: annotation?.payload?.constraint?.basisEntityIds,
+      relation: documentValue.links.find(
+        (candidate) => candidate.kind === "annotation-basis",
+      ),
+    };
+  });
+  assert.equal(result.basis?.length, 2);
+  assert.equal(result.relation?.endpoints?.length, 3);
+}
+
 let server = null;
 let browser = null;
 try {
@@ -897,7 +965,7 @@ try {
   await installBrowserMocks(context);
   const errors = [];
 
-  if (!selectionSummaryOnly && !chemicalPropertyOnly) {
+  if (!selectionSummaryOnly && !chemicalPropertyOnly && !annotationOnly) {
     const fixturePath = await createOpenFixture(context, errors);
     await verifyOpenButton(context, errors, fixturePath);
 
@@ -913,6 +981,10 @@ try {
   } else if (chemicalPropertyOnly) {
     const page = await openViewer(context, errors);
     await verifyChemicalPropertyDialog(page);
+    await page.close();
+  } else if (annotationOnly) {
+    const page = await openViewer(context, errors);
+    await verifyAnnotationDialog(page);
     await page.close();
   } else if (!exactTieOnly) {
     const page = await openViewer(context, errors);
@@ -945,6 +1017,10 @@ try {
     const chemicalPropertyPage = await openViewer(context, errors);
     await verifyChemicalPropertyDialog(chemicalPropertyPage);
     await chemicalPropertyPage.close();
+
+    const annotationPage = await openViewer(context, errors);
+    await verifyAnnotationDialog(annotationPage);
+    await annotationPage.close();
   }
 
   assert.equal(errors.length, 0, `GUI regression saw console/page errors:\n${errors.join("\n")}`);
@@ -952,9 +1028,11 @@ try {
     ? "[gui-regression] ok (selection summary and minimum selection box)"
     : chemicalPropertyOnly
       ? "[gui-regression] ok (ChemicalProperty context menu and kernel dialog)"
+      : annotationOnly
+        ? "[gui-regression] ok (Geometry/Constraint context menu and kernel dialog)"
     : exactTieOnly
       ? "[gui-regression] ok (exact-tie double bond)"
-      : "[gui-regression] ok (open, save-as ccjs/cdxml/svg, ctrl+s ccjz, copy/paste/cut, image drop/paste/context-menu, cross-tab structured clipboard, detached desktop tab, toolbar icons, cursors, selection overlay, delete tool, exact-tie double bond, zoom, style)");
+      : "[gui-regression] ok (open, save-as ccjs/cdxml/svg, ctrl+s ccjz, copy/paste/cut, image drop/paste/context-menu, cross-tab structured clipboard, detached desktop tab, toolbar icons, cursors, selection overlay, delete tool, exact-tie double bond, zoom, style, annotation dialog)");
 } finally {
   await browser?.close();
   if (server) {

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "entries": {
     "apps/chemsema-desktop/src-tauri/src/lib.rs:run": {
-      "lines": 204,
+      "lines": 205,
       "owner": "Desktop composition root",
       "reason": "The function registers the complete Tauri command surface, shared state, plugins, window lifecycle, and startup hooks in one declarative application boundary."
     },
@@ -27,12 +27,12 @@
       "reason": "The function owns one transaction lifecycle: load, execute, scope-check, report, and persist."
     },
     "crates/chemsema-engine/src/cdxml/export.rs:$file": {
-      "lines": 2058,
+      "lines": 2306,
       "owner": "CDXML serialization boundary",
       "reason": "The module owns source-order-aware serialization for every native document object; object-family writers remain separate functions and share one ID, style, and interchange context."
     },
     "crates/chemsema-engine/src/cdxml.rs:parse_cdxml_document": {
-      "lines": 239,
+      "lines": 254,
       "owner": "CDXML document parser",
       "reason": "One ordered document parse pipeline preserves table, page, object, normalization, and verification precedence."
     },
@@ -52,22 +52,22 @@
       "reason": "The exhaustive graphic writer maps one normalized shape payload to the official Graphic attributes."
     },
     "crates/chemsema-engine/src/cdxml/import_lines.rs:append_line_objects": {
-      "lines": 216,
+      "lines": 218,
       "owner": "CDXML line/arrow import",
       "reason": "The function resolves the interdependent ArrowType, endpoint, curve, and style fields as one official-field rule."
     },
     "crates/chemsema-engine/src/cdxml/import_brackets.rs:append_bracket_objects": {
-      "lines": 292,
+      "lines": 298,
       "owner": "CDXML bracket import",
       "reason": "Bracket geometry, attachments, repeat semantics, and linked labels are one source-order-sensitive import transaction."
     },
     "crates/chemsema-engine/src/document.rs:$file": {
-      "lines": 2281,
+      "lines": 2383,
       "owner": "Native document schema and normalization",
       "reason": "The module is the authoritative serialized document model and its version-normalization boundary; format-specific importers, renderers, and editor behavior are owned by separate modules."
     },
     "crates/chemsema-engine/src/engine/command_runtime.rs:execute_command": {
-      "lines": 259,
+      "lines": 262,
       "owner": "Exhaustive editor command dispatcher",
       "reason": "Immediate, creation, semantic, relationship, and style command families are separated; the remaining body is an exhaustive variant-to-domain dispatch with shared completion semantics."
     },
@@ -82,12 +82,12 @@
       "reason": "The function creates one chemistry graph while preserving target filtering, stereochemistry, and source authority."
     },
     "crates/chemsema-engine/src/engine/context_menu.rs:$file": {
-      "lines": 2026,
+      "lines": 2046,
       "owner": "Kernel context-menu schema",
       "reason": "The module owns the complete kernel-generated context-menu contract, with object-family menus and value normalization separated into named helpers."
     },
     "crates/chemsema-engine/src/engine/context_menu.rs:context_menu_items": {
-      "lines": 220,
+      "lines": 242,
       "owner": "Kernel context-menu schema",
       "reason": "One ordered schema builder applies selection precedence and exposes mutually exclusive semantic commands."
     },
@@ -102,7 +102,7 @@
       "reason": "One exhaustive property transaction validates every atom-property enum, applies one undo snapshot, synchronizes linked annotations, and refreshes chemistry and label geometry without partial mutation."
     },
     "crates/chemsema-engine/src/engine/select.rs:$file": {
-      "lines": 2088,
+      "lines": 2172,
       "owner": "Selection state machine",
       "reason": "The module owns shared selection state and gesture transitions; arrange, arrow, drag, geometry, and rendering families are already split into dedicated child modules."
     },
@@ -167,12 +167,12 @@
       "reason": "Geometry and move commits are already separate; this function retains the ordered state-machine transition and shared cleanup."
     },
     "viewer/app.js:$file": {
-      "lines": 2013,
+      "lines": 2019,
       "owner": "Browser and desktop viewer composition root",
       "reason": "The file wires independently implemented hosts and controllers into one runtime; editing, tabs, dialogs, rendering, viewport, files, and lifecycle behavior are owned by imported modules."
     },
     "viewer/editor_context_menu.js:runCanvasContextMenuCommand": {
-      "lines": 212,
+      "lines": 248,
       "owner": "Canvas context-menu command router",
       "reason": "The function is one exhaustive asynchronous router from kernel menu command identifiers to domain hosts, with shared menu-close and error-settlement semantics."
     },

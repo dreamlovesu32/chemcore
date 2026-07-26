@@ -152,6 +152,7 @@ pub fn document_to_cdxml(document: &ChemSemaDocument) -> String {
     };
     let mut source_root = source.root.clone();
     retain_native_chemical_properties(&mut source_root, &document.chemical_properties);
+    retain_native_annotations(&mut source_root, &document.objects);
     merge_interchange_tree(&mut root, &source_root);
     serialize_cdxml_tree(&root)
 }
@@ -190,6 +191,18 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .and_then(Value::as_str)
             .unwrap_or(&document.style.label_style.fill);
         defaults.color = colors.id_for(foreground).parse().unwrap_or(0);
+        let has_native_reference_objects = !document.chemical_properties.is_empty()
+            || document.scene_objects().iter().any(|object| {
+                matches!(
+                    object.kind(),
+                    crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+                )
+            });
+        let preserved_interchange_id = if has_native_reference_objects {
+            max_interchange_numeric_id(document)
+        } else {
+            0
+        };
         let preserved_next_id = document
             .chemical_properties
             .iter()
@@ -197,11 +210,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .filter_map(|id| id.parse::<u64>().ok())
             .max()
             .unwrap_or(0)
-            .max(if document.chemical_properties.is_empty() {
-                0
-            } else {
-                max_interchange_numeric_id(document)
-            })
+            .max(preserved_interchange_id)
             .saturating_add(1);
         Self {
             document,
@@ -218,6 +227,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
 
     fn write(mut self) -> String {
         self.prepare_bond_ids();
+        self.prepare_annotation_basis_ids();
         let page = &self.document.document.page;
         let width = page.width.max(1.0);
         let height = page.height.max(1.0);
@@ -336,7 +346,197 @@ impl<'a> CdxmlDocumentWriter<'a> {
             }
             crate::SceneObjectKind::Text => self.write_text_object(out, object),
             crate::SceneObjectKind::Group => self.write_group_object(out, object),
+            crate::SceneObjectKind::Geometry => self.write_geometry_object(out, object),
+            crate::SceneObjectKind::Constraint => self.write_constraint_object(out, object),
         }
+    }
+
+    fn write_geometry_object(&mut self, out: &mut String, object: &SceneObject) {
+        let Some(geometry) = object.payload.geometry.as_ref() else {
+            return;
+        };
+        let mut attrs = vec![
+            ("id", self.object_cdxml_id(object)),
+            ("Z", object.z_index.to_string()),
+            ("GeometricFeature", geometry.feature.as_cdxml().to_string()),
+        ];
+        if let Some(style) = object_style(self.document, object) {
+            if let Some(value) = style_number_value(style, "strokeWidth") {
+                attrs.push(("LineWidth", fmt_num(value)));
+            }
+            if let Some(value) = style_number_value(style, "hashSpacing") {
+                attrs.push(("HashSpacing", fmt_num(value)));
+            }
+            if let Some(value) = style_string_value(style, "stroke") {
+                attrs.push(("color", self.colors.id_for(&value)));
+            }
+        }
+        if let Some(value) = geometry.relation_value {
+            attrs.push(("RelationValue", fmt_num(value)));
+        }
+        if geometry.point_is_directed {
+            attrs.push(("PointIsDirected", fmt_cdxml_bool(true).to_string()));
+        }
+        if !object.name.is_empty() {
+            attrs.push(("Name", object.name.clone()));
+        }
+        if !object.visible {
+            attrs.push(("Visible", fmt_cdxml_bool(false).to_string()));
+        }
+        if let Some(bbox) = object.payload.bbox {
+            attrs.push(("BoundingBox", fmt_bbox(bbox)));
+        }
+        let basis =
+            self.annotation_basis_ids(&geometry.basis_entity_ids, &geometry.unresolved_basis_ids);
+        if !basis.is_empty() {
+            attrs.push(("BasisObjects", basis.join(" ")));
+        }
+        write_empty_tag(out, 4, "geometry", attrs);
+    }
+
+    fn write_constraint_object(&mut self, out: &mut String, object: &SceneObject) {
+        let Some(constraint) = object.payload.constraint.as_ref() else {
+            return;
+        };
+        let mut attrs = vec![
+            ("id", self.object_cdxml_id(object)),
+            ("Z", object.z_index.to_string()),
+            (
+                "ConstraintType",
+                constraint.constraint_type.as_cdxml().to_string(),
+            ),
+        ];
+        if let Some(style) = object_style(self.document, object) {
+            if let Some(value) = style_number_value(style, "strokeWidth") {
+                attrs.push(("LineWidth", fmt_num(value)));
+            }
+            if let Some(value) = style_number_value(style, "hashSpacing") {
+                attrs.push(("HashSpacing", fmt_num(value)));
+            }
+            if let Some(value) = style_string_value(style, "stroke") {
+                attrs.push(("color", self.colors.id_for(&value)));
+            }
+        }
+        if let Some(value) = constraint.minimum {
+            attrs.push(("ConstraintMin", fmt_num(value)));
+        }
+        if let Some(value) = constraint.maximum {
+            attrs.push(("ConstraintMax", fmt_num(value)));
+        }
+        if constraint.ignore_unconnected_atoms {
+            attrs.push(("IgnoreUnconnectedAtoms", fmt_cdxml_bool(true).to_string()));
+        }
+        if constraint.dihedral_is_chiral {
+            attrs.push(("DihedralIsChiral", fmt_cdxml_bool(true).to_string()));
+        }
+        if constraint.point_is_directed {
+            attrs.push(("PointIsDirected", fmt_cdxml_bool(true).to_string()));
+        }
+        if !object.name.is_empty() {
+            attrs.push(("Name", object.name.clone()));
+        }
+        if !object.visible {
+            attrs.push(("Visible", fmt_cdxml_bool(false).to_string()));
+        }
+        if let Some(bbox) = object.payload.bbox {
+            attrs.push(("BoundingBox", fmt_bbox(bbox)));
+        }
+        let basis = self.annotation_basis_ids(
+            &constraint.basis_entity_ids,
+            &constraint.unresolved_basis_ids,
+        );
+        if !basis.is_empty() {
+            attrs.push(("BasisObjects", basis.join(" ")));
+        }
+        let text = crate::geometry_constraints::constraint_value_text(constraint);
+        let position = constraint_label_position(self.document, object, constraint);
+        let (Some(text), Some(position)) = (text, position) else {
+            write_empty_tag(out, 4, "constraint", attrs);
+            return;
+        };
+        write_open_tag(out, 4, "constraint", attrs);
+        let mut tag_attrs = vec![
+            ("TagType", "Unknown".to_string()),
+            (
+                "Name",
+                match constraint.constraint_type {
+                    crate::ConstraintType::Distance => "distance",
+                    crate::ConstraintType::Angle => "angle",
+                    crate::ConstraintType::ExclusionSphere => "exclusionSphere",
+                }
+                .to_string(),
+            ),
+        ];
+        if constraint.display.positioning_type != crate::AnnotationPositioningType::Auto {
+            tag_attrs.push((
+                "PositioningType",
+                constraint.display.positioning_type.as_cdxml().to_string(),
+            ));
+        }
+        if constraint.display.positioning_type == crate::AnnotationPositioningType::Angle {
+            if let Some(angle) = constraint.display.positioning_angle {
+                tag_attrs.push(("PositioningAngle", fmt_num(angle)));
+            }
+        }
+        if constraint.display.positioning_type == crate::AnnotationPositioningType::Offset {
+            if let Some(offset) = constraint.display.positioning_offset {
+                tag_attrs.push((
+                    "PositioningOffset",
+                    format!("{} {}", fmt_num(offset[0]), fmt_num(offset[1])),
+                ));
+            }
+        }
+        if !constraint.display.indicator_visible {
+            tag_attrs.push(("Visible", fmt_cdxml_bool(false).to_string()));
+        }
+        write_open_tag(out, 6, "objecttag", tag_attrs);
+        write_open_tag(
+            out,
+            8,
+            "t",
+            vec![
+                ("p", fmt_point(position)),
+                ("CaptionLineHeight", "variable".to_string()),
+            ],
+        );
+        let mut face = 0;
+        if constraint.display.font_weight >= 600 {
+            face |= 1;
+        }
+        if constraint.display.italic {
+            face |= 2;
+        }
+        if constraint.display.underline {
+            face |= 4;
+        }
+        let mut run_attrs = vec![
+            (
+                "font",
+                self.fonts
+                    .id_for(constraint.display.font_family.as_deref().unwrap_or("Arial")),
+            ),
+            ("size", fmt_num(constraint.display.font_size.unwrap_or(7.5))),
+            (
+                "color",
+                self.colors
+                    .id_for(constraint.display.fill.as_deref().unwrap_or("#000000")),
+            ),
+        ];
+        if face != 0 {
+            run_attrs.push(("face", face.to_string()));
+        }
+        write_text_tag(out, 10, "s", run_attrs, &text);
+        out.push_str("        </t>\n");
+        out.push_str("      </objecttag>\n");
+        out.push_str("    </constraint>\n");
+    }
+
+    fn annotation_basis_ids(&self, basis: &[String], unresolved: &[String]) -> Vec<String> {
+        basis
+            .iter()
+            .filter_map(|entity_id| self.entity_ids.get(entity_id).cloned())
+            .chain(unresolved.iter().cloned())
+            .collect()
     }
 
     fn write_spectrum_object(&mut self, out: &mut String, object: &SceneObject) {
@@ -696,7 +896,12 @@ impl<'a> CdxmlDocumentWriter<'a> {
         let mut node_ids = BTreeMap::new();
         for (_, fragment) in &components {
             for node in &fragment.nodes {
-                node_ids.insert(node.id.clone(), self.alloc_id());
+                let cdxml_id = self
+                    .entity_ids
+                    .get(&node.id)
+                    .cloned()
+                    .unwrap_or_else(|| self.alloc_id());
+                node_ids.insert(node.id.clone(), cdxml_id);
             }
         }
         self.node_ids.extend(node_ids.clone());
@@ -1254,6 +1459,40 @@ impl<'a> CdxmlDocumentWriter<'a> {
             if !self.bond_ids.contains_key(&key) {
                 let cdxml_id = self.alloc_id();
                 self.bond_ids.insert(key, cdxml_id);
+            }
+        }
+    }
+
+    fn prepare_annotation_basis_ids(&mut self) {
+        let node_ids = self
+            .document
+            .editable_fragments()
+            .into_iter()
+            .flat_map(|entry| entry.fragment.nodes.iter().map(|node| node.id.clone()))
+            .collect::<Vec<_>>();
+        for node_id in node_ids {
+            if !self.entity_ids.contains_key(&node_id) {
+                let cdxml_id = self.alloc_id();
+                self.node_ids.insert(node_id.clone(), cdxml_id.clone());
+                self.entity_ids.insert(node_id, cdxml_id);
+            }
+        }
+        let annotation_ids = self
+            .document
+            .objects
+            .iter()
+            .filter(|object| {
+                matches!(
+                    object.kind(),
+                    crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+                )
+            })
+            .map(|object| object.id.clone())
+            .collect::<Vec<_>>();
+        for object_id in annotation_ids {
+            if !self.entity_ids.contains_key(&object_id) {
+                let cdxml_id = self.alloc_id();
+                self.entity_ids.insert(object_id, cdxml_id);
             }
         }
     }
@@ -2276,7 +2515,22 @@ impl<'a> CdxmlDocumentWriter<'a> {
         if let Some(id) = self.entity_ids.get(&object.id) {
             return id.clone();
         }
-        let id = if self
+        let native_annotation_source_id = matches!(
+            object.kind(),
+            crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+        )
+        .then(|| {
+            object
+                .meta
+                .pointer("/import/cdxml/sourceId")
+                .and_then(Value::as_str)
+                .filter(|id| id.parse::<u64>().is_ok())
+                .map(ToString::to_string)
+        })
+        .flatten();
+        let id = if let Some(source_id) = native_annotation_source_id {
+            source_id
+        } else if self
             .document
             .chemical_properties
             .iter()
@@ -2338,6 +2592,52 @@ impl<'a> CdxmlDocumentWriter<'a> {
             return extent;
         }
         (extent / self.editing_scale.max(crate::EPSILON) * 65536.0).round()
+    }
+}
+
+fn constraint_label_position(
+    document: &ChemSemaDocument,
+    object: &SceneObject,
+    constraint: &crate::ConstraintData,
+) -> Option<Point> {
+    let automatic =
+        || match crate::geometry_constraints::evaluate_annotation(document, object).ok()? {
+            crate::geometry_constraints::EvaluatedAnnotation::Distance { start, end, .. } => Some(
+                Point::new((start.x + end.x) * 0.5, (start.y + end.y) * 0.5 - 3.0),
+            ),
+            crate::geometry_constraints::EvaluatedAnnotation::Angle { points, .. } => {
+                points.get(1).copied()
+            }
+            crate::geometry_constraints::EvaluatedAnnotation::ExclusionSphere {
+                center,
+                radius_angstrom,
+            } => Some(Point::new(
+                center.x,
+                center.y
+                    - radius_angstrom
+                        * document
+                            .style
+                            .defaults
+                            .get("bondLength")
+                            .copied()
+                            .unwrap_or(crate::DEFAULT_BOND_LENGTH_PT)
+                        / 1.5,
+            )),
+            crate::geometry_constraints::EvaluatedAnnotation::Geometry(_) => None,
+        };
+    match constraint.display.positioning_type {
+        crate::AnnotationPositioningType::Auto => automatic(),
+        crate::AnnotationPositioningType::Absolute | crate::AnnotationPositioningType::Angle => {
+            constraint
+                .display
+                .position
+                .map(|point| Point::new(point[0], point[1]))
+        }
+        crate::AnnotationPositioningType::Offset => {
+            let base = automatic()?;
+            let [dx, dy] = constraint.display.positioning_offset?;
+            Some(Point::new(base.x + dx, base.y + dy))
+        }
     }
 }
 

@@ -12,6 +12,7 @@ import { createObjectSettingsHost } from "./object_settings_host.js";
 import { createNumericDialogHost } from "./numeric_dialog_host.js";
 import { createAtomPropertyDialogHost } from "./atom_property_dialog_host.js";
 import { createChemicalPropertyDialogHost } from "./chemical_property_dialog_host.js";
+import { createAnnotationDialogHost } from "./annotation_dialog_host.js";
 import { createSmilesDialogHost } from "./smiles_dialog_host.js";
 import { createTransientNotificationHost } from "./transient_notification_host.js";
 import { createUiActionRunner } from "./ui_action_runner.js";
@@ -170,6 +171,10 @@ const atomPropertyDialogHost = createAtomPropertyDialogHost({
   engine: () => state.editorEngine,
 });
 const chemicalPropertyDialogHost = createChemicalPropertyDialogHost({
+  root: document.body,
+  engine: () => state.editorEngine,
+});
+const annotationDialogHost = createAnnotationDialogHost({
   root: document.body,
   engine: () => state.editorEngine,
 });
@@ -1204,6 +1209,7 @@ canvasContextMenuHost = createCanvasContextMenuHost({
   numericDialogHost,
   atomPropertyDialogHost,
   chemicalPropertyDialogHost,
+  annotationDialogHost,
   smilesDialogHost,
   transientNotificationHost,
   inchiHost,

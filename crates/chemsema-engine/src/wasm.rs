@@ -660,6 +660,11 @@ impl WasmEngine {
         self.inner.atom_property_dialog_json(property)
     }
 
+    #[wasm_bindgen(js_name = annotationDialogJson)]
+    pub fn annotation_dialog_json(&self, annotation: &str) -> String {
+        self.inner.annotation_dialog_json(annotation)
+    }
+
     #[wasm_bindgen(js_name = applySelectionNumericDialogJson)]
     pub fn apply_selection_numeric_dialog_json(
         &mut self,

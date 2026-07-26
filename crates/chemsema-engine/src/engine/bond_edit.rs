@@ -199,6 +199,9 @@ impl Engine {
     }
 
     pub(super) fn preview_document(&self) -> Option<ChemSemaDocument> {
+        if let Some(preview_document) = self.selection_move_preview_document() {
+            return Some(preview_document);
+        }
         if let Some(preview_document) = self.template_preview_document() {
             return Some(preview_document);
         }

@@ -33,8 +33,12 @@ impl Engine {
 
     fn delete_selection_untracked(&mut self) -> bool {
         if self.state.selection.is_empty() {
-            return self.delete_focused(FocusedDeleteMode::CommandKey);
+            let native_entities_before = native_annotation_entity_ids(&self.state.document);
+            let changed = self.delete_focused(FocusedDeleteMode::CommandKey);
+            return changed
+                | (changed && self.cascade_annotations_removed_since(&native_entities_before));
         }
+        let native_entities_before = native_annotation_entity_ids(&self.state.document);
         let selection = self.state.selection.clone();
         let mut changed = false;
         for object_id in &selection.text_objects {
@@ -65,6 +69,7 @@ impl Engine {
         }
         if selection.nodes.is_empty() && selection.bonds.is_empty() {
             if changed {
+                changed |= self.cascade_annotations_removed_since(&native_entities_before);
                 self.state.selection = crate::SelectionState::default();
                 self.clear_interaction();
             }
@@ -88,10 +93,68 @@ impl Engine {
         );
         entry.update_bounds();
         let _ = entry;
+        self.cascade_annotations_removed_since(&native_entities_before);
         self.refresh_symbol_chemistry();
         self.state.selection = crate::SelectionState::default();
         self.clear_interaction();
         true
+    }
+
+    fn cascade_annotations_removed_since(&mut self, entities_before: &BTreeSet<String>) -> bool {
+        let entities_after = native_annotation_entity_ids(&self.state.document);
+        let mut removed = entities_before
+            .difference(&entities_after)
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        if removed.is_empty() {
+            return false;
+        }
+        let mut annotations_removed = false;
+        loop {
+            let dependent_ids = self
+                .state
+                .document
+                .scene_objects()
+                .into_iter()
+                .filter(|object| {
+                    matches!(
+                        object.kind(),
+                        crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+                    )
+                })
+                .filter(|object| {
+                    annotation_basis_ids(object)
+                        .iter()
+                        .any(|basis_id| removed.contains(basis_id))
+                })
+                .map(|object| object.id.clone())
+                .collect::<BTreeSet<_>>();
+            if dependent_ids.is_empty() {
+                break;
+            }
+            let dependent_refs = dependent_ids
+                .iter()
+                .map(String::as_str)
+                .collect::<BTreeSet<_>>();
+            if self
+                .state
+                .document
+                .remove_scene_objects_by_id(&dependent_refs)
+                == 0
+            {
+                break;
+            }
+            removed.extend(dependent_ids);
+            annotations_removed = true;
+        }
+        let link_count = self.state.document.links.len();
+        self.state.document.links.retain(|relation| {
+            relation
+                .endpoints
+                .iter()
+                .all(|endpoint| !removed.contains(&endpoint.entity_id))
+        });
+        annotations_removed || self.state.document.links.len() != link_count
     }
 
     fn delete_focused(&mut self, mode: FocusedDeleteMode) -> bool {
@@ -125,6 +188,16 @@ impl Engine {
     }
 
     pub(super) fn delete_focused_at_point(
+        &mut self,
+        point: crate::Point,
+        mode: FocusedDeleteMode,
+    ) -> bool {
+        let native_entities_before = native_annotation_entity_ids(&self.state.document);
+        let changed = self.delete_focused_at_point_without_annotation_cascade(point, mode);
+        changed | (changed && self.cascade_annotations_removed_since(&native_entities_before))
+    }
+
+    fn delete_focused_at_point_without_annotation_cascade(
         &mut self,
         point: crate::Point,
         mode: FocusedDeleteMode,
@@ -399,6 +472,35 @@ impl Engine {
         self.clear_interaction();
         true
     }
+}
+
+fn annotation_basis_ids(object: &crate::SceneObject) -> &[String] {
+    object
+        .payload
+        .geometry
+        .as_ref()
+        .map(|geometry| geometry.basis_entity_ids.as_slice())
+        .or_else(|| {
+            object
+                .payload
+                .constraint
+                .as_ref()
+                .map(|constraint| constraint.basis_entity_ids.as_slice())
+        })
+        .unwrap_or(&[])
+}
+
+fn native_annotation_entity_ids(document: &crate::ChemSemaDocument) -> BTreeSet<String> {
+    let mut ids = document
+        .scene_objects()
+        .into_iter()
+        .map(|object| object.id.clone())
+        .collect::<BTreeSet<_>>();
+    for entry in document.editable_fragments() {
+        ids.extend(entry.fragment.nodes.iter().map(|node| node.id.clone()));
+        ids.extend(entry.fragment.bonds.iter().map(|bond| bond.id.clone()));
+    }
+    ids
 }
 
 fn delete_selection_from_command_targets(

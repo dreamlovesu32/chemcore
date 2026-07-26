@@ -7,6 +7,13 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
+#[path = "document/geometry_constraints.rs"]
+mod geometry_constraints;
+pub use geometry_constraints::{
+    AnnotationDisplay, AnnotationPositioningType, ConstraintData, ConstraintType, GeometryData,
+    GeometryFeature,
+};
+
 pub const DEFAULT_PAGE_WIDTH: f64 = DEFAULT_PAGE_WIDTH_PT;
 pub const DEFAULT_PAGE_HEIGHT: f64 = DEFAULT_PAGE_HEIGHT_PT;
 pub const DEFAULT_BOND_LENGTH: f64 = DEFAULT_BOND_LENGTH_PT;
@@ -161,6 +168,8 @@ impl ChemSemaDocument {
                     resource_ref: Some("mol_editor".to_string()),
                     bbox: Some([0.0, 0.0, DEFAULT_PAGE_WIDTH, DEFAULT_PAGE_HEIGHT]),
                     spectrum: None,
+                    geometry: None,
+                    constraint: None,
                     extra: BTreeMap::new(),
                 },
                 children: Vec::new(),
@@ -433,6 +442,7 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     migrate_legacy_bracket_links(&mut document);
     validate_scene_object_types(&document.objects)?;
     validate_spectrum_objects(&document.objects)?;
+    validate_geometry_constraint_objects(&document)?;
     validate_molecule_fragment_resources(&document)?;
     split_disconnected_molecule_objects(&mut document);
     normalize_text_object_payloads(&mut document);
@@ -629,6 +639,37 @@ fn validate_link_relations(document: &ChemSemaDocument) -> Result<(), String> {
                             .map(String::as_str)
                             .collect::<Vec<_>>()
             }
+            "annotation-basis" => {
+                let annotation = role("annotation");
+                let basis = relation
+                    .endpoints
+                    .iter()
+                    .filter(|endpoint| endpoint.role == "basis")
+                    .map(|endpoint| endpoint.entity_id.as_str())
+                    .collect::<Vec<_>>();
+                annotation
+                    .and_then(|endpoint| document.find_scene_object(&endpoint.entity_id))
+                    .is_some_and(|object| {
+                        matches!(
+                            object.kind(),
+                            crate::SceneObjectKind::Geometry | crate::SceneObjectKind::Constraint
+                        ) && basis
+                            == object
+                                .payload
+                                .geometry
+                                .as_ref()
+                                .map(|geometry| geometry.basis_entity_ids.as_slice())
+                                .or_else(|| {
+                                    object
+                                        .payload
+                                        .constraint
+                                        .as_ref()
+                                        .map(|constraint| constraint.basis_entity_ids.as_slice())
+                                })
+                                .unwrap_or(&[])
+                    })
+                    && relation.endpoints.len() == basis.len() + 1
+            }
             _ => false,
         };
         if !valid {
@@ -792,6 +833,79 @@ fn validate_spectrum_objects(objects: &[SceneObject]) -> Result<(), String> {
         validate_spectrum_objects(&object.children)?;
     }
     Ok(())
+}
+
+fn validate_geometry_constraint_objects(document: &ChemSemaDocument) -> Result<(), String> {
+    let scene_ids = document
+        .scene_objects()
+        .into_iter()
+        .map(|object| object.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let node_ids = document
+        .editable_fragments()
+        .into_iter()
+        .flat_map(|entry| entry.fragment.nodes.iter().map(|node| node.id.as_str()))
+        .collect::<BTreeSet<_>>();
+    let bond_ids = document
+        .editable_fragments()
+        .into_iter()
+        .flat_map(|entry| entry.fragment.bonds.iter().map(|bond| bond.id.as_str()))
+        .collect::<BTreeSet<_>>();
+    for object in document.scene_objects() {
+        let basis = match object.kind() {
+            crate::SceneObjectKind::Geometry => {
+                if object.payload.constraint.is_some() {
+                    return Err(format!(
+                        "geometry object '{}' cannot contain payload.constraint",
+                        object.id
+                    ));
+                }
+                let data = object.payload.geometry.as_ref().ok_or_else(|| {
+                    format!(
+                        "geometry object '{}' is missing payload.geometry",
+                        object.id
+                    )
+                })?;
+                data.validate()?;
+                &data.basis_entity_ids
+            }
+            crate::SceneObjectKind::Constraint => {
+                if object.payload.geometry.is_some() {
+                    return Err(format!(
+                        "constraint object '{}' cannot contain payload.geometry",
+                        object.id
+                    ));
+                }
+                let data = object.payload.constraint.as_ref().ok_or_else(|| {
+                    format!(
+                        "constraint object '{}' is missing payload.constraint",
+                        object.id
+                    )
+                })?;
+                data.validate()?;
+                &data.basis_entity_ids
+            }
+            _ => continue,
+        };
+        for entity_id in basis {
+            if entity_id == &object.id {
+                return Err(format!(
+                    "object '{}' cannot reference itself as basis",
+                    object.id
+                ));
+            }
+            if !scene_ids.contains(entity_id.as_str())
+                && !node_ids.contains(entity_id.as_str())
+                && !bond_ids.contains(entity_id.as_str())
+            {
+                return Err(format!(
+                    "object '{}' references missing basis entity '{}'",
+                    object.id, entity_id
+                ));
+            }
+        }
+    }
+    crate::geometry_constraints::validate_annotation_graph(document)
 }
 
 fn validate_molecule_fragment_resources(document: &ChemSemaDocument) -> Result<(), String> {
@@ -2405,6 +2519,10 @@ pub struct ObjectPayload {
     pub bbox: Option<[f64; 4]>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub spectrum: Option<crate::SpectrumData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub geometry: Option<GeometryData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub constraint: Option<ConstraintData>,
     #[serde(flatten, default)]
     pub extra: BTreeMap<String, Value>,
 }
