@@ -208,27 +208,62 @@ impl Engine {
             .and_then(JsonValue::as_str)
             .unwrap_or("canvas");
         if hit_kind == "canvas" {
-            let mut items = self.clipboard_items(true, has_paste);
-            if self.selection_is_complete_molecule() {
-                items.extend([
-                    separator(),
-                    nmr_prediction_submenu(),
-                    chemical_analysis_submenu(),
-                    item("Chemical Property...", "chemical-property-dialog", ""),
-                ]);
-            }
-            items.extend([
-                separator(),
-                item("Insert Image...", "insert-image", ""),
-                item("From SMILES...", "smiles-dialog", ""),
-            ]);
-            return items;
+            return self.canvas_context_menu_items(has_paste);
         }
 
-        let selected_count = self.context_selection_count();
         let selected_types = self.selected_object_types();
         let single_object_type = self.single_selected_object_type();
         let mut items = self.clipboard_items(false, has_paste);
+        self.append_selection_analysis_items(&mut items);
+        self.append_selection_relationship_items(&mut items);
+        self.append_selection_color_items(&mut items);
+        self.append_special_object_dialog_items(&mut items, single_object_type.as_deref());
+
+        if single_object_type.as_deref() == Some("table") {
+            items.extend(self.table_cell_context_menu_items(hit));
+            return items;
+        }
+        if single_object_type.as_deref() == Some("stoichiometry-grid") {
+            self.append_stoichiometry_grid_items(&mut items, hit);
+            return items;
+        }
+        self.append_annotation_creation_items(&mut items);
+
+        if self.context_selection_count() > 1 || selected_types.contains("group") {
+            self.append_multi_selection_items(&mut items, &selected_types);
+            return items;
+        }
+        if hit_kind == "bond" || !self.state.selection.bonds.is_empty() {
+            self.append_bond_context_items(&mut items);
+            return items;
+        }
+        if self.hit_or_selection_targets_atom_text(hit_kind) {
+            self.append_atom_context_items(&mut items);
+            return items;
+        }
+        self.append_scene_object_context_items(&mut items, single_object_type.as_deref());
+        items
+    }
+
+    fn canvas_context_menu_items(&self, has_paste: bool) -> Vec<JsonValue> {
+        let mut items = self.clipboard_items(true, has_paste);
+        if self.selection_is_complete_molecule() {
+            items.extend([
+                separator(),
+                nmr_prediction_submenu(),
+                chemical_analysis_submenu(),
+                item("Chemical Property...", "chemical-property-dialog", ""),
+            ]);
+        }
+        items.extend([
+            separator(),
+            item("Insert Image...", "insert-image", ""),
+            item("From SMILES...", "smiles-dialog", ""),
+        ]);
+        items
+    }
+
+    fn append_selection_analysis_items(&self, items: &mut Vec<JsonValue>) {
         if self.selection_is_complete_molecule() {
             items.extend([
                 separator(),
@@ -249,9 +284,15 @@ impl Engine {
                 item("Analyze Stoichiometry", "analyze-stoichiometry", ""),
             ]);
         }
+    }
+
+    fn append_selection_relationship_items(&self, items: &mut Vec<JsonValue>) {
         if !self.state.selection.is_empty() {
             items.extend([separator(), self.link_menu()]);
         }
+    }
+
+    fn append_selection_color_items(&self, items: &mut Vec<JsonValue>) {
         if self.selection_has_molecular_coloring_targets() {
             items.extend([
                 separator(),
@@ -273,6 +314,13 @@ impl Engine {
                 ));
             }
         }
+    }
+
+    fn append_special_object_dialog_items(
+        &self,
+        items: &mut Vec<JsonValue>,
+        single_object_type: Option<&str>,
+    ) {
         if let Some(object) = self.selected_single_plasmid_map() {
             items.extend([
                 separator(),
@@ -313,64 +361,61 @@ impl Engine {
                 ),
             ]);
         }
-        if matches!(
-            single_object_type.as_deref(),
-            Some("geometry" | "constraint")
-        ) {
+        if matches!(single_object_type, Some("geometry" | "constraint")) {
             items.extend([
                 separator(),
                 item("Annotation Properties...", "annotation-dialog", "selected"),
             ]);
         }
-        if single_object_type.as_deref() == Some("table") {
-            items.extend(self.table_cell_context_menu_items(hit));
-            return items;
-        }
-        if single_object_type.as_deref() == Some("stoichiometry-grid") {
-            if let Some(object_id) = self.state.selection.arrow_objects.first() {
-                items.extend(self.stoichiometry_cell_context_menu_items(hit, object_id));
-                items.extend([
-                    separator(),
-                    submenu(
-                        "Stoichiometry Grid",
-                        vec![
-                            item(
-                                "Refresh Calculations",
-                                "stoichiometry-grid-edit",
-                                &format!("{object_id}:refresh:"),
-                            ),
-                            item(
-                                "Add Concentration Row",
-                                "stoichiometry-grid-edit",
-                                &format!("{object_id}:add-row:Concentration"),
-                            ),
-                            item(
-                                "Add Volume Row",
-                                "stoichiometry-grid-edit",
-                                &format!("{object_id}:add-row:Volume"),
-                            ),
-                            item(
-                                "Add Density Row",
-                                "stoichiometry-grid-edit",
-                                &format!("{object_id}:add-row:Density"),
-                            ),
-                            item(
-                                "Add Yield Row",
-                                "stoichiometry-grid-edit",
-                                &format!("{object_id}:add-row:Yield"),
-                            ),
-                            separator(),
-                            item(
-                                "Detach from Reaction",
-                                "stoichiometry-grid-edit",
-                                &format!("{object_id}:detach:"),
-                            ),
-                        ],
+    }
+
+    fn append_stoichiometry_grid_items(&self, items: &mut Vec<JsonValue>, hit: &JsonValue) {
+        let Some(object_id) = self.state.selection.arrow_objects.first() else {
+            return;
+        };
+        items.extend(self.stoichiometry_cell_context_menu_items(hit, object_id));
+        items.extend([
+            separator(),
+            submenu(
+                "Stoichiometry Grid",
+                vec![
+                    item(
+                        "Refresh Calculations",
+                        "stoichiometry-grid-edit",
+                        &format!("{object_id}:refresh:"),
                     ),
-                ]);
-            }
-            return items;
-        }
+                    item(
+                        "Add Concentration Row",
+                        "stoichiometry-grid-edit",
+                        &format!("{object_id}:add-row:Concentration"),
+                    ),
+                    item(
+                        "Add Volume Row",
+                        "stoichiometry-grid-edit",
+                        &format!("{object_id}:add-row:Volume"),
+                    ),
+                    item(
+                        "Add Density Row",
+                        "stoichiometry-grid-edit",
+                        &format!("{object_id}:add-row:Density"),
+                    ),
+                    item(
+                        "Add Yield Row",
+                        "stoichiometry-grid-edit",
+                        &format!("{object_id}:add-row:Yield"),
+                    ),
+                    separator(),
+                    item(
+                        "Detach from Reaction",
+                        "stoichiometry-grid-edit",
+                        &format!("{object_id}:detach:"),
+                    ),
+                ],
+            ),
+        ]);
+    }
+
+    fn append_annotation_creation_items(&self, items: &mut Vec<JsonValue>) {
         let annotation_items = self.annotation_menu_values();
         if !annotation_items.is_empty() {
             items.extend([
@@ -384,79 +429,87 @@ impl Engine {
                 ),
             ]);
         }
+    }
 
-        if selected_count > 1 || selected_types.contains("group") {
-            items.extend([
-                separator(),
-                item("Bring Forward", "order", "bring-forward"),
-                item("Send Backward", "order", "send-backward"),
-                item("Bring to Front", "order", "bring-front"),
-                item("Send to Back", "order", "send-back"),
-                separator(),
-                item("Flip Horizontal", "arrange", "flip-h"),
-                item("Flip Vertical", "arrange", "flip-v"),
-                item("Rotate...", "rotate-dialog", ""),
-                item("Scale...", "scale-dialog", ""),
-                separator(),
-                self.color_menu(),
-            ]);
-            items.extend([
-                group_menu(
-                    selected_types.contains("group"),
-                    self.selected_scene_object_count(),
-                ),
-                separator(),
-                self.object_settings_item(),
-            ]);
-            return items;
-        }
+    fn append_multi_selection_items(
+        &self,
+        items: &mut Vec<JsonValue>,
+        selected_types: &BTreeSet<&str>,
+    ) {
+        items.extend([
+            separator(),
+            item("Bring Forward", "order", "bring-forward"),
+            item("Send Backward", "order", "send-backward"),
+            item("Bring to Front", "order", "bring-front"),
+            item("Send to Back", "order", "send-back"),
+            separator(),
+            item("Flip Horizontal", "arrange", "flip-h"),
+            item("Flip Vertical", "arrange", "flip-v"),
+            item("Rotate...", "rotate-dialog", ""),
+            item("Scale...", "scale-dialog", ""),
+            separator(),
+            self.color_menu(),
+            group_menu(
+                selected_types.contains("group"),
+                self.selected_scene_object_count(),
+            ),
+            separator(),
+            self.object_settings_item(),
+        ]);
+    }
 
-        if hit_kind == "bond" || !self.state.selection.bonds.is_empty() {
-            items.extend([
-                separator(),
-                self.bond_type_menu(),
-                self.bond_query_reaction_menu(),
-                separator(),
-                self.color_menu(),
-                self.object_settings_item(),
-            ]);
-            return items;
-        }
+    fn append_bond_context_items(&self, items: &mut Vec<JsonValue>) {
+        items.extend([
+            separator(),
+            self.bond_type_menu(),
+            self.bond_query_reaction_menu(),
+            separator(),
+            self.color_menu(),
+            self.object_settings_item(),
+        ]);
+    }
 
-        if hit_kind == "atom"
+    fn hit_or_selection_targets_atom_text(&self, hit_kind: &str) -> bool {
+        hit_kind == "atom"
             || hit_kind == "label"
             || !self.state.selection.nodes.is_empty()
             || !self.state.selection.label_nodes.is_empty()
-        {
-            items.extend([
-                separator(),
-                item("Edit Label", "edit-text", ""),
-                json!({"label": "Expand Label", "command": "expand-label", "disabled": !self.selected_can_expand_label()}),
-            ]);
-            if self.selected_text_target_count() > 0 {
-                items.extend([
-                    separator(),
-                    self.text_font_menu(),
-                    self.text_style_menu(),
-                    self.text_size_menu(),
-                    self.text_alignment_menu(),
-                ]);
-            }
-            items.extend([
-                separator(),
-                json!({"label": "Interpret Chemically", "command": "interpret-chemically", "value": if self.selected_interpret_chemically_enabled() { "off" } else { "on" }, "checked": self.selected_interpret_chemically_enabled()}),
-                self.implicit_hydrogen_menu(),
-                self.external_connection_menu(),
-                self.atom_properties_menu(),
-                self.atom_query_menu(),
-                separator(),
-                self.color_menu(),
-                self.object_settings_item(),
-            ]);
-            return items;
-        }
+    }
 
-        match single_object_type.as_deref() {
+    fn append_atom_context_items(&self, items: &mut Vec<JsonValue>) {
+        items.extend([
+            separator(),
+            item("Edit Label", "edit-text", ""),
+            json!({"label": "Expand Label", "command": "expand-label", "disabled": !self.selected_can_expand_label()}),
+        ]);
+        if self.selected_text_target_count() > 0 {
+            items.extend([
+                separator(),
+                self.text_font_menu(),
+                self.text_style_menu(),
+                self.text_size_menu(),
+                self.text_alignment_menu(),
+            ]);
+        }
+        items.extend([
+            separator(),
+            json!({"label": "Interpret Chemically", "command": "interpret-chemically", "value": if self.selected_interpret_chemically_enabled() { "off" } else { "on" }, "checked": self.selected_interpret_chemically_enabled()}),
+            self.implicit_hydrogen_menu(),
+            self.external_connection_menu(),
+            self.atom_properties_menu(),
+            self.atom_query_menu(),
+            separator(),
+            self.color_menu(),
+            self.object_settings_item(),
+        ]);
+    }
+
+    fn append_scene_object_context_items(
+        &self,
+        items: &mut Vec<JsonValue>,
+        single_object_type: Option<&str>,
+    ) {
+        match single_object_type {
             Some("line") => {
                 items.extend([
                     separator(),
@@ -563,7 +616,6 @@ impl Engine {
                 ]);
             }
         }
-        items
     }
 
     fn table_cell_context_menu_items(&self, hit: &JsonValue) -> Vec<JsonValue> {

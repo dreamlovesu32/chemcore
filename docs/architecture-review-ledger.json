@@ -102,14 +102,9 @@
       "reason": "The function creates one chemistry graph while preserving target filtering, stereochemistry, and source authority."
     },
     "crates/chemsema-engine/src/engine/context_menu.rs:$file": {
-      "lines": 2465,
+      "lines": 2527,
       "owner": "Kernel context-menu schema",
       "reason": "The module owns the complete kernel-generated context-menu contract, with object-family menus and value normalization separated into named helpers."
-    },
-    "crates/chemsema-engine/src/engine/context_menu.rs:context_menu_items": {
-      "lines": 335,
-      "owner": "Kernel context-menu schema",
-      "reason": "One ordered schema builder applies selection precedence and exposes mutually exclusive semantic commands."
     },
     "crates/chemsema-engine/src/engine/context_styles.rs:$file": {
       "lines": 2125,
