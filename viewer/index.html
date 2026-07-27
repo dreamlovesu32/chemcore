@@ -7,8 +7,18 @@
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./styles.css?v=20260629-palette-select-guard" />
   </head>
-  <body data-view-mode="document">
-    <div id="desktop-titlebar" class="desktop-titlebar" aria-label="Window title bar">
+  <body data-view-mode="document" data-runtime-state="loading" aria-busy="true">
+    <section id="runtime-gate" class="runtime-gate" role="status" aria-live="assertive">
+      <div class="runtime-gate-card">
+        <img class="runtime-gate-logo" src="./brand-icon.svg?v=20260603-titlebar-icon" alt="" />
+        <div class="runtime-gate-spinner" aria-hidden="true"></div>
+        <h1 id="runtime-gate-title">Starting ChemSema</h1>
+        <p id="runtime-gate-message">Verifying the chemistry kernel before opening the editor…</p>
+        <pre id="runtime-gate-details" hidden></pre>
+        <button id="runtime-gate-reload" type="button" hidden>Retry</button>
+      </div>
+    </section>
+    <div id="desktop-titlebar" class="desktop-titlebar" aria-label="Window title bar" hidden>
       <div class="titlebar-brand" data-titlebar-drag-region aria-hidden="true">
         <img src="./brand-icon.svg?v=20260603-titlebar-icon" alt="" draggable="false" />
       </div>
@@ -32,7 +42,7 @@
         </button>
       </div>
     </div>
-    <div class="editor-shell">
+    <div class="editor-shell" hidden>
       <header class="editor-topbar" aria-label="Editor toolbar">
         <div class="toolbar-row toolbar-row-primary">
           <div class="toolbar-group">
@@ -197,6 +207,6 @@
       <pre id="doc-meta" class="visually-hidden"></pre>
     </div>
 
-    <script type="module" src="./app.js?v=20260727-template-libraries"></script>
+    <script type="module" src="./app.js?v=20260727-runtime-gate"></script>
   </body>
 </html>

@@ -84,6 +84,8 @@
     "regression:stability-user-paths": "node scripts/stability-user-paths.mjs",
     "regression:text-editor": "node scripts/text-editor-regression.mjs",
     "regression:toolbar": "node scripts/toolbar-regression.mjs",
+    "regression:runtime-gate": "node scripts/runtime-gate-regression.mjs",
+    "regression:runtime-gate:browser": "node scripts/runtime-gate-browser-regression.mjs",
     "regression:document-layout": "node --test scripts/tests/document-layout.test.mjs",
     "regression:plasmid-map": "node scripts/plasmid-map-regression.mjs",
     "regression:ui-actions": "node scripts/ui-action-runner-regression.mjs",

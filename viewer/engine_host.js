@@ -8,9 +8,31 @@ class WasmEngineHost {
 
   async initialize() {
     await initializeChemSemaEngine({
-      module_or_path: new URL("./engine/chemsema_engine_bg.wasm?v=20260726-molecular-coloring", import.meta.url),
+      module_or_path: new URL("./engine/chemsema_engine_bg.wasm?v=20260727-runtime-gate", import.meta.url),
     });
+    this.backendProbe = this.runSmokeTest();
     return this;
+  }
+
+  runSmokeTest() {
+    const session = new WasmEngine();
+    try {
+      const document = JSON.parse(session.documentJson());
+      const renderList = JSON.parse(session.renderListJson());
+      if (!document || typeof document !== "object") {
+        throw new Error("kernel returned an invalid document");
+      }
+      if (!Array.isArray(renderList)) {
+        throw new Error("kernel returned an invalid render list");
+      }
+      return {
+        ok: true,
+        documentSchema: document.schema || null,
+        renderPrimitiveCount: renderList.length,
+      };
+    } finally {
+      session.free();
+    }
   }
 
   createEngineSession() {

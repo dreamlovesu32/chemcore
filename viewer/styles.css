@@ -90,6 +90,99 @@ body.browser-shell {
   display: block;
 }
 
+.runtime-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(47, 111, 237, 0.09), transparent 34%),
+    #f7f9fc;
+}
+
+.runtime-gate[hidden],
+.editor-shell[hidden],
+.desktop-titlebar[hidden] {
+  display: none !important;
+}
+
+.runtime-gate-card {
+  width: min(460px, 100%);
+  padding: 34px 38px;
+  border: 1px solid #dce2ea;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 18px 52px rgba(28, 39, 55, 0.12);
+  color: var(--ink);
+  text-align: center;
+}
+
+.runtime-gate-logo {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 18px;
+}
+
+.runtime-gate-spinner {
+  width: 24px;
+  height: 24px;
+  margin: 0 auto 18px;
+  border: 3px solid #dbe4f5;
+  border-top-color: var(--active);
+  border-radius: 50%;
+  animation: runtime-gate-spin 0.8s linear infinite;
+}
+
+.runtime-gate-card h1 {
+  margin: 0 0 10px;
+  font-size: 22px;
+  font-weight: 650;
+}
+
+.runtime-gate-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.runtime-gate-card pre {
+  max-height: 150px;
+  margin: 18px 0 0;
+  padding: 12px;
+  overflow: auto;
+  border-radius: 7px;
+  background: #f3f5f8;
+  color: #7f2f2f;
+  font: 12px/1.45 Consolas, "Courier New", monospace;
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.runtime-gate-card button {
+  min-width: 104px;
+  height: 36px;
+  margin-top: 20px;
+  border: 1px solid #245bc8;
+  border-radius: 6px;
+  background: var(--active);
+  color: #ffffff;
+  font: inherit;
+  cursor: pointer;
+}
+
+body[data-runtime-state="failed"] .runtime-gate-spinner {
+  display: none;
+}
+
+@keyframes runtime-gate-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 button,
 input,
 select {

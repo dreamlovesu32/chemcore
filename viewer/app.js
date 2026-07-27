@@ -19,6 +19,7 @@ import { createPlasmidMapDialogHost } from "./plasmid_map_dialog_host.js";
 import { createBioShapeDialogHost } from "./bio_shape_dialog_host.js";
 import { createDocumentLayoutHost } from "./document_layout_host.js";
 import { createTemplateLibraryHost } from "./template_library_host.js";
+import { createRuntimeGate } from "./runtime_gate.js";
 import { createTransientNotificationHost } from "./transient_notification_host.js";
 import { createUiActionRunner } from "./ui_action_runner.js";
 import { createInchiHost } from "./inchi_host.js";
@@ -286,6 +287,7 @@ const {
   imageFileInput,
   textEditorLayer,
 } = createAppDomRefs();
+const runtimeGate = createRuntimeGate();
 const documentLayoutHost = createDocumentLayoutHost({
   root: document.body,
   state,
@@ -2365,8 +2367,10 @@ watchDisplayMetrics();
 try {
   await appRuntimeReady;
   await loadInitialDocumentTabs();
+  runtimeGate.ready();
   resolveAppInitialDocumentReady?.();
 } catch (error) {
+  runtimeGate.failed(error);
   resolveAppInitialDocumentReady?.();
   viewerTitle.textContent = "Runtime load failed";
   viewerStats.textContent = "";
