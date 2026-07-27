@@ -74,17 +74,55 @@ try {
     () => !!window.__chemsemaDebug?.state?.editorEngine && !!window.__chemsemaDebug?.document,
   );
 
-  await page.locator('button[data-tool="biodraw"]').click();
+  await page.locator("[data-tool-rail-toggle]").click();
+  await page.locator('[data-tool-rail-toggle][aria-pressed="true"]').waitFor();
+  assert.equal(
+    await page.locator('[data-tool-rail="main"]:visible').count(),
+    0,
+    "switching rails should replace every main drawing tool",
+  );
+  assert.equal(
+    await page.locator('[data-tool-rail="biology"]:visible').count(),
+    10,
+    "the Biology-Assisted Drawing Rail should expose every family",
+  );
+  assert.equal(
+    await page.locator('button[data-tool="select"]:visible').count(),
+    1,
+    "selection should remain available in both rails",
+  );
+
+  await page.locator('button[data-tool="biodraw"][data-bio-family="enzyme"]').click();
+  await page.locator('[data-secondary-value="biodraw-kind-two-substrate-enzyme"]').click();
+  const canvas = page.locator("#viewer-container");
+  const canvasBox = await canvas.boundingBox();
+  assert.ok(canvasBox, "canvas should be measurable");
+  await page.mouse.move(canvasBox.x + 540, canvasBox.y + 360);
+  await page.mouse.down();
+  await page.mouse.move(canvasBox.x + 640, canvasBox.y + 405, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForFunction(() => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    return documentValue.objects?.some((object) =>
+      object.payload?.bioShape?.kind === "two-substrate-enzyme");
+  });
+
+  await page.locator('button[data-tool="biodraw"][data-bio-family="plasmid"]').click();
   await page.waitForFunction(
     () => window.__chemsemaDebug?.editorState?.activeTool === "biodraw",
+  );
+  await page.waitForFunction(
+    () => window.__chemsemaDebug?.editorState?.bioDrawKind === "plasmid-map",
   );
   assert.equal(
     await page.locator('[data-secondary-value="biodraw-kind-plasmid-map"]').count(),
     1,
   );
 
-  const canvas = page.locator("#viewer-container");
-  await canvas.click({ position: { x: 720, y: 470 } });
+  await page.mouse.move(canvasBox.x + 820, canvasBox.y + 500);
+  await page.mouse.down();
+  await page.mouse.move(canvasBox.x + 880, canvasBox.y + 540, { steps: 5 });
+  await page.mouse.up();
   const dialog = page.locator(".plasmid-map-dialog");
   await dialog.waitFor({ state: "visible" });
   await dialog.locator('[name="numberBasePairs"]').fill("12000");
@@ -151,6 +189,31 @@ try {
     return documentValue.objects?.some((object) =>
       object.payload?.plasmidMap?.showBasePairs === false);
   });
+
+  const selectionBeforeRailSwitch = await page.evaluate(
+    async () => Promise.resolve(window.__chemsemaDebug.state.editorEngine.clipboardSelectionJson()),
+  );
+  assert.ok(selectionBeforeRailSwitch, "the edited plasmid should remain selected");
+  await page.locator("[data-tool-rail-toggle]").click();
+  await page.locator('[data-tool-rail-toggle][aria-pressed="false"]').waitFor();
+  assert.equal(
+    await page.locator('[data-tool-rail="main"]:visible').count(),
+    11,
+    "switching back should restore the complete Main Drawing Rail",
+  );
+  assert.equal(
+    await page.evaluate(() => window.__chemsemaDebug.editorState.activeTool),
+    "select",
+    "rail switching should leave selection as the active tool",
+  );
+  const selectionAfterRailSwitch = await page.evaluate(
+    async () => Promise.resolve(window.__chemsemaDebug.state.editorEngine.clipboardSelectionJson()),
+  );
+  assert.equal(
+    selectionAfterRailSwitch,
+    selectionBeforeRailSwitch,
+    "rail switching must preserve the current document selection",
+  );
 
   assert.deepEqual(errors, [], `browser errors: ${errors.join("\n")}`);
   console.log("[plasmid-map-regression] ok");

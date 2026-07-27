@@ -27,6 +27,33 @@ export async function pdfPreviewBase64FromSvg(svgText) {
   return uint8ToBase64(pdfBytes);
 }
 
+export async function pdfPreviewBase64FromSvgPages(pages) {
+  const rendered = [];
+  for (const page of pages) {
+    const metrics = svgMetrics(page.svg);
+    const image = await imageFromSvg(page.svg);
+    const scale = Math.min(
+      2,
+      MAX_CANVAS_SIDE / Math.max(metrics.width, metrics.height),
+    );
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(metrics.width * scale));
+    canvas.height = Math.max(1, Math.round(metrics.height * scale));
+    const context = canvas.getContext("2d", { alpha: false });
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    rendered.push({
+      jpegBytes: await canvasJpegBytes(canvas),
+      imageWidth: canvas.width,
+      imageHeight: canvas.height,
+      pageWidthPt: Math.max(1, Number(page.widthPt)),
+      pageHeightPt: Math.max(1, Number(page.heightPt)),
+    });
+  }
+  return uint8ToBase64(buildImagePagesPdf(rendered));
+}
+
 function svgMetrics(svgText) {
   const document = new DOMParser().parseFromString(svgText, "image/svg+xml");
   const root = document.documentElement;
@@ -118,6 +145,56 @@ function buildSingleImagePdf({
     "%%EOF\n",
   ].join("");
   chunks.push(asciiBytes(xref));
+  return concatBytes(...chunks);
+}
+
+export function buildImagePagesPdf(pages) {
+  const pageObjectNumbers = pages.map((_, index) => 3 + index * 3);
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>\n",
+    `<< /Type /Pages /Kids [${pageObjectNumbers.map((number) => `${number} 0 R`).join(" ")}] /Count ${pages.length} >>\n`,
+  ];
+  for (let index = 0; index < pages.length; index += 1) {
+    const page = pages[index];
+    const pageObject = 3 + index * 3;
+    const imageObject = pageObject + 1;
+    const contentObject = pageObject + 2;
+    const imageName = `Im${index}`;
+    const content = `q\n${formatPdfNumber(page.pageWidthPt)} 0 0 ${formatPdfNumber(page.pageHeightPt)} 0 0 cm\n/${imageName} Do\nQ\n`;
+    objects.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${formatPdfNumber(page.pageWidthPt)} ${formatPdfNumber(page.pageHeightPt)}] /Resources << /XObject << /${imageName} ${imageObject} 0 R >> >> /Contents ${contentObject} 0 R >>\n`,
+      concatBytes(
+        asciiBytes(`<< /Type /XObject /Subtype /Image /Width ${page.imageWidth} /Height ${page.imageHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${page.jpegBytes.length} >>\nstream\n`),
+        page.jpegBytes,
+        asciiBytes("\nendstream\n"),
+      ),
+      `<< /Length ${asciiBytes(content).length} >>\nstream\n${content}endstream\n`,
+    );
+  }
+  return buildPdfObjects(objects);
+}
+
+function buildPdfObjects(objects) {
+  const chunks = [asciiBytes("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n")];
+  const offsets = [0];
+  for (let index = 0; index < objects.length; index += 1) {
+    offsets.push(byteLength(chunks));
+    chunks.push(asciiBytes(`${index + 1} 0 obj\n`));
+    chunks.push(typeof objects[index] === "string" ? asciiBytes(objects[index]) : objects[index]);
+    chunks.push(asciiBytes("endobj\n"));
+  }
+  const xrefOffset = byteLength(chunks);
+  chunks.push(asciiBytes([
+    "xref\n",
+    `0 ${objects.length + 1}\n`,
+    "0000000000 65535 f \n",
+    ...offsets.slice(1).map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`),
+    "trailer\n",
+    `<< /Size ${objects.length + 1} /Root 1 0 R >>\n`,
+    "startxref\n",
+    `${xrefOffset}\n`,
+    "%%EOF\n",
+  ].join("")));
   return concatBytes(...chunks);
 }
 

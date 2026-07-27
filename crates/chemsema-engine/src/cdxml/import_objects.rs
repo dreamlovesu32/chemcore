@@ -22,9 +22,9 @@ use import_lines::non_bond_dash_array;
 
 pub(super) use import_brackets::append_bracket_objects;
 pub(super) use import_graphics::{
-    append_gel_electrophoresis_objects, append_orbital_shape_objects, append_plasmid_map_objects,
-    append_shape_objects, append_table_shape_objects, append_tlc_plate_shape_objects,
-    associate_table_cell_contents,
+    append_bio_shape_objects, append_gel_electrophoresis_objects, append_orbital_shape_objects,
+    append_plasmid_map_objects, append_shape_objects, append_table_shape_objects,
+    append_tlc_plate_shape_objects, associate_table_cell_contents, validate_bio_shape_nodes,
 };
 pub(super) use import_images::append_embedded_image_objects;
 pub(super) use import_lines::{append_curve_objects, append_line_objects};

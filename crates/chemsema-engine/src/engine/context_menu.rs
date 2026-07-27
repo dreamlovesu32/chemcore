@@ -290,6 +290,29 @@ impl Engine {
                 ),
             ]);
         }
+        if let Some(object) = self.selected_single_bio_shape() {
+            let data = object
+                .payload
+                .bio_shape
+                .as_ref()
+                .expect("filtered BioShape");
+            items.extend([
+                separator(),
+                item(
+                    "BioShape Properties...",
+                    "bio-shape-dialog",
+                    &json!({
+                        "kind": "bio-shape",
+                        "mode": "edit",
+                        "title": "BioShape Properties",
+                        "objectId": object.id,
+                        "data": data,
+                        "parameterFields": data.kind.parameter_field_specs(),
+                    })
+                    .to_string(),
+                ),
+            ]);
+        }
         if matches!(
             single_object_type.as_deref(),
             Some("geometry" | "constraint")
@@ -1472,6 +1495,17 @@ impl Engine {
             .first()
             .copied()
             .filter(|object| object.payload.plasmid_map.is_some())
+    }
+
+    fn selected_single_bio_shape(&self) -> Option<&SceneObject> {
+        let selected = self.selected_scene_objects();
+        if selected.len() != 1 {
+            return None;
+        }
+        selected
+            .first()
+            .copied()
+            .filter(|object| object.payload.bio_shape.is_some())
     }
 
     pub(crate) fn selected_bonds(&self) -> Vec<&Bond> {

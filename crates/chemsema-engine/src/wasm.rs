@@ -1,7 +1,8 @@
 use crate::{
-    ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondVariant,
-    BracketKind, Engine, OrbitalPhase, OrbitalStyle, OrbitalTemplate, Point, PointerEvent,
-    RenderBoundsScope, ShapeKind, ShapeStyle, Tool, ToolState, WorldPoint, WorldPt,
+    ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BioDrawKind,
+    BioShapeFillType, BioShapeLineType, BondVariant, BracketKind, Engine, OrbitalPhase,
+    OrbitalStyle, OrbitalTemplate, Point, PointerEvent, RenderBoundsScope, ShapeKind, ShapeStyle,
+    Tool, ToolState, WorldPoint, WorldPt,
 };
 use serde::Deserialize;
 use std::collections::BTreeSet;
@@ -48,6 +49,9 @@ impl WasmEngine {
             arrow_bold: current.arrow_bold,
             arrow_no_go: current.arrow_no_go,
             shape_kind: current.shape_kind,
+            bio_draw_kind: current.bio_draw_kind,
+            bio_shape_fill_type: current.bio_shape_fill_type,
+            bio_shape_line_type: current.bio_shape_line_type,
             shape_style: current.shape_style,
             shape_color: current.shape_color,
             orbital_template: current.orbital_template,
@@ -69,6 +73,29 @@ impl WasmEngine {
         tool.shape_style = parse_shape_style(style);
         tool.shape_color = color.to_string();
         self.inner.set_tool_state(tool);
+    }
+
+    #[wasm_bindgen(js_name = setBioDrawOptions)]
+    pub fn set_bio_draw_options(
+        &mut self,
+        kind: &str,
+        fill_type: &str,
+        line_type: &str,
+        color: &str,
+    ) -> Result<(), JsValue> {
+        let mut tool = self.inner.state().tool.clone();
+        tool.bio_draw_kind =
+            parse_bio_draw_kind(kind).map_err(|error| JsValue::from_str(&error))?;
+        tool.bio_shape_fill_type =
+            parse_bio_shape_fill_type(fill_type).map_err(|error| JsValue::from_str(&error))?;
+        tool.bio_shape_line_type =
+            parse_bio_shape_line_type(line_type).map_err(|error| JsValue::from_str(&error))?;
+        tool.shape_color = color.to_string();
+        if tool.bio_draw_kind == BioDrawKind::PlasmidMap {
+            tool.shape_kind = ShapeKind::PlasmidMap;
+        }
+        self.inner.set_tool_state(tool);
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = setTemplate)]
@@ -125,6 +152,11 @@ impl WasmEngine {
         self.inner.object_settings_dialog_json()
     }
 
+    #[wasm_bindgen(js_name = documentLayoutDialogJson)]
+    pub fn document_layout_dialog_json(&self) -> String {
+        self.inner.document_layout_dialog_json()
+    }
+
     #[wasm_bindgen(js_name = toolbarColorPaletteJson)]
     pub fn toolbar_color_palette_json(&self, custom_colors_json: &str) -> String {
         self.inner.toolbar_color_palette_json(custom_colors_json)
@@ -163,6 +195,20 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = shapeToolIconSvg)]
     pub fn shape_tool_icon_svg(&self, kind: &str, style: &str) -> String {
         Engine::shape_tool_icon_svg(parse_shape_kind(kind), parse_shape_style(style))
+    }
+
+    #[wasm_bindgen(js_name = bioDrawToolIconSvg)]
+    pub fn bio_draw_tool_icon_svg(
+        &self,
+        kind: &str,
+        fill_type: &str,
+        line_type: &str,
+    ) -> Result<String, JsValue> {
+        Ok(Engine::bio_draw_tool_icon_svg(
+            parse_bio_draw_kind(kind).map_err(|error| JsValue::from_str(&error))?,
+            parse_bio_shape_fill_type(fill_type).map_err(|error| JsValue::from_str(&error))?,
+            parse_bio_shape_line_type(line_type).map_err(|error| JsValue::from_str(&error))?,
+        ))
     }
 
     #[wasm_bindgen(js_name = symbolToolIconSvg)]
@@ -1233,6 +1279,55 @@ fn parse_shape_kind(value: &str) -> ShapeKind {
         "gel-plate" | "gelPlate" => ShapeKind::GelPlate,
         "plasmid-map" | "plasmidMap" => ShapeKind::PlasmidMap,
         _ => ShapeKind::Circle,
+    }
+}
+
+fn parse_bio_draw_kind(value: &str) -> Result<BioDrawKind, String> {
+    let kind = match value {
+        "one-substrate-enzyme" | "1-substrate-enzyme" => BioDrawKind::OneSubstrateEnzyme,
+        "two-substrate-enzyme" | "2-substrate-enzyme" => BioDrawKind::TwoSubstrateEnzyme,
+        "receptor" => BioDrawKind::Receptor,
+        "g-protein-alpha" | "gprotein-alpha" => BioDrawKind::GProteinAlpha,
+        "g-protein-beta" | "gprotein-beta" => BioDrawKind::GProteinBeta,
+        "g-protein-gamma" | "gprotein-gamma" => BioDrawKind::GProteinGamma,
+        "immunoglobulin" | "immunoglobin" => BioDrawKind::Immunoglobulin,
+        "ion-channel" => BioDrawKind::IonChannel,
+        "endoplasmic-reticulum" => BioDrawKind::EndoplasmicReticulum,
+        "golgi" => BioDrawKind::Golgi,
+        "membrane-line" => BioDrawKind::MembraneLine,
+        "membrane-arc" => BioDrawKind::MembraneArc,
+        "membrane-ellipse" => BioDrawKind::MembraneEllipse,
+        "membrane-micelle" => BioDrawKind::MembraneMicelle,
+        "dna" => BioDrawKind::Dna,
+        "helix-protein" => BioDrawKind::HelixProtein,
+        "mitochondrion" => BioDrawKind::Mitochondrion,
+        "cloud" => BioDrawKind::Cloud,
+        "trna" | "t-rna" => BioDrawKind::TRna,
+        "ribosome-a" => BioDrawKind::RibosomeA,
+        "ribosome-b" => BioDrawKind::RibosomeB,
+        "plasmid-map" | "plasmidMap" => BioDrawKind::PlasmidMap,
+        _ => return Err(format!("Unsupported BioDraw kind '{value}'")),
+    };
+    Ok(kind)
+}
+
+fn parse_bio_shape_fill_type(value: &str) -> Result<BioShapeFillType, String> {
+    match value {
+        "unspecified" => Ok(BioShapeFillType::Unspecified),
+        "none" => Ok(BioShapeFillType::None),
+        "solid" | "filled" => Ok(BioShapeFillType::Solid),
+        "shaded" => Ok(BioShapeFillType::Shaded),
+        _ => Err(format!("Unsupported BioShape fill type '{value}'")),
+    }
+}
+
+fn parse_bio_shape_line_type(value: &str) -> Result<BioShapeLineType, String> {
+    match value {
+        "solid" => Ok(BioShapeLineType::Solid),
+        "dashed" => Ok(BioShapeLineType::Dashed),
+        "bold" => Ok(BioShapeLineType::Bold),
+        "wavy" => Ok(BioShapeLineType::Wavy),
+        _ => Err(format!("Unsupported BioShape line type '{value}'")),
     }
 }
 

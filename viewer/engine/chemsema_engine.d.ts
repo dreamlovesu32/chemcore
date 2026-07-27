@@ -36,6 +36,7 @@ export class WasmEngine {
     beginSelectionRotate(x: number, y: number): boolean;
     beginTextEdit(x: number, y: number): string;
     beginTlcSpotDragJson(x: number, y: number): string | undefined;
+    bioDrawToolIconSvg(kind: string, fill_type: string, line_type: string): string;
     bondToolIconSvg(variant: string, stroke_width: number, bold_width: number): string;
     canRedo(): boolean;
     canUndo(): boolean;
@@ -60,6 +61,7 @@ export class WasmEngine {
     documentCdxml(): string;
     documentColorsJson(): string;
     documentJson(): string;
+    documentLayoutDialogJson(): string;
     documentSdf(): string;
     documentStylePreset(): string;
     documentSvg(): string;
@@ -127,6 +129,7 @@ export class WasmEngine {
     selectionNumericDialogJson(kind: string): string;
     setArrowEndpointOptions(variant: string, head_size: string, curve: string, head_style: string, tail_style: string, no_go: string, bold: boolean): void;
     setArrowOptions(variant: string, head_size: string, head: boolean, tail: boolean, bold: boolean): void;
+    setBioDrawOptions(kind: string, fill_type: string, line_type: string, color: string): void;
     setBracketOptions(kind: string): void;
     setChemicalCheckForSelection(enabled: boolean): boolean;
     setDocumentStylePreset(preset: string): void;
@@ -194,6 +197,7 @@ export interface InitOutput {
     readonly wasmengine_beginSelectionRotate: (a: number, b: number, c: number) => number;
     readonly wasmengine_beginTextEdit: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_beginTlcSpotDragJson: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly wasmengine_bioDrawToolIconSvg: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number, number];
     readonly wasmengine_bondToolIconSvg: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly wasmengine_canRedo: (a: number) => number;
     readonly wasmengine_canUndo: (a: number) => number;
@@ -218,6 +222,7 @@ export interface InitOutput {
     readonly wasmengine_documentCdxml: (a: number) => [number, number];
     readonly wasmengine_documentColorsJson: (a: number) => [number, number, number, number];
     readonly wasmengine_documentJson: (a: number) => [number, number, number, number];
+    readonly wasmengine_documentLayoutDialogJson: (a: number) => [number, number];
     readonly wasmengine_documentSdf: (a: number) => [number, number, number, number];
     readonly wasmengine_documentStylePreset: (a: number) => [number, number];
     readonly wasmengine_documentSvg: (a: number) => [number, number];
@@ -285,6 +290,7 @@ export interface InitOutput {
     readonly wasmengine_selectionNumericDialogJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_setArrowEndpointOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => void;
     readonly wasmengine_setArrowOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
+    readonly wasmengine_setBioDrawOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
     readonly wasmengine_setBracketOptions: (a: number, b: number, c: number) => void;
     readonly wasmengine_setChemicalCheckForSelection: (a: number, b: number) => number;
     readonly wasmengine_setDocumentStylePreset: (a: number, b: number, c: number) => void;

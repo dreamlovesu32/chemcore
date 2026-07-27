@@ -246,10 +246,18 @@ impl<'a> CdxmlDocumentWriter<'a> {
     fn write(mut self) -> String {
         self.prepare_bond_ids();
         self.prepare_annotation_basis_ids();
-        let page = &self.document.document.page;
-        let width = page.width.max(1.0);
-        let height = page.height.max(1.0);
-        let root_bbox = format!("0 0 {} {}", fmt_num(width), fmt_num(height));
+        let layout = &self.document.document.layout;
+        let rendered = crate::render_document(self.document);
+        let resolved = layout.resolve(crate::render_primitives_bounds(rendered.iter()));
+        let width = resolved.total_width.max(1.0);
+        let height = resolved.total_height.max(1.0);
+        let root_bbox = format!(
+            "{} {} {} {}",
+            fmt_num(resolved.origin[0]),
+            fmt_num(resolved.origin[1]),
+            fmt_num(resolved.origin[0] + width),
+            fmt_num(resolved.origin[1] + height)
+        );
         let mut out = String::new();
         out.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n");
         out.push_str("<!DOCTYPE CDXML SYSTEM \"http://www.cambridgesoft.com/xml/cdxml.dtd\" >\n");
@@ -287,11 +295,25 @@ impl<'a> CdxmlDocumentWriter<'a> {
             fmt_num(self.defaults.chain_angle),
             self.defaults.label_justification.as_cdxml(),
             self.defaults.caption_justification.as_cdxml(),
-            fmt_margins(self.defaults.print_margins),
+            fmt_margins(layout.margins),
             self.defaults.color,
             self.colors.background_id(),
         )
         .expect("writing CDXML root should not fail");
+        write!(
+            out,
+            " Magnification=\"{}\"",
+            fmt_num(layout.magnification_percent * 10.0)
+        )
+        .expect("writing CDXML magnification should not fail");
+        if let Some([x, y]) = layout.fix_in_place_extent {
+            write!(out, " FixInPlaceExtent=\"{} {}\"", fmt_num(x), fmt_num(y))
+                .expect("writing CDXML in-place extent should not fail");
+        }
+        if let Some([x, y]) = layout.fix_in_place_gap {
+            write!(out, " FixInPlaceGap=\"{} {}\"", fmt_num(x), fmt_num(y))
+                .expect("writing CDXML in-place gap should not fail");
+        }
         for (name, xml_name) in [
             ("lineHeight", "LineHeight"),
             ("labelLineHeight", "LabelLineHeight"),
@@ -314,15 +336,48 @@ impl<'a> CdxmlDocumentWriter<'a> {
         let page_id = self
             .claim_source_id(self.source_page_id.clone())
             .unwrap_or_else(|| self.alloc_id());
-        writeln!(
-            out,
-            "  <page id=\"{}\" BoundingBox=\"{}\" HeaderPosition=\"36\" FooterPosition=\"36\" PrintTrimMarks=\"yes\" HeightPages=\"1\" WidthPages=\"1\" Width=\"{}\" Height=\"{}\">",
-            page_id,
-            root_bbox,
-            fmt_num(width),
-            fmt_num(height)
-        )
-        .expect("writing CDXML page should not fail");
+        let mut page_attrs = vec![
+            ("id", page_id),
+            ("BoundingBox", root_bbox.clone()),
+            (
+                "DrawingSpace",
+                match layout.drawing_space {
+                    crate::DrawingSpace::Pages => "pages".to_string(),
+                    crate::DrawingSpace::Poster => "poster".to_string(),
+                },
+            ),
+            ("HeaderPosition", fmt_num(layout.header_position)),
+            ("FooterPosition", fmt_num(layout.footer_position)),
+            (
+                "PrintTrimMarks",
+                fmt_cdxml_bool(layout.print_trim_marks).to_string(),
+            ),
+            ("HeightPages", resolved.height_pages.to_string()),
+            ("WidthPages", resolved.width_pages.to_string()),
+            ("Width", fmt_num(width)),
+            ("Height", fmt_num(height)),
+        ];
+        if layout.drawing_space == crate::DrawingSpace::Poster || layout.page_overlap > 0.0 {
+            page_attrs.push(("PageOverlap", fmt_num(layout.page_overlap)));
+        }
+        if !layout.header.is_empty() {
+            page_attrs.push(("Header", layout.header.clone()));
+        }
+        if !layout.footer.is_empty() {
+            page_attrs.push(("Footer", layout.footer.clone()));
+        }
+        if !layout.splitter_positions.is_empty() {
+            page_attrs.push((
+                "SplitterPositions",
+                layout
+                    .splitter_positions
+                    .iter()
+                    .map(|value| fmt_num(*value))
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            ));
+        }
+        write_open_tag(&mut out, 2, "page", page_attrs);
 
         let mut objects: Vec<&SceneObject> = self
             .document
@@ -2140,6 +2195,10 @@ impl<'a> CdxmlDocumentWriter<'a> {
     }
 
     fn write_shape_object(&mut self, out: &mut String, object: &SceneObject) {
+        if object.payload.bio_shape.is_some() {
+            self.write_bio_shape_object(out, object);
+            return;
+        }
         let Some([x, y, width, height]) = object.payload.bbox else {
             return;
         };
@@ -2469,6 +2528,127 @@ impl<'a> CdxmlDocumentWriter<'a> {
             attrs.push(("ShadowSize", fmt_num(shadow_size * 100.0)));
         }
         write_empty_tag(out, 4, "graphic", attrs);
+    }
+
+    fn write_bio_shape_object(&mut self, out: &mut String, object: &SceneObject) {
+        let Some(data) = object.payload.bio_shape.as_ref() else {
+            return;
+        };
+        let world = |point: [f64; 3]| {
+            let scaled_x = point[0] * object.transform.scale[0];
+            let scaled_y = point[1] * object.transform.scale[1];
+            let angle = object.transform.rotate.to_radians();
+            [
+                object.transform.translate[0] + scaled_x * angle.cos() - scaled_y * angle.sin(),
+                object.transform.translate[1] + scaled_x * angle.sin() + scaled_y * angle.cos(),
+                point[2],
+            ]
+        };
+        let center = world(data.center);
+        let major = world(data.major_axis_end);
+        let minor = world(data.minor_axis_end);
+        let major_vector = [major[0] - center[0], major[1] - center[1]];
+        let minor_vector = [minor[0] - center[0], minor[1] - center[1]];
+        let corners = [
+            [
+                center[0] + major_vector[0] + minor_vector[0],
+                center[1] + major_vector[1] + minor_vector[1],
+            ],
+            [
+                center[0] + major_vector[0] - minor_vector[0],
+                center[1] + major_vector[1] - minor_vector[1],
+            ],
+            [
+                center[0] - major_vector[0] + minor_vector[0],
+                center[1] - major_vector[1] + minor_vector[1],
+            ],
+            [
+                center[0] - major_vector[0] - minor_vector[0],
+                center[1] - major_vector[1] - minor_vector[1],
+            ],
+        ];
+        let min_x = corners
+            .iter()
+            .map(|point| point[0])
+            .fold(f64::INFINITY, f64::min);
+        let min_y = corners
+            .iter()
+            .map(|point| point[1])
+            .fold(f64::INFINITY, f64::min);
+        let max_x = corners
+            .iter()
+            .map(|point| point[0])
+            .fold(f64::NEG_INFINITY, f64::max);
+        let max_y = corners
+            .iter()
+            .map(|point| point[1])
+            .fold(f64::NEG_INFINITY, f64::max);
+        let fmt_xyz = |point: [f64; 3]| {
+            format!(
+                "{} {} {}",
+                fmt_num(point[0]),
+                fmt_num(point[1]),
+                fmt_num(point[2])
+            )
+        };
+        let mut attrs = vec![
+            ("id", self.object_cdxml_id(object)),
+            ("xyz", fmt_xyz(center)),
+            ("BoundingBox", fmt_bbox([min_x, min_y, max_x, max_y])),
+            ("BioShapeType", data.kind.cdxml_name().to_string()),
+            ("MajorAxisEnd3D", fmt_xyz(major)),
+            ("MinorAxisEnd3D", fmt_xyz(minor)),
+            ("FillType", data.fill_type.cdxml_name().to_string()),
+            ("LineType", data.line_type.cdxml_name().to_string()),
+            ("LineWidth", fmt_num(data.line_width)),
+            ("BoldWidth", fmt_num(data.bold_width)),
+            ("MarginWidth", fmt_num(data.margin_width)),
+            ("HashSpacing", fmt_num(data.hash_spacing)),
+            ("FadePercent", fmt_num(data.fade_percent * 100.0)),
+            ("color", self.colors.id_for(&data.color)),
+            (
+                "Visible",
+                if object.visible { "yes" } else { "no" }.to_string(),
+            ),
+            ("Z", object.z_index.to_string()),
+        ];
+        if let Some(alpha) = data.alpha {
+            attrs.push(("alpha", fmt_num(alpha * 100.0)));
+        }
+        macro_rules! push_parameter {
+            ($field:ident, $name:literal) => {
+                if let Some(value) = data.parameters.$field {
+                    attrs.push(($name, fmt_num(value)));
+                }
+            };
+        }
+        push_parameter!(cylinder_distance, "CylinderDistance");
+        push_parameter!(cylinder_height, "CylinderHeight");
+        push_parameter!(cylinder_width, "CylinderWidth");
+        push_parameter!(dna_wave_height, "DNAWaveHeight");
+        push_parameter!(dna_wave_length, "DNAWaveLength");
+        push_parameter!(dna_wave_offset, "DNAWaveOffset");
+        push_parameter!(dna_wave_width, "DNAWaveWidth");
+        push_parameter!(enzyme_height, "EnzymeHeight");
+        push_parameter!(enzyme_receptor_size, "EnzymeReceptorSize");
+        push_parameter!(enzyme_width, "EnzymeWidth");
+        push_parameter!(golgi_height, "GolgiHeight");
+        push_parameter!(golgi_length, "GolgiLength");
+        push_parameter!(golgi_width, "GolgiWidth");
+        push_parameter!(gprotein_lower_height, "GproteinLowerHeight");
+        push_parameter!(gprotein_upper_height, "GproteinUpperHeight");
+        push_parameter!(helix_protein_extra, "HelixProteinExtra");
+        push_parameter!(immunoglobulin_height, "ImmunoglobinHeight");
+        push_parameter!(immunoglobulin_width, "ImmunoglobinWidth");
+        push_parameter!(membrane_element_size, "MembraneElementSize");
+        push_parameter!(membrane_end_angle, "MembraneEndAngle");
+        push_parameter!(membrane_major_axis_size, "MembraneMajorAxisSize");
+        push_parameter!(membrane_minor_axis_size, "MembraneMinorAxisSize");
+        push_parameter!(membrane_start_angle, "MembraneStartAngle");
+        push_parameter!(neck_height, "NeckHeight");
+        push_parameter!(neck_width, "NeckWidth");
+        push_parameter!(pipe_width, "PipeWidth");
+        write_empty_tag(out, 4, "bioshape", attrs);
     }
 
     fn write_gel_electrophoresis_shape_object(

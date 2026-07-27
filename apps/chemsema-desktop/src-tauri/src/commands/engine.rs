@@ -178,6 +178,19 @@ pub(crate) fn desktop_engine_set_shape_options(
 }
 
 #[tauri::command]
+pub(crate) fn desktop_engine_set_bio_draw_options(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    kind: String,
+    fill_type: String,
+    line_type: String,
+    color: String,
+) -> Result<(), String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.set_bio_draw_options(session_id, &kind, &fill_type, &line_type, &color)
+}
+
+#[tauri::command]
 pub(crate) fn desktop_engine_set_orbital_options(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
@@ -257,6 +270,15 @@ pub(crate) fn desktop_engine_object_settings_dialog_json(
 ) -> Result<String, String> {
     let service = state.service.lock().map_err(|error| error.to_string())?;
     service.object_settings_dialog_json(session_id)
+}
+
+#[tauri::command]
+pub(crate) fn desktop_engine_document_layout_dialog_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<String, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.document_layout_dialog_json(session_id)
 }
 
 #[tauri::command]

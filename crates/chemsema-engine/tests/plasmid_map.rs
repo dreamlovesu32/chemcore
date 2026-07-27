@@ -1,4 +1,4 @@
-use chemsema_engine::{Engine, PointerEvent, ShapeKind, Tool};
+use chemsema_engine::{BioDrawKind, Engine, PointerEvent, ShapeKind, Tool};
 use serde_json::{json, Value};
 
 fn command(engine: &mut Engine, value: Value) -> Value {
@@ -13,6 +13,7 @@ fn biodraw_click_creates_native_plasmid_and_requests_kernel_dialog() {
     let mut engine = Engine::new();
     let mut tool = engine.state().tool.clone();
     tool.active_tool = Tool::BioDraw;
+    tool.bio_draw_kind = BioDrawKind::PlasmidMap;
     tool.shape_kind = ShapeKind::PlasmidMap;
     engine.set_tool_state(tool);
 

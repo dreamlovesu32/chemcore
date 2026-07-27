@@ -57,6 +57,77 @@ export const ARROW_TOOL_ICON_TYPES = [
 export const SHAPE_TOOL_ICON_KINDS = ["circle", "ellipse", "round-rect", "rect"];
 export const SHAPE_TOOL_STYLE_KINDS = ["circle", "ellipse", "round-rect", "rect"];
 export const SHAPE_TOOL_ICON_STYLES = ["solid", "dashed", "shaded", "filled", "shadowed"];
+export const BIO_DRAW_FAMILIES = {
+  enzyme: {
+    title: "Enzymes",
+    kinds: [
+      { kind: "one-substrate-enzyme", title: "One-substrate enzyme" },
+      { kind: "two-substrate-enzyme", title: "Two-substrate enzyme" },
+    ],
+  },
+  "receptor-channel": {
+    title: "Receptors and channels",
+    kinds: [
+      { kind: "receptor", title: "Receptor" },
+      { kind: "ion-channel", title: "Ion channel" },
+    ],
+  },
+  antibody: {
+    title: "Antibodies",
+    kinds: [{ kind: "immunoglobulin", title: "Immunoglobulin" }],
+  },
+  "g-protein": {
+    title: "G proteins",
+    kinds: [
+      { kind: "g-protein-alpha", title: "G protein alpha" },
+      { kind: "g-protein-beta", title: "G protein beta" },
+      { kind: "g-protein-gamma", title: "G protein gamma" },
+    ],
+  },
+  "helix-nucleic": {
+    title: "Helices and nucleic acids",
+    kinds: [
+      { kind: "dna", title: "DNA" },
+      { kind: "helix-protein", title: "Helix protein" },
+      { kind: "trna", title: "tRNA" },
+    ],
+  },
+  ribosome: {
+    title: "Ribosomes",
+    kinds: [
+      { kind: "ribosome-a", title: "Ribosome A" },
+      { kind: "ribosome-b", title: "Ribosome B" },
+    ],
+  },
+  membrane: {
+    title: "Membranes",
+    kinds: [
+      { kind: "membrane-line", title: "Membrane line" },
+      { kind: "membrane-arc", title: "Membrane arc" },
+      { kind: "membrane-ellipse", title: "Membrane ellipse" },
+      { kind: "membrane-micelle", title: "Membrane micelle" },
+    ],
+  },
+  organelle: {
+    title: "Organelles",
+    kinds: [
+      { kind: "endoplasmic-reticulum", title: "Endoplasmic reticulum" },
+      { kind: "golgi", title: "Golgi apparatus" },
+      { kind: "mitochondrion", title: "Mitochondrion" },
+    ],
+  },
+  illustration: {
+    title: "Biology annotations",
+    kinds: [{ kind: "cloud", title: "Cloud" }],
+  },
+  plasmid: {
+    title: "Plasmid maps",
+    kinds: [{ kind: "plasmid-map", title: "Plasmid map" }],
+  },
+};
+export const BIO_DRAW_KINDS = Object.values(BIO_DRAW_FAMILIES).flatMap((family) => (
+  family.kinds.map((entry) => entry.kind)
+));
 export const ORBITAL_TOOL_ICON_TEMPLATES = ["s", "p", "dxy", "oval", "hybrid", "dz2", "lobe"];
 export const ORBITAL_TOOL_ICON_STYLES = ["hollow", "filled", "shaded"];
 export const ORBITAL_TOOL_ICON_PHASES = ["plus", "minus"];
@@ -436,6 +507,37 @@ function commandIconSvg(name) {
   return icons[name] || "";
 }
 
+function bioDrawIconSvg(kind, editorState = null) {
+  if (editorState?.bioDrawIconSvgs?.[kind]) {
+    return editorState.bioDrawIconSvgs[kind];
+  }
+  const icons = {
+    "one-substrate-enzyme": `<path class="cc-shape cc-empty-fill" d="M5 7.5c4-4.4 10-3.8 13.8.2v8.6c-3.7 4-9.8 4.5-13.8.2l4-4.5z"/><circle class="cc-shape-fill" cx="16.3" cy="12" r="1.35"/>`,
+    "two-substrate-enzyme": `<path class="cc-shape cc-empty-fill" d="M5 7.5c4-4.4 10-3.8 13.8.2v8.6c-3.7 4-9.8 4.5-13.8.2l-3.2-3.1L9 10z"/><circle class="cc-shape-fill" cx="16.2" cy="10.1" r="1.2"/><circle class="cc-shape-fill" cx="16.2" cy="14.4" r="1.2"/>`,
+    receptor: `<path class="cc-shape cc-empty-fill" d="M5 5.5h4l2.2 5.2h1.6L15 5.5h4v4.1l-3.2 2.8v6.1h-3v-4.2h-1.6v4.2h-3v-6.1L5 9.6z"/>`,
+    "ion-channel": `<path class="cc-shape cc-empty-fill" d="M5.5 5.5h4.2l1.1 5.1h2.4l1.1-5.1h4.2l-1.8 13h-3.8l.3-5h-2.4l.3 5H7.3z"/>`,
+    immunoglobulin: `<path class="cc-shape" d="M5 4.5 10.2 11v8.5M19 4.5 13.8 11v8.5M10.2 11h3.6"/>`,
+    "g-protein-alpha": `<path class="cc-shape cc-empty-fill" d="M6 7c3.4-4.2 10.2-3.5 12 1.1 1.4 3.7-.2 8.1-4.2 10.1-4.7 2.4-9.8-.8-8.3-5.1.6-1.8 1.9-2.6 3.5-3.1z"/>`,
+    "g-protein-beta": `<path class="cc-shape cc-empty-fill" d="M5 12c0-4.4 3.1-7.5 7-7.5s7 3.1 7 7.5-3.1 7.5-7 7.5S5 16.4 5 12z"/><path class="cc-shape" d="M12 4.5v15M5 12h14M7.2 6.8l9.6 10.4M16.8 6.8 7.2 17.2"/>`,
+    "g-protein-gamma": `<path class="cc-shape cc-empty-fill" d="M7 5h4l1.2 5 2.1-5H18l-2.7 8.1 1.2 5.9h-4l-1.1-4.5L9.6 19H6z"/>`,
+    dna: `<path class="cc-shape" d="M6 4c8 3.2 8 12.8 12 16M18 4C10 7.2 10 16.8 6 20M8 7h8M7 12h10M8 17h8"/>`,
+    "helix-protein": `<path class="cc-shape" d="M8 4c8 2 8 6 0 8s-8 6 0 8M16 4c-8 2-8 6 0 8s8 6 0 8"/>`,
+    trna: `<path class="cc-shape cc-empty-fill" d="M12 19v-5M12 14 7 9M12 14l5-5M7 9V5h4v3M17 9V5h-4v3M9 19h6"/>`,
+    "ribosome-a": `<path class="cc-shape cc-empty-fill" d="M4.5 13c.5-4.2 4.4-7.7 9.3-6.8 3.8.7 6.2 3.5 5.7 6.8-.5 3.5-4.2 5.8-8.5 5.2-4.2-.6-6.9-2.5-6.5-5.2z"/><path class="cc-shape" d="M7 11.5h10"/>`,
+    "ribosome-b": `<path class="cc-shape cc-empty-fill" d="M5 9c1.2-4 6.2-5.8 10.3-3.6 2.6 1.4 3.5 4 2.7 6.1-1.2 3-4.8 4-8.3 3.1C6.2 13.7 4.3 11.5 5 9z"/><path class="cc-shape cc-empty-fill" d="M7.5 15c1.8-1.7 6.8-1.6 9 .3 1.4 1.2.6 3.5-1.2 4.1-2.8.9-6.8.2-8.1-1.6-.7-1-.5-2 .3-2.8z"/>`,
+    "membrane-line": `<path class="cc-shape" d="M4 8h16M4 16h16"/><path class="cc-shape" d="M6 8v3m3-3v3m3-3v3m3-3v3m3-3v3M6 16v-3m3 3v-3m3 3v-3m3 3v-3m3 3v-3"/>`,
+    "membrane-arc": `<path class="cc-shape" d="M5 18A13 13 0 0 1 18 5M8 18A10 10 0 0 1 18 8"/>`,
+    "membrane-ellipse": `<ellipse class="cc-shape cc-empty-fill" cx="12" cy="12" rx="8" ry="6"/><ellipse class="cc-shape cc-empty-fill" cx="12" cy="12" rx="5.2" ry="3.4"/>`,
+    "membrane-micelle": `<circle class="cc-shape cc-empty-fill" cx="12" cy="12" r="7.5"/><circle class="cc-shape cc-empty-fill" cx="12" cy="12" r="3.8"/>`,
+    "endoplasmic-reticulum": `<path class="cc-shape" d="M4 7c3-3 5 3 8 0s5 3 8 0M4 12c3-3 5 3 8 0s5 3 8 0M4 17c3-3 5 3 8 0s5 3 8 0"/>`,
+    golgi: `<path class="cc-shape" d="M5 7c4 2 10 2 14 0M4 10.5c5 2 11 2 16 0M5 14c4 2 10 2 14 0M7 17.5c3 1 7 1 10 0"/>`,
+    mitochondrion: `<path class="cc-shape cc-empty-fill" d="M4.5 12c0-4.3 3.5-7.5 8.5-7.5s7 3.2 6.5 7.5-3 7.5-8 7.5-7-3.2-7-7.5z"/><path class="cc-shape" d="M7 9c2-3 3 6 5 3s3-4 5-1"/>`,
+    cloud: `<path class="cc-shape cc-empty-fill" d="M6.2 17.5c-4-1-3.5-6 0-6.8-.6-3.3 3.5-5.4 6-3.1 2.3-3.5 7-.7 6.2 2.4 3.2.7 3.5 5.4.3 6.5-3.6 1.3-8.7 1.7-12.5 1z"/>`,
+    "plasmid-map": `<circle class="cc-shape cc-empty-fill" cx="12" cy="12" r="7.1"/><path class="cc-shape" d="M12 4.9v-2M19.1 12h2M12 19.1v2M4.9 12h-2"/><path class="cc-shape-fill" d="M13.7 4.9 17.2 6.5 14.8 9.1z"/>`,
+  };
+  return iconSvg(icons[kind] || icons.cloud, "cc-tool-icon cc-bio-draw-icon");
+}
+
 function elementIconSvg() {
   return iconSvg(`
     <text class="cc-element-icon-text" x="12" y="16.5" text-anchor="middle">P</text>
@@ -529,8 +631,11 @@ export function renderSecondaryToolbarHtml(editorState) {
 export function syncPrimaryToolButtons(editorState, root = document) {
   const activeTool = editorState.activeTool;
   root.querySelectorAll("[data-tool]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.tool === activeTool);
+    const familyMatches = button.dataset.tool !== "biodraw"
+      || button.dataset.bioFamily === editorState.bioDrawFamily;
+    button.classList.toggle("is-active", button.dataset.tool === activeTool && familyMatches);
   });
+  syncToolRailMode(editorState, root);
   syncPrimarySelectToolButton(editorState, root);
   syncPrimaryTextToolButton(editorState, root);
   syncPrimaryBondToolButton(editorState, root);
@@ -541,7 +646,30 @@ export function syncPrimaryToolButtons(editorState, root = document) {
   syncPrimaryElementToolButton(editorState, root);
   syncPrimaryShapeToolButton(editorState, root);
   syncPrimaryChromatographyToolButton(editorState, root);
+  syncPrimaryBioDrawToolButtons(editorState, root);
   syncPrimaryOrbitalToolButton(editorState, root);
+}
+
+export function syncToolRailMode(editorState, root = document) {
+  const mode = editorState.toolRailMode === "biology" ? "biology" : "main";
+  const rail = root.querySelector?.(".tool-rail");
+  if (rail) {
+    rail.dataset.toolRailMode = mode;
+    rail.setAttribute("aria-label", mode === "biology"
+      ? "Biology-Assisted Drawing Rail"
+      : "Main Drawing Rail");
+  }
+  root.querySelectorAll?.("[data-tool-rail]")?.forEach((button) => {
+    button.hidden = button.dataset.toolRail !== mode;
+  });
+  const toggle = root.querySelector?.("[data-tool-rail-toggle]");
+  if (toggle) {
+    const biologyActive = mode === "biology";
+    const targetName = biologyActive ? "Main Drawing Rail" : "Biology-Assisted Drawing Rail";
+    toggle.setAttribute("aria-pressed", biologyActive ? "true" : "false");
+    toggle.setAttribute("aria-label", `Switch to ${targetName}`);
+    toggle.setAttribute("title", `Switch to ${targetName}`);
+  }
 }
 
 function toolbarButton(value, title, svg, selected = false) {
@@ -815,6 +943,23 @@ function syncPrimaryChromatographyToolButton(editorState, root) {
   chromatographyButton.innerHTML = commandIconSvg(isGelPlate ? "gel-plate" : "tlc-plate");
   chromatographyButton.setAttribute("aria-label", title);
   chromatographyButton.setAttribute("title", title);
+}
+
+function syncPrimaryBioDrawToolButtons(editorState, root) {
+  for (const button of root.querySelectorAll('.tool-button[data-tool="biodraw"][data-bio-family]')) {
+    const family = BIO_DRAW_FAMILIES[button.dataset.bioFamily];
+    if (!family) {
+      continue;
+    }
+    const rememberedKind = editorState.bioDrawKindByFamily?.[button.dataset.bioFamily];
+    const kind = family.kinds.some((entry) => entry.kind === rememberedKind)
+      ? rememberedKind
+      : family.kinds[0].kind;
+    const entry = family.kinds.find((item) => item.kind === kind);
+    button.innerHTML = bioDrawIconSvg(kind, editorState);
+    button.setAttribute("aria-label", entry?.title || family.title);
+    button.setAttribute("title", `${family.title}: ${entry?.title || kind}`);
+  }
 }
 
 function syncPrimaryOrbitalToolButton(editorState, root) {
@@ -1611,13 +1756,33 @@ function tlcPlateToolbarHtml(editorState) {
 }
 
 function bioDrawToolbarHtml(editorState) {
+  const family = BIO_DRAW_FAMILIES[editorState.bioDrawFamily] || BIO_DRAW_FAMILIES.enzyme;
+  const kindButtons = family.kinds.map((entry) => toolbarButton(
+    `biodraw-kind-${entry.kind}`,
+    entry.title,
+    bioDrawIconSvg(entry.kind, editorState),
+    editorState.bioDrawKind === entry.kind,
+  )).join("");
+  if (family === BIO_DRAW_FAMILIES.plasmid) {
+    return `
+      ${kindButtons}
+      ${secondaryDivider()}
+      ${colorPickerControl("shape-color", editorState.shapeColor, editorState.colorPalette)}
+    `;
+  }
+  const fillType = editorState.bioDrawFillType || "shaded";
+  const lineType = editorState.bioDrawLineType || "solid";
   return `
-    ${toolbarButton(
-      "biodraw-kind-plasmid-map",
-      "Plasmid map",
-      commandIconSvg("plasmid-map"),
-      editorState.bioDrawKind === "plasmid-map",
-    )}
+    ${kindButtons}
+    ${secondaryDivider()}
+    ${toolbarButton("bio-fill-none", "No fill", iconSvg(`<rect class="cc-shape cc-empty-fill" x="5" y="5" width="14" height="14"/><path class="cc-guide" d="M6 18 18 6"/>`), fillType === "none")}
+    ${toolbarButton("bio-fill-solid", "Solid fill", iconSvg(`<rect class="cc-shape-fill" x="5" y="5" width="14" height="14"/>`), fillType === "solid")}
+    ${toolbarButton("bio-fill-shaded", "Shaded fill", iconSvg(`<defs><linearGradient id="bio-fill-shaded-gradient"><stop stop-color="currentColor" stop-opacity=".75"/><stop offset="1" stop-color="currentColor" stop-opacity=".12"/></linearGradient></defs><rect class="cc-shape" x="5" y="5" width="14" height="14" fill="url(#bio-fill-shaded-gradient)"/>`), fillType === "shaded")}
+    ${secondaryDivider()}
+    ${toolbarButton("bio-line-solid", "Solid outline", iconSvg(`<path class="cc-stroke" d="M4 12h16"/>`), lineType === "solid")}
+    ${toolbarButton("bio-line-dashed", "Dashed outline", iconSvg(`<path class="cc-stroke" d="M4 12h16" stroke-dasharray="2.5 2"/>`), lineType === "dashed")}
+    ${toolbarButton("bio-line-bold", "Bold outline", iconSvg(`<path class="cc-stroke-strong" d="M4 12h16"/>`), lineType === "bold")}
+    ${toolbarButton("bio-line-wavy", "Wavy outline", iconSvg(`<path class="cc-stroke" d="M4 12c2-4 4 4 6 0s4-4 6 0 3 2 4 0"/>`), lineType === "wavy")}
     ${secondaryDivider()}
     ${colorPickerControl("shape-color", editorState.shapeColor, editorState.colorPalette)}
   `;

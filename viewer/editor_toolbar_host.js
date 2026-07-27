@@ -1,5 +1,6 @@
 import {
   ARROW_TOOL_ICON_TYPES,
+  BIO_DRAW_KINDS,
   BOND_TOOL_ICON_TYPES,
   ORBITAL_TOOL_ICON_PHASES,
   ORBITAL_TOOL_ICON_STYLES,
@@ -129,6 +130,29 @@ export function createEditorToolbarHost(options) {
     editorState.shapeIconCacheKey = "kernel-shape-v2";
   }
 
+  function refreshBioDrawToolIcons() {
+    const iconSvg = state.editorEngine?.bioDrawToolIconSvg;
+    if (typeof iconSvg !== "function") {
+      return;
+    }
+    const fillType = editorState.bioDrawFillType || "shaded";
+    const lineType = editorState.bioDrawLineType || "solid";
+    const cacheKey = `kernel-bio-draw-v1:${fillType}:${lineType}`;
+    const hasCompleteIconSet = BIO_DRAW_KINDS.every((kind) => editorState.bioDrawIconSvgs?.[kind]);
+    if (editorState.bioDrawIconCacheKey === cacheKey && hasCompleteIconSet) {
+      return;
+    }
+    const icons = {};
+    for (const kind of BIO_DRAW_KINDS) {
+      icons[kind] = normalizeKernelBioDrawIconSvg(
+        iconSvg.call(state.editorEngine, kind, fillType, lineType),
+        kind,
+      );
+    }
+    editorState.bioDrawIconSvgs = icons;
+    editorState.bioDrawIconCacheKey = cacheKey;
+  }
+
   function refreshSymbolToolIcons() {
     const iconSvg = state.editorEngine?.symbolToolIconSvg;
     if (typeof iconSvg !== "function") {
@@ -191,6 +215,16 @@ export function createEditorToolbarHost(options) {
       .replace(/url\(#([^)]+)\)/g, `url(#shape-icon-${safeKey}-$1)`);
   }
 
+  function normalizeKernelBioDrawIconSvg(svg, key) {
+    if (!svg) {
+      return "";
+    }
+    const safeKey = String(key).replace(/[^a-zA-Z0-9_-]/g, "-");
+    return addClassToSvg(svg, "cc-kernel-bio-draw-icon")
+      .replace(/\bid="([^"]+)"/g, `id="bio-draw-icon-${safeKey}-$1"`)
+      .replace(/url\(#([^)]+)\)/g, `url(#bio-draw-icon-${safeKey}-$1)`);
+  }
+
   function normalizeKernelArrowIconSvg(svg, key) {
     if (!svg) {
       return "";
@@ -244,6 +278,7 @@ export function createEditorToolbarHost(options) {
     refreshArrowToolIcons();
     refreshTextFormatIcons();
     refreshShapeToolIcons();
+    refreshBioDrawToolIcons();
     refreshSymbolToolIcons();
     refreshOrbitalToolIcons();
     editorState.documentColors = currentDocumentColors();

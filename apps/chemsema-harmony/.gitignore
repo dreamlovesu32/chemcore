@@ -1,7 +1,7 @@
 .idea/
 .hvigor/
 build/
-build-profile.json5
+/build-profile.json5
 entry/build/
 node_modules/
 oh_modules/

@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { launchBrowser } from "./playwright-browser.mjs";
 
 function parseArgs(argv) {
@@ -39,7 +40,7 @@ function encodeSvg(svg) {
   return Buffer.from(svg, "utf8").toString("base64");
 }
 
-async function compareSvgPixels(options) {
+export async function compareSvgPixels(options) {
   const outDir = path.resolve(options.outDir ?? "tmp/svg-pixel-compare");
   const leftPath = path.resolve(options.leftPath);
   const rightPath = path.resolve(options.rightPath);
@@ -48,6 +49,9 @@ async function compareSvgPixels(options) {
   const baseScale = Number(options.baseScale ?? 4);
   const searchLimit = Number(options.searchLimit ?? 24);
   const threshold = Number(options.threshold ?? 740);
+  const rightScaleMultiplier = options.rightScaleMultiplier == null
+    ? null
+    : Number(options.rightScaleMultiplier);
 
   const [leftSvg, rightSvg] = await Promise.all([
     fs.readFile(leftPath, "utf8"),
@@ -69,6 +73,7 @@ async function compareSvgPixels(options) {
         baseScale,
         searchLimit,
         threshold,
+        rightScaleMultiplier,
       }) => {
         function svgDataUrl(svg) {
           return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
@@ -183,6 +188,82 @@ async function compareSvgPixels(options) {
             }
           }
           return best;
+        }
+
+        function shiftedMask(source, width, height, dx, dy) {
+          const shifted = new Uint8Array(width * height);
+          for (let y = 0; y < height; y += 1) {
+            const sourceY = y - dy;
+            if (sourceY < 0 || sourceY >= height) continue;
+            for (let x = 0; x < width; x += 1) {
+              const sourceX = x - dx;
+              if (sourceX < 0 || sourceX >= width) continue;
+              shifted[y * width + x] = source[sourceY * width + sourceX];
+            }
+          }
+          return shifted;
+        }
+
+        function distanceField(mask, width, height) {
+          const distance = new Float64Array(width * height);
+          distance.fill(Number.POSITIVE_INFINITY);
+          for (let index = 0; index < mask.length; index += 1) {
+            if (mask[index]) distance[index] = 0;
+          }
+          const diagonal = Math.SQRT2;
+          for (let y = 0; y < height; y += 1) {
+            for (let x = 0; x < width; x += 1) {
+              const index = y * width + x;
+              let value = distance[index];
+              if (x > 0) value = Math.min(value, distance[index - 1] + 1);
+              if (y > 0) value = Math.min(value, distance[index - width] + 1);
+              if (x > 0 && y > 0) {
+                value = Math.min(value, distance[index - width - 1] + diagonal);
+              }
+              if (x + 1 < width && y > 0) {
+                value = Math.min(value, distance[index - width + 1] + diagonal);
+              }
+              distance[index] = value;
+            }
+          }
+          for (let y = height - 1; y >= 0; y -= 1) {
+            for (let x = width - 1; x >= 0; x -= 1) {
+              const index = y * width + x;
+              let value = distance[index];
+              if (x + 1 < width) value = Math.min(value, distance[index + 1] + 1);
+              if (y + 1 < height) value = Math.min(value, distance[index + width] + 1);
+              if (x + 1 < width && y + 1 < height) {
+                value = Math.min(value, distance[index + width + 1] + diagonal);
+              }
+              if (x > 0 && y + 1 < height) {
+                value = Math.min(value, distance[index + width - 1] + diagonal);
+              }
+              distance[index] = value;
+            }
+          }
+          return distance;
+        }
+
+        function directedInkDistances(sourceMask, targetMask, width, height) {
+          const field = distanceField(targetMask, width, height);
+          const values = [];
+          for (let index = 0; index < sourceMask.length; index += 1) {
+            if (sourceMask[index]) values.push(field[index]);
+          }
+          values.sort((left, right) => left - right);
+          const quantile = (fraction) => values.length === 0
+            ? 0
+            : values[Math.min(
+              values.length - 1,
+              Math.floor((values.length - 1) * fraction),
+            )];
+          return {
+            count: values.length,
+            p95: quantile(0.95),
+            p99: quantile(0.99),
+            p999: quantile(0.999),
+            maximum: values.at(-1) ?? 0,
+          };
         }
 
         function imageToCanvas(imageData) {
@@ -330,11 +411,13 @@ async function compareSvgPixels(options) {
         const leftInitialBox = maskBBox(leftInitialMask, leftRaster.width, leftRaster.height);
         const rightInitialBox = maskBBox(rightInitialMask, rightInitialRaster.width, rightInitialRaster.height);
 
-        const widthScale =
+        const measuredWidthScale =
           rightInitialBox.width > 0 ? leftInitialBox.width / rightInitialBox.width : 1;
-        const heightScale =
+        const measuredHeightScale =
           rightInitialBox.height > 0 ? leftInitialBox.height / rightInitialBox.height : 1;
-        const rightScale = baseScale * (widthScale + heightScale) * 0.5;
+        const rightScale = rightScaleMultiplier == null
+          ? baseScale * (measuredWidthScale + measuredHeightScale) * 0.5
+          : baseScale * rightScaleMultiplier;
         const rightRaster = await rasterize(rightSvg, rightScale);
 
         const leftMask = inkMask(rgba(leftRaster.canvas), threshold);
@@ -350,11 +433,37 @@ async function compareSvgPixels(options) {
         const leftPanelMask = inkMask(rgba(leftPanel), threshold);
         const rightPanelMask = inkMask(rgba(rightPanel), threshold);
         const shift = bestShift(leftPanelMask, rightPanelMask, panelWidth, panelHeight, searchLimit);
+        const alignedRightMask = shiftedMask(
+          rightPanelMask,
+          panelWidth,
+          panelHeight,
+          shift.dx,
+          shift.dy,
+        );
+        const detailDistancePixels = {
+          leftToRight: directedInkDistances(
+            leftPanelMask,
+            alignedRightMask,
+            panelWidth,
+            panelHeight,
+          ),
+          rightToLeft: directedInkDistances(
+            alignedRightMask,
+            leftPanelMask,
+            panelWidth,
+            panelHeight,
+          ),
+        };
         const rightAlignedPanel = shiftedCanvas(rightPanel, shift.dx, shift.dy);
 
         const overlay = makeOverlay(leftPanel, rightPanel, shift, threshold);
         const leftLabeled = labelPanel(leftPanel, leftLabel);
-        const rightLabeled = labelPanel(rightAlignedPanel, `${rightLabel} (scaled/aligned)`);
+        const rightLabeled = labelPanel(
+          rightAlignedPanel,
+          `${rightLabel} (${
+            rightScaleMultiplier == null ? "scaled" : "fixed-scale"
+          }/aligned)`,
+        );
         const overlayLabeled = labelPanel(
           overlay.overlayCanvas,
           "Overlay (black=overlap, blue=left-only, red=right-only)",
@@ -364,10 +473,12 @@ async function compareSvgPixels(options) {
         const unionPixels = overlay.overlapPixels + overlay.leftOnlyPixels + overlay.rightOnlyPixels;
         const footerLines = [
           `left=${leftLabel}  right=${rightLabel}`,
-          `baseScale=${baseScale.toFixed(2)}  rightScale=${rightScale.toFixed(4)}  widthScale=${widthScale.toFixed(4)}  heightScale=${heightScale.toFixed(4)}`,
+          `baseScale=${baseScale.toFixed(2)}  rightScale=${rightScale.toFixed(4)}  scaleMode=${rightScaleMultiplier == null ? "content-normalized" : "fixed-document-unit"}`,
+          `measured widthScale=${measuredWidthScale.toFixed(4)}  heightScale=${measuredHeightScale.toFixed(4)}`,
           `bbox left=${leftBox.width}x${leftBox.height}  right=${rightBox.width}x${rightBox.height}  panel=${panelWidth}x${panelHeight}`,
           `bestShift dx=${shift.dx}  dy=${shift.dy}  IoU=${shift.iou.toFixed(6)}  overlap=${overlay.overlapPixels}  union=${unionPixels}`,
           `pixels overlap=${overlay.overlapPixels}  leftOnly=${overlay.leftOnlyPixels}  rightOnly=${overlay.rightOnlyPixels}  different=${overlay.differentPixels}`,
+          `detail p99=${Math.max(detailDistancePixels.leftToRight.p99, detailDistancePixels.rightToLeft.p99).toFixed(3)}px  p999=${Math.max(detailDistancePixels.leftToRight.p999, detailDistancePixels.rightToLeft.p999).toFixed(3)}px  max=${Math.max(detailDistancePixels.leftToRight.maximum, detailDistancePixels.rightToLeft.maximum).toFixed(3)}px`,
         ];
         const montageCanvas = montage(
           [leftLabeled, rightLabeled, overlayLabeled, diffLabeled],
@@ -380,8 +491,12 @@ async function compareSvgPixels(options) {
             rightLabel,
             baseScale,
             rightScale,
-            widthScale,
-            heightScale,
+            widthScale: measuredWidthScale,
+            heightScale: measuredHeightScale,
+            scaleMode: rightScaleMultiplier == null
+              ? "content-normalized"
+              : "fixed-document-unit",
+            rightScaleMultiplier,
             threshold,
             searchLimit,
             leftBox,
@@ -394,6 +509,7 @@ async function compareSvgPixels(options) {
             rightOnlyPixels: overlay.rightOnlyPixels,
             differentPixels: overlay.differentPixels,
             unionPixels,
+            detailDistancePixels,
           },
           pngs: {
             leftPanel: leftPanel.toDataURL("image/png").split(",")[1],
@@ -412,6 +528,7 @@ async function compareSvgPixels(options) {
         baseScale,
         searchLimit,
         threshold,
+        rightScaleMultiplier,
       },
     );
 
@@ -494,7 +611,9 @@ async function main() {
   console.log(JSON.stringify(report, null, 2));
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
-  process.exit(1);
-});
+if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+    process.exit(1);
+  });
+}

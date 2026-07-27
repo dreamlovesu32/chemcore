@@ -578,6 +578,26 @@ class TauriEngineSession {
     return this.invokeMutation("desktop_engine_set_shape_options", { kind, style, color }, { refresh: "state", dirtyExports: false });
   }
 
+  setBioDrawOptions(kind, fillType, lineType, color) {
+    if (this.layoutEngine?.setBioDrawOptions) {
+      this.layoutEngine.setBioDrawOptions(kind, fillType, lineType, color);
+      this.syncCacheFromLayout({ interaction: true });
+      this.runCoalescedNativeMutationInBackground(
+        "set_bio_draw_options",
+        "desktop_engine_set_bio_draw_options",
+        { kind, fillType, lineType, color },
+        { refresh: "state", dirtyExports: false },
+      );
+      return undefined;
+    }
+    return this.invokeMutation("desktop_engine_set_bio_draw_options", {
+      kind,
+      fillType,
+      lineType,
+      color,
+    }, { refresh: "state", dirtyExports: false });
+  }
+
   setOrbitalOptions(template, style, phase, color) {
     if (this.layoutEngine?.setOrbitalOptions) {
       this.layoutEngine.setOrbitalOptions(template, style, phase, color);
@@ -707,6 +727,14 @@ class TauriEngineSession {
     return this.invoke("desktop_engine_object_settings_dialog_json", { sessionId: this.sessionId });
   }
 
+  async documentLayoutDialogJson() {
+    await this.ready();
+    if (this.layoutEngine?.documentLayoutDialogJson) {
+      return this.layoutEngine.documentLayoutDialogJson();
+    }
+    return this.invoke("desktop_engine_document_layout_dialog_json", { sessionId: this.sessionId });
+  }
+
   toolbarColorPaletteJson(customColorsJson = "[]") {
     return this.layoutEngine?.toolbarColorPaletteJson?.(customColorsJson) || JSON.stringify({ colors: [], otherLabel: "Other..." });
   }
@@ -734,6 +762,10 @@ class TauriEngineSession {
 
   shapeToolIconSvg(kind, style) {
     return this.layoutEngine?.shapeToolIconSvg?.(kind, style) || "";
+  }
+
+  bioDrawToolIconSvg(kind, fillType, lineType) {
+    return this.layoutEngine?.bioDrawToolIconSvg?.(kind, fillType, lineType) || "";
   }
 
   symbolToolIconSvg(kind) {

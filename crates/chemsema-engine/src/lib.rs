@@ -1,6 +1,7 @@
 #![allow(linker_messages)]
 
 mod abbreviation;
+mod bio_shape;
 mod cdx;
 mod cdxml;
 mod document;
@@ -27,6 +28,7 @@ mod tool_parsing;
 mod units;
 
 pub use abbreviation::*;
+pub use bio_shape::*;
 pub use cdx::*;
 pub use cdxml::*;
 pub use document::*;

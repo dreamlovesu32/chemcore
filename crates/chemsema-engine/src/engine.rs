@@ -1,5 +1,6 @@
 mod analysis_captions;
 mod arrows;
+mod bio_shapes;
 mod bond_edit;
 mod bond_properties;
 mod bond_styles;
@@ -15,6 +16,7 @@ mod context_menu;
 mod context_styles;
 mod delete;
 mod document_commands;
+mod document_layout;
 mod geometry_constraints;
 mod groups;
 mod history;
@@ -409,6 +411,19 @@ enum ShapeEditHandle {
     PlasmidRegionStart(usize),
     PlasmidRegionEnd(usize),
     PlasmidRegionOffset(usize),
+    BioReceptorWidth,
+    BioGProteinGammaShape,
+    BioDnaHeight,
+    BioDnaSpacing,
+    BioDnaStrandWidth,
+    BioDnaOffset,
+    BioHelixHeight,
+    BioHelixStrandWidth,
+    BioHelixCylinderWidth,
+    BioHelixSpacing,
+    BioMembraneUnitSize,
+    BioMembraneArcStart,
+    BioMembraneArcEnd,
 }
 
 #[derive(Debug, Clone)]
@@ -1135,8 +1150,8 @@ fn union_target_ids<const N: usize>(groups: [&[String]; N]) -> Vec<String> {
 mod tests {
     use super::*;
     use crate::{
-        DocumentInfo, DocumentStyleInfo, FormatInfo, MoleculeFragment, Node, ObjectPayload, Page,
-        Resource, ResourceData, Transform,
+        DocumentInfo, DocumentLayout, DocumentStyleInfo, FormatInfo, MoleculeFragment, Node,
+        ObjectPayload, Page, Resource, ResourceData, Transform,
     };
 
     fn molecule_object(id: &str, resource_ref: &str) -> SceneObject {
@@ -1161,6 +1176,7 @@ mod tests {
                 stoichiometry_grid: None,
                 gel_electrophoresis: None,
                 plasmid_map: None,
+                bio_shape: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),
@@ -1209,6 +1225,7 @@ mod tests {
                     height: 100.0,
                     background: "#ffffff".to_string(),
                 },
+                layout: DocumentLayout::default(),
                 meta: JsonValue::Null,
             },
             style: DocumentStyleInfo::default(),
@@ -1715,6 +1732,7 @@ fn editor_command_is_creation(command: &EditorCommand) -> bool {
             | EditorCommand::AddBond { .. }
             | EditorCommand::AddArrow { .. }
             | EditorCommand::AddShape { .. }
+            | EditorCommand::AddBioShape { .. }
             | EditorCommand::AddTable { .. }
             | EditorCommand::AddBracket { .. }
             | EditorCommand::AddSymbol { .. }
@@ -1806,10 +1824,12 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::AddBond { .. } => "add-bond",
         EditorCommand::AddArrow { .. } => "add-arrow",
         EditorCommand::AddShape { .. } => "add-shape",
+        EditorCommand::AddBioShape { .. } => "add-bio-shape",
         EditorCommand::AddTable { .. } => "add-table",
         EditorCommand::EditTable { .. } => "edit-table",
         EditorCommand::SetTableBorders { .. } => "set-table-borders",
         EditorCommand::SetPlasmidMap { .. } => "set-plasmid-map",
+        EditorCommand::SetBioShape { .. } => "set-bio-shape",
         EditorCommand::AddBracket { .. } => "add-bracket",
         EditorCommand::AddSymbol { .. } => "add-symbol",
         EditorCommand::AddElement { .. } => "add-element",
@@ -1883,6 +1903,8 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
             "apply-object-settings-to-selection"
         }
         EditorCommand::ApplyDocumentStyle { .. } => "apply-document-style",
+        EditorCommand::InitializeDocumentLayout => "initialize-document-layout",
+        EditorCommand::SetDocumentLayout { .. } => "set-document-layout",
         EditorCommand::SetArrowGeometry { .. } => "set-arrow-geometry",
         EditorCommand::SetShapeGeometry { .. } => "set-shape-geometry",
         EditorCommand::SetSpectrumData { .. } => "set-spectrum-data",

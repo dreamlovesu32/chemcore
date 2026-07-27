@@ -53,7 +53,10 @@ export function createEditorPointerController(options) {
     if (tool === "arrow") {
       return "add-arrow";
     }
-    if (tool === "shape" || tool === "tlc-plate" || tool === "biodraw" || tool === "orbital") {
+    if (tool === "biodraw") {
+      return options.editorState().bioDrawKind === "plasmid-map" ? "add-shape" : "add-bio-shape";
+    }
+    if (tool === "shape" || tool === "tlc-plate" || tool === "orbital") {
       return "add-shape";
     }
     if (tool === "table") {
@@ -582,14 +585,33 @@ export function createEditorPointerController(options) {
         noGo: editorState.arrowNoGo || "none",
       };
     }
-    if (tool === "shape" || tool === "tlc-plate" || tool === "biodraw") {
+    if (tool === "biodraw") {
+      if ((editorState.bioDrawKind || "plasmid-map") === "plasmid-map") {
+        return {
+          type: "add-shape",
+          kind: "plasmid-map",
+          style: editorState.shapeStyle,
+          color: editorState.shapeColor,
+          begin: editorCommandAnchor(start),
+          end: editorCommandAnchor(end),
+        };
+      }
+      return {
+        type: "add-bio-shape",
+        kind: editorState.bioDrawKind,
+        fillType: editorState.bioDrawFillType || "shaded",
+        lineType: editorState.bioDrawLineType || "solid",
+        color: editorState.shapeColor,
+        begin: editorCommandAnchor(start),
+        end: editorCommandAnchor(end),
+      };
+    }
+    if (tool === "shape" || tool === "tlc-plate") {
       return {
         type: "add-shape",
         kind: tool === "tlc-plate"
           ? (editorState.chromatographyKind || "tlc-plate")
-          : tool === "biodraw"
-            ? (editorState.bioDrawKind || "plasmid-map")
-            : editorState.shapeKind,
+          : editorState.shapeKind,
         style: editorState.shapeStyle,
         color: editorState.shapeColor,
         begin: editorCommandAnchor(start),

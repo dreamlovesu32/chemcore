@@ -320,6 +320,16 @@ pub enum EditorCommand {
         begin: CommandAnchor,
         end: CommandAnchor,
     },
+    AddBioShape {
+        kind: crate::BioShapeKind,
+        #[serde(alias = "fillType")]
+        fill_type: crate::BioShapeFillType,
+        #[serde(alias = "lineType")]
+        line_type: crate::BioShapeLineType,
+        color: String,
+        begin: CommandAnchor,
+        end: CommandAnchor,
+    },
     AddTable {
         begin: CommandAnchor,
         end: CommandAnchor,
@@ -350,6 +360,11 @@ pub enum EditorCommand {
         data: crate::PlasmidMapData,
         #[serde(default, alias = "finalizeInsert")]
         finalize_insert: bool,
+    },
+    SetBioShape {
+        #[serde(alias = "objectId")]
+        object_id: String,
+        data: crate::BioShapeData,
     },
     AddBracket {
         kind: BracketKind,
@@ -700,6 +715,10 @@ pub enum EditorCommand {
     },
     ApplyDocumentStyle {
         preset: String,
+    },
+    InitializeDocumentLayout,
+    SetDocumentLayout {
+        layout: crate::DocumentLayout,
     },
     SetArrowGeometry {
         #[serde(alias = "objectId")]

@@ -1,0 +1,369 @@
+{
+  "schema": "chemsema.chemdraw-bioshape-visual-gate.v2",
+  "metric": {
+    "description": "Absolute document-unit rasterization with translation-only maximum-overlap alignment and bidirectional foreground distance quantiles.",
+    "fixedDocumentScale": true,
+    "independentContentScaling": false,
+    "detailSensitive": true,
+    "maximumOverlapAlignment": true
+  },
+  "cases": [
+    {
+      "type": "1SubstrateEnzyme",
+      "mismatchRatio": 0.009448564000364184,
+      "alignedIou": 0.9959830395001116,
+      "documentWidthRatio": 0.9989651530145421,
+      "documentHeightRatio": 0.9930580382006511,
+      "alignmentShiftDocumentUnits": {
+        "x": -0.18750046875117185,
+        "y": 0
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0,
+        "p999": 0.26516570585921995,
+        "maximum": 0.5303314117184399
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\1-substrate-enzyme\\montage.png"
+    },
+    {
+      "type": "2SubstrateEnzyme",
+      "mismatchRatio": 0.010131139110311134,
+      "alignedIou": 0.9954902814706152,
+      "documentWidthRatio": 0.9948371978367961,
+      "documentHeightRatio": 0.9930580382006511,
+      "alignmentShiftDocumentUnits": {
+        "x": -0.18750046875117185,
+        "y": 0
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0,
+        "p999": 0.26516570585921995,
+        "maximum": 0.3750009375023437
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\2-substrate-enzyme\\montage.png"
+    },
+    {
+      "type": "Receptor",
+      "mismatchRatio": 0.03742799552927465,
+      "alignedIou": 0.9893485165388488,
+      "documentWidthRatio": 0.9948371978367961,
+      "documentHeightRatio": 0.9968969021801436,
+      "alignmentShiftDocumentUnits": {
+        "x": 0,
+        "y": 0.18750046875117185
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0.18750046875117185,
+        "p999": 0.3750009375023437,
+        "maximum": 0.45266617461039177
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\receptor\\montage.png"
+    },
+    {
+      "type": "GProteinAlpha",
+      "mismatchRatio": 0.01334341455103084,
+      "alignedIou": 0.9954007005909565,
+      "documentWidthRatio": 0.9948371978367961,
+      "documentHeightRatio": 0.9968969021801436,
+      "alignmentShiftDocumentUnits": {
+        "x": 0,
+        "y": -0.18750046875117185
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0,
+        "p999": 0.3750009375023437,
+        "maximum": 0.5625014062535156
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\gprotein-alpha\\montage.png"
+    },
+    {
+      "type": "GProteinBeta",
+      "mismatchRatio": 0.022563444781308967,
+      "alignedIou": 0.995427000486717,
+      "documentWidthRatio": 0.9948371978367961,
+      "documentHeightRatio": 0.9968969021801436,
+      "alignmentShiftDocumentUnits": {
+        "x": -0.18750046875117185,
+        "y": -0.18750046875117185
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0.18750046875117185,
+        "p999": 0.3750009375023437,
+        "maximum": 0.5625014062535156
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\gprotein-beta\\montage.png"
+    },
+    {
+      "type": "GProteinGamma",
+      "mismatchRatio": 0.0037001014884979703,
+      "alignedIou": 0.996299898511502,
+      "documentWidthRatio": 1.0031275078187694,
+      "documentHeightRatio": 0.9930580382006511,
+      "alignmentShiftDocumentUnits": {
+        "x": 0,
+        "y": 0
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0,
+        "p999": 0.18750046875117185,
+        "maximum": 0.18750046875117185
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\gprotein-gamma\\montage.png"
+    },
+    {
+      "type": "Immunoglobin",
+      "mismatchRatio": 0.06261027739881764,
+      "alignedIou": 0.9784522792287402,
+      "documentWidthRatio": 1.0031275078187694,
+      "documentHeightRatio": 0.9930580382006511,
+      "alignmentShiftDocumentUnits": {
+        "x": -0.18750046875117185,
+        "y": 0
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0.26516570585921995,
+        "p999": 0.3750009375023437,
+        "maximum": 0.5303314117184399
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\immunoglobin\\montage.png"
+    },
+    {
+      "type": "IonChannel",
+      "mismatchRatio": 0.02500987439766174,
+      "alignedIou": 0.9911597457829598,
+      "documentWidthRatio": 0.9948371978367961,
+      "documentHeightRatio": 0.9930580382006511,
+      "alignmentShiftDocumentUnits": {
+        "x": -0.18750046875117185,
+        "y": 0
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0.18750046875117185,
+        "p999": 0.3750009375023437,
+        "maximum": 0.45266617461039177
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\ion-channel\\montage.png"
+    },
+    {
+      "type": "EndoplasmicReticulum",
+      "mismatchRatio": 0.02432621631081554,
+      "alignedIou": 0.9756737836891844,
+      "documentWidthRatio": 0.9989651530145421,
+      "documentHeightRatio": 0.9930580382006511,
+      "alignmentShiftDocumentUnits": {
+        "x": 0,
+        "y": 0
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0.18750046875117185,
+        "p999": 0.18750046875117185,
+        "maximum": 0.3750009375023437
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\endoplasmic-reticulum\\montage.png"
+    },
+    {
+      "type": "Golgi",
+      "mismatchRatio": 0.07359090316564221,
+      "alignedIou": 0.9771426807179319,
+      "documentWidthRatio": 0.9948371978367961,
+      "documentHeightRatio": 0.9930580382006511,
+      "alignmentShiftDocumentUnits": {
+        "x": 0.18750046875117185,
+        "y": 0.18750046875117185
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0.3750009375023437,
+        "p999": 0.5625014062535156,
+        "maximum": 0.7178318804696117
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\golgi\\montage.png"
+    },
+    {
+      "type": "MembraneLine",
+      "mismatchRatio": 0.20952670573924584,
+      "alignedIou": 0.9491678454269118,
+      "documentWidthRatio": 0.9990024975062437,
+      "documentHeightRatio": 1.0096179086601562,
+      "alignmentShiftDocumentUnits": {
+        "x": 0.18750046875117185,
+        "y": 0
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0.3750009375023437,
+        "p999": 0.5625014062535156,
+        "maximum": 0.5625014062535156
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\membrane-line\\montage.png"
+    },
+    {
+      "type": "MembraneArc",
+      "mismatchRatio": 0.2423604680528664,
+      "alignedIou": 0.9238885049527759,
+      "documentWidthRatio": 0.9990259350648376,
+      "documentHeightRatio": 0.9941062588505527,
+      "alignmentShiftDocumentUnits": {
+        "x": 0.18750046875117185,
+        "y": 0
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0.45266617461039177,
+        "p999": 0.5625014062535156,
+        "maximum": 0.6401666433615636
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\membrane-arc\\montage.png"
+    },
+    {
+      "type": "MembraneEllipse",
+      "mismatchRatio": 0.22410706582693468,
+      "alignedIou": 0.9430219935812724,
+      "documentWidthRatio": 0.9995325740194049,
+      "documentHeightRatio": 1.0000025000062498,
+      "alignmentShiftDocumentUnits": {
+        "x": 0.18750046875117185,
+        "y": 0
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0.3750009375023437,
+        "p999": 0.5625014062535156,
+        "maximum": 0.6401666433615636
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\membrane-ellipse\\montage.png"
+    },
+    {
+      "type": "MembraneMicelle",
+      "mismatchRatio": 0.2659553786865187,
+      "alignedIou": 0.8962684140759823,
+      "documentWidthRatio": 1.00079868034065,
+      "documentHeightRatio": 0.99960440983905,
+      "alignmentShiftDocumentUnits": {
+        "x": 0,
+        "y": 0.18750046875117185
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0.3750009375023437,
+        "p999": 0.5625014062535156,
+        "maximum": 0.6401666433615636
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\membrane-micelle\\montage.png"
+    },
+    {
+      "type": "DNA",
+      "mismatchRatio": 0.30578835381475533,
+      "alignedIou": 0.9387795666865434,
+      "documentWidthRatio": 1.0000025000062498,
+      "documentHeightRatio": 0.9663485697175781,
+      "alignmentShiftDocumentUnits": {
+        "x": 0.18750046875117185,
+        "y": -0.18750046875117185
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0.5303314117184399,
+        "p999": 0.5625014062535156,
+        "maximum": 0.6401666433615636
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\dna\\montage.png"
+    },
+    {
+      "type": "HelixProtein",
+      "mismatchRatio": 0.23499588928473555,
+      "alignedIou": 0.9158176544954265,
+      "documentWidthRatio": 0.991989659461328,
+      "documentHeightRatio": 0.9926495404473804,
+      "alignmentShiftDocumentUnits": {
+        "x": 0,
+        "y": 0.3750009375023437
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0.7178318804696117,
+        "p999": 0.9375023437558593,
+        "maximum": 1.0151675808639073
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\helix-protein\\montage.png"
+    },
+    {
+      "type": "Mitochondrion",
+      "mismatchRatio": 0.01195210182849654,
+      "alignedIou": 0.9938287720561757,
+      "documentWidthRatio": 0.9989651530145421,
+      "documentHeightRatio": 0.9992261005497234,
+      "alignmentShiftDocumentUnits": {
+        "x": -0.18750046875117185,
+        "y": 0
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0,
+        "p999": 0.45266617461039177,
+        "maximum": 0.5625014062535156
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\mitochondrion\\montage.png"
+    },
+    {
+      "type": "Cloud",
+      "mismatchRatio": 0.024378654773410797,
+      "alignedIou": 0.9922735563965043,
+      "documentWidthRatio": 0.9989651530145421,
+      "documentHeightRatio": 0.9992261005497234,
+      "alignmentShiftDocumentUnits": {
+        "x": -0.18750046875117185,
+        "y": -0.18750046875117185
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0.18750046875117185,
+        "p999": 0.6401666433615636,
+        "maximum": 0.79549711757766
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\cloud\\montage.png"
+    },
+    {
+      "type": "tRNA",
+      "mismatchRatio": 0.06192826895632033,
+      "alignedIou": 0.9818890856021819,
+      "documentWidthRatio": 0.9926495404473804,
+      "documentHeightRatio": 0.9975986478427733,
+      "alignmentShiftDocumentUnits": {
+        "x": 0.18750046875117185,
+        "y": 0
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0.3750009375023437,
+        "p999": 0.5625014062535156,
+        "maximum": 0.6401666433615636
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\t-rna\\montage.png"
+    },
+    {
+      "type": "RibosomeA",
+      "mismatchRatio": 0.004822874203364529,
+      "alignedIou": 0.9951771257966354,
+      "documentWidthRatio": 0.9948371978367961,
+      "documentHeightRatio": 0.9968969021801436,
+      "alignmentShiftDocumentUnits": {
+        "x": 0,
+        "y": 0
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0,
+        "p999": 0.18750046875117185,
+        "maximum": 0.18750046875117185
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\ribosome-a\\montage.png"
+    },
+    {
+      "type": "RibosomeB",
+      "mismatchRatio": 0.00416375185382097,
+      "alignedIou": 0.995836248146179,
+      "documentWidthRatio": 0.9989651530145421,
+      "documentHeightRatio": 0.9930580382006511,
+      "alignmentShiftDocumentUnits": {
+        "x": 0,
+        "y": 0
+      },
+      "detailDistanceDocumentUnits": {
+        "p99": 0,
+        "p999": 0.18750046875117185,
+        "maximum": 0.26516570585921995
+      },
+      "montage": "tmp\\chemdraw-bioshape-probe\\visual-gate\\ribosome-b\\montage.png"
+    }
+  ]
+}

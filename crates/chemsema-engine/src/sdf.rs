@@ -1,7 +1,7 @@
 use crate::{
-    Bond, BondStereo, ChemSemaDocument, DocumentInfo, DocumentStyleInfo, DoubleBond,
-    DoubleBondPlacement, FormatInfo, MoleculeFragment, Node, ObjectPayload, Page, Resource,
-    ResourceData, SceneObject, Transform,
+    Bond, BondStereo, ChemSemaDocument, DocumentInfo, DocumentLayout, DocumentStyleInfo,
+    DoubleBond, DoubleBondPlacement, FormatInfo, MoleculeFragment, Node, ObjectPayload, Page,
+    Resource, ResourceData, SceneObject, Transform,
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
@@ -112,6 +112,7 @@ pub fn parse_sdf_document(sdf: &str, title: Option<&str>) -> Result<ChemSemaDocu
                 stoichiometry_grid: None,
                 gel_electrophoresis: None,
                 plasmid_map: None,
+                bio_shape: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),
@@ -139,6 +140,7 @@ pub fn parse_sdf_document(sdf: &str, title: Option<&str>) -> Result<ChemSemaDocu
                 height: round2(page_height),
                 background: "#ffffff".to_string(),
             },
+            layout: DocumentLayout::default(),
             meta: json!({
                 "import": {
                     "sdf": {

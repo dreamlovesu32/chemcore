@@ -4,6 +4,8 @@ use crate::round2;
 const DEFAULT_SHAPE_CLICK_RADIUS: f64 = 7.7;
 const ACS_SHAPE_CLICK_RADIUS: f64 = 7.2;
 const DEFAULT_PLASMID_MAP_RADIUS: f64 = 34.0;
+const DEFAULT_BIO_SHAPE_MAJOR_RADIUS: f64 = 36.0;
+const DEFAULT_BIO_SHAPE_MINOR_RATIO: f64 = 2.0 / 3.0;
 
 impl Engine {
     pub fn shape_tool_icon_svg(kind: ShapeKind, style: ShapeStyle) -> String {
@@ -52,6 +54,61 @@ impl Engine {
             &primitives,
             [0.0, 0.0, ICON_VIEWBOX_SIZE, ICON_VIEWBOX_SIZE],
             Some("chemsema-icon cc-shape-icon"),
+        )
+        .replace("#000000", "currentColor")
+    }
+
+    pub fn bio_draw_tool_icon_svg(
+        kind: crate::BioDrawKind,
+        fill_type: crate::BioShapeFillType,
+        line_type: crate::BioShapeLineType,
+    ) -> String {
+        let Some(shape_kind) = kind.bio_shape_kind() else {
+            return Self::shape_tool_icon_svg(ShapeKind::PlasmidMap, ShapeStyle::Solid);
+        };
+        const ICON_SCALE: f64 = 2.0;
+        let mut engine = Engine::new();
+        engine.options.graphic_stroke_width *= ICON_SCALE;
+        let mut tool = engine.state.tool.clone();
+        tool.active_tool = Tool::BioDraw;
+        tool.bio_draw_kind = kind;
+        tool.bio_shape_fill_type = fill_type;
+        tool.bio_shape_line_type = line_type;
+        tool.shape_color = "#000000".to_string();
+        engine.set_tool_state(tool);
+
+        let style_id = "__bio_shape_icon_style".to_string();
+        let object_id = "__bio_shape_icon".to_string();
+        let center = Point::new(24.0, 24.0);
+        let major_axis_end = Point::new(39.0, 24.0);
+        let Some(object) = engine.bio_shape_scene_object(
+            shape_kind,
+            center,
+            major_axis_end,
+            object_id,
+            style_id.clone(),
+        ) else {
+            return String::new();
+        };
+        let mut document = engine.state.document.clone();
+        document
+            .styles
+            .insert(style_id, engine.pending_shape_style());
+        document.objects.push(object);
+        let primitives = crate::render_document(&document);
+        let Some([min_x, min_y, max_x, max_y]) = crate::render_primitives_bounds(primitives.iter())
+        else {
+            return String::new();
+        };
+        let width = (max_x - min_x).max(1.0);
+        let height = (max_y - min_y).max(1.0);
+        let side = width.max(height) * 1.18;
+        let center_x = (min_x + max_x) * 0.5;
+        let center_y = (min_y + max_y) * 0.5;
+        crate::primitives_to_svg_viewbox(
+            &primitives,
+            [center_x - side * 0.5, center_y - side * 0.5, side, side],
+            Some("chemsema-icon cc-bio-draw-icon"),
         )
         .replace("#000000", "currentColor")
     }
@@ -113,6 +170,7 @@ impl Engine {
         }
         if !drag.has_dragged
             && drag.anchor.kind == ShapeDrawAnchorKind::Free
+            && self.state.tool.active_tool != Tool::BioDraw
             && self.state.tool.shape_kind != ShapeKind::PlasmidMap
         {
             return;
@@ -120,12 +178,33 @@ impl Engine {
         let Some((begin, end)) = self.shape_command_points_from_drag(&drag) else {
             return;
         };
-        let command = EditorCommand::AddShape {
-            kind: self.state.tool.shape_kind,
-            style: self.state.tool.shape_style,
-            color: self.state.tool.shape_color.clone(),
-            begin: CommandAnchor::from(begin),
-            end: CommandAnchor::from(end),
+        let command = if self.state.tool.active_tool == Tool::BioDraw {
+            if let Some(kind) = self.state.tool.bio_draw_kind.bio_shape_kind() {
+                EditorCommand::AddBioShape {
+                    kind,
+                    fill_type: self.state.tool.bio_shape_fill_type,
+                    line_type: self.state.tool.bio_shape_line_type,
+                    color: self.state.tool.shape_color.clone(),
+                    begin: CommandAnchor::from(begin),
+                    end: CommandAnchor::from(end),
+                }
+            } else {
+                EditorCommand::AddShape {
+                    kind: ShapeKind::PlasmidMap,
+                    style: self.state.tool.shape_style,
+                    color: self.state.tool.shape_color.clone(),
+                    begin: CommandAnchor::from(begin),
+                    end: CommandAnchor::from(end),
+                }
+            }
+        } else {
+            EditorCommand::AddShape {
+                kind: self.state.tool.shape_kind,
+                style: self.state.tool.shape_style,
+                color: self.state.tool.shape_color.clone(),
+                begin: CommandAnchor::from(begin),
+                end: CommandAnchor::from(end),
+            }
         };
         self.with_command(command, |engine| engine.insert_shape_from_drag(&drag));
         self.state.overlay = OverlayState::default();
@@ -245,6 +324,25 @@ impl Engine {
         object_id: String,
         style_id: String,
     ) -> Option<SceneObject> {
+        if self.state.tool.active_tool == Tool::BioDraw {
+            if self.state.tool.bio_draw_kind == crate::BioDrawKind::PlasmidMap {
+                return self.shape_scene_object_from_centered_radius(
+                    anchor.point,
+                    DEFAULT_PLASMID_MAP_RADIUS,
+                    object_id,
+                    style_id,
+                );
+            }
+            let radius = DEFAULT_BIO_SHAPE_MAJOR_RADIUS;
+            return self.shape_scene_object(
+                anchor.point,
+                anchor
+                    .point
+                    .translated(direction_from_angle(0.0).scaled(radius)),
+                object_id,
+                style_id,
+            );
+        }
         match anchor.kind {
             ShapeDrawAnchorKind::Free => (self.state.tool.shape_kind == ShapeKind::PlasmidMap)
                 .then(|| {
@@ -325,6 +423,22 @@ impl Engine {
         if drag.has_dragged {
             return Some((drag.start, drag.current));
         }
+        if self.state.tool.active_tool == Tool::BioDraw {
+            if self.state.tool.bio_draw_kind == crate::BioDrawKind::PlasmidMap {
+                let radius = DEFAULT_PLASMID_MAP_RADIUS;
+                return Some((
+                    Point::new(drag.anchor.point.x - radius, drag.anchor.point.y - radius),
+                    Point::new(drag.anchor.point.x + radius, drag.anchor.point.y + radius),
+                ));
+            }
+            let radius = DEFAULT_BIO_SHAPE_MAJOR_RADIUS;
+            return Some((
+                drag.anchor.point,
+                drag.anchor
+                    .point
+                    .translated(direction_from_angle(0.0).scaled(radius)),
+            ));
+        }
         match drag.anchor.kind {
             ShapeDrawAnchorKind::Free => (self.state.tool.shape_kind == ShapeKind::PlasmidMap)
                 .then(|| {
@@ -397,6 +511,11 @@ impl Engine {
         object_id: String,
         style_id: String,
     ) -> Option<SceneObject> {
+        if self.state.tool.active_tool == Tool::BioDraw {
+            if let Some(kind) = self.state.tool.bio_draw_kind.bio_shape_kind() {
+                return self.bio_shape_scene_object(kind, start, current, object_id, style_id);
+            }
+        }
         let (transform, bbox, extra, gel_electrophoresis) = match self.state.tool.shape_kind {
             ShapeKind::Circle => {
                 let radius = start.distance(current);
@@ -590,6 +709,78 @@ impl Engine {
                 stoichiometry_grid: None,
                 gel_electrophoresis,
                 plasmid_map,
+                bio_shape: None,
+                extra,
+            },
+            children: Vec::new(),
+        })
+    }
+
+    fn bio_shape_scene_object(
+        &self,
+        kind: crate::BioShapeKind,
+        center: Point,
+        major_axis_end: Point,
+        object_id: String,
+        style_id: String,
+    ) -> Option<SceneObject> {
+        let major_radius = center.distance(major_axis_end);
+        if major_radius <= crate::EPSILON {
+            return None;
+        }
+        let rotation = angle_between(center, major_axis_end);
+        let minor_radius = major_radius * DEFAULT_BIO_SHAPE_MINOR_RATIO;
+        let mut extra = BTreeMap::new();
+        extra.insert("kind".to_string(), json!("bioShape"));
+        let data = crate::BioShapeData {
+            kind,
+            center: [0.0, 0.0, 0.0],
+            major_axis_end: [major_radius, 0.0, 0.0],
+            minor_axis_end: [0.0, minor_radius, 0.0],
+            fill_type: self.state.tool.bio_shape_fill_type,
+            line_type: self.state.tool.bio_shape_line_type,
+            color: self.state.tool.shape_color.clone(),
+            line_width: self.options.graphic_stroke_width,
+            bold_width: self.options.bold_bond_width,
+            margin_width: crate::DEFAULT_BOND_MARGIN_WIDTH_PT.value(),
+            hash_spacing: self.options.hash_spacing,
+            fade_percent: 10.0,
+            alpha: None,
+            parameters: crate::BioShapeParameters::defaults_for(kind),
+        };
+        Some(SceneObject {
+            id: object_id,
+            object_type: "shape".to_string(),
+            name: format!("BioShape {}", kind.cdxml_name()),
+            visible: true,
+            locked: false,
+            z_index: self.next_shape_z_index(),
+            transform: crate::Transform {
+                translate: [center.x, center.y],
+                rotate: rotation,
+                scale: [1.0, 1.0],
+            },
+            style_ref: Some(style_id),
+            link_policy: Default::default(),
+            meta: json!({
+                "source": "editor",
+            }),
+            payload: crate::ObjectPayload {
+                resource_ref: None,
+                bbox: Some([
+                    -major_radius,
+                    -minor_radius,
+                    major_radius * 2.0,
+                    minor_radius * 2.0,
+                ]),
+                spectrum: None,
+                geometry: None,
+                constraint: None,
+                table: None,
+                stoichiometry_grid: None,
+                gel_electrophoresis: None,
+                plasmid_map: None,
+                bio_shape: Some(data),
                 extra,
             },
             children: Vec::new(),
@@ -847,6 +1038,7 @@ impl Engine {
             }
             ShapeObjectKind::Orbital => shape_rect_hit(object, point, true).is_some(),
             ShapeObjectKind::PlasmidMap => plasmid_map_hover(object, point).is_some(),
+            ShapeObjectKind::BioShape => bio_shape_hit(object, point),
         }
     }
 
@@ -944,6 +1136,21 @@ impl Engine {
                         handles: hit.handles,
                     });
                 }
+                ShapeObjectKind::BioShape => {
+                    let Some(hit) = bio_shape_hover(object, point) else {
+                        continue;
+                    };
+                    let Some(handle) = hit.active_handle else {
+                        continue;
+                    };
+                    return Some(ShapeTarget {
+                        object_id: object.id.clone(),
+                        object: object.clone(),
+                        handle,
+                        active_handle: Some(handle),
+                        handles: hit.handles,
+                    });
+                }
             }
         }
         None
@@ -995,6 +1202,7 @@ enum ShapeObjectKind {
     RoundRect,
     Orbital,
     PlasmidMap,
+    BioShape,
 }
 
 struct ShapeTarget {
@@ -1030,6 +1238,19 @@ impl ShapeEditHandle {
             Self::PlasmidRegionStart(_) => "plasmid-region-start",
             Self::PlasmidRegionEnd(_) => "plasmid-region-end",
             Self::PlasmidRegionOffset(_) => "plasmid-region-offset",
+            Self::BioReceptorWidth => "bio-receptor-width",
+            Self::BioGProteinGammaShape => "bio-gprotein-gamma-shape",
+            Self::BioDnaHeight => "bio-dna-height",
+            Self::BioDnaSpacing => "bio-dna-spacing",
+            Self::BioDnaStrandWidth => "bio-dna-strand-width",
+            Self::BioDnaOffset => "bio-dna-offset",
+            Self::BioHelixHeight => "bio-helix-height",
+            Self::BioHelixStrandWidth => "bio-helix-strand-width",
+            Self::BioHelixCylinderWidth => "bio-helix-cylinder-width",
+            Self::BioHelixSpacing => "bio-helix-spacing",
+            Self::BioMembraneUnitSize => "bio-membrane-unit-size",
+            Self::BioMembraneArcStart => "bio-membrane-arc-start",
+            Self::BioMembraneArcEnd => "bio-membrane-arc-end",
         }
     }
 }
@@ -1048,6 +1269,7 @@ fn shape_object_kind(object: &SceneObject) -> Option<ShapeObjectKind> {
         "rect" => Some(ShapeObjectKind::Rect),
         "orbital" => Some(ShapeObjectKind::Orbital),
         "plasmidMap" | "plasmid-map" => Some(ShapeObjectKind::PlasmidMap),
+        "bioShape" | "bio-shape" => Some(ShapeObjectKind::BioShape),
         _ => None,
     }
 }
@@ -1126,6 +1348,7 @@ fn shape_object_with_direct_geometry(
         }
         ShapeObjectKind::Orbital => return None,
         ShapeObjectKind::PlasmidMap => return None,
+        ShapeObjectKind::BioShape => return None,
     }
     Some(object)
 }
@@ -1522,7 +1745,266 @@ fn resized_shape_object_from_handle(
         ShapeObjectKind::PlasmidMap => {
             edited_plasmid_map_object_from_handle(original, handle, point)
         }
+        ShapeObjectKind::BioShape => edited_bio_shape_object_from_handle(original, handle, point),
     }
+}
+
+fn bio_shape_hit(object: &SceneObject, point: Point) -> bool {
+    let Some(local) = bio_shape_world_to_local(object, point) else {
+        return false;
+    };
+    let Some(data) = object.payload.bio_shape.as_ref() else {
+        return false;
+    };
+    let center = Point::new(data.center[0], data.center[1]);
+    let major = center.distance(Point::new(data.major_axis_end[0], data.major_axis_end[1]));
+    let minor = center.distance(Point::new(data.minor_axis_end[0], data.minor_axis_end[1]));
+    local.x >= center.x - major
+        && local.x <= center.x + major
+        && local.y >= center.y - minor
+        && local.y <= center.y + minor
+}
+
+fn bio_shape_hover(object: &SceneObject, point: Point) -> Option<ShapeHoverHit> {
+    if !bio_shape_hit(object, point) {
+        return None;
+    }
+    let definitions = bio_shape_handle_definitions(object)?;
+    let handles: Vec<Point> = definitions.iter().map(|(point, _)| *point).collect();
+    let active_handle = definitions
+        .into_iter()
+        .filter_map(|(handle_point, handle)| {
+            let distance = handle_point.distance(point);
+            (distance <= ENDPOINT_HIT_RADIUS).then_some((distance, handle))
+        })
+        .min_by(|left, right| left.0.total_cmp(&right.0))
+        .map(|(_, handle)| handle);
+    Some(ShapeHoverHit {
+        active_handle,
+        handles,
+    })
+}
+
+fn bio_shape_handle_definitions(object: &SceneObject) -> Option<Vec<(Point, ShapeEditHandle)>> {
+    let data = object.payload.bio_shape.as_ref()?;
+    let parameters = data.parameters.resolved_for(data.kind);
+    let p = &parameters;
+    let local = |u: f64, v: f64| bio_shape_normalized_to_world(object, u, v);
+    let center = Point::new(data.center[0], data.center[1]);
+    let major_radius = center.distance(Point::new(data.major_axis_end[0], data.major_axis_end[1]));
+    let minor_radius = center.distance(Point::new(data.minor_axis_end[0], data.minor_axis_end[1]));
+    if major_radius <= crate::EPSILON || minor_radius <= crate::EPSILON {
+        return None;
+    }
+    let definitions = match data.kind {
+        crate::BioShapeKind::Receptor => vec![(
+            local(p.neck_width? / 100.0, -0.48)?,
+            ShapeEditHandle::BioReceptorWidth,
+        )],
+        crate::BioShapeKind::GProteinGamma => vec![(
+            local(0.2, 0.65 + p.gprotein_upper_height? / 500.0)?,
+            ShapeEditHandle::BioGProteinGammaShape,
+        )],
+        crate::BioShapeKind::Dna => {
+            let wave_height = p.dna_wave_height?;
+            let wave_length = p.dna_wave_length?;
+            let wave_width = p.dna_wave_width?;
+            let wave_offset = p.dna_wave_offset?;
+            vec![
+                (
+                    local(-0.82, wave_height / (minor_radius * 2.0))?,
+                    ShapeEditHandle::BioDnaHeight,
+                ),
+                (
+                    local(-wave_length / (major_radius * 2.0), 0.0)?,
+                    ShapeEditHandle::BioDnaSpacing,
+                ),
+                (
+                    local(-0.82, wave_width / minor_radius)?,
+                    ShapeEditHandle::BioDnaStrandWidth,
+                ),
+                (
+                    local(-0.82, -wave_offset / minor_radius)?,
+                    ShapeEditHandle::BioDnaOffset,
+                ),
+            ]
+        }
+        crate::BioShapeKind::HelixProtein => {
+            let cylinder_height = p.cylinder_height?;
+            let pipe_width = p.pipe_width?;
+            let cylinder_width = p.cylinder_width?;
+            let cylinder_distance = p.cylinder_distance?;
+            vec![
+                (
+                    local(-0.82, cylinder_height / (minor_radius * 2.0))?,
+                    ShapeEditHandle::BioHelixHeight,
+                ),
+                (
+                    local(-0.82, -pipe_width / minor_radius)?,
+                    ShapeEditHandle::BioHelixStrandWidth,
+                ),
+                (
+                    local(-cylinder_width / major_radius, 0.30)?,
+                    ShapeEditHandle::BioHelixCylinderWidth,
+                ),
+                (
+                    local(-cylinder_distance / major_radius, 0.0)?,
+                    ShapeEditHandle::BioHelixSpacing,
+                ),
+            ]
+        }
+        crate::BioShapeKind::MembraneLine
+        | crate::BioShapeKind::MembraneEllipse
+        | crate::BioShapeKind::MembraneMicelle => {
+            let element_size = p.membrane_element_size?;
+            vec![(
+                local(0.0, element_size / (minor_radius * 2.0))?,
+                ShapeEditHandle::BioMembraneUnitSize,
+            )]
+        }
+        crate::BioShapeKind::MembraneArc => {
+            let start = p.membrane_start_angle?.to_radians();
+            let end = p.membrane_end_angle?.to_radians();
+            let element_size = p.membrane_element_size?;
+            vec![
+                (
+                    local(0.78 * start.cos(), 0.78 * start.sin())?,
+                    ShapeEditHandle::BioMembraneArcStart,
+                ),
+                (
+                    local(0.78 * end.cos(), 0.78 * end.sin())?,
+                    ShapeEditHandle::BioMembraneArcEnd,
+                ),
+                (
+                    local(0.0, element_size / (minor_radius * 2.0))?,
+                    ShapeEditHandle::BioMembraneUnitSize,
+                ),
+            ]
+        }
+        _ => Vec::new(),
+    };
+    Some(definitions)
+}
+
+fn edited_bio_shape_object_from_handle(
+    original: &SceneObject,
+    handle: ShapeEditHandle,
+    point: Point,
+) -> Option<SceneObject> {
+    let local = bio_shape_world_to_normalized(original, point)?;
+    let mut object = original.clone();
+    let data = object.payload.bio_shape.as_mut()?;
+    let center = Point::new(data.center[0], data.center[1]);
+    let major_radius = center.distance(Point::new(data.major_axis_end[0], data.major_axis_end[1]));
+    let minor_radius = center.distance(Point::new(data.minor_axis_end[0], data.minor_axis_end[1]));
+    let p = &mut data.parameters;
+    match handle {
+        ShapeEditHandle::BioReceptorWidth => {
+            p.neck_width = Some(round2((local.0.abs() * 100.0).clamp(5.0, 70.0)));
+        }
+        ShapeEditHandle::BioGProteinGammaShape => {
+            p.gprotein_upper_height = Some(round2(((local.1 - 0.65) * 500.0).clamp(5.0, 80.0)));
+        }
+        ShapeEditHandle::BioDnaHeight => {
+            p.dna_wave_height = Some(round2((local.1.abs() * minor_radius * 2.0).max(0.1)));
+        }
+        ShapeEditHandle::BioDnaSpacing => {
+            p.dna_wave_length = Some(round2((local.0.abs() * major_radius * 2.0).max(0.1)));
+        }
+        ShapeEditHandle::BioDnaStrandWidth => {
+            p.dna_wave_width = Some(round2((local.1.abs() * minor_radius).max(0.05)));
+        }
+        ShapeEditHandle::BioDnaOffset => {
+            p.dna_wave_offset = Some(round2((local.1.abs() * minor_radius).max(0.0)));
+        }
+        ShapeEditHandle::BioHelixHeight => {
+            p.cylinder_height = Some(round2((local.1.abs() * minor_radius * 2.0).max(0.1)));
+        }
+        ShapeEditHandle::BioHelixStrandWidth => {
+            p.pipe_width = Some(round2((local.1.abs() * minor_radius).max(0.05)));
+        }
+        ShapeEditHandle::BioHelixCylinderWidth => {
+            p.cylinder_width = Some(round2((local.0.abs() * major_radius).max(0.1)));
+        }
+        ShapeEditHandle::BioHelixSpacing => {
+            p.cylinder_distance = Some(round2((local.0.abs() * major_radius).max(0.1)));
+        }
+        ShapeEditHandle::BioMembraneUnitSize => {
+            p.membrane_element_size = Some(round2((local.1.abs() * minor_radius * 2.0).max(0.1)));
+        }
+        ShapeEditHandle::BioMembraneArcStart => {
+            p.membrane_start_angle = Some(round2(local.1.atan2(local.0).to_degrees()));
+        }
+        ShapeEditHandle::BioMembraneArcEnd => {
+            p.membrane_end_angle = Some(round2(local.1.atan2(local.0).to_degrees()));
+        }
+        _ => return None,
+    }
+    object.payload.bbox = Some(super::bio_shapes::bio_shape_local_bbox(data));
+    Some(object)
+}
+
+fn bio_shape_normalized_to_world(object: &SceneObject, u: f64, v: f64) -> Option<Point> {
+    let data = object.payload.bio_shape.as_ref()?;
+    let local = Point::new(
+        data.center[0]
+            + (data.major_axis_end[0] - data.center[0]) * u
+            + (data.minor_axis_end[0] - data.center[0]) * v,
+        data.center[1]
+            + (data.major_axis_end[1] - data.center[1]) * u
+            + (data.minor_axis_end[1] - data.center[1]) * v,
+    );
+    Some(bio_shape_local_to_world(object, local))
+}
+
+fn bio_shape_local_to_world(object: &SceneObject, local: Point) -> Point {
+    let scaled = Point::new(
+        local.x * object.transform.scale[0],
+        local.y * object.transform.scale[1],
+    );
+    let angle = object.transform.rotate.to_radians();
+    Point::new(
+        object.transform.translate[0] + scaled.x * angle.cos() - scaled.y * angle.sin(),
+        object.transform.translate[1] + scaled.x * angle.sin() + scaled.y * angle.cos(),
+    )
+}
+
+fn bio_shape_world_to_local(object: &SceneObject, world: Point) -> Option<Point> {
+    if object.transform.scale[0].abs() <= crate::EPSILON
+        || object.transform.scale[1].abs() <= crate::EPSILON
+    {
+        return None;
+    }
+    let angle = -object.transform.rotate.to_radians();
+    let x = world.x - object.transform.translate[0];
+    let y = world.y - object.transform.translate[1];
+    Some(Point::new(
+        (x * angle.cos() - y * angle.sin()) / object.transform.scale[0],
+        (x * angle.sin() + y * angle.cos()) / object.transform.scale[1],
+    ))
+}
+
+fn bio_shape_world_to_normalized(object: &SceneObject, world: Point) -> Option<(f64, f64)> {
+    let data = object.payload.bio_shape.as_ref()?;
+    let local = bio_shape_world_to_local(object, world)?;
+    let major = crate::Vector::new(
+        data.major_axis_end[0] - data.center[0],
+        data.major_axis_end[1] - data.center[1],
+    );
+    let minor = crate::Vector::new(
+        data.minor_axis_end[0] - data.center[0],
+        data.minor_axis_end[1] - data.center[1],
+    );
+    let determinant = major.x * minor.y - major.y * minor.x;
+    if determinant.abs() <= crate::EPSILON {
+        return None;
+    }
+    let dx = local.x - data.center[0];
+    let dy = local.y - data.center[1];
+    Some((
+        (dx * minor.y - dy * minor.x) / determinant,
+        (major.x * dy - major.y * dx) / determinant,
+    ))
 }
 
 fn rotated_orbital_object_from_handle(

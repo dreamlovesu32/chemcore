@@ -19,7 +19,10 @@ import {
   looksLikeSdfFile,
   saveFormatFromFileName,
 } from "./file_io.js";
-import { pdfPreviewBase64FromSvg } from "./export_preview.js";
+import {
+  pdfPreviewBase64FromSvg,
+  pdfPreviewBase64FromSvgPages,
+} from "./export_preview.js";
 
 export function createDocumentFlow(options) {
   function traceEvent(event, detail = null) {
@@ -92,6 +95,12 @@ export function createDocumentFlow(options) {
       updateDocumentMeta();
       options.fitView();
       options.renderDocument();
+      const savedMagnification = Number(
+        options.state.currentDocument?.document?.layout?.magnificationPercent,
+      );
+      if (Number.isFinite(savedMagnification) && savedMagnification > 0) {
+        options.setZoomPercent?.(savedMagnification, { exact: true });
+      }
       options.markCurrentDocumentSaved?.();
       traceEvent("documentFlow.replaceEngine.rendered", {
         title: options.viewerTitle.textContent,
@@ -118,7 +127,7 @@ export function createDocumentFlow(options) {
   }
 
   async function currentDocumentJsonForSave() {
-    await options.finishActiveTextEditor(true);
+    await prepareCurrentDocumentForOutput();
     if (options.state.editorEngine?.documentJson) {
       const json = await options.state.editorEngine.documentJson();
       if (json && String(json).trim()) {
@@ -129,6 +138,13 @@ export function createDocumentFlow(options) {
       throw new Error("No document to save.");
     }
     return `${JSON.stringify(options.state.currentDocument, null, 2)}\n`;
+  }
+
+  async function prepareCurrentDocumentForOutput() {
+    await options.finishActiveTextEditor(true);
+    await options.documentLayoutHost?.storeMagnificationPercent?.(
+      options.getZoomPercent?.(),
+    );
   }
 
   function cdxmlFileNameForSave() {
@@ -280,7 +296,7 @@ export function createDocumentFlow(options) {
   }
 
   async function currentDocumentCdxmlForSave() {
-    await options.finishActiveTextEditor(true);
+    await prepareCurrentDocumentForOutput();
     if (!options.state.editorEngine) {
       throw new Error("CDXML export is unavailable.");
     }
@@ -288,7 +304,7 @@ export function createDocumentFlow(options) {
   }
 
   async function currentDocumentCdxForSave() {
-    await options.finishActiveTextEditor(true);
+    await prepareCurrentDocumentForOutput();
     if (!options.state.editorEngine?.documentCdx) {
       throw new Error("CDX export is unavailable.");
     }
@@ -296,7 +312,7 @@ export function createDocumentFlow(options) {
   }
 
   async function currentDocumentSdfForSave() {
-    await options.finishActiveTextEditor(true);
+    await prepareCurrentDocumentForOutput();
     if (!options.state.editorEngine?.documentSdf) {
       throw new Error("SDF export is unavailable.");
     }
@@ -304,7 +320,7 @@ export function createDocumentFlow(options) {
   }
 
   async function currentDocumentSvgForSave() {
-    await options.finishActiveTextEditor(true);
+    await prepareCurrentDocumentForOutput();
     if (!options.state.editorEngine?.documentSvg) {
       throw new Error("SVG export is unavailable.");
     }
@@ -385,7 +401,15 @@ export function createDocumentFlow(options) {
   }
 
   async function currentDocumentPdfPreviewBase64ForSave() {
-    return pdfPreviewBase64FromSvg(await currentDocumentSvgForSave());
+    const svg = await currentDocumentSvgForSave();
+    const layout = options.state.currentDocument?.document?.layout;
+    const resolved = options.documentLayoutHost?.resolveLayout?.();
+    if (!layout?.paper || !resolved) {
+      return pdfPreviewBase64FromSvg(svg);
+    }
+    return pdfPreviewBase64FromSvgPages(
+      pagedSvgDocuments(svg, options.state.currentDocument, layout, resolved),
+    );
   }
 
   async function saveCurrentDocumentPdf() {
@@ -722,6 +746,105 @@ export function createDocumentFlow(options) {
     saveCurrentDocumentSvg,
     updateDocumentMeta,
   };
+}
+
+function pagedSvgDocuments(sourceSvg, documentData, layout, resolved) {
+  const parsed = new DOMParser().parseFromString(sourceSvg, "image/svg+xml");
+  const sourceRoot = parsed.documentElement;
+  const sourceBody = sourceRoot.innerHTML;
+  const paperWidth = Number(layout.paper.width);
+  const paperHeight = Number(layout.paper.height);
+  const overlap = layout.drawingSpace === "poster" ? Number(layout.pageOverlap || 0) : 0;
+  const stepX = paperWidth - overlap;
+  const stepY = paperHeight - overlap;
+  const pages = [];
+  let pageNumber = 1;
+  for (let row = 0; row < resolved.heightPages; row += 1) {
+    for (let column = 0; column < resolved.widthPages; column += 1) {
+      const x = resolved.origin[0] + column * stepX;
+      const y = resolved.origin[1] + row * stepY;
+      const headerFooter = pageHeaderFooterSvg(documentData, layout, {
+        x,
+        y,
+        width: paperWidth,
+        height: paperHeight,
+        pageNumber,
+      });
+      const marks = layout.printTrimMarks
+        ? pageTrimMarksSvg(x, y, paperWidth, paperHeight)
+        : "";
+      pages.push({
+        widthPt: paperWidth,
+        heightPt: paperHeight,
+        svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${formatSvgNumber(paperWidth * 96 / 72)}" height="${formatSvgNumber(paperHeight * 96 / 72)}" viewBox="${formatSvgNumber(x)} ${formatSvgNumber(y)} ${formatSvgNumber(paperWidth)} ${formatSvgNumber(paperHeight)}"><rect x="${formatSvgNumber(x)}" y="${formatSvgNumber(y)}" width="${formatSvgNumber(paperWidth)}" height="${formatSvgNumber(paperHeight)}" fill="#ffffff"/>${sourceBody}${headerFooter}${marks}</svg>`,
+      });
+      pageNumber += 1;
+    }
+  }
+  return pages;
+}
+
+function pageHeaderFooterSvg(documentData, layout, page) {
+  const now = new Date();
+  const dynamic = {
+    f: documentData?.document?.title || "Untitled",
+    p: String(page.pageNumber),
+    d: new Intl.DateTimeFormat(undefined, { dateStyle: "short" }).format(now),
+    t: new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(now),
+  };
+  let svg = "";
+  for (const [text, baseline] of [
+    [layout.header, page.y + Number(layout.headerPosition || 0)],
+    [layout.footer, page.y + page.height - Number(layout.footerPosition || 0)],
+  ]) {
+    if (!text) continue;
+    const sections = splitHeaderFooter(text, dynamic);
+    for (const [anchor, value, position] of [
+      ["start", sections.left, page.x + 6],
+      ["middle", sections.center, page.x + page.width / 2],
+      ["end", sections.right, page.x + page.width - 6],
+    ]) {
+      if (value) {
+        svg += `<text x="${formatSvgNumber(position)}" y="${formatSvgNumber(baseline)}" text-anchor="${anchor}" font-family="Arial, sans-serif" font-size="9" fill="#333333">${escapeXml(value)}</text>`;
+      }
+    }
+  }
+  return svg;
+}
+
+function splitHeaderFooter(source, dynamic) {
+  const sections = { left: "", center: "", right: "" };
+  let target = "left";
+  for (const chunk of String(source).split(/(&[lcr])/i)) {
+    if (/^&[lcr]$/i.test(chunk)) {
+      target = { l: "left", c: "center", r: "right" }[chunk[1].toLowerCase()];
+    } else {
+      sections[target] += chunk.replace(/&([fpdt])/gi, (_, token) => dynamic[token.toLowerCase()] || "");
+    }
+  }
+  return sections;
+}
+
+function pageTrimMarksSvg(x, y, width, height) {
+  const inset = 3;
+  const length = 8;
+  const lines = [
+    [x + inset, y, x + inset + length, y], [x, y + inset, x, y + inset + length],
+    [x + width - inset - length, y, x + width - inset, y], [x + width, y + inset, x + width, y + inset + length],
+    [x + inset, y + height, x + inset + length, y + height], [x, y + height - inset - length, x, y + height - inset],
+    [x + width - inset - length, y + height, x + width - inset, y + height], [x + width, y + height - inset - length, x + width, y + height - inset],
+  ];
+  return lines.map(([x1, y1, x2, y2]) => `<line x1="${formatSvgNumber(x1)}" y1="${formatSvgNumber(y1)}" x2="${formatSvgNumber(x2)}" y2="${formatSvgNumber(y2)}" stroke="#333333" stroke-width="0.55"/>`).join("");
+}
+
+function formatSvgNumber(value) {
+  return Number(value).toFixed(4).replace(/\.?0+$/, "");
+}
+
+function escapeXml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;",
+  })[character]);
 }
 
 function base64ToUint8(value) {

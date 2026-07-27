@@ -62,6 +62,7 @@ export function bindEditorControls(options) {
   bindKeyboard(options);
   bindDesktopCommands(options);
   bindToolButtons(options);
+  bindToolRailToggle(options);
   bindDocumentStylePreset(options);
   bindSecondaryToolbar(options);
 }
@@ -689,6 +690,13 @@ function bindToolButtons(options) {
   });
 }
 
+function bindToolRailToggle(options) {
+  const toggle = document.querySelector("[data-tool-rail-toggle]");
+  toggle?.addEventListener("click", options.uiActions.listener("toolbar.switch-tool-rail", async () => {
+    await options.switchToolRailMode?.();
+  }));
+}
+
 async function setActiveTool(toolButton, options) {
   const { editorState } = options;
   const nextTool = toolButton?.dataset?.tool || editorState.activeTool;
@@ -700,7 +708,19 @@ async function setActiveTool(toolButton, options) {
     ));
     return;
   }
+  const bioFamily = toolButton?.dataset?.bioFamily;
+  if (nextTool === "biodraw" && bioFamily) {
+    editorState.bioDrawFamily = bioFamily;
+    const rememberedKind = editorState.bioDrawKindByFamily?.[bioFamily];
+    if (rememberedKind) {
+      editorState.bioDrawKind = rememberedKind;
+    }
+  }
   await options.activateEditorTool?.(nextTool);
+  if (nextTool === "biodraw" && bioFamily) {
+    await options.syncEngineToolState?.();
+    options.renderSecondaryToolbar?.();
+  }
 }
 
 function bindDocumentStylePreset(options) {
@@ -1101,8 +1121,16 @@ async function handleSecondaryToolbarValue(value, options) {
     editorState.shapeStyle = nextShapeStyle;
   } else if (value === "chromatography-kind-tlc-plate" || value === "chromatography-kind-gel-plate") {
     editorState.chromatographyKind = value.replace("chromatography-kind-", "");
-  } else if (value === "biodraw-kind-plasmid-map") {
-    editorState.bioDrawKind = "plasmid-map";
+  } else if (value?.startsWith("biodraw-kind-")) {
+    editorState.bioDrawKind = value.replace("biodraw-kind-", "");
+    editorState.bioDrawKindByFamily = {
+      ...(editorState.bioDrawKindByFamily || {}),
+      [editorState.bioDrawFamily]: editorState.bioDrawKind,
+    };
+  } else if (value?.startsWith("bio-fill-")) {
+    editorState.bioDrawFillType = value.replace("bio-fill-", "");
+  } else if (value?.startsWith("bio-line-")) {
+    editorState.bioDrawLineType = value.replace("bio-line-", "");
   } else if (value?.startsWith("shape-style-")) {
     const shapeSelection = shapeSelectionFromToolbarValue(value);
     if (shapeSelection) {

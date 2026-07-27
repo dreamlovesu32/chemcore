@@ -369,6 +369,28 @@ export function createCanvasContextMenuHost(options) {
       );
       return { handled: true, changed };
     }
+    if (command === "bio-shape-dialog") {
+      let spec = null;
+      try {
+        spec = JSON.parse(value || "null");
+      } catch {
+        spec = null;
+      }
+      const decision = await options.bioShapeDialogHost?.choose(spec);
+      if (!decision) {
+        return { handled: true, changed: false };
+      }
+      const payload = {
+        type: "set-bio-shape",
+        objectId: spec.objectId,
+        data: decision,
+      };
+      const changed = await executeDocumentCommand(
+        payload,
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify(payload)),
+      );
+      return { handled: true, changed };
+    }
     if (command === "text-line-spacing") {
       await options.numericDialogHost.choose("line-height");
       return { handled: true, changed: false };

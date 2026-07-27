@@ -151,6 +151,7 @@ impl ChemSemaDocument {
                     height: DEFAULT_PAGE_HEIGHT,
                     background: "#ffffff".to_string(),
                 },
+                layout: DocumentLayout::default(),
                 meta: Value::Null,
             },
             style: DocumentStyleInfo::default(),
@@ -176,6 +177,7 @@ impl ChemSemaDocument {
                     stoichiometry_grid: None,
                     gel_electrophoresis: None,
                     plasmid_map: None,
+                    bio_shape: None,
                     extra: BTreeMap::new(),
                 },
                 children: Vec::new(),
@@ -447,6 +449,7 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     let mut document: ChemSemaDocument =
         serde_json::from_value(value).map_err(|error| error.to_string())?;
     migrate_legacy_bracket_links(&mut document);
+    document.document.layout.validate()?;
     validate_scene_object_types(&document.objects)?;
     validate_spectrum_objects(&document.objects)?;
     let scene_ids = document
@@ -458,6 +461,7 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     validate_stoichiometry_objects(&document, &scene_ids)?;
     validate_gel_electrophoresis_objects(&document.objects)?;
     validate_plasmid_map_objects(&document.objects)?;
+    validate_bio_shape_objects(&document.objects)?;
     validate_geometry_constraint_objects(&document)?;
     validate_molecule_fragment_resources(&document)?;
     split_disconnected_molecule_objects(&mut document);
@@ -1038,6 +1042,52 @@ fn validate_plasmid_map_objects(objects: &[SceneObject]) -> Result<(), String> {
             ));
         }
         validate_plasmid_map_objects(&object.children)?;
+    }
+    Ok(())
+}
+
+fn validate_bio_shape_objects(objects: &[SceneObject]) -> Result<(), String> {
+    for object in objects {
+        match (
+            object.object_type.as_str(),
+            object.payload.bio_shape.as_ref(),
+        ) {
+            ("shape", Some(data)) => {
+                if object.payload.extra.get("kind").and_then(Value::as_str) != Some("bioShape") {
+                    return Err(format!(
+                        "BioShape '{}' must use the explicit bioShape shape kind",
+                        object.id
+                    ));
+                }
+                data.validate()
+                    .map_err(|error| format!("{error} on object '{}'", object.id))?;
+                let Some([x, y, width, height]) = object.payload.bbox else {
+                    return Err(format!("BioShape '{}' is missing payload.bbox", object.id));
+                };
+                if ![x, y, width, height].into_iter().all(f64::is_finite)
+                    || width <= EPSILON
+                    || height <= EPSILON
+                {
+                    return Err(format!("BioShape '{}' has invalid payload.bbox", object.id));
+                }
+            }
+            ("shape", None)
+                if object.payload.extra.get("kind").and_then(Value::as_str) == Some("bioShape") =>
+            {
+                return Err(format!(
+                    "BioShape '{}' is missing payload.bioShape",
+                    object.id
+                ));
+            }
+            (_, Some(_)) => {
+                return Err(format!(
+                    "non-shape object '{}' contains payload.bioShape",
+                    object.id
+                ));
+            }
+            _ => {}
+        }
+        validate_bio_shape_objects(&object.children)?;
     }
     Ok(())
 }
@@ -2629,8 +2679,457 @@ pub struct DocumentInfo {
     pub id: String,
     pub title: String,
     pub page: Page,
+    /// Source-independent paper, pagination, header/footer, view, and
+    /// in-place-embedding settings. `page` remains the infinite-canvas working
+    /// extent; `layout.paper` is the physical sheet used by page preview,
+    /// printing, and paged exports.
+    #[serde(default)]
+    pub layout: DocumentLayout,
     #[serde(default)]
     pub meta: Value,
+}
+
+const fn default_paper_width() -> f64 {
+    595.275_590_551
+}
+
+const fn default_paper_height() -> f64 {
+    841.889_763_78
+}
+
+const fn default_page_margin() -> f64 {
+    36.0
+}
+
+const fn default_header_position() -> f64 {
+    36.0
+}
+
+const fn default_footer_position() -> f64 {
+    36.0
+}
+
+const fn default_magnification_percent() -> f64 {
+    100.0
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DrawingSpace {
+    #[default]
+    Pages,
+    Poster,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaperSize {
+    #[serde(default = "default_paper_width")]
+    pub width: f64,
+    #[serde(default = "default_paper_height")]
+    pub height: f64,
+}
+
+impl Default for PaperSize {
+    fn default() -> Self {
+        Self {
+            width: default_paper_width(),
+            height: default_paper_height(),
+        }
+    }
+}
+
+/// Physical document layout. UI-only infinite/paper preview state deliberately
+/// does not live here: changing the preview must not dirty the document.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentLayout {
+    #[serde(default)]
+    pub drawing_space: DrawingSpace,
+    #[serde(default)]
+    pub paper: PaperSize,
+    /// Page count across and down. In Pages mode each tile is a logical page;
+    /// in Poster mode these values describe the physical sheets needed to tile
+    /// one drawing space.
+    #[serde(default = "default_one_u16")]
+    pub width_pages: u16,
+    #[serde(default = "default_one_u16")]
+    pub height_pages: u16,
+    /// When true the configured page counts are minimums. The resolved layout
+    /// adds sheets until every visible document primitive is covered.
+    #[serde(default = "default_true")]
+    pub auto_paginate: bool,
+    /// Document coordinates of the original page grid's top-left. It is
+    /// established by centering on first layout/import, then retained. When
+    /// edits extend above or left of it, resolved pages are prepended while
+    /// this original page remains fixed in document space.
+    #[serde(default)]
+    pub page_origin: Option<[f64; 2]>,
+    /// Top, right, bottom, left physical print margins in document points.
+    #[serde(default = "default_page_margins")]
+    pub margins: [f64; 4],
+    #[serde(default)]
+    pub page_overlap: f64,
+    #[serde(default)]
+    pub print_trim_marks: bool,
+    #[serde(default)]
+    pub header: String,
+    #[serde(default = "default_header_position")]
+    pub header_position: f64,
+    #[serde(default)]
+    pub footer: String,
+    #[serde(default = "default_footer_position")]
+    pub footer_position: f64,
+    /// Human-facing percent. CDX stores ten times this number.
+    #[serde(default = "default_magnification_percent")]
+    pub magnification_percent: f64,
+    /// Saved split-pane coordinates. They are document view state and never
+    /// affect rendering or export.
+    #[serde(default)]
+    pub splitter_positions: Vec<f64>,
+    /// OLE/in-place editing extent and gap in document points.
+    #[serde(default)]
+    pub fix_in_place_extent: Option<[f64; 2]>,
+    #[serde(default)]
+    pub fix_in_place_gap: Option<[f64; 2]>,
+}
+
+const fn default_one_u16() -> u16 {
+    1
+}
+
+const fn default_page_margins() -> [f64; 4] {
+    [
+        default_page_margin(),
+        default_page_margin(),
+        default_page_margin(),
+        default_page_margin(),
+    ]
+}
+
+impl Default for DocumentLayout {
+    fn default() -> Self {
+        Self {
+            drawing_space: DrawingSpace::Pages,
+            paper: PaperSize::default(),
+            width_pages: 1,
+            height_pages: 1,
+            auto_paginate: true,
+            page_origin: None,
+            margins: default_page_margins(),
+            page_overlap: 0.0,
+            print_trim_marks: false,
+            header: String::new(),
+            header_position: default_header_position(),
+            footer: String::new(),
+            footer_position: default_footer_position(),
+            magnification_percent: default_magnification_percent(),
+            splitter_positions: Vec::new(),
+            fix_in_place_extent: None,
+            fix_in_place_gap: None,
+        }
+    }
+}
+
+impl DocumentLayout {
+    pub fn validate(&self) -> Result<(), String> {
+        if !self.paper.width.is_finite() || self.paper.width <= 0.0 {
+            return Err("document paper width must be a positive finite value".to_string());
+        }
+        if !self.paper.height.is_finite() || self.paper.height <= 0.0 {
+            return Err("document paper height must be a positive finite value".to_string());
+        }
+        if self.width_pages == 0 || self.height_pages == 0 {
+            return Err("document page counts must be at least one".to_string());
+        }
+        if self
+            .page_origin
+            .is_some_and(|origin| origin.iter().any(|coordinate| !coordinate.is_finite()))
+        {
+            return Err("document page origin must contain finite coordinates".to_string());
+        }
+        if self.width_pages > 256 || self.height_pages > 256 {
+            return Err("document page counts cannot exceed 256 in either direction".to_string());
+        }
+        if self
+            .margins
+            .iter()
+            .any(|value| !value.is_finite() || *value < 0.0)
+        {
+            return Err("document margins must be finite and non-negative".to_string());
+        }
+        if self.margins[1] + self.margins[3] >= self.paper.width
+            || self.margins[0] + self.margins[2] >= self.paper.height
+        {
+            return Err("document margins must leave a positive printable area".to_string());
+        }
+        if !self.page_overlap.is_finite()
+            || self.page_overlap < 0.0
+            || self.page_overlap >= self.paper.width.min(self.paper.height)
+        {
+            return Err(
+                "poster page overlap must be finite, non-negative, and smaller than the paper"
+                    .to_string(),
+            );
+        }
+        for (name, value) in [
+            ("header position", self.header_position),
+            ("footer position", self.footer_position),
+        ] {
+            if !value.is_finite() || value < 0.0 {
+                return Err(format!("document {name} must be finite and non-negative"));
+            }
+        }
+        if !self.magnification_percent.is_finite()
+            || !(1.0..=999.0).contains(&self.magnification_percent)
+        {
+            return Err("document magnification must be between 1% and 999%".to_string());
+        }
+        if self
+            .splitter_positions
+            .iter()
+            .any(|value| !value.is_finite() || *value < 0.0)
+        {
+            return Err("document splitter positions must be finite and non-negative".to_string());
+        }
+        for (name, value) in [
+            ("in-place extent", self.fix_in_place_extent),
+            ("in-place gap", self.fix_in_place_gap),
+        ] {
+            if value.is_some_and(|pair| {
+                pair.iter()
+                    .any(|coordinate| !coordinate.is_finite() || *coordinate < 0.0)
+            }) {
+                return Err(format!(
+                    "document {name} coordinates must be finite and non-negative"
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn total_width(&self) -> f64 {
+        match self.drawing_space {
+            DrawingSpace::Pages => self.paper.width * f64::from(self.width_pages),
+            DrawingSpace::Poster => {
+                self.paper.width * f64::from(self.width_pages)
+                    - self.page_overlap * f64::from(self.width_pages.saturating_sub(1))
+            }
+        }
+    }
+
+    pub fn total_height(&self) -> f64 {
+        match self.drawing_space {
+            DrawingSpace::Pages => self.paper.height * f64::from(self.height_pages),
+            DrawingSpace::Poster => {
+                self.paper.height * f64::from(self.height_pages)
+                    - self.page_overlap * f64::from(self.height_pages.saturating_sub(1))
+            }
+        }
+    }
+
+    pub fn resolve(&self, content_bounds: Option<[f64; 4]>) -> ResolvedDocumentLayout {
+        let Some([min_x, min_y, max_x, max_y]) = content_bounds else {
+            let anchor_origin = self.page_origin.unwrap_or([0.0, 0.0]);
+            return ResolvedDocumentLayout {
+                origin: anchor_origin,
+                anchor_origin,
+                width_pages: self.width_pages,
+                height_pages: self.height_pages,
+                prepended_pages: [0, 0],
+                total_width: resolved_page_span(
+                    self.paper.width,
+                    self.page_overlap,
+                    self.width_pages,
+                    self.drawing_space,
+                ),
+                total_height: resolved_page_span(
+                    self.paper.height,
+                    self.page_overlap,
+                    self.height_pages,
+                    self.drawing_space,
+                ),
+            };
+        };
+        let content_width = (max_x - min_x).max(0.0);
+        let content_height = (max_y - min_y).max(0.0);
+        let centered_width_pages = if self.auto_paginate {
+            page_count_for_span(
+                content_width,
+                self.paper.width,
+                self.page_overlap,
+                self.drawing_space,
+            )
+            .max(self.width_pages)
+        } else {
+            self.width_pages
+        };
+        let centered_height_pages = if self.auto_paginate {
+            page_count_for_span(
+                content_height,
+                self.paper.height,
+                self.page_overlap,
+                self.drawing_space,
+            )
+            .max(self.height_pages)
+        } else {
+            self.height_pages
+        };
+        let centered_total_width = resolved_page_span(
+            self.paper.width,
+            self.page_overlap,
+            centered_width_pages,
+            self.drawing_space,
+        );
+        let centered_total_height = resolved_page_span(
+            self.paper.height,
+            self.page_overlap,
+            centered_height_pages,
+            self.drawing_space,
+        );
+        let centered_origin = [
+            min_x - (centered_total_width - content_width) * 0.5,
+            min_y - (centered_total_height - content_height) * 0.5,
+        ];
+        let anchor_origin = self.page_origin.unwrap_or(centered_origin);
+        let (origin_x, width_pages, prepend_x) = resolve_pagination_axis(PaginationAxisRequest {
+            content_min: min_x,
+            content_max: max_x,
+            anchor_origin: anchor_origin[0],
+            minimum_pages: self.width_pages,
+            paper_extent: self.paper.width,
+            overlap: self.page_overlap,
+            drawing_space: self.drawing_space,
+            auto_paginate: self.auto_paginate,
+        });
+        let (origin_y, height_pages, prepend_y) = resolve_pagination_axis(PaginationAxisRequest {
+            content_min: min_y,
+            content_max: max_y,
+            anchor_origin: anchor_origin[1],
+            minimum_pages: self.height_pages,
+            paper_extent: self.paper.height,
+            overlap: self.page_overlap,
+            drawing_space: self.drawing_space,
+            auto_paginate: self.auto_paginate,
+        });
+        ResolvedDocumentLayout {
+            origin: [origin_x, origin_y],
+            anchor_origin,
+            width_pages,
+            height_pages,
+            prepended_pages: [prepend_x, prepend_y],
+            total_width: resolved_page_span(
+                self.paper.width,
+                self.page_overlap,
+                width_pages,
+                self.drawing_space,
+            ),
+            total_height: resolved_page_span(
+                self.paper.height,
+                self.page_overlap,
+                height_pages,
+                self.drawing_space,
+            ),
+        }
+    }
+}
+
+struct PaginationAxisRequest {
+    content_min: f64,
+    content_max: f64,
+    anchor_origin: f64,
+    minimum_pages: u16,
+    paper_extent: f64,
+    overlap: f64,
+    drawing_space: DrawingSpace,
+    auto_paginate: bool,
+}
+
+fn resolve_pagination_axis(request: PaginationAxisRequest) -> (f64, u16, u16) {
+    let PaginationAxisRequest {
+        content_min,
+        content_max,
+        anchor_origin,
+        minimum_pages,
+        paper_extent,
+        overlap,
+        drawing_space,
+        auto_paginate,
+    } = request;
+    if !auto_paginate {
+        return (anchor_origin, minimum_pages, 0);
+    }
+    let step = match drawing_space {
+        DrawingSpace::Pages => paper_extent,
+        DrawingSpace::Poster => (paper_extent - overlap).max(EPSILON),
+    };
+    let prepend = if content_min < anchor_origin - EPSILON {
+        ((anchor_origin - content_min) / step)
+            .ceil()
+            .clamp(0.0, 255.0) as u16
+    } else {
+        0
+    };
+    let base_end =
+        anchor_origin + resolved_page_span(paper_extent, overlap, minimum_pages, drawing_space);
+    let append = if content_max > base_end + EPSILON {
+        ((content_max - base_end) / step).ceil().clamp(0.0, 255.0) as u16
+    } else {
+        0
+    };
+    let page_count = minimum_pages
+        .saturating_add(prepend)
+        .saturating_add(append)
+        .clamp(1, 256);
+    let retained_prepend = prepend.min(page_count.saturating_sub(minimum_pages));
+    (
+        anchor_origin - f64::from(retained_prepend) * step,
+        page_count,
+        retained_prepend,
+    )
+}
+
+fn resolved_page_span(
+    paper_extent: f64,
+    overlap: f64,
+    count: u16,
+    drawing_space: DrawingSpace,
+) -> f64 {
+    match drawing_space {
+        DrawingSpace::Pages => paper_extent * f64::from(count),
+        DrawingSpace::Poster => {
+            paper_extent * f64::from(count) - overlap * f64::from(count.saturating_sub(1))
+        }
+    }
+}
+
+fn page_count_for_span(
+    span: f64,
+    paper_extent: f64,
+    overlap: f64,
+    drawing_space: DrawingSpace,
+) -> u16 {
+    if span <= paper_extent {
+        return 1;
+    }
+    let step = match drawing_space {
+        DrawingSpace::Pages => paper_extent,
+        DrawingSpace::Poster => (paper_extent - overlap).max(EPSILON),
+    };
+    let count = 1.0 + ((span - paper_extent) / step).ceil();
+    count.clamp(1.0, 256.0) as u16
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedDocumentLayout {
+    pub origin: [f64; 2],
+    pub anchor_origin: [f64; 2],
+    pub width_pages: u16,
+    pub height_pages: u16,
+    pub prepended_pages: [u16; 2],
+    pub total_width: f64,
+    pub total_height: f64,
 }
 
 fn default_document_style_preset() -> String {
@@ -3074,6 +3573,8 @@ pub struct ObjectPayload {
     pub gel_electrophoresis: Option<crate::GelElectrophoresisData>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plasmid_map: Option<crate::PlasmidMapData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bio_shape: Option<crate::BioShapeData>,
     #[serde(flatten, default)]
     pub extra: BTreeMap<String, Value>,
 }

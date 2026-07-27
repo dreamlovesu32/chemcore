@@ -1,6 +1,8 @@
 use super::*;
 use crate::angle_between;
 
+#[path = "graphics/bio_shapes.rs"]
+mod bio_shapes;
 #[path = "graphics/brackets.rs"]
 mod brackets;
 #[path = "graphics/curves.rs"]
@@ -14,6 +16,7 @@ mod shapes;
 #[path = "graphics/tables.rs"]
 mod tables;
 
+use bio_shapes::*;
 use brackets::*;
 use orbitals::*;
 use plasmids::*;

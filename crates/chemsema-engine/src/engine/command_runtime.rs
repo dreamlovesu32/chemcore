@@ -192,6 +192,37 @@ impl Engine {
                 engine.state.tool = previous_tool;
                 changed
             }),
+            EditorCommand::AddBioShape {
+                kind,
+                fill_type,
+                line_type,
+                color,
+                begin,
+                end,
+            } => self.with_command(command, |engine| {
+                let previous_tool = engine.state.tool.clone();
+                engine.state.tool.active_tool = Tool::BioDraw;
+                engine.state.tool.bio_draw_kind = kind.into();
+                engine.state.tool.bio_shape_fill_type = fill_type;
+                engine.state.tool.bio_shape_line_type = line_type;
+                engine.state.tool.shape_color = color;
+                let start = point_from_command(&begin);
+                let current = point_from_command(&end);
+                let drag = ShapeDragState {
+                    pointer_start: start,
+                    start,
+                    current,
+                    anchor: ShapeDrawAnchor {
+                        kind: ShapeDrawAnchorKind::Free,
+                        point: start,
+                        bounds: None,
+                    },
+                    has_dragged: start.distance(current) > crate::EPSILON,
+                };
+                let changed = engine.insert_shape_from_drag(&drag);
+                engine.state.tool = previous_tool;
+                changed
+            }),
             EditorCommand::AddTable {
                 begin,
                 end,
@@ -607,6 +638,7 @@ impl Engine {
             | EditorCommand::AddBond { .. }
             | EditorCommand::AddArrow { .. }
             | EditorCommand::AddShape { .. }
+            | EditorCommand::AddBioShape { .. }
             | EditorCommand::AddTable { .. }
             | EditorCommand::AddBracket { .. }
             | EditorCommand::AddSymbol { .. }
@@ -650,6 +682,21 @@ impl Engine {
                     self.coalesce_plasmid_insert_history(&object_id);
                 }
                 changed
+            }
+            EditorCommand::SetBioShape { object_id, data } => {
+                data.validate()?;
+                self.with_command(command.clone(), |engine| {
+                    engine.set_bio_shape_direct(&object_id, data)
+                })
+            }
+            EditorCommand::InitializeDocumentLayout => {
+                self.with_command(command.clone(), Engine::initialize_document_layout_direct)
+            }
+            EditorCommand::SetDocumentLayout { layout } => {
+                layout.validate()?;
+                self.with_command(command.clone(), |engine| {
+                    engine.set_document_layout_direct(layout)
+                })
             }
             EditorCommand::SetTextRuns { object_id, content } => self
                 .with_command(command.clone(), |engine| {

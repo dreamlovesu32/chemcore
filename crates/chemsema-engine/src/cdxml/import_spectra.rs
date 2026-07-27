@@ -92,6 +92,7 @@ pub(in crate::cdxml) fn append_spectrum_objects(
             stoichiometry_grid: None,
             gel_electrophoresis: None,
             plasmid_map: None,
+            bio_shape: None,
             extra: BTreeMap::new(),
         };
         payload.spectrum = Some(spectrum);

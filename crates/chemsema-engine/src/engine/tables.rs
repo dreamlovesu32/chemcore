@@ -577,6 +577,7 @@ impl Engine {
                 stoichiometry_grid: None,
                 gel_electrophoresis: None,
                 plasmid_map: None,
+                bio_shape: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),

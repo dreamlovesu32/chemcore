@@ -17,6 +17,7 @@ const exactTieOnly = guiCase === "exact-tie-double";
 const selectionSummaryOnly = guiCase === "selection-summary";
 const chemicalPropertyOnly = guiCase === "chemical-property";
 const annotationOnly = guiCase === "annotation";
+const documentLayoutOnly = guiCase === "document-layout";
 
 function waitForPort(timeoutMs = 5000) {
   const deadline = Date.now() + timeoutMs;
@@ -262,6 +263,72 @@ async function verifyToolbarAndCursor(page) {
       `${item.tool} cursor styles were not applied: ${JSON.stringify(state)}`,
     );
   }
+}
+
+async function verifyDocumentLayoutControls(page) {
+  const dimensions = await page.evaluate(() => {
+    const footer = document.querySelector(".selection-status-bar")?.getBoundingClientRect();
+    const template = document.querySelector("#template-panel-mode-button")?.getBoundingClientRect();
+    const paper = document.querySelector("#paper-layout-mode-button")?.getBoundingClientRect();
+    return {
+      footerHeight: footer?.height,
+      template: template && [template.width, template.height],
+      paper: paper && [paper.width, paper.height],
+    };
+  });
+  assert.equal(dimensions.footerHeight, 40, `document footer height drifted: ${JSON.stringify(dimensions)}`);
+  assert.deepEqual(dimensions.template, [32, 32]);
+  assert.deepEqual(dimensions.paper, [32, 32]);
+
+  const paperButton = page.locator("#paper-layout-mode-button");
+  await paperButton.click();
+  await page.waitForFunction(() => (
+    document.querySelector("#paper-layout-mode-button")?.getAttribute("aria-pressed") === "true"
+    && document.querySelector('[data-layer="paper-layout"]')
+  ));
+  const pageState = await page.evaluate(() => ({
+    pageCount: document.querySelectorAll('[data-layer="paper-layout"] [data-page-number]').length,
+    layout: JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson()).document.layout,
+  }));
+  assert(pageState.pageCount >= 1, `paper view did not draw pages: ${JSON.stringify(pageState)}`);
+  assert(Array.isArray(pageState.layout.pageOrigin), `paper view did not establish a page anchor: ${JSON.stringify(pageState.layout)}`);
+
+  await paperButton.click({ button: "right" });
+  await page.waitForSelector(".document-layout-quick-menu");
+  const quickMenu = (await page.locator(".document-layout-quick-menu").textContent()) || "";
+  assert(quickMenu.includes("A4") && quickMenu.includes("Document Layout"), `paper quick menu is incomplete: ${quickMenu}`);
+  await page.getByRole("menuitem", { name: /Document Layout/ }).click();
+  await page.waitForSelector(".document-layout-dialog");
+  for (const field of [
+    "paperWidth",
+    "paperHeight",
+    "widthPages",
+    "heightPages",
+    "pageOriginX",
+    "pageOriginY",
+    "marginTop",
+    "marginRight",
+    "marginBottom",
+    "marginLeft",
+    "pageOverlap",
+  ]) {
+    assert.equal(await page.locator(`[name="${field}"]`).count(), 1, `layout dialog is missing ${field}`);
+  }
+  await page.locator('[data-layout-tab="header-footer"]').click();
+  assert.equal(await page.locator('[name="header"]').count(), 1);
+  assert.equal(await page.locator('[name="footer"]').count(), 1);
+  await page.locator('[data-layout-tab="view"]').click();
+  assert.equal(await page.locator('[name="magnificationPercent"]').count(), 1);
+  assert.equal(await page.locator('[name="splitterPositions"]').count(), 1);
+  await page.locator('[data-layout-tab="embedding"]').click();
+  assert.equal(await page.locator('[name="fixInPlaceExtentX"]').count(), 1);
+  assert.equal(await page.locator('[name="fixInPlaceGapY"]').count(), 1);
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await paperButton.click();
+  await page.waitForFunction(() => (
+    document.querySelector("#paper-layout-mode-button")?.getAttribute("aria-pressed") === "false"
+    && !document.querySelector('[data-layer="paper-layout"]')
+  ));
 }
 
 async function firstBondScreenGeometry(page) {
@@ -965,7 +1032,7 @@ try {
   await installBrowserMocks(context);
   const errors = [];
 
-  if (!selectionSummaryOnly && !chemicalPropertyOnly && !annotationOnly) {
+  if (!selectionSummaryOnly && !chemicalPropertyOnly && !annotationOnly && !documentLayoutOnly) {
     const fixturePath = await createOpenFixture(context, errors);
     await verifyOpenButton(context, errors, fixturePath);
 
@@ -985,6 +1052,10 @@ try {
   } else if (annotationOnly) {
     const page = await openViewer(context, errors);
     await verifyAnnotationDialog(page);
+    await page.close();
+  } else if (documentLayoutOnly) {
+    const page = await openViewer(context, errors);
+    await verifyDocumentLayoutControls(page);
     await page.close();
   } else if (!exactTieOnly) {
     const page = await openViewer(context, errors);
@@ -1030,6 +1101,8 @@ try {
       ? "[gui-regression] ok (ChemicalProperty context menu and kernel dialog)"
       : annotationOnly
         ? "[gui-regression] ok (Geometry/Constraint context menu and kernel dialog)"
+      : documentLayoutOnly
+        ? "[gui-regression] ok (40 px status bar and document layout controls)"
     : exactTieOnly
       ? "[gui-regression] ok (exact-tie double bond)"
       : "[gui-regression] ok (open, save-as ccjs/cdxml/svg, ctrl+s ccjz, copy/paste/cut, image drop/paste/context-menu, cross-tab structured clipboard, detached desktop tab, toolbar icons, cursors, selection overlay, delete tool, exact-tie double bond, zoom, style, annotation dialog)");

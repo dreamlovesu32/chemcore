@@ -329,6 +329,7 @@ impl Engine {
             EditorCommand::AddArrow { .. }
             | EditorCommand::ApplyArrowStyle { .. }
             | EditorCommand::AddShape { .. }
+            | EditorCommand::AddBioShape { .. }
             | EditorCommand::AddTable { .. }
             | EditorCommand::EditTable { .. }
             | EditorCommand::SetTableBorders { .. }

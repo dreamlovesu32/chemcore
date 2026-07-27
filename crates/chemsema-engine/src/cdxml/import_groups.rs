@@ -159,6 +159,7 @@ pub(super) fn cdxml_group_object(
             stoichiometry_grid: None,
             gel_electrophoresis: None,
             plasmid_map: None,
+            bio_shape: None,
             extra: BTreeMap::new(),
         },
         children,

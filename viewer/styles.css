@@ -14,7 +14,7 @@
   --canvas: #ffffff;
   --chrome-font-size: 16px;
   --editor-topbar-height: 94px;
-  --selection-status-bar-height: 26px;
+  --selection-status-bar-height: 40px;
   --toolbar-primary-height: 52px;
   --toolbar-secondary-height: 42px;
   --toolbar-row-padding-y: 3px;
@@ -622,21 +622,21 @@ body.native-frame-shell .document-tab-close svg {
   overflow: visible;
 }
 
-.editor-topbar svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) path,
-.editor-topbar svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) rect,
-.editor-topbar svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) circle,
-.tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) path,
-.tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) rect,
-.tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) circle,
-.tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) polygon,
-.quick-palette svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) path,
-.quick-palette svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) rect,
-.quick-palette svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) circle,
-.quick-palette svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) polygon,
-.toolbar-row-secondary svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) path,
-.toolbar-row-secondary svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) rect,
-.toolbar-row-secondary svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) circle,
-.toolbar-row-secondary svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon) polygon {
+.editor-topbar svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) path,
+.editor-topbar svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) rect,
+.editor-topbar svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) circle,
+.tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) path,
+.tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) rect,
+.tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) circle,
+.tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) polygon,
+.quick-palette svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) path,
+.quick-palette svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) rect,
+.quick-palette svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) circle,
+.quick-palette svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) polygon,
+.toolbar-row-secondary svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) path,
+.toolbar-row-secondary svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) rect,
+.toolbar-row-secondary svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) circle,
+.toolbar-row-secondary svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon) polygon {
   fill: none;
   stroke: currentColor;
   stroke-width: var(--chrome-svg-stroke-width);
@@ -1023,11 +1023,17 @@ body.native-frame-shell .document-tab-close svg {
   font-size: var(--chrome-font-size);
   user-select: none;
   z-index: 4;
+  overflow: hidden;
 }
 
 .tool-button {
   width: var(--tool-button-width);
   height: var(--tool-button-height);
+  flex: 0 0 auto;
+}
+
+.tool-button[hidden] {
+  display: none;
 }
 
 .tool-button svg {
@@ -1052,6 +1058,34 @@ body.native-frame-shell .document-tab-close svg {
   align-items: flex-end;
   gap: 6px;
   pointer-events: none;
+}
+
+.tool-rail-divider {
+  width: calc(var(--tool-button-width) - 12px);
+  height: 1px;
+  flex: 0 0 auto;
+  background: var(--line);
+}
+
+.tool-rail-switch {
+  width: var(--tool-button-width);
+  height: var(--tool-button-height);
+  margin-top: auto;
+  flex: 0 0 auto;
+  border-top-color: var(--line-strong);
+  background: color-mix(in srgb, var(--chrome) 82%, var(--surface));
+}
+
+.tool-rail-switch:hover,
+.tool-rail-switch:focus-visible {
+  border-color: #8fb0f4;
+  background: var(--active-soft);
+  color: var(--active);
+}
+
+.tool-rail-switch[aria-pressed="true"] {
+  color: #24734c;
+  background: color-mix(in srgb, #47b881 15%, var(--surface));
 }
 
 .quick-palette-controls {
@@ -1657,7 +1691,8 @@ body.native-frame-shell .document-tab-close svg {
   align-items: center;
   min-width: 0;
   min-height: 0;
-  padding: 0 10px;
+  gap: 12px;
+  padding: 0 6px 0 12px;
   background: var(--chrome);
   color: var(--ink);
   font-size: 10pt;
@@ -1667,6 +1702,7 @@ body.native-frame-shell .document-tab-close svg {
 .selection-chemistry-summary {
   display: flex;
   align-items: center;
+  flex: 1 1 auto;
   min-width: 0;
   max-width: 100%;
   gap: 18px;
@@ -2142,6 +2178,51 @@ body.native-frame-shell .document-tab-close svg {
   gap: 4px;
   min-width: 0;
   white-space: nowrap;
+  flex: 1 1 auto;
+}
+
+.document-mode-controls {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  flex: 0 0 auto;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.document-mode-button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #4f5967;
+}
+
+.document-mode-button:hover {
+  border-color: var(--line);
+  background: var(--hover);
+}
+
+.document-mode-button[aria-pressed="true"] {
+  border-color: #8eb6e0;
+  background: #dceeff;
+  color: #155a96;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+
+.document-mode-button svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.45;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
 }
 
 .table-borders-dialog .numeric-dialog-field,
@@ -2189,6 +2270,160 @@ body.native-frame-shell .document-tab-close svg {
   width: min(1100px, calc(100vw - 48px));
   max-height: min(820px, calc(100vh - 48px));
   overflow: auto;
+}
+
+.bio-shape-dialog .numeric-dialog-panel {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.bio-shape-dialog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.document-layout-quick-menu {
+  position: fixed;
+  z-index: 110;
+  width: 220px;
+  padding: 5px;
+  border: 1px solid #b8c0ca;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(20, 26, 34, 0.2);
+  font-size: 13px;
+}
+
+.document-layout-quick-menu button {
+  width: 100%;
+  height: 28px;
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.document-layout-quick-menu button:hover {
+  background: var(--active-soft);
+}
+
+.document-layout-menu-check {
+  color: var(--active);
+  font-weight: 700;
+}
+
+.document-layout-menu-divider {
+  height: 1px;
+  margin: 4px 3px;
+  background: var(--line);
+}
+
+.document-layout-dialog .numeric-dialog-panel {
+  width: min(760px, calc(100vw - 40px));
+  max-height: min(720px, calc(100vh - 40px));
+  overflow: auto;
+}
+
+.document-layout-tabs {
+  display: flex;
+  gap: 2px;
+  margin: 0 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.document-layout-tabs button {
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.document-layout-tabs button.is-active {
+  border-bottom-color: var(--active);
+  color: var(--ink);
+}
+
+.document-layout-page {
+  display: none;
+  min-height: 260px;
+}
+
+.document-layout-page.is-active {
+  display: block;
+}
+
+.document-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 20px;
+}
+
+.document-layout-grid .numeric-dialog-field {
+  grid-template-columns: minmax(120px, 1fr) 112px auto;
+}
+
+.document-layout-grid .numeric-dialog-field input,
+.document-layout-grid .numeric-dialog-field select {
+  width: 112px;
+}
+
+.document-layout-wide-field {
+  grid-column: 1 / -1;
+}
+
+.document-layout-wide-field.numeric-dialog-field {
+  grid-template-columns: 130px minmax(260px, 1fr) auto;
+}
+
+.document-layout-wide-field.numeric-dialog-field input {
+  width: 100%;
+}
+
+.document-layout-checkbox {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.document-layout-checkbox input {
+  width: 16px;
+  height: 16px;
+}
+
+.document-layout-resolved,
+.document-layout-hint,
+.document-layout-token-help {
+  margin: 16px 0 0;
+  padding: 9px 10px;
+  border-radius: 3px;
+  background: var(--chrome);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.document-layout-token-help code {
+  color: var(--ink);
+}
+
+.document-layout-dialog .numeric-dialog-error {
+  min-height: 18px;
+  margin-top: 8px;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.bio-shape-dialog-parameters {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--chrome-border);
 }
 
 .plasmid-map-dialog-section {

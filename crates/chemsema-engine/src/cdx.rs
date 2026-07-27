@@ -909,6 +909,7 @@ enum PropertyKind {
     BitFlags(&'static [(i16, &'static str)]),
 }
 
+const DRAWING_SPACE: &[(i16, &str)] = &[(0, "pages"), (1, "poster")];
 const BOND_DISPLAY: &[(i16, &str)] = &[
     (0, "Solid"),
     (1, "Dash"),
@@ -1136,6 +1137,30 @@ const ARROW_HEAD_POSITION: &[(i16, &str)] = &[
 ];
 const NO_GO: &[(i16, &str)] = &[(0, "None"), (1, "None"), (2, "Cross"), (3, "Hash")];
 const FILL_TYPE: &[(i16, &str)] = &[(0, "Unspecified"), (1, "None"), (2, "Solid"), (3, "Shaded")];
+const BIO_SHAPE_TYPE: &[(i16, &str)] = &[
+    (0, "Undefined"),
+    (1, "1SubstrateEnzyme"),
+    (2, "2SubstrateEnzyme"),
+    (3, "Receptor"),
+    (4, "GProteinAlpha"),
+    (5, "GProteinBeta"),
+    (6, "GProteinGamma"),
+    (7, "Immunoglobin"),
+    (8, "IonChannel"),
+    (9, "EndoplasmicReticulum"),
+    (10, "Golgi"),
+    (11, "MembraneLine"),
+    (12, "MembraneArc"),
+    (13, "MembraneEllipse"),
+    (14, "MembraneMicelle"),
+    (15, "DNA"),
+    (16, "HelixProtein"),
+    (17, "Mitochondrion"),
+    (18, "Cloud"),
+    (19, "tRNA"),
+    (20, "RibosomeA"),
+    (21, "RibosomeB"),
+];
 const ORBITAL_TYPE: &[(i16, &str)] = &[
     (0, "s"),
     (1, "oval"),

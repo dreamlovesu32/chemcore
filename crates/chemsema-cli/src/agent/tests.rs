@@ -420,6 +420,7 @@ fn document_diff_reports_creation_deletion_and_unchanged_documents() {
             stoichiometry_grid: None,
             gel_electrophoresis: None,
             plasmid_map: None,
+            bio_shape: None,
             extra: BTreeMap::new(),
         },
         children: Vec::new(),

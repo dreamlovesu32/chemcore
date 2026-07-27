@@ -1285,6 +1285,7 @@ mod tests {
                 stoichiometry_grid: None,
                 gel_electrophoresis: None,
                 plasmid_map: None,
+                bio_shape: None,
                 extra,
             },
             children: Vec::new(),

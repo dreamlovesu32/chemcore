@@ -13,7 +13,12 @@ npm run harmony:build
 
 `harmony:sync-viewer` copies `viewer/` into `entry/src/main/resources/rawfile/chemsema/`. The copied files are generated app assets and are intentionally ignored by Git.
 
-`build-profile.json5` is local-only because DevEco Studio writes debug signing certificate paths and passwords into it. If the file is missing, the command-line wrapper copies `build-profile.example.json5` before running hvigor. Use DevEco Studio automatic signing to regenerate a signed local profile when installing to a device or emulator.
+The project-level `build-profile.json5` is local-only because DevEco Studio writes
+debug signing certificate paths and passwords into it. The checked-in
+`entry/build-profile.json5` contains only the module build definition and must remain
+versioned. The command-line wrapper uses `build-profile.example.json5` whenever local
+signing material is unavailable. Use DevEco Studio automatic signing to regenerate a
+signed local project profile when installing to a device or emulator.
 
 ## Scope
 

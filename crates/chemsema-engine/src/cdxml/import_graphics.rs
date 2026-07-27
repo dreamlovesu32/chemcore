@@ -126,6 +126,7 @@ pub(in crate::cdxml) fn append_shape_objects(
                     stoichiometry_grid: None,
                     gel_electrophoresis: None,
                     plasmid_map: None,
+                    bio_shape: None,
                     extra,
                 },
             )
@@ -164,6 +165,7 @@ pub(in crate::cdxml) fn append_shape_objects(
                     stoichiometry_grid: None,
                     gel_electrophoresis: None,
                     plasmid_map: None,
+                    bio_shape: None,
                     extra,
                 },
             )
@@ -316,12 +318,229 @@ pub(in crate::cdxml) fn append_orbital_shape_objects(
                 stoichiometry_grid: None,
                 gel_electrophoresis: None,
                 plasmid_map: None,
+                bio_shape: None,
                 extra,
             },
             children: Vec::new(),
         });
         index += 1;
     }
+}
+
+pub(in crate::cdxml) fn append_bio_shape_objects(
+    root: &XmlNode,
+    objects: &mut Vec<SceneObject>,
+    styles: &mut BTreeMap<String, Value>,
+    defaults: CdxmlDefaults,
+    colors: &CdxmlColorTable,
+) {
+    let mut index = 1;
+    for node in descendants(root) {
+        if !node.is("bioshape") || node.attr("SupersededBy").is_some() {
+            continue;
+        }
+        let Some(kind) = node
+            .attr("BioShapeType")
+            .and_then(crate::BioShapeKind::from_cdxml_name)
+        else {
+            continue;
+        };
+        let Some(center) = parse_xyz3(node.attr("xyz")) else {
+            continue;
+        };
+        let Some(major_world) = parse_xyz3(node.attr("MajorAxisEnd3D")) else {
+            continue;
+        };
+        let Some(minor_world) = parse_xyz3(node.attr("MinorAxisEnd3D")) else {
+            continue;
+        };
+        let major_dx = major_world[0] - center[0];
+        let major_dy = major_world[1] - center[1];
+        let major_radius = major_dx.hypot(major_dy);
+        if major_radius <= crate::EPSILON {
+            continue;
+        }
+        let rotation = major_dy.atan2(major_dx).to_degrees();
+        let angle = -rotation.to_radians();
+        let minor_dx = minor_world[0] - center[0];
+        let minor_dy = minor_world[1] - center[1];
+        let minor_local = [
+            minor_dx * angle.cos() - minor_dy * angle.sin(),
+            minor_dx * angle.sin() + minor_dy * angle.cos(),
+        ];
+        let minor_extent_x = minor_local[0].abs();
+        let minor_extent_y = minor_local[1].abs().max(crate::EPSILON);
+        let color = colors.resolve(node.attr("color"));
+        let fill_type = match node.attr("FillType") {
+            Some("Unspecified") => crate::BioShapeFillType::Unspecified,
+            Some("None") => crate::BioShapeFillType::None,
+            Some("Solid") => crate::BioShapeFillType::Solid,
+            _ => crate::BioShapeFillType::Shaded,
+        };
+        let line_type = match node.attr("LineType") {
+            Some("Dashed") => crate::BioShapeLineType::Dashed,
+            Some("Bold") => crate::BioShapeLineType::Bold,
+            Some("Wavy") => crate::BioShapeLineType::Wavy,
+            _ => crate::BioShapeLineType::Solid,
+        };
+        let style_id = format!("style_shape_bio_{index:03}");
+        styles.insert(
+            style_id.clone(),
+            json!({
+                "kind": "bio-shape",
+                "fill": if matches!(fill_type, crate::BioShapeFillType::None | crate::BioShapeFillType::Unspecified) {
+                    Value::Null
+                } else {
+                    json!(color.clone())
+                },
+                "stroke": color.clone(),
+                "strokeWidth": parse_f64(node.attr("LineWidth")).unwrap_or(defaults.line_width),
+                "dashArray": if line_type == crate::BioShapeLineType::Dashed {
+                    json!([parse_f64(node.attr("HashSpacing")).unwrap_or(defaults.hash_spacing)])
+                } else {
+                    json!([])
+                },
+                "shaded": fill_type == crate::BioShapeFillType::Shaded,
+            }),
+        );
+        let mut extra = BTreeMap::new();
+        extra.insert("kind".to_string(), json!("bioShape"));
+        let parameters = crate::BioShapeParameters {
+            cylinder_distance: parse_f64(node.attr("CylinderDistance")),
+            cylinder_height: parse_f64(node.attr("CylinderHeight")),
+            cylinder_width: parse_f64(node.attr("CylinderWidth")),
+            dna_wave_height: parse_f64(node.attr("DNAWaveHeight")),
+            dna_wave_length: parse_f64(node.attr("DNAWaveLength")),
+            dna_wave_offset: parse_f64(node.attr("DNAWaveOffset")),
+            // ChemDraw normalizes DNA ribbons to at least one tenth of the
+            // document bond length when the document is opened.
+            dna_wave_width: parse_f64(node.attr("DNAWaveWidth"))
+                .map(|value| value.max(defaults.bond_length * 0.1)),
+            enzyme_height: parse_f64(node.attr("EnzymeHeight")),
+            enzyme_receptor_size: parse_f64(node.attr("EnzymeReceptorSize")),
+            enzyme_width: parse_f64(node.attr("EnzymeWidth")),
+            golgi_height: parse_f64(node.attr("GolgiHeight")),
+            golgi_length: parse_f64(node.attr("GolgiLength")),
+            golgi_width: parse_f64(node.attr("GolgiWidth")),
+            gprotein_lower_height: parse_f64(node.attr("GproteinLowerHeight")),
+            gprotein_upper_height: parse_f64(node.attr("GproteinUpperHeight")),
+            helix_protein_extra: parse_f64(node.attr("HelixProteinExtra")),
+            immunoglobulin_height: parse_f64(node.attr("ImmunoglobinHeight")),
+            immunoglobulin_width: parse_f64(node.attr("ImmunoglobinWidth")),
+            membrane_element_size: parse_f64(node.attr("MembraneElementSize")),
+            membrane_end_angle: parse_f64(node.attr("MembraneEndAngle")),
+            membrane_major_axis_size: parse_f64(node.attr("MembraneMajorAxisSize")),
+            membrane_minor_axis_size: parse_f64(node.attr("MembraneMinorAxisSize")),
+            membrane_start_angle: parse_f64(node.attr("MembraneStartAngle")),
+            neck_height: parse_f64(node.attr("NeckHeight")),
+            neck_width: parse_f64(node.attr("NeckWidth")),
+            pipe_width: parse_f64(node.attr("PipeWidth")),
+        };
+        let data = crate::BioShapeData {
+            kind,
+            center: [0.0, 0.0, center[2]],
+            major_axis_end: [major_radius, 0.0, major_world[2]],
+            minor_axis_end: [minor_local[0], minor_local[1], minor_world[2]],
+            fill_type,
+            line_type,
+            color,
+            line_width: parse_f64(node.attr("LineWidth")).unwrap_or(defaults.line_width),
+            bold_width: parse_f64(node.attr("BoldWidth")).unwrap_or(defaults.bold_width),
+            margin_width: parse_f64(node.attr("MarginWidth")).unwrap_or(defaults.margin_width),
+            hash_spacing: parse_f64(node.attr("HashSpacing")).unwrap_or(defaults.hash_spacing),
+            fade_percent: parse_scaled_100(node.attr("FadePercent")).unwrap_or(10.0),
+            alpha: parse_scaled_100(node.attr("alpha")),
+            parameters,
+        };
+        objects.push(SceneObject {
+            id: format!("obj_shape_bio_{index:03}"),
+            object_type: "shape".to_string(),
+            name: format!("BioShape {}", kind.cdxml_name()),
+            visible: parse_yes_no(node.attr("Visible"), true),
+            locked: false,
+            z_index: parse_i32(node.attr("Z")).unwrap_or(15),
+            transform: Transform {
+                translate: [center[0], center[1]],
+                rotate: rotation,
+                scale: [1.0, 1.0],
+            },
+            style_ref: Some(style_id),
+            link_policy: Default::default(),
+            meta: json!({"source": "cdxml", "bioShapeId": node.attr("id")}),
+            payload: ObjectPayload {
+                resource_ref: None,
+                bbox: Some([
+                    -major_radius - minor_extent_x,
+                    -minor_extent_y,
+                    (major_radius + minor_extent_x) * 2.0,
+                    minor_extent_y * 2.0,
+                ]),
+                spectrum: None,
+                geometry: None,
+                constraint: None,
+                table: None,
+                stoichiometry_grid: None,
+                gel_electrophoresis: None,
+                plasmid_map: None,
+                bio_shape: Some(data),
+                extra,
+            },
+            children: Vec::new(),
+        });
+        index += 1;
+    }
+}
+
+pub(in crate::cdxml) fn validate_bio_shape_nodes(root: &XmlNode) -> Result<(), String> {
+    for node in descendants(root) {
+        if !node.is("bioshape") || node.attr("SupersededBy").is_some() {
+            continue;
+        }
+        let object_id = node.attr("id").unwrap_or("<missing id>");
+        let type_name = node
+            .attr("BioShapeType")
+            .ok_or_else(|| format!("BioShape '{object_id}' is missing BioShapeType"))?;
+        if crate::BioShapeKind::from_cdxml_name(type_name).is_none() {
+            return Err(format!(
+                "BioShape '{object_id}' uses unsupported BioShapeType '{type_name}'"
+            ));
+        }
+        if let Some(fill_type) = node.attr("FillType") {
+            if !matches!(fill_type, "Unspecified" | "None" | "Solid" | "Shaded") {
+                return Err(format!(
+                    "BioShape '{object_id}' uses unsupported FillType '{fill_type}'"
+                ));
+            }
+        }
+        if let Some(line_type) = node.attr("LineType") {
+            if !matches!(line_type, "Solid" | "Dashed" | "Bold" | "Wavy") {
+                return Err(format!(
+                    "BioShape '{object_id}' uses unsupported LineType '{line_type}'"
+                ));
+            }
+        }
+        let center = parse_xyz3(node.attr("xyz"))
+            .ok_or_else(|| format!("BioShape '{object_id}' has invalid xyz"))?;
+        let major = parse_xyz3(node.attr("MajorAxisEnd3D"))
+            .ok_or_else(|| format!("BioShape '{object_id}' has invalid MajorAxisEnd3D"))?;
+        parse_xyz3(node.attr("MinorAxisEnd3D"))
+            .ok_or_else(|| format!("BioShape '{object_id}' has invalid MinorAxisEnd3D"))?;
+        if (major[0] - center[0]).hypot(major[1] - center[1]) <= crate::EPSILON {
+            return Err(format!(
+                "BioShape '{object_id}' has a zero-length major axis"
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn parse_xyz3(value: Option<&str>) -> Option<[f64; 3]> {
+    let mut parts = value?.split_whitespace();
+    Some([
+        parts.next()?.parse().ok()?,
+        parts.next()?.parse().ok()?,
+        parts.next().unwrap_or("0").parse().ok()?,
+    ])
 }
 
 pub(super) fn parse_orbital_axis_points(value: Option<&str>) -> Option<([f64; 2], [f64; 2])> {
@@ -513,6 +732,7 @@ pub(in crate::cdxml) fn append_table_shape_objects(
                 stoichiometry_grid: None,
                 gel_electrophoresis: None,
                 plasmid_map: None,
+                bio_shape: None,
                 extra: BTreeMap::new(),
             },
             children: Vec::new(),
@@ -824,6 +1044,7 @@ pub(in crate::cdxml) fn append_tlc_plate_shape_objects(
                 stoichiometry_grid: None,
                 gel_electrophoresis: None,
                 plasmid_map: None,
+                bio_shape: None,
                 extra,
             },
             children: Vec::new(),
@@ -999,6 +1220,7 @@ pub(in crate::cdxml) fn append_gel_electrophoresis_objects(
                 stoichiometry_grid: None,
                 gel_electrophoresis: Some(data),
                 plasmid_map: None,
+                bio_shape: None,
                 extra,
             },
             children: Vec::new(),
@@ -1178,6 +1400,7 @@ pub(in crate::cdxml) fn append_plasmid_map_objects(
                     regions,
                     markers,
                 }),
+                bio_shape: None,
                 extra,
             },
             children: Vec::new(),

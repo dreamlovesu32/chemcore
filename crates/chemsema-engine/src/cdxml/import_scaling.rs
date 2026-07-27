@@ -17,6 +17,32 @@ pub(super) fn scale_cdxml_document_for_editing(document: &mut ChemSemaDocument) 
     let factor = CDXML_EDITING_OUTPUT_SCALE;
     document.document.page.width = round2(document.document.page.width * factor);
     document.document.page.height = round2(document.document.page.height * factor);
+    let layout = &mut document.document.layout;
+    layout.paper.width = round2(layout.paper.width * factor);
+    layout.paper.height = round2(layout.paper.height * factor);
+    for margin in &mut layout.margins {
+        *margin = round2(*margin * factor);
+    }
+    layout.page_overlap = round2(layout.page_overlap * factor);
+    layout.header_position = round2(layout.header_position * factor);
+    layout.footer_position = round2(layout.footer_position * factor);
+    if let Some(origin) = &mut layout.page_origin {
+        origin[0] = round2(origin[0] * factor);
+        origin[1] = round2(origin[1] * factor);
+    }
+    for position in &mut layout.splitter_positions {
+        *position = round2(*position * factor);
+    }
+    for point in [
+        &mut layout.fix_in_place_extent,
+        &mut layout.fix_in_place_gap,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        point[0] = round2(point[0] * factor);
+        point[1] = round2(point[1] * factor);
+    }
     for style in document.styles.values_mut() {
         scale_json_value_by_key("", style, factor);
     }

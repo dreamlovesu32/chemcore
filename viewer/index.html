@@ -118,45 +118,56 @@
         <div id="secondary-toolbar" class="toolbar-row toolbar-row-secondary" aria-label="Secondary toolbar"></div>
       </header>
 
-      <aside class="tool-rail" aria-label="Drawing tools">
+      <aside class="tool-rail" aria-label="Main Drawing Rail" data-tool-rail-mode="main">
         <button class="tool-button" type="button" data-tool="select" aria-label="Box selection" title="Box selection">
           <svg class="chemsema-icon cc-tool-icon cc-select-mode-icon" viewBox="0 0 24 24" aria-hidden="true"><rect class="cc-stroke" x="5.2" y="5.2" width="13.6" height="13.6" rx="1.5" stroke-dasharray="2.1 2.1"/></svg>
         </button>
-        <button class="tool-button is-active" type="button" data-tool="bond" aria-label="Bond" title="Bond">
+        <div class="tool-rail-divider" aria-hidden="true"></div>
+        <button class="tool-button is-active" type="button" data-tool="bond" data-tool-rail="main" aria-label="Bond" title="Bond">
           <svg xmlns="http://www.w3.org/2000/svg" class="chemsema-icon cc-bond-icon" viewBox="0 0 24 24" aria-hidden="true"><polygon points="18.569817,8.971682 6.089817,16.171682 5.430183,15.028318 17.910183,7.828318" fill="currentColor" stroke="none" stroke-width="0" /></svg>
         </button>
-        <button class="tool-button" type="button" data-tool="text" aria-label="Text" title="Text">
+        <button class="tool-button" type="button" data-tool="text" data-tool-rail="main" aria-label="Text" title="Text">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 19 12 5l4.5 14"/><path d="M9 14h6"/></svg>
         </button>
-        <button class="tool-button" type="button" data-tool="arrow" aria-label="Arrow" title="Arrow">
+        <button class="tool-button" type="button" data-tool="arrow" data-tool-rail="main" aria-label="Arrow" title="Arrow">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12h12"/><path class="filled" d="M15.5 7.5 21 12l-5.5 4.5z"/></svg>
         </button>
-        <button class="tool-button" type="button" data-tool="bracket" aria-label="Bracket" title="Bracket">
+        <button class="tool-button" type="button" data-tool="bracket" data-tool-rail="main" aria-label="Bracket" title="Bracket">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H6v14h3"/><path d="M15 5h3v14h-3"/></svg>
         </button>
-        <button class="tool-button" type="button" data-tool="symbol" aria-label="Charge and electron symbols" title="Charge and electron symbols">
+        <button class="tool-button" type="button" data-tool="symbol" data-tool-rail="main" aria-label="Charge and electron symbols" title="Charge and electron symbols">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><path d="M12 8.5v7"/><path d="M8.5 12h7"/></svg>
         </button>
-        <button class="tool-button" type="button" data-tool="shape" aria-label="Shape" title="Shape">
+        <button class="tool-button" type="button" data-tool="shape" data-tool-rail="main" aria-label="Shape" title="Shape">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="10" height="10"/><circle cx="16.5" cy="16.5" r="3.5"/></svg>
         </button>
-        <button class="tool-button" type="button" data-tool="table" aria-label="Table" title="Table Tool">
+        <button class="tool-button" type="button" data-tool="table" data-tool-rail="main" aria-label="Table" title="Table Tool">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15"/><path d="M12 4.5v15M4.5 12h15"/></svg>
         </button>
-        <button class="tool-button" type="button" data-tool="tlc-plate" aria-label="TLC plate" title="TLC plate">
+        <button class="tool-button" type="button" data-tool="tlc-plate" data-tool-rail="main" aria-label="TLC plate" title="TLC plate">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4.5" width="14" height="15"/><path d="M5 8.1h14M5 16.1h14" stroke-dasharray="1.5 1.5"/><circle cx="9" cy="13" r="1.3"/><circle cx="12" cy="11.2" r="1.3"/><circle cx="15" cy="14.4" r="1.3"/></svg>
         </button>
-        <button class="tool-button" type="button" data-tool="biodraw" aria-label="BioDraw" title="BioDraw">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><path d="M12 5.5v-2M18.5 12h2M12 18.5v2M5.5 12h-2"/><path class="filled" d="M14 5.8 17.2 7.2 14.8 9.8z"/></svg>
-        </button>
-        <button class="tool-button" type="button" data-tool="orbital" aria-label="Orbital" title="Orbital">
+        <button class="tool-button" type="button" data-tool="orbital" data-tool-rail="main" aria-label="Orbital" title="Orbital">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4c3.3 0 5.4 2.6 5.4 6.2S15.3 16.4 12 20c-3.3-3.6-5.4-6.2-5.4-9.8S8.7 4 12 4z"/><path d="M12 4c0 0 2 2.4 2 6.2S12 20 12 20"/></svg>
         </button>
-        <button class="tool-button" type="button" data-tool="templates" aria-label="Rings and templates" title="Rings and templates">
+        <button class="tool-button" type="button" data-tool="templates" data-tool-rail="main" aria-label="Rings and templates" title="Rings and templates">
           <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,4 19,8 19,16 12,20 5,16 5,8"/></svg>
         </button>
-        <button class="tool-button" type="button" data-tool="chain" aria-label="Chain" title="Chain">
+        <button class="tool-button" type="button" data-tool="chain" data-tool-rail="main" aria-label="Chain" title="Chain">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.2 14.5 8.4 9.8 12.6 14.5 16.8 9.8"/><text x="18.2" y="18.2" text-anchor="middle" style="font-family:'Times New Roman',serif;font-size:6.2px;font-style:italic">n</text></svg>
+        </button>
+        <button class="tool-button" type="button" data-tool="biodraw" data-tool-rail="biology" data-bio-family="enzyme" aria-label="Enzymes" title="Enzymes" hidden></button>
+        <button class="tool-button" type="button" data-tool="biodraw" data-tool-rail="biology" data-bio-family="receptor-channel" aria-label="Receptors and channels" title="Receptors and channels" hidden></button>
+        <button class="tool-button" type="button" data-tool="biodraw" data-tool-rail="biology" data-bio-family="antibody" aria-label="Antibodies" title="Antibodies" hidden></button>
+        <button class="tool-button" type="button" data-tool="biodraw" data-tool-rail="biology" data-bio-family="g-protein" aria-label="G proteins" title="G proteins" hidden></button>
+        <button class="tool-button" type="button" data-tool="biodraw" data-tool-rail="biology" data-bio-family="helix-nucleic" aria-label="Helices and nucleic acids" title="Helices and nucleic acids" hidden></button>
+        <button class="tool-button" type="button" data-tool="biodraw" data-tool-rail="biology" data-bio-family="ribosome" aria-label="Ribosomes" title="Ribosomes" hidden></button>
+        <button class="tool-button" type="button" data-tool="biodraw" data-tool-rail="biology" data-bio-family="membrane" aria-label="Membranes" title="Membranes" hidden></button>
+        <button class="tool-button" type="button" data-tool="biodraw" data-tool-rail="biology" data-bio-family="organelle" aria-label="Organelles" title="Organelles" hidden></button>
+        <button class="tool-button" type="button" data-tool="biodraw" data-tool-rail="biology" data-bio-family="illustration" aria-label="Biology annotations" title="Biology annotations" hidden></button>
+        <button class="tool-button" type="button" data-tool="biodraw" data-tool-rail="biology" data-bio-family="plasmid" aria-label="Plasmid maps" title="Plasmid maps" hidden></button>
+        <button class="tool-rail-switch" type="button" data-tool-rail-toggle aria-label="Switch to Biology-Assisted Drawing Rail" title="Switch to Biology-Assisted Drawing Rail" aria-pressed="false">
+          <svg class="chemsema-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="cc-stroke" d="M5 7.5h11.5M13.5 4.5l3 3-3 3M19 16.5H7.5M10.5 13.5l-3 3 3 3"/><circle class="cc-shape cc-empty-fill" cx="5" cy="16.5" r="1.8"/><path class="cc-shape" d="M18.8 13.8c2.4 1.2 2.4 4.2 0 5.4-2.4-1.2-2.4-4.2 0-5.4z"/></svg>
         </button>
       </aside>
 
@@ -168,6 +179,14 @@
 
       <footer class="selection-status-bar" aria-label="Selection chemistry summary">
         <div id="selection-chemistry-summary" class="selection-chemistry-summary" aria-live="polite"></div>
+        <div class="document-mode-controls" aria-label="Document workspace modes">
+          <button id="template-panel-mode-button" class="document-mode-button" type="button" aria-label="Template palettes" title="Template palettes">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="7" height="7" rx="1"/><rect x="13.5" y="4" width="7" height="7" rx="1"/><rect x="3.5" y="14" width="7" height="6" rx="1"/><rect x="13.5" y="14" width="7" height="6" rx="1"/></svg>
+          </button>
+          <button id="paper-layout-mode-button" class="document-mode-button" type="button" aria-label="Switch to paper layout" title="Paper layout" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 2.75h10.5L20 7.2v14.05H5z"/><path d="M15.5 2.75V7.2H20M8 11h9M8 14h9M8 17h6"/></svg>
+          </button>
+        </div>
       </footer>
 
       <select id="sample-select" class="visually-hidden" aria-label="Sample document"></select>
@@ -177,6 +196,6 @@
       <pre id="doc-meta" class="visually-hidden"></pre>
     </div>
 
-    <script type="module" src="./app.js?v=20260726-molecular-coloring-2"></script>
+    <script type="module" src="./app.js?v=20260726-biology-assisted-rail"></script>
   </body>
 </html>

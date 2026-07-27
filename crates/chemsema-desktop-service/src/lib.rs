@@ -1,9 +1,10 @@
 use chemsema_engine::{
     cdx_to_cdxml, cdxml_to_cdx, parse_bond_tool_value, parse_bracket_tool_value, ArrowCurve,
-    ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondVariant, BracketKind, Engine,
-    OrbitalPhase, OrbitalStyle, OrbitalTemplate, Point, PointerEvent, RenderBoundsScope,
-    RenderPrimitive, RenderRole, ShapeKind, ShapeStyle, TextEditLayoutRequest, TextEditSession,
-    Tool, ToolState, WorldPoint, WorldPt,
+    ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BioDrawKind, BioShapeFillType,
+    BioShapeLineType, BondVariant, BracketKind, Engine, OrbitalPhase, OrbitalStyle,
+    OrbitalTemplate, Point, PointerEvent, RenderBoundsScope, RenderPrimitive, RenderRole,
+    ShapeKind, ShapeStyle, TextEditLayoutRequest, TextEditSession, Tool, ToolState, WorldPoint,
+    WorldPt,
 };
 use encoding_rs::WINDOWS_1252;
 use flate2::read::GzDecoder;
@@ -347,6 +348,9 @@ impl DesktopDocumentService {
             arrow_bold: current.arrow_bold,
             arrow_no_go: current.arrow_no_go,
             shape_kind: current.shape_kind,
+            bio_draw_kind: current.bio_draw_kind,
+            bio_shape_fill_type: current.bio_shape_fill_type,
+            bio_shape_line_type: current.bio_shape_line_type,
             shape_style: current.shape_style,
             shape_color: current.shape_color,
             orbital_template: current.orbital_template,
@@ -374,6 +378,30 @@ impl DesktopDocumentService {
         tool.shape_kind = parse_shape_kind(kind);
         tool.shape_style = parse_shape_style(style);
         tool.shape_color = color.to_string();
+        session.set_tool_state(tool);
+        Ok(())
+    }
+
+    pub fn set_bio_draw_options(
+        &mut self,
+        session_id: SessionId,
+        kind: &str,
+        fill_type: &str,
+        line_type: &str,
+        color: &str,
+    ) -> Result<(), String> {
+        let bio_draw_kind = parse_bio_draw_kind(kind)?;
+        let bio_shape_fill_type = parse_bio_shape_fill_type(fill_type)?;
+        let bio_shape_line_type = parse_bio_shape_line_type(line_type)?;
+        let session = self.session_mut(session_id)?;
+        let mut tool = session.state().tool.clone();
+        tool.bio_draw_kind = bio_draw_kind;
+        tool.bio_shape_fill_type = bio_shape_fill_type;
+        tool.bio_shape_line_type = bio_shape_line_type;
+        tool.shape_color = color.to_string();
+        if tool.bio_draw_kind == BioDrawKind::PlasmidMap {
+            tool.shape_kind = ShapeKind::PlasmidMap;
+        }
         session.set_tool_state(tool);
         Ok(())
     }
@@ -453,6 +481,10 @@ impl DesktopDocumentService {
 
     pub fn object_settings_dialog_json(&self, session_id: SessionId) -> Result<String, String> {
         Ok(self.session(session_id)?.object_settings_dialog_json())
+    }
+
+    pub fn document_layout_dialog_json(&self, session_id: SessionId) -> Result<String, String> {
+        Ok(self.session(session_id)?.document_layout_dialog_json())
     }
 
     pub fn toolbar_color_palette_json(

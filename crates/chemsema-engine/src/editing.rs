@@ -1,8 +1,9 @@
 use crate::{
     angle_between, angle_in_clockwise_arc, angular_distance, css_px, direction_from_angle,
     fragment_bond_visual_bounds, largest_angular_gap, normalize_angle, polygon_anchor_point,
-    polygon_bounds, split_label_groups, world_pt, Bond, ChemSemaDocument, EditableFragment, Node,
-    Point, SceneObject, Vector, WorldPoint, WorldPt, DEFAULT_BOND_LENGTH,
+    polygon_bounds, split_label_groups, world_pt, BioDrawKind, BioShapeFillType, BioShapeLineType,
+    Bond, ChemSemaDocument, EditableFragment, Node, Point, SceneObject, Vector, WorldPoint,
+    WorldPt, DEFAULT_BOND_LENGTH,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, VecDeque};
@@ -404,6 +405,12 @@ pub struct ToolState {
     #[serde(default)]
     pub shape_kind: ShapeKind,
     #[serde(default)]
+    pub bio_draw_kind: BioDrawKind,
+    #[serde(default)]
+    pub bio_shape_fill_type: BioShapeFillType,
+    #[serde(default)]
+    pub bio_shape_line_type: BioShapeLineType,
+    #[serde(default)]
     pub shape_style: ShapeStyle,
     #[serde(default = "default_shape_color")]
     pub shape_color: String,
@@ -442,6 +449,9 @@ impl Default for ToolState {
             arrow_bold: false,
             arrow_no_go: ArrowNoGo::None,
             shape_kind: ShapeKind::Circle,
+            bio_draw_kind: BioDrawKind::default(),
+            bio_shape_fill_type: BioShapeFillType::default(),
+            bio_shape_line_type: BioShapeLineType::default(),
             shape_style: ShapeStyle::Solid,
             shape_color: default_shape_color(),
             orbital_template: OrbitalTemplate::S,

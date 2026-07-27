@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {
   renderSecondaryToolbarHtml,
   syncPrimaryToolButtons,
@@ -102,7 +103,10 @@ assert.equal(
 const bioDrawHtml = renderSecondaryToolbarHtml({
   ...baseEditorState,
   activeTool: "biodraw",
+  bioDrawFamily: "plasmid",
   bioDrawKind: "plasmid-map",
+  bioDrawFillType: "shaded",
+  bioDrawLineType: "solid",
   shapeColor: "#000000",
 });
 assert.match(
@@ -114,6 +118,66 @@ assert.match(
   bioDrawHtml,
   /data-color-prefix="shape-color"/,
   "BioDraw toolbar should expose the shared object color control",
+);
+
+const membraneHtml = renderSecondaryToolbarHtml({
+  ...baseEditorState,
+  activeTool: "biodraw",
+  bioDrawFamily: "membrane",
+  bioDrawKind: "membrane-arc",
+  bioDrawFillType: "none",
+  bioDrawLineType: "dashed",
+  shapeColor: "#336699",
+});
+assert.equal(
+  [...membraneHtml.matchAll(/data-secondary-value="biodraw-kind-membrane-/g)].length,
+  4,
+  "the membrane family should expose all four official membrane objects",
+);
+assert.match(
+  membraneHtml,
+  /class="secondary-button is-selected"[^>]*data-secondary-value="biodraw-kind-membrane-arc"/,
+  "a biology family should retain its chosen concrete object",
+);
+assert.match(
+  membraneHtml,
+  /class="secondary-button is-selected"[^>]*data-secondary-value="bio-fill-none"/,
+  "BioShape fill should be retained independently from the family",
+);
+assert.match(
+  membraneHtml,
+  /class="secondary-button is-selected"[^>]*data-secondary-value="bio-line-dashed"/,
+  "BioShape outline should be retained independently from the family",
+);
+
+const indexHtml = fs.readFileSync(new URL("../viewer/index.html", import.meta.url), "utf8");
+assert.equal(
+  [...indexHtml.matchAll(/data-tool="select"/g)].length,
+  1,
+  "selection must be the single shared tool outside both replaceable rail bodies",
+);
+assert.equal(
+  [...indexHtml.matchAll(/data-tool-rail="biology"/g)].length,
+  10,
+  "the Biology-Assisted Drawing Rail should expose ten stable families",
+);
+assert.equal(
+  [...indexHtml.matchAll(/data-tool-rail-toggle/g)].length,
+  1,
+  "the left rail should have one dedicated bottom switch",
+);
+assert.doesNotMatch(
+  indexHtml,
+  /data-tool="select"[^>]+data-tool-rail=/,
+  "selection must not disappear when either rail body is replaced",
+);
+assert.match(indexHtml, /id="template-panel-mode-button"/, "the 40 px footer should expose the template entry");
+assert.match(indexHtml, /id="paper-layout-mode-button"/, "the 40 px footer should expose the paper-layout toggle");
+const stylesCss = fs.readFileSync(new URL("../viewer/styles.css", import.meta.url), "utf8");
+assert.match(
+  stylesCss,
+  /--selection-status-bar-height:\s*40px/,
+  "the document status bar should have the agreed 40 px height",
 );
 
 console.log("[toolbar-regression] ok");

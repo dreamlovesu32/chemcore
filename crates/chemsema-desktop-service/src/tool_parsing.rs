@@ -53,6 +53,55 @@ pub(crate) fn parse_shape_kind(value: &str) -> ShapeKind {
     }
 }
 
+pub(crate) fn parse_bio_draw_kind(value: &str) -> Result<BioDrawKind, String> {
+    let kind = match value {
+        "one-substrate-enzyme" | "1-substrate-enzyme" => BioDrawKind::OneSubstrateEnzyme,
+        "two-substrate-enzyme" | "2-substrate-enzyme" => BioDrawKind::TwoSubstrateEnzyme,
+        "receptor" => BioDrawKind::Receptor,
+        "g-protein-alpha" | "gprotein-alpha" => BioDrawKind::GProteinAlpha,
+        "g-protein-beta" | "gprotein-beta" => BioDrawKind::GProteinBeta,
+        "g-protein-gamma" | "gprotein-gamma" => BioDrawKind::GProteinGamma,
+        "immunoglobulin" | "immunoglobin" => BioDrawKind::Immunoglobulin,
+        "ion-channel" => BioDrawKind::IonChannel,
+        "endoplasmic-reticulum" => BioDrawKind::EndoplasmicReticulum,
+        "golgi" => BioDrawKind::Golgi,
+        "membrane-line" => BioDrawKind::MembraneLine,
+        "membrane-arc" => BioDrawKind::MembraneArc,
+        "membrane-ellipse" => BioDrawKind::MembraneEllipse,
+        "membrane-micelle" => BioDrawKind::MembraneMicelle,
+        "dna" => BioDrawKind::Dna,
+        "helix-protein" => BioDrawKind::HelixProtein,
+        "mitochondrion" => BioDrawKind::Mitochondrion,
+        "cloud" => BioDrawKind::Cloud,
+        "trna" | "t-rna" => BioDrawKind::TRna,
+        "ribosome-a" => BioDrawKind::RibosomeA,
+        "ribosome-b" => BioDrawKind::RibosomeB,
+        "plasmid-map" | "plasmidMap" => BioDrawKind::PlasmidMap,
+        _ => return Err(format!("Unsupported BioDraw kind '{value}'")),
+    };
+    Ok(kind)
+}
+
+pub(crate) fn parse_bio_shape_fill_type(value: &str) -> Result<BioShapeFillType, String> {
+    match value {
+        "unspecified" => Ok(BioShapeFillType::Unspecified),
+        "none" => Ok(BioShapeFillType::None),
+        "solid" | "filled" => Ok(BioShapeFillType::Solid),
+        "shaded" => Ok(BioShapeFillType::Shaded),
+        _ => Err(format!("Unsupported BioShape fill type '{value}'")),
+    }
+}
+
+pub(crate) fn parse_bio_shape_line_type(value: &str) -> Result<BioShapeLineType, String> {
+    match value {
+        "solid" => Ok(BioShapeLineType::Solid),
+        "dashed" => Ok(BioShapeLineType::Dashed),
+        "bold" => Ok(BioShapeLineType::Bold),
+        "wavy" => Ok(BioShapeLineType::Wavy),
+        _ => Err(format!("Unsupported BioShape line type '{value}'")),
+    }
+}
+
 pub(crate) fn parse_shape_style(value: &str) -> ShapeStyle {
     match value {
         "dashed" => ShapeStyle::Dashed,

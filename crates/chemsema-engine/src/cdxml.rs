@@ -1,8 +1,9 @@
 use crate::{
     Bond, BondLineStyles, BondLineWeights, BondStereo, ChemSemaDocument, DocumentInfo,
-    DocumentStyleInfo, DocumentTextStyle, DoubleBond, FormatInfo, InterchangeDocument,
-    InterchangeObject, InterchangeProperty, LabelRun, MoleculeFragment, Node, NodeLabel,
-    ObjectPayload, Page, Resource, ResourceData, SceneObject, Transform, EPSILON,
+    DocumentLayout, DocumentStyleInfo, DocumentTextStyle, DoubleBond, DrawingSpace, FormatInfo,
+    InterchangeDocument, InterchangeObject, InterchangeProperty, LabelRun, MoleculeFragment, Node,
+    NodeLabel, ObjectPayload, Page, PaperSize, Resource, ResourceData, SceneObject, Transform,
+    EPSILON,
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -37,12 +38,13 @@ use self::import_geometry_constraints::{
 use self::import_groups::*;
 use self::import_nodes::*;
 use self::import_objects::{
-    append_bracket_objects, append_curve_objects, append_embedded_image_objects,
-    append_gel_electrophoresis_objects, append_line_objects, append_orbital_shape_objects,
-    append_plasmid_map_objects, append_shape_objects, append_spectrum_objects,
-    append_synthesized_enhanced_stereo_text_objects, append_table_shape_objects,
-    append_text_objects, append_tlc_plate_shape_objects, associate_table_cell_contents,
-    import_reactions_and_stoichiometry_grids,
+    append_bio_shape_objects, append_bracket_objects, append_curve_objects,
+    append_embedded_image_objects, append_gel_electrophoresis_objects, append_line_objects,
+    append_orbital_shape_objects, append_plasmid_map_objects, append_shape_objects,
+    append_spectrum_objects, append_synthesized_enhanced_stereo_text_objects,
+    append_table_shape_objects, append_text_objects, append_tlc_plate_shape_objects,
+    associate_table_cell_contents, import_reactions_and_stoichiometry_grids,
+    validate_bio_shape_nodes,
 };
 pub(crate) use self::import_scaling::normalize_cdxml_document_for_editing;
 use self::import_topology::*;
@@ -206,9 +208,129 @@ fn imported_document_text_style(
     }
 }
 
+fn imported_document_layout(
+    root: &XmlNode,
+    defaults: CdxmlDefaults,
+    mut content_page: Page,
+) -> (Page, DocumentLayout) {
+    let page = root.children.iter().find(|child| child.name == "page");
+    let width_pages = page
+        .and_then(|page| parse_u32(page.attr("WidthPages")))
+        .and_then(|value| u16::try_from(value).ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(1);
+    let height_pages = page
+        .and_then(|page| parse_u32(page.attr("HeightPages")))
+        .and_then(|value| u16::try_from(value).ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(1);
+    let drawing_space = match page
+        .and_then(|page| page.attr("DrawingSpace"))
+        .unwrap_or("pages")
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "poster" | "1" => DrawingSpace::Poster,
+        _ => DrawingSpace::Pages,
+    };
+    let page_overlap = page
+        .and_then(|page| parse_f64(page.attr("PageOverlap")))
+        .unwrap_or(0.0)
+        .max(0.0);
+    let total_width = page
+        .and_then(|page| parse_f64(page.attr("Width")))
+        .or_else(|| {
+            page.and_then(|page| parse_bbox(page.attr("BoundingBox")))
+                .map(|bbox| bbox[2] - bbox[0])
+        })
+        .unwrap_or(content_page.width)
+        .max(1.0);
+    let total_height = page
+        .and_then(|page| parse_f64(page.attr("Height")))
+        .or_else(|| {
+            page.and_then(|page| parse_bbox(page.attr("BoundingBox")))
+                .map(|bbox| bbox[3] - bbox[1])
+        })
+        .unwrap_or(content_page.height)
+        .max(1.0);
+    let paper_width = match drawing_space {
+        DrawingSpace::Pages => total_width / f64::from(width_pages),
+        DrawingSpace::Poster => {
+            (total_width + page_overlap * f64::from(width_pages.saturating_sub(1)))
+                / f64::from(width_pages)
+        }
+    }
+    .max(1.0);
+    let paper_height = match drawing_space {
+        DrawingSpace::Pages => total_height / f64::from(height_pages),
+        DrawingSpace::Poster => {
+            (total_height + page_overlap * f64::from(height_pages.saturating_sub(1)))
+                / f64::from(height_pages)
+        }
+    }
+    .max(1.0);
+    let magnification_percent = parse_f64(root.attr("Magnification"))
+        .map(|value| value / 10.0)
+        .filter(|value| (1.0..=999.0).contains(value))
+        .unwrap_or(100.0);
+    let splitter_positions = page
+        .and_then(|page| page.attr("SplitterPositions"))
+        .map(|value| {
+            value
+                .split_whitespace()
+                .filter_map(|part| part.parse::<f64>().ok())
+                .filter(|value| value.is_finite() && *value >= 0.0)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let layout = DocumentLayout {
+        drawing_space,
+        paper: PaperSize {
+            width: round2(paper_width),
+            height: round2(paper_height),
+        },
+        width_pages,
+        height_pages,
+        auto_paginate: true,
+        page_origin: page
+            .and_then(|page| parse_bbox(page.attr("BoundingBox")))
+            .map(|bounds| [bounds[0], bounds[1]]),
+        margins: defaults.print_margins,
+        page_overlap: round2(page_overlap),
+        print_trim_marks: page
+            .and_then(|page| parse_cdxml_bool(page.attr("PrintTrimMarks")))
+            .unwrap_or(false),
+        header: page
+            .and_then(|page| page.attr("Header"))
+            .unwrap_or("")
+            .to_string(),
+        header_position: page
+            .and_then(|page| parse_f64(page.attr("HeaderPosition")))
+            .unwrap_or(36.0)
+            .max(0.0),
+        footer: page
+            .and_then(|page| page.attr("Footer"))
+            .unwrap_or("")
+            .to_string(),
+        footer_position: page
+            .and_then(|page| parse_f64(page.attr("FooterPosition")))
+            .unwrap_or(36.0)
+            .max(0.0),
+        magnification_percent,
+        splitter_positions,
+        fix_in_place_extent: parse_xy(root.attr("FixInPlaceExtent")),
+        fix_in_place_gap: parse_xy(root.attr("FixInPlaceGap")),
+    };
+    content_page.width = content_page.width.max(layout.total_width());
+    content_page.height = content_page.height.max(layout.total_height());
+    (content_page, layout)
+}
+
 pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSemaDocument, String> {
     let root = parse_xml_tree(cdxml)?;
     validate_external_connection_values(&root)?;
+    validate_bio_shape_nodes(&root)?;
     let source_tree = interchange_object_from_xml(&root);
     let defaults = cdxml_defaults(&root);
     let colors = CdxmlColorTable::from_cdxml(&root);
@@ -286,6 +408,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
                     stoichiometry_grid: None,
                     gel_electrophoresis: None,
                     plasmid_map: None,
+                    bio_shape: None,
                     extra: BTreeMap::new(),
                 },
                 children: Vec::new(),
@@ -301,6 +424,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
     append_table_shape_objects(&generic_root, &mut objects, &mut styles, defaults, &colors);
     append_tlc_plate_shape_objects(&generic_root, &mut objects, &mut styles, defaults, &colors);
     append_gel_electrophoresis_objects(&generic_root, &mut objects, &mut styles, defaults, &colors);
+    append_bio_shape_objects(&generic_root, &mut objects, &mut styles, defaults, &colors);
     append_plasmid_map_objects(&root, &mut objects, &mut styles, defaults, &colors);
     append_spectrum_objects(
         &generic_root,
@@ -369,6 +493,8 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
             .or(defaults.line_height)
             .unwrap_or(CdxmlLineHeight::Auto),
     );
+    let content_page = page_from_objects(&objects, colors.background());
+    let (page, layout) = imported_document_layout(&root, defaults, content_page);
     let mut document = ChemSemaDocument {
         format: FormatInfo {
             name: "chemsema".to_string(),
@@ -378,7 +504,8 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         document: DocumentInfo {
             id: "doc_cdxml_import".to_string(),
             title: title.unwrap_or("Imported CDXML").to_string(),
-            page: page_from_objects(&objects, colors.background()),
+            page,
+            layout,
             meta: json!({
                 "createdBy": "chemsema",
                 "sourceFormat": "cdxml",

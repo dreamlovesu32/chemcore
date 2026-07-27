@@ -16,6 +16,8 @@ import { createAnnotationDialogHost } from "./annotation_dialog_host.js";
 import { createSmilesDialogHost } from "./smiles_dialog_host.js";
 import { createTableDialogHost } from "./table_dialog_host.js";
 import { createPlasmidMapDialogHost } from "./plasmid_map_dialog_host.js";
+import { createBioShapeDialogHost } from "./bio_shape_dialog_host.js";
+import { createDocumentLayoutHost } from "./document_layout_host.js";
 import { createTransientNotificationHost } from "./transient_notification_host.js";
 import { createUiActionRunner } from "./ui_action_runner.js";
 import { createInchiHost } from "./inchi_host.js";
@@ -24,7 +26,7 @@ import { createBundledNmrProvider } from "./nmr_prediction_provider.js";
 import { createImageImportHost } from "./image_import_host.js";
 import { createDesktopFileHost, normalizeDesktopPath } from "./desktop_file_host.js";
 import { createEngineHost } from "./engine_host.js?v=20260726-molecular-coloring-2";
-import { bindEditorControls, openColorDialog } from "./editor_bindings.js?v=20260627-browser-drop-tabs";
+import { bindEditorControls, openColorDialog } from "./editor_bindings.js?v=20260726-biology-assisted-rail";
 import { createDocumentFlow } from "./document_flow.js";
 import { createBrowserDocumentTabs } from "./browser_document_tabs.js";
 import { createDocumentTabInteractions } from "./document_tab_interactions.js";
@@ -136,6 +138,8 @@ const state = {
   expectedProgrammaticScroll: null,
   displayMetrics: displayMetrics(),
   pendingTextSymbol: null,
+  paperLayoutView: false,
+  templatePanelVisible: false,
 };
 const engineHost = createEngineHost();
 const desktopFileHost = createDesktopFileHost();
@@ -196,6 +200,9 @@ const tableDialogHost = createTableDialogHost({
   },
 });
 const plasmidMapDialogHost = createPlasmidMapDialogHost({
+  root: document.body,
+});
+const bioShapeDialogHost = createBioShapeDialogHost({
   root: document.body,
 });
 const transientNotificationHost = createTransientNotificationHost({
@@ -268,6 +275,8 @@ const {
   viewerContainer,
   secondaryToolbar,
   selectionChemistrySummary,
+  templatePanelModeButton,
+  paperLayoutModeButton,
   desktopTitlebar,
   documentTabsRoot,
   documentStyleButton,
@@ -277,6 +286,21 @@ const {
   imageFileInput,
   textEditorLayer,
 } = createAppDomRefs();
+const documentLayoutHost = createDocumentLayoutHost({
+  root: document.body,
+  state,
+  paperButton: paperLayoutModeButton,
+  templateButton: templatePanelModeButton,
+  engine: () => state.editorEngine,
+  commandEngine,
+  parseEngineJson,
+  renderBoundsFromEngine,
+  syncDocumentFromEngine,
+  renderDocument: (...args) => renderDocument(...args),
+  activateTemplateTool: () => activateEditorTool("templates"),
+  setZoomPercent: (...args) => setZoomPercent(...args),
+  transientNotificationHost,
+});
 let canvasContextMenuHost = null;
 let canvasContextMenu = null;
 const canvasPointerShield = document.createElement("div");
@@ -475,7 +499,25 @@ const editorState = {
   arrowBold: false,
   arrowNoGo: "none",
   shapeKind: "circle",
-  bioDrawKind: "plasmid-map",
+  toolRailMode: "main",
+  bioDrawFamily: "enzyme",
+  bioDrawKind: "one-substrate-enzyme",
+  bioDrawKindByFamily: {
+    enzyme: "one-substrate-enzyme",
+    "receptor-channel": "receptor",
+    antibody: "immunoglobulin",
+    "g-protein": "g-protein-alpha",
+    "helix-nucleic": "dna",
+    ribosome: "ribosome-a",
+    membrane: "membrane-line",
+    organelle: "endoplasmic-reticulum",
+    illustration: "cloud",
+    plasmid: "plasmid-map",
+  },
+  bioDrawFillType: "shaded",
+  bioDrawLineType: "solid",
+  bioDrawIconSvgs: {},
+  bioDrawIconCacheKey: "",
   shapeStyle: "solid",
   shapeStyleByKind: {},
   shapeIconSvgs: {},
@@ -524,6 +566,8 @@ const TAB_STATE_KEYS = [
   "runtimeViewBox",
   "lastEditFocusPoint",
   "activeBracketDragStart",
+  "paperLayoutView",
+  "templatePanelVisible",
   "zoomHandoffs",
 ];
 
@@ -674,12 +718,16 @@ async function syncEngineToolState() {
   await state.editorEngine.setTemplate?.(effectiveTemplate);
   const shapeKind = editorState.activeTool === "tlc-plate"
     ? editorState.chromatographyKind
-    : editorState.activeTool === "biodraw"
-      ? editorState.bioDrawKind
-      : editorState.shapeKind;
+    : editorState.shapeKind;
   await state.editorEngine.setShapeOptions?.(
     shapeKind,
     editorState.shapeStyle,
+    editorState.shapeColor,
+  );
+  await state.editorEngine.setBioDrawOptions?.(
+    editorState.bioDrawKind,
+    editorState.bioDrawFillType,
+    editorState.bioDrawLineType,
     editorState.shapeColor,
   );
   await state.editorEngine.setOrbitalOptions?.(
@@ -1232,6 +1280,7 @@ canvasContextMenuHost = createCanvasContextMenuHost({
   smilesDialogHost,
   tableDialogHost,
   plasmidMapDialogHost,
+  bioShapeDialogHost,
   transientNotificationHost,
   inchiHost,
   nmrPredictionHost,
@@ -1504,6 +1553,15 @@ async function activateEditorToolNow(nextTool) {
   return true;
 }
 
+async function switchToolRailMode() {
+  const nextMode = editorState.toolRailMode === "biology" ? "main" : "biology";
+  await activateEditorTool("select");
+  editorState.toolRailMode = nextMode;
+  syncEditorPrimaryToolButtons();
+  renderSecondaryToolbar();
+  syncCanvasCursor();
+}
+
 function setCanvasCursorStyle(cursor) {
   const value = cursor || "default";
   if (viewerSvg) {
@@ -1696,7 +1754,7 @@ async function syncArrowAwareCursorForPoint(point) {
     setCanvasCursorStyle("crosshair");
     return;
   }
-  if (editorState.activeTool === "shape" || editorState.activeTool === "table" || editorState.activeTool === "tlc-plate" || editorState.activeTool === "orbital") {
+  if (editorState.activeTool === "shape" || editorState.activeTool === "table" || editorState.activeTool === "tlc-plate" || editorState.activeTool === "biodraw" || editorState.activeTool === "orbital") {
     setCanvasCursorStyle("crosshair");
     return;
   }
@@ -1980,6 +2038,7 @@ const documentFlow = createDocumentFlow({
   state,
   engineHost,
   desktopFileHost,
+  documentLayoutHost,
   openFileInput,
   imageFileInput,
   viewerTitle,
@@ -1997,6 +2056,8 @@ const documentFlow = createDocumentFlow({
   defaultEditorViewBox,
   renderDocument,
   fitView,
+  getZoomPercent,
+  setZoomPercent,
   markCurrentDocumentSaved,
   currentDocumentIsDirty,
   markCurrentDocumentOfficeSynced,
@@ -2109,6 +2170,7 @@ editorRuntimeHost = createEditorRuntimeHost({
   applyViewerViewport,
   normalizeDisplayColor,
   CHEMDRAW_PAGE_BACKGROUND,
+  documentLayoutHost,
   makeSvgNode,
   rebuildDocumentPrimitiveIndex,
   syncViewerStats,
@@ -2188,6 +2250,7 @@ bindEditorControls({
   saveCurrentDocumentSvg,
   isAbortError,
   activateEditorTool,
+  switchToolRailMode,
   runEditorCommand,
   commandEngine,
   setZoomPercent,

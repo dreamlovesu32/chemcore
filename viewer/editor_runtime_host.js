@@ -1,5 +1,5 @@
 export function createEditorRuntimeHost(scope) {
-  const { viewerSvg, DOMPoint, activeViewBox, state, BOND_STROKE, isEditingRustDocument, editorState, getCanvasPointerShieldActive, viewportScale, commandEngine, renderDocumentChange, BRACKET_LABEL_OFFSET_X, BRACKET_LABEL_OFFSET_Y, sceneRenderer, resetDocumentRenderState, applyViewerViewport, normalizeDisplayColor, CHEMDRAW_PAGE_BACKGROUND, makeSvgNode, rebuildDocumentPrimitiveIndex, syncViewerStats, renderEditorOverlay, positionActiveTextEditor, ensureDocumentTab, renderDocumentTabs, desktopFileHost, loadDetachedDocumentPayload, takeBrowserPendingDocument, loadBrowserPendingDocumentPayload, openDocumentPath, saveActiveDocumentTabState, openDocumentPathInTab, loadAndRender } = scope;
+  const { viewerSvg, DOMPoint, activeViewBox, state, BOND_STROKE, isEditingRustDocument, editorState, getCanvasPointerShieldActive, viewportScale, commandEngine, renderDocumentChange, BRACKET_LABEL_OFFSET_X, BRACKET_LABEL_OFFSET_Y, sceneRenderer, resetDocumentRenderState, applyViewerViewport, normalizeDisplayColor, CHEMDRAW_PAGE_BACKGROUND, documentLayoutHost, makeSvgNode, rebuildDocumentPrimitiveIndex, syncViewerStats, renderEditorOverlay, positionActiveTextEditor, ensureDocumentTab, renderDocumentTabs, desktopFileHost, loadDetachedDocumentPayload, takeBrowserPendingDocument, loadBrowserPendingDocumentPayload, openDocumentPath, saveActiveDocumentTabState, openDocumentPathInTab, loadAndRender } = scope;
 
   function svgPointFromEvent(event) {
     const screenMatrix = viewerSvg.getScreenCTM?.();
@@ -172,9 +172,15 @@ export function createEditorRuntimeHost(scope) {
       y: viewBox.y,
       width: viewBox.width,
       height: viewBox.height,
-      fill: pageBackground,
+      fill: state.paperLayoutView ? "#d9dde3" : pageBackground,
       "data-layer": "page-background",
     }));
+    documentLayoutHost?.renderPaperBackground?.({
+      viewerSvg,
+      viewBox,
+      makeSvgNode,
+      pageBackground,
+    });
     const documentLayer = makeSvgNode("g", {
       "data-layer": "document-content",
       "pointer-events": "none",

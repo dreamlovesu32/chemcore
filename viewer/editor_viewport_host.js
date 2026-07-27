@@ -605,7 +605,9 @@ export function createEditorViewportHost(options) {
 
   function setZoomPercent(nextZoom, options = {}) {
     const previousZoom = zoomPercent;
-    const targetZoom = closestZoomStep(nextZoom);
+    const targetZoom = options.exact
+      ? clampZoomPercent(Number(nextZoom))
+      : closestZoomStep(nextZoom);
     const anchorWorld = options.anchorWorld || null;
     const anchorClient = options.anchorClient || null;
     const { centerWorld, handoff } = options.centerWorld
