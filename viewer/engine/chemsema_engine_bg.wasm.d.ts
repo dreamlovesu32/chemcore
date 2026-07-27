@@ -23,6 +23,7 @@ export const wasmengine_applySelectionArrangeCommand: (a: number, b: number, c: 
 export const wasmengine_applySelectionNumericDialogJson: (a: number, b: number, c: number) => [number, number, number];
 export const wasmengine_applySelectionOrderCommand: (a: number, b: number, c: number) => number;
 export const wasmengine_applyShapeStyleToSelection: (a: number, b: number, c: number) => number;
+export const wasmengine_applyTemplateLibraryLayoutJson: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
 export const wasmengine_applyTextEdit: (a: number, b: number, c: number) => [number, number, number];
 export const wasmengine_applyTextStyleToSelection: (a: number, b: number, c: number, d: number, e: number) => number;
 export const wasmengine_arrowToolIconSvg: (a: number, b: number, c: number) => [number, number];
@@ -143,6 +144,8 @@ export const wasmengine_shapeToolIconSvg: (a: number, b: number, c: number, d: n
 export const wasmengine_stateJson: (a: number) => [number, number, number, number];
 export const wasmengine_symbolToolIconSvg: (a: number, b: number, c: number) => [number, number];
 export const wasmengine_takePendingDialogJson: (a: number) => [number, number];
+export const wasmengine_templateLibraryLayoutDialogJson: (a: number, b: number, c: number) => [number, number, number, number];
+export const wasmengine_templateLibraryLayoutJson: (a: number, b: number, c: number) => [number, number, number, number];
 export const wasmengine_templateLibraryPaletteJson: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number, number];
 export const wasmengine_templatePreviewIconSvg: (a: number, b: number, c: number) => [number, number, number, number];
 export const wasmengine_textFormatIconSvg: (a: number, b: number, c: number) => [number, number];

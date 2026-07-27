@@ -5,19 +5,16 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_SOURCE = "C:/ProgramData/PerkinElmerInformatics/ChemOffice2021/ChemDraw/ChemDraw Items";
-const DEFAULT_CONVERTED = "target/all-template-cdxml";
 const DEFAULT_OUTPUT = "viewer/template-libraries";
 
 function parseArgs(argv) {
   const options = {
     source: DEFAULT_SOURCE,
-    converted: DEFAULT_CONVERTED,
     out: DEFAULT_OUTPUT,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--source") options.source = argv[++index];
-    else if (argument === "--converted") options.converted = argv[++index];
     else if (argument === "--out") options.out = argv[++index];
     else if (argument === "--help" || argument === "-h") options.help = true;
     else throw new Error(`Unknown argument: ${argument}`);
@@ -94,7 +91,10 @@ function directPageSlices(xml) {
       continue;
     }
     if (tag.name === "CDXML" && stack.length === 0) rootStartTag = tag.source;
-    if (tag.name === "page" && stack.length === 1) currentPageStart = tag.start;
+    if (tag.name === "page" && stack.length === 1) {
+      if (tag.selfClosing) pages.push([tag.start, tag.end]);
+      else currentPageStart = tag.start;
+    }
     if (!tag.selfClosing) stack.push(tag.name);
   }
   if (!rootStartTag || !rootEndTag) throw new Error("CDXML root tags were not found.");
@@ -121,23 +121,39 @@ async function nativeDecode(sourcePath, outputPath) {
   }
 }
 
-async function sourceCdxml(sourceDir, convertedDir, file, scratchDir) {
-  const convertedPath = path.join(convertedDir, `${path.basename(file, ".ctp")}.chemdraw.cdxml`);
-  try {
-    const converted = await fs.readFile(convertedPath, "utf8");
-    if (converted.includes("<CDXML") && converted.includes("<page")) return converted;
-  } catch {
-    // The native CDX decoder below is the explicit path for libraries that
-    // ChemDraw's COM SaveAs cannot convert without crashing.
-  }
+async function sourceCdxml(sourceDir, file, scratchDir) {
   const rawPath = path.join(scratchDir, `${path.basename(file, ".ctp")}.native.cdxml`);
   await nativeDecode(path.join(sourceDir, file), rawPath);
   return fs.readFile(rawPath, "utf8");
 }
 
+function templateGridLayout(cdxml) {
+  const match = cdxml.match(/<templategrid\b([^>]*)\/?>/i);
+  if (!match) throw new Error("The native CTP decode omitted its required templategrid.");
+  const attrs = Object.fromEntries(
+    [...match[1].matchAll(/([A-Za-z][\w:-]*)\s*=\s*(["'])(.*?)\2/g)]
+      .map((entry) => [entry[1], entry[3]]),
+  );
+  const rows = Number(attrs.NumRows);
+  const columns = Number(attrs.NumColumns);
+  const paneHeight = Number(attrs.PaneHeight);
+  const extent = String(attrs.extent || "").trim().split(/\s+/).map(Number);
+  if (!Number.isInteger(rows) || rows <= 0
+      || !Number.isInteger(columns) || columns <= 0
+      || !Number.isFinite(paneHeight) || paneHeight <= 0
+      || extent.length !== 2 || extent.some((value) => !Number.isFinite(value) || value <= 0)) {
+    throw new Error("The native CTP decode produced an invalid typed templategrid.");
+  }
+  return { rows, columns, paneHeight, extent, readingOrder: "row-major" };
+}
+
+function pageHasContent(pageCdxml) {
+  const page = pageCdxml.match(/<page\b[^>]*(?:\/>|>([\s\S]*)<\/page>)/i);
+  return Boolean(page?.[1]?.trim());
+}
+
 export async function extractTemplateLibraries(options) {
   const sourceDir = path.resolve(options.source);
-  const convertedDir = path.resolve(options.converted);
   const outputDir = path.resolve(options.out);
   const scratchDir = path.join(path.resolve("target"), "template-library-native-cdxml");
   await fs.mkdir(outputDir, { recursive: true });
@@ -150,8 +166,14 @@ export async function extractTemplateLibraries(options) {
   for (const file of sourceFiles) {
     const name = path.basename(file, ".ctp");
     const id = slugify(name);
-    const cdxml = await sourceCdxml(sourceDir, convertedDir, file, scratchDir);
-    const pages = directPageSlices(cdxml);
+    const cdxml = await sourceCdxml(sourceDir, file, scratchDir);
+    const layout = templateGridLayout(cdxml);
+    const slots = directPageSlices(cdxml);
+    if (slots.length > layout.rows * layout.columns) {
+      throw new Error(`${name} has ${slots.length} page slots but its grid holds ${layout.rows * layout.columns}.`);
+    }
+    const pages = slots.filter(pageHasContent);
+    if (!pages.length) throw new Error(`${name} contains no non-empty templates.`);
     const outputName = `${id}.cdxml`;
     await fs.writeFile(path.join(outputDir, outputName), cdxml, "utf8");
     libraries.push({
@@ -160,13 +182,18 @@ export async function extractTemplateLibraries(options) {
       path: `./template-libraries/${outputName}`,
       templateCount: pages.length,
       iconCdxml: pages[0],
+      layout: {
+        ...layout,
+        occupiedCells: pages.length,
+        emptyCells: layout.rows * layout.columns - pages.length,
+      },
       sha256: sha256(cdxml),
     });
     process.stdout.write(`[TEMPLATE] ${name}: ${pages.length}\n`);
   }
 
   const catalog = {
-    schema: "chemsema.template-library-catalog.v1",
+    schema: "chemsema.template-library-catalog.v2",
     source: {
       product: "ChemDraw Professional",
       version: "21.0",
@@ -187,7 +214,7 @@ export async function extractTemplateLibraries(options) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log("Usage: node scripts/extract-chemdraw-template-libraries.mjs [--source dir] [--converted dir] [--out dir]");
+    console.log("Usage: node scripts/extract-chemdraw-template-libraries.mjs [--source dir] [--out dir]");
     return;
   }
   const catalog = await extractTemplateLibraries(options);

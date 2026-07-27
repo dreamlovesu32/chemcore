@@ -25,6 +25,7 @@ export class WasmEngine {
     applySelectionNumericDialogJson(payload_json: string): boolean;
     applySelectionOrderCommand(command: string): boolean;
     applyShapeStyleToSelection(style: string): boolean;
+    applyTemplateLibraryLayoutJson(cdxml: string, layout_json: string): string;
     applyTextEdit(session_json: string): boolean;
     applyTextStyleToSelection(command: string, value: string): boolean;
     arrowToolIconSvg(kind: string): string;
@@ -145,6 +146,8 @@ export class WasmEngine {
     stateJson(): string;
     symbolToolIconSvg(kind: string): string;
     takePendingDialogJson(): string;
+    templateLibraryLayoutDialogJson(cdxml: string): string;
+    templateLibraryLayoutJson(cdxml: string): string;
     templateLibraryPaletteJson(library_id: string, library_name: string, cdxml: string): string;
     templatePreviewIconSvg(cdxml: string): string;
     textFormatIconSvg(kind: string): string;
@@ -189,6 +192,7 @@ export interface InitOutput {
     readonly wasmengine_applySelectionNumericDialogJson: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_applySelectionOrderCommand: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyShapeStyleToSelection: (a: number, b: number, c: number) => number;
+    readonly wasmengine_applyTemplateLibraryLayoutJson: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly wasmengine_applyTextEdit: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_applyTextStyleToSelection: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly wasmengine_arrowToolIconSvg: (a: number, b: number, c: number) => [number, number];
@@ -309,6 +313,8 @@ export interface InitOutput {
     readonly wasmengine_stateJson: (a: number) => [number, number, number, number];
     readonly wasmengine_symbolToolIconSvg: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_takePendingDialogJson: (a: number) => [number, number];
+    readonly wasmengine_templateLibraryLayoutDialogJson: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly wasmengine_templateLibraryLayoutJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_templateLibraryPaletteJson: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number, number];
     readonly wasmengine_templatePreviewIconSvg: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_textFormatIconSvg: (a: number, b: number, c: number) => [number, number];

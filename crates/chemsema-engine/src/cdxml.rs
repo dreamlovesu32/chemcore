@@ -53,7 +53,9 @@ use self::line_spacing::*;
 pub(crate) use self::parse_values::element_symbol;
 use self::parse_values::*;
 pub use self::template_library::{
-    parse_cdxml_template_documents, template_document_icon_svg, template_library_palette_json,
+    apply_template_library_layout_json, parse_cdxml_template_documents, template_document_icon_svg,
+    template_library_layout_dialog_json, template_library_layout_json,
+    template_library_palette_json, TemplateGridLayout,
 };
 use self::text_runs::{label_display_runs, label_display_runs_from_source_runs, label_source_run};
 pub(crate) use self::xml::parse_xml_tree;

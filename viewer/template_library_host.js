@@ -1,5 +1,5 @@
 const CATALOG_URL = "./template-libraries/catalog.json";
-const STORAGE_KEY = "chemsema.template-library-state.v1";
+const STORAGE_KEY = "chemsema.template-library-state.v2";
 
 export function createTemplateLibraryHost(options) {
   const {
@@ -13,6 +13,7 @@ export function createTemplateLibraryHost(options) {
   let catalogPromise = null;
   let activeLibraryPromise = null;
   let placementPointerId = null;
+  const libraryCdxml = new Map();
 
   function storedState() {
     try {
@@ -20,9 +21,10 @@ export function createTemplateLibraryHost(options) {
       return {
         recent: Array.isArray(value.recent) ? value.recent.slice(0, 24) : [],
         favorites: Array.isArray(value.favorites) ? value.favorites : [],
+        layouts: value.layouts && typeof value.layouts === "object" ? value.layouts : {},
       };
     } catch {
-      return { recent: [], favorites: [] };
+      return { recent: [], favorites: [], layouts: {} };
     }
   }
 
@@ -30,6 +32,7 @@ export function createTemplateLibraryHost(options) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       recent: value.recent.slice(0, 24),
       favorites: [...new Set(value.favorites)],
+      layouts: value.layouts || {},
     }));
   }
 
@@ -44,15 +47,16 @@ export function createTemplateLibraryHost(options) {
           return response.json();
         })
         .then((catalog) => {
-          if (catalog?.schema !== "chemsema.template-library-catalog.v1") {
+          if (catalog?.schema !== "chemsema.template-library-catalog.v2") {
             throw new Error("Unsupported template catalog schema.");
           }
           const previewIcon = state.editorEngine?.templatePreviewIconSvg;
+          if (typeof previewIcon !== "function") {
+            throw new Error("The ChemSema kernel does not support template previews.");
+          }
           const libraries = (catalog.libraries || []).map((library) => ({
             ...library,
-            iconSvg: typeof previewIcon === "function"
-              ? previewIcon.call(state.editorEngine, library.iconCdxml)
-              : "",
+            iconSvg: previewIcon.call(state.editorEngine, library.iconCdxml),
           }));
           editorState.templateLibraryCatalog = catalog;
           editorState.templateLibraries = libraries;
@@ -115,19 +119,26 @@ export function createTemplateLibraryHost(options) {
     }
     editorState.activeTemplateLibraryId = libraryId;
     options.renderSecondaryToolbar?.();
+    anchor = libraryAnchor(libraryId) || anchor;
     showLoading(library.name, anchor);
     const request = fetch(library.path, { cache: "no-cache" })
       .then((response) => {
         if (!response.ok) throw new Error(`Template library request failed (${response.status}).`);
         return response.text();
       })
-      .then((cdxml) => {
-        const json = state.editorEngine?.templateLibraryPaletteJson?.(
+      .then((sourceCdxml) => {
+        const storage = storedState();
+        const storedLayout = storage.layouts[library.id];
+        const cdxml = storedLayout
+          ? state.editorEngine.applyTemplateLibraryLayoutJson(sourceCdxml, JSON.stringify(storedLayout))
+          : sourceCdxml;
+        libraryCdxml.set(library.id, { sourceCdxml, cdxml });
+        const json = state.editorEngine.templateLibraryPaletteJson(
           library.id,
           library.name,
           cdxml,
         );
-        const palette = options.parseEngineJson?.(json, null) || JSON.parse(json);
+        const palette = options.parseEngineJson(json, null);
         if (palette?.type !== "template-library-palette") {
           throw new Error("The kernel returned an invalid template palette.");
         }
@@ -147,6 +158,12 @@ export function createTemplateLibraryHost(options) {
         showError(library.name, error, anchor);
       }
     }
+  }
+
+  function libraryAnchor(libraryId) {
+    return secondaryToolbar?.querySelector(
+      `[data-template-library-id="${CSS.escape(libraryId)}"]`,
+    );
   }
 
   function showLoading(name, anchor) {
@@ -172,17 +189,34 @@ export function createTemplateLibraryHost(options) {
     const storage = storedState();
     const favoriteSet = new Set(storage.favorites);
     const items = palette.templates || [];
+    const layout = palette.library?.layout;
+    if (!layout || !Array.isArray(layout.cells)) {
+      throw new Error("The kernel omitted the template-grid layout.");
+    }
+    const itemById = new Map(items.map((item) => [item.id, item]));
     popup.innerHTML = `
       <div class="template-palette-header">
         <strong>${escapeHtml(library.name)}</strong>
+        <button class="template-palette-layout-button" type="button" data-template-layout
+          title="Edit template-grid layout">Layout…</button>
+        <button class="template-palette-layout-button" type="button" data-template-export
+          title="Download the edited library as CDXML">Export</button>
+        <button class="template-palette-layout-button" type="button" data-template-reset
+          title="Restore the source library layout">Reset</button>
         <span class="template-palette-count">${items.length}</span>
       </div>
       <label class="template-palette-search">
         <span class="visually-hidden">Search ${escapeHtml(library.name)}</span>
         <input type="search" placeholder="Search templates" autocomplete="off" spellcheck="false">
       </label>
-      <div class="template-palette-grid" role="listbox" aria-label="${escapeHtml(library.name)} templates">
-        ${items.map((item) => templateItemHtml(item, favoriteSet.has(item.id))).join("")}
+      <div class="template-palette-grid" role="listbox" aria-label="${escapeHtml(library.name)} templates"
+        style="--template-columns:${layout.columns};--template-cell-ratio:${layout.extent[0]} / ${layout.extent[1]};--template-pane-height:${templatePaneHeightPx(layout)}px">
+        ${layout.cells.map((templateId, cellIndex) => {
+          const item = templateId ? itemById.get(templateId) : null;
+          return item
+            ? templateItemHtml(item, favoriteSet.has(item.id), cellIndex)
+            : `<div class="template-palette-empty-cell" data-template-cell="${cellIndex}" aria-hidden="true"></div>`;
+        }).join("")}
       </div>
     `;
     showPopupAt(anchor);
@@ -194,12 +228,13 @@ export function createTemplateLibraryHost(options) {
         button.hidden = Boolean(query && !label.includes(query));
       });
     });
+    bindGridReordering(library, palette, anchor);
     search?.focus({ preventScroll: true });
   }
 
-  function templateItemHtml(item, favorite) {
+  function templateItemHtml(item, favorite, cellIndex) {
     return `
-      <div class="template-palette-item-wrap">
+      <div class="template-palette-item-wrap" data-template-cell="${cellIndex}" draggable="true">
         <button class="template-palette-item${editorState.activeDocumentTemplate?.id === item.id ? " is-selected" : ""}"
           type="button" role="option" data-template-id="${escapeHtml(item.id)}"
           data-template-label="${escapeHtml(item.label)}" aria-label="${escapeHtml(item.label)}"
@@ -212,6 +247,137 @@ export function createTemplateLibraryHost(options) {
           title="${favorite ? "Remove from favorites" : "Add to favorites"}">★</button>
       </div>
     `;
+  }
+
+  async function openLayoutDialog(libraryId, anchor) {
+    const libraries = await ensureCatalog();
+    const library = libraries.find((entry) => entry.id === libraryId);
+    if (!library) return;
+    if (!libraryCdxml.has(libraryId)) {
+      if (activeLibraryPromise && editorState.activeTemplateLibraryId === libraryId) {
+        await activeLibraryPromise;
+      } else {
+        await openLibrary(libraryId, anchor);
+      }
+    }
+    const current = libraryCdxml.get(libraryId);
+    if (!current) return;
+    const spec = options.parseEngineJson(
+      state.editorEngine.templateLibraryLayoutDialogJson(current.sourceCdxml),
+      null,
+    );
+    if (!spec) {
+      throw new Error("The kernel returned an invalid template-grid dialog.");
+    }
+    const savedLayout = storedState().layouts[library.id];
+    if (savedLayout) spec.data = structuredClone(savedLayout);
+    const next = await new TemplateGridDialog({ root, spec }).open();
+    if (!next) return;
+    const cdxml = state.editorEngine.applyTemplateLibraryLayoutJson(
+      current.sourceCdxml,
+      JSON.stringify(next),
+    );
+    const palette = JSON.parse(state.editorEngine.templateLibraryPaletteJson(
+      library.id,
+      library.name,
+      cdxml,
+    ));
+    libraryCdxml.set(library.id, { ...current, cdxml });
+    editorState.templateLibraryPalettes[library.id] = palette;
+    const storage = storedState();
+    storage.layouts[library.id] = next;
+    writeStoredState(storage);
+    renderPalette(library, palette, anchor);
+  }
+
+  function bindGridReordering(library, palette, anchor) {
+    const grid = popup.querySelector(".template-palette-grid");
+    if (!grid) return;
+    let draggedCell = null;
+    grid.addEventListener("dragstart", (event) => {
+      const cell = event.target.closest("[data-template-cell]");
+      if (!cell || !cell.querySelector("[data-template-id]")) {
+        event.preventDefault();
+        return;
+      }
+      draggedCell = Number(cell.dataset.templateCell);
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", String(draggedCell));
+      grid.classList.add("is-reordering");
+    });
+    grid.addEventListener("dragover", (event) => {
+      if (draggedCell == null || !event.target.closest("[data-template-cell]")) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+    });
+    grid.addEventListener("drop", (event) => {
+      const target = event.target.closest("[data-template-cell]");
+      if (draggedCell == null || !target) return;
+      event.preventDefault();
+      const targetCell = Number(target.dataset.templateCell);
+      if (targetCell !== draggedCell) {
+        void reorderCells(library, palette, draggedCell, targetCell, anchor);
+      }
+      draggedCell = null;
+      grid.classList.remove("is-reordering");
+    });
+    grid.addEventListener("dragend", () => {
+      draggedCell = null;
+      grid.classList.remove("is-reordering");
+    });
+  }
+
+  async function reorderCells(library, palette, from, to, anchor) {
+    const current = libraryCdxml.get(library.id);
+    if (!current) return;
+    const storage = storedState();
+    const layout = storage.layouts[library.id]
+      ? structuredClone(storage.layouts[library.id])
+      : JSON.parse(state.editorEngine.templateLibraryLayoutJson(current.sourceCdxml));
+    [layout.cells[from], layout.cells[to]] = [layout.cells[to], layout.cells[from]];
+    const cdxml = state.editorEngine.applyTemplateLibraryLayoutJson(
+      current.sourceCdxml,
+      JSON.stringify(layout),
+    );
+    const nextPalette = JSON.parse(state.editorEngine.templateLibraryPaletteJson(
+      library.id,
+      library.name,
+      cdxml,
+    ));
+    libraryCdxml.set(library.id, { ...current, cdxml });
+    editorState.templateLibraryPalettes[library.id] = nextPalette;
+    storage.layouts[library.id] = layout;
+    writeStoredState(storage);
+    renderPalette(library, nextPalette, anchor);
+  }
+
+  function exportLibrary(libraryId) {
+    const library = editorState.templateLibraries?.find((entry) => entry.id === libraryId);
+    const current = libraryCdxml.get(libraryId);
+    if (!library || !current) return;
+    const blob = new Blob([current.cdxml], { type: "chemical/x-cdxml;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${library.name}.cdxml`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 0);
+  }
+
+  function resetLibraryLayout(libraryId, anchor) {
+    const library = editorState.templateLibraries?.find((entry) => entry.id === libraryId);
+    const current = libraryCdxml.get(libraryId);
+    if (!library || !current) return;
+    const palette = JSON.parse(state.editorEngine.templateLibraryPaletteJson(
+      library.id,
+      library.name,
+      current.sourceCdxml,
+    ));
+    libraryCdxml.set(library.id, { ...current, cdxml: current.sourceCdxml });
+    editorState.templateLibraryPalettes[library.id] = palette;
+    const storage = storedState();
+    delete storage.layouts[library.id];
+    writeStoredState(storage);
+    renderPalette(library, palette, anchor);
   }
 
   async function selectTemplate(templateId) {
@@ -283,6 +449,28 @@ export function createTemplateLibraryHost(options) {
       }
     });
     popup.addEventListener("click", (event) => {
+      const layoutButton = event.target.closest("[data-template-layout]");
+      if (layoutButton) {
+        event.preventDefault();
+        const anchor = secondaryToolbar?.querySelector(
+          `[data-template-library-id="${CSS.escape(editorState.activeTemplateLibraryId)}"]`,
+        );
+        void openLayoutDialog(editorState.activeTemplateLibraryId, anchor);
+        return;
+      }
+      if (event.target.closest("[data-template-export]")) {
+        event.preventDefault();
+        exportLibrary(editorState.activeTemplateLibraryId);
+        return;
+      }
+      if (event.target.closest("[data-template-reset]")) {
+        event.preventDefault();
+        resetLibraryLayout(
+          editorState.activeTemplateLibraryId,
+          libraryAnchor(editorState.activeTemplateLibraryId),
+        );
+        return;
+      }
       const favorite = event.target.closest("[data-template-favorite]");
       if (favorite) {
         event.preventDefault();
@@ -295,6 +483,12 @@ export function createTemplateLibraryHost(options) {
         event.preventDefault();
         void selectTemplate(item.dataset.templateId);
       }
+    });
+    secondaryToolbar?.addEventListener("contextmenu", (event) => {
+      const libraryButton = event.target.closest("[data-template-library-id]");
+      if (!libraryButton) return;
+      event.preventDefault();
+      void openLayoutDialog(libraryButton.dataset.templateLibraryId, libraryButton);
     });
     root.addEventListener("pointerdown", (event) => {
       if (popup.hidden || popup.contains(event.target) || event.target.closest("[data-template-library-id]")) return;
@@ -367,6 +561,107 @@ export function createTemplateLibraryHost(options) {
   };
 }
 
+class TemplateGridDialog {
+  constructor({ root, spec }) {
+    this.root = root;
+    this.spec = spec;
+    this.data = structuredClone(spec.data);
+  }
+
+  open() {
+    document.querySelector(".template-grid-dialog")?.remove();
+    return new Promise((resolve) => {
+      this.resolve = resolve;
+      this.backdrop = document.createElement("div");
+      this.backdrop.className = "numeric-dialog template-grid-dialog";
+      this.backdrop.innerHTML = `
+        <div class="numeric-dialog-backdrop" data-template-grid-close></div>
+        <form class="numeric-dialog-panel template-grid-dialog-panel" aria-label="${escapeHtml(this.spec.title)}">
+          <div class="numeric-dialog-title">${escapeHtml(this.spec.title)}</div>
+          <div class="template-grid-dialog-fields">
+            ${this.spec.fields.map((field) => this.fieldHtml(field)).join("")}
+          </div>
+          <p class="template-grid-dialog-hint">Templates are assigned in row-major order. Empty cells are preserved explicitly.</p>
+          <div class="numeric-dialog-error" data-template-grid-error role="alert"></div>
+          <div class="numeric-dialog-actions">
+            <button type="button" data-template-grid-close>Cancel</button>
+            <button type="submit">OK</button>
+          </div>
+        </form>`;
+      this.root.body.appendChild(this.backdrop);
+      this.bind();
+    });
+  }
+
+  fieldHtml(field) {
+    const value = field.key.startsWith("extent.")
+      ? this.data.extent[Number(field.key.split(".")[1])]
+      : this.data[field.key];
+    return `<label><span>${escapeHtml(field.label)}</span><input name="${escapeHtml(field.key)}"
+      type="number" value="${value}" ${field.kind === "integer" ? 'step="1"' : 'step="any"'}
+      ${field.minimum != null ? `min="${field.minimum}"` : ""}
+      ${field.maximum != null ? `max="${field.maximum}"` : ""} required>
+      ${field.unit ? `<small>${escapeHtml(field.unit)}</small>` : ""}</label>`;
+  }
+
+  bind() {
+    this.backdrop.addEventListener("click", (event) => {
+      if (event.target.closest("[data-template-grid-close]")) this.close(null);
+    });
+    this.backdrop.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") this.close(null);
+    });
+    this.backdrop.querySelector("form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const rows = Number(this.value("rows"));
+      const columns = Number(this.value("columns"));
+      const capacity = rows * columns;
+      if (this.data.cells.slice(capacity).some((cell) => cell != null)) {
+        this.error("The smaller grid would remove a template. Rearrange templates first.");
+        return;
+      }
+      const cells = this.data.cells.slice(0, capacity);
+      cells.length = capacity;
+      for (let index = 0; index < capacity; index += 1) {
+        if (cells[index] === undefined) cells[index] = null;
+      }
+      const next = {
+        rows,
+        columns,
+        paneHeight: Number(this.value("paneHeight")),
+        extent: [Number(this.value("extent.0")), Number(this.value("extent.1"))],
+        cells,
+      };
+      if (!Number.isInteger(rows) || rows <= 0 || !Number.isInteger(columns) || columns <= 0) {
+        this.error("Rows and columns must be positive integers.");
+        return;
+      }
+      if (capacity < this.spec.templateCount) {
+        this.error(`The grid needs at least ${this.spec.templateCount} cells.`);
+        return;
+      }
+      if (![next.paneHeight, ...next.extent].every((value) => Number.isFinite(value) && value > 0)) {
+        this.error("Pane height and cell extent must be positive numbers.");
+        return;
+      }
+      this.close(next);
+    });
+  }
+
+  value(name) {
+    return this.backdrop.querySelector(`[name="${CSS.escape(name)}"]`)?.value;
+  }
+
+  error(message) {
+    this.backdrop.querySelector("[data-template-grid-error]").textContent = message;
+  }
+
+  close(value) {
+    this.backdrop?.remove();
+    this.resolve?.(value);
+  }
+}
+
 function createPalettePopup(root) {
   const popup = root.createElement("section");
   popup.className = "template-palette";
@@ -383,4 +678,12 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function templatePaneHeightPx(layout) {
+  const referenceCellWidth = 72;
+  const horizontalScale = referenceCellWidth / Number(layout.extent[0]);
+  const visibleRows = Number(layout.paneHeight) / Number(layout.extent[1]);
+  const rowGaps = Math.max(0, Math.ceil(visibleRows) - 1) * 7;
+  return Math.max(120, Math.min(820, Number(layout.paneHeight) * horizontalScale + rowGaps));
 }

@@ -1,6 +1,7 @@
 use chemsema_engine::{
-    document_to_cdxml, parse_cdxml_template_documents, render_document, render_primitives_bounds,
-    template_document_icon_svg,
+    cdx_to_cdxml, cdxml_to_cdx, document_to_cdxml, parse_cdxml_template_documents, render_document,
+    render_primitives_bounds, template_document_icon_svg, template_library_layout_json,
+    TemplateGridLayout,
 };
 use serde::Deserialize;
 use std::{
@@ -11,6 +12,7 @@ use std::{
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Catalog {
+    schema: String,
     library_count: usize,
     template_count: usize,
     libraries: Vec<Library>,
@@ -22,6 +24,18 @@ struct Library {
     name: String,
     path: String,
     template_count: usize,
+    layout: CatalogLayout,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CatalogLayout {
+    rows: u16,
+    columns: u16,
+    pane_height: f64,
+    extent: [f64; 2],
+    occupied_cells: usize,
+    empty_cells: usize,
 }
 
 fn main() -> Result<(), String> {
@@ -37,6 +51,9 @@ fn main() -> Result<(), String> {
     )
     .map_err(|error| format!("parse {}: {error}", catalog_path.display()))?;
 
+    if catalog.schema != "chemsema.template-library-catalog.v2" {
+        return Err(format!("unsupported catalog schema {}", catalog.schema));
+    }
     if catalog.library_count != catalog.libraries.len() {
         return Err(format!(
             "catalog libraryCount={} but libraries.len()={}",
@@ -51,6 +68,28 @@ fn main() -> Result<(), String> {
         let path = resolve_library_path(&root, &library.path);
         let cdxml = fs::read_to_string(&path)
             .map_err(|error| format!("read {}: {error}", path.display()))?;
+        let layout: TemplateGridLayout = serde_json::from_str(
+            &template_library_layout_json(&cdxml)
+                .map_err(|error| format!("parse grid {}: {error}", path.display()))?,
+        )
+        .map_err(|error| format!("decode grid {}: {error}", path.display()))?;
+        assert_catalog_layout(library, &layout)?;
+        let binary_roundtrip = cdx_to_cdxml(
+            &cdxml_to_cdx(&cdxml)
+                .map_err(|error| format!("encode CTP semantics {}: {error}", path.display()))?,
+        )
+        .map_err(|error| format!("decode CTP semantics {}: {error}", path.display()))?;
+        let binary_layout: TemplateGridLayout = serde_json::from_str(
+            &template_library_layout_json(&binary_roundtrip)
+                .map_err(|error| format!("parse roundtrip grid {}: {error}", path.display()))?,
+        )
+        .map_err(|error| format!("decode roundtrip grid {}: {error}", path.display()))?;
+        if binary_layout != layout {
+            return Err(format!(
+                "{} changed TemplateGrid semantics during CDXML/CDX/CDXML roundtrip: {:?} -> {:?}",
+                library.name, layout, binary_layout
+            ));
+        }
         let documents = parse_cdxml_template_documents(&cdxml, Some(&library.name))
             .map_err(|error| format!("parse {}: {error}", path.display()))?;
         if documents.len() != library.template_count {
@@ -137,6 +176,34 @@ fn main() -> Result<(), String> {
         catalog.libraries.len(),
         parsed_total
     );
+    Ok(())
+}
+
+fn assert_catalog_layout(library: &Library, layout: &TemplateGridLayout) -> Result<(), String> {
+    let declared = &library.layout;
+    if layout.rows != declared.rows
+        || layout.columns != declared.columns
+        || (layout.pane_height - declared.pane_height).abs() > 1e-9
+        || layout.extent != declared.extent
+    {
+        return Err(format!(
+            "{} catalog and kernel TemplateGrid fields differ",
+            library.name
+        ));
+    }
+    let occupied = layout.cells.iter().flatten().count();
+    let empty = layout.cells.iter().filter(|cell| cell.is_none()).count();
+    if occupied != library.template_count
+        || occupied != declared.occupied_cells
+        || empty != declared.empty_cells
+        || occupied + empty != layout.capacity()
+    {
+        return Err(format!(
+            "{} has inconsistent grid occupancy: occupied={occupied} empty={empty} capacity={}",
+            library.name,
+            layout.capacity()
+        ));
+    }
     Ok(())
 }
 

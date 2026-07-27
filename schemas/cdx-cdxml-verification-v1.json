@@ -17,11 +17,11 @@
     "cdxmlAttributes": 384,
     "cdxmlDeclarations": 762,
     "losslessUncovered": 0,
-    "nativeSemanticCdxProperties": 32,
-    "typedInterchangeCdxProperties": 211,
+    "nativeSemanticCdxProperties": 36,
+    "typedInterchangeCdxProperties": 207,
     "opaqueBySpecCdxProperties": 18,
     "contextDependentCdxProperties": 1,
-    "nativeSemanticCdxmlAttributes": 85,
+    "nativeSemanticCdxmlAttributes": 102,
     "verifiedBehaviorObjects": 35,
     "verifiedBehaviorCdxProperties": 262,
     "verifiedBehaviorCdxmlAttributes": 384,
@@ -185,7 +185,7 @@
       "cdxmlName": "templategrid",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "interchange-object",
+      "implementation": "native-object-tag",
       "behaviorStatus": "verified"
     },
     {
@@ -663,10 +663,10 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/2DExtent.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
-      "formatRule": "Official lexical/binary codec is available; value is editable."
+      "formatRule": "Official point codec is available; TemplateGrid consumes the pair as native cell width and height."
     },
     {
       "tag": "0x0203",
@@ -3981,10 +3981,10 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Template_PaneHeight.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
-      "formatRule": "Official lexical/binary codec is available; value is editable."
+      "formatRule": "TemplateGrid pane height is decoded as official 16.16 CDXCoordinate and edited through the native layout model."
     },
     {
       "tag": "0x1001",
@@ -3995,10 +3995,10 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Template_NumRows.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
-      "formatRule": "Official lexical/binary codec is available; value is editable."
+      "formatRule": "TemplateGrid dimension is validated and edited through the native layout model."
     },
     {
       "tag": "0x1002",
@@ -4009,10 +4009,10 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Template_NumColumns.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
-      "formatRule": "Official lexical/binary codec is available; value is editable."
+      "formatRule": "TemplateGrid dimension is validated and edited through the native layout model."
     },
     {
       "tag": "0x1100",
@@ -14009,7 +14009,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -14029,7 +14029,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -17926,7 +17926,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -17946,7 +17946,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -18177,7 +18177,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20239,7 +20239,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -20306,7 +20306,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22115,7 +22115,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22135,7 +22135,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22155,7 +22155,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22175,7 +22175,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22195,7 +22195,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22215,7 +22215,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22287,7 +22287,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22310,7 +22310,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22330,7 +22330,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22350,7 +22350,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },

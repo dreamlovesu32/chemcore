@@ -194,6 +194,31 @@ impl WasmEngine {
             .map_err(|error| JsValue::from_str(&error))
     }
 
+    #[wasm_bindgen(js_name = templateLibraryLayoutJson)]
+    pub fn template_library_layout_json(&self, cdxml: &str) -> Result<String, JsValue> {
+        self.inner
+            .template_library_layout_json(cdxml)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    #[wasm_bindgen(js_name = templateLibraryLayoutDialogJson)]
+    pub fn template_library_layout_dialog_json(&self, cdxml: &str) -> Result<String, JsValue> {
+        self.inner
+            .template_library_layout_dialog_json(cdxml)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    #[wasm_bindgen(js_name = applyTemplateLibraryLayoutJson)]
+    pub fn apply_template_library_layout_json(
+        &self,
+        cdxml: &str,
+        layout_json: &str,
+    ) -> Result<String, JsValue> {
+        self.inner
+            .apply_template_library_layout_json(cdxml, layout_json)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
     #[wasm_bindgen(js_name = templatePreviewIconSvg)]
     pub fn template_preview_icon_svg(&self, cdxml: &str) -> Result<String, JsValue> {
         self.inner

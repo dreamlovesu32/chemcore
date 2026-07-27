@@ -1221,7 +1221,7 @@ body.native-frame-shell .document-tab-close svg {
   position: fixed;
   z-index: 1250;
   width: min(590px, calc(100vw - 24px));
-  max-height: min(560px, calc(100vh - 132px));
+  max-height: min(820px, calc(100vh - 132px));
   overflow: hidden;
   padding: 10px;
   border: 1px solid var(--line-strong);
@@ -1248,6 +1248,24 @@ body.native-frame-shell .document-tab-close svg {
   font-size: 12px;
 }
 
+.template-palette-layout-button {
+  margin-left: 10px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.template-palette-layout-button:hover,
+.template-palette-layout-button:focus-visible {
+  border-color: var(--active);
+  color: var(--active);
+}
+
 .template-palette-search {
   display: block;
   margin-bottom: 8px;
@@ -1266,9 +1284,11 @@ body.native-frame-shell .document-tab-close svg {
 
 .template-palette-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  grid-template-columns: repeat(var(--template-columns), 72px);
   gap: 7px;
-  max-height: min(468px, calc(100vh - 228px));
+  width: max-content;
+  max-width: 100%;
+  max-height: min(var(--template-pane-height), calc(100vh - 228px));
   overflow: auto;
   padding: 2px;
 }
@@ -1280,7 +1300,7 @@ body.native-frame-shell .document-tab-close svg {
 
 .template-palette-item {
   width: 100%;
-  aspect-ratio: 1;
+  aspect-ratio: var(--template-cell-ratio);
   display: grid;
   place-items: center;
   padding: 6px;
@@ -1290,6 +1310,19 @@ body.native-frame-shell .document-tab-close svg {
   background: #ffffff;
   color: #111111;
   cursor: pointer;
+}
+
+.template-palette-empty-cell {
+  min-width: 0;
+  aspect-ratio: var(--template-cell-ratio);
+  border: 1px dashed color-mix(in srgb, var(--line) 68%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-subtle) 55%, transparent);
+}
+
+.template-palette-grid.is-reordering [data-template-cell] {
+  outline: 1px dashed color-mix(in srgb, var(--active) 48%, transparent);
+  outline-offset: -2px;
 }
 
 .template-palette-item:hover,
@@ -1345,6 +1378,42 @@ body.native-frame-shell .document-tab-close svg {
 
 .template-palette-error {
   color: #a52a2a;
+}
+
+.template-grid-dialog-panel {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.template-grid-dialog-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 14px;
+  padding: 16px;
+}
+
+.template-grid-dialog-fields label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  align-items: center;
+  gap: 8px;
+}
+
+.template-grid-dialog-fields input {
+  width: 92px;
+  box-sizing: border-box;
+}
+
+.template-grid-dialog-fields small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.template-grid-dialog-hint {
+  margin: 0;
+  padding: 0 16px 12px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .quick-palette-controls {

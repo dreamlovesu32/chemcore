@@ -18,6 +18,7 @@ const cdxml = [
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "import_fragments.rs"),
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "import_chemical_properties.rs"),
   join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "text_runs.rs"),
+  join(rootDir, "crates", "chemsema-engine", "src", "cdxml", "template_library.rs"),
 ].map((path) => readFileSync(path, "utf8")).join("\n");
 
 const objectBody = cdx.slice(cdx.indexOf("fn object_name"), cdx.indexOf("fn legacy_chemsema_object_name"));
@@ -35,8 +36,9 @@ const nativeSemanticProperties = new Set([
   "ShowBondQuery", "ShowBondRxn", "ShowBondStereo",
   "BasisObjects", "ChemicalPropertyType", "ChemicalPropertyDisplayID",
   "ChemicalPropertyIsActive",
+  "extent", "PaneHeight", "NumRows", "NumColumns",
 ]);
-const nativeSemanticObjects = new Set(["chemicalproperty"]);
+const nativeSemanticObjects = new Set(["chemicalproperty", "templategrid"]);
 const lexicalCdxTypes = new Set([
   "CDXString", "CDXBoolean", "CDXBooleanImplied", "INT8", "UINT8", "INT16", "UINT16",
   "INT32", "UINT32", "FLOAT64", "CDXCoordinate", "CDXPoint2D", "CDXPoint3D", "CDXRectangle",
@@ -72,6 +74,9 @@ const cdxImplementation = (property) => {
   return "opaque-by-spec";
 };
 const cdxFormatRule = (property) => {
+  if (property.cdxmlName === "PaneHeight") return "TemplateGrid pane height is decoded as official 16.16 CDXCoordinate and edited through the native layout model.";
+  if (property.cdxmlName === "NumRows" || property.cdxmlName === "NumColumns") return "TemplateGrid dimension is validated and edited through the native layout model.";
+  if (property.cdxmlName === "extent") return "Official point codec is available; TemplateGrid consumes the pair as native cell width and height.";
   if (property.cdxType === "CDXFormula") return "Official data type is reserved/undefined; ChemDraw does not read or write it.";
   if (property.cdxType === "Unformatted") return "Official type is uninterpreted bytes; rawBase64 is authoritative.";
   if (property.cdxType === "varies") return "Decode according to the containing object tag's TagType; rawBase64 remains authoritative.";

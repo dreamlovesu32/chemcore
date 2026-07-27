@@ -775,12 +775,38 @@ class TauriEngineSession {
   }
 
   templateLibraryPaletteJson(libraryId, libraryName, cdxml) {
-    return this.layoutEngine?.templateLibraryPaletteJson?.(libraryId, libraryName, cdxml)
-      || JSON.stringify({ type: "template-library-palette", library: { id: libraryId, name: libraryName, templateCount: 0 }, templates: [] });
+    if (!this.layoutEngine?.templateLibraryPaletteJson) {
+      throw new Error("The ChemSema kernel does not support template libraries.");
+    }
+    return this.layoutEngine.templateLibraryPaletteJson(libraryId, libraryName, cdxml);
+  }
+
+  templateLibraryLayoutJson(cdxml) {
+    if (!this.layoutEngine?.templateLibraryLayoutJson) {
+      throw new Error("The ChemSema kernel does not support template-grid layouts.");
+    }
+    return this.layoutEngine.templateLibraryLayoutJson(cdxml);
+  }
+
+  templateLibraryLayoutDialogJson(cdxml) {
+    if (!this.layoutEngine?.templateLibraryLayoutDialogJson) {
+      throw new Error("The ChemSema kernel does not support template-grid layout editing.");
+    }
+    return this.layoutEngine.templateLibraryLayoutDialogJson(cdxml);
+  }
+
+  applyTemplateLibraryLayoutJson(cdxml, layoutJson) {
+    if (!this.layoutEngine?.applyTemplateLibraryLayoutJson) {
+      throw new Error("The ChemSema kernel does not support template-grid layout editing.");
+    }
+    return this.layoutEngine.applyTemplateLibraryLayoutJson(cdxml, layoutJson);
   }
 
   templatePreviewIconSvg(cdxml) {
-    return this.layoutEngine?.templatePreviewIconSvg?.(cdxml) || "";
+    if (!this.layoutEngine?.templatePreviewIconSvg) {
+      throw new Error("The ChemSema kernel does not support template previews.");
+    }
+    return this.layoutEngine.templatePreviewIconSvg(cdxml);
   }
 
   bondToolIconSvg(variant, strokeWidth, boldWidth) {

@@ -54,6 +54,7 @@ fn engine_builds_template_palette_documents_and_icons_from_cdxml_pages() {
     let source = r#"<CDXML BondLength="14.4">
       <page id="1"><fragment id="2"><n id="3" p="0 0"/><n id="4" p="14.4 0"/><b id="5" B="3" E="4"/></fragment><annotation Keyword="Name" Content="ethane"/></page>
       <page id="6"><graphic id="7" GraphicType="Rectangle" RectangleType="Plain" BoundingBox="10 10 40 30"/></page>
+      <templategrid NumRows="1" NumColumns="2" PaneHeight="24" extent="24 24"/>
     </CDXML>"#;
     let palette: serde_json::Value = serde_json::from_str(
         &engine
@@ -63,7 +64,7 @@ fn engine_builds_template_palette_documents_and_icons_from_cdxml_pages() {
     .unwrap();
     assert_eq!(palette["type"], "template-library-palette");
     assert_eq!(palette["library"]["templateCount"], 2);
-    assert_eq!(palette["templates"][0]["id"], "test-library:001");
+    assert_eq!(palette["templates"][0]["id"], "test-library:page-1");
     assert_eq!(palette["templates"][0]["label"], "ethane");
     assert!(palette["templates"][0]["iconSvg"]
         .as_str()
@@ -77,7 +78,7 @@ fn engine_builds_template_palette_documents_and_icons_from_cdxml_pages() {
 
 #[test]
 fn document_template_insertion_centers_content_and_preserves_styles() {
-    let source = r#"<CDXML><page id="1"><graphic id="2" GraphicType="Rectangle" RectangleType="Plain" BoundingBox="10 10 40 30"/></page></CDXML>"#;
+    let source = r#"<CDXML><page id="1"><graphic id="2" GraphicType="Rectangle" RectangleType="Plain" BoundingBox="10 10 40 30"/></page><templategrid NumRows="1" NumColumns="1" PaneHeight="24" extent="24 24"/></CDXML>"#;
     let engine = Engine::new();
     let palette: serde_json::Value = serde_json::from_str(
         &engine
@@ -125,7 +126,7 @@ fn molecular_template_click_on_atom_merges_primary_node_and_uses_open_direction(
     let template_cdxml = r#"<CDXML BondLength="14.4"><page id="1"><fragment id="2">
       <n id="3" p="0 0"/><n id="4" p="12.47 -7.2"/><n id="5" p="24.94 0"/>
       <b id="6" B="3" E="4"/><b id="7" B="4" E="5" Order="2"/>
-    </fragment></page></CDXML>"#;
+    </fragment></page><templategrid NumRows="1" NumColumns="1" PaneHeight="24" extent="24 24"/></CDXML>"#;
     let palette_engine = Engine::new();
     let palette: serde_json::Value = serde_json::from_str(
         &palette_engine
@@ -208,7 +209,7 @@ fn molecular_template_click_on_bond_fuses_primary_bond_and_keeps_target_bond() {
     let template_cdxml = r#"<CDXML BondLength="14.4"><page id="1"><fragment id="2">
       <n id="3" p="0 0"/><n id="4" p="12.47 -7.2"/><n id="5" p="24.94 0"/>
       <b id="6" B="3" E="4"/><b id="7" B="4" E="5" Order="2"/>
-    </fragment></page></CDXML>"#;
+    </fragment></page><templategrid NumRows="1" NumColumns="1" PaneHeight="24" extent="24 24"/></CDXML>"#;
     let palette_engine = Engine::new();
     let palette: serde_json::Value = serde_json::from_str(
         &palette_engine
@@ -266,7 +267,7 @@ fn molecular_template_fusion_remaps_semantic_references_to_retained_entities() {
     let template_cdxml = r#"<CDXML BondLength="14.4"><page id="1"><fragment id="2">
       <n id="3" p="0 0"/><n id="4" p="14.4 0"/><n id="5" p="7.2 -12.47"/>
       <b id="6" B="3" E="4" Order="2"/><b id="7" B="4" E="5"/><b id="8" B="5" E="3"/>
-    </fragment></page></CDXML>"#;
+    </fragment></page><templategrid NumRows="1" NumColumns="1" PaneHeight="24" extent="24 24"/></CDXML>"#;
     let palette_engine = Engine::new();
     let palette: serde_json::Value = serde_json::from_str(
         &palette_engine
@@ -339,7 +340,7 @@ fn molecular_template_fusion_remaps_semantic_references_to_retained_entities() {
 fn document_template_scales_from_library_bond_length_to_target_bond_length() {
     let template_cdxml = r#"<CDXML BondLength="14.4"><page id="1"><fragment id="2">
       <n id="3" p="0 0"/><n id="4" p="14.4 0"/><b id="5" B="3" E="4"/>
-    </fragment></page></CDXML>"#;
+    </fragment></page><templategrid NumRows="1" NumColumns="1" PaneHeight="24" extent="24 24"/></CDXML>"#;
     let palette_engine = Engine::new();
     let palette: serde_json::Value = serde_json::from_str(
         &palette_engine
@@ -377,7 +378,7 @@ fn document_template_scales_from_library_bond_length_to_target_bond_length() {
 
 #[test]
 fn nonmolecular_template_over_atom_uses_explicit_center_placement() {
-    let source = r#"<CDXML><page id="1"><graphic id="2" GraphicType="Rectangle" RectangleType="Plain" BoundingBox="10 10 40 30"/></page></CDXML>"#;
+    let source = r#"<CDXML><page id="1"><graphic id="2" GraphicType="Rectangle" RectangleType="Plain" BoundingBox="10 10 40 30"/></page><templategrid NumRows="1" NumColumns="1" PaneHeight="24" extent="24 24"/></CDXML>"#;
     let palette_engine = Engine::new();
     let palette: serde_json::Value = serde_json::from_str(
         &palette_engine

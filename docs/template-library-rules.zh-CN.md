@@ -1,5 +1,8 @@
 # 模板库规则
 
+TemplateGrid 的字段单位、槽位归属、编辑、CDX/CDXML 往返和门禁规则见
+[TemplateGrid 原生模型、编辑与往返规则](template-grid-rules.zh-CN.md)。本文件其余部分描述模板内容的解析、放置和对象守恒。
+
 ## 目标与交互
 
 模板库是独立的绘制模式，不在左侧再增加一条永久栏：

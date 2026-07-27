@@ -42,7 +42,7 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x8009` | `embeddedobject` | `interchange-object` | `verified` | `verified` | `verified` |
 | `0x8016` | `table` | `interchange-object` | `verified` | `verified` | `verified` |
 | `0x800A` | `altgroup` | `interchange-object` | `verified` | `verified` | `verified` |
-| `0x800B` | `templategrid` | `interchange-object` | `verified` | `verified` | `verified` |
+| `0x800B` | `templategrid` | `native-object-tag` | `verified` | `verified` | `verified` |
 | `0x800C` | `regnum` | `interchange-object` | `verified` | `verified` | `verified` |
 | `0x800D` | `scheme` | `interchange-object` | `verified` | `verified` | `verified` |
 | `0x800E` | `step` | `interchange-object` | `verified` | `verified` | `verified` |
@@ -86,7 +86,7 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x0100` | `fonttable` | `CDXFontTable` | `native-semantic/children` | `verified` | `verified` | `verified` | Required if fonts are used. A list of fonts used in the document. Edit structured font children and explicit native text styles. |
 | `0x0200` | `p` | `CDXPoint2D` | `typed-interchange/value` | `verified` | `verified` | `verified` | The 2D location (in the order of vertical and horizontal locations) of an object. Official lexical/binary codec is available; value is editable. |
 | `0x0201` | `xyz` | `CDXPoint3D` | `typed-interchange/value` | `verified` | `verified` | `verified` | The 3D location (in the order of X-, Y-, and Z-locations in right-handed coordinate system) of an object in CDX coordinate units. The precise meaning of this attribute varies depending on the type of object. Official lexical/binary codec is available; value is editable. |
-| `0x0202` | `extent` | `CDXPoint2D` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for templategrids. The width and height of an object in CDX coordinate units. The precise meaning of this attribute varies depending on the type of object. Official lexical/binary codec is available; value is editable. |
+| `0x0202` | `extent` | `CDXPoint2D` | `native-semantic/value` | `verified` | `verified` | `verified` | Required for templategrids. The width and height of an object in CDX coordinate units. The precise meaning of this attribute varies depending on the type of object. Official point codec is available; TemplateGrid consumes the pair as native cell width and height. |
 | `0x0203` | `extent3D` | `CDXPoint3D` | `typed-interchange/value` | `verified` | `verified` | `verified` | The width, height, and depth of an object in CDX coordinate units (right-handed coordinate system). The precise meaning of this attribute varies depending on the type of object. Official lexical/binary codec is available; value is editable. |
 | `0x0204` | `BoundingBox` | `CDXRectangle` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for pictures and spectra. Required for graphics and text until 6.0. The smallest rectangle that encloses the graphical representation of the object. Official lexical/binary codec is available; value is editable. |
 | `0x0205` | `RotationAngle` | `INT32` | `typed-interchange/value` | `verified` | `verified` | `verified` | The angular orientation of an object in degrees * 65536. Official lexical/binary codec is available; value is editable. |
@@ -323,9 +323,9 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x0F01` | `CrossReferenceDocument` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | An external document containing the Sequence object being referenced. Official lexical/binary codec is available; value is editable. |
 | `0x0F02` | `CrossReferenceIdentifier` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for cross-references.. A unique (but otherwise random) identifier for a given Cross-Reference object. Official lexical/binary codec is available; value is editable. |
 | `0x0F03` | `CrossReferenceSequence` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for cross-references.. A value matching the SequenceIdentifier of the Sequence object to be referenced. Official lexical/binary codec is available; value is editable. |
-| `0x1000` | `PaneHeight` | `CDXCoordinate` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for templategrids. The height of the viewing window of a template grid. Official lexical/binary codec is available; value is editable. |
-| `0x1001` | `NumRows` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for templategrids. The number of rows of the CDX TemplateGrid object. Official lexical/binary codec is available; value is editable. |
-| `0x1002` | `NumColumns` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for templategrids. The number of columns of the CDX TemplateGrid object. Official lexical/binary codec is available; value is editable. |
+| `0x1000` | `PaneHeight` | `CDXCoordinate` | `native-semantic/value` | `verified` | `verified` | `verified` | Required for templategrids. The height of the viewing window of a template grid. TemplateGrid pane height is decoded as official 16.16 CDXCoordinate and edited through the native layout model. |
+| `0x1001` | `NumRows` | `INT16` | `native-semantic/value` | `verified` | `verified` | `verified` | Required for templategrids. The number of rows of the CDX TemplateGrid object. TemplateGrid dimension is validated and edited through the native layout model. |
+| `0x1002` | `NumColumns` | `INT16` | `native-semantic/value` | `verified` | `verified` | `verified` | Required for templategrids. The number of columns of the CDX TemplateGrid object. TemplateGrid dimension is validated and edited through the native layout model. |
 | `0x1100` | `Integral` | `CDXBoolean` | `typed-interchange/value` | `verified` | `verified` | `verified` | The group is considered to be integral (non-subdivisible) if non-zero. Official lexical/binary codec is available; value is editable. |
 | `0x1FF0` | `SplitterPositions` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | An array of vertical positions that subdivide a page into regions. Official lexical/binary codec is available; value is editable. |
 | `0x1FF1` | `PageDefinition` | `INT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | A description of the type of formatting used by the page, or by the splitter. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
@@ -405,8 +405,8 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `Visible` | 21 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `Warning` | 8 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `Z` | 25 | `native-semantic` | `verified` | `verified` | `verified` |
-| `Content` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `Keyword` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `Content` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `Keyword` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `AngularSize` | 3 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `ArrowEquilibriumRatio` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `ArrowheadCenterSize` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
@@ -533,8 +533,8 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `CreationDate` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `CreationProgram` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `CreationUserName` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `FixInPlaceExtent` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `FixInPlaceGap` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `FixInPlaceExtent` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `FixInPlaceGap` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `FractionalWidths` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `HideImplicitHydrogens` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `InterpretChemically` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
@@ -542,7 +542,7 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `LabelJustification` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
 | `LabelLineHeight` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
 | `MacPrintInfo` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `Magnification` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `Magnification` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `ModificationDate` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `ModificationProgram` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `ModificationUserName` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
@@ -630,9 +630,9 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `GeometricFeature` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `RelationValue` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `BandValue` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `Height` | 3 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `Height` | 3 | `native-semantic` | `verified` | `verified` | `verified` |
 | `ShowValue` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `Width` | 4 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `Width` | 4 | `native-semantic` | `verified` | `verified` | `verified` |
 | `LabelText` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `AxisWidth` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `BottomLeft` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
@@ -659,8 +659,8 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `SymbolType` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `Integral` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `DisplayName` | 3 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `MarkerAngle` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
-| `MarkerOffset` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
+| `MarkerAngle` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `MarkerOffset` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `Persistent` | 3 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `TagType` | 3 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `Value` | 3 | `native-semantic` | `verified` | `verified` | `verified` |
@@ -704,22 +704,22 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `UnsaturatedBonds` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Tracking` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `BoundsInParent` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `DrawingSpace` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `Footer` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `FooterPosition` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `Header` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `HeaderPosition` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `HeightPages` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `DrawingSpace` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `Footer` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `FooterPosition` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `Header` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `HeaderPosition` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `HeightPages` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `PageDefinition` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `PageOverlap` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `PrintTrimMarks` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `SplitterPositions` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `WidthPages` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `NumberBasePairs` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
-| `RingRadius` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
-| `RegionEnd` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
-| `RegionOffset` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
-| `RegionStart` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `PageOverlap` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `PrintTrimMarks` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `SplitterPositions` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `WidthPages` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `NumberBasePairs` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `RingRadius` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `RegionEnd` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `RegionOffset` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `RegionStart` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `RegistryAuthority` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `RegistryNumber` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `attribute` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
