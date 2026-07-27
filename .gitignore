@@ -45,6 +45,11 @@ tmp/
 private-docs/
 private-scripts/
 
+# Generated from a user's locally licensed ChemDraw installation. Keep the
+# extractor and documentation public, but never redistribute the vendor assets.
+viewer/template-libraries/*
+!viewer/template-libraries/README.md
+
 # Local-only comparison drafts. Public README assets should stay limited to
 # ChemDraw/ChemSema comparison files already tracked in the repository.
 docs/assets/readme/comparison/*indraw*

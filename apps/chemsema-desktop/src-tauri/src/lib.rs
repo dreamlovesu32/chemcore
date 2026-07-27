@@ -291,6 +291,7 @@ pub fn run() {
             desktop_engine_paste_clipboard,
             desktop_engine_paste_clipboard_json,
             desktop_engine_paste_document_json,
+            desktop_engine_insert_document_template_json_at,
             desktop_engine_paste_cdxml,
             desktop_engine_paste_cdx,
             desktop_engine_replace_hovered_endpoint_label,

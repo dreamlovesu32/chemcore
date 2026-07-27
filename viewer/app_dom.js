@@ -14,7 +14,6 @@ export function createAppDomRefs(rootDocument = document) {
   const viewerContainer = rootDocument.getElementById("viewer-container");
   const secondaryToolbar = rootDocument.getElementById("secondary-toolbar");
   const selectionChemistrySummary = rootDocument.getElementById("selection-chemistry-summary");
-  const templatePanelModeButton = rootDocument.getElementById("template-panel-mode-button");
   const paperLayoutModeButton = rootDocument.getElementById("paper-layout-mode-button");
   const desktopTitlebar = rootDocument.getElementById("desktop-titlebar");
   const documentTabsRoot = rootDocument.getElementById("document-tabs");
@@ -53,7 +52,6 @@ export function createAppDomRefs(rootDocument = document) {
     viewerContainer,
     secondaryToolbar,
     selectionChemistrySummary,
-    templatePanelModeButton,
     paperLayoutModeButton,
     desktopTitlebar,
     documentTabsRoot,

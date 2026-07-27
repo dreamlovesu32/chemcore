@@ -22,6 +22,7 @@ mod import_scaling;
 mod import_topology;
 mod line_spacing;
 mod parse_values;
+mod template_library;
 mod text_runs;
 pub(crate) mod xml;
 
@@ -44,13 +45,16 @@ use self::import_objects::{
     append_spectrum_objects, append_synthesized_enhanced_stereo_text_objects,
     append_table_shape_objects, append_text_objects, append_tlc_plate_shape_objects,
     associate_table_cell_contents, import_reactions_and_stoichiometry_grids,
-    validate_bio_shape_nodes,
+    parse_cdxml_curve_points, validate_bio_shape_nodes,
 };
 pub(crate) use self::import_scaling::normalize_cdxml_document_for_editing;
 use self::import_topology::*;
 use self::line_spacing::*;
 pub(crate) use self::parse_values::element_symbol;
 use self::parse_values::*;
+pub use self::template_library::{
+    parse_cdxml_template_documents, template_document_icon_svg, template_library_palette_json,
+};
 use self::text_runs::{label_display_runs, label_display_runs_from_source_runs, label_source_run};
 pub(crate) use self::xml::parse_xml_tree;
 use self::xml::{descendants, XmlNode};

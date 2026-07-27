@@ -1,17 +1,29 @@
-use chemsema_engine::cdx_to_cdxml;
-use std::{env, fs};
+use std::{env, fs, process};
 
 fn main() {
-    let mut args = env::args().skip(1);
-    let input = args.next().expect(
-        "usage: cargo run -p chemsema-engine --example cdx_to_cdxml -- <input.cdx> [output.cdxml]",
-    );
-    let output = args.next();
-    let bytes = fs::read(&input).expect("CDX input should be readable");
-    let cdxml = cdx_to_cdxml(&bytes).expect("CDX should convert to CDXML");
-    if let Some(output) = output {
-        fs::write(output, cdxml).expect("CDXML output should be writable");
-    } else {
-        print!("{cdxml}");
+    let mut args = env::args_os().skip(1);
+    let Some(input) = args.next() else {
+        eprintln!("usage: cdx_to_cdxml <input.cdx|input.ctp> <output.cdxml>");
+        process::exit(2);
+    };
+    let Some(output) = args.next() else {
+        eprintln!("usage: cdx_to_cdxml <input.cdx|input.ctp> <output.cdxml>");
+        process::exit(2);
+    };
+    if args.next().is_some() {
+        eprintln!("usage: cdx_to_cdxml <input.cdx|input.ctp> <output.cdxml>");
+        process::exit(2);
     }
+    let bytes = fs::read(&input).unwrap_or_else(|error| {
+        eprintln!("failed to read {}: {error}", input.to_string_lossy());
+        process::exit(1);
+    });
+    let cdxml = chemsema_engine::cdx_to_cdxml(&bytes).unwrap_or_else(|error| {
+        eprintln!("failed to decode {}: {error}", input.to_string_lossy());
+        process::exit(1);
+    });
+    fs::write(&output, cdxml).unwrap_or_else(|error| {
+        eprintln!("failed to write {}: {error}", output.to_string_lossy());
+        process::exit(1);
+    });
 }

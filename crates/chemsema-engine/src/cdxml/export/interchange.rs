@@ -1,5 +1,110 @@
 use super::*;
 
+pub(super) fn remove_regenerated_scene_objects(
+    source: &mut crate::InterchangeObject,
+    document: &crate::ChemSemaDocument,
+) {
+    let mut regenerated = std::collections::BTreeSet::new();
+    let mut regenerated_idless_curves = std::collections::BTreeSet::new();
+    for object in &document.objects {
+        collect_regenerated_scene_object_ids(
+            object,
+            &mut regenerated,
+            &mut regenerated_idless_curves,
+        );
+    }
+    for area_id in document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.colored_areas.iter().map(|area| area.id.clone()))
+    {
+        regenerated.insert(("ColoredMolecularArea", area_id.clone()));
+        regenerated.insert(("coloredmoleculararea", area_id));
+    }
+    remove_regenerated_scene_objects_recursive(source, &regenerated, &regenerated_idless_curves);
+}
+
+fn collect_regenerated_scene_object_ids(
+    object: &crate::SceneObject,
+    out: &mut std::collections::BTreeSet<(&'static str, String)>,
+    idless_curves: &mut std::collections::BTreeSet<String>,
+) {
+    for (meta_key, source_tag) in [
+        ("curveId", "curve"),
+        ("graphicId", "graphic"),
+        ("bioShapeId", "bioshape"),
+    ] {
+        if let Some(id) = object
+            .meta
+            .get(meta_key)
+            .and_then(serde_json::Value::as_str)
+        {
+            let tag = if meta_key == "graphicId"
+                && object
+                    .meta
+                    .pointer("/import/cdxml/kind")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("arrow")
+            {
+                "arrow"
+            } else {
+                source_tag
+            };
+            out.insert((tag, id.to_string()));
+        }
+    }
+    if let Some(ids) = object
+        .meta
+        .get("graphicIds")
+        .and_then(serde_json::Value::as_array)
+    {
+        for id in ids.iter().filter_map(serde_json::Value::as_str) {
+            out.insert(("graphic", id.to_string()));
+        }
+    }
+    if object
+        .meta
+        .get("curveId")
+        .is_some_and(serde_json::Value::is_null)
+    {
+        if let Some(fingerprint) = object
+            .meta
+            .get("curveFingerprint")
+            .and_then(serde_json::Value::as_str)
+        {
+            idless_curves.insert(fingerprint.to_string());
+        }
+    }
+    for child in &object.children {
+        collect_regenerated_scene_object_ids(child, out, idless_curves);
+    }
+}
+
+fn remove_regenerated_scene_objects_recursive(
+    source: &mut crate::InterchangeObject,
+    regenerated: &std::collections::BTreeSet<(&'static str, String)>,
+    regenerated_idless_curves: &std::collections::BTreeSet<String>,
+) {
+    source.children.retain(|child| {
+        let represented_by_id = child.id.as_ref().is_some_and(|id| {
+            regenerated
+                .iter()
+                .any(|(tag, regenerated_id)| *tag == child.name && regenerated_id == id)
+        });
+        let represented_idless_curve = child.name == "curve"
+            && child.id.is_none()
+            && child
+                .properties
+                .get("CurvePoints")
+                .is_some_and(|property| regenerated_idless_curves.contains(&property.value));
+        !represented_by_id && !represented_idless_curve
+    });
+    for child in &mut source.children {
+        remove_regenerated_scene_objects_recursive(child, regenerated, regenerated_idless_curves);
+    }
+}
+
 pub(super) fn merge_interchange_tree(
     generated: &mut crate::cdxml::xml::XmlNode,
     source: &crate::InterchangeObject,
@@ -93,9 +198,34 @@ pub(super) fn merge_interchange_tree(
             .iter()
             .position(|child| interchange_xml_exact_match(source_child, child));
         let match_index = exact.or_else(|| {
-            remaining
-                .iter()
-                .position(|child| source_child.name == child.name)
+            if matches!(
+                source_child.name.as_str(),
+                "page" | "fragment" | "n" | "b" | "t" | "s" | "group"
+            ) {
+                remaining
+                    .iter()
+                    .position(|child| source_child.name == child.name)
+            } else if source_child.id.is_none() {
+                remaining
+                    .iter()
+                    .position(|child| source_child.name == child.name && child.attr("id").is_none())
+            } else if matches!(
+                source_child.name.as_str(),
+                "graphic" | "curve" | "arrow" | "bioshape"
+            ) {
+                None
+            } else {
+                let mut matches = remaining
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, child)| source_child.name == child.name);
+                let first = matches.next().map(|(index, _)| index);
+                if matches.next().is_none() {
+                    first
+                } else {
+                    None
+                }
+            }
         });
         if let Some(index) = match_index {
             let mut child = remaining.remove(index);

@@ -79,6 +79,7 @@ export class WasmEngine {
     historyJson(): string;
     hoverArrowAction(x: number, y: number): string;
     hoverShapeAction(x: number, y: number): string;
+    insertDocumentTemplateJsonAt(template_id: string, json: string, x: number, y: number): boolean;
     interactionRenderListJson(): string;
     joinSelection(): boolean;
     lastCommandResultJson(): string;
@@ -144,6 +145,8 @@ export class WasmEngine {
     stateJson(): string;
     symbolToolIconSvg(kind: string): string;
     takePendingDialogJson(): string;
+    templateLibraryPaletteJson(library_id: string, library_name: string, cdxml: string): string;
+    templatePreviewIconSvg(cdxml: string): string;
     textFormatIconSvg(kind: string): string;
     textSymbolPaletteJson(): string;
     tlcLaneGuideHitTestJson(x: number, y: number): string | undefined;
@@ -240,6 +243,7 @@ export interface InitOutput {
     readonly wasmengine_historyJson: (a: number) => [number, number, number, number];
     readonly wasmengine_hoverArrowAction: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_hoverShapeAction: (a: number, b: number, c: number) => [number, number];
+    readonly wasmengine_insertDocumentTemplateJsonAt: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number];
     readonly wasmengine_interactionRenderListJson: (a: number) => [number, number, number, number];
     readonly wasmengine_joinSelection: (a: number) => number;
     readonly wasmengine_lastCommandResultJson: (a: number) => [number, number, number, number];
@@ -305,6 +309,8 @@ export interface InitOutput {
     readonly wasmengine_stateJson: (a: number) => [number, number, number, number];
     readonly wasmengine_symbolToolIconSvg: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_takePendingDialogJson: (a: number) => [number, number];
+    readonly wasmengine_templateLibraryPaletteJson: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number, number];
+    readonly wasmengine_templatePreviewIconSvg: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_textFormatIconSvg: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_textSymbolPaletteJson: (a: number) => [number, number];
     readonly wasmengine_tlcLaneGuideHitTestJson: (a: number, b: number, c: number) => [number, number, number, number];

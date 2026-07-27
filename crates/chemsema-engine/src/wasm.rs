@@ -182,6 +182,25 @@ impl WasmEngine {
         self.inner.element_palette_json()
     }
 
+    #[wasm_bindgen(js_name = templateLibraryPaletteJson)]
+    pub fn template_library_palette_json(
+        &self,
+        library_id: &str,
+        library_name: &str,
+        cdxml: &str,
+    ) -> Result<String, JsValue> {
+        self.inner
+            .template_library_palette_json(library_id, library_name, cdxml)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    #[wasm_bindgen(js_name = templatePreviewIconSvg)]
+    pub fn template_preview_icon_svg(&self, cdxml: &str) -> Result<String, JsValue> {
+        self.inner
+            .template_preview_icon_svg(cdxml)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
     #[wasm_bindgen(js_name = bondToolIconSvg)]
     pub fn bond_tool_icon_svg(&self, variant: &str, stroke_width: f64, bold_width: f64) -> String {
         Engine::bond_tool_icon_svg(parse_bond_variant(variant), stroke_width, bold_width)
@@ -988,6 +1007,19 @@ impl WasmEngine {
     pub fn paste_document_json(&mut self, json: &str) -> Result<bool, JsValue> {
         self.inner
             .paste_document_json(json)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    #[wasm_bindgen(js_name = insertDocumentTemplateJsonAt)]
+    pub fn insert_document_template_json_at(
+        &mut self,
+        template_id: &str,
+        json: &str,
+        x: f64,
+        y: f64,
+    ) -> Result<bool, JsValue> {
+        self.inner
+            .insert_document_template_json_at(template_id, json, x, y)
             .map_err(|error| JsValue::from_str(&error))
     }
 

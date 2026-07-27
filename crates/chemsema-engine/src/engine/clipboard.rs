@@ -1,8 +1,9 @@
 use super::text_edit::refresh_attached_node_label_geometry_for_all_nodes;
 use super::{EditorCommand, Engine, RenderBoundsScope};
 use crate::{
-    Bond, ChemSemaDocument, ChemicalProperty, ColoredMolecularArea, LinkRelation, Node, Resource,
-    ResourceData, SceneObject, SelectionState,
+    adjacent_directions, angle_between, hit_test_bond, hit_test_endpoint, Bond, BondAnchor,
+    ChemSemaDocument, ChemicalProperty, ColoredMolecularArea, LinkRelation, Node, Point, Resource,
+    ResourceData, SceneObject, SelectionState, BOND_HIT_RADIUS,
 };
 use chemsema_chemical_graph::{MultiCenterInteractionV2, StereoElementV2};
 use serde::{Deserialize, Serialize};
@@ -26,6 +27,8 @@ pub(super) struct ClipboardContent {
     scene_objects: Vec<SceneObject>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     resources: BTreeMap<String, Resource>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    styles: BTreeMap<String, serde_json::Value>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     links: Vec<LinkRelation>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -110,6 +113,341 @@ impl Engine {
         self.paste_external_document(source)
     }
 
+    pub fn insert_document_template_json_at(
+        &mut self,
+        template_id: &str,
+        json: &str,
+        x: f64,
+        y: f64,
+    ) -> Result<bool, String> {
+        let mut source = Engine::new();
+        source.load_document_json(json)?;
+        if !source.select_all() {
+            return Err("template document has no selectable content".to_string());
+        }
+        let source_bond_length = source.options.bond_length_world_pt().value();
+        let target_bond_length = self.options.bond_length_world_pt().value();
+        if source_bond_length > crate::EPSILON {
+            let scale_percent = target_bond_length / source_bond_length * 100.0;
+            if (scale_percent - 100.0).abs() > crate::EPSILON {
+                source.scale_selection(scale_percent);
+            }
+        }
+        let target_point = Point::new(x, y);
+        let target_endpoint = hit_test_endpoint(
+            &self.state.document,
+            target_point,
+            self.endpoint_hit_radius(),
+        )
+        .filter(|endpoint| endpoint.distance <= self.endpoint_focus_radius());
+        let source_node_anchor = optional_primary_template_node_anchor(&source.state.document)?;
+        let target = if let (Some(endpoint), Some(source_anchor)) =
+            (target_endpoint, source_node_anchor)
+        {
+            align_template_node_to_endpoint(
+                &mut source,
+                &self.state.document,
+                &source_anchor,
+                &endpoint,
+            )?;
+            DocumentTemplateTarget::Endpoint(endpoint)
+        } else if let Some(hit) = hit_test_bond(&self.state.document, target_point, BOND_HIT_RADIUS)
+        {
+            if let Some(source_bond) =
+                optional_primary_template_bond_anchor(&source.state.document)?
+            {
+                let target_bond = document_template_bond_anchor(&self.state.document, &hit.bond_id)
+                    .ok_or_else(|| {
+                        format!("template target bond '{}' was not found", hit.bond_id)
+                    })?;
+                align_template_bond_to_bond(&mut source, &source_bond, &target_bond)?;
+                DocumentTemplateTarget::Bond(target_bond)
+            } else {
+                center_template_document_at(&mut source.state.document, target_point)?;
+                DocumentTemplateTarget::Center
+            }
+        } else {
+            center_template_document_at(&mut source.state.document, target_point)?;
+            DocumentTemplateTarget::Center
+        };
+        let Some(document) = source.document_from_selection() else {
+            return Ok(false);
+        };
+        let content = clipboard_content_from_document(document);
+        let previous_clipboard = self.clipboard.replace(content);
+        let changed = self.with_command(
+            EditorCommand::InsertTemplate {
+                template: template_id.to_string(),
+                x,
+                y,
+                anchor: None,
+                bond_id: match &target {
+                    DocumentTemplateTarget::Bond(target) => Some(target.bond_id.clone()),
+                    _ => None,
+                },
+                cursor: None,
+                angle: None,
+                bond_length: None,
+                side: None,
+            },
+            |engine| {
+                if !engine.paste_clipboard_untracked() {
+                    return false;
+                }
+                match &target {
+                    DocumentTemplateTarget::Center => true,
+                    DocumentTemplateTarget::Endpoint(target) => {
+                        engine.merge_pasted_template_node(target)
+                    }
+                    DocumentTemplateTarget::Bond(target) => {
+                        engine.merge_pasted_template_bond(target)
+                    }
+                }
+            },
+        );
+        self.clipboard = previous_clipboard;
+        Ok(changed)
+    }
+
+    fn merge_pasted_template_node(&mut self, target: &crate::EndpointHit) -> bool {
+        let pasted_object_id = self
+            .state
+            .document
+            .editable_fragments()
+            .into_iter()
+            .filter(|entry| entry.object.id != target.object_id)
+            .filter_map(|entry| {
+                let distance = entry
+                    .fragment
+                    .nodes
+                    .iter()
+                    .map(|node| entry.world_point_for_node(node).distance(target.point))
+                    .min_by(f64::total_cmp)?;
+                Some((distance, entry.object.id.clone()))
+            })
+            .min_by(|left, right| left.0.total_cmp(&right.0))
+            .filter(|(distance, _)| *distance <= crate::EPSILON.max(0.02))
+            .map(|(_, object_id)| object_id);
+        let Some(pasted_object_id) = pasted_object_id else {
+            return false;
+        };
+        let Some(pasted_entry) = self
+            .state
+            .document
+            .editable_fragments()
+            .into_iter()
+            .find(|entry| entry.object.id == pasted_object_id)
+        else {
+            return false;
+        };
+        let pasted_translate = pasted_entry.object.transform.translate;
+        let Some(pasted_anchor_id) = pasted_entry
+            .fragment
+            .nodes
+            .iter()
+            .min_by(|left, right| {
+                pasted_entry
+                    .world_point_for_node(left)
+                    .distance(target.point)
+                    .total_cmp(
+                        &pasted_entry
+                            .world_point_for_node(right)
+                            .distance(target.point),
+                    )
+            })
+            .map(|node| node.id.clone())
+        else {
+            return false;
+        };
+        self.finish_pasted_template_fragment_merge(
+            &pasted_object_id,
+            pasted_translate,
+            pasted_entry.fragment.clone(),
+            &target.object_id,
+            &[(pasted_anchor_id.clone(), target.node_id.clone())],
+            &[],
+            &BTreeSet::from([pasted_anchor_id]),
+            &BTreeSet::new(),
+        )
+    }
+
+    fn merge_pasted_template_bond(&mut self, target: &DocumentTemplateBondAnchor) -> bool {
+        let candidate = self
+            .state
+            .document
+            .editable_fragments()
+            .into_iter()
+            .filter(|entry| entry.object.id != target.object_id)
+            .filter_map(|entry| {
+                entry
+                    .fragment
+                    .bonds
+                    .iter()
+                    .filter_map(|bond| {
+                        let begin = entry
+                            .fragment
+                            .nodes
+                            .iter()
+                            .find(|node| node.id == bond.begin)
+                            .map(|node| entry.world_point_for_node(node))?;
+                        let end = entry
+                            .fragment
+                            .nodes
+                            .iter()
+                            .find(|node| node.id == bond.end)
+                            .map(|node| entry.world_point_for_node(node))?;
+                        let direct = begin.distance(target.begin) + end.distance(target.end);
+                        Some((
+                            direct,
+                            entry.object.id.clone(),
+                            entry.object.transform.translate,
+                            entry.fragment.clone(),
+                            bond.clone(),
+                        ))
+                    })
+                    .min_by(|left, right| left.0.total_cmp(&right.0))
+            })
+            .min_by(|left, right| left.0.total_cmp(&right.0));
+        let Some((distance, pasted_object_id, pasted_translate, pasted_fragment, pasted_bond)) =
+            candidate
+        else {
+            return false;
+        };
+        if distance > crate::EPSILON.max(0.04) {
+            return false;
+        }
+        let pasted_bond_id = pasted_bond.id.clone();
+        let pasted_begin_id = pasted_bond.begin.clone();
+        let pasted_end_id = pasted_bond.end.clone();
+        self.finish_pasted_template_fragment_merge(
+            &pasted_object_id,
+            pasted_translate,
+            pasted_fragment,
+            &target.object_id,
+            &[
+                (pasted_begin_id.clone(), target.begin_id.clone()),
+                (pasted_end_id.clone(), target.end_id.clone()),
+            ],
+            &[(pasted_bond_id.clone(), target.bond_id.clone())],
+            &BTreeSet::from([pasted_begin_id, pasted_end_id]),
+            &BTreeSet::from([pasted_bond_id]),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn finish_pasted_template_fragment_merge(
+        &mut self,
+        pasted_object_id: &str,
+        pasted_translate: [f64; 2],
+        mut fragment: crate::MoleculeFragment,
+        target_object_id: &str,
+        node_replacements: &[(String, String)],
+        bond_replacements: &[(String, String)],
+        removed_node_ids: &BTreeSet<String>,
+        removed_bond_ids: &BTreeSet<String>,
+    ) -> bool {
+        fragment
+            .nodes
+            .retain(|node| !removed_node_ids.contains(&node.id));
+        fragment
+            .bonds
+            .retain(|bond| !removed_bond_ids.contains(&bond.id));
+        for bond in &mut fragment.bonds {
+            for (source, target) in node_replacements {
+                if bond.begin == *source {
+                    bond.begin = target.clone();
+                }
+                if bond.end == *source {
+                    bond.end = target.clone();
+                }
+            }
+        }
+        remap_fragment_semantics_for_template_fusion(
+            &mut fragment,
+            node_replacements,
+            bond_replacements,
+        );
+        let target_translate = self
+            .state
+            .document
+            .editable_fragments()
+            .into_iter()
+            .find(|entry| entry.object.id == target_object_id)
+            .map(|entry| entry.object.transform.translate);
+        let Some(target_translate) = target_translate else {
+            return false;
+        };
+        for node in &mut fragment.nodes {
+            node.position = [
+                crate::round2(pasted_translate[0] + node.position[0] - target_translate[0]),
+                crate::round2(pasted_translate[1] + node.position[1] - target_translate[1]),
+            ];
+        }
+        let inserted_node_ids = fragment
+            .nodes
+            .iter()
+            .map(|node| node.id.clone())
+            .collect::<Vec<_>>();
+        let inserted_bond_ids = fragment
+            .bonds
+            .iter()
+            .map(|bond| bond.id.clone())
+            .collect::<Vec<_>>();
+        {
+            let stroke_width = self.options.bond_stroke_world_pt().value();
+            let Some(mut target_entry) = self
+                .state
+                .document
+                .editable_fragment_mut_for_object(target_object_id)
+            else {
+                return false;
+            };
+            target_entry.fragment.nodes.extend(fragment.nodes);
+            target_entry.fragment.bonds.extend(fragment.bonds);
+            target_entry
+                .fragment
+                .colored_areas
+                .extend(fragment.colored_areas);
+            target_entry.fragment.stereo.extend(fragment.stereo);
+            target_entry
+                .fragment
+                .interactions
+                .extend(fragment.interactions);
+            refresh_attached_node_label_geometry_for_all_nodes(
+                target_entry.fragment,
+                target_translate,
+                stroke_width,
+            );
+            target_entry.update_bounds();
+        }
+        let removed_ids = BTreeSet::from([pasted_object_id]);
+        self.state.document.remove_scene_objects_by_id(&removed_ids);
+        let entity_replacements = node_replacements
+            .iter()
+            .chain(bond_replacements)
+            .cloned()
+            .chain(std::iter::once((
+                pasted_object_id.to_string(),
+                target_object_id.to_string(),
+            )))
+            .collect::<BTreeMap<_, _>>();
+        remap_document_references_for_template_fusion(
+            &mut self.state.document,
+            &entity_replacements,
+        );
+        self.state.selection = SelectionState {
+            molecule_objects: vec![target_object_id.to_string()],
+            nodes: node_replacements
+                .iter()
+                .map(|(_, target)| target.clone())
+                .chain(inserted_node_ids)
+                .collect(),
+            bonds: inserted_bond_ids,
+            ..SelectionState::default()
+        };
+        true
+    }
+
     fn paste_external_document(&mut self, mut source: Engine) -> Result<bool, String> {
         if !source.select_all() {
             return Ok(false);
@@ -117,22 +455,7 @@ impl Engine {
         let Some(document) = source.document_from_selection() else {
             return Ok(false);
         };
-        let mut resources = BTreeMap::new();
-        for object in &document.objects {
-            collect_scene_object_resources(object, &document.resources, &mut resources);
-        }
-        let content = ClipboardContent {
-            nodes: Vec::new(),
-            bonds: Vec::new(),
-            colored_areas: Vec::new(),
-            stereo: Vec::new(),
-            interactions: Vec::new(),
-            scene_objects: document.objects,
-            resources,
-            links: document.links,
-            chemical_properties: document.chemical_properties,
-            reaction_schemes: document.reaction_schemes,
-        };
+        let content = clipboard_content_from_document(document);
         self.clipboard = Some(content);
         Ok(self.paste_clipboard())
     }
@@ -224,6 +547,25 @@ impl Engine {
         }
 
         let mut entity_id_map = id_map.clone();
+        let mut style_id_map = BTreeMap::new();
+        for (source_id, style) in &content.styles {
+            if let Some((target_id, _)) = self
+                .state
+                .document
+                .styles
+                .iter()
+                .find(|(_, target)| *target == style)
+            {
+                style_id_map.insert(source_id.clone(), target_id.clone());
+                continue;
+            }
+            let target_id = self.next_id("style");
+            self.state
+                .document
+                .styles
+                .insert(target_id.clone(), style.clone());
+            style_id_map.insert(source_id.clone(), target_id);
+        }
         let mut resource_id_map = BTreeMap::new();
         for (source_id, resource) in &content.resources {
             let target_id = self.next_id("res");
@@ -251,7 +593,12 @@ impl Engine {
                 CLIPBOARD_PASTE_OFFSET_PT,
                 CLIPBOARD_PASTE_OFFSET_PT,
             );
-            remap_clipboard_scene_object(&mut object, &resource_id_map, &entity_id_map);
+            remap_clipboard_scene_object(
+                &mut object,
+                &resource_id_map,
+                &style_id_map,
+                &entity_id_map,
+            );
             if object.object_type == "molecule" {
                 pasted_molecule_ids.push(object.id.clone());
             } else {
@@ -554,6 +901,7 @@ impl Engine {
             interactions,
             scene_objects,
             resources,
+            styles: self.state.document.styles.clone(),
             links,
             chemical_properties,
             reaction_schemes,
@@ -857,6 +1205,277 @@ fn collect_scene_object_resources(
     }
 }
 
+enum DocumentTemplateTarget {
+    Center,
+    Endpoint(crate::EndpointHit),
+    Bond(DocumentTemplateBondAnchor),
+}
+
+#[derive(Clone)]
+struct DocumentTemplateBondAnchor {
+    object_id: String,
+    bond_id: String,
+    begin_id: String,
+    end_id: String,
+    begin: Point,
+    end: Point,
+}
+
+struct TemplateNodeAnchor {
+    node_id: String,
+    direction: Option<f64>,
+}
+
+struct TemplateBondAnchor {
+    bond_id: String,
+    begin_id: String,
+    end_id: String,
+    begin: Point,
+    end: Point,
+}
+
+fn optional_primary_template_node_anchor(
+    document: &ChemSemaDocument,
+) -> Result<Option<TemplateNodeAnchor>, String> {
+    let Some(entry) = document.editable_fragments().into_iter().next() else {
+        return Ok(None);
+    };
+    let node = entry
+        .fragment
+        .nodes
+        .first()
+        .ok_or_else(|| "template molecular fragment has no attachment node".to_string())?;
+    Ok(Some(TemplateNodeAnchor {
+        node_id: node.id.clone(),
+        direction: adjacent_directions(&entry, &node.id).into_iter().next(),
+    }))
+}
+
+fn optional_primary_template_bond_anchor(
+    document: &ChemSemaDocument,
+) -> Result<Option<TemplateBondAnchor>, String> {
+    let Some(entry) = document.editable_fragments().into_iter().next() else {
+        return Ok(None);
+    };
+    let Some(bond) = entry.fragment.bonds.first() else {
+        return Ok(None);
+    };
+    let begin = entry
+        .fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == bond.begin)
+        .map(|node| entry.world_point_for_node(node))
+        .ok_or_else(|| "template fusion bond begin node was not found".to_string())?;
+    let end = entry
+        .fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == bond.end)
+        .map(|node| entry.world_point_for_node(node))
+        .ok_or_else(|| "template fusion bond end node was not found".to_string())?;
+    Ok(Some(TemplateBondAnchor {
+        bond_id: bond.id.clone(),
+        begin_id: bond.begin.clone(),
+        end_id: bond.end.clone(),
+        begin,
+        end,
+    }))
+}
+
+fn document_template_bond_anchor(
+    document: &ChemSemaDocument,
+    bond_id: &str,
+) -> Option<DocumentTemplateBondAnchor> {
+    document.editable_fragments().into_iter().find_map(|entry| {
+        let bond = entry
+            .fragment
+            .bonds
+            .iter()
+            .find(|bond| bond.id == bond_id)?;
+        let begin = entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == bond.begin)
+            .map(|node| entry.world_point_for_node(node))?;
+        let end = entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == bond.end)
+            .map(|node| entry.world_point_for_node(node))?;
+        Some(DocumentTemplateBondAnchor {
+            object_id: entry.object.id.clone(),
+            bond_id: bond.id.clone(),
+            begin_id: bond.begin.clone(),
+            end_id: bond.end.clone(),
+            begin,
+            end,
+        })
+    })
+}
+
+fn align_template_node_to_endpoint(
+    source: &mut Engine,
+    target_document: &ChemSemaDocument,
+    source_anchor: &TemplateNodeAnchor,
+    target: &crate::EndpointHit,
+) -> Result<(), String> {
+    let target_anchor = BondAnchor {
+        node_id: Some(target.node_id.clone()),
+        object_id: Some(target.object_id.clone()),
+        point: target.point,
+        label_anchor: target.label_anchor.clone(),
+    };
+    let target_direction = molecular_template_attachment_direction(target_document, &target_anchor);
+    if let Some(source_direction) = source_anchor.direction {
+        source
+            .rotate_selection_degrees(crate::normalize_angle(target_direction - source_direction));
+    }
+    let next_anchor = template_node_world_point(&source.state.document, &source_anchor.node_id)
+        .ok_or_else(|| {
+            "template primary attachment node disappeared during rotation".to_string()
+        })?;
+    translate_document_objects(
+        &mut source.state.document,
+        target.point.x - next_anchor.x - CLIPBOARD_PASTE_OFFSET_PT,
+        target.point.y - next_anchor.y - CLIPBOARD_PASTE_OFFSET_PT,
+    );
+    Ok(())
+}
+
+fn align_template_bond_to_bond(
+    source: &mut Engine,
+    source_bond: &TemplateBondAnchor,
+    target: &DocumentTemplateBondAnchor,
+) -> Result<(), String> {
+    let source_length = source_bond.begin.distance(source_bond.end);
+    let target_length = target.begin.distance(target.end);
+    if source_length <= crate::EPSILON || target_length <= crate::EPSILON {
+        return Err("template fusion bond must have nonzero length".to_string());
+    }
+    let scale_percent = target_length / source_length * 100.0;
+    if (scale_percent - 100.0).abs() > crate::EPSILON {
+        source.scale_selection(scale_percent);
+    }
+    let scaled = template_bond_world_points(
+        &source.state.document,
+        &source_bond.begin_id,
+        &source_bond.end_id,
+    )
+    .ok_or_else(|| {
+        format!(
+            "template fusion bond '{}' disappeared during scaling",
+            source_bond.bond_id
+        )
+    })?;
+    source.rotate_selection_degrees(crate::normalize_angle(
+        angle_between(target.begin, target.end) - angle_between(scaled.0, scaled.1),
+    ));
+    let rotated = template_bond_world_points(
+        &source.state.document,
+        &source_bond.begin_id,
+        &source_bond.end_id,
+    )
+    .ok_or_else(|| {
+        format!(
+            "template fusion bond '{}' disappeared during rotation",
+            source_bond.bond_id
+        )
+    })?;
+    translate_document_objects(
+        &mut source.state.document,
+        target.begin.x - rotated.0.x - CLIPBOARD_PASTE_OFFSET_PT,
+        target.begin.y - rotated.0.y - CLIPBOARD_PASTE_OFFSET_PT,
+    );
+    Ok(())
+}
+
+fn center_template_document_at(
+    document: &mut ChemSemaDocument,
+    target: Point,
+) -> Result<(), String> {
+    let primitives = crate::render_document(document);
+    let [min_x, min_y, max_x, max_y] = crate::render_primitives_bounds(primitives.iter())
+        .ok_or_else(|| "template document has no visible content".to_string())?;
+    translate_document_objects(
+        document,
+        target.x - (min_x + max_x) * 0.5 - CLIPBOARD_PASTE_OFFSET_PT,
+        target.y - (min_y + max_y) * 0.5 - CLIPBOARD_PASTE_OFFSET_PT,
+    );
+    Ok(())
+}
+
+fn template_node_world_point(document: &ChemSemaDocument, node_id: &str) -> Option<Point> {
+    document.editable_fragments().into_iter().find_map(|entry| {
+        entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == node_id)
+            .map(|node| entry.world_point_for_node(node))
+    })
+}
+
+fn template_bond_world_points(
+    document: &ChemSemaDocument,
+    begin_id: &str,
+    end_id: &str,
+) -> Option<(Point, Point)> {
+    Some((
+        template_node_world_point(document, begin_id)?,
+        template_node_world_point(document, end_id)?,
+    ))
+}
+
+fn molecular_template_attachment_direction(
+    document: &ChemSemaDocument,
+    anchor: &BondAnchor,
+) -> f64 {
+    let Some(node_id) = anchor.node_id.as_deref() else {
+        return crate::default_angle_for_anchor(document, anchor);
+    };
+    let directions = document
+        .editable_fragments()
+        .into_iter()
+        .find(|entry| entry.fragment.nodes.iter().any(|node| node.id == node_id))
+        .map(|entry| adjacent_directions(&entry, node_id))
+        .unwrap_or_default();
+    match directions.as_slice() {
+        [direction] => crate::normalize_angle(direction + 180.0),
+        _ => crate::default_angle_for_anchor(document, anchor),
+    }
+}
+
+fn translate_document_objects(document: &mut ChemSemaDocument, delta_x: f64, delta_y: f64) {
+    document.objects = document
+        .objects
+        .iter()
+        .map(|object| super::select::drag::translated_scene_object(object, delta_x, delta_y))
+        .collect();
+}
+
+fn clipboard_content_from_document(document: ChemSemaDocument) -> ClipboardContent {
+    let mut resources = BTreeMap::new();
+    for object in &document.objects {
+        collect_scene_object_resources(object, &document.resources, &mut resources);
+    }
+    ClipboardContent {
+        nodes: Vec::new(),
+        bonds: Vec::new(),
+        colored_areas: Vec::new(),
+        stereo: Vec::new(),
+        interactions: Vec::new(),
+        scene_objects: document.objects,
+        resources,
+        styles: document.styles,
+        links: document.links,
+        chemical_properties: document.chemical_properties,
+        reaction_schemes: document.reaction_schemes,
+    }
+}
+
 fn preallocate_clipboard_scene_ids(
     engine: &mut Engine,
     object: &SceneObject,
@@ -871,6 +1490,7 @@ fn preallocate_clipboard_scene_ids(
 fn remap_clipboard_scene_object(
     object: &mut SceneObject,
     resource_id_map: &BTreeMap<String, String>,
+    style_id_map: &BTreeMap<String, String>,
     entity_id_map: &BTreeMap<String, String>,
 ) {
     object.id = entity_id_map
@@ -880,6 +1500,11 @@ fn remap_clipboard_scene_object(
     if let Some(resource_id) = object.payload.resource_ref.as_mut() {
         if let Some(target_id) = resource_id_map.get(resource_id) {
             *resource_id = target_id.clone();
+        }
+    }
+    if let Some(style_id) = object.style_ref.as_mut() {
+        if let Some(target_id) = style_id_map.get(style_id) {
+            *style_id = target_id.clone();
         }
     }
     if let Some(geometry) = object.payload.geometry.as_mut() {
@@ -930,7 +1555,7 @@ fn remap_clipboard_scene_object(
         }
     }
     for child in &mut object.children {
-        remap_clipboard_scene_object(child, resource_id_map, entity_id_map);
+        remap_clipboard_scene_object(child, resource_id_map, style_id_map, entity_id_map);
     }
 }
 
@@ -1320,6 +1945,181 @@ fn remap_clipboard_semantics(
         })
         .collect();
     (remapped_stereo, remapped_interactions)
+}
+
+fn remap_fragment_semantics_for_template_fusion(
+    fragment: &mut crate::MoleculeFragment,
+    node_replacements: &[(String, String)],
+    bond_replacements: &[(String, String)],
+) {
+    use chemsema_chemical_graph::{StereoCarrierV2, StereoReferenceV2};
+
+    let node_map = node_replacements
+        .iter()
+        .cloned()
+        .collect::<BTreeMap<_, _>>();
+    let bond_map = bond_replacements
+        .iter()
+        .cloned()
+        .collect::<BTreeMap<_, _>>();
+    let replace_node = |id: &mut String| {
+        if let Some(next) = node_map.get(id) {
+            *id = next.clone();
+        }
+    };
+    let replace_bond = |id: &mut String| {
+        if let Some(next) = bond_map.get(id) {
+            *id = next.clone();
+        }
+    };
+    let replace_carrier = |carrier: &mut StereoCarrierV2| match carrier {
+        StereoCarrierV2::Atom(atom)
+        | StereoCarrierV2::LonePair(atom)
+        | StereoCarrierV2::DuplicateAtom(atom) => replace_node(atom),
+        StereoCarrierV2::Bond(bond) => replace_bond(bond),
+        StereoCarrierV2::AtomSet(atoms) | StereoCarrierV2::Plane(atoms) => {
+            atoms.iter_mut().for_each(&replace_node)
+        }
+        StereoCarrierV2::Axis(atoms) => atoms.iter_mut().for_each(&replace_node),
+        StereoCarrierV2::Torsion(atoms) => atoms.iter_mut().for_each(&replace_node),
+        StereoCarrierV2::ConjugatedDoubleBondPair(bonds) => {
+            bonds.iter_mut().for_each(&replace_bond)
+        }
+    };
+
+    for element in &mut fragment.stereo {
+        match element {
+            StereoElementV2::Tetrahedral {
+                center, references, ..
+            } => {
+                replace_node(center);
+                for reference in references {
+                    if let StereoReferenceV2::Atom(atom) = reference {
+                        replace_node(atom);
+                    }
+                }
+            }
+            StereoElementV2::DoubleBond {
+                bond,
+                left_reference,
+                right_reference,
+                ..
+            } => {
+                replace_bond(bond);
+                replace_node(left_reference);
+                replace_node(right_reference);
+            }
+            StereoElementV2::EnhancedGroup { .. } => {}
+            StereoElementV2::Extended { carriers, .. }
+            | StereoElementV2::Conformation { carriers, .. }
+            | StereoElementV2::Unspecified { carriers, .. } => {
+                carriers.iter_mut().for_each(&replace_carrier);
+            }
+        }
+    }
+    for interaction in &mut fragment.interactions {
+        for atom in interaction
+            .centers
+            .iter_mut()
+            .flat_map(|center| center.atoms.iter_mut())
+        {
+            replace_node(atom);
+        }
+    }
+    for area in &mut fragment.colored_areas {
+        for bond in &mut area.basis_bonds {
+            replace_bond(bond);
+        }
+        area.basis_bonds.dedup();
+    }
+}
+
+fn remap_document_references_for_template_fusion(
+    document: &mut ChemSemaDocument,
+    replacements: &BTreeMap<String, String>,
+) {
+    let replace = |id: &mut String| {
+        if let Some(next) = replacements.get(id) {
+            *id = next.clone();
+        }
+    };
+    for relation in &mut document.links {
+        for endpoint in &mut relation.endpoints {
+            replace(&mut endpoint.entity_id);
+        }
+        remap_exact_entity_strings(&mut relation.data, replacements);
+    }
+    for property in &mut document.chemical_properties {
+        for id in &mut property.basis_entity_ids {
+            replace(id);
+        }
+        if let Some(id) = &mut property.display_object_id {
+            replace(id);
+        }
+        for id in &mut property.unresolved_basis_ids {
+            replace(id);
+        }
+    }
+    for scheme in &mut document.reaction_schemes {
+        for step in &mut scheme.steps {
+            for id in step
+                .reactant_entity_ids
+                .iter_mut()
+                .chain(step.product_entity_ids.iter_mut())
+                .chain(step.arrow_object_ids.iter_mut())
+                .chain(step.plus_object_ids.iter_mut())
+                .chain(step.objects_above_arrow.iter_mut())
+                .chain(step.objects_below_arrow.iter_mut())
+            {
+                replace(id);
+            }
+            for mapping in &mut step.atom_mappings {
+                replace(&mut mapping.reactant_atom_id);
+                replace(&mut mapping.product_atom_id);
+            }
+        }
+    }
+    for object in &mut document.objects {
+        remap_scene_object_payload_references(object, replacements);
+    }
+}
+
+fn remap_scene_object_payload_references(
+    object: &mut SceneObject,
+    replacements: &BTreeMap<String, String>,
+) {
+    let mut payload = serde_json::to_value(&object.payload)
+        .expect("scene object payload must remain serializable");
+    remap_exact_entity_strings(&mut payload, replacements);
+    object.payload =
+        serde_json::from_value(payload).expect("remapped scene object payload must remain valid");
+    for child in &mut object.children {
+        remap_scene_object_payload_references(child, replacements);
+    }
+}
+
+fn remap_exact_entity_strings(
+    value: &mut serde_json::Value,
+    replacements: &BTreeMap<String, String>,
+) {
+    match value {
+        serde_json::Value::String(text) => {
+            if let Some(next) = replacements.get(text) {
+                *text = next.clone();
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for value in values {
+                remap_exact_entity_strings(value, replacements);
+            }
+        }
+        serde_json::Value::Object(values) => {
+            for value in values.values_mut() {
+                remap_exact_entity_strings(value, replacements);
+            }
+        }
+        serde_json::Value::Null | serde_json::Value::Bool(_) | serde_json::Value::Number(_) => {}
+    }
 }
 
 fn fragment_clipboard_bounds(nodes: &[Node]) -> [f64; 4] {

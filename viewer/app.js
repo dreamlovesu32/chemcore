@@ -18,6 +18,7 @@ import { createTableDialogHost } from "./table_dialog_host.js";
 import { createPlasmidMapDialogHost } from "./plasmid_map_dialog_host.js";
 import { createBioShapeDialogHost } from "./bio_shape_dialog_host.js";
 import { createDocumentLayoutHost } from "./document_layout_host.js";
+import { createTemplateLibraryHost } from "./template_library_host.js";
 import { createTransientNotificationHost } from "./transient_notification_host.js";
 import { createUiActionRunner } from "./ui_action_runner.js";
 import { createInchiHost } from "./inchi_host.js";
@@ -275,7 +276,6 @@ const {
   viewerContainer,
   secondaryToolbar,
   selectionChemistrySummary,
-  templatePanelModeButton,
   paperLayoutModeButton,
   desktopTitlebar,
   documentTabsRoot,
@@ -290,14 +290,12 @@ const documentLayoutHost = createDocumentLayoutHost({
   root: document.body,
   state,
   paperButton: paperLayoutModeButton,
-  templateButton: templatePanelModeButton,
   engine: () => state.editorEngine,
   commandEngine,
   parseEngineJson,
   renderBoundsFromEngine,
   syncDocumentFromEngine,
   renderDocument: (...args) => renderDocument(...args),
-  activateTemplateTool: () => activateEditorTool("templates"),
   setZoomPercent: (...args) => setZoomPercent(...args),
   transientNotificationHost,
 });
@@ -500,6 +498,13 @@ const editorState = {
   arrowNoGo: "none",
   shapeKind: "circle",
   toolRailMode: "main",
+  toolRailLastDrawingMode: "main",
+  templateLibraries: [],
+  templateLibraryCatalog: null,
+  templateLibraryPalettes: {},
+  templateLibrariesLoading: false,
+  activeTemplateLibraryId: null,
+  activeDocumentTemplate: null,
   bioDrawFamily: "enzyme",
   bioDrawKind: "one-substrate-enzyme",
   bioDrawKindByFamily: {
@@ -1554,9 +1559,14 @@ async function activateEditorToolNow(nextTool) {
 }
 
 async function switchToolRailMode() {
-  const nextMode = editorState.toolRailMode === "biology" ? "main" : "biology";
+  const nextMode = editorState.toolRailMode === "biology"
+    ? "main"
+    : editorState.toolRailMode === "templates"
+      ? "main"
+      : "biology";
   await activateEditorTool("select");
   editorState.toolRailMode = nextMode;
+  editorState.toolRailLastDrawingMode = nextMode;
   syncEditorPrimaryToolButtons();
   renderSecondaryToolbar();
   syncCanvasCursor();
@@ -1754,7 +1764,7 @@ async function syncArrowAwareCursorForPoint(point) {
     setCanvasCursorStyle("crosshair");
     return;
   }
-  if (editorState.activeTool === "shape" || editorState.activeTool === "table" || editorState.activeTool === "tlc-plate" || editorState.activeTool === "biodraw" || editorState.activeTool === "orbital") {
+  if (editorState.activeTool === "shape" || editorState.activeTool === "table" || editorState.activeTool === "tlc-plate" || editorState.activeTool === "biodraw" || editorState.activeTool === "orbital" || editorState.activeTool === "templates") {
     setCanvasCursorStyle("crosshair");
     return;
   }
@@ -1820,6 +1830,23 @@ function currentElementPalette(...args) { return editorToolbarHost.currentElemen
 function syncTextSymbolPaletteFromEngine(...args) { return editorToolbarHost.syncTextSymbolPaletteFromEngine(...args); }
 function ensureTextSymbolPalette(...args) { return editorToolbarHost.ensureTextSymbolPalette(...args); }
 function syncEditorPrimaryToolButtons(...args) { return editorToolbarHost.syncPrimaryToolButtons(...args); }
+
+const templateLibraryHost = createTemplateLibraryHost({
+  root: document,
+  state,
+  editorState,
+  secondaryToolbar,
+  viewerContainer,
+  parseEngineJson,
+  activateEditorTool: (...args) => activateEditorTool(...args),
+  syncEditorPrimaryToolButtons: (...args) => syncEditorPrimaryToolButtons(...args),
+  renderSecondaryToolbar: (...args) => renderSecondaryToolbar(...args),
+  syncCanvasCursor: (...args) => syncCanvasCursor(...args),
+  svgPointFromEvent: (...args) => svgPointFromEvent(...args),
+  syncDocumentFromEngine: (...args) => syncDocumentFromEngine(...args),
+  renderDocument: (...args) => renderDocument(...args),
+  notify: (message) => transientNotificationHost.show(message, { error: true, duration: 5000 }),
+});
 
 textEditorLayoutHost = createTextEditorLayoutHost({
   getActiveTextEditor: () => activeTextEditor,

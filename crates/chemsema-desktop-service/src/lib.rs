@@ -1356,6 +1356,18 @@ impl DesktopDocumentService {
         self.session_mut(session_id)?.paste_document_json(json)
     }
 
+    pub fn insert_document_template_json_at(
+        &mut self,
+        session_id: SessionId,
+        template_id: &str,
+        json: &str,
+        x: f64,
+        y: f64,
+    ) -> Result<bool, String> {
+        self.session_mut(session_id)?
+            .insert_document_template_json_at(template_id, json, x, y)
+    }
+
     pub fn paste_cdxml(&mut self, session_id: SessionId, cdxml: &str) -> Result<bool, String> {
         self.session_mut(session_id)?.paste_cdxml(cdxml)
     }

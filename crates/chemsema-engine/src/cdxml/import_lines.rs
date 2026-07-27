@@ -127,7 +127,11 @@ pub(in crate::cdxml) fn append_curve_objects(
             transform: Transform::identity(),
             style_ref: Some(style_id),
             link_policy: Default::default(),
-            meta: json!({"source": "cdxml", "curveId": node.attr("id")}),
+            meta: json!({
+                "source": "cdxml",
+                "curveId": node.attr("id"),
+                "curveFingerprint": node.attr("CurvePoints"),
+            }),
             payload: ObjectPayload {
                 resource_ref: None,
                 bbox: Some([min_x, min_y, max_x - min_x, max_y - min_y]),
@@ -147,7 +151,7 @@ pub(in crate::cdxml) fn append_curve_objects(
     }
 }
 
-pub(super) fn parse_cdxml_curve_points(value: Option<&str>) -> Option<Vec<[f64; 2]>> {
+pub(in crate::cdxml) fn parse_cdxml_curve_points(value: Option<&str>) -> Option<Vec<[f64; 2]>> {
     let values: Vec<_> = value?
         .split_whitespace()
         .filter_map(|value| value.parse::<f64>().ok())

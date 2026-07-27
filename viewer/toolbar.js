@@ -583,6 +583,9 @@ export function syncPrimaryChromeIcons(root = document) {
 }
 
 export function renderSecondaryToolbarHtml(editorState) {
+  if (editorState.toolRailMode === "templates") {
+    return templateLibrariesToolbarHtml(editorState);
+  }
   const activeTool = editorState.activeTool === "delete"
     ? (editorState.secondaryToolbarTool || "bond")
     : editorState.activeTool;
@@ -628,6 +631,28 @@ export function renderSecondaryToolbarHtml(editorState) {
   return selectToolbarHtml(editorState);
 }
 
+function templateLibrariesToolbarHtml(editorState) {
+  const libraries = Array.isArray(editorState.templateLibraries)
+    ? editorState.templateLibraries
+    : [];
+  if (!libraries.length) {
+    return `
+      <button class="secondary-button template-library-button is-loading" type="button" disabled
+        aria-label="Loading template libraries" title="Loading template libraries">
+        <span class="template-library-loading-dot" aria-hidden="true"></span>
+      </button>
+    `;
+  }
+  return libraries.map((library) => `
+    <button class="secondary-button template-library-button${editorState.activeTemplateLibraryId === library.id ? " is-selected" : ""}"
+      type="button" data-template-library-id="${escapeHtml(library.id)}"
+      aria-label="${escapeHtml(library.name)}" title="${escapeHtml(library.name)}"
+      aria-haspopup="dialog" aria-expanded="${editorState.activeTemplateLibraryId === library.id ? "true" : "false"}">
+      ${library.iconSvg || ""}
+    </button>
+  `).join("");
+}
+
 export function syncPrimaryToolButtons(editorState, root = document) {
   const activeTool = editorState.activeTool;
   root.querySelectorAll("[data-tool]").forEach((button) => {
@@ -651,13 +676,19 @@ export function syncPrimaryToolButtons(editorState, root = document) {
 }
 
 export function syncToolRailMode(editorState, root = document) {
-  const mode = editorState.toolRailMode === "biology" ? "biology" : "main";
+  const mode = editorState.toolRailMode === "biology"
+    ? "biology"
+    : editorState.toolRailMode === "templates"
+      ? "templates"
+      : "main";
   const rail = root.querySelector?.(".tool-rail");
   if (rail) {
     rail.dataset.toolRailMode = mode;
     rail.setAttribute("aria-label", mode === "biology"
       ? "Biology-Assisted Drawing Rail"
-      : "Main Drawing Rail");
+      : mode === "templates"
+        ? "Template Library Rail"
+        : "Main Drawing Rail");
   }
   root.querySelectorAll?.("[data-tool-rail]")?.forEach((button) => {
     button.hidden = button.dataset.toolRail !== mode;
@@ -665,10 +696,31 @@ export function syncToolRailMode(editorState, root = document) {
   const toggle = root.querySelector?.("[data-tool-rail-toggle]");
   if (toggle) {
     const biologyActive = mode === "biology";
-    const targetName = biologyActive ? "Main Drawing Rail" : "Biology-Assisted Drawing Rail";
+    const targetName = biologyActive || mode === "templates"
+      ? "Main Drawing Rail"
+      : "Biology-Assisted Drawing Rail";
     toggle.setAttribute("aria-pressed", biologyActive ? "true" : "false");
     toggle.setAttribute("aria-label", `Switch to ${targetName}`);
     toggle.setAttribute("title", `Switch to ${targetName}`);
+  }
+  const templateToggle = root.querySelector?.("[data-template-rail-toggle]");
+  if (templateToggle) {
+    const templatesActive = mode === "templates";
+    templateToggle.classList.toggle("is-active", templatesActive);
+    templateToggle.setAttribute("aria-pressed", templatesActive ? "true" : "false");
+    templateToggle.setAttribute(
+      "aria-label",
+      templatesActive ? "Return to drawing rail" : "Open Template Library Rail",
+    );
+    templateToggle.setAttribute(
+      "title",
+      templatesActive ? "Return to drawing rail" : "Template Library Rail",
+    );
+    const activeIcon = editorState.templateLibraries?.[0]?.iconSvg;
+    if (activeIcon && templateToggle.dataset.kernelIconLoaded !== "true") {
+      templateToggle.innerHTML = activeIcon;
+      templateToggle.dataset.kernelIconLoaded = "true";
+    }
   }
 }
 

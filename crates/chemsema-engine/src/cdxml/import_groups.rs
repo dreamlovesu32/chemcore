@@ -170,9 +170,7 @@ pub(super) fn take_cdxml_child_objects(
     objects: &mut Vec<SceneObject>,
     node: &XmlNode,
 ) -> Vec<SceneObject> {
-    let Some(source_id) = node.attr("id") else {
-        return Vec::new();
-    };
+    let source_id = node.attr("id");
     let mut taken = Vec::new();
     let mut index = 0;
     while index < objects.len() {
@@ -188,23 +186,38 @@ pub(super) fn take_cdxml_child_objects(
 pub(super) fn object_matches_cdxml_node(
     object: &SceneObject,
     node: &XmlNode,
-    source_id: &str,
+    source_id: Option<&str>,
 ) -> bool {
     match node.name.as_str() {
-        "fragment" => object.meta.get("fragmentId").and_then(Value::as_str) == Some(source_id),
-        "graphic" | "arrow" => {
-            object.meta.get("graphicId").and_then(Value::as_str) == Some(source_id)
-                || object
-                    .meta
-                    .get("graphicIds")
-                    .and_then(Value::as_array)
-                    .is_some_and(|ids| {
-                        ids.iter()
-                            .any(|id| id.as_str().is_some_and(|id| id == source_id))
-                    })
+        "fragment" => {
+            source_id.is_some()
+                && object.meta.get("fragmentId").and_then(Value::as_str) == source_id
         }
-        "t" => object.meta.get("textId").and_then(Value::as_str) == Some(source_id),
-        "spectrum" => object.meta.get("spectrumId").and_then(Value::as_str) == Some(source_id),
+        "graphic" | "arrow" => {
+            source_id.is_some()
+                && (object.meta.get("graphicId").and_then(Value::as_str) == source_id
+                    || object
+                        .meta
+                        .get("graphicIds")
+                        .and_then(Value::as_array)
+                        .is_some_and(|ids| ids.iter().any(|id| id.as_str() == source_id)))
+        }
+        "curve" => {
+            if source_id.is_some() {
+                object.meta.get("curveId").and_then(Value::as_str) == source_id
+            } else {
+                parse_cdxml_curve_points(node.attr("CurvePoints")).is_some_and(|points| {
+                    object.payload.extra.get("curvePoints") == Some(&json!(points))
+                })
+            }
+        }
+        "t" => {
+            source_id.is_some() && object.meta.get("textId").and_then(Value::as_str) == source_id
+        }
+        "spectrum" => {
+            source_id.is_some()
+                && object.meta.get("spectrumId").and_then(Value::as_str) == source_id
+        }
         _ => false,
     }
 }

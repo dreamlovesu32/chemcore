@@ -27,7 +27,9 @@ pub(super) use import_graphics::{
     append_tlc_plate_shape_objects, associate_table_cell_contents, validate_bio_shape_nodes,
 };
 pub(super) use import_images::append_embedded_image_objects;
-pub(super) use import_lines::{append_curve_objects, append_line_objects};
+pub(super) use import_lines::{
+    append_curve_objects, append_line_objects, parse_cdxml_curve_points,
+};
 pub(super) use import_spectra::append_spectrum_objects;
 pub(super) use import_stoichiometry::import_reactions_and_stoichiometry_grids;
 pub(super) use import_text::{

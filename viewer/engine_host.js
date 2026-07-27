@@ -752,6 +752,15 @@ class TauriEngineSession {
     return this.layoutEngine?.elementPaletteJson?.() || JSON.stringify({ elements: [] });
   }
 
+  templateLibraryPaletteJson(libraryId, libraryName, cdxml) {
+    return this.layoutEngine?.templateLibraryPaletteJson?.(libraryId, libraryName, cdxml)
+      || JSON.stringify({ type: "template-library-palette", library: { id: libraryId, name: libraryName, templateCount: 0 }, templates: [] });
+  }
+
+  templatePreviewIconSvg(cdxml) {
+    return this.layoutEngine?.templatePreviewIconSvg?.(cdxml) || "";
+  }
+
   bondToolIconSvg(variant, strokeWidth, boldWidth) {
     return this.layoutEngine?.bondToolIconSvg?.(variant, strokeWidth, boldWidth) || "";
   }
@@ -1517,6 +1526,24 @@ class TauriEngineSession {
 
   pasteDocumentJson(json) {
     return this.invokeMutation("desktop_engine_paste_document_json", { json });
+  }
+
+  insertDocumentTemplateJsonAt(templateId, json, x, y) {
+    if (this.layoutEngine?.insertDocumentTemplateJsonAt) {
+      const changed = this.layoutEngine.insertDocumentTemplateJsonAt(templateId, json, x, y);
+      this.syncCacheFromLayout({ document: true, interaction: true });
+      this.runNativeMutationInBackground(
+        "desktop_engine_insert_document_template_json_at",
+        { templateId, json, x, y },
+        { refresh: "document" },
+      );
+      return changed;
+    }
+    return this.invokeMutation(
+      "desktop_engine_insert_document_template_json_at",
+      { templateId, json, x, y },
+      { refresh: "document" },
+    );
   }
 
   pasteCdxml(cdxml) {

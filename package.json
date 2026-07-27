@@ -48,6 +48,8 @@
     "probe:chemdraw-bioshape-geometry:extract": "node scripts/extract-chemdraw-bioshape-geometry.mjs",
     "probe:chemdraw-bioshape-parameter-sweep": "node scripts/chemdraw-bioshape-parameter-sweep.mjs",
     "generate:chemdraw-bioshape-templates": "node scripts/generate-chemdraw-bioshape-template-source.mjs",
+    "generate:chemdraw-template-libraries": "node scripts/extract-chemdraw-template-libraries.mjs",
+    "gate:template-libraries": "cargo run -q -p chemsema-engine --example template_library_gate -- viewer/template-libraries",
     "benchmark:bioshapes:visual-gate": "node scripts/chemdraw-bioshape-visual-gate.mjs",
     "benchmark:bioshapes:visual-gate:update": "node scripts/chemdraw-bioshape-visual-gate.mjs --update-baseline",
     "benchmark:bioshapes:visual-gate:report": "node scripts/chemdraw-bioshape-visual-gate.mjs --report-only",

@@ -168,6 +168,7 @@ pub fn document_to_cdxml(document: &ChemSemaDocument) -> String {
         return generated;
     };
     let mut source_root = source.root.clone();
+    remove_regenerated_scene_objects(&mut source_root, document);
     retain_native_chemical_properties(&mut source_root, &document.chemical_properties);
     retain_native_annotations(&mut source_root, &document.objects);
     retain_native_plasmid_maps(&mut source_root, &document.objects);
@@ -2711,23 +2712,29 @@ impl<'a> CdxmlDocumentWriter<'a> {
             ],
         );
         for lane in &gel.lanes {
+            let lane_id = self
+                .claim_source_id(Some(lane.id.clone()))
+                .unwrap_or_else(|| self.alloc_id());
             write_open_tag(
                 out,
                 6,
                 "geplane",
                 vec![
-                    ("id", self.alloc_id()),
+                    ("id", lane_id),
                     ("LabelText", lane.label_text.clone()),
                     ("Visible", yes_no(lane.visible)),
                 ],
             );
             for band in &lane.bands {
+                let band_id = self
+                    .claim_source_id(Some(band.id.clone()))
+                    .unwrap_or_else(|| self.alloc_id());
                 write_empty_tag(
                     out,
                     8,
                     "gepband",
                     vec![
-                        ("id", self.alloc_id()),
+                        ("id", band_id),
                         ("BandValue", fmt_num(band.value)),
                         (
                             "Width",
@@ -3491,6 +3498,8 @@ impl<'a> CdxmlDocumentWriter<'a> {
                     "tableId",
                     "stoichiometryGridId",
                     "tlcPlateId",
+                    "gelPlateId",
+                    "bioShapeId",
                     "spectrumId",
                     "groupId",
                 ]

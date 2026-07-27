@@ -164,14 +164,23 @@ assert.equal(
 assert.equal(
   [...indexHtml.matchAll(/data-tool-rail-toggle/g)].length,
   1,
-  "the left rail should have one dedicated bottom switch",
+  "the left rail should retain one main/biology drawing switch",
+);
+assert.equal(
+  [...indexHtml.matchAll(/data-template-rail-toggle/g)].length,
+  1,
+  "the left rail should expose one dedicated template-library switch",
 );
 assert.doesNotMatch(
   indexHtml,
   /data-tool="select"[^>]+data-tool-rail=/,
   "selection must not disappear when either rail body is replaced",
 );
-assert.match(indexHtml, /id="template-panel-mode-button"/, "the 40 px footer should expose the template entry");
+assert.doesNotMatch(
+  indexHtml,
+  /id="template-panel-mode-button"/,
+  "the template entry belongs to the left rail and must not be duplicated in the footer",
+);
 assert.match(indexHtml, /id="paper-layout-mode-button"/, "the 40 px footer should expose the paper-layout toggle");
 const stylesCss = fs.readFileSync(new URL("../viewer/styles.css", import.meta.url), "utf8");
 assert.match(

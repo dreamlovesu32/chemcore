@@ -167,6 +167,24 @@ const ELEMENT_COLORS: &[(&str, &str, &str)] = &[
 ];
 
 impl Engine {
+    pub fn template_library_palette_json(
+        &self,
+        library_id: &str,
+        library_name: &str,
+        cdxml: &str,
+    ) -> Result<String, String> {
+        crate::template_library_palette_json(library_id, library_name, cdxml)
+    }
+
+    pub fn template_preview_icon_svg(&self, cdxml: &str) -> Result<String, String> {
+        let mut documents = crate::parse_cdxml_template_documents(cdxml, Some("Template preview"))?;
+        let document = documents
+            .drain(..)
+            .next()
+            .ok_or_else(|| "template preview contains no template page".to_string())?;
+        Ok(crate::template_document_icon_svg(&document))
+    }
+
     pub fn toolbar_color_palette_json(&self, custom_colors_json: &str) -> String {
         let colors = toolbar_color_entries(custom_colors_json);
         json!({

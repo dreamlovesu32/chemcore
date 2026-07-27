@@ -1243,6 +1243,19 @@ pub(crate) fn desktop_engine_paste_document_json(
 }
 
 #[tauri::command]
+pub(crate) fn desktop_engine_insert_document_template_json_at(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    template_id: String,
+    json: String,
+    x: f64,
+    y: f64,
+) -> Result<bool, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.insert_document_template_json_at(session_id, &template_id, &json, x, y)
+}
+
+#[tauri::command]
 pub(crate) fn desktop_engine_paste_cdxml(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
