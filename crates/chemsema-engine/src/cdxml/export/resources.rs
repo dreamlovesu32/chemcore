@@ -9,6 +9,20 @@ pub(super) fn document_node<'a>(document: &'a ChemSemaDocument, node_id: &str) -
     })
 }
 
+pub(super) fn document_node_world_point(
+    document: &ChemSemaDocument,
+    node_id: &str,
+) -> Option<Point> {
+    document.editable_fragments().into_iter().find_map(|entry| {
+        entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == node_id)
+            .map(|node| entry.world_point_for_node(node))
+    })
+}
+
 pub(super) fn preserved_cdxml_bond_order(bond: &Bond) -> Option<String> {
     let source = bond
         .meta

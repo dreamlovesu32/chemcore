@@ -207,6 +207,53 @@
         "0292",
         "0405"
       ]
+    },
+    {
+      "id": "cdxml-preserve-invisible-text-objects",
+      "status": "verified",
+      "summary": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+      "officialRule": "CDX object ID zero means no ID was assigned and is permitted for an unreferenced object. The independent Visible property controls whether an object is displayed. Therefore neither an unassigned ID nor Visible=no permits dropping the Text object from the document.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+        "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+      ],
+      "caseIds": [
+        "0103",
+        "0104",
+        "0108",
+        "0114",
+        "0117",
+        "0129",
+        "0130",
+        "0131",
+        "0149",
+        "0156",
+        "0157",
+        "0161",
+        "0166",
+        "0169",
+        "0185",
+        "0186"
+      ]
+    },
+    {
+      "id": "cdxml-bind-anonymous-object-tag-text",
+      "status": "verified",
+      "summary": "An ObjectTag child Text without its own CDX object ID remains linked to the tag by owner, semantic role, and content. Automatic enhanced-stereo placement preserves the cached direction vector separately from the rendered text box.",
+      "officialRule": "Object IDs may be unassigned when an object is not referenced. ObjectTag is the owning metadata object, and PositioningType=auto interprets the cached child geometry as positioning input. Attachment is a relation, not the child object's identity, so it must not make the owner's source ID ambiguous.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "docs/cdxml-text-label-field-audit.zh-CN.md",
+        "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#anonymous_object_tag_text_binds_by_owner_role_and_content"
+      ],
+      "caseIds": [
+        "0030",
+        "0031",
+        "0032",
+        "0293"
+      ]
     }
   ]
 }

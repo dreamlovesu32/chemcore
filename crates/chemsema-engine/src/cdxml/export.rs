@@ -400,7 +400,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .document
             .objects
             .iter()
-            .filter(|object| object.visible)
+            .filter(|object| object.visible || object.kind() == crate::SceneObjectKind::Text)
             .collect();
         objects.sort_by(|a, b| a.z_index.cmp(&b.z_index).then_with(|| a.id.cmp(&b.id)));
         self.write_scene_objects(&mut out, &objects);
@@ -528,7 +528,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 let Some(content) = self.document.find_scene_object(content_id) else {
                     continue;
                 };
-                if content.visible {
+                if content.visible || content.kind() == crate::SceneObjectKind::Text {
                     self.write_scene_object(out, content);
                 }
             }
@@ -1250,7 +1250,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
         let mut children: Vec<&SceneObject> = object
             .children
             .iter()
-            .filter(|child| child.visible)
+            .filter(|child| child.visible || child.kind() == crate::SceneObjectKind::Text)
             .collect();
         children.sort_by(|a, b| a.z_index.cmp(&b.z_index).then_with(|| a.id.cmp(&b.id)));
         self.write_scene_objects(out, &children);
@@ -3390,12 +3390,33 @@ impl<'a> CdxmlDocumentWriter<'a> {
             object.transform.translate[0] + anchor_offset_x,
             object.transform.translate[1] + baseline_offset,
         );
-        let bbox = [
+        let mut bbox = [
             object.transform.translate[0] + box_value[0],
             object.transform.translate[1] + box_value[1],
             object.transform.translate[0] + box_value[0] + box_value[2],
             object.transform.translate[1] + box_value[1] + box_value[3],
         ];
+        if object.meta.get("role").and_then(Value::as_str) == Some("enhanced_stereo") {
+            if let Some((node_point, vector)) = object
+                .meta
+                .get("attachedNodeId")
+                .and_then(Value::as_str)
+                .and_then(|node_id| {
+                    Some((
+                        document_node_world_point(self.document, node_id)?,
+                        payload_point_cdxml(&object.payload, "automaticPositioningVector")?,
+                    ))
+                })
+            {
+                let center = node_point.translated(crate::Vector::new(vector.x, vector.y));
+                bbox = [
+                    center.x - box_value[2] * 0.5,
+                    center.y - box_value[3] * 0.5,
+                    center.x + box_value[2] * 0.5,
+                    center.y + box_value[3] * 0.5,
+                ];
+            }
+        }
         let mut attrs = vec![
             ("id", self.object_cdxml_id(object)),
             ("p", fmt_point(anchor)),
@@ -3408,6 +3429,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
             ("Z", object.z_index.to_string()),
             ("UTF8Text", text.clone()),
         ];
+        if !object.visible {
+            attrs.push(("Visible", "no".to_string()));
+        }
         for (name, xml_name) in [
             ("justification", "Justification"),
             ("lineHeight", "LineHeight"),

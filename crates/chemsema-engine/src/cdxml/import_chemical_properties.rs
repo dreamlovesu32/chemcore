@@ -126,7 +126,6 @@ pub(super) fn source_entity_map(
             object.meta.get("fragmentId").and_then(Value::as_str),
             object.meta.get("graphicId").and_then(Value::as_str),
             object.meta.get("spectrumId").and_then(Value::as_str),
-            object.meta.get("attachedNodeId").and_then(Value::as_str),
             object
                 .meta
                 .pointer("/import/cdxml/sourceId")
@@ -211,7 +210,7 @@ fn push_unique(map: &mut BTreeMap<String, Vec<String>>, source_id: &str, entity_
     }
 }
 
-fn flatten_scene_object(object: &SceneObject) -> Vec<&SceneObject> {
+pub(super) fn flatten_scene_object(object: &SceneObject) -> Vec<&SceneObject> {
     let mut objects = vec![object];
     for child in &object.children {
         objects.extend(flatten_scene_object(child));

@@ -74,7 +74,7 @@ pub(super) enum CdxmlTextObjectRole {
 }
 
 impl CdxmlTextObjectRole {
-    fn from_object_tag_name(name: Option<&str>) -> Option<Self> {
+    pub(super) fn from_object_tag_name(name: Option<&str>) -> Option<Self> {
         Some(match name? {
             "bracketusage" => Self::BracketUsage,
             "parameterizedBracketLabel" => Self::ParameterizedBracketLabel,
@@ -87,7 +87,7 @@ impl CdxmlTextObjectRole {
         })
     }
 
-    fn as_str(self) -> &'static str {
+    pub(super) fn as_str(self) -> &'static str {
         match self {
             Self::FreeText => "free_text",
             Self::BracketUsage => "bracket_usage",

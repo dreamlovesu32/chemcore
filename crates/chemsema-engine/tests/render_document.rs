@@ -997,6 +997,28 @@ fn parse_cdxml_preserves_chemdraw_js_cached_enhanced_stereo_position() {
             .and_then(|value| value.as_f64()),
         Some(6.0)
     );
+    let tag = document
+        .logical_objects
+        .object_tags
+        .iter()
+        .find(|tag| tag.name == "enhancedstereo")
+        .expect("enhanced-stereo object tag should import");
+    assert_eq!(
+        tag.positioning_type,
+        chemsema_engine::AnnotationPositioningType::Absolute
+    );
+    let exported = chemsema_engine::document_to_cdxml(&document);
+    assert!(exported.contains("PositioningType=\"absolute\""));
+    let reopened = parse_cdxml_document(&exported, Some("ChemDraw JS enhanced stereo roundtrip"))
+        .expect("exported enhanced-stereo tag should parse");
+    let reopened_label = reopened
+        .objects
+        .iter()
+        .find(|object| {
+            object.meta.get("role").and_then(|value| value.as_str()) == Some("enhanced_stereo")
+        })
+        .expect("enhanced-stereo label should survive");
+    assert_eq!(reopened_label.transform.translate, [23.0, 12.0]);
 }
 
 fn assert_symbol_center(document: &ChemSemaDocument, kind: &str, expected: [f64; 2]) {

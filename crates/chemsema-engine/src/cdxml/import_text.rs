@@ -600,7 +600,9 @@ pub(super) fn text_object(
         auto_query_bond_points
             .and_then(|points| automatic_query_bond_text_placement(points, bbox, font_size))
     });
-    let automatic_placement = auto_enhanced_stereo_placement.or(auto_query_placement);
+    let automatic_placement = auto_enhanced_stereo_placement
+        .map(|(translate, baseline_offset, _)| (translate, baseline_offset))
+        .or(auto_query_placement);
     let translate = if let Some((translate, _)) = automatic_placement {
         translate
     } else if let Some(bbox) = bbox {
@@ -663,6 +665,12 @@ pub(super) fn text_object(
             json!(round2(point[1] - translate[1])),
         );
     }
+    if let Some((_, _, cached_vector)) = auto_enhanced_stereo_placement {
+        extra.insert(
+            "automaticPositioningVector".to_string(),
+            json!([round2(cached_vector[0]), round2(cached_vector[1])]),
+        );
+    }
     extra.insert("preserveLines".to_string(), json!(true));
     if !runs.is_empty() {
         extra.insert("runs".to_string(), serde_json::to_value(runs).ok()?);
@@ -719,7 +727,7 @@ pub(super) fn automatic_enhanced_stereo_text_placement(
     anchor: [f64; 2],
     bbox: [f64; 4],
     font_size: f64,
-) -> Option<([f64; 2], f64)> {
+) -> Option<([f64; 2], f64, [f64; 2])> {
     let width = (bbox[2] - bbox[0]).abs();
     let height = (bbox[3] - bbox[1]).abs();
     if width <= crate::EPSILON || height <= crate::EPSILON {
@@ -749,7 +757,7 @@ pub(super) fn automatic_enhanced_stereo_text_placement(
         round2(center[1] - height * 0.5),
     ];
     let baseline_offset = height + font_size * 0.08;
-    Some((translate, baseline_offset))
+    Some((translate, baseline_offset, [dx, dy]))
 }
 
 pub(super) fn automatic_query_bond_text_placement(

@@ -1,3 +1,4 @@
+use super::import_objects::CdxmlTextObjectRole;
 use super::*;
 
 pub(super) fn import_logical_objects(
@@ -12,7 +13,17 @@ pub(super) fn import_logical_objects(
     import_alternative_groups(root, &source_map, colors, &mut data);
     import_bracketed_groups(root, objects, &source_map, &mut data);
     import_sequences(root, &source_map, &mut data);
-    import_attached_metadata(root, None, &source_map, &mut data);
+    let implicit_object_tag_positioning_is_absolute = root
+        .attr("CreationProgram")
+        .is_some_and(|program| program.starts_with("ChemDraw JS"));
+    import_attached_metadata(
+        root,
+        None,
+        objects,
+        &source_map,
+        implicit_object_tag_positioning_is_absolute,
+        &mut data,
+    );
     data
 }
 
@@ -256,7 +267,9 @@ fn import_sequences(
 fn import_attached_metadata(
     node: &XmlNode,
     parent_source_id: Option<&str>,
+    objects: &[SceneObject],
     source_map: &BTreeMap<String, Vec<String>>,
+    implicit_object_tag_positioning_is_absolute: bool,
     data: &mut crate::LogicalObjectData,
 ) {
     let mut local_object_tag_index = data.object_tags.len() + 1;
@@ -282,13 +295,22 @@ fn import_attached_metadata(
                     positioning_type: child
                         .attr("PositioningType")
                         .and_then(crate::AnnotationPositioningType::from_cdxml)
-                        .unwrap_or_default(),
+                        .unwrap_or(if implicit_object_tag_positioning_is_absolute {
+                            crate::AnnotationPositioningType::Absolute
+                        } else {
+                            crate::AnnotationPositioningType::Auto
+                        }),
                     positioning_angle: parse_f64(child.attr("PositioningAngle")),
                     positioning_offset: parse_point(child.attr("PositioningOffset")),
                     persistent: parse_bool(child.attr("Persistent"), true),
                     tracking: parse_bool(child.attr("Tracking"), true),
                     visible: parse_bool(child.attr("Visible"), true),
-                    display_object_ids: child_text_object_ids(child, source_map),
+                    display_object_ids: object_tag_display_object_ids(
+                        child,
+                        parent_source_id,
+                        objects,
+                        source_map,
+                    ),
                     binding_origin: crate::LogicalBindingOrigin::Imported,
                 });
                 local_object_tag_index += 1;
@@ -341,7 +363,14 @@ fn import_attached_metadata(
             _ => {}
         }
         let next_parent = child.attr("id").or(parent_source_id);
-        import_attached_metadata(child, next_parent, source_map, data);
+        import_attached_metadata(
+            child,
+            next_parent,
+            objects,
+            source_map,
+            implicit_object_tag_positioning_is_absolute,
+            data,
+        );
     }
 }
 
@@ -370,6 +399,55 @@ fn child_text_object_ids(
                 source_map.get(source_id).into_iter().flatten().cloned(),
             );
         }
+    }
+    ids
+}
+
+fn object_tag_display_object_ids(
+    tag: &XmlNode,
+    owner_source_id: Option<&str>,
+    objects: &[SceneObject],
+    source_map: &BTreeMap<String, Vec<String>>,
+) -> Vec<String> {
+    let mut ids = child_text_object_ids(tag, source_map);
+    let Some(owner_source_id) = owner_source_id else {
+        return ids;
+    };
+    let Some(role) = CdxmlTextObjectRole::from_object_tag_name(tag.attr("Name")) else {
+        return ids;
+    };
+    let anonymous_texts = tag
+        .direct_children("t")
+        .filter(|text| text.attr("id").is_none())
+        .map(|text| {
+            text.attr("UTF8Text")
+                .map(ToString::to_string)
+                .unwrap_or_else(|| text.full_text())
+                .trim()
+                .to_string()
+        })
+        .collect::<Vec<_>>();
+    if anonymous_texts.is_empty() {
+        return ids;
+    }
+    let candidates = objects
+        .iter()
+        .flat_map(|object| super::import_chemical_properties::flatten_scene_object(object))
+        .filter(|object| object.object_type == "text")
+        .filter(|object| {
+            object.meta.get("attachedNodeId").and_then(Value::as_str) == Some(owner_source_id)
+                && object.meta.get("role").and_then(Value::as_str) == Some(role.as_str())
+        })
+        .collect::<Vec<_>>();
+    for text in anonymous_texts {
+        let Some(candidate) = candidates.iter().find(|candidate| {
+            !ids.contains(&candidate.id)
+                && candidate.payload.extra.get("text").and_then(Value::as_str)
+                    == Some(text.as_str())
+        }) else {
+            continue;
+        };
+        ids.push(candidate.id.clone());
     }
     ids
 }
@@ -513,6 +591,72 @@ mod tests {
   </page>
 </CDXML>
 "#;
+
+    #[test]
+    fn anonymous_object_tag_text_binds_by_owner_role_and_content() {
+        let source = r#"
+<CDXML BondLength="30" LabelFont="3" LabelSize="10" CaptionFont="3" CaptionSize="10">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1" BoundingBox="0 0 120 100">
+    <fragment id="10">
+      <n id="11" p="50 50" Element="6" EnhancedStereoType="Or" EnhancedStereoGroupNum="1">
+        <objecttag Name="enhancedstereo" TagType="Unknown">
+          <t p="58 42" BoundingBox="58 36 70 44"><s font="3" size="8" color="0">or1</s></t>
+        </objecttag>
+      </n>
+    </fragment>
+  </page>
+</CDXML>
+"#;
+        let document = crate::parse_cdxml_document(source, Some("anonymous object tag")).unwrap();
+        let display = document
+            .scene_objects()
+            .into_iter()
+            .find(|object| {
+                object.object_type == "text"
+                    && object.meta.get("role").and_then(serde_json::Value::as_str)
+                        == Some("enhanced_stereo")
+            })
+            .expect("enhanced-stereo display text");
+        let tag = document
+            .logical_objects
+            .object_tags
+            .iter()
+            .find(|tag| tag.name == "enhancedstereo")
+            .expect("enhanced-stereo object tag");
+        assert_eq!(tag.owner_entity_id.as_deref(), Some("11"));
+        assert!(tag.unresolved_owner_source_id.is_none());
+        assert_eq!(tag.display_object_ids, [display.id.clone()]);
+
+        let exported = crate::document_to_cdxml(&document);
+        let object_tag_start = exported
+            .find("Name=\"enhancedstereo\"")
+            .expect("object tag is exported");
+        let following = &exported[object_tag_start..];
+        assert!(following
+            .find("<t ")
+            .is_some_and(|index| { index < following.find("</objecttag>").unwrap_or(usize::MAX) }));
+        let reopened =
+            crate::parse_cdxml_document(&exported, Some("anonymous object tag")).unwrap();
+        let reopened_tag = reopened
+            .logical_objects
+            .object_tags
+            .iter()
+            .find(|tag| tag.name == "enhancedstereo")
+            .expect("enhanced-stereo object tag survives");
+        assert_eq!(reopened_tag.owner_entity_id.as_deref(), Some("11"));
+        assert_eq!(reopened_tag.display_object_ids.len(), 1);
+        let reopened_display = reopened
+            .find_scene_object(&reopened_tag.display_object_ids[0])
+            .expect("display text remains linked");
+        assert_eq!(
+            reopened_display
+                .meta
+                .get("role")
+                .and_then(serde_json::Value::as_str),
+            Some("enhanced_stereo")
+        );
+    }
 
     #[test]
     fn imports_all_nr_017_logical_object_families_into_native_ccjs() {

@@ -1,6 +1,6 @@
 {
   "schema": "chemsema.public-cdxml-failure-ledger.v1",
-  "generatedAt": "2026-07-28T11:13:32.308Z",
+  "generatedAt": "2026-07-28T11:51:51.740Z",
   "inputs": {
     "roundtripReport": "tmp/public-cdxml-roundtrip-current/report.json",
     "visualReport": "tmp/public-cdxml-chemdraw-review-all/gate-current.json",
@@ -12,23 +12,23 @@
     "totalRegistered": 339,
     "originalCohort": 338,
     "additionalGateCases": 1,
-    "active": 158,
-    "currentlyPassing": 181,
+    "active": 136,
+    "currentlyPassing": 203,
     "byRoundtripStatus": {
-      "exact": 181,
-      "non-idempotent": 100,
-      "semantic-drift": 50,
+      "exact": 203,
+      "non-idempotent": 91,
+      "semantic-drift": 35,
+      "count-drift": 5,
       "topology-lost": 4,
-      "count-drift": 3,
       "import-failed": 1
     },
     "byAutomaticCluster": {
       "visual-pixel-mismatch": 193,
-      "roundtrip-non-idempotent-mixed-semantics": 100,
-      "roundtrip-first-generation-mixed-drift": 50,
+      "roundtrip-non-idempotent-mixed-semantics": 91,
+      "roundtrip-first-generation-mixed-drift": 35,
       "visual-component-topology-mismatch": 23,
+      "roundtrip-count-drift": 5,
       "roundtrip-topology-lost": 4,
-      "roundtrip-count-drift": 3,
       "visual-oracle-unavailable": 3,
       "roundtrip-import-failed": 1
     },
@@ -36,10 +36,10 @@
       "visual-pixel-mismatch": 194,
       "roundtrip-first-generation-label-drift": 184,
       "roundtrip-non-idempotent-mixed-semantics": 100,
-      "roundtrip-first-generation-mixed-drift": 50,
+      "roundtrip-first-generation-mixed-drift": 57,
       "visual-component-topology-mismatch": 24,
+      "roundtrip-count-drift": 5,
       "roundtrip-topology-lost": 4,
-      "roundtrip-count-drift": 3,
       "visual-oracle-unavailable": 3,
       "roundtrip-import-failed": 1,
       "roundtrip-non-idempotent-labels": 1
@@ -50,8 +50,8 @@
       "unavailable": 3
     },
     "byReviewStatus": {
-      "verified": 181,
-      "pending": 158
+      "verified": 201,
+      "pending": 138
     }
   },
   "cases": [
@@ -2364,7 +2364,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -2384,10 +2384,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -2461,17 +2459,22 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-bind-anonymous-object-tag-text"
+        ],
+        "confirmedRootCause": "An ObjectTag child Text without its own CDX object ID remains linked to the tag by owner, semantic role, and content. Automatic enhanced-stereo placement preserves the cached direction vector separately from the rendered text box.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "docs/cdxml-text-label-field-audit.zh-CN.md",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#anonymous_object_tag_text_binds_by_owner_role_and_content"
+        ],
         "notes": null
       }
     },
@@ -2493,7 +2496,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -2513,10 +2516,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -2590,17 +2591,22 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-bind-anonymous-object-tag-text"
+        ],
+        "confirmedRootCause": "An ObjectTag child Text without its own CDX object ID remains linked to the tag by owner, semantic role, and content. Automatic enhanced-stereo placement preserves the cached direction vector separately from the rendered text box.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "docs/cdxml-text-label-field-audit.zh-CN.md",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#anonymous_object_tag_text_binds_by_owner_role_and_content"
+        ],
         "notes": null
       }
     },
@@ -2622,7 +2628,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -2642,10 +2648,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -2719,17 +2723,22 @@
         "componentCountDelta": 1
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-bind-anonymous-object-tag-text"
+        ],
+        "confirmedRootCause": "An ObjectTag child Text without its own CDX object ID remains linked to the tag by owner, semantic role, and content. Automatic enhanced-stereo placement preserves the cached direction vector separately from the rendered text box.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "docs/cdxml-text-label-field-audit.zh-CN.md",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#anonymous_object_tag_text_binds_by_owner_role_and_content"
+        ],
         "notes": null
       }
     },
@@ -5077,31 +5086,29 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -5185,9 +5192,8 @@
         "componentCountDelta": 8
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
@@ -5220,31 +5226,29 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -5328,9 +5332,8 @@
         "componentCountDelta": 8
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
@@ -7893,20 +7896,19 @@
               "molecules": 32,
               "nodes": 126,
               "bonds": 94,
-              "objects": 31,
+              "objects": 32,
               "resources": 32,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 32,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -7917,20 +7919,19 @@
               "molecules": 0,
               "nodes": 95,
               "bonds": 94,
-              "objects": -32,
+              "objects": 0,
               "resources": 0,
-              "styles": -32
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "text": -32
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -8030,20 +8031,19 @@
               "molecules": 32,
               "nodes": 126,
               "bonds": 94,
-              "objects": 31,
+              "objects": 32,
               "resources": 32,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 32,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -8054,20 +8054,19 @@
               "molecules": 0,
               "nodes": 95,
               "bonds": 94,
-              "objects": -32,
+              "objects": 0,
               "resources": 0,
-              "styles": -32
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "text": -32
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -9177,23 +9176,23 @@
               "molecules": 2,
               "nodes": 22,
               "bonds": 24,
-              "objects": 1,
+              "objects": 2,
               "resources": 2,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "line": 0,
               "molecule": 2,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
               "labels",
-              "texts",
-              "brackets"
+              "brackets",
+              "texts"
             ]
           },
           {
@@ -9204,22 +9203,21 @@
               "molecules": 0,
               "nodes": 21,
               "bonds": 24,
-              "objects": -4,
+              "objects": 0,
               "resources": 0,
-              "styles": -4
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "line": 0,
               "molecule": 0,
-              "text": -4
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -10321,32 +10319,30 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -10363,7 +10359,8 @@
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "shape": 0
+              "shape": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -10383,7 +10380,8 @@
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "shape": 0
+              "shape": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -10422,17 +10420,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -10450,32 +10452,30 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -10492,7 +10492,8 @@
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "shape": 0
+              "shape": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -10512,7 +10513,8 @@
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "shape": 0
+              "shape": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -10551,17 +10553,21 @@
         "componentCountDelta": 2
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -11013,33 +11019,31 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -2,
+              "objects": 0,
               "resources": 0,
-              "styles": -2
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "molecule": 0,
               "symbol": 0,
-              "text": -2
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -11126,19 +11130,24 @@
         "componentCountDelta": 195
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -11158,7 +11167,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "semantic-drift",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -11170,45 +11179,42 @@
               "molecules": 1,
               "nodes": 1,
               "bonds": 0,
-              "objects": 0,
+              "objects": 1,
               "resources": 1,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "molecule": 1,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -3,
+              "objects": 0,
               "resources": 0,
-              "styles": -3
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "molecule": 0,
-              "text": -3
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -11274,10 +11280,11 @@
       "triage": {
         "resolutionStatus": "active",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
+          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
+          "roundtrip-first-generation-mixed-drift",
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
@@ -11576,7 +11583,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "semantic-drift",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -11588,45 +11595,42 @@
               "molecules": 1,
               "nodes": 1,
               "bonds": 0,
-              "objects": 0,
+              "objects": 1,
               "resources": 1,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "molecule": 1,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -2,
+              "objects": 0,
               "resources": 0,
-              "styles": -2
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "molecule": 0,
-              "text": -2
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -11692,10 +11696,11 @@
       "triage": {
         "resolutionStatus": "active",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
+          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
+          "roundtrip-first-generation-mixed-drift",
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
@@ -11722,7 +11727,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "semantic-drift",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -11734,45 +11739,42 @@
               "molecules": 1,
               "nodes": 1,
               "bonds": 0,
-              "objects": 0,
+              "objects": 1,
               "resources": 1,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "molecule": 1,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -2,
+              "objects": 0,
               "resources": 0,
-              "styles": -2
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "molecule": 0,
-              "text": -2
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -11838,10 +11840,11 @@
       "triage": {
         "resolutionStatus": "active",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
+          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
+          "roundtrip-first-generation-mixed-drift",
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
@@ -11867,31 +11870,29 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -11974,19 +11975,24 @@
         "componentCountDelta": 173
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -12138,7 +12144,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "semantic-drift",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -12150,47 +12156,44 @@
               "molecules": 1,
               "nodes": 1,
               "bonds": 0,
-              "objects": 0,
+              "objects": 1,
               "resources": 1,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "line": 0,
               "molecule": 1,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "line": 0,
               "molecule": 0,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -12257,10 +12260,11 @@
       "triage": {
         "resolutionStatus": "active",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
+          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
+          "roundtrip-first-generation-mixed-drift",
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
@@ -12287,21 +12291,21 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
@@ -12309,12 +12313,10 @@
               "line": 0,
               "molecule": 0,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -12403,19 +12405,24 @@
         "componentCountDelta": 38
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -13508,20 +13515,19 @@
               "molecules": 32,
               "nodes": 126,
               "bonds": 94,
-              "objects": 31,
+              "objects": 32,
               "resources": 32,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 32,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -13532,20 +13538,19 @@
               "molecules": 0,
               "nodes": 95,
               "bonds": 94,
-              "objects": -32,
+              "objects": 0,
               "resources": 0,
-              "styles": -32
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "text": -32
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -13645,20 +13650,19 @@
               "molecules": 32,
               "nodes": 126,
               "bonds": 94,
-              "objects": 31,
+              "objects": 32,
               "resources": 32,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 32,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -13669,20 +13673,19 @@
               "molecules": 0,
               "nodes": 95,
               "bonds": 94,
-              "objects": -32,
+              "objects": 0,
               "resources": 0,
-              "styles": -32
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "text": -32
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -13785,21 +13788,20 @@
               "molecules": 1,
               "nodes": 23,
               "bonds": 22,
-              "objects": -1,
+              "objects": 1,
               "resources": 1,
-              "styles": -2
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 1,
               "shape": 0,
-              "text": -2
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -13810,21 +13812,20 @@
               "molecules": 0,
               "nodes": 23,
               "bonds": 22,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -13923,31 +13924,29 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -14031,9 +14030,8 @@
         "componentCountDelta": 1
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
@@ -14042,10 +14040,16 @@
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -14063,31 +14067,29 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -14171,9 +14173,8 @@
         "componentCountDelta": 1
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
@@ -14182,10 +14183,16 @@
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -14203,31 +14210,29 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -14311,9 +14316,8 @@
         "componentCountDelta": 1
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
@@ -14322,10 +14326,16 @@
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -14355,20 +14365,19 @@
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 2,
+              "objects": 3,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "line": 3,
               "molecule": 0,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
-              "texts",
               "arrows"
             ]
           },
@@ -15468,21 +15477,20 @@
               "molecules": 1,
               "nodes": 1,
               "bonds": 0,
-              "objects": 0,
+              "objects": 1,
               "resources": 1,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 1,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -15493,21 +15501,20 @@
               "molecules": 0,
               "nodes": 1,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -15606,31 +15613,29 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -15713,19 +15718,24 @@
         "componentCountDelta": 12
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -16031,7 +16041,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "count-drift",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -16058,23 +16068,21 @@
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -2,
+              "objects": 0,
               "resources": 0,
-              "styles": -2
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": -2
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -16089,7 +16097,8 @@
               "styles": 0
             },
             "objectTypeDelta": {
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -16130,9 +16139,10 @@
       "triage": {
         "resolutionStatus": "active",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics"
+          "roundtrip-count-drift"
         ],
         "historicalClusters": [
+          "roundtrip-count-drift",
           "roundtrip-non-idempotent-mixed-semantics"
         ],
         "reviewStatus": "pending",
@@ -16441,32 +16451,30 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -16483,7 +16491,8 @@
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "shape": 0
+              "shape": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -16503,7 +16512,8 @@
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "shape": 0
+              "shape": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -16542,17 +16552,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -16570,32 +16584,30 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -16612,7 +16624,8 @@
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "shape": 0
+              "shape": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -16632,7 +16645,8 @@
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "shape": 0
+              "shape": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -16671,17 +16685,21 @@
         "componentCountDelta": 2
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -16707,14 +16725,14 @@
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -3,
+              "objects": 0,
               "resources": 0,
-              "styles": -3
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
@@ -16722,7 +16740,7 @@
               "line": 0,
               "molecule": 0,
               "shape": 0,
-              "text": -3
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
@@ -17133,33 +17151,31 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -2,
+              "objects": 0,
               "resources": 0,
-              "styles": -2
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "molecule": 0,
               "symbol": 0,
-              "text": -2
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -17246,19 +17262,24 @@
         "componentCountDelta": 195
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -17278,7 +17299,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "semantic-drift",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -17290,45 +17311,42 @@
               "molecules": 1,
               "nodes": 1,
               "bonds": 0,
-              "objects": 0,
+              "objects": 1,
               "resources": 1,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "molecule": 1,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -3,
+              "objects": 0,
               "resources": 0,
-              "styles": -3
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "molecule": 0,
-              "text": -3
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -17394,10 +17412,11 @@
       "triage": {
         "resolutionStatus": "active",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
+          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
+          "roundtrip-first-generation-mixed-drift",
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
@@ -17558,7 +17577,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "semantic-drift",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -17570,45 +17589,42 @@
               "molecules": 1,
               "nodes": 1,
               "bonds": 0,
-              "objects": 0,
+              "objects": 1,
               "resources": 1,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "molecule": 1,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -2,
+              "objects": 0,
               "resources": 0,
-              "styles": -2
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "molecule": 0,
-              "text": -2
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -17674,10 +17690,11 @@
       "triage": {
         "resolutionStatus": "active",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
+          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
+          "roundtrip-first-generation-mixed-drift",
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
@@ -17703,31 +17720,29 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -17810,19 +17825,24 @@
         "componentCountDelta": 173
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -17975,7 +17995,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "semantic-drift",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -17987,47 +18007,44 @@
               "molecules": 1,
               "nodes": 1,
               "bonds": 0,
-              "objects": 0,
+              "objects": 1,
               "resources": 1,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "line": 0,
               "molecule": 1,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "line": 0,
               "molecule": 0,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -18094,10 +18111,11 @@
       "triage": {
         "resolutionStatus": "active",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
+          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
+          "roundtrip-first-generation-mixed-drift",
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
@@ -18124,21 +18142,21 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
@@ -18146,12 +18164,10 @@
               "line": 0,
               "molecule": 0,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -18240,19 +18256,24 @@
         "componentCountDelta": 38
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -19478,20 +19499,19 @@
               "molecules": 32,
               "nodes": 126,
               "bonds": 94,
-              "objects": 31,
+              "objects": 32,
               "resources": 32,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 32,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -19502,20 +19522,19 @@
               "molecules": 0,
               "nodes": 95,
               "bonds": 94,
-              "objects": -32,
+              "objects": 0,
               "resources": 0,
-              "styles": -32
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "text": -32
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -19615,20 +19634,19 @@
               "molecules": 32,
               "nodes": 126,
               "bonds": 94,
-              "objects": 31,
+              "objects": 32,
               "resources": 32,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 32,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -19639,20 +19657,19 @@
               "molecules": 0,
               "nodes": 95,
               "bonds": 94,
-              "objects": -32,
+              "objects": 0,
               "resources": 0,
-              "styles": -32
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "text": -32
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -19873,7 +19890,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "count-drift",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -19900,23 +19917,21 @@
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -19931,7 +19946,8 @@
               "styles": 0
             },
             "objectTypeDelta": {
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -19979,11 +19995,12 @@
       "triage": {
         "resolutionStatus": "active",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
+          "roundtrip-count-drift",
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
+          "roundtrip-count-drift",
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
@@ -20009,31 +20026,29 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -20049,7 +20064,8 @@
             },
             "objectTypeDelta": {
               "group": 0,
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -20068,7 +20084,8 @@
             },
             "objectTypeDelta": {
               "group": 0,
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -20114,9 +20131,8 @@
         "componentCountDelta": 8
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -20124,10 +20140,16 @@
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -20145,31 +20167,29 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "molecule": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -20185,7 +20205,8 @@
             },
             "objectTypeDelta": {
               "group": 0,
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -20204,7 +20225,8 @@
             },
             "objectTypeDelta": {
               "group": 0,
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -20251,9 +20273,8 @@
         "componentCountDelta": 7
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
@@ -20262,10 +20283,16 @@
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-invisible-text-objects"
+        ],
+        "confirmedRootCause": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+        ],
         "notes": null
       }
     },
@@ -31835,7 +31862,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -31856,10 +31883,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -31935,17 +31960,22 @@
         "componentCountDelta": 1
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-bind-anonymous-object-tag-text"
+        ],
+        "confirmedRootCause": "An ObjectTag child Text without its own CDX object ID remains linked to the tag by owner, semantic role, and content. Automatic enhanced-stereo placement preserves the cached direction vector separately from the rendered text box.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "docs/cdxml-text-label-field-audit.zh-CN.md",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#anonymous_object_tag_text_binds_by_owner_role_and_content"
+        ],
         "notes": null
       }
     },
@@ -39583,14 +39613,14 @@
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -4,
+              "objects": 0,
               "resources": 0,
-              "styles": -4
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
@@ -39598,12 +39628,12 @@
               "line": 0,
               "molecule": 0,
               "symbol": 0,
-              "text": -4
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
-              "texts",
-              "brackets"
+              "brackets",
+              "texts"
             ]
           },
           {

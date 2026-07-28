@@ -1516,6 +1516,44 @@ mod tests {
     }
 
     #[test]
+    fn cdx_unassigned_invisible_text_remains_an_invisible_object_after_export() {
+        let source = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML BoundingBox="0 0 120 80">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1" BoundingBox="0 0 120 80">
+    <t id="0" p="10 20" BoundingBox="10 10 60 25" Visible="no"><s font="3" size="12" face="0" color="0">(20)</s></t>
+  </page>
+</CDXML>
+"#;
+        let source_cdx = cdxml_to_cdx(source).expect("CDXML should encode to CDX");
+        let decoded = cdx_to_cdxml(&source_cdx).expect("CDX should decode to CDXML");
+        assert!(decoded.contains("<t"));
+        assert!(decoded.contains("id=\"0\""));
+        assert!(decoded.contains("Visible=\"no\""));
+
+        let imported =
+            parse_cdx_document(&source_cdx, Some("invisible text")).expect("CDX should import");
+        let text = imported
+            .scene_objects()
+            .into_iter()
+            .find(|object| object.object_type == "text")
+            .expect("the invisible text is still an object");
+        assert!(!text.visible);
+
+        let exported = document_to_cdxml(&imported);
+        assert!(exported.contains("UTF8Text=\"(20)\""));
+        assert!(exported.contains("Visible=\"no\""));
+        let reopened =
+            parse_cdxml_document(&exported, Some("invisible text")).expect("CDXML should reopen");
+        let reopened_text = reopened
+            .scene_objects()
+            .into_iter()
+            .find(|object| object.object_type == "text")
+            .expect("the invisible text survives export");
+        assert!(!reopened_text.visible);
+    }
+
+    #[test]
     fn cdx_justification_enums_use_signed_single_byte_values() {
         for (name, encoded) in [
             ("Right", 0xff),
