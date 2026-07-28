@@ -1,5 +1,74 @@
 use super::*;
 
+pub(super) struct BondBodyGeometry {
+    pub actual_start: Point,
+    pub actual_finish: Point,
+    pub start: Point,
+    pub finish: Point,
+    pub begin_box: Option<RectBox>,
+    pub end_box: Option<RectBox>,
+    pub begin_has_label: bool,
+    pub end_has_label: bool,
+}
+
+pub(super) fn bond_label_clipped_body_geometry(
+    document: &ChemSemaDocument,
+    object: &SceneObject,
+    begin: &Node,
+    end: &Node,
+    bond: &Bond,
+) -> Option<BondBodyGeometry> {
+    let stroke_width = bond_stroke_width(document, object, bond);
+    let actual_start = bond_endpoint_world(object, begin, bond, "begin");
+    let actual_finish = bond_endpoint_world(object, end, bond, "end");
+    let start = retreat_segment_endpoint(
+        actual_start,
+        actual_finish,
+        external_connection_endpoint_retreat(document, begin, actual_start, actual_finish),
+    );
+    let finish = retreat_segment_endpoint(
+        actual_finish,
+        actual_start,
+        external_connection_endpoint_retreat(document, end, actual_finish, actual_start),
+    );
+    let begin_box = label_box_world(begin, object);
+    let end_box = label_box_world(end, object);
+    let begin_polygons = label_clip_polygons_world(begin, object);
+    let end_polygons = label_clip_polygons_world(end, object);
+    let begin_has_label = begin
+        .label
+        .as_ref()
+        .is_some_and(|label| label.has_visible_text());
+    let end_has_label = end
+        .label
+        .as_ref()
+        .is_some_and(|label| label.has_visible_text());
+    let (begin_half_width, end_half_width) = bond_stereo_kind(bond)
+        .map_or((stroke_width * 0.5, stroke_width * 0.5), |stereo| {
+            wedge_endpoint_half_widths(bond, stereo, stroke_width)
+        });
+    let (start, finish) = clip_body_segment_out_of_label_geometry(
+        start,
+        finish,
+        begin_box,
+        &begin_polygons,
+        begin_half_width,
+        end_box,
+        &end_polygons,
+        end_half_width,
+    )?;
+    Some(BondBodyGeometry {
+        actual_start,
+        actual_finish,
+        start,
+        finish,
+        begin_box,
+        end_box,
+        begin_has_label,
+        end_has_label,
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(super) fn render_fragment_bond(
     out: &mut Vec<RenderPrimitive>,
@@ -20,63 +89,22 @@ pub(super) fn render_fragment_bond(
     };
     let stroke = bond.stroke.as_deref().unwrap_or(stroke);
     let stroke_width = bond_stroke_width(document, object, bond);
-    let actual_start = bond_endpoint_world(object, begin, bond, "begin");
-    let actual_finish = bond_endpoint_world(object, end, bond, "end");
-    let mut start = retreat_segment_endpoint(
-        actual_start,
-        actual_finish,
-        external_connection_endpoint_retreat(document, begin, actual_start, actual_finish),
-    );
-    let mut finish = retreat_segment_endpoint(
-        actual_finish,
-        actual_start,
-        external_connection_endpoint_retreat(document, end, actual_finish, actual_start),
-    );
-    let begin_box = label_box_world(begin, object);
-    let end_box = label_box_world(end, object);
-    let begin_polygons = label_clip_polygons_world(begin, object);
-    let end_polygons = label_clip_polygons_world(end, object);
-    let begin_has_label = begin
-        .label
-        .as_ref()
-        .is_some_and(|label| label.has_visible_text());
-    let end_has_label = end
-        .label
-        .as_ref()
-        .is_some_and(|label| label.has_visible_text());
-
-    let stereo = bond_stereo_kind(bond);
-    let clipped_segment = if let Some(stereo) = stereo {
-        let (begin_half_width, end_half_width) =
-            wedge_endpoint_half_widths(bond, stereo, stroke_width);
-        clip_body_segment_out_of_label_geometry(
-            start,
-            finish,
-            begin_box,
-            &begin_polygons,
-            begin_half_width,
-            end_box,
-            &end_polygons,
-            end_half_width,
-        )
-    } else {
-        clip_body_segment_out_of_label_geometry(
-            start,
-            finish,
-            begin_box,
-            &begin_polygons,
-            stroke_width * 0.5,
-            end_box,
-            &end_polygons,
-            stroke_width * 0.5,
-        )
-    };
-    let Some((clipped_start, clipped_finish)) = clipped_segment else {
+    let Some(geometry) = bond_label_clipped_body_geometry(document, object, begin, end, bond)
+    else {
         return;
     };
-    start = clipped_start;
-    finish = clipped_finish;
+    let BondBodyGeometry {
+        actual_start,
+        actual_finish,
+        start,
+        finish,
+        begin_box,
+        end_box,
+        begin_has_label,
+        end_has_label,
+    } = geometry;
 
+    let stereo = bond_stereo_kind(bond);
     if let Some(stereo) = stereo {
         let direction = Vector::new(finish.x - start.x, finish.y - start.y);
         if direction.x * direction.x + direction.y * direction.y <= EPSILON {

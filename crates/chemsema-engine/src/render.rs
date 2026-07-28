@@ -33,7 +33,9 @@ mod spectrum_render;
 #[path = "render/style_payload.rs"]
 mod style_payload;
 
-use bond_render::{compute_solid_wedge_points, render_fragment_bond};
+use bond_render::{
+    bond_label_clipped_body_geometry, compute_solid_wedge_points, render_fragment_bond,
+};
 pub use bounds::{render_primitive_bounds, render_primitives_bounds};
 use contact::{
     bond_ray_is_acute, build_main_bond_contact_kernel, build_main_bond_contact_kernel_for_nodes,

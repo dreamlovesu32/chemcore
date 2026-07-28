@@ -695,6 +695,24 @@
       ]
     },
     {
+      "id": "chemdraw-auto-bond-annotation-uses-visible-body-and-font-baseline",
+      "status": "verified",
+      "summary": "An automatic bond query or enhanced-stereo display is positioned from the midpoint and normal of the label-clipped visible bond body, not the raw atom-center segment. Its Text y coordinate is the alphabetic baseline. ChemDraw applies a deterministic font-family baseline metric, a 0.25 em horizontal gap, and half the live bond stroke width; MarginWidth does not participate.",
+      "officialRule": "ObjectTag PositioningType=auto delegates placement to the editor. Silent ChemDraw 21 probes across horizontal, vertical, shallow, and steep bonds; 19 supported font families; normal and italic faces; 8-18 pt sizes; 0.5-6 pt margins; and 0.2-2 pt line widths establish one axis-separated placement rule. A visible endpoint label first clips the bond body, after which the same rule applies.",
+      "evidence": [
+        "scripts/chemdraw-bond-query-reaction-probe.mjs",
+        "docs/bond-query-reaction-editing-rules.zh-CN.md",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#generated_bond_query_uses_chemdraw_text_baseline_not_its_box_top",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#generated_bond_query_uses_the_label_clipped_visible_bond_midpoint",
+        "tmp/public-cdxml-visual-gate-query-placement-v2.json"
+      ],
+      "caseIds": [
+        "0003",
+        "0005",
+        "0209"
+      ]
+    },
+    {
       "id": "cdxml-layout-coordinate-free-paths-and-rings-by-topology-not-producer-name",
       "status": "verified",
       "summary": "A fragment whose nodes all omit p is laid out from its graph topology regardless of CreationProgram. Paths use ChemDraw's alternating 30-degree bond components, rounded per step. Simple 3-8 member cycles use a regular polygon with the measured ChemDraw start angle for even, 1-mod-4 odd, and 3-mod-4 odd sizes. Branching, fused, and 9-plus macrocycle topologies have distinct ChemDraw algorithms and now return an explicit unsupported-layout error instead of the former arbitrary regular-polygon fallback.",

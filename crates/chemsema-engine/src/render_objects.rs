@@ -543,13 +543,16 @@ fn render_fragment_bond_annotations(
     }
 
     let (Some(begin), Some(end)) = (
-        node_map.get(bond.begin.as_str()),
-        node_map.get(bond.end.as_str()),
+        node_map.get(bond.begin.as_str()).copied(),
+        node_map.get(bond.end.as_str()).copied(),
     ) else {
         return;
     };
-    let begin = world_point(object, begin);
-    let end = world_point(object, end);
+    let Some(body) = bond_label_clipped_body_geometry(document, object, begin, end, bond) else {
+        return;
+    };
+    let begin = body.start;
+    let end = body.finish;
     let mut axis = Vector::new(end.x - begin.x, end.y - begin.y);
     let length = axis.length();
     if length <= EPSILON {
@@ -573,6 +576,7 @@ fn render_fragment_bond_annotations(
         .as_ref()
         .and_then(|style_ref| document.styles.get(style_ref))
         .and_then(|style| style_string(style, "fontFamily"));
+    let stroke_width = bond_stroke_width(document, object, bond);
 
     if let Some(stereo) = stereo {
         push_bond_annotation_text(
@@ -583,6 +587,7 @@ fn render_fragment_bond_annotations(
             stereo,
             true,
             font_size,
+            stroke_width,
             font_family.clone(),
             fill,
             object_id.clone(),
@@ -597,6 +602,7 @@ fn render_fragment_bond_annotations(
             &query,
             false,
             font_size,
+            stroke_width,
             font_family,
             fill,
             object_id,
@@ -613,24 +619,35 @@ fn push_bond_annotation_text(
     text: &str,
     italic: bool,
     font_size: f64,
+    stroke_width: f64,
     font_family: Option<String>,
     fill: &str,
     object_id: Option<String>,
 ) {
     let width = annotation_text_width(text, font_size);
-    let height = font_size * 1.061_333_333;
-    let horizontal_gap = font_size * 0.29;
-    let vertical_gap = font_size * if side > 0.0 { 0.29 } else { 0.11 };
-    let center = Point::new(
-        midpoint.x + side * normal.x * (width * 0.5 + horizontal_gap),
-        midpoint.y + side * normal.y * (height * 0.5 + vertical_gap),
-    );
-    let top = center.y - height * 0.5;
+    let half_stroke = stroke_width * 0.5;
+    let horizontal_gap = font_size * 0.25 + half_stroke;
+    let metrics = chemdraw_bond_annotation_vertical_metrics(font_family.as_deref());
+    let baseline_bias = font_size
+        * if italic {
+            metrics.italic_baseline_bias
+        } else {
+            metrics.normal_baseline_bias
+        };
+    let normal_distance = font_size * metrics.normal_distance + half_stroke * normal.y.abs();
+    let center_x = midpoint.x + side * normal.x * (width * 0.5 + horizontal_gap);
+    let baseline_y = midpoint.y + baseline_bias + side * normal.y * normal_distance;
+    let baseline_offset = font_size
+        * if italic {
+            metrics.italic_top_to_baseline
+        } else {
+            metrics.normal_top_to_baseline
+        };
     push_text_for_node(
         out,
-        center.x,
-        top,
-        Some(font_size * 0.82),
+        center_x,
+        baseline_y,
+        Some(baseline_offset),
         String::new(),
         font_size,
         font_family.clone(),
@@ -651,6 +668,61 @@ fn push_bond_annotation_text(
         object_id,
         None,
     );
+}
+
+#[derive(Clone, Copy)]
+struct BondAnnotationVerticalMetrics {
+    normal_baseline_bias: f64,
+    italic_baseline_bias: f64,
+    normal_distance: f64,
+    normal_top_to_baseline: f64,
+    italic_top_to_baseline: f64,
+}
+
+fn chemdraw_bond_annotation_vertical_metrics(
+    font_family: Option<&str>,
+) -> BondAnnotationVerticalMetrics {
+    let metrics = |normal_baseline_bias,
+                   italic_baseline_bias,
+                   normal_distance,
+                   normal_top_to_baseline,
+                   italic_top_to_baseline| BondAnnotationVerticalMetrics {
+        normal_baseline_bias,
+        italic_baseline_bias,
+        normal_distance,
+        normal_top_to_baseline,
+        italic_top_to_baseline,
+    };
+    match font_family
+        .unwrap_or("Arial")
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        // ChemDraw 21 GDI text boxes measured by
+        // scripts/chemdraw-bond-query-reaction-probe.mjs. These are
+        // font-family metrics: size and MarginWidth do not change the ratio.
+        "arial" | "helvetica" | "tex gyre heros" => metrics(0.408, 0.408, 0.690_667, 0.848, 0.848),
+        "arial narrow" => metrics(0.410_667, 0.410_667, 0.686_667, 0.848, 0.848),
+        "arial black" => metrics(0.450_667, 0.450_667, 0.646_667, 0.846_667, 0.846_667),
+        "times new roman" => metrics(0.378_667, 0.378_667, 0.68, 0.808, 0.808),
+        "georgia" => metrics(0.434_667, 0.434_667, 0.686_667, 0.872, 0.872),
+        "cambria" => metrics(0.376, 0.376, 0.689_333, 0.817_333, 0.817_333),
+        "calibri" => metrics(0.422_667, 0.392, 0.666, 0.841_333, 0.809_333),
+        "courier new" => metrics(0.38, 0.302_667, 0.664, 0.793_333, 0.716),
+        "consolas" => metrics(0.377_333, 0.424, 0.673_333, 0.801_333, 0.848),
+        "verdana" | "tahoma" => metrics(0.44, 0.44, 0.697_333, 0.886_667, 0.886_667),
+        "trebuchet ms" => metrics(0.430_667, 0.422_667, 0.666, 0.848, 0.841_333),
+        "symbol" => metrics(0.369_333, 0.369_333, 0.690_667, 0.809_333, 0.809_333),
+        "segoe ui symbol" => metrics(0.409_333, 0.393_333, 0.673_333, 0.833_333, 0.817_333),
+        "simsun" => metrics(0.429_333, 0.461_333, 0.73, 0.910_667, 0.941_333),
+        "noto sans sc" => metrics(0.518_667, 0.549_333, 0.656, 0.926_667, 0.957_333),
+        "noto serif sc" => metrics(0.496, 0.549_333, 0.656_667, 0.902_667, 0.957_333),
+        // Imported families outside ChemSema's supported font menu follow
+        // ChemDraw's default ANSI sans baseline class. The original family is
+        // still retained in CCJS/CDXML; this branch defines synthesis only.
+        _ => metrics(0.408, 0.408, 0.690_667, 0.848, 0.848),
+    }
 }
 
 fn render_fragment_nmr_assignments(

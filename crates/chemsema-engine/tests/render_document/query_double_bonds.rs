@@ -111,6 +111,94 @@ fn parse_cdxml_keeps_combined_bond_order_query_native_and_renders_its_mnemonic()
 }
 
 #[test]
+fn generated_bond_query_uses_chemdraw_text_baseline_not_its_box_top() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10" MarginWidth="2">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="10"><fragment id="11">
+    <n id="2" p="157.21 133.17"/>
+    <n id="4" p="183.19 148.17"/>
+    <b id="5" B="2" E="4" Order="1 2"/>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("ChemDraw 6 bond query baseline"))
+        .expect("bond query should parse");
+    let (x, y, baseline_offset) = render_document(&document)
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Text {
+                x,
+                y,
+                baseline_offset,
+                text,
+                runs,
+                ..
+            } => {
+                let rendered = if text.is_empty() {
+                    runs.iter().map(|run| run.text.as_str()).collect::<String>()
+                } else {
+                    text.clone()
+                };
+                (rendered == "S/D").then_some((*x, *y, *baseline_offset))
+            }
+            _ => None,
+        })
+        .expect("generated S/D annotation");
+
+    // ChemDraw saves this generated tag at p=168.23 138.87 with
+    // BoundingBox=168.23 132.51 180.73 138.97. Our primitive is centered
+    // horizontally, but its y coordinate is the same alphabetic baseline.
+    assert!((x - 174.48).abs() < 0.08, "x={x}");
+    assert!((y - 138.87).abs() < 0.03, "y={y}");
+    assert!(
+        baseline_offset.is_some_and(|value| (value - 6.36).abs() < 1.0e-9),
+        "baseline_offset={baseline_offset:?}"
+    );
+}
+
+#[test]
+fn generated_bond_query_uses_the_label_clipped_visible_bond_midpoint() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10" MarginWidth="2" LineWidth="1">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="5"><fragment id="6">
+    <n id="1" p="147 176" NodeType="GenericNickname">
+      <t id="4" p="143.64 179.9" BoundingBox="145 173 152 180">
+        <s font="3" size="10" face="96">M</s>
+      </t>
+    </n>
+    <n id="2" p="177 176"/>
+    <b id="3" B="1" E="2" Order="1 2"/>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("labeled query-bond endpoint"))
+        .expect("labeled query bond should parse");
+    let (x, y) = render_document(&document)
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Text {
+                x, y, text, runs, ..
+            } => {
+                let rendered = if text.is_empty() {
+                    runs.iter().map(|run| run.text.as_str()).collect::<String>()
+                } else {
+                    text.clone()
+                };
+                (rendered == "S/D").then_some((*x, *y))
+            }
+            _ => None,
+        })
+        .expect("generated S/D annotation");
+
+    // ChemDraw centers the query on the visible line from x=152.385 to
+    // x=177, rather than on the raw node segment from x=147 to x=177.
+    // Its saved ObjectTag has BoundingBox=158.42 167.02 170.92 173.48
+    // and p=158.42 173.38.
+    assert!((x - 164.67).abs() < 0.08, "x={x}");
+    assert!((y - 173.38).abs() < 0.03, "y={y}");
+}
+
+#[test]
 fn explicit_bond_query_display_uses_its_authored_object_tag_geometry_once() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML LabelFont="3" LabelSize="10" ShowBondRxn="yes">
