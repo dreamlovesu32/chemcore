@@ -96,6 +96,21 @@ npm run benchmark:cdxml-public:visual-gate:affected
 
 The planner updates only selected gallery items. The gate reuses unchanged cases by ChemDraw-oracle hash, ChemSema-SVG hash, and gate-definition identity, while the resulting report still covers the complete baseline. `cache.reused` and `cache.analyzed` expose the split. Baseline mode permits historical failures to remain open, but every pass-to-fail transition is recorded in `delta.regressions` and fails the command. Path-to-feature declarations and historical regression cases live in `benchmarks/public-cdxml/visual-impact-map.json`; unknown production changes and gate-definition changes conservatively force a full run.
 
+Gate v8 makes the fixed-coordinate detail checks non-bypassable. A
+whole-page coverage score cannot excuse an empty local window or a large local
+defect, and coarse pixel agreement cannot discard a fine connected-component
+mismatch. The detail pass uses zero dilation to retain repeated sub-pixel join
+differences; its repeated-defect rule is calibrated in reference-image units,
+not as a percentage of canvas size. Canonical runs reject any gallery whose
+repository, CLI, corpus, round-trip report, or per-item candidate provenance
+does not match. `--allow-stale-gallery` is diagnostic only and never makes
+stale artifacts canonical.
+
+Use `--cohort original-338` to run the exact original review cohort recorded
+in `benchmarks/public-cdxml/failure-ledger.json`. The gate fails before image
+analysis if even one cohort path is absent from the gallery, and records the
+cohort name, ledger path, expected count, and selected count in the report.
+
 If a later full gate finds a regression that escaped the affected plan, first repair the impact map or feature extraction so that family is selected in the future, then fix the renderer. A one-off manual case addition is not a complete repair.
 
 Set `CHEMSEMA_PUBLIC_CDXML_DIR` to choose another download directory. The

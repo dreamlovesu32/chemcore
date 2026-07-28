@@ -19,6 +19,8 @@ const DEFAULTS = Object.freeze({
   jobs: 4,
   allowDirtyGallery: false,
   allowStaleGallery: false,
+  cohortLedger: "benchmarks/public-cdxml/failure-ledger.json",
+  cohort: null,
   analysisScale: 2,
   tolerance: 1.5,
   tileSize: 256,
@@ -30,15 +32,15 @@ const DEFAULTS = Object.freeze({
   maxDefectArea: 8,
   maxDefectSpan: 12,
   detailAnalysisScale: 4,
-  detailTolerance: 0.25,
+  detailTolerance: 0,
   detailLocalWindow: 24,
   detailLocalStride: 12,
   detailMinimumWindowInk: 12,
   maxComponentCountDelta: 1,
   maxEnclosedSmallComponentDimensionDelta: 2.75,
-  maxRepeatedMicroDefects: 7,
-  maxRepeatedMicroDefectArea: 2,
-  minRepeatedMicroCoverage: 0.9,
+  maxRepeatedMicroDefects: 20,
+  maxRepeatedMicroDefectArea: 5,
+  minRepeatedMicroCoverage: 0.75,
   minimumTopologyComponentCount: 8,
   minimumSmallTopologyComponentCount: 3,
   minimumSmallTopologyLocalCoverage: 0.7,
@@ -46,15 +48,14 @@ const DEFAULTS = Object.freeze({
   maxTopologyCandidateCountRatio: 0.1,
   maxRelativeComponentCenterDistance: 0.02,
   maxComponentPositionDistributionDelta: 0.03,
-  minStrongPixelCoverage: 0.99,
-  minStrongPixelLocalCoverage: 0.9,
-  maxStrongPixelComponentCountDelta: 2,
   minSlenderDefectCoverage: 0.98,
   minSlenderDefectLocalCoverage: 0.75,
   maxSlenderDefectArea: 24,
   maxSlenderDefectSpan: 30,
   maxSlenderDefectThickness: 1,
   minBoundedLocalCoverage: 0.96,
+  minBoundedLocalWindowCoverage: 0.5,
+  maxBoundedLocalDefectArea: 32,
   maxBoundedLocalDefectSpan: 32,
   minBoundedRelativeComponentCoverage: 0.877,
   boundedComponentDeltaPenalty: 0.01,
@@ -68,7 +69,7 @@ const DEFAULTS = Object.freeze({
 });
 
 const ALIGNMENT_ALGORITHM = "ink-iou-coarse-refined-precision-v5";
-const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v7";
+const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v8";
 
 function parseArgs(argv) {
   const options = { ...DEFAULTS, patterns: [] };
@@ -83,6 +84,8 @@ function parseArgs(argv) {
     else if (arg === "--only") options.patterns.push(argv[++index]);
     else if (arg === "--limit") options.limit = Number(argv[++index]);
     else if (arg === "--jobs") options.jobs = Number(argv[++index]);
+    else if (arg === "--cohort-ledger") options.cohortLedger = argv[++index];
+    else if (arg === "--cohort") options.cohort = argv[++index];
     else if (arg === "--allow-dirty-gallery") options.allowDirtyGallery = true;
     else if (arg === "--allow-stale-gallery") options.allowStaleGallery = true;
     else if (arg === "--analysis-scale") options.analysisScale = Number(argv[++index]);
@@ -112,15 +115,14 @@ function parseArgs(argv) {
     else if (arg === "--max-topology-candidate-count-ratio") options.maxTopologyCandidateCountRatio = Number(argv[++index]);
     else if (arg === "--max-relative-component-center-distance") options.maxRelativeComponentCenterDistance = Number(argv[++index]);
     else if (arg === "--max-component-position-distribution-delta") options.maxComponentPositionDistributionDelta = Number(argv[++index]);
-    else if (arg === "--min-strong-pixel-coverage") options.minStrongPixelCoverage = Number(argv[++index]);
-    else if (arg === "--min-strong-pixel-local-coverage") options.minStrongPixelLocalCoverage = Number(argv[++index]);
-    else if (arg === "--max-strong-pixel-component-count-delta") options.maxStrongPixelComponentCountDelta = Number(argv[++index]);
     else if (arg === "--min-slender-defect-coverage") options.minSlenderDefectCoverage = Number(argv[++index]);
     else if (arg === "--min-slender-defect-local-coverage") options.minSlenderDefectLocalCoverage = Number(argv[++index]);
     else if (arg === "--max-slender-defect-area") options.maxSlenderDefectArea = Number(argv[++index]);
     else if (arg === "--max-slender-defect-span") options.maxSlenderDefectSpan = Number(argv[++index]);
     else if (arg === "--max-slender-defect-thickness") options.maxSlenderDefectThickness = Number(argv[++index]);
     else if (arg === "--min-bounded-local-coverage") options.minBoundedLocalCoverage = Number(argv[++index]);
+    else if (arg === "--min-bounded-local-window-coverage") options.minBoundedLocalWindowCoverage = Number(argv[++index]);
+    else if (arg === "--max-bounded-local-defect-area") options.maxBoundedLocalDefectArea = Number(argv[++index]);
     else if (arg === "--max-bounded-local-defect-span") options.maxBoundedLocalDefectSpan = Number(argv[++index]);
     else if (arg === "--min-bounded-relative-component-coverage") options.minBoundedRelativeComponentCoverage = Number(argv[++index]);
     else if (arg === "--bounded-component-delta-penalty") options.boundedComponentDeltaPenalty = Number(argv[++index]);
@@ -138,12 +140,17 @@ function parseArgs(argv) {
 
 function validateOptions(options) {
   for (const key of [
-    "analysisScale", "tolerance", "tileSize", "halo", "localWindow", "localStride",
-    "minimumWindowInk", "detailAnalysisScale", "detailTolerance", "detailLocalWindow",
+    "analysisScale", "tileSize", "halo", "localWindow", "localStride",
+    "minimumWindowInk", "detailAnalysisScale", "detailLocalWindow",
     "detailLocalStride", "detailMinimumWindowInk",
   ]) {
     if (!Number.isFinite(options[key]) || options[key] <= 0) {
       throw new Error(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)} must be positive`);
+    }
+  }
+  for (const key of ["tolerance", "detailTolerance"]) {
+    if (!Number.isFinite(options[key]) || options[key] < 0) {
+      throw new Error(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)} must be non-negative`);
     }
   }
   if (!Number.isInteger(options.jobs) || options.jobs < 1) {
@@ -151,9 +158,9 @@ function validateOptions(options) {
   }
   for (const key of [
     "minCoverage", "minRepeatedMicroCoverage", "minimumSmallTopologyLocalCoverage",
-    "minStrongPixelCoverage", "minStrongPixelLocalCoverage",
     "minSlenderDefectCoverage", "minSlenderDefectLocalCoverage",
-    "minBoundedLocalCoverage", "minBoundedRelativeComponentCoverage",
+    "minBoundedLocalCoverage", "minBoundedLocalWindowCoverage",
+    "minBoundedRelativeComponentCoverage",
     "minTightBoundedRelativeComponentCoverage", "boundedComponentDeltaPenalty",
     "maxRelativeComponentCenterDistance", "maxTopologyCandidateCountRatio",
     "maxComponentPositionDistributionDelta",
@@ -166,9 +173,10 @@ function validateOptions(options) {
     "maxDefectArea", "maxDefectSpan", "maxComponentCountDelta",
     "maxEnclosedSmallComponentDimensionDelta", "maxRepeatedMicroDefects",
     "maxRepeatedMicroDefectArea", "minimumTopologyComponentCount",
-    "minimumSmallTopologyComponentCount", "maxStrongPixelComponentCountDelta",
+    "minimumSmallTopologyComponentCount",
     "maxSlenderDefectArea", "maxSlenderDefectSpan", "maxSlenderDefectThickness",
-    "maxBoundedLocalDefectSpan", "maxBoundedComponentCountDelta",
+    "maxBoundedLocalDefectArea", "maxBoundedLocalDefectSpan",
+    "maxBoundedComponentCountDelta",
     "maxTightBoundedLocalDefectSpan", "maxTightBoundedComponentCountDelta",
     "maximumTopologyCandidateComponentCount",
   ]) {
@@ -232,6 +240,24 @@ export function classifyBaselineChanges(cases, baselineCases) {
     changes,
     regressions: changes.filter((entry) => entry.before === "pass" && entry.after !== "pass"),
     improvements: changes.filter((entry) => entry.before !== "pass" && entry.after === "pass"),
+  };
+}
+
+export function selectVisualGateCohort(items, ledger, cohort) {
+  const selectedPaths = new Set(
+    ledger.cases
+      .filter((entry) => entry.cohort === cohort)
+      .map((entry) => entry.relativeCdxml.replaceAll("\\", "/")),
+  );
+  const selectedItems = items.filter((item) =>
+    selectedPaths.has(item.relativeCdxml.replaceAll("\\", "/")));
+  const foundPaths = new Set(
+    selectedItems.map((item) => item.relativeCdxml.replaceAll("\\", "/")),
+  );
+  return {
+    items: selectedItems,
+    expected: selectedPaths.size,
+    missingPaths: [...selectedPaths].filter((relativePath) => !foundPaths.has(relativePath)),
   };
 }
 
@@ -420,7 +446,7 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
         alignment.dy + candidateImage.naturalHeight * alignment.scale,
       )),
     };
-    const radius = Math.max(1, Math.ceil(settings.tolerance * settings.analysisScale));
+    const radius = Math.max(0, Math.ceil(settings.tolerance * settings.analysisScale));
     const totals = {
       referenceInk: 0,
       candidateInk: 0,
@@ -641,6 +667,9 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
     let enclosedSmallComponentDimensionMismatch = null;
     let matchedComponentCount = 0;
     let maximumMatchedCenterDistance = 0;
+    let maximumMatchedDimensionDelta = 0;
+    let maximumMatchedDimensionMismatch = null;
+    const matchedComponentDimensionMismatches = [];
     function isEnclosedComponent(component, allComponents) {
       const centerX = component.box.x + component.box.width / 2;
       const centerY = component.box.y + component.box.height / 2;
@@ -682,6 +711,30 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
       unmatchedCandidate.delete(best.index);
       matchedComponentCount += 1;
       maximumMatchedCenterDistance = Math.max(maximumMatchedCenterDistance, best.distance);
+      const dimensionDelta = Math.max(
+        Math.abs(referenceComponent.box.width - candidateComponent.box.width),
+        Math.abs(referenceComponent.box.height - candidateComponent.box.height),
+      );
+      if (dimensionDelta > maximumMatchedDimensionDelta) {
+        maximumMatchedDimensionDelta = dimensionDelta;
+        maximumMatchedDimensionMismatch = {
+          reference: referenceComponent,
+          candidate: candidateComponent,
+          centerDistance: best.distance,
+        };
+      }
+      matchedComponentDimensionMismatches.push({
+        dimensionDelta,
+        reference: referenceComponent,
+        candidate: candidateComponent,
+        centerDistance: best.distance,
+      });
+      matchedComponentDimensionMismatches.sort(
+        (left, right) => right.dimensionDelta - left.dimensionDelta,
+      );
+      if (matchedComponentDimensionMismatches.length > 12) {
+        matchedComponentDimensionMismatches.length = 12;
+      }
       const maximumDimension = Math.max(
         referenceComponent.box.width,
         referenceComponent.box.height,
@@ -695,10 +748,6 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
         candidateComponent.box.height,
       );
       if (maximumDimension <= 30 && minimumDimension <= 5) {
-        const dimensionDelta = Math.max(
-          Math.abs(referenceComponent.box.width - candidateComponent.box.width),
-          Math.abs(referenceComponent.box.height - candidateComponent.box.height),
-        );
         if (dimensionDelta > smallComponentDimensionDelta) {
           smallComponentDimensionDelta = dimensionDelta;
           smallComponentDimensionMismatch = {
@@ -820,6 +869,9 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
           inkComponents.reference.length - matchedComponentCount,
         unmatchedCandidateComponentCount: unmatchedCandidate.size,
         maximumMatchedCenterDistance,
+        maximumMatchedDimensionDelta,
+        maximumMatchedDimensionMismatch,
+        matchedComponentDimensionMismatches,
         relativeMatchedComponentCount,
         relativeComponentMatchCoverage: relativeMatchedComponentCount / Math.max(
           inkComponents.reference.length,
@@ -911,17 +963,6 @@ export function fineTopologyCandidate(coarse, options = {}) {
       <= settings.maxTopologyCandidateCountRatio;
 }
 
-export function strongPixelEquivalent(coarse, detail, options = {}) {
-  const settings = { ...DEFAULTS, ...options };
-  return coarse.passed
-    && Math.min(coarse.referenceCoverage, coarse.candidateCoverage)
-      >= settings.minStrongPixelCoverage
-    && Math.min(coarse.local.referenceCoverage, coarse.local.candidateCoverage)
-      >= settings.minStrongPixelLocalCoverage
-    && detail.detailFeatures.componentCountDelta
-      <= settings.maxStrongPixelComponentCountDelta;
-}
-
 function defectThickness(defect) {
   if (!defect || defect.area === 0) return 0;
   return defect.span > 0 ? defect.area / defect.span : Number.POSITIVE_INFINITY;
@@ -946,6 +987,14 @@ export function boundedLocalTopologyEquivalent(coarse, options = {}) {
   const features = coarse.detailFeatures;
   const componentDelta = features.componentCountDelta;
   const relativeCoverage = features.relativeComponentMatchCoverage;
+  const minimumLocalCoverage = Math.min(
+    coarse.local.referenceCoverage,
+    coarse.local.candidateCoverage,
+  );
+  const maximumDefectArea = Math.max(
+    coarse.largestMissing.area,
+    coarse.largestExtra.area,
+  );
   const maximumDefectSpan = Math.max(
     coarse.largestMissing.span,
     coarse.largestExtra.span,
@@ -953,6 +1002,8 @@ export function boundedLocalTopologyEquivalent(coarse, options = {}) {
   if (
     Math.min(coarse.referenceCoverage, coarse.candidateCoverage)
       < settings.minBoundedLocalCoverage
+    || minimumLocalCoverage < settings.minBoundedLocalWindowCoverage
+    || maximumDefectArea > settings.maxBoundedLocalDefectArea
     || maximumDefectSpan > settings.maxBoundedLocalDefectSpan
     || componentDelta > settings.maxBoundedComponentCountDelta
   ) {
@@ -976,6 +1027,44 @@ export function nearExactFixedDefectEquivalent(coarse, options = {}) {
     && coarse.largestExtra.span <= settings.maxNearExactDefectSpan
     && coarse.largestMissing.area <= settings.maxNearExactDefectArea
     && coarse.largestExtra.area <= settings.maxNearExactDefectArea;
+}
+
+export function classifyAnalyzedVisualMetrics(coarseMetrics, detailMetrics, options = {}) {
+  const detailReasons = detailMetrics ? detailGateReasons(detailMetrics, options) : [];
+  const topologyEquivalent = detailMetrics
+    ? fineTopologyEquivalent(detailMetrics, options)
+    : false;
+  const slenderEquivalent = slenderDefectEquivalent(coarseMetrics, options);
+  const boundedLocalEquivalent = boundedLocalTopologyEquivalent(coarseMetrics, options);
+  const nearExactEquivalent = nearExactFixedDefectEquivalent(coarseMetrics, options);
+  const coarseAccepted = coarseMetrics.passed
+    || topologyEquivalent
+    || slenderEquivalent
+    || boundedLocalEquivalent
+    || nearExactEquivalent;
+  return {
+    ...coarseMetrics,
+    passed: coarseAccepted && detailReasons.length === 0,
+    reasons: [
+      ...(coarseAccepted ? [] : coarseMetrics.reasons),
+      ...detailReasons,
+    ],
+    coarsePassed: coarseMetrics.passed,
+    coarseAcceptedByFineTopology: !coarseMetrics.passed && topologyEquivalent,
+    coarseAcceptedBySlenderDefect: !coarseMetrics.passed && slenderEquivalent,
+    coarseAcceptedByBoundedLocalTopology:
+      !coarseMetrics.passed && boundedLocalEquivalent,
+    coarseAcceptedByNearExactFixedDefect:
+      !coarseMetrics.passed && nearExactEquivalent,
+    detail: detailMetrics ? {
+      local: detailMetrics.local,
+      largestMissing: detailMetrics.largestMissing,
+      largestExtra: detailMetrics.largestExtra,
+      topDefects: detailMetrics.topDefects,
+      detailFeatures: detailMetrics.detailFeatures,
+      settings: detailMetrics.settings,
+    } : null,
+  };
 }
 
 function detailAnalysisOptions(options) {
@@ -1019,15 +1108,14 @@ function gatePolicy(options) {
       maximumRelativeComponentCenterDistance: options.maxRelativeComponentCenterDistance,
       maximumComponentPositionDistributionDelta:
         options.maxComponentPositionDistributionDelta,
-      minimumStrongPixelCoverage: options.minStrongPixelCoverage,
-      minimumStrongPixelLocalCoverage: options.minStrongPixelLocalCoverage,
-      maximumStrongPixelComponentCountDelta: options.maxStrongPixelComponentCountDelta,
       minimumSlenderDefectCoverage: options.minSlenderDefectCoverage,
       minimumSlenderDefectLocalCoverage: options.minSlenderDefectLocalCoverage,
       maximumSlenderDefectArea: options.maxSlenderDefectArea,
       maximumSlenderDefectSpan: options.maxSlenderDefectSpan,
       maximumSlenderDefectThickness: options.maxSlenderDefectThickness,
       minimumBoundedLocalCoverage: options.minBoundedLocalCoverage,
+      minimumBoundedLocalWindowCoverage: options.minBoundedLocalWindowCoverage,
+      maximumBoundedLocalDefectArea: options.maxBoundedLocalDefectArea,
       maximumBoundedLocalDefectSpan: options.maxBoundedLocalDefectSpan,
       minimumBoundedRelativeComponentCoverage:
         options.minBoundedRelativeComponentCoverage,
@@ -1188,7 +1276,7 @@ async function runSelfTest(options) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log("Usage: node scripts/public-cdxml-visual-gate.mjs [--gallery dir] [--out report.json] [--passed-gallery html] [--only text] [--limit n] [--jobs n] [--allow-dirty-gallery] [--allow-stale-gallery] [--report-only]");
+    console.log("Usage: node scripts/public-cdxml-visual-gate.mjs [--gallery dir] [--out report.json] [--passed-gallery html] [--cohort name] [--cohort-ledger file] [--only text] [--limit n] [--jobs n] [--allow-dirty-gallery] [--allow-stale-gallery] [--report-only]");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --reuse-report report.json [--gallery dir] [--passed-gallery html]");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --gallery dir --stamp-report report.json");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --gallery dir --baseline-report report.json --out report.json");
@@ -1237,6 +1325,28 @@ async function main() {
     return;
   }
   let items = manifest.items.filter((item) => !["expected-reject", "skipped"].includes(item.status));
+  let cohortSelection = null;
+  if (options.cohort) {
+    const ledgerPath = path.resolve(options.cohortLedger);
+    const ledger = JSON.parse(await fs.readFile(ledgerPath, "utf8"));
+    const selection = selectVisualGateCohort(items, ledger, options.cohort);
+    if (!selection.expected) {
+      throw new Error(`Cohort ${options.cohort} is empty or absent in ${ledgerPath}`);
+    }
+    if (selection.missingPaths.length) {
+      throw new Error(
+        `${selection.missingPaths.length} cohort cases are missing from the gallery. `
+        + `First missing case: ${selection.missingPaths[0]}`,
+      );
+    }
+    items = selection.items;
+    cohortSelection = {
+      name: options.cohort,
+      ledger: ledgerPath,
+      expected: selection.expected,
+      selected: items.length,
+    };
+  }
   if (options.patterns.length) {
     items = items.filter((item) => options.patterns.some((pattern) =>
       `${item.id}\n${item.relativeCdxml}`.toLowerCase().includes(pattern.toLowerCase())));
@@ -1332,51 +1442,11 @@ async function main() {
             detailAnalysisOptions(options),
           )
           : null;
-        const detailReasons = detailMetrics ? detailGateReasons(detailMetrics, options) : [];
-        if (detailMetrics && strongPixelEquivalent(coarseMetrics, detailMetrics, options)) {
-          const componentReason = detailReasons.indexOf("detail-component-count");
-          if (componentReason >= 0) detailReasons.splice(componentReason, 1);
-        }
-        if (boundedLocalEquivalent) {
-          const componentReason = detailReasons.indexOf("detail-component-count");
-          if (componentReason >= 0) detailReasons.splice(componentReason, 1);
-        }
-        if (nearExactEquivalent) {
-          const componentReason = detailReasons.indexOf("detail-component-count");
-          if (componentReason >= 0) detailReasons.splice(componentReason, 1);
-        }
-        const topologyEquivalent = detailMetrics
-          ? fineTopologyEquivalent(detailMetrics, options)
-          : false;
-        const slenderEquivalent = slenderDefectEquivalent(coarseMetrics, options);
-        const coarseAccepted = coarseMetrics.passed
-          || topologyEquivalent
-          || slenderEquivalent
-          || boundedLocalEquivalent
-          || nearExactEquivalent;
-        const metrics = {
-          ...coarseMetrics,
-          passed: coarseAccepted && detailReasons.length === 0,
-          reasons: [
-            ...(coarseAccepted ? [] : coarseMetrics.reasons),
-            ...detailReasons,
-          ],
-          coarsePassed: coarseMetrics.passed,
-          coarseAcceptedByFineTopology: !coarseMetrics.passed && topologyEquivalent,
-          coarseAcceptedBySlenderDefect: !coarseMetrics.passed && slenderEquivalent,
-          coarseAcceptedByBoundedLocalTopology:
-            !coarseMetrics.passed && boundedLocalEquivalent,
-          coarseAcceptedByNearExactFixedDefect:
-            !coarseMetrics.passed && nearExactEquivalent,
-          detail: detailMetrics ? {
-            local: detailMetrics.local,
-            largestMissing: detailMetrics.largestMissing,
-            largestExtra: detailMetrics.largestExtra,
-            topDefects: detailMetrics.topDefects,
-            detailFeatures: detailMetrics.detailFeatures,
-            settings: detailMetrics.settings,
-          } : null,
-        };
+        const metrics = classifyAnalyzedVisualMetrics(
+          coarseMetrics,
+          detailMetrics,
+          options,
+        );
         completed += 1;
         console.log(`[${completed}/${items.length}] worker=${workerIndex + 1} ${metrics.passed ? "PASS" : "FAIL"} ${item.relativeCdxml}`);
         return {
@@ -1419,6 +1489,11 @@ async function main() {
     generatedAt: new Date().toISOString(),
     gallery: galleryDir,
     galleryProvenance: manifest.provenance ?? null,
+    selection: {
+      cohort: cohortSelection,
+      patterns: options.patterns,
+      limit: Number.isFinite(options.limit) ? options.limit : null,
+    },
     policy: gatePolicy(options),
     summary: {
       total: cases.length,
