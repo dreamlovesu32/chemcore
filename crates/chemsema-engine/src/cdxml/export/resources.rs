@@ -24,6 +24,9 @@ pub(super) fn document_node_world_point(
 }
 
 pub(super) fn preserved_cdxml_bond_order(bond: &Bond) -> Option<String> {
+    if canonicalizes_topology_only_aromatic_dash(bond) {
+        return None;
+    }
     let source = bond
         .meta
         .pointer("/import/cdxml/order")
@@ -38,6 +41,13 @@ pub(super) fn preserved_cdxml_bond_order(bond: &Bond) -> Option<String> {
     } else {
         None
     }
+}
+
+pub(super) fn canonicalizes_topology_only_aromatic_dash(bond: &Bond) -> bool {
+    bond.meta
+        .pointer("/import/cdxml/topologyOnlyAromaticDash")
+        .and_then(Value::as_bool)
+        == Some(true)
 }
 
 pub(super) fn collect_document_colors(document: &ChemSemaDocument, colors: &mut CdxmlColorTable) {

@@ -495,6 +495,11 @@ fn coordinate_free_cdxml_aromatic_ring_and_missing_bond_ids_remain_visible() {
             && bond.line_styles.main == chemsema_engine::BondLinePattern::Solid
             && bond
                 .meta
+                .pointer("/import/cdxml/topologyOnlyAromaticDash")
+                .and_then(serde_json::Value::as_bool)
+                == Some(true)
+            && bond
+                .meta
                 .pointer("/import/cdxml/aromatic")
                 .and_then(serde_json::Value::as_bool)
                 == Some(true)
@@ -508,12 +513,98 @@ fn coordinate_free_cdxml_aromatic_ring_and_missing_bond_ids_remain_visible() {
     );
 
     let exported = document_to_cdxml(&document);
-    assert_eq!(exported.matches("Order=\"1.5\"").count(), 6, "{exported}");
+    assert_eq!(exported.matches("Order=\"1\"").count(), 6, "{exported}");
+    assert!(!exported.contains("Order=\"1.5\""), "{exported}");
+    assert!(!exported.contains("Display=\"Dash\""), "{exported}");
     assert_eq!(
-        exported.matches("Display=\"Dash\"").count(),
+        exported.matches("Display=\"Solid\"").count(),
         6,
         "{exported}"
     );
+
+    let reparsed = parse_cdxml_document(&exported, Some("laid-out aromatic ring"))
+        .expect("canonicalized ring should reimport");
+    let reparsed_fragment = reparsed
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .expect("canonicalized fragment should survive");
+    assert!(reparsed_fragment.bonds.iter().all(|bond| {
+        bond.order == 1 && bond.line_styles.main == chemsema_engine::BondLinePattern::Solid
+    }));
+}
+
+#[test]
+fn coordinate_free_cdxml_cycle_uses_chemdraw_ring_orientation_without_producer_hint() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML BondLength="17"><page><fragment>
+  <n id="1" AbnormalValence="yes"/><n id="2" AbnormalValence="yes"/>
+  <n id="3" AbnormalValence="yes"/><n id="4" AbnormalValence="yes"/>
+  <n id="5" AbnormalValence="yes"/>
+  <b B="1" E="2"/><b B="2" E="3"/><b B="3" E="4"/>
+  <b B="4" E="5"/><b B="5" E="1"/>
+</fragment></page></CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("coordinate-free cyclopentane"))
+        .expect("a producer name is not required for coordinate-free ring layout");
+    let fragment = document
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .expect("cycle should survive");
+    let positions = fragment
+        .nodes
+        .iter()
+        .map(|node| (node.id.as_str(), node.position))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        positions,
+        vec![
+            ("1", [22.25, 0.0]),
+            ("2", [27.5, 16.17]),
+            ("3", [13.75, 26.16]),
+            ("4", [0.0, 16.17]),
+            ("5", [5.25, 0.0]),
+        ]
+    );
+    assert!(fragment
+        .nodes
+        .iter()
+        .all(|node| node.atom_properties.abnormal_valence));
+    assert_eq!(fragment.bonds.len(), 5);
+
+    let exported = document_to_cdxml(&document);
+    let reparsed = parse_cdxml_document(&exported, Some("coordinate-free cycle export"))
+        .expect("laid-out cycle should reimport");
+    let reparsed_fragment = reparsed
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .expect("reparsed cycle should survive");
+    assert_eq!(
+        reparsed_fragment
+            .nodes
+            .iter()
+            .map(|node| node.position)
+            .collect::<Vec<_>>(),
+        fragment
+            .nodes
+            .iter()
+            .map(|node| node.position)
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn coordinate_free_cdxml_branching_is_not_silently_drawn_as_a_polygon() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML BondLength="17"><page><fragment id="branch">
+  <n id="1"/><n id="2"/><n id="3"/><n id="4"/>
+  <b B="1" E="2"/><b B="1" E="3"/><b B="1" E="4"/>
+</fragment></page></CDXML>"#;
+    let error = parse_cdxml_document(cdxml, Some("coordinate-free branch"))
+        .expect_err("an unverified branching layout must not use a polygon fallback");
+    assert!(error.contains("branching or fused topology"), "{error}");
+    assert!(error.contains("'branch'"), "{error}");
 }
 
 #[test]

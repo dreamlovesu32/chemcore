@@ -515,8 +515,8 @@
     {
       "id": "cdxml-keep-aromatic-order-independent-from-bond-display",
       "status": "verified",
-      "summary": "Order=1.5 preserves delocalized or aromatic bond semantics but does not imply Display=Dash. Export derives Display from the editable line style, retains an explicit source Display when topology-only layout suppresses that style in the preview, and leaves Display absent when the authored bond was solid.",
-      "officialRule": "Bond Order and Display are independent official properties. Order=1.5 is a valid order value, while Solid and Dash are separate Display enum values. Inferring Dash solely from Order changes an authored solid delocalized bond on the first save.",
+      "summary": "Order=1.5 preserves delocalized or aromatic bond semantics but does not imply Display=Dash. For positioned bonds, export derives Display from the editable line style and leaves Display absent when the authored bond was solid. Coordinate-free Order=1.5 + Dash transport input follows the separately verified ChemDraw layout-normalization rule.",
+      "officialRule": "Bond Order and Display are independent official properties. Order=1.5 is a valid order value, while Solid and Dash are separate Display enum values. Inferring Dash solely from Order changes an authored solid delocalized bond on the first save; suppressing an explicit Dash on a positioned bond likewise changes authored display.",
       "evidence": [
         "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Order.htm",
         "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Display.htm",
@@ -527,6 +527,22 @@
       "caseIds": [
         "0283",
         "0284"
+      ]
+    },
+    {
+      "id": "cdxml-canonicalize-coordinate-free-aromatic-dash-after-layout",
+      "status": "verified",
+      "summary": "When both endpoints lack p, ChemDraw treats Order=1.5 + Display=Dash without Display2 as coordinate-free transport input: it lays the bond out as one solid single-bond lane. Saving the laid-out document removes Order=1.5 and Dash. ChemSema keeps the first-import solid rendering and exports the normalized Order=1 + explicit Solid form so source interchange cannot resurrect Dash; positioned aromatic Dash bonds remain dashed.",
+      "officialRule": "Order and Display remain independent fields. This additional branch is selected only by the document state that ChemDraw itself normalizes: both endpoint coordinates were generated, source Order is 1.5, Display is Dash, and Display2 is absent. A ChemDraw 21 open-save probe of the public RDKit ring3.cdxml generated coordinates and six ordinary single bonds with neither Order nor Display attributes.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Order.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Display.htm",
+        "scripts/chemdraw-oracle.mjs",
+        "crates/chemsema-engine/tests/render_document/crossings_selection.rs#coordinate_free_cdxml_aromatic_ring_and_missing_bond_ids_remain_visible",
+        "crates/chemsema-engine/tests/render_document/crossings_selection.rs#positioned_cdxml_aromatic_dash_remains_visibly_dashed"
+      ],
+      "caseIds": [
+        "0015"
       ]
     },
     {
@@ -622,6 +638,71 @@
       ],
       "caseIds": [
         "0368"
+      ]
+    },
+    {
+      "id": "cdxml-represent-object-reference-precedes-spatial-auto-linking",
+      "status": "verified",
+      "summary": "A Graphic Symbol represent child carries both the represented attribute and the target object ID. Import preserves both values and creates the atom-symbol relation to that exact node across all molecule fragments, regardless of which atom is geometrically nearer. Spatial auto-linking is used only when no explicit object reference exists. A symbol that represents an already stored Charge or Radical visualizes that state and contributes zero additional valence or hydrogen change.",
+      "officialRule": "The official RepresentsProperty value identifies a property in another object. Therefore its object reference is authoritative identity, not a proximity hint. In public case 0263, the Plus graphic explicitly represents Charge on node 21807; choosing nearer node 21801 duplicated the charge and changed its derived label from CH2 to CH after export.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/RepresentsProperty.htm",
+        "docs/cdx-cdxml-field-verification.zh-CN.md",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#cdxml_represent_target_overrides_nearest_atom_across_fragments",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#cdxml_represented_charge_symbol_roundtrips_without_accumulating_charge",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#cdxml_represented_radical_symbol_does_not_double_count_node_radical"
+      ],
+      "caseIds": [
+        "0263",
+        "0408"
+      ]
+    },
+    {
+      "id": "cdxml-import-only-explicit-represent-links-before-user-spatial-edit",
+      "status": "verified",
+      "summary": "Loading CDX, CDXML, or CCJS preserves existing atom-symbol links and creates new source links only from an explicit represent child. Mere source-file proximity does not create chemistry. Spatial auto-linking begins when the user creates or moves a symbol, after which the ordinary auto policy applies.",
+      "officialRule": "RepresentsProperty is the source-format relation that identifies a property and target object. ChemDraw 21 open-save probes of public cases 0260 and 0324 retained nearby Plus/CirclePlus graphics without adding represent, atom Charge, or Radical fields. In 0324 the apparent nearest atom was inside a NodeType=Fragment definition and ChemDraw relocated that internal definition independently on save, proving that page-space proximity was accidental rather than semantic.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/RepresentsProperty.htm",
+        "scripts/chemdraw-oracle.mjs",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#imported_unrepresented_symbol_does_not_infer_chemistry_from_proximity",
+        "crates/chemsema-engine/tests/bond_tool/history_properties.rs#charge_symbol_attaches_to_terminal_carbon_and_reduces_hidden_hydrogen"
+      ],
+      "caseIds": [
+        "0260",
+        "0324"
+      ]
+    },
+    {
+      "id": "roundtrip-count-topology-only-in-visible-fragments",
+      "status": "verified",
+      "summary": "The topology-loss gate counts source bonds from the retained interchange tree and excludes every bond below an n ancestor. A fragment owned by a node is an expansion, connection definition, or cached representation of that node; its bonds are not independent page-level molecule topology and must not require visible imported bonds.",
+      "officialRule": "CDXML object ownership is structural. A fragment that is a direct child of n belongs to that node, while page-level display fragments are collected outside node ownership. A raw text search for any b element cannot distinguish these meanings and falsely reports topology loss for aliases, formulas, multiple-text objects, and periodic-table fixtures.",
+      "evidence": [
+        "docs/cdx-public-visual-rules-2026-07-20.zh-CN.md",
+        "scripts/public-cdxml-source-topology.mjs",
+        "scripts/tests/public-cdxml-impact.test.mjs#source-topology-ignores-bonds-inside-node-owned-fragments"
+      ],
+      "caseIds": [
+        "0268",
+        "0279",
+        "0282",
+        "0357"
+      ]
+    },
+    {
+      "id": "cdxml-layout-coordinate-free-paths-and-rings-by-topology-not-producer-name",
+      "status": "verified",
+      "summary": "A fragment whose nodes all omit p is laid out from its graph topology regardless of CreationProgram. Paths use ChemDraw's alternating 30-degree bond components, rounded per step. Simple 3-8 member cycles use a regular polygon with the measured ChemDraw start angle for even, 1-mod-4 odd, and 3-mod-4 odd sizes. Branching, fused, and 9-plus macrocycle topologies have distinct ChemDraw algorithms and now return an explicit unsupported-layout error instead of the former arbitrary regular-polygon fallback.",
+      "officialRule": "The CDXML n@p attribute is optional in the official element declaration, and ChemDraw 21 opens and saves coordinate-free documents without requiring a producer marker. Batch open-save probes show stable, producer-independent layouts for path4 and cycles 3-8; the cycle9, branched, star, and fused probes prove that one regular-polygon fallback is not a valid universal rule.",
+      "evidence": [
+        "scripts/chemdraw-coordinate-free-layout-probe.mjs",
+        "crates/chemsema-engine/src/cdxml/import_topology.rs#coordinate_free_cycles_three_through_eight_match_chemdraw_orientation",
+        "crates/chemsema-engine/tests/render_document/crossings_selection.rs#coordinate_free_cdxml_cycle_uses_chemdraw_ring_orientation_without_producer_hint",
+        "crates/chemsema-engine/tests/render_document/crossings_selection.rs#coordinate_free_cdxml_branching_is_not_silently_drawn_as_a_polygon"
+      ],
+      "caseIds": [
+        "0078"
       ]
     }
   ]

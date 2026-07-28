@@ -75,11 +75,13 @@ pub(in crate::cdxml) fn append_bracket_objects(
                 if let Some(stroke_width) = metrics.stroke_width {
                     extra.insert("strokeWidth".to_string(), json!(stroke_width));
                 }
-                if let Some(attribute) = node
-                    .direct_children("represent")
-                    .find_map(|represent| represent.attr("attribute"))
-                {
-                    extra.insert("representAttribute".to_string(), json!(attribute));
+                if let Some(represent) = node.direct_children("represent").next() {
+                    if let Some(attribute) = represent.attr("attribute") {
+                        extra.insert("representAttribute".to_string(), json!(attribute));
+                    }
+                    if let Some(object_id) = represent.attr("object") {
+                        extra.insert("representObjectId".to_string(), json!(object_id));
+                    }
                 }
                 objects.push(SceneObject {
                     id: format!("obj_symbol_{symbol_index:03}"),

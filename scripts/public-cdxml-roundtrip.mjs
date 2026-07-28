@@ -18,6 +18,7 @@ import {
 } from "./public-cdxml-provenance.mjs";
 import { bracketWorldEndpoints } from "./public-cdxml-bracket-geometry.mjs";
 import { compareVisualGeometry } from "./public-cdxml-semantic-geometry.mjs";
+import { visibleInterchangeBondCount } from "./public-cdxml-source-topology.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = join(repoRoot, "benchmarks", "public-cdxml", "manifest.json");
@@ -466,9 +467,18 @@ function semanticSnapshot(document) {
   };
 }
 
-function readGeneration(path) {
+function readGeneration(path, includeSourceTopology = false) {
   const document = JSON.parse(readFileSync(path, "utf8"));
-  return { counts: summarizeCounts(document), semantic: semanticSnapshot(document) };
+  const generation = {
+    counts: summarizeCounts(document),
+    semantic: semanticSnapshot(document),
+  };
+  if (includeSourceTopology) {
+    generation.sourceVisibleBondCount = visibleInterchangeBondCount(
+      document.interchange?.cdxml?.root,
+    );
+  }
+  return generation;
 }
 
 const countKeys = ["molecules", "nodes", "bonds", "objects", "resources", "styles"];
@@ -583,12 +593,15 @@ for (const source of manifest.sources) {
       continue;
     }
 
-    record.generations = [readGeneration(modelPaths[0])];
-    const sourceDeclaresBonds = format === "cdxml"
-      && /<b\b/i.test(readFileSync(inputPath, "utf8"));
-    if (sourceDeclaresBonds && record.generations[0].counts.bonds === 0) {
+    const initialGeneration = readGeneration(modelPaths[0], format === "cdxml");
+    const sourceVisibleBondCount = initialGeneration.sourceVisibleBondCount ?? 0;
+    delete initialGeneration.sourceVisibleBondCount;
+    record.generations = [initialGeneration];
+    if (sourceVisibleBondCount > 0 && record.generations[0].counts.bonds === 0) {
       record.status = "topology-lost";
-      record.error = "Source CDXML declares bonds but the imported document contains none.";
+      record.error =
+        `Source CDXML declares ${sourceVisibleBondCount} visible-fragment bond(s) `
+        + "but the imported document contains none.";
       cases.push(record);
       continue;
     }

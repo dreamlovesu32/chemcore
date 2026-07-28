@@ -1763,7 +1763,7 @@ fn cdxml_represented_radical_symbol_does_not_double_count_node_radical() {
       <n id="4" p="24.4 10"/>
       <b id="5" B="3" E="4"/>
       <graphic id="6" BoundingBox="10 13 2.5 13" GraphicType="Symbol" SymbolType="Electron">
-        <represent attribute="Radical"/>
+        <represent attribute="Radical" object="3"/>
       </graphic>
     </fragment>
   </page>
@@ -1849,6 +1849,156 @@ fn cdxml_represented_charge_symbol_roundtrips_without_accumulating_charge() {
             .map(|node| node.charge),
         Some(-1)
     );
+}
+
+#[test]
+fn cdxml_represent_target_overrides_nearest_atom_across_fragments() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.40" LineWidth="0.60" color="0" bgcolor="1">
+  <page id="1">
+    <fragment id="2" BoundingBox="0 0 30 20">
+      <n id="3" p="10 10" Element="6"/>
+      <n id="4" p="24.4 10" Element="6"/>
+      <b id="5" B="3" E="4"/>
+    </fragment>
+    <fragment id="20" BoundingBox="50 0 80 20">
+      <n id="21" p="60 10" Element="6" Charge="1"/>
+      <n id="22" p="74.4 10" Element="6"/>
+      <b id="23" B="21" E="22"/>
+    </fragment>
+    <graphic id="30" BoundingBox="31 10 23.5 10" GraphicType="Symbol" SymbolType="Plus">
+      <represent attribute="Charge" object="21"/>
+    </graphic>
+  </page>
+</CDXML>"##;
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(cdxml)
+        .expect("represented charge across fragments should import");
+    let document = &engine.state().document;
+    let relation = document
+        .links
+        .iter()
+        .find(|relation| relation.kind == "atom-symbol")
+        .expect("represented symbol should create an atom-symbol link");
+    assert!(relation
+        .endpoints
+        .iter()
+        .any(|endpoint| { endpoint.role == "atom" && endpoint.entity_id == "21" }));
+    assert_eq!(
+        relation
+            .data
+            .pointer("/source")
+            .and_then(serde_json::Value::as_str),
+        Some("cdxml-represent")
+    );
+    let symbol = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "symbol")
+        .expect("symbol should survive");
+    assert_eq!(
+        symbol
+            .payload
+            .extra
+            .get("attachedAtomId")
+            .and_then(serde_json::Value::as_str),
+        Some("21")
+    );
+    assert_eq!(
+        symbol
+            .payload
+            .extra
+            .get("attachmentSource")
+            .and_then(serde_json::Value::as_str),
+        Some("source")
+    );
+    let nodes = document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        nodes
+            .iter()
+            .find(|node| node.id == "4")
+            .map(|node| node.charge),
+        Some(0)
+    );
+    let represented = nodes
+        .iter()
+        .find(|node| node.id == "21")
+        .expect("represented atom should survive");
+    assert_eq!(represented.charge, 1);
+    assert!(represented.meta.get("effectiveNumHydrogens").is_none());
+    assert_eq!(
+        represented
+            .meta
+            .get("attachedElectronSymbols")
+            .and_then(serde_json::Value::as_array)
+            .and_then(|symbols| symbols.first())
+            .and_then(|symbol| symbol.get("chargeDelta"))
+            .and_then(serde_json::Value::as_i64),
+        Some(0)
+    );
+
+    let exported = document_to_cdxml(document);
+    assert!(
+        exported.contains("<represent attribute=\"Charge\" object=\"21\""),
+        "{exported}"
+    );
+    let reimported =
+        parse_cdxml_document(&exported, Some("represented cross-fragment charge export"))
+            .expect("represented charge export should import");
+    let charges = reimported
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter().map(|node| node.charge))
+        .filter(|charge| *charge != 0)
+        .collect::<Vec<_>>();
+    assert_eq!(charges, vec![1]);
+}
+
+#[test]
+fn imported_unrepresented_symbol_does_not_infer_chemistry_from_proximity() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.40" LineWidth="0.60" color="0" bgcolor="1">
+  <page id="1">
+    <fragment id="2">
+      <n id="3" p="10 10"/>
+      <n id="4" p="24.4 10"/>
+      <b id="5" B="3" E="4"/>
+    </fragment>
+    <graphic id="6" BoundingBox="31.9 10 24.4 10"
+      GraphicType="Symbol" SymbolType="Plus"/>
+  </page>
+</CDXML>"##;
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(cdxml)
+        .expect("unrepresented symbol should import");
+    let document = &engine.state().document;
+    assert!(
+        document
+            .links
+            .iter()
+            .all(|relation| relation.kind != "atom-symbol"),
+        "source proximity alone must not create an atom-symbol relation"
+    );
+    let symbol = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "symbol")
+        .expect("symbol should survive");
+    assert!(symbol.payload.extra.get("attachedAtomId").is_none());
+    assert!(document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .all(|node| node.charge == 0));
 }
 
 #[test]

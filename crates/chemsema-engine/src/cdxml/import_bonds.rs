@@ -18,8 +18,9 @@ pub(super) fn normalize_bond(
     let source_order = bond.attr("Order").unwrap_or("");
     let is_aromatic =
         parse_f64(Some(source_order)).is_some_and(|order| (order - 1.5).abs() <= EPSILON);
-    let is_aromatic_dash = is_aromatic && display == "Dash" && display2.is_empty();
-    let is_topology_only_aromatic_dash = is_aromatic_dash
+    let is_topology_only_aromatic_dash = is_aromatic
+        && display == "Dash"
+        && display2.is_empty()
         && [&begin, &end].iter().all(|node_id| {
             nodes.iter().any(|node| {
                 node.id == **node_id
@@ -128,6 +129,7 @@ pub(super) fn normalize_bond(
         "sourceId": source_id,
         "generatedId": source_id.is_none(),
         "aromatic": is_aromatic,
+        "topologyOnlyAromaticDash": is_topology_only_aromatic_dash,
         "bondSpacingAbs": bond_spacing_abs,
     }}});
     if let Some(value) = bond.attr("CrossingBonds") {

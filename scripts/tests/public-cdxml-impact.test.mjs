@@ -13,6 +13,7 @@ import {
 } from "../public-cdxml-provenance.mjs";
 import { bracketWorldEndpoints } from "../public-cdxml-bracket-geometry.mjs";
 import { compareVisualGeometry } from "../public-cdxml-semantic-geometry.mjs";
+import { visibleInterchangeBondCount } from "../public-cdxml-source-topology.mjs";
 
 test("bracket semantic geometry follows ordered rotated spine endpoints", () => {
   const endpoints = bracketWorldEndpoints({
@@ -59,6 +60,33 @@ test("visual geometry still rejects unmatched repeated text", () => {
     lineHeight: [8],
   }];
   assert.equal(compareVisualGeometry(before, after), false);
+});
+
+test("source topology ignores bonds inside node-owned fragments", () => {
+  const bond = (id) => ({ name: "b", id, children: [] });
+  const root = {
+    name: "CDXML",
+    children: [{
+      name: "page",
+      children: [
+        {
+          name: "fragment",
+          children: [bond("visible-1"), bond("visible-2")],
+        },
+        {
+          name: "fragment",
+          children: [{
+            name: "n",
+            children: [{
+              name: "fragment",
+              children: [bond("embedded-definition")],
+            }],
+          }],
+        },
+      ],
+    }],
+  };
+  assert.equal(visibleInterchangeBondCount(root), 2);
 });
 
 test("CDXML feature extraction recognizes visual rule families", () => {

@@ -141,7 +141,7 @@ impl Engine {
         );
         self.options = options;
         self.document_style_preset = document_style_preset;
-        self.refresh_symbol_chemistry();
+        self.refresh_loaded_symbol_chemistry();
         refresh_element_valence_recognition_for_all_editable_fragments(&mut self.state.document);
         self.state.selection = SelectionState::default();
         self.clear_interaction();

@@ -377,14 +377,9 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         .filter_map(|fragment| fragment.attr("id").map(ToString::to_string))
         .collect();
     let bonded_node_ids = cdxml_bonded_node_ids(&root);
-    let topology_only_cdxmlwriter = root.attr("CreationProgram") == Some("CDXMLWriter");
     let mut molecule_index = 1usize;
     for fragment in &fragments {
-        let node_positions = cdxml_fragment_node_positions(
-            fragment,
-            defaults.bond_length,
-            topology_only_cdxmlwriter,
-        )?;
+        let node_positions = cdxml_fragment_node_positions(fragment, defaults.bond_length)?;
         let Some(bbox) = cdxml_fragment_bbox(fragment, defaults.bond_length, &node_positions)
         else {
             continue;
@@ -811,9 +806,6 @@ const CDXML_EDITING_OUTPUT_SCALE: f64 = 1.0;
 /// attachment position is then the external connection point of that fragment.
 /// When that point also omits `p`, its incident bond continues the direction of
 /// the adjacent, positioned bond by one document bond length.
-///
-/// Explicit compatibility rule for topology-only output emitted by
-/// `CreationProgram="CDXMLWriter"`. Other CDXML producers must provide `n@p`.
 ///
 #[derive(Debug)]
 struct CdxmlFragmentComponent {

@@ -1916,7 +1916,13 @@ impl<'a> CdxmlDocumentWriter<'a> {
         if let Some(value) = bond_endpoint_attachment(bond, "end") {
             attrs.push(("EndAttach", value.to_string()));
         }
-        if let Some(display) = cdxml_bond_display(bond, false) {
+        if canonicalizes_topology_only_aromatic_dash(bond) {
+            // ChemDraw lays out coordinate-free Order=1.5 + Dash transport
+            // bonds as ordinary solid single bonds and saves that normalized
+            // result. Emit the explicit default so interchange merging cannot
+            // resurrect the superseded source Display.
+            attrs.push(("Display", "Solid".to_string()));
+        } else if let Some(display) = cdxml_bond_display(bond, false) {
             attrs.push(("Display", display.to_string()));
         } else if let Some(display) = bond
             .meta
@@ -1924,11 +1930,8 @@ impl<'a> CdxmlDocumentWriter<'a> {
             .and_then(Value::as_str)
             .filter(|display| !display.is_empty())
         {
-            // Order=1.5 and Display are independent. In topology-only input
-            // an explicit Dash is retained as transport semantics even though
-            // the generated preview intentionally uses a solid lane. An
-            // absent Display must remain absent rather than being inferred
-            // merely from the aromatic order.
+            // Order=1.5 and Display are independent. Preserve an authored
+            // display when it remains the document's live display semantics.
             attrs.push(("Display", display.to_string()));
         }
         if let Some(display2) = cdxml_bond_display(bond, true) {
