@@ -15,6 +15,7 @@ function parseArgs(argv) {
     report: "tmp/public-cdxml-roundtrip-label-audit/report.json",
     all: false,
     incremental: false,
+    jobs: 4,
     patterns: [],
     cli: process.platform === "win32"
       ? "target/debug/chemsema-cli.exe"
@@ -27,12 +28,32 @@ function parseArgs(argv) {
     else if (arg === "--report") args.report = argv[++index];
     else if (arg === "--all") args.all = true;
     else if (arg === "--incremental") args.incremental = true;
+    else if (arg === "--jobs") args.jobs = Number(argv[++index]);
     else if (arg === "--only") args.patterns.push(argv[++index]);
     else if (arg === "--cli") args.cli = argv[++index];
     else if (arg === "--help" || arg === "-h") args.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
   return args;
+}
+
+export async function mapWithConcurrency(items, jobs, mapper) {
+  if (!Number.isInteger(jobs) || jobs < 1) {
+    throw new Error("--jobs must be a positive integer");
+  }
+  const results = Array(items.length);
+  let nextIndex = 0;
+  await Promise.all(Array.from(
+    { length: Math.min(jobs, items.length) },
+    async (_, workerIndex) => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await mapper(items[index], index, workerIndex);
+      }
+    },
+  ));
+  return results;
 }
 
 async function walk(directory) {
@@ -907,7 +928,7 @@ async function fullCorpusPairs(root, reportPath, outDir, patterns = []) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
-    console.log("Usage: node scripts/render-public-cdxml-visual-review.mjs [--root corpus] [--out directory] [--cli chemsema-cli] [--all --report report.json] [--only case-or-path] [--incremental]");
+    console.log("Usage: node scripts/render-public-cdxml-visual-review.mjs [--root corpus] [--out directory] [--cli chemsema-cli] [--all --report report.json] [--only case-or-path] [--incremental] [--jobs n]");
     return;
   }
 
@@ -940,12 +961,16 @@ async function main() {
     viewport: { width: 2520, height: 1080 },
     deviceScaleFactor: 1.5,
   });
-  const page = await context.newPage();
-  const manifestItems = [];
+  const workerCount = Math.min(args.jobs, pairs.length);
+  const pages = await Promise.all(
+    Array.from({ length: workerCount }, () => context.newPage()),
+  );
+  let completed = 0;
+  let manifestItems;
 
   try {
-    for (let index = 0; index < pairs.length; index += 1) {
-      const pair = pairs[index];
+    manifestItems = await mapWithConcurrency(pairs, args.jobs, async (pair, index, workerIndex) => {
+      const page = pages[workerIndex];
       const relativeCdxml = path.relative(root, pair.cdxml).replaceAll("\\", "/");
       const prefix = String(index + 1).padStart(3, "0");
       const id = pair.caseId
@@ -1013,7 +1038,7 @@ async function main() {
       await page.waitForFunction(() => document.body.dataset.ready === "yes");
       await page.screenshot({ path: comparisonPath, fullPage: true });
 
-      manifestItems.push({
+      const manifestItem = {
         id,
         label: `${String(index + 1).padStart(3, "0")} · ${screenshotItem.title}`,
         relativeCdxml,
@@ -1027,9 +1052,11 @@ async function main() {
         reference: `items/${id}/reference${referenceExtension}`,
         chemsema: `items/${id}/chemsema.svg`,
         comparison: `items/${id}/comparison.png`,
-      });
-      console.log(`[${index + 1}/${pairs.length}] ${relativeCdxml}`);
-    }
+      };
+      completed += 1;
+      console.log(`[${completed}/${pairs.length}] worker=${workerIndex + 1} ${relativeCdxml}`);
+      return manifestItem;
+    });
   } finally {
     await browser.close();
   }

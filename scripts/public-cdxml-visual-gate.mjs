@@ -5,12 +5,14 @@ import { fileURLToPath } from "node:url";
 import { launchBrowser } from "./playwright-browser.mjs";
 import {
   computeImageAlignment,
+  mapWithConcurrency,
   viewerHtml,
 } from "./render-public-cdxml-visual-review.mjs";
 
 const DEFAULTS = Object.freeze({
   gallery: "tmp/public-cdxml-chemdraw-review-all",
   out: "tmp/public-cdxml-visual-gate/report.json",
+  jobs: 4,
   analysisScale: 2,
   tolerance: 1.5,
   tileSize: 256,
@@ -74,6 +76,7 @@ function parseArgs(argv) {
     else if (arg === "--stamp-report") options.stampReport = argv[++index];
     else if (arg === "--only") options.patterns.push(argv[++index]);
     else if (arg === "--limit") options.limit = Number(argv[++index]);
+    else if (arg === "--jobs") options.jobs = Number(argv[++index]);
     else if (arg === "--analysis-scale") options.analysisScale = Number(argv[++index]);
     else if (arg === "--tolerance") options.tolerance = Number(argv[++index]);
     else if (arg === "--tile-size") options.tileSize = Number(argv[++index]);
@@ -134,6 +137,9 @@ function validateOptions(options) {
     if (!Number.isFinite(options[key]) || options[key] <= 0) {
       throw new Error(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)} must be positive`);
     }
+  }
+  if (!Number.isInteger(options.jobs) || options.jobs < 1) {
+    throw new Error("--jobs must be a positive integer");
   }
   for (const key of [
     "minCoverage", "minRepeatedMicroCoverage", "minimumSmallTopologyLocalCoverage",
@@ -1173,7 +1179,7 @@ async function runSelfTest(options) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log("Usage: node scripts/public-cdxml-visual-gate.mjs [--gallery dir] [--out report.json] [--passed-gallery html] [--only text] [--limit n] [--report-only]");
+    console.log("Usage: node scripts/public-cdxml-visual-gate.mjs [--gallery dir] [--out report.json] [--passed-gallery html] [--only text] [--limit n] [--jobs n] [--report-only]");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --reuse-report report.json [--gallery dir] [--passed-gallery html]");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --gallery dir --stamp-report report.json");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --gallery dir --baseline-report report.json --out report.json");
@@ -1222,53 +1228,51 @@ async function main() {
     ? new Map(baselineReport.cases.map((entry) => [entry.relativeCdxml, entry]))
     : new Map();
 
-  let browser = null;
-  let page = null;
-  async function analysisPage() {
-    if (page) return page;
-    browser = await launchBrowser({ headless: true });
-    page = await browser.newPage();
-    return page;
-  }
-  const cases = [];
+  const browser = await launchBrowser({ headless: true });
+  const context = await browser.newContext();
+  const workerCount = Math.min(options.jobs, items.length);
+  const pages = await Promise.all(
+    Array.from({ length: workerCount }, () => context.newPage()),
+  );
+  let completed = 0;
+  let cases;
   try {
-    for (let index = 0; index < items.length; index += 1) {
-      const item = items[index];
+    cases = await mapWithConcurrency(items, options.jobs, async (item, index, workerIndex) => {
+      const activePage = pages[workerIndex];
       const referencePath = path.resolve(galleryDir, item.reference);
       const candidatePath = path.resolve(galleryDir, item.chemsema);
       const hashes = await artifactHashes(galleryDir, item);
       const baselineCase = baselineCases.get(item.relativeCdxml);
       if (baselineCase && artifactHashesEqual(baselineCase.artifactHashes, hashes)) {
-        cases.push({
+        completed += 1;
+        if (completed % 100 === 0 || completed === items.length) {
+          console.log(`[CACHE ${completed}/${items.length}] reused unchanged visual-gate results`);
+        }
+        return {
           ...baselineCase,
           id: item.id,
           relativeCdxml: item.relativeCdxml,
           artifactHashes: hashes,
           cacheStatus: "reused",
-        });
-        if ((index + 1) % 100 === 0 || index + 1 === items.length) {
-          console.log(`[CACHE ${index + 1}/${items.length}] reused unchanged visual-gate results`);
-        }
-        continue;
+        };
       }
       try {
         if (await oracleIsUnavailable(referencePath)) {
-          cases.push({
+          completed += 1;
+          console.log(`[${completed}/${items.length}] worker=${workerIndex + 1} UNAVAILABLE ${item.relativeCdxml}`);
+          return {
             id: item.id,
             relativeCdxml: item.relativeCdxml,
             status: "unavailable",
             reason: "ChemDraw oracle is unavailable",
             artifactHashes: hashes,
             cacheStatus: "analyzed",
-          });
-          console.log(`[${index + 1}/${items.length}] UNAVAILABLE ${item.relativeCdxml}`);
-          continue;
+          };
         }
         const [referenceDataUrl, candidateDataUrl] = await Promise.all([
           fileDataUrl(referencePath),
           fileDataUrl(candidatePath),
         ]);
-        const activePage = await analysisPage();
         const alignment = item.alignment?.algorithm === ALIGNMENT_ALGORITHM
           ? item.alignment
           : await computeImageAlignment(activePage, referenceDataUrl, candidateDataUrl);
@@ -1339,7 +1343,9 @@ async function main() {
             settings: detailMetrics.settings,
           } : null,
         };
-        cases.push({
+        completed += 1;
+        console.log(`[${completed}/${items.length}] worker=${workerIndex + 1} ${metrics.passed ? "PASS" : "FAIL"} ${item.relativeCdxml}`);
+        return {
           id: item.id,
           relativeCdxml: item.relativeCdxml,
           status: metrics.passed ? "pass" : "fail",
@@ -1347,22 +1353,22 @@ async function main() {
           artifactHashes: hashes,
           cacheStatus: "analyzed",
           ...metrics,
-        });
-        console.log(`[${index + 1}/${items.length}] ${metrics.passed ? "PASS" : "FAIL"} ${item.relativeCdxml}`);
+        };
       } catch (error) {
-        cases.push({
+        completed += 1;
+        console.log(`[${completed}/${items.length}] worker=${workerIndex + 1} ERROR ${item.relativeCdxml}`);
+        return {
           id: item.id,
           relativeCdxml: item.relativeCdxml,
           status: "error",
           error: error instanceof Error ? error.stack ?? error.message : String(error),
           artifactHashes: hashes,
           cacheStatus: "analyzed",
-        });
-        console.log(`[${index + 1}/${items.length}] ERROR ${item.relativeCdxml}`);
+        };
       }
-    }
+    });
   } finally {
-    await browser?.close();
+    await browser.close();
   }
 
   const passed = cases.filter((entry) => entry.status === "pass").length;

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mergeIncrementalManifestItems } from "../render-public-cdxml-visual-review.mjs";
+import {
+  mapWithConcurrency,
+  mergeIncrementalManifestItems,
+} from "../render-public-cdxml-visual-review.mjs";
 import { classifyBaselineChanges } from "../public-cdxml-visual-gate.mjs";
 import { featuresFromCdxml, selectAffectedCases } from "../public-cdxml-impact.mjs";
 
@@ -71,6 +74,20 @@ test("incremental manifest replacement preserves full gallery order", () => {
     { id: "b", value: 3, label: "002 — b" },
     { id: "c", value: 4, label: "002 — c" },
   ]);
+});
+
+test("visual workers run concurrently while preserving manifest order", async () => {
+  let active = 0;
+  let maximumActive = 0;
+  const results = await mapWithConcurrency([30, 10, 20, 0], 2, async (value) => {
+    active += 1;
+    maximumActive = Math.max(maximumActive, active);
+    await new Promise((resolve) => setTimeout(resolve, value));
+    active -= 1;
+    return value;
+  });
+  assert.deepEqual(results, [30, 10, 20, 0]);
+  assert.equal(maximumActive, 2);
 });
 
 test("baseline mode blocks regressions without requiring historical failures to turn green", () => {
