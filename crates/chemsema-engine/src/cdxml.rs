@@ -359,7 +359,8 @@ fn imported_document_layout(
 }
 
 pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSemaDocument, String> {
-    let root = parse_xml_tree(cdxml)?;
+    let mut root = parse_xml_tree(cdxml)?;
+    normalize_repeated_text_objects(&mut root)?;
     validate_external_connection_values(&root)?;
     validate_bio_shape_nodes(&root)?;
     let source_tree = interchange_object_from_xml(&root);
@@ -838,6 +839,74 @@ fn remove_plasmid_map_children(node: &mut XmlNode) {
 #[cfg(test)]
 mod interchange_tests {
     use super::*;
+
+    #[test]
+    fn repeated_text_id_parts_merge_once_and_empty_parts_are_no_ops() {
+        let source = r#"<CDXML BondLength="14.4">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <t id="50" p="10 20" Justification="Left" InterpretChemically="no">
+      <s font="3" size="10" face="0">first</s>
+    </t>
+    <t id="50" p="10 20" Justification="Left" InterpretChemically="no">
+      <s font="3" size="10" face="2"> second</s>
+    </t>
+    <t id="50" p="10 20" Justification="Left" InterpretChemically="no"/>
+  </page>
+</CDXML>"#;
+        let document = parse_cdxml_document(source, Some("repeated text"))
+            .expect("compatible repeated text parts normalize");
+        let texts = document
+            .scene_objects()
+            .into_iter()
+            .filter(|object| object.kind() == crate::SceneObjectKind::Text)
+            .collect::<Vec<_>>();
+        assert_eq!(texts.len(), 1);
+        assert_eq!(
+            texts[0].payload.extra.get("text").and_then(Value::as_str),
+            Some("first second")
+        );
+        assert_eq!(
+            texts[0]
+                .payload
+                .extra
+                .get("runs")
+                .and_then(Value::as_array)
+                .map(Vec::len),
+            Some(2)
+        );
+
+        let saved = document_to_cdxml(&document);
+        let saved_root = parse_xml_tree(&saved).expect("exported CDXML parses");
+        let saved_parts = descendants(&saved_root)
+            .into_iter()
+            .filter(|node| node.is("t") && node.attr("id") == Some("50"))
+            .collect::<Vec<_>>();
+        assert_eq!(saved_parts.len(), 1, "{saved}");
+        assert_eq!(saved_parts[0].full_text().trim(), "first second");
+        let reopened =
+            parse_cdxml_document(&saved, Some("reopened")).expect("normalized export reopens");
+        assert_eq!(
+            reopened
+                .scene_objects()
+                .into_iter()
+                .filter(|object| object.kind() == crate::SceneObjectKind::Text)
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn repeated_text_id_with_conflicting_object_geometry_is_rejected() {
+        let source = r#"<CDXML><page id="1">
+          <t id="50" p="10 20"><s>first</s></t>
+          <t id="50" p="30 40"><s>second</s></t>
+        </page></CDXML>"#;
+        let error = parse_cdxml_document(source, Some("conflict"))
+            .expect_err("one object id cannot identify two text geometries");
+        assert!(error.contains("text id '50'"));
+        assert!(error.contains("conflicting 'p' values"));
+    }
 
     #[test]
     fn cdxml_unmodeled_official_fields_and_objects_roundtrip_through_ccjs() {

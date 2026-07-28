@@ -1,6 +1,6 @@
 {
   "schema": "chemsema.public-cdxml-failure-ledger.v1",
-  "generatedAt": "2026-07-28T12:27:04.692Z",
+  "generatedAt": "2026-07-28T12:43:23.456Z",
   "inputs": {
     "roundtripReport": "tmp/public-cdxml-roundtrip-current/report.json",
     "visualReport": "tmp/public-cdxml-chemdraw-review-all/gate-current.json",
@@ -12,20 +12,20 @@
     "totalRegistered": 339,
     "originalCohort": 338,
     "additionalGateCases": 1,
-    "active": 118,
-    "currentlyPassing": 221,
+    "active": 116,
+    "currentlyPassing": 223,
     "byRoundtripStatus": {
-      "exact": 221,
+      "exact": 223,
       "non-idempotent": 90,
-      "semantic-drift": 23,
+      "semantic-drift": 21,
       "topology-lost": 4,
       "import-failed": 1
     },
     "byAutomaticCluster": {
       "visual-pixel-mismatch": 193,
       "roundtrip-non-idempotent-mixed-semantics": 90,
-      "roundtrip-first-generation-mixed-drift": 23,
       "visual-component-topology-mismatch": 23,
+      "roundtrip-first-generation-mixed-drift": 21,
       "roundtrip-topology-lost": 4,
       "visual-oracle-unavailable": 3,
       "roundtrip-import-failed": 1
@@ -48,8 +48,8 @@
       "unavailable": 3
     },
     "byReviewStatus": {
-      "verified": 219,
-      "pending": 120
+      "verified": 221,
+      "pending": 118
     }
   },
   "cases": [
@@ -32601,32 +32601,30 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 0,
               "shape": 0,
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -32711,19 +32709,27 @@
         "componentCountDelta": 21
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-merge-compatible-repeated-text-id-parts"
+        ],
+        "confirmedRootCause": "Sibling Text elements with the same assigned object ID and compatible object properties represent ordered parts of one text object. Their styled runs are concatenated once, an empty part contributes no content, and conflicting geometry or representation is rejected explicitly.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "https://github.com/epam/Indigo/blob/master/api/tests/integration/tests/formats/ref/AlcoholOxidation_Rxn2.cdxml",
+          "https://github.com/epam/Indigo/blob/master/api/tests/integration/tests/formats/ref/Esterification_Rxn2.cdxml",
+          "crates/chemsema-engine/src/cdxml.rs#repeated_text_id_parts_merge_once_and_empty_parts_are_no_ops",
+          "crates/chemsema-engine/src/cdxml.rs#repeated_text_id_with_conflicting_object_geometry_is_rejected"
+        ],
         "notes": null
       }
     },
@@ -32756,22 +32762,21 @@
               "molecules": 8,
               "nodes": 27,
               "bonds": 18,
-              "objects": 9,
+              "objects": 8,
               "resources": 8,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 8,
               "shape": 0,
               "symbol": 0,
-              "text": 1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -32910,22 +32915,21 @@
               "molecules": 8,
               "nodes": 29,
               "bonds": 18,
-              "objects": 9,
+              "objects": 8,
               "resources": 8,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 8,
               "shape": 0,
               "symbol": 0,
-              "text": 1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -33794,33 +33798,31 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 0,
               "shape": 0,
               "symbol": 0,
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -33908,9 +33910,8 @@
         "componentCountDelta": 21
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
@@ -33919,10 +33920,19 @@
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-merge-compatible-repeated-text-id-parts"
+        ],
+        "confirmedRootCause": "Sibling Text elements with the same assigned object ID and compatible object properties represent ordered parts of one text object. Their styled runs are concatenated once, an empty part contributes no content, and conflicting geometry or representation is rejected explicitly.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "https://github.com/epam/Indigo/blob/master/api/tests/integration/tests/formats/ref/AlcoholOxidation_Rxn2.cdxml",
+          "https://github.com/epam/Indigo/blob/master/api/tests/integration/tests/formats/ref/Esterification_Rxn2.cdxml",
+          "crates/chemsema-engine/src/cdxml.rs#repeated_text_id_parts_merge_once_and_empty_parts_are_no_ops",
+          "crates/chemsema-engine/src/cdxml.rs#repeated_text_id_with_conflicting_object_geometry_is_rejected"
+        ],
         "notes": null
       }
     },
@@ -33955,22 +33965,21 @@
               "molecules": 3,
               "nodes": 13,
               "bonds": 12,
-              "objects": 4,
+              "objects": 3,
               "resources": 3,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 3,
               "shape": 0,
               "symbol": 0,
-              "text": 1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -34109,22 +34118,21 @@
               "molecules": 2,
               "nodes": 9,
               "bonds": 8,
-              "objects": 4,
+              "objects": 2,
               "resources": 2,
-              "styles": 2
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 2,
               "shape": 0,
               "symbol": 0,
-              "text": 2
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {

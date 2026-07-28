@@ -312,6 +312,24 @@
         "0360",
         "0361"
       ]
+    },
+    {
+      "id": "cdxml-merge-compatible-repeated-text-id-parts",
+      "status": "verified",
+      "summary": "Sibling Text elements with the same assigned object ID and compatible object properties represent ordered parts of one text object. Their styled runs are concatenated once, an empty part contributes no content, and conflicting geometry or representation is rejected explicitly.",
+      "officialRule": "A nonzero CDX object ID must be unique within its containing object, and Text is one arbitrary block of possibly styled text. Therefore repeated compatible CDXML Text elements carrying the same identity cannot become independent scene objects. Public Indigo fixtures use this transport shape for split style runs and redundant empty tail parts; normalization restores the single official object identity before import and interchange capture.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "https://github.com/epam/Indigo/blob/master/api/tests/integration/tests/formats/ref/AlcoholOxidation_Rxn2.cdxml",
+        "https://github.com/epam/Indigo/blob/master/api/tests/integration/tests/formats/ref/Esterification_Rxn2.cdxml",
+        "crates/chemsema-engine/src/cdxml.rs#repeated_text_id_parts_merge_once_and_empty_parts_are_no_ops",
+        "crates/chemsema-engine/src/cdxml.rs#repeated_text_id_with_conflicting_object_geometry_is_rejected"
+      ],
+      "caseIds": [
+        "0303",
+        "0311"
+      ]
     }
   ]
 }
