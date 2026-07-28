@@ -33,7 +33,7 @@ pub(in crate::cdxml) fn append_text_objects(
         .filter_map(|node| node.attr("ChemicalPropertyDisplayID"))
         .map(ToString::to_string)
         .collect::<BTreeSet<_>>();
-    let auto_position_enhanced_stereo = !root
+    let implicit_object_tag_positioning_is_absolute = root
         .attr("CreationProgram")
         .is_some_and(|program| program.starts_with("ChemDraw JS"));
     append_text_objects_recursive(
@@ -50,8 +50,10 @@ pub(in crate::cdxml) fn append_text_objects(
         None,
         None,
         None,
+        None,
+        None,
         false,
-        auto_position_enhanced_stereo,
+        implicit_object_tag_positioning_is_absolute,
         &node_positions,
         &chemical_property_display_ids,
         None,
@@ -310,8 +312,10 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
     containing_node_position: Option<[f64; 2]>,
     containing_node_id: Option<String>,
     containing_bond_id: Option<String>,
+    containing_source_id: Option<String>,
+    object_tag_owner_source_id: Option<String>,
     automatic_object_tag: bool,
-    auto_position_enhanced_stereo: bool,
+    implicit_object_tag_positioning_is_absolute: bool,
     node_positions: &BTreeMap<String, [f64; 2]>,
     chemical_property_display_ids: &BTreeSet<String>,
     containing_bond_points: Option<([f64; 2], [f64; 2])>,
@@ -328,6 +332,9 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
         .is("objecttag")
         .then(|| CdxmlTextObjectRole::from_object_tag_name(node.attr("Name")))
         .flatten();
+    let object_tag_uses_automatic_positioning = object_tag_role.is_some()
+        && uses_automatic_object_tag_positioning(node)
+        && !(implicit_object_tag_positioning_is_absolute && node.attr("PositioningType").is_none());
     let use_parameterized_bracket_label = object_tag_role
         == Some(CdxmlTextObjectRole::ParameterizedBracketLabel)
         && prefer_parameterized_bracket_label;
@@ -397,8 +404,20 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
     } else {
         containing_bond_id
     };
+    let next_object_tag_owner_source_id = if object_tag_role.is_some() {
+        containing_source_id.clone()
+    } else {
+        object_tag_owner_source_id
+    };
+    let next_containing_source_id = if node.is("objecttag") || node.is("t") || node.is("s") {
+        containing_source_id
+    } else {
+        node.attr("id")
+            .map(ToString::to_string)
+            .or(containing_source_id)
+    };
     let next_automatic_object_tag = if object_tag_role.is_some() {
-        uses_automatic_object_tag_positioning(node)
+        object_tag_uses_automatic_positioning
     } else {
         automatic_object_tag
     };
@@ -413,7 +432,7 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
     let next_auto_bracket_label_right_x =
         if node.is("graphic") && node.attr("GraphicType") == Some("Bracket") {
             parse_bbox(node.attr("BoundingBox")).map(|bbox| bbox[0].max(bbox[2]))
-        } else if object_tag_role.is_some() && !uses_automatic_object_tag_positioning(node) {
+        } else if object_tag_role.is_some() && !object_tag_uses_automatic_positioning {
             None
         } else {
             auto_bracket_label_right_x
@@ -435,11 +454,10 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
             next_text_role,
             next_containing_node_id.as_deref(),
             next_containing_bond_id.as_deref(),
+            next_object_tag_owner_source_id.as_deref(),
             visible,
             auto_bracket_label_right_x,
-            (next_text_role == CdxmlTextObjectRole::EnhancedStereo
-                && next_automatic_object_tag
-                && auto_position_enhanced_stereo)
+            (next_text_role == CdxmlTextObjectRole::EnhancedStereo && next_automatic_object_tag)
                 .then_some(next_containing_node_position)
                 .flatten(),
             (next_text_role == CdxmlTextObjectRole::Query && next_automatic_object_tag)
@@ -477,8 +495,10 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
             next_containing_node_position,
             next_containing_node_id.clone(),
             next_containing_bond_id.clone(),
+            next_containing_source_id.clone(),
+            next_object_tag_owner_source_id.clone(),
             next_automatic_object_tag,
-            auto_position_enhanced_stereo,
+            implicit_object_tag_positioning_is_absolute,
             node_positions,
             chemical_property_display_ids,
             next_containing_bond_points,
@@ -507,6 +527,7 @@ pub(super) fn text_object(
     role: CdxmlTextObjectRole,
     containing_node_id: Option<&str>,
     containing_bond_id: Option<&str>,
+    object_tag_owner_source_id: Option<&str>,
     visible: bool,
     auto_bracket_label_right_x: Option<f64>,
     auto_enhanced_stereo_anchor: Option<[f64; 2]>,
@@ -694,6 +715,7 @@ pub(super) fn text_object(
             "role": role.as_str(),
             "attachedNodeId": containing_node_id,
             "attachedBondId": containing_bond_id,
+            "objectTagOwnerSourceId": object_tag_owner_source_id,
             "textId": node.attr("id"),
             "import": {
                 "cdxml": {

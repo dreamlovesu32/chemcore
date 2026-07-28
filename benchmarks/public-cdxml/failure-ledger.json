@@ -1,6 +1,6 @@
 {
   "schema": "chemsema.public-cdxml-failure-ledger.v1",
-  "generatedAt": "2026-07-28T11:51:51.740Z",
+  "generatedAt": "2026-07-28T12:13:52.987Z",
   "inputs": {
     "roundtripReport": "tmp/public-cdxml-roundtrip-current/report.json",
     "visualReport": "tmp/public-cdxml-chemdraw-review-all/gate-current.json",
@@ -12,23 +12,23 @@
     "totalRegistered": 339,
     "originalCohort": 338,
     "additionalGateCases": 1,
-    "active": 136,
-    "currentlyPassing": 203,
+    "active": 126,
+    "currentlyPassing": 213,
     "byRoundtripStatus": {
-      "exact": 203,
-      "non-idempotent": 91,
-      "semantic-drift": 35,
-      "count-drift": 5,
+      "exact": 213,
+      "non-idempotent": 90,
+      "semantic-drift": 28,
       "topology-lost": 4,
+      "count-drift": 3,
       "import-failed": 1
     },
     "byAutomaticCluster": {
       "visual-pixel-mismatch": 193,
-      "roundtrip-non-idempotent-mixed-semantics": 91,
-      "roundtrip-first-generation-mixed-drift": 35,
+      "roundtrip-non-idempotent-mixed-semantics": 90,
+      "roundtrip-first-generation-mixed-drift": 28,
       "visual-component-topology-mismatch": 23,
-      "roundtrip-count-drift": 5,
       "roundtrip-topology-lost": 4,
+      "roundtrip-count-drift": 3,
       "visual-oracle-unavailable": 3,
       "roundtrip-import-failed": 1
     },
@@ -36,7 +36,7 @@
       "visual-pixel-mismatch": 194,
       "roundtrip-first-generation-label-drift": 184,
       "roundtrip-non-idempotent-mixed-semantics": 100,
-      "roundtrip-first-generation-mixed-drift": 57,
+      "roundtrip-first-generation-mixed-drift": 58,
       "visual-component-topology-mismatch": 24,
       "roundtrip-count-drift": 5,
       "roundtrip-topology-lost": 4,
@@ -50,8 +50,8 @@
       "unavailable": 3
     },
     "byReviewStatus": {
-      "verified": 201,
-      "pending": 138
+      "verified": 211,
+      "pending": 128
     }
   },
   "cases": [
@@ -6506,7 +6506,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -6528,10 +6528,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -6603,17 +6601,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-bind-graphical-object-tag-to-leaf-owner"
+        ],
+        "confirmedRootCause": "A graphical ObjectTag belongs to the individual leaf Graphic that contains it, not to an aggregate ChemSema group that happens to list that Graphic ID. An ID value of zero remains unassigned and cannot merge otherwise independent ObjectTags or child Text objects.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#bracket_graphic_object_tag_owns_its_anonymous_display_text"
+        ],
         "notes": null
       }
     },
@@ -6635,7 +6637,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -6657,10 +6659,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -6738,17 +6738,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-bind-graphical-object-tag-to-leaf-owner"
+        ],
+        "confirmedRootCause": "A graphical ObjectTag belongs to the individual leaf Graphic that contains it, not to an aggregate ChemSema group that happens to list that Graphic ID. An ID value of zero remains unassigned and cannot merge otherwise independent ObjectTags or child Text objects.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#bracket_graphic_object_tag_owns_its_anonymous_display_text"
+        ],
         "notes": null
       }
     },
@@ -6770,7 +6774,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -6792,10 +6796,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -6867,17 +6869,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-bind-graphical-object-tag-to-leaf-owner"
+        ],
+        "confirmedRootCause": "A graphical ObjectTag belongs to the individual leaf Graphic that contains it, not to an aggregate ChemSema group that happens to list that Graphic ID. An ID value of zero remains unassigned and cannot merge otherwise independent ObjectTags or child Text objects.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#bracket_graphic_object_tag_owns_its_anonymous_display_text"
+        ],
         "notes": null
       }
     },
@@ -9040,8 +9046,7 @@
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -9191,8 +9196,7 @@
             "changed": [
               "molecules",
               "labels",
-              "brackets",
-              "texts"
+              "brackets"
             ]
           },
           {
@@ -9318,7 +9322,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -9340,10 +9344,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -9428,19 +9430,25 @@
         "componentCountDelta": 40
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-chemdraw-js-implicit-object-tag-positioning"
+        ],
+        "confirmedRootCause": "For ChemDraw JS documents, an omitted ObjectTag PositioningType preserves the authored absolute child Text geometry. The import boundary normalizes that producer convention to explicit absolute positioning so a ChemSema round trip cannot reinterpret it as desktop automatic placement.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "docs/cdxml-text-label-field-audit.zh-CN.md",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#bracket_graphic_object_tag_owns_its_anonymous_display_text",
+          "crates/chemsema-engine/tests/render_document.rs#parse_cdxml_preserves_chemdraw_js_cached_enhanced_stereo_position"
+        ],
         "notes": null
       }
     },
@@ -16041,24 +16049,24 @@
         "text"
       ],
       "roundtrip": {
-        "status": "count-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -2,
+              "objects": 0,
               "resources": 0,
               "styles": 0
             },
             "objectTypeDelta": {
-              "group": -2,
+              "group": 0,
               "molecule": 0,
               "text": 0
             },
@@ -16078,6 +16086,7 @@
               "styles": 0
             },
             "objectTypeDelta": {
+              "group": 0,
               "molecule": 0,
               "text": 0
             },
@@ -16097,6 +16106,7 @@
               "styles": 0
             },
             "objectTypeDelta": {
+              "group": 0,
               "molecule": 0,
               "text": 0
             },
@@ -16137,18 +16147,22 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-count-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-count-drift",
           "roundtrip-non-idempotent-mixed-semantics"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-bind-graphical-object-tag-to-leaf-owner"
+        ],
+        "confirmedRootCause": "A graphical ObjectTag belongs to the individual leaf Graphic that contains it, not to an aggregate ChemSema group that happens to list that Graphic ID. An ID value of zero remains unassigned and cannot merge otherwise independent ObjectTags or child Text objects.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#bracket_graphic_object_tag_owns_its_anonymous_display_text"
+        ],
         "notes": null
       }
     },
@@ -16168,7 +16182,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -16190,10 +16204,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -16278,19 +16290,25 @@
         "componentCountDelta": 40
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-chemdraw-js-implicit-object-tag-positioning"
+        ],
+        "confirmedRootCause": "For ChemDraw JS documents, an omitted ObjectTag PositioningType preserves the authored absolute child Text geometry. The import boundary normalizes that producer convention to explicit absolute positioning so a ChemSema round trip cannot reinterpret it as desktop automatic placement.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "docs/cdxml-text-label-field-audit.zh-CN.md",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#bracket_graphic_object_tag_owns_its_anonymous_display_text",
+          "crates/chemsema-engine/tests/render_document.rs#parse_cdxml_preserves_chemdraw_js_cached_enhanced_stereo_position"
+        ],
         "notes": null
       }
     },
@@ -16718,7 +16736,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -16742,10 +16760,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -16834,19 +16850,24 @@
         "componentCountDelta": 85
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-bind-graphical-object-tag-to-leaf-owner"
+        ],
+        "confirmedRootCause": "A graphical ObjectTag belongs to the individual leaf Graphic that contains it, not to an aggregate ChemSema group that happens to list that Graphic ID. An ID value of zero remains unassigned and cannot merge otherwise independent ObjectTags or child Text objects.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#bracket_graphic_object_tag_owns_its_anonymous_display_text"
+        ],
         "notes": null
       }
     },
@@ -19890,24 +19911,24 @@
         "text"
       ],
       "roundtrip": {
-        "status": "count-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
               "styles": 0
             },
             "objectTypeDelta": {
-              "group": -1,
+              "group": 0,
               "molecule": 0,
               "text": 0
             },
@@ -19927,6 +19948,7 @@
               "styles": 0
             },
             "objectTypeDelta": {
+              "group": 0,
               "molecule": 0,
               "text": 0
             },
@@ -19946,6 +19968,7 @@
               "styles": 0
             },
             "objectTypeDelta": {
+              "group": 0,
               "molecule": 0,
               "text": 0
             },
@@ -19993,9 +20016,8 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-count-drift",
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
@@ -20005,10 +20027,16 @@
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-bind-graphical-object-tag-to-leaf-owner"
+        ],
+        "confirmedRootCause": "A graphical ObjectTag belongs to the individual leaf Graphic that contains it, not to an aggregate ChemSema group that happens to list that Graphic ID. An ID value of zero remains unassigned and cannot merge otherwise independent ObjectTags or child Text objects.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#bracket_graphic_object_tag_owns_its_anonymous_display_text"
+        ],
         "notes": null
       }
     },
@@ -27615,7 +27643,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "semantic-drift",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -27643,23 +27671,21 @@
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -37,
+              "objects": 0,
               "resources": 0,
-              "styles": -37
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": -37
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -27674,7 +27700,8 @@
               "styles": 0
             },
             "objectTypeDelta": {
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -27722,10 +27749,11 @@
       "triage": {
         "resolutionStatus": "active",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
+          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
+          "roundtrip-first-generation-mixed-drift",
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
@@ -27882,32 +27910,30 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -2,
+              "objects": 0,
               "resources": 0,
-              "styles": -2
+              "styles": 0
             },
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
               "molecule": 0,
-              "text": -2
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -27924,7 +27950,8 @@
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -27944,7 +27971,8 @@
             "objectTypeDelta": {
               "bracket": 0,
               "group": 0,
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -27983,17 +28011,21 @@
         "componentCountDelta": 1
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-bind-graphical-object-tag-to-leaf-owner"
+        ],
+        "confirmedRootCause": "A graphical ObjectTag belongs to the individual leaf Graphic that contains it, not to an aggregate ChemSema group that happens to list that Graphic ID. An ID value of zero remains unassigned and cannot merge otherwise independent ObjectTags or child Text objects.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#bracket_graphic_object_tag_owns_its_anonymous_display_text"
+        ],
         "notes": null
       }
     },
@@ -30330,7 +30362,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -30352,10 +30384,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -30421,17 +30451,22 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-chemdraw-js-implicit-object-tag-positioning"
+        ],
+        "confirmedRootCause": "For ChemDraw JS documents, an omitted ObjectTag PositioningType preserves the authored absolute child Text geometry. The import boundary normalizes that producer convention to explicit absolute positioning so a ChemSema round trip cannot reinterpret it as desktop automatic placement.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "docs/cdxml-text-label-field-audit.zh-CN.md",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#bracket_graphic_object_tag_owns_its_anonymous_display_text",
+          "crates/chemsema-engine/tests/render_document.rs#parse_cdxml_preserves_chemdraw_js_cached_enhanced_stereo_position"
+        ],
         "notes": null
       }
     },

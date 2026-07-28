@@ -136,11 +136,6 @@ pub(super) fn source_entity_map(
         {
             push_unique(&mut map, source_id, &object.id);
         }
-        if let Some(source_ids) = object.meta.get("graphicIds").and_then(Value::as_array) {
-            for source_id in source_ids.iter().filter_map(Value::as_str) {
-                push_unique(&mut map, source_id, &object.id);
-            }
-        }
         if let Some(resource_ref) = object.payload.resource_ref.as_deref() {
             if let Some(ResourceData::Fragment(fragment)) =
                 resources.get(resource_ref).map(|resource| &resource.data)
@@ -191,7 +186,7 @@ fn map_unmodeled_containers(
             }
         }
     }
-    if let Some(source_id) = node.attr("id") {
+    if let Some(source_id) = node.attr("id").filter(|id| is_assigned_source_id(id)) {
         if let Some(existing) = map.get(source_id) {
             return existing.clone();
         }
@@ -204,10 +199,17 @@ fn map_unmodeled_containers(
 }
 
 fn push_unique(map: &mut BTreeMap<String, Vec<String>>, source_id: &str, entity_id: &str) {
+    if !is_assigned_source_id(source_id) {
+        return;
+    }
     let entries = map.entry(source_id.to_string()).or_default();
     if !entries.iter().any(|id| id == entity_id) {
         entries.push(entity_id.to_string());
     }
+}
+
+fn is_assigned_source_id(source_id: &str) -> bool {
+    !matches!(source_id.trim(), "" | "0")
 }
 
 pub(super) fn flatten_scene_object(object: &SceneObject) -> Vec<&SceneObject> {

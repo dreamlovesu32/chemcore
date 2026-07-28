@@ -254,6 +254,43 @@
         "0032",
         "0293"
       ]
+    },
+    {
+      "id": "cdxml-bind-graphical-object-tag-to-leaf-owner",
+      "status": "verified",
+      "summary": "A graphical ObjectTag belongs to the individual leaf Graphic that contains it, not to an aggregate ChemSema group that happens to list that Graphic ID. An ID value of zero remains unassigned and cannot merge otherwise independent ObjectTags or child Text objects.",
+      "officialRule": "CDX object IDs identify individual objects, while zero means no ID was assigned. ObjectTag is a child of its owning object. Therefore a bracket pair container may retain both source Graphic IDs for regeneration, but those aggregate IDs are not aliases for the container and ID zero is never a cross-object reference key.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#bracket_graphic_object_tag_owns_its_anonymous_display_text"
+      ],
+      "caseIds": [
+        "0064",
+        "0065",
+        "0066",
+        "0153",
+        "0158",
+        "0184",
+        "0257"
+      ]
+    },
+    {
+      "id": "cdxml-chemdraw-js-implicit-object-tag-positioning",
+      "status": "verified",
+      "summary": "For ChemDraw JS documents, an omitted ObjectTag PositioningType preserves the authored absolute child Text geometry. The import boundary normalizes that producer convention to explicit absolute positioning so a ChemSema round trip cannot reinterpret it as desktop automatic placement.",
+      "officialRule": "PositioningType controls whether ObjectTag display geometry is absolute or automatically derived. The public ChemDraw JS fixtures consistently omit the field while authoring absolute child positions; once the producer changes on export, that implicit convention must be made explicit.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+        "docs/cdxml-text-label-field-audit.zh-CN.md",
+        "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#bracket_graphic_object_tag_owns_its_anonymous_display_text",
+        "crates/chemsema-engine/tests/render_document.rs#parse_cdxml_preserves_chemdraw_js_cached_enhanced_stereo_position"
+      ],
+      "caseIds": [
+        "0092",
+        "0154",
+        "0281"
+      ]
     }
   ]
 }

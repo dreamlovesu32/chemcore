@@ -393,7 +393,7 @@ fn child_text_object_ids(
 ) -> Vec<String> {
     let mut ids = Vec::new();
     for child in node.direct_children("t") {
-        if let Some(source_id) = child.attr("id") {
+        if let Some(source_id) = child.attr("id").filter(|id| *id != "0") {
             extend_unique(
                 &mut ids,
                 source_map.get(source_id).into_iter().flatten().cloned(),
@@ -418,7 +418,7 @@ fn object_tag_display_object_ids(
     };
     let anonymous_texts = tag
         .direct_children("t")
-        .filter(|text| text.attr("id").is_none())
+        .filter(|text| text.attr("id").is_none_or(|id| id == "0"))
         .map(|text| {
             text.attr("UTF8Text")
                 .map(ToString::to_string)
@@ -435,7 +435,11 @@ fn object_tag_display_object_ids(
         .flat_map(|object| super::import_chemical_properties::flatten_scene_object(object))
         .filter(|object| object.object_type == "text")
         .filter(|object| {
-            object.meta.get("attachedNodeId").and_then(Value::as_str) == Some(owner_source_id)
+            object
+                .meta
+                .get("objectTagOwnerSourceId")
+                .and_then(Value::as_str)
+                == Some(owner_source_id)
                 && object.meta.get("role").and_then(Value::as_str) == Some(role.as_str())
         })
         .collect::<Vec<_>>();
@@ -526,7 +530,7 @@ fn split_ids(value: Option<&str>) -> Vec<&str> {
 
 fn logical_id(source_id: Option<&str>, prefix: &str, index: usize) -> String {
     source_id
-        .filter(|id| !id.trim().is_empty())
+        .filter(|id| !matches!(id.trim(), "" | "0"))
         .map(ToString::to_string)
         .unwrap_or_else(|| format!("{prefix}_{index}"))
 }
@@ -655,6 +659,103 @@ mod tests {
                 .get("role")
                 .and_then(serde_json::Value::as_str),
             Some("enhanced_stereo")
+        );
+    }
+
+    #[test]
+    fn bracket_graphic_object_tag_owns_its_anonymous_display_text() {
+        let source = r#"
+<CDXML CreationProgram="ChemDraw JS 2.0.0.9" BondLength="30" LabelFont="3" LabelSize="10" CaptionFont="3" CaptionSize="10">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1" BoundingBox="0 0 120 100">
+    <graphic id="20" GraphicType="Bracket" BracketType="Square" BoundingBox="30 10 30 40"/>
+    <graphic id="21" GraphicType="Bracket" BracketType="Square" BoundingBox="80 40 80 10">
+      <objecttag id="0" Name="bracketusage" TagType="String" Value="2">
+        <t id="0" p="84 40" BoundingBox="84 32 90 40"><s font="3" size="8" color="0">2</s></t>
+      </objecttag>
+    </graphic>
+    <graphic id="30" GraphicType="Bracket" BracketType="Square" BoundingBox="30 60 30 90"/>
+    <graphic id="31" GraphicType="Bracket" BracketType="Square" BoundingBox="80 90 80 60">
+      <objecttag id="0" Name="bracketusage" TagType="String" Value="3">
+        <t id="0" p="84 90" BoundingBox="84 82 90 90"><s font="3" size="8" color="0">3</s></t>
+      </objecttag>
+    </graphic>
+  </page>
+</CDXML>
+"#;
+        let document = crate::parse_cdxml_document(source, Some("bracket object tag")).unwrap();
+        let tags = document
+            .logical_objects
+            .object_tags
+            .iter()
+            .filter(|tag| tag.name == "bracketusage")
+            .collect::<Vec<_>>();
+        assert_eq!(tags.len(), 2);
+        assert_ne!(tags[0].id, tags[1].id);
+        let tag = tags
+            .iter()
+            .copied()
+            .find(|tag| tag.value.as_deref() == Some("2"))
+            .expect("first bracket-usage object tag");
+        assert_eq!(
+            tag.owner_entity_id.as_deref(),
+            Some("obj_bracket_001_right")
+        );
+        assert!(tag.unresolved_owner_source_id.is_none());
+        assert_eq!(tag.display_object_ids.len(), 1);
+        assert_ne!(tags[0].display_object_ids, tags[1].display_object_ids);
+        let display = document
+            .find_scene_object(&tag.display_object_ids[0])
+            .expect("bracket-usage display text");
+        assert_eq!(
+            display
+                .meta
+                .get("objectTagOwnerSourceId")
+                .and_then(serde_json::Value::as_str),
+            Some("21")
+        );
+        assert_eq!(
+            display.meta.get("role").and_then(serde_json::Value::as_str),
+            Some("bracket_usage")
+        );
+        assert_eq!(display.transform.translate[0], 84.0);
+
+        let exported = crate::document_to_cdxml(&document);
+        let owner_start = exported.find("id=\"21\"").expect("right bracket owner");
+        let following = &exported[owner_start..];
+        let tag_start = following
+            .find("Name=\"bracketusage\"")
+            .expect("nested object tag");
+        let tag_xml = &following[tag_start..];
+        assert!(tag_xml
+            .find("<t ")
+            .is_some_and(|index| index < tag_xml.find("</objecttag>").unwrap_or(usize::MAX)));
+
+        let reopened = crate::parse_cdxml_document(&exported, Some("bracket object tag")).unwrap();
+        let reopened_tags = reopened
+            .logical_objects
+            .object_tags
+            .iter()
+            .filter(|tag| tag.name == "bracketusage")
+            .collect::<Vec<_>>();
+        assert_eq!(reopened_tags.len(), 2);
+        let reopened_tag = reopened_tags
+            .iter()
+            .copied()
+            .find(|tag| tag.value.as_deref() == Some("2"))
+            .expect("bracket-usage object tag survives");
+        assert_eq!(
+            reopened_tag.owner_entity_id.as_deref(),
+            Some("obj_bracket_001_right")
+        );
+        assert_eq!(reopened_tag.display_object_ids.len(), 1);
+        assert_eq!(
+            reopened
+                .find_scene_object(&reopened_tag.display_object_ids[0])
+                .expect("reopened bracket-usage display")
+                .transform
+                .translate[0],
+            84.0
         );
     }
 
