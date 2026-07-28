@@ -35,6 +35,7 @@ fn exported_external_connection_type(value: crate::ExternalConnectionType) -> Op
 
 mod defaults;
 mod interchange;
+mod logical_objects;
 mod mapping;
 mod payload;
 mod resources;
@@ -42,6 +43,7 @@ mod xml_writer;
 
 use defaults::*;
 use interchange::*;
+use logical_objects::*;
 use mapping::*;
 use payload::*;
 use resources::*;
@@ -160,19 +162,23 @@ fn node_has_native_query_annotation(node: &Node) -> bool {
 }
 
 pub fn document_to_cdxml(document: &ChemSemaDocument) -> String {
-    let generated = CdxmlDocumentWriter::new(document).write();
-    let Some(source) = document.interchange.get("cdxml") else {
+    let (generated, entity_ids) = CdxmlDocumentWriter::new(document).write();
+    if document.interchange.get("cdxml").is_none() && document.logical_objects.is_empty() {
         return generated;
-    };
+    }
     let Ok(mut root) = super::parse_xml_tree(&generated) else {
         return generated;
     };
-    let mut source_root = source.root.clone();
-    remove_regenerated_scene_objects(&mut source_root, document);
-    retain_native_chemical_properties(&mut source_root, &document.chemical_properties);
-    retain_native_annotations(&mut source_root, &document.objects);
-    retain_native_plasmid_maps(&mut source_root, &document.objects);
-    merge_interchange_tree(&mut root, &source_root);
+    if let Some(source) = document.interchange.get("cdxml") {
+        let mut source_root = source.root.clone();
+        remove_regenerated_scene_objects(&mut source_root, document);
+        remove_native_logical_objects(&mut source_root);
+        retain_native_chemical_properties(&mut source_root, &document.chemical_properties);
+        retain_native_annotations(&mut source_root, &document.objects);
+        retain_native_plasmid_maps(&mut source_root, &document.objects);
+        merge_interchange_tree(&mut root, &source_root);
+    }
+    apply_native_logical_objects(&mut root, document, &entity_ids);
     serialize_cdxml_tree(&root)
 }
 
@@ -244,7 +250,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
         }
     }
 
-    fn write(mut self) -> String {
+    fn write(mut self) -> (String, BTreeMap<String, String>) {
         self.prepare_bond_ids();
         self.prepare_annotation_basis_ids();
         let layout = &self.document.document.layout;
@@ -393,7 +399,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
 
         out.push_str("  </page>\n");
         out.push_str("</CDXML>\n");
-        out
+        (out, self.entity_ids)
     }
 
     fn write_scene_object(&mut self, out: &mut String, object: &SceneObject) {
@@ -640,9 +646,15 @@ impl<'a> CdxmlDocumentWriter<'a> {
 
     fn write_reaction_schemes(&mut self, out: &mut String) {
         for scheme in &self.document.reaction_schemes.clone() {
-            write_open_tag(out, 4, "scheme", vec![("id", self.alloc_id())]);
+            let scheme_id = self
+                .claim_source_id(Some(scheme.id.clone()))
+                .unwrap_or_else(|| self.alloc_id());
+            write_open_tag(out, 4, "scheme", vec![("id", scheme_id)]);
             for step in &scheme.steps {
-                let mut attrs = vec![("id", self.alloc_id())];
+                let step_id = self
+                    .claim_source_id(Some(step.id.clone()))
+                    .unwrap_or_else(|| self.alloc_id());
+                let mut attrs = vec![("id", step_id)];
                 for (name, ids) in [
                     ("ReactionStepReactants", &step.reactant_entity_ids),
                     ("ReactionStepProducts", &step.product_entity_ids),
@@ -660,19 +672,35 @@ impl<'a> CdxmlDocumentWriter<'a> {
                         attrs.push((name, value));
                     }
                 }
-                let mappings = step
-                    .atom_mappings
-                    .iter()
-                    .filter_map(|mapping| {
-                        Some(format!(
-                            "{} {}",
-                            self.entity_ids.get(&mapping.reactant_atom_id)?,
-                            self.entity_ids.get(&mapping.product_atom_id)?
-                        ))
-                    })
-                    .collect::<Vec<_>>();
-                if !mappings.is_empty() {
-                    attrs.push(("ReactionStepAtomMap", mappings.join(" ")));
+                for (origin, name) in [
+                    (
+                        crate::ReactionAtomMappingOrigin::Manual,
+                        "ReactionStepAtomMapManual",
+                    ),
+                    (
+                        crate::ReactionAtomMappingOrigin::Automatic,
+                        "ReactionStepAtomMapAuto",
+                    ),
+                    (
+                        crate::ReactionAtomMappingOrigin::Imported,
+                        "ReactionStepAtomMap",
+                    ),
+                ] {
+                    let mappings = step
+                        .atom_mappings
+                        .iter()
+                        .filter(|mapping| mapping.origin == origin)
+                        .filter_map(|mapping| {
+                            Some(format!(
+                                "{} {}",
+                                self.entity_ids.get(&mapping.reactant_atom_id)?,
+                                self.entity_ids.get(&mapping.product_atom_id)?
+                            ))
+                        })
+                        .collect::<Vec<_>>();
+                    if !mappings.is_empty() {
+                        attrs.push((name, mappings.join(" ")));
+                    }
                 }
                 write_empty_tag(out, 6, "step", attrs);
             }

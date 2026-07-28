@@ -16,6 +16,7 @@ mod import_defaults;
 mod import_fragments;
 mod import_geometry_constraints;
 mod import_groups;
+mod import_logical_objects;
 mod import_nodes;
 mod import_objects;
 mod import_scaling;
@@ -29,7 +30,7 @@ pub(crate) mod xml;
 use self::colors::CdxmlColorTable;
 pub use self::export::document_to_cdxml;
 use self::import_bonds::*;
-use self::import_chemical_properties::import_chemical_properties;
+use self::import_chemical_properties::{import_chemical_properties, source_entity_map};
 use self::import_defaults::*;
 use self::import_fragments::*;
 use self::import_geometry_constraints::{
@@ -37,6 +38,7 @@ use self::import_geometry_constraints::{
     normalize_imported_annotation_displays,
 };
 use self::import_groups::*;
+use self::import_logical_objects::import_logical_objects;
 use self::import_nodes::*;
 use self::import_objects::{
     append_bio_shape_objects, append_bracket_objects, append_curve_objects,
@@ -474,6 +476,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         import_reactions_and_stoichiometry_grids(&root, &mut objects, defaults, &colors, &fonts);
     let (chemical_properties, chemical_property_links) =
         import_chemical_properties(&root, &objects, &resources);
+    let logical_objects = import_logical_objects(&root, &objects, &resources, &reaction_schemes);
     apply_cdxml_groups(&root, &mut objects);
     let label_style = imported_document_text_style(
         defaults.label_font,
@@ -575,6 +578,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         styles,
         objects,
         links: Vec::new(),
+        logical_objects,
         reaction_schemes,
         chemical_properties,
         resources,
@@ -915,6 +919,7 @@ mod interchange_tests {
             .expect("constraint payload");
         assert!(!constraint.display.auto_value);
         assert_eq!(constraint.display.text_override.as_deref(), Some("custom"));
-        assert!(document_to_cdxml(&document).contains(">custom</s>"));
+        let saved = document_to_cdxml(&document);
+        assert!(saved.contains(">custom</s>"), "{saved}");
     }
 }

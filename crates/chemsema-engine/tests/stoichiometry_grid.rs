@@ -276,6 +276,45 @@ fn unlink_freezes_grid_without_creating_private_link_relation() {
 }
 
 #[test]
+fn deleting_a_reaction_step_orphans_its_grid_without_deleting_the_grid() {
+    let document =
+        parse_cdxml_document(STOICHIOMETRY_CDXML, Some("stoichiometry")).expect("valid CDXML");
+    let step_id = document.reaction_schemes[0].steps[0].id.clone();
+    let grid_id = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "stoichiometry-grid")
+        .expect("native grid object")
+        .id
+        .clone();
+    let mut engine = Engine::new();
+    engine
+        .load_document_json(&serde_json::to_string(&document).unwrap())
+        .expect("load native document");
+
+    assert!(engine
+        .delete_logical_object("reaction-step", &step_id)
+        .expect("delete reaction step"));
+    let grid_object = engine
+        .state()
+        .document
+        .find_scene_object(&grid_id)
+        .expect("grid survives deleted source step");
+    let grid = grid_object
+        .payload
+        .stoichiometry_grid
+        .as_ref()
+        .expect("typed grid payload");
+    assert!(grid.source_reaction_step_id.is_none());
+    assert_eq!(grid.binding_state, StoichiometryBindingState::Orphaned);
+    assert_eq!(grid_object.link_policy, LinkPolicy::Unlinked);
+    assert!(grid
+        .data
+        .iter()
+        .all(|datum| datum.origin != StoichiometryValueOrigin::Calculated));
+}
+
+#[test]
 fn cdx_export_rejects_unrepresentable_stoichiometry_grid_explicitly() {
     let document =
         parse_cdxml_document(STOICHIOMETRY_CDXML, Some("stoichiometry")).expect("valid CDXML");

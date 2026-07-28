@@ -23,6 +23,7 @@ mod history;
 mod images;
 mod io;
 mod links;
+mod logical_relations;
 mod molecular_coloring;
 mod nmr_results;
 mod orbitals;
@@ -765,9 +766,26 @@ fn document_target_delta_with_scope(
         created_objects.extend(created);
         updated_objects.extend(updated);
         deleted_objects.extend(deleted);
+        let before_logical_values = logical_target_values(before);
+        let after_logical_values = logical_target_values(after);
+        let before_logical = before_logical_values
+            .iter()
+            .map(|(id, value)| (*id, value))
+            .collect::<BTreeMap<_, _>>();
+        let after_logical = after_logical_values
+            .iter()
+            .map(|(id, value)| (*id, value))
+            .collect::<BTreeMap<_, _>>();
+        let (created, updated, deleted) = diff_target_map(&before_logical, &after_logical);
+        created_objects.extend(created);
+        updated_objects.extend(updated);
+        deleted_objects.extend(deleted);
         created_objects.sort();
+        created_objects.dedup();
         updated_objects.sort();
+        updated_objects.dedup();
         deleted_objects.sort();
+        deleted_objects.dedup();
     }
     let (created_styles, updated_styles, deleted_styles) = if scope.styles {
         diff_target_map(&before_maps.styles, &after_maps.styles)
@@ -795,6 +813,119 @@ fn document_target_delta_with_scope(
             styles: deleted_styles,
         },
     }
+}
+
+fn logical_target_values(document: &ChemSemaDocument) -> Vec<(&str, JsonValue)> {
+    let mut values = Vec::new();
+    macro_rules! append {
+        ($items:expr) => {
+            values.extend($items.iter().map(|item| {
+                (
+                    item.id.as_str(),
+                    serde_json::to_value(item).expect("logical object serializes"),
+                )
+            }));
+        };
+    }
+    append!(document.logical_objects.alternative_groups);
+    append!(document.logical_objects.bracketed_groups);
+    append!(document.logical_objects.sequences);
+    append!(document.logical_objects.cross_references);
+    append!(document.logical_objects.object_tags);
+    append!(document.logical_objects.annotations);
+    append!(document.logical_objects.registry_numbers);
+    append!(document.logical_objects.representations);
+    append!(document.links);
+    values.extend([
+        (
+            "logical-order:alternative-groups",
+            serde_json::json!(document
+                .logical_objects
+                .alternative_groups
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:bracketed-groups",
+            serde_json::json!(document
+                .logical_objects
+                .bracketed_groups
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:sequences",
+            serde_json::json!(document
+                .logical_objects
+                .sequences
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:cross-references",
+            serde_json::json!(document
+                .logical_objects
+                .cross_references
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:object-tags",
+            serde_json::json!(document
+                .logical_objects
+                .object_tags
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:annotations",
+            serde_json::json!(document
+                .logical_objects
+                .annotations
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:registry-numbers",
+            serde_json::json!(document
+                .logical_objects
+                .registry_numbers
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:representations",
+            serde_json::json!(document
+                .logical_objects
+                .representations
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:reaction-schemes",
+            serde_json::json!(document
+                .reaction_schemes
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+    ]);
+    for scheme in &document.reaction_schemes {
+        values.push((
+            scheme.id.as_str(),
+            serde_json::to_value(scheme).expect("reaction scheme serializes"),
+        ));
+        append!(scheme.steps);
+    }
+    values
 }
 
 fn document_target_maps(document: &ChemSemaDocument) -> DocumentTargetMaps<'_> {
@@ -1235,6 +1366,7 @@ mod tests {
                 molecule_object("obj_mol_b", "mol_b"),
             ],
             links: Vec::new(),
+            logical_objects: Default::default(),
             reaction_schemes: Vec::new(),
             chemical_properties: Vec::new(),
             resources,
@@ -1789,6 +1921,15 @@ fn editor_command_is_relationship(command: &EditorCommand) -> bool {
     )
 }
 
+fn editor_command_is_logical_object(command: &EditorCommand) -> bool {
+    matches!(
+        command,
+        EditorCommand::SetLogicalObject { .. }
+            | EditorCommand::DeleteLogicalObject { .. }
+            | EditorCommand::ReorderLogicalObject { .. }
+    )
+}
+
 fn editor_command_is_style(command: &EditorCommand) -> bool {
     matches!(
         command,
@@ -1885,6 +2026,9 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::SetStoichiometryDatum { .. } => "set-stoichiometry-datum",
         EditorCommand::EditStoichiometryGrid { .. } => "edit-stoichiometry-grid",
         EditorCommand::BindStoichiometryGrid { .. } => "bind-stoichiometry-grid",
+        EditorCommand::SetLogicalObject { .. } => "set-logical-object",
+        EditorCommand::DeleteLogicalObject { .. } => "delete-logical-object",
+        EditorCommand::ReorderLogicalObject { .. } => "reorder-logical-object",
         EditorCommand::SetLinkPolicy { .. } => "set-link-policy",
         EditorCommand::UnlinkSelection { .. } => "unlink-selection",
         EditorCommand::JoinSelection => "join-selection",

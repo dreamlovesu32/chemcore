@@ -422,6 +422,10 @@ export function createCanvasContextMenuHost(options) {
       }
       return { handled: true, changed: false };
     }
+    if (command === "logical-objects-dialog") {
+      await options.logicalObjectsDialogHost?.open();
+      return { handled: true, changed: false };
+    }
     if (command === "create-annotation") {
       const decision = await options.annotationDialogHost?.choose(value);
       if (!decision) {

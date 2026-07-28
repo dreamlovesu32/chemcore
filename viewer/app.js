@@ -13,6 +13,7 @@ import { createNumericDialogHost } from "./numeric_dialog_host.js";
 import { createAtomPropertyDialogHost } from "./atom_property_dialog_host.js";
 import { createChemicalPropertyDialogHost } from "./chemical_property_dialog_host.js";
 import { createAnnotationDialogHost } from "./annotation_dialog_host.js";
+import { createLogicalObjectsDialogHost } from "./logical_objects_dialog_host.js";
 import { createSmilesDialogHost } from "./smiles_dialog_host.js";
 import { createTableDialogHost } from "./table_dialog_host.js";
 import { createPlasmidMapDialogHost } from "./plasmid_map_dialog_host.js";
@@ -209,6 +210,18 @@ const bioShapeDialogHost = createBioShapeDialogHost({
 });
 const transientNotificationHost = createTransientNotificationHost({
   root: document.body,
+});
+const logicalObjectsDialogHost = createLogicalObjectsDialogHost({
+  root: document.body,
+  engine: () => state.editorEngine,
+  commandEngine,
+  onApply: async (result) => {
+    renderDocumentChange(result);
+  },
+  notify: (message) => transientNotificationHost.show(message, {
+    error: true,
+    duration: 4200,
+  }),
 });
 const uiActions = createUiActionRunner({
   isAbortError: (error) => isAbortError(error),
@@ -1284,6 +1297,7 @@ canvasContextMenuHost = createCanvasContextMenuHost({
   atomPropertyDialogHost,
   chemicalPropertyDialogHost,
   annotationDialogHost,
+  logicalObjectsDialogHost,
   smilesDialogHost,
   tableDialogHost,
   plasmidMapDialogHost,

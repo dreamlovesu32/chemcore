@@ -74,6 +74,8 @@ fn import_reaction_step(
             .attr("id")
             .map(ToString::to_string)
             .unwrap_or_else(|| format!("reaction_step_{}", index + 1)),
+        link_policy: crate::LinkPolicy::Linked,
+        binding_origin: crate::LogicalBindingOrigin::Imported,
         reactant_entity_ids,
         product_entity_ids,
         arrow_object_ids,

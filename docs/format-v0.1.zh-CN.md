@@ -15,13 +15,17 @@
 
 ## 格式总览
 
-文件是一个 JSON 文档，包含 6 个顶层区段：
+文件是一个 JSON 文档，核心顶层区段包括：
 
 - `format`
 - `document`
 - `styles`
 - `objects`
 - `resources`
+- `reactionSchemes`
+- `logicalObjects`
+- `links`
+- `chemicalProperties`
 - `interchange`（可选）
 
 从职责上看：
@@ -30,6 +34,9 @@
 - `styles` 存放可复用的渲染样式
 - `objects` 存放场景图节点
 - `resources` 存放可复用的化学载荷，例如 `molecule_fragment2d`
+- `reactionSchemes` 保存反应 Scheme/Step 的标准有向语义
+- `logicalObjects` 保存替代基、括号组、序列、标签、注释、登记号和 representation
+- `links` 保存 ChemSema 的通用编辑关系，不与 group 或 Reaction Step 混用
 - `interchange` 无损保存尚未提升为来源无关语义的交换格式对象和字段；它可编辑并参与导出，不属于 `meta`
 
 ## 顶层结构
@@ -45,9 +52,54 @@
   "styles": {},
   "objects": [],
   "resources": {},
+  "reactionSchemes": [],
+  "logicalObjects": {},
+  "links": [],
+  "chemicalProperties": [],
   "interchange": {}
 }
 ```
+
+## 逻辑对象层
+
+标准中不一定直接产生像素的对象不能只停留在 `interchange`。CCJS 使用
+`reactionSchemes` 和 `logicalObjects` 保存来源无关的明确语义，例如：
+
+```json
+{
+  "reactionSchemes": [
+    {
+      "id": "scheme_1",
+      "steps": [
+        {
+          "id": "step_1",
+          "linkPolicy": "linked",
+          "bindingOrigin": "authored",
+          "reactantEntityIds": ["mol_a"],
+          "productEntityIds": ["mol_b"],
+          "arrowObjectIds": ["arrow_1"],
+          "atomMappings": []
+        }
+      ]
+    }
+  ],
+  "logicalObjects": {
+    "alternativeGroups": [],
+    "bracketedGroups": [],
+    "sequences": [],
+    "crossReferences": [],
+    "objectTags": [],
+    "annotations": [],
+    "registryNumbers": [],
+    "representations": []
+  }
+}
+```
+
+每个逻辑对象有全局唯一 id，引用使用 entity id；导入时确实无法解析的标准 id
+只能进入明确的 `unresolved...SourceId` 字段。完整结构、生命周期、Auto 规则和
+CDX/CDXML 映射见
+[`logical-object-native-model.zh-CN.md`](logical-object-native-model.zh-CN.md)。
 
 ## Interchange 完整字段层
 

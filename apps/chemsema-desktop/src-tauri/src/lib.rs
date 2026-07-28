@@ -223,6 +223,7 @@ pub fn run() {
             desktop_engine_clear_selection,
             desktop_engine_context_hit_test_json,
             desktop_engine_context_menu_json,
+            desktop_engine_logical_objects_dialog_json,
             desktop_engine_selection_contains_point,
             desktop_engine_hover_arrow_action,
             desktop_engine_begin_hover_arrow_edit,

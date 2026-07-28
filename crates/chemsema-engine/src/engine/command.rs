@@ -658,6 +658,19 @@ pub enum EditorCommand {
         reaction_step_id: Option<String>,
         policy: LinkPolicy,
     },
+    SetLogicalObject {
+        kind: String,
+        value: Value,
+    },
+    DeleteLogicalObject {
+        kind: String,
+        id: String,
+    },
+    ReorderLogicalObject {
+        kind: String,
+        id: String,
+        index: usize,
+    },
     SetLinkPolicy {
         #[serde(default, alias = "objectIds")]
         object_ids: Vec<String>,

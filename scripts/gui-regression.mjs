@@ -18,6 +18,7 @@ const selectionSummaryOnly = guiCase === "selection-summary";
 const chemicalPropertyOnly = guiCase === "chemical-property";
 const annotationOnly = guiCase === "annotation";
 const documentLayoutOnly = guiCase === "document-layout";
+const logicalObjectsOnly = guiCase === "logical-objects";
 
 function waitForPort(timeoutMs = 5000) {
   const deadline = Date.now() + timeoutMs;
@@ -1016,6 +1017,62 @@ async function verifyAnnotationDialog(page) {
   assert.equal(result.relation?.endpoints?.length, 3);
 }
 
+async function verifyLogicalObjectsDialog(page) {
+  await drawBondWithMouse(page);
+  await page.locator('button[data-tool="select"]').click();
+  await page.keyboard.press("Control+A");
+  const viewer = await page.locator("#viewer-container").boundingBox();
+  assert(viewer, "Logical object regression could not locate the viewer.");
+  await page.mouse.click(viewer.x + 12, viewer.y + 12, { button: "right" });
+  const command = page.locator(
+    '.canvas-context-menu button[data-canvas-context-command="logical-objects-dialog"]',
+  );
+  await command.waitFor({ state: "visible" });
+  await command.click();
+
+  const dialog = page.locator(".logical-objects-dialog");
+  await dialog.waitFor({ state: "visible" });
+  await dialog.locator('[data-logical-family="annotation"]').click();
+  await dialog.locator("[data-logical-new]").click();
+  await dialog.locator('input[name="keyword"]').fill("source");
+  await dialog.locator('input[name="content"]').fill("browser regression");
+  await dialog.locator('button[type="submit"]').click();
+  await page.waitForFunction(() => {
+    const documentValue = JSON.parse(
+      window.__chemsemaDebug.state.editorEngine.documentJson(),
+    );
+    return documentValue.logicalObjects?.annotations?.some(
+      (annotation) => annotation.keyword === "source"
+        && annotation.content === "browser regression"
+        && annotation.ownerEntityId,
+    );
+  });
+
+  await dialog.locator('input[name="content"]').fill("browser regression edited");
+  await dialog.locator('button[type="submit"]').click();
+  await page.waitForFunction(() => {
+    const documentValue = JSON.parse(
+      window.__chemsemaDebug.state.editorEngine.documentJson(),
+    );
+    return documentValue.logicalObjects?.annotations?.length === 1
+      && documentValue.logicalObjects.annotations[0].content === "browser regression edited";
+  });
+
+  const exported = await page.evaluate(
+    () => window.__chemsemaDebug.state.editorEngine.documentCdxml(),
+  );
+  assert.match(exported, /<annotation\b/);
+  assert.match(exported, /Keyword="source"/);
+  await dialog.locator("[data-logical-delete]").click();
+  await page.waitForFunction(() => {
+    const documentValue = JSON.parse(
+      window.__chemsemaDebug.state.editorEngine.documentJson(),
+    );
+    return !documentValue.logicalObjects?.annotations?.length;
+  });
+  await dialog.locator(".logical-objects-titlebar [data-logical-close]").click();
+}
+
 let server = null;
 let browser = null;
 try {
@@ -1032,7 +1089,7 @@ try {
   await installBrowserMocks(context);
   const errors = [];
 
-  if (!selectionSummaryOnly && !chemicalPropertyOnly && !annotationOnly && !documentLayoutOnly) {
+  if (!selectionSummaryOnly && !chemicalPropertyOnly && !annotationOnly && !documentLayoutOnly && !logicalObjectsOnly) {
     const fixturePath = await createOpenFixture(context, errors);
     await verifyOpenButton(context, errors, fixturePath);
 
@@ -1056,6 +1113,10 @@ try {
   } else if (documentLayoutOnly) {
     const page = await openViewer(context, errors);
     await verifyDocumentLayoutControls(page);
+    await page.close();
+  } else if (logicalObjectsOnly) {
+    const page = await openViewer(context, errors);
+    await verifyLogicalObjectsDialog(page);
     await page.close();
   } else if (!exactTieOnly) {
     const page = await openViewer(context, errors);
@@ -1103,6 +1164,8 @@ try {
         ? "[gui-regression] ok (Geometry/Constraint context menu and kernel dialog)"
       : documentLayoutOnly
         ? "[gui-regression] ok (40 px status bar and document layout controls)"
+      : logicalObjectsOnly
+        ? "[gui-regression] ok (native logical object manager and CDXML export)"
     : exactTieOnly
       ? "[gui-regression] ok (exact-tie double bond)"
       : "[gui-regression] ok (open, save-as ccjs/cdxml/svg, ctrl+s ccjz, copy/paste/cut, image drop/paste/context-menu, cross-tab structured clipboard, detached desktop tab, toolbar icons, cursors, selection overlay, delete tool, exact-tie double bond, zoom, style, annotation dialog)");

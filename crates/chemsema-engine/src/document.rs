@@ -36,6 +36,8 @@ pub struct ChemSemaDocument {
     pub objects: Vec<SceneObject>,
     #[serde(default)]
     pub links: Vec<LinkRelation>,
+    #[serde(default, skip_serializing_if = "crate::LogicalObjectData::is_empty")]
+    pub logical_objects: crate::LogicalObjectData,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reaction_schemes: Vec<crate::ReactionSchemeData>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -183,6 +185,7 @@ impl ChemSemaDocument {
                 children: Vec::new(),
             }],
             links: Vec::new(),
+            logical_objects: Default::default(),
             reaction_schemes: Vec::new(),
             chemical_properties: Vec::new(),
             resources,
@@ -470,8 +473,54 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     normalize_arrow_object_payloads(&mut document);
     normalize_fragment_label_payloads(&mut document);
     validate_chemical_properties(&document)?;
+    validate_logical_objects(&document)?;
     validate_link_relations(&document)?;
     Ok(document)
+}
+
+fn validate_logical_objects(document: &ChemSemaDocument) -> Result<(), String> {
+    let scene_ids = document
+        .scene_objects()
+        .into_iter()
+        .map(|object| object.id.clone())
+        .collect::<BTreeSet<_>>();
+    let node_ids = document
+        .editable_fragments()
+        .into_iter()
+        .flat_map(|entry| entry.fragment.nodes.iter().map(|node| node.id.clone()))
+        .collect::<BTreeSet<_>>();
+    let bond_ids = document
+        .editable_fragments()
+        .into_iter()
+        .flat_map(|entry| entry.fragment.bonds.iter().map(|bond| bond.id.clone()))
+        .collect::<BTreeSet<_>>();
+    document
+        .logical_objects
+        .validate(&scene_ids, &node_ids, &bond_ids)?;
+    let mut all_ids = scene_ids
+        .iter()
+        .chain(node_ids.iter())
+        .chain(bond_ids.iter())
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    all_ids.extend(document.logical_objects.all_ids());
+    for scheme in &document.reaction_schemes {
+        if !all_ids.insert(scheme.id.as_str()) {
+            return Err(format!(
+                "reaction scheme id '{}' collides with another document entity",
+                scheme.id
+            ));
+        }
+        for step in &scheme.steps {
+            if !all_ids.insert(step.id.as_str()) {
+                return Err(format!(
+                    "reaction step id '{}' collides with another document entity",
+                    step.id
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn migrate_legacy_bracket_links(document: &mut ChemSemaDocument) {

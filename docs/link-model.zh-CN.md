@@ -80,6 +80,10 @@ Link 不是通用约束系统，也不是任意对象之间的用户连线。只
 - `chemical-property-display`：一个或多个有序 `basis` 端点 + 一个标准文本
   `display`；关系由原生 ChemicalProperty 逻辑对象声明，不参与通用 Link 自动推断。
 
+Reaction Scheme/Step 也由同一个 Link 菜单控制，但它是标准 typed relation，存放在
+`reactionSchemes`，不复制进通用 `links[]`。这是为了保留 reactant、product、
+arrow、plus、above/below 和 atom mapping 的完整角色。
+
 关系类型、端点数量、端点角色和对象类型均由内核验证。未知关系不得静默降级。
 
 ## 4. 菜单与选择
@@ -128,6 +132,10 @@ Link >
 - 原子符号：符号中心在唯一原子的命中半径内，化学作用由符号的明确
   `chemicalRole/chargeDelta/radicalDelta` 决定；
 - 分析文本不由空间自动生成；它只能由分析栏 Paste 创建，创建后是显式关系。
+- 反应：带箭头端点的非机制直线箭头建立局部轴；分子、加号和上下方文本只有在
+  唯一最佳候选成立时组成 inferred Reaction Step。无箭头线和 curved/
+  curved-mirror 机制箭头不参与。歧义门限和完整规则见
+  [`logical-object-native-model.zh-CN.md`](logical-object-native-model.zh-CN.md)。
 
 ## 6. 分析文本
 
@@ -179,6 +187,8 @@ Exact Mass: 194.0804
 - 原生 ChemicalProperty 与分析文本是两个不同功能。只有
   `chemicalProperties` 中的 `chemical-property-display` 会写成标准
   CDX/CDXML `chemicalproperty`；它的通用 `linkPolicy` 仍不写入标准文件。
+- Reaction 的 ChemSema `linkPolicy/bindingOrigin` 不导出，但 Scheme/Step 及其标准
+  角色和 atom mapping 按 CDX/CDXML 标准对象导出。
 
 ## 9. 生命周期与历史
 

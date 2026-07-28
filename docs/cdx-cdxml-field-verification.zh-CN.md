@@ -35,21 +35,21 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x8005` | `b` | `interchange-object` | `verified` | `verified` | `verified` |
 | `0x8006` | `t` | `interchange-object` | `verified` | `verified` | `verified` |
 | `0x8007` | `graphic` | `interchange-object` | `verified` | `verified` | `verified` |
-| `0x8017` | `bracketedgroup` | `interchange-object` | `verified` | `verified` | `verified` |
-| `0x8018` | `bracketattachment` | `interchange-object` | `verified` | `verified` | `verified` |
-| `0x8019` | `crossingbond` | `interchange-object` | `verified` | `verified` | `verified` |
+| `0x8017` | `bracketedgroup` | `native-object-tag` | `verified` | `verified` | `verified` |
+| `0x8018` | `bracketattachment` | `native-object-tag` | `verified` | `verified` | `verified` |
+| `0x8019` | `crossingbond` | `native-object-tag` | `verified` | `verified` | `verified` |
 | `0x8008` | `curve` | `interchange-object` | `verified` | `verified` | `verified` |
 | `0x8009` | `embeddedobject` | `interchange-object` | `verified` | `verified` | `verified` |
 | `0x8016` | `table` | `interchange-object` | `verified` | `verified` | `verified` |
-| `0x800A` | `altgroup` | `interchange-object` | `verified` | `verified` | `verified` |
+| `0x800A` | `altgroup` | `native-object-tag` | `verified` | `verified` | `verified` |
 | `0x800B` | `templategrid` | `native-object-tag` | `verified` | `verified` | `verified` |
-| `0x800C` | `regnum` | `interchange-object` | `verified` | `verified` | `verified` |
-| `0x800D` | `scheme` | `interchange-object` | `verified` | `verified` | `verified` |
-| `0x800E` | `step` | `interchange-object` | `verified` | `verified` | `verified` |
+| `0x800C` | `regnum` | `native-object-tag` | `verified` | `verified` | `verified` |
+| `0x800D` | `scheme` | `native-object-tag` | `verified` | `verified` | `verified` |
+| `0x800E` | `step` | `native-object-tag` | `verified` | `verified` | `verified` |
 | `0x8010` | `spectrum` | `interchange-object` | `verified` | `verified` | `verified` |
-| `0x8011` | `objecttag` | `interchange-object` | `verified` | `verified` | `verified` |
-| `0x8013` | `sequence` | `interchange-object` | `verified` | `verified` | `verified` |
-| `0x8014` | `crossreference` | `interchange-object` | `verified` | `verified` | `verified` |
+| `0x8011` | `objecttag` | `native-object-tag` | `verified` | `verified` | `verified` |
+| `0x8013` | `sequence` | `native-object-tag` | `verified` | `verified` | `verified` |
+| `0x8014` | `crossreference` | `native-object-tag` | `verified` | `verified` | `verified` |
 | `0x801A` | `border` | `interchange-object` | `verified-with-erratum` | `verified` | `verified` |
 | `0x801B` | `geometry` | `interchange-object` | `verified-with-erratum` | `verified` | `verified` |
 | `0x801C` | `constraint` | `interchange-object` | `verified-with-erratum` | `verified` | `verified` |
@@ -73,15 +73,15 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x0004` | `ModificationUserName` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | The name of the last modifier (program user's name) of the document. Official lexical/binary codec is available; value is editable. |
 | `0x0005` | `ModificationDate` | `CDXDate` | `typed-interchange/value` | `verified` | `verified` | `verified` | Time of the last modification. Official lexical/binary codec is available; value is editable. |
 | `0x0006` | `ModificationProgram` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | The name of the program, including version and platform, of the last program to perform a modification. ChemDraw 4.0 uses "ChemDraw 4.0" as the value of CreationProgram. Official lexical/binary codec is available; value is editable. |
-| `0x0008` | `Name` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for objecttags. Name of an object. Official lexical/binary codec is available; value is editable. |
+| `0x0008` | `Name` | `CDXString` | `native-semantic/value` | `verified` | `verified` | `verified` | Required for objecttags. Name of an object. Official lexical/binary codec is available; value is editable. |
 | `0x0009` | `Comment` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | An arbitrary string intended to be meaningful to a user. Official lexical/binary codec is available; value is editable. |
 | `0x000A` | `Z` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | Back-to-front ordering index in 2D drawing. Official lexical/binary codec is available; value is editable. |
-| `0x000B` | `RegistryNumber` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | A registry or catalog number of a molecule object. Official lexical/binary codec is available; value is editable. |
-| `0x000C` | `RegistryAuthority` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | A string that specifies the authority which issued a registry or catalog number. Some examples of registry authorities are CAS, Beilstein, Aldrich, and Merck. Official lexical/binary codec is available; value is editable. |
-| `0x000E` | `RepresentsProperty` | `CDXRepresentsProperty` | `typed-interchange/value` | `verified` | `verified` | `verified` | Indicates that this object represents some property in some other object. Official lexical/binary codec is available; value is editable. |
-| `0x000F` | `IgnoreWarnings` | `CDXBooleanImplied` | `typed-interchange/value` | `verified` | `verified` | `verified` | Signifies whether chemical warnings should be suppressed on this object. Official lexical/binary codec is available; value is editable. |
-| `0x0010` | `Warning` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | A warning concerning possible chemical problems with this object. Official lexical/binary codec is available; value is editable. |
-| `0x0011` | `Visible` | `CDXBoolean` | `typed-interchange/value` | `verified` | `verified` | `verified` | The object is visible if non-zero. Official lexical/binary codec is available; value is editable. |
+| `0x000B` | `RegistryNumber` | `CDXString` | `native-semantic/value` | `verified` | `verified` | `verified` | A registry or catalog number of a molecule object. Official lexical/binary codec is available; value is editable. |
+| `0x000C` | `RegistryAuthority` | `CDXString` | `native-semantic/value` | `verified` | `verified` | `verified` | A string that specifies the authority which issued a registry or catalog number. Some examples of registry authorities are CAS, Beilstein, Aldrich, and Merck. Official lexical/binary codec is available; value is editable. |
+| `0x000E` | `RepresentsProperty` | `CDXRepresentsProperty` | `native-semantic/value` | `verified` | `verified` | `verified` | Indicates that this object represents some property in some other object. Official lexical/binary codec is available; value is editable. |
+| `0x000F` | `IgnoreWarnings` | `CDXBooleanImplied` | `native-semantic/value` | `verified` | `verified` | `verified` | Signifies whether chemical warnings should be suppressed on this object. Official lexical/binary codec is available; value is editable. |
+| `0x0010` | `Warning` | `CDXString` | `native-semantic/value` | `verified` | `verified` | `verified` | A warning concerning possible chemical problems with this object. Official lexical/binary codec is available; value is editable. |
+| `0x0011` | `Visible` | `CDXBoolean` | `native-semantic/value` | `verified` | `verified` | `verified` | The object is visible if non-zero. Official lexical/binary codec is available; value is editable. |
 | `0x0012` | `SupersededBy` | `CDXObjectID` | `typed-interchange/value` | `verified` | `verified` | `verified` | The ID of the object that should be read instead of this one. Official lexical/binary codec is available; value is editable. |
 | `0x0100` | `fonttable` | `CDXFontTable` | `native-semantic/children` | `verified` | `verified` | `verified` | Required if fonts are used. A list of fonts used in the document. Edit structured font children and explicit native text styles. |
 | `0x0200` | `p` | `CDXPoint2D` | `typed-interchange/value` | `verified` | `verified` | `verified` | The 2D location (in the order of vertical and horizontal locations) of an object. Official lexical/binary codec is available; value is editable. |
@@ -124,7 +124,7 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x0431` | `BondOrdering` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | An ordering of the bonds to this node, used for stereocenters, fragments, and named alternative groups with more than one attachment. Official lexical/binary codec is available; value is editable. |
 | `0x0432` | `Attachments` | `CDXObjectIDArrayWithCounts` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for multi- and variable attached nodes. For multicenter attachment nodes or variable attachment nodes, a list of IDs of the nodes which are multiply or variably attached to this node. Official lexical/binary codec is available; value is editable. |
 | `0x0433` | `GenericNickname` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | The name of the generic nickname. Official lexical/binary codec is available; value is editable. |
-| `0x0434` | `AltGroupID` | `CDXObjectID` | `typed-interchange/value` | `verified` | `verified` | `verified` | The ID of the alternative group object that describes this node. Official lexical/binary codec is available; value is editable. |
+| `0x0434` | `AltGroupID` | `CDXObjectID` | `native-semantic/value` | `verified` | `verified` | `verified` | The ID of the alternative group object that describes this node. Official lexical/binary codec is available; value is editable. |
 | `0x0435` | `SubstituentsUpTo` | `UINT8` | `native-semantic/value` | `verified` | `verified` | `verified` | Indicates that substitution is restricted to no more than the specified value. Official lexical/binary codec is available; value is editable. |
 | `0x0436` | `SubstituentsExactly` | `UINT8` | `native-semantic/value` | `verified` | `verified` | `verified` | Indicates that exactly the specified number of substituents must be present. Official lexical/binary codec is available; value is editable. |
 | `0x0437` | `AS` | `INT8` | `native-semantic/value` | `verified` | `verified` | `verified` | The node's absolute stereochemistry according to the Cahn-Ingold-Prelog system. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
@@ -231,16 +231,16 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x0A21` | `AngularSize` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | The size of an arc (in degrees * 10, so 90 degrees = 900). Official lexical/binary codec is available; value is editable. |
 | `0x0A22` | `LipSize` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | The size of a bracket. Official lexical/binary codec is available; value is editable. |
 | `0x0A23` | `CurvePoints` | `CDXCurvePoints` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for curves. The B&eacute;zier curve's control point locations. Official lexical/binary codec is available; value is editable. |
-| `0x0A24` | `BracketUsage` | `INT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | The syntactical chemical meaning of the bracket (SRU, mer, mon, xlink, etc). This is an enumerated property. Official lexical/binary codec is available; value is editable. |
-| `0x0A25` | `PolymerRepeatPattern` | `INT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | The head-to-tail connectivity of objects contained within the bracket. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
-| `0x0A26` | `PolymerFlipType` | `INT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | The flip state of objects contained within the bracket. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
-| `0x0A27` | `BracketedObjectIDs` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | The set of objects contained in a BracketedGroup. Official lexical/binary codec is available; value is editable. |
-| `0x0A28` | `RepeatCount` | `FLOAT64` | `typed-interchange/value` | `verified` | `verified` | `verified` | The number of times a multiple-group BracketedGroup is repeated. Official lexical/binary codec is available; value is editable. |
-| `0x0A29` | `ComponentOrder` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | The component order associated with a BracketedGroup. Official lexical/binary codec is available; value is editable. |
-| `0x0A2A` | `SRULabel` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | The label associated with a BracketedGroup that represents an SRU. Official lexical/binary codec is available; value is editable. |
-| `0x0A2B` | `GraphicID` | `CDXObjectID` | `typed-interchange/value` | `verified` | `verified` | `verified` | The ID of a graphical object (bracket, brace, or parenthesis) associated with a Bracket Attachment. Official lexical/binary codec is available; value is editable. |
-| `0x0A2C` | `BondID` | `CDXObjectID` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required. The ID of a bond that crosses a Bracket Attachment. Official lexical/binary codec is available; value is editable. |
-| `0x0A2D` | `InnerAtomID` | `CDXObjectID` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required. The ID of the node located within the Bracketed Group and attached to a bond that crosses a Bracket Attachment. Official lexical/binary codec is available; value is editable. |
+| `0x0A24` | `BracketUsage` | `INT8` | `native-semantic/value` | `verified` | `verified` | `verified` | The syntactical chemical meaning of the bracket (SRU, mer, mon, xlink, etc). This is an enumerated property. Official lexical/binary codec is available; value is editable. |
+| `0x0A25` | `PolymerRepeatPattern` | `INT8` | `native-semantic/value` | `verified` | `verified` | `verified` | The head-to-tail connectivity of objects contained within the bracket. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
+| `0x0A26` | `PolymerFlipType` | `INT8` | `native-semantic/value` | `verified` | `verified` | `verified` | The flip state of objects contained within the bracket. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
+| `0x0A27` | `BracketedObjectIDs` | `CDXObjectIDArray` | `native-semantic/value` | `verified` | `verified` | `verified` | The set of objects contained in a BracketedGroup. Official lexical/binary codec is available; value is editable. |
+| `0x0A28` | `RepeatCount` | `FLOAT64` | `native-semantic/value` | `verified` | `verified` | `verified` | The number of times a multiple-group BracketedGroup is repeated. Official lexical/binary codec is available; value is editable. |
+| `0x0A29` | `ComponentOrder` | `INT16` | `native-semantic/value` | `verified` | `verified` | `verified` | The component order associated with a BracketedGroup. Official lexical/binary codec is available; value is editable. |
+| `0x0A2A` | `SRULabel` | `CDXString` | `native-semantic/value` | `verified` | `verified` | `verified` | The label associated with a BracketedGroup that represents an SRU. Official lexical/binary codec is available; value is editable. |
+| `0x0A2B` | `GraphicID` | `CDXObjectID` | `native-semantic/value` | `verified` | `verified` | `verified` | The ID of a graphical object (bracket, brace, or parenthesis) associated with a Bracket Attachment. Official lexical/binary codec is available; value is editable. |
+| `0x0A2C` | `BondID` | `CDXObjectID` | `native-semantic/value` | `verified` | `verified` | `verified` | Required. The ID of a bond that crosses a Bracket Attachment. Official lexical/binary codec is available; value is editable. |
+| `0x0A2D` | `InnerAtomID` | `CDXObjectID` | `native-semantic/value` | `verified` | `verified` | `verified` | Required. The ID of the node located within the Bracketed Group and attached to a bond that crosses a Bracket Attachment. Official lexical/binary codec is available; value is editable. |
 | `0x0A2E` | `CurvePoints3D` | `CDXCurvePoints3D` | `typed-interchange/value` | `verified` | `verified` | `verified` | The B&eacute;zier curve's control point locations in 3D space. Official lexical/binary codec is available; value is editable. |
 | `0x0A2F` | `ArrowHeadType` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | The type of arrowhead. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
 | `0x0A30` | `HeadCenterSize` | `UINT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | The size of the arrow's head from the tip to the back of the head. Official lexical/binary codec is available; value is editable. |
@@ -287,9 +287,9 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x0AB0` | `Rf` | `FLOAT64` | `typed-interchange/value` | `verified` | `verified` | `verified` | The Retention Factor (R f ) of an individual spot. Official lexical/binary codec is available; value is editable. |
 | `0x0AB1` | `Tail` | `CDXCoordinate` | `typed-interchange/value` | `verified` | `verified` | `verified` | The length of the "tail" of an individual spot. Official lexical/binary codec is available; value is editable. |
 | `0x0AB2` | `ShowRf` | `CDXBoolean` | `typed-interchange/value` | `verified` | `verified` | `verified` | Show the spot's Retention Fraction (R f ) value if non-zero.. Official lexical/binary codec is available; value is editable. |
-| `0x0B00` | `TextFrame` | `CDXRectangle` | `typed-interchange/value` | `verified` | `verified` | `verified` | The bounding box of upper portion of the Named Alternative Group, containing the name of the group. Official lexical/binary codec is available; value is editable. |
-| `0x0B01` | `GroupFrame` | `CDXRectangle` | `typed-interchange/value` | `verified` | `verified` | `verified` | The bounding box of the lower portion of the Named Alternative Group, containing the definition of the group. Official lexical/binary codec is available; value is editable. |
-| `0x0B02` | `Valence` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | The number of attachment points in each alternative in a named alternative group. Official lexical/binary codec is available; value is editable. |
+| `0x0B00` | `TextFrame` | `CDXRectangle` | `native-semantic/value` | `verified` | `verified` | `verified` | The bounding box of upper portion of the Named Alternative Group, containing the name of the group. Official lexical/binary codec is available; value is editable. |
+| `0x0B01` | `GroupFrame` | `CDXRectangle` | `native-semantic/value` | `verified` | `verified` | `verified` | The bounding box of the lower portion of the Named Alternative Group, containing the definition of the group. Official lexical/binary codec is available; value is editable. |
+| `0x0B02` | `Valence` | `INT16` | `native-semantic/value` | `verified` | `verified` | `verified` | The number of attachment points in each alternative in a named alternative group. Official lexical/binary codec is available; value is editable. |
 | `0x0B80` | `GeometricFeature` | `INT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | The type of the geometrical feature (point, line, plane, etc.). This is an enumerated property. Official lexical/binary codec is available; value is editable. |
 | `0x0B81` | `RelationValue` | `FLOAT64` | `typed-interchange/value` | `verified` | `verified` | `verified` | The numeric relationship (if any) among the basis objects used to define this object. Official lexical/binary codec is available; value is editable. |
 | `0x0B82` | `BasisObjects` | `CDXObjectIDArray` | `native-semantic/value` | `verified` | `verified` | `verified` | Required for geometries and constraints. An ordered list of objects used to define this object. Official lexical/binary codec is available; value is editable. |
@@ -302,27 +302,27 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x0BB0` | `ChemicalPropertyType` | `UINT32` | `native-semantic/value` | `verified` | `verified` | `verified` | The type of property (name, formula, molecular weight, etc.). This is an enumerated property. Official lexical/binary codec is available; value is editable. |
 | `0x0BB1` | `ChemicalPropertyDisplayID` | `CDXObjectID` | `native-semantic/value` | `verified` | `verified` | `verified` | The ID of a graphical object used to display the property value. Official lexical/binary codec is available; value is editable. |
 | `0x0BB2` | `ChemicalPropertyIsActive` | `CDXBoolean` | `native-semantic/value` | `verified` | `verified` | `verified` | Whether the property should be recalculated in response to changes in the basis objects. Official lexical/binary codec is available; value is editable. |
-| `0x0C00` | `ReactionStepAtomMap` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | Represents pairs of mapped atom IDs; each pair is a reactant atom mapped to to a product atom. Official lexical/binary codec is available; value is editable. |
-| `0x0C01` | `ReactionStepReactants` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | An order list of reactants present in the Reaction Step. Official lexical/binary codec is available; value is editable. |
-| `0x0C02` | `ReactionStepProducts` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | An order list of products present in the Reaction Step. Official lexical/binary codec is available; value is editable. |
-| `0x0C03` | `ReactionStepPlusses` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | An ordered list of pluses used to separate components of the Reaction Step. Official lexical/binary codec is available; value is editable. |
-| `0x0C04` | `ReactionStepArrows` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | An ordered list of arrows used to separate components of the Reaction Step. Official lexical/binary codec is available; value is editable. |
-| `0x0C05` | `ReactionStepObjectsAboveArrow` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | An order list of objects above the arrow in the Reaction Step. Official lexical/binary codec is available; value is editable. |
-| `0x0C06` | `ReactionStepObjectsBelowArrow` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | An order list of objects below the arrow in the Reaction Step. Official lexical/binary codec is available; value is editable. |
-| `0x0C07` | `ReactionStepAtomMapManual` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | Represents pairs of mapped atom IDs; each pair is a reactant atom mapped to to a product atom. Official lexical/binary codec is available; value is editable. |
-| `0x0C08` | `ReactionStepAtomMapAuto` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | Represents pairs of mapped atom IDs; each pair is a reactant atom mapped to to a product atom. Official lexical/binary codec is available; value is editable. |
-| `0x0D00` | `TagType` | `INT16` | `typed-interchange/value` | `verified` | `verified` | `verified` | The tag's data type. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
-| `0x0D03` | `Tracking` | `CDXBoolean` | `typed-interchange/value` | `verified` | `verified` | `verified` | The tag will participate in tracking if non-zero. Official lexical/binary codec is available; value is editable. |
-| `0x0D04` | `Persistent` | `CDXBoolean` | `typed-interchange/value` | `verified` | `verified` | `verified` | The tag will be resaved to a CDX file if non-zero. Official lexical/binary codec is available; value is editable. |
-| `0x0D05` | `Value` | `varies` | `context-dependent-interchange/rawBase64` | `verified` | `verified` | `verified` | The value is a INT32, FLOAT64 or unformatted string depending on the value of ObjectTag_Type. Decode according to the containing object tag's TagType; rawBase64 remains authoritative. |
-| `0x0D06` | `PositioningType` | `INT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | How the object should be positioned with respect to its containing object. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
-| `0x0D07` | `PositioningAngle` | `INT32` | `typed-interchange/value` | `verified` | `verified` | `verified` | Angular positioning, in degrees * 65536. Official lexical/binary codec is available; value is editable. |
-| `0x0D08` | `PositioningOffset` | `CDXPoint2D` | `typed-interchange/value` | `verified` | `verified` | `verified` | Offset positioning. Official lexical/binary codec is available; value is editable. |
-| `0x0E00` | `SequenceIdentifier` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for sequences. A unique (but otherwise random) identifier for a given Sequence object. Official lexical/binary codec is available; value is editable. |
-| `0x0F00` | `CrossReferenceContainer` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | An external object containing (as an embedded object) the document containing the Sequence object being referenced. Official lexical/binary codec is available; value is editable. |
-| `0x0F01` | `CrossReferenceDocument` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | An external document containing the Sequence object being referenced. Official lexical/binary codec is available; value is editable. |
-| `0x0F02` | `CrossReferenceIdentifier` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for cross-references.. A unique (but otherwise random) identifier for a given Cross-Reference object. Official lexical/binary codec is available; value is editable. |
-| `0x0F03` | `CrossReferenceSequence` | `CDXString` | `typed-interchange/value` | `verified` | `verified` | `verified` | Required for cross-references.. A value matching the SequenceIdentifier of the Sequence object to be referenced. Official lexical/binary codec is available; value is editable. |
+| `0x0C00` | `ReactionStepAtomMap` | `CDXObjectIDArray` | `native-semantic/value` | `verified` | `verified` | `verified` | Represents pairs of mapped atom IDs; each pair is a reactant atom mapped to to a product atom. Official lexical/binary codec is available; value is editable. |
+| `0x0C01` | `ReactionStepReactants` | `CDXObjectIDArray` | `native-semantic/value` | `verified` | `verified` | `verified` | An order list of reactants present in the Reaction Step. Official lexical/binary codec is available; value is editable. |
+| `0x0C02` | `ReactionStepProducts` | `CDXObjectIDArray` | `native-semantic/value` | `verified` | `verified` | `verified` | An order list of products present in the Reaction Step. Official lexical/binary codec is available; value is editable. |
+| `0x0C03` | `ReactionStepPlusses` | `CDXObjectIDArray` | `native-semantic/value` | `verified` | `verified` | `verified` | An ordered list of pluses used to separate components of the Reaction Step. Official lexical/binary codec is available; value is editable. |
+| `0x0C04` | `ReactionStepArrows` | `CDXObjectIDArray` | `native-semantic/value` | `verified` | `verified` | `verified` | An ordered list of arrows used to separate components of the Reaction Step. Official lexical/binary codec is available; value is editable. |
+| `0x0C05` | `ReactionStepObjectsAboveArrow` | `CDXObjectIDArray` | `native-semantic/value` | `verified` | `verified` | `verified` | An order list of objects above the arrow in the Reaction Step. Official lexical/binary codec is available; value is editable. |
+| `0x0C06` | `ReactionStepObjectsBelowArrow` | `CDXObjectIDArray` | `native-semantic/value` | `verified` | `verified` | `verified` | An order list of objects below the arrow in the Reaction Step. Official lexical/binary codec is available; value is editable. |
+| `0x0C07` | `ReactionStepAtomMapManual` | `CDXObjectIDArray` | `native-semantic/value` | `verified` | `verified` | `verified` | Represents pairs of mapped atom IDs; each pair is a reactant atom mapped to to a product atom. Official lexical/binary codec is available; value is editable. |
+| `0x0C08` | `ReactionStepAtomMapAuto` | `CDXObjectIDArray` | `native-semantic/value` | `verified` | `verified` | `verified` | Represents pairs of mapped atom IDs; each pair is a reactant atom mapped to to a product atom. Official lexical/binary codec is available; value is editable. |
+| `0x0D00` | `TagType` | `INT16` | `native-semantic/value` | `verified` | `verified` | `verified` | The tag's data type. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
+| `0x0D03` | `Tracking` | `CDXBoolean` | `native-semantic/value` | `verified` | `verified` | `verified` | The tag will participate in tracking if non-zero. Official lexical/binary codec is available; value is editable. |
+| `0x0D04` | `Persistent` | `CDXBoolean` | `native-semantic/value` | `verified` | `verified` | `verified` | The tag will be resaved to a CDX file if non-zero. Official lexical/binary codec is available; value is editable. |
+| `0x0D05` | `Value` | `varies` | `native-semantic/value` | `verified` | `verified` | `verified` | The value is a INT32, FLOAT64 or unformatted string depending on the value of ObjectTag_Type. Decode and edit the explicit native value according to the containing ObjectTag TagType. |
+| `0x0D06` | `PositioningType` | `INT8` | `native-semantic/value` | `verified` | `verified` | `verified` | How the object should be positioned with respect to its containing object. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
+| `0x0D07` | `PositioningAngle` | `INT32` | `native-semantic/value` | `verified` | `verified` | `verified` | Angular positioning, in degrees * 65536. Official lexical/binary codec is available; value is editable. |
+| `0x0D08` | `PositioningOffset` | `CDXPoint2D` | `native-semantic/value` | `verified` | `verified` | `verified` | Offset positioning. Official lexical/binary codec is available; value is editable. |
+| `0x0E00` | `SequenceIdentifier` | `CDXString` | `native-semantic/value` | `verified` | `verified` | `verified` | Required for sequences. A unique (but otherwise random) identifier for a given Sequence object. Official lexical/binary codec is available; value is editable. |
+| `0x0F00` | `CrossReferenceContainer` | `CDXString` | `native-semantic/value` | `verified` | `verified` | `verified` | An external object containing (as an embedded object) the document containing the Sequence object being referenced. Official lexical/binary codec is available; value is editable. |
+| `0x0F01` | `CrossReferenceDocument` | `CDXString` | `native-semantic/value` | `verified` | `verified` | `verified` | An external document containing the Sequence object being referenced. Official lexical/binary codec is available; value is editable. |
+| `0x0F02` | `CrossReferenceIdentifier` | `CDXString` | `native-semantic/value` | `verified` | `verified` | `verified` | Required for cross-references.. A unique (but otherwise random) identifier for a given Cross-Reference object. Official lexical/binary codec is available; value is editable. |
+| `0x0F03` | `CrossReferenceSequence` | `CDXString` | `native-semantic/value` | `verified` | `verified` | `verified` | Required for cross-references.. A value matching the SequenceIdentifier of the Sequence object to be referenced. Official lexical/binary codec is available; value is editable. |
 | `0x1000` | `PaneHeight` | `CDXCoordinate` | `native-semantic/value` | `verified` | `verified` | `verified` | Required for templategrids. The height of the viewing window of a template grid. TemplateGrid pane height is decoded as official 16.16 CDXCoordinate and edited through the native layout model. |
 | `0x1001` | `NumRows` | `INT16` | `native-semantic/value` | `verified` | `verified` | `verified` | Required for templategrids. The number of rows of the CDX TemplateGrid object. TemplateGrid dimension is validated and edited through the native layout model. |
 | `0x1002` | `NumColumns` | `INT16` | `native-semantic/value` | `verified` | `verified` | `verified` | Required for templategrids. The number of columns of the CDX TemplateGrid object. TemplateGrid dimension is validated and edited through the native layout model. |
@@ -395,15 +395,15 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `alpha` | 25 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `BoundingBox` | 21 | `native-semantic` | `verified` | `verified` | `verified` |
 | `color` | 27 | `native-semantic` | `verified` | `verified` | `verified` |
-| `GroupFrame` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `GroupFrame` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `id` | 45 | `native-semantic` | `verified` | `verified` | `verified` |
-| `IgnoreWarnings` | 8 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `IgnoreWarnings` | 8 | `native-semantic` | `verified` | `verified` | `verified` |
 | `p` | 7 | `native-semantic` | `verified` | `verified` | `verified` |
 | `SupersededBy` | 17 | `native-semantic` | `verified` | `verified` | `verified` |
-| `TextFrame` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `Valence` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `Visible` | 21 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `Warning` | 8 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `TextFrame` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `Valence` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `Visible` | 21 | `native-semantic` | `verified` | `verified` | `verified` |
+| `Warning` | 8 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Z` | 25 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Content` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Keyword` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
@@ -451,10 +451,10 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `E` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `EndAttach` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `EndExternalNum` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `LabelFace` | 10 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `LabelFont` | 10 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `LabelSize` | 10 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `MarginWidth` | 8 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `LabelFace` | 10 | `native-semantic` | `verified` | `verified` | `verified` |
+| `LabelFont` | 10 | `native-semantic` | `verified` | `verified` | `verified` |
+| `LabelSize` | 10 | `native-semantic` | `verified` | `verified` | `verified` |
+| `MarginWidth` | 8 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Order` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `RxnParticipation` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `ShowBondQuery` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
@@ -490,14 +490,14 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `PipeWidth` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `xyz` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `Side` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `GraphicID` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `BracketedObjectIDs` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `BracketUsage` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ComponentOrder` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `PolymerFlipType` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `PolymerRepeatPattern` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `RepeatCount` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `SRULabel` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `GraphicID` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `BracketedObjectIDs` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `BracketUsage` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ComponentOrder` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `PolymerFlipType` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
+| `PolymerRepeatPattern` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
+| `RepeatCount` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `SRULabel` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `AminoAcidTermini` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `bgalpha` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `bgcolor` | 3 | `native-semantic` | `verified` | `verified` | `verified` |
@@ -574,9 +574,9 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `ChemicalPropertyIsActive` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `ChemicalPropertyType` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `ExternalBonds` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `PositioningAngle` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `PositioningOffset` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `PositioningType` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `PositioningAngle` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
+| `PositioningOffset` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
+| `PositioningType` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
 | `b` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `g` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `r` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
@@ -586,12 +586,12 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `DihedralIsChiral` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `IgnoreUnconnectedAtoms` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `PointIsDirected` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `BondID` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `InnerAtomID` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `CrossReferenceContainer` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `CrossReferenceDocument` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `CrossReferenceIdentifier` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `CrossReferenceSequence` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `BondID` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `InnerAtomID` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `CrossReferenceContainer` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `CrossReferenceDocument` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `CrossReferenceIdentifier` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `CrossReferenceSequence` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Closed` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `CurvePoints` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `CurvePoints3D` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
@@ -658,14 +658,14 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `ShadowSize` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `SymbolType` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `Integral` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `DisplayName` | 3 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `DisplayName` | 3 | `native-semantic` | `verified` | `verified` | `verified` |
 | `MarkerAngle` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `MarkerOffset` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `Persistent` | 3 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `TagType` | 3 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `Persistent` | 3 | `native-semantic` | `verified` | `verified` | `verified` |
+| `TagType` | 3 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Value` | 3 | `native-semantic` | `verified` | `verified` | `verified` |
 | `AbnormalValence` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
-| `AltGroupID` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `AltGroupID` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `AS` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `AtomID` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `AtomNumber` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
@@ -702,7 +702,7 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `SubstituentsUpTo` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Translation` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `UnsaturatedBonds` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
-| `Tracking` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `Tracking` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `BoundsInParent` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `DrawingSpace` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Footer` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
@@ -720,10 +720,10 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `RegionEnd` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `RegionOffset` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `RegionStart` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `RegistryAuthority` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `RegistryNumber` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `attribute` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `object` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `RegistryAuthority` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `RegistryNumber` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `attribute` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `object` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `LineHeight` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
 | `RLogicGroup` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `RLogicIfThenGroup` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
@@ -732,16 +732,16 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `face` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `font` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `size` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
-| `SequenceIdentifier` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ComponentIsHeader` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ComponentIsReactant` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ComponentReferenceID` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `IsEdited` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `IsHidden` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `IsReadOnly` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `SGDataType` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `SGDataValue` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `SGPropertyType` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `SequenceIdentifier` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ComponentIsHeader` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ComponentIsReactant` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ComponentReferenceID` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `IsEdited` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `IsHidden` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `IsReadOnly` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `SGDataType` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `SGDataValue` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `SGPropertyType` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Class` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `XAxisLabel` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `XLow` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
@@ -751,15 +751,15 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `YLow` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `YScale` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
 | `YType` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ReactionStepArrows` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ReactionStepAtomMap` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ReactionStepAtomMapAuto` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ReactionStepAtomMapManual` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ReactionStepObjectsAboveArrow` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ReactionStepObjectsBelowArrow` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ReactionStepPlusses` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ReactionStepProducts` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
-| `ReactionStepReactants` | 1 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `ReactionStepArrows` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ReactionStepAtomMap` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ReactionStepAtomMapAuto` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ReactionStepAtomMapManual` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ReactionStepObjectsAboveArrow` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ReactionStepObjectsBelowArrow` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ReactionStepPlusses` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ReactionStepProducts` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
+| `ReactionStepReactants` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `Justification` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `LabelAlignment` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `LineStarts` | 1 | `native-semantic` | `verified` | `verified` | `verified` |

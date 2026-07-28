@@ -1075,6 +1075,14 @@ class TauriEngineSession {
     return this.invoke("desktop_engine_context_menu_json", { sessionId: this.sessionId, hitJson, hasPaste });
   }
 
+  async logicalObjectsDialogJson() {
+    await this.ready();
+    if (this.layoutEngine?.logicalObjectsDialogJson) {
+      return this.layoutEngine.logicalObjectsDialogJson();
+    }
+    return this.invoke("desktop_engine_logical_objects_dialog_json", { sessionId: this.sessionId });
+  }
+
   selectionContainsPoint(x, y) {
     const state = safeJsonParse(this.cache.stateJson, null);
     if (!state?.selection) {

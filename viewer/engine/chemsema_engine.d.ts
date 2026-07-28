@@ -56,6 +56,7 @@ export class WasmEngine {
     contextMenuJson(hit_json: string, has_paste: boolean): string;
     copySelection(): boolean;
     cutSelection(): boolean;
+    deleteLogicalObject(kind: string, id: string): boolean;
     deleteSelectedChemicalProperty(): boolean;
     deleteSelection(): boolean;
     documentCdx(): Uint8Array;
@@ -89,6 +90,8 @@ export class WasmEngine {
     loadDocumentCdxml(cdxml: string): void;
     loadDocumentJson(json: string): void;
     loadDocumentSdf(sdf: string): void;
+    logicalObjectsDialogJson(): string;
+    logicalObjectsJson(): string;
     constructor();
     nmrPredictionRequestJson(nucleus: string): string;
     nmrResultDocumentJson(response_json: string): string;
@@ -112,6 +115,7 @@ export class WasmEngine {
     renderBoundsJson(scope: string): string;
     renderListJson(): string;
     renderTargetsJson(request_json: string): string;
+    reorderLogicalObject(kind: string, id: string, index: number): boolean;
     replaceHoveredEndpointLabel(label: string): boolean;
     revision(): bigint;
     rotateSelectionDegrees(degrees: number): boolean;
@@ -137,6 +141,7 @@ export class WasmEngine {
     setDocumentStylePreset(preset: string): void;
     setElementOptions(symbol: string, atomic_number: number): void;
     setLinkPolicyForSelection(policy: string): boolean;
+    setLogicalObjectJson(kind: string, value_json: string): boolean;
     setOrbitalOptions(template: string, style: string, phase: string, color: string): void;
     setShapeOptions(kind: string, style: string, color: string): void;
     setSymbolOptions(kind: string): void;
@@ -223,6 +228,7 @@ export interface InitOutput {
     readonly wasmengine_contextMenuJson: (a: number, b: number, c: number, d: number) => [number, number];
     readonly wasmengine_copySelection: (a: number) => number;
     readonly wasmengine_cutSelection: (a: number) => number;
+    readonly wasmengine_deleteLogicalObject: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmengine_deleteSelectedChemicalProperty: (a: number) => number;
     readonly wasmengine_deleteSelection: (a: number) => number;
     readonly wasmengine_documentCdx: (a: number) => [number, number, number, number];
@@ -256,6 +262,8 @@ export interface InitOutput {
     readonly wasmengine_loadDocumentCdxml: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_loadDocumentJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_loadDocumentSdf: (a: number, b: number, c: number) => [number, number];
+    readonly wasmengine_logicalObjectsDialogJson: (a: number) => [number, number, number, number];
+    readonly wasmengine_logicalObjectsJson: (a: number) => [number, number, number, number];
     readonly wasmengine_new: () => number;
     readonly wasmengine_nmrPredictionRequestJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_nmrResultDocumentJson: (a: number, b: number, c: number) => [number, number, number, number];
@@ -279,6 +287,7 @@ export interface InitOutput {
     readonly wasmengine_renderBoundsJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_renderListJson: (a: number) => [number, number, number, number];
     readonly wasmengine_renderTargetsJson: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly wasmengine_reorderLogicalObject: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
     readonly wasmengine_replaceHoveredEndpointLabel: (a: number, b: number, c: number) => number;
     readonly wasmengine_revision: (a: number) => bigint;
     readonly wasmengine_rotateSelectionDegrees: (a: number, b: number) => number;
@@ -304,6 +313,7 @@ export interface InitOutput {
     readonly wasmengine_setDocumentStylePreset: (a: number, b: number, c: number) => void;
     readonly wasmengine_setElementOptions: (a: number, b: number, c: number, d: number) => void;
     readonly wasmengine_setLinkPolicyForSelection: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmengine_setLogicalObjectJson: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmengine_setOrbitalOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
     readonly wasmengine_setShapeOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly wasmengine_setSymbolOptions: (a: number, b: number, c: number) => void;

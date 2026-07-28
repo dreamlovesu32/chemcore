@@ -617,6 +617,10 @@ impl Engine {
             let changed = self.execute_relationship_command(command);
             return Ok(self.completed_command_result(changed));
         }
+        if editor_command_is_logical_object(&command) {
+            let changed = self.execute_logical_object_command(command)?;
+            return Ok(self.completed_command_result(changed));
+        }
         if editor_command_is_style(&command) {
             let changed = self.execute_style_command(command);
             return Ok(self.completed_command_result(changed));
@@ -817,6 +821,11 @@ impl Engine {
             }
             EditorCommand::CreateAnnotation { .. } | EditorCommand::UpdateAnnotation { .. } => {
                 unreachable!("relationship commands are dispatched before the main match")
+            }
+            EditorCommand::SetLogicalObject { .. }
+            | EditorCommand::DeleteLogicalObject { .. }
+            | EditorCommand::ReorderLogicalObject { .. } => {
+                unreachable!("logical-object commands are dispatched before the main match")
             }
             EditorCommand::ExpandLabelsInSelection => self.expand_labels_in_selection(),
             EditorCommand::CenterSelectionOnPage => self.center_selection_on_page(),

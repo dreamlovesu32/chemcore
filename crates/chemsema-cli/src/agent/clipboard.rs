@@ -235,6 +235,7 @@ fn editable_document_for_selection(
     if out.objects.is_empty() {
         return Err("Selection did not resolve to any exportable object.".to_string());
     }
+    prune_logical_objects_for_subset(&mut out);
     Ok(out)
 }
 
@@ -343,6 +344,7 @@ pub(super) fn clipboard_document_for_object(
     out.objects = objects;
     out.reaction_schemes.clear();
     freeze_stoichiometry_grids_for_subset(&mut out.objects);
+    prune_logical_objects_for_subset(&mut out);
     Ok(out)
 }
 
@@ -432,6 +434,7 @@ pub(super) fn clipboard_document_for_fragment_target(
         out.reaction_schemes.clear();
         freeze_stoichiometry_grids_for_subset(&mut out.objects);
         out.resources.insert(resource_ref, resource);
+        prune_logical_objects_for_subset(&mut out);
         return Ok(out);
     }
     match (node_id, bond_id) {
@@ -439,6 +442,25 @@ pub(super) fn clipboard_document_for_fragment_target(
         (_, Some(id)) => Err(format!("Bond target not found: {id}.")),
         _ => Err("No fragment target was provided.".to_string()),
     }
+}
+
+fn prune_logical_objects_for_subset(document: &mut ChemSemaDocument) {
+    let selected_entity_ids = document
+        .scene_objects()
+        .into_iter()
+        .map(|object| object.id.clone())
+        .chain(document.editable_fragments().into_iter().flat_map(|entry| {
+            entry
+                .fragment
+                .nodes
+                .iter()
+                .map(|node| node.id.clone())
+                .chain(entry.fragment.bonds.iter().map(|bond| bond.id.clone()))
+        }))
+        .collect::<BTreeSet<_>>();
+    document.logical_objects = document
+        .logical_objects
+        .subset_for_entities(&selected_entity_ids);
 }
 
 fn freeze_stoichiometry_grids_for_subset(objects: &mut [SceneObject]) {

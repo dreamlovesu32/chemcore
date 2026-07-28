@@ -259,6 +259,8 @@ impl Engine {
             separator(),
             item("Insert Image...", "insert-image", ""),
             item("From SMILES...", "smiles-dialog", ""),
+            separator(),
+            item("Logical Objects...", "logical-objects-dialog", ""),
         ]);
         items
     }
@@ -288,7 +290,11 @@ impl Engine {
 
     fn append_selection_relationship_items(&self, items: &mut Vec<JsonValue>) {
         if !self.state.selection.is_empty() {
-            items.extend([separator(), self.link_menu()]);
+            items.extend([
+                separator(),
+                self.link_menu(),
+                item("Logical Objects...", "logical-objects-dialog", ""),
+            ]);
         }
     }
 

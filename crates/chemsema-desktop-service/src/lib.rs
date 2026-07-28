@@ -390,7 +390,7 @@ impl DesktopDocumentService {
         line_type: &str,
         color: &str,
     ) -> Result<(), String> {
-        let bio_draw_kind = parse_bio_draw_kind(kind)?;
+        let bio_draw_kind = kind.parse::<BioDrawKind>()?;
         let bio_shape_fill_type = parse_bio_shape_fill_type(fill_type)?;
         let bio_shape_line_type = parse_bio_shape_line_type(line_type)?;
         let session = self.session_mut(session_id)?;
@@ -783,6 +783,10 @@ impl DesktopDocumentService {
         Ok(self
             .session(session_id)?
             .context_menu_json(hit_json, has_paste))
+    }
+
+    pub fn logical_objects_dialog_json(&self, session_id: SessionId) -> Result<String, String> {
+        self.session(session_id)?.logical_objects_dialog_json()
     }
 
     pub fn selection_contains_point(

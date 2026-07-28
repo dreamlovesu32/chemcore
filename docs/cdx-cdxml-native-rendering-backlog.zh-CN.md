@@ -47,7 +47,7 @@
 | 14 | `NR-014` | BioShape/BioDraw 对象 | 完成 | 完成 | 校准中 | 完成 | [ ] |
 | 15 | `NR-015` | TemplateGrid | 完成 | 完成 | 完成 | 完成 | [x] |
 | 16 | `NR-016` | 文档页眉、页脚和分页布局 | 完成 | 部分 | 未做 | 部分 | [ ] |
-| 17 | `NR-017` | 逻辑对象的原生语义编辑 | 完成 | 部分 | 不适用/部分 | 部分 | [ ] |
+| 17 | `NR-017` | 逻辑对象的原生语义编辑 | 完成 | 完成 | 不适用 | 完成 | [x] |
 | 18 | `NR-018` | 旧式复合载荷预览与图片裁剪 | 完成 | 部分 | 部分 | 完成 | [ ] |
 
 ## 逐项范围与验收
@@ -339,7 +339,7 @@
 
 **完成说明**：规则、字段作用域、页面锚点、四向补页、纸张视图、完整参数对话框、CDX/CDXML/CCJS 往返和多页 PDF 门禁见 [`document-layout-rules.zh-CN.md`](document-layout-rules.zh-CN.md)。SVG、EMF 和 Office 预览保持明确的单画布/单对象语义，不用分页 PDF 行为隐式替代。
 
-### [ ] NR-017 逻辑对象的原生语义编辑
+### [x] NR-017 逻辑对象的原生语义编辑
 
 **范围**：`scheme/step`、`altgroup`、`bracketattachment/crossingbond/represent`、`sequence/crossreference`、`objecttag/annotation`、`regnum`、`splitter`。
 
@@ -348,6 +348,14 @@
 **目标**：把对象关系、引用完整性和编辑操作纳入原生模型；不强行给纯逻辑对象增加图形。
 
 **验收**：创建、修改、删除和重排时引用保持一致；CDX/CDXML 往返稳定；需要影响布局或显示的字段有对应回归测试。
+
+**2026-07-28 进展**：
+
+- 已建立来源无关的 `reactionSchemes` 与 `logicalObjects` 原生模型，覆盖 Scheme/Step、Alternative Group、Bracketed Group/Attachment/Crossing Bond、Sequence/Cross Reference、ObjectTag、Annotation、Registry Number 和 Representation；Splitter 归入文档布局模型。
+- 已增加统一 set/delete/reorder 命令、引用校验、undo/redo、删除清理、完整选择复制粘贴和跨标签 id 重映射。
+- Reaction 已接入 Link Auto：普通反应箭头按局部轴生成 typed inferred Step；机制曲箭和无箭头端点的线明确排除；显式 Link/Unlink 覆盖 Auto。
+- CDXML/CDX 导入导出由原生模型重建，标准 source id 稳定复用；字段总账已把对应对象和字段提升为 `native-semantic`。
+- 浏览器和桌面右键 `Logical Objects...` 提供内核驱动的完整属性管理器。实现与门禁规则见 [`logical-object-native-model.zh-CN.md`](logical-object-native-model.zh-CN.md)。
 
 ### [ ] NR-018 旧式复合载荷预览与图片裁剪
 

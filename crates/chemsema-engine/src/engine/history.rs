@@ -118,6 +118,7 @@ impl Engine {
             self.mark_moved_analysis_captions_fixed(&command);
             self.mark_changed_chemical_properties_stale(&chemical_property_fingerprints);
             self.reconcile_links_after_document_change();
+            self.reconcile_logical_relations_after_document_change();
             let delta_scope = self.command_delta_scope(&command);
             if self.command_needs_repeating_unit_refresh(&command, delta_scope) {
                 refresh_repeating_units(&mut self.state.document);

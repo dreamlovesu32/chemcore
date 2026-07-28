@@ -558,6 +558,15 @@ pub(crate) fn desktop_engine_context_menu_json(
 }
 
 #[tauri::command]
+pub(crate) fn desktop_engine_logical_objects_dialog_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<String, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.logical_objects_dialog_json(session_id)
+}
+
+#[tauri::command]
 pub(crate) fn desktop_engine_selection_contains_point(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
