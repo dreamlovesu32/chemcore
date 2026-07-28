@@ -259,9 +259,17 @@ pub(super) fn merge_interchange_tree(
                 // IDs. They can therefore be renumbered even inside the same
                 // matched fragment and must retain ordered matching there.
                 None
+            } else if matches!(source_child.name.as_str(), "n" | "b") {
+                remaining.iter().position(|candidate| {
+                    source_child.name == candidate.name
+                        && !source
+                            .children
+                            .iter()
+                            .any(|peer| interchange_xml_exact_match(peer, candidate))
+                })
             } else if matches!(
                 source_child.name.as_str(),
-                "page" | "fragment" | "n" | "b" | "t" | "s" | "group"
+                "page" | "fragment" | "t" | "s" | "group"
             ) {
                 remaining
                     .iter()
@@ -607,7 +615,7 @@ mod tests {
     fn renumbered_fragment_matches_only_by_unique_direct_graph_shape() {
         let source_xml = crate::cdxml::parse_xml_tree(
             r#"<page><fragment id="3" SourceTag="kept">
-                <n id="2" p="10 10"/><n id="4" p="20 10"/>
+                <n id="2" p="10 10" SourceNodeTag="kept"/><n id="4" p="20 10"/>
                 <n id="6" p="20 20"/><n id="8" p="30 10"/>
                 <b id="5" B="2" E="4"/><b id="7" B="4" E="6"/><b id="9" B="4" E="8"/>
             </fragment></page>"#,
@@ -644,6 +652,75 @@ mod tests {
                 .filter(|child| child.name == "n")
                 .count(),
             4
+        );
+        assert_eq!(
+            fragments[0]
+                .children
+                .iter()
+                .find(|child| child.attr("id") == Some("28"))
+                .and_then(|child| child.attr("SourceNodeTag")),
+            Some("kept")
+        );
+    }
+
+    #[test]
+    fn unmatched_graph_child_cannot_consume_a_later_exact_identity() {
+        let source_xml = crate::cdxml::parse_xml_tree(
+            r#"<page><fragment id="3">
+                <n id="invalid-source-id" SourceNodeTag="unmodeled"/>
+                <n id="4" p="20 10" SourceNodeTag="exact"/>
+                <b id="invalid-bond-id" B="missing" E="4"/>
+                <b id="5" B="4" E="4" SourceBondTag="exact"/>
+            </fragment></page>"#,
+        )
+        .expect("source XML parses");
+        let source = crate::cdxml::interchange_object_from_xml(&source_xml);
+        let mut generated = crate::cdxml::parse_xml_tree(
+            r#"<page><fragment id="3">
+                <n id="4" p="20 10"/>
+                <b id="5" B="4" E="4"/>
+            </fragment></page>"#,
+        )
+        .expect("generated XML parses");
+
+        merge_interchange_tree(&mut generated, &source);
+
+        let fragment = generated
+            .children
+            .iter()
+            .find(|child| child.attr("id") == Some("3"))
+            .expect("fragment remains");
+        assert_eq!(
+            fragment
+                .children
+                .iter()
+                .filter(|child| child.attr("id") == Some("4"))
+                .count(),
+            1
+        );
+        assert_eq!(
+            fragment
+                .children
+                .iter()
+                .find(|child| child.attr("id") == Some("4"))
+                .and_then(|child| child.attr("SourceNodeTag")),
+            Some("exact")
+        );
+        assert_eq!(
+            fragment
+                .children
+                .iter()
+                .filter(|child| child.attr("id") == Some("5"))
+                .count(),
+            1
+        );
+        assert_eq!(
+            fragment
+                .children
+                .iter()
+                .find(|child| child.attr("id") == Some("5"))
+                .and_then(|child| child.attr("SourceBondTag")),
+            Some("exact")
         );
     }
 

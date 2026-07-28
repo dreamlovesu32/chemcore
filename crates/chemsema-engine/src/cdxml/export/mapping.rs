@@ -6,7 +6,7 @@ pub(super) fn cdxml_node_label_alignment(label: &NodeLabel) -> &'static str {
     } else if label.layout.as_deref() == Some("attached-group-below") {
         "Below"
     } else if label.layout.as_deref() == Some("attached-group-center") {
-        "Right"
+        "Center"
     } else {
         "Auto"
     }

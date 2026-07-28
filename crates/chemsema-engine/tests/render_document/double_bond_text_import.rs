@@ -1238,6 +1238,52 @@ fn parse_cdxml_centered_multichar_label_uses_internal_center_anchor() {
 }
 
 #[test]
+fn inferred_centered_label_exports_center_alignment_without_becoming_right_aligned() {
+    let cdxml = r#"<CDXML BondLength="14.4" LabelSize="10">
+      <page id="1">
+        <fragment id="2">
+          <n id="3" p="30 20">
+            <t p="30 20" Justification="Center"><s font="3" size="10">CH4</s></t>
+          </n>
+        </fragment>
+      </page>
+    </CDXML>"#;
+    let document =
+        parse_cdxml_document(cdxml, Some("inferred centered label")).expect("CDXML parses");
+    let imported_label = document
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .and_then(|fragment| fragment.nodes.first())
+        .and_then(|node| node.label.as_ref())
+        .expect("label imports");
+    assert_eq!(imported_label.align.as_deref(), Some("center"));
+    assert_eq!(
+        imported_label.layout.as_deref(),
+        Some("attached-group-center")
+    );
+    assert_eq!(
+        imported_label.meta.pointer("/import/cdxml/labelAlignment"),
+        Some(&json!(null))
+    );
+
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("LabelAlignment=\"Center\""), "{exported}");
+    assert!(!exported.contains("LabelAlignment=\"Right\""), "{exported}");
+    let reopened =
+        parse_cdxml_document(&exported, Some("reopened centered label")).expect("export reopens");
+    let reopened_label = reopened
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .and_then(|fragment| fragment.nodes.first())
+        .and_then(|node| node.label.as_ref())
+        .expect("label reopens");
+    assert_eq!(reopened_label.align.as_deref(), Some("center"));
+    assert_eq!(reopened_label.anchor.as_deref(), Some("middle"));
+}
+
+#[test]
 fn parse_cdxml_inferred_centered_metal_label_uses_the_same_baseline_as_neighboring_atoms() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE CDXML SYSTEM="http://www.cambridgesoft.com/xml/cdxml.dtd" >

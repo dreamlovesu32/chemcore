@@ -3296,6 +3296,45 @@ impl<'a> CdxmlDocumentWriter<'a> {
             "curly" => "Curly",
             _ => "Round",
         };
+        if object
+            .payload
+            .extra
+            .get("orientation")
+            .and_then(Value::as_str)
+            == Some("horizontal")
+        {
+            // Horizontal brackets use the same native payload as a vertical
+            // side, rotated by -90 degrees. Reconstruct the authored
+            // horizontal endpoints from that live transform instead of
+            // serializing the unrotated local box as an unmatched vertical
+            // side.
+            let length = height;
+            let depth = width;
+            let min_x = object.transform.translate[0] + x - (length - depth) * 0.5;
+            let baseline_y = object.transform.translate[1] + y + (length - depth) * 0.5;
+            let mut attrs = vec![
+                ("id", self.object_cdxml_id(object)),
+                ("GraphicType", "Bracket".to_string()),
+                ("BracketType", bracket_type.to_string()),
+                ("color", color_id),
+                (
+                    "BoundingBox",
+                    fmt_bbox([min_x, baseline_y, min_x + length, baseline_y]),
+                ),
+                ("LipSize", "60".to_string()),
+                ("Z", object.z_index.to_string()),
+            ];
+            if let Some(stroke_width) = object
+                .payload
+                .extra
+                .get("strokeWidth")
+                .and_then(Value::as_f64)
+            {
+                attrs.push(("LineWidth", fmt_num(stroke_width)));
+            }
+            write_empty_tag(out, 4, "graphic", attrs);
+            return;
+        }
         if let Some(side) = object.payload.extra.get("side").and_then(Value::as_str) {
             let bracket_x = match (kind.as_str(), side) {
                 ("round", "right") => bbox[0],

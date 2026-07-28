@@ -1137,6 +1137,24 @@ fn parse_cdxml_keeps_standalone_horizontal_curly_bracket() {
             ..
         } if (*rotate + 90.0).abs() <= f64::EPSILON
     )));
+    let exported = document_to_cdxml(&document);
+    assert!(
+        exported.contains("BoundingBox=\"20.005 59.995 140.005 59.995\""),
+        "{exported}"
+    );
+    let reopened =
+        parse_cdxml_document(&exported, Some("reopened standalone bracket")).expect("reopens");
+    let reopened_bracket = reopened
+        .objects
+        .iter()
+        .find(|object| object.object_type == "bracket")
+        .expect("standalone bracket survives export");
+    assert_eq!(
+        reopened_bracket.payload.extra["orientation"],
+        json!("horizontal")
+    );
+    assert_eq!(reopened_bracket.transform, bracket.transform);
+    assert_eq!(reopened_bracket.payload.bbox, bracket.payload.bbox);
 }
 
 #[test]

@@ -528,6 +528,56 @@
         "0283",
         "0284"
       ]
+    },
+    {
+      "id": "cdxml-reserve-exact-graph-child-identities-before-renumbered-order-matching",
+      "status": "verified",
+      "summary": "Within a matched Fragment, exact Node and Bond identities are reserved before any ordered matching is allowed for genuinely renumbered children. An unmodeled malformed node, invalid bond, or coordinate-free Fragment wrapper therefore cannot consume a later generated child that has an exact source peer and shift every following graph object by one.",
+      "officialRule": "Node and Bond IDs identify references within their containing graph even though their numeric namespaces can overlap across object kinds. Renumbering is sometimes required, but it does not supersede an exact identity that remains available. Ordered matching applies only to generated children for which no source sibling has an exact identity.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "crates/chemsema-engine/src/cdxml/export/interchange.rs#unmatched_graph_child_cannot_consume_a_later_exact_identity"
+      ],
+      "caseIds": [
+        "0028",
+        "0029",
+        "0301",
+        "0304",
+        "0305",
+        "0312",
+        "0339"
+      ]
+    },
+    {
+      "id": "cdxml-export-centered-label-alignment-as-center",
+      "status": "verified",
+      "summary": "An internally centered attached label exports LabelAlignment=Center when the source did not carry an explicit LabelAlignment. It must not be serialized as Right, which changes a Justification=Center label to right alignment on the next import.",
+      "officialRule": "Center and Right are distinct official LabelAlignment values. Justification=Center and LabelJustification=Center establish a centered text anchor; the equivalent inferred LabelAlignment is Center.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelAlignment.htm",
+        "crates/chemsema-engine/tests/render_document/double_bond_text_import.rs#inferred_centered_label_exports_center_alignment_without_becoming_right_aligned",
+        "crates/chemsema-engine/src/cdx.rs#cdx_inferred_centered_metal_label_keeps_vertical_anchor_and_stable_fields"
+      ],
+      "caseIds": [
+        "0312"
+      ]
+    },
+    {
+      "id": "cdxml-invert-standalone-horizontal-bracket-normalization",
+      "status": "verified",
+      "summary": "A standalone horizontal bracket is stored internally as the canonical vertical bracket payload plus a minus-90-degree transform. CDXML export inverts that normalization and writes a horizontal BoundingBox; exporting the unrotated local box would turn it into an unmatched vertical bracket that disappears on reimport.",
+      "officialRule": "A Bracket Graphic is oriented by its BoundingBox endpoints. Horizontal source endpoints must therefore remain horizontal on export even when the editor uses a normalized vertical payload and a rotation transform internally.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/objects/Graphic.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BoundingBox.htm",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#parse_cdxml_keeps_standalone_horizontal_curly_bracket"
+      ],
+      "caseIds": [
+        "0033",
+        "0038",
+        "0262"
+      ]
     }
   ]
 }
