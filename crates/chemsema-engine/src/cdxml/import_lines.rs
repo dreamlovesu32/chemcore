@@ -178,9 +178,23 @@ pub(in crate::cdxml) fn append_line_objects(
     colors: &CdxmlColorTable,
 ) {
     let mut index = 1;
+    let modern_arrow_ids = descendants(root)
+        .into_iter()
+        .filter(|node| node.is("arrow"))
+        .filter_map(|node| node.attr("id"))
+        .filter(|id| !matches!(id.trim(), "" | "0"))
+        .collect::<BTreeSet<_>>();
     for node in descendants(root) {
         if !(node.is("arrow")
             || (node.is("graphic") && matches!(node.attr("GraphicType"), Some("Line" | "Arc"))))
+        {
+            continue;
+        }
+        if node.is("graphic")
+            && has_arrow_attrs(node)
+            && node
+                .attr("id")
+                .is_some_and(|id| modern_arrow_ids.contains(id))
         {
             continue;
         }

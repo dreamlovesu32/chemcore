@@ -909,6 +909,81 @@ mod interchange_tests {
     }
 
     #[test]
+    fn native_text_replaces_same_identity_text_inside_transparent_fragment() {
+        let source = r#"<CDXML><page id="1">
+          <fragment id="4"><t id="5" p="20 30"><s>X2</s></t></fragment>
+        </page></CDXML>"#;
+        let document =
+            parse_cdxml_document(source, Some("wrapped text")).expect("wrapped text imports");
+        assert_eq!(
+            document
+                .scene_objects()
+                .into_iter()
+                .filter(|object| object.kind() == crate::SceneObjectKind::Text)
+                .count(),
+            1
+        );
+
+        let saved = document_to_cdxml(&document);
+        let root = parse_xml_tree(&saved).expect("saved CDXML parses");
+        assert_eq!(
+            descendants(&root)
+                .into_iter()
+                .filter(|node| node.is("t") && node.attr("id") == Some("5"))
+                .count(),
+            1,
+            "{saved}"
+        );
+        let reopened =
+            parse_cdxml_document(&saved, Some("wrapped text reopened")).expect("text reopens");
+        assert_eq!(
+            reopened
+                .scene_objects()
+                .into_iter()
+                .filter(|object| object.kind() == crate::SceneObjectKind::Text)
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn synthesized_enhanced_stereo_display_is_not_an_independent_text_object() {
+        let source = r#"<CDXML ShowAtomEnhancedStereo="yes"><page id="1">
+          <fragment id="4">
+            <n id="5" p="20 30" EnhancedStereoType="Absolute"/>
+          </fragment>
+        </page></CDXML>"#;
+        let document =
+            parse_cdxml_document(source, Some("derived stereo")).expect("stereo imports");
+        assert_eq!(
+            document
+                .scene_objects()
+                .into_iter()
+                .filter(|object| {
+                    object.meta.get("synthetic").and_then(Value::as_bool) == Some(true)
+                })
+                .count(),
+            1
+        );
+
+        let saved = document_to_cdxml(&document);
+        assert!(saved.contains("EnhancedStereoType=\"Absolute\""), "{saved}");
+        assert!(!saved.contains(">abs</s>"), "{saved}");
+        let reopened =
+            parse_cdxml_document(&saved, Some("derived stereo reopened")).expect("stereo reopens");
+        assert_eq!(
+            reopened
+                .scene_objects()
+                .into_iter()
+                .filter(|object| {
+                    object.meta.get("synthetic").and_then(Value::as_bool) == Some(true)
+                })
+                .count(),
+            1
+        );
+    }
+
+    #[test]
     fn singleton_placeholder_fragment_stays_a_molecule_for_every_producer() {
         let source = r#"<CDXML CreationProgram="ChemDraw 23" BondLength="14.4">
           <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>

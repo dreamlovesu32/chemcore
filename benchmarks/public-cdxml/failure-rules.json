@@ -388,6 +388,71 @@
         "0256",
         "0364"
       ]
+    },
+    {
+      "id": "cdxml-replace-legacy-and-modern-arrow-representations",
+      "status": "verified",
+      "summary": "A legacy Graphic carrying ArrowType and a modern Arrow are two serializations of one native arrow identity. Export replaces either source form with one generated Arrow, and import prefers the richer modern Arrow when both forms carry the same assigned object ID.",
+      "officialRule": "CDX object IDs identify objects rather than serialization spellings. The legacy Graphic ArrowType form and the dedicated Arrow object both encode arrow semantics, so retaining one while appending the other would create a second object rather than preserve the first.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+        "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#parse_cdxml_maps_legacy_and_modern_arrow_types_without_losing_endpoints",
+        "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#modern_arrow_wins_over_same_identity_legacy_graphic_representation"
+      ],
+      "caseIds": [
+        "0133",
+        "0266"
+      ]
+    },
+    {
+      "id": "cdxml-regenerate-native-text-by-object-identity",
+      "status": "verified",
+      "summary": "A native Text object replaces the source Text carrying the same assigned ID regardless of whether the source Text was nested in a transparent Fragment or another retained container. The container may remain for unmodeled properties, but it cannot retain a second copy of the native text.",
+      "officialRule": "A nonzero CDX object ID identifies one Text object within its container scope. Native regeneration owns that object's content and geometry; interchange containment preserves unmodeled structure, not a duplicate visible object.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "crates/chemsema-engine/src/cdxml.rs#native_text_replaces_same_identity_text_inside_transparent_fragment"
+      ],
+      "caseIds": [
+        "0246",
+        "0247",
+        "0271",
+        "0272"
+      ]
+    },
+    {
+      "id": "cdxml-do-not-persist-synthesized-enhanced-stereo-text",
+      "status": "verified",
+      "summary": "An enhanced-stereo label synthesized from native node fields is a derived display and is not exported as an independent Text object. EnhancedStereoType and EnhancedStereoGroupNum remain authoritative and regenerate exactly one display on every import.",
+      "officialRule": "Enhanced stereo is stored on Node through EnhancedStereoType and EnhancedStereoGroupNum. A generated abs, orN, or &N label visualizes those fields; without an authored ObjectTag relation it has no independent Text identity to persist.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+        "crates/chemsema-engine/src/cdxml.rs#synthesized_enhanced_stereo_display_is_not_an_independent_text_object"
+      ],
+      "caseIds": [
+        "0327",
+        "0328",
+        "0329",
+        "0343",
+        "0371"
+      ]
+    },
+    {
+      "id": "cdxml-resolve-logical-owner-by-object-kind-and-scoped-id",
+      "status": "verified",
+      "summary": "Node- and Bond-owned logical metadata is reattached to an XML Node or Bond with the mapped ID, never to an unrelated font, color, page, or other object that reuses the same scoped numeric ID.",
+      "officialRule": "Object IDs are scoped to their containing object, and ObjectTag is a child of its owning object. Ownership resolution therefore requires both the semantic owner kind and its mapped ID; a global first-ID match is not a valid reference lookup.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#anonymous_object_tag_text_binds_by_owner_role_and_content"
+      ],
+      "caseIds": [
+        "0359"
+      ]
     }
   ]
 }

@@ -34,24 +34,30 @@ fn collect_regenerated_scene_object_ids(
         ("curveId", "curve"),
         ("graphicId", "graphic"),
         ("bioShapeId", "bioshape"),
+        ("textId", "t"),
     ] {
         if let Some(id) = object
             .meta
             .get(meta_key)
             .and_then(serde_json::Value::as_str)
         {
-            let tag = if meta_key == "graphicId"
+            let is_arrow = meta_key == "graphicId"
                 && object
                     .meta
                     .pointer("/import/cdxml/kind")
                     .and_then(serde_json::Value::as_str)
-                    == Some("arrow")
-            {
-                "arrow"
+                    == Some("arrow");
+            if is_arrow {
+                // CDX/CDXML uses both the legacy Graphic+ArrowType form and
+                // the modern Arrow object for the same semantic object. A
+                // native arrow replaces either representation; retaining the
+                // legacy Graphic while appending the modern Arrow would add
+                // one coincident arrow on every save.
+                out.insert(("graphic", id.to_string()));
+                out.insert(("arrow", id.to_string()));
             } else {
-                source_tag
-            };
-            out.insert((tag, id.to_string()));
+                out.insert((source_tag, id.to_string()));
+            }
         }
     }
     if let Some(ids) = object

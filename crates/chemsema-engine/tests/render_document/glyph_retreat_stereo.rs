@@ -605,6 +605,41 @@ fn parse_cdxml_maps_legacy_and_modern_arrow_types_without_losing_endpoints() {
     assert_eq!(endpoint(10, "head"), Some("full"));
     assert_eq!(endpoint(10, "tail"), Some("none"));
     assert_eq!(kind(10), Some("hollow"));
+
+    let exported = document_to_cdxml(&document);
+    let reopened = parse_cdxml_document(&exported, Some("arrow matrix reopened"))
+        .expect("arrows should reopen");
+    assert_eq!(
+        reopened
+            .objects
+            .iter()
+            .filter(|object| object.object_type == "line")
+            .count(),
+        11,
+        "legacy Graphic arrows must be replaced rather than retained beside native Arrow objects"
+    );
+}
+
+#[test]
+fn modern_arrow_wins_over_same_identity_legacy_graphic_representation() {
+    let cdxml = r#"<CDXML LineWidth="0.6" BondLength="14.4">
+  <page id="1">
+    <graphic id="10" GraphicType="Line" ArrowType="FullHead"
+      HeadSize="1000" BoundingBox="150 20 10 20"/>
+    <arrow id="10" ArrowheadHead="Full" ArrowheadType="Solid"
+      HeadSize="1000" Head3D="150 20 0" Tail3D="10 20 0"/>
+  </page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(cdxml, Some("dual arrow representation")).expect("arrow should parse");
+    assert_eq!(
+        document
+            .objects
+            .iter()
+            .filter(|object| object.object_type == "line")
+            .count(),
+        1
+    );
 }
 
 #[test]

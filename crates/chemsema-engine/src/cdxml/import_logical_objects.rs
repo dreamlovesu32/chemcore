@@ -603,7 +603,7 @@ mod tests {
   <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
   <page id="1" BoundingBox="0 0 120 100">
     <fragment id="10">
-      <n id="11" p="50 50" Element="6" EnhancedStereoType="Or" EnhancedStereoGroupNum="1">
+      <n id="3" p="50 50" Element="6" EnhancedStereoType="Or" EnhancedStereoGroupNum="1">
         <objecttag Name="enhancedstereo" TagType="Unknown">
           <t p="58 42" BoundingBox="58 36 70 44"><s font="3" size="8" color="0">or1</s></t>
         </objecttag>
@@ -628,7 +628,7 @@ mod tests {
             .iter()
             .find(|tag| tag.name == "enhancedstereo")
             .expect("enhanced-stereo object tag");
-        assert_eq!(tag.owner_entity_id.as_deref(), Some("11"));
+        assert_eq!(tag.owner_entity_id.as_deref(), Some("3"));
         assert!(tag.unresolved_owner_source_id.is_none());
         assert_eq!(tag.display_object_ids, [display.id.clone()]);
 
@@ -640,6 +640,28 @@ mod tests {
         assert!(following
             .find("<t ")
             .is_some_and(|index| { index < following.find("</objecttag>").unwrap_or(usize::MAX) }));
+        let exported_root =
+            crate::cdxml::parse_xml_tree(&exported).expect("exported CDXML should parse");
+        let exported_nodes = crate::cdxml::descendants(&exported_root);
+        let font = exported_nodes
+            .iter()
+            .find(|node| node.is("font") && node.attr("id") == Some("3"))
+            .expect("font id 3");
+        assert!(
+            !font.children.iter().any(|child| child.is("objecttag")),
+            "node-owned metadata must not attach to the same-ID font: {exported}"
+        );
+        let owner_node = exported_nodes
+            .iter()
+            .find(|node| node.is("n") && node.attr("id") == Some("3"))
+            .expect("node id 3");
+        assert!(
+            owner_node
+                .children
+                .iter()
+                .any(|child| child.is("objecttag")),
+            "object tag must remain inside its owning node: {exported}"
+        );
         let reopened =
             crate::parse_cdxml_document(&exported, Some("anonymous object tag")).unwrap();
         let reopened_tag = reopened
@@ -648,7 +670,7 @@ mod tests {
             .iter()
             .find(|tag| tag.name == "enhancedstereo")
             .expect("enhanced-stereo object tag survives");
-        assert_eq!(reopened_tag.owner_entity_id.as_deref(), Some("11"));
+        assert_eq!(reopened_tag.owner_entity_id.as_deref(), Some("3"));
         assert_eq!(reopened_tag.display_object_ids.len(), 1);
         let reopened_display = reopened
             .find_scene_object(&reopened_tag.display_object_ids[0])

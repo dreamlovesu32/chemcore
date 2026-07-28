@@ -3353,6 +3353,17 @@ impl<'a> CdxmlDocumentWriter<'a> {
     }
 
     fn write_text_object(&mut self, out: &mut String, object: &SceneObject) {
+        if object
+            .meta
+            .get("synthetic")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            // Enhanced-stereo labels synthesized from native node fields are
+            // a derived display, not an independent CDXML Text object. The
+            // node fields regenerate the display in ChemDraw and on import.
+            return;
+        }
         let text = payload_string_cdxml(&object.payload, "text").unwrap_or_default();
         let is_chemical_property_display = self
             .document

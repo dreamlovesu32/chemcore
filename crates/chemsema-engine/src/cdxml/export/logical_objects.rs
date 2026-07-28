@@ -139,7 +139,7 @@ fn write_alternative_groups(
             let Some(node_xml_id) = entity_ids.get(node_id) else {
                 continue;
             };
-            if let Some(node) = find_xml_node_mut_by_id(root, node_xml_id) {
+            if let Some(node) = find_xml_node_mut_by_name_and_id(root, "n", node_xml_id) {
                 node.attrs.insert("AltGroupID".to_string(), xml_id.clone());
             }
         }
@@ -410,6 +410,7 @@ fn write_attached_metadata(
         insert_false(&mut attrs, "Visible", tag.visible);
         attach_logical_node(
             root,
+            document,
             tag.owner_entity_id.as_ref(),
             tag.unresolved_owner_source_id.as_ref(),
             entity_ids,
@@ -437,6 +438,7 @@ fn write_attached_metadata(
         }
         attach_logical_node(
             root,
+            document,
             annotation.owner_entity_id.as_ref(),
             annotation.unresolved_owner_source_id.as_ref(),
             entity_ids,
@@ -451,6 +453,7 @@ fn write_attached_metadata(
     for registration in &document.logical_objects.registry_numbers {
         attach_logical_node(
             root,
+            document,
             registration.owner_entity_id.as_ref(),
             registration.unresolved_owner_source_id.as_ref(),
             entity_ids,
@@ -487,6 +490,7 @@ fn write_attached_metadata(
         };
         attach_logical_node(
             root,
+            document,
             representation.owner_entity_id.as_ref(),
             representation.unresolved_owner_source_id.as_ref(),
             entity_ids,
@@ -505,6 +509,7 @@ fn write_attached_metadata(
 
 fn attach_logical_node(
     root: &mut crate::cdxml::xml::XmlNode,
+    document: &ChemSemaDocument,
     owner_entity_id: Option<&String>,
     unresolved_owner_source_id: Option<&String>,
     entity_ids: &BTreeMap<String, String>,
@@ -514,21 +519,45 @@ fn attach_logical_node(
         .and_then(|id| entity_ids.get(id))
         .or(unresolved_owner_source_id)
         .cloned();
-    let owner_exists = owner_xml_id
-        .as_deref()
-        .is_some_and(|id| xml_node_contains_id(root, id));
-    let parent = if owner_exists {
-        find_xml_node_mut_by_id(
-            root,
-            owner_xml_id
-                .as_deref()
-                .expect("checked logical owner id must exist"),
+    let molecular_owner_tag = owner_entity_id.and_then(|id| molecular_owner_xml_tag(document, id));
+    let owner_exists = owner_xml_id.as_deref().is_some_and(|id| {
+        molecular_owner_tag.map_or_else(
+            || xml_node_contains_id(root, id),
+            |tag| xml_node_contains_name_and_id(root, tag, id),
         )
+    });
+    let parent = if owner_exists {
+        let id = owner_xml_id
+            .as_deref()
+            .expect("checked logical owner id must exist");
+        match molecular_owner_tag {
+            Some(tag) => find_xml_node_mut_by_name_and_id(root, tag, id),
+            None => find_xml_node_mut_by_id(root, id),
+        }
         .expect("checked logical owner node must exist")
     } else {
         page_mut(root)
     };
     parent.children.push(node);
+}
+
+fn molecular_owner_xml_tag<'a>(
+    document: &'a ChemSemaDocument,
+    owner_entity_id: &str,
+) -> Option<&'static str> {
+    for fragment in document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+    {
+        if fragment.nodes.iter().any(|node| node.id == owner_entity_id) {
+            return Some("n");
+        }
+        if fragment.bonds.iter().any(|bond| bond.id == owner_entity_id) {
+            return Some("b");
+        }
+    }
+    None
 }
 
 fn take_entity_nodes(
@@ -555,12 +584,33 @@ fn find_xml_node_mut_by_id<'a>(
         .find_map(|child| find_xml_node_mut_by_id(child, id))
 }
 
+fn find_xml_node_mut_by_name_and_id<'a>(
+    node: &'a mut crate::cdxml::xml::XmlNode,
+    name: &str,
+    id: &str,
+) -> Option<&'a mut crate::cdxml::xml::XmlNode> {
+    if node.name == name && node.attr("id") == Some(id) {
+        return Some(node);
+    }
+    node.children
+        .iter_mut()
+        .find_map(|child| find_xml_node_mut_by_name_and_id(child, name, id))
+}
+
 fn xml_node_contains_id(node: &crate::cdxml::xml::XmlNode, id: &str) -> bool {
     node.attr("id") == Some(id)
         || node
             .children
             .iter()
             .any(|child| xml_node_contains_id(child, id))
+}
+
+fn xml_node_contains_name_and_id(node: &crate::cdxml::xml::XmlNode, name: &str, id: &str) -> bool {
+    (node.name == name && node.attr("id") == Some(id))
+        || node
+            .children
+            .iter()
+            .any(|child| xml_node_contains_name_and_id(child, name, id))
 }
 
 fn take_xml_node_by_id(

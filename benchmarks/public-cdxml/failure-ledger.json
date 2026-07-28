@@ -1,6 +1,6 @@
 {
   "schema": "chemsema.public-cdxml-failure-ledger.v1",
-  "generatedAt": "2026-07-28T13:17:47.248Z",
+  "generatedAt": "2026-07-28T13:36:15.562Z",
   "inputs": {
     "roundtripReport": "tmp/public-cdxml-roundtrip-current/report.json",
     "visualReport": "tmp/public-cdxml-chemdraw-review-all/gate-current.json",
@@ -12,21 +12,21 @@
     "totalRegistered": 339,
     "originalCohort": 338,
     "additionalGateCases": 1,
-    "active": 71,
-    "currentlyPassing": 268,
+    "active": 59,
+    "currentlyPassing": 280,
     "byRoundtripStatus": {
-      "exact": 267,
-      "semantic-drift": 38,
-      "non-idempotent": 28,
+      "exact": 278,
+      "semantic-drift": 39,
+      "non-idempotent": 15,
       "topology-lost": 4,
-      "expected-normalization": 1,
+      "expected-normalization": 2,
       "import-failed": 1
     },
     "byAutomaticCluster": {
       "visual-pixel-mismatch": 193,
-      "roundtrip-first-generation-mixed-drift": 38,
-      "roundtrip-non-idempotent-mixed-semantics": 28,
+      "roundtrip-first-generation-mixed-drift": 39,
       "visual-component-topology-mismatch": 23,
+      "roundtrip-non-idempotent-mixed-semantics": 15,
       "roundtrip-topology-lost": 4,
       "visual-oracle-unavailable": 3,
       "roundtrip-import-failed": 1
@@ -35,7 +35,7 @@
       "visual-pixel-mismatch": 194,
       "roundtrip-first-generation-label-drift": 184,
       "roundtrip-non-idempotent-mixed-semantics": 100,
-      "roundtrip-first-generation-mixed-drift": 80,
+      "roundtrip-first-generation-mixed-drift": 81,
       "visual-component-topology-mismatch": 24,
       "roundtrip-count-drift": 5,
       "roundtrip-topology-lost": 4,
@@ -49,8 +49,8 @@
       "unavailable": 3
     },
     "byReviewStatus": {
-      "verified": 265,
-      "pending": 74
+      "verified": 277,
+      "pending": 62
     }
   },
   "cases": [
@@ -14293,81 +14293,75 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "expected-normalization",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 3,
+              "objects": 0,
               "resources": 0,
               "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
-              "line": 3,
+              "line": 0,
               "molecule": 0,
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "arrows"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 3,
+              "objects": 0,
               "resources": 0,
               "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
-              "line": 3,
+              "line": 0,
               "molecule": 0,
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "arrows"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
             "to": 3,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 3,
+              "objects": 0,
               "resources": 0,
               "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
-              "line": 3,
+              "line": 0,
               "molecule": 0,
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "arrows"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -14405,9 +14399,8 @@
         "componentCountDelta": 3
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
@@ -14416,10 +14409,18 @@
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-replace-legacy-and-modern-arrow-representations"
+        ],
+        "confirmedRootCause": "A legacy Graphic carrying ArrowType and a modern Arrow are two serializations of one native arrow identity. Export replaces either source form with one generated Arrow, and import prefers the richer modern Arrow when both forms carry the same assigned object ID.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#parse_cdxml_maps_legacy_and_modern_arrow_types_without_losing_endpoints",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#modern_arrow_wins_over_same_identity_legacy_graphic_representation"
+        ],
         "notes": null
       }
     },
@@ -26428,69 +26429,63 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
             "to": 3,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -26514,17 +26509,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-regenerate-native-text-by-object-identity"
+        ],
+        "confirmedRootCause": "A native Text object replaces the source Text carrying the same assigned ID regardless of whether the source Text was nested in a transparent Fragment or another retained container. The container may remain for unmodeled properties, but it cannot retain a second copy of the native text.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml.rs#native_text_replaces_same_identity_text_inside_transparent_fragment"
+        ],
         "notes": null
       }
     },
@@ -26540,69 +26539,63 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
             "to": 3,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -26626,17 +26619,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-regenerate-native-text-by-object-identity"
+        ],
+        "confirmedRootCause": "A native Text object replaces the source Text carrying the same assigned ID regardless of whether the source Text was nested in a transparent Fragment or another retained container. The container may remain for unmodeled properties, but it cannot retain a second copy of the native text.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml.rs#native_text_replaces_same_identity_text_inside_transparent_fragment"
+        ],
         "notes": null
       }
     },
@@ -28606,75 +28603,69 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
               "styles": 0
             },
             "objectTypeDelta": {
-              "line": 1,
+              "line": 0,
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "arrows"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
               "styles": 0
             },
             "objectTypeDelta": {
-              "line": 1,
+              "line": 0,
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "arrows"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
             "to": 3,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
               "styles": 0
             },
             "objectTypeDelta": {
-              "line": 1,
+              "line": 0,
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "arrows"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -28710,17 +28701,23 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-replace-legacy-and-modern-arrow-representations"
+        ],
+        "confirmedRootCause": "A legacy Graphic carrying ArrowType and a modern Arrow are two serializations of one native arrow identity. Export replaces either source form with one generated Arrow, and import prefers the richer modern Arrow when both forms carry the same assigned object ID.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#parse_cdxml_maps_legacy_and_modern_arrow_types_without_losing_endpoints",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#modern_arrow_wins_over_same_identity_legacy_graphic_representation"
+        ],
         "notes": null
       }
     },
@@ -29069,69 +29066,63 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
             "to": 3,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -29155,17 +29146,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-regenerate-native-text-by-object-identity"
+        ],
+        "confirmedRootCause": "A native Text object replaces the source Text carrying the same assigned ID regardless of whether the source Text was nested in a transparent Fragment or another retained container. The container may remain for unmodeled properties, but it cannot retain a second copy of the native text.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml.rs#native_text_replaces_same_identity_text_inside_transparent_fragment"
+        ],
         "notes": null
       }
     },
@@ -29181,69 +29176,63 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
             "to": 3,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -29267,17 +29256,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-regenerate-native-text-by-object-identity"
+        ],
+        "confirmedRootCause": "A native Text object replaces the source Text carrying the same assigned ID regardless of whether the source Text was nested in a transparent Fragment or another retained container. The container may remain for unmodeled properties, but it cannot retain a second copy of the native text.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml.rs#native_text_replaces_same_identity_text_inside_transparent_fragment"
+        ],
         "notes": null
       }
     },
@@ -30464,19 +30457,19 @@
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
               "shape": 0,
-              "text": -1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
@@ -35847,72 +35840,66 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
             "to": 3,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -35955,19 +35942,23 @@
         "componentCountDelta": 3
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-do-not-persist-synthesized-enhanced-stereo-text"
+        ],
+        "confirmedRootCause": "An enhanced-stereo label synthesized from native node fields is a derived display and is not exported as an independent Text object. EnhancedStereoType and EnhancedStereoGroupNum remain authoritative and regenerate exactly one display on every import.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdxml.rs#synthesized_enhanced_stereo_display_is_not_an_independent_text_object"
+        ],
         "notes": null
       }
     },
@@ -35986,72 +35977,66 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
             "to": 3,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -36087,17 +36072,20 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-do-not-persist-synthesized-enhanced-stereo-text"
+        ],
+        "confirmedRootCause": "An enhanced-stereo label synthesized from native node fields is a derived display and is not exported as an independent Text object. EnhancedStereoType and EnhancedStereoGroupNum remain authoritative and regenerate exactly one display on every import.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdxml.rs#synthesized_enhanced_stereo_display_is_not_an_independent_text_object"
+        ],
         "notes": null
       }
     },
@@ -36116,72 +36104,66 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 2,
+              "objects": 0,
               "resources": 0,
-              "styles": 2
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 2
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 2,
+              "objects": 0,
               "resources": 0,
-              "styles": 2
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 2
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
             "to": 3,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 2,
+              "objects": 0,
               "resources": 0,
-              "styles": 2
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 2
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -36217,17 +36199,20 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-do-not-persist-synthesized-enhanced-stereo-text"
+        ],
+        "confirmedRootCause": "An enhanced-stereo label synthesized from native node fields is a derived display and is not exported as an independent Text object. EnhancedStereoType and EnhancedStereoGroupNum remain authoritative and regenerate exactly one display on every import.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdxml.rs#synthesized_enhanced_stereo_display_is_not_an_independent_text_object"
+        ],
         "notes": null
       }
     },
@@ -37214,7 +37199,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "semantic-drift",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -37226,62 +37211,57 @@
               "molecules": 0,
               "nodes": 1,
               "bonds": 1,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 1
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
             "to": 3,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -37326,10 +37306,11 @@
       "triage": {
         "resolutionStatus": "active",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
+          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
+          "roundtrip-first-generation-mixed-drift",
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
@@ -37485,75 +37466,69 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 5,
+              "objects": 0,
               "resources": 0,
-              "styles": 5
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 0,
-              "text": 5
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 5,
+              "objects": 0,
               "resources": 0,
-              "styles": 5
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 0,
-              "text": 5
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
             "to": 3,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 5,
+              "objects": 0,
               "resources": 0,
-              "styles": 5
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 0,
-              "text": 5
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -37597,9 +37572,8 @@
         "componentCountDelta": 6
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
@@ -37608,10 +37582,15 @@
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-do-not-persist-synthesized-enhanced-stereo-text"
+        ],
+        "confirmedRootCause": "An enhanced-stereo label synthesized from native node fields is a derived display and is not exported as an independent Text object. EnhancedStereoType and EnhancedStereoGroupNum remain authoritative and regenerate exactly one display on every import.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdxml.rs#synthesized_enhanced_stereo_display_is_not_an_independent_text_object"
+        ],
         "notes": null
       }
     },
@@ -38223,72 +38202,66 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
             "to": 3,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 1,
+              "objects": 0,
               "resources": 0,
-              "styles": 1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": 1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -38332,9 +38305,8 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
@@ -38343,10 +38315,16 @@
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-resolve-logical-owner-by-object-kind-and-scoped-id"
+        ],
+        "confirmedRootCause": "Node- and Bond-owned logical metadata is reattached to an XML Node or Bond with the mapped ID, never to an unrelated font, color, page, or other object that reuses the same scoped numeric ID.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#anonymous_object_tag_text_binds_by_owner_role_and_content"
+        ],
         "notes": null
       }
     },
@@ -39619,75 +39597,69 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 8,
+              "objects": 0,
               "resources": 0,
-              "styles": 8
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 0,
-              "text": 8
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 8,
+              "objects": 0,
               "resources": 0,
-              "styles": 8
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 0,
-              "text": 8
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
             "to": 3,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": 8,
+              "objects": 0,
               "resources": 0,
-              "styles": 8
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 0,
-              "text": 8
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -39731,9 +39703,8 @@
         "componentCountDelta": 7
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
@@ -39742,10 +39713,15 @@
           "visual-component-topology-mismatch",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-do-not-persist-synthesized-enhanced-stereo-text"
+        ],
+        "confirmedRootCause": "An enhanced-stereo label synthesized from native node fields is a derived display and is not exported as an independent Text object. EnhancedStereoType and EnhancedStereoGroupNum remain authoritative and regenerate exactly one display on every import.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdxml.rs#synthesized_enhanced_stereo_display_is_not_an_independent_text_object"
+        ],
         "notes": null
       }
     },
