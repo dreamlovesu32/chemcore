@@ -465,6 +465,7 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     validate_gel_electrophoresis_objects(&document.objects)?;
     validate_plasmid_map_objects(&document.objects)?;
     validate_bio_shape_objects(&document.objects)?;
+    validate_image_objects(&document)?;
     validate_geometry_constraint_objects(&document)?;
     validate_molecule_fragment_resources(&document)?;
     split_disconnected_molecule_objects(&mut document);
@@ -476,6 +477,43 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     validate_logical_objects(&document)?;
     validate_link_relations(&document)?;
     Ok(document)
+}
+
+fn validate_image_objects(document: &ChemSemaDocument) -> Result<(), String> {
+    fn visit(document: &ChemSemaDocument, objects: &[SceneObject]) -> Result<(), String> {
+        for object in objects {
+            if object.payload.extra.contains_key("imageCrop") && object.object_type != "image" {
+                return Err(format!(
+                    "object {} carries imageCrop but is not an image",
+                    object.id
+                ));
+            }
+            if object.object_type == "image" {
+                let crop = object.payload.image_crop()?;
+                if let Some(crop) = crop {
+                    let resource_ref = object
+                        .payload
+                        .resource_ref
+                        .as_deref()
+                        .ok_or_else(|| format!("image {} has no resourceRef", object.id))?;
+                    let resource = document.resources.get(resource_ref).ok_or_else(|| {
+                        format!(
+                            "image {} references missing resource {resource_ref}",
+                            object.id
+                        )
+                    })?;
+                    let image = resource.display_image().ok_or_else(|| {
+                        format!("image {} has no decodable preview to crop", object.id)
+                    })?;
+                    crop.validate(image.pixel_width, image.pixel_height)
+                        .map_err(|error| format!("image {}: {error}", object.id))?;
+                }
+            }
+            visit(document, &object.children)?;
+        }
+        Ok(())
+    }
+    visit(document, &document.objects)
 }
 
 fn validate_logical_objects(document: &ChemSemaDocument) -> Result<(), String> {
@@ -3750,6 +3788,61 @@ pub struct ObjectPayload {
     pub extra: BTreeMap<String, Value>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageCropRect {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+impl ImageCropRect {
+    pub fn validate(self, pixel_width: u32, pixel_height: u32) -> Result<(), String> {
+        if ![self.x, self.y, self.width, self.height]
+            .into_iter()
+            .all(f64::is_finite)
+            || [self.x, self.y, self.width, self.height]
+                .into_iter()
+                .any(|value| value.fract().abs() > crate::EPSILON)
+            || self.x < 0.0
+            || self.y < 0.0
+            || self.width <= crate::EPSILON
+            || self.height <= crate::EPSILON
+            || self.x + self.width > f64::from(pixel_width) + crate::EPSILON
+            || self.y + self.height > f64::from(pixel_height) + crate::EPSILON
+        {
+            return Err(format!(
+                "imageCrop must be an integer positive resource-pixel rectangle inside {pixel_width}x{pixel_height}"
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl ObjectPayload {
+    pub fn image_crop(&self) -> Result<Option<ImageCropRect>, String> {
+        self.extra
+            .get("imageCrop")
+            .map(|value| {
+                serde_json::from_value(value.clone())
+                    .map_err(|error| format!("invalid imageCrop: {error}"))
+            })
+            .transpose()
+    }
+
+    pub fn set_image_crop(&mut self, crop: Option<ImageCropRect>) {
+        if let Some(crop) = crop {
+            self.extra.insert(
+                "imageCrop".to_string(),
+                serde_json::to_value(crop).expect("serialize image crop"),
+            );
+        } else {
+            self.extra.remove("imageCrop");
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Resource {
@@ -3831,6 +3924,26 @@ impl ResourceData {
     pub fn as_image(&self) -> Option<ImageResourceData> {
         match self {
             Self::Json(value) => serde_json::from_value(value.clone()).ok(),
+            _ => None,
+        }
+    }
+
+    pub fn as_embedded_object(&self) -> Option<crate::EmbeddedObjectResourceData> {
+        match self {
+            Self::Json(value) => serde_json::from_value(value.clone()).ok(),
+            _ => None,
+        }
+    }
+}
+
+impl Resource {
+    pub fn display_image(&self) -> Option<ImageResourceData> {
+        match self.resource_type.as_str() {
+            "image" => self.data.as_image(),
+            "embedded-object" => self
+                .data
+                .as_embedded_object()
+                .and_then(|embedded| embedded.preview),
             _ => None,
         }
     }

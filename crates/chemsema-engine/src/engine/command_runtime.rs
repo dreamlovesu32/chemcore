@@ -693,6 +693,12 @@ impl Engine {
                     engine.set_bio_shape_direct(&object_id, data)
                 })
             }
+            EditorCommand::SetImageCrop { object_id, crop } => {
+                self.validate_image_crop_candidate(&object_id, crop)?;
+                self.with_command(command.clone(), |engine| {
+                    engine.set_image_crop_direct(&object_id, crop)
+                })
+            }
             EditorCommand::InitializeDocumentLayout => {
                 self.with_command(command.clone(), Engine::initialize_document_layout_direct)
             }

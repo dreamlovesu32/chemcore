@@ -1,8 +1,12 @@
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use chemsema_engine::{
-    cdx_to_cdxml, document_to_cdx, document_to_svg, parse_cdxml_document, Engine, Point,
-    PointerEvent, RenderBoundsScope, RenderPrimitive, RenderRole, ResourceData, Tool,
+    cdx_to_cdxml, document_to_cdx, document_to_svg, parse_cdxml_document, EmbeddedPreviewStatus,
+    Engine, Point, PointerEvent, RenderBoundsScope, RenderPrimitive, RenderRole, ResourceData,
+    Tool,
 };
+use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
 use serde_json::{json, Value};
+use std::io::Cursor;
 
 const PNG_HEX: &str = "89504E470D0A1A0A0000000D49484452000000010000000108060000001F15C4890000000D4944415408D763F8FFFF3F030008FC02FEA7A6A00000000049454E44AE426082";
 const PNG_BASE64: &str =
@@ -33,6 +37,17 @@ fn add_test_image(engine: &mut Engine) {
         }),
     );
     assert_eq!(result["changed"], true);
+}
+
+fn test_png(width: u32, height: u32) -> String {
+    let image = RgbaImage::from_fn(width, height, |x, y| {
+        Rgba([(x * 31) as u8, (y * 47) as u8, 97, 255])
+    });
+    let mut output = Cursor::new(Vec::new());
+    DynamicImage::ImageRgba8(image)
+        .write_to(&mut output, ImageFormat::Png)
+        .unwrap();
+    BASE64.encode(output.into_inner())
 }
 
 #[test]
@@ -271,4 +286,245 @@ fn image_command_rejects_mismatched_metadata_and_payload() {
         .objects
         .iter()
         .any(|object| object.object_type == "image"));
+}
+
+#[test]
+fn crop_is_resource_pixel_geometry_and_survives_transform_copy_and_cdxml_projection() {
+    let mut engine = Engine::new();
+    let png = test_png(4, 3);
+    assert_eq!(
+        execute(
+            &mut engine,
+            json!({
+                "type": "add-image",
+                "mimeType": "image/png",
+                "dataBase64": png,
+                "pixelWidth": 4,
+                "pixelHeight": 3,
+                "position": { "x": 100.0, "y": 120.0 },
+                "width": 80.0,
+                "height": 60.0
+            }),
+        )["changed"],
+        true
+    );
+    let object_id = engine.state().selection.arrow_objects[0].clone();
+    assert_eq!(
+        execute(
+            &mut engine,
+            json!({
+                "type": "set-image-crop",
+                "objectId": object_id,
+                "crop": { "x": 1, "y": 1, "width": 2, "height": 1 }
+            }),
+        )["changed"],
+        true
+    );
+    assert!(matches!(
+        engine
+            .render_list()
+            .into_iter()
+            .find(|primitive| matches!(primitive, RenderPrimitive::Image { .. })),
+        Some(RenderPrimitive::Image {
+            source_crop: Some(crop),
+            source_width: 4,
+            source_height: 3,
+            ..
+        }) if crop == chemsema_engine::ImageCropRect { x: 1.0, y: 1.0, width: 2.0, height: 1.0 }
+    ));
+    let svg = document_to_svg(&engine.state().document);
+    assert!(svg.contains(r#"viewBox="1 1 2 1""#));
+    let menu: Value = serde_json::from_str(&engine.context_menu_json(
+        &json!({ "kind": "object", "objectId": object_id }).to_string(),
+        false,
+    ))
+    .unwrap();
+    assert!(menu.as_array().unwrap().iter().any(|entry| {
+        entry["command"] == "image-crop-dialog"
+            && entry["value"]
+                .as_str()
+                .is_some_and(|value| value.contains(r#""sourceWidth":4"#))
+    }));
+    assert!(menu
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|entry| { entry["command"] == "image-crop-reset" && entry["disabled"] == false }));
+
+    assert!(engine.rotate_selection_degrees(90.0));
+    assert!(engine.copy_selection());
+    assert!(engine.paste_clipboard());
+    let crops = engine
+        .state()
+        .document
+        .objects
+        .iter()
+        .filter(|object| object.object_type == "image")
+        .map(|object| object.payload.image_crop().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(crops.len(), 2);
+    assert!(crops.iter().all(|crop| *crop
+        == Some(chemsema_engine::ImageCropRect {
+            x: 1.0,
+            y: 1.0,
+            width: 2.0,
+            height: 1.0,
+        })));
+
+    let cdxml = chemsema_engine::document_to_cdxml(&engine.state().document);
+    let imported = parse_cdxml_document(&cdxml, Some("cropped")).expect("cropped CDXML imports");
+    for object in imported
+        .objects
+        .iter()
+        .filter(|object| object.object_type == "image")
+    {
+        assert_eq!(object.payload.image_crop().unwrap(), None);
+        let preview = imported.resources[object.payload.resource_ref.as_ref().unwrap()]
+            .display_image()
+            .unwrap();
+        assert_eq!((preview.pixel_width, preview.pixel_height), (2, 1));
+        assert_eq!(object.transform.rotate, 90.0);
+    }
+}
+
+#[test]
+fn compound_payload_keeps_original_bytes_and_uses_extracted_preview() {
+    let png = BASE64.decode(test_png(2, 3)).unwrap();
+    let mut emf = vec![0; 44];
+    emf[..4].copy_from_slice(&1u32.to_le_bytes());
+    emf[40..44].copy_from_slice(b" EMF");
+    emf.extend_from_slice(&png);
+    let hex = emf
+        .iter()
+        .map(|byte| format!("{byte:02X}"))
+        .collect::<String>();
+    let source = format!(
+        r#"<?xml version="1.0"?><CDXML><page id="1" BoundingBox="0 0 100 100"><embeddedobject id="2" BoundingBox="10 20 50 60" EnhancedMetafile="{hex}"></embeddedobject></page></CDXML>"#
+    );
+    let document = parse_cdxml_document(&source, Some("emf-preview")).unwrap();
+    let resource = document
+        .resources
+        .values()
+        .find(|resource| resource.resource_type == "embedded-object")
+        .unwrap();
+    let embedded = resource.data.as_embedded_object().unwrap();
+    assert_eq!(embedded.preview_status, EmbeddedPreviewStatus::Decoded);
+    assert_eq!(
+        embedded
+            .preview
+            .map(|preview| (preview.pixel_width, preview.pixel_height)),
+        Some((2, 3))
+    );
+    assert_eq!(BASE64.decode(embedded.data_base64).unwrap(), emf);
+    assert!(document_to_svg(&document).contains("data:image/png;base64,"));
+    let exported = chemsema_engine::document_to_cdxml(&document);
+    assert!(exported.contains("EnhancedMetafile="));
+    assert!(exported.contains(" PNG="));
+}
+
+#[test]
+fn crop_rejects_fractional_out_of_bounds_and_previewless_resources() {
+    let mut engine = Engine::new();
+    let png = test_png(4, 3);
+    execute(
+        &mut engine,
+        json!({
+            "type": "add-image",
+            "mimeType": "image/png",
+            "dataBase64": png,
+            "pixelWidth": 4,
+            "pixelHeight": 3,
+            "position": { "x": 10, "y": 10 },
+            "width": 20,
+            "height": 20
+        }),
+    );
+    let object_id = engine.state().selection.arrow_objects[0].clone();
+    for crop in [
+        json!({ "x": 0.5, "y": 0, "width": 2, "height": 1 }),
+        json!({ "x": 3, "y": 0, "width": 2, "height": 1 }),
+        json!({ "x": 0, "y": 0, "width": 0, "height": 1 }),
+    ] {
+        assert!(engine
+            .execute_command_json(
+                &json!({ "type": "set-image-crop", "objectId": object_id, "crop": crop })
+                    .to_string()
+            )
+            .is_err());
+    }
+}
+
+#[test]
+fn committed_compound_preview_fixtures_cover_every_supported_container() {
+    let manifest: Value =
+        serde_json::from_str(include_str!("fixtures/embedded_object_previews.json")).unwrap();
+    let fixtures = manifest["fixtures"].as_array().unwrap();
+    assert_eq!(fixtures.len(), 9);
+    for fixture in fixtures {
+        let format = fixture["format"].as_str().unwrap();
+        let bytes = BASE64
+            .decode(fixture["dataBase64"].as_str().unwrap())
+            .unwrap();
+        let result = chemsema_engine::extract_embedded_preview(
+            format,
+            &bytes,
+            fixture["uncompressedSize"].as_u64(),
+        );
+        assert_eq!(
+            result.status,
+            EmbeddedPreviewStatus::Decoded,
+            "{format}: {:?}",
+            result.detail
+        );
+        assert!(result.preview.is_some(), "{format}");
+    }
+}
+
+#[test]
+fn compressed_cdxml_payloads_use_chemdraw_base64_wire_encoding() {
+    let manifest: Value =
+        serde_json::from_str(include_str!("fixtures/embedded_object_previews.json")).unwrap();
+    let fixture = manifest["fixtures"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|fixture| fixture["format"] == "CompressedEnhancedMetafile")
+        .unwrap();
+    let data = fixture["dataBase64"].as_str().unwrap();
+    let size = fixture["uncompressedSize"].as_u64().unwrap();
+    let wrapped = data
+        .as_bytes()
+        .chunks(32)
+        .map(|chunk| std::str::from_utf8(chunk).unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let source = format!(
+        r#"<?xml version="1.0"?><CDXML><page id="1" BoundingBox="0 0 100 100"><embeddedobject id="2" BoundingBox="10 20 50 60" CompressedEnhancedMetafile="{wrapped}" UncompressedEnhancedMetafileSize="{size}"></embeddedobject></page></CDXML>"#
+    );
+    let document = parse_cdxml_document(&source, Some("compressed-emf")).unwrap();
+    let embedded = document
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_embedded_object())
+        .expect("compressed EMF imports");
+    assert_eq!(embedded.preview_status, EmbeddedPreviewStatus::Decoded);
+    assert_eq!(embedded.uncompressed_size, Some(size));
+    let exported = chemsema_engine::document_to_cdxml(&document);
+    assert!(exported.contains(&format!(r#"CompressedEnhancedMetafile="{data}""#)));
+    assert!(exported.contains(&format!(r#"UncompressedEnhancedMetafileSize="{size}""#)));
+    let cdx = document_to_cdx(&document).expect("compressed EMF exports to CDX");
+    let cdx_cdxml = cdx_to_cdxml(&cdx).expect("compressed EMF returns from CDX");
+    assert!(cdx_cdxml.contains("EnhancedMetafile="));
+    assert!(!cdx_cdxml.contains("CompressedEnhancedMetafile="));
+    let reopened = chemsema_engine::parse_cdx_document(&cdx, Some("compressed-emf")).unwrap();
+    let reopened_embedded = reopened
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_embedded_object())
+        .unwrap();
+    assert_eq!(
+        reopened_embedded.preview_status,
+        EmbeddedPreviewStatus::Decoded
+    );
+    assert_eq!(reopened_embedded.format, "EnhancedMetafile");
 }

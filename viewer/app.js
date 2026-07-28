@@ -18,6 +18,7 @@ import { createSmilesDialogHost } from "./smiles_dialog_host.js";
 import { createTableDialogHost } from "./table_dialog_host.js";
 import { createPlasmidMapDialogHost } from "./plasmid_map_dialog_host.js";
 import { createBioShapeDialogHost } from "./bio_shape_dialog_host.js";
+import { createImageCropDialogHost } from "./image_crop_dialog_host.js";
 import { createDocumentLayoutHost } from "./document_layout_host.js";
 import { createTemplateLibraryHost } from "./template_library_host.js";
 import { createRuntimeGate } from "./runtime_gate.js";
@@ -206,6 +207,9 @@ const plasmidMapDialogHost = createPlasmidMapDialogHost({
   root: document.body,
 });
 const bioShapeDialogHost = createBioShapeDialogHost({
+  root: document.body,
+});
+const imageCropDialogHost = createImageCropDialogHost({
   root: document.body,
 });
 const transientNotificationHost = createTransientNotificationHost({
@@ -1302,6 +1306,7 @@ canvasContextMenuHost = createCanvasContextMenuHost({
   tableDialogHost,
   plasmidMapDialogHost,
   bioShapeDialogHost,
+  imageCropDialogHost,
   transientNotificationHost,
   inchiHost,
   nmrPredictionHost,

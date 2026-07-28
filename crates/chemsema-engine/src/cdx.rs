@@ -63,11 +63,77 @@ pub fn document_to_cdx(document: &ChemSemaDocument) -> Result<Vec<u8>, String> {
     }
     let cdxml = document_to_cdxml(document);
     let mut root = crate::cdxml::parse_xml_tree(&cdxml)?;
+    normalize_compressed_embedded_payloads_for_cdx(&mut root)?;
     let source = document.interchange.get("cdx").map(|source| &source.root);
     if let Some(source) = source {
         overlay_unmodeled_cdx_values(&mut root, source);
     }
     CdxWriter::new(source).write(&root)
+}
+
+fn normalize_compressed_embedded_payloads_for_cdx(
+    node: &mut crate::cdxml::XmlNode,
+) -> Result<(), String> {
+    if node.name == "embeddedobject" {
+        for (compressed, plain, size_attribute) in [
+            (
+                "CompressedEnhancedMetafile",
+                "EnhancedMetafile",
+                "UncompressedEnhancedMetafileSize",
+            ),
+            (
+                "CompressedWindowsMetafile",
+                "WindowsMetafile",
+                "UncompressedWindowsMetafileSize",
+            ),
+            (
+                "CompressedOLEObject",
+                "OLEObject",
+                "UncompressedOLEObjectSize",
+            ),
+        ] {
+            let Some(encoded) = node.attrs.get(compressed).cloned() else {
+                continue;
+            };
+            let compact = encoded
+                .bytes()
+                .filter(|byte| !byte.is_ascii_whitespace())
+                .collect::<Vec<_>>();
+            let compressed_bytes = BASE64
+                .decode(compact)
+                .map_err(|error| format!("{compressed}: invalid base64: {error}"))?;
+            let expected_size = node
+                .attrs
+                .get(size_attribute)
+                .and_then(|value| value.parse::<u64>().ok());
+            let (decoded_format, decoded, _) = crate::embedded_preview::decompress_container(
+                compressed,
+                &compressed_bytes,
+                expected_size,
+            )
+            .map_err(|result| {
+                format!(
+                    "{compressed}: {}",
+                    result
+                        .detail
+                        .unwrap_or_else(|| "compressed payload decode failed".to_string())
+                )
+            })?;
+            if decoded_format != plain {
+                return Err(format!(
+                    "{compressed}: decoded format {decoded_format} does not match {plain}"
+                ));
+            }
+            node.attrs.remove(compressed);
+            node.attrs.remove(size_attribute);
+            node.attrs
+                .insert(plain.to_string(), encode_hex_bytes(&decoded));
+        }
+    }
+    for child in &mut node.children {
+        normalize_compressed_embedded_payloads_for_cdx(child)?;
+    }
+    Ok(())
 }
 
 fn validate_cdx_chemical_property_types(document: &ChemSemaDocument) -> Result<(), String> {

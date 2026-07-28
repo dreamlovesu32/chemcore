@@ -6,8 +6,8 @@
   "platforms": {
     "win-x64": {
       "path": "bin/win-x64/chemsema-cli.exe",
-      "size": 22666240,
-      "sha256": "BE66A09F23D986B5F85CA892A24216F2C8DB6C207D8F493DB0D91AA190DCADBB",
+      "size": 24145920,
+      "sha256": "6AFFB8EB7C731B53461378AFFE9AD3CEC2F547C89E1AAF6AEC3CE18E077205C7",
       "signed": false,
       "signature": "unsigned"
     },

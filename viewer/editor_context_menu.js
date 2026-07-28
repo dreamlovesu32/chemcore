@@ -391,6 +391,28 @@ export function createCanvasContextMenuHost(options) {
       );
       return { handled: true, changed };
     }
+    if (command === "image-crop-dialog") {
+      let spec = null;
+      try {
+        spec = JSON.parse(value || "null");
+      } catch {
+        spec = null;
+      }
+      const decision = await options.imageCropDialogHost?.choose(spec);
+      if (!decision) {
+        return { handled: true, changed: false };
+      }
+      const payload = {
+        type: "set-image-crop",
+        objectId: decision.objectId,
+        crop: decision.crop,
+      };
+      const changed = await executeDocumentCommand(
+        payload,
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify(payload)),
+      );
+      return { handled: true, changed };
+    }
     if (command === "text-line-spacing") {
       await options.numericDialogHost.choose("line-height");
       return { handled: true, changed: false };
@@ -523,6 +545,12 @@ export function createCanvasContextMenuHost(options) {
     }
     if (["cut", "copy", "paste", "delete", "select-all"].includes(command)) {
       changed = await options.runEditorCommand(command);
+    } else if (command === "image-crop-reset") {
+      const payload = { type: "set-image-crop", objectId: value, crop: null };
+      changed = await executeDocumentCommand(
+        payload,
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify(payload)),
+      );
     } else if (command === "insert-image") {
       options.openImageFilePickerAt?.(activeContextMenuState?.point || null);
       await finishTemporaryContextSelection();

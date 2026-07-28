@@ -48,7 +48,7 @@
 | 15 | `NR-015` | TemplateGrid | 完成 | 完成 | 完成 | 完成 | [x] |
 | 16 | `NR-016` | 文档页眉、页脚和分页布局 | 完成 | 完成 | 完成 | 完成 | [x] |
 | 17 | `NR-017` | 逻辑对象的原生语义编辑 | 完成 | 完成 | 不适用 | 完成 | [x] |
-| 18 | `NR-018` | 旧式复合载荷预览与图片裁剪 | 完成 | 部分 | 部分 | 完成 | [ ] |
+| 18 | `NR-018` | 旧式复合载荷预览与图片裁剪 | 完成 | 完成 | 完成 | 完成 | [x] |
 
 ## 逐项范围与验收
 
@@ -357,7 +357,7 @@
 - CDXML/CDX 导入导出由原生模型重建，标准 source id 稳定复用；字段总账已把对应对象和字段提升为 `native-semantic`。
 - 浏览器和桌面右键 `Logical Objects...` 提供内核驱动的完整属性管理器。实现与门禁规则见 [`logical-object-native-model.zh-CN.md`](logical-object-native-model.zh-CN.md)。
 
-### [ ] NR-018 旧式复合载荷预览与图片裁剪
+### [x] NR-018 旧式复合载荷预览与图片裁剪
 
 **范围**：EMF/WMF/OLE/TIFF/PDF/PICT 内容级预览提取，以及来源无关的图片裁剪矩形。
 
@@ -366,6 +366,8 @@
 **目标**：为每种容器建立有签名校验和尺寸上限的明确解码分支；图片裁剪保存为资源坐标中的显式矩形，并由 GUI、SVG、PNG 与 EMF 共用。
 
 **验收**：每种受支持容器至少一个可提交夹具；损坏载荷、超限载荷和无预览载荷均有确定错误/占位规则；裁剪在旋转、缩放、复制粘贴和 CDX/CDXML 往返后不漂移。
+
+**完成说明**：复合载荷使用 `chemsema.resource.embedded-object.v1` 同时保存权威原字节、明确预览状态和可选位图预览。TIFF、EMF、WMF、OLE、PDF、PICT 及三种 zlib 压缩载荷分别经过签名、声明解压大小、64 MiB、32768 单边和一亿像素上限校验；九个提交夹具和损坏/无预览/解压长度错误测试关闭失败边界。图片裁剪保存为整数资源像素 `payload.imageCrop`，右键对话框、DOM/SVG/PNG、EMF/Office 共用 `RenderPrimitive::Image.sourceCrop`。CDX/CDXML 因无标准裁剪字段而明确烘焙 PNG：普通位图转换为裁剪 PNG，复合载荷保留原始属性并附带裁剪 preview；可见结果、边界框和旋转稳定往返。规则见 [旧式复合载荷预览与图片裁剪规则](embedded-preview-image-crop-rules.zh-CN.md)。
 
 ## 已有的部分实现
 

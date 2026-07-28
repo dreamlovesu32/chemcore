@@ -373,6 +373,48 @@ impl Engine {
                 item("Annotation Properties...", "annotation-dialog", "selected"),
             ]);
         }
+        if single_object_type == Some("image") {
+            if let Some(object) = self.selected_scene_objects().first() {
+                let image = object
+                    .payload
+                    .resource_ref
+                    .as_deref()
+                    .and_then(|resource_ref| self.state.document.resources.get(resource_ref))
+                    .and_then(crate::Resource::display_image);
+                if let Some(image) = image {
+                    let crop = object.payload.image_crop().ok().flatten().unwrap_or(
+                        crate::ImageCropRect {
+                            x: 0.0,
+                            y: 0.0,
+                            width: f64::from(image.pixel_width),
+                            height: f64::from(image.pixel_height),
+                        },
+                    );
+                    items.extend([
+                        separator(),
+                        item(
+                            "Crop Image...",
+                            "image-crop-dialog",
+                            json!({
+                                "kind": "image-crop",
+                                "title": "Crop Image",
+                                "objectId": object.id,
+                                "sourceWidth": image.pixel_width,
+                                "sourceHeight": image.pixel_height,
+                                "crop": crop,
+                            })
+                            .to_string(),
+                        ),
+                        json!({
+                            "label": "Reset Image Crop",
+                            "command": "image-crop-reset",
+                            "value": object.id,
+                            "disabled": object.payload.image_crop().ok().flatten().is_none(),
+                        }),
+                    ]);
+                }
+            }
+        }
     }
 
     fn append_stoichiometry_grid_items(&self, items: &mut Vec<JsonValue>, hit: &JsonValue) {

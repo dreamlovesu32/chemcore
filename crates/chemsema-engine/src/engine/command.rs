@@ -1,8 +1,8 @@
 use crate::{
     ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondAnchor,
-    BondLineWeights, BondVariant, BracketKind, ChemSemaDocument, DoubleBondPlacement, LabelRun,
-    LinkPolicy, ObjectSettings, OrbitalPhase, OrbitalStyle, OrbitalTemplate, Point, SceneObject,
-    ShapeKind, ShapeStyle,
+    BondLineWeights, BondVariant, BracketKind, ChemSemaDocument, DoubleBondPlacement,
+    ImageCropRect, LabelRun, LinkPolicy, ObjectSettings, OrbitalPhase, OrbitalStyle,
+    OrbitalTemplate, Point, SceneObject, ShapeKind, ShapeStyle,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -400,6 +400,12 @@ pub enum EditorCommand {
         height: f64,
         #[serde(default, alias = "sourceName", skip_serializing_if = "Option::is_none")]
         source_name: Option<String>,
+    },
+    SetImageCrop {
+        #[serde(alias = "objectId")]
+        object_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        crop: Option<ImageCropRect>,
     },
     SetTextRuns {
         #[serde(alias = "objectId")]

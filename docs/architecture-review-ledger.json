@@ -27,7 +27,7 @@
       "reason": "The function owns one transaction lifecycle: load, execute, scope-check, report, and persist."
     },
     "crates/chemsema-engine/src/cdxml/export.rs:$file": {
-      "lines": 3265,
+      "lines": 3302,
       "owner": "CDXML serialization boundary",
       "reason": "The module owns source-order-aware serialization for every native document object; object-family writers remain separate functions and share one ID, style, and interchange context."
     },
@@ -72,12 +72,12 @@
       "reason": "The function constructs one dependency-closed reaction table from nested rows, cells, molecule references, authored values, and link semantics."
     },
     "crates/chemsema-engine/src/document.rs:$file": {
-      "lines": 3296,
+      "lines": 3380,
       "owner": "Native document schema and normalization",
       "reason": "The module is the authoritative serialized document model and its version-normalization boundary; format-specific importers, renderers, and editor behavior are owned by separate modules."
     },
     "crates/chemsema-engine/src/engine/command_runtime.rs:execute_command": {
-      "lines": 328,
+      "lines": 334,
       "owner": "Exhaustive editor command dispatcher",
       "reason": "Immediate, creation, semantic, relationship, and style command families are separated; the remaining body is an exhaustive variant-to-domain dispatch with shared completion semantics."
     },
@@ -107,7 +107,7 @@
       "reason": "The function creates one chemistry graph while preserving target filtering, stereochemistry, and source authority."
     },
     "crates/chemsema-engine/src/engine/context_menu.rs:$file": {
-      "lines": 2533,
+      "lines": 2572,
       "owner": "Kernel context-menu schema",
       "reason": "The module owns the complete kernel-generated context-menu contract, with object-family menus and value normalization separated into named helpers."
     },
@@ -162,7 +162,7 @@
       "reason": "The function renders one nested TLC plate layer so plate rotation, origin and solvent guides, lanes, spots, labels, visibility, and style share one coordinate system."
     },
     "crates/chemsema-engine/src/render_svg.rs:write_primitive_svg": {
-      "lines": 272,
+      "lines": 297,
       "owner": "SVG primitive serializer",
       "reason": "One exhaustive RenderPrimitive serializer guarantees identical role, identity, transform, and style emission."
     },
@@ -202,12 +202,17 @@
       "reason": "Geometry and move commits are already separate; this function retains the ordered state-machine transition and shared cleanup."
     },
     "viewer/app.js:$file": {
-      "lines": 2148,
+      "lines": 2153,
       "owner": "Browser and desktop viewer composition root",
       "reason": "The file wires independently implemented hosts and controllers into one runtime; editing, tabs, dialogs, rendering, viewport, files, and lifecycle behavior are owned by imported modules."
     },
+    "viewer/editor_context_menu.js:runCanvasContextMenuDialogCommand": {
+      "lines": 204,
+      "owner": "Canvas context-menu dialog router",
+      "reason": "The function is one exhaustive asynchronous router from kernel-owned dialog specifications to their domain hosts and typed mutation commands."
+    },
     "viewer/editor_context_menu.js:runCanvasContextMenuCommand": {
-      "lines": 248,
+      "lines": 254,
       "owner": "Canvas context-menu command router",
       "reason": "The function is one exhaustive asynchronous router from kernel menu command identifiers to domain hosts, with shared menu-close and error-settlement semantics."
     },
@@ -217,7 +222,7 @@
       "reason": "One exhaustive UI event boundary translates toolbar values into typed controller calls; object-family behavior remains in the imported controllers and kernel commands."
     },
     "viewer/primitive_dom_renderer.js:renderCorePrimitive": {
-      "lines": 250,
+      "lines": 272,
       "owner": "DOM primitive renderer",
       "reason": "One exhaustive primitive dispatch keeps identity attributes, roles, transforms, and SVG z-order consistent."
     }

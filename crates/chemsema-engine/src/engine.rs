@@ -1976,6 +1976,7 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::AddElement { .. } => "add-element",
         EditorCommand::AddText { .. } => "add-text",
         EditorCommand::AddImage { .. } => "add-image",
+        EditorCommand::SetImageCrop { .. } => "set-image-crop",
         EditorCommand::SetTextRuns { .. } => "set-text-runs",
         EditorCommand::SetNodeLabelRuns { .. } => "set-node-label-runs",
         EditorCommand::SetNodeCharge { .. } => "set-node-charge",

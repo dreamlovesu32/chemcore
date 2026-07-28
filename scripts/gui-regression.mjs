@@ -816,6 +816,61 @@ async function verifyImageDropAndPaste(page) {
     JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson())
       .objects.filter((object) => object.type === "image").length > count
   ), afterPaste);
+
+  const selectedImage = page.locator(
+    '#viewer-container [data-object-id][data-role="document-graphic"]',
+  ).last();
+  const selectedImageBounds = await selectedImage.boundingBox();
+  assert(selectedImageBounds, "Selected image has no rendered bounds for the crop menu.");
+  await page.mouse.click(
+    selectedImageBounds.x + selectedImageBounds.width * 0.5,
+    selectedImageBounds.y + selectedImageBounds.height * 0.5,
+    { button: "right" },
+  );
+  const cropImage = page.locator(
+    '.canvas-context-menu-item[data-canvas-context-command="image-crop-dialog"]',
+  );
+  await cropImage.waitFor();
+  await cropImage.click();
+  await page.locator(".image-crop-dialog").waitFor();
+  await page.locator('.image-crop-dialog input[name="x"]').fill("0");
+  await page.locator('.image-crop-dialog input[name="y"]').fill("0");
+  await page.locator('.image-crop-dialog input[name="width"]').fill("1");
+  await page.locator('.image-crop-dialog input[name="height"]').fill("1");
+  await page.locator('.image-crop-dialog button[type="submit"]').click();
+  await page.waitForFunction(() => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    return documentValue.objects?.some(
+      (object) => object.type === "image" && object.payload?.imageCrop?.width === 1,
+    );
+  });
+  assert.equal(
+    await page.locator('#viewer-container svg[viewBox="0 0 1 1"] > image').count(),
+    1,
+    "The browser renderer did not apply the kernel source-pixel crop.",
+  );
+
+  const croppedImageBounds = await page.locator(
+    '#viewer-container svg[viewBox="0 0 1 1"][data-object-id]',
+  ).boundingBox();
+  assert(croppedImageBounds, "Cropped image lost its selectable object identity.");
+  await page.mouse.click(
+    croppedImageBounds.x + croppedImageBounds.width * 0.5,
+    croppedImageBounds.y + croppedImageBounds.height * 0.5,
+    { button: "right" },
+  );
+  const resetCrop = page.locator(
+    '.canvas-context-menu-item[data-canvas-context-command="image-crop-reset"]',
+  );
+  await resetCrop.waitFor();
+  assert.equal(await resetCrop.isDisabled(), false, "Reset Image Crop is disabled after cropping.");
+  await resetCrop.click();
+  await page.waitForFunction(() => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    return documentValue.objects
+      ?.filter((object) => object.type === "image")
+      .every((object) => !object.payload?.imageCrop);
+  });
 }
 
 async function verifyStructuredClipboardAcrossTabs(context, page, errors) {

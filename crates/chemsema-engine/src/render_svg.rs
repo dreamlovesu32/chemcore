@@ -540,6 +540,9 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
             width,
             height,
             href,
+            source_crop,
+            source_width,
+            source_height,
             opacity,
             preserve_aspect_ratio,
             rotate,
@@ -548,19 +551,41 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
         } => {
             let center = rotate_center.unwrap_or(Point::new(*x + *width * 0.5, *y + *height * 0.5));
             let transform = rotate_transform_attr(*rotate, Some(&center));
-            writeln!(
-                out,
-                r#"  <image x="{}" y="{}" width="{}" height="{}" href="{}" opacity="{}" preserveAspectRatio="{}"{} />"#,
-                fmt_num(*x),
-                fmt_num(*y),
-                fmt_num(*width),
-                fmt_num(*height),
-                escape_attr(href),
-                fmt_num(*opacity),
-                if *preserve_aspect_ratio { "xMidYMid meet" } else { "none" },
-                transform
-            )
-            .expect("write image");
+            if let Some(crop) = source_crop {
+                writeln!(
+                    out,
+                    r#"  <svg x="{}" y="{}" width="{}" height="{}" viewBox="{} {} {} {}" preserveAspectRatio="{}" overflow="hidden"{}><image x="0" y="0" width="{}" height="{}" href="{}" opacity="{}" preserveAspectRatio="none" /></svg>"#,
+                    fmt_num(*x),
+                    fmt_num(*y),
+                    fmt_num(*width),
+                    fmt_num(*height),
+                    fmt_num(crop.x),
+                    fmt_num(crop.y),
+                    fmt_num(crop.width),
+                    fmt_num(crop.height),
+                    if *preserve_aspect_ratio { "xMidYMid meet" } else { "none" },
+                    transform,
+                    source_width,
+                    source_height,
+                    escape_attr(href),
+                    fmt_num(*opacity),
+                )
+                .expect("write cropped image");
+            } else {
+                writeln!(
+                    out,
+                    r#"  <image x="{}" y="{}" width="{}" height="{}" href="{}" opacity="{}" preserveAspectRatio="{}"{} />"#,
+                    fmt_num(*x),
+                    fmt_num(*y),
+                    fmt_num(*width),
+                    fmt_num(*height),
+                    escape_attr(href),
+                    fmt_num(*opacity),
+                    if *preserve_aspect_ratio { "xMidYMid meet" } else { "none" },
+                    transform
+                )
+                .expect("write image");
+            }
         }
         RenderPrimitive::Text {
             x,

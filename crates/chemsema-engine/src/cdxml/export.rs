@@ -1065,9 +1065,23 @@ impl<'a> CdxmlDocumentWriter<'a> {
         let Some(resource) = self.document.resources.get(resource_ref) else {
             return;
         };
-        let (attribute, data_base64) = if resource.resource_type == "image" {
+        let Ok(crop) = object.payload.image_crop() else {
+            return;
+        };
+        let mut payloads = Vec::<(&str, String)>::new();
+        let embedded_attribute: String;
+        let mut uncompressed_size = None;
+        if resource.resource_type == "image" {
             let Some(image) = resource.data.as_image() else {
                 return;
+            };
+            let image = if let Some(crop) = crop {
+                let Ok(cropped) = crate::cropped_image_resource(&image, crop) else {
+                    return;
+                };
+                cropped
+            } else {
+                image
             };
             let attribute = match image.mime_type.as_str() {
                 "image/png" => "PNG",
@@ -1077,16 +1091,13 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 "image/bmp" => "BMP",
                 _ => return,
             };
-            (attribute, image.data_base64)
+            payloads.push((attribute, image.data_base64));
         } else if resource.resource_type == "embedded-object" {
-            let ResourceData::Json(value) = &resource.data else {
-                return;
-            };
-            let Some(attribute) = value.get("format").and_then(Value::as_str) else {
+            let Some(embedded) = resource.data.as_embedded_object() else {
                 return;
             };
             if !matches!(
-                attribute,
+                embedded.format.as_str(),
                 "TIFF"
                     | "EnhancedMetafile"
                     | "CompressedEnhancedMetafile"
@@ -1099,16 +1110,23 @@ impl<'a> CdxmlDocumentWriter<'a> {
             ) {
                 return;
             }
-            let Some(data_base64) = value.get("dataBase64").and_then(Value::as_str) else {
-                return;
-            };
-            (attribute, data_base64.to_string())
+            embedded_attribute = embedded.format;
+            payloads.push((embedded_attribute.as_str(), embedded.data_base64));
+            uncompressed_size = embedded.uncompressed_size;
+            if let Some(preview) = embedded.preview {
+                let preview = if let Some(crop) = crop {
+                    let Ok(cropped) = crate::cropped_image_resource(&preview, crop) else {
+                        return;
+                    };
+                    cropped
+                } else {
+                    preview
+                };
+                payloads.push(("PNG", preview.data_base64));
+            }
         } else {
             return;
-        };
-        let Ok(bytes) = BASE64.decode(data_base64.as_bytes()) else {
-            return;
-        };
+        }
         let Some([x, y, width, height]) = object.payload.bbox else {
             return;
         };
@@ -1122,8 +1140,32 @@ impl<'a> CdxmlDocumentWriter<'a> {
             ("id", self.object_cdxml_id(object)),
             ("BoundingBox", fmt_bbox([left, top, right, bottom])),
             ("Z", object.z_index.to_string()),
-            (attribute, encode_hex_bytes(&bytes)),
         ];
+        for (attribute, data_base64) in payloads {
+            let Ok(bytes) = BASE64.decode(data_base64.as_bytes()) else {
+                return;
+            };
+            let encoded = if matches!(
+                attribute,
+                "CompressedEnhancedMetafile" | "CompressedWindowsMetafile" | "CompressedOLEObject"
+            ) {
+                BASE64.encode(bytes)
+            } else {
+                encode_hex_bytes(&bytes)
+            };
+            attrs.push((attribute, encoded));
+        }
+        if let Some(size) = uncompressed_size {
+            let size_attribute = attrs.iter().find_map(|(attribute, _)| match *attribute {
+                "CompressedEnhancedMetafile" => Some("UncompressedEnhancedMetafileSize"),
+                "CompressedWindowsMetafile" => Some("UncompressedWindowsMetafileSize"),
+                "CompressedOLEObject" => Some("UncompressedOLEObjectSize"),
+                _ => None,
+            });
+            if let Some(size_attribute) = size_attribute {
+                attrs.push((size_attribute, size.to_string()));
+            }
+        }
         if object.transform.rotate.abs() > crate::EPSILON {
             attrs.push(("RotationAngle", fmt_num(object.transform.rotate)));
         }

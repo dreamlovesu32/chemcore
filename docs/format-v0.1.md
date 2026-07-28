@@ -321,16 +321,24 @@ visibility, copy/paste, deletion, and undo use the normal scene-object rules.
   "payload": {
     "resourceRef": "image_a",
     "bbox": [0, 0, 160, 120],
+    "imageCrop": { "x": 80, "y": 40, "width": 480, "height": 320 },
     "fit": "stretch",
     "opacity": 1
   }
 }
 ```
 
-CDX/CDXML raster payloads map to this object without changing their bytes.
-Unsupported compound payloads such as OLE, EMF, WMF, TIFF, PDF, or PICT remain
-opaque resources and render a sized diagnostic placeholder instead of silently
-disappearing. Their original bytes remain authoritative for round-trip export.
+`imageCrop` is an optional integer rectangle in top-left-origin resource pixels.
+It is applied before object fit, scale, translation, and rotation. OLE, EMF,
+WMF, TIFF, PDF, and PICT resources retain their authoritative original bytes
+and carry an explicitly decoded preview when one can be extracted. Invalid,
+oversized, damaged, and previewless containers have distinct status values and
+render a sized diagnostic placeholder.
+
+CDX/CDXML have no standard crop attribute. A cropped raster is therefore
+projected as a cropped PNG. Compound resources retain their original payload
+and add the cropped PNG preview, so re-import preserves visible pixels without
+inventing a non-standard CDXML field.
 
 ## Spectrum Object
 

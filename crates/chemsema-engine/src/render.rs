@@ -1122,7 +1122,8 @@ fn render_image_object(
     let preserve_aspect_ratio =
         object.payload.extra.get("fit").and_then(JsonValue::as_str) == Some("contain");
     let center = Point::new(x + width * 0.5, y + height * 0.5);
-    if resource.resource_type != "image" {
+    let image = resource.display_image();
+    if image.is_none() {
         let radians = object.transform.rotate.to_radians();
         let cos = radians.cos();
         let sin = radians.sin();
@@ -1153,13 +1154,15 @@ fn render_image_object(
             stroke: "#6b7280".to_string(),
             stroke_width: 0.75,
         });
-        let format = match &resource.data {
-            ResourceData::Json(value) => value
-                .get("format")
-                .and_then(JsonValue::as_str)
-                .unwrap_or("object"),
-            _ => "object",
-        };
+        let embedded = resource.data.as_embedded_object();
+        let format = embedded
+            .as_ref()
+            .map(|value| value.format.as_str())
+            .unwrap_or("object");
+        let status = embedded
+            .as_ref()
+            .map(|value| value.preview_status.as_str().to_string())
+            .unwrap_or_else(|| "invalid-resource".to_string());
         out.push(RenderPrimitive::Text {
             role: RenderRole::DocumentText,
             object_id: Some(object.id.clone()),
@@ -1168,7 +1171,7 @@ fn render_image_object(
             y: center.y,
             baseline_offset: None,
             dominant_baseline: Some("central".to_string()),
-            text: format!("Embedded {format}"),
+            text: format!("Embedded {format} ({status})"),
             font_size: 8.0_f64.min(height.abs() * 0.3).max(3.0),
             font_family: Some("Arial".to_string()),
             fill: Some("#4b5563".to_string()),
@@ -1182,9 +1185,16 @@ fn render_image_object(
         });
         return;
     }
-    let Some(image) = resource.data.as_image() else {
+    let image = image.expect("image preview was checked above");
+    let Ok(source_crop) = object.payload.image_crop() else {
         return;
     };
+    if source_crop.is_some_and(|crop| {
+        crop.validate(image.pixel_width, image.pixel_height)
+            .is_err()
+    }) {
+        return;
+    }
     out.push(RenderPrimitive::Image {
         role: RenderRole::DocumentGraphic,
         object_id: Some(object.id.clone()),
@@ -1193,6 +1203,9 @@ fn render_image_object(
         width: crate::round2(width),
         height: crate::round2(height),
         href: format!("data:{};base64,{}", image.mime_type, image.data_base64),
+        source_crop,
+        source_width: image.pixel_width,
+        source_height: image.pixel_height,
         opacity,
         preserve_aspect_ratio,
         rotate: crate::round2(object.transform.rotate),

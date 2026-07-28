@@ -419,13 +419,16 @@ image 对象把栅格资源放置到场景中，本地 `bbox` 定义显示矩形
   "payload": {
     "resourceRef": "image_a",
     "bbox": [0, 0, 160, 120],
+    "imageCrop": { "x": 80, "y": 40, "width": 480, "height": 320 },
     "fit": "stretch",
     "opacity": 1
   }
 }
 ```
 
-CDX/CDXML 的栅格载荷映射到该对象时不改变原始字节。OLE、EMF、WMF、TIFF、PDF、PICT 等暂不能原生解码的复合载荷继续作为不透明资源保存，并显示带尺寸和格式名称的占位图，而不是静默空白；往返导出时原始字节仍然是权威数据。
+`imageCrop` 是可选的整数资源像素矩形，原点在源预览左上角；它先于对象适配、缩放、移动和旋转应用。OLE、EMF、WMF、TIFF、PDF、PICT 资源始终保留权威原始字节，并在能够提取时保存明确的位图预览。签名错误、超限、损坏和没有预览是不同状态，均显示带尺寸和状态的确定性占位。
+
+CDX/CDXML 没有标准裁剪属性。裁剪后的普通位图因此投影为 PNG；复合资源继续保存原始载荷，同时写入裁剪后的 PNG 预览。重新导入能保持可见像素，不伪造非标准 CDXML 字段。完整规则见 [旧式复合载荷预览与图片裁剪规则](embedded-preview-image-crop-rules.zh-CN.md)。
 
 ## Spectrum 对象
 
