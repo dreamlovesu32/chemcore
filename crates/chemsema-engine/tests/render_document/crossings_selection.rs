@@ -827,9 +827,13 @@ fn cdxml_restrict_implicit_hydrogens_renders_an_independent_atom_query_marker() 
                 RenderPrimitive::Text {
                     node_id: Some(node_id),
                     x,
+                    y,
+                    font_size,
                     runs,
                     ..
-                } if node_id == "26" && runs.iter().any(|run| run.text.trim() == "H") => Some(*x),
+                } if node_id == "26" && runs.iter().any(|run| run.text.trim() == "H") => {
+                    Some((*x, *y, *font_size))
+                }
                 _ => None,
             })
             .collect::<Vec<_>>()
@@ -837,8 +841,39 @@ fn cdxml_restrict_implicit_hydrogens_renders_an_independent_atom_query_marker() 
     let h_positions = node_h_positions(&document);
     assert_eq!(h_positions.len(), 2);
     assert!(
-        h_positions.iter().any(|x| *x > 159.89),
-        "the query H should sit independently to the upper right of the atom label: {h_positions:?}"
+        h_positions.iter().any(|(x, y, size)| {
+            (*x - 162.42).abs() <= 0.15
+                && (*y - 246.38).abs() <= 0.25
+                && (*size - 7.5).abs() <= 0.01
+        }),
+        "the query H should use ChemDraw's standard atom-query placement above the open bond sector: {h_positions:?}"
+    );
+
+    let combined_query = parse_cdxml_document(
+        &cdxml.replace(
+            "ImplicitHydrogens=\"yes\"",
+            "ImplicitHydrogens=\"yes\" FreeSites=\"2\" RingBondCount=\"SimpleRing\" UnsaturatedBonds=\"MustBePresent\"",
+        ),
+        Some("combined implicit-hydrogen query"),
+    )
+    .expect("combined atom query should import");
+    let combined_query_text = render_document(&combined_query)
+        .iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Text {
+                node_id: Some(node_id),
+                runs,
+                ..
+            } if node_id == "26" => {
+                Some(runs.iter().map(|run| run.text.as_str()).collect::<String>())
+            }
+            _ => None,
+        })
+        .find(|text| text.contains('*'))
+        .expect("combined query annotation should render");
+    assert_eq!(
+        combined_query_text, "*2HSR",
+        "ChemDraw orders the implicit-hydrogen restriction after free sites and before S/R"
     );
 
     let without_num_hydrogens = parse_cdxml_document(
@@ -866,6 +901,109 @@ fn cdxml_restrict_implicit_hydrogens_renders_an_independent_atom_query_marker() 
     assert!(exported.contains("NumHydrogens=\"1\""), "{exported}");
     assert!(exported.contains("ImplicitHydrogens=\"yes\""), "{exported}");
     assert!(exported.contains(">CH</s>"), "{exported}");
+}
+
+#[test]
+fn atom_query_annotations_follow_chemdraws_continuous_open_sector_layout() {
+    let cases = [
+        ("130 100", (85.14, 102.79)),
+        ("125.980762 115", (87.13, 98.11)),
+        ("100 130", (100.0, 93.44)),
+        ("70 100", (114.86, 102.79)),
+        ("100 70", (100.0, 112.13)),
+    ];
+    for (neighbor, expected) in cases {
+        let cdxml = format!(
+            r#"<CDXML ShowAtomQuery="yes" LabelFont="3" LabelSize="10"
+ MarginWidth="1.6" LineWidth="0.6" BoldWidth="2" BondLength="30">
+ <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+ <page><fragment>
+  <n id="101" p="100 100" Element="7" FreeSites="2"
+     RingBondCount="SimpleRing" UnsaturatedBonds="MustBePresent"/>
+  <n id="102" p="{neighbor}"/>
+  <b id="103" B="101" E="102"/>
+ </fragment></page>
+</CDXML>"#
+        );
+        let document = parse_cdxml_document(&cdxml, Some("continuous atom-query placement probe"))
+            .expect("atom-query probe should import");
+        let label_bounds = document
+            .resources
+            .values()
+            .find_map(|resource| resource.data.as_fragment())
+            .and_then(|fragment| fragment.nodes.iter().find(|node| node.id == "101"))
+            .and_then(|node| node.label.as_ref())
+            .map(|label| label.bbox())
+            .expect("atom label should have measured bounds");
+        let rendered = render_document(&document);
+        let label_position = rendered
+            .iter()
+            .find_map(|primitive| match primitive {
+                RenderPrimitive::Text {
+                    node_id: Some(node_id),
+                    x,
+                    y,
+                    runs,
+                    ..
+                } if node_id == "101"
+                    && runs.iter().map(|run| run.text.as_str()).collect::<String>() == "N" =>
+                {
+                    Some((*x, *y))
+                }
+                _ => None,
+            })
+            .expect("atom label should render");
+        assert!(
+            (label_position.0 - 96.39).abs() <= 0.5
+                && (label_position.1 - 103.90).abs() <= 0.5,
+            "neighbor={neighbor}, ChemDraw keeps the atom label centered; actual={label_position:?}"
+        );
+        let position = rendered
+            .iter()
+            .find_map(|primitive| match primitive {
+                RenderPrimitive::Text {
+                    node_id: Some(node_id),
+                    x,
+                    y,
+                    runs,
+                    ..
+                } if node_id == "101" && runs.iter().any(|run| run.text == "*") => Some((*x, *y)),
+                _ => None,
+            })
+            .expect("atom-query annotation should render");
+        assert!(
+            (position.0 - expected.0).abs() <= 0.5 && (position.1 - expected.1).abs() <= 0.5,
+            "neighbor={neighbor}, expected={expected:?}, actual={position:?}, label_bounds={label_bounds:?}"
+        );
+    }
+}
+
+#[test]
+fn atom_query_free_sites_consume_implicit_hydrogen_valence() {
+    for (free_sites, expected_hydrogens) in [(0, 2), (1, 1), (2, 0)] {
+        let cdxml = format!(
+            r#"<CDXML LabelFont="3" LabelSize="10">
+ <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+ <page><fragment>
+  <n id="101" p="100 100" Element="7" FreeSites="{free_sites}"/>
+  <n id="102" p="130 100"/>
+  <b id="103" B="101" E="102"/>
+ </fragment></page>
+</CDXML>"#
+        );
+        let document = parse_cdxml_document(&cdxml, Some("free-site valence probe"))
+            .expect("free-site probe should import");
+        let node = document
+            .resources
+            .values()
+            .find_map(|resource| resource.data.as_fragment())
+            .and_then(|fragment| fragment.nodes.iter().find(|node| node.id == "101"))
+            .expect("query node should survive");
+        assert_eq!(
+            node.num_hydrogens, expected_hydrogens,
+            "FreeSites={free_sites} must reproduce ChemDraw's explicit hydrogen count"
+        );
+    }
 }
 
 #[test]

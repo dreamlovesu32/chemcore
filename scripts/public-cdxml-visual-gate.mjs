@@ -69,7 +69,7 @@ const DEFAULTS = Object.freeze({
 });
 
 const ALIGNMENT_ALGORITHM = "ink-iou-coarse-refined-precision-v5";
-const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v8";
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v8";
 
 function parseArgs(argv) {
   const options = { ...DEFAULTS, patterns: [] };

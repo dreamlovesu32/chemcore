@@ -50,6 +50,55 @@ for (const [direction, neighbor] of Object.entries({
   ]);
 }
 
+for (let angle = 0; angle < 360; angle += 30) {
+  const radians = angle * Math.PI / 180;
+  const neighbor = [
+    100 + 30 * Math.cos(radians),
+    100 + 30 * Math.sin(radians),
+  ];
+  queryCases.push([
+    `orientation-angle-${angle}`,
+    'FreeSites="2" RingBondCount="SimpleRing" UnsaturatedBonds="MustBePresent"',
+    { neighbor },
+  ]);
+  queryCases.push([
+    `implicit-hydrogen-restriction-angle-${angle}`,
+    'NumHydrogens="1" ImplicitHydrogens="yes"',
+    {
+      element: 6,
+      neighbor,
+      nodeLabel: {
+        text: "CH",
+        labelAlignment: "Auto",
+        lineStarts: null,
+      },
+    },
+  ]);
+}
+for (const [name, neighbor] of [
+  ["open-up-asymmetric-v", [[117.63, 124.27], [71.46, 109.27]]],
+  ["open-down-asymmetric-v", [[117.63, 75.73], [71.46, 90.73]]],
+]) {
+  queryCases.push([
+    `orientation-${name}`,
+    'FreeSites="2" RingBondCount="SimpleRing" UnsaturatedBonds="MustBePresent"',
+    { neighbor },
+  ]);
+  queryCases.push([
+    `implicit-hydrogen-restriction-${name}`,
+    'NumHydrogens="1" ImplicitHydrogens="yes"',
+    {
+      element: 6,
+      neighbor,
+      nodeLabel: {
+        text: "CH",
+        labelAlignment: name.includes("up") ? "Above" : "Below",
+        lineStarts: "2 3",
+      },
+    },
+  ]);
+}
+
 for (const [fontName, fontId] of [["Arial", 3], ["Times New Roman", 4]]) {
   for (const size of [8, 10, 14]) {
     queryCases.push([
@@ -57,8 +106,50 @@ for (const [fontName, fontId] of [["Arial", 3], ["Times New Roman", 4]]) {
       'FreeSites="2" RingBondCount="SimpleRing" UnsaturatedBonds="MustBePresent"',
       { fontId, fontName, size },
     ]);
+    queryCases.push([
+      `implicit-hydrogen-restriction-${fontName.replaceAll(" ", "-").toLowerCase()}-${size}`,
+      'NumHydrogens="1" ImplicitHydrogens="yes"',
+      {
+        element: 6,
+        fontId,
+        fontName,
+        size,
+        nodeLabel: {
+          text: "CH",
+          labelAlignment: "Above",
+          lineStarts: "2 3",
+        },
+      },
+    ]);
   }
 }
+
+for (const labelAlignment of ["Above", "Below", "Left", "Right"]) {
+  queryCases.push([
+    `implicit-hydrogen-restriction-alignment-${labelAlignment.toLowerCase()}`,
+    'NumHydrogens="1" ImplicitHydrogens="yes"',
+    {
+      element: 6,
+      nodeLabel: {
+        text: "CH",
+        labelAlignment,
+        lineStarts: labelAlignment === "Above" || labelAlignment === "Below" ? "2 3" : null,
+      },
+    },
+  ]);
+}
+queryCases.push([
+  "implicit-hydrogen-restriction-combination",
+  'NumHydrogens="1" ImplicitHydrogens="yes" FreeSites="2" RingBondCount="SimpleRing" UnsaturatedBonds="MustBePresent"',
+  {
+    element: 6,
+    nodeLabel: {
+      text: "CH",
+      labelAlignment: "Above",
+      lineStarts: "2 3",
+    },
+  },
+]);
 
 const carbonCases = [
   ["carbon-default", false, false, ""],
@@ -87,7 +178,23 @@ function documentXml({
   fontId = 3,
   fontName = "Arial",
   size = 10,
+  element = 7,
+  nodeLabel = null,
 }) {
+  const nodeText = nodeLabel
+    ? `<t id="111" p="${100 - 0.282 * size} ${100 - 0.654 * size}"
+          LabelAlignment="${nodeLabel.labelAlignment}"
+          ${nodeLabel.lineStarts ? `LineStarts="${nodeLabel.lineStarts}"` : ""}>
+        <s font="${fontId}" size="${size}" face="96">${xmlEscape(nodeLabel.text)}</s>
+      </t>`
+    : "";
+  const neighbors = Array.isArray(neighbor[0]) ? neighbor : [neighbor];
+  const neighborNodes = neighbors
+    .map((point, index) => `<n id="${102 + index}" p="${point[0]} ${point[1]}"/>`)
+    .join("");
+  const neighborBonds = neighbors
+    .map((_, index) => `<b id="${202 + index}" B="101" E="${102 + index}"/>`)
+    .join("");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <CDXML CreationProgram="ChemSema atom query probe" BoundingBox="0 0 200 200"
  ShowAtomQuery="${showAtomQuery ? "yes" : "no"}"
@@ -102,9 +209,9 @@ function documentXml({
   </fonttable>
   <page id="1" BoundingBox="0 0 200 200">
     <fragment id="10">
-      <n id="101" p="100 100" Element="7" ${nodeAttributes}/>
-      <n id="102" p="${neighbor[0]} ${neighbor[1]}"/>
-      <b id="103" B="101" E="102"/>
+      <n id="101" p="100 100" Element="${element}" ${nodeAttributes}>${nodeText}</n>
+      ${neighborNodes}
+      ${neighborBonds}
     </fragment>
     <t id="201" p="20 180"><s font="${fontId}" size="${size}" color="0">${xmlEscape(fontName)} ${size}</s></t>
   </page>

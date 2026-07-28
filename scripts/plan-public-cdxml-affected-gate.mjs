@@ -8,6 +8,7 @@ import {
   buildFeatureIndex,
   selectAffectedCases,
 } from "./public-cdxml-impact.mjs";
+import { CACHE_IDENTITY } from "./public-cdxml-visual-gate.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -175,7 +176,7 @@ async function main() {
   if (options.dryRun) return;
 
   const baseline = JSON.parse(await fs.readFile(baselineReport, "utf8"));
-  const unstamped = baseline.cacheIdentity !== "chemsema-public-cdxml-visual-gate-cache-v2"
+  const unstamped = baseline.cacheIdentity !== CACHE_IDENTITY
     || baseline.cases.some((entry) => !entry.artifactHashes);
   if (unstamped) {
     throw new Error(`Baseline report is not cache-stamped. Run: node scripts/public-cdxml-visual-gate.mjs --gallery "${gallery}" --stamp-report "${baselineReport}"`);

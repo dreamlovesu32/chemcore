@@ -48,6 +48,15 @@
       "regressionCases": ["0032", "0049", "0061", "0062"]
     },
     {
+      "name": "atom-query-rendering",
+      "pathEquals": [
+        "crates/chemsema-engine/src/render_objects.rs",
+        "crates/chemsema-engine/src/engine/text_edit/labels.rs"
+      ],
+      "features": ["query"],
+      "regressionCases": ["0001"]
+    },
+    {
       "name": "visual-gate-definition",
       "pathSubstrings": [
         "scripts/public-cdxml-visual-gate.mjs",

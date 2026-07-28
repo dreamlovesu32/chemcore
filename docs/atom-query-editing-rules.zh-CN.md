@@ -30,13 +30,13 @@
 3. `MustBeAbsent` 与 `MustBePresent` 都显示 `S`；具体语义保留在字段中，短码本身不区分。
 4. `SubstituentsUpTo=n` 显示 `Un`；`SubstituentsExactly=n` 显示 `Xn`。
 5. `Translation=Equal` 不显示；`Broad/Narrow/Any` 都显示 `L`。
-6. 组合顺序固定为 `X/U/* → S → R → L → I`，其中 `I` 表示非 `Unspecified` 的同位素丰度。`SubstituentsExactly` 优先于 `SubstituentsUpTo`，二者又优先于 `FreeSites`；被压过的字段仍需往返保留。
-7. 普通查询字符字号为原子标签字号的 `0.75`；`*` 使用 Symbol 字体，字号为普通查询字号再加 `0.8 pt`。查询位于主连接方向的反侧：右键在左、左键在右、上键在下、下键在上。
+6. 组合顺序固定为 `X/U/* → H → S → R → L → I`，其中 `H` 表示 `ImplicitHydrogens` 限制，`I` 表示非 `Unspecified` 的同位素丰度。`SubstituentsExactly` 优先于 `SubstituentsUpTo`，二者又优先于 `FreeSites`；被压过的字段仍需往返保留。
+7. 普通查询字符字号为原子标签字号的 `0.75`；`*` 使用 Symbol 字体，字号为普通查询字号再加 `0.8 pt`。位置不是上下左右四档，而是沿连接占用方向的反向连续变化：标注中心相对标签字形盒的间距按各轴投影计算，边缘净距固定为 `MarginWidth + LineWidth / 2`。
 8. 节点级 `ShowAtomQuery` 覆盖文档默认值；`no` 仅隐藏短码，不删除查询字段。
 9. `ElementList` 与 `GenericList` 的载体均为 `NodeType="ElementList"`；两者可以共存，显示顺序为元素符号在前、通用名在后，例如 `N, O, R, X`。排除列表以 `NOT ` 开头。
 10. `AbnormalValence` 不产生短码；它关闭常规价态无效诊断，并使未明确给出的隐式氢不再由典型价态猜测。
 11. ChemDraw 静默导入/导出会保留碳标签显示字段，但不会仅凭字段自动写入 `<t>` 缓存。ChemSema 在编辑器内按字段即时物化 `C/CHn` 标签，同时导出原字段；用户自写标签不被覆盖。
-12. `ImplicitHydrogens` 限制的 `H` 是独立的右上角标记，不并入上述查询短码，也不替代标签自身的氢。
+12. `ImplicitHydrogens` 限制的 `H` 并入同一个查询标注对象；它不替代标签自身的氢。`FreeSites` 同时占用相应价态，因此会减少标签中自动推导的隐式氢数；例如单键相连的氮在 `FreeSites=0/1/2` 时分别显示 `NH2/NH/N`。
 
 ## 碳标签优先级
 

@@ -1326,12 +1326,12 @@ pub(super) fn element_valence_is_valid_for_node(
         return true;
     }
     if node.atomic_number == 6 {
-        let connection_order = implicit_hydrogen_connection_order(fragment, node);
+        let connection_order = implicit_hydrogen_valence_usage(fragment, node);
         let radical_count = crate::node_radical_count(node);
         let abs_charge = node.charge.abs();
         return connection_order + radical_count + abs_charge <= 4;
     }
-    let connection_order = implicit_hydrogen_connection_order(fragment, node);
+    let connection_order = implicit_hydrogen_valence_usage(fragment, node);
     let radical_count = crate::node_radical_count(node);
     let charge = node.charge;
     let abs_charge = charge.abs();
@@ -2195,7 +2195,7 @@ pub(super) fn implicit_hydrogen_count(fragment: &crate::MoleculeFragment, node_i
     if node.is_placeholder || node.atomic_number == 1 || node.atomic_number == 6 {
         return 0;
     }
-    let connection_count = implicit_hydrogen_connection_order(fragment, node);
+    let connection_count = implicit_hydrogen_valence_usage(fragment, node);
     let radical_count = crate::node_radical_count(node);
     let charge = node.charge;
     let abs_charge = charge.abs();
@@ -2248,6 +2248,11 @@ fn cdxml_explicit_num_hydrogens(node: &crate::Node) -> Option<u8> {
         .pointer("/import/cdxml/explicitNumHydrogens")
         .and_then(Value::as_u64)
         .map(|value| value.min(u64::from(u8::MAX)) as u8)
+}
+
+fn implicit_hydrogen_valence_usage(fragment: &crate::MoleculeFragment, node: &crate::Node) -> i32 {
+    implicit_hydrogen_connection_order(fragment, node)
+        + i32::from(node.atom_properties.free_sites.unwrap_or(0))
 }
 
 fn implicit_hydrogen_connection_order(

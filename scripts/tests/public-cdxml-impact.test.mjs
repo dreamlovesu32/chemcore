@@ -100,6 +100,27 @@ test("CDXML feature extraction recognizes visual rule families", () => {
   }
 });
 
+test("CDXML query extraction distinguishes content from visibility defaults", () => {
+  const visibilityOnly = featuresFromCdxml(`
+    <CDXML ShowAtomQuery="yes" ShowBondQuery="yes"><page><fragment>
+      <n id="1" p="0 0" Element="6"/>
+    </fragment></page></CDXML>
+  `);
+  assert.ok(visibilityOnly.includes("query-visibility"));
+  assert.ok(!visibilityOnly.includes("query"));
+
+  for (const source of [
+    `<CDXML><n ImplicitHydrogens="yes"/></CDXML>`,
+    `<CDXML><n FreeSites="2" RingBondCount="AsDrawn"/></CDXML>`,
+    `<CDXML><n UnsaturatedBonds="MustBePresent" SubstituentsExactly="2"/></CDXML>`,
+    `<CDXML><n Translation="Broad" IsotopicAbundance="Any"/></CDXML>`,
+    `<CDXML><n NodeType="ElementList" ElementList="6 7 8"/></CDXML>`,
+    `<CDXML><objecttag Name="query"><t><s>R</s></t></objecttag></CDXML>`,
+  ]) {
+    assert.ok(featuresFromCdxml(source).includes("query"), source);
+  }
+});
+
 test("affected selection combines feature hits and historical regressions", () => {
   const featureIndex = {
     cases: [

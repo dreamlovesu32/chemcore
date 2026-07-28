@@ -1574,6 +1574,14 @@ fn render_fragment_atom_query_annotations(
             query.push_str(&value.to_string());
         }
     }
+    let restrict_implicit_hydrogens = node
+        .meta
+        .pointer("/import/cdxml/restrictImplicitHydrogens")
+        .and_then(JsonValue::as_bool)
+        == Some(true);
+    if restrict_implicit_hydrogens {
+        query.push('H');
+    }
     if properties.unsaturated_bonds != crate::UnsaturatedBonds::Unspecified {
         query.push('S');
     }
@@ -1592,12 +1600,7 @@ fn render_fragment_atom_query_annotations(
     if properties.isotopic_abundance != crate::IsotopicAbundance::Unspecified {
         query.push('I');
     }
-    let restrict_implicit_hydrogens = node
-        .meta
-        .pointer("/import/cdxml/restrictImplicitHydrogens")
-        .and_then(JsonValue::as_bool)
-        == Some(true);
-    if query.is_empty() && !restrict_implicit_hydrogens {
+    if query.is_empty() {
         return;
     }
 
@@ -1630,87 +1633,104 @@ fn render_fragment_atom_query_annotations(
                 .and_then(|style| style_string(style, "fill"))
         });
     let center = world_point(object, node);
-    let bounds = label_box_world(node, object).unwrap_or(RectBox {
+    let bounds = atom_query_label_bounds(node, object, font_size).unwrap_or(RectBox {
         x1: center.x - font_size * 0.3,
         y1: center.y - font_size * 0.45,
         x2: center.x + font_size * 0.3,
         y2: center.y + font_size * 0.45,
     });
-    if restrict_implicit_hydrogens {
-        push_text_for_node(
-            out,
-            center.x + font_size * 0.17,
-            bounds.y1 - font_size * 0.07,
-            Some(font_size * 0.82),
-            String::new(),
-            font_size,
-            font_family.clone(),
-            fill.clone(),
-            Some("start".to_string()),
-            vec![LabelRun {
-                text: "H".to_string(),
-                font_family: font_family.clone(),
-                font_size: Some(font_size),
-                fill: fill.clone(),
-                font_weight: Some(400),
-                font_style: Some("normal".to_string()),
-                underline: Some(false),
-                outline: Some(false),
-                shadow: Some(false),
-                script: Some("normal".to_string()),
-            }],
-            object_id.clone(),
-            Some(node.id.clone()),
-        );
-    }
-    if query.is_empty() {
-        return;
-    }
     let direction = query_connection_direction(fragment, node);
-    let horizontal = direction.x.abs() >= direction.y.abs();
     let left_annotation_width = properties
         .isotope_mass
         .filter(|_| !isotope_mass_is_encoded_by_hydrogen_shorthand(node))
         .map(|mass| annotation_text_width(&mass.to_string(), query_size))
         .unwrap_or(0.0);
-    let (x, y, anchor) = if horizontal && direction.x >= 0.0 {
-        (
-            bounds.x1 - font_size * 0.1875 - left_annotation_width,
-            (bounds.y1 + bounds.y2 - query_size) * 0.5,
-            "end",
-        )
-    } else if horizontal {
-        (
-            bounds.x2 + font_size * 0.1875,
-            (bounds.y1 + bounds.y2 - query_size) * 0.5,
-            "start",
-        )
-    } else if direction.y < 0.0 {
-        (
-            (bounds.x1 + bounds.x2) * 0.5,
-            bounds.y2 + query_size * 0.15,
-            "middle",
-        )
-    } else {
-        (
-            (bounds.x1 + bounds.x2) * 0.5,
-            bounds.y1 - query_size * 1.05,
-            "middle",
-        )
-    };
+    let obstacle_x1 = bounds.x1 - left_annotation_width;
+    let obstacle_center_x = (obstacle_x1 + bounds.x2) * 0.5;
+    let obstacle_center_y = (bounds.y1 + bounds.y2) * 0.5;
+    let obstacle_half_width = (bounds.x2 - obstacle_x1) * 0.5;
+    let obstacle_half_height = (bounds.y2 - bounds.y1) * 0.5;
+    let query_metrics = atom_query_text_metrics(&query, query_size);
+    let query_half_width = query_metrics.width * 0.5;
+    let query_half_height = (query_metrics.bottom - query_metrics.top) * 0.5;
+    let gap = atom_query_annotation_gap(document);
+    let query_center_x =
+        obstacle_center_x - direction.x * (obstacle_half_width + gap + query_half_width);
+    let query_center_y =
+        obstacle_center_y - direction.y * (obstacle_half_height + gap + query_half_height);
+    let baseline_y = query_center_y - (query_metrics.top + query_metrics.bottom) * 0.5;
     push_atom_query_text(
         out,
         document,
-        x,
-        y,
+        query_center_x,
+        baseline_y,
         &query,
         query_size,
         font_family,
         fill.as_deref().unwrap_or("#000000"),
-        anchor,
+        "middle",
         object_id,
         &node.id,
     );
+}
+
+fn atom_query_label_bounds(node: &Node, object: &SceneObject, font_size: f64) -> Option<RectBox> {
+    let layout_bounds = label_box_world(node, object);
+    if let Some((x1, y1, x2, y2)) = polygon_list_bounds(&label_polygons_world(node, object)) {
+        return Some(RectBox {
+            x1: layout_bounds.map_or(x1, |bounds| bounds.x1),
+            y1: y1 - font_size * 0.09,
+            x2: layout_bounds.map_or(x2, |bounds| bounds.x2),
+            y2,
+        });
+    }
+    layout_bounds
+}
+
+fn atom_query_annotation_gap(document: &ChemSemaDocument) -> f64 {
+    let margin_width = document
+        .document
+        .meta
+        .pointer("/import/cdxml/defaults/marginWidth")
+        .and_then(JsonValue::as_f64)
+        .or_else(|| document.style.defaults.get("marginWidth").copied())
+        .unwrap_or(crate::DEFAULT_BOND_MARGIN_WIDTH_PT.value());
+    let line_width = document
+        .document
+        .meta
+        .pointer("/import/cdxml/defaults/lineWidth")
+        .and_then(JsonValue::as_f64)
+        .or_else(|| document.style.defaults.get("lineWidth").copied())
+        .unwrap_or(DEFAULT_BOND_STROKE);
+    margin_width + line_width * 0.5
+}
+
+#[derive(Debug, Clone, Copy)]
+struct AtomQueryTextMetrics {
+    width: f64,
+    top: f64,
+    bottom: f64,
+}
+
+fn atom_query_text_metrics(text: &str, query_size: f64) -> AtomQueryTextMetrics {
+    let (width, has_symbol_star) = if let Some(rest) = text.strip_prefix('*') {
+        let star_size = query_size + 0.8;
+        (
+            star_size * 0.5 + annotation_text_width(rest, query_size),
+            true,
+        )
+    } else {
+        (annotation_text_width(text, query_size), false)
+    };
+    AtomQueryTextMetrics {
+        width,
+        top: -query_size * if has_symbol_star { 0.848 } else { 0.832 },
+        bottom: if has_symbol_star {
+            query_size * 0.013
+        } else {
+            0.0
+        },
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1728,10 +1748,9 @@ fn push_atom_query_text(
     node_id: &str,
 ) {
     let mut runs = Vec::new();
-    let mut width = 0.0;
+    let metrics = atom_query_text_metrics(text, query_size);
     if let Some(rest) = text.strip_prefix('*') {
         let star_size = query_size + 0.8;
-        width += annotation_text_width("*", star_size);
         runs.push(LabelRun {
             text: "*".to_string(),
             font_family: Some("Symbol".to_string()),
@@ -1745,7 +1764,6 @@ fn push_atom_query_text(
             script: Some("normal".to_string()),
         });
         if !rest.is_empty() {
-            width += annotation_text_width(rest, query_size);
             runs.push(LabelRun {
                 text: rest.to_string(),
                 font_family: font_family.clone(),
@@ -1760,7 +1778,6 @@ fn push_atom_query_text(
             });
         }
     } else {
-        width = annotation_text_width(text, query_size);
         runs.push(LabelRun {
             text: text.to_string(),
             font_family: font_family.clone(),
@@ -1775,8 +1792,8 @@ fn push_atom_query_text(
         });
     }
     let left = match anchor {
-        "end" => x - width,
-        "middle" => x - width * 0.5,
+        "end" => x - metrics.width,
+        "middle" => x - metrics.width * 0.5,
         _ => x,
     };
     out.push(RenderPrimitive::Rect {
@@ -1784,9 +1801,9 @@ fn push_atom_query_text(
         object_id: object_id.clone(),
         node_id: Some(node_id.to_string()),
         x: left - 0.35,
-        y: y - query_size * 0.18,
-        width: width + 0.7,
-        height: query_size + 1.15,
+        y: y + metrics.top - 0.35,
+        width: metrics.width + 0.7,
+        height: metrics.bottom - metrics.top + 0.7,
         fill: Some(document.document.page.background.clone()),
         stroke: None,
         stroke_width: 0.0,
