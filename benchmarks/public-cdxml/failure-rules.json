@@ -338,13 +338,16 @@
     {
       "id": "cdxml-select-display-fragments-by-structural-containment",
       "status": "verified",
-      "summary": "A Fragment with direct bonds or positioned direct nodes is a displayed molecule. A coordinate-free outer Fragment/Node wrapper is transparent and exposes its positioned embedded Fragment. Once a displayed Fragment is selected, nested fragments are expansion or connection definitions rather than independent molecules. Producer identity never changes this decision.",
-      "officialRule": "Fragment is the CDX container for a molecular graph, while Node may own an embedded Fragment. Display identity therefore follows containment and authoritative coordinates: an unpositioned wrapper does not create a second molecule, and an embedded fragment inside an already displayed molecular graph is not promoted to another top-level molecule.",
+      "summary": "A Fragment with a direct Node or Bond is a displayed molecule, including a one-node collapsed nickname whose p is omitted. A Fragment nested below that Node is its definition and is never promoted to another page molecule. Multiple coordinate-free collapsed wrappers use ChemDraw's count-dependent page grid at BondLength spacing; a single parent-bond anchor selects the corresponding anchored grid.",
+      "officialRule": "Fragment is the CDX container for a molecular graph, while Node may own an embedded Fragment. ChemDraw 21 open-save probes preserve the nested definition but render only the owning collapsed Node, assign p=0 0 to one unpositioned wrapper, and lay 2-16 wrappers on a deterministic count-dependent grid independent of label width, nested-definition coordinates, and unrelated positioned molecules. Parent-bond anchors translate the same automatic cluster.",
       "evidence": [
         "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
         "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "scripts/chemdraw-collapsed-fragment-layout-probe.mjs",
         "crates/chemsema-engine/src/cdxml.rs#singleton_placeholder_fragment_stays_a_molecule_for_every_producer",
-        "crates/chemsema-engine/src/cdxml.rs#unpositioned_fragment_wrapper_exposes_its_positioned_embedded_fragment"
+        "crates/chemsema-engine/src/cdxml.rs#unpositioned_fragment_wrapper_displays_its_collapsed_node_not_its_definition",
+        "crates/chemsema-engine/src/cdxml.rs#unpositioned_collapsed_wrappers_use_chemdraw_page_grid",
+        "crates/chemsema-engine/src/cdxml.rs#collapsed_wrapper_grid_uses_a_single_parent_bond_anchor"
       ],
       "caseIds": [
         "0034",

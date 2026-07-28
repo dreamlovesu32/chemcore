@@ -372,6 +372,8 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
     let mut objects = Vec::new();
 
     let fragments = display_fragments(&root);
+    let collapsed_wrapper_positions =
+        cdxml_collapsed_wrapper_position_overrides(&root, defaults.bond_length)?;
     let display_fragment_ids: BTreeSet<String> = fragments
         .iter()
         .filter_map(|fragment| fragment.attr("id").map(ToString::to_string))
@@ -379,7 +381,19 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
     let bonded_node_ids = cdxml_bonded_node_ids(&root);
     let mut molecule_index = 1usize;
     for fragment in &fragments {
-        let node_positions = cdxml_fragment_node_positions(fragment, defaults.bond_length)?;
+        let mut node_positions = cdxml_fragment_node_positions(fragment, defaults.bond_length)?;
+        if let Some(fragment_id) = fragment.attr("id") {
+            for node in fragment.direct_children("n") {
+                let Some(node_id) = node.attr("id") else {
+                    continue;
+                };
+                if let Some(position) =
+                    collapsed_wrapper_positions.get(&(fragment_id.to_string(), node_id.to_string()))
+                {
+                    node_positions.insert(node_id.to_string(), *position);
+                }
+            }
+        }
         let Some(bbox) = cdxml_fragment_bbox(fragment, defaults.bond_length, &node_positions)
         else {
             continue;
@@ -1032,10 +1046,10 @@ mod interchange_tests {
     }
 
     #[test]
-    fn unpositioned_fragment_wrapper_exposes_its_positioned_embedded_fragment() {
+    fn unpositioned_fragment_wrapper_displays_its_collapsed_node_not_its_definition() {
         let source = r#"<CDXML BondLength="14.4"><page id="1">
-          <fragment id="20">
-            <n id="21" NodeType="Fragment">
+            <fragment id="20">
+              <n id="21" NodeType="Fragment">
               <fragment id="30">
                 <n id="31" p="10 10"/>
                 <n id="32" p="24.4 10"/>
@@ -1055,7 +1069,7 @@ mod interchange_tests {
         assert_eq!(molecules.len(), 1);
         assert_eq!(
             molecules[0].meta.get("fragmentId").and_then(Value::as_str),
-            Some("30")
+            Some("20")
         );
         let fragment = molecules[0]
             .payload
@@ -1063,19 +1077,27 @@ mod interchange_tests {
             .as_ref()
             .and_then(|id| document.resources.get(id))
             .and_then(|resource| resource.data.as_fragment())
-            .expect("embedded molecule resource");
-        assert_eq!(fragment.nodes.len(), 2);
-        assert_eq!(fragment.bonds.len(), 1);
+            .expect("collapsed wrapper resource");
+        assert_eq!(fragment.nodes.len(), 1);
+        assert_eq!(fragment.bonds.len(), 0);
+        assert_eq!(fragment.nodes[0].id, "21");
+        assert_eq!(
+            fragment.nodes[0]
+                .label
+                .as_ref()
+                .map(|label| label.text.as_str()),
+            Some("Et")
+        );
 
         let saved = document_to_cdxml(&document);
         assert_eq!(
             saved.matches("id=\"30\"").count(),
             1,
-            "the regenerated display fragment must not also survive inside its transparent wrapper: {saved}"
+            "the node-owned definition remains nested exactly once: {saved}"
         );
         assert!(
             saved.contains("id=\"20\"") && saved.contains(">Et</s>"),
-            "unmodeled wrapper metadata remains available without duplicating its native fragment: {saved}"
+            "the displayed collapsed wrapper and its label remain available: {saved}"
         );
         let reopened =
             parse_cdxml_document(&saved, Some("reopened wrapper")).expect("saved CDXML reopens");
@@ -1091,11 +1113,166 @@ mod interchange_tests {
             .as_ref()
             .and_then(|id| reopened.resources.get(id))
             .and_then(|resource| resource.data.as_fragment())
-            .expect("reopened embedded molecule resource");
-        assert_eq!(reopened_fragment.nodes.len(), 2);
-        assert_eq!(reopened_fragment.bonds.len(), 1);
+            .expect("reopened collapsed wrapper resource");
+        assert_eq!(reopened_fragment.nodes.len(), 1);
+        assert_eq!(reopened_fragment.bonds.len(), 0);
         let saved_again = document_to_cdxml(&reopened);
         assert_eq!(saved_again.matches("id=\"30\"").count(), 1);
+    }
+
+    #[test]
+    fn unpositioned_collapsed_wrappers_use_chemdraw_page_grid() {
+        let source = r#"<CDXML BondLength="30"><page id="1">
+            <fragment id="20"><n id="21" NodeType="Fragment"><fragment id="22">
+              <n id="23" p="100 100"/><n id="24" p="130 100"/><b id="25" B="23" E="24"/>
+            </fragment><t><s>A</s></t></n></fragment>
+            <fragment id="30"><n id="31" NodeType="Fragment"><fragment id="32">
+              <n id="33" p="200 100"/><n id="34" p="230 100"/><b id="35" B="33" E="34"/>
+            </fragment><t><s>B</s></t></n></fragment>
+            <fragment id="40"><n id="41" NodeType="Fragment"><fragment id="42">
+              <n id="43" p="300 100"/><n id="44" p="330 100"/><b id="45" B="43" E="44"/>
+            </fragment><t><s>C</s></t></n></fragment>
+            <fragment id="50"><n id="51" NodeType="Fragment"><fragment id="52">
+              <n id="53" p="400 100"/><n id="54" p="430 100"/><b id="55" B="53" E="54"/>
+            </fragment><t><s>D</s></t></n></fragment>
+          </page></CDXML>"#;
+        let document = parse_cdxml_document(source, Some("collapsed grid")).expect("CDXML");
+        let positions = document
+            .scene_objects()
+            .into_iter()
+            .filter(|object| object.kind() == crate::SceneObjectKind::Molecule)
+            .map(|object| {
+                let fragment = object
+                    .payload
+                    .resource_ref
+                    .as_ref()
+                    .and_then(|id| document.resources.get(id))
+                    .and_then(|resource| resource.data.as_fragment())
+                    .expect("fragment");
+                [
+                    round2(object.transform.translate[0] + fragment.nodes[0].position[0]),
+                    round2(object.transform.translate[1] + fragment.nodes[0].position[1]),
+                ]
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            positions,
+            vec![[0.0, 0.0], [0.0, 30.0], [0.0, 60.0], [30.0, 45.0]]
+        );
+    }
+
+    #[test]
+    fn collapsed_wrapper_grid_uses_a_single_parent_bond_anchor() {
+        let source = r#"<CDXML BondLength="30"><page id="1">
+            <fragment id="20"><n id="21" NodeType="Fragment"><fragment id="22">
+              <n id="23" p="10 10"/>
+            </fragment><t><s>A</s></t></n></fragment>
+            <fragment id="30">
+              <n id="31" NodeType="Fragment"><fragment id="32"><n id="33" p="20 20"/></fragment>
+                <t><s>Anchor</s></t>
+              </n>
+              <n id="38" p="100 100"/>
+              <b id="39" B="38" E="31"/>
+            </fragment>
+            <fragment id="40"><n id="41" NodeType="Fragment"><fragment id="42">
+              <n id="43" p="30 30"/>
+            </fragment><t><s>C</s></t></n></fragment>
+          </page></CDXML>"#;
+        let document =
+            parse_cdxml_document(source, Some("anchored collapsed grid")).expect("CDXML");
+        let mut positions = BTreeMap::new();
+        for object in document
+            .scene_objects()
+            .into_iter()
+            .filter(|object| object.kind() == crate::SceneObjectKind::Molecule)
+        {
+            let fragment_id = object
+                .meta
+                .get("fragmentId")
+                .and_then(Value::as_str)
+                .expect("fragment id")
+                .to_string();
+            let fragment = object
+                .payload
+                .resource_ref
+                .as_ref()
+                .and_then(|id| document.resources.get(id))
+                .and_then(|resource| resource.data.as_fragment())
+                .expect("fragment");
+            for node in &fragment.nodes {
+                positions.insert(
+                    (fragment_id.clone(), node.id.clone()),
+                    [
+                        round2(object.transform.translate[0] + node.position[0]),
+                        round2(object.transform.translate[1] + node.position[1]),
+                    ],
+                );
+            }
+        }
+        assert_eq!(
+            positions[&("20".to_string(), "21".to_string())],
+            [100.0, 130.0]
+        );
+        assert_eq!(
+            positions[&("30".to_string(), "31".to_string())],
+            [130.0, 100.0]
+        );
+        assert_eq!(
+            positions[&("40".to_string(), "41".to_string())],
+            [130.0, 130.0]
+        );
+    }
+
+    #[test]
+    fn collapsed_wrapper_grid_moves_a_last_anchor_to_chemdraw_origin() {
+        let source = r#"<CDXML BondLength="30"><page id="1">
+            <fragment id="20"><n id="21" NodeType="Fragment"><fragment id="22">
+              <n id="23" p="10 10"/>
+            </fragment><t><s>A</s></t></n></fragment>
+            <fragment id="30">
+              <n id="31" NodeType="Fragment"><fragment id="32"><n id="33" p="20 20"/></fragment>
+                <t><s>Anchor</s></t>
+              </n>
+              <n id="38" p="100 100"/>
+              <b id="39" B="38" E="31"/>
+            </fragment>
+          </page></CDXML>"#;
+        let document =
+            parse_cdxml_document(source, Some("last anchored collapsed grid")).expect("CDXML");
+        let mut positions = BTreeMap::new();
+        for object in document
+            .scene_objects()
+            .into_iter()
+            .filter(|object| object.kind() == crate::SceneObjectKind::Molecule)
+        {
+            let fragment_id = object
+                .meta
+                .get("fragmentId")
+                .and_then(Value::as_str)
+                .expect("fragment id")
+                .to_string();
+            let fragment = object
+                .payload
+                .resource_ref
+                .as_ref()
+                .and_then(|id| document.resources.get(id))
+                .and_then(|resource| resource.data.as_fragment())
+                .expect("fragment");
+            for node in &fragment.nodes {
+                positions.insert(
+                    (fragment_id.clone(), node.id.clone()),
+                    [
+                        round2(object.transform.translate[0] + node.position[0]),
+                        round2(object.transform.translate[1] + node.position[1]),
+                    ],
+                );
+            }
+        }
+        assert_eq!(
+            positions[&("20".to_string(), "21".to_string())],
+            [60.0, 0.0]
+        );
+        assert_eq!(positions[&("30".to_string(), "31".to_string())], [0.0, 0.0]);
     }
 
     #[test]

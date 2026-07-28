@@ -178,8 +178,6 @@ pub(super) fn cdxml_node_is_display_fragment(node: &XmlNode) -> bool {
         return false;
     }
     let has_bond = node.direct_children("b").next().is_some();
-    let has_positioned_node = node
-        .direct_children("n")
-        .any(|child| child.attr("p").is_some());
-    has_bond || has_positioned_node
+    let has_node = node.direct_children("n").next().is_some();
+    has_bond || has_node
 }

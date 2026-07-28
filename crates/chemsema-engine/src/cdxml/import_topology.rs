@@ -1,5 +1,222 @@
 use super::*;
 
+#[derive(Clone)]
+struct CollapsedWrapperLayoutEntry {
+    fragment_id: String,
+    node_id: String,
+    anchor: Option<[f64; 2]>,
+}
+
+pub(super) fn cdxml_collapsed_wrapper_position_overrides(
+    root: &XmlNode,
+    bond_length: f64,
+) -> Result<BTreeMap<(String, String), [f64; 2]>, String> {
+    let pages = descendants(root)
+        .into_iter()
+        .filter(|node| node.is("page"))
+        .collect::<Vec<_>>();
+    let scopes = if pages.is_empty() { vec![root] } else { pages };
+    let mut overrides = BTreeMap::new();
+    for scope in scopes {
+        let fragments = display_fragments(scope);
+        let mut entries = Vec::new();
+        for fragment in fragments {
+            let Some(fragment_id) = fragment.attr("id") else {
+                continue;
+            };
+            let direct_nodes = fragment.direct_children("n").collect::<Vec<_>>();
+            let direct_bonds = fragment.direct_children("b").collect::<Vec<_>>();
+            for node in direct_nodes.iter().copied().filter(|node| {
+                node.attr("NodeType") == Some("Fragment") && node.attr("p").is_none()
+            }) {
+                let Some(node_id) = node.attr("id") else {
+                    continue;
+                };
+                if direct_nodes.len() == 1 && direct_bonds.is_empty() {
+                    entries.push(CollapsedWrapperLayoutEntry {
+                        fragment_id: fragment_id.to_string(),
+                        node_id: node_id.to_string(),
+                        anchor: None,
+                    });
+                    continue;
+                }
+                let parent_anchor = direct_bonds.iter().find_map(|bond| {
+                    let begin = bond.attr("B")?;
+                    let end = bond.attr("E")?;
+                    let (neighbor_id, direction) = if begin == node_id {
+                        (end, -1.0)
+                    } else if end == node_id {
+                        (begin, 1.0)
+                    } else {
+                        return None;
+                    };
+                    let neighbor = direct_nodes
+                        .iter()
+                        .copied()
+                        .find(|candidate| candidate.attr("id") == Some(neighbor_id))?;
+                    let neighbor_position = parse_xy(neighbor.attr("p"))?;
+                    Some([
+                        round2(neighbor_position[0] + direction * bond_length),
+                        round2(neighbor_position[1]),
+                    ])
+                });
+                if let Some(anchor) = parent_anchor {
+                    entries.push(CollapsedWrapperLayoutEntry {
+                        fragment_id: fragment_id.to_string(),
+                        node_id: node_id.to_string(),
+                        anchor: Some(anchor),
+                    });
+                }
+            }
+        }
+
+        let missing = entries
+            .iter()
+            .filter(|entry| entry.anchor.is_none())
+            .collect::<Vec<_>>();
+        if missing.is_empty() {
+            continue;
+        }
+        let anchors = entries
+            .iter()
+            .enumerate()
+            .filter_map(|(index, entry)| entry.anchor.map(|point| (index, entry, point)))
+            .collect::<Vec<_>>();
+        let has_single_anchor = anchors.len() == 1 && entries.len() <= 8;
+        let normalized = if anchors.is_empty() {
+            chemdraw_collapsed_wrapper_grid(missing.len())?
+        } else if has_single_anchor {
+            chemdraw_collapsed_wrapper_grid_with_anchor(entries.len())?
+        } else {
+            // A page with several independently anchored collapsed fragments is
+            // not one automatic layout cluster. Only the truly coordinate-free
+            // singleton fragments participate in this origin-based cluster.
+            chemdraw_collapsed_wrapper_grid(missing.len())?
+        };
+
+        if has_single_anchor {
+            let (anchor_index, anchor_entry, measured_anchor_position) = anchors[0];
+            let anchor_is_last = anchor_index + 1 == entries.len();
+            let (origin, anchor_position) = if anchor_is_last {
+                ([0.0, 0.0], [0.0, 0.0])
+            } else {
+                (
+                    [
+                        round2(measured_anchor_position[0] - bond_length),
+                        round2(measured_anchor_position[1]),
+                    ],
+                    measured_anchor_position,
+                )
+            };
+            overrides.insert(
+                (
+                    anchor_entry.fragment_id.clone(),
+                    anchor_entry.node_id.clone(),
+                ),
+                anchor_position,
+            );
+            for (entry, point) in missing.iter().zip(normalized) {
+                overrides.insert(
+                    (entry.fragment_id.clone(), entry.node_id.clone()),
+                    [
+                        round2(origin[0] + point[0] * bond_length),
+                        round2(origin[1] + point[1] * bond_length),
+                    ],
+                );
+            }
+        } else {
+            for (entry, point) in missing.iter().zip(normalized) {
+                overrides.insert(
+                    (entry.fragment_id.clone(), entry.node_id.clone()),
+                    [
+                        round2(point[0] * bond_length),
+                        round2(point[1] * bond_length),
+                    ],
+                );
+            }
+        }
+    }
+    Ok(overrides)
+}
+
+fn chemdraw_collapsed_wrapper_grid(count: usize) -> Result<Vec<[f64; 2]>, String> {
+    let points: &[[f64; 2]] = match count {
+        1 => &[[0.0, 0.0]],
+        2 => &[[0.0, 0.0], [1.0, 0.0]],
+        3 => &[[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]],
+        4 => &[[0.0, 0.0], [0.0, 1.0], [0.0, 2.0], [1.0, 1.5]],
+        5 => &[[0.0, 0.0], [0.0, 1.0], [0.0, 2.0], [0.0, 3.0], [1.0, 2.0]],
+        6 => &[
+            [0.0, 0.0],
+            [0.0, 1.0],
+            [0.0, 2.0],
+            [0.0, 3.0],
+            [1.0, 1.5],
+            [1.0, 2.5],
+        ],
+        7 => &[
+            [0.0, 0.0],
+            [0.0, 1.0],
+            [0.0, 2.0],
+            [0.0, 3.0],
+            [1.0, 1.0],
+            [1.0, 2.0],
+            [1.0, 3.0],
+        ],
+        8 => &[
+            [0.0, 0.0],
+            [0.0, 1.0],
+            [0.0, 2.0],
+            [0.0, 3.0],
+            [1.0, 0.5],
+            [1.0, 1.5],
+            [1.0, 2.5],
+            [1.0, 3.5],
+        ],
+        _ => {
+            return Err(format!(
+                "ChemDraw collapsed-fragment automatic layout has been verified for 1-8 coordinate-free wrappers, not {count}"
+            ));
+        }
+    };
+    Ok(points.to_vec())
+}
+
+fn chemdraw_collapsed_wrapper_grid_with_anchor(
+    total_count: usize,
+) -> Result<Vec<[f64; 2]>, String> {
+    let points: &[[f64; 2]] = match total_count {
+        2 => &[[2.0, 0.0]],
+        3 => &[[0.0, 1.0], [1.0, 1.0]],
+        4 => &[[0.0, 1.0], [1.0, 1.0], [2.0, 0.5]],
+        5 => &[[0.0, 1.0], [0.0, 2.0], [1.0, 1.0], [1.0, 2.0]],
+        6 => &[[0.0, 1.0], [0.0, 2.0], [0.0, 3.0], [1.0, 1.5], [1.0, 2.5]],
+        7 => &[
+            [0.0, 1.0],
+            [0.0, 2.0],
+            [0.0, 3.0],
+            [1.0, 1.0],
+            [1.0, 2.0],
+            [1.0, 3.0],
+        ],
+        8 => &[
+            [0.0, 1.5],
+            [0.0, 2.5],
+            [0.0, 3.5],
+            [1.0, 1.0],
+            [1.0, 2.0],
+            [1.0, 3.0],
+            [1.0, 4.0],
+        ],
+        _ => {
+            return Err(format!(
+                "ChemDraw anchored collapsed-fragment automatic layout has been verified for 3-8 wrappers, not {total_count}"
+            ));
+        }
+    };
+    Ok(points.to_vec())
+}
+
 pub(super) fn cdxml_fragment_bbox(
     fragment: &XmlNode,
     bond_length: f64,
