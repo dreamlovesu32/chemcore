@@ -1754,6 +1754,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
         }
         if imported_cdxml_label_attr(label, "labelLineHeight").is_none()
             && imported_cdxml_label_attr(label, "lineHeight").is_none()
+            && !imported_cdxml_inherited_label_line_height_is_unchanged(label)
         {
             match label.line_height_mode.as_str() {
                 "variable" => attrs.push(("LabelLineHeight", "variable".to_string())),

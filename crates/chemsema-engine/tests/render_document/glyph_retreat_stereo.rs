@@ -1588,6 +1588,52 @@ C</s>
 }
 
 #[test]
+fn imported_node_label_preserves_inherited_line_height_until_explicitly_edited() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10" LabelLineHeight="6">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <fragment id="fragment">
+      <n id="nitrogen" p="30 30" Element="7">
+        <t p="25 34" BoundingBox="25 22 33 35">
+          <s font="3" size="10">N</s>
+        </t>
+      </n>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let mut document = parse_cdxml_document(cdxml, Some("inherited label line height"))
+        .expect("inherited node label should parse");
+    let first_export = document_to_cdxml(&document);
+    assert_eq!(first_export.matches("LabelLineHeight=\"6\"").count(), 1);
+    assert!(!first_export
+        .split("<t ")
+        .nth(1)
+        .expect("exported label")
+        .split('>')
+        .next()
+        .expect("label start tag")
+        .contains("LabelLineHeight="));
+
+    let label = document
+        .resources
+        .values_mut()
+        .find_map(|resource| match &mut resource.data {
+            ResourceData::Fragment(fragment) => fragment
+                .nodes
+                .iter_mut()
+                .find(|node| node.id == "nitrogen")
+                .and_then(|node| node.label.as_mut()),
+            _ => None,
+        })
+        .expect("imported nitrogen label");
+    label.line_height_mode = "fixed".to_string();
+    label.line_height = Some(9.5);
+    let edited_export = document_to_cdxml(&document);
+    assert!(edited_export.contains("LabelLineHeight=\"9.5\""));
+}
+
+#[test]
 fn generated_atom_label_recomputes_variable_spacing_after_hydrogen_stacking() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML LabelFont="3" LabelSize="10">

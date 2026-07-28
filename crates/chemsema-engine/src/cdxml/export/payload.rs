@@ -172,6 +172,35 @@ pub(super) fn imported_cdxml_label_attr<'a>(label: &'a NodeLabel, name: &str) ->
         .filter(|value| !value.is_empty())
 }
 
+pub(super) fn imported_cdxml_inherited_label_line_height_is_unchanged(label: &NodeLabel) -> bool {
+    let Some(imported) = label.meta.pointer("/import/cdxml") else {
+        return false;
+    };
+    if imported_cdxml_label_attr(label, "labelLineHeight").is_some()
+        || imported_cdxml_label_attr(label, "lineHeight").is_some()
+    {
+        return false;
+    }
+    let Some(imported_mode) = imported
+        .get("resolvedLineHeightMode")
+        .and_then(Value::as_str)
+    else {
+        return false;
+    };
+    if imported_mode != label.line_height_mode {
+        return false;
+    }
+    if imported_mode != "fixed" {
+        return true;
+    }
+    let Some(imported_height) = imported.get("resolvedLineHeight").and_then(Value::as_f64) else {
+        return false;
+    };
+    label
+        .line_height
+        .is_some_and(|height| (height - imported_height).abs() <= 1e-6)
+}
+
 pub(super) fn imported_cdxml_object_attr<'a>(
     object: &'a SceneObject,
     name: &str,

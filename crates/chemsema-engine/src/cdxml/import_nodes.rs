@@ -538,6 +538,7 @@ pub(super) fn node_label(
                     "wordWrapWidth": empty_as_null(text_el.attr("WordWrapWidth")),
                     "lineStarts": empty_as_null(text_el.attr("LineStarts")),
                     "resolvedLineHeight": round2(line_spacing.line_height),
+                    "resolvedLineHeightMode": line_spacing.mode,
                     "interpretChemically": interpret_chemically,
                     "interpretChemicallyExplicit": explicit_interpret_chemically.is_some(),
                     "marginWidth": defaults.margin_width,

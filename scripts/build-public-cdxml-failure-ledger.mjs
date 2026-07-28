@@ -9,15 +9,20 @@ const UNEXPECTED_ROUNDTRIP_STATUSES = new Set([
   "semantic-drift",
   "non-idempotent",
 ]);
+const ROUNDTRIP_GATE_FAILURE_STATUSES = new Set([
+  ...UNEXPECTED_ROUNDTRIP_STATUSES,
+  "count-drift",
+]);
 
 function parseArgs(argv) {
   const options = {
     roundtrip: "tmp/public-cdxml-roundtrip-current/report.json",
-    visual: "tmp/public-cdxml-chemdraw-review-all/gate-nr018-full.json",
+    visual: "tmp/public-cdxml-chemdraw-review-all/gate-current.json",
     baseline: "tmp/public-cdxml-chemdraw-review-all/gate-next20-final.json",
     features: "tmp/public-cdxml-feature-index-current.json",
+    rules: "benchmarks/public-cdxml/failure-rules.json",
     out: "benchmarks/public-cdxml/failure-ledger.json",
-    expected: 338,
+    expected: null,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -25,6 +30,7 @@ function parseArgs(argv) {
     else if (argument === "--visual") options.visual = argv[++index];
     else if (argument === "--baseline") options.baseline = argv[++index];
     else if (argument === "--features") options.features = argv[++index];
+    else if (argument === "--rules") options.rules = argv[++index];
     else if (argument === "--out") options.out = argv[++index];
     else if (argument === "--expected") options.expected = Number(argv[++index]);
     else throw new Error(`Unknown argument: ${argument}`);
@@ -76,6 +82,8 @@ function automaticClusters(roundtripCase, visualCase) {
     }
   } else if (roundtripCase.status === "topology-lost") {
     clusters.add("roundtrip-topology-lost");
+  } else if (roundtripCase.status === "count-drift") {
+    clusters.add("roundtrip-count-drift");
   } else if (roundtripCase.status.includes("failed")) {
     clusters.add(`roundtrip-${roundtripCase.status}`);
   }
@@ -123,23 +131,52 @@ function main() {
   const visual = readJson(options.visual);
   const baseline = readJson(options.baseline);
   const features = readJson(options.features);
+  const rules = readJson(options.rules);
   const outputPath = path.resolve(options.out);
   const existing = fs.existsSync(outputPath) ? readJson(outputPath) : { cases: [] };
   const existingById = new Map(existing.cases.map((entry) => [entry.caseId, entry]));
   const visualByPath = new Map(visual.cases.map((entry) => [entry.relativeCdxml, entry]));
   const baselineByPath = new Map(baseline.cases.map((entry) => [entry.relativeCdxml, entry]));
   const featuresById = new Map(features.cases.map((entry) => [entry.caseId, entry]));
+  const rulesByCaseId = new Map();
+  for (const rule of rules.rules) {
+    for (const caseId of rule.caseIds) {
+      const matches = rulesByCaseId.get(caseId) ?? [];
+      matches.push(rule);
+      rulesByCaseId.set(caseId, matches);
+    }
+  }
   const failures = roundtrip.cases.filter((entry) =>
-    UNEXPECTED_ROUNDTRIP_STATUSES.has(entry.status));
-  if (failures.length !== options.expected) {
+    ROUNDTRIP_GATE_FAILURE_STATUSES.has(entry.status));
+  if (Number.isFinite(options.expected) && failures.length !== options.expected) {
     throw new Error(`Expected ${options.expected} unexpected failures, found ${failures.length}`);
   }
-  const cases = failures.map((entry) => {
+  const currentById = new Map(roundtrip.cases.map((entry) => [entry.caseId, entry]));
+  const registeredIds = new Set([
+    ...existing.cases.map((entry) => entry.caseId),
+    ...failures.map((entry) => entry.caseId),
+  ]);
+  const cases = [...registeredIds].sort().map((caseId) => {
+    const entry = currentById.get(caseId);
+    if (!entry) throw new Error(`Registered case ${caseId} is missing from the current report`);
     const relativeCdxml = `${entry.source}/${entry.path}`.replaceAll("\\", "/");
     const visualCase = visualByPath.get(relativeCdxml);
     const previous = existingById.get(entry.caseId);
+    const confirmedRules = rulesByCaseId.get(entry.caseId) ?? [];
+    const active = ROUNDTRIP_GATE_FAILURE_STATUSES.has(entry.status);
+    const currentClusters = automaticClusters(entry, visualCase);
+    const historicalClusters = [
+      ...new Set([
+        ...(previous?.triage?.historicalClusters ?? []),
+        ...(previous?.triage?.automaticClusters ?? []),
+        ...currentClusters,
+      ]),
+    ].sort();
     return {
       caseId: entry.caseId,
+      cohort: previous
+        ? previous.cohort ?? "original-338"
+        : "additional-gate-case",
       source: entry.source,
       path: entry.path,
       relativeCdxml,
@@ -156,10 +193,19 @@ function main() {
         baselineByPath.get(relativeCdxml)?.status,
       ),
       triage: {
-        automaticClusters: automaticClusters(entry, visualCase),
-        reviewStatus: previous?.triage?.reviewStatus ?? "pending",
-        confirmedRootCause: previous?.triage?.confirmedRootCause ?? null,
-        ruleEvidence: previous?.triage?.ruleEvidence ?? [],
+        resolutionStatus: active ? "active" : "currently-passing",
+        automaticClusters: currentClusters,
+        historicalClusters,
+        reviewStatus: confirmedRules.length
+          ? "verified"
+          : previous?.triage?.reviewStatus ?? "pending",
+        confirmedRuleIds: confirmedRules.map((rule) => rule.id),
+        confirmedRootCause: confirmedRules.length
+          ? confirmedRules.map((rule) => rule.summary).join("; ")
+          : previous?.triage?.confirmedRootCause ?? null,
+        ruleEvidence: confirmedRules.length
+          ? [...new Set(confirmedRules.flatMap((rule) => rule.evidence))]
+          : previous?.triage?.ruleEvidence ?? [],
         notes: previous?.triage?.notes ?? null,
       },
     };
@@ -172,11 +218,21 @@ function main() {
       visualReport: path.relative(process.cwd(), path.resolve(options.visual)).replaceAll("\\", "/"),
       baselineReport: path.relative(process.cwd(), path.resolve(options.baseline)).replaceAll("\\", "/"),
       featureIndex: path.relative(process.cwd(), path.resolve(options.features)).replaceAll("\\", "/"),
+      ruleRegistry: path.relative(process.cwd(), path.resolve(options.rules)).replaceAll("\\", "/"),
     },
     summary: {
-      total: cases.length,
+      totalRegistered: cases.length,
+      originalCohort: cases.filter((entry) => entry.cohort === "original-338").length,
+      additionalGateCases: cases.filter(
+        (entry) => entry.cohort === "additional-gate-case",
+      ).length,
+      active: cases.filter((entry) => entry.triage.resolutionStatus === "active").length,
+      currentlyPassing: cases.filter(
+        (entry) => entry.triage.resolutionStatus === "currently-passing",
+      ).length,
       byRoundtripStatus: countBy(cases, (entry) => [entry.roundtrip.status]),
       byAutomaticCluster: countBy(cases, (entry) => entry.triage.automaticClusters),
+      byHistoricalCluster: countBy(cases, (entry) => entry.triage.historicalClusters),
       byVisualStatus: countBy(cases, (entry) => [entry.visual?.status ?? "not-gated"]),
       byReviewStatus: countBy(cases, (entry) => [entry.triage.reviewStatus]),
     },

@@ -98,7 +98,7 @@ test("gallery provenance invalidates stale source, CLI, corpus, and report input
   const recorded = {
     schema: GALLERY_PROVENANCE_SCHEMA,
     repository: { identity: "repo-a" },
-    cli: { sha256: "cli-a" },
+    cli: { sha256: "cli-a", buildIdentity: "repo-a" },
     corpus: {
       manifestSha256: "manifest-a",
       sources: [{ id: "rdkit", actualRevision: "revision-a" }],
@@ -109,12 +109,14 @@ test("gallery provenance invalidates stale source, CLI, corpus, and report input
   const current = structuredClone(recorded);
   current.repository.identity = "repo-b";
   current.cli.sha256 = "cli-b";
+  current.cli.buildIdentity = "repo-b";
   current.corpus.manifestSha256 = "manifest-b";
   current.corpus.sources[0].actualRevision = "revision-b";
   current.roundtripReport.sha256 = "report-b";
   assert.deepEqual(provenanceMismatches(recorded, current), [
     "repository-state",
     "cli-binary",
+    "cli-build-identity",
     "corpus-manifest",
     "corpus-source:rdkit",
     "roundtrip-report",

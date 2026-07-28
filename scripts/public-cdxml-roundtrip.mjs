@@ -11,6 +11,10 @@ import {
 } from "node:fs";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  repositoryState,
+  sha256File,
+} from "./public-cdxml-provenance.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = join(repoRoot, "benchmarks", "public-cdxml", "manifest.json");
@@ -482,7 +486,23 @@ function failureMessage(result) {
 }
 
 const versionResult = runCli(["version"]);
-const cliVersion = versionResult.ok ? JSON.parse(versionResult.stdout).version : "unknown";
+if (!versionResult.ok) {
+  throw new Error(`Unable to read CLI version metadata: ${failureMessage(versionResult)}`);
+}
+const cliMetadata = JSON.parse(versionResult.stdout);
+const repository = repositoryState(repoRoot);
+if (cliMetadata.buildIdentity !== repository.identity) {
+  throw new Error(
+    `CLI build identity ${cliMetadata.buildIdentity ?? "(missing)"} does not match repository `
+    + `identity ${repository.identity}. Run node scripts/build-public-cdxml-cli.mjs first.`,
+  );
+}
+const cliIdentity = {
+  path: cliPath,
+  version: cliMetadata.version,
+  sha256: sha256File(cliPath),
+  buildIdentity: cliMetadata.buildIdentity,
+};
 const cases = [];
 let caseIndex = 0;
 
@@ -624,9 +644,10 @@ const unexpectedStatuses = new Set([
 const unexpectedFailures = cases.filter((item) => unexpectedStatuses.has(item.status));
 const countDrift = cases.filter((item) => item.status === "count-drift");
 const report = {
-  schema: "chemsema.public-cdxml-roundtrip-report.v2",
+  schema: "chemsema.public-cdxml-roundtrip-report.v3",
   generatedAt: new Date().toISOString(),
-  cliVersion,
+  cli: cliIdentity,
+  repositoryIdentity: repository.identity,
   generations,
   manifest: normalizedRelative(repoRoot, manifestPath),
   corpusRoot,
@@ -644,9 +665,10 @@ writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 if (summaryOutput) {
   const summaryPath = resolve(summaryOutput);
   const summaryReport = {
-    schema: "chemsema.public-cdxml-roundtrip-summary.v2",
+    schema: "chemsema.public-cdxml-roundtrip-summary.v3",
     generatedAt: report.generatedAt,
-    cliVersion,
+    cli: cliIdentity,
+    repositoryIdentity: repository.identity,
     generations,
     sources: manifest.sources.map((source) => ({
       id: source.id,

@@ -837,6 +837,7 @@ pub(crate) fn version_value() -> Value {
         "product": "ChemSema",
         "cli": "chemsema-cli",
         "version": env!("CARGO_PKG_VERSION"),
+        "buildIdentity": option_env!("CHEMSEMA_BUILD_IDENTITY"),
         "protocol": CLI_PROTOCOL_VERSION,
         "protocols": protocol_versions_value(),
     })

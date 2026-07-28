@@ -3236,6 +3236,10 @@ mod tests {
         assert_eq!(value["ok"], true);
         assert_eq!(value["cli"], "chemsema-cli");
         assert_eq!(value["version"], env!("CARGO_PKG_VERSION"));
+        match option_env!("CHEMSEMA_BUILD_IDENTITY") {
+            Some(identity) => assert_eq!(value["buildIdentity"], identity),
+            None => assert!(value["buildIdentity"].is_null()),
+        }
         assert_eq!(value["protocol"], protocol::CLI_PROTOCOL_VERSION);
         assert_eq!(
             value["protocols"]["session"],
