@@ -2954,8 +2954,15 @@ body.native-frame-shell .document-tab-close svg {
   grid-template-columns: 130px minmax(260px, 1fr) auto;
 }
 
-.document-layout-wide-field.numeric-dialog-field input {
+.document-layout-wide-field.numeric-dialog-field input,
+.document-layout-wide-field.numeric-dialog-field textarea {
   width: 100%;
+}
+
+.document-layout-wide-field.numeric-dialog-field textarea {
+  min-height: 132px;
+  resize: vertical;
+  font-family: var(--mono-font, ui-monospace, monospace);
 }
 
 .document-layout-checkbox {

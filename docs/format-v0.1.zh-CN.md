@@ -84,8 +84,27 @@
     }
   ],
   "logicalObjects": {
-    "alternativeGroups": [],
-    "bracketedGroups": [],
+    "alternativeGroups": [
+      {
+        "id": "alternative_1",
+        "memberEntityIds": ["mol_a"],
+        "attachmentNodeIds": ["atom_1"],
+        "position": [120, 80],
+        "opacity": 0.75,
+        "color": "#ff0000",
+        "zIndex": 12,
+        "supersededById": "alternative_2"
+      }
+    ],
+    "bracketedGroups": [
+      {
+        "id": "bracket_parent",
+        "bracketObjectIds": ["bracket_left", "bracket_right"],
+        "bracketedEntityIds": ["mol_a"],
+        "nestedGroupIds": ["bracket_child"],
+        "attachments": []
+      }
+    ],
     "sequences": [],
     "crossReferences": [],
     "objectTags": [],
@@ -100,6 +119,12 @@
 只能进入明确的 `unresolved...SourceId` 字段。完整结构、生命周期、Auto 规则和
 CDX/CDXML 映射见
 [`logical-object-native-model.zh-CN.md`](logical-object-native-model.zh-CN.md)。
+
+文档布局中的 Splitter 不进入 `logicalObjects`。页面级格式使用
+`document.layout.pageDefinition`，原生 Splitter 子对象使用
+`document.layout.splitters[]`。旧 `SplitterPositions` 是对象 ID 数组，使用
+`legacySplitterPositionIds[]` 明确保真；早期 ChemSema 曾错误写出的数字数组仅在
+读取时迁移为字符串 ID，不再被解释成坐标。
 
 ## Interchange 完整字段层
 

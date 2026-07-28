@@ -910,6 +910,19 @@ enum PropertyKind {
 }
 
 const DRAWING_SPACE: &[(i16, &str)] = &[(0, "pages"), (1, "poster")];
+const PAGE_DEFINITION: &[(i16, &str)] = &[
+    (0, "Undefined"),
+    (1, "Center"),
+    (2, "TL4"),
+    (3, "IDTerm"),
+    (4, "FlushLeft"),
+    (5, "FlushRight"),
+    (6, "Reaction1"),
+    (7, "Reaction2"),
+    (8, "MulticolumnTL4"),
+    (9, "MulticolumnNonTL4"),
+    (10, "UserDefined"),
+];
 const BOND_DISPLAY: &[(i16, &str)] = &[
     (0, "Solid"),
     (1, "Dash"),

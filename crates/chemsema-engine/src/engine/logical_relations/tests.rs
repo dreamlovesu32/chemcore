@@ -331,6 +331,45 @@ fn clipboard_remaps_native_logical_object_owners_and_targets() {
             attribute: "Element".to_string(),
             binding_origin: LogicalBindingOrigin::Authored,
         });
+    engine.state.document.logical_objects.bracketed_groups = vec![
+        crate::BracketedGroupData {
+            id: "bracket_parent".to_string(),
+            bracket_object_ids: vec!["arrow".to_string()],
+            bracketed_entity_ids: vec!["left".to_string()],
+            nested_group_ids: vec!["bracket_child".to_string()],
+            attachments: vec![crate::BracketAttachmentData {
+                id: "attachment_parent".to_string(),
+                bracket_object_id: Some("arrow".to_string()),
+                ..Default::default()
+            }],
+            binding_origin: LogicalBindingOrigin::Authored,
+            ..Default::default()
+        },
+        crate::BracketedGroupData {
+            id: "bracket_child".to_string(),
+            bracket_object_ids: vec!["arrow".to_string()],
+            bracketed_entity_ids: vec!["right".to_string()],
+            attachments: vec![crate::BracketAttachmentData {
+                id: "attachment_child".to_string(),
+                bracket_object_id: Some("arrow".to_string()),
+                ..Default::default()
+            }],
+            binding_origin: LogicalBindingOrigin::Authored,
+            ..Default::default()
+        },
+    ];
+    engine
+        .state
+        .document
+        .logical_objects
+        .alternative_groups
+        .push(crate::AlternativeGroupData {
+            id: "alternative".to_string(),
+            member_entity_ids: vec!["left".to_string()],
+            superseded_by_id: Some("bracket_child".to_string()),
+            binding_origin: LogicalBindingOrigin::Authored,
+            ..Default::default()
+        });
 
     assert!(engine.select_all());
     assert!(engine.copy_selection());
@@ -366,6 +405,79 @@ fn clipboard_remaps_native_logical_object_owners_and_targets() {
         .document
         .find_scene_object(pasted_representation.target_entity_id.as_deref().unwrap())
         .is_some());
+    assert_eq!(logical.bracketed_groups.len(), 4);
+    let pasted_parent = logical
+        .bracketed_groups
+        .iter()
+        .find(|group| group.id != "bracket_parent" && !group.nested_group_ids.is_empty())
+        .unwrap();
+    let pasted_child_id = pasted_parent.nested_group_ids[0].as_str();
+    assert_ne!(pasted_child_id, "bracket_child");
+    assert!(logical
+        .bracketed_groups
+        .iter()
+        .any(|group| group.id == pasted_child_id));
+    let pasted_alternative = logical
+        .alternative_groups
+        .iter()
+        .find(|group| group.id != "alternative")
+        .unwrap();
+    assert_eq!(
+        pasted_alternative.superseded_by_id.as_deref(),
+        Some(pasted_child_id)
+    );
+}
+
+#[test]
+fn deleting_a_logical_object_prunes_nested_and_superseded_references() {
+    let mut engine = Engine::new();
+    let entity_id = "obj_editor_molecule".to_string();
+    engine.state.document.logical_objects.bracketed_groups = vec![
+        crate::BracketedGroupData {
+            id: "bracket_parent".to_string(),
+            bracket_object_ids: vec![entity_id.clone()],
+            bracketed_entity_ids: vec![entity_id.clone()],
+            nested_group_ids: vec!["bracket_child".to_string()],
+            attachments: vec![crate::BracketAttachmentData {
+                id: "attachment_parent".to_string(),
+                bracket_object_id: Some(entity_id.clone()),
+                ..Default::default()
+            }],
+            ..Default::default()
+        },
+        crate::BracketedGroupData {
+            id: "bracket_child".to_string(),
+            bracket_object_ids: vec![entity_id.clone()],
+            bracketed_entity_ids: vec![entity_id.clone()],
+            attachments: vec![crate::BracketAttachmentData {
+                id: "attachment_child".to_string(),
+                bracket_object_id: Some(entity_id.clone()),
+                ..Default::default()
+            }],
+            ..Default::default()
+        },
+    ];
+    engine
+        .state
+        .document
+        .logical_objects
+        .alternative_groups
+        .push(crate::AlternativeGroupData {
+            id: "alternative".to_string(),
+            member_entity_ids: vec![entity_id],
+            superseded_by_id: Some("bracket_child".to_string()),
+            ..Default::default()
+        });
+
+    assert!(engine
+        .delete_logical_object("bracketed-group", "bracket_child")
+        .unwrap());
+    assert!(engine.state.document.logical_objects.bracketed_groups[0]
+        .nested_group_ids
+        .is_empty());
+    assert!(engine.state.document.logical_objects.alternative_groups[0]
+        .superseded_by_id
+        .is_none());
 }
 
 #[test]

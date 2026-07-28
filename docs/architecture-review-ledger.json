@@ -27,12 +27,12 @@
       "reason": "The function owns one transaction lifecycle: load, execute, scope-check, report, and persist."
     },
     "crates/chemsema-engine/src/cdxml/export.rs:$file": {
-      "lines": 3233,
+      "lines": 3265,
       "owner": "CDXML serialization boundary",
       "reason": "The module owns source-order-aware serialization for every native document object; object-family writers remain separate functions and share one ID, style, and interchange context."
     },
     "crates/chemsema-engine/src/cdxml.rs:parse_cdxml_document": {
-      "lines": 280,
+      "lines": 281,
       "owner": "CDXML document parser",
       "reason": "One ordered document parse pipeline preserves table, page, object, normalization, and verification precedence."
     },
@@ -72,12 +72,12 @@
       "reason": "The function constructs one dependency-closed reaction table from nested rows, cells, molecule references, authored values, and link semantics."
     },
     "crates/chemsema-engine/src/document.rs:$file": {
-      "lines": 3207,
+      "lines": 3296,
       "owner": "Native document schema and normalization",
       "reason": "The module is the authoritative serialized document model and its version-normalization boundary; format-specific importers, renderers, and editor behavior are owned by separate modules."
     },
     "crates/chemsema-engine/src/engine/command_runtime.rs:execute_command": {
-      "lines": 327,
+      "lines": 328,
       "owner": "Exhaustive editor command dispatcher",
       "reason": "Immediate, creation, semantic, relationship, and style command families are separated; the remaining body is an exhaustive variant-to-domain dispatch with shared completion semantics."
     },

@@ -313,8 +313,8 @@ class DocumentLayoutDialog {
             ${selectField("orientation", "Orientation", orientation, [["portrait", "Portrait"], ["landscape", "Landscape"]])}
             ${selectField("drawingSpace", "Drawing space", data.drawingSpace, [["pages", "Pages"], ["poster", "Poster"]])}
             ${checkboxField("autoPaginate", "Automatically add pages to cover all content", data.autoPaginate)}
-            ${numberField("paperWidth", "Paper width", data.paper.width, 0.01, "pt", 1)}
-            ${numberField("paperHeight", "Paper height", data.paper.height, 0.01, "pt", 1)}
+            ${numberField("paperWidth", "Paper width", data.paper.width, "any", "pt", 1)}
+            ${numberField("paperHeight", "Paper height", data.paper.height, "any", "pt", 1)}
             ${numberField("widthPages", "Minimum pages across", data.widthPages, 1, "", 1, 256)}
             ${numberField("heightPages", "Minimum pages down", data.heightPages, 1, "", 1, 256)}
             ${nullablePairFields("pageOrigin", "Original page origin", data.pageOrigin, null)}
@@ -339,9 +339,23 @@ class DocumentLayoutDialog {
         <section class="document-layout-page" data-layout-page="view">
           <div class="document-layout-grid">
             ${numberField("magnificationPercent", "Saved magnification", data.magnificationPercent, 1, "%", 1, 999)}
-            ${textField("splitterPositions", "Splitter positions", (data.splitterPositions || []).join(" "))}
+            ${selectField("pageDefinition", "Page definition", data.pageDefinition || "undefined", [
+              ["undefined", "Undefined"],
+              ["center", "Center"],
+              ["tl4", "TL4"],
+              ["id-term", "ID term"],
+              ["flush-left", "Flush left"],
+              ["flush-right", "Flush right"],
+              ["reaction1", "Reaction 1"],
+              ["reaction2", "Reaction 2"],
+              ["multicolumn-tl4", "Multicolumn TL4"],
+              ["multicolumn-non-tl4", "Multicolumn non-TL4"],
+              ["user-defined", "User defined"],
+            ])}
+            ${textField("legacySplitterPositionIds", "Legacy splitter object IDs", (data.legacySplitterPositionIds || []).join(" "))}
+            ${textareaField("splitters", "Splitter objects", JSON.stringify(data.splitters || [], null, 2), 8)}
           </div>
-          <p class="document-layout-hint">View settings are saved with the document but do not change printed or exported geometry.</p>
+          <p class="document-layout-hint">A splitter is an official logical page object with an optional point and page definition. Legacy SplitterPositions values are object IDs, not coordinates.</p>
         </section>
         <section class="document-layout-page" data-layout-page="embedding">
           <div class="document-layout-grid">
@@ -409,7 +423,14 @@ class DocumentLayoutDialog {
       next.footer = valueOf(this.backdrop, "footer");
       next.footerPosition = numberOf(this.backdrop, "footerPosition");
       next.magnificationPercent = numberOf(this.backdrop, "magnificationPercent");
-      next.splitterPositions = numericList(valueOf(this.backdrop, "splitterPositions"));
+      next.pageDefinition = valueOf(this.backdrop, "pageDefinition");
+      next.legacySplitterPositionIds = stringList(valueOf(this.backdrop, "legacySplitterPositionIds"));
+      try {
+        next.splitters = JSON.parse(valueOf(this.backdrop, "splitters") || "[]");
+      } catch {
+        this.backdrop.querySelector("[data-layout-error]").textContent = "Splitter objects must contain valid structured data.";
+        return;
+      }
       next.fixInPlaceExtent = nullablePair(this.backdrop, "fixInPlaceExtent");
       next.fixInPlaceGap = nullablePair(this.backdrop, "fixInPlaceGap");
       const error = validateLayout(next);
@@ -596,7 +617,17 @@ function validateLayout(layout) {
   for (const [label, pair] of [["In-place extent", layout.fixInPlaceExtent], ["In-place gap", layout.fixInPlaceGap]]) {
     if (pair?.some((value) => !Number.isFinite(value) || value < 0)) return `${label} requires two non-negative coordinates.`;
   }
-  if ((layout.splitterPositions || []).some((value) => !Number.isFinite(value) || value < 0)) return "Splitter positions must be non-negative numbers.";
+  const definitions = new Set(["undefined", "center", "tl4", "id-term", "flush-left", "flush-right", "reaction1", "reaction2", "multicolumn-tl4", "multicolumn-non-tl4", "user-defined"]);
+  if (!definitions.has(layout.pageDefinition)) return "Page definition is not supported.";
+  if (!Array.isArray(layout.legacySplitterPositionIds) || layout.legacySplitterPositionIds.some((id) => typeof id !== "string" || !id.trim())) return "Legacy splitter object IDs must be non-empty strings.";
+  if (!Array.isArray(layout.splitters)) return "Splitter objects must be a list.";
+  const splitterIds = new Set();
+  for (const splitter of layout.splitters) {
+    if (!splitter || typeof splitter.id !== "string" || !splitter.id.trim() || splitterIds.has(splitter.id)) return "Splitter IDs must be non-empty and unique.";
+    splitterIds.add(splitter.id);
+    if (splitter.position != null && (!Array.isArray(splitter.position) || splitter.position.length !== 2 || splitter.position.some((value) => !Number.isFinite(value)))) return `Splitter '${splitter.id}' requires exactly two finite position coordinates.`;
+    if (!definitions.has(splitter.pageDefinition || "undefined")) return `Splitter '${splitter.id}' has an unsupported page definition.`;
+  }
   return "";
 }
 function tabButton(key, label, active = false) {
@@ -609,6 +640,9 @@ function numberField(name, label, value, step, unit = "", minimum = null, maximu
 }
 function textField(name, label, value) {
   return `<label class="numeric-dialog-field document-layout-wide-field"><span>${escapeHtml(label)}</span><input name="${name}" type="text" value="${escapeHtml(value)}"><em></em></label>`;
+}
+function textareaField(name, label, value, rows = 5) {
+  return `<label class="numeric-dialog-field document-layout-wide-field"><span>${escapeHtml(label)}</span><textarea name="${name}" rows="${rows}">${escapeHtml(value)}</textarea><em></em></label>`;
 }
 function checkboxField(name, label, value) {
   return `<label class="document-layout-checkbox"><input name="${name}" type="checkbox"${value ? " checked" : ""}><span>${escapeHtml(label)}</span></label>`;
@@ -626,9 +660,9 @@ function nullablePair(root, name) {
   if (!x || !y) return [Number.NaN, Number.NaN];
   return [Number(x), Number(y)];
 }
-function numericList(value) {
+function stringList(value) {
   if (!String(value).trim()) return [];
-  return String(value).split(/[\s,;]+/).filter(Boolean).map(Number);
+  return String(value).split(/[\s,;]+/).filter(Boolean).map((entry) => entry.trim());
 }
 function valueOf(root, name) {
   return String(root.querySelector(`[name="${CSS.escape(name)}"]`)?.value ?? "");

@@ -17,11 +17,11 @@
     "cdxmlAttributes": 384,
     "cdxmlDeclarations": 762,
     "losslessUncovered": 0,
-    "nativeSemanticCdxProperties": 78,
-    "typedInterchangeCdxProperties": 166,
+    "nativeSemanticCdxProperties": 80,
+    "typedInterchangeCdxProperties": 164,
     "opaqueBySpecCdxProperties": 18,
     "contextDependentCdxProperties": 0,
-    "nativeSemanticCdxmlAttributes": 157,
+    "nativeSemanticCdxmlAttributes": 159,
     "verifiedBehaviorObjects": 35,
     "verifiedBehaviorCdxProperties": 262,
     "verifiedBehaviorCdxmlAttributes": 384,
@@ -331,7 +331,7 @@
       "cdxmlName": "splitter",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "interchange-object",
+      "implementation": "native-object-tag",
       "behaviorStatus": "verified"
     },
     {
@@ -4037,10 +4037,10 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/SplitterPositions.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
-      "formatRule": "Official lexical/binary codec is available; value is editable."
+      "formatRule": "Decode as the official CDXObjectIDArray. Preserve this ChemDraw 6 compatibility field as explicit legacy object IDs; it is not a coordinate array."
     },
     {
       "tag": "0x1FF1",
@@ -4051,10 +4051,10 @@
       "detailUrl": "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/PageDefinition.htm",
       "schemaStatus": "verified",
       "storageStatus": "verified",
-      "implementation": "typed-interchange",
+      "implementation": "native-semantic",
       "editMode": "value",
       "behaviorStatus": "verified",
-      "formatRule": "Official lexical/binary codec is available; value is editable."
+      "formatRule": "Decode as the official INT8 page/splitter formatting enum with values Undefined through UserDefined."
     }
   ],
   "cdxml": {
@@ -12302,7 +12302,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },
@@ -22267,7 +22267,7 @@
         ],
         "schemaStatus": "verified",
         "storageStatus": "verified",
-        "implementation": "typed-interchange",
+        "implementation": "native-semantic",
         "editMode": "value",
         "behaviorStatus": "verified"
       },

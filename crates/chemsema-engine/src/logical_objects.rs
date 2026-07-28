@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -45,17 +45,29 @@ pub struct AlternativeGroupData {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub valence: Option<i16>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position: Option<[f64; 2]>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bounding_box: Option<[f64; 4]>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text_frame: Option<[f64; 4]>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group_frame: Option<[f64; 4]>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opacity: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub z_index: Option<i16>,
     #[serde(default = "default_true")]
     pub visible: bool,
     #[serde(default)]
     pub ignore_warnings: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub warning: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub superseded_by_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unresolved_superseded_by_source_id: Option<String>,
     #[serde(default)]
     pub binding_origin: LogicalBindingOrigin,
 }
@@ -72,6 +84,8 @@ pub struct BracketedGroupData {
     pub bracketed_entity_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub unresolved_bracketed_source_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub nested_group_ids: Vec<String>,
     #[serde(default)]
     pub attachments: Vec<BracketAttachmentData>,
     #[serde(default)]
@@ -423,6 +437,11 @@ impl LogicalObjectData {
                 .as_ref()
                 .is_some_and(|id| selected_entity_ids.contains(id))
         };
+        let source_logical_ids = self
+            .all_ids()
+            .into_iter()
+            .map(ToString::to_string)
+            .collect::<BTreeSet<_>>();
         let mut logical = Self {
             alternative_groups: self
                 .alternative_groups
@@ -430,6 +449,11 @@ impl LogicalObjectData {
                 .filter(|group| {
                     all_selected(&group.member_entity_ids)
                         && all_selected(&group.attachment_node_ids)
+                        && group.unresolved_member_source_ids.is_empty()
+                        && group.unresolved_superseded_by_source_id.is_none()
+                        && group.superseded_by_id.as_ref().is_none_or(|id| {
+                            selected_entity_ids.contains(id) || source_logical_ids.contains(id)
+                        })
                         && (!group.member_entity_ids.is_empty()
                             || !group.attachment_node_ids.is_empty())
                 })
@@ -441,11 +465,18 @@ impl LogicalObjectData {
                 .filter(|group| {
                     all_selected(&group.bracket_object_ids)
                         && all_selected(&group.bracketed_entity_ids)
+                        && group.unresolved_bracket_source_ids.is_empty()
+                        && group.unresolved_bracketed_source_ids.is_empty()
                         && group.attachments.iter().all(|attachment| {
-                            attachment
-                                .bracket_object_id
-                                .as_ref()
-                                .is_none_or(|id| selected_entity_ids.contains(id))
+                            attachment.unresolved_bracket_source_id.is_none()
+                                && attachment.crossing_bonds.iter().all(|crossing| {
+                                    crossing.unresolved_bond_source_id.is_none()
+                                        && crossing.unresolved_inner_atom_source_id.is_none()
+                                })
+                                && attachment
+                                    .bracket_object_id
+                                    .as_ref()
+                                    .is_none_or(|id| selected_entity_ids.contains(id))
                                 && attachment.crossing_bonds.iter().all(|crossing| {
                                     crossing
                                         .bond_id
@@ -523,6 +554,28 @@ impl LogicalObjectData {
                 || cross_reference.document.is_some()
                 || selected_sequences.contains(cross_reference.sequence_identifier.as_str())
         });
+        let copied_bracket_ids = logical
+            .bracketed_groups
+            .iter()
+            .map(|group| group.id.clone())
+            .collect::<BTreeSet<_>>();
+        for group in &mut logical.bracketed_groups {
+            group
+                .nested_group_ids
+                .retain(|id| copied_bracket_ids.contains(id));
+        }
+        let copied_logical_ids = logical
+            .all_ids()
+            .into_iter()
+            .map(ToString::to_string)
+            .collect::<BTreeSet<_>>();
+        for group in &mut logical.alternative_groups {
+            if group.superseded_by_id.as_ref().is_some_and(|id| {
+                !selected_entity_ids.contains(id) && !copied_logical_ids.contains(id)
+            }) {
+                group.superseded_by_id = None;
+            }
+        }
         logical
     }
 
@@ -532,7 +585,8 @@ impl LogicalObjectData {
         node_ids: &BTreeSet<String>,
         bond_ids: &BTreeSet<String>,
     ) -> Result<(), String> {
-        let mut context = LogicalValidationContext::new(scene_ids, node_ids, bond_ids);
+        let logical_ids = self.all_ids().into_iter().collect::<BTreeSet<_>>();
+        let mut context = LogicalValidationContext::new(scene_ids, node_ids, bond_ids, logical_ids);
         self.validate_alternative_groups(&mut context)?;
         self.validate_bracketed_groups(&mut context)?;
         self.validate_sequences(&mut context)?;
@@ -576,6 +630,41 @@ impl LogicalObjectData {
             validate_optional_box("alternative group boundingBox", group.bounding_box)?;
             validate_optional_box("alternative group textFrame", group.text_frame)?;
             validate_optional_box("alternative group groupFrame", group.group_frame)?;
+            if group
+                .position
+                .is_some_and(|point| point.into_iter().any(|value| !value.is_finite()))
+                || group
+                    .opacity
+                    .is_some_and(|value| !value.is_finite() || !(0.0..=1.0).contains(&value))
+                || group.color.as_deref().is_some_and(|color| {
+                    color.len() != 7
+                        || !color.starts_with('#')
+                        || !color[1..]
+                            .chars()
+                            .all(|character| character.is_ascii_hexdigit())
+                })
+            {
+                return Err(format!(
+                    "alternative group '{}' has an invalid position, opacity, or color",
+                    group.id
+                ));
+            }
+            if (group.superseded_by_id.is_some()
+                && group.unresolved_superseded_by_source_id.is_some())
+                || group
+                    .superseded_by_id
+                    .as_deref()
+                    .is_some_and(|id| !context.entity_or_logical_exists(id))
+                || group
+                    .unresolved_superseded_by_source_id
+                    .as_deref()
+                    .is_some_and(|id| id.trim().is_empty())
+            {
+                return Err(format!(
+                    "alternative group '{}' has an invalid supersededBy reference",
+                    group.id
+                ));
+            }
         }
         Ok(())
     }
@@ -584,6 +673,12 @@ impl LogicalObjectData {
         &self,
         context: &mut LogicalValidationContext<'_>,
     ) -> Result<(), String> {
+        let bracket_group_ids = self
+            .bracketed_groups
+            .iter()
+            .map(|group| group.id.as_str())
+            .collect::<BTreeSet<_>>();
+        let mut nested_parent = BTreeMap::new();
         for group in &self.bracketed_groups {
             context.register("bracketed group", &group.id)?;
             if group.attachments.is_empty()
@@ -609,6 +704,19 @@ impl LogicalObjectData {
                 "unresolved bracketed entity",
                 &group.unresolved_bracketed_source_ids,
             )?;
+            validate_unique_existing("nested bracketed group", &group.nested_group_ids, &|id| {
+                bracket_group_ids.contains(id) && id != group.id
+            })?;
+            for child_id in &group.nested_group_ids {
+                if let Some(existing_parent) =
+                    nested_parent.insert(child_id.as_str(), group.id.as_str())
+                {
+                    return Err(format!(
+                        "bracketed group '{child_id}' is nested by both '{existing_parent}' and '{}'",
+                        group.id
+                    ));
+                }
+            }
             if group
                 .repeat_count
                 .is_some_and(|value| !value.is_finite() || value <= 0.0)
@@ -671,6 +779,14 @@ impl LogicalObjectData {
                     }
                 }
             }
+        }
+        for group in &self.bracketed_groups {
+            validate_bracket_group_cycle(
+                group.id.as_str(),
+                &self.bracketed_groups,
+                &mut BTreeSet::new(),
+                &mut BTreeSet::new(),
+            )?;
         }
         Ok(())
     }
@@ -865,6 +981,7 @@ struct LogicalValidationContext<'a> {
     scene_ids: &'a BTreeSet<String>,
     node_ids: &'a BTreeSet<String>,
     bond_ids: &'a BTreeSet<String>,
+    logical_ids: BTreeSet<&'a str>,
     registered_ids: BTreeSet<String>,
     sequence_identifiers: BTreeSet<String>,
     display_object_owners: BTreeSet<String>,
@@ -875,11 +992,13 @@ impl<'a> LogicalValidationContext<'a> {
         scene_ids: &'a BTreeSet<String>,
         node_ids: &'a BTreeSet<String>,
         bond_ids: &'a BTreeSet<String>,
+        logical_ids: BTreeSet<&'a str>,
     ) -> Self {
         Self {
             scene_ids,
             node_ids,
             bond_ids,
+            logical_ids,
             registered_ids: scene_ids
                 .iter()
                 .chain(node_ids.iter())
@@ -895,6 +1014,10 @@ impl<'a> LogicalValidationContext<'a> {
         self.scene_ids.contains(id) || self.node_ids.contains(id) || self.bond_ids.contains(id)
     }
 
+    fn entity_or_logical_exists(&self, id: &str) -> bool {
+        self.entity_exists(id) || self.logical_ids.contains(id)
+    }
+
     fn register(&mut self, kind: &str, id: &str) -> Result<(), String> {
         if id.trim().is_empty() || !self.registered_ids.insert(id.to_string()) {
             Err(format!("{kind} id '{id}' is empty or duplicated"))
@@ -902,6 +1025,30 @@ impl<'a> LogicalValidationContext<'a> {
             Ok(())
         }
     }
+}
+
+fn validate_bracket_group_cycle<'a>(
+    group_id: &'a str,
+    groups: &'a [BracketedGroupData],
+    active: &mut BTreeSet<&'a str>,
+    complete: &mut BTreeSet<&'a str>,
+) -> Result<(), String> {
+    if complete.contains(group_id) {
+        return Ok(());
+    }
+    if !active.insert(group_id) {
+        return Err(format!(
+            "bracketed group nesting contains a cycle through '{group_id}'"
+        ));
+    }
+    if let Some(group) = groups.iter().find(|group| group.id == group_id) {
+        for child_id in &group.nested_group_ids {
+            validate_bracket_group_cycle(child_id, groups, active, complete)?;
+        }
+    }
+    active.remove(group_id);
+    complete.insert(group_id);
+    Ok(())
 }
 
 fn validate_owner(

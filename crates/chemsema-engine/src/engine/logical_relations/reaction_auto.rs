@@ -109,6 +109,31 @@ impl Engine {
                     || !group.unresolved_bracketed_source_ids.is_empty())
         });
         changed |= bracket_before != logical.bracketed_groups.len();
+        let logical_ids = logical
+            .all_ids()
+            .into_iter()
+            .map(ToString::to_string)
+            .collect::<BTreeSet<_>>();
+        for group in &mut logical.alternative_groups {
+            if group.superseded_by_id.as_ref().is_some_and(|id| {
+                !entity_exists(id) && !logical_ids.contains(id)
+            }) {
+                group.superseded_by_id = None;
+                changed = true;
+            }
+        }
+        let bracket_group_ids = logical
+            .bracketed_groups
+            .iter()
+            .map(|group| group.id.clone())
+            .collect::<BTreeSet<_>>();
+        for group in &mut logical.bracketed_groups {
+            let before = group.nested_group_ids.len();
+            group
+                .nested_group_ids
+                .retain(|id| bracket_group_ids.contains(id));
+            changed |= before != group.nested_group_ids.len();
+        }
         for sequence in &mut logical.sequences {
             changed |= retain_existing(&mut sequence.text_object_ids, &|id| scene_ids.contains(id));
         }

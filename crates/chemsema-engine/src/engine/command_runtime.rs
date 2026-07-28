@@ -698,6 +698,7 @@ impl Engine {
             }
             EditorCommand::SetDocumentLayout { layout } => {
                 layout.validate()?;
+                self.validate_document_layout_candidate(&layout)?;
                 self.with_command(command.clone(), |engine| {
                     engine.set_document_layout_direct(layout)
                 })

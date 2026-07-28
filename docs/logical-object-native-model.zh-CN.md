@@ -22,8 +22,8 @@ CCJS 根对象的 `reactionSchemes` 保存反应 Scheme/Step，`logicalObjects` 
 | 对象族 | 原生结构 | 主要标准语义 |
 | --- | --- | --- |
 | `scheme/step` | `reactionSchemes[]` | 反应物、产物、箭头、加号、上下方对象和原子映射 |
-| `altgroup` | `logicalObjects.alternativeGroups[]` | 命名替代基成员、连接原子、框和警告 |
-| `bracketedgroup` | `logicalObjects.bracketedGroups[]` | 括号用途、重复方式、附件和穿越键 |
+| `altgroup` | `logicalObjects.alternativeGroups[]` | 命名替代基成员、连接原子、位置、框、颜色、层级、警告和替代链 |
+| `bracketedgroup` | `logicalObjects.bracketedGroups[]` | 括号用途、重复方式、附件、穿越键和嵌套括号组 |
 | `sequence` | `logicalObjects.sequences[]` | 本地序列标识符及显示文本 |
 | `crossreference` | `logicalObjects.crossReferences[]` | 本地或外部序列引用 |
 | `objecttag` | `logicalObjects.objectTags[]` | 带类型值、显示和定位规则的对象标签 |
@@ -31,8 +31,11 @@ CCJS 根对象的 `reactionSchemes` 保存反应 Scheme/Step，`logicalObjects` 
 | `regnum` | `logicalObjects.registryNumbers[]` | 登记机构和登记号 |
 | `represent` | `logicalObjects.representations[]` | 一个对象代表另一个对象的指定属性 |
 
-`splitter` 属于文档布局，不属于本关系图；它由
-`document.layout.splitterPositions` 原生保存和编辑。
+`splitter` 属于文档布局，不属于本关系图。ChemSema 用
+`document.layout.splitters[]` 原生保存每个 Splitter 的 `id`、`position` 和
+`pageDefinition`；页面本身的枚举存为 `document.layout.pageDefinition`。ChemDraw 6
+的 `SplitterPositions` 实际类型是对象 ID 数组，不是坐标数组，因此只在
+`legacySplitterPositionIds[]` 中明确保真，不能参与几何计算。
 
 ## 3. 身份、引用和来源
 
@@ -69,6 +72,10 @@ Reaction 是 typed relation，不写进通用 `links[]`：
 ### Alternative Group
 
 - 成员和连接原子必须存在且不重复。
+- `position`、`boundingBox`、`textFrame`、`groupFrame`、`opacity`、`color`、
+  `zIndex`、`visible`、`warning` 和 `ignoreWarnings` 都是显式可编辑字段。
+- `supersededById` 可以引用仍存在的文档实体或逻辑对象；删除目标、复制子图和
+  粘贴时必须分别清理或重映射，不能留下悬空引用。
 - 删除成员后组仍有成员或连接点才保留；空组自动清理。
 - 导出时成员移动到 `altgroup` 子树，连接原子写 `AltGroupID`。
 
@@ -76,6 +83,8 @@ Reaction 是 typed relation，不写进通用 `links[]`：
 
 - `usage`、`polymerRepeatPattern`、`polymerFlipType` 使用完整枚举，不保存 face。
 - 每个 attachment 明确引用一侧括号；每个 crossing bond 同时引用穿越键和内侧原子。
+- `nestedGroupIds` 保存标准允许的递归 `bracketedgroup` 子层级；一个子组只能有
+  一个父组，禁止自引用和环。导出必须重建嵌套树，不能压平成页面同级对象。
 - attachment 缺括号、crossing 缺键或原子时删除失效子关系；组没有有效 attachment
   或没有被括对象时清理。
 

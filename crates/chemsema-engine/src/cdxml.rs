@@ -220,7 +220,7 @@ fn imported_document_layout(
     root: &XmlNode,
     defaults: CdxmlDefaults,
     mut content_page: Page,
-) -> (Page, DocumentLayout) {
+) -> Result<(Page, DocumentLayout), String> {
     let page = root.children.iter().find(|child| child.name == "page");
     let width_pages = page
         .and_then(|page| parse_u32(page.attr("WidthPages")))
@@ -282,16 +282,34 @@ fn imported_document_layout(
         .map(|value| value / 10.0)
         .filter(|value| (1.0..=999.0).contains(value))
         .unwrap_or(100.0);
-    let splitter_positions = page
+    let legacy_splitter_position_ids = page
         .and_then(|page| page.attr("SplitterPositions"))
         .map(|value| {
             value
                 .split_whitespace()
-                .filter_map(|part| part.parse::<f64>().ok())
-                .filter(|value| value.is_finite() && *value >= 0.0)
+                .filter(|part| !part.is_empty())
+                .map(ToString::to_string)
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
+    let splitters = page
+        .into_iter()
+        .flat_map(|page| page.direct_children("splitter"))
+        .enumerate()
+        .map(|(index, splitter)| {
+            Ok(crate::PageSplitter {
+                id: splitter
+                    .attr("id")
+                    .filter(|id| !id.trim().is_empty())
+                    .map(ToString::to_string)
+                    .unwrap_or_else(|| format!("page_splitter_{}", index + 1)),
+                position: parse_xy(splitter.attr("p")),
+                page_definition: crate::PageDefinition::from_cdxml(
+                    splitter.attr("PageDefinition"),
+                )?,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
     let layout = DocumentLayout {
         drawing_space,
         paper: PaperSize {
@@ -326,13 +344,17 @@ fn imported_document_layout(
             .unwrap_or(36.0)
             .max(0.0),
         magnification_percent,
-        splitter_positions,
+        page_definition: crate::PageDefinition::from_cdxml(
+            page.and_then(|page| page.attr("PageDefinition")),
+        )?,
+        splitters,
+        legacy_splitter_position_ids,
         fix_in_place_extent: parse_xy(root.attr("FixInPlaceExtent")),
         fix_in_place_gap: parse_xy(root.attr("FixInPlaceGap")),
     };
     content_page.width = content_page.width.max(layout.total_width());
     content_page.height = content_page.height.max(layout.total_height());
-    (content_page, layout)
+    Ok((content_page, layout))
 }
 
 pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSemaDocument, String> {
@@ -476,7 +498,8 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         import_reactions_and_stoichiometry_grids(&root, &mut objects, defaults, &colors, &fonts);
     let (chemical_properties, chemical_property_links) =
         import_chemical_properties(&root, &objects, &resources);
-    let logical_objects = import_logical_objects(&root, &objects, &resources, &reaction_schemes);
+    let logical_objects =
+        import_logical_objects(&root, &objects, &resources, &reaction_schemes, &colors);
     apply_cdxml_groups(&root, &mut objects);
     let label_style = imported_document_text_style(
         defaults.label_font,
@@ -503,7 +526,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
             .unwrap_or(CdxmlLineHeight::Auto),
     );
     let content_page = page_from_objects(&objects, colors.background());
-    let (page, layout) = imported_document_layout(&root, defaults, content_page);
+    let (page, layout) = imported_document_layout(&root, defaults, content_page)?;
     let mut document = ChemSemaDocument {
         format: FormatInfo {
             name: "chemsema".to_string(),

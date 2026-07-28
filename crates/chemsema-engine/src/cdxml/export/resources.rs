@@ -45,6 +45,11 @@ pub(super) fn collect_document_colors(document: &ChemSemaDocument, colors: &mut 
             }
         }
     }
+    for group in &document.logical_objects.alternative_groups {
+        if let Some(color) = &group.color {
+            colors.ensure(color);
+        }
+    }
     for object in &document.objects {
         if let Some(style) = object_style(document, object) {
             for key in ["stroke", "fill", "color"] {

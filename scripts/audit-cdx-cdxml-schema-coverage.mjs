@@ -4,21 +4,30 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const schema = JSON.parse(readFileSync(join(rootDir, "schemas", "cdx-cdxml-official-v1.json"), "utf8"));
-const cdx = readFileSync(join(rootDir, "crates", "chemsema-engine", "src", "cdx.rs"), "utf8");
+const cdxSchema = readFileSync(
+  join(rootDir, "crates", "chemsema-engine", "src", "cdx", "schema.rs"),
+  "utf8",
+);
 const cdxmlDir = join(rootDir, "crates", "chemsema-engine", "src", "cdxml");
 const cdxml = [join(rootDir, "crates", "chemsema-engine", "src", "cdxml.rs")]
   .concat(readdirSync(cdxmlDir).filter((name) => name.endsWith(".rs")).map((name) => join(cdxmlDir, name)))
   .map((path) => readFileSync(path, "utf8"))
   .join("\n");
 
-const objectNameBody = cdx.slice(cdx.indexOf("fn object_name"), cdx.indexOf("fn legacy_chemsema_object_name"));
+const objectNameBody = cdxSchema.slice(
+  cdxSchema.indexOf("fn object_name"),
+  cdxSchema.indexOf("fn legacy_chemsema_object_name"),
+);
 const currentObjects = new Map(
   [...objectNameBody.matchAll(/(0x[0-9A-Fa-f]{4})\s*=>\s*\"([^\"]+)\"/g)]
     .map((match) => [match[2], match[1].toUpperCase().replace("0X", "0x")]),
 );
 const currentProperties = new Map();
 const currentPropertiesByTag = new Map();
-const propertyBody = cdx.slice(cdx.indexOf("fn property_schema"), cdx.indexOf("fn encode_property"));
+const propertyBody = cdxSchema.slice(
+  cdxSchema.indexOf("fn property_schema"),
+  cdxSchema.indexOf("fn property_tag"),
+);
 for (const match of propertyBody.matchAll(/(0x[0-9A-Fa-f]{4})(?:\s*\|\s*0x[0-9A-Fa-f]{4})*\s*=>\s*\(\"([^\"]+)\"/g)) {
   currentProperties.set(match[2], match[1].toUpperCase().replace("0X", "0x"));
   currentPropertiesByTag.set(match[1].toUpperCase().replace("0X", "0x"), match[2]);

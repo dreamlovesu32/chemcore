@@ -51,12 +51,14 @@ const nativeSemanticProperties = new Set([
   "PositioningAngle", "PositioningOffset", "SequenceIdentifier",
   "CrossReferenceContainer", "CrossReferenceDocument", "CrossReferenceIdentifier",
   "CrossReferenceSequence",
+  "SplitterPositions", "PageDefinition",
   "extent", "PaneHeight", "NumRows", "NumColumns",
 ]);
 const nativeSemanticObjects = new Set([
   "chemicalproperty", "templategrid",
   "bracketedgroup", "bracketattachment", "crossingbond", "altgroup", "regnum",
   "scheme", "step", "objecttag", "annotation", "sequence", "crossreference",
+  "splitter",
 ]);
 const lexicalCdxTypes = new Set([
   "CDXString", "CDXBoolean", "CDXBooleanImplied", "INT8", "UINT8", "INT16", "UINT16",
@@ -99,6 +101,8 @@ const cdxFormatRule = (property) => {
   if (property.cdxType === "CDXFormula") return "Official data type is reserved/undefined; ChemDraw does not read or write it.";
   if (property.cdxType === "Unformatted") return "Official type is uninterpreted bytes; rawBase64 is authoritative.";
   if (property.cdxmlName === "Value") return "Decode and edit the explicit native value according to the containing ObjectTag TagType.";
+  if (property.cdxmlName === "SplitterPositions") return "Decode as the official CDXObjectIDArray. Preserve this ChemDraw 6 compatibility field as explicit legacy object IDs; it is not a coordinate array.";
+  if (property.cdxmlName === "PageDefinition") return "Decode as the official INT8 page/splitter formatting enum with values Undefined through UserDefined.";
   if (property.cdxType === "varies") return "Decode according to the containing object tag's TagType; rawBase64 remains authoritative.";
   if (property.cdxType === "CDXFontTable") return "Edit structured font children and explicit native text styles.";
   if (property.cdxType === "CDXColorTable") return "Edit structured color children and explicit native colors.";

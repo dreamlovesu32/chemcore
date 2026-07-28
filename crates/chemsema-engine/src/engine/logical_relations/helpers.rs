@@ -155,12 +155,17 @@ fn alternative_group_fields() -> Vec<Value> {
         logical_field("memberEntityIds", "Members", "entity-list"),
         logical_field("attachmentNodeIds", "Attachment atoms", "entity-list"),
         logical_field("valence", "Valence", "optional-integer"),
+        logical_field("position", "Position", "optional-number-list-2"),
         logical_field("boundingBox", "Bounding box", "optional-number-list-4"),
         logical_field("textFrame", "Text frame", "optional-number-list-4"),
         logical_field("groupFrame", "Group frame", "optional-number-list-4"),
+        logical_field("opacity", "Opacity", "optional-number"),
+        logical_field("color", "Color", "optional-text"),
+        logical_field("zIndex", "Z order", "optional-integer"),
         logical_field("visible", "Visible", "boolean"),
         logical_field("ignoreWarnings", "Ignore warnings", "boolean"),
         logical_field("warning", "Warning", "optional-text"),
+        logical_field("supersededById", "Superseded by", "optional-text"),
         binding_origin_field(),
     ]
 }
@@ -170,6 +175,7 @@ fn bracketed_group_fields() -> Vec<Value> {
         common_id_field(),
         logical_field("bracketObjectIds", "Bracket graphics", "entity-list"),
         logical_field("bracketedEntityIds", "Bracketed objects", "entity-list"),
+        logical_field("nestedGroupIds", "Nested bracketed groups", "text-list"),
         choice_field(
             "usage",
             "Usage",
@@ -364,9 +370,17 @@ fn delete_logical_value(
             before != logical.$field.len()
         }};
     }
-    match kind {
-        "alternative-group" => Ok(remove!(alternative_groups)),
-        "bracketed-group" => Ok(remove!(bracketed_groups)),
+    let removed = match kind {
+        "alternative-group" => remove!(alternative_groups),
+        "bracketed-group" => {
+            let removed = remove!(bracketed_groups);
+            if removed {
+                for group in &mut logical.bracketed_groups {
+                    group.nested_group_ids.retain(|child_id| child_id != id);
+                }
+            }
+            removed
+        }
         "sequence" => {
             let identifier = logical
                 .sequences
@@ -379,15 +393,23 @@ fn delete_logical_value(
                     .cross_references
                     .retain(|reference| reference.sequence_identifier != identifier);
             }
-            Ok(removed)
+            removed
         }
-        "cross-reference" => Ok(remove!(cross_references)),
-        "object-tag" => Ok(remove!(object_tags)),
-        "annotation" => Ok(remove!(annotations)),
-        "registry-number" => Ok(remove!(registry_numbers)),
-        "representation" => Ok(remove!(representations)),
-        _ => Err(format!("unsupported logical object kind '{kind}'")),
+        "cross-reference" => remove!(cross_references),
+        "object-tag" => remove!(object_tags),
+        "annotation" => remove!(annotations),
+        "registry-number" => remove!(registry_numbers),
+        "representation" => remove!(representations),
+        _ => return Err(format!("unsupported logical object kind '{kind}'")),
+    };
+    if removed {
+        for group in &mut logical.alternative_groups {
+            if group.superseded_by_id.as_deref() == Some(id) {
+                group.superseded_by_id = None;
+            }
+        }
     }
+    Ok(removed)
 }
 
 fn reorder_logical_value(

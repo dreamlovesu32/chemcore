@@ -19,6 +19,7 @@ pub(super) fn remove_native_logical_objects(source: &mut crate::InterchangeObjec
                 | "annotation"
                 | "regnum"
                 | "represent"
+                | "splitter"
         )
     });
     for child in &mut source.children {
@@ -73,6 +74,7 @@ fn write_alternative_groups(
     entity_ids: &BTreeMap<String, String>,
     logical_ids: &BTreeMap<String, String>,
 ) {
+    let colors = CdxmlColorTable::from_cdxml(root);
     for group in &document.logical_objects.alternative_groups {
         let Some(xml_id) = logical_ids.get(&group.id) else {
             continue;
@@ -96,9 +98,19 @@ fn write_alternative_groups(
         if let Some(valence) = group.valence {
             attrs.insert("Valence".to_string(), valence.to_string());
         }
+        if let Some([x, y]) = group.position {
+            attrs.insert("p".to_string(), format!("{} {}", fmt_num(x), fmt_num(y)));
+        }
         insert_optional_box(&mut attrs, "BoundingBox", group.bounding_box);
         insert_optional_box(&mut attrs, "TextFrame", group.text_frame);
         insert_optional_box(&mut attrs, "GroupFrame", group.group_frame);
+        insert_optional_number(&mut attrs, "alpha", group.opacity);
+        if let Some(color) = &group.color {
+            attrs.insert("color".to_string(), colors.id_for(color));
+        }
+        if let Some(z_index) = group.z_index {
+            attrs.insert("Z".to_string(), z_index.to_string());
+        }
         if !group.visible {
             attrs.insert("Visible".to_string(), "no".to_string());
         }
@@ -107,6 +119,15 @@ fn write_alternative_groups(
         }
         if let Some(warning) = &group.warning {
             attrs.insert("Warning".to_string(), warning.clone());
+        }
+        if let Some(target) = group
+            .superseded_by_id
+            .as_ref()
+            .and_then(|id| logical_ids.get(id).or_else(|| entity_ids.get(id)))
+            .cloned()
+            .or_else(|| group.unresolved_superseded_by_source_id.clone())
+        {
+            attrs.insert("SupersededBy".to_string(), target);
         }
         page_mut(root).children.push(crate::cdxml::xml::XmlNode {
             name: "altgroup".to_string(),
@@ -131,113 +152,158 @@ fn write_bracketed_groups(
     entity_ids: &BTreeMap<String, String>,
     logical_ids: &BTreeMap<String, String>,
 ) {
-    for group in &document.logical_objects.bracketed_groups {
-        let Some(xml_id) = logical_ids.get(&group.id) else {
+    let groups = document
+        .logical_objects
+        .bracketed_groups
+        .iter()
+        .map(|group| (group.id.as_str(), group))
+        .collect::<BTreeMap<_, _>>();
+    let nested_ids = groups
+        .values()
+        .flat_map(|group| group.nested_group_ids.iter().map(String::as_str))
+        .collect::<BTreeSet<_>>();
+    let mut nodes = Vec::new();
+    for group in groups
+        .values()
+        .filter(|group| !nested_ids.contains(group.id.as_str()))
+    {
+        if let Some(node) = build_bracketed_group_node(
+            group,
+            &groups,
+            entity_ids,
+            logical_ids,
+            &mut BTreeSet::new(),
+        ) {
+            nodes.push(node);
+        }
+    }
+    page_mut(root).children.extend(nodes);
+}
+
+fn build_bracketed_group_node(
+    group: &crate::BracketedGroupData,
+    groups: &BTreeMap<&str, &crate::BracketedGroupData>,
+    entity_ids: &BTreeMap<String, String>,
+    logical_ids: &BTreeMap<String, String>,
+    active: &mut BTreeSet<String>,
+) -> Option<crate::cdxml::xml::XmlNode> {
+    if !active.insert(group.id.clone()) {
+        return None;
+    }
+    let bracketed_ids = group
+        .bracketed_entity_ids
+        .iter()
+        .filter_map(|id| entity_ids.get(id).cloned())
+        .chain(group.unresolved_bracketed_source_ids.iter().cloned())
+        .collect::<Vec<_>>();
+    if bracketed_ids.is_empty() || group.attachments.is_empty() {
+        active.remove(&group.id);
+        return None;
+    }
+    let mut attrs = BTreeMap::from([
+        (
+            "id".to_string(),
+            logical_ids
+                .get(&group.id)
+                .cloned()
+                .unwrap_or_else(|| group.id.clone()),
+        ),
+        ("BracketedObjectIDs".to_string(), bracketed_ids.join(" ")),
+        (
+            "BracketUsage".to_string(),
+            group.usage.as_cdxml().to_string(),
+        ),
+    ]);
+    if let Some(component_order) = group.component_order {
+        attrs.insert("ComponentOrder".to_string(), component_order.to_string());
+    }
+    attrs.insert(
+        "PolymerRepeatPattern".to_string(),
+        group.polymer_repeat_pattern.as_cdxml().to_string(),
+    );
+    attrs.insert(
+        "PolymerFlipType".to_string(),
+        group.polymer_flip_type.as_cdxml().to_string(),
+    );
+    insert_optional_number(&mut attrs, "RepeatCount", group.repeat_count);
+    if let Some(label) = &group.sru_label {
+        attrs.insert("SRULabel".to_string(), label.clone());
+    }
+    let mut children = Vec::new();
+    for attachment in &group.attachments {
+        let graphic_id = attachment
+            .bracket_object_id
+            .as_ref()
+            .and_then(|id| entity_ids.get(id))
+            .cloned()
+            .or_else(|| attachment.unresolved_bracket_source_id.clone());
+        let Some(graphic_id) = graphic_id else {
             continue;
         };
-        let bracketed_ids = group
-            .bracketed_entity_ids
-            .iter()
-            .filter_map(|id| entity_ids.get(id).cloned())
-            .chain(group.unresolved_bracketed_source_ids.iter().cloned())
-            .collect::<Vec<_>>();
-        if bracketed_ids.is_empty() || group.attachments.is_empty() {
-            continue;
-        }
-        let mut attrs = BTreeMap::from([
-            ("id".to_string(), xml_id.clone()),
-            ("BracketedObjectIDs".to_string(), bracketed_ids.join(" ")),
-            (
-                "BracketUsage".to_string(),
-                group.usage.as_cdxml().to_string(),
-            ),
-        ]);
-        if let Some(component_order) = group.component_order {
-            attrs.insert("ComponentOrder".to_string(), component_order.to_string());
-        }
-        attrs.insert(
-            "PolymerRepeatPattern".to_string(),
-            group.polymer_repeat_pattern.as_cdxml().to_string(),
-        );
-        attrs.insert(
-            "PolymerFlipType".to_string(),
-            group.polymer_flip_type.as_cdxml().to_string(),
-        );
-        insert_optional_number(&mut attrs, "RepeatCount", group.repeat_count);
-        if let Some(label) = &group.sru_label {
-            attrs.insert("SRULabel".to_string(), label.clone());
-        }
-        let mut children = Vec::new();
-        for attachment in &group.attachments {
-            let graphic_id = attachment
-                .bracket_object_id
+        let mut crossing_children = Vec::new();
+        for crossing in &attachment.crossing_bonds {
+            let bond_id = crossing
+                .bond_id
                 .as_ref()
                 .and_then(|id| entity_ids.get(id))
                 .cloned()
-                .or_else(|| attachment.unresolved_bracket_source_id.clone());
-            let Some(graphic_id) = graphic_id else {
+                .or_else(|| crossing.unresolved_bond_source_id.clone());
+            let atom_id = crossing
+                .inner_atom_id
+                .as_ref()
+                .and_then(|id| entity_ids.get(id))
+                .cloned()
+                .or_else(|| crossing.unresolved_inner_atom_source_id.clone());
+            let (Some(bond_id), Some(atom_id)) = (bond_id, atom_id) else {
                 continue;
             };
-            let mut crossing_children = Vec::new();
-            for crossing in &attachment.crossing_bonds {
-                let bond_id = crossing
-                    .bond_id
-                    .as_ref()
-                    .and_then(|id| entity_ids.get(id))
-                    .cloned()
-                    .or_else(|| crossing.unresolved_bond_source_id.clone());
-                let atom_id = crossing
-                    .inner_atom_id
-                    .as_ref()
-                    .and_then(|id| entity_ids.get(id))
-                    .cloned()
-                    .or_else(|| crossing.unresolved_inner_atom_source_id.clone());
-                let (Some(bond_id), Some(atom_id)) = (bond_id, atom_id) else {
-                    continue;
-                };
-                crossing_children.push(crate::cdxml::xml::XmlNode {
-                    name: "crossingbond".to_string(),
-                    attrs: BTreeMap::from([
-                        (
-                            "id".to_string(),
-                            logical_ids
-                                .get(&crossing.id)
-                                .cloned()
-                                .unwrap_or_else(|| crossing.id.clone()),
-                        ),
-                        ("BondID".to_string(), bond_id),
-                        ("InnerAtomID".to_string(), atom_id),
-                    ]),
-                    text: String::new(),
-                    children: Vec::new(),
-                });
-            }
-            children.push(crate::cdxml::xml::XmlNode {
-                name: "bracketattachment".to_string(),
+            crossing_children.push(crate::cdxml::xml::XmlNode {
+                name: "crossingbond".to_string(),
                 attrs: BTreeMap::from([
                     (
                         "id".to_string(),
                         logical_ids
-                            .get(&attachment.id)
+                            .get(&crossing.id)
                             .cloned()
-                            .unwrap_or_else(|| attachment.id.clone()),
+                            .unwrap_or_else(|| crossing.id.clone()),
                     ),
-                    ("GraphicID".to_string(), graphic_id),
+                    ("BondID".to_string(), bond_id),
+                    ("InnerAtomID".to_string(), atom_id),
                 ]),
                 text: String::new(),
-                children: crossing_children,
+                children: Vec::new(),
             });
         }
-        if children.is_empty() {
-            continue;
-        }
-        page_mut(root).children.push(crate::cdxml::xml::XmlNode {
-            name: "bracketedgroup".to_string(),
-            attrs,
+        children.push(crate::cdxml::xml::XmlNode {
+            name: "bracketattachment".to_string(),
+            attrs: BTreeMap::from([
+                (
+                    "id".to_string(),
+                    logical_ids
+                        .get(&attachment.id)
+                        .cloned()
+                        .unwrap_or_else(|| attachment.id.clone()),
+                ),
+                ("GraphicID".to_string(), graphic_id),
+            ]),
             text: String::new(),
-            children,
+            children: crossing_children,
         });
     }
+    for child_id in &group.nested_group_ids {
+        if let Some(child) = groups.get(child_id.as_str()).and_then(|child| {
+            build_bracketed_group_node(child, groups, entity_ids, logical_ids, active)
+        }) {
+            children.push(child);
+        }
+    }
+    active.remove(&group.id);
+    (!children.is_empty()).then_some(crate::cdxml::xml::XmlNode {
+        name: "bracketedgroup".to_string(),
+        attrs,
+        text: String::new(),
+        children,
+    })
 }
 
 fn write_sequences(

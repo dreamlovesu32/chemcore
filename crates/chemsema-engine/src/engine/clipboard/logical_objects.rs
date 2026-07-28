@@ -22,16 +22,48 @@ pub(super) fn remap_clipboard_logical_objects(
             .filter_map(|id| entity_id_map.get(id).cloned())
             .collect();
     };
+    let alternative_id_map = logical
+        .alternative_groups
+        .iter()
+        .map(|group| (group.id.clone(), engine.next_id("alternative_group")))
+        .collect::<BTreeMap<_, _>>();
+    let bracket_group_id_map = logical
+        .bracketed_groups
+        .iter()
+        .map(|group| (group.id.clone(), engine.next_id("bracketed_group")))
+        .collect::<BTreeMap<_, _>>();
     for group in &mut logical.alternative_groups {
-        group.id = engine.next_id("alternative_group");
+        group.id = alternative_id_map
+            .get(&group.id)
+            .cloned()
+            .expect("alternative-group clipboard ID was allocated");
         remap_ids(&mut group.member_entity_ids);
         remap_ids(&mut group.attachment_node_ids);
+        group.superseded_by_id = group.superseded_by_id.as_ref().and_then(|id| {
+            alternative_id_map
+                .get(id)
+                .or_else(|| bracket_group_id_map.get(id))
+                .or_else(|| entity_id_map.get(id))
+                .cloned()
+        });
+        group.unresolved_member_source_ids.clear();
+        group.unresolved_superseded_by_source_id = None;
         group.binding_origin = LogicalBindingOrigin::Authored;
     }
     for group in &mut logical.bracketed_groups {
-        group.id = engine.next_id("bracketed_group");
+        group.id = bracket_group_id_map
+            .get(&group.id)
+            .cloned()
+            .expect("bracketed-group clipboard ID was allocated");
         remap_ids(&mut group.bracket_object_ids);
         remap_ids(&mut group.bracketed_entity_ids);
+        group.nested_group_ids = group
+            .nested_group_ids
+            .iter()
+            .filter_map(|id| bracket_group_id_map.get(id).cloned())
+            .collect();
+        group.unresolved_bracket_source_ids.clear();
+        group.unresolved_bracketed_source_ids.clear();
         for attachment in &mut group.attachments {
             attachment.id = engine.next_id("bracket_attachment");
             attachment.bracket_object_id = attachment
@@ -39,6 +71,7 @@ pub(super) fn remap_clipboard_logical_objects(
                 .as_ref()
                 .and_then(|id| entity_id_map.get(id))
                 .cloned();
+            attachment.unresolved_bracket_source_id = None;
             for crossing in &mut attachment.crossing_bonds {
                 crossing.id = engine.next_id("crossing_bond");
                 crossing.bond_id = crossing
@@ -51,6 +84,8 @@ pub(super) fn remap_clipboard_logical_objects(
                     .as_ref()
                     .and_then(|id| entity_id_map.get(id))
                     .cloned();
+                crossing.unresolved_bond_source_id = None;
+                crossing.unresolved_inner_atom_source_id = None;
             }
         }
         group.binding_origin = LogicalBindingOrigin::Authored;

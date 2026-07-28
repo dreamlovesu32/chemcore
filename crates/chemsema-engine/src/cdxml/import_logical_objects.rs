@@ -5,10 +5,11 @@ pub(super) fn import_logical_objects(
     objects: &[SceneObject],
     resources: &BTreeMap<String, Resource>,
     _reaction_schemes: &[crate::ReactionSchemeData],
+    colors: &CdxmlColorTable,
 ) -> crate::LogicalObjectData {
     let source_map = source_entity_map(root, objects, resources);
     let mut data = crate::LogicalObjectData::default();
-    import_alternative_groups(root, &source_map, &mut data);
+    import_alternative_groups(root, &source_map, colors, &mut data);
     import_bracketed_groups(root, objects, &source_map, &mut data);
     import_sequences(root, &source_map, &mut data);
     import_attached_metadata(root, None, &source_map, &mut data);
@@ -18,8 +19,20 @@ pub(super) fn import_logical_objects(
 fn import_alternative_groups(
     root: &XmlNode,
     source_map: &BTreeMap<String, Vec<String>>,
+    colors: &CdxmlColorTable,
     data: &mut crate::LogicalObjectData,
 ) {
+    let alternative_source_ids = descendants(root)
+        .into_iter()
+        .filter(|node| node.is("altgroup"))
+        .enumerate()
+        .filter_map(|(index, node)| {
+            Some((
+                node.attr("id")?.to_string(),
+                logical_id(node.attr("id"), "alternative_group", index + 1),
+            ))
+        })
+        .collect::<BTreeMap<_, _>>();
     let mut index = 1;
     for node in descendants(root)
         .into_iter()
@@ -54,6 +67,12 @@ fn import_alternative_groups(
                 }
             }
         }
+        let (superseded_by_id, unresolved_superseded_by_source_id) =
+            resolve_logical_or_entity_reference(
+                node.attr("SupersededBy"),
+                source_map,
+                &alternative_source_ids,
+            );
         data.alternative_groups.push(crate::AlternativeGroupData {
             id,
             member_entity_ids,
@@ -62,12 +81,18 @@ fn import_alternative_groups(
             valence: node
                 .attr("Valence")
                 .and_then(|value| value.parse::<i16>().ok()),
+            position: parse_point(node.attr("p")),
             bounding_box: parse_bbox(node.attr("BoundingBox")),
             text_frame: parse_bbox(node.attr("TextFrame")),
             group_frame: parse_bbox(node.attr("GroupFrame")),
+            opacity: parse_f64(node.attr("alpha")),
+            color: node.attr("color").map(|color| colors.resolve(Some(color))),
+            z_index: node.attr("Z").and_then(|value| value.parse::<i16>().ok()),
             visible: parse_bool(node.attr("Visible"), true),
             ignore_warnings: parse_bool(node.attr("IgnoreWarnings"), false),
             warning: node.attr("Warning").map(ToString::to_string),
+            superseded_by_id,
+            unresolved_superseded_by_source_id,
             binding_origin: crate::LogicalBindingOrigin::Imported,
         });
     }
@@ -79,6 +104,17 @@ fn import_bracketed_groups(
     source_map: &BTreeMap<String, Vec<String>>,
     data: &mut crate::LogicalObjectData,
 ) {
+    let bracket_group_source_ids = descendants(root)
+        .into_iter()
+        .filter(|node| node.is("bracketedgroup"))
+        .enumerate()
+        .filter_map(|(index, node)| {
+            Some((
+                node.attr("id")?.to_string(),
+                logical_id(node.attr("id"), "bracketed_group", index + 1),
+            ))
+        })
+        .collect::<BTreeMap<_, _>>();
     let mut group_index = 1;
     let mut attachment_index = 1;
     let mut crossing_index = 1;
@@ -146,12 +182,18 @@ fn import_bracketed_groups(
                 &mut unresolved_bracketed_source_ids,
             );
         }
+        let nested_group_ids = node
+            .direct_children("bracketedgroup")
+            .filter_map(|child| child.attr("id"))
+            .filter_map(|source_id| bracket_group_source_ids.get(source_id).cloned())
+            .collect();
         data.bracketed_groups.push(crate::BracketedGroupData {
             id: logical_id(node.attr("id"), "bracketed_group", group_index),
             bracket_object_ids,
             unresolved_bracket_source_ids,
             bracketed_entity_ids,
             unresolved_bracketed_source_ids,
+            nested_group_ids,
             attachments,
             usage: crate::BracketUsage::from_cdxml(node.attr("BracketUsage")),
             component_order: node
@@ -358,6 +400,23 @@ fn resolved_reference(
     }
 }
 
+fn resolve_logical_or_entity_reference(
+    source_id: Option<&str>,
+    source_map: &BTreeMap<String, Vec<String>>,
+    logical_source_ids: &BTreeMap<String, String>,
+) -> (Option<String>, Option<String>) {
+    let Some(source_id) = source_id else {
+        return (None, None);
+    };
+    if let Some(logical_id) = logical_source_ids.get(source_id) {
+        return (Some(logical_id.clone()), None);
+    }
+    match source_map.get(source_id).map(Vec::as_slice) {
+        Some([entity_id]) => (Some(entity_id.clone()), None),
+        _ => (None, Some(source_id.to_string())),
+    }
+}
+
 fn extend_resolved_or_unresolved(
     source_id: &str,
     source_map: &BTreeMap<String, Vec<String>>,
@@ -415,7 +474,7 @@ mod tests {
     const LOGICAL_OBJECTS_CDXML: &str = r#"
 <CDXML BondLength="30" LabelFont="3" LabelSize="10" CaptionFont="3" CaptionSize="10">
   <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
-  <colortable><color r="1" g="1" b="1"/><color r="0" g="0" b="0"/></colortable>
+  <colortable><color r="1" g="1" b="1"/><color r="0" g="0" b="0"/><color r="1" g="0" b="0"/></colortable>
   <page id="1" BoundingBox="0 0 500 400">
     <fragment id="10">
       <n id="11" p="50 100" Element="6">
@@ -435,8 +494,11 @@ mod tests {
         <crossingbond id="24" BondID="14" InnerAtomID="11"/>
       </bracketattachment>
       <bracketattachment id="25" GraphicID="21"/>
+      <bracketedgroup id="26" BracketedObjectIDs="10" BracketUsage="Component">
+        <bracketattachment id="27" GraphicID="20"/>
+      </bracketedgroup>
     </bracketedgroup>
-    <altgroup id="30" Valence="1" BoundingBox="150 50 250 150">
+    <altgroup id="30" Valence="1" p="200 100" BoundingBox="150 50 250 150" alpha="0.5" color="4" Z="12" SupersededBy="10">
       <fragment id="31"><n id="32" p="180 100" Element="8"/></fragment>
     </altgroup>
     <sequence id="40" SequenceIdentifier="sequence-alpha">
@@ -459,10 +521,19 @@ mod tests {
         let logical = &document.logical_objects;
         assert_eq!(logical.alternative_groups.len(), 1);
         assert_eq!(logical.alternative_groups[0].attachment_node_ids, ["13"]);
-        assert_eq!(logical.bracketed_groups.len(), 1);
+        assert_eq!(logical.bracketed_groups.len(), 2);
         assert_eq!(logical.bracketed_groups[0].usage, crate::BracketUsage::Sru);
+        assert_eq!(logical.bracketed_groups[0].nested_group_ids, ["26"]);
         assert_eq!(logical.bracketed_groups[0].component_order, Some(2));
         assert_eq!(logical.alternative_groups[0].valence, Some(1));
+        assert_eq!(logical.alternative_groups[0].position, Some([200.0, 100.0]));
+        assert_eq!(logical.alternative_groups[0].opacity, Some(0.5));
+        assert_eq!(
+            logical.alternative_groups[0].color.as_deref(),
+            Some("#ff0000")
+        );
+        assert_eq!(logical.alternative_groups[0].z_index, Some(12));
+        assert!(logical.alternative_groups[0].superseded_by_id.is_some());
         assert_eq!(
             logical.bracketed_groups[0].polymer_repeat_pattern,
             crate::PolymerRepeatPattern::HeadToTail
@@ -570,7 +641,14 @@ mod tests {
             "sequence-beta"
         );
         assert_eq!(exported.matches("<altgroup").count(), 1);
-        assert_eq!(exported.matches("<bracketedgroup").count(), 1);
+        assert_eq!(exported.matches("<bracketedgroup").count(), 2);
+        assert_eq!(
+            round_trip.logical_objects.bracketed_groups[0].nested_group_ids,
+            [round_trip.logical_objects.bracketed_groups[1].id.clone()]
+        );
+        assert!(exported.contains("alpha=\"0.5\""));
+        assert!(exported.contains("color=\""));
+        assert!(exported.contains("SupersededBy=\""));
         assert_eq!(exported.matches("<sequence").count(), 1);
         assert_eq!(exported.matches("<crossreference").count(), 1);
         assert_eq!(exported.matches("Name=\"catalog\"").count(), 2);
@@ -592,6 +670,16 @@ mod tests {
         assert_eq!(
             cdx_round_trip.logical_objects.alternative_groups[0].valence,
             Some(1)
+        );
+        assert_eq!(
+            cdx_round_trip.logical_objects.bracketed_groups[0].nested_group_ids,
+            ["26"]
+        );
+        assert_eq!(
+            cdx_round_trip.logical_objects.alternative_groups[0]
+                .color
+                .as_deref(),
+            Some("#ff0000")
         );
     }
 }

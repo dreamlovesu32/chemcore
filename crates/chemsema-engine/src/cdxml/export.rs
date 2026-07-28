@@ -191,6 +191,7 @@ struct CdxmlDocumentWriter<'a> {
     node_ids: BTreeMap<String, String>,
     bond_ids: BTreeMap<(String, String), String>,
     entity_ids: BTreeMap<String, String>,
+    page_splitter_ids: BTreeMap<String, String>,
     colors: CdxmlColorTable,
     fonts: CdxmlFontTable,
     defaults: CdxmlDefaults,
@@ -243,6 +244,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             node_ids: BTreeMap::new(),
             bond_ids: BTreeMap::new(),
             entity_ids: BTreeMap::new(),
+            page_splitter_ids: BTreeMap::new(),
             colors,
             fonts,
             defaults,
@@ -253,6 +255,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
     fn write(mut self) -> (String, BTreeMap<String, String>) {
         self.prepare_bond_ids();
         self.prepare_annotation_basis_ids();
+        self.prepare_page_splitter_ids();
         let layout = &self.document.document.layout;
         let rendered = crate::render_document(self.document);
         let resolved = layout.resolve(crate::render_primitives_bounds(rendered.iter()));
@@ -373,13 +376,20 @@ impl<'a> CdxmlDocumentWriter<'a> {
         if !layout.footer.is_empty() {
             page_attrs.push(("Footer", layout.footer.clone()));
         }
-        if !layout.splitter_positions.is_empty() {
+        if layout.page_definition != crate::PageDefinition::Undefined {
+            page_attrs.push((
+                "PageDefinition",
+                layout.page_definition.as_cdxml().to_string(),
+            ));
+        }
+        if !layout.legacy_splitter_position_ids.is_empty() {
             page_attrs.push((
                 "SplitterPositions",
                 layout
-                    .splitter_positions
+                    .legacy_splitter_position_ids
                     .iter()
-                    .map(|value| fmt_num(*value))
+                    .map(|id| self.page_splitter_ids.get(id).unwrap_or(id))
+                    .cloned()
                     .collect::<Vec<_>>()
                     .join(" "),
             ));
@@ -396,6 +406,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
         self.write_scene_objects(&mut out, &objects);
         self.write_reaction_schemes(&mut out);
         self.write_chemical_properties(&mut out);
+        self.write_page_splitters(&mut out);
 
         out.push_str("  </page>\n");
         out.push_str("</CDXML>\n");
@@ -705,6 +716,36 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 write_empty_tag(out, 6, "step", attrs);
             }
             out.push_str("    </scheme>\n");
+        }
+    }
+
+    fn write_page_splitters(&mut self, out: &mut String) {
+        for splitter in &self.document.document.layout.splitters {
+            let id = self
+                .page_splitter_ids
+                .get(&splitter.id)
+                .cloned()
+                .expect("page splitter ID was prepared");
+            let mut attrs = vec![("id", id)];
+            if let Some([x, y]) = splitter.position {
+                attrs.push(("p", format!("{} {}", fmt_num(x), fmt_num(y))));
+            }
+            if splitter.page_definition != crate::PageDefinition::Undefined {
+                attrs.push((
+                    "PageDefinition",
+                    splitter.page_definition.as_cdxml().to_string(),
+                ));
+            }
+            write_empty_tag(out, 4, "splitter", attrs);
+        }
+    }
+
+    fn prepare_page_splitter_ids(&mut self) {
+        for splitter in &self.document.document.layout.splitters {
+            let id = self
+                .claim_source_id(Some(splitter.id.clone()))
+                .unwrap_or_else(|| self.alloc_id());
+            self.page_splitter_ids.insert(splitter.id.clone(), id);
         }
     }
 

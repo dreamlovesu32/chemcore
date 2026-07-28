@@ -269,16 +269,13 @@ async function verifyToolbarAndCursor(page) {
 async function verifyDocumentLayoutControls(page) {
   const dimensions = await page.evaluate(() => {
     const footer = document.querySelector(".selection-status-bar")?.getBoundingClientRect();
-    const template = document.querySelector("#template-panel-mode-button")?.getBoundingClientRect();
     const paper = document.querySelector("#paper-layout-mode-button")?.getBoundingClientRect();
     return {
       footerHeight: footer?.height,
-      template: template && [template.width, template.height],
       paper: paper && [paper.width, paper.height],
     };
   });
   assert.equal(dimensions.footerHeight, 40, `document footer height drifted: ${JSON.stringify(dimensions)}`);
-  assert.deepEqual(dimensions.template, [32, 32]);
   assert.deepEqual(dimensions.paper, [32, 32]);
 
   const paperButton = page.locator("#paper-layout-mode-button");
@@ -320,11 +317,42 @@ async function verifyDocumentLayoutControls(page) {
   assert.equal(await page.locator('[name="footer"]').count(), 1);
   await page.locator('[data-layout-tab="view"]').click();
   assert.equal(await page.locator('[name="magnificationPercent"]').count(), 1);
-  assert.equal(await page.locator('[name="splitterPositions"]').count(), 1);
+  assert.equal(await page.locator('[name="pageDefinition"]').count(), 1);
+  assert.equal(await page.locator('[name="splitters"]').count(), 1);
+  assert.equal(await page.locator('[name="legacySplitterPositionIds"]').count(), 1);
+  await page.locator('[name="pageDefinition"]').selectOption("reaction1");
+  await page.locator('[name="legacySplitterPositionIds"]').fill("701 702");
+  await page.locator('[name="splitters"]').fill(JSON.stringify([
+    { id: "701", position: [100, 220], pageDefinition: "center" },
+    { id: "702", position: null, pageDefinition: "user-defined" },
+  ]));
   await page.locator('[data-layout-tab="embedding"]').click();
   assert.equal(await page.locator('[name="fixInPlaceExtentX"]').count(), 1);
   assert.equal(await page.locator('[name="fixInPlaceGapY"]').count(), 1);
-  await page.getByRole("button", { name: "Cancel" }).click();
+  const invalidLayoutFields = await page.evaluate(() => (
+    [...document.querySelector(".document-layout-dialog form").elements]
+      .filter((element) => typeof element.checkValidity === "function" && !element.checkValidity())
+      .map((element) => ({ name: element.name, value: element.value, message: element.validationMessage }))
+  ));
+  assert.deepEqual(invalidLayoutFields, [], `layout form has invalid fields: ${JSON.stringify(invalidLayoutFields)}`);
+  await page.getByRole("button", { name: "OK" }).click();
+  await page.waitForFunction(() => (
+    !document.querySelector(".document-layout-dialog")
+    || document.querySelector("[data-layout-error]")?.textContent?.trim()
+  ));
+  const layoutError = await page.evaluate(() => (
+    document.querySelector("[data-layout-error]")?.textContent || ""
+  ));
+  assert.equal(layoutError?.trim() || "", "", `layout dialog rejected valid splitter data: ${layoutError}`);
+  const savedSplitterLayout = await page.evaluate(() => (
+    JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson()).document.layout
+  ));
+  assert.equal(savedSplitterLayout.pageDefinition, "reaction1");
+  assert.deepEqual(savedSplitterLayout.legacySplitterPositionIds, ["701", "702"]);
+  assert.deepEqual(savedSplitterLayout.splitters, [
+    { id: "701", position: [100, 220], pageDefinition: "center" },
+    { id: "702", position: null, pageDefinition: "user-defined" },
+  ]);
   await paperButton.click();
   await page.waitForFunction(() => (
     document.querySelector("#paper-layout-mode-button")?.getAttribute("aria-pressed") === "false"

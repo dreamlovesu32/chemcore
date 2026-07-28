@@ -56,7 +56,7 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x801D` | `tlcplate` | `interchange-object` | `verified-with-erratum` | `verified` | `verified` |
 | `0x801E` | `tlclane` | `interchange-object` | `verified-with-erratum` | `verified` | `verified` |
 | `0x801F` | `tlcspot` | `interchange-object` | `verified-with-erratum` | `verified` | `verified` |
-| `0x8015` | `splitter` | `interchange-object` | `verified` | `verified` | `verified` |
+| `0x8015` | `splitter` | `native-object-tag` | `verified` | `verified` | `verified` |
 | `0x8020` | `chemicalproperty` | `native-object-tag` | `verified-with-erratum` | `verified` | `verified` |
 | `0x0300` | `colortable` | `property-backed-helper` | `verified` | `verified` | `verified` |
 | `0x0100` | `fonttable` | `property-backed-helper` | `verified` | `verified` | `verified` |
@@ -327,8 +327,8 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `0x1001` | `NumRows` | `INT16` | `native-semantic/value` | `verified` | `verified` | `verified` | Required for templategrids. The number of rows of the CDX TemplateGrid object. TemplateGrid dimension is validated and edited through the native layout model. |
 | `0x1002` | `NumColumns` | `INT16` | `native-semantic/value` | `verified` | `verified` | `verified` | Required for templategrids. The number of columns of the CDX TemplateGrid object. TemplateGrid dimension is validated and edited through the native layout model. |
 | `0x1100` | `Integral` | `CDXBoolean` | `typed-interchange/value` | `verified` | `verified` | `verified` | The group is considered to be integral (non-subdivisible) if non-zero. Official lexical/binary codec is available; value is editable. |
-| `0x1FF0` | `SplitterPositions` | `CDXObjectIDArray` | `typed-interchange/value` | `verified` | `verified` | `verified` | An array of vertical positions that subdivide a page into regions. Official lexical/binary codec is available; value is editable. |
-| `0x1FF1` | `PageDefinition` | `INT8` | `typed-interchange/value` | `verified` | `verified` | `verified` | A description of the type of formatting used by the page, or by the splitter. This is an enumerated property. Official lexical/binary codec is available; value is editable. |
+| `0x1FF0` | `SplitterPositions` | `CDXObjectIDArray` | `native-semantic/value` | `verified` | `verified` | `verified` | An array of vertical positions that subdivide a page into regions. Decode as the official CDXObjectIDArray. Preserve this ChemDraw 6 compatibility field as explicit legacy object IDs; it is not a coordinate array. |
+| `0x1FF1` | `PageDefinition` | `INT8` | `native-semantic/value` | `verified` | `verified` | `verified` | A description of the type of formatting used by the page, or by the splitter. This is an enumerated property. Decode as the official INT8 page/splitter formatting enum with values Undefined through UserDefined. |
 
 ## CDXML 元素全集
 
@@ -392,7 +392,7 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 
 | 属性 | 出现元素数 | 实现 | schema | storage | behavior |
 | --- | ---: | --- | --- | --- | --- |
-| `alpha` | 25 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `alpha` | 25 | `native-semantic` | `verified` | `verified` | `verified` |
 | `BoundingBox` | 21 | `native-semantic` | `verified` | `verified` | `verified` |
 | `color` | 27 | `native-semantic` | `verified` | `verified` | `verified` |
 | `GroupFrame` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
@@ -710,7 +710,7 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 | `Header` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `HeaderPosition` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `HeightPages` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
-| `PageDefinition` | 2 | `typed-interchange` | `verified` | `verified` | `verified` |
+| `PageDefinition` | 2 | `native-semantic` | `verified` | `verified` | `verified` |
 | `PageOverlap` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `PrintTrimMarks` | 1 | `native-semantic` | `verified` | `verified` | `verified` |
 | `SplitterPositions` | 1 | `native-semantic` | `verified` | `verified` | `verified` |

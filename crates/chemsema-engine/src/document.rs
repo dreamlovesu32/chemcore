@@ -520,6 +520,14 @@ fn validate_logical_objects(document: &ChemSemaDocument) -> Result<(), String> {
             }
         }
     }
+    for splitter in &document.document.layout.splitters {
+        if !all_ids.insert(splitter.id.as_str()) {
+            return Err(format!(
+                "document splitter id '{}' collides with another document entity",
+                splitter.id
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -2770,6 +2778,89 @@ pub enum DrawingSpace {
     Poster,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PageDefinition {
+    #[default]
+    Undefined,
+    Center,
+    Tl4,
+    IdTerm,
+    FlushLeft,
+    FlushRight,
+    Reaction1,
+    Reaction2,
+    MulticolumnTl4,
+    MulticolumnNonTl4,
+    UserDefined,
+}
+
+impl PageDefinition {
+    pub(crate) fn from_cdxml(value: Option<&str>) -> Result<Self, String> {
+        let value = value.unwrap_or("Undefined");
+        let definition = match value.trim().to_ascii_lowercase().as_str() {
+            "center" | "1" => Self::Center,
+            "tl4" | "2" => Self::Tl4,
+            "idterm" | "3" => Self::IdTerm,
+            "flushleft" | "4" => Self::FlushLeft,
+            "flushright" | "5" => Self::FlushRight,
+            "reaction1" | "6" => Self::Reaction1,
+            "reaction2" | "7" => Self::Reaction2,
+            "multicolumntl4" | "8" => Self::MulticolumnTl4,
+            "multicolumnnontl4" | "9" => Self::MulticolumnNonTl4,
+            "userdefined" | "10" => Self::UserDefined,
+            "undefined" | "0" => Self::Undefined,
+            _ => return Err(format!("unsupported PageDefinition '{value}'")),
+        };
+        Ok(definition)
+    }
+
+    pub(crate) const fn as_cdxml(self) -> &'static str {
+        match self {
+            Self::Undefined => "Undefined",
+            Self::Center => "Center",
+            Self::Tl4 => "TL4",
+            Self::IdTerm => "IDTerm",
+            Self::FlushLeft => "FlushLeft",
+            Self::FlushRight => "FlushRight",
+            Self::Reaction1 => "Reaction1",
+            Self::Reaction2 => "Reaction2",
+            Self::MulticolumnTl4 => "MulticolumnTL4",
+            Self::MulticolumnNonTl4 => "MulticolumnNonTL4",
+            Self::UserDefined => "UserDefined",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PageSplitter {
+    pub id: String,
+    #[serde(default)]
+    pub position: Option<[f64; 2]>,
+    #[serde(default)]
+    pub page_definition: PageDefinition,
+}
+
+fn deserialize_legacy_splitter_position_ids<'de, D>(
+    deserializer: D,
+) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let values = Vec::<Value>::deserialize(deserializer)?;
+    values
+        .into_iter()
+        .map(|value| match value {
+            Value::String(value) if !value.trim().is_empty() => Ok(value),
+            Value::Number(value) => Ok(value.to_string()),
+            _ => Err(serde::de::Error::custom(
+                "legacy splitter position IDs must be strings or numbers",
+            )),
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaperSize {
@@ -2832,10 +2923,23 @@ pub struct DocumentLayout {
     /// Human-facing percent. CDX stores ten times this number.
     #[serde(default = "default_magnification_percent")]
     pub magnification_percent: f64,
-    /// Saved split-pane coordinates. They are document view state and never
-    /// affect rendering or export.
+    /// The page-level formatting definition from the official CDX enum.
     #[serde(default)]
-    pub splitter_positions: Vec<f64>,
+    pub page_definition: PageDefinition,
+    /// Native horizontal page splitters. `position` uses document coordinates;
+    /// the object is logical and does not create an editor drawing primitive.
+    #[serde(default)]
+    pub splitters: Vec<PageSplitter>,
+    /// ChemDraw 6 defined `SplitterPositions` as an object-ID array, then
+    /// obsoleted it in favor of Splitter objects. Preserve those IDs exactly.
+    /// The alias is an explicit migration for early ChemSema files that
+    /// incorrectly serialized the IDs as numeric `splitterPositions`.
+    #[serde(
+        default,
+        alias = "splitterPositions",
+        deserialize_with = "deserialize_legacy_splitter_position_ids"
+    )]
+    pub legacy_splitter_position_ids: Vec<String>,
     /// OLE/in-place editing extent and gap in document points.
     #[serde(default)]
     pub fix_in_place_extent: Option<[f64; 2]>,
@@ -2873,7 +2977,9 @@ impl Default for DocumentLayout {
             footer: String::new(),
             footer_position: default_footer_position(),
             magnification_percent: default_magnification_percent(),
-            splitter_positions: Vec::new(),
+            page_definition: PageDefinition::Undefined,
+            splitters: Vec::new(),
+            legacy_splitter_position_ids: Vec::new(),
             fix_in_place_extent: None,
             fix_in_place_gap: None,
         }
@@ -2934,12 +3040,28 @@ impl DocumentLayout {
         {
             return Err("document magnification must be between 1% and 999%".to_string());
         }
+        let mut splitter_ids = BTreeSet::new();
+        for splitter in &self.splitters {
+            if splitter.id.trim().is_empty() || !splitter_ids.insert(splitter.id.as_str()) {
+                return Err("document splitter IDs must be non-empty and unique".to_string());
+            }
+            if splitter
+                .position
+                .is_some_and(|point| point.into_iter().any(|value| !value.is_finite()))
+            {
+                return Err(format!(
+                    "document splitter '{}' has a non-finite position",
+                    splitter.id
+                ));
+            }
+        }
+        let mut legacy_splitter_ids = BTreeSet::new();
         if self
-            .splitter_positions
+            .legacy_splitter_position_ids
             .iter()
-            .any(|value| !value.is_finite() || *value < 0.0)
+            .any(|id| id.trim().is_empty() || !legacy_splitter_ids.insert(id.as_str()))
         {
-            return Err("document splitter positions must be finite and non-negative".to_string());
+            return Err("legacy splitter position IDs must be non-empty and unique".to_string());
         }
         for (name, value) in [
             ("in-place extent", self.fix_in_place_extent),
