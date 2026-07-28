@@ -1012,6 +1012,7 @@ line 对象表示页面上的线性笔画几何。
 - `length` 对应 CDXML `HeadSize / 100`，实际头长为 `length * strokeWidth`
 - `centerLength` 对应 CDXML `ArrowheadCenterSize / 100`，实际凹口位置为 `centerLength * strokeWidth`
 - `width` 对应 CDXML `ArrowheadWidth / 100`，实际宽端半宽参数为 `width * strokeWidth`。对实心箭头，ChemDraw 将该值作为宽端半宽参数，渲染轮廓使用约 `width * strokeWidth + 0.05` 的外侧半宽，并用该半宽的 `7/16` 作为内侧贝塞尔控制点偏移；对开放/空心箭头，该值作为头部相对箭杆半宽的额外宽度参数
+- 实心全箭头和半箭头的可见头部是“同一路径的黑色填充 + `0.133333 pt` 固定细轮廓”。该轮廓不随文档 `LineWidth`、`HeadSize` 或 `ArrowheadWidth` 缩放；开放和空心箭头不使用这条重复轮廓规则
 - `curve` 对应 CDXML `AngularSize`，负值和正值分别表示两种弯曲方向
 - `curveSpacing` 对应 CDXML `CurveSpacing / 100`
 - `noGo` 对应 CDXML `NoGo`，可取 `none | cross | hash`

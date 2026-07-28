@@ -3,6 +3,7 @@ use super::*;
 const CURVED_ARROW_SAMPLE_DEGREES: f64 = 3.0;
 const CURVED_ARROW_MIN_SAMPLE_STEPS: usize = 16;
 const CURVED_ARROW_MAX_SAMPLE_STEPS: usize = 128;
+const CHEMDRAW_SOLID_ARROW_HEAD_OUTLINE_WIDTH: f64 = 0.133_333;
 
 fn arrow_head_points(from: Point, to: Point, arrow_head: ArrowHeadGeometry) -> Vec<Point> {
     let direction = Vector::new(to.x - from.x, to.y - from.y);
@@ -1487,39 +1488,47 @@ fn render_solid_arrow_head(
 ) {
     if style == RenderArrowEndpointStyle::Full {
         if let Some(path) = solid_full_arrow_head_path(from, to, arrow_head) {
-            out.push(RenderPrimitive::FilledPath {
-                role: RenderRole::DocumentGraphic,
-                object_id,
-                node_id: None,
-                bond_id: None,
-                d: path.d,
-                points: path.points,
-                fill: fill.to_string(),
-                fill_rule: None,
-                clip_path_d: None,
-                clip_rule: None,
-                rotate: 0.0,
-                rotate_center: None,
-            });
+            push_solid_arrow_head_path(out, path, fill, object_id);
         }
         return;
     }
     if let Some(path) = solid_half_arrow_head_path(from, to, arrow_head, style, line_width) {
-        out.push(RenderPrimitive::FilledPath {
-            role: RenderRole::DocumentGraphic,
-            object_id,
-            node_id: None,
-            bond_id: None,
-            d: path.d,
-            points: path.points,
-            fill: fill.to_string(),
-            fill_rule: None,
-            clip_path_d: None,
-            clip_rule: None,
-            rotate: 0.0,
-            rotate_center: None,
-        });
+        push_solid_arrow_head_path(out, path, fill, object_id);
     }
+}
+
+fn push_solid_arrow_head_path(
+    out: &mut Vec<RenderPrimitive>,
+    path: SolidArrowHeadPath,
+    fill: &str,
+    object_id: Option<String>,
+) {
+    out.push(RenderPrimitive::FilledPath {
+        role: RenderRole::DocumentGraphic,
+        object_id: object_id.clone(),
+        node_id: None,
+        bond_id: None,
+        d: path.d.clone(),
+        points: path.points.clone(),
+        fill: fill.to_string(),
+        fill_rule: None,
+        clip_path_d: None,
+        clip_rule: None,
+        rotate: 0.0,
+        rotate_center: None,
+    });
+    push_path(
+        out,
+        path.d,
+        path.points,
+        fill,
+        CHEMDRAW_SOLID_ARROW_HEAD_OUTLINE_WIDTH,
+        Vec::new(),
+        None,
+        None,
+        RenderRole::DocumentGraphic,
+        object_id,
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2023,5 +2032,49 @@ mod tests {
             "path points: {}",
             path.points.len()
         );
+    }
+
+    #[test]
+    fn solid_arrow_heads_repeat_the_filled_path_as_chemdraws_fixed_outline() {
+        for style in [
+            RenderArrowEndpointStyle::Full,
+            RenderArrowEndpointStyle::Left,
+            RenderArrowEndpointStyle::Right,
+        ] {
+            let mut out = Vec::new();
+            render_solid_arrow_head(
+                &mut out,
+                Point::new(0.0, 0.0),
+                Point::new(100.0, 0.0),
+                ArrowHeadGeometry {
+                    length: 10.0,
+                    center_length: 8.75,
+                    width: 2.5,
+                    ..ArrowHeadGeometry::default()
+                },
+                style,
+                1.0,
+                "#123456",
+                Some("arrow".to_string()),
+            );
+            let [RenderPrimitive::FilledPath {
+                d: fill_d,
+                points: fill_points,
+                ..
+            }, RenderPrimitive::Path {
+                d: outline_d,
+                points: outline_points,
+                stroke,
+                stroke_width,
+                ..
+            }] = out.as_slice()
+            else {
+                panic!("solid {style:?} arrow head must emit fill then outline: {out:?}");
+            };
+            assert_eq!(fill_d, outline_d);
+            assert_eq!(fill_points, outline_points);
+            assert_eq!(stroke, "#123456");
+            assert!((*stroke_width - CHEMDRAW_SOLID_ARROW_HEAD_OUTLINE_WIDTH).abs() <= EPSILON);
+        }
     }
 }

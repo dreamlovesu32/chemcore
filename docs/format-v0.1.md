@@ -981,6 +981,7 @@ Example:
 - `length` maps to CDXML `HeadSize / 100`; the rendered head length is `length * strokeWidth`
 - `centerLength` maps to CDXML `ArrowheadCenterSize / 100`; the rendered notch position is `centerLength * strokeWidth`
 - `width` maps to CDXML `ArrowheadWidth / 100`; the rendered broad-end half-width parameter is `width * strokeWidth`. For solid arrowheads, ChemDraw treats this as the broad-end half-width parameter: the rendered outline uses an outer half-width of about `width * strokeWidth + 0.05` and an inner Bezier control offset of `7/16` of that half-width. For open and hollow arrowheads, this value is the extra head-width parameter relative to the shaft half-width
+- A visible solid full or half arrowhead is the same path painted twice: a black fill followed by a fixed `0.133333 pt` hairline outline. This outline does not scale with document `LineWidth`, `HeadSize`, or `ArrowheadWidth`; open and hollow arrowheads do not use this duplicate-outline rule
 - `curve` maps to CDXML `AngularSize`; negative and positive values represent opposite bend directions
 - `curveSpacing` maps to CDXML `CurveSpacing / 100`
 - `noGo` maps to CDXML `NoGo` and may be `none | cross | hash`
