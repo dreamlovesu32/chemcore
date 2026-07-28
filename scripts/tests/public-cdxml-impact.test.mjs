@@ -14,6 +14,7 @@ import {
 import { bracketWorldEndpoints } from "../public-cdxml-bracket-geometry.mjs";
 import { compareVisualGeometry } from "../public-cdxml-semantic-geometry.mjs";
 import { visibleInterchangeBondCount } from "../public-cdxml-source-topology.mjs";
+import { matchesPublicCdxmlCasePattern } from "../public-cdxml-case-filter.mjs";
 
 test("bracket semantic geometry follows ordered rotated spine endpoints", () => {
   const endpoints = bracketWorldEndpoints({
@@ -119,6 +120,25 @@ test("CDXML query extraction distinguishes content from visibility defaults", ()
   ]) {
     assert.ok(featuresFromCdxml(source).includes("query"), source);
   }
+});
+
+test("case filters do not confuse numeric IDs or CDX and CDXML sibling paths", () => {
+  const cdx = {
+    caseId: "0059",
+    id: "0059_rdkit_ring-stereo1.cdx",
+    relativeCdxml: "rdkit/Code/GraphMol/test_data/CDXML/ring-stereo1.cdx",
+  };
+  const cdxml = {
+    caseId: "0060",
+    id: "0060_rdkit_ring-stereo1.cdxml",
+    relativeCdxml: "rdkit/Code/GraphMol/test_data/CDXML/ring-stereo1.cdxml",
+  };
+  assert.equal(matchesPublicCdxmlCasePattern(cdx, "59"), true);
+  assert.equal(matchesPublicCdxmlCasePattern(cdxml, "59"), false);
+  assert.equal(matchesPublicCdxmlCasePattern(cdx, cdx.relativeCdxml), true);
+  assert.equal(matchesPublicCdxmlCasePattern(cdxml, cdx.relativeCdxml), false);
+  assert.equal(matchesPublicCdxmlCasePattern(cdx, "ring-stereo1.cdx"), true);
+  assert.equal(matchesPublicCdxmlCasePattern(cdxml, "ring-stereo1.cdx"), false);
 });
 
 test("affected selection combines feature hits and historical regressions", () => {

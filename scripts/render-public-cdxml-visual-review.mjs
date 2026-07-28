@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { generateChemDrawOracle } from "./chemdraw-oracle.mjs";
 import { launchBrowser } from "./playwright-browser.mjs";
+import { matchesPublicCdxmlCasePattern } from "./public-cdxml-case-filter.mjs";
 import { collectGalleryProvenance } from "./public-cdxml-provenance.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -852,15 +853,8 @@ async function fullCorpusPairs(root, reportPath, outDir, patterns = []) {
   const report = JSON.parse(await fs.readFile(path.resolve(reportPath), "utf8"));
   const selectedCases = patterns.length === 0
     ? report.cases
-    : report.cases.filter((entry) => {
-      const haystack = `${entry.caseId} ${entry.source} ${entry.path}`.toLowerCase();
-      return patterns.some((pattern) => {
-        const normalized = pattern.toLowerCase();
-        return /^\d+$/.test(normalized)
-          ? entry.caseId === normalized
-          : haystack.includes(normalized);
-      });
-    });
+    : report.cases.filter((entry) =>
+      patterns.some((pattern) => matchesPublicCdxmlCasePattern(entry, pattern)));
   const pairs = selectedCases.map((entry) => {
     const input = path.join(root, entry.source, entry.path);
     const title = path.basename(input, path.extname(input));

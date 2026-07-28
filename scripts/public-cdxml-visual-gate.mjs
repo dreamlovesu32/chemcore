@@ -12,6 +12,7 @@ import {
   collectCurrentGalleryProvenance,
   provenanceMismatches,
 } from "./public-cdxml-provenance.mjs";
+import { matchesPublicCdxmlCasePattern } from "./public-cdxml-case-filter.mjs";
 
 const DEFAULTS = Object.freeze({
   gallery: "tmp/public-cdxml-chemdraw-review-all",
@@ -1349,7 +1350,7 @@ async function main() {
   }
   if (options.patterns.length) {
     items = items.filter((item) => options.patterns.some((pattern) =>
-      `${item.id}\n${item.relativeCdxml}`.toLowerCase().includes(pattern.toLowerCase())));
+      matchesPublicCdxmlCasePattern(item, pattern)));
   }
   if (Number.isFinite(options.limit)) items = items.slice(0, Math.max(0, options.limit));
   if (!items.length) throw new Error("No visual-gate cases matched the requested filters");

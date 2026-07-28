@@ -61,6 +61,7 @@
       "pathSubstrings": [
         "scripts/public-cdxml-visual-gate.mjs",
         "scripts/render-public-cdxml-visual-review.mjs",
+        "scripts/public-cdxml-case-filter.mjs",
         "scripts/public-cdxml-impact.mjs",
         "scripts/plan-public-cdxml-affected-gate.mjs",
         "benchmarks/public-cdxml/visual-impact-map.json"
