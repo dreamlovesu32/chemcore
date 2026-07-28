@@ -75,6 +75,23 @@ pub(super) fn normalize_bond(
     } else {
         cdxml_bond_order(bond.attr("Order"))
     };
+    let collapsed_fragment_dash_displays_solid = order == 1
+        && display == "Dash"
+        && [&begin, &end].iter().all(|node_id| {
+            nodes.iter().any(|node| {
+                node.id == **node_id
+                    && node
+                        .meta
+                        .pointer("/import/cdxml/nodeType")
+                        .and_then(Value::as_str)
+                        == Some("Fragment")
+                    && node
+                        .meta
+                        .pointer("/import/cdxml/hasCollapsedFragment")
+                        .and_then(Value::as_bool)
+                        == Some(true)
+            })
+        });
     let mut line_styles = if is_topology_only_aromatic_dash {
         BondLineStyles::default()
     } else {
@@ -120,6 +137,7 @@ pub(super) fn normalize_bond(
         "generatedId": source_id.is_none(),
         "aromatic": is_aromatic,
         "topologyOnlyAromaticDash": is_topology_only_aromatic_dash,
+        "collapsedFragmentDashDisplaysSolid": collapsed_fragment_dash_displays_solid,
         "bondSpacingAbs": bond_spacing_abs,
     }}});
     if let Some(value) = bond.attr("CrossingBonds") {

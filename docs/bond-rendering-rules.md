@@ -167,6 +167,17 @@ Additional rules:
   first and last black stripes absorb the contact miter; interior black and
   white intervals remain equal. Do not compute the dash rhythm on the original
   centerline and then paste a disconnected endpoint cap over it.
+- `Display="Dash"` remains the losslessly preserved and exported source style.
+  However, when and only when both endpoints of a single bond are
+  `NodeType="Fragment"` nodes with a direct child `<fragment>`, ChemDraw draws
+  the visible main line as solid. If either endpoint lacks that structure, the
+  bond remains an ordinary dashed bond. `BS="N"` is the determined-symmetric
+  CIP stereochemistry field, while `BeginAttach` and `EndAttach` are styled-text
+  character attachment indices; none participates in this display exception.
+  Silent ChemDraw A/B probes kept the solid result when changing the outer
+  `Display`, internal connection style, attachment index, and completed
+  connection mapping. Removing the direct child fragment from either endpoint
+  consistently restored the same outer bond as 15 dashed segments.
 
 ## Hash Bonds
 

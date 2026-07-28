@@ -78,6 +78,19 @@ const HASH_WEDGE_SPACING: f64 = crate::HASH_WEDGE_SPACING_PT.value();
 const HASH_WEDGE_START_OFFSET: f64 = crate::HASH_WEDGE_START_OFFSET_PT.value();
 const HASH_WEDGE_END_INSET: f64 = crate::HASH_WEDGE_END_INSET_PT.value();
 const HASH_BLACK_SEGMENT_LENGTH: f64 = crate::HASH_BLACK_SEGMENT_LENGTH_PT.value();
+
+fn bond_main_line_pattern(bond: &Bond) -> BondLinePattern {
+    if bond
+        .meta
+        .pointer("/import/cdxml/collapsedFragmentDashDisplaysSolid")
+        .and_then(JsonValue::as_bool)
+        == Some(true)
+    {
+        BondLinePattern::Solid
+    } else {
+        bond.line_styles.main
+    }
+}
 const HASH_TARGET_GAP_LENGTH: f64 = crate::HASH_TARGET_GAP_LENGTH_PT.value();
 const SOLID_WEDGE_END_INSET: f64 = crate::SOLID_WEDGE_END_INSET_PT.value();
 const CENTER_DOUBLE_NO_EXTENSION_ANGLE_DEGREES: f64 = 162.0;
@@ -299,7 +312,7 @@ fn collect_object_bond_render_info(
                         explicit_crossings: imported_cdxml_crossing_bonds(bond),
                         can_split_crossings: bond.order == 1
                             && bond_stereo_kind(bond).is_none()
-                            && bond.line_styles.main == BondLinePattern::Solid
+                            && bond_main_line_pattern(bond) == BondLinePattern::Solid
                             && bond.line_weights.main == BondLineWeight::Normal
                             && !imported_cdxml_dative_bond(bond),
                     },
@@ -819,7 +832,7 @@ fn document_bond_crossing_envelope(
             clearance_end: end_offsets,
         };
     }
-    if bond.order == 1 && bond.line_styles.main == BondLinePattern::Wavy {
+    if bond.order == 1 && bond_main_line_pattern(bond) == BondLinePattern::Wavy {
         let amplitude = wavy_bond_amplitude_for_bond(bond, stroke_width);
         return constant(symmetric(amplitude + main_half_width), symmetric(amplitude));
     }

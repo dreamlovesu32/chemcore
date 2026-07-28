@@ -130,7 +130,7 @@ pub(super) fn render_fragment_bond(
         return;
     }
 
-    if bond.order == 1 && bond.line_styles.main == crate::BondLinePattern::Wavy {
+    if bond.order == 1 && bond_main_line_pattern(bond) == crate::BondLinePattern::Wavy {
         render_wavy_bond(out, bond, start, finish, stroke, stroke_width, object_id);
         return;
     }
@@ -231,7 +231,7 @@ pub(super) fn render_fragment_bond(
         true,
         stroke,
         stroke_width,
-        line_pattern_dash_array_for_bond(bond, stroke_width, bond.line_styles.main),
+        line_pattern_dash_array_for_bond(bond, stroke_width, bond_main_line_pattern(bond)),
         bond.line_weights.main,
         object_id,
     );
@@ -434,7 +434,7 @@ fn render_double_bond(
                 true,
                 stroke,
                 stroke_width,
-                line_pattern_dash_array_for_bond(bond, stroke_width, bond.line_styles.main),
+                line_pattern_dash_array_for_bond(bond, stroke_width, bond_main_line_pattern(bond)),
                 bond.line_weights.main,
                 object_id.clone(),
                 false,
@@ -737,7 +737,7 @@ fn render_triple_bond(
         true,
         stroke,
         stroke_width,
-        line_pattern_dash_array_for_bond(bond, stroke_width, bond.line_styles.main),
+        line_pattern_dash_array_for_bond(bond, stroke_width, bond_main_line_pattern(bond)),
         bond.line_weights.main,
         object_id.clone(),
     );

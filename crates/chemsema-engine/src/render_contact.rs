@@ -493,7 +493,7 @@ fn supports_main_bond_contact_shape(bond: &Bond) -> bool {
             && bond.line_weights.left == BondLineWeight::Normal
             && bond.line_weights.right == BondLineWeight::Normal
             && matches!(
-                (bond.line_styles.main, bond.line_weights.main),
+                (bond_main_line_pattern(bond), bond.line_weights.main),
                 (BondLinePattern::Solid, BondLineWeight::Normal)
                     | (BondLinePattern::Dashed, BondLineWeight::Normal)
                     | (BondLinePattern::Solid, BondLineWeight::Bold)
@@ -503,7 +503,7 @@ fn supports_main_bond_contact_shape(bond: &Bond) -> bool {
     if bond.order == 2 {
         return side_double_placement(bond).is_some()
             && matches!(
-                bond.line_styles.main,
+                bond_main_line_pattern(bond),
                 BondLinePattern::Solid | BondLinePattern::Dashed
             )
             && matches!(
@@ -513,7 +513,7 @@ fn supports_main_bond_contact_shape(bond: &Bond) -> bool {
     }
     if bond.order == 3 {
         return bond.double.is_none()
-            && bond.line_styles.main == BondLinePattern::Solid
+            && bond_main_line_pattern(bond) == BondLinePattern::Solid
             && bond.line_styles.left == BondLinePattern::Solid
             && bond.line_styles.right == BondLinePattern::Solid
             && bond.line_weights.main == BondLineWeight::Normal

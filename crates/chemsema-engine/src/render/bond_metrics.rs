@@ -823,7 +823,7 @@ pub(super) fn outer_bond_drawn_boundary_pairs_for_endpoint(
 
 pub(super) fn main_bond_candidate_sides(bond: &Bond) -> Vec<f64> {
     if bond.line_weights.main == BondLineWeight::Bold
-        && bond.line_styles.main == BondLinePattern::Solid
+        && bond_main_line_pattern(bond) == BondLinePattern::Solid
     {
         vec![1.0, -1.0]
     } else {

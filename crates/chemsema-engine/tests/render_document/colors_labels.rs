@@ -1033,6 +1033,101 @@ fn parse_cdxml_skips_cached_fragments_inside_placeholder_nodes() {
 }
 
 #[test]
+fn render_cdxml_dash_between_two_collapsed_fragments_uses_chemdraw_solid_display() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML BondLength="18" LineWidth="0.5" LabelSize="7">
+  <page id="1" BoundingBox="0 0 160 100">
+    <fragment id="visible" BoundingBox="0 0 160 100">
+      <n id="n1" p="35 25" NodeType="Fragment">
+        <fragment id="cached1"><n id="c1" p="35 25"/></fragment>
+        <t p="35 28" BoundingBox="30 20 45 30"><s font="3" size="7">CONH</s></t>
+      </n>
+      <n id="n2" p="55 75" NodeType="Fragment">
+        <fragment id="cached2"><n id="c2" p="55 75"/></fragment>
+        <t p="55 78" BoundingBox="50 70 65 80"><s font="3" size="7">CONH</s></t>
+      </n>
+      <n id="n3" p="135 75"/>
+      <b id="b1" B="n1" E="n2" Display="Dash" BeginAttach="3"/>
+      <b id="b2" B="n2" E="n3" Display="Dash"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("collapsed fragment dash"))
+        .expect("collapsed fragment dash should parse");
+    let fragment = document
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .expect("molecule fragment should exist");
+    let bond = fragment
+        .bonds
+        .iter()
+        .find(|bond| bond.id == "b1")
+        .expect("two-collapsed-endpoint bond");
+    assert_eq!(
+        bond.line_styles.main,
+        chemsema_engine::BondLinePattern::Dashed,
+        "the native and exported source style must remain dashed"
+    );
+    assert_eq!(
+        bond.meta
+            .pointer("/import/cdxml/collapsedFragmentDashDisplaysSolid")
+            .and_then(serde_json::Value::as_bool),
+        Some(true)
+    );
+    let one_collapsed_endpoint_bond = fragment
+        .bonds
+        .iter()
+        .find(|bond| bond.id == "b2")
+        .expect("one-collapsed-endpoint bond");
+    assert_eq!(
+        one_collapsed_endpoint_bond
+            .meta
+            .pointer("/import/cdxml/collapsedFragmentDashDisplaysSolid")
+            .and_then(serde_json::Value::as_bool),
+        Some(false),
+        "one collapsed endpoint is not enough to trigger the display rule"
+    );
+    let exported = document_to_cdxml(&document);
+    assert!(
+        exported.contains("Display=\"Dash\""),
+        "the ChemDraw display exception must not rewrite the source bond style: {exported}"
+    );
+    let rendered = render_document(&document);
+    let rendered_bond_components = rendered
+        .iter()
+        .filter(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Polygon {
+                    role: RenderRole::DocumentBond,
+                    bond_id: Some(id),
+                    ..
+                } if id == "b1"
+            )
+        })
+        .count();
+    assert_eq!(rendered_bond_components, 1);
+    let one_collapsed_endpoint_components = rendered
+        .iter()
+        .filter(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Polygon {
+                    role: RenderRole::DocumentBond,
+                    bond_id: Some(id),
+                    ..
+                } if id == "b2"
+            )
+        })
+        .count();
+    assert!(
+        one_collapsed_endpoint_components > 1,
+        "a dashed bond with only one collapsed endpoint must remain dashed"
+    );
+}
+
+#[test]
 fn parse_cdxml_skips_embedded_fragments_for_every_node_type() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <CDXML BondLength="18" LineWidth="0.6" LabelSize="10">

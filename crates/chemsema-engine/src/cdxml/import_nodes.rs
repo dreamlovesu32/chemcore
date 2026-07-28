@@ -116,6 +116,7 @@ pub(super) fn normalize_node(
             "cdxml": {
                 "z": parse_i32(node.attr("Z")),
                 "nodeType": empty_as_null(node.attr("NodeType")),
+                "hasCollapsedFragment": node.direct_children("fragment").next().is_some(),
                 "geometry": empty_as_null(node.attr("Geometry")),
                 "bondOrdering": empty_as_null(node.attr("BondOrdering")),
                 "hDot": parse_cdxml_bool(node.attr("HDot")).unwrap_or(false),
