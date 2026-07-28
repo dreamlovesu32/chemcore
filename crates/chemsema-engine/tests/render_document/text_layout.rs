@@ -1,6 +1,53 @@
 use super::*;
 
 #[test]
+fn parse_cdxml_vertical_bond_retreat_ignores_distant_formula_subscript() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="0.6" MarginWidth="1.6" LabelFont="3" LabelSize="10">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="32">
+    <fragment id="6">
+      <n id="7" p="133.97 199.80" AS="N"/>
+      <n id="11" p="133.97 185.40" NumHydrogens="3" AS="N">
+        <t p="130.36 189.30" BoundingBox="130.36 180.84 148.97 191.60"
+           LabelJustification="Left" LabelAlignment="Left">
+          <s font="3" size="10" color="0" face="96">CH3</s>
+        </t>
+      </n>
+      <b id="12" B="7" E="11"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(source, Some("vertical CH3 attachment")).expect("CDXML parses");
+    let polygon = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            }
+            | RenderPrimitive::FilledPath {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            } if role == RenderRole::DocumentBond && bond_id == "12" => Some(points),
+            _ => None,
+        })
+        .expect("bond polygon");
+    let (from, to) = bond_axis_from_points(&polygon).expect("bond axis");
+    let label_endpoint = if from.y < to.y { from } else { to };
+
+    assert!(
+        (label_endpoint.y - 191.02).abs() < 0.08,
+        "ChemDraw's attachment column is set by C, not the distant subscript 3: {polygon:?}"
+    );
+}
+
+#[test]
 fn parse_cdxml_applies_authored_line_starts_to_unbroken_caption_runs() {
     let source = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML CaptionJustification="Center">

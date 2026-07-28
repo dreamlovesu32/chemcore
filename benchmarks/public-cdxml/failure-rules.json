@@ -731,6 +731,25 @@
       ]
     },
     {
+      "id": "chemdraw-axial-label-contact-is-local-to-the-crossed-glyph-band",
+      "status": "verified",
+      "summary": "The narrow horizontal and vertical label-contact sectors use only glyph exclusion bands crossed by the structural attachment axis. A distant subscript, superscript, descender, or tall glyph does not contribute its orthogonal extreme to another glyph's attachment row or column.",
+      "officialRule": "ChemDraw SVG geometry for public case 0249 places the vertical CH3 bond endpoint at y=191.09pt. The C column plus the source MarginWidth predicts this endpoint; using the whole label ymax incorrectly yields about 193.19pt. A separate 31-pair silent ChemDraw probe varies Arial, Times New Roman, and Calibri; 8, 10, and 14pt; MarginWidth 0, 1.6, and 3pt; LineWidth 0.6 and 1.5pt; all four axes; and remote subscript/superscript glyphs. A base C and its decorated label retain the same axial endpoint within ChemDraw's 0.10pt SVG quantization. The rule is expressed by geometry only: select glyph bands whose orthogonal interval, expanded by MarginWidth, contains the attachment axis, then use the selected directional extreme plus MarginWidth.",
+      "evidence": [
+        "scripts/chemdraw-multiglyph-axis-contact-probe.mjs",
+        "tmp/chemdraw-multiglyph-axis-contact-probe/measurements.json",
+        "tmp/public-cdxml-chemdraw-review-all/items/0249_indigo_api_tests_integration_tests_formats_molecules_3060_iso_butane/reference.svg",
+        "docs/chemdraw-label-retreat-measurement.zh-CN.md",
+        "docs/bond-rendering-rules.md",
+        "crates/chemsema-engine/src/glyph_kernel.rs#axial_contact_uses_only_glyphs_crossing_the_attachment_axis",
+        "crates/chemsema-engine/tests/render_document/text_layout.rs#parse_cdxml_vertical_bond_retreat_ignores_distant_formula_subscript",
+        "tmp/public-cdxml-visual-gate-axis-contact-0249-dirty.json"
+      ],
+      "caseIds": [
+        "0249"
+      ]
+    },
+    {
       "id": "chemdraw-triple-bond-spacing-uses-actual-length-and-absolute-precedence",
       "status": "verified",
       "summary": "Triple-bond outer-line offsets use max(actual endpoint distance * bondSpacing / 100, 2.5 * lineWidth). BondSpacingAbs is an exact point distance that takes precedence and does not receive the line-width floor.",

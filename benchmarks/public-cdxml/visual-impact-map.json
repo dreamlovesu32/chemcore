@@ -59,6 +59,15 @@
       "regressionCases": ["0248"]
     },
     {
+      "name": "label-glyph-retreat",
+      "pathSubstrings": [
+        "crates/chemsema-engine/src/glyph_kernel.rs",
+        "crates/chemsema-engine/src/render/labels.rs"
+      ],
+      "features": ["bond", "text"],
+      "regressionCases": ["0249"]
+    },
+    {
       "name": "render-core",
       "pathEquals": ["crates/chemsema-engine/src/render.rs"],
       "features": ["bond", "text", "graphics"],

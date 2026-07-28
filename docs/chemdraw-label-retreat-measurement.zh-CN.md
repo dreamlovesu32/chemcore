@@ -162,6 +162,17 @@ Times New Roman、Calibri、Arial 粗体和 Arial 斜体的方向分布均与 Ar
 (0, ymin - margin)
 ```
 
+多字符标签不能先合并成一个总包围框再取上述极值。每个轴向分支只使用与连接轴正交
+方向上覆盖该轴的字形排除带：竖轴按 X 区间筛选字形，横轴按 Y 区间筛选字形，区间
+筛选和最终极值都包含 `MarginWidth`。公开的 `3060_iso_butane.cdxml` 给出了一条
+独立实证：`CH3` 右侧下标 `3` 比 `C` 更低，但位于 `C` 下方的竖键仍在
+`191.09pt` 结束；若错误使用整段标签的 `ymax`，端点会退到约 `193.19pt`。
+`scripts/chemdraw-multiglyph-axis-contact-probe.mjs` 又做了 31 组静默 ChemDraw
+配对探针，覆盖 Arial、Times New Roman、Calibri，8/10/14pt，
+`MarginWidth=0/1.6/3pt`、`LineWidth=0.6/1.5pt`、四个轴向以及远处下标/上标。
+单独 `C` 与增加远处字形后的标签轴向端点最大差 `0.10pt`，等于 ChemDraw SVG
+在这些模板上的坐标量化级别，远小于错误使用整段包围框造成的数 pt 偏差。
+
 扇区内退让是接触点在键方向上的投影。把该分支加到连续 Arial 轮廓模型后，独立
 1° 档位的 MAE 从 `0.287pt` 降到 `0.204pt`，P95 从 `1.213pt` 降到
 `0.812pt`。因此轴向接触必须作为独立几何层保留，不能靠扩大整个字形模拟。

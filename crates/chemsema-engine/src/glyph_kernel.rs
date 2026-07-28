@@ -324,7 +324,7 @@ pub fn build_label_glyph_geometry_with_profile(
         .unwrap_or(position[1] - default_font_size * 0.82);
 
     let mut geometry = LabelGlyphGeometry::default();
-    let mut outline_bounds: Option<[f64; 4]> = None;
+    let mut glyph_bounds = Vec::new();
     for (line_index, line) in lines.iter().enumerate() {
         let baseline_y = if lines.len() == 1 {
             position[1]
@@ -338,17 +338,19 @@ pub fn build_label_glyph_geometry_with_profile(
             let Some(glyph_geometry) = glyph_geometry_with_profile(&placement, profile) else {
                 continue;
             };
-            include_bounds(&mut outline_bounds, placement.ink_box_px);
+            glyph_bounds.push(placement.ink_box_px);
             geometry.glyph_polygons.push(glyph_geometry.glyph_polygon);
             geometry.clip_polygons.extend(glyph_geometry.clip_polygons);
         }
     }
-    if let Some(bounds) = outline_bounds {
-        geometry.clip_polygons.extend(axis_contact_polygons(
-            bounds,
-            retreat_origin,
-            profile.natural_outset_pt,
-        ));
+    if !glyph_bounds.is_empty() {
+        geometry
+            .clip_polygons
+            .extend(localized_axis_contact_polygons(
+                &glyph_bounds,
+                retreat_origin,
+                profile.natural_outset_pt,
+            ));
     }
     geometry
 }
@@ -1155,34 +1157,55 @@ fn capsule_polygon(start: [f64; 2], end: [f64; 2], radius: f64) -> Option<Vec<[f
     Some(points)
 }
 
-fn include_bounds(bounds: &mut Option<[f64; 4]>, next: [f64; 4]) {
-    *bounds = Some(match *bounds {
-        Some(current) => [
-            current[0].min(next[0]),
-            current[1].min(next[1]),
-            current[2].max(next[2]),
-            current[3].max(next[3]),
-        ],
-        None => next,
+fn localized_axis_contact_polygons(
+    glyph_bounds: &[[f64; 4]],
+    origin: [f64; 2],
+    margin: f64,
+) -> Vec<Vec<[f64; 2]>> {
+    let margin = margin.max(0.0);
+    // ChemDraw's axial branch is local to the glyph column or row crossed by
+    // the attachment axis. A distant subscript must not extend a vertical
+    // bond's label retreat, and a tall glyph elsewhere in the label must not
+    // extend a horizontal bond. The ordinary outline expansion remains
+    // responsible when the attachment axis crosses no glyph exclusion band.
+    let horizontal_candidates = glyph_bounds.iter().filter(|bounds| {
+        origin[1] + crate::EPSILON >= bounds[1] - margin
+            && origin[1] - crate::EPSILON <= bounds[3] + margin
     });
-}
+    let right = horizontal_candidates
+        .clone()
+        .map(|bounds| bounds[2] + margin - origin[0])
+        .filter(|extent| *extent > crate::EPSILON)
+        .max_by(f64::total_cmp);
+    let left = horizontal_candidates
+        .map(|bounds| origin[0] - bounds[0] + margin)
+        .filter(|extent| *extent > crate::EPSILON)
+        .max_by(f64::total_cmp);
 
-fn axis_contact_polygons(bounds: [f64; 4], origin: [f64; 2], margin: f64) -> Vec<Vec<[f64; 2]>> {
-    let contacts = [
-        (0.0, bounds[2] + margin - origin[0]),
-        (90.0, bounds[3] + margin - origin[1]),
-        (180.0, origin[0] - bounds[0] + margin),
-        (270.0, origin[1] - bounds[1] + margin),
-    ];
+    let vertical_candidates = glyph_bounds.iter().filter(|bounds| {
+        origin[0] + crate::EPSILON >= bounds[0] - margin
+            && origin[0] - crate::EPSILON <= bounds[2] + margin
+    });
+    let down = vertical_candidates
+        .clone()
+        .map(|bounds| bounds[3] + margin - origin[1])
+        .filter(|extent| *extent > crate::EPSILON)
+        .max_by(f64::total_cmp);
+    let up = vertical_candidates
+        .map(|bounds| origin[1] - bounds[1] + margin)
+        .filter(|extent| *extent > crate::EPSILON)
+        .max_by(f64::total_cmp);
+
+    let contacts = [(0.0, right), (90.0, down), (180.0, left), (270.0, up)];
     contacts
         .into_iter()
-        .filter(|(_, extent)| *extent > crate::EPSILON)
+        .filter_map(|(axis_deg, extent)| extent.map(|extent| (axis_deg, extent)))
         .map(|(axis_deg, extent)| {
-            let mut polygon = Vec::with_capacity(7);
+            let mut polygon = Vec::with_capacity(8);
             polygon.push(origin);
-            for index in 0..=5 {
+            for index in 0..=6 {
                 let offset_deg = -GLYPH_AXIS_HALF_SECTOR_DEG
-                    + 2.0 * GLYPH_AXIS_HALF_SECTOR_DEG * index as f64 / 5.0;
+                    + 2.0 * GLYPH_AXIS_HALF_SECTOR_DEG * index as f64 / 6.0;
                 let offset = offset_deg.to_radians();
                 let angle = (axis_deg + offset_deg).to_radians();
                 let radius = extent * offset.cos();
@@ -1930,7 +1953,7 @@ mod tests {
 
     #[test]
     fn axial_contact_sectors_are_limited_to_ten_degrees() {
-        let polygons = axis_contact_polygons([-2.0, -4.0, 5.0, 3.0], [0.0, 0.0], 1.0);
+        let polygons = localized_axis_contact_polygons(&[[-2.0, -4.0, 5.0, 3.0]], [0.0, 0.0], 1.0);
         assert_eq!(polygons.len(), 4);
         let right = &polygons[0];
         let angles: Vec<f64> = right[1..]
@@ -1939,6 +1962,32 @@ mod tests {
             .collect();
         assert!((angles[0] + 10.0).abs() < 1e-9);
         assert!((angles[angles.len() - 1] - 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn axial_contact_uses_only_glyphs_crossing_the_attachment_axis() {
+        let glyph_bounds = [
+            [9.46, 1.18, 15.79, 8.58],
+            [16.98, 1.30, 22.60, 8.46],
+            [23.73, 5.27, 27.23, 10.76],
+        ];
+        let origin = [12.62, 4.56];
+        let polygons = localized_axis_contact_polygons(&glyph_bounds, origin, 1.6);
+        let down = polygons
+            .iter()
+            .find(|polygon| polygon.iter().skip(1).all(|point| point[1] > origin[1]))
+            .expect("downward axial sector");
+        let maximum_y = down
+            .iter()
+            .map(|point| point[1])
+            .max_by(f64::total_cmp)
+            .expect("downward extent");
+
+        assert!((maximum_y - 10.18).abs() < 1.0e-9, "{maximum_y}");
+        assert!(
+            maximum_y < glyph_bounds[2][3] + 1.6,
+            "the distant subscript must not deepen the attachment column"
+        );
     }
 
     #[test]
