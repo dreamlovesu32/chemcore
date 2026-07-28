@@ -136,7 +136,10 @@ pub(super) fn render_fragment_bond(
     }
 
     if imported_cdxml_dative_bond(bond) {
-        render_fragment_line(
+        let Some(geometry) = dative_bond_geometry(start, finish, stroke_width) else {
+            return;
+        };
+        render_fragment_line_with_profiles(
             out,
             document,
             object,
@@ -145,17 +148,23 @@ pub(super) fn render_fragment_bond(
             node_map,
             bond,
             start,
-            finish,
+            geometry.shaft_end,
             begin_box,
-            end_box,
+            None,
             true,
             stroke,
             stroke_width,
             Vec::new(),
             bond.line_weights.main,
             object_id.clone(),
+            true,
+            true,
+            false,
+            false,
+            contact_kernel.endpoint_profile(&bond.id, &bond.begin),
+            None,
         );
-        render_dative_bond_head(out, bond, start, finish, stroke, stroke_width, object_id);
+        render_dative_bond_head(out, bond, geometry, stroke, object_id);
         return;
     }
 
@@ -297,39 +306,47 @@ fn imported_cdxml_dative_bond(bond: &Bond) -> bool {
         .is_some_and(|order| order.eq_ignore_ascii_case("dative"))
 }
 
-fn render_dative_bond_head(
-    out: &mut Vec<RenderPrimitive>,
-    bond: &Bond,
-    start: Point,
-    end: Point,
-    fill: &str,
-    stroke_width: f64,
-    object_id: Option<String>,
-) {
+struct DativeBondGeometry {
+    shaft_end: Point,
+    head_points: Vec<Point>,
+}
+
+fn dative_bond_geometry(start: Point, end: Point, stroke_width: f64) -> Option<DativeBondGeometry> {
     let axis = Vector::new(end.x - start.x, end.y - start.y);
     let length = axis.length();
-    if length <= EPSILON {
-        return;
+    if length <= EPSILON || stroke_width <= EPSILON {
+        return None;
     }
     let unit = axis.normalized();
     let normal = Vector::new(-unit.y, unit.x);
-    let head_length = (length * 0.28)
-        .clamp(stroke_width * 5.0, stroke_width * 10.0)
-        .min(length * 0.45);
-    let half_width = (head_length * 0.58).max(stroke_width * 2.0);
+    let head_length = (stroke_width * 10.0).min(length * (2.0 / 3.0));
+    let half_width = head_length * 0.25;
     let base = end.translated(unit.scaled(-head_length));
-    let notch = end.translated(unit.scaled(-head_length * 0.42));
+    let shaft_end = end.translated(unit.scaled(-head_length * 0.875));
+    Some(DativeBondGeometry {
+        shaft_end,
+        head_points: vec![
+            end,
+            base.translated(normal.scaled(half_width)),
+            shaft_end,
+            base.translated(normal.scaled(-half_width)),
+        ],
+    })
+}
+
+fn render_dative_bond_head(
+    out: &mut Vec<RenderPrimitive>,
+    bond: &Bond,
+    geometry: DativeBondGeometry,
+    fill: &str,
+    object_id: Option<String>,
+) {
     out.push(RenderPrimitive::Polygon {
         role: RenderRole::DocumentBond,
         object_id,
         node_id: None,
         bond_id: Some(bond.id.clone()),
-        points: vec![
-            end,
-            base.translated(normal.scaled(half_width)),
-            notch,
-            base.translated(normal.scaled(-half_width)),
-        ],
+        points: geometry.head_points,
         fill: fill.to_string(),
         stroke: fill.to_string(),
         stroke_width: 0.0,
@@ -1554,4 +1571,37 @@ fn push_bond_filled_path(
         rotate: 0.0,
         rotate_center: None,
     });
+}
+
+#[cfg(test)]
+mod dative_bond_tests {
+    use super::*;
+
+    fn assert_close(actual: f64, expected: f64) {
+        assert!(
+            (actual - expected).abs() <= 1.0e-9,
+            "expected {expected}, got {actual}"
+        );
+    }
+
+    #[test]
+    fn dative_head_uses_chemdraw_line_width_geometry() {
+        let geometry = dative_bond_geometry(Point::new(20.0, 30.0), Point::new(50.0, 30.0), 1.0)
+            .expect("dative geometry");
+        assert_close(geometry.head_points[0].x, 50.0);
+        assert_close(geometry.head_points[1].x, 40.0);
+        assert_close(geometry.head_points[1].y, 32.5);
+        assert_close(geometry.shaft_end.x, 41.25);
+        assert_close(geometry.shaft_end.y, 30.0);
+        assert_close(geometry.head_points[3].y, 27.5);
+    }
+
+    #[test]
+    fn dative_head_caps_at_two_thirds_of_short_bond_length() {
+        let geometry = dative_bond_geometry(Point::new(20.0, 30.0), Point::new(25.0, 30.0), 1.0)
+            .expect("short dative geometry");
+        assert_close(geometry.head_points[1].x, 25.0 - 10.0 / 3.0);
+        assert_close(geometry.head_points[1].y, 30.0 + 5.0 / 6.0);
+        assert_close(geometry.shaft_end.x, 25.0 - 35.0 / 12.0);
+    }
 }

@@ -122,6 +122,16 @@ test("CDXML query extraction distinguishes content from visibility defaults", ()
   }
 });
 
+test("CDXML feature extraction recognizes dative bond order", () => {
+  const features = featuresFromCdxml(`
+    <CDXML><fragment><n id="1"/><n id="2"/>
+      <b id="3" B="1" E="2" Order="dative"/>
+    </fragment></CDXML>
+  `);
+  assert.ok(features.includes("bond"));
+  assert.ok(features.includes("dative-bond"));
+});
+
 test("case filters do not confuse numeric IDs or CDX and CDXML sibling paths", () => {
   const cdx = {
     caseId: "0059",

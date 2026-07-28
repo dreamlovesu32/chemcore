@@ -148,6 +148,14 @@ Additional rules:
 - They differ only by width parameters.
 - In contact, both are main-bond contact objects.
 
+## Dative Bonds
+
+- CDX/CDXML `Order="dative"` uses an ordinary-width shaft and a solid concave-tail arrowhead; it does not use wedge-bond geometry.
+- For clipped bond length `L` and ordinary line width `LW`, the head length is exactly `min(10 * LW, 2L / 3)`.
+- The head base half-width is one quarter of the head length. The concave notch is seven eighths of the head length behind the tip.
+- The shaft must end at the notch. It must not continue to the tip or enter ordinary bond contact at the acceptor end; the donor end still follows ordinary main-bond contact rules.
+- This geometry depends only on `LineWidth` and visible bond length, not on `BoldWidth`, font settings, or nominal `BondLength`. It comes from silent ChemDraw SVG measurements across directions, `5–100pt` bond lengths, and four `LineWidth/BoldWidth` combinations.
+
 ## Ordinary Dashed Bonds
 
 - The body of an ordinary dashed bond is still a standard rectangular main bond.

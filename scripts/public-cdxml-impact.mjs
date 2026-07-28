@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-export const FEATURE_INDEX_SCHEMA = "chemsema.public_cdxml.feature_index.v2";
+export const FEATURE_INDEX_SCHEMA = "chemsema.public_cdxml.feature_index.v3";
 export const AFFECTED_PLAN_SCHEMA = "chemsema.public_cdxml.affected_gate_plan.v1";
 
 function sha256(bytes) {
@@ -37,6 +37,7 @@ export function featuresFromCdxml(source) {
   addIf(features, /wedgedhash/.test(text), "hashed-wedge");
   addIf(features, /display\s*=\s*["']wedge(?:begin|end)["']/.test(text), "solid-wedge");
   addIf(features, /display\s*=\s*["'](?:dash|hash)["']/.test(text), "dashed-bond");
+  addIf(features, /\border\s*=\s*["']dative["']/.test(text), "dative-bond");
   addIf(features, /nodetype\s*=\s*["']nickname["']/.test(text), "nickname");
   addIf(features, /nodetype\s*=\s*["']externalconnectionpoint["']/.test(text), "external-connection");
   addIf(features, /bracketedgroup|bracketattachment|graphictype\s*=\s*["']bracket["']/.test(text), "bracket");
@@ -62,7 +63,7 @@ async function featuresFromCdx({ cli, sourcePath, temporaryRoot, caseId }) {
 function conservativeCdxFeatures() {
   return [
     "arrow", "bond", "bracket", "cdx", "dashed-bond", "enhanced-stereo",
-    "external-connection", "graphics", "hashed-wedge", "hydrogen-marker",
+    "dative-bond", "external-connection", "graphics", "hashed-wedge", "hydrogen-marker",
     "multi-attachment", "nickname", "object-tag", "query", "solid-wedge",
     "symbol", "text",
   ];

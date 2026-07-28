@@ -42,6 +42,14 @@
       "regressionCases": ["0032", "0049", "0059", "0060", "0067", "0069", "0070", "0251", "0409"]
     },
     {
+      "name": "dative-bond-rendering",
+      "pathSubstrings": [
+        "crates/chemsema-engine/src/render_bonds.rs"
+      ],
+      "features": ["dative-bond"],
+      "regressionCases": ["0010"]
+    },
+    {
       "name": "render-core",
       "pathEquals": ["crates/chemsema-engine/src/render.rs"],
       "features": ["bond", "text", "graphics"],
