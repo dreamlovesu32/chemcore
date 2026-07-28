@@ -90,6 +90,20 @@ pub(in crate::cdxml) fn append_text_objects(
             _ => true,
         },
     );
+    let used_style_ids = objects
+        .iter()
+        .flat_map(super::import_chemical_properties::flatten_scene_object)
+        .filter_map(|object| object.style_ref.as_deref())
+        .collect::<BTreeSet<_>>();
+    styles.retain(|style_id, _| {
+        !is_generated_text_style_id(style_id) || used_style_ids.contains(style_id.as_str())
+    });
+}
+
+fn is_generated_text_style_id(style_id: &str) -> bool {
+    style_id.strip_prefix("style_text_").is_some_and(|suffix| {
+        !suffix.is_empty() && suffix.bytes().all(|byte| byte.is_ascii_digit())
+    })
 }
 
 fn cdxml_node_has_native_query_semantics(node: &XmlNode) -> bool {

@@ -760,6 +760,69 @@ mod tests {
     }
 
     #[test]
+    fn native_atom_semantic_object_tags_keep_their_cached_display_text() {
+        let source = r#"
+<CDXML BondLength="30" LabelFont="3" LabelSize="10" CaptionFont="3" CaptionSize="10">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1" BoundingBox="0 0 120 100">
+    <fragment id="10">
+      <n id="11" p="30 50" Element="6" AtomNumber="7" ShowAtomNumber="yes">
+        <objecttag Name="number" TagType="Unknown">
+          <t p="22 42" BoundingBox="22 36 28 44"><s font="3" size="8" color="0">7</s></t>
+        </objecttag>
+      </n>
+      <n id="12" p="70 50" Element="6" AS="R" ShowAtomStereo="yes">
+        <objecttag Name="stereo" TagType="Unknown" Visible="no">
+          <t p="78 42" BoundingBox="78 36 92 44"><s font="3" size="8" color="0">(R)</s></t>
+        </objecttag>
+      </n>
+      <b id="13" B="11" E="12"/>
+    </fragment>
+  </page>
+</CDXML>
+"#;
+        let document = crate::parse_cdxml_document(source, Some("native atom tags")).unwrap();
+        assert_eq!(document.logical_objects.object_tags.len(), 2);
+        assert!(document
+            .logical_objects
+            .object_tags
+            .iter()
+            .all(|tag| tag.display_object_ids.len() == 1));
+
+        let exported = crate::document_to_cdxml(&document);
+        for name in ["number", "stereo"] {
+            let tag_start = exported
+                .find(&format!("Name=\"{name}\""))
+                .expect("native semantic object tag");
+            let tag_xml = &exported[tag_start..];
+            assert!(tag_xml
+                .find("<t ")
+                .is_some_and(|index| index < tag_xml.find("</objecttag>").unwrap_or(usize::MAX)));
+        }
+
+        let reopened = crate::parse_cdxml_document(&exported, Some("native atom tags")).unwrap();
+        assert_eq!(reopened.logical_objects.object_tags.len(), 2);
+        assert!(reopened
+            .logical_objects
+            .object_tags
+            .iter()
+            .all(|tag| tag.display_object_ids.len() == 1));
+        let stereo = reopened
+            .logical_objects
+            .object_tags
+            .iter()
+            .find(|tag| tag.name == "stereo")
+            .expect("stereo tag");
+        assert!(!stereo.visible);
+        assert!(
+            !reopened
+                .find_scene_object(&stereo.display_object_ids[0])
+                .expect("stereo cached display")
+                .visible
+        );
+    }
+
+    #[test]
     fn imports_all_nr_017_logical_object_families_into_native_ccjs() {
         let mut document =
             crate::parse_cdxml_document(LOGICAL_OBJECTS_CDXML, Some("logical")).unwrap();

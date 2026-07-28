@@ -416,8 +416,15 @@ impl<'a> CdxmlDocumentWriter<'a> {
     fn write_scene_object(&mut self, out: &mut String, object: &SceneObject) {
         let attached_node_id = object.meta.get("attachedNodeId").and_then(Value::as_str);
         let annotation_role = object.meta.get("role").and_then(Value::as_str);
+        let is_object_tag_display = self
+            .document
+            .logical_objects
+            .object_tags
+            .iter()
+            .any(|tag| tag.display_object_ids.iter().any(|id| id == &object.id));
         if object.object_type == "text"
             && attached_node_id.is_some()
+            && !is_object_tag_display
             && (annotation_role.is_some_and(|role| matches!(role, "atom_number" | "stereo"))
                 || (annotation_role == Some("query")
                     && attached_node_id.is_some_and(|node_id| {
@@ -425,8 +432,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
                             .is_some_and(node_has_native_query_annotation)
                     })))
         {
-            // These are cached displays of node semantics. The node attributes
-            // below are authoritative and ChemDraw regenerates the object tags.
+            // Unlinked cached displays are derived from the native node
+            // properties below. A Text explicitly owned by an ObjectTag is
+            // instead part of that relation and must be emitted inside it.
             return;
         }
         match object.kind() {

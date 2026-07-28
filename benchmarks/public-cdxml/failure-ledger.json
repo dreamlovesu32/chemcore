@@ -1,6 +1,6 @@
 {
   "schema": "chemsema.public-cdxml-failure-ledger.v1",
-  "generatedAt": "2026-07-28T12:13:52.987Z",
+  "generatedAt": "2026-07-28T12:27:04.692Z",
   "inputs": {
     "roundtripReport": "tmp/public-cdxml-roundtrip-current/report.json",
     "visualReport": "tmp/public-cdxml-chemdraw-review-all/gate-current.json",
@@ -12,23 +12,21 @@
     "totalRegistered": 339,
     "originalCohort": 338,
     "additionalGateCases": 1,
-    "active": 126,
-    "currentlyPassing": 213,
+    "active": 118,
+    "currentlyPassing": 221,
     "byRoundtripStatus": {
-      "exact": 213,
+      "exact": 221,
       "non-idempotent": 90,
-      "semantic-drift": 28,
+      "semantic-drift": 23,
       "topology-lost": 4,
-      "count-drift": 3,
       "import-failed": 1
     },
     "byAutomaticCluster": {
       "visual-pixel-mismatch": 193,
       "roundtrip-non-idempotent-mixed-semantics": 90,
-      "roundtrip-first-generation-mixed-drift": 28,
+      "roundtrip-first-generation-mixed-drift": 23,
       "visual-component-topology-mismatch": 23,
       "roundtrip-topology-lost": 4,
-      "roundtrip-count-drift": 3,
       "visual-oracle-unavailable": 3,
       "roundtrip-import-failed": 1
     },
@@ -50,8 +48,8 @@
       "unavailable": 3
     },
     "byReviewStatus": {
-      "verified": 211,
-      "pending": 128
+      "verified": 219,
+      "pending": 120
     }
   },
   "cases": [
@@ -1716,21 +1714,21 @@
         "text"
       ],
       "roundtrip": {
-        "status": "count-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
               "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0
@@ -1812,19 +1810,24 @@
         "componentCountDelta": 3
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-count-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-count-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-native-semantic-object-tag-displays"
+        ],
+        "confirmedRootCause": "Native node properties remain the authoritative atom-number and stereochemical semantics, but an explicitly owned ObjectTag child Text is a real cached display object and remains nested in that relation. Only an unlinked generated display is suppressed, and its now-unreferenced generated style is removed with it.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#native_atom_semantic_object_tags_keep_their_cached_display_text"
+        ],
         "notes": null
       }
     },
@@ -6103,21 +6106,21 @@
         "text"
       ],
       "roundtrip": {
-        "status": "count-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
               "objects": 0,
               "resources": 0,
-              "styles": -3
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
@@ -6211,9 +6214,8 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-count-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -6221,10 +6223,16 @@
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-native-semantic-object-tag-displays"
+        ],
+        "confirmedRootCause": "Native node properties remain the authoritative atom-number and stereochemical semantics, but an explicitly owned ObjectTag child Text is a real cached display object and remains nested in that relation. Only an unlinked generated display is suppressed, and its now-unreferenced generated style is removed with it.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#native_atom_semantic_object_tags_keep_their_cached_display_text"
+        ],
         "notes": null
       }
     },
@@ -6247,21 +6255,21 @@
         "text"
       ],
       "roundtrip": {
-        "status": "count-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
               "objects": 0,
               "resources": 0,
-              "styles": -3
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
@@ -6355,9 +6363,8 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-count-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -6365,10 +6372,16 @@
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-native-semantic-object-tag-displays"
+        ],
+        "confirmedRootCause": "Native node properties remain the authoritative atom-number and stereochemical semantics, but an explicitly owned ObjectTag child Text is a real cached display object and remains nested in that relation. Only an unlinked generated display is suppressed, and its now-unreferenced generated style is removed with it.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#native_atom_semantic_object_tags_keep_their_cached_display_text"
+        ],
         "notes": null
       }
     },
@@ -7020,30 +7033,28 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -6,
+              "objects": 0,
               "resources": 0,
-              "styles": -6
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": -6
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -7058,7 +7069,8 @@
               "styles": 0
             },
             "objectTypeDelta": {
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -7076,7 +7088,8 @@
               "styles": 0
             },
             "objectTypeDelta": {
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -7115,17 +7128,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-native-semantic-object-tag-displays"
+        ],
+        "confirmedRootCause": "Native node properties remain the authoritative atom-number and stereochemical semantics, but an explicitly owned ObjectTag child Text is a real cached display object and remains nested in that relation. Only an unlinked generated display is suppressed, and its now-unreferenced generated style is removed with it.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#native_atom_semantic_object_tags_keep_their_cached_display_text"
+        ],
         "notes": null
       }
     },
@@ -7147,30 +7164,28 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -6,
+              "objects": 0,
               "resources": 0,
-              "styles": -6
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": -6
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -7185,7 +7200,8 @@
               "styles": 0
             },
             "objectTypeDelta": {
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -7203,7 +7219,8 @@
               "styles": 0
             },
             "objectTypeDelta": {
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -7242,17 +7259,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-native-semantic-object-tag-displays"
+        ],
+        "confirmedRootCause": "Native node properties remain the authoritative atom-number and stereochemical semantics, but an explicitly owned ObjectTag child Text is a real cached display object and remains nested in that relation. Only an unlinked generated display is suppressed, and its now-unreferenced generated style is removed with it.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#native_atom_semantic_object_tags_keep_their_cached_display_text"
+        ],
         "notes": null
       }
     },
@@ -24145,22 +24166,21 @@
               "molecules": 5,
               "nodes": 7,
               "bonds": 2,
-              "objects": -7,
+              "objects": 5,
               "resources": 5,
-              "styles": -12
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "line": 0,
               "molecule": 5,
               "shape": 0,
-              "text": -12
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -25174,22 +25194,21 @@
               "molecules": 6,
               "nodes": 27,
               "bonds": 23,
-              "objects": -20,
+              "objects": 6,
               "resources": 6,
-              "styles": -26
+              "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
               "molecule": 6,
               "shape": 0,
               "symbol": 0,
-              "text": -26
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -25466,22 +25485,21 @@
               "molecules": 7,
               "nodes": 39,
               "bonds": 33,
-              "objects": -12,
+              "objects": 7,
               "resources": 7,
-              "styles": -19
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "line": 0,
               "molecule": 7,
               "shape": 0,
-              "text": -19
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -25623,16 +25641,16 @@
               "molecules": 3,
               "nodes": 38,
               "bonds": 38,
-              "objects": -17,
+              "objects": 3,
               "resources": 3,
-              "styles": -20
+              "styles": 0
             },
             "objectTypeDelta": {
               "group": 0,
               "line": 0,
               "molecule": 3,
               "shape": 0,
-              "text": -20
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
@@ -27650,14 +27668,14 @@
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
               "objects": 0,
               "resources": 0,
-              "styles": -11
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
@@ -30554,19 +30572,19 @@
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -12,
+              "objects": 0,
               "resources": 0,
-              "styles": -12
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
               "shape": 0,
-              "text": -12
+              "text": 0
             },
             "semanticExact": false,
             "changed": [
@@ -30703,14 +30721,14 @@
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -12,
+              "objects": -1,
               "resources": 0,
-              "styles": -16
+              "styles": -1
             },
             "objectTypeDelta": {
               "molecule": 0,
               "shape": 0,
-              "text": -12
+              "text": -1
             },
             "semanticExact": false,
             "changed": [
@@ -30834,30 +30852,28 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -4,
+              "objects": 0,
               "resources": 0,
-              "styles": -6
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": -4
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -30872,7 +30888,8 @@
               "styles": 0
             },
             "objectTypeDelta": {
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -30890,7 +30907,8 @@
               "styles": 0
             },
             "objectTypeDelta": {
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -30936,19 +30954,24 @@
         "componentCountDelta": 104
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-native-semantic-object-tag-displays"
+        ],
+        "confirmedRootCause": "Native node properties remain the authoritative atom-number and stereochemical semantics, but an explicitly owned ObjectTag child Text is a real cached display object and remains nested in that relation. Only an unlinked generated display is suppressed, and its now-unreferenced generated style is removed with it.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#native_atom_semantic_object_tags_keep_their_cached_display_text"
+        ],
         "notes": null
       }
     },
@@ -38540,13 +38563,13 @@
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -2,
+              "objects": 1,
               "resources": 0,
-              "styles": -2
+              "styles": 1
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": -2
+              "text": 1
             },
             "semanticExact": false,
             "changed": [
@@ -38672,30 +38695,28 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -1,
+              "objects": 0,
               "resources": 0,
-              "styles": -1
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": -1
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -38710,7 +38731,8 @@
               "styles": 0
             },
             "objectTypeDelta": {
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -38728,7 +38750,8 @@
               "styles": 0
             },
             "objectTypeDelta": {
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -38767,17 +38790,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-native-semantic-object-tag-displays"
+        ],
+        "confirmedRootCause": "Native node properties remain the authoritative atom-number and stereochemical semantics, but an explicitly owned ObjectTag child Text is a real cached display object and remains nested in that relation. Only an unlinked generated display is suppressed, and its now-unreferenced generated style is removed with it.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#native_atom_semantic_object_tags_keep_their_cached_display_text"
+        ],
         "notes": null
       }
     },
@@ -38798,30 +38825,28 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
               "nodes": 0,
               "bonds": 0,
-              "objects": -6,
+              "objects": 0,
               "resources": 0,
-              "styles": -6
+              "styles": 0
             },
             "objectTypeDelta": {
               "molecule": 0,
-              "text": -6
+              "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -38836,7 +38861,8 @@
               "styles": 0
             },
             "objectTypeDelta": {
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -38854,7 +38880,8 @@
               "styles": 0
             },
             "objectTypeDelta": {
-              "molecule": 0
+              "molecule": 0,
+              "text": 0
             },
             "semanticExact": true,
             "changed": []
@@ -38899,19 +38926,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-preserve-native-semantic-object-tag-displays"
+        ],
+        "confirmedRootCause": "Native node properties remain the authoritative atom-number and stereochemical semantics, but an explicitly owned ObjectTag child Text is a real cached display object and remains nested in that relation. Only an unlinked generated display is suppressed, and its now-unreferenced generated style is removed with it.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#native_atom_semantic_object_tags_keep_their_cached_display_text"
+        ],
         "notes": null
       }
     },

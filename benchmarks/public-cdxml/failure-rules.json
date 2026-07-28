@@ -291,6 +291,27 @@
         "0154",
         "0281"
       ]
+    },
+    {
+      "id": "cdxml-preserve-native-semantic-object-tag-displays",
+      "status": "verified",
+      "summary": "Native node properties remain the authoritative atom-number and stereochemical semantics, but an explicitly owned ObjectTag child Text is a real cached display object and remains nested in that relation. Only an unlinked generated display is suppressed, and its now-unreferenced generated style is removed with it.",
+      "officialRule": "ObjectTag owns its display child objects, while AtomNumber and stereochemical properties carry the native node semantics. Preserving the explicit relation is therefore independent from avoiding duplicate derived labels. A style referenced only by a suppressed generated display has no remaining document owner and must not survive as count drift.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+        "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#native_atom_semantic_object_tags_keep_their_cached_display_text"
+      ],
+      "caseIds": [
+        "0022",
+        "0061",
+        "0062",
+        "0068",
+        "0069",
+        "0285",
+        "0360",
+        "0361"
+      ]
     }
   ]
 }
