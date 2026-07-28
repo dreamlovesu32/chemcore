@@ -312,9 +312,15 @@ async function verifyDocumentLayoutControls(page) {
   ]) {
     assert.equal(await page.locator(`[name="${field}"]`).count(), 1, `layout dialog is missing ${field}`);
   }
+  await page.locator('[name="widthPages"]').fill("2");
+  await page.locator('[name="printTrimMarks"]').check();
   await page.locator('[data-layout-tab="header-footer"]').click();
   assert.equal(await page.locator('[name="header"]').count(), 1);
   assert.equal(await page.locator('[name="footer"]').count(), 1);
+  await page.locator('[name="header"]').fill("&lChemSema&cPage &p&r&f");
+  await page.locator('[name="headerPosition"]').fill("24");
+  await page.locator('[name="footer"]').fill("&cLayout verified");
+  await page.locator('[name="footerPosition"]').fill("25");
   await page.locator('[data-layout-tab="view"]').click();
   assert.equal(await page.locator('[name="magnificationPercent"]').count(), 1);
   assert.equal(await page.locator('[name="pageDefinition"]').count(), 1);
@@ -353,6 +359,46 @@ async function verifyDocumentLayoutControls(page) {
     { id: "701", position: [100, 220], pageDefinition: "center" },
     { id: "702", position: null, pageDefinition: "user-defined" },
   ]);
+  assert.equal(savedSplitterLayout.widthPages, 2);
+  assert.equal(savedSplitterLayout.printTrimMarks, true);
+  assert.equal(savedSplitterLayout.header, "&lChemSema&cPage &p&r&f");
+  assert.equal(savedSplitterLayout.footer, "&cLayout verified");
+  await page.waitForFunction(() => (
+    document.querySelectorAll('[data-layer="paper-layout"] rect[data-page-number]').length === 2
+    && document.querySelectorAll('[data-layer="paper-layout"] [data-page-trim-mark]').length === 16
+  ));
+  const renderedPageDecorations = await page.evaluate(() => ({
+    headers: [...document.querySelectorAll(
+      '[data-layer="paper-layout"] [data-page-annotation="header"]',
+    )].map((node) => ({
+      page: node.getAttribute("data-page-number"),
+      text: node.textContent,
+    })),
+    footers: [...document.querySelectorAll(
+      '[data-layer="paper-layout"] [data-page-annotation="footer"]',
+    )].map((node) => ({
+      page: node.getAttribute("data-page-number"),
+      text: node.textContent,
+    })),
+    trimMarks: document.querySelectorAll(
+      '[data-layer="paper-layout"] [data-page-trim-mark]',
+    ).length,
+  }));
+  assert.deepEqual(
+    renderedPageDecorations.headers.filter((entry) => entry.text.startsWith("Page ")),
+    [
+      { page: "1", text: "Page 1" },
+      { page: "2", text: "Page 2" },
+    ],
+  );
+  assert.deepEqual(
+    renderedPageDecorations.footers,
+    [
+      { page: "1", text: "Layout verified" },
+      { page: "2", text: "Layout verified" },
+    ],
+  );
+  assert.equal(renderedPageDecorations.trimMarks, 16);
   await paperButton.click();
   await page.waitForFunction(() => (
     document.querySelector("#paper-layout-mode-button")?.getAttribute("aria-pressed") === "false"

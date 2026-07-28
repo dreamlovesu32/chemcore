@@ -152,6 +152,7 @@ npm run probe:chemdraw-bioshapes
 npm run probe:chemdraw-bioshape-geometry
 npm run benchmark:bioshapes:geometry-gate
 npm run benchmark:bioshapes:visual-gate
+npm run gate:native:biodraw-layout
 ```
 
 探针缓存写入 `tmp/chemdraw-bioshape-probe`，不进入版本库。
@@ -181,4 +182,9 @@ npm run benchmark:bioshapes:visual-gate
   控制柄和属性面板都通过同一组显式默认值解析，不能各自保留另一套 `unwrap_or`
   常量。
 
-版本库基线只用于阻止已审查结果回退；它不构成“已与 ChemDraw 像素等价”的声明。
+视觉门禁同时执行两层判断：固定的绝对验收上限决定是否达到关闭质量，版本库基线只用于
+阻止已审查结果回退。绝对层要求 21 类对象的文档宽高比例落在 `0.95–1.05`、对齐
+IoU 不低于 `0.89`、总差异比例不高于 `0.32`，双向前景距离的 99%、99.9% 分位和
+最大值分别不超过 `0.75`、`1.0`、`1.1` 文档单位。它不把抗锯齿和渐变像素差异
+误称为像素等价，但会阻止尺寸、轮廓、重复单元和局部缺口超出已验收的 ChemDraw
+对照范围。

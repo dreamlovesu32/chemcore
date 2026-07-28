@@ -1,3 +1,8 @@
+import {
+  pageTextAnnotations,
+  pageTrimMarkSegments,
+} from "./document_page_decorations.js";
+
 export function createDocumentLayoutHost(options) {
   const {
     root = document.body,
@@ -539,62 +544,35 @@ function resolvePaginationAxis(contentMin, contentMax, anchorOrigin, minimumPage
   };
 }
 function appendHeaderFooter(layer, makeSvgNode, context) {
-  const { documentData, layout, x, y, width, height, pageNumber } = context;
-  const dynamic = {
-    f: documentData?.document?.title || "Untitled",
-    p: String(pageNumber),
-    d: new Intl.DateTimeFormat(undefined, { dateStyle: "short" }).format(new Date()),
-    t: new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date()),
-  };
-  for (const [text, baseline] of [
-    [layout.header, y + Number(layout.headerPosition || 0)],
-    [layout.footer, y + height - Number(layout.footerPosition || 0)],
-  ]) {
-    if (!text) continue;
-    const sections = headerFooterSections(text, dynamic);
-    for (const [anchor, value, position] of [
-      ["start", sections.left, x + 6],
-      ["middle", sections.center, x + width / 2],
-      ["end", sections.right, x + width - 6],
-    ]) {
-      if (!value) continue;
-      const node = makeSvgNode("text", {
-        x: position,
-        y: baseline,
-        fill: "#4d535b",
-        "font-family": "Arial, sans-serif",
-        "font-size": 9,
-        "text-anchor": anchor,
-      });
-      node.textContent = value;
-      layer.appendChild(node);
-    }
+  for (const annotation of pageTextAnnotations(
+    context.documentData,
+    context.layout,
+    context,
+  )) {
+    const node = makeSvgNode("text", {
+      x: annotation.x,
+      y: annotation.y,
+      fill: "#4d535b",
+      "font-family": "Arial, sans-serif",
+      "font-size": 9,
+      "text-anchor": annotation.anchor,
+      "data-page-annotation": annotation.role,
+      "data-page-number": annotation.pageNumber,
+    });
+    node.textContent = annotation.text;
+    layer.appendChild(node);
   }
-}
-function headerFooterSections(source, dynamic) {
-  const sections = { left: "", center: "", right: "" };
-  let target = "left";
-  const chunks = String(source).split(/(&[lcr])/i);
-  for (const chunk of chunks) {
-    if (/^&[lcr]$/i.test(chunk)) {
-      target = { l: "left", c: "center", r: "right" }[chunk[1].toLowerCase()];
-    } else {
-      sections[target] += chunk.replace(/&([fpdt])/gi, (_, token) => dynamic[token.toLowerCase()] || "");
-    }
-  }
-  return sections;
 }
 function appendTrimMarks(layer, makeSvgNode, x, y, width, height) {
-  const length = 9;
-  const gap = 3;
-  for (const [x1, y1, x2, y2] of [
-    [x - gap - length, y, x - gap, y], [x, y - gap - length, x, y - gap],
-    [x + width + gap, y, x + width + gap + length, y], [x + width, y - gap - length, x + width, y - gap],
-    [x - gap - length, y + height, x - gap, y + height], [x, y + height + gap, x, y + height + gap + length],
-    [x + width + gap, y + height, x + width + gap + length, y + height], [x + width, y + height + gap, x + width, y + height + gap + length],
-  ]) {
+  for (const [x1, y1, x2, y2] of pageTrimMarkSegments(x, y, width, height)) {
     layer.appendChild(makeSvgNode("line", {
-      x1, y1, x2, y2, stroke: "#60666e", "stroke-width": 0.55,
+      x1,
+      y1,
+      x2,
+      y2,
+      stroke: "#60666e",
+      "stroke-width": 0.55,
+      "data-page-trim-mark": "true",
     }));
   }
 }

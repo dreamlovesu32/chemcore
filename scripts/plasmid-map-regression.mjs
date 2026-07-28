@@ -93,7 +93,7 @@ try {
   );
 
   await page.locator('button[data-tool="biodraw"][data-bio-family="enzyme"]').click();
-  await page.locator('[data-secondary-value="biodraw-kind-two-substrate-enzyme"]').click();
+  await page.locator('[data-secondary-value="biodraw-kind-one-substrate-enzyme"]').click();
   const canvas = page.locator("#viewer-container");
   const canvasBox = await canvas.boundingBox();
   assert.ok(canvasBox, "canvas should be measurable");
@@ -104,8 +104,50 @@ try {
   await page.waitForFunction(() => {
     const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
     return documentValue.objects?.some((object) =>
-      object.payload?.bioShape?.kind === "two-substrate-enzyme");
+      object.payload?.bioShape?.kind === "one-substrate-enzyme");
   });
+  const bioShapeObject = await page.evaluate(() => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    return documentValue.objects.find((object) =>
+      object.payload?.bioShape?.kind === "one-substrate-enzyme");
+  });
+  assert.ok(bioShapeObject, "BioDraw creation should produce a typed BioShape object");
+  const bioShapeCenter = await page.evaluate((object) => {
+    const box = object.payload.bbox;
+    return window.__chemsemaDebug.worldToClient(
+      object.transform.translate[0] + box[0] + box[2] / 2,
+      object.transform.translate[1] + box[1] + box[3] / 2,
+    );
+  }, bioShapeObject);
+  await page.locator('button[data-tool="select"]').click();
+  await page.mouse.click(bioShapeCenter.x, bioShapeCenter.y);
+  await page.mouse.click(bioShapeCenter.x, bioShapeCenter.y, { button: "right" });
+  const bioShapeEditItem = page.locator(
+    '[data-canvas-context-command="bio-shape-dialog"]',
+  );
+  await bioShapeEditItem.waitFor({ state: "visible" });
+  await bioShapeEditItem.click();
+  const bioShapeDialog = page.locator(".bio-shape-dialog");
+  await bioShapeDialog.waitFor({ state: "visible" });
+  assert.equal(
+    await bioShapeDialog.locator('[name^="parameter:"]').count(),
+    1,
+    "one-substrate enzyme should expose only its verified type-specific parameter",
+  );
+  await bioShapeDialog.locator('[name="fillType"]').selectOption("solid");
+  await bioShapeDialog.locator('[name="lineType"]').selectOption("bold");
+  await bioShapeDialog.locator('[name="lineWidth"]').fill("1.25");
+  await bioShapeDialog.locator('[name="alpha"]').fill("0.65");
+  await bioShapeDialog.locator("form").evaluate((form) => form.requestSubmit());
+  await bioShapeDialog.waitFor({ state: "detached" });
+  await page.waitForFunction((objectId) => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    const object = documentValue.objects?.find((entry) => entry.id === objectId);
+    return object?.payload?.bioShape?.fillType === "solid"
+      && object.payload.bioShape.lineType === "bold"
+      && object.payload.bioShape.lineWidth === 1.25
+      && object.payload.bioShape.alpha === 0.65;
+  }, bioShapeObject.id);
 
   await page.locator('button[data-tool="biodraw"][data-bio-family="plasmid"]').click();
   await page.waitForFunction(

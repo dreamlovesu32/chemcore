@@ -23,6 +23,10 @@ import {
   pdfPreviewBase64FromSvg,
   pdfPreviewBase64FromSvgPages,
 } from "./export_preview.js";
+import {
+  pageTextAnnotations,
+  pageTrimMarkSegments,
+} from "./document_page_decorations.js";
 
 export function createDocumentFlow(options) {
   function traceEvent(event, detail = null) {
@@ -785,56 +789,24 @@ function pagedSvgDocuments(sourceSvg, documentData, layout, resolved) {
 }
 
 function pageHeaderFooterSvg(documentData, layout, page) {
-  const now = new Date();
-  const dynamic = {
-    f: documentData?.document?.title || "Untitled",
-    p: String(page.pageNumber),
-    d: new Intl.DateTimeFormat(undefined, { dateStyle: "short" }).format(now),
-    t: new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(now),
-  };
-  let svg = "";
-  for (const [text, baseline] of [
-    [layout.header, page.y + Number(layout.headerPosition || 0)],
-    [layout.footer, page.y + page.height - Number(layout.footerPosition || 0)],
-  ]) {
-    if (!text) continue;
-    const sections = splitHeaderFooter(text, dynamic);
-    for (const [anchor, value, position] of [
-      ["start", sections.left, page.x + 6],
-      ["middle", sections.center, page.x + page.width / 2],
-      ["end", sections.right, page.x + page.width - 6],
-    ]) {
-      if (value) {
-        svg += `<text x="${formatSvgNumber(position)}" y="${formatSvgNumber(baseline)}" text-anchor="${anchor}" font-family="Arial, sans-serif" font-size="9" fill="#333333">${escapeXml(value)}</text>`;
-      }
-    }
-  }
-  return svg;
-}
-
-function splitHeaderFooter(source, dynamic) {
-  const sections = { left: "", center: "", right: "" };
-  let target = "left";
-  for (const chunk of String(source).split(/(&[lcr])/i)) {
-    if (/^&[lcr]$/i.test(chunk)) {
-      target = { l: "left", c: "center", r: "right" }[chunk[1].toLowerCase()];
-    } else {
-      sections[target] += chunk.replace(/&([fpdt])/gi, (_, token) => dynamic[token.toLowerCase()] || "");
-    }
-  }
-  return sections;
+  return pageTextAnnotations(documentData, layout, page)
+    .map((annotation) => (
+      `<text x="${formatSvgNumber(annotation.x)}" y="${formatSvgNumber(annotation.y)}" ` +
+      `text-anchor="${annotation.anchor}" font-family="Arial, sans-serif" font-size="9" ` +
+      `fill="#333333" data-page-annotation="${annotation.role}" ` +
+      `data-page-number="${annotation.pageNumber}">${escapeXml(annotation.text)}</text>`
+    ))
+    .join("");
 }
 
 function pageTrimMarksSvg(x, y, width, height) {
-  const inset = 3;
-  const length = 8;
-  const lines = [
-    [x + inset, y, x + inset + length, y], [x, y + inset, x, y + inset + length],
-    [x + width - inset - length, y, x + width - inset, y], [x + width, y + inset, x + width, y + inset + length],
-    [x + inset, y + height, x + inset + length, y + height], [x, y + height - inset - length, x, y + height - inset],
-    [x + width - inset - length, y + height, x + width - inset, y + height], [x + width, y + height - inset - length, x + width, y + height - inset],
-  ];
-  return lines.map(([x1, y1, x2, y2]) => `<line x1="${formatSvgNumber(x1)}" y1="${formatSvgNumber(y1)}" x2="${formatSvgNumber(x2)}" y2="${formatSvgNumber(y2)}" stroke="#333333" stroke-width="0.55"/>`).join("");
+  return pageTrimMarkSegments(x, y, width, height)
+    .map(([x1, y1, x2, y2]) => (
+      `<line x1="${formatSvgNumber(x1)}" y1="${formatSvgNumber(y1)}" ` +
+      `x2="${formatSvgNumber(x2)}" y2="${formatSvgNumber(y2)}" ` +
+      `stroke="#333333" stroke-width="0.55" data-page-trim-mark="true"/>`
+    ))
+    .join("");
 }
 
 function formatSvgNumber(value) {
