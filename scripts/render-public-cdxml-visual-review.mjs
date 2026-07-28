@@ -5,8 +5,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { generateChemDrawOracle } from "./chemdraw-oracle.mjs";
 import { launchBrowser } from "./playwright-browser.mjs";
+import { collectGalleryProvenance } from "./public-cdxml-provenance.mjs";
 
 const execFileAsync = promisify(execFile);
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function parseArgs(argv) {
   const args = {
@@ -15,6 +17,7 @@ function parseArgs(argv) {
     report: "tmp/public-cdxml-roundtrip-label-audit/report.json",
     all: false,
     incremental: false,
+    allowDirty: false,
     jobs: 4,
     patterns: [],
     cli: process.platform === "win32"
@@ -28,6 +31,7 @@ function parseArgs(argv) {
     else if (arg === "--report") args.report = argv[++index];
     else if (arg === "--all") args.all = true;
     else if (arg === "--incremental") args.incremental = true;
+    else if (arg === "--allow-dirty") args.allowDirty = true;
     else if (arg === "--jobs") args.jobs = Number(argv[++index]);
     else if (arg === "--only") args.patterns.push(argv[++index]);
     else if (arg === "--cli") args.cli = argv[++index];
@@ -928,7 +932,7 @@ async function fullCorpusPairs(root, reportPath, outDir, patterns = []) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
-    console.log("Usage: node scripts/render-public-cdxml-visual-review.mjs [--root corpus] [--out directory] [--cli chemsema-cli] [--all --report report.json] [--only case-or-path] [--incremental] [--jobs n]");
+    console.log("Usage: node scripts/render-public-cdxml-visual-review.mjs [--root corpus] [--out directory] [--cli chemsema-cli] [--all --report report.json] [--only case-or-path] [--incremental] [--jobs n] [--allow-dirty]");
     return;
   }
 
@@ -954,6 +958,19 @@ async function main() {
 
   if (pairs.length === 0) throw new Error(`No matching CDXML/PNG pairs found under ${root}`);
   await fs.access(cli);
+  const provenance = collectGalleryProvenance({
+    repoRoot,
+    cliPath: cli,
+    corpusRoot: root,
+    corpusManifestPath: path.join(repoRoot, "benchmarks", "public-cdxml", "manifest.json"),
+    roundtripReportPath: path.resolve(args.report),
+  });
+  if (provenance.repository.dirty && !args.allowDirty) {
+    throw new Error(
+      "Refusing to generate a canonical public gallery from a dirty repository. "
+      + "Commit the changes or pass --allow-dirty for an explicitly non-release development run.",
+    );
+  }
   await fs.mkdir(path.join(outDir, "items"), { recursive: true });
 
   const browser = await launchBrowser({ headless: true });
@@ -1048,6 +1065,10 @@ async function main() {
         chemsemaLabel: pair.chemsemaLabel,
         format: pair.format ?? "cdxml",
         status: pair.status ?? "reference-pair",
+        candidateProvenance: {
+          repositoryIdentity: provenance.repository.identity,
+          cliSha256: provenance.cli.sha256,
+        },
         alignment,
         reference: `items/${id}/reference${referenceExtension}`,
         chemsema: `items/${id}/chemsema.svg`,
@@ -1073,6 +1094,7 @@ async function main() {
         count: finalManifestItems.length,
         incremental: Boolean(retainedManifest),
         updatedCount: manifestItems.length,
+        provenance,
         items: finalManifestItems,
       }, null, 2)}\n`,
     ),

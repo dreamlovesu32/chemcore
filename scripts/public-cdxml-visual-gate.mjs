@@ -8,11 +8,17 @@ import {
   mapWithConcurrency,
   viewerHtml,
 } from "./render-public-cdxml-visual-review.mjs";
+import {
+  collectCurrentGalleryProvenance,
+  provenanceMismatches,
+} from "./public-cdxml-provenance.mjs";
 
 const DEFAULTS = Object.freeze({
   gallery: "tmp/public-cdxml-chemdraw-review-all",
   out: "tmp/public-cdxml-visual-gate/report.json",
   jobs: 4,
+  allowDirtyGallery: false,
+  allowStaleGallery: false,
   analysisScale: 2,
   tolerance: 1.5,
   tileSize: 256,
@@ -77,6 +83,8 @@ function parseArgs(argv) {
     else if (arg === "--only") options.patterns.push(argv[++index]);
     else if (arg === "--limit") options.limit = Number(argv[++index]);
     else if (arg === "--jobs") options.jobs = Number(argv[++index]);
+    else if (arg === "--allow-dirty-gallery") options.allowDirtyGallery = true;
+    else if (arg === "--allow-stale-gallery") options.allowStaleGallery = true;
     else if (arg === "--analysis-scale") options.analysisScale = Number(argv[++index]);
     else if (arg === "--tolerance") options.tolerance = Number(argv[++index]);
     else if (arg === "--tile-size") options.tileSize = Number(argv[++index]);
@@ -242,6 +250,7 @@ async function stampExistingReport(manifest, reportPath, galleryDir) {
   }
   report.cacheIdentity = CACHE_IDENTITY;
   report.gallery = galleryDir;
+  report.galleryProvenance = manifest.provenance ?? null;
   report.cache = { stamped, reused: 0, analyzed: 0 };
   await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
   return { reportPath, stamped, cacheIdentity: CACHE_IDENTITY };
@@ -1179,7 +1188,7 @@ async function runSelfTest(options) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log("Usage: node scripts/public-cdxml-visual-gate.mjs [--gallery dir] [--out report.json] [--passed-gallery html] [--only text] [--limit n] [--jobs n] [--report-only]");
+    console.log("Usage: node scripts/public-cdxml-visual-gate.mjs [--gallery dir] [--out report.json] [--passed-gallery html] [--only text] [--limit n] [--jobs n] [--allow-dirty-gallery] [--allow-stale-gallery] [--report-only]");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --reuse-report report.json [--gallery dir] [--passed-gallery html]");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --gallery dir --stamp-report report.json");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --gallery dir --baseline-report report.json --out report.json");
@@ -1195,6 +1204,20 @@ async function main() {
   const galleryDir = path.resolve(options.gallery);
   const manifestPath = path.join(galleryDir, "manifest.json");
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+  const currentProvenance = collectCurrentGalleryProvenance(manifest.provenance);
+  const provenanceErrors = currentProvenance
+    ? provenanceMismatches(manifest.provenance, currentProvenance)
+    : ["missing-or-unsupported-provenance"];
+  if (manifest.provenance?.repository?.dirty && !options.allowDirtyGallery) {
+    provenanceErrors.push("dirty-gallery");
+  }
+  if (provenanceErrors.length && !options.allowStaleGallery) {
+    throw new Error(
+      `Public CDXML gallery provenance is invalid (${[...new Set(provenanceErrors)].join(", ")}). `
+      + "Regenerate the gallery from the current clean repository, or use "
+      + "--allow-stale-gallery only for an explicitly non-release diagnostic run.",
+    );
+  }
   if (options.stampReport) {
     console.log(JSON.stringify(await stampExistingReport(
       manifest,
@@ -1220,6 +1243,17 @@ async function main() {
   }
   if (Number.isFinite(options.limit)) items = items.slice(0, Math.max(0, options.limit));
   if (!items.length) throw new Error("No visual-gate cases matched the requested filters");
+  const expectedRepositoryIdentity = currentProvenance?.repository?.identity;
+  const expectedCliSha256 = currentProvenance?.cli?.sha256;
+  const staleItems = items.filter((item) =>
+    item.candidateProvenance?.repositoryIdentity !== expectedRepositoryIdentity
+    || item.candidateProvenance?.cliSha256 !== expectedCliSha256);
+  if (staleItems.length && !options.allowStaleGallery) {
+    throw new Error(
+      `${staleItems.length} selected gallery items were not rendered by the current repository/CLI identity. `
+      + `First stale item: ${staleItems[0].relativeCdxml}. Regenerate before running the gate.`,
+    );
+  }
 
   const baselineReport = options.baselineReport
     ? JSON.parse(await fs.readFile(path.resolve(options.baselineReport), "utf8"))
@@ -1384,6 +1418,7 @@ async function main() {
     cacheIdentity: CACHE_IDENTITY,
     generatedAt: new Date().toISOString(),
     gallery: galleryDir,
+    galleryProvenance: manifest.provenance ?? null,
     policy: gatePolicy(options),
     summary: {
       total: cases.length,

@@ -6,6 +6,10 @@ import {
 } from "../render-public-cdxml-visual-review.mjs";
 import { classifyBaselineChanges } from "../public-cdxml-visual-gate.mjs";
 import { featuresFromCdxml, selectAffectedCases } from "../public-cdxml-impact.mjs";
+import {
+  GALLERY_PROVENANCE_SCHEMA,
+  provenanceMismatches,
+} from "../public-cdxml-provenance.mjs";
 
 test("CDXML feature extraction recognizes visual rule families", () => {
   const features = featuresFromCdxml(`
@@ -88,6 +92,33 @@ test("visual workers run concurrently while preserving manifest order", async ()
   });
   assert.deepEqual(results, [30, 10, 20, 0]);
   assert.equal(maximumActive, 2);
+});
+
+test("gallery provenance invalidates stale source, CLI, corpus, and report inputs", () => {
+  const recorded = {
+    schema: GALLERY_PROVENANCE_SCHEMA,
+    repository: { identity: "repo-a" },
+    cli: { sha256: "cli-a" },
+    corpus: {
+      manifestSha256: "manifest-a",
+      sources: [{ id: "rdkit", actualRevision: "revision-a" }],
+    },
+    roundtripReport: { sha256: "report-a" },
+  };
+  assert.deepEqual(provenanceMismatches(recorded, structuredClone(recorded)), []);
+  const current = structuredClone(recorded);
+  current.repository.identity = "repo-b";
+  current.cli.sha256 = "cli-b";
+  current.corpus.manifestSha256 = "manifest-b";
+  current.corpus.sources[0].actualRevision = "revision-b";
+  current.roundtripReport.sha256 = "report-b";
+  assert.deepEqual(provenanceMismatches(recorded, current), [
+    "repository-state",
+    "cli-binary",
+    "corpus-manifest",
+    "corpus-source:rdkit",
+    "roundtrip-report",
+  ]);
 });
 
 test("baseline mode blocks regressions without requiring historical failures to turn green", () => {
