@@ -1711,11 +1711,24 @@ fn generated_node_labels_remain_derived_until_their_text_is_explicitly_edited() 
       <n id="oxygen" p="20 20" Element="8" NumHydrogens="1"/>
       <n id="query" p="50 20" NodeType="ElementList" ElementList="7 8"/>
       <n id="carbon" p="80 20" Element="6" ShowTerminalCarbonLabels="yes"/>
+      <b id="oxygen-query" B="oxygen" E="query"/>
+      <b id="query-carbon" B="query" E="carbon"/>
     </fragment>
   </page>
 </CDXML>"##;
     let mut document = parse_cdxml_document(cdxml, Some("automatic derived node labels"))
         .expect("automatic node labels should parse");
+    let imported_carbon = document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .find(|node| node.id == "carbon")
+        .expect("carbon node");
+    assert!(
+        imported_carbon.label.is_none(),
+        "imported carbon display fields are preserved but do not synthesize authored labels"
+    );
     let first_labels = document
         .resources
         .values()
@@ -1733,7 +1746,7 @@ fn generated_node_labels_remain_derived_until_their_text_is_explicitly_edited() 
             })
         })
         .collect::<Vec<_>>();
-    assert_eq!(first_labels.len(), 3);
+    assert_eq!(first_labels.len(), 2);
 
     let first_export = document_to_cdxml(&document);
     assert!(!first_export.contains("<t "), "{first_export}");

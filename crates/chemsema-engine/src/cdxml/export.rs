@@ -3476,6 +3476,26 @@ impl<'a> CdxmlDocumentWriter<'a> {
                     center.y + box_value[3] * 0.5,
                 ];
             }
+        } else if object.meta.get("role").and_then(Value::as_str) == Some("query") {
+            if let Some((bond_midpoint, vector)) = object
+                .meta
+                .get("attachedBondId")
+                .and_then(Value::as_str)
+                .and_then(|bond_id| {
+                    Some((
+                        document_bond_world_midpoint(self.document, bond_id)?,
+                        payload_point_cdxml(&object.payload, "automaticPositioningVector")?,
+                    ))
+                })
+            {
+                let center = bond_midpoint.translated(crate::Vector::new(vector.x, vector.y));
+                bbox = [
+                    center.x - box_value[2] * 0.5,
+                    center.y - box_value[3] * 0.5,
+                    center.x + box_value[2] * 0.5,
+                    center.y + box_value[3] * 0.5,
+                ];
+            }
         }
         let mut attrs = vec![
             ("id", self.object_cdxml_id(object)),

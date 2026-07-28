@@ -470,6 +470,8 @@ fn render_fragment_bond_annotations(
     fill: &str,
     object_id: Option<String>,
 ) {
+    let has_explicit_query_display = has_linked_bond_annotation(document, &bond.id, &["query"]);
+    let has_explicit_stereo_display = has_linked_bond_annotation(document, &bond.id, &["stereo"]);
     let show_query = bond.properties.show_query.unwrap_or_else(|| {
         document
             .document
@@ -496,7 +498,7 @@ fn render_fragment_bond_annotations(
     });
 
     let mut query = String::new();
-    if show_query {
+    if show_query && !has_explicit_query_display {
         query.push_str(match bond.properties.topology {
             crate::BondTopology::Unspecified => "",
             crate::BondTopology::Ring => "Rng",
@@ -504,7 +506,8 @@ fn render_fragment_bond_annotations(
             crate::BondTopology::RingOrChain => "R/C",
         });
     }
-    if show_reaction
+    if !has_explicit_query_display
+        && show_reaction
         && matches!(
             bond.properties.reaction_participation,
             crate::BondReactionParticipation::ReactionCenter
@@ -515,7 +518,7 @@ fn render_fragment_bond_annotations(
     {
         query.push_str("Rxn");
     }
-    if bond.properties.query_orders.len() >= 2 {
+    if !has_explicit_query_display && bond.properties.query_orders.len() >= 2 {
         query.push_str(
             &bond
                 .properties
@@ -526,7 +529,7 @@ fn render_fragment_bond_annotations(
                 .join("/"),
         );
     }
-    let stereo = if show_stereo {
+    let stereo = if show_stereo && !has_explicit_stereo_display {
         match bond.properties.absolute_stereo {
             crate::BondAbsoluteStereo::E => Some("(E)"),
             crate::BondAbsoluteStereo::Z => Some("(Z)"),
@@ -668,6 +671,28 @@ fn render_fragment_nmr_assignments(
     }
 }
 
+fn isotope_mass_is_encoded_by_hydrogen_shorthand(node: &Node) -> bool {
+    if node.atomic_number != 1 {
+        return false;
+    }
+    let shorthand = node
+        .label
+        .as_ref()
+        .filter(|label| label.has_visible_text())
+        .map(|label| {
+            label
+                .source_text
+                .as_deref()
+                .filter(|text| !text.trim().is_empty())
+                .unwrap_or(&label.text)
+                .trim()
+        });
+    matches!(
+        (node.atom_properties.isotope_mass, shorthand),
+        (Some(2), Some("D")) | (Some(3), Some("T"))
+    )
+}
+
 fn render_fragment_atom_properties(
     out: &mut Vec<RenderPrimitive>,
     document: &ChemSemaDocument,
@@ -749,7 +774,10 @@ fn render_fragment_atom_properties(
         };
     }
 
-    if let Some(mass) = properties.isotope_mass {
+    if let Some(mass) = properties
+        .isotope_mass
+        .filter(|_| !isotope_mass_is_encoded_by_hydrogen_shorthand(node))
+    {
         let annotation_top = (bounds.y1 + bounds.y2 - annotation_size) * 0.5;
         push_atom_property_text(
             out,
@@ -895,6 +923,21 @@ fn has_linked_atom_annotation(document: &ChemSemaDocument, node_id: &str, roles:
             .get("attachedNodeId")
             .and_then(JsonValue::as_str)
             == Some(node_id)
+            && object
+                .meta
+                .get("role")
+                .and_then(JsonValue::as_str)
+                .is_some_and(|role| roles.contains(&role))
+    })
+}
+
+fn has_linked_bond_annotation(document: &ChemSemaDocument, bond_id: &str, roles: &[&str]) -> bool {
+    document.scene_objects().into_iter().any(|object| {
+        object
+            .meta
+            .get("attachedBondId")
+            .and_then(JsonValue::as_str)
+            == Some(bond_id)
             && object
                 .meta
                 .get("role")
@@ -1443,6 +1486,9 @@ fn render_fragment_atom_query_annotations(
     if !show_atom_query {
         return;
     }
+    if has_linked_atom_annotation(document, &node.id, &["query"]) {
+        return;
+    }
 
     let properties = &node.atom_properties;
     let mut query = String::new();
@@ -1552,6 +1598,7 @@ fn render_fragment_atom_query_annotations(
     let horizontal = direction.x.abs() >= direction.y.abs();
     let left_annotation_width = properties
         .isotope_mass
+        .filter(|_| !isotope_mass_is_encoded_by_hydrogen_shorthand(node))
         .map(|mass| annotation_text_width(&mass.to_string(), query_size))
         .unwrap_or(0.0);
     let (x, y, anchor) = if horizontal && direction.x >= 0.0 {

@@ -23,6 +23,32 @@ pub(super) fn document_node_world_point(
     })
 }
 
+pub(super) fn document_bond_world_midpoint(
+    document: &ChemSemaDocument,
+    bond_id: &str,
+) -> Option<Point> {
+    document.editable_fragments().into_iter().find_map(|entry| {
+        let bond = entry
+            .fragment
+            .bonds
+            .iter()
+            .find(|bond| bond.id == bond_id)?;
+        let begin = entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == bond.begin)
+            .map(|node| entry.world_point_for_node(node))?;
+        let end = entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == bond.end)
+            .map(|node| entry.world_point_for_node(node))?;
+        Some(Point::new((begin.x + end.x) * 0.5, (begin.y + end.y) * 0.5))
+    })
+}
+
 pub(super) fn preserved_cdxml_bond_order(bond: &Bond) -> Option<String> {
     if canonicalizes_topology_only_aromatic_dash(bond) {
         return None;

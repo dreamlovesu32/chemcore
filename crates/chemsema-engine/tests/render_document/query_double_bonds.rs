@@ -44,7 +44,29 @@ fn parse_cdxml_automatically_positions_query_tags_relative_to_their_bonds() {
                 .and_then(|value| value.as_f64()),
             Some(6.0)
         );
+        assert!(label
+            .payload
+            .extra
+            .get("automaticPositioningVector")
+            .and_then(|value| value.as_array())
+            .is_some_and(|vector| vector.len() == 2));
     }
+    let exported = document_to_cdxml(&document);
+    let reimported = parse_cdxml_document(&exported, Some("automatic bond query round trip"))
+        .expect("exported bond query tags should reimport");
+    let reimported_positions = reimported
+        .objects
+        .iter()
+        .filter(|object| object.meta.get("role").and_then(|value| value.as_str()) == Some("query"))
+        .map(|object| object.transform.translate)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        reimported_positions,
+        labels
+            .iter()
+            .map(|object| object.transform.translate)
+            .collect::<Vec<_>>()
+    );
 }
 
 #[test]
@@ -86,6 +108,58 @@ fn parse_cdxml_keeps_combined_bond_order_query_native_and_renders_its_mnemonic()
             }
             _ => false,
         }));
+}
+
+#[test]
+fn explicit_bond_query_display_uses_its_authored_object_tag_geometry_once() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10" ShowBondRxn="yes">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1"><fragment id="2">
+    <n id="3" p="0 0"/><n id="4" p="30 20"/>
+    <b id="5" B="3" E="4" RxnParticipation="MakeOrBreak">
+      <objecttag Name="query">
+        <t p="7 3" BoundingBox="7 -3 19 3"><s font="3" size="7.5">Rxn</s></t>
+      </objecttag>
+    </b>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("authored bond query display"))
+        .expect("bond query display should parse");
+    let query_objects = document
+        .objects
+        .iter()
+        .filter(|object| {
+            object.meta.get("role").and_then(|value| value.as_str()) == Some("query")
+                && object
+                    .meta
+                    .get("attachedBondId")
+                    .and_then(|value| value.as_str())
+                    == Some("5")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(query_objects.len(), 1);
+    assert_eq!(query_objects[0].transform.translate, [7.0, -3.0]);
+
+    let rendered = render_document(&document);
+    let query_texts = rendered
+        .iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Text {
+                x, y, text, runs, ..
+            } => {
+                let rendered = if text.is_empty() {
+                    runs.iter().map(|run| run.text.as_str()).collect::<String>()
+                } else {
+                    text.clone()
+                };
+                (rendered == "Rxn").then_some((*x, *y))
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(query_texts.len(), 1, "{query_texts:?}");
+    assert_eq!(query_texts[0], (7.0, 3.0));
 }
 
 #[test]

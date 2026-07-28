@@ -11,16 +11,6 @@ pub(in crate::cdxml) fn append_text_objects(
     display_fragment_ids: &BTreeSet<String>,
     bonded_node_ids: &BTreeSet<String>,
 ) {
-    let native_query_node_ids: BTreeSet<String> = descendants(root)
-        .into_iter()
-        .filter(|node| node.is("n") && cdxml_node_has_native_query_semantics(node))
-        .filter_map(|node| node.attr("id").map(ToString::to_string))
-        .collect();
-    let native_annotation_bond_ids: BTreeSet<String> = descendants(root)
-        .into_iter()
-        .filter(|node| node.is("b") && cdxml_bond_has_native_annotation_semantics(node))
-        .filter_map(|node| node.attr("id").map(ToString::to_string))
-        .collect();
     let mut index = 1;
     let node_positions: BTreeMap<String, [f64; 2]> = descendants(root)
         .into_iter()
@@ -66,30 +56,8 @@ pub(in crate::cdxml) fn append_text_objects(
         display_fragment_ids,
         bonded_node_ids,
     );
-    objects.retain(
-        |object| match object.meta.get("role").and_then(Value::as_str) {
-            Some("query")
-                if object
-                    .meta
-                    .get("attachedNodeId")
-                    .and_then(Value::as_str)
-                    .is_some_and(|node_id| native_query_node_ids.contains(node_id)) =>
-            {
-                false
-            }
-            Some("query" | "stereo")
-                if object
-                    .meta
-                    .get("attachedBondId")
-                    .and_then(Value::as_str)
-                    .is_some_and(|bond_id| native_annotation_bond_ids.contains(bond_id)) =>
-            {
-                false
-            }
-            Some("nmr_assignment") => false,
-            _ => true,
-        },
-    );
+    objects
+        .retain(|object| object.meta.get("role").and_then(Value::as_str) != Some("nmr_assignment"));
     let used_style_ids = objects
         .iter()
         .flat_map(super::import_chemical_properties::flatten_scene_object)
@@ -104,31 +72,6 @@ fn is_generated_text_style_id(style_id: &str) -> bool {
     style_id.strip_prefix("style_text_").is_some_and(|suffix| {
         !suffix.is_empty() && suffix.bytes().all(|byte| byte.is_ascii_digit())
     })
-}
-
-fn cdxml_node_has_native_query_semantics(node: &XmlNode) -> bool {
-    [
-        "IsotopicAbundance",
-        "FreeSites",
-        "RingBondCount",
-        "UnsaturatedBonds",
-        "SubstituentsUpTo",
-        "SubstituentsExactly",
-        "Translation",
-        "ImplicitHydrogens",
-        "RxnChange",
-        "RxnStereo",
-    ]
-    .iter()
-    .any(|name| node.attr(name).is_some())
-}
-
-fn cdxml_bond_has_native_annotation_semantics(bond: &XmlNode) -> bool {
-    bond.attr("Order")
-        .is_some_and(|value| value.split_whitespace().count() >= 2)
-        || ["Topology", "RxnParticipation", "BS"]
-            .iter()
-            .any(|name| bond.attr(name).is_some())
 }
 
 pub(in crate::cdxml) fn append_synthesized_enhanced_stereo_text_objects(
@@ -637,7 +580,9 @@ pub(super) fn text_object(
     });
     let automatic_placement = auto_enhanced_stereo_placement
         .map(|(translate, baseline_offset, _)| (translate, baseline_offset))
-        .or(auto_query_placement);
+        .or_else(|| {
+            auto_query_placement.map(|(translate, baseline_offset, _)| (translate, baseline_offset))
+        });
     let translate = if let Some((translate, _)) = automatic_placement {
         translate
     } else if let Some(bbox) = bbox {
@@ -700,7 +645,10 @@ pub(super) fn text_object(
             json!(round2(point[1] - translate[1])),
         );
     }
-    if let Some((_, _, cached_vector)) = auto_enhanced_stereo_placement {
+    if let Some(cached_vector) = auto_enhanced_stereo_placement
+        .map(|(_, _, cached_vector)| cached_vector)
+        .or_else(|| auto_query_placement.map(|(_, _, cached_vector)| cached_vector))
+    {
         extra.insert(
             "automaticPositioningVector".to_string(),
             json!([round2(cached_vector[0]), round2(cached_vector[1])]),
@@ -800,7 +748,7 @@ pub(super) fn automatic_query_bond_text_placement(
     points: ([f64; 2], [f64; 2]),
     bbox: [f64; 4],
     font_size: f64,
-) -> Option<([f64; 2], f64)> {
+) -> Option<([f64; 2], f64, [f64; 2])> {
     let width = (bbox[2] - bbox[0]).abs();
     let height = (bbox[3] - bbox[1]).abs();
     if width <= crate::EPSILON || height <= crate::EPSILON {
@@ -833,7 +781,11 @@ pub(super) fn automatic_query_bond_text_placement(
     } else {
         return None;
     };
-    Some(([round2(translate[0]), round2(translate[1])], height))
+    Some((
+        [round2(translate[0]), round2(translate[1])],
+        height,
+        [dx, dy],
+    ))
 }
 
 pub(super) fn cdxml_text_line_spacing(

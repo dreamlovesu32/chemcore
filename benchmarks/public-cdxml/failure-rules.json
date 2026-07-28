@@ -123,11 +123,13 @@
     {
       "id": "cdxml-keep-automatic-node-labels-derived",
       "status": "verified",
-      "summary": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
-      "officialRule": "Element and ElementList are Node properties, while ShowTerminalCarbonLabels and ShowNonTerminalCarbonLabels control whether carbon labels are displayed. A Text object is a separate arbitrary text block, so an unchanged property-derived node display must not be materialized as authored text.",
+      "summary": "Imported atom and query-list labels remain derived. ShowTerminalCarbonLabels and ShowNonTerminalCarbonLabels are preserved as atom/document fields, but import does not synthesize carbon text that ChemDraw itself did not materialize.",
+      "officialRule": "Element and ElementList are Node properties, while a Text object is separate authored presentation. ChemDraw open/save and SVG probes preserve ShowTerminalCarbonLabels and ShowNonTerminalCarbonLabels but do not synthesize a child Text object from those fields alone; explicit editor property changes may create or remove the live carbon display without changing import semantics.",
       "evidence": [
         "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
         "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "tmp/chemdraw-atom-query-probe/summary.json#carbon-root-all",
+        "tmp/chemdraw-atom-query-probe/summary.json#carbon-node-all",
         "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
       ],
       "caseIds": [
@@ -295,12 +297,14 @@
     {
       "id": "cdxml-preserve-native-semantic-object-tag-displays",
       "status": "verified",
-      "summary": "Native node properties remain the authoritative atom-number and stereochemical semantics, but an explicitly owned ObjectTag child Text is a real cached display object and remains nested in that relation. Only an unlinked generated display is suppressed, and its now-unreferenced generated style is removed with it.",
-      "officialRule": "ObjectTag owns its display child objects, while AtomNumber and stereochemical properties carry the native node semantics. Preserving the explicit relation is therefore independent from avoiding duplicate derived labels. A style referenced only by a suppressed generated display has no remaining document owner and must not survive as count drift.",
+      "summary": "Native atom and bond properties remain the authoritative query, reaction, atom-number, and stereochemical semantics, but an explicitly owned ObjectTag child Text is the authoritative display object and remains nested in that relation. Derived text is synthesized only when no explicit display exists. Only an unlinked generated display is suppressed, and its now-unreferenced generated style is removed with it.",
+      "officialRule": "ObjectTag owns its display child objects, while atom and bond fields carry editable semantics such as AtomNumber, RxnParticipation, query orders, and stereochemistry. Preserving the explicit relation and its automatic or absolute placement is therefore independent from avoiding duplicate derived labels. A style referenced only by a suppressed generated display has no remaining document owner and must not survive as count drift.",
       "evidence": [
         "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
         "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
-        "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#native_atom_semantic_object_tags_keep_their_cached_display_text"
+        "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#native_atom_semantic_object_tags_keep_their_cached_display_text",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#explicit_bond_query_display_uses_its_authored_object_tag_geometry_once",
+        "crates/chemsema-engine/tests/render_document/atom_queries.rs#explicit_atom_query_display_uses_its_object_tag_instead_of_a_derived_duplicate"
       ],
       "caseIds": [
         "0022",

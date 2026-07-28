@@ -74,6 +74,98 @@ fn atom_query_fixture_has_native_fields_labels_and_query_decorations() {
 }
 
 #[test]
+fn explicit_atom_query_display_uses_its_object_tag_instead_of_a_derived_duplicate() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10" ShowAtomQuery="yes">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1"><fragment id="2">
+    <n id="3" p="20 20" FreeSites="2">
+      <objecttag Name="query">
+        <t p="24 28" BoundingBox="24 22 34 28"><s font="3" size="7.5">*2</s></t>
+      </objecttag>
+    </n>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("authored atom query display"))
+        .expect("atom query display should parse");
+    let query_objects = document
+        .objects
+        .iter()
+        .filter(|object| {
+            object.meta.get("role").and_then(|value| value.as_str()) == Some("query")
+                && object
+                    .meta
+                    .get("attachedNodeId")
+                    .and_then(|value| value.as_str())
+                    == Some("3")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(query_objects.len(), 1);
+
+    let query_texts = render_document(&document)
+        .into_iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Text { text, runs, .. } => {
+                let rendered = if text.is_empty() {
+                    runs.into_iter().map(|run| run.text).collect::<String>()
+                } else {
+                    text
+                };
+                (rendered == "*2").then_some(rendered)
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(query_texts, vec!["*2"]);
+}
+
+#[test]
+fn deuterium_and_tritium_labels_encode_their_isotope_mass_once() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <fragment id="fragment">
+      <n id="deuterium" p="20 20" Element="1" Isotope="2">
+        <t p="20 20"><s font="3" size="10">D</s></t>
+      </n>
+      <n id="tritium" p="50 20" Element="1" Isotope="3">
+        <t p="50 20"><s font="3" size="10">T</s></t>
+      </n>
+      <n id="explicit-hydrogen" p="80 20" Element="1" Isotope="2">
+        <t p="80 20"><s font="3" size="10">H</s></t>
+      </n>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("hydrogen isotope shorthand"))
+        .expect("hydrogen isotope shorthand parses");
+    let texts = render_document(&document)
+        .into_iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Text { text, runs, .. } => Some(if text.is_empty() {
+                runs.into_iter().map(|run| run.text).collect::<String>()
+            } else {
+                text
+            }),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(texts.iter().filter(|text| text.as_str() == "D").count(), 1);
+    assert_eq!(texts.iter().filter(|text| text.as_str() == "T").count(), 1);
+    assert_eq!(texts.iter().filter(|text| text.as_str() == "H").count(), 1);
+    assert_eq!(
+        texts.iter().filter(|text| text.as_str() == "2").count(),
+        1,
+        "the isotope mass remains visible for an H label but not for D: {texts:?}"
+    );
+    assert!(
+        texts.iter().all(|text| text != "3"),
+        "T already encodes isotope mass 3: {texts:?}"
+    );
+}
+
+#[test]
 fn atom_query_uses_symbol_star_size_and_connection_opposite_placement() {
     for (neighbor, expected_side) in [
         ([110.0, 80.0], "left"),
