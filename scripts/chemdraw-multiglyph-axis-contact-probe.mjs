@@ -64,7 +64,6 @@ for (const direction of ["top", "left", "right"]) {
       : [{ text: "CH", face: 0 }, { text: "3", face: 32 }],
   });
 }
-
 const probes = families.flatMap((family) => [
   {
     ...family,
@@ -264,8 +263,8 @@ await fs.writeFile(
 );
 
 // ChemDraw's SVG bond coordinates are quantized in 0.05-0.10 pt steps for
-// these templates. The paired labels must agree within one such step; a
-// whole-label ymax/xmax rule misses by several points.
+// these templates. The paired formula labels must agree within one such step;
+// a whole-label vertical ymin/ymax rule misses by several points.
 const mismatches = comparisons.filter((entry) => Math.abs(entry.delta) > 0.12);
 if (mismatches.length > 0) {
   console.error(JSON.stringify(mismatches, null, 2));

@@ -1163,21 +1163,17 @@ fn localized_axis_contact_polygons(
     margin: f64,
 ) -> Vec<Vec<[f64; 2]>> {
     let margin = margin.max(0.0);
-    // ChemDraw's axial branch is local to the glyph column or row crossed by
-    // the attachment axis. A distant subscript must not extend a vertical
-    // bond's label retreat, and a tall glyph elsewhere in the label must not
-    // extend a horizontal bond. The ordinary outline expansion remains
-    // responsible when the attachment axis crosses no glyph exclusion band.
-    let horizontal_candidates = glyph_bounds.iter().filter(|bounds| {
-        origin[1] + crate::EPSILON >= bounds[1] - margin
-            && origin[1] - crate::EPSILON <= bounds[3] + margin
-    });
-    let right = horizontal_candidates
-        .clone()
+    // ChemDraw treats a horizontal text run as one left/right envelope:
+    // scripts on the attachment-facing end still contribute their X extent.
+    // Vertical contacts are column-local, so a script beside the attachment
+    // column cannot deepen a top/bottom retreat.
+    let right = glyph_bounds
+        .iter()
         .map(|bounds| bounds[2] + margin - origin[0])
         .filter(|extent| *extent > crate::EPSILON)
         .max_by(f64::total_cmp);
-    let left = horizontal_candidates
+    let left = glyph_bounds
+        .iter()
         .map(|bounds| origin[0] - bounds[0] + margin)
         .filter(|extent| *extent > crate::EPSILON)
         .max_by(f64::total_cmp);
@@ -1201,11 +1197,11 @@ fn localized_axis_contact_polygons(
         .into_iter()
         .filter_map(|(axis_deg, extent)| extent.map(|extent| (axis_deg, extent)))
         .map(|(axis_deg, extent)| {
-            let mut polygon = Vec::with_capacity(8);
+            let mut polygon = Vec::with_capacity(7);
             polygon.push(origin);
-            for index in 0..=6 {
+            for index in 0..=5 {
                 let offset_deg = -GLYPH_AXIS_HALF_SECTOR_DEG
-                    + 2.0 * GLYPH_AXIS_HALF_SECTOR_DEG * index as f64 / 6.0;
+                    + 2.0 * GLYPH_AXIS_HALF_SECTOR_DEG * index as f64 / 5.0;
                 let offset = offset_deg.to_radians();
                 let angle = (axis_deg + offset_deg).to_radians();
                 let radius = extent * offset.cos();
@@ -1983,10 +1979,31 @@ mod tests {
             .max_by(f64::total_cmp)
             .expect("downward extent");
 
-        assert!((maximum_y - 10.18).abs() < 1.0e-9, "{maximum_y}");
+        assert!((maximum_y - 10.17315498123).abs() < 1.0e-9, "{maximum_y}");
         assert!(
             maximum_y < glyph_bounds[2][3] + 1.6,
             "the distant subscript must not deepen the attachment column"
+        );
+    }
+
+    #[test]
+    fn horizontal_axial_contact_keeps_the_whole_text_run_envelope() {
+        let glyph_bounds = [[0.0, -4.0, 4.0, 3.0], [8.0, 4.0, 12.0, 8.0]];
+        let origin = [2.0, 0.0];
+        let polygons = localized_axis_contact_polygons(&glyph_bounds, origin, 1.0);
+        let right = polygons
+            .iter()
+            .find(|polygon| polygon.iter().skip(1).all(|point| point[0] > origin[0]))
+            .expect("rightward axial sector");
+        let maximum_x = right
+            .iter()
+            .map(|point| point[0])
+            .max_by(f64::total_cmp)
+            .expect("rightward extent");
+
+        assert!(
+            maximum_x > 12.9,
+            "an off-baseline glyph on the attachment-facing end remains in the horizontal envelope: {maximum_x}"
         );
     }
 

@@ -448,16 +448,17 @@ Later rules must not overturn geometry topology already determined by earlier ru
   descender must not pull another glyph's clipping rectangle downward.
 - Subscript and superscript glyphs do not join this same-row rectangular
   interior model.
-- ChemDraw's narrow axial-contact sector is local to the glyph row or column
-  crossed by the structural attachment axis. For a vertical attachment,
-  consider only glyph exclusion bands whose horizontal interval contains the
-  attachment X; for a horizontal attachment, consider only bands whose
-  vertical interval contains the attachment Y. Expand the tested interval and
-  selected extreme by `MarginWidth`. A distant subscript or superscript must
-  not extend the retreat of a bond attached under another glyph. The public
-  `3060_iso_butane.cdxml` sample demonstrates this rule: the vertical bond
+- ChemDraw's narrow axial-contact sector follows the writing axis. Horizontal
+  text forms one left/right envelope across the complete run; this keeps a
+  horizontal bond hidden under fixed-display, multi-attachment labels.
+  Top/bottom contact is instead local to glyph columns whose horizontal
+  interval, expanded by `MarginWidth`, contains the attachment X. Expand the
+  selected directional extreme by `MarginWidth` as well. The public
+  `3060_iso_butane.cdxml` sample demonstrates the vertical branch: the bond
   under `CH3` stops at the `C` column (`y = 191.09pt` in ChemDraw), not at the
-  lower edge of the remote subscript `3`.
+  lower edge of the remote subscript `3`. Public case `0137` demonstrates the
+  horizontal branch repeatedly: fixed-display labels such as `(CH2CHO)m`
+  continue to mask the bond through the complete run's X envelope.
 - For rendered bonds with thickness, the whole bond body must be clipped out of
   the glyph clip polygon. Ordinary, dashed, bold, and multi-line bonds should
   evaluate the center line plus both body boundary lines for the current visual

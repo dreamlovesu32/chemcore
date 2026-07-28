@@ -65,7 +65,7 @@
         "crates/chemsema-engine/src/render/labels.rs"
       ],
       "features": ["bond", "text"],
-      "regressionCases": ["0249"]
+      "regressionCases": ["0136", "0137", "0249"]
     },
     {
       "name": "render-core",
