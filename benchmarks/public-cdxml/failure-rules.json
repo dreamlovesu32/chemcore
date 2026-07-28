@@ -578,6 +578,51 @@
         "0038",
         "0262"
       ]
+    },
+    {
+      "id": "cdxml-treat-bracket-boundingbox-as-ordered-spine-endpoints",
+      "status": "verified",
+      "summary": "Graphic BoundingBox for a bracket is an ordered pair of spine endpoints, not an axis-aligned rectangle. Import derives the bracket length, local depth, rotation, and translation from that one authoritative pair at source precision; export reconstructs the same world endpoints from the live rotated geometry. This preserves arbitrary-angle brackets and avoids independent 0.01 pt rounding drift in near-threshold round brackets.",
+      "officialRule": "The official BoundingBox definition explicitly states that a Graphic uses the property as a pair of points interpreted according to GraphicType. ChemDraw SVG output confirms that a slanted square bracket uses those two points as its stem endpoints and draws both lips normal to that stem.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BoundingBox.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/Graphic.htm",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#parse_cdxml_preserves_arbitrary_angle_bracket_endpoints",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#parse_cdxml_round_bracket_geometry_does_not_cross_rounding_thresholds",
+        "scripts/tests/public-cdxml-impact.test.mjs#bracket-semantic-geometry-follows-ordered-rotated-spine-endpoints"
+      ],
+      "caseIds": [
+        "0091",
+        "0368"
+      ]
+    },
+    {
+      "id": "roundtrip-match-repeated-visible-text-geometry-one-to-one",
+      "status": "verified",
+      "summary": "Visual geometry comparison groups repeated text by semantic key and finds a one-to-one match within the fixed coordinate tolerance. It does not sort duplicates by serialized coordinates, where a 0.01 pt x change can reorder objects separated by tens of points on y and create a false drift.",
+      "officialRule": "Repeated captions with the same text remain independent graphical objects. Their equivalence is determined by their own positions and boxes, not by array order or lexicographic coordinate order.",
+      "evidence": [
+        "scripts/public-cdxml-semantic-geometry.mjs",
+        "scripts/tests/public-cdxml-impact.test.mjs#visual-geometry-matches-repeated-text-by-tolerance-instead-of-coordinate-sort-order",
+        "scripts/tests/public-cdxml-impact.test.mjs#visual-geometry-still-rejects-unmatched-repeated-text"
+      ],
+      "caseIds": [
+        "0137"
+      ]
+    },
+    {
+      "id": "roundtrip-compare-geometry-only-for-visible-text",
+      "status": "verified",
+      "summary": "All text content remains in the semantic snapshot, but pixel geometry is compared only for visible text. A hidden cached bracketusage Text superseded by the visible parameterizedBracketLabel carries interchange data but produces no pixels and cannot constitute visual drift.",
+      "officialRule": "The official Visible property controls whether an object is visible. Hidden object content must remain lossless, while its cached geometry is outside the rendered-pixel contract.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Visible.htm",
+        "scripts/public-cdxml-roundtrip.mjs#textGeometry",
+        "docs/cdxml-text-label-field-audit.zh-CN.md"
+      ],
+      "caseIds": [
+        "0368"
+      ]
     }
   ]
 }

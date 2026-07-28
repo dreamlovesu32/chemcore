@@ -16,6 +16,8 @@ import {
   repositoryState,
   sha256File,
 } from "./public-cdxml-provenance.mjs";
+import { bracketWorldEndpoints } from "./public-cdxml-bracket-geometry.mjs";
+import { compareVisualGeometry } from "./public-cdxml-semantic-geometry.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = join(repoRoot, "benchmarks", "public-cdxml", "manifest.json");
@@ -339,7 +341,7 @@ function textSignatures(objects) {
 
 function textGeometry(objects) {
   return objects
-    .filter((object) => object.type === "text")
+    .filter((object) => object.type === "text" && object.visible !== false)
     .map((object) => {
       const translate = object.transform?.translate ?? [0, 0];
       const box = payloadValue(object, "box");
@@ -390,12 +392,36 @@ function arrowSignatures(objects) {
 function bracketSignatures(objects) {
   return objects
     .filter((object) => object.type === "bracket")
-    .map((object) => ({
-      kind: payloadValue(object, "kind") ?? null,
-      side: payloadValue(object, "side") ?? null,
-      bbox: roundGeometry(payloadValue(object, "bbox") ?? null),
-      translate: roundGeometry(object.transform?.translate ?? null),
-    }))
+    .map((object) => {
+      const kind = payloadValue(object, "kind") ?? null;
+      const side = payloadValue(object, "side") ?? null;
+      const bbox = payloadValue(object, "bbox") ?? null;
+      const transform = object.transform ?? {};
+      const endpoints = bracketWorldEndpoints({
+        bbox,
+        translate: transform.translate,
+        rotate: transform.rotate,
+        kind,
+        side,
+      });
+      return {
+        kind,
+        side,
+        geometry: endpoints
+          ? {
+              top: roundGeometry(endpoints.top),
+              bottom: roundGeometry(endpoints.bottom),
+            }
+          : {
+              bbox: roundGeometry(bbox),
+              translate: roundGeometry(transform.translate ?? null),
+              rotate: roundNumber(transform.rotate ?? 0),
+            },
+        stroke: payloadValue(object, "stroke") ?? null,
+        strokeWidth: roundNumber(payloadValue(object, "strokeWidth") ?? 0),
+        lipSize: payloadValue(object, "lipSize") ?? null,
+      };
+    })
     .map((signature) => JSON.stringify(canonicalize(signature)))
     .sort();
 }
@@ -474,22 +500,6 @@ function compareSemantic(before, after) {
     }
   }
   return { exact: before.hash === after.hash && changed.length === 0, changed };
-}
-
-function compareVisualGeometry(before = [], after = [], tolerance = 0.5) {
-  if (before.length !== after.length) return false;
-  const close = (left, right) => {
-    if (left == null || right == null) return left === right;
-    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
-    return left.every((value, index) => Math.abs(value - right[index]) <= tolerance);
-  };
-  return before.every(
-    (item, index) =>
-      item.key === after[index]?.key &&
-      close(item.position, after[index].position) &&
-      close(item.box, after[index].box) &&
-      close(item.lineHeight, after[index].lineHeight),
-  );
 }
 
 function failureMessage(result) {

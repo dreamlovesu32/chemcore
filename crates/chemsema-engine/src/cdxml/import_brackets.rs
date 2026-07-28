@@ -191,12 +191,11 @@ pub(in crate::cdxml) fn append_bracket_objects(
         let right = &brackets[right_index];
         let lb = normalized_bbox(left.bbox);
         let rb = normalized_bbox(right.bbox);
-        let (left_bracket, right_bracket, left_bounds, right_bounds) =
-            if center_x(lb) <= center_x(rb) {
-                (left, right, lb, rb)
-            } else {
-                (right, left, rb, lb)
-            };
+        let (left_bracket, right_bracket) = if center_x(lb) <= center_x(rb) {
+            (left, right)
+        } else {
+            (right, left)
+        };
         let min_x = lb[0].min(rb[0]);
         let min_y = lb[1].min(rb[1]);
         let max_x = lb[2].max(rb[2]);
@@ -216,16 +215,12 @@ pub(in crate::cdxml) fn append_bracket_objects(
             format!("{group_id}_left"),
             "left",
             left_bracket,
-            left_bounds,
-            min_x,
             pair_width,
         );
         let right_child = cdxml_bracket_side_scene_object(
             format!("{group_id}_right"),
             "right",
             right_bracket,
-            right_bounds,
-            min_x,
             pair_width,
         );
         objects.push(SceneObject {
@@ -271,54 +266,19 @@ pub(in crate::cdxml) fn append_bracket_objects(
             continue;
         }
         let length = dx.abs();
-        let depth =
-            cdxml_bracket_side_width(&bracket.kind, length, length).max(bracket.stroke_width);
-        let min_x = bracket.bbox[0].min(bracket.bbox[2]);
-        let y = bracket.bbox[1];
-        let mut extra = BTreeMap::new();
-        extra.insert("kind".to_string(), json!(bracket.kind.clone()));
-        extra.insert("side".to_string(), json!("left"));
-        extra.insert("stroke".to_string(), json!(bracket.stroke.clone()));
-        extra.insert("strokeWidth".to_string(), json!(bracket.stroke_width));
-        extra.insert("lipSize".to_string(), json!(bracket.lip_size));
-        extra.insert("orientation".to_string(), json!("horizontal"));
-        objects.push(SceneObject {
-            id: format!("obj_bracket_{object_index:03}"),
-            object_type: "bracket".to_string(),
-            name: "standalone horizontal bracket".to_string(),
-            visible: true,
-            locked: false,
-            z_index: bracket.z_index,
-            transform: Transform {
-                translate: [
-                    round2(min_x + (length - depth) * 0.5),
-                    round2(y - (length - depth) * 0.5),
-                ],
-                rotate: -90.0,
-                scale: [1.0, 1.0],
-            },
-            style_ref: None,
-            link_policy: Default::default(),
-            meta: json!({
-                "source": "cdxml",
-                "graphicId": bracket.graphic_id.clone(),
-                "standalone": true,
-            }),
-            payload: ObjectPayload {
-                resource_ref: None,
-                bbox: Some([0.0, 0.0, round2(depth), round2(length)]),
-                spectrum: None,
-                geometry: None,
-                constraint: None,
-                table: None,
-                stoichiometry_grid: None,
-                gel_electrophoresis: None,
-                plasmid_map: None,
-                bio_shape: None,
-                extra,
-            },
-            children: Vec::new(),
-        });
+        let mut object = cdxml_bracket_side_scene_object(
+            format!("obj_bracket_{object_index:03}"),
+            "left",
+            bracket,
+            length,
+        );
+        object.name = "standalone horizontal bracket".to_string();
+        object.meta["standalone"] = json!(true);
+        object
+            .payload
+            .extra
+            .insert("orientation".to_string(), json!("horizontal"));
+        objects.push(object);
         object_index += 1;
     }
 }
@@ -327,21 +287,32 @@ pub(super) fn cdxml_bracket_side_scene_object(
     object_id: String,
     side: &str,
     bracket: &PendingCdxmlBracket,
-    bounds: [f64; 4],
-    pair_x: f64,
     pair_width: f64,
 ) -> SceneObject {
     let stroke_width = bracket.stroke_width;
-    let side_height = height_of(bounds);
+    // Graphic BoundingBox is an ordered pair of authored points, not an
+    // axis-aligned box. ChemDraw writes a left side bottom-to-top and a right
+    // side top-to-bottom. Preserve those authoritative endpoints at source
+    // precision, then derive every local component from the same pair. Rounding
+    // length, angle, depth, and translation independently creates 0.01 pt
+    // threshold drift and cannot represent rotated endpoints exactly.
+    let first = crate::Point::new(bracket.bbox[0], bracket.bbox[1]);
+    let second = crate::Point::new(bracket.bbox[2], bracket.bbox[3]);
+    let (top, bottom) = if side == "right" {
+        (first, second)
+    } else {
+        (second, first)
+    };
+    let side_height = top.distance(bottom);
     let side_width = cdxml_bracket_side_width(&bracket.kind, pair_width, side_height)
         .max(stroke_width)
-        .max(bounds[2] - bounds[0]);
-    let translate_x = match side {
-        "right" if bracket.kind == "round" => pair_x + pair_width,
-        "right" => pair_x + pair_width - side_width,
-        "left" if bracket.kind == "round" => pair_x - side_width,
-        _ => pair_x,
-    };
+        .max(0.0);
+    let rotate = crate::angle_between(top, bottom) - 90.0;
+    let handle_x = cdxml_bracket_side_handle_x(&bracket.kind, side, side_width);
+    let local_center = crate::Point::new(side_width * 0.5, side_height * 0.5);
+    let rotated_top =
+        crate::rotate_point_around(crate::Point::new(handle_x, 0.0), local_center, rotate);
+    let translate = crate::Point::new(top.x - rotated_top.x, top.y - rotated_top.y);
     let mut extra = BTreeMap::new();
     extra.insert("kind".to_string(), json!(bracket.kind.clone()));
     extra.insert("side".to_string(), json!(side));
@@ -356,8 +327,8 @@ pub(super) fn cdxml_bracket_side_scene_object(
         locked: false,
         z_index: bracket.z_index,
         transform: Transform {
-            translate: [round2(translate_x), round2(bounds[1])],
-            rotate: 0.0,
+            translate: [translate.x, translate.y],
+            rotate,
             scale: [1.0, 1.0],
         },
         style_ref: None,
@@ -369,7 +340,7 @@ pub(super) fn cdxml_bracket_side_scene_object(
         }),
         payload: ObjectPayload {
             resource_ref: None,
-            bbox: Some([0.0, 0.0, round2(side_width), round2(side_height)]),
+            bbox: Some([0.0, 0.0, side_width, side_height]),
             spectrum: None,
             geometry: None,
             constraint: None,
@@ -381,6 +352,13 @@ pub(super) fn cdxml_bracket_side_scene_object(
             extra,
         },
         children: Vec::new(),
+    }
+}
+
+fn cdxml_bracket_side_handle_x(kind: &str, side: &str, width: f64) -> f64 {
+    match (kind, side) {
+        ("square", "left") | ("round", "right") | ("curly", "right") => 0.0,
+        _ => width,
     }
 }
 

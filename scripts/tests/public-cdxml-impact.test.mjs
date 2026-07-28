@@ -11,6 +11,55 @@ import {
   publicCdxmlCliCandidates,
   provenanceMismatches,
 } from "../public-cdxml-provenance.mjs";
+import { bracketWorldEndpoints } from "../public-cdxml-bracket-geometry.mjs";
+import { compareVisualGeometry } from "../public-cdxml-semantic-geometry.mjs";
+
+test("bracket semantic geometry follows ordered rotated spine endpoints", () => {
+  const endpoints = bracketWorldEndpoints({
+    bbox: [0, 0, 2, 10],
+    translate: [5, 7],
+    rotate: 90,
+    kind: "square",
+    side: "left",
+  });
+  assert.ok(endpoints);
+  assert.deepEqual(endpoints.top, [11, 11]);
+  assert.deepEqual(endpoints.bottom, [1, 11]);
+});
+
+test("visual geometry matches repeated text by tolerance instead of coordinate sort order", () => {
+  const item = (position) => ({
+    key: "[\"3\",\"left\"]",
+    position,
+    box: [position[0], position[1], position[0] + 2, position[1] + 5],
+    lineHeight: [5],
+  });
+  const before = [
+    item([202.48, 632.07]),
+    item([202.48, 705.28]),
+  ];
+  const after = [
+    item([202.47, 705.28]),
+    item([202.48, 632.07]),
+  ];
+  assert.equal(compareVisualGeometry(before, after), true);
+});
+
+test("visual geometry still rejects unmatched repeated text", () => {
+  const before = [{
+    key: "caption",
+    position: [10, 10],
+    box: [10, 10, 20, 20],
+    lineHeight: [8],
+  }];
+  const after = [{
+    key: "caption",
+    position: [10, 12],
+    box: [10, 12, 20, 22],
+    lineHeight: [8],
+  }];
+  assert.equal(compareVisualGeometry(before, after), false);
+});
 
 test("CDXML feature extraction recognizes visual rule families", () => {
   const features = featuresFromCdxml(`

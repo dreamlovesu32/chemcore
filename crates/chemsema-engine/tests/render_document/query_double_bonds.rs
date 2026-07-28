@@ -1139,7 +1139,7 @@ fn parse_cdxml_keeps_standalone_horizontal_curly_bracket() {
     )));
     let exported = document_to_cdxml(&document);
     assert!(
-        exported.contains("BoundingBox=\"20.005 59.995 140.005 59.995\""),
+        exported.contains("BoundingBox=\"140 60 20 60\""),
         "{exported}"
     );
     let reopened =
@@ -1155,6 +1155,132 @@ fn parse_cdxml_keeps_standalone_horizontal_curly_bracket() {
     );
     assert_eq!(reopened_bracket.transform, bracket.transform);
     assert_eq!(reopened_bracket.payload.bbox, bracket.payload.bbox);
+}
+
+#[test]
+fn parse_cdxml_preserves_arbitrary_angle_bracket_endpoints() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="0.6">
+  <page id="1">
+    <graphic id="20" BoundingBox="646.48 107.65 660.58 83.24"
+      GraphicType="Bracket" BracketType="Square" LipSize="60"/>
+    <graphic id="21" BoundingBox="692.99 101.96 678.89 126.37"
+      GraphicType="Bracket" BracketType="Square" LipSize="60"/>
+    <fragment id="39"><n id="40" p="670 105" Element="8"/></fragment>
+    <bracketedgroup id="30" BracketedObjectIDs="40" BracketUsage="MultipleGroup">
+      <bracketattachment id="31" GraphicID="20"/>
+      <bracketattachment id="32" GraphicID="21"/>
+    </bracketedgroup>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("angled brackets")).expect("parse cdxml");
+    let group = document
+        .objects
+        .iter()
+        .find(|object| object_is_bracket_group(object))
+        .expect("paired bracket group");
+    let left = group
+        .children
+        .iter()
+        .find(|object| object.payload.extra["side"] == json!("left"))
+        .expect("left bracket");
+    let right = group
+        .children
+        .iter()
+        .find(|object| object.payload.extra["side"] == json!("right"))
+        .expect("right bracket");
+    assert!(
+        (left.transform.rotate - 30.012_11).abs() < 1.0e-5,
+        "{left:?}"
+    );
+    assert!(
+        (right.transform.rotate - 30.012_11).abs() < 1.0e-5,
+        "{right:?}"
+    );
+    assert!(
+        left.payload.bbox.expect("left bbox")[2] < 3.0,
+        "endpoint x displacement is rotation, not bracket depth: {left:?}"
+    );
+    assert!(
+        render_document(&document)
+            .iter()
+            .filter(|primitive| matches!(
+                primitive,
+                RenderPrimitive::Path {
+                    role: RenderRole::DocumentGraphic,
+                    rotate,
+                    ..
+                        } if (*rotate - 30.012_11).abs() <= 1.0e-5
+            ))
+            .count()
+            >= 2
+    );
+
+    let exported = document_to_cdxml(&document);
+    assert!(
+        exported.contains("BoundingBox=\"646.48 107.65 660.58 83.24\""),
+        "{exported}"
+    );
+    assert!(
+        exported.contains("BoundingBox=\"692.99 101.96 678.89 126.37\""),
+        "{exported}"
+    );
+    assert!(exported.contains("LineWidth=\"0.6\""), "{exported}");
+
+    let reopened =
+        parse_cdxml_document(&exported, Some("reopened angled brackets")).expect("reopens");
+    let reopened_group = reopened
+        .objects
+        .iter()
+        .find(|object| object_is_bracket_group(object))
+        .expect("reopened paired bracket group");
+    for (before, after) in group.children.iter().zip(&reopened_group.children) {
+        assert_eq!(after.payload.bbox, before.payload.bbox);
+        assert_eq!(after.transform, before.transform);
+    }
+}
+
+#[test]
+fn parse_cdxml_round_bracket_geometry_does_not_cross_rounding_thresholds() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="0.5">
+  <page id="1">
+    <graphic id="20" BoundingBox="21.272 115.064 21.272 16.05"
+      GraphicType="Bracket" BracketType="Round" LipSize="60"/>
+    <graphic id="21" BoundingBox="99.424 16.05 99.424 115.064"
+      GraphicType="Bracket" BracketType="Round" LipSize="60"/>
+    <bracketedgroup id="30" BracketedObjectIDs="">
+      <bracketattachment id="31" GraphicID="20"/>
+      <bracketattachment id="32" GraphicID="21"/>
+    </bracketedgroup>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("precise round brackets")).expect("parse");
+    let group = document
+        .objects
+        .iter()
+        .find(|object| object_is_bracket_group(object))
+        .expect("paired bracket group");
+    let exported = document_to_cdxml(&document);
+    assert!(
+        exported.contains("BoundingBox=\"21.272 115.064 21.272 16.05\""),
+        "{exported}"
+    );
+    assert!(
+        exported.contains("BoundingBox=\"99.424 16.05 99.424 115.064\""),
+        "{exported}"
+    );
+    let reopened =
+        parse_cdxml_document(&exported, Some("reopened precise round brackets")).expect("reopens");
+    let reopened_group = reopened
+        .objects
+        .iter()
+        .find(|object| object_is_bracket_group(object))
+        .expect("reopened paired bracket group");
+    for (before, after) in group.children.iter().zip(&reopened_group.children) {
+        assert_eq!(after.payload.bbox, before.payload.bbox);
+        assert_eq!(after.transform, before.transform);
+    }
 }
 
 #[test]
