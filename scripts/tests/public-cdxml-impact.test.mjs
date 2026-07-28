@@ -4,7 +4,10 @@ import {
   mapWithConcurrency,
   mergeIncrementalManifestItems,
 } from "../render-public-cdxml-visual-review.mjs";
-import { classifyBaselineChanges } from "../public-cdxml-visual-gate.mjs";
+import {
+  baselineLockedAlignment,
+  classifyBaselineChanges,
+} from "../public-cdxml-visual-gate.mjs";
 import { featuresFromCdxml, selectAffectedCases } from "../public-cdxml-impact.mjs";
 import {
   GALLERY_PROVENANCE_SCHEMA,
@@ -15,6 +18,33 @@ import { bracketWorldEndpoints } from "../public-cdxml-bracket-geometry.mjs";
 import { compareVisualGeometry } from "../public-cdxml-semantic-geometry.mjs";
 import { visibleInterchangeBondCount } from "../public-cdxml-source-topology.mjs";
 import { matchesPublicCdxmlCasePattern } from "../public-cdxml-case-filter.mjs";
+
+test("visual baseline locks translation while the ChemDraw oracle is unchanged", () => {
+  const baseline = {
+    artifactHashes: { reference: "oracle-a", candidate: "candidate-old" },
+    alignment: {
+      algorithm: "chemdraw-declared-scale-translation-v8",
+      basis: "declared-scale-translation",
+      scale: 2.66666,
+      dx: -15.25,
+      dy: -16.5,
+    },
+  };
+  assert.deepEqual(
+    baselineLockedAlignment(
+      baseline,
+      { reference: "oracle-a", candidate: "candidate-new" },
+    ),
+    { ...baseline.alignment, lockedFromBaseline: true },
+  );
+  assert.equal(
+    baselineLockedAlignment(
+      baseline,
+      { reference: "oracle-b", candidate: "candidate-new" },
+    ),
+    null,
+  );
+});
 
 test("bracket semantic geometry follows ordered rotated spine endpoints", () => {
   const endpoints = bracketWorldEndpoints({

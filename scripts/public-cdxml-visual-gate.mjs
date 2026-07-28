@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { launchBrowser } from "./playwright-browser.mjs";
 import {
   computeImageAlignment,
+  IMAGE_ALIGNMENT_ALGORITHM,
   mapWithConcurrency,
   viewerHtml,
 } from "./render-public-cdxml-visual-review.mjs";
@@ -69,8 +70,15 @@ const DEFAULTS = Object.freeze({
   maxNearExactDefectArea: 18,
 });
 
-const ALIGNMENT_ALGORITHM = "ink-iou-coarse-refined-precision-v5";
-export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v8";
+const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v12";
+
+export function baselineLockedAlignment(baselineCase, artifactHashes) {
+  return baselineCase?.alignment?.algorithm === ALIGNMENT_ALGORITHM
+    && baselineCase.artifactHashes?.reference === artifactHashes.reference
+    ? { ...baselineCase.alignment, lockedFromBaseline: true }
+    : null;
+}
 
 function parseArgs(argv) {
   const options = { ...DEFAULTS, patterns: [] };
@@ -420,8 +428,8 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
           image,
           (dx - tile.x) * pixelScale,
           (dy - tile.y) * pixelScale,
-          image.naturalWidth * imageScale * pixelScale,
-          image.naturalHeight * imageScale * pixelScale,
+          (image === referenceImage ? referenceWidth : candidateWidth) * imageScale * pixelScale,
+          (image === referenceImage ? referenceHeight : candidateHeight) * imageScale * pixelScale,
         );
         return canvas;
       }
@@ -435,16 +443,21 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
       loadImage(referenceDataUrl),
       loadImage(candidateDataUrl),
     ]);
+    const referenceWidth = Number(alignment.referenceWidth ?? referenceImage.naturalWidth);
+    const referenceHeight = Number(alignment.referenceHeight ?? referenceImage.naturalHeight);
+    const candidateWidth = Number(alignment.chemsemaWidth ?? candidateImage.naturalWidth);
+    const candidateHeight = Number(alignment.chemsemaHeight ?? candidateImage.naturalHeight);
+
     const domain = {
       left: Math.floor(Math.min(0, alignment.dx)),
       top: Math.floor(Math.min(0, alignment.dy)),
       right: Math.ceil(Math.max(
-        referenceImage.naturalWidth,
-        alignment.dx + candidateImage.naturalWidth * alignment.scale,
+        referenceWidth,
+        alignment.dx + candidateWidth * alignment.scale,
       )),
       bottom: Math.ceil(Math.max(
-        referenceImage.naturalHeight,
-        alignment.dy + candidateImage.naturalHeight * alignment.scale,
+        referenceHeight,
+        alignment.dy + candidateHeight * alignment.scale,
       )),
     };
     const radius = Math.max(0, Math.ceil(settings.tolerance * settings.analysisScale));
@@ -1039,7 +1052,6 @@ export function classifyAnalyzedVisualMetrics(coarseMetrics, detailMetrics, opti
   const boundedLocalEquivalent = boundedLocalTopologyEquivalent(coarseMetrics, options);
   const nearExactEquivalent = nearExactFixedDefectEquivalent(coarseMetrics, options);
   const coarseAccepted = coarseMetrics.passed
-    || topologyEquivalent
     || slenderEquivalent
     || boundedLocalEquivalent
     || nearExactEquivalent;
@@ -1051,7 +1063,8 @@ export function classifyAnalyzedVisualMetrics(coarseMetrics, detailMetrics, opti
       ...detailReasons,
     ],
     coarsePassed: coarseMetrics.passed,
-    coarseAcceptedByFineTopology: !coarseMetrics.passed && topologyEquivalent,
+    coarseFineTopologyEquivalent: !coarseMetrics.passed && topologyEquivalent,
+    coarseAcceptedByFineTopology: false,
     coarseAcceptedBySlenderDefect: !coarseMetrics.passed && slenderEquivalent,
     coarseAcceptedByBoundedLocalTopology:
       !coarseMetrics.passed && boundedLocalEquivalent,
@@ -1086,7 +1099,9 @@ function detailAnalysisOptions(options) {
 function gatePolicy(options) {
   return {
     coordinateSpace: "ChemDraw reference image coordinates",
-    alignment: "uniform scale plus translation maximizing binary-ink overlap",
+    alignment:
+      "ChemDraw's declared vector matrix fixes scale; only global translation is registered "
+      + "and then locked by the baseline; full ink scale-plus-translation is raster-only",
     canvasWhitespaceIncluded: false,
     caseWeighting: "one case, one vote",
     comparison: "coarse fixed-window coverage and defects, followed by fine connected-component and repeated-micro-defect checks",
@@ -1173,6 +1188,31 @@ async function runSelfTest(options) {
   const browser = await launchBrowser({ headless: true });
   const page = await browser.newPage();
   try {
+    const vectorReference = `<svg xmlns="http://www.w3.org/2000/svg" width="120px" height="80px" viewBox="0 0 120 80">
+      <path transform="matrix(0.125 0 0 0.125 7 -11)" d="M 200 200 L 400 400" fill="none" stroke="black" stroke-width="16"/>
+    </svg>`;
+    const vectorCandidate = `<svg xmlns="http://www.w3.org/2000/svg" width="48.25" height="32.75" viewBox="-3 5 48.25 32.75">
+      <path d="M 10 10 L 20 20" fill="none" stroke="black" stroke-width="0.8"/>
+    </svg>`;
+    const vectorAlignment = await computeImageAlignment(
+      page,
+      data(vectorReference),
+      data(vectorCandidate),
+    );
+    const vectorExpected = { scale: 2.5 };
+    if (
+      vectorAlignment.algorithm !== ALIGNMENT_ALGORITHM
+      || vectorAlignment.basis !== "declared-scale-translation"
+      || Math.abs(vectorAlignment.scale - vectorExpected.scale) > 1e-9
+      || !Number.isFinite(vectorAlignment.dx)
+      || !Number.isFinite(vectorAlignment.dy)
+      || vectorAlignment.chemsemaWidth !== 48.25
+      || vectorAlignment.chemsemaHeight !== 32.75
+    ) {
+      throw new Error(
+        `deterministic vector-frame alignment regression: ${JSON.stringify(vectorAlignment)}`,
+      );
+    }
     const alignment = { scale: 1, dx: 0, dy: 0 };
     const small = await analyzeAlignedImages(page, data(svg(128, 96, "M 105 40 L 120 40")), data(svg(128, 96, "")), alignment, options);
     const distantCorrectDetail = "M 1000 900 L 1800 900 M 1400 500 L 1400 1300";
@@ -1220,7 +1260,35 @@ async function runSelfTest(options) {
       },
     };
     if (!fineTopologyEquivalent(topologyDetail, options)) {
-      throw new Error("fine-topology acceptance regression");
+      throw new Error("fine-topology diagnostic regression");
+    }
+    const topologyOnlyClassification = classifyAnalyzedVisualMetrics(
+      {
+        passed: false,
+        reasons: ["local-reference-coverage"],
+        referenceCoverage: 0.2,
+        candidateCoverage: 0.2,
+        local: { referenceCoverage: 0, candidateCoverage: 0 },
+        largestMissing: { area: 100, span: 100 },
+        largestExtra: { area: 100, span: 100 },
+        detailFeatures: {
+          componentCountDelta: 0,
+          relativeComponentMatchCoverage: 1,
+        },
+      },
+      topologyDetail,
+      options,
+    );
+    if (
+      topologyOnlyClassification.passed
+      || topologyOnlyClassification.coarseAcceptedByFineTopology
+      || !topologyOnlyClassification.coarseFineTopologyEquivalent
+    ) {
+      throw new Error(
+        `fine topology bypassed fixed-coordinate defects: ${
+          JSON.stringify(topologyOnlyClassification)
+        }`,
+      );
     }
     topologyDetail.detailFeatures.componentPositionDistributionDelta += 0.001;
     if (fineTopologyEquivalent(topologyDetail, options)) {
@@ -1418,9 +1486,16 @@ async function main() {
           fileDataUrl(referencePath),
           fileDataUrl(candidatePath),
         ]);
-        const alignment = item.alignment?.algorithm === ALIGNMENT_ALGORITHM
-          ? item.alignment
-          : await computeImageAlignment(activePage, referenceDataUrl, candidateDataUrl);
+        const lockedBaselineAlignment = baselineLockedAlignment(baselineCase, hashes);
+        const alignment = lockedBaselineAlignment
+          ? lockedBaselineAlignment
+          : item.alignment?.algorithm === ALIGNMENT_ALGORITHM
+            ? item.alignment
+            : await computeImageAlignment(
+              activePage,
+              referenceDataUrl,
+              candidateDataUrl,
+            );
         const coarseMetrics = await analyzeAlignedImages(
           activePage,
           referenceDataUrl,

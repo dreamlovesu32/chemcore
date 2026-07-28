@@ -39,9 +39,18 @@ node scripts/render-public-cdxml-visual-review.mjs --all \
 ```
 
 The gallery normalizes both panels into the ChemDraw reference coordinate
-space and searches image scale and translation for maximum ink overlap. Large
-references receive a final high-resolution subpixel search so a one-pixel
-thumbnail offset cannot masquerade as a bond-contact defect. Review
+space. The ChemDraw SVG path matrix declares the conversion from
+twentieth-of-a-point coordinates to reference pixels, so that uniform scale is
+fixed. Because an absolute page origin is not portable document semantics, the
+outer ink-bounds centers seed a translation-only overlap search; the gate
+cannot fit scale, rotation, or non-uniform distortion. Once a baseline exists,
+later candidates with the same ChemDraw oracle reuse its translation, so a
+local drawing change cannot register the whole page again.
+The gate also uses the SVG's
+possibly fractional declared `width` and `height`, rather than the browser's
+independently rounded intrinsic dimensions, so the candidate is not silently
+stretched. Only references without a vector scale use the explicitly marked
+ink-overlap branch. Review
 state, notes, the current item, display mode, opacity, and box-selection mode
 are saved to browser local storage as they change. A box drawn on either panel
 is stored in reference coordinates, appears on both panels, and immediately
@@ -62,9 +71,10 @@ file size. Blank canvas pixels never enter the score. Its coarse stage uses
 fixed-size local windows and connected missing/extra ink components. A second,
 finer stage checks connected-object count, the dimensions of small symbols,
 and repeated compact micro-defects such as disconnected dashed-bond endpoint
-miters. For complex multi-object drawings, equal component counts plus a close
-normalized X/Y position distribution can confirm topology even when one global
-pixel scale cannot align every text glyph. All thresholds are expressed in
+miters. For complex multi-object drawings, component counts and normalized X/Y
+position distributions remain diagnostic signals, but cannot override an
+empty local window, a fixed-span defect, or failed foreground coverage. All
+thresholds are expressed in
 ChemDraw reference coordinates or normalized structure coordinates, so a
 small missing label, sign, or bond detail cannot be diluted by a large molecule,
 reaction scheme, or page. The JSON report includes canonical-coordinate boxes
@@ -96,12 +106,15 @@ npm run benchmark:cdxml-public:visual-gate:affected
 
 The planner updates only selected gallery items. The gate reuses unchanged cases by ChemDraw-oracle hash, ChemSema-SVG hash, and gate-definition identity, while the resulting report still covers the complete baseline. `cache.reused` and `cache.analyzed` expose the split. Baseline mode permits historical failures to remain open, but every pass-to-fail transition is recorded in `delta.regressions` and fails the command. Path-to-feature declarations and historical regression cases live in `benchmarks/public-cdxml/visual-impact-map.json`; unknown production changes and gate-definition changes conservatively force a full run.
 
-Gate v8 makes the fixed-coordinate detail checks non-bypassable. A
-whole-page coverage score cannot excuse an empty local window or a large local
-defect, and coarse pixel agreement cannot discard a fine connected-component
-mismatch. The detail pass uses zero dilation to retain repeated sub-pixel join
-differences; its repeated-defect rule is calibrated in reference-image units,
-not as a percentage of canvas size. Canonical runs reject any gallery whose
+Gate v12 makes the fixed-coordinate detail checks non-bypassable. Neither a
+whole-page coverage score nor topology distribution can excuse an empty local
+window or a large local defect, and coarse pixel agreement cannot discard a
+fine connected-component mismatch. The detail pass uses zero dilation to
+retain repeated sub-pixel join differences; its repeated-defect rule is
+calibrated in reference-image units, not as a percentage of canvas size. SVG
+scale is derived from the declared vector matrix, and baseline translation is
+locked, so changing one glyph or bond cannot register the entire page again.
+Canonical runs reject any gallery whose
 repository, CLI, corpus, round-trip report, or per-item candidate provenance
 does not match. `--allow-stale-gallery` is diagnostic only and never makes
 stale artifacts canonical.
