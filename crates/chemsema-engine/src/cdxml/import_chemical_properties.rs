@@ -154,9 +154,28 @@ pub(super) fn source_entity_map(
             }
         }
     }
+    map_owned_node_label_text(root, &mut map);
     map_superseded_graphics(root, &mut map);
     map_unmodeled_containers(root, &mut map);
     map
+}
+
+fn map_owned_node_label_text(root: &XmlNode, map: &mut BTreeMap<String, Vec<String>>) {
+    for node in descendants(root).into_iter().filter(|node| node.is("n")) {
+        let Some(owner_ids) = node.attr("id").and_then(|id| map.get(id)).cloned() else {
+            continue;
+        };
+        for text_id in node
+            .children
+            .iter()
+            .filter(|child| child.is("t"))
+            .filter_map(|child| child.attr("id"))
+        {
+            for owner_id in &owner_ids {
+                push_unique(map, text_id, owner_id);
+            }
+        }
+    }
 }
 
 fn map_superseded_graphics(root: &XmlNode, map: &mut BTreeMap<String, Vec<String>>) {

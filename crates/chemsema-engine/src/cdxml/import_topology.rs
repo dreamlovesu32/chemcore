@@ -354,14 +354,6 @@ pub(super) fn topology_walk_order<'a>(
     ordered
 }
 
-pub(super) fn cdxml_node_owns_embedded_fragment(node: &XmlNode) -> bool {
-    // A fragment nested directly inside a node is that node's connection table
-    // or expansion definition.  It is not an independently displayed fragment.
-    // The rule is structural: CDXML permits these children on more node kinds
-    // than the common Fragment/Nickname cases (notably alternative groups).
-    node.is("n") && node.direct_children("fragment").next().is_some()
-}
-
 pub(super) fn cdxml_bonded_node_ids(root: &XmlNode) -> BTreeSet<String> {
     let mut ids = BTreeSet::new();
     for bond in descendants(root).into_iter().filter(|node| node.is("b")) {

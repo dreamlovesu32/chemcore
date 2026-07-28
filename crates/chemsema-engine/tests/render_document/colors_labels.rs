@@ -758,8 +758,17 @@ fn load_cdxml_document_preserves_figure2_display_fragments() {
         .iter()
         .filter(|object| object.object_type == "molecule")
         .count();
-    assert_eq!(molecule_objects, 7);
-    assert_eq!(document.editable_fragments().len(), 7);
+    assert_eq!(molecule_objects, 9);
+    assert_eq!(document.editable_fragments().len(), 9);
+    assert_eq!(
+        document
+            .editable_fragments()
+            .iter()
+            .filter(|editable| editable.fragment.bonds.is_empty())
+            .count(),
+        2,
+        "the two positioned singleton chemical labels are displayed fragments too"
+    );
     assert!(!document
         .objects
         .iter()

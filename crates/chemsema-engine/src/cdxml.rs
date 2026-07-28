@@ -909,6 +909,99 @@ mod interchange_tests {
     }
 
     #[test]
+    fn singleton_placeholder_fragment_stays_a_molecule_for_every_producer() {
+        let source = r#"<CDXML CreationProgram="ChemDraw 23" BondLength="14.4">
+          <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+          <page id="1">
+            <fragment id="20" BoundingBox="10 10 25 20">
+              <n id="21" p="12 15" NodeType="Unspecified" Warning="Parentheses don't match.">
+                <t p="10 18" BoundingBox="10 10 25 20"><s font="3" size="10">(</s></t>
+              </n>
+            </fragment>
+          </page>
+        </CDXML>"#;
+        let document =
+            parse_cdxml_document(source, Some("singleton")).expect("singleton fragment imports");
+        assert_eq!(
+            document
+                .scene_objects()
+                .iter()
+                .filter(|object| object.kind() == crate::SceneObjectKind::Molecule)
+                .count(),
+            1
+        );
+        assert!(!document
+            .scene_objects()
+            .iter()
+            .any(|object| object.kind() == crate::SceneObjectKind::Text));
+        let fragment = document.resources["mol_001"]
+            .data
+            .as_fragment()
+            .expect("molecule resource");
+        assert_eq!(fragment.nodes.len(), 1);
+        assert_eq!(
+            fragment.nodes[0]
+                .label
+                .as_ref()
+                .map(|label| label.text.as_str()),
+            Some("(")
+        );
+
+        let saved = document_to_cdxml(&document);
+        let reopened =
+            parse_cdxml_document(&saved, Some("reopened")).expect("singleton export reopens");
+        assert_eq!(
+            reopened
+                .scene_objects()
+                .iter()
+                .filter(|object| object.kind() == crate::SceneObjectKind::Molecule)
+                .count(),
+            1
+        );
+        assert!(!reopened
+            .scene_objects()
+            .iter()
+            .any(|object| object.kind() == crate::SceneObjectKind::Text));
+    }
+
+    #[test]
+    fn unpositioned_fragment_wrapper_exposes_its_positioned_embedded_fragment() {
+        let source = r#"<CDXML BondLength="14.4"><page id="1">
+          <fragment id="20">
+            <n id="21" NodeType="Fragment">
+              <fragment id="30">
+                <n id="31" p="10 10"/>
+                <n id="32" p="24.4 10"/>
+                <b id="33" B="31" E="32"/>
+              </fragment>
+              <t><s>Et</s></t>
+            </n>
+          </fragment>
+        </page></CDXML>"#;
+        let document =
+            parse_cdxml_document(source, Some("wrapper")).expect("embedded fragment imports");
+        let molecules = document
+            .scene_objects()
+            .into_iter()
+            .filter(|object| object.kind() == crate::SceneObjectKind::Molecule)
+            .collect::<Vec<_>>();
+        assert_eq!(molecules.len(), 1);
+        assert_eq!(
+            molecules[0].meta.get("fragmentId").and_then(Value::as_str),
+            Some("30")
+        );
+        let fragment = molecules[0]
+            .payload
+            .resource_ref
+            .as_ref()
+            .and_then(|id| document.resources.get(id))
+            .and_then(|resource| resource.data.as_fragment())
+            .expect("embedded molecule resource");
+        assert_eq!(fragment.nodes.len(), 2);
+        assert_eq!(fragment.bonds.len(), 1);
+    }
+
+    #[test]
     fn cdxml_unmodeled_official_fields_and_objects_roundtrip_through_ccjs() {
         let source = r#"<CDXML CreationProgram="ChemDraw 23" CreationDate="20260723090000" BoundingBox="0 0 120 80">
   <page id="1" BoundingBox="0 0 120 80" Width="120" Height="80">
