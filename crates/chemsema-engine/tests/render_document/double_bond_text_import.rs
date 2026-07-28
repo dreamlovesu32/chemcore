@@ -1641,7 +1641,10 @@ fn parse_cdxml_node_labels_use_internal_attached_layout() {
     assert!(exported.contains("Element=\"7\""), "{exported}");
     assert!(exported.contains("NumHydrogens=\"1\""), "{exported}");
     assert!(exported.contains("LabelAlignment=\"Above\""), "{exported}");
-    assert!(exported.contains("LineStarts=\"2 4\""), "{exported}");
+    assert!(
+        !exported.contains("LineStarts="),
+        "directional NH layout is represented by LabelAlignment, not authored line breaks: {exported}"
+    );
     assert!(exported.contains("BoundingBox="), "{exported}");
     assert!(
         exported.contains("InterpretChemically=\"yes\""),
@@ -1943,7 +1946,7 @@ fn cdxml_caption_fields_override_obsolete_text_fields_and_roundtrip() {
         "CaptionLineHeight=\"auto\"",
         "LineHeight=\"9\"",
         "WordWrapWidth=\"72\"",
-        "LineStarts=\"6 12\"",
+        "LineStarts=\"6 10\"",
     ] {
         assert!(
             exported.contains(expected),
@@ -1951,4 +1954,9 @@ fn cdxml_caption_fields_override_obsolete_text_fields_and_roundtrip() {
         );
     }
     assert!(!exported.contains("LabelJustification=\"Center\""));
+    let reopened =
+        parse_cdxml_document(&exported, Some("reopened caption fields")).expect("export reopens");
+    let exported_again = document_to_cdxml(&reopened);
+    assert!(exported_again.contains("LineStarts=\"6 10\""));
+    assert!(!exported_again.contains("LineStarts=\"6 12\""));
 }

@@ -1,6 +1,6 @@
 {
   "schema": "chemsema.public-cdxml-failure-ledger.v1",
-  "generatedAt": "2026-07-28T13:36:15.562Z",
+  "generatedAt": "2026-07-28T14:27:32.395Z",
   "inputs": {
     "roundtripReport": "tmp/public-cdxml-roundtrip-current/report.json",
     "visualReport": "tmp/public-cdxml-chemdraw-review-all/gate-current.json",
@@ -12,21 +12,19 @@
     "totalRegistered": 339,
     "originalCohort": 338,
     "additionalGateCases": 1,
-    "active": 59,
-    "currentlyPassing": 280,
+    "active": 21,
+    "currentlyPassing": 318,
     "byRoundtripStatus": {
-      "exact": 278,
-      "semantic-drift": 39,
-      "non-idempotent": 15,
+      "exact": 316,
+      "semantic-drift": 16,
       "topology-lost": 4,
       "expected-normalization": 2,
       "import-failed": 1
     },
     "byAutomaticCluster": {
       "visual-pixel-mismatch": 193,
-      "roundtrip-first-generation-mixed-drift": 39,
       "visual-component-topology-mismatch": 23,
-      "roundtrip-non-idempotent-mixed-semantics": 15,
+      "roundtrip-first-generation-mixed-drift": 16,
       "roundtrip-topology-lost": 4,
       "visual-oracle-unavailable": 3,
       "roundtrip-import-failed": 1
@@ -49,8 +47,8 @@
       "unavailable": 3
     },
     "byReviewStatus": {
-      "verified": 277,
-      "pending": 62
+      "verified": 292,
+      "pending": 47
     }
   },
   "cases": [
@@ -8856,7 +8854,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -8876,10 +8874,8 @@
               "molecule": 0,
               "shape": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -8960,9 +8956,8 @@
         "componentCountDelta": 29
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -11118,7 +11113,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -11140,10 +11135,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -11228,9 +11221,8 @@
         "componentCountDelta": 20
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -12103,7 +12095,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -12126,10 +12118,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -12216,9 +12206,8 @@
         "componentCountDelta": 59
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -14695,7 +14684,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -14715,10 +14704,8 @@
               "molecule": 0,
               "shape": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -14799,9 +14786,8 @@
         "componentCountDelta": 29
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -17226,7 +17212,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -17248,10 +17234,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -17336,9 +17320,8 @@
         "componentCountDelta": 20
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -17924,7 +17907,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -17947,10 +17930,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -18037,9 +18018,8 @@
         "componentCountDelta": 59
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -22366,7 +22346,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -22387,10 +22367,8 @@
               "group": 0,
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -22466,10 +22444,8 @@
         "componentCountDelta": 6
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
@@ -23277,7 +23253,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -23300,10 +23276,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -23383,10 +23357,8 @@
         "componentCountDelta": 3
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "roundtrip-non-idempotent-mixed-semantics"
@@ -23417,7 +23389,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -23440,10 +23412,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -23523,10 +23493,8 @@
         "componentCountDelta": 2
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "roundtrip-non-idempotent-mixed-semantics"
@@ -23557,7 +23525,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -23580,10 +23548,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -23604,10 +23570,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -23672,19 +23636,24 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-normalize-materialized-line-start-offsets"
+        ],
+        "confirmedRootCause": "LineStarts is interpreted against the authored UTF-8 styled-text byte stream. When those virtual wrap positions are materialized as LF characters in editable CCJS text, the persisted offsets are advanced to describe that materialized stream, so reopening cannot insert the same breaks again.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+          "docs/cdxml-text-label-field-audit.zh-CN.md#linestarts-导入规则补充2026-07-21",
+          "crates/chemsema-engine/tests/render_document/text_layout.rs#materialized_utf8_line_starts_are_idempotent_across_cdxml_saves"
+        ],
         "notes": null
       }
     },
@@ -23707,7 +23676,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -23730,10 +23699,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -23754,10 +23721,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -23822,19 +23787,24 @@
         "componentCountDelta": 3
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-normalize-materialized-line-start-offsets"
+        ],
+        "confirmedRootCause": "LineStarts is interpreted against the authored UTF-8 styled-text byte stream. When those virtual wrap positions are materialized as LF characters in editable CCJS text, the persisted offsets are advanced to describe that materialized stream, so reopening cannot insert the same breaks again.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+          "docs/cdxml-text-label-field-audit.zh-CN.md#linestarts-导入规则补充2026-07-21",
+          "crates/chemsema-engine/tests/render_document/text_layout.rs#materialized_utf8_line_starts_are_idempotent_across_cdxml_saves"
+        ],
         "notes": null
       }
     },
@@ -24146,7 +24116,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -24169,10 +24139,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -24252,10 +24220,8 @@
         "componentCountDelta": 2
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "roundtrip-non-idempotent-mixed-semantics"
@@ -25436,7 +25402,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -25459,10 +25425,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -25549,9 +25513,8 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -26145,7 +26108,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -26168,10 +26131,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -26192,10 +26153,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -26260,19 +26219,24 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-normalize-materialized-line-start-offsets"
+        ],
+        "confirmedRootCause": "LineStarts is interpreted against the authored UTF-8 styled-text byte stream. When those virtual wrap positions are materialized as LF characters in editable CCJS text, the persisted offsets are advanced to describe that materialized stream, so reopening cannot insert the same breaks again.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+          "docs/cdxml-text-label-field-audit.zh-CN.md#linestarts-导入规则补充2026-07-21",
+          "crates/chemsema-engine/tests/render_document/text_layout.rs#materialized_utf8_line_starts_are_idempotent_across_cdxml_saves"
+        ],
         "notes": null
       }
     },
@@ -26295,7 +26259,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -26318,10 +26282,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -26342,10 +26304,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -26403,17 +26363,21 @@
         "componentCountDelta": 1
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-normalize-materialized-line-start-offsets"
+        ],
+        "confirmedRootCause": "LineStarts is interpreted against the authored UTF-8 styled-text byte stream. When those virtual wrap positions are materialized as LF characters in editable CCJS text, the persisted offsets are advanced to describe that materialized stream, so reopening cannot insert the same breaks again.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+          "docs/cdxml-text-label-field-audit.zh-CN.md#linestarts-导入规则补充2026-07-21",
+          "crates/chemsema-engine/tests/render_document/text_layout.rs#materialized_utf8_line_starts_are_idempotent_across_cdxml_saves"
+        ],
         "notes": null
       }
     },
@@ -27427,7 +27391,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -27447,10 +27411,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -27531,9 +27493,8 @@
         "componentCountDelta": 148
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -30002,7 +29963,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -30024,10 +29985,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -30085,9 +30044,8 @@
         "componentCountDelta": null
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-oracle-unavailable"
         ],
         "historicalClusters": [
@@ -30306,7 +30264,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -30327,11 +30285,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -30350,10 +30305,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -30372,10 +30325,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -30418,19 +30369,26 @@
         "componentCountDelta": 32
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-aromatic-order-independent-from-bond-display"
+        ],
+        "confirmedRootCause": "Order=1.5 preserves delocalized or aromatic bond semantics but does not imply Display=Dash. Export derives Display from the editable line style, retains an explicit source Display when topology-only layout suppresses that style in the preview, and leaves Display absent when the authored bond was solid.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Order.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Display.htm",
+          "crates/chemsema-engine/tests/render_document/crossings_selection.rs#positioned_solid_order_one_point_five_is_not_drawn_as_a_double_bond",
+          "crates/chemsema-engine/tests/render_document/crossings_selection.rs#coordinate_free_cdxml_aromatic_ring_and_missing_bond_ids_remain_visible",
+          "crates/chemsema-engine/tests/render_document/crossings_selection.rs#positioned_cdxml_aromatic_dash_remains_visibly_dashed"
+        ],
         "notes": null
       }
     },
@@ -30450,7 +30408,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -30471,11 +30429,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -30494,10 +30449,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -30516,10 +30469,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -30562,19 +30513,26 @@
         "componentCountDelta": 313
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-aromatic-order-independent-from-bond-display"
+        ],
+        "confirmedRootCause": "Order=1.5 preserves delocalized or aromatic bond semantics but does not imply Display=Dash. Export derives Display from the editable line style, retains an explicit source Display when topology-only layout suppresses that style in the preview, and leaves Display absent when the authored bond was solid.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Order.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Display.htm",
+          "crates/chemsema-engine/tests/render_document/crossings_selection.rs#positioned_solid_order_one_point_five_is_not_drawn_as_a_double_bond",
+          "crates/chemsema-engine/tests/render_document/crossings_selection.rs#coordinate_free_cdxml_aromatic_ring_and_missing_bond_ids_remain_visible",
+          "crates/chemsema-engine/tests/render_document/crossings_selection.rs#positioned_cdxml_aromatic_dash_remains_visibly_dashed"
+        ],
         "notes": null
       }
     },
@@ -32193,7 +32151,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -32215,11 +32173,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -32304,9 +32259,8 @@
         "componentCountDelta": 23
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -32783,7 +32737,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -32806,11 +32760,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -32897,9 +32848,8 @@
         "componentCountDelta": 23
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -32932,7 +32882,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -32955,11 +32905,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -33046,9 +32993,8 @@
         "componentCountDelta": 20
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -33079,7 +33025,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -33101,11 +33047,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -33190,9 +33133,8 @@
         "componentCountDelta": 11
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -33222,7 +33164,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -33244,11 +33186,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -33326,10 +33265,8 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "roundtrip-non-idempotent-mixed-semantics"
@@ -33809,7 +33746,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -33832,10 +33769,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -33922,9 +33857,8 @@
         "componentCountDelta": 22
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -33956,7 +33890,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -33979,11 +33913,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -34004,11 +33935,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -34073,19 +34001,28 @@
         "componentCountDelta": 18
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-directional-label-layout-separate-from-authored-lines",
+          "cdxml-do-not-positionally-merge-identified-graph-objects"
+        ],
+        "confirmedRootCause": "A chemical label may be displayed in directional rows because of LabelAlignment even though its authored text contains no newline. Export emits LineStarts only for LF characters in the authored text stream; derived above, below, or reversed atom-label layout remains controlled by LabelAlignment.; Fragment and Group IDs define ownership boundaries and are never merged with an arbitrary neighboring boundary. A renumbered Fragment may inherit source metadata only when its direct Node/Bond shape and node centroid identify one unique peer; Nodes and Bonds may be renumbered and retain ordered matching inside that already-matched Fragment. A regenerated display Fragment nested inside an unpositioned Fragment-node wrapper is removed from the retained wrapper before the native top-level Fragment is emitted.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelAlignment.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+          "crates/chemsema-engine/tests/render_document/double_bond_text_import.rs#parse_cdxml_node_labels_use_internal_attached_layout",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml.rs#unpositioned_fragment_wrapper_exposes_its_positioned_embedded_fragment"
+        ],
         "notes": null
       }
     },
@@ -34106,7 +34043,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -34129,11 +34066,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -34154,11 +34088,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -34223,19 +34154,28 @@
         "componentCountDelta": 23
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-directional-label-layout-separate-from-authored-lines",
+          "cdxml-do-not-positionally-merge-identified-graph-objects"
+        ],
+        "confirmedRootCause": "A chemical label may be displayed in directional rows because of LabelAlignment even though its authored text contains no newline. Export emits LineStarts only for LF characters in the authored text stream; derived above, below, or reversed atom-label layout remains controlled by LabelAlignment.; Fragment and Group IDs define ownership boundaries and are never merged with an arbitrary neighboring boundary. A renumbered Fragment may inherit source metadata only when its direct Node/Bond shape and node centroid identify one unique peer; Nodes and Bonds may be renumbered and retain ordered matching inside that already-matched Fragment. A regenerated display Fragment nested inside an unpositioned Fragment-node wrapper is removed from the retained wrapper before the native top-level Fragment is emitted.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelAlignment.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+          "crates/chemsema-engine/tests/render_document/double_bond_text_import.rs#parse_cdxml_node_labels_use_internal_attached_layout",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml.rs#unpositioned_fragment_wrapper_exposes_its_positioned_embedded_fragment"
+        ],
         "notes": null
       }
     },
@@ -34553,7 +34493,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -34576,10 +34516,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -34659,10 +34597,8 @@
         "componentCountDelta": 1
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-mixed-drift",
           "roundtrip-non-idempotent-mixed-semantics"
@@ -34691,7 +34627,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -34714,10 +34650,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -34804,9 +34738,8 @@
         "componentCountDelta": 22
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -34838,7 +34771,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -34861,11 +34794,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -34952,9 +34882,8 @@
         "componentCountDelta": 20
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -34986,7 +34915,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -35009,11 +34938,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -35100,9 +35026,8 @@
         "componentCountDelta": 38
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
@@ -35133,7 +35058,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -35156,11 +35081,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -35181,11 +35103,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -35243,17 +35162,25 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-directional-label-layout-separate-from-authored-lines",
+          "cdxml-do-not-positionally-merge-identified-graph-objects"
+        ],
+        "confirmedRootCause": "A chemical label may be displayed in directional rows because of LabelAlignment even though its authored text contains no newline. Export emits LineStarts only for LF characters in the authored text stream; derived above, below, or reversed atom-label layout remains controlled by LabelAlignment.; Fragment and Group IDs define ownership boundaries and are never merged with an arbitrary neighboring boundary. A renumbered Fragment may inherit source metadata only when its direct Node/Bond shape and node centroid identify one unique peer; Nodes and Bonds may be renumbered and retain ordered matching inside that already-matched Fragment. A regenerated display Fragment nested inside an unpositioned Fragment-node wrapper is removed from the retained wrapper before the native top-level Fragment is emitted.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelAlignment.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+          "crates/chemsema-engine/tests/render_document/double_bond_text_import.rs#parse_cdxml_node_labels_use_internal_attached_layout",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml.rs#unpositioned_fragment_wrapper_exposes_its_positioned_embedded_fragment"
+        ],
         "notes": null
       }
     },
@@ -35273,7 +35200,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -35296,11 +35223,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -35321,11 +35245,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -35383,17 +35304,25 @@
         "componentCountDelta": 2
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-directional-label-layout-separate-from-authored-lines",
+          "cdxml-do-not-positionally-merge-identified-graph-objects"
+        ],
+        "confirmedRootCause": "A chemical label may be displayed in directional rows because of LabelAlignment even though its authored text contains no newline. Export emits LineStarts only for LF characters in the authored text stream; derived above, below, or reversed atom-label layout remains controlled by LabelAlignment.; Fragment and Group IDs define ownership boundaries and are never merged with an arbitrary neighboring boundary. A renumbered Fragment may inherit source metadata only when its direct Node/Bond shape and node centroid identify one unique peer; Nodes and Bonds may be renumbered and retain ordered matching inside that already-matched Fragment. A regenerated display Fragment nested inside an unpositioned Fragment-node wrapper is removed from the retained wrapper before the native top-level Fragment is emitted.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelAlignment.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+          "crates/chemsema-engine/tests/render_document/double_bond_text_import.rs#parse_cdxml_node_labels_use_internal_attached_layout",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml.rs#unpositioned_fragment_wrapper_exposes_its_positioned_embedded_fragment"
+        ],
         "notes": null
       }
     },
@@ -35415,7 +35344,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -35438,11 +35367,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -35463,11 +35389,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -35532,19 +35455,28 @@
         "componentCountDelta": 34
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-directional-label-layout-separate-from-authored-lines",
+          "cdxml-do-not-positionally-merge-identified-graph-objects"
+        ],
+        "confirmedRootCause": "A chemical label may be displayed in directional rows because of LabelAlignment even though its authored text contains no newline. Export emits LineStarts only for LF characters in the authored text stream; derived above, below, or reversed atom-label layout remains controlled by LabelAlignment.; Fragment and Group IDs define ownership boundaries and are never merged with an arbitrary neighboring boundary. A renumbered Fragment may inherit source metadata only when its direct Node/Bond shape and node centroid identify one unique peer; Nodes and Bonds may be renumbered and retain ordered matching inside that already-matched Fragment. A regenerated display Fragment nested inside an unpositioned Fragment-node wrapper is removed from the retained wrapper before the native top-level Fragment is emitted.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelAlignment.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+          "crates/chemsema-engine/tests/render_document/double_bond_text_import.rs#parse_cdxml_node_labels_use_internal_attached_layout",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml.rs#unpositioned_fragment_wrapper_exposes_its_positioned_embedded_fragment"
+        ],
         "notes": null
       }
     },
@@ -35566,7 +35498,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -35589,11 +35521,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -35614,11 +35543,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -35683,19 +35609,28 @@
         "componentCountDelta": 25
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-directional-label-layout-separate-from-authored-lines",
+          "cdxml-do-not-positionally-merge-identified-graph-objects"
+        ],
+        "confirmedRootCause": "A chemical label may be displayed in directional rows because of LabelAlignment even though its authored text contains no newline. Export emits LineStarts only for LF characters in the authored text stream; derived above, below, or reversed atom-label layout remains controlled by LabelAlignment.; Fragment and Group IDs define ownership boundaries and are never merged with an arbitrary neighboring boundary. A renumbered Fragment may inherit source metadata only when its direct Node/Bond shape and node centroid identify one unique peer; Nodes and Bonds may be renumbered and retain ordered matching inside that already-matched Fragment. A regenerated display Fragment nested inside an unpositioned Fragment-node wrapper is removed from the retained wrapper before the native top-level Fragment is emitted.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelAlignment.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+          "crates/chemsema-engine/tests/render_document/double_bond_text_import.rs#parse_cdxml_node_labels_use_internal_attached_layout",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml.rs#unpositioned_fragment_wrapper_exposes_its_positioned_embedded_fragment"
+        ],
         "notes": null
       }
     },
@@ -43763,41 +43698,38 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
           {
             "from": 0,
             "to": 1,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
-              "molecules": 2,
-              "nodes": 21,
-              "bonds": 23,
-              "objects": 2,
-              "resources": 2,
+              "molecules": 0,
+              "nodes": 0,
+              "bonds": 0,
+              "objects": 0,
+              "resources": 0,
               "styles": 0
             },
             "objectTypeDelta": {
               "line": 0,
-              "molecule": 2,
+              "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
             "to": 2,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
-              "nodes": 21,
-              "bonds": 23,
+              "nodes": 0,
+              "bonds": 0,
               "objects": 0,
               "resources": 0,
               "styles": 0
@@ -43807,20 +43739,17 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
             "to": 3,
-            "countsExact": false,
+            "countsExact": true,
             "countDelta": {
               "molecules": 0,
-              "nodes": 21,
-              "bonds": 23,
+              "nodes": 0,
+              "bonds": 0,
               "objects": 0,
               "resources": 0,
               "styles": 0
@@ -43830,11 +43759,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "molecules",
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -43877,19 +43803,24 @@
         "componentCountDelta": 1
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-do-not-positionally-merge-identified-graph-objects"
+        ],
+        "confirmedRootCause": "Fragment and Group IDs define ownership boundaries and are never merged with an arbitrary neighboring boundary. A renumbered Fragment may inherit source metadata only when its direct Node/Bond shape and node centroid identify one unique peer; Nodes and Bonds may be renumbered and retain ordered matching inside that already-matched Fragment. A regenerated display Fragment nested inside an unpositioned Fragment-node wrapper is removed from the retained wrapper before the native top-level Fragment is emitted.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/src/cdxml.rs#unpositioned_fragment_wrapper_exposes_its_positioned_embedded_fragment"
+        ],
         "notes": null
       }
     },
@@ -44645,8 +44576,7 @@
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
-              "texts"
+              "labels"
             ]
           },
           {
@@ -44888,7 +44818,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -44910,10 +44840,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -44933,10 +44861,8 @@
               "shape": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -45000,19 +44926,24 @@
         "componentCountDelta": 521
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-normalize-materialized-line-start-offsets"
+        ],
+        "confirmedRootCause": "LineStarts is interpreted against the authored UTF-8 styled-text byte stream. When those virtual wrap positions are materialized as LF characters in editable CCJS text, the persisted offsets are advanced to describe that materialized stream, so reopening cannot insert the same breaks again.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+          "docs/cdxml-text-label-field-audit.zh-CN.md#linestarts-导入规则补充2026-07-21",
+          "crates/chemsema-engine/tests/render_document/text_layout.rs#materialized_utf8_line_starts_are_idempotent_across_cdxml_saves"
+        ],
         "notes": null
       }
     },
@@ -45031,7 +44962,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "non-idempotent",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -45053,10 +44984,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -45076,10 +45005,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 2,
@@ -45099,10 +45026,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "texts"
-            ]
+            "semanticExact": true,
+            "changed": []
           }
         ]
       },
@@ -45145,19 +45070,24 @@
         "componentCountDelta": 424
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-non-idempotent-mixed-semantics",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-normalize-materialized-line-start-offsets"
+        ],
+        "confirmedRootCause": "LineStarts is interpreted against the authored UTF-8 styled-text byte stream. When those virtual wrap positions are materialized as LF characters in editable CCJS text, the persisted offsets are advanced to describe that materialized stream, so reopening cannot insert the same breaks again.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+          "docs/cdxml-text-label-field-audit.zh-CN.md#linestarts-导入规则补充2026-07-21",
+          "crates/chemsema-engine/tests/render_document/text_layout.rs#materialized_utf8_line_starts_are_idempotent_across_cdxml_saves"
+        ],
         "notes": null
       }
     },

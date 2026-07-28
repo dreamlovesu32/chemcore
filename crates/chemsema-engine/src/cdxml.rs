@@ -1074,6 +1074,36 @@ mod interchange_tests {
             .expect("embedded molecule resource");
         assert_eq!(fragment.nodes.len(), 2);
         assert_eq!(fragment.bonds.len(), 1);
+
+        let saved = document_to_cdxml(&document);
+        assert_eq!(
+            saved.matches("id=\"30\"").count(),
+            1,
+            "the regenerated display fragment must not also survive inside its transparent wrapper: {saved}"
+        );
+        assert!(
+            saved.contains("id=\"20\"") && saved.contains(">Et</s>"),
+            "unmodeled wrapper metadata remains available without duplicating its native fragment: {saved}"
+        );
+        let reopened =
+            parse_cdxml_document(&saved, Some("reopened wrapper")).expect("saved CDXML reopens");
+        let reopened_molecules = reopened
+            .scene_objects()
+            .into_iter()
+            .filter(|object| object.kind() == crate::SceneObjectKind::Molecule)
+            .collect::<Vec<_>>();
+        assert_eq!(reopened_molecules.len(), 1);
+        let reopened_fragment = reopened_molecules[0]
+            .payload
+            .resource_ref
+            .as_ref()
+            .and_then(|id| reopened.resources.get(id))
+            .and_then(|resource| resource.data.as_fragment())
+            .expect("reopened embedded molecule resource");
+        assert_eq!(reopened_fragment.nodes.len(), 2);
+        assert_eq!(reopened_fragment.bonds.len(), 1);
+        let saved_again = document_to_cdxml(&reopened);
+        assert_eq!(saved_again.matches("id=\"30\"").count(), 1);
     }
 
     #[test]

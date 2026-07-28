@@ -453,6 +453,81 @@
       "caseIds": [
         "0359"
       ]
+    },
+    {
+      "id": "cdxml-normalize-materialized-line-start-offsets",
+      "status": "verified",
+      "summary": "LineStarts is interpreted against the authored UTF-8 styled-text byte stream. When those virtual wrap positions are materialized as LF characters in editable CCJS text, the persisted offsets are advanced to describe that materialized stream, so reopening cannot insert the same breaks again.",
+      "officialRule": "LineStarts records zero-based positions in the text stream and line-ending characters themselves occupy positions. Therefore inserting an LF changes every later byte offset by one. Retaining offsets from the pre-materialized stream beside text that already contains those LFs mixes two coordinate systems and is not a valid serialization.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+        "docs/cdxml-text-label-field-audit.zh-CN.md#linestarts-导入规则补充2026-07-21",
+        "crates/chemsema-engine/tests/render_document/text_layout.rs#materialized_utf8_line_starts_are_idempotent_across_cdxml_saves"
+      ],
+      "caseIds": [
+        "0226",
+        "0227",
+        "0244",
+        "0245",
+        "0410",
+        "0411"
+      ]
+    },
+    {
+      "id": "cdxml-keep-directional-label-layout-separate-from-authored-lines",
+      "status": "verified",
+      "summary": "A chemical label may be displayed in directional rows because of LabelAlignment even though its authored text contains no newline. Export emits LineStarts only for LF characters in the authored text stream; derived above, below, or reversed atom-label layout remains controlled by LabelAlignment.",
+      "officialRule": "LabelAlignment controls the placement of a node label relative to its node, while LineStarts records authored text-stream line positions. They are independent fields. Turning a derived H-above-N display into authored line breaks changes the label string and causes repeated relayout on import.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelAlignment.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+        "crates/chemsema-engine/tests/render_document/double_bond_text_import.rs#parse_cdxml_node_labels_use_internal_attached_layout"
+      ],
+      "caseIds": [
+        "0314",
+        "0315",
+        "0322",
+        "0323",
+        "0324",
+        "0325"
+      ]
+    },
+    {
+      "id": "cdxml-do-not-positionally-merge-identified-graph-objects",
+      "status": "verified",
+      "summary": "Fragment and Group IDs define ownership boundaries and are never merged with an arbitrary neighboring boundary. A renumbered Fragment may inherit source metadata only when its direct Node/Bond shape and node centroid identify one unique peer; Nodes and Bonds may be renumbered and retain ordered matching inside that already-matched Fragment. A regenerated display Fragment nested inside an unpositioned Fragment-node wrapper is removed from the retained wrapper before the native top-level Fragment is emitted.",
+      "officialRule": "Assigned object IDs identify graph objects within their containing scope, while Node and Bond ID namespaces can overlap and therefore require deterministic renumbering on export. Structural containment alone does not authorize substituting a neighboring Fragment or Group. A coordinate-free outer Fragment/Node wrapper is transparent to its positioned embedded display Fragment and cannot become a second owner of that regenerated graph.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "crates/chemsema-engine/src/cdxml.rs#unpositioned_fragment_wrapper_exposes_its_positioned_embedded_fragment"
+      ],
+      "caseIds": [
+        "0314",
+        "0315",
+        "0322",
+        "0323",
+        "0324",
+        "0325",
+        "0402"
+      ]
+    },
+    {
+      "id": "cdxml-keep-aromatic-order-independent-from-bond-display",
+      "status": "verified",
+      "summary": "Order=1.5 preserves delocalized or aromatic bond semantics but does not imply Display=Dash. Export derives Display from the editable line style, retains an explicit source Display when topology-only layout suppresses that style in the preview, and leaves Display absent when the authored bond was solid.",
+      "officialRule": "Bond Order and Display are independent official properties. Order=1.5 is a valid order value, while Solid and Dash are separate Display enum values. Inferring Dash solely from Order changes an authored solid delocalized bond on the first save.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Order.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Display.htm",
+        "crates/chemsema-engine/tests/render_document/crossings_selection.rs#positioned_solid_order_one_point_five_is_not_drawn_as_a_double_bond",
+        "crates/chemsema-engine/tests/render_document/crossings_selection.rs#coordinate_free_cdxml_aromatic_ring_and_missing_bond_ids_remain_visible",
+        "crates/chemsema-engine/tests/render_document/crossings_selection.rs#positioned_cdxml_aromatic_dash_remains_visibly_dashed"
+      ],
+      "caseIds": [
+        "0283",
+        "0284"
+      ]
     }
   ]
 }

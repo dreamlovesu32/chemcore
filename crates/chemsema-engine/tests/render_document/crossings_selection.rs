@@ -576,7 +576,21 @@ fn positioned_solid_order_one_point_five_is_not_drawn_as_a_double_bond() {
         document_bond_polygon_count_for_object(&render_document(&document), "obj_mol_001"),
         1
     );
-    assert!(document_to_cdxml(&document).contains("Order=\"1.5\""));
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("Order=\"1.5\""));
+    assert!(!exported.contains("Display=\"Dash\""), "{exported}");
+    let reopened = parse_cdxml_document(&exported, Some("solid delocalized bond reopened"))
+        .expect("solid order-1.5 export should reopen");
+    let reopened_bond = reopened
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .and_then(|fragment| fragment.bonds.first())
+        .expect("reopened bond should survive");
+    assert_eq!(
+        reopened_bond.line_styles.main,
+        chemsema_engine::BondLinePattern::Solid
+    );
 }
 
 #[test]

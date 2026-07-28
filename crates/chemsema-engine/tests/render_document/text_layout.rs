@@ -78,6 +78,47 @@ fn parse_cdxml_line_starts_are_utf8_byte_offsets() {
 }
 
 #[test]
+fn materialized_utf8_line_starts_are_idempotent_across_cdxml_saves() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML CaptionJustification="Center">
+  <page id="1">
+    <t id="2" p="50 20" BoundingBox="10 10 90 46"
+       CaptionJustification="Center" WordWrapWidth="80" LineStarts="8 12 17">
+      <s font="3" size="10">alpha′betagamma</s>
+    </t>
+  </page>
+</CDXML>"##;
+    let first = parse_cdxml_document(source, Some("UTF-8 authored wraps")).expect("CDXML");
+    let first_text = first
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("text object");
+    assert_eq!(
+        first_text.payload.extra.get("text"),
+        Some(&json!("alpha′\nbeta\ngamma"))
+    );
+
+    let exported = document_to_cdxml(&first);
+    assert!(exported.contains("LineStarts=\"9 14 19\""), "{exported}");
+    let second =
+        parse_cdxml_document(&exported, Some("UTF-8 authored wraps reopened")).expect("CDXML");
+    let second_text = second
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("reopened text object");
+    assert_eq!(
+        second_text.payload.extra.get("text"),
+        first_text.payload.extra.get("text")
+    );
+    assert_eq!(
+        second_text.payload.extra.get("runs"),
+        first_text.payload.extra.get("runs")
+    );
+}
+
+#[test]
 fn parse_cdxml_line_starts_preserve_authored_leading_blank_lines() {
     let source = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML>

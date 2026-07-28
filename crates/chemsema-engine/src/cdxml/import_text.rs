@@ -613,12 +613,12 @@ pub(super) fn text_object(
             }
         })
         .collect();
-    let (text, runs) = if node.attr("WordWrapWidth").is_some() || node.attr("LineStarts").is_some()
-    {
-        apply_cdxml_line_starts(&text, runs, node.attr("LineStarts"))
-    } else {
-        (text, runs)
-    };
+    let (text, runs, normalized_line_starts) =
+        if node.attr("WordWrapWidth").is_some() || node.attr("LineStarts").is_some() {
+            apply_cdxml_line_starts(&text, runs, node.attr("LineStarts"))
+        } else {
+            (text, runs, None)
+        };
     let width = bbox
         .map(|bbox| (bbox[2] - bbox[0]).abs())
         .filter(|width| *width > crate::EPSILON)
@@ -738,7 +738,7 @@ pub(super) fn text_object(
                     "lineHeight": node.attr("LineHeight"),
                     "captionLineHeight": node.attr("CaptionLineHeight"),
                     "wordWrapWidth": node.attr("WordWrapWidth"),
-                    "lineStarts": node.attr("LineStarts"),
+                    "lineStarts": normalized_line_starts,
                 }
             }
         }),

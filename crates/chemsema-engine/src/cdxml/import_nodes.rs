@@ -447,11 +447,11 @@ pub(super) fn node_label(
             })
         })
         .collect();
-    let (text, wrapped_source_runs) =
+    let (text, wrapped_source_runs, normalized_line_starts) =
         if text_el.attr("WordWrapWidth").is_some() || text_el.attr("LineStarts").is_some() {
             apply_cdxml_line_starts(&text, source_runs, text_el.attr("LineStarts"))
         } else {
-            (text, source_runs)
+            (text, source_runs, None)
         };
     source_runs = wrapped_source_runs;
     let runs = label_display_runs_from_source_runs(&source_runs);
@@ -536,7 +536,7 @@ pub(super) fn node_label(
                     "lineHeight": empty_as_null(text_el.attr("LineHeight")),
                     "labelLineHeight": empty_as_null(text_el.attr("LabelLineHeight")),
                     "wordWrapWidth": empty_as_null(text_el.attr("WordWrapWidth")),
-                    "lineStarts": empty_as_null(text_el.attr("LineStarts")),
+                    "lineStarts": normalized_line_starts,
                     "resolvedLineHeight": round2(line_spacing.line_height),
                     "resolvedLineHeightMode": line_spacing.mode,
                     "interpretChemically": interpret_chemically,
@@ -578,9 +578,9 @@ pub(super) fn apply_cdxml_line_starts(
     text: &str,
     runs: Vec<LabelRun>,
     line_starts: Option<&str>,
-) -> (String, Vec<LabelRun>) {
+) -> (String, Vec<LabelRun>, Option<String>) {
     if line_starts.is_none() {
-        return (text.to_string(), runs);
+        return (text.to_string(), runs, None);
     }
     // CDXML stores zero-based offsets into the authored styled-text stream.
     // End-of-line characters are part of that stream and therefore advance
@@ -591,12 +591,18 @@ pub(super) fn apply_cdxml_line_starts(
         .map(|run| run.text.len())
         .sum::<usize>()
         .max(text.len());
-    let starts: BTreeSet<usize> = line_starts
+    let raw_starts = line_starts
         .into_iter()
         .flat_map(str::split_whitespace)
         .filter_map(|value| value.parse::<usize>().ok())
         .filter(|offset| *offset > 0 && *offset < raw_len)
-        .collect();
+        .collect::<Vec<_>>();
+    let has_end_sentinel = line_starts
+        .into_iter()
+        .flat_map(str::split_whitespace)
+        .filter_map(|value| value.parse::<usize>().ok())
+        .any(|offset| offset >= raw_len);
+    let starts = raw_starts.iter().copied().collect::<BTreeSet<_>>();
     let source_runs = if runs.is_empty() {
         vec![LabelRun {
             text: text.to_string(),
@@ -638,7 +644,28 @@ pub(super) fn apply_cdxml_line_starts(
         .iter()
         .map(|run| run.text.as_str())
         .collect::<String>();
-    (text, wrapped_runs)
+    // Once authored wrap positions have been materialized as LF characters,
+    // their offsets must describe that materialized stream. Re-exporting the
+    // original offsets alongside the inserted LFs shifts every later break and
+    // causes another LF to be inserted on each save. CDXML offsets count UTF-8
+    // bytes, and an existing LF advances the following line start by one byte.
+    let mut normalized_starts = text
+        .bytes()
+        .enumerate()
+        .filter_map(|(offset, byte)| (byte == b'\n').then_some(offset + 1))
+        .take(raw_starts.len())
+        .collect::<Vec<_>>();
+    if has_end_sentinel {
+        normalized_starts.push(text.len());
+    }
+    let normalized_line_starts = (!normalized_starts.is_empty()).then(|| {
+        normalized_starts
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(" ")
+    });
+    (text, wrapped_runs, normalized_line_starts)
 }
 
 pub(super) fn attr_eq_ignore_ascii_case(value: Option<&str>, expected: &str) -> bool {

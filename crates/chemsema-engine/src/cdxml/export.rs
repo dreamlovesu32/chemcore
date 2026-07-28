@@ -1780,7 +1780,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
         }
         if let Some(line_starts) = imported_cdxml_label_attr(label, "lineStarts") {
             attrs.push(("LineStarts", line_starts.to_string()));
-        } else if let Some(line_starts) = cdxml_label_line_starts(label) {
+        } else if let Some(line_starts) = cdxml_label_line_starts(text) {
             attrs.push(("LineStarts", line_starts));
         }
         write_open_tag(out, indent, "t", attrs);
@@ -1916,14 +1916,19 @@ impl<'a> CdxmlDocumentWriter<'a> {
         if let Some(value) = bond_endpoint_attachment(bond, "end") {
             attrs.push(("EndAttach", value.to_string()));
         }
-        if bond
+        if let Some(display) = cdxml_bond_display(bond, false) {
+            attrs.push(("Display", display.to_string()));
+        } else if let Some(display) = bond
             .meta
-            .pointer("/import/cdxml/aromatic")
-            .and_then(Value::as_bool)
-            == Some(true)
+            .pointer("/import/cdxml/display")
+            .and_then(Value::as_str)
+            .filter(|display| !display.is_empty())
         {
-            attrs.push(("Display", "Dash".to_string()));
-        } else if let Some(display) = cdxml_bond_display(bond, false) {
+            // Order=1.5 and Display are independent. In topology-only input
+            // an explicit Dash is retained as transport semantics even though
+            // the generated preview intentionally uses a solid lane. An
+            // absent Display must remain absent rather than being inferred
+            // merely from the aromatic order.
             attrs.push(("Display", display.to_string()));
         }
         if let Some(display2) = cdxml_bond_display(bond, true) {
