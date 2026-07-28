@@ -102,6 +102,12 @@ pub(super) fn double_bond_center_distance_for_bond_weights(
     first_weight: BondLineWeight,
     second_weight: BondLineWeight,
 ) -> f64 {
+    if let Some(spacing) = bond
+        .bond_spacing_absolute
+        .filter(|spacing| spacing.is_finite() && *spacing > EPSILON)
+    {
+        return spacing;
+    }
     let first_width = line_weight_stroke_width_for_bond(bond, stroke_width, first_weight);
     let second_width = line_weight_stroke_width_for_bond(bond, stroke_width, second_weight);
     multi_bond_inner_gap(Some(bond), start, end, stroke_width) + 0.5 * (first_width + second_width)
@@ -119,7 +125,23 @@ pub(super) fn double_bond_offset_distance(start: Point, end: Point, stroke_width
 
 pub(super) fn triple_bond_offset_distance(start: Point, end: Point, stroke_width: f64) -> f64 {
     let spacing_ratio = DEFAULT_MULTI_BOND_CENTER_SPACING_RATIO;
-    (start.distance(end) * spacing_ratio).max(stroke_width * 1.5)
+    (start.distance(end) * spacing_ratio).max(stroke_width * 2.5)
+}
+
+pub(super) fn triple_bond_offset_distance_for_bond(
+    bond: &Bond,
+    start: Point,
+    end: Point,
+    stroke_width: f64,
+) -> f64 {
+    double_bond_center_distance_for_bond_weights(
+        bond,
+        start,
+        end,
+        stroke_width,
+        BondLineWeight::Normal,
+        BondLineWeight::Normal,
+    )
 }
 
 pub(super) fn solid_wedge_half_width_for_bond(bond: &Bond, stroke_width: f64) -> f64 {
@@ -559,7 +581,12 @@ pub(super) fn fragment_outer_bond_offset_for_side(
     end: Point,
 ) -> Option<f64> {
     if bond.order >= 3 {
-        return Some(triple_bond_offset_distance(start, end, stroke_width));
+        return Some(triple_bond_offset_distance_for_bond(
+            bond,
+            start,
+            end,
+            stroke_width,
+        ));
     }
     let placement = side_double_placement(bond)?;
     if (placement == DoubleBondPlacement::Left && side > 0.0)
@@ -1409,6 +1436,7 @@ mod tests {
             label_clip_margin: None,
             hash_spacing,
             bond_spacing: None,
+            bond_spacing_absolute: None,
             margin_width: None,
             line_styles: BondLineStyles::default(),
             line_weights: BondLineWeights {

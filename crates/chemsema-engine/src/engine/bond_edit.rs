@@ -163,6 +163,7 @@ impl Engine {
             label_clip_margin: None,
             hash_spacing: Some(hash_spacing),
             bond_spacing: Some(bond_spacing),
+            bond_spacing_absolute: None,
             margin_width: Some(margin_width),
             line_styles: pending_line_styles,
             line_weights: pending_line_weights,

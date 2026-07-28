@@ -1711,6 +1711,7 @@ fn expansion_bond(
         label_clip_margin: None,
         hash_spacing: Some(hash_spacing),
         bond_spacing: Some(bond_spacing),
+        bond_spacing_absolute: None,
         margin_width: Some(margin_width),
         line_styles: BondLineStyles::default(),
         line_weights: BondLineWeights::default(),

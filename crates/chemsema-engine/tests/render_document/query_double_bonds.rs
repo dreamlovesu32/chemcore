@@ -335,7 +335,20 @@ fn parse_cdxml_prefers_absolute_multiple_bond_spacing() {
         .values()
         .find_map(|resource| resource.data.as_fragment())
         .expect("molecule fragment should import");
-    assert_eq!(fragment.bonds[0].bond_spacing, Some(10.0));
+    assert_eq!(fragment.bonds[0].bond_spacing, Some(40.0));
+    assert_eq!(fragment.bonds[0].bond_spacing_absolute, Some(2.0));
+    assert!((imported_double_bond_center_spacing(&document, "obj_mol_001") - 2.0).abs() < 0.001);
+    let native_json = serde_json::to_string(&document).expect("native JSON should serialize");
+    assert!(
+        native_json.contains("\"bondSpacingAbsolute\":2.0"),
+        "{native_json}"
+    );
+    let reopened: ChemSemaDocument =
+        serde_json::from_str(&native_json).expect("native JSON should deserialize");
+    assert!((imported_double_bond_center_spacing(&reopened, "obj_mol_001") - 2.0).abs() < 0.001);
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("BondSpacing=\"40\""), "{exported}");
+    assert!(exported.contains("BondSpacingAbs=\"2\""), "{exported}");
 }
 
 #[test]

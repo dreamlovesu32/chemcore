@@ -918,7 +918,9 @@ CDXML/CDX 根绘图默认值保存在 `document.meta.import.cdxml.defaults`。�
 - `wedgeWidth`：实锲形键和空心锲形键宽端总宽，单位为 pt；CDXML 源模板导入时按 `1.5 * BoldWidth` 派生，不从键长反推
 - `labelClipMargin`：旧文件兼容字段；新文档不得写出，渲染也忽略它，因为 glyph polygon 已经定义裁剪边界
 - `hashSpacing`：hash / hashed wedge 模板间距，单位为 pt
-- `bondSpacing`：双键间距百分比，对应 ChemDraw `BondSpacing`
+- `bondSpacing`：多重键中心线间距百分比，对应 ChemDraw `BondSpacing`
+- `bondSpacingAbsolute`：可选的多重键中心线绝对间距，单位为 pt，对应
+  ChemDraw `BondSpacingAbs`；存在时优先于 `bondSpacing`
 - `marginWidth`：源 margin width，单位为 pt。它驱动 label glyph polygon 外扩，
   用于键对标签退让；在适用时也用于键与键交叉处的 knockout。
 - `lineStyles`：多线键每条线的线型，字段为 `main | left | right`，值为

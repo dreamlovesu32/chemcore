@@ -631,6 +631,9 @@ fn apply_settings_to_bond(
     if let Some(value) = settings.bond_spacing {
         if bond.order >= 2 {
             changed |= set_bond_option_number(&mut bond.bond_spacing, value);
+            if bond.bond_spacing_absolute.take().is_some() {
+                changed = true;
+            }
         }
     }
     if let Some(value) = settings.margin_width {

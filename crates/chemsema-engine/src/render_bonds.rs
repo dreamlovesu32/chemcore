@@ -719,7 +719,8 @@ fn render_triple_bond(
     stroke_width: f64,
     object_id: Option<String>,
 ) {
-    let triple_offset = triple_bond_offset_distance(actual_start, actual_end, stroke_width);
+    let triple_offset =
+        triple_bond_offset_distance_for_bond(bond, actual_start, actual_end, stroke_width);
 
     render_fragment_line(
         out,

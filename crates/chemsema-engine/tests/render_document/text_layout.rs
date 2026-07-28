@@ -452,6 +452,34 @@ fn parse_cdxml_double_bond_spacing_uses_chemdraw_line_width_floor() {
 }
 
 #[test]
+fn parse_cdxml_triple_bond_spacing_matches_chemdraw_percentage_and_absolute_rules() {
+    for (name, line_width, bond_length, bond_spacing, bond_spacing_abs, expected_center_distance) in [
+        ("acs", 0.60, 14.40, 18.0, None, 2.592),
+        ("length-scaled", 0.60, 30.00, 18.0, None, 5.400),
+        ("line-width-floor", 2.00, 14.40, 8.0, None, 5.000),
+        ("absolute-no-floor", 2.00, 14.40, 30.0, Some(0.5), 0.500),
+    ] {
+        let spacing_abs = bond_spacing_abs
+            .map(|value| format!(r#" BondSpacingAbs="{value}""#))
+            .unwrap_or_default();
+        let cdxml = format!(
+            r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML LineWidth="{line_width}" BondLength="14.4" BondSpacing="{bond_spacing}">
+  <page id="1"><fragment id="2">
+    <n id="3" p="20 20"/><n id="4" p="20 {}"/>
+    <b id="5" B="3" E="4" Order="3"{spacing_abs}/>
+  </fragment></page>
+</CDXML>"#,
+            20.0 + bond_length,
+        );
+        let document = parse_cdxml_document(&cdxml, Some(name)).expect("cdxml should parse");
+        let primitives = render_document(&document);
+        let metrics = imported_vertical_line_metrics(&primitives, "obj_mol_001");
+        assert_adjacent_line_spacing(&metrics, expected_center_distance, name);
+    }
+}
+
+#[test]
 fn parse_cdxml_recognizes_fractional_dashed_double_bond() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >

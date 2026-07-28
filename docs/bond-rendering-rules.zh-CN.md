@@ -261,6 +261,10 @@ max(实际键长 * bondSpacing / 100, 2.5 * lineWidth)
 
 这不是样式模板分支：ACS、Default 和自定义 CDXML 文档都使用同一规则，只代入源文件中的 `LineWidth`、`BondLength` 和 `BondSpacing` 数值。
 
+`bondSpacingAbsolute` / CDXML `BondSpacingAbs` 的行为不同：它表示以 pt
+为单位的精确中心距，优先于百分比，而且不施加线宽下限；即便明确写入的
+绝对距离小于线宽，也仍然原样使用。
+
 ### 自动侧别判定
 
 当 CDXML 或编辑操作只给出 `Order="2"`，但没有显式 `DoublePosition` 时，应按 ChemDraw 规则自动判定：
@@ -320,6 +324,22 @@ centered double 由两根独立子线组成。
   - 双虚中心双键
 
 ## 三键
+
+- 中线位于键轴上，两根外线使用与普通线宽双键相同的中心距：
+
+```text
+max(实际键长 * bondSpacing / 100, 2.5 * lineWidth)
+```
+
+- 这里使用实际端点距离，而不是文档名义 `BondLength`，并且与键方向无关。
+- 若存在 `bondSpacingAbsolute` / CDXML `BondSpacingAbs`，两根外线均按该
+  绝对值偏移，不再施加线宽下限。
+- 可复现的 ChemDraw SVG 探针覆盖三种键长、三种百分比间距、三种线宽、
+  水平/斜向/竖直方向以及绝对间距优先级：
+
+```bash
+node scripts/chemdraw-triple-bond-spacing-probe.mjs
+```
 
 - 三键主线属于主键接触对象。
 - 两根外线各自独立判断自己的端点 profile。

@@ -1193,6 +1193,9 @@ fn imported_double_bond_formula_spacing(document: &ChemSemaDocument, object_id: 
     let length = chemsema_engine::Point::new(begin.position[0], begin.position[1]).distance(
         chemsema_engine::Point::new(end.position[0], end.position[1]),
     );
+    if let Some(spacing) = bond.bond_spacing_absolute {
+        return spacing;
+    }
     let ratio = bond
         .bond_spacing
         .expect("cdxml fixture should import bond spacing")
@@ -1251,6 +1254,17 @@ fn assert_line_spacing(metrics: &[(f64, f64)], expected: f64, context: &str) {
         (actual - expected).abs() < 0.001,
         "{context}: expected {expected}, got {actual}, metrics={metrics:?}"
     );
+}
+
+fn assert_adjacent_line_spacing(metrics: &[(f64, f64)], expected: f64, context: &str) {
+    assert_eq!(metrics.len(), 3, "{context}: {metrics:?}");
+    for pair in metrics.windows(2) {
+        let actual = pair[1].0 - pair[0].0;
+        assert!(
+            (actual - expected).abs() < 0.001,
+            "{context}: expected {expected}, got {actual}, metrics={metrics:?}"
+        );
+    }
 }
 
 fn assert_line_widths(

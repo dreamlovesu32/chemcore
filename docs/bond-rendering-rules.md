@@ -294,6 +294,11 @@ max(actual bond length * bondSpacing / 100, 2.5 * lineWidth)
 
 This is not a style-template branch: ACS, default, and custom CDXML documents use the same rule with their source `LineWidth`, `BondLength`, and `BondSpacing` values.
 
+`bondSpacingAbsolute` / CDXML `BondSpacingAbs` is different: it is the exact
+center-to-center distance in points, takes precedence over the percentage, and
+does not receive the line-width floor. This remains true even when the authored
+absolute distance is smaller than the line width.
+
 ### Automatic Side Selection
 
 When CDXML or an editing operation gives only `Order="2"` and no explicit `DoublePosition`, the engine should decide automatically using ChemDraw-compatible rules:
@@ -323,6 +328,27 @@ When CDXML or an editing operation gives only `Order="2"` and no explicit `Doubl
   their own actual parallel axes with their own half-widths, then share the
   larger retreat. Do not derive both from an unshifted center axis.
 - At terminal ends, it is the same length as the main bond.
+
+## Triple Bonds
+
+The center line lies on the bond axis. Each outer line is offset by the same
+center-to-center distance used for two normal-weight multiple-bond lines:
+
+```text
+max(actual bond length * bondSpacing / 100, 2.5 * lineWidth)
+```
+
+The rule uses the bond's actual endpoint distance, not the document's nominal
+`BondLength`, and is invariant under bond direction. If
+`bondSpacingAbsolute` / CDXML `BondSpacingAbs` is present, each outer line is
+offset by that exact absolute value and the line-width floor is not applied.
+The reproducible ChemDraw SVG probe covers three lengths, three percentage
+spacings, three line widths, horizontal/diagonal/vertical directions, and
+absolute-spacing precedence:
+
+```bash
+node scripts/chemdraw-triple-bond-spacing-probe.mjs
+```
 - At non-terminal ends, it is shortened by "main-bond spacing * `sqrt(3) / 3`".
 - When the angle between the main bond and the connected main bond is less than `90°`, the secondary line may retreat; however, if the other bond has a same-side secondary line, same-side secondary-line intersection still has priority.
 

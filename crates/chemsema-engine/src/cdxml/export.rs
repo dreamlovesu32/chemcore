@@ -1966,6 +1966,9 @@ impl<'a> CdxmlDocumentWriter<'a> {
         if let Some(value) = bond.bond_spacing {
             attrs.push(("BondSpacing", fmt_num(value)));
         }
+        if let Some(value) = bond.bond_spacing_absolute {
+            attrs.push(("BondSpacingAbs", fmt_num(value)));
+        }
         if let Some(value) = bond.margin_width {
             attrs.push(("MarginWidth", fmt_num(value)));
         }

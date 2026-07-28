@@ -35,20 +35,10 @@ pub(super) fn normalize_bond(
     let bold_width = parse_f64(bond.attr("BoldWidth")).unwrap_or(defaults.bold_width);
     let hash_spacing = parse_f64(bond.attr("HashSpacing")).unwrap_or(defaults.hash_spacing);
     // ChemDraw gives the absolute spacing field precedence when both encodings
-    // are present. Internally bonds store the equivalent percentage of their
-    // actual endpoint distance so the renderer can keep one spacing model.
+    // are present. Keep it as an independent native value: unlike percentage
+    // spacing, absolute spacing is not subject to the 2.5 * LineWidth floor.
     let bond_spacing_abs = parse_f64(bond.attr("BondSpacingAbs"));
-    let bond_length = nodes
-        .iter()
-        .find(|node| node.id == begin)
-        .zip(nodes.iter().find(|node| node.id == end))
-        .map(|(begin, end)| begin.point().distance(end.point()));
-    let bond_spacing = bond_spacing_abs
-        .zip(bond_length)
-        .filter(|(_, length)| *length > EPSILON)
-        .map(|(spacing, length)| spacing / length * 100.0)
-        .or_else(|| parse_f64(bond.attr("BondSpacing")))
-        .unwrap_or(defaults.bond_spacing);
+    let bond_spacing = parse_f64(bond.attr("BondSpacing")).unwrap_or(defaults.bond_spacing);
     let stereo = match display {
         "WedgeBegin" => Some(BondStereo {
             kind: "solid-wedge".to_string(),
@@ -202,6 +192,7 @@ pub(super) fn normalize_bond(
         label_clip_margin: None,
         hash_spacing: Some(hash_spacing),
         bond_spacing: Some(bond_spacing),
+        bond_spacing_absolute: bond_spacing_abs,
         margin_width: None,
         line_styles,
         line_weights,

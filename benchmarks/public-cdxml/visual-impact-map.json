@@ -50,6 +50,15 @@
       "regressionCases": ["0010"]
     },
     {
+      "name": "triple-bond-rendering",
+      "pathSubstrings": [
+        "crates/chemsema-engine/src/render/bond_metrics.rs",
+        "crates/chemsema-engine/src/render_bonds.rs"
+      ],
+      "features": ["triple-bond"],
+      "regressionCases": ["0248"]
+    },
+    {
       "name": "render-core",
       "pathEquals": ["crates/chemsema-engine/src/render.rs"],
       "features": ["bond", "text", "graphics"],

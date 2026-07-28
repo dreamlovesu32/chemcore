@@ -151,6 +151,7 @@ impl Engine {
                     label_clip_margin: None,
                     hash_spacing: Some(crate::DEFAULT_HASH_SPACING_PT.value()),
                     bond_spacing: Some(crate::DEFAULT_BOND_SPACING_PERCENT),
+                    bond_spacing_absolute: None,
                     margin_width: Some(crate::DEFAULT_BOND_MARGIN_WIDTH_PT.value()),
                     line_styles: BondLineStyles::default(),
                     line_weights: BondLineWeights::default(),

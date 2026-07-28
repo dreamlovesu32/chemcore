@@ -250,7 +250,9 @@ fn half_arrow_heads_keep_visual_left_and_right_sides_on_curves() {
         let mut head = Vec::new();
         for primitive in engine.render_list() {
             match primitive {
-                RenderPrimitive::Path { points, .. } | RenderPrimitive::Polyline { points, .. } => {
+                RenderPrimitive::Path { points, .. } | RenderPrimitive::Polyline { points, .. }
+                    if points.len() == 2 || points.len() > 4 =>
+                {
                     arc = points
                 }
                 RenderPrimitive::Line { from, to, .. } => arc = vec![from, to],

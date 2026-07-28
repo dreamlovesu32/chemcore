@@ -849,6 +849,7 @@ mod tests {
             label_clip_margin: None,
             hash_spacing: None,
             bond_spacing: None,
+            bond_spacing_absolute: None,
             margin_width: None,
             line_styles: Default::default(),
             line_weights: Default::default(),

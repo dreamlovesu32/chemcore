@@ -729,6 +729,42 @@
       "caseIds": [
         "0078"
       ]
+    },
+    {
+      "id": "chemdraw-triple-bond-spacing-uses-actual-length-and-absolute-precedence",
+      "status": "verified",
+      "summary": "Triple-bond outer-line offsets use max(actual endpoint distance * bondSpacing / 100, 2.5 * lineWidth). BondSpacingAbs is an exact point distance that takes precedence and does not receive the line-width floor.",
+      "officialRule": "BondSpacing is relative to bond length and BondSpacingAbs is the absolute distance between multiple-bond segments. Silent ChemDraw SVG probes establish that triple bonds use the actual endpoint distance, apply the same percentage-spacing line-width floor as two normal-weight multiple-bond lines, remain direction invariant, and bypass that floor for BondSpacingAbs.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BondSpacing.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BondSpacingAbs.htm",
+        "scripts/chemdraw-triple-bond-spacing-probe.mjs",
+        "docs/bond-rendering-rules.md",
+        "crates/chemsema-engine/tests/render_document/text_layout.rs#parse_cdxml_triple_bond_spacing_matches_chemdraw_percentage_and_absolute_rules",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#parse_cdxml_prefers_absolute_multiple_bond_spacing"
+      ],
+      "caseIds": [
+        "0030",
+        "0031",
+        "0032",
+        "0033",
+        "0036",
+        "0039",
+        "0041",
+        "0114",
+        "0166",
+        "0211",
+        "0237",
+        "0248",
+        "0255",
+        "0317",
+        "0366",
+        "0367",
+        "0371",
+        "0389",
+        "0408",
+        "0410"
+      ]
     }
   ]
 }

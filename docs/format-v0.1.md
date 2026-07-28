@@ -886,7 +886,11 @@ Bond fields:
 - `labelClipMargin`: legacy compatibility field; new documents must not emit it,
   and renderers ignore it because glyph polygons define the clipping boundary
 - `hashSpacing`: hash / hashed wedge template spacing in pt
-- `bondSpacing`: double-bond spacing percentage, matching CDXML `BondSpacing`
+- `bondSpacing`: multiple-bond center-spacing percentage, matching CDXML
+  `BondSpacing`
+- `bondSpacingAbsolute`: optional absolute multiple-bond center spacing in pt,
+  matching CDXML `BondSpacingAbs`; when present it takes precedence over
+  `bondSpacing`
 - `marginWidth`: source margin width in pt. It drives glyph-polygon expansion for
   bond-vs-label retreat and also applies to bond-vs-bond crossing knockout where
   applicable.

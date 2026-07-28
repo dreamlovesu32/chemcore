@@ -901,7 +901,7 @@ fn document_bond_crossing_envelope(
         return constant(silhouette, centerlines);
     }
     if bond.order >= 3 {
-        let offset = triple_bond_offset_distance(start, end, stroke_width);
+        let offset = triple_bond_offset_distance_for_bond(bond, start, end, stroke_width);
         let left_half_width =
             line_weight_stroke_width_for_bond(bond, stroke_width, bond.line_weights.left) * 0.5;
         let right_half_width =
@@ -1474,6 +1474,7 @@ mod tests {
             label_clip_margin: None,
             hash_spacing: None,
             bond_spacing: None,
+            bond_spacing_absolute: None,
             margin_width: None,
             line_styles: crate::BondLineStyles::default(),
             line_weights: crate::BondLineWeights::default(),

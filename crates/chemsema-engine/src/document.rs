@@ -4538,6 +4538,11 @@ pub struct Bond {
     pub hash_spacing: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bond_spacing: Option<f64>,
+    /// Absolute center-to-center spacing for multiple-bond lines, in document
+    /// points. When present it takes precedence over `bond_spacing` and does
+    /// not use ChemDraw's percentage-spacing line-width floor.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bond_spacing_absolute: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub margin_width: Option<f64>,
     #[serde(default)]
