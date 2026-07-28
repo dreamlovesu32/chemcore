@@ -13,7 +13,7 @@ fn hit_testing_checks_grouped_molecule_fragments() {
 }
 
 #[test]
-fn render_document_adds_margin_knockout_for_later_crossing_bond() {
+fn render_document_splits_ordinary_under_bond_at_later_crossing_bond() {
     let document = fragment_document_preserving_disconnected_components(
         json!([
             { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 60.0], "charge": 0, "numHydrogens": 0 },
@@ -28,36 +28,39 @@ fn render_document_adds_margin_knockout_for_later_crossing_bond() {
     );
 
     let primitives = render_document(&document);
-    let knockout_index = primitives
+    assert!(
+        !primitives
+            .iter()
+            .any(|primitive| primitive.role() == RenderRole::DocumentKnockout),
+        "ordinary solid crossings should be represented by split bond geometry"
+    );
+    let mut under_bounds = primitives
         .iter()
-        .position(|primitive| {
-            matches!(
-                primitive,
-                RenderPrimitive::Polygon {
-                    role: RenderRole::DocumentKnockout,
-                    ..
-                }
-            )
+        .filter_map(|primitive| {
+            let RenderPrimitive::Polygon {
+                role: RenderRole::DocumentBond,
+                bond_id,
+                points,
+                ..
+            } = primitive
+            else {
+                return None;
+            };
+            (bond_id.as_deref() == Some("b_under")).then(|| primitive_polygon_bounds(points))
         })
-        .expect("crossing over-bond should insert a white margin knockout");
-    let under_index = primitives
-        .iter()
-        .position(|primitive| matches!(primitive, RenderPrimitive::Polygon { role: RenderRole::DocumentBond, bond_id, .. } if bond_id.as_deref() == Some("b_under")))
-        .expect("under bond should render");
-    let over_index = primitives
-        .iter()
-        .position(|primitive| matches!(primitive, RenderPrimitive::Polygon { role: RenderRole::DocumentBond, bond_id, .. } if bond_id.as_deref() == Some("b_over")))
-        .expect("over bond should render");
-    assert!(under_index < knockout_index && knockout_index < over_index);
-
-    let RenderPrimitive::Polygon { points, .. } = &primitives[knockout_index] else {
-        unreachable!("knockout is a polygon");
-    };
-    let bounds = primitive_polygon_bounds(points);
-    assert!((bounds[0] - 57.5).abs() < 0.001, "{bounds:?}");
-    assert!((bounds[1] - 59.45).abs() < 0.001, "{bounds:?}");
-    assert!((bounds[2] - 62.5).abs() < 0.001, "{bounds:?}");
-    assert!((bounds[3] - 60.55).abs() < 0.001, "{bounds:?}");
+        .collect::<Vec<_>>();
+    under_bounds.sort_by(|left, right| left[0].total_cmp(&right[0]));
+    assert_eq!(under_bounds.len(), 2, "{primitives:?}");
+    assert_eq!(under_bounds[0], [20.0, 59.5, 57.5, 60.5]);
+    assert_eq!(under_bounds[1], [62.5, 59.5, 100.0, 60.5]);
+    assert_eq!(
+        primitives
+            .iter()
+            .filter(|primitive| matches!(primitive, RenderPrimitive::Polygon { role: RenderRole::DocumentBond, bond_id, .. } if bond_id.as_deref() == Some("b_over")))
+            .count(),
+        1,
+        "upper bond must remain continuous"
+    );
 }
 
 #[test]
@@ -382,16 +385,35 @@ fn explicit_crossing_bond_ids_are_global_across_fragments() {
     let document = parse_cdxml_document(cdxml, Some("cross-fragment crossings"))
         .expect("cross-fragment CDXML should parse");
     let primitives = render_document(&document);
-    assert!(
-        primitives.iter().any(|primitive| matches!(
-            primitive,
-            RenderPrimitive::Polygon {
-                role: RenderRole::DocumentKnockout,
-                bond_id,
-                ..
-            } if bond_id.as_deref() == Some("31")
-        )),
-        "explicit crossing IDs must resolve in document scope: {primitives:?}"
+    assert_eq!(
+        primitives
+            .iter()
+            .filter(|primitive| matches!(
+                primitive,
+                RenderPrimitive::Polygon {
+                    role: RenderRole::DocumentBond,
+                    bond_id,
+                    ..
+                } if bond_id.as_deref() == Some("20")
+            ))
+            .count(),
+        2,
+        "explicit crossing IDs must split the lower bond across fragment scope: {primitives:?}"
+    );
+    assert_eq!(
+        primitives
+            .iter()
+            .filter(|primitive| matches!(
+                primitive,
+                RenderPrimitive::Polygon {
+                    role: RenderRole::DocumentBond,
+                    bond_id,
+                    ..
+                } if bond_id.as_deref() == Some("31")
+            ))
+            .count(),
+        1,
+        "the upper bond must remain continuous: {primitives:?}"
     );
 }
 
@@ -1044,18 +1066,20 @@ fn render_targets_for_under_crossing_bond_include_over_bond_dependency() {
         }),
         "targeting the lower crossing bond should also return the upper bond for desktop patching: {primitives:?}"
     );
-    assert!(
-        primitives.iter().any(|primitive| {
-            matches!(
+    assert_eq!(
+        primitives
+            .iter()
+            .filter(|primitive| matches!(
                 primitive,
                 RenderPrimitive::Polygon {
-                    role: RenderRole::DocumentKnockout,
+                    role: RenderRole::DocumentBond,
                     bond_id,
                     ..
-                } if bond_id.as_deref() == Some("b_over")
-            )
-        }),
-        "upper-bond knockout depends on the lower crossing bond: {primitives:?}"
+                } if bond_id.as_deref() == Some("b_under")
+            ))
+            .count(),
+        2,
+        "target rendering must preserve both split lower-bond segments: {primitives:?}"
     );
 }
 

@@ -299,7 +299,7 @@ fn retreat_segment_endpoint(from: Point, to: Point, distance: f64) -> Point {
     )
 }
 
-fn imported_cdxml_dative_bond(bond: &Bond) -> bool {
+pub(super) fn imported_cdxml_dative_bond(bond: &Bond) -> bool {
     bond.meta
         .pointer("/import/cdxml/order")
         .and_then(JsonValue::as_str)

@@ -34,7 +34,8 @@ mod spectrum_render;
 mod style_payload;
 
 use bond_render::{
-    bond_label_clipped_body_geometry, compute_solid_wedge_points, render_fragment_bond,
+    bond_label_clipped_body_geometry, compute_solid_wedge_points, imported_cdxml_dative_bond,
+    render_fragment_bond,
 };
 pub use bounds::{render_primitive_bounds, render_primitives_bounds};
 use contact::{
@@ -197,11 +198,13 @@ fn insert_bond_margin_silhouettes(
                 let key = (Some(object_id.to_string()), bond_id.to_string());
                 if prepared_bond_keys.insert(key.clone()) {
                     if let Some(info) = bonds.get(&key) {
-                        with_silhouettes.extend(bond_crossing_knockouts(
+                        let crossing_primitives = prepare_bond_crossings(
                             document,
+                            &mut with_silhouettes,
                             &rendered_bonds,
                             info,
-                        ));
+                        );
+                        with_silhouettes.extend(crossing_primitives);
                         rendered_bonds.push(info);
                     }
                 }
@@ -223,6 +226,7 @@ struct DocumentBondRenderInfo {
     margin_width: f64,
     crossing_envelope: BondCrossingEnvelope,
     explicit_crossings: Option<BTreeSet<String>>,
+    can_split_crossings: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -293,6 +297,11 @@ fn collect_object_bond_render_info(
                         margin_width: document_margin_width_for_bond(document, bond, stroke_width),
                         crossing_envelope,
                         explicit_crossings: imported_cdxml_crossing_bonds(bond),
+                        can_split_crossings: bond.order == 1
+                            && bond_stereo_kind(bond).is_none()
+                            && bond.line_styles.main == BondLinePattern::Solid
+                            && bond.line_weights.main == BondLineWeight::Normal
+                            && !imported_cdxml_dative_bond(bond),
                     },
                 );
             }
@@ -301,8 +310,9 @@ fn collect_object_bond_render_info(
     }
 }
 
-fn bond_crossing_knockouts(
+fn prepare_bond_crossings(
     document: &ChemSemaDocument,
+    primitives: &mut Vec<RenderPrimitive>,
     rendered_bonds: &[&DocumentBondRenderInfo],
     over_bond: &DocumentBondRenderInfo,
 ) -> Vec<RenderPrimitive> {
@@ -316,12 +326,19 @@ fn bond_crossing_knockouts(
                 return None;
             }
             if let Some(crossing) = bond_crossing_point_for_margin(under_bond, over_bond) {
-                local_bond_crossing_knockout(
-                    under_bond,
-                    over_bond,
-                    crossing,
-                    &document.document.page.background,
-                )
+                if under_bond.can_split_crossings
+                    && over_bond.can_split_crossings
+                    && split_rendered_bond_at_crossing(primitives, under_bond, over_bond, crossing)
+                {
+                    None
+                } else {
+                    local_bond_crossing_knockout(
+                        under_bond,
+                        over_bond,
+                        crossing,
+                        &document.document.page.background,
+                    )
+                }
             } else {
                 near_endpoint_bond_crossing_knockout(
                     under_bond,
@@ -331,6 +348,136 @@ fn bond_crossing_knockouts(
             }
         })
         .collect()
+}
+
+fn split_rendered_bond_at_crossing(
+    primitives: &mut Vec<RenderPrimitive>,
+    under_bond: &DocumentBondRenderInfo,
+    over_bond: &DocumentBondRenderInfo,
+    crossing: Point,
+) -> bool {
+    let matches_under_bond = |primitive: &RenderPrimitive| {
+        primitive.role() == RenderRole::DocumentBond
+            && primitive.object_id() == under_bond.object_id.as_deref()
+            && primitive_bond_id(primitive) == Some(under_bond.id.as_str())
+    };
+    let matching = primitives
+        .iter()
+        .filter(|primitive| matches_under_bond(primitive))
+        .collect::<Vec<_>>();
+    if matching.is_empty()
+        || matching
+            .iter()
+            .any(|primitive| !matches!(primitive, RenderPrimitive::Polygon { .. }))
+    {
+        return false;
+    }
+
+    let over_axis = Vector::new(
+        over_bond.end_point.x - over_bond.start.x,
+        over_bond.end_point.y - over_bond.start.y,
+    )
+    .normalized();
+    let over_normal = Vector::new(-over_axis.y, over_axis.x);
+    let offsets = over_bond.clearance_offsets_at(crossing);
+    let lower_boundary = offsets.min - over_bond.margin_width;
+    let upper_boundary = offsets.max + over_bond.margin_width;
+    let previous = std::mem::take(primitives);
+    for primitive in previous {
+        if !matches_under_bond(&primitive) {
+            primitives.push(primitive);
+            continue;
+        }
+        let RenderPrimitive::Polygon {
+            role,
+            object_id,
+            node_id,
+            bond_id,
+            points,
+            fill,
+            stroke,
+            stroke_width,
+        } = primitive
+        else {
+            unreachable!("ordinary split crossing was prevalidated as polygon geometry");
+        };
+        let before = clip_polygon_to_crossing_half_plane(
+            &points,
+            crossing,
+            over_normal,
+            lower_boundary,
+            false,
+        );
+        let after = clip_polygon_to_crossing_half_plane(
+            &points,
+            crossing,
+            over_normal,
+            upper_boundary,
+            true,
+        );
+        for clipped in [before, after] {
+            if clipped.len() < 3 || polygon_area_signed(&clipped).abs() <= 1.0e-4 {
+                continue;
+            }
+            primitives.push(RenderPrimitive::Polygon {
+                role,
+                object_id: object_id.clone(),
+                node_id: node_id.clone(),
+                bond_id: bond_id.clone(),
+                points: clipped,
+                fill: fill.clone(),
+                stroke: stroke.clone(),
+                stroke_width,
+            });
+        }
+    }
+    true
+}
+
+fn clip_polygon_to_crossing_half_plane(
+    polygon: &[Point],
+    origin: Point,
+    normal: Vector,
+    boundary: f64,
+    keep_greater: bool,
+) -> Vec<Point> {
+    if polygon.len() < 3 {
+        return Vec::new();
+    }
+    let signed_offset =
+        |point: Point| (point.x - origin.x) * normal.x + (point.y - origin.y) * normal.y;
+    let is_inside = |offset: f64| {
+        if keep_greater {
+            offset >= boundary - EPSILON
+        } else {
+            offset <= boundary + EPSILON
+        }
+    };
+    let mut output = Vec::new();
+    let mut previous = *polygon.last().expect("non-empty polygon");
+    let mut previous_offset = signed_offset(previous);
+    let mut previous_inside = is_inside(previous_offset);
+    for &current in polygon {
+        let current_offset = signed_offset(current);
+        let current_inside = is_inside(current_offset);
+        if current_inside != previous_inside {
+            let denominator = current_offset - previous_offset;
+            if denominator.abs() > EPSILON {
+                let t = ((boundary - previous_offset) / denominator).clamp(0.0, 1.0);
+                output.push(Point::new(
+                    previous.x + (current.x - previous.x) * t,
+                    previous.y + (current.y - previous.y) * t,
+                ));
+            }
+        }
+        if current_inside {
+            output.push(current);
+        }
+        previous = current;
+        previous_offset = current_offset;
+        previous_inside = current_inside;
+    }
+    compact_polygon_points(output)
 }
 
 fn bonds_are_crossing_candidates(
