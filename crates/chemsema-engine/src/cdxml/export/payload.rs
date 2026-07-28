@@ -201,6 +201,19 @@ pub(super) fn imported_cdxml_inherited_label_line_height_is_unchanged(label: &No
         .is_some_and(|height| (height - imported_height).abs() <= 1e-6)
 }
 
+pub(super) fn cdxml_generated_node_label_is_automatic(label: &NodeLabel) -> bool {
+    let generated_without_explicit_edit = |key: &str| {
+        let Some(meta) = label.meta.get(key) else {
+            return false;
+        };
+        meta.get("source").and_then(Value::as_str) == Some("cdxml-generated")
+            && meta.get("userEdited").and_then(Value::as_bool) != Some(true)
+    };
+    generated_without_explicit_edit("implicitHydrogenLabel")
+        || generated_without_explicit_edit("queryListLabel")
+        || generated_without_explicit_edit("carbonDisplayLabel")
+}
+
 pub(super) fn imported_cdxml_object_attr<'a>(
     object: &'a SceneObject,
     name: &str,

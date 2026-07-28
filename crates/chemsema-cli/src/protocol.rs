@@ -837,10 +837,14 @@ pub(crate) fn version_value() -> Value {
         "product": "ChemSema",
         "cli": "chemsema-cli",
         "version": env!("CARGO_PKG_VERSION"),
-        "buildIdentity": option_env!("CHEMSEMA_BUILD_IDENTITY"),
+        "buildIdentity": build_identity(),
         "protocol": CLI_PROTOCOL_VERSION,
         "protocols": protocol_versions_value(),
     })
+}
+
+pub(crate) const fn build_identity() -> Option<&'static str> {
+    option_env!("CHEMSEMA_BUILD_IDENTITY")
 }
 
 fn examples_value(topic: &str) -> Result<Value, String> {

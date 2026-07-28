@@ -1,8 +1,8 @@
 {
   "schema": "chemsema.public-cdxml-failure-ledger.v1",
-  "generatedAt": "2026-07-28T10:48:08.188Z",
+  "generatedAt": "2026-07-28T11:13:32.308Z",
   "inputs": {
-    "roundtripReport": "tmp/public-cdxml-roundtrip-label-inheritance/report.json",
+    "roundtripReport": "tmp/public-cdxml-roundtrip-current/report.json",
     "visualReport": "tmp/public-cdxml-chemdraw-review-all/gate-current.json",
     "baselineReport": "tmp/public-cdxml-chemdraw-review-all/gate-next20-final.json",
     "featureIndex": "tmp/public-cdxml-feature-index-current.json",
@@ -12,12 +12,12 @@
     "totalRegistered": 339,
     "originalCohort": 338,
     "additionalGateCases": 1,
-    "active": 233,
-    "currentlyPassing": 106,
+    "active": 158,
+    "currentlyPassing": 181,
     "byRoundtripStatus": {
-      "semantic-drift": 125,
-      "exact": 106,
+      "exact": 181,
       "non-idempotent": 100,
+      "semantic-drift": 50,
       "topology-lost": 4,
       "count-drift": 3,
       "import-failed": 1
@@ -25,8 +25,7 @@
     "byAutomaticCluster": {
       "visual-pixel-mismatch": 193,
       "roundtrip-non-idempotent-mixed-semantics": 100,
-      "roundtrip-first-generation-label-drift": 76,
-      "roundtrip-first-generation-mixed-drift": 49,
+      "roundtrip-first-generation-mixed-drift": 50,
       "visual-component-topology-mismatch": 23,
       "roundtrip-topology-lost": 4,
       "roundtrip-count-drift": 3,
@@ -37,7 +36,7 @@
       "visual-pixel-mismatch": 194,
       "roundtrip-first-generation-label-drift": 184,
       "roundtrip-non-idempotent-mixed-semantics": 100,
-      "roundtrip-first-generation-mixed-drift": 49,
+      "roundtrip-first-generation-mixed-drift": 50,
       "visual-component-topology-mismatch": 24,
       "roundtrip-topology-lost": 4,
       "roundtrip-count-drift": 3,
@@ -51,8 +50,8 @@
       "unavailable": 3
     },
     "byReviewStatus": {
-      "pending": 233,
-      "verified": 106
+      "verified": 181,
+      "pending": 158
     }
   },
   "cases": [
@@ -561,7 +560,7 @@
         "cdxml"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -580,10 +579,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -661,19 +658,24 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -1032,7 +1034,7 @@
         "cdx"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -1051,10 +1053,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -1114,17 +1114,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-label-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -1140,7 +1144,7 @@
         "cdx"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -1159,10 +1163,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -1228,17 +1230,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-label-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -1254,7 +1260,7 @@
         "cdx"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -1273,10 +1279,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -1336,17 +1340,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-label-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -1362,7 +1370,7 @@
         "cdx"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -1381,10 +1389,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -1444,17 +1450,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-label-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -1470,7 +1480,7 @@
         "cdx"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -1489,10 +1499,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -1558,17 +1566,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-label-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -1584,7 +1596,7 @@
         "cdx"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -1603,10 +1615,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -1672,17 +1682,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-label-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -1829,7 +1843,7 @@
         "solid-wedge"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -1848,10 +1862,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -1930,19 +1942,24 @@
         "componentCountDelta": 7
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -5944,7 +5961,7 @@
         "hashed-wedge"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -5963,10 +5980,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -6045,19 +6060,24 @@
         "componentCountDelta": 27
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -8343,7 +8363,7 @@
         "hashed-wedge"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -8362,10 +8382,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -8425,17 +8443,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-label-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -8593,7 +8615,7 @@
         "cdxml"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -8612,10 +8634,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -8689,19 +8709,24 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -8877,8 +8902,7 @@
             },
             "semanticExact": false,
             "changed": [
-              "molecules",
-              "labels"
+              "molecules"
             ]
           },
           {
@@ -9320,7 +9344,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -9438,7 +9461,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -9460,10 +9483,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -9548,19 +9569,24 @@
         "componentCountDelta": 21
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -9579,7 +9605,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -9601,10 +9627,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -9689,19 +9713,24 @@
         "componentCountDelta": 30
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -9720,7 +9749,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -9741,10 +9770,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -9827,19 +9854,24 @@
         "componentCountDelta": 374
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -10313,7 +10345,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -10443,7 +10474,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -10550,7 +10580,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -10572,10 +10602,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -10660,19 +10688,24 @@
         "componentCountDelta": 22
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -10690,7 +10723,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -10712,10 +10745,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -10800,19 +10831,24 @@
         "componentCountDelta": 129
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -10831,7 +10867,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -10853,10 +10889,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -10941,19 +10975,24 @@
         "componentCountDelta": 244
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -10999,7 +11038,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -11402,7 +11440,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -11421,10 +11459,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -11503,19 +11539,24 @@
         "componentCountDelta": 63
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -11849,7 +11890,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -11963,7 +12003,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -11982,10 +12022,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -12064,19 +12102,24 @@
         "componentCountDelta": 35
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -12270,7 +12313,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -12390,7 +12432,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -12409,10 +12451,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -12491,19 +12531,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -12520,7 +12565,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -12539,10 +12584,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -12621,19 +12664,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -12650,7 +12698,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -12669,10 +12717,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -12751,19 +12797,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -12780,7 +12831,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -12799,10 +12850,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -12881,19 +12930,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -12910,7 +12964,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -12929,10 +12983,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -13011,19 +13063,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -13040,7 +13097,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -13059,10 +13116,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -13141,19 +13196,24 @@
         "componentCountDelta": 7
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -13170,7 +13230,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -13189,10 +13249,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -13270,19 +13328,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -13299,7 +13362,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -13318,10 +13381,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -13400,19 +13461,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -14422,7 +14488,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -14441,10 +14507,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -14516,17 +14580,21 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
-        "automaticClusters": [
-          "roundtrip-first-generation-label-drift"
-        ],
+        "resolutionStatus": "currently-passing",
+        "automaticClusters": [],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -14699,8 +14767,7 @@
             },
             "semanticExact": false,
             "changed": [
-              "molecules",
-              "labels"
+              "molecules"
             ]
           },
           {
@@ -15562,7 +15629,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -15678,7 +15744,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -15700,10 +15766,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -15788,19 +15852,24 @@
         "componentCountDelta": 21
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -15819,7 +15888,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -15841,10 +15910,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -15929,19 +15996,24 @@
         "componentCountDelta": 30
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -16110,7 +16182,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -16227,7 +16298,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -16249,10 +16320,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -16337,19 +16406,24 @@
         "componentCountDelta": 129
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -16391,7 +16465,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -16521,7 +16594,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -16654,7 +16726,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -16776,7 +16847,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -16798,10 +16869,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -16886,19 +16955,24 @@
         "componentCountDelta": 22
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -16916,7 +16990,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -16937,10 +17011,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -17023,19 +17095,24 @@
         "componentCountDelta": 36
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -17081,7 +17158,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -17346,7 +17422,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -17365,10 +17441,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -17447,19 +17521,24 @@
         "componentCountDelta": 63
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -17647,7 +17726,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -17762,7 +17840,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -17781,10 +17859,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -17863,19 +17939,24 @@
         "componentCountDelta": 257
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -18069,7 +18150,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -18189,7 +18269,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -18208,10 +18288,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -18290,19 +18368,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -18319,7 +18402,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -18338,10 +18421,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -18420,19 +18501,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -18449,7 +18535,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -18468,10 +18554,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -18550,19 +18634,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -18579,7 +18668,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -18598,10 +18687,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -18680,19 +18767,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -18709,7 +18801,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -18728,10 +18820,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -18810,19 +18900,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -18839,7 +18934,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -18858,10 +18953,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -18940,19 +19033,24 @@
         "componentCountDelta": 7
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -18969,7 +19067,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -18988,10 +19086,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -19069,19 +19165,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -19098,7 +19199,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -19117,10 +19218,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -19199,19 +19298,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -19228,7 +19332,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -19247,10 +19351,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -19329,19 +19431,24 @@
         "componentCountDelta": 16
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -19632,7 +19739,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -19651,10 +19758,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -19733,19 +19838,24 @@
         "componentCountDelta": 18
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -19922,7 +20032,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -20059,7 +20168,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -20174,7 +20282,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -20193,10 +20301,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -20275,19 +20381,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -20304,7 +20415,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -20323,10 +20434,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -20405,19 +20514,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -20434,7 +20548,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -20453,10 +20567,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -20535,19 +20647,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -20564,7 +20681,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -20583,10 +20700,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -20665,19 +20780,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -20694,7 +20814,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -20713,10 +20833,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -20795,19 +20913,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -20824,7 +20947,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -20843,10 +20966,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -20925,19 +21046,24 @@
         "componentCountDelta": 7
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -20954,7 +21080,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -20973,10 +21099,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -21054,19 +21178,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -21083,7 +21212,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -21102,10 +21231,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -21184,19 +21311,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -21213,7 +21345,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -21232,10 +21364,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -21314,19 +21444,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -21343,7 +21478,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -21362,10 +21497,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -21444,19 +21577,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -21473,7 +21611,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -21492,10 +21630,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -21574,19 +21710,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -21603,7 +21744,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -21622,10 +21763,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -21704,19 +21843,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -21733,7 +21877,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -21752,10 +21896,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -21834,19 +21976,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -21863,7 +22010,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -21882,10 +22029,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -21964,19 +22109,24 @@
         "componentCountDelta": 7
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -21993,7 +22143,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -22012,10 +22162,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -22093,19 +22241,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -22122,7 +22275,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -22141,10 +22294,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -22223,19 +22374,24 @@
         "componentCountDelta": 5
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -27290,7 +27446,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -27311,10 +27467,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -27397,19 +27551,24 @@
         "componentCountDelta": 63
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -27451,8 +27610,7 @@
             },
             "semanticExact": false,
             "changed": [
-              "molecules",
-              "labels"
+              "molecules"
             ]
           },
           {
@@ -27826,7 +27984,7 @@
         "symbol"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -27847,10 +28005,8 @@
               "molecule": 0,
               "symbol": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -27933,19 +28089,24 @@
         "componentCountDelta": 2380
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -27961,7 +28122,7 @@
         "cdx"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -27981,10 +28142,8 @@
               "image": 0,
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -28065,19 +28224,24 @@
         "componentCountDelta": 58
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -28239,6 +28403,7 @@
             },
             "semanticExact": false,
             "changed": [
+              "molecules",
               "labels"
             ]
           },
@@ -28327,11 +28492,12 @@
       "triage": {
         "resolutionStatus": "active",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
+          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
+          "roundtrip-first-generation-mixed-drift",
           "visual-pixel-mismatch"
         ],
         "reviewStatus": "pending",
@@ -28355,7 +28521,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -28376,10 +28542,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -28462,19 +28626,24 @@
         "componentCountDelta": 41
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -28628,7 +28797,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "arrows"
             ]
           },
@@ -28795,7 +28963,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -28817,10 +28985,8 @@
               "symbol": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -28905,19 +29071,24 @@
         "componentCountDelta": 70
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -28934,7 +29105,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -28953,10 +29124,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -29035,19 +29204,24 @@
         "componentCountDelta": 19
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -30479,7 +30653,6 @@
             "semanticExact": false,
             "changed": [
               "molecules",
-              "labels",
               "texts"
             ]
           },
@@ -30621,7 +30794,6 @@
             },
             "semanticExact": false,
             "changed": [
-              "labels",
               "texts"
             ]
           },
@@ -30730,7 +30902,7 @@
         "cdx"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -30749,10 +30921,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -30831,19 +31001,24 @@
         "componentCountDelta": 88
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -30860,7 +31035,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -30879,10 +31054,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -30961,19 +31134,24 @@
         "componentCountDelta": 14
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -30989,7 +31167,7 @@
         "cdx"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -31008,10 +31186,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -31090,19 +31266,24 @@
         "componentCountDelta": 89
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -31118,7 +31299,7 @@
         "cdx"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -31137,10 +31318,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -31219,19 +31398,24 @@
         "componentCountDelta": 121
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -31248,7 +31432,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -31267,10 +31451,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -31349,19 +31531,24 @@
         "componentCountDelta": 23
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -31377,7 +31564,7 @@
         "cdx"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -31396,10 +31583,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -31478,19 +31663,24 @@
         "componentCountDelta": 37
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -31506,7 +31696,7 @@
         "cdx"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -31525,10 +31715,8 @@
             "objectTypeDelta": {
               "molecule": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -31607,19 +31795,24 @@
         "componentCountDelta": 20
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },
@@ -44246,7 +44439,7 @@
         "text"
       ],
       "roundtrip": {
-        "status": "semantic-drift",
+        "status": "exact",
         "failedGeneration": null,
         "error": null,
         "comparisons": [
@@ -44267,10 +44460,8 @@
               "molecule": 0,
               "text": 0
             },
-            "semanticExact": false,
-            "changed": [
-              "labels"
-            ]
+            "semanticExact": true,
+            "changed": []
           },
           {
             "from": 1,
@@ -44353,19 +44544,24 @@
         "componentCountDelta": 0
       },
       "triage": {
-        "resolutionStatus": "active",
+        "resolutionStatus": "currently-passing",
         "automaticClusters": [
-          "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
         "historicalClusters": [
           "roundtrip-first-generation-label-drift",
           "visual-pixel-mismatch"
         ],
-        "reviewStatus": "pending",
-        "confirmedRuleIds": [],
-        "confirmedRootCause": null,
-        "ruleEvidence": [],
+        "reviewStatus": "verified",
+        "confirmedRuleIds": [
+          "cdxml-keep-automatic-node-labels-derived"
+        ],
+        "confirmedRootCause": "Atom, query-list, and carbon-display labels generated from node properties remain derived on CDX/CDXML export. ChemSema emits a child Text object only after the label text becomes explicit.",
+        "ruleEvidence": [
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+          "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+          "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+        ],
         "notes": null
       }
     },

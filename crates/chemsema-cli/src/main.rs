@@ -2367,12 +2367,28 @@ fn import_cache_path(source_text: &str, format: &str) -> PathBuf {
 }
 
 fn import_cache_key(source_text: &str, format: &str) -> String {
+    import_cache_key_with_identity(
+        source_text,
+        format,
+        protocol::build_identity().unwrap_or("development-build"),
+        &current_exe_cache_stamp(),
+    )
+}
+
+fn import_cache_key_with_identity(
+    source_text: &str,
+    format: &str,
+    build_identity: &str,
+    executable_stamp: &str,
+) -> String {
     let mut digest = Sha256::new();
     digest.update(IMPORT_CACHE_VERSION.as_bytes());
     digest.update(b"\0");
     digest.update(env!("CARGO_PKG_VERSION").as_bytes());
     digest.update(b"\0");
-    digest.update(current_exe_cache_stamp().as_bytes());
+    digest.update(build_identity.as_bytes());
+    digest.update(b"\0");
+    digest.update(executable_stamp.as_bytes());
     digest.update(b"\0");
     digest.update(format.as_bytes());
     digest.update(b"\0");
@@ -3385,6 +3401,14 @@ mod tests {
             import_cache_key("<CDXML><page id=\"2\" /></CDXML>", "cdxml")
         );
         assert_ne!(base_key, import_cache_key("<CDXML><page /></CDXML>", "cdx"));
+    }
+
+    #[test]
+    fn import_cache_key_changes_with_source_build_identity() {
+        let source = "<CDXML><page /></CDXML>";
+        let first = import_cache_key_with_identity(source, "cdxml", "source-a", "same-exe");
+        let second = import_cache_key_with_identity(source, "cdxml", "source-b", "same-exe");
+        assert_ne!(first, second);
     }
 
     #[test]

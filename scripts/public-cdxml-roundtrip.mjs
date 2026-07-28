@@ -12,6 +12,7 @@ import {
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  publicCdxmlCliCandidates,
   repositoryState,
   sha256File,
 } from "./public-cdxml-provenance.mjs";
@@ -39,15 +40,18 @@ const workRoot = join(outputRoot, "work");
 const limit = Number.parseInt(option("--limit", "0"), 10);
 const generations = Math.max(1, Number.parseInt(option("--generations", "3"), 10));
 const strictCounts = args.includes("--strict-counts");
+const selectedCaseIds = new Set(
+  (option("--case-ids", "") || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => (/^\d+$/.test(value) ? value.padStart(4, "0") : value)),
+);
+const encounteredSelectedCaseIds = new Set();
 
 function discoverCli() {
   const explicit = option("--cli", process.env.CHEMSEMA_CLI);
-  const suffix = process.platform === "win32" ? ".exe" : "";
-  const candidates = [
-    explicit,
-    join(repoRoot, "target", "debug", `chemsema-cli${suffix}`),
-    join(repoRoot, "target", "release", `chemsema-cli${suffix}`),
-  ].filter(Boolean);
+  const candidates = publicCdxmlCliCandidates(repoRoot, explicit);
   const found = candidates.find((candidate) => existsSync(candidate));
   if (!found) {
     throw new Error(
@@ -58,6 +62,9 @@ function discoverCli() {
 }
 
 const cliPath = discoverCli();
+if (selectedCaseIds.size === 0 && limit <= 0) {
+  rmSync(workRoot, { recursive: true, force: true });
+}
 mkdirSync(workRoot, { recursive: true });
 
 function runCli(commandArgs) {
@@ -65,6 +72,10 @@ function runCli(commandArgs) {
     cwd: repoRoot,
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
+    env: {
+      ...process.env,
+      CHEMSEMA_CLI_DISABLE_CACHE: "1",
+    },
   });
   return {
     ok: result.status === 0,
@@ -502,6 +513,7 @@ const cliIdentity = {
   version: cliMetadata.version,
   sha256: sha256File(cliPath),
   buildIdentity: cliMetadata.buildIdentity,
+  importCache: "disabled",
 };
 const cases = [];
 let caseIndex = 0;
@@ -520,6 +532,8 @@ for (const source of manifest.sources) {
     const classification = special?.class || "valid";
     const format = extname(inputPath).toLowerCase().slice(1);
     const key = String(caseIndex).padStart(4, "0");
+    if (selectedCaseIds.size > 0 && !selectedCaseIds.has(key)) continue;
+    encounteredSelectedCaseIds.add(key);
     const record = {
       caseId: key,
       source: source.id,
@@ -621,6 +635,12 @@ for (const source of manifest.sources) {
     cases.push(record);
   }
   if (limit > 0 && cases.length >= limit) break;
+}
+const missingCaseIds = [...selectedCaseIds].filter(
+  (caseId) => !encounteredSelectedCaseIds.has(caseId),
+);
+if (missingCaseIds.length > 0) {
+  throw new Error(`Unknown public CDXML case IDs: ${missingCaseIds.join(", ")}`);
 }
 
 const statuses = {};

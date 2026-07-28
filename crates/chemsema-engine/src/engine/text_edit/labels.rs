@@ -2124,6 +2124,11 @@ pub(super) fn refreshed_attached_node_label(
         &mut next_label,
         implicit_hydrogen_label_meta(label).cloned(),
     );
+    for key in ["queryListLabel", "carbonDisplayLabel"] {
+        if let Some(meta) = label.meta.get(key).cloned() {
+            set_meta_object_field(&mut next_label.meta, key, Some(meta));
+        }
+    }
     // `make_centered_node_label_from_runs` lays out an edited label from the
     // session's scalar spacing. A geometry-only refresh must instead retain
     // imported variable per-line advances, so rebuild after the final anchor

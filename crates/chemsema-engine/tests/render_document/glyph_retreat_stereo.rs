@@ -1667,6 +1667,84 @@ fn generated_atom_label_recomputes_variable_spacing_after_hydrogen_stacking() {
 }
 
 #[test]
+fn generated_node_labels_remain_derived_until_their_text_is_explicitly_edited() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10" ShowTerminalCarbonLabels="yes">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <fragment id="fragment">
+      <n id="oxygen" p="20 20" Element="8" NumHydrogens="1"/>
+      <n id="query" p="50 20" NodeType="ElementList" ElementList="7 8"/>
+      <n id="carbon" p="80 20" Element="6" ShowTerminalCarbonLabels="yes"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let mut document = parse_cdxml_document(cdxml, Some("automatic derived node labels"))
+        .expect("automatic node labels should parse");
+    let first_labels = document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .filter_map(|node| {
+            node.label.as_ref().map(|label| {
+                (
+                    node.atomic_number,
+                    label.source_text.clone(),
+                    label.text.clone(),
+                    label.position,
+                    label.bbox(),
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(first_labels.len(), 3);
+
+    let first_export = document_to_cdxml(&document);
+    assert!(!first_export.contains("<t "), "{first_export}");
+    assert!(first_export.contains("ElementList=\"7 8\""));
+    assert!(first_export.contains("ShowTerminalCarbonLabels=\"yes\""));
+
+    let reparsed = parse_cdxml_document(&first_export, Some("reparsed automatic node labels"))
+        .expect("exported automatic labels should parse");
+    let reparsed_labels = reparsed
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .filter_map(|node| {
+            node.label.as_ref().map(|label| {
+                (
+                    node.atomic_number,
+                    label.source_text.clone(),
+                    label.text.clone(),
+                    label.position,
+                    label.bbox(),
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(reparsed_labels, first_labels);
+
+    let oxygen_label = document
+        .resources
+        .values_mut()
+        .find_map(|resource| match &mut resource.data {
+            ResourceData::Fragment(fragment) => fragment
+                .nodes
+                .iter_mut()
+                .find(|node| node.id == "oxygen")
+                .and_then(|node| node.label.as_mut()),
+            _ => None,
+        })
+        .expect("generated oxygen label");
+    oxygen_label.meta["implicitHydrogenLabel"]["userEdited"] = json!(true);
+    let edited_export = document_to_cdxml(&document);
+    assert_eq!(edited_export.matches("<t ").count(), 1);
+    assert!(edited_export.contains("UTF8Text=\"OH\""));
+}
+
+#[test]
 fn generated_atom_labels_include_cdxml_charge_in_chemical_text() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML LabelFont="3" LabelSize="10">

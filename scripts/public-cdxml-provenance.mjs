@@ -13,6 +13,19 @@ export function sha256File(filePath) {
   return sha256Bytes(fs.readFileSync(filePath));
 }
 
+export function publicCdxmlCliCandidates(
+  repoRoot,
+  explicitPath = null,
+  platform = process.platform,
+) {
+  const suffix = platform === "win32" ? ".exe" : "";
+  return [
+    explicitPath,
+    path.join(repoRoot, "target", "release", `chemsema-cli${suffix}`),
+    path.join(repoRoot, "target", "debug", `chemsema-cli${suffix}`),
+  ].filter(Boolean);
+}
+
 function cliVersion(cliPath) {
   return JSON.parse(execFileSync(cliPath, ["version"], {
     encoding: "utf8",

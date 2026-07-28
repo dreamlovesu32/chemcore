@@ -1658,11 +1658,12 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 .clone()
                 .unwrap_or_else(|| "N".to_string()),
         ));
-        if node.label.as_ref().is_some_and(NodeLabel::has_visible_text)
-            || !node.nmr_assignments.is_empty()
-        {
+        let exported_label = node.label.as_ref().filter(|label| {
+            label.has_visible_text() && !cdxml_generated_node_label_is_automatic(label)
+        });
+        if exported_label.is_some() || !node.nmr_assignments.is_empty() {
             write_open_tag(out, 6, "n", attrs);
-            if let Some(label) = node.label.as_ref().filter(|label| label.has_visible_text()) {
+            if let Some(label) = exported_label {
                 self.write_node_label(out, object, node, label);
             }
             for assignment in &node.nmr_assignments {

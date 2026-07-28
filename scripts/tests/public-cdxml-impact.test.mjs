@@ -8,6 +8,7 @@ import { classifyBaselineChanges } from "../public-cdxml-visual-gate.mjs";
 import { featuresFromCdxml, selectAffectedCases } from "../public-cdxml-impact.mjs";
 import {
   GALLERY_PROVENANCE_SCHEMA,
+  publicCdxmlCliCandidates,
   provenanceMismatches,
 } from "../public-cdxml-provenance.mjs";
 
@@ -121,6 +122,20 @@ test("gallery provenance invalidates stale source, CLI, corpus, and report input
     "corpus-source:rdkit",
     "roundtrip-report",
   ]);
+});
+
+test("public CDXML gates prefer the release CLI produced by the canonical builder", () => {
+  assert.deepEqual(
+    publicCdxmlCliCandidates("D:\\repo", null, "win32"),
+    [
+      "D:\\repo\\target\\release\\chemsema-cli.exe",
+      "D:\\repo\\target\\debug\\chemsema-cli.exe",
+    ],
+  );
+  assert.equal(
+    publicCdxmlCliCandidates("D:\\repo", "D:\\custom\\cli.exe", "win32")[0],
+    "D:\\custom\\cli.exe",
+  );
 });
 
 test("baseline mode blocks regressions without requiring historical failures to turn green", () => {
