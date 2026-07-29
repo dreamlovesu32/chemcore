@@ -166,6 +166,53 @@ fn parse_cdxml_vertical_bond_retreat_uses_the_glyph_owned_by_the_bond_column() {
 }
 
 #[test]
+fn parse_cdxml_downward_label_retreat_keeps_the_column_local_axis_contact() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="0.5" MarginWidth="1.25" LabelFont="4" LabelSize="7">
+  <fonttable><font id="4" charset="0" name="Times New Roman"/></fonttable>
+  <page>
+    <fragment>
+      <n id="11" p="28.56 18.65" NodeType="Unspecified" LabelDisplay="Left">
+        <t p="26.40 21.38" BoundingBox="26.40 15.64 36.51 21.87"
+           LabelJustification="Left" LabelAlignment="Left">
+          <s font="4" size="7" face="96">Tyr</s>
+        </t>
+      </n>
+      <n id="13" p="28.56 32.58"/>
+      <b id="14" B="11" E="13"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(source, Some("downward Tyr attachment")).expect("CDXML parses");
+    let polygon = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            }
+            | RenderPrimitive::FilledPath {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            } if role == RenderRole::DocumentBond && bond_id == "14" => Some(points),
+            _ => None,
+        })
+        .expect("bond polygon");
+    let (from, to) = bond_axis_from_points(&polygon).expect("bond axis");
+    let label_endpoint = if from.y < to.y { from } else { to };
+
+    assert!(
+        (label_endpoint.y - 24.105).abs() < 0.05,
+        "ChemDraw keeps the column-local baseline contact below Tyr: {polygon:?}"
+    );
+}
+
+#[test]
 fn parse_cdxml_applies_authored_line_starts_to_unbroken_caption_runs() {
     let source = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML CaptionJustification="Center">

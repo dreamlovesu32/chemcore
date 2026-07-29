@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   mapWithConcurrency,
   mergeIncrementalManifestItems,
+  publicCdxmlCliEnvironment,
 } from "../render-public-cdxml-visual-review.mjs";
 import {
   baselineLockedAlignment,
@@ -261,6 +262,19 @@ test("visual workers run concurrently while preserving manifest order", async ()
   });
   assert.deepEqual(results, [30, 10, 20, 0]);
   assert.equal(maximumActive, 2);
+});
+
+test("parallel visual candidates always bypass the shared CLI cache", () => {
+  assert.deepEqual(
+    publicCdxmlCliEnvironment({
+      KEEP: "yes",
+      CHEMSEMA_CLI_DISABLE_CACHE: "0",
+    }),
+    {
+      KEEP: "yes",
+      CHEMSEMA_CLI_DISABLE_CACHE: "1",
+    },
+  );
 });
 
 test("gallery provenance invalidates stale source, CLI, corpus, and report inputs", () => {

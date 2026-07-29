@@ -12,6 +12,13 @@ const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const IMAGE_ALIGNMENT_ALGORITHM = "chemdraw-declared-scale-global-translation-v9";
 
+export function publicCdxmlCliEnvironment(baseEnvironment = process.env) {
+  return {
+    ...baseEnvironment,
+    CHEMSEMA_CLI_DISABLE_CACHE: "1",
+  };
+}
+
 function parseArgs(argv) {
   const args = {
     root: "tmp/public-corpus-pilot",
@@ -1227,6 +1234,11 @@ async function main() {
         await execFileAsync(cli, ["convert", pair.cdxml, chemsemaPath], {
           cwd: process.cwd(),
           maxBuffer: 16 * 1024 * 1024,
+          // Gallery workers run concurrently. The CLI cache is a local
+          // interactive optimization, not a parallel build artifact; sharing
+          // it across workers can return another conversion's derived state
+          // and make the visual gate nondeterministic.
+          env: publicCdxmlCliEnvironment(),
         });
         const renderedSvg = await fs.readFile(chemsemaPath, "utf8");
         if (!svgHasDrawableContent(renderedSvg)) {

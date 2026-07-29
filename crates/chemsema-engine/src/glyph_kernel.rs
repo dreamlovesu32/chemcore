@@ -196,6 +196,12 @@ struct GlyphPlacement {
 }
 
 #[derive(Debug, Clone, Copy)]
+struct AxisContactGlyph {
+    bounds: [f64; 4],
+    baseline_y: f64,
+}
+
+#[derive(Debug, Clone, Copy)]
 struct LabelAnchor {
     valid: bool,
     glyph_index: usize,
@@ -325,7 +331,7 @@ pub fn build_label_glyph_geometry_with_profile(
         .unwrap_or(position[1] - default_font_size * 0.82);
 
     let mut geometry = LabelGlyphGeometry::default();
-    let mut glyph_bounds = Vec::new();
+    let mut contact_glyphs = Vec::new();
     for (line_index, line) in lines.iter().enumerate() {
         let baseline_y = if lines.len() == 1 {
             position[1]
@@ -340,7 +346,10 @@ pub fn build_label_glyph_geometry_with_profile(
                 continue;
             };
             let glyph_index = geometry.glyph_polygons.len();
-            glyph_bounds.push(placement.ink_box_px);
+            contact_glyphs.push(AxisContactGlyph {
+                bounds: placement.ink_box_px,
+                baseline_y: placement.baseline_y_px,
+            });
             geometry.glyph_polygons.push(glyph_geometry.glyph_polygon);
             geometry.clip_polygon_owners.extend(std::iter::repeat_n(
                 Some(glyph_index),
@@ -349,16 +358,16 @@ pub fn build_label_glyph_geometry_with_profile(
             geometry.clip_polygons.extend(glyph_geometry.clip_polygons);
         }
     }
-    if !glyph_bounds.is_empty() {
+    if !contact_glyphs.is_empty() {
         let contacts = localized_axis_contact_polygons(
-            &glyph_bounds,
+            &contact_glyphs,
             retreat_origin,
             profile.natural_outset_pt,
         );
-        geometry
-            .clip_polygon_owners
-            .extend(std::iter::repeat_n(None, contacts.len()));
-        geometry.clip_polygons.extend(contacts);
+        for (polygon, owner) in contacts {
+            geometry.clip_polygons.push(polygon);
+            geometry.clip_polygon_owners.push(owner);
+        }
     }
     geometry
 }
@@ -1166,45 +1175,67 @@ fn capsule_polygon(start: [f64; 2], end: [f64; 2], radius: f64) -> Option<Vec<[f
 }
 
 fn localized_axis_contact_polygons(
-    glyph_bounds: &[[f64; 4]],
+    glyphs: &[AxisContactGlyph],
     origin: [f64; 2],
     margin: f64,
-) -> Vec<Vec<[f64; 2]>> {
+) -> Vec<(Vec<[f64; 2]>, Option<usize>)> {
     let margin = margin.max(0.0);
     // ChemDraw treats a horizontal text run as one left/right envelope:
     // scripts on the attachment-facing end still contribute their X extent.
     // Vertical contacts are column-local, so a script beside the attachment
     // column cannot deepen a top/bottom retreat.
-    let right = glyph_bounds
+    let right = glyphs
         .iter()
-        .map(|bounds| bounds[2] + margin - origin[0])
+        .map(|glyph| glyph.bounds[2] + margin - origin[0])
         .filter(|extent| *extent > crate::EPSILON)
         .max_by(f64::total_cmp);
-    let left = glyph_bounds
+    let left = glyphs
         .iter()
-        .map(|bounds| origin[0] - bounds[0] + margin)
+        .map(|glyph| origin[0] - glyph.bounds[0] + margin)
         .filter(|extent| *extent > crate::EPSILON)
         .max_by(f64::total_cmp);
 
-    let vertical_candidates = glyph_bounds.iter().filter(|bounds| {
-        origin[0] + crate::EPSILON >= bounds[0] - margin
-            && origin[0] - crate::EPSILON <= bounds[2] + margin
-    });
-    let down = vertical_candidates
-        .clone()
-        .map(|bounds| bounds[3] + margin - origin[1])
-        .filter(|extent| *extent > crate::EPSILON)
-        .max_by(f64::total_cmp);
-    let up = vertical_candidates
-        .map(|bounds| origin[1] - bounds[1] + margin)
-        .filter(|extent| *extent > crate::EPSILON)
-        .max_by(f64::total_cmp);
-
-    let contacts = [(0.0, right), (90.0, down), (180.0, left), (270.0, up)];
+    let vertical_candidates = glyphs
+        .iter()
+        .enumerate()
+        .filter(|(_, glyph)| {
+            origin[0] + crate::EPSILON >= glyph.bounds[0] - margin
+                && origin[0] - crate::EPSILON <= glyph.bounds[2] + margin
+        })
+        .collect::<Vec<_>>();
+    let mut contacts = Vec::new();
+    if let Some(extent) = right {
+        contacts.push((0.0, extent, None));
+    }
+    for (index, glyph) in &vertical_candidates {
+        // ChemDraw's baseline-facing contact uses the descent envelope of the
+        // whole same-baseline run. A normal "Tyr" therefore inherits the y
+        // descender even when the bond crosses T, while a shifted formula
+        // subscript remains a separate baseline group.
+        let down = glyphs
+            .iter()
+            .filter(|peer| (peer.baseline_y - glyph.baseline_y).abs() <= crate::EPSILON)
+            .map(|peer| peer.bounds[3] + margin - origin[1])
+            .filter(|extent| *extent > crate::EPSILON)
+            .max_by(f64::total_cmp);
+        if let Some(extent) = down {
+            contacts.push((90.0, extent, Some(*index)));
+        }
+    }
+    if let Some(extent) = left {
+        contacts.push((180.0, extent, None));
+    }
+    for (index, glyph) in vertical_candidates {
+        // The cap-facing contact remains column-local: distant capitals in a
+        // run do not deepen a bond that meets a shorter glyph such as y.
+        let extent = origin[1] - glyph.bounds[1] + margin;
+        if extent > crate::EPSILON {
+            contacts.push((270.0, extent, Some(index)));
+        }
+    }
     contacts
         .into_iter()
-        .filter_map(|(axis_deg, extent)| extent.map(|extent| (axis_deg, extent)))
-        .map(|(axis_deg, extent)| {
+        .map(|(axis_deg, extent, owner)| {
             let mut polygon = Vec::with_capacity(7);
             polygon.push(origin);
             for index in 0..=5 {
@@ -1218,7 +1249,7 @@ fn localized_axis_contact_polygons(
                     origin[1] + radius * angle.sin(),
                 ]);
             }
-            polygon
+            (polygon, owner)
         })
         .collect()
 }
@@ -2004,9 +2035,17 @@ mod tests {
 
     #[test]
     fn axial_contact_sectors_are_limited_to_ten_degrees() {
-        let polygons = localized_axis_contact_polygons(&[[-2.0, -4.0, 5.0, 3.0]], [0.0, 0.0], 1.0);
+        let polygons = localized_axis_contact_polygons(
+            &[AxisContactGlyph {
+                bounds: [-2.0, -4.0, 5.0, 3.0],
+                baseline_y: 0.0,
+            }],
+            [0.0, 0.0],
+            1.0,
+        );
         assert_eq!(polygons.len(), 4);
-        let right = &polygons[0];
+        let (right, owner) = &polygons[0];
+        assert_eq!(*owner, None, "horizontal run envelopes stay shared");
         let angles: Vec<f64> = right[1..]
             .iter()
             .map(|point| point[1].atan2(point[0]).to_degrees())
@@ -2017,17 +2056,27 @@ mod tests {
 
     #[test]
     fn axial_contact_uses_only_glyphs_crossing_the_attachment_axis() {
-        let glyph_bounds = [
-            [9.46, 1.18, 15.79, 8.58],
-            [16.98, 1.30, 22.60, 8.46],
-            [23.73, 5.27, 27.23, 10.76],
+        let glyphs = [
+            AxisContactGlyph {
+                bounds: [9.46, 1.18, 15.79, 8.58],
+                baseline_y: 7.4,
+            },
+            AxisContactGlyph {
+                bounds: [16.98, 1.30, 22.60, 8.46],
+                baseline_y: 7.4,
+            },
+            AxisContactGlyph {
+                bounds: [23.73, 5.27, 27.23, 10.76],
+                baseline_y: 10.4,
+            },
         ];
         let origin = [12.62, 4.56];
-        let polygons = localized_axis_contact_polygons(&glyph_bounds, origin, 1.6);
-        let down = polygons
+        let polygons = localized_axis_contact_polygons(&glyphs, origin, 1.6);
+        let (down, owner) = polygons
             .iter()
-            .find(|polygon| polygon.iter().skip(1).all(|point| point[1] > origin[1]))
+            .find(|(polygon, _)| polygon.iter().skip(1).all(|point| point[1] > origin[1]))
             .expect("downward axial sector");
+        assert_eq!(*owner, Some(0), "the crossed C-like glyph owns the contact");
         let maximum_y = down
             .iter()
             .map(|point| point[1])
@@ -2036,20 +2085,30 @@ mod tests {
 
         assert!((maximum_y - 10.17315498123).abs() < 1.0e-9, "{maximum_y}");
         assert!(
-            maximum_y < glyph_bounds[2][3] + 1.6,
+            maximum_y < glyphs[2].bounds[3] + 1.6,
             "the distant subscript must not deepen the attachment column"
         );
     }
 
     #[test]
     fn horizontal_axial_contact_keeps_the_whole_text_run_envelope() {
-        let glyph_bounds = [[0.0, -4.0, 4.0, 3.0], [8.0, 4.0, 12.0, 8.0]];
+        let glyphs = [
+            AxisContactGlyph {
+                bounds: [0.0, -4.0, 4.0, 3.0],
+                baseline_y: 0.0,
+            },
+            AxisContactGlyph {
+                bounds: [8.0, 4.0, 12.0, 8.0],
+                baseline_y: 4.0,
+            },
+        ];
         let origin = [2.0, 0.0];
-        let polygons = localized_axis_contact_polygons(&glyph_bounds, origin, 1.0);
-        let right = polygons
+        let polygons = localized_axis_contact_polygons(&glyphs, origin, 1.0);
+        let (right, owner) = polygons
             .iter()
-            .find(|polygon| polygon.iter().skip(1).all(|point| point[0] > origin[0]))
+            .find(|(polygon, _)| polygon.iter().skip(1).all(|point| point[0] > origin[0]))
             .expect("rightward axial sector");
+        assert_eq!(*owner, None, "the horizontal run envelope is shared");
         let maximum_x = right
             .iter()
             .map(|point| point[0])

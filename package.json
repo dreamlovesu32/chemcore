@@ -81,6 +81,7 @@
     "regression:label-anchor": "node scripts/label-anchor-regression.mjs",
     "probe:label-retreat": "node scripts/chemdraw-label-retreat-probe.mjs",
     "probe:label-axis-contact": "node scripts/chemdraw-multiglyph-axis-contact-probe.mjs",
+    "probe:label-axis-contact:flat-baseline": "node scripts/chemdraw-flat-baseline-axis-contact-probe.mjs",
     "probe:label-retreat:analyze": "node scripts/analyze-chemdraw-label-retreat.mjs",
     "regression:large-object-operations": "node scripts/large-object-operation-regression.mjs",
     "regression:large-cdxml-speed": "node scripts/large-cdxml-speed-regression.mjs",

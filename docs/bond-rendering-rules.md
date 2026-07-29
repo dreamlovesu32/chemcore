@@ -471,14 +471,20 @@ Later rules must not overturn geometry topology already determined by earlier ru
   Top/bottom ownership is selected from the raw glyph intervals intersected by
   the bond center and body-edge rays; `MarginWidth` expands the selected
   glyph's clip geometry, but must not make a neighboring glyph steal the
-  column. If a vertical ray lies in an internal kerning gap, assign the gap to
-  the nearest glyph in the ray direction; subscript and superscript glyphs
-  participate in this gap-only branch. The public
+  column. On the cap-facing side, the selected glyph's own top extent is
+  authoritative. On the baseline-facing side, use the descent envelope of the
+  complete run that shares the selected glyph's exact layout baseline. Shifted
+  subscript and superscript runs remain separate. If a vertical ray lies in an
+  internal kerning gap, assign the gap to the nearest glyph in the ray
+  direction. The public
   `3060_iso_butane.cdxml` sample demonstrates the vertical branch: the bond
   under `CH3` stops at the `C` column (`y = 191.09pt` in ChemDraw), not at the
   lower edge of the remote subscript `3`. Public case `0137` demonstrates the
   horizontal branch repeatedly: fixed-display labels such as `(CH2CHO)m`
-  continue to mask the bond through the complete run's X envelope.
+  continue to mask the bond through the complete run's X envelope. The
+  same-baseline `T`/`Tyr` probe demonstrates the asymmetric vertical rule:
+  their cap-facing endpoints coincide, while the baseline-facing endpoint of
+  `Tyr` includes the `y` descender.
 - For rendered bonds with thickness, the whole bond body must be clipped out of
   the glyph clip polygon. Ordinary, dashed, bold, and multi-line bonds should
   evaluate the center line plus both body boundary lines for the current visual

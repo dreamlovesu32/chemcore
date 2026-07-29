@@ -24,6 +24,7 @@ for (const font of fonts) {
     for (const marginWidth of [0, 1.6, 3]) {
       families.push({
         name: `bottom-${font.slug}-${size}-margin-${String(marginWidth).replace(".", "_")}`,
+        rule: "shifted-script-is-local",
         font,
         size,
         marginWidth,
@@ -40,6 +41,7 @@ for (const font of fonts) {
 for (const lineWidth of [1.5]) {
   families.push({
     name: `bottom-arial-10-line-${String(lineWidth).replace(".", "_")}`,
+    rule: "shifted-script-is-local",
     font: fonts[0],
     size: 10,
     marginWidth: 1.6,
@@ -54,6 +56,7 @@ for (const lineWidth of [1.5]) {
 for (const direction of ["top", "left", "right"]) {
   families.push({
     name: `${direction}-arial-10`,
+    rule: "shifted-script-is-local",
     font: fonts[0],
     size: 10,
     marginWidth: 1.6,
@@ -64,13 +67,32 @@ for (const direction of ["top", "left", "right"]) {
       : [{ text: "CH", face: 0 }, { text: "3", face: 32 }],
   });
 }
+for (const font of fonts) {
+  for (const size of [8, 10, 14]) {
+    for (const marginWidth of [0, 1.6, 3]) {
+      for (const direction of ["top", "bottom"]) {
+        families.push({
+          name: `same-baseline-${direction}-${font.slug}-${size}-margin-${String(marginWidth).replace(".", "_")}`,
+          rule: "same-baseline-descent-envelope",
+          font,
+          size,
+          marginWidth,
+          lineWidth: 0.6,
+          direction,
+          baseRuns: [{ text: "T", face: 0 }],
+          decoratedRuns: [{ text: "Tyr", face: 0 }],
+        });
+      }
+    }
+  }
+}
 const probes = families.flatMap((family) => [
   {
     ...family,
     name: `${family.name}-base`,
     pair: family.name,
     kind: "base",
-    runs: [{ text: "C", face: 0 }],
+    runs: family.baseRuns ?? [{ text: "C", face: 0 }],
   },
   {
     ...family,
@@ -245,6 +267,7 @@ const comparisons = families.map((family) => {
     entry.pair === family.name && entry.kind === "decorated");
   return {
     name: family.name,
+    rule: family.rule,
     direction: family.direction,
     font: family.font.name,
     size: family.size,
@@ -265,7 +288,18 @@ await fs.writeFile(
 // ChemDraw's SVG bond coordinates are quantized in 0.05-0.10 pt steps for
 // these templates. The paired formula labels must agree within one such step;
 // a whole-label vertical ymin/ymax rule misses by several points.
-const mismatches = comparisons.filter((entry) => Math.abs(entry.delta) > 0.12);
+const mismatches = comparisons.filter((entry) => {
+  if (entry.rule === "same-baseline-descent-envelope") {
+    if (entry.direction === "top") return Math.abs(entry.delta) > 0.12;
+    // With a positive attachment margin every tested same-baseline y
+    // descender shortens the downward bond. At zero margin a few font/size
+    // combinations put the authored axis just outside T's ink, so ChemDraw
+    // explicitly leaves the pair equal; it never makes the decorated bond
+    // longer.
+    return entry.marginWidth > 0 ? entry.delta > -0.2 : entry.delta > 0.12;
+  }
+  return Math.abs(entry.delta) > 0.12;
+});
 if (mismatches.length > 0) {
   console.error(JSON.stringify(mismatches, null, 2));
   throw new Error(
