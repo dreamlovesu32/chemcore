@@ -238,6 +238,116 @@ fn cdxml_crossing_knockouts_match_chemdraw_style_envelopes() {
 }
 
 #[test]
+fn attached_label_crossings_use_the_rendered_character_axis() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML BoundingBox="0 0 180 130" LineWidth="0.60" BondLength="35"
+ MarginWidth="1.60" LabelFont="3" LabelSize="12">
+ <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+ <page id="1" BoundingBox="0 0 180 130">
+  <fragment id="11">
+   <n id="100" p="15 70"/><n id="101" p="165 70"/>
+   <n id="102" p="35 25" NodeType="Nickname" LabelDisplay="Right">
+    <t p="82 34" BoundingBox="55 18 90 38"><s font="3" size="12">ABC</s></t>
+   </n>
+   <n id="103" p="82 115"/>
+   <b id="110" Z="1" B="100" E="101" CrossingBonds="111"/>
+   <b id="111" Z="2" B="102" E="103" BeginAttach="1" CrossingBonds="110"/>
+  </fragment>
+ </page>
+</CDXML>"#;
+    let mut document = parse_cdxml_document(cdxml, Some("attached crossing axis"))
+        .expect("attached crossing probe should parse");
+    let resource_id = document
+        .resources
+        .iter()
+        .find_map(|(resource_id, resource)| {
+            resource
+                .data
+                .as_fragment()
+                .is_some_and(|fragment| fragment.nodes.iter().any(|node| node.id == "102"))
+                .then_some(resource_id.clone())
+        })
+        .expect("resource containing attached label");
+    let object = document
+        .objects
+        .iter()
+        .find(|object| object.payload.resource_ref.as_deref() == Some(resource_id.as_str()))
+        .expect("molecule object");
+    let translate_x = object.transform.translate[0];
+    let fragment = document
+        .resources
+        .get_mut(&resource_id)
+        .and_then(|resource| resource.data.as_fragment_mut())
+        .expect("molecule fragment");
+    let label_node = fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "102")
+        .expect("attached label");
+    let raw_node_x = label_node.position[0] + translate_x;
+    let attached_character_x = label_node
+        .label
+        .as_ref()
+        .and_then(|label| label.glyph_polygons().get(1).cloned())
+        .map(|polygon| primitive_polygon_bounds(&polygon))
+        .map(|bounds| (bounds[0] + bounds[2]) * 0.5 + translate_x)
+        .expect("second authored character should have glyph geometry");
+    assert!(
+        (attached_character_x - raw_node_x).abs() > 5.0,
+        "probe must distinguish the raw node from the authored character"
+    );
+    fragment
+        .nodes
+        .iter_mut()
+        .find(|node| node.id == "103")
+        .expect("upper bond end")
+        .position[0] = attached_character_x - translate_x;
+
+    let assert_crossing_axis = |primitives: &[RenderPrimitive]| {
+        let mut under_bounds = primitives
+            .iter()
+            .filter_map(|primitive| match primitive {
+                RenderPrimitive::Polygon {
+                    role: RenderRole::DocumentBond,
+                    bond_id,
+                    points,
+                    ..
+                } if bond_id.as_deref() == Some("110") => Some(primitive_polygon_bounds(points)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        under_bounds.sort_by(|left, right| left[0].total_cmp(&right[0]));
+        assert_eq!(
+            under_bounds.len(),
+            2,
+            "lower bond must split around the attached upper axis: {primitives:?}"
+        );
+        let gap_center = (under_bounds[0][2] + under_bounds[1][0]) * 0.5;
+        assert!(
+            (gap_center - attached_character_x).abs() < 1.0e-6,
+            "gap center {gap_center} must follow attached character axis {attached_character_x}"
+        );
+        assert!(
+            (gap_center - raw_node_x).abs() > 5.0,
+            "crossing must not use raw label-node coordinate {raw_node_x}"
+        );
+    };
+
+    assert_crossing_axis(&render_document(&document));
+
+    let mut engine = Engine::new();
+    engine
+        .load_document_json(&serde_json::to_string(&document).unwrap())
+        .expect("document should load for target rendering");
+    let target_primitives = engine.render_targets(
+        &BTreeSet::new(),
+        &BTreeSet::from(["110".to_string()]),
+        &BTreeSet::new(),
+    );
+    assert_crossing_axis(&target_primitives);
+}
+
+#[test]
 fn cdxml_near_endpoint_crossings_use_finite_margin_caps() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <CDXML BoundingBox="0 0 260 110" LineWidth="0.60" BoldWidth="2.0"

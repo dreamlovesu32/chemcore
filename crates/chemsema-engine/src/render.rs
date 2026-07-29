@@ -35,8 +35,8 @@ mod style_payload;
 
 pub(crate) use bond_metrics::double_bond_center_distance_for_bond_weights;
 use bond_render::{
-    bond_label_clipped_body_geometry, compute_solid_wedge_points, imported_cdxml_dative_bond,
-    render_fragment_bond,
+    bond_endpoint_world, bond_label_clipped_body_geometry, compute_solid_wedge_points,
+    imported_cdxml_dative_bond, render_fragment_bond,
 };
 pub use bounds::{render_primitive_bounds, render_primitives_bounds};
 use contact::{
@@ -285,14 +285,8 @@ fn collect_object_bond_render_info(
                 ) else {
                     continue;
                 };
-                let start = Point::new(
-                    object.transform.translate[0] + begin.position[0],
-                    object.transform.translate[1] + begin.position[1],
-                );
-                let end_point = Point::new(
-                    object.transform.translate[0] + end.position[0],
-                    object.transform.translate[1] + end.position[1],
-                );
+                let start = bond_endpoint_world(object, begin, bond, "begin");
+                let end_point = bond_endpoint_world(object, end, bond, "end");
                 if start.distance(end_point) <= EPSILON {
                     continue;
                 }
@@ -997,8 +991,8 @@ fn collect_document_target_bond_segments(
             ) else {
                 continue;
             };
-            let start = entry.world_point_for_node(begin);
-            let end_point = entry.world_point_for_node(end);
+            let start = bond_endpoint_world(entry.object, begin, bond, "begin");
+            let end_point = bond_endpoint_world(entry.object, end, bond, "end");
             if start.distance(end_point) <= EPSILON {
                 continue;
             }

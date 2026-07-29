@@ -362,7 +362,12 @@ fn render_dative_bond_head(
     });
 }
 
-fn bond_endpoint_world(object: &SceneObject, node: &Node, bond: &Bond, endpoint: &str) -> Point {
+pub(super) fn bond_endpoint_world(
+    object: &SceneObject,
+    node: &Node,
+    bond: &Bond,
+    endpoint: &str,
+) -> Point {
     bond.meta
         .pointer(&format!("/endpointAttachments/{endpoint}"))
         .and_then(|attachment| attachment.get("characterIndex"))

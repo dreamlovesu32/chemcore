@@ -1995,8 +1995,18 @@ fn bond_world_segment(
     node_map: &BTreeMap<&str, &Node>,
     bond: &Bond,
 ) -> Option<(Point, Point)> {
-    let begin = world_point(object, node_map.get(bond.begin.as_str()).copied()?);
-    let end = world_point(object, node_map.get(bond.end.as_str()).copied()?);
+    let begin = bond_endpoint_world(
+        object,
+        node_map.get(bond.begin.as_str()).copied()?,
+        bond,
+        "begin",
+    );
+    let end = bond_endpoint_world(
+        object,
+        node_map.get(bond.end.as_str()).copied()?,
+        bond,
+        "end",
+    );
     Some((begin, end))
 }
 
