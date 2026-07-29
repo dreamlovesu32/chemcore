@@ -163,7 +163,7 @@ fn parse_cdxml_fixed_edge_labels_anchor_subscripts_but_not_superscripts() {
 }
 
 #[test]
-fn render_single_line_attached_labels_keeps_semantic_attachment_without_svg_reanchoring() {
+fn render_single_line_attached_labels_uses_resolved_box_without_authored_overhang() {
     let source = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML LabelFont="4" LabelSize="7">
   <fonttable><font id="4" charset="0" name="Times New Roman"/></fonttable>
@@ -194,6 +194,7 @@ fn render_single_line_attached_labels_keeps_semantic_attachment_without_svg_rean
         .find(|node| node.id == "right")
         .expect("right label node");
     let label = node.label.as_ref().expect("right label");
+    let box_value = label.bbox().expect("resolved active label box");
     let last_glyph = label
         .glyph_polygons
         .last()
@@ -223,13 +224,7 @@ fn render_single_line_attached_labels_keeps_semantic_attachment_without_svg_rean
             _ => None,
         })
         .expect("rendered right label");
-    let authored_local_box = label
-        .meta
-        .pointer("/import/cdxml/localBoundingBox")
-        .and_then(serde_json::Value::as_array)
-        .expect("authored local bounding box");
-    let expected_x = entry.object.transform.translate[0]
-        + authored_local_box[0].as_f64().expect("authored local left");
+    let expected_x = entry.object.transform.translate[0] + box_value[0];
     assert_close(render_x, expected_x);
     assert_eq!(render_anchor.as_deref(), Some("start"));
 }

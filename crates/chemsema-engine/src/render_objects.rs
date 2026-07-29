@@ -127,14 +127,23 @@ fn imported_authored_label_left_world(
     let authored_local_left = local_bounding_box[0].as_f64()?;
     let authored_local_right = local_bounding_box[2].as_f64()?;
     let authored_text_x = text_position[0].as_f64()?;
+    let natural_outset = label
+        .meta
+        .pointer("/import/cdxml/naturalOutsetPt")?
+        .as_f64()?;
+    let resolved_left = object.transform.translate[0] + label.bbox()?[0];
+    let authored_world_left = object.transform.translate[0] + authored_local_left;
     if !authored_left.is_finite()
         || !authored_right.is_finite()
         || !authored_local_left.is_finite()
         || !authored_local_right.is_finite()
         || !authored_text_x.is_finite()
+        || !natural_outset.is_finite()
+        || natural_outset < 0.0
         || authored_right < authored_left
         || authored_local_right < authored_local_left
         || (authored_text_x - authored_right).abs() > 0.02
+        || authored_world_left - resolved_left <= natural_outset
     {
         return None;
     }
@@ -147,7 +156,7 @@ fn imported_authored_label_left_world(
     // left-origin records and remain on the resolved-geometry branch. A
     // committed endpoint-text edit deliberately drops this import metadata, so
     // edited labels take that branch as well.
-    Some(object.transform.translate[0] + authored_local_left)
+    Some(authored_world_left)
 }
 
 fn polygon_list_bounds(polygons: &[Vec<Point>]) -> Option<(f64, f64, f64, f64)> {

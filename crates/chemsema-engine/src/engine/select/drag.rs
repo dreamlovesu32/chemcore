@@ -860,43 +860,8 @@ fn translated_node_label_geometry(
     delta_y: f64,
 ) -> crate::NodeLabel {
     let mut label = original.clone();
-    translate_node_label_geometry(&mut label, delta_x, delta_y);
+    crate::translate_node_label_geometry(&mut label, delta_x, delta_y);
     label
-}
-
-fn translate_node_label_geometry(label: &mut crate::NodeLabel, delta_x: f64, delta_y: f64) {
-    if delta_x.abs() <= crate::EPSILON && delta_y.abs() <= crate::EPSILON {
-        return;
-    }
-    if let Some(position) = &mut label.position {
-        position[0] = round2(position[0] + delta_x);
-        position[1] = round2(position[1] + delta_y);
-    }
-    if let Some(bounds) = &mut label.box_field {
-        translate_box(bounds, delta_x, delta_y);
-    }
-    if let Some(bounds) = &mut label.box_value {
-        translate_box(bounds, delta_x, delta_y);
-    }
-    for polygon in &mut label.glyph_polygons {
-        for point in polygon {
-            point[0] = round2(point[0] + delta_x);
-            point[1] = round2(point[1] + delta_y);
-        }
-    }
-    for polygon in &mut label.glyph_clip_polygons {
-        for point in polygon {
-            point[0] = round2(point[0] + delta_x);
-            point[1] = round2(point[1] + delta_y);
-        }
-    }
-}
-
-fn translate_box(bounds: &mut [f64; 4], delta_x: f64, delta_y: f64) {
-    bounds[0] = round2(bounds[0] + delta_x);
-    bounds[1] = round2(bounds[1] + delta_y);
-    bounds[2] = round2(bounds[2] + delta_x);
-    bounds[3] = round2(bounds[3] + delta_y);
 }
 
 fn object_transform_participates_in_render(object: &SceneObject) -> bool {

@@ -2056,6 +2056,7 @@ pub(crate) fn translate_node_label_geometry(label: &mut NodeLabel, delta_x: f64,
     if let Some(bbox) = &mut label.box_value {
         translate_bbox(bbox, delta_x, delta_y);
     }
+    translate_label_meta_local_bbox(label, delta_x, delta_y);
     for polygon in &mut label.glyph_polygons {
         for point in polygon {
             point[0] = round2(point[0] + delta_x);
@@ -2068,6 +2069,33 @@ pub(crate) fn translate_node_label_geometry(label: &mut NodeLabel, delta_x: f64,
             point[1] = round2(point[1] + delta_y);
         }
     }
+}
+
+fn translate_label_meta_local_bbox(label: &mut NodeLabel, delta_x: f64, delta_y: f64) {
+    let Some(values) = label
+        .meta
+        .pointer_mut("/import/cdxml/localBoundingBox")
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    if values.len() != 4 {
+        return;
+    }
+    let [Some(x1), Some(y1), Some(x2), Some(y2)] = [
+        values[0].as_f64(),
+        values[1].as_f64(),
+        values[2].as_f64(),
+        values[3].as_f64(),
+    ] else {
+        return;
+    };
+    *values = vec![
+        json!(round2(x1 + delta_x)),
+        json!(round2(y1 + delta_y)),
+        json!(round2(x2 + delta_x)),
+        json!(round2(y2 + delta_y)),
+    ];
 }
 
 fn translate_bbox(bbox: &mut [f64; 4], delta_x: f64, delta_y: f64) {
