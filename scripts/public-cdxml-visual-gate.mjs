@@ -485,19 +485,60 @@ async function oracleIsUnavailable(filePath) {
 export async function analyzeAlignedImages(page, referenceDataUrl, candidateDataUrl, alignment, options = {}) {
   const settings = { ...DEFAULTS, ...options };
   return page.evaluate(async ({ referenceDataUrl, candidateDataUrl, alignment, settings }) => {
-    async function normalizedSvgViewportSource(src, width, height) {
-      if (!src.startsWith("data:image/svg+xml")) return src;
+    function numericLength(value) {
+      const match = /^\s*([-+0-9.eE]+)(?:px)?\s*$/.exec(value ?? "");
+      if (!match) return null;
+      const number = Number(match[1]);
+      return Number.isFinite(number) && number > 0 ? number : null;
+    }
+
+    function viewBoxSize(svg) {
+      const values = (svg.getAttribute("viewBox") ?? "")
+        .trim()
+        .split(/[\s,]+/)
+        .map(Number);
+      return values.length === 4
+        && values.every(Number.isFinite)
+        && values[2] > 0
+        && values[3] > 0
+        ? { width: values[2], height: values[3] }
+        : null;
+    }
+
+    async function prepareImage(src, viewportScale) {
+      if (!(Number.isFinite(viewportScale) && viewportScale > 0)) {
+        throw new Error("visual gate alignment scale must be positive");
+      }
+      if (!src.startsWith("data:image/svg+xml")) {
+        const image = await loadImage(src);
+        return {
+          image,
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+        };
+      }
       const source = await (await fetch(src)).text();
       const document = new DOMParser().parseFromString(source, "image/svg+xml");
       const svg = document.documentElement;
       if (svg.localName !== "svg" || document.querySelector("parsererror")) {
-        throw new Error("Cannot normalize an invalid SVG viewport");
+        throw new Error("visual gate could not parse an SVG input");
       }
-      svg.setAttribute("width", `${width}px`);
-      svg.setAttribute("height", `${height}px`);
-      return `data:image/svg+xml;charset=utf-8,${
+      const viewBox = viewBoxSize(svg);
+      const width = numericLength(svg.getAttribute("width")) ?? viewBox?.width;
+      const height = numericLength(svg.getAttribute("height")) ?? viewBox?.height;
+      if (!(width > 0 && height > 0)) {
+        throw new Error("visual gate SVG input has no positive viewport");
+      }
+      svg.setAttribute("width", `${width * viewportScale}px`);
+      svg.setAttribute("height", `${height * viewportScale}px`);
+      const normalizedSource = `data:image/svg+xml;charset=utf-8,${
         encodeURIComponent(new XMLSerializer().serializeToString(svg))
       }`;
+      return {
+        image: await loadImage(normalizedSource),
+        width,
+        height,
+      };
     }
 
     async function loadImage(src) {
@@ -639,34 +680,16 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
       };
     }
 
-    const originalImages = await Promise.all([
-      loadImage(referenceDataUrl),
-      loadImage(candidateDataUrl),
+    const [referenceFrame, candidateFrame] = await Promise.all([
+      prepareImage(referenceDataUrl, 1),
+      prepareImage(candidateDataUrl, alignment.scale),
     ]);
-    const referenceWidth = Number(
-      alignment.referenceWidth ?? originalImages[0].naturalWidth,
-    );
-    const referenceHeight = Number(
-      alignment.referenceHeight ?? originalImages[0].naturalHeight,
-    );
-    const candidateWidth = Number(
-      alignment.chemsemaWidth ?? originalImages[1].naturalWidth,
-    );
-    const candidateHeight = Number(
-      alignment.chemsemaHeight ?? originalImages[1].naturalHeight,
-    );
-    const [referenceImage, candidateImage] = await Promise.all([
-      normalizedSvgViewportSource(
-        referenceDataUrl,
-        referenceWidth,
-        referenceHeight,
-      ).then(loadImage),
-      normalizedSvgViewportSource(
-        candidateDataUrl,
-        candidateWidth * alignment.scale,
-        candidateHeight * alignment.scale,
-      ).then(loadImage),
-    ]);
+    const referenceImage = referenceFrame.image;
+    const candidateImage = candidateFrame.image;
+    const referenceWidth = referenceFrame.width;
+    const referenceHeight = referenceFrame.height;
+    const candidateWidth = candidateFrame.width;
+    const candidateHeight = candidateFrame.height;
 
     const domain = {
       left: Math.floor(Math.min(0, alignment.dx)),
@@ -1697,6 +1720,60 @@ async function runSelfTest(options) {
           }`,
         );
       }
+    }
+    const staleFrameEquivalent = await analyzeAlignedImages(
+      page,
+      data(fractionalSvg(fractionalReferenceWidth, fractionalReferenceHeight)),
+      data(fractionalSvg(fractionalCandidateWidth, fractionalCandidateHeight)),
+      {
+        ...fractionalAlignment,
+        referenceWidth: 999,
+        referenceHeight: 777,
+        chemsemaWidth: 333,
+        chemsemaHeight: 222,
+      },
+      { ...options, analysisScale: 4, tolerance: 0 },
+    );
+    if (
+      staleFrameEquivalent.largestMissing.area !== 0
+      || staleFrameEquivalent.largestExtra.area !== 0
+      || staleFrameEquivalent.detailFeatures.componentCountDelta !== 0
+      || staleFrameEquivalent.domain.right
+        !== Math.ceil(fractionalReferenceWidth)
+      || staleFrameEquivalent.domain.bottom
+        !== Math.ceil(fractionalReferenceHeight)
+    ) {
+      throw new Error(
+        `stale alignment frame dimensions affected current SVG analysis: ${
+          JSON.stringify(staleFrameEquivalent)
+        }`,
+      );
+    }
+    const vectorCoarse = await analyzeAlignedImages(
+      page,
+      data(vectorReference),
+      data(vectorCandidate),
+      vectorAlignment,
+      options,
+    );
+    const vectorDetail = await analyzeAlignedImages(
+      page,
+      data(vectorReference),
+      data(vectorCandidate),
+      vectorAlignment,
+      detailAnalysisOptions(options),
+    );
+    const vectorClassification = classifyAnalyzedVisualMetrics(
+      vectorCoarse,
+      vectorDetail,
+      options,
+    );
+    if (!vectorClassification.passed) {
+      throw new Error(
+        `declared vector matrix did not survive aligned raster analysis: ${
+          JSON.stringify(vectorClassification)
+        }`,
+      );
     }
     const wrongScriptCandidate = viewportReference.replace(
       '<tspan baseline-shift="sub" font-size="12">3</tspan><tspan baseline-shift="super" font-size="12">+</tspan>',
