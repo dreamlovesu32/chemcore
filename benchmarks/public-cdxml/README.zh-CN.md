@@ -74,6 +74,15 @@ npm run benchmark:cdxml-public:visual-gate:affected
 
 规划器会增量更新完整图集的对应条目。像素门禁按“ChemDraw 参考图哈希 + ChemSema SVG 哈希 + 门禁策略版本”复用未变化案例，只分析真正改变的图片；最终报告仍包含完整基线的全部案例，并在 `cache.reused`/`cache.analyzed` 中记录复用和重算数量。基线模式允许历史红图继续留待后续修复，但任何旧绿转红都会写入 `delta.regressions` 并让命令失败。代码路径到特征族及历史回归样例的映射保存在 `benchmarks/public-cdxml/visual-impact-map.json`。未登记的生产代码改动会保守地强制全量，门禁算法本身变化也必须全量验证。
 
+严格的原始 338 张门禁还会读取 `benchmarks/public-cdxml/strict-pass-floor.json`。这份受版本控制的通过下限保存所有已验收通过图片的累计并集，因此即使误选了一份已经退化的基线报告，也不能把更早的绿图从历史中洗掉。严格门禁会先拒绝已经丢失受保护绿图的基线，并独立检查本次结果是否丢失任一受保护绿图。一次干净的严格门禁新增通过且没有任何回退后，只提升新增项：
+
+```bash
+npm run benchmark:cdxml-public:visual-gate:promote -- \
+  --report tmp/public-cdxml-visual-gate-current-strict338.json
+```
+
+提升命令会核对完整 338 张集合、干净且当前一致的仓库和 CLI 来源、零分析错误、零即时回退以及零累计回退。它只会把新增通过项并入下限，绝不会删除已经受保护的路径。
+
 v12 门禁不再允许等价分支绕过固定坐标的细节检查：整页覆盖率和拓扑分布都不能掩盖局部空白窗口或大块局部缺陷，粗粒度像素相似也不能删除细粒度连通组件不一致。细节层使用零膨胀，保留亚像素键交汇差异；重复缺陷阈值使用参考图坐标单位，不随画布大小稀释。SVG 使用声明的固定矢量比例与基线锁定平移，局部 glyph 或键型变化不能再推动整页重新拟合缩放与位移。正式门禁会拒绝仓库、CLI、语料、往返报告或逐图候选来源不一致的图集；`--allow-stale-gallery` 只供诊断，不能把旧图变成正式结果。
 
 使用 `--cohort original-338` 可严格运行 `benchmarks/public-cdxml/failure-ledger.json` 中登记的原始 338 张审查集合。只要图库缺少其中一个路径，门禁会在像素分析前失败；报告会记录集合名称、清单路径、期望数量和实际选择数量。

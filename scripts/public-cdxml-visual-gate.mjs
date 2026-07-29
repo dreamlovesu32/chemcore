@@ -73,6 +73,15 @@ const DEFAULTS = Object.freeze({
 
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
 export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v13";
+export const STRICT_PASS_FLOOR_SCHEMA =
+  "chemsema.public-cdxml-strict-pass-floor.v1";
+export const STRICT_PASS_FLOOR_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "benchmarks",
+  "public-cdxml",
+  "strict-pass-floor.json",
+);
 
 export function baselineLockedAlignment(baselineCase, artifactHashes) {
   return baselineCase?.alignment?.algorithm === ALIGNMENT_ALGORITHM
@@ -198,6 +207,65 @@ export function strictOriginal338BaselineErrors(baselineReport, selectedItems, o
   return errors;
 }
 
+function normalizedCasePath(relativeCdxml) {
+  return String(relativeCdxml ?? "").replaceAll("\\", "/");
+}
+
+export function strictOriginal338PassFloorErrors(
+  passFloor,
+  selectedItems,
+  baselineReport,
+  options,
+) {
+  if (!options.strictOriginal338) return [];
+  const errors = [];
+  if (passFloor?.schema !== STRICT_PASS_FLOOR_SCHEMA) {
+    errors.push("pass floor has a missing or unsupported schema");
+  }
+  if (
+    passFloor?.cohort?.name !== "original-338"
+    || passFloor?.cohort?.expected !== 338
+  ) {
+    errors.push("pass floor is not bound to the exact original-338 cohort");
+  }
+  if (!Array.isArray(passFloor?.protectedPasses) || !passFloor.protectedPasses.length) {
+    errors.push("pass floor must protect at least one passing case");
+    return errors;
+  }
+  const protectedPaths = passFloor.protectedPasses.map(normalizedCasePath);
+  const protectedSet = new Set(protectedPaths);
+  if (protectedSet.size !== protectedPaths.length) {
+    errors.push("pass floor contains duplicate paths");
+  }
+  const canonicalPaths = [...protectedPaths].sort();
+  if (JSON.stringify(canonicalPaths) !== JSON.stringify(protectedPaths)) {
+    errors.push("pass floor paths must be sorted");
+  }
+  if (passFloor.minimumPassed !== protectedSet.size) {
+    errors.push("pass floor minimumPassed does not match protectedPasses");
+  }
+  const selectedPaths = new Set(
+    selectedItems.map((entry) => normalizedCasePath(entry.relativeCdxml)),
+  );
+  const baselineCases = new Map(
+    (baselineReport?.cases ?? []).map((entry) => [
+      normalizedCasePath(entry.relativeCdxml),
+      entry,
+    ]),
+  );
+  for (const relativeCdxml of protectedSet) {
+    if (!selectedPaths.has(relativeCdxml)) {
+      errors.push(`pass floor contains a path outside the current cohort: ${relativeCdxml}`);
+      break;
+    }
+    if (baselineCases.get(relativeCdxml)?.status !== "pass") {
+      errors.push(`baseline lost protected pass ${relativeCdxml}`);
+      break;
+    }
+  }
+  return errors;
+}
+
 function validateOptions(options) {
   for (const key of [
     "analysisScale", "tileSize", "halo", "localWindow", "localStride",
@@ -301,6 +369,19 @@ export function classifyBaselineChanges(cases, baselineCases) {
     regressions: changes.filter((entry) => entry.before === "pass" && entry.after !== "pass"),
     improvements: changes.filter((entry) => entry.before !== "pass" && entry.after === "pass"),
   };
+}
+
+export function classifyPassFloorRegressions(cases, passFloor) {
+  const currentCases = new Map(
+    cases.map((entry) => [normalizedCasePath(entry.relativeCdxml), entry]),
+  );
+  return (passFloor?.protectedPasses ?? []).flatMap((relativeCdxml) => {
+    const normalizedPath = normalizedCasePath(relativeCdxml);
+    const after = currentCases.get(normalizedPath)?.status ?? "missing";
+    return after === "pass"
+      ? []
+      : [{ relativeCdxml: normalizedPath, before: "protected-pass", after }];
+  });
 }
 
 export function selectVisualGateCohort(items, ledger, cohort) {
@@ -1495,6 +1576,9 @@ async function main() {
   const baselineReport = options.baselineReport
     ? JSON.parse(await fs.readFile(path.resolve(options.baselineReport), "utf8"))
     : null;
+  const strictPassFloor = options.strictOriginal338
+    ? JSON.parse(await fs.readFile(STRICT_PASS_FLOOR_PATH, "utf8"))
+    : null;
   const strictBaselineErrors = strictOriginal338BaselineErrors(
     baselineReport,
     items,
@@ -1503,6 +1587,17 @@ async function main() {
   if (strictBaselineErrors.length) {
     throw new Error(
       `Invalid --strict-original-338 baseline: ${strictBaselineErrors.join("; ")}`,
+    );
+  }
+  const strictPassFloorErrors = strictOriginal338PassFloorErrors(
+    strictPassFloor,
+    items,
+    baselineReport,
+    options,
+  );
+  if (strictPassFloorErrors.length) {
+    throw new Error(
+      `Invalid --strict-original-338 pass floor: ${strictPassFloorErrors.join("; ")}`,
     );
   }
   // A same-definition baseline can safely provide cached classifications and
@@ -1635,6 +1730,10 @@ async function main() {
   const reused = cases.filter((entry) => entry.cacheStatus === "reused").length;
   const analyzed = cases.length - reused;
   const delta = classifyBaselineChanges(cases, regressionBaselineCases);
+  const protectedPassRegressions = classifyPassFloorRegressions(
+    cases,
+    strictPassFloor,
+  );
   const report = {
     schema: "chemsema-public-cdxml-visual-gate-v1",
     cacheIdentity: CACHE_IDENTITY,
@@ -1653,6 +1752,13 @@ async function main() {
         currentGalleryRequired: true,
         exactBaselineScopeRequired: true,
         zeroRegressionsRequired: true,
+        cumulativePassFloorRequired: true,
+        passFloor: {
+          path: STRICT_PASS_FLOOR_PATH,
+          schema: strictPassFloor.schema,
+          minimumPassed: strictPassFloor.minimumPassed,
+          source: strictPassFloor.source,
+        },
       }
       : { mode: "standard" },
     policy: gatePolicy(options),
@@ -1672,6 +1778,7 @@ async function main() {
       analyzed,
     },
     delta,
+    protectedPassRegressions,
     cases,
   };
   const outputPath = path.resolve(options.out);
@@ -1690,9 +1797,14 @@ async function main() {
     cache: report.cache,
     improvements: delta.improvements.length,
     regressions: delta.regressions.length,
+    protectedPassRegressions: protectedPassRegressions.length,
   }));
   const baselineMode = regressionBaselineCases.size > 0;
-  if (!options.reportOnly && (errors || (baselineMode ? delta.regressions.length : failed))) {
+  if (!options.reportOnly && (
+    errors
+    || protectedPassRegressions.length
+    || (baselineMode ? delta.regressions.length : failed)
+  )) {
     process.exitCode = 1;
   }
 }

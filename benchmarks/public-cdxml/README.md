@@ -116,6 +116,23 @@ declarations and historical regression cases live in
 `benchmarks/public-cdxml/visual-impact-map.json`; unknown production changes and
 gate-definition changes conservatively force a full run.
 
+Strict original-338 runs also load
+`benchmarks/public-cdxml/strict-pass-floor.json`. This tracked pass floor is the
+cumulative union of every accepted passing case, so selecting an accidentally
+degraded baseline cannot erase older green cases. The strict command rejects a
+baseline that has already lost a protected pass and independently fails if the
+current report loses one. After a clean strict run adds passes with zero
+regressions, promote only the additions:
+
+```bash
+npm run benchmark:cdxml-public:visual-gate:promote -- \
+  --report tmp/public-cdxml-visual-gate-current-strict338.json
+```
+
+Promotion validates the exact 338-case cohort, clean and current repository/CLI
+provenance, zero analysis errors, and zero immediate or cumulative regressions.
+It unions new passes into the floor; it never removes protected paths.
+
 Gate v13 makes the fixed-coordinate detail checks non-bypassable. Neither a
 whole-page coverage score nor topology distribution can excuse an empty local
 window or a large local defect, and coarse pixel agreement cannot discard a

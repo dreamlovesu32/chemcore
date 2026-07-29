@@ -3,12 +3,14 @@ import test from "node:test";
 import {
   boundedLocalTopologyEquivalent,
   classifyAnalyzedVisualMetrics,
+  classifyPassFloorRegressions,
   detailGateReasons,
   gatePolicy,
   nearExactFixedDefectEquivalent,
   selectVisualGateCohort,
   strictOriginal338BaselineErrors,
   strictOriginal338ConfigurationErrors,
+  strictOriginal338PassFloorErrors,
 } from "../public-cdxml-visual-gate.mjs";
 
 function metrics({
@@ -130,6 +132,53 @@ test("strict original-338 mode requires the exact same 338 paths across gate upg
     strictOriginal338BaselineErrors(baseline, changed, options).join("\n"),
     /baseline is missing selected path source\/replacement\.cdxml/,
   );
+});
+
+test("strict original-338 pass floor cannot be erased by choosing a degraded baseline", () => {
+  const selected = Array.from({ length: 338 }, (_, index) => ({
+    relativeCdxml: `source/${String(index).padStart(4, "0")}.cdxml`,
+  }));
+  const baseline = {
+    cases: selected.map((entry) => ({ ...entry, status: "fail" })),
+  };
+  baseline.cases[0].status = "pass";
+  const passFloor = {
+    schema: "chemsema.public-cdxml-strict-pass-floor.v1",
+    cohort: { name: "original-338", expected: 338 },
+    minimumPassed: 2,
+    protectedPasses: ["source/0000.cdxml", "source/0001.cdxml"],
+  };
+  assert.deepEqual(
+    strictOriginal338PassFloorErrors(
+      passFloor,
+      selected,
+      baseline,
+      { strictOriginal338: true },
+    ),
+    ["baseline lost protected pass source/0001.cdxml"],
+  );
+});
+
+test("strict original-338 pass floor reports protected pass regressions independently", () => {
+  const current = [
+    { relativeCdxml: "source/0000.cdxml", status: "pass" },
+    { relativeCdxml: "source/0001.cdxml", status: "fail" },
+  ];
+  const passFloor = {
+    protectedPasses: ["source/0000.cdxml", "source/0001.cdxml", "source/0002.cdxml"],
+  };
+  assert.deepEqual(classifyPassFloorRegressions(current, passFloor), [
+    {
+      relativeCdxml: "source/0001.cdxml",
+      before: "protected-pass",
+      after: "fail",
+    },
+    {
+      relativeCdxml: "source/0002.cdxml",
+      before: "protected-pass",
+      after: "missing",
+    },
+  ]);
 });
 
 test("bounded local topology accepts small fixed-coordinate defects", () => {
