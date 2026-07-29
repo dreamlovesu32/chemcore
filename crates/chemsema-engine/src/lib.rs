@@ -4,6 +4,7 @@ mod abbreviation;
 mod bio_shape;
 mod cdx;
 mod cdxml;
+mod chemical_text_runs;
 mod document;
 mod editing;
 mod embedded_preview;
