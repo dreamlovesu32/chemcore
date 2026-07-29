@@ -170,15 +170,25 @@ pub(super) fn label_clip_polygons_world_for_segment(
         return Vec::new();
     }
     let direction = direction.normalized();
-    // ChemDraw's cardinal contact rule is asymmetric: the top/bottom sectors
-    // are owned by the glyph column under the bond, while diagonal and
-    // left/right contacts use the complete label outline. Keep the sector
-    // boundary identical to the glyph kernel's measured axis contacts.
-    if direction.x.abs()
-        > crate::glyph_kernel::GLYPH_AXIS_HALF_SECTOR_DEG
-            .to_radians()
-            .sin()
-    {
+    let cardinal_sector = crate::glyph_kernel::GLYPH_AXIS_HALF_SECTOR_DEG
+        .to_radians()
+        .sin();
+    // ChemDraw's horizontal cardinal sector is a dedicated run-envelope
+    // contact. It replaces the general outline/feature kernel inside the
+    // measured ten-degree sector; taking their union makes trailing lowercase
+    // glyphs such as the r in Tyr retreat too far. BeginAttach/EndAttach only
+    // choose the authored character used as the ray origin and do not change
+    // this boundary.
+    if direction.y.abs() <= cardinal_sector {
+        return label_horizontal_axis_contact_polygons(label)
+            .into_iter()
+            .map(|polygon| polygon_to_world(polygon, object))
+            .filter(|polygon| polygon.len() >= 3)
+            .collect();
+    }
+    // Diagonal contacts use the complete label outline. The remaining
+    // top/bottom cardinal sectors are owned by the glyph column under the bond.
+    if direction.x.abs() > cardinal_sector {
         return label_clip_polygons_world(node, object);
     }
     let local_endpoint = Point::new(
@@ -190,6 +200,31 @@ pub(super) fn label_clip_polygons_world_for_segment(
         .map(|polygon| polygon_to_world(polygon, object))
         .filter(|polygon| polygon.len() >= 3)
         .collect()
+}
+
+fn label_horizontal_axis_contact_polygons(label: &NodeLabel) -> Vec<Vec<Point>> {
+    let clip_polygons = label.glyph_clip_polygons();
+    if clip_polygons.is_empty() {
+        // A hand-built label without a derived clip profile has only its
+        // authoritative glyph outlines.
+        return label.glyph_polygons();
+    }
+    if label.glyph_clip_polygon_owners.len() != clip_polygons.len() {
+        // Explicit unowned in-memory clip geometry is already the complete
+        // authored contact representation. Imported and edited labels always
+        // carry the parallel ownership vector produced by the glyph kernel.
+        return clip_polygons;
+    }
+    let horizontal_contacts = clip_polygons
+        .iter()
+        .zip(label.glyph_clip_polygon_owners.iter())
+        .filter_map(|(polygon, owner)| owner.is_none().then_some(polygon.clone()))
+        .collect::<Vec<_>>();
+    if horizontal_contacts.is_empty() {
+        clip_polygons
+    } else {
+        horizontal_contacts
+    }
 }
 
 fn polygon_to_world(polygon: Vec<Point>, object: &SceneObject) -> Vec<Point> {

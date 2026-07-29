@@ -7,7 +7,18 @@ import { promisify } from "node:util";
 import { generateChemDrawOracle } from "./chemdraw-oracle.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const outDir = path.join(root, "tmp", "chemdraw-flat-baseline-axis-contact-probe");
+const profileIndex = process.argv.indexOf("--profile");
+const profile = profileIndex >= 0 ? process.argv[profileIndex + 1] : "vertical";
+if (!["vertical", "horizontal-attachment"].includes(profile)) {
+  throw new Error(`Unsupported profile ${profile}`);
+}
+const outDir = path.join(
+  root,
+  "tmp",
+  profile === "vertical"
+    ? "chemdraw-flat-baseline-axis-contact-probe"
+    : "chemdraw-horizontal-attachment-axis-contact-probe",
+);
 const sourceDir = path.join(outDir, "sources");
 const oracleDir = path.join(outDir, "oracle");
 const candidateDir = path.join(outDir, "candidate");
@@ -21,8 +32,24 @@ function escapeXml(value) {
     .replaceAll('"', "&quot;");
 }
 
-function document({ font, fontId, size, marginWidth, text, direction }) {
-  const neighborY = direction === "down" ? 116 : 84;
+function document({
+  font,
+  fontId,
+  size,
+  marginWidth,
+  text,
+  direction,
+  attachment,
+}) {
+  const neighbor = {
+    up: [100, 84],
+    down: [100, 116],
+    left: [84, 100],
+    right: [116, 100],
+  }[direction];
+  const beginAttach = attachment === "indexed"
+    ? ` BeginAttach="${direction === "left" ? 0 : [...text].length - 1}"`
+    : "";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE CDXML SYSTEM "https://static.chemistry.revvitycloud.com/cdxml/CDXML.dtd" >
 <CDXML BondLength="16" LineWidth="0.5" MarginWidth="${marginWidth}" LabelFont="${fontId}" LabelSize="${size}">
@@ -35,8 +62,8 @@ function document({ font, fontId, size, marginWidth, text, direction }) {
           <s font="${fontId}" size="${size}" face="96" color="0">${escapeXml(text)}</s>
         </t>
       </n>
-      <n id="2" p="100 ${neighborY}"/>
-      <b id="4" B="1" E="2"/>
+      <n id="2" p="${neighbor.join(" ")}"/>
+      <b id="4" B="1" E="2"${beginAttach}/>
     </fragment>
   </page>
 </CDXML>
@@ -114,29 +141,36 @@ const fonts = [
 ];
 const sizes = [7, 10, 14];
 const margins = [0.5, 1.25, 2.5];
-const glyphs = ["T", "I", "O", "y", "g"];
-const directions = ["up", "down"];
+const glyphs = profile === "vertical"
+  ? ["T", "I", "O", "y", "g"]
+  : ["Tyr", "Lys", "Arg", "Gly"];
+const directions = profile === "vertical" ? ["up", "down"] : ["left", "right"];
+const attachments = profile === "vertical" ? ["none"] : ["none", "indexed"];
 const variants = [];
 for (const font of fonts) {
   for (const size of sizes) {
     for (const marginWidth of margins) {
       for (const text of glyphs) {
         for (const direction of directions) {
-          variants.push({
-            name: [
-              font.name.toLowerCase().replaceAll(" ", "-"),
-              `s${size}`,
-              `m${String(marginWidth).replace(".", "_")}`,
+          for (const attachment of attachments) {
+            variants.push({
+              name: [
+                font.name.toLowerCase().replaceAll(" ", "-"),
+                `s${size}`,
+                `m${String(marginWidth).replace(".", "_")}`,
+                text,
+                direction,
+                attachment,
+              ].join("_"),
+              font: font.name,
+              fontId: font.id,
+              size,
+              marginWidth,
               text,
               direction,
-            ].join("_"),
-            font: font.name,
-            fontId: font.id,
-            size,
-            marginWidth,
-            text,
-            direction,
-          });
+              attachment,
+            });
+          }
         }
       }
     }
@@ -222,10 +256,15 @@ for (let index = 0; index < variants.length; index += 1) {
 }
 
 const reportPath = path.join(outDir, "report.json");
-await fs.writeFile(reportPath, `${JSON.stringify({ results }, null, 2)}\n`, "utf8");
+await fs.writeFile(
+  reportPath,
+  `${JSON.stringify({ profile, results }, null, 2)}\n`,
+  "utf8",
+);
 const absoluteErrors = results.map((entry) => Math.abs(entry.delta));
 console.log(JSON.stringify({
   reportPath,
+  profile,
   count: results.length,
   meanAbsoluteError: absoluteErrors.reduce((sum, value) => sum + value, 0)
     / absoluteErrors.length,

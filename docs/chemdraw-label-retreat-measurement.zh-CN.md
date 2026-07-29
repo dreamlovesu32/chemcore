@@ -183,6 +183,15 @@ Arial、Times New Roman、Calibri，8/10/14pt，`MarginWidth=0/1.6/3pt`、
 5 个代表字形、3 种字体、3 个字号、3 个 margin 和上下两向，确认轴向端点由实际
 ink 极值加 `MarginWidth` 构成，不存在按字符名、固定圆半径或文件版本切换的分支。
 
+同一脚本的 `--profile horizontal-attachment` 以 432 组多字符探针覆盖
+Times New Roman、Arial、Calibri，7/10/14pt，`MarginWidth=0.5/1.25/2.5pt`，
+`Tyr/Lys/Arg/Gly`，左右两向以及有无 `BeginAttach`。同参数配对中
+`BeginAttach` 对 ChemDraw 退让量的影响全部严格为零；未应用字体 kerning 时，
+右侧 `Ty`、`Ly` 等组合会稳定过度退让。将真实字体 face 的横向 kerning 与横轴
+统一 run 包络同时纳入后，432 组 MAE 从 `0.258pt` 降至 `0.015pt`，最大误差从
+`1.378pt` 降至 `0.049pt`。因此 kerning 属于共享排版输入，不是按标签文本补偿，
+附件索引也不能被误作退让参数。
+
 扇区内退让是接触点在键方向上的投影。把该分支加到连续 Arial 轮廓模型后，独立
 1° 档位的 MAE 从 `0.287pt` 降到 `0.204pt`，P95 从 `1.213pt` 降到
 `0.812pt`。因此轴向接触必须作为独立几何层保留，不能靠扩大整个字形模拟。

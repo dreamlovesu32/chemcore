@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 // Keep one authoritative generator. This compatibility entry point delegates
-// to the Python/fontTools implementation that emits the version-2 multi-face
+// to the Python/fontTools implementation that emits the version-3 multi-face
 // manifest consumed by the Rust kernel.
 const scriptPath = path.join(
   path.dirname(fileURLToPath(import.meta.url)),

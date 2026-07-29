@@ -98,6 +98,8 @@ struct GlyphOutlineCommandJson {
 #[derive(Debug, Clone, Deserialize)]
 struct GlyphOutlineFaceJson {
     glyphs: HashMap<String, GlyphOutlineJson>,
+    #[serde(default)]
+    kerning: HashMap<String, HashMap<String, f64>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -502,6 +504,7 @@ fn glyph_placements_for_runs(
 ) -> Vec<GlyphPlacement> {
     let mut placements = Vec::new();
     let mut cursor_x = start_x;
+    let mut previous: Option<(char, ScriptKind, String, u32, bool, f64)> = None;
 
     for run in runs {
         let font_size = run
@@ -529,6 +532,31 @@ fn glyph_placements_for_runs(
         );
         let italic = run.font_style.as_deref() == Some("italic");
         for character in run.text.chars() {
+            if let Some((
+                previous_character,
+                previous_script,
+                previous_family,
+                previous_weight,
+                previous_italic,
+                previous_size,
+            )) = previous.as_ref()
+            {
+                if *previous_script == script
+                    && previous_family == font_family
+                    && *previous_weight == font_weight
+                    && *previous_italic == italic
+                    && (*previous_size - font_size).abs() <= crate::EPSILON
+                {
+                    cursor_x += lookup_glyph_kerning_em(
+                        font_family,
+                        font_weight,
+                        italic,
+                        *previous_character,
+                        character,
+                    ) * font_size
+                        * script_scale(config, script);
+                }
+            }
             let placement = layout_glyph(
                 character,
                 script,
@@ -543,6 +571,14 @@ fn glyph_placements_for_runs(
             );
             cursor_x += placement.advance_px;
             placements.push(placement);
+            previous = Some((
+                character,
+                script,
+                font_family.to_string(),
+                font_weight,
+                italic,
+                font_size,
+            ));
         }
     }
 
@@ -630,7 +666,20 @@ fn layout_glyph_run(
 ) -> Vec<GlyphPlacement> {
     let mut placements = Vec::with_capacity(glyphs.len());
     let mut cursor_x = start_x_px;
+    let mut previous = None;
     for glyph in glyphs {
+        if let Some((previous_character, previous_script)) = previous {
+            if previous_script == glyph.script {
+                cursor_x += lookup_glyph_kerning_em(
+                    "Arial",
+                    400,
+                    false,
+                    previous_character,
+                    glyph.codepoint,
+                ) * config.font_size_px
+                    * script_scale(config, glyph.script);
+            }
+        }
         let placement = layout_glyph(
             glyph.codepoint,
             glyph.script,
@@ -645,6 +694,7 @@ fn layout_glyph_run(
         );
         cursor_x += placement.advance_px;
         placements.push(placement);
+        previous = Some((glyph.codepoint, glyph.script));
     }
     placements
 }
@@ -928,7 +978,7 @@ fn shared_glyph_outlines() -> &'static SharedGlyphOutlinesJson {
             .expect("shared glyph outline manifest must decompress");
         let manifest: SharedGlyphOutlinesJson =
             serde_json::from_str(&json).expect("shared glyph outline manifest must be valid JSON");
-        assert_eq!(manifest.version, 2, "unsupported glyph outline manifest");
+        assert_eq!(manifest.version, 3, "unsupported glyph outline manifest");
         manifest
     })
 }
@@ -979,6 +1029,33 @@ fn lookup_glyph_outline(
     };
     let key = character.to_string();
     lookup_character(&key).or_else(|| (character != '□').then(|| lookup_character("□")).flatten())
+}
+
+fn lookup_glyph_kerning_em(
+    font_family: &str,
+    font_weight: u32,
+    italic: bool,
+    left: char,
+    right: char,
+) -> f64 {
+    let manifest = shared_glyph_outlines();
+    let resolved_family = manifest
+        .aliases
+        .get(font_family)
+        .map(String::as_str)
+        .unwrap_or(font_family);
+    let left = left.to_string();
+    let right = right.to_string();
+    manifest
+        .families
+        .get(resolved_family)
+        .and_then(|family| family.faces.get(glyph_face_key(font_weight, italic)))
+        // Kerning never crosses the explicit font-substitution boundary.
+        .filter(|face| face.glyphs.contains_key(&left) && face.glyphs.contains_key(&right))
+        .and_then(|face| face.kerning.get(&left))
+        .and_then(|pairs| pairs.get(&right))
+        .copied()
+        .unwrap_or(0.0)
 }
 
 fn flatten_glyph_contours(
@@ -1937,7 +2014,7 @@ mod tests {
     #[test]
     fn outline_manifest_contains_measured_families_and_faces() {
         let manifest = shared_glyph_outlines();
-        assert_eq!(manifest.version, 2);
+        assert_eq!(manifest.version, 3);
         for family in ["Arial", "Times New Roman", "Calibri", "Cambria"] {
             let family = manifest.families.get(family).expect("measured family");
             for face in ["regular", "bold", "italic", "boldItalic"] {
@@ -2016,6 +2093,24 @@ mod tests {
         assert!(
             (generic_width - width).abs() > 0.5,
             "the generic profile must not silently replace face metrics"
+        );
+    }
+
+    #[test]
+    fn manifest_kerning_matches_times_new_roman_face_pairs() {
+        assert!(
+            (lookup_glyph_kerning_em("Times New Roman", 400, false, 'T', 'y') - (-143.0 / 2048.0))
+                .abs()
+                < 1.0e-7
+        );
+        assert!(
+            (lookup_glyph_kerning_em("Times New Roman", 400, false, 'L', 'y') - (-113.0 / 2048.0))
+                .abs()
+                < 1.0e-7
+        );
+        assert_eq!(
+            lookup_glyph_kerning_em("Times New Roman", 400, false, 'G', 'l'),
+            0.0
         );
     }
 

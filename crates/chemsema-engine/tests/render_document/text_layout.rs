@@ -213,6 +213,53 @@ fn parse_cdxml_downward_label_retreat_keeps_the_column_local_axis_contact() {
 }
 
 #[test]
+fn parse_cdxml_horizontal_label_retreat_uses_the_cardinal_run_contact() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="0.5" MarginWidth="1.25" LabelFont="20" LabelSize="7">
+  <fonttable><font id="20" charset="iso-8859-1" name="Times New Roman"/></fonttable>
+  <page>
+    <fragment>
+      <n id="1" p="100 100" NodeType="Nickname" LabelDisplay="Center">
+        <t p="100 102.65" BoundingBox="94.95 97.22 105.05 104.15"
+           LabelJustification="Center" Justification="Center" LabelAlignment="Center">
+          <s font="20" size="7" face="96">Tyr</s>
+        </t>
+      </n>
+      <n id="2" p="116 100"/>
+      <b id="4" B="1" E="2"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(source, Some("horizontal Tyr attachment")).expect("CDXML parses");
+    let polygon = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            }
+            | RenderPrimitive::FilledPath {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            } if role == RenderRole::DocumentBond && bond_id == "4" => Some(points),
+            _ => None,
+        })
+        .expect("bond polygon");
+    let (from, to) = bond_axis_from_points(&polygon).expect("bond axis");
+    let label_endpoint = if from.x < to.x { from } else { to };
+
+    assert!(
+        (label_endpoint.x - 105.8465).abs() < 0.05,
+        "ChemDraw uses the horizontal cardinal run contact for Tyr: {polygon:?}"
+    );
+}
+
+#[test]
 fn parse_cdxml_applies_authored_line_starts_to_unbroken_caption_runs() {
     let source = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML CaptionJustification="Center">

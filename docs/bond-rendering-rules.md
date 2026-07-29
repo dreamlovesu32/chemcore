@@ -464,10 +464,14 @@ Later rules must not overturn geometry topology already determined by earlier ru
   descender must not pull another glyph's clipping rectangle downward.
 - Subscript and superscript glyphs do not join this same-row rectangular
   interior model.
-- ChemDraw's narrow axial-contact sector follows the writing axis. Only bond
-  rays within `10°` of the vertical axis use glyph-column ownership. Horizontal
-  and diagonal contacts use the complete label outline; in particular,
-  horizontal text forms one left/right envelope across the complete run.
+- ChemDraw's narrow axial-contact sectors follow the writing axes. Bond rays
+  within `10°` of the vertical axis use glyph-column ownership. Rays within
+  `10°` of the horizontal axis use one shared left/right run envelope and that
+  envelope replaces the general natural/feature outline kernel inside the
+  sector. Diagonal contacts use the complete label outline.
+  Horizontal glyph origins include the selected face's real kerning before
+  the run envelope is built; `BeginAttach`/`EndAttach` choose the authored
+  character used as the ray origin but do not change the envelope boundary.
   Top/bottom ownership is selected from the raw glyph intervals intersected by
   the bond center and body-edge rays; `MarginWidth` expands the selected
   glyph's clip geometry, but must not make a neighboring glyph steal the
