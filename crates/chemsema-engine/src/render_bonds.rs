@@ -157,7 +157,7 @@ pub(super) fn render_fragment_bond(
             Vec::new(),
             bond.line_weights.main,
             object_id.clone(),
-            true,
+            false,
             true,
             false,
             false,
@@ -413,7 +413,7 @@ fn render_double_bond(
                     (side * double_offset, outer_line_weight(bond, side)),
                 ],
             );
-            let (main_start, main_end) = apply_segment_endpoint_retreats(
+            let (main_start, main_end) = apply_label_endpoint_retreats(
                 actual_start,
                 actual_end,
                 shared_label_retreats.0,
@@ -640,7 +640,7 @@ fn render_center_double_bond_lines(
             actual_end.x + normal_x * offset,
             actual_end.y + normal_y * offset,
         );
-        let (line_start, line_end) = apply_segment_endpoint_retreats(
+        let (line_start, line_end) = apply_label_endpoint_retreats(
             raw_line_start,
             raw_line_end,
             shared_start_retreat,
@@ -877,7 +877,7 @@ fn render_outer_bond_lines(
         let (short_start, short_end) = shared_label_retreats.map_or(
             (short_start, short_end),
             |(start_retreat, end_retreat)| {
-                apply_segment_endpoint_retreats(short_start, short_end, start_retreat, end_retreat)
+                apply_label_endpoint_retreats(short_start, short_end, start_retreat, end_retreat)
             },
         );
         render_fragment_line_with_profiles(

@@ -52,7 +52,11 @@ fn authored_character_glyph_index(source: &str, authored_character_index: usize)
 
 #[cfg(test)]
 mod attachment_tests {
-    use super::authored_character_glyph_index;
+    use super::{
+        apply_label_endpoint_retreats, authored_character_glyph_index,
+        clip_body_segment_out_of_label_geometry,
+    };
+    use crate::Point;
 
     #[test]
     fn authored_multiline_attachment_indices_map_to_visible_glyphs() {
@@ -63,6 +67,37 @@ mod attachment_tests {
     #[test]
     fn authored_single_line_attachment_indices_are_unchanged() {
         assert_eq!(authored_character_glyph_index("(PhO)2POH", 6), Some(6));
+    }
+
+    #[test]
+    fn label_retreat_can_cross_a_short_bond_endpoint() {
+        let label = vec![vec![
+            Point::new(-5.0, -2.0),
+            Point::new(5.0, -2.0),
+            Point::new(5.0, 2.0),
+            Point::new(-5.0, 2.0),
+        ]];
+        let (start, end) = clip_body_segment_out_of_label_geometry(
+            Point::new(0.0, 0.0),
+            Point::new(2.0, 0.0),
+            None,
+            &label,
+            0.0,
+            None,
+            &[],
+            0.0,
+        )
+        .expect("ChemDraw keeps the reversed short-bond body");
+        assert!((start.x - 5.0).abs() < crate::EPSILON);
+        assert!((end.x - 2.0).abs() < crate::EPSILON);
+    }
+
+    #[test]
+    fn two_label_retreats_are_not_scaled_back_to_the_bond_length() {
+        let (start, end) =
+            apply_label_endpoint_retreats(Point::new(0.0, 0.0), Point::new(3.0, 0.0), 2.0, 2.0);
+        assert!((start.x - 2.0).abs() < crate::EPSILON);
+        assert!((end.x - 1.0).abs() < crate::EPSILON);
     }
 }
 
@@ -278,78 +313,6 @@ fn clip_rectangle(x1: f64, y1: f64, x2: f64, y2: f64) -> Option<Vec<Point>> {
     ])
 }
 
-pub(super) fn segment_intersection_fraction(
-    start: Point,
-    end: Point,
-    first: Point,
-    second: Point,
-) -> Option<f64> {
-    let direction = Vector::new(end.x - start.x, end.y - start.y);
-    let edge = Vector::new(second.x - first.x, second.y - first.y);
-    let denom = vector_cross(direction, edge);
-    if denom.abs() <= EPSILON {
-        let offset = Vector::new(first.x - start.x, first.y - start.y);
-        if vector_cross(offset, direction).abs() > EPSILON {
-            return None;
-        }
-        let length_sq = direction.x * direction.x + direction.y * direction.y;
-        if length_sq <= EPSILON {
-            return None;
-        }
-        let first_t =
-            ((first.x - start.x) * direction.x + (first.y - start.y) * direction.y) / length_sq;
-        let second_t =
-            ((second.x - start.x) * direction.x + (second.y - start.y) * direction.y) / length_sq;
-        let overlap_start = first_t.min(second_t).max(0.0);
-        let overlap_end = first_t.max(second_t).min(1.0);
-        return (overlap_end + EPSILON >= overlap_start).then_some(overlap_end);
-    }
-    let offset = Vector::new(first.x - start.x, first.y - start.y);
-    let t = vector_cross(offset, edge) / denom;
-    let u = vector_cross(offset, direction) / denom;
-    if (0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u) {
-        Some(t)
-    } else {
-        None
-    }
-}
-
-fn point_is_on_segment(point: Point, first: Point, second: Point) -> bool {
-    let edge = Vector::new(second.x - first.x, second.y - first.y);
-    let point_vector = Vector::new(point.x - first.x, point.y - first.y);
-    if vector_cross(edge, point_vector).abs() > EPSILON {
-        return false;
-    }
-    let dot = point_vector.x * edge.x + point_vector.y * edge.y;
-    if dot < -EPSILON {
-        return false;
-    }
-    dot <= edge.x * edge.x + edge.y * edge.y + EPSILON
-}
-
-fn point_is_inside_or_on_polygon(point: Point, polygon: &[Point]) -> bool {
-    if polygon.len() < 3 {
-        return false;
-    }
-    let mut inside = false;
-    for index in 0..polygon.len() {
-        let first = polygon[index];
-        let second = polygon[(index + 1) % polygon.len()];
-        if point_is_on_segment(point, first, second) {
-            return true;
-        }
-        let crosses = (first.y > point.y) != (second.y > point.y);
-        if crosses {
-            let x_intersection =
-                (second.x - first.x) * (point.y - first.y) / (second.y - first.y) + first.x;
-            if x_intersection > point.x {
-                inside = !inside;
-            }
-        }
-    }
-    inside
-}
-
 pub(super) fn polygon_bounds(polygon: &[Point]) -> Option<RectBox> {
     let mut bounds = RectBox {
         x1: f64::INFINITY,
@@ -370,58 +333,6 @@ pub(super) fn polygon_bounds(polygon: &[Point]) -> Option<RectBox> {
         && bounds.x2 + EPSILON >= bounds.x1
         && bounds.y2 + EPSILON >= bounds.y1)
         .then_some(bounds)
-}
-
-pub(super) fn clip_point_out_of_polygons(
-    start: Point,
-    end: Point,
-    polygons: &[Vec<Point>],
-) -> Option<Point> {
-    let mut best_t: Option<f64> = None;
-    for polygon in polygons {
-        if polygon.len() < 3 {
-            continue;
-        }
-        let start_inside = point_is_inside_or_on_polygon(start, polygon);
-        let mut polygon_t: Option<f64> = None;
-        for index in 0..polygon.len() {
-            let next = (index + 1) % polygon.len();
-            let Some(t) = segment_intersection_fraction(start, end, polygon[index], polygon[next])
-            else {
-                continue;
-            };
-            if t <= EPSILON && !start_inside {
-                continue;
-            }
-            if polygon_t.is_none_or(|current| t > current) {
-                polygon_t = Some(t);
-            }
-        }
-        if start_inside && polygon_t.is_none() {
-            polygon_t = Some(0.0);
-        }
-        if let Some(t) = polygon_t {
-            if best_t.is_none_or(|current| t > current) {
-                best_t = Some(t);
-            }
-        }
-    }
-    best_t.map(|t| {
-        Point::new(
-            start.x + (end.x - start.x) * t,
-            start.y + (end.y - start.y) * t,
-        )
-    })
-}
-
-pub(super) fn clip_point_out_of_label_geometry(
-    start: Point,
-    end: Point,
-    polygons: &[Vec<Point>],
-) -> Point {
-    // Missing glyph geometry has one explicit meaning: no glyph-based retreat.
-    // A label rectangle is layout metadata, not an equivalent ink contour.
-    clip_point_out_of_polygons(start, end, polygons).unwrap_or(start)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -446,8 +357,31 @@ pub(super) fn clip_body_segment_out_of_label_geometry(
         end_half_width,
     )?;
     let (clipped_start, clipped_end) =
-        apply_segment_endpoint_retreats(start, end, start_retreat, end_retreat);
+        apply_label_endpoint_retreats(start, end, start_retreat, end_retreat);
     (clipped_start.distance(clipped_end) > EPSILON).then_some((clipped_start, clipped_end))
+}
+
+pub(super) fn apply_label_endpoint_retreats(
+    start: Point,
+    end: Point,
+    start_retreat: f64,
+    end_retreat: f64,
+) -> (Point, Point) {
+    let direction = Vector::new(end.x - start.x, end.y - start.y);
+    if direction.length() <= EPSILON {
+        return (start, end);
+    }
+    let unit = direction.normalized();
+    (
+        Point::new(
+            start.x + unit.x * start_retreat.max(0.0),
+            start.y + unit.y * start_retreat.max(0.0),
+        ),
+        Point::new(
+            end.x - unit.x * end_retreat.max(0.0),
+            end.y - unit.y * end_retreat.max(0.0),
+        ),
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -470,23 +404,19 @@ pub(super) fn body_segment_label_retreats(
     let normal = Vector::new(-unit.y, unit.x);
     let start_retreat = wedge_endpoint_label_retreat(
         start,
-        end,
         unit,
         normal,
         start_rect,
         start_polygons,
         start_half_width,
-        length,
     );
     let end_retreat = wedge_endpoint_label_retreat(
         end,
-        start,
         Vector::new(-unit.x, -unit.y),
         normal,
         end_rect,
         end_polygons,
         end_half_width,
-        length,
     );
     Some((start_retreat, end_retreat))
 }
@@ -494,13 +424,11 @@ pub(super) fn body_segment_label_retreats(
 #[allow(clippy::too_many_arguments)]
 fn wedge_endpoint_label_retreat(
     endpoint: Point,
-    opposite: Point,
     axis_from_endpoint: Vector,
     normal: Vector,
     _rect: Option<RectBox>,
     polygons: &[Vec<Point>],
     endpoint_half_width: f64,
-    axis_length: f64,
 ) -> f64 {
     let mut retreat: f64 = 0.0;
     for side in [0.0, 1.0, -1.0] {
@@ -509,16 +437,48 @@ fn wedge_endpoint_label_retreat(
             endpoint.x + normal.x * endpoint_offset,
             endpoint.y + normal.y * endpoint_offset,
         );
-        let ray_end = Point::new(
-            opposite.x + normal.x * endpoint_offset,
-            opposite.y + normal.y * endpoint_offset,
-        );
-        let clipped = clip_point_out_of_label_geometry(ray_start, ray_end, polygons);
-        let projected = (clipped.x - ray_start.x) * axis_from_endpoint.x
-            + (clipped.y - ray_start.y) * axis_from_endpoint.y;
-        retreat = retreat.max(projected.clamp(0.0, axis_length));
+        retreat = retreat.max(ray_exit_distance_from_polygons(
+            ray_start,
+            axis_from_endpoint,
+            polygons,
+        ));
     }
     retreat
+}
+
+fn ray_exit_distance_from_polygons(
+    start: Point,
+    direction: Vector,
+    polygons: &[Vec<Point>],
+) -> f64 {
+    let mut farthest: f64 = 0.0;
+    for polygon in polygons {
+        for index in 0..polygon.len() {
+            let first = polygon[index];
+            let second = polygon[(index + 1) % polygon.len()];
+            let edge = Vector::new(second.x - first.x, second.y - first.y);
+            let offset = Vector::new(first.x - start.x, first.y - start.y);
+            let denominator = vector_cross(direction, edge);
+            if denominator.abs() <= EPSILON {
+                if vector_cross(offset, direction).abs() <= EPSILON {
+                    for point in [first, second] {
+                        let distance =
+                            (point.x - start.x) * direction.x + (point.y - start.y) * direction.y;
+                        if distance >= -EPSILON {
+                            farthest = farthest.max(distance.max(0.0));
+                        }
+                    }
+                }
+                continue;
+            }
+            let distance = vector_cross(offset, edge) / denominator;
+            let edge_fraction = vector_cross(offset, direction) / denominator;
+            if distance >= -EPSILON && (-EPSILON..=1.0 + EPSILON).contains(&edge_fraction) {
+                farthest = farthest.max(distance.max(0.0));
+            }
+        }
+    }
+    farthest
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -559,7 +519,7 @@ pub(super) fn render_fragment_line(
         dash_array,
         line_weight,
         object_id,
-        true,
+        false,
         true,
         true,
         true,

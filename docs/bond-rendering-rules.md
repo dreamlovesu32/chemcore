@@ -474,6 +474,15 @@ Later rules must not overturn geometry topology already determined by earlier ru
   the glyph clip polygon. Ordinary, dashed, bold, and multi-line bonds should
   evaluate the center line plus both body boundary lines for the current visual
   half-width and use the largest retreat required by those glyph intersections.
+- Label retreat is an unbounded ray operation, not a segment clamp. If the
+  label exclusion boundary lies beyond the opposite atom because the authored
+  bond is shorter than the label, keep the computed endpoint past that atom;
+  the visible bond body is therefore reversed. Do not scale the two endpoint
+  retreats back to the authored bond length. ChemDraw's bare-CDXML spacing
+  probe remains linear through this crossover, and `NeedsClean` does not alter
+  the result.
+- Apply endpoint label clipping exactly once. A body already produced from the
+  unbounded endpoint rays must not be clipped again using its reversed endpoints.
 
 ## Bond-Bond Crossings And White Margins
 
