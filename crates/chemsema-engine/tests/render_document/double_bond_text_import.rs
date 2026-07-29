@@ -1112,7 +1112,10 @@ fn parse_cdxml_normal_face_attached_label_uses_connection_aware_group_layout() {
         .find(|node| node.id == "n4")
         .and_then(|node| node.label.as_ref())
         .expect("mixed-direction NTs label should import");
-    assert_eq!(mixed_direction.text, "NTs");
+    // ChemDraw applies the same two-connection bisector flow to a collapsed
+    // Fragment label: the visible order reverses while the canonical label
+    // below remains NTs.
+    assert_eq!(mixed_direction.text, "TsN");
     assert_eq!(
         mixed_direction
             .meta

@@ -85,6 +85,7 @@
     "probe:label-axis-contact:horizontal-attachment": "node scripts/chemdraw-flat-baseline-axis-contact-probe.mjs --profile horizontal-attachment",
     "probe:label-axis-contact:horizontal-display": "node scripts/chemdraw-flat-baseline-axis-contact-probe.mjs --profile horizontal-display",
     "probe:label-flow-sector": "node scripts/chemdraw-label-flow-sector-probe.mjs",
+    "probe:label-flow-sector:analyze": "node scripts/analyze-chemdraw-label-flow-probe.mjs",
     "probe:label-retreat:analyze": "node scripts/analyze-chemdraw-label-retreat.mjs",
     "regression:large-object-operations": "node scripts/large-object-operation-regression.mjs",
     "regression:large-cdxml-speed": "node scripts/large-cdxml-speed-regression.mjs",

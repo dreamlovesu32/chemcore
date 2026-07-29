@@ -1,30 +1,146 @@
 use crate::direction_from_angle;
 use serde::{Deserialize, Serialize};
 
-// ChemDraw classifies multi-connected label directions in axis sectors, not
-// by the mathematical sign of an almost-zero component. Silent SVG/CDXML
-// probes place the horizontal/vertical transition at 15 degrees: 14.9 degrees
-// stays in the horizontal sector, while 15.0 degrees enters the vertical
-// sector. The rule is invariant across 8/10/14 pt labels and 10/14.4/24 pt
-// bonds (subject only to the source coordinate's own rounding).
-const AXIS_SECTOR_SIN_15: f64 = 0.258_819_045_102_520_74;
-const AXIS_SECTOR_COS_15: f64 = 0.965_925_826_289_068_3;
 const SINGLE_CONNECTION_HORIZONTAL_EPSILON: f64 = 1.0e-6;
+const MULTI_CONNECTION_GAP_TIE_EPSILON_DEG: f64 = 0.001;
+const MULTI_CONNECTION_BISECTOR_RIGHT_END_DEG: f64 = 67.5;
+const MULTI_CONNECTION_BISECTOR_BELOW_END_DEG: f64 = 112.5;
+const MULTI_CONNECTION_BISECTOR_LEFT_END_DEG: f64 = 247.5;
+const MULTI_CONNECTION_BISECTOR_ABOVE_END_DEG: f64 = 292.5;
+const OPPOSITE_CONNECTION_HORIZONTAL_END_DEG: f64 = 22.5;
+const OPPOSITE_CONNECTION_FORWARD_END_DEG: f64 = 90.0;
+const OPPOSITE_CONNECTION_REVERSE_END_DEG: f64 = 157.5;
 
-fn direction_is_right(direction: crate::Vector) -> bool {
-    direction.x >= AXIS_SECTOR_COS_15
+fn normalize_degrees(angle: f64) -> f64 {
+    angle.rem_euclid(360.0)
 }
 
-fn direction_is_left(direction: crate::Vector) -> bool {
-    direction.x <= -AXIS_SECTOR_COS_15
+fn decision_for_flow(flow: LabelFlow) -> LabelLayoutDecision {
+    let anchor = match flow {
+        LabelFlow::Reverse => LabelAnchorPolicy::OriginalFirstGroup,
+        LabelFlow::StackAbove | LabelFlow::StackBelow => LabelAnchorPolicy::FirstGroupLeadGlyph,
+        LabelFlow::Forward | LabelFlow::Preserve => LabelAnchorPolicy::FirstGlyph,
+    };
+    LabelLayoutDecision { flow, anchor }
 }
 
-fn direction_is_below(direction: crate::Vector) -> bool {
-    direction.y >= AXIS_SECTOR_SIN_15
+fn classify_multi_connection_bisector(bisector: f64) -> LabelFlow {
+    if bisector <= MULTI_CONNECTION_BISECTOR_RIGHT_END_DEG
+        || bisector >= MULTI_CONNECTION_BISECTOR_ABOVE_END_DEG
+    {
+        LabelFlow::Reverse
+    } else if bisector < MULTI_CONNECTION_BISECTOR_BELOW_END_DEG {
+        LabelFlow::StackAbove
+    } else if bisector <= MULTI_CONNECTION_BISECTOR_LEFT_END_DEG {
+        LabelFlow::Forward
+    } else {
+        LabelFlow::StackBelow
+    }
 }
 
-fn direction_is_above(direction: crate::Vector) -> bool {
-    direction.y <= -AXIS_SECTOR_SIN_15
+fn multi_connection_layout(connection_angles: &[f64]) -> LabelLayoutDecision {
+    debug_assert!(connection_angles.len() >= 2);
+    let mut angles: Vec<f64> = connection_angles
+        .iter()
+        .map(|angle| normalize_degrees(*angle))
+        .collect();
+    angles.sort_by(f64::total_cmp);
+
+    let gaps: Vec<(usize, f64)> = angles
+        .iter()
+        .enumerate()
+        .map(|(index, angle)| {
+            let next = if index + 1 == angles.len() {
+                angles[0] + 360.0
+            } else {
+                angles[index + 1]
+            };
+            (index, next - angle)
+        })
+        .collect();
+    let largest_gap = gaps
+        .iter()
+        .map(|(_, gap)| *gap)
+        .max_by(f64::total_cmp)
+        .expect("multi-connection layout requires at least one angular gap");
+    let tied_gaps: Vec<(usize, f64)> = gaps
+        .iter()
+        .copied()
+        .filter(|(_, gap)| (largest_gap - gap).abs() <= MULTI_CONNECTION_GAP_TIE_EPSILON_DEG)
+        .collect();
+
+    if angles.len() == 2
+        && tied_gaps.len() == 2
+        && (largest_gap - 180.0).abs() <= MULTI_CONNECTION_GAP_TIE_EPSILON_DEG
+    {
+        let axis = angles[0].rem_euclid(180.0);
+        let flow = if axis
+            <= OPPOSITE_CONNECTION_HORIZONTAL_END_DEG + MULTI_CONNECTION_GAP_TIE_EPSILON_DEG
+            || axis >= OPPOSITE_CONNECTION_REVERSE_END_DEG - MULTI_CONNECTION_GAP_TIE_EPSILON_DEG
+        {
+            LabelFlow::StackAbove
+        } else if axis <= OPPOSITE_CONNECTION_FORWARD_END_DEG + MULTI_CONNECTION_GAP_TIE_EPSILON_DEG
+        {
+            LabelFlow::Forward
+        } else {
+            LabelFlow::Reverse
+        };
+        return decision_for_flow(flow);
+    }
+
+    // Three equally spaced connections have no unique open sector. ChemDraw
+    // resolves that true trigonal degeneracy from its 120-degree phase.
+    if angles.len() == 3 && tied_gaps.len() == 3 {
+        let phase = normalize_degrees(
+            angles
+                .iter()
+                .enumerate()
+                .map(|(index, angle)| angle - index as f64 * 120.0)
+                .sum::<f64>()
+                / 3.0,
+        )
+        .rem_euclid(120.0);
+        let flow = if phase <= 60.0 || phase >= 112.5 {
+            LabelFlow::Forward
+        } else if phase <= 67.5 {
+            LabelFlow::Reverse
+        } else {
+            LabelFlow::StackAbove
+        };
+        return decision_for_flow(flow);
+    }
+
+    let selected_gap = tied_gaps
+        .iter()
+        .copied()
+        .map(|(index, gap)| {
+            let midpoint = normalize_degrees(angles[index] + gap * 0.5);
+            let clockwise_from_up = normalize_degrees(midpoint - 270.0);
+            let distance_from_up = clockwise_from_up.min(360.0 - clockwise_from_up);
+            let right_axis_distance = midpoint.min(360.0 - midpoint);
+            (
+                index,
+                gap,
+                right_axis_distance > MULTI_CONNECTION_GAP_TIE_EPSILON_DEG,
+                distance_from_up,
+                clockwise_from_up,
+            )
+        })
+        .min_by(|left, right| {
+            left.2
+                .cmp(&right.2)
+                .then_with(|| left.3.total_cmp(&right.3))
+                .then_with(|| left.4.total_cmp(&right.4))
+        })
+        .expect("multi-connection layout requires a selected angular gap");
+    let occupied_start = if selected_gap.0 + 1 == angles.len() {
+        angles[0]
+    } else {
+        angles[selected_gap.0 + 1]
+    };
+    let occupied_span = 360.0 - selected_gap.1;
+    let bisector = normalize_degrees(occupied_start + occupied_span * 0.5);
+    decision_for_flow(classify_multi_connection_bisector(bisector))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -264,10 +380,10 @@ pub fn decide_label_layout(
 
     if connection_angles.len() == 1 {
         let direction = direction_from_angle(connection_angles[0]);
-        // The measured 15-degree transition belongs to the multi-connection
-        // layout decision. A terminal label follows the complete left/right
-        // half-plane and only delegates an effectively vertical bond to the
-        // collision resolver.
+        // A terminal label follows the complete left/right half-plane and
+        // only delegates an effectively vertical bond to the collision
+        // resolver. Multi-connection labels use the separate open-sector
+        // decision below.
         if direction.x > SINGLE_CONNECTION_HORIZONTAL_EPSILON {
             return LabelLayoutDecision {
                 flow: LabelFlow::Reverse,
@@ -292,63 +408,7 @@ pub fn decide_label_layout(
         };
     }
 
-    let all_left = connection_angles
-        .iter()
-        .all(|angle| direction_is_left(direction_from_angle(*angle)));
-    if all_left {
-        return LabelLayoutDecision {
-            flow: LabelFlow::Forward,
-            anchor: LabelAnchorPolicy::FirstGlyph,
-        };
-    }
-
-    let all_right = connection_angles
-        .iter()
-        .all(|angle| direction_is_right(direction_from_angle(*angle)));
-    if all_right {
-        return LabelLayoutDecision {
-            flow: LabelFlow::Reverse,
-            anchor: LabelAnchorPolicy::OriginalFirstGroup,
-        };
-    }
-
-    let all_below = connection_angles
-        .iter()
-        .all(|angle| direction_is_below(direction_from_angle(*angle)));
-    if all_below {
-        return LabelLayoutDecision {
-            flow: LabelFlow::StackAbove,
-            anchor: LabelAnchorPolicy::FirstGroupLeadGlyph,
-        };
-    }
-
-    let all_above = connection_angles
-        .iter()
-        .all(|angle| direction_is_above(direction_from_angle(*angle)));
-    if all_above {
-        return LabelLayoutDecision {
-            flow: LabelFlow::StackBelow,
-            anchor: LabelAnchorPolicy::FirstGroupLeadGlyph,
-        };
-    }
-
-    let has_right = connection_angles
-        .iter()
-        .any(|angle| direction_is_right(direction_from_angle(*angle)));
-    let all_right_or_vertical = connection_angles
-        .iter()
-        .all(|angle| !direction_is_left(direction_from_angle(*angle)));
-    if has_right && all_right_or_vertical {
-        return LabelLayoutDecision {
-            flow: LabelFlow::Reverse,
-            anchor: LabelAnchorPolicy::OriginalFirstGroup,
-        };
-    }
-
-    LabelLayoutDecision {
-        flow: LabelFlow::Forward,
-        anchor: LabelAnchorPolicy::FirstGlyph,
-    }
+    multi_connection_layout(connection_angles)
 }
 
 pub fn layout_label_text(text: &str, decision: &LabelLayoutDecision) -> LabelLayout {
@@ -490,6 +550,16 @@ fn stacked_layout(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn flow_marker(flow: LabelFlow) -> u8 {
+        match flow {
+            LabelFlow::Reverse => b'R',
+            LabelFlow::Forward => b'F',
+            LabelFlow::StackAbove => b'A',
+            LabelFlow::StackBelow => b'B',
+            LabelFlow::Preserve => b'P',
+        }
+    }
 
     #[test]
     fn splits_formula_text_into_uppercase_led_groups() {
@@ -640,20 +710,139 @@ mod tests {
     }
 
     #[test]
-    fn chemdraw_label_flow_switches_at_the_fifteen_degree_axis_sector() {
+    fn chemdraw_two_connection_flow_switches_at_bisector_sector_boundaries() {
         let horizontal = decide_label_layout(&[120.0, 14.9], false, false);
         assert_eq!(horizontal.flow, LabelFlow::Reverse);
         assert_eq!(horizontal.anchor, LabelAnchorPolicy::OriginalFirstGroup);
 
-        let below = decide_label_layout(&[120.0, 15.0], false, false);
+        let below = decide_label_layout(&[120.0, 15.1], false, false);
         assert_eq!(below.flow, LabelFlow::StackAbove);
         assert_eq!(below.anchor, LabelAnchorPolicy::FirstGroupLeadGlyph);
 
         let opposite_horizontal = decide_label_layout(&[300.0, 194.9], false, false);
         assert_eq!(opposite_horizontal.flow, LabelFlow::Forward);
 
-        let above = decide_label_layout(&[300.0, 195.0], false, false);
+        let above = decide_label_layout(&[300.0, 195.1], false, false);
         assert_eq!(above.flow, LabelFlow::StackBelow);
+    }
+
+    #[test]
+    fn chemdraw_two_connection_flow_matches_the_full_thirty_degree_grid() {
+        let angles = [
+            0.0, 30.0, 60.0, 90.0, 120.0, 150.0, 180.0, 210.0, 240.0, 270.0, 300.0, 330.0,
+        ];
+        let expected = [
+            "RRRRRAABRRRR",
+            "RRRRAAAFRRRR",
+            "RRRAAAFFFRRR",
+            "RRAAAFFFFFRR",
+            "RAAAFFFFFFRR",
+            "AAAFFFFFFFFR",
+            "AAFFFFFFFFFB",
+            "BFFFFFFFFFBB",
+            "RRFFFFFFFBBB",
+            "RRRFFFFFBBBR",
+            "RRRRRFFBBBRR",
+            "RRRRRRBBBRRR",
+        ];
+
+        for (fixed_index, fixed_angle) in angles.iter().enumerate() {
+            for (angle_index, angle) in angles.iter().enumerate() {
+                let actual = decide_label_layout(&[*fixed_angle, *angle], false, false).flow;
+                let expected_flow = match expected[fixed_index].as_bytes()[angle_index] {
+                    b'R' => LabelFlow::Reverse,
+                    b'F' => LabelFlow::Forward,
+                    b'A' => LabelFlow::StackAbove,
+                    b'B' => LabelFlow::StackBelow,
+                    other => panic!("unexpected matrix marker {other}"),
+                };
+                assert_eq!(
+                    actual, expected_flow,
+                    "fixed angle {fixed_angle}, variable angle {angle}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn chemdraw_three_connection_flow_matches_the_full_thirty_degree_grid() {
+        let angles = [
+            0.0, 30.0, 60.0, 90.0, 120.0, 150.0, 180.0, 210.0, 240.0, 270.0, 300.0, 330.0,
+        ];
+        let expected = concat!(
+            "RRRAARRRRRRRAAARRRRRAAARRRRAAAFRRRAABBRRBBBBBBBBBRRRRRRRAAAFRRRRAAAFFRRRAAFFRRRAFFFRRFFBBARRRRRRRRRR",
+            "AAFFFRRRAFFFFRRFFFFRRFFFFAFFRRRRRRRRFFFFFRRFFFFRRFFFFAFFFAFFRRRRFFFFFRFFFFAFFFFFFFFRRFFFFFFFFFFFFFFF",
+            "FFFBFFBFBBFBBBBBBBBR",
+        )
+        .as_bytes();
+        let mut result_index = 0;
+        for first in 0..angles.len() {
+            for second in first + 1..angles.len() {
+                for third in second + 1..angles.len() {
+                    let connection_angles = [angles[first], angles[second], angles[third]];
+                    let actual = decide_label_layout(&connection_angles, false, false).flow;
+                    assert_eq!(
+                        flow_marker(actual),
+                        expected[result_index],
+                        "angles {connection_angles:?}"
+                    );
+                    result_index += 1;
+                }
+            }
+        }
+        assert_eq!(result_index, expected.len());
+    }
+
+    #[test]
+    fn chemdraw_four_connection_flow_matches_the_full_thirty_degree_grid() {
+        let angles = [
+            0.0, 30.0, 60.0, 90.0, 120.0, 150.0, 180.0, 210.0, 240.0, 270.0, 300.0, 330.0,
+        ];
+        let expected = concat!(
+            "RRAAARRRRRAAARRRRAAAFRRRAAFRRRABBBARRRRRRRRRRRAAARRRRAAAFRRRAAFRRRAFRRARRRRRRRRRRAAAFRRRAAFRRRAFFRAF",
+            "RRARRRRRRAAFRRRAFFRAFFFARRRRRRABBBABBBBBBBBBRBBBBBBBBBBBBBBBBRRRRAAAFFRRRAAFFRRRAFFFRRFFFRAFRRRRRRRR",
+            "RAAFFRRRAFFFRRFFFRAFFRARRRRRRAFFFRRFFFRAFFAAFRRRRRFFFRAFFBAFBBRRRFBBBBBBBBBRRRRRRRRRRAFFFFRRFFFFRRFF",
+            "FFAFFFAFRRRRRFFFFRRFFFFAFFFAFFRRRRFFFFAFFFAFFAFRRFFFAFFRFRRFRRRRRRRRRFFFFRRFFFFAFFFAFFRRRRFFFFAFFFAF",
+            "FFFRRFFFAFFFFFRFFFFFFFRRRFFFFAFFFFFFFFFRFFFFFFFFFFFFFFFFFFFRFFFFFFFFFFFFFFFFFFFFFFBFBBFBBBBBBBB",
+        )
+        .as_bytes();
+        let mut result_index = 0;
+        for first in 0..angles.len() {
+            for second in first + 1..angles.len() {
+                for third in second + 1..angles.len() {
+                    for fourth in third + 1..angles.len() {
+                        let connection_angles =
+                            [angles[first], angles[second], angles[third], angles[fourth]];
+                        let actual = decide_label_layout(&connection_angles, false, false).flow;
+                        assert_eq!(
+                            flow_marker(actual),
+                            expected[result_index],
+                            "angles {connection_angles:?}"
+                        );
+                        result_index += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(result_index, expected.len());
+    }
+
+    #[test]
+    fn chemdraw_opposite_connection_axis_uses_its_own_sector_boundaries() {
+        for (angles, expected) in [
+            ([22.5, 202.5], LabelFlow::StackAbove),
+            ([22.6, 202.6], LabelFlow::Forward),
+            ([90.0, 270.0], LabelFlow::Forward),
+            ([90.1, 270.1], LabelFlow::Reverse),
+            ([157.4, 337.4], LabelFlow::Reverse),
+            ([157.5, 337.5], LabelFlow::StackAbove),
+        ] {
+            assert_eq!(
+                decide_label_layout(&angles, false, false).flow,
+                expected,
+                "angles {angles:?}"
+            );
+        }
     }
 
     #[test]

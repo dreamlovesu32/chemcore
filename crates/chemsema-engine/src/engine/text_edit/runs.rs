@@ -263,7 +263,10 @@ mod tests {
             font_weight: Some(400),
             font_style: Some("normal".to_string()),
             underline: Some(false),
-            script: Some("normal".to_string()),
+            // These tests exercise automatic chemical-script expansion.
+            // Explicit "normal" is authored formatting and must not be
+            // reinterpreted by the shared tokenizer.
+            script: Some("chemical".to_string()),
             ..LabelRun::default()
         }
     }

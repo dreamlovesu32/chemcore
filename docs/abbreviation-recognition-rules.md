@@ -253,19 +253,23 @@ not bulk-import the entire table.
 
 Terminal templates such as `iPr`, `nBu`, and `tBu`, which begin with a lowercase letter and contain later uppercase letters, use whole-label layout: selection and anchors treat the whole label as one indivisible structural label.
 
-Multi-connection direction uses ChemDraw's measured 15-degree axis sectors
-rather than the sign of a floating-point vector component. A bond within
-15 degrees of the positive or negative horizontal axis belongs to the
-corresponding horizontal sector. The remaining lower and upper half-plane
-sectors drive stack-above and stack-below layouts. A right-sector bond plus
-connections outside the left sector keeps reversed horizontal layout; only
-when every connection has entered the lower sector does the label switch to
-stack-above. Silent ChemDraw SVG/CDXML probes locate the transition at
-`14.9° -> horizontal` and `15.0° -> vertical`, across 8/10/14 pt labels and
-10/14.4/24 pt bond lengths after accounting for source-coordinate rounding.
-A terminal label instead follows the complete left/right half-plane; only an
-effectively vertical single connection delegates direction to collision
-resolution.
+Multi-connection direction uses ChemDraw's largest-open-sector rule. Sort the
+actual connection directions, find the largest angular gap, and classify the
+bisector of the occupied complementary arc. The two horizontal flow sectors
+each span 135 degrees (`292.5°..67.5°` for reverse and
+`112.5°..247.5°` for forward); the two 45-degree vertical sectors produce
+stack-above and stack-below. Gaps within `0.001°` are an intentional symmetry
+tie: an open gap centered on the positive horizontal axis wins first,
+otherwise the gap nearest the upward axis wins, with the clockwise gap winning
+an exact distance tie. Exactly opposite pairs use the undirected-axis
+boundaries `22.5°/90°/157.5°`; a three-way equal split uses its 120-degree
+phase. Silent ChemDraw SVG/CDXML probes cover the complete 30-degree grids for
+two, three, and four connections (1,079 cases), boundary sweeps, multiple
+label sizes, and multiple bond lengths. Source-coordinate quantization is
+resolved before this rule; file names or nominal request angles never enter
+the decision. A terminal label instead follows the complete left/right
+half-plane; only an effectively vertical single connection delegates direction
+to collision resolution.
 
 ## Relationship To Element Implicit Hydrogen
 
