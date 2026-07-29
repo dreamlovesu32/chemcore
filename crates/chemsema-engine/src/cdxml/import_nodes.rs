@@ -408,15 +408,6 @@ pub(super) fn node_label(
         // Face controls its appearance; absent semantic settings still use
         // ChemDraw's normal chemically interpreted node-label behavior.
         .unwrap_or(true);
-    let default_label_font = defaults.label_font.to_string();
-    let parent_font = text_el
-        .attr("font")
-        .or_else(|| {
-            text_el
-                .direct_children("s")
-                .find_map(|run| run.attr("font"))
-        })
-        .unwrap_or(default_label_font.as_str());
     let parent_color = text_el
         .attr("color")
         .or_else(|| {
@@ -431,15 +422,17 @@ pub(super) fn node_label(
             .find_map(|run| parse_f64(run.attr("size")))
             .unwrap_or(defaults.label_size)
     });
+    let mut font_state = CdxmlFontRunState::default();
     let mut source_runs: Vec<LabelRun> = text_el
         .direct_children("s")
         .filter_map(|run| {
             let run_text = run.full_text();
             (!run_text.is_empty()).then(|| {
+                let font_id = font_state.resolve(run.attr("font"));
                 label_source_run(
                     &run_text,
                     parse_u32(run.attr("face")).unwrap_or(parent_face),
-                    run.attr("font").unwrap_or(parent_font),
+                    font_id,
                     run.attr("color").unwrap_or(parent_color),
                     parse_f64(run.attr("size")).unwrap_or(parent_size),
                     colors,
@@ -448,6 +441,10 @@ pub(super) fn node_label(
             })
         })
         .collect();
+    let font_family = source_runs
+        .first()
+        .and_then(|run| run.font_family.clone())
+        .unwrap_or_else(|| "Arial".to_string());
     let (text, wrapped_source_runs, normalized_line_starts) =
         if text_el.attr("WordWrapWidth").is_some() || text_el.attr("LineStarts").is_some() {
             apply_cdxml_line_starts(&text, source_runs, text_el.attr("LineStarts"))
@@ -509,12 +506,7 @@ pub(super) fn node_label(
             }
             .to_string(),
         ),
-        font_family: Some(
-            fonts
-                .get(parent_font)
-                .cloned()
-                .unwrap_or_else(|| "Arial".to_string()),
-        ),
+        font_family: Some(font_family),
         fill: Some(colors.resolve(Some(parent_color))),
         font_size: Some(parent_size),
         line_height: Some(round2(line_spacing.line_height)),

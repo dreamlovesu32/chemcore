@@ -1,6 +1,102 @@
 use super::*;
 
 #[test]
+fn cdxml_styled_string_fonts_follow_chemdraw_run_state() {
+    let source = r#"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="12" CaptionFont="4" CaptionSize="12">
+  <fonttable>
+    <font id="2" charset="iso-8859-1" name="Arial"/>
+    <font id="3" charset="iso-8859-1" name="Times New Roman"/>
+  </fonttable>
+  <page>
+    <fragment>
+      <n id="missing" p="20 30" NodeType="Nickname">
+        <t p="20 34"><s>NiA</s></t>
+      </n>
+      <n id="preceding" p="80 30" NodeType="Nickname">
+        <t p="80 34"><s font="3">A3</s><s>B0</s></t>
+      </n>
+      <n id="text-parent" p="140 30" NodeType="Nickname">
+        <t p="140 34" font="3"><s>Ct</s></t>
+      </n>
+    </fragment>
+    <t id="free-state" p="20 80"><s>G0</s><s font="3">H3</s><s>Ix</s></t>
+    <t id="free-invalid" p="160 80"><s font="4">TxU</s></t>
+  </page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(source, Some("styled string font state")).expect("CDXML parses");
+    let label = |node_id: &str| {
+        document
+            .resources
+            .values()
+            .filter_map(|resource| resource.data.as_fragment())
+            .flat_map(|fragment| fragment.nodes.iter())
+            .find(|node| node.id == node_id)
+            .and_then(|node| node.label.as_ref())
+            .expect("node label")
+    };
+
+    assert_eq!(label("missing").font_family.as_deref(), Some("Arial"));
+    assert!(label("missing")
+        .runs
+        .iter()
+        .all(|run| run.font_family.as_deref() == Some("Arial")));
+    assert_eq!(
+        label("preceding")
+            .runs
+            .iter()
+            .map(|run| (run.text.as_str(), run.font_family.as_deref()))
+            .collect::<Vec<_>>(),
+        vec![("A3B0", Some("Times New Roman"))]
+    );
+    assert_eq!(
+        label("text-parent").font_family.as_deref(),
+        Some("Arial"),
+        "ChemDraw ignores font on <t>; only preceding <s> run state is inherited"
+    );
+
+    let text_runs = |source_id: &str| {
+        document
+            .objects
+            .iter()
+            .find(|object| {
+                object
+                    .meta
+                    .get("textId")
+                    .and_then(serde_json::Value::as_str)
+                    == Some(source_id)
+            })
+            .and_then(|object| object.payload.extra.get("runs"))
+            .and_then(serde_json::Value::as_array)
+            .expect("text runs")
+    };
+    assert_eq!(
+        text_runs("free-state")
+            .iter()
+            .map(|run| {
+                (
+                    run.get("text").and_then(serde_json::Value::as_str),
+                    run.get("fontFamily").and_then(serde_json::Value::as_str),
+                )
+            })
+            .collect::<Vec<_>>(),
+        vec![
+            (Some("G0"), Some("Arial")),
+            (Some("H3"), Some("Times New Roman")),
+            (Some("Ix"), Some("Times New Roman")),
+        ]
+    );
+    assert_eq!(
+        text_runs("free-invalid")[0]
+            .get("fontFamily")
+            .and_then(serde_json::Value::as_str),
+        Some("Arial"),
+        "an undefined font-table ID resolves to ChemDraw's Arial fallback"
+    );
+}
+
+#[test]
 fn parse_cdxml_fixed_edge_labels_anchor_subscripts_but_not_superscripts() {
     let source = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML BondLength="14.4">

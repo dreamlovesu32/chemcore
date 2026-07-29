@@ -4,6 +4,25 @@ use std::collections::BTreeMap;
 use super::colors::CdxmlColorTable;
 use super::round2;
 
+#[derive(Default)]
+pub(super) struct CdxmlFontRunState {
+    font_id: Option<String>,
+}
+
+impl CdxmlFontRunState {
+    pub(super) fn resolve(&mut self, explicit_font_id: Option<&str>) -> &str {
+        if let Some(font_id) = explicit_font_id {
+            self.font_id = Some(font_id.to_string());
+        }
+        // ChemDraw's styled-string font state starts at Arial independently
+        // of LabelFont/CaptionFont. A missing font on a later <s> retains the
+        // preceding <s> font; a font attribute on <t> is not part of that
+        // state. An empty ID deliberately reaches label_source_run's Arial
+        // rule without inventing a font-table entry.
+        self.font_id.as_deref().unwrap_or("")
+    }
+}
+
 pub(super) fn label_source_run(
     text: &str,
     face: u32,
@@ -380,5 +399,15 @@ mod tests {
             split_cdxml_font_family_style("Times New Roman"),
             ("Times New Roman".to_string(), false, false)
         );
+    }
+
+    #[test]
+    fn font_runs_start_at_arial_and_retain_only_preceding_run_state() {
+        let mut state = CdxmlFontRunState::default();
+        assert_eq!(state.resolve(None), "");
+        assert_eq!(state.resolve(Some("3")), "3");
+        assert_eq!(state.resolve(None), "3");
+        assert_eq!(state.resolve(Some("4")), "4");
+        assert_eq!(state.resolve(None), "4");
     }
 }

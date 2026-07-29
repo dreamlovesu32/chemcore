@@ -511,11 +511,6 @@ pub(super) fn text_object(
         .or_else(|| node.attr("Justification"))
         .unwrap_or(defaults.caption_justification.as_cdxml())
         .to_ascii_lowercase();
-    let default_caption_font = defaults.caption_font.to_string();
-    let font_id = node
-        .attr("font")
-        .or_else(|| node.direct_children("s").find_map(|run| run.attr("font")))
-        .unwrap_or(default_caption_font.as_str());
     let face = parse_u32(node.attr("face")).unwrap_or(defaults.caption_face);
     let color_id = node
         .attr("color")
@@ -526,17 +521,7 @@ pub(super) fn text_object(
             .find_map(|run| parse_f64(run.attr("size")))
             .unwrap_or(defaults.caption_size)
     });
-    let style_id = format!("style_text_{index:03}");
-    styles.entry(style_id.clone()).or_insert_with(|| {
-        json!({
-            "kind": "text",
-            "fontFamily": fonts.get(font_id).cloned().unwrap_or_else(|| "Arial".to_string()),
-            "fontSize": font_size,
-            "fontWeight": 400,
-            "fill": colors.resolve(Some(color_id)),
-            "stroke": null,
-        })
-    });
+    let mut font_state = CdxmlFontRunState::default();
     let runs: Vec<LabelRun> = node
         .direct_children("s")
         .flat_map(|run| {
@@ -544,10 +529,11 @@ pub(super) fn text_object(
             if run_text.is_empty() {
                 Vec::new()
             } else {
+                let font_id = font_state.resolve(run.attr("font"));
                 label_display_runs(
                     &run_text,
                     parse_u32(run.attr("face")).unwrap_or(face),
-                    run.attr("font").unwrap_or(font_id),
+                    font_id,
                     run.attr("color").unwrap_or(color_id),
                     parse_f64(run.attr("size")).unwrap_or(font_size),
                     colors,
@@ -556,6 +542,21 @@ pub(super) fn text_object(
             }
         })
         .collect();
+    let font_family = runs
+        .first()
+        .and_then(|run| run.font_family.clone())
+        .unwrap_or_else(|| "Arial".to_string());
+    let style_id = format!("style_text_{index:03}");
+    styles.entry(style_id.clone()).or_insert_with(|| {
+        json!({
+            "kind": "text",
+            "fontFamily": font_family,
+            "fontSize": font_size,
+            "fontWeight": 400,
+            "fill": colors.resolve(Some(color_id)),
+            "stroke": null,
+        })
+    });
     let (text, runs, normalized_line_starts) =
         if node.attr("WordWrapWidth").is_some() || node.attr("LineStarts").is_some() {
             apply_cdxml_line_starts(&text, runs, node.attr("LineStarts"))

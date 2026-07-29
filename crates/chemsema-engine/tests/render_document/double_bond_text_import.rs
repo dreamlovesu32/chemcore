@@ -727,7 +727,10 @@ fn parse_cdxml_preserves_document_drawing_defaults_without_using_cached_label_ge
         .and_then(|fragment| fragment.nodes.iter().find(|node| node.id == "n1"))
         .and_then(|node| node.label.as_ref())
         .expect("node label should import");
-    assert_eq!(label.font_family.as_deref(), Some("Times New Roman"));
+    // ChemDraw keeps the document LabelFont as the editing default, but a
+    // styled string whose first <s> omits font starts its own run state at
+    // Arial instead of inheriting that document default.
+    assert_eq!(label.font_family.as_deref(), Some("Arial"));
     assert_eq!(label.font_size, Some(11.0));
     assert_eq!(label.align.as_deref(), Some("right"));
     assert_eq!(label.meta.pointer("/defaultChemical"), Some(&json!(false)));
@@ -764,7 +767,7 @@ fn parse_cdxml_preserves_document_drawing_defaults_without_using_cached_label_ge
         .styles
         .get(text_object.style_ref.as_deref().expect("text style ref"))
         .expect("text style should exist");
-    assert_eq!(style.get("fontFamily"), Some(&json!("Courier New")));
+    assert_eq!(style.get("fontFamily"), Some(&json!("Arial")));
     assert_eq!(style.get("fontSize"), Some(&json!(9.0)));
     assert_eq!(
         text_object.payload.extra.get("align"),

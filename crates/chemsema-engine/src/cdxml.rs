@@ -59,7 +59,9 @@ pub use self::template_library::{
     template_library_layout_dialog_json, template_library_layout_json,
     template_library_palette_json, TemplateGridLayout,
 };
-use self::text_runs::{label_display_runs, label_display_runs_from_source_runs, label_source_run};
+use self::text_runs::{
+    label_display_runs, label_display_runs_from_source_runs, label_source_run, CdxmlFontRunState,
+};
 use self::xml::descendants;
 pub(crate) use self::xml::parse_xml_tree;
 pub(crate) use self::xml::XmlNode;
