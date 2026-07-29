@@ -6,7 +6,10 @@ import { promisify } from "node:util";
 import { generateChemDrawOracle } from "./chemdraw-oracle.mjs";
 import { launchBrowser } from "./playwright-browser.mjs";
 import { matchesPublicCdxmlCasePattern } from "./public-cdxml-case-filter.mjs";
-import { collectGalleryProvenance } from "./public-cdxml-provenance.mjs";
+import {
+  collectGalleryProvenance,
+  sha256File,
+} from "./public-cdxml-provenance.mjs";
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -27,6 +30,7 @@ function parseArgs(argv) {
     all: false,
     incremental: false,
     allowDirty: false,
+    oracleGallery: null,
     jobs: 4,
     patterns: [],
     cli: process.platform === "win32"
@@ -41,6 +45,7 @@ function parseArgs(argv) {
     else if (arg === "--all") args.all = true;
     else if (arg === "--incremental") args.incremental = true;
     else if (arg === "--allow-dirty") args.allowDirty = true;
+    else if (arg === "--oracle-gallery") args.oracleGallery = argv[++index];
     else if (arg === "--jobs") args.jobs = Number(argv[++index]);
     else if (arg === "--only") args.patterns.push(argv[++index]);
     else if (arg === "--cli") args.cli = argv[++index];
@@ -1078,7 +1083,58 @@ function svgHasDrawableContent(svg) {
   return /<(?:path|polygon|polyline|line|circle|ellipse|rect|text)\b/i.test(svg);
 }
 
-async function fullCorpusPairs(root, reportPath, outDir, patterns = []) {
+export function oracleGalleryCorpusErrors(recorded, current) {
+  const errors = [];
+  if (recorded?.corpus?.manifestSha256 !== current?.corpus?.manifestSha256) {
+    errors.push("corpus-manifest");
+  }
+  const recordedSources = new Map(
+    (recorded?.corpus?.sources ?? []).map((source) => [source.id, source.actualRevision]),
+  );
+  const currentSources = new Map(
+    (current?.corpus?.sources ?? []).map((source) => [source.id, source.actualRevision]),
+  );
+  const sourceIds = new Set([...recordedSources.keys(), ...currentSources.keys()]);
+  for (const sourceId of [...sourceIds].sort()) {
+    if (recordedSources.get(sourceId) !== currentSources.get(sourceId)) {
+      errors.push(`corpus-source:${sourceId}`);
+    }
+  }
+  return errors;
+}
+
+async function retainedOracleGallery(oracleGallery, currentProvenance) {
+  if (!oracleGallery) return null;
+  const galleryDir = path.resolve(oracleGallery);
+  const manifestPath = path.join(galleryDir, "manifest.json");
+  const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+  const compatibilityErrors = oracleGalleryCorpusErrors(
+    manifest.provenance,
+    currentProvenance,
+  );
+  if (compatibilityErrors.length) {
+    throw new Error(
+      `Retained ChemDraw oracle gallery is incompatible: ${compatibilityErrors.join(", ")}`,
+    );
+  }
+  return {
+    galleryDir,
+    manifestPath,
+    manifestSha256: sha256File(manifestPath),
+    itemsByPath: new Map(
+      manifest.items.map((item) => [item.relativeCdxml.replaceAll("\\", "/"), item]),
+    ),
+  };
+}
+
+async function fullCorpusPairs(
+  root,
+  reportPath,
+  outDir,
+  patterns = [],
+  oracleGallery = null,
+  currentProvenance = null,
+) {
   const report = JSON.parse(await fs.readFile(path.resolve(reportPath), "utf8"));
   const selectedCases = patterns.length === 0
     ? report.cases
@@ -1101,7 +1157,9 @@ async function fullCorpusPairs(root, reportPath, outDir, patterns = []) {
 
   const oracleDir = path.join(outDir, "chemdraw-oracle");
   await fs.mkdir(oracleDir, { recursive: true });
+  const retainedOracle = await retainedOracleGallery(oracleGallery, currentProvenance);
   const candidates = [];
+  let retainedCount = 0;
   for (const pair of pairs) {
     if (["expected-reject", "skipped"].includes(pair.status)) continue;
     const output = path.join(oracleDir, `${pair.oracleName}.chemdraw.svg`);
@@ -1112,12 +1170,33 @@ async function fullCorpusPairs(root, reportPath, outDir, patterns = []) {
     // review runs never relaunch ChemDraw merely to rediscover the same failure.
     const relativeCdxml = path.relative(root, pair.cdxml).replaceAll("\\", "/");
     const itemId = `${pair.caseId}_${safeName(relativeCdxml)}`;
+    if (retainedOracle) {
+      const retainedItem = retainedOracle.itemsByPath.get(relativeCdxml);
+      if (!retainedItem?.reference) {
+        throw new Error(
+          `Retained ChemDraw oracle gallery is missing ${relativeCdxml}`,
+        );
+      }
+      const retainedReference = path.resolve(
+        retainedOracle.galleryDir,
+        retainedItem.reference,
+      );
+      await fs.access(retainedReference);
+      await fs.copyFile(retainedReference, output);
+      retainedCount += 1;
+      continue;
+    }
     const retainedReference = path.join(outDir, "items", itemId, "reference.svg");
     if (await fs.stat(retainedReference).then(() => true, () => false)) {
       await fs.copyFile(retainedReference, output);
       continue;
     }
     candidates.push(pair);
+  }
+  if (retainedOracle) {
+    console.log(
+      `[CHEMDRAW] retained ${retainedCount} oracle SVGs from ${retainedOracle.galleryDir}`,
+    );
   }
   const chunkSize = 32;
   for (let offset = 0; offset < candidates.length; offset += chunkSize) {
@@ -1155,31 +1234,16 @@ async function fullCorpusPairs(root, reportPath, outDir, patterns = []) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
-    console.log("Usage: node scripts/render-public-cdxml-visual-review.mjs [--root corpus] [--out directory] [--cli chemsema-cli] [--all --report report.json] [--only case-or-path] [--incremental] [--jobs n] [--allow-dirty]");
+    console.log("Usage: node scripts/render-public-cdxml-visual-review.mjs [--root corpus] [--out directory] [--cli chemsema-cli] [--all --report report.json] [--oracle-gallery retained-gallery] [--only case-or-path] [--incremental] [--jobs n] [--allow-dirty]");
     return;
   }
 
   const root = path.resolve(args.root);
   const outDir = path.resolve(args.outDir);
   const cli = path.resolve(args.cli);
-  const retainedManifest = args.incremental
-    ? JSON.parse(await fs.readFile(path.join(outDir, "manifest.json"), "utf8"))
-    : null;
-  const allFiles = await walk(root);
-  const pairs = args.all
-    ? await fullCorpusPairs(root, args.report, outDir, args.patterns)
-    : allFiles
-      .filter((file) => file.toLowerCase().endsWith(".cdxml"))
-      .map((cdxml) => ({
-        cdxml,
-        png: cdxml.replace(/\.cdxml$/i, ".png"),
-        referenceLabel: "公共参考图（原始 PNG）",
-        chemsemaLabel: "ChemSema 导入结果（完整 SVG 渲染）",
-      }))
-      .filter(({ png }) => allFiles.includes(png))
-      .sort((left, right) => left.cdxml.localeCompare(right.cdxml, "en"));
-
-  if (pairs.length === 0) throw new Error(`No matching CDXML/PNG pairs found under ${root}`);
+  if (args.oracleGallery && !args.all) {
+    throw new Error("--oracle-gallery requires --all");
+  }
   await fs.access(cli);
   const provenance = collectGalleryProvenance({
     repoRoot,
@@ -1193,6 +1257,38 @@ async function main() {
       "Refusing to generate a canonical public gallery from a dirty repository. "
       + "Commit the changes or pass --allow-dirty for an explicitly non-release development run.",
     );
+  }
+  const retainedManifest = args.incremental
+    ? JSON.parse(await fs.readFile(path.join(outDir, "manifest.json"), "utf8"))
+    : null;
+  const allFiles = await walk(root);
+  const pairs = args.all
+    ? await fullCorpusPairs(
+      root,
+      args.report,
+      outDir,
+      args.patterns,
+      args.oracleGallery,
+      provenance,
+    )
+    : allFiles
+      .filter((file) => file.toLowerCase().endsWith(".cdxml"))
+      .map((cdxml) => ({
+        cdxml,
+        png: cdxml.replace(/\.cdxml$/i, ".png"),
+        referenceLabel: "公共参考图（原始 PNG）",
+        chemsemaLabel: "ChemSema 导入结果（完整 SVG 渲染）",
+      }))
+      .filter(({ png }) => allFiles.includes(png))
+      .sort((left, right) => left.cdxml.localeCompare(right.cdxml, "en"));
+
+  if (pairs.length === 0) throw new Error(`No matching CDXML/PNG pairs found under ${root}`);
+  if (args.oracleGallery) {
+    const retainedManifestPath = path.resolve(args.oracleGallery, "manifest.json");
+    provenance.oracleGallery = {
+      path: path.resolve(args.oracleGallery),
+      manifestSha256: sha256File(retainedManifestPath),
+    };
   }
   await fs.mkdir(path.join(outDir, "items"), { recursive: true });
 

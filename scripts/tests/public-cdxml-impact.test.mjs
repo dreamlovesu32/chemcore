@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   mapWithConcurrency,
   mergeIncrementalManifestItems,
+  oracleGalleryCorpusErrors,
   publicCdxmlCliEnvironment,
 } from "../render-public-cdxml-visual-review.mjs";
 import {
@@ -378,6 +379,27 @@ test("gallery provenance invalidates stale source, CLI, corpus, and report input
     "corpus-manifest",
     "corpus-source:rdkit",
     "roundtrip-report",
+  ]);
+});
+
+test("retained ChemDraw oracle requires the exact corpus manifest and revisions", () => {
+  const current = {
+    corpus: {
+      manifestSha256: "manifest-a",
+      sources: [
+        { id: "indigo", actualRevision: "indigo-a" },
+        { id: "rdkit", actualRevision: "rdkit-a" },
+      ],
+    },
+  };
+  assert.deepEqual(oracleGalleryCorpusErrors(structuredClone(current), current), []);
+
+  const stale = structuredClone(current);
+  stale.corpus.manifestSha256 = "manifest-b";
+  stale.corpus.sources[1].actualRevision = "rdkit-b";
+  assert.deepEqual(oracleGalleryCorpusErrors(stale, current), [
+    "corpus-manifest",
+    "corpus-source:rdkit",
   ]);
 });
 

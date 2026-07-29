@@ -66,6 +66,20 @@ npm run benchmark:cdxml-public:visual-gate
 npm run benchmark:cdxml-public:visual-gate:report
 ```
 
+When a new canonical gallery directory is required, retain the already reviewed
+ChemDraw output instead of silently saving every source through ChemDraw again:
+
+```bash
+node scripts/render-public-cdxml-visual-review.mjs --all \
+  --oracle-gallery tmp/public-cdxml-previous-clean \
+  --out tmp/public-cdxml-current-clean
+```
+
+`--oracle-gallery` requires the exact same corpus manifest and source revisions,
+and requires a retained reference for every eligible input. An incomplete or
+incompatible oracle gallery fails explicitly; it never falls back to a mixed
+old/new ChemDraw baseline.
+
 The gate gives every comparable document one vote, regardless of canvas or
 file size. Blank canvas pixels never enter the score. Its coarse stage uses
 fixed-size local windows and connected missing/extra ink components. A second,
@@ -133,12 +147,15 @@ Promotion validates the exact 338-case cohort, clean and current repository/CLI
 provenance, zero analysis errors, and zero immediate or cumulative regressions.
 It unions new passes into the floor; it never removes protected paths.
 
-Gate v13 makes the fixed-coordinate detail checks non-bypassable. Neither a
+Gate v15 makes the fixed-coordinate detail checks non-bypassable. Neither a
 whole-page coverage score nor topology distribution can excuse an empty local
 window or a large local defect, and coarse pixel agreement cannot discard a
 fine connected-component mismatch. The detail pass uses zero dilation to
 retain repeated sub-pixel join differences; its repeated-defect rule is
-calibrated in reference-image units, not as a percentage of canvas size. SVG
+calibrated in reference-image units, not as a percentage of canvas size.
+Missing and extra fragments may be classified as one displaced detail only
+when they both fit within one fixed detail-window distance; look-alike edges on
+opposite sides of a large drawing cannot be paired. SVG
 scale is derived from the declared vector matrix. Translation is resolved by
 a broad low-resolution global-overlap search followed by two fixed-scale
 refinement passes; this prevents an asymmetric label box from trapping

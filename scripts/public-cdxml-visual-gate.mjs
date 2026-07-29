@@ -76,7 +76,7 @@ const DEFAULTS = Object.freeze({
 });
 
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
-export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v14";
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v15";
 export const STRICT_PASS_FLOOR_SCHEMA =
   "chemsema.public-cdxml-strict-pass-floor.v1";
 export const STRICT_PASS_FLOOR_PATH = path.resolve(
@@ -1199,7 +1199,11 @@ export function detailGateReasons(detail, options = {}) {
       );
       return areaRatio <= settings.maxDisplacedDefectAreaRatio
         && dimensionDelta <= settings.maxDisplacedDefectDimensionDelta
-        && centerDistance >= settings.minDisplacedDefectDistance;
+        && centerDistance >= settings.minDisplacedDefectDistance
+        // A displacement is one local feature moving between two nearby
+        // positions. Pairing look-alike missing/extra edges across the whole
+        // canvas makes repeated glyphs and bonds contaminate one another.
+        && centerDistance <= settings.detailLocalWindow;
     }));
   if (displacedDefectPair) reasons.push("detail-displaced-component");
   return reasons;
