@@ -1715,8 +1715,26 @@ impl<'a> CdxmlDocumentWriter<'a> {
         else {
             return;
         };
-        let label_alignment = imported_cdxml_label_attr(label, "labelAlignment")
-            .unwrap_or_else(|| cdxml_node_label_alignment(label));
+        let imported_label_alignment = imported_cdxml_label_attr(label, "labelAlignment");
+        let collapsed_node_type = node
+            .meta
+            .pointer("/import/cdxml/nodeType")
+            .and_then(Value::as_str)
+            .is_some_and(|node_type| matches!(node_type, "Fragment" | "Nickname"));
+        let explicitly_invalid = label
+            .meta
+            .pointer("/labelRecognition/status")
+            .or_else(|| node.meta.pointer("/labelRecognition/status"))
+            .and_then(Value::as_str)
+            == Some("invalid");
+        let preserves_authored_text_anchor = node.is_placeholder
+            && collapsed_node_type
+            && !explicitly_invalid
+            && imported_label_alignment.is_none()
+            && label
+                .meta
+                .pointer("/import/cdxml/textOffsetFromNode")
+                .is_some();
         let label_justification = imported_cdxml_label_attr(label, "labelJustification")
             .unwrap_or_else(|| cdxml_justification(label.align.as_deref()));
         let label_id = self
@@ -1732,7 +1750,16 @@ impl<'a> CdxmlDocumentWriter<'a> {
             ("id", label_id),
             ("p", fmt_point(position)),
             ("BoundingBox", fmt_bbox(bbox)),
-            ("LabelAlignment", label_alignment.to_string()),
+        ];
+        if !preserves_authored_text_anchor {
+            attrs.push((
+                "LabelAlignment",
+                imported_label_alignment
+                    .unwrap_or_else(|| cdxml_node_label_alignment(label))
+                    .to_string(),
+            ));
+        }
+        attrs.extend([
             ("LabelJustification", label_justification.to_string()),
             (
                 "InterpretChemically",
@@ -1748,7 +1775,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 self.colors
                     .id_for(label.fill.as_deref().unwrap_or("#000000")),
             ),
-        ];
+        ]);
         if let Some(justification) = imported_cdxml_label_attr(label, "justification") {
             attrs.push(("Justification", justification.to_string()));
         }

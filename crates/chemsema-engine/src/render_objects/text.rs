@@ -69,6 +69,13 @@ fn wrap_text_lines(text: &str, max_width: f64, font_size: f64) -> Vec<String> {
     out
 }
 
+fn uses_layout_anchor(object: &SceneObject) -> bool {
+    matches!(
+        object.meta.get("role").and_then(|value| value.as_str()),
+        Some("bracket_usage" | "parameterized_bracket_label")
+    )
+}
+
 pub(crate) fn render_text_object(
     out: &mut Vec<RenderPrimitive>,
     document: &ChemSemaDocument,
@@ -110,11 +117,17 @@ pub(crate) fn render_text_object(
         return;
     };
     let text_anchor = text_anchor(&align);
-    // `translate` owns the text-box geometry, while CDXML's `p` owns the
-    // authored text anchor. Import preserves their horizontal difference as
-    // `anchorOffsetX`; rendering must consume the same value that export uses
-    // or a valid source anchor is silently moved onto the BoundingBox edge.
-    let anchor_x = tx + payload_number(&object.payload, "anchorOffsetX").unwrap_or(0.0);
+    // Ordinary CDXML text is rendered from its authored `p` anchor; import
+    // preserves the p-to-box delta as `anchorOffsetX`. Bracket object-tag text
+    // is different: ChemDraw lays it out from the owning bracket and retains
+    // the nested text `p` only for round-trip serialization. Its scene
+    // transform is therefore the render anchor.
+    let anchor_offset_x = if uses_layout_anchor(object) {
+        0.0
+    } else {
+        payload_number(&object.payload, "anchorOffsetX").unwrap_or(0.0)
+    };
+    let anchor_x = tx + anchor_offset_x;
     let font_family = style
         .and_then(|value| style_string(value, "fontFamily"))
         .or_else(|| Some("Arial".to_string()));

@@ -229,6 +229,7 @@ pub(super) fn scale_json_key_as_length_array(key: &str) -> bool {
             | "cdxmlBoundingBox"
             | "position"
             | "textPosition"
+            | "textOffsetFromNode"
             | "translate"
             | "points"
             | "center"

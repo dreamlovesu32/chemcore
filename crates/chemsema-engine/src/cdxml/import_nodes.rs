@@ -462,8 +462,12 @@ pub(super) fn node_label(
         Vec::new()
     };
     let text_position = parse_xy(text_el.attr("p")).or_else(|| parse_xy(node.attr("p")));
-    let local_node_position = parse_xy(node.attr("p"))
+    let source_node_position = parse_xy(node.attr("p"));
+    let local_node_position = source_node_position
         .map(|point| [round2(point[0] - origin[0]), round2(point[1] - origin[1])]);
+    let text_offset_from_node = text_position
+        .zip(source_node_position)
+        .map(|(text, node)| [round2(text[0] - node[0]), round2(text[1] - node[1])]);
     let label_display = node.attr("LabelDisplay");
     let label_justification = text_el
         .attr("LabelJustification")
@@ -528,6 +532,7 @@ pub(super) fn node_label(
             "import": {
                 "cdxml": {
                     "textPosition": text_position,
+                    "textOffsetFromNode": text_offset_from_node,
                     "boundingBox": bbox,
                     "sourceId": empty_as_null(text_el.attr("id")),
                     "labelDisplay": empty_as_null(label_display),

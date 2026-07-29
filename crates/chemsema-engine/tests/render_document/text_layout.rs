@@ -1713,3 +1713,187 @@ fn text_anchor_offset_is_independent_of_line_preservation() {
         assert_eq!(primitive.2, Some(Point::new(50.0, 20.0)));
     }
 }
+
+#[test]
+fn bracket_object_tag_text_renders_from_owning_layout_anchor() {
+    let document: ChemSemaDocument = serde_json::from_value(json!({
+        "format": { "name": "chemsema", "version": "0.1" },
+        "document": {
+            "id": "doc_test",
+            "title": "bracket label anchor",
+            "page": { "width": 200.0, "height": 100.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_text": {
+                "kind": "text",
+                "fontFamily": "Arial",
+                "fontSize": 7.5,
+                "fill": "#000000"
+            }
+        },
+        "objects": [{
+            "id": "obj_text",
+            "type": "text",
+            "visible": true,
+            "zIndex": 1,
+            "transform": {
+                "translate": [81.41, 67.37],
+                "rotate": 0.0,
+                "scale": [1.0, 1.0]
+            },
+            "styleRef": "style_text",
+            "meta": { "role": "bracket_usage" },
+            "payload": {
+                "text": "2",
+                "box": [2.34, 0.0, 3.62, 5.27],
+                "align": "left",
+                "fontSize": 7.5,
+                "lineHeight": 6.68,
+                "anchorOffsetX": 2.1,
+                "baselineOffset": 5.27,
+                "preserveLines": true
+            }
+        }],
+        "resources": {}
+    }))
+    .expect("bracket label document");
+
+    let x = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Text { object_id, x, .. }
+                if object_id.as_deref() == Some("obj_text") =>
+            {
+                Some(x)
+            }
+            _ => None,
+        })
+        .expect("rendered bracket label");
+    assert_close(x, 81.41);
+}
+
+#[test]
+fn attached_text_p_is_authoritative_only_without_explicit_label_alignment() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="7">
+  <fonttable><font id="3" charset="iso-8859-1" name="Times New Roman"/></fonttable>
+  <page id="1">
+    <fragment id="2" BoundingBox="20 20 170 80">
+      <n id="1" p="50 50" NodeType="Nickname" AS="N">
+        <t p="38 54" BoundingBox="37.7 48 48 54.2"
+           LabelJustification="Right" Justification="Right">
+          <s font="3" size="7" face="96">tBu</s>
+        </t>
+      </n>
+      <n id="2" p="100 50" NodeType="Nickname" AS="N">
+        <t p="70 54" BoundingBox="59 48 70 54.2"
+           LabelJustification="Right" Justification="Right" LabelAlignment="Right">
+          <s font="3" size="7" face="96">HCO</s>
+        </t>
+      </n>
+      <n id="4" p="150 50" Element="8" AS="N">
+        <t p="120 54" BoundingBox="112 48 120 54.2"
+           LabelJustification="Right" Justification="Right">
+          <s font="3" size="7" face="96">O</s>
+        </t>
+      </n>
+      <b id="3" B="1" E="2"/>
+      <b id="5" B="2" E="4"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(cdxml, Some("attached anchor authority")).expect("CDXML parses");
+    let fragment = document
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .expect("molecule fragment");
+    let authored_node = fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "1")
+        .expect("authored attached node");
+    let authored = authored_node
+        .label
+        .as_ref()
+        .expect("authored attached label");
+    let authored_offset: [f64; 2] = serde_json::from_value(
+        authored
+            .meta
+            .pointer("/import/cdxml/textOffsetFromNode")
+            .cloned()
+            .expect("authored text offset"),
+    )
+    .expect("numeric authored text offset");
+    let authored_position = authored.position.expect("authored position");
+    assert_close(
+        authored_position[0],
+        authored_node.position[0] + authored_offset[0],
+    );
+    assert_close(
+        authored_position[1],
+        authored_node.position[1] + authored_offset[1],
+    );
+
+    let automatic_node = fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "2")
+        .expect("automatic attached node");
+    let automatic = automatic_node
+        .label
+        .as_ref()
+        .expect("automatic attached label");
+    let ignored_offset: [f64; 2] = serde_json::from_value(
+        automatic
+            .meta
+            .pointer("/import/cdxml/textOffsetFromNode")
+            .cloned()
+            .expect("automatic source text offset"),
+    )
+    .expect("numeric automatic source text offset");
+    let automatic_position = automatic.position.expect("automatic position");
+    let ignored_position = [
+        automatic_node.position[0] + ignored_offset[0],
+        automatic_node.position[1] + ignored_offset[1],
+    ];
+    assert!(
+        (automatic_position[0] - ignored_position[0]).abs() > 0.01
+            || (automatic_position[1] - ignored_position[1]).abs() > 0.01,
+        "LabelAlignment must make ChemDraw's node-relative layout authoritative: \
+         automatic={automatic_position:?}, authored={ignored_position:?}"
+    );
+
+    let element_node = fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "4")
+        .expect("element node");
+    let element = element_node.label.as_ref().expect("element label");
+    let element_offset: [f64; 2] = serde_json::from_value(
+        element
+            .meta
+            .pointer("/import/cdxml/textOffsetFromNode")
+            .cloned()
+            .expect("element source text offset"),
+    )
+    .expect("numeric element source text offset");
+    let element_position = element.position.expect("element position");
+    let ignored_element_position = [
+        element_node.position[0] + element_offset[0],
+        element_node.position[1] + element_offset[1],
+    ];
+    assert!(
+        (element_position[0] - ignored_element_position[0]).abs() > 0.01
+            || (element_position[1] - ignored_element_position[1]).abs() > 0.01,
+        "ordinary elements stay atom-laid-out without LabelAlignment"
+    );
+
+    let exported = document_to_cdxml(&document);
+    assert_eq!(
+        exported.matches("LabelAlignment=").count(),
+        2,
+        "export must preserve the absent-vs-explicit alignment branch: {exported}"
+    );
+}

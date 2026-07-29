@@ -685,6 +685,34 @@ mod label_layout_tests {
         ]];
         assert!(!uses_face_text_advance(true, &scripted));
     }
+
+    #[test]
+    fn face_aware_attachment_uses_the_same_face_for_box_and_anchor_advance() {
+        let runs = vec![LabelRun {
+            text: "ItBu".to_string(),
+            font_family: Some("Times New Roman".to_string()),
+            font_size: Some(10.0),
+            font_weight: Some(400),
+            font_style: Some("normal".to_string()),
+            script: Some("normal".to_string()),
+            ..LabelRun::default()
+        }];
+        let expected_face_width = runs[0]
+            .text
+            .chars()
+            .map(|character| estimated_run_char_width(&runs[0], character, 10.0, true))
+            .sum::<f64>();
+        assert!(
+            (estimate_line_runs_width(&runs, 10.0, true) - expected_face_width).abs()
+                < crate::EPSILON
+        );
+
+        let generic_anchor =
+            estimate_anchor_char_width(&runs, 0, 10.0, false).expect("generic anchor advance");
+        let face_anchor =
+            estimate_anchor_char_width(&runs, 0, 10.0, true).expect("face anchor advance");
+        assert!((generic_anchor - face_anchor).abs() > crate::EPSILON);
+    }
 }
 
 #[derive(Clone)]
@@ -1821,6 +1849,49 @@ fn is_cdxml_imported_centered_attached_label(label: &crate::NodeLabel) -> bool {
         && label.meta.pointer("/import/cdxml/boundingBox").is_some()
 }
 
+fn imported_authored_text_offset(node: &crate::Node, label: &crate::NodeLabel) -> Option<[f64; 2]> {
+    // LabelAlignment is ChemDraw's explicit automatic-layout instruction.
+    // When it is present, ChemDraw recomputes an attached label from the atom
+    // and ignores hand-edited t.p/BoundingBox values. Without it, t.p is the
+    // authored anchor for valid collapsed Fragment/Nickname labels. Invalid
+    // nickname text remains atom-laid-out like ChemDraw's query-style labels.
+    // Ordinary element labels remain atom-laid-out even when the attribute is
+    // absent. Retain the collapsed label's node-relative offset so atom
+    // dragging moves it with the atom instead of pinning it to a page point.
+    let collapsed_node_type = node
+        .meta
+        .pointer("/import/cdxml/nodeType")
+        .and_then(Value::as_str)
+        .is_some_and(|node_type| matches!(node_type, "Fragment" | "Nickname"));
+    let explicitly_invalid = label
+        .meta
+        .pointer("/labelRecognition/status")
+        .or_else(|| node.meta.pointer("/labelRecognition/status"))
+        .and_then(Value::as_str)
+        == Some("invalid");
+    if !node.is_placeholder
+        || !collapsed_node_type
+        || explicitly_invalid
+        || label
+            .meta
+            .pointer("/import/cdxml/labelAlignment")
+            .and_then(Value::as_str)
+            .is_some()
+    {
+        return None;
+    }
+    let values = label
+        .meta
+        .pointer("/import/cdxml/textOffsetFromNode")?
+        .as_array()?;
+    if values.len() != 2 {
+        return None;
+    }
+    let x = values[0].as_f64()?;
+    let y = values[1].as_f64()?;
+    (x.is_finite() && y.is_finite()).then_some([x, y])
+}
+
 fn cdxml_imported_label_layout_override(
     label: &crate::NodeLabel,
 ) -> Option<crate::LabelLayoutDecision> {
@@ -2170,6 +2241,20 @@ pub(super) fn refreshed_attached_node_label(
         }
         next_label.align = Some("right".to_string());
         next_label.anchor = Some("end".to_string());
+    }
+    if let (Some(offset), Some(position)) = (
+        imported_authored_text_offset(node, label),
+        next_label.position,
+    ) {
+        let authored_position = [
+            round2(node.position[0] + offset[0]),
+            round2(node.position[1] + offset[1]),
+        ];
+        crate::translate_node_label_geometry(
+            &mut next_label,
+            round2(authored_position[0] - position[0]),
+            round2(authored_position[1] - position[1]),
+        );
     }
     if let Some(import_meta) = label.meta.get("import").cloned() {
         set_meta_object_field(&mut next_label.meta, "import", Some(import_meta));

@@ -60,7 +60,7 @@ test("strict original-338 mode rejects diagnostic escape hatches", () => {
   ]);
 });
 
-test("strict original-338 mode requires the exact same 338 paths and gate definition", () => {
+test("strict original-338 mode requires the exact same 338 paths across gate upgrades", () => {
   const cases = Array.from({ length: 338 }, (_, index) => ({
     relativeCdxml: `source/${String(index).padStart(4, "0")}.cdxml`,
   }));
@@ -113,11 +113,14 @@ test("strict original-338 mode requires the exact same 338 paths and gate defini
     maxNearExactDefectArea: 18,
   };
   const baseline = {
-    cacheIdentity: "chemsema-public-cdxml-visual-gate-cache-v13",
+    // Regression history is intentionally older than the current analysis
+    // definition. It remains authoritative for pass -> fail transitions, but
+    // cannot be reused as an analysis cache or alignment lock.
+    cacheIdentity: "chemsema-public-cdxml-visual-gate-cache-v12",
     selection: {
       cohort: { name: "original-338", expected: 338, selected: 338 },
     },
-    policy: gatePolicy(options),
+    policy: { ...gatePolicy(options), alignment: "retired alignment policy" },
     cases,
   };
   assert.deepEqual(strictOriginal338BaselineErrors(baseline, cases, options), []);

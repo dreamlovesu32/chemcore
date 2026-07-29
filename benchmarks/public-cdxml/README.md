@@ -104,7 +104,17 @@ npm run benchmark:cdxml-public:visual-gate:affected -- --dry-run
 npm run benchmark:cdxml-public:visual-gate:affected
 ```
 
-The planner updates only selected gallery items. The gate reuses unchanged cases by ChemDraw-oracle hash, ChemSema-SVG hash, and gate-definition identity, while the resulting report still covers the complete baseline. `cache.reused` and `cache.analyzed` expose the split. Baseline mode permits historical failures to remain open, but every pass-to-fail transition is recorded in `delta.regressions` and fails the command. Path-to-feature declarations and historical regression cases live in `benchmarks/public-cdxml/visual-impact-map.json`; unknown production changes and gate-definition changes conservatively force a full run.
+The planner updates only selected gallery items. The gate reuses classifications
+and locked registration only when the ChemDraw-oracle hash, ChemSema-SVG hash,
+and gate-definition identity all match; `cache.reused` and `cache.analyzed`
+expose that split. Regression history is deliberately independent of that cache
+identity, so upgrading the alignment or detail classifier cannot erase earlier
+passes. Baseline mode permits historical failures to remain open, but every
+pass-to-fail transition is recorded in `delta.regressions` and fails the
+command, including transitions measured across gate versions. Path-to-feature
+declarations and historical regression cases live in
+`benchmarks/public-cdxml/visual-impact-map.json`; unknown production changes and
+gate-definition changes conservatively force a full run.
 
 Gate v13 makes the fixed-coordinate detail checks non-bypassable. Neither a
 whole-page coverage score nor topology distribution can excuse an empty local

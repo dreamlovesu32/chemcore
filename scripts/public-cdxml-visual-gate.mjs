@@ -175,9 +175,6 @@ export function strictOriginal338BaselineErrors(baselineReport, selectedItems, o
   ) {
     errors.push("baseline report is not the exact original-338 cohort");
   }
-  if (!reportsUseSameGateDefinition(baselineReport, options)) {
-    errors.push("baseline report uses a different visual-gate definition");
-  }
   const baselinePaths = new Set(
     (baselineReport?.cases ?? []).map((entry) => entry.relativeCdxml),
   );
@@ -1508,9 +1505,17 @@ async function main() {
       `Invalid --strict-original-338 baseline: ${strictBaselineErrors.join("; ")}`,
     );
   }
-  const baselineCases = reportsUseSameGateDefinition(baselineReport, options)
+  // A same-definition baseline can safely provide cached classifications and
+  // locked registration. Regression history has a different lifetime: it must
+  // survive a gate-definition upgrade, otherwise changing the alignment
+  // algorithm silently erases every previous pass and makes pass -> fail
+  // transitions unenforceable.
+  const analysisBaselineCases = reportsUseSameGateDefinition(baselineReport, options)
     ? new Map(baselineReport.cases.map((entry) => [entry.relativeCdxml, entry]))
     : new Map();
+  const regressionBaselineCases = new Map(
+    (baselineReport?.cases ?? []).map((entry) => [entry.relativeCdxml, entry]),
+  );
 
   const browser = await launchBrowser({ headless: true });
   const context = await browser.newContext();
@@ -1526,7 +1531,7 @@ async function main() {
       const referencePath = path.resolve(galleryDir, item.reference);
       const candidatePath = path.resolve(galleryDir, item.chemsema);
       const hashes = await artifactHashes(galleryDir, item);
-      const baselineCase = baselineCases.get(item.relativeCdxml);
+      const baselineCase = analysisBaselineCases.get(item.relativeCdxml);
       if (baselineCase && artifactHashesEqual(baselineCase.artifactHashes, hashes)) {
         completed += 1;
         if (completed % 100 === 0 || completed === items.length) {
@@ -1629,7 +1634,7 @@ async function main() {
   const comparable = passed + failed;
   const reused = cases.filter((entry) => entry.cacheStatus === "reused").length;
   const analyzed = cases.length - reused;
-  const delta = classifyBaselineChanges(cases, baselineCases);
+  const delta = classifyBaselineChanges(cases, regressionBaselineCases);
   const report = {
     schema: "chemsema-public-cdxml-visual-gate-v1",
     cacheIdentity: CACHE_IDENTITY,
@@ -1662,6 +1667,7 @@ async function main() {
     },
     cache: {
       baselineReport: options.baselineReport ? path.resolve(options.baselineReport) : null,
+      sameGateDefinition: analysisBaselineCases.size > 0,
       reused,
       analyzed,
     },
@@ -1685,7 +1691,7 @@ async function main() {
     improvements: delta.improvements.length,
     regressions: delta.regressions.length,
   }));
-  const baselineMode = baselineCases.size > 0;
+  const baselineMode = regressionBaselineCases.size > 0;
   if (!options.reportOnly && (errors || (baselineMode ? delta.regressions.length : failed))) {
     process.exitCode = 1;
   }
