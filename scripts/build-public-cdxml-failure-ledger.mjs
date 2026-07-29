@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const UNEXPECTED_ROUNDTRIP_STATUSES = new Set([
   "import-failed",
@@ -13,6 +14,16 @@ const ROUNDTRIP_GATE_FAILURE_STATUSES = new Set([
   ...UNEXPECTED_ROUNDTRIP_STATUSES,
   "count-drift",
 ]);
+
+export function failureLedgerResolutionStatus(roundtripStatus, visualStatus) {
+  if (
+    ROUNDTRIP_GATE_FAILURE_STATUSES.has(roundtripStatus)
+    || (visualStatus !== undefined && visualStatus !== "pass")
+  ) {
+    return "active";
+  }
+  return visualStatus === "pass" ? "currently-passing" : "not-gated";
+}
 
 function parseArgs(argv) {
   const options = {
@@ -163,7 +174,10 @@ function main() {
     const visualCase = visualByPath.get(relativeCdxml);
     const previous = existingById.get(entry.caseId);
     const confirmedRules = rulesByCaseId.get(entry.caseId) ?? [];
-    const active = ROUNDTRIP_GATE_FAILURE_STATUSES.has(entry.status);
+    const resolutionStatus = failureLedgerResolutionStatus(
+      entry.status,
+      visualCase?.status,
+    );
     const currentClusters = automaticClusters(entry, visualCase);
     const historicalClusters = [
       ...new Set([
@@ -193,7 +207,7 @@ function main() {
         baselineByPath.get(relativeCdxml)?.status,
       ),
       triage: {
-        resolutionStatus: active ? "active" : "currently-passing",
+        resolutionStatus,
         automaticClusters: currentClusters,
         historicalClusters,
         reviewStatus: confirmedRules.length
@@ -230,6 +244,9 @@ function main() {
       currentlyPassing: cases.filter(
         (entry) => entry.triage.resolutionStatus === "currently-passing",
       ).length,
+      notGated: cases.filter(
+        (entry) => entry.triage.resolutionStatus === "not-gated",
+      ).length,
       byRoundtripStatus: countBy(cases, (entry) => [entry.roundtrip.status]),
       byAutomaticCluster: countBy(cases, (entry) => entry.triage.automaticClusters),
       byHistoricalCluster: countBy(cases, (entry) => entry.triage.historicalClusters),
@@ -244,4 +261,6 @@ function main() {
   console.log(`Ledger: ${outputPath}`);
 }
 
-main();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main();
+}

@@ -58,6 +58,7 @@ run(process.execPath, [
   "scripts/tests/nmr-prediction-host.test.mjs",
   "scripts/tests/nmr-prediction-provider.test.mjs",
   "scripts/tests/nmr-prediction-e2e.test.mjs",
+  "scripts/tests/public-cdxml-failure-ledger.test.mjs",
   "scripts/tests/public-cdxml-impact.test.mjs",
   "scripts/tests/public-cdxml-visual-gate.test.mjs",
 ]);
