@@ -31,6 +31,7 @@ function classifyBisector(bisector) {
 }
 
 const GAP_TIE_EPSILON_DEG = 0.001;
+const NEAR_TRIGONAL_GAP_DEVIATION_DEG = 3;
 
 function largestGapPrediction(result) {
   const nominalAngles = [result.angle, result.fixedAngle];
@@ -67,7 +68,12 @@ function largestGapPrediction(result) {
       tiedGaps: winners.length,
     };
   }
-  if (winners.length === 3 && angles.length === 3) {
+  const nearTrigonal = angles.length === 3 && gaps.every(
+    (entry) =>
+      Math.abs(entry.gap - 120)
+      <= NEAR_TRIGONAL_GAP_DEVIATION_DEG + GAP_TIE_EPSILON_DEG,
+  );
+  if (nearTrigonal) {
     const phase = normalizeDegrees(
       angles.reduce((sum, angle, index) => sum + angle - index * 120, 0) / 3,
     ) % 120;
@@ -82,6 +88,7 @@ function largestGapPrediction(result) {
       phase,
       prediction,
       tiedGaps: winners.length,
+      nearTrigonal: true,
     };
   }
   const winner = winners.length === 1
@@ -141,6 +148,7 @@ async function main() {
       actualAngles: analysis.angles,
       bisector: analysis.bisector ?? null,
       tiedGaps: analysis.tiedGaps,
+      nearTrigonal: analysis.nearTrigonal ?? false,
       prediction: analysis.prediction,
       actual: result.layout,
     };

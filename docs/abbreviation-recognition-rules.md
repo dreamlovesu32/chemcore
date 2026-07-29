@@ -262,8 +262,12 @@ stack-above and stack-below. Gaps within `0.001°` are an intentional symmetry
 tie: an open gap centered on the positive horizontal axis wins first,
 otherwise the gap nearest the upward axis wins, with the clockwise gap winning
 an exact distance tie. Exactly opposite pairs use the undirected-axis
-boundaries `22.5°/90°/157.5°`; a three-way equal split uses its 120-degree
-phase. Silent ChemDraw SVG/CDXML probes cover the complete 30-degree grids for
+boundaries `22.5°/90°/157.5°`. A three-way split remains in its trigonal
+120-degree phase branch while every realized angular gap is within `3°` of
+`120°`; silent probes place the transition between `2.95°` and `3.05°`
+across 8/10/14 pt labels and 10/14.35/24 pt bonds. Outside that fixed window,
+the unique largest gap is authoritative. Silent ChemDraw SVG/CDXML probes cover
+the complete 30-degree grids for
 two, three, and four connections (1,079 cases), boundary sweeps, multiple
 label sizes, and multiple bond lengths. Source-coordinate quantization is
 resolved before this rule; file names or nominal request angles never enter

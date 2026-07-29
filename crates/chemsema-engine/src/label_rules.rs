@@ -3,6 +3,12 @@ use serde::{Deserialize, Serialize};
 
 const SINGLE_CONNECTION_HORIZONTAL_EPSILON: f64 = 1.0e-6;
 const MULTI_CONNECTION_GAP_TIE_EPSILON_DEG: f64 = 0.001;
+// ChemDraw keeps a nearly trigonal three-connection center in the degenerate
+// 120-degree branch until an angular gap departs from 120 degrees by about
+// 3 degrees. Silent SVG probes place the transition between 2.95 and 3.05
+// degrees for 8/10/14 pt labels and 10/14.35/24 pt bonds. Authored coordinate
+// quantization decides samples that land exactly on the boundary.
+const NEAR_TRIGONAL_GAP_DEVIATION_DEG: f64 = 3.0;
 const MULTI_CONNECTION_BISECTOR_RIGHT_END_DEG: f64 = 67.5;
 const MULTI_CONNECTION_BISECTOR_BELOW_END_DEG: f64 = 112.5;
 const MULTI_CONNECTION_BISECTOR_LEFT_END_DEG: f64 = 247.5;
@@ -88,9 +94,15 @@ fn multi_connection_layout(connection_angles: &[f64]) -> LabelLayoutDecision {
         return decision_for_flow(flow);
     }
 
-    // Three equally spaced connections have no unique open sector. ChemDraw
-    // resolves that true trigonal degeneracy from its 120-degree phase.
-    if angles.len() == 3 && tied_gaps.len() == 3 {
+    // Three equal or nearly equal sectors have no stable unique opening.
+    // ChemDraw fits their common 120-degree phase before applying the phase
+    // sectors, and only switches to the largest-gap rule outside this window.
+    let near_trigonal = angles.len() == 3
+        && gaps.iter().all(|(_, gap)| {
+            (*gap - 120.0).abs()
+                <= NEAR_TRIGONAL_GAP_DEVIATION_DEG + MULTI_CONNECTION_GAP_TIE_EPSILON_DEG
+        });
+    if near_trigonal {
         let phase = normalize_degrees(
             angles
                 .iter()
@@ -791,6 +803,24 @@ mod tests {
             }
         }
         assert_eq!(result_index, expected.len());
+    }
+
+    #[test]
+    fn nearly_trigonal_connections_use_the_fitted_phase_until_three_degrees() {
+        // Selecting the microscopically largest gap would reverse this label;
+        // ChemDraw instead keeps the fitted trigonal phase.
+        let corpus_geometry = decide_label_layout(&[59.3, 179.25, 299.3], false, false);
+        assert_eq!(corpus_geometry.flow, LabelFlow::Forward);
+
+        // A different phase verifies that this is a geometric rule rather
+        // than a special case for the public-corpus boron center.
+        let inside_window = decide_label_layout(&[30.0, 147.05, 270.0], false, false);
+        assert_eq!(inside_window.flow, LabelFlow::Forward);
+
+        // Once a gap is more than three degrees away from 120 degrees, the
+        // unique largest open sector becomes authoritative.
+        let outside_window = decide_label_layout(&[30.0, 146.9, 270.0], false, false);
+        assert_eq!(outside_window.flow, LabelFlow::Reverse);
     }
 
     #[test]
