@@ -52,10 +52,7 @@ fn authored_character_glyph_index(source: &str, authored_character_index: usize)
 
 #[cfg(test)]
 mod attachment_tests {
-    use super::{
-        apply_label_endpoint_retreats, authored_character_glyph_index,
-        clip_body_segment_out_of_label_geometry,
-    };
+    use super::{authored_character_glyph_index, clip_body_segment_out_of_label_geometry};
     use crate::Point;
 
     #[test]
@@ -93,11 +90,30 @@ mod attachment_tests {
     }
 
     #[test]
-    fn two_label_retreats_are_not_scaled_back_to_the_bond_length() {
-        let (start, end) =
-            apply_label_endpoint_retreats(Point::new(0.0, 0.0), Point::new(3.0, 0.0), 2.0, 2.0);
-        assert!((start.x - 2.0).abs() < crate::EPSILON);
-        assert!((end.x - 1.0).abs() < crate::EPSILON);
+    fn overlapping_endpoint_labels_collapse_the_visible_bond_body() {
+        let start_label = vec![vec![
+            Point::new(-2.0, -2.0),
+            Point::new(2.0, -2.0),
+            Point::new(2.0, 2.0),
+            Point::new(-2.0, 2.0),
+        ]];
+        let end_label = vec![vec![
+            Point::new(1.0, -2.0),
+            Point::new(5.0, -2.0),
+            Point::new(5.0, 2.0),
+            Point::new(1.0, 2.0),
+        ]];
+        assert!(clip_body_segment_out_of_label_geometry(
+            Point::new(0.0, 0.0),
+            Point::new(3.0, 0.0),
+            None,
+            &start_label,
+            0.0,
+            None,
+            &end_label,
+            0.0,
+        )
+        .is_none());
     }
 }
 
@@ -356,6 +372,17 @@ pub(super) fn clip_body_segment_out_of_label_geometry(
         end_polygons,
         end_half_width,
     )?;
+    let authored_length = start.distance(end);
+    if start_retreat > EPSILON
+        && end_retreat > EPSILON
+        && start_retreat + end_retreat + EPSILON >= authored_length
+    {
+        // ChemDraw keeps an algebraic centerline for two overlapping endpoint
+        // labels but collapses its body width to zero. It therefore contributes
+        // no visible ink. A one-label overrun is different and remains a
+        // reversed, visible bond body.
+        return None;
+    }
     let (clipped_start, clipped_end) =
         apply_label_endpoint_retreats(start, end, start_retreat, end_retreat);
     (clipped_start.distance(clipped_end) > EPSILON).then_some((clipped_start, clipped_end))

@@ -481,6 +481,11 @@ Later rules must not overturn geometry topology already determined by earlier ru
   retreats back to the authored bond length. ChemDraw's bare-CDXML spacing
   probe remains linear through this crossover, and `NeedsClean` does not alter
   the result.
+- The overrun rule above applies when only one endpoint exclusion boundary
+  crosses the bond. If both endpoints have labels and their two exclusion
+  distances meet or cross, ChemDraw collapses the bond body to zero width, so
+  it contributes no visible ink. Single- and double-bond spacing probes both
+  preserve this distinction.
 - Apply endpoint label clipping exactly once. A body already produced from the
   unbounded endpoint rays must not be clipped again using its reversed endpoints.
 

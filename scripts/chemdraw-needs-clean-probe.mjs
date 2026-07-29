@@ -23,6 +23,18 @@ function document({ bondLength, positions, needsClean = [] }) {
 `;
 }
 
+function twoLabelDocument(spacing, order = 1) {
+  const orderAttribute = order === 1 ? "" : ` Order="${order}"`;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE CDXML SYSTEM "https://static.chemistry.revvitycloud.com/cdxml/CDXML.dtd" >
+<CDXML><page><fragment>
+  <n id="1" p="0 0" Element="7" NumHydrogens="0"/>
+  <n id="2" p="${spacing} 0" Element="7" NumHydrogens="0"/>
+  <b B="1" E="2"${orderAttribute}/>
+</fragment></page></CDXML>
+`;
+}
+
 function attributes(tag) {
   return Object.fromEntries(
     [...tag.matchAll(/([A-Za-z_][\w:.-]*)="([^"]*)"/g)]
@@ -66,6 +78,10 @@ const variants = [
       needsClean: [2],
     }),
   })),
+  ...[0.5, 1, 2, 4, 8, 14.4].flatMap((spacing) => [1, 2].map((order) => ({
+    name: `two-label-order-${order}-spacing-${String(spacing).replace(".", "_")}`,
+    xml: twoLabelDocument(spacing, order),
+  }))),
 ];
 
 await fs.mkdir(sourceDir, { recursive: true });
