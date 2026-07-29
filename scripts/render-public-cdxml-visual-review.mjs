@@ -10,7 +10,7 @@ import { collectGalleryProvenance } from "./public-cdxml-provenance.mjs";
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-export const IMAGE_ALIGNMENT_ALGORITHM = "chemdraw-declared-scale-translation-v8";
+export const IMAGE_ALIGNMENT_ALGORITHM = "chemdraw-declared-scale-global-translation-v9";
 
 function parseArgs(argv) {
   const args = {
@@ -423,21 +423,34 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       contentFrameGeometry[1],
     );
     if (declared) {
+      // Bounding-box centers are only a starting point: labels can legitimately
+      // make the two ink extents asymmetric. Search a broad low-resolution
+      // translation field first, then refine without changing ChemDraw's
+      // declared scale. This finds the global overlap instead of locking onto
+      // a text-heavy local optimum near the initial center.
       const coarseTranslation = await search(
+        180,
+        declared.scale,
+        0,
+        0,
+        40,
+        declared,
+      );
+      const refinedTranslation = await search(
         720,
         declared.scale,
         0,
         0,
-        12,
-        declared,
+        16,
+        coarseTranslation,
       );
       const preciseTranslation = await search(
         1440,
         declared.scale,
         0,
         0,
-        4,
-        coarseTranslation,
+        6,
+        refinedTranslation,
       );
       declared = {
         ...declared,
@@ -459,8 +472,8 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       );
       const score = bestTranslation(reference, points, 0);
       return {
-        algorithm: "chemdraw-declared-scale-translation-v8",
-        basis: "declared-scale-translation",
+        algorithm: "chemdraw-declared-scale-global-translation-v9",
+        basis: "declared-scale-global-translation",
         scale: declared.scale,
         dx: declared.dx,
         dy: declared.dy,
@@ -494,7 +507,7 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       ? await search(1440, stabilized.scale, 0.00015625, 3, 5, stabilized)
       : stabilized;
     return {
-      algorithm: "chemdraw-declared-scale-translation-v8",
+      algorithm: "chemdraw-declared-scale-global-translation-v9",
       basis: "ink-overlap",
       scale: precise.scale,
       dx: precise.dx,

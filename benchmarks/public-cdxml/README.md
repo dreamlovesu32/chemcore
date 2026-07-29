@@ -106,14 +106,18 @@ npm run benchmark:cdxml-public:visual-gate:affected
 
 The planner updates only selected gallery items. The gate reuses unchanged cases by ChemDraw-oracle hash, ChemSema-SVG hash, and gate-definition identity, while the resulting report still covers the complete baseline. `cache.reused` and `cache.analyzed` expose the split. Baseline mode permits historical failures to remain open, but every pass-to-fail transition is recorded in `delta.regressions` and fails the command. Path-to-feature declarations and historical regression cases live in `benchmarks/public-cdxml/visual-impact-map.json`; unknown production changes and gate-definition changes conservatively force a full run.
 
-Gate v12 makes the fixed-coordinate detail checks non-bypassable. Neither a
+Gate v13 makes the fixed-coordinate detail checks non-bypassable. Neither a
 whole-page coverage score nor topology distribution can excuse an empty local
 window or a large local defect, and coarse pixel agreement cannot discard a
 fine connected-component mismatch. The detail pass uses zero dilation to
 retain repeated sub-pixel join differences; its repeated-defect rule is
 calibrated in reference-image units, not as a percentage of canvas size. SVG
-scale is derived from the declared vector matrix, and baseline translation is
-locked, so changing one glyph or bond cannot register the entire page again.
+scale is derived from the declared vector matrix. Translation is resolved by
+a broad low-resolution global-overlap search followed by two fixed-scale
+refinement passes; this prevents an asymmetric label box from trapping
+registration in a nearby local optimum. The accepted translation is then
+locked by the baseline, so changing one glyph or bond cannot register the
+entire page again.
 Canonical runs reject any gallery whose
 repository, CLI, corpus, round-trip report, or per-item candidate provenance
 does not match. `--allow-stale-gallery` is diagnostic only and never makes

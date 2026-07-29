@@ -110,6 +110,11 @@ pub(crate) fn render_text_object(
         return;
     };
     let text_anchor = text_anchor(&align);
+    // `translate` owns the text-box geometry, while CDXML's `p` owns the
+    // authored text anchor. Import preserves their horizontal difference as
+    // `anchorOffsetX`; rendering must consume the same value that export uses
+    // or a valid source anchor is silently moved onto the BoundingBox edge.
+    let anchor_x = tx + payload_number(&object.payload, "anchorOffsetX").unwrap_or(0.0);
     let font_family = style
         .and_then(|value| style_string(value, "fontFamily"))
         .or_else(|| Some("Arial".to_string()));
@@ -130,7 +135,7 @@ pub(crate) fn render_text_object(
                 }
                 push_text_rotated(
                     out,
-                    tx,
+                    anchor_x,
                     ty + baseline_offset + baseline_advance(index),
                     Some(baseline_offset),
                     String::new(),
@@ -153,7 +158,7 @@ pub(crate) fn render_text_object(
         {
             push_text_rotated(
                 out,
-                tx,
+                anchor_x,
                 ty + baseline_offset + baseline_advance(index),
                 Some(baseline_offset),
                 line,
@@ -183,7 +188,7 @@ pub(crate) fn render_text_object(
     {
         push_text_rotated(
             out,
-            tx,
+            anchor_x,
             ty + font_size * 0.82 + baseline_advance(index),
             Some(font_size * 0.82),
             line,

@@ -72,7 +72,7 @@ const DEFAULTS = Object.freeze({
 });
 
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
-export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v12";
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v13";
 
 export function baselineLockedAlignment(baselineCase, artifactHashes) {
   return baselineCase?.alignment?.algorithm === ALIGNMENT_ALGORITHM
@@ -1154,8 +1154,8 @@ export function gatePolicy(options) {
   return {
     coordinateSpace: "ChemDraw reference image coordinates",
     alignment:
-      "ChemDraw's declared vector matrix fixes scale; only global translation is registered "
-      + "and then locked by the baseline; full ink scale-plus-translation is raster-only",
+      "ChemDraw's declared vector matrix fixes scale; a broad multiresolution global-overlap "
+      + "search resolves translation, and accepted alignment is then locked by the baseline",
     canvasWhitespaceIncluded: false,
     caseWeighting: "one case, one vote",
     comparison: "coarse fixed-window coverage and defects, followed by fine connected-component and repeated-micro-defect checks",
@@ -1256,7 +1256,7 @@ async function runSelfTest(options) {
     const vectorExpected = { scale: 2.5 };
     if (
       vectorAlignment.algorithm !== ALIGNMENT_ALGORITHM
-      || vectorAlignment.basis !== "declared-scale-translation"
+      || vectorAlignment.basis !== "declared-scale-global-translation"
       || Math.abs(vectorAlignment.scale - vectorExpected.scale) > 1e-9
       || !Number.isFinite(vectorAlignment.dx)
       || !Number.isFinite(vectorAlignment.dy)

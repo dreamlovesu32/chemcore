@@ -1580,3 +1580,136 @@ fn render_document_emits_text_lines_from_runs() {
     assert!(text_lines[1].1 > text_lines[0].1);
     assert_eq!(text_lines[0].3.as_deref(), Some("middle"));
 }
+
+#[test]
+fn cdxml_free_text_renders_from_authored_p_anchor_for_every_justification() {
+    for (justification, bbox, point, expected_anchor) in [
+        ("Left", "100 40 150 70", "90 55", "start"),
+        ("Center", "100 40 150 70", "120 55", "middle"),
+        ("Right", "100 40 150 70", "160 55", "end"),
+    ] {
+        let cdxml = format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML CaptionSize="10" CaptionFace="0" CaptionFont="3">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <t id="2" p="{point}" BoundingBox="{bbox}" CaptionJustification="{justification}"
+       LineHeight="12" LineStarts="4 8">
+      <s font="3" size="10" color="0" face="0">one&#10;two</s>
+    </t>
+  </page>
+</CDXML>"#
+        );
+        let document = parse_cdxml_document(&cdxml, Some(justification))
+            .expect("free text anchor fixture should import");
+        let object = document
+            .objects
+            .iter()
+            .find(|object| object.object_type == "text")
+            .expect("text object");
+        let point_x = point
+            .split_whitespace()
+            .next()
+            .expect("point x")
+            .parse::<f64>()
+            .expect("numeric point x");
+        let imported_offset = object
+            .payload
+            .extra
+            .get("anchorOffsetX")
+            .and_then(serde_json::Value::as_f64)
+            .expect("CDXML p-to-box anchor offset");
+        assert_close(object.transform.translate[0] + imported_offset, point_x);
+
+        let rendered = render_document(&document)
+            .into_iter()
+            .filter_map(|primitive| match primitive {
+                RenderPrimitive::Text {
+                    object_id,
+                    x,
+                    y,
+                    text_anchor,
+                    ..
+                } if object_id.as_deref() == Some(object.id.as_str()) => Some((x, y, text_anchor)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(rendered.len(), 2, "{justification}");
+        assert!(
+            rendered
+                .iter()
+                .all(|(x, _, _)| (*x - point_x).abs() < 0.001),
+            "{justification}: all lines must use CDXML p.x={point_x}, got {rendered:?}"
+        );
+        assert_close(rendered[0].1, 55.0);
+        assert_close(rendered[1].1, 67.0);
+        assert!(
+            rendered
+                .iter()
+                .all(|(_, _, anchor)| anchor.as_deref() == Some(expected_anchor)),
+            "{justification}: {rendered:?}"
+        );
+    }
+}
+
+#[test]
+fn text_anchor_offset_is_independent_of_line_preservation() {
+    for preserve_lines in [true, false] {
+        let document: ChemSemaDocument = serde_json::from_value(json!({
+            "format": { "name": "chemsema", "version": "0.1" },
+            "document": {
+                "id": "doc_test",
+                "title": "text anchor offset",
+                "page": { "width": 200.0, "height": 100.0, "background": "#ffffff" }
+            },
+            "styles": {
+                "style_text": {
+                    "kind": "text",
+                    "fontFamily": "Arial",
+                    "fontSize": 10.0,
+                    "fill": "#000000"
+                }
+            },
+            "objects": [{
+                "id": "obj_text",
+                "type": "text",
+                "visible": true,
+                "zIndex": 1,
+                "transform": {
+                    "translate": [50.0, 20.0],
+                    "rotate": 23.0,
+                    "scale": [1.0, 1.0]
+                },
+                "styleRef": "style_text",
+                "payload": {
+                    "text": "anchor",
+                    "box": [0.0, 0.0, 80.0, 20.0],
+                    "align": "left",
+                    "fontSize": 10.0,
+                    "lineHeight": 12.0,
+                    "anchorOffsetX": -7.5,
+                    "baselineOffset": 8.0,
+                    "preserveLines": preserve_lines
+                }
+            }],
+            "resources": {}
+        }))
+        .expect("text document");
+        let primitive = render_document(&document)
+            .into_iter()
+            .find_map(|primitive| match primitive {
+                RenderPrimitive::Text {
+                    object_id,
+                    x,
+                    rotate,
+                    rotate_center,
+                    ..
+                } if object_id.as_deref() == Some("obj_text") => Some((x, rotate, rotate_center)),
+                _ => None,
+            })
+            .expect("rendered text");
+        assert_close(primitive.0, 42.5);
+        assert_close(primitive.1, 23.0);
+        assert_eq!(primitive.2, Some(Point::new(50.0, 20.0)));
+    }
+}

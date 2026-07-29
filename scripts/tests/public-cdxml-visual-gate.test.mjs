@@ -113,7 +113,7 @@ test("strict original-338 mode requires the exact same 338 paths and gate defini
     maxNearExactDefectArea: 18,
   };
   const baseline = {
-    cacheIdentity: "chemsema-public-cdxml-visual-gate-cache-v12",
+    cacheIdentity: "chemsema-public-cdxml-visual-gate-cache-v13",
     selection: {
       cohort: { name: "original-338", expected: 338, selected: 338 },
     },

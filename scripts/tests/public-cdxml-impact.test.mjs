@@ -23,8 +23,8 @@ test("visual baseline locks translation while the ChemDraw oracle is unchanged",
   const baseline = {
     artifactHashes: { reference: "oracle-a", candidate: "candidate-old" },
     alignment: {
-      algorithm: "chemdraw-declared-scale-translation-v8",
-      basis: "declared-scale-translation",
+      algorithm: "chemdraw-declared-scale-global-translation-v9",
+      basis: "declared-scale-global-translation",
       scale: 2.66666,
       dx: -15.25,
       dy: -16.5,
