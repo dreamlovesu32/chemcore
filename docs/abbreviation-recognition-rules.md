@@ -253,16 +253,19 @@ not bulk-import the entire table.
 
 Terminal templates such as `iPr`, `nBu`, and `tBu`, which begin with a lowercase letter and contain later uppercase letters, use whole-label layout: selection and anchors treat the whole label as one indivisible structural label.
 
-Connection direction uses ChemDraw's measured 15-degree axis sectors rather
-than the sign of a floating-point vector component. A bond within 15 degrees
-of the positive or negative horizontal axis belongs to the corresponding
-horizontal sector. The remaining lower and upper half-plane sectors drive
-stack-above and stack-below layouts. At a multi-connected label, a right-sector
-bond plus connections outside the left sector keeps reversed horizontal
-layout; only when every connection has entered the lower sector does the label
-switch to stack-above. Silent ChemDraw SVG/CDXML probes locate the transition
-at `14.9° -> horizontal` and `15.0° -> vertical`, across 8/10/14 pt labels and
+Multi-connection direction uses ChemDraw's measured 15-degree axis sectors
+rather than the sign of a floating-point vector component. A bond within
+15 degrees of the positive or negative horizontal axis belongs to the
+corresponding horizontal sector. The remaining lower and upper half-plane
+sectors drive stack-above and stack-below layouts. A right-sector bond plus
+connections outside the left sector keeps reversed horizontal layout; only
+when every connection has entered the lower sector does the label switch to
+stack-above. Silent ChemDraw SVG/CDXML probes locate the transition at
+`14.9° -> horizontal` and `15.0° -> vertical`, across 8/10/14 pt labels and
 10/14.4/24 pt bond lengths after accounting for source-coordinate rounding.
+A terminal label instead follows the complete left/right half-plane; only an
+effectively vertical single connection delegates direction to collision
+resolution.
 
 ## Relationship To Element Implicit Hydrogen
 

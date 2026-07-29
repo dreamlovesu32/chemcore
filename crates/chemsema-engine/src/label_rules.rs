@@ -1,14 +1,15 @@
 use crate::direction_from_angle;
 use serde::{Deserialize, Serialize};
 
-// ChemDraw classifies attached-label connection directions in axis sectors,
-// not by the mathematical sign of an almost-zero component. Silent SVG/CDXML
+// ChemDraw classifies multi-connected label directions in axis sectors, not
+// by the mathematical sign of an almost-zero component. Silent SVG/CDXML
 // probes place the horizontal/vertical transition at 15 degrees: 14.9 degrees
 // stays in the horizontal sector, while 15.0 degrees enters the vertical
 // sector. The rule is invariant across 8/10/14 pt labels and 10/14.4/24 pt
 // bonds (subject only to the source coordinate's own rounding).
 const AXIS_SECTOR_SIN_15: f64 = 0.258_819_045_102_520_74;
 const AXIS_SECTOR_COS_15: f64 = 0.965_925_826_289_068_3;
+const SINGLE_CONNECTION_HORIZONTAL_EPSILON: f64 = 1.0e-6;
 
 fn direction_is_right(direction: crate::Vector) -> bool {
     direction.x >= AXIS_SECTOR_COS_15
@@ -263,13 +264,17 @@ pub fn decide_label_layout(
 
     if connection_angles.len() == 1 {
         let direction = direction_from_angle(connection_angles[0]);
-        if direction_is_right(direction) {
+        // The measured 15-degree transition belongs to the multi-connection
+        // layout decision. A terminal label follows the complete left/right
+        // half-plane and only delegates an effectively vertical bond to the
+        // collision resolver.
+        if direction.x > SINGLE_CONNECTION_HORIZONTAL_EPSILON {
             return LabelLayoutDecision {
                 flow: LabelFlow::Reverse,
                 anchor: LabelAnchorPolicy::FirstGlyph,
             };
         }
-        if direction_is_left(direction) {
+        if direction.x < -SINGLE_CONNECTION_HORIZONTAL_EPSILON {
             return LabelLayoutDecision {
                 flow: LabelFlow::Forward,
                 anchor: LabelAnchorPolicy::FirstGlyph,
@@ -649,6 +654,18 @@ mod tests {
 
         let above = decide_label_layout(&[300.0, 195.0], false, false);
         assert_eq!(above.flow, LabelFlow::StackBelow);
+    }
+
+    #[test]
+    fn single_connection_uses_the_complete_left_and_right_half_planes() {
+        assert_eq!(
+            decide_label_layout(&[30.0], false, false).flow,
+            LabelFlow::Reverse,
+        );
+        assert_eq!(
+            decide_label_layout(&[150.0], false, false).flow,
+            LabelFlow::Forward,
+        );
     }
 
     #[test]
