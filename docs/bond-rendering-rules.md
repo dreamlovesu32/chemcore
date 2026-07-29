@@ -438,6 +438,11 @@ Later rules must not overturn geometry topology already determined by earlier ru
 - For a terminal label on a side double bond, the default attachment glyph is
   laid out on that structural-node/main-bond axis. The parallel secondary-line
   spacing must never shift the label by half the double-bond separation.
+- An explicit fixed `LabelDisplay="Left"` or `"Right"` anchors the authored
+  edge, not the nearest ordinary-baseline glyph. A leading/trailing subscript
+  participates in that edge anchor. A superscript does not: search inward to
+  the first/last non-superscript glyph. Automatic chemical layouts continue to
+  exclude both generated subscripts and superscripts from attachment anchors.
 - Export must write preserved endpoint attachments back to CDX/CDXML so an
   open-save-open cycle stabilizes. Applying an internal attachment must not
   move the opposite atom merely to make the bond axis look aligned.

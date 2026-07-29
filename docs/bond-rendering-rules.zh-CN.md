@@ -382,6 +382,9 @@ node scripts/chemdraw-triple-bond-spacing-probe.mjs
   该坐标退让，但不得把轴线移到附近某个 glyph 上。
 - 侧双键终端 label 没有显式端点锚点时，默认连接 glyph 必须布局在结构节点/主键
   轴线上；平行副线的间距绝不能让 label 偏移半个双键间距。
+- 显式固定的 `LabelDisplay="Left"` / `"Right"` 锚定作者写入的边缘，而不是
+  就近的普通基线字符。位于首尾的下标参与边缘锚定；上标不参与，必须向内寻找
+  第一个/最后一个非上标字符。自动化学布局仍排除自动生成的上下标连接锚点。
 - 导出必须把保留的端点锚点写回 CDX/CDXML，确保 open-save-open 后文件稳定。
   应用内部锚点时不得为了让键轴看似对齐而移动另一端原子。
 - 节点有可见 label 时，优先先做 label clipping。

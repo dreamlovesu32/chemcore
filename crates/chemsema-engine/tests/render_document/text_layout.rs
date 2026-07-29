@@ -1,6 +1,72 @@
 use super::*;
 
 #[test]
+fn parse_cdxml_fixed_edge_labels_anchor_subscripts_but_not_superscripts() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.4">
+  <fonttable><font id="4" charset="0" name="Times New Roman"/></fonttable>
+  <page>
+    <fragment>
+      <n id="left" p="100 100" NodeType="Unspecified" LabelDisplay="Left">
+        <t p="100 102.67" LabelAlignment="Left" LabelJustification="Left">
+          <s font="4" size="7" face="64">+</s><s font="4" size="7" face="32">3</s><s font="4" size="7" face="96">(Aax)</s>
+        </t>
+      </n>
+      <n id="left-neighbor" p="85.6 100"/>
+      <b id="left-bond" B="left" E="left-neighbor"/>
+      <n id="right" p="140 100" NodeType="Unspecified" LabelDisplay="Right">
+        <t p="140 102.67" LabelAlignment="Right" LabelJustification="Right">
+          <s font="4" size="7" face="96">(Aax)</s><s font="4" size="7" face="34">n</s><s font="4" size="7" face="66">+</s>
+        </t>
+      </n>
+      <n id="right-neighbor" p="154.4 100"/>
+      <b id="right-bond" B="right" E="right-neighbor"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(source, Some("fixed edge script anchors")).expect("CDXML parses");
+    let find_node = |id: &str| {
+        document
+            .resources
+            .values()
+            .filter_map(|resource| resource.data.as_fragment())
+            .flat_map(|fragment| fragment.nodes.iter())
+            .find(|node| node.id == id)
+            .expect("node")
+    };
+    let center_x = |polygon: &Vec<[f64; 2]>| {
+        let min = polygon
+            .iter()
+            .map(|point| point[0])
+            .fold(f64::INFINITY, f64::min);
+        let max = polygon
+            .iter()
+            .map(|point| point[0])
+            .fold(f64::NEG_INFINITY, f64::max);
+        (min + max) * 0.5
+    };
+
+    let left = find_node("left");
+    let left_label = left.label.as_ref().expect("left label");
+    assert!(
+        (center_x(&left_label.glyph_polygons[1]) - left.position[0]).abs() < 0.01,
+        "the leading subscript is the fixed left attachment glyph"
+    );
+
+    let right = find_node("right");
+    let right_label = right.label.as_ref().expect("right label");
+    assert!(
+        (center_x(&right_label.glyph_polygons[5]) - right.position[0]).abs() < 0.01,
+        "the trailing subscript is the fixed right attachment glyph"
+    );
+    assert!(
+        (center_x(&right_label.glyph_polygons[6]) - right.position[0]).abs() > 0.5,
+        "the trailing superscript remains a decoration, not an attachment glyph"
+    );
+}
+
+#[test]
 fn parse_cdxml_vertical_bond_retreat_ignores_distant_formula_subscript() {
     let source = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML LineWidth="0.6" MarginWidth="1.6" LabelFont="3" LabelSize="10">

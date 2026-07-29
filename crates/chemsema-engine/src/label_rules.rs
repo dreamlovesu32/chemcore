@@ -19,6 +19,12 @@ pub enum LabelFlow {
 pub enum LabelAnchorPolicy {
     FirstGlyph,
     LastGlyph,
+    /// A fixed, authored left edge. Explicit subscripts may be the attachment
+    /// glyph, while superscripts remain decorations outside the bond axis.
+    AuthoredFirstGlyph,
+    /// A fixed, authored right edge. Explicit subscripts may be the attachment
+    /// glyph, while trailing superscripts remain decorations.
+    AuthoredLastGlyph,
     OriginalFirstGroup,
     FirstGroupLeadGlyph,
     WholeLabel,
@@ -342,7 +348,10 @@ pub fn layout_label_text(text: &str, decision: &LabelLayoutDecision) -> LabelLay
     match decision.flow {
         LabelFlow::Forward => {
             let rendered_text = groups.concat();
-            let anchor_char = if decision.anchor == LabelAnchorPolicy::LastGlyph {
+            let anchor_char = if matches!(
+                decision.anchor,
+                LabelAnchorPolicy::LastGlyph | LabelAnchorPolicy::AuthoredLastGlyph
+            ) {
                 rendered_text.chars().count().saturating_sub(1)
             } else {
                 0
@@ -391,11 +400,13 @@ pub fn layout_label_text(text: &str, decision: &LabelLayoutDecision) -> LabelLay
                 .map(ToString::to_string)
                 .collect::<Vec<_>>();
             let anchor_line = match decision.anchor {
-                LabelAnchorPolicy::LastGlyph => lines.len().saturating_sub(1),
+                LabelAnchorPolicy::LastGlyph | LabelAnchorPolicy::AuthoredLastGlyph => {
+                    lines.len().saturating_sub(1)
+                }
                 _ => 0,
             };
             let anchor_char = match decision.anchor {
-                LabelAnchorPolicy::LastGlyph => lines
+                LabelAnchorPolicy::LastGlyph | LabelAnchorPolicy::AuthoredLastGlyph => lines
                     .get(anchor_line)
                     .map(|line| line.chars().count().saturating_sub(1))
                     .unwrap_or(0),

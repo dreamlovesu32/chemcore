@@ -713,6 +713,64 @@ mod label_layout_tests {
             estimate_anchor_char_width(&runs, 0, 10.0, true).expect("face anchor advance");
         assert!((generic_anchor - face_anchor).abs() > crate::EPSILON);
     }
+
+    #[test]
+    fn authored_edge_anchors_include_subscripts_but_exclude_superscripts() {
+        let runs = vec![
+            LabelRun {
+                text: "(Aax)".to_string(),
+                script: Some("normal".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: "n".to_string(),
+                script: Some("subscript".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: "+".to_string(),
+                script: Some("superscript".to_string()),
+                ..LabelRun::default()
+            },
+        ];
+
+        assert_eq!(
+            label_anchor_char_for_runs(&runs, 6, &crate::LabelAnchorPolicy::AuthoredLastGlyph),
+            5,
+            "the final non-superscript glyph is the fixed right attachment"
+        );
+        assert_eq!(
+            label_anchor_char_for_runs(&runs, 6, &crate::LabelAnchorPolicy::LastGlyph),
+            4,
+            "automatic chemical layouts continue to ignore both script kinds"
+        );
+    }
+
+    #[test]
+    fn authored_left_edge_can_anchor_a_leading_subscript() {
+        let runs = vec![
+            LabelRun {
+                text: "+".to_string(),
+                script: Some("superscript".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: "3".to_string(),
+                script: Some("subscript".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: "(Aax)".to_string(),
+                script: Some("normal".to_string()),
+                ..LabelRun::default()
+            },
+        ];
+
+        assert_eq!(
+            label_anchor_char_for_runs(&runs, 0, &crate::LabelAnchorPolicy::AuthoredFirstGlyph),
+            1
+        );
+    }
 }
 
 #[derive(Clone)]
@@ -1025,15 +1083,30 @@ pub(super) fn label_anchor_index_for_layout(
 fn label_anchor_char_for_layout(line_runs: &[Vec<LabelRun>], layout: &crate::LabelLayout) -> usize {
     line_runs
         .get(layout.anchor_line)
-        .map(|runs| label_anchor_char_for_runs(runs, layout.anchor_char))
+        .map(|runs| label_anchor_char_for_runs(runs, layout.anchor_char, &layout.anchor))
         .unwrap_or(layout.anchor_char)
 }
 
-fn label_anchor_char_for_runs(runs: &[LabelRun], default_index: usize) -> usize {
+fn label_anchor_char_for_runs(
+    runs: &[LabelRun],
+    default_index: usize,
+    policy: &crate::LabelAnchorPolicy,
+) -> usize {
+    let authored_edge = matches!(
+        policy,
+        crate::LabelAnchorPolicy::AuthoredFirstGlyph | crate::LabelAnchorPolicy::AuthoredLastGlyph
+    );
     let mut shifted = Vec::new();
     let mut chars = Vec::new();
     for run in runs {
-        let is_shifted = matches!(run.script.as_deref(), Some("subscript" | "superscript"));
+        // ChemDraw treats a subscript at an explicitly fixed left/right edge
+        // as an attachment glyph. Superscripts remain outside the bond axis.
+        // Automatic chemical layouts still ignore both kinds of script.
+        let is_shifted = match run.script.as_deref() {
+            Some("superscript") => true,
+            Some("subscript") => !authored_edge,
+            _ => false,
+        };
         for ch in run.text.chars() {
             chars.push(ch);
             shifted.push(is_shifted);
@@ -1901,7 +1974,11 @@ fn cdxml_imported_label_layout_override(
         .and_then(serde_json::Value::as_str);
     let normalized = |value: &str| value.trim().to_ascii_lowercase();
     let decision_for_fixed_value = |value: &str| match normalized(value).as_str() {
-        "above" | "left" | "full" => Some(crate::LabelLayoutDecision {
+        "left" | "full" => Some(crate::LabelLayoutDecision {
+            flow: LabelFlow::Preserve,
+            anchor: crate::LabelAnchorPolicy::AuthoredFirstGlyph,
+        }),
+        "above" => Some(crate::LabelLayoutDecision {
             flow: LabelFlow::Preserve,
             anchor: crate::LabelAnchorPolicy::FirstGlyph,
         }),
@@ -1911,7 +1988,7 @@ fn cdxml_imported_label_layout_override(
         }),
         "right" => Some(crate::LabelLayoutDecision {
             flow: LabelFlow::Preserve,
-            anchor: crate::LabelAnchorPolicy::LastGlyph,
+            anchor: crate::LabelAnchorPolicy::AuthoredLastGlyph,
         }),
         "center" => Some(crate::LabelLayoutDecision {
             flow: LabelFlow::Preserve,
@@ -1957,12 +2034,14 @@ pub(super) fn label_layout_decision_for_command_display_mode(
     let mode = mode?;
     match mode {
         TextCommandDisplayMode::ConnectionAuto => None,
-        TextCommandDisplayMode::LeftAuto | TextCommandDisplayMode::PreserveLeft => {
-            Some(crate::LabelLayoutDecision {
-                flow: LabelFlow::Forward,
-                anchor: crate::LabelAnchorPolicy::FirstGlyph,
-            })
-        }
+        TextCommandDisplayMode::LeftAuto => Some(crate::LabelLayoutDecision {
+            flow: LabelFlow::Forward,
+            anchor: crate::LabelAnchorPolicy::FirstGlyph,
+        }),
+        TextCommandDisplayMode::PreserveLeft => Some(crate::LabelLayoutDecision {
+            flow: LabelFlow::Forward,
+            anchor: crate::LabelAnchorPolicy::AuthoredFirstGlyph,
+        }),
         TextCommandDisplayMode::RightAuto => {
             let anchor = if crate::label_text_uses_whole_label_layout(text.trim(), 1) {
                 crate::LabelAnchorPolicy::WholeLabel
@@ -1976,7 +2055,7 @@ pub(super) fn label_layout_decision_for_command_display_mode(
         }
         TextCommandDisplayMode::PreserveRight => Some(crate::LabelLayoutDecision {
             flow: LabelFlow::Forward,
-            anchor: crate::LabelAnchorPolicy::LastGlyph,
+            anchor: crate::LabelAnchorPolicy::AuthoredLastGlyph,
         }),
         TextCommandDisplayMode::PreserveCenter => Some(crate::LabelLayoutDecision {
             flow: LabelFlow::Forward,

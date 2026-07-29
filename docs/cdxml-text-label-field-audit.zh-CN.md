@@ -135,5 +135,6 @@
 19. Auto 行距必须查看对象内全部 styled runs，不能只取首个 run。10 pt 实测基线步进为 Arial regular `11.5` pt、Times New Roman regular `11.65` pt、Calibri regular `12.25` pt；Arial bold 为 `11.75` pt、italic 为 `11.45` pt、bold italic 为 `11.75` pt。8/18/12 pt 混合字号对象取 18 pt run，得到 `20.7` pt。上下标 face 还会提高对象的统一 auto 行距。
 20. Variable 不是一个可被单一 `lineHeight` 完整表达的标量。连续行的步进由上一行字形下界、下一行字形上界和约 `0.1 em` 的净空组成；因此 `A→g`、`g→A`、`Q→A` 等方向可以不同。CCJS 用 `lineHeightMode` 明确区分 `fixed/auto/variable`，用 `lineHeight` 保存可用的默认步进，并用 `lineAdvances[i]` 明确保存第 i 行到第 i+1 行的实际步进。单行标签也保留 mode 和正数 `lineHeight`，只是没有第二条基线时不会表现出来；不得从恰好相同的数值反猜模式。
 21. 对本机 ChemDraw 安装目录中的 19 份 `.cds` 样式表进行静默规范化后，多数样式未写行距字段，应按上述官方缺省继承；`J. Het. Chem` 明确写出 `LabelLineHeight=6`、`CaptionLineHeight=7.10`。样式表省略字段不是固定 `1.15×字号` 的同义写法。
+22. `LabelDisplay="Left"` / `"Right"` 的固定边缘按可连接字符解析：首尾下标参与锚定，上标不参与并向内寻找非上标字符。该规则由左右、居中、前导/尾随、单脚标/混合脚标和作者 `BoundingBox` 探针共同验证；自动化学布局仍按原规则排除自动生成的上下标。
 
 对应回归测试覆盖显式/隐藏对象标签、自动/显式对象标签定位、缺省增强立体标签、楔形虚线节距、`HDot`、`HDash`、未连接 `MultiAttachment`、显式括号附件、CDX 符号枚举，以及 fixed/auto/variable 行距、混合字号和逐行基线步进；公共图像门禁继续负责验证这些语义的最终像素位置和尺寸。行距字段在总账中暂时保持 `in-review`，直到 ChemSema SVG/EMF 与 ChemDraw 探针报告进入自动门禁后再升级为 `verified`。
