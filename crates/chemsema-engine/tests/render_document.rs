@@ -15,6 +15,7 @@ mod render_document {
     mod bond_endpoints;
     mod colors_labels;
     mod crossings_selection;
+    mod curves;
     mod double_bond_text_import;
     mod external_connections;
     mod fragment_label_origin;

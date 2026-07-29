@@ -271,7 +271,7 @@ fn endpoint_flag_enabled(value: &str, expected: &str) -> bool {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RenderArrowEndpointStyle {
+pub(super) enum RenderArrowEndpointStyle {
     None,
     Full,
     Left,
@@ -279,7 +279,7 @@ enum RenderArrowEndpointStyle {
 }
 
 impl RenderArrowEndpointStyle {
-    fn enabled(self) -> bool {
+    pub(super) fn enabled(self) -> bool {
         !matches!(self, Self::None)
     }
 }
@@ -1534,36 +1534,68 @@ fn push_solid_arrow_head_path(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn render_curve_solid_arrow_head(
     out: &mut Vec<RenderPrimitive>,
-    from: Point,
-    to: Point,
+    notch: Point,
+    outward_guide: Point,
     length: f64,
     center_length: f64,
     width: f64,
-    half: bool,
+    style: RenderArrowEndpointStyle,
     line_width: f64,
     fill: &str,
     object_id: Option<String>,
 ) {
-    let geometry = ArrowHeadGeometry {
-        length,
-        center_length,
-        width,
-        ..ArrowHeadGeometry::default()
+    let Some((unit, normal, _)) = arrow_axis(notch, outward_guide) else {
+        return;
     };
-    render_solid_arrow_head(
-        out,
-        from,
-        to,
-        geometry,
-        if half {
-            RenderArrowEndpointStyle::Left
-        } else {
-            RenderArrowEndpointStyle::Full
-        },
-        line_width,
-        fill,
+    let length = length.max(0.0);
+    let center_length = center_length.max(0.0).min(length);
+    let base = notch.translated(unit.scaled(-(length - center_length)));
+    let tip = notch.translated(unit.scaled(center_length));
+    let width = width.max(0.0);
+    let points = match style {
+        RenderArrowEndpointStyle::Full => vec![
+            base.translated(normal.scaled(width)),
+            notch,
+            base.translated(normal.scaled(-width)),
+            tip,
+        ],
+        RenderArrowEndpointStyle::Left | RenderArrowEndpointStyle::Right => {
+            // Curve half-heads are straight triangles. ChemDraw offsets the
+            // line-side edge by 5/12 of the effective stroke width and keeps
+            // the opposite wing at the full ArrowheadWidth.
+            let side = if style == RenderArrowEndpointStyle::Left {
+                1.0
+            } else {
+                -1.0
+            };
+            let edge_offset = line_width.max(0.0) * crate::CURVE_HALF_ARROW_EDGE_STROKE_RATIO;
+            vec![
+                notch.translated(normal.scaled(side * edge_offset)),
+                base.translated(normal.scaled(-side * width)),
+                tip.translated(normal.scaled(side * edge_offset)),
+            ]
+        }
+        RenderArrowEndpointStyle::None => return,
+    };
+    let mut d = format!("M {},{}", points[0].x, points[0].y);
+    for point in &points[1..] {
+        d.push_str(&format!(" L {},{}", point.x, point.y));
+    }
+    d.push_str(" Z");
+    out.push(RenderPrimitive::FilledPath {
+        role: RenderRole::DocumentGraphic,
         object_id,
-    );
+        node_id: None,
+        bond_id: None,
+        d,
+        points,
+        fill: fill.to_string(),
+        fill_rule: None,
+        clip_path_d: None,
+        clip_rule: None,
+        rotate: 0.0,
+        rotate_center: None,
+    });
 }
 
 struct SolidArrowHeadPath {

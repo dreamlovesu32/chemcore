@@ -61,7 +61,7 @@ pub(in crate::cdxml) fn append_curve_objects(
             json!(explicit_head.unwrap_or(if curve_type & 0x0008 != 0 {
                 "full"
             } else if curve_type & 0x0020 != 0 {
-                "half"
+                "half-left"
             } else {
                 "none"
             })),
@@ -71,7 +71,7 @@ pub(in crate::cdxml) fn append_curve_objects(
             json!(explicit_tail.unwrap_or(if curve_type & 0x0010 != 0 {
                 "full"
             } else if curve_type & 0x0040 != 0 {
-                "half"
+                "half-left"
             } else {
                 "none"
             })),
@@ -82,24 +82,18 @@ pub(in crate::cdxml) fn append_curve_objects(
         );
         extra.insert(
             "headLength".to_string(),
-            json!(cdxml_arrow_size_for_render_scale(
-                parse_scaled_100(node.attr("HeadSize")),
-                crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO,
-            )),
+            json!(parse_scaled_100(node.attr("HeadSize"))
+                .unwrap_or(crate::DEFAULT_CURVE_ARROW_HEAD_LENGTH_RATIO * stroke_width)),
         );
         extra.insert(
             "headCenterLength".to_string(),
-            json!(cdxml_arrow_size_for_render_scale(
-                parse_scaled_100(node.attr("ArrowheadCenterSize")),
-                crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.875,
-            )),
+            json!(parse_scaled_100(node.attr("ArrowheadCenterSize"))
+                .unwrap_or(crate::DEFAULT_CURVE_ARROW_CENTER_LENGTH_RATIO * stroke_width)),
         );
         extra.insert(
             "headWidth".to_string(),
-            json!(cdxml_arrow_size_for_render_scale(
-                parse_scaled_100(node.attr("ArrowheadWidth")),
-                crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.25,
-            )),
+            json!(parse_scaled_100(node.attr("ArrowheadWidth"))
+                .unwrap_or(crate::DEFAULT_CURVE_ARROW_WIDTH_RATIO * stroke_width)),
         );
         let (min_x, min_y, max_x, max_y) = points.iter().fold(
             (

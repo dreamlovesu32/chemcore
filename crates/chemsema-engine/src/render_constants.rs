@@ -27,4 +27,8 @@ pub const HASH_WEDGE_SEGMENT_WIDTH_PT: WorldPt = css_px(0.72).to_world_pt();
 
 pub const BOUNDARY_JOIN_MIN_BACKTRACK_PT: WorldPt = css_px(0.85).to_world_pt();
 pub const DEFAULT_ARROW_HEAD_LENGTH_RATIO: f64 = 10.0;
+pub const DEFAULT_CURVE_ARROW_HEAD_LENGTH_RATIO: f64 = 8.0;
+pub const DEFAULT_CURVE_ARROW_CENTER_LENGTH_RATIO: f64 = 6.75;
+pub const DEFAULT_CURVE_ARROW_WIDTH_RATIO: f64 = 2.5;
+pub const CURVE_HALF_ARROW_EDGE_STROKE_RATIO: f64 = 5.0 / 12.0;
 pub const TEXT_WRAP_ESTIMATED_CHAR_WIDTH_PT: WorldPt = css_px(6.0).to_world_pt();

@@ -1233,61 +1233,6 @@ fn parse_cdxml_imports_line_endpoints_from_bounding_box() {
 }
 
 #[test]
-fn parse_cdxml_imports_bezier_curve_flags_and_arrowheads() {
-    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
-<CDXML BondLength="14.40" LineWidth="0.60" HashSpacing="2.50">
-  <colortable><color r="1" g="1" b="1"/><color r="1" g="0" b="0"/></colortable>
-  <page id="1">
-    <curve id="2" Z="7" color="3" CurveType="26" ArrowheadType="Solid"
-      CurvePoints="5 30 10 30 20 10 40 10 50 30 60 50 80 50 90 30 95 30"/>
-  </page>
-</CDXML>"##;
-    let document = parse_cdxml_document(cdxml, Some("bezier curve")).expect("parse cdxml");
-    let curve = document
-        .objects
-        .iter()
-        .find(|object| object.object_type == "curve")
-        .expect("curve should import");
-    assert_eq!(curve.payload.extra["curveType"], json!(26));
-    assert_eq!(curve.payload.extra["head"], json!("full"));
-    assert_eq!(curve.payload.extra["tail"], json!("full"));
-    assert_eq!(curve.payload.extra["closed"], json!(false));
-    let style = document
-        .styles
-        .get(curve.style_ref.as_deref().expect("curve style"))
-        .expect("curve style should exist");
-    assert_eq!(style["dashArray"], json!([2.5]));
-    let primitives = render_document(&document);
-    assert!(primitives.iter().any(|primitive| matches!(
-        primitive,
-        RenderPrimitive::Path {
-            role: RenderRole::DocumentGraphic,
-            d,
-            dash_array,
-            ..
-        } if d.contains(" C ") && !dash_array.is_empty()
-    )));
-    assert_eq!(
-        primitives
-            .iter()
-            .filter(|primitive| matches!(primitive, RenderPrimitive::FilledPath { .. }))
-            .count(),
-        2
-    );
-    let exported = document_to_cdxml(&document);
-    assert!(exported.contains("<curve "), "{exported}");
-    assert!(exported.contains("CurveType=\"26\""), "{exported}");
-    assert!(exported.contains("ArrowheadHead=\"Full\""), "{exported}");
-    assert!(exported.contains("ArrowheadTail=\"Full\""), "{exported}");
-    let reparsed = parse_cdxml_document(&exported, Some("curve roundtrip"))
-        .expect("exported curve should parse");
-    assert!(reparsed
-        .objects
-        .iter()
-        .any(|object| object.object_type == "curve"));
-}
-
-#[test]
 fn parse_cdxml_keeps_standalone_horizontal_curly_bracket() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML LineWidth="0.6">
