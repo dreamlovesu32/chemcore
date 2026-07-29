@@ -189,6 +189,91 @@ fn parse_cdxml_auto_double_bond_prefers_alternating_ring_over_short_fused_cycle(
 }
 
 #[test]
+fn parse_cdxml_terminal_label_tracks_asymmetric_double_bond_centerline() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="14.40" BondSpacing="18" LineWidth="0.60" LabelSize="10"
+ LabelFont="3" LabelFace="96">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="p1" BoundingBox="0 0 180 120">
+    <fragment id="right">
+      <n id="right_o" p="20 20" Element="8" NumHydrogens="0">
+        <t p="16.75 23.52"><s font="3" size="10" face="96">O</s></t>
+      </n>
+      <n id="right_c" p="33.82 15.97"/>
+      <b id="right_b" B="right_o" E="right_c" Order="2" DoublePosition="Right"/>
+    </fragment>
+    <fragment id="left">
+      <n id="left_o" p="70 20" Element="8" NumHydrogens="0">
+        <t p="66.75 23.52"><s font="3" size="10" face="96">O</s></t>
+      </n>
+      <n id="left_c" p="83.82 15.97"/>
+      <b id="left_b" B="left_o" E="left_c" Order="2" DoublePosition="Left"/>
+    </fragment>
+    <fragment id="reversed">
+      <n id="reverse_o" p="120 20" Element="8" NumHydrogens="0">
+        <t p="116.75 23.52"><s font="3" size="10" face="96">O</s></t>
+      </n>
+      <n id="reverse_c" p="133.82 15.97"/>
+      <b id="reverse_b" B="reverse_c" E="reverse_o" Order="2" DoublePosition="Right"/>
+    </fragment>
+    <fragment id="degree2">
+      <n id="degree2_o" p="20 80" Element="8" NumHydrogens="0">
+        <t p="16.75 83.52"><s font="3" size="10" face="96">O</s></t>
+      </n>
+      <n id="degree2_c" p="33.82 75.97"/>
+      <n id="degree2_other" p="9.82 69.82"/>
+      <b id="degree2_b" B="degree2_o" E="degree2_c" Order="2" DoublePosition="Right"/>
+      <b id="degree2_single" B="degree2_o" E="degree2_other"/>
+    </fragment>
+    <fragment id="automatic">
+      <n id="auto_o" p="70 80" Element="8" NumHydrogens="0">
+        <t p="66.75 83.52"><s font="3" size="10" face="96">O</s></t>
+      </n>
+      <n id="auto_c" p="83.82 75.97"/>
+      <n id="auto_next" p="87.55 62.06"/>
+      <b id="auto_b" B="auto_o" E="auto_c" Order="2"/>
+      <b id="auto_single" B="auto_c" E="auto_next"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("asymmetric terminal labels"))
+        .expect("cdxml should parse");
+    let label_offset = |node_id: &str| {
+        let node = document
+            .resources
+            .values()
+            .filter_map(|resource| resource.data.as_fragment())
+            .flat_map(|fragment| fragment.nodes.iter())
+            .find(|node| node.id == node_id)
+            .unwrap_or_else(|| panic!("missing node {node_id}"));
+        let position = node
+            .label
+            .as_ref()
+            .and_then(|label| label.position)
+            .unwrap_or_else(|| panic!("missing label position for {node_id}"));
+        [
+            position[0] - node.position[0],
+            position[1] - node.position[1],
+        ]
+    };
+
+    for (node_id, expected) in [
+        ("right_o", [-4.25, 2.66]),
+        ("left_o", [-3.53, 5.14]),
+        ("reverse_o", [-3.53, 5.14]),
+        ("degree2_o", [-3.89, 3.90]),
+        ("auto_o", [-4.25, 2.66]),
+    ] {
+        let actual = label_offset(node_id);
+        assert!(
+            (actual[0] - expected[0]).abs() < 0.04 && (actual[1] - expected[1]).abs() < 0.04,
+            "{node_id}: expected={expected:?}, actual={actual:?}"
+        );
+    }
+}
+
+#[test]
 fn parse_cdxml_attached_atom_label_rebuilds_active_bbox_from_glyph_metrics() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >

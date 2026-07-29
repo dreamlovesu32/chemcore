@@ -9,6 +9,7 @@ const DEFAULT_TEXT_LINE_HEIGHT: f64 = 12.0;
 const TEXT_INK_HORIZONTAL_PAD_EM: f64 = 0.16;
 const TEXT_GDI_DESCENT_EM: f64 = 0.59;
 const TEXT_GDI_LINE_BOX_EM: f64 = 1.45;
+const SVG_TEXT_INTERNAL_SCALE: f64 = 20.0;
 
 pub fn document_to_svg(document: &ChemSemaDocument) -> String {
     let primitives = render_document(document);
@@ -602,13 +603,11 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
             ..
         } => {
             let center = rotate_center.unwrap_or(Point::new(*x, *y));
-            let transform = rotate_transform_attr(*rotate, Some(&center));
+            let transform = scaled_text_transform_attr(*x, *y, *rotate, &center);
             write!(
                 out,
-                r#"  <text x="{}" y="{}" font-size="{}" dominant-baseline="{}" text-anchor="{}" fill="{}"{}{}>"#,
-                fmt_num(*x),
-                fmt_num(*y),
-                fmt_num(*font_size),
+                r#"  <text x="0" y="0" font-size="{}" dominant-baseline="{}" text-anchor="{}" fill="{}"{}{}>"#,
+                fmt_num(*font_size * SVG_TEXT_INTERNAL_SCALE),
                 escape_attr(dominant_baseline.as_deref().unwrap_or("alphabetic")),
                 escape_attr(text_anchor.as_deref().unwrap_or("start")),
                 escape_attr(fill.as_deref().unwrap_or("#000000")),
@@ -620,7 +619,7 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
                 out.push_str(&escape_text(text));
             } else {
                 for run in runs {
-                    write_text_run(out, run, *font_size);
+                    write_text_run(out, run, *font_size, SVG_TEXT_INTERNAL_SCALE);
                 }
             }
             out.push_str("</text>\n");
@@ -628,7 +627,29 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
     }
 }
 
-fn write_text_run(out: &mut String, run: &LabelRun, default_font_size: f64) {
+fn scaled_text_transform_attr(x: f64, y: f64, rotate: f64, rotate_center: &Point) -> String {
+    let scale = 1.0 / SVG_TEXT_INTERNAL_SCALE;
+    let placement = format!(
+        "matrix({} 0 0 {} {} {})",
+        fmt_num(scale),
+        fmt_num(scale),
+        fmt_num(x),
+        fmt_num(y)
+    );
+    if rotate.abs() <= crate::EPSILON {
+        format!(r#" transform="{placement}""#)
+    } else {
+        format!(
+            r#" transform="rotate({} {} {}) {}""#,
+            fmt_num(rotate),
+            fmt_num(rotate_center.x),
+            fmt_num(rotate_center.y),
+            placement
+        )
+    }
+}
+
+fn write_text_run(out: &mut String, run: &LabelRun, default_font_size: f64, internal_scale: f64) {
     let is_sub = run.script.as_deref() == Some("subscript");
     let is_super = run.script.as_deref() == Some("superscript");
     let font_size = run.font_size.unwrap_or(default_font_size)
@@ -636,7 +657,8 @@ fn write_text_run(out: &mut String, run: &LabelRun, default_font_size: f64) {
             crate::shared_script_scale_factor(run.script.as_deref())
         } else {
             1.0
-        };
+        }
+        * internal_scale;
     let baseline_shift = if is_sub || is_super {
         let base_font_size = run.font_size.unwrap_or(default_font_size);
         let shift = crate::shared_svg_script_baseline_shift_em_for_face(
@@ -645,7 +667,7 @@ fn write_text_run(out: &mut String, run: &LabelRun, default_font_size: f64) {
             run.font_family.as_deref(),
             base_font_size,
         );
-        Some(base_font_size * shift)
+        Some(base_font_size * shift * internal_scale)
     } else {
         None
     };
@@ -655,6 +677,7 @@ fn write_text_run(out: &mut String, run: &LabelRun, default_font_size: f64) {
         run.underline.unwrap_or(false),
         run.shadow.unwrap_or(false),
         effect_color,
+        internal_scale,
     );
     write!(
         out,
@@ -688,14 +711,25 @@ fn write_text_run(out: &mut String, run: &LabelRun, default_font_size: f64) {
     .expect("write text run");
 }
 
-fn text_effect_style(underline: bool, shadow: bool, effect_color: &str) -> Option<String> {
+fn text_effect_style(
+    underline: bool,
+    shadow: bool,
+    effect_color: &str,
+    internal_scale: f64,
+) -> Option<String> {
     let mut declarations = Vec::new();
     // Document underlines are emitted as explicit geometry before SVG
     // serialization. Keep this branch for non-document callers that construct
     // a text primitive directly.
     if underline {
-        declarations.push("text-decoration-thickness:0.4px".to_string());
-        declarations.push("text-underline-offset:0.6px".to_string());
+        declarations.push(format!(
+            "text-decoration-thickness:{}px",
+            fmt_num(0.4 * internal_scale)
+        ));
+        declarations.push(format!(
+            "text-underline-offset:{}px",
+            fmt_num(0.6 * internal_scale)
+        ));
     }
     if shadow {
         declarations.push(format!(
@@ -868,11 +902,11 @@ mod tests {
     #[test]
     fn underline_style_uses_chemdraw_fixed_rule_geometry() {
         assert_eq!(
-            text_effect_style(true, false, "#000000").as_deref(),
+            text_effect_style(true, false, "#000000", 1.0).as_deref(),
             Some("text-decoration-thickness:0.4px;text-underline-offset:0.6px")
         );
         assert_eq!(
-            text_effect_style(true, true, "#123456").as_deref(),
+            text_effect_style(true, true, "#123456", 1.0).as_deref(),
             Some(
                 "text-decoration-thickness:0.4px;text-underline-offset:0.6px;filter:drop-shadow(0.08em 0.08em 0 #123456)"
             )

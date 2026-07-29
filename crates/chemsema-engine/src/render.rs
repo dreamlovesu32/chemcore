@@ -33,6 +33,7 @@ mod spectrum_render;
 #[path = "render/style_payload.rs"]
 mod style_payload;
 
+pub(crate) use bond_metrics::double_bond_center_distance_for_bond_weights;
 use bond_render::{
     bond_label_clipped_body_geometry, compute_solid_wedge_points, imported_cdxml_dative_bond,
     render_fragment_bond,

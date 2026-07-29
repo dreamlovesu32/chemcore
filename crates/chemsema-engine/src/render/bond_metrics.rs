@@ -94,7 +94,7 @@ pub(super) fn double_bond_center_distance_for_weights(
     multi_bond_inner_gap(None, start, end, stroke_width) + 0.5 * (first_width + second_width)
 }
 
-pub(super) fn double_bond_center_distance_for_bond_weights(
+pub(crate) fn double_bond_center_distance_for_bond_weights(
     bond: &Bond,
     start: Point,
     end: Point,

@@ -131,13 +131,76 @@ pub(super) fn attached_node_label_anchor_world(
     fragment: &crate::MoleculeFragment,
     node_id: &str,
     object_translate: [f64; 2],
-    _stroke_width: f64,
+    stroke_width: f64,
 ) -> Point {
     let Some(node) = fragment.nodes.iter().find(|node| node.id == node_id) else {
         return Point::new(object_translate[0], object_translate[1]);
     };
+    let asymmetric_double_offset =
+        terminal_asymmetric_double_bond_label_offset(fragment, node_id, stroke_width);
     Point::new(
-        object_translate[0] + node.position[0],
-        object_translate[1] + node.position[1],
+        object_translate[0] + node.position[0] + asymmetric_double_offset.x,
+        object_translate[1] + node.position[1] + asymmetric_double_offset.y,
+    )
+}
+
+fn terminal_asymmetric_double_bond_label_offset(
+    fragment: &crate::MoleculeFragment,
+    node_id: &str,
+    stroke_width: f64,
+) -> crate::Vector {
+    let mut connected = fragment
+        .bonds
+        .iter()
+        .filter(|bond| bond.begin == node_id || bond.end == node_id);
+    let Some(bond) = connected.next() else {
+        return crate::Vector::new(0.0, 0.0);
+    };
+    if connected.next().is_some() || bond.order != 2 {
+        return crate::Vector::new(0.0, 0.0);
+    }
+    let Some(double) = bond.double.as_ref() else {
+        return crate::Vector::new(0.0, 0.0);
+    };
+    let side_sign = match double.placement {
+        crate::DoubleBondPlacement::Left => 1.0,
+        crate::DoubleBondPlacement::Right => -1.0,
+        crate::DoubleBondPlacement::Center => return crate::Vector::new(0.0, 0.0),
+    };
+    let Some(begin) = fragment.nodes.iter().find(|node| node.id == bond.begin) else {
+        return crate::Vector::new(0.0, 0.0);
+    };
+    let Some(end) = fragment.nodes.iter().find(|node| node.id == bond.end) else {
+        return crate::Vector::new(0.0, 0.0);
+    };
+    let start = begin.point();
+    let finish = end.point();
+    let axis = crate::Vector::new(finish.x - start.x, finish.y - start.y);
+    let length = axis.length();
+    if length <= crate::EPSILON {
+        return crate::Vector::new(0.0, 0.0);
+    }
+    let side_weight = match double.placement {
+        crate::DoubleBondPlacement::Left => bond.line_weights.left,
+        crate::DoubleBondPlacement::Right => bond.line_weights.right,
+        crate::DoubleBondPlacement::Center => unreachable!(),
+    };
+    let effective_stroke_width =
+        if bond.stroke_width.is_finite() && bond.stroke_width > crate::EPSILON {
+            bond.stroke_width
+        } else {
+            stroke_width
+        };
+    let center_distance = crate::render::double_bond_center_distance_for_bond_weights(
+        bond,
+        start,
+        finish,
+        effective_stroke_width,
+        bond.line_weights.main,
+        side_weight,
+    );
+    crate::Vector::new(
+        side_sign * (-axis.y / length) * center_distance * 0.5,
+        side_sign * (axis.x / length) * center_distance * 0.5,
     )
 }

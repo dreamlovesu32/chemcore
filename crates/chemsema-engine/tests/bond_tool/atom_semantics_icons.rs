@@ -970,7 +970,11 @@ fn text_format_icons_are_rendered_with_kernel_text_runs() {
     assert!(bold.contains("<text "), "{bold}");
     assert!(bold.contains("<tspan"), "{bold}");
     assert!(bold.contains(r#"font-family="Times New Roman""#), "{bold}");
-    assert!(bold.contains(r#"font-size="16""#), "{bold}");
+    assert!(bold.contains(r#"font-size="320""#), "{bold}");
+    assert!(
+        bold.contains(r#"transform="matrix(0.05 0 0 0.05 12 17)""#),
+        "{bold}"
+    );
     assert!(bold.contains(r#"font-weight="700""#), "{bold}");
     assert!(bold.contains(">B</tspan>"), "{bold}");
 
@@ -997,7 +1001,7 @@ fn text_format_icons_are_rendered_with_kernel_text_runs() {
         chemical.contains(r#"class="chemsema-icon cc-text-format-icon cc-script-icon""#),
         "{chemical}"
     );
-    assert!(chemical.contains(r#"font-size="14""#), "{chemical}");
+    assert!(chemical.contains(r#"font-size="280""#), "{chemical}");
     assert!(chemical.contains(">CH</tspan>"), "{chemical}");
     assert!(chemical.contains(">2</tspan>"), "{chemical}");
     assert!(chemical.contains("baseline-shift"), "{chemical}");
@@ -1005,13 +1009,13 @@ fn text_format_icons_are_rendered_with_kernel_text_runs() {
     let subscript = Engine::text_format_icon_svg("subscript");
     assert!(subscript.contains(">X</tspan>"), "{subscript}");
     assert!(subscript.contains(">2</tspan>"), "{subscript}");
-    assert!(subscript.contains(r#"font-size="12""#), "{subscript}");
+    assert!(subscript.contains(r#"font-size="240""#), "{subscript}");
     assert!(subscript.contains("baseline-shift"), "{subscript}");
 
     let superscript = Engine::text_format_icon_svg("superscript");
     assert!(superscript.contains(">X</tspan>"), "{superscript}");
     assert!(superscript.contains(">2</tspan>"), "{superscript}");
-    assert!(superscript.contains(r#"font-size="12""#), "{superscript}");
+    assert!(superscript.contains(r#"font-size="240""#), "{superscript}");
     assert!(superscript.contains("baseline-shift"), "{superscript}");
 }
 

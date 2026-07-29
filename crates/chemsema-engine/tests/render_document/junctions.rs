@@ -513,7 +513,7 @@ fn render_document_side_double_uses_anchor_glyph_retreat_once_and_keeps_lines_eq
 }
 
 #[test]
-fn parse_cdxml_side_double_terminal_label_stays_on_main_bond_node() {
+fn parse_cdxml_side_double_terminal_label_tracks_double_bond_midline() {
     let source = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <CDXML BoundingBox="70 80 140 130" BondLength="14.4" LabelFont="3" LabelSize="10" MarginWidth="1.6">
   <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
@@ -550,22 +550,12 @@ fn parse_cdxml_side_double_terminal_label_stays_on_main_bond_node() {
         .iter()
         .find(|node| node.id == "6")
         .expect("oxygen node");
-    let oxygen_polygon = oxygen
-        .label
-        .as_ref()
-        .and_then(|label| label.glyph_polygons.first())
-        .expect("oxygen glyph polygon");
-    let min_x = oxygen_polygon
-        .iter()
-        .map(|point| point[0])
-        .fold(f64::INFINITY, f64::min);
-    let max_x = oxygen_polygon
-        .iter()
-        .map(|point| point[0])
-        .fold(f64::NEG_INFINITY, f64::max);
+    let oxygen_label = oxygen.label.as_ref().expect("oxygen label");
+    let oxygen_baseline = oxygen_label.position.expect("oxygen baseline");
     assert!(
-        (((min_x + max_x) * 0.5) - oxygen.position[0]).abs() <= 0.05,
-        "terminal O glyph must stay on the structural node/main bond axis: {oxygen:?}"
+        (oxygen_baseline[0] - oxygen.position[0] + 5.16).abs() <= 0.02
+            && (oxygen_baseline[1] - oxygen.position[1] - 3.90).abs() <= 0.02,
+        "terminal O baseline must follow the midpoint of the asymmetric double-bond lines: {oxygen:?}"
     );
 
     let axes: Vec<_> = render_document(&document)

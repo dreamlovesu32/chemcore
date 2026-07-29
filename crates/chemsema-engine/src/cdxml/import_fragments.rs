@@ -83,6 +83,7 @@ pub(super) fn normalize_fragment(
             }
         }),
     };
+    infer_cdxml_ring_double_bond_placements(&mut fragment);
     crate::engine::refresh_attached_node_label_geometry_for_all_nodes_with_profile(
         &mut fragment,
         origin,
@@ -91,7 +92,6 @@ pub(super) fn normalize_fragment(
             defaults.margin_width,
         )),
     );
-    infer_cdxml_ring_double_bond_placements(&mut fragment);
     if let Some(area) = fragment
         .colored_areas
         .iter()
