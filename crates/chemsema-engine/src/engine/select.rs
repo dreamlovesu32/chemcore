@@ -1,6 +1,6 @@
 use super::text_edit::{
     endpoint_label_world_bounds, refresh_attached_node_label_geometry_for_all_nodes,
-    text_object_world_bounds,
+    text_object_arrange_bounds, text_object_world_bounds,
 };
 use super::{
     ArrowEditDragState, ArrowEditMode, CommandDelta, CommandTargetSet, EditorCommand, Engine,
@@ -382,7 +382,8 @@ impl Engine {
                 continue;
             }
             if self.state.selection.text_objects.contains(&object.id) {
-                if let Some(text_bounds) = text_object_world_bounds(object) {
+                if let Some(text_bounds) = text_object_arrange_bounds(&self.state.document, object)
+                {
                     bounds.push(AxisBounds::from_array(text_bounds));
                 }
                 continue;
@@ -1948,7 +1949,7 @@ impl Engine {
             if object.object_type != "text" || !object.visible {
                 continue;
             }
-            let Some(bounds) = text_object_world_bounds(object) else {
+            let Some(bounds) = text_object_world_bounds(&self.state.document, object) else {
                 continue;
             };
             if bounds_selected(AxisBounds::from_array(bounds)) {
@@ -2067,7 +2068,7 @@ impl Engine {
             {
                 continue;
             }
-            if let Some(text_bounds) = text_object_world_bounds(object) {
+            if let Some(text_bounds) = text_object_arrange_bounds(&self.state.document, object) {
                 bounds.push(AxisBounds::from_array(text_bounds));
             }
         }
@@ -2122,7 +2123,7 @@ impl Engine {
             {
                 continue;
             }
-            let Some(bounds) = text_object_world_bounds(object) else {
+            let Some(bounds) = text_object_arrange_bounds(&self.state.document, object) else {
                 continue;
             };
             items.push(SelectionArrangeItem {
@@ -2667,7 +2668,7 @@ impl Engine {
             if !self.state.selection.text_objects.contains(&object.id) {
                 continue;
             }
-            let Some(bounds) = text_object_world_bounds(object) else {
+            let Some(bounds) = text_object_arrange_bounds(&self.state.document, object) else {
                 continue;
             };
             include_optional_bounds(&mut out, AxisBounds::from_array(bounds));

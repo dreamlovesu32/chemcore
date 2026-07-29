@@ -563,14 +563,35 @@ pub(super) fn text_object(
         } else {
             (text, runs, None)
         };
+    let text_anchor = match align.as_str() {
+        "center" => Some("middle"),
+        "right" => Some("end"),
+        _ => Some("start"),
+    };
+    let inferred_ink_bounds = crate::shared_text_horizontal_ink_bounds(
+        &text,
+        &runs,
+        font_size,
+        Some(&font_family),
+        text_anchor,
+    );
+    let inferred_width = (inferred_ink_bounds[1] - inferred_ink_bounds[0]).max(0.0);
     let width = bbox
         .map(|bbox| (bbox[2] - bbox[0]).abs())
         .filter(|width| *width > crate::EPSILON)
-        .unwrap_or_else(|| (text.chars().count() as f64 * font_size * 0.55).max(font_size));
+        .unwrap_or_else(|| {
+            if text.is_empty() {
+                font_size
+            } else {
+                inferred_width
+            }
+        });
     let height = bbox
         .map(|bbox| (bbox[3] - bbox[1]).abs())
         .filter(|height| *height > crate::EPSILON)
-        .unwrap_or(font_size * 1.4);
+        .unwrap_or_else(|| {
+            crate::shared_estimated_text_max_font_size(round2(font_size), &runs) * 1.4
+        });
     let auto_enhanced_stereo_placement = bbox.and_then(|bbox| {
         auto_enhanced_stereo_anchor
             .and_then(|anchor| automatic_enhanced_stereo_text_placement(anchor, bbox, font_size))
@@ -601,14 +622,7 @@ pub(super) fn text_object(
     };
     let mut extra = BTreeMap::new();
     extra.insert("text".to_string(), json!(text));
-    let box_x = bbox.map_or_else(
-        || match align.as_str() {
-            "center" => -width * 0.5,
-            "right" => -width,
-            _ => 0.0,
-        },
-        |bbox| bbox[0] - translate[0],
-    );
+    let box_x = bbox.map_or(inferred_ink_bounds[0], |bbox| bbox[0] - translate[0]);
     extra.insert(
         "box".to_string(),
         json!([round2(box_x), 0.0, round2(width), round2(height)]),
@@ -688,6 +702,7 @@ pub(super) fn text_object(
                     "captionLineHeight": node.attr("CaptionLineHeight"),
                     "wordWrapWidth": node.attr("WordWrapWidth"),
                     "lineStarts": normalized_line_starts,
+                    "authoredBoundingBox": bbox.is_some(),
                 }
             }
         }),

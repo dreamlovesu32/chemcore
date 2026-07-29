@@ -2023,6 +2023,154 @@ fn preserved_free_text_shapes_words_at_whitespace_boundaries() {
 }
 
 #[test]
+fn free_text_without_authored_box_uses_face_aware_ink_bounds() {
+    let text = "3-methoxy-4-((4-(trifluoromethyl)benzyl)oxy)benzaldehyde";
+    let source = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML CaptionFont="4" CaptionSize="9.33333">
+  <fonttable><font id="4" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <t id="2" p="537.279968 128.929993" Justification="Left" InterpretChemically="no">
+      <s font="4" size="9.33333" face="1">{text}</s>
+    </t>
+  </page>
+</CDXML>"#
+    );
+    let document =
+        parse_cdxml_document(&source, Some("face-aware free text")).expect("CDXML parses");
+    let object = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("free text imports");
+    assert_eq!(
+        object
+            .meta
+            .pointer("/import/cdxml/authoredBoundingBox")
+            .and_then(serde_json::Value::as_bool),
+        Some(false)
+    );
+    let local_box = object
+        .payload
+        .extra
+        .get("box")
+        .and_then(serde_json::Value::as_array)
+        .expect("derived box");
+    assert_eq!(local_box[0].as_f64(), Some(0.35));
+    assert_eq!(local_box[2].as_f64(), Some(256.94));
+
+    let primitive = render_document(&document)
+        .into_iter()
+        .find(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Text {
+                    object_id: Some(object_id),
+                    ..
+                } if object_id == &object.id
+            )
+        })
+        .expect("text primitive");
+    let bounds = render_primitives_bounds(std::iter::once(&primitive)).expect("text visual bounds");
+    assert!((bounds[2] - 794.574794).abs() < 1.0e-5, "{bounds:?}");
+
+    let svg = document_to_svg(&document);
+    let view_box = svg
+        .split_once("viewBox=\"")
+        .and_then(|(_, tail)| tail.split_once('"'))
+        .map(|(value, _)| {
+            value
+                .split_whitespace()
+                .map(|part| part.parse::<f64>().expect("viewBox number"))
+                .collect::<Vec<_>>()
+        })
+        .expect("root viewBox");
+    let view_box_right = view_box[0] + view_box[2];
+    assert!(
+        view_box_right >= bounds[2] + 7.999,
+        "{view_box:?} versus {bounds:?}"
+    );
+    let exported = document_to_cdxml(&document);
+    let text_tag = exported
+        .split_once("<t ")
+        .and_then(|(_, tail)| tail.split_once('>'))
+        .map(|(tag, _)| tag)
+        .expect("exported text tag");
+    assert!(!text_tag.contains("BoundingBox="), "{text_tag}");
+    let reopened =
+        parse_cdxml_document(&exported, Some("reopened unboxed text")).expect("reopen export");
+    let reopened_object = reopened
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("reopened text");
+    assert_eq!(
+        reopened_object.payload.extra.get("box"),
+        object.payload.extra.get("box")
+    );
+}
+
+#[test]
+fn authored_text_box_is_unioned_with_real_ink_instead_of_clipping_it() {
+    let source = r#"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML CaptionFont="4" CaptionSize="10">
+  <fonttable><font id="4" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <t id="2" p="100 50" BoundingBox="100 40 110 55"
+       Justification="Left" InterpretChemically="no">
+      <s font="4" size="10" face="1">Arial bold text extends beyond its authored box</s>
+    </t>
+  </page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(source, Some("narrow authored text box")).expect("CDXML parses");
+    let object = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("free text imports");
+    assert_eq!(
+        object
+            .meta
+            .pointer("/import/cdxml/authoredBoundingBox")
+            .and_then(serde_json::Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        object.payload.extra.get("box"),
+        Some(&json!([0.0, 0.0, 10.0, 15.0]))
+    );
+    let primitive = render_document(&document)
+        .into_iter()
+        .find(|primitive| matches!(primitive, RenderPrimitive::Text { .. }))
+        .expect("text primitive");
+    let visual = render_primitives_bounds(std::iter::once(&primitive)).expect("text visual bounds");
+    assert!(
+        visual[2] > 290.0,
+        "real glyph ink must outrun the 10 pt authored box: {visual:?}"
+    );
+    let svg = document_to_svg(&document);
+    let view_box = svg
+        .split_once("viewBox=\"")
+        .and_then(|(_, tail)| tail.split_once('"'))
+        .map(|(value, _)| {
+            value
+                .split_whitespace()
+                .map(|part| part.parse::<f64>().expect("viewBox number"))
+                .collect::<Vec<_>>()
+        })
+        .expect("root viewBox");
+    assert!(view_box[0] + view_box[2] >= visual[2] + 7.999);
+    let exported = document_to_cdxml(&document);
+    let text_tag = exported
+        .split_once("<t ")
+        .and_then(|(_, tail)| tail.split_once('>'))
+        .map(|(tag, _)| tag)
+        .expect("exported text tag");
+    assert!(text_tag.contains("BoundingBox="), "{text_tag}");
+}
+
+#[test]
 fn cdxml_free_text_renders_from_authored_p_anchor_for_every_justification() {
     for (justification, bbox, point, expected_anchor) in [
         ("Left", "100 40 150 70", "90 55", "start"),

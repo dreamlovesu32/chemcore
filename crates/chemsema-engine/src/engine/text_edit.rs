@@ -345,13 +345,60 @@ fn make_text_payload(
     }
 }
 
-pub(crate) fn text_object_world_bounds(object: &crate::SceneObject) -> Option<[f64; 4]> {
+pub(crate) fn text_object_world_bounds(
+    document: &crate::ChemSemaDocument,
+    object: &crate::SceneObject,
+) -> Option<[f64; 4]> {
+    let visual_bounds = crate::text_object_visual_bounds(document, object);
+    let include_layout_box = object
+        .meta
+        .pointer("/import/cdxml/authoredBoundingBox")
+        .and_then(Value::as_bool)
+        != Some(false);
+    let layout_bounds = include_layout_box
+        .then(|| {
+            payload_box(&object.payload).or(object
+                .payload
+                .bbox
+                .map(|bbox| [bbox[0], bbox[1], bbox[2], bbox[3]]))
+        })
+        .flatten()
+        .and_then(|local_box| text_local_box_world_bounds(object, local_box));
+    match (visual_bounds, layout_bounds) {
+        (Some(visual), Some(layout)) => Some([
+            visual[0].min(layout[0]),
+            visual[1].min(layout[1]),
+            visual[2].max(layout[2]),
+            visual[3].max(layout[3]),
+        ]),
+        (Some(bounds), None) | (None, Some(bounds)) => Some(bounds),
+        (None, None) => None,
+    }
+}
+
+pub(crate) fn text_object_arrange_bounds(
+    document: &crate::ChemSemaDocument,
+    object: &crate::SceneObject,
+) -> Option<[f64; 4]> {
     let local_box = rendered_text_object_local_bounds(object)
         .or_else(|| payload_box(&object.payload))
         .or(object
             .payload
             .bbox
-            .map(|bbox| [bbox[0], bbox[1], bbox[2], bbox[3]]))?;
+            .map(|bbox| [bbox[0], bbox[1], bbox[2], bbox[3]]));
+    local_box
+        .and_then(|bounds| text_local_box_world_bounds(object, bounds))
+        .or_else(|| crate::text_object_visual_bounds(document, object))
+}
+
+fn text_local_box_world_bounds(
+    object: &crate::SceneObject,
+    local_box: [f64; 4],
+) -> Option<[f64; 4]> {
+    if !local_box.iter().all(|value| value.is_finite()) || local_box[2] < 0.0 || local_box[3] < 0.0
+    {
+        return None;
+    }
     let x = object.transform.translate[0] + local_box[0];
     let y = object.transform.translate[1] + local_box[1];
     if object.transform.rotate.abs() > crate::EPSILON {
@@ -1538,7 +1585,7 @@ impl Engine {
             if object.object_type != "text" || !object.visible {
                 continue;
             }
-            let Some(bounds) = text_object_world_bounds(object) else {
+            let Some(bounds) = text_object_world_bounds(&self.state.document, object) else {
                 continue;
             };
             if point.x < bounds[0]

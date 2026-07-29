@@ -3530,7 +3530,6 @@ impl<'a> CdxmlDocumentWriter<'a> {
         let mut attrs = vec![
             ("id", self.object_cdxml_id(object)),
             ("p", fmt_point(anchor)),
-            ("BoundingBox", fmt_bbox(bbox)),
             (
                 "CaptionJustification",
                 cdxml_justification(payload_string_cdxml(&object.payload, "align").as_deref())
@@ -3539,6 +3538,14 @@ impl<'a> CdxmlDocumentWriter<'a> {
             ("Z", object.z_index.to_string()),
             ("UTF8Text", text.clone()),
         ];
+        if object
+            .meta
+            .pointer("/import/cdxml/authoredBoundingBox")
+            .and_then(Value::as_bool)
+            != Some(false)
+        {
+            attrs.insert(2, ("BoundingBox", fmt_bbox(bbox)));
+        }
         if !object.visible {
             attrs.push(("Visible", "no".to_string()));
         }

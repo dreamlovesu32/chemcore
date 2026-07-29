@@ -5,10 +5,6 @@ use crate::{
 };
 
 const EXPORT_MARGIN: f64 = 8.0;
-const DEFAULT_TEXT_LINE_HEIGHT: f64 = 12.0;
-const TEXT_INK_HORIZONTAL_PAD_EM: f64 = 0.16;
-const TEXT_GDI_DESCENT_EM: f64 = 0.59;
-const TEXT_GDI_LINE_BOX_EM: f64 = 1.45;
 const SVG_TEXT_INTERNAL_SCALE: f64 = 20.0;
 
 pub fn document_to_svg(document: &ChemSemaDocument) -> String {
@@ -232,57 +228,12 @@ fn extend_bounds_for_primitive(
                 *stroke_width * 0.5,
             );
         }
-        RenderPrimitive::Text {
-            x,
-            y,
-            font_size,
-            line_height,
-            box_width,
-            text,
-            runs,
-            text_anchor,
-            dominant_baseline,
-            rotate,
-            rotate_center,
-            ..
-        } => {
-            let measured_width = crate::shared_estimated_text_width(text, runs, *font_size);
-            let width = box_width.unwrap_or(0.0).max(measured_width);
-            let max_font_size = crate::shared_estimated_text_max_font_size(*font_size, runs);
-            let line_count = crate::shared_estimated_text_line_count(text, runs) as f64;
-            let line_height = line_height
-                .unwrap_or(max_font_size * TEXT_GDI_LINE_BOX_EM)
-                .max(DEFAULT_TEXT_LINE_HEIGHT)
-                .max(max_font_size)
-                .max(0.01);
-            let right_pad = max_font_size * TEXT_INK_HORIZONTAL_PAD_EM;
-            let left_pad = right_pad;
-            let min_x = match text_anchor.as_deref() {
-                Some("middle") => x - width * 0.5,
-                Some("end") => x - width,
-                _ => *x,
-            };
-            let (min_y, max_y) =
-                if matches!(dominant_baseline.as_deref(), Some("central" | "middle")) {
-                    let block_height = line_height * line_count.max(1.0);
-                    (y - block_height * 0.5, y + block_height * 0.5)
-                } else {
-                    (
-                        y - max_font_size,
-                        y + (line_count - 1.0).max(0.0) * line_height
-                            + max_font_size * TEXT_GDI_DESCENT_EM,
-                    )
-                };
-            let top_left = Point::new(min_x - left_pad, min_y);
-            let bottom_right = Point::new(min_x + width + right_pad, max_y);
-            if rotate.abs() > crate::EPSILON {
-                let center = rotate_center.unwrap_or(Point::new(*x, *y));
-                for point in rotated_box_points(top_left, bottom_right, center, *rotate) {
-                    extend_bounds_for_point(&mut bounds, point, 0.0);
-                }
-            } else {
-                extend_bounds_for_point(&mut bounds, top_left, 0.0);
-                extend_bounds_for_point(&mut bounds, bottom_right, 0.0);
+        RenderPrimitive::Text { .. } => {
+            if let Some([min_x, min_y, max_x, max_y]) =
+                crate::render::text_primitive_visual_bounds(primitive)
+            {
+                extend_bounds_for_point(&mut bounds, Point::new(min_x, min_y), 0.0);
+                extend_bounds_for_point(&mut bounds, Point::new(max_x, max_y), 0.0);
             }
         }
     }

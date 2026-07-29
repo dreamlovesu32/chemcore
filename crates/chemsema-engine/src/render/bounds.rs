@@ -1,8 +1,8 @@
 use super::*;
 
-const TEXT_INK_HORIZONTAL_PAD_EM: f64 = 0.16;
 const TEXT_GDI_DESCENT_EM: f64 = 0.59;
 const TEXT_GDI_LINE_BOX_EM: f64 = 1.45;
+const TEXT_GDI_ASCENT_EM: f64 = 0.86;
 
 pub fn render_primitives_bounds<'a>(
     primitives: impl IntoIterator<Item = &'a RenderPrimitive>,
@@ -98,6 +98,15 @@ pub(crate) fn curve_object_visual_bounds(
 ) -> Option<[f64; 4]> {
     let mut out = Vec::new();
     render_curve_object(&mut out, document, object);
+    render_primitives_bounds(out.iter())
+}
+
+pub(crate) fn text_object_visual_bounds(
+    document: &ChemSemaDocument,
+    object: &SceneObject,
+) -> Option<[f64; 4]> {
+    let mut out = Vec::new();
+    render_text_object(&mut out, document, object);
     render_primitives_bounds(out.iter())
 }
 
@@ -236,46 +245,79 @@ pub fn render_primitive_bounds(primitive: &RenderPrimitive) -> Option<[f64; 4]> 
             center.x + radius,
             center.y + radius,
         ]),
-        RenderPrimitive::Text {
-            x,
-            y,
-            font_size,
-            line_height,
-            box_width,
-            text,
-            runs,
-            text_anchor,
-            dominant_baseline,
-            ..
-        } => {
-            let measured_width = crate::shared_estimated_text_width(text, runs, *font_size);
-            let width = box_width.unwrap_or(0.0).max(measured_width);
-            let max_font_size = crate::shared_estimated_text_max_font_size(*font_size, runs);
-            let line_count = crate::shared_estimated_text_line_count(text, runs) as f64;
-            let line_height = line_height
-                .unwrap_or(max_font_size * TEXT_GDI_LINE_BOX_EM)
-                .max(max_font_size);
-            let right_pad = max_font_size * TEXT_INK_HORIZONTAL_PAD_EM;
-            let left_pad = right_pad;
-            let min_x = match text_anchor.as_deref() {
-                Some("middle") => x - width * 0.5,
-                Some("end") => x - width,
-                _ => *x,
-            };
-            let (min_y, max_y) =
-                if matches!(dominant_baseline.as_deref(), Some("central" | "middle")) {
-                    let block_height = line_height * line_count.max(1.0);
-                    (y - block_height * 0.5, y + block_height * 0.5)
-                } else {
-                    (
-                        y - max_font_size * 0.86,
-                        y + (line_count - 1.0).max(0.0) * line_height
-                            + max_font_size * TEXT_GDI_DESCENT_EM,
-                    )
-                };
-            Some([min_x - left_pad, min_y, min_x + width + right_pad, max_y])
-        }
+        RenderPrimitive::Text { .. } => text_primitive_visual_bounds(primitive),
     }
+}
+
+pub(crate) fn text_primitive_visual_bounds(primitive: &RenderPrimitive) -> Option<[f64; 4]> {
+    let RenderPrimitive::Text {
+        x,
+        y,
+        font_size,
+        line_height,
+        box_width,
+        text,
+        runs,
+        text_anchor,
+        dominant_baseline,
+        font_family,
+        rotate,
+        rotate_center,
+        ..
+    } = primitive
+    else {
+        return None;
+    };
+    let ink_bounds = crate::shared_text_horizontal_ink_bounds(
+        text,
+        runs,
+        *font_size,
+        font_family.as_deref(),
+        text_anchor.as_deref(),
+    );
+    let max_font_size = crate::shared_estimated_text_max_font_size(*font_size, runs);
+    let line_count = crate::shared_estimated_text_line_count(text, runs) as f64;
+    let line_height = line_height
+        .unwrap_or(max_font_size * TEXT_GDI_LINE_BOX_EM)
+        .max(max_font_size);
+    let box_bounds = box_width.map(|width| match text_anchor.as_deref() {
+        Some("middle") => [-width * 0.5, width * 0.5],
+        Some("end") => [-width, 0.0],
+        _ => [0.0, width],
+    });
+    let min_x = x + box_bounds.map_or(ink_bounds[0], |bounds| bounds[0].min(ink_bounds[0]));
+    let max_x = x + box_bounds.map_or(ink_bounds[1], |bounds| bounds[1].max(ink_bounds[1]));
+    let (min_y, max_y) = if matches!(dominant_baseline.as_deref(), Some("central" | "middle")) {
+        let block_height = line_height * line_count.max(1.0);
+        (y - block_height * 0.5, y + block_height * 0.5)
+    } else {
+        (
+            y - max_font_size * TEXT_GDI_ASCENT_EM,
+            y + (line_count - 1.0).max(0.0) * line_height + max_font_size * TEXT_GDI_DESCENT_EM,
+        )
+    };
+    let corners = [
+        Point::new(min_x, min_y),
+        Point::new(max_x, min_y),
+        Point::new(max_x, max_y),
+        Point::new(min_x, max_y),
+    ];
+    if rotate.abs() <= crate::EPSILON {
+        return point_list_bounds(&corners, 0.0);
+    }
+    let center = rotate_center.unwrap_or(Point::new(*x, *y));
+    let radians = rotate.to_radians();
+    let cos = radians.cos();
+    let sin = radians.sin();
+    let rotated = corners.map(|point| {
+        let dx = point.x - center.x;
+        let dy = point.y - center.y;
+        Point::new(
+            center.x + dx * cos - dy * sin,
+            center.y + dx * sin + dy * cos,
+        )
+    });
+    point_list_bounds(&rotated, 0.0)
 }
 
 fn point_list_bounds(points: &[Point], margin: f64) -> Option<[f64; 4]> {

@@ -39,6 +39,7 @@ use bond_render::{
     imported_cdxml_dative_bond, render_fragment_bond,
 };
 pub use bounds::{render_primitive_bounds, render_primitives_bounds};
+pub(crate) use bounds::{text_object_visual_bounds, text_primitive_visual_bounds};
 use contact::{
     bond_ray_is_acute, build_main_bond_contact_kernel, build_main_bond_contact_kernel_for_nodes,
     center_double_skips_extension, main_bond_endpoint_geometry, main_contact_is_straight_through,

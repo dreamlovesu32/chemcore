@@ -1600,38 +1600,96 @@ pub(crate) fn shared_estimated_char_width_for_face(
     advance_em * font_size
 }
 
-pub(crate) fn shared_estimated_text_width(
+pub(crate) fn shared_text_horizontal_ink_bounds(
     text: &str,
     runs: &[crate::LabelRun],
     default_font_size: f64,
-) -> f64 {
-    if !runs.is_empty() {
-        let mut max_width = 0.0;
-        let mut line_width = 0.0;
-        for run in runs {
-            let font_size = run.font_size.unwrap_or(default_font_size)
-                * shared_script_scale_factor(run.script.as_deref());
-            for character in run.text.chars() {
-                match character {
-                    '\n' => {
-                        max_width = f64::max(max_width, line_width);
-                        line_width = 0.0;
-                    }
-                    '\r' => {}
-                    _ => line_width += shared_estimated_char_width(character, font_size),
+    default_font_family: Option<&str>,
+    text_anchor: Option<&str>,
+) -> [f64; 2] {
+    let mut min_x = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    for line in resolved_text_lines(text, runs, default_font_family) {
+        let (advance, [ink_left, ink_right]) =
+            text_line_horizontal_metrics(&line, default_font_size);
+        let anchor_shift = match text_anchor {
+            Some("middle") => -advance * 0.5,
+            Some("end") => -advance,
+            _ => 0.0,
+        };
+        min_x = min_x.min(anchor_shift + ink_left);
+        max_x = max_x.max(anchor_shift + ink_right);
+    }
+    if min_x.is_finite() && max_x.is_finite() {
+        [min_x, max_x]
+    } else {
+        [0.0, 0.0]
+    }
+}
+
+fn resolved_text_lines(
+    text: &str,
+    runs: &[crate::LabelRun],
+    default_font_family: Option<&str>,
+) -> Vec<Vec<crate::LabelRun>> {
+    let default_font_family = default_font_family.unwrap_or("Arial");
+    if runs.is_empty() {
+        return text
+            .split('\n')
+            .map(|line| {
+                vec![crate::LabelRun {
+                    text: line.trim_end_matches('\r').to_string(),
+                    font_family: Some(default_font_family.to_string()),
+                    ..crate::LabelRun::default()
+                }]
+            })
+            .collect();
+    }
+
+    let mut lines = vec![Vec::new()];
+    for run in runs {
+        let segments = run.text.split('\n').collect::<Vec<_>>();
+        for (index, segment) in segments.iter().enumerate() {
+            let segment = segment.trim_end_matches('\r');
+            if !segment.is_empty() {
+                let mut line_run = run.clone();
+                line_run.text = segment.to_string();
+                if line_run.font_family.is_none() {
+                    line_run.font_family = Some(default_font_family.to_string());
                 }
+                lines
+                    .last_mut()
+                    .expect("resolved text always has one line")
+                    .push(line_run);
+            }
+            if index + 1 < segments.len() {
+                lines.push(Vec::new());
             }
         }
-        return f64::max(max_width, line_width);
     }
-    text.lines()
-        .map(|line| {
-            line.chars()
-                .filter(|character| *character != '\r')
-                .map(|character| shared_estimated_char_width(character, default_font_size))
-                .sum()
-        })
-        .fold(0.0, f64::max)
+    lines
+}
+
+fn text_line_horizontal_metrics(
+    runs: &[crate::LabelRun],
+    default_font_size: f64,
+) -> (f64, [f64; 2]) {
+    let placements = glyph_placements_for_runs(runs, 0.0, 0.0, default_font_size);
+    let advance = placements
+        .last()
+        .map(|placement| placement.origin_x_px + placement.advance_px)
+        .unwrap_or(0.0);
+    let mut ink_left = f64::INFINITY;
+    let mut ink_right = f64::NEG_INFINITY;
+    for placement in placements.iter().filter(|placement| placement.visible) {
+        ink_left = ink_left.min(placement.ink_box_px[0]);
+        ink_right = ink_right.max(placement.ink_box_px[2]);
+    }
+    if ink_left.is_finite() && ink_right.is_finite() {
+        (advance, [ink_left, ink_right])
+    } else {
+        (advance, [0.0, advance])
+    }
 }
 
 pub(crate) fn shared_estimated_text_line_count(text: &str, runs: &[crate::LabelRun]) -> usize {
@@ -2134,6 +2192,52 @@ mod tests {
             (generic_width - width).abs() > 0.5,
             "the generic profile must not silently replace face metrics"
         );
+    }
+
+    #[test]
+    fn text_ink_bounds_use_face_kerning_and_real_terminal_glyph_bounds() {
+        let font_size = 9.33333;
+        let text = "3-methoxy-4-((4-(trifluoromethyl)benzyl)oxy)benzaldehyde";
+        let runs = vec![crate::LabelRun {
+            text: text.to_string(),
+            font_family: Some("Arial".to_string()),
+            font_size: Some(font_size),
+            font_weight: Some(700),
+            font_style: Some("normal".to_string()),
+            ..crate::LabelRun::default()
+        }];
+        let start =
+            shared_text_horizontal_ink_bounds(text, &runs, font_size, Some("Arial"), Some("start"));
+        assert!((start[0] - 0.350911).abs() < 1.0e-5, "{start:?}");
+        assert!((start[1] - 257.386626).abs() < 1.0e-5, "{start:?}");
+
+        let centered = shared_text_horizontal_ink_bounds(
+            text,
+            &runs,
+            font_size,
+            Some("Arial"),
+            Some("middle"),
+        );
+        let advance = 27.61425767 * font_size;
+        assert!((centered[0] - (start[0] - advance * 0.5)).abs() < 1.0e-5);
+        assert!((centered[1] - (start[1] - advance * 0.5)).abs() < 1.0e-5);
+
+        let kerned = vec![crate::LabelRun {
+            text: "Ty".to_string(),
+            font_family: Some("Times New Roman".to_string()),
+            font_size: Some(10.0),
+            font_weight: Some(400),
+            font_style: Some("normal".to_string()),
+            ..crate::LabelRun::default()
+        }];
+        let kerned_bounds = shared_text_horizontal_ink_bounds(
+            "Ty",
+            &kerned,
+            10.0,
+            Some("Times New Roman"),
+            Some("start"),
+        );
+        assert!((kerned_bounds[1] - 10.3515624).abs() < 1.0e-6);
     }
 
     #[test]
