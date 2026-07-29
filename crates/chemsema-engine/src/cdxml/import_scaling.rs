@@ -226,6 +226,7 @@ pub(super) fn scale_json_key_as_length_array(key: &str) -> bool {
             | "box"
             | "boxField"
             | "boundingBox"
+            | "localBoundingBox"
             | "cdxmlBoundingBox"
             | "position"
             | "textPosition"

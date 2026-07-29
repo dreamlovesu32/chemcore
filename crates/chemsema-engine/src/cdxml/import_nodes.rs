@@ -399,6 +399,14 @@ pub(super) fn node_label(
         return None;
     }
     let bbox = parse_bbox(text_el.attr("BoundingBox"));
+    let local_bbox = bbox.map(|box_value| {
+        [
+            round2(box_value[0] - origin[0]),
+            round2(box_value[1] - origin[1]),
+            round2(box_value[2] - origin[0]),
+            round2(box_value[3] - origin[1]),
+        ]
+    });
     let explicit_interpret_chemically = parse_cdxml_bool(text_el.attr("InterpretChemically"))
         .or_else(|| parse_cdxml_bool(node.attr("InterpretChemically")));
     let parent_face = parse_u32(text_el.attr("face")).unwrap_or(defaults.label_face);
@@ -527,6 +535,7 @@ pub(super) fn node_label(
                     "textPosition": text_position,
                     "textOffsetFromNode": text_offset_from_node,
                     "boundingBox": bbox,
+                    "localBoundingBox": local_bbox,
                     "sourceId": empty_as_null(text_el.attr("id")),
                     "labelDisplay": empty_as_null(label_display),
                     "labelAlignment": empty_as_null(text_el.attr("LabelAlignment")),

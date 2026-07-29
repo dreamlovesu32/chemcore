@@ -17,6 +17,7 @@ mod render_document {
     mod crossings_selection;
     mod double_bond_text_import;
     mod external_connections;
+    mod fragment_label_origin;
     mod glyph_retreat_stereo;
     mod junctions;
     mod query_double_bonds;

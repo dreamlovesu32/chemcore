@@ -97,6 +97,59 @@ fn fragment_label_position_world(label: &crate::NodeLabel, object: &SceneObject)
     )
 }
 
+fn imported_authored_label_left_world(
+    label: &crate::NodeLabel,
+    object: &SceneObject,
+) -> Option<f64> {
+    if label.attachment.as_deref() != Some("node")
+        || label.align.as_deref() != Some("right")
+        || label.anchor.as_deref() != Some("end")
+    {
+        return None;
+    }
+    let bounding_box = label
+        .meta
+        .pointer("/import/cdxml/boundingBox")?
+        .as_array()?;
+    let local_bounding_box = label
+        .meta
+        .pointer("/import/cdxml/localBoundingBox")?
+        .as_array()?;
+    let text_position = label
+        .meta
+        .pointer("/import/cdxml/textPosition")?
+        .as_array()?;
+    if bounding_box.len() != 4 || local_bounding_box.len() != 4 || text_position.len() != 2 {
+        return None;
+    }
+    let authored_left = bounding_box[0].as_f64()?;
+    let authored_right = bounding_box[2].as_f64()?;
+    let authored_local_left = local_bounding_box[0].as_f64()?;
+    let authored_local_right = local_bounding_box[2].as_f64()?;
+    let authored_text_x = text_position[0].as_f64()?;
+    if !authored_left.is_finite()
+        || !authored_right.is_finite()
+        || !authored_local_left.is_finite()
+        || !authored_local_right.is_finite()
+        || !authored_text_x.is_finite()
+        || authored_right < authored_left
+        || authored_local_right < authored_local_left
+        || (authored_text_x - authored_right).abs() > 0.02
+    {
+        return None;
+    }
+
+    // Preserve the authored rectangle in fragment-local coordinates at the
+    // import boundary. Using it directly avoids reconstructing an origin from
+    // rounded node/text positions, and it follows later whole-object movement.
+    // ChemDraw also writes some nominally right-displayed labels with p at the
+    // authored left edge (notably single-character labels); those are
+    // left-origin records and remain on the resolved-geometry branch. A
+    // committed endpoint-text edit deliberately drops this import metadata, so
+    // edited labels take that branch as well.
+    Some(object.transform.translate[0] + authored_local_left)
+}
+
 fn polygon_list_bounds(polygons: &[Vec<Point>]) -> Option<(f64, f64, f64, f64)> {
     let mut min_x = f64::INFINITY;
     let mut min_y = f64::INFINITY;
@@ -2150,19 +2203,20 @@ pub(super) fn render_fragment_label(
         .filter(|value| value.is_finite() && *value > 0.0)
         .unwrap_or_else(|| crate::molecule_label_line_advance(font_size));
     if lines.len() == 1 {
-        // LabelDisplay and the connection geometry decide which glyph is
-        // attached to the atom. That semantic decision has already positioned
-        // the active label box and glyph polygons. Rendering the same line
-        // again with SVG middle/end anchoring asks the browser to measure the
-        // styled runs a second time; mixed scripts and fixed edge labels then
-        // drift because the browser's total inline advance is not the
-        // attachment-glyph advance used by ChemDraw. ChemDraw's SVG output
-        // likewise emits the resolved line from its left edge. Keep the
-        // semantic anchor in the model, but serialize the resolved single-line
-        // geometry from the active box's left edge.
-        let (render_x, render_anchor) = label_box_world(node, object)
-            .map(|box_value| (box_value.x1, "start".to_string()))
-            .unwrap_or((world_position.x, text_anchor));
+        // Fresh CDX/CDXML imports preserve the authored text rectangle. Its
+        // left edge is the SVG origin; the active box may extend farther for
+        // glyph retreat and knockout. Once the user commits an edit, the text
+        // editor deliberately replaces the imported metadata with resolved
+        // geometry, whose active-box left edge is then authoritative.
+        let resolved_left = label_box_world(node, object).map(|box_value| box_value.x1);
+        let (render_x, render_anchor) = match (
+            imported_authored_label_left_world(label, object),
+            resolved_left,
+        ) {
+            (Some(authored_left), _) => (authored_left, "start".to_string()),
+            (None, Some(active_left)) => (active_left, "start".to_string()),
+            (None, None) => (world_position.x, text_anchor),
+        };
         let primitive = RenderPrimitive::Text {
             role: RenderRole::DocumentText,
             object_id,
