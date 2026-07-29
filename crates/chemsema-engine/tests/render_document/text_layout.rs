@@ -163,6 +163,72 @@ fn parse_cdxml_fixed_edge_labels_anchor_subscripts_but_not_superscripts() {
 }
 
 #[test]
+fn render_single_line_attached_labels_uses_resolved_box_left_not_svg_reanchoring() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="4" LabelSize="7">
+  <fonttable><font id="4" charset="0" name="Times New Roman"/></fonttable>
+  <page>
+    <fragment>
+      <n id="right" p="100 100" NodeType="Unspecified" LabelDisplay="Right">
+        <t p="102 102.73" BoundingBox="82 96 102 103"
+           LabelAlignment="Right" LabelJustification="Right">
+          <s font="4" size="7" face="96">(Aax)</s><s font="4" size="7" face="34">n</s>
+        </t>
+      </n>
+      <n id="neighbor" p="116 100"/>
+      <b id="bond" B="right" E="neighbor"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(source, Some("resolved label render origin")).expect("CDXML parses");
+    let entry = document
+        .editable_fragments()
+        .into_iter()
+        .next()
+        .expect("fragment");
+    let node = entry
+        .fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "right")
+        .expect("right label node");
+    let label = node.label.as_ref().expect("right label");
+    let box_value = label.bbox().expect("resolved active label box");
+    let last_glyph = label
+        .glyph_polygons
+        .last()
+        .expect("trailing subscript glyph");
+    let last_min_x = last_glyph
+        .iter()
+        .map(|point| point[0])
+        .fold(f64::INFINITY, f64::min);
+    let last_max_x = last_glyph
+        .iter()
+        .map(|point| point[0])
+        .fold(f64::NEG_INFINITY, f64::max);
+    assert!(
+        ((last_min_x + last_max_x) * 0.5 - node.position[0]).abs() < 0.01,
+        "the semantic fixed-edge rule must still attach the trailing subscript"
+    );
+
+    let (render_x, render_anchor) = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Text {
+                node_id,
+                x,
+                text_anchor,
+                ..
+            } if node_id.as_deref() == Some("right") => Some((x, text_anchor)),
+            _ => None,
+        })
+        .expect("rendered right label");
+    assert_close(render_x, entry.object.transform.translate[0] + box_value[0]);
+    assert_eq!(render_anchor.as_deref(), Some("start"));
+}
+
+#[test]
 fn parse_cdxml_vertical_bond_retreat_ignores_distant_formula_subscript() {
     let source = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML LineWidth="0.6" MarginWidth="1.6" LabelFont="3" LabelSize="10">

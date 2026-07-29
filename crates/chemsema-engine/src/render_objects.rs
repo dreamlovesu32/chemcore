@@ -2150,11 +2150,24 @@ pub(super) fn render_fragment_label(
         .filter(|value| value.is_finite() && *value > 0.0)
         .unwrap_or_else(|| crate::molecule_label_line_advance(font_size));
     if lines.len() == 1 {
+        // LabelDisplay and the connection geometry decide which glyph is
+        // attached to the atom. That semantic decision has already positioned
+        // the active label box and glyph polygons. Rendering the same line
+        // again with SVG middle/end anchoring asks the browser to measure the
+        // styled runs a second time; mixed scripts and fixed edge labels then
+        // drift because the browser's total inline advance is not the
+        // attachment-glyph advance used by ChemDraw. ChemDraw's SVG output
+        // likewise emits the resolved line from its left edge. Keep the
+        // semantic anchor in the model, but serialize the resolved single-line
+        // geometry from the active box's left edge.
+        let (render_x, render_anchor) = label_box_world(node, object)
+            .map(|box_value| (box_value.x1, "start".to_string()))
+            .unwrap_or((world_position.x, text_anchor));
         let primitive = RenderPrimitive::Text {
             role: RenderRole::DocumentText,
             object_id,
             node_id: Some(node.id.clone()),
-            x: world_position.x,
+            x: render_x,
             y: world_position.y,
             baseline_offset: Some(font_size * 0.82),
             dominant_baseline: None,
@@ -2162,7 +2175,7 @@ pub(super) fn render_fragment_label(
             font_size,
             font_family,
             fill,
-            text_anchor: Some(text_anchor),
+            text_anchor: Some(render_anchor),
             line_height: Some(line_height),
             preserve_lines: false,
             box_width: None,
