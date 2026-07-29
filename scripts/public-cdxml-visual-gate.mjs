@@ -44,6 +44,10 @@ const DEFAULTS = Object.freeze({
   maxRepeatedMicroDefects: 20,
   maxRepeatedMicroDefectArea: 5,
   minRepeatedMicroCoverage: 0.75,
+  minDisplacedDefectArea: 8,
+  minDisplacedDefectDistance: 2,
+  maxDisplacedDefectAreaRatio: 1.35,
+  maxDisplacedDefectDimensionDelta: 1.5,
   minimumTopologyComponentCount: 8,
   minimumSmallTopologyComponentCount: 3,
   minimumSmallTopologyLocalCoverage: 0.7,
@@ -72,7 +76,7 @@ const DEFAULTS = Object.freeze({
 });
 
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
-export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v13";
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v14";
 export const STRICT_PASS_FLOOR_SCHEMA =
   "chemsema.public-cdxml-strict-pass-floor.v1";
 export const STRICT_PASS_FLOOR_PATH = path.resolve(
@@ -84,10 +88,21 @@ export const STRICT_PASS_FLOOR_PATH = path.resolve(
 );
 
 export function baselineLockedAlignment(baselineCase, artifactHashes) {
-  return baselineCase?.alignment?.algorithm === ALIGNMENT_ALGORITHM
-    && baselineCase.artifactHashes?.reference === artifactHashes.reference
-    ? { ...baselineCase.alignment, lockedFromBaseline: true }
-    : null;
+  if (
+    baselineCase?.alignment?.algorithm !== ALIGNMENT_ALGORITHM
+    || baselineCase.artifactHashes?.reference !== artifactHashes.reference
+  ) {
+    return null;
+  }
+  const { algorithm, basis, scale, dx, dy } = baselineCase.alignment;
+  return {
+    algorithm,
+    basis,
+    scale,
+    dx,
+    dy,
+    lockedFromBaseline: true,
+  };
 }
 
 function parseArgs(argv) {
@@ -128,6 +143,10 @@ function parseArgs(argv) {
     else if (arg === "--max-repeated-micro-defects") options.maxRepeatedMicroDefects = Number(argv[++index]);
     else if (arg === "--max-repeated-micro-defect-area") options.maxRepeatedMicroDefectArea = Number(argv[++index]);
     else if (arg === "--min-repeated-micro-coverage") options.minRepeatedMicroCoverage = Number(argv[++index]);
+    else if (arg === "--min-displaced-defect-area") options.minDisplacedDefectArea = Number(argv[++index]);
+    else if (arg === "--min-displaced-defect-distance") options.minDisplacedDefectDistance = Number(argv[++index]);
+    else if (arg === "--max-displaced-defect-area-ratio") options.maxDisplacedDefectAreaRatio = Number(argv[++index]);
+    else if (arg === "--max-displaced-defect-dimension-delta") options.maxDisplacedDefectDimensionDelta = Number(argv[++index]);
     else if (arg === "--minimum-topology-component-count") options.minimumTopologyComponentCount = Number(argv[++index]);
     else if (arg === "--minimum-small-topology-component-count") options.minimumSmallTopologyComponentCount = Number(argv[++index]);
     else if (arg === "--minimum-small-topology-local-coverage") options.minimumSmallTopologyLocalCoverage = Number(argv[++index]);
@@ -164,6 +183,8 @@ export function strictOriginal338ConfigurationErrors(options) {
   if (options.allowDirtyGallery) errors.push("--allow-dirty-gallery is forbidden");
   if (options.allowStaleGallery) errors.push("--allow-stale-gallery is forbidden");
   if (options.reportOnly) errors.push("--report-only is forbidden");
+  if (options.reuseReport) errors.push("--reuse-report is forbidden");
+  if (options.stampReport) errors.push("--stamp-report is forbidden");
   if (options.patterns?.length) errors.push("--only is forbidden");
   if (Number.isFinite(options.limit)) errors.push("--limit is forbidden");
   if (options.cohort && options.cohort !== "original-338") {
@@ -202,6 +223,69 @@ export function strictOriginal338BaselineErrors(baselineReport, selectedItems, o
         errors.push(`baseline contains an unexpected path ${relativeCdxml}`);
         break;
       }
+    }
+  }
+  return errors;
+}
+
+function corpusIdentity(provenance) {
+  const corpus = provenance?.corpus;
+  if (!corpus?.manifestSha256 || !Array.isArray(corpus.sources)) return null;
+  return JSON.stringify({
+    manifestSha256: corpus.manifestSha256,
+    sources: corpus.sources
+      .map((source) => ({
+        id: source.id,
+        actualRevision: source.actualRevision,
+      }))
+      .sort((left, right) => String(left.id).localeCompare(String(right.id))),
+  });
+}
+
+export function visualBaselineCompatibilityErrors(
+  baselineReport,
+  currentGalleryProvenance,
+  currentReferenceHashes,
+) {
+  const errors = [];
+  if (baselineReport?.schema !== "chemsema-public-cdxml-visual-gate-v1") {
+    errors.push("baseline report schema is missing or unsupported");
+  }
+  if (
+    baselineReport?.galleryProvenance?.schema
+    !== "chemsema.public-cdxml-gallery-provenance.v1"
+  ) {
+    errors.push("baseline gallery provenance is missing or unsupported");
+  }
+  const baselineCorpus = corpusIdentity(baselineReport?.galleryProvenance);
+  const currentCorpus = corpusIdentity(currentGalleryProvenance);
+  if (!baselineCorpus || !currentCorpus || baselineCorpus !== currentCorpus) {
+    errors.push("baseline and current corpus identities differ");
+  }
+  const seenPaths = new Set();
+  const baselineCases = new Map();
+  for (const entry of baselineReport?.cases ?? []) {
+    const relativeCdxml = normalizedCasePath(entry.relativeCdxml);
+    if (!relativeCdxml || seenPaths.has(relativeCdxml)) {
+      errors.push("baseline contains a missing or duplicate case path");
+      break;
+    }
+    seenPaths.add(relativeCdxml);
+    baselineCases.set(relativeCdxml, entry);
+  }
+  for (const [relativeCdxml, referenceHash] of currentReferenceHashes) {
+    const baselineCase = baselineCases.get(normalizedCasePath(relativeCdxml));
+    if (!baselineCase) {
+      errors.push(`baseline is missing current case ${relativeCdxml}`);
+      break;
+    }
+    if (!baselineCase.artifactHashes?.reference) {
+      errors.push(`baseline is missing reference hash for ${relativeCdxml}`);
+      break;
+    }
+    if (baselineCase.artifactHashes.reference !== referenceHash) {
+      errors.push(`ChemDraw oracle changed for ${relativeCdxml}`);
+      break;
     }
   }
   return errors;
@@ -300,7 +384,9 @@ function validateOptions(options) {
   for (const key of [
     "maxDefectArea", "maxDefectSpan", "maxComponentCountDelta",
     "maxEnclosedSmallComponentDimensionDelta", "maxRepeatedMicroDefects",
-    "maxRepeatedMicroDefectArea", "minimumTopologyComponentCount",
+    "maxRepeatedMicroDefectArea", "minDisplacedDefectArea",
+    "minDisplacedDefectDistance", "maxDisplacedDefectDimensionDelta",
+    "minimumTopologyComponentCount",
     "minimumSmallTopologyComponentCount",
     "maxSlenderDefectArea", "maxSlenderDefectSpan", "maxSlenderDefectThickness",
     "maxBoundedLocalDefectArea", "maxBoundedLocalDefectSpan",
@@ -311,6 +397,12 @@ function validateOptions(options) {
     if (!Number.isFinite(options[key]) || options[key] < 0) {
       throw new Error(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)} must be non-negative`);
     }
+  }
+  if (
+    !Number.isFinite(options.maxDisplacedDefectAreaRatio)
+    || options.maxDisplacedDefectAreaRatio < 1
+  ) {
+    throw new Error("--max-displaced-defect-area-ratio must be at least 1");
   }
   if (options.halo <= options.tolerance) {
     throw new Error("--halo must be larger than --tolerance");
@@ -402,27 +494,6 @@ export function selectVisualGateCohort(items, ledger, cohort) {
   };
 }
 
-async function stampExistingReport(manifest, reportPath, galleryDir) {
-  const report = JSON.parse(await fs.readFile(reportPath, "utf8"));
-  if (report.gallery && path.resolve(report.gallery) !== galleryDir) {
-    throw new Error(`Report gallery does not match --gallery: ${report.gallery}`);
-  }
-  const casesByPath = new Map(report.cases.map((entry) => [entry.relativeCdxml, entry]));
-  let stamped = 0;
-  for (const item of manifest.items) {
-    const entry = casesByPath.get(item.relativeCdxml);
-    if (!entry) continue;
-    entry.artifactHashes = await artifactHashes(galleryDir, item);
-    stamped += 1;
-  }
-  report.cacheIdentity = CACHE_IDENTITY;
-  report.gallery = galleryDir;
-  report.galleryProvenance = manifest.provenance ?? null;
-  report.cache = { stamped, reused: 0, analyzed: 0 };
-  await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
-  return { reportPath, stamped, cacheIdentity: CACHE_IDENTITY };
-}
-
 async function oracleIsUnavailable(filePath) {
   if (path.extname(filePath).toLowerCase() !== ".svg") return false;
   const source = await fs.readFile(filePath, "utf8");
@@ -432,6 +503,21 @@ async function oracleIsUnavailable(filePath) {
 export async function analyzeAlignedImages(page, referenceDataUrl, candidateDataUrl, alignment, options = {}) {
   const settings = { ...DEFAULTS, ...options };
   return page.evaluate(async ({ referenceDataUrl, candidateDataUrl, alignment, settings }) => {
+    async function normalizedSvgViewportSource(src, width, height) {
+      if (!src.startsWith("data:image/svg+xml")) return src;
+      const source = await (await fetch(src)).text();
+      const document = new DOMParser().parseFromString(source, "image/svg+xml");
+      const svg = document.documentElement;
+      if (svg.localName !== "svg" || document.querySelector("parsererror")) {
+        throw new Error("Cannot normalize an invalid SVG viewport");
+      }
+      svg.setAttribute("width", `${width}px`);
+      svg.setAttribute("height", `${height}px`);
+      return `data:image/svg+xml;charset=utf-8,${
+        encodeURIComponent(new XMLSerializer().serializeToString(svg))
+      }`;
+    }
+
     async function loadImage(src) {
       const image = new Image();
       image.decoding = "sync";
@@ -571,14 +657,34 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
       };
     }
 
-    const [referenceImage, candidateImage] = await Promise.all([
+    const originalImages = await Promise.all([
       loadImage(referenceDataUrl),
       loadImage(candidateDataUrl),
     ]);
-    const referenceWidth = Number(alignment.referenceWidth ?? referenceImage.naturalWidth);
-    const referenceHeight = Number(alignment.referenceHeight ?? referenceImage.naturalHeight);
-    const candidateWidth = Number(alignment.chemsemaWidth ?? candidateImage.naturalWidth);
-    const candidateHeight = Number(alignment.chemsemaHeight ?? candidateImage.naturalHeight);
+    const referenceWidth = Number(
+      alignment.referenceWidth ?? originalImages[0].naturalWidth,
+    );
+    const referenceHeight = Number(
+      alignment.referenceHeight ?? originalImages[0].naturalHeight,
+    );
+    const candidateWidth = Number(
+      alignment.chemsemaWidth ?? originalImages[1].naturalWidth,
+    );
+    const candidateHeight = Number(
+      alignment.chemsemaHeight ?? originalImages[1].naturalHeight,
+    );
+    const [referenceImage, candidateImage] = await Promise.all([
+      normalizedSvgViewportSource(
+        referenceDataUrl,
+        referenceWidth,
+        referenceHeight,
+      ).then(loadImage),
+      normalizedSvgViewportSource(
+        candidateDataUrl,
+        candidateWidth * alignment.scale,
+        candidateHeight * alignment.scale,
+      ).then(loadImage),
+    ]);
 
     const domain = {
       left: Math.floor(Math.min(0, alignment.dx)),
@@ -1073,6 +1179,29 @@ export function detailGateReasons(detail, options = {}) {
     && detail.local.referenceCoverage >= settings.minRepeatedMicroCoverage
     && detail.local.candidateCoverage >= settings.minRepeatedMicroCoverage;
   if (repeatedMicroDefects) reasons.push("detail-repeated-micro-defects");
+  const missingDefects = (detail.topDefects ?? [])
+    .filter((entry) =>
+      entry.kind === "missing" && entry.area >= settings.minDisplacedDefectArea);
+  const extraDefects = (detail.topDefects ?? [])
+    .filter((entry) =>
+      entry.kind === "extra" && entry.area >= settings.minDisplacedDefectArea);
+  const displacedDefectPair = missingDefects.some((missing) =>
+    extraDefects.some((extra) => {
+      const smallerArea = Math.min(missing.area, extra.area);
+      const areaRatio = Math.max(missing.area, extra.area) / smallerArea;
+      const dimensionDelta = Math.max(
+        Math.abs(missing.box.width - extra.box.width),
+        Math.abs(missing.box.height - extra.box.height),
+      );
+      const centerDistance = Math.hypot(
+        missing.box.x + missing.box.width / 2 - extra.box.x - extra.box.width / 2,
+        missing.box.y + missing.box.height / 2 - extra.box.y - extra.box.height / 2,
+      );
+      return areaRatio <= settings.maxDisplacedDefectAreaRatio
+        && dimensionDelta <= settings.maxDisplacedDefectDimensionDelta
+        && centerDistance >= settings.minDisplacedDefectDistance;
+    }));
+  if (displacedDefectPair) reasons.push("detail-displaced-component");
   return reasons;
 }
 
@@ -1247,6 +1376,11 @@ export function gatePolicy(options) {
       maximumRepeatedMicroDefects: options.maxRepeatedMicroDefects,
       maximumRepeatedMicroDefectArea: options.maxRepeatedMicroDefectArea,
       minimumRepeatedMicroCoverage: options.minRepeatedMicroCoverage,
+      minimumDisplacedDefectArea: options.minDisplacedDefectArea,
+      minimumDisplacedDefectDistance: options.minDisplacedDefectDistance,
+      maximumDisplacedDefectAreaRatio: options.maxDisplacedDefectAreaRatio,
+      maximumDisplacedDefectDimensionDelta:
+        options.maxDisplacedDefectDimensionDelta,
       minimumTopologyComponentCount: options.minimumTopologyComponentCount,
       minimumSmallTopologyComponentCount: options.minimumSmallTopologyComponentCount,
       minimumSmallTopologyLocalCoverage: options.minimumSmallTopologyLocalCoverage,
@@ -1294,6 +1428,8 @@ export function gatePolicy(options) {
       localWindowReferenceUnits: options.detailLocalWindow,
       localStrideReferenceUnits: options.detailLocalStride,
       minimumWindowInkAreaReferenceUnits: options.detailMinimumWindowInk,
+      svgViewportNormalization:
+        "root SVG viewport is normalized to its final aligned reference-unit size before rasterization",
     },
   };
 }
@@ -1309,6 +1445,56 @@ async function writePassedGallery(manifest, report, galleryDir, requestedPath) {
   await fs.mkdir(path.dirname(passedGalleryPath), { recursive: true });
   await fs.writeFile(passedGalleryPath, viewerHtml(passedItems));
   return { passedGalleryPath, count: passedItems.length };
+}
+
+export async function reuseReportCompatibilityErrors(
+  report,
+  manifest,
+  galleryDir,
+  options,
+) {
+  const errors = [];
+  const settings = { ...DEFAULTS, ...options };
+  if (report?.schema !== "chemsema-public-cdxml-visual-gate-v1") {
+    errors.push("report schema is missing or unsupported");
+  }
+  if (report?.cacheIdentity !== CACHE_IDENTITY) {
+    errors.push("report uses a different gate definition");
+  }
+  if (JSON.stringify(report?.policy) !== JSON.stringify(gatePolicy(settings))) {
+    errors.push("report policy differs from the requested gate policy");
+  }
+  if (!report.gallery || path.resolve(report.gallery) !== galleryDir) {
+    errors.push("report gallery differs from the requested gallery");
+  }
+  if (
+    JSON.stringify(report?.galleryProvenance)
+    !== JSON.stringify(manifest.provenance ?? null)
+  ) {
+    errors.push("report gallery provenance differs from the current manifest");
+  }
+  const items = new Map(
+    manifest.items.map((item) => [
+      normalizedCasePath(item.relativeCdxml),
+      item,
+    ]),
+  );
+  const seen = new Set();
+  for (const entry of report?.cases ?? []) {
+    const relativeCdxml = normalizedCasePath(entry.relativeCdxml);
+    const item = items.get(relativeCdxml);
+    if (!item || seen.has(relativeCdxml)) {
+      errors.push(`report contains an unknown or duplicate case ${relativeCdxml}`);
+      break;
+    }
+    seen.add(relativeCdxml);
+    const currentHashes = await artifactHashes(galleryDir, item);
+    if (!artifactHashesEqual(entry.artifactHashes, currentHashes)) {
+      errors.push(`report artifacts changed for ${relativeCdxml}`);
+      break;
+    }
+  }
+  return errors;
 }
 
 async function runSelfTest(options) {
@@ -1345,6 +1531,138 @@ async function runSelfTest(options) {
         `deterministic vector-frame alignment regression: ${JSON.stringify(vectorAlignment)}`,
       );
     }
+    const viewportReference = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80">
+      <rect width="120" height="80" fill="white"/>
+      <text x="12" y="36" font-family="Arial" font-size="18">NH<tspan baseline-shift="sub" font-size="12">3</tspan><tspan baseline-shift="super" font-size="12">+</tspan></text>
+      <path d="M 12 54 L 108 54" fill="none" stroke="black" stroke-width="1.5"/>
+    </svg>`;
+    const viewportCandidate = viewportReference
+      .replace('width="120"', 'width="45"')
+      .replace('height="80"', 'height="30"');
+    const viewportAlignment = {
+      scale: 120 / 45,
+      dx: 0,
+      dy: 0,
+      referenceWidth: 120,
+      referenceHeight: 80,
+      chemsemaWidth: 45,
+      chemsemaHeight: 30,
+    };
+    const viewportEquivalent = await analyzeAlignedImages(
+      page,
+      data(viewportReference),
+      data(viewportCandidate),
+      viewportAlignment,
+      options,
+    );
+    if (
+      !viewportEquivalent.passed
+      || viewportEquivalent.largestMissing.area !== 0
+      || viewportEquivalent.largestExtra.area !== 0
+      || viewportEquivalent.detailFeatures.componentCountDelta !== 0
+    ) {
+      throw new Error(
+        `SVG viewport normalization regression: ${JSON.stringify(viewportEquivalent)}`,
+      );
+    }
+    const fractionalCandidateWidth = 453.471516;
+    const fractionalCandidateHeight = 127.29;
+    const fractionalScale = 2.66666;
+    const fractionalReferenceWidth = fractionalCandidateWidth * fractionalScale;
+    const fractionalReferenceHeight = fractionalCandidateHeight * fractionalScale;
+    const fractionalContent = `
+      <rect x="94.1" y="256.16" width="453.471516" height="127.29" fill="white"/>
+      <text x="113.25" y="309.75" font-family="Arial" font-size="13.5">NH<tspan baseline-shift="sub" font-size="9">3</tspan><tspan baseline-shift="super" font-size="9">+</tspan></text>
+      <path d="M 110.5 346.25 L 524.75 346.25" fill="none" stroke="black" stroke-width="0.75"/>`;
+    const fractionalSvg = (width, height) =>
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="94.1 256.16 453.471516 127.29">${fractionalContent}</svg>`;
+    const fractionalAlignment = {
+      scale: fractionalScale,
+      dx: 0,
+      dy: 0,
+      referenceWidth: fractionalReferenceWidth,
+      referenceHeight: fractionalReferenceHeight,
+      chemsemaWidth: fractionalCandidateWidth,
+      chemsemaHeight: fractionalCandidateHeight,
+    };
+    for (const analysisScale of [2, 4]) {
+      const fractionalEquivalent = await analyzeAlignedImages(
+        page,
+        data(fractionalSvg(fractionalReferenceWidth, fractionalReferenceHeight)),
+        data(fractionalSvg(fractionalCandidateWidth, fractionalCandidateHeight)),
+        fractionalAlignment,
+        { ...options, analysisScale, tolerance: 0 },
+      );
+      if (
+        fractionalEquivalent.largestMissing.area !== 0
+        || fractionalEquivalent.largestExtra.area !== 0
+        || fractionalEquivalent.detailFeatures.componentCountDelta !== 0
+      ) {
+        throw new Error(
+          `fractional SVG viewport normalization regression at ${analysisScale}x: ${
+            JSON.stringify(fractionalEquivalent)
+          }`,
+        );
+      }
+    }
+    const wrongScriptCandidate = viewportReference.replace(
+      '<tspan baseline-shift="sub" font-size="12">3</tspan><tspan baseline-shift="super" font-size="12">+</tspan>',
+      '<tspan baseline-shift="super" font-size="12">3+</tspan>',
+    );
+    const wrongScriptCoarse = await analyzeAlignedImages(
+      page,
+      data(viewportReference),
+      data(wrongScriptCandidate),
+      {
+        scale: 1,
+        dx: 0,
+        dy: 0,
+        referenceWidth: 120,
+        referenceHeight: 80,
+        chemsemaWidth: 120,
+        chemsemaHeight: 80,
+      },
+      options,
+    );
+    const wrongScriptDetail = await analyzeAlignedImages(
+      page,
+      data(viewportReference),
+      data(wrongScriptCandidate),
+      {
+        scale: 1,
+        dx: 0,
+        dy: 0,
+        referenceWidth: 120,
+        referenceHeight: 80,
+        chemsemaWidth: 120,
+        chemsemaHeight: 80,
+      },
+      {
+        ...options,
+        analysisScale: options.detailAnalysisScale,
+        tolerance: options.detailTolerance,
+        tileSize: options.detailLocalWindow,
+        halo: options.detailLocalWindow,
+        localWindow: options.detailLocalWindow,
+        localStride: options.detailLocalStride,
+        minimumWindowInk: options.detailMinimumWindowInk,
+      },
+    );
+    const wrongScriptClassification = classifyAnalyzedVisualMetrics(
+      wrongScriptCoarse,
+      wrongScriptDetail,
+      options,
+    );
+    if (
+      wrongScriptClassification.passed
+      || !wrongScriptClassification.reasons.includes("detail-displaced-component")
+    ) {
+      throw new Error(
+        `chemical script displacement escaped the gate: ${
+          JSON.stringify(wrongScriptClassification)
+        }`,
+      );
+    }
     const alignment = { scale: 1, dx: 0, dy: 0 };
     const small = await analyzeAlignedImages(page, data(svg(128, 96, "M 105 40 L 120 40")), data(svg(128, 96, "")), alignment, options);
     const distantCorrectDetail = "M 1000 900 L 1800 900 M 1400 500 L 1400 1300";
@@ -1372,6 +1690,7 @@ async function runSelfTest(options) {
       largestMissing: { area: options.maxRepeatedMicroDefectArea },
       largestExtra: { area: options.maxRepeatedMicroDefectArea },
       local: { referenceCoverage: 1, candidateCoverage: 1 },
+      topDefects: [],
     };
     const expectedDetailReasons = [
       "detail-component-count",
@@ -1381,6 +1700,34 @@ async function runSelfTest(options) {
     const actualDetailReasons = detailGateReasons(syntheticDetail, options);
     if (JSON.stringify(actualDetailReasons) !== JSON.stringify(expectedDetailReasons)) {
       throw new Error(`detail-classifier regression: ${JSON.stringify(actualDetailReasons)}`);
+    }
+    const displacedDetail = {
+      detailFeatures: {
+        compactDefectCount: 2,
+        componentCountDelta: 0,
+        enclosedSmallComponentDimensionDelta: 0,
+      },
+      largestMissing: { area: 12 },
+      largestExtra: { area: 12 },
+      local: { referenceCoverage: 0.8, candidateCoverage: 0.8 },
+      topDefects: [
+        {
+          kind: "missing",
+          area: 12,
+          box: { x: 10, y: 20, width: 5, height: 8 },
+        },
+        {
+          kind: "extra",
+          area: 11.5,
+          box: { x: 10, y: 10, width: 5, height: 8 },
+        },
+      ],
+    };
+    const displacedReasons = detailGateReasons(displacedDetail, options);
+    if (JSON.stringify(displacedReasons) !== '["detail-displaced-component"]') {
+      throw new Error(
+        `displaced-component classifier regression: ${JSON.stringify(displacedReasons)}`,
+      );
     }
     const topologyDetail = {
       detailFeatures: {
@@ -1479,7 +1826,6 @@ async function main() {
   if (options.help) {
     console.log("Usage: node scripts/public-cdxml-visual-gate.mjs [--gallery dir] [--out report.json] [--passed-gallery html] [--cohort name] [--cohort-ledger file] [--only text] [--limit n] [--jobs n] [--allow-dirty-gallery] [--allow-stale-gallery] [--report-only] [--strict-original-338]");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --reuse-report report.json [--gallery dir] [--passed-gallery html]");
-    console.log("       node scripts/public-cdxml-visual-gate.mjs --gallery dir --stamp-report report.json");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --gallery dir --baseline-report report.json --out report.json");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --self-test");
     return;
@@ -1515,15 +1861,22 @@ async function main() {
     );
   }
   if (options.stampReport) {
-    console.log(JSON.stringify(await stampExistingReport(
-      manifest,
-      path.resolve(options.stampReport),
-      galleryDir,
-    )));
-    return;
+    throw new Error(
+      "--stamp-report is disabled because an old classification cannot be "
+      + "made trustworthy by replacing its hashes and provenance",
+    );
   }
   if (options.reuseReport) {
     const report = JSON.parse(await fs.readFile(path.resolve(options.reuseReport), "utf8"));
+    const reuseErrors = await reuseReportCompatibilityErrors(
+      report,
+      manifest,
+      galleryDir,
+      options,
+    );
+    if (reuseErrors.length) {
+      throw new Error(`Cannot reuse visual-gate report: ${reuseErrors.join("; ")}`);
+    }
     console.log(JSON.stringify(await writePassedGallery(
       manifest,
       report,
@@ -1589,6 +1942,24 @@ async function main() {
       `Invalid --strict-original-338 baseline: ${strictBaselineErrors.join("; ")}`,
     );
   }
+  if (baselineReport) {
+    const currentReferenceHashes = new Map(await Promise.all(
+      items.map(async (item) => [
+        normalizedCasePath(item.relativeCdxml),
+        await sha256File(path.resolve(galleryDir, item.reference)),
+      ]),
+    ));
+    const compatibilityErrors = visualBaselineCompatibilityErrors(
+      baselineReport,
+      manifest.provenance,
+      currentReferenceHashes,
+    );
+    if (compatibilityErrors.length) {
+      throw new Error(
+        `Incompatible --baseline-report: ${compatibilityErrors.join("; ")}`,
+      );
+    }
+  }
   const strictPassFloorErrors = strictOriginal338PassFloorErrors(
     strictPassFloor,
     items,
@@ -1605,12 +1976,15 @@ async function main() {
   // survive a gate-definition upgrade, otherwise changing the alignment
   // algorithm silently erases every previous pass and makes pass -> fail
   // transitions unenforceable.
-  const analysisBaselineCases = reportsUseSameGateDefinition(baselineReport, options)
+  const sameGateDefinition = reportsUseSameGateDefinition(baselineReport, options);
+  const analysisBaselineCases = sameGateDefinition
     ? new Map(baselineReport.cases.map((entry) => [entry.relativeCdxml, entry]))
     : new Map();
-  const regressionBaselineCases = new Map(
-    (baselineReport?.cases ?? []).map((entry) => [entry.relativeCdxml, entry]),
-  );
+  const regressionBaselineCases = sameGateDefinition
+    ? new Map(
+      (baselineReport?.cases ?? []).map((entry) => [entry.relativeCdxml, entry]),
+    )
+    : new Map();
 
   const browser = await launchBrowser({ headless: true });
   const context = await browser.newContext();
@@ -1657,16 +2031,17 @@ async function main() {
           fileDataUrl(referencePath),
           fileDataUrl(candidatePath),
         ]);
+        const currentFrameAlignment = item.alignment?.algorithm === ALIGNMENT_ALGORITHM
+          ? item.alignment
+          : await computeImageAlignment(
+            activePage,
+            referenceDataUrl,
+            candidateDataUrl,
+          );
         const lockedBaselineAlignment = baselineLockedAlignment(baselineCase, hashes);
         const alignment = lockedBaselineAlignment
-          ? lockedBaselineAlignment
-          : item.alignment?.algorithm === ALIGNMENT_ALGORITHM
-            ? item.alignment
-            : await computeImageAlignment(
-              activePage,
-              referenceDataUrl,
-              candidateDataUrl,
-            );
+          ? { ...currentFrameAlignment, ...lockedBaselineAlignment }
+          : currentFrameAlignment;
         const coarseMetrics = await analyzeAlignedImages(
           activePage,
           referenceDataUrl,
@@ -1773,11 +2148,18 @@ async function main() {
     },
     cache: {
       baselineReport: options.baselineReport ? path.resolve(options.baselineReport) : null,
-      sameGateDefinition: analysisBaselineCases.size > 0,
+      sameGateDefinition,
       reused,
       analyzed,
     },
-    delta,
+    delta: {
+      comparisonMode: sameGateDefinition
+        ? "same-gate-definition"
+        : baselineReport
+          ? "pass-floor-only"
+          : "none",
+      ...delta,
+    },
     protectedPassRegressions,
     cases,
   };
@@ -1799,7 +2181,7 @@ async function main() {
     regressions: delta.regressions.length,
     protectedPassRegressions: protectedPassRegressions.length,
   }));
-  const baselineMode = regressionBaselineCases.size > 0;
+  const baselineMode = options.strictOriginal338 || sameGateDefinition;
   if (!options.reportOnly && (
     errors
     || protectedPassRegressions.length

@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {
   classifyPassFloorRegressions,
+  reuseReportCompatibilityErrors,
   strictOriginal338PassFloorErrors,
   STRICT_PASS_FLOOR_PATH,
 } from "./public-cdxml-visual-gate.mjs";
@@ -50,6 +51,23 @@ async function main() {
     : ["missing-or-unsupported-provenance"];
   if (mismatches.length) {
     throw new Error(`Pass-floor promotion refuses stale provenance: ${mismatches.join(", ")}`);
+  }
+  const galleryDir = path.resolve(report.gallery);
+  const manifest = JSON.parse(
+    await fs.readFile(path.join(galleryDir, "manifest.json"), "utf8"),
+  );
+  const reportCompatibilityErrors = await reuseReportCompatibilityErrors(
+    report,
+    manifest,
+    galleryDir,
+    {},
+  );
+  if (reportCompatibilityErrors.length) {
+    throw new Error(
+      `Pass-floor promotion refuses an incompatible report: ${
+        reportCompatibilityErrors.join("; ")
+      }`,
+    );
   }
   const validationErrors = strictOriginal338PassFloorErrors(
     passFloor,

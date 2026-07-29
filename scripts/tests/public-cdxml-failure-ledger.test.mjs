@@ -1,6 +1,30 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { failureLedgerResolutionStatus } from "../build-public-cdxml-failure-ledger.mjs";
+import {
+  failureLedgerInputArgumentErrors,
+  failureLedgerResolutionStatus,
+} from "../build-public-cdxml-failure-ledger.mjs";
+
+test("failure ledger requires every immutable run input explicitly", () => {
+  assert.deepEqual(
+    failureLedgerInputArgumentErrors({}),
+    [
+      "--roundtrip is required",
+      "--visual is required",
+      "--baseline is required",
+      "--features is required",
+    ],
+  );
+  assert.deepEqual(
+    failureLedgerInputArgumentErrors({
+      roundtrip: "roundtrip.json",
+      visual: "visual.json",
+      baseline: "baseline.json",
+      features: "features.json",
+    }),
+    [],
+  );
+});
 
 test("failure ledger keeps every non-passing visual case active", () => {
   for (const visualStatus of ["fail", "error", "unavailable"]) {

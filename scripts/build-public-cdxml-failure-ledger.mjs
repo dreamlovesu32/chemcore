@@ -27,10 +27,10 @@ export function failureLedgerResolutionStatus(roundtripStatus, visualStatus) {
 
 function parseArgs(argv) {
   const options = {
-    roundtrip: "tmp/public-cdxml-roundtrip-current/report.json",
-    visual: "tmp/public-cdxml-chemdraw-review-all/gate-current.json",
-    baseline: "tmp/public-cdxml-chemdraw-review-all/gate-next20-final.json",
-    features: "tmp/public-cdxml-feature-index-current.json",
+    roundtrip: null,
+    visual: null,
+    baseline: null,
+    features: null,
     rules: "benchmarks/public-cdxml/failure-rules.json",
     out: "benchmarks/public-cdxml/failure-ledger.json",
     expected: null,
@@ -44,9 +44,16 @@ function parseArgs(argv) {
     else if (argument === "--rules") options.rules = argv[++index];
     else if (argument === "--out") options.out = argv[++index];
     else if (argument === "--expected") options.expected = Number(argv[++index]);
+    else if (argument === "--help" || argument === "-h") options.help = true;
     else throw new Error(`Unknown argument: ${argument}`);
   }
   return options;
+}
+
+export function failureLedgerInputArgumentErrors(options) {
+  return ["roundtrip", "visual", "baseline", "features"]
+    .filter((key) => !options[key])
+    .map((key) => `--${key} is required`);
 }
 
 function readJson(filePath) {
@@ -138,6 +145,20 @@ function countBy(entries, values) {
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
+  if (options.help) {
+    console.log(
+      "Usage: node scripts/build-public-cdxml-failure-ledger.mjs "
+      + "--roundtrip report.json --visual gate.json --baseline gate.json "
+      + "--features feature-index.json [--rules rules.json] [--out ledger.json]",
+    );
+    return;
+  }
+  const inputErrors = failureLedgerInputArgumentErrors(options);
+  if (inputErrors.length) {
+    throw new Error(
+      `Explicit immutable failure-ledger inputs are required: ${inputErrors.join("; ")}`,
+    );
+  }
   const roundtrip = readJson(options.roundtrip);
   const visual = readJson(options.visual);
   const baseline = readJson(options.baseline);

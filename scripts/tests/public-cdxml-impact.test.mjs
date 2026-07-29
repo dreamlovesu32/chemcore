@@ -8,6 +8,7 @@ import {
 import {
   baselineLockedAlignment,
   classifyBaselineChanges,
+  visualBaselineCompatibilityErrors,
 } from "../public-cdxml-visual-gate.mjs";
 import { featuresFromCdxml, selectAffectedCases } from "../public-cdxml-impact.mjs";
 import {
@@ -29,6 +30,10 @@ test("visual baseline locks translation while the ChemDraw oracle is unchanged",
       scale: 2.66666,
       dx: -15.25,
       dy: -16.5,
+      referenceWidth: 1200,
+      referenceHeight: 800,
+      chemsemaWidth: 450,
+      chemsemaHeight: 300,
     },
   };
   assert.deepEqual(
@@ -36,7 +41,14 @@ test("visual baseline locks translation while the ChemDraw oracle is unchanged",
       baseline,
       { reference: "oracle-a", candidate: "candidate-new" },
     ),
-    { ...baseline.alignment, lockedFromBaseline: true },
+    {
+      algorithm: "chemdraw-declared-scale-global-translation-v9",
+      basis: "declared-scale-global-translation",
+      scale: 2.66666,
+      dx: -15.25,
+      dy: -16.5,
+      lockedFromBaseline: true,
+    },
   );
   assert.equal(
     baselineLockedAlignment(
@@ -44,6 +56,69 @@ test("visual baseline locks translation while the ChemDraw oracle is unchanged",
       { reference: "oracle-b", candidate: "candidate-new" },
     ),
     null,
+  );
+});
+
+test("visual baseline compatibility binds the corpus and ChemDraw oracle, not the old candidate", () => {
+  const corpus = {
+    manifestSha256: "manifest-a",
+    sources: [
+      { id: "rdkit", actualRevision: "revision-a" },
+      { id: "indigo", actualRevision: "revision-b" },
+    ],
+  };
+  const baseline = {
+    schema: "chemsema-public-cdxml-visual-gate-v1",
+    galleryProvenance: {
+      schema: "chemsema.public-cdxml-gallery-provenance.v1",
+      repository: { identity: "old-repository" },
+      cli: { sha256: "old-cli" },
+      corpus,
+    },
+    cases: [{
+      relativeCdxml: "source/example.cdxml",
+      artifactHashes: {
+        reference: "oracle-a",
+        candidate: "old-candidate",
+      },
+    }],
+  };
+  const currentProvenance = {
+    schema: "chemsema.public-cdxml-gallery-provenance.v1",
+    repository: { identity: "new-repository" },
+    cli: { sha256: "new-cli" },
+    corpus: {
+      manifestSha256: "manifest-a",
+      sources: [...corpus.sources].reverse(),
+    },
+  };
+  const currentReferences = new Map([["source/example.cdxml", "oracle-a"]]);
+  assert.deepEqual(
+    visualBaselineCompatibilityErrors(
+      baseline,
+      currentProvenance,
+      currentReferences,
+    ),
+    [],
+  );
+
+  const changedCorpus = structuredClone(currentProvenance);
+  changedCorpus.corpus.sources[0].actualRevision = "revision-changed";
+  assert.deepEqual(
+    visualBaselineCompatibilityErrors(
+      baseline,
+      changedCorpus,
+      currentReferences,
+    ),
+    ["baseline and current corpus identities differ"],
+  );
+  assert.deepEqual(
+    visualBaselineCompatibilityErrors(
+      baseline,
+      currentProvenance,
+      new Map([["source/example.cdxml", "oracle-b"]]),
+    ),
+    ["ChemDraw oracle changed for source/example.cdxml"],
   );
 });
 
