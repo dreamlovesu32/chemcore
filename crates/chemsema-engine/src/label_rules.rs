@@ -1,7 +1,30 @@
 use crate::direction_from_angle;
 use serde::{Deserialize, Serialize};
 
-const DIRECTION_EPSILON: f64 = 1.0e-6;
+// ChemDraw classifies attached-label connection directions in axis sectors,
+// not by the mathematical sign of an almost-zero component. Silent SVG/CDXML
+// probes place the horizontal/vertical transition at 15 degrees: 14.9 degrees
+// stays in the horizontal sector, while 15.0 degrees enters the vertical
+// sector. The rule is invariant across 8/10/14 pt labels and 10/14.4/24 pt
+// bonds (subject only to the source coordinate's own rounding).
+const AXIS_SECTOR_SIN_15: f64 = 0.258_819_045_102_520_74;
+const AXIS_SECTOR_COS_15: f64 = 0.965_925_826_289_068_3;
+
+fn direction_is_right(direction: crate::Vector) -> bool {
+    direction.x >= AXIS_SECTOR_COS_15
+}
+
+fn direction_is_left(direction: crate::Vector) -> bool {
+    direction.x <= -AXIS_SECTOR_COS_15
+}
+
+fn direction_is_below(direction: crate::Vector) -> bool {
+    direction.y >= AXIS_SECTOR_SIN_15
+}
+
+fn direction_is_above(direction: crate::Vector) -> bool {
+    direction.y <= -AXIS_SECTOR_SIN_15
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -240,13 +263,13 @@ pub fn decide_label_layout(
 
     if connection_angles.len() == 1 {
         let direction = direction_from_angle(connection_angles[0]);
-        if direction.x > DIRECTION_EPSILON {
+        if direction_is_right(direction) {
             return LabelLayoutDecision {
                 flow: LabelFlow::Reverse,
                 anchor: LabelAnchorPolicy::FirstGlyph,
             };
         }
-        if direction.x < -DIRECTION_EPSILON {
+        if direction_is_left(direction) {
             return LabelLayoutDecision {
                 flow: LabelFlow::Forward,
                 anchor: LabelAnchorPolicy::FirstGlyph,
@@ -266,7 +289,7 @@ pub fn decide_label_layout(
 
     let all_left = connection_angles
         .iter()
-        .all(|angle| direction_from_angle(*angle).x < -DIRECTION_EPSILON);
+        .all(|angle| direction_is_left(direction_from_angle(*angle)));
     if all_left {
         return LabelLayoutDecision {
             flow: LabelFlow::Forward,
@@ -276,7 +299,7 @@ pub fn decide_label_layout(
 
     let all_right = connection_angles
         .iter()
-        .all(|angle| direction_from_angle(*angle).x > DIRECTION_EPSILON);
+        .all(|angle| direction_is_right(direction_from_angle(*angle)));
     if all_right {
         return LabelLayoutDecision {
             flow: LabelFlow::Reverse,
@@ -286,7 +309,7 @@ pub fn decide_label_layout(
 
     let all_below = connection_angles
         .iter()
-        .all(|angle| direction_from_angle(*angle).y > DIRECTION_EPSILON);
+        .all(|angle| direction_is_below(direction_from_angle(*angle)));
     if all_below {
         return LabelLayoutDecision {
             flow: LabelFlow::StackAbove,
@@ -296,7 +319,7 @@ pub fn decide_label_layout(
 
     let all_above = connection_angles
         .iter()
-        .all(|angle| direction_from_angle(*angle).y < -DIRECTION_EPSILON);
+        .all(|angle| direction_is_above(direction_from_angle(*angle)));
     if all_above {
         return LabelLayoutDecision {
             flow: LabelFlow::StackBelow,
@@ -306,10 +329,10 @@ pub fn decide_label_layout(
 
     let has_right = connection_angles
         .iter()
-        .any(|angle| direction_from_angle(*angle).x > DIRECTION_EPSILON);
+        .any(|angle| direction_is_right(direction_from_angle(*angle)));
     let all_right_or_vertical = connection_angles
         .iter()
-        .all(|angle| direction_from_angle(*angle).x >= -DIRECTION_EPSILON);
+        .all(|angle| !direction_is_left(direction_from_angle(*angle)));
     if has_right && all_right_or_vertical {
         return LabelLayoutDecision {
             flow: LabelFlow::Reverse,
@@ -609,6 +632,23 @@ mod tests {
         let decision = decide_label_layout(&[0.0, 270.0], false, false);
         assert_eq!(decision.flow, LabelFlow::Reverse);
         assert_eq!(decision.anchor, LabelAnchorPolicy::OriginalFirstGroup);
+    }
+
+    #[test]
+    fn chemdraw_label_flow_switches_at_the_fifteen_degree_axis_sector() {
+        let horizontal = decide_label_layout(&[120.0, 14.9], false, false);
+        assert_eq!(horizontal.flow, LabelFlow::Reverse);
+        assert_eq!(horizontal.anchor, LabelAnchorPolicy::OriginalFirstGroup);
+
+        let below = decide_label_layout(&[120.0, 15.0], false, false);
+        assert_eq!(below.flow, LabelFlow::StackAbove);
+        assert_eq!(below.anchor, LabelAnchorPolicy::FirstGroupLeadGlyph);
+
+        let opposite_horizontal = decide_label_layout(&[300.0, 194.9], false, false);
+        assert_eq!(opposite_horizontal.flow, LabelFlow::Forward);
+
+        let above = decide_label_layout(&[300.0, 195.0], false, false);
+        assert_eq!(above.flow, LabelFlow::StackBelow);
     }
 
     #[test]
