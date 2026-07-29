@@ -267,10 +267,6 @@ pub(crate) fn variable_text_line_advances(
         .map(|line| {
             let mut top = f64::INFINITY;
             let mut bottom = f64::NEG_INFINITY;
-            let mut max_size = default_font_size;
-            for run in line {
-                max_size = max_size.max(run.font_size.unwrap_or(default_font_size));
-            }
             for placement in glyph_placements_for_runs(line, 0.0, 0.0, default_font_size) {
                 top = top.min(placement.ink_box_px[1]);
                 bottom = bottom.max(placement.ink_box_px[3]);
@@ -279,18 +275,22 @@ pub(crate) fn variable_text_line_advances(
                 top = -default_font_size * 0.73;
                 bottom = default_font_size * 0.16;
             }
-            (top, bottom, max_size)
+            (top, bottom)
         })
         .collect::<Vec<_>>();
     bounds
         .windows(2)
         .map(|pair| {
-            let (_, previous_bottom, previous_size) = pair[0];
-            let (next_top, _, next_size) = pair[1];
-            // ChemDraw's Variable mode packs consecutive glyph ink boxes and
-            // leaves about one tenth of an em between them. The glyph bounds
-            // already include face, size and script baseline shifts.
-            (previous_bottom - next_top + previous_size.max(next_size) * 0.1).max(0.1)
+            let (_, previous_bottom) = pair[0];
+            let (next_top, _) = pair[1];
+            let next_ascent = (-next_top).max(0.0);
+            // ChemDraw Variable mode is directional. It places the next
+            // baseline one previous-line descent plus 7/6 of the next line's
+            // actual ascent below the current baseline. The extra 1/6 ascent
+            // is the interline clearance; it is not a fixed fraction of the
+            // largest font size. This single rule covers font, size, face,
+            // script, and glyph overshoot without document-specific offsets.
+            (previous_bottom + next_ascent * (7.0 / 6.0)).max(0.1)
         })
         .collect()
 }
@@ -1822,6 +1822,46 @@ fn is_math_or_arrow_symbol(character: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn plain_line(text: &str, family: &str) -> Vec<LabelRun> {
+        vec![LabelRun {
+            text: text.to_string(),
+            font_family: Some(family.to_string()),
+            font_size: Some(10.0),
+            font_weight: Some(400),
+            font_style: Some("normal".to_string()),
+            script: Some("normal".to_string()),
+            ..LabelRun::default()
+        }]
+    }
+
+    #[test]
+    fn variable_line_spacing_uses_next_ascent_instead_of_a_fixed_em_gap() {
+        let cases = [
+            ("Arial", [6.1834, 10.5584]),
+            ("Times New Roman", [5.3667, 10.0250]),
+            ("Calibri", [5.5333, 9.2667]),
+        ];
+        for (family, expected) in cases {
+            let lines = ["A", "g", "Q"]
+                .map(|text| plain_line(text, family))
+                .to_vec();
+            let advances = variable_text_line_advances(&lines, 10.0);
+            for (actual, expected) in advances.iter().zip(expected) {
+                assert!(
+                    (actual - expected).abs() < 0.055,
+                    "{family}: {advances:?} versus {expected:?}"
+                );
+            }
+        }
+
+        let directional = ["g", "A", "g"]
+            .map(|text| plain_line(text, "Arial"))
+            .to_vec();
+        let advances = variable_text_line_advances(&directional, 10.0);
+        assert!((advances[0] - 10.4417).abs() < 0.055, "{advances:?}");
+        assert!((advances[1] - 6.1834).abs() < 0.055, "{advances:?}");
+    }
 
     #[test]
     fn script_baseline_shifts_follow_measured_chemdraw_face_rules() {
