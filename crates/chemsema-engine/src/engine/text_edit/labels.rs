@@ -458,21 +458,29 @@ pub(super) fn make_centered_node_label_from_runs(
     );
     let glyph_polygons = &mut glyph_geometry.glyph_polygons;
     if !preserve_measured_box {
-        if let Some(anchor_polygon_index) =
-            label_anchor_polygon_index(&line_runs, layout.anchor_line, anchor_char)
+        let mut dx = 0.0;
+        let dy = round2(
+            position[1] - (baseline_y - font_size * crate::MOLECULE_LABEL_ANCHOR_BASELINE_RATIO),
+        );
+
+        // ChemDraw attaches ordinary characters at the center of their
+        // typographic advance cell. `computed_geometry` already places that
+        // logical center on the atom. Do not subsequently replace it with the
+        // center of the ink outline: asymmetric glyphs such as r, y, and s
+        // would shift an explicitly left/right-aligned label. Prime suffixes
+        // are the measured exception and attach at their visible right edge.
+        if label_char_at(&line_runs, layout.anchor_line, anchor_char)
+            .is_some_and(crate::is_prime_anchor_suffix)
         {
             if let Some(current_anchor) =
-                glyph_polygons
-                    .get(anchor_polygon_index)
+                label_anchor_polygon_index(&line_runs, layout.anchor_line, anchor_char)
+                    .and_then(|anchor_polygon_index| glyph_polygons.get(anchor_polygon_index))
                     .and_then(|polygon| {
                         let points: Vec<_> = polygon
                             .iter()
                             .map(|point| Point::new(point[0], point[1]))
                             .collect();
-                        label_anchor_point_for_layout(
-                            &line_runs,
-                            layout.anchor_line,
-                            anchor_char,
+                        prime_suffix_anchor_point(
                             glyph_clip_profile,
                             baseline_y,
                             font_size,
@@ -480,26 +488,25 @@ pub(super) fn make_centered_node_label_from_runs(
                         )
                     })
             {
-                let dx = round2(position[0] - current_anchor.x);
-                let dy = round2(position[1] - current_anchor.y);
-                if dx.abs() > crate::EPSILON || dy.abs() > crate::EPSILON {
-                    x1 = round2(x1 + dx);
-                    y1 = round2(y1 + dy);
-                    x2 = round2(x2 + dx);
-                    y2 = round2(y2 + dy);
-                    baseline_y = round2(baseline_y + dy);
-                    for polygon in glyph_polygons.iter_mut() {
-                        for point in polygon {
-                            point[0] = round2(point[0] + dx);
-                            point[1] = round2(point[1] + dy);
-                        }
-                    }
-                    for polygon in &mut glyph_geometry.clip_polygons {
-                        for point in polygon {
-                            point[0] = round2(point[0] + dx);
-                            point[1] = round2(point[1] + dy);
-                        }
-                    }
+                dx = round2(position[0] - current_anchor.x);
+            }
+        }
+        if dx.abs() > crate::EPSILON || dy.abs() > crate::EPSILON {
+            x1 = round2(x1 + dx);
+            y1 = round2(y1 + dy);
+            x2 = round2(x2 + dx);
+            y2 = round2(y2 + dy);
+            baseline_y = round2(baseline_y + dy);
+            for polygon in glyph_polygons.iter_mut() {
+                for point in polygon {
+                    point[0] = round2(point[0] + dx);
+                    point[1] = round2(point[1] + dy);
+                }
+            }
+            for polygon in &mut glyph_geometry.clip_polygons {
+                for point in polygon {
+                    point[0] = round2(point[0] + dx);
+                    point[1] = round2(point[1] + dy);
                 }
             }
         }
@@ -581,10 +588,7 @@ fn label_anchor_polygon_index(
     None
 }
 
-fn label_anchor_point_for_layout(
-    line_runs: &[Vec<LabelRun>],
-    anchor_line: usize,
-    anchor_char: usize,
+fn prime_suffix_anchor_point(
     glyph_clip_profile: GlyphClipProfile,
     baseline_y: f64,
     font_size: f64,
@@ -592,14 +596,10 @@ fn label_anchor_point_for_layout(
 ) -> Option<Point> {
     let bounds = crate::polygon_bounds(polygon)?;
     let anchor_y = baseline_y - font_size * crate::MOLECULE_LABEL_ANCHOR_BASELINE_RATIO;
-    if label_char_at(line_runs, anchor_line, anchor_char).is_some_and(crate::is_prime_anchor_suffix)
-    {
-        return Some(Point::new(
-            bounds[2] - glyph_clip_profile.natural_outset_pt,
-            anchor_y,
-        ));
-    }
-    crate::polygon_anchor_point(polygon).map(|point| Point::new(point.x, anchor_y))
+    Some(Point::new(
+        bounds[2] - glyph_clip_profile.natural_outset_pt,
+        anchor_y,
+    ))
 }
 
 fn label_char_at(

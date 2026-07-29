@@ -9,7 +9,7 @@ import { generateChemDrawOracle } from "./chemdraw-oracle.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const profileIndex = process.argv.indexOf("--profile");
 const profile = profileIndex >= 0 ? process.argv[profileIndex + 1] : "vertical";
-if (!["vertical", "horizontal-attachment"].includes(profile)) {
+if (!["vertical", "horizontal-attachment", "horizontal-display"].includes(profile)) {
   throw new Error(`Unsupported profile ${profile}`);
 }
 const outDir = path.join(
@@ -17,7 +17,9 @@ const outDir = path.join(
   "tmp",
   profile === "vertical"
     ? "chemdraw-flat-baseline-axis-contact-probe"
-    : "chemdraw-horizontal-attachment-axis-contact-probe",
+    : profile === "horizontal-attachment"
+      ? "chemdraw-horizontal-attachment-axis-contact-probe"
+      : "chemdraw-horizontal-display-axis-contact-probe",
 );
 const sourceDir = path.join(outDir, "sources");
 const oracleDir = path.join(outDir, "oracle");
@@ -40,6 +42,7 @@ function document({
   text,
   direction,
   attachment,
+  labelDisplay,
 }) {
   const neighbor = {
     up: [100, 84],
@@ -50,6 +53,7 @@ function document({
   const beginAttach = attachment === "indexed"
     ? ` BeginAttach="${direction === "left" ? 0 : [...text].length - 1}"`
     : "";
+  const textAlignment = labelDisplay === "Center" ? "Center" : labelDisplay;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE CDXML SYSTEM "https://static.chemistry.revvitycloud.com/cdxml/CDXML.dtd" >
 <CDXML BondLength="16" LineWidth="0.5" MarginWidth="${marginWidth}" LabelFont="${fontId}" LabelSize="${size}">
@@ -57,8 +61,8 @@ function document({
   <colortable><color r="0" g="0" b="0"/></colortable>
   <page>
     <fragment>
-      <n id="1" p="100 100" NodeType="Unspecified" LabelDisplay="Center">
-        <t id="3" p="100 102.65" LabelAlignment="Center" LabelJustification="Center" Justification="Center" InterpretChemically="yes">
+      <n id="1" p="100 100" NodeType="Unspecified" LabelDisplay="${labelDisplay}">
+        <t id="3" p="100 102.65" LabelAlignment="${textAlignment}" LabelJustification="${textAlignment}" Justification="${textAlignment}" InterpretChemically="yes">
           <s font="${fontId}" size="${size}" face="96" color="0">${escapeXml(text)}</s>
         </t>
       </n>
@@ -118,6 +122,9 @@ function candidateBondPolygon(svg) {
   const polygons = [...svg.matchAll(/<polygon\b([^>]*)\/?>/g)]
     .map((match) => attributes(match[1]))
     .filter((entry) => entry.points);
+  if (polygons.length === 0) {
+    return null;
+  }
   if (polygons.length !== 1) {
     throw new Error(`Expected one ChemSema bond polygon, found ${polygons.length}`);
   }
@@ -128,6 +135,9 @@ function retreatFromLabel(label, neighbor, polygon) {
   const dx = neighbor.x - label.x;
   const dy = neighbor.y - label.y;
   const length = Math.hypot(dx, dy);
+  if (polygon === null) {
+    return length;
+  }
   const unit = { x: dx / length, y: dy / length };
   return Math.min(...polygon.map((entry) => (
     (entry.x - label.x) * unit.x + (entry.y - label.y) * unit.y
@@ -146,6 +156,9 @@ const glyphs = profile === "vertical"
   : ["Tyr", "Lys", "Arg", "Gly"];
 const directions = profile === "vertical" ? ["up", "down"] : ["left", "right"];
 const attachments = profile === "vertical" ? ["none"] : ["none", "indexed"];
+const labelDisplays = profile === "horizontal-display"
+  ? ["Left", "Center", "Right"]
+  : ["Center"];
 const variants = [];
 for (const font of fonts) {
   for (const size of sizes) {
@@ -153,23 +166,27 @@ for (const font of fonts) {
       for (const text of glyphs) {
         for (const direction of directions) {
           for (const attachment of attachments) {
-            variants.push({
-              name: [
-                font.name.toLowerCase().replaceAll(" ", "-"),
-                `s${size}`,
-                `m${String(marginWidth).replace(".", "_")}`,
+            for (const labelDisplay of labelDisplays) {
+              variants.push({
+                name: [
+                  font.name.toLowerCase().replaceAll(" ", "-"),
+                  `s${size}`,
+                  `m${String(marginWidth).replace(".", "_")}`,
+                  text,
+                  direction,
+                  attachment,
+                  labelDisplay.toLowerCase(),
+                ].join("_"),
+                font: font.name,
+                fontId: font.id,
+                size,
+                marginWidth,
                 text,
                 direction,
                 attachment,
-              ].join("_"),
-              font: font.name,
-              fontId: font.id,
-              size,
-              marginWidth,
-              text,
-              direction,
-              attachment,
-            });
+                labelDisplay,
+              });
+            }
           }
         }
       }

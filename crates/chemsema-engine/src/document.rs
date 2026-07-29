@@ -4720,31 +4720,22 @@ mod tests {
     use super::*;
     use crate::MOLECULE_LABEL_ANCHOR_BASELINE_RATIO;
 
-    fn polygon_bounds(polygon: &[[f64; 2]]) -> Option<[f64; 4]> {
-        let mut iter = polygon.iter();
-        let first = iter.next()?;
-        let mut min_x = first[0];
-        let mut min_y = first[1];
-        let mut max_x = first[0];
-        let mut max_y = first[1];
-        for point in iter {
-            min_x = min_x.min(point[0]);
-            min_y = min_y.min(point[1]);
-            max_x = max_x.max(point[0]);
-            max_y = max_y.max(point[1]);
+    fn typographic_character_center(label: &NodeLabel, index: usize) -> Point {
+        let baseline = label.position.expect("label position");
+        let run = label.runs.first().expect("single label run");
+        let font_size = run
+            .font_size
+            .or(label.font_size)
+            .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT);
+        let mut advance = 0.0;
+        for (character_index, character) in label.text.chars().enumerate() {
+            let character_advance = crate::shared_estimated_char_width(character, font_size);
+            if character_index == index {
+                return Point::new(baseline[0] + advance + character_advance * 0.5, baseline[1]);
+            }
+            advance += character_advance;
         }
-        Some([min_x, min_y, max_x, max_y])
-    }
-
-    fn glyph_center(label: &NodeLabel, index: usize) -> Point {
-        let bounds = polygon_bounds(
-            label
-                .glyph_polygons
-                .get(index)
-                .expect("glyph polygon should exist"),
-        )
-        .expect("glyph polygon should have bounds");
-        Point::new((bounds[0] + bounds[2]) * 0.5, (bounds[1] + bounds[3]) * 0.5)
+        panic!("character index {index} should exist in {}", label.text);
     }
 
     #[test]
@@ -4969,7 +4960,7 @@ mod tests {
             .expect("right label node");
         let right_label = right_label_node.label.as_ref().expect("right label");
 
-        let left_anchor = glyph_center(left_label, 1);
+        let left_anchor = typographic_character_center(left_label, 1);
         let left_line_anchor_y = left_label.position.expect("left label baseline")[1]
             - left_label
                 .font_size
@@ -4978,9 +4969,9 @@ mod tests {
         assert!(
             (left_anchor.x - left_label_node.position[0]).abs() < 0.01
                 && (left_line_anchor_y - left_label_node.position[1]).abs() < 0.01,
-            "right-side bond should anchor Ph on h horizontally and the label line vertically: node={left_label_node:?}, label={left_label:?}"
+            "right-side bond should anchor Ph on the typographic advance center of h and the label line vertically: node={left_label_node:?}, label={left_label:?}"
         );
-        let right_anchor = glyph_center(right_label, 0);
+        let right_anchor = typographic_character_center(right_label, 0);
         let right_line_anchor_y = right_label.position.expect("right label baseline")[1]
             - right_label
                 .font_size
@@ -4989,7 +4980,7 @@ mod tests {
         assert!(
             (right_anchor.x - right_label_node.position[0]).abs() < 0.01
                 && (right_line_anchor_y - right_label_node.position[1]).abs() < 0.01,
-            "left-side bond should anchor 2-NP on 2 horizontally and the label line vertically: node={right_label_node:?}, label={right_label:?}"
+            "left-side bond should anchor 2-NP on the typographic advance center of 2 and the label line vertically: node={right_label_node:?}, label={right_label:?}"
         );
     }
 
