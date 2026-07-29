@@ -288,7 +288,36 @@ test("zero-tolerance repeated join defects are rejected as a detail pattern", ()
   assert.deepEqual(detailGateReasons(detail), ["detail-repeated-micro-defects"]);
 });
 
-test("nearby matching defects are rejected as one displaced detail", () => {
+test("component-supported matching defects are rejected as one displaced detail", () => {
+  const detail = {
+    local: { referenceCoverage: 1, candidateCoverage: 1 },
+    largestMissing: { area: 12, span: 6 },
+    largestExtra: { area: 11, span: 6 },
+    detailFeatures: {
+      compactDefectCount: 0,
+      componentCountDelta: 0,
+      enclosedSmallComponentDimensionDelta: 0,
+      displacedDefectPairs: [{
+        relation: "unmatched",
+      }],
+    },
+    topDefects: [
+      {
+        kind: "missing",
+        area: 12,
+        box: { x: 10, y: 10, width: 5, height: 6 },
+      },
+      {
+        kind: "extra",
+        area: 11,
+        box: { x: 10, y: 17, width: 5, height: 6 },
+      },
+    ],
+  };
+  assert.deepEqual(detailGateReasons(detail), ["detail-displaced-component"]);
+});
+
+test("lookalike defects without component identity are not paired as one displacement", () => {
   const detail = {
     local: { referenceCoverage: 1, candidateCoverage: 1 },
     largestMissing: { area: 12, span: 6 },
@@ -308,32 +337,6 @@ test("nearby matching defects are rejected as one displaced detail", () => {
         kind: "extra",
         area: 11,
         box: { x: 10, y: 17, width: 5, height: 6 },
-      },
-    ],
-  };
-  assert.deepEqual(detailGateReasons(detail), ["detail-displaced-component"]);
-});
-
-test("distant repeated edges are not paired as one displaced detail", () => {
-  const detail = {
-    local: { referenceCoverage: 1, candidateCoverage: 1 },
-    largestMissing: { area: 12, span: 6 },
-    largestExtra: { area: 11, span: 6 },
-    detailFeatures: {
-      compactDefectCount: 0,
-      componentCountDelta: 0,
-      enclosedSmallComponentDimensionDelta: 0,
-    },
-    topDefects: [
-      {
-        kind: "missing",
-        area: 12,
-        box: { x: 10, y: 10, width: 5, height: 6 },
-      },
-      {
-        kind: "extra",
-        area: 11,
-        box: { x: 90, y: 10, width: 5, height: 6 },
       },
     ],
   };

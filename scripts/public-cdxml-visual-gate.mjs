@@ -76,7 +76,7 @@ const DEFAULTS = Object.freeze({
 });
 
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
-export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v16";
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v17";
 export const STRICT_PASS_FLOOR_SCHEMA =
   "chemsema.public-cdxml-strict-pass-floor.v1";
 export const STRICT_PASS_FLOOR_PATH = path.resolve(
@@ -895,6 +895,8 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
       ? (totals.referenceInk === 0 ? 1 : 0)
       : 1 - totals.extraInk / totals.candidateInk;
     const unmatchedCandidate = new Set(inkComponents.candidate.map((_, index) => index));
+    const matchedReference = new Set();
+    const matchedComponentPairs = [];
     let smallComponentDimensionDelta = 0;
     let smallComponentDimensionMismatch = null;
     let enclosedSmallComponentDimensionDelta = 0;
@@ -916,7 +918,7 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
         && centerY > container.box.y
         && centerY < container.box.y + container.box.height);
     }
-    for (const referenceComponent of inkComponents.reference) {
+    for (const [referenceIndex, referenceComponent] of inkComponents.reference.entries()) {
       const referenceCenter = {
         x: referenceComponent.box.x + referenceComponent.box.width / 2,
         y: referenceComponent.box.y + referenceComponent.box.height / 2,
@@ -943,6 +945,12 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
       if (!best) continue;
       const candidateComponent = inkComponents.candidate[best.index];
       unmatchedCandidate.delete(best.index);
+      matchedReference.add(referenceIndex);
+      matchedComponentPairs.push({
+        referenceIndex,
+        candidateIndex: best.index,
+        centerDistance: best.distance,
+      });
       matchedComponentCount += 1;
       maximumMatchedCenterDistance = Math.max(maximumMatchedCenterDistance, best.distance);
       const dimensionDelta = Math.max(
@@ -1069,6 +1077,121 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
         sortedNormalizedCenters(inkComponents.candidate, "y"),
       ),
     );
+    function boxIntersectionArea(first, second) {
+      const width = Math.max(
+        0,
+        Math.min(first.x + first.width, second.x + second.width)
+          - Math.max(first.x, second.x),
+      );
+      const height = Math.max(
+        0,
+        Math.min(first.y + first.height, second.y + second.height)
+          - Math.max(first.y, second.y),
+      );
+      return width * height;
+    }
+    function componentCenter(component) {
+      return {
+        x: component.box.x + component.box.width / 2,
+        y: component.box.y + component.box.height / 2,
+      };
+    }
+    function overlappingComponentIndices(defect, componentsToSearch) {
+      return componentsToSearch
+        .map((component, index) => ({ component, index }))
+        .filter(({ component }) => boxIntersectionArea(defect.box, component.box) > 0)
+        .map(({ index }) => index);
+    }
+    const matchedPairKeys = new Set(
+      matchedComponentPairs.map(
+        ({ referenceIndex, candidateIndex }) => `${referenceIndex}:${candidateIndex}`,
+      ),
+    );
+    const displacedDefectPairs = [];
+    const displacedMissing = topDefects.filter(
+      (entry) => entry.kind === "missing" && entry.area >= settings.minDisplacedDefectArea,
+    );
+    const displacedExtra = topDefects.filter(
+      (entry) => entry.kind === "extra" && entry.area >= settings.minDisplacedDefectArea,
+    );
+    for (const missing of displacedMissing) {
+      for (const extra of displacedExtra) {
+        const smallerArea = Math.min(missing.area, extra.area);
+        const areaRatio = Math.max(missing.area, extra.area) / smallerArea;
+        const dimensionDelta = Math.max(
+          Math.abs(missing.box.width - extra.box.width),
+          Math.abs(missing.box.height - extra.box.height),
+        );
+        const defectCenterDistance = Math.hypot(
+          missing.box.x + missing.box.width / 2 - extra.box.x - extra.box.width / 2,
+          missing.box.y + missing.box.height / 2 - extra.box.y - extra.box.height / 2,
+        );
+        if (
+          areaRatio > settings.maxDisplacedDefectAreaRatio
+          || dimensionDelta > settings.maxDisplacedDefectDimensionDelta
+          || defectCenterDistance < settings.minDisplacedDefectDistance
+          || defectCenterDistance > settings.localWindow
+        ) continue;
+
+        const referenceIndices = overlappingComponentIndices(
+          missing,
+          inkComponents.reference,
+        );
+        const candidateIndices = overlappingComponentIndices(
+          extra,
+          inkComponents.candidate,
+        );
+        let supportingComponents = null;
+        for (const referenceIndex of referenceIndices) {
+          const referenceComponent = inkComponents.reference[referenceIndex];
+          const referenceCenter = componentCenter(referenceComponent);
+          for (const candidateIndex of candidateIndices) {
+            const candidateComponent = inkComponents.candidate[candidateIndex];
+            const candidateCenter = componentCenter(candidateComponent);
+            const componentCenterDistance = Math.hypot(
+              referenceCenter.x - candidateCenter.x,
+              referenceCenter.y - candidateCenter.y,
+            );
+            const componentAreaRatio =
+              Math.max(referenceComponent.area, candidateComponent.area)
+              / Math.min(referenceComponent.area, candidateComponent.area);
+            const componentDimensionDelta = Math.max(
+              Math.abs(referenceComponent.box.width - candidateComponent.box.width),
+              Math.abs(referenceComponent.box.height - candidateComponent.box.height),
+            );
+            const isMovedMatchedComponent =
+              matchedPairKeys.has(`${referenceIndex}:${candidateIndex}`)
+              && componentCenterDistance >= settings.minDisplacedDefectDistance
+              && componentCenterDistance <= settings.localWindow;
+            const isMovedUnmatchedComponent =
+              !matchedReference.has(referenceIndex)
+              && unmatchedCandidate.has(candidateIndex)
+              && componentAreaRatio <= settings.maxDisplacedDefectAreaRatio
+              && componentDimensionDelta <= settings.maxDisplacedDefectDimensionDelta
+              && componentCenterDistance >= settings.minDisplacedDefectDistance
+              && componentCenterDistance <= settings.localWindow;
+            if (!isMovedMatchedComponent && !isMovedUnmatchedComponent) continue;
+            supportingComponents = {
+              reference: referenceComponent,
+              candidate: candidateComponent,
+              centerDistance: componentCenterDistance,
+              relation: isMovedMatchedComponent ? "matched" : "unmatched",
+            };
+            break;
+          }
+          if (supportingComponents) break;
+        }
+        if (!supportingComponents) continue;
+        displacedDefectPairs.push({
+          missing,
+          extra,
+          defectCenterDistance,
+          supportingComponents,
+        });
+        if (displacedDefectPairs.length >= 12) break;
+      }
+      if (displacedDefectPairs.length >= 12) break;
+    }
     const reasons = [];
     if (local.referenceCoverage < settings.minCoverage) reasons.push("local-reference-coverage");
     if (local.candidateCoverage < settings.minCoverage) reasons.push("local-candidate-coverage");
@@ -1113,6 +1236,7 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
           1,
         ),
         componentPositionDistributionDelta,
+        displacedDefectPairs,
         unmatchedRelativeReferenceComponents: inkComponents.reference
           .filter((_, index) => !relativeMatchedReference.has(index))
           .slice(0, 12),
@@ -1161,33 +1285,15 @@ export function detailGateReasons(detail, options = {}) {
     && detail.local.referenceCoverage >= settings.minRepeatedMicroCoverage
     && detail.local.candidateCoverage >= settings.minRepeatedMicroCoverage;
   if (repeatedMicroDefects) reasons.push("detail-repeated-micro-defects");
-  const missingDefects = (detail.topDefects ?? [])
-    .filter((entry) =>
-      entry.kind === "missing" && entry.area >= settings.minDisplacedDefectArea);
-  const extraDefects = (detail.topDefects ?? [])
-    .filter((entry) =>
-      entry.kind === "extra" && entry.area >= settings.minDisplacedDefectArea);
-  const displacedDefectPair = missingDefects.some((missing) =>
-    extraDefects.some((extra) => {
-      const smallerArea = Math.min(missing.area, extra.area);
-      const areaRatio = Math.max(missing.area, extra.area) / smallerArea;
-      const dimensionDelta = Math.max(
-        Math.abs(missing.box.width - extra.box.width),
-        Math.abs(missing.box.height - extra.box.height),
-      );
-      const centerDistance = Math.hypot(
-        missing.box.x + missing.box.width / 2 - extra.box.x - extra.box.width / 2,
-        missing.box.y + missing.box.height / 2 - extra.box.y - extra.box.height / 2,
-      );
-      return areaRatio <= settings.maxDisplacedDefectAreaRatio
-        && dimensionDelta <= settings.maxDisplacedDefectDimensionDelta
-        && centerDistance >= settings.minDisplacedDefectDistance
-        // A displacement is one local feature moving between two nearby
-        // positions. Pairing look-alike missing/extra edges across the whole
-        // canvas makes repeated glyphs and bonds contaminate one another.
-        && centerDistance <= settings.detailLocalWindow;
-    }));
-  if (displacedDefectPair) reasons.push("detail-displaced-component");
+  // Difference masks alone cannot identify object identity: two stems in
+  // neighboring glyphs or two parallel frame edges can have nearly identical
+  // boxes. The image analyzer therefore records a displacement only when the
+  // missing and extra masks both belong to the same matched ink-component pair
+  // or to one size-compatible unmatched pair. This keeps the gate sensitive to
+  // a moved subscript while preventing repeated details from cross-pairing.
+  if (detail.detailFeatures.displacedDefectPairs?.length) {
+    reasons.push("detail-displaced-component");
+  }
   return reasons;
 }
 
@@ -1693,6 +1799,9 @@ async function runSelfTest(options) {
         compactDefectCount: 2,
         componentCountDelta: 0,
         enclosedSmallComponentDimensionDelta: 0,
+        displacedDefectPairs: [{
+          relation: "synthetic-moved-component",
+        }],
       },
       largestMissing: { area: 12 },
       largestExtra: { area: 12 },
