@@ -13,7 +13,7 @@ import {
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-export const IMAGE_ALIGNMENT_ALGORITHM = "chemdraw-declared-scale-global-translation-v9";
+export const IMAGE_ALIGNMENT_ALGORITHM = "chemdraw-declared-scale-global-translation-v10";
 
 export function publicCdxmlCliEnvironment(baseEnvironment = process.env) {
   return {
@@ -484,7 +484,7 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       );
       const score = bestTranslation(reference, points, 0);
       return {
-        algorithm: "chemdraw-declared-scale-global-translation-v9",
+        algorithm: "chemdraw-declared-scale-global-translation-v10",
         basis: "declared-scale-global-translation",
         scale: declared.scale,
         dx: declared.dx,
@@ -519,7 +519,7 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       ? await search(1440, stabilized.scale, 0.00015625, 3, 5, stabilized)
       : stabilized;
     return {
-      algorithm: "chemdraw-declared-scale-global-translation-v9",
+      algorithm: "chemdraw-declared-scale-global-translation-v10",
       basis: "ink-overlap",
       scale: precise.scale,
       dx: precise.dx,

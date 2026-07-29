@@ -74,6 +74,46 @@ fn atom_query_fixture_has_native_fields_labels_and_query_decorations() {
 }
 
 #[test]
+fn plain_query_list_labels_attach_by_the_leading_face_advance_cell() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="30" LineWidth="0.6" MarginWidth="1.6"
+ LabelFont="3" LabelSize="10" LabelFace="96">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1"><fragment id="2">
+    <n id="query" p="100 100" NodeType="ElementList" ElementList="6 7 15">
+      <t p="100 103.9" LabelAlignment="Above">
+        <s font="3" size="10" face="96">[C,N,P]</s>
+      </t>
+    </n>
+    <n id="right" p="125.9808 115"/>
+    <n id="left" p="74.0192 115"/>
+    <b id="right-bond" B="query" E="right"/>
+    <b id="left-bond" B="query" E="left"/>
+  </fragment></page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(cdxml, Some("query-list face-advance anchor")).expect("parse");
+    let query = document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .find(|node| node.id == "query")
+        .expect("query node");
+    let label = query.label.as_ref().expect("query label");
+    let position = label.position.expect("query label position");
+
+    assert_eq!(label.layout.as_deref(), Some("attached-group-above"));
+    assert!(
+        (position[0] - (query.position[0] - 1.39)).abs() < 1.0e-9,
+        "{position:?} versus node {:?}",
+        query.position
+    );
+    assert!((position[1] - (query.position[1] + 3.9)).abs() < 1.0e-9);
+    assert_eq!(label.bbox().map(|bbox| bbox[0]), Some(position[0]));
+}
+
+#[test]
 fn explicit_atom_query_display_uses_its_object_tag_instead_of_a_derived_duplicate() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML LabelFont="3" LabelSize="10" ShowAtomQuery="yes">

@@ -76,7 +76,7 @@ const DEFAULTS = Object.freeze({
 });
 
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
-export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v15";
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v16";
 export const STRICT_PASS_FLOOR_SCHEMA =
   "chemsema.public-cdxml-strict-pass-floor.v1";
 export const STRICT_PASS_FLOOR_PATH = path.resolve(
@@ -86,24 +86,6 @@ export const STRICT_PASS_FLOOR_PATH = path.resolve(
   "public-cdxml",
   "strict-pass-floor.json",
 );
-
-export function baselineLockedAlignment(baselineCase, artifactHashes) {
-  if (
-    baselineCase?.alignment?.algorithm !== ALIGNMENT_ALGORITHM
-    || baselineCase.artifactHashes?.reference !== artifactHashes.reference
-  ) {
-    return null;
-  }
-  const { algorithm, basis, scale, dx, dy } = baselineCase.alignment;
-  return {
-    algorithm,
-    basis,
-    scale,
-    dx,
-    dy,
-    lockedFromBaseline: true,
-  };
-}
 
 function parseArgs(argv) {
   const options = { ...DEFAULTS, patterns: [] };
@@ -1366,7 +1348,8 @@ export function gatePolicy(options) {
     coordinateSpace: "ChemDraw reference image coordinates",
     alignment:
       "ChemDraw's declared vector matrix fixes scale; a broad multiresolution global-overlap "
-      + "search resolves translation, and accepted alignment is then locked by the baseline",
+      + "search resolves translation independently for the current candidate; historical "
+      + "pass protection never changes current-image registration",
     canvasWhitespaceIncluded: false,
     caseWeighting: "one case, one vote",
     comparison: "coarse fixed-window coverage and defects, followed by fine connected-component and repeated-micro-defect checks",
@@ -1975,11 +1958,12 @@ async function main() {
       `Invalid --strict-original-338 pass floor: ${strictPassFloorErrors.join("; ")}`,
     );
   }
-  // A same-definition baseline can safely provide cached classifications and
-  // locked registration. Regression history has a different lifetime: it must
-  // survive a gate-definition upgrade, otherwise changing the alignment
-  // algorithm silently erases every previous pass and makes pass -> fail
-  // transitions unenforceable.
+  // A same-definition baseline can safely provide cached classifications for
+  // byte-identical artifacts. Changed candidates must always use their own
+  // current-image registration: carrying an old candidate's translation into
+  // a new render makes the classification depend on history and can turn a
+  // corrected local feature into a false regression. Regression history has a
+  // different lifetime and survives gate-definition upgrades.
   const sameGateDefinition = reportsUseSameGateDefinition(baselineReport, options);
   const analysisBaselineCases = sameGateDefinition
     ? new Map(baselineReport.cases.map((entry) => [entry.relativeCdxml, entry]))
@@ -2042,10 +2026,7 @@ async function main() {
             referenceDataUrl,
             candidateDataUrl,
           );
-        const lockedBaselineAlignment = baselineLockedAlignment(baselineCase, hashes);
-        const alignment = lockedBaselineAlignment
-          ? { ...currentFrameAlignment, ...lockedBaselineAlignment }
-          : currentFrameAlignment;
+        const alignment = currentFrameAlignment;
         const coarseMetrics = await analyzeAlignedImages(
           activePage,
           referenceDataUrl,

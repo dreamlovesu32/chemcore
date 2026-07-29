@@ -7,7 +7,6 @@ import {
   publicCdxmlCliEnvironment,
 } from "../render-public-cdxml-visual-review.mjs";
 import {
-  baselineLockedAlignment,
   classifyBaselineChanges,
   visualBaselineCompatibilityErrors,
 } from "../public-cdxml-visual-gate.mjs";
@@ -21,44 +20,6 @@ import { bracketWorldEndpoints } from "../public-cdxml-bracket-geometry.mjs";
 import { compareVisualGeometry } from "../public-cdxml-semantic-geometry.mjs";
 import { visibleInterchangeBondCount } from "../public-cdxml-source-topology.mjs";
 import { matchesPublicCdxmlCasePattern } from "../public-cdxml-case-filter.mjs";
-
-test("visual baseline locks translation while the ChemDraw oracle is unchanged", () => {
-  const baseline = {
-    artifactHashes: { reference: "oracle-a", candidate: "candidate-old" },
-    alignment: {
-      algorithm: "chemdraw-declared-scale-global-translation-v9",
-      basis: "declared-scale-global-translation",
-      scale: 2.66666,
-      dx: -15.25,
-      dy: -16.5,
-      referenceWidth: 1200,
-      referenceHeight: 800,
-      chemsemaWidth: 450,
-      chemsemaHeight: 300,
-    },
-  };
-  assert.deepEqual(
-    baselineLockedAlignment(
-      baseline,
-      { reference: "oracle-a", candidate: "candidate-new" },
-    ),
-    {
-      algorithm: "chemdraw-declared-scale-global-translation-v9",
-      basis: "declared-scale-global-translation",
-      scale: 2.66666,
-      dx: -15.25,
-      dy: -16.5,
-      lockedFromBaseline: true,
-    },
-  );
-  assert.equal(
-    baselineLockedAlignment(
-      baseline,
-      { reference: "oracle-b", candidate: "candidate-new" },
-    ),
-    null,
-  );
-});
 
 test("visual baseline compatibility binds the corpus and ChemDraw oracle, not the old candidate", () => {
   const corpus = {

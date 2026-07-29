@@ -119,9 +119,10 @@ npm run benchmark:cdxml-public:visual-gate:affected
 ```
 
 The planner updates only selected gallery items. The gate reuses classifications
-and locked registration only when the ChemDraw-oracle hash, ChemSema-SVG hash,
-and gate-definition identity all match; `cache.reused` and `cache.analyzed`
-expose that split. Regression history is deliberately independent of that cache
+only when the ChemDraw-oracle hash, ChemSema-SVG hash, and gate-definition
+identity all match; `cache.reused` and `cache.analyzed` expose that split.
+Every changed candidate is registered from its own current pixels. Regression
+history is deliberately independent of that cache
 identity, so upgrading the alignment or detail classifier cannot erase earlier
 passes. Baseline mode permits historical failures to remain open, but every
 pass-to-fail transition is recorded in `delta.regressions` and fails the
@@ -147,7 +148,7 @@ Promotion validates the exact 338-case cohort, clean and current repository/CLI
 provenance, zero analysis errors, and zero immediate or cumulative regressions.
 It unions new passes into the floor; it never removes protected paths.
 
-Gate v15 makes the fixed-coordinate detail checks non-bypassable. Neither a
+Gate v16 makes the fixed-coordinate detail checks non-bypassable. Neither a
 whole-page coverage score nor topology distribution can excuse an empty local
 window or a large local defect, and coarse pixel agreement cannot discard a
 fine connected-component mismatch. The detail pass uses zero dilation to
@@ -156,12 +157,12 @@ calibrated in reference-image units, not as a percentage of canvas size.
 Missing and extra fragments may be classified as one displaced detail only
 when they both fit within one fixed detail-window distance; look-alike edges on
 opposite sides of a large drawing cannot be paired. SVG
-scale is derived from the declared vector matrix. Translation is resolved by
-a broad low-resolution global-overlap search followed by two fixed-scale
-refinement passes; this prevents an asymmetric label box from trapping
-registration in a nearby local optimum. The accepted translation is then
-locked by the baseline, so changing one glyph or bond cannot register the
-entire page again.
+scale is derived from the declared vector matrix. Translation is resolved for
+each current candidate by a broad low-resolution global-overlap search followed
+by two fixed-scale refinement passes; this prevents an asymmetric label box
+from trapping registration in a nearby local optimum. Historical pass
+protection is evaluated after current-image registration and never injects an
+old candidate's translation into a changed render.
 Canonical runs reject any gallery whose
 repository, CLI, corpus, round-trip report, or per-item candidate provenance
 does not match. `--allow-stale-gallery` is diagnostic only and never makes

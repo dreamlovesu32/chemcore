@@ -675,7 +675,7 @@ mod label_layout_tests {
     }
 
     #[test]
-    fn face_text_advance_is_limited_to_plain_placeholder_labels() {
+    fn face_text_advance_requires_plain_baseline_runs() {
         let plain = vec![vec![LabelRun {
             text: "HCO".to_string(),
             script: Some("normal".to_string()),
@@ -1174,13 +1174,19 @@ pub(super) fn estimate_line_runs_width(
     })
 }
 
-fn uses_face_text_advance(is_placeholder_label: bool, line_runs: &[Vec<LabelRun>]) -> bool {
-    is_placeholder_label
+fn uses_face_text_advance(use_plain_face_advance: bool, line_runs: &[Vec<LabelRun>]) -> bool {
+    use_plain_face_advance
         && line_runs.iter().flatten().all(|run| {
             run.script
                 .as_deref()
                 .is_none_or(|script| matches!(script, "normal" | "baseline"))
         })
+}
+
+fn node_uses_plain_face_text_advance(node: &crate::Node) -> bool {
+    node.is_placeholder
+        || !node.atom_properties.element_list.is_empty()
+        || !node.atom_properties.generic_list.is_empty()
 }
 
 fn estimated_run_char_width(
@@ -2293,7 +2299,7 @@ pub(super) fn refreshed_attached_node_label(
         false,
         !interpret_chemically,
         layout_as_grouped_attached_label,
-        node.is_placeholder,
+        node_uses_plain_face_text_advance(node),
         Some(decision.clone()),
         glyph_clip_profile.unwrap_or_else(|| glyph_clip_profile_for_label(label)),
     );
