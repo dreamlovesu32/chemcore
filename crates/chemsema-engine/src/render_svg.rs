@@ -598,6 +598,7 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
             text_anchor,
             dominant_baseline,
             runs,
+            preserve_lines,
             rotate,
             rotate_center,
             ..
@@ -619,7 +620,13 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
                 out.push_str(&escape_text(text));
             } else {
                 for run in runs {
-                    write_text_run(out, run, *font_size, SVG_TEXT_INTERNAL_SCALE);
+                    write_text_run(
+                        out,
+                        run,
+                        *font_size,
+                        SVG_TEXT_INTERNAL_SCALE,
+                        *preserve_lines,
+                    );
                 }
             }
             out.push_str("</text>\n");
@@ -649,7 +656,36 @@ fn scaled_text_transform_attr(x: f64, y: f64, rotate: f64, rotate_center: &Point
     }
 }
 
-fn write_text_run(out: &mut String, run: &LabelRun, default_font_size: f64, internal_scale: f64) {
+fn text_shape_segments(text: &str, split_at_whitespace: bool) -> Vec<&str> {
+    if !split_at_whitespace || text.is_empty() {
+        return vec![text];
+    }
+    let mut characters = text.char_indices();
+    let Some((_, first)) = characters.next() else {
+        return vec![text];
+    };
+    let mut segments = Vec::new();
+    let mut start = 0;
+    let mut whitespace = first.is_whitespace();
+    for (index, character) in characters {
+        let next_whitespace = character.is_whitespace();
+        if next_whitespace != whitespace {
+            segments.push(&text[start..index]);
+            start = index;
+            whitespace = next_whitespace;
+        }
+    }
+    segments.push(&text[start..]);
+    segments
+}
+
+fn write_text_run(
+    out: &mut String,
+    run: &LabelRun,
+    default_font_size: f64,
+    internal_scale: f64,
+    split_at_whitespace: bool,
+) {
     let is_sub = run.script.as_deref() == Some("subscript");
     let is_super = run.script.as_deref() == Some("superscript");
     let font_size = run.font_size.unwrap_or(default_font_size)
@@ -679,36 +715,38 @@ fn write_text_run(out: &mut String, run: &LabelRun, default_font_size: f64, inte
         effect_color,
         internal_scale,
     );
-    write!(
-        out,
-        r#"<tspan{}{}{}{}{}{}{}{}{}{}{}>{}</tspan>"#,
-        optional_num_attr("font-size", Some(font_size)),
-        optional_str_attr("font-family", run.font_family.as_deref()),
-        optional_str_attr(
-            "fill",
-            if outline {
-                Some("none")
-            } else {
-                run.fill.as_deref()
-            }
-        ),
-        optional_u32_attr("font-weight", run.font_weight),
-        optional_str_attr("font-style", run.font_style.as_deref()),
-        optional_str_attr(
-            "text-decoration",
-            run.underline.filter(|value| *value).map(|_| "underline")
-        ),
-        optional_num_attr("baseline-shift", baseline_shift),
-        optional_str_attr("stroke", outline.then_some(effect_color)),
-        optional_num_attr(
-            "stroke-width",
-            outline.then_some((font_size * 0.045).max(0.35))
-        ),
-        optional_str_attr("paint-order", outline.then_some("stroke")),
-        optional_str_attr("style", effect_style.as_deref()),
-        escape_text(&run.text)
-    )
-    .expect("write text run");
+    for segment in text_shape_segments(&run.text, split_at_whitespace) {
+        write!(
+            out,
+            r#"<tspan{}{}{}{}{}{}{}{}{}{}{}>{}</tspan>"#,
+            optional_num_attr("font-size", Some(font_size)),
+            optional_str_attr("font-family", run.font_family.as_deref()),
+            optional_str_attr(
+                "fill",
+                if outline {
+                    Some("none")
+                } else {
+                    run.fill.as_deref()
+                }
+            ),
+            optional_u32_attr("font-weight", run.font_weight),
+            optional_str_attr("font-style", run.font_style.as_deref()),
+            optional_str_attr(
+                "text-decoration",
+                run.underline.filter(|value| *value).map(|_| "underline")
+            ),
+            optional_num_attr("baseline-shift", baseline_shift),
+            optional_str_attr("stroke", outline.then_some(effect_color)),
+            optional_num_attr(
+                "stroke-width",
+                outline.then_some((font_size * 0.045).max(0.35))
+            ),
+            optional_str_attr("paint-order", outline.then_some("stroke")),
+            optional_str_attr("style", effect_style.as_deref()),
+            escape_text(segment)
+        )
+        .expect("write text run segment");
+    }
 }
 
 fn text_effect_style(

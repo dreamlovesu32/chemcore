@@ -160,6 +160,7 @@ pub(crate) fn render_text_object(
                     object_id.clone(),
                     rotate,
                     rotate_center,
+                    true,
                 );
             }
             return;
@@ -183,6 +184,7 @@ pub(crate) fn render_text_object(
                 object_id.clone(),
                 rotate,
                 rotate_center,
+                true,
             );
         }
         return;
@@ -213,6 +215,7 @@ pub(crate) fn render_text_object(
             object_id.clone(),
             rotate,
             rotate_center,
+            false,
         );
     }
 }

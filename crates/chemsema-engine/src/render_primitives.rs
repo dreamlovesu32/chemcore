@@ -563,6 +563,7 @@ pub(super) fn push_text(
         object_id,
         0.0,
         None,
+        false,
     );
 }
 
@@ -581,6 +582,7 @@ pub(super) fn push_text_rotated(
     object_id: Option<String>,
     rotate: f64,
     rotate_center: Option<Point>,
+    preserve_lines: bool,
 ) {
     let underline_segments = chemdraw_text_underline_segments(
         x,
@@ -611,7 +613,7 @@ pub(super) fn push_text_rotated(
         fill,
         text_anchor,
         line_height: None,
-        preserve_lines: false,
+        preserve_lines,
         box_width: None,
         runs,
         rotate,

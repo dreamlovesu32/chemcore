@@ -1956,6 +1956,72 @@ fn render_document_emits_text_lines_from_runs() {
 }
 
 #[test]
+fn preserved_free_text_shapes_words_at_whitespace_boundaries() {
+    let document: ChemSemaDocument = serde_json::from_value(json!({
+        "format": { "name": "chemsema", "version": "0.1" },
+        "document": {
+            "id": "doc_test",
+            "title": "preserved text shaping",
+            "page": { "width": 240.0, "height": 100.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_text": {
+                "kind": "text",
+                "fontFamily": "Times New Roman",
+                "fontSize": 7.0,
+                "fill": "#000000"
+            }
+        },
+        "objects": [{
+            "id": "obj_text",
+            "type": "text",
+            "visible": true,
+            "zIndex": 1,
+            "transform": {
+                "translate": [20.0, 30.0],
+                "rotate": 0.0,
+                "scale": [1.0, 1.0]
+            },
+            "styleRef": "style_text",
+            "payload": {
+                "text": "R is a hydrogen atom",
+                "box": [0.0, 0.0, 120.0, 14.0],
+                "align": "left",
+                "fontSize": 7.0,
+                "lineHeight": 8.16,
+                "baselineOffset": 5.3,
+                "preserveLines": true,
+                "runs": [{
+                    "text": "R is a hydrogen atom",
+                    "fontFamily": "Times New Roman",
+                    "fontSize": 7.0,
+                    "fontWeight": 400,
+                    "fontStyle": "normal",
+                    "script": "normal",
+                    "fill": "#000000"
+                }]
+            }
+        }],
+        "resources": {}
+    }))
+    .expect("preserved text document");
+
+    let primitives = render_document(&document);
+    assert!(primitives.iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Text {
+            object_id,
+            preserve_lines: true,
+            ..
+        } if object_id.as_deref() == Some("obj_text")
+    )));
+    let svg = document_to_svg(&document);
+    assert!(svg.contains(">R</tspan>"), "{svg}");
+    assert!(svg.contains("> </tspan>"), "{svg}");
+    assert!(svg.contains(">hydrogen</tspan>"), "{svg}");
+}
+
+#[test]
 fn cdxml_free_text_renders_from_authored_p_anchor_for_every_justification() {
     for (justification, bbox, point, expected_anchor) in [
         ("Left", "100 40 150 70", "90 55", "start"),
