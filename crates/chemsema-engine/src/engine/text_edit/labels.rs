@@ -463,12 +463,13 @@ pub(super) fn make_centered_node_label_from_runs(
             position[1] - (baseline_y - font_size * crate::MOLECULE_LABEL_ANCHOR_BASELINE_RATIO),
         );
 
-        // ChemDraw attaches ordinary characters at the center of their
-        // typographic advance cell. `computed_geometry` already places that
-        // logical center on the atom. Do not subsequently replace it with the
-        // center of the ink outline: asymmetric glyphs such as r, y, and s
-        // would shift an explicitly left/right-aligned label. Prime suffixes
-        // are the measured exception and attach at their visible right edge.
+        // ChemDraw's whole-text nickname/placeholder layout attaches ordinary
+        // characters at the center of their face-specific typographic advance
+        // cell. Chemical group layout uses the visible glyph outline instead.
+        // Keeping the same metric-domain split as width calculation prevents
+        // asymmetric glyphs in nicknames from shifting while preserving atom
+        // and formula label placement. Prime suffixes are the measured
+        // exception and attach at their visible right edge in both domains.
         if label_char_at(&line_runs, layout.anchor_line, anchor_char)
             .is_some_and(crate::is_prime_anchor_suffix)
         {
@@ -489,6 +490,21 @@ pub(super) fn make_centered_node_label_from_runs(
                     })
             {
                 dx = round2(position[0] - current_anchor.x);
+            }
+        } else if !use_face_text_advance {
+            if let Some(current_anchor_x) =
+                label_anchor_polygon_index(&line_runs, layout.anchor_line, anchor_char)
+                    .and_then(|anchor_polygon_index| glyph_polygons.get(anchor_polygon_index))
+                    .and_then(|polygon| {
+                        let points: Vec<_> = polygon
+                            .iter()
+                            .map(|point| Point::new(point[0], point[1]))
+                            .collect();
+                        crate::polygon_anchor_point(&points)
+                    })
+                    .map(|point| point.x)
+            {
+                dx = round2(position[0] - current_anchor_x);
             }
         }
         if dx.abs() > crate::EPSILON || dy.abs() > crate::EPSILON {
