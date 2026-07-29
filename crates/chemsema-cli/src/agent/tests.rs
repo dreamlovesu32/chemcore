@@ -547,25 +547,51 @@ fn export_document_for_object_target_compacts_page() {
         .expect("first id")
         .to_string();
 
-    engine
-        .execute_command_json(
-            &json!({
-                "type": "add-text",
-                "position": { "x": 300.0, "y": 120.0 },
-                "text": "B",
-                "box": [0.0, 0.0, 10.0, 10.0]
-            })
-            .to_string(),
-        )
-        .expect("add second text");
+    let second: Value = serde_json::from_str(
+        &engine
+            .execute_command_json(
+                &json!({
+                    "type": "add-text",
+                    "position": { "x": 300.0, "y": 120.0 },
+                    "text": "B",
+                    "box": [0.0, 0.0, 10.0, 10.0]
+                })
+                .to_string(),
+            )
+            .expect("add second text"),
+    )
+    .expect("second result");
+    let second_id = second["created"]["objects"][0]
+        .as_str()
+        .expect("second id")
+        .to_string();
 
-    let document = engine_document(&engine).expect("document");
+    let mut document = engine_document(&engine).expect("document");
+    document.links.push(chemsema_engine::LinkRelation {
+        id: "link_cross_object".to_string(),
+        kind: "analysis-caption".to_string(),
+        endpoints: vec![
+            chemsema_engine::LinkEndpoint {
+                entity_id: first_id.clone(),
+                role: "source".to_string(),
+            },
+            chemsema_engine::LinkEndpoint {
+                entity_id: second_id,
+                role: "caption".to_string(),
+            },
+        ],
+        data: Value::Null,
+    });
     let target = TargetSelector::Object(first_id.clone());
     let bounds = target_bounds(&document, &target).expect("target bounds");
     let exported = export_document_for_target(&document, &target).expect("export object");
 
     assert_eq!(exported.objects.len(), 1);
     assert_eq!(exported.objects[0].id, first_id);
+    assert!(
+        exported.links.is_empty(),
+        "relations whose endpoints are outside the editable subset must be pruned"
+    );
     assert_close(exported.objects[0].transform.translate[0], 20.0);
     assert_close(exported.objects[0].transform.translate[1], 20.0);
     assert_close(exported.document.page.width, bounds[2] - bounds[0] + 40.0);

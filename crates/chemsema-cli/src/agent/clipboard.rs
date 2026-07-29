@@ -458,6 +458,22 @@ fn prune_logical_objects_for_subset(document: &mut ChemSemaDocument) {
                 .chain(entry.fragment.bonds.iter().map(|bond| bond.id.clone()))
         }))
         .collect::<BTreeSet<_>>();
+    document.links.retain(|relation| {
+        relation
+            .endpoints
+            .iter()
+            .all(|endpoint| selected_entity_ids.contains(&endpoint.entity_id))
+    });
+    document.chemical_properties.retain(|property| {
+        property
+            .basis_entity_ids
+            .iter()
+            .all(|id| selected_entity_ids.contains(id))
+            && property
+                .display_object_id
+                .as_ref()
+                .is_none_or(|id| selected_entity_ids.contains(id))
+    });
     document.logical_objects = document
         .logical_objects
         .subset_for_entities(&selected_entity_ids);
