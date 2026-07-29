@@ -501,6 +501,70 @@ fn parse_cdxml_node_label_keeps_face_style_independent_of_nonchemical_semantics(
 }
 
 #[test]
+fn public_patent_ammonium_label_preserves_formula_count_below_explicit_charge() {
+    // Reduced from the byte-identical public RDKit patent fixtures
+    // US11707511-20230725-C00001.CDX and US20200222518A1-20200716-C00001.CDX.
+    // Their CDX styled string authors NH3 with chemical face 96 and the
+    // terminal + in a separate superscript face 64 run.
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML BondLength="14.40" LabelFont="3" LabelSize="10" LabelFace="96" InterpretChemically="yes">
+  <fonttable><font id="3" charset="iso-8859-1" name="Times New Roman"/></fonttable>
+  <page id="p1" BoundingBox="0 0 80 32">
+    <fragment id="f1" BoundingBox="0 0 80 32">
+      <n id="11" p="52 16" Element="7" Charge="1" NumHydrogens="3">
+        <t p="52 20" BoundingBox="42 8 74 22" InterpretChemically="yes">
+          <s font="3" size="10" face="96" color="0">NH3</s>
+          <s font="3" size="10" face="64" color="0">+</s>
+        </t>
+      </n>
+      <n id="12" p="20 16"/>
+      <b id="14" B="11" E="12"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(cdxml, Some("public patent ammonium")).expect("CDXML should parse");
+    let label = document
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .and_then(|fragment| fragment.nodes.iter().find(|node| node.id == "11"))
+        .and_then(|node| node.label.as_ref())
+        .expect("NH3+ label should import");
+
+    let source_runs = label
+        .meta
+        .get("sourceRuns")
+        .cloned()
+        .and_then(|value| serde_json::from_value::<Vec<chemsema_engine::LabelRun>>(value).ok())
+        .expect("authored CDX/CDXML runs should survive import");
+    assert_eq!(
+        source_runs
+            .iter()
+            .map(|run| (run.text.as_str(), run.script.as_deref()))
+            .collect::<Vec<_>>(),
+        vec![("NH3", Some("chemical")), ("+", Some("superscript")),]
+    );
+    assert_eq!(
+        label
+            .runs
+            .iter()
+            .map(|run| (run.text.as_str(), run.script.as_deref()))
+            .collect::<Vec<_>>(),
+        vec![
+            ("NH", Some("normal")),
+            ("3", Some("subscript")),
+            ("+", Some("superscript")),
+        ]
+    );
+
+    let svg = document_to_svg(&document);
+    assert!(svg.contains(">3</tspan>"), "{svg}");
+    assert!(svg.contains(">+</tspan>"), "{svg}");
+    assert!(!svg.contains(">3+</tspan>"), "{svg}");
+}
+
+#[test]
 fn parse_cdxml_node_label_preserves_explicit_regular_face_when_interpreted_chemically() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <CDXML LabelFont="3" LabelSize="10" LabelFace="96" InterpretChemically="yes">
