@@ -114,6 +114,58 @@ fn parse_cdxml_vertical_bond_retreat_ignores_distant_formula_subscript() {
 }
 
 #[test]
+fn parse_cdxml_vertical_bond_retreat_uses_the_glyph_owned_by_the_bond_column() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="0.5" MarginWidth="1.25" LabelFont="20" LabelSize="7">
+  <fonttable><font id="20" charset="0" name="Times New Roman"/></fonttable>
+  <page>
+    <fragment>
+      <n id="13" p="82.34 264.80" NodeType="Nickname" LabelDisplay="Left">
+        <t p="79.82 267.45" BoundingBox="79.82 261.79 90.32 267.55"
+           LabelJustification="Left" LabelAlignment="Left">
+          <s font="20" size="7" face="96">Gln</s>
+        </t>
+      </n>
+      <n id="17" p="85.72 280.80" NodeType="Nickname" LabelDisplay="Center">
+        <t p="85.72 283.45" BoundingBox="80.47 278.02 90.97 284.95"
+           LabelJustification="Center" Justification="Center" LabelAlignment="Left">
+          <s font="20" size="7" face="96">Lys</s>
+        </t>
+      </n>
+      <b id="18" B="13" E="17" BeginAttach="1"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(source, Some("vertical Lys attachment")).expect("CDXML parses");
+    let polygon = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            }
+            | RenderPrimitive::FilledPath {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            } if role == RenderRole::DocumentBond && bond_id == "18" => Some(points),
+            _ => None,
+        })
+        .expect("bond polygon");
+    let (from, to) = bond_axis_from_points(&polygon).expect("bond axis");
+    let label_endpoint = if from.y > to.y { from } else { to };
+
+    assert!(
+        (label_endpoint.y - 279.07).abs() < 0.12,
+        "the y glyph owns the vertical column; the expanded L must not shorten the bond: {polygon:?}"
+    );
+}
+
+#[test]
 fn parse_cdxml_applies_authored_line_starts_to_unbroken_caption_runs() {
     let source = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML CaptionJustification="Center">

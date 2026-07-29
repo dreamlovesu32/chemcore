@@ -464,12 +464,16 @@ Later rules must not overturn geometry topology already determined by earlier ru
   descender must not pull another glyph's clipping rectangle downward.
 - Subscript and superscript glyphs do not join this same-row rectangular
   interior model.
-- ChemDraw's narrow axial-contact sector follows the writing axis. Horizontal
-  text forms one left/right envelope across the complete run; this keeps a
-  horizontal bond hidden under fixed-display, multi-attachment labels.
-  Top/bottom contact is instead local to glyph columns whose horizontal
-  interval, expanded by `MarginWidth`, contains the attachment X. Expand the
-  selected directional extreme by `MarginWidth` as well. The public
+- ChemDraw's narrow axial-contact sector follows the writing axis. Only bond
+  rays within `10°` of the vertical axis use glyph-column ownership. Horizontal
+  and diagonal contacts use the complete label outline; in particular,
+  horizontal text forms one left/right envelope across the complete run.
+  Top/bottom ownership is selected from the raw glyph intervals intersected by
+  the bond center and body-edge rays; `MarginWidth` expands the selected
+  glyph's clip geometry, but must not make a neighboring glyph steal the
+  column. If a vertical ray lies in an internal kerning gap, assign the gap to
+  the nearest glyph in the ray direction; subscript and superscript glyphs
+  participate in this gap-only branch. The public
   `3060_iso_butane.cdxml` sample demonstrates the vertical branch: the bond
   under `CH3` stops at the `C` column (`y = 191.09pt` in ChemDraw), not at the
   lower edge of the remote subscript `3`. Public case `0137` demonstrates the
@@ -479,6 +483,10 @@ Later rules must not overturn geometry topology already determined by earlier ru
   the glyph clip polygon. Ordinary, dashed, bold, and multi-line bonds should
   evaluate the center line plus both body boundary lines for the current visual
   half-width and use the largest retreat required by those glyph intersections.
+- Parallel sub-lines of a double or triple bond share the retreat required by
+  the complete label outline. The single-line vertical glyph-column branch
+  must not be applied independently to those sub-lines; a shifted formula
+  script can therefore determine their common endpoint.
 - Label retreat is an unbounded ray operation, not a segment clamp. If the
   label exclusion boundary lies beyond the opposite atom because the authored
   bond is shorter than the label, keep the computed endpoint past that atom;

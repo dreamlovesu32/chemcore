@@ -288,6 +288,7 @@ pub(super) fn make_centered_node_label(
         line_advances: Vec::new(),
         glyph_polygons: geometry.glyph_polygons,
         glyph_clip_polygons: geometry.clip_polygons,
+        glyph_clip_polygon_owners: geometry.clip_polygon_owners,
         box_value: Some(label_box),
         meta: serde_json::Value::Null,
     }
@@ -543,6 +544,7 @@ pub(super) fn make_centered_node_label_from_runs(
         line_advances: Vec::new(),
         glyph_polygons: glyph_geometry.glyph_polygons,
         glyph_clip_polygons: glyph_geometry.clip_polygons,
+        glyph_clip_polygon_owners: glyph_geometry.clip_polygon_owners,
         box_value: Some([x1, y1, x2, y2]),
         meta: Value::Object(meta),
     }
@@ -2136,6 +2138,7 @@ pub(super) fn refreshed_attached_node_label(
         );
         next_label.glyph_polygons = geometry.glyph_polygons;
         next_label.glyph_clip_polygons = geometry.clip_polygons;
+        next_label.glyph_clip_polygon_owners = geometry.clip_polygon_owners;
         return Some(next_label);
     }
     let text = if implicit_hydrogen_label_is_user_edited(label) {
@@ -2400,6 +2403,7 @@ pub(super) fn refreshed_attached_node_label(
         );
         next_label.glyph_polygons = geometry.glyph_polygons;
         next_label.glyph_clip_polygons = geometry.clip_polygons;
+        next_label.glyph_clip_polygon_owners = geometry.clip_polygon_owners;
     }
     Some(next_label)
 }

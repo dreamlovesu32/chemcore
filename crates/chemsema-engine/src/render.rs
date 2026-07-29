@@ -67,7 +67,8 @@ pub(crate) use bounds::{
 use labels::{
     apply_label_endpoint_retreats, attached_label_glyph_anchor_world, body_segment_label_retreats,
     clip_body_segment_out_of_label_geometry, label_box_world, label_clip_polygons_world,
-    label_polygons_world, render_fragment_line, render_fragment_line_with_profiles, world_point,
+    label_clip_polygons_world_for_segment, label_polygons_world, render_fragment_line,
+    render_fragment_line_with_profiles, world_point,
 };
 use style_payload::*;
 

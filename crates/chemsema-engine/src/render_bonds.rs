@@ -33,8 +33,6 @@ pub(super) fn bond_label_clipped_body_geometry(
     );
     let begin_box = label_box_world(begin, object);
     let end_box = label_box_world(end, object);
-    let begin_polygons = label_clip_polygons_world(begin, object);
-    let end_polygons = label_clip_polygons_world(end, object);
     let begin_has_label = begin
         .label
         .as_ref()
@@ -47,6 +45,17 @@ pub(super) fn bond_label_clipped_body_geometry(
         .map_or((stroke_width * 0.5, stroke_width * 0.5), |stereo| {
             wedge_endpoint_half_widths(bond, stereo, stroke_width)
         });
+    let (begin_polygons, end_polygons) = if bond.order >= 2 {
+        (
+            label_clip_polygons_world(begin, object),
+            label_clip_polygons_world(end, object),
+        )
+    } else {
+        (
+            label_clip_polygons_world_for_segment(begin, object, start, finish, begin_half_width),
+            label_clip_polygons_world_for_segment(end, object, finish, start, end_half_width),
+        )
+    };
     let (start, finish) = clip_body_segment_out_of_label_geometry(
         start,
         finish,

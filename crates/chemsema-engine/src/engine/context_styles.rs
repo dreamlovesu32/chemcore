@@ -1668,6 +1668,7 @@ fn expansion_atom_to_node(atom: &JsonValue, id: String, position: Point) -> Node
                 line_advances: Vec::new(),
                 glyph_polygons: Vec::new(),
                 glyph_clip_polygons: Vec::new(),
+                glyph_clip_polygon_owners: Vec::new(),
                 box_value: None,
                 meta: JsonValue::Null,
             }),

@@ -155,6 +155,43 @@ pub(super) fn label_clip_polygons_world(node: &Node, object: &SceneObject) -> Ve
         .unwrap_or_default()
 }
 
+pub(super) fn label_clip_polygons_world_for_segment(
+    node: &Node,
+    object: &SceneObject,
+    endpoint: Point,
+    other: Point,
+    half_width: f64,
+) -> Vec<Vec<Point>> {
+    let Some(label) = node.label.as_ref() else {
+        return Vec::new();
+    };
+    let direction = Vector::new(other.x - endpoint.x, other.y - endpoint.y);
+    if direction.length() <= EPSILON {
+        return Vec::new();
+    }
+    let direction = direction.normalized();
+    // ChemDraw's cardinal contact rule is asymmetric: the top/bottom sectors
+    // are owned by the glyph column under the bond, while diagonal and
+    // left/right contacts use the complete label outline. Keep the sector
+    // boundary identical to the glyph kernel's measured axis contacts.
+    if direction.x.abs()
+        > crate::glyph_kernel::GLYPH_AXIS_HALF_SECTOR_DEG
+            .to_radians()
+            .sin()
+    {
+        return label_clip_polygons_world(node, object);
+    }
+    let local_endpoint = Point::new(
+        endpoint.x - object.transform.translate[0],
+        endpoint.y - object.transform.translate[1],
+    );
+    label_clip_polygons_for_segment(label, local_endpoint, direction, half_width)
+        .into_iter()
+        .map(|polygon| polygon_to_world(polygon, object))
+        .filter(|polygon| polygon.len() >= 3)
+        .collect()
+}
+
 fn polygon_to_world(polygon: Vec<Point>, object: &SceneObject) -> Vec<Point> {
     compact_polygon_points(
         polygon
@@ -179,20 +216,149 @@ struct GlyphClipInfo {
 }
 
 fn label_clip_polygons(label: &NodeLabel) -> Vec<Vec<Point>> {
+    let glyph_indices = (0..label.glyph_polygons.len()).collect::<Vec<_>>();
+    label_clip_polygons_for_glyph_indices(label, &glyph_indices, true)
+}
+
+fn label_clip_polygons_for_segment(
+    label: &NodeLabel,
+    endpoint: Point,
+    direction: Vector,
+    half_width: f64,
+) -> Vec<Vec<Point>> {
+    let glyph_polygons = label.glyph_polygons();
+    let normal = Vector::new(-direction.y, direction.x);
+    let rays = [0.0, half_width, -half_width].map(|offset| {
+        Point::new(
+            endpoint.x + normal.x * offset,
+            endpoint.y + normal.y * offset,
+        )
+    });
+    let mut glyph_indices = glyph_polygons
+        .iter()
+        .enumerate()
+        .filter_map(|(index, polygon)| {
+            let bounds = polygon_bounds(polygon)?;
+            rays.iter()
+                .any(|ray| ray_intersects_rect_forward(*ray, direction, bounds))
+                .then_some(index)
+        })
+        .collect::<Vec<_>>();
+    let mut row_glyphs = glyph_polygons
+        .iter()
+        .enumerate()
+        .filter_map(|(index, polygon)| {
+            let bounds = polygon_bounds(polygon)?;
+            label_glyph_can_join_horizontal_clip(label, index).then_some(GlyphClipInfo {
+                index,
+                bounds,
+                center_x: (bounds.x1 + bounds.x2) * 0.5,
+                center_y: (bounds.y1 + bounds.y2) * 0.5,
+                height: (bounds.y2 - bounds.y1).max(0.0),
+            })
+        })
+        .collect::<Vec<_>>();
+    row_glyphs.sort_by(|left, right| {
+        left.center_y
+            .total_cmp(&right.center_y)
+            .then_with(|| left.center_x.total_cmp(&right.center_x))
+    });
+    let mut rows: Vec<Vec<GlyphClipInfo>> = Vec::new();
+    for glyph in row_glyphs {
+        if let Some(row) = rows.iter_mut().find(|row| {
+            row.last()
+                .is_some_and(|previous| horizontal_clip_glyphs_share_row(*previous, glyph))
+        }) {
+            row.push(glyph);
+        } else {
+            rows.push(vec![glyph]);
+        }
+    }
+    for row in &mut rows {
+        row.sort_by(|left, right| left.center_x.total_cmp(&right.center_x));
+        for pair in row.windows(2) {
+            let left = pair[0];
+            let right = pair[1];
+            let bridge = RectBox {
+                x1: left.bounds.x2,
+                y1: left.bounds.y1.max(right.bounds.y1),
+                x2: right.bounds.x1,
+                y2: left.bounds.y2.min(right.bounds.y2),
+            };
+            if bridge.x2 > bridge.x1 + EPSILON
+                && bridge.y2 > bridge.y1 + EPSILON
+                && rays
+                    .iter()
+                    .any(|ray| ray_intersects_rect_forward(*ray, direction, bridge))
+            {
+                glyph_indices.extend([left.index, right.index]);
+            }
+        }
+    }
+    if glyph_indices.is_empty() {
+        // A bond axis can lie in a kerning gap or beside a shifted formula
+        // script. ChemDraw assigns that gap to the nearest glyph column, then
+        // applies that glyph's MarginWidth. A script participates here only
+        // when the raw bond rays did not already select another glyph.
+        let candidates = glyph_polygons
+            .iter()
+            .enumerate()
+            .filter_map(|(index, polygon)| {
+                let bounds = polygon_bounds(polygon)?;
+                forward_ray_rect_distance(endpoint, direction, normal, bounds)
+                    .map(|distance| (index, distance))
+            })
+            .collect::<Vec<_>>();
+        if let Some((index, _)) = candidates.into_iter().min_by(|left, right| {
+            left.1
+                .total_cmp(&right.1)
+                .then_with(|| left.0.cmp(&right.0))
+        }) {
+            glyph_indices.push(index);
+        }
+    }
+    glyph_indices.sort_unstable();
+    glyph_indices.dedup();
+    label_clip_polygons_for_glyph_indices(label, &glyph_indices, false)
+}
+
+fn label_clip_polygons_for_glyph_indices(
+    label: &NodeLabel,
+    glyph_indices: &[usize],
+    include_shared_axis_contacts: bool,
+) -> Vec<Vec<Point>> {
     let glyph_polygons = label.glyph_polygons();
     let authored_clip_polygons = label.glyph_clip_polygons();
+    let selected = glyph_indices.iter().copied().collect::<BTreeSet<_>>();
     // The glyph outline is itself authoritative retreat geometry.  Some import
     // paths store a separately expanded clip outline, while native labels only
     // carry the glyph outline.  An empty expanded set therefore selects the
     // glyph outline; it must never fall through to an inferred text box.
     let mut polygons = if authored_clip_polygons.is_empty() {
-        glyph_polygons.clone()
+        glyph_indices
+            .iter()
+            .filter_map(|index| glyph_polygons.get(*index).cloned())
+            .collect::<Vec<_>>()
+    } else if label.glyph_clip_polygon_owners.len() == authored_clip_polygons.len() {
+        authored_clip_polygons
+            .into_iter()
+            .zip(label.glyph_clip_polygon_owners.iter())
+            .filter_map(|(polygon, owner)| match owner {
+                Some(index) if selected.contains(index) => Some(polygon),
+                None if include_shared_axis_contacts => Some(polygon),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
     } else {
+        // Explicitly unowned clip geometry is accepted only for hand-built
+        // in-memory labels. Imported and edited labels are rebuilt by the
+        // glyph kernel and always carry parallel ownership.
         authored_clip_polygons
     };
     let mut glyphs: Vec<GlyphClipInfo> = glyph_polygons
         .iter()
         .enumerate()
+        .filter(|(index, _)| selected.contains(index))
         .filter_map(|(index, polygon)| {
             let bounds = polygon_bounds(polygon)?;
             Some(GlyphClipInfo {
@@ -236,6 +402,50 @@ fn label_clip_polygons(label: &NodeLabel) -> Vec<Vec<Point>> {
     }
 
     polygons
+}
+
+fn forward_ray_rect_distance(
+    start: Point,
+    direction: Vector,
+    normal: Vector,
+    bounds: RectBox,
+) -> Option<f64> {
+    let center = Point::new((bounds.x1 + bounds.x2) * 0.5, (bounds.y1 + bounds.y2) * 0.5);
+    let half_width = (bounds.x2 - bounds.x1).max(0.0) * 0.5;
+    let half_height = (bounds.y2 - bounds.y1).max(0.0) * 0.5;
+    let offset = Vector::new(center.x - start.x, center.y - start.y);
+    let forward_center = offset.x * direction.x + offset.y * direction.y;
+    let forward_radius = direction.x.abs() * half_width + direction.y.abs() * half_height;
+    if forward_center + forward_radius < -EPSILON {
+        return None;
+    }
+    let normal_center = offset.x * normal.x + offset.y * normal.y;
+    let normal_radius = normal.x.abs() * half_width + normal.y.abs() * half_height;
+    Some((normal_center.abs() - normal_radius).max(0.0))
+}
+
+fn ray_intersects_rect_forward(start: Point, direction: Vector, bounds: RectBox) -> bool {
+    let mut near = f64::NEG_INFINITY;
+    let mut far = f64::INFINITY;
+    for (origin, delta, minimum, maximum) in [
+        (start.x, direction.x, bounds.x1, bounds.x2),
+        (start.y, direction.y, bounds.y1, bounds.y2),
+    ] {
+        if delta.abs() <= EPSILON {
+            if origin < minimum - EPSILON || origin > maximum + EPSILON {
+                return false;
+            }
+            continue;
+        }
+        let first = (minimum - origin) / delta;
+        let second = (maximum - origin) / delta;
+        near = near.max(first.min(second));
+        far = far.min(first.max(second));
+        if near > far + EPSILON {
+            return false;
+        }
+    }
+    far >= -EPSILON
 }
 
 fn label_glyph_can_join_horizontal_clip(label: &NodeLabel, glyph_index: usize) -> bool {

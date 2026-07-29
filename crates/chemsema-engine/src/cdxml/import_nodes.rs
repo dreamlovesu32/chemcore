@@ -527,6 +527,7 @@ pub(super) fn node_label(
             .collect(),
         glyph_polygons: Vec::new(),
         glyph_clip_polygons: Vec::new(),
+        glyph_clip_polygon_owners: Vec::new(),
         box_value: None,
         meta: json!({
             "import": {

@@ -227,12 +227,13 @@ static SHARED_GLYPH_OUTLINES: OnceLock<SharedGlyphOutlinesJson> = OnceLock::new(
 const LABEL_GLYPH_CLIP_PAD_SCALE: f64 = 0.25;
 const GLYPH_CURVE_STEPS: usize = 12;
 const GLYPH_CIRCLE_STEPS: usize = 20;
-const GLYPH_AXIS_HALF_SECTOR_DEG: f64 = 10.0;
+pub(crate) const GLYPH_AXIS_HALF_SECTOR_DEG: f64 = 10.0;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct LabelGlyphGeometry {
     pub glyph_polygons: Vec<Vec<[f64; 2]>>,
     pub clip_polygons: Vec<Vec<[f64; 2]>>,
+    pub clip_polygon_owners: Vec<Option<usize>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -338,19 +339,26 @@ pub fn build_label_glyph_geometry_with_profile(
             let Some(glyph_geometry) = glyph_geometry_with_profile(&placement, profile) else {
                 continue;
             };
+            let glyph_index = geometry.glyph_polygons.len();
             glyph_bounds.push(placement.ink_box_px);
             geometry.glyph_polygons.push(glyph_geometry.glyph_polygon);
+            geometry.clip_polygon_owners.extend(std::iter::repeat_n(
+                Some(glyph_index),
+                glyph_geometry.clip_polygons.len(),
+            ));
             geometry.clip_polygons.extend(glyph_geometry.clip_polygons);
         }
     }
     if !glyph_bounds.is_empty() {
+        let contacts = localized_axis_contact_polygons(
+            &glyph_bounds,
+            retreat_origin,
+            profile.natural_outset_pt,
+        );
         geometry
-            .clip_polygons
-            .extend(localized_axis_contact_polygons(
-                &glyph_bounds,
-                retreat_origin,
-                profile.natural_outset_pt,
-            ));
+            .clip_polygon_owners
+            .extend(std::iter::repeat_n(None, contacts.len()));
+        geometry.clip_polygons.extend(contacts);
     }
     geometry
 }

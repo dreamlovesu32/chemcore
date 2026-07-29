@@ -2719,6 +2719,7 @@ fn rebuild_node_label_glyph_polygons(
     );
     label.glyph_polygons = geometry.glyph_polygons;
     label.glyph_clip_polygons = geometry.clip_polygons;
+    label.glyph_clip_polygon_owners = geometry.clip_polygon_owners;
 }
 
 fn default_node_label_box(position: [f64; 2], text: &str, font_size: f64) -> [f64; 4] {
@@ -4440,6 +4441,11 @@ pub struct NodeLabel {
     /// committed; it is deliberately not a CCJS persistence authority.
     #[serde(skip)]
     pub glyph_clip_polygons: Vec<Vec<[f64; 2]>>,
+    /// Parallel ownership for `glyph_clip_polygons`. `Some(i)` identifies the
+    /// visible glyph that produced the contour; `None` is a shared run-axis
+    /// contact envelope. Like the polygons, this is rebuilt rather than saved.
+    #[serde(skip)]
+    pub glyph_clip_polygon_owners: Vec<Option<usize>>,
     #[serde(default, rename = "box", skip_serializing_if = "Option::is_none")]
     pub box_value: Option<[f64; 4]>,
     #[serde(default)]
@@ -5046,6 +5052,7 @@ mod tests {
                                 [0.0, 1.0],
                             ]],
                             glyph_clip_polygons: Vec::new(),
+                            glyph_clip_polygon_owners: Vec::new(),
                             box_value: Some([10.0, 2.0, 17.2, 10.0]),
                             meta: json!({
                                 "import": {
@@ -5496,6 +5503,7 @@ mod tests {
                             line_advances: Vec::new(),
                             glyph_polygons: Vec::new(),
                             glyph_clip_polygons: Vec::new(),
+                            glyph_clip_polygon_owners: Vec::new(),
                             box_value: None,
                             meta: json!({
                                 "import": {

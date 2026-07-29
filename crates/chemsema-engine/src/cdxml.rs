@@ -809,6 +809,7 @@ fn restore_authored_multiline_character_attachment_geometry(document: &mut ChemS
             );
             label.glyph_polygons = geometry.glyph_polygons;
             label.glyph_clip_polygons = geometry.clip_polygons;
+            label.glyph_clip_polygon_owners = geometry.clip_polygon_owners;
         }
     }
 }
