@@ -1465,6 +1465,25 @@ pub(crate) fn shared_estimated_char_width(character: char, font_size: f64) -> f6
     lookup_glyph_profile(character).advance_em * font_size
 }
 
+pub(crate) fn shared_estimated_char_width_for_face(
+    character: char,
+    font_size: f64,
+    font_family: &str,
+    font_weight: u32,
+    font_style: Option<&str>,
+) -> f64 {
+    let italic = font_style.is_some_and(|style| {
+        matches!(
+            style.trim().to_ascii_lowercase().as_str(),
+            "italic" | "oblique"
+        )
+    });
+    let advance_em = lookup_glyph_outline(font_family, font_weight, italic, character)
+        .map(|outline| outline.advance_em)
+        .unwrap_or_else(|| lookup_glyph_profile(character).advance_em);
+    advance_em * font_size
+}
+
 pub(crate) fn shared_estimated_text_width(
     text: &str,
     runs: &[crate::LabelRun],
@@ -1931,6 +1950,34 @@ mod tests {
         assert_ne!(arial.ink_box_px, times.ink_box_px);
         assert_ne!(arial.ink_box_px, bold.ink_box_px);
         assert_ne!(arial.ink_box_px, italic.ink_box_px);
+    }
+
+    #[test]
+    fn face_aware_advance_matches_times_new_roman_label_width() {
+        let width = "HCO"
+            .chars()
+            .map(|character| {
+                shared_estimated_char_width_for_face(
+                    character,
+                    7.0,
+                    "Times New Roman",
+                    400,
+                    Some("normal"),
+                )
+            })
+            .sum::<f64>();
+        assert!(
+            (width - 14.78).abs() < 0.02,
+            "ChemDraw's 7 pt Times New Roman HCO advance is 14.78 pt, got {width}"
+        );
+        let generic_width = "HCO"
+            .chars()
+            .map(|character| shared_estimated_char_width(character, 7.0))
+            .sum::<f64>();
+        assert!(
+            (generic_width - width).abs() > 0.5,
+            "the generic profile must not silently replace face metrics"
+        );
     }
 
     #[test]

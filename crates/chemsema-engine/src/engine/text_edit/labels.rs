@@ -318,6 +318,7 @@ pub(super) fn make_centered_node_label_from_runs(
     preserve_measured_box: bool,
     treat_as_literal_text_mode: bool,
     force_grouped_attached_layout: bool,
+    use_face_text_advance: bool,
     forced_decision: Option<crate::LabelLayoutDecision>,
     glyph_clip_profile: GlyphClipProfile,
 ) -> crate::NodeLabel {
@@ -341,6 +342,13 @@ pub(super) fn make_centered_node_label_from_runs(
         lines.join("\n")
     };
     let anchor_char = label_anchor_char_for_layout(&line_runs, &layout);
+    // ChemDraw uses the selected face's text advance when a collapsed label is
+    // attached as one whole text unit. Chemical group anchoring is different:
+    // an element/group inside the formula owns the attachment, and script runs
+    // participate in that chemical layout rather than ordinary text advance.
+    // Keeping the two metric domains explicit prevents labels such as F3C from
+    // widening their active box when its 3 is displayed as a subscript.
+    let use_face_text_advance = uses_face_text_advance(use_face_text_advance, &line_runs);
     let line_height = session
         .line_height
         .filter(|value| value.is_finite() && *value > 0.0)
@@ -348,16 +356,18 @@ pub(super) fn make_centered_node_label_from_runs(
     let estimated_width = lines
         .iter()
         .zip(line_runs.iter())
-        .map(|(_, runs)| estimate_line_runs_width(runs, font_size))
+        .map(|(_, runs)| estimate_line_runs_width(runs, font_size, use_face_text_advance))
         .fold(font_size * 0.6, f64::max);
     let estimated_height = round2((line_height * lines.len().max(1) as f64).max(line_height));
     let anchor_prefix_width = line_runs
         .get(layout.anchor_line)
-        .map(|runs| estimate_prefix_width(runs, anchor_char, font_size))
+        .map(|runs| estimate_prefix_width(runs, anchor_char, font_size, use_face_text_advance))
         .unwrap_or(0.0);
     let anchor_char_width = line_runs
         .get(layout.anchor_line)
-        .and_then(|runs| estimate_anchor_char_width(runs, anchor_char, font_size))
+        .and_then(|runs| {
+            estimate_anchor_char_width(runs, anchor_char, font_size, use_face_text_advance)
+        })
         .unwrap_or(font_size * 0.62);
     let anchor_center_x = anchor_prefix_width + anchor_char_width * 0.5;
     let can_preserve_imported_single_line_box =
@@ -644,6 +654,36 @@ mod label_layout_tests {
         assert!(label_starts_with_metal_element("NoCl2"));
         assert!(!label_starts_with_metal_element("NotAGroup"));
         assert!(!label_starts_with_metal_element("Acetic"));
+    }
+
+    #[test]
+    fn face_text_advance_is_limited_to_plain_placeholder_labels() {
+        let plain = vec![vec![LabelRun {
+            text: "HCO".to_string(),
+            script: Some("normal".to_string()),
+            ..LabelRun::default()
+        }]];
+        assert!(uses_face_text_advance(true, &plain));
+        assert!(!uses_face_text_advance(false, &plain));
+
+        let scripted = vec![vec![
+            LabelRun {
+                text: "F".to_string(),
+                script: Some("normal".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: "3".to_string(),
+                script: Some("subscript".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: "C".to_string(),
+                script: Some("normal".to_string()),
+                ..LabelRun::default()
+            },
+        ]];
+        assert!(!uses_face_text_advance(true, &scripted));
     }
 }
 
@@ -998,7 +1038,11 @@ fn label_anchor_char_for_runs(runs: &[LabelRun], default_index: usize) -> usize 
         .unwrap_or(default_index)
 }
 
-pub(super) fn estimate_line_runs_width(runs: &[LabelRun], default_font_size: f64) -> f64 {
+pub(super) fn estimate_line_runs_width(
+    runs: &[LabelRun],
+    default_font_size: f64,
+    use_face_text_advance: bool,
+) -> f64 {
     runs.iter().fold(0.0, |width, run| {
         let run_font_size = run.font_size.unwrap_or(default_font_size)
             * crate::glyph_kernel::shared_script_scale_factor(run.script.as_deref());
@@ -1006,15 +1050,46 @@ pub(super) fn estimate_line_runs_width(runs: &[LabelRun], default_font_size: f64
             + run
                 .text
                 .chars()
-                .map(|ch| estimated_char_width(ch, run_font_size))
+                .map(|ch| estimated_run_char_width(run, ch, run_font_size, use_face_text_advance))
                 .sum::<f64>()
     })
+}
+
+fn uses_face_text_advance(is_placeholder_label: bool, line_runs: &[Vec<LabelRun>]) -> bool {
+    is_placeholder_label
+        && line_runs.iter().flatten().all(|run| {
+            run.script
+                .as_deref()
+                .is_none_or(|script| matches!(script, "normal" | "baseline"))
+        })
+}
+
+fn estimated_run_char_width(
+    run: &LabelRun,
+    character: char,
+    font_size: f64,
+    use_face_text_advance: bool,
+) -> f64 {
+    if use_face_text_advance {
+        crate::glyph_kernel::shared_estimated_char_width_for_face(
+            character,
+            font_size,
+            run.font_family
+                .as_deref()
+                .unwrap_or(DEFAULT_TEXT_FONT_FAMILY),
+            run.font_weight.unwrap_or(400),
+            run.font_style.as_deref(),
+        )
+    } else {
+        estimated_char_width(character, font_size)
+    }
 }
 
 pub(super) fn estimate_prefix_width(
     runs: &[LabelRun],
     char_count: usize,
     default_font_size: f64,
+    use_face_text_advance: bool,
 ) -> f64 {
     let mut remaining = char_count;
     let mut width = 0.0;
@@ -1028,7 +1103,7 @@ pub(super) fn estimate_prefix_width(
             if remaining == 0 {
                 break;
             }
-            width += estimated_char_width(ch, run_font_size);
+            width += estimated_run_char_width(run, ch, run_font_size, use_face_text_advance);
             remaining -= 1;
         }
     }
@@ -1039,6 +1114,7 @@ pub(super) fn estimate_anchor_char_width(
     runs: &[LabelRun],
     char_index: usize,
     default_font_size: f64,
+    use_face_text_advance: bool,
 ) -> Option<f64> {
     let mut current_index = 0usize;
     for run in runs {
@@ -1046,7 +1122,12 @@ pub(super) fn estimate_anchor_char_width(
             * crate::glyph_kernel::shared_script_scale_factor(run.script.as_deref());
         for ch in run.text.chars() {
             if current_index == char_index {
-                return Some(estimated_char_width(ch, run_font_size));
+                return Some(estimated_run_char_width(
+                    run,
+                    ch,
+                    run_font_size,
+                    use_face_text_advance,
+                ));
             }
             current_index += 1;
         }
@@ -2043,6 +2124,7 @@ pub(super) fn refreshed_attached_node_label(
         false,
         !interpret_chemically,
         layout_as_grouped_attached_label,
+        node.is_placeholder,
         Some(decision.clone()),
         glyph_clip_profile.unwrap_or_else(|| glyph_clip_profile_for_label(label)),
     );

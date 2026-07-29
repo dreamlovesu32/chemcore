@@ -73,6 +73,7 @@
     "benchmark:cdxml-public": "node scripts/public-cdxml-roundtrip.mjs",
     "benchmark:cdxml-public:failure-ledger": "node scripts/build-public-cdxml-failure-ledger.mjs",
     "benchmark:cdxml-public:visual-gate": "node scripts/public-cdxml-visual-gate.mjs",
+    "benchmark:cdxml-public:visual-gate:strict338": "node scripts/public-cdxml-visual-gate.mjs --strict-original-338",
     "benchmark:cdxml-public:visual-gate:report": "node scripts/public-cdxml-visual-gate.mjs --report-only",
     "benchmark:cdxml-public:visual-gate:affected": "node scripts/plan-public-cdxml-affected-gate.mjs",
     "benchmark:cdxml-public:visual-gate:affected:test": "node --test scripts/tests/public-cdxml-impact.test.mjs",

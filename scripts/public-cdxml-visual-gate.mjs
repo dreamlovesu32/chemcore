@@ -21,6 +21,7 @@ const DEFAULTS = Object.freeze({
   jobs: 4,
   allowDirtyGallery: false,
   allowStaleGallery: false,
+  strictOriginal338: false,
   cohortLedger: "benchmarks/public-cdxml/failure-ledger.json",
   cohort: null,
   analysisScale: 2,
@@ -97,6 +98,7 @@ function parseArgs(argv) {
     else if (arg === "--cohort") options.cohort = argv[++index];
     else if (arg === "--allow-dirty-gallery") options.allowDirtyGallery = true;
     else if (arg === "--allow-stale-gallery") options.allowStaleGallery = true;
+    else if (arg === "--strict-original-338") options.strictOriginal338 = true;
     else if (arg === "--analysis-scale") options.analysisScale = Number(argv[++index]);
     else if (arg === "--tolerance") options.tolerance = Number(argv[++index]);
     else if (arg === "--tile-size") options.tileSize = Number(argv[++index]);
@@ -145,6 +147,58 @@ function parseArgs(argv) {
     else throw new Error(`Unknown argument: ${arg}`);
   }
   return options;
+}
+
+export function strictOriginal338ConfigurationErrors(options) {
+  if (!options.strictOriginal338) return [];
+  const errors = [];
+  if (options.allowDirtyGallery) errors.push("--allow-dirty-gallery is forbidden");
+  if (options.allowStaleGallery) errors.push("--allow-stale-gallery is forbidden");
+  if (options.reportOnly) errors.push("--report-only is forbidden");
+  if (options.patterns?.length) errors.push("--only is forbidden");
+  if (Number.isFinite(options.limit)) errors.push("--limit is forbidden");
+  if (options.cohort && options.cohort !== "original-338") {
+    errors.push("--cohort must be original-338");
+  }
+  if (!options.baselineReport) errors.push("--baseline-report is required");
+  return errors;
+}
+
+export function strictOriginal338BaselineErrors(baselineReport, selectedItems, options) {
+  if (!options.strictOriginal338) return [];
+  const errors = [];
+  const cohort = baselineReport?.selection?.cohort;
+  if (
+    cohort?.name !== "original-338"
+    || cohort?.expected !== 338
+    || cohort?.selected !== 338
+  ) {
+    errors.push("baseline report is not the exact original-338 cohort");
+  }
+  if (!reportsUseSameGateDefinition(baselineReport, options)) {
+    errors.push("baseline report uses a different visual-gate definition");
+  }
+  const baselinePaths = new Set(
+    (baselineReport?.cases ?? []).map((entry) => entry.relativeCdxml),
+  );
+  const selectedPaths = new Set(selectedItems.map((entry) => entry.relativeCdxml));
+  if (baselinePaths.size !== 338 || selectedPaths.size !== 338) {
+    errors.push("baseline and current selection must each contain 338 unique paths");
+  } else {
+    for (const relativeCdxml of selectedPaths) {
+      if (!baselinePaths.has(relativeCdxml)) {
+        errors.push(`baseline is missing selected path ${relativeCdxml}`);
+        break;
+      }
+    }
+    for (const relativeCdxml of baselinePaths) {
+      if (!selectedPaths.has(relativeCdxml)) {
+        errors.push(`baseline contains an unexpected path ${relativeCdxml}`);
+        break;
+      }
+    }
+  }
+  return errors;
 }
 
 function validateOptions(options) {
@@ -1096,7 +1150,7 @@ function detailAnalysisOptions(options) {
   };
 }
 
-function gatePolicy(options) {
+export function gatePolicy(options) {
   return {
     coordinateSpace: "ChemDraw reference image coordinates",
     alignment:
@@ -1345,7 +1399,7 @@ async function runSelfTest(options) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log("Usage: node scripts/public-cdxml-visual-gate.mjs [--gallery dir] [--out report.json] [--passed-gallery html] [--cohort name] [--cohort-ledger file] [--only text] [--limit n] [--jobs n] [--allow-dirty-gallery] [--allow-stale-gallery] [--report-only]");
+    console.log("Usage: node scripts/public-cdxml-visual-gate.mjs [--gallery dir] [--out report.json] [--passed-gallery html] [--cohort name] [--cohort-ledger file] [--only text] [--limit n] [--jobs n] [--allow-dirty-gallery] [--allow-stale-gallery] [--report-only] [--strict-original-338]");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --reuse-report report.json [--gallery dir] [--passed-gallery html]");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --gallery dir --stamp-report report.json");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --gallery dir --baseline-report report.json --out report.json");
@@ -1353,6 +1407,13 @@ async function main() {
     return;
   }
   validateOptions(options);
+  const strictConfigurationErrors = strictOriginal338ConfigurationErrors(options);
+  if (strictConfigurationErrors.length) {
+    throw new Error(
+      `Invalid --strict-original-338 configuration: ${strictConfigurationErrors.join("; ")}`,
+    );
+  }
+  if (options.strictOriginal338) options.cohort = "original-338";
   if (options.selfTest) {
     await runSelfTest(options);
     return;
@@ -1437,6 +1498,16 @@ async function main() {
   const baselineReport = options.baselineReport
     ? JSON.parse(await fs.readFile(path.resolve(options.baselineReport), "utf8"))
     : null;
+  const strictBaselineErrors = strictOriginal338BaselineErrors(
+    baselineReport,
+    items,
+    options,
+  );
+  if (strictBaselineErrors.length) {
+    throw new Error(
+      `Invalid --strict-original-338 baseline: ${strictBaselineErrors.join("; ")}`,
+    );
+  }
   const baselineCases = reportsUseSameGateDefinition(baselineReport, options)
     ? new Map(baselineReport.cases.map((entry) => [entry.relativeCdxml, entry]))
     : new Map();
@@ -1570,6 +1641,15 @@ async function main() {
       patterns: options.patterns,
       limit: Number.isFinite(options.limit) ? options.limit : null,
     },
+    enforcement: options.strictOriginal338
+      ? {
+        mode: "strict-original-338",
+        cleanGalleryRequired: true,
+        currentGalleryRequired: true,
+        exactBaselineScopeRequired: true,
+        zeroRegressionsRequired: true,
+      }
+      : { mode: "standard" },
     policy: gatePolicy(options),
     summary: {
       total: cases.length,

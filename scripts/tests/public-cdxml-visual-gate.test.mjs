@@ -4,8 +4,11 @@ import {
   boundedLocalTopologyEquivalent,
   classifyAnalyzedVisualMetrics,
   detailGateReasons,
+  gatePolicy,
   nearExactFixedDefectEquivalent,
   selectVisualGateCohort,
+  strictOriginal338BaselineErrors,
+  strictOriginal338ConfigurationErrors,
 } from "../public-cdxml-visual-gate.mjs";
 
 function metrics({
@@ -34,6 +37,97 @@ function metrics({
     },
   };
 }
+
+test("strict original-338 mode rejects diagnostic escape hatches", () => {
+  const errors = strictOriginal338ConfigurationErrors({
+    strictOriginal338: true,
+    allowDirtyGallery: true,
+    allowStaleGallery: true,
+    reportOnly: true,
+    patterns: ["one-case"],
+    limit: 1,
+    cohort: "other",
+    baselineReport: null,
+  });
+  assert.deepEqual(errors, [
+    "--allow-dirty-gallery is forbidden",
+    "--allow-stale-gallery is forbidden",
+    "--report-only is forbidden",
+    "--only is forbidden",
+    "--limit is forbidden",
+    "--cohort must be original-338",
+    "--baseline-report is required",
+  ]);
+});
+
+test("strict original-338 mode requires the exact same 338 paths and gate definition", () => {
+  const cases = Array.from({ length: 338 }, (_, index) => ({
+    relativeCdxml: `source/${String(index).padStart(4, "0")}.cdxml`,
+  }));
+  const options = {
+    strictOriginal338: true,
+    analysisScale: 2,
+    tolerance: 1.5,
+    tileSize: 256,
+    halo: 24,
+    localWindow: 48,
+    localStride: 24,
+    minimumWindowInk: 4,
+    minCoverage: 0.75,
+    maxDefectArea: 8,
+    maxDefectSpan: 12,
+    detailAnalysisScale: 4,
+    detailTolerance: 0,
+    detailLocalWindow: 24,
+    detailLocalStride: 12,
+    detailMinimumWindowInk: 12,
+    maxComponentCountDelta: 1,
+    maxEnclosedSmallComponentDimensionDelta: 2.75,
+    maxRepeatedMicroDefects: 20,
+    maxRepeatedMicroDefectArea: 5,
+    minRepeatedMicroCoverage: 0.75,
+    minimumTopologyComponentCount: 8,
+    minimumSmallTopologyComponentCount: 3,
+    minimumSmallTopologyLocalCoverage: 0.7,
+    maximumTopologyCandidateComponentCount: 300,
+    maxTopologyCandidateCountRatio: 0.1,
+    maxRelativeComponentCenterDistance: 0.02,
+    maxComponentPositionDistributionDelta: 0.03,
+    minSlenderDefectCoverage: 0.98,
+    minSlenderDefectLocalCoverage: 0.75,
+    maxSlenderDefectArea: 24,
+    maxSlenderDefectSpan: 30,
+    maxSlenderDefectThickness: 1,
+    minBoundedLocalCoverage: 0.96,
+    minBoundedLocalWindowCoverage: 0.5,
+    maxBoundedLocalDefectArea: 32,
+    maxBoundedLocalDefectSpan: 32,
+    minBoundedRelativeComponentCoverage: 0.877,
+    boundedComponentDeltaPenalty: 0.01,
+    maxBoundedComponentCountDelta: 8,
+    maxTightBoundedLocalDefectSpan: 20,
+    minTightBoundedRelativeComponentCoverage: 0.88,
+    maxTightBoundedComponentCountDelta: 5,
+    minNearExactCoverage: 0.994,
+    maxNearExactDefectSpan: 15,
+    maxNearExactDefectArea: 18,
+  };
+  const baseline = {
+    cacheIdentity: "chemsema-public-cdxml-visual-gate-cache-v12",
+    selection: {
+      cohort: { name: "original-338", expected: 338, selected: 338 },
+    },
+    policy: gatePolicy(options),
+    cases,
+  };
+  assert.deepEqual(strictOriginal338BaselineErrors(baseline, cases, options), []);
+  const changed = structuredClone(cases);
+  changed[337].relativeCdxml = "source/replacement.cdxml";
+  assert.match(
+    strictOriginal338BaselineErrors(baseline, changed, options).join("\n"),
+    /baseline is missing selected path source\/replacement\.cdxml/,
+  );
+});
 
 test("bounded local topology accepts small fixed-coordinate defects", () => {
   assert.equal(boundedLocalTopologyEquivalent(metrics()), true);

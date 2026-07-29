@@ -183,6 +183,7 @@ pub(crate) fn make_periodic_element_node_label(text: &str, position: [f64; 2]) -
         false,
         false,
         false,
+        false,
         None,
         GlyphClipProfile::from_margin_width(crate::DEFAULT_BOND_MARGIN_WIDTH_PT.value()),
     )
@@ -1302,6 +1303,7 @@ impl Engine {
             false,
             false,
             false,
+            false,
             None,
             self.glyph_clip_profile(),
         );
@@ -1825,6 +1827,7 @@ fn apply_node_label_text_edit_with_options(
         preserve_measured_box,
         false,
         false,
+        node.is_placeholder,
         label_layout_decision_for_command_display_mode(session.display_mode, text),
         glyph_clip_profile,
     );
