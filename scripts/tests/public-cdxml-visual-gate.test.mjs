@@ -8,10 +8,25 @@ import {
   gatePolicy,
   nearExactFixedDefectEquivalent,
   selectVisualGateCohort,
+  shouldEvaluateOriginal338PassFloor,
   strictOriginal338BaselineErrors,
   strictOriginal338ConfigurationErrors,
   strictOriginal338PassFloorErrors,
 } from "../public-cdxml-visual-gate.mjs";
+
+test("complete original-338 diagnostics always evaluate the protected pass floor", () => {
+  const complete = {
+    name: "original-338",
+    expected: 338,
+    selected: 338,
+  };
+  assert.equal(shouldEvaluateOriginal338PassFloor(complete, 338), true);
+  assert.equal(shouldEvaluateOriginal338PassFloor(complete, 337), false);
+  assert.equal(
+    shouldEvaluateOriginal338PassFloor({ ...complete, name: "another-cohort" }, 338),
+    false,
+  );
+});
 
 function metrics({
   coverage = 0.98,

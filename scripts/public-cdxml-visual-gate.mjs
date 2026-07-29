@@ -458,6 +458,13 @@ export function classifyPassFloorRegressions(cases, passFloor) {
   });
 }
 
+export function shouldEvaluateOriginal338PassFloor(cohortSelection, selectedCount) {
+  return cohortSelection?.name === "original-338"
+    && cohortSelection.expected === 338
+    && cohortSelection.selected === 338
+    && selectedCount === 338;
+}
+
 export function selectVisualGateCohort(items, ledger, cohort) {
   const selectedPaths = new Set(
     ledger.cases
@@ -2102,7 +2109,9 @@ async function main() {
   const baselineReport = options.baselineReport
     ? JSON.parse(await fs.readFile(path.resolve(options.baselineReport), "utf8"))
     : null;
-  const strictPassFloor = options.strictOriginal338
+  const evaluatePassFloor = options.strictOriginal338
+    || shouldEvaluateOriginal338PassFloor(cohortSelection, items.length);
+  const strictPassFloor = evaluatePassFloor
     ? JSON.parse(await fs.readFile(STRICT_PASS_FLOOR_PATH, "utf8"))
     : null;
   const strictBaselineErrors = strictOriginal338BaselineErrors(
