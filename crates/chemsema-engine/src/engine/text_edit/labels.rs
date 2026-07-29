@@ -2112,6 +2112,37 @@ fn glyph_clip_profile_for_label(label: &crate::NodeLabel) -> GlyphClipProfile {
     GlyphClipProfile::from_margin_width(crate::DEFAULT_BOND_MARGIN_WIDTH_PT.value())
 }
 
+fn reframe_stacked_attached_label_for_variable_spacing(
+    label: &mut crate::NodeLabel,
+    font_size: f64,
+) {
+    let line_count = label.line_runs.len();
+    if line_count <= 1 || label.line_advances.len() != line_count - 1 {
+        return;
+    }
+    let anchor_line = match label.layout.as_deref() {
+        Some("attached-group-above") => line_count - 1,
+        Some("attached-group-below") => 0,
+        _ => return,
+    };
+    let Some(position) = label.position else {
+        return;
+    };
+    let Some(mut bbox) = label.bbox() else {
+        return;
+    };
+    let anchor_offset = label.line_advances[..anchor_line].iter().sum::<f64>();
+    let default_line_advance = label
+        .line_height
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .expect("resolved variable spacing must have a positive default advance");
+    let block_height = label.line_advances.iter().sum::<f64>() + default_line_advance;
+    bbox[1] = round2(position[1] - anchor_offset - font_size * 0.82);
+    bbox[3] = round2(bbox[1] + block_height);
+    label.box_field = Some(bbox);
+    label.box_value = Some(bbox);
+}
+
 pub(super) fn refreshed_attached_node_label(
     fragment: &crate::MoleculeFragment,
     node_id: &str,
@@ -2313,6 +2344,16 @@ pub(super) fn refreshed_attached_node_label(
         };
     if let Some(first_advance) = next_label.line_advances.first().copied() {
         next_label.line_height = Some(round2(first_advance));
+    }
+    if next_label.line_height_mode == "variable" {
+        // The stacked label's position is the attached element line's
+        // baseline: the last line for StackAbove and the first for StackBelow.
+        // Variable spacing is resolved after the initial scalar layout, so the
+        // box must be reframed from that semantic anchor before glyph geometry
+        // is rebuilt. Otherwise a fresh import retains the old scalar box and
+        // shifts every rendered line even though their relative advances are
+        // already correct.
+        reframe_stacked_attached_label_for_variable_spacing(&mut next_label, font_size);
     }
     if is_cdxml_imported_centered_attached_label(label) {
         if let Some(mut bbox) = next_label.bbox() {

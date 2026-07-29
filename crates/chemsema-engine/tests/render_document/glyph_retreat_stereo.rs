@@ -1685,6 +1685,12 @@ fn generated_atom_label_recomputes_variable_spacing_after_hydrogen_stacking() {
 </CDXML>"##;
     let document = parse_cdxml_document(cdxml, Some("generated stacked atom label"))
         .expect("stacked atom label should parse");
+    let object_translate_y = document
+        .editable_fragment()
+        .expect("stacked atom fragment")
+        .object
+        .transform
+        .translate[1];
     let label = document
         .resources
         .values()
@@ -1699,6 +1705,95 @@ fn generated_atom_label_recomputes_variable_spacing_after_hydrogen_stacking() {
     assert_eq!(label.line_advances.len(), 1);
     assert!((label.line_height.unwrap_or_default() - label.line_advances[0]).abs() < 0.01);
     assert!(label.line_advances[0] < 9.0);
+
+    let position = label.position.expect("stacked label anchor baseline");
+    let bbox = label.bbox().expect("stacked label box");
+    let first_line_baseline = bbox[1] + label.font_size.unwrap_or(10.0) * 0.82;
+    assert!(
+        (first_line_baseline + label.line_advances[0] - position[1]).abs() < 0.01,
+        "the box top must be reframed after variable spacing is resolved: {label:?}"
+    );
+    assert!(
+        ((bbox[3] - bbox[1]) - label.line_advances[0] * 2.0).abs() < 0.01,
+        "the multiline box height must use the resolved variable advance: {label:?}"
+    );
+
+    let rendered_baselines = render_document(&document)
+        .into_iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Text {
+                node_id: Some(node_id),
+                y,
+                ..
+            } if node_id == "nitrogen" => Some(y),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(rendered_baselines.len(), 2);
+    assert!((rendered_baselines[0] - first_line_baseline - object_translate_y).abs() < 0.01);
+    assert!((rendered_baselines[1] - position[1] - object_translate_y).abs() < 0.01);
+}
+
+#[test]
+fn generated_atom_label_reframes_variable_spacing_for_below_stack() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <fragment id="fragment">
+      <n id="left" p="20 15"/>
+      <n id="nitrogen" p="40 40" Element="7" NumHydrogens="1"/>
+      <n id="right" p="60 15"/>
+      <b id="left-bond" B="left" E="nitrogen"/>
+      <b id="right-bond" B="nitrogen" E="right"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("generated below stacked atom label"))
+        .expect("below stacked atom label should parse");
+    let object_translate_y = document
+        .editable_fragment()
+        .expect("below stacked atom fragment")
+        .object
+        .transform
+        .translate[1];
+    let label = document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .find(|node| node.id == "nitrogen")
+        .and_then(|node| node.label.as_ref())
+        .expect("nitrogen label should be generated");
+
+    assert_eq!(label.text, "N\nH");
+    assert_eq!(label.layout.as_deref(), Some("attached-group-below"));
+    assert_eq!(label.line_height_mode, "variable");
+    assert_eq!(label.line_advances.len(), 1);
+
+    let position = label.position.expect("element line anchor baseline");
+    let bbox = label.bbox().expect("below stacked label box");
+    let first_line_baseline = bbox[1] + label.font_size.unwrap_or(10.0) * 0.82;
+    assert!((first_line_baseline - position[1]).abs() < 0.01);
+    assert!(((bbox[3] - bbox[1]) - label.line_advances[0] * 2.0).abs() < 0.01);
+
+    let rendered_baselines = render_document(&document)
+        .into_iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Text {
+                node_id: Some(node_id),
+                y,
+                ..
+            } if node_id == "nitrogen" => Some(y),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(rendered_baselines.len(), 2);
+    assert!((rendered_baselines[0] - position[1] - object_translate_y).abs() < 0.01);
+    assert!(
+        (rendered_baselines[1] - position[1] - object_translate_y - label.line_advances[0]).abs()
+            < 0.01
+    );
 }
 
 #[test]
