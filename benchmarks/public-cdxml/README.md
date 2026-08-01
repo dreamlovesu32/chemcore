@@ -136,28 +136,30 @@ identity, so upgrading the alignment or detail classifier cannot erase earlier
 passes. Baseline mode permits historical failures to remain open, but it does
 not permit them to become worse. Every pass-to-fail transition is recorded in
 `delta.regressions`; `delta.continuousRegressions` independently compares cases
-that remain red using fixed-window coverage, largest missing/extra components,
-unmatched component counts, relative component matches, and fine-detail
-defects. A new defect reason or material metric loss beyond the explicit
-sub-pixel tolerance is a continuous regression only when no old reason was
-removed and no peer metric materially improved. This Pareto guard rejects pure
-deterioration without misclassifying a registered-image trade-off. Whole-image
-overlap and
-coverage are excluded from this continuous constraint because canvas size can
-dilute them. Both kinds of regression are checked during pass-floor promotion
-and gate migration. Path-to-feature
+that remain red using global and fixed-window coverage, largest missing/extra
+components, independent unmatched component counts, relative component
+matches, component position distributions, and fine-detail defects. A new
+defect reason, a protected metric disappearing, or a material metric loss
+beyond the explicit raster tolerance is a regression. Improvement in another
+metric cannot cancel it: registered-image statistics are not additive, so a
+trade-off must be reviewed and explicitly promoted instead of being silently
+accepted. Fixed reference-unit windows, component geometry, and absolute
+defect bounds keep the decision from being diluted by canvas size. Both kinds
+of regression are checked during pass-floor promotion and gate migration. Path-to-feature
 declarations and historical regression cases live in
 `benchmarks/public-cdxml/visual-impact-map.json`; unknown production changes and
 gate-definition changes conservatively force a full run.
 
 Strict original-338 runs also load
-`benchmarks/public-cdxml/strict-pass-floor.json`. The tracked pass floor is
-bound to one exact gate definition and is the cumulative union of every pass
-accepted by that definition, so selecting an accidentally degraded baseline
-cannot erase older green cases. The strict command rejects a
-baseline that has already lost a protected pass and independently fails if the
-current report loses one. After a clean strict run adds passes with zero
-regressions, promote only the additions:
+`benchmarks/public-cdxml/strict-pass-floor.json`. The tracked floor is bound to
+one exact gate definition and stores all 338 paths: the cumulative union of
+accepted passes plus the status, ChemDraw-oracle hash, defect reasons, and
+non-regression metrics for every remaining failure. Strict mode compares
+against this committed all-case floor directly; an optional report is only an
+analysis cache and cannot replace regression history. It also rejects a
+changed oracle, a missing protected metric, a stale/dirty/partial gallery, or
+any loss hidden behind a gain elsewhere. After a clean strict run adds passes
+or improves red cases with zero regressions, promote the new all-case floor:
 
 ```bash
 npm run benchmark:cdxml-public:visual-gate:promote -- \
@@ -166,7 +168,8 @@ npm run benchmark:cdxml-public:visual-gate:promote -- \
 
 Promotion validates the exact 338-case cohort, clean and current repository/CLI
 provenance, zero analysis errors, and zero immediate or cumulative regressions.
-It unions new passes into the floor; it never removes protected paths.
+It unions new passes into the floor and ratchets every remaining red case to
+its improved metrics; it never removes protected paths.
 
 When the gate definition itself is corrected, the old verdict set is not
 silently carried forward. Re-analyze both a frozen previous candidate gallery

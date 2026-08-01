@@ -13,8 +13,12 @@ import {
   nearExactFixedDefectEquivalent,
   passFloorGateDefinition,
   passFloorGateDefinitionErrors,
+  protectedVisualCase,
+  protectedVisualFloorOracleErrors,
+  regressionBaselineCasesForGate,
   selectVisualGateCohort,
   shouldEvaluateOriginal338PassFloor,
+  STRICT_PASS_FLOOR_SCHEMA,
   strictOriginal338BaselineErrors,
   strictOriginal338ConfigurationErrors,
   strictOriginal338PassFloorErrors,
@@ -81,7 +85,7 @@ test("continuous regression metrics only guard cases that remain red", () => {
   );
 });
 
-test("continuous regression metrics reject only pure red-to-red deterioration", () => {
+test("continuous regression metrics reject deterioration even with a countervailing gain", () => {
   const baseline = new Map([
     ["tradeoff.cdxml", {
       status: "fail",
@@ -114,8 +118,66 @@ test("continuous regression metrics reject only pure red-to-red deterioration", 
   ];
   assert.deepEqual(
     classifyContinuousBaselineRegressions(current, baseline).map((entry) => entry.relativeCdxml),
-    ["pure.cdxml"],
+    ["tradeoff.cdxml", "pure.cdxml"],
   );
+});
+
+test("continuous regression metrics cannot disappear to evade the floor", () => {
+  const baseline = new Map([["red.cdxml", {
+    status: "fail",
+    reasons: ["old-defect"],
+    largestMissing: { area: 10 },
+  }]]);
+  const current = [{
+    relativeCdxml: "red.cdxml",
+    status: "fail",
+    reasons: ["old-defect"],
+  }];
+  const regressions = classifyContinuousBaselineRegressions(current, baseline);
+  assert.equal(regressions.length, 1);
+  assert.equal(regressions[0].reasons[0].direction, "present");
+});
+
+test("protected visual cases keep only authoritative all-case floor data", () => {
+  const floorCase = protectedVisualCase({
+    relativeCdxml: "source\\red.cdxml",
+    status: "fail",
+    artifactHashes: { reference: "oracle", candidate: "candidate" },
+    reasons: ["b", "a", "b"],
+    referenceCoverage: 0.9,
+    candidateCoverage: 0.8,
+    largestMissing: { area: 10, span: 4, box: { x: 1 } },
+    error: "must not persist",
+  });
+  assert.deepEqual(floorCase, {
+    relativeCdxml: "source/red.cdxml",
+    status: "fail",
+    artifactHashes: { reference: "oracle" },
+    reasons: ["a", "b"],
+    referenceCoverage: 0.9,
+    candidateCoverage: 0.8,
+    largestMissing: { area: 10, span: 4 },
+  });
+  assert.deepEqual(protectedVisualFloorOracleErrors({
+    protectedCases: [floorCase],
+  }, new Map([["source/red.cdxml", "changed-oracle"]])), [
+    "protected ChemDraw oracle changed for source/red.cdxml",
+  ]);
+});
+
+test("strict regression history comes from the committed floor, never a chosen cache report", () => {
+  const baseline = regressionBaselineCasesForGate({
+    evaluatePassFloor: true,
+    passFloorDefinitionErrors: [],
+    strictPassFloor: {
+      protectedCases: [{ relativeCdxml: "case.cdxml", status: "pass" }],
+    },
+    sameGateDefinition: true,
+    baselineReport: {
+      cases: [{ relativeCdxml: "case.cdxml", status: "fail" }],
+    },
+  });
+  assert.equal(baseline.get("case.cdxml").status, "pass");
 });
 
 function metrics({
@@ -163,7 +225,6 @@ test("strict original-338 mode rejects diagnostic escape hatches", () => {
     "--only is forbidden",
     "--limit is forbidden",
     "--cohort must be original-338",
-    "--baseline-report is required",
   ]);
 });
 
@@ -239,7 +300,7 @@ test("strict original-338 mode requires the exact same 338 paths across gate upg
   );
 });
 
-test("strict original-338 pass floor cannot be erased by choosing a degraded baseline", () => {
+test("strict original-338 pass floor is authoritative over a degraded cache baseline", () => {
   const options = { strictOriginal338: true };
   const selected = Array.from({ length: 338 }, (_, index) => ({
     relativeCdxml: `source/${String(index).padStart(4, "0")}.cdxml`,
@@ -249,11 +310,16 @@ test("strict original-338 pass floor cannot be erased by choosing a degraded bas
   };
   baseline.cases[0].status = "pass";
   const passFloor = {
-    schema: "chemsema.public-cdxml-strict-pass-floor.v2",
+    schema: STRICT_PASS_FLOOR_SCHEMA,
     gateDefinition: passFloorGateDefinition(options),
     cohort: { name: "original-338", expected: 338 },
     minimumPassed: 2,
     protectedPasses: ["source/0000.cdxml", "source/0001.cdxml"],
+    protectedCases: selected.map((entry, index) => ({
+      ...entry,
+      status: index < 2 ? "pass" : "fail",
+      artifactHashes: { reference: `reference-${index}` },
+    })),
   };
   assert.deepEqual(
     strictOriginal338PassFloorErrors(
@@ -262,13 +328,18 @@ test("strict original-338 pass floor cannot be erased by choosing a degraded bas
       baseline,
       options,
     ),
-    ["baseline lost protected pass source/0001.cdxml"],
+    [],
   );
+  assert.deepEqual(classifyPassFloorRegressions(baseline.cases, passFloor), [{
+    relativeCdxml: "source/0001.cdxml",
+    before: "protected-pass",
+    after: "fail",
+  }]);
 });
 
 test("pass floors are bound to one exact gate definition", () => {
   const floor = {
-    schema: "chemsema.public-cdxml-strict-pass-floor.v2",
+    schema: STRICT_PASS_FLOOR_SCHEMA,
     gateDefinition: passFloorGateDefinition(),
   };
   assert.deepEqual(passFloorGateDefinitionErrors(floor), []);

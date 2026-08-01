@@ -2,6 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {
   classifyPassFloorRegressions,
+  classifyContinuousBaselineRegressions,
+  protectedVisualCases,
   reuseReportCompatibilityErrors,
   strictOriginal338PassFloorErrors,
   STRICT_PASS_FLOOR_PATH,
@@ -79,8 +81,17 @@ async function main() {
     throw new Error(`Current pass floor is invalid: ${validationErrors.join("; ")}`);
   }
   const floorRegressions = classifyPassFloorRegressions(report.cases, passFloor);
+  const protectedCaseBaseline = new Map(passFloor.protectedCases.map((entry) => [
+    entry.relativeCdxml.replaceAll("\\", "/"),
+    entry,
+  ]));
+  const protectedCaseRegressions = classifyContinuousBaselineRegressions(
+    report.cases,
+    protectedCaseBaseline,
+  );
   if (
     floorRegressions.length
+    || protectedCaseRegressions.length
     || report.delta?.regressions?.length
     || report.delta?.continuousRegressions?.length
   ) {
@@ -101,6 +112,7 @@ async function main() {
       gateReportGeneratedAt: report.generatedAt,
     },
     protectedPasses,
+    protectedCases: protectedVisualCases(report.cases),
   };
   await fs.writeFile(
     STRICT_PASS_FLOOR_PATH,

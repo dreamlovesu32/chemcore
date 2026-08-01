@@ -83,9 +83,9 @@ const DEFAULTS = Object.freeze({
 });
 
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
-export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v20";
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v21";
 export const STRICT_PASS_FLOOR_SCHEMA =
-  "chemsema.public-cdxml-strict-pass-floor.v2";
+  "chemsema.public-cdxml-strict-pass-floor.v3";
 export const STRICT_PASS_FLOOR_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -182,12 +182,12 @@ export function strictOriginal338ConfigurationErrors(options) {
   if (options.cohort && options.cohort !== "original-338") {
     errors.push("--cohort must be original-338");
   }
-  if (!options.baselineReport) errors.push("--baseline-report is required");
   return errors;
 }
 
 export function strictOriginal338BaselineErrors(baselineReport, selectedItems, options) {
   if (!options.strictOriginal338) return [];
+  if (!baselineReport) return [];
   const errors = [];
   const cohort = baselineReport?.selection?.cohort;
   if (
@@ -290,7 +290,7 @@ function normalizedCasePath(relativeCdxml) {
 export function strictOriginal338PassFloorErrors(
   passFloor,
   selectedItems,
-  baselineReport,
+  _baselineReport,
   options,
 ) {
   if (!options.strictOriginal338) return [];
@@ -330,19 +330,46 @@ export function strictOriginal338PassFloorErrors(
   const selectedPaths = new Set(
     selectedItems.map((entry) => normalizedCasePath(entry.relativeCdxml)),
   );
-  const baselineCases = new Map(
-    (baselineReport?.cases ?? []).map((entry) => [
-      normalizedCasePath(entry.relativeCdxml),
-      entry,
-    ]),
-  );
   for (const relativeCdxml of protectedSet) {
     if (!selectedPaths.has(relativeCdxml)) {
       errors.push(`pass floor contains a path outside the current cohort: ${relativeCdxml}`);
       break;
     }
-    if (baselineCases.get(relativeCdxml)?.status !== "pass") {
-      errors.push(`baseline lost protected pass ${relativeCdxml}`);
+  }
+  if (!Array.isArray(passFloor?.protectedCases)) {
+    errors.push("pass floor must contain protectedCases");
+    return errors;
+  }
+  const protectedCases = passFloor.protectedCases;
+  const protectedCasePaths = protectedCases.map((entry) =>
+    normalizedCasePath(entry.relativeCdxml));
+  const protectedCaseSet = new Set(protectedCasePaths);
+  if (protectedCases.length !== 338 || protectedCaseSet.size !== 338) {
+    errors.push("pass floor must protect exactly 338 unique cases");
+  }
+  if (JSON.stringify([...protectedCasePaths].sort()) !== JSON.stringify(protectedCasePaths)) {
+    errors.push("pass floor protectedCases must be sorted");
+  }
+  for (const entry of protectedCases) {
+    const relativeCdxml = normalizedCasePath(entry.relativeCdxml);
+    if (!selectedPaths.has(relativeCdxml)) {
+      errors.push(`pass floor contains a protected case outside the cohort: ${relativeCdxml}`);
+      break;
+    }
+    if (!["pass", "fail", "unavailable"].includes(entry.status)) {
+      errors.push(`pass floor has invalid status for ${relativeCdxml}`);
+      break;
+    }
+    if (!entry.artifactHashes?.reference) {
+      errors.push(`pass floor is missing the ChemDraw oracle hash for ${relativeCdxml}`);
+      break;
+    }
+    if (entry.status === "pass" && !protectedSet.has(relativeCdxml)) {
+      errors.push(`pass floor protectedCases has an unlisted pass: ${relativeCdxml}`);
+      break;
+    }
+    if (entry.status !== "pass" && protectedSet.has(relativeCdxml)) {
+      errors.push(`pass floor protectedPasses has a non-pass case: ${relativeCdxml}`);
       break;
     }
   }
@@ -463,6 +490,8 @@ export function classifyBaselineChanges(cases, baselineCases) {
 }
 
 const CONTINUOUS_REGRESSION_METRICS = Object.freeze([
+  { path: "referenceCoverage", direction: "higher", tolerance: 0.002 },
+  { path: "candidateCoverage", direction: "higher", tolerance: 0.002 },
   { path: "local.referenceCoverage", direction: "higher", tolerance: 0.01 },
   { path: "local.candidateCoverage", direction: "higher", tolerance: 0.01 },
   { path: "largestMissing.area", direction: "lower", tolerance: 0.5 },
@@ -470,6 +499,11 @@ const CONTINUOUS_REGRESSION_METRICS = Object.freeze([
   { path: "largestMissing.span", direction: "lower", tolerance: 0.5 },
   { path: "largestExtra.span", direction: "lower", tolerance: 0.5 },
   { path: "detailFeatures.compactDefectCount", direction: "lower", tolerance: 1 },
+  {
+    path: "detailFeatures.componentMatchCoverage",
+    direction: "higher",
+    tolerance: 0.01,
+  },
   {
     path: "detailFeatures.relativeComponentMatchCoverage",
     direction: "higher",
@@ -479,6 +513,11 @@ const CONTINUOUS_REGRESSION_METRICS = Object.freeze([
     path: "detailFeatures.componentPositionDistributionDelta",
     direction: "lower",
     tolerance: 0.01,
+  },
+  {
+    path: "detailFeatures.independentComponentCountDelta",
+    direction: "lower",
+    tolerance: 1,
   },
   {
     path: "detailFeatures.unmatchedReferenceComponentCount",
@@ -500,6 +539,16 @@ const CONTINUOUS_REGRESSION_METRICS = Object.freeze([
     direction: "lower",
     tolerance: 0.5,
   },
+  {
+    path: "detailFeatures.maximumMatchedCenterDistance",
+    direction: "lower",
+    tolerance: 0.5,
+  },
+  {
+    path: "detailFeatures.maximumMatchedDimensionDelta",
+    direction: "lower",
+    tolerance: 0.5,
+  },
   { path: "detail.local.referenceCoverage", direction: "higher", tolerance: 0.01 },
   { path: "detail.local.candidateCoverage", direction: "higher", tolerance: 0.01 },
   { path: "detail.largestMissing.area", direction: "lower", tolerance: 0.25 },
@@ -512,6 +561,11 @@ const CONTINUOUS_REGRESSION_METRICS = Object.freeze([
     tolerance: 1,
   },
   {
+    path: "detail.detailFeatures.componentMatchCoverage",
+    direction: "higher",
+    tolerance: 0.01,
+  },
+  {
     path: "detail.detailFeatures.relativeComponentMatchCoverage",
     direction: "higher",
     tolerance: 0.01,
@@ -520,6 +574,11 @@ const CONTINUOUS_REGRESSION_METRICS = Object.freeze([
     path: "detail.detailFeatures.componentPositionDistributionDelta",
     direction: "lower",
     tolerance: 0.01,
+  },
+  {
+    path: "detail.detailFeatures.independentComponentCountDelta",
+    direction: "lower",
+    tolerance: 1,
   },
 ]);
 
@@ -534,9 +593,74 @@ function metricRegression(metric, before, after) {
   return after - before > metric.tolerance;
 }
 
-function metricImprovement(metric, before, after) {
-  if (metric.direction === "higher") return after - before > metric.tolerance;
-  return before - after > metric.tolerance;
+function setMetricAt(entry, metricPath, value) {
+  const segments = metricPath.split(".");
+  let target = entry;
+  for (const segment of segments.slice(0, -1)) {
+    target[segment] ??= {};
+    target = target[segment];
+  }
+  target[segments.at(-1)] = value;
+}
+
+export function protectedVisualCase(entry) {
+  const protectedCase = {
+    relativeCdxml: normalizedCasePath(entry.relativeCdxml),
+    status: entry.status,
+    artifactHashes: { reference: entry.artifactHashes?.reference ?? null },
+  };
+  if (entry.status !== "fail") return protectedCase;
+  protectedCase.reasons = [...new Set(entry.reasons ?? [])].sort();
+  for (const metric of CONTINUOUS_REGRESSION_METRICS) {
+    const value = finiteMetricAt(entry, metric.path);
+    if (value !== null) setMetricAt(protectedCase, metric.path, value);
+  }
+  return protectedCase;
+}
+
+export function protectedVisualCases(cases) {
+  return cases.map(protectedVisualCase).sort((left, right) =>
+    left.relativeCdxml.localeCompare(right.relativeCdxml));
+}
+
+export function protectedVisualFloorOracleErrors(passFloor, currentReferenceHashes) {
+  const floorCases = new Map(
+    (passFloor?.protectedCases ?? []).map((entry) => [
+      normalizedCasePath(entry.relativeCdxml),
+      entry,
+    ]),
+  );
+  const errors = [];
+  for (const [relativeCdxml, referenceHash] of currentReferenceHashes) {
+    const floorCase = floorCases.get(normalizedCasePath(relativeCdxml));
+    if (!floorCase) {
+      errors.push(`pass floor is missing current case ${relativeCdxml}`);
+      break;
+    }
+    if (floorCase.artifactHashes?.reference !== referenceHash) {
+      errors.push(`protected ChemDraw oracle changed for ${relativeCdxml}`);
+      break;
+    }
+  }
+  return errors;
+}
+
+export function regressionBaselineCasesForGate({
+  evaluatePassFloor,
+  passFloorDefinitionErrors,
+  strictPassFloor,
+  sameGateDefinition,
+  baselineReport,
+}) {
+  const sourceCases = evaluatePassFloor && !passFloorDefinitionErrors.length
+    ? strictPassFloor?.protectedCases ?? []
+    : sameGateDefinition
+      ? baselineReport?.cases ?? []
+      : [];
+  return new Map(sourceCases.map((entry) => [
+    normalizedCasePath(entry.relativeCdxml),
+    entry,
+  ]));
 }
 
 export function classifyContinuousBaselineRegressions(cases, baselineCases) {
@@ -572,7 +696,6 @@ export function classifyContinuousBaselineRegressions(cases, baselineCases) {
       }] : [];
     }
     const previousReasons = new Set(baseline.reasons ?? []);
-    const currentReasons = new Set(entry.reasons ?? []);
     const newGateReasons = [...new Set(entry.reasons ?? [])]
       .filter((reason) => !previousReasons.has(reason))
       .sort();
@@ -588,7 +711,18 @@ export function classifyContinuousBaselineRegressions(cases, baselineCases) {
     for (const metric of CONTINUOUS_REGRESSION_METRICS) {
       const before = finiteMetricAt(baseline, metric.path);
       const after = finiteMetricAt(entry, metric.path);
-      if (before === null || after === null || !metricRegression(metric, before, after)) continue;
+      if (before === null) continue;
+      if (after === null) {
+        reasons.push({
+          metric: metric.path,
+          direction: "present",
+          before,
+          after: null,
+          tolerance: 0,
+        });
+        continue;
+      }
+      if (!metricRegression(metric, before, after)) continue;
       reasons.push({
         metric: metric.path,
         direction: metric.direction,
@@ -597,21 +731,10 @@ export function classifyContinuousBaselineRegressions(cases, baselineCases) {
         tolerance: metric.tolerance,
       });
     }
-    const removedGateReason = [...previousReasons]
-      .some((reason) => !currentReasons.has(reason));
-    const improvedMetric = CONTINUOUS_REGRESSION_METRICS.some((metric) => {
-      const before = finiteMetricAt(baseline, metric.path);
-      const after = finiteMetricAt(entry, metric.path);
-      return before !== null
-        && after !== null
-        && metricImprovement(metric, before, after);
-    });
-    // Continuous protection is a Pareto guard for cases that remain red. A
-    // change with a removed defect reason or a material countervailing metric
-    // improvement is a trade-off to investigate, not proof that the case only
-    // deteriorated. Discrete reasons and the pass floor still decide whether
-    // the image itself is acceptable.
-    if (reasons.length && (removedGateReason || improvedMetric)) return [];
+    // A gain in one metric cannot cancel deterioration in another. Registered
+    // image metrics are not additive, and allowing a trade-off here let a new
+    // local defect hide behind an unrelated coverage improvement. A deliberate
+    // trade-off must be reviewed and promoted into the committed floor.
     return reasons.length ? [{
       relativeCdxml,
       beforeStatus: baseline.status,
@@ -2002,7 +2125,7 @@ export async function reuseReportCompatibilityErrors(
   if (report?.schema !== "chemsema-public-cdxml-visual-gate-v1") {
     errors.push("report schema is missing or unsupported");
   }
-  if (report?.cacheIdentity !== CACHE_IDENTITY) {
+  if (!options.allowGateDefinitionUpgrade && report?.cacheIdentity !== CACHE_IDENTITY) {
     errors.push("report uses a different gate definition");
   }
   if (JSON.stringify(report?.policy) !== JSON.stringify(gatePolicy(settings))) {
@@ -2369,7 +2492,6 @@ async function runSelfTest(options) {
       topDefects: [],
     };
     const expectedDetailReasons = [
-      "detail-component-count",
       "detail-enclosed-small-component-dimension",
       "detail-repeated-micro-defects",
     ];
@@ -2626,13 +2748,15 @@ async function main() {
       `Invalid --strict-original-338 baseline: ${strictBaselineErrors.join("; ")}`,
     );
   }
-  if (baselineReport) {
-    const currentReferenceHashes = new Map(await Promise.all(
+  const currentReferenceHashes = baselineReport || evaluatePassFloor
+    ? new Map(await Promise.all(
       items.map(async (item) => [
         normalizedCasePath(item.relativeCdxml),
         await sha256File(path.resolve(galleryDir, item.reference)),
       ]),
-    ));
+    ))
+    : new Map();
+  if (baselineReport) {
     const compatibilityErrors = visualBaselineCompatibilityErrors(
       baselineReport,
       manifest.provenance,
@@ -2642,6 +2766,15 @@ async function main() {
       throw new Error(
         `Incompatible --baseline-report: ${compatibilityErrors.join("; ")}`,
       );
+    }
+  }
+  if (evaluatePassFloor && !passFloorDefinitionErrors.length) {
+    const oracleErrors = protectedVisualFloorOracleErrors(
+      strictPassFloor,
+      currentReferenceHashes,
+    );
+    if (oracleErrors.length) {
+      throw new Error(`Invalid protected visual floor: ${oracleErrors.join("; ")}`);
     }
   }
   const strictPassFloorErrors = strictOriginal338PassFloorErrors(
@@ -2668,14 +2801,13 @@ async function main() {
       entry,
     ]))
     : new Map();
-  const regressionBaselineCases = sameGateDefinition
-    ? new Map(
-      (baselineReport?.cases ?? []).map((entry) => [
-        normalizedCasePath(entry.relativeCdxml),
-        entry,
-      ]),
-    )
-    : new Map();
+  const regressionBaselineCases = regressionBaselineCasesForGate({
+    evaluatePassFloor,
+    passFloorDefinitionErrors,
+    strictPassFloor,
+    sameGateDefinition,
+    baselineReport,
+  });
 
   const browser = await launchBrowser({ headless: true });
   const context = await browser.newContext();
@@ -2825,6 +2957,7 @@ async function main() {
         cleanGalleryRequired: true,
         currentGalleryRequired: true,
         exactBaselineScopeRequired: true,
+        committedAllCaseFloorRequired: true,
         zeroRegressionsRequired: true,
         zeroContinuousRegressionsRequired: true,
         cumulativePassFloorRequired: true,
@@ -2855,9 +2988,11 @@ async function main() {
     delta: {
       comparisonMode: sameGateDefinition
         ? "same-gate-definition"
-        : baselineReport
-          ? "pass-floor-only"
-          : "none",
+        : evaluatePassFloor && !passFloorDefinitionErrors.length
+          ? "committed-all-case-floor"
+          : baselineReport
+            ? "pass-floor-only"
+            : "none",
       ...delta,
       continuousRegressions,
     },

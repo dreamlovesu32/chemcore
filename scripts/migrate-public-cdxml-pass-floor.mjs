@@ -6,6 +6,7 @@ import {
   classifyBaselineChanges,
   classifyContinuousBaselineRegressions,
   passFloorGateDefinition,
+  protectedVisualCases,
   reuseReportCompatibilityErrors,
   STRICT_PASS_FLOOR_PATH,
   STRICT_PASS_FLOOR_SCHEMA,
@@ -65,7 +66,9 @@ async function verifiedReport(reportPath, label) {
   );
   const errors = [
     ...exactCohortErrors(report, label),
-    ...await reuseReportCompatibilityErrors(report, manifest, galleryDir, {}),
+    ...await reuseReportCompatibilityErrors(report, manifest, galleryDir, {
+      allowGateDefinitionUpgrade: true,
+    }),
   ];
   if (errors.length) {
     throw new Error(`Invalid ${label} report: ${errors.join("; ")}`);
@@ -81,11 +84,10 @@ export function passFloorMigrationErrors(previousReport, currentReport) {
     ["current", currentReport],
   ]) {
     if (
-      report.cacheIdentity !== expectedDefinition.cacheIdentity
-      || report.policy == null
+      report.policy == null
       || sha256(JSON.stringify(report.policy)) !== expectedDefinition.policySha256
     ) {
-      errors.push(`${label} report uses a different gate definition`);
+      errors.push(`${label} report uses a different gate policy`);
     }
   }
   if (JSON.stringify(previousReport.policy) !== JSON.stringify(currentReport.policy)) {
@@ -169,6 +171,7 @@ async function main() {
       sameGateImprovements: changes.improvements.length,
     },
     protectedPasses,
+    protectedCases: protectedVisualCases(current.report.cases),
   };
   await fs.writeFile(
     STRICT_PASS_FLOOR_PATH,
