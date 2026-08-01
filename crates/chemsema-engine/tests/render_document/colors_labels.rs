@@ -444,13 +444,14 @@ fn cdxml_round_brackets_do_not_gain_groups_or_expand() {
 }
 
 #[test]
-fn cdxml_drops_bonds_whose_normalized_endpoint_is_missing() {
+fn cdxml_point_lexical_failures_keep_nodes_and_bonds_at_chemdraw_coordinates() {
     let source = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <CDXML BoundingBox="0 0 100 60">
   <page id="1" BoundingBox="0 0 100 60">
     <fragment id="2" BoundingBox="10 10 90 50">
       <n id="3" p="20 30"/><n id="4" p="60 30"/><n id="5" p="not-a-point"/>
-      <b id="6" B="3" E="4"/><b id="7" B="4" E="5"/>
+      <n id="8" p="70 bad"/>
+      <b id="6" B="3" E="4"/><b id="7" B="4" E="5"/><b id="9" B="4" E="8"/>
     </fragment>
   </page>
 </CDXML>"#;
@@ -461,10 +462,26 @@ fn cdxml_drops_bonds_whose_normalized_endpoint_is_missing() {
         .values()
         .find_map(|resource| resource.data.as_fragment())
         .expect("valid component survives");
-    assert_eq!(fragment.nodes.len(), 2);
-    assert_eq!(fragment.bonds.len(), 1);
-    assert_eq!(fragment.bonds[0].begin, "3");
-    assert_eq!(fragment.bonds[0].end, "4");
+    assert_eq!(fragment.nodes.len(), 4);
+    assert_eq!(fragment.bonds.len(), 3);
+    assert_eq!(
+        fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == "5")
+            .expect("invalid first component still creates a node")
+            .point(),
+        Point { x: -10.0, y: -10.0 }
+    );
+    assert_eq!(
+        fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == "8")
+            .expect("invalid second component still creates a node")
+            .point(),
+        Point { x: 60.0, y: -10.0 }
+    );
 }
 
 #[test]
