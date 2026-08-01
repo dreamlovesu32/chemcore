@@ -17,7 +17,6 @@ pub const BOLD_BOND_WIDTH_PT: WorldPt = world_pt(4.0);
 pub const WEDGE_BOLD_WIDTH_MULTIPLIER: f64 = 1.5;
 pub const SOLID_WEDGE_WIDTH_PT: WorldPt = world_pt(6.0);
 pub const MOLECULE_LABEL_LINE_ADVANCE_RATIO: f64 = 0.89;
-pub const MOLECULE_LABEL_ANCHOR_BASELINE_RATIO: f64 = 0.39;
 
 pub const HASH_WEDGE_INITIAL_HALF_WIDTH_PT: WorldPt = css_px(0.42).to_world_pt();
 pub const HASH_WEDGE_PROGRESS_BASE_HALF_WIDTH_PT: WorldPt = css_px(0.16).to_world_pt();

@@ -100,6 +100,16 @@ struct GlyphOutlineFaceJson {
     glyphs: HashMap<String, GlyphOutlineJson>,
     #[serde(default)]
     kerning: HashMap<String, HashMap<String, f64>>,
+    #[serde(rename = "labelAnchorMetrics")]
+    label_anchor_metrics: LabelAnchorMetricsJson,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LabelAnchorMetricsJson {
+    logical_height_max: u32,
+    character_ascent_runs: Vec<[u32; 2]>,
+    unhinted_descent_em: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -996,7 +1006,7 @@ fn shared_glyph_outlines() -> &'static SharedGlyphOutlinesJson {
             .expect("shared glyph outline manifest must decompress");
         let manifest: SharedGlyphOutlinesJson =
             serde_json::from_str(&json).expect("shared glyph outline manifest must be valid JSON");
-        assert_eq!(manifest.version, 3, "unsupported glyph outline manifest");
+        assert_eq!(manifest.version, 4, "unsupported glyph outline manifest");
         manifest
     })
 }
@@ -1018,6 +1028,97 @@ fn glyph_face_key(font_weight: u32, italic: bool) -> &'static str {
         (false, true) => "italic",
         (true, true) => "boldItalic",
     }
+}
+
+pub(crate) fn resolved_chemdraw_font_family(font_family: &str) -> &str {
+    shared_glyph_outlines()
+        .aliases
+        .get(font_family)
+        .map(String::as_str)
+        .unwrap_or(font_family)
+}
+
+fn lookup_glyph_face(
+    font_family: &str,
+    font_weight: u32,
+    italic: bool,
+) -> Option<&'static GlyphOutlineFaceJson> {
+    let manifest = shared_glyph_outlines();
+    let resolved_family = manifest
+        .aliases
+        .get(font_family)
+        .map(String::as_str)
+        .unwrap_or(font_family);
+    manifest
+        .families
+        .get(resolved_family)
+        // CDXML maps unavailable font families to Arial before layout.
+        .or_else(|| manifest.families.get("Arial"))
+        .and_then(|family| {
+            family
+                .faces
+                .get(glyph_face_key(font_weight, italic))
+                // Single-face families synthesize emphasis without changing
+                // their vertical GDI character metrics.
+                .or_else(|| family.faces.get("regular"))
+        })
+}
+
+/// ChemDraw positions a single-line molecule label so that the atom lies at
+/// half of the selected GDI face's character ascent. CDXML point sizes become
+/// negative GDI logical heights in twentieths of a point; dividing the integer
+/// character ascent by 40 applies both conversions and the half-ascent anchor.
+pub(crate) fn chemdraw_molecule_label_baseline_offset(
+    font_family: Option<&str>,
+    font_size: f64,
+    font_weight: u32,
+    italic: bool,
+) -> f64 {
+    let finite_size = if font_size.is_finite() && font_size > 0.0 {
+        font_size
+    } else {
+        crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT
+    };
+    let logical_height = (finite_size * 20.0).round().clamp(1.0, u32::MAX as f64) as u32;
+    let face = lookup_glyph_face(font_family.unwrap_or("Arial"), font_weight, italic)
+        .expect("Arial label anchor metrics must exist");
+    let metrics = &face.label_anchor_metrics;
+    let character_ascent = if logical_height <= metrics.logical_height_max {
+        let index = metrics
+            .character_ascent_runs
+            .partition_point(|run| run[0] <= logical_height)
+            .saturating_sub(1);
+        metrics.character_ascent_runs[index][1]
+    } else {
+        let descent = (logical_height as f64 * metrics.unhinted_descent_em).round() as u32;
+        logical_height.saturating_sub(descent)
+    };
+    character_ascent as f64 / 40.0
+}
+
+pub(crate) fn node_label_anchor_baseline_offset(label: &crate::NodeLabel) -> f64 {
+    let runs = label.runs.iter().chain(label.line_runs.iter().flatten());
+    let anchor_run = runs
+        .clone()
+        .find(|run| !matches!(run.script.as_deref(), Some("subscript" | "superscript")))
+        .or_else(|| runs.into_iter().next());
+    let font_family = anchor_run
+        .and_then(|run| run.font_family.as_deref())
+        .or(label.font_family.as_deref());
+    let font_size = anchor_run
+        .and_then(|run| run.font_size)
+        .or(label.font_size)
+        .unwrap_or(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT);
+    let font_weight = anchor_run.and_then(|run| run.font_weight).unwrap_or(400);
+    let italic = anchor_run
+        .and_then(|run| run.font_style.as_deref())
+        .is_some_and(|style| {
+            matches!(
+                style.trim().to_ascii_lowercase().as_str(),
+                "italic" | "oblique"
+            )
+        });
+    chemdraw_molecule_label_baseline_offset(font_family, font_size, font_weight, italic)
 }
 
 fn lookup_glyph_outline(
@@ -2250,12 +2351,30 @@ mod tests {
     #[test]
     fn outline_manifest_contains_measured_families_and_faces() {
         let manifest = shared_glyph_outlines();
-        assert_eq!(manifest.version, 3);
+        assert_eq!(manifest.version, 4);
         for family in ["Arial", "Times New Roman", "Calibri", "Cambria"] {
             let family = manifest.families.get(family).expect("measured family");
             for face in ["regular", "bold", "italic", "boldItalic"] {
                 assert!(family.faces.contains_key(face), "missing {face}");
             }
+        }
+    }
+
+    #[test]
+    fn molecule_label_baseline_uses_gdi_character_ascent() {
+        for (family, size, expected) in [
+            ("Arial", 8.0, 3.15),
+            ("Helvetica", 9.95, 3.9),
+            ("Arial", 14.45, 5.7),
+            ("Times New Roman", 8.0, 3.075),
+            ("Times New Roman", 9.95, 3.85),
+            ("Times New Roman", 14.45, 5.65),
+        ] {
+            let actual = chemdraw_molecule_label_baseline_offset(Some(family), size, 400, false);
+            assert!(
+                (actual - expected).abs() < 1e-9,
+                "{family} {size}: expected {expected}, got {actual}"
+            );
         }
     }
 

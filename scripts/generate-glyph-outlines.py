@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import json
+from ctypes import wintypes
 from pathlib import Path
 
 from fontTools.pens.recordingPen import RecordingPen
@@ -13,6 +15,7 @@ from fontTools.ttLib import TTFont
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_GLYPH_PROFILES = ROOT / "shared" / "glyph_profiles.json"
 DEFAULT_OUTPUT = ROOT / "shared" / "glyph_outlines.json"
+GDI_LABEL_ANCHOR_MAX_LOGICAL_HEIGHT = 5760
 
 FONT_FACES = {
     "Arial": {
@@ -92,6 +95,119 @@ FONT_ALIASES = {
     "Noto Sans SC": "SimSun",
     "Noto Serif SC": "SimSun",
 }
+
+
+class TextMetricW(ctypes.Structure):
+    _fields_ = [
+        ("tmHeight", wintypes.LONG),
+        ("tmAscent", wintypes.LONG),
+        ("tmDescent", wintypes.LONG),
+        ("tmInternalLeading", wintypes.LONG),
+        ("tmExternalLeading", wintypes.LONG),
+        ("tmAveCharWidth", wintypes.LONG),
+        ("tmMaxCharWidth", wintypes.LONG),
+        ("tmWeight", wintypes.LONG),
+        ("tmOverhang", wintypes.LONG),
+        ("tmDigitizedAspectX", wintypes.LONG),
+        ("tmDigitizedAspectY", wintypes.LONG),
+        ("tmFirstChar", wintypes.WCHAR),
+        ("tmLastChar", wintypes.WCHAR),
+        ("tmDefaultChar", wintypes.WCHAR),
+        ("tmBreakChar", wintypes.WCHAR),
+        ("tmItalic", wintypes.BYTE),
+        ("tmUnderlined", wintypes.BYTE),
+        ("tmStruckOut", wintypes.BYTE),
+        ("tmPitchAndFamily", wintypes.BYTE),
+        ("tmCharSet", wintypes.BYTE),
+    ]
+
+
+def gdi_label_anchor_metrics(family: str, face: str, ttfont: TTFont) -> dict:
+    """Measure ChemDraw's node-to-label baseline metric for one Windows face.
+
+    ChemDraw creates a GDI font whose negative logical height is the CDXML
+    point size multiplied by 20. The atom sits halfway through the GDI
+    character ascent (`tmAscent - tmInternalLeading`). Store that integer
+    metric as change points instead of a per-size lookup table.
+    """
+
+    gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
+    gdi32.CreateCompatibleDC.argtypes = [wintypes.HDC]
+    gdi32.CreateCompatibleDC.restype = wintypes.HDC
+    gdi32.CreateFontW.argtypes = [
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPCWSTR,
+    ]
+    gdi32.CreateFontW.restype = wintypes.HFONT
+    gdi32.SelectObject.argtypes = [wintypes.HDC, wintypes.HGDIOBJ]
+    gdi32.SelectObject.restype = wintypes.HGDIOBJ
+    gdi32.GetTextMetricsW.argtypes = [wintypes.HDC, ctypes.POINTER(TextMetricW)]
+    gdi32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
+    gdi32.DeleteDC.argtypes = [wintypes.HDC]
+
+    weights = {"regular": 400, "bold": 700, "italic": 400, "boldItalic": 700}
+    italic = face in {"italic", "boldItalic"}
+    dc = gdi32.CreateCompatibleDC(None)
+    if not dc:
+        raise ctypes.WinError(ctypes.get_last_error())
+    runs: list[list[int]] = []
+    previous_value = None
+    try:
+        for logical_height in range(1, GDI_LABEL_ANCHOR_MAX_LOGICAL_HEIGHT + 1):
+            font = gdi32.CreateFontW(
+                -logical_height,
+                0,
+                0,
+                0,
+                weights[face],
+                int(italic),
+                0,
+                0,
+                1,
+                0,
+                0,
+                4,
+                0,
+                family,
+            )
+            if not font:
+                raise ctypes.WinError(ctypes.get_last_error())
+            old = gdi32.SelectObject(dc, font)
+            metrics = TextMetricW()
+            if not gdi32.GetTextMetricsW(dc, ctypes.byref(metrics)):
+                gdi32.SelectObject(dc, old)
+                gdi32.DeleteObject(font)
+                raise ctypes.WinError(ctypes.get_last_error())
+            gdi32.SelectObject(dc, old)
+            gdi32.DeleteObject(font)
+            character_ascent = int(metrics.tmAscent - metrics.tmInternalLeading)
+            if character_ascent != previous_value:
+                runs.append([logical_height, character_ascent])
+                previous_value = character_ascent
+    finally:
+        gdi32.DeleteDC(dc)
+
+    units_per_em = ttfont["head"].unitsPerEm
+    win_descent = ttfont["OS/2"].usWinDescent
+    return {
+        "logicalHeightMax": GDI_LABEL_ANCHOR_MAX_LOGICAL_HEIGHT,
+        "characterAscentRuns": runs,
+        # CDXML can carry sizes beyond the 288 pt editor limit. Above that
+        # exact GDI domain, use the face's declared Windows descent metric.
+        "unhintedDescentEm": round(win_descent / units_per_em, 8),
+    }
 
 
 def parse_args() -> argparse.Namespace:
@@ -229,12 +345,13 @@ def main() -> None:
                 "sourceFont": path.name,
                 "glyphs": glyphs,
                 "kerning": glyph_kerning(ttfont, chars, cmap),
+                "labelAnchorMetrics": gdi_label_anchor_metrics(family, face, ttfont),
             }
         if generated_faces:
             families[family] = {"faces": generated_faces}
 
     payload = {
-        "version": 3,
+        "version": 4,
         "aliases": FONT_ALIASES,
         "families": families,
     }

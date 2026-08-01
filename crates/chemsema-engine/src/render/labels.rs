@@ -22,10 +22,7 @@ pub(super) fn attached_label_glyph_anchor_world(
         (bounds.y1 + bounds.y2) * 0.5
     } else {
         let baseline_y = label.position?[1];
-        let font_size = label
-            .font_size
-            .unwrap_or(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT);
-        baseline_y - font_size * crate::MOLECULE_LABEL_ANCHOR_BASELINE_RATIO
+        baseline_y - crate::node_label_anchor_baseline_offset(label)
     };
     Some(Point::new(
         (bounds.x1 + bounds.x2) * 0.5 + object.transform.translate[0],

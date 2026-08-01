@@ -458,10 +458,30 @@ pub(super) fn make_centered_node_label_from_runs(
     );
     let glyph_polygons = &mut glyph_geometry.glyph_polygons;
     if !preserve_measured_box {
-        let mut dx = 0.0;
-        let dy = round2(
-            position[1] - (baseline_y - font_size * crate::MOLECULE_LABEL_ANCHOR_BASELINE_RATIO),
+        let anchor_run = label_run_at(&line_runs, layout.anchor_line, anchor_char);
+        let anchor_font_family = anchor_run
+            .and_then(|run| run.font_family.as_deref())
+            .unwrap_or(font_family);
+        let anchor_font_size = anchor_run
+            .and_then(|run| run.font_size)
+            .unwrap_or(font_size);
+        let anchor_font_weight = anchor_run.and_then(|run| run.font_weight).unwrap_or(400);
+        let anchor_italic = anchor_run
+            .and_then(|run| run.font_style.as_deref())
+            .is_some_and(|style| {
+                matches!(
+                    style.trim().to_ascii_lowercase().as_str(),
+                    "italic" | "oblique"
+                )
+            });
+        let anchor_baseline_offset = crate::chemdraw_molecule_label_baseline_offset(
+            Some(anchor_font_family),
+            anchor_font_size,
+            anchor_font_weight,
+            anchor_italic,
         );
+        let mut dx = 0.0;
+        let dy = round2(position[1] - (baseline_y - anchor_baseline_offset));
 
         // ChemDraw's whole-text nickname/placeholder layout attaches ordinary
         // characters at the center of their face-specific typographic advance
@@ -484,7 +504,7 @@ pub(super) fn make_centered_node_label_from_runs(
                         prime_suffix_anchor_point(
                             glyph_clip_profile,
                             baseline_y,
-                            font_size,
+                            anchor_baseline_offset,
                             &points,
                         )
                     })
@@ -607,11 +627,11 @@ fn label_anchor_polygon_index(
 fn prime_suffix_anchor_point(
     glyph_clip_profile: GlyphClipProfile,
     baseline_y: f64,
-    font_size: f64,
+    anchor_baseline_offset: f64,
     polygon: &[Point],
 ) -> Option<Point> {
     let bounds = crate::polygon_bounds(polygon)?;
-    let anchor_y = baseline_y - font_size * crate::MOLECULE_LABEL_ANCHOR_BASELINE_RATIO;
+    let anchor_y = baseline_y - anchor_baseline_offset;
     Some(Point::new(
         bounds[2] - glyph_clip_profile.natural_outset_pt,
         anchor_y,
@@ -628,6 +648,22 @@ fn label_char_at(
         .iter()
         .flat_map(|run| run.text.chars())
         .nth(anchor_char)
+}
+
+fn label_run_at(
+    line_runs: &[Vec<LabelRun>],
+    anchor_line: usize,
+    anchor_char: usize,
+) -> Option<&LabelRun> {
+    let mut index = 0usize;
+    for run in line_runs.get(anchor_line)? {
+        let next = index + run.text.chars().count();
+        if anchor_char < next {
+            return Some(run);
+        }
+        index = next;
+    }
+    None
 }
 
 pub(super) fn label_layout_decision_for_text_mode(

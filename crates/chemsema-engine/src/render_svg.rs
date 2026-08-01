@@ -555,7 +555,7 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
             ..
         } => {
             let center = rotate_center.unwrap_or(Point::new(*x, *y));
-            let positioned_runs = preserve_lines
+            let positioned_runs = (!runs.is_empty())
                 .then(|| chemdraw_text_shape_runs(runs))
                 .filter(|runs| runs.len() > 1);
             let (run_starts, line_advance) = positioned_runs
@@ -575,29 +575,39 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
             };
             if let Some(positioned_runs) = positioned_runs.as_ref() {
                 for (run, start) in positioned_runs.iter().zip(&run_starts) {
-                    let transform =
-                        scaled_text_transform_attr(*x + anchor_shift + start, *y, *rotate, &center);
-                    let plain_text_node = run
-                        .script
-                        .as_deref()
-                        .is_none_or(|script| script == "normal")
-                        && run.outline != Some(true)
+                    let base_font_size = run.font_size.unwrap_or(*font_size);
+                    let script_shift = crate::shared_script_baseline_shift_em_for_face(
+                        run.script.as_deref(),
+                        run.font_weight,
+                        run.font_family.as_deref().or(font_family.as_deref()),
+                        base_font_size,
+                    ) * base_font_size;
+                    let transform = scaled_text_transform_attr(
+                        *x + anchor_shift + start,
+                        *y + script_shift,
+                        *rotate,
+                        &center,
+                    );
+                    let plain_text_node = run.outline != Some(true)
                         && run.shadow != Some(true)
                         && run.underline != Some(true);
-                    let positioned_font_size = run.font_size.unwrap_or(*font_size);
+                    let positioned_font_size =
+                        base_font_size * crate::shared_script_scale_factor(run.script.as_deref());
                     let positioned_font_weight =
                         run.font_weight
                             .map(|weight| if weight >= 600 { "bold" } else { "normal" });
+                    let positioned_font_family = run
+                        .font_family
+                        .as_deref()
+                        .or(font_family.as_deref())
+                        .map(crate::resolved_chemdraw_font_family);
                     write!(
                         out,
                         r#"  <text x="0" y="0" font-size="{}px" dominant-baseline="{}" text-anchor="start" fill="{}"{}{}{}{}>"#,
                         fmt_num(positioned_font_size * SVG_TEXT_INTERNAL_SCALE),
                         escape_attr(dominant_baseline.as_deref().unwrap_or("alphabetic")),
                         escape_attr(run.fill.as_deref().or(fill.as_deref()).unwrap_or("#000000")),
-                        optional_str_attr(
-                            "font-family",
-                            run.font_family.as_deref().or(font_family.as_deref())
-                        ),
+                        optional_str_attr("font-family", positioned_font_family),
                         optional_str_attr("font-weight", positioned_font_weight),
                         optional_str_attr("font-style", run.font_style.as_deref()),
                         transform
@@ -606,7 +616,16 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
                     if plain_text_node {
                         out.push_str(&escape_text(&run.text));
                     } else {
-                        write_text_span(out, run, *font_size, SVG_TEXT_INTERNAL_SCALE, None);
+                        let mut positioned_run = run.clone();
+                        positioned_run.font_size = Some(positioned_font_size);
+                        positioned_run.script = Some("normal".to_string());
+                        write_text_span(
+                            out,
+                            &positioned_run,
+                            positioned_font_size,
+                            SVG_TEXT_INTERNAL_SCALE,
+                            None,
+                        );
                     }
                     out.push_str("</text>\n");
                 }
@@ -614,6 +633,9 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
             }
 
             let transform = scaled_text_transform_attr(*x, *y, *rotate, &center);
+            let resolved_font_family = font_family
+                .as_deref()
+                .map(crate::resolved_chemdraw_font_family);
             write!(
                 out,
                 r#"  <text x="0" y="0" font-size="{}" dominant-baseline="{}" text-anchor="{}" fill="{}"{}{}>"#,
@@ -621,7 +643,7 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
                 escape_attr(dominant_baseline.as_deref().unwrap_or("alphabetic")),
                 escape_attr(text_anchor.as_deref().unwrap_or("start")),
                 escape_attr(fill.as_deref().unwrap_or("#000000")),
-                optional_str_attr("font-family", font_family.as_deref()),
+                optional_str_attr("font-family", resolved_font_family),
                 transform
             )
             .expect("write text start");
@@ -753,12 +775,16 @@ fn write_text_span(
         effect_color,
         internal_scale,
     );
+    let resolved_font_family = run
+        .font_family
+        .as_deref()
+        .map(crate::resolved_chemdraw_font_family);
     write!(
         out,
         r#"<tspan{}{}{}{}{}{}{}{}{}{}{}{}>{}</tspan>"#,
         optional_num_attr("x", x),
         optional_num_attr("font-size", Some(font_size)),
-        optional_str_attr("font-family", run.font_family.as_deref()),
+        optional_str_attr("font-family", resolved_font_family),
         optional_str_attr(
             "fill",
             if outline {
@@ -991,6 +1017,28 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["HATU ", "(1.2 ", "eq)"]
         );
+    }
+
+    #[test]
+    fn chemdraw_text_keeps_inter_run_space_as_an_explicit_shape() {
+        let runs = vec![
+            LabelRun {
+                text: "+".to_string(),
+                script: Some("superscript".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: " Cl".to_string(),
+                ..LabelRun::default()
+            },
+        ];
+        let shaped = chemdraw_text_shape_runs(&runs);
+        assert_eq!(shaped.len(), 3);
+        assert_eq!(shaped[0].text, "+");
+        assert_eq!(shaped[1].text, " ");
+        assert_eq!(shaped[2].text, "Cl");
+        assert_eq!(shaped[0].script.as_deref(), Some("superscript"));
+        assert_eq!(shaped[1].script, None);
     }
 
     #[test]

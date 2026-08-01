@@ -4746,7 +4746,6 @@ fn fragment_content_bbox(nodes: &[Node]) -> Option<[f64; 4]> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::MOLECULE_LABEL_ANCHOR_BASELINE_RATIO;
 
     fn polygon_bounds(polygon: &[[f64; 2]]) -> Option<[f64; 4]> {
         let mut iter = polygon.iter();
@@ -4999,10 +4998,7 @@ mod tests {
 
         let left_anchor = glyph_center(left_label, 1);
         let left_line_anchor_y = left_label.position.expect("left label baseline")[1]
-            - left_label
-                .font_size
-                .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT)
-                * MOLECULE_LABEL_ANCHOR_BASELINE_RATIO;
+            - crate::node_label_anchor_baseline_offset(left_label);
         assert!(
             (left_anchor.x - left_label_node.position[0]).abs() < 0.01
                 && (left_line_anchor_y - left_label_node.position[1]).abs() < 0.01,
@@ -5010,10 +5006,7 @@ mod tests {
         );
         let right_anchor = glyph_center(right_label, 0);
         let right_line_anchor_y = right_label.position.expect("right label baseline")[1]
-            - right_label
-                .font_size
-                .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT)
-                * MOLECULE_LABEL_ANCHOR_BASELINE_RATIO;
+            - crate::node_label_anchor_baseline_offset(right_label);
         assert!(
             (right_anchor.x - right_label_node.position[0]).abs() < 0.01
                 && (right_line_anchor_y - right_label_node.position[1]).abs() < 0.01,
@@ -5559,10 +5552,7 @@ mod tests {
         let fragment = resource.data.as_fragment().expect("fragment");
         let label = fragment.nodes[0].label.as_ref().expect("label");
         let line_anchor_y = label.position.expect("label baseline")[1]
-            - label
-                .font_size
-                .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT)
-                * MOLECULE_LABEL_ANCHOR_BASELINE_RATIO;
+            - crate::node_label_anchor_baseline_offset(label);
 
         assert!(
             (line_anchor_y - 30.0).abs() < 0.01,
