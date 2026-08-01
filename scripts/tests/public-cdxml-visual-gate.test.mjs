@@ -5,6 +5,7 @@ import {
   boundedLocalTopologyEquivalent,
   candidateViewportGateReasons,
   classifyAnalyzedVisualMetrics,
+  classifyContinuousBaselineRegressions,
   classifyPassFloorRegressions,
   defaultGatePolicy,
   detailGateReasons,
@@ -60,6 +61,60 @@ test("complete original-338 diagnostics always evaluate the protected pass floor
   assert.equal(
     shouldEvaluateOriginal338PassFloor({ ...complete, name: "another-cohort" }, 338),
     false,
+  );
+});
+
+test("continuous regression metrics only guard cases that remain red", () => {
+  const baseline = new Map([
+    ["red.cdxml", { status: "fail", largestMissing: { area: 10 } }],
+    ["green.cdxml", { status: "pass", largestMissing: { area: 10 } }],
+    ["improved.cdxml", { status: "fail", largestMissing: { area: 10 } }],
+  ]);
+  const current = [
+    { relativeCdxml: "red.cdxml", status: "fail", largestMissing: { area: 12 } },
+    { relativeCdxml: "green.cdxml", status: "pass", largestMissing: { area: 12 } },
+    { relativeCdxml: "improved.cdxml", status: "pass", largestMissing: { area: 12 } },
+  ];
+  assert.deepEqual(
+    classifyContinuousBaselineRegressions(current, baseline).map((entry) => entry.relativeCdxml),
+    ["red.cdxml"],
+  );
+});
+
+test("continuous regression metrics reject only pure red-to-red deterioration", () => {
+  const baseline = new Map([
+    ["tradeoff.cdxml", {
+      status: "fail",
+      reasons: ["old-defect"],
+      largestMissing: { area: 10 },
+      largestExtra: { area: 10 },
+    }],
+    ["pure.cdxml", {
+      status: "fail",
+      reasons: ["old-defect"],
+      largestMissing: { area: 10 },
+      largestExtra: { area: 10 },
+    }],
+  ]);
+  const current = [
+    {
+      relativeCdxml: "tradeoff.cdxml",
+      status: "fail",
+      reasons: ["new-defect"],
+      largestMissing: { area: 12 },
+      largestExtra: { area: 8 },
+    },
+    {
+      relativeCdxml: "pure.cdxml",
+      status: "fail",
+      reasons: ["old-defect", "new-defect"],
+      largestMissing: { area: 12 },
+      largestExtra: { area: 10 },
+    },
+  ];
+  assert.deepEqual(
+    classifyContinuousBaselineRegressions(current, baseline).map((entry) => entry.relativeCdxml),
+    ["pure.cdxml"],
   );
 });
 
@@ -244,6 +299,8 @@ test("pass-floor migration requires zero same-gate candidate regressions", () =>
   ]);
 
   const continuouslyWorse = structuredClone(cases);
+  cases[2].status = "fail";
+  continuouslyWorse[2].status = "fail";
   cases[2].largestMissing = { area: 10, span: 8 };
   continuouslyWorse[2].largestMissing = { area: 12, span: 8 };
   assert.deepEqual(

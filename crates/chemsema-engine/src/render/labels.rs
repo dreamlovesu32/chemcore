@@ -49,7 +49,10 @@ fn authored_character_glyph_index(source: &str, authored_character_index: usize)
 
 #[cfg(test)]
 mod attachment_tests {
-    use super::{authored_character_glyph_index, clip_body_segment_out_of_label_geometry};
+    use super::{
+        algebraic_body_segment_after_label_retreats, authored_character_glyph_index,
+        clip_body_segment_out_of_label_geometry,
+    };
     use crate::Point;
 
     #[test]
@@ -111,6 +114,20 @@ mod attachment_tests {
             0.0,
         )
         .is_none());
+
+        let (start, end, start_retreat, end_retreat) = algebraic_body_segment_after_label_retreats(
+            Point::new(0.0, 0.0),
+            Point::new(3.0, 0.0),
+            None,
+            &start_label,
+            0.0,
+            None,
+            &end_label,
+            0.0,
+        )
+        .expect("parallel bond rails retain their algebraic clipping axis");
+        assert!(start_retreat + end_retreat > 3.0);
+        assert!(start.x > end.x);
     }
 }
 
@@ -604,16 +621,17 @@ pub(super) fn clip_body_segment_out_of_label_geometry(
     end_polygons: &[Vec<Point>],
     end_half_width: f64,
 ) -> Option<(Point, Point)> {
-    let (start_retreat, end_retreat) = body_segment_label_retreats(
-        start,
-        end,
-        start_rect,
-        start_polygons,
-        start_half_width,
-        end_rect,
-        end_polygons,
-        end_half_width,
-    )?;
+    let (clipped_start, clipped_end, start_retreat, end_retreat) =
+        algebraic_body_segment_after_label_retreats(
+            start,
+            end,
+            start_rect,
+            start_polygons,
+            start_half_width,
+            end_rect,
+            end_polygons,
+            end_half_width,
+        )?;
     let authored_length = start.distance(end);
     if start_retreat > EPSILON
         && end_retreat > EPSILON
@@ -625,9 +643,33 @@ pub(super) fn clip_body_segment_out_of_label_geometry(
         // reversed, visible bond body.
         return None;
     }
+    (clipped_start.distance(clipped_end) > EPSILON).then_some((clipped_start, clipped_end))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn algebraic_body_segment_after_label_retreats(
+    start: Point,
+    end: Point,
+    start_rect: Option<RectBox>,
+    start_polygons: &[Vec<Point>],
+    start_half_width: f64,
+    end_rect: Option<RectBox>,
+    end_polygons: &[Vec<Point>],
+    end_half_width: f64,
+) -> Option<(Point, Point, f64, f64)> {
+    let (start_retreat, end_retreat) = body_segment_label_retreats(
+        start,
+        end,
+        start_rect,
+        start_polygons,
+        start_half_width,
+        end_rect,
+        end_polygons,
+        end_half_width,
+    )?;
     let (clipped_start, clipped_end) =
         apply_label_endpoint_retreats(start, end, start_retreat, end_retreat);
-    (clipped_start.distance(clipped_end) > EPSILON).then_some((clipped_start, clipped_end))
+    Some((clipped_start, clipped_end, start_retreat, end_retreat))
 }
 
 pub(super) fn apply_label_endpoint_retreats(

@@ -135,11 +135,14 @@ history is deliberately independent of that cache
 identity, so upgrading the alignment or detail classifier cannot erase earlier
 passes. Baseline mode permits historical failures to remain open, but it does
 not permit them to become worse. Every pass-to-fail transition is recorded in
-`delta.regressions`; `delta.continuousRegressions` independently compares every
-case's fixed-window coverage, largest missing/extra components, unmatched
-component counts, relative component matches, and fine-detail defects. A new defect
-reason or a material deterioration beyond the explicit sub-pixel tolerance
-fails the command even when the case was already red. Whole-image overlap and
+`delta.regressions`; `delta.continuousRegressions` independently compares cases
+that remain red using fixed-window coverage, largest missing/extra components,
+unmatched component counts, relative component matches, and fine-detail
+defects. A new defect reason or material metric loss beyond the explicit
+sub-pixel tolerance is a continuous regression only when no old reason was
+removed and no peer metric materially improved. This Pareto guard rejects pure
+deterioration without misclassifying a registered-image trade-off. Whole-image
+overlap and
 coverage are excluded from this continuous constraint because canvas size can
 dilute them. Both kinds of regression are checked during pass-floor promotion
 and gate migration. Path-to-feature

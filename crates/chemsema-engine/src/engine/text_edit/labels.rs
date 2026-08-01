@@ -483,13 +483,14 @@ pub(super) fn make_centered_node_label_from_runs(
         let mut dx = 0.0;
         let dy = round2(position[1] - (baseline_y - anchor_baseline_offset));
 
-        // ChemDraw's whole-text nickname/placeholder layout attaches ordinary
-        // characters at the center of their face-specific typographic advance
-        // cell. Chemical group layout uses the visible glyph outline instead.
-        // Keeping the same metric-domain split as width calculation prevents
-        // asymmetric glyphs in nicknames from shifting while preserving atom
-        // and formula label placement. Prime suffixes are the measured
-        // exception and attach at their visible right edge in both domains.
+        // ChemDraw anchors labels selected by the node policy at the center of
+        // the selected face's GDI advance cell. That policy includes ordinary
+        // whole-text labels, explicit scripted free endpoints and explicit
+        // zero-hydrogen divalent boron. Script scaling changes the cell but
+        // does not switch the anchor to the ink outline. Glyph outlines remain
+        // authoritative for bond retreat only.
+        // Prime suffixes are the measured exception and attach at their visible
+        // right edge in both metric domains.
         if label_char_at(&line_runs, layout.anchor_line, anchor_char)
             .is_some_and(crate::is_prime_anchor_suffix)
         {
@@ -711,7 +712,7 @@ mod label_layout_tests {
     }
 
     #[test]
-    fn face_text_advance_requires_plain_baseline_runs() {
+    fn face_text_advance_follows_the_resolved_node_policy() {
         let plain = vec![vec![LabelRun {
             text: "HCO".to_string(),
             script: Some("normal".to_string()),
@@ -737,7 +738,53 @@ mod label_layout_tests {
                 ..LabelRun::default()
             },
         ]];
-        assert!(!uses_face_text_advance(true, &scripted));
+        assert!(uses_face_text_advance(true, &scripted));
+        assert!(!uses_face_text_advance(false, &scripted));
+    }
+
+    #[test]
+    fn explicit_free_endpoints_and_divalent_boron_use_face_advance() {
+        let mut element = crate::Node::carbon("element".to_string(), Point::new(0.0, 0.0));
+        element.element = "B".to_string();
+        element.atomic_number = 5;
+        assert!(!node_uses_plain_face_text_advance(&element, "B", &[], 2));
+        assert!(!node_uses_plain_face_text_advance(&element, "Cl", &[], 2));
+        element.meta = serde_json::json!({
+            "import": { "cdxml": {
+                "explicitNumHydrogens": 0,
+                "labelDisplay": "Right"
+            } }
+        });
+        assert!(node_uses_plain_face_text_advance(&element, "B", &[], 2));
+        assert!(!node_uses_plain_face_text_advance(&element, "B", &[], 4));
+        assert!(!node_uses_plain_face_text_advance(&element, "Cl", &[], 2));
+
+        let mut placeholder = crate::Node::carbon("placeholder".to_string(), Point::new(0.0, 0.0));
+        placeholder.is_placeholder = true;
+        let scripted = vec![LabelRun {
+            text: "m".to_string(),
+            script: Some("subscript".to_string()),
+            ..LabelRun::default()
+        }];
+        assert!(!node_uses_plain_face_text_advance(
+            &placeholder,
+            "(Aax)m",
+            &scripted,
+            1,
+        ));
+        placeholder.meta = serde_json::json!({
+            "import": { "cdxml": {
+                "labelDisplay": "Right",
+                "nodeType": "Unspecified"
+            } },
+            "labelRecognition": { "status": "invalid" }
+        });
+        assert!(node_uses_plain_face_text_advance(
+            &placeholder,
+            "(Aax)m",
+            &scripted,
+            1,
+        ));
     }
 
     #[test]
@@ -1188,19 +1235,53 @@ pub(super) fn estimate_line_runs_width(
     })
 }
 
-fn uses_face_text_advance(use_plain_face_advance: bool, line_runs: &[Vec<LabelRun>]) -> bool {
-    use_plain_face_advance
-        && line_runs.iter().flatten().all(|run| {
-            run.script
-                .as_deref()
-                .is_none_or(|script| matches!(script, "normal" | "baseline"))
-        })
+fn uses_face_text_advance(use_face_advance: bool, _line_runs: &[Vec<LabelRun>]) -> bool {
+    use_face_advance
 }
 
-fn node_uses_plain_face_text_advance(node: &crate::Node) -> bool {
-    node.is_placeholder
+fn node_uses_plain_face_text_advance(
+    node: &crate::Node,
+    label_text: &str,
+    runs: &[LabelRun],
+    connection_count: usize,
+) -> bool {
+    let has_shifted_script = runs.iter().any(|run| {
+        run.script
+            .as_deref()
+            .is_some_and(|script| !matches!(script, "normal" | "baseline"))
+    });
+    let whole_text_node = node.is_placeholder
         || !node.atom_properties.element_list.is_empty()
-        || !node.atom_properties.generic_list.is_empty()
+        || !node.atom_properties.generic_list.is_empty();
+    let node_type = node
+        .meta
+        .pointer("/import/cdxml/nodeType")
+        .and_then(Value::as_str);
+    let invalid_label = node
+        .meta
+        .pointer("/labelRecognition/status")
+        .and_then(Value::as_str)
+        == Some("invalid");
+    let display_is_horizontal_edge = node
+        .meta
+        .pointer("/import/cdxml/labelDisplay")
+        .and_then(Value::as_str)
+        .is_some_and(|display| matches!(display, "Left" | "Right"));
+    let scripted_free_endpoint = has_shifted_script
+        && connection_count == 1
+        && node_type == Some("Unspecified")
+        && invalid_label
+        && display_is_horizontal_edge;
+    let explicit_divalent_boron = node.atomic_number == 5
+        && connection_count == 2
+        && node
+            .meta
+            .pointer("/import/cdxml/explicitNumHydrogens")
+            .and_then(Value::as_i64)
+            == Some(0)
+        && display_is_horizontal_edge;
+    (whole_text_node && (!has_shifted_script || scripted_free_endpoint))
+        || (label_text.trim().chars().count() == 1 && explicit_divalent_boron)
 }
 
 fn estimated_run_char_width(
@@ -2331,6 +2412,8 @@ pub(super) fn refreshed_attached_node_label(
         default_chemical: interpret_chemically,
         display_mode,
     };
+    let use_face_text_advance =
+        node_uses_plain_face_text_advance(node, &text, &display_runs, connection_angles.len());
     let mut next_label = make_centered_node_label_from_runs(
         &text,
         local_anchor,
@@ -2344,7 +2427,7 @@ pub(super) fn refreshed_attached_node_label(
         false,
         !interpret_chemically,
         layout_as_grouped_attached_label,
-        node_uses_plain_face_text_advance(node),
+        use_face_text_advance,
         Some(decision.clone()),
         glyph_clip_profile.unwrap_or_else(|| glyph_clip_profile_for_label(label)),
     );

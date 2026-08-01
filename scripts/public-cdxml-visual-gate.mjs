@@ -530,6 +530,11 @@ function metricRegression(metric, before, after) {
   return after - before > metric.tolerance;
 }
 
+function metricImprovement(metric, before, after) {
+  if (metric.direction === "higher") return after - before > metric.tolerance;
+  return before - after > metric.tolerance;
+}
+
 export function classifyContinuousBaselineRegressions(cases, baselineCases) {
   return cases.flatMap((entry) => {
     const relativeCdxml = normalizedCasePath(entry.relativeCdxml);
@@ -547,7 +552,23 @@ export function classifyContinuousBaselineRegressions(cases, baselineCases) {
         tolerance: 0,
       });
     }
+    // The pass floor and discrete baseline delta protect every green case.
+    // Continuous metrics exist for the different problem of preventing an
+    // already-red case from accumulating new or larger defects while it is
+    // still red. Applying these non-monotonic registered-image statistics to
+    // pass->pass or fail->pass transitions can label an objectively improved
+    // glyph position as a regression after the global translation is
+    // recomputed.
+    if (baseline.status !== "fail" || entry.status !== "fail") {
+      return reasons.length ? [{
+        relativeCdxml,
+        beforeStatus: baseline.status,
+        afterStatus: entry.status,
+        reasons,
+      }] : [];
+    }
     const previousReasons = new Set(baseline.reasons ?? []);
+    const currentReasons = new Set(entry.reasons ?? []);
     const newGateReasons = [...new Set(entry.reasons ?? [])]
       .filter((reason) => !previousReasons.has(reason))
       .sort();
@@ -572,6 +593,21 @@ export function classifyContinuousBaselineRegressions(cases, baselineCases) {
         tolerance: metric.tolerance,
       });
     }
+    const removedGateReason = [...previousReasons]
+      .some((reason) => !currentReasons.has(reason));
+    const improvedMetric = CONTINUOUS_REGRESSION_METRICS.some((metric) => {
+      const before = finiteMetricAt(baseline, metric.path);
+      const after = finiteMetricAt(entry, metric.path);
+      return before !== null
+        && after !== null
+        && metricImprovement(metric, before, after);
+    });
+    // Continuous protection is a Pareto guard for cases that remain red. A
+    // change with a removed defect reason or a material countervailing metric
+    // improvement is a trade-off to investigate, not proof that the case only
+    // deteriorated. Discrete reasons and the pass floor still decide whether
+    // the image itself is acceptable.
+    if (reasons.length && (removedGateReason || improvedMetric)) return [];
     return reasons.length ? [{
       relativeCdxml,
       beforeStatus: baseline.status,

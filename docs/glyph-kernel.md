@@ -14,6 +14,23 @@ clip = natural union feature union axial
 
 Bond bodies, including their finite width, are clipped against `clip`. This is a direct rule, not a character lookup table or a 360-degree fit.
 
+## Attachment anchoring
+
+Text anchoring and bond retreat use different metric domains. Bond retreat
+always uses the real outline kernel above. Whole-text nickname/query labels use
+the selected face's GDI advance cells for horizontal anchoring. Scripted text
+keeps its script-scaled advance cell only for an explicit left/right free
+endpoint (`NodeType=Unspecified`, one connection, and invalid chemical
+interpretation); recognized chemical fragments keep outline-based chemical
+group anchoring. ChemDraw also treats an explicitly zero-hydrogen divalent
+boron label as one GDI advance cell. These are field- and topology-derived
+branches, not label-string exceptions.
+
+Multiple bonds likewise keep the algebraically retreated bond axis when two
+endpoint labels overlap. Each parallel rail is then clipped independently at
+its own lateral offset. A single bond still disappears when both label retreats
+consume its visible centerline.
+
 ## Data ownership
 
 - `glyphPolygons` contains per-character real-outline hulls for editing, hit testing, and character anchors.

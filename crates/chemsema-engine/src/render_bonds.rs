@@ -56,16 +56,33 @@ pub(super) fn bond_label_clipped_body_geometry(
             label_clip_polygons_world_for_segment(end, object, finish, start, end_half_width),
         )
     };
-    let (start, finish) = clip_body_segment_out_of_label_geometry(
-        start,
-        finish,
-        begin_box,
-        &begin_polygons,
-        begin_half_width,
-        end_box,
-        &end_polygons,
-        end_half_width,
-    )?;
+    let (start, finish) = if bond.order >= 2 {
+        // A multiple bond is not a single centerline. ChemDraw keeps the
+        // algebraically retreated axis even when both endpoint labels overlap;
+        // each parallel rail is clipped later at its own lateral offset.
+        let (start, finish, _, _) = algebraic_body_segment_after_label_retreats(
+            start,
+            finish,
+            begin_box,
+            &begin_polygons,
+            begin_half_width,
+            end_box,
+            &end_polygons,
+            end_half_width,
+        )?;
+        (start, finish)
+    } else {
+        clip_body_segment_out_of_label_geometry(
+            start,
+            finish,
+            begin_box,
+            &begin_polygons,
+            begin_half_width,
+            end_box,
+            &end_polygons,
+            end_half_width,
+        )?
+    };
     Some(BondBodyGeometry {
         actual_start,
         actual_finish,
