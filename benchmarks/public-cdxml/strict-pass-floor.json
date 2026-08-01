@@ -11,9 +11,9 @@
   },
   "minimumPassed": 246,
   "source": {
-    "commit": "82565614cd26361ef7ed95075af7f54e76f240af",
-    "repositoryIdentity": "9be0a9a423f4443a4046a1090daf1ffb945d35c99a52636fe818d8aa22a893d5",
-    "gateReportGeneratedAt": "2026-08-01T20:55:31.760Z"
+    "commit": "063564a24799c67bbe31714fcb88ea0fa8f2b4e9",
+    "repositoryIdentity": "ad569415ced58cbc9c107b2da61482f137f9135dd8f41a18e27a1f4e179fe99d",
+    "gateReportGeneratedAt": "2026-08-01T21:31:05.800Z"
   },
   "migration": {
     "previousSchema": "chemsema.public-cdxml-strict-pass-floor.v2",
@@ -3926,28 +3926,28 @@
         "missing-detail-area",
         "missing-detail-span"
       ],
-      "referenceCoverage": 0.9805372567371364,
-      "candidateCoverage": 0.9808221606799316,
+      "referenceCoverage": 0.9913494157234418,
+      "candidateCoverage": 0.9907071306114241,
       "local": {
-        "referenceCoverage": 0,
-        "candidateCoverage": 0
+        "referenceCoverage": 0.030009680542110395,
+        "candidateCoverage": 0.03288797533401855
       },
       "largestMissing": {
-        "area": 1893,
-        "span": 315.3133362228753
+        "area": 342.75,
+        "span": 114.15778554264269
       },
       "largestExtra": {
-        "area": 1653.5,
-        "span": 306.20662958205196
+        "area": 307.5,
+        "span": 105.76625170629808
       },
       "detailFeatures": {
-        "compactDefectCount": 331,
-        "componentMatchCoverage": 0.8557951482479784,
-        "relativeComponentMatchCoverage": 0.9743935309973046,
+        "compactDefectCount": 332,
+        "componentMatchCoverage": 0.857335127860027,
+        "relativeComponentMatchCoverage": 0.9784656796769852,
         "componentPositionDistributionDelta": 1,
         "independentComponentCountDelta": 0,
-        "unmatchedReferenceComponentCount": 94,
-        "unmatchedCandidateComponentCount": 107,
+        "unmatchedReferenceComponentCount": 92,
+        "unmatchedCandidateComponentCount": 106,
         "smallComponentDimensionDelta": 6,
         "enclosedSmallComponentDimensionDelta": 0.5,
         "maximumMatchedCenterDistance": 1.8027756377319948,
@@ -4134,28 +4134,28 @@
         "missing-detail-area",
         "missing-detail-span"
       ],
-      "referenceCoverage": 0.9768410013585553,
-      "candidateCoverage": 0.9787954593908124,
+      "referenceCoverage": 0.9865947929990705,
+      "candidateCoverage": 0.9878907576748476,
       "local": {
         "referenceCoverage": 0,
         "candidateCoverage": 0
       },
       "largestMissing": {
-        "area": 1199.25,
-        "span": 315.2590204895016
+        "area": 543.25,
+        "span": 223.02017845925963
       },
       "largestExtra": {
-        "area": 971.5,
-        "span": 304.42076144704714
+        "area": 590.5,
+        "span": 232.28484668613234
       },
       "detailFeatures": {
         "compactDefectCount": 28,
-        "componentMatchCoverage": 0.884990253411306,
-        "relativeComponentMatchCoverage": 0.9395711500974658,
+        "componentMatchCoverage": 0.8966861598440545,
+        "relativeComponentMatchCoverage": 0.9551656920077972,
         "componentPositionDistributionDelta": 1,
-        "independentComponentCountDelta": 21,
-        "unmatchedReferenceComponentCount": 59,
-        "unmatchedCandidateComponentCount": 51,
+        "independentComponentCountDelta": 20,
+        "unmatchedReferenceComponentCount": 53,
+        "unmatchedCandidateComponentCount": 49,
         "smallComponentDimensionDelta": 0.5,
         "enclosedSmallComponentDimensionDelta": 0.5,
         "maximumMatchedCenterDistance": 1.75,
