@@ -211,6 +211,16 @@ test("CDXML feature extraction recognizes triple bonds", () => {
   assert.ok(features.includes("triple-bond"));
 });
 
+test("CDXML feature extraction recognizes wavy bond display", () => {
+  const features = featuresFromCdxml(`
+    <CDXML><fragment><n id="1"/><n id="2"/>
+      <b id="3" B="1" E="2" Display="Wavy"/>
+    </fragment></CDXML>
+  `);
+  assert.ok(features.includes("bond"));
+  assert.ok(features.includes("wavy-bond"));
+});
+
 test("case filters do not confuse numeric IDs or CDX and CDXML sibling paths", () => {
   const cdx = {
     caseId: "0059",

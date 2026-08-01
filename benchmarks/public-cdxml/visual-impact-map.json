@@ -59,6 +59,15 @@
       "regressionCases": ["0248"]
     },
     {
+      "name": "wavy-bond-rendering",
+      "pathSubstrings": [
+        "crates/chemsema-engine/src/render/bond_metrics.rs",
+        "crates/chemsema-engine/src/render_bonds.rs"
+      ],
+      "features": ["wavy-bond"],
+      "regressionCases": ["0006", "0074", "0075", "0110", "0160"]
+    },
+    {
       "name": "label-glyph-retreat",
       "pathSubstrings": [
         "crates/chemsema-engine/src/glyph_kernel.rs",

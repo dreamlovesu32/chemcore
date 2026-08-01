@@ -37,6 +37,7 @@ export function featuresFromCdxml(source) {
   addIf(features, /wedgedhash/.test(text), "hashed-wedge");
   addIf(features, /display\s*=\s*["']wedge(?:begin|end)["']/.test(text), "solid-wedge");
   addIf(features, /display\s*=\s*["'](?:dash|hash)["']/.test(text), "dashed-bond");
+  addIf(features, /display\s*=\s*["']wavy["']/.test(text), "wavy-bond");
   addIf(features, /\border\s*=\s*["']dative["']/.test(text), "dative-bond");
   addIf(features, /\border\s*=\s*["']3(?:\.0+)?["']/.test(text), "triple-bond");
   addIf(features, /nodetype\s*=\s*["']nickname["']/.test(text), "nickname");
@@ -66,7 +67,7 @@ function conservativeCdxFeatures() {
     "arrow", "bond", "bracket", "cdx", "dashed-bond", "enhanced-stereo",
     "dative-bond", "external-connection", "graphics", "hashed-wedge", "hydrogen-marker",
     "multi-attachment", "nickname", "object-tag", "query", "solid-wedge", "triple-bond",
-    "symbol", "text",
+    "symbol", "text", "wavy-bond",
   ];
 }
 

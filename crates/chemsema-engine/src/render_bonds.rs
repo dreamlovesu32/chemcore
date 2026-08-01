@@ -1128,21 +1128,16 @@ fn render_wavy_bond(
     let amplitude = wavy_bond_amplitude_for_bond(bond, stroke_width)
         .min(length * 0.18)
         .max(EPSILON);
-    let half_wave_count = ((length / amplitude).ceil() as usize).max(4);
-    let drawn_length = ((half_wave_count.saturating_sub(1)) as f64 * amplitude).min(length);
-    if drawn_length <= EPSILON {
-        return;
-    }
-    let half_wave_step = drawn_length / half_wave_count as f64;
-    let control = (amplitude * 0.552_284_749_830_793_6).min(half_wave_step * 0.5);
+    let half_wave_count = ((length / amplitude).floor() as usize).max(4);
+    let half_wave_step = amplitude;
     let mut d = format!("M {:.4} {:.4}", start.x, start.y);
     let mut points = vec![start];
     for index in 0..half_wave_count {
         let segment_start = wavy_bond_point(start, unit, normal, half_wave_step, amplitude, index);
         let segment_end =
             wavy_bond_point(start, unit, normal, half_wave_step, amplitude, index + 1);
-        let start_tangent = wavy_bond_tangent(unit, normal, index).scaled(control);
-        let end_tangent = wavy_bond_tangent(unit, normal, index + 1).scaled(control);
+        let start_tangent = wavy_bond_control_tangent(unit, normal, amplitude, index);
+        let end_tangent = wavy_bond_control_tangent(unit, normal, amplitude, index + 1);
         let control_1 = segment_start.translated(start_tangent);
         let control_2 = segment_end.translated(end_tangent.scaled(-1.0));
         d.push_str(&format!(
@@ -1185,11 +1180,12 @@ fn wavy_bond_point(
         .translated(normal.scaled(amplitude * side))
 }
 
-fn wavy_bond_tangent(unit: Vector, normal: Vector, index: usize) -> Vector {
+fn wavy_bond_control_tangent(unit: Vector, normal: Vector, amplitude: f64, index: usize) -> Vector {
+    const QUARTER_ELLIPSE_KAPPA: f64 = 0.552_284_749_830_793_6;
     match index % 4 {
-        0 => normal,
-        1 | 3 => unit,
-        2 => normal.scaled(-1.0),
+        0 => normal.scaled(QUARTER_ELLIPSE_KAPPA * amplitude),
+        1 | 3 => unit.scaled(QUARTER_ELLIPSE_KAPPA * amplitude),
+        2 => normal.scaled(-QUARTER_ELLIPSE_KAPPA * amplitude),
         _ => unreachable!(),
     }
 }
@@ -1635,5 +1631,49 @@ mod dative_bond_tests {
         assert_close(geometry.head_points[1].x, 25.0 - 10.0 / 3.0);
         assert_close(geometry.head_points[1].y, 30.0 + 5.0 / 6.0);
         assert_close(geometry.shaft_end.x, 25.0 - 35.0 / 12.0);
+    }
+}
+
+#[cfg(test)]
+mod wavy_bond_tests {
+    use super::*;
+
+    fn assert_point_close(actual: Point, expected: Point) {
+        assert!((actual.x - expected.x).abs() <= 1.0e-9);
+        assert!((actual.y - expected.y).abs() <= 1.0e-9);
+    }
+
+    #[test]
+    fn wavy_bond_uses_complete_fixed_size_half_waves() {
+        let start = Point::new(2.0, 3.0);
+        let end = Point::new(18.0, 3.0);
+        let unit = Vector::new(1.0, 0.0);
+        let normal = Vector::new(0.0, 1.0);
+        let amplitude = 1.0;
+        let half_wave_count = 16;
+        let step = start.distance(end) / half_wave_count as f64;
+        assert_point_close(
+            wavy_bond_point(start, unit, normal, step, amplitude, half_wave_count),
+            end,
+        );
+        let non_integral_length = 15.9;
+        let count = (non_integral_length / amplitude).floor() as usize;
+        assert_eq!(count, 15);
+        assert_point_close(
+            wavy_bond_point(start, unit, normal, amplitude, amplitude, count),
+            Point::new(17.0, 2.0),
+        );
+    }
+
+    #[test]
+    fn wavy_bond_uses_quarter_ellipse_control_handles() {
+        let unit = Vector::new(1.0, 0.0);
+        let normal = Vector::new(0.0, 1.0);
+        let center_handle = wavy_bond_control_tangent(unit, normal, 1.25, 0);
+        let crest_handle = wavy_bond_control_tangent(unit, normal, 1.25, 1);
+        assert!((center_handle.x - 0.0).abs() <= 1.0e-9);
+        assert!((center_handle.y - 0.690_355_937_288_492).abs() <= 1.0e-9);
+        assert!((crest_handle.x - 0.690_355_937_288_492).abs() <= 1.0e-9);
+        assert!((crest_handle.y - 0.0).abs() <= 1.0e-9);
     }
 }
