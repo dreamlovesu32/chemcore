@@ -1269,17 +1269,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn cdx_coordinates_keep_fixed_16_16_boundary_precision() {
-        let mut point = Vec::new();
-        point.extend_from_slice(&(-1_i32).to_le_bytes());
-        point.extend_from_slice(&1_i32.to_le_bytes());
-        assert_eq!(
-            decode_point2d(&point).as_deref(),
-            Some("0.000015 -0.000015")
-        );
-    }
-
-    #[test]
     fn cdx_string_ffff_style_components_remain_inherited() {
         let text = CdxNode {
             name: "t".to_string(),

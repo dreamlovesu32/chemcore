@@ -41,11 +41,22 @@ pub(super) fn bond_label_clipped_body_geometry(
         .label
         .as_ref()
         .is_some_and(|label| label.has_visible_text());
-    let (begin_half_width, end_half_width) = bond_stereo_kind(bond)
-        .map_or((stroke_width * 0.5, stroke_width * 0.5), |stereo| {
-            wedge_endpoint_half_widths(bond, stereo, stroke_width)
-        });
-    let (begin_polygons, end_polygons) = if bond.order >= 2 {
+    let (begin_half_width, end_half_width) =
+        if bond.order == 1 && bond_main_line_pattern(bond) == crate::BondLinePattern::Wavy {
+            let half_width = wavy_bond_amplitude_for_bond(bond, stroke_width);
+            (half_width, half_width)
+        } else {
+            bond_stereo_kind(bond).map_or((stroke_width * 0.5, stroke_width * 0.5), |stereo| {
+                wedge_endpoint_half_widths(bond, stereo, stroke_width)
+            })
+        };
+    let is_wavy = bond.order == 1 && bond_main_line_pattern(bond) == crate::BondLinePattern::Wavy;
+    let (begin_polygons, end_polygons) = if is_wavy {
+        (
+            wavy_label_clip_envelope_world(begin, object, stroke_width),
+            wavy_label_clip_envelope_world(end, object, stroke_width),
+        )
+    } else if bond.order >= 2 {
         (
             label_clip_polygons_world(begin, object),
             label_clip_polygons_world(end, object),
@@ -171,6 +182,7 @@ pub(super) fn render_fragment_bond(
             stroke,
             stroke_width,
             template_bond_length,
+            begin_has_label || end_has_label,
             object_id,
         );
         return;
@@ -1132,6 +1144,7 @@ fn render_wavy_bond(
     stroke: &str,
     stroke_width: f64,
     template_bond_length: f64,
+    label_clipped: bool,
     object_id: Option<String>,
 ) {
     let direction = Vector::new(end.x - start.x, end.y - start.y);
@@ -1145,7 +1158,7 @@ fn render_wavy_bond(
         .min(length * 0.18)
         .max(EPSILON);
     let (half_wave_count, half_wave_step) =
-        wavy_bond_layout(length, stroke_width, template_bond_length);
+        wavy_bond_layout(length, stroke_width, template_bond_length, label_clipped);
     let mut d = format!("M {:.4} {:.4}", start.x, start.y);
     let mut points = vec![start];
     for index in 0..half_wave_count {
@@ -1180,11 +1193,20 @@ fn render_wavy_bond(
     });
 }
 
-fn wavy_bond_layout(length: f64, stroke_width: f64, template_bond_length: f64) -> (usize, f64) {
+fn wavy_bond_layout(
+    length: f64,
+    stroke_width: f64,
+    template_bond_length: f64,
+    label_clipped: bool,
+) -> (usize, f64) {
     let division_count = (template_bond_length / stroke_width.max(EPSILON))
         .round()
         .clamp(12.0, 16.0) as usize;
     let grid_step = template_bond_length.max(EPSILON) / division_count as f64;
+    if label_clipped {
+        let count = ((length / grid_step - 1.0e-9).ceil() as usize).clamp(1, division_count);
+        return (count, length / count as f64);
+    }
     let natural_count = ((length / grid_step + 1.0e-9).floor() as usize).min(division_count);
     if natural_count < 12 {
         (12, length / 12.0)
@@ -1713,10 +1735,22 @@ mod wavy_bond_tests {
             Point::new(22.83, 3.0),
         );
 
-        assert_eq!(wavy_bond_layout(16.0, 0.5, 16.0), (16, 1.0));
-        assert_eq!(wavy_bond_layout(20.825, 1.77, 20.83), (12, 20.825 / 12.0));
-        assert_eq!(wavy_bond_layout(30.0, 1.0, 30.0), (16, 30.0 / 16.0));
-        assert_eq!(wavy_bond_layout(29.998, 1.0, 30.0), (15, 30.0 / 16.0));
+        assert_eq!(wavy_bond_layout(16.0, 0.5, 16.0, false), (16, 1.0));
+        assert_eq!(
+            wavy_bond_layout(20.825, 1.77, 20.83, false),
+            (12, 20.825 / 12.0)
+        );
+        assert_eq!(wavy_bond_layout(30.0, 1.0, 30.0, false), (16, 30.0 / 16.0));
+        assert_eq!(
+            wavy_bond_layout(29.998, 1.0, 30.0, false),
+            (15, 30.0 / 16.0)
+        );
+    }
+
+    #[test]
+    fn wavy_bond_label_clipping_allows_a_partial_phase_grid() {
+        assert_eq!(wavy_bond_layout(10.04, 0.5, 16.0, true), (11, 10.04 / 11.0));
+        assert_eq!(wavy_bond_layout(8.10, 0.6, 14.4, true), (9, 8.10 / 9.0));
     }
 
     #[test]

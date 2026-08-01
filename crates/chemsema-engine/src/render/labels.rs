@@ -169,6 +169,38 @@ pub(super) fn label_clip_polygons_world(node: &Node, object: &SceneObject) -> Ve
         .unwrap_or_default()
 }
 
+pub(super) fn wavy_label_clip_envelope_world(
+    node: &Node,
+    object: &SceneObject,
+    stroke_width: f64,
+) -> Vec<Vec<Point>> {
+    let polygons = label_clip_polygons_world(node, object);
+    let Some(mut bounds) = polygons
+        .iter()
+        .filter_map(|polygon| polygon_bounds(polygon))
+        .reduce(|mut bounds, polygon| {
+            bounds.x1 = bounds.x1.min(polygon.x1);
+            bounds.y1 = bounds.y1.min(polygon.y1);
+            bounds.x2 = bounds.x2.max(polygon.x2);
+            bounds.y2 = bounds.y2.max(polygon.y2);
+            bounds
+        })
+    else {
+        return Vec::new();
+    };
+    let clearance = stroke_width.max(0.0) * 0.5;
+    bounds.x1 -= clearance;
+    bounds.y1 -= clearance;
+    bounds.x2 += clearance;
+    bounds.y2 += clearance;
+    vec![vec![
+        Point::new(bounds.x1, bounds.y1),
+        Point::new(bounds.x2, bounds.y1),
+        Point::new(bounds.x2, bounds.y2),
+        Point::new(bounds.x1, bounds.y2),
+    ]]
+}
+
 pub(super) fn label_clip_polygons_world_for_segment(
     node: &Node,
     object: &SceneObject,

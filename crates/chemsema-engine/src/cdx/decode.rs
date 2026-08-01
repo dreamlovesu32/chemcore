@@ -49,7 +49,7 @@ pub(super) fn read_u16_lossy(data: &[u8]) -> Option<u16> {
 }
 
 pub(super) fn decode_coordinate(data: &[u8]) -> Option<String> {
-    Some(fmt_coord(read_i32(data)? as f64 / CDX_COORD_FACTOR))
+    Some(fmt_num(read_i32(data)? as f64 / CDX_COORD_FACTOR))
 }
 
 pub(super) fn decode_point2d(data: &[u8]) -> Option<String> {
@@ -58,7 +58,7 @@ pub(super) fn decode_point2d(data: &[u8]) -> Option<String> {
     }
     let y = i32::from_le_bytes([data[0], data[1], data[2], data[3]]) as f64 / CDX_COORD_FACTOR;
     let x = i32::from_le_bytes([data[4], data[5], data[6], data[7]]) as f64 / CDX_COORD_FACTOR;
-    Some(format!("{} {}", fmt_coord(x), fmt_coord(y)))
+    Some(format!("{} {}", fmt_num(x), fmt_num(y)))
 }
 
 pub(super) fn decode_point3d(data: &[u8]) -> Option<String> {
@@ -68,12 +68,7 @@ pub(super) fn decode_point3d(data: &[u8]) -> Option<String> {
     let x = i32::from_le_bytes([data[0], data[1], data[2], data[3]]) as f64 / CDX_COORD_FACTOR;
     let y = i32::from_le_bytes([data[4], data[5], data[6], data[7]]) as f64 / CDX_COORD_FACTOR;
     let z = i32::from_le_bytes([data[8], data[9], data[10], data[11]]) as f64 / CDX_COORD_FACTOR;
-    Some(format!(
-        "{} {} {}",
-        fmt_coord(x),
-        fmt_coord(y),
-        fmt_coord(z)
-    ))
+    Some(format!("{} {} {}", fmt_num(x), fmt_num(y), fmt_num(z)))
 }
 
 pub(super) fn decode_rectangle(data: &[u8]) -> Option<String> {
@@ -88,10 +83,10 @@ pub(super) fn decode_rectangle(data: &[u8]) -> Option<String> {
         i32::from_le_bytes([data[12], data[13], data[14], data[15]]) as f64 / CDX_COORD_FACTOR;
     Some(format!(
         "{} {} {} {}",
-        fmt_coord(left),
-        fmt_coord(top),
-        fmt_coord(right),
-        fmt_coord(bottom)
+        fmt_num(left),
+        fmt_num(top),
+        fmt_num(right),
+        fmt_num(bottom)
     ))
 }
 

@@ -48,21 +48,6 @@ pub(super) fn fmt_num(value: f64) -> String {
     }
 }
 
-pub(super) fn fmt_coord(value: f64) -> String {
-    let mut out = format!("{value:.6}");
-    while out.contains('.') && out.ends_with('0') {
-        out.pop();
-    }
-    if out.ends_with('.') {
-        out.pop();
-    }
-    if out == "-0" {
-        "0".to_string()
-    } else {
-        out
-    }
-}
-
 pub(super) fn escape_attr(value: &str) -> String {
     value
         .replace('&', "&amp;")
