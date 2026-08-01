@@ -51,9 +51,9 @@ fn authored_character_glyph_index(source: &str, authored_character_index: usize)
 mod attachment_tests {
     use super::{
         algebraic_body_segment_after_label_retreats, authored_character_glyph_index,
-        clip_body_segment_out_of_label_geometry,
+        clip_body_segment_out_of_label_geometry, strip_endpoint_label_retreat,
     };
-    use crate::Point;
+    use crate::{Point, Vector};
 
     #[test]
     fn authored_multiline_attachment_indices_map_to_visible_glyphs() {
@@ -64,6 +64,24 @@ mod attachment_tests {
     #[test]
     fn authored_single_line_attachment_indices_are_unchanged() {
         assert_eq!(authored_character_glyph_index("(PhO)2POH", 6), Some(6));
+    }
+
+    #[test]
+    fn continuous_strip_retreat_uses_contacts_between_center_and_edge_rays() {
+        let polygon = vec![vec![
+            Point::new(4.0, 0.35),
+            Point::new(6.0, 0.35),
+            Point::new(6.0, 0.65),
+            Point::new(4.0, 0.65),
+        ]];
+        let retreat = strip_endpoint_label_retreat(
+            Point::new(0.0, 0.0),
+            Vector::new(1.0, 0.0),
+            Vector::new(0.0, 1.0),
+            &polygon,
+            1.0,
+        );
+        assert!((retreat - 6.0).abs() <= crate::EPSILON);
     }
 
     #[test]
@@ -169,38 +187,6 @@ pub(super) fn label_clip_polygons_world(node: &Node, object: &SceneObject) -> Ve
         .unwrap_or_default()
 }
 
-pub(super) fn wavy_label_clip_envelope_world(
-    node: &Node,
-    object: &SceneObject,
-    stroke_width: f64,
-) -> Vec<Vec<Point>> {
-    let polygons = label_clip_polygons_world(node, object);
-    let Some(mut bounds) = polygons
-        .iter()
-        .filter_map(|polygon| polygon_bounds(polygon))
-        .reduce(|mut bounds, polygon| {
-            bounds.x1 = bounds.x1.min(polygon.x1);
-            bounds.y1 = bounds.y1.min(polygon.y1);
-            bounds.x2 = bounds.x2.max(polygon.x2);
-            bounds.y2 = bounds.y2.max(polygon.y2);
-            bounds
-        })
-    else {
-        return Vec::new();
-    };
-    let clearance = stroke_width.max(0.0) * 0.5;
-    bounds.x1 -= clearance;
-    bounds.y1 -= clearance;
-    bounds.x2 += clearance;
-    bounds.y2 += clearance;
-    vec![vec![
-        Point::new(bounds.x1, bounds.y1),
-        Point::new(bounds.x2, bounds.y1),
-        Point::new(bounds.x2, bounds.y2),
-        Point::new(bounds.x1, bounds.y2),
-    ]]
-}
-
 pub(super) fn label_clip_polygons_world_for_segment(
     node: &Node,
     object: &SceneObject,
@@ -242,6 +228,38 @@ pub(super) fn label_clip_polygons_world_for_segment(
         endpoint.y - object.transform.translate[1],
     );
     label_clip_polygons_for_segment(label, local_endpoint, direction, half_width)
+        .into_iter()
+        .map(|polygon| polygon_to_world(polygon, object))
+        .filter(|polygon| polygon.len() >= 3)
+        .collect()
+}
+
+pub(super) fn label_clip_polygons_world_for_cardinal_strip(
+    node: &Node,
+    object: &SceneObject,
+    endpoint: Point,
+    other: Point,
+    half_width: f64,
+) -> Vec<Vec<Point>> {
+    let Some(label) = node.label.as_ref() else {
+        return Vec::new();
+    };
+    let direction = Vector::new(other.x - endpoint.x, other.y - endpoint.y);
+    if direction.length() <= EPSILON {
+        return Vec::new();
+    }
+    let direction = direction.normalized();
+    debug_assert!(
+        direction.x.abs()
+            <= crate::glyph_kernel::GLYPH_AXIS_HALF_SECTOR_DEG
+                .to_radians()
+                .sin()
+    );
+    let local_endpoint = Point::new(
+        endpoint.x - object.transform.translate[0],
+        endpoint.y - object.transform.translate[1],
+    );
+    label_clip_polygons_for_strip(label, local_endpoint, direction, half_width)
         .into_iter()
         .map(|polygon| polygon_to_world(polygon, object))
         .filter(|polygon| polygon.len() >= 3)
@@ -400,6 +418,27 @@ fn label_clip_polygons_for_segment(
     }
     glyph_indices.sort_unstable();
     glyph_indices.dedup();
+    label_clip_polygons_for_glyph_indices(label, &glyph_indices, false)
+}
+
+fn label_clip_polygons_for_strip(
+    label: &NodeLabel,
+    endpoint: Point,
+    direction: Vector,
+    half_width: f64,
+) -> Vec<Vec<Point>> {
+    let normal = Vector::new(-direction.y, direction.x);
+    let glyph_indices = label
+        .glyph_polygons()
+        .iter()
+        .enumerate()
+        .filter_map(|(index, polygon)| {
+            let bounds = polygon_bounds(polygon)?;
+            forward_ray_rect_distance(endpoint, direction, normal, bounds)
+                .is_some_and(|distance| distance <= half_width + EPSILON)
+                .then_some(index)
+        })
+        .collect::<Vec<_>>();
     label_clip_polygons_for_glyph_indices(label, &glyph_indices, false)
 }
 
@@ -678,6 +717,45 @@ pub(super) fn clip_body_segment_out_of_label_geometry(
     (clipped_start.distance(clipped_end) > EPSILON).then_some((clipped_start, clipped_end))
 }
 
+pub(super) fn clip_wavy_body_segment_out_of_label_geometry(
+    start: Point,
+    end: Point,
+    start_polygons: &[Vec<Point>],
+    start_half_width: f64,
+    start_uses_strip: bool,
+    end_polygons: &[Vec<Point>],
+    end_half_width: f64,
+    end_uses_strip: bool,
+) -> Option<(Point, Point)> {
+    let direction = Vector::new(end.x - start.x, end.y - start.y);
+    let authored_length = direction.length();
+    if authored_length <= EPSILON {
+        return None;
+    }
+    let unit = direction.normalized();
+    let normal = Vector::new(-unit.y, unit.x);
+    let start_retreat = if start_uses_strip {
+        strip_endpoint_label_retreat(start, unit, normal, start_polygons, start_half_width)
+    } else {
+        wedge_endpoint_label_retreat(start, unit, normal, None, start_polygons, start_half_width)
+    };
+    let end_axis = Vector::new(-unit.x, -unit.y);
+    let end_retreat = if end_uses_strip {
+        strip_endpoint_label_retreat(end, end_axis, normal, end_polygons, end_half_width)
+    } else {
+        wedge_endpoint_label_retreat(end, end_axis, normal, None, end_polygons, end_half_width)
+    };
+    if start_retreat > EPSILON
+        && end_retreat > EPSILON
+        && start_retreat + end_retreat + EPSILON >= authored_length
+    {
+        return None;
+    }
+    let (clipped_start, clipped_end) =
+        apply_label_endpoint_retreats(start, end, start_retreat, end_retreat);
+    (clipped_start.distance(clipped_end) > EPSILON).then_some((clipped_start, clipped_end))
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(super) fn algebraic_body_segment_after_label_retreats(
     start: Point,
@@ -785,6 +863,51 @@ fn wedge_endpoint_label_retreat(
             axis_from_endpoint,
             polygons,
         ));
+    }
+    retreat
+}
+
+fn strip_endpoint_label_retreat(
+    endpoint: Point,
+    axis_from_endpoint: Vector,
+    normal: Vector,
+    polygons: &[Vec<Point>],
+    half_width: f64,
+) -> f64 {
+    let mut retreat: f64 = 0.0;
+    for polygon in polygons {
+        for index in 0..polygon.len() {
+            let first = polygon[index];
+            let second = polygon[(index + 1) % polygon.len()];
+            let first_offset = Vector::new(first.x - endpoint.x, first.y - endpoint.y);
+            let second_offset = Vector::new(second.x - endpoint.x, second.y - endpoint.y);
+            let first_axis =
+                first_offset.x * axis_from_endpoint.x + first_offset.y * axis_from_endpoint.y;
+            let second_axis =
+                second_offset.x * axis_from_endpoint.x + second_offset.y * axis_from_endpoint.y;
+            let first_normal = first_offset.x * normal.x + first_offset.y * normal.y;
+            let second_normal = second_offset.x * normal.x + second_offset.y * normal.y;
+            if first_normal.abs() <= half_width + EPSILON && first_axis >= -EPSILON {
+                retreat = retreat.max(first_axis.max(0.0));
+            }
+            if second_normal.abs() <= half_width + EPSILON && second_axis >= -EPSILON {
+                retreat = retreat.max(second_axis.max(0.0));
+            }
+            for boundary in [-half_width, half_width] {
+                let denominator = second_normal - first_normal;
+                if denominator.abs() <= EPSILON {
+                    continue;
+                }
+                let fraction = (boundary - first_normal) / denominator;
+                if !(-EPSILON..=1.0 + EPSILON).contains(&fraction) {
+                    continue;
+                }
+                let axis = first_axis + (second_axis - first_axis) * fraction;
+                if axis >= -EPSILON {
+                    retreat = retreat.max(axis.max(0.0));
+                }
+            }
+        }
     }
     retreat
 }

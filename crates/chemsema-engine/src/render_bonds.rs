@@ -43,7 +43,7 @@ pub(super) fn bond_label_clipped_body_geometry(
         .is_some_and(|label| label.has_visible_text());
     let (begin_half_width, end_half_width) =
         if bond.order == 1 && bond_main_line_pattern(bond) == crate::BondLinePattern::Wavy {
-            let half_width = wavy_bond_amplitude_for_bond(bond, stroke_width);
+            let half_width = wavy_bond_amplitude_for_bond(bond, stroke_width) + stroke_width * 0.5;
             (half_width, half_width)
         } else {
             bond_stereo_kind(bond).map_or((stroke_width * 0.5, stroke_width * 0.5), |stereo| {
@@ -51,10 +51,38 @@ pub(super) fn bond_label_clipped_body_geometry(
             })
         };
     let is_wavy = bond.order == 1 && bond_main_line_pattern(bond) == crate::BondLinePattern::Wavy;
+    let begin_wavy_strip = is_wavy && wavy_label_uses_strip_contact(start, finish);
+    let end_wavy_strip = is_wavy && wavy_label_uses_strip_contact(finish, start);
     let (begin_polygons, end_polygons) = if is_wavy {
         (
-            wavy_label_clip_envelope_world(begin, object, stroke_width),
-            wavy_label_clip_envelope_world(end, object, stroke_width),
+            if begin_wavy_strip {
+                label_clip_polygons_world_for_cardinal_strip(
+                    begin,
+                    object,
+                    start,
+                    finish,
+                    begin_half_width,
+                )
+            } else {
+                label_clip_polygons_world_for_segment(
+                    begin,
+                    object,
+                    start,
+                    finish,
+                    begin_half_width,
+                )
+            },
+            if end_wavy_strip {
+                label_clip_polygons_world_for_cardinal_strip(
+                    end,
+                    object,
+                    finish,
+                    start,
+                    end_half_width,
+                )
+            } else {
+                label_clip_polygons_world_for_segment(end, object, finish, start, end_half_width)
+            },
         )
     } else if bond.order >= 2 {
         (
@@ -82,6 +110,17 @@ pub(super) fn bond_label_clipped_body_geometry(
             end_half_width,
         )?;
         (start, finish)
+    } else if is_wavy {
+        clip_wavy_body_segment_out_of_label_geometry(
+            start,
+            finish,
+            &begin_polygons,
+            begin_half_width,
+            begin_wavy_strip,
+            &end_polygons,
+            end_half_width,
+            end_wavy_strip,
+        )?
     } else {
         clip_body_segment_out_of_label_geometry(
             start,
@@ -104,6 +143,18 @@ pub(super) fn bond_label_clipped_body_geometry(
         begin_has_label,
         end_has_label,
     })
+}
+
+fn wavy_label_uses_strip_contact(endpoint: Point, other: Point) -> bool {
+    let direction = Vector::new(other.x - endpoint.x, other.y - endpoint.y);
+    if direction.length() <= EPSILON {
+        return false;
+    }
+    let direction = direction.normalized();
+    let cardinal_sector = crate::glyph_kernel::GLYPH_AXIS_HALF_SECTOR_DEG
+        .to_radians()
+        .sin();
+    direction.x.abs() <= cardinal_sector
 }
 
 #[allow(clippy::too_many_arguments)]
