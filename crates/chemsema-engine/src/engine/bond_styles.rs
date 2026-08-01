@@ -3,6 +3,13 @@ use crate::{
     BondVariant, DoubleBond, DoubleBondPlacement, Point,
 };
 
+// ChemDraw treats an attachment as effectively collinear with a double-bond
+// axis until its unit direction has this much normal component. Silent SVG
+// probes place the transition between 0.214563 (12.3899 degrees, excluded)
+// and 0.214650 (12.3950 degrees, included), independent of bond length,
+// BondSpacing, BondSpacingAbs, line width, and rotation.
+const CHEMDRAW_DOUBLE_BOND_MIN_ATTACHMENT_SIDE_SINE: f64 = 0.2146;
+
 pub(super) fn update_terminal_double_bond_placement_after_new_attachment(
     fragment: &mut crate::MoleculeFragment,
     attached_node_id: &str,
@@ -76,6 +83,13 @@ fn connected_attachment_side_counts_for_segment(
         };
         let side_score = (other_node.position[0] - shared_node.position[0]) * normal_x
             + (other_node.position[1] - shared_node.position[1]) * normal_y;
+        let attachment_length = (other_node.position[0] - shared_node.position[0])
+            .hypot(other_node.position[1] - shared_node.position[1]);
+        if attachment_length <= crate::EPSILON
+            || side_score.abs() / attachment_length < CHEMDRAW_DOUBLE_BOND_MIN_ATTACHMENT_SIDE_SINE
+        {
+            continue;
+        }
         if side_score > crate::EPSILON {
             if shared_is_begin {
                 counts.begin_left += 1;
@@ -147,63 +161,26 @@ fn preferred_substituent_side_for_segment(
     end_id: &str,
     ignored_bond_id: Option<&str>,
 ) -> Option<DoubleBondPlacement> {
-    substituent_signed_side_score_for_segment(fragment, begin_id, end_id, ignored_bond_id)
-        .map(placement_from_signed_side_score)
+    let counts =
+        connected_attachment_side_counts_for_segment(fragment, begin_id, end_id, ignored_bond_id)?;
+    preferred_substituent_side_from_counts(&counts)
 }
 
-fn substituent_signed_side_score_for_segment(
-    fragment: &crate::MoleculeFragment,
-    begin_id: &str,
-    end_id: &str,
-    ignored_bond_id: Option<&str>,
-) -> Option<f64> {
-    let begin = fragment.nodes.iter().find(|node| node.id == begin_id)?;
-    let end = fragment.nodes.iter().find(|node| node.id == end_id)?;
-    let begin_point = begin.point();
-    let end_point = end.point();
-    let dx = end_point.x - begin_point.x;
-    let dy = end_point.y - begin_point.y;
-    let length = dx.hypot(dy);
-    if length <= crate::EPSILON {
-        return Some(crate::EPSILON * 2.0);
+fn side_endpoint_coverage(begin: usize, end: usize) -> usize {
+    usize::from(begin > 0) + usize::from(end > 0)
+}
+
+fn preferred_substituent_side_from_counts(
+    counts: &SegmentEndpointSideCounts,
+) -> Option<DoubleBondPlacement> {
+    let left = side_endpoint_coverage(counts.begin_left, counts.end_left);
+    let right = side_endpoint_coverage(counts.begin_right, counts.end_right);
+    match left.cmp(&right) {
+        std::cmp::Ordering::Greater => Some(DoubleBondPlacement::Left),
+        std::cmp::Ordering::Less => Some(DoubleBondPlacement::Right),
+        std::cmp::Ordering::Equal if left > 0 => Some(DoubleBondPlacement::Right),
+        std::cmp::Ordering::Equal => None,
     }
-    let normal_x = -dy / length;
-    let normal_y = dx / length;
-    let mut score = 0.0;
-    let mut attachment_count = 0usize;
-    for other in &fragment.bonds {
-        if ignored_bond_id.is_some_and(|ignored| other.id == ignored) {
-            continue;
-        }
-        if other.begin == begin_id || other.end == begin_id {
-            let other_id = if other.begin == begin_id {
-                &other.end
-            } else {
-                &other.begin
-            };
-            if let Some(neighbor) = fragment.nodes.iter().find(|node| &node.id == other_id) {
-                let point = neighbor.point();
-                attachment_count += 1;
-                score +=
-                    (point.x - begin_point.x) * normal_x + (point.y - begin_point.y) * normal_y;
-            }
-        } else if other.begin == end_id || other.end == end_id {
-            let other_id = if other.begin == end_id {
-                &other.end
-            } else {
-                &other.begin
-            };
-            if let Some(neighbor) = fragment.nodes.iter().find(|node| &node.id == other_id) {
-                let point = neighbor.point();
-                attachment_count += 1;
-                score += (point.x - end_point.x) * normal_x + (point.y - end_point.y) * normal_y;
-            }
-        }
-    }
-    if attachment_count == 0 {
-        return None;
-    }
-    Some(score)
 }
 
 fn placement_from_signed_side_score(score: f64) -> DoubleBondPlacement {
@@ -259,29 +236,25 @@ fn automatic_double_bond_placement_for_segment_with_tie_breaker(
     {
         return DoubleBondPlacement::Center;
     }
-    let Some(score) =
-        substituent_signed_side_score_for_segment(fragment, begin_id, end_id, ignored_bond_id)
-    else {
+    let left_coverage = side_endpoint_coverage(counts.begin_left, counts.end_left);
+    let right_coverage = side_endpoint_coverage(counts.begin_right, counts.end_right);
+    if left_coverage > right_coverage {
+        return DoubleBondPlacement::Left;
+    }
+    if right_coverage > left_coverage {
         return DoubleBondPlacement::Right;
-    };
-    if score.abs() > crate::EPSILON {
-        return placement_from_signed_side_score(score);
     }
     tie_break_bond_id
-        .and_then(|bond_id| {
-            signed_side_score_for_connected_bond(fragment, begin_id, end_id, bond_id)
-        })
-        .filter(|tie_break_score| tie_break_score.abs() > crate::EPSILON)
-        .map(placement_from_signed_side_score)
+        .and_then(|bond_id| effective_side_for_connected_bond(fragment, begin_id, end_id, bond_id))
         .unwrap_or(DoubleBondPlacement::Right)
 }
 
-fn signed_side_score_for_connected_bond(
+fn effective_side_for_connected_bond(
     fragment: &crate::MoleculeFragment,
     begin_id: &str,
     end_id: &str,
     bond_id: &str,
-) -> Option<f64> {
+) -> Option<DoubleBondPlacement> {
     let begin = fragment.nodes.iter().find(|node| node.id == begin_id)?;
     let end = fragment.nodes.iter().find(|node| node.id == end_id)?;
     let begin_point = begin.point();
@@ -311,7 +284,15 @@ fn signed_side_score_for_connected_bond(
         .iter()
         .find(|node| node.id == other_id)?
         .point();
-    Some((other_point.x - shared_point.x) * normal_x + (other_point.y - shared_point.y) * normal_y)
+    let attachment_x = other_point.x - shared_point.x;
+    let attachment_y = other_point.y - shared_point.y;
+    let attachment_length = attachment_x.hypot(attachment_y);
+    if attachment_length <= crate::EPSILON {
+        return None;
+    }
+    let side_score = attachment_x * normal_x + attachment_y * normal_y;
+    (side_score.abs() / attachment_length >= CHEMDRAW_DOUBLE_BOND_MIN_ATTACHMENT_SIDE_SINE)
+        .then(|| placement_from_signed_side_score(side_score))
 }
 
 fn segment_has_neighbor_double_bond(

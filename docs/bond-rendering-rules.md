@@ -314,17 +314,19 @@ absolute distance is smaller than the line width.
 
 When CDXML or an editing operation gives only `Order="2"` and no explicit `DoublePosition`, the engine should decide automatically using ChemDraw-compatible rules:
 
-1. If either end of the bond directly connects to another double bond, use centered double.
-2. If neither end has other connected bonds, use centered double.
-3. If one terminal end has substituent bonds on both left and right sides while the other end has no substituent bond, use centered double.
-4. If the bond belongs to a ring, first choose the reference ring using ring-selection rules, then place the secondary line inside that reference ring:
+1. If the bond belongs to a ring, first choose the reference ring using ring-selection rules, then place the secondary line inside that reference ring:
    - a fully alternating six-membered ring has priority over shorter fused small rings
    - then compare complete alternation, alternation match count, closeness to six-membered rings, and path length in order
-5. For non-ring structures, compute the signed projection sum of all connected substituent bonds along the left normal of the begin-to-end axis:
-   - positive sum: place on the left side
-   - negative sum: place on the right side
-   - exact tie while adding a substituent: use the side of the newly added bond
-   - exact tie without editing context: default to the right side
+2. For a non-ring bond, if either endpoint directly connects to another double bond, use centered double.
+3. Normalize every attachment direction and compute its signed component `s` along the left normal of the begin-to-end axis. ChemDraw treats `|s| < 0.2146` as effectively collinear and does not let that attachment support either side. The measured transition lies between 12.3899 degrees (excluded) and 12.3950 degrees (included), independent of actual bond length, `BondSpacing`, `BondSpacingAbs`, line width, and whole-structure rotation.
+4. For each side, count how many double-bond endpoints have at least one effective attachment. The only possible coverage values are 0, 1, and 2:
+   - this is endpoint coverage, not attachment count, bond length, a projection-length sum, or element/CIP priority
+   - `BS=E/Z` and `BondCircularOrdering` preserve stereochemical meaning but do not choose the rendered side; the official format definition also calls `BondCircularOrdering` redundant when node positions are complete
+5. If neither side has an effective attachment, use centered double.
+6. If one terminal endpoint has effective attachments on both sides and the other endpoint has none, use centered double.
+7. Otherwise choose the side with greater endpoint coverage. On an exact coverage tie during attachment editing, use the side of the newly added effective bond. Without editing context, or when the new bond is still effectively collinear, default to `Right`.
+
+`scripts/chemdraw-double-bond-side-probe.mjs` verifies this matrix by silently opening the inputs in ChemDraw and classifying the actual main/secondary line positions in exported SVG. An explicit `DoublePosition` always takes precedence and freezes automatic side selection.
 
 ### Main Bond
 

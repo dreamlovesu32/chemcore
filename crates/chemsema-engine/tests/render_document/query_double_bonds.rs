@@ -2410,6 +2410,121 @@ fn parse_cdxml_auto_ring_double_prioritizes_ring_side_over_neighbor_double() {
 }
 
 #[test]
+fn parse_cdxml_auto_side_double_ignores_coordinate_rounding_in_a_full_endpoint_tie() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="30" BondSpacing="12" LineWidth="1" BoldWidth="4">
+  <page id="1"><fragment id="2">
+    <n id="1" p="254.63 397.50" Element="9" NumHydrogens="0"/>
+    <n id="2" p="254.63 367.50"/>
+    <n id="3" p="228.65 352.50" Element="53" NumHydrogens="0"/>
+    <n id="4" p="280.61 352.50"/>
+    <n id="5" p="306.60 367.50" Element="17" NumHydrogens="0"/>
+    <n id="6" p="280.61 322.50" Element="35" NumHydrogens="0"/>
+    <b id="8" B="1" E="2"/>
+    <b id="9" B="2" E="3"/>
+    <b id="10" B="2" E="4" Order="2" BS="Z" BondCircularOrdering="9 8 11 12"/>
+    <b id="11" B="4" E="5"/>
+    <b id="12" B="4" E="6"/>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("rounded full endpoint tie"))
+        .expect("rounded full endpoint tie should parse");
+    let bond = imported_fragment_bond(&document, "obj_mol_001", "10");
+    let double = bond.double.as_ref().expect("double bond should import");
+
+    assert_eq!(
+        double.placement,
+        chemsema_engine::DoubleBondPlacement::Right,
+        "ChemDraw counts effective endpoint coverage; a 0.01 pt coordinate rounding delta must not choose the other side"
+    );
+    assert!(!double.frozen);
+    assert_eq!(
+        bond.properties.absolute_stereo,
+        chemsema_engine::BondAbsoluteStereo::Z
+    );
+}
+
+#[test]
+fn parse_cdxml_auto_side_double_uses_effective_endpoint_coverage_and_fixed_collinear_cutoff() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="30" BondSpacing="12" LineWidth="1" BoldWidth="4">
+  <page id="1">
+    <fragment id="left_coverage">
+      <n id="lc_b" p="100 100"/><n id="lc_e" p="160 100"/>
+      <n id="lc_bl" p="74.0192 115"/><n id="lc_el" p="185.9808 115"/>
+      <b id="left_coverage_double" B="lc_b" E="lc_e" Order="2"/>
+      <b id="lc_1" B="lc_b" E="lc_bl"/><b id="lc_2" B="lc_e" E="lc_el"/>
+    </fragment>
+    <fragment id="trans_tie">
+      <n id="tt_b" p="100 160"/><n id="tt_e" p="160 160"/>
+      <n id="tt_bu" p="74.0192 145"/><n id="tt_el" p="185.9808 175"/>
+      <b id="trans_tie_double" B="tt_b" E="tt_e" Order="2"/>
+      <b id="tt_1" B="tt_b" E="tt_bu"/><b id="tt_2" B="tt_e" E="tt_el"/>
+    </fragment>
+    <fragment id="acute_default_side">
+      <n id="ad_b" p="100 220"/><n id="ad_e" p="160 220"/>
+      <n id="ad_bu" p="70.6556 213.7627"/><n id="ad_eu" p="189.3444 213.7627"/>
+      <n id="ad_bl" p="74.0192 235"/><n id="ad_el" p="185.9808 235"/>
+      <b id="acute_default_double" B="ad_b" E="ad_e" Order="2"/>
+      <b id="ad_1" B="ad_b" E="ad_bu"/><b id="ad_2" B="ad_e" E="ad_eu"/>
+      <b id="ad_3" B="ad_b" E="ad_bl"/><b id="ad_4" B="ad_e" E="ad_el"/>
+    </fragment>
+    <fragment id="valid_default_side">
+      <n id="vd_b" p="100 280"/><n id="vd_e" p="160 280"/>
+      <n id="vd_bu" p="70.888 272.751"/><n id="vd_eu" p="189.112 272.751"/>
+      <n id="vd_bl" p="74.0192 295"/><n id="vd_el" p="185.9808 295"/>
+      <b id="valid_default_double" B="vd_b" E="vd_e" Order="2"/>
+      <b id="vd_1" B="vd_b" E="vd_bu"/><b id="vd_2" B="vd_e" E="vd_eu"/>
+      <b id="vd_3" B="vd_b" E="vd_bl"/><b id="vd_4" B="vd_e" E="vd_el"/>
+    </fragment>
+    <fragment id="only_collinear">
+      <n id="oc_b" p="100 340"/><n id="oc_e" p="160 340"/>
+      <n id="oc_bu" p="70.6556 333.7627"/>
+      <b id="only_collinear_double" B="oc_b" E="oc_e" Order="2"/>
+      <b id="oc_1" B="oc_b" E="oc_bu"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("automatic side coverage matrix"))
+        .expect("automatic side coverage matrix should parse");
+    let placement = |bond_id: &str| {
+        document
+            .resources
+            .values()
+            .filter_map(|resource| resource.data.as_fragment())
+            .flat_map(|fragment| fragment.bonds.iter())
+            .find(|bond| bond.id == bond_id)
+            .and_then(|bond| bond.double.as_ref())
+            .map(|double| double.placement)
+            .expect("probe double bond should import")
+    };
+
+    assert_eq!(
+        placement("left_coverage_double"),
+        chemsema_engine::DoubleBondPlacement::Left
+    );
+    assert_eq!(
+        placement("trans_tie_double"),
+        chemsema_engine::DoubleBondPlacement::Right
+    );
+    assert_eq!(
+        placement("acute_default_double"),
+        chemsema_engine::DoubleBondPlacement::Left,
+        "12 degree attachments are effectively collinear and do not cover the default side"
+    );
+    assert_eq!(
+        placement("valid_default_double"),
+        chemsema_engine::DoubleBondPlacement::Right,
+        "14 degree attachments cover the default side"
+    );
+    assert_eq!(
+        placement("only_collinear_double"),
+        chemsema_engine::DoubleBondPlacement::Center,
+        "a segment with no effective side attachment is centered"
+    );
+}
+
+#[test]
 fn cdxml_export_import_preserves_non_white_page_background() {
     let document = parse_document_json(
         &json!({
