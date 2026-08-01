@@ -218,9 +218,6 @@ fn automatic_double_bond_placement_for_segment_with_tie_breaker(
     {
         return placement;
     }
-    if segment_has_neighbor_double_bond(fragment, begin_id, end_id, ignored_bond_id) {
-        return DoubleBondPlacement::Center;
-    }
     let Some(counts) =
         connected_attachment_side_counts_for_segment(fragment, begin_id, end_id, ignored_bond_id)
     else {
@@ -293,22 +290,6 @@ fn effective_side_for_connected_bond(
     let side_score = attachment_x * normal_x + attachment_y * normal_y;
     (side_score.abs() / attachment_length >= CHEMDRAW_DOUBLE_BOND_MIN_ATTACHMENT_SIDE_SINE)
         .then(|| placement_from_signed_side_score(side_score))
-}
-
-fn segment_has_neighbor_double_bond(
-    fragment: &crate::MoleculeFragment,
-    begin_id: &str,
-    end_id: &str,
-    ignored_bond_id: Option<&str>,
-) -> bool {
-    fragment.bonds.iter().any(|bond| {
-        ignored_bond_id.is_none_or(|ignored| bond.id != ignored)
-            && bond.order == 2
-            && (bond.begin == begin_id
-                || bond.end == begin_id
-                || bond.begin == end_id
-                || bond.end == end_id)
-    })
 }
 
 fn ring_double_bond_placement_for_segment(

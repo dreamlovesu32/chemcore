@@ -2405,7 +2405,7 @@ fn parse_cdxml_auto_ring_double_prioritizes_ring_side_over_neighbor_double() {
     assert_eq!(
         bond.double.as_ref().map(|double| double.placement),
         Some(chemsema_engine::DoubleBondPlacement::Left),
-        "ring membership should choose the inward side before adjacent-double centering"
+        "ring membership should choose the inward side before non-ring attachment coverage"
     );
 }
 
@@ -2483,6 +2483,20 @@ fn parse_cdxml_auto_side_double_uses_effective_endpoint_coverage_and_fixed_colli
       <b id="only_collinear_double" B="oc_b" E="oc_e" Order="2"/>
       <b id="oc_1" B="oc_b" E="oc_bu"/>
     </fragment>
+    <fragment id="bent_conjugated">
+      <n id="bc_b" p="100 400"/><n id="bc_e" p="160 400"/>
+      <n id="bc_bl" p="74.0192 415"/><n id="bc_el" p="185.9808 415"/>
+      <b id="bent_conjugated_double" B="bc_b" E="bc_e" Order="2"/>
+      <b id="bc_1" B="bc_b" E="bc_bl" Order="2"/>
+      <b id="bc_2" B="bc_e" E="bc_el" Order="2"/>
+    </fragment>
+    <fragment id="linear_cumulene">
+      <n id="cm_b" p="100 460"/><n id="cm_e" p="160 460"/>
+      <n id="cm_bl" p="40 460"/><n id="cm_er" p="220 460"/>
+      <b id="linear_cumulene_double" B="cm_b" E="cm_e" Order="2"/>
+      <b id="cm_1" B="cm_b" E="cm_bl" Order="2"/>
+      <b id="cm_2" B="cm_e" E="cm_er" Order="2"/>
+    </fragment>
   </page>
 </CDXML>"##;
     let document = parse_cdxml_document(cdxml, Some("automatic side coverage matrix"))
@@ -2521,6 +2535,16 @@ fn parse_cdxml_auto_side_double_uses_effective_endpoint_coverage_and_fixed_colli
         placement("only_collinear_double"),
         chemsema_engine::DoubleBondPlacement::Center,
         "a segment with no effective side attachment is centered"
+    );
+    assert_eq!(
+        placement("bent_conjugated_double"),
+        chemsema_engine::DoubleBondPlacement::Left,
+        "bent adjacent double bonds participate in the same endpoint-coverage rule"
+    );
+    assert_eq!(
+        placement("linear_cumulene_double"),
+        chemsema_engine::DoubleBondPlacement::Center,
+        "a linear cumulene centers because both adjacent bonds are effectively collinear"
     );
 }
 
