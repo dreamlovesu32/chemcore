@@ -7,8 +7,10 @@ import {
   publicCdxmlCliEnvironment,
 } from "../render-public-cdxml-visual-review.mjs";
 import {
+  CASE_METRICS_SCHEMA,
   classifyBaselineChanges,
   classifyContinuousBaselineRegressions,
+  REPORT_SCHEMA,
   visualBaselineCompatibilityErrors,
 } from "../public-cdxml-visual-gate.mjs";
 import { featuresFromCdxml, selectAffectedCases } from "../public-cdxml-impact.mjs";
@@ -31,7 +33,8 @@ test("visual baseline compatibility binds the corpus and ChemDraw oracle, not th
     ],
   };
   const baseline = {
-    schema: "chemsema-public-cdxml-visual-gate-v1",
+    schema: REPORT_SCHEMA,
+    caseMetricsSchema: CASE_METRICS_SCHEMA,
     galleryProvenance: {
       schema: "chemsema.public-cdxml-gallery-provenance.v1",
       repository: { identity: "old-repository" },
@@ -82,6 +85,17 @@ test("visual baseline compatibility binds the corpus and ChemDraw oracle, not th
       new Map([["source/example.cdxml", "oracle-b"]]),
     ),
     ["ChemDraw oracle changed for source/example.cdxml"],
+  );
+
+  const malformedMetrics = structuredClone(baseline);
+  malformedMetrics.cases[0].status = "fail";
+  assert.match(
+    visualBaselineCompatibilityErrors(
+      malformedMetrics,
+      currentProvenance,
+      currentReferences,
+    ).join("\n"),
+    /invalid metrics/,
   );
 });
 

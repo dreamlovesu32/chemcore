@@ -8,7 +8,11 @@ import {
   buildFeatureIndex,
   selectAffectedCases,
 } from "./public-cdxml-impact.mjs";
-import { CACHE_IDENTITY } from "./public-cdxml-visual-gate.mjs";
+import {
+  CACHE_IDENTITY,
+  CASE_METRICS_SCHEMA,
+  REPORT_SCHEMA,
+} from "./public-cdxml-visual-gate.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -176,10 +180,16 @@ async function main() {
   if (options.dryRun) return;
 
   const baseline = JSON.parse(await fs.readFile(baselineReport, "utf8"));
-  const unstamped = baseline.cacheIdentity !== CACHE_IDENTITY
+  const unstamped = baseline.schema !== REPORT_SCHEMA
+    || baseline.caseMetricsSchema !== CASE_METRICS_SCHEMA
+    || baseline.cacheIdentity !== CACHE_IDENTITY
     || baseline.cases.some((entry) => !entry.artifactHashes);
   if (unstamped) {
-    throw new Error(`Baseline report is not cache-stamped. Run: node scripts/public-cdxml-visual-gate.mjs --gallery "${gallery}" --stamp-report "${baselineReport}"`);
+    throw new Error(
+      `Baseline report does not use the current complete gate schema. Re-run: `
+      + `node scripts/public-cdxml-visual-gate.mjs --gallery "${gallery}" `
+      + `--out "${baselineReport}"`,
+    );
   }
   await run(renderCommand);
   await run(gateCommand);

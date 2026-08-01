@@ -1,0 +1,37 @@
+{
+  "schema": "chemsema.public-cdxml-gate-definition-retirements.v1",
+  "fromCacheIdentity": "chemsema-public-cdxml-visual-gate-cache-v21",
+  "toCacheIdentity": "chemsema-public-cdxml-visual-gate-cache-v22",
+  "reason": "retired-canvas-size-dependent-equivalence",
+  "evidence": {
+    "oldMinimumPassed": 246,
+    "frozenCandidatePassedUnderNewGate": 222,
+    "rule": "v22 removes whole-page coverage and topology equivalence branches; fixed-window coarse and zero-tolerance detail checks are now both mandatory"
+  },
+  "paths": [
+    "cdxml-toolkit/experiments/scheme_dsl/showcase/18_divergent_4products.cdxml",
+    "cdxml-toolkit/samples/KL-CC-001/KL-CC-001.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/AlcoholOxidation_Rxn2.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/Grignard_Rxn2.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/N-Alkylation_Rxn1.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/N-Alkylation_Rxn2.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/N-Sulfonylation_Rxn2.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/O-Alkylation_Rxn1.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/SnAr_Rxn1.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/SnAr_Rxn2.cdxml",
+    "indigo/api/tests/integration/tests/formats/molecules/cdx/US06174985-20010116-C00003.CDX",
+    "indigo/api/tests/integration/tests/formats/ref/3080-star-issue.cdxml",
+    "indigo/api/tests/integration/tests/rendering/reactions/reactions_with_brackets_2801.cdxml",
+    "rdkit/Code/GraphMol/test_data/CDX/structure_2.cdx",
+    "rdkit/Code/GraphMol/test_data/CDXML/beta-cypermethrin-or-abs.cdxml",
+    "rdkit/Code/GraphMol/test_data/CDXML/beta-cypermethrin-or-as.cdxml",
+    "rdkit/Code/GraphMol/test_data/CDXML/beta-cypermethrin.cdxml",
+    "rdkit/Code/GraphMol/test_data/CDXML/chemdraw_template8.cdxml",
+    "rdkit/External/ChemDraw/test_data/patents/US08465972-20130618-C00006.CDX",
+    "rdkit/External/ChemDraw/test_data/patents/US10265425-20190423-C00021.CDX",
+    "rdkit/External/ChemDraw/test_data/patents/US11149044-20211019-C00006.CDX",
+    "rdkit/External/ChemDraw/test_data/patents/US20060199101A1-20060907-C00013.CDX",
+    "rdkit/External/ChemDraw/test_data/patents/US20120288939A1-20121115-C00006.CDX",
+    "rdkit/External/ChemDraw/test_data/patents/US20160375158A1-20161229-C00021.CDX"
+  ]
+}

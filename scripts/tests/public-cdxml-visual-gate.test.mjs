@@ -1,16 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { deflateRawSync, inflateRawSync } from "node:zlib";
 import {
   applyCandidateViewportGate,
-  boundedLocalTopologyEquivalent,
   candidateViewportGateReasons,
   classifyAnalyzedVisualMetrics,
   classifyContinuousBaselineRegressions,
   classifyPassFloorRegressions,
   defaultGatePolicy,
   detailGateReasons,
+  encodeSpatialFloor,
+  gateDefinitionUpgradeConfigurationErrors,
   gatePolicy,
-  nearExactFixedDefectEquivalent,
   passFloorGateDefinition,
   passFloorGateDefinitionErrors,
   protectedVisualCase,
@@ -25,6 +26,52 @@ import {
   strictOriginal338PassFloorErrors,
 } from "../public-cdxml-visual-gate.mjs";
 import { passFloorMigrationErrors } from "../migrate-public-cdxml-pass-floor.mjs";
+
+function maskWordsFromPoints(points) {
+  const byWord = new Map();
+  for (const [x, y] of points) {
+    const linear = y * 48 + x;
+    const word = Math.floor(linear / 32);
+    const bit = linear % 32;
+    byWord.set(word, ((byWord.get(word) ?? 0) | (1 << bit)) >>> 0);
+  }
+  return [...byWord.entries()].sort((left, right) => left[0] - right[0]);
+}
+
+function spatialCellFromPoints({ column = 0, row = 0, missing = [], extra = [] } = {}) {
+  return {
+    column,
+    row,
+    missingMaskWords: maskWordsFromPoints(missing),
+    extraMaskWords: maskWordsFromPoints(extra),
+  };
+}
+
+function spatialCell({
+  column = 0,
+  row = 0,
+  missingPixels = 0,
+  extraPixels = 0,
+  missingX = 1,
+  missingY = 1,
+  extraX = 1,
+  extraY = 1,
+} = {}) {
+  const points = (count, startX, startY) => Array.from({ length: count }, (_, index) => [
+    (startX + index) % 48,
+    startY + Math.floor((startX + index) / 48),
+  ]);
+  return spatialCellFromPoints({
+    column,
+    row,
+    missing: points(missingPixels, missingX, missingY),
+    extra: points(extraPixels, extraX, extraY),
+  });
+}
+
+function spatialFloor(cells = [], detail = false) {
+  return encodeSpatialFloor(cells, detail ? 4 : 2, detail ? 12 : 24);
+}
 
 test("candidate viewport margin rejects edge clipping independently of image size", () => {
   const clipped = {
@@ -123,6 +170,175 @@ test("continuous regression metrics reject deterioration even with a countervail
   );
 });
 
+test("continuous regression metrics ratchet fixed local windows without spatial cancellation", () => {
+  const baseline = new Map([["tradeoff.cdxml", {
+    status: "fail",
+    reasons: ["local-reference-coverage"],
+    local: { spatialFloor: spatialFloor([
+      spatialCell({ column: 0, missingPixels: 4 }),
+      spatialCell({ column: 1, missingPixels: 40 }),
+    ]) },
+  }]]);
+  const current = [{
+    relativeCdxml: "tradeoff.cdxml",
+    status: "fail",
+    reasons: ["local-reference-coverage"],
+    local: { spatialFloor: spatialFloor([
+      spatialCell({ column: 0, missingPixels: 8 }),
+      spatialCell({ column: 1, missingPixels: 32 }),
+    ]) },
+  }];
+  const regressions = classifyContinuousBaselineRegressions(current, baseline);
+  assert.equal(regressions.length, 1);
+  assert.deepEqual(
+    regressions[0].reasons.map((entry) => entry.metric),
+    ["local.spatialFloor.missingUnsupportedArea"],
+  );
+});
+
+test("continuous regression metrics protect detail cells on already-red images", () => {
+  const baseline = new Map([["detail.cdxml", {
+    status: "fail",
+    reasons: ["old-defect"],
+    detail: { local: { spatialFloor: spatialFloor([
+      spatialCell({ missingPixels: 4 }),
+    ], true) } },
+  }]]);
+  const current = [{
+    relativeCdxml: "detail.cdxml",
+    status: "fail",
+    reasons: ["old-defect"],
+    detail: { local: { spatialFloor: spatialFloor([
+      spatialCell({ missingPixels: 12 }),
+    ], true) } },
+  }];
+  const regressions = classifyContinuousBaselineRegressions(current, baseline);
+  assert.equal(regressions.length, 1);
+  assert.match(regressions[0].reasons[0].metric, /^detail\.local\.spatialFloor/);
+});
+
+test("continuous regression metrics reject deleted spatial floors", () => {
+  const baseline = new Map([["missing-array.cdxml", {
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: spatialFloor() },
+  }]]);
+  const regressions = classifyContinuousBaselineRegressions([{
+    relativeCdxml: "missing-array.cdxml",
+    status: "fail",
+    reasons: ["old-defect"],
+  }], baseline);
+  assert.equal(regressions.length, 1);
+  assert.deepEqual(regressions[0].reasons[0], {
+    metric: "local.spatialFloor",
+    direction: "present",
+    before: "spatial-floor",
+    after: null,
+    tolerance: 0,
+  });
+});
+
+test("removing a candidate-only extra window is an improvement", () => {
+  const baseline = new Map([["extra-fixed.cdxml", {
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: spatialFloor([
+      spatialCell({ extraPixels: 8 }),
+    ]) },
+  }]]);
+  assert.deepEqual(classifyContinuousBaselineRegressions([{
+    relativeCdxml: "extra-fixed.cdxml",
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: spatialFloor() },
+  }], baseline), []);
+});
+
+test("spatial occupancy prevents same-size relocation from cancelling", () => {
+  const baseline = new Map([["moved.cdxml", {
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: spatialFloor([
+      spatialCell({ missingPixels: 8, missingX: 1 }),
+    ]) },
+  }]]);
+  const regressions = classifyContinuousBaselineRegressions([{
+    relativeCdxml: "moved.cdxml",
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: spatialFloor([
+      spatialCell({ missingPixels: 8, missingX: 5 }),
+    ]) },
+  }], baseline);
+  assert.equal(regressions.length, 1);
+  assert.equal(regressions[0].reasons[0].direction, "lower");
+});
+
+test("spatial occupancy distinguishes equal count, bounds, and centroid", () => {
+  const baselineCell = spatialCellFromPoints({ missing: [
+    [0, 0], [0, 5], [0, 10], [10, 0], [10, 5], [10, 10],
+  ] });
+  const currentCell = spatialCellFromPoints({ missing: [
+    [0, 0], [4, 4], [4, 6], [6, 4], [6, 6], [10, 10],
+  ] });
+  const baseline = new Map([["same-statistics.cdxml", {
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: spatialFloor([baselineCell]) },
+  }]]);
+  const regressions = classifyContinuousBaselineRegressions([{
+    relativeCdxml: "same-statistics.cdxml",
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: spatialFloor([currentCell]) },
+  }], baseline);
+  assert.equal(regressions.length, 1);
+  assert.equal(regressions[0].reasons[0].metric, "local.spatialFloor.missingUnsupportedArea");
+});
+
+test("small defects split across many cells cannot evade the absolute budget", () => {
+  const baselineCells = Array.from({ length: 100 }, (_, index) =>
+    spatialCell({ column: index + 100, missingPixels: 1 }));
+  const currentCells = Array.from({ length: 100 }, (_, index) =>
+    spatialCell({ column: index, missingPixels: 1 }));
+  const baseline = new Map([["split.cdxml", {
+    status: "fail",
+    reasons: ["old-defect"],
+    detail: { local: { spatialFloor: spatialFloor(baselineCells, true) } },
+  }]]);
+  const regressions = classifyContinuousBaselineRegressions([{
+    relativeCdxml: "split.cdxml",
+    status: "fail",
+    reasons: ["old-defect"],
+    detail: { local: { spatialFloor: spatialFloor(currentCells, true) } },
+  }], baseline);
+  assert.equal(regressions.length, 1);
+  assert.equal(
+    regressions[0].reasons[0].metric,
+    "detail.local.spatialFloor.missingUnsupportedArea",
+  );
+});
+
+test("spatial floor compression bytes are not part of canonical identity", () => {
+  const baselineFloor = spatialFloor([spatialCell({ missingPixels: 8 })]);
+  const currentFloor = structuredClone(baselineFloor);
+  const raw = inflateRawSync(Buffer.from(currentFloor.data, "base64"));
+  const compressed = deflateRawSync(raw, { level: 1 });
+  currentFloor.data = compressed.toString("base64");
+  currentFloor.compressedBytes = compressed.length;
+  const baseline = new Map([["compression.cdxml", {
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: baselineFloor },
+  }]]);
+  assert.deepEqual(classifyContinuousBaselineRegressions([{
+    relativeCdxml: "compression.cdxml",
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: currentFloor },
+  }], baseline), []);
+});
+
 test("continuous regression metrics cannot disappear to evade the floor", () => {
   const baseline = new Map([["red.cdxml", {
     status: "fail",
@@ -140,6 +356,10 @@ test("continuous regression metrics cannot disappear to evade the floor", () => 
 });
 
 test("protected visual cases keep only authoritative all-case floor data", () => {
+  const coarseSpatialFloor = spatialFloor([
+    spatialCell({ column: 1, row: 1, missingPixels: 4 }),
+    spatialCell({ column: 2, row: 1, missingPixels: 4 }),
+  ]);
   const floorCase = protectedVisualCase({
     relativeCdxml: "source\\red.cdxml",
     status: "fail",
@@ -148,16 +368,19 @@ test("protected visual cases keep only authoritative all-case floor data", () =>
     referenceCoverage: 0.9,
     candidateCoverage: 0.8,
     largestMissing: { area: 10, span: 4, box: { x: 1 } },
+    local: { spatialFloor: coarseSpatialFloor },
     error: "must not persist",
   });
   assert.deepEqual(floorCase, {
     relativeCdxml: "source/red.cdxml",
     status: "fail",
     artifactHashes: { reference: "oracle" },
+    analysisLayers: { coarse: true, detail: false },
     reasons: ["a", "b"],
     referenceCoverage: 0.9,
     candidateCoverage: 0.8,
     largestMissing: { area: 10, span: 4 },
+    local: { spatialFloor: coarseSpatialFloor },
   });
   assert.deepEqual(protectedVisualFloorOracleErrors({
     protectedCases: [floorCase],
@@ -233,6 +456,35 @@ test("strict original-338 mode rejects diagnostic escape hatches", () => {
   ]);
 });
 
+test("gate-definition upgrade diagnostics cannot act as a release gate", () => {
+  const errors = gateDefinitionUpgradeConfigurationErrors({
+    gateDefinitionUpgrade: true,
+    strictOriginal338: true,
+    reportOnly: false,
+    reuseReport: "cached.json",
+    baselineReport: "baseline.json",
+    patterns: ["one-case"],
+    limit: 1,
+    cohort: "other",
+  });
+  assert.deepEqual(errors, [
+    "--strict-original-338 is forbidden",
+    "--report-only is required",
+    "--reuse-report is forbidden",
+    "--baseline-report is forbidden",
+    "--only is forbidden",
+    "--limit is forbidden",
+    "--cohort must be original-338",
+  ]);
+  assert.deepEqual(gateDefinitionUpgradeConfigurationErrors({
+    gateDefinitionUpgrade: true,
+    strictOriginal338: false,
+    reportOnly: true,
+    patterns: [],
+    cohort: "original-338",
+  }), []);
+});
+
 test("strict original-338 mode requires the exact same 338 paths across gate upgrades", () => {
   const cases = Array.from({ length: 338 }, (_, index) => ({
     relativeCdxml: `source/${String(index).padStart(4, "0")}.cdxml`,
@@ -259,31 +511,7 @@ test("strict original-338 mode requires the exact same 338 paths across gate upg
     maxRepeatedMicroDefects: 20,
     maxRepeatedMicroDefectArea: 5,
     minRepeatedMicroCoverage: 0.75,
-    minimumTopologyComponentCount: 8,
-    minimumSmallTopologyComponentCount: 3,
-    minimumSmallTopologyLocalCoverage: 0.7,
-    maximumTopologyCandidateComponentCount: 300,
-    maxTopologyCandidateCountRatio: 0.1,
     maxRelativeComponentCenterDistance: 0.02,
-    maxComponentPositionDistributionDelta: 0.03,
-    minSlenderDefectCoverage: 0.98,
-    minSlenderDefectLocalCoverage: 0.75,
-    maxSlenderDefectArea: 24,
-    maxSlenderDefectSpan: 30,
-    maxSlenderDefectThickness: 1,
-    minBoundedLocalCoverage: 0.96,
-    minBoundedLocalWindowCoverage: 0.5,
-    maxBoundedLocalDefectArea: 32,
-    maxBoundedLocalDefectSpan: 32,
-    minBoundedRelativeComponentCoverage: 0.877,
-    boundedComponentDeltaPenalty: 0.01,
-    maxBoundedComponentCountDelta: 8,
-    maxTightBoundedLocalDefectSpan: 20,
-    minTightBoundedRelativeComponentCoverage: 0.88,
-    maxTightBoundedComponentCountDelta: 5,
-    minNearExactCoverage: 0.994,
-    maxNearExactDefectSpan: 15,
-    maxNearExactDefectArea: 18,
   };
   const baseline = {
     // Regression history is intentionally older than the current analysis
@@ -320,10 +548,57 @@ test("strict original-338 pass floor is authoritative over a degraded cache base
     cohort: { name: "original-338", expected: 338 },
     minimumPassed: 2,
     protectedPasses: ["source/0000.cdxml", "source/0001.cdxml"],
-    protectedCases: selected.map((entry, index) => ({
+    protectedCases: selected.map((entry, index) => index < 2 ? {
       ...entry,
-      status: index < 2 ? "pass" : "fail",
+      status: "pass",
       artifactHashes: { reference: `reference-${index}` },
+    } : protectedVisualCase({
+      ...entry,
+      status: "fail",
+      artifactHashes: { reference: `reference-${index}` },
+      reasons: ["synthetic-failure"],
+      referenceCoverage: 0.9,
+      candidateCoverage: 0.9,
+      local: {
+        referenceCoverage: 0.8,
+        candidateCoverage: 0.8,
+        spatialFloor: spatialFloor(),
+      },
+      largestMissing: { area: 2, span: 2 },
+      largestExtra: { area: 2, span: 2 },
+      totals: { missingInk: 0, extraInk: 0 },
+      domain: { left: 0, top: 0, right: 48, bottom: 48 },
+      detailFeatures: {
+        compactDefectCount: 0,
+        componentMatchCoverage: 0.9,
+        relativeComponentMatchCoverage: 0.9,
+        componentPositionDistributionDelta: 0.01,
+        independentComponentCountDelta: 0,
+        unmatchedReferenceComponentCount: 0,
+        unmatchedCandidateComponentCount: 0,
+        smallComponentDimensionDelta: 0,
+        enclosedSmallComponentDimensionDelta: 0,
+        maximumMatchedCenterDistance: 0,
+        maximumMatchedDimensionDelta: 0,
+      },
+      detail: {
+        totals: { missingInk: 0, extraInk: 0 },
+        domain: { left: 0, top: 0, right: 48, bottom: 48 },
+        local: {
+          referenceCoverage: 0.8,
+          candidateCoverage: 0.8,
+          spatialFloor: spatialFloor([], true),
+        },
+        largestMissing: { area: 2, span: 2 },
+        largestExtra: { area: 2, span: 2 },
+        detailFeatures: {
+          compactDefectCount: 0,
+          componentMatchCoverage: 0.9,
+          relativeComponentMatchCoverage: 0.9,
+          componentPositionDistributionDelta: 0.01,
+          independentComponentCountDelta: 0,
+        },
+      },
     })),
   };
   assert.deepEqual(
@@ -335,11 +610,62 @@ test("strict original-338 pass floor is authoritative over a degraded cache base
     ),
     [],
   );
+  const missingSpatialFloor = structuredClone(passFloor);
+  delete missingSpatialFloor.protectedCases[2].local.spatialFloor;
+  assert.match(
+    strictOriginal338PassFloorErrors(
+      missingSpatialFloor,
+      selected,
+      baseline,
+      options,
+    ).join("\n"),
+    /missing local\.spatialFloor/,
+  );
+  const corruptSpatialFloor = structuredClone(passFloor);
+  corruptSpatialFloor.protectedCases[2].local.spatialFloor.data = "corrupt";
+  assert.match(
+    strictOriginal338PassFloorErrors(
+      corruptSpatialFloor,
+      selected,
+      baseline,
+      options,
+    ).join("\n"),
+    /invalid local\.spatialFloor/,
+  );
   assert.deepEqual(classifyPassFloorRegressions(baseline.cases, passFloor), [{
     relativeCdxml: "source/0001.cdxml",
     before: "protected-pass",
     after: "fail",
   }]);
+});
+
+test("complete original-338 diagnostics validate the floor outside strict mode", () => {
+  const selected = Array.from({ length: 338 }, (_, index) => ({
+    relativeCdxml: `source/${String(index).padStart(4, "0")}.cdxml`,
+  }));
+  const passFloor = {
+    schema: STRICT_PASS_FLOOR_SCHEMA,
+    gateDefinition: passFloorGateDefinition(),
+    cohort: { name: "original-338", expected: 338 },
+    minimumPassed: 337,
+    protectedPasses: selected.slice(1).map((entry) => entry.relativeCdxml),
+    protectedCases: selected.map((entry, index) => ({
+      ...entry,
+      status: index === 0 ? "fail" : "pass",
+      artifactHashes: { reference: `reference-${index}` },
+      ...(index === 0 ? { analysisLayers: { coarse: true, detail: true } } : {}),
+    })),
+  };
+  assert.match(
+    strictOriginal338PassFloorErrors(
+      passFloor,
+      selected,
+      null,
+      { strictOriginal338: false },
+      true,
+    ).join("\n"),
+    /invalid metrics/,
+  );
 });
 
 test("pass floors are bound to one exact gate definition", () => {
@@ -385,6 +711,83 @@ test("pass-floor migration requires zero same-gate candidate regressions", () =>
   );
 });
 
+test("pass-floor migration is bound to the old floor repository and cannot shrink", () => {
+  const cases = Array.from({ length: 338 }, (_, index) => ({
+    relativeCdxml: `source/${String(index).padStart(4, "0")}.cdxml`,
+    status: index === 0 ? "fail" : "pass",
+    artifactHashes: { reference: `reference-${index}` },
+  }));
+  const report = (entries, identity = "old-identity") => ({
+    policy: defaultGatePolicy(),
+    galleryProvenance: {
+      repository: { head: "old-commit", identity },
+    },
+    cases: entries,
+  });
+  const oldFloor = {
+    minimumPassed: 337,
+    source: { commit: "old-commit", repositoryIdentity: "old-identity" },
+    protectedPasses: cases.slice(1).map((entry) => entry.relativeCdxml),
+    protectedCases: cases,
+  };
+  assert.deepEqual(
+    passFloorMigrationErrors(report(cases), report(cases), oldFloor),
+    [],
+  );
+  assert.match(
+    passFloorMigrationErrors(
+      report(cases, "wrong-identity"),
+      report(cases),
+      oldFloor,
+    ).join("\n"),
+    /not the repository state protected by the old floor/,
+  );
+  const degraded = structuredClone(cases);
+  degraded[1].status = "fail";
+  assert.match(
+    passFloorMigrationErrors(report(cases), report(degraded), oldFloor).join("\n"),
+    /lower the protected pass floor/,
+  );
+});
+
+test("pass-floor migration permits only an explicit gate-definition retirement", () => {
+  const frozenCases = Array.from({ length: 338 }, (_, index) => ({
+    relativeCdxml: `source/${String(index).padStart(4, "0")}.cdxml`,
+    status: index === 0 ? "fail" : "pass",
+    artifactHashes: { reference: `reference-${index}` },
+  }));
+  const report = {
+    policy: defaultGatePolicy(),
+    galleryProvenance: {
+      repository: { head: "old-commit", identity: "old-identity" },
+    },
+    cases: frozenCases,
+  };
+  const definition = passFloorGateDefinition();
+  const oldFloor = {
+    gateDefinition: { cacheIdentity: "retired-gate" },
+    minimumPassed: 338,
+    source: { commit: "old-commit", repositoryIdentity: "old-identity" },
+    protectedPasses: frozenCases.map((entry) => entry.relativeCdxml),
+    protectedCases: frozenCases.map((entry) => ({ ...entry, status: "pass" })),
+  };
+  const retirements = {
+    schema: "chemsema.public-cdxml-gate-definition-retirements.v1",
+    fromCacheIdentity: "retired-gate",
+    toCacheIdentity: definition.cacheIdentity,
+    reason: "retired-size-dependent-rule",
+    paths: ["source/0000.cdxml"],
+  };
+  assert.match(
+    passFloorMigrationErrors(report, report, oldFloor).join("\n"),
+    /without review/,
+  );
+  assert.deepEqual(
+    passFloorMigrationErrors(report, report, oldFloor, retirements),
+    [],
+  );
+});
+
 test("strict original-338 pass floor reports protected pass regressions independently", () => {
   const current = [
     { relativeCdxml: "source/0000.cdxml", status: "pass" },
@@ -405,65 +808,6 @@ test("strict original-338 pass floor reports protected pass regressions independ
       after: "missing",
     },
   ]);
-});
-
-test("bounded local topology accepts small fixed-coordinate defects", () => {
-  assert.equal(boundedLocalTopologyEquivalent(metrics()), true);
-});
-
-test("bounded local topology is not diluted by a large image", () => {
-  const coarse = metrics({ missingSpan: 33, extraSpan: 1 });
-  coarse.totals = { referenceInk: 10_000_000, candidateInk: 10_000_000 };
-  assert.equal(boundedLocalTopologyEquivalent(coarse), false);
-});
-
-test("bounded local topology rejects weak relative structure agreement", () => {
-  assert.equal(boundedLocalTopologyEquivalent(metrics({
-    componentDelta: 6,
-    relativeCoverage: 0.92,
-  })), false);
-});
-
-test("bounded local topology cannot hide a missing local label cluster", () => {
-  assert.equal(boundedLocalTopologyEquivalent(metrics({
-    coverage: 0.97,
-    missingSpan: 27,
-    extraSpan: 18,
-    defectArea: 209,
-    localCoverage: 0,
-    componentDelta: 3,
-    relativeCoverage: 0.959,
-  })), false);
-});
-
-test("bounded local topology enforces fixed-area defects independently of canvas size", () => {
-  const coarse = metrics({ defectArea: 32.01 });
-  coarse.totals = { referenceInk: 10_000_000, candidateInk: 10_000_000 };
-  assert.equal(boundedLocalTopologyEquivalent(coarse), false);
-});
-
-test("very tight defects allow a small bounded component mismatch", () => {
-  assert.equal(boundedLocalTopologyEquivalent(metrics({
-    missingSpan: 16,
-    extraSpan: 17,
-    componentDelta: 5,
-    relativeCoverage: 0.89,
-  })), true);
-});
-
-test("near-exact fixed defects ignore sparse-window percentages", () => {
-  const coarse = metrics({ coverage: 0.994, missingSpan: 15, extraSpan: 15 });
-  coarse.largestMissing.area = 18;
-  coarse.largestExtra.area = 18;
-  assert.equal(nearExactFixedDefectEquivalent(coarse), true);
-});
-
-test("near-exact defects remain bounded independently of image size", () => {
-  const coarse = metrics({ coverage: 0.9999, missingSpan: 15.01, extraSpan: 1 });
-  coarse.largestMissing.area = 1;
-  coarse.largestExtra.area = 1;
-  coarse.totals = { referenceInk: 10_000_000, candidateInk: 10_000_000 };
-  assert.equal(nearExactFixedDefectEquivalent(coarse), false);
 });
 
 test("strong global pixel agreement cannot erase fine component evidence", () => {
@@ -496,6 +840,35 @@ test("strong global pixel agreement cannot erase fine component evidence", () =>
   const result = classifyAnalyzedVisualMetrics(coarse, detail);
   assert.equal(result.passed, false);
   assert.deepEqual(result.reasons, ["detail-component-count"]);
+});
+
+test("global image size cannot bypass a failed fixed-window coarse gate", () => {
+  const coarse = metrics({
+    coverage: 0.999999,
+    missingSpan: 13,
+    extraSpan: 1,
+    defectArea: 9,
+    localCoverage: 0.74,
+  });
+  coarse.totals = {
+    referenceInk: 100_000_000,
+    candidateInk: 100_000_000,
+  };
+  const detail = {
+    local: { referenceCoverage: 1, candidateCoverage: 1 },
+    largestMissing: { area: 0, span: 0 },
+    largestExtra: { area: 0, span: 0 },
+    topDefects: [],
+    detailFeatures: {
+      independentComponentCountDelta: 0,
+      enclosedSmallComponentDimensionDelta: 0,
+      compactDefectCount: 0,
+      displacedDefectPairs: [],
+    },
+  };
+  const classified = classifyAnalyzedVisualMetrics(coarse, detail);
+  assert.equal(classified.passed, false);
+  assert.deepEqual(classified.reasons, ["synthetic-coarse-failure"]);
 });
 
 test("spatially supported raster seams do not become independent component evidence", () => {

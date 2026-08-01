@@ -70,12 +70,12 @@ node scripts/render-public-cdxml-visual-review.mjs --all \
 
 日常渲染修复不再默认重跑全部 413 个文件。增量门禁参考 OCR 仓库的 affected-gate 约定，先把当前代码改动映射到视觉规则族，再从机器生成的 `tmp/public-cdxml-feature-index.json` 选择同类文件和历史回归样例。选择计划写入 `tmp/public-cdxml-affected-gate-plan.json`，不能用手写编号列表替代；额外诊断样例通过 `--extra` 进入计划并保留理由。
 
-第一次把既有全量报告用作缓存基线时，只需为它记录参考图和候选 SVG 的内容哈希：
+基线必须由当前门禁定义重新分析生成；不能通过替换哈希或来源信息让旧判定重新可信：
 
 ```bash
 node scripts/public-cdxml-visual-gate.mjs \
   --gallery tmp/public-cdxml-chemdraw-review-all \
-  --stamp-report tmp/public-cdxml-chemdraw-review-all/gate-report.json
+  --out tmp/public-cdxml-chemdraw-review-all/gate-report.json
 ```
 
 普通开发循环先检查计划，再运行受影响门禁：
@@ -85,7 +85,7 @@ npm run benchmark:cdxml-public:visual-gate:affected -- --dry-run
 npm run benchmark:cdxml-public:visual-gate:affected
 ```
 
-规划器会增量更新完整图集的对应条目。像素门禁按“ChemDraw 参考图哈希 + ChemSema SVG 哈希 + 门禁策略版本”复用未变化案例，只分析真正改变的图片；最终报告仍包含完整基线的全部案例，并在 `cache.reused`/`cache.analyzed` 中记录复用和重算数量。基线模式允许历史红图继续留待后续修复，但任何旧绿转红都会写入 `delta.regressions` 并让命令失败；仍为红图的案例也会比较整体/固定窗口覆盖、最大缺失与多余细节、独立组件匹配、相对位置分布和细粒度缺陷。新增失败原因、受保护指标消失或任一指标超过明确栅格容差的恶化都会写入 `delta.continuousRegressions`。另一项指标改善不能抵消它；确有取舍时必须人工复核并显式提升基线，不能静默放行。固定参考单位窗口、组件几何和绝对缺陷边界保证结果不会被画布大小稀释。代码路径到特征族及历史回归样例的映射保存在 `benchmarks/public-cdxml/visual-impact-map.json`。未登记的生产代码改动会保守地强制全量，门禁算法本身变化也必须全量验证。
+规划器会增量更新完整图集的对应条目。像素门禁按“ChemDraw 参考图哈希 + ChemSema SVG 哈希 + 门禁策略版本”复用未变化案例，只分析真正改变的图片；最终报告仍包含完整基线的全部案例，并在 `cache.reused`/`cache.analyzed` 中记录复用和重算数量。基线模式允许历史红图继续留待后续修复，但任何旧绿转红都会写入 `delta.regressions` 并让命令失败；仍为红图的案例会逐坐标保护 coarse 与零容差 detail 的 missing/extra 精确占用掩膜。当前缺陷像素只有在固定绝对容差内得到历史同类像素支持才不算新增；所有格中的未支持像素会累计，因此任何旧位置的改善都不能抵消新位置错误。新增失败原因、受保护指标或掩膜消失、旧缺陷超容差换位置都会写入 `delta.continuousRegressions`。确有取舍时必须人工复核并显式提升基线，不能静默放行。固定参考单位窗口、占用掩膜和绝对容差保证结果不会被画布大小稀释。代码路径到特征族及历史回归样例的映射保存在 `benchmarks/public-cdxml/visual-impact-map.json`。未登记的生产代码改动会保守地强制全量，门禁算法本身变化也必须全量验证。
 
 严格的原始 338 张门禁还会读取 `benchmarks/public-cdxml/strict-pass-floor.json`。这份受版本控制的全案例下限绑定一个精确门禁定义，保存全部 338 条路径：既包含所有已验收通过图片的累计并集，也包含每张剩余红图的状态、ChemDraw 原图哈希、失败原因和非退化指标。严格模式直接与这份仓库内基线比较；外部报告只能用作分析缓存，不能替换回归历史。因此，退化后的当前报告无法把旧回退洗掉，ChemDraw 原图变化、指标消失、脏/旧/局部图库以及“某处改善掩盖另一处恶化”也都会被拒绝。一次干净的严格门禁新增通过或改善红图且没有任何回退后，再提升全案例下限：
 
@@ -96,17 +96,27 @@ npm run benchmark:cdxml-public:visual-gate:promote -- \
 
 提升命令会核对完整 338 张集合、干净且当前一致的仓库和 CLI 来源、零分析错误、零即时回退以及零累计回退。它会把新增通过项并入下限，并把仍为红图的案例收紧到本次已改善指标；绝不会删除已经受保护的路径。
 
-门禁定义本身被纠正时，不能静默沿用旧 verdict。必须用新定义分别重算一份冻结的旧候选图集和当前图集；只有两份报告都精确覆盖相同 338 条路径、使用相同 ChemDraw oracle，且同口径旧绿转红为 0 时，才允许迁移通过下限：
+门禁定义本身被纠正时，不能静默沿用旧 verdict。必须用新定义分别重算一份冻结的旧候选图集和当前图集；两份报告都必须精确覆盖相同 338 条路径并使用相同 ChemDraw oracle。若新定义证明旧通过项是假阳性，每条被退役路径都必须写入已提交、排序稳定且带统一原因的审核清单；清单以外仍不允许同口径旧绿转红：
+
+```bash
+node scripts/public-cdxml-visual-gate.mjs \
+  --gallery tmp/frozen-candidate-gallery \
+  --gate-definition-upgrade --report-only --allow-stale-gallery --jobs 8 \
+  --out tmp/frozen-candidate-gate-report.json
+```
+
+`--gate-definition-upgrade` 是跨越旧定义下限的唯一引导入口：它强制选择完整 original-338，只生成诊断报告，并禁止基线、缓存和局部筛选；一旦已提交下限与当前定义一致，该入口就会拒绝运行。
 
 ```bash
 npm run benchmark:cdxml-public:visual-gate:migrate-floor -- \
   --previous-report tmp/frozen-candidate-gate-report.json \
-  --current-report tmp/current-candidate-gate-report.json
+  --current-report tmp/current-candidate-gate-report.json \
+  --reviewed-retirements benchmarks/public-cdxml/gate-definition-retirements-v22.json
 ```
 
-迁移会记录两份报告的哈希以及同口径改善/回退数量。这样可以退役只因已证实的旧门禁错误而产生的 verdict，同时不增加文件特例，也不放宽当前规则。
+迁移会把冻结报告绑定到旧下限记录的确切仓库身份，并记录两份报告哈希、同口径变化和退役清单哈希。未列出的旧通过项和清单之外的下限缩减仍会被拒绝。该清单只审计门禁定义纠正，渲染器和普通通过判定不会读取它，因此不是绘制特例。
 
-v19 门禁不再允许等价分支绕过固定坐标的细节检查：整页覆盖率和拓扑分布都不能掩盖局部空白窗口或大块局部缺陷，粗粒度像素相似也不能删除细粒度连通组件不一致。细节层使用零膨胀，保留亚像素键交汇差异；重复缺陷阈值使用参考图坐标单位，不随画布大小稀释。只有缺失块与多余块同时位于一个固定细节窗口的距离内，才会被认定为同一细节发生位移；画布两端外形相似但互不相关的字形或键边缘不能互相配对。SVG 使用声明的固定矢量比例；每个当前候选图都独立执行文档世界坐标上的多分辨率最大整体重叠平移，分块和局部窗口锚定在固定参考格点，根 `viewBox` 改变不会移动配准或采样窗口。历史通过保护只比较同一门禁定义的结果，不会把旧候选图的平移量注入新图。正式门禁会拒绝仓库、CLI、语料、往返报告或逐图候选来源不一致的图集；`--allow-stale-gallery` 只供诊断，不能把旧图变成正式结果。
+v22 对每一个可比较案例都运行 coarse 和零容差 detail 两层分析，包括本来已经严重失败的红图。每个 core 像素只按全局 ChemDraw 坐标分桶一次，门禁把固定缺陷格中 missing/extra 的精确占用掩膜压缩写入受保护下限。当前像素必须在固定绝对容差内由历史同类像素支持；所有格的未支持像素统一累计，所以旧缺陷修好不能补偿任何位置的新缺陷，同一格中保持数量、质心和外框不变的重排也无法逃逸。原始掩膜记录用 SHA-256 校验完整性，zlib 只负责存储，不把不同运行时的压缩字节当成逻辑身份。通过判定只有一条路径：固定窗口 coarse 阈值与 detail 规则必须同时通过；旧的整页覆盖率和拓扑等价宽松分支已退役，同一个局部缺陷不会因为画布变大而更容易通过。细节层使用零膨胀，保留亚像素键交汇差异；重复缺陷阈值使用参考图坐标单位，不随画布大小稀释。只有缺失块与多余块同时位于一个固定细节窗口的距离内，才会被认定为同一细节发生位移；画布两端外形相似但互不相关的字形或键边缘不能互相配对。SVG 使用声明的固定矢量比例；每个当前候选图都独立执行文档世界坐标上的多分辨率最大整体重叠平移，分块和局部窗口锚定在固定参考格点，根 `viewBox` 改变不会移动配准或采样窗口。历史通过保护只比较同一门禁定义的结果，不会把旧候选图的平移量注入新图。正式门禁会拒绝仓库、CLI、语料、往返报告或逐图候选来源不一致的图集；`--allow-stale-gallery` 只供诊断，不能把旧图变成正式结果。
 
 使用 `--cohort original-338` 可严格运行 `benchmarks/public-cdxml/failure-ledger.json` 中登记的原始 338 张审查集合。只要图库缺少其中一个路径，门禁会在像素分析前失败；报告会记录集合名称、清单路径、期望数量和实际选择数量。
 

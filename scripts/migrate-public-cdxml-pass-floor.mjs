@@ -1,7 +1,9 @@
 import crypto from "node:crypto";
+import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import {
   classifyBaselineChanges,
   classifyContinuousBaselineRegressions,
@@ -12,29 +14,55 @@ import {
   STRICT_PASS_FLOOR_SCHEMA,
 } from "./public-cdxml-visual-gate.mjs";
 
+const execFileAsync = promisify(execFile);
+
 function parseArgs(argv) {
   const options = {};
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--previous-report") options.previousReport = argv[++index];
     else if (arg === "--current-report") options.currentReport = argv[++index];
+    else if (arg === "--reviewed-retirements") options.reviewedRetirements = argv[++index];
     else throw new Error(`Unknown argument: ${arg}`);
   }
   if (!options.previousReport || !options.currentReport) {
     throw new Error(
       "Usage: node scripts/migrate-public-cdxml-pass-floor.mjs "
       + "--previous-report <same-gate-frozen-candidate-report.json> "
-      + "--current-report <same-gate-current-candidate-report.json>",
+      + "--current-report <same-gate-current-candidate-report.json> "
+      + "[--reviewed-retirements gate-definition-retirements.json]",
     );
   }
   return {
     previousReport: path.resolve(options.previousReport),
     currentReport: path.resolve(options.currentReport),
+    reviewedRetirements: options.reviewedRetirements
+      ? path.resolve(options.reviewedRetirements)
+      : null,
   };
 }
 
 function sha256(source) {
   return crypto.createHash("sha256").update(source).digest("hex");
+}
+
+async function requireCommittedRepositoryFile(filePath) {
+  const relativePath = path.relative(process.cwd(), filePath).replaceAll("\\", "/");
+  if (!relativePath || relativePath === ".." || relativePath.startsWith("../")) {
+    throw new Error("reviewed retirements must be stored inside the repository");
+  }
+  try {
+    await execFileAsync("git", ["ls-files", "--error-unmatch", "--", relativePath], {
+      cwd: process.cwd(),
+      windowsHide: true,
+    });
+    await execFileAsync("git", ["diff", "--quiet", "HEAD", "--", relativePath], {
+      cwd: process.cwd(),
+      windowsHide: true,
+    });
+  } catch {
+    throw new Error("reviewed retirements must exactly match a committed repository file");
+  }
 }
 
 function exactCohortErrors(report, label) {
@@ -67,7 +95,7 @@ async function verifiedReport(reportPath, label) {
   const errors = [
     ...exactCohortErrors(report, label),
     ...await reuseReportCompatibilityErrors(report, manifest, galleryDir, {
-      allowGateDefinitionUpgrade: true,
+      allowGateDefinitionUpgrade: false,
     }),
   ];
   if (errors.length) {
@@ -76,7 +104,12 @@ async function verifiedReport(reportPath, label) {
   return { report, sha256: sha256(source) };
 }
 
-export function passFloorMigrationErrors(previousReport, currentReport) {
+export function passFloorMigrationErrors(
+  previousReport,
+  currentReport,
+  oldFloor = null,
+  reviewedRetirements = null,
+) {
   const errors = [];
   const expectedDefinition = passFloorGateDefinition();
   for (const [label, report] of [
@@ -116,6 +149,69 @@ export function passFloorMigrationErrors(previousReport, currentReport) {
       break;
     }
   }
+  if (oldFloor) {
+    const previousRepository = previousReport.galleryProvenance?.repository;
+    if (
+      previousRepository?.head !== oldFloor.source?.commit
+      || previousRepository?.identity !== oldFloor.source?.repositoryIdentity
+    ) {
+      errors.push("previous report is not the repository state protected by the old floor");
+    }
+    const oldProtectedCases = new Map((oldFloor.protectedCases ?? []).map((entry) => [
+      entry.relativeCdxml.replaceAll("\\", "/"),
+      entry,
+    ]));
+    const retiredPaths = new Set(reviewedRetirements?.paths ?? []);
+    if (reviewedRetirements) {
+      const canonicalRetirements = [...retiredPaths].sort();
+      if (
+        reviewedRetirements.schema
+          !== "chemsema.public-cdxml-gate-definition-retirements.v1"
+        || reviewedRetirements.fromCacheIdentity
+          !== oldFloor.gateDefinition?.cacheIdentity
+        || reviewedRetirements.toCacheIdentity
+          !== expectedDefinition.cacheIdentity
+        || typeof reviewedRetirements.reason !== "string"
+        || reviewedRetirements.reason.length === 0
+        || retiredPaths.size !== (reviewedRetirements.paths ?? []).length
+        || JSON.stringify(canonicalRetirements)
+          !== JSON.stringify(reviewedRetirements.paths)
+      ) {
+        errors.push("reviewed gate-definition retirements are invalid");
+      }
+    }
+    const oldProtectedPasses = new Set(oldFloor.protectedPasses ?? []);
+    for (const retiredPath of retiredPaths) {
+      if (
+        !oldProtectedPasses.has(retiredPath)
+        || previousCases.get(retiredPath)?.status !== "fail"
+      ) {
+        errors.push(`invalid reviewed retirement ${retiredPath}`);
+        break;
+      }
+    }
+    const unreviewedRetirements = [];
+    for (const relativeCdxml of oldProtectedPasses) {
+      if (
+        oldProtectedCases.get(relativeCdxml)?.status !== "pass"
+      ) {
+        errors.push(`old floor has an inconsistent protected pass ${relativeCdxml}`);
+        break;
+      }
+      if (previousCases.get(relativeCdxml)?.status === "pass") continue;
+      if (retiredPaths.has(relativeCdxml)) continue;
+      unreviewedRetirements.push(relativeCdxml);
+    }
+    if (unreviewedRetirements.length) {
+      errors.push(
+        `previous report retires ${unreviewedRetirements.length} old protected passes without review`,
+      );
+    }
+    const currentPasses = currentReport.cases.filter((entry) => entry.status === "pass").length;
+    if (currentPasses < oldFloor.minimumPassed - retiredPaths.size) {
+      errors.push("current report would lower the protected pass floor");
+    }
+  }
   const changes = classifyBaselineChanges(currentReport.cases, previousCases);
   if (changes.regressions.length) {
     errors.push(
@@ -136,12 +232,26 @@ export function passFloorMigrationErrors(previousReport, currentReport) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  const [previous, current, oldFloor] = await Promise.all([
+  if (options.reviewedRetirements) {
+    await requireCommittedRepositoryFile(options.reviewedRetirements);
+  }
+  const [previous, current, oldFloor, retirementsSource] = await Promise.all([
     verifiedReport(options.previousReport, "previous"),
     verifiedReport(options.currentReport, "current"),
     fs.readFile(STRICT_PASS_FLOOR_PATH, "utf8").then(JSON.parse),
+    options.reviewedRetirements
+      ? fs.readFile(options.reviewedRetirements, "utf8")
+      : Promise.resolve(null),
   ]);
-  const errors = passFloorMigrationErrors(previous.report, current.report);
+  const reviewedRetirements = retirementsSource
+    ? JSON.parse(retirementsSource)
+    : null;
+  const errors = passFloorMigrationErrors(
+    previous.report,
+    current.report,
+    oldFloor,
+    reviewedRetirements,
+  );
   if (errors.length) throw new Error(`Pass-floor migration refused: ${errors.join("; ")}`);
   const previousCases = new Map(previous.report.cases.map((entry) => [
     entry.relativeCdxml.replaceAll("\\", "/"),
@@ -169,6 +279,13 @@ async function main() {
       currentReportSha256: current.sha256,
       sameGateRegressions: 0,
       sameGateImprovements: changes.improvements.length,
+      reviewedRetirements: reviewedRetirements ? {
+        path: path.relative(process.cwd(), options.reviewedRetirements)
+          .replaceAll("\\", "/"),
+        sha256: sha256(retirementsSource),
+        reason: reviewedRetirements.reason,
+        count: reviewedRetirements.paths.length,
+      } : null,
     },
     protectedPasses,
     protectedCases: protectedVisualCases(current.report.cases),

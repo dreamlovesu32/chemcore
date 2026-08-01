@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { deflateRawSync, inflateRawSync } from "node:zlib";
 import { launchBrowser } from "./playwright-browser.mjs";
 import {
   computeImageAlignment,
@@ -22,6 +23,7 @@ const DEFAULTS = Object.freeze({
   allowDirtyGallery: false,
   allowStaleGallery: false,
   strictOriginal338: false,
+  gateDefinitionUpgrade: false,
   cohortLedger: "benchmarks/public-cdxml/failure-ledger.json",
   cohort: null,
   analysisScale: 2,
@@ -52,40 +54,19 @@ const DEFAULTS = Object.freeze({
   minDisplacedDefectDistance: 2,
   maxDisplacedDefectAreaRatio: 1.35,
   maxDisplacedDefectDimensionDelta: 1.5,
-  minimumTopologyComponentCount: 8,
-  minimumSmallTopologyComponentCount: 3,
-  minimumSmallTopologyLocalCoverage: 0.7,
-  maximumTopologyCandidateComponentCount: 300,
-  maxTopologyCandidateCountRatio: 0.1,
   maxRelativeComponentCenterDistance: 0.02,
-  maxComponentPositionDistributionDelta: 0.03,
-  minSlenderDefectCoverage: 0.98,
-  minSlenderDefectLocalCoverage: 0.75,
-  maxSlenderDefectArea: 24,
-  maxSlenderDefectSpan: 30,
-  maxSlenderDefectThickness: 1,
-  minBoundedLocalCoverage: 0.96,
-  minBoundedLocalWindowCoverage: 0.5,
-  maxBoundedLocalDefectArea: 32,
-  maxBoundedLocalDefectSpan: 32,
-  minBoundedRelativeComponentCoverage: 0.877,
-  boundedComponentDeltaPenalty: 0.01,
-  maxBoundedComponentCountDelta: 8,
-  maxTightBoundedLocalDefectSpan: 20,
-  minTightBoundedRelativeComponentCoverage: 0.88,
-  maxTightBoundedComponentCountDelta: 5,
-  minNearExactCoverage: 0.994,
-  maxNearExactDefectSpan: 15,
-  maxNearExactDefectArea: 18,
   candidateViewportAnalysisScale: 4,
   maxCandidateViewportPixels: 16_000_000,
   minCandidateViewportInkMargin: 4,
 });
 
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
-export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v21";
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v22";
+export const REPORT_SCHEMA = "chemsema-public-cdxml-visual-gate-v2";
+export const CASE_METRICS_SCHEMA =
+  "chemsema.public-cdxml-visual-case-metrics.v2";
 export const STRICT_PASS_FLOOR_SCHEMA =
-  "chemsema.public-cdxml-strict-pass-floor.v3";
+  "chemsema.public-cdxml-strict-pass-floor.v4";
 export const STRICT_PASS_FLOOR_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -103,7 +84,6 @@ function parseArgs(argv) {
     else if (arg === "--passed-gallery") options.passedGallery = argv[++index];
     else if (arg === "--reuse-report") options.reuseReport = argv[++index];
     else if (arg === "--baseline-report") options.baselineReport = argv[++index];
-    else if (arg === "--stamp-report") options.stampReport = argv[++index];
     else if (arg === "--only") options.patterns.push(argv[++index]);
     else if (arg === "--limit") options.limit = Number(argv[++index]);
     else if (arg === "--jobs") options.jobs = Number(argv[++index]);
@@ -112,6 +92,7 @@ function parseArgs(argv) {
     else if (arg === "--allow-dirty-gallery") options.allowDirtyGallery = true;
     else if (arg === "--allow-stale-gallery") options.allowStaleGallery = true;
     else if (arg === "--strict-original-338") options.strictOriginal338 = true;
+    else if (arg === "--gate-definition-upgrade") options.gateDefinitionUpgrade = true;
     else if (arg === "--analysis-scale") options.analysisScale = Number(argv[++index]);
     else if (arg === "--tolerance") options.tolerance = Number(argv[++index]);
     else if (arg === "--tile-size") options.tileSize = Number(argv[++index]);
@@ -136,28 +117,7 @@ function parseArgs(argv) {
     else if (arg === "--min-displaced-defect-distance") options.minDisplacedDefectDistance = Number(argv[++index]);
     else if (arg === "--max-displaced-defect-area-ratio") options.maxDisplacedDefectAreaRatio = Number(argv[++index]);
     else if (arg === "--max-displaced-defect-dimension-delta") options.maxDisplacedDefectDimensionDelta = Number(argv[++index]);
-    else if (arg === "--minimum-topology-component-count") options.minimumTopologyComponentCount = Number(argv[++index]);
-    else if (arg === "--minimum-small-topology-component-count") options.minimumSmallTopologyComponentCount = Number(argv[++index]);
-    else if (arg === "--minimum-small-topology-local-coverage") options.minimumSmallTopologyLocalCoverage = Number(argv[++index]);
-    else if (arg === "--maximum-topology-candidate-component-count") options.maximumTopologyCandidateComponentCount = Number(argv[++index]);
-    else if (arg === "--max-topology-candidate-count-ratio") options.maxTopologyCandidateCountRatio = Number(argv[++index]);
     else if (arg === "--max-relative-component-center-distance") options.maxRelativeComponentCenterDistance = Number(argv[++index]);
-    else if (arg === "--max-component-position-distribution-delta") options.maxComponentPositionDistributionDelta = Number(argv[++index]);
-    else if (arg === "--min-slender-defect-coverage") options.minSlenderDefectCoverage = Number(argv[++index]);
-    else if (arg === "--min-slender-defect-local-coverage") options.minSlenderDefectLocalCoverage = Number(argv[++index]);
-    else if (arg === "--max-slender-defect-area") options.maxSlenderDefectArea = Number(argv[++index]);
-    else if (arg === "--max-slender-defect-span") options.maxSlenderDefectSpan = Number(argv[++index]);
-    else if (arg === "--max-slender-defect-thickness") options.maxSlenderDefectThickness = Number(argv[++index]);
-    else if (arg === "--min-bounded-local-coverage") options.minBoundedLocalCoverage = Number(argv[++index]);
-    else if (arg === "--min-bounded-local-window-coverage") options.minBoundedLocalWindowCoverage = Number(argv[++index]);
-    else if (arg === "--max-bounded-local-defect-area") options.maxBoundedLocalDefectArea = Number(argv[++index]);
-    else if (arg === "--max-bounded-local-defect-span") options.maxBoundedLocalDefectSpan = Number(argv[++index]);
-    else if (arg === "--min-bounded-relative-component-coverage") options.minBoundedRelativeComponentCoverage = Number(argv[++index]);
-    else if (arg === "--bounded-component-delta-penalty") options.boundedComponentDeltaPenalty = Number(argv[++index]);
-    else if (arg === "--max-bounded-component-count-delta") options.maxBoundedComponentCountDelta = Number(argv[++index]);
-    else if (arg === "--max-tight-bounded-local-defect-span") options.maxTightBoundedLocalDefectSpan = Number(argv[++index]);
-    else if (arg === "--min-tight-bounded-relative-component-coverage") options.minTightBoundedRelativeComponentCoverage = Number(argv[++index]);
-    else if (arg === "--max-tight-bounded-component-count-delta") options.maxTightBoundedComponentCountDelta = Number(argv[++index]);
     else if (arg === "--candidate-viewport-analysis-scale") options.candidateViewportAnalysisScale = Number(argv[++index]);
     else if (arg === "--max-candidate-viewport-pixels") options.maxCandidateViewportPixels = Number(argv[++index]);
     else if (arg === "--min-candidate-viewport-ink-margin") options.minCandidateViewportInkMargin = Number(argv[++index]);
@@ -176,7 +136,21 @@ export function strictOriginal338ConfigurationErrors(options) {
   if (options.allowStaleGallery) errors.push("--allow-stale-gallery is forbidden");
   if (options.reportOnly) errors.push("--report-only is forbidden");
   if (options.reuseReport) errors.push("--reuse-report is forbidden");
-  if (options.stampReport) errors.push("--stamp-report is forbidden");
+  if (options.patterns?.length) errors.push("--only is forbidden");
+  if (Number.isFinite(options.limit)) errors.push("--limit is forbidden");
+  if (options.cohort && options.cohort !== "original-338") {
+    errors.push("--cohort must be original-338");
+  }
+  return errors;
+}
+
+export function gateDefinitionUpgradeConfigurationErrors(options) {
+  if (!options.gateDefinitionUpgrade) return [];
+  const errors = [];
+  if (options.strictOriginal338) errors.push("--strict-original-338 is forbidden");
+  if (!options.reportOnly) errors.push("--report-only is required");
+  if (options.reuseReport) errors.push("--reuse-report is forbidden");
+  if (options.baselineReport) errors.push("--baseline-report is forbidden");
   if (options.patterns?.length) errors.push("--only is forbidden");
   if (Number.isFinite(options.limit)) errors.push("--limit is forbidden");
   if (options.cohort && options.cohort !== "original-338") {
@@ -238,10 +212,14 @@ export function visualBaselineCompatibilityErrors(
   baselineReport,
   currentGalleryProvenance,
   currentReferenceHashes,
+  options = {},
 ) {
   const errors = [];
-  if (baselineReport?.schema !== "chemsema-public-cdxml-visual-gate-v1") {
+  if (baselineReport?.schema !== REPORT_SCHEMA) {
     errors.push("baseline report schema is missing or unsupported");
+  }
+  if (baselineReport?.caseMetricsSchema !== CASE_METRICS_SCHEMA) {
+    errors.push("baseline case metrics schema is missing or unsupported");
   }
   if (
     baselineReport?.galleryProvenance?.schema
@@ -264,6 +242,11 @@ export function visualBaselineCompatibilityErrors(
     }
     seenPaths.add(relativeCdxml);
     baselineCases.set(relativeCdxml, entry);
+    const metricErrors = visualCaseMetricContractErrors(entry, options);
+    if (metricErrors.length) {
+      errors.push(`baseline case ${relativeCdxml} has invalid metrics: ${metricErrors.join(", ")}`);
+      break;
+    }
   }
   for (const [relativeCdxml, referenceHash] of currentReferenceHashes) {
     const baselineCase = baselineCases.get(normalizedCasePath(relativeCdxml));
@@ -292,8 +275,9 @@ export function strictOriginal338PassFloorErrors(
   selectedItems,
   _baselineReport,
   options,
+  evaluatePassFloor = options.strictOriginal338,
 ) {
-  if (!options.strictOriginal338) return [];
+  if (!evaluatePassFloor) return [];
   const errors = [];
   if (passFloor?.schema !== STRICT_PASS_FLOOR_SCHEMA) {
     errors.push("pass floor has a missing or unsupported schema");
@@ -374,6 +358,22 @@ export function strictOriginal338PassFloorErrors(
       errors.push(`pass floor protectedPasses has a non-pass case: ${relativeCdxml}`);
       break;
     }
+    if (entry.status === "fail") {
+      if (
+        entry.analysisLayers?.coarse !== true
+        || entry.analysisLayers?.detail !== true
+      ) {
+        errors.push(`pass floor is missing analysis layer metadata for ${relativeCdxml}`);
+        break;
+      }
+      const metricErrors = visualCaseMetricContractErrors(entry, options);
+      if (metricErrors.length) {
+        errors.push(
+          `pass floor has invalid metrics for ${relativeCdxml}: ${metricErrors.join(", ")}`,
+        );
+        break;
+      }
+    }
   }
   return errors;
 }
@@ -397,13 +397,8 @@ function validateOptions(options) {
     throw new Error("--jobs must be a positive integer");
   }
   for (const key of [
-    "minCoverage", "minRepeatedMicroCoverage", "minimumSmallTopologyLocalCoverage",
-    "minSlenderDefectCoverage", "minSlenderDefectLocalCoverage",
-    "minBoundedLocalCoverage", "minBoundedLocalWindowCoverage",
-    "minBoundedRelativeComponentCoverage",
-    "minTightBoundedRelativeComponentCoverage", "boundedComponentDeltaPenalty",
-    "maxRelativeComponentCenterDistance", "maxTopologyCandidateCountRatio",
-    "maxComponentPositionDistributionDelta",
+    "minCoverage", "minRepeatedMicroCoverage",
+    "maxRelativeComponentCenterDistance",
   ]) {
     if (!Number.isFinite(options[key]) || options[key] < 0 || options[key] > 1) {
       throw new Error(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)} must be between 0 and 1`);
@@ -414,13 +409,6 @@ function validateOptions(options) {
     "maxEnclosedSmallComponentDimensionDelta", "maxRepeatedMicroDefects",
     "maxRepeatedMicroDefectArea", "minDisplacedDefectArea",
     "minDisplacedDefectDistance", "maxDisplacedDefectDimensionDelta",
-    "minimumTopologyComponentCount",
-    "minimumSmallTopologyComponentCount",
-    "maxSlenderDefectArea", "maxSlenderDefectSpan", "maxSlenderDefectThickness",
-    "maxBoundedLocalDefectArea", "maxBoundedLocalDefectSpan",
-    "maxBoundedComponentCountDelta",
-    "maxTightBoundedLocalDefectSpan", "maxTightBoundedComponentCountDelta",
-    "maximumTopologyCandidateComponentCount",
   ]) {
     if (!Number.isFinite(options[key]) || options[key] < 0) {
       throw new Error(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)} must be non-negative`);
@@ -443,6 +431,21 @@ function validateOptions(options) {
   }
   if (options.halo < options.detailLocalWindow / 2) {
     throw new Error("--halo must be at least half of --detail-local-window");
+  }
+  for (const [label, value] of [
+    ["analysis-scale × tile-size", options.analysisScale * options.tileSize],
+    ["analysis-scale × halo", options.analysisScale * options.halo],
+    ["analysis-scale × local-stride", options.analysisScale * options.localStride],
+    ["detail-analysis-scale × tile-size", options.detailAnalysisScale * options.tileSize],
+    ["detail-analysis-scale × halo", options.detailAnalysisScale * options.halo],
+    [
+      "detail-analysis-scale × detail-local-stride",
+      options.detailAnalysisScale * options.detailLocalStride,
+    ],
+  ]) {
+    if (!Number.isInteger(value)) {
+      throw new Error(`${label} must define an integral pixel lattice`);
+    }
   }
 }
 
@@ -584,6 +587,357 @@ const CONTINUOUS_REGRESSION_METRICS = Object.freeze([
   },
 ]);
 
+const LOCAL_WINDOW_REGRESSION_TOLERANCES = Object.freeze({
+  coarse: Object.freeze({
+    defectArea: 0.5,
+    center: 0.75,
+  }),
+  detail: Object.freeze({
+    defectArea: 0.25,
+    center: 0.75,
+  }),
+});
+
+const SPATIAL_FLOOR_ENCODING = "chemsema-spatial-floor-deflate-mask-v2";
+const MAX_SPATIAL_FLOOR_CELLS = 1_000_000;
+const MAX_SPATIAL_FLOOR_BYTES = 64 * 1024 * 1024;
+
+function spatialCellPixelSize(analysisScale, stride) {
+  const size = analysisScale * stride;
+  if (
+    !Number.isFinite(analysisScale)
+    || analysisScale <= 0
+    || !Number.isFinite(stride)
+    || stride <= 0
+    || !Number.isInteger(size)
+    || size <= 0
+  ) throw new Error("spatial floor requires an integral positive pixel lattice");
+  return size;
+}
+
+function normalizedMaskWords(words, wordCount) {
+  if (!Array.isArray(words)) throw new Error("spatial mask words must be an array");
+  const normalized = words.map((entry) => {
+    if (
+      !Array.isArray(entry)
+      || entry.length !== 2
+      || !Number.isInteger(entry[0])
+      || entry[0] < 0
+      || entry[0] >= wordCount
+      || !Number.isInteger(entry[1])
+      || entry[1] <= 0
+      || entry[1] > 0xffff_ffff
+    ) throw new Error("invalid spatial mask word");
+    return [entry[0], entry[1] >>> 0];
+  }).sort((left, right) => left[0] - right[0]);
+  for (let index = 1; index < normalized.length; index += 1) {
+    if (normalized[index][0] === normalized[index - 1][0]) {
+      throw new Error("duplicate spatial mask word");
+    }
+  }
+  return normalized;
+}
+
+function popcount32(value) {
+  let bits = value >>> 0;
+  bits -= (bits >>> 1) & 0x5555_5555;
+  bits = (bits & 0x3333_3333) + ((bits >>> 2) & 0x3333_3333);
+  return (((bits + (bits >>> 4)) & 0x0f0f_0f0f) * 0x0101_0101) >>> 24;
+}
+
+function spatialMaskPixelCount(words) {
+  return words.reduce((total, [, bits]) => total + popcount32(bits), 0);
+}
+
+function normalizedSpatialCell(cell, cellPixelSize) {
+  if (!Number.isInteger(cell?.column) || !Number.isInteger(cell?.row)) {
+    throw new Error("invalid spatial cell coordinate");
+  }
+  const wordCount = Math.ceil((cellPixelSize * cellPixelSize) / 32);
+  const missingMaskWords = normalizedMaskWords(cell.missingMaskWords ?? [], wordCount);
+  const extraMaskWords = normalizedMaskWords(cell.extraMaskWords ?? [], wordCount);
+  const capacity = cellPixelSize * cellPixelSize;
+  for (const words of [missingMaskWords, extraMaskWords]) {
+    const last = words.at(-1);
+    if (last && last[0] * 32 + (32 - Math.clz32(last[1])) > capacity) {
+      throw new Error("spatial mask exceeds its cell");
+    }
+  }
+  if (!missingMaskWords.length && !extraMaskWords.length) {
+    throw new Error("spatial floor cannot store an empty cell");
+  }
+  return {
+    column: cell.column,
+    row: cell.row,
+    missingMaskWords,
+    extraMaskWords,
+  };
+}
+
+function spatialFloorRecordBytes(cells) {
+  return cells.reduce((total, cell) => total + 16
+    + cell.missingMaskWords.length * 8
+    + cell.extraMaskWords.length * 8, 0);
+}
+
+function encodeSpatialFloorRecords(cells) {
+  const bytes = Buffer.allocUnsafe(spatialFloorRecordBytes(cells));
+  let offset = 0;
+  for (const cell of cells) {
+    bytes.writeInt32LE(cell.column, offset);
+    bytes.writeInt32LE(cell.row, offset + 4);
+    bytes.writeUInt32LE(cell.missingMaskWords.length, offset + 8);
+    offset += 12;
+    for (const [wordIndex, bits] of cell.missingMaskWords) {
+      bytes.writeUInt32LE(wordIndex, offset);
+      bytes.writeUInt32LE(bits, offset + 4);
+      offset += 8;
+    }
+    bytes.writeUInt32LE(cell.extraMaskWords.length, offset);
+    offset += 4;
+    for (const [wordIndex, bits] of cell.extraMaskWords) {
+      bytes.writeUInt32LE(wordIndex, offset);
+      bytes.writeUInt32LE(bits, offset + 4);
+      offset += 8;
+    }
+  }
+  return bytes;
+}
+
+export function encodeSpatialFloor(cells, analysisScale, stride) {
+  const cellPixelSize = spatialCellPixelSize(analysisScale, stride);
+  const canonical = [...(cells ?? [])]
+    .map((cell) => normalizedSpatialCell(cell, cellPixelSize))
+    .sort((left, right) => left.row - right.row || left.column - right.column);
+  if (canonical.length > MAX_SPATIAL_FLOOR_CELLS) {
+    throw new Error("spatial floor has too many cells");
+  }
+  for (let index = 1; index < canonical.length; index += 1) {
+    if (
+      canonical[index].row === canonical[index - 1].row
+      && canonical[index].column === canonical[index - 1].column
+    ) throw new Error("duplicate spatial floor cell");
+  }
+  const bytes = encodeSpatialFloorRecords(canonical);
+  if (bytes.length > MAX_SPATIAL_FLOOR_BYTES) {
+    throw new Error("spatial floor exceeds the decoded size limit");
+  }
+  const compressed = deflateRawSync(bytes, { level: 9 });
+  const missingPixels = canonical.reduce((total, cell) =>
+    total + spatialMaskPixelCount(cell.missingMaskWords), 0);
+  const extraPixels = canonical.reduce((total, cell) =>
+    total + spatialMaskPixelCount(cell.extraMaskWords), 0);
+  return {
+    encoding: SPATIAL_FLOOR_ENCODING,
+    analysisScale,
+    stride,
+    count: canonical.length,
+    missingPixels,
+    extraPixels,
+    rawBytes: bytes.length,
+    compressedBytes: compressed.length,
+    recordsSha256: crypto.createHash("sha256").update(bytes).digest("hex"),
+    data: compressed.toString("base64"),
+  };
+}
+
+function decodeSpatialFloor(floor) {
+  const cellPixelSize = spatialCellPixelSize(floor?.analysisScale, floor?.stride);
+  if (
+    floor?.encoding !== SPATIAL_FLOOR_ENCODING
+    || !Number.isInteger(floor.count)
+    || floor.count < 0
+    || floor.count > MAX_SPATIAL_FLOOR_CELLS
+    || !Number.isInteger(floor.missingPixels)
+    || floor.missingPixels < 0
+    || !Number.isInteger(floor.extraPixels)
+    || floor.extraPixels < 0
+    || !Number.isInteger(floor.rawBytes)
+    || floor.rawBytes < 0
+    || floor.rawBytes > MAX_SPATIAL_FLOOR_BYTES
+    || !Number.isInteger(floor.compressedBytes)
+    || floor.compressedBytes < 0
+    || floor.compressedBytes > MAX_SPATIAL_FLOOR_BYTES
+    || !/^[0-9a-f]{64}$/.test(floor.recordsSha256 ?? "")
+    || typeof floor.data !== "string"
+  ) throw new Error("invalid spatial floor header");
+  const compressed = Buffer.from(floor.data, "base64");
+  if (
+    compressed.length !== floor.compressedBytes
+    || compressed.toString("base64") !== floor.data
+  ) throw new Error("invalid spatial floor payload");
+  const bytes = inflateRawSync(compressed, { maxOutputLength: MAX_SPATIAL_FLOOR_BYTES });
+  if (
+    bytes.length !== floor.rawBytes
+    || crypto.createHash("sha256").update(bytes).digest("hex") !== floor.recordsSha256
+  ) throw new Error("invalid spatial floor records");
+  const wordCount = Math.ceil((cellPixelSize * cellPixelSize) / 32);
+  const cells = [];
+  let offset = 0;
+  const readUInt32 = () => {
+    if (offset + 4 > bytes.length) throw new Error("truncated spatial floor");
+    const value = bytes.readUInt32LE(offset);
+    offset += 4;
+    return value;
+  };
+  const readInt32 = () => {
+    if (offset + 4 > bytes.length) throw new Error("truncated spatial floor");
+    const value = bytes.readInt32LE(offset);
+    offset += 4;
+    return value;
+  };
+  const readMaskWords = () => {
+    const length = readUInt32();
+    if (length > wordCount || offset + length * 8 > bytes.length) {
+      throw new Error("invalid spatial mask length");
+    }
+    const words = [];
+    for (let index = 0; index < length; index += 1) {
+      words.push([readUInt32(), readUInt32()]);
+    }
+    return normalizedMaskWords(words, wordCount);
+  };
+  for (let index = 0; index < floor.count; index += 1) {
+    const cell = normalizedSpatialCell({
+      column: readInt32(),
+      row: readInt32(),
+      missingMaskWords: readMaskWords(),
+      extraMaskWords: readMaskWords(),
+    }, cellPixelSize);
+    const previous = cells.at(-1);
+    if (
+      previous
+      && (cell.row < previous.row
+        || (cell.row === previous.row && cell.column <= previous.column))
+    ) throw new Error("spatial floor cells are not canonical and unique");
+    cells.push(cell);
+  }
+  if (offset !== bytes.length) throw new Error("spatial floor has trailing records");
+  const missingPixels = cells.reduce((total, cell) =>
+    total + spatialMaskPixelCount(cell.missingMaskWords), 0);
+  const extraPixels = cells.reduce((total, cell) =>
+    total + spatialMaskPixelCount(cell.extraMaskWords), 0);
+  if (missingPixels !== floor.missingPixels || extraPixels !== floor.extraPixels) {
+    throw new Error("spatial floor pixel totals do not match");
+  }
+  return cells;
+}
+
+function spatialFloorIsCanonical(floor, analysisScale, stride) {
+  try {
+    decodeSpatialFloor(floor);
+    return floor.analysisScale === analysisScale && floor.stride === stride;
+  } catch {
+    return false;
+  }
+}
+
+function spatialMaskCellIndex(cells, kind) {
+  return new Map(cells.map((cell) => [
+    `${cell.column},${cell.row}`,
+    new Map(cell[`${kind}MaskWords`]),
+  ]));
+}
+
+function spatialMaskContains(index, x, y, cellPixelSize) {
+  const column = Math.floor(x / cellPixelSize);
+  const row = Math.floor(y / cellPixelSize);
+  const localX = x - column * cellPixelSize;
+  const localY = y - row * cellPixelSize;
+  const localIndex = localY * cellPixelSize + localX;
+  const word = index.get(`${column},${row}`)?.get(Math.floor(localIndex / 32));
+  return word != null && ((word >>> (localIndex % 32)) & 1) === 1;
+}
+
+function unsupportedSpatialPixelSummary(current, baseline, kind, cellPixelSize, radiusPixels) {
+  const baselineIndex = spatialMaskCellIndex(baseline, kind);
+  const offsets = [];
+  const integerRadius = Math.ceil(radiusPixels);
+  for (let dy = -integerRadius; dy <= integerRadius; dy += 1) {
+    for (let dx = -integerRadius; dx <= integerRadius; dx += 1) {
+      const distance = Math.hypot(dx, dy);
+      if (distance <= radiusPixels + 1e-9) offsets.push({ dx, dy, distance });
+    }
+  }
+  offsets.sort((left, right) => left.distance - right.distance
+    || left.dy - right.dy || left.dx - right.dx);
+  let count = 0;
+  const examples = [];
+  for (const cell of current) {
+    for (const [wordIndex, encodedBits] of cell[`${kind}MaskWords`]) {
+      let bits = encodedBits >>> 0;
+      while (bits !== 0) {
+        const lowestBit = bits & -bits;
+        const bit = 31 - Math.clz32(lowestBit);
+        const localIndex = wordIndex * 32 + bit;
+        const x = cell.column * cellPixelSize + localIndex % cellPixelSize;
+        const y = cell.row * cellPixelSize + Math.floor(localIndex / cellPixelSize);
+        if (!offsets.some(({ dx, dy }) =>
+          spatialMaskContains(baselineIndex, x + dx, y + dy, cellPixelSize))) {
+          count += 1;
+          if (examples.length < 8) examples.push({ x, y });
+        }
+        bits = (bits & (bits - 1)) >>> 0;
+      }
+    }
+  }
+  return { count, examples };
+}
+
+function spatialFloorRegressionReasons(currentFloor, baselineFloor, prefix, tolerances) {
+  if (!baselineFloor) return [];
+  if (!currentFloor) {
+    return [{
+      metric: prefix,
+      direction: "present",
+      before: "spatial-floor",
+      after: null,
+      tolerance: 0,
+    }];
+  }
+  let baseline;
+  let current;
+  try {
+    baseline = decodeSpatialFloor(baselineFloor);
+    current = decodeSpatialFloor(currentFloor);
+    if (
+      currentFloor.analysisScale !== baselineFloor.analysisScale
+      || currentFloor.stride !== baselineFloor.stride
+    ) throw new Error("incompatible spatial floor");
+  } catch {
+    return [{
+      metric: prefix,
+      direction: "valid",
+      before: true,
+      after: false,
+      tolerance: 0,
+    }];
+  }
+  const scale = baselineFloor.analysisScale;
+  const reasons = [];
+  const cellPixelSize = spatialCellPixelSize(scale, baselineFloor.stride);
+  for (const kind of ["missing", "extra"]) {
+    const unsupported = unsupportedSpatialPixelSummary(
+      current,
+      baseline,
+      kind,
+      cellPixelSize,
+      tolerances.center * scale,
+    );
+    const unsupportedArea = unsupported.count / (scale * scale);
+    if (unsupportedArea <= tolerances.defectArea) continue;
+    reasons.push({
+      metric: `${prefix}.${kind}UnsupportedArea`,
+      direction: "lower",
+      before: 0,
+      after: unsupportedArea,
+      tolerance: tolerances.defectArea,
+      examples: unsupported.examples,
+    });
+  }
+  return reasons;
+}
+
 function finiteMetricAt(entry, metricPath) {
   let value = entry;
   for (const segment of metricPath.split(".")) value = value?.[segment];
@@ -605,6 +959,53 @@ function setMetricAt(entry, metricPath, value) {
   target[segments.at(-1)] = value;
 }
 
+export function visualCaseMetricContractErrors(entry, options = {}) {
+  if (!["pass", "fail"].includes(entry?.status)) return [];
+  const settings = { ...DEFAULTS, ...options };
+  const errors = [];
+  for (const metric of CONTINUOUS_REGRESSION_METRICS) {
+    if (finiteMetricAt(entry, metric.path) === null) {
+      errors.push(`missing ${metric.path}`);
+    }
+  }
+  for (const [label, floor, scale, stride, totals, domain] of [
+    ["local.spatialFloor", entry.local?.spatialFloor,
+      settings.analysisScale, settings.localStride, entry.totals, entry.domain],
+    ["detail.local.spatialFloor", entry.detail?.local?.spatialFloor,
+      settings.detailAnalysisScale, settings.detailLocalStride,
+      entry.detail?.totals, entry.detail?.domain],
+  ]) {
+    if (!floor) {
+      errors.push(`missing ${label}`);
+      continue;
+    }
+    if (!spatialFloorIsCanonical(floor, scale, stride)) {
+      errors.push(`invalid ${label}`);
+      continue;
+    }
+    if (
+      floor.missingPixels !== totals?.missingInk
+      || floor.extraPixels !== totals?.extraInk
+    ) {
+      errors.push(`${label} pixel totals do not match the analyzed layer`);
+    }
+    if (![domain?.left, domain?.top, domain?.right, domain?.bottom].every(Number.isFinite)) {
+      errors.push(`missing ${label} domain`);
+      continue;
+    }
+    const cells = decodeSpatialFloor(floor);
+    const minimumColumn = Math.floor(domain.left / stride);
+    const maximumColumn = Math.floor((domain.right - 1 / scale) / stride);
+    const minimumRow = Math.floor(domain.top / stride);
+    const maximumRow = Math.floor((domain.bottom - 1 / scale) / stride);
+    if (cells.some((cell) => cell.column < minimumColumn || cell.column > maximumColumn
+      || cell.row < minimumRow || cell.row > maximumRow)) {
+      errors.push(`${label} contains a cell outside the analyzed domain`);
+    }
+  }
+  return errors;
+}
+
 export function protectedVisualCase(entry) {
   const protectedCase = {
     relativeCdxml: normalizedCasePath(entry.relativeCdxml),
@@ -612,10 +1013,26 @@ export function protectedVisualCase(entry) {
     artifactHashes: { reference: entry.artifactHashes?.reference ?? null },
   };
   if (entry.status !== "fail") return protectedCase;
+  protectedCase.analysisLayers = {
+    coarse: true,
+    detail: entry.detail != null,
+  };
   protectedCase.reasons = [...new Set(entry.reasons ?? [])].sort();
   for (const metric of CONTINUOUS_REGRESSION_METRICS) {
     const value = finiteMetricAt(entry, metric.path);
     if (value !== null) setMetricAt(protectedCase, metric.path, value);
+  }
+  protectedCase.local ??= {};
+  protectedCase.local.spatialFloor = entry.local?.spatialFloor ?? null;
+  if (entry.totals != null) protectedCase.totals = entry.totals;
+  if (entry.domain != null) protectedCase.domain = entry.domain;
+  if (entry.detail != null) {
+    protectedCase.detail ??= {};
+    protectedCase.detail.local ??= {};
+    protectedCase.detail.local.spatialFloor =
+      entry.detail.local?.spatialFloor ?? null;
+    if (entry.detail.totals != null) protectedCase.detail.totals = entry.detail.totals;
+    if (entry.detail.domain != null) protectedCase.detail.domain = entry.detail.domain;
   }
   return protectedCase;
 }
@@ -733,6 +1150,18 @@ export function classifyContinuousBaselineRegressions(cases, baselineCases) {
         tolerance: metric.tolerance,
       });
     }
+    reasons.push(...spatialFloorRegressionReasons(
+      entry.local?.spatialFloor,
+      baseline.local?.spatialFloor,
+      "local.spatialFloor",
+      LOCAL_WINDOW_REGRESSION_TOLERANCES.coarse,
+    ));
+    reasons.push(...spatialFloorRegressionReasons(
+      entry.detail?.local?.spatialFloor,
+      baseline.detail?.local?.spatialFloor,
+      "detail.local.spatialFloor",
+      LOCAL_WINDOW_REGRESSION_TOLERANCES.detail,
+    ));
     // A gain in one metric cannot cancel deterioration in another. Registered
     // image metrics are not additive, and allowing a trade-off here let a new
     // local defect hide behind an unrelated coverage improvement. A deliberate
@@ -1188,7 +1617,35 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
       referenceBox: null,
       candidateBox: null,
       windowCount: 0,
+      spatialCells: [],
     };
+    const spatialCellPixelSize = settings.localStride * settings.analysisScale;
+    if (!Number.isInteger(spatialCellPixelSize) || spatialCellPixelSize <= 0) {
+      throw new Error("spatial analysis requires an integral positive pixel lattice");
+    }
+    const spatialCellsByKey = new Map();
+    function recordSpatialPixel(kind, globalPixelX, globalPixelY) {
+      const column = Math.floor(globalPixelX / spatialCellPixelSize);
+      const row = Math.floor(globalPixelY / spatialCellPixelSize);
+      const localX = globalPixelX - column * spatialCellPixelSize;
+      const localY = globalPixelY - row * spatialCellPixelSize;
+      const localIndex = localY * spatialCellPixelSize + localX;
+      const wordIndex = Math.floor(localIndex / 32);
+      const bit = localIndex % 32;
+      const key = `${column},${row}`;
+      let cell = spatialCellsByKey.get(key);
+      if (!cell) {
+        cell = {
+          column,
+          row,
+          missingMaskWords: new Map(),
+          extraMaskWords: new Map(),
+        };
+        spatialCellsByKey.set(key, cell);
+      }
+      const words = cell[`${kind}MaskWords`];
+      words.set(wordIndex, ((words.get(wordIndex) ?? 0) | (1 << bit)) >>> 0);
+    }
     let largestMissing = { area: 0, span: 0, box: null };
     let largestExtra = { area: 0, span: 0, box: null };
     const topDefects = [];
@@ -1277,6 +1734,12 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
             totals.candidateInk += candidate.mask[index];
             totals.missingInk += missing[index];
             totals.extraInk += extra[index];
+            const globalPixelX = Math.round(core.x * settings.analysisScale)
+              + x - coreLeft;
+            const globalPixelY = Math.round(core.y * settings.analysisScale)
+              + y - coreTop;
+            if (missing[index]) recordSpatialPixel("missing", globalPixelX, globalPixelY);
+            if (extra[index]) recordSpatialPixel("extra", globalPixelX, globalPixelY);
             if (reference.mask[index] || candidate.mask[index]) tileHasInk = true;
           }
         }
@@ -1329,21 +1792,25 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
             }
             const minimumInk = settings.minimumWindowInk
               * settings.analysisScale * settings.analysisScale;
+            let referenceCoverage = null;
+            let candidateCoverage = null;
             if (referenceInk >= minimumInk) {
-              const coverage = 1 - missingInk / referenceInk;
-              if (coverage < local.referenceCoverage) {
-                local.referenceCoverage = coverage;
+              referenceCoverage = 1 - missingInk / referenceInk;
+              if (referenceCoverage < local.referenceCoverage) {
+                local.referenceCoverage = referenceCoverage;
                 local.referenceBox = windowBox;
               }
             }
             if (candidateInk >= minimumInk) {
-              const coverage = 1 - extraInk / candidateInk;
-              if (coverage < local.candidateCoverage) {
-                local.candidateCoverage = coverage;
+              candidateCoverage = 1 - extraInk / candidateInk;
+              if (candidateCoverage < local.candidateCoverage) {
+                local.candidateCoverage = candidateCoverage;
                 local.candidateBox = windowBox;
               }
             }
-            if (referenceInk >= minimumInk || candidateInk >= minimumInk) local.windowCount += 1;
+            if (referenceInk >= minimumInk || candidateInk >= minimumInk) {
+              local.windowCount += 1;
+            }
           }
         }
         if (!reference.ink && !candidate.ink) continue;
@@ -1729,6 +2196,34 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
     if (largestMissing.span > settings.maxDefectSpan) reasons.push("missing-detail-span");
     if (largestExtra.span > settings.maxDefectSpan) reasons.push("extra-detail-span");
 
+    local.spatialCells = [...spatialCellsByKey.values()]
+      .map((cell) => ({
+        column: cell.column,
+        row: cell.row,
+        missingMaskWords: [...cell.missingMaskWords.entries()]
+          .sort((left, right) => left[0] - right[0]),
+        extraMaskWords: [...cell.extraMaskWords.entries()]
+          .sort((left, right) => left[0] - right[0]),
+      }))
+      .sort((left, right) => left.row - right.row || left.column - right.column);
+    function maskPixelCount(cells, kind) {
+      let count = 0;
+      for (const cell of cells) {
+        for (const [, encodedBits] of cell[`${kind}MaskWords`]) {
+          let bits = encodedBits >>> 0;
+          while (bits !== 0) {
+            bits = (bits & (bits - 1)) >>> 0;
+            count += 1;
+          }
+        }
+      }
+      return count;
+    }
+    if (
+      maskPixelCount(local.spatialCells, "missing") !== totals.missingInk
+      || maskPixelCount(local.spatialCells, "extra") !== totals.extraInk
+    ) throw new Error("spatial occupancy does not match analyzed mismatch totals");
+
     return {
       passed: reasons.length === 0,
       reasons,
@@ -1835,138 +2330,24 @@ export function detailGateReasons(detail, options = {}) {
   return reasons;
 }
 
-export function fineTopologyEquivalent(detail, options = {}) {
-  const settings = { ...DEFAULTS, ...options };
-  const features = detail.detailFeatures;
-  return Math.min(features.referenceComponentCount, features.candidateComponentCount)
-      >= settings.minimumSmallTopologyComponentCount
-    && features.componentCountDelta === 0
-    && features.componentPositionDistributionDelta
-      <= settings.maxComponentPositionDistributionDelta;
-}
-
-export function fineTopologyCandidate(coarse, options = {}) {
-  const settings = { ...DEFAULTS, ...options };
-  const features = coarse.detailFeatures;
-  const maximumCount = Math.max(
-    features.referenceComponentCount,
-    features.candidateComponentCount,
-  );
-  const minimumCount = Math.min(
-    features.referenceComponentCount,
-    features.candidateComponentCount,
-  );
-  const enoughComponents = minimumCount >= settings.minimumTopologyComponentCount
-    || (
-      minimumCount >= settings.minimumSmallTopologyComponentCount
-      && Math.min(coarse.local.referenceCoverage, coarse.local.candidateCoverage)
-        >= settings.minimumSmallTopologyLocalCoverage
-    );
-  return enoughComponents
-    && maximumCount <= settings.maximumTopologyCandidateComponentCount
-    && features.componentCountDelta / Math.max(maximumCount, 1)
-      <= settings.maxTopologyCandidateCountRatio;
-}
-
-function defectThickness(defect) {
-  if (!defect || defect.area === 0) return 0;
-  return defect.span > 0 ? defect.area / defect.span : Number.POSITIVE_INFINITY;
-}
-
-export function slenderDefectEquivalent(coarse, options = {}) {
-  const settings = { ...DEFAULTS, ...options };
-  return Math.min(coarse.referenceCoverage, coarse.candidateCoverage)
-      >= settings.minSlenderDefectCoverage
-    && Math.min(coarse.local.referenceCoverage, coarse.local.candidateCoverage)
-      >= settings.minSlenderDefectLocalCoverage
-    && coarse.largestMissing.area <= settings.maxSlenderDefectArea
-    && coarse.largestExtra.area <= settings.maxSlenderDefectArea
-    && coarse.largestMissing.span <= settings.maxSlenderDefectSpan
-    && coarse.largestExtra.span <= settings.maxSlenderDefectSpan
-    && defectThickness(coarse.largestMissing) <= settings.maxSlenderDefectThickness
-    && defectThickness(coarse.largestExtra) <= settings.maxSlenderDefectThickness;
-}
-
-export function boundedLocalTopologyEquivalent(coarse, options = {}) {
-  const settings = { ...DEFAULTS, ...options };
-  const features = coarse.detailFeatures;
-  const componentDelta = features.componentCountDelta;
-  const relativeCoverage = features.relativeComponentMatchCoverage;
-  const minimumLocalCoverage = Math.min(
-    coarse.local.referenceCoverage,
-    coarse.local.candidateCoverage,
-  );
-  const maximumDefectArea = Math.max(
-    coarse.largestMissing.area,
-    coarse.largestExtra.area,
-  );
-  const maximumDefectSpan = Math.max(
-    coarse.largestMissing.span,
-    coarse.largestExtra.span,
-  );
-  if (
-    Math.min(coarse.referenceCoverage, coarse.candidateCoverage)
-      < settings.minBoundedLocalCoverage
-    || minimumLocalCoverage < settings.minBoundedLocalWindowCoverage
-    || maximumDefectArea > settings.maxBoundedLocalDefectArea
-    || maximumDefectSpan > settings.maxBoundedLocalDefectSpan
-    || componentDelta > settings.maxBoundedComponentCountDelta
-  ) {
-    return false;
-  }
-  const tightLocalDefect =
-    maximumDefectSpan <= settings.maxTightBoundedLocalDefectSpan
-    && componentDelta <= settings.maxTightBoundedComponentCountDelta
-    && relativeCoverage >= settings.minTightBoundedRelativeComponentCoverage;
-  const topologyAdjustedCoverage =
-    settings.minBoundedRelativeComponentCoverage
-    + settings.boundedComponentDeltaPenalty * componentDelta;
-  return tightLocalDefect || relativeCoverage >= topologyAdjustedCoverage;
-}
-
-export function nearExactFixedDefectEquivalent(coarse, options = {}) {
-  const settings = { ...DEFAULTS, ...options };
-  return Math.min(coarse.referenceCoverage, coarse.candidateCoverage)
-      >= settings.minNearExactCoverage
-    && coarse.largestMissing.span <= settings.maxNearExactDefectSpan
-    && coarse.largestExtra.span <= settings.maxNearExactDefectSpan
-    && coarse.largestMissing.area <= settings.maxNearExactDefectArea
-    && coarse.largestExtra.area <= settings.maxNearExactDefectArea;
-}
-
 export function classifyAnalyzedVisualMetrics(coarseMetrics, detailMetrics, options = {}) {
   const detailReasons = detailMetrics ? detailGateReasons(detailMetrics, options) : [];
-  const topologyEquivalent = detailMetrics
-    ? fineTopologyEquivalent(detailMetrics, options)
-    : false;
-  const slenderEquivalent = slenderDefectEquivalent(coarseMetrics, options);
-  const boundedLocalEquivalent = boundedLocalTopologyEquivalent(coarseMetrics, options);
-  const nearExactEquivalent = nearExactFixedDefectEquivalent(coarseMetrics, options);
-  const coarseAccepted = coarseMetrics.passed
-    || slenderEquivalent
-    || boundedLocalEquivalent
-    || nearExactEquivalent;
   return {
     ...coarseMetrics,
-    passed: coarseAccepted && detailReasons.length === 0,
+    passed: coarseMetrics.passed && detailReasons.length === 0,
     reasons: [
-      ...(coarseAccepted ? [] : coarseMetrics.reasons),
+      ...(coarseMetrics.passed ? [] : coarseMetrics.reasons),
       ...detailReasons,
     ],
     coarsePassed: coarseMetrics.passed,
-    coarseFineTopologyEquivalent: !coarseMetrics.passed && topologyEquivalent,
-    coarseAcceptedByFineTopology: false,
-    coarseAcceptedBySlenderDefect: !coarseMetrics.passed && slenderEquivalent,
-    coarseAcceptedByBoundedLocalTopology:
-      !coarseMetrics.passed && boundedLocalEquivalent,
-    coarseAcceptedByNearExactFixedDefect:
-      !coarseMetrics.passed && nearExactEquivalent,
     detail: detailMetrics ? {
       local: detailMetrics.local,
       largestMissing: detailMetrics.largestMissing,
       largestExtra: detailMetrics.largestExtra,
       topDefects: detailMetrics.topDefects,
       detailFeatures: detailMetrics.detailFeatures,
+      totals: detailMetrics.totals,
+      domain: detailMetrics.domain,
       settings: detailMetrics.settings,
     } : null,
   };
@@ -1987,6 +2368,23 @@ function detailAnalysisOptions(options) {
   };
 }
 
+function compactSpatialMetrics(metrics) {
+  const layers = [
+    { local: metrics.local, settings: metrics.settings },
+    { local: metrics.detail?.local, settings: metrics.detail?.settings },
+  ];
+  for (const layer of layers) {
+    if (!layer.local || !layer.settings) continue;
+    layer.local.spatialFloor = encodeSpatialFloor(
+      layer.local.spatialCells,
+      layer.settings.analysisScale,
+      layer.settings.localStride,
+    );
+    delete layer.local.spatialCells;
+  }
+  return metrics;
+}
+
 export function gatePolicy(options) {
   return {
     coordinateSpace: "ChemDraw reference image coordinates",
@@ -1997,6 +2395,18 @@ export function gatePolicy(options) {
     canvasWhitespaceIncluded: false,
     caseWeighting: "one case, one vote",
     comparison: "coarse fixed-window coverage and defects, followed by spatially independent fine connected-component and repeated-micro-defect checks",
+    regressionProtection:
+      "every failed case retains compressed fixed-grid coarse and detail missing/extra occupancy masks in ChemDraw coordinates; every current mismatch pixel requires historical same-kind support inside a fixed absolute tolerance, and unsupported pixels accumulate across all cells so no improvement can cancel a new local defect",
+    regressionTolerances: {
+      coarseUnsupportedArea:
+        LOCAL_WINDOW_REGRESSION_TOLERANCES.coarse.defectArea,
+      coarseSupportRadius:
+        LOCAL_WINDOW_REGRESSION_TOLERANCES.coarse.center,
+      detailUnsupportedArea:
+        LOCAL_WINDOW_REGRESSION_TOLERANCES.detail.defectArea,
+      detailSupportRadius:
+        LOCAL_WINDOW_REGRESSION_TOLERANCES.detail.center,
+    },
     pass: {
       minimumCandidateViewportInkMargin: options.minCandidateViewportInkMargin,
       minimumFixedWindowReferenceCoverage: options.minCoverage,
@@ -2014,37 +2424,10 @@ export function gatePolicy(options) {
       maximumDisplacedDefectAreaRatio: options.maxDisplacedDefectAreaRatio,
       maximumDisplacedDefectDimensionDelta:
         options.maxDisplacedDefectDimensionDelta,
-      minimumTopologyComponentCount: options.minimumTopologyComponentCount,
-      minimumSmallTopologyComponentCount: options.minimumSmallTopologyComponentCount,
-      minimumSmallTopologyLocalCoverage: options.minimumSmallTopologyLocalCoverage,
-      maximumTopologyCandidateComponentCount:
-        options.maximumTopologyCandidateComponentCount,
-      maximumTopologyCandidateCountRatio: options.maxTopologyCandidateCountRatio,
-      maximumRelativeComponentCenterDistance: options.maxRelativeComponentCenterDistance,
-      maximumComponentPositionDistributionDelta:
-        options.maxComponentPositionDistributionDelta,
-      minimumSlenderDefectCoverage: options.minSlenderDefectCoverage,
-      minimumSlenderDefectLocalCoverage: options.minSlenderDefectLocalCoverage,
-      maximumSlenderDefectArea: options.maxSlenderDefectArea,
-      maximumSlenderDefectSpan: options.maxSlenderDefectSpan,
-      maximumSlenderDefectThickness: options.maxSlenderDefectThickness,
-      minimumBoundedLocalCoverage: options.minBoundedLocalCoverage,
-      minimumBoundedLocalWindowCoverage: options.minBoundedLocalWindowCoverage,
-      maximumBoundedLocalDefectArea: options.maxBoundedLocalDefectArea,
-      maximumBoundedLocalDefectSpan: options.maxBoundedLocalDefectSpan,
-      minimumBoundedRelativeComponentCoverage:
-        options.minBoundedRelativeComponentCoverage,
-      boundedComponentDeltaPenalty: options.boundedComponentDeltaPenalty,
-      maximumBoundedComponentCountDelta: options.maxBoundedComponentCountDelta,
-      maximumTightBoundedLocalDefectSpan:
-        options.maxTightBoundedLocalDefectSpan,
-      minimumTightBoundedRelativeComponentCoverage:
-        options.minTightBoundedRelativeComponentCoverage,
-      maximumTightBoundedComponentCountDelta:
-        options.maxTightBoundedComponentCountDelta,
-      minimumNearExactCoverage: options.minNearExactCoverage,
-      maximumNearExactDefectSpan: options.maxNearExactDefectSpan,
-      maximumNearExactDefectArea: options.maxNearExactDefectArea,
+    },
+    analysis: {
+      maximumRelativeComponentCenterDistance:
+        options.maxRelativeComponentCenterDistance,
     },
     raster: {
       pixelsPerReferenceUnit: options.analysisScale,
@@ -2054,6 +2437,7 @@ export function gatePolicy(options) {
       localWindowReferenceUnits: options.localWindow,
       localStrideReferenceUnits: options.localStride,
       minimumWindowInkAreaReferenceUnits: options.minimumWindowInk,
+      spatialRegressionCellReferenceUnits: options.localStride,
     },
     candidateViewportRaster: {
       pixelsPerCandidateViewportUnit: options.candidateViewportAnalysisScale,
@@ -2067,6 +2451,7 @@ export function gatePolicy(options) {
       localWindowReferenceUnits: options.detailLocalWindow,
       localStrideReferenceUnits: options.detailLocalStride,
       minimumWindowInkAreaReferenceUnits: options.detailMinimumWindowInk,
+      spatialRegressionCellReferenceUnits: options.detailLocalStride,
       svgViewportNormalization:
         "root SVG viewport is normalized to its final aligned reference-unit size before rasterization",
     },
@@ -2124,8 +2509,11 @@ export async function reuseReportCompatibilityErrors(
 ) {
   const errors = [];
   const settings = { ...DEFAULTS, ...options };
-  if (report?.schema !== "chemsema-public-cdxml-visual-gate-v1") {
+  if (report?.schema !== REPORT_SCHEMA) {
     errors.push("report schema is missing or unsupported");
+  }
+  if (report?.caseMetricsSchema !== CASE_METRICS_SCHEMA) {
+    errors.push("report case metrics schema is missing or unsupported");
   }
   if (!options.allowGateDefinitionUpgrade && report?.cacheIdentity !== CACHE_IDENTITY) {
     errors.push("report uses a different gate definition");
@@ -2157,6 +2545,13 @@ export async function reuseReportCompatibilityErrors(
       break;
     }
     seen.add(relativeCdxml);
+    const metricErrors = visualCaseMetricContractErrors(entry, settings);
+    if (metricErrors.length) {
+      errors.push(
+        `report has incomplete case metrics for ${relativeCdxml}: ${metricErrors.join(", ")}`,
+      );
+      break;
+    }
     const currentHashes = await artifactHashes(galleryDir, item);
     if (!artifactHashesEqual(entry.artifactHashes, currentHashes)) {
       errors.push(`report artifacts changed for ${relativeCdxml}`);
@@ -2328,7 +2723,15 @@ async function runSelfTest(options) {
       <path d="M 12.5 42.25 L 106.75 42.25 M 60.5 18.25 L 60.5 68.75" fill="none" stroke="black" stroke-width="1.25"/>`;
     const cropBefore = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80">${cropBody}</svg>`;
     const cropAfter = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="76" viewBox="0 4 120 76">${cropBody}</svg>`;
+    const emptyCrop = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80"></svg>`;
     for (const analysisScale of [2, 4]) {
+      const cropBaseline = await analyzeAlignedImages(
+        page,
+        data(cropBefore),
+        data(cropBefore),
+        { scale: 1, dx: 0, dy: 0 },
+        { ...options, analysisScale, tolerance: 0 },
+      );
       const cropEquivalent = await analyzeAlignedImages(
         page,
         data(cropBefore),
@@ -2344,12 +2747,36 @@ async function runSelfTest(options) {
         || cropEquivalent.largestMissing.area !== 0
         || cropEquivalent.largestExtra.area !== 0
         || cropEquivalent.detailFeatures.componentCountDelta !== 0
+        || JSON.stringify(cropEquivalent.local.spatialCells)
+          !== JSON.stringify(cropBaseline.local.spatialCells)
       ) {
         throw new Error(
           `SVG crop moved fixed gate lattices at ${analysisScale}x: ${
             JSON.stringify(cropEquivalent)
           }`,
         );
+      }
+      const tileBaseline = await analyzeAlignedImages(
+        page,
+        data(cropBefore),
+        data(emptyCrop),
+        { scale: 1, dx: 0, dy: 0 },
+        { ...options, analysisScale, tolerance: 0, tileSize: 256 },
+      );
+      const tileVariant = await analyzeAlignedImages(
+        page,
+        data(cropBefore),
+        data(emptyCrop),
+        { scale: 1, dx: 0, dy: 0 },
+        { ...options, analysisScale, tolerance: 0, tileSize: 240 },
+      );
+      if (
+        tileVariant.totals.missingInk !== tileBaseline.totals.missingInk
+        || tileVariant.totals.extraInk !== tileBaseline.totals.extraInk
+        || JSON.stringify(tileVariant.local.spatialCells)
+          !== JSON.stringify(tileBaseline.local.spatialCells)
+      ) {
+        throw new Error(`tile boundaries changed spatial occupancy at ${analysisScale}x`);
       }
     }
     const staleFrameEquivalent = await analyzeAlignedImages(
@@ -2532,86 +2959,6 @@ async function runSelfTest(options) {
         `displaced-component classifier regression: ${JSON.stringify(displacedReasons)}`,
       );
     }
-    const topologyDetail = {
-      detailFeatures: {
-        referenceComponentCount: options.minimumTopologyComponentCount,
-        candidateComponentCount: options.minimumTopologyComponentCount,
-        componentCountDelta: 0,
-        componentPositionDistributionDelta:
-          options.maxComponentPositionDistributionDelta,
-      },
-    };
-    if (!fineTopologyEquivalent(topologyDetail, options)) {
-      throw new Error("fine-topology diagnostic regression");
-    }
-    const topologyOnlyClassification = classifyAnalyzedVisualMetrics(
-      {
-        passed: false,
-        reasons: ["local-reference-coverage"],
-        referenceCoverage: 0.2,
-        candidateCoverage: 0.2,
-        local: { referenceCoverage: 0, candidateCoverage: 0 },
-        largestMissing: { area: 100, span: 100 },
-        largestExtra: { area: 100, span: 100 },
-        detailFeatures: {
-          componentCountDelta: 0,
-          relativeComponentMatchCoverage: 1,
-        },
-      },
-      topologyDetail,
-      options,
-    );
-    if (
-      topologyOnlyClassification.passed
-      || topologyOnlyClassification.coarseAcceptedByFineTopology
-      || !topologyOnlyClassification.coarseFineTopologyEquivalent
-    ) {
-      throw new Error(
-        `fine topology bypassed fixed-coordinate defects: ${
-          JSON.stringify(topologyOnlyClassification)
-        }`,
-      );
-    }
-    topologyDetail.detailFeatures.componentPositionDistributionDelta += 0.001;
-    if (fineTopologyEquivalent(topologyDetail, options)) {
-      throw new Error("fine-topology position threshold regression");
-    }
-    const smallTopologyCoarse = {
-      local: {
-        referenceCoverage: options.minimumSmallTopologyLocalCoverage,
-        candidateCoverage: options.minimumSmallTopologyLocalCoverage,
-      },
-      detailFeatures: {
-        referenceComponentCount: options.minimumSmallTopologyComponentCount,
-        candidateComponentCount: options.minimumSmallTopologyComponentCount,
-        componentCountDelta: 0,
-      },
-    };
-    if (!fineTopologyCandidate(smallTopologyCoarse, options)) {
-      throw new Error("small-topology candidate regression");
-    }
-    smallTopologyCoarse.local.referenceCoverage -= 0.001;
-    if (fineTopologyCandidate(smallTopologyCoarse, options)) {
-      throw new Error("small-topology local-coverage negative-control regression");
-    }
-    const slenderCoarse = {
-      passed: false,
-      referenceCoverage: options.minSlenderDefectCoverage,
-      candidateCoverage: options.minSlenderDefectCoverage,
-      local: {
-        referenceCoverage: options.minSlenderDefectLocalCoverage,
-        candidateCoverage: options.minSlenderDefectLocalCoverage,
-      },
-      largestMissing: { area: 12, span: 12 },
-      largestExtra: { area: 0, span: 0 },
-    };
-    if (!slenderDefectEquivalent(slenderCoarse, options)) {
-      throw new Error("slender-defect acceptance regression");
-    }
-    slenderCoarse.largestMissing.area = options.maxSlenderDefectArea + 0.01;
-    if (slenderDefectEquivalent(slenderCoarse, options)) {
-      throw new Error("slender-defect area negative-control regression");
-    }
     console.log(JSON.stringify({
       passed: true,
       areaDelta,
@@ -2627,7 +2974,7 @@ async function runSelfTest(options) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log("Usage: node scripts/public-cdxml-visual-gate.mjs [--gallery dir] [--out report.json] [--passed-gallery html] [--cohort name] [--cohort-ledger file] [--only text] [--limit n] [--jobs n] [--allow-dirty-gallery] [--allow-stale-gallery] [--report-only] [--strict-original-338]");
+    console.log("Usage: node scripts/public-cdxml-visual-gate.mjs [--gallery dir] [--out report.json] [--passed-gallery html] [--cohort name] [--cohort-ledger file] [--only text] [--limit n] [--jobs n] [--allow-dirty-gallery] [--allow-stale-gallery] [--report-only] [--strict-original-338] [--gate-definition-upgrade]");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --reuse-report report.json [--gallery dir] [--passed-gallery html]");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --gallery dir --baseline-report report.json --out report.json");
     console.log("       node scripts/public-cdxml-visual-gate.mjs --self-test");
@@ -2640,7 +2987,15 @@ async function main() {
       `Invalid --strict-original-338 configuration: ${strictConfigurationErrors.join("; ")}`,
     );
   }
-  if (options.strictOriginal338) options.cohort = "original-338";
+  const upgradeConfigurationErrors = gateDefinitionUpgradeConfigurationErrors(options);
+  if (upgradeConfigurationErrors.length) {
+    throw new Error(
+      `Invalid --gate-definition-upgrade configuration: ${upgradeConfigurationErrors.join("; ")}`,
+    );
+  }
+  if (options.strictOriginal338 || options.gateDefinitionUpgrade) {
+    options.cohort = "original-338";
+  }
   if (options.selfTest) {
     await runSelfTest(options);
     return;
@@ -2661,12 +3016,6 @@ async function main() {
       `Public CDXML gallery provenance is invalid (${[...new Set(provenanceErrors)].join(", ")}). `
       + "Regenerate the gallery from the current clean repository, or use "
       + "--allow-stale-gallery only for an explicitly non-release diagnostic run.",
-    );
-  }
-  if (options.stampReport) {
-    throw new Error(
-      "--stamp-report is disabled because an old classification cannot be "
-      + "made trustworthy by replacing its hashes and provenance",
     );
   }
   if (options.reuseReport) {
@@ -2740,6 +3089,11 @@ async function main() {
   const passFloorDefinitionErrors = evaluatePassFloor
     ? passFloorGateDefinitionErrors(strictPassFloor, options)
     : [];
+  if (options.gateDefinitionUpgrade && passFloorDefinitionErrors.length === 0) {
+    throw new Error(
+      "--gate-definition-upgrade is only valid while the committed pass floor uses an older definition",
+    );
+  }
   const strictBaselineErrors = strictOriginal338BaselineErrors(
     baselineReport,
     items,
@@ -2763,6 +3117,7 @@ async function main() {
       baselineReport,
       manifest.provenance,
       currentReferenceHashes,
+      options,
     );
     if (compatibilityErrors.length) {
       throw new Error(
@@ -2779,12 +3134,15 @@ async function main() {
       throw new Error(`Invalid protected visual floor: ${oracleErrors.join("; ")}`);
     }
   }
-  const strictPassFloorErrors = strictOriginal338PassFloorErrors(
-    strictPassFloor,
-    items,
-    baselineReport,
-    options,
-  );
+  const strictPassFloorErrors = options.gateDefinitionUpgrade
+    ? []
+    : strictOriginal338PassFloorErrors(
+      strictPassFloor,
+      items,
+      baselineReport,
+      options,
+      evaluatePassFloor,
+    );
   if (strictPassFloorErrors.length) {
     throw new Error(
       `Invalid --strict-original-338 pass floor: ${strictPassFloorErrors.join("; ")}`,
@@ -2878,29 +3236,22 @@ async function main() {
           alignment,
           options,
         );
-        const coarseTopologyCandidate = fineTopologyCandidate(coarseMetrics, options);
-        const boundedLocalEquivalent = boundedLocalTopologyEquivalent(coarseMetrics, options);
-        const nearExactEquivalent = nearExactFixedDefectEquivalent(coarseMetrics, options);
-        const detailMetrics = coarseMetrics.passed
-          || coarseTopologyCandidate
-          || boundedLocalEquivalent
-          || nearExactEquivalent
-          ? await analyzeAlignedImages(
-            activePage,
-            referenceDataUrl,
-            candidateDataUrl,
-            alignment,
-            detailAnalysisOptions(options),
-          )
-          : null;
-        const metrics = applyCandidateViewportGate(
+        // Detail analysis is also a regression floor, not only a pass
+        // classifier. Run it for every comparable case so a small new defect
+        // cannot hide inside an already-red coarse image.
+        const detailMetrics = await analyzeAlignedImages(
+          activePage,
+          referenceDataUrl,
+          candidateDataUrl,
+          alignment,
+          detailAnalysisOptions(options),
+        );
+        const metrics = compactSpatialMetrics(applyCandidateViewportGate(
           classifyAnalyzedVisualMetrics(coarseMetrics, detailMetrics, options),
           candidateViewport,
           options,
-        );
-        completed += 1;
-        console.log(`[${completed}/${items.length}] worker=${workerIndex + 1} ${metrics.passed ? "PASS" : "FAIL"} ${item.relativeCdxml}`);
-        return {
+        ));
+        const analyzedCase = {
           id: item.id,
           relativeCdxml: item.relativeCdxml,
           status: metrics.passed ? "pass" : "fail",
@@ -2909,6 +3260,13 @@ async function main() {
           cacheStatus: "analyzed",
           ...metrics,
         };
+        const metricErrors = visualCaseMetricContractErrors(analyzedCase, options);
+        if (metricErrors.length) {
+          throw new Error(`visual metric contract failed: ${metricErrors.join(", ")}`);
+        }
+        completed += 1;
+        console.log(`[${completed}/${items.length}] worker=${workerIndex + 1} ${metrics.passed ? "PASS" : "FAIL"} ${item.relativeCdxml}`);
+        return analyzedCase;
       } catch (error) {
         completed += 1;
         console.log(`[${completed}/${items.length}] worker=${workerIndex + 1} ERROR ${item.relativeCdxml}`);
@@ -2924,6 +3282,13 @@ async function main() {
     });
   } finally {
     await browser.close();
+  }
+
+  const finalMetricErrors = cases.flatMap((entry) =>
+    visualCaseMetricContractErrors(entry, options)
+      .map((error) => `${entry.relativeCdxml}: ${error}`));
+  if (finalMetricErrors.length) {
+    throw new Error(`visual report metric contract failed: ${finalMetricErrors.join("; ")}`);
   }
 
   const passed = cases.filter((entry) => entry.status === "pass").length;
@@ -2943,7 +3308,8 @@ async function main() {
     passFloorDefinitionErrors.length ? null : strictPassFloor,
   );
   const report = {
-    schema: "chemsema-public-cdxml-visual-gate-v1",
+    schema: REPORT_SCHEMA,
+    caseMetricsSchema: CASE_METRICS_SCHEMA,
     cacheIdentity: CACHE_IDENTITY,
     generatedAt: new Date().toISOString(),
     gallery: galleryDir,
@@ -2970,7 +3336,14 @@ async function main() {
           source: strictPassFloor.source,
         },
       }
-      : { mode: "standard" },
+      : options.gateDefinitionUpgrade
+        ? {
+          mode: "gate-definition-upgrade-diagnostic",
+          exactCohortRequired: true,
+          reportOnly: true,
+          committedFloorEnforcementDeferredToMigration: true,
+        }
+        : { mode: "standard" },
     policy: gatePolicy(options),
     summary: {
       total: cases.length,

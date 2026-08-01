@@ -112,12 +112,13 @@ page without rerunning pixel analysis.
 
 Ordinary rendering fixes should not rerun all 413 files. The affected gate follows the OCR repository's contract: map changed code paths to visual rule families, select matching corpus features plus historical regression cases, and save the machine-generated contract to `tmp/public-cdxml-affected-gate-plan.json`. Do not replace that plan with a hand-written case list; use `--extra` for additional diagnostic cases.
 
-Stamp an existing full report once so it can serve as the content-hashed baseline:
+Generate the baseline with the current gate definition. Old classifications
+cannot be made trustworthy by replacing their hashes or provenance:
 
 ```bash
 node scripts/public-cdxml-visual-gate.mjs \
   --gallery tmp/public-cdxml-chemdraw-review-all \
-  --stamp-report tmp/public-cdxml-chemdraw-review-all/gate-report.json
+  --out tmp/public-cdxml-chemdraw-review-all/gate-report.json
 ```
 
 Inspect and then run the affected plan:
@@ -136,9 +137,9 @@ identity, so upgrading the alignment or detail classifier cannot erase earlier
 passes. Baseline mode permits historical failures to remain open, but it does
 not permit them to become worse. Every pass-to-fail transition is recorded in
 `delta.regressions`; `delta.continuousRegressions` independently compares cases
-that remain red using global and fixed-window coverage, largest missing/extra
-components, independent unmatched component counts, relative component
-matches, component position distributions, and fine-detail defects. A new
+that remain red using the exact missing/extra occupancy of every fixed-coordinate
+coarse and zero-tolerance detail defect cell, largest missing/extra components,
+and fine-detail defects. A new
 defect reason, a protected metric disappearing, or a material metric loss
 beyond the explicit raster tolerance is a regression. Improvement in another
 metric cannot cancel it: registered-image statistics are not additive, so a
@@ -175,19 +176,49 @@ When the gate definition itself is corrected, the old verdict set is not
 silently carried forward. Re-analyze both a frozen previous candidate gallery
 and the current gallery with the new definition, then migrate only if the two
 exact 338-case reports use identical ChemDraw oracles and show zero same-gate
-pass-to-fail transitions:
+pass-to-fail transitions. If the corrected definition proves that an old pass
+was a false positive, every retired path must appear in a committed, sorted,
+reasoned review manifest:
+
+```bash
+node scripts/public-cdxml-visual-gate.mjs \
+  --gallery tmp/frozen-candidate-gallery \
+  --gate-definition-upgrade --report-only --allow-stale-gallery --jobs 8 \
+  --out tmp/frozen-candidate-gate-report.json
+```
+
+`--gate-definition-upgrade` is the only bootstrap path past an incompatible
+committed floor. It forces the exact original-338 cohort, produces a diagnostic
+report only, rejects baselines, caches, and partial filters, and is rejected as
+soon as the committed floor already matches the current definition.
 
 ```bash
 npm run benchmark:cdxml-public:visual-gate:migrate-floor -- \
   --previous-report tmp/frozen-candidate-gate-report.json \
-  --current-report tmp/current-candidate-gate-report.json
+  --current-report tmp/current-candidate-gate-report.json \
+  --reviewed-retirements benchmarks/public-cdxml/gate-definition-retirements-v22.json
 ```
 
-The migration records both report hashes and the same-gate improvement and
-regression counts. This retires verdicts that existed only because of a proven
-old gate bug without adding file exceptions or weakening the current rules.
+The migration binds the frozen report to the old floor's exact repository
+identity and records both report hashes, same-gate changes, and the retirement
+manifest hash. Unlisted old passes and any further floor shrink remain blocked.
+The manifest audits a gate-definition correction; it is never consulted by the
+renderer or by ordinary pass classification.
 
-Gate v20 counts a fine component only when the unmatched component has no
+Gate v22 runs both raster resolutions for every comparable case, including
+images that already fail badly at coarse resolution. It assigns every analyzed
+core pixel exactly once to a fixed ChemDraw-coordinate cell and compresses the
+exact directional missing/extra occupancy masks into the protected floor. A
+current mismatch pixel must be supported by a historical same-kind pixel inside
+the fixed absolute raster tolerance; unsupported pixels accumulate across all
+cells, so fixing any old defect cannot pay for a new defect elsewhere. The raw
+mask records carry a SHA-256 integrity hash; zlib bytes are storage only and are
+not treated as canonical across runtime versions. Pass classification has one path: the fixed-window coarse
+limits and the zero-tolerance detail rules must both pass. Retired whole-page
+coverage and topology-equivalence branches cannot make the same defect easier
+to accept merely because the canvas is larger.
+
+The gate counts a fine component only when the unmatched component has no
 opposite-side ink within 0.5 ChemDraw reference units. Raw 8-connected component
 counts remain in reports for diagnosis, but cannot by themselves reject a
 drawing: font hinting can split one ChemDraw glyph into two raster components
