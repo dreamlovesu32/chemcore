@@ -32,6 +32,17 @@ function parseArgs(argv) {
     pairOffset: null,
     label: "NH",
     nodeType: "element",
+    element: 7,
+    hydrogens: 1,
+    labelAlignment: "Right",
+    lineStarts: null,
+    geometry: null,
+    bondOrdering: null,
+    reverseFirstBond: false,
+    stereobondIndex: null,
+    bondDisplay: "WedgedHashBegin",
+    absoluteStereo: null,
+    anchorSymbol: null,
     face: 96,
     connectionCount: 2,
     tripleOffsets: null,
@@ -49,6 +60,17 @@ function parseArgs(argv) {
     else if (argument === "--pair-offset") options.pairOffset = Number(argv[++index]);
     else if (argument === "--label") options.label = argv[++index];
     else if (argument === "--node-type") options.nodeType = argv[++index];
+    else if (argument === "--element") options.element = Number(argv[++index]);
+    else if (argument === "--hydrogens") options.hydrogens = Number(argv[++index]);
+    else if (argument === "--label-alignment") options.labelAlignment = argv[++index];
+    else if (argument === "--line-starts") options.lineStarts = argv[++index];
+    else if (argument === "--geometry") options.geometry = argv[++index];
+    else if (argument === "--bond-ordering") options.bondOrdering = argv[++index];
+    else if (argument === "--reverse-first-bond") options.reverseFirstBond = true;
+    else if (argument === "--stereobond-index") options.stereobondIndex = Number(argv[++index]);
+    else if (argument === "--bond-display") options.bondDisplay = argv[++index];
+    else if (argument === "--absolute-stereo") options.absoluteStereo = argv[++index];
+    else if (argument === "--anchor-symbol") options.anchorSymbol = argv[++index];
     else if (argument === "--face") options.face = Number(argv[++index]);
     else if (argument === "--connection-count") options.connectionCount = Number(argv[++index]);
     else if (argument === "--triple-offsets") options.tripleOffsets = argv[++index];
@@ -134,13 +156,31 @@ function probeCdxml(probe, options) {
       `   <n id="${12 + index}" p="${point[0].toFixed(4)} ${point[1].toFixed(4)}" AS="N"/>`)
     .join("\n");
   const endpointBonds = endpoints
-    .map((_, index) => `<b id="${20 + index}" B="10" E="${12 + index}"/>`)
+    .map((_, index) => {
+      const reverse = index === 0 && options.reverseFirstBond;
+      const begin = reverse ? 12 + index : 10;
+      const end = reverse ? 10 : 12 + index;
+      const display = index === options.stereobondIndex
+        ? ` Display="${options.bondDisplay}"`
+        : "";
+      return `<b id="${20 + index}" B="${begin}" E="${end}"${display}/>`;
+    })
     .join("");
   const baseline = 100 + probe.size * 0.358;
   const labelWidth = probe.size * Math.max(1.282, options.label.length * 0.65);
   const nodeAttributes = options.nodeType === "fragment"
     ? 'NodeType="Fragment"'
-    : 'Element="7" NumHydrogens="1"';
+    : `Element="${options.element}" NumHydrogens="${options.hydrogens}"`;
+  const geometry = options.geometry === null ? "" : ` Geometry="${options.geometry}"`;
+  const bondOrdering = options.bondOrdering === null
+    ? ""
+    : ` BondOrdering="${options.bondOrdering}"`;
+  const absoluteStereo = options.absoluteStereo === null
+    ? ""
+    : ` AS="${options.absoluteStereo}"`;
+  const lineStarts = options.lineStarts === null
+    ? ""
+    : ` LineStarts="${options.lineStarts}"`;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd">
 <CDXML BondLength="${probe.length.toFixed(4)}" LineWidth="0.60" MarginWidth="1.60"
@@ -149,10 +189,10 @@ function probeCdxml(probe, options) {
  <colortable><color r="1" g="1" b="1"/><color r="0" g="0" b="0"/></colortable>
  <page id="1" BoundingBox="0 0 220 220">
   <fragment id="2">
-   <n id="10" p="100 100" ${nodeAttributes} AS="N">
+   <n id="10" p="100 100" ${nodeAttributes}${geometry}${bondOrdering}${absoluteStereo}>
     <t id="11" p="100 ${baseline.toFixed(4)}"
      BoundingBox="${(100 - labelWidth).toFixed(4)} ${(baseline - probe.size * 0.716).toFixed(4)} 100 ${baseline.toFixed(4)}"
-     LabelJustification="Right" Justification="Right" LabelAlignment="Right">
+     LabelJustification="Right" Justification="Right" LabelAlignment="${options.labelAlignment}"${lineStarts}>
      <s font="3" size="${probe.size}" color="0" face="${options.face}">${options.label}</s>
     </t>
    </n>
@@ -187,21 +227,31 @@ function svgTextEntries(svg) {
   });
 }
 
-function classifySvg(svg) {
+function classifySvg(svg, anchorSymbol) {
   const entries = svgTextEntries(svg);
-  if (entries.some((entry) => entry.text === "HN")) return "reverse-horizontal";
-  if (entries.some((entry) => entry.text === "NH")) return "forward-horizontal";
+  if (entries.some((entry) => entry.text === `H${anchorSymbol}`)) return "reverse-horizontal";
+  if (entries.some((entry) => entry.text === `${anchorSymbol}H`)) return "forward-horizontal";
   const hydrogen = entries.find((entry) => entry.text === "H");
-  const nitrogen = entries.find((entry) => entry.text === "N");
+  const anchor = entries.find((entry) => entry.text === anchorSymbol);
   if (
     hydrogen
-    && nitrogen
+    && anchor
     && Number.isFinite(hydrogen.y)
-    && Number.isFinite(nitrogen.y)
+    && Number.isFinite(anchor.y)
   ) {
-    return hydrogen.y < nitrogen.y ? "stack-above" : "stack-below";
+    return hydrogen.y < anchor.y ? "stack-above" : "stack-below";
   }
   return "unclassified";
+}
+
+function labelAnchorSymbol(options) {
+  if (options.anchorSymbol !== null) return options.anchorSymbol;
+  const match = options.label.match(/^(?:H([A-Z][a-z]?)|([A-Z][a-z]?)H)$/u);
+  const inferred = match?.[1] ?? match?.[2];
+  if (!inferred) {
+    throw new Error("--anchor-symbol is required unless --label is H plus one element symbol");
+  }
+  return inferred;
 }
 
 function savedLabelAlignment(cdxml) {
@@ -213,7 +263,7 @@ function savedLabelAlignment(cdxml) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log("Usage: node scripts/chemdraw-label-flow-sector-probe.mjs [--profile coarse|fine|verify|symmetry] [--out dir] [--angles a,b] [--fixed-angles a,b] [--pair-offset degrees] [--connection-count 2|3|4] [--triple-offsets a,b] [--label text] [--node-type element|fragment] [--face value] [--rotations a,b] [--lengths a,b] [--sizes a,b] [--no-export]");
+    console.log("Usage: node scripts/chemdraw-label-flow-sector-probe.mjs [--profile coarse|fine|verify|symmetry] [--out dir] [--angles a,b] [--fixed-angles a,b] [--pair-offset degrees] [--connection-count 2|3|4] [--triple-offsets a,b] [--label text] [--anchor-symbol symbol] [--node-type element|fragment] [--element atomic-number] [--hydrogens count] [--label-alignment value] [--line-starts offsets] [--geometry value] [--bond-ordering ids] [--reverse-first-bond] [--stereobond-index index] [--bond-display value] [--absolute-stereo value] [--face value] [--rotations a,b] [--lengths a,b] [--sizes a,b] [--no-export]");
     return;
   }
   if (options.pairOffset !== null && !Number.isFinite(options.pairOffset)) {
@@ -225,9 +275,37 @@ async function main() {
   if (!Number.isFinite(options.face)) {
     throw new Error("--face must be a finite number");
   }
+  if (!Number.isInteger(options.element) || options.element < 1) {
+    throw new Error("--element must be a positive integer");
+  }
+  if (!Number.isInteger(options.hydrogens) || options.hydrogens < 0) {
+    throw new Error("--hydrogens must be a non-negative integer");
+  }
+  if (!/^(Auto|Best|Left|Right|Above|Below|Center|Full)$/iu.test(options.labelAlignment)) {
+    throw new Error("--label-alignment must be an official LabelAlignment value");
+  }
   if (![2, 3, 4].includes(options.connectionCount)) {
     throw new Error("--connection-count must be 2, 3, or 4");
   }
+  if (options.stereobondIndex !== null
+      && (!Number.isInteger(options.stereobondIndex)
+        || options.stereobondIndex < 0
+        || options.stereobondIndex >= options.connectionCount)) {
+    throw new Error("--stereobond-index must select one generated bond");
+  }
+  const officialStereobondDisplays = new Set([
+    "WedgeBegin",
+    "WedgeEnd",
+    "WedgedHashBegin",
+    "WedgedHashEnd",
+    "HollowWedgeBegin",
+    "HollowWedgeEnd",
+  ]);
+  if (options.stereobondIndex !== null
+      && !officialStereobondDisplays.has(options.bondDisplay)) {
+    throw new Error("--bond-display must be an official solid, hashed, or hollow wedge display");
+  }
+  const anchorSymbol = labelAnchorSymbol(options);
   const matrix = profileMatrix(options);
   const tripleOffsets = options.tripleOffsets === null
     ? null
@@ -313,7 +391,7 @@ async function main() {
     const textEntries = svgTextEntries(svg);
     results.push({
       ...probes[index],
-      layout: classifySvg(svg),
+      layout: classifySvg(svg, anchorSymbol),
       visibleText: textEntries.map((entry) => entry.text),
       savedLabelAlignment: savedLabelAlignment(cdxml),
     });
@@ -326,6 +404,17 @@ async function main() {
     tripleOffsets,
     label: options.label,
     nodeType: options.nodeType,
+    element: options.element,
+    hydrogens: options.hydrogens,
+    labelAlignment: options.labelAlignment,
+    lineStarts: options.lineStarts,
+    geometry: options.geometry,
+    bondOrdering: options.bondOrdering,
+    reverseFirstBond: options.reverseFirstBond,
+    stereobondIndex: options.stereobondIndex,
+    bondDisplay: options.bondDisplay,
+    absoluteStereo: options.absoluteStereo,
+    anchorSymbol,
     face: options.face,
     matrix,
     results,
