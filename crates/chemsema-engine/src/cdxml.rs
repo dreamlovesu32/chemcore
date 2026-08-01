@@ -369,6 +369,22 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
     let defaults = cdxml_defaults(&root);
     let colors = CdxmlColorTable::from_cdxml(&root);
     let fonts = cdxml_font_table(&root);
+    let represented_atom_attributes = descendants(&root)
+        .into_iter()
+        .filter(|node| node.is("represent"))
+        .filter_map(|node| {
+            let object_id = node.attr("object")?;
+            let attribute = node.attr("attribute")?.trim().to_ascii_lowercase();
+            matches!(attribute.as_str(), "charge" | "radical")
+                .then(|| (object_id.to_string(), attribute))
+        })
+        .fold(
+            BTreeMap::<String, BTreeSet<String>>::new(),
+            |mut by_node, (node_id, attribute)| {
+                by_node.entry(node_id).or_default().insert(attribute);
+                by_node
+            },
+        );
     let mut styles = default_cdxml_styles(defaults);
     let mut resources = BTreeMap::new();
     let mut objects = Vec::new();
@@ -400,8 +416,15 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         else {
             continue;
         };
-        let Some(resource) =
-            normalize_fragment(fragment, bbox, &node_positions, defaults, &colors, &fonts)?
+        let Some(resource) = normalize_fragment(
+            fragment,
+            bbox,
+            &node_positions,
+            defaults,
+            &colors,
+            &fonts,
+            &represented_atom_attributes,
+        )?
         else {
             continue;
         };
@@ -880,7 +903,19 @@ mod interchange_tests {
             <n id="53" p="325 145.981" Element="62"/>
             <b id="151" B="50" E="51"/><b id="152" B="50" E="52"/>
             <b id="153" B="50" E="53"/>
-          </fragment></page></CDXML>"#;
+          </fragment><fragment id="70">
+            <n id="60" p="440 120" Element="6" Charge="1"/>
+            <n id="61" p="470 120"/><n id="62" p="425 94.019"/>
+            <b id="161" B="60" E="61"/><b id="162" B="60" E="62"/>
+          </fragment><graphic id="201" GraphicType="Symbol" SymbolType="Plus"
+            BoundingBox="438 106 446 114"><represent attribute="Charge" object="60"/></graphic>
+          <fragment id="80">
+            <n id="70" p="540 120" Element="6" Radical="Doublet"/>
+            <n id="71" p="570 120"/><n id="72" p="525 94.019"/>
+            <b id="171" B="70" E="71"/><b id="172" B="70" E="72"/>
+          </fragment><graphic id="202" GraphicType="Symbol" SymbolType="Electron"
+            BoundingBox="538 106 546 114"><represent attribute="Radical" object="70"/></graphic>
+          </page></CDXML>"#;
         let document = parse_cdxml_document(source, Some("automatic carbon labels"))
             .expect("automatic carbon labels import");
         let nodes = document
@@ -911,11 +946,13 @@ mod interchange_tests {
         assert_eq!(source_text("30"), "13CH2");
         assert_eq!(source_text("40"), "CH•");
         assert!(nodes["50"].label.is_none());
+        assert!(nodes["60"].label.is_none());
+        assert!(nodes["70"].label.is_none());
         let svg = crate::document_to_svg(&document);
         assert_eq!(
             svg.matches('•').count(),
-            1,
-            "radical must render exactly once: {svg}"
+            2,
+            "each direct or represented radical must render exactly once: {svg}"
         );
 
         let saved = document_to_cdxml(&document);

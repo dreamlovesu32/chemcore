@@ -7,6 +7,7 @@ pub(super) fn normalize_fragment(
     defaults: CdxmlDefaults,
     colors: &CdxmlColorTable,
     fonts: &BTreeMap<String, String>,
+    represented_atom_attributes: &BTreeMap<String, BTreeSet<String>>,
 ) -> Result<Option<MoleculeFragment>, String> {
     let origin = [bbox[0], bbox[1]];
     let nodes: Vec<Node> = fragment
@@ -83,7 +84,13 @@ pub(super) fn normalize_fragment(
             }
         }),
     };
-    materialize_automatic_carbon_labels(&mut fragment, defaults, colors, fonts);
+    materialize_automatic_carbon_labels(
+        &mut fragment,
+        defaults,
+        colors,
+        fonts,
+        represented_atom_attributes,
+    );
     infer_cdxml_ring_double_bond_placements(&mut fragment);
     crate::engine::refresh_attached_node_label_geometry_for_all_nodes_with_profile(
         &mut fragment,
@@ -112,6 +119,7 @@ fn materialize_automatic_carbon_labels(
     defaults: CdxmlDefaults,
     colors: &CdxmlColorTable,
     fonts: &BTreeMap<String, String>,
+    represented_atom_attributes: &BTreeMap<String, BTreeSet<String>>,
 ) {
     let plans = fragment
         .nodes
@@ -125,15 +133,21 @@ fn materialize_automatic_carbon_labels(
                 .map(|value| value.min(u64::from(u8::MAX)) as u8);
             let inferred_hydrogens =
                 crate::engine::carbon_valence_hydrogen_count_for_node(fragment, &node.id);
-            let annotated = node.charge != 0
-                || node.atom_properties.isotope_mass.is_some()
-                || node.atom_properties.radical != crate::AtomRadical::None;
+            let represented = represented_atom_attributes.get(&node.id);
+            let include_charge = node.charge != 0
+                && !represented.is_some_and(|attributes| attributes.contains("charge"));
+            let include_radical = node.atom_properties.radical != crate::AtomRadical::None
+                && !represented.is_some_and(|attributes| attributes.contains("radical"));
+            let annotated =
+                include_charge || node.atom_properties.isotope_mass.is_some() || include_radical;
             let explicit_valence_mismatch =
                 explicit_hydrogens.is_some_and(|hydrogens| hydrogens != inferred_hydrogens);
             (annotated || explicit_valence_mismatch).then(|| {
                 (
                     node.id.clone(),
                     explicit_hydrogens.unwrap_or(inferred_hydrogens),
+                    include_charge,
+                    include_radical,
                 )
             })
         })
@@ -150,22 +164,22 @@ fn materialize_automatic_carbon_labels(
             .or(defaults.line_height)
             .unwrap_or(CdxmlLineHeight::Variable),
     );
-    for (node_id, hydrogens) in plans {
+    for (node_id, hydrogens, include_charge, include_radical) in plans {
         let Some(node) = fragment.nodes.iter_mut().find(|node| node.id == node_id) else {
             continue;
         };
         let formula = crate::engine::implicit_hydrogen_label_text_for_count("C", hydrogens);
-        let charge = match node.charge {
-            0 => String::new(),
-            1 => "+".to_string(),
-            -1 => "-".to_string(),
-            value if value > 1 => format!("{value}+"),
-            value => format!("{}-", value.unsigned_abs()),
+        let charge = match (include_charge, node.charge) {
+            (false, _) | (_, 0) => String::new(),
+            (_, 1) => "+".to_string(),
+            (_, -1) => "-".to_string(),
+            (_, value) if value > 1 => format!("{value}+"),
+            (_, value) => format!("{}-", value.unsigned_abs()),
         };
-        let radical = match node.atom_properties.radical {
-            crate::AtomRadical::None => "",
-            crate::AtomRadical::Doublet => "•",
-            crate::AtomRadical::Singlet | crate::AtomRadical::Triplet => ":",
+        let radical = match (include_radical, node.atom_properties.radical) {
+            (false, _) | (_, crate::AtomRadical::None) => "",
+            (_, crate::AtomRadical::Doublet) => "•",
+            (_, crate::AtomRadical::Singlet | crate::AtomRadical::Triplet) => ":",
         };
         let isotope = node
             .atom_properties
