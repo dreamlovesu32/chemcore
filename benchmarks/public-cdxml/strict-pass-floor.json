@@ -9,11 +9,11 @@
     "name": "original-338",
     "expected": 338
   },
-  "minimumPassed": 242,
+  "minimumPassed": 243,
   "source": {
-    "commit": "a8808386cf1e03686dc3838ffa9ce58398ea2681",
-    "repositoryIdentity": "96e49cac9eebed0c14499eb833152800195fc8b532d65c63bd29129f0c10d26d",
-    "gateReportGeneratedAt": "2026-08-01T18:17:14.075Z"
+    "commit": "a17c20eeeca53180debb0fb6d330c565b30adfab",
+    "repositoryIdentity": "b8f7ca42cec53c86b1fdcce721cd464ad3095eb127b1c33a8cd5f8d99db26139",
+    "gateReportGeneratedAt": "2026-08-01T19:04:38.022Z"
   },
   "migration": {
     "previousSchema": "chemsema.public-cdxml-strict-pass-floor.v2",
@@ -146,6 +146,7 @@
     "rdkit/Code/GraphMol/test_data/CDXML/beta-cypermethrin-or-as.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/beta-cypermethrin.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/chemdraw_template8.cdxml",
+    "rdkit/Code/GraphMol/test_data/CDXML/chirality1.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/deuterium.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/element-list.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/explicit-hydrogens.cdxml",
