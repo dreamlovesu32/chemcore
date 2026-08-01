@@ -461,6 +461,26 @@ test("continuous baseline tolerates sub-pixel noise but records a new defect cla
   );
 });
 
+test("continuous baseline does not treat a raw component-count delta as defect severity", () => {
+  const baseline = continuousCase("split-glyphs.cdxml");
+  const improvedMatching = continuousCase("split-glyphs.cdxml", {
+    detailFeatures: {
+      ...baseline.detailFeatures,
+      componentCountDelta: 5,
+      relativeComponentMatchCoverage: 0.9,
+      unmatchedReferenceComponentCount: 1,
+      unmatchedCandidateComponentCount: 1,
+    },
+  });
+  assert.deepEqual(
+    classifyContinuousBaselineRegressions(
+      [improvedMatching],
+      new Map([["split-glyphs.cdxml", baseline]]),
+    ),
+    [],
+  );
+});
+
 test("continuous baseline rejects loss of a comparable result", () => {
   const baseline = continuousCase("error.cdxml");
   const regressions = classifyContinuousBaselineRegressions(

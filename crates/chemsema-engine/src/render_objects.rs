@@ -805,11 +805,11 @@ fn render_fragment_nmr_assignments(
     }
 }
 
-fn isotope_mass_is_encoded_by_hydrogen_shorthand(node: &Node) -> bool {
-    if node.atomic_number != 1 {
+fn isotope_mass_is_encoded_by_authored_label(node: &Node) -> bool {
+    let Some(isotope_mass) = node.atom_properties.isotope_mass else {
         return false;
-    }
-    let shorthand = node
+    };
+    let authored_text = node
         .label
         .as_ref()
         .filter(|label| label.has_visible_text())
@@ -819,12 +819,37 @@ fn isotope_mass_is_encoded_by_hydrogen_shorthand(node: &Node) -> bool {
                 .as_deref()
                 .filter(|text| !text.trim().is_empty())
                 .unwrap_or(&label.text)
-                .trim()
+                .chars()
+                .filter(|character| !character.is_whitespace())
+                .collect::<String>()
         });
-    matches!(
-        (node.atom_properties.isotope_mass, shorthand),
-        (Some(2), Some("D")) | (Some(3), Some("T"))
-    )
+    let Some(authored_text) = authored_text else {
+        return false;
+    };
+    if node.atomic_number == 1
+        && matches!((isotope_mass, authored_text.as_str()), (2, "D") | (3, "T"))
+    {
+        return true;
+    }
+    let Some(after_mass) = authored_text.strip_prefix(&isotope_mass.to_string()) else {
+        return false;
+    };
+    let mut element = String::new();
+    let mut characters = after_mass.chars();
+    let Some(first) = characters
+        .next()
+        .filter(|character| character.is_ascii_uppercase())
+    else {
+        return false;
+    };
+    element.push(first);
+    if let Some(second) = characters
+        .next()
+        .filter(|character| character.is_ascii_lowercase())
+    {
+        element.push(second);
+    }
+    element == node.element.trim()
 }
 
 fn render_fragment_atom_properties(
@@ -910,7 +935,7 @@ fn render_fragment_atom_properties(
 
     if let Some(mass) = properties
         .isotope_mass
-        .filter(|_| !isotope_mass_is_encoded_by_hydrogen_shorthand(node))
+        .filter(|_| !isotope_mass_is_encoded_by_authored_label(node))
     {
         let annotation_top = (bounds.y1 + bounds.y2 - annotation_size) * 0.5;
         push_atom_property_text(
@@ -1704,7 +1729,7 @@ fn render_fragment_atom_query_annotations(
     let direction = query_connection_direction(fragment, node);
     let left_annotation_width = properties
         .isotope_mass
-        .filter(|_| !isotope_mass_is_encoded_by_hydrogen_shorthand(node))
+        .filter(|_| !isotope_mass_is_encoded_by_authored_label(node))
         .map(|mass| annotation_text_width(&mass.to_string(), query_size))
         .unwrap_or(0.0);
     let obstacle_x1 = bounds.x1 - left_annotation_width;

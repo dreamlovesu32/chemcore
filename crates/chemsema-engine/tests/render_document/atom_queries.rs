@@ -206,6 +206,42 @@ fn deuterium_and_tritium_labels_encode_their_isotope_mass_once() {
 }
 
 #[test]
+fn authored_isotope_prefixes_replace_generated_mass_annotations() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1"><fragment id="fragment">
+    <n id="carbon" p="20 20" Isotope="13" NumHydrogens="3">
+      <t p="20 20"><s font="3" size="10" face="64">13</s><s font="3" size="10" face="96">CH3</s></t>
+    </n>
+    <n id="hydrogen" p="60 20" Element="1" Isotope="2" NumHydrogens="0">
+      <t p="60 20"><s font="3" size="10" face="64">2</s><s font="3" size="10" face="96">H</s></t>
+    </n>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("authored isotope prefixes"))
+        .expect("authored isotope prefixes parse");
+    let texts = render_document(&document)
+        .into_iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Text { text, runs, .. } => Some(if text.is_empty() {
+                runs.into_iter().map(|run| run.text).collect::<String>()
+            } else {
+                text
+            }),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    assert!(texts.iter().any(|text| text.replace('\n', "") == "13CH3"));
+    assert!(texts.iter().any(|text| text.replace('\n', "") == "2H"));
+    assert!(
+        texts.iter().all(|text| text != "13" && text != "2"),
+        "authored isotope prefixes must suppress generated duplicates: {texts:?}"
+    );
+}
+
+#[test]
 fn atom_query_uses_symbol_star_size_and_connection_opposite_placement() {
     for (neighbor, expected_side) in [
         ([110.0, 80.0], "left"),

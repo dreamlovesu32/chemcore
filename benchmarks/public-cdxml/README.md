@@ -136,8 +136,8 @@ identity, so upgrading the alignment or detail classifier cannot erase earlier
 passes. Baseline mode permits historical failures to remain open, but it does
 not permit them to become worse. Every pass-to-fail transition is recorded in
 `delta.regressions`; `delta.continuousRegressions` independently compares every
-case's fixed-window coverage, largest missing/extra components, component
-counts, relative component matches, and fine-detail defects. A new defect
+case's fixed-window coverage, largest missing/extra components, unmatched
+component counts, relative component matches, and fine-detail defects. A new defect
 reason or a material deterioration beyond the explicit sub-pixel tolerance
 fails the command even when the case was already red. Whole-image overlap and
 coverage are excluded from this continuous constraint because canvas size can

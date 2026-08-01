@@ -466,7 +466,6 @@ const CONTINUOUS_REGRESSION_METRICS = Object.freeze([
   { path: "largestMissing.span", direction: "lower", tolerance: 0.5 },
   { path: "largestExtra.span", direction: "lower", tolerance: 0.5 },
   { path: "detailFeatures.compactDefectCount", direction: "lower", tolerance: 1 },
-  { path: "detailFeatures.componentCountDelta", direction: "lower", tolerance: 1 },
   {
     path: "detailFeatures.relativeComponentMatchCoverage",
     direction: "higher",
@@ -505,11 +504,6 @@ const CONTINUOUS_REGRESSION_METRICS = Object.freeze([
   { path: "detail.largestExtra.span", direction: "lower", tolerance: 0.25 },
   {
     path: "detail.detailFeatures.compactDefectCount",
-    direction: "lower",
-    tolerance: 1,
-  },
-  {
-    path: "detail.detailFeatures.componentCountDelta",
     direction: "lower",
     tolerance: 1,
   },
