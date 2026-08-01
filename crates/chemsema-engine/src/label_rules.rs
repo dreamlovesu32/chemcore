@@ -243,7 +243,10 @@ fn split_compact_label_groups(compact: &str) -> Vec<String> {
         let Some(character) = rest.chars().next() else {
             break;
         };
-        if character.is_ascii_uppercase() && !current.is_empty() {
+        let leading_isotope_mass = groups.is_empty()
+            && !current.is_empty()
+            && current.chars().all(|value| value.is_ascii_digit());
+        if character.is_ascii_uppercase() && !current.is_empty() && !leading_isotope_mass {
             groups.push(std::mem::take(&mut current));
         }
         current.push(character);
@@ -368,6 +371,25 @@ pub fn terminal_letter_anchor_offset(group: &str) -> usize {
             (character.is_ascii_alphabetic() || is_prime_anchor_suffix(character)).then_some(index)
         })
         .last()
+        .unwrap_or(0)
+}
+
+fn leading_isotope_element_anchor_offset(group: &str) -> usize {
+    // A leading superscript mass number is a decoration of the first element,
+    // not an independent attachment group. Stacked labels such as 13CH2 must
+    // therefore attach the bond to C while keeping 13 in the same visual row.
+    let leading_digits = group
+        .chars()
+        .take_while(|character| character.is_ascii_digit())
+        .count();
+    (leading_digits > 0)
+        .then_some(leading_digits)
+        .filter(|index| {
+            group
+                .chars()
+                .nth(*index)
+                .is_some_and(|character| character.is_ascii_alphabetic())
+        })
         .unwrap_or(0)
 }
 
@@ -529,6 +551,7 @@ pub fn layout_label_text(text: &str, decision: &LabelLayoutDecision) -> LabelLay
                 vec![groups[0].clone()]
             },
             if groups.len() > 1 { 1 } else { 0 },
+            leading_isotope_element_anchor_offset(&groups[0]),
         ),
         LabelFlow::StackBelow => stacked_layout(
             decision,
@@ -538,6 +561,7 @@ pub fn layout_label_text(text: &str, decision: &LabelLayoutDecision) -> LabelLay
                 vec![groups[0].clone()]
             },
             0,
+            leading_isotope_element_anchor_offset(&groups[0]),
         ),
     }
 }
@@ -546,9 +570,9 @@ fn stacked_layout(
     decision: &LabelLayoutDecision,
     lines: Vec<String>,
     anchor_line: usize,
+    anchor_char: usize,
 ) -> LabelLayout {
     let rendered_text = lines.join("\n");
-    let anchor_char = 0;
     LabelLayout {
         flow: decision.flow.clone(),
         anchor: decision.anchor.clone(),
@@ -589,6 +613,8 @@ mod tests {
         assert_eq!(split_label_groups("N(PhSO2)2"), vec!["N", "(PhSO2)2"]);
         assert_eq!(split_label_groups("C10H21"), vec!["C10H21"]);
         assert_eq!(split_label_groups("C10H21O3"), vec!["C10H21", "O3"]);
+        assert_eq!(split_label_groups("13CH2"), vec!["13C", "H2"]);
+        assert_eq!(split_label_groups("100C"), vec!["100C"]);
     }
 
     #[test]
@@ -712,6 +738,30 @@ mod tests {
         assert_eq!(layout.lines, vec!["Cu", "F3Ph2"]);
         assert_eq!(layout.anchor_line, 0);
         assert_eq!(layout.anchor_char, 0);
+    }
+
+    #[test]
+    fn stacked_isotope_formula_keeps_mass_with_element_and_anchors_element() {
+        let below = LabelLayoutDecision {
+            flow: LabelFlow::StackBelow,
+            anchor: LabelAnchorPolicy::FirstGroupLeadGlyph,
+        };
+        let below_layout = layout_label_text("13CH2", &below);
+        assert_eq!(below_layout.lines, vec!["13C", "H2"]);
+        assert_eq!(below_layout.anchor_line, 0);
+        assert_eq!(below_layout.anchor_char, 2);
+
+        let above = LabelLayoutDecision {
+            flow: LabelFlow::StackAbove,
+            anchor: LabelAnchorPolicy::FirstGroupLeadGlyph,
+        };
+        let above_layout = layout_label_text("13CH2", &above);
+        assert_eq!(above_layout.lines, vec!["H2", "13C"]);
+        assert_eq!(above_layout.anchor_line, 1);
+        assert_eq!(above_layout.anchor_char, 2);
+
+        let query_layout = layout_label_text("[C,N,P]", &above);
+        assert_eq!(query_layout.anchor_char, 0);
     }
 
     #[test]

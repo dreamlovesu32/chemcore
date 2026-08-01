@@ -789,6 +789,41 @@ mod label_layout_tests {
             1
         );
     }
+
+    #[test]
+    fn styled_isotope_mass_stays_with_its_element_group() {
+        let groups = split_styled_groups(
+            &[
+                LabelRun {
+                    text: "13".to_string(),
+                    script: Some("superscript".to_string()),
+                    ..LabelRun::default()
+                },
+                LabelRun {
+                    text: "CH".to_string(),
+                    script: Some("normal".to_string()),
+                    ..LabelRun::default()
+                },
+                LabelRun {
+                    text: "2".to_string(),
+                    script: Some("subscript".to_string()),
+                    ..LabelRun::default()
+                },
+            ],
+            false,
+        );
+
+        assert_eq!(
+            groups
+                .iter()
+                .map(|group| group.iter().map(|glyph| glyph.ch).collect::<String>())
+                .collect::<Vec<_>>(),
+            vec!["13C", "H2"]
+        );
+        assert_eq!(groups[0][0].run.script.as_deref(), Some("superscript"));
+        assert_eq!(groups[0][2].run.script.as_deref(), Some("normal"));
+        assert_eq!(groups[1][1].run.script.as_deref(), Some("subscript"));
+    }
 }
 
 #[derive(Clone)]
@@ -940,46 +975,17 @@ fn split_styled_glyph_groups(glyphs: &[StyledGlyph], whole_label: bool) -> Vec<V
         return vec![glyphs.to_vec()];
     }
     let compact_text = glyphs.iter().map(|glyph| glyph.ch).collect::<String>();
-    let mut groups = Vec::new();
-    let mut current = Vec::new();
     let mut glyph_index = 0usize;
-    let mut byte_index = 0usize;
-    while glyph_index < glyphs.len() && byte_index < compact_text.len() {
-        let rest = &compact_text[byte_index..];
-        if rest.starts_with('(') {
-            if let Some(prefix_len) = parenthesized_styled_group_len(rest) {
-                if !current.is_empty() {
-                    groups.push(std::mem::take(&mut current));
-                }
-                let char_count = rest[..prefix_len].chars().count();
-                groups.push(glyphs[glyph_index..glyph_index + char_count].to_vec());
-                glyph_index += char_count;
-                byte_index += prefix_len;
-                continue;
-            }
-        }
-        if let Some(prefix_len) = crate::label_group_prefix_len(rest) {
-            if !current.is_empty() {
-                groups.push(std::mem::take(&mut current));
-            }
-            let char_count = rest[..prefix_len].chars().count();
-            groups.push(glyphs[glyph_index..glyph_index + char_count].to_vec());
-            glyph_index += char_count;
-            byte_index += prefix_len;
-            continue;
-        }
-        let glyph = glyphs[glyph_index].clone();
-        if glyph.ch.is_ascii_uppercase() && !current.is_empty() {
-            groups.push(std::mem::take(&mut current));
-        }
-        byte_index += glyph.ch.len_utf8();
-        glyph_index += 1;
-        current.push(glyph);
-    }
-    if !current.is_empty() {
-        groups.push(current);
-    }
-    groups
+    crate::split_label_groups(&compact_text)
+        .into_iter()
+        .map(|group| {
+            let group_len = group.chars().count();
+            let end = glyph_index + group_len;
+            let styled_group = glyphs[glyph_index..end].to_vec();
+            glyph_index = end;
+            styled_group
+        })
+        .collect()
 }
 
 fn reverse_styled_group_for_display(group: Vec<StyledGlyph>) -> Vec<StyledGlyph> {
@@ -1008,17 +1014,6 @@ fn reverse_styled_glyph_sequence(glyphs: &[StyledGlyph]) -> Vec<StyledGlyph> {
         .collect()
 }
 
-fn parenthesized_styled_group_len(text: &str) -> Option<usize> {
-    let close = matching_close_paren(text)?;
-    let after_close = close + 1;
-    let suffix_len = text[after_close..]
-        .chars()
-        .take_while(|character| character.is_ascii_digit())
-        .map(char::len_utf8)
-        .sum::<usize>();
-    Some(after_close + suffix_len)
-}
-
 fn parenthesized_styled_group_close_index(glyphs: &[StyledGlyph]) -> Option<usize> {
     if glyphs.first().is_none_or(|glyph| glyph.ch != '(') {
         return None;
@@ -1026,23 +1021,6 @@ fn parenthesized_styled_group_close_index(glyphs: &[StyledGlyph]) -> Option<usiz
     let mut depth = 0usize;
     for (index, glyph) in glyphs.iter().enumerate() {
         match glyph.ch {
-            '(' => depth += 1,
-            ')' => {
-                depth = depth.checked_sub(1)?;
-                if depth == 0 {
-                    return Some(index);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
-fn matching_close_paren(text: &str) -> Option<usize> {
-    let mut depth = 0usize;
-    for (index, character) in text.char_indices() {
-        match character {
             '(' => depth += 1,
             ')' => {
                 depth = depth.checked_sub(1)?;
