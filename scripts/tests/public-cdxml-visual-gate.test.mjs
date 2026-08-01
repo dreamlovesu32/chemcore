@@ -14,6 +14,7 @@ import {
   passFloorGateDefinition,
   passFloorGateDefinitionErrors,
   protectedVisualCase,
+  protectedVisualCases,
   protectedVisualFloorOracleErrors,
   regressionBaselineCasesForGate,
   selectVisualGateCohort,
@@ -163,6 +164,10 @@ test("protected visual cases keep only authoritative all-case floor data", () =>
   }, new Map([["source/red.cdxml", "changed-oracle"]])), [
     "protected ChemDraw oracle changed for source/red.cdxml",
   ]);
+  assert.deepEqual(protectedVisualCases([
+    { relativeCdxml: "a-b.cdxml", status: "pass", artifactHashes: { reference: "b" } },
+    { relativeCdxml: "a_b.cdxml", status: "pass", artifactHashes: { reference: "a" } },
+  ]).map((entry) => entry.relativeCdxml), ["a_b.cdxml", "a-b.cdxml"]);
 });
 
 test("strict regression history comes from the committed floor, never a chosen cache report", () => {

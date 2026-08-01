@@ -347,7 +347,9 @@ export function strictOriginal338PassFloorErrors(
   if (protectedCases.length !== 338 || protectedCaseSet.size !== 338) {
     errors.push("pass floor must protect exactly 338 unique cases");
   }
-  if (JSON.stringify([...protectedCasePaths].sort()) !== JSON.stringify(protectedCasePaths)) {
+  const canonicalProtectedCasePaths = [...protectedCasePaths]
+    .sort((left, right) => left.localeCompare(right));
+  if (JSON.stringify(canonicalProtectedCasePaths) !== JSON.stringify(protectedCasePaths)) {
     errors.push("pass floor protectedCases must be sorted");
   }
   for (const entry of protectedCases) {
