@@ -559,7 +559,12 @@ pub(super) fn text_object(
     });
     let (text, runs, normalized_line_starts) =
         if node.attr("WordWrapWidth").is_some() || node.attr("LineStarts").is_some() {
-            apply_cdxml_line_starts(&text, runs, node.attr("LineStarts"))
+            apply_cdxml_line_starts(
+                &text,
+                runs,
+                node.attr("LineStarts"),
+                node.attr("WordWrapWidth").is_some(),
+            )
         } else {
             (text, runs, None)
         };

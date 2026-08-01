@@ -2066,9 +2066,10 @@ fn parse_cdxml_label_fields_keep_their_official_layout_roles() {
             .collect::<String>(),
         "Zr"
     );
-    assert_eq!(label("authored_offsets").text, "Cl2\nZr");
-    assert_eq!(label("authored_offsets").lines, ["Cl2", "Zr"]);
-    assert_eq!(label("authored_offsets").line_runs.len(), 2);
+    assert_eq!(label("authored_offsets").source_text.as_deref(), Some("Cl2Zr"));
+    assert_eq!(label("authored_offsets").text, "ZrCl2");
+    assert!(label("authored_offsets").lines.is_empty());
+    assert!(label("authored_offsets").line_runs.is_empty());
 }
 
 #[test]

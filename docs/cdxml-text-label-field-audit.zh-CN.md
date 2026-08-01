@@ -27,7 +27,7 @@
 | `LabelLineHeight` | Node / INT16 | 原子标签行高 | 原子标签首选行高；再回退对象/根级旧字段 |
 | `CaptionLineHeight` | Text / INT16 | 自由文本行高 | 自由文本首选行高；再回退对象/根级旧字段 |
 | `WordWrapWidth` | Text/Node / INT16 | 自动换行宽度 | 原样保留并纳入往返门禁 |
-| `LineStarts` | Text/Node / varies | 各行起始字符位置 | 保留作者行结构，不以自动布局重新分行 |
+| `LineStarts` | Text/Node / varies | 文本软换行边界或节点化学布局的派生边界 | 必须结合 `WordWrapWidth` 和对象角色解释，不能一律向源文字插入换行 |
 
 字段优先级按对象类型分开处理：Node 标签使用标签字段；Text 自由文本使用 caption 字段，旧 `Justification`/`LineHeight` 仅作为兼容后备。根级行高默认也按相同的“专用字段优先、旧字段后备”规则继承。
 
@@ -88,13 +88,14 @@
 - [WordWrapWidth](https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/WordWrapWidth.htm)
 - [LineStarts](https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm)
 
-## `LineStarts` 导入规则补充（2026-07-21）
+## `LineStarts` 导入规则补充（2026-08-01 复核）
 
-- `LineStarts` 是作者保存的各行起始位置，同时适用于自由文本 `Text` 和节点标签 `Node`；导入时必须把这些索引落实为实际行结构，不能只写入元数据。CDXML 的位置单位是 UTF-8 字节，不是 Unicode 字符数；`′`、`°`、`α` 等多字节字符必须按其编码长度推进偏移。
-- 索引按作者保存的 styled-text 原始字符流计算；其中 CR/LF 也占用字符位置。解析时可以把 CRLF 规范化为一个渲染换行，但后续 `LineStarts` 偏移仍必须按原始字符位置推进。
-- 列表最后一个值允许等于文本长度，它是行范围的结束哨兵，不产生空行，也不能在最后一个字符前插入换行。
-- 显式换行与 `LineStarts` 可以同时存在：若某个行首偏移紧邻已有换行，不重复插入；连续显式换行则必须保留，因为它表示作者保存的空白行。
-- 同一规则同时重建纯文本和样式 runs，保证换行前后的字体、字重、颜色、上下标不丢失；不得按文件名、案例编号或具体化学名称分支。
+- 官方 `INT16ListWithCounts` 的“计数前缀”只存在于二进制 CDX：CDX 先写一个 `UINT16` 数量，再写各位置；CDXML 属性只写位置列表本身。不能把 CDXML 的第一个数误当成数量。
+- `LineStarts` 的位置按作者保存的 styled-text 原始 UTF-8 字节流计算；`′`、`°`、`α` 等多字节字符必须按编码长度推进。CR/LF 也占用位置；渲染时可以把 CRLF 规范化为一个换行，但计算源偏移时仍按原始字节流推进。
+- 对带 `WordWrapWidth` 的普通文本，内部位置可表达没有写入 XML 字符串的软换行；此时导入器才把有效内部位置物化为行结构。跨多个 `<s>` run 时连续累计偏移，并在切分后继承该 run 的字体、字号、颜色、face 和上下标样式。列表最后一个值允许等于文本长度，作为结束哨兵，不产生空行。
+- 没有 `WordWrapWidth` 时，`LineStarts` 本身不命令 ChemDraw 把无换行字符串拆行。静默探针中普通文本 `ABC + LineStarts="2 3"` 保存后字段被删除且 SVG 仍为单行；源文字中的真实 CR/LF 仍须原样保留。
+- 节点化学标签的 `LineStarts` 是 ChemDraw 根据连接方向、`LabelAlignment`、隐式氢和电荷显示重新生成的布局边界，不是源公式的换行位置。同一个双键相连的 `NH+`，输入缺失该字段或写成 `2 4 6`，ChemDraw 22.2 均输出相同 SVG，并保存为 `LabelAlignment="Above" LineStarts="3 5"`。导入器必须保留源公式 `NH+`，再由化学标签布局生成 `H+` 在上、`N` 在锚点行的显示；不能先改写为 `NH\n+`。
+- 公开语料复核中，49 个带 `LabelAlignment` 的节点 `LineStarts` 标签全部没有真实换行，而 87 个非节点/普通文本样本中有 79 个带真实换行；其余没有真实换行的普通文本均带 `WordWrapWidth`。这个分群与静默探针一致，因而采用字段上下文规则，而不是按字符串、节点 ID 或文件名分支。
 
 ## 旧式字体家族/字形拆分规则（2026-07-21）
 

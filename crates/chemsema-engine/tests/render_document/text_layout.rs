@@ -450,6 +450,81 @@ fn parse_cdxml_applies_authored_line_starts_to_unbroken_caption_runs() {
 }
 
 #[test]
+fn parse_cdxml_does_not_materialize_line_starts_without_word_wrap_width() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML CaptionJustification="Left">
+  <page id="1">
+    <t id="2" p="50 20" BoundingBox="10 10 90 34" LineStarts="2 3">
+      <s font="3" size="10">ABC</s>
+    </t>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(source, Some("non-wrapped line starts")).expect("CDXML");
+    let text = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("text object");
+    assert_eq!(text.payload.extra.get("text"), Some(&json!("ABC")));
+    assert_eq!(
+        text.meta.pointer("/import/cdxml/lineStarts"),
+        Some(&json!("2 3"))
+    );
+}
+
+#[test]
+fn parse_cdxml_chemical_node_line_starts_remain_derived_layout_metadata() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.4" LabelFont="3" LabelSize="10">
+  <page id="1">
+    <fragment id="10">
+      <n id="11" p="72 72" Element="7" NumHydrogens="1" Charge="1">
+        <t id="20" p="72 72" InterpretChemically="yes"
+           LabelAlignment="Above" LineStarts="2 4 6">
+          <s font="3" size="10" face="96">NH+</s>
+        </t>
+      </n>
+      <n id="12" p="54 82"/><n id="13" p="90 82"/>
+      <b id="14" B="12" E="11"/><b id="15" B="11" E="13"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(source, Some("chemical label line starts")).expect("CDXML");
+    let label = document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .find(|node| node.id == "11")
+        .and_then(|node| node.label.as_ref())
+        .expect("N label");
+
+    assert_eq!(label.source_text.as_deref(), Some("NH+"));
+    assert_eq!(label.text, "H+\nN");
+    assert_eq!(label.lines, ["H+", "N"]);
+    assert_eq!(
+        label.meta.pointer("/import/cdxml/lineStarts"),
+        Some(&json!("2 4 6"))
+    );
+    assert_eq!(
+        label
+            .meta
+            .get("sourceRuns")
+            .and_then(|value| value.as_array())
+            .into_iter()
+            .flatten()
+            .filter_map(|run| run.get("text").and_then(|value| value.as_str()))
+            .collect::<String>(),
+        "NH+"
+    );
+
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("LineStarts=\"2 4 6\""), "{exported}");
+    assert!(exported.contains(">NH+</s>"), "{exported}");
+    assert!(!exported.contains("NH&#10;+"), "{exported}");
+}
+
+#[test]
 fn parse_cdxml_line_starts_count_existing_end_of_line_characters() {
     let source = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML CaptionJustification="Center">

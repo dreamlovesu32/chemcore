@@ -455,7 +455,12 @@ pub(super) fn node_label(
         .unwrap_or_else(|| "Arial".to_string());
     let (text, wrapped_source_runs, normalized_line_starts) =
         if text_el.attr("WordWrapWidth").is_some() || text_el.attr("LineStarts").is_some() {
-            apply_cdxml_line_starts(&text, source_runs, text_el.attr("LineStarts"))
+            apply_cdxml_line_starts(
+                &text,
+                source_runs,
+                text_el.attr("LineStarts"),
+                text_el.attr("WordWrapWidth").is_some(),
+            )
         } else {
             (text, source_runs, None)
         };
@@ -586,14 +591,19 @@ pub(super) fn apply_cdxml_line_starts(
     text: &str,
     runs: Vec<LabelRun>,
     line_starts: Option<&str>,
+    materialize_soft_wraps: bool,
 ) -> (String, Vec<LabelRun>, Option<String>) {
     if line_starts.is_none() {
         return (text.to_string(), runs, None);
     }
     // CDXML stores zero-based offsets into the authored styled-text stream.
-    // End-of-line characters are part of that stream and therefore advance
-    // subsequent offsets even though they normalize to a single rendered LF.
-    // The final offset may be the end-of-text sentinel.
+    // For wrapped captions, WordWrapWidth makes interior offsets authoritative
+    // soft line boundaries even when the XML text contains no EOL character.
+    // Without WordWrapWidth, ChemDraw does not create lines from an otherwise
+    // unbroken Text object. Atom-label LineStarts are likewise derived chemical
+    // layout records (H above/below an element, charge placement, and so on),
+    // not instructions to insert LF characters into the authored formula.
+    // Existing CR/LF characters remain structural in every context.
     let raw_len = runs
         .iter()
         .map(|run| run.text.len())
@@ -610,7 +620,11 @@ pub(super) fn apply_cdxml_line_starts(
         .flat_map(str::split_whitespace)
         .filter_map(|value| value.parse::<usize>().ok())
         .any(|offset| offset >= raw_len);
-    let starts = raw_starts.iter().copied().collect::<BTreeSet<_>>();
+    let starts = if materialize_soft_wraps {
+        raw_starts.iter().copied().collect::<BTreeSet<_>>()
+    } else {
+        BTreeSet::new()
+    };
     let source_runs = if runs.is_empty() {
         vec![LabelRun {
             text: text.to_string(),
@@ -652,6 +666,14 @@ pub(super) fn apply_cdxml_line_starts(
         .iter()
         .map(|run| run.text.as_str())
         .collect::<String>();
+    if !materialize_soft_wraps {
+        let preserved_line_starts = line_starts
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToString::to_string);
+        return (text, wrapped_runs, preserved_line_starts);
+    }
+
     // Once authored wrap positions have been materialized as LF characters,
     // their offsets must describe that materialized stream. Re-exporting the
     // original offsets alongside the inserted LFs shifts every later break and
