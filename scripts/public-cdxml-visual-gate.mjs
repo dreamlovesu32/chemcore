@@ -79,7 +79,7 @@ const DEFAULTS = Object.freeze({
 });
 
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
-export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v18";
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v19";
 export const STRICT_PASS_FLOOR_SCHEMA =
   "chemsema.public-cdxml-strict-pass-floor.v1";
 export const STRICT_PASS_FLOOR_PATH = path.resolve(
@@ -647,12 +647,12 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
         && values.every(Number.isFinite)
         && values[2] > 0
         && values[3] > 0
-        ? { width: values[2], height: values[3] }
+        ? { x: values[0], y: values[1], width: values[2], height: values[3] }
         : null;
     }
 
-    async function prepareImage(src, viewportScale) {
-      if (!(Number.isFinite(viewportScale) && viewportScale > 0)) {
+    async function prepareImage(src, imageScale, dx, dy) {
+      if (!(Number.isFinite(imageScale) && imageScale > 0)) {
         throw new Error("visual gate alignment scale must be positive");
       }
       if (!src.startsWith("data:image/svg+xml")) {
@@ -661,6 +661,7 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
           image,
           width: image.naturalWidth,
           height: image.naturalHeight,
+          pixelAligned: false,
         };
       }
       const source = await (await fetch(src)).text();
@@ -675,8 +676,27 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
       if (!(width > 0 && height > 0)) {
         throw new Error("visual gate SVG input has no positive viewport");
       }
-      svg.setAttribute("width", `${width * viewportScale}px`);
-      svg.setAttribute("height", `${height * viewportScale}px`);
+      const sourceViewBox = viewBox ?? { x: 0, y: 0, width, height };
+      const pixelScale = settings.analysisScale;
+      const phase = (value) => {
+        const fractional = value - Math.floor(value);
+        return fractional < 0 ? fractional + 1 : fractional;
+      };
+      const phaseX = phase(dx * pixelScale);
+      const phaseY = phase(dy * pixelScale);
+      const pixelsPerSourceX = width * imageScale * pixelScale / sourceViewBox.width;
+      const pixelsPerSourceY = height * imageScale * pixelScale / sourceViewBox.height;
+      const rasterWidth = Math.max(1, Math.ceil(phaseX + width * imageScale * pixelScale));
+      const rasterHeight = Math.max(1, Math.ceil(phaseY + height * imageScale * pixelScale));
+      svg.setAttribute("width", `${rasterWidth}px`);
+      svg.setAttribute("height", `${rasterHeight}px`);
+      svg.setAttribute("preserveAspectRatio", "none");
+      svg.setAttribute("viewBox", [
+        sourceViewBox.x - phaseX / pixelsPerSourceX,
+        sourceViewBox.y - phaseY / pixelsPerSourceY,
+        rasterWidth / pixelsPerSourceX,
+        rasterHeight / pixelsPerSourceY,
+      ].join(" "));
       const normalizedSource = `data:image/svg+xml;charset=utf-8,${
         encodeURIComponent(new XMLSerializer().serializeToString(svg))
       }`;
@@ -684,6 +704,9 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
         image: await loadImage(normalizedSource),
         width,
         height,
+        pixelAligned: true,
+        originPixelX: Math.floor(dx * pixelScale),
+        originPixelY: Math.floor(dy * pixelScale),
       };
     }
 
@@ -800,38 +823,44 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
       return result;
     }
 
-    function renderTile(referenceImage, candidateImage, tile) {
+    function renderTile(referenceFrame, candidateFrame, tile) {
       const pixelScale = settings.analysisScale;
       const width = Math.max(1, Math.ceil(tile.width * pixelScale));
       const height = Math.max(1, Math.ceil(tile.height * pixelScale));
-      function render(image, imageScale, dx, dy) {
+      function render(frame, imageScale, dx, dy) {
         const canvas = document.createElement("canvas");
         canvas.width = width;
         canvas.height = height;
         const context = canvas.getContext("2d", { willReadFrequently: true });
         context.fillStyle = "#ffffff";
         context.fillRect(0, 0, width, height);
-        context.drawImage(
-          image,
-          (dx - tile.x) * pixelScale,
-          (dy - tile.y) * pixelScale,
-          (image === referenceImage ? referenceWidth : candidateWidth) * imageScale * pixelScale,
-          (image === referenceImage ? referenceHeight : candidateHeight) * imageScale * pixelScale,
-        );
+        if (frame.pixelAligned) {
+          context.drawImage(
+            frame.image,
+            frame.originPixelX - tile.x * pixelScale,
+            frame.originPixelY - tile.y * pixelScale,
+          );
+        } else {
+          context.drawImage(
+            frame.image,
+            (dx - tile.x) * pixelScale,
+            (dy - tile.y) * pixelScale,
+            frame.width * imageScale * pixelScale,
+            frame.height * imageScale * pixelScale,
+          );
+        }
         return canvas;
       }
       return {
-        reference: render(referenceImage, 1, 0, 0),
-        candidate: render(candidateImage, alignment.scale, alignment.dx, alignment.dy),
+        reference: render(referenceFrame, 1, 0, 0),
+        candidate: render(candidateFrame, alignment.scale, alignment.dx, alignment.dy),
       };
     }
 
     const [referenceFrame, candidateFrame] = await Promise.all([
-      prepareImage(referenceDataUrl, 1),
-      prepareImage(candidateDataUrl, alignment.scale),
+      prepareImage(referenceDataUrl, 1, 0, 0),
+      prepareImage(candidateDataUrl, alignment.scale, alignment.dx, alignment.dy),
     ]);
-    const referenceImage = referenceFrame.image;
-    const candidateImage = candidateFrame.image;
     const referenceWidth = referenceFrame.width;
     const referenceHeight = referenceFrame.height;
     const candidateWidth = candidateFrame.width;
@@ -906,13 +935,21 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
       }
     }
 
-    for (let coreY = domain.top; coreY < domain.bottom; coreY += settings.tileSize) {
-      for (let coreX = domain.left; coreX < domain.right; coreX += settings.tileSize) {
+    // Tile and local-window lattices are anchored in ChemDraw reference
+    // coordinates, not at the union viewport edge. An SVG viewBox is merely a
+    // crop; moving that crop must not move every sampling window or split the
+    // same connected stroke at different tile boundaries.
+    const gridLeft = Math.floor(domain.left / settings.tileSize) * settings.tileSize;
+    const gridTop = Math.floor(domain.top / settings.tileSize) * settings.tileSize;
+    const gridRight = Math.ceil(domain.right / settings.tileSize) * settings.tileSize;
+    const gridBottom = Math.ceil(domain.bottom / settings.tileSize) * settings.tileSize;
+    for (let coreY = gridTop; coreY < gridBottom; coreY += settings.tileSize) {
+      for (let coreX = gridLeft; coreX < gridRight; coreX += settings.tileSize) {
         const core = {
           x: coreX,
           y: coreY,
-          width: Math.min(settings.tileSize, domain.right - coreX),
-          height: Math.min(settings.tileSize, domain.bottom - coreY),
+          width: settings.tileSize,
+          height: settings.tileSize,
         };
         const tile = {
           x: core.x - settings.halo,
@@ -920,7 +957,7 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
           width: core.width + settings.halo * 2,
           height: core.height + settings.halo * 2,
         };
-        const rendered = renderTile(referenceImage, candidateImage, tile);
+        const rendered = renderTile(referenceFrame, candidateFrame, tile);
         const reference = maskFromCanvas(rendered.reference);
         const candidate = maskFromCanvas(rendered.candidate);
         const candidateDilated = dilate(candidate.mask, rendered.reference.width, rendered.reference.height, radius);
@@ -951,23 +988,21 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
         totals.tileCount += 1;
         if (tileHasInk) totals.inkTileCount += 1;
         const firstWindowColumn = Math.ceil(
-          (core.x - domain.left - settings.localStride / 2) / settings.localStride,
+          (core.x - settings.localStride / 2) / settings.localStride,
         );
         const lastWindowColumn = Math.floor(
-          (core.x + core.width - domain.left - settings.localStride / 2 - 1e-9)
-            / settings.localStride,
+          (core.x + core.width - settings.localStride / 2 - 1e-9) / settings.localStride,
         );
         const firstWindowRow = Math.ceil(
-          (core.y - domain.top - settings.localStride / 2) / settings.localStride,
+          (core.y - settings.localStride / 2) / settings.localStride,
         );
         const lastWindowRow = Math.floor(
-          (core.y + core.height - domain.top - settings.localStride / 2 - 1e-9)
-            / settings.localStride,
+          (core.y + core.height - settings.localStride / 2 - 1e-9) / settings.localStride,
         );
         for (let windowRow = firstWindowRow; windowRow <= lastWindowRow; windowRow += 1) {
           for (let windowColumn = firstWindowColumn; windowColumn <= lastWindowColumn; windowColumn += 1) {
-            const centerX = domain.left + settings.localStride / 2 + windowColumn * settings.localStride;
-            const centerY = domain.top + settings.localStride / 2 + windowRow * settings.localStride;
+            const centerX = settings.localStride / 2 + windowColumn * settings.localStride;
+            const centerY = settings.localStride / 2 + windowRow * settings.localStride;
             const windowBox = {
               x: centerX - settings.localWindow / 2,
               y: centerY - settings.localWindow / 2,
@@ -1800,6 +1835,34 @@ async function runSelfTest(options) {
         `deterministic vector-frame alignment regression: ${JSON.stringify(vectorAlignment)}`,
       );
     }
+    const croppedVectorCandidate = vectorCandidate
+      .replace('height="32.75"', 'height="30.75"')
+      .replace('viewBox="-3 5 48.25 32.75"', 'viewBox="-3 7 48.25 30.75"');
+    const croppedVectorAlignment = await computeImageAlignment(
+      page,
+      data(vectorReference),
+      data(croppedVectorCandidate),
+    );
+    const vectorWorldTranslation = (alignment, viewBoxY, height, viewBoxHeight) => ({
+      x: alignment.dx - alignment.scale * -3,
+      y: alignment.dy - alignment.scale * viewBoxY * height / viewBoxHeight,
+    });
+    const originalWorld = vectorWorldTranslation(vectorAlignment, 5, 32.75, 32.75);
+    const croppedWorld = vectorWorldTranslation(croppedVectorAlignment, 7, 30.75, 30.75);
+    if (
+      Math.abs(vectorAlignment.scale - croppedVectorAlignment.scale) > 1e-9
+      || Math.abs(originalWorld.x - croppedWorld.x) > 1e-9
+      || Math.abs(originalWorld.y - croppedWorld.y) > 1e-9
+    ) {
+      throw new Error(
+        `SVG crop changed document-world registration: ${JSON.stringify({
+          vectorAlignment,
+          croppedVectorAlignment,
+          originalWorld,
+          croppedWorld,
+        })}`,
+      );
+    }
     const viewportReference = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80">
       <rect width="120" height="80" fill="white"/>
       <text x="12" y="36" font-family="Arial" font-size="18">NH<tspan baseline-shift="sub" font-size="12">3</tspan><tspan baseline-shift="super" font-size="12">+</tspan></text>
@@ -1891,6 +1954,35 @@ async function runSelfTest(options) {
         throw new Error(
           `fractional SVG viewport normalization regression at ${analysisScale}x: ${
             JSON.stringify(fractionalEquivalent)
+          }`,
+        );
+      }
+    }
+    const cropBody = `
+      <text x="18.25" y="28.5" font-family="Arial" font-size="13.5">NH<tspan baseline-shift="sub" font-size="9">3</tspan></text>
+      <path d="M 12.5 42.25 L 106.75 42.25 M 60.5 18.25 L 60.5 68.75" fill="none" stroke="black" stroke-width="1.25"/>`;
+    const cropBefore = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80">${cropBody}</svg>`;
+    const cropAfter = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="76" viewBox="0 4 120 76">${cropBody}</svg>`;
+    for (const analysisScale of [2, 4]) {
+      const cropEquivalent = await analyzeAlignedImages(
+        page,
+        data(cropBefore),
+        data(cropAfter),
+        { scale: 1, dx: 0, dy: 4 },
+        { ...options, analysisScale, tolerance: 0 },
+      );
+      if (
+        cropEquivalent.referenceCoverage !== 1
+        || cropEquivalent.candidateCoverage !== 1
+        || cropEquivalent.local.referenceCoverage !== 1
+        || cropEquivalent.local.candidateCoverage !== 1
+        || cropEquivalent.largestMissing.area !== 0
+        || cropEquivalent.largestExtra.area !== 0
+        || cropEquivalent.detailFeatures.componentCountDelta !== 0
+      ) {
+        throw new Error(
+          `SVG crop moved fixed gate lattices at ${analysisScale}x: ${
+            JSON.stringify(cropEquivalent)
           }`,
         );
       }

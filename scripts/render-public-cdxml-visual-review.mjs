@@ -13,7 +13,7 @@ import {
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-export const IMAGE_ALIGNMENT_ALGORITHM = "chemdraw-declared-scale-global-translation-v10";
+export const IMAGE_ALIGNMENT_ALGORITHM = "chemdraw-declared-scale-global-translation-v11";
 
 export function publicCdxmlCliEnvironment(baseEnvironment = process.env) {
   return {
@@ -199,6 +199,13 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       const y = frame.height / frame.viewBox.height;
       const tolerance = Math.max(1e-9, Math.max(Math.abs(x), Math.abs(y)) * 1e-6);
       return Math.abs(x - y) <= tolerance && x > 0 ? (x + y) / 2 : null;
+    }
+
+    function viewportWorldOffset(frame) {
+      return {
+        x: -frame.viewBox.x * frame.width / frame.viewBox.width,
+        y: -frame.viewBox.y * frame.height / frame.viewBox.height,
+      };
     }
 
     function contentFrameAlignment(
@@ -393,15 +400,28 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       const analysisScale = maxDimension / Math.max(referenceFrame.width, referenceFrame.height, 1);
       const padding = shiftRadius + 10;
       const reference = maskForReference(referenceImage, referenceFrame, analysisScale, padding);
+      const candidateWorldOffset = viewportWorldOffset(chemsemaFrame);
       let best = null;
       for (let scaleIndex = -scaleRadius; scaleIndex <= scaleRadius; scaleIndex += 1) {
         const scale = centerScale * (1 + scaleIndex * scaleStep);
-        const baseDx = centerAlignment
+        const initialDx = centerAlignment
           ? centerAlignment.dx + chemsemaGeometry.centroid.x * (centerAlignment.scale - scale)
           : referenceGeometry.centroid.x - chemsemaGeometry.centroid.x * scale;
-        const baseDy = centerAlignment
+        const initialDy = centerAlignment
           ? centerAlignment.dy + chemsemaGeometry.centroid.y * (centerAlignment.scale - scale)
           : referenceGeometry.centroid.y - chemsemaGeometry.centroid.y * scale;
+        // Search on a fixed document-world lattice. The SVG viewport origin is
+        // only a crop around the same ChemDraw document coordinates; changing
+        // that crop must adjust display-space dx/dy without changing the
+        // underlying registration. Snapping display-space translation instead
+        // makes an otherwise identical candidate land on a different raster
+        // phase whenever its exported viewBox changes.
+        const worldDx = initialDx + scale * candidateWorldOffset.x;
+        const worldDy = initialDy + scale * candidateWorldOffset.y;
+        const snappedWorldDx = Math.round(worldDx * analysisScale) / analysisScale;
+        const snappedWorldDy = Math.round(worldDy * analysisScale) / analysisScale;
+        const baseDx = snappedWorldDx - scale * candidateWorldOffset.x;
+        const baseDy = snappedWorldDy - scale * candidateWorldOffset.y;
         const points = candidateInkPoints(
           chemsemaImage,
           chemsemaFrame,
@@ -484,7 +504,7 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       );
       const score = bestTranslation(reference, points, 0);
       return {
-        algorithm: "chemdraw-declared-scale-global-translation-v10",
+        algorithm: "chemdraw-declared-scale-global-translation-v11",
         basis: "declared-scale-global-translation",
         scale: declared.scale,
         dx: declared.dx,
@@ -519,7 +539,7 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       ? await search(1440, stabilized.scale, 0.00015625, 3, 5, stabilized)
       : stabilized;
     return {
-      algorithm: "chemdraw-declared-scale-global-translation-v10",
+      algorithm: "chemdraw-declared-scale-global-translation-v11",
       basis: "ink-overlap",
       scale: precise.scale,
       dx: precise.dx,

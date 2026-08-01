@@ -43,9 +43,13 @@ space. The ChemDraw SVG path matrix declares the conversion from
 twentieth-of-a-point coordinates to reference pixels, so that uniform scale is
 fixed. Because an absolute page origin is not portable document semantics, the
 outer ink-bounds centers seed a translation-only overlap search; the gate
-cannot fit scale, rotation, or non-uniform distortion. Once a baseline exists,
-later candidates with the same ChemDraw oracle reuse its translation, so a
-local drawing change cannot register the whole page again.
+cannot fit scale, rotation, or non-uniform distortion. Translation is searched
+on a fixed document-world lattice: the candidate SVG `viewBox` is only an
+export crop, so changing its origin or extent adjusts display-space placement
+without changing document-world registration. Tile and local-window lattices
+are likewise anchored in ChemDraw reference coordinates rather than at a
+viewport edge. Every current candidate is registered from its own pixels;
+historical alignment never overrides current-image evidence.
 The gate also uses the SVG's
 possibly fractional declared `width` and `height`, rather than the browser's
 independently rounded intrinsic dimensions, so the candidate is not silently
