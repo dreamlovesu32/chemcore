@@ -9,11 +9,11 @@
     "name": "original-338",
     "expected": 338
   },
-  "minimumPassed": 244,
+  "minimumPassed": 246,
   "source": {
-    "commit": "905b48512b973fbe1239fdf9b7dc436f6ec3ca5b",
-    "repositoryIdentity": "5d1e1670307b625e5d4a228132b33d3077c1336f44345835478c1fa1e44f9566",
-    "gateReportGeneratedAt": "2026-08-01T19:35:48.345Z"
+    "commit": "82565614cd26361ef7ed95075af7f54e76f240af",
+    "repositoryIdentity": "9be0a9a423f4443a4046a1090daf1ffb945d35c99a52636fe818d8aa22a893d5",
+    "gateReportGeneratedAt": "2026-08-01T20:55:31.760Z"
   },
   "migration": {
     "previousSchema": "chemsema.public-cdxml-strict-pass-floor.v2",
@@ -142,6 +142,8 @@
     "rdkit/Code/GraphMol/test_data/CDX/structure_6.cdx",
     "rdkit/Code/GraphMol/test_data/CDXML/atrop1.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/bad-cdxml.cdxml",
+    "rdkit/Code/GraphMol/test_data/CDXML/bad-coords.cdxml",
+    "rdkit/Code/GraphMol/test_data/CDXML/bad-id.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/beta-cypermethrin-or-abs.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/beta-cypermethrin-or-as.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/beta-cypermethrin.cdxml",
@@ -2200,28 +2202,28 @@
         "missing-detail-area",
         "missing-detail-span"
       ],
-      "referenceCoverage": 0.9354123603247356,
-      "candidateCoverage": 0.9297289246350908,
+      "referenceCoverage": 0.9777642970552111,
+      "candidateCoverage": 0.9752474138252978,
       "local": {
         "referenceCoverage": 0,
         "candidateCoverage": 0
       },
       "largestMissing": {
-        "area": 236,
-        "span": 78.28952675805365
+        "area": 161.5,
+        "span": 53.42518132865812
       },
       "largestExtra": {
-        "area": 253.5,
-        "span": 81.89169677079599
+        "area": 162.5,
+        "span": 53.85164807134504
       },
       "detailFeatures": {
-        "compactDefectCount": 88,
-        "componentMatchCoverage": 0.8686868686868687,
-        "relativeComponentMatchCoverage": 0.9772727272727273,
+        "compactDefectCount": 48,
+        "componentMatchCoverage": 0.9211195928753181,
+        "relativeComponentMatchCoverage": 0.9821882951653944,
         "componentPositionDistributionDelta": 1,
-        "independentComponentCountDelta": 2,
-        "unmatchedReferenceComponentCount": 44,
-        "unmatchedCandidateComponentCount": 52,
+        "independentComponentCountDelta": 0,
+        "unmatchedReferenceComponentCount": 26,
+        "unmatchedCandidateComponentCount": 31,
         "smallComponentDimensionDelta": 0.5,
         "enclosedSmallComponentDimensionDelta": 0,
         "maximumMatchedCenterDistance": 1.9039432764659772,
@@ -3279,28 +3281,28 @@
         "missing-detail-area",
         "missing-detail-span"
       ],
-      "referenceCoverage": 0.807906515779098,
-      "candidateCoverage": 0.7879220080563684,
+      "referenceCoverage": 0.8155658014510629,
+      "candidateCoverage": 0.7955945251791102,
       "local": {
         "referenceCoverage": 0,
         "candidateCoverage": 0
       },
       "largestMissing": {
-        "area": 551.5,
-        "span": 167.485073961831
+        "area": 274.75,
+        "span": 129.75457602720607
       },
       "largestExtra": {
-        "area": 553,
-        "span": 162.25365943484908
+        "area": 545.25,
+        "span": 133.09395177843356
       },
       "detailFeatures": {
-        "compactDefectCount": 2263,
-        "componentMatchCoverage": 0.4085138162808066,
+        "compactDefectCount": 2264,
+        "componentMatchCoverage": 0.41150112023898433,
         "relativeComponentMatchCoverage": 0.9133681852128454,
         "componentPositionDistributionDelta": 1,
         "independentComponentCountDelta": 154,
-        "unmatchedReferenceComponentCount": 684,
-        "unmatchedCandidateComponentCount": 792,
+        "unmatchedReferenceComponentCount": 680,
+        "unmatchedCandidateComponentCount": 788,
         "smallComponentDimensionDelta": 0.5,
         "enclosedSmallComponentDimensionDelta": 0.5,
         "maximumMatchedCenterDistance": 1.952562418976664,
@@ -3877,84 +3879,16 @@
     },
     {
       "relativeCdxml": "rdkit/Code/GraphMol/test_data/CDXML/bad-coords.cdxml",
-      "status": "fail",
+      "status": "pass",
       "artifactHashes": {
         "reference": "4571c0aa978a2854e834a38d4325aa3764ce9684c15978aa433242081bca5dec"
-      },
-      "reasons": [
-        "extra-detail-area",
-        "local-candidate-coverage",
-        "local-reference-coverage",
-        "missing-detail-area",
-        "missing-detail-span"
-      ],
-      "referenceCoverage": 0.039276040384141786,
-      "candidateCoverage": 0.18869590815425374,
-      "local": {
-        "referenceCoverage": 0,
-        "candidateCoverage": 0
-      },
-      "largestMissing": {
-        "area": 51.75,
-        "span": 17.007351351694947
-      },
-      "largestExtra": {
-        "area": 37.25,
-        "span": 11.510864433221338
-      },
-      "detailFeatures": {
-        "compactDefectCount": 190,
-        "componentMatchCoverage": 0.023809523809523808,
-        "relativeComponentMatchCoverage": 0.047619047619047616,
-        "componentPositionDistributionDelta": 1,
-        "independentComponentCountDelta": 134,
-        "unmatchedReferenceComponentCount": 164,
-        "unmatchedCandidateComponentCount": 30,
-        "smallComponentDimensionDelta": 0.5,
-        "enclosedSmallComponentDimensionDelta": 0,
-        "maximumMatchedCenterDistance": 1.9039432764659772,
-        "maximumMatchedDimensionDelta": 0.5
       }
     },
     {
       "relativeCdxml": "rdkit/Code/GraphMol/test_data/CDXML/bad-id.cdxml",
-      "status": "fail",
+      "status": "pass",
       "artifactHashes": {
         "reference": "9f6faf6856500c8fd6e738bf16e2abd9a4b1590ac51e763f521350e3f5feeed8"
-      },
-      "reasons": [
-        "extra-detail-area",
-        "local-candidate-coverage",
-        "local-reference-coverage",
-        "missing-detail-area",
-        "missing-detail-span"
-      ],
-      "referenceCoverage": 0.5351987563846325,
-      "candidateCoverage": 0.5340959084909811,
-      "local": {
-        "referenceCoverage": 0,
-        "candidateCoverage": 0
-      },
-      "largestMissing": {
-        "area": 45.75,
-        "span": 15.264337522473749
-      },
-      "largestExtra": {
-        "area": 26,
-        "span": 10.307764064044152
-      },
-      "detailFeatures": {
-        "compactDefectCount": 80,
-        "componentMatchCoverage": 0.1111111111111111,
-        "relativeComponentMatchCoverage": 0.4888888888888889,
-        "componentPositionDistributionDelta": 1,
-        "independentComponentCountDelta": 3,
-        "unmatchedReferenceComponentCount": 35,
-        "unmatchedCandidateComponentCount": 40,
-        "smallComponentDimensionDelta": 0,
-        "enclosedSmallComponentDimensionDelta": 0,
-        "maximumMatchedCenterDistance": 1.6770509831248424,
-        "maximumMatchedDimensionDelta": 5
       }
     },
     {
