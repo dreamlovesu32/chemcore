@@ -196,7 +196,8 @@ soon as the committed floor already matches the current definition.
 npm run benchmark:cdxml-public:visual-gate:migrate-floor -- \
   --previous-report tmp/frozen-candidate-gate-report.json \
   --current-report tmp/current-candidate-gate-report.json \
-  --reviewed-retirements benchmarks/public-cdxml/gate-definition-retirements-v22.json
+  --reviewed-retirements benchmarks/public-cdxml/gate-definition-retirements-v22.json \
+  --reviewed-renderer-migration benchmarks/public-cdxml/renderer-migrations/hash-bond-v2.json
 ```
 
 The migration binds the frozen report to the old floor's exact repository
@@ -204,6 +205,16 @@ identity and records both report hashes, same-gate changes, and the retirement
 manifest hash. Unlisted old passes and any further floor shrink remain blocked.
 The manifest audits a gate-definition correction; it is never consulted by the
 renderer or by ordinary pass classification.
+
+A verified renderer-rule correction can move residual mismatch pixels inside
+documents that remain red. The ordinary gate must still report that movement.
+Accepting it into a new floor requires a separate committed renderer-migration
+review that binds the exact previous/current repository identities, the common
+rule and probe evidence, and both candidate hashes for every affected red case.
+Its sorted case set must exactly equal the continuous regressions: it cannot
+hide an unrelated seventh regression, change a pass to a failure, or weaken
+future comparisons. Renderer-migration reviews are migration audit records,
+not runtime path exceptions.
 
 Gate v22 runs both raster resolutions for every comparable case, including
 images that already fail badly at coarse resolution. It assigns every analyzed

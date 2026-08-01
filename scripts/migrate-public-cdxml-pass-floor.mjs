@@ -23,6 +23,9 @@ function parseArgs(argv) {
     if (arg === "--previous-report") options.previousReport = argv[++index];
     else if (arg === "--current-report") options.currentReport = argv[++index];
     else if (arg === "--reviewed-retirements") options.reviewedRetirements = argv[++index];
+    else if (arg === "--reviewed-renderer-migration") {
+      options.reviewedRendererMigration = argv[++index];
+    }
     else throw new Error(`Unknown argument: ${arg}`);
   }
   if (!options.previousReport || !options.currentReport) {
@@ -30,7 +33,8 @@ function parseArgs(argv) {
       "Usage: node scripts/migrate-public-cdxml-pass-floor.mjs "
       + "--previous-report <same-gate-frozen-candidate-report.json> "
       + "--current-report <same-gate-current-candidate-report.json> "
-      + "[--reviewed-retirements gate-definition-retirements.json]",
+      + "[--reviewed-retirements gate-definition-retirements.json] "
+      + "[--reviewed-renderer-migration renderer-migration.json]",
     );
   }
   return {
@@ -39,6 +43,9 @@ function parseArgs(argv) {
     reviewedRetirements: options.reviewedRetirements
       ? path.resolve(options.reviewedRetirements)
       : null,
+    reviewedRendererMigration: options.reviewedRendererMigration
+      ? path.resolve(options.reviewedRendererMigration)
+      : null,
   };
 }
 
@@ -46,10 +53,10 @@ function sha256(source) {
   return crypto.createHash("sha256").update(source).digest("hex");
 }
 
-async function requireCommittedRepositoryFile(filePath) {
+async function requireCommittedRepositoryFile(filePath, label) {
   const relativePath = path.relative(process.cwd(), filePath).replaceAll("\\", "/");
   if (!relativePath || relativePath === ".." || relativePath.startsWith("../")) {
-    throw new Error("reviewed retirements must be stored inside the repository");
+    throw new Error(`${label} must be stored inside the repository`);
   }
   try {
     await execFileAsync("git", ["ls-files", "--error-unmatch", "--", relativePath], {
@@ -61,8 +68,76 @@ async function requireCommittedRepositoryFile(filePath) {
       windowsHide: true,
     });
   } catch {
-    throw new Error("reviewed retirements must exactly match a committed repository file");
+    throw new Error(`${label} must exactly match a committed repository file`);
   }
+}
+
+function reviewedRendererMigrationErrors(
+  reviewedMigration,
+  previousReport,
+  currentReport,
+  continuousRegressions,
+) {
+  if (!reviewedMigration) {
+    return continuousRegressions.length
+      ? [`current candidate has ${continuousRegressions.length} continuous metric regressions`]
+      : [];
+  }
+  const errors = [];
+  const previousRepository = previousReport.galleryProvenance?.repository;
+  const currentRepository = currentReport.galleryProvenance?.repository;
+  const cases = reviewedMigration.cases ?? [];
+  const paths = cases.map((entry) => entry.relativeCdxml);
+  const canonicalPaths = [...new Set(paths)].sort();
+  if (
+    reviewedMigration.schema
+      !== "chemsema.public-cdxml-reviewed-renderer-migration.v1"
+    || typeof reviewedMigration.rule !== "string"
+    || reviewedMigration.rule.length === 0
+    || typeof reviewedMigration.evidence?.rendererCommit !== "string"
+    || typeof reviewedMigration.evidence?.probe !== "string"
+    || typeof reviewedMigration.evidence?.rules !== "string"
+    || reviewedMigration.fromRepository?.head !== previousRepository?.head
+    || reviewedMigration.fromRepository?.identity !== previousRepository?.identity
+    || reviewedMigration.toRepository?.head !== currentRepository?.head
+    || reviewedMigration.toRepository?.identity !== currentRepository?.identity
+    || canonicalPaths.length !== paths.length
+    || JSON.stringify(canonicalPaths) !== JSON.stringify(paths)
+  ) {
+    errors.push("reviewed renderer migration header or case order is invalid");
+    return errors;
+  }
+  const previousCases = new Map(previousReport.cases.map((entry) => [
+    entry.relativeCdxml.replaceAll("\\", "/"),
+    entry,
+  ]));
+  const currentCases = new Map(currentReport.cases.map((entry) => [
+    entry.relativeCdxml.replaceAll("\\", "/"),
+    entry,
+  ]));
+  for (const entry of cases) {
+    const previous = previousCases.get(entry.relativeCdxml);
+    const current = currentCases.get(entry.relativeCdxml);
+    if (
+      previous?.status !== "fail"
+      || current?.status !== "fail"
+      || !/^[0-9a-f]{64}$/.test(entry.previousCandidateSha256 ?? "")
+      || !/^[0-9a-f]{64}$/.test(entry.currentCandidateSha256 ?? "")
+      || entry.previousCandidateSha256 === entry.currentCandidateSha256
+      || entry.previousCandidateSha256 !== previous?.artifactHashes?.candidate
+      || entry.currentCandidateSha256 !== current?.artifactHashes?.candidate
+    ) {
+      errors.push(`reviewed renderer migration case is invalid: ${entry.relativeCdxml}`);
+      break;
+    }
+  }
+  const regressionPaths = continuousRegressions
+    .map((entry) => entry.relativeCdxml.replaceAll("\\", "/"))
+    .sort();
+  if (JSON.stringify(paths) !== JSON.stringify(regressionPaths)) {
+    errors.push("reviewed renderer migration does not exactly cover continuous regressions");
+  }
+  return errors;
 }
 
 function exactCohortErrors(report, label) {
@@ -109,6 +184,7 @@ export function passFloorMigrationErrors(
   currentReport,
   oldFloor = null,
   reviewedRetirements = null,
+  reviewedRendererMigration = null,
 ) {
   const errors = [];
   const expectedDefinition = passFloorGateDefinition();
@@ -222,35 +298,55 @@ export function passFloorMigrationErrors(
     currentReport.cases,
     previousCases,
   );
-  if (continuousRegressions.length) {
-    errors.push(
-      `current candidate has ${continuousRegressions.length} continuous metric regressions`,
-    );
-  }
+  errors.push(...reviewedRendererMigrationErrors(
+    reviewedRendererMigration,
+    previousReport,
+    currentReport,
+    continuousRegressions,
+  ));
   return errors;
 }
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.reviewedRetirements) {
-    await requireCommittedRepositoryFile(options.reviewedRetirements);
+    await requireCommittedRepositoryFile(options.reviewedRetirements, "reviewed retirements");
   }
-  const [previous, current, oldFloor, retirementsSource] = await Promise.all([
+  if (options.reviewedRendererMigration) {
+    await requireCommittedRepositoryFile(
+      options.reviewedRendererMigration,
+      "reviewed renderer migration",
+    );
+  }
+  const [
+    previous,
+    current,
+    oldFloor,
+    retirementsSource,
+    rendererMigrationSource,
+  ] = await Promise.all([
     verifiedReport(options.previousReport, "previous"),
     verifiedReport(options.currentReport, "current"),
     fs.readFile(STRICT_PASS_FLOOR_PATH, "utf8").then(JSON.parse),
     options.reviewedRetirements
       ? fs.readFile(options.reviewedRetirements, "utf8")
       : Promise.resolve(null),
+    options.reviewedRendererMigration
+      ? fs.readFile(options.reviewedRendererMigration, "utf8")
+      : Promise.resolve(null),
   ]);
   const reviewedRetirements = retirementsSource
     ? JSON.parse(retirementsSource)
+    : null;
+  const reviewedRendererMigration = rendererMigrationSource
+    ? JSON.parse(rendererMigrationSource)
     : null;
   const errors = passFloorMigrationErrors(
     previous.report,
     current.report,
     oldFloor,
     reviewedRetirements,
+    reviewedRendererMigration,
   );
   if (errors.length) throw new Error(`Pass-floor migration refused: ${errors.join("; ")}`);
   const previousCases = new Map(previous.report.cases.map((entry) => [
@@ -285,6 +381,13 @@ async function main() {
         sha256: sha256(retirementsSource),
         reason: reviewedRetirements.reason,
         count: reviewedRetirements.paths.length,
+      } : null,
+      reviewedRendererMigration: reviewedRendererMigration ? {
+        path: path.relative(process.cwd(), options.reviewedRendererMigration)
+          .replaceAll("\\", "/"),
+        sha256: sha256(rendererMigrationSource),
+        rule: reviewedRendererMigration.rule,
+        count: reviewedRendererMigration.cases.length,
       } : null,
     },
     protectedPasses,

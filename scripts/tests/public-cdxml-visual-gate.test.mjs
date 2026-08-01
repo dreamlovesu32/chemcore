@@ -687,9 +687,10 @@ test("pass-floor migration requires zero same-gate candidate regressions", () =>
     artifactHashes: { reference: `reference-${index}`, candidate: `old-${index}` },
   }));
   const definition = passFloorGateDefinition();
-  const report = (entries) => ({
+  const report = (entries, repository = { head: "old-commit", identity: "old-identity" }) => ({
     cacheIdentity: definition.cacheIdentity,
     policy: defaultGatePolicy(),
+    galleryProvenance: { repository },
     cases: entries,
   });
   const improved = structuredClone(cases);
@@ -700,6 +701,7 @@ test("pass-floor migration requires zero same-gate candidate regressions", () =>
     "current candidate has 1 same-gate pass-to-fail regressions",
   ]);
 
+  cases[2].artifactHashes.candidate = "a".repeat(64);
   const continuouslyWorse = structuredClone(cases);
   cases[2].status = "fail";
   continuouslyWorse[2].status = "fail";
@@ -709,6 +711,38 @@ test("pass-floor migration requires zero same-gate candidate regressions", () =>
     passFloorMigrationErrors(report(cases), report(continuouslyWorse)),
     ["current candidate has 1 continuous metric regressions"],
   );
+  continuouslyWorse[2].artifactHashes.candidate = "b".repeat(64);
+  const reviewedRendererMigration = {
+    schema: "chemsema.public-cdxml-reviewed-renderer-migration.v1",
+    rule: "verified-renderer-rule",
+    fromRepository: { head: "old-commit", identity: "old-identity" },
+    toRepository: { head: "new-commit", identity: "new-identity" },
+    evidence: {
+      rendererCommit: "renderer-commit",
+      probe: "scripts/probe.mjs",
+      rules: "docs/rules.md#verified-renderer-rule",
+    },
+    cases: [{
+      relativeCdxml: "source/0002.cdxml",
+      previousCandidateSha256: "a".repeat(64),
+      currentCandidateSha256: "b".repeat(64),
+    }],
+  };
+  assert.deepEqual(passFloorMigrationErrors(
+    report(cases),
+    report(continuouslyWorse, { head: "new-commit", identity: "new-identity" }),
+    null,
+    null,
+    reviewedRendererMigration,
+  ), []);
+  reviewedRendererMigration.cases[0].relativeCdxml = "source/0003.cdxml";
+  assert.match(passFloorMigrationErrors(
+    report(cases),
+    report(continuouslyWorse, { head: "new-commit", identity: "new-identity" }),
+    null,
+    null,
+    reviewedRendererMigration,
+  ).join("\n"), /does not exactly cover continuous regressions/);
 });
 
 test("pass-floor migration is bound to the old floor repository and cannot shrink", () => {
