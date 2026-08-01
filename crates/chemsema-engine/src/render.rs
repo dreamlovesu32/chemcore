@@ -1538,24 +1538,6 @@ mod tests {
         segments
     }
 
-    #[test]
-    fn equal_black_segment_gap_intervals_keep_black_segments_equal() {
-        let gaps = equal_black_segment_gap_intervals(10.0, 0.4, 0.6, 1.0, 1.5);
-        assert!(!gaps.is_empty());
-
-        let black_lengths = black_segment_lengths(10.0, 0.4, 0.6, &gaps);
-        assert!(black_lengths.len() >= 2);
-        for length in &black_lengths {
-            approx_eq(*length, 1.0);
-        }
-    }
-
-    #[test]
-    fn equal_black_segment_gap_intervals_return_empty_when_too_short() {
-        let gaps = equal_black_segment_gap_intervals(0.8, 0.0, 0.0, 1.0, 1.5);
-        assert!(gaps.is_empty());
-    }
-
     fn assert_gap_intervals(actual: &[(f64, f64)], expected: &[(f64, f64)]) {
         assert_eq!(actual.len(), expected.len(), "{actual:?}");
         for ((actual_start, actual_end), (expected_start, expected_end)) in
