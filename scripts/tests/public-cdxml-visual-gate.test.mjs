@@ -242,6 +242,14 @@ test("pass-floor migration requires zero same-gate candidate regressions", () =>
   assert.deepEqual(passFloorMigrationErrors(report(cases), report(improved)), [
     "current candidate has 1 same-gate pass-to-fail regressions",
   ]);
+
+  const continuouslyWorse = structuredClone(cases);
+  cases[2].largestMissing = { area: 10, span: 8 };
+  continuouslyWorse[2].largestMissing = { area: 12, span: 8 };
+  assert.deepEqual(
+    passFloorMigrationErrors(report(cases), report(continuouslyWorse)),
+    ["current candidate has 1 continuous metric regressions"],
+  );
 });
 
 test("strict original-338 pass floor reports protected pass regressions independently", () => {

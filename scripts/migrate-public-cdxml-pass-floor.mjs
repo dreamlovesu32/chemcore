@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   classifyBaselineChanges,
+  classifyContinuousBaselineRegressions,
   passFloorGateDefinition,
   reuseReportCompatibilityErrors,
   STRICT_PASS_FLOOR_PATH,
@@ -117,6 +118,15 @@ export function passFloorMigrationErrors(previousReport, currentReport) {
   if (changes.regressions.length) {
     errors.push(
       `current candidate has ${changes.regressions.length} same-gate pass-to-fail regressions`,
+    );
+  }
+  const continuousRegressions = classifyContinuousBaselineRegressions(
+    currentReport.cases,
+    previousCases,
+  );
+  if (continuousRegressions.length) {
+    errors.push(
+      `current candidate has ${continuousRegressions.length} continuous metric regressions`,
     );
   }
   return errors;

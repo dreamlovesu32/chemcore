@@ -446,7 +446,7 @@ function artifactHashesEqual(left, right) {
 
 export function classifyBaselineChanges(cases, baselineCases) {
   const changes = cases.flatMap((entry) => {
-    const before = baselineCases.get(entry.relativeCdxml)?.status;
+    const before = baselineCases.get(normalizedCasePath(entry.relativeCdxml))?.status;
     return before && before !== entry.status
       ? [{ relativeCdxml: entry.relativeCdxml, before, after: entry.status }]
       : [];
@@ -456,6 +456,135 @@ export function classifyBaselineChanges(cases, baselineCases) {
     regressions: changes.filter((entry) => entry.before === "pass" && entry.after !== "pass"),
     improvements: changes.filter((entry) => entry.before !== "pass" && entry.after === "pass"),
   };
+}
+
+const CONTINUOUS_REGRESSION_METRICS = Object.freeze([
+  { path: "local.referenceCoverage", direction: "higher", tolerance: 0.01 },
+  { path: "local.candidateCoverage", direction: "higher", tolerance: 0.01 },
+  { path: "largestMissing.area", direction: "lower", tolerance: 0.5 },
+  { path: "largestExtra.area", direction: "lower", tolerance: 0.5 },
+  { path: "largestMissing.span", direction: "lower", tolerance: 0.5 },
+  { path: "largestExtra.span", direction: "lower", tolerance: 0.5 },
+  { path: "detailFeatures.compactDefectCount", direction: "lower", tolerance: 1 },
+  { path: "detailFeatures.componentCountDelta", direction: "lower", tolerance: 1 },
+  {
+    path: "detailFeatures.relativeComponentMatchCoverage",
+    direction: "higher",
+    tolerance: 0.01,
+  },
+  {
+    path: "detailFeatures.componentPositionDistributionDelta",
+    direction: "lower",
+    tolerance: 0.01,
+  },
+  {
+    path: "detailFeatures.unmatchedReferenceComponentCount",
+    direction: "lower",
+    tolerance: 1,
+  },
+  {
+    path: "detailFeatures.unmatchedCandidateComponentCount",
+    direction: "lower",
+    tolerance: 1,
+  },
+  {
+    path: "detailFeatures.smallComponentDimensionDelta",
+    direction: "lower",
+    tolerance: 0.5,
+  },
+  {
+    path: "detailFeatures.enclosedSmallComponentDimensionDelta",
+    direction: "lower",
+    tolerance: 0.5,
+  },
+  { path: "detail.local.referenceCoverage", direction: "higher", tolerance: 0.01 },
+  { path: "detail.local.candidateCoverage", direction: "higher", tolerance: 0.01 },
+  { path: "detail.largestMissing.area", direction: "lower", tolerance: 0.25 },
+  { path: "detail.largestExtra.area", direction: "lower", tolerance: 0.25 },
+  { path: "detail.largestMissing.span", direction: "lower", tolerance: 0.25 },
+  { path: "detail.largestExtra.span", direction: "lower", tolerance: 0.25 },
+  {
+    path: "detail.detailFeatures.compactDefectCount",
+    direction: "lower",
+    tolerance: 1,
+  },
+  {
+    path: "detail.detailFeatures.componentCountDelta",
+    direction: "lower",
+    tolerance: 1,
+  },
+  {
+    path: "detail.detailFeatures.relativeComponentMatchCoverage",
+    direction: "higher",
+    tolerance: 0.01,
+  },
+  {
+    path: "detail.detailFeatures.componentPositionDistributionDelta",
+    direction: "lower",
+    tolerance: 0.01,
+  },
+]);
+
+function finiteMetricAt(entry, metricPath) {
+  let value = entry;
+  for (const segment of metricPath.split(".")) value = value?.[segment];
+  return Number.isFinite(value) ? value : null;
+}
+
+function metricRegression(metric, before, after) {
+  if (metric.direction === "higher") return before - after > metric.tolerance;
+  return after - before > metric.tolerance;
+}
+
+export function classifyContinuousBaselineRegressions(cases, baselineCases) {
+  return cases.flatMap((entry) => {
+    const relativeCdxml = normalizedCasePath(entry.relativeCdxml);
+    const baseline = baselineCases.get(relativeCdxml);
+    if (!baseline) return [];
+    const reasons = [];
+    const baselineComparable = ["pass", "fail"].includes(baseline.status);
+    const currentComparable = ["pass", "fail"].includes(entry.status);
+    if (baselineComparable && !currentComparable) {
+      reasons.push({
+        metric: "status",
+        direction: "comparable",
+        before: baseline.status,
+        after: entry.status,
+        tolerance: 0,
+      });
+    }
+    const previousReasons = new Set(baseline.reasons ?? []);
+    const newGateReasons = [...new Set(entry.reasons ?? [])]
+      .filter((reason) => !previousReasons.has(reason))
+      .sort();
+    for (const reason of newGateReasons) {
+      reasons.push({
+        metric: `reason:${reason}`,
+        direction: "absent",
+        before: false,
+        after: true,
+        tolerance: 0,
+      });
+    }
+    for (const metric of CONTINUOUS_REGRESSION_METRICS) {
+      const before = finiteMetricAt(baseline, metric.path);
+      const after = finiteMetricAt(entry, metric.path);
+      if (before === null || after === null || !metricRegression(metric, before, after)) continue;
+      reasons.push({
+        metric: metric.path,
+        direction: metric.direction,
+        before,
+        after,
+        tolerance: metric.tolerance,
+      });
+    }
+    return reasons.length ? [{
+      relativeCdxml,
+      beforeStatus: baseline.status,
+      afterStatus: entry.status,
+      reasons,
+    }] : [];
+  });
 }
 
 export function classifyPassFloorRegressions(cases, passFloor) {
@@ -2460,11 +2589,17 @@ async function main() {
   // different lifetime and survives gate-definition upgrades.
   const sameGateDefinition = reportsUseSameGateDefinition(baselineReport, options);
   const analysisBaselineCases = sameGateDefinition
-    ? new Map(baselineReport.cases.map((entry) => [entry.relativeCdxml, entry]))
+    ? new Map(baselineReport.cases.map((entry) => [
+      normalizedCasePath(entry.relativeCdxml),
+      entry,
+    ]))
     : new Map();
   const regressionBaselineCases = sameGateDefinition
     ? new Map(
-      (baselineReport?.cases ?? []).map((entry) => [entry.relativeCdxml, entry]),
+      (baselineReport?.cases ?? []).map((entry) => [
+        normalizedCasePath(entry.relativeCdxml),
+        entry,
+      ]),
     )
     : new Map();
 
@@ -2482,7 +2617,9 @@ async function main() {
       const referencePath = path.resolve(galleryDir, item.reference);
       const candidatePath = path.resolve(galleryDir, item.chemsema);
       const hashes = await artifactHashes(galleryDir, item);
-      const baselineCase = analysisBaselineCases.get(item.relativeCdxml);
+      const baselineCase = analysisBaselineCases.get(
+        normalizedCasePath(item.relativeCdxml),
+      );
       if (baselineCase && artifactHashesEqual(baselineCase.artifactHashes, hashes)) {
         completed += 1;
         if (completed % 100 === 0 || completed === items.length) {
@@ -2589,6 +2726,10 @@ async function main() {
   const reused = cases.filter((entry) => entry.cacheStatus === "reused").length;
   const analyzed = cases.length - reused;
   const delta = classifyBaselineChanges(cases, regressionBaselineCases);
+  const continuousRegressions = classifyContinuousBaselineRegressions(
+    cases,
+    regressionBaselineCases,
+  );
   const protectedPassRegressions = classifyPassFloorRegressions(
     cases,
     passFloorDefinitionErrors.length ? null : strictPassFloor,
@@ -2611,6 +2752,7 @@ async function main() {
         currentGalleryRequired: true,
         exactBaselineScopeRequired: true,
         zeroRegressionsRequired: true,
+        zeroContinuousRegressionsRequired: true,
         cumulativePassFloorRequired: true,
         passFloor: {
           path: STRICT_PASS_FLOOR_PATH,
@@ -2643,6 +2785,7 @@ async function main() {
           ? "pass-floor-only"
           : "none",
       ...delta,
+      continuousRegressions,
     },
     passFloorEvaluation: evaluatePassFloor ? {
       applicable: passFloorDefinitionErrors.length === 0,
@@ -2667,13 +2810,16 @@ async function main() {
     cache: report.cache,
     improvements: delta.improvements.length,
     regressions: delta.regressions.length,
+    continuousRegressions: continuousRegressions.length,
     protectedPassRegressions: protectedPassRegressions.length,
   }));
   const baselineMode = options.strictOriginal338 || sameGateDefinition;
   if (!options.reportOnly && (
     errors
     || protectedPassRegressions.length
-    || (baselineMode ? delta.regressions.length : failed)
+    || (baselineMode
+      ? delta.regressions.length || continuousRegressions.length
+      : failed)
   )) {
     process.exitCode = 1;
   }

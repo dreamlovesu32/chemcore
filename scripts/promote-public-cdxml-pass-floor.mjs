@@ -79,7 +79,11 @@ async function main() {
     throw new Error(`Current pass floor is invalid: ${validationErrors.join("; ")}`);
   }
   const floorRegressions = classifyPassFloorRegressions(report.cases, passFloor);
-  if (floorRegressions.length || report.delta?.regressions?.length) {
+  if (
+    floorRegressions.length
+    || report.delta?.regressions?.length
+    || report.delta?.continuousRegressions?.length
+  ) {
     throw new Error("Pass-floor promotion refuses a report containing regressions");
   }
   const protectedPasses = [...new Set([

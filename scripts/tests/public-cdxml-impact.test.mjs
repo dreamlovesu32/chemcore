@@ -8,6 +8,7 @@ import {
 } from "../render-public-cdxml-visual-review.mjs";
 import {
   classifyBaselineChanges,
+  classifyContinuousBaselineRegressions,
   visualBaselineCompatibilityErrors,
 } from "../public-cdxml-visual-gate.mjs";
 import { featuresFromCdxml, selectAffectedCases } from "../public-cdxml-impact.mjs";
@@ -392,4 +393,80 @@ test("baseline mode blocks regressions without requiring historical failures to 
   assert.equal(delta.regressions.length, 1);
   assert.equal(delta.improvements.length, 1);
   assert.equal(delta.changes.length, 2);
+});
+
+function continuousCase(relativeCdxml, overrides = {}) {
+  return {
+    relativeCdxml,
+    status: "fail",
+    reasons: ["missing-detail-area"],
+    local: { referenceCoverage: 0.5, candidateCoverage: 0.5 },
+    largestMissing: { area: 10, span: 8 },
+    largestExtra: { area: 8, span: 7 },
+    detailFeatures: {
+      compactDefectCount: 8,
+      componentCountDelta: 3,
+      relativeComponentMatchCoverage: 0.8,
+      componentPositionDistributionDelta: 0.05,
+      unmatchedReferenceComponentCount: 3,
+      unmatchedCandidateComponentCount: 2,
+      smallComponentDimensionDelta: 0.5,
+      enclosedSmallComponentDimensionDelta: 0,
+    },
+    ...overrides,
+  };
+}
+
+test("continuous baseline blocks a material worsening in an already failing case", () => {
+  const baseline = continuousCase("old-failure.cdxml");
+  const current = continuousCase("old-failure.cdxml", {
+    largestMissing: { area: 12, span: 9 },
+  });
+  const regressions = classifyContinuousBaselineRegressions(
+    [current],
+    new Map([["old-failure.cdxml", baseline]]),
+  );
+  assert.equal(regressions.length, 1);
+  assert.deepEqual(
+    regressions[0].reasons.map((reason) => reason.metric),
+    ["largestMissing.area", "largestMissing.span"],
+  );
+});
+
+test("continuous baseline tolerates sub-pixel noise but records a new defect class", () => {
+  const baseline = continuousCase("detail.cdxml");
+  const withinTolerance = continuousCase("detail.cdxml", {
+    local: { referenceCoverage: 0.495, candidateCoverage: 0.5 },
+    largestMissing: { area: 10.5, span: 8.5 },
+  });
+  assert.deepEqual(
+    classifyContinuousBaselineRegressions(
+      [withinTolerance],
+      new Map([["detail.cdxml", baseline]]),
+    ),
+    [],
+  );
+
+  const newReason = continuousCase("detail.cdxml", {
+    reasons: ["missing-detail-area", "detail-displaced-component"],
+  });
+  const regressions = classifyContinuousBaselineRegressions(
+    [newReason],
+    new Map([["detail.cdxml", baseline]]),
+  );
+  assert.equal(regressions.length, 1);
+  assert.equal(
+    regressions[0].reasons[0].metric,
+    "reason:detail-displaced-component",
+  );
+});
+
+test("continuous baseline rejects loss of a comparable result", () => {
+  const baseline = continuousCase("error.cdxml");
+  const regressions = classifyContinuousBaselineRegressions(
+    [{ relativeCdxml: "error.cdxml", status: "error", reasons: [] }],
+    new Map([["error.cdxml", baseline]]),
+  );
+  assert.equal(regressions.length, 1);
+  assert.equal(regressions[0].reasons[0].metric, "status");
 });
