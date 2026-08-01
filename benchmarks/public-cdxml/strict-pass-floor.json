@@ -9,11 +9,11 @@
     "name": "original-338",
     "expected": 338
   },
-  "minimumPassed": 223,
+  "minimumPassed": 225,
   "source": {
-    "commit": "e678e2915538b87c033832ca4e6de9837b32b68e",
-    "repositoryIdentity": "da745b7f4cebe32b888304abdb06dec5597b5ca5833f4127ec8627dafefc921b",
-    "gateReportGeneratedAt": "2026-08-01T07:37:37.070Z"
+    "commit": "a3412ae1bc821d94c6614f45f1bf1901a49a6521",
+    "repositoryIdentity": "293620cf56cad36f935e03e4ef1af698f34cb86f781c26abbfd08657199fee22",
+    "gateReportGeneratedAt": "2026-08-01T09:41:56.903Z"
   },
   "migration": {
     "previousSchema": "chemsema.public-cdxml-strict-pass-floor.v2",
@@ -71,6 +71,7 @@
     "indigo/api/tests/integration/tests/formats/molecules/3060_iso_butane.cdxml",
     "indigo/api/tests/integration/tests/formats/molecules/3060_iso_butene.cdxml",
     "indigo/api/tests/integration/tests/formats/molecules/3360_noCIPLabels.cdxml",
+    "indigo/api/tests/integration/tests/formats/molecules/3362_carbon_isotopes.cdxml",
     "indigo/api/tests/integration/tests/formats/molecules/cdx/US06174985-20010116-C00003.CDX",
     "indigo/api/tests/integration/tests/formats/molecules/cdx/US06837803-20050104-C00001.CDX",
     "indigo/api/tests/integration/tests/formats/molecules/cdx/image.cdx",
@@ -156,6 +157,7 @@
     "rdkit/Code/GraphMol/test_data/CDXML/stereo.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/stereo3.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/stereo4.cdxml",
+    "rdkit/Code/GraphMol/test_data/CDXML/stereo5.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/stereo6.cdxml",
     "rdkit/External/ChemDraw/test_data/US12404367-20250902-C00017.CDX",
     "rdkit/External/ChemDraw/test_data/US12404367-20250902-C00025.CDX",
