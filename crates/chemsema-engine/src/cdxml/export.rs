@@ -3345,17 +3345,14 @@ impl<'a> CdxmlDocumentWriter<'a> {
             // spine endpoints. Derive those endpoints from the live rotated
             // side geometry; serializing the axis-aligned payload box loses
             // arbitrary-angle and horizontal brackets.
-            let handle_x = match (kind.as_str(), side) {
-                ("square", "left") | ("round", "right") | ("curly", "right") => 0.0,
-                _ => width,
-            };
+            let anchor_x = super::cdxml_bracket_side_anchor_x(&kind, side, width);
             let center = Point::new(
                 object.transform.translate[0] + x + width * 0.5,
                 object.transform.translate[1] + y + height * 0.5,
             );
             let top = crate::rotate_point_around(
                 Point::new(
-                    object.transform.translate[0] + x + handle_x,
+                    object.transform.translate[0] + x + anchor_x,
                     object.transform.translate[1] + y,
                 ),
                 center,
@@ -3363,7 +3360,7 @@ impl<'a> CdxmlDocumentWriter<'a> {
             );
             let bottom = crate::rotate_point_around(
                 Point::new(
-                    object.transform.translate[0] + x + handle_x,
+                    object.transform.translate[0] + x + anchor_x,
                     object.transform.translate[1] + y + height,
                 ),
                 center,

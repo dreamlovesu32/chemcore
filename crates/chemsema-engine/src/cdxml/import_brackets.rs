@@ -255,31 +255,38 @@ pub(in crate::cdxml) fn append_bracket_objects(
     }
 
     // A single CDXML bracket is a complete authored graphic, not necessarily
-    // one side of a polymer pair.  Horizontal curly braces used as scheme
-    // annotations are commonly stored as two ordered points with identical
-    // y coordinates; retain that orientation and render one rotated side.
+    // one side of a polymer pair. Curly Graphic BoundingBox points define the
+    // directed centerline of the brace at every angle. Square and round
+    // standalone annotations retain the previously verified horizontal form.
     for (index, bracket) in brackets.iter().enumerate() {
         if used[index] {
             continue;
         }
         let dx = bracket.bbox[2] - bracket.bbox[0];
         let dy = bracket.bbox[3] - bracket.bbox[1];
-        if dx.abs() <= dy.abs() || dx.abs() <= crate::EPSILON {
+        let length = dx.hypot(dy);
+        if length <= crate::EPSILON || (bracket.kind != "curly" && dx.abs() <= dy.abs()) {
             continue;
         }
-        let length = dx.abs();
         let mut object = cdxml_bracket_side_scene_object(
             format!("obj_bracket_{object_index:03}"),
             "left",
             bracket,
             length,
         );
-        object.name = "standalone horizontal bracket".to_string();
+        let orientation = if dy.abs() <= crate::EPSILON {
+            "horizontal"
+        } else if dx.abs() <= crate::EPSILON {
+            "vertical"
+        } else {
+            "diagonal"
+        };
+        object.name = format!("standalone {orientation} bracket");
         object.meta["standalone"] = json!(true);
         object
             .payload
             .extra
-            .insert("orientation".to_string(), json!("horizontal"));
+            .insert("orientation".to_string(), json!(orientation));
         objects.push(object);
         object_index += 1;
     }
@@ -310,10 +317,10 @@ pub(super) fn cdxml_bracket_side_scene_object(
         .max(stroke_width)
         .max(0.0);
     let rotate = crate::angle_between(top, bottom) - 90.0;
-    let handle_x = cdxml_bracket_side_handle_x(&bracket.kind, side, side_width);
+    let anchor_x = cdxml_bracket_side_anchor_x(&bracket.kind, side, side_width);
     let local_center = crate::Point::new(side_width * 0.5, side_height * 0.5);
     let rotated_top =
-        crate::rotate_point_around(crate::Point::new(handle_x, 0.0), local_center, rotate);
+        crate::rotate_point_around(crate::Point::new(anchor_x, 0.0), local_center, rotate);
     let translate = crate::Point::new(top.x - rotated_top.x, top.y - rotated_top.y);
     let mut extra = BTreeMap::new();
     extra.insert("kind".to_string(), json!(bracket.kind.clone()));
@@ -357,9 +364,12 @@ pub(super) fn cdxml_bracket_side_scene_object(
     }
 }
 
-fn cdxml_bracket_side_handle_x(kind: &str, side: &str, width: f64) -> f64 {
+pub(in crate::cdxml) fn cdxml_bracket_side_anchor_x(kind: &str, side: &str, width: f64) -> f64 {
+    if kind == "curly" {
+        return width * 0.5;
+    }
     match (kind, side) {
-        ("square", "left") | ("round", "right") | ("curly", "right") => 0.0,
+        ("square", "left") | ("round", "right") => 0.0,
         _ => width,
     }
 }

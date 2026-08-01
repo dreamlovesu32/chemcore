@@ -46,8 +46,8 @@ use self::import_objects::{
     append_orbital_shape_objects, append_plasmid_map_objects, append_shape_objects,
     append_spectrum_objects, append_synthesized_enhanced_stereo_text_objects,
     append_table_shape_objects, append_text_objects, append_tlc_plate_shape_objects,
-    associate_table_cell_contents, import_reactions_and_stoichiometry_grids,
-    parse_cdxml_curve_points, validate_bio_shape_nodes,
+    associate_table_cell_contents, cdxml_bracket_side_anchor_x,
+    import_reactions_and_stoichiometry_grids, parse_cdxml_curve_points, validate_bio_shape_nodes,
 };
 pub(crate) use self::import_scaling::normalize_cdxml_document_for_editing;
 use self::import_topology::*;

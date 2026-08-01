@@ -1233,7 +1233,7 @@ fn parse_cdxml_imports_line_endpoints_from_bounding_box() {
 }
 
 #[test]
-fn parse_cdxml_keeps_standalone_horizontal_curly_bracket() {
+fn parse_cdxml_centers_standalone_horizontal_curly_bracket_on_ordered_bbox() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML LineWidth="0.6">
   <page id="1">
@@ -1249,14 +1249,29 @@ fn parse_cdxml_keeps_standalone_horizontal_curly_bracket() {
         .expect("standalone bracket should import");
     assert_eq!(bracket.payload.extra["orientation"], json!("horizontal"));
     assert_eq!(bracket.transform.rotate, -90.0);
-    assert!(render_document(&document).iter().any(|primitive| matches!(
-        primitive,
-        RenderPrimitive::Path {
-            role: RenderRole::DocumentGraphic,
-            rotate,
-            ..
-        } if (*rotate + 90.0).abs() <= f64::EPSILON
-    )));
+    let primitives = render_document(&document);
+    let points = primitives
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Path {
+                role: RenderRole::DocumentGraphic,
+                rotate,
+                points,
+                ..
+            } if (*rotate + 90.0).abs() <= f64::EPSILON => Some(points),
+            _ => None,
+        })
+        .expect("horizontal curly path should render");
+    let minimum_y = points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::INFINITY, f64::min);
+    let maximum_y = points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    assert!((minimum_y + maximum_y - 120.0).abs() <= 1e-9);
+    assert!(minimum_y < 60.0 && maximum_y > 60.0);
     let exported = document_to_cdxml(&document);
     assert!(
         exported.contains("BoundingBox=\"140 60 20 60\""),
@@ -1275,6 +1290,76 @@ fn parse_cdxml_keeps_standalone_horizontal_curly_bracket() {
     );
     assert_eq!(reopened_bracket.transform, bracket.transform);
     assert_eq!(reopened_bracket.payload.bbox, bracket.payload.bbox);
+}
+
+#[test]
+fn parse_cdxml_centers_vertical_and_diagonal_curly_brackets_on_ordered_bbox() {
+    for (name, bbox, expected_orientation) in [
+        ("vertical", [100.0, 160.0, 100.0, 40.0], "vertical"),
+        ("diagonal", [180.0, 160.0, 60.0, 40.0], "diagonal"),
+    ] {
+        let cdxml = format!(
+            r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="0.6">
+  <page id="1">
+    <graphic id="2" BoundingBox="{} {} {} {}" GraphicType="Bracket"
+      BracketType="Curly" LipSize="60"/>
+  </page>
+</CDXML>"##,
+            bbox[0], bbox[1], bbox[2], bbox[3]
+        );
+        let document = parse_cdxml_document(&cdxml, Some(name)).expect("parse curly bracket");
+        let bracket = document
+            .objects
+            .iter()
+            .find(|object| object.object_type == "bracket")
+            .expect("standalone curly bracket should import at every angle");
+        assert_eq!(
+            bracket.payload.extra["orientation"],
+            json!(expected_orientation)
+        );
+        let points = render_document(&document)
+            .into_iter()
+            .find_map(|primitive| match primitive {
+                RenderPrimitive::Path {
+                    role: RenderRole::DocumentGraphic,
+                    points,
+                    ..
+                } => Some(points),
+                _ => None,
+            })
+            .expect("curly path should render");
+        let dx = bbox[2] - bbox[0];
+        let dy = bbox[3] - bbox[1];
+        let length = f64::hypot(dx, dy);
+        let normal = [-dy / length, dx / length];
+        let center = [(bbox[0] + bbox[2]) * 0.5, (bbox[1] + bbox[3]) * 0.5];
+        let projections: Vec<_> = points
+            .iter()
+            .map(|point| (point.x - center[0]) * normal[0] + (point.y - center[1]) * normal[1])
+            .collect();
+        let minimum = projections.iter().copied().fold(f64::INFINITY, f64::min);
+        let maximum = projections
+            .iter()
+            .copied()
+            .fold(f64::NEG_INFINITY, f64::max);
+        assert!(
+            (minimum + maximum).abs() <= 1e-9,
+            "{name}: {minimum}..{maximum}"
+        );
+        assert!(
+            minimum < 0.0 && maximum > 0.0,
+            "{name}: {minimum}..{maximum}"
+        );
+        let exported = document_to_cdxml(&document);
+        assert!(
+            exported.contains(&format!(
+                "BoundingBox=\"{} {} {} {}\"",
+                bbox[0] as i32, bbox[1] as i32, bbox[2] as i32, bbox[3] as i32
+            )),
+            "{name}: {exported}"
+        );
+    }
 }
 
 #[test]

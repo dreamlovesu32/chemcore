@@ -35,6 +35,12 @@ CDXML 不只按 384 个唯一属性名统计，还按“元素 × 属性”展�
 
 上述矩阵由 `scripts/chemdraw-point-lexical-probe.mjs` 静默调用 ChemDraw、重新保存 CDXML 后核对；本轮原生二维几何入口统一由 `parse_xy` 实现，因此节点、文本位置与定位偏移遵守同一规则，不存在文件特例。尚未进入原生几何的 `typed-interchange` 点属性仍按原值保留，不借此虚报已经原生解释。
 
+### Curly bracket 的 `BoundingBox` 锚线规则
+
+ChemDraw 静默 SVG 探针覆盖水平、垂直、斜向及两个相反点序后确认：`GraphicType="Bracket" BracketType="Curly"` 的有序 `BoundingBox` 两点定义花括号的深度中心线，而不是可见外端线。真实外端与中央尖点位于该线法向两侧各半个 curly depth；点序继续决定旋转和镜像方向。导入必须把局部 `width / 2` 锚到这条线，导出也必须从同一个局部中线反算端点，不能复用 Square/Round 的外侧 handle。
+
+该矩阵由 `scripts/chemdraw-curly-bracket-anchor-probe.mjs` 静默调用 ChemDraw 并读取 SVG 路径验证。六种方向的法向投影均严格以源 `BoundingBox` 为中心；规则直接作用于所有角度的 Curly graphic，不按文件名、对象 ID 或水平朝向分支。
+
 ## CDX 对象全集
 
 | tag | CDXML 对象 | 实现 | schema | storage | behavior |
