@@ -1384,6 +1384,51 @@ pub(super) fn adjacent_angles_for_fragment_node(
     out
 }
 
+fn single_incident_stereobond_angle(
+    fragment: &crate::MoleculeFragment,
+    node_id: &str,
+) -> Option<f64> {
+    let node = fragment.nodes.iter().find(|node| node.id == node_id)?;
+    let node_point = Point::new(node.position[0], node.position[1]);
+    let mut axes = fragment.bonds.iter().filter_map(|bond| {
+        if bond.begin != node_id && bond.end != node_id {
+            return None;
+        }
+        let stereo = bond.stereo.as_ref()?;
+        if !matches!(
+            stereo.kind.as_str(),
+            "solid-wedge" | "hashed-wedge" | "hollow-wedge"
+        ) {
+            return None;
+        }
+        let other_id = if bond.begin == node_id {
+            &bond.end
+        } else {
+            &bond.begin
+        };
+        let other = fragment.nodes.iter().find(|node| &node.id == other_id)?;
+        Some(crate::angle_between(
+            node_point,
+            Point::new(other.position[0], other.position[1]),
+        ))
+    });
+    let axis = axes.next()?;
+    axes.next().is_none().then_some(axis)
+}
+
+fn label_text_matches_node_implicit_hydrogen_formula(text: &str, node: &crate::Node) -> bool {
+    if node.num_hydrogens == 0 || node.is_placeholder {
+        return false;
+    }
+    let compact = crate::compact_label_text(text);
+    let expected = implicit_hydrogen_label_text_for_count(&node.element, node.num_hydrogens);
+    if compact == expected {
+        return true;
+    }
+    let charge_suffix = node_charge_label_suffix(node.charge);
+    !charge_suffix.is_empty() && compact == format!("{expected}{charge_suffix}")
+}
+
 pub(super) fn same_node_label(
     current: Option<&crate::NodeLabel>,
     next: Option<&crate::NodeLabel>,
@@ -2325,6 +2370,19 @@ pub(super) fn refreshed_attached_node_label(
         &connection_angles,
         layout_as_grouped_attached_label,
     );
+    if interpret_chemically
+        && layout_as_grouped_attached_label
+        && label_text_matches_node_implicit_hydrogen_formula(&text, node)
+    {
+        if let Some(stereobond_angle) = single_incident_stereobond_angle(fragment, node_id) {
+            if let Some(stereobond_decision) = crate::decide_near_trigonal_stereobond_label_layout(
+                &connection_angles,
+                stereobond_angle,
+            ) {
+                decision = stereobond_decision;
+            }
+        }
+    }
     let has_authored_endpoint_attachment = fragment.bonds.iter().any(|bond| {
         (bond.begin == node_id
             && bond

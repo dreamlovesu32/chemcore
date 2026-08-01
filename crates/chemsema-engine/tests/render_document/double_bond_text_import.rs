@@ -1882,6 +1882,79 @@ fn parse_cdxml_node_labels_use_internal_attached_layout() {
 }
 
 #[test]
+fn parse_cdxml_near_trigonal_implicit_hydrogen_labels_follow_the_stereobond_axis() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="16" LineWidth="0.60" BoldWidth="2" HashSpacing="2.50">
+  <page id="1">
+    <fragment id="2" BoundingBox="0 0 180 100">
+      <n id="plain" p="20 50" Element="6" NumHydrogens="1">
+        <t p="20 54" BoundingBox="14 42 32 56" LabelAlignment="Below" LineStarts="2 3"><s font="3" size="10" color="0">CH</s></t>
+      </n>
+      <n id="plain_a" p="33.856 58"/><n id="plain_b" p="6.144 58"/><n id="plain_c" p="20 34"/>
+      <b id="plain_bond_a" B="plain" E="plain_a"/>
+      <b id="plain_bond_b" B="plain" E="plain_b"/>
+      <b id="plain_bond_c" B="plain" E="plain_c"/>
+
+      <n id="below" p="80 50" Element="6" NumHydrogens="1">
+        <t p="80 54" BoundingBox="74 42 92 56" LabelAlignment="Below" LineStarts="2 3"><s font="3" size="10" color="0">CH</s></t>
+      </n>
+      <n id="below_a" p="93.856 58"/><n id="below_b" p="66.144 58"/><n id="below_c" p="80 34"/>
+      <b id="below_bond_a" B="below" E="below_a"/>
+      <b id="below_bond_b" B="below" E="below_b"/>
+      <b id="below_bond_c" B="below" E="below_c" Display="WedgedHashBegin"/>
+
+      <n id="reverse" p="140 50" Element="6" NumHydrogens="1">
+        <t p="140 54" BoundingBox="134 42 152 56" LabelAlignment="Below" LineStarts="2 3"><s font="3" size="10" color="0">CH</s></t>
+      </n>
+      <n id="reverse_a" p="153.856 58"/><n id="reverse_b" p="126.144 58"/><n id="reverse_c" p="140 34"/>
+      <b id="reverse_bond_a" B="reverse" E="reverse_a" Display="WedgeEnd"/>
+      <b id="reverse_bond_b" B="reverse" E="reverse_b"/>
+      <b id="reverse_bond_c" B="reverse" E="reverse_c"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("trigonal stereobond labels"))
+        .expect("CDXML should parse");
+    let label = |node_id: &str| {
+        document
+            .resources
+            .values()
+            .filter_map(|resource| resource.data.as_fragment())
+            .flat_map(|fragment| fragment.nodes.iter())
+            .find(|node| node.id == node_id)
+            .and_then(|node| node.label.as_ref())
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing label for {node_id}; imported labels: {:?}",
+                    document
+                        .resources
+                        .iter()
+                        .filter_map(|(_, resource)| resource.data.as_fragment())
+                        .flat_map(|fragment| fragment.nodes.iter())
+                        .filter_map(|node| {
+                            node.label
+                                .as_ref()
+                                .map(|label| (node.id.as_str(), label.text.as_str()))
+                        })
+                        .collect::<Vec<_>>()
+                )
+            })
+    };
+
+    assert_eq!(label("plain").text, "CH");
+    assert_eq!(label("plain").layout.as_deref(), Some("attached-group"));
+
+    assert_eq!(label("below").lines, ["C", "H"]);
+    assert_eq!(
+        label("below").layout.as_deref(),
+        Some("attached-group-below")
+    );
+
+    assert_eq!(label("reverse").text, "HC");
+    assert_eq!(label("reverse").layout.as_deref(), Some("attached-group"));
+}
+
+#[test]
 fn parse_cdxml_left_justification_does_not_override_connection_aware_label_layout() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML BondLength="14.40" LineWidth="0.60" BoldWidth="2" HashSpacing="2.50" LabelJustification="Auto">

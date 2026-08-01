@@ -21,6 +21,38 @@ fn normalize_degrees(angle: f64) -> f64 {
     angle.rem_euclid(360.0)
 }
 
+fn normalized_sorted_connection_angles(connection_angles: &[f64]) -> Vec<f64> {
+    let mut angles: Vec<f64> = connection_angles
+        .iter()
+        .map(|angle| normalize_degrees(*angle))
+        .collect();
+    angles.sort_by(f64::total_cmp);
+    angles
+}
+
+fn circular_angular_gaps(angles: &[f64]) -> Vec<(usize, f64)> {
+    angles
+        .iter()
+        .enumerate()
+        .map(|(index, angle)| {
+            let next = if index + 1 == angles.len() {
+                angles[0] + 360.0
+            } else {
+                angles[index + 1]
+            };
+            (index, next - angle)
+        })
+        .collect()
+}
+
+fn gaps_are_near_trigonal(gaps: &[(usize, f64)]) -> bool {
+    gaps.len() == 3
+        && gaps.iter().all(|(_, gap)| {
+            (*gap - 120.0).abs()
+                <= NEAR_TRIGONAL_GAP_DEVIATION_DEG + MULTI_CONNECTION_GAP_TIE_EPSILON_DEG
+        })
+}
+
 fn decision_for_flow(flow: LabelFlow) -> LabelLayoutDecision {
     let anchor = match flow {
         LabelFlow::Reverse => LabelAnchorPolicy::OriginalFirstGroup,
@@ -46,24 +78,8 @@ fn classify_multi_connection_bisector(bisector: f64) -> LabelFlow {
 
 fn multi_connection_layout(connection_angles: &[f64]) -> LabelLayoutDecision {
     debug_assert!(connection_angles.len() >= 2);
-    let mut angles: Vec<f64> = connection_angles
-        .iter()
-        .map(|angle| normalize_degrees(*angle))
-        .collect();
-    angles.sort_by(f64::total_cmp);
-
-    let gaps: Vec<(usize, f64)> = angles
-        .iter()
-        .enumerate()
-        .map(|(index, angle)| {
-            let next = if index + 1 == angles.len() {
-                angles[0] + 360.0
-            } else {
-                angles[index + 1]
-            };
-            (index, next - angle)
-        })
-        .collect();
+    let angles = normalized_sorted_connection_angles(connection_angles);
+    let gaps = circular_angular_gaps(&angles);
     let largest_gap = gaps
         .iter()
         .map(|(_, gap)| *gap)
@@ -97,11 +113,7 @@ fn multi_connection_layout(connection_angles: &[f64]) -> LabelLayoutDecision {
     // Three equal or nearly equal sectors have no stable unique opening.
     // ChemDraw fits their common 120-degree phase before applying the phase
     // sectors, and only switches to the largest-gap rule outside this window.
-    let near_trigonal = angles.len() == 3
-        && gaps.iter().all(|(_, gap)| {
-            (*gap - 120.0).abs()
-                <= NEAR_TRIGONAL_GAP_DEVIATION_DEG + MULTI_CONNECTION_GAP_TIE_EPSILON_DEG
-        });
+    let near_trigonal = gaps_are_near_trigonal(&gaps);
     if near_trigonal {
         let phase = normalize_degrees(
             angles
@@ -153,6 +165,27 @@ fn multi_connection_layout(connection_angles: &[f64]) -> LabelLayoutDecision {
     let occupied_span = 360.0 - selected_gap.1;
     let bisector = normalize_degrees(occupied_start + occupied_span * 0.5);
     decision_for_flow(classify_multi_connection_bisector(bisector))
+}
+
+/// ChemDraw gives a stereobond its own label-flow phase only at an approximately
+/// trigonal three-connection center. Silent CDXML/SVG probes show that two- and
+/// four-connection labels, and irregular three-connection labels, continue to
+/// use the ordinary connection-gap rule. Begin/end and solid/hashed/hollow
+/// presentation do not change this axis rule.
+pub fn decide_near_trigonal_stereobond_label_layout(
+    connection_angles: &[f64],
+    stereobond_angle: f64,
+) -> Option<LabelLayoutDecision> {
+    if connection_angles.len() != 3 || !stereobond_angle.is_finite() {
+        return None;
+    }
+    let angles = normalized_sorted_connection_angles(connection_angles);
+    let gaps = circular_angular_gaps(&angles);
+    gaps_are_near_trigonal(&gaps).then(|| {
+        decision_for_flow(classify_multi_connection_bisector(normalize_degrees(
+            stereobond_angle,
+        )))
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -923,6 +956,39 @@ mod tests {
                 "angles {angles:?}"
             );
         }
+    }
+
+    #[test]
+    fn near_trigonal_stereobond_axis_selects_the_measured_label_flow_sectors() {
+        let connections = [30.0, 150.0, 270.0];
+        for (axis, expected) in [
+            (0.0, LabelFlow::Reverse),
+            (90.0, LabelFlow::StackAbove),
+            (180.0, LabelFlow::Forward),
+            (270.0, LabelFlow::StackBelow),
+        ] {
+            let decision = decide_near_trigonal_stereobond_label_layout(&connections, axis)
+                .expect("near-trigonal stereobond layout");
+            assert_eq!(decision.flow, expected, "stereobond axis {axis}");
+        }
+    }
+
+    #[test]
+    fn stereobond_axis_override_is_limited_to_the_measured_near_trigonal_branch() {
+        assert!(
+            decide_near_trigonal_stereobond_label_layout(&[30.0, 147.0, 270.0], 270.0,).is_some()
+        );
+        assert!(
+            decide_near_trigonal_stereobond_label_layout(&[30.0, 146.9, 270.0], 270.0,).is_none()
+        );
+        assert!(
+            decide_near_trigonal_stereobond_label_layout(&[20.0, 170.0, 270.0], 270.0,).is_none()
+        );
+        assert!(decide_near_trigonal_stereobond_label_layout(&[150.0, 270.0], 270.0).is_none());
+        assert!(
+            decide_near_trigonal_stereobond_label_layout(&[30.0, 120.0, 210.0, 300.0], 300.0,)
+                .is_none()
+        );
     }
 
     #[test]
