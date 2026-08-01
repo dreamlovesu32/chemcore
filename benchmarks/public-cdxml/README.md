@@ -141,9 +141,10 @@ declarations and historical regression cases live in
 gate-definition changes conservatively force a full run.
 
 Strict original-338 runs also load
-`benchmarks/public-cdxml/strict-pass-floor.json`. This tracked pass floor is the
-cumulative union of every accepted passing case, so selecting an accidentally
-degraded baseline cannot erase older green cases. The strict command rejects a
+`benchmarks/public-cdxml/strict-pass-floor.json`. The tracked pass floor is
+bound to one exact gate definition and is the cumulative union of every pass
+accepted by that definition, so selecting an accidentally degraded baseline
+cannot erase older green cases. The strict command rejects a
 baseline that has already lost a protected pass and independently fails if the
 current report loses one. After a clean strict run adds passes with zero
 regressions, promote only the additions:
@@ -157,7 +158,23 @@ Promotion validates the exact 338-case cohort, clean and current repository/CLI
 provenance, zero analysis errors, and zero immediate or cumulative regressions.
 It unions new passes into the floor; it never removes protected paths.
 
-Gate v16 makes the fixed-coordinate detail checks non-bypassable. Neither a
+When the gate definition itself is corrected, the old verdict set is not
+silently carried forward. Re-analyze both a frozen previous candidate gallery
+and the current gallery with the new definition, then migrate only if the two
+exact 338-case reports use identical ChemDraw oracles and show zero same-gate
+pass-to-fail transitions:
+
+```bash
+npm run benchmark:cdxml-public:visual-gate:migrate-floor -- \
+  --previous-report tmp/frozen-candidate-gate-report.json \
+  --current-report tmp/current-candidate-gate-report.json
+```
+
+The migration records both report hashes and the same-gate improvement and
+regression counts. This retires verdicts that existed only because of a proven
+old gate bug without adding file exceptions or weakening the current rules.
+
+Gate v19 makes the fixed-coordinate detail checks non-bypassable. Neither a
 whole-page coverage score nor topology distribution can excuse an empty local
 window or a large local defect, and coarse pixel agreement cannot discard a
 fine connected-component mismatch. The detail pass uses zero dilation to
@@ -167,8 +184,10 @@ Missing and extra fragments may be classified as one displaced detail only
 when they both fit within one fixed detail-window distance; look-alike edges on
 opposite sides of a large drawing cannot be paired. SVG
 scale is derived from the declared vector matrix. Translation is resolved for
-each current candidate by a broad low-resolution global-overlap search followed
-by two fixed-scale refinement passes; this prevents an asymmetric label box
+each current candidate on a document-world lattice by a broad low-resolution
+global-overlap search followed by two fixed-scale refinement passes. Tiles and
+local windows use a fixed reference-coordinate lattice, so a root `viewBox`
+crop cannot move registration or sampling. This prevents an asymmetric label box
 from trapping registration in a nearby local optimum. Historical pass
 protection is evaluated after current-image registration and never injects an
 old candidate's translation into a changed render.

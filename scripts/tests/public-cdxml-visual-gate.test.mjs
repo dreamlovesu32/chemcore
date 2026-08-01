@@ -6,15 +6,19 @@ import {
   candidateViewportGateReasons,
   classifyAnalyzedVisualMetrics,
   classifyPassFloorRegressions,
+  defaultGatePolicy,
   detailGateReasons,
   gatePolicy,
   nearExactFixedDefectEquivalent,
+  passFloorGateDefinition,
+  passFloorGateDefinitionErrors,
   selectVisualGateCohort,
   shouldEvaluateOriginal338PassFloor,
   strictOriginal338BaselineErrors,
   strictOriginal338ConfigurationErrors,
   strictOriginal338PassFloorErrors,
 } from "../public-cdxml-visual-gate.mjs";
+import { passFloorMigrationErrors } from "../migrate-public-cdxml-pass-floor.mjs";
 
 test("candidate viewport margin rejects edge clipping independently of image size", () => {
   const clipped = {
@@ -181,6 +185,7 @@ test("strict original-338 mode requires the exact same 338 paths across gate upg
 });
 
 test("strict original-338 pass floor cannot be erased by choosing a degraded baseline", () => {
+  const options = { strictOriginal338: true };
   const selected = Array.from({ length: 338 }, (_, index) => ({
     relativeCdxml: `source/${String(index).padStart(4, "0")}.cdxml`,
   }));
@@ -189,7 +194,8 @@ test("strict original-338 pass floor cannot be erased by choosing a degraded bas
   };
   baseline.cases[0].status = "pass";
   const passFloor = {
-    schema: "chemsema.public-cdxml-strict-pass-floor.v1",
+    schema: "chemsema.public-cdxml-strict-pass-floor.v2",
+    gateDefinition: passFloorGateDefinition(options),
     cohort: { name: "original-338", expected: 338 },
     minimumPassed: 2,
     protectedPasses: ["source/0000.cdxml", "source/0001.cdxml"],
@@ -199,10 +205,43 @@ test("strict original-338 pass floor cannot be erased by choosing a degraded bas
       passFloor,
       selected,
       baseline,
-      { strictOriginal338: true },
+      options,
     ),
     ["baseline lost protected pass source/0001.cdxml"],
   );
+});
+
+test("pass floors are bound to one exact gate definition", () => {
+  const floor = {
+    schema: "chemsema.public-cdxml-strict-pass-floor.v2",
+    gateDefinition: passFloorGateDefinition(),
+  };
+  assert.deepEqual(passFloorGateDefinitionErrors(floor), []);
+  floor.gateDefinition.cacheIdentity = "retired-gate";
+  assert.deepEqual(passFloorGateDefinitionErrors(floor), [
+    "pass floor was established by a different gate definition",
+  ]);
+});
+
+test("pass-floor migration requires zero same-gate candidate regressions", () => {
+  const cases = Array.from({ length: 338 }, (_, index) => ({
+    relativeCdxml: `source/${String(index).padStart(4, "0")}.cdxml`,
+    status: index === 0 ? "fail" : "pass",
+    artifactHashes: { reference: `reference-${index}`, candidate: `old-${index}` },
+  }));
+  const definition = passFloorGateDefinition();
+  const report = (entries) => ({
+    cacheIdentity: definition.cacheIdentity,
+    policy: defaultGatePolicy(),
+    cases: entries,
+  });
+  const improved = structuredClone(cases);
+  improved[0].status = "pass";
+  assert.deepEqual(passFloorMigrationErrors(report(cases), report(improved)), []);
+  improved[1].status = "fail";
+  assert.deepEqual(passFloorMigrationErrors(report(cases), report(improved)), [
+    "current candidate has 1 same-gate pass-to-fail regressions",
+  ]);
 });
 
 test("strict original-338 pass floor reports protected pass regressions independently", () => {

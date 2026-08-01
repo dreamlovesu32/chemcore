@@ -81,7 +81,7 @@ const DEFAULTS = Object.freeze({
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
 export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v19";
 export const STRICT_PASS_FLOOR_SCHEMA =
-  "chemsema.public-cdxml-strict-pass-floor.v1";
+  "chemsema.public-cdxml-strict-pass-floor.v2";
 export const STRICT_PASS_FLOOR_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -293,6 +293,13 @@ export function strictOriginal338PassFloorErrors(
   const errors = [];
   if (passFloor?.schema !== STRICT_PASS_FLOOR_SCHEMA) {
     errors.push("pass floor has a missing or unsupported schema");
+  }
+  const expectedGateDefinition = passFloorGateDefinition(options);
+  if (
+    JSON.stringify(passFloor?.gateDefinition)
+    !== JSON.stringify(expectedGateDefinition)
+  ) {
+    errors.push("pass floor was established by a different gate definition");
   }
   if (
     passFloor?.cohort?.name !== "original-338"
@@ -1738,6 +1745,36 @@ export function gatePolicy(options) {
   };
 }
 
+export function defaultGatePolicy() {
+  return gatePolicy(DEFAULTS);
+}
+
+export function passFloorGateDefinition(options = {}) {
+  const settings = { ...DEFAULTS, ...options };
+  return {
+    cacheIdentity: CACHE_IDENTITY,
+    alignmentAlgorithm: ALIGNMENT_ALGORITHM,
+    policySha256: crypto
+      .createHash("sha256")
+      .update(JSON.stringify(gatePolicy(settings)))
+      .digest("hex"),
+  };
+}
+
+export function passFloorGateDefinitionErrors(passFloor, options = {}) {
+  const errors = [];
+  if (passFloor?.schema !== STRICT_PASS_FLOOR_SCHEMA) {
+    errors.push("pass floor has a missing or unsupported schema");
+  }
+  if (
+    JSON.stringify(passFloor?.gateDefinition)
+    !== JSON.stringify(passFloorGateDefinition(options))
+  ) {
+    errors.push("pass floor was established by a different gate definition");
+  }
+  return errors;
+}
+
 async function writePassedGallery(manifest, report, galleryDir, requestedPath) {
   const passedGalleryPath = path.resolve(
     requestedPath ?? path.join(galleryDir, "passed.html"),
@@ -2373,6 +2410,9 @@ async function main() {
   const strictPassFloor = evaluatePassFloor
     ? JSON.parse(await fs.readFile(STRICT_PASS_FLOOR_PATH, "utf8"))
     : null;
+  const passFloorDefinitionErrors = evaluatePassFloor
+    ? passFloorGateDefinitionErrors(strictPassFloor, options)
+    : [];
   const strictBaselineErrors = strictOriginal338BaselineErrors(
     baselineReport,
     items,
@@ -2551,7 +2591,7 @@ async function main() {
   const delta = classifyBaselineChanges(cases, regressionBaselineCases);
   const protectedPassRegressions = classifyPassFloorRegressions(
     cases,
-    strictPassFloor,
+    passFloorDefinitionErrors.length ? null : strictPassFloor,
   );
   const report = {
     schema: "chemsema-public-cdxml-visual-gate-v1",
@@ -2604,6 +2644,10 @@ async function main() {
           : "none",
       ...delta,
     },
+    passFloorEvaluation: evaluatePassFloor ? {
+      applicable: passFloorDefinitionErrors.length === 0,
+      definitionErrors: passFloorDefinitionErrors,
+    } : null,
     protectedPassRegressions,
     cases,
   };
