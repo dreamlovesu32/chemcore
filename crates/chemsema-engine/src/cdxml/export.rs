@@ -2672,15 +2672,26 @@ impl<'a> CdxmlDocumentWriter<'a> {
             ("color", self.colors.id_for(color)),
             ("Z", object.z_index.to_string()),
         ];
+        let stroke_width = style
+            .and_then(|style| style_number_value(style, "strokeWidth"))
+            .unwrap_or(self.defaults.line_width);
         if let Some(radius) = object
             .payload
             .extra
             .get("cornerRadius")
             .and_then(Value::as_f64)
+            .filter(|radius| *radius > 0.0)
         {
-            attrs.push(("CornerRadius", fmt_num(radius * 100.0)));
+            let radius_basis = if stroke_width > crate::EPSILON {
+                stroke_width
+            } else {
+                self.defaults.line_width
+            };
+            attrs.push(("CornerRadius", fmt_num(radius / radius_basis * 100.0)));
         }
-        if let Some(stroke_width) = style.and_then(|style| style_number_value(style, "strokeWidth"))
+        if style
+            .and_then(|style| style_number_value(style, "strokeWidth"))
+            .is_some()
         {
             attrs.push(("LineWidth", fmt_num(stroke_width)));
         }

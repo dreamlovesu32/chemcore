@@ -1103,7 +1103,7 @@ Example:
 
 - `kind`: `circle | ellipse | rect | roundRect`
 - `bbox`: local bounding box for rectangles and rounded rectangles; CDXML import maps this from `BoundingBox`
-- `cornerRadius`: optional corner radius for `roundRect`, mapped from CDXML `CornerRadius / 100`
+- `cornerRadius`: optional absolute corner radius in document points for `roundRect`. CDXML encodes a different quantity: `(CornerRadius / 100) × normal LineWidth`. Missing or zero CDXML values select the measured `600` default, and `BoldWidth` does not replace the normal `LineWidth` basis. Import resolves that expression to an absolute radius; export divides the absolute radius by the emitted `LineWidth`. When the radius exceeds one rectangle axis, rendering clamps the horizontal and vertical corner radii independently to `width / 2` and `height / 2`.
 - `center` / `majorAxisEnd` / `minorAxisEnd`: actual circle and ellipse axis points, mapped from CDXML `Center3D`, `MajorAxisEnd3D`, and `MinorAxisEnd3D`
 
 Shape appearance belongs primarily in styles, including:

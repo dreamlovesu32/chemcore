@@ -1129,7 +1129,7 @@ shape 对象表示简单的填充或描边区域。
 
 - `kind`：`circle | ellipse | rect | roundRect`
 - `bbox`：矩形/圆角矩形使用的局部包围盒；导入 CDXML 时直接来自 `BoundingBox`
-- `cornerRadius`：可选，`roundRect` 的圆角半径，对应 CDXML `CornerRadius / 100`
+- `cornerRadius`：可选，`roundRect` 的绝对圆角半径，单位为文档点。CDXML 存储的是另一种量：`(CornerRadius / 100) × 普通 LineWidth`；CDXML 缺失或写成 `0` 时采用实测默认值 `600`，`BoldWidth` 不替代普通 `LineWidth` 作为换算基准。导入时把该表达式解算为绝对半径，导出时再除以实际写出的 `LineWidth`。当半径超过矩形某一方向的半边长时，水平和垂直圆角半径分别限制为 `width / 2` 与 `height / 2`。
 - `center` / `majorAxisEnd` / `minorAxisEnd`：圆和椭圆使用的实际轴端点，对应 CDXML `Center3D`、`MajorAxisEnd3D`、`MinorAxisEnd3D`
 
 shape 的外观主要放在样式里，包括：

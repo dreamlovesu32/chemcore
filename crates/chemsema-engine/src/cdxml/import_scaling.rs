@@ -214,7 +214,6 @@ pub(super) fn scale_json_key_as_length_scalar(key: &str) -> bool {
             | "pad"
             | "padding"
             | "cornerRadius"
-            | "shadowSize"
             | "dashSpacing"
     )
 }

@@ -1,4 +1,135 @@
 use super::*;
+use serde_json::Value;
+
+#[test]
+fn cdxml_round_rectangle_radius_uses_normal_line_width_as_its_basis() {
+    let source = r#"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BoundingBox="0 0 240 80" LineWidth="0.6" BoldWidth="2">
+  <page id="1" BoundingBox="0 0 240 80">
+    <graphic id="10" BoundingBox="10 10 54 40" GraphicType="Rectangle" RectangleType="RoundEdge" CornerRadius="600" LineWidth="0.6"/>
+    <graphic id="11" BoundingBox="70 10 114 40" GraphicType="Rectangle" RectangleType="RoundEdge" CornerRadius="600" LineWidth="2"/>
+    <graphic id="12" BoundingBox="130 10 174 40" GraphicType="Rectangle" RectangleType="RoundEdge Bold" CornerRadius="600"/>
+    <graphic id="13" BoundingBox="190 10 234 40" GraphicType="Rectangle" RectangleType="RoundEdge" CornerRadius="0"/>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(source, Some("round rectangle radius"))
+        .expect("round rectangle probe should import");
+    let shapes = document
+        .objects
+        .iter()
+        .filter(|object| object.object_type == "shape")
+        .collect::<Vec<_>>();
+    assert_eq!(shapes.len(), 4);
+
+    let radii = shapes
+        .iter()
+        .map(|object| {
+            object
+                .payload
+                .extra
+                .get("cornerRadius")
+                .and_then(Value::as_f64)
+                .expect("round rectangle radius")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(radii, vec![3.6, 12.0, 3.6, 3.6]);
+
+    let bold_style = document
+        .styles
+        .get(shapes[2].style_ref.as_deref().expect("bold style ref"))
+        .expect("bold style");
+    assert_eq!(
+        bold_style.get("strokeWidth").and_then(Value::as_f64),
+        Some(2.0)
+    );
+}
+
+#[test]
+fn cdxml_round_rectangle_export_preserves_absolute_radius() {
+    let document: ChemSemaDocument = serde_json::from_value(json!({
+        "format": { "name": "chemsema", "version": "0.1" },
+        "document": {
+            "id": "doc_test",
+            "title": "test",
+            "page": { "width": 100.0, "height": 80.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "shape": {
+                "kind": "shape",
+                "fill": null,
+                "stroke": "#000000",
+                "strokeWidth": 0.6
+            }
+        },
+        "objects": [{
+            "id": "rounded",
+            "type": "shape",
+            "visible": true,
+            "zIndex": 1,
+            "transform": { "translate": [10.0, 10.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+            "styleRef": "shape",
+            "payload": {
+                "kind": "roundRect",
+                "bbox": [0.0, 0.0, 44.0, 30.0],
+                "cornerRadius": 6.0
+            }
+        }],
+        "resources": {}
+    }))
+    .expect("document should deserialize");
+
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("CornerRadius=\"1000\""));
+    let reopened = parse_cdxml_document(&exported, Some("round rectangle reopened"))
+        .expect("exported round rectangle should reimport");
+    let radius = reopened.objects[0]
+        .payload
+        .extra
+        .get("cornerRadius")
+        .and_then(Value::as_f64);
+    assert_eq!(radius, Some(6.0));
+}
+
+#[test]
+fn round_rectangle_clamps_corner_axes_independently() {
+    let document: ChemSemaDocument = serde_json::from_value(json!({
+        "format": { "name": "chemsema", "version": "0.1" },
+        "document": {
+            "id": "doc_test",
+            "title": "test",
+            "page": { "width": 80.0, "height": 60.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "shape": { "kind": "shape", "stroke": "#000000", "strokeWidth": 1.0 }
+        },
+        "objects": [{
+            "id": "rounded",
+            "type": "shape",
+            "visible": true,
+            "zIndex": 1,
+            "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+            "styleRef": "shape",
+            "payload": {
+                "kind": "roundRect",
+                "bbox": [0.0, 0.0, 44.0, 30.0],
+                "cornerRadius": 16.0
+            }
+        }],
+        "resources": {}
+    }))
+    .expect("document should deserialize");
+
+    let path = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Path { d, .. } => Some(d),
+            _ => None,
+        })
+        .expect("round rectangle outline");
+    assert!(path.starts_with("M 0,15 "), "unexpected path: {path}");
+    assert!(path.contains(" 16,0 "), "unexpected path: {path}");
+    assert!(path.contains(" 28,0 "), "unexpected path: {path}");
+}
 
 #[test]
 fn render_document_emits_shape_rect_with_style() {
