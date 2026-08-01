@@ -9,11 +9,11 @@
     "name": "original-338",
     "expected": 338
   },
-  "minimumPassed": 239,
+  "minimumPassed": 242,
   "source": {
-    "commit": "bb01623078917bc10d378fc25e110e213b49977c",
-    "repositoryIdentity": "8d8e31eafafc7470adcb5b17301567a6c400c4fa9d5b16e45cfd9729c082a8b0",
-    "gateReportGeneratedAt": "2026-08-01T15:13:47.602Z"
+    "commit": "a8808386cf1e03686dc3838ffa9ce58398ea2681",
+    "repositoryIdentity": "96e49cac9eebed0c14499eb833152800195fc8b532d65c63bd29129f0c10d26d",
+    "gateReportGeneratedAt": "2026-08-01T18:17:14.075Z"
   },
   "migration": {
     "previousSchema": "chemsema.public-cdxml-strict-pass-floor.v2",
@@ -140,6 +140,7 @@
     "rdkit/Code/GraphMol/test_data/CDX/structure_4.cdx",
     "rdkit/Code/GraphMol/test_data/CDX/structure_5.cdx",
     "rdkit/Code/GraphMol/test_data/CDX/structure_6.cdx",
+    "rdkit/Code/GraphMol/test_data/CDXML/atrop1.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/bad-cdxml.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/beta-cypermethrin-or-abs.cdxml",
     "rdkit/Code/GraphMol/test_data/CDXML/beta-cypermethrin-or-as.cdxml",
@@ -188,6 +189,7 @@
     "rdkit/External/ChemDraw/test_data/patents/US09176128-20151103-C00054.CDX",
     "rdkit/External/ChemDraw/test_data/patents/US09293712-20160322-C00153.CDX",
     "rdkit/External/ChemDraw/test_data/patents/US10160771-20181225-C00012.CDX",
+    "rdkit/External/ChemDraw/test_data/patents/US10265425-20190423-C00021.CDX",
     "rdkit/External/ChemDraw/test_data/patents/US10329212-20190625-C00010.CDX",
     "rdkit/External/ChemDraw/test_data/patents/US10640524-20200505-C00001.CDX",
     "rdkit/External/ChemDraw/test_data/patents/US10640524-20200505-C00005.CDX",
@@ -219,6 +221,7 @@
     "rdkit/External/ChemDraw/test_data/patents/US20140235834A1-20140821-C00053.CDX",
     "rdkit/External/ChemDraw/test_data/patents/US20140235834A1-20140821-C00054.CDX",
     "rdkit/External/ChemDraw/test_data/patents/US20150102321A1-20150416-C00153.CDX",
+    "rdkit/External/ChemDraw/test_data/patents/US20160375158A1-20161229-C00021.CDX",
     "rdkit/External/ChemDraw/test_data/patents/US20170253614A1-20170907-C00012.CDX",
     "rdkit/External/ChemDraw/test_data/patents/US20170342001A1-20171130-C00010.CDX",
     "rdkit/External/ChemDraw/test_data/patents/US20180170953A1-20180621-C00005.CDX",
