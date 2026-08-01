@@ -488,8 +488,10 @@ fn supports_main_bond_contact_shape(bond: &Bond) -> bool {
         return false;
     }
     if bond.order == 1 {
-        return bond.line_styles.left == BondLinePattern::Solid
-            && bond.line_styles.right == BondLinePattern::Solid
+        return effective_render_line_pattern(bond, BondLineLane::Left, bond.line_styles.left)
+            == BondLinePattern::Solid
+            && effective_render_line_pattern(bond, BondLineLane::Right, bond.line_styles.right)
+                == BondLinePattern::Solid
             && bond.line_weights.left == BondLineWeight::Normal
             && bond.line_weights.right == BondLineWeight::Normal
             && matches!(
@@ -514,8 +516,10 @@ fn supports_main_bond_contact_shape(bond: &Bond) -> bool {
     if bond.order == 3 {
         return bond.double.is_none()
             && bond_main_line_pattern(bond) == BondLinePattern::Solid
-            && bond.line_styles.left == BondLinePattern::Solid
-            && bond.line_styles.right == BondLinePattern::Solid
+            && effective_render_line_pattern(bond, BondLineLane::Left, bond.line_styles.left)
+                == BondLinePattern::Solid
+            && effective_render_line_pattern(bond, BondLineLane::Right, bond.line_styles.right)
+                == BondLinePattern::Solid
             && bond.line_weights.main == BondLineWeight::Normal
             && bond.line_weights.left == BondLineWeight::Normal
             && bond.line_weights.right == BondLineWeight::Normal;

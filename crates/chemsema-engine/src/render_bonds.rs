@@ -45,6 +45,14 @@ pub(super) fn bond_label_clipped_body_geometry(
         if bond.order == 1 && bond_main_line_pattern(bond) == crate::BondLinePattern::Wavy {
             let half_width = wavy_bond_amplitude_for_bond(bond, stroke_width) + stroke_width * 0.5;
             (half_width, half_width)
+        } else if bond.order == 1 && bond_main_line_pattern(bond) == BondLinePattern::Hash {
+            let half_width = line_pattern_visual_width_for_bond(
+                bond,
+                stroke_width,
+                BondLinePattern::Hash,
+                bond.line_weights.main,
+            ) * 0.5;
+            (half_width, half_width)
         } else {
             bond_stereo_kind(bond).map_or((stroke_width * 0.5, stroke_width * 0.5), |stereo| {
                 wedge_endpoint_half_widths(bond, stereo, stroke_width)
@@ -258,6 +266,7 @@ pub(super) fn render_fragment_bond(
             true,
             stroke,
             stroke_width,
+            BondLinePattern::Solid,
             Vec::new(),
             bond.line_weights.main,
             object_id.clone(),
@@ -335,6 +344,7 @@ pub(super) fn render_fragment_bond(
         true,
         stroke,
         stroke_width,
+        bond_main_line_pattern(bond),
         line_pattern_dash_array_for_bond(bond, stroke_width, bond_main_line_pattern(bond)),
         bond.line_weights.main,
         object_id,
@@ -543,6 +553,7 @@ fn render_double_bond(
                 true,
                 stroke,
                 stroke_width,
+                bond_main_line_pattern(bond),
                 line_pattern_dash_array_for_bond(bond, stroke_width, bond_main_line_pattern(bond)),
                 bond.line_weights.main,
                 object_id.clone(),
@@ -731,13 +742,13 @@ fn render_center_double_bond_lines(
         (
             -1.0,
             -double_offset / 2.0,
-            bond.line_styles.left,
+            effective_render_line_pattern(bond, BondLineLane::Left, bond.line_styles.left),
             bond.line_weights.left,
         ),
         (
             1.0,
             double_offset / 2.0,
-            bond.line_styles.right,
+            effective_render_line_pattern(bond, BondLineLane::Right, bond.line_styles.right),
             bond.line_weights.right,
         ),
     ] {
@@ -794,6 +805,7 @@ fn render_center_double_bond_lines(
             false,
             stroke,
             stroke_width,
+            pattern,
             line_pattern_dash_array_for_bond(bond, stroke_width, pattern),
             weight,
             object_id.clone(),
@@ -846,6 +858,7 @@ fn render_triple_bond(
         true,
         stroke,
         stroke_width,
+        bond_main_line_pattern(bond),
         line_pattern_dash_array_for_bond(bond, stroke_width, bond_main_line_pattern(bond)),
         bond.line_weights.main,
         object_id.clone(),
@@ -1004,6 +1017,7 @@ fn render_outer_bond_lines(
             false,
             stroke,
             stroke_width,
+            line_pattern,
             line_pattern_dash_array_for_bond(bond, stroke_width, line_pattern),
             line_weight,
             object_id.clone(),

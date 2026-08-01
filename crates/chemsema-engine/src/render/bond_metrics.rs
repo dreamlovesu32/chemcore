@@ -55,6 +55,21 @@ pub(super) fn line_weight_stroke_width_for_bond(
     }
 }
 
+pub(super) fn line_pattern_visual_width_for_bond(
+    bond: &Bond,
+    stroke_width: f64,
+    pattern: BondLinePattern,
+    weight: BondLineWeight,
+) -> f64 {
+    if pattern == BondLinePattern::Hash {
+        bond.bold_width
+            .filter(|width| *width > EPSILON)
+            .unwrap_or_else(|| line_weight_stroke_width(stroke_width, BondLineWeight::Bold))
+    } else {
+        line_weight_stroke_width_for_bond(bond, stroke_width, weight)
+    }
+}
+
 pub(super) fn wavy_bond_amplitude_for_bond(bond: &Bond, stroke_width: f64) -> f64 {
     bond.bold_width
         .unwrap_or_else(|| line_weight_stroke_width(stroke_width, BondLineWeight::Bold))
@@ -206,56 +221,6 @@ pub(super) fn is_acs_document_1996_bond_template(bond: &Bond, stroke_width: f64)
             .is_none_or(|spacing| (spacing - 18.0).abs() <= 0.05)
 }
 
-pub(super) fn equal_black_segment_gap_intervals(
-    length: f64,
-    start_offset: f64,
-    end_inset: f64,
-    stripe_length: f64,
-    target_gap_length: f64,
-) -> Vec<(f64, f64)> {
-    if length <= EPSILON {
-        return Vec::new();
-    }
-    let usable_start = start_offset.max(0.0);
-    let usable_end = (length - end_inset).max(usable_start);
-    let usable_length = usable_end - usable_start;
-    let stripe_length = stripe_length.max(EPSILON);
-    let target_gap_length = target_gap_length.max(EPSILON);
-    if usable_length <= stripe_length + EPSILON {
-        return Vec::new();
-    }
-
-    let mut stripe_count = ((usable_length + target_gap_length)
-        / (stripe_length + target_gap_length))
-        .round() as usize;
-    stripe_count = stripe_count.max(2);
-    while stripe_count > 1 && stripe_length * stripe_count as f64 > usable_length + EPSILON {
-        stripe_count -= 1;
-    }
-    if stripe_count < 2 {
-        return Vec::new();
-    }
-
-    let gap_count = stripe_count - 1;
-    let total_gap_length = (usable_length - stripe_length * stripe_count as f64).max(0.0);
-    let gap_length = total_gap_length / gap_count as f64;
-    let mut intervals = Vec::with_capacity(gap_count);
-    let mut cursor = usable_start + stripe_length;
-    for index in 0..gap_count {
-        let gap_start = cursor;
-        let gap_end = if index + 1 == gap_count {
-            usable_end - stripe_length
-        } else {
-            gap_start + gap_length
-        };
-        if gap_end > gap_start + EPSILON {
-            intervals.push((gap_start, gap_end));
-        }
-        cursor = gap_end + stripe_length;
-    }
-    intervals
-}
-
 fn chemdraw_dashed_bond_stripe_count(
     length: f64,
     stripe_length: f64,
@@ -384,19 +349,13 @@ pub(super) fn hash_bond_segment_polygons(
     end: Point,
     visual_width: f64,
     pattern_width: f64,
+    bond: &Bond,
 ) -> Vec<Vec<Point>> {
     let length = start.distance(end);
-    if length <= EPSILON {
+    if length + EPSILON < pattern_width || length <= EPSILON {
         return Vec::new();
     }
-    let scale = pattern_width / VIEWER_BOND_STROKE;
-    let gaps = equal_black_segment_gap_intervals(
-        length,
-        0.0,
-        0.0,
-        HASH_BLACK_SEGMENT_LENGTH * scale,
-        HASH_TARGET_GAP_LENGTH * scale,
-    );
+    let gaps = hashed_wedge_gap_intervals(length, pattern_width, bond);
     dashed_segment_polygons_for_gap_intervals(start, end, visual_width * 0.5, &gaps)
 }
 
@@ -551,11 +510,12 @@ pub(super) fn line_pattern_dash_array_for_bond(
 }
 
 pub(super) fn outer_line_pattern(bond: &Bond, side: f64) -> BondLinePattern {
-    if side > 0.0 {
-        bond.line_styles.left
+    let (lane, authored) = if side > 0.0 {
+        (BondLineLane::Left, bond.line_styles.left)
     } else {
-        bond.line_styles.right
-    }
+        (BondLineLane::Right, bond.line_styles.right)
+    };
+    effective_render_line_pattern(bond, lane, authored)
 }
 
 pub(super) fn outer_line_weight(bond: &Bond, side: f64) -> BondLineWeight {

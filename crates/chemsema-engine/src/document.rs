@@ -451,6 +451,7 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     migrate_legacy_external_connection_points(&mut value);
     let mut document: ChemSemaDocument =
         serde_json::from_value(value).map_err(|error| error.to_string())?;
+    migrate_legacy_hash_bond_styles(&mut document);
     migrate_legacy_bracket_links(&mut document);
     document.document.layout.validate()?;
     validate_scene_object_types(&document.objects)?;
@@ -477,6 +478,32 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     validate_logical_objects(&document)?;
     validate_link_relations(&document)?;
     Ok(document)
+}
+
+fn migrate_legacy_hash_bond_styles(document: &mut ChemSemaDocument) {
+    for resource in document.resources.values_mut() {
+        let Some(fragment) = resource.data.as_fragment_mut() else {
+            continue;
+        };
+        for bond in &mut fragment.bonds {
+            let legacy_menu_hash = bond
+                .meta
+                .get("contextMenuBondStyle")
+                .and_then(Value::as_str)
+                == Some("single-hashed");
+            let legacy_tool_hash = bond.order == 1
+                && bond.stereo.is_none()
+                && bond.line_styles.main == BondLinePattern::Dashed
+                && bond.line_weights.main == BondLineWeight::Bold;
+            if legacy_menu_hash || legacy_tool_hash {
+                bond.line_styles.main = BondLinePattern::Hash;
+                bond.line_weights.main = BondLineWeight::Normal;
+                if let Some(meta) = bond.meta.as_object_mut() {
+                    meta.remove("contextMenuBondStyle");
+                }
+            }
+        }
+    }
 }
 
 fn validate_image_objects(document: &ChemSemaDocument) -> Result<(), String> {
@@ -4634,6 +4661,7 @@ pub enum BondLinePattern {
     #[default]
     Solid,
     Dashed,
+    Hash,
     Wavy,
 }
 

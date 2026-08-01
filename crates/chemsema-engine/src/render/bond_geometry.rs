@@ -176,9 +176,7 @@ pub(super) fn compute_bold_bond_points(
 }
 
 pub(super) fn is_hash_bond(bond: &Bond) -> bool {
-    bond.order == 1
-        && bond_main_line_pattern(bond) == BondLinePattern::Dashed
-        && bond.line_weights.main == BondLineWeight::Bold
+    bond.order == 1 && bond_main_line_pattern(bond) == BondLinePattern::Hash
 }
 
 pub(super) fn is_hashed_wedge_bond(bond: &Bond) -> bool {

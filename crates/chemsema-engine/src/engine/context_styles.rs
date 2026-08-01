@@ -2026,8 +2026,7 @@ fn apply_bond_style_key(bond: &mut Bond, style: &str, bold_width: f64, wedge_wid
         }
         "single-hashed" => {
             set_single_common(bond);
-            bond.line_styles.main = BondLinePattern::Dashed;
-            bond.meta = merge_object_meta_string(bond.meta.clone(), "contextMenuBondStyle", style);
+            bond.line_styles.main = BondLinePattern::Hash;
         }
         "single-hashed-wedged" => {
             set_single_common(bond);
@@ -2549,12 +2548,6 @@ fn set_json_object_field(value: &mut JsonValue, key: &str, next: Option<JsonValu
         *value = JsonValue::Null;
     }
     changed
-}
-
-fn merge_object_meta_string(meta: JsonValue, key: &str, value: &str) -> JsonValue {
-    let mut object = meta.as_object().cloned().unwrap_or_default();
-    object.insert(key.to_string(), json!(value));
-    JsonValue::Object(object)
 }
 
 fn clear_object_meta_key(meta: JsonValue, key: &str) -> JsonValue {

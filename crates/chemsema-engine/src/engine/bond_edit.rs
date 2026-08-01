@@ -579,9 +579,15 @@ impl Engine {
 
     pub(super) fn pending_line_styles(&self) -> BondLineStyles {
         match self.state.tool.bond_variant {
-            BondVariant::Dashed | BondVariant::BoldDashed => {
+            BondVariant::Dashed => {
                 return BondLineStyles {
                     main: BondLinePattern::Dashed,
+                    ..BondLineStyles::default()
+                };
+            }
+            BondVariant::BoldDashed => {
+                return BondLineStyles {
+                    main: BondLinePattern::Hash,
                     ..BondLineStyles::default()
                 };
             }
@@ -634,7 +640,7 @@ impl Engine {
 
     pub(super) fn pending_line_weights(&self) -> BondLineWeights {
         match self.state.tool.bond_variant {
-            BondVariant::Bold | BondVariant::BoldDashed => {
+            BondVariant::Bold => {
                 return BondLineWeights {
                     main: BondLineWeight::Bold,
                     ..BondLineWeights::default()

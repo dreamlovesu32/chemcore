@@ -43,6 +43,7 @@
     "probe:chemdraw-aromatic-chain-side": "node scripts/chemdraw-aromatic-chain-side-probe.mjs",
     "probe:chemdraw-point-lexical": "node scripts/chemdraw-point-lexical-probe.mjs",
     "probe:chemdraw-curly-bracket-anchor": "node scripts/chemdraw-curly-bracket-anchor-probe.mjs",
+    "probe:chemdraw-hash-bonds": "node scripts/chemdraw-hash-bond-probe.mjs",
     "probe:chemdraw-double-bond-side": "node scripts/chemdraw-double-bond-side-probe.mjs",
     "probe:chemdraw-external-connections": "node scripts/chemdraw-external-connection-probe.mjs",
     "probe:chemdraw-spectra": "node scripts/chemdraw-spectrum-probe.mjs",

@@ -963,6 +963,7 @@ pub(super) fn render_fragment_line(
     allow_bold_contacts: bool,
     stroke: &str,
     stroke_width: f64,
+    line_pattern: BondLinePattern,
     dash_array: Vec<f64>,
     line_weight: BondLineWeight,
     object_id: Option<String>,
@@ -982,6 +983,7 @@ pub(super) fn render_fragment_line(
         allow_bold_contacts,
         stroke,
         stroke_width,
+        line_pattern,
         dash_array,
         line_weight,
         object_id,
@@ -1010,6 +1012,7 @@ pub(super) fn render_fragment_line_with_profiles(
     allow_bold_contacts: bool,
     stroke: &str,
     stroke_width: f64,
+    line_pattern: BondLinePattern,
     dash_array: Vec<f64>,
     line_weight: BondLineWeight,
     object_id: Option<String>,
@@ -1049,7 +1052,8 @@ pub(super) fn render_fragment_line_with_profiles(
         end_endpoint_profile_override
     };
     let Some((clipped_start, clipped_end)) = (if clip_against_label_geometry {
-        let half_width = line_weight_stroke_width_for_bond(bond, stroke_width, line_weight) * 0.5;
+        let half_width =
+            line_pattern_visual_width_for_bond(bond, stroke_width, line_pattern, line_weight) * 0.5;
         clip_body_segment_out_of_label_geometry(
             start,
             end,
@@ -1075,7 +1079,7 @@ pub(super) fn render_fragment_line_with_profiles(
     } else {
         contact_kernel.endpoint_retreat(&bond.id, &bond.end)
     };
-    if is_hash_bond(bond) && line_weight == BondLineWeight::Bold && !dash_array.is_empty() {
+    if line_pattern == BondLinePattern::Hash {
         let retreat = hash_contact_retreat_distance_for_bond(bond, stroke_width);
         if !start_has_label && endpoint_has_other_bond(bonds, bond, &bond.begin) {
             start_retreat = start_retreat.max(retreat);
@@ -1111,6 +1115,24 @@ pub(super) fn render_fragment_line_with_profiles(
             || start_endpoint_profile.is_some());
     let use_end_contact_kernel = !end_has_label
         && (contact_kernel.uses_endpoint(&bond.id, &bond.end) || end_endpoint_profile.is_some());
+    if line_pattern == BondLinePattern::Hash {
+        let visual_width =
+            line_pattern_visual_width_for_bond(bond, stroke_width, line_pattern, line_weight);
+        for points in
+            hash_bond_segment_polygons(clipped_start, clipped_end, visual_width, stroke_width, bond)
+        {
+            push_bond_polygon(
+                out,
+                &bond.id,
+                points,
+                stroke,
+                stroke,
+                0.0,
+                object_id.clone(),
+            );
+        }
+        return;
+    }
     if line_weight == BondLineWeight::Normal && dash_array.is_empty() {
         let allow_main_line_join =
             is_joinable_main_line_render(bond, allow_bold_contacts, line_weight);
@@ -1133,18 +1155,14 @@ pub(super) fn render_fragment_line_with_profiles(
     }
     if !dash_array.is_empty() {
         let visual_width = line_weight_stroke_width_for_bond(bond, stroke_width, line_weight);
-        let segment_polygons = if line_weight == BondLineWeight::Bold && is_hash_bond(bond) {
-            hash_bond_segment_polygons(clipped_start, clipped_end, visual_width, stroke_width)
-        } else {
-            dashed_bond_segment_polygons_with_profiles(
-                clipped_start,
-                clipped_end,
-                visual_width,
-                &dash_array,
-                start_endpoint_profile.as_deref(),
-                end_endpoint_profile.as_deref(),
-            )
-        };
+        let segment_polygons = dashed_bond_segment_polygons_with_profiles(
+            clipped_start,
+            clipped_end,
+            visual_width,
+            &dash_array,
+            start_endpoint_profile.as_deref(),
+            end_endpoint_profile.as_deref(),
+        );
         if !segment_polygons.is_empty() {
             for points in segment_polygons {
                 push_bond_polygon(
@@ -1251,7 +1269,7 @@ pub(super) fn render_fragment_line_with_profiles(
     if let Some(points) = simple_main_line_polygon_points(
         clipped_start,
         clipped_end,
-        line_weight_stroke_width_for_bond(bond, stroke_width, line_weight),
+        line_pattern_visual_width_for_bond(bond, stroke_width, line_pattern, line_weight),
     ) {
         push_bond_polygon(out, &bond.id, points, stroke, stroke, 0.0, object_id);
     }

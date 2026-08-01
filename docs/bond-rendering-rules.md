@@ -183,11 +183,37 @@ Additional rules:
 
 Hash bonds are a separate model: a bold solid body plus white cut segments.
 
-- The body is always a bold solid rectangle.
-- Black segment lengths must be equal.
-- White segment lengths may vary within a range.
-- The number of white segments changes only when the total length exceeds the range allowed by the current segment count.
-- Black segment length has higher priority than equal spacing of white segments.
+- `Hash` is an explicit authored line pattern in CCJS. It must not be encoded
+  as the otherwise ambiguous combination `dashed + bold`.
+- For a final visible axis length `L`, effective `LineWidth` `w`, effective
+  `BoldWidth` `b`, and effective `HashSpacing` `h`, ChemDraw uses:
+
+  ```text
+  no stripe                                      when L < w
+  count = max(1, 1 + floor((L - w) / h))         when L >= w
+  pitch = (L - w) / (count - 1)                  when count > 1
+  ```
+
+- Every black stripe is a rectangle of axial length `w` and transverse width
+  `b`. With two or more stripes, the first and last stripes touch the final
+  visible endpoints and the stripe starts/centers are equally spaced. With one
+  stripe, it touches the authored begin endpoint and leaves the remaining
+  length blank at the end.
+- The rule is rotation invariant. Per-bond `LineWidth`, `BoldWidth`, and
+  `HashSpacing` override document defaults independently.
+- ChemDraw activates `Display="Hash"` for an order-1 bond, and for an
+  `Order="1.5"` bond only while `Display2` is absent (the visible result is one
+  hash lane). `Display2="Hash"` is retained as an authored field but does not
+  activate a hash lane. On order-2/order-3 bonds, authored Hash values are also
+  retained for round trip while the effective rendered lanes are solid. CCJS
+  therefore separates authored line patterns from effective render patterns.
+- The rule is verified by 53 silent ChemDraw SVG probes spanning directions,
+  threshold lengths, Default/ACS widths, spacing overrides, bond-local
+  overrides, orders, and double-bond placements:
+
+  ```bash
+  npm run probe:chemdraw-hash-bonds -- tmp/chemdraw-hash-bond-probe
+  ```
 
 ### Hash Bonds And Ordinary Main Bonds
 

@@ -25,8 +25,8 @@ fn render_document_keeps_hash_bond_label_clip_without_extra_hash_retreat() {
         "end": "n2",
         "order": 1,
         "strokeWidth": 0.85,
-        "lineStyles": { "main": "dashed", "left": "solid", "right": "solid" },
-        "lineWeights": { "main": "bold", "left": "normal", "right": "normal" }
+        "lineStyles": { "main": "hash", "left": "solid", "right": "solid" },
+        "lineWeights": { "main": "normal", "left": "normal", "right": "normal" }
     });
     let isolated = fragment_document(labeled_nodes.clone(), json!([hash_bond.clone()]));
     let connected = fragment_document(
@@ -80,12 +80,12 @@ fn render_document_retreats_hash_bond_segments_against_center_double_outer_line(
                 "order": 1,
                 "strokeWidth": 0.85,
                 "lineStyles": {
-                    "main": "dashed",
+                    "main": "hash",
                     "left": "solid",
                     "right": "solid"
                 },
                 "lineWeights": {
-                    "main": "bold",
+                    "main": "normal",
                     "left": "normal",
                     "right": "normal"
                 }
@@ -192,12 +192,12 @@ fn render_document_retreats_hash_bond_and_ignores_it_for_other_bond_contacts() {
                 "order": 1,
                 "strokeWidth": 0.85,
                 "lineStyles": {
-                    "main": "dashed",
+                    "main": "hash",
                     "left": "solid",
                     "right": "solid"
                 },
                 "lineWeights": {
-                    "main": "bold",
+                    "main": "normal",
                     "left": "normal",
                     "right": "normal"
                 }
@@ -289,12 +289,12 @@ fn render_document_retreats_hash_bond_against_solid_dashed_center_double_outer_l
                 "order": 1,
                 "strokeWidth": 0.85,
                 "lineStyles": {
-                    "main": "dashed",
+                    "main": "hash",
                     "left": "solid",
                     "right": "solid"
                 },
                 "lineWeights": {
-                    "main": "bold",
+                    "main": "normal",
                     "left": "normal",
                     "right": "normal"
                 }

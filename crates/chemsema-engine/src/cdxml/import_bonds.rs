@@ -333,11 +333,7 @@ pub(super) fn cdxml_apply_line_style_for_double_placement(
 
     *line_styles = BondLineStyles::default();
     *line_weights = BondLineWeights::default();
-    if matches!(display, "Dash" | "Hash") {
-        line_styles.main = crate::BondLinePattern::Dashed;
-    } else if display == "Wavy" {
-        line_styles.main = crate::BondLinePattern::Wavy;
-    }
+    line_styles.main = cdxml_bond_main_line_pattern(order, display);
     if display == "Bold" {
         line_weights.main = crate::BondLineWeight::Bold;
     }
@@ -347,9 +343,7 @@ pub(super) fn cdxml_apply_line_style_for_double_placement(
         crate::DoubleBondPlacement::Right => &mut line_styles.right,
         crate::DoubleBondPlacement::Center => unreachable!(),
     };
-    if matches!(display2, "Dash" | "Hash") {
-        *outer_style = crate::BondLinePattern::Dashed;
-    }
+    *outer_style = cdxml_bond_second_line_pattern(display2);
 
     let outer_weight = match placement {
         crate::DoubleBondPlacement::Left => &mut line_weights.left,
@@ -427,18 +421,31 @@ fn cdxml_bond_absolute_stereo(value: Option<&str>) -> crate::BondAbsoluteStereo 
 
 pub(super) fn cdxml_bond_line_styles(order: u8, display: &str, display2: &str) -> BondLineStyles {
     let mut styles = BondLineStyles::default();
-    if matches!(display, "Dash" | "Hash") {
-        styles.main = crate::BondLinePattern::Dashed;
+    styles.main = cdxml_bond_main_line_pattern(order, display);
+    if styles.main != crate::BondLinePattern::Solid {
         if order >= 2 {
-            styles.left = crate::BondLinePattern::Dashed;
+            styles.left = styles.main;
         }
-    } else if display == "Wavy" {
-        styles.main = crate::BondLinePattern::Wavy;
     }
-    if order >= 2 && matches!(display2, "Dash" | "Hash") {
-        styles.right = crate::BondLinePattern::Dashed;
-    }
+    styles.right = cdxml_bond_second_line_pattern(display2);
     styles
+}
+
+fn cdxml_bond_main_line_pattern(_order: u8, display: &str) -> crate::BondLinePattern {
+    match display {
+        "Dash" => crate::BondLinePattern::Dashed,
+        "Hash" => crate::BondLinePattern::Hash,
+        "Wavy" => crate::BondLinePattern::Wavy,
+        _ => crate::BondLinePattern::Solid,
+    }
+}
+
+fn cdxml_bond_second_line_pattern(display: &str) -> crate::BondLinePattern {
+    match display {
+        "Dash" => crate::BondLinePattern::Dashed,
+        "Hash" => crate::BondLinePattern::Hash,
+        _ => crate::BondLinePattern::Solid,
+    }
 }
 
 pub(super) fn cdxml_bond_line_weights(order: u8, display: &str, display2: &str) -> BondLineWeights {

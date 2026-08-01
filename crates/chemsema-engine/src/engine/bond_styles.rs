@@ -831,13 +831,10 @@ pub(super) fn replace_with_bold_dashed_bond_style(bond: &mut Bond) -> bool {
     bond.double = None;
     bond.stereo = None;
     bond.line_styles = BondLineStyles {
-        main: BondLinePattern::Dashed,
+        main: BondLinePattern::Hash,
         ..BondLineStyles::default()
     };
-    bond.line_weights = BondLineWeights {
-        main: BondLineWeight::Bold,
-        ..BondLineWeights::default()
-    };
+    bond.line_weights = BondLineWeights::default();
     true
 }
 

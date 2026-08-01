@@ -895,7 +895,8 @@ Bond fields:
   bond-vs-label retreat and also applies to bond-vs-bond crossing knockout where
   applicable.
 - `lineStyles`: line patterns for `main | left | right`, each one of
-  `solid | dashed | wavy`
+  `solid | dashed | hash | wavy`. `hash` is an explicit transverse-stripe
+  pattern; it is not encoded as a bold dashed line.
 - `lineWeights`: line weights for `main | left | right`, each one of
   `normal | bold`
 - `stereo.kind`: `solid-wedge | hashed-wedge | hollow-wedge`

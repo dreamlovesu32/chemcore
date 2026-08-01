@@ -84,8 +84,27 @@ const HASH_WEDGE_START_OFFSET: f64 = crate::HASH_WEDGE_START_OFFSET_PT.value();
 const HASH_WEDGE_END_INSET: f64 = crate::HASH_WEDGE_END_INSET_PT.value();
 const HASH_BLACK_SEGMENT_LENGTH: f64 = crate::HASH_BLACK_SEGMENT_LENGTH_PT.value();
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BondLineLane {
+    Main,
+    Left,
+    Right,
+}
+
+fn effective_render_line_pattern(
+    bond: &Bond,
+    lane: BondLineLane,
+    authored: BondLinePattern,
+) -> BondLinePattern {
+    if authored == BondLinePattern::Hash && !(bond.order == 1 && lane == BondLineLane::Main) {
+        BondLinePattern::Solid
+    } else {
+        authored
+    }
+}
+
 fn bond_main_line_pattern(bond: &Bond) -> BondLinePattern {
-    if bond
+    let authored = if bond
         .meta
         .pointer("/import/cdxml/collapsedFragmentDashDisplaysSolid")
         .and_then(JsonValue::as_bool)
@@ -94,7 +113,8 @@ fn bond_main_line_pattern(bond: &Bond) -> BondLinePattern {
         BondLinePattern::Solid
     } else {
         bond.line_styles.main
-    }
+    };
+    effective_render_line_pattern(bond, BondLineLane::Main, authored)
 }
 const HASH_TARGET_GAP_LENGTH: f64 = crate::HASH_TARGET_GAP_LENGTH_PT.value();
 const SOLID_WEDGE_END_INSET: f64 = crate::SOLID_WEDGE_END_INSET_PT.value();
@@ -798,8 +818,12 @@ fn document_bond_crossing_envelope(
     end: Point,
     stroke_width: f64,
 ) -> BondCrossingEnvelope {
-    let main_half_width =
-        line_weight_stroke_width_for_bond(bond, stroke_width, bond.line_weights.main) * 0.5;
+    let main_half_width = line_pattern_visual_width_for_bond(
+        bond,
+        stroke_width,
+        bond_main_line_pattern(bond),
+        bond.line_weights.main,
+    ) * 0.5;
     let symmetric = |half_width: f64| CrossingOffsets {
         min: -half_width,
         max: half_width,

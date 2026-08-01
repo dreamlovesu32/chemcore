@@ -2689,12 +2689,7 @@ fn bond_style_key(bond: &Bond) -> String {
         }
         .to_string();
     }
-    if bond
-        .meta
-        .get("contextMenuBondStyle")
-        .and_then(JsonValue::as_str)
-        == Some("single-hashed")
-    {
+    if bond.line_styles.main == BondLinePattern::Hash {
         return "single-hashed".to_string();
     }
     let stereo = bond

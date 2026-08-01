@@ -100,19 +100,21 @@ pub(super) fn cdxml_bond_display(bond: &Bond, second: bool) -> Option<&'static s
             }
             _ => (bond.line_styles.right, bond.line_weights.right),
         };
-        if line_style == crate::BondLinePattern::Dashed {
-            return Some("Dash");
+        match line_style {
+            crate::BondLinePattern::Dashed => return Some("Dash"),
+            crate::BondLinePattern::Hash => return Some("Hash"),
+            _ => {}
         }
         if line_weight == crate::BondLineWeight::Bold {
             return Some("Bold");
         }
         return None;
     }
-    if bond.line_styles.main == crate::BondLinePattern::Dashed {
-        return Some("Dash");
-    }
-    if bond.line_styles.main == crate::BondLinePattern::Wavy {
-        return Some("Wavy");
+    match bond.line_styles.main {
+        crate::BondLinePattern::Dashed => return Some("Dash"),
+        crate::BondLinePattern::Hash => return Some("Hash"),
+        crate::BondLinePattern::Wavy => return Some("Wavy"),
+        crate::BondLinePattern::Solid => {}
     }
     if bond.line_weights.main == crate::BondLineWeight::Bold {
         return Some("Bold");

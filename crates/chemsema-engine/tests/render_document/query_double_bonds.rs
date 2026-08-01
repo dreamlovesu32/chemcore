@@ -1,6 +1,185 @@
 use super::*;
 
 #[test]
+fn parse_cdxml_hash_bond_keeps_an_explicit_hash_pattern_and_round_trips_it() {
+    let cdxml = r#"<CDXML BondLength="30" LineWidth="1" BoldWidth="4" HashSpacing="2.7">
+  <page><fragment>
+    <n id="n1" p="0 0"/><n id="n2" p="30 0"/>
+    <b id="b1" B="n1" E="n2" Display="Hash"/>
+  </fragment></page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("explicit hash bond")).expect("parses");
+    let bond = &document
+        .editable_fragment()
+        .expect("fragment")
+        .fragment
+        .bonds[0];
+    assert_eq!(
+        bond.line_styles.main,
+        chemsema_engine::BondLinePattern::Hash
+    );
+    assert_eq!(
+        bond.line_weights.main,
+        chemsema_engine::BondLineWeight::Normal,
+        "Hash is a line pattern, not a disguised bold dashed line"
+    );
+
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("Display=\"Hash\""), "{exported}");
+    assert!(!exported.contains("Display=\"Dash\""), "{exported}");
+}
+
+#[test]
+fn render_cdxml_hash_bond_uses_line_width_bold_width_and_hash_spacing() {
+    let cdxml = r#"<CDXML BondLength="30" LineWidth="1" BoldWidth="4" HashSpacing="2.7">
+  <page><fragment>
+    <n id="n1" p="0 0"/><n id="n2" p="30 0"/>
+    <b id="b1" B="n1" E="n2" Display="Hash"/>
+  </fragment></page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("hash geometry")).expect("parses");
+    let stripes = render_document(&document)
+        .into_iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                bond_id: Some(bond_id),
+                points,
+                ..
+            } if bond_id == "b1" => Some(points),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(stripes.len(), 11, "{stripes:?}");
+    for stripe in stripes {
+        let min_x = stripe
+            .iter()
+            .map(|point| point.x)
+            .fold(f64::INFINITY, f64::min);
+        let max_x = stripe
+            .iter()
+            .map(|point| point.x)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let min_y = stripe
+            .iter()
+            .map(|point| point.y)
+            .fold(f64::INFINITY, f64::min);
+        let max_y = stripe
+            .iter()
+            .map(|point| point.y)
+            .fold(f64::NEG_INFINITY, f64::max);
+        assert_close(max_x - min_x, 1.0);
+        assert_close(max_y - min_y, 4.0);
+    }
+}
+
+#[test]
+fn parse_cdxml_hash_display_is_ignored_by_chemdraw_for_multiple_bonds() {
+    let cdxml = r#"<CDXML BondLength="30" LineWidth="1" BoldWidth="4" HashSpacing="2.7">
+  <page><fragment>
+    <n id="n1" p="0 0"/><n id="n2" p="30 0"/>
+    <b id="b1" B="n1" E="n2" Order="2" Display="Hash" Display2="Hash" DoublePosition="Center"/>
+  </fragment></page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(cdxml, Some("ignored multiple hash displays")).expect("parses");
+    let bond = &document
+        .editable_fragment()
+        .expect("fragment")
+        .fragment
+        .bonds[0];
+    assert_eq!(bond.order, 2);
+    assert_eq!(
+        bond.line_styles.main,
+        chemsema_engine::BondLinePattern::Hash
+    );
+    assert_eq!(
+        bond.line_styles.left,
+        chemsema_engine::BondLinePattern::Hash
+    );
+    assert_eq!(
+        bond.line_styles.right,
+        chemsema_engine::BondLinePattern::Hash
+    );
+    let polygons = render_document(&document)
+        .into_iter()
+        .filter(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Polygon {
+                    bond_id: Some(bond_id),
+                    ..
+                } if bond_id == "b1"
+            )
+        })
+        .count();
+    assert_eq!(
+        polygons, 2,
+        "ChemDraw renders an ordinary solid double bond"
+    );
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("Display=\"Hash\""), "{exported}");
+    assert!(exported.contains("Display2=\"Hash\""), "{exported}");
+}
+
+#[test]
+fn parse_ccjs_migrates_only_the_two_legacy_single_hash_encodings() {
+    let legacy = fragment_document(
+        json!([
+            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [0.0, 0.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n2", "element": "C", "atomicNumber": 6, "position": [30.0, 0.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [60.0, 0.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n4", "element": "C", "atomicNumber": 6, "position": [90.0, 0.0], "charge": 0, "numHydrogens": 0 }
+        ]),
+        json!([
+            {
+                "id": "legacy_toolbar", "begin": "n1", "end": "n2", "order": 1,
+                "lineStyles": { "main": "dashed" },
+                "lineWeights": { "main": "bold" }
+            },
+            {
+                "id": "legacy_menu", "begin": "n2", "end": "n3", "order": 1,
+                "lineStyles": { "main": "dashed" },
+                "meta": { "contextMenuBondStyle": "single-hashed" }
+            },
+            {
+                "id": "bold_dashed_double", "begin": "n3", "end": "n4", "order": 2,
+                "double": { "placement": "center" },
+                "lineStyles": { "main": "dashed" },
+                "lineWeights": { "main": "bold" }
+            }
+        ]),
+    );
+    let reopened = parse_document_json(&serde_json::to_string(&legacy).expect("serializes"))
+        .expect("legacy document reopens");
+    let fragment = reopened.editable_fragment().expect("fragment").fragment;
+    for id in ["legacy_toolbar", "legacy_menu"] {
+        let bond = fragment.bonds.iter().find(|bond| bond.id == id).expect(id);
+        assert_eq!(
+            bond.line_styles.main,
+            chemsema_engine::BondLinePattern::Hash
+        );
+        assert_eq!(
+            bond.line_weights.main,
+            chemsema_engine::BondLineWeight::Normal
+        );
+        assert!(bond.meta.get("contextMenuBondStyle").is_none());
+    }
+    let untouched = fragment
+        .bonds
+        .iter()
+        .find(|bond| bond.id == "bold_dashed_double")
+        .expect("bold dashed double");
+    assert_eq!(
+        untouched.line_styles.main,
+        chemsema_engine::BondLinePattern::Dashed
+    );
+    assert_eq!(
+        untouched.line_weights.main,
+        chemsema_engine::BondLineWeight::Bold
+    );
+}
+
+#[test]
 fn parse_cdxml_automatically_positions_query_tags_relative_to_their_bonds() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML BondLength="30" LineWidth="1" BoldWidth="4" HashSpacing="2.7">

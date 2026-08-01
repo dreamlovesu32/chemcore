@@ -1554,12 +1554,12 @@ fn render_document_retreats_hash_bond_against_connected_single_bond() {
                 "order": 1,
                 "strokeWidth": 0.85,
                 "lineStyles": {
-                    "main": "dashed",
+                    "main": "hash",
                     "left": "solid",
                     "right": "solid"
                 },
                 "lineWeights": {
-                    "main": "bold",
+                    "main": "normal",
                     "left": "normal",
                     "right": "normal"
                 }

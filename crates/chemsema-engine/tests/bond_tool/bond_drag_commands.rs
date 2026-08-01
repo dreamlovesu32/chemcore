@@ -830,7 +830,7 @@ fn bold_tool_cycles_plain_center_double_into_bold_states() {
 }
 
 #[test]
-fn click_on_blank_canvas_creates_horizontal_bold_dashed_bond() {
+fn click_on_blank_canvas_creates_horizontal_hash_bond() {
     let mut engine = Engine::new();
     engine.set_tool_state(bold_dashed_bond_tool());
 
@@ -850,12 +850,12 @@ fn click_on_blank_canvas_creates_horizontal_bold_dashed_bond() {
     let entry = engine.state().document.editable_fragment().unwrap();
     let bond = &entry.fragment.bonds[0];
     assert_eq!(bond.order, 1);
-    assert_eq!(bond.line_styles.main, BondLinePattern::Dashed);
-    assert_eq!(bond.line_weights.main, BondLineWeight::Bold);
+    assert_eq!(bond.line_styles.main, BondLinePattern::Hash);
+    assert_eq!(bond.line_weights.main, BondLineWeight::Normal);
 }
 
 #[test]
-fn bold_dashed_tool_click_on_endpoint_creates_bold_dashed_bond() {
+fn hash_tool_click_on_endpoint_creates_hash_bond() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());
     engine.pointer_down(PointerEvent {
@@ -888,12 +888,12 @@ fn bold_dashed_tool_click_on_endpoint_creates_bold_dashed_bond() {
     let entry = engine.state().document.editable_fragment().unwrap();
     let bond = &entry.fragment.bonds[1];
     assert_eq!(bond.order, 1);
-    assert_eq!(bond.line_styles.main, BondLinePattern::Dashed);
-    assert_eq!(bond.line_weights.main, BondLineWeight::Bold);
+    assert_eq!(bond.line_styles.main, BondLinePattern::Hash);
+    assert_eq!(bond.line_weights.main, BondLineWeight::Normal);
 }
 
 #[test]
-fn bold_dashed_tool_replaces_existing_bond_regardless_of_order() {
+fn hash_tool_replaces_existing_bond_regardless_of_order() {
     let mut engine = Engine::new();
     engine.set_tool_state(triple_bond_tool());
     engine.pointer_down(PointerEvent {
@@ -927,8 +927,8 @@ fn bold_dashed_tool_replaces_existing_bond_regardless_of_order() {
     assert_eq!(bond.order, 1);
     assert!(bond.double.is_none());
     assert!(bond.stereo.is_none());
-    assert_eq!(bond.line_styles.main, BondLinePattern::Dashed);
-    assert_eq!(bond.line_weights.main, BondLineWeight::Bold);
+    assert_eq!(bond.line_styles.main, BondLinePattern::Hash);
+    assert_eq!(bond.line_weights.main, BondLineWeight::Normal);
     assert_eq!(bond.line_styles.left, BondLinePattern::Solid);
     assert_eq!(bond.line_weights.left, BondLineWeight::Normal);
 }
