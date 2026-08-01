@@ -850,6 +850,83 @@ mod interchange_tests {
     use super::*;
 
     #[test]
+    fn carbon_labels_follow_explicit_valence_and_atom_annotation_rules() {
+        let source = r#"<CDXML BondLength="30" LabelFont="3" LabelSize="10"
+          ShowTerminalCarbonLabels="no" ShowNonTerminalCarbonLabels="no">
+          <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+          <page id="1"><fragment id="10">
+            <n id="1" p="40 40" Element="6" NumHydrogens="0"/>
+            <n id="2" p="70 40"/><n id="3" p="25 14.019"/><n id="4" p="25 65.981"/>
+            <b id="101" B="1" E="2"/><b id="102" B="1" E="3"/><b id="103" B="1" E="4"/>
+          </fragment><fragment id="20">
+            <n id="10" p="140 40" Element="6" NumHydrogens="1"/>
+            <n id="11" p="170 40"/><n id="12" p="125 14.019"/><n id="13" p="125 65.981"/>
+            <b id="111" B="10" E="11"/><b id="112" B="10" E="12"/><b id="113" B="10" E="13"/>
+          </fragment><fragment id="30">
+            <n id="20" p="40 120" Element="6" Charge="1"/>
+            <n id="21" p="70 120"/><n id="22" p="25 94.019"/>
+            <b id="121" B="20" E="21"/><b id="122" B="20" E="22"/>
+          </fragment><fragment id="40">
+            <n id="30" p="140 120" Element="6" Isotope="13"/>
+            <n id="31" p="170 120"/><n id="32" p="125 94.019"/>
+            <b id="131" B="30" E="31"/><b id="132" B="30" E="32"/>
+          </fragment><fragment id="50">
+            <n id="40" p="240 120" Element="6" Radical="Doublet"/>
+            <n id="41" p="270 120"/><n id="42" p="225 94.019"/>
+            <b id="141" B="40" E="41"/><b id="142" B="40" E="42"/>
+          </fragment><fragment id="60">
+            <n id="50" p="340 120" Element="6" NumHydrogens="2"/>
+            <n id="51" p="370 120"/><n id="52" p="325 94.019"/>
+            <n id="53" p="325 145.981" Element="62"/>
+            <b id="151" B="50" E="51"/><b id="152" B="50" E="52"/>
+            <b id="153" B="50" E="53"/>
+          </fragment></page></CDXML>"#;
+        let document = parse_cdxml_document(source, Some("automatic carbon labels"))
+            .expect("automatic carbon labels import");
+        let nodes = document
+            .resources
+            .values()
+            .filter_map(|resource| resource.data.as_fragment())
+            .flat_map(|fragment| fragment.nodes.iter())
+            .map(|node| (node.id.as_str(), node))
+            .collect::<BTreeMap<_, _>>();
+        let source_text = |id: &str| {
+            let label = nodes[id].label.as_ref().expect("generated carbon label");
+            assert_eq!(
+                label
+                    .meta
+                    .pointer("/carbonValenceLabel/source")
+                    .and_then(Value::as_str),
+                Some("cdxml-generated")
+            );
+            label
+                .source_text
+                .as_deref()
+                .unwrap_or(label.text.as_str())
+                .to_string()
+        };
+        assert_eq!(source_text("1"), "C");
+        assert!(nodes["10"].label.is_none());
+        assert_eq!(source_text("20"), "CH+");
+        assert_eq!(source_text("30"), "13CH2");
+        assert_eq!(source_text("40"), "CH•");
+        assert!(nodes["50"].label.is_none());
+        let svg = crate::document_to_svg(&document);
+        assert_eq!(
+            svg.matches('•').count(),
+            1,
+            "radical must render exactly once: {svg}"
+        );
+
+        let saved = document_to_cdxml(&document);
+        assert!(!saved.contains("carbonValenceLabel"));
+        assert!(
+            !saved.contains("<t"),
+            "automatic display labels must not alter interchange: {saved}"
+        );
+    }
+
+    #[test]
     fn repeated_text_id_parts_merge_once_and_empty_parts_are_no_ops() {
         let source = r#"<CDXML BondLength="14.4">
   <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>

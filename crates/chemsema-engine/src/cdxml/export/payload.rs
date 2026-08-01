@@ -212,6 +212,7 @@ pub(super) fn cdxml_generated_node_label_is_automatic(label: &NodeLabel) -> bool
     generated_without_explicit_edit("implicitHydrogenLabel")
         || generated_without_explicit_edit("queryListLabel")
         || generated_without_explicit_edit("carbonDisplayLabel")
+        || generated_without_explicit_edit("carbonValenceLabel")
 }
 
 pub(super) fn imported_cdxml_object_attr<'a>(

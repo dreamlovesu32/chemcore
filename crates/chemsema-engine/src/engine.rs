@@ -50,17 +50,18 @@ pub use self::command::{
     DocumentCommandFormat, EditorCommand, FocusedDeleteSource, HistoryEntry, HistorySnapshot,
     ObjectSettingsPatch, TextCommandContent, TextCommandDisplayMode, TextEditCommandTarget,
 };
-use self::text_edit::{
-    element_symbol_info, endpoint_label_world_bounds, mark_shortcut_implicit_hydrogen_label,
-    refresh_element_valence_recognition_for_all_nodes, standalone_element_hydrogen_count,
-};
 pub(crate) use self::text_edit::{
-    formula_hydrogen_count_for_node, implicit_hydrogen_label_text_for_count,
-    make_periodic_element_node_label, refresh_attached_node_label_geometry_for_all_nodes,
+    carbon_valence_hydrogen_count_for_node, formula_hydrogen_count_for_node,
+    implicit_hydrogen_label_text_for_count, make_periodic_element_node_label,
+    refresh_attached_node_label_geometry_for_all_nodes,
     refresh_attached_node_label_geometry_for_all_nodes_with_profile,
     refresh_attached_node_label_geometry_for_node,
     refresh_attached_node_label_geometry_for_node_without_implicit_hydrogen_refresh,
     refresh_implicit_hydrogens, refresh_label_recognition_for_node,
+};
+use self::text_edit::{
+    element_symbol_info, endpoint_label_world_bounds, mark_shortcut_implicit_hydrogen_label,
+    refresh_element_valence_recognition_for_all_nodes, standalone_element_hydrogen_count,
 };
 pub use self::text_edit::{
     TextEditLayout, TextEditLayoutCaret, TextEditLayoutCaretOffset, TextEditLayoutLine,

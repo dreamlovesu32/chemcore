@@ -83,6 +83,7 @@ pub(super) fn normalize_fragment(
             }
         }),
     };
+    materialize_automatic_carbon_labels(&mut fragment, defaults, colors, fonts);
     infer_cdxml_ring_double_bond_placements(&mut fragment);
     crate::engine::refresh_attached_node_label_geometry_for_all_nodes_with_profile(
         &mut fragment,
@@ -104,6 +105,113 @@ pub(super) fn normalize_fragment(
     }
     import_native_cdxml_molecule_semantics(&mut fragment)?;
     Ok(Some(fragment))
+}
+
+fn materialize_automatic_carbon_labels(
+    fragment: &mut MoleculeFragment,
+    defaults: CdxmlDefaults,
+    colors: &CdxmlColorTable,
+    fonts: &BTreeMap<String, String>,
+) {
+    let plans = fragment
+        .nodes
+        .iter()
+        .filter(|node| node.atomic_number == 6 && node.label.is_none())
+        .filter_map(|node| {
+            let explicit_hydrogens = node
+                .meta
+                .pointer("/import/cdxml/explicitNumHydrogens")
+                .and_then(Value::as_u64)
+                .map(|value| value.min(u64::from(u8::MAX)) as u8);
+            let inferred_hydrogens =
+                crate::engine::carbon_valence_hydrogen_count_for_node(fragment, &node.id);
+            let annotated = node.charge != 0
+                || node.atom_properties.isotope_mass.is_some()
+                || node.atom_properties.radical != crate::AtomRadical::None;
+            let explicit_valence_mismatch =
+                explicit_hydrogens.is_some_and(|hydrogens| hydrogens != inferred_hydrogens);
+            (annotated || explicit_valence_mismatch).then(|| {
+                (
+                    node.id.clone(),
+                    explicit_hydrogens.unwrap_or(inferred_hydrogens),
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+    let style = imported_document_text_style(
+        defaults.label_font,
+        defaults.label_face,
+        defaults.label_size,
+        defaults.color,
+        colors,
+        fonts,
+        defaults
+            .label_line_height
+            .or(defaults.line_height)
+            .unwrap_or(CdxmlLineHeight::Variable),
+    );
+    for (node_id, hydrogens) in plans {
+        let Some(node) = fragment.nodes.iter_mut().find(|node| node.id == node_id) else {
+            continue;
+        };
+        let formula = crate::engine::implicit_hydrogen_label_text_for_count("C", hydrogens);
+        let charge = match node.charge {
+            0 => String::new(),
+            1 => "+".to_string(),
+            -1 => "-".to_string(),
+            value if value > 1 => format!("{value}+"),
+            value => format!("{}-", value.unsigned_abs()),
+        };
+        let radical = match node.atom_properties.radical {
+            crate::AtomRadical::None => "",
+            crate::AtomRadical::Doublet => "•",
+            crate::AtomRadical::Singlet | crate::AtomRadical::Triplet => ":",
+        };
+        let isotope = node
+            .atom_properties
+            .isotope_mass
+            .map(|mass| mass.to_string())
+            .unwrap_or_default();
+        let formula_with_charge = format!("{formula}{charge}");
+        let text = format!("{isotope}{formula_with_charge}{radical}");
+        let make_run = |text: String, script: &str| LabelRun {
+            text,
+            font_family: Some(style.font_family.clone()),
+            font_size: Some(style.font_size),
+            fill: Some(style.fill.clone()),
+            font_weight: Some(style.font_weight),
+            font_style: Some(style.font_style.clone()),
+            underline: Some(style.underline),
+            outline: Some(style.outline),
+            shadow: Some(style.shadow),
+            script: Some(script.to_string()),
+        };
+        let mut source_runs = Vec::new();
+        if !isotope.is_empty() {
+            source_runs.push(make_run(isotope, "superscript"));
+        }
+        source_runs.push(make_run(formula_with_charge, "chemical"));
+        if !radical.is_empty() {
+            source_runs.push(make_run(radical.to_string(), "superscript"));
+        }
+        let mut label = crate::engine::make_periodic_element_node_label(&text, node.position);
+        label.source_text = Some(text);
+        label.font_family = Some(style.font_family.clone());
+        label.font_size = Some(style.font_size);
+        label.fill = Some(style.fill.clone());
+        label.line_height = Some(style.line_height);
+        label.line_height_mode = style.line_height_mode.clone();
+        label.meta = json!({
+            "defaultChemical": true,
+            "sourceRuns": source_runs,
+            "carbonValenceLabel": {
+                "source": "cdxml-generated",
+                "userEdited": false,
+            }
+        });
+        node.num_hydrogens = hydrogens;
+        node.label = Some(label);
+    }
 }
 
 fn import_native_cdxml_molecule_semantics(fragment: &mut MoleculeFragment) -> Result<(), String> {

@@ -41,6 +41,15 @@
 
 ## 碳标签优先级
 
+除显式的 `ShowTerminalCarbonLabels` / `ShowNonTerminalCarbonLabels` 外，ChemDraw 还会为不能由普通隐式碳顶点完整表达的碳自动物化标签。静默探针覆盖孤立碳、端点单/双键、两个单键、单双键、两个双键以及三/四个单键，并得到统一规则：
+
+1. `NumHydrogens` 缺失时，普通中性碳仍按键线顶点显示；`NumHydrogens` 明确存在时，仅当“键级总和 + 显式氢数”不等于 4 才物化 `C`、`CH` 或 `CHn`。
+2. 电荷、同位素或自由基本身要求显示碳元素符号，因此无论 `NumHydrogens` 是否存在都物化标签。缺失的氢数按 `4 - 共价键级总和 - |charge| - radicalElectronCount` 推导并截断到非负值；显式氢数始终优先。非金属到金属的配位以及供体端 dative 键不计入这个共价键级总和。
+3. `AbnormalValence="yes"` 只关闭常规价态诊断，不单独强制显示碳；当显式氢数与键价仍正好补足 4 时标签保持隐藏。
+4. 同位素使用左上标 run，电荷保留在化学 formula run，自由基使用右上标 run；它们共同参与标签方向翻转和键端退让。自动物化标签属于显示缓存，未被用户编辑时不写回源 CDXML 的 `<t>`，原有语义字段无损往返。
+
+复现实验入口为 `npm run probe:chemdraw-carbon-valence-labels`，完整矩阵写入 `tmp/chemdraw-carbon-valence-label-probe/summary.json`。
+
 节点级 `showTerminalCarbonLabel` / `showNonTerminalCarbonLabel` 覆盖文档级默认值。端点碳按连接键数量 `0` 或 `1` 判定，非端点碳按连接键数量大于 `1` 判定；这里统计键数量，不统计键级。
 
 显示文本中的氢数按实际键级总和、形式电荷和显式氢覆盖计算。字段关闭时只移除由该规则生成且未被用户编辑的标签，绝不删除用户 authored 标签。

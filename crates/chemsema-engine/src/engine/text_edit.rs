@@ -41,8 +41,9 @@ mod runs;
 use self::geometry::*;
 use self::labels::*;
 pub(crate) use self::labels::{
-    element_symbol_info, formula_hydrogen_count_for_node, implicit_hydrogen_label_text_for_count,
-    mark_shortcut_implicit_hydrogen_label, refresh_attached_node_label_geometry_for_all_nodes,
+    carbon_valence_hydrogen_count_for_node, element_symbol_info, formula_hydrogen_count_for_node,
+    implicit_hydrogen_label_text_for_count, mark_shortcut_implicit_hydrogen_label,
+    refresh_attached_node_label_geometry_for_all_nodes,
     refresh_attached_node_label_geometry_for_all_nodes_with_profile,
     refresh_attached_node_label_geometry_for_node,
     refresh_attached_node_label_geometry_for_node_with_profile,

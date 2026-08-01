@@ -2533,7 +2533,7 @@ pub(super) fn refreshed_attached_node_label(
         &mut next_label,
         implicit_hydrogen_label_meta(label).cloned(),
     );
-    for key in ["queryListLabel", "carbonDisplayLabel"] {
+    for key in ["queryListLabel", "carbonDisplayLabel", "carbonValenceLabel"] {
         if let Some(meta) = label.meta.get(key).cloned() {
             set_meta_object_field(&mut next_label.meta, key, Some(meta));
         }
@@ -2761,11 +2761,51 @@ pub(crate) fn formula_hydrogen_count_for_node(
     if node.atomic_number != 6 {
         return implicit_hydrogen_count(fragment, node_id);
     }
+    carbon_valence_hydrogen_count_for_node(fragment, node_id)
+}
+
+pub(crate) fn carbon_valence_hydrogen_count_for_node(
+    fragment: &crate::MoleculeFragment,
+    node_id: &str,
+) -> u8 {
+    let Some(node) = fragment
+        .nodes
+        .iter()
+        .find(|candidate| candidate.id == node_id && candidate.atomic_number == 6)
+    else {
+        return 0;
+    };
     let connection_order_twice: i32 = fragment
         .bonds
         .iter()
-        .filter(|bond| bond.begin == node_id || bond.end == node_id)
-        .map(|bond| {
+        .filter_map(|bond| {
+            let node_is_begin = bond.begin == node_id;
+            let other_id = if node_is_begin {
+                bond.end.as_str()
+            } else if bond.end == node_id {
+                bond.begin.as_str()
+            } else {
+                return None;
+            };
+            let other = fragment
+                .nodes
+                .iter()
+                .find(|candidate| candidate.id == other_id)?;
+            if node_is_begin
+                && bond
+                    .meta
+                    .pointer("/import/cdxml/order")
+                    .and_then(Value::as_str)
+                    .is_some_and(|order| order.eq_ignore_ascii_case("dative"))
+            {
+                return Some(0);
+            }
+            if should_ignore_metal_coordination_for_implicit_hydrogen(
+                node.atomic_number,
+                other.atomic_number,
+            ) {
+                return Some(0);
+            }
             let aromatic = bond
                 .meta
                 .pointer("/chemistry/smiles/kind")
@@ -2777,13 +2817,15 @@ pub(crate) fn formula_hydrogen_count_for_node(
                     .and_then(Value::as_bool)
                     == Some(true);
             if aromatic {
-                3
+                Some(3)
             } else {
-                2 * i32::from(bond.order.max(1))
+                Some(2 * i32::from(bond.order.max(1)))
             }
         })
         .sum();
-    ((8 - connection_order_twice - 2 * node.charge.abs()).clamp(0, 8) / 2) as u8
+    let radical_valence_twice = 2 * crate::node_radical_count(node);
+    ((8 - connection_order_twice - radical_valence_twice - 2 * node.charge.abs()).clamp(0, 8) / 2)
+        as u8
 }
 
 pub(super) fn typical_valence_for_implicit_hydrogen(

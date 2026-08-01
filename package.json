@@ -38,6 +38,7 @@
     "probe:chemdraw-arrows": "node scripts/chemdraw-arrow-probe.mjs",
     "probe:chemdraw-cdxml-fields": "node scripts/chemdraw-cdxml-field-probe.mjs",
     "probe:chemdraw-atom-queries": "node scripts/chemdraw-atom-query-probe.mjs",
+    "probe:chemdraw-carbon-valence-labels": "node scripts/chemdraw-carbon-valence-label-probe.mjs",
     "probe:chemdraw-bond-query-reaction": "node scripts/chemdraw-bond-query-reaction-probe.mjs",
     "probe:chemdraw-external-connections": "node scripts/chemdraw-external-connection-probe.mjs",
     "probe:chemdraw-spectra": "node scripts/chemdraw-spectrum-probe.mjs",

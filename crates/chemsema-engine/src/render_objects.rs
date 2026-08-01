@@ -964,7 +964,27 @@ fn render_fragment_atom_properties(
                     .unwrap_or(0)
                     > 0
             });
-    if !has_attached_radical_symbol {
+    let automatic_label_encodes_radical = node.label.as_ref().is_some_and(|label| {
+        label
+            .meta
+            .pointer("/carbonValenceLabel/source")
+            .and_then(JsonValue::as_str)
+            == Some("cdxml-generated")
+            && match properties.radical {
+                crate::AtomRadical::None => false,
+                crate::AtomRadical::Doublet => label
+                    .source_text
+                    .as_deref()
+                    .unwrap_or(label.text.as_str())
+                    .contains('•'),
+                crate::AtomRadical::Singlet | crate::AtomRadical::Triplet => label
+                    .source_text
+                    .as_deref()
+                    .unwrap_or(label.text.as_str())
+                    .contains(':'),
+            }
+    });
+    if !has_attached_radical_symbol && !automatic_label_encodes_radical {
         let radical_text = match properties.radical {
             crate::AtomRadical::None => None,
             crate::AtomRadical::Singlet => Some("••"),
