@@ -556,12 +556,35 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
         } => {
             let center = rotate_center.unwrap_or(Point::new(*x, *y));
             let transform = scaled_text_transform_attr(*x, *y, *rotate, &center);
+            let positioned_runs = preserve_lines
+                .then(|| chemdraw_text_shape_runs(runs))
+                .filter(|runs| runs.len() > 1);
+            let (run_starts, line_advance) = positioned_runs
+                .as_ref()
+                .map(|positioned_runs| {
+                    crate::glyph_kernel::chemdraw_text_run_position_metrics(
+                        positioned_runs,
+                        *font_size,
+                        font_family.as_deref(),
+                    )
+                })
+                .unwrap_or_default();
+            let anchor_shift = match text_anchor.as_deref() {
+                Some("middle") => -line_advance * 0.5,
+                Some("end") => -line_advance,
+                _ => 0.0,
+            };
+            let serialized_anchor = if positioned_runs.is_some() {
+                "start"
+            } else {
+                text_anchor.as_deref().unwrap_or("start")
+            };
             write!(
                 out,
                 r#"  <text x="0" y="0" font-size="{}" dominant-baseline="{}" text-anchor="{}" fill="{}"{}{}>"#,
                 fmt_num(*font_size * SVG_TEXT_INTERNAL_SCALE),
                 escape_attr(dominant_baseline.as_deref().unwrap_or("alphabetic")),
-                escape_attr(text_anchor.as_deref().unwrap_or("start")),
+                escape_attr(serialized_anchor),
                 escape_attr(fill.as_deref().unwrap_or("#000000")),
                 optional_str_attr("font-family", font_family.as_deref()),
                 transform
@@ -569,6 +592,16 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
             .expect("write text start");
             if runs.is_empty() {
                 out.push_str(&escape_text(text));
+            } else if let Some(positioned_runs) = positioned_runs.as_ref() {
+                for (run, start) in positioned_runs.iter().zip(&run_starts) {
+                    write_text_span(
+                        out,
+                        run,
+                        *font_size,
+                        SVG_TEXT_INTERNAL_SCALE,
+                        Some((anchor_shift + start) * SVG_TEXT_INTERNAL_SCALE),
+                    );
+                }
             } else {
                 for run in runs {
                     write_text_run(
@@ -617,17 +650,32 @@ fn text_shape_segments(text: &str, split_at_whitespace: bool) -> Vec<&str> {
     };
     let mut segments = Vec::new();
     let mut start = 0;
-    let mut whitespace = first.is_whitespace();
+    let mut previous_whitespace = first.is_whitespace();
     for (index, character) in characters {
-        let next_whitespace = character.is_whitespace();
-        if next_whitespace != whitespace {
+        let whitespace = character.is_whitespace();
+        if previous_whitespace && !whitespace {
             segments.push(&text[start..index]);
             start = index;
-            whitespace = next_whitespace;
         }
+        previous_whitespace = whitespace;
     }
     segments.push(&text[start..]);
     segments
+}
+
+fn chemdraw_text_shape_runs(runs: &[LabelRun]) -> Vec<LabelRun> {
+    runs.iter()
+        .flat_map(|run| {
+            text_shape_segments(&run.text, true)
+                .into_iter()
+                .map(|segment| {
+                    let mut shaped = run.clone();
+                    shaped.text = segment.to_string();
+                    shaped
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
 }
 
 fn write_text_run(
@@ -636,6 +684,20 @@ fn write_text_run(
     default_font_size: f64,
     internal_scale: f64,
     split_at_whitespace: bool,
+) {
+    for segment in text_shape_segments(&run.text, split_at_whitespace) {
+        let mut shaped = run.clone();
+        shaped.text = segment.to_string();
+        write_text_span(out, &shaped, default_font_size, internal_scale, None);
+    }
+}
+
+fn write_text_span(
+    out: &mut String,
+    run: &LabelRun,
+    default_font_size: f64,
+    internal_scale: f64,
+    x: Option<f64>,
 ) {
     let is_sub = run.script.as_deref() == Some("subscript");
     let is_super = run.script.as_deref() == Some("superscript");
@@ -666,38 +728,37 @@ fn write_text_run(
         effect_color,
         internal_scale,
     );
-    for segment in text_shape_segments(&run.text, split_at_whitespace) {
-        write!(
-            out,
-            r#"<tspan{}{}{}{}{}{}{}{}{}{}{}>{}</tspan>"#,
-            optional_num_attr("font-size", Some(font_size)),
-            optional_str_attr("font-family", run.font_family.as_deref()),
-            optional_str_attr(
-                "fill",
-                if outline {
-                    Some("none")
-                } else {
-                    run.fill.as_deref()
-                }
-            ),
-            optional_u32_attr("font-weight", run.font_weight),
-            optional_str_attr("font-style", run.font_style.as_deref()),
-            optional_str_attr(
-                "text-decoration",
-                run.underline.filter(|value| *value).map(|_| "underline")
-            ),
-            optional_num_attr("baseline-shift", baseline_shift),
-            optional_str_attr("stroke", outline.then_some(effect_color)),
-            optional_num_attr(
-                "stroke-width",
-                outline.then_some((font_size * 0.045).max(0.35))
-            ),
-            optional_str_attr("paint-order", outline.then_some("stroke")),
-            optional_str_attr("style", effect_style.as_deref()),
-            escape_text(segment)
-        )
-        .expect("write text run segment");
-    }
+    write!(
+        out,
+        r#"<tspan{}{}{}{}{}{}{}{}{}{}{}{}>{}</tspan>"#,
+        optional_num_attr("x", x),
+        optional_num_attr("font-size", Some(font_size)),
+        optional_str_attr("font-family", run.font_family.as_deref()),
+        optional_str_attr(
+            "fill",
+            if outline {
+                Some("none")
+            } else {
+                run.fill.as_deref()
+            }
+        ),
+        optional_u32_attr("font-weight", run.font_weight),
+        optional_str_attr("font-style", run.font_style.as_deref()),
+        optional_str_attr(
+            "text-decoration",
+            run.underline.filter(|value| *value).map(|_| "underline")
+        ),
+        optional_num_attr("baseline-shift", baseline_shift),
+        optional_str_attr("stroke", outline.then_some(effect_color)),
+        optional_num_attr(
+            "stroke-width",
+            outline.then_some((font_size * 0.045).max(0.35))
+        ),
+        optional_str_attr("paint-order", outline.then_some("stroke")),
+        optional_str_attr("style", effect_style.as_deref()),
+        escape_text(&run.text)
+    )
+    .expect("write text run segment");
 }
 
 fn text_effect_style(
@@ -886,7 +947,74 @@ fn escape_text(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::text_effect_style;
+    use super::{chemdraw_text_shape_runs, primitives_to_svg, text_effect_style};
+    use crate::{LabelRun, RenderPrimitive, RenderRole};
+
+    #[test]
+    fn preserved_chemdraw_text_groups_trailing_spaces_with_the_word() {
+        let runs = vec![LabelRun {
+            text: "HATU (1.2 eq)".to_string(),
+            font_family: Some("Arial".to_string()),
+            font_size: Some(10.0),
+            ..LabelRun::default()
+        }];
+        let shaped = chemdraw_text_shape_runs(&runs);
+        assert_eq!(
+            shaped
+                .iter()
+                .map(|run| run.text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["HATU ", "(1.2 ", "eq)"]
+        );
+    }
+
+    #[test]
+    fn centered_preserved_text_serializes_explicit_chemdraw_chunk_positions() {
+        let runs = vec![LabelRun {
+            text: "HATU (1.2 eq)".to_string(),
+            font_family: Some("Arial".to_string()),
+            font_size: Some(10.0),
+            font_weight: Some(400),
+            font_style: Some("normal".to_string()),
+            ..LabelRun::default()
+        }];
+        let svg = primitives_to_svg(
+            &[RenderPrimitive::Text {
+                role: RenderRole::DocumentText,
+                object_id: Some("conditions".to_string()),
+                node_id: None,
+                x: 224.85,
+                y: 313.1,
+                baseline_offset: Some(8.2),
+                dominant_baseline: None,
+                text: String::new(),
+                font_size: 10.0,
+                font_family: Some("Arial".to_string()),
+                fill: Some("#000000".to_string()),
+                text_anchor: Some("middle".to_string()),
+                line_height: None,
+                preserve_lines: true,
+                box_width: None,
+                runs,
+                rotate: 0.0,
+                rotate_center: None,
+            }],
+            None,
+        );
+        assert!(svg.contains(r#"text-anchor="start""#), "{svg}");
+        assert!(
+            svg.contains(r#"<tspan x="-644.628904""#),
+            "first chunk must start at minus half the nominal GDI line advance: {svg}"
+        );
+        assert!(
+            svg.contains(r#">HATU </tspan><tspan x="-44.628904""#),
+            "the second chunk must start after the unkerned 30 pt HATU-space advance: {svg}"
+        );
+        assert!(
+            svg.contains(r#">(1.2 </tspan><tspan x="355.566406""#),
+            "the final chunk must start after the Arial digit and whitespace advances: {svg}"
+        );
+    }
 
     #[test]
     fn underline_style_uses_chemdraw_fixed_rule_geometry() {

@@ -114,6 +114,23 @@ struct SharedGlyphOutlinesJson {
     families: HashMap<String, GlyphOutlineFamilyJson>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+struct TextAdvanceFaceJson {
+    advances: HashMap<String, f64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct TextAdvanceFamilyJson {
+    faces: HashMap<String, TextAdvanceFaceJson>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct SharedTextAdvancesJson {
+    version: u32,
+    aliases: HashMap<String, String>,
+    families: HashMap<String, TextAdvanceFamilyJson>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GlyphClipProfile {
     pub natural_outset_pt: f64,
@@ -232,6 +249,7 @@ struct RowRender {
 
 static SHARED_GLYPH_PROFILES: OnceLock<SharedGlyphProfiles> = OnceLock::new();
 static SHARED_GLYPH_OUTLINES: OnceLock<SharedGlyphOutlinesJson> = OnceLock::new();
+static SHARED_TEXT_ADVANCES: OnceLock<SharedTextAdvancesJson> = OnceLock::new();
 const LABEL_GLYPH_CLIP_PAD_SCALE: f64 = 0.25;
 const GLYPH_CURVE_STEPS: usize = 12;
 const GLYPH_CIRCLE_STEPS: usize = 20;
@@ -983,6 +1001,16 @@ fn shared_glyph_outlines() -> &'static SharedGlyphOutlinesJson {
     })
 }
 
+fn shared_text_advances() -> &'static SharedTextAdvancesJson {
+    SHARED_TEXT_ADVANCES.get_or_init(|| {
+        let manifest: SharedTextAdvancesJson =
+            serde_json::from_str(include_str!("../../../shared/text_advances.json"))
+                .expect("shared text advance manifest must be valid JSON");
+        assert_eq!(manifest.version, 1, "unsupported text advance manifest");
+        manifest
+    })
+}
+
 fn glyph_face_key(font_weight: u32, italic: bool) -> &'static str {
     match (font_weight >= 600, italic) {
         (false, false) => "regular",
@@ -1029,6 +1057,32 @@ fn lookup_glyph_outline(
     };
     let key = character.to_string();
     lookup_character(&key).or_else(|| (character != '□').then(|| lookup_character("□")).flatten())
+}
+
+fn lookup_nominal_text_advance_em(
+    font_family: &str,
+    font_weight: u32,
+    italic: bool,
+    character: char,
+) -> Option<f64> {
+    let manifest = shared_text_advances();
+    let resolved_family = manifest
+        .aliases
+        .get(font_family)
+        .map(String::as_str)
+        .unwrap_or(font_family);
+    let family = manifest
+        .families
+        .get(resolved_family)
+        // CDXML maps unavailable font families to Arial before rendering.
+        .or_else(|| manifest.families.get("Arial"))?;
+    let face = family
+        .faces
+        .get(glyph_face_key(font_weight, italic))
+        // Families such as Arial Black and SimSun expose one authored face;
+        // ChemDraw synthesizes requested emphasis without changing advances.
+        .or_else(|| family.faces.get("regular"))?;
+    face.advances.get(&character.to_string()).copied()
 }
 
 fn lookup_glyph_kerning_em(
@@ -1692,6 +1746,52 @@ fn text_line_horizontal_metrics(
     }
 }
 
+/// Returns the authored start position of every text run and the complete
+/// ChemDraw/GDI line advance.
+///
+/// SVG must not ask the browser to recompute these positions for preserved
+/// ChemDraw text. ChemDraw centers the line with nominal desktop font advances
+/// without kerning and then emits independently positioned word/style chunks.
+/// Browser shaping remains responsible for the ink inside each chunk, but not
+/// for the chunk starts or the line anchor.
+pub(crate) fn chemdraw_text_run_position_metrics(
+    runs: &[crate::LabelRun],
+    default_font_size: f64,
+    default_font_family: Option<&str>,
+) -> (Vec<f64>, f64) {
+    let default_font_family = default_font_family.unwrap_or("Arial");
+    let mut advance = 0.0;
+    let mut starts = Vec::with_capacity(runs.len());
+    for run in runs {
+        starts.push(advance);
+        let font_size = run.font_size.unwrap_or(default_font_size);
+        let script_scale = shared_script_scale_factor(run.script.as_deref());
+        let font_family = run.font_family.as_deref().unwrap_or(default_font_family);
+        let font_weight = run.font_weight.unwrap_or(400);
+        for character in run.text.chars() {
+            let italic = run.font_style.as_deref().is_some_and(|style| {
+                matches!(
+                    style.trim().to_ascii_lowercase().as_str(),
+                    "italic" | "oblique"
+                )
+            });
+            let advance_em =
+                lookup_nominal_text_advance_em(font_family, font_weight, italic, character)
+                    .unwrap_or_else(|| {
+                        shared_estimated_char_width_for_face(
+                            character,
+                            1.0,
+                            font_family,
+                            font_weight,
+                            run.font_style.as_deref(),
+                        )
+                    });
+            advance += advance_em * font_size * script_scale;
+        }
+    }
+    (starts, advance)
+}
+
 pub(crate) fn shared_estimated_text_line_count(text: &str, runs: &[crate::LabelRun]) -> usize {
     if !runs.is_empty() {
         return runs
@@ -1891,6 +1991,44 @@ mod tests {
             script: Some("normal".to_string()),
             ..LabelRun::default()
         }]
+    }
+
+    #[test]
+    fn nominal_text_advance_manifest_covers_whitespace_and_punctuation_by_face() {
+        let cases = [
+            ("Arial", 0.277_832_03),
+            ("Times New Roman", 0.25),
+            ("Calibri", 0.226_074_22),
+            ("Courier New", 0.600_097_66),
+        ];
+        for (family, expected_em) in cases {
+            let actual = lookup_nominal_text_advance_em(family, 400, false, ' ')
+                .expect("every measured face has an ASCII space advance");
+            assert!((actual - expected_em).abs() < 1e-6, "{family}: {actual}");
+        }
+
+        let phrase = plain_line("(1.1 ", "Arial");
+        let (_, advance) = chemdraw_text_run_position_metrics(&phrase, 10.0, Some("Arial"));
+        assert!(
+            (advance - 20.009_765_6).abs() < 1e-6,
+            "Arial GDI-compatible phrase advance: {advance}"
+        );
+
+        let words = ["HATU ", "(1.2 ", "eq)"]
+            .map(|text| plain_line(text, "Arial").remove(0))
+            .to_vec();
+        let (starts, advance) = chemdraw_text_run_position_metrics(&words, 10.0, Some("Arial"));
+        assert_eq!(starts.len(), 3);
+        assert!((starts[1] - 30.0).abs() < 1e-6, "{starts:?}");
+        assert!((starts[2] - 50.009_765_6).abs() < 1e-6, "{starts:?}");
+        assert!((advance - 64.462_890_5).abs() < 1e-6, "{advance}");
+
+        let caution = plain_line("Caution: ", "Helvetica");
+        let (_, advance) = chemdraw_text_run_position_metrics(&caution, 10.0, Some("Helvetica"));
+        assert!(
+            (advance - 40.024_414).abs() < 1e-6,
+            "Helvetica must follow the explicit Arial alias used by ChemDraw: {advance}"
+        );
     }
 
     #[test]
