@@ -184,7 +184,14 @@ The migration records both report hashes and the same-gate improvement and
 regression counts. This retires verdicts that existed only because of a proven
 old gate bug without adding file exceptions or weakening the current rules.
 
-Gate v19 makes the fixed-coordinate detail checks non-bypassable. Neither a
+Gate v20 counts a fine component only when the unmatched component has no
+opposite-side ink within 0.5 ChemDraw reference units. Raw 8-connected component
+counts remain in reports for diagnosis, but cannot by themselves reject a
+drawing: font hinting can split one ChemDraw glyph into two raster components
+without adding an object. Unlike whole-image dilation, spatial support does not
+merge neighboring letters or bonds. Missing or displaced details still fail
+through fixed-coordinate coverage, defect area/span, repeated micro-defects,
+and spatially independent component counts. Gate v19 made the fixed-coordinate detail checks non-bypassable. Neither a
 whole-page coverage score nor topology distribution can excuse an empty local
 window or a large local defect, and coarse pixel agreement cannot discard a
 fine connected-component mismatch. The detail pass uses zero dilation to

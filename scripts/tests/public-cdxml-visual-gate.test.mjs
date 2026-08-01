@@ -410,6 +410,7 @@ test("strong global pixel agreement cannot erase fine component evidence", () =>
     detailFeatures: {
       compactDefectCount: 0,
       componentCountDelta: 2,
+      independentComponentCountDelta: 2,
       enclosedSmallComponentDimensionDelta: 0,
       referenceComponentCount: 7,
       candidateComponentCount: 5,
@@ -419,6 +420,22 @@ test("strong global pixel agreement cannot erase fine component evidence", () =>
   const result = classifyAnalyzedVisualMetrics(coarse, detail);
   assert.equal(result.passed, false);
   assert.deepEqual(result.reasons, ["detail-component-count"]);
+});
+
+test("spatially supported raster seams do not become independent component evidence", () => {
+  const detail = {
+    local: { referenceCoverage: 0.99, candidateCoverage: 0.99 },
+    largestMissing: { area: 1, span: 2 },
+    largestExtra: { area: 1, span: 2 },
+    detailFeatures: {
+      compactDefectCount: 0,
+      componentCountDelta: 3,
+      independentComponentCountDelta: 0,
+      enclosedSmallComponentDimensionDelta: 0,
+      displacedDefectPairs: [],
+    },
+  };
+  assert.deepEqual(detailGateReasons(detail), []);
 });
 
 test("zero-tolerance repeated join defects are rejected as a detail pattern", () => {
@@ -432,6 +449,7 @@ test("zero-tolerance repeated join defects are rejected as a detail pattern", ()
     detailFeatures: {
       compactDefectCount: 41,
       componentCountDelta: 0,
+      independentComponentCountDelta: 0,
       enclosedSmallComponentDimensionDelta: 0,
     },
   };
@@ -446,6 +464,7 @@ test("component-supported matching defects are rejected as one displaced detail"
     detailFeatures: {
       compactDefectCount: 0,
       componentCountDelta: 0,
+      independentComponentCountDelta: 0,
       enclosedSmallComponentDimensionDelta: 0,
       displacedDefectPairs: [{
         relation: "unmatched",
@@ -475,6 +494,7 @@ test("lookalike defects without component identity are not paired as one displac
     detailFeatures: {
       compactDefectCount: 0,
       componentCountDelta: 0,
+      independentComponentCountDelta: 0,
       enclosedSmallComponentDimensionDelta: 0,
     },
     topDefects: [

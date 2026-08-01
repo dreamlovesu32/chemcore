@@ -39,6 +39,10 @@ const DEFAULTS = Object.freeze({
   detailLocalWindow: 24,
   detailLocalStride: 12,
   detailMinimumWindowInk: 12,
+  // Smaller than a normal ChemDraw stroke. An unmatched raster component
+  // inside this distance of opposite-side ink is a split/merged stroke, not
+  // independent evidence that an object exists on only one side.
+  componentSupportGap: 0.5,
   maxComponentCountDelta: 1,
   maxEnclosedSmallComponentDimensionDelta: 2.75,
   maxRepeatedMicroDefects: 20,
@@ -79,7 +83,7 @@ const DEFAULTS = Object.freeze({
 });
 
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
-export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v19";
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v20";
 export const STRICT_PASS_FLOOR_SCHEMA =
   "chemsema.public-cdxml-strict-pass-floor.v2";
 export const STRICT_PASS_FLOOR_PATH = path.resolve(
@@ -355,7 +359,7 @@ function validateOptions(options) {
       throw new Error(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)} must be positive`);
     }
   }
-  for (const key of ["tolerance", "detailTolerance"]) {
+  for (const key of ["tolerance", "detailTolerance", "componentSupportGap"]) {
     if (!Number.isFinite(options[key]) || options[key] < 0) {
       throw new Error(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)} must be non-negative`);
     }
@@ -1460,6 +1464,36 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
       );
       return width * height;
     }
+    function boxesHaveSpatialSupport(first, second) {
+      const horizontalGap = Math.max(
+        0,
+        first.x - second.x - second.width,
+        second.x - first.x - first.width,
+      );
+      const verticalGap = Math.max(
+        0,
+        first.y - second.y - second.height,
+        second.y - first.y - first.height,
+      );
+      return horizontalGap <= settings.componentSupportGap
+        && verticalGap <= settings.componentSupportGap;
+    }
+    const independentUnmatchedReferenceComponents = inkComponents.reference.filter(
+      (component, index) => !matchedReference.has(index)
+        && !inkComponents.candidate.some(
+          (opposite) => boxesHaveSpatialSupport(component.box, opposite.box),
+        ),
+    );
+    const independentUnmatchedCandidateComponents = inkComponents.candidate.filter(
+      (component, index) => unmatchedCandidate.has(index)
+        && !inkComponents.reference.some(
+          (opposite) => boxesHaveSpatialSupport(component.box, opposite.box),
+        ),
+    );
+    const independentComponentCountDelta = Math.abs(
+      independentUnmatchedReferenceComponents.length
+      - independentUnmatchedCandidateComponents.length,
+    );
     function componentCenter(component) {
       return {
         x: component.box.x + component.box.width / 2,
@@ -1586,6 +1620,11 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
         componentCountDelta: Math.abs(
           inkComponents.reference.length - inkComponents.candidate.length,
         ),
+        independentUnmatchedReferenceComponentCount:
+          independentUnmatchedReferenceComponents.length,
+        independentUnmatchedCandidateComponentCount:
+          independentUnmatchedCandidateComponents.length,
+        independentComponentCountDelta,
         matchedComponentCount,
         componentMatchCoverage: matchedComponentCount / Math.max(
           inkComponents.reference.length,
@@ -1622,6 +1661,7 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
       domain,
       settings: {
         analysisScale: settings.analysisScale,
+        componentSupportGap: settings.componentSupportGap,
         tolerance: settings.tolerance,
         tileSize: settings.tileSize,
         halo: settings.halo,
@@ -1639,7 +1679,10 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
 export function detailGateReasons(detail, options = {}) {
   const settings = { ...DEFAULTS, ...options };
   const reasons = [];
-  if (detail.detailFeatures.componentCountDelta > settings.maxComponentCountDelta) {
+  if (
+    detail.detailFeatures.independentComponentCountDelta
+    > settings.maxComponentCountDelta
+  ) {
     reasons.push("detail-component-count");
   }
   if (
@@ -1828,13 +1871,14 @@ export function gatePolicy(options) {
       + "pass protection never changes current-image registration",
     canvasWhitespaceIncluded: false,
     caseWeighting: "one case, one vote",
-    comparison: "coarse fixed-window coverage and defects, followed by fine connected-component and repeated-micro-defect checks",
+    comparison: "coarse fixed-window coverage and defects, followed by spatially independent fine connected-component and repeated-micro-defect checks",
     pass: {
       minimumCandidateViewportInkMargin: options.minCandidateViewportInkMargin,
       minimumFixedWindowReferenceCoverage: options.minCoverage,
       minimumFixedWindowCandidateCoverage: options.minCoverage,
       maximumLocalDefectArea: options.maxDefectArea,
       maximumLocalDefectSpan: options.maxDefectSpan,
+      fineComponentSupportGap: options.componentSupportGap,
       maximumFineComponentCountDelta: options.maxComponentCountDelta,
       maximumEnclosedSmallComponentDimensionDelta: options.maxEnclosedSmallComponentDimensionDelta,
       maximumRepeatedMicroDefects: options.maxRepeatedMicroDefects,
