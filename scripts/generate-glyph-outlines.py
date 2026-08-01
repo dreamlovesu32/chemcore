@@ -87,6 +87,7 @@ FONT_FACES = {
 
 FONT_ALIASES = {
     "Helvetica": "Arial",
+    "Times": "Times New Roman",
     "TeX Gyre Heros": "Arial",
     "Noto Sans SC": "SimSun",
     "Noto Serif SC": "SimSun",

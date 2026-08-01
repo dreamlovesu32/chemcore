@@ -2092,9 +2092,10 @@ fn preserved_free_text_shapes_words_at_whitespace_boundaries() {
         } if object_id.as_deref() == Some("obj_text")
     )));
     let svg = document_to_svg(&document);
-    assert!(svg.contains(">R</tspan>"), "{svg}");
-    assert!(svg.contains("> </tspan>"), "{svg}");
-    assert!(svg.contains(">hydrogen</tspan>"), "{svg}");
+    assert!(svg.contains(">R </text>"), "{svg}");
+    assert!(svg.contains(">is </text>"), "{svg}");
+    assert!(svg.contains(">hydrogen </text>"), "{svg}");
+    assert_eq!(svg.matches("<text ").count(), 5, "{svg}");
 }
 
 #[test]

@@ -8,7 +8,12 @@ const outlinePath = join(repoRoot, "shared", "glyph_outlines.json");
 const outputPath = join(repoRoot, "shared", "text_advances.json");
 const fontRoot = resolve(process.env.CHEMSEMA_FONT_DIR || "C:/Windows/Fonts");
 const outlines = JSON.parse(readFileSync(outlinePath, "utf8"));
-const ascii = Array.from({ length: 95 }, (_, index) => String.fromCharCode(32 + index));
+const aliases = {
+  ...outlines.aliases,
+  // CDXML's legacy Times family is resolved by the Windows text stack to the
+  // installed Times New Roman face before ChemDraw computes advances.
+  Times: "Times New Roman",
+};
 
 function u16(buffer, offset) {
   return buffer.readUInt16BE(offset);
@@ -56,13 +61,32 @@ function parseFont(path) {
   return opentype.parse(arrayBuffer);
 }
 
+function supportedCharacters(font) {
+  const codePoints = new Set();
+  for (let index = 0; index < font.glyphs.length; index += 1) {
+    const glyph = font.glyphs.get(index);
+    for (const codePoint of glyph.unicodes || []) {
+      if (
+        codePoint >= 0x20 &&
+        codePoint <= 0x10ffff &&
+        !(codePoint >= 0xd800 && codePoint <= 0xdfff)
+      ) {
+        codePoints.add(codePoint);
+      }
+    }
+  }
+  return [...codePoints]
+    .sort((left, right) => left - right)
+    .map((codePoint) => String.fromCodePoint(codePoint));
+}
+
 const families = {};
 for (const [familyName, family] of Object.entries(outlines.families)) {
   const faces = {};
   for (const [faceName, face] of Object.entries(family.faces)) {
     const font = parseFont(join(fontRoot, face.sourceFont));
     const advances = {};
-    for (const character of ascii) {
+    for (const character of supportedCharacters(font)) {
       const glyph = font.charToGlyph(character);
       advances[character] = Number((glyph.advanceWidth / font.unitsPerEm).toFixed(8));
     }
@@ -76,7 +100,7 @@ for (const [familyName, family] of Object.entries(outlines.families)) {
 
 writeFileSync(
   outputPath,
-  `${JSON.stringify({ version: 1, aliases: outlines.aliases, families })}\n`,
+  `${JSON.stringify({ version: 1, aliases, families })}\n`,
   "utf8",
 );
 console.log(outputPath);

@@ -555,7 +555,6 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
             ..
         } => {
             let center = rotate_center.unwrap_or(Point::new(*x, *y));
-            let transform = scaled_text_transform_attr(*x, *y, *rotate, &center);
             let positioned_runs = preserve_lines
                 .then(|| chemdraw_text_shape_runs(runs))
                 .filter(|runs| runs.len() > 1);
@@ -574,17 +573,53 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
                 Some("end") => -line_advance,
                 _ => 0.0,
             };
-            let serialized_anchor = if positioned_runs.is_some() {
-                "start"
-            } else {
-                text_anchor.as_deref().unwrap_or("start")
-            };
+            if let Some(positioned_runs) = positioned_runs.as_ref() {
+                for (run, start) in positioned_runs.iter().zip(&run_starts) {
+                    let transform =
+                        scaled_text_transform_attr(*x + anchor_shift + start, *y, *rotate, &center);
+                    let plain_text_node = run
+                        .script
+                        .as_deref()
+                        .is_none_or(|script| script == "normal")
+                        && run.outline != Some(true)
+                        && run.shadow != Some(true)
+                        && run.underline != Some(true);
+                    let positioned_font_size = run.font_size.unwrap_or(*font_size);
+                    let positioned_font_weight =
+                        run.font_weight
+                            .map(|weight| if weight >= 600 { "bold" } else { "normal" });
+                    write!(
+                        out,
+                        r#"  <text x="0" y="0" font-size="{}px" dominant-baseline="{}" text-anchor="start" fill="{}"{}{}{}{}>"#,
+                        fmt_num(positioned_font_size * SVG_TEXT_INTERNAL_SCALE),
+                        escape_attr(dominant_baseline.as_deref().unwrap_or("alphabetic")),
+                        escape_attr(run.fill.as_deref().or(fill.as_deref()).unwrap_or("#000000")),
+                        optional_str_attr(
+                            "font-family",
+                            run.font_family.as_deref().or(font_family.as_deref())
+                        ),
+                        optional_str_attr("font-weight", positioned_font_weight),
+                        optional_str_attr("font-style", run.font_style.as_deref()),
+                        transform
+                    )
+                    .expect("write positioned text start");
+                    if plain_text_node {
+                        out.push_str(&escape_text(&run.text));
+                    } else {
+                        write_text_span(out, run, *font_size, SVG_TEXT_INTERNAL_SCALE, None);
+                    }
+                    out.push_str("</text>\n");
+                }
+                return;
+            }
+
+            let transform = scaled_text_transform_attr(*x, *y, *rotate, &center);
             write!(
                 out,
                 r#"  <text x="0" y="0" font-size="{}" dominant-baseline="{}" text-anchor="{}" fill="{}"{}{}>"#,
                 fmt_num(*font_size * SVG_TEXT_INTERNAL_SCALE),
                 escape_attr(dominant_baseline.as_deref().unwrap_or("alphabetic")),
-                escape_attr(serialized_anchor),
+                escape_attr(text_anchor.as_deref().unwrap_or("start")),
                 escape_attr(fill.as_deref().unwrap_or("#000000")),
                 optional_str_attr("font-family", font_family.as_deref()),
                 transform
@@ -592,16 +627,6 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
             .expect("write text start");
             if runs.is_empty() {
                 out.push_str(&escape_text(text));
-            } else if let Some(positioned_runs) = positioned_runs.as_ref() {
-                for (run, start) in positioned_runs.iter().zip(&run_starts) {
-                    write_text_span(
-                        out,
-                        run,
-                        *font_size,
-                        SVG_TEXT_INTERNAL_SCALE,
-                        Some((anchor_shift + start) * SVG_TEXT_INTERNAL_SCALE),
-                    );
-                }
             } else {
                 for run in runs {
                     write_text_run(
@@ -1001,17 +1026,19 @@ mod tests {
             }],
             None,
         );
-        assert!(svg.contains(r#"text-anchor="start""#), "{svg}");
+        assert_eq!(svg.matches(r#"text-anchor="start""#).count(), 3, "{svg}");
         assert!(
-            svg.contains(r#"<tspan x="-644.628904""#),
+            svg.contains(r#"matrix(0.05 0 0 0.05 192.618555 313.1)"#),
             "first chunk must start at minus half the nominal GDI line advance: {svg}"
         );
         assert!(
-            svg.contains(r#">HATU </tspan><tspan x="-44.628904""#),
+            svg.contains(r#">HATU </text>"#)
+                && svg.contains(r#"matrix(0.05 0 0 0.05 222.618555 313.1)"#),
             "the second chunk must start after the unkerned 30 pt HATU-space advance: {svg}"
         );
         assert!(
-            svg.contains(r#">(1.2 </tspan><tspan x="355.566406""#),
+            svg.contains(r#">(1.2 </text>"#)
+                && svg.contains(r#"matrix(0.05 0 0 0.05 242.62832 313.1)"#),
             "the final chunk must start after the Arial digit and whitespace advances: {svg}"
         );
     }
