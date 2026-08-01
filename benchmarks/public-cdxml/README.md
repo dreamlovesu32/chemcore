@@ -91,7 +91,12 @@ empty local window, a fixed-span defect, or failed foreground coverage. All
 thresholds are expressed in
 ChemDraw reference coordinates or normalized structure coordinates, so a
 small missing label, sign, or bond detail cannot be diluted by a large molecule,
-reaction scheme, or page. The JSON report includes canonical-coordinate boxes
+reaction scheme, or page. Candidate SVGs also
+receive an independent viewport self-consistency check: the renderer promises
+an 8 pt ink margin, and the gate enforces a fixed 4 pt minimum on every edge.
+Ink touching or clipped by the root viewport therefore fails with
+`candidate-viewport-ink-margin` regardless of whole-image similarity or canvas
+size. The JSON report includes canonical-coordinate boxes
 and explicit reason codes for the strongest local defects. Cases without a
 real ChemDraw oracle are reported separately and excluded from the pass-rate
 denominator. Every gate run also writes

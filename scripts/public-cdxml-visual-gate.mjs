@@ -73,10 +73,13 @@ const DEFAULTS = Object.freeze({
   minNearExactCoverage: 0.994,
   maxNearExactDefectSpan: 15,
   maxNearExactDefectArea: 18,
+  candidateViewportAnalysisScale: 4,
+  maxCandidateViewportPixels: 16_000_000,
+  minCandidateViewportInkMargin: 4,
 });
 
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
-export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v17";
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v18";
 export const STRICT_PASS_FLOOR_SCHEMA =
   "chemsema.public-cdxml-strict-pass-floor.v1";
 export const STRICT_PASS_FLOOR_PATH = path.resolve(
@@ -151,6 +154,9 @@ function parseArgs(argv) {
     else if (arg === "--max-tight-bounded-local-defect-span") options.maxTightBoundedLocalDefectSpan = Number(argv[++index]);
     else if (arg === "--min-tight-bounded-relative-component-coverage") options.minTightBoundedRelativeComponentCoverage = Number(argv[++index]);
     else if (arg === "--max-tight-bounded-component-count-delta") options.maxTightBoundedComponentCountDelta = Number(argv[++index]);
+    else if (arg === "--candidate-viewport-analysis-scale") options.candidateViewportAnalysisScale = Number(argv[++index]);
+    else if (arg === "--max-candidate-viewport-pixels") options.maxCandidateViewportPixels = Number(argv[++index]);
+    else if (arg === "--min-candidate-viewport-ink-margin") options.minCandidateViewportInkMargin = Number(argv[++index]);
     else if (arg === "--report-only") options.reportOnly = true;
     else if (arg === "--self-test") options.selfTest = true;
     else if (arg === "--help" || arg === "-h") options.help = true;
@@ -487,6 +493,139 @@ async function oracleIsUnavailable(filePath) {
   if (path.extname(filePath).toLowerCase() !== ".svg") return false;
   const source = await fs.readFile(filePath, "utf8");
   return source.includes("ChemDraw 无法渲染");
+}
+
+export async function analyzeCandidateViewport(page, candidateDataUrl, options = {}) {
+  const settings = { ...DEFAULTS, ...options };
+  return page.evaluate(async ({ candidateDataUrl, settings }) => {
+    if (!candidateDataUrl.startsWith("data:image/svg+xml")) {
+      return { applicable: false, reason: "candidate-is-not-svg" };
+    }
+    const requestedScale = settings.candidateViewportAnalysisScale;
+    if (!(Number.isFinite(requestedScale) && requestedScale > 0)) {
+      throw new Error("candidate viewport analysis scale must be positive");
+    }
+    if (!(Number.isFinite(settings.maxCandidateViewportPixels)
+      && settings.maxCandidateViewportPixels > 0)) {
+      throw new Error("candidate viewport pixel budget must be positive");
+    }
+    function numericLength(value) {
+      const match = /^\s*([-+0-9.eE]+)(?:px)?\s*$/.exec(value ?? "");
+      if (!match) return null;
+      const number = Number(match[1]);
+      return Number.isFinite(number) && number > 0 ? number : null;
+    }
+    const source = await (await fetch(candidateDataUrl)).text();
+    const parsed = new DOMParser().parseFromString(source, "image/svg+xml");
+    const svg = parsed.documentElement;
+    if (svg.localName !== "svg" || parsed.querySelector("parsererror")) {
+      throw new Error("candidate viewport gate could not parse the SVG");
+    }
+    const viewBox = (svg.getAttribute("viewBox") ?? "")
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number);
+    const validViewBox = viewBox.length === 4
+      && viewBox.every(Number.isFinite)
+      && viewBox[2] > 0
+      && viewBox[3] > 0;
+    const width = numericLength(svg.getAttribute("width"))
+      ?? (validViewBox ? viewBox[2] : null);
+    const height = numericLength(svg.getAttribute("height"))
+      ?? (validViewBox ? viewBox[3] : null);
+    if (!(width > 0 && height > 0)) {
+      throw new Error("candidate viewport gate found no positive SVG viewport");
+    }
+    const scale = Math.min(
+      requestedScale,
+      Math.sqrt(settings.maxCandidateViewportPixels / (width * height)),
+    );
+    const pixelWidth = Math.max(1, Math.ceil(width * scale));
+    const pixelHeight = Math.max(1, Math.ceil(height * scale));
+    svg.setAttribute("width", `${pixelWidth}px`);
+    svg.setAttribute("height", `${pixelHeight}px`);
+    const normalizedSource = `data:image/svg+xml;charset=utf-8,${
+      encodeURIComponent(new XMLSerializer().serializeToString(svg))
+    }`;
+    const image = new Image();
+    image.decoding = "sync";
+    image.src = normalizedSource;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, pixelWidth, pixelHeight);
+    context.drawImage(image, 0, 0, pixelWidth, pixelHeight);
+    const pixels = context.getImageData(0, 0, pixelWidth, pixelHeight).data;
+    let inkPixels = 0;
+    let left = pixelWidth;
+    let top = pixelHeight;
+    let right = -1;
+    let bottom = -1;
+    for (let y = 0; y < pixelHeight; y += 1) {
+      for (let x = 0; x < pixelWidth; x += 1) {
+        const offset = (y * pixelWidth + x) * 4;
+        if (pixels[offset] + pixels[offset + 1] + pixels[offset + 2] >= 740) continue;
+        inkPixels += 1;
+        left = Math.min(left, x);
+        top = Math.min(top, y);
+        right = Math.max(right, x);
+        bottom = Math.max(bottom, y);
+      }
+    }
+    if (!inkPixels) {
+      return {
+        applicable: true,
+        width,
+        height,
+        requestedAnalysisScale: requestedScale,
+        effectiveAnalysisScale: scale,
+        inkPixels: 0,
+        margins: null,
+        minimumMargin: null,
+      };
+    }
+    const margins = {
+      left: left * width / pixelWidth,
+      top: top * height / pixelHeight,
+      right: (pixelWidth - 1 - right) * width / pixelWidth,
+      bottom: (pixelHeight - 1 - bottom) * height / pixelHeight,
+    };
+    return {
+      applicable: true,
+      width,
+      height,
+      requestedAnalysisScale: requestedScale,
+      effectiveAnalysisScale: scale,
+      inkPixels,
+      margins,
+      minimumMargin: Math.min(...Object.values(margins)),
+    };
+  }, { candidateDataUrl, settings });
+}
+
+export function candidateViewportGateReasons(candidateViewport, options = {}) {
+  const settings = { ...DEFAULTS, ...options };
+  if (
+    !candidateViewport?.applicable
+    || !candidateViewport.inkPixels
+    || !Number.isFinite(candidateViewport.minimumMargin)
+  ) return [];
+  return candidateViewport.minimumMargin + 1e-9 < settings.minCandidateViewportInkMargin
+    ? ["candidate-viewport-ink-margin"]
+    : [];
+}
+
+export function applyCandidateViewportGate(metrics, candidateViewport, options = {}) {
+  const viewportReasons = candidateViewportGateReasons(candidateViewport, options);
+  return {
+    ...metrics,
+    passed: metrics.passed && viewportReasons.length === 0,
+    reasons: [...new Set([...(metrics.reasons ?? []), ...viewportReasons])],
+    candidateViewport,
+  };
 }
 
 export async function analyzeAlignedImages(page, referenceDataUrl, candidateDataUrl, alignment, options = {}) {
@@ -1490,6 +1629,7 @@ export function gatePolicy(options) {
     caseWeighting: "one case, one vote",
     comparison: "coarse fixed-window coverage and defects, followed by fine connected-component and repeated-micro-defect checks",
     pass: {
+      minimumCandidateViewportInkMargin: options.minCandidateViewportInkMargin,
       minimumFixedWindowReferenceCoverage: options.minCoverage,
       minimumFixedWindowCandidateCoverage: options.minCoverage,
       maximumLocalDefectArea: options.maxDefectArea,
@@ -1544,6 +1684,12 @@ export function gatePolicy(options) {
       localWindowReferenceUnits: options.localWindow,
       localStrideReferenceUnits: options.localStride,
       minimumWindowInkAreaReferenceUnits: options.minimumWindowInk,
+    },
+    candidateViewportRaster: {
+      pixelsPerCandidateViewportUnit: options.candidateViewportAnalysisScale,
+      maximumRasterPixels: options.maxCandidateViewportPixels,
+      minimumInkMarginCandidateViewportUnits: options.minCandidateViewportInkMargin,
+      scope: "candidate SVG self-consistency before ChemDraw alignment",
     },
     detailRaster: {
       pixelsPerReferenceUnit: options.detailAnalysisScale,
@@ -1687,6 +1833,27 @@ async function runSelfTest(options) {
       throw new Error(
         `SVG viewport normalization regression: ${JSON.stringify(viewportEquivalent)}`,
       );
+    }
+    const validViewport = await analyzeCandidateViewport(
+      page,
+      data(`<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80">
+        <path d="M 8.5 8.5 L 111.5 71.5" fill="none" stroke="black" stroke-width="1"/>
+      </svg>`),
+      options,
+    );
+    if (candidateViewportGateReasons(validViewport, options).length) {
+      throw new Error(`valid candidate viewport margin regression: ${JSON.stringify(validViewport)}`);
+    }
+    const clippedViewport = await analyzeCandidateViewport(
+      page,
+      data(`<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="100" viewBox="0 0 2000 100">
+        <path d="M 0 10 L 0 90 M 100 50 L 1900 50" fill="none" stroke="black" stroke-width="2"/>
+      </svg>`),
+      options,
+    );
+    if (!candidateViewportGateReasons(clippedViewport, options)
+      .includes("candidate-viewport-ink-margin")) {
+      throw new Error(`clipped candidate viewport escaped gate: ${JSON.stringify(clippedViewport)}`);
     }
     const fractionalCandidateWidth = 453.471516;
     const fractionalCandidateHeight = 127.29;
@@ -2214,6 +2381,11 @@ async function main() {
           fileDataUrl(referencePath),
           fileDataUrl(candidatePath),
         ]);
+        const candidateViewport = await analyzeCandidateViewport(
+          activePage,
+          candidateDataUrl,
+          options,
+        );
         const currentFrameAlignment = item.alignment?.algorithm === ALIGNMENT_ALGORITHM
           ? item.alignment
           : await computeImageAlignment(
@@ -2244,9 +2416,9 @@ async function main() {
             detailAnalysisOptions(options),
           )
           : null;
-        const metrics = classifyAnalyzedVisualMetrics(
-          coarseMetrics,
-          detailMetrics,
+        const metrics = applyCandidateViewportGate(
+          classifyAnalyzedVisualMetrics(coarseMetrics, detailMetrics, options),
+          candidateViewport,
           options,
         );
         completed += 1;

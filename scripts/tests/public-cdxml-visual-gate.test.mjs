@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  applyCandidateViewportGate,
   boundedLocalTopologyEquivalent,
+  candidateViewportGateReasons,
   classifyAnalyzedVisualMetrics,
   classifyPassFloorRegressions,
   detailGateReasons,
@@ -13,6 +15,35 @@ import {
   strictOriginal338ConfigurationErrors,
   strictOriginal338PassFloorErrors,
 } from "../public-cdxml-visual-gate.mjs";
+
+test("candidate viewport margin rejects edge clipping independently of image size", () => {
+  const clipped = {
+    applicable: true,
+    inkPixels: 100,
+    minimumMargin: 0.25,
+    margins: { left: 0.25, top: 8, right: 8, bottom: 8 },
+    width: 100000,
+    height: 100000,
+  };
+  assert.deepEqual(candidateViewportGateReasons(clipped), ["candidate-viewport-ink-margin"]);
+  const result = applyCandidateViewportGate({ passed: true, reasons: [] }, clipped);
+  assert.equal(result.passed, false);
+  assert.deepEqual(result.reasons, ["candidate-viewport-ink-margin"]);
+});
+
+test("candidate viewport margin accepts the renderer export margin", () => {
+  const valid = {
+    applicable: true,
+    inkPixels: 100,
+    minimumMargin: 7.75,
+    margins: { left: 7.75, top: 8, right: 8, bottom: 8 },
+  };
+  assert.deepEqual(candidateViewportGateReasons(valid), []);
+  assert.equal(
+    applyCandidateViewportGate({ passed: true, reasons: [] }, valid).passed,
+    true,
+  );
+});
 
 test("complete original-338 diagnostics always evaluate the protected pass floor", () => {
   const complete = {
