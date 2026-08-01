@@ -10,6 +10,13 @@ use crate::{
 // BondSpacing, BondSpacingAbs, line width, and rotation.
 const CHEMDRAW_DOUBLE_BOND_MIN_ATTACHMENT_SIDE_SINE: f64 = 0.2146;
 
+// A neighboring double bond has a distinct, narrower cumulene threshold.
+// ChemDraw centers the target bond through 10.002 degrees (sin = 0.173683)
+// and resumes ordinary side coverage at 10.003 degrees (sin = 0.173700).
+// The transition is invariant under whole-structure rotation and adjacent
+// double-bond lengths from 15 to 60 pt in the silent SVG probe.
+const CHEMDRAW_CUMULENE_MAX_NORMAL_SINE: f64 = 0.173691;
+
 pub(super) fn update_terminal_double_bond_placement_after_new_attachment(
     fragment: &mut crate::MoleculeFragment,
     attached_node_id: &str,
@@ -218,6 +225,14 @@ fn automatic_double_bond_placement_for_segment_with_tie_breaker(
     {
         return placement;
     }
+    if segment_has_effectively_collinear_neighbor_double_bond(
+        fragment,
+        begin_id,
+        end_id,
+        ignored_bond_id,
+    ) {
+        return DoubleBondPlacement::Center;
+    }
     let Some(counts) =
         connected_attachment_side_counts_for_segment(fragment, begin_id, end_id, ignored_bond_id)
     else {
@@ -252,6 +267,18 @@ fn effective_side_for_connected_bond(
     end_id: &str,
     bond_id: &str,
 ) -> Option<DoubleBondPlacement> {
+    let bond = fragment.bonds.iter().find(|bond| bond.id == bond_id)?;
+    let side_component = connected_bond_unit_normal_component(fragment, begin_id, end_id, bond)?;
+    (side_component.abs() >= CHEMDRAW_DOUBLE_BOND_MIN_ATTACHMENT_SIDE_SINE)
+        .then(|| placement_from_signed_side_score(side_component))
+}
+
+fn connected_bond_unit_normal_component(
+    fragment: &crate::MoleculeFragment,
+    begin_id: &str,
+    end_id: &str,
+    bond: &Bond,
+) -> Option<f64> {
     let begin = fragment.nodes.iter().find(|node| node.id == begin_id)?;
     let end = fragment.nodes.iter().find(|node| node.id == end_id)?;
     let begin_point = begin.point();
@@ -264,7 +291,6 @@ fn effective_side_for_connected_bond(
     }
     let normal_x = -dy / length;
     let normal_y = dx / length;
-    let bond = fragment.bonds.iter().find(|bond| bond.id == bond_id)?;
     let (shared_point, other_id) = if bond.begin == begin_id {
         (begin_point, bond.end.as_str())
     } else if bond.end == begin_id {
@@ -288,8 +314,24 @@ fn effective_side_for_connected_bond(
         return None;
     }
     let side_score = attachment_x * normal_x + attachment_y * normal_y;
-    (side_score.abs() / attachment_length >= CHEMDRAW_DOUBLE_BOND_MIN_ATTACHMENT_SIDE_SINE)
-        .then(|| placement_from_signed_side_score(side_score))
+    Some(side_score / attachment_length)
+}
+
+fn segment_has_effectively_collinear_neighbor_double_bond(
+    fragment: &crate::MoleculeFragment,
+    begin_id: &str,
+    end_id: &str,
+    ignored_bond_id: Option<&str>,
+) -> bool {
+    fragment.bonds.iter().any(|bond| {
+        let is_target_segment = (bond.begin == begin_id && bond.end == end_id)
+            || (bond.begin == end_id && bond.end == begin_id);
+        !is_target_segment
+            && ignored_bond_id.is_none_or(|ignored| bond.id != ignored)
+            && bond.order == 2
+            && connected_bond_unit_normal_component(fragment, begin_id, end_id, bond)
+                .is_some_and(|component| component.abs() < CHEMDRAW_CUMULENE_MAX_NORMAL_SINE)
+    })
 }
 
 fn ring_double_bond_placement_for_segment(

@@ -57,6 +57,48 @@ variants.push(
   { name: "order2-two-adjacent-opposite-sides", targetBond: "18", order: "2", omitDisplay: true, omitDisplay2: true, allowedBondIds: ["17", "18", "19"], pointOverrides: { "9": [294.74, 347.94] } },
   { name: "order2-two-adjacent-collinear", targetBond: "18", order: "2", omitDisplay: true, omitDisplay2: true, allowedBondIds: ["17", "18", "19"], pointOverrides: { "6": [268.76, 422.94], "9": [268.76, 332.94] } },
 );
+function cumuleneWithSingleVariant(angle, suffix = `${angle}`, options = {}) {
+  const radians = (angle * Math.PI) / 180;
+  const neighborLength = options.neighborLength ?? 30;
+  return {
+    name: `order2-collinear-neighbor-with-single-${suffix}`,
+    targetBond: "18",
+    order: "2",
+    omitDisplay: true,
+    omitDisplay2: true,
+    allowedBondIds: ["17", "18", "19"],
+    bondOrders: { "19": "1" },
+    pointOverrides: {
+      "7": [100, 100],
+      "8": [160, 100],
+      "9": [
+        160 + neighborLength * Math.cos(radians),
+        100 + neighborLength * Math.sin(radians),
+      ],
+      "6": [74.0192, 115],
+    },
+    rotation: options.rotation,
+    expectedPlacement: angle <= 10.002 ? "center" : "left",
+  };
+}
+
+for (const angle of [0, 5, 10, 10.001, 10.002, 10.003, 10.004, 10.005, 10.006, 10.007, 10.008, 10.009, 10.01, 10.05, 10.1, 10.5, 11, 11.2, 11.24, 11.25, 11.26, 11.5, 11.9, 12, 12.39, 12.395, 14, 20, 30]) {
+  variants.push(cumuleneWithSingleVariant(angle));
+}
+for (const angle of [10.002, 10.003]) {
+  for (const rotation of [30, 90, 137]) {
+    variants.push(
+      cumuleneWithSingleVariant(angle, `${angle}-rotation-${rotation}`, { rotation }),
+    );
+  }
+  for (const neighborLength of [15, 60]) {
+    variants.push(
+      cumuleneWithSingleVariant(angle, `${angle}-length-${neighborLength}`, {
+        neighborLength,
+      }),
+    );
+  }
+}
 
 function sourcePoint(id, variant) {
   return variant.pointOverrides?.[id] ?? baseNodes.get(id);
@@ -110,7 +152,7 @@ function makeCdxml(variant) {
         `id="${id}"`,
         `B="${id === variant.targetBond && variant.reverseTarget ? end : begin}"`,
         `E="${id === variant.targetBond && variant.reverseTarget ? begin : end}"`,
-        `Order="${variant.order ?? "1.5"}"`,
+        `Order="${variant.bondOrders?.[id] ?? variant.order ?? "1.5"}"`,
         variant.omitDisplay ? null : `Display="${variant.display ?? "Dash"}"`,
         variant.omitDisplay2 ? null : `Display2="${variant.display2 ?? "Dash"}"`,
         id === variant.targetBond ? 'color="4"' : null,
@@ -187,6 +229,7 @@ function classify(svg, variant) {
 }
 
 function expectedPlacement(variant) {
+  if (variant.expectedPlacement) return variant.expectedPlacement;
   if (
     variant.name === "open-aromatic-18-default-display" ||
     variant.name === "open-aromatic-18-dash-only" ||
@@ -232,7 +275,7 @@ for (const variant of variants) {
   const svg = await fs.readFile(variant.svg, "utf8");
   const measured = classify(svg, variant);
   const expected = expectedPlacement(variant);
-  if (measured.placement !== expected) {
+  if (expected && measured.placement !== expected) {
     throw new Error(
       `${variant.name}: expected ${expected}, measured ${measured.placement}`,
     );

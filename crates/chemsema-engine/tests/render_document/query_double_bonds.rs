@@ -2497,6 +2497,27 @@ fn parse_cdxml_auto_side_double_uses_effective_endpoint_coverage_and_fixed_colli
       <b id="cm_1" B="cm_b" E="cm_bl" Order="2"/>
       <b id="cm_2" B="cm_e" E="cm_er" Order="2"/>
     </fragment>
+    <fragment id="substituted_linear_cumulene">
+      <n id="sl_b" p="100 520"/><n id="sl_e" p="160 520"/>
+      <n id="sl_neighbor" p="190 520"/><n id="sl_branch" p="74.0192 535"/>
+      <b id="substituted_linear_double" B="sl_b" E="sl_e" Order="2"/>
+      <b id="sl_1" B="sl_e" E="sl_neighbor" Order="2"/>
+      <b id="sl_2" B="sl_b" E="sl_branch"/>
+    </fragment>
+    <fragment id="substituted_ten_degree_cumulene">
+      <n id="st_b" p="100 580"/><n id="st_e" p="160 580"/>
+      <n id="st_neighbor" p="189.5442 585.2094"/><n id="st_branch" p="74.0192 595"/>
+      <b id="substituted_ten_degree_double" B="st_b" E="st_e" Order="2"/>
+      <b id="st_1" B="st_e" E="st_neighbor" Order="2"/>
+      <b id="st_2" B="st_b" E="st_branch"/>
+    </fragment>
+    <fragment id="substituted_fourteen_degree_conjugated">
+      <n id="sf_b" p="100 640"/><n id="sf_e" p="160 640"/>
+      <n id="sf_neighbor" p="189.1089 647.2577"/><n id="sf_branch" p="74.0192 655"/>
+      <b id="substituted_fourteen_degree_double" B="sf_b" E="sf_e" Order="2"/>
+      <b id="sf_1" B="sf_e" E="sf_neighbor" Order="2"/>
+      <b id="sf_2" B="sf_b" E="sf_branch"/>
+    </fragment>
   </page>
 </CDXML>"##;
     let document = parse_cdxml_document(cdxml, Some("automatic side coverage matrix"))
@@ -2545,6 +2566,21 @@ fn parse_cdxml_auto_side_double_uses_effective_endpoint_coverage_and_fixed_colli
         placement("linear_cumulene_double"),
         chemsema_engine::DoubleBondPlacement::Center,
         "a linear cumulene centers because both adjacent bonds are effectively collinear"
+    );
+    assert_eq!(
+        placement("substituted_linear_double"),
+        chemsema_engine::DoubleBondPlacement::Center,
+        "a collinear neighboring double centers the cumulene even with an angled terminal single bond"
+    );
+    assert_eq!(
+        placement("substituted_ten_degree_double"),
+        chemsema_engine::DoubleBondPlacement::Center,
+        "ChemDraw keeps the dedicated cumulene branch through ten degrees"
+    );
+    assert_eq!(
+        placement("substituted_fourteen_degree_double"),
+        chemsema_engine::DoubleBondPlacement::Left,
+        "a clearly bent neighboring double resumes ordinary endpoint-side coverage"
     );
 }
 
