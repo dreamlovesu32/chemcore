@@ -9,19 +9,19 @@
     "name": "original-338",
     "expected": 338
   },
-  "minimumPassed": 213,
+  "minimumPassed": 223,
   "source": {
-    "commit": "710ebd9abd24d3706f8c5e60de2b5312ef78aed2",
-    "repositoryIdentity": "cc2f755a7b1ad6ce81d5e145c1d00576ebcd93de7313787f36482d11b835055f",
-    "gateReportGeneratedAt": "2026-08-01T06:44:33.847Z"
+    "commit": "e678e2915538b87c033832ca4e6de9837b32b68e",
+    "repositoryIdentity": "da745b7f4cebe32b888304abdb06dec5597b5ca5833f4127ec8627dafefc921b",
+    "gateReportGeneratedAt": "2026-08-01T07:37:37.070Z"
   },
   "migration": {
-    "previousSchema": "chemsema.public-cdxml-strict-pass-floor.v1",
-    "previousMinimumPassed": 181,
-    "previousReportSha256": "78ff2404633e00ff86c4981668f8f01f33fe88888d3c70b16871140f0b78e069",
-    "currentReportSha256": "48d079fee58fce2b91946b52b1c55bad888fb0227c9b81dfa24706a2d6a3b090",
+    "previousSchema": "chemsema.public-cdxml-strict-pass-floor.v2",
+    "previousMinimumPassed": 213,
+    "previousReportSha256": "4b5a272f0cf8d81f4a885628f9e49ac45446c72247f42663a1a787c2f3b38d98",
+    "currentReportSha256": "d6b50a0570de9082807eb2b760fbfc5c35f7c96198d65056118ec85928b0cd34",
     "sameGateRegressions": 0,
-    "sameGateImprovements": 7
+    "sameGateImprovements": 10
   },
   "protectedPasses": [
     "cdxml-toolkit/experiments/scheme_dsl/showcase/01_buchwald_linear.cdxml",
@@ -51,10 +51,20 @@
     "cdxml-toolkit/samples/KL-CC-002/scheme.cdxml",
     "cdxml-toolkit/samples/consolidated/two-step-scheme.cdxml",
     "indigo/api/tests/integration/tests/formats/cdxml/AlcoholOxidation_Rxn2.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/Amidation_Rxn1.cdxml",
     "indigo/api/tests/integration/tests/formats/cdxml/Amidation_Rxn2.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/CarbonylReduction_Rxn1.cdxml",
     "indigo/api/tests/integration/tests/formats/cdxml/CarbonylReduction_Rxn2.cdxml",
     "indigo/api/tests/integration/tests/formats/cdxml/Grignard_Rxn1.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/Grignard_Rxn2.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/N-Alkylation_Rxn1.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/N-Alkylation_Rxn2.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/N-Sulfonylation_Rxn1.cdxml",
     "indigo/api/tests/integration/tests/formats/cdxml/N-Sulfonylation_Rxn2.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/O-Alkylation_Rxn1.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/Reductive Amination_Rxn1.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/Reductive Amination_Rxn2.cdxml",
+    "indigo/api/tests/integration/tests/formats/cdxml/SnAr_Rxn1.cdxml",
     "indigo/api/tests/integration/tests/formats/cdxml/x_subscript2.cdxml",
     "indigo/api/tests/integration/tests/formats/cdxml/x_supescript2.cdxml",
     "indigo/api/tests/integration/tests/formats/molecules/3060_ethyne.cdxml",
