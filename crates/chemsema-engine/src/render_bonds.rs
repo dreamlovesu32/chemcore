@@ -157,7 +157,22 @@ pub(super) fn render_fragment_bond(
     }
 
     if bond.order == 1 && bond_main_line_pattern(bond) == crate::BondLinePattern::Wavy {
-        render_wavy_bond(out, bond, start, finish, stroke, stroke_width, object_id);
+        let template_bond_length = document
+            .style
+            .defaults
+            .get("bondLength")
+            .copied()
+            .unwrap_or(crate::DEFAULT_BOND_LENGTH);
+        render_wavy_bond(
+            out,
+            bond,
+            start,
+            finish,
+            stroke,
+            stroke_width,
+            template_bond_length,
+            object_id,
+        );
         return;
     }
 
@@ -1116,6 +1131,7 @@ fn render_wavy_bond(
     end: Point,
     stroke: &str,
     stroke_width: f64,
+    template_bond_length: f64,
     object_id: Option<String>,
 ) {
     let direction = Vector::new(end.x - start.x, end.y - start.y);
@@ -1128,16 +1144,18 @@ fn render_wavy_bond(
     let amplitude = wavy_bond_amplitude_for_bond(bond, stroke_width)
         .min(length * 0.18)
         .max(EPSILON);
-    let half_wave_count = ((length / amplitude).floor() as usize).max(4);
-    let half_wave_step = amplitude;
+    let (half_wave_count, half_wave_step) =
+        wavy_bond_layout(length, stroke_width, template_bond_length);
     let mut d = format!("M {:.4} {:.4}", start.x, start.y);
     let mut points = vec![start];
     for index in 0..half_wave_count {
         let segment_start = wavy_bond_point(start, unit, normal, half_wave_step, amplitude, index);
         let segment_end =
             wavy_bond_point(start, unit, normal, half_wave_step, amplitude, index + 1);
-        let start_tangent = wavy_bond_control_tangent(unit, normal, amplitude, index);
-        let end_tangent = wavy_bond_control_tangent(unit, normal, amplitude, index + 1);
+        let start_tangent =
+            wavy_bond_control_tangent(unit, normal, half_wave_step, amplitude, index);
+        let end_tangent =
+            wavy_bond_control_tangent(unit, normal, half_wave_step, amplitude, index + 1);
         let control_1 = segment_start.translated(start_tangent);
         let control_2 = segment_end.translated(end_tangent.scaled(-1.0));
         d.push_str(&format!(
@@ -1162,6 +1180,19 @@ fn render_wavy_bond(
     });
 }
 
+fn wavy_bond_layout(length: f64, stroke_width: f64, template_bond_length: f64) -> (usize, f64) {
+    let division_count = (template_bond_length / stroke_width.max(EPSILON))
+        .round()
+        .clamp(12.0, 16.0) as usize;
+    let grid_step = template_bond_length.max(EPSILON) / division_count as f64;
+    let natural_count = ((length / grid_step + 1.0e-9).floor() as usize).min(division_count);
+    if natural_count < 12 {
+        (12, length / 12.0)
+    } else {
+        (natural_count, grid_step)
+    }
+}
+
 fn wavy_bond_point(
     start: Point,
     unit: Vector,
@@ -1180,11 +1211,17 @@ fn wavy_bond_point(
         .translated(normal.scaled(amplitude * side))
 }
 
-fn wavy_bond_control_tangent(unit: Vector, normal: Vector, amplitude: f64, index: usize) -> Vector {
+fn wavy_bond_control_tangent(
+    unit: Vector,
+    normal: Vector,
+    step: f64,
+    amplitude: f64,
+    index: usize,
+) -> Vector {
     const QUARTER_ELLIPSE_KAPPA: f64 = 0.552_284_749_830_793_6;
     match index % 4 {
         0 => normal.scaled(QUARTER_ELLIPSE_KAPPA * amplitude),
-        1 | 3 => unit.scaled(QUARTER_ELLIPSE_KAPPA * amplitude),
+        1 | 3 => unit.scaled(QUARTER_ELLIPSE_KAPPA * step),
         2 => normal.scaled(-QUARTER_ELLIPSE_KAPPA * amplitude),
         _ => unreachable!(),
     }
@@ -1644,36 +1681,55 @@ mod wavy_bond_tests {
     }
 
     #[test]
-    fn wavy_bond_uses_complete_fixed_size_half_waves() {
+    fn wavy_bond_uses_twice_line_width_with_a_twelve_segment_minimum() {
         let start = Point::new(2.0, 3.0);
         let end = Point::new(18.0, 3.0);
         let unit = Vector::new(1.0, 0.0);
         let normal = Vector::new(0.0, 1.0);
         let amplitude = 1.0;
-        let half_wave_count = 16;
+        let natural_step = 1.0;
+        let half_wave_count = (start.distance(end) / natural_step).floor() as usize;
         let step = start.distance(end) / half_wave_count as f64;
         assert_point_close(
             wavy_bond_point(start, unit, normal, step, amplitude, half_wave_count),
             end,
         );
         let non_integral_length = 15.9;
-        let count = (non_integral_length / amplitude).floor() as usize;
+        let count = (non_integral_length / natural_step).floor() as usize;
         assert_eq!(count, 15);
         assert_point_close(
-            wavy_bond_point(start, unit, normal, amplitude, amplitude, count),
+            wavy_bond_point(start, unit, normal, natural_step, amplitude, count),
             Point::new(17.0, 2.0),
         );
+
+        let thick_line_step: f64 = 3.54;
+        let thick_length: f64 = 20.83;
+        let natural_count = (thick_length / thick_line_step).floor() as usize;
+        assert!(natural_count < 12);
+        let count = natural_count.max(12);
+        let redistributed_step = thick_length / count as f64;
+        assert_point_close(
+            wavy_bond_point(start, unit, normal, redistributed_step, amplitude, count),
+            Point::new(22.83, 3.0),
+        );
+
+        assert_eq!(wavy_bond_layout(16.0, 0.5, 16.0), (16, 1.0));
+        assert_eq!(wavy_bond_layout(20.825, 1.77, 20.83), (12, 20.825 / 12.0));
+        assert_eq!(wavy_bond_layout(30.0, 1.0, 30.0), (16, 30.0 / 16.0));
+        assert_eq!(wavy_bond_layout(29.998, 1.0, 30.0), (15, 30.0 / 16.0));
     }
 
     #[test]
     fn wavy_bond_uses_quarter_ellipse_control_handles() {
         let unit = Vector::new(1.0, 0.0);
         let normal = Vector::new(0.0, 1.0);
-        let center_handle = wavy_bond_control_tangent(unit, normal, 1.25, 0);
-        let crest_handle = wavy_bond_control_tangent(unit, normal, 1.25, 1);
+        let step = 1.1;
+        let amplitude = 1.25;
+        let center_handle = wavy_bond_control_tangent(unit, normal, step, amplitude, 0);
+        let crest_handle = wavy_bond_control_tangent(unit, normal, step, amplitude, 1);
         assert!((center_handle.x - 0.0).abs() <= 1.0e-9);
         assert!((center_handle.y - 0.690_355_937_288_492).abs() <= 1.0e-9);
-        assert!((crest_handle.x - 0.690_355_937_288_492).abs() <= 1.0e-9);
+        assert!((crest_handle.x - 0.607_513_224_813_873).abs() <= 1.0e-9);
         assert!((crest_handle.y - 0.0).abs() <= 1.0e-9);
     }
 }
