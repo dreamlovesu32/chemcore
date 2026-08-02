@@ -24,6 +24,17 @@ pub(super) fn cdxml_collapsed_wrapper_position_overrides(
             let Some(fragment_id) = fragment.attr("id") else {
                 continue;
             };
+            // ChemDraw cleans a two-node component as a component. Unrelated
+            // coordinate-free wrappers elsewhere on the page do not turn that
+            // local pair into a member of the page-level wrapper grid.
+            if let Some(pair_positions) =
+                chemdraw_single_collapsed_pair_positions(fragment, bond_length)
+            {
+                for (node_id, point) in pair_positions {
+                    overrides.insert((fragment_id.to_string(), node_id), point);
+                }
+                continue;
+            }
             let direct_nodes = fragment.direct_children("n").collect::<Vec<_>>();
             let direct_bonds = fragment.direct_children("b").collect::<Vec<_>>();
             for node in direct_nodes.iter().copied().filter(|node| {
@@ -66,23 +77,6 @@ pub(super) fn cdxml_collapsed_wrapper_position_overrides(
                         node_id: node_id.to_string(),
                         anchor: Some(anchor),
                     });
-                }
-            }
-        }
-
-        if entries.len() == 1 {
-            let entry = &entries[0];
-            let fragment = display_fragments(scope)
-                .into_iter()
-                .find(|fragment| fragment.attr("id") == Some(entry.fragment_id.as_str()));
-            if let Some(fragment) = fragment {
-                if let Some(pair_positions) =
-                    chemdraw_single_collapsed_pair_positions(fragment, bond_length)
-                {
-                    for (node_id, point) in pair_positions {
-                        overrides.insert((entry.fragment_id.clone(), node_id), point);
-                    }
-                    continue;
                 }
             }
         }
@@ -191,6 +185,14 @@ fn chemdraw_single_collapsed_pair_positions(
     let mut positions = BTreeMap::new();
     let (missing_index, missing_node) = missing[0];
     let missing_id = missing_node.attr("id")?;
+    let has_external_connection = missing_node
+        .direct_children("fragment")
+        .next()?
+        .direct_children("n")
+        .any(|node| node.attr("NodeType") == Some("ExternalConnectionPoint"));
+    if !has_external_connection {
+        return None;
+    }
     if missing_index == 0 {
         positions.insert(missing_id.to_string(), [0.0, 0.0]);
         positions.insert(second_id.to_string(), [round2(bond_length), 0.0]);
@@ -749,7 +751,10 @@ mod tests {
     #[test]
     fn single_pair_override_moves_both_direct_nodes() {
         let source = r#"<CDXML BondLength="30"><page id="1"><fragment id="20">
-          <n id="21" NodeType="Fragment"><fragment id="22"><n id="23" p="312.47 307.2"/></fragment></n>
+          <n id="21" NodeType="Fragment"><fragment id="22">
+            <n id="23" p="312.47 307.2"/><n id="24" NodeType="ExternalConnectionPoint"/>
+            <b id="25" B="24" E="23"/>
+          </fragment></n>
           <n id="28" p="300 300"/><b id="29" B="21" E="28"/>
         </fragment></page></CDXML>"#;
         let root = parse_xml_tree(source).expect("XML");
