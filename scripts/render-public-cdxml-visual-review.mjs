@@ -14,7 +14,7 @@ import {
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-export const IMAGE_ALIGNMENT_ALGORITHM = "chemdraw-declared-transform-origin-v12";
+export const IMAGE_ALIGNMENT_ALGORITHM = "chemdraw-source-authority-alignment-v13";
 
 export function publicCdxmlCliEnvironment(baseEnvironment = process.env) {
   return {
@@ -103,8 +103,25 @@ function dataUrl(buffer, mimeType) {
   return `data:${mimeType};base64,${buffer.toString("base64")}`;
 }
 
-export async function computeImageAlignment(page, referenceDataUrl, chemsemaDataUrl) {
-  return page.evaluate(async ({ referenceDataUrl, chemsemaDataUrl }) => {
+export function sourceAlignmentPolicy(format, source) {
+  if (String(format).toLowerCase() === "cdx") return "declared-transform-origin";
+  const root = String(source).match(/<CDXML\b([^>]*)>/i)?.[1] ?? "";
+  const boundingBox = root.match(/\bBoundingBox\s*=\s*"([^"]+)"/i)?.[1]
+    ?.trim()
+    .split(/[\s,]+/)
+    .map(Number);
+  return boundingBox?.length === 4 && boundingBox.every(Number.isFinite)
+    ? "declared-transform-origin"
+    : "ink-overlap-source-without-document-bounds";
+}
+
+export async function computeImageAlignment(
+  page,
+  referenceDataUrl,
+  chemsemaDataUrl,
+  sourcePolicy = "declared-transform-origin",
+) {
+  return page.evaluate(async ({ referenceDataUrl, chemsemaDataUrl, sourcePolicy }) => {
     async function loadImage(src) {
       const image = new Image();
       image.decoding = "sync";
@@ -470,7 +487,7 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       contentFrameGeometry[0],
       contentFrameGeometry[1],
     );
-    if (declared) {
+    if (declared && sourcePolicy === "declared-transform-origin") {
       const analysisScale = 720 / Math.max(referenceFrame.width, referenceFrame.height, 1);
       const reference = maskForReference(referenceImage, referenceFrame, analysisScale, 10);
       const points = candidateInkPoints(
@@ -485,7 +502,7 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       );
       const score = bestTranslation(reference, points, 0);
       return {
-        algorithm: "chemdraw-declared-transform-origin-v12",
+        algorithm: "chemdraw-source-authority-alignment-v13",
         basis: "declared-transform-origin",
         scale: declared.scale,
         dx: declared.dx,
@@ -510,6 +527,47 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
         },
       };
     }
+    if (declared) {
+      const referenceCenter = {
+        x: contentFrameGeometry[0].bbox.left + contentFrameGeometry[0].bbox.width / 2,
+        y: contentFrameGeometry[0].bbox.top + contentFrameGeometry[0].bbox.height / 2,
+      };
+      const chemsemaCenter = {
+        x: contentFrameGeometry[1].bbox.left + contentFrameGeometry[1].bbox.width / 2,
+        y: contentFrameGeometry[1].bbox.top + contentFrameGeometry[1].bbox.height / 2,
+      };
+      const seed = {
+        ...declared,
+        dx: referenceCenter.x - chemsemaCenter.x * declared.scale,
+        dy: referenceCenter.y - chemsemaCenter.y * declared.scale,
+      };
+      const coarseTranslation = await search(180, declared.scale, 0, 0, 40, seed);
+      const refinedTranslation = await search(720, declared.scale, 0, 0, 16, coarseTranslation);
+      const preciseTranslation = await search(1440, declared.scale, 0, 0, 6, refinedTranslation);
+      return {
+        algorithm: "chemdraw-source-authority-alignment-v13",
+        basis: "declared-scale-ink-translation",
+        scale: declared.scale,
+        dx: preciseTranslation.dx,
+        dy: preciseTranslation.dy,
+        iou: preciseTranslation.iou,
+        referenceWidth: referenceFrame.width,
+        referenceHeight: referenceFrame.height,
+        chemsemaWidth: chemsemaFrame.width,
+        chemsemaHeight: chemsemaFrame.height,
+        vectorFrame: {
+          chemDrawTransformCount: declared.chemDrawTransformCount,
+          chemDrawDistinctTransformCount: declared.chemDrawDistinctTransformCount,
+          chemDrawTransformRunnerUpCount: declared.chemDrawTransformRunnerUpCount,
+          chemDrawMatrixScale: declared.chemDrawMatrixScale,
+          referenceContentBounds: declared.referenceContentBounds,
+          chemsemaContentBounds: declared.chemsemaContentBounds,
+          registrationIou: preciseTranslation.iou,
+          referenceViewBox: referenceFrame.viewBox,
+          chemsemaViewBox: chemsemaFrame.viewBox,
+        },
+      };
+    }
 
     const coarse = await search(180, initialScale, 0.005, 4, 20);
     let refined = await search(360, coarse.scale, 0.00125, 2, 6, coarse);
@@ -523,7 +581,7 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       ? await search(1440, stabilized.scale, 0.00015625, 3, 5, stabilized)
       : stabilized;
     return {
-      algorithm: "chemdraw-declared-transform-origin-v12",
+      algorithm: "chemdraw-source-authority-alignment-v13",
       basis: "ink-overlap",
       scale: precise.scale,
       dx: precise.dx,
@@ -534,7 +592,7 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       chemsemaWidth: chemsemaFrame.width,
       chemsemaHeight: chemsemaFrame.height,
     };
-  }, { referenceDataUrl, chemsemaDataUrl });
+  }, { referenceDataUrl, chemsemaDataUrl, sourcePolicy });
 }
 
 function reviewScreenshotHtml(item, referenceDataUrl, chemsemaDataUrl, alignment) {
@@ -1359,10 +1417,15 @@ async function main() {
         args.all ? "image/svg+xml" : "image/png",
       );
       const chemsemaDataUrl = dataUrl(chemsemaBuffer, "image/svg+xml");
+      const sourcePolicy = sourceAlignmentPolicy(
+        pair.format ?? path.extname(pair.cdxml).slice(1),
+        await fs.readFile(pair.cdxml, "utf8"),
+      );
       const alignment = await computeImageAlignment(
         page,
         referenceDataUrl,
         chemsemaDataUrl,
+        sourcePolicy,
       );
       const screenshotItem = {
         number: String(index + 1),
@@ -1398,6 +1461,7 @@ async function main() {
           repositoryIdentity: provenance.repository.identity,
           cliSha256: provenance.cli.sha256,
         },
+        sourceAlignmentPolicy: sourcePolicy,
         alignment,
         reference: `items/${id}/reference${referenceExtension}`,
         chemsema: `items/${id}/chemsema.svg`,

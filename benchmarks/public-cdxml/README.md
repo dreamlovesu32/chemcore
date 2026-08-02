@@ -42,10 +42,13 @@ The gallery normalizes both panels into the ChemDraw reference coordinate
 space. The ChemDraw SVG path matrix declares the conversion from
 twentieth-of-a-point coordinates to reference pixels, so that uniform scale is
 fixed. The same dominant ChemDraw matrix also declares the document-origin
-translation. When that transform has a unique mode, the gallery composes it
-directly with the reference and candidate `viewBox` origins; it does not move a
-correct object merely to maximize whole-page ink overlap. An ambiguous or
-missing matrix enters the separately identified `ink-overlap` branch. The gate
+translation. When that transform has a unique mode and the source CDXML has an
+authored document bounding frame, the gallery composes it directly with the
+reference and candidate `viewBox` origins; it does not move a correct object
+merely to maximize whole-page ink overlap. A source without document bounds
+requires layout and therefore keeps the declared matrix scale but searches only
+translation. An ambiguous or missing matrix enters the separate full
+`ink-overlap` branch. The gate
 never fits rotation or non-uniform distortion. Tile and local-window lattices
 remain anchored in ChemDraw reference coordinates rather than at a viewport
 edge, and historical alignment never overrides current-image evidence.
@@ -260,9 +263,11 @@ Missing and extra fragments may be classified as one displaced detail only
 when they both fit within one fixed detail-window distance; look-alike edges on
 opposite sides of a large drawing cannot be paired. SVG
 scale and translation are derived from the uniquely dominant declared vector
-matrix and both root `viewBox` origins. Whole-page ink is not allowed to shift
-that exact document map. References with no unique matrix mode enter the
-explicit `ink-overlap` branch. Tiles and local windows use a fixed
+matrix and both root `viewBox` origins when the source carries an authored
+document bounding frame. Whole-page ink is not allowed to shift that exact
+document map. Coordinate-free/layout-relative sources and references with no
+document frame keep the declared scale and search ink translation; references
+with no unique matrix mode enter the explicit full `ink-overlap` branch. Tiles and local windows use a fixed
 reference-coordinate lattice, so a root `viewBox` crop cannot move registration
 or sampling. Historical pass
 protection never changes the current candidate's ordinary registration. The

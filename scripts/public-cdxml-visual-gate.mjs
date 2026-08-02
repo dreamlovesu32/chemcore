@@ -2792,6 +2792,21 @@ async function runSelfTest(options) {
         `deterministic vector-frame alignment regression: ${JSON.stringify(vectorAlignment)}`,
       );
     }
+    const layoutRelativeAlignment = await computeImageAlignment(
+      page,
+      data(vectorReference),
+      data(vectorCandidate),
+      "ink-overlap-source-without-document-bounds",
+    );
+    if (
+      layoutRelativeAlignment.algorithm !== ALIGNMENT_ALGORITHM
+      || layoutRelativeAlignment.basis !== "declared-scale-ink-translation"
+      || Math.abs(layoutRelativeAlignment.scale - vectorExpected.scale) > 1e-9
+    ) {
+      throw new Error(
+        `layout-relative fixed-scale alignment regression: ${JSON.stringify(layoutRelativeAlignment)}`,
+      );
+    }
     const croppedVectorCandidate = vectorCandidate
       .replace('height="32.75"', 'height="30.75"')
       .replace('viewBox="-3 5 48.25 32.75"', 'viewBox="-3 7 48.25 30.75"');
@@ -3424,6 +3439,7 @@ async function main() {
             activePage,
             referenceDataUrl,
             candidateDataUrl,
+            item.sourceAlignmentPolicy,
           );
         const alignment = currentFrameAlignment;
         const coarseMetrics = await analyzeAlignedImages(

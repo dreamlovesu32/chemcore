@@ -5,6 +5,7 @@ import {
   mergeIncrementalManifestItems,
   oracleGalleryCorpusErrors,
   publicCdxmlCliEnvironment,
+  sourceAlignmentPolicy,
 } from "../render-public-cdxml-visual-review.mjs";
 import {
   CASE_METRICS_SCHEMA,
@@ -286,6 +287,18 @@ test("case filters do not confuse numeric IDs or CDX and CDXML sibling paths", (
   assert.equal(matchesPublicCdxmlCasePattern(cdxml, cdx.relativeCdxml), false);
   assert.equal(matchesPublicCdxmlCasePattern(cdx, "ring-stereo1.cdx"), true);
   assert.equal(matchesPublicCdxmlCasePattern(cdxml, "ring-stereo1.cdx"), false);
+});
+
+test("source alignment uses declared origins only with an authoritative document frame", () => {
+  assert.equal(
+    sourceAlignmentPolicy("cdxml", '<CDXML BoundingBox="1 2 30 40"><page/></CDXML>'),
+    "declared-transform-origin",
+  );
+  assert.equal(
+    sourceAlignmentPolicy("cdxml", "<CDXML><page><fragment/></page></CDXML>"),
+    "ink-overlap-source-without-document-bounds",
+  );
+  assert.equal(sourceAlignmentPolicy("cdx", "binary payload"), "declared-transform-origin");
 });
 
 test("affected planner rejects a baseline that cannot cover its selected scope", () => {

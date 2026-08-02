@@ -80,7 +80,7 @@ function spatialFloor(cells = [], detail = false) {
 
 function regressionAlignment() {
   return {
-    algorithm: "chemdraw-declared-transform-origin-v12",
+    algorithm: "chemdraw-source-authority-alignment-v13",
     scale: 1,
     dx: 0,
     dy: 0,
@@ -348,7 +348,7 @@ test("sub-tolerance raster motion remains supported across a spatial cell bounda
 
 test("historical registration follows the current SVG crop in document coordinates", () => {
   const historical = {
-    algorithm: "chemdraw-declared-transform-origin-v12",
+    algorithm: "chemdraw-source-authority-alignment-v13",
     scale: 2.5,
     dx: 10,
     dy: 20,
