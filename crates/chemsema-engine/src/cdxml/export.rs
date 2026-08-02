@@ -3270,8 +3270,15 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 "minus" => "Minus",
                 "radical-anion" => "RadicalAnion",
                 "electron" => "Electron",
+                "stereo-absolute" => "Absolute",
+                "stereo-relative" => "Relative",
+                "stereo-racemic" => "Racemic",
                 _ => "Dagger",
             };
+            let is_stereo_badge = matches!(
+                kind.as_str(),
+                "stereo-absolute" | "stereo-relative" | "stereo-racemic"
+            );
             let style = object
                 .payload
                 .extra
@@ -3291,11 +3298,22 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 .get("symbolAnchorHeight")
                 .and_then(Value::as_f64)
                 .unwrap_or_else(|| crate::cdxml_symbol_anchor_height(&kind));
-            let center_x = (bbox[0] + bbox[2]) * 0.5;
-            let center_y = (bbox[1] + bbox[3]) * 0.5;
-            let symbol_bbox =
-                cdxml_symbol_anchor_bbox(center_x, center_y, anchor_width, anchor_height);
-            let attrs = vec![
+            let stroke_width = object
+                .payload
+                .extra
+                .get("strokeWidth")
+                .and_then(Value::as_f64)
+                .unwrap_or(self.defaults.line_width);
+            let symbol_bbox = if is_stereo_badge {
+                let anchor_x = bbox[0] - stroke_width * 0.5 + 1.40625;
+                let anchor_y = (bbox[1] + bbox[3]) * 0.5;
+                [anchor_x, anchor_y, anchor_x, anchor_y]
+            } else {
+                let center_x = (bbox[0] + bbox[2]) * 0.5;
+                let center_y = (bbox[1] + bbox[3]) * 0.5;
+                cdxml_symbol_anchor_bbox(center_x, center_y, anchor_width, anchor_height)
+            };
+            let mut attrs = vec![
                 ("id", self.object_cdxml_id(object)),
                 ("GraphicType", "Symbol".to_string()),
                 ("SymbolType", symbol_type.to_string()),
@@ -3303,6 +3321,51 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 ("BoundingBox", fmt_bbox(symbol_bbox)),
                 ("Z", object.z_index.to_string()),
             ];
+            if is_stereo_badge {
+                attrs.push(("FrameType", "None".to_string()));
+                attrs.push(("LineWidth", fmt_num(stroke_width)));
+                write_open_tag(out, 4, "graphic", attrs);
+                write_open_tag(
+                    out,
+                    6,
+                    "t",
+                    vec![
+                        (
+                            "p",
+                            format!("{} {}", fmt_num(symbol_bbox[0]), fmt_num(symbol_bbox[1])),
+                        ),
+                        ("Justification", "Center".to_string()),
+                        ("InterpretChemically", "no".to_string()),
+                    ],
+                );
+                let font_family = object
+                    .payload
+                    .extra
+                    .get("fontFamily")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Arial");
+                let font_size = object
+                    .payload
+                    .extra
+                    .get("fontSize")
+                    .and_then(Value::as_f64)
+                    .unwrap_or(self.defaults.caption_size);
+                write_text_tag(
+                    out,
+                    8,
+                    "s",
+                    vec![
+                        ("font", self.fonts.id_for(font_family)),
+                        ("size", fmt_num(font_size)),
+                        ("color", self.colors.id_for(&color)),
+                        ("face", "96".to_string()),
+                    ],
+                    "Chiral",
+                );
+                out.push_str("      </t>\n");
+                out.push_str("    </graphic>\n");
+                return;
+            }
             let represented_node = object
                 .payload
                 .extra

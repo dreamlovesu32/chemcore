@@ -436,6 +436,7 @@ pub(in crate::cdxml) fn append_text_objects_recursive(
             next_skip_text,
             inside_native_annotation
                 || node.is("constraint")
+                || (node.is("graphic") && node.attr("GraphicType") == Some("Symbol"))
                 || (node.is("geometry") && node.attr("GeometricFeature").is_some()),
             next_text_visible,
             next_force_text_visible,
@@ -598,8 +599,9 @@ pub(super) fn text_object(
             crate::shared_estimated_text_max_font_size(round2(font_size), &runs) * 1.4
         });
     let auto_enhanced_stereo_placement = bbox.and_then(|bbox| {
-        auto_enhanced_stereo_anchor
-            .and_then(|anchor| automatic_enhanced_stereo_text_placement(anchor, bbox, font_size))
+        auto_enhanced_stereo_anchor.and_then(|anchor| {
+            automatic_enhanced_stereo_text_placement(anchor, point, bbox, defaults.margin_width)
+        })
     });
     let auto_query_placement = bbox.and_then(|bbox| {
         auto_query_bond_points
@@ -730,8 +732,9 @@ pub(super) fn text_object(
 
 pub(super) fn automatic_enhanced_stereo_text_placement(
     anchor: [f64; 2],
+    point: [f64; 2],
     bbox: [f64; 4],
-    font_size: f64,
+    margin_width: f64,
 ) -> Option<([f64; 2], f64, [f64; 2])> {
     let width = (bbox[2] - bbox[0]).abs();
     let height = (bbox[3] - bbox[1]).abs();
@@ -746,23 +749,15 @@ pub(super) fn automatic_enhanced_stereo_text_placement(
         return None;
     }
     let unit = [dx / length, dy / length];
-    let nearly_vertical = unit[0].abs() < 0.1;
-    let radius = font_size * if nearly_vertical { 0.65 } else { 0.75 };
-    let horizontal_bias = if nearly_vertical {
-        -font_size * 0.115
-    } else {
-        0.0
-    };
     let center = [
-        anchor[0] + unit[0] * radius + horizontal_bias,
-        anchor[1] + unit[1] * radius,
+        anchor[0] + unit[0] * (width * 0.5 + margin_width),
+        anchor[1] + unit[1] * (height * 0.5 + margin_width),
     ];
     let translate = [
         round2(center[0] - width * 0.5),
         round2(center[1] - height * 0.5),
     ];
-    let baseline_offset = height + font_size * 0.08;
-    Some((translate, baseline_offset, [dx, dy]))
+    Some((translate, round2(point[1] - bbox[1]), [dx, dy]))
 }
 
 pub(super) fn automatic_query_bond_text_placement(

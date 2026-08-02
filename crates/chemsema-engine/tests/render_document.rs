@@ -1023,6 +1023,140 @@ fn parse_cdxml_preserves_chemdraw_js_cached_enhanced_stereo_position() {
     assert_eq!(reopened_label.transform.translate, [23.0, 12.0]);
 }
 
+#[test]
+fn parse_cdxml_reflows_desktop_chemdraw_auto_tag_from_cached_bearing() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML CreationProgram="ChemDraw 22.2.0.3300" ShowAtomEnhancedStereo="yes">
+  <page id="1"><fragment id="2">
+    <n id="3" p="250 200" EnhancedStereoType="Absolute">
+      <objecttag Name="enhancedstereo">
+        <t p="247.54 195.45" BoundingBox="247.54 189.21 259.63 195.55">
+          <s font="3" size="7.5">abs</s>
+        </t>
+      </objecttag>
+    </n>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("desktop enhanced stereo cache"))
+        .expect("desktop ChemDraw enhanced-stereo tag should parse");
+    let label = document
+        .objects
+        .iter()
+        .find(|object| {
+            object.meta.get("role").and_then(|value| value.as_str()) == Some("enhanced_stereo")
+        })
+        .expect("enhanced-stereo label should import");
+    assert_eq!(label.transform.translate, [247.38, 192.15]);
+    assert_eq!(
+        label
+            .payload
+            .extra
+            .get("baselineOffset")
+            .and_then(|value| value.as_f64()),
+        Some(6.24)
+    );
+    assert_eq!(
+        label
+            .payload
+            .extra
+            .get("automaticPositioningVector")
+            .and_then(|value| value.as_array())
+            .cloned(),
+        Some(vec![json!(3.58), json!(-7.62)])
+    );
+}
+
+#[test]
+fn cdxml_absolute_stereo_badge_is_a_native_rounded_symbol_and_roundtrips() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="1" CaptionFont="4" CaptionSize="12">
+  <fonttable><font id="4" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <graphic id="2" BoundingBox="50 50 50 50" GraphicType="Symbol"
+      SymbolType="Absolute" FrameType="None">
+      <t p="50 50" Justification="Center" InterpretChemically="no">
+        <s font="4" size="10" face="96">Chiral</s>
+      </t>
+    </graphic>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("absolute stereo badge"))
+        .expect("absolute stereo badge should parse");
+    assert_eq!(
+        document.objects.len(),
+        1,
+        "symbol child text is not a scene object"
+    );
+    let badge = document
+        .objects
+        .iter()
+        .find(|object| {
+            object.object_type == "symbol"
+                && object
+                    .payload
+                    .extra
+                    .get("kind")
+                    .and_then(|value| value.as_str())
+                    == Some("stereo-absolute")
+        })
+        .expect("absolute badge should remain a native symbol object");
+    assert_eq!(badge.transform.translate, [49.09, 42.75]);
+    assert_eq!(
+        badge.payload.bbox,
+        Some([0.0, 0.0, 24.43, 14.5]),
+        "badge dimensions come from the measured Arial 12 pt rule"
+    );
+    assert_eq!(
+        badge
+            .payload
+            .extra
+            .get("baselineOffset")
+            .and_then(|value| value.as_f64()),
+        Some(12.63)
+    );
+    let primitives = render_document(&document);
+    assert!(primitives.iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Path { object_id: Some(id), .. } if id == &badge.id
+    )));
+    assert!(primitives.iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Text {
+            object_id: Some(id),
+            text,
+            font_size,
+            font_family: Some(font_family),
+            ..
+        } if id == &badge.id && text == "Abs" && *font_size == 12.0 && font_family == "Arial"
+    )));
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("SymbolType=\"Absolute\""), "{exported}");
+    assert!(exported.contains(">Chiral</s>"), "{exported}");
+    let reopened = parse_cdxml_document(&exported, Some("absolute stereo badge roundtrip"))
+        .expect("exported absolute badge should reopen");
+    assert_eq!(
+        reopened.objects.len(),
+        1,
+        "roundtrip must not materialize Chiral text"
+    );
+    assert_eq!(
+        reopened
+            .objects
+            .iter()
+            .filter(|object| {
+                object.object_type == "symbol"
+                    && object
+                        .payload
+                        .extra
+                        .get("kind")
+                        .and_then(|value| value.as_str())
+                        == Some("stereo-absolute")
+            })
+            .count(),
+        1
+    );
+}
+
 fn assert_symbol_center(document: &ChemSemaDocument, kind: &str, expected: [f64; 2]) {
     let symbol = document
         .objects

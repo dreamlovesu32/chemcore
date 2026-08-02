@@ -19,11 +19,13 @@ pub(super) fn remove_regenerated_scene_objects(
         })
         .collect::<std::collections::BTreeSet<_>>();
     let mut regenerated_idless_curves = std::collections::BTreeSet::new();
+    let mut regenerated_idless_graphics = std::collections::BTreeSet::new();
     for object in &document.objects {
         collect_regenerated_scene_object_ids(
             object,
             &mut regenerated,
             &mut regenerated_idless_curves,
+            &mut regenerated_idless_graphics,
         );
     }
     for area_id in document
@@ -40,6 +42,7 @@ pub(super) fn remove_regenerated_scene_objects(
         &regenerated,
         &regenerated_fragments,
         &regenerated_idless_curves,
+        &regenerated_idless_graphics,
     );
 }
 
@@ -55,6 +58,7 @@ fn collect_regenerated_scene_object_ids(
     object: &crate::SceneObject,
     out: &mut std::collections::BTreeSet<(&'static str, String)>,
     idless_curves: &mut std::collections::BTreeSet<String>,
+    idless_graphics: &mut std::collections::BTreeSet<String>,
 ) {
     for (meta_key, source_tag) in [
         ("curveId", "curve"),
@@ -108,8 +112,21 @@ fn collect_regenerated_scene_object_ids(
             idless_curves.insert(fingerprint.to_string());
         }
     }
+    if object
+        .meta
+        .get("graphicId")
+        .is_some_and(serde_json::Value::is_null)
+    {
+        if let Some(fingerprint) = object
+            .meta
+            .get("graphicFingerprint")
+            .and_then(serde_json::Value::as_str)
+        {
+            idless_graphics.insert(fingerprint.to_string());
+        }
+    }
     for child in &object.children {
-        collect_regenerated_scene_object_ids(child, out, idless_curves);
+        collect_regenerated_scene_object_ids(child, out, idless_curves, idless_graphics);
     }
 }
 
@@ -118,6 +135,7 @@ fn remove_regenerated_scene_objects_recursive(
     regenerated: &std::collections::BTreeSet<(&'static str, String)>,
     regenerated_fragments: &std::collections::BTreeSet<String>,
     regenerated_idless_curves: &std::collections::BTreeSet<String>,
+    regenerated_idless_graphics: &std::collections::BTreeSet<String>,
 ) {
     let is_embedded_fragment_owner = source.name == "n";
     source.children.retain(|child| {
@@ -132,13 +150,20 @@ fn remove_regenerated_scene_objects_recursive(
                 .properties
                 .get("CurvePoints")
                 .is_some_and(|property| regenerated_idless_curves.contains(&property.value));
+        let represented_idless_graphic = child.name == "graphic"
+            && child.id.is_none()
+            && idless_graphic_fingerprint(child)
+                .is_some_and(|fingerprint| regenerated_idless_graphics.contains(&fingerprint));
         let regenerated_embedded_fragment = is_embedded_fragment_owner
             && child.name == "fragment"
             && child
                 .id
                 .as_ref()
                 .is_some_and(|id| regenerated_fragments.contains(id));
-        !represented_by_id && !represented_idless_curve && !regenerated_embedded_fragment
+        !represented_by_id
+            && !represented_idless_curve
+            && !represented_idless_graphic
+            && !regenerated_embedded_fragment
     });
     for child in &mut source.children {
         remove_regenerated_scene_objects_recursive(
@@ -146,8 +171,24 @@ fn remove_regenerated_scene_objects_recursive(
             regenerated,
             regenerated_fragments,
             regenerated_idless_curves,
+            regenerated_idless_graphics,
         );
     }
+}
+
+fn idless_graphic_fingerprint(source: &crate::InterchangeObject) -> Option<String> {
+    let property = |name: &str| {
+        source
+            .properties
+            .get(name)
+            .map(|value| value.value.as_str())
+    };
+    Some(format!(
+        "{}|{}|{}",
+        property("GraphicType")?,
+        property("SymbolType")?,
+        property("BoundingBox")?,
+    ))
 }
 
 pub(super) fn merge_interchange_tree(

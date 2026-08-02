@@ -5,6 +5,7 @@ pub(in crate::cdxml) fn append_bracket_objects(
     objects: &mut Vec<SceneObject>,
     defaults: CdxmlDefaults,
     colors: &CdxmlColorTable,
+    fonts: &BTreeMap<String, String>,
 ) {
     let mut brackets = Vec::new();
     let mut symbol_index = 1;
@@ -49,6 +50,21 @@ pub(in crate::cdxml) fn append_bracket_objects(
                 let Some(raw_bbox) = parse_ordered_bbox(node.attr("BoundingBox")) else {
                     continue;
                 };
+                if is_stereo_badge_symbol(kind) {
+                    append_stereo_badge_symbol(
+                        objects,
+                        node,
+                        kind,
+                        raw_bbox,
+                        defaults,
+                        colors,
+                        fonts,
+                        parse_f64(root.attr("CaptionSize")).unwrap_or(12.0),
+                        symbol_index,
+                    );
+                    symbol_index += 1;
+                    continue;
+                }
                 let style = crate::cdxml_symbol_style_from_line_width(defaults.line_width);
                 let metrics =
                     crate::cdxml_symbol_metrics_from_bbox(kind, raw_bbox, defaults.line_width);
@@ -97,7 +113,11 @@ pub(in crate::cdxml) fn append_bracket_objects(
                     },
                     style_ref: None,
                     link_policy: Default::default(),
-                    meta: json!({"source": "cdxml", "graphicId": node.attr("id")}),
+                    meta: json!({
+                        "source": "cdxml",
+                        "graphicId": node.attr("id"),
+                        "graphicFingerprint": idless_graphic_fingerprint(node),
+                    }),
                     payload: ObjectPayload {
                         resource_ref: None,
                         bbox: Some([0.0, 0.0, width, height]),
@@ -464,6 +484,127 @@ pub(super) fn cdxml_symbol_kind(symbol_type: &str) -> Option<&'static str> {
         "Minus" => "minus",
         "RadicalAnion" => "radical-anion",
         "Electron" => "electron",
+        "Absolute" => "stereo-absolute",
+        "Relative" => "stereo-relative",
+        "Racemic" => "stereo-racemic",
         _ => return None,
     })
+}
+
+fn is_stereo_badge_symbol(kind: &str) -> bool {
+    matches!(
+        kind,
+        "stereo-absolute" | "stereo-relative" | "stereo-racemic"
+    )
+}
+
+fn idless_graphic_fingerprint(node: &XmlNode) -> Option<String> {
+    node.attr("id").is_none().then(|| {
+        format!(
+            "{}|{}|{}",
+            node.attr("GraphicType").unwrap_or_default(),
+            node.attr("SymbolType").unwrap_or_default(),
+            node.attr("BoundingBox").unwrap_or_default(),
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_stereo_badge_symbol(
+    objects: &mut Vec<SceneObject>,
+    node: &XmlNode,
+    kind: &str,
+    raw_bbox: [f64; 4],
+    defaults: CdxmlDefaults,
+    colors: &CdxmlColorTable,
+    fonts: &BTreeMap<String, String>,
+    font_size: f64,
+    symbol_index: usize,
+) {
+    let label = "Abs";
+    let font_family = fonts
+        .get(&defaults.caption_font.to_string())
+        .cloned()
+        .unwrap_or_else(|| "Arial".to_string());
+    let run = LabelRun {
+        text: label.to_string(),
+        font_family: Some(font_family.clone()),
+        font_size: Some(font_size),
+        fill: Some(colors.resolve(node.attr("color"))),
+        font_weight: Some(400),
+        font_style: Some("normal".to_string()),
+        underline: Some(false),
+        outline: Some(false),
+        shadow: Some(false),
+        script: Some("normal".to_string()),
+    };
+    let (advance, ink) = crate::shared_text_advance_and_ink_bounds(
+        label,
+        std::slice::from_ref(&run),
+        font_size,
+        Some(&font_family),
+    );
+    let line_width = parse_f64(node.attr("LineWidth")).unwrap_or(defaults.line_width);
+    let width = advance + 3.75;
+    let family = font_family.to_ascii_lowercase();
+    let (ink_height, baseline_from_anchor) =
+        if family.contains("arial") || family.contains("times new roman") {
+            (font_size * 0.875, font_size * 0.447_916_667)
+        } else if family.contains("courier new") {
+            (font_size * 0.775, font_size * 0.4)
+        } else {
+            ((ink[3] - ink[1]).max(0.0), -(ink[1] + ink[3]) * 0.5)
+        };
+    let height = ink_height + 4.0;
+    let anchor = [raw_bbox[0], raw_bbox[1]];
+    let left = anchor[0] + line_width * 0.5 - 1.40625;
+    let top = anchor[1] - height * 0.5;
+    let baseline = anchor[1] + baseline_from_anchor;
+    let fill = colors.resolve(node.attr("color"));
+    let mut extra = BTreeMap::new();
+    extra.insert("kind".to_string(), json!(kind));
+    extra.insert("fill".to_string(), json!(fill));
+    extra.insert("strokeWidth".to_string(), json!(line_width));
+    extra.insert("fontFamily".to_string(), json!(font_family));
+    extra.insert("fontSize".to_string(), json!(font_size));
+    extra.insert("label".to_string(), json!(label));
+    extra.insert("baselineOffset".to_string(), json!(round2(baseline - top)));
+    extra.insert("cornerRadius".to_string(), json!(round2(line_width * 4.0)));
+    extra.insert("symbolAnchorPoint".to_string(), json!(anchor));
+    extra.insert("cdxmlBoundingBox".to_string(), json!(raw_bbox));
+    extra.insert("runs".to_string(), json!([run]));
+    objects.push(SceneObject {
+        id: format!("obj_symbol_{symbol_index:03}"),
+        object_type: "symbol".to_string(),
+        name: format!("symbol {symbol_index}"),
+        visible: true,
+        locked: false,
+        z_index: parse_i32(node.attr("Z")).unwrap_or(15),
+        transform: Transform {
+            translate: [round2(left), round2(top)],
+            rotate: 0.0,
+            scale: [1.0, 1.0],
+        },
+        style_ref: None,
+        link_policy: Default::default(),
+        meta: json!({
+            "source": "cdxml",
+            "graphicId": node.attr("id"),
+            "graphicFingerprint": idless_graphic_fingerprint(node),
+        }),
+        payload: ObjectPayload {
+            resource_ref: None,
+            bbox: Some([0.0, 0.0, round2(width), round2(height)]),
+            spectrum: None,
+            geometry: None,
+            constraint: None,
+            table: None,
+            stoichiometry_grid: None,
+            gel_electrophoresis: None,
+            plasmid_map: None,
+            bio_shape: None,
+            extra,
+        },
+        children: Vec::new(),
+    });
 }

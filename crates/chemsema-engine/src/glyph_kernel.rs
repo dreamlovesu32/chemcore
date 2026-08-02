@@ -1782,6 +1782,39 @@ pub(crate) fn shared_text_horizontal_ink_bounds(
     }
 }
 
+pub(crate) fn shared_text_advance_and_ink_bounds(
+    text: &str,
+    runs: &[crate::LabelRun],
+    default_font_size: f64,
+    default_font_family: Option<&str>,
+) -> (f64, [f64; 4]) {
+    let default_font_family = default_font_family.unwrap_or("Arial");
+    let resolved = resolved_text_lines(text, runs, Some(default_font_family));
+    let line = resolved.first().map(Vec::as_slice).unwrap_or_default();
+    let placements = glyph_placements_for_runs(line, 0.0, 0.0, default_font_size);
+    let advance = placements
+        .last()
+        .map(|placement| placement.origin_x_px + placement.advance_px)
+        .unwrap_or(0.0);
+    let mut bounds = [
+        f64::INFINITY,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::NEG_INFINITY,
+    ];
+    for placement in placements.iter().filter(|placement| placement.visible) {
+        bounds[0] = bounds[0].min(placement.ink_box_px[0]);
+        bounds[1] = bounds[1].min(placement.ink_box_px[1]);
+        bounds[2] = bounds[2].max(placement.ink_box_px[2]);
+        bounds[3] = bounds[3].max(placement.ink_box_px[3]);
+    }
+    if bounds.iter().all(|value| value.is_finite()) {
+        (advance, bounds)
+    } else {
+        (advance, [0.0, -default_font_size * 0.75, advance, 0.0])
+    }
+}
+
 fn resolved_text_lines(
     text: &str,
     runs: &[crate::LabelRun],

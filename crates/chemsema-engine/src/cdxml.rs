@@ -501,7 +501,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         &fonts,
     )?;
     append_embedded_image_objects(&generic_root, &mut objects, &mut resources);
-    append_bracket_objects(&generic_root, &mut objects, defaults, &colors);
+    append_bracket_objects(&generic_root, &mut objects, defaults, &colors, &fonts);
     append_text_objects(
         &generic_root,
         &mut objects,
