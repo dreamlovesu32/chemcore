@@ -118,6 +118,59 @@ const probes = [
     omitBeginUpper: true,
     omitEndUpper: true,
   },
+  ...[5, 10, 15, 20, 30, 45, 60, 75, 89, 90, 91, 105, 120]
+    .flatMap((angle) => [
+      {
+        name: `cis-upper-angle-${angle}`,
+        upperAngle: angle,
+        expectedSecondaryInsetEndpoints: 2,
+        omitBeginLower: true,
+        omitEndLower: true,
+      },
+      {
+        name: `begin-upper-only-angle-${angle}`,
+        upperAngle: angle,
+        expectedSecondaryInsetEndpoints: 1,
+        omitBeginLower: true,
+        omitEndUpper: true,
+        omitEndLower: true,
+      },
+    ]),
+  ...[6, 12, 20].flatMap((bondSpacing) =>
+    [30, 60, 90, 120].map((angle) => ({
+      name: `cis-upper-spacing-${bondSpacing}-angle-${angle}`,
+      bondSpacing,
+      upperAngle: angle,
+      expectedSecondaryInsetEndpoints: 2,
+      omitBeginLower: true,
+      omitEndLower: true,
+    }))),
+  ...[30, 60, 90].flatMap((axisLength) =>
+    [30, 60, 90, 120].map((angle) => ({
+      name: `cis-upper-length-${axisLength}-angle-${angle}`,
+      axisLength,
+      upperAngle: angle,
+      expectedSecondaryInsetEndpoints: 2,
+      omitBeginLower: true,
+      omitEndLower: true,
+    }))),
+  ...[0.4, 0.6, 1, 2].map((lineWidth) => ({
+    name: `cis-upper-line-${lineWidth}-angle-90`,
+    lineWidth,
+    upperAngle: 90,
+    expectedSecondaryInsetEndpoints: 2,
+    omitBeginLower: true,
+    omitEndLower: true,
+  })),
+  ...[2, 4, 8].map((bondSpacingAbs) => ({
+    name: `cis-upper-absolute-${bondSpacingAbs}-angle-90`,
+    bondSpacing: 1,
+    bondSpacingAbs,
+    upperAngle: 90,
+    expectedSecondaryInsetEndpoints: 2,
+    omitBeginLower: true,
+    omitEndLower: true,
+  })),
   {
     name: "trans-begin-upper-end-lower",
     omitBeginLower: true,
@@ -451,6 +504,7 @@ function classifySvg(svg, probe) {
     : "center";
   return {
     logicalPlacement,
+    sourceAxisSpan: axisLength,
     axisNormal,
     mainAxisDistance: main.axisDistance,
     secondaryAxisDistance: secondary.axisDistance,
@@ -494,6 +548,14 @@ if (missing.length > 0) {
 const results = [];
 for (const probe of probes) {
   const svg = await fs.readFile(probe.svg, "utf8");
+  const measured = classifySvg(svg, probe);
+  const expectedSecondarySpan = probe.expectedSecondaryInsetEndpoints
+    && measured.logicalPlacement !== "center"
+    ? measured.sourceAxisSpan
+      - probe.expectedSecondaryInsetEndpoints
+        * Math.abs(measured.secondaryAxisDistance)
+        * Math.tan((probe.upperAngle ?? 30) * Math.PI / 360)
+    : null;
   results.push({
     name: probe.name,
     lowerDelta: probe.lowerDelta ?? 0,
@@ -520,7 +582,11 @@ for (const probe of probes) {
     bondSpacingAbs: probe.bondSpacingAbs ?? null,
     lineWidth: probe.lineWidth ?? 1,
     expectedPlacement: expectedPlacement(probe),
-    ...classifySvg(svg, probe),
+    expectedSecondarySpan,
+    secondarySpanError: expectedSecondarySpan == null
+      ? null
+      : measured.secondarySpan - expectedSecondarySpan,
+    ...measured,
   });
 }
 
@@ -530,7 +596,8 @@ await fs.writeFile(
   "utf8",
 );
 const mismatches = results.filter(
-  (entry) => entry.logicalPlacement !== entry.expectedPlacement,
+  (entry) => entry.logicalPlacement !== entry.expectedPlacement
+    || (entry.secondarySpanError != null && Math.abs(entry.secondarySpanError) > 0.02),
 );
 if (mismatches.length > 0) {
   console.error(JSON.stringify(mismatches, null, 2));

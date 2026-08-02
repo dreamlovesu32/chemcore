@@ -1019,6 +1019,59 @@ pub(super) fn side_double_outer_endpoint_can_match_main_length(
     true
 }
 
+pub(super) fn side_double_secondary_inset_for_endpoint(
+    object: &SceneObject,
+    bonds: &[Bond],
+    node_map: &BTreeMap<&str, &Node>,
+    bond: &Bond,
+    shared_node_id: &str,
+    side: f64,
+    stroke_width: f64,
+    offset_distance: f64,
+) -> Option<f64> {
+    if side_double_placement(bond).is_none()
+        || outer_line_pattern(bond, side) != BondLinePattern::Solid
+        || offset_distance <= EPSILON
+    {
+        return None;
+    }
+    let current_stroke_width = stroke_width.max(bond.stroke_width);
+    let current_center = outer_bond_offset_line_for_endpoint(
+        object,
+        node_map,
+        bond,
+        shared_node_id,
+        side,
+        current_stroke_width,
+    )?;
+    let current_local_side = line_geometry_local_side(current_center)?;
+
+    bonds
+        .iter()
+        .filter(|other_bond| {
+            other_bond.id != bond.id
+                && (other_bond.begin == shared_node_id || other_bond.end == shared_node_id)
+        })
+        .filter_map(|other_bond| {
+            let other_axis =
+                bond_axis_line_for_endpoint(object, node_map, other_bond, shared_node_id)?;
+            let contact_side = main_contact_side(current_center.direction, other_axis.direction)?;
+            if (contact_side - current_local_side).abs() > 1.0e-6 {
+                return None;
+            }
+            let included_angle = vector_dot(
+                current_center.direction.normalized(),
+                other_axis.direction.normalized(),
+            )
+            .clamp(-1.0, 1.0)
+            .acos();
+            let tangent = (included_angle * 0.5).tan();
+            (tangent.is_finite() && tangent > EPSILON).then_some(offset_distance / tangent)
+        })
+        .filter(|inset| inset.is_finite())
+        .max_by(f64::total_cmp)
+}
+
 pub(super) fn line_geometry_local_side(line: LineGeometry) -> Option<f64> {
     let normal = Vector::new(-line.direction.y, line.direction.x);
     let offset = Vector::new(line.point.x - line.shared.x, line.point.y - line.shared.y);

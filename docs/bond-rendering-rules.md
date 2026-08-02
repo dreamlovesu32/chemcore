@@ -370,6 +370,25 @@ When CDXML or an editing operation gives only `Order="2"` and no explicit `Doubl
   their own actual parallel axes with their own half-widths, then share the
   larger retreat. Do not derive both from an unshifted center axis.
 - At terminal ends, it is the same length as the main bond.
+- At a non-terminal endpoint occupied on the secondary-line side, let `d` be
+  the main/secondary center distance and let `alpha` be the included angle
+  between the double-bond ray and the adjacent bond ray. ChemDraw places the
+  secondary endpoint on the angular-bisector boundary, so its axial inset is:
+
+  ```text
+  inset = d / tan(alpha / 2)
+  ```
+
+  Equivalently, if `theta = 180 degrees - alpha` is the adjacent bond's
+  deflection from a straight continuation, `inset = d * tan(theta / 2)`.
+  When several same-side bonds are present, use the greatest required inset.
+  An opposite-side attachment does not shorten the secondary line. A
+  same-side secondary-line intersection still has priority over this retreat.
+  The familiar `d * sqrt(3) / 3` value is only the `theta = 60 degrees`
+  regular-ring case; it is not a universal fallback. Silent ChemDraw SVG
+  probes cover `theta = 15..120 degrees`, one or both endpoints, three bond
+  lengths, three percentage spacings, four line widths, and absolute-spacing
+  inputs.
 
 ## Triple Bonds
 
@@ -391,7 +410,7 @@ absolute-spacing precedence:
 ```bash
 node scripts/chemdraw-triple-bond-spacing-probe.mjs
 ```
-- At non-terminal ends, it is shortened by "main-bond spacing * `sqrt(3) / 3`".
+- At non-terminal ends, use the angle-dependent secondary-line inset above.
 - When the angle between the main bond and the connected main bond is less than `90°`, the secondary line may retreat; however, if the other bond has a same-side secondary line, same-side secondary-line intersection still has priority.
 
 ### Acute-Angle Retreat

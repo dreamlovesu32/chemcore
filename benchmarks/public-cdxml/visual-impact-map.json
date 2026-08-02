@@ -42,6 +42,15 @@
       "regressionCases": ["0032", "0049", "0059", "0060", "0067", "0069", "0070", "0251", "0409"]
     },
     {
+      "name": "double-bond-rendering",
+      "pathSubstrings": [
+        "crates/chemsema-engine/src/render/bond_metrics.rs",
+        "crates/chemsema-engine/src/render_bonds.rs"
+      ],
+      "features": ["double-bond"],
+      "regressionCases": ["0017"]
+    },
+    {
       "name": "dative-bond-rendering",
       "pathSubstrings": [
         "crates/chemsema-engine/src/render_bonds.rs"
@@ -106,7 +115,8 @@
   ],
   "ignoredPathPrefixes": [
     "docs/",
-    "crates/chemsema-engine/tests/"
+    "crates/chemsema-engine/tests/",
+    "scripts/chemdraw-"
   ],
   "productionPathPrefixes": [
     "crates/chemsema-engine/src/",

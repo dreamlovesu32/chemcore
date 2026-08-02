@@ -114,6 +114,60 @@ fn render_document_keeps_same_side_single_attached_side_double_outer_line_shorte
 }
 
 #[test]
+fn render_document_uses_adjacent_angle_for_side_double_secondary_inset() {
+    let axis_length = 60.0;
+    let center_distance = axis_length * 0.12;
+    for angle_degrees in [30.0_f64, 60.0, 90.0, 120.0] {
+        let angle = angle_degrees.to_radians();
+        let branch_dx = 30.0 * angle.cos();
+        let branch_dy = 30.0 * angle.sin();
+        let document = fragment_document(
+            json!([
+                { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 40.0], "charge": 0, "numHydrogens": 0 },
+                { "id": "n2", "element": "C", "atomicNumber": 6, "position": [80.0, 40.0], "charge": 0, "numHydrogens": 0 },
+                { "id": "n3", "element": "C", "atomicNumber": 6, "position": [20.0 - branch_dx, 40.0 - branch_dy], "charge": 0, "numHydrogens": 0 },
+                { "id": "n4", "element": "C", "atomicNumber": 6, "position": [80.0 + branch_dx, 40.0 - branch_dy], "charge": 0, "numHydrogens": 0 }
+            ]),
+            json!([
+                {
+                    "id": "b1",
+                    "begin": "n1",
+                    "end": "n2",
+                    "order": 2,
+                    "strokeWidth": 1.0,
+                    "bondSpacing": 12.0,
+                    "double": { "placement": "right" }
+                },
+                { "id": "b2", "begin": "n1", "end": "n3", "order": 1, "strokeWidth": 1.0 },
+                { "id": "b3", "begin": "n2", "end": "n4", "order": 1, "strokeWidth": 1.0 }
+            ]),
+        );
+
+        let secondary = object_bond_polygons_with_ids(&render_document(&document))
+            .into_iter()
+            .filter(|(bond_id, _)| bond_id == "b1")
+            .map(|(_, points)| points)
+            .min_by(|left, right| {
+                let left_y = bond_axis_from_points(left)
+                    .map(|(from, to)| (from.y + to.y) * 0.5)
+                    .unwrap_or(f64::INFINITY);
+                let right_y = bond_axis_from_points(right)
+                    .map(|(from, to)| (from.y + to.y) * 0.5)
+                    .unwrap_or(f64::INFINITY);
+                left_y.total_cmp(&right_y)
+            })
+            .expect("side-double secondary polygon");
+        let rendered_length = bond_axis_length(&secondary).expect("secondary axis length");
+        let expected_inset = center_distance * (angle * 0.5).tan();
+        let expected_length = axis_length - 2.0 * expected_inset;
+        assert!(
+            (rendered_length - expected_length).abs() <= 0.02,
+            "angle={angle_degrees} rendered={rendered_length} expected={expected_length}"
+        );
+    }
+}
+
+#[test]
 fn render_document_recomputes_triple_outer_line_retreat_from_current_bond_length() {
     let short_document = fragment_document(
         json!([

@@ -915,8 +915,8 @@ fn render_outer_bond_lines(
 ) {
     let length = _actual_start.distance(_actual_end);
     let is_side_double = side_double_placement(bond).is_some();
-    let side_inset = if is_side_double {
-        offset_distance * (3.0f64).sqrt() / 3.0
+    let centered_outer_line_inset = if is_side_double {
+        0.0
     } else {
         (DOUBLE_BOND_SIDE_INSET * (stroke_width / VIEWER_BOND_STROKE))
             .max(length * DOUBLE_BOND_SIDE_INSET_RATIO)
@@ -974,6 +974,36 @@ fn render_outer_bond_lines(
                 *side,
                 stroke_width,
             );
+        let start_side_inset = if is_side_double {
+            side_double_secondary_inset_for_endpoint(
+                object,
+                bonds,
+                node_map,
+                bond,
+                &bond.begin,
+                *side,
+                stroke_width,
+                offset_distance,
+            )
+            .unwrap_or(0.0)
+        } else {
+            centered_outer_line_inset
+        };
+        let end_side_inset = if is_side_double {
+            side_double_secondary_inset_for_endpoint(
+                object,
+                bonds,
+                node_map,
+                bond,
+                &bond.end,
+                *side,
+                stroke_width,
+                offset_distance,
+            )
+            .unwrap_or(0.0)
+        } else {
+            centered_outer_line_inset
+        };
         let (short_start, short_end) = inset_bond_segment(
             offset_start,
             offset_end,
@@ -984,7 +1014,7 @@ fn render_outer_bond_lines(
             {
                 0.0
             } else {
-                side_inset
+                start_side_inset
             },
             if end_endpoint_profile.is_some()
                 || end_has_label
@@ -993,7 +1023,7 @@ fn render_outer_bond_lines(
             {
                 0.0
             } else {
-                side_inset
+                end_side_inset
             },
         );
         let (short_start, short_end) = shared_label_retreats.map_or(
