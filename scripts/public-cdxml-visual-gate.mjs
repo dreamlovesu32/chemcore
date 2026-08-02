@@ -8,6 +8,7 @@ import {
   computeImageAlignment,
   IMAGE_ALIGNMENT_ALGORITHM,
   mapWithConcurrency,
+  sourceAlignmentPolicy,
   viewerHtml,
 } from "./render-public-cdxml-visual-review.mjs";
 import {
@@ -3439,7 +3440,10 @@ async function main() {
             activePage,
             referenceDataUrl,
             candidateDataUrl,
-            item.sourceAlignmentPolicy,
+            item.sourceAlignmentPolicy ?? sourceAlignmentPolicy(
+              item.format,
+              await fs.readFile(item.sourceCdxml),
+            ),
           );
         const alignment = currentFrameAlignment;
         const coarseMetrics = await analyzeAlignedImages(
