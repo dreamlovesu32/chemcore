@@ -39,6 +39,16 @@ const probes = [
     lineWidth: 2,
     angle: 0,
   },
+  ...[30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map(
+    (branchAngle) => ({
+      name: `endpoint-angle-${branchAngle}`,
+      length: 60,
+      spacing: 12,
+      lineWidth: 1,
+      angle: 0,
+      branchAngle,
+    }),
+  ),
 ];
 
 function fixed(value) {
@@ -54,6 +64,16 @@ function sourceFor(probe) {
   const spacingAbs = probe.spacingAbs == null
     ? ""
     : ` BondSpacingAbs="${fixed(probe.spacingAbs)}"`;
+  const branch = probe.branchAngle == null
+    ? ""
+    : (() => {
+      const branchRadians = probe.branchAngle * Math.PI / 180;
+      const branchX = x0 + Math.cos(branchRadians) * 30;
+      const branchY = y0 + Math.sin(branchRadians) * 30;
+      return `
+      <n id="6" p="${fixed(branchX)} ${fixed(branchY)}"/>
+      <b id="7" B="3" E="6" Order="1"/>`;
+    })();
   return `<?xml version="1.0" encoding="UTF-8" ?>
 <CDXML CreationProgram="ChemDraw 22.2.0.3300" BoundingBox="0 0 110 110"
  FractionalWidths="yes" InterpretChemically="yes"
@@ -70,6 +90,7 @@ function sourceFor(probe) {
       <n id="3" p="${fixed(x0)} ${fixed(y0)}"/>
       <n id="4" p="${fixed(x1)} ${fixed(y1)}"/>
       <b id="5" B="3" E="4" Order="3"${spacingAbs}/>
+      ${branch}
     </fragment>
   </page>
 </CDXML>
@@ -123,6 +144,8 @@ function measureSvg(svg, probe) {
       const normalValues = entry.points.map((point) => point.x * normal.x + point.y * normal.y);
       return {
         ...entry,
+        axisMin: Math.min(...axisValues),
+        axisMax: Math.max(...axisValues),
         axisSpan: Math.max(...axisValues) - Math.min(...axisValues),
         normalCenter: (
           Math.max(...normalValues) + Math.min(...normalValues)
@@ -135,6 +158,15 @@ function measureSvg(svg, probe) {
     throw new Error(`${probe.name}: expected three bond paths, found ${paths.length}`);
   }
   const centers = paths.map((entry) => entry.normalCenter).sort((left, right) => left - right);
+  const lanes = paths
+    .map((entry) => ({
+      normalCenter: entry.normalCenter,
+      axisMin: entry.axisMin,
+      axisMax: entry.axisMax,
+      axisSpan: entry.axisSpan,
+    }))
+    .sort((left, right) => left.normalCenter - right.normalCenter);
+  const maximumAxisSpan = Math.max(...lanes.map((lane) => lane.axisSpan));
   const svgUnitsPerPoint = paths.reduce(
     (sum, entry) => sum + entry.svgUnitsPerPoint,
     0,
@@ -148,12 +180,14 @@ function measureSvg(svg, probe) {
     adjacentCenterDistances: adjacent,
     centerDistance: (adjacent[0] + adjacent[1]) * 0.5,
     asymmetry: Math.abs(adjacent[0] - adjacent[1]),
+    lanes,
+    laneSpanDeficits: lanes.map((lane) => maximumAxisSpan - lane.axisSpan),
     svgUnitsPerPoint,
   };
 }
 
 function expectedCenterDistance(probe) {
-  if (probe.spacingAbs != null) return probe.spacingAbs;
+  if (probe.spacingAbs != null) return Math.max(probe.spacingAbs, probe.lineWidth * 2.5);
   return Math.max(probe.length * probe.spacing / 100, probe.lineWidth * 2.5);
 }
 
@@ -198,10 +232,18 @@ for (const probe of probes) {
     spacingAbs: probe.spacingAbs ?? null,
     lineWidth: probe.lineWidth,
     angle: probe.angle,
+    branchAngle: probe.branchAngle ?? null,
     expectedCenterDistance: expected,
     measuredCenterDistance: measured.centerDistance,
     adjacentCenterDistances: measured.adjacentCenterDistances,
     asymmetry: measured.asymmetry,
+    lanes: measured.lanes,
+    laneSpanDeficits: measured.laneSpanDeficits,
+    outerSpanErrors: probe.branchAngle == null
+      ? null
+      : [measured.lanes[0], measured.lanes[2]].map(
+        (lane) => lane.axisSpan - probe.length * measured.svgUnitsPerPoint,
+      ),
     svgUnitsPerPoint: measured.svgUnitsPerPoint,
     delta: measured.centerDistance - expected,
   });
@@ -213,8 +255,13 @@ await fs.writeFile(
   "utf8",
 );
 
-const mismatches = measurements.filter((entry) =>
-  Math.abs(entry.delta) > 0.015 || entry.asymmetry > 0.015);
+const mismatches = measurements.filter((entry) => {
+  if (entry.branchAngle != null) {
+    return entry.outerSpanErrors.some((error) => Math.abs(error) > 0.015);
+  }
+  const spacingTolerance = entry.spacingAbs == null ? 0.015 : 0.05;
+  return Math.abs(entry.delta) > spacingTolerance || entry.asymmetry > 0.015;
+});
 if (mismatches.length > 0) {
   console.error(JSON.stringify(mismatches, null, 2));
   throw new Error(
