@@ -80,6 +80,23 @@ async function run(command) {
   });
 }
 
+export function baselineScopeErrors(selectedCases, baseline) {
+  if (!Array.isArray(baseline?.cases)) {
+    return ["baseline report has no cases array"];
+  }
+  const baselinePaths = new Set(
+    baseline.cases.map((entry) => entry.relativeCdxml).filter(Boolean),
+  );
+  const missing = selectedCases
+    .map((entry) => entry.relativeCdxml)
+    .filter((relativeCdxml) => !baselinePaths.has(relativeCdxml));
+  return missing.length === 0
+    ? []
+    : [
+      `baseline report is missing ${missing.length} selected case(s); first: ${missing[0]}`,
+    ];
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
@@ -192,6 +209,13 @@ async function main() {
       `Baseline report does not use the current complete gate schema. Re-run: `
       + `node scripts/public-cdxml-visual-gate.mjs --gallery "${gallery}" `
       + `--out "${baselineReport}"`,
+    );
+  }
+  const scopeErrors = baselineScopeErrors(selection.selected, baseline);
+  if (scopeErrors.length > 0) {
+    throw new Error(
+      `Baseline report cannot cover the affected plan: ${scopeErrors.join("; ")}. `
+      + "Generate a baseline with the same case scope before rendering.",
     );
   }
   await run(renderCommand);

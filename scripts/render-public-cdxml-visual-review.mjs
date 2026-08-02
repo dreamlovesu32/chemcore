@@ -14,7 +14,7 @@ import {
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-export const IMAGE_ALIGNMENT_ALGORITHM = "chemdraw-declared-scale-global-translation-v11";
+export const IMAGE_ALIGNMENT_ALGORITHM = "chemdraw-declared-transform-origin-v12";
 
 export function publicCdxmlCliEnvironment(baseEnvironment = process.env) {
   return {
@@ -172,25 +172,39 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       return values.every(Number.isFinite) ? values : null;
     }
 
-    function chemDrawUniformScale(frame) {
+    function chemDrawDominantUniformTransform(frame) {
       if (!frame.svg) return null;
       const counts = new Map();
+      let transformCount = 0;
       for (const element of frame.svg.querySelectorAll("[transform]")) {
         const values = matrixValues(element.getAttribute("transform"));
         if (!values) continue;
-        const [a, b, c, d] = values;
+        const [a, b, c, d, e, f] = values;
         if (
           a <= 0 || d <= 0
           || Math.abs(b) > 1e-9 || Math.abs(c) > 1e-9
           || Math.abs(a - d) > 1e-6
         ) continue;
-        const normalized = Number(a.toFixed(9));
-        counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+        transformCount += 1;
+        const normalized = [a, b, c, d, e, f]
+          .map((value) => Number(value.toFixed(9)));
+        const key = normalized.join(",");
+        const entry = counts.get(key) ?? { values: normalized, count: 0 };
+        entry.count += 1;
+        counts.set(key, entry);
       }
-      const entries = [...counts.entries()].sort((left, right) => right[1] - left[1]);
+      const entries = [...counts.values()].sort((left, right) => right.count - left.count);
       return entries.length === 0
         ? null
-        : { scale: entries[0][0], count: entries[0][1], scaleCount: entries.length };
+        : {
+          scale: entries[0].values[0],
+          translateX: entries[0].values[4],
+          translateY: entries[0].values[5],
+          count: entries[0].count,
+          runnerUpCount: entries[1]?.count ?? 0,
+          transformCount,
+          distinctTransformCount: entries.length,
+        };
     }
 
     function uniformViewportScale(frame) {
@@ -213,27 +227,30 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       referenceGeometry,
       chemsemaGeometry,
     ) {
-      const chemDraw = chemDrawUniformScale(referenceFrame);
+      const chemDraw = chemDrawDominantUniformTransform(referenceFrame);
       const referenceViewportScale = uniformViewportScale(referenceFrame);
       const chemsemaViewportScale = uniformViewportScale(chemsemaFrame);
-      if (!chemDraw || !referenceViewportScale || !chemsemaViewportScale) return null;
+      if (
+        !chemDraw || !referenceViewportScale || !chemsemaViewportScale
+        || (
+          chemDraw.distinctTransformCount > 1
+          && chemDraw.count <= chemDraw.runnerUpCount
+        )
+      ) return null;
       const worldScale = chemDraw.scale * 20 * referenceViewportScale;
       const scale = worldScale / chemsemaViewportScale;
-      const referenceCenter = {
-        x: referenceGeometry.bbox.left + referenceGeometry.bbox.width / 2,
-        y: referenceGeometry.bbox.top + referenceGeometry.bbox.height / 2,
-      };
-      const chemsemaCenter = {
-        x: chemsemaGeometry.bbox.left + chemsemaGeometry.bbox.width / 2,
-        y: chemsemaGeometry.bbox.top + chemsemaGeometry.bbox.height / 2,
-      };
       return {
         scale,
-        dx: referenceCenter.x - chemsemaCenter.x * scale,
-        dy: referenceCenter.y - chemsemaCenter.y * scale,
+        dx: referenceViewportScale * (chemDraw.translateX - referenceFrame.viewBox.x)
+          + worldScale * chemsemaFrame.viewBox.x,
+        dy: referenceViewportScale * (chemDraw.translateY - referenceFrame.viewBox.y)
+          + worldScale * chemsemaFrame.viewBox.y,
         chemDrawTransformCount: chemDraw.count,
-        chemDrawScaleCount: chemDraw.scaleCount,
+        chemDrawDistinctTransformCount: chemDraw.distinctTransformCount,
+        chemDrawTransformRunnerUpCount: chemDraw.runnerUpCount,
         chemDrawMatrixScale: chemDraw.scale,
+        chemDrawMatrixTranslateX: chemDraw.translateX,
+        chemDrawMatrixTranslateY: chemDraw.translateY,
         referenceContentBounds: referenceGeometry.bbox,
         chemsemaContentBounds: chemsemaGeometry.bbox,
       };
@@ -454,41 +471,6 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       contentFrameGeometry[1],
     );
     if (declared) {
-      // Bounding-box centers are only a starting point: labels can legitimately
-      // make the two ink extents asymmetric. Search a broad low-resolution
-      // translation field first, then refine without changing ChemDraw's
-      // declared scale. This finds the global overlap instead of locking onto
-      // a text-heavy local optimum near the initial center.
-      const coarseTranslation = await search(
-        180,
-        declared.scale,
-        0,
-        0,
-        40,
-        declared,
-      );
-      const refinedTranslation = await search(
-        720,
-        declared.scale,
-        0,
-        0,
-        16,
-        coarseTranslation,
-      );
-      const preciseTranslation = await search(
-        1440,
-        declared.scale,
-        0,
-        0,
-        6,
-        refinedTranslation,
-      );
-      declared = {
-        ...declared,
-        dx: preciseTranslation.dx,
-        dy: preciseTranslation.dy,
-        registrationIou: preciseTranslation.iou,
-      };
       const analysisScale = 720 / Math.max(referenceFrame.width, referenceFrame.height, 1);
       const reference = maskForReference(referenceImage, referenceFrame, analysisScale, 10);
       const points = candidateInkPoints(
@@ -503,8 +485,8 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       );
       const score = bestTranslation(reference, points, 0);
       return {
-        algorithm: "chemdraw-declared-scale-global-translation-v11",
-        basis: "declared-scale-global-translation",
+        algorithm: "chemdraw-declared-transform-origin-v12",
+        basis: "declared-transform-origin",
         scale: declared.scale,
         dx: declared.dx,
         dy: declared.dy,
@@ -515,11 +497,14 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
         chemsemaHeight: chemsemaFrame.height,
         vectorFrame: {
           chemDrawTransformCount: declared.chemDrawTransformCount,
-          chemDrawScaleCount: declared.chemDrawScaleCount,
+          chemDrawDistinctTransformCount: declared.chemDrawDistinctTransformCount,
+          chemDrawTransformRunnerUpCount: declared.chemDrawTransformRunnerUpCount,
           chemDrawMatrixScale: declared.chemDrawMatrixScale,
+          chemDrawMatrixTranslateX: declared.chemDrawMatrixTranslateX,
+          chemDrawMatrixTranslateY: declared.chemDrawMatrixTranslateY,
           referenceContentBounds: declared.referenceContentBounds,
           chemsemaContentBounds: declared.chemsemaContentBounds,
-          registrationIou: declared.registrationIou,
+          registrationIou: score.iou,
           referenceViewBox: referenceFrame.viewBox,
           chemsemaViewBox: chemsemaFrame.viewBox,
         },
@@ -538,7 +523,7 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       ? await search(1440, stabilized.scale, 0.00015625, 3, 5, stabilized)
       : stabilized;
     return {
-      algorithm: "chemdraw-declared-scale-global-translation-v11",
+      algorithm: "chemdraw-declared-transform-origin-v12",
       basis: "ink-overlap",
       scale: precise.scale,
       dx: precise.dx,

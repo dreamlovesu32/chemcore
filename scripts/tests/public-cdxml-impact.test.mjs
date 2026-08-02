@@ -14,6 +14,7 @@ import {
   visualBaselineCompatibilityErrors,
 } from "../public-cdxml-visual-gate.mjs";
 import { featuresFromCdxml, selectAffectedCases } from "../public-cdxml-impact.mjs";
+import { baselineScopeErrors } from "../plan-public-cdxml-affected-gate.mjs";
 import {
   defaultPublicCdxmlCliRelativePath,
   GALLERY_PROVENANCE_SCHEMA,
@@ -285,6 +286,25 @@ test("case filters do not confuse numeric IDs or CDX and CDXML sibling paths", (
   assert.equal(matchesPublicCdxmlCasePattern(cdxml, cdx.relativeCdxml), false);
   assert.equal(matchesPublicCdxmlCasePattern(cdx, "ring-stereo1.cdx"), true);
   assert.equal(matchesPublicCdxmlCasePattern(cdxml, "ring-stereo1.cdx"), false);
+});
+
+test("affected planner rejects a baseline that cannot cover its selected scope", () => {
+  const selected = [
+    { relativeCdxml: "public/a.cdxml" },
+    { relativeCdxml: "public/b.cdxml" },
+  ];
+  assert.deepEqual(
+    baselineScopeErrors(selected, {
+      cases: [{ relativeCdxml: "public/a.cdxml" }],
+    }),
+    ["baseline report is missing 1 selected case(s); first: public/b.cdxml"],
+  );
+  assert.deepEqual(
+    baselineScopeErrors(selected, {
+      cases: selected,
+    }),
+    [],
+  );
 });
 
 test("affected selection combines feature hits and historical regressions", () => {

@@ -2778,13 +2778,13 @@ async function runSelfTest(options) {
       data(vectorReference),
       data(vectorCandidate),
     );
-    const vectorExpected = { scale: 2.5 };
+    const vectorExpected = { scale: 2.5, dx: -0.5, dy: 1.5 };
     if (
       vectorAlignment.algorithm !== ALIGNMENT_ALGORITHM
-      || vectorAlignment.basis !== "declared-scale-global-translation"
+      || vectorAlignment.basis !== "declared-transform-origin"
       || Math.abs(vectorAlignment.scale - vectorExpected.scale) > 1e-9
-      || !Number.isFinite(vectorAlignment.dx)
-      || !Number.isFinite(vectorAlignment.dy)
+      || Math.abs(vectorAlignment.dx - vectorExpected.dx) > 1e-9
+      || Math.abs(vectorAlignment.dy - vectorExpected.dy) > 1e-9
       || vectorAlignment.chemsemaWidth !== 48.25
       || vectorAlignment.chemsemaHeight !== 32.75
     ) {

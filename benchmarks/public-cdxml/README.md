@@ -41,15 +41,14 @@ node scripts/render-public-cdxml-visual-review.mjs --all \
 The gallery normalizes both panels into the ChemDraw reference coordinate
 space. The ChemDraw SVG path matrix declares the conversion from
 twentieth-of-a-point coordinates to reference pixels, so that uniform scale is
-fixed. Because an absolute page origin is not portable document semantics, the
-outer ink-bounds centers seed a translation-only overlap search; the gate
-cannot fit scale, rotation, or non-uniform distortion. Translation is searched
-on a fixed document-world lattice: the candidate SVG `viewBox` is only an
-export crop, so changing its origin or extent adjusts display-space placement
-without changing document-world registration. Tile and local-window lattices
-are likewise anchored in ChemDraw reference coordinates rather than at a
-viewport edge. Every current candidate is registered from its own pixels;
-historical alignment never overrides current-image evidence.
+fixed. The same dominant ChemDraw matrix also declares the document-origin
+translation. When that transform has a unique mode, the gallery composes it
+directly with the reference and candidate `viewBox` origins; it does not move a
+correct object merely to maximize whole-page ink overlap. An ambiguous or
+missing matrix enters the separately identified `ink-overlap` branch. The gate
+never fits rotation or non-uniform distortion. Tile and local-window lattices
+remain anchored in ChemDraw reference coordinates rather than at a viewport
+edge, and historical alignment never overrides current-image evidence.
 The gate also uses the SVG's
 possibly fractional declared `width` and `height`, rather than the browser's
 independently rounded intrinsic dimensions, so the candidate is not silently
@@ -260,12 +259,12 @@ calibrated in reference-image units, not as a percentage of canvas size.
 Missing and extra fragments may be classified as one displaced detail only
 when they both fit within one fixed detail-window distance; look-alike edges on
 opposite sides of a large drawing cannot be paired. SVG
-scale is derived from the declared vector matrix. Translation is resolved for
-each current candidate on a document-world lattice by a broad low-resolution
-global-overlap search followed by two fixed-scale refinement passes. Tiles and
-local windows use a fixed reference-coordinate lattice, so a root `viewBox`
-crop cannot move registration or sampling. This prevents an asymmetric label
-box from trapping registration in a nearby local optimum. Historical pass
+scale and translation are derived from the uniquely dominant declared vector
+matrix and both root `viewBox` origins. Whole-page ink is not allowed to shift
+that exact document map. References with no unique matrix mode enter the
+explicit `ink-overlap` branch. Tiles and local windows use a fixed
+reference-coordinate lattice, so a root `viewBox` crop cannot move registration
+or sampling. Historical pass
 protection never changes the current candidate's ordinary registration. The
 separate continuous-regression analysis reuses only the old
 document-coordinate map, adjusted by the exact old/new `viewBox` origin delta,

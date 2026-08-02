@@ -41,16 +41,175 @@ const probes = [
       lineWidth: 0.6,
       angle: 37,
     }))),
-  ...[30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map(
-    (branchAngle) => ({
-      name: `endpoint-angle-${branchAngle}`,
+  ...[30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].flatMap(
+    (branchAngle) => [{
+      name: `endpoint-begin-angle-${branchAngle}`,
       length: 60,
       spacing: 12,
       lineWidth: 1,
       angle: 0,
-      branchAngle,
+      beginBranchAngle: branchAngle,
+    }, {
+      name: `endpoint-end-angle-${branchAngle}`,
+      length: 60,
+      spacing: 12,
+      lineWidth: 1,
+      angle: 0,
+      endBranchAngle: branchAngle,
+    }],
+  ),
+  {
+    name: "endpoint-both-linear",
+    length: 60,
+    spacing: 12,
+    lineWidth: 1,
+    angle: 0,
+    beginBranchAngle: 180,
+    endBranchAngle: 0,
+  },
+  {
+    name: "endpoint-both-deflection-60",
+    length: 60,
+    spacing: 12,
+    lineWidth: 1,
+    angle: 0,
+    beginBranchAngle: 120,
+    endBranchAngle: 60,
+  },
+  ...[0, 37, 90, 150].map((angle) => ({
+    name: `endpoint-both-linear-direction-${angle}`,
+    length: 30,
+    spacing: 12,
+    lineWidth: 0.6,
+    angle,
+    beginBranchAngle: angle + 180,
+    endBranchAngle: angle,
+  })),
+  ...[
+    { suffix: "atom-stereo-none", atomStereoNone: true },
+    { suffix: "bond-stereo-none", bondStereoNone: true },
+    { suffix: "atom-and-bond-stereo-none", atomStereoNone: true, bondStereoNone: true },
+  ].map((variant) => ({
+    name: `endpoint-both-linear-direction-150-${variant.suffix}`,
+    length: 30,
+    spacing: 12,
+    lineWidth: 0.6,
+    angle: 150,
+    beginBranchAngle: 330,
+    endBranchAngle: 150,
+    ...variant,
+  })),
+  ...[0.6, 1, 2].flatMap((lineWidth) =>
+    [14.4, 30, 60].map((length) => ({
+      name: `endpoint-both-linear-matrix-width-${String(lineWidth).replace(".", "_")}-length-${String(length).replace(".", "_")}`,
+      length,
+      spacing: 12,
+      lineWidth,
+      angle: 150,
+      beginBranchAngle: 330,
+      endBranchAngle: 150,
+      atomStereoNone: true,
+      bondStereoNone: true,
+    }))),
+  ...["17.1.0.105", "18.2.0.48", "19.1.1.21", "20.1.1.125", "21.0.0.28", "22.2.0.3300"].map(
+    (creationProgram) => ({
+      name: `endpoint-both-linear-version-${creationProgram.replaceAll(".", "_")}`,
+      length: 30,
+      spacing: 12,
+      lineWidth: 1,
+      angle: 150,
+      beginBranchAngle: 330,
+      endBranchAngle: 150,
+      atomStereoNone: true,
+      bondStereoNone: true,
+      creationProgram,
     }),
   ),
+  ...[1, 2, 3, 4].map((branchDepth) => ({
+    name: `endpoint-both-linear-chain-depth-${branchDepth}`,
+    length: 30,
+    spacing: 12,
+    lineWidth: 1,
+    angle: 150,
+    beginBranchAngle: 330,
+    endBranchAngle: 150,
+    atomStereoNone: true,
+    bondStereoNone: true,
+    branchDepth,
+  })),
+  {
+    name: "endpoint-both-linear-interleaved-z",
+    length: 30,
+    spacing: 12,
+    lineWidth: 1,
+    angle: 150,
+    beginBranchAngle: 330,
+    endBranchAngle: 150,
+    atomStereoNone: true,
+    bondStereoNone: true,
+    creationProgram: "21.0.0.28",
+    interleavedZ: true,
+  },
+  ...[0.005, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.25, 0.5, 1].map(
+    (deviation) => ({
+      name: `endpoint-both-near-linear-deviation-${String(deviation).replace(".", "_")}`,
+      length: 30,
+      spacing: 12,
+      lineWidth: 1,
+      angle: 150,
+      beginBranchAngle: 330 + deviation,
+      endBranchAngle: 150 + deviation,
+      atomStereoNone: true,
+      bondStereoNone: true,
+      creationProgram: "21.0.0.28",
+      interleavedZ: true,
+    }),
+  ),
+  ...[14.4, 30, 60].map((documentBondLength) => ({
+    name: `endpoint-both-near-linear-document-bond-length-${String(documentBondLength).replace(".", "_")}`,
+    length: 30,
+    documentBondLength,
+    spacing: 12,
+    lineWidth: 1,
+    angle: 150,
+    beginBranchAngle: 330.04,
+    endBranchAngle: 150.03,
+    atomStereoNone: true,
+    bondStereoNone: true,
+    creationProgram: "21.0.0.28",
+    interleavedZ: true,
+  })),
+  {
+    name: "endpoint-both-near-linear-implicit-single-order",
+    length: 30,
+    documentBondLength: 30,
+    spacing: 12,
+    lineWidth: 1,
+    angle: 150,
+    beginBranchAngle: 330.04,
+    endBranchAngle: 150.03,
+    atomStereoNone: true,
+    bondStereoNone: true,
+    creationProgram: "21.0.0.28",
+    interleavedZ: true,
+    omitBranchOrder: true,
+  },
+  {
+    name: "endpoint-both-near-linear-source-child-order",
+    length: 30,
+    documentBondLength: 30,
+    spacing: 12,
+    lineWidth: 1,
+    angle: 150,
+    beginBranchAngle: 330.04,
+    endBranchAngle: 150.03,
+    atomStereoNone: true,
+    bondStereoNone: true,
+    creationProgram: "21.0.0.28",
+    interleavedZ: true,
+    omitBranchOrder: true,
+    nodesBeforeBonds: true,
+  },
 ];
 
 function fixed(value) {
@@ -66,33 +225,99 @@ function sourceFor(probe) {
   const spacingAbs = probe.spacingAbs == null
     ? ""
     : ` BondSpacingAbs="${fixed(probe.spacingAbs)}"`;
-  const branch = probe.branchAngle == null
+  const atomStereo = probe.atomStereoNone ? ' AS="N"' : "";
+  const bondStereo = probe.bondStereoNone ? ' BS="N"' : "";
+  const branchSource = ({
+    originX,
+    originY,
+    angle,
+    firstNodeId,
+    firstBondId,
+    rootNodeId,
+    nodeZ,
+    bondZ,
+    reverseBond = false,
+  }) => {
+    const radians = angle * Math.PI / 180;
+    const depth = probe.branchDepth ?? 1;
+    const lines = [];
+    let previousNodeId = rootNodeId;
+    for (let index = 1; index <= depth; index += 1) {
+      const nodeId = firstNodeId + index - 1;
+      const bondId = firstBondId + index - 1;
+      const branchX = originX + Math.cos(radians) * 30 * index;
+      const branchY = originY + Math.sin(radians) * 30 * index;
+      const nodeZAttribute = nodeZ == null ? "" : ` Z="${nodeZ + (index - 1) * 2}"`;
+      const bondZAttribute = bondZ == null ? "" : ` Z="${bondZ + (index - 1) * 2}"`;
+      const begin = reverseBond ? nodeId : previousNodeId;
+      const end = reverseBond ? previousNodeId : nodeId;
+      lines.push(`<n id="${nodeId}" p="${fixed(branchX)} ${fixed(branchY)}"${nodeZAttribute}${atomStereo}/>`);
+      const order = probe.omitBranchOrder ? "" : ' Order="1"';
+      lines.push(`<b id="${bondId}" B="${begin}" E="${end}"${order}${bondZAttribute}${bondStereo}/>`);
+      previousNodeId = nodeId;
+    }
+    return `\n      ${lines.join("\n      ")}`;
+  };
+  const beginBranch = probe.beginBranchAngle == null
     ? ""
-    : (() => {
-      const branchRadians = probe.branchAngle * Math.PI / 180;
-      const branchX = x0 + Math.cos(branchRadians) * 30;
-      const branchY = y0 + Math.sin(branchRadians) * 30;
-      return `
-      <n id="6" p="${fixed(branchX)} ${fixed(branchY)}"/>
-      <b id="7" B="3" E="6" Order="1"/>`;
-    })();
+    : branchSource({
+      originX: x0,
+      originY: y0,
+      angle: probe.beginBranchAngle,
+      firstNodeId: 10,
+      firstBondId: 100,
+      rootNodeId: 3,
+      nodeZ: probe.interleavedZ ? 1 : null,
+      bondZ: probe.interleavedZ ? 4 : null,
+      reverseBond: probe.interleavedZ,
+    });
+  const endBranch = probe.endBranchAngle == null
+    ? ""
+    : branchSource({
+      originX: x1,
+      originY: y1,
+      angle: probe.endBranchAngle,
+      firstNodeId: 20,
+      firstBondId: 200,
+      rootNodeId: 4,
+      nodeZ: probe.interleavedZ ? 7 : null,
+      bondZ: probe.interleavedZ ? 8 : null,
+    });
+  const fragmentBody = probe.nodesBeforeBonds
+    ? (() => {
+      const beginRadians = probe.beginBranchAngle * Math.PI / 180;
+      const endRadians = probe.endBranchAngle * Math.PI / 180;
+      const beginX = x0 + Math.cos(beginRadians) * 30;
+      const beginY = y0 + Math.sin(beginRadians) * 30;
+      const endX = x1 + Math.cos(endRadians) * 30;
+      const endY = y1 + Math.sin(endRadians) * 30;
+      return `<n id="10" p="${fixed(beginX)} ${fixed(beginY)}" Z="1"${atomStereo}/>
+      <n id="3" p="${fixed(x0)} ${fixed(y0)}" Z="3"${atomStereo}/>
+      <n id="4" p="${fixed(x1)} ${fixed(y1)}" Z="5"${atomStereo}/>
+      <n id="20" p="${fixed(endX)} ${fixed(endY)}" Z="7"${atomStereo}/>
+      <b id="100" B="10" E="3" Z="4"${bondStereo}/>
+      <b id="5" B="3" E="4" Order="3" Z="6"${spacingAbs}${bondStereo}/>
+      <b id="200" B="4" E="20" Z="8"${bondStereo}/>`;
+    })()
+    : `<n id="3" p="${fixed(x0)} ${fixed(y0)}"${probe.interleavedZ ? ' Z="3"' : ""}${atomStereo}/>
+      <n id="4" p="${fixed(x1)} ${fixed(y1)}"${probe.interleavedZ ? ' Z="5"' : ""}${atomStereo}/>
+      <b id="5" B="3" E="4" Order="3"${probe.interleavedZ ? ' Z="6"' : ""}${spacingAbs}${bondStereo}/>
+      ${beginBranch}
+      ${endBranch}`;
   return `<?xml version="1.0" encoding="UTF-8" ?>
-<CDXML CreationProgram="ChemDraw 22.2.0.3300" BoundingBox="0 0 110 110"
+<CDXML CreationProgram="ChemDraw ${probe.creationProgram ?? "22.2.0.3300"}" BoundingBox="-100 -100 250 250"
  FractionalWidths="yes" InterpretChemically="yes"
  ShowTerminalCarbonLabels="no" ShowNonTerminalCarbonLabels="no"
  LabelFont="3" LabelSize="10" LabelFace="96"
  CaptionFont="3" CaptionSize="10"
  LineWidth="${fixed(probe.lineWidth)}" BoldWidth="4"
- BondLength="14.4" BondSpacing="${fixed(probe.spacing)}"
+ BondLength="${fixed(probe.documentBondLength ?? 14.4)}" BondSpacing="${fixed(probe.spacing)}"
  HashSpacing="2.5" MarginWidth="2">
   <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
   <colortable><color r="1" g="1" b="1"/><color r="0" g="0" b="0"/></colortable>
-  <page id="1" BoundingBox="0 0 110 110">
+  <page id="1" BoundingBox="-100 -100 250 250">
     <fragment id="2">
-      <n id="3" p="${fixed(x0)} ${fixed(y0)}"/>
-      <n id="4" p="${fixed(x1)} ${fixed(y1)}"/>
-      <b id="5" B="3" E="4" Order="3"${spacingAbs}/>
-      ${branch}
+      ${fragmentBody}
     </fragment>
   </page>
 </CDXML>
@@ -130,6 +355,7 @@ function transformedPathPoints(tag) {
   return {
     points,
     svgUnitsPerPoint: Math.hypot(a, b) * 20,
+    transform: { a, b, c, d: dScale, e, f },
   };
 }
 
@@ -137,7 +363,7 @@ function measureSvg(svg, probe) {
   const radians = probe.angle * Math.PI / 180;
   const axis = { x: Math.cos(radians), y: Math.sin(radians) };
   const normal = { x: -axis.y, y: axis.x };
-  const paths = (svg.match(/<path\b[^>]*>/gi) ?? [])
+  const allPaths = (svg.match(/<path\b[^>]*>/gi) ?? [])
     .filter((tag) => /\bfill="#000000"/i.test(tag))
     .map(transformedPathPoints)
     .filter(Boolean)
@@ -153,8 +379,28 @@ function measureSvg(svg, probe) {
           Math.max(...normalValues) + Math.min(...normalValues)
         ) * 0.5,
       };
+    });
+  const sourceMidpoint = {
+    x: (50 + 50 + Math.cos(radians) * probe.length) * 10,
+    y: (50 + 50 + Math.sin(radians) * probe.length) * 10,
+  };
+  const paths = [...allPaths]
+    .map((entry) => {
+      const { a, b, c, d, e, f } = entry.transform;
+      const expectedMidpoint = {
+        x: a * sourceMidpoint.x + c * sourceMidpoint.y + e,
+        y: b * sourceMidpoint.x + d * sourceMidpoint.y + f,
+      };
+      const expectedAxisMidpoint = expectedMidpoint.x * axis.x + expectedMidpoint.y * axis.y;
+      const expectedNormalCenter = expectedMidpoint.x * normal.x + expectedMidpoint.y * normal.y;
+      const axisMidpoint = (entry.axisMin + entry.axisMax) * 0.5;
+      return {
+        ...entry,
+        targetScore: Math.abs(axisMidpoint - expectedAxisMidpoint)
+          + Math.abs(entry.normalCenter - expectedNormalCenter),
+      };
     })
-    .sort((left, right) => right.axisSpan - left.axisSpan)
+    .sort((left, right) => left.targetScore - right.targetScore)
     .slice(0, 3);
   if (paths.length !== 3) {
     throw new Error(`${probe.name}: expected three bond paths, found ${paths.length}`);
@@ -240,14 +486,15 @@ for (const probe of probes) {
     spacingAbs: probe.spacingAbs ?? null,
     lineWidth: probe.lineWidth,
     angle: probe.angle,
-    branchAngle: probe.branchAngle ?? null,
+    beginBranchAngle: probe.beginBranchAngle ?? null,
+    endBranchAngle: probe.endBranchAngle ?? null,
     expectedCenterDistance: expected,
     measuredCenterDistance: measured.centerDistance,
     adjacentCenterDistances: measured.adjacentCenterDistances,
     asymmetry: measured.asymmetry,
     lanes: measured.lanes,
     laneSpanDeficits: measured.laneSpanDeficits,
-    outerSpanErrors: probe.branchAngle == null
+    outerSpanErrors: probe.beginBranchAngle == null && probe.endBranchAngle == null
       ? null
       : [measured.lanes[0], measured.lanes[2]].map(
         (lane) => lane.axisSpan - probe.length * measured.svgUnitsPerPoint,
@@ -264,7 +511,7 @@ await fs.writeFile(
 );
 
 const mismatches = measurements.filter((entry) => {
-  if (entry.branchAngle != null) {
+  if (entry.beginBranchAngle != null || entry.endBranchAngle != null) {
     return entry.outerSpanErrors.some((error) => Math.abs(error) > 0.015);
   }
   const spacingTolerance = entry.spacingAbs == null ? 0.015 : 0.05;
