@@ -1,0 +1,35 @@
+{
+  "schema": "chemsema.public-cdxml-reviewed-renderer-migration.v1",
+  "rule": "chemdraw-enhanced-stereo-topology-layout-v1",
+  "summary": "Desktop ChemDraw reflows automatic enhanced-stereo object tags from current atom topology and font metrics instead of treating cached tag boxes as fixed placement. The renderer correction improves four cases to pass and substantially improves the three listed cases that remain red. The visual gate correctly records their residual mismatch pixels moving locally; this audit replaces only those exact historical candidate artifacts and does not create runtime case branches or weaken future regression checks.",
+  "fromRepository": {
+    "head": "9c8ab2ddff8fccc6bab635cbf2be06f471eb7e77",
+    "identity": "cdce1951a431c6daf0e7820e253ca8d5b04e82e154eaa52f057d3f03f4366e77"
+  },
+  "toRepository": {
+    "head": "84c95d096fae25ab87f10db13f64e3f9814f295f",
+    "identity": "11ecf905b51166a0fe648b5d535048cd7da64ba0f0bf80f026781c17acb68854"
+  },
+  "evidence": {
+    "rendererCommit": "6ecccc67c9ce97f3beda33751dbdd61fcef43f0f",
+    "probe": "tmp/enhanced-stereo-regression-saveas and tmp/enhanced-stereo-beta-plain-saveas",
+    "rules": "docs/enhanced-stereo-annotation-rules.md"
+  },
+  "cases": [
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/ref/macro/sa-mono.cdxml",
+      "previousCandidateSha256": "37226350eac5921a65e3c9a61303c980947f98332b0577f7d5451aeb9f5147f8",
+      "currentCandidateSha256": "71e14ca80493509765967ff96b97e251545edcd57f570102959f0c06a7eea7d0"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/rendering/molecules/cip_breaks_svg_2970.cdxml",
+      "previousCandidateSha256": "13400cee07712fab5fadc7fa72c04ba996ef9d9f2e95db19c0f240fce52e7573",
+      "currentCandidateSha256": "8bfa4c767ec1104253579ce0a20796fa8d8593f4ef6fe73b9b93d18b49d7a50c"
+    },
+    {
+      "relativeCdxml": "rdkit/Code/GraphMol/test_data/CDXML/beta-cypermethrin.cdxml",
+      "previousCandidateSha256": "12f19c23aa633c240893d0d7ec6e2fbd1efa436bde86b392f73b7a019062c61d",
+      "currentCandidateSha256": "6618f6e633a51aff8d2f9a47dd23b52956260d7d0bfd113737e5005bfda54634"
+    }
+  ]
+}
