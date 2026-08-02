@@ -62,7 +62,7 @@ const DEFAULTS = Object.freeze({
 });
 
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
-export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v23";
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v24";
 export const REPORT_SCHEMA = "chemsema-public-cdxml-visual-gate-v2";
 export const CASE_METRICS_SCHEMA =
   "chemsema.public-cdxml-visual-case-metrics.v2";
@@ -2581,8 +2581,9 @@ export function gatePolicy(options) {
   return {
     coordinateSpace: "ChemDraw reference image coordinates",
     alignment:
-      "ChemDraw's declared vector matrix fixes scale; a broad multiresolution global-overlap "
-      + "search resolves translation independently for the current candidate; historical "
+      "authored document bounds plus a unique ChemDraw vector matrix fix scale and origin; "
+      + "layout-relative sources keep declared scale and search translation; references without "
+      + "a unique vector matrix search scale and translation; historical "
       + "pass protection never changes current-image registration; continuous comparison of "
       + "an already-failing case separately preserves its historical document-coordinate map "
       + "while compensating for changes to the exported SVG crop",
