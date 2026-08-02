@@ -271,6 +271,12 @@ Canonical runs reject any gallery whose
 repository, CLI, corpus, round-trip report, or per-item candidate provenance
 does not match. `--allow-stale-gallery` is diagnostic only and never makes
 stale artifacts canonical.
+The gallery generator and affected planner default to the release CLI produced
+by `build-public-cdxml-cli.mjs`; they never silently select a stale debug
+binary. `--allow-dirty` is limited to explicit development diagnostics: it
+records the dirty repository and permits a previously clean round-trip report
+to seed an incremental render, while the formal gate still rejects the result
+unless its diagnostic-only dirty/stale switches are also explicit.
 
 Use `--cohort original-338` to run the exact original review cohort recorded
 in `benchmarks/public-cdxml/failure-ledger.json`. The gate fails before image

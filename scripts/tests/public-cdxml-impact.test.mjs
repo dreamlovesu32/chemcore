@@ -15,6 +15,7 @@ import {
 } from "../public-cdxml-visual-gate.mjs";
 import { featuresFromCdxml, selectAffectedCases } from "../public-cdxml-impact.mjs";
 import {
+  defaultPublicCdxmlCliRelativePath,
   GALLERY_PROVENANCE_SCHEMA,
   publicCdxmlCliCandidates,
   provenanceMismatches,
@@ -247,6 +248,16 @@ test("CDXML feature extraction recognizes double bonds", () => {
   assert.ok(features.includes("double-bond"));
 });
 
+test("CDXML feature extraction treats order 1.5 lanes as double-bond rendering", () => {
+  const features = featuresFromCdxml(`
+    <CDXML><fragment><n id="1"/><n id="2"/>
+      <b id="3" B="1" E="2" Order="1.5" Display="Dash" Display2="Dash"/>
+    </fragment></CDXML>
+  `);
+  assert.ok(features.includes("bond"));
+  assert.ok(features.includes("double-bond"));
+});
+
 test("CDXML feature extraction recognizes wavy bond display", () => {
   const features = featuresFromCdxml(`
     <CDXML><fragment><n id="1"/><n id="2"/>
@@ -412,6 +423,10 @@ test("retained ChemDraw oracle requires the exact corpus manifest and revisions"
 });
 
 test("public CDXML gates prefer the release CLI produced by the canonical builder", () => {
+  assert.equal(
+    defaultPublicCdxmlCliRelativePath("win32"),
+    "target\\release\\chemsema-cli.exe",
+  );
   assert.deepEqual(
     publicCdxmlCliCandidates("D:\\repo", null, "win32"),
     [

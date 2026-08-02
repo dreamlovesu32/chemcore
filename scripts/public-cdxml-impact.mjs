@@ -39,7 +39,11 @@ export function featuresFromCdxml(source) {
   addIf(features, /display\s*=\s*["'](?:dash|hash)["']/.test(text), "dashed-bond");
   addIf(features, /display\s*=\s*["']wavy["']/.test(text), "wavy-bond");
   addIf(features, /\border\s*=\s*["']dative["']/.test(text), "dative-bond");
-  addIf(features, /\border\s*=\s*["']2(?:\.0+)?["']/.test(text), "double-bond");
+  addIf(
+    features,
+    /\border\s*=\s*["'](?:1\.5(?:0+)?|2(?:\.0+)?)["']/.test(text),
+    "double-bond",
+  );
   addIf(features, /\border\s*=\s*["']3(?:\.0+)?["']/.test(text), "triple-bond");
   addIf(features, /nodetype\s*=\s*["']nickname["']/.test(text), "nickname");
   addIf(features, /nodetype\s*=\s*["']externalconnectionpoint["']/.test(text), "external-connection");

@@ -5,6 +5,11 @@ import path from "node:path";
 
 export const GALLERY_PROVENANCE_SCHEMA = "chemsema.public-cdxml-gallery-provenance.v1";
 
+export function defaultPublicCdxmlCliRelativePath(platform = process.platform) {
+  const suffix = platform === "win32" ? ".exe" : "";
+  return path.join("target", "release", `chemsema-cli${suffix}`);
+}
+
 function sha256Bytes(bytes) {
   return crypto.createHash("sha256").update(bytes).digest("hex");
 }
@@ -21,7 +26,7 @@ export function publicCdxmlCliCandidates(
   const suffix = platform === "win32" ? ".exe" : "";
   return [
     explicitPath,
-    path.join(repoRoot, "target", "release", `chemsema-cli${suffix}`),
+    path.join(repoRoot, defaultPublicCdxmlCliRelativePath(platform)),
     path.join(repoRoot, "target", "debug", `chemsema-cli${suffix}`),
   ].filter(Boolean);
 }
@@ -83,6 +88,7 @@ export function collectGalleryProvenance({
   corpusManifestPath,
   roundtripReportPath,
   verifyConsistency = true,
+  allowDevelopmentIdentityMismatch = false,
 }) {
   const resolvedRepoRoot = path.resolve(repoRoot);
   const resolvedCliPath = path.resolve(cliPath);
@@ -94,7 +100,11 @@ export function collectGalleryProvenance({
   const sources = corpusSources(resolvedCorpusRoot, corpusManifest);
   const repository = repositoryState(resolvedRepoRoot);
   const version = cliVersion(resolvedCliPath);
-  if (verifyConsistency && version.buildIdentity !== repository.identity) {
+  if (
+    verifyConsistency
+    && !allowDevelopmentIdentityMismatch
+    && version.buildIdentity !== repository.identity
+  ) {
     throw new Error(
       `Public CDXML CLI build identity ${version.buildIdentity ?? "(missing)"} does not match `
       + `repository identity ${repository.identity}. Build it with `
@@ -102,7 +112,7 @@ export function collectGalleryProvenance({
     );
   }
   const cliSha256 = sha256File(resolvedCliPath);
-  if (verifyConsistency && (
+  if (verifyConsistency && !allowDevelopmentIdentityMismatch && (
       roundtripReport.repositoryIdentity !== repository.identity
       || roundtripReport.cli?.buildIdentity !== repository.identity
       || roundtripReport.cli?.sha256 !== cliSha256

@@ -8,6 +8,7 @@ import { launchBrowser } from "./playwright-browser.mjs";
 import { matchesPublicCdxmlCasePattern } from "./public-cdxml-case-filter.mjs";
 import {
   collectGalleryProvenance,
+  defaultPublicCdxmlCliRelativePath,
   sha256File,
 } from "./public-cdxml-provenance.mjs";
 
@@ -33,9 +34,7 @@ function parseArgs(argv) {
     oracleGallery: null,
     jobs: 4,
     patterns: [],
-    cli: process.platform === "win32"
-      ? "target/debug/chemsema-cli.exe"
-      : "target/debug/chemsema-cli",
+    cli: defaultPublicCdxmlCliRelativePath(),
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -1271,6 +1270,7 @@ async function main() {
     corpusRoot: root,
     corpusManifestPath: path.join(repoRoot, "benchmarks", "public-cdxml", "manifest.json"),
     roundtripReportPath: path.resolve(args.report),
+    allowDevelopmentIdentityMismatch: args.allowDirty,
   });
   if (provenance.repository.dirty && !args.allowDirty) {
     throw new Error(

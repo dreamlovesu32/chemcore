@@ -13,6 +13,7 @@ import {
   CASE_METRICS_SCHEMA,
   REPORT_SCHEMA,
 } from "./public-cdxml-visual-gate.mjs";
+import { defaultPublicCdxmlCliRelativePath } from "./public-cdxml-provenance.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -24,7 +25,7 @@ function parseArgs(argv) {
     impactMap: "benchmarks/public-cdxml/visual-impact-map.json",
     featureIndex: "tmp/public-cdxml-feature-index.json",
     plan: "tmp/public-cdxml-affected-gate-plan.json",
-    cli: process.platform === "win32" ? "target/debug/chemsema-cli.exe" : "target/debug/chemsema-cli",
+    cli: defaultPublicCdxmlCliRelativePath(),
     jobs: 8,
     extras: [],
   };

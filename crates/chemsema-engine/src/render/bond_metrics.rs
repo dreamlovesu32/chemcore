@@ -1029,10 +1029,7 @@ pub(super) fn side_double_secondary_inset_for_endpoint(
     stroke_width: f64,
     offset_distance: f64,
 ) -> Option<f64> {
-    if side_double_placement(bond).is_none()
-        || outer_line_pattern(bond, side) != BondLinePattern::Solid
-        || offset_distance <= EPSILON
-    {
+    if side_double_placement(bond).is_none() || offset_distance <= EPSILON {
         return None;
     }
     let current_stroke_width = stroke_width.max(bond.stroke_width);

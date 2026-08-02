@@ -171,6 +171,14 @@ const probes = [
     omitBeginLower: true,
     omitEndLower: true,
   })),
+  ...[30, 60, 90, 120].map((angle) => ({
+    name: `aromatic-cis-upper-angle-${angle}`,
+    centralBondAttributes: 'Order="1.5" Display="Dash" Display2="Dash"',
+    upperAngle: angle,
+    expectedSecondaryInsetEndpoints: 2,
+    omitBeginLower: true,
+    omitEndLower: true,
+  })),
   {
     name: "trans-begin-upper-end-lower",
     omitBeginLower: true,
@@ -360,7 +368,7 @@ function sourceFor(probe) {
    ${node(14, points.beginLower, "beginLower")}
    ${node(15, points.endUpper, "endUpper")}
    ${node(16, points.endLower, "endLower")}
-   <b id="20" B="${axisBegin}" E="${axisEnd}" Order="2"${stereo}${ordering}${spacingAbs}/>
+   <b id="20" B="${axisBegin}" E="${axisEnd}" ${probe.centralBondAttributes ?? 'Order="2"'}${stereo}${ordering}${spacingAbs}/>
    ${beginUpperBond}
    ${beginLowerBond}
    ${endUpperBond}
@@ -481,15 +489,43 @@ function classifySvg(svg, probe) {
       const axial = points.map((point) => point.x * axis.x + point.y * axis.y);
       const normalValues = points.map((point) => point.x * normal.x + point.y * normal.y);
       return {
+        axisMin: Math.min(...axial),
+        axisMax: Math.max(...axial),
         axisSpan: Math.max(...axial) - Math.min(...axial),
         normalSpan: Math.max(...normalValues) - Math.min(...normalValues),
         normalCenter: (Math.max(...normalValues) + Math.min(...normalValues)) * 0.5,
       };
     });
-  const parallel = paths
-    .filter((entry) => entry.axisSpan > 40 && entry.normalSpan < 8)
-    .sort((left, right) => right.axisSpan - left.axisSpan)
-    .slice(0, 2);
+  const segmented = probe.centralBondAttributes?.includes('Display2="Dash"') ?? false;
+  const parallel = segmented
+    ? paths
+      .filter((entry) => entry.axisSpan > 3 && entry.normalSpan < 8)
+      .reduce((groups, entry) => {
+        let group = groups.find(
+          (candidate) => Math.abs(candidate.normalCenter - entry.normalCenter) <= 1,
+        );
+        if (!group) {
+          group = { entries: [], normalCenter: entry.normalCenter };
+          groups.push(group);
+        }
+        group.entries.push(entry);
+        return groups;
+      }, [])
+      .map((group) => ({
+        axisSpan: Math.max(...group.entries.map((entry) => entry.axisMax))
+          - Math.min(...group.entries.map((entry) => entry.axisMin)),
+        normalSpan: Math.max(...group.entries.map((entry) => entry.normalSpan)),
+        normalCenter: group.entries.reduce(
+          (sum, entry) => sum + entry.normalCenter,
+          0,
+        ) / group.entries.length,
+      }))
+      .sort((left, right) => right.axisSpan - left.axisSpan)
+      .slice(0, 2)
+    : paths
+      .filter((entry) => entry.axisSpan > 40 && entry.normalSpan < 8)
+      .sort((left, right) => right.axisSpan - left.axisSpan)
+      .slice(0, 2);
   if (parallel.length !== 2) {
     throw new Error(`${probe.name}: expected two parallel double-bond paths, found ${parallel.length}`);
   }
@@ -581,6 +617,7 @@ for (const probe of probes) {
     bondSpacing: probe.bondSpacing ?? 12,
     bondSpacingAbs: probe.bondSpacingAbs ?? null,
     lineWidth: probe.lineWidth ?? 1,
+    centralBondAttributes: probe.centralBondAttributes ?? 'Order="2"',
     expectedPlacement: expectedPlacement(probe),
     expectedSecondarySpan,
     secondarySpanError: expectedSecondarySpan == null

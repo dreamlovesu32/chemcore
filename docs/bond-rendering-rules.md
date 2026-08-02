@@ -373,7 +373,8 @@ When CDXML or an editing operation gives only `Order="2"` and no explicit `Doubl
 - At a non-terminal endpoint occupied on the secondary-line side, let `d` be
   the main/secondary center distance and let `alpha` be the included angle
   between the double-bond ray and the adjacent bond ray. ChemDraw places the
-  secondary endpoint on the angular-bisector boundary, so its axial inset is:
+  secondary endpoint on the angular-bisector boundary, so its axial inset is
+  the same for solid and segmented secondary lines:
 
   ```text
   inset = d / tan(alpha / 2)
@@ -386,9 +387,9 @@ When CDXML or an editing operation gives only `Order="2"` and no explicit `Doubl
   same-side secondary-line intersection still has priority over this retreat.
   The familiar `d * sqrt(3) / 3` value is only the `theta = 60 degrees`
   regular-ring case; it is not a universal fallback. Silent ChemDraw SVG
-  probes cover `theta = 15..120 degrees`, one or both endpoints, three bond
-  lengths, three percentage spacings, four line widths, and absolute-spacing
-  inputs.
+  probes cover `theta = 15..120 degrees`, one or both endpoints, solid and
+  segmented lanes, three bond lengths, three percentage spacings, four line
+  widths, and absolute-spacing inputs.
 
 ## Triple Bonds
 
