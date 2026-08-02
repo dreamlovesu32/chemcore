@@ -27,7 +27,10 @@ pub(super) fn normalize_node(
     defaults: CdxmlDefaults,
 ) -> Option<Node> {
     let id = node.attr("id")?.to_string();
-    let position = parse_xy(node.attr("p")).or_else(|| node_positions.get(id.as_str()).copied())?;
+    let position = node_positions
+        .get(id.as_str())
+        .copied()
+        .or_else(|| parse_xy(node.attr("p")))?;
     let local_position = [
         round2(position[0] - origin[0]),
         round2(position[1] - origin[1]),

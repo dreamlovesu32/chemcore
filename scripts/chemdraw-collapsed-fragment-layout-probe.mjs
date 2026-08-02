@@ -7,6 +7,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const outputRoot = path.resolve(
   process.argv[2] || path.join(repoRoot, "tmp", "chemdraw-collapsed-fragment-layout-probe"),
 );
+const onlyPattern = process.argv[3] ? new RegExp(process.argv[3], "i") : null;
 const sourceRoot = path.join(outputRoot, "sources");
 const oracleRoot = path.join(outputRoot, "oracle");
 
@@ -47,13 +48,16 @@ function wrapperFragment({ index, label, innerX, innerY, external = false }) {
 
 function scenario(name, labels, options = {}) {
   const bondLength = options.bondLength ?? 14.4;
-  const wrappers = labels.map((label, index) => wrapperFragment({
-    index,
-    label,
-    innerX: 100 + index * 73,
-    innerY: 200 + index * 11,
-    external: options.externalIndex === index,
-  }));
+  const wrappers = labels.map((label, index) => {
+    const inner = options.innerPosition?.(index) ?? [100 + index * 73, 200 + index * 11];
+    return wrapperFragment({
+      index,
+      label,
+      innerX: inner[0],
+      innerY: inner[1],
+      external: options.externalIndex === index,
+    });
+  });
   const positioned = options.positioned
     ? `<fragment id="900">
          <n id="901" p="${options.positioned[0]} ${options.positioned[1]}"/>
@@ -106,6 +110,41 @@ function anchoredWrapper(index, neighborX, neighborY) {
   };
 }
 
+function singleAnchoredPairScenario(name, options = {}) {
+  const neighbor = options.neighbor ?? [300, 300];
+  const angle = (options.nestedAngleDegrees ?? 180) * Math.PI / 180;
+  const nestedAnchor = [
+    neighbor[0] + 14.4 * Math.cos(angle),
+    neighbor[1] + 14.4 * Math.sin(angle),
+  ];
+  const wrapper = `<n id="1001" NodeType="Fragment">
+    <fragment id="1002">
+      <n id="1003" p="${nestedAnchor[0].toFixed(4)} ${nestedAnchor[1].toFixed(4)}"/>
+      <n id="1004" NodeType="ExternalConnectionPoint"/>
+      <b id="1005" B="1004" E="1003"/>
+    </fragment>
+    <t><s font="3" size="10">R</s></t>
+  </n>`;
+  const positioned = `<n id="1008" p="${neighbor.join(" ")}" NodeType="GenericNickname"><t p="${neighbor.join(" ")}"><s font="3" size="10">M</s></t></n>`;
+  const nodes = options.wrapperFirst === false
+    ? `${positioned}${wrapper}`
+    : `${wrapper}${positioned}`;
+  const bond = options.wrapperIsBegin
+    ? '<b id="1009" B="1001" E="1008"/>'
+    : '<b id="1009" B="1008" E="1001"/>';
+  return {
+    name,
+    wrapperIds: ["1001"],
+    trackedIds: ["1001", "1008"],
+    source: `<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="${options.bondLength ?? 30}" LabelSize="10">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <colortable><color r="1" g="1" b="1"/><color r="0" g="0" b="0"/></colortable>
+  <page id="1" HeightPages="1" WidthPages="1"><fragment id="1000">${nodes}${bond}</fragment></page>
+</CDXML>`,
+  };
+}
+
 function anchoredScenario(anchorIndex, count = 6) {
   const ordinaryByIndex = new Map(
     Array.from({ length: count }, (_, index) => index)
@@ -134,9 +173,14 @@ function anchoredScenario(anchorIndex, count = 6) {
 
 function multiAnchoredScenario(name, count, anchorIndices, options = {}) {
   const anchorSet = new Set(anchorIndices);
-  const wrappers = Array.from({ length: count }, (_, index) => (
+  const anchorOffset = options.anchorOffset ?? [0, 0];
+  const wrappersByIndex = Array.from({ length: count }, (_, index) => (
     anchorSet.has(index)
-      ? anchoredWrapper(index, 125 + index * 70, 110 + index * 35)
+      ? anchoredWrapper(
+        index,
+        125 + index * 70 + anchorOffset[0],
+        110 + index * 35 + anchorOffset[1],
+      )
       : wrapperFragment({
         index,
         label: `A${index + 1}`,
@@ -144,6 +188,16 @@ function multiAnchoredScenario(name, count, anchorIndices, options = {}) {
         innerY: 200 + index * 11,
       })
   ));
+  const order = options.componentOrder
+    ?? Array.from({ length: count }, (_, index) => index);
+  if (
+    order.length !== count
+    || new Set(order).size !== count
+    || order.some((index) => index < 0 || index >= count)
+  ) {
+    throw new Error(`${name}: componentOrder must be a permutation of 0..${count - 1}`);
+  }
+  const wrappers = order.map((index) => wrappersByIndex[index]);
   const pageAttributes = options.pageAttributes
     ? ` ${options.pageAttributes}`
     : "";
@@ -224,6 +278,49 @@ function substitutedRingScenario(name, options = {}) {
   };
 }
 
+function mixedComponentPackingScenario(name, options = {}) {
+  const offset = options.offset ?? [0, 0];
+  const ring = substitutedRingScenario(`${name}-ring`, {
+    center: [300 + offset[0], 300 + offset[1]],
+    inputBondLength: 14.4,
+    rootBondLength: 14.4,
+    substituentIndices: [0],
+  });
+  const components = new Map([
+    ["ring", nestedElementById(ring.source, "fragment", "2000")],
+    ["pair-a", anchoredWrapper(30, 500 + offset[0], 300 + offset[1]).xml],
+    ["pair-b", anchoredWrapper(31, 600 + offset[0], 340 + offset[1]).xml],
+    ["single-a", wrapperFragment({
+      index: 40,
+      label: "S1",
+      innerX: 800,
+      innerY: 200,
+    }).xml],
+    ["single-b", wrapperFragment({
+      index: 41,
+      label: "S2",
+      innerX: 900,
+      innerY: 200,
+    }).xml],
+  ]);
+  const order = options.componentOrder
+    ?? ["ring", "pair-a", "pair-b", "single-a", "single-b"];
+  return {
+    name,
+    wrapperIds: ["2201", "1301", "1311", "1401", "1411"],
+    trackedIds: [
+      "2001", "2002", "2003", "2004", "2005", "2006", "2201",
+      "1301", "1308", "1311", "1318", "1401", "1411",
+    ],
+    source: `<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.4" LabelSize="10">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <colortable><color r="1" g="1" b="1"/><color r="0" g="0" b="0"/></colortable>
+  <page id="1" HeightPages="1" WidthPages="1">${order.map((key) => components.get(key)).join("\n")}</page>
+</CDXML>`,
+  };
+}
+
 function attributes(startTag) {
   return Object.fromEntries(
     [...startTag.matchAll(/([A-Za-z][\w:-]*)="([^"]*)"/g)]
@@ -280,7 +377,7 @@ async function main() {
   await fs.mkdir(sourceRoot, { recursive: true });
   await fs.mkdir(oracleRoot, { recursive: true });
   const scenarios = [];
-  for (let count = 1; count <= 16; count += 1) {
+  for (let count = 1; count <= 64; count += 1) {
     scenarios.push(scenario(
       `count-${count}`,
       Array.from({ length: count }, (_, index) => `A${index + 1}`),
@@ -300,6 +397,37 @@ async function main() {
   scenarios.push(scenario("positioned-far", ["A1", "A2", "A3", "A4"], {
     positioned: [300, 300],
   }));
+  for (const nestedAngleDegrees of [0, 60, 120, 180, 240, 300]) {
+    for (const wrapperIsBegin of [false, true]) {
+      scenarios.push(singleAnchoredPairScenario(
+        `single-pair-angle-${nestedAngleDegrees}-${wrapperIsBegin ? "wrapper-begin" : "wrapper-end"}`,
+        { nestedAngleDegrees, wrapperIsBegin },
+      ));
+    }
+  }
+  scenarios.push(singleAnchoredPairScenario("single-pair-positioned-first", {
+    nestedAngleDegrees: 180,
+    wrapperFirst: false,
+  }));
+  scenarios.push(singleAnchoredPairScenario("single-pair-bond-length-14", {
+    bondLength: 14.4,
+    nestedAngleDegrees: 180,
+  }));
+  for (const count of [3, 4, 6, 10, 15]) {
+    const labels = Array.from({ length: count }, (_, index) => `A${index + 1}`);
+    scenarios.push(scenario(`inner-same-count-${count}`, labels, {
+      innerPosition: () => [100, 200],
+    }));
+    scenarios.push(scenario(`inner-same-translated-count-${count}`, labels, {
+      innerPosition: () => [600, 700],
+    }));
+    scenarios.push(scenario(`inner-reverse-x-count-${count}`, labels, {
+      innerPosition: (index) => [100 + (count - index - 1) * 73, 200 + index * 11],
+    }));
+    scenarios.push(scenario(`inner-y-only-count-${count}`, labels, {
+      innerPosition: (index) => [100, 200 + index * 73],
+    }));
+  }
   for (const count of [1, 2, 4, 6, 8, 9, 12, 15, 16]) {
     scenarios.push(scenario(
       `page-1x1-count-${count}`,
@@ -399,6 +527,16 @@ async function main() {
     substituentIndices: [0, 1, 3, 5],
     graphic: [0, 488, 430, 233],
   }));
+  scenarios.push(mixedComponentPackingScenario("mixed-ring-pairs-singletons"));
+  scenarios.push(mixedComponentPackingScenario("mixed-ring-last-in-source", {
+    componentOrder: ["pair-a", "single-a", "pair-b", "single-b", "ring"],
+  }));
+  scenarios.push(mixedComponentPackingScenario("mixed-ring-pairs-swapped", {
+    componentOrder: ["ring", "pair-b", "pair-a", "single-a", "single-b"],
+  }));
+  scenarios.push(mixedComponentPackingScenario("mixed-ring-pairs-translated", {
+    offset: [250, -120],
+  }));
   const publicCorpus = path.join(repoRoot, "tmp", "public-corpus-pilot");
   const suzuki1Path = path.join(
     publicCorpus,
@@ -446,9 +584,37 @@ async function main() {
     [3, 4, 5, 6, 8, 9, 10, 11, 12],
     { pageAttributes: 'HeightPages="1" WidthPages="1"' },
   ));
+  for (const anchorOffset of [[300, 200], [-120, 75], [0, -180]]) {
+    scenarios.push(multiAnchoredScenario(
+      `page-1x1-multi-anchor-15-offset-${anchorOffset.join("-")}`,
+      15,
+      [3, 4, 5, 6, 8, 9, 10, 11, 12],
+      {
+        bondLength: 30,
+        pageAttributes: 'HeightPages="1" WidthPages="1"',
+        anchorOffset,
+      },
+    ));
+  }
+  scenarios.push(multiAnchoredScenario(
+    "page-1x1-multi-anchor-15-reversed-source-order",
+    15,
+    [3, 4, 5, 6, 8, 9, 10, 11, 12],
+    {
+      bondLength: 30,
+      pageAttributes: 'HeightPages="1" WidthPages="1"',
+      componentOrder: Array.from({ length: 15 }, (_, index) => 14 - index),
+    },
+  ));
 
+  const selectedScenarios = onlyPattern
+    ? scenarios.filter((entry) => onlyPattern.test(entry.name))
+    : scenarios;
+  if (selectedScenarios.length === 0) {
+    throw new Error(`No scenario name matched ${onlyPattern}`);
+  }
   const inputs = [];
-  for (const entry of scenarios) {
+  for (const entry of selectedScenarios) {
     const input = path.join(sourceRoot, `${entry.name}.cdxml`);
     await fs.writeFile(input, entry.source, "utf8");
     inputs.push(input);
@@ -459,8 +625,8 @@ async function main() {
     inputs,
   });
   const results = [];
-  for (let index = 0; index < scenarios.length; index += 1) {
-    const entry = scenarios[index];
+  for (let index = 0; index < selectedScenarios.length; index += 1) {
+    const entry = selectedScenarios[index];
     const saved = await fs.readFile(jobs[index].outputs.cdxml, "utf8");
     results.push({
       name: entry.name,

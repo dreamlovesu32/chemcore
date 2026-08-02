@@ -70,6 +70,23 @@ pub(super) fn cdxml_collapsed_wrapper_position_overrides(
             }
         }
 
+        if entries.len() == 1 {
+            let entry = &entries[0];
+            let fragment = display_fragments(scope)
+                .into_iter()
+                .find(|fragment| fragment.attr("id") == Some(entry.fragment_id.as_str()));
+            if let Some(fragment) = fragment {
+                if let Some(pair_positions) =
+                    chemdraw_single_collapsed_pair_positions(fragment, bond_length)
+                {
+                    for (node_id, point) in pair_positions {
+                        overrides.insert((entry.fragment_id.clone(), node_id), point);
+                    }
+                    continue;
+                }
+            }
+        }
+
         let missing = entries
             .iter()
             .filter(|entry| entry.anchor.is_none())
@@ -84,14 +101,14 @@ pub(super) fn cdxml_collapsed_wrapper_position_overrides(
             .collect::<Vec<_>>();
         let has_single_anchor = anchors.len() == 1 && entries.len() <= 8;
         let normalized = if anchors.is_empty() {
-            chemdraw_collapsed_wrapper_grid(missing.len())?
+            chemdraw_collapsed_wrapper_grid(missing.len())
         } else if has_single_anchor {
             chemdraw_collapsed_wrapper_grid_with_anchor(entries.len())?
         } else {
             // A page with several independently anchored collapsed fragments is
             // not one automatic layout cluster. Only the truly coordinate-free
             // singleton fragments participate in this origin-based cluster.
-            chemdraw_collapsed_wrapper_grid(missing.len())?
+            chemdraw_collapsed_wrapper_grid(missing.len())
         };
 
         if has_single_anchor {
@@ -139,47 +156,88 @@ pub(super) fn cdxml_collapsed_wrapper_position_overrides(
     Ok(overrides)
 }
 
-fn chemdraw_collapsed_wrapper_grid(count: usize) -> Result<Vec<[f64; 2]>, String> {
-    let points: &[[f64; 2]] = match count {
-        1 => &[[0.0, 0.0]],
-        2 => &[[0.0, 0.0], [1.0, 0.0]],
-        3 => &[[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]],
-        4 => &[[0.0, 0.0], [0.0, 1.0], [0.0, 2.0], [1.0, 1.5]],
-        5 => &[[0.0, 0.0], [0.0, 1.0], [0.0, 2.0], [0.0, 3.0], [1.0, 2.0]],
-        6 => &[
-            [0.0, 0.0],
-            [0.0, 1.0],
-            [0.0, 2.0],
-            [0.0, 3.0],
-            [1.0, 1.5],
-            [1.0, 2.5],
-        ],
-        7 => &[
-            [0.0, 0.0],
-            [0.0, 1.0],
-            [0.0, 2.0],
-            [0.0, 3.0],
-            [1.0, 1.0],
-            [1.0, 2.0],
-            [1.0, 3.0],
-        ],
-        8 => &[
-            [0.0, 0.0],
-            [0.0, 1.0],
-            [0.0, 2.0],
-            [0.0, 3.0],
-            [1.0, 0.5],
-            [1.0, 1.5],
-            [1.0, 2.5],
-            [1.0, 3.5],
-        ],
-        _ => {
-            return Err(format!(
-                "ChemDraw collapsed-fragment automatic layout has been verified for 1-8 coordinate-free wrappers, not {count}"
-            ));
+fn chemdraw_single_collapsed_pair_positions(
+    fragment: &XmlNode,
+    bond_length: f64,
+) -> Option<BTreeMap<String, [f64; 2]>> {
+    let nodes = fragment.direct_children("n").collect::<Vec<_>>();
+    if nodes.len() != 2 {
+        return None;
+    }
+    let missing = nodes
+        .iter()
+        .enumerate()
+        .filter(|(_, node)| node.attr("NodeType") == Some("Fragment") && node.attr("p").is_none())
+        .collect::<Vec<_>>();
+    if missing.len() != 1 {
+        return None;
+    }
+    let first_id = nodes[0].attr("id")?;
+    let second_id = nodes[1].attr("id")?;
+    let bonds = fragment.direct_children("b").collect::<Vec<_>>();
+    if bonds.is_empty()
+        || bonds.iter().any(|bond| {
+            !matches!(
+                (bond.attr("B"), bond.attr("E")),
+                (Some(begin), Some(end))
+                    if (begin == first_id && end == second_id)
+                        || (begin == second_id && end == first_id)
+            )
+        })
+    {
+        return None;
+    }
+
+    let mut positions = BTreeMap::new();
+    let (missing_index, missing_node) = missing[0];
+    let missing_id = missing_node.attr("id")?;
+    if missing_index == 0 {
+        positions.insert(missing_id.to_string(), [0.0, 0.0]);
+        positions.insert(second_id.to_string(), [round2(bond_length), 0.0]);
+    } else {
+        let positioned = parse_xy(nodes[0].attr("p"))?;
+        positions.insert(
+            missing_id.to_string(),
+            [round2(positioned[0] + bond_length), round2(positioned[1])],
+        );
+    }
+    Some(positions)
+}
+
+fn chemdraw_collapsed_wrapper_grid(count: usize) -> Vec<[f64; 2]> {
+    if count <= 3 {
+        return (0..count).map(|index| [index as f64, 0.0]).collect();
+    }
+
+    // ChemDraw lays out an unanchored collection globally rather than appending
+    // points to an online grid. Open/save probes for every count from 1 through
+    // 64 establish this square-shell rule and its half-row centering exactly.
+    let first_column_height = ((count - 1) as f64).sqrt().floor() as usize + 2;
+    let interior_column_height = first_column_height - 1;
+    let mut column_heights = vec![first_column_height];
+    let remaining = count - first_column_height;
+    let full_columns = remaining / interior_column_height;
+    let remainder = remaining % interior_column_height;
+    column_heights.extend(std::iter::repeat_n(interior_column_height, full_columns));
+    match remainder {
+        0 => {}
+        1 if full_columns > 0 => {
+            *column_heights.last_mut().expect("a full column exists") += 1;
         }
-    };
-    Ok(points.to_vec())
+        value => column_heights.push(value),
+    }
+
+    let mut points = Vec::with_capacity(count);
+    for (column, height) in column_heights.into_iter().enumerate() {
+        let offset = if column == 0 {
+            0.0
+        } else {
+            (first_column_height - height + 1) as f64 * 0.5
+        };
+        points.extend((0..height).map(|row| [column as f64, offset + row as f64]));
+    }
+    debug_assert_eq!(points.len(), count);
+    points
 }
 
 fn chemdraw_collapsed_wrapper_grid_with_anchor(
@@ -595,6 +653,114 @@ pub(super) fn cdxml_bonded_node_ids(root: &XmlNode) -> BTreeSet<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn coordinate_free_wrapper_grid_matches_chemdraw_for_one_through_sixty_four() {
+        let expected_columns = [
+            "1@0",
+            "1@0,1@0",
+            "1@0,1@0,1@0",
+            "3@0,1@1.5",
+            "4@0,1@2",
+            "4@0,2@1.5",
+            "4@0,3@1",
+            "4@0,4@0.5",
+            "4@0,3@1,2@1.5",
+            "5@0,5@0.5",
+            "5@0,4@1,2@2",
+            "5@0,4@1,3@1.5",
+            "5@0,4@1,4@1",
+            "5@0,4@1,5@0.5",
+            "5@0,4@1,4@1,2@2",
+            "5@0,4@1,4@1,3@1.5",
+            "6@0,5@1,6@0.5",
+            "6@0,5@1,5@1,2@2.5",
+            "6@0,5@1,5@1,3@2",
+            "6@0,5@1,5@1,4@1.5",
+            "6@0,5@1,5@1,5@1",
+            "6@0,5@1,5@1,6@0.5",
+            "6@0,5@1,5@1,5@1,2@2.5",
+            "6@0,5@1,5@1,5@1,3@2",
+            "6@0,5@1,5@1,5@1,4@1.5",
+            "7@0,6@1,6@1,7@0.5",
+            "7@0,6@1,6@1,6@1,2@3",
+            "7@0,6@1,6@1,6@1,3@2.5",
+            "7@0,6@1,6@1,6@1,4@2",
+            "7@0,6@1,6@1,6@1,5@1.5",
+            "7@0,6@1,6@1,6@1,6@1",
+            "7@0,6@1,6@1,6@1,7@0.5",
+            "7@0,6@1,6@1,6@1,6@1,2@3",
+            "7@0,6@1,6@1,6@1,6@1,3@2.5",
+            "7@0,6@1,6@1,6@1,6@1,4@2",
+            "7@0,6@1,6@1,6@1,6@1,5@1.5",
+            "8@0,7@1,7@1,7@1,8@0.5",
+            "8@0,7@1,7@1,7@1,7@1,2@3.5",
+            "8@0,7@1,7@1,7@1,7@1,3@3",
+            "8@0,7@1,7@1,7@1,7@1,4@2.5",
+            "8@0,7@1,7@1,7@1,7@1,5@2",
+            "8@0,7@1,7@1,7@1,7@1,6@1.5",
+            "8@0,7@1,7@1,7@1,7@1,7@1",
+            "8@0,7@1,7@1,7@1,7@1,8@0.5",
+            "8@0,7@1,7@1,7@1,7@1,7@1,2@3.5",
+            "8@0,7@1,7@1,7@1,7@1,7@1,3@3",
+            "8@0,7@1,7@1,7@1,7@1,7@1,4@2.5",
+            "8@0,7@1,7@1,7@1,7@1,7@1,5@2",
+            "8@0,7@1,7@1,7@1,7@1,7@1,6@1.5",
+            "9@0,8@1,8@1,8@1,8@1,9@0.5",
+            "9@0,8@1,8@1,8@1,8@1,8@1,2@4",
+            "9@0,8@1,8@1,8@1,8@1,8@1,3@3.5",
+            "9@0,8@1,8@1,8@1,8@1,8@1,4@3",
+            "9@0,8@1,8@1,8@1,8@1,8@1,5@2.5",
+            "9@0,8@1,8@1,8@1,8@1,8@1,6@2",
+            "9@0,8@1,8@1,8@1,8@1,8@1,7@1.5",
+            "9@0,8@1,8@1,8@1,8@1,8@1,8@1",
+            "9@0,8@1,8@1,8@1,8@1,8@1,9@0.5",
+            "9@0,8@1,8@1,8@1,8@1,8@1,8@1,2@4",
+            "9@0,8@1,8@1,8@1,8@1,8@1,8@1,3@3.5",
+            "9@0,8@1,8@1,8@1,8@1,8@1,8@1,4@3",
+            "9@0,8@1,8@1,8@1,8@1,8@1,8@1,5@2.5",
+            "9@0,8@1,8@1,8@1,8@1,8@1,8@1,6@2",
+            "9@0,8@1,8@1,8@1,8@1,8@1,8@1,7@1.5",
+        ];
+
+        for (index, expected) in expected_columns.into_iter().enumerate() {
+            let points = chemdraw_collapsed_wrapper_grid(index + 1);
+            let mut columns = BTreeMap::<i32, Vec<f64>>::new();
+            for [x, y] in points {
+                columns.entry(x as i32).or_default().push(y);
+            }
+            let actual = columns
+                .values()
+                .map(|ys| {
+                    let min = ys.iter().copied().fold(f64::INFINITY, f64::min);
+                    let offset = if min.fract().abs() <= EPSILON {
+                        format!("{min:.0}")
+                    } else {
+                        format!("{min:.1}")
+                    };
+                    format!("{}@{offset}", ys.len())
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            assert_eq!(actual, expected, "{} wrappers", index + 1);
+        }
+    }
+
+    #[test]
+    fn single_pair_override_moves_both_direct_nodes() {
+        let source = r#"<CDXML BondLength="30"><page id="1"><fragment id="20">
+          <n id="21" NodeType="Fragment"><fragment id="22"><n id="23" p="312.47 307.2"/></fragment></n>
+          <n id="28" p="300 300"/><b id="29" B="21" E="28"/>
+        </fragment></page></CDXML>"#;
+        let root = parse_xml_tree(source).expect("XML");
+        let positions = cdxml_collapsed_wrapper_position_overrides(&root, 30.0)
+            .expect("collapsed pair positions");
+        assert_eq!(positions[&("20".to_string(), "21".to_string())], [0.0, 0.0]);
+        assert_eq!(
+            positions[&("20".to_string(), "28".to_string())],
+            [30.0, 0.0]
+        );
+    }
 
     #[test]
     fn coordinate_free_cycles_three_through_eight_match_chemdraw_orientation() {

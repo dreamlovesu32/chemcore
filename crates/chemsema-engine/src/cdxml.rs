@@ -1280,6 +1280,65 @@ mod interchange_tests {
     }
 
     #[test]
+    fn single_collapsed_pair_uses_direct_node_order_not_nested_or_bond_direction() {
+        let wrapper_first = r#"<CDXML BondLength="30"><page id="1"><fragment id="20">
+          <n id="21" NodeType="Fragment"><fragment id="22">
+            <n id="23" p="312.47 307.2"/><n id="24" NodeType="ExternalConnectionPoint"/>
+            <b id="25" B="24" E="23"/>
+          </fragment><t><s>R</s></t></n>
+          <n id="28" p="300 300" NodeType="GenericNickname"><t p="300 300"><s>M</s></t></n>
+          <b id="29" B="21" E="28"/>
+        </fragment></page></CDXML>"#;
+        let positioned_first = r#"<CDXML BondLength="30"><page id="1"><fragment id="20">
+          <n id="28" p="300 300" NodeType="GenericNickname"><t p="300 300"><s>M</s></t></n>
+          <n id="21" NodeType="Fragment"><fragment id="22">
+            <n id="23" p="287.53 292.8"/><n id="24" NodeType="ExternalConnectionPoint"/>
+            <b id="25" B="24" E="23"/>
+          </fragment><t><s>R</s></t></n>
+          <b id="29" B="28" E="21"/>
+        </fragment></page></CDXML>"#;
+
+        for (source, expected) in [
+            (wrapper_first, [("21", [0.0, 0.0]), ("28", [30.0, 0.0])]),
+            (
+                positioned_first,
+                [("21", [330.0, 300.0]), ("28", [300.0, 300.0])],
+            ),
+        ] {
+            let document = parse_cdxml_document(source, Some("single collapsed pair"))
+                .expect("single pair CDXML");
+            let object = document
+                .scene_objects()
+                .into_iter()
+                .find(|object| object.kind() == crate::SceneObjectKind::Molecule)
+                .expect("molecule");
+            let fragment = object
+                .payload
+                .resource_ref
+                .as_ref()
+                .and_then(|id| document.resources.get(id))
+                .and_then(|resource| resource.data.as_fragment())
+                .expect("fragment");
+            let actual = fragment
+                .nodes
+                .iter()
+                .map(|node| {
+                    (
+                        node.id.as_str(),
+                        [
+                            round2(object.transform.translate[0] + node.position[0]),
+                            round2(object.transform.translate[1] + node.position[1]),
+                        ],
+                    )
+                })
+                .collect::<BTreeMap<_, _>>();
+            for (node_id, point) in expected {
+                assert_eq!(actual[node_id], point, "node {node_id}");
+            }
+        }
+    }
+
+    #[test]
     fn collapsed_wrapper_grid_uses_a_single_parent_bond_anchor() {
         let source = r#"<CDXML BondLength="30"><page id="1">
             <fragment id="20"><n id="21" NodeType="Fragment"><fragment id="22">
