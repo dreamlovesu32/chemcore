@@ -1024,7 +1024,7 @@ fn parse_cdxml_preserves_chemdraw_js_cached_enhanced_stereo_position() {
 }
 
 #[test]
-fn parse_cdxml_reflows_desktop_chemdraw_auto_tag_from_cached_bearing() {
+fn parse_cdxml_reflows_desktop_chemdraw_auto_tag_from_topology() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML CreationProgram="ChemDraw 22.2.0.3300" ShowAtomEnhancedStereo="yes">
   <page id="1"><fragment id="2">
@@ -1046,14 +1046,14 @@ fn parse_cdxml_reflows_desktop_chemdraw_auto_tag_from_cached_bearing() {
             object.meta.get("role").and_then(|value| value.as_str()) == Some("enhanced_stereo")
         })
         .expect("enhanced-stereo label should import");
-    assert_eq!(label.transform.translate, [247.38, 192.15]);
+    assert_eq!(label.transform.translate, [252.0, 196.74]);
     assert_eq!(
         label
             .payload
             .extra
             .get("baselineOffset")
             .and_then(|value| value.as_f64()),
-        Some(6.24)
+        Some(6.23)
     );
     assert_eq!(
         label
@@ -1062,7 +1062,7 @@ fn parse_cdxml_reflows_desktop_chemdraw_auto_tag_from_cached_bearing() {
             .get("automaticPositioningVector")
             .and_then(|value| value.as_array())
             .cloned(),
-        Some(vec![json!(3.58), json!(-7.62)])
+        Some(vec![json!(1.0), json!(0.0)])
     );
 }
 

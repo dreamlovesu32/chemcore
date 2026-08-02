@@ -661,14 +661,44 @@ fn parse_cdxml_synthesizes_missing_enhanced_stereo_object_tag_opposite_wedge() {
             .and_then(|value| value.as_bool()),
         Some(true)
     );
+    let label_width = label
+        .payload
+        .extra
+        .get("box")
+        .and_then(|value| value.as_array())
+        .and_then(|values| values.get(2))
+        .and_then(|value| value.as_f64())
+        .expect("automatic label should expose its measured box width");
     assert!(
-        label.transform.translate[0] > 20.0,
-        "label should sit opposite the down-left wedge"
+        label.transform.translate[0] + label_width * 0.5 > 20.0,
+        "label center should sit opposite the down-left wedge"
     );
     assert!(
         label.transform.translate[1] < 20.0,
         "label should sit above the stereocenter"
     );
+}
+
+#[test]
+fn parse_cdxml_does_not_leak_enhanced_stereo_from_collapsed_fragment_definition() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="30" LabelFont="3" LabelSize="10">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1"><fragment id="2">
+    <n id="10" NodeType="Fragment">
+      <fragment id="11">
+        <n id="3" p="20 20" EnhancedStereoType="Absolute"/>
+      </fragment>
+      <t><s>A</s></t>
+    </n>
+    <n id="4" p="50 20"/>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("collapsed fragment enhanced stereo"))
+        .expect("collapsed fragment should parse");
+    assert!(document.objects.iter().all(|object| {
+        object.meta.get("role").and_then(|value| value.as_str()) != Some("enhanced_stereo")
+    }));
 }
 
 #[test]

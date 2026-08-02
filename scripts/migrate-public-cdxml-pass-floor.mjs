@@ -53,7 +53,7 @@ function sha256(source) {
   return crypto.createHash("sha256").update(source).digest("hex");
 }
 
-async function requireCommittedRepositoryFile(filePath, label) {
+export async function requireCommittedRepositoryFile(filePath, label) {
   const relativePath = path.relative(process.cwd(), filePath).replaceAll("\\", "/");
   if (!relativePath || relativePath === ".." || relativePath.startsWith("../")) {
     throw new Error(`${label} must be stored inside the repository`);

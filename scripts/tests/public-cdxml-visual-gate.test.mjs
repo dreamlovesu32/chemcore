@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
 import {
@@ -25,7 +26,10 @@ import {
   strictOriginal338ConfigurationErrors,
   strictOriginal338PassFloorErrors,
 } from "../public-cdxml-visual-gate.mjs";
-import { passFloorMigrationErrors } from "../migrate-public-cdxml-pass-floor.mjs";
+import {
+  passFloorMigrationErrors,
+  requireCommittedRepositoryFile,
+} from "../migrate-public-cdxml-pass-floor.mjs";
 
 function maskWordsFromPoints(points) {
   const byWord = new Map();
@@ -819,6 +823,27 @@ test("pass-floor migration permits only an explicit gate-definition retirement",
   assert.deepEqual(
     passFloorMigrationErrors(report, report, oldFloor, retirements),
     [],
+  );
+});
+
+test("review artifacts must be clean tracked files inside the repository", async () => {
+  await assert.doesNotReject(requireCommittedRepositoryFile(
+    path.resolve("package.json"),
+    "review artifact",
+  ));
+  await assert.rejects(
+    requireCommittedRepositoryFile(
+      path.resolve("tmp", "untracked-review-artifact.json"),
+      "review artifact",
+    ),
+    /exactly match a committed repository file/,
+  );
+  await assert.rejects(
+    requireCommittedRepositoryFile(
+      path.resolve("..", "outside-review-artifact.json"),
+      "review artifact",
+    ),
+    /must be stored inside the repository/,
   );
 });
 

@@ -960,7 +960,10 @@ function setMetricAt(entry, metricPath, value) {
 }
 
 export function visualCaseMetricContractErrors(entry, options = {}) {
-  if (!["pass", "fail"].includes(entry?.status)) return [];
+  if (!["pass", "fail", "error", "unavailable"].includes(entry?.status)) {
+    return ["missing or invalid status"];
+  }
+  if (!["pass", "fail"].includes(entry.status)) return [];
   const settings = { ...DEFAULTS, ...options };
   const errors = [];
   for (const metric of CONTINUOUS_REGRESSION_METRICS) {

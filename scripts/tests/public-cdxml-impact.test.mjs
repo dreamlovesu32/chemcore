@@ -43,6 +43,7 @@ test("visual baseline compatibility binds the corpus and ChemDraw oracle, not th
     },
     cases: [{
       relativeCdxml: "source/example.cdxml",
+      status: "unavailable",
       artifactHashes: {
         reference: "oracle-a",
         candidate: "old-candidate",
@@ -96,6 +97,17 @@ test("visual baseline compatibility binds the corpus and ChemDraw oracle, not th
       currentReferences,
     ).join("\n"),
     /invalid metrics/,
+  );
+
+  const missingStatus = structuredClone(baseline);
+  delete missingStatus.cases[0].status;
+  assert.match(
+    visualBaselineCompatibilityErrors(
+      missingStatus,
+      currentProvenance,
+      currentReferences,
+    ).join("\n"),
+    /missing or invalid status/,
   );
 });
 

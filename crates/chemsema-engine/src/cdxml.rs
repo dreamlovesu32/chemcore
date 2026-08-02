@@ -519,6 +519,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         defaults,
         &colors,
         &fonts,
+        &display_fragment_ids,
     );
     associate_table_cell_contents(&generic_root, &mut objects);
     append_geometry_constraint_objects(

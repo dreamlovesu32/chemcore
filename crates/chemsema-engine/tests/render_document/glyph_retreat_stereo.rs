@@ -2229,14 +2229,14 @@ fn parse_cdxml_imports_visible_stereo_object_tags_inside_fragments() {
             object.meta.get("role").and_then(|value| value.as_str()) == Some("enhanced_stereo")
         })
         .expect("enhanced-stereo label should import");
-    assert_eq!(enhanced.transform.translate, [19.35, 14.15]);
+    assert_eq!(enhanced.transform.translate, [22.0, 16.7]);
     assert_eq!(
         enhanced
             .payload
             .extra
             .get("baselineOffset")
             .and_then(|value| value.as_f64()),
-        Some(6.6)
+        Some(6.3)
     );
     assert!(document.objects.iter().any(|object| {
         object.object_type == "text"
