@@ -168,9 +168,28 @@ component by exactly `(dx, dy)`. For a wholly coordinate-free singleton set, the
 first point is at the origin. Reversing source order makes the first equal-area
 anchored component the preserved anchor.
 
+**Verified.** A positioned nickname/wrapper pair is still an anchored member of the
+page layout collection when other coordinate-free wrappers are present. It must not
+be removed and cleaned as an independent pair before page packing. The independent
+two-node cleanup rule applies only when that pair is the sole affected component in
+the page scope. The public N-alkylation and reductive-amination documents demonstrate
+the anchored multi-component branch: removing the pair anchor incorrectly moves the
+remaining reagent labels to the page origin.
+
 **Open.** The anchor transformation when the first component itself undergoes a
 non-unit cleanup scale, and the small deterministic translation introduced by some
 graphics/page transforms.
+
+### 7. Preserve automatic-position state on export
+
+**Verified.** An imported wrapper whose source `p` was absent remains coordinate-free
+when its resolved world position has not changed. CDXML export therefore omits `p`
+again instead of freezing the importer-generated coordinate. This preserves the same
+page layout collection on the next import and makes repeated open/save stable.
+
+If the user moves that wrapper or its molecule, the resolved world position differs
+from the imported generated position and export writes an explicit `p`. This is an
+intentional transition from automatic to explicit positioning, not a fallback.
 
 ## Importer invariants
 
@@ -186,6 +205,8 @@ The replacement implementation must satisfy all of the following:
 6. Existing explicit coordinates are preserved unless the verified cleanup phase
    requires a documented transform.
 7. Public visual-gate comparisons use a fixed gate version and protected-pass set.
+8. Unedited source-absent `p` remains absent on export; an edited world position is
+   emitted explicitly.
 
 ## Regression matrix
 

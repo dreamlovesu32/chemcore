@@ -63,6 +63,29 @@ fn format_query_list(values: &[String], excluded: bool) -> String {
     }
 }
 
+fn imported_generated_node_position_is_unchanged(node: &Node, point: Point) -> bool {
+    let Some(imported) = node.meta.pointer("/import/cdxml") else {
+        return false;
+    };
+    if imported.get("generatedPosition").and_then(Value::as_bool) != Some(true) {
+        return false;
+    }
+    let Some(position) = imported
+        .get("generatedPositionValue")
+        .and_then(Value::as_array)
+        .filter(|position| position.len() == 2)
+    else {
+        return false;
+    };
+    let Some(x) = position[0].as_f64() else {
+        return false;
+    };
+    let Some(y) = position[1].as_f64() else {
+        return false;
+    };
+    (point.x - x).abs() <= 1e-6 && (point.y - y).abs() <= 1e-6
+}
+
 fn table_border_line_type(style: crate::TableLineStyle) -> Option<&'static str> {
     match style {
         crate::TableLineStyle::Solid => None,
@@ -1454,7 +1477,10 @@ impl<'a> CdxmlDocumentWriter<'a> {
         let is_nickname = node.is_placeholder;
         let is_query_list = !node.atom_properties.element_list.is_empty()
             || !node.atom_properties.generic_list.is_empty();
-        let mut attrs = vec![("id", cdxml_id.to_string()), ("p", fmt_point(point))];
+        let mut attrs = vec![("id", cdxml_id.to_string())];
+        if !imported_generated_node_position_is_unchanged(node, point) {
+            attrs.push(("p", fmt_point(point)));
+        }
         attrs.push(("Z", object.z_index.to_string()));
         if let Some(color) = &node.highlight_color {
             attrs.push(("highlightColor", self.colors.id_for(color)));

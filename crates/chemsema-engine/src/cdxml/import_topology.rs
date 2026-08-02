@@ -24,17 +24,6 @@ pub(super) fn cdxml_collapsed_wrapper_position_overrides(
             let Some(fragment_id) = fragment.attr("id") else {
                 continue;
             };
-            // ChemDraw cleans a two-node component as a component. Unrelated
-            // coordinate-free wrappers elsewhere on the page do not turn that
-            // local pair into a member of the page-level wrapper grid.
-            if let Some(pair_positions) =
-                chemdraw_single_collapsed_pair_positions(fragment, bond_length)
-            {
-                for (node_id, point) in pair_positions {
-                    overrides.insert((fragment_id.to_string(), node_id), point);
-                }
-                continue;
-            }
             let direct_nodes = fragment.direct_children("n").collect::<Vec<_>>();
             let direct_bonds = fragment.direct_children("b").collect::<Vec<_>>();
             for node in direct_nodes.iter().copied().filter(|node| {
@@ -77,6 +66,23 @@ pub(super) fn cdxml_collapsed_wrapper_position_overrides(
                         node_id: node_id.to_string(),
                         anchor: Some(anchor),
                     });
+                }
+            }
+        }
+
+        if entries.len() == 1 {
+            let entry = &entries[0];
+            let fragment = display_fragments(scope)
+                .into_iter()
+                .find(|fragment| fragment.attr("id") == Some(entry.fragment_id.as_str()));
+            if let Some(fragment) = fragment {
+                if let Some(pair_positions) =
+                    chemdraw_single_collapsed_pair_positions(fragment, bond_length)
+                {
+                    for (node_id, point) in pair_positions {
+                        overrides.insert((entry.fragment_id.clone(), node_id), point);
+                    }
+                    continue;
                 }
             }
         }

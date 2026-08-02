@@ -1339,49 +1339,57 @@ mod interchange_tests {
     }
 
     #[test]
-    fn single_collapsed_pair_is_independent_of_other_page_wrappers() {
-        let source = r#"<CDXML BondLength="30"><page id="1">
-          <fragment id="10"><n id="11" NodeType="Fragment"><fragment id="12">
-            <n id="13" p="10 10"/>
-          </fragment><t><s>Other</s></t></n></fragment>
-          <fragment id="20">
-            <n id="21" NodeType="Fragment"><fragment id="22">
-              <n id="23" p="312.47 307.2"/><n id="24" NodeType="ExternalConnectionPoint"/>
-              <b id="25" B="24" E="23"/>
-            </fragment><t><s>R</s></t></n>
-            <n id="28" p="300 300" NodeType="GenericNickname"><t p="300 300"><s>M</s></t></n>
-            <b id="29" B="21" E="28"/>
-          </fragment>
-        </page></CDXML>"#;
+    fn unedited_generated_collapsed_position_stays_automatic_on_export() {
+        let source = r#"<CDXML BondLength="30"><page id="1"><fragment id="20">
+          <n id="21" NodeType="Fragment"><fragment id="22"><n id="23" p="40 50"/></fragment>
+            <t><s>R</s></t>
+          </n>
+        </fragment></page></CDXML>"#;
         let document =
-            parse_cdxml_document(source, Some("independent collapsed pair")).expect("CDXML");
-        let pair = document
+            parse_cdxml_document(source, Some("automatic collapsed position")).expect("CDXML");
+        let saved = document_to_cdxml(&document);
+        let root = parse_xml_tree(&saved).expect("saved XML");
+        let wrapper = descendants(&root)
+            .into_iter()
+            .find(|node| node.is("n") && node.attr("id") == Some("21"))
+            .expect("wrapper node");
+        assert_eq!(wrapper.attr("p"), None);
+    }
+
+    #[test]
+    fn moved_generated_collapsed_position_becomes_explicit_on_export() {
+        let source = r#"<CDXML BondLength="30"><page id="1"><fragment id="20">
+          <n id="21" NodeType="Fragment"><fragment id="22"><n id="23" p="40 50"/></fragment>
+            <t><s>R</s></t>
+          </n>
+        </fragment></page></CDXML>"#;
+        let mut document =
+            parse_cdxml_document(source, Some("moved collapsed position")).expect("CDXML");
+        let resource_id = document
             .scene_objects()
             .into_iter()
-            .find(|object| object.meta.get("fragmentId").and_then(Value::as_str) == Some("20"))
-            .expect("pair molecule");
-        let fragment = pair
-            .payload
-            .resource_ref
-            .as_ref()
-            .and_then(|id| document.resources.get(id))
-            .and_then(|resource| resource.data.as_fragment())
+            .find(|object| object.kind() == crate::SceneObjectKind::Molecule)
+            .and_then(|object| object.payload.resource_ref.clone())
+            .expect("molecule resource");
+        let fragment = document
+            .resources
+            .get_mut(&resource_id)
+            .and_then(|resource| resource.data.as_fragment_mut())
             .expect("fragment");
-        let positions = fragment
+        fragment
             .nodes
-            .iter()
-            .map(|node| {
-                (
-                    node.id.as_str(),
-                    [
-                        round2(pair.transform.translate[0] + node.position[0]),
-                        round2(pair.transform.translate[1] + node.position[1]),
-                    ],
-                )
-            })
-            .collect::<BTreeMap<_, _>>();
-        assert_eq!(positions["21"], [0.0, 0.0]);
-        assert_eq!(positions["28"], [30.0, 0.0]);
+            .iter_mut()
+            .find(|node| node.id == "21")
+            .expect("wrapper node")
+            .position[0] += 5.0;
+
+        let saved = document_to_cdxml(&document);
+        let root = parse_xml_tree(&saved).expect("saved XML");
+        let wrapper = descendants(&root)
+            .into_iter()
+            .find(|node| node.is("n") && node.attr("id") == Some("21"))
+            .expect("wrapper node");
+        assert!(wrapper.attr("p").is_some());
     }
 
     #[test]

@@ -139,6 +139,9 @@ pub(super) fn normalize_node(
     if radical_count != 0 {
         meta["radicalCount"] = json!(radical_count);
     }
+    if node.attr("p").is_none() {
+        meta["import"]["cdxml"]["generatedPositionValue"] = json!(position.map(round2));
+    }
     Some(Node {
         id,
         element: element_symbol(atomic_number).to_string(),
