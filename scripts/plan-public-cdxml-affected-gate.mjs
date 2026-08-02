@@ -130,6 +130,7 @@ async function main() {
     "--report", roundtripReportPath,
     "--out", gallery,
     "--cli", cli,
+    "--jobs", String(options.jobs),
     ...onlyArgs,
   ];
   const gateCommand = [
@@ -139,6 +140,7 @@ async function main() {
     "--baseline-report", baselineReport,
     "--out", outputReport,
     "--passed-gallery", passedGallery,
+    "--jobs", String(options.jobs),
   ];
   const plan = {
     schema: AFFECTED_PLAN_SCHEMA,

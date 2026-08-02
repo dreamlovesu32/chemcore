@@ -803,6 +803,10 @@ test("pass-floor migration requires zero same-gate candidate regressions", () =>
   const continuouslyWorse = structuredClone(cases);
   cases[2].status = "fail";
   continuouslyWorse[2].status = "fail";
+  cases[2].totals = { missingInk: 10, extraInk: 10 };
+  cases[2].detail = { totals: { missingInk: 20, extraInk: 20 } };
+  continuouslyWorse[2].totals = { missingInk: 9, extraInk: 10 };
+  continuouslyWorse[2].detail = { totals: { missingInk: 19, extraInk: 20 } };
   cases[2].largestMissing = { area: 10, span: 8 };
   continuouslyWorse[2].largestMissing = { area: 12, span: 8 };
   assert.deepEqual(
@@ -833,6 +837,18 @@ test("pass-floor migration requires zero same-gate candidate regressions", () =>
     null,
     reviewedRendererMigration,
   ), []);
+  continuouslyWorse[2].regressionFloor = {
+    totals: { missingInk: 11, extraInk: 10 },
+    detail: { totals: { missingInk: 19, extraInk: 20 } },
+  };
+  assert.match(passFloorMigrationErrors(
+    report(cases),
+    report(continuouslyWorse, { head: "new-commit", identity: "new-identity" }),
+    null,
+    null,
+    reviewedRendererMigration,
+  ).join("\n"), /increases coarse mismatch mass.*20 -> 21/);
+  delete continuouslyWorse[2].regressionFloor;
   reviewedRendererMigration.cases[0].relativeCdxml = "source/0003.cdxml";
   assert.match(passFloorMigrationErrors(
     report(cases),

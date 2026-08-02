@@ -221,6 +221,10 @@ documents that remain red. The ordinary gate must still report that movement.
 Accepting it into a new floor requires a separate committed renderer-migration
 review that binds the exact previous/current repository identities, the common
 rule and probe evidence, and both candidate hashes for every affected red case.
+Each listed case must also be non-increasing in missing-plus-extra mismatch mass
+independently at both coarse and detail resolution, using the historical fixed
+registration. A gain in another layer or another image cannot pay for even one
+new unresolved pixel in that layer.
 Its sorted case set must exactly equal the continuous regressions: it cannot
 hide an unrelated seventh regression, change a pass to a failure, or weaken
 future comparisons. Renderer-migration reviews are migration audit records,

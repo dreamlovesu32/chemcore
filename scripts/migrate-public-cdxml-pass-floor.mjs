@@ -115,6 +115,15 @@ function reviewedRendererMigrationErrors(
     entry.relativeCdxml.replaceAll("\\", "/"),
     entry,
   ]));
+  const mismatchMass = (entry, layer) => {
+    const comparison = entry?.regressionFloor ?? entry;
+    const totals = layer === "coarse"
+      ? comparison?.totals
+      : comparison?.detail?.totals;
+    return Number.isFinite(totals?.missingInk) && Number.isFinite(totals?.extraInk)
+      ? totals.missingInk + totals.extraInk
+      : null;
+  };
   for (const entry of cases) {
     const previous = previousCases.get(entry.relativeCdxml);
     const current = currentCases.get(entry.relativeCdxml);
@@ -130,6 +139,24 @@ function reviewedRendererMigrationErrors(
       errors.push(`reviewed renderer migration case is invalid: ${entry.relativeCdxml}`);
       break;
     }
+    for (const layer of ["coarse", "detail"]) {
+      const before = mismatchMass(previous, layer);
+      const after = mismatchMass(current, layer);
+      if (before === null || after === null) {
+        errors.push(
+          `reviewed renderer migration lacks ${layer} mismatch mass: ${entry.relativeCdxml}`,
+        );
+        break;
+      }
+      if (after > before) {
+        errors.push(
+          `reviewed renderer migration increases ${layer} mismatch mass `
+          + `for ${entry.relativeCdxml}: ${before} -> ${after}`,
+        );
+        break;
+      }
+    }
+    if (errors.length) break;
   }
   const regressionPaths = continuousRegressions
     .map((entry) => entry.relativeCdxml.replaceAll("\\", "/"))
