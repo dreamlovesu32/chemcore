@@ -1,0 +1,145 @@
+{
+  "schema": "chemsema.public-cdxml-reviewed-renderer-migration.v1",
+  "rule": "chemdraw-side-double-adjacent-angle-inset-v1",
+  "summary": "ChemDraw places a non-terminal side-double secondary endpoint on the angular-bisector boundary: inset = d / tan(alpha / 2), equivalently d * tan(theta / 2). Silent ChemDraw SVG probes verify the same rule for solid and segmented lanes at representative angles, spacings, widths, lengths, and endpoint combinations. The correction turns one case green without any protected-pass regression. In the 25 listed cases that remain red it moves only the historical candidate pixels covered by this renderer rule: total missing-plus-extra ink decreases in 19 cases, is unchanged in five, and increases by two pixels in wavy.cdxml. Aggregate mismatch decreases from 5476554 to 5471435 pixels. This audit replaces only the exact historical candidate hashes below; it does not add runtime case branches or weaken future gates.",
+  "fromRepository": {
+    "head": "84c95d096fae25ab87f10db13f64e3f9814f295f",
+    "identity": "11ecf905b51166a0fe648b5d535048cd7da64ba0f0bf80f026781c17acb68854"
+  },
+  "toRepository": {
+    "head": "7337fc56f44b60c65ab8489a068adcb97f6eb967",
+    "identity": "33f46e9a2464d059d54c0bd4f5d531ed6d4e6e4ce710a96b6ed331a6096ed7e5"
+  },
+  "evidence": {
+    "rendererCommit": "7337fc56f44b60c65ab8489a068adcb97f6eb967",
+    "probe": "scripts/chemdraw-double-bond-side-probe.mjs and tmp/chemdraw-double-bond-side-probe",
+    "rules": "docs/bond-rendering-rules.md"
+  },
+  "cases": [
+    {
+      "relativeCdxml": "cdxml-toolkit/experiments/scheme_dsl/showcase/13_serpentine_7step.cdxml",
+      "previousCandidateSha256": "cf369a355408568ff74acf5b33bd5c08e4023f8c109b849436d89f751e78e43a",
+      "currentCandidateSha256": "cb69f3d448cc2142c24114edba5d73a4a1bb3ff74227ee0ec7e7ff8a3484942a"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/cdxml/BuchwaldHartwig_Rxn1.cdxml",
+      "previousCandidateSha256": "d7a6f7f65ef08ecd96b23a9c44bc69e96da69b931529449fc4bd9030117d05f0",
+      "currentCandidateSha256": "17ed735fabd81ac8fec2e9e80b99652117ba625be5b1b4f7a4bf16fb304d2a5c"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/cdxml/BuchwaldHartwig_Rxn2.cdxml",
+      "previousCandidateSha256": "46290b81766d4461ad812cbf1077877cc30fdb48c8dad0373edc5e64609d8ba3",
+      "currentCandidateSha256": "37df4e73d02664b7d44a641a5d3bab3ced1939bd4106e776d3a86d3e56451354"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/cdxml/Suzuki_Rxn1.cdxml",
+      "previousCandidateSha256": "0831b0086f260f90cf6870690569874f4b316e2d4676ac558913645f6eb37ad9",
+      "currentCandidateSha256": "181c935897464cbc203cb6a7da9905ac4d40781f9c566eea6a675b3b7468bfe2"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/cdxml/Suzuki_Rxn2.cdxml",
+      "previousCandidateSha256": "d2f794d65a1e3815faf75a4ab69fcc976e1fd6b8919cc471982bb10c8fa941b2",
+      "currentCandidateSha256": "241477e1cd67df5f87539896858f963dba54f5caec276ef3044ac1c0657351cf"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/molecules/cdxml2/test-multi.cdxml",
+      "previousCandidateSha256": "2eb2c9204495b63d8e82b25495eb30508e1b25565a3c2893e2f15f23cb752673",
+      "currentCandidateSha256": "bd5f90254d9e55b225f07a94395fd9934f410aa1558f07f7f3d24b48de2c5500"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/molecules/test-multi.cdx",
+      "previousCandidateSha256": "3be3d8dbdbc7a54c4a942625fdac209fdbaf09788c8891e109840fe4124a06a9",
+      "currentCandidateSha256": "982a19b3b5a3a8c242a9f708b7e396478ca3ad44a6148fa8473304403472e74f"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/ref/2558-missed.cdxml",
+      "previousCandidateSha256": "ccd40568547e7b60d3a560676a02ff0205f156d0333c4c088a9d4bce1eb6bcdd",
+      "currentCandidateSha256": "fe488e385ddf9c60c6b0706915c4941c3e0bfb039bbd70b6027bc79d108818a9"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/ref/3080-star-issue.cdxml",
+      "previousCandidateSha256": "2175e224d7892ca8a68b5dfbf6a67d54a47a7f9040bba35481b28c5eca835558",
+      "currentCandidateSha256": "cf98867a78e6ef15eb6fa44aa10d5fd08e925a9d1e96b50f069801faad85105e"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/ref/BuchwaldHartwig_Rxn1.cdxml",
+      "previousCandidateSha256": "32ecbffc453255fa1d9ec2abdca4a9d8e1e3455f1ad8c099c1648e55517c8786",
+      "currentCandidateSha256": "f263ef6af77215e157c34938e9fada994b3e3d6859c4fd58a5d95ce447306a37"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/ref/BuchwaldHartwig_Rxn2.cdxml",
+      "previousCandidateSha256": "aeb2141211473f4f22b5d6614f9dd520bf988c04c23bf2428e26bead999fcb08",
+      "currentCandidateSha256": "625a54ceaaa5257b2f889471088ffcef0cbf1c27815beea3631418200ad74fde"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/ref/Grignard_Rxn1.cdxml",
+      "previousCandidateSha256": "be9b2f86e33fa80b7cf8a393077c0044f5f65e264fc611d993493c40599f5c45",
+      "currentCandidateSha256": "f4eff91241edd3d571138d98b827f71604cddbb529b2309710d0b835b6e07853"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/ref/Suzuki_Rxn1.cdxml",
+      "previousCandidateSha256": "5d876ddf0986fbfd7012d30d855ec206ecfa49b91128e5753d85a4d8b872794b",
+      "currentCandidateSha256": "0173b249947c8cd7ff41019d11c0e8eb0d320162c65a81898a72df83059dc5af"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/ref/Suzuki_Rxn2.cdxml",
+      "previousCandidateSha256": "d6c14d0fba1b16f293705605d50fe471fdd2c218f61c5defc04de6d978ae831f",
+      "currentCandidateSha256": "bcf273dbdf857a0a9b4e242b95392efc0cbb0559dc485e2808f59b50cce80f72"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/ref/pathway11.cdxml",
+      "previousCandidateSha256": "f32282a71bbfbdf902ea62f69dfd95e476950fd14c91cb30d3505cb1d454528f",
+      "currentCandidateSha256": "727162588d0ac3a2cb20687966cf7d8e590f68673774f91063f0162486ffb526"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/ref/pathway12.cdxml",
+      "previousCandidateSha256": "b78d181ed6635be06d0e654bce7a194cf61505f728d7b8421e3c63ffbb886a8a",
+      "currentCandidateSha256": "856e7902d4fcb1042a9c39a7fa78c5752c16232a2440270453d4710093cc0e1e"
+    },
+    {
+      "relativeCdxml": "rdkit/Code/GraphMol/test_data/CDXML/chemdraw_template1.cdxml",
+      "previousCandidateSha256": "04028d196d871cb964efc0536f8f0c0caf1f3bf2d998a2ff0881193e27b6b4d7",
+      "currentCandidateSha256": "ae5d2f0a61f9bfa769d0815f6b7b0b84e4bc01f010ab6d4234109cbba15e2de1"
+    },
+    {
+      "relativeCdxml": "rdkit/Code/GraphMol/test_data/CDXML/chemdraw_template2.cdxml",
+      "previousCandidateSha256": "d7926ca6716a9e8512b5b1dca2305a44b82aef83a70bd8118efb1e52f635da79",
+      "currentCandidateSha256": "d63b527b9aa17826769b09b2a5e9db2c1a64aa2f0bcacf8d6c8c321514dc8fa4"
+    },
+    {
+      "relativeCdxml": "rdkit/Code/GraphMol/test_data/CDXML/chemdraw_template4.cdxml",
+      "previousCandidateSha256": "c82140dad05ffce0818ae0942e0881edbb9a5de344172ce47182d721926a0396",
+      "currentCandidateSha256": "9e4048bfce63bb1e849cba0d3496feadea47210fd64a0e85851f6aa444b81a3f"
+    },
+    {
+      "relativeCdxml": "rdkit/Code/GraphMol/test_data/CDXML/chemdraw_template7.cdxml",
+      "previousCandidateSha256": "4cb352f1854daad61c8c03cb13baec40aa6abb3a8dac3c9a0dde17a984492495",
+      "currentCandidateSha256": "5d8e7f3e4397596fcfeda477780bfce7c2f829ae96af715a01b922a3413beeba"
+    },
+    {
+      "relativeCdxml": "rdkit/Code/GraphMol/test_data/CDXML/chemdraw_template9.cdxml",
+      "previousCandidateSha256": "09c36c90c310edda4a0bcb49ed741efa7a803c388e6888bad2ea7b4f35433495",
+      "currentCandidateSha256": "9ee18024afd773e283978faec351c1960708e986d9736540ad38a542b2f3b342"
+    },
+    {
+      "relativeCdxml": "rdkit/Code/GraphMol/test_data/CDXML/wavy.cdxml",
+      "previousCandidateSha256": "aa81cee60a54f003d58aa564e35791bbbad9ce03e0dedb7b4aa448d19ce397d5",
+      "currentCandidateSha256": "ac277102858aefa15970b4dfbfbdbd16911bbf889cc6008030089f6eb23351bd"
+    },
+    {
+      "relativeCdxml": "rdkit/External/ChemDraw/test_data/geometry-tetrahedral-4.cdxml",
+      "previousCandidateSha256": "4374c95ef109daecafdef960b0576f806ab7b7b2dff06ebb25f5f5c48bdfedad",
+      "currentCandidateSha256": "53ed35743dd29ee091cb363155a704fb7a7a1f10581acb5a120a230424dcbf87"
+    },
+    {
+      "relativeCdxml": "rdkit/External/ChemDraw/test_data/patents/US08981023-20150317-C00024.CDX",
+      "previousCandidateSha256": "cd7b7956ad1f994ec196da704b8fefb61dc52343a91e0e853d40fdb3b48f380b",
+      "currentCandidateSha256": "ca0676f52610ab5d6c04412c32f0ca7351e3240ff4c1a68dcbb269daf860e4fb"
+    },
+    {
+      "relativeCdxml": "rdkit/External/ChemDraw/test_data/patents/US09943606-20180417-C00004.CDX",
+      "previousCandidateSha256": "781f89feba504f76ea9d44f2ba53c445b8c5f3c7a313b80e172c42451be87909",
+      "currentCandidateSha256": "fbb5bb07f177eb72ce6952547d92eb0608ed8305fa90c817bd1dc9369a62d672"
+    }
+  ]
+}
