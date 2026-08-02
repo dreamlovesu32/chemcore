@@ -23,22 +23,24 @@ const probes = [
   { name: "floor-long-wide", length: 14.4, spacing: 8, lineWidth: 2, angle: 0 },
   { name: "direction-37", length: 14.4, spacing: 18, lineWidth: 0.6, angle: 37 },
   { name: "direction-90", length: 14.4, spacing: 18, lineWidth: 0.6, angle: 90 },
-  {
-    name: "absolute-2_2",
-    length: 14.4,
-    spacing: 8,
-    spacingAbs: 2.2,
-    lineWidth: 0.6,
-    angle: 0,
-  },
-  {
-    name: "absolute-floor",
-    length: 14.4,
-    spacing: 30,
-    spacingAbs: 0.5,
-    lineWidth: 2,
-    angle: 0,
-  },
+  ...[0.6, 1, 2].flatMap((lineWidth) =>
+    [0.5, 1, 1.5, 2, 2.2, 3, 5].map((spacingAbs) => ({
+      name: `absolute-width-${String(lineWidth).replace(".", "_")}-spacing-${String(spacingAbs).replace(".", "_")}`,
+      length: 14.4,
+      spacing: 30,
+      spacingAbs,
+      lineWidth,
+      angle: 0,
+    }))),
+  ...[6, 14.4, 30].flatMap((length) =>
+    [8, 18, 30].map((spacing) => ({
+      name: `absolute-default-length-${String(length).replace(".", "_")}-spacing-${spacing}`,
+      length,
+      spacing,
+      spacingAbs: 3,
+      lineWidth: 0.6,
+      angle: 37,
+    }))),
   ...[30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map(
     (branchAngle) => ({
       name: `endpoint-angle-${branchAngle}`,
@@ -187,7 +189,13 @@ function measureSvg(svg, probe) {
 }
 
 function expectedCenterDistance(probe) {
-  if (probe.spacingAbs != null) return Math.max(probe.spacingAbs, probe.lineWidth * 2.5);
+  // ChemDraw 22.2 accepts BondSpacingAbs in the file but does not use it for
+  // triple-bond rendering. Its presence also suppresses the authored document
+  // BondSpacing, so triple bonds use ChemDraw's 15% default plus the ordinary
+  // 2.5 * LineWidth floor.
+  if (probe.spacingAbs != null) {
+    return Math.max(probe.length * 0.15, probe.lineWidth * 2.5);
+  }
   return Math.max(probe.length * probe.spacing / 100, probe.lineWidth * 2.5);
 }
 

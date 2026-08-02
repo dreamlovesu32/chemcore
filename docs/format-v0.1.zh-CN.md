@@ -920,7 +920,9 @@ CDXML/CDX 根绘图默认值保存在 `document.meta.import.cdxml.defaults`。�
 - `hashSpacing`：hash / hashed wedge 模板间距，单位为 pt
 - `bondSpacing`：多重键中心线间距百分比，对应 ChemDraw `BondSpacing`
 - `bondSpacingAbsolute`：可选的多重键中心线绝对间距，单位为 pt，对应
-  ChemDraw `BondSpacingAbs`；存在时优先于 `bondSpacing`
+  ChemDraw `BondSpacingAbs`；双键绘制中存在时优先于 `bondSpacing`。三键有
+  已实测的 ChemDraw 22.2 例外：该字段存在时不绘制任一写入值，而是选择带
+  线宽下限的 15% 三键默认间距。
 - `marginWidth`：源 margin width，单位为 pt。它驱动 label glyph polygon 外扩，
   用于键对标签退让；在适用时也用于键与键交叉处的 knockout。
 - `lineStyles`：多线键每条线的线型，字段为 `main | left | right`，值为

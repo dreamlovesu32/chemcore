@@ -401,25 +401,26 @@ max(actual bond length * bondSpacing / 100, 2.5 * lineWidth)
 ```
 
 The rule uses the bond's actual endpoint distance, not the document's nominal
-`BondLength`, and is invariant under bond direction. If
-`bondSpacingAbsolute` / CDXML `BondSpacingAbs` is present, each outer line is
-offset by that exact absolute value and the line-width floor is not applied.
-The reproducible ChemDraw SVG probe covers three lengths, three percentage
-spacings, three line widths, horizontal/diagonal/vertical directions, and
-absolute-spacing precedence:
+`BondLength`, and is invariant under bond direction.
+`bondSpacingAbsolute` / CDXML `BondSpacingAbs` does not use the one-sided
+double-bond rule for a triple bond. ChemDraw 22.2 preserves the field, but its
+presence suppresses both that value and the authored document `BondSpacing`
+for triple-bond rendering. The outer-line distance is instead
+`max(actual bond length * 15 / 100, 2.5 * lineWidth)`. The reproducible
+ChemDraw SVG probe covers three lengths, three percentage spacings, three line
+widths, horizontal/diagonal/vertical directions, a 3-by-7 matrix of absolute
+values, and absolute-field cases across three lengths and three authored
+percentages:
 
 ```bash
 node scripts/chemdraw-triple-bond-spacing-probe.mjs
 ```
-- At non-terminal ends, use the angle-dependent secondary-line inset above.
-- When the angle between the main bond and the connected main bond is less than `90°`, the secondary line may retreat; however, if the other bond has a same-side secondary line, same-side secondary-line intersection still has priority.
-
-### Acute-Angle Retreat
-
-- If the main bond connects to a main bond and that side's angle is less than `90°`, the secondary line may retreat.
-- If the other bond also has a same-side secondary line, same-side secondary lines still intersect directly.
-- If the other secondary line is not on the same side, use retreat.
-- If it meets a centered double bond, use the centered double's center line as the retreat reference.
+- An ordinary adjacent single bond never applies the one-sided-double angular
+  inset to a triple outer line. Both outer lines keep their authored full axial
+  span at every measured attachment angle from `30°` through `330°`; the main
+  line may independently extend into the node contact.
+- Explicit outer-line-to-outer-line contact profiles remain authoritative when
+  the adjacent multiple bond actually supplies a matching contour.
 
 ## Centered Double Bonds
 
@@ -447,7 +448,8 @@ Rules:
 
 - The triple-bond main line is a main-bond contact object.
 - The two outer lines independently evaluate their endpoint profiles.
-- At terminal ends, outer lines remain full length.
+- At terminal ends and ordinary single-bond junctions, outer lines remain full
+  length.
 - Similar to one-sided double-bond secondary lines, outer-line contact is determined by each line's own contour.
 
 ## Hash-Family Priority In Multi-Bond Nodes

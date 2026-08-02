@@ -349,10 +349,13 @@ max(实际键长 * bondSpacing / 100, 2.5 * lineWidth)
 ```
 
 - 这里使用实际端点距离，而不是文档名义 `BondLength`，并且与键方向无关。
-- 若存在 `bondSpacingAbsolute` / CDXML `BondSpacingAbs`，两根外线均按该
-  绝对值偏移，不再施加线宽下限。
+- 三键上的 `bondSpacingAbsolute` / CDXML `BondSpacingAbs` 不沿用单侧双键
+  的规则。ChemDraw 22.2 会保留该字段，但只要该字段存在，三键绘制就同时
+  忽略它和文档明确写入的 `BondSpacing`，改用
+  `max(实际键长 * 15 / 100, 2.5 * lineWidth)`。
 - 可复现的 ChemDraw SVG 探针覆盖三种键长、三种百分比间距、三种线宽、
-  水平/斜向/竖直方向以及绝对间距优先级：
+  水平/斜向/竖直方向、3 种线宽乘 7 种绝对值的矩阵，以及三种键长乘三种
+  文档百分比的绝对字段样例：
 
 ```bash
 node scripts/chemdraw-triple-bond-spacing-probe.mjs
@@ -360,8 +363,11 @@ node scripts/chemdraw-triple-bond-spacing-probe.mjs
 
 - 三键主线属于主键接触对象。
 - 两根外线各自独立判断自己的端点 profile。
-- terminal 端外线保持全长。
-- 与单侧双键副线类似，外线接触按各自轮廓判断。
+- terminal 端以及与普通单键相接的端点，外线都保持原始轴向全长。普通单键
+  不得把单侧双键的角度退让公式套到三键外线上；静默 ChemDraw 探针已经覆盖
+  `30°` 到 `330°` 的各代表方向。主线仍可独立延伸到节点接触轮廓。
+- 只有相邻多重键确实提供同侧外线轮廓时，显式的外线接触 profile 才能改变
+  对应端点。
 
 ## 多键节点中的 hash 家族优先级
 

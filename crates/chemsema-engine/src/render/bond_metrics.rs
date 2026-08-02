@@ -143,12 +143,25 @@ pub(super) fn triple_bond_offset_distance(start: Point, end: Point, stroke_width
     (start.distance(end) * spacing_ratio).max(stroke_width * 2.5)
 }
 
+const CHEMDRAW_TRIPLE_BOND_ABSOLUTE_FIELD_DEFAULT_RATIO: f64 = 0.15;
+
 pub(super) fn triple_bond_offset_distance_for_bond(
     bond: &Bond,
     start: Point,
     end: Point,
     stroke_width: f64,
 ) -> f64 {
+    if bond
+        .bond_spacing_absolute
+        .is_some_and(|spacing| spacing.is_finite() && spacing > EPSILON)
+    {
+        // ChemDraw 22.2 preserves BondSpacingAbs on a triple bond but does not
+        // render that value. Its presence suppresses the document percentage,
+        // selecting ChemDraw's 15% triple-bond default before the usual
+        // line-width floor is applied.
+        return (start.distance(end) * CHEMDRAW_TRIPLE_BOND_ABSOLUTE_FIELD_DEFAULT_RATIO)
+            .max(stroke_width * 2.5);
+    }
     double_bond_center_distance_for_bond_weights(
         bond,
         start,
@@ -1422,10 +1435,11 @@ mod tests {
     use super::{
         chemdraw_dashed_bond_gap_intervals_with_endpoint_insets,
         hash_contact_retreat_distance_for_bond, hashed_wedge_gap_intervals,
-        line_pattern_dash_array_for_bond,
+        line_pattern_dash_array_for_bond, triple_bond_offset_distance_for_bond,
     };
     use crate::{
-        Bond, BondLinePattern, BondLineStyles, BondLineWeight, BondLineWeights, DEFAULT_BOND_STROKE,
+        Bond, BondLinePattern, BondLineStyles, BondLineWeight, BondLineWeights, Point,
+        DEFAULT_BOND_STROKE,
     };
     use serde_json::Value;
 
@@ -1476,6 +1490,29 @@ mod tests {
                 crate::DEFAULT_HASH_SPACING_PT.value()
             ]
         );
+    }
+
+    #[test]
+    fn triple_bond_spacing_absolute_selects_chemdraw_fifteen_percent_default() {
+        for (line_width, expected) in [(0.6, 2.16), (1.0, 2.5), (2.0, 5.0)] {
+            for spacing_absolute in [0.5, 1.0, 1.5, 2.0, 2.2, 3.0, 5.0] {
+                let mut bond = test_bond(None);
+                bond.order = 3;
+                bond.stroke_width = line_width;
+                bond.bond_spacing = Some(30.0);
+                bond.bond_spacing_absolute = Some(spacing_absolute);
+                let measured = triple_bond_offset_distance_for_bond(
+                    &bond,
+                    Point::new(0.0, 0.0),
+                    Point::new(14.4, 0.0),
+                    line_width,
+                );
+                assert!(
+                    (measured - expected).abs() <= 1e-9,
+                    "line_width={line_width} spacing_absolute={spacing_absolute} measured={measured}"
+                );
+            }
+        }
     }
 
     #[test]

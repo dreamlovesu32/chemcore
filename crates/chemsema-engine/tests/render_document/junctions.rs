@@ -188,60 +188,39 @@ fn render_document_uses_adjacent_angle_for_side_double_secondary_inset() {
 }
 
 #[test]
-fn render_document_recomputes_triple_outer_line_retreat_from_current_bond_length() {
-    let short_document = fragment_document(
-        json!([
-            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 40.0], "charge": 0, "numHydrogens": 0 },
-            { "id": "n2", "element": "C", "atomicNumber": 6, "position": [56.0, 40.0], "charge": 0, "numHydrogens": 0 },
-            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [8.0, 40.0], "charge": 0, "numHydrogens": 0 },
-            { "id": "n4", "element": "C", "atomicNumber": 6, "position": [68.0, 40.0], "charge": 0, "numHydrogens": 0 }
-        ]),
-        json!([
-            { "id": "b1", "begin": "n1", "end": "n2", "order": 3, "strokeWidth": 0.85 },
-            { "id": "b2", "begin": "n1", "end": "n3", "order": 1, "strokeWidth": 0.85 },
-            { "id": "b3", "begin": "n2", "end": "n4", "order": 1, "strokeWidth": 0.85 }
-        ]),
-    );
-    let long_document = fragment_document(
-        json!([
-            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 40.0], "charge": 0, "numHydrogens": 0 },
-            { "id": "n2", "element": "C", "atomicNumber": 6, "position": [92.0, 40.0], "charge": 0, "numHydrogens": 0 },
-            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [8.0, 40.0], "charge": 0, "numHydrogens": 0 },
-            { "id": "n4", "element": "C", "atomicNumber": 6, "position": [104.0, 40.0], "charge": 0, "numHydrogens": 0 }
-        ]),
-        json!([
-            { "id": "b1", "begin": "n1", "end": "n2", "order": 3, "strokeWidth": 0.85 },
-            { "id": "b2", "begin": "n1", "end": "n3", "order": 1, "strokeWidth": 0.85 },
-            { "id": "b3", "begin": "n2", "end": "n4", "order": 1, "strokeWidth": 0.85 }
-        ]),
-    );
-
-    let retreat_for = |document: &chemsema_engine::ChemSemaDocument| {
-        let polygons: Vec<_> = object_bond_polygons_with_ids(&render_document(document))
+fn render_document_keeps_triple_outer_lines_full_at_single_bond_junctions() {
+    for angle_degrees in [
+        30.0_f64, 60.0, 90.0, 120.0, 150.0, 180.0, 210.0, 240.0, 270.0, 300.0, 330.0,
+    ] {
+        let angle = angle_degrees.to_radians();
+        let branch = [20.0 + 30.0 * angle.cos(), 40.0 + 30.0 * angle.sin()];
+        let document = fragment_document(
+            json!([
+                { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 40.0], "charge": 0, "numHydrogens": 0 },
+                { "id": "n2", "element": "C", "atomicNumber": 6, "position": [80.0, 40.0], "charge": 0, "numHydrogens": 0 },
+                { "id": "n3", "element": "C", "atomicNumber": 6, "position": branch, "charge": 0, "numHydrogens": 0 }
+            ]),
+            json!([
+                { "id": "b1", "begin": "n1", "end": "n2", "order": 3, "strokeWidth": 1.0, "bondSpacing": 12.0 },
+                { "id": "b2", "begin": "n1", "end": "n3", "order": 1, "strokeWidth": 1.0 }
+            ]),
+        );
+        let axes: Vec<_> = object_bond_polygons_with_ids(&render_document(&document))
             .into_iter()
             .filter(|(bond_id, _)| bond_id == "b1")
-            .map(|(_, points)| points)
+            .filter_map(|(_, points)| bond_axis_from_points(&points))
+            .filter(|(from, to)| ((from.y + to.y) * 0.5 - 40.0).abs() > 0.1)
             .collect();
-        assert_eq!(polygons.len(), 3);
-
-        let mut lengths: Vec<_> = polygons
-            .iter()
-            .map(|points| bond_axis_length(points).expect("bond axis length"))
-            .collect();
-        lengths.sort_by(|a, b| a.total_cmp(b));
-        let outer_length = lengths[0];
-        let main_length = lengths[2];
-        main_length - outer_length
-    };
-
-    let short_retreat = retreat_for(&short_document);
-    let long_retreat = retreat_for(&long_document);
-
-    assert!(
-        long_retreat > short_retreat + 0.05,
-        "short_retreat={short_retreat} long_retreat={long_retreat}"
-    );
-    assert!(short_retreat > 0.0, "{short_retreat}");
+        assert_eq!(axes.len(), 2, "angle={angle_degrees}");
+        for (from, to) in axes {
+            let minimum_x = from.x.min(to.x);
+            let maximum_x = from.x.max(to.x);
+            assert!(
+                (minimum_x - 20.0).abs() <= 0.02 && (maximum_x - 80.0).abs() <= 0.02,
+                "angle={angle_degrees} from={from:?} to={to:?}"
+            );
+        }
+    }
 }
 
 #[test]

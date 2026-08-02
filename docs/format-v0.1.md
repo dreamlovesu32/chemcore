@@ -890,7 +890,9 @@ Bond fields:
   `BondSpacing`
 - `bondSpacingAbsolute`: optional absolute multiple-bond center spacing in pt,
   matching CDXML `BondSpacingAbs`; when present it takes precedence over
-  `bondSpacing`
+  `bondSpacing` for double bonds. ChemDraw 22.2 has a verified triple-bond
+  rendering exception: presence of this field selects its 15% triple default
+  with the line-width floor instead of rendering either authored spacing value.
 - `marginWidth`: source margin width in pt. It drives glyph-polygon expansion for
   bond-vs-label retreat and also applies to bond-vs-bond crossing knockout where
   applicable.

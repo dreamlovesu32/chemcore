@@ -915,7 +915,7 @@ fn render_outer_bond_lines(
 ) {
     let length = _actual_start.distance(_actual_end);
     let is_side_double = side_double_placement(bond).is_some();
-    let centered_outer_line_inset = if is_side_double {
+    let default_outer_line_inset = if is_side_double || bond.order >= 3 {
         0.0
     } else {
         (DOUBLE_BOND_SIDE_INSET * (stroke_width / VIEWER_BOND_STROKE))
@@ -987,7 +987,7 @@ fn render_outer_bond_lines(
             )
             .unwrap_or(0.0)
         } else {
-            centered_outer_line_inset
+            default_outer_line_inset
         };
         let end_side_inset = if is_side_double {
             side_double_secondary_inset_for_endpoint(
@@ -1002,7 +1002,7 @@ fn render_outer_bond_lines(
             )
             .unwrap_or(0.0)
         } else {
-            centered_outer_line_inset
+            default_outer_line_inset
         };
         let (short_start, short_end) = inset_bond_segment(
             offset_start,
