@@ -880,6 +880,107 @@ fn render_document_keeps_terminal_triple_outer_lines_full_length() {
 }
 
 #[test]
+fn render_document_uses_one_label_cut_plane_for_all_triple_bond_lanes() {
+    let document = fragment_document(
+        json!([
+            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 20.0], "charge": 0, "numHydrogens": 0 },
+            {
+                "id": "n2",
+                "element": "N",
+                "atomicNumber": 7,
+                "position": [45.9808, 35.0],
+                "charge": 0,
+                "numHydrogens": 0,
+                "label": {
+                    "text": "N",
+                    "position": [42.0, 40.0],
+                    "box": [42.0, 30.0, 49.0, 40.0],
+                    "glyphPolygons": [[
+                        [42.0, 30.0], [49.0, 30.0], [49.0, 40.0], [44.0, 40.0]
+                    ]]
+                }
+            }
+        ]),
+        json!([{
+            "id": "b1",
+            "begin": "n1",
+            "end": "n2",
+            "order": 3,
+            "strokeWidth": 1.0
+        }]),
+    );
+    let centerlines = object_bond_centerlines(&render_document(&document));
+
+    assert_eq!(centerlines.len(), 3, "{centerlines:?}");
+    let radians = 30_f64.to_radians();
+    let axis = (radians.cos(), radians.sin());
+    let label_side_projections = centerlines
+        .iter()
+        .map(|(from, to)| {
+            let from_projection = from.x * axis.0 + from.y * axis.1;
+            let to_projection = to.x * axis.0 + to.y * axis.1;
+            from_projection.max(to_projection)
+        })
+        .collect::<Vec<_>>();
+    let spread = label_side_projections
+        .iter()
+        .copied()
+        .fold(f64::NEG_INFINITY, f64::max)
+        - label_side_projections
+            .iter()
+            .copied()
+            .fold(f64::INFINITY, f64::min);
+    assert!(spread < 0.001, "{label_side_projections:?}");
+}
+
+#[test]
+fn triple_bond_shared_label_cut_plane_does_not_expand_with_line_width() {
+    let nodes = json!([
+        { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 20.0], "charge": 0, "numHydrogens": 0 },
+        {
+            "id": "n2",
+            "element": "N",
+            "atomicNumber": 7,
+            "position": [45.9808, 35.0],
+            "charge": 0,
+            "numHydrogens": 0,
+            "label": {
+                "text": "N",
+                "position": [42.0, 40.0],
+                "box": [42.0, 30.0, 49.0, 40.0],
+                "glyphPolygons": [[
+                    [42.0, 30.0], [49.0, 30.0], [49.0, 40.0], [44.0, 40.0]
+                ]]
+            }
+        }
+    ]);
+    let radians = 30_f64.to_radians();
+    let axis = (radians.cos(), radians.sin());
+    let label_projection_for_width = |stroke_width| {
+        let document = fragment_document(
+            nodes.clone(),
+            json!([{
+                "id": "b1",
+                "begin": "n1",
+                "end": "n2",
+                "order": 3,
+                "strokeWidth": stroke_width
+            }]),
+        );
+        object_bond_centerlines(&render_document(&document))
+            .iter()
+            .map(|(from, to)| {
+                (from.x * axis.0 + from.y * axis.1).max(to.x * axis.0 + to.y * axis.1)
+            })
+            .fold(f64::NEG_INFINITY, f64::max)
+    };
+
+    let narrow = label_projection_for_width(0.2);
+    let wide = label_projection_for_width(4.0);
+    assert!((narrow - wide).abs() < 0.0001, "{narrow} != {wide}");
+}
+
+#[test]
 fn render_document_preserves_dashed_double_line_styles() {
     let document = fragment_document(
         json!([

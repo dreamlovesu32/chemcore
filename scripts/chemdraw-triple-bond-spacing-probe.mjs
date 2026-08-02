@@ -210,6 +210,43 @@ const probes = [
     omitBranchOrder: true,
     nodesBeforeBonds: true,
   },
+  ...[
+    { label: "N", font: "Arial", fontId: 3, size: 10, face: 0, marginWidth: 2, lineWidth: 1 },
+    { label: "O", font: "Arial", fontId: 3, size: 8, face: 0, marginWidth: 0, lineWidth: 0.6 },
+    { label: "Cl", font: "Arial", fontId: 3, size: 14, face: 1, marginWidth: 4, lineWidth: 2 },
+    { label: "NMe2", font: "Times New Roman", fontId: 4, size: 12, face: 2, marginWidth: 1, lineWidth: 1 },
+  ].flatMap((labelCase) => [0, 37, 90, 150].flatMap((angle) => [
+    {
+      name: `label-begin-${labelCase.label.toLowerCase()}-${angle}`,
+      length: 30,
+      spacing: 12,
+      angle,
+      labelBegin: true,
+      ...labelCase,
+    },
+    {
+      name: `label-end-${labelCase.label.toLowerCase()}-${angle}`,
+      length: 30,
+      spacing: 12,
+      angle,
+      labelEnd: true,
+      ...labelCase,
+    },
+  ])),
+  ...[0.2, 0.6, 1, 2, 4].map((lineWidth) => ({
+    name: `label-end-n-line-width-${String(lineWidth).replace(".", "_")}`,
+    length: 30,
+    spacing: 12,
+    angle: 37,
+    labelEnd: true,
+    label: "N",
+    font: "Arial",
+    fontId: 3,
+    size: 10,
+    face: 0,
+    marginWidth: 2,
+    lineWidth,
+  })),
 ];
 
 function fixed(value) {
@@ -227,6 +264,12 @@ function sourceFor(probe) {
     : ` BondSpacingAbs="${fixed(probe.spacingAbs)}"`;
   const atomStereo = probe.atomStereoNone ? ' AS="N"' : "";
   const bondStereo = probe.bondStereoNone ? ' BS="N"' : "";
+  const labelNode = (id, x, y, label) => {
+    const fontId = probe.fontId ?? 3;
+    const size = probe.size ?? 10;
+    const face = probe.face ?? 0;
+    return `<n id="${id}" p="${fixed(x)} ${fixed(y)}" NodeType="Fragment" AS="N" NumHydrogens="0"><t p="${fixed(x)} ${fixed(y)}" LabelAlignment="Center" LabelJustification="Center" InterpretChemically="yes"><s font="${fontId}" size="${size}" face="${face}" color="0">${label}</s></t></n>`;
+  };
   const branchSource = ({
     originX,
     originY,
@@ -299,8 +342,12 @@ function sourceFor(probe) {
       <b id="5" B="3" E="4" Order="3" Z="6"${spacingAbs}${bondStereo}/>
       <b id="200" B="4" E="20" Z="8"${bondStereo}/>`;
     })()
-    : `<n id="3" p="${fixed(x0)} ${fixed(y0)}"${probe.interleavedZ ? ' Z="3"' : ""}${atomStereo}/>
-      <n id="4" p="${fixed(x1)} ${fixed(y1)}"${probe.interleavedZ ? ' Z="5"' : ""}${atomStereo}/>
+    : `${probe.labelBegin
+      ? labelNode(3, x0, y0, probe.label)
+      : `<n id="3" p="${fixed(x0)} ${fixed(y0)}"${probe.interleavedZ ? ' Z="3"' : ""}${atomStereo}/>`}
+      ${probe.labelEnd
+      ? labelNode(4, x1, y1, probe.label)
+      : `<n id="4" p="${fixed(x1)} ${fixed(y1)}"${probe.interleavedZ ? ' Z="5"' : ""}${atomStereo}/>`}
       <b id="5" B="3" E="4" Order="3"${probe.interleavedZ ? ' Z="6"' : ""}${spacingAbs}${bondStereo}/>
       ${beginBranch}
       ${endBranch}`;
@@ -308,12 +355,12 @@ function sourceFor(probe) {
 <CDXML CreationProgram="ChemDraw ${probe.creationProgram ?? "22.2.0.3300"}" BoundingBox="-100 -100 250 250"
  FractionalWidths="yes" InterpretChemically="yes"
  ShowTerminalCarbonLabels="no" ShowNonTerminalCarbonLabels="no"
- LabelFont="3" LabelSize="10" LabelFace="96"
- CaptionFont="3" CaptionSize="10"
+ LabelFont="${probe.fontId ?? 3}" LabelSize="${probe.size ?? 10}" LabelFace="${probe.face ?? 96}"
+ CaptionFont="${probe.fontId ?? 3}" CaptionSize="${probe.size ?? 10}"
  LineWidth="${fixed(probe.lineWidth)}" BoldWidth="4"
  BondLength="${fixed(probe.documentBondLength ?? 14.4)}" BondSpacing="${fixed(probe.spacing)}"
- HashSpacing="2.5" MarginWidth="2">
-  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+ HashSpacing="2.5" MarginWidth="${fixed(probe.marginWidth ?? 2)}">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/><font id="4" charset="iso-8859-1" name="Times New Roman"/></fonttable>
   <colortable><color r="1" g="1" b="1"/><color r="0" g="0" b="0"/></colortable>
   <page id="1" BoundingBox="-100 -100 250 250">
     <fragment id="2">
@@ -419,6 +466,20 @@ function measureSvg(svg, probe) {
     (sum, entry) => sum + entry.svgUnitsPerPoint,
     0,
   ) / paths.length;
+  const firstTransform = paths[0].transform;
+  const sourceStart = { x: 50 * 10, y: 50 * 10 };
+  const sourceEnd = {
+    x: (50 + Math.cos(radians) * probe.length) * 10,
+    y: (50 + Math.sin(radians) * probe.length) * 10,
+  };
+  const transformedSourcePoint = (point) => ({
+    x: firstTransform.a * point.x + firstTransform.c * point.y + firstTransform.e,
+    y: firstTransform.b * point.x + firstTransform.d * point.y + firstTransform.f,
+  });
+  const sourceStartProjection = transformedSourcePoint(sourceStart).x * axis.x
+    + transformedSourcePoint(sourceStart).y * axis.y;
+  const sourceEndProjection = transformedSourcePoint(sourceEnd).x * axis.x
+    + transformedSourcePoint(sourceEnd).y * axis.y;
   const adjacent = [
     (centers[1] - centers[0]) / svgUnitsPerPoint,
     (centers[2] - centers[1]) / svgUnitsPerPoint,
@@ -430,6 +491,14 @@ function measureSvg(svg, probe) {
     asymmetry: Math.abs(adjacent[0] - adjacent[1]),
     lanes,
     laneSpanDeficits: lanes.map((lane) => maximumAxisSpan - lane.axisSpan),
+    beginCutSpread: Math.max(...lanes.map((lane) => lane.axisMin))
+      - Math.min(...lanes.map((lane) => lane.axisMin)),
+    endCutSpread: Math.max(...lanes.map((lane) => lane.axisMax))
+      - Math.min(...lanes.map((lane) => lane.axisMax)),
+    beginRetreat: (Math.min(...lanes.map((lane) => lane.axisMin)) - sourceStartProjection)
+      / svgUnitsPerPoint,
+    endRetreat: (sourceEndProjection - Math.max(...lanes.map((lane) => lane.axisMax)))
+      / svgUnitsPerPoint,
     svgUnitsPerPoint,
   };
 }
@@ -488,12 +557,19 @@ for (const probe of probes) {
     angle: probe.angle,
     beginBranchAngle: probe.beginBranchAngle ?? null,
     endBranchAngle: probe.endBranchAngle ?? null,
+    labelBegin: probe.labelBegin ?? false,
+    labelEnd: probe.labelEnd ?? false,
+    label: probe.label ?? null,
     expectedCenterDistance: expected,
     measuredCenterDistance: measured.centerDistance,
     adjacentCenterDistances: measured.adjacentCenterDistances,
     asymmetry: measured.asymmetry,
     lanes: measured.lanes,
     laneSpanDeficits: measured.laneSpanDeficits,
+    beginCutSpread: measured.beginCutSpread,
+    endCutSpread: measured.endCutSpread,
+    beginRetreat: measured.beginRetreat,
+    endRetreat: measured.endRetreat,
     outerSpanErrors: probe.beginBranchAngle == null && probe.endBranchAngle == null
       ? null
       : [measured.lanes[0], measured.lanes[2]].map(
@@ -511,6 +587,8 @@ await fs.writeFile(
 );
 
 const mismatches = measurements.filter((entry) => {
+  if (entry.labelBegin && entry.beginCutSpread > 0.015) return true;
+  if (entry.labelEnd && entry.endCutSpread > 0.015) return true;
   if (entry.beginBranchAngle != null || entry.endBranchAngle != null) {
     return entry.outerSpanErrors.some((error) => Math.abs(error) > 0.015);
   }

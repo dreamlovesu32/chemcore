@@ -954,7 +954,14 @@ fn parse_cdxml_triple_bond_spacing_matches_chemdraw_percentage_and_absolute_rule
         ("acs", 0.60, 14.40, 18.0, None, 2.592),
         ("length-scaled", 0.60, 30.00, 18.0, None, 5.400),
         ("line-width-floor", 2.00, 14.40, 8.0, None, 5.000),
-        ("absolute-no-floor", 2.00, 14.40, 30.0, Some(0.5), 0.500),
+        (
+            "absolute-suppresses-authored-percent-and-uses-default-floor",
+            2.00,
+            14.40,
+            30.0,
+            Some(0.5),
+            5.000,
+        ),
     ] {
         let spacing_abs = bond_spacing_abs
             .map(|value| format!(r#" BondSpacingAbs="{value}""#))

@@ -526,10 +526,23 @@ fn render_double_bond(
                 bond,
                 actual_start,
                 actual_end,
-                stroke_width,
                 &[
-                    (0.0, bond.line_weights.main),
-                    (side * double_offset, outer_line_weight(bond, side)),
+                    (
+                        0.0,
+                        line_weight_stroke_width_for_bond(
+                            bond,
+                            stroke_width,
+                            bond.line_weights.main,
+                        ) * 0.5,
+                    ),
+                    (
+                        side * double_offset,
+                        line_weight_stroke_width_for_bond(
+                            bond,
+                            stroke_width,
+                            outer_line_weight(bond, side),
+                        ) * 0.5,
+                    ),
                 ],
             );
             let (main_start, main_end) = apply_label_endpoint_retreats(
@@ -627,8 +640,7 @@ fn shared_parallel_label_retreats(
     bond: &Bond,
     actual_start: Point,
     actual_end: Point,
-    stroke_width: f64,
-    lines: &[(f64, BondLineWeight)],
+    lines: &[(f64, f64)],
 ) -> (f64, f64) {
     let (normal_x, normal_y) = unit_normal(actual_start, actual_end);
     let begin_polygons = node_map
@@ -647,7 +659,7 @@ fn shared_parallel_label_retreats(
         .and_then(|node| label_box_world(node, object));
     let mut shared_start_retreat: f64 = 0.0;
     let mut shared_end_retreat: f64 = 0.0;
-    for (offset, weight) in lines {
+    for (offset, half_width) in lines {
         let line_start = Point::new(
             actual_start.x + normal_x * offset,
             actual_start.y + normal_y * offset,
@@ -656,16 +668,15 @@ fn shared_parallel_label_retreats(
             actual_end.x + normal_x * offset,
             actual_end.y + normal_y * offset,
         );
-        let half_width = line_weight_stroke_width_for_bond(bond, stroke_width, *weight) * 0.5;
         if let Some((start_retreat, end_retreat)) = body_segment_label_retreats(
             line_start,
             line_end,
             begin_box,
             &begin_polygons,
-            half_width,
+            *half_width,
             end_box,
             &end_polygons,
-            half_width,
+            *half_width,
         ) {
             shared_start_retreat = shared_start_retreat.max(start_retreat);
             shared_end_retreat = shared_end_retreat.max(end_retreat);
@@ -842,6 +853,20 @@ fn render_triple_bond(
 ) {
     let triple_offset =
         triple_bond_offset_distance_for_bond(bond, actual_start, actual_end, stroke_width);
+    let shared_label_retreats = shared_parallel_label_retreats(
+        object,
+        node_map,
+        bond,
+        actual_start,
+        actual_end,
+        &[(0.0, 0.0), (triple_offset, 0.0), (-triple_offset, 0.0)],
+    );
+    let (main_start, main_end) = apply_label_endpoint_retreats(
+        actual_start,
+        actual_end,
+        shared_label_retreats.0,
+        shared_label_retreats.1,
+    );
 
     render_fragment_line(
         out,
@@ -851,8 +876,8 @@ fn render_triple_bond(
         bonds,
         node_map,
         bond,
-        start,
-        end,
+        main_start,
+        main_end,
         begin_box,
         end_box,
         true,
@@ -885,7 +910,7 @@ fn render_triple_bond(
         object_id,
         &[1.0, -1.0],
         triple_offset,
-        None,
+        Some(shared_label_retreats),
     );
 }
 

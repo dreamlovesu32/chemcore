@@ -83,6 +83,48 @@ function firstHcoSvgTransform(svg) {
   return match ? attributes(`<text ${match[1]}>`).transform ?? null : null;
 }
 
+function elementDocument({
+  needsClean = false,
+  labelAlignment = false,
+  textDx = 0,
+  textDy = 0,
+  boxDx = 0,
+  boxDy = 0,
+}) {
+  const textX = 96.4 + textDx;
+  const textY = 103.6 + textDy;
+  const left = 97.2 + boxDx;
+  const top = 96.4 + boxDy;
+  const right = 102.9 + boxDx;
+  const bottom = 103.6 + boxDy;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BoundingBox="0 0 180 160" LabelFont="3" LabelSize="10" LabelFace="96"
+ LineWidth="1" BoldWidth="4" BondLength="30" BondSpacing="12" MarginWidth="2">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <colortable><color r="1" g="1" b="1"/><color r="0" g="0" b="0"/></colortable>
+  <page id="1" BoundingBox="0 0 180 160"><fragment id="2">
+    <n id="3" p="70 100"/>
+    <n id="4" p="100 100" Element="7" NumHydrogens="0"${needsClean ? ' NeedsClean="yes"' : ""}>
+      <t p="${textX} ${textY}" BoundingBox="${left} ${top} ${right} ${bottom}"
+       LabelJustification="Left"${labelAlignment ? ' LabelAlignment="Left"' : ""}>
+        <s font="3" size="10" face="96" color="0">N</s>
+      </t>
+    </n>
+    <b id="5" B="3" E="4" Order="3"/>
+  </fragment></page>
+</CDXML>\n`;
+}
+
+function firstElementTextAttributes(cdxml) {
+  const match = cdxml.match(/<t\b[^>]*>\s*<s\b[^>]*>N<\/s>/);
+  return match ? attributes(match[0]) : null;
+}
+
+function firstElementSvgTransform(svg) {
+  const match = svg.match(/<text\b([^>]*)>\s*N<\/text>/);
+  return match ? attributes(`<text ${match[1]}>`).transform ?? null : null;
+}
+
 async function main() {
   const source = await fs.readFile(sourcePath, "utf8");
   const variants = [
@@ -115,6 +157,17 @@ async function main() {
       name: "node-y-plus-8",
       source: mutateNodePosition(source, "193", 0, 8),
     },
+    ...[false, true].flatMap((needsClean) => [false, true].flatMap((labelAlignment) => {
+      const prefix = `element-${needsClean ? "needs-clean" : "clean"}-${labelAlignment ? "aligned" : "unaligned"}`;
+      const common = { needsClean, labelAlignment };
+      return [
+        { name: `${prefix}-baseline`, source: elementDocument(common), element: true },
+        { name: `${prefix}-text-x-plus-8`, source: elementDocument({ ...common, textDx: 8 }), element: true },
+        { name: `${prefix}-text-y-plus-8`, source: elementDocument({ ...common, textDy: 8 }), element: true },
+        { name: `${prefix}-box-x-plus-8`, source: elementDocument({ ...common, boxDx: 8 }), element: true },
+        { name: `${prefix}-box-y-plus-8`, source: elementDocument({ ...common, boxDy: 8 }), element: true },
+      ];
+    })),
   ];
   const sourceDir = path.join(outDir, "sources");
   const oracleDir = path.join(outDir, "oracle");
@@ -138,8 +191,12 @@ async function main() {
     ]);
     results.push({
       name: variants[index].name,
-      svgTransform: firstHcoSvgTransform(svg),
-      savedText: firstHcoTextAttributes(savedCdxml),
+      svgTransform: variants[index].element
+        ? firstElementSvgTransform(svg)
+        : firstHcoSvgTransform(svg),
+      savedText: variants[index].element
+        ? firstElementTextAttributes(savedCdxml)
+        : firstHcoTextAttributes(savedCdxml),
     });
   }
   const report = {

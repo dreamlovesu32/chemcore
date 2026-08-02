@@ -549,7 +549,11 @@ Later rules must not overturn geometry topology already determined by earlier ru
 - Parallel sub-lines of a double or triple bond share the retreat required by
   the complete label outline. The single-line vertical glyph-column branch
   must not be applied independently to those sub-lines; a shifted formula
-  script can therefore determine their common endpoint.
+  script can therefore determine their common endpoint. For triple bonds,
+  the shared cut plane is the farthest intersection of the three lane
+  centerline rays with that outline; it does not expand with `LineWidth`.
+  ChemDraw probes from `0.2` through `4 pt` keep the same axial endpoint even
+  when the lane spacing itself reaches the line-width floor.
 - Label retreat is an unbounded ray operation, not a segment clamp. If the
   label exclusion boundary lies beyond the opposite atom because the authored
   bond is shorter than the label, keep the computed endpoint past that atom;
