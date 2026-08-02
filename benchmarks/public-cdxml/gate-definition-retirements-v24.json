@@ -1,0 +1,22 @@
+{
+  "schema": "chemsema.public-cdxml-gate-definition-retirements.v1",
+  "fromCacheIdentity": "chemsema-public-cdxml-visual-gate-cache-v23",
+  "toCacheIdentity": "chemsema-public-cdxml-visual-gate-cache-v24",
+  "reason": "retired-non-authoritative-whole-page-translation-alignment",
+  "evidence": {
+    "oldMinimumPassed": 227,
+    "frozenCandidatePassedUnderNewGate": 220,
+    "rule": "v24 honors authored CDXML/CDX origins, uses declared scale with translation fitting only for coordinate-free sources, and reserves full ink-overlap fitting for references without a reliable transform"
+  },
+  "paths": [
+    "indigo/api/tests/integration/tests/formats/molecules/3362_carbon_isotopes.cdxml",
+    "indigo/api/tests/integration/tests/formats/molecules/cdx/US06837803-20050104-C00001.CDX",
+    "rdkit/External/ChemDraw/test_data/patents/US06534627-20030318-C00058.CDX",
+    "rdkit/External/ChemDraw/test_data/patents/US10640524-20200505-C00001.CDX",
+    "rdkit/External/ChemDraw/test_data/patents/US10640524-20200505-C00005.CDX",
+    "rdkit/External/ChemDraw/test_data/patents/US11707511-20230725-C00001.CDX",
+    "rdkit/External/ChemDraw/test_data/patents/US20180170953A1-20180621-C00005.CDX",
+    "rdkit/External/ChemDraw/test_data/patents/US20200222518A1-20200716-C00001.CDX",
+    "sampl9/host_guest/bCD/source_files/SAMPL-Host.cdxml"
+  ]
+}
