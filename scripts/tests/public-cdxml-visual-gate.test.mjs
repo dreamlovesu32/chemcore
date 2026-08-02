@@ -4,6 +4,7 @@ import test from "node:test";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
 import {
   applyCandidateViewportGate,
+  candidateRegressionRasterViewBox,
   candidateViewportGateReasons,
   classifyAnalyzedVisualMetrics,
   classifyContinuousBaselineRegressions,
@@ -368,6 +369,29 @@ test("historical registration follows the current SVG crop in document coordinat
   assert.equal(aligned.dy, -5);
   assert.equal(aligned.chemsemaWidth, 70);
   assert.equal(aligned.vectorFrame, current.vectorFrame);
+});
+
+test("continuous regression raster viewport is fixed to the padded baseline crop", () => {
+  const alignment = {
+    vectorFrame: {
+      chemsemaViewBox: { x: -7.7, y: -15.83, width: 650.57891, height: 527.83 },
+    },
+  };
+  assert.deepEqual(candidateRegressionRasterViewBox(alignment, 32), {
+    x: -39.7,
+    y: -47.83,
+    width: 714.57891,
+    height: 591.83,
+  });
+});
+
+test("continuous regression raster viewport rejects invalid geometry", () => {
+  assert.equal(candidateRegressionRasterViewBox({}, 32), null);
+  assert.equal(candidateRegressionRasterViewBox({
+    vectorFrame: {
+      chemsemaViewBox: { x: 0, y: 0, width: 10, height: 10 },
+    },
+  }, -1), null);
 });
 
 test("spatial occupancy distinguishes equal count, bounds, and centroid", () => {

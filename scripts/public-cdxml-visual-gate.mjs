@@ -59,10 +59,16 @@ const DEFAULTS = Object.freeze({
   candidateViewportAnalysisScale: 4,
   maxCandidateViewportPixels: 16_000_000,
   minCandidateViewportInkMargin: 4,
+  // Continuous floors must rasterize unchanged SVG primitives at the same
+  // absolute pixel positions even when the export crop grows or shrinks.
+  // The baseline viewport is expanded once and then reused verbatim. A later
+  // candidate outside that registered viewport is rejected as non-comparable
+  // instead of silently changing the raster phase.
+  candidateRegressionRasterPadding: 32,
 });
 
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
-export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v24";
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v25";
 export const REPORT_SCHEMA = "chemsema-public-cdxml-visual-gate-v2";
 export const CASE_METRICS_SCHEMA =
   "chemsema.public-cdxml-visual-case-metrics.v2";
@@ -122,6 +128,7 @@ function parseArgs(argv) {
     else if (arg === "--candidate-viewport-analysis-scale") options.candidateViewportAnalysisScale = Number(argv[++index]);
     else if (arg === "--max-candidate-viewport-pixels") options.maxCandidateViewportPixels = Number(argv[++index]);
     else if (arg === "--min-candidate-viewport-ink-margin") options.minCandidateViewportInkMargin = Number(argv[++index]);
+    else if (arg === "--candidate-regression-raster-padding") options.candidateRegressionRasterPadding = Number(argv[++index]);
     else if (arg === "--report-only") options.reportOnly = true;
     else if (arg === "--self-test") options.selfTest = true;
     else if (arg === "--help" || arg === "-h") options.help = true;
@@ -402,7 +409,12 @@ function validateOptions(options) {
       throw new Error(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)} must be positive`);
     }
   }
-  for (const key of ["tolerance", "detailTolerance", "componentSupportGap"]) {
+  for (const key of [
+    "tolerance",
+    "detailTolerance",
+    "componentSupportGap",
+    "candidateRegressionRasterPadding",
+  ]) {
     if (!Number.isFinite(options[key]) || options[key] < 0) {
       throw new Error(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)} must be non-negative`);
     }
@@ -1153,6 +1165,12 @@ export function protectedVisualCase(entry) {
       scale: entry.alignment.scale,
       dx: entry.alignment.dx,
       dy: entry.alignment.dy,
+      ...(Number.isFinite(entry.alignment.chemsemaWidth)
+        ? { chemsemaWidth: entry.alignment.chemsemaWidth }
+        : {}),
+      ...(Number.isFinite(entry.alignment.chemsemaHeight)
+        ? { chemsemaHeight: entry.alignment.chemsemaHeight }
+        : {}),
       vectorFrame: {
         chemsemaViewBox: entry.alignment.vectorFrame?.chemsemaViewBox,
       },
@@ -1530,7 +1548,24 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
         : null;
     }
 
-    async function prepareImage(src, imageScale, dx, dy) {
+    function expandedViewBox(viewBox, padding) {
+      return {
+        x: viewBox.x - padding,
+        y: viewBox.y - padding,
+        width: viewBox.width + padding * 2,
+        height: viewBox.height + padding * 2,
+      };
+    }
+
+    function containsViewBox(container, content) {
+      const epsilon = 1e-9;
+      return content.x >= container.x - epsilon
+        && content.y >= container.y - epsilon
+        && content.x + content.width <= container.x + container.width + epsilon
+        && content.y + content.height <= container.y + container.height + epsilon;
+    }
+
+    async function prepareImage(src, imageScale, dx, dy, rasterOptions = {}) {
       if (!(Number.isFinite(imageScale) && imageScale > 0)) {
         throw new Error("visual gate alignment scale must be positive");
       }
@@ -1556,23 +1591,50 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
         throw new Error("visual gate SVG input has no positive viewport");
       }
       const sourceViewBox = viewBox ?? { x: 0, y: 0, width, height };
+      const requestedRasterViewBox = rasterOptions.viewBox ?? expandedViewBox(
+        sourceViewBox,
+        rasterOptions.padding ?? 0,
+      );
+      if (
+        ![requestedRasterViewBox.x, requestedRasterViewBox.y,
+          requestedRasterViewBox.width, requestedRasterViewBox.height].every(Number.isFinite)
+        || requestedRasterViewBox.width <= 0
+        || requestedRasterViewBox.height <= 0
+      ) throw new Error("visual gate candidate raster viewport is invalid");
+      if (!containsViewBox(requestedRasterViewBox, sourceViewBox)) {
+        throw new Error(
+          "visual gate candidate exceeds its historical regression raster viewport",
+        );
+      }
       const pixelScale = settings.analysisScale;
       const phase = (value) => {
         const fractional = value - Math.floor(value);
         return fractional < 0 ? fractional + 1 : fractional;
       };
-      const phaseX = phase(dx * pixelScale);
-      const phaseY = phase(dy * pixelScale);
       const pixelsPerSourceX = width * imageScale * pixelScale / sourceViewBox.width;
       const pixelsPerSourceY = height * imageScale * pixelScale / sourceViewBox.height;
-      const rasterWidth = Math.max(1, Math.ceil(phaseX + width * imageScale * pixelScale));
-      const rasterHeight = Math.max(1, Math.ceil(phaseY + height * imageScale * pixelScale));
+      const sourceToViewportX = width / sourceViewBox.width;
+      const sourceToViewportY = height / sourceViewBox.height;
+      const rasterLeft = dx
+        + (requestedRasterViewBox.x - sourceViewBox.x) * sourceToViewportX * imageScale;
+      const rasterTop = dy
+        + (requestedRasterViewBox.y - sourceViewBox.y) * sourceToViewportY * imageScale;
+      const phaseX = phase(rasterLeft * pixelScale);
+      const phaseY = phase(rasterTop * pixelScale);
+      const rasterWidth = Math.max(
+        1,
+        Math.ceil(phaseX + requestedRasterViewBox.width * pixelsPerSourceX),
+      );
+      const rasterHeight = Math.max(
+        1,
+        Math.ceil(phaseY + requestedRasterViewBox.height * pixelsPerSourceY),
+      );
       svg.setAttribute("width", `${rasterWidth}px`);
       svg.setAttribute("height", `${rasterHeight}px`);
       svg.setAttribute("preserveAspectRatio", "none");
       svg.setAttribute("viewBox", [
-        sourceViewBox.x - phaseX / pixelsPerSourceX,
-        sourceViewBox.y - phaseY / pixelsPerSourceY,
+        requestedRasterViewBox.x - phaseX / pixelsPerSourceX,
+        requestedRasterViewBox.y - phaseY / pixelsPerSourceY,
         rasterWidth / pixelsPerSourceX,
         rasterHeight / pixelsPerSourceY,
       ].join(" "));
@@ -1584,8 +1646,8 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
         width,
         height,
         pixelAligned: true,
-        originPixelX: Math.floor(dx * pixelScale),
-        originPixelY: Math.floor(dy * pixelScale),
+        originPixelX: Math.floor(rasterLeft * pixelScale),
+        originPixelY: Math.floor(rasterTop * pixelScale),
       };
     }
 
@@ -1738,7 +1800,10 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
 
     const [referenceFrame, candidateFrame] = await Promise.all([
       prepareImage(referenceDataUrl, 1, 0, 0),
-      prepareImage(candidateDataUrl, alignment.scale, alignment.dx, alignment.dy),
+      prepareImage(candidateDataUrl, alignment.scale, alignment.dx, alignment.dy, {
+        padding: settings.candidateRegressionRasterPadding,
+        viewBox: settings.candidateRasterViewBox,
+      }),
     ]);
     const referenceWidth = referenceFrame.width;
     const referenceHeight = referenceFrame.height;
@@ -1853,11 +1918,14 @@ export async function analyzeAlignedImages(page, referenceDataUrl, candidateData
     for (let coreY = gridTop; coreY < gridBottom; coreY += settings.tileSize) {
       for (let coreX = gridLeft; coreX < gridRight; coreX += settings.tileSize) {
         const core = {
-          x: coreX,
-          y: coreY,
-          width: settings.tileSize,
-          height: settings.tileSize,
+          x: Math.max(coreX, domain.left),
+          y: Math.max(coreY, domain.top),
+          width: Math.min(coreX + settings.tileSize, domain.right)
+            - Math.max(coreX, domain.left),
+          height: Math.min(coreY + settings.tileSize, domain.bottom)
+            - Math.max(coreY, domain.top),
         };
+        if (core.width <= 0 || core.height <= 0) continue;
         const tile = {
           x: core.x - settings.halo,
           y: core.y - settings.halo,
@@ -2520,6 +2588,9 @@ function detailAnalysisOptions(options) {
     minCoverage: 0,
     maxDefectArea: Number.MAX_SAFE_INTEGER,
     maxDefectSpan: Number.MAX_SAFE_INTEGER,
+    candidateRegressionRasterPadding:
+      options.candidateRegressionRasterPadding,
+    candidateRasterViewBox: options.candidateRasterViewBox,
   };
 }
 
@@ -2574,6 +2645,23 @@ export function historicalDocumentAlignment(historicalAlignment, currentAlignmen
     chemsemaWidth: currentAlignment.chemsemaWidth,
     chemsemaHeight: currentAlignment.chemsemaHeight,
     vectorFrame: currentAlignment.vectorFrame,
+  };
+}
+
+export function candidateRegressionRasterViewBox(alignment, padding) {
+  const viewBox = alignment?.vectorFrame?.chemsemaViewBox;
+  if (
+    ![viewBox?.x, viewBox?.y, viewBox?.width, viewBox?.height].every(Number.isFinite)
+    || viewBox.width <= 0
+    || viewBox.height <= 0
+    || !Number.isFinite(padding)
+    || padding < 0
+  ) return null;
+  return {
+    x: viewBox.x - padding,
+    y: viewBox.y - padding,
+    width: viewBox.width + padding * 2,
+    height: viewBox.height + padding * 2,
   };
 }
 
@@ -2643,6 +2731,14 @@ export function gatePolicy(options) {
       maximumRasterPixels: options.maxCandidateViewportPixels,
       minimumInkMarginCandidateViewportUnits: options.minCandidateViewportInkMargin,
       scope: "candidate SVG self-consistency before ChemDraw alignment",
+    },
+    continuousRegressionRaster: {
+      candidateViewportPaddingUnits:
+        options.candidateRegressionRasterPadding,
+      viewportPolicy:
+        "the baseline candidate SVG viewBox plus fixed padding is reused verbatim; a later crop outside that registered viewport is rejected as non-comparable",
+      reason:
+        "unchanged SVG text and strokes must retain identical absolute raster positions when unrelated geometry changes the export crop",
     },
     detailRaster: {
       pixelsPerReferenceUnit: options.detailAnalysisScale,
@@ -2835,6 +2931,130 @@ async function runSelfTest(options) {
           originalWorld,
           croppedWorld,
         })}`,
+      );
+    }
+    const cropStableReference = `<svg xmlns="http://www.w3.org/2000/svg" width="1749" height="1376" viewBox="0 0 1749 1376"></svg>`;
+    const cropStableBody = `
+      <text x="0" y="0" font-size="200" font-family="Arial" transform="matrix(0.05 0 0 0.05 565 286)">[byproducts]</text>
+      <polyline points="605.46,302.39 605.46,400.39" fill="none" stroke="#000" stroke-width="1"/>`;
+    const oldCrop = `<svg xmlns="http://www.w3.org/2000/svg" width="650.57891" height="527.83" viewBox="-7.7 -15.83 650.57891 527.83">${cropStableBody}</svg>`;
+    const newCrop = `<svg xmlns="http://www.w3.org/2000/svg" width="669.296723" height="527.83" viewBox="-26.417813 -15.83 669.296723 527.83">${cropStableBody}</svg>`;
+    const oldCropAlignment = {
+      algorithm: ALIGNMENT_ALGORITHM,
+      scale: 2.6666600000000003,
+      dx: 36.55213466666666,
+      dy: -16.7069778,
+      vectorFrame: {
+        chemsemaViewBox: {
+          x: -7.7,
+          y: -15.83,
+          width: 650.57891,
+          height: 527.83,
+        },
+      },
+    };
+    const newCropAlignment = {
+      ...oldCropAlignment,
+      dx: -13.361908547913341,
+      vectorFrame: {
+        chemsemaViewBox: {
+          x: -26.417813,
+          y: -15.83,
+          width: 669.296723,
+          height: 527.83,
+        },
+      },
+    };
+    const cropStableOptions = detailAnalysisOptions(options);
+    const oldCropMetrics = await analyzeAlignedImages(
+      page,
+      data(cropStableReference),
+      data(oldCrop),
+      oldCropAlignment,
+      cropStableOptions,
+    );
+    const newCropMetrics = await analyzeAlignedImages(
+      page,
+      data(cropStableReference),
+      data(newCrop),
+      newCropAlignment,
+      {
+        ...cropStableOptions,
+        candidateRasterViewBox: candidateRegressionRasterViewBox(
+          oldCropAlignment,
+          options.candidateRegressionRasterPadding,
+        ),
+      },
+    );
+    const oldCropFloor = encodeSpatialFloor(
+      oldCropMetrics.local.spatialCells,
+      cropStableOptions.analysisScale,
+      cropStableOptions.localStride,
+    );
+    const newCropFloor = encodeSpatialFloor(
+      newCropMetrics.local.spatialCells,
+      cropStableOptions.analysisScale,
+      cropStableOptions.localStride,
+    );
+    if (oldCropFloor.recordsSha256 !== newCropFloor.recordsSha256) {
+      throw new Error(
+        `historical raster viewport changed unchanged SVG ink: ${JSON.stringify({
+          old: oldCropFloor.recordsSha256,
+          current: newCropFloor.recordsSha256,
+        })}`,
+      );
+    }
+    const outsideCrop = newCrop.replace(
+      'viewBox="-26.417813 -15.83 669.296723 527.83"',
+      'viewBox="-50 -15.83 692.87891 527.83"',
+    ).replace('width="669.296723"', 'width="692.87891"');
+    let outsideCropRejected = false;
+    try {
+      await analyzeAlignedImages(
+        page,
+        data(cropStableReference),
+        data(outsideCrop),
+        {
+          ...newCropAlignment,
+          dx: oldCropAlignment.dx
+            + oldCropAlignment.scale * (-50 - -7.7),
+          vectorFrame: {
+            chemsemaViewBox: {
+              x: -50,
+              y: -15.83,
+              width: 692.87891,
+              height: 527.83,
+            },
+          },
+        },
+        {
+          ...cropStableOptions,
+          candidateRasterViewBox: candidateRegressionRasterViewBox(
+            oldCropAlignment,
+            options.candidateRegressionRasterPadding,
+          ),
+        },
+      );
+    } catch (error) {
+      outsideCropRejected = /exceeds its historical regression raster viewport/.test(
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+    if (!outsideCropRejected) {
+      throw new Error("candidate outside the historical raster viewport was not rejected");
+    }
+    const clippedOverflowMetrics = await analyzeAlignedImages(
+      page,
+      data('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"></svg>'),
+      data('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><path d="M -20 50 L -10 50" stroke="#000" stroke-width="2"/></svg>'),
+      { scale: 1, dx: 0, dy: 0 },
+      options,
+    );
+    if (clippedOverflowMetrics.totals.candidateInk !== 0) {
+      throw new Error(
+        `padded raster leaked ink outside the authored domain: ${
+          clippedOverflowMetrics.totals.candidateInk
+        }`,
       );
     }
     const viewportReference = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80">
@@ -3179,6 +3399,9 @@ async function runSelfTest(options) {
       spanDelta,
       defectVerdict: small.passed,
       detailReasons: actualDetailReasons,
+      cropStableFloor: oldCropFloor.recordsSha256,
+      outsideCropRejected,
+      clippedOverflowInk: clippedOverflowMetrics.totals.candidateInk,
     }));
   } finally {
     await browser.close();
@@ -3476,34 +3699,55 @@ async function main() {
           regressionBaseline?.status === "fail"
           && historicalAlignment
         ) {
+          const baselineRasterViewBox = candidateRegressionRasterViewBox(
+            regressionBaseline.regressionAlignment ?? regressionBaseline.alignment,
+            options.candidateRegressionRasterPadding,
+          );
+          const currentRasterViewBox = candidateRegressionRasterViewBox(
+            alignment,
+            options.candidateRegressionRasterPadding,
+          );
           const sameAlignment = ["scale", "dx", "dy"].every((key) =>
             Number.isFinite(historicalAlignment[key])
               && Math.abs(historicalAlignment[key] - alignment[key]) <= 1e-9);
-          if (sameAlignment) {
+          const sameRasterViewBox = baselineRasterViewBox
+            && currentRasterViewBox
+            && ["x", "y", "width", "height"].every((key) =>
+              Math.abs(baselineRasterViewBox[key] - currentRasterViewBox[key]) <= 1e-9);
+          if (sameAlignment && sameRasterViewBox) {
             regressionFloor = fixedAlignmentRegressionMetrics(
               structuredClone(coarseMetrics),
               structuredClone(detailMetrics),
               options,
             );
           } else {
+            if (!baselineRasterViewBox) {
+              throw new Error(
+                "visual gate baseline has no valid regression raster viewport",
+              );
+            }
+            const regressionOptions = {
+              ...options,
+              candidateRasterViewBox: baselineRasterViewBox,
+            };
             const historicalCoarseMetrics = await analyzeAlignedImages(
               activePage,
               referenceDataUrl,
               candidateDataUrl,
               historicalAlignment,
-              options,
+              regressionOptions,
             );
             const historicalDetailMetrics = await analyzeAlignedImages(
               activePage,
               referenceDataUrl,
               candidateDataUrl,
               historicalAlignment,
-              detailAnalysisOptions(options),
+              detailAnalysisOptions(regressionOptions),
             );
             regressionFloor = fixedAlignmentRegressionMetrics(
               historicalCoarseMetrics,
               historicalDetailMetrics,
-              options,
+              regressionOptions,
             );
           }
         }

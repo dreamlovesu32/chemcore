@@ -246,6 +246,23 @@ limits and the zero-tolerance detail rules must both pass. Retired whole-page
 coverage and topology-equivalence branches cannot make the same defect easier
 to accept merely because the canvas is larger.
 
+Gate v25 also fixes the raster coordinate system used by those continuous
+floors. Changing one object can grow or shrink the exported ChemSema SVG root
+`viewBox`; Chromium may then hint an otherwise byte-identical text primitive
+at a different position in the temporary SVG bitmap. That raster-only change
+must not be called a renderer regression. Every failed baseline therefore
+registers its candidate `viewBox` with 32 ChemSema units of padding. Later
+continuous comparison redraws the candidate inside that exact historical
+viewport, while ordinary pass/fail classification still uses the current
+candidate and its current registration. A candidate that grows outside the
+registered padding is rejected as non-comparable and requires an explicit
+floor review; it is never silently clipped or treated as an improvement.
+Analysis tiles are intersected with the authored image domain, so the padded
+temporary bitmap cannot introduce ink outside the source `viewBox` into gate
+metrics. The frozen v24 candidate set was re-evaluated under v25 with the same
+338 paths and ChemDraw oracle hashes: its exact 222-pass set was unchanged and
+all 335 comparable cases retained a normal pass/fail verdict.
+
 The gate counts a fine component only when the unmatched component has no
 opposite-side ink within 0.5 ChemDraw reference units. Raw 8-connected component
 counts remain in reports for diagnosis, but cannot by themselves reject a
