@@ -13,6 +13,7 @@ import {
   encodeSpatialFloor,
   gateDefinitionUpgradeConfigurationErrors,
   gatePolicy,
+  historicalDocumentAlignment,
   passFloorGateDefinition,
   passFloorGateDefinitionErrors,
   protectedVisualCase,
@@ -75,6 +76,16 @@ function spatialCell({
 
 function spatialFloor(cells = [], detail = false) {
   return encodeSpatialFloor(cells, detail ? 4 : 2, detail ? 12 : 24);
+}
+
+function regressionAlignment() {
+  return {
+    algorithm: "chemdraw-declared-scale-global-translation-v11",
+    scale: 1,
+    dx: 0,
+    dy: 0,
+    vectorFrame: { chemsemaViewBox: { x: 0, y: 0, width: 48, height: 48 } },
+  };
 }
 
 test("candidate viewport margin rejects edge clipping independently of image size", () => {
@@ -276,6 +287,87 @@ test("spatial occupancy prevents same-size relocation from cancelling", () => {
   }], baseline);
   assert.equal(regressions.length, 1);
   assert.equal(regressions[0].reasons[0].direction, "lower");
+});
+
+test("a nearby defect relocation is accepted only when its local mismatch mass shrinks", () => {
+  const baseline = new Map([["improved-move.cdxml", {
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: spatialFloor([
+      spatialCell({ missingPixels: 8, missingX: 1 }),
+    ]) },
+  }]]);
+  const current = [{
+    relativeCdxml: "improved-move.cdxml",
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: spatialFloor([
+      spatialCell({ missingPixels: 4, missingX: 5 }),
+    ]) },
+  }];
+  assert.deepEqual(classifyContinuousBaselineRegressions(current, baseline), []);
+});
+
+test("a smaller defect cannot spend retired mismatch mass from a distant feature", () => {
+  const baseline = new Map([["distant-move.cdxml", {
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: spatialFloor([
+      spatialCell({ column: 0, missingPixels: 8 }),
+    ]) },
+  }]]);
+  const regressions = classifyContinuousBaselineRegressions([{
+    relativeCdxml: "distant-move.cdxml",
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: spatialFloor([
+      spatialCell({ column: 2, missingPixels: 4 }),
+    ]) },
+  }], baseline);
+  assert.equal(regressions.length, 1);
+  assert.equal(regressions[0].reasons[0].metric, "local.spatialFloor.missingUnsupportedArea");
+});
+
+test("sub-tolerance raster motion remains supported across a spatial cell boundary", () => {
+  const baseline = new Map([["cross-cell.cdxml", {
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: spatialFloor([
+      spatialCellFromPoints({ column: 0, missing: [[47, 1]] }),
+    ]) },
+  }]]);
+  assert.deepEqual(classifyContinuousBaselineRegressions([{
+    relativeCdxml: "cross-cell.cdxml",
+    status: "fail",
+    reasons: ["old-defect"],
+    local: { spatialFloor: spatialFloor([
+      spatialCellFromPoints({ column: 1, missing: [[0, 1]] }),
+    ]) },
+  }], baseline), []);
+});
+
+test("historical registration follows the current SVG crop in document coordinates", () => {
+  const historical = {
+    algorithm: "chemdraw-declared-scale-global-translation-v11",
+    scale: 2.5,
+    dx: 10,
+    dy: 20,
+    vectorFrame: { chemsemaViewBox: { x: -4, y: 8 } },
+  };
+  const current = {
+    algorithm: historical.algorithm,
+    scale: 2.5,
+    dx: 99,
+    dy: 101,
+    chemsemaWidth: 70,
+    chemsemaHeight: 80,
+    vectorFrame: { chemsemaViewBox: { x: 6, y: -2 } },
+  };
+  const aligned = historicalDocumentAlignment(historical, current);
+  assert.equal(aligned.dx, 35);
+  assert.equal(aligned.dy, -5);
+  assert.equal(aligned.chemsemaWidth, 70);
+  assert.equal(aligned.vectorFrame, current.vectorFrame);
 });
 
 test("spatial occupancy distinguishes equal count, bounds, and centroid", () => {
@@ -559,6 +651,7 @@ test("strict original-338 pass floor is authoritative over a degraded cache base
     } : protectedVisualCase({
       ...entry,
       status: "fail",
+      alignment: regressionAlignment(),
       artifactHashes: { reference: `reference-${index}` },
       reasons: ["synthetic-failure"],
       referenceCoverage: 0.9,
@@ -658,6 +751,7 @@ test("complete original-338 diagnostics validate the floor outside strict mode",
       status: index === 0 ? "fail" : "pass",
       artifactHashes: { reference: `reference-${index}` },
       ...(index === 0 ? { analysisLayers: { coarse: true, detail: true } } : {}),
+      ...(index === 0 ? { regressionAlignment: regressionAlignment() } : {}),
     })),
   };
   assert.match(

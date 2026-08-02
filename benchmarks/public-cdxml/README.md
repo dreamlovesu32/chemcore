@@ -131,22 +131,32 @@ npm run benchmark:cdxml-public:visual-gate:affected
 The planner updates only selected gallery items. The gate reuses classifications
 only when the ChemDraw-oracle hash, ChemSema-SVG hash, and gate-definition
 identity all match; `cache.reused` and `cache.analyzed` expose that split.
-Every changed candidate is registered from its own current pixels. Regression
-history is deliberately independent of that cache
-identity, so upgrading the alignment or detail classifier cannot erase earlier
-passes. Baseline mode permits historical failures to remain open, but it does
-not permit them to become worse. Every pass-to-fail transition is recorded in
-`delta.regressions`; `delta.continuousRegressions` independently compares cases
-that remain red using the exact missing/extra occupancy of every fixed-coordinate
-coarse and zero-tolerance detail defect cell, largest missing/extra components,
-and fine-detail defects. A new
-defect reason, a protected metric disappearing, or a material metric loss
-beyond the explicit raster tolerance is a regression. Improvement in another
-metric cannot cancel it: registered-image statistics are not additive, so a
-trade-off must be reviewed and explicitly promoted instead of being silently
-accepted. Fixed reference-unit windows, component geometry, and absolute
-defect bounds keep the decision from being diluted by canvas size. Both kinds
-of regression are checked during pass-floor promotion and gate migration. Path-to-feature
+Every changed candidate is registered from its own current pixels for its
+ordinary pass/fail verdict. Regression history is deliberately independent of
+that cache identity, so upgrading the alignment or detail classifier cannot
+erase earlier passes. Baseline mode permits historical failures to remain
+open, but it does not permit them to become worse. Every pass-to-fail
+transition is recorded in `delta.regressions`;
+`delta.continuousRegressions` independently compares cases that remain red.
+For this second comparison, gate v23 restores the historical
+document-coordinate registration and compensates for any changed SVG `viewBox`
+crop before rebuilding the exact coarse and zero-tolerance detail mismatch
+masks. This prevents an unrelated crop or newly corrected bounding box from
+making unchanged ink look displaced.
+
+A current missing or extra pixel is stable when a historical pixel of the same
+kind lies within 0.75 ChemDraw reference units. Each unsupported connected
+defect is then compared against the pooled missing-plus-extra mismatch mass in
+a fixed 12-reference-unit neighbourhood; it is accepted only when that local
+mass strictly decreases. Unsupported pixels accumulate across the whole
+drawing and remain subject to fixed absolute area limits, so improving a
+distant label cannot pay for a new bond or glyph defect. A protected metric
+disappearing or a material loss without authoritative spatial masks is still a
+regression. A genuine local raster trade-off must be reviewed and explicitly
+promoted instead of being silently accepted. Fixed reference-unit windows,
+component geometry, and absolute defect bounds keep the decision independent
+of canvas size. Both kinds of regression are checked during pass-floor
+migration. Path-to-feature
 declarations and historical regression cases live in
 `benchmarks/public-cdxml/visual-impact-map.json`; unknown production changes and
 gate-definition changes conservatively force a full run.
@@ -216,15 +226,16 @@ hide an unrelated seventh regression, change a pass to a failure, or weaken
 future comparisons. Renderer-migration reviews are migration audit records,
 not runtime path exceptions.
 
-Gate v22 runs both raster resolutions for every comparable case, including
+Gate v23 runs both raster resolutions for every comparable case, including
 images that already fail badly at coarse resolution. It assigns every analyzed
 core pixel exactly once to a fixed ChemDraw-coordinate cell and compresses the
 exact directional missing/extra occupancy masks into the protected floor. A
 current mismatch pixel must be supported by a historical same-kind pixel inside
-the fixed absolute raster tolerance; unsupported pixels accumulate across all
-cells, so fixing any old defect cannot pay for a new defect elsewhere. The raw
-mask records carry a SHA-256 integrity hash; zlib bytes are storage only and are
-not treated as canonical across runtime versions. Pass classification has one path: the fixed-window coarse
+the fixed absolute raster tolerance. Unsupported components additionally need
+a strict reduction of pooled local mismatch mass, and all remaining unsupported
+pixels accumulate across cells. The raw mask records carry a SHA-256 integrity
+hash; zlib bytes are storage only and are not treated as canonical across
+runtime versions. Pass classification has one path: the fixed-window coarse
 limits and the zero-tolerance detail rules must both pass. Retired whole-page
 coverage and topology-equivalence branches cannot make the same defect easier
 to accept merely because the canvas is larger.
@@ -249,10 +260,13 @@ scale is derived from the declared vector matrix. Translation is resolved for
 each current candidate on a document-world lattice by a broad low-resolution
 global-overlap search followed by two fixed-scale refinement passes. Tiles and
 local windows use a fixed reference-coordinate lattice, so a root `viewBox`
-crop cannot move registration or sampling. This prevents an asymmetric label box
-from trapping registration in a nearby local optimum. Historical pass
-protection is evaluated after current-image registration and never injects an
-old candidate's translation into a changed render.
+crop cannot move registration or sampling. This prevents an asymmetric label
+box from trapping registration in a nearby local optimum. Historical pass
+protection never changes the current candidate's ordinary registration. The
+separate continuous-regression analysis reuses only the old
+document-coordinate map, adjusted by the exact old/new `viewBox` origin delta,
+so it compares the same physical locations without biasing the current
+pass/fail result.
 Canonical runs reject any gallery whose
 repository, CLI, corpus, round-trip report, or per-item candidate provenance
 does not match. `--allow-stale-gallery` is diagnostic only and never makes

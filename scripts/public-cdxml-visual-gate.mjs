@@ -61,12 +61,12 @@ const DEFAULTS = Object.freeze({
 });
 
 const ALIGNMENT_ALGORITHM = IMAGE_ALIGNMENT_ALGORITHM;
-export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v22";
+export const CACHE_IDENTITY = "chemsema-public-cdxml-visual-gate-cache-v23";
 export const REPORT_SCHEMA = "chemsema-public-cdxml-visual-gate-v2";
 export const CASE_METRICS_SCHEMA =
   "chemsema.public-cdxml-visual-case-metrics.v2";
 export const STRICT_PASS_FLOOR_SCHEMA =
-  "chemsema.public-cdxml-strict-pass-floor.v4";
+  "chemsema.public-cdxml-strict-pass-floor.v5";
 export const STRICT_PASS_FLOOR_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -366,6 +366,19 @@ export function strictOriginal338PassFloorErrors(
         errors.push(`pass floor is missing analysis layer metadata for ${relativeCdxml}`);
         break;
       }
+      const regressionAlignment = entry.regressionAlignment;
+      if (
+        regressionAlignment?.algorithm !== ALIGNMENT_ALGORITHM
+        || !Number.isFinite(regressionAlignment.scale)
+        || regressionAlignment.scale <= 0
+        || !Number.isFinite(regressionAlignment.dx)
+        || !Number.isFinite(regressionAlignment.dy)
+        || !Number.isFinite(regressionAlignment.vectorFrame?.chemsemaViewBox?.x)
+        || !Number.isFinite(regressionAlignment.vectorFrame?.chemsemaViewBox?.y)
+      ) {
+        errors.push(`pass floor is missing regression alignment for ${relativeCdxml}`);
+        break;
+      }
       const metricErrors = visualCaseMetricContractErrors(entry, options);
       if (metricErrors.length) {
         errors.push(
@@ -591,10 +604,12 @@ const LOCAL_WINDOW_REGRESSION_TOLERANCES = Object.freeze({
   coarse: Object.freeze({
     defectArea: 0.5,
     center: 0.75,
+    improvementWindow: 12,
   }),
   detail: Object.freeze({
     defectArea: 0.25,
     center: 0.75,
+    improvementWindow: 12,
   }),
 });
 
@@ -849,20 +864,9 @@ function spatialMaskContains(index, x, y, cellPixelSize) {
   return word != null && ((word >>> (localIndex % 32)) & 1) === 1;
 }
 
-function unsupportedSpatialPixelSummary(current, baseline, kind, cellPixelSize, radiusPixels) {
-  const baselineIndex = spatialMaskCellIndex(baseline, kind);
-  const offsets = [];
-  const integerRadius = Math.ceil(radiusPixels);
-  for (let dy = -integerRadius; dy <= integerRadius; dy += 1) {
-    for (let dx = -integerRadius; dx <= integerRadius; dx += 1) {
-      const distance = Math.hypot(dx, dy);
-      if (distance <= radiusPixels + 1e-9) offsets.push({ dx, dy, distance });
-    }
-  }
-  offsets.sort((left, right) => left.distance - right.distance
-    || left.dy - right.dy || left.dx - right.dx);
-  let count = 0;
-  const examples = [];
+function unsupportedSpatialPixels(current, other, kind, cellPixelSize, offsets) {
+  const otherIndex = spatialMaskCellIndex(other, kind);
+  const pixels = [];
   for (const cell of current) {
     for (const [wordIndex, encodedBits] of cell[`${kind}MaskWords`]) {
       let bits = encodedBits >>> 0;
@@ -873,15 +877,140 @@ function unsupportedSpatialPixelSummary(current, baseline, kind, cellPixelSize, 
         const x = cell.column * cellPixelSize + localIndex % cellPixelSize;
         const y = cell.row * cellPixelSize + Math.floor(localIndex / cellPixelSize);
         if (!offsets.some(({ dx, dy }) =>
-          spatialMaskContains(baselineIndex, x + dx, y + dy, cellPixelSize))) {
-          count += 1;
-          if (examples.length < 8) examples.push({ x, y });
+          spatialMaskContains(otherIndex, x + dx, y + dy, cellPixelSize))) {
+          pixels.push({ x, y, kind });
         }
         bits = (bits & (bits - 1)) >>> 0;
       }
     }
   }
-  return { count, examples };
+  return pixels;
+}
+
+function spatialPointComponents(pixels) {
+  const remaining = new Map(pixels.map((pixel) => [`${pixel.x},${pixel.y}`, pixel]));
+  const components = [];
+  for (const seed of pixels) {
+    const seedKey = `${seed.x},${seed.y}`;
+    if (!remaining.has(seedKey)) continue;
+    remaining.delete(seedKey);
+    const queue = [seed];
+    let head = 0;
+    let count = 0;
+    let left = seed.x;
+    let right = seed.x;
+    let top = seed.y;
+    let bottom = seed.y;
+    while (head < queue.length) {
+      const point = queue[head++];
+      count += 1;
+      left = Math.min(left, point.x);
+      right = Math.max(right, point.x);
+      top = Math.min(top, point.y);
+      bottom = Math.max(bottom, point.y);
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          if (dx === 0 && dy === 0) continue;
+          const key = `${point.x + dx},${point.y + dy}`;
+          const neighbor = remaining.get(key);
+          if (!neighbor) continue;
+          remaining.delete(key);
+          queue.push(neighbor);
+        }
+      }
+    }
+    components.push({ count, left, right, top, bottom, pixels: queue });
+  }
+  return components;
+}
+
+function spatialPointRowIndex(pixels) {
+  const rows = new Map();
+  for (const { x, y } of pixels) {
+    const xs = rows.get(y) ?? [];
+    xs.push(x);
+    rows.set(y, xs);
+  }
+  for (const xs of rows.values()) xs.sort((left, right) => left - right);
+  return rows;
+}
+
+function lowerBound(values, target) {
+  let left = 0;
+  let right = values.length;
+  while (left < right) {
+    const middle = Math.floor((left + right) / 2);
+    if (values[middle] < target) left = middle + 1;
+    else right = middle;
+  }
+  return left;
+}
+
+function spatialPointsInBox(rows, left, top, right, bottom) {
+  let count = 0;
+  for (let y = top; y <= bottom; y += 1) {
+    const xs = rows.get(y);
+    if (!xs) continue;
+    count += lowerBound(xs, right + 1) - lowerBound(xs, left);
+  }
+  return count;
+}
+
+function locallyUnexplainedSpatialPixels(
+  unsupported,
+  currentPixels,
+  baselinePixels,
+  improvementRadiusPixels,
+) {
+  const currentRows = spatialPointRowIndex(currentPixels);
+  const baselineRows = spatialPointRowIndex(baselinePixels);
+  return spatialPointComponents(unsupported).flatMap((component) => {
+    const left = Math.floor(component.left - improvementRadiusPixels);
+    const right = Math.ceil(component.right + improvementRadiusPixels);
+    const top = Math.floor(component.top - improvementRadiusPixels);
+    const bottom = Math.ceil(component.bottom + improvementRadiusPixels);
+    const currentCount = spatialPointsInBox(currentRows, left, top, right, bottom);
+    const baselineCount = spatialPointsInBox(baselineRows, left, top, right, bottom);
+    return currentCount < baselineCount ? [] : component.pixels;
+  });
+}
+
+function unsupportedSpatialPixelSummary(
+  current,
+  baseline,
+  cellPixelSize,
+  radiusPixels,
+  improvementWindowPixels,
+) {
+  const offsets = [];
+  const integerRadius = Math.ceil(radiusPixels);
+  for (let dy = -integerRadius; dy <= integerRadius; dy += 1) {
+    for (let dx = -integerRadius; dx <= integerRadius; dx += 1) {
+      const distance = Math.hypot(dx, dy);
+      if (distance <= radiusPixels + 1e-9) offsets.push({ dx, dy, distance });
+    }
+  }
+  offsets.sort((left, right) => left.distance - right.distance
+    || left.dy - right.dy || left.dx - right.dx);
+  const unsupported = ["missing", "extra"].flatMap((kind) =>
+    unsupportedSpatialPixels(current, baseline, kind, cellPixelSize, offsets));
+  const currentPixels = ["missing", "extra"].flatMap((kind) =>
+    unsupportedSpatialPixels(current, [], kind, cellPixelSize, []));
+  const baselinePixels = ["missing", "extra"].flatMap((kind) =>
+    unsupportedSpatialPixels(baseline, [], kind, cellPixelSize, []));
+  const unexplained = locallyUnexplainedSpatialPixels(
+    unsupported,
+    currentPixels,
+    baselinePixels,
+    improvementWindowPixels,
+  );
+  return Object.fromEntries(["missing", "extra"].map((kind) => {
+    const pixels = unexplained.filter((pixel) => pixel.kind === kind);
+    return [kind, {
+      count: pixels.length,
+      examples: pixels.slice(0, 8).map(({ x, y }) => ({ x, y })),
+    }];
+  }));
 }
 
 function spatialFloorRegressionReasons(currentFloor, baselineFloor, prefix, tolerances) {
@@ -916,14 +1045,15 @@ function spatialFloorRegressionReasons(currentFloor, baselineFloor, prefix, tole
   const scale = baselineFloor.analysisScale;
   const reasons = [];
   const cellPixelSize = spatialCellPixelSize(scale, baselineFloor.stride);
+  const unsupportedByKind = unsupportedSpatialPixelSummary(
+    current,
+    baseline,
+    cellPixelSize,
+    tolerances.center * scale,
+    tolerances.improvementWindow * scale,
+  );
   for (const kind of ["missing", "extra"]) {
-    const unsupported = unsupportedSpatialPixelSummary(
-      current,
-      baseline,
-      kind,
-      cellPixelSize,
-      tolerances.center * scale,
-    );
+    const unsupported = unsupportedByKind[kind];
     const unsupportedArea = unsupported.count / (scale * scale);
     if (unsupportedArea <= tolerances.defectArea) continue;
     reasons.push({
@@ -1016,6 +1146,17 @@ export function protectedVisualCase(entry) {
     artifactHashes: { reference: entry.artifactHashes?.reference ?? null },
   };
   if (entry.status !== "fail") return protectedCase;
+  if (entry.alignment != null) {
+    protectedCase.regressionAlignment = {
+      algorithm: entry.alignment.algorithm,
+      scale: entry.alignment.scale,
+      dx: entry.alignment.dx,
+      dy: entry.alignment.dy,
+      vectorFrame: {
+        chemsemaViewBox: entry.alignment.vectorFrame?.chemsemaViewBox,
+      },
+    };
+  }
   protectedCase.analysisLayers = {
     coarse: true,
     detail: entry.detail != null,
@@ -1117,50 +1258,60 @@ export function classifyContinuousBaselineRegressions(cases, baselineCases) {
         reasons,
       }] : [];
     }
-    const previousReasons = new Set(baseline.reasons ?? []);
-    const newGateReasons = [...new Set(entry.reasons ?? [])]
-      .filter((reason) => !previousReasons.has(reason))
-      .sort();
-    for (const reason of newGateReasons) {
-      reasons.push({
-        metric: `reason:${reason}`,
-        direction: "absent",
-        before: false,
-        after: true,
-        tolerance: 0,
-      });
-    }
-    for (const metric of CONTINUOUS_REGRESSION_METRICS) {
-      const before = finiteMetricAt(baseline, metric.path);
-      const after = finiteMetricAt(entry, metric.path);
-      if (before === null) continue;
-      if (after === null) {
+    // Current pass/fail classification uses the current candidate's own best
+    // registration. Continuous comparison is a different question: compare
+    // the changed candidate at the historical registration so that removing
+    // an outlying wrong object cannot translate every residual mismatch and
+    // manufacture a whole-image regression.
+    const comparison = entry.regressionFloor ?? entry;
+    const hasSpatialFloor = baseline.local?.spatialFloor
+      && comparison.local?.spatialFloor;
+    if (!hasSpatialFloor) {
+      const previousReasons = new Set(baseline.reasons ?? []);
+      const newGateReasons = [...new Set(comparison.reasons ?? [])]
+        .filter((reason) => !previousReasons.has(reason))
+        .sort();
+      for (const reason of newGateReasons) {
         reasons.push({
-          metric: metric.path,
-          direction: "present",
-          before,
-          after: null,
+          metric: `reason:${reason}`,
+          direction: "absent",
+          before: false,
+          after: true,
           tolerance: 0,
         });
-        continue;
       }
-      if (!metricRegression(metric, before, after)) continue;
-      reasons.push({
-        metric: metric.path,
-        direction: metric.direction,
-        before,
-        after,
-        tolerance: metric.tolerance,
-      });
+      for (const metric of CONTINUOUS_REGRESSION_METRICS) {
+        const before = finiteMetricAt(baseline, metric.path);
+        const after = finiteMetricAt(comparison, metric.path);
+        if (before === null) continue;
+        if (after === null) {
+          reasons.push({
+            metric: metric.path,
+            direction: "present",
+            before,
+            after: null,
+            tolerance: 0,
+          });
+          continue;
+        }
+        if (!metricRegression(metric, before, after)) continue;
+        reasons.push({
+          metric: metric.path,
+          direction: metric.direction,
+          before,
+          after,
+          tolerance: metric.tolerance,
+        });
+      }
     }
     reasons.push(...spatialFloorRegressionReasons(
-      entry.local?.spatialFloor,
+      comparison.local?.spatialFloor,
       baseline.local?.spatialFloor,
       "local.spatialFloor",
       LOCAL_WINDOW_REGRESSION_TOLERANCES.coarse,
     ));
     reasons.push(...spatialFloorRegressionReasons(
-      entry.detail?.local?.spatialFloor,
+      comparison.detail?.local?.spatialFloor,
       baseline.detail?.local?.spatialFloor,
       "detail.local.spatialFloor",
       LOCAL_WINDOW_REGRESSION_TOLERANCES.detail,
@@ -2388,27 +2539,70 @@ function compactSpatialMetrics(metrics) {
   return metrics;
 }
 
+function fixedAlignmentRegressionMetrics(coarseMetrics, detailMetrics, options) {
+  return compactSpatialMetrics(classifyAnalyzedVisualMetrics(
+    coarseMetrics,
+    detailMetrics,
+    options,
+  ));
+}
+
+export function historicalDocumentAlignment(historicalAlignment, currentAlignment) {
+  const historicalViewBox = historicalAlignment?.vectorFrame?.chemsemaViewBox;
+  const currentViewBox = currentAlignment?.vectorFrame?.chemsemaViewBox;
+  if (
+    historicalAlignment?.algorithm !== ALIGNMENT_ALGORITHM
+    || currentAlignment?.algorithm !== ALIGNMENT_ALGORITHM
+    || !Number.isFinite(historicalAlignment.scale)
+    || !Number.isFinite(historicalAlignment.dx)
+    || !Number.isFinite(historicalAlignment.dy)
+    || !Number.isFinite(historicalViewBox?.x)
+    || !Number.isFinite(historicalViewBox?.y)
+    || !Number.isFinite(currentViewBox?.x)
+    || !Number.isFinite(currentViewBox?.y)
+  ) return null;
+  return {
+    ...historicalAlignment,
+    // SVG export crops to its current viewBox. Preserve the historical map
+    // from ChemSema document coordinates to ChemDraw reference coordinates,
+    // not the obsolete crop's top-left pixel.
+    dx: historicalAlignment.dx
+      + historicalAlignment.scale * (currentViewBox.x - historicalViewBox.x),
+    dy: historicalAlignment.dy
+      + historicalAlignment.scale * (currentViewBox.y - historicalViewBox.y),
+    chemsemaWidth: currentAlignment.chemsemaWidth,
+    chemsemaHeight: currentAlignment.chemsemaHeight,
+    vectorFrame: currentAlignment.vectorFrame,
+  };
+}
+
 export function gatePolicy(options) {
   return {
     coordinateSpace: "ChemDraw reference image coordinates",
     alignment:
       "ChemDraw's declared vector matrix fixes scale; a broad multiresolution global-overlap "
       + "search resolves translation independently for the current candidate; historical "
-      + "pass protection never changes current-image registration",
+      + "pass protection never changes current-image registration; continuous comparison of "
+      + "an already-failing case separately preserves its historical document-coordinate map "
+      + "while compensating for changes to the exported SVG crop",
     canvasWhitespaceIncluded: false,
     caseWeighting: "one case, one vote",
     comparison: "coarse fixed-window coverage and defects, followed by spatially independent fine connected-component and repeated-micro-defect checks",
     regressionProtection:
-      "every failed case retains compressed fixed-grid coarse and detail missing/extra occupancy masks in ChemDraw coordinates; every current mismatch pixel requires historical same-kind support inside a fixed absolute tolerance, and unsupported pixels accumulate across all cells so no improvement can cancel a new local defect",
+      "every failed case retains its historical document-coordinate registration and compressed fixed-grid coarse and detail missing/extra occupancy masks; same-kind mismatch support inside a fixed absolute tolerance is stable, while an unsupported connected defect is accepted only when pooled missing-plus-extra mismatch mass decreases inside its fixed 12-reference-unit neighborhood; unresolved pixels accumulate globally so distant improvements cannot cancel a new local defect",
     regressionTolerances: {
       coarseUnsupportedArea:
         LOCAL_WINDOW_REGRESSION_TOLERANCES.coarse.defectArea,
       coarseSupportRadius:
         LOCAL_WINDOW_REGRESSION_TOLERANCES.coarse.center,
+      coarseLocalImprovementRadius:
+        LOCAL_WINDOW_REGRESSION_TOLERANCES.coarse.improvementWindow,
       detailUnsupportedArea:
         LOCAL_WINDOW_REGRESSION_TOLERANCES.detail.defectArea,
       detailSupportRadius:
         LOCAL_WINDOW_REGRESSION_TOLERANCES.detail.center,
+      detailLocalImprovementRadius:
+        LOCAL_WINDOW_REGRESSION_TOLERANCES.detail.improvementWindow,
     },
     pass: {
       minimumCandidateViewportInkMargin: options.minCandidateViewportInkMargin,
@@ -3249,6 +3443,49 @@ async function main() {
           alignment,
           detailAnalysisOptions(options),
         );
+        const regressionBaseline = regressionBaselineCases.get(
+          normalizedCasePath(item.relativeCdxml),
+        );
+        const historicalAlignment = historicalDocumentAlignment(
+          regressionBaseline?.regressionAlignment ?? regressionBaseline?.alignment,
+          alignment,
+        );
+        let regressionFloor = null;
+        if (
+          regressionBaseline?.status === "fail"
+          && historicalAlignment
+        ) {
+          const sameAlignment = ["scale", "dx", "dy"].every((key) =>
+            Number.isFinite(historicalAlignment[key])
+              && Math.abs(historicalAlignment[key] - alignment[key]) <= 1e-9);
+          if (sameAlignment) {
+            regressionFloor = fixedAlignmentRegressionMetrics(
+              structuredClone(coarseMetrics),
+              structuredClone(detailMetrics),
+              options,
+            );
+          } else {
+            const historicalCoarseMetrics = await analyzeAlignedImages(
+              activePage,
+              referenceDataUrl,
+              candidateDataUrl,
+              historicalAlignment,
+              options,
+            );
+            const historicalDetailMetrics = await analyzeAlignedImages(
+              activePage,
+              referenceDataUrl,
+              candidateDataUrl,
+              historicalAlignment,
+              detailAnalysisOptions(options),
+            );
+            regressionFloor = fixedAlignmentRegressionMetrics(
+              historicalCoarseMetrics,
+              historicalDetailMetrics,
+              options,
+            );
+          }
+        }
         const metrics = compactSpatialMetrics(applyCandidateViewportGate(
           classifyAnalyzedVisualMetrics(coarseMetrics, detailMetrics, options),
           candidateViewport,
@@ -3261,6 +3498,7 @@ async function main() {
           alignment,
           artifactHashes: hashes,
           cacheStatus: "analyzed",
+          ...(regressionFloor ? { regressionFloor } : {}),
           ...metrics,
         };
         const metricErrors = visualCaseMetricContractErrors(analyzedCase, options);
