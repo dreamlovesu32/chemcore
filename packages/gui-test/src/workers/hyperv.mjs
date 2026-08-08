@@ -11,6 +11,7 @@ const repositoryRoot = dirname(dirname(dirname(dirname(dirname(fileURLToPath(imp
 const defaultAgentPath = join(repositoryRoot, "target", "release", "chemsema-gui-test-agent.exe");
 const defaultCandidatePath = join(repositoryRoot, "target", "release", "chemsema-desktop.exe");
 const defaultCdpScriptPath = join(repositoryRoot, "packages", "gui-test", "scripts", "guest-cdp.ps1");
+const actionBrokerPath = join(repositoryRoot, "packages", "gui-test", "scripts", "hyperv-action-broker.ps1");
 
 export function expandWindowsEnvironment(template, environment = process.env) {
   return template.replace(/%([^%]+)%/g, (_, name) => {
@@ -48,6 +49,81 @@ function defaultExecutor(args, { timeoutMs = 120000 } = {}) {
       resolve({ status: status ?? 1, stdout, stderr, error: failure });
     });
   });
+}
+
+class PersistentActionExecutor {
+  constructor({ profile, environment }) {
+    this.profile = profile;
+    this.environment = environment;
+    this.pending = new Map();
+    this.stdout = "";
+  }
+
+  async start() {
+    if (this.child) return this.ready;
+    const credentialPath = expandWindowsEnvironment(this.profile.credential.pathTemplate, this.environment);
+    this.ready = new Promise((resolve, reject) => { this.resolveReady = resolve; this.rejectReady = reject; });
+    this.child = spawn("powershell.exe", [
+      "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+      "-File", actionBrokerPath,
+      "-CoordinatorPath", scriptPath,
+      "-VmId", this.profile.vm.id,
+      "-CredentialPath", credentialPath,
+    ], { windowsHide: true, shell: false, stdio: ["pipe", "pipe", "pipe"] });
+    this.child.stdout.on("data", (chunk) => this.onStdout(chunk.toString("utf8")));
+    this.child.stderr.on("data", (chunk) => { this.stderr = `${this.stderr || ""}${chunk.toString("utf8")}`.slice(-65536); });
+    this.child.on("error", (error) => this.failAll(error));
+    this.child.on("close", (code) => this.failAll(new Error(`Persistent action broker exited with status ${code}: ${this.stderr || "no stderr"}`)));
+    const timer = setTimeout(() => this.rejectReady(new Error("Persistent action broker did not become ready within 30 seconds.")), 30000);
+    try { await this.ready; } finally { clearTimeout(timer); }
+  }
+
+  onStdout(chunk) {
+    this.stdout += chunk;
+    const lines = this.stdout.split(/\r?\n/);
+    this.stdout = lines.pop() || "";
+    for (const line of lines.filter(Boolean)) {
+      let message;
+      try { message = JSON.parse(line); } catch { this.failAll(new Error("Persistent action broker emitted malformed JSON.")); continue; }
+      if (message.schema === "chemsema.gui.host-action-broker.v1") {
+        if (message.status === "ready") this.resolveReady(message);
+        else this.rejectReady(new Error(message.message || "Persistent action broker failed."));
+        continue;
+      }
+      const pending = this.pending.get(message.id);
+      if (!pending || message.schema !== "chemsema.gui.host-action-response.v1") { this.failAll(new Error("Persistent action broker response identity is invalid.")); continue; }
+      this.pending.delete(message.id);
+      clearTimeout(pending.timer);
+      pending.resolve({ status: message.status, stdout: message.stdout || "", stderr: message.stderr || "" });
+    }
+  }
+
+  failAll(error) {
+    this.rejectReady?.(error);
+    for (const pending of this.pending.values()) { clearTimeout(pending.timer); pending.reject(error); }
+    this.pending.clear();
+  }
+
+  async execute(fullArguments, { timeoutMs }) {
+    await this.start();
+    const fileIndex = fullArguments.indexOf("-File");
+    if (fileIndex < 0 || fullArguments[fileIndex + 1] !== scriptPath) throw new Error("Action broker received an invalid coordinator command.");
+    const id = randomUUID().replaceAll("-", "");
+    const request = { schema: "chemsema.gui.host-action-request.v1", id, arguments: fullArguments.slice(fileIndex + 2) };
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error(`Persistent action broker exceeded ${timeoutMs} ms.`)); }, timeoutMs);
+      this.pending.set(id, { resolve, reject, timer });
+      this.child.stdin.write(`${JSON.stringify(request)}\n`, "utf8");
+    });
+  }
+
+  async close() {
+    if (!this.child) return;
+    const child = this.child;
+    this.child = null;
+    child.stdin.end();
+    await new Promise((resolve) => { const timer = setTimeout(() => { child.kill(); resolve(); }, 10000); child.once("close", () => { clearTimeout(timer); resolve(); }); });
+  }
 }
 
 function parseResult(result, operation) {
@@ -93,6 +169,7 @@ export class HyperVCoordinator {
     this.profile = profile;
     this.executor = executor;
     this.environment = environment;
+    this.actionExecutor = executor === defaultExecutor ? new PersistentActionExecutor({ profile, environment }) : null;
   }
 
   async validateProfile() {
@@ -152,6 +229,7 @@ export class HyperVCoordinator {
   }
 
   async reset() {
+    await this.actionExecutor?.close();
     await this.attestHost();
     const result = await this.execute("reset", [], { timeoutMs: 120000 });
     if (String(result.checkpoint?.id || "").toLowerCase() !== this.profile.vm.checkpoint.id.toLowerCase() || result.state !== "Off") {
@@ -395,7 +473,11 @@ export class HyperVCoordinator {
     const request = { schema: "chemsema.gui.action-transaction.v1", input, completion, budgetMs };
     await assertValidDocument(request, "candidate action transaction request");
     const encoded = Buffer.from(JSON.stringify(request), "utf8").toString("base64");
-    const result = await this.execute("action-transaction", ["-ActionRequestBase64", encoded], { timeoutMs: Math.max(30000, budgetMs + 10000) });
+    const argumentsForAction = this.argumentsFor("action-transaction", ["-ActionRequestBase64", encoded]);
+    const raw = this.actionExecutor
+      ? await this.actionExecutor.execute(argumentsForAction, { timeoutMs: Math.max(30000, budgetMs + 10000) })
+      : await this.executor(argumentsForAction, { timeoutMs: Math.max(30000, budgetMs + 10000) });
+    const result = parseResult(raw, "action-transaction");
     const agent = cleanAgentAttestation(result.transaction?.input);
     const transaction = { ...result.transaction, input: agent };
     await assertValidDocument(agent, "candidate action transaction input attestation");
@@ -481,6 +563,7 @@ export class HyperVCoordinator {
   }
 
   async stop() {
+    await this.actionExecutor?.close();
     return this.execute("stop");
   }
 }

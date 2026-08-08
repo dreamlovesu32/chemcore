@@ -772,6 +772,10 @@ npm run gui-platform:test
 
 跨文档剪贴板覆盖现已通过 `core.clipboard.cross-document-mixed.production` 投入运行。受守卫真实输入在源文档创建并选中“分子+箭头”，经 Windows 剪贴板复制，通过公开 `New file` 标签按钮创建第二个文档，先证明当前目标文档为空，再粘贴到这个独立文档。动作回执记录文档标签 `1 -> 2`、目标文档键 `0 -> 1`、目标文档不同箭头身份 `0 -> 1`；5 个最终 oracle 证明共有两个标签、恰有一个活动标签，以及目标文档的精确混合对象数量。候选 `4a7dcc47e2f4469f5aed4f7963c6a7506fa413f7c20879984a9179632ebb6b07` 的 11 个动作全部通过，evidence key 为 `f20a768332299ecc0d642ac3e4605607f9271749fdb119d14f3be32fd5b7d835`。6 个 manifest 对象重新计算 SHA-256 均精确一致，诊断为空，VM 回到 `Off` 且分配内存为 0。浏览器/桌面互传、Office、选择性粘贴和独立打开文档等边界仍是显式工作。
 
+生产动作传输现改为每个场景复用一个有界 host broker 和一个经过认证的 PowerShell Direct `PSSession`。针对 `01c3525` 的九场景资格运行首次在混合对象 redo 处 fail-closed，evidence key 为 `fe6b0ad2f3f4bee8d4643d5e59706fa7e286a29a9775adc0e397e48f67ed76cf`：产品已正确把键数从 2 改为 0，但每动作新建 host 进程和临时会话的返回耗时达到 12.003 秒，违反未改变的 12 秒端到端预算。没有提高预算。broker 只接受有界 JSONL 和白名单中的 `action-transaction`，把严格参数白名单转换为命名 splatting，并在 VM 关闭前释放；guest 输入与 CDP 观测仍相互独立。首次 broker 集成失败保留在 `7ae540b9b1a3dd0bf8c4955dba3f17ae03504611779b1442bf0a91f2e705828e`，根因是位置数组 splatting，已改为验证后的命名参数。完全相同的混合场景随后以 `636d57f48d5c343f468cda12d5a719374194edbaf58e0871de08021ece342fa4` 通过：首个包含会话建立的动作耗时 4.292 秒，其余动作稳定在 2.077–2.301 秒，redo 为 2.301 秒。
+
+broker 资格闭包已通过全部 9 个登记场景：浏览器 `576267d3c1695ad40e619b59e82a41d0bd9b59f21f4f0a1a2d1324c656a868ba`；生产单键 `8f3050f525f7d5fca641b49a02ebacc99ffa9d7fd4940d23f68bd06b7e1808d9`、历史 `9e2d1f03b021f6b4c9eca52ae0328228c09075568938cc622a32a426c02a971a`、多键 `50c9042b06a256d8add5c140fb088ae5f50fd2c659a406ea6feb9d21711b37fd`、混合对象 `636d57f48d5c343f468cda12d5a719374194edbaf58e0871de08021ece342fa4`、嵌套组合 `fd1b4d24dc89b84c07bf32afbcdedbeb014bea5202dc7339d654ea973447cacd`、保存/重开 `7111c295b24643fba15762b04b9af4cdbda244ea5da70408087f3200642d9212`、区域/追加 `86360d45c8cd3199286d8a8b513746b05636d67c28068877f00ce04880f04628`、跨文档剪贴板 `2eb71278cea5ec472ba0c2ce6947470487b0a308e9b57c59ab962dfe80c25552`。99 个动作与 31 个最终 oracle 全部通过；57 个 manifest 对象重新计算 SHA-256 均一致；诊断和截断均为 0。VM 最终为 `Off` 且分配内存为 0。影响图现在区分生产传输、生产 driver、浏览器 driver 与平台测试来源，使仅传输层变化只失效 8 个生产场景，不再无意义重跑浏览器场景。
+
 ## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>

@@ -377,6 +377,7 @@ test("production world geometry targets are restricted to the rendered page", as
 test("production action transaction uses one guest invocation for before, input, completion, and after", async () => {
   const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const source = await readFile(join(packageRoot, "scripts", "hyperv-coordinator.ps1"), "utf8");
+  const broker = await readFile(join(packageRoot, "scripts", "hyperv-action-broker.ps1"), "utf8");
   const start = source.indexOf("function Invoke-ActionTransaction");
   const end = source.indexOf("function Get-ServiceAgentAttestation", start);
   const transaction = source.slice(start, end);
@@ -389,6 +390,10 @@ test("production action transaction uses one guest invocation for before, input,
   assert.match(transaction, /'input-channel'/);
   assert.match(transaction, /'cdp-channel'/);
   assert.match(transaction, /chemsema\.gui\.action-transaction-receipt\.v1/);
+  assert.match(source, /ChemSemaGuiPersistentSession/);
+  assert.match(broker, /New-PSSession -VMId/);
+  assert.match(broker, /Broker only accepts action-transaction operations/);
+  assert.doesNotMatch(broker, /Invoke-Expression|\biex\b/i);
 });
 
 test("service-session agent attestation cannot claim interactive readiness", async () => {

@@ -68,7 +68,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "crates/chemsema-gui-test-agent/src/windows.rs",
       "scripts/tests/recovery-journal.test.mjs",
     ],
-    matchedSources: ["source.document-recovery-test", "source.gui-platform", "source.test-entrypoints"],
+    matchedSources: ["source.document-recovery-test", "source.gui-production-transport", "source.test-entrypoints"],
     unmatchedPaths: [],
     expandedForUncertainty: false,
     scenarios: [
@@ -87,6 +87,17 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
   ]);
+  assert.deepEqual(selectImpactedScenarios(graph, ["crates/chemsema-gui-test-agent/src/windows.rs"]), [
+    "scenario.core.bond.draw-single.production",
+    "scenario.core.clipboard.cross-document-mixed.production",
+    "scenario.core.document.save-open-roundtrip.production",
+    "scenario.core.group.nested-mixed-clipboard.production",
+    "scenario.core.history.undo-redo-bond.production",
+    "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
+    "scenario.core.selection.clipboard-delete-multi-bond.production",
+    "scenario.core.selection.region-additive-mixed-cardinalities.production",
+  ]);
+  assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/tests/hyperv.test.mjs"]), []);
   assert.deepEqual(planImpactedScenarios(graph, ["unknown/new-surface.js"]), {
     changedPaths: ["unknown/new-surface.js"],
     matchedSources: [],

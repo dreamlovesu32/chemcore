@@ -117,6 +117,11 @@ function Get-GuestCredential {
 }
 
 function Invoke-Guest([scriptblock]$ScriptBlock, [object[]]$ArgumentList = @()) {
+  $persistentSession = Get-Variable -Name ChemSemaGuiPersistentSession -Scope Global -ValueOnly -ErrorAction SilentlyContinue
+  if ($null -ne $persistentSession) {
+    if ($persistentSession.State -ne 'Opened') { throw 'Persistent PowerShell Direct session is not open.' }
+    return Invoke-Command -Session $persistentSession -ScriptBlock $ScriptBlock -ArgumentList $ArgumentList
+  }
   $credential = Get-GuestCredential
   $vm = Get-WorkerVm
   Invoke-Command -VMId $vm.Id -Credential $credential -ScriptBlock $ScriptBlock -ArgumentList $ArgumentList
