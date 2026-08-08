@@ -7,7 +7,7 @@ import {
   parseRecoveryJournal,
   recoveryJournalJsonl,
 } from "../../viewer/recovery_journal.js";
-import { createDocumentRecoveryManager, recoveryDocumentKey } from "../../viewer/document_recovery.js";
+import { createDocumentRecoveryManager, discardDocumentRecovery, recoveryDocumentKey } from "../../viewer/document_recovery.js";
 
 test("browser recovery journal verifies its hash chain", async () => {
   const journal = await createRecoveryJournal("ab".repeat(32));
@@ -45,6 +45,23 @@ test("document recovery manager compacts only after an explicit checkpoint", asy
   assert.equal((await manager.recover("id:doc", { ...base, changed: true })).baseMismatch, true);
   await manager.compact("id:doc");
   assert.equal(values.has("id:doc"), false);
+});
+
+test("discarding a dirty saved tab removes the exact path recovery journal", async () => {
+  const values = new Map();
+  const store = {
+    get: async (key) => values.get(key) || null,
+    put: async (key, value) => values.set(key, value),
+    delete: async (key) => values.delete(key),
+  };
+  const manager = createDocumentRecoveryManager(store);
+  const base = { format: { name: "chemsema", version: "0.2" }, document: { id: "doc" } };
+  const tab = { currentDocument: base, currentFilePath: "C:\\work\\roundtrip.ccjs", currentFileName: "roundtrip.ccjs" };
+  const key = recoveryDocumentKey(base, tab.currentFilePath, tab.currentFileName);
+  await manager.append(key, base, { beforeRevision: 0, revision: 1 });
+  assert.equal((await manager.recover(key, base)).patches.length, 1);
+  assert.equal(await discardDocumentRecovery(manager, tab), true);
+  assert.deepEqual(await manager.recover(key, base), { patches: [], ignoredTruncatedTail: false });
 });
 
 test("desktop recovery uses a same-document sidecar while browser documents use IndexedDB", async () => {

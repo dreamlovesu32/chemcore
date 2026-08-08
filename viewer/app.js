@@ -8,7 +8,7 @@ import {
   renderListFromEngine,
   setChemSemaRuntimeRevision,
 } from "./engine_bridge.js";
-import { createDocumentRecoveryManager, recoveryDocumentKey } from "./document_recovery.js";
+import { createDocumentRecoveryManager, discardDocumentRecovery, recoveryDocumentKey } from "./document_recovery.js";
 import { DurableRecoveryJournalStore, IndexedDbRecoveryJournalStore } from "./recovery_journal.js";
 import { createAppDomRefs } from "./app_dom.js";
 import { registerChemSemaDebug } from "./app_debug.js";
@@ -722,6 +722,7 @@ const appWindowLifecycleHost = createAppWindowLifecycleHost({
   saveCurrentDocument: (...args) => saveCurrentDocument(...args),
   isAbortError: (...args) => isAbortError(...args),
   autoSaveAllOleEditDocumentTabs,
+  discardRecoveryJournalForTab: (tab) => discardDocumentRecovery(documentRecoveryManager, tab),
   uiActions,
 });
 

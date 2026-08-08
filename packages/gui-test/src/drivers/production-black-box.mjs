@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import { guiTestsDir } from "../protocol/paths.mjs";
 import { readValidatedDocument } from "../protocol/validate.mjs";
+import { evaluateDocumentReports, inspectDocumentBytes } from "../oracles/document-file.mjs";
 import { HyperVCoordinator } from "../workers/hyperv.mjs";
 
 const defaultProfilePath = join(guiTestsDir, "environments", "windows-gui-worker-current.json");
@@ -98,6 +100,8 @@ export class ProductionBlackBoxDriver {
     const trace = await this.coordinator.cdpBridge({ mode: "trace-start" });
     if (!trace?.started) throw new Error("WebView performance tracing did not start.");
     mark("performance-trace-started");
+    this.documentOutput = await this.coordinator.prepareDocumentOutput("roundtrip.ccjs");
+    mark("document-output-prepared");
   }
 
   capabilities() {
@@ -112,13 +116,27 @@ export class ProductionBlackBoxDriver {
       "editor.clipboard.copy-paste",
       "editor.selection.delete",
       "editor.history.undo-redo",
+      "document.save-as",
+      "document.open",
+      "document.close-discard",
+      "document.roundtrip",
       "oracle.dom",
       "oracle.diagnostics",
+      "oracle.document-file",
       "desktop.production",
     ];
   }
 
   async resolve(target) {
+    if (target.strategy === "uia-automation-id") {
+      const value = await this.coordinator.queryUiaByAutomationId(target.value, { controlType: target.controlType });
+      const matches = value.query.matches
+        .filter((match) => !match.offscreen && match.enabled && match.className === target.className)
+        .map((match) => ({ ...match, visible: true, disabled: false, coordinateSpace: "screen" }));
+      if (matches.length !== 1) throw new Error(`Native UI target resolved to ${matches.length} visible enabled elements.`);
+      this.targets.set(key(target), matches[0]);
+      return { target, match: matches[0] };
+    }
     const value = await this.coordinator.cdpBridge({ mode: "locate", target });
     if (target.scope && value.scopeCount !== 1) {
       throw new Error(`Target scope resolved to ${value.scopeCount} elements.`);
@@ -134,6 +152,9 @@ export class ProductionBlackBoxDriver {
   async inputGeometry(target) {
     const match = this.targets.get(key(target));
     if (!match) throw new Error("Action target was not resolved before input.");
+    if (match.coordinateSpace === "screen") {
+      return { rect: match.rect, screen: (point) => point.map((value) => Math.round(value)) };
+    }
     const client = this.foreground?.clientRect;
     if (!Array.isArray(client) || client.length !== 4) {
       throw new Error("Authorized candidate client geometry is unavailable.");
@@ -170,11 +191,20 @@ export class ProductionBlackBoxDriver {
       this.foreground = receipt.agent.foreground;
       return result;
     }
+    if (input.kind === "text") {
+      const receipt = await this.coordinator.candidateInput("text", { text: input.text });
+      this.foreground = receipt.agent.foreground;
+      return result;
+    }
     throw new Error(`Production black-box input type ${action.type} is not implemented.`);
   }
 
   async resolveActionInput(action) {
     if (action.type === "key") return { input: { kind: "key", key: action.key }, result: { kind: "key", key: action.key } };
+    if (action.type === "text") {
+      if (action.textSource !== "document-output-path" || !this.documentOutput?.guestPath) throw new Error("Document output path is unavailable for text input.");
+      return { input: { kind: "text", text: this.documentOutput.guestPath }, result: { kind: "text", textSource: action.textSource } };
+    }
     const geometry = await this.inputGeometry(action.target);
     const [left, top, right, bottom] = geometry.rect;
     if (action.type === "click") {
@@ -198,23 +228,87 @@ export class ProductionBlackBoxDriver {
 
   async executeAction(action) {
     const { input } = await this.resolveActionInput(action);
+    if (action.target.strategy === "uia-automation-id" || ["uia-visible", "document-saved"].includes(action.completion.kind) || input.kind === "text") {
+      const nativeTarget = action.target.strategy === "uia-automation-id";
+      if (nativeTarget && !this.lastActionState) {
+        throw new Error("Native dialog input requires a stable WebView state captured before the dialog opened.");
+      }
+      const before = nativeTarget ? this.lastActionState : await this.actionState();
+      const result = await this.performResolvedInput(input, action);
+      const closesNativeDialog = nativeTarget && action.completion.kind !== "actionable" && action.completion.kind !== "uia-visible";
+      if (closesNativeDialog) {
+        await this.waitForNativeTargetDismissal(action.target, action.completion.timeoutMs);
+        const attestation = await retry(() => this.coordinator.attestInteractiveAgent(), { timeoutMs: action.completion.timeoutMs, intervalMs: 200 });
+        this.foreground = attestation.agent.foreground;
+      }
+      const completion = await this.waitForCompletion(action.completion);
+      const nativeDialogRemains = action.completion.kind === "uia-visible" || (nativeTarget && !closesNativeDialog);
+      const after = nativeDialogRemains ? before : await this.actionState();
+      return { before, after, completion, result };
+    }
     const receipt = await this.coordinator.candidateAction(input, action.completion, action.budgetMs);
     this.foreground = receipt.transaction.input.foreground;
+    this.lastActionState = this.stateReceipt(receipt.transaction.after);
     return {
       before: this.stateReceipt(receipt.transaction.before),
-      after: this.stateReceipt(receipt.transaction.after),
+      after: this.lastActionState,
       completion: receipt.transaction.completion,
     };
+  }
+
+  async performResolvedInput(input, action) {
+    if (input.kind === "key") {
+      const receipt = await this.coordinator.candidateInput("key", { key: input.key });
+      this.foreground = receipt.agent.foreground;
+      return { kind: "key", key: input.key };
+    }
+    if (input.kind === "text") {
+      const receipt = await this.coordinator.candidateInput("text", { text: input.text });
+      this.foreground = receipt.agent.foreground;
+      return { kind: "text", textSource: action.textSource };
+    }
+    if (input.kind === "click") {
+      const receipt = await this.coordinator.candidateInput("click", { x: input.x, y: input.y }, { button: input.button });
+      this.foreground = receipt.agent.foreground;
+      return { kind: "click", screen: [input.x, input.y] };
+    }
+    if (input.kind === "drag") {
+      const receipt = await this.coordinator.candidateInput("drag", { from: input.from, to: input.to }, { button: input.button, steps: input.steps });
+      this.foreground = receipt.agent.foreground;
+      return { kind: "drag", from: input.from, to: input.to };
+    }
+    throw new Error(`Unsupported resolved input ${input.kind}.`);
+  }
+
+  async waitForNativeTargetDismissal(target, timeoutMs) {
+    const resolved = this.targets.get(key(target));
+    if (!resolved?.topLevelClassName || !resolved?.topLevelName) {
+      throw new Error(`Native UI target ${target.value} has no captured top-level dialog identity.`);
+    }
+    return retry(async () => {
+      const value = await this.coordinator.queryUiaByAutomationId(target.value, { controlType: target.controlType });
+      const matches = value.query.matches.filter((match) =>
+        !match.offscreen && match.enabled && match.className === target.className
+      );
+      if (matches.length !== 0) throw new Error(`Native UI target ${target.value} is still visible after input.`);
+      const dialogRemains = value.query.topLevels?.some((root) =>
+        !root.offscreen && root.className === resolved.topLevelClassName && root.name === resolved.topLevelName
+      );
+      if (dialogRemains) throw new Error(`Native dialog ${resolved.topLevelName} is still visible after input.`);
+      return { dismissed: true, automationId: target.value, topLevelName: resolved.topLevelName };
+    }, { timeoutMs, intervalMs: 200 });
   }
 
   async actionState() {
     if (this.completedActionState) {
       const state = this.completedActionState;
       this.completedActionState = null;
+      this.lastActionState = state;
       return state;
     }
     const state = await this.coordinator.cdpBridge({ mode: "state" });
-    return this.stateReceipt(state);
+    this.lastActionState = this.stateReceipt(state);
+    return this.lastActionState;
   }
 
   async waitForCompletion(completion) {
@@ -235,6 +329,14 @@ export class ProductionBlackBoxDriver {
       }, { timeoutMs: completion.timeoutMs, intervalMs: 200 });
       return { observed };
     }
+    if (completion.kind === "uia-visible") {
+      const resolved = await retry(() => this.resolve(completion.target), { timeoutMs: completion.timeoutMs, intervalMs: 200 });
+      return { visible: true, automationId: resolved.match.automationId, controlType: resolved.match.controlType };
+    }
+    if (completion.kind === "document-saved") {
+      const document = await retry(() => this.ensureSavedDocument(), { timeoutMs: completion.timeoutMs, intervalMs: 250 });
+      return { saved: true, size: document.transfer.size, sha256: document.transfer.sha256 };
+    }
     throw new Error(`Unsupported completion ${completion.kind}.`);
   }
 
@@ -242,7 +344,20 @@ export class ProductionBlackBoxDriver {
     if (oracle.kind === "dom-count") return this.coordinator.cdpBridge({ mode: "count", selector: oracle.selector });
     if (oracle.kind === "dom-distinct-count") return this.coordinator.cdpBridge({ mode: "distinct-count", selector: oracle.selector, attribute: oracle.attribute });
     if (oracle.kind === "no-unexpected-diagnostics") return [...this.diagnostics];
+    if (oracle.kind === "document-counts") {
+      const document = await this.ensureSavedDocument();
+      return evaluateDocumentReports(document.reports, oracle.expected);
+    }
     throw new Error(`Unsupported oracle ${oracle.kind}.`);
+  }
+
+  async ensureSavedDocument() {
+    if (this.savedDocument) return this.savedDocument;
+    if (!this.documentOutput) throw new Error("No bounded document output was prepared.");
+    const transfer = await this.coordinator.fetchDocumentOutput(this.documentOutput);
+    const reports = await inspectDocumentBytes(transfer.bytes);
+    this.savedDocument = { transfer, reports };
+    return this.savedDocument;
   }
 
   async environment() {
@@ -262,18 +377,34 @@ export class ProductionBlackBoxDriver {
     const truncated = exportManifest?.artifacts?.filter((artifact) => artifact.truncated).map((artifact) => artifact.name) || [];
     if (truncated.length) throw new Error(`Production artifact export truncated required payloads: ${truncated.join(", ")}.`);
     const payloads = await this.coordinator.fetchArtifacts(exportManifest);
-    const expected = ["final-screenshot.png", "final-state.json", "final-dom.html", "performance-trace.json", "webview.log"];
+    const expected = ["final-screenshot.png", "final-state.json", "final-dom.html", "performance-trace.json.gz", "webview.log"];
     const names = payloads.map((payload) => payload.name).sort();
     if (JSON.stringify(names) !== JSON.stringify([...expected].sort())) {
       throw new Error(`Production artifact export returned an unexpected payload set: ${names.join(", ")}.`);
     }
-    const trace = payloads.find((payload) => payload.name === "performance-trace.json");
+    const trace = payloads.find((payload) => payload.name === "performance-trace.json.gz");
     let traceDocument;
-    try { traceDocument = JSON.parse(trace.bytes.toString("utf8")); } catch (error) {
-      throw new Error(`Production performance trace is not valid JSON: ${error.message}`);
+    try {
+      const decompressed = gunzipSync(trace.bytes, { maxOutputLength: 256 * 1024 * 1024 });
+      traceDocument = JSON.parse(decompressed.toString("utf8"));
+    } catch (error) {
+      throw new Error(`Production performance trace is not valid bounded gzip JSON: ${error.message}`);
     }
     if (!Array.isArray(traceDocument.traceEvents) || traceDocument.traceEvents.length === 0) {
       throw new Error("Production performance trace contains no trace events.");
+    }
+    if (this.savedDocument) {
+      payloads.push({ name: "saved-document.ccjs", mediaType: "application/vnd.chemsema.document+json", bytes: this.savedDocument.transfer.bytes });
+      payloads.push({
+        name: "saved-document-inspect.json",
+        mediaType: "application/json",
+        bytes: Buffer.from(JSON.stringify({
+          schema: "chemsema.gui.document-oracle.v1",
+          size: this.savedDocument.transfer.size,
+          sha256: this.savedDocument.transfer.sha256,
+          ...this.savedDocument.reports,
+        }), "utf8"),
+      });
     }
     return payloads;
   }

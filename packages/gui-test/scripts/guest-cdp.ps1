@@ -170,7 +170,7 @@ try {
         categories = $TraceCategories
         transferMode = 'ReturnAsStream'
         streamFormat = 'json'
-        streamCompression = 'none'
+        streamCompression = 'gzip'
         bufferUsageReportingInterval = 1000
       })
       $script:TraceActive = $true
@@ -290,6 +290,11 @@ try {
     if (query.strategy === 'role') {
       return [...root.querySelectorAll('*')].filter(element => roleOf(element) === query.value && (!query.name || nameOf(element) === query.name));
     }
+    if (query.strategy === 'world-geometry') {
+      if (query.value !== 'page-background') throw new Error('Unsupported world geometry target ' + query.value);
+      const element = root.querySelector('[data-layer="page-background"]');
+      return element ? [element] : [];
+    }
     throw new Error('Unsupported CDP target strategy ' + query.strategy);
   };
   let root = document;
@@ -380,7 +385,7 @@ try {
         [ordered]@{ name='final-screenshot.png'; mediaType='image/png'; bytes=[Convert]::FromBase64String($screenshotBase64); truncated=$false },
         [ordered]@{ name='final-state.json'; mediaType='application/json'; bytes=[Text.Encoding]::UTF8.GetBytes(($stateValue | ConvertTo-Json -Depth 16)); truncated=$false },
         [ordered]@{ name='final-dom.html'; mediaType='text/html'; bytes=[Text.Encoding]::UTF8.GetBytes([string]$snapshot.domHtml); truncated=[bool]$snapshot.truncation.domHtml },
-        [ordered]@{ name='performance-trace.json'; mediaType='application/json'; bytes=$traceBytes; truncated=$false },
+        [ordered]@{ name='performance-trace.json.gz'; mediaType='application/gzip'; bytes=$traceBytes; truncated=$false },
         [ordered]@{ name='webview.log'; mediaType='text/plain'; bytes=$logBytes; truncated=$logTruncated }
       )
       $exported = @()
@@ -446,7 +451,7 @@ function Start-CdpServer {
       try { Move-Item -LiteralPath $requestPath.FullName -Destination $claimPath -ErrorAction Stop } catch { continue }
       $id = [IO.Path]::GetFileNameWithoutExtension($claimPath)
       try {
-        $envelope = Get-Content -Raw -LiteralPath $claimPath | ConvertFrom-Json
+        $envelope = Get-Content -Raw -Encoding UTF8 -LiteralPath $claimPath | ConvertFrom-Json
         if ($envelope.schema -ne 'chemsema.gui.cdp-request.v1' -or $envelope.id -ne $id -or [string]::IsNullOrWhiteSpace($id)) {
           throw 'Persistent CDP request identity is invalid.'
         }

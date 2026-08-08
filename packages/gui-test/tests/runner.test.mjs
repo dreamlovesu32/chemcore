@@ -49,6 +49,7 @@ test("impact selection follows the transitive source to scenario closure", async
   assert.deepEqual(selectImpactedScenarios(graph, ["viewer/app.js"]), [
     "scenario.core.bond.draw-single",
     "scenario.core.bond.draw-single.production",
+    "scenario.core.document.save-open-roundtrip.production",
     "scenario.core.group.nested-mixed-clipboard.production",
     "scenario.core.history.undo-redo-bond.production",
     "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
@@ -63,6 +64,7 @@ test("impact selection follows the transitive source to scenario closure", async
     scenarios: [
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
+      "scenario.core.document.save-open-roundtrip.production",
       "scenario.core.group.nested-mixed-clipboard.production",
       "scenario.core.history.undo-redo-bond.production",
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
@@ -80,12 +82,13 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "multi-bond-clipboard-delete-production.json"),
     join(guiTestsDir, "scenarios", "core", "mixed-bond-arrow-clipboard-production.json"),
     join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json"),
+    join(guiTestsDir, "scenarios", "core", "save-open-roundtrip-production.json"),
   ];
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 22);
-  assert.equal(result.summary.scenarios, 6);
+  assert.equal(result.summary.entries, 23);
+  assert.equal(result.summary.scenarios, 7);
   assert.equal(result.summary.gaps, 3);
 });
 

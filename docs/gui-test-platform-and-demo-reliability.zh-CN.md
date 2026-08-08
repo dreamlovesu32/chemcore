@@ -756,6 +756,14 @@ npm run gui-platform -- run tests/gui/scenarios/core/draw-single-bond-production
 npm run gui-platform:test
 ```
 
+### 原生保存、独立文件 oracle、放弃修改、重开与继续编辑
+
+生产场景 `core.document.save-open-roundtrip.production` 已完整通过真实用户路径，且不注入产品内部状态：绘制一根键；打开 Windows“另存为”；用真实鼠标和键盘聚焦、全选并输入受限输出路径；保存；独立取回并验证 CCJS；再画一根未保存的键；关闭脏标签；点击 `Don't Save`；经 Windows“打开”重新载入磁盘文件；证明只恢复已保存的一根键；最后继续绘制第二根键。原生文件名控件使用精确 UI Automation id，并同时约束 control type 与 class。原生模态窗口存在期间，driver 只使用 UI Automation 和受守卫的 OS 输入；精确顶层对话框消失后，只读专用交互会话以刷新前台坐标，不再发送强制激活动作，随后恢复 WebView 观察。
+
+资格运行使用生产候选 SHA-256 `4a7dcc47e2f4469f5aed4f7963c6a7506fa413f7c20879984a9179632ebb6b07`，evidence key 为 `e71f891c964b3cecc4ac0d1f456e4b870c72ed27ebfa001068aed7aaf4d019d6`。保存的 CCJS 为 2,787 bytes，SHA-256 `fa5d1660cc988f21c357884f1da0e8e7eee2b9b18930e46b6a1c1268b988372b`；发布版 CLI 的 `inspect` 与 chemical validation 独立证明其为 CCJS 0.2，包含 2 个节点、1 根键、1 个分子、1 个对象和 0 个验证问题。最终公开 DOM 证明重开并继续编辑后有 2 根键。证据包含保存的 CCJS、独立 inspect 报告、最终截图/状态/完整 DOM、WebView 日志和可解压、非空的 3,138,150-byte gzip 性能轨迹。host/guest 文件大小与 SHA-256 完全一致；VM 最终回到 `Off`，分配内存为 0。
+
+该路径发现并修复了真实产品缺陷：对已保存但再次修改的标签选择 `Don't Save` 时，标签虽关闭，但对应 recovery journal 记录未删除，随后打开未变化的磁盘文件会复活已放弃的编辑。生命周期现在会在 discard 关闭前精确压缩该文档的恢复记录，并有专门的 journal 回归测试。探索阶段的失败运行继续作为 failure evidence 保留；没有放宽门禁，也没有 rerun-to-green。
+
 ## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>

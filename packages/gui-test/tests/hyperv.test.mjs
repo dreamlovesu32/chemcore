@@ -224,6 +224,24 @@ test("interactive launcher is hidden, test-only CDP is loopback, and blocker rem
   const queryHereStringEnd = coordinatorSource.indexOf("\n'@", queryStart);
   const cdpFunction = coordinatorSource.indexOf("function Invoke-CdpBridge");
   assert(queryStart >= 0 && queryHereStringEnd > queryStart && cdpFunction > queryHereStringEnd, "CDP bridge must not be embedded in the generated UIA script");
+  const querySource = coordinatorSource.slice(queryStart, queryHereStringEnd);
+  assert.match(querySource, /foreach\(\$root in \$roots\)/);
+  assert.match(querySource, /\[double\]::IsInfinity\(\$_\)/);
+  assert.match(querySource, /hasKeyboardFocus=\$element\.Current\.HasKeyboardFocus/);
+  assert.match(querySource, /topLevelClassName=\$root\.Current\.ClassName/);
+  assert.match(querySource, /topLevels=\$topLevels/);
+  assert.match(querySource, /AutomationIdProperty/);
+  assert.match(querySource, /ExpectedControlType/);
+});
+
+test("coordinator emits structured guest and UIA results as UTF-8", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "hyperv-coordinator.ps1"), "utf8");
+  const cdpSource = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
+  assert.match(source, /\[Console\]::OutputEncoding = \$script:Utf8WithoutBom/);
+  assert.match(source, /Get-Content -Raw -Encoding UTF8 -LiteralPath \$resultPath \| ConvertFrom-Json/);
+  assert.doesNotMatch(`${source}\n${cdpSource}`, /Get-Content -Raw(?! -Encoding UTF8)/);
+  assert.match(source, /\$OutputEncoding = \$script:Utf8WithoutBom/);
 });
 
 test("candidate input uses the persistent bounded channel rather than per-action scheduled tasks", async () => {
@@ -235,6 +253,8 @@ test("candidate input uses the persistent bounded channel rather than per-action
   assert.match(input, /chemsema\.gui\.guest-agent-request\.v1/);
   assert.match(input, /Persistent input response identity is invalid/);
   assert.doesNotMatch(input, /ScheduledTask|Start-ScheduledTask/);
+  assert.match(input, /'text'/);
+  assert.match(input, /--text-base64/);
 });
 
 test("CDP observation uses a persistent bounded channel rather than per-request process launch", async () => {
@@ -264,7 +284,7 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   assert.match(guestSource, /IO\.read/);
   assert.match(guestSource, /if \(-not \[string\]::IsNullOrEmpty\(\$chunkData\)\)/);
   assert.match(guestSource, /return ,\$output\.ToArray\(\)/);
-  assert.match(guestSource, /performance-trace\.json/);
+  assert.match(guestSource, /performance-trace\.json\.gz/);
   assert.doesNotMatch(guestSource, /__chemsemaDebug/);
   assert.doesNotMatch(guestSource, /document\.ccjs\.json/);
   assert.match(guestSource, /Page\.captureScreenshot/);
@@ -284,6 +304,32 @@ test("production artifacts use SHA-verified PowerShell Direct file transfer", as
   assert.match(transfer, /failed SHA-256 verification after transfer/);
   assert.match(transfer, /64 \* 1024 \* 1024/);
   assert.doesNotMatch(transfer, /FromBase64String\(\$artifact\./);
+});
+
+test("document output is confined to an immutable guest root and verified after transfer", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "hyperv-coordinator.ps1"), "utf8");
+  const start = source.indexOf("function Assert-DocumentOutputIdentity");
+  const end = source.indexOf("function Start-PersistentCdpAgent", start);
+  const documentTransfer = source.slice(start, end);
+  assert.match(documentTransfer, /\^\[a-f0-9\]\{32\}\$/);
+  assert.match(documentTransfer, /Join-Path \$GuestTestRoot 'documents'/);
+  assert.match(documentTransfer, /escaped the dedicated guest test root/);
+  assert.match(documentTransfer, /64 \* 1024 \* 1024/);
+  assert.match(documentTransfer, /Copy-Item[^\r\n]+-FromSession \$session/);
+  assert.equal((documentTransfer.match(/Get-FileHash/g) || []).length, 2);
+});
+
+test("document output coordinator rejects unsafe names before guest execution", async () => {
+  const profile = await readValidatedDocument(profilePath);
+  let invoked = false;
+  const coordinator = new HyperVCoordinator(profile, {
+    environment: { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" },
+    executor: () => { invoked = true; return result({}); },
+  });
+  await assert.rejects(coordinator.prepareDocumentOutput("..\\escape.ccjs"), /safe CCJS filename/);
+  await assert.rejects(coordinator.prepareDocumentOutput("roundtrip.cdx"), /safe CCJS filename/);
+  assert.equal(invoked, false);
 });
 
 test("candidate launch enables a bounded WebView log inside the content-addressed directory", async () => {
@@ -314,6 +360,14 @@ test("CDP distinct object observation requires an allowlisted identity attribute
     coordinator.cdpBridge({ mode: "distinct-count", selector: "[data-object-id]", attribute: "class" }),
     /allowlisted identity attribute/,
   );
+});
+
+test("production world geometry targets are restricted to the rendered page", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
+  assert.match(source, /query\.strategy === 'world-geometry'/);
+  assert.match(source, /query\.value !== 'page-background'/);
+  assert.match(source, /\[data-layer="page-background"\]/);
 });
 
 test("production action transaction uses one guest invocation for before, input, completion, and after", async () => {

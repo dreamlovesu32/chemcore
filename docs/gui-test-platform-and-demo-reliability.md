@@ -406,6 +406,14 @@ npm run gui-platform -- run tests/gui/scenarios/core/draw-single-bond-production
 npm run gui-platform:test
 ```
 
+### Native save, independent file oracle, discard, reopen, and continued editing
+
+The production scenario `core.document.save-open-roundtrip.production` now passes the complete real-user path without product-state injection: draw one bond; open the Windows Save As dialog; focus, select, and type the bounded output path through real mouse/keyboard input; save; independently transfer and validate the CCJS file; draw a second unsaved bond; close the dirty tab; click `Don't Save`; reopen the saved file through the Windows Open dialog; prove that only the saved bond returns; and draw a second bond again. Native filename fields are addressed by exact UI Automation ids and control/class constraints. While a modal native dialog is visible, the driver uses only UI Automation and guarded OS input; after the exact top-level dialog disappears, it reads the dedicated interactive session to refresh foreground geometry without forcing activation, then resumes WebView observation.
+
+The qualifying run used production candidate SHA-256 `4a7dcc47e2f4469f5aed4f7963c6a7506fa413f7c20879984a9179632ebb6b07` and evidence key `e71f891c964b3cecc4ac0d1f456e4b870c72ed27ebfa001068aed7aaf4d019d6`. The saved 2,787-byte CCJS had SHA-256 `fa5d1660cc988f21c357884f1da0e8e7eee2b9b18930e46b6a1c1268b988372b`; release CLI `inspect` plus chemical validation independently proved CCJS 0.2, two nodes, one bond, one molecule, one object, zero validation issues. The final public DOM proved two bonds after reopening and continued editing. Evidence contains the saved CCJS, its independent inspect report, final screenshot/state/complete DOM, WebView log, and a valid nonempty 3,138,150-byte gzip performance trace. Host/guest file sizes and SHA-256 values matched, and the VM returned to `Off` with zero assigned memory.
+
+This path exposed and fixed a product defect: choosing `Don't Save` closed a dirty saved tab but left its exact recovery-journal entry, so reopening the unchanged disk file resurrected discarded edits. The lifecycle now compacts that document's recovery record before closing on discard, with a focused journal regression test. Failed exploratory runs remain retained as failure evidence; their gates were not weakened or rerun-to-green.
+
 ## 20. Upstream foundations
 
 - Tauri WebDriver and WebdriverIO: <https://v2.tauri.app/develop/tests/webdriver/>

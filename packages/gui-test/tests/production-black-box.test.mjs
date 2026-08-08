@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import test from "node:test";
+import { gzipSync } from "node:zlib";
 import { ProductionBlackBoxDriver } from "../src/drivers/production-black-box.mjs";
 import { guiTestsDir } from "../src/protocol/paths.mjs";
 import { readValidatedDocument } from "../src/protocol/validate.mjs";
@@ -47,6 +48,7 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
     async stopInputAgent() { return {}; },
     async startCdpAgent() { cdpAgentStarts += 1; return { agent: { status: "ready" } }; },
     async stopCdpAgent() { cdpAgentStops += 1; return {}; },
+    async prepareDocumentOutput() { return { id: "0".repeat(32), name: "roundtrip.ccjs", guestPath: "C:\\ChemSemaGuiTest\\documents\\00000000000000000000000000000000\\roundtrip.ccjs", exists: false }; },
     async cdpBridge(request) {
       cdpModes.push(request.mode);
       if (request.mode === "trace-start") return { started: true, categories: "devtools.timeline" };
@@ -58,7 +60,7 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
             "final-screenshot.png",
             "final-state.json",
             "final-dom.html",
-            "performance-trace.json",
+            "performance-trace.json.gz",
             "webview.log",
           ].map((name) => ({ name, truncated: false })),
         };
@@ -80,7 +82,7 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
         { name: "final-screenshot.png", mediaType: "image/png", bytes: Buffer.from("png") },
         { name: "final-state.json", mediaType: "application/json", bytes: Buffer.from("{}") },
         { name: "final-dom.html", mediaType: "text/html", bytes: Buffer.from("<html></html>") },
-        { name: "performance-trace.json", mediaType: "application/json", bytes: Buffer.from('{"traceEvents":[{"name":"test"}]}') },
+        { name: "performance-trace.json.gz", mediaType: "application/gzip", bytes: gzipSync(Buffer.from('{"traceEvents":[{"name":"test"}]}')) },
         { name: "webview.log", mediaType: "text/plain", bytes: Buffer.from("candidate log\n") },
       ];
     },
@@ -122,7 +124,7 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
     "final-screenshot.png",
     "final-state.json",
     "final-dom.html",
-    "performance-trace.json",
+    "performance-trace.json.gz",
     "webview.log",
   ]);
   assert.equal(artifactPayloads.length, 5);
@@ -143,8 +145,61 @@ test("production artifact collection fails closed on truncated evidence", async 
   await assert.rejects(driver.collectArtifacts(), /truncated required payloads: final-dom.html/);
 });
 
+test("native dialog completion refreshes candidate geometry before the next WebView action", async () => {
+  let activations = 0;
+  const nativeForeground = { ...foreground(), clientRect: [8, 31, 617, 472], className: "#32770" };
+  const coordinator = {
+    async cdpBridge(request) {
+      if (request.mode === "state") return { revision: 1, window: {}, rendered: { bonds: 1 } };
+      if (request.mode === "count-state") return { count: 1, state: { revision: 1, window: {}, rendered: { bonds: 1 } } };
+      throw new Error(`Unexpected CDP mode ${request.mode}`);
+    },
+    async candidateInput() { return { agent: { foreground: nativeForeground } }; },
+    async queryUiaByAutomationId() { return { query: { topLevels: [], matches: [] } }; },
+    async attestInteractiveAgent() { activations += 1; return { agent: { foreground: foreground() } }; },
+  };
+  const driver = new ProductionBlackBoxDriver({ coordinator });
+  driver.foreground = nativeForeground;
+  driver.lastActionState = { revision: 1, window: { title: "roundtrip.ccjs - ChemSema" }, rendered: { bonds: 1 } };
+  driver.targets.set(JSON.stringify({ strategy: "uia-automation-id", value: "1148", controlType: "ControlType.Pane", className: "Edit" }), {
+    topLevelName: "打开",
+    topLevelClassName: "#32770",
+  });
+  await driver.executeAction({
+    id: "confirm-open",
+    type: "key",
+    key: "Enter",
+    target: { strategy: "uia-automation-id", value: "1148", controlType: "ControlType.Pane", className: "Edit" },
+    completion: { kind: "dom-count", selector: "[data-bond-id]", operator: "eq", value: 1, timeoutMs: 1000 },
+    budgetMs: 5000,
+  });
+  assert.equal(activations, 1);
+  assert.deepEqual(driver.foreground.clientRect, foreground().clientRect);
+});
+
+test("native dialog editing never probes the modal WebView through CDP", async () => {
+  const stableState = { revision: 3, window: { title: "Untitled * - ChemSema" }, rendered: { bonds: 1 } };
+  const driver = new ProductionBlackBoxDriver({
+    coordinator: {
+      async cdpBridge() { throw new Error("CDP must not be called while a native modal dialog is open"); },
+      async candidateInput() { return { agent: { foreground: { ...foreground(), className: "#32770" } } }; },
+    },
+  });
+  driver.lastActionState = stableState;
+  const result = await driver.executeAction({
+    id: "select-save-filename",
+    type: "key",
+    key: "Control+A",
+    target: { strategy: "uia-automation-id", value: "1001", controlType: "ControlType.Pane", className: "Edit" },
+    completion: { kind: "actionable", timeoutMs: 1000 },
+    budgetMs: 5000,
+  });
+  assert.deepEqual(result.before, stableState);
+  assert.deepEqual(result.after, stableState);
+});
+
 test("production artifact collection fails closed on a malformed performance trace", async () => {
-  const artifacts = ["final-screenshot.png", "final-state.json", "final-dom.html", "performance-trace.json", "webview.log"];
+  const artifacts = ["final-screenshot.png", "final-state.json", "final-dom.html", "performance-trace.json.gz", "webview.log"];
   const driver = new ProductionBlackBoxDriver({
     coordinator: {
       async cdpBridge(request) {
@@ -155,9 +210,9 @@ test("production artifact collection fails closed on a malformed performance tra
         };
       },
       async fetchArtifacts() {
-        return artifacts.map((name) => ({ name, bytes: Buffer.from(name === "performance-trace.json" ? "not-json" : "evidence") }));
+        return artifacts.map((name) => ({ name, bytes: Buffer.from(name === "performance-trace.json.gz" ? "not-gzip" : "evidence") }));
       },
     },
   });
-  await assert.rejects(driver.collectArtifacts(), /performance trace is not valid JSON/);
+  await assert.rejects(driver.collectArtifacts(), /performance trace is not valid bounded gzip JSON/);
 });

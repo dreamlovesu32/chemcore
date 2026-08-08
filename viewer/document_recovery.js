@@ -15,6 +15,11 @@ export function recoveryDocumentKey(document, filePath = null, fileName = null) 
   return name ? `name:${name}` : null;
 }
 
+export async function discardDocumentRecovery(manager, tab) {
+  if (!manager || !tab) return false;
+  return manager.compact(recoveryDocumentKey(tab.currentDocument, tab.currentFilePath, tab.currentFileName));
+}
+
 export function createDocumentRecoveryManager(store) {
   async function append(documentKey, baseDocument, patch) {
     if (!documentKey) return false;

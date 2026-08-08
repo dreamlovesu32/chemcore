@@ -26,7 +26,7 @@ use windows_sys::Win32::System::Threading::{
 };
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     MapVirtualKeyW, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
-    KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, MAPVK_VK_TO_VSC_EX,
+    KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE, MAPVK_VK_TO_VSC_EX,
     MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP,
     MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEINPUT, VK_CONTROL, VK_DELETE, VK_DOWN,
     VK_ESCAPE, VK_LEFT, VK_MENU, VK_RETURN, VK_RIGHT, VK_SHIFT, VK_TAB, VK_UP,
@@ -373,6 +373,50 @@ pub fn key(guard: &InputGuard, shortcut: &str) -> Result<AgentAttestation, Strin
     Ok(after)
 }
 
+fn validate_text_input(text: &str) -> Result<Vec<u16>, String> {
+    if text.is_empty() {
+        return Err("text input is empty".to_string());
+    }
+    if text.chars().any(|character| character == '\0' || character.is_control()) {
+        return Err("text input contains a control character".to_string());
+    }
+    let encoded = text.encode_utf16().collect::<Vec<_>>();
+    if encoded.len() > 4096 {
+        return Err("text input exceeds 4096 UTF-16 code units".to_string());
+    }
+    Ok(encoded)
+}
+
+pub fn text(guard: &InputGuard, value: &str) -> Result<AgentAttestation, String> {
+    let before = attest()?;
+    crate::validate_input_guard(&before, guard)?;
+    let encoded = validate_text_input(value)?;
+    let mut inputs = Vec::with_capacity(encoded.len() * 2);
+    for code_unit in encoded {
+        for flags in [KEYEVENTF_UNICODE, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP] {
+            inputs.push(INPUT {
+                r#type: INPUT_KEYBOARD,
+                Anonymous: INPUT_0 {
+                    ki: KEYBDINPUT {
+                        wVk: 0,
+                        wScan: code_unit,
+                        dwFlags: flags,
+                        time: 0,
+                        dwExtraInfo: 0,
+                    },
+                },
+            });
+        }
+    }
+    let sent = unsafe { SendInput(inputs.len() as u32, inputs.as_ptr(), size_of::<INPUT>() as i32) };
+    if sent as usize != inputs.len() {
+        return Err(last_error("SendInput(text)"));
+    }
+    let after = attest()?;
+    crate::validate_input_guard(&after, guard)?;
+    Ok(after)
+}
+
 fn send_alt_key() -> Result<(), String> {
     let mut inputs = [
         INPUT {
@@ -611,7 +655,7 @@ pub fn dismiss_known_blocker() -> Result<AgentAttestation, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_shortcut, retryable_window_snapshot_error};
+    use super::{parse_shortcut, retryable_window_snapshot_error, validate_text_input};
 
     #[test]
     fn only_invalid_window_handles_are_retried_during_snapshot_capture() {
@@ -630,6 +674,21 @@ mod tests {
         assert!(parse_shortcut("Alt+F4").is_err());
         assert!(parse_shortcut("Control+Alt+Delete").is_err());
         assert!(parse_shortcut("Meta+R").is_err());
+    }
+
+    #[test]
+    fn text_input_is_bounded_and_rejects_control_characters() {
+        assert_eq!(
+            validate_text_input(r"C:\ChemSemaGuiTest\documents\roundtrip.ccjs")
+                .unwrap()
+                .len(),
+            r"C:\ChemSemaGuiTest\documents\roundtrip.ccjs"
+                .encode_utf16()
+                .count()
+        );
+        assert!(validate_text_input("").is_err());
+        assert!(validate_text_input("line\nfeed").is_err());
+        assert!(validate_text_input(&"a".repeat(4097)).is_err());
     }
 }
 

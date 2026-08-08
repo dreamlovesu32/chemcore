@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -271,6 +271,18 @@ export class HyperVCoordinator {
     return result;
   }
 
+  async queryUiaByAutomationId(automationId, { controlType, scopeName } = {}) {
+    if (!automationId) throw new Error("UI Automation query requires an exact automation id.");
+    const extra = ["-AutomationId", automationId];
+    if (controlType) extra.push("-AutomationControlType", controlType);
+    if (scopeName) extra.push("-AutomationScopeName", scopeName);
+    const result = await this.execute("uia-query", extra);
+    if (result.query?.automationId !== automationId || !Array.isArray(result.query?.matches)) {
+      throw new Error("UI Automation id query returned an invalid receipt.");
+    }
+    return result;
+  }
+
   async cdpBridge(request) {
     if (!["locate", "state", "count", "count-state", "distinct-count", "distinct-count-state", "trace-start", "artifact-export"].includes(request?.mode)) {
       throw new Error("CDP bridge requires a supported fixed mode.");
@@ -316,6 +328,47 @@ export class HyperVCoordinator {
         payloads.push({ name: artifact.name, mediaType: artifact.mediaType, bytes });
       }
       return payloads;
+    } finally {
+      await rm(hostRoot, { recursive: true, force: true });
+    }
+  }
+
+  async prepareDocumentOutput(name = "roundtrip.ccjs") {
+    if (!/^[a-z0-9][a-z0-9._-]{0,95}\.ccjs$/.test(name)) {
+      throw new Error("Document output name must be a bounded safe CCJS filename.");
+    }
+    const id = randomUUID().replaceAll("-", "");
+    const result = await this.execute("prepare-document-output", ["-DocumentOutputId", id, "-DocumentOutputName", name]);
+    const output = result.output || {};
+    if (output.id !== id || output.name !== name || output.exists !== false || typeof output.guestPath !== "string") {
+      throw new Error("Document output preparation returned an invalid receipt.");
+    }
+    return output;
+  }
+
+  async fetchDocumentOutput(output) {
+    if (!/^[a-f0-9]{32}$/.test(output?.id || "") || !/^[a-z0-9][a-z0-9._-]{0,95}\.ccjs$/.test(output?.name || "")) {
+      throw new Error("Document output receipt is invalid.");
+    }
+    const hostRoot = await mkdtemp(join(tmpdir(), "chemsema-gui-document-"));
+    try {
+      const result = await this.execute("fetch-document-output", [
+        "-DocumentOutputId", output.id,
+        "-DocumentOutputName", output.name,
+        "-HostArtifactRoot", hostRoot,
+      ], { timeoutMs: 60000 });
+      const received = result.output || {};
+      const hostPath = resolve(received.hostPath || "");
+      const boundedRoot = `${resolve(hostRoot)}\\`;
+      if (received.id !== output.id || received.name !== output.name || !hostPath.startsWith(boundedRoot)) {
+        throw new Error("Transferred document output escaped the host staging root.");
+      }
+      const bytes = await readFile(hostPath);
+      const sha256 = createHash("sha256").update(bytes).digest("hex");
+      if (bytes.length !== received.size || sha256 !== received.sha256) {
+        throw new Error("Transferred document output failed host SHA-256 verification.");
+      }
+      return { ...received, bytes };
     } finally {
       await rm(hostRoot, { recursive: true, force: true });
     }
@@ -372,6 +425,9 @@ export class HyperVCoordinator {
     } else if (kind === "key") {
       if (typeof coordinates?.key !== "string" || !coordinates.key) throw new Error("Keyboard input requires a shortcut.");
       extra.push("-InputKey", coordinates.key);
+    } else if (kind === "text") {
+      if (typeof coordinates?.text !== "string" || !coordinates.text || coordinates.text.length > 4096) throw new Error("Text input requires 1..4096 characters.");
+      extra.push("-InputTextBase64", Buffer.from(coordinates.text, "utf8").toString("base64"));
     } else {
       throw new Error(`Unsupported candidate input kind ${kind}.`);
     }

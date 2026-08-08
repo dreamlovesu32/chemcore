@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet('host-attest', 'reset', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'start-input-agent', 'stop-input-agent', 'start-cdp-agent', 'stop-cdp-agent', 'uia-query', 'cdp-bridge', 'fetch-artifacts', 'action-transaction', 'input-click', 'input-drag', 'input-key', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
+  [ValidateSet('host-attest', 'reset', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'start-input-agent', 'stop-input-agent', 'start-cdp-agent', 'stop-cdp-agent', 'uia-query', 'cdp-bridge', 'fetch-artifacts', 'prepare-document-output', 'fetch-document-output', 'action-transaction', 'input-click', 'input-drag', 'input-key', 'input-text', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
   [string]$Operation,
 
   [Parameter(Mandatory = $true)]
@@ -17,8 +17,12 @@ param(
   [string]$CdpRequestBase64,
   [string]$ArtifactManifestBase64,
   [string]$HostArtifactRoot,
+  [string]$DocumentOutputId,
+  [string]$DocumentOutputName,
   [string]$ActionRequestBase64,
   [string]$AutomationName,
+  [string]$AutomationId,
+  [string]$AutomationControlType,
   [string]$AutomationScopeName,
   [int]$InputX,
   [int]$InputY,
@@ -28,12 +32,16 @@ param(
   [int]$InputToY,
   [int]$InputSteps = 8,
   [string]$InputKey,
+  [string]$InputTextBase64,
   [ValidateSet('left', 'right', 'middle')]
   [string]$InputButton = 'left'
 )
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+$script:Utf8WithoutBom = [Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = $script:Utf8WithoutBom
+$OutputEncoding = $script:Utf8WithoutBom
 
 function Write-Result([object]$Value) {
   $Value | ConvertTo-Json -Depth 16 -Compress
@@ -430,7 +438,7 @@ function Activate-Candidate {
       if (-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) {
         throw "Interactive activation agent failed with task result $($info.LastTaskResult) within 12 seconds."
       }
-      $agentResult = Get-Content -Raw -LiteralPath $resultPath | ConvertFrom-Json
+      $agentResult = Get-Content -Raw -Encoding UTF8 -LiteralPath $resultPath | ConvertFrom-Json
       if ($agentResult.status -eq 'failed') {
         throw "Interactive activation agent rejected the request: $($agentResult.message)"
       }
@@ -472,7 +480,7 @@ function Dismiss-KnownBlocker {
         Start-Sleep -Milliseconds 250
       } while ([DateTime]::UtcNow -lt $deadline)
       if (-not (Test-Path -LiteralPath $ResultPath -PathType Leaf)) { throw 'Blocker dismissal agent returned no receipt.' }
-      $agentResult = Get-Content -Raw -LiteralPath $ResultPath | ConvertFrom-Json
+      $agentResult = Get-Content -Raw -Encoding UTF8 -LiteralPath $ResultPath | ConvertFrom-Json
       if ($agentResult.status -eq 'failed') { throw "Blocker dismissal was rejected: $($agentResult.message)" }
       $agentResult
     }
@@ -490,11 +498,11 @@ function Dismiss-KnownBlocker {
 }
 
 function Query-Uia {
-  if ([string]::IsNullOrWhiteSpace($AutomationName)) { throw 'UI Automation query requires an exact accessible name.' }
+  if ([string]::IsNullOrWhiteSpace($AutomationName) -and [string]::IsNullOrWhiteSpace($AutomationId)) { throw 'UI Automation query requires an exact accessible name or automation id.' }
   $hostHash = (Get-FileHash -LiteralPath $HostCandidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
   $guestPath = Join-Path (Join-Path (Join-Path $GuestTestRoot 'candidate') $hostHash) 'chemsema-desktop.exe'
   $result = Invoke-Guest -ScriptBlock {
-    param($ExpectedAccount, $CandidatePath, $Name, $ScopeName, $TestRoot)
+    param($ExpectedAccount, $CandidatePath, $Name, $AutomationId, $ControlType, $ScopeName, $TestRoot)
     $process = Get-Process chemsema-desktop -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $CandidatePath -and $_.SessionId -ne 0 } | Select-Object -First 1
     if ($null -eq $process) { throw 'The authorized desktop candidate is not running.' }
     $runDirectory = Join-Path (Join-Path $TestRoot 'runs') ("uia-" + [Guid]::NewGuid().ToString('N'))
@@ -502,36 +510,58 @@ function Query-Uia {
     $scriptPath = Join-Path $runDirectory 'query.ps1'
     $resultPath = Join-Path $runDirectory 'result.json'
     $script = @'
-param([int]$TargetProcessId, [string]$ExactName, [string]$ScopeName, [string]$OutputPath)
+param([int]$TargetProcessId, [string]$ExactName, [string]$ExactAutomationId, [string]$ExpectedControlType, [string]$ScopeName, [string]$OutputPath)
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 try {
 $processCondition=[Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ProcessIdProperty,$TargetProcessId)
-$roots=[Windows.Automation.AutomationElement]::RootElement.FindAll([Windows.Automation.TreeScope]::Children,$processCondition)
-$root=@($roots | Where-Object { -not $_.Current.IsOffscreen -and $_.Current.BoundingRectangle.Width -gt 0 -and $_.Current.BoundingRectangle.Height -gt 0 } | Select-Object -First 1)[0]
-if($null -eq $root){throw 'Candidate top-level UI Automation element is absent.'}
-$searchRoot=$root
-if(-not [string]::IsNullOrWhiteSpace($ScopeName)){
-  $scopeCondition=[Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty,$ScopeName)
-  $searchRoot=$root.FindFirst([Windows.Automation.TreeScope]::Descendants,$scopeCondition)
-  if($null -eq $searchRoot){throw 'Requested UI Automation scope is absent.'}
-}
-
-$nameCondition=if($ExactName -eq '*'){[Windows.Automation.Condition]::TrueCondition}else{[Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty,$ExactName)}
-$elements=$searchRoot.FindAll([Windows.Automation.TreeScope]::Descendants,$nameCondition)
-$matches=@($elements | Select-Object -First 200 | ForEach-Object {
+$roots=@([Windows.Automation.AutomationElement]::RootElement.FindAll([Windows.Automation.TreeScope]::Children,$processCondition) |
+  Where-Object { -not $_.Current.IsOffscreen -and $_.Current.BoundingRectangle.Width -gt 0 -and $_.Current.BoundingRectangle.Height -gt 0 })
+if($roots.Count -eq 0){throw 'Candidate top-level UI Automation element is absent.'}
+$topLevels=@($roots | ForEach-Object {
   $rect=$_.Current.BoundingRectangle
   [ordered]@{
     name=$_.Current.Name
     automationId=$_.Current.AutomationId
-    controlType=$_.Current.ControlType.ProgrammaticName
-    enabled=$_.Current.IsEnabled
+    className=$_.Current.ClassName
     offscreen=$_.Current.IsOffscreen
     rect=@([int][Math]::Round($rect.Left),[int][Math]::Round($rect.Top),[int][Math]::Round($rect.Right),[int][Math]::Round($rect.Bottom))
   }
 })
-$json=[ordered]@{schema='chemsema.gui.uia-query.v1';processId=$TargetProcessId;name=$ExactName;matches=$matches}|ConvertTo-Json -Depth 6
+$scopeCondition=if([string]::IsNullOrWhiteSpace($ScopeName)){$null}else{[Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty,$ScopeName)}
+$conditions=@()
+if(-not [string]::IsNullOrWhiteSpace($ExactName) -and $ExactName -ne '*'){$conditions += [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty,$ExactName)}
+if(-not [string]::IsNullOrWhiteSpace($ExactAutomationId)){$conditions += [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::AutomationIdProperty,$ExactAutomationId)}
+$nameCondition=if($conditions.Count -eq 0){[Windows.Automation.Condition]::TrueCondition}elseif($conditions.Count -eq 1){$conditions[0]}else{[Windows.Automation.AndCondition]::new([Windows.Automation.Condition[]]$conditions)}
+$matches=@()
+foreach($root in $roots){
+  $searchRoots=if($null -eq $scopeCondition){@($root)}else{@($root.FindAll([Windows.Automation.TreeScope]::Descendants,$scopeCondition))}
+  foreach($searchRoot in $searchRoots){
+    $elements=$searchRoot.FindAll([Windows.Automation.TreeScope]::Descendants,$nameCondition)
+    foreach($element in $elements){
+      if($matches.Count -ge 200){break}
+      $rect=$element.Current.BoundingRectangle
+      $coordinates=@($rect.Left,$rect.Top,$rect.Right,$rect.Bottom)
+      if($coordinates | Where-Object { [double]::IsNaN($_) -or [double]::IsInfinity($_) }){continue}
+      if($rect.Width -le 0 -or $rect.Height -le 0){continue}
+      if(-not [string]::IsNullOrWhiteSpace($ExpectedControlType) -and $element.Current.ControlType.ProgrammaticName -ne $ExpectedControlType){continue}
+      $matches += [ordered]@{
+        name=$element.Current.Name
+        automationId=$element.Current.AutomationId
+        className=$element.Current.ClassName
+        controlType=$element.Current.ControlType.ProgrammaticName
+        enabled=$element.Current.IsEnabled
+        offscreen=$element.Current.IsOffscreen
+        hasKeyboardFocus=$element.Current.HasKeyboardFocus
+        topLevelName=$root.Current.Name
+        topLevelClassName=$root.Current.ClassName
+        rect=@([int][Math]::Round($rect.Left),[int][Math]::Round($rect.Top),[int][Math]::Round($rect.Right),[int][Math]::Round($rect.Bottom))
+      }
+    }
+  }
+}
+$json=[ordered]@{schema='chemsema.gui.uia-query.v1';processId=$TargetProcessId;name=$ExactName;automationId=$ExactAutomationId;controlType=$ExpectedControlType;topLevels=$topLevels;matches=$matches}|ConvertTo-Json -Depth 6
 [IO.File]::WriteAllText($OutputPath,$json,[Text.UTF8Encoding]::new($false))
 } catch {
   $json=[ordered]@{schema='chemsema.gui.uia-query.v1';status='failed';message=$_.Exception.Message}|ConvertTo-Json
@@ -541,7 +571,7 @@ $json=[ordered]@{schema='chemsema.gui.uia-query.v1';processId=$TargetProcessId;n
 '@
     [IO.File]::WriteAllText($scriptPath, $script, [Text.UTF8Encoding]::new($false))
     $taskName = "ChemSema GUI UIA Query $($process.Id)"
-    $arguments = "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$scriptPath`" -TargetProcessId $($process.Id) -ExactName `"$Name`" -ScopeName `"$ScopeName`" -OutputPath `"$resultPath`""
+    $arguments = "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$scriptPath`" -TargetProcessId $($process.Id) -ExactName `"$Name`" -ExactAutomationId `"$AutomationId`" -ExpectedControlType `"$ControlType`" -ScopeName `"$ScopeName`" -OutputPath `"$resultPath`""
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arguments
     $principal = New-ScheduledTaskPrincipal -UserId "$env:COMPUTERNAME\$ExpectedAccount" -LogonType Interactive -RunLevel Highest
     Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Force | Out-Null
@@ -553,12 +583,12 @@ $json=[ordered]@{schema='chemsema.gui.uia-query.v1';processId=$TargetProcessId;n
         Start-Sleep -Milliseconds 250
       } while ([DateTime]::UtcNow -lt $deadline)
       if (-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) { throw 'Interactive UI Automation query returned no receipt.' }
-      $queryResult = Get-Content -Raw -LiteralPath $resultPath | ConvertFrom-Json
+      $queryResult = Get-Content -Raw -Encoding UTF8 -LiteralPath $resultPath | ConvertFrom-Json
       if ($queryResult.status -eq 'failed') { throw "Interactive UI Automation query failed: $($queryResult.message)" }
       $queryResult
     }
     finally { Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue }
-  } -ArgumentList @($GuestAccount, $guestPath, $AutomationName, $AutomationScopeName, $GuestTestRoot)
+  } -ArgumentList @($GuestAccount, $guestPath, $AutomationName, $AutomationId, $AutomationControlType, $AutomationScopeName, $GuestTestRoot)
   [ordered]@{
     schema = 'chemsema.gui.worker-attestation.v1'
     operation = 'uia-query'
@@ -588,7 +618,7 @@ function Invoke-CdpBridge {
     $deadline = [DateTime]::UtcNow.AddSeconds($ReceiptTimeoutSeconds)
     while (-not (Test-Path -LiteralPath $responsePath -PathType Leaf) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 20 }
     if (-not (Test-Path -LiteralPath $responsePath -PathType Leaf)) { throw "Persistent CDP agent returned no receipt within $ReceiptTimeoutSeconds seconds." }
-    $response = Get-Content -Raw -LiteralPath $responsePath | ConvertFrom-Json
+    $response = Get-Content -Raw -Encoding UTF8 -LiteralPath $responsePath | ConvertFrom-Json
     if ($response.schema -ne 'chemsema.gui.cdp-response.v1' -or $response.id -ne $requestId) { throw 'Persistent CDP response identity is invalid.' }
     if ($response.status -ne 'passed') { throw "Persistent CDP request failed: $($response.message)" }
     $response.bridge
@@ -667,11 +697,98 @@ function Receive-GuestArtifacts {
   }
 }
 
+function Assert-DocumentOutputIdentity {
+  if ($DocumentOutputId -notmatch '^[a-f0-9]{32}$') { throw 'Document output identity must be 32 lowercase hexadecimal characters.' }
+  if ($DocumentOutputName -notmatch '^[a-z0-9][a-z0-9._-]{0,95}\.ccjs$' -or [IO.Path]::GetFileName($DocumentOutputName) -ne $DocumentOutputName) {
+    throw 'Document output name must be a bounded safe CCJS filename.'
+  }
+  $documentsRoot = [IO.Path]::GetFullPath((Join-Path $GuestTestRoot 'documents')).TrimEnd('\') + '\'
+  $directory = [IO.Path]::GetFullPath((Join-Path $documentsRoot $DocumentOutputId))
+  $guestPath = [IO.Path]::GetFullPath((Join-Path $directory $DocumentOutputName))
+  if (-not ($directory + '\').StartsWith($documentsRoot, [StringComparison]::OrdinalIgnoreCase) -or
+      -not $guestPath.StartsWith(($directory.TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Document output path escaped the dedicated guest test root.'
+  }
+  [ordered]@{ documentsRoot=$documentsRoot; directory=$directory; guestPath=$guestPath }
+}
+
+function Prepare-DocumentOutput {
+  $identity = Assert-DocumentOutputIdentity
+  $prepared = Invoke-Guest -ScriptBlock {
+    param($TestRoot, $Directory, $Path)
+    $documentsRoot = [IO.Path]::GetFullPath((Join-Path $TestRoot 'documents')).TrimEnd('\') + '\'
+    $resolvedDirectory = [IO.Path]::GetFullPath($Directory)
+    $resolvedPath = [IO.Path]::GetFullPath($Path)
+    if (-not ($resolvedDirectory + '\').StartsWith($documentsRoot, [StringComparison]::OrdinalIgnoreCase) -or
+        -not $resolvedPath.StartsWith(($resolvedDirectory.TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) {
+      throw 'Guest document output path escaped the dedicated root.'
+    }
+    if (Test-Path -LiteralPath $resolvedDirectory) { Remove-Item -LiteralPath $resolvedDirectory -Recurse -Force }
+    New-Item -ItemType Directory -Path $resolvedDirectory -Force | Out-Null
+    [ordered]@{ guestPath=$resolvedPath; exists=(Test-Path -LiteralPath $resolvedPath -PathType Leaf) }
+  } -ArgumentList @($GuestTestRoot, $identity.directory, $identity.guestPath)
+  [ordered]@{
+    schema = 'chemsema.gui.worker-attestation.v1'
+    operation = 'prepare-document-output'
+    vmId = (Get-WorkerVm).Id.ToString()
+    vmName = (Get-WorkerVm).Name
+    output = [ordered]@{ id=$DocumentOutputId; name=$DocumentOutputName; guestPath=[string]$prepared.guestPath; exists=[bool]$prepared.exists }
+  }
+}
+
+function Receive-GuestDocumentOutput {
+  if ([string]::IsNullOrWhiteSpace($HostArtifactRoot)) { throw 'The host document staging root is absent.' }
+  $identity = Assert-DocumentOutputIdentity
+  $resolvedHostRoot = [IO.Path]::GetFullPath($HostArtifactRoot)
+  if ($resolvedHostRoot -eq [IO.Path]::GetPathRoot($resolvedHostRoot) -or -not (Test-Path -LiteralPath $resolvedHostRoot -PathType Container)) {
+    throw 'The host document staging root is not a bounded existing directory.'
+  }
+  $credential = Get-GuestCredential
+  $vm = Get-WorkerVm
+  $session = New-PSSession -VMId $vm.Id -Credential $credential
+  try {
+    $guestIdentity = Invoke-Command -Session $session -ScriptBlock {
+      param($TestRoot, $Path)
+      $documentsRoot = [IO.Path]::GetFullPath((Join-Path $TestRoot 'documents')).TrimEnd('\') + '\'
+      $resolvedPath = [IO.Path]::GetFullPath($Path)
+      if (-not $resolvedPath.StartsWith($documentsRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Guest document path escaped the dedicated root.' }
+      $deadline = [DateTime]::UtcNow.AddSeconds(30)
+      do {
+        if (Test-Path -LiteralPath $resolvedPath -PathType Leaf) {
+          $item = Get-Item -LiteralPath $resolvedPath
+          if ([int64]$item.Length -gt 0) { break }
+        }
+        Start-Sleep -Milliseconds 50
+      } while ([DateTime]::UtcNow -lt $deadline)
+      if (-not (Test-Path -LiteralPath $resolvedPath -PathType Leaf)) { throw 'Guest document output was not created within 30 seconds.' }
+      $item = Get-Item -LiteralPath $resolvedPath
+      if ([int64]$item.Length -le 0 -or [int64]$item.Length -gt (64 * 1024 * 1024)) { throw 'Guest document output has an invalid size.' }
+      [ordered]@{ size=[int64]$item.Length; sha256=(Get-FileHash -LiteralPath $resolvedPath -Algorithm SHA256).Hash.ToLowerInvariant() }
+    } -ArgumentList @($GuestTestRoot, $identity.guestPath)
+    $hostPath = Join-Path $resolvedHostRoot $DocumentOutputName
+    Copy-Item -LiteralPath $identity.guestPath -Destination $hostPath -FromSession $session
+    $hostItem = Get-Item -LiteralPath $hostPath
+    $hostHash = (Get-FileHash -LiteralPath $hostPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ([int64]$hostItem.Length -ne [int64]$guestIdentity.size -or $hostHash -ne [string]$guestIdentity.sha256) {
+      throw 'Host document output failed SHA-256 verification after transfer.'
+    }
+    [ordered]@{
+      schema = 'chemsema.gui.worker-attestation.v1'
+      operation = 'fetch-document-output'
+      vmId = $vm.Id.ToString()
+      vmName = $vm.Name
+      output = [ordered]@{ id=$DocumentOutputId; name=$DocumentOutputName; guestPath=$identity.guestPath; hostPath=$hostPath; size=[int64]$hostItem.Length; sha256=$hostHash }
+    }
+  } finally {
+    Remove-PSSession -Session $session -ErrorAction SilentlyContinue
+  }
+}
+
 function Start-PersistentCdpAgent {
   if ([string]::IsNullOrWhiteSpace($HostCdpScriptPath) -or -not (Test-Path -LiteralPath $HostCdpScriptPath -PathType Leaf)) {
     throw 'The guest CDP bridge script is unavailable.'
   }
-  $source = Get-Content -Raw -LiteralPath $HostCdpScriptPath
+  $source = Get-Content -Raw -Encoding UTF8 -LiteralPath $HostCdpScriptPath
   $result = Invoke-Guest -ScriptBlock {
     param($ExpectedAccount, $TestRoot, $ScriptSource)
     $channelRoot = Join-Path $TestRoot 'cdp-channel'
@@ -693,7 +810,7 @@ function Start-PersistentCdpAgent {
     $deadline = [DateTime]::UtcNow.AddSeconds(20)
     while (-not (Test-Path -LiteralPath $readyPath -PathType Leaf) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 50 }
     if (-not (Test-Path -LiteralPath $readyPath -PathType Leaf)) { throw 'Persistent CDP agent did not become ready.' }
-    Get-Content -Raw -LiteralPath $readyPath | ConvertFrom-Json
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $readyPath | ConvertFrom-Json
   } -ArgumentList @($GuestAccount, $GuestTestRoot, $source)
   $agent = [ordered]@{
     schema = [string]$result.schema
@@ -741,7 +858,7 @@ function Start-PersistentInputAgent {
     $deadline = [DateTime]::UtcNow.AddSeconds(20)
     while (-not (Test-Path -LiteralPath $readyPath -PathType Leaf) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 50 }
     if (-not (Test-Path -LiteralPath $readyPath -PathType Leaf)) { throw 'Persistent input agent did not become ready.' }
-    Get-Content -Raw -LiteralPath $readyPath | ConvertFrom-Json
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $readyPath | ConvertFrom-Json
   } -ArgumentList @($GuestAccount, $agentPath, $GuestTestRoot)
   [ordered]@{ schema='chemsema.gui.worker-attestation.v1'; operation='start-input-agent'; vmId=(Get-WorkerVm).Id.ToString(); vmName=(Get-WorkerVm).Name; agent=$result }
 }
@@ -760,11 +877,11 @@ function Stop-PersistentInputAgent {
   [ordered]@{ schema='chemsema.gui.worker-attestation.v1'; operation='stop-input-agent'; vmId=(Get-WorkerVm).Id.ToString(); vmName=(Get-WorkerVm).Name; agent=$result }
 }
 
-function Invoke-CandidateInput([ValidateSet('click', 'drag', 'key')][string]$Kind) {
+function Invoke-CandidateInput([ValidateSet('click', 'drag', 'key', 'text')][string]$Kind) {
   $hostHash = (Get-FileHash -LiteralPath $HostCandidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
   $guestPath = Join-Path (Join-Path (Join-Path $GuestTestRoot 'candidate') $hostHash) 'chemsema-desktop.exe'
   $result = Invoke-Guest -ScriptBlock {
-    param($CandidatePath, $TestRoot, $Kind, $X, $Y, $FromX, $FromY, $ToX, $ToY, $Steps, $Button, $Key)
+    param($CandidatePath, $TestRoot, $Kind, $X, $Y, $FromX, $FromY, $ToX, $ToY, $Steps, $Button, $Key, $TextBase64)
     $process = Get-Process chemsema-desktop -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $CandidatePath -and $_.SessionId -ne 0 } | Select-Object -First 1
     if ($null -eq $process) { throw 'The authorized desktop candidate is not running.' }
     $runRoot = Join-Path $TestRoot 'runs'
@@ -783,9 +900,12 @@ function Invoke-CandidateInput([ValidateSet('click', 'drag', 'key')][string]$Kin
       @('click', '--guard', $guardPath, '--x', [string]$X, '--y', [string]$Y, '--button', $Button)
     } elseif ($Kind -eq 'drag') {
       @('drag', '--guard', $guardPath, '--from-x', [string]$FromX, '--from-y', [string]$FromY, '--to-x', [string]$ToX, '--to-y', [string]$ToY, '--steps', [string]$Steps, '--button', $Button)
-    } else {
+    } elseif ($Kind -eq 'key') {
       if ([string]::IsNullOrWhiteSpace($Key)) { throw 'Keyboard input requires a shortcut.' }
       @('key', '--guard', $guardPath, '--key', $Key)
+    } else {
+      if ([string]::IsNullOrWhiteSpace($TextBase64) -or $TextBase64 -notmatch '^[A-Za-z0-9+/]+={0,2}$') { throw 'Text input requires bounded base64.' }
+      @('text', '--guard', $guardPath, '--text-base64', $TextBase64)
     }
     $channelRoot = Join-Path $TestRoot 'input-channel'
     $ready = Join-Path $channelRoot 'ready.json'
@@ -802,11 +922,11 @@ function Invoke-CandidateInput([ValidateSet('click', 'drag', 'key')][string]$Kin
     $deadline = [DateTime]::UtcNow.AddSeconds(8)
     while (-not (Test-Path -LiteralPath $responsePath -PathType Leaf) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 20 }
     if (-not (Test-Path -LiteralPath $responsePath -PathType Leaf)) { throw 'Persistent input agent returned no receipt within 8 seconds.' }
-    $response = Get-Content -Raw -LiteralPath $responsePath | ConvertFrom-Json
+    $response = Get-Content -Raw -Encoding UTF8 -LiteralPath $responsePath | ConvertFrom-Json
     if ($response.id -ne $requestId -or $response.schema -ne 'chemsema.gui.guest-agent-response.v1') { throw 'Persistent input response identity is invalid.' }
     if ($response.status -ne 'passed') { throw "Interactive input was rejected: $($response.message)" }
     $response.result
-  } -ArgumentList @($guestPath, $GuestTestRoot, $Kind, $InputX, $InputY, $InputFromX, $InputFromY, $InputToX, $InputToY, $InputSteps, $InputButton, $InputKey)
+  } -ArgumentList @($guestPath, $GuestTestRoot, $Kind, $InputX, $InputY, $InputFromX, $InputFromY, $InputToX, $InputToY, $InputSteps, $InputButton, $InputKey, $InputTextBase64)
   [ordered]@{
     schema = 'chemsema.gui.worker-attestation.v1'
     operation = "input-$Kind"
@@ -844,7 +964,7 @@ function Invoke-ActionTransaction {
       $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMs)
       while (-not (Test-Path -LiteralPath $responsePath -PathType Leaf) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 20 }
       if (-not (Test-Path -LiteralPath $responsePath -PathType Leaf)) { throw "$ChannelName returned no receipt within $TimeoutMs ms." }
-      $response = Get-Content -Raw -LiteralPath $responsePath | ConvertFrom-Json
+      $response = Get-Content -Raw -Encoding UTF8 -LiteralPath $responsePath | ConvertFrom-Json
       if ($response.schema -ne $ResponseSchema -or $response.id -ne $requestId) { throw "$ChannelName response identity is invalid." }
       if ($response.status -ne 'passed') { throw "$ChannelName request failed: $($response.message)" }
       $response
@@ -1169,7 +1289,7 @@ function Get-InteractiveAgentAttestation {
       if (-not (Test-Path -LiteralPath $ResultPath -PathType Leaf)) {
         throw 'Interactive guest agent did not produce attestation within 45 seconds.'
       }
-      Get-Content -Raw -LiteralPath $ResultPath | ConvertFrom-Json
+      Get-Content -Raw -Encoding UTF8 -LiteralPath $ResultPath | ConvertFrom-Json
     }
     finally {
       Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
@@ -1227,12 +1347,15 @@ switch ($Operation) {
   'uia-query' { Write-Result (Query-Uia) }
   'cdp-bridge' { Write-Result (Invoke-CdpBridge) }
   'fetch-artifacts' { Write-Result (Receive-GuestArtifacts) }
+  'prepare-document-output' { Write-Result (Prepare-DocumentOutput) }
+  'fetch-document-output' { Write-Result (Receive-GuestDocumentOutput) }
   'action-transaction' { Write-Result (Invoke-ActionTransaction) }
   'start-cdp-agent' { Write-Result (Start-PersistentCdpAgent) }
   'stop-cdp-agent' { Write-Result (Stop-PersistentCdpAgent) }
   'input-click' { Write-Result (Invoke-CandidateInput 'click') }
   'input-drag' { Write-Result (Invoke-CandidateInput 'drag') }
   'input-key' { Write-Result (Invoke-CandidateInput 'key') }
+  'input-text' { Write-Result (Invoke-CandidateInput 'text') }
   'agent-attest-service' { Write-Result (Get-ServiceAgentAttestation) }
   'agent-attest-interactive' { Write-Result (Get-InteractiveAgentAttestation) }
   'stop' { Write-Result (Stop-Worker) }

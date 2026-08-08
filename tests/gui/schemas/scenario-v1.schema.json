@@ -54,9 +54,11 @@
       "additionalProperties": false,
       "required": ["strategy", "value"],
       "properties": {
-        "strategy": { "enum": ["role", "automation-id", "test-id", "entity-id", "world-geometry"] },
+        "strategy": { "enum": ["role", "automation-id", "test-id", "entity-id", "world-geometry", "uia-automation-id"] },
         "value": { "type": "string", "minLength": 1 },
         "name": { "type": "string" },
+        "controlType": { "type": "string", "pattern": "^ControlType\\.[A-Za-z]+$" },
+        "className": { "type": "string", "minLength": 1 },
         "scope": {
           "type": "object",
           "additionalProperties": false,
@@ -66,14 +68,21 @@
             "name": { "type": "string", "minLength": 1 }
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "strategy": { "const": "uia-automation-id" } } },
+          "then": { "required": ["controlType", "className"] }
+        }
+      ]
     },
     "completion": {
       "type": "object",
       "additionalProperties": false,
       "required": ["kind", "timeoutMs"],
       "properties": {
-        "kind": { "enum": ["actionable", "dom-count", "dom-distinct-count", "quiescent"] },
+        "kind": { "enum": ["actionable", "dom-count", "dom-distinct-count", "quiescent", "uia-visible", "document-saved"] },
+        "target": { "$ref": "#/$defs/target" },
         "selector": { "type": "string" },
         "attribute": { "enum": ["data-object-id", "data-node-id", "data-bond-id"] },
         "operator": { "enum": ["eq", "gte"] },
@@ -88,6 +97,10 @@
         {
           "if": { "properties": { "kind": { "const": "dom-distinct-count" } } },
           "then": { "required": ["attribute"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "uia-visible" } } },
+          "then": { "required": ["target"] }
         }
       ]
     },
@@ -106,13 +119,14 @@
       "required": ["id", "type", "target", "completion", "budgetMs"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "type": { "enum": ["click", "drag", "key"] },
+        "type": { "enum": ["click", "drag", "key", "text"] },
         "target": { "$ref": "#/$defs/target" },
         "button": { "enum": ["left", "right", "middle"] },
         "from": { "$ref": "#/$defs/point" },
         "to": { "$ref": "#/$defs/point" },
         "steps": { "type": "integer", "minimum": 1, "maximum": 1000 },
         "key": { "type": "string", "minLength": 1 },
+        "textSource": { "enum": ["document-output-path"] },
         "completion": { "$ref": "#/$defs/completion" },
         "budgetMs": { "type": "integer", "minimum": 1, "maximum": 300000 },
         "fakeEffect": {
@@ -128,7 +142,8 @@
       },
       "allOf": [
         { "if": { "properties": { "type": { "const": "drag" } } }, "then": { "required": ["from", "to", "steps"] } },
-        { "if": { "properties": { "type": { "const": "key" } } }, "then": { "required": ["key"] } }
+        { "if": { "properties": { "type": { "const": "key" } } }, "then": { "required": ["key"] } },
+        { "if": { "properties": { "type": { "const": "text" } } }, "then": { "required": ["textSource"] } }
       ]
     },
     "oracle": {
@@ -137,11 +152,22 @@
       "required": ["id", "kind"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "kind": { "enum": ["dom-count", "dom-distinct-count", "no-unexpected-diagnostics"] },
+        "kind": { "enum": ["dom-count", "dom-distinct-count", "no-unexpected-diagnostics", "document-counts"] },
         "selector": { "type": "string" },
         "attribute": { "enum": ["data-object-id", "data-node-id", "data-bond-id"] },
         "operator": { "enum": ["eq", "gte"] },
-        "value": { "type": "integer", "minimum": 0 }
+        "value": { "type": "integer", "minimum": 0 },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nodes", "bonds", "molecules", "objects"],
+          "properties": {
+            "nodes": { "type": "integer", "minimum": 0 },
+            "bonds": { "type": "integer", "minimum": 0 },
+            "molecules": { "type": "integer", "minimum": 0 },
+            "objects": { "type": "integer", "minimum": 0 }
+          }
+        }
       },
       "allOf": [
         {
@@ -151,6 +177,10 @@
         {
           "if": { "properties": { "kind": { "const": "dom-distinct-count" } } },
           "then": { "required": ["attribute"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "document-counts" } } },
+          "then": { "required": ["expected"] }
         }
       ]
     },

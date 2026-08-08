@@ -1,6 +1,7 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 use chemsema_gui_test_agent::{InputGuard, AGENT_PROTOCOL};
+use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
@@ -26,8 +27,8 @@ struct ServerRequest {
 
 fn validate_server_command(args: &[String]) -> Result<(), String> {
     match args.first().map(String::as_str) {
-        Some("click" | "drag" | "key") => Ok(()),
-        _ => Err("persistent agent accepts only click, drag, or key requests".to_string()),
+        Some("click" | "drag" | "key" | "text") => Ok(()),
+        _ => Err("persistent agent accepts only click, drag, key, or text requests".to_string()),
     }
 }
 
@@ -161,6 +162,16 @@ fn run(args: &[String]) -> Result<serde_json::Value, String> {
             let attestation = windows::key(&guard(args)?, &value(args, "--key")?)?;
             serde_json::to_value(attestation).map_err(|error| error.to_string())
         }
+        Some("text") => {
+            let encoded = value(args, "--text-base64")?;
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(encoded)
+                .map_err(|error| format!("invalid text input base64: {error}"))?;
+            let text = String::from_utf8(bytes)
+                .map_err(|error| format!("text input is not UTF-8: {error}"))?;
+            let attestation = windows::text(&guard(args)?, &text)?;
+            serde_json::to_value(attestation).map_err(|error| error.to_string())
+        }
         Some("activate") => {
             let attestation = windows::activate(&guard(args)?)?;
             serde_json::to_value(attestation).map_err(|error| error.to_string())
@@ -201,6 +212,7 @@ mod tests {
         assert!(validate_server_command(&["click".to_string()]).is_ok());
         assert!(validate_server_command(&["drag".to_string()]).is_ok());
         assert!(validate_server_command(&["key".to_string()]).is_ok());
+        assert!(validate_server_command(&["text".to_string()]).is_ok());
         assert!(validate_server_command(&["store-autologon-secret".to_string()]).is_err());
         assert!(validate_server_command(&["attest".to_string()]).is_err());
     }
