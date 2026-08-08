@@ -218,6 +218,16 @@ impl Engine {
         self.append_selection_relationship_items(&mut items);
         self.append_selection_color_items(&mut items);
         self.append_special_object_dialog_items(&mut items, single_object_type.as_deref());
+        if let Some(all_locked) = self.selection_objects_are_all_locked() {
+            items.extend([
+                separator(),
+                item(
+                    if all_locked { "Unlock" } else { "Lock" },
+                    "set-selection-locked",
+                    if all_locked { "false" } else { "true" },
+                ),
+            ]);
+        }
 
         if single_object_type.as_deref() == Some("table") {
             items.extend(self.table_cell_context_menu_items(hit));

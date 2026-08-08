@@ -306,6 +306,10 @@ impl ChemSemaDocument {
         find_scene_object_mut(&mut self.objects, object_id)
     }
 
+    pub(crate) fn scene_object_is_effectively_locked(&self, object_id: &str) -> bool {
+        find_scene_object_effective_lock(&self.objects, object_id, false).unwrap_or(false)
+    }
+
     pub fn ancestor_group_id_for_scene_object(&self, object_id: &str) -> Option<String> {
         find_ancestor_group_id(&self.objects, object_id, None)
     }
@@ -375,6 +379,25 @@ fn find_scene_object_mut<'a>(
             return Some(object);
         }
         if let Some(found) = find_scene_object_mut(&mut object.children, object_id) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+fn find_scene_object_effective_lock(
+    objects: &[SceneObject],
+    object_id: &str,
+    ancestor_locked: bool,
+) -> Option<bool> {
+    for object in objects {
+        let effectively_locked = ancestor_locked || object.locked;
+        if object.id == object_id {
+            return Some(effectively_locked);
+        }
+        if let Some(found) =
+            find_scene_object_effective_lock(&object.children, object_id, effectively_locked)
+        {
             return Some(found);
         }
     }

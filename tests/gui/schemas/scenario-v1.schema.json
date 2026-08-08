@@ -101,6 +101,20 @@
         {
           "if": { "properties": { "kind": { "const": "uia-visible" } } },
           "then": { "required": ["target"] }
+        },
+        {
+          "if": { "properties": { "kind": { "enum": ["actionable", "quiescent", "document-saved"] } } },
+          "then": {
+            "not": {
+              "anyOf": [
+                { "required": ["target"] },
+                { "required": ["selector"] },
+                { "required": ["attribute"] },
+                { "required": ["operator"] },
+                { "required": ["value"] }
+              ]
+            }
+          }
         }
       ]
     },

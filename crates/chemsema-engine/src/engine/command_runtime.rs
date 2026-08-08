@@ -758,6 +758,15 @@ impl Engine {
                 changed
             }
             EditorCommand::DeleteSelection => self.delete_selection(),
+            EditorCommand::SetObjectsLocked { object_ids, locked } => {
+                if object_ids.is_empty() {
+                    self.set_selection_locked(locked)
+                } else {
+                    self.with_command(command.clone(), |engine| {
+                        engine.set_objects_locked_direct(&object_ids, locked)
+                    })
+                }
+            }
             EditorCommand::DeleteTargets { targets } => self
                 .with_command(command.clone(), |engine| {
                     engine.delete_targets_direct(&targets)

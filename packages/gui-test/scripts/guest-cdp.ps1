@@ -290,6 +290,10 @@ try {
     if (query.strategy === 'role') {
       return [...root.querySelectorAll('*')].filter(element => roleOf(element) === query.value && (!query.name || nameOf(element) === query.name));
     }
+    if (query.strategy === 'entity-id') {
+      const element = root.querySelector('[data-object-id="' + CSS.escape(query.value) + '"][data-renderer]');
+      return element ? [element] : [];
+    }
     if (query.strategy === 'world-geometry') {
       if (query.value !== 'page-background') throw new Error('Unsupported world geometry target ' + query.value);
       const element = root.querySelector('[data-layer="page-background"]');

@@ -374,6 +374,14 @@ test("production world geometry targets are restricted to the rendered page", as
   assert.match(source, /\[data-layer="page-background"\]/);
 });
 
+test("production entity targets resolve one stable scene-object render root", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
+  assert.match(source, /query\.strategy === 'entity-id'/);
+  assert.match(source, /\[data-object-id=/);
+  assert.match(source, /\[data-renderer\]/);
+});
+
 test("production action transaction uses one guest invocation for before, input, completion, and after", async () => {
   const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const source = await readFile(join(packageRoot, "scripts", "hyperv-coordinator.ps1"), "utf8");

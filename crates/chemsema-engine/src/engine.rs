@@ -23,6 +23,7 @@ mod history;
 mod images;
 mod io;
 mod links;
+mod locks;
 mod logical_relations;
 mod molecular_coloring;
 mod nmr_results;
@@ -1402,6 +1403,95 @@ mod tests {
         );
     }
 
+    #[test]
+    fn locking_selected_molecule_is_one_undoable_command() {
+        let mut engine = Engine::new();
+        engine.state.document = two_molecule_document();
+        engine.state.selection = SelectionState {
+            molecule_objects: vec!["obj_mol_a".to_string()],
+            nodes: vec!["node_a".to_string()],
+            ..SelectionState::default()
+        };
+
+        assert!(engine.set_selection_locked(true));
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_a")
+            .is_some_and(|object| object.locked));
+        assert!(engine.undo());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_a")
+            .is_some_and(|object| !object.locked));
+        assert!(engine.redo());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_a")
+            .is_some_and(|object| object.locked));
+    }
+
+    #[test]
+    fn mixed_delete_preserves_locked_object_and_remains_one_history_step() {
+        let mut engine = Engine::new();
+        engine.state.document = two_molecule_document();
+        engine
+            .state
+            .document
+            .find_scene_object_mut("obj_mol_a")
+            .expect("first molecule exists")
+            .locked = true;
+
+        assert!(engine.select_all());
+        assert!(engine.delete_selection());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_a")
+            .is_some());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_b")
+            .is_none());
+
+        assert!(engine.undo());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_a")
+            .is_some());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_b")
+            .is_some());
+        assert!(engine.redo());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_a")
+            .is_some());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_b")
+            .is_none());
+
+        assert!(engine.select_all());
+        assert!(
+            !engine.delete_selection(),
+            "an all-locked selection must be a no-op"
+        );
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_a")
+            .is_some());
+    }
+
     fn distance_annotation_engine() -> Engine {
         let source = r#"<CDXML BondLength="14.4"><page id="1">
           <fragment id="10"><n id="101" p="40 40"/><n id="102" p="60 40"/><b id="103" B="101" E="102"/></fragment>
@@ -1992,6 +2082,7 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::ApplyArrowStyle { .. } => "apply-arrow-style",
         EditorCommand::CycleBondStyle { .. } => "cycle-bond-style",
         EditorCommand::DeleteSelection => "delete-selection",
+        EditorCommand::SetObjectsLocked { .. } => "set-objects-locked",
         EditorCommand::DeleteTargets { .. } => "delete-targets",
         EditorCommand::DeleteFocusedAtPoint { .. } => "delete-focused-at-point",
         EditorCommand::PasteClipboard => "paste-clipboard",

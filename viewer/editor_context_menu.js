@@ -569,6 +569,12 @@ export function createCanvasContextMenuHost(options) {
       changed = await executeDocumentCommand("group-selection", () => options.state().editorEngine?.groupSelection?.());
     } else if (command === "ungroup") {
       changed = await executeDocumentCommand("ungroup-selection", () => options.state().editorEngine?.ungroupSelection?.());
+    } else if (command === "set-selection-locked") {
+      changed = await executeDocumentCommand({
+        type: "set-objects-locked",
+        objectIds: [],
+        locked: value === "true",
+      });
     } else if (command === "link") {
       changed = await executeDocumentCommand("link-selection", () => options.state().editorEngine?.linkSelection?.());
     } else if (command === "link-policy") {

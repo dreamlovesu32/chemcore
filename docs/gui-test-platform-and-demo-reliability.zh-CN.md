@@ -776,6 +776,18 @@ npm run gui-platform:test
 
 broker 资格闭包已通过全部 9 个登记场景：浏览器 `576267d3c1695ad40e619b59e82a41d0bd9b59f21f4f0a1a2d1324c656a868ba`；生产单键 `8f3050f525f7d5fca641b49a02ebacc99ffa9d7fd4940d23f68bd06b7e1808d9`、历史 `9e2d1f03b021f6b4c9eca52ae0328228c09075568938cc622a32a426c02a971a`、多键 `50c9042b06a256d8add5c140fb088ae5f50fd2c659a406ea6feb9d21711b37fd`、混合对象 `636d57f48d5c343f468cda12d5a719374194edbaf58e0871de08021ece342fa4`、嵌套组合 `fd1b4d24dc89b84c07bf32afbcdedbeb014bea5202dc7339d654ea973447cacd`、保存/重开 `7111c295b24643fba15762b04b9af4cdbda244ea5da70408087f3200642d9212`、区域/追加 `86360d45c8cd3199286d8a8b513746b05636d67c28068877f00ce04880f04628`、跨文档剪贴板 `2eb71278cea5ec472ba0c2ce6947470487b0a308e9b57c59ab962dfe80c25552`。99 个动作与 31 个最终 oracle 全部通过；57 个 manifest 对象重新计算 SHA-256 均一致；诊断和截断均为 0。VM 最终为 `Off` 且分配内存为 0。影响图现在区分生产传输、生产 driver、浏览器 driver 与平台测试来源，使仅传输层变化只失效 8 个生产场景，不再无意义重跑浏览器场景。
 
+### 锁定对象合同与“部分可应用”删除
+
+CCJS 0.2 已把 `locked` 定义为“对象是否可编辑”，但桌面端此前没有公开的锁定/解锁操作，通用删除路径也没有执行这一合同；只有图片拖动、谱图等少数交互零散读取该属性。引擎现在通过公开右键菜单提供 `Lock`/`Unlock`，把一次锁定变化记录为一个可撤销命令，把选中的分子节点/键映射到所属分子，并在对象自身或任一祖先锁定时判定其“有效锁定”。通用删除会规范化选择，仅删除有效可编辑成员，保留锁定成员；全锁定选择删除为空操作，锁定与未锁定混合删除则仍是一个完整的 undo/redo 事务。
+
+生产场景 `core.selection.locked-partial-delete.production` 使用受守卫真实输入完整点击公开路径：绘制两个箭头，框选第一个，精确右击该渲染实体，点击 `Lock`，再次打开菜单并观察 `Unlock`，共同选中已锁定与未锁定箭头，执行删除、撤销、重做，最后证明幸存箭头仍显示 `Unlock`。候选 SHA-256 `7dfee3e1fe541336f9809d46a299febc6cfa1d965314beea02b2e69269d66124` 的 15 个动作和 3 个最终 oracle 全部通过，evidence key 为 `32e99f68f555666037266c87e983b9b204a52ea46db2f008973781c7e70dc24a`；6 个 manifest 对象实算哈希完全一致，诊断为空。本轮还为稳定的渲染对象 wrapper 增加了语义化 `entity-id` 生产目标、严格的公开右键菜单 completion，并收紧场景 Schema：不相关的 target/value 字段会在场景验证时直接拒绝，不再拖到动作协议才失败。
+
+两次失败运行继续作为诊断证据保留。`8b43321a71b1cc6ccb77199340041a16ae41c08922ad6d7494776aecd85a3658` 证明首版语义定位器错误要求 `data-object-type`，而增量渲染对象 wrapper 的稳定合同实际是 `data-object-id` 加 `data-renderer`；定位器已按该通用合同修复。`0378f5c5eaa815b798f76fa5414851742974a7226e9471f0460d513104ded95a` 证明带 target 的 `actionable` completion 曾通过场景 Schema，却被更严格的事务 Schema 正确拒绝；场景现改用 DOM completion，两层 Schema 也都会拒绝这种无关字段组合。
+
+受影响资格闭包随后通过 10 份报告：浏览器单键 `8eb5a5061cdfd43c8c2ff7bc76024fc56466f88e66912c55c739f32173216b77`；生产单键 `b2180ec1aec77a0937456da1fcf212cdc99e89ec64aca26f5d8c2282f2ce4725`、历史 `a9c90df5943ed038b095f408f704e02f7548e0c4a50f60ace0769b0637be281d`、多键剪贴板/删除 `febb2f752c619f0043a54ee242c39c10ad1bcb47fda351f348fbe83358bef6ec`、键/箭头混合 `03a5a3eef6a8123884e769e63ed68a40ea7a004e83fa9d8087a6966dcb3ba724`、嵌套组合 `9ae1dfae810db87d204f13694877d9c575820b5d831f205bc16076e9b9f9ccc6`、保存/重开 `e170d036ccad86b12716f1d65c74ef937109c6e909353fcf7ae679ad99d8111c`、区域/追加选择 `6ccd952adb99d57956f8b0bd3828c02c5018422a2e341d3a87648353fb55794f`、跨文档剪贴板 `d0885adeee208a740d9db9c0d9c4bfa255f1761dba16a6a7d345512bfb32bd00`，以及上述新锁定部分删除场景。所有动作完成、所有 oracle 通过、诊断为空；63 个 manifest 对象均被独立重读，文件大小和 SHA-256 与声明完全一致。VM 最终为 `Off`，分配内存为 0。
+
+这只关闭了“两个箭头、一锁一解锁、混合选择后部分删除”这一单元，并不宣称锁定覆盖已经完整。组合/嵌套选择、隐藏或重叠对象、其他对象类型与属性、经 GUI 建立的锁定祖先、保存重开与格式边界、以及大文档行为仍是明确的 registry 工作。因此 coverage registry 把该能力记为 partially migrated，而不是 complete。
+
 ## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>

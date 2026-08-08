@@ -461,6 +461,11 @@ pub enum EditorCommand {
         variant: BondVariant,
     },
     DeleteSelection,
+    SetObjectsLocked {
+        #[serde(default, alias = "objectIds")]
+        object_ids: Vec<String>,
+        locked: bool,
+    },
     DeleteTargets {
         targets: CommandTargetSet,
     },

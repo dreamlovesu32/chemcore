@@ -38,6 +38,14 @@ impl Engine {
             return changed
                 | (changed && self.cascade_annotations_removed_since(&native_entities_before));
         }
+        let editable_selection = selection_without_effectively_locked_targets(
+            &self.state.document,
+            &self.state.selection,
+        );
+        if editable_selection.is_empty() {
+            return false;
+        }
+        self.state.selection = editable_selection;
         let native_entities_before = native_annotation_entity_ids(&self.state.document);
         let selection = self.state.selection.clone();
         let mut changed = false;
@@ -490,6 +498,42 @@ impl Engine {
         self.clear_interaction();
         true
     }
+}
+
+fn selection_without_effectively_locked_targets(
+    document: &crate::ChemSemaDocument,
+    selection: &crate::SelectionState,
+) -> crate::SelectionState {
+    let mut editable = selection.clone();
+    editable
+        .text_objects
+        .retain(|object_id| !document.scene_object_is_effectively_locked(object_id));
+    editable
+        .arrow_objects
+        .retain(|object_id| !document.scene_object_is_effectively_locked(object_id));
+    editable
+        .molecule_objects
+        .retain(|object_id| !document.scene_object_is_effectively_locked(object_id));
+
+    let mut locked_nodes = BTreeSet::new();
+    let mut locked_bonds = BTreeSet::new();
+    for entry in document.editable_fragments() {
+        if !document.scene_object_is_effectively_locked(&entry.object.id) {
+            continue;
+        }
+        locked_nodes.extend(entry.fragment.nodes.iter().map(|node| node.id.as_str()));
+        locked_bonds.extend(entry.fragment.bonds.iter().map(|bond| bond.id.as_str()));
+    }
+    editable
+        .nodes
+        .retain(|node_id| !locked_nodes.contains(node_id.as_str()));
+    editable
+        .label_nodes
+        .retain(|node_id| !locked_nodes.contains(node_id.as_str()));
+    editable
+        .bonds
+        .retain(|bond_id| !locked_bonds.contains(bond_id.as_str()));
+    editable
 }
 
 fn annotation_basis_ids(object: &crate::SceneObject) -> &[String] {
