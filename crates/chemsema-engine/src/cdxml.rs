@@ -567,7 +567,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
     let mut document = ChemSemaDocument {
         format: FormatInfo {
             name: "chemsema".to_string(),
-            version: "0.1".to_string(),
+            version: "0.2".to_string(),
             unit: "pt".to_string(),
         },
         document: DocumentInfo {
@@ -638,6 +638,7 @@ pub fn parse_cdxml_document(cdxml: &str, title: Option<&str>) -> Result<ChemSema
         styles,
         objects,
         links: Vec::new(),
+        orders: Default::default(),
         logical_objects,
         reaction_schemes,
         chemical_properties,

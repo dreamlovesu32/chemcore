@@ -114,7 +114,7 @@ fn document_json_rejects_unknown_scene_object_types() {
         .expect("curve CDXML loads");
     let mut document: serde_json::Value =
         serde_json::from_str(&engine.document_json().expect("document JSON")).expect("JSON");
-    document["objects"][0]["type"] = serde_json::json!("mystery-object");
+    document["entities"]["scene"][0]["type"] = serde_json::json!("mystery-object");
     let error = parse_document_json(&document.to_string()).expect_err("unknown type must fail");
     assert!(error.contains("Unsupported scene object type 'mystery-object'"));
 }

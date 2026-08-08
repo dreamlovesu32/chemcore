@@ -94,7 +94,8 @@ fn document_template_insertion_centers_content_and_preserves_styles() {
         "strokeWidth": 2.25,
         "fill": "#f8dddd"
     });
-    template_document["objects"][0]["styleRef"] = serde_json::json!("style_template_custom");
+    template_document["entities"]["scene"][0]["styleRef"] =
+        serde_json::json!("style_template_custom");
 
     let mut target = Engine::new();
     assert!(target
@@ -277,7 +278,7 @@ fn molecular_template_fusion_remaps_semantic_references_to_retained_entities() {
     .unwrap();
     let mut template: serde_json::Value =
         serde_json::from_str(palette["templates"][0]["documentJson"].as_str().unwrap()).unwrap();
-    let resource_id = template["objects"][0]["payload"]["resourceRef"]
+    let resource_id = template["entities"]["scene"][0]["payload"]["resourceRef"]
         .as_str()
         .unwrap()
         .to_string();

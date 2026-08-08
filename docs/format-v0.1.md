@@ -1,5 +1,8 @@
 # chemsema Format v0.1
 
+> Legacy specification. New files use [CCJS v0.2](./format-v0.2.md); the
+> engine accepts v0.1 only as a migration input and writes canonical v0.2.
+
 ## Scope
 
 This document defines the first persisted document format for `chemsema`.

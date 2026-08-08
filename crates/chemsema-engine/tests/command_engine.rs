@@ -35,25 +35,13 @@ fn created_bond_id(result: &Value) -> String {
 }
 
 fn find_object(value: &Value, object_id: &str) -> Value {
-    fn search(objects: &[Value], object_id: &str) -> Option<Value> {
-        for object in objects {
-            if object["id"].as_str() == Some(object_id) {
-                return Some(object.clone());
-            }
-            if let Some(found) = object["children"]
-                .as_array()
-                .and_then(|children| search(children, object_id))
-            {
-                return Some(found);
-            }
-        }
-        None
-    }
-    search(
-        value["objects"].as_array().expect("objects array"),
-        object_id,
-    )
-    .expect("object by id")
+    value["entities"]["scene"]
+        .as_array()
+        .expect("scene entities array")
+        .iter()
+        .find(|object| object["id"].as_str() == Some(object_id))
+        .cloned()
+        .expect("object by id")
 }
 
 fn find_node(value: &Value, node_id: &str) -> Value {
@@ -1322,14 +1310,21 @@ fn select_targets_can_drive_group_selection_without_ids() {
     assert_eq!(grouped["changed"], true);
     assert_eq!(grouped["command"]["type"], "group-selection");
     let document = document_value(&engine);
-    let groups = document["objects"]
+    let groups = document["entities"]["scene"]
         .as_array()
-        .expect("objects")
+        .expect("scene entities")
         .iter()
         .filter(|object| object["type"].as_str() == Some("group"))
         .collect::<Vec<_>>();
     assert_eq!(groups.len(), 1);
-    assert_eq!(groups[0]["children"].as_array().expect("children").len(), 2);
+    let group_id = groups[0]["id"].as_str().expect("group id");
+    assert_eq!(
+        document["hierarchy"]["children"][group_id]
+            .as_array()
+            .expect("group children")
+            .len(),
+        2
+    );
 }
 
 #[test]

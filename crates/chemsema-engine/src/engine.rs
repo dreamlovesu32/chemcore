@@ -28,6 +28,7 @@ mod molecular_coloring;
 mod nmr_results;
 mod orbitals;
 mod palettes;
+mod patch;
 mod plasmids;
 mod pointer;
 mod presets;
@@ -35,6 +36,7 @@ mod render_state;
 mod select;
 mod selection_summary;
 mod shapes;
+mod spatial_index;
 mod spectra;
 mod stoichiometry_grids;
 mod tables;
@@ -50,6 +52,8 @@ pub use self::command::{
     DocumentCommandFormat, EditorCommand, FocusedDeleteSource, HistoryEntry, HistorySnapshot,
     ObjectSettingsPatch, TextCommandContent, TextCommandDisplayMode, TextEditCommandTarget,
 };
+pub use self::patch::{DocumentPatch, SceneEntityPatch};
+pub use self::spatial_index::SpatialQueryResult;
 pub(crate) use self::text_edit::{
     carbon_valence_hydrogen_count_for_node, formula_hydrogen_count_for_node,
     implicit_hydrogen_label_text_for_count, make_periodic_element_node_label,
@@ -307,6 +311,7 @@ pub struct Engine {
     command_context: Vec<EditorCommand>,
     command_before_snapshot: Option<ChemSemaDocument>,
     pending_dialog: Option<serde_json::Value>,
+    spatial_index: std::cell::RefCell<Option<spatial_index::SceneSpatialIndex>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1346,7 +1351,7 @@ mod tests {
         ChemSemaDocument {
             format: FormatInfo {
                 name: "chemsema".to_string(),
-                version: "0.1".to_string(),
+                version: "0.2".to_string(),
                 unit: "pt".to_string(),
             },
             document: DocumentInfo {
@@ -1367,6 +1372,7 @@ mod tests {
                 molecule_object("obj_mol_b", "mol_b"),
             ],
             links: Vec::new(),
+            orders: Default::default(),
             logical_objects: Default::default(),
             reaction_schemes: Vec::new(),
             chemical_properties: Vec::new(),

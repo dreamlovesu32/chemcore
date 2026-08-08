@@ -7,6 +7,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
+#[path = "document/format_v02.rs"]
+mod format_v02;
 #[path = "document/geometry_constraints.rs"]
 mod geometry_constraints;
 pub use geometry_constraints::{
@@ -23,32 +25,23 @@ fn default_true() -> bool {
     true
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ChemSemaDocument {
     pub format: FormatInfo,
     pub document: DocumentInfo,
-    #[serde(default)]
     pub style: DocumentStyleInfo,
-    #[serde(default)]
     pub styles: BTreeMap<String, Value>,
-    #[serde(default)]
     pub objects: Vec<SceneObject>,
-    #[serde(default)]
     pub links: Vec<LinkRelation>,
-    #[serde(default, skip_serializing_if = "crate::LogicalObjectData::is_empty")]
+    pub orders: DocumentOrders,
     pub logical_objects: crate::LogicalObjectData,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reaction_schemes: Vec<crate::ReactionSchemeData>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub chemical_properties: Vec<ChemicalProperty>,
-    #[serde(default)]
     pub resources: BTreeMap<String, Resource>,
     /// Lossless, editable trees for interchange-format information that does
     /// not yet have a source-independent CCJS field.  This is deliberately a
     /// first-class field rather than import metadata: changing a value here is
     /// reflected by the corresponding exporter.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub interchange: BTreeMap<String, InterchangeDocument>,
 }
 
@@ -142,7 +135,7 @@ impl ChemSemaDocument {
         Self {
             format: FormatInfo {
                 name: "chemsema".to_string(),
-                version: "0.1".to_string(),
+                version: "0.2".to_string(),
                 unit: "pt".to_string(),
             },
             document: DocumentInfo {
@@ -185,6 +178,7 @@ impl ChemSemaDocument {
                 children: Vec::new(),
             }],
             links: Vec::new(),
+            orders: DocumentOrders::default(),
             logical_objects: Default::default(),
             reaction_schemes: Vec::new(),
             chemical_properties: Vec::new(),
@@ -446,14 +440,16 @@ fn remove_scene_objects_by_id(
 }
 
 pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
-    let mut value: Value = serde_json::from_str(json).map_err(|error| error.to_string())?;
-    ensure_document_json_pt_unit(&mut value)?;
+    let value: Value = serde_json::from_str(json).map_err(|error| error.to_string())?;
+    format_v02::validate_format_header(&value)?;
+    let mut value = value;
     migrate_legacy_external_connection_points(&mut value);
     let mut document: ChemSemaDocument =
         serde_json::from_value(value).map_err(|error| error.to_string())?;
     migrate_legacy_hash_bond_styles(&mut document);
     migrate_legacy_bracket_links(&mut document);
     document.document.layout.validate()?;
+    validate_scene_structure_and_references(&document)?;
     validate_scene_object_types(&document.objects)?;
     validate_spectrum_objects(&document.objects)?;
     let scene_ids = document
@@ -478,6 +474,58 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     validate_logical_objects(&document)?;
     validate_link_relations(&document)?;
     Ok(document)
+}
+
+fn validate_scene_structure_and_references(document: &ChemSemaDocument) -> Result<(), String> {
+    fn visit(
+        document: &ChemSemaDocument,
+        objects: &[SceneObject],
+        seen: &mut BTreeSet<String>,
+    ) -> Result<(), String> {
+        for object in objects {
+            if object.id.trim().is_empty() {
+                return Err("scene object id must not be empty".to_string());
+            }
+            if !seen.insert(object.id.clone()) {
+                return Err(format!("duplicate scene object id '{}'", object.id));
+            }
+            if !object.children.is_empty() && object.object_type != "group" {
+                return Err(format!(
+                    "non-group scene object '{}' cannot own children",
+                    object.id
+                ));
+            }
+            if let Some(style_ref) = object.style_ref.as_deref() {
+                if !document.styles.contains_key(style_ref) {
+                    return Err(format!(
+                        "scene object '{}' references missing style '{}'",
+                        object.id, style_ref
+                    ));
+                }
+            }
+            if let Some(resource_ref) = object.payload.resource_ref.as_deref() {
+                if !document.resources.contains_key(resource_ref) {
+                    return Err(format!(
+                        "scene object '{}' references missing resource '{}'",
+                        object.id, resource_ref
+                    ));
+                }
+            }
+            visit(document, &object.children, seen)?;
+        }
+        Ok(())
+    }
+
+    let mut seen = BTreeSet::new();
+    visit(document, &document.objects, &mut seen)?;
+    for id in &document.orders.reading {
+        if !seen.contains(id) {
+            return Err(format!(
+                "reading order references missing scene entity '{id}'"
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn migrate_legacy_hash_bond_styles(document: &mut ChemSemaDocument) {
@@ -2794,25 +2842,6 @@ fn default_node_label_box(position: [f64; 2], text: &str, font_size: f64) -> [f6
     ]
 }
 
-fn ensure_document_json_pt_unit(value: &mut Value) -> Result<(), String> {
-    if !value.is_object() {
-        return Ok(());
-    }
-    let Some(format) = value.get_mut("format").and_then(Value::as_object_mut) else {
-        return Ok(());
-    };
-    if let Some(unit) = format.get("unit").and_then(Value::as_str) {
-        if unit.eq_ignore_ascii_case("pt") {
-            return Ok(());
-        }
-        return Err(format!(
-            "Unsupported chemsema document unit '{unit}'. Current development files must use pt."
-        ));
-    }
-    format.insert("unit".to_string(), Value::String("pt".to_string()));
-    Ok(())
-}
-
 fn default_format_unit() -> String {
     "pt".to_string()
 }
@@ -2823,6 +2852,13 @@ pub struct FormatInfo {
     pub version: String,
     #[serde(default = "default_format_unit")]
     pub unit: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DocumentOrders {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reading: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

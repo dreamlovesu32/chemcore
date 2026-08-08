@@ -1391,6 +1391,7 @@ fn context_style_commands_apply_to_graphic_text_and_bond_selections() {
             "page": { "width": 160.0, "height": 100.0, "background": "#ffffff" }
         },
         "styles": {
+            "style_molecule_default": { "kind": "molecule" },
             "style_line": { "kind": "line", "stroke": "#111111", "strokeWidth": 1.0 },
             "style_shape": { "kind": "shape", "stroke": "#111111", "strokeWidth": 1.0, "fill": null },
             "style_text": { "kind": "text", "fill": "#111111", "fontSize": 10.0 }

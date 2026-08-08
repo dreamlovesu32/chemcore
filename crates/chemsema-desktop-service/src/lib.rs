@@ -1527,7 +1527,7 @@ mod tests {
         let render_list: Value =
             serde_json::from_str(&service.render_list_json(session_id).unwrap()).unwrap();
 
-        assert!(!document["objects"].as_array().unwrap().is_empty());
+        assert!(!document["entities"]["scene"].as_array().unwrap().is_empty());
         assert!(!render_list.as_array().unwrap().is_empty());
         assert!(service.can_undo(session_id).unwrap());
         assert!(service.undo(session_id).unwrap());
@@ -1701,13 +1701,20 @@ mod tests {
         assert!(service.group_selection(session_id).unwrap());
         let document: Value = serde_json::from_str(&service.document_json(session_id).unwrap())
             .expect("document json");
-        let group = document["objects"]
+        let group = document["entities"]["scene"]
             .as_array()
             .unwrap()
             .iter()
             .find(|object| object["type"] == "group")
             .expect("group object");
-        assert_eq!(group["children"].as_array().unwrap().len(), 2);
+        let group_id = group["id"].as_str().expect("group id");
+        assert_eq!(
+            document["hierarchy"]["children"][group_id]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
         assert!(service.ungroup_selection(session_id).unwrap());
     }
 
@@ -1785,7 +1792,7 @@ mod tests {
 
         let document: Value =
             serde_json::from_str(&service.document_json(session_id).unwrap()).unwrap();
-        let shape = document["objects"]
+        let shape = document["entities"]["scene"]
             .as_array()
             .unwrap()
             .iter()
@@ -1829,7 +1836,7 @@ mod tests {
         service.load_document_sdf(session_id, sdf).unwrap();
         let document: Value =
             serde_json::from_str(&service.document_json(session_id).unwrap()).unwrap();
-        assert_eq!(document["objects"][0]["type"], "molecule");
+        assert_eq!(document["entities"]["scene"][0]["type"], "molecule");
 
         let exported = service.document_sdf(session_id).unwrap();
         assert!(exported.contains("M  END"));

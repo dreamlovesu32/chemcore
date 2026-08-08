@@ -27,6 +27,10 @@ import {
   pageTextAnnotations,
   pageTrimMarkSegments,
 } from "./document_page_decorations.js";
+import {
+  canonicalChemSemaDocumentForSave,
+  inflateChemSemaDocument,
+} from "./engine_bridge.js";
 
 export function createDocumentFlow(options) {
   function traceEvent(event, detail = null) {
@@ -46,7 +50,7 @@ export function createDocumentFlow(options) {
     const text = compressed
       ? await decompressChemSemaText(await response.arrayBuffer())
       : await response.text();
-    return JSON.parse(text);
+    return inflateChemSemaDocument(JSON.parse(text));
   }
 
   function validateChemSemaJsonDocument(documentData) {
@@ -56,8 +60,12 @@ export function createDocumentFlow(options) {
     if (!documentData.document || typeof documentData.document !== "object") {
       throw new Error("Missing document section.");
     }
-    if (!Array.isArray(documentData.objects)) {
-      throw new Error("Missing objects array.");
+    const hasLegacyScene = Array.isArray(documentData.objects);
+    const hasNormalizedScene = documentData.format?.version === "0.2"
+      && Array.isArray(documentData.entities?.scene)
+      && Array.isArray(documentData.hierarchy?.roots);
+    if (!hasLegacyScene && !hasNormalizedScene) {
+      throw new Error("Missing CCJS scene entities and hierarchy.");
     }
     if (!documentData.resources || typeof documentData.resources !== "object") {
       throw new Error("Missing resources section.");
@@ -141,7 +149,11 @@ export function createDocumentFlow(options) {
     if (!options.state.currentDocument) {
       throw new Error("No document to save.");
     }
-    return `${JSON.stringify(options.state.currentDocument, null, 2)}\n`;
+    return `${JSON.stringify(
+      canonicalChemSemaDocumentForSave(options.state.currentDocument),
+      null,
+      2,
+    )}\n`;
   }
 
   async function prepareCurrentDocumentForOutput() {

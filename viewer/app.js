@@ -1,8 +1,10 @@
 import {
+  applyChemSemaDocumentPatch,
   parseEngineJson,
   primitivesForObject,
   renderBoundsFromEngine,
   renderListFromEngine,
+  setChemSemaRuntimeRevision,
 } from "./engine_bridge.js";
 import { createAppDomRefs } from "./app_dom.js";
 import { registerChemSemaDebug } from "./app_debug.js";
@@ -158,6 +160,12 @@ const colorHost = createColorHost({
 const commandEngine = createEditorCommandEngine({
   engine: () => state.editorEngine,
   syncDocumentFromEngine,
+  applyDocumentPatch: (patch) => applyChemSemaDocumentPatch(state.currentDocument, patch),
+  onDocumentPatchApplied: () => {
+    currentDocumentMoleculeTopology();
+    syncSelectionChemistrySummary();
+    refreshCommandAvailability();
+  },
   onDocumentCommitted: handleDocumentCommandCommitted,
 });
 const objectSettingsHost = createObjectSettingsHost({
@@ -1447,6 +1455,7 @@ async function syncDocumentFromEngine(options = {}) {
   }
   const documentData = parseEngineJson(state.editorEngine.documentJson());
   if (documentData) {
+    setChemSemaRuntimeRevision(documentData, state.editorEngine.revision?.());
     state.currentDocument = documentData;
     if (syncRenderList) {
       resetDocumentRenderState();

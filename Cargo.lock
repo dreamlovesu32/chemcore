@@ -719,6 +719,7 @@ dependencies = [
  "encoding_rs",
  "flate2",
  "image",
+ "jsonschema",
  "quick-xml",
  "serde",
  "serde_json",

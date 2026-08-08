@@ -199,6 +199,10 @@ impl Engine {
     }
 
     fn reconcile_automatic_reaction_steps(&mut self) -> bool {
+        // Document mutations happen before the commit revision advances. Drop
+        // any earlier query cache so automatic relation solving sees the
+        // current geometry, then let the spatial index prune candidates.
+        *self.spatial_index.borrow_mut() = None;
         let axes = self
             .state
             .document
@@ -303,7 +307,29 @@ impl Engine {
             })
             .collect::<BTreeMap<_, _>>();
 
-        for object in self.state.document.scene_objects() {
+        let candidate_ids = axes
+            .iter()
+            .flat_map(|axis| {
+                let axial = (axis.length * 4.0).max(crate::DEFAULT_BOND_LENGTH * 8.0);
+                let perpendicular =
+                    (axis.length * 1.5).max(crate::DEFAULT_BOND_LENGTH * 3.0);
+                self.spatial_query([
+                    axis.start.x.min(axis.end.x) - axial,
+                    axis.start.y.min(axis.end.y) - perpendicular,
+                    axis.start.x.max(axis.end.x) + axial,
+                    axis.start.y.max(axis.end.y) + perpendicular,
+                ])
+                .entity_ids
+            })
+            .collect::<BTreeSet<_>>();
+
+        for object in self
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .filter(|object| candidate_ids.contains(&object.id))
+        {
             if object.link_policy != LinkPolicy::Auto {
                 continue;
             }

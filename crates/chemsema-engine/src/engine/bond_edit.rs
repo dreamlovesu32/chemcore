@@ -254,6 +254,7 @@ impl Engine {
             styles: self.state.document.styles.clone(),
             objects: Vec::new(),
             links: Vec::new(),
+            orders: Default::default(),
             logical_objects: Default::default(),
             reaction_schemes: Vec::new(),
             chemical_properties: Vec::new(),

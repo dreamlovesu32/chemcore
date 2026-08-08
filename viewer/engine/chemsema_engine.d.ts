@@ -64,6 +64,7 @@ export class WasmEngine {
     documentColorsJson(): string;
     documentJson(): string;
     documentLayoutDialogJson(): string;
+    documentPatchJson(): string;
     documentSdf(): string;
     documentStylePreset(): string;
     documentSvg(): string;
@@ -148,6 +149,7 @@ export class WasmEngine {
     setTemplate(template: string): void;
     setTool(active_tool: string, bond_variant: string): void;
     shapeToolIconSvg(kind: string, style: string): string;
+    spatialQueryJson(min_x: number, min_y: number, max_x: number, max_y: number): string;
     stateJson(): string;
     symbolToolIconSvg(kind: string): string;
     takePendingDialogJson(): string;
@@ -236,6 +238,7 @@ export interface InitOutput {
     readonly wasmengine_documentColorsJson: (a: number) => [number, number, number, number];
     readonly wasmengine_documentJson: (a: number) => [number, number, number, number];
     readonly wasmengine_documentLayoutDialogJson: (a: number) => [number, number];
+    readonly wasmengine_documentPatchJson: (a: number) => [number, number, number, number];
     readonly wasmengine_documentSdf: (a: number) => [number, number, number, number];
     readonly wasmengine_documentStylePreset: (a: number) => [number, number];
     readonly wasmengine_documentSvg: (a: number) => [number, number];
@@ -320,6 +323,7 @@ export interface InitOutput {
     readonly wasmengine_setTemplate: (a: number, b: number, c: number) => void;
     readonly wasmengine_setTool: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly wasmengine_shapeToolIconSvg: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly wasmengine_spatialQueryJson: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly wasmengine_stateJson: (a: number) => [number, number, number, number];
     readonly wasmengine_symbolToolIconSvg: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_takePendingDialogJson: (a: number) => [number, number];

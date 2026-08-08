@@ -997,6 +997,7 @@ fn object_settings_update_bond_and_graphic_metrics() {
             "page": { "width": 160.0, "height": 120.0, "background": "#ffffff" }
         },
         "styles": {
+            "style_molecule_default": { "kind": "molecule" },
             "style_line": { "kind": "stroke", "stroke": "#111111", "strokeWidth": 1.0 },
             "style_shape": { "kind": "shape", "stroke": "#111111", "strokeWidth": 1.0, "fill": null }
         },

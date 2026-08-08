@@ -35,6 +35,7 @@ impl Engine {
             command_context: Vec::new(),
             command_before_snapshot: None,
             pending_dialog: None,
+            spatial_index: std::cell::RefCell::new(None),
         }
     }
 
@@ -48,6 +49,14 @@ impl Engine {
 
     pub fn document_json(&self) -> serde_json::Result<String> {
         serde_json::to_string(&self.state.document)
+    }
+
+    pub fn document_patch_json(&self) -> serde_json::Result<String> {
+        serde_json::to_string(&self.current_document_patch())
+    }
+
+    pub fn spatial_query_json(&self, bounds: [f64; 4]) -> serde_json::Result<String> {
+        serde_json::to_string(&self.spatial_query(bounds))
     }
 
     pub fn document_cdxml(&self) -> String {
@@ -101,6 +110,7 @@ impl Engine {
         self.revision = 0;
         self.last_command_result = None;
         self.pending_dialog = None;
+        *self.spatial_index.borrow_mut() = None;
         self.next_id = self.infer_next_id();
         Ok(())
     }

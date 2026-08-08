@@ -3659,9 +3659,9 @@ mod tests {
 
         let document: Value = serde_json::from_str(&document_json(&engine).expect("document json"))
             .expect("document value");
-        let text_x = document["objects"]
+        let text_x = document["entities"]["scene"]
             .as_array()
-            .expect("objects")
+            .expect("scene entities")
             .iter()
             .filter(|object| object["type"].as_str() == Some("text"))
             .map(|object| object["transform"]["translate"][0].as_f64().expect("x"))

@@ -340,19 +340,19 @@ fn ccjs_validation_rejects_ambiguous_or_invalid_spectrum_state() {
     let mut value = serde_json::to_value(document).expect("document serializes");
     parse_document_json(&value.to_string()).expect("valid spectrum CCJS parses");
 
-    value["objects"][0]["payload"]["spectrum"]["dataPoints"] = json!([]);
+    value["entities"]["scene"][0]["payload"]["spectrum"]["dataPoints"] = json!([]);
     assert!(parse_document_json(&value.to_string())
         .expect_err("empty spectrum must fail")
         .contains("must not be empty"));
 
-    value["objects"][0]["payload"]["spectrum"]["dataPoints"] = json!([1, 2, 3]);
-    value["objects"][0]["transform"]["rotate"] = json!(15);
+    value["entities"]["scene"][0]["payload"]["spectrum"]["dataPoints"] = json!([1, 2, 3]);
+    value["entities"]["scene"][0]["transform"]["rotate"] = json!(15);
     assert!(parse_document_json(&value.to_string())
         .expect_err("rotated spectrum must fail")
         .contains("cannot be rotated"));
 
-    value["objects"][0]["transform"]["rotate"] = json!(0);
-    value["objects"][0]["type"] = json!("shape");
+    value["entities"]["scene"][0]["transform"]["rotate"] = json!(0);
+    value["entities"]["scene"][0]["type"] = json!("shape");
     assert!(parse_document_json(&value.to_string())
         .expect_err("spectrum payload on another object type must fail")
         .contains("non-spectrum object"));

@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemsema.org/schemas/ccjs-v0.2.schema.json",
+  "title": "ChemSema Chemical JSON Snapshot v0.2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "document",
+    "style",
+    "styles",
+    "entities",
+    "hierarchy",
+    "relations",
+    "orders",
+    "reactionSchemes",
+    "chemicalProperties",
+    "resources"
+  ],
+  "properties": {
+    "format": { "$ref": "#/$defs/format" },
+    "document": { "$ref": "#/$defs/document" },
+    "style": { "type": "object" },
+    "styles": {
+      "type": "object",
+      "additionalProperties": { "type": ["object", "null"] }
+    },
+    "entities": { "$ref": "#/$defs/entities" },
+    "hierarchy": { "$ref": "#/$defs/hierarchy" },
+    "relations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/relation" }
+    },
+    "orders": { "$ref": "#/$defs/orders" },
+    "logicalObjects": { "type": "object" },
+    "reactionSchemes": { "type": "array", "items": { "type": "object" } },
+    "chemicalProperties": { "type": "array", "items": { "type": "object" } },
+    "resources": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/resource" }
+    },
+    "interchange": {
+      "type": "object",
+      "additionalProperties": { "type": "object" }
+    }
+  },
+  "$defs": {
+    "format": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "unit", "profile"],
+      "properties": {
+        "name": { "const": "chemsema" },
+        "version": { "const": "0.2" },
+        "unit": { "const": "pt" },
+        "profile": { "const": "snapshot" }
+      }
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "page"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "title": { "type": "string" },
+        "page": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["width", "height", "background"],
+          "properties": {
+            "width": { "type": "number", "exclusiveMinimum": 0 },
+            "height": { "type": "number", "exclusiveMinimum": 0 },
+            "background": { "type": "string" }
+          }
+        },
+        "layout": { "type": "object" },
+        "meta": {}
+      }
+    },
+    "entities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scene"],
+      "properties": {
+        "scene": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sceneEntity" }
+        }
+      }
+    },
+    "sceneEntity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "type": {
+          "enum": [
+            "molecule", "text", "line", "curve", "bracket", "symbol",
+            "shape", "table", "image", "spectrum", "group",
+            "geometry", "constraint", "stoichiometry-grid"
+          ]
+        },
+        "name": { "type": "string" },
+        "visible": { "type": "boolean" },
+        "locked": { "type": "boolean" },
+        "zIndex": { "type": "integer" },
+        "transform": { "$ref": "#/$defs/transform" },
+        "styleRef": { "$ref": "#/$defs/id" },
+        "linkPolicy": { "enum": ["auto", "linked", "unlinked"] },
+        "meta": {},
+        "payload": { "type": "object" }
+      }
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "translate": { "$ref": "#/$defs/point" },
+        "rotate": { "type": "number" },
+        "scale": { "$ref": "#/$defs/point" }
+      }
+    },
+    "hierarchy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["roots"],
+      "properties": {
+        "roots": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "children": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/id" }
+          }
+        }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "endpoints"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": {
+          "enum": [
+            "bracket-repeat-label", "analysis-caption", "atom-symbol",
+            "chemical-property-display", "annotation-basis"
+          ]
+        },
+        "endpoints": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["entityId", "role"],
+            "properties": {
+              "entityId": { "$ref": "#/$defs/id" },
+              "role": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "data": {}
+      }
+    },
+    "orders": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reading": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "required": ["type", "encoding", "data"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "encoding": { "type": "string", "minLength": 1 },
+        "data": {},
+        "meta": {}
+      }
+    },
+    "id": { "type": "string", "minLength": 1 },
+    "point": {
+      "type": "array",
+      "prefixItems": [{ "type": "number" }, { "type": "number" }],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    }
+  }
+}

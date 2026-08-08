@@ -125,7 +125,7 @@ fn bundle_for_object_writes_verified_artifacts_and_identity_map() {
     let subset: Value =
         serde_json::from_str(&fs::read_to_string(out_dir.join("editable-subset.ccjs")).unwrap())
             .unwrap();
-    let object_ids = subset["objects"]
+    let object_ids = subset["entities"]["scene"]
         .as_array()
         .unwrap()
         .iter()
@@ -914,9 +914,9 @@ fn session_execute_selection_commands_drive_arrange() {
     let document: Value =
         serde_json::from_str(&fs::read_to_string(&output).expect("saved document"))
             .expect("saved json");
-    let text_x = document["objects"]
+    let text_x = document["entities"]["scene"]
         .as_array()
-        .expect("objects")
+        .expect("scene entities")
         .iter()
         .filter(|object| object["type"].as_str() == Some("text"))
         .map(|object| object["transform"]["translate"][0].as_f64().expect("x"))

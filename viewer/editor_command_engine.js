@@ -79,10 +79,19 @@ export function createEditorCommandEngine(options = {}) {
             applyBranch: true,
           };
         }
-        await options.syncDocumentFromEngine?.({
-          syncRenderList: executeOptions.syncRenderList !== false,
-          refreshSnapshot: executeOptions.refreshSnapshot !== false,
-        });
+        const appliedResult = parseCommandResultJson(rawResult) || readEngineResult();
+        const patch = appliedResult?.changed
+          ? parseCommandResultJson(activeEngine?.documentPatchJson?.())
+          : null;
+        const applied = patch ? await options.applyDocumentPatch?.(patch, appliedResult) : false;
+        if (applied) {
+          await options.onDocumentPatchApplied?.(patch, appliedResult);
+        } else {
+          await options.syncDocumentFromEngine?.({
+            syncRenderList: executeOptions.syncRenderList !== false,
+            refreshSnapshot: executeOptions.refreshSnapshot !== false,
+          });
+        }
       }
       result = rawResult === false ? null : (parseCommandResultJson(rawResult) || readEngineResult());
     } else if (activeEngine?.executeCommandJson) {
@@ -100,10 +109,16 @@ export function createEditorCommandEngine(options = {}) {
             applyBranch: false,
           };
         }
-        await options.syncDocumentFromEngine?.({
-          syncRenderList: executeOptions.syncRenderList !== false,
-          refreshSnapshot: executeOptions.refreshSnapshot !== false,
-        });
+        const patch = parseCommandResultJson(activeEngine?.documentPatchJson?.());
+        const applied = patch ? await options.applyDocumentPatch?.(patch, result) : false;
+        if (applied) {
+          await options.onDocumentPatchApplied?.(patch, result);
+        } else {
+          await options.syncDocumentFromEngine?.({
+            syncRenderList: executeOptions.syncRenderList !== false,
+            refreshSnapshot: executeOptions.refreshSnapshot !== false,
+          });
+        }
       }
     } else {
       throw new Error(`Command '${normalized.type || "unknown"}' has no engine executor.`);

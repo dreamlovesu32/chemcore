@@ -1211,6 +1211,20 @@ impl WasmEngine {
             .map_err(|error| JsValue::from_str(&error.to_string()))
     }
 
+    #[wasm_bindgen(js_name = documentPatchJson)]
+    pub fn document_patch_json(&self) -> Result<String, JsValue> {
+        self.inner
+            .document_patch_json()
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    #[wasm_bindgen(js_name = spatialQueryJson)]
+    pub fn spatial_query_json(&self, min_x: f64, min_y: f64, max_x: f64, max_y: f64) -> String {
+        self.inner
+            .spatial_query_json([min_x, min_y, max_x, max_y])
+            .unwrap_or_else(|_| "{\"entityIds\":[]}".to_string())
+    }
+
     #[wasm_bindgen(js_name = documentCdxml)]
     pub fn document_cdxml(&self) -> String {
         self.inner.document_cdxml()
