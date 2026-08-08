@@ -509,7 +509,7 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 
 ### 13.2 VM 生命周期与安全
 
-每个正式 VM profile 使用版本化基线、干净 checkpoint、专用低权限账户和独立密钥；启动后验证 OS、WebView2、字体、Office、DPI、GPU 和更新状态，结束后导出证据并回滚。测试网络默认隔离，只按 manifest 放行所需端点；禁止挂载用户项目目录、复用个人浏览器 profile、同步个人 OneDrive 或共享 host 剪贴板。coordinator 必须支持断电/重启后的幂等恢复、孤儿进程清理和制品完整性检查。
+每个正式 VM profile 使用版本化基线、干净 checkpoint、专用测试账户和独立密钥；PowerShell Direct 凭据只能通过系统安全提示取得，以 host 当前账户的 DPAPI 加密保存在仓库外，并将 ACL 限制为该账户、SYSTEM 和 Administrators，禁止明文进入命令、日志、场景或 CI 制品。启动后验证 OS、WebView2、字体、Office、DPI、GPU 和更新状态，结束后导出证据并回滚。测试网络默认隔离，只按 manifest 放行所需端点；需要联网时，coordinator 从实际 Hyper-V switch 读取 gateway/prefix，配置 guest 地址并分别验证 DNS、HTTPS 和文件往返，不能依赖一次性的旧 DHCP 租约。禁止挂载用户项目目录、复用个人浏览器 profile、同步个人 OneDrive 或共享 host 剪贴板。coordinator 必须支持断电/重启后的幂等恢复、孤儿进程清理和制品完整性检查。
 
 ## 14. 运行报告与失败包
 
@@ -703,7 +703,9 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 
 ## 21. 当前工作站验证状态（2026-08-08）
 
-已验证 Hyper-V PowerShell 模块存在，`vmms` 与 `vmcompute` 服务运行；host 报告 24 个逻辑处理器和约 63.4 GiB 物理内存。`jiajun\dream` 已加入并在当前 token 中启用 `Hyper-V Administrators`。现有 Windows 11 测试 VM（本文别名 `windows-gui-worker-current`）为 Generation 2、8 vCPU、动态内存 4–20 GiB；其配置、自动检查点和 VHDX/AVHDX 链可访问，2026-08-08 已实际从 Off 启动为 Running，guest heartbeat、时间同步、键值交换与关机集成正常，随后经 Hyper-V 正常停止并完成自动检查点合并，最终恢复 Off/正常状态。用户确认 guest Office 已激活，但本次未在 guest 内独立验证。Default Switch 只分配到 `169.254.*` 地址，guest 网络/DHCP 仍待修复或隔离设计；PowerShell Direct guest 命令、文件往返和 UI 输入隔离仍需专用 guest 凭据后验证。在这些步骤通过前，只能声称 Hyper-V 生命周期可控，不能声称完整 VM runner 已投入使用。
+已验证 Hyper-V PowerShell 模块存在，`vmms` 与 `vmcompute` 服务运行；host 报告 24 个逻辑处理器和约 63.4 GiB 物理内存。`jiajun\dream` 已加入并在当前 token 中启用 `Hyper-V Administrators`。现有 Windows 11 测试 VM（本文别名 `windows-gui-worker-current`）为 Generation 2、8 vCPU、动态内存 4–20 GiB；其配置、自动检查点和 VHDX/AVHDX 链可访问，2026-08-08 已实际启动、验证 guest heartbeat/time/KVP/shutdown integration，并经 Hyper-V 正常停止和完成自动检查点合并。用户确认 guest Office 已激活，但本次未在 Office UI 内独立验证。
+
+专用 `chemsema-test` guest 账户和 `vmicvmsession` 已启用；凭据通过安全窗口取得，以 DPAPI 加密保存在仓库外，ACL 仅允许 `jiajun\dream`、SYSTEM 和 Administrators。PowerShell Direct 已实际连接到 Windows 11 guest。由于 Default Switch DHCP 仅产生 `169.254.*`，coordinator 读取 host 的 `172.31.0.1/20` 后为 guest 配置 `172.31.15.250/20`；DNS 解析和 HTTPS 443 成功，真实 `https://www.microsoft.com/` 请求返回 HTTP 200/201,253 bytes。host→guest 文件 SHA-256 与 guest→host 返回内容均完全一致。当前已打通 VM 生命周期、PowerShell Direct、guest 联网和双向文件路径；UI 输入隔离仍需 GUI driver 实现后验收。
 
 ## 22. 上游技术依据
 
