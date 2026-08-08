@@ -12,7 +12,7 @@ is a release-quality guide, not a marketing claim.
 | Office/OLE copy and embedding | Beta | Clipboard payload tests, EMF preview tests, Word paste/roundtrip validation scripts |
 | Browser editor | Beta | Viewer interaction smoke tests and stability user-path scripts |
 | Desktop app | Beta | Tauri build, file association config, hybrid latency regression, manual install validation |
-| GUI test platform | Architecture approved / implementation pending | Target: versioned scenarios, isolated Hyper-V real input, aggregate 10-CPU-unit/30-GiB budget, impact/evidence reuse, complex/large construction, model/fault/mutation testing, and demo qualification; see the long-term architecture |
+| GUI test platform | Implementation in progress / first executable slice verified | Versioned schemas/runner, real Playwright bond-drawing path, coverage audit, fail-closed impact planning, resource admission, and live Hyper-V host/guest coordination are operational; interactive guest agent, full drivers/matrix, complex/large construction, model/fault/mutation testing, and demo qualification remain |
 | CLI one-shot commands | Usable | Rust tests, `npm run verify`, stability report, generated-output verification |
 | CLI JSONL session | Experimental/usable | Session unit tests and large-file performance report |
 | Agent precise capture | Usable beta | PNG/SVG capture tests, public fixture crops, README example crops |

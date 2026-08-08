@@ -705,11 +705,13 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 
 已验证 Hyper-V PowerShell 模块存在，`vmms` 与 `vmcompute` 服务运行；host 报告 24 个逻辑处理器和约 63.4 GiB 物理内存。`jiajun\dream` 已加入并在当前 token 中启用 `Hyper-V Administrators`。现有 Windows 11 测试 VM（本文别名 `windows-gui-worker-current`）为 Generation 2、8 vCPU、动态内存 4–20 GiB；其配置、自动检查点和 VHDX/AVHDX 链可访问，2026-08-08 已实际启动、验证 guest heartbeat/time/KVP/shutdown integration，并经 Hyper-V 正常停止和完成自动检查点合并。用户确认 guest Office 已激活，但本次未在 Office UI 内独立验证。
 
-专用 `chemsema-test` guest 账户和 `vmicvmsession` 已启用；凭据通过安全窗口取得，以 DPAPI 加密保存在仓库外，ACL 仅允许 `jiajun\dream`、SYSTEM 和 Administrators。PowerShell Direct 已实际连接到 Windows 11 guest。由于 Default Switch DHCP 仅产生 `169.254.*`，coordinator 读取 host 的 `172.31.0.1/20` 后为 guest 配置 `172.31.15.250/20`；DNS 解析和 HTTPS 443 成功，真实 `https://www.microsoft.com/` 请求返回 HTTP 200/201,253 bytes。host→guest 文件 SHA-256 与 guest→host 返回内容均完全一致。当前已打通 VM 生命周期、PowerShell Direct、guest 联网和双向文件路径；UI 输入隔离仍需 GUI driver 实现后验收。
+专用 `chemsema-test` guest 账户和 `vmicvmsession` 已启用；凭据通过安全窗口取得，以 DPAPI 加密保存在仓库外，ACL 仅允许 `jiajun\dream`、SYSTEM 和 Administrators。PowerShell Direct 已实际连接到 Windows 11 guest。由于 Default Switch DHCP 仅产生 `169.254.*`，coordinator 读取 host 的 `172.31.0.1/20` 后为 guest 配置 `172.31.15.250/20`；DNS 解析和 HTTPS 443 成功，真实 `https://www.microsoft.com/` 请求返回 HTTP 200/201,253 bytes。host→guest 文件 SHA-256 与 guest→host 返回内容均完全一致。当前已打通 VM 生命周期、PowerShell Direct、guest 联网和双向文件路径。
 
 ### 首个可执行平台纵向切片
 
-仓库现已在 `packages/gui-test` 与 `tests/gui` 中包含首个可执行纵向切片：场景、运行报告、覆盖清单、影响图和制品清单 JSON Schema；严格 Schema 校验；规范化内容寻址 evidence key；传递影响选择；总计 10 CPU unit/30 GiB 的 fail-closed 资源准入；动作硬预算和前后状态收据；fake driver；以及 Playwright browser driver。版本化场景 `core.bond.draw-single` 使用公开可访问性目标和真实指针拖拽输入。同一场景已通过 fake driver 的 runner 自测，并在无头 Edge 中实际执行成功，生成经过 Schema 验证的 `chemsema.gui.run.v1` 报告。旧回归脚本在逐项登记和迁移期间继续保持有效，不因新平台存在而退役。
+仓库现已在 `packages/gui-test` 与 `tests/gui` 中包含首个可执行纵向切片：场景、运行报告、覆盖清单、影响图、制品清单和 worker profile JSON Schema；严格 Schema 校验；规范化内容寻址 evidence key；传递影响选择；总计 10 CPU unit/30 GiB 的 fail-closed 资源准入；动作硬预算和前后状态收据；fake driver、Playwright browser driver 和 Hyper-V coordinator。版本化场景 `core.bond.draw-single` 使用公开可访问性目标和真实指针拖拽输入。同一场景已通过 fake driver 的 runner 自测，并在无头 Edge 中实际执行成功，生成经过 Schema 验证的 `chemsema.gui.run.v1` 报告。旧回归脚本在逐项登记和迁移期间继续保持有效，不因新平台存在而退役。
+
+coordinator 已在 `windows-gui-worker-current` 上实机执行：host 身份/服务/VM/资源/凭据 attestation 通过；VM 正常启动；PowerShell Direct 验证专用 guest 身份、OS、集成服务和网络；准备了受限 `C:\ChemSemaGuiTest` 根目录；在没有专用已解锁交互会话时，真实输入请求正确 fail closed；随后 VM 正常关机。启用任何真实 OS 输入前，下一边界是安装 guest interactive agent，并验证前台目标进程和窗口。
 
 当前入口为：
 
@@ -718,6 +720,11 @@ npm run gui-platform -- list
 npm run gui-platform -- validate tests/gui/scenarios/core/draw-single-bond.json
 npm run gui-platform -- audit
 npm run gui-platform -- impact viewer/app.js
+npm run gui-platform -- worker host-attest
+npm run gui-platform -- worker start
+npm run gui-platform -- worker guest-attest
+npm run gui-platform -- worker prepare-guest
+npm run gui-platform -- worker stop
 npm run gui-platform -- run tests/gui/scenarios/core/draw-single-bond.json --driver fake
 npm run gui-platform -- run tests/gui/scenarios/core/draw-single-bond.json --driver playwright-browser
 npm run gui-platform:test

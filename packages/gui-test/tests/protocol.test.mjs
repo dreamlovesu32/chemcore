@@ -12,6 +12,7 @@ test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(scenarioPath);
   await readValidatedDocument(join(guiTestsDir, "coverage", "registry-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "coverage", "impact-v1.json"));
+  await readValidatedDocument(join(guiTestsDir, "environments", "windows-gui-worker-current.json"));
 });
 
 test("scenario protocol rejects missing auditable coverage", async () => {

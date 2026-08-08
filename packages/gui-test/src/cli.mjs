@@ -8,6 +8,7 @@ import { planImpactedScenarios } from "./impact/select.mjs";
 import { guiTestsDir, scenarioDir } from "./protocol/paths.mjs";
 import { readValidatedDocument } from "./protocol/validate.mjs";
 import { runScenario } from "./runner/run-scenario.mjs";
+import { HyperVCoordinator } from "./workers/hyperv.mjs";
 
 async function jsonFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -75,6 +76,25 @@ async function impact(paths, options) {
   console.log(JSON.stringify(plan, null, 2));
 }
 
+async function worker(args, options) {
+  const [operation] = args;
+  if (!operation || !["host-attest", "start", "guest-attest", "prepare-guest", "stop"].includes(operation)) {
+    throw new Error("worker requires host-attest, start, guest-attest, prepare-guest, or stop.");
+  }
+  const profile = await readValidatedDocument(resolve(options.profile || join(guiTestsDir, "environments", "windows-gui-worker-current.json")));
+  const coordinator = new HyperVCoordinator(profile);
+  const result = operation === "host-attest"
+    ? await coordinator.attestHost()
+    : operation === "start"
+      ? await coordinator.start()
+      : operation === "guest-attest"
+        ? await coordinator.attestGuest({ requireInteractive: options.interactive === true })
+        : operation === "prepare-guest"
+          ? await coordinator.prepareGuest()
+          : await coordinator.stop();
+  console.log(JSON.stringify(result, null, 2));
+}
+
 async function validatePaths(paths) {
   if (!paths.length) {
     throw new Error("validate requires at least one JSON path.");
@@ -116,6 +136,7 @@ Usage:
   npm run gui-platform -- validate <json> [...json]
   npm run gui-platform -- audit
   npm run gui-platform -- impact <changed-path> [...changed-path] [--graph path]
+  npm run gui-platform -- worker <host-attest|start|guest-attest|prepare-guest|stop> [--profile path] [--interactive]
   npm run gui-platform -- run <scenario.json> [--driver fake|playwright-browser] [--report path] [--url url]
 `);
 }
@@ -131,6 +152,8 @@ try {
     await audit();
   } else if (command === "impact") {
     await impact(positional, options);
+  } else if (command === "worker") {
+    await worker(positional, options);
   } else if (command === "run") {
     if (positional.length !== 1) {
       throw new Error("run requires exactly one scenario JSON path.");

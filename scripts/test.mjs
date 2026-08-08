@@ -34,4 +34,5 @@ run(process.execPath, [
   "scripts/tests/public-cdxml-visual-gate.test.mjs",
   "packages/gui-test/tests/protocol.test.mjs",
   "packages/gui-test/tests/runner.test.mjs",
+  "packages/gui-test/tests/hyperv.test.mjs",
 ]);
