@@ -1,0 +1,20 @@
+{
+  "schema": "chemsema.gui.impact.v1",
+  "nodes": [
+    { "id": "source.viewer", "kind": "source", "patterns": ["viewer/**"] },
+    { "id": "source.engine", "kind": "source", "patterns": ["crates/chemsema-engine/**"] },
+    { "id": "component.editor-interaction", "kind": "component" },
+    { "id": "capability.editor.bond.draw", "kind": "capability" },
+    { "id": "driver.playwright-browser", "kind": "driver" },
+    { "id": "oracle.dom", "kind": "oracle" },
+    { "id": "scenario.core.bond.draw-single", "kind": "scenario" }
+  ],
+  "edges": [
+    { "from": "source.viewer", "to": "component.editor-interaction", "reason": "Viewer input and rendering changes can affect editor gestures." },
+    { "from": "source.engine", "to": "component.editor-interaction", "reason": "Engine mutation, hit testing, and render primitives drive editor gestures." },
+    { "from": "component.editor-interaction", "to": "capability.editor.bond.draw", "reason": "Bond drawing is an editor interaction capability." },
+    { "from": "capability.editor.bond.draw", "to": "scenario.core.bond.draw-single", "reason": "The scenario provides real-user-path evidence for bond drawing." },
+    { "from": "driver.playwright-browser", "to": "scenario.core.bond.draw-single", "reason": "The browser driver executes this scenario." },
+    { "from": "oracle.dom", "to": "scenario.core.bond.draw-single", "reason": "The scenario checks the rendered bond through the DOM oracle." }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "schema": "chemsema.gui.coverage.v1",
+  "entries": [
+    {
+      "id": "legacy.gui-regression",
+      "kind": "legacy-script",
+      "source": "scripts/gui-regression.mjs",
+      "status": "partially-migrated",
+      "scenarioIds": ["core.bond.draw-single"],
+      "risk": "critical",
+      "notes": "Large browser regression monolith; bond drawing is the first migrated real-user path. Existing gate remains active."
+    },
+    { "id": "legacy.viewer-interactions", "kind": "legacy-script", "source": "scripts/viewer-interaction-smoke.mjs", "status": "inventoried", "scenarioIds": [], "risk": "critical" },
+    { "id": "legacy.stability-user-paths", "kind": "legacy-script", "source": "scripts/stability-user-paths.mjs", "status": "inventoried", "scenarioIds": [], "risk": "critical" },
+    { "id": "legacy.large-object-operations", "kind": "legacy-script", "source": "scripts/large-object-operation-regression.mjs", "status": "inventoried", "scenarioIds": [], "risk": "high" },
+    { "id": "legacy.large-drag-preview", "kind": "legacy-script", "source": "scripts/large-drag-preview-regression.mjs", "status": "inventoried", "scenarioIds": [], "risk": "high" },
+    { "id": "legacy.large-cdxml-speed", "kind": "legacy-script", "source": "scripts/large-cdxml-speed-regression.mjs", "status": "inventoried", "scenarioIds": [], "risk": "high" },
+    { "id": "legacy.desktop-hybrid-latency", "kind": "legacy-script", "source": "scripts/desktop-hybrid-latency-regression.mjs", "status": "inventoried", "scenarioIds": [], "risk": "high" },
+    { "id": "legacy.text-editor", "kind": "legacy-script", "source": "scripts/text-editor-regression.mjs", "status": "inventoried", "scenarioIds": [], "risk": "high" },
+    { "id": "legacy.toolbar", "kind": "legacy-script", "source": "scripts/toolbar-regression.mjs", "status": "inventoried", "scenarioIds": [], "risk": "medium" },
+    { "id": "legacy.runtime-gate", "kind": "legacy-script", "source": "scripts/runtime-gate-regression.mjs", "status": "inventoried", "scenarioIds": [], "risk": "critical" },
+    { "id": "legacy.runtime-gate-browser", "kind": "legacy-script", "source": "scripts/runtime-gate-browser-regression.mjs", "status": "inventoried", "scenarioIds": [], "risk": "critical" },
+    { "id": "legacy.ui-action-runner", "kind": "legacy-script", "source": "scripts/ui-action-runner-regression.mjs", "status": "inventoried", "scenarioIds": [], "risk": "high" }
+  ]
+}

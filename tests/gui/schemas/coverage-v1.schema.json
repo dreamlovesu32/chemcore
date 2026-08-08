@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemsema.org/schemas/gui/coverage-v1.schema.json",
+  "title": "ChemSema GUI Coverage Registry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "entries"],
+  "properties": {
+    "schema": { "const": "chemsema.gui.coverage.v1" },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "source", "status", "scenarioIds", "risk"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["legacy-script", "historical-defect", "public-capability"] },
+          "source": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["inventoried", "partially-migrated", "migrated", "gap"] },
+          "scenarioIds": { "type": "array", "items": { "type": "string" } },
+          "risk": { "enum": ["critical", "high", "medium", "low"] },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

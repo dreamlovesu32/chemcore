@@ -109,6 +109,8 @@
     "regression:plasmid-map": "node scripts/plasmid-map-regression.mjs",
     "regression:ui-actions": "node scripts/ui-action-runner-regression.mjs",
     "regression:viewer-interactions": "node scripts/viewer-interaction-smoke.mjs",
+    "gui-platform": "node packages/gui-test/src/cli.mjs",
+    "gui-platform:test": "node --test packages/gui-test/tests/*.test.mjs",
     "check:legacy-redirects": "node scripts/check-legacy-redirects.mjs",
     "check:retired-name": "node scripts/check-retired-name.mjs",
     "check:cdx-cdxml-field-ledger": "node scripts/check-cdx-cdxml-field-ledger.mjs",
@@ -146,6 +148,8 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
     "opentype.js": "^2.0.0",
     "playwright": "^1.59.1"
   },

@@ -359,6 +359,20 @@ The Hyper-V module is present and `vmms`/`vmcompute` are running on a host with 
 
 The dedicated `chemsema-test` guest account and `vmicvmsession` are enabled. Its credential was collected through a secure prompt, stored outside the repository with DPAPI, and ACL-limited to `jiajun\dream`, SYSTEM, and Administrators. PowerShell Direct connected successfully. Because Default Switch DHCP yielded only `169.254.*`, the coordinator derived the host's `172.31.0.1/20` network and assigned guest `172.31.15.250/20`. DNS and HTTPS 443 succeeded; a real request to `https://www.microsoft.com/` returned HTTP 200 and 201,253 bytes. Host-to-guest SHA-256 and guest-to-host content round trips matched. VM lifecycle, PowerShell Direct, guest networking, and bidirectional file transport are operational; UI-input isolation awaits the GUI driver implementation.
 
+### Initial executable platform slice
+
+The repository now contains the first executable vertical slice under `packages/gui-test` and `tests/gui`. It includes JSON Schemas for scenarios, run reports, coverage, impact graphs, and artifact manifests; strict schema validation; canonical content-addressed evidence keys; transitive impact selection; fail-closed aggregate 10-CPU-unit/30-GiB admission control; action budgets and before/after receipts; a fake driver; and a Playwright browser driver. The versioned `core.bond.draw-single` scenario uses public accessible targeting and real pointer drag input. The same scenario passes runner self-tests through the fake driver and executes successfully through headless Edge, producing a validated `chemsema.gui.run.v1` report. Existing regression scripts remain active while their cases are inventoried and migrated.
+
+The current entry points are:
+
+```powershell
+npm run gui-platform -- list
+npm run gui-platform -- validate tests/gui/scenarios/core/draw-single-bond.json
+npm run gui-platform -- run tests/gui/scenarios/core/draw-single-bond.json --driver fake
+npm run gui-platform -- run tests/gui/scenarios/core/draw-single-bond.json --driver playwright-browser
+npm run gui-platform:test
+```
+
 ## 20. Upstream foundations
 
 - Tauri WebDriver and WebdriverIO: <https://v2.tauri.app/develop/tests/webdriver/>

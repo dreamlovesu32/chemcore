@@ -1,0 +1,60 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.bond.draw-single",
+  "title": "Draw one single bond through public pointer input",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": null,
+  "capabilities": ["gui.public-input", "editor.bond.draw"],
+  "drivers": ["fake", "playwright-browser", "playwright-webview2", "wdio-tauri", "windows-uia", "production-black-box"],
+  "profile": {
+    "pool": "background-worker",
+    "viewport": { "width": 1400, "height": 1000 },
+    "dpi": 96,
+    "locale": "en-US",
+    "theme": "light",
+    "runtime": "browser"
+  },
+  "seed": 1,
+  "actions": [
+    {
+      "id": "activate-bond-tool",
+      "type": "click",
+      "target": {
+        "strategy": "role",
+        "value": "button",
+        "name": "Single bond",
+        "scope": { "role": "complementary", "name": "Main Drawing Rail" }
+      },
+      "completion": { "kind": "actionable", "timeoutMs": 12000 },
+      "budgetMs": 12000
+    },
+    {
+      "id": "draw-single-bond",
+      "type": "drag",
+      "target": { "strategy": "automation-id", "value": "viewer-container" },
+      "button": "left",
+      "from": { "x": 0.43, "y": 0.5 },
+      "to": { "x": 0.53, "y": 0.5 },
+      "steps": 8,
+      "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "gte", "value": 1, "timeoutMs": 12000 },
+      "budgetMs": 12000,
+      "fakeEffect": { "kind": "increment-dom-count", "selector": "[data-bond-id]", "by": 1 }
+    }
+  ],
+  "oracles": [
+    { "id": "rendered-bond-exists", "kind": "dom-count", "selector": "[data-bond-id]", "operator": "gte", "value": 1 },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw"],
+    "objectTypes": ["bond", "molecule"],
+    "cardinalities": ["1"],
+    "states": ["blank-document", "bond-tool-active"],
+    "inputModes": ["mouse"],
+    "properties": ["bond.order.single"],
+    "persistenceBoundaries": ["runtime"]
+  }
+}
