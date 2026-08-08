@@ -11,7 +11,7 @@
 | Office/OLE 复制与嵌入 | Beta | 剪贴板 payload、EMF preview、Word 粘贴/回读验证 |
 | 浏览器编辑器 | Beta | viewer 交互 smoke test 和用户路径稳定性脚本 |
 | 桌面端 | Beta | Tauri build、文件关联配置、hybrid latency 回归、安装验证 |
-| GUI 测试平台 | 架构已批准/待实现 | 目标为版本化场景、隔离 Hyper-V 真实输入、10 逻辑处理器/20 GiB 总预算、影响图/证据复用、复杂与大文档构建、模型/故障/变异测试和展示资格；见长期架构 |
+| GUI 测试平台 | 架构已批准/待实现 | 目标为版本化场景、隔离 Hyper-V 真实输入、10 CPU execution unit/30 GiB 总预算、影响图/证据复用、复杂与大文档构建、模型/故障/变异测试和展示资格；见长期架构 |
 | CLI one-shot 命令 | Usable | Rust 测试、`npm run verify`、稳定性报告、输出写入验证 |
 | CLI JSONL session | Experimental/usable | session 单测和大文件性能报告 |
 | Agent 精确截图 | Usable beta | PNG/SVG capture 测试、公开 fixture crop、README 示例图 |

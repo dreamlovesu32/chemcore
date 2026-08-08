@@ -503,9 +503,9 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 
 ### 13.1 当前工作站资源合同
 
-本机测试的硬上限为所有 ChemSema 测试 worker 合计 **10 个 CPU execution unit（按 Windows 逻辑处理器/vCPU 计）和 20 GiB host committed-memory 增量**，不是每个 worker 各自获得该额度。guest vCPU、host worker CPU slot 和 coordinator 都从同一个 10-unit 配额扣除；guest 分配内存、`vmwp`/Hyper-V 开销、host runner、缓存和报告进程都计入同一个 20 GiB 增量。调度器通过 Hyper-V vCPU/动态内存、Windows Job Object/affinity、进程采样和 admission control 共同约束；超过任一预算时排队，不能依靠 OOM 或系统调度碰运气。磁盘空间、写入速率、GPU、温度和电源状态单独监控，资源不足时安全暂停并可从 checkpoint 恢复。
+本机测试的硬上限为所有 ChemSema 测试 worker 合计 **10 个 CPU execution unit（按 Windows 逻辑处理器/vCPU 计）和 30 GiB host committed-memory 增量**，不是每个 worker 各自获得该额度。guest vCPU、host worker CPU slot 和 coordinator 都从同一个 10-unit 配额扣除；guest 分配内存、`vmwp`/Hyper-V 开销、host runner、缓存和报告进程都计入同一个 30 GiB 增量。调度器通过 Hyper-V vCPU/动态内存、Windows Job Object/affinity、进程采样和 admission control 共同约束；超过任一预算时排队，不能依靠 OOM 或系统调度碰运气。磁盘空间、写入速率、GPU、温度和电源状态单独监控，资源不足时安全暂停并可从 checkpoint 恢复。
 
-默认吞吐 profile 为两个隔离 interactive worker，各最多 4 vCPU/7 GiB；host coordinator/headless shard 保留 2 CPU unit，host runner 与 Hyper-V 开销合计保留 6 GiB。需要 `xlarge`、soak、Office 或高内存场景时切换为单一 heavy worker，最多 8 vCPU/14 GiB，host 侧仍保留 2 CPU unit/6 GiB 并遵守总上限。资源控制看实际 host 增量而非只相信 VM 配置值；实际 worker 数由基准校准，不能以并行数量换取超时、内存交换、前景竞争或 flaky。
+默认吞吐 profile 为两个隔离 interactive worker，各最多 4 vCPU/10 GiB；host coordinator/headless shard 保留 2 CPU unit，host runner 与 Hyper-V 开销合计保留 10 GiB。需要 `xlarge`、soak、Office 或高内存场景时切换为单一 heavy worker，最多 8 vCPU/20 GiB，host 侧仍保留 2 CPU unit/10 GiB 并遵守总上限。资源控制看实际 host 增量而非只相信 VM 配置值；实际 worker 数由基准校准，不能以并行数量换取超时、内存交换、前景竞争或 flaky。
 
 ### 13.2 VM 生命周期与安全
 
@@ -637,7 +637,7 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 ### Phase 1：协议与 runner 内核
 
 - 场景、报告、coverage、artifact manifest schema；
-- 10 vCPU/20 GiB admission control、增量 scheduler、隔离、action receipt、oracle 和 shrink 基础；
+- 10 CPU unit/30 GiB admission control、增量 scheduler、隔离、action receipt、oracle 和 shrink 基础；
 - 标准 CLI 和单场景 reproduce；
 - runner 自测与 mutation harness。
 
@@ -692,7 +692,7 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 - 功能、对象、数量、状态、输入、属性、持久化、错误分支和环境矩阵机器可读；
 - complex、large 和 5,000 原子或等价 `xlarge` 文档均有从空白真实构建及继续编辑证据；
 - source/component/capability/scenario 影响图可审计，完整门禁复用未变闭包证据并只执行受影响、过期和不可缓存测试；
-- 所有 worker 合计遵守 10 逻辑处理器/20 GiB，上层桌面从不接收测试输入；
+- 所有 worker 合计遵守 10 CPU execution unit/30 GiB，上层桌面从不接收测试输入；
 - 固定 seed 失败可以自动重放和收缩；
 - 核心 mutation set 全部被杀死；
 - PR、nightly、release 和 demo 门禁均在 CI/测试机上持续运行；
@@ -703,7 +703,7 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 
 ## 21. 当前工作站验证状态（2026-08-08）
 
-已验证 Hyper-V PowerShell 模块存在，`vmms` 与 `vmcompute` 服务运行；host 报告 24 个逻辑处理器和约 63.4 GiB 物理内存，满足拟定的 10 vCPU/20 GiB 总预算。当前 Codex 执行账户 `jiajun\dream` 不具备 Hyper-V 管理授权，`Get-VM` 与 `Get-VMHost` 返回 permission denied，因此现有 VM 清单、配置、启动、guest 登录和 PowerShell Direct 尚未验证。必须先由管理员将专用执行账户加入 `Hyper-V Administrators` 并重新登录，再完成只读 inventory、checkpoint clone、guest 无害命令、文件往返、隔离输入和资源上限验收；在这些步骤通过前不得声称 VM runner 可用。
+已验证 Hyper-V PowerShell 模块存在，`vmms` 与 `vmcompute` 服务运行；host 报告 24 个逻辑处理器和约 63.4 GiB 物理内存。`jiajun\dream` 已加入并在当前 token 中启用 `Hyper-V Administrators`。现有 Windows 11 测试 VM（本文别名 `windows-gui-worker-current`）为 Generation 2、8 vCPU、动态内存 4–20 GiB；其配置、自动检查点和 VHDX/AVHDX 链可访问，2026-08-08 已实际从 Off 启动为 Running，guest heartbeat、时间同步、键值交换与关机集成正常，随后经 Hyper-V 正常停止并完成自动检查点合并，最终恢复 Off/正常状态。用户确认 guest Office 已激活，但本次未在 guest 内独立验证。Default Switch 只分配到 `169.254.*` 地址，guest 网络/DHCP 仍待修复或隔离设计；PowerShell Direct guest 命令、文件往返和 UI 输入隔离仍需专用 guest 凭据后验证。在这些步骤通过前，只能声称 Hyper-V 生命周期可控，不能声称完整 VM runner 已投入使用。
 
 ## 22. 上游技术依据
 
