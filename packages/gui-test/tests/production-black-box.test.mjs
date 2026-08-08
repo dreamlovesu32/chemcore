@@ -20,6 +20,8 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
   let autologonConfigured = false;
   let blockerVisible = true;
   let blockerDismissals = 0;
+  let cdpAgentStarts = 0;
+  let cdpAgentStops = 0;
   const inputs = [];
   const coordinator = {
     async reset() { return { state: "Off" }; },
@@ -42,6 +44,8 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
     async activateCandidate() { return { agent: { foreground: foreground() } }; },
     async startInputAgent() { return { agent: { status: "ready" } }; },
     async stopInputAgent() { return {}; },
+    async startCdpAgent() { cdpAgentStarts += 1; return { agent: { status: "ready" } }; },
+    async stopCdpAgent() { cdpAgentStops += 1; return {}; },
     async cdpBridge(request) {
       if (request.mode === "state") {
         return { runtimeState: "ready", revision: bonds, window: { title: bonds ? "Untitled *" : "Untitled" }, viewport: { width: 1028, height: 779 }, rendered: { bonds, nodes: 0 } };
@@ -70,4 +74,6 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
   assert.equal(stopCount, 2);
   assert.equal(autologonConfigured, true);
   assert.equal(blockerDismissals, 1);
+  assert.equal(cdpAgentStarts, 1);
+  assert.equal(cdpAgentStops, 1);
 });

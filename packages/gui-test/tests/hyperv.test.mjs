@@ -198,6 +198,21 @@ test("candidate input uses the persistent bounded channel rather than per-action
   assert.doesNotMatch(input, /ScheduledTask|Start-ScheduledTask/);
 });
 
+test("CDP observation uses a persistent bounded channel rather than per-request process launch", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "hyperv-coordinator.ps1"), "utf8");
+  const start = source.indexOf("function Invoke-CdpBridge");
+  const end = source.indexOf("function Start-PersistentCdpAgent", start);
+  const bridge = source.slice(start, end);
+  assert.match(bridge, /chemsema\.gui\.cdp-request\.v1/);
+  assert.match(bridge, /chemsema\.gui\.cdp-response\.v1/);
+  assert.match(bridge, /Persistent CDP response identity is invalid/);
+  assert.doesNotMatch(bridge, /powershell\.exe|ScheduledTask|ScriptSource/);
+  const agentStart = source.slice(end, source.indexOf("function Stop-PersistentCdpAgent", end));
+  assert.match(agentStart, /-UserId 'SYSTEM' -LogonType ServiceAccount/);
+  assert.doesNotMatch(agentStart, /LogonType Interactive/);
+});
+
 test("service-session agent attestation cannot claim interactive readiness", async () => {
   const profile = await readValidatedDocument(profilePath);
   const coordinator = new HyperVCoordinator(profile, {

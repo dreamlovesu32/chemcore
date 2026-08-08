@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "chemsema.gui.cdp-server.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "status", "processId", "sessionId", "account", "port"],
+  "properties": {
+    "schema": { "const": "chemsema.gui.cdp-server.v1" },
+    "status": { "const": "ready" },
+    "processId": { "type": "integer", "minimum": 1 },
+    "sessionId": { "const": 0 },
+    "account": { "type": "string", "pattern": "\\\\[Ss][Yy][Ss][Tt][Ee][Mm]$" },
+    "port": { "const": 9223 }
+  }
+}

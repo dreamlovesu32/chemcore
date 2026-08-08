@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet('host-attest', 'reset', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'start-input-agent', 'stop-input-agent', 'uia-query', 'cdp-bridge', 'input-click', 'input-drag', 'input-key', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
+  [ValidateSet('host-attest', 'reset', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'start-input-agent', 'stop-input-agent', 'start-cdp-agent', 'stop-cdp-agent', 'uia-query', 'cdp-bridge', 'input-click', 'input-drag', 'input-key', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
   [string]$Operation,
 
   [Parameter(Mandatory = $true)]
@@ -564,21 +564,28 @@ $json=[ordered]@{schema='chemsema.gui.uia-query.v1';processId=$TargetProcessId;n
 }
 
 function Invoke-CdpBridge {
-  if ([string]::IsNullOrWhiteSpace($HostCdpScriptPath) -or -not (Test-Path -LiteralPath $HostCdpScriptPath -PathType Leaf)) {
-    throw 'The guest CDP bridge script is unavailable.'
-  }
   if ([string]::IsNullOrWhiteSpace($CdpRequestBase64)) { throw 'The CDP bridge request is absent.' }
-  $source = Get-Content -Raw -LiteralPath $HostCdpScriptPath
-  $json = Invoke-Guest -ScriptBlock {
-    param($TestRoot, $ScriptSource, $RequestBase64)
-    $runDirectory = Join-Path (Join-Path $TestRoot 'runs') ("cdp-" + [Guid]::NewGuid().ToString('N'))
-    New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
-    $scriptPath = Join-Path $runDirectory 'guest-cdp.ps1'
-    [IO.File]::WriteAllText($scriptPath, $ScriptSource, [Text.UTF8Encoding]::new($false))
-    & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath -RequestBase64 $RequestBase64
-  } -ArgumentList @($GuestTestRoot, $source, $CdpRequestBase64)
-  $result = ([string]@($json)[-1]) | ConvertFrom-Json
-  if ($result.status -ne 'passed') { throw "Guest CDP bridge failed: $($result.message)" }
+  $result = Invoke-Guest -ScriptBlock {
+    param($TestRoot, $RequestBase64)
+    $channelRoot = Join-Path $TestRoot 'cdp-channel'
+    if (-not (Test-Path -LiteralPath (Join-Path $channelRoot 'ready.json') -PathType Leaf)) { throw 'Persistent CDP agent is not ready.' }
+    $requestId = [Guid]::NewGuid().ToString('N')
+    $inbox = Join-Path $channelRoot 'inbox'
+    $outbox = Join-Path $channelRoot 'outbox'
+    $requestPath = Join-Path $inbox "$requestId.json"
+    $temporaryRequest = Join-Path $inbox "$requestId.tmp"
+    $responsePath = Join-Path $outbox "$requestId.json"
+    $request = [ordered]@{ schema='chemsema.gui.cdp-request.v1'; id=$requestId; requestBase64=$RequestBase64 }
+    [IO.File]::WriteAllText($temporaryRequest, ($request | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
+    Move-Item -LiteralPath $temporaryRequest -Destination $requestPath
+    $deadline = [DateTime]::UtcNow.AddSeconds(20)
+    while (-not (Test-Path -LiteralPath $responsePath -PathType Leaf) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 20 }
+    if (-not (Test-Path -LiteralPath $responsePath -PathType Leaf)) { throw 'Persistent CDP agent returned no receipt within 20 seconds.' }
+    $response = Get-Content -Raw -LiteralPath $responsePath | ConvertFrom-Json
+    if ($response.schema -ne 'chemsema.gui.cdp-response.v1' -or $response.id -ne $requestId) { throw 'Persistent CDP response identity is invalid.' }
+    if ($response.status -ne 'passed') { throw "Persistent CDP request failed: $($response.message)" }
+    $response.bridge
+  } -ArgumentList @($GuestTestRoot, $CdpRequestBase64)
   [ordered]@{
     schema = 'chemsema.gui.worker-attestation.v1'
     operation = 'cdp-bridge'
@@ -586,6 +593,61 @@ function Invoke-CdpBridge {
     vmName = (Get-WorkerVm).Name
     bridge = $result
   }
+}
+
+function Start-PersistentCdpAgent {
+  if ([string]::IsNullOrWhiteSpace($HostCdpScriptPath) -or -not (Test-Path -LiteralPath $HostCdpScriptPath -PathType Leaf)) {
+    throw 'The guest CDP bridge script is unavailable.'
+  }
+  $source = Get-Content -Raw -LiteralPath $HostCdpScriptPath
+  $result = Invoke-Guest -ScriptBlock {
+    param($ExpectedAccount, $TestRoot, $ScriptSource)
+    $channelRoot = Join-Path $TestRoot 'cdp-channel'
+    if (-not $channelRoot.StartsWith(($TestRoot.TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) { throw 'CDP channel path is outside test root.' }
+    if (Test-Path -LiteralPath $channelRoot) { Remove-Item -LiteralPath $channelRoot -Recurse -Force }
+    New-Item -ItemType Directory -Path $channelRoot -Force | Out-Null
+    $agentDirectory = Join-Path $TestRoot 'agent'
+    New-Item -ItemType Directory -Path $agentDirectory -Force | Out-Null
+    $scriptPath = Join-Path $agentDirectory 'guest-cdp.ps1'
+    [IO.File]::WriteAllText($scriptPath, $ScriptSource, [Text.UTF8Encoding]::new($false))
+    $taskName = 'ChemSema GUI Persistent CDP Agent'
+    $arguments = "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`" -AllowedRoot `"$TestRoot`" -ChannelRoot `"$channelRoot`""
+    $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arguments
+    $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+    $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Hours 12) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -Hidden
+    Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Settings $settings -Force | Out-Null
+    Start-ScheduledTask -TaskName $taskName
+    $readyPath = Join-Path $channelRoot 'ready.json'
+    $deadline = [DateTime]::UtcNow.AddSeconds(20)
+    while (-not (Test-Path -LiteralPath $readyPath -PathType Leaf) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 50 }
+    if (-not (Test-Path -LiteralPath $readyPath -PathType Leaf)) { throw 'Persistent CDP agent did not become ready.' }
+    Get-Content -Raw -LiteralPath $readyPath | ConvertFrom-Json
+  } -ArgumentList @($GuestAccount, $GuestTestRoot, $source)
+  $agent = [ordered]@{
+    schema = [string]$result.schema
+    status = [string]$result.status
+    processId = [int]$result.processId
+    sessionId = [int]$result.sessionId
+    account = [string]$result.account
+    port = [int]$result.port
+  }
+  [ordered]@{ schema='chemsema.gui.worker-attestation.v1'; operation='start-cdp-agent'; vmId=(Get-WorkerVm).Id.ToString(); vmName=(Get-WorkerVm).Name; agent=$agent }
+}
+
+function Stop-PersistentCdpAgent {
+  $result = Invoke-Guest -ScriptBlock {
+    param($TestRoot)
+    $channelRoot = Join-Path $TestRoot 'cdp-channel'
+    if (Test-Path -LiteralPath $channelRoot -PathType Container) {
+      New-Item -ItemType File -Path (Join-Path $channelRoot 'shutdown') -Force | Out-Null
+    }
+    $taskName = 'ChemSema GUI Persistent CDP Agent'
+    $deadline = [DateTime]::UtcNow.AddSeconds(10)
+    while ((Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue).State -eq 'Running' -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 50 }
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+    [ordered]@{ status='stopped' }
+  } -ArgumentList @($GuestTestRoot)
+  [ordered]@{ schema='chemsema.gui.worker-attestation.v1'; operation='stop-cdp-agent'; vmId=(Get-WorkerVm).Id.ToString(); vmName=(Get-WorkerVm).Name; agent=$result }
 }
 
 function Start-PersistentInputAgent {
@@ -977,6 +1039,8 @@ switch ($Operation) {
   'stop-input-agent' { Write-Result (Stop-PersistentInputAgent) }
   'uia-query' { Write-Result (Query-Uia) }
   'cdp-bridge' { Write-Result (Invoke-CdpBridge) }
+  'start-cdp-agent' { Write-Result (Start-PersistentCdpAgent) }
+  'stop-cdp-agent' { Write-Result (Stop-PersistentCdpAgent) }
   'input-click' { Write-Result (Invoke-CandidateInput 'click') }
   'input-drag' { Write-Result (Invoke-CandidateInput 'drag') }
   'input-key' { Write-Result (Invoke-CandidateInput 'key') }

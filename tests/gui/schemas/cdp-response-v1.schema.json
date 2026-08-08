@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "chemsema.gui.cdp-response.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "status"],
+  "properties": {
+    "schema": { "const": "chemsema.gui.cdp-response.v1" },
+    "id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "status": { "enum": ["passed", "failed"] },
+    "bridge": { "type": "object" },
+    "message": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "passed" } } },
+      "then": { "required": ["bridge"], "not": { "required": ["message"] } },
+      "else": { "required": ["message"], "not": { "required": ["bridge"] } }
+    }
+  ]
+}

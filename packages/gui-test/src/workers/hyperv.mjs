@@ -280,6 +280,19 @@ export class HyperVCoordinator {
     return result.bridge.value;
   }
 
+  async startCdpAgent() {
+    const result = await this.execute("start-cdp-agent", [], { timeoutMs: 30000 });
+    await assertValidDocument(result.agent, "persistent CDP agent readiness");
+    if (result.agent?.schema !== "chemsema.gui.cdp-server.v1" || result.agent?.status !== "ready" || result.agent?.port !== 9223 || result.agent?.sessionId !== 0 || !result.agent?.account?.toLowerCase().endsWith("\\system")) {
+      throw new Error("Persistent CDP agent returned an invalid readiness receipt.");
+    }
+    return result;
+  }
+
+  async stopCdpAgent() {
+    return this.execute("stop-cdp-agent", [], { timeoutMs: 20000 });
+  }
+
   async candidateInput(kind, coordinates, { button = "left", steps = 8 } = {}) {
     const extra = ["-InputButton", button];
     if (kind === "click") {

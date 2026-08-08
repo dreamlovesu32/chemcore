@@ -86,6 +86,8 @@ export class ProductionBlackBoxDriver {
     mark("candidate-activated");
     await this.coordinator.startInputAgent();
     mark("persistent-input-agent-ready");
+    await this.coordinator.startCdpAgent();
+    mark("persistent-cdp-agent-ready");
     this.webviewState = await retry(async () => {
       const state = await this.coordinator.cdpBridge({ mode: "state" });
       if (state.runtimeState !== "ready") throw new Error(`WebView runtime is ${state.runtimeState || "not ready"}.`);
@@ -207,6 +209,7 @@ export class ProductionBlackBoxDriver {
 
   async shutdown() {
     if (this.coordinator) {
+      try { await this.coordinator.stopCdpAgent(); } catch { /* VM shutdown remains the final cleanup boundary. */ }
       try { await this.coordinator.stopInputAgent(); } catch { /* VM shutdown remains the final cleanup boundary. */ }
       await this.coordinator.stop();
     }

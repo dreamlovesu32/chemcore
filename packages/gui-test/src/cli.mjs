@@ -80,7 +80,7 @@ async function impact(paths, options) {
 
 async function worker(args, options) {
   const [operation] = args;
-  if (!operation || !["host-attest", "reset", "start", "guest-attest", "prepare-guest", "install-agent", "configure-autologon", "configure-desktop-baseline", "install-candidate", "launch-candidate", "dismiss-known-blocker", "activate-candidate", "uia-query", "cdp-state", "input-click", "input-drag", "input-key", "agent-attest-service", "agent-attest-interactive", "stop"].includes(operation)) {
+  if (!operation || !["host-attest", "reset", "start", "guest-attest", "prepare-guest", "install-agent", "configure-autologon", "configure-desktop-baseline", "install-candidate", "launch-candidate", "dismiss-known-blocker", "activate-candidate", "start-cdp-agent", "stop-cdp-agent", "uia-query", "cdp-state", "input-click", "input-drag", "input-key", "agent-attest-service", "agent-attest-interactive", "stop"].includes(operation)) {
     throw new Error("worker requires a supported worker operation.");
   }
   const profile = await readValidatedDocument(resolve(options.profile || join(guiTestsDir, "environments", "windows-gui-worker-current.json")));
@@ -99,6 +99,8 @@ async function worker(args, options) {
     case "launch-candidate": result = await coordinator.launchCandidate(); break;
     case "dismiss-known-blocker": result = await coordinator.dismissKnownBlocker(); break;
     case "activate-candidate": result = await coordinator.activateCandidate(); break;
+    case "start-cdp-agent": result = await coordinator.startCdpAgent(); break;
+    case "stop-cdp-agent": result = await coordinator.stopCdpAgent(); break;
     case "uia-query": result = await coordinator.queryUia(options.name, { scopeName: options["scope-name"] }); break;
     case "cdp-state": result = await coordinator.cdpBridge({ mode: "state" }); break;
     case "input-click": result = await coordinator.candidateInput("click", { x: Number(options.x), y: Number(options.y) }, { button: options.button }); break;
@@ -157,7 +159,7 @@ Usage:
   npm run gui-platform -- validate <json> [...json]
   npm run gui-platform -- audit
   npm run gui-platform -- impact <changed-path> [...changed-path] [--graph path]
-  npm run gui-platform -- worker <host-attest|start|guest-attest|prepare-guest|install-agent|configure-autologon|install-candidate|launch-candidate|dismiss-known-blocker|activate-candidate|uia-query|input-click|input-drag|input-key|agent-attest-service|agent-attest-interactive|stop> [--profile path]
+  npm run gui-platform -- worker <host-attest|start|guest-attest|prepare-guest|install-agent|configure-autologon|install-candidate|launch-candidate|dismiss-known-blocker|activate-candidate|start-cdp-agent|stop-cdp-agent|uia-query|input-click|input-drag|input-key|agent-attest-service|agent-attest-interactive|stop> [--profile path]
   npm run gui-platform -- run <scenario.json> [--driver fake|playwright-browser|production-black-box] [--report path] [--url url]
 `);
 }

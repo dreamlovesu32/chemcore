@@ -1,7 +1,8 @@
 param(
-  [Parameter(Mandatory = $true)]
   [string]$RequestBase64,
-  [int]$Port = 9223
+  [int]$Port = 9223,
+  [string]$AllowedRoot,
+  [string]$ChannelRoot
 )
 
 $ErrorActionPreference = 'Stop'
@@ -48,8 +49,10 @@ function Invoke-Cdp([Net.WebSockets.ClientWebSocket]$Socket, [string]$Method, [o
   }
 }
 
+function Invoke-CdpRequest([string]$EncodedRequest) {
 try {
-  $requestJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($RequestBase64))
+  if ([string]::IsNullOrWhiteSpace($EncodedRequest)) { throw 'The CDP request is absent.' }
+  $requestJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($EncodedRequest))
   $request = $requestJson | ConvertFrom-Json
   if ($request.mode -notin @('locate', 'state', 'count', 'count-state')) {
     throw "Unsupported CDP bridge mode '$($request.mode)'."
@@ -188,19 +191,70 @@ try {
     if ($null -ne $evaluation.exceptionDetails) {
       throw "CDP evaluation failed: $($evaluation.exceptionDetails.exception.description)"
     }
-    Write-CdpResult ([ordered]@{
+    return [ordered]@{
       schema = 'chemsema.gui.cdp-bridge.v1'
       status = 'passed'
       mode = [string]$request.mode
       value = $evaluation.result.value
-    })
+    }
   } finally {
     if ($null -ne $socket) { $socket.Dispose() }
   }
 } catch {
-  Write-CdpResult ([ordered]@{
+  return [ordered]@{
     schema = 'chemsema.gui.cdp-bridge.v1'
     status = 'failed'
     message = $_.Exception.Message
-  })
+  }
+}
+}
+
+function Test-BoundedChannel([string]$Root, [string]$Channel) {
+  if ([string]::IsNullOrWhiteSpace($Root) -or [string]::IsNullOrWhiteSpace($Channel)) { return $false }
+  $rootPath = [IO.Path]::GetFullPath($Root).TrimEnd('\')
+  $channelPath = [IO.Path]::GetFullPath($Channel)
+  return $channelPath.StartsWith(($rootPath + '\'), [StringComparison]::OrdinalIgnoreCase)
+}
+
+function Start-CdpServer {
+  if (-not (Test-BoundedChannel $AllowedRoot $ChannelRoot)) { throw 'Persistent CDP channel is outside the authorized test root.' }
+  $inbox = Join-Path $ChannelRoot 'inbox'
+  $outbox = Join-Path $ChannelRoot 'outbox'
+  New-Item -ItemType Directory -Path $inbox -Force | Out-Null
+  New-Item -ItemType Directory -Path $outbox -Force | Out-Null
+  $identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+  $sessionId = [Diagnostics.Process]::GetCurrentProcess().SessionId
+  $ready = [ordered]@{ schema='chemsema.gui.cdp-server.v1'; status='ready'; processId=$PID; sessionId=$sessionId; account=$identity; port=$Port }
+  [IO.File]::WriteAllText((Join-Path $ChannelRoot 'ready.json'), ($ready | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
+  while (-not (Test-Path -LiteralPath (Join-Path $ChannelRoot 'shutdown') -PathType Leaf)) {
+    $requests = @(Get-ChildItem -LiteralPath $inbox -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name)
+    foreach ($requestPath in $requests) {
+      $claimPath = [IO.Path]::ChangeExtension($requestPath.FullName, '.claim')
+      try { Move-Item -LiteralPath $requestPath.FullName -Destination $claimPath -ErrorAction Stop } catch { continue }
+      $id = [IO.Path]::GetFileNameWithoutExtension($claimPath)
+      try {
+        $envelope = Get-Content -Raw -LiteralPath $claimPath | ConvertFrom-Json
+        if ($envelope.schema -ne 'chemsema.gui.cdp-request.v1' -or $envelope.id -ne $id -or [string]::IsNullOrWhiteSpace($id)) {
+          throw 'Persistent CDP request identity is invalid.'
+        }
+        $bridge = Invoke-CdpRequest ([string]$envelope.requestBase64)
+        if ($bridge.status -ne 'passed') { throw [string]$bridge.message }
+        $response = [ordered]@{ schema='chemsema.gui.cdp-response.v1'; id=$id; status='passed'; bridge=$bridge }
+      } catch {
+        $response = [ordered]@{ schema='chemsema.gui.cdp-response.v1'; id=$id; status='failed'; message=$_.Exception.Message }
+      }
+      $output = Join-Path $outbox ($id + '.json')
+      $temporary = [IO.Path]::ChangeExtension($output, '.tmp')
+      [IO.File]::WriteAllText($temporary, ($response | ConvertTo-Json -Depth 16 -Compress), [Text.UTF8Encoding]::new($false))
+      Move-Item -LiteralPath $temporary -Destination $output -Force
+      Remove-Item -LiteralPath $claimPath -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Milliseconds 20
+  }
+}
+
+if (-not [string]::IsNullOrWhiteSpace($ChannelRoot)) {
+  Start-CdpServer
+} else {
+  Write-CdpResult (Invoke-CdpRequest $RequestBase64)
 }

@@ -23,6 +23,14 @@ test("scenario, coverage registry, and impact graph validate", async () => {
     interactiveReady: false,
     foreground: null,
   }, "guest agent fixture");
+  await assertValidDocument({ schema: "chemsema.gui.cdp-server.v1", status: "ready", processId: 101, sessionId: 0, account: "NT AUTHORITY\\SYSTEM", port: 9223 }, "CDP server fixture");
+  await assertValidDocument({ schema: "chemsema.gui.cdp-request.v1", id: "a".repeat(32), requestBase64: "e30=" }, "CDP request fixture");
+  await assertValidDocument({
+    schema: "chemsema.gui.cdp-response.v1",
+    id: "a".repeat(32),
+    status: "passed",
+    bridge: { schema: "chemsema.gui.cdp-bridge.v1", status: "passed" },
+  }, "CDP response fixture");
 });
 
 test("scenario protocol rejects missing auditable coverage", async () => {

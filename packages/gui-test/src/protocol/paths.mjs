@@ -18,4 +18,7 @@ export const schemaFiles = Object.freeze({
   "chemsema.gui.guest-agent-request.v1": join(schemaDir, "guest-agent-request-v1.schema.json"),
   "chemsema.gui.guest-agent-response.v1": join(schemaDir, "guest-agent-response-v1.schema.json"),
   "chemsema.gui.guest-agent-server.v1": join(schemaDir, "guest-agent-server-v1.schema.json"),
+  "chemsema.gui.cdp-server.v1": join(schemaDir, "cdp-server-v1.schema.json"),
+  "chemsema.gui.cdp-request.v1": join(schemaDir, "cdp-request-v1.schema.json"),
+  "chemsema.gui.cdp-response.v1": join(schemaDir, "cdp-response-v1.schema.json"),
 });
