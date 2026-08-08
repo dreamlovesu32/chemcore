@@ -11,7 +11,7 @@
 | Office/OLE 复制与嵌入 | Beta | 剪贴板 payload、EMF preview、Word 粘贴/回读验证 |
 | 浏览器编辑器 | Beta | viewer 交互 smoke test 和用户路径稳定性脚本 |
 | 桌面端 | Beta | Tauri build、文件关联配置、hybrid latency 回归、安装验证 |
-| GUI 测试平台 | 架构已批准/待实现 | 目标为版本化场景、WebdriverIO Tauri、Playwright WebView2、Windows UIA、production black-box、模型/故障/变异测试和展示资格；见长期架构 |
+| GUI 测试平台 | 架构已批准/待实现 | 目标为版本化场景、隔离 Hyper-V 真实输入、10 逻辑处理器/20 GiB 总预算、影响图/证据复用、复杂与大文档构建、模型/故障/变异测试和展示资格；见长期架构 |
 | CLI one-shot 命令 | Usable | Rust 测试、`npm run verify`、稳定性报告、输出写入验证 |
 | CLI JSONL session | Experimental/usable | session 单测和大文件性能报告 |
 | Agent 精确截图 | Usable beta | PNG/SVG capture 测试、公开 fixture crop、README 示例图 |
@@ -44,7 +44,7 @@
 6. 确认 GitHub CI 在 `main` 和 release tag 上通过。
 7. 上传安装包并记录 SHA256。
 
-以上是当前 beta 门禁，不等于完整 GUI 或展示资格。GUI 测试平台落地后，stable/正式展示还必须通过 `gui-pr`、`gui-nightly`、最终安装包 `release-qualification` 和 [Demo Qualification Gate](./gui-test-platform-and-demo-reliability.zh-CN.md#16-demo-qualification-gate)；资格必须证明每个用户可见功能经过真实点击/输入/拖拽、每类对象经过实际绘制或创建、全部公开属性和 `0/1/2/many` 多对象矩阵均有覆盖。第一次失败后重跑成功仍记为 flaky failure，不能改写为通过。
+以上是当前 beta 门禁，不等于完整 GUI 或展示资格。GUI 测试平台落地后，stable/正式展示还必须通过 `gui-pr`、`gui-nightly`、最终安装包 `release-qualification` 和 [Demo Qualification Gate](./gui-test-platform-and-demo-reliability.zh-CN.md#16-demo-qualification-gate)；资格 manifest 必须证明每个用户可见功能经过真实点击/输入/拖拽、每类对象经过实际绘制或创建、全部公开属性、`0/1/2/many` 多对象及复杂/大文档矩阵均有当前有效证据。闭包未变的证据可以复用，受影响、过期和不可缓存测试必须重跑。第一次失败后重跑成功仍记为 flaky failure，不能改写为通过。
 
 ## 当前对外边界
 

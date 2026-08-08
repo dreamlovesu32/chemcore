@@ -82,6 +82,12 @@ Windows 输入/窗口
 
 只有当通用 runner 已服务至少两个真正独立、拥有独立发布周期的产品，并形成稳定公共 API 后，才允许把不含 ChemSema 语义的执行核心抽取为独立仓库或发布包。ChemSema 场景、fixture、Test ABI、覆盖登记和发布门禁始终留在本仓库。
 
+### 3.4 用户桌面与执行环境边界
+
+自动化不得抢占开发者正在使用的 Windows 桌面。无需真实 OS 输入的 engine、format、headless browser、UIA pattern 和静态 oracle 在后台 worker 运行；需要真实 click/drag/draw、前景焦点、触摸、笔、IME、原生对话框或系统快捷键的场景只能进入独立且解锁的 Hyper-V guest 桌面或专用测试机。host coordinator 只负责启动、监控、复制 manifest/制品和回收 VM，不向 host 用户会话注入输入，也不读取 host 剪贴板或用户文件。
+
+真实输入前必须验证 VM/session id、目标进程、前景窗口和允许的 test run root；任何目标落到 host 用户会话、身份不明确或桌面被锁定的情况都立即 fail closed。普通 RDP 最小化、断开或锁屏状态不能作为正式真实输入环境。GPU、触摸/笔、多显示器和其他不能由 Hyper-V 等价表示的验证进入带相应硬件的独立 worker。
+
 ## 4. 建议目录
 
 ```text
@@ -273,6 +279,10 @@ UIA pattern 优先用于可访问控件、窗口和原生对话框；只有 hove
 
 黑盒 driver 只接受最终 installer、安装目录或发布压缩包。它不得加载测试插件、调用 Test ABI、设置内部文档或读取 `window.__chemsemaDebug`。允许的 oracle 只有公开 UI/UIA、进程退出、日志/崩溃制品、输入输出文件、剪贴板/Office payload 和最终截图。
 
+### 7.5 双执行池与并行边界
+
+平台维护 `background-worker` 和 `interactive-isolated-worker` 两类执行池。前者可以按 CPU/内存预算高并发分片；后者每个 Windows interactive desktop 同一时刻只允许一个真实输入流，避免焦点竞争。真实 GUI 并行通过多个隔离 VM/专用会话实现，不能在同一桌面启动多个会抢前景的 driver。调度器按场景 capability 自动路由，禁止用较弱 driver 冒充真实输入覆盖。
+
 ## 8. Test ABI 与可观测性平面
 
 现有 `window.__chemsemaDebug` 不是稳定测试协议。长期必须替换为显式版本化、测试构建专用的 `chemsema.test.abi.v1`。
@@ -449,6 +459,33 @@ AI 不可以：
 
 新增工具、对象类型、命令、属性、对话框、文件格式或系统能力时，registry 必须穷举要求的能力面；未登记、没有真实点击/绘制/修改场景或只有内部注入测试的项目直接阻断 CI，不能依靠人工记忆补测试。
 
+### 12.1 复杂文档与大文档必须真实构建
+
+fixture 打开测试不能替代构建测试。平台必须从空白文档开始，通过 GUI 真实绘制至少四个规模层级，并由 coverage registry 记录对象、原子/键、关系、group 深度、属性变化和动作数量：
+
+- `small`：单对象和最小组合，用于精确语义与失败收缩；
+- `complex`：包含多分子、多种图形/文本/符号、连接、反应或其他适用关系、同类/异类多选、group/嵌套、层级、复制粘贴和属性混合的完整工作流；
+- `large`：至少数百对象或约 1,000 原子量级，通过连续真实绘制、复制、模板插入、批量属性和组合操作建立；
+- `xlarge`：达到当前公开性能合同上限，初始目标为 5,000 原子或等价渲染/交互复杂度，并随产品上限提高。
+
+`large/xlarge` 必须分别覆盖“从空白逐步构建”和“打开既有大文件后继续编辑”，验证增量 patch 而非全量刷新、pointer/toolbar 延迟、选择与拖拽反馈、内存/handle、autosave/journal、undo/redo、保存重开、崩溃恢复和最终 canonical fingerprint。为提高速度允许使用真实 UI 的复制、批量命令和模板，但不得直接注入最终文档冒充绘制。复杂文档还必须运行跨对象长序列和至少 24 小时混合 soak。
+
+### 12.2 代码—测试影响图与证据复用
+
+`chemsema.gui.impact.v1` 将源文件、crate/package、生成的 WASM、viewer surface、Tauri/Office command、文档 schema、对象/命令/属性 capability、driver、oracle 和场景连接成有向依赖图。每次变更从实际 diff 出发计算传递影响闭包；测试选择不能只按目录名或人工标签猜测。
+
+每个通过结果以内容寻址 evidence key 保存：
+
+```text
+scenario + scenario-data + product-component closure + generated artifacts
+         + fixture/baseline + driver/oracle/runner + build flags
+         + OS/runtime/font/GPU profile + capability contract version
+```
+
+当且仅当上述闭包哈希一致、环境仍在声明兼容范围、证据未过期且历史上没有相关逃逸缺陷时，既有结果才可复用；报告必须列出 `executed`、`reused`、`invalidated` 及原因。代码没有变化但依赖锁、编译器、WASM、WebView2、字体、schema、driver、oracle、测试数据或环境变化时，相关证据自动失效。核心协议、共享 interaction/render/document path 和无法证明影响边界的改动按广泛影响处理。
+
+完整质量门禁检查的是“全部必需 coverage cell 是否具有当前有效证据”，不是“本次是否重新执行全部场景”。确定性且闭包未变的成功测试不重复消耗资源；新增代码、传递影响、过期证据、历史缺陷关联、随机/模型新 seed、soak、泄漏和环境漂移测试必须执行。impact selector 自身接受 mutation 和逃逸缺陷回放；一次漏选即扩大对应依赖边并永久加入回归。
+
 ## 13. 确定性与隔离
 
 每个 worker 使用独立：
@@ -464,6 +501,16 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 
 重试只用于收集更多证据，不能把第一次失败改写为通过。任何“第一次失败、第二次成功”都记为 flaky failure，并阻断对应门禁，直到根因修复或场景被证明错误。
 
+### 13.1 当前工作站资源合同
+
+本机测试的硬上限为所有 ChemSema 测试 worker 合计 **10 个 CPU execution unit（按 Windows 逻辑处理器/vCPU 计）和 20 GiB host committed-memory 增量**，不是每个 worker 各自获得该额度。guest vCPU、host worker CPU slot 和 coordinator 都从同一个 10-unit 配额扣除；guest 分配内存、`vmwp`/Hyper-V 开销、host runner、缓存和报告进程都计入同一个 20 GiB 增量。调度器通过 Hyper-V vCPU/动态内存、Windows Job Object/affinity、进程采样和 admission control 共同约束；超过任一预算时排队，不能依靠 OOM 或系统调度碰运气。磁盘空间、写入速率、GPU、温度和电源状态单独监控，资源不足时安全暂停并可从 checkpoint 恢复。
+
+默认吞吐 profile 为两个隔离 interactive worker，各最多 4 vCPU/7 GiB；host coordinator/headless shard 保留 2 CPU unit，host runner 与 Hyper-V 开销合计保留 6 GiB。需要 `xlarge`、soak、Office 或高内存场景时切换为单一 heavy worker，最多 8 vCPU/14 GiB，host 侧仍保留 2 CPU unit/6 GiB 并遵守总上限。资源控制看实际 host 增量而非只相信 VM 配置值；实际 worker 数由基准校准，不能以并行数量换取超时、内存交换、前景竞争或 flaky。
+
+### 13.2 VM 生命周期与安全
+
+每个正式 VM profile 使用版本化基线、干净 checkpoint、专用低权限账户和独立密钥；启动后验证 OS、WebView2、字体、Office、DPI、GPU 和更新状态，结束后导出证据并回滚。测试网络默认隔离，只按 manifest 放行所需端点；禁止挂载用户项目目录、复用个人浏览器 profile、同步个人 OneDrive 或共享 host 剪贴板。coordinator 必须支持断电/重启后的幂等恢复、孤儿进程清理和制品完整性检查。
+
 ## 14. 运行报告与失败包
 
 每次运行产生 `chemsema.gui.run.v1`：
@@ -473,6 +520,8 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 - suite、scenario、seed、worker、起止时间；
 - 每一步 action receipt 和 oracle 结果；
 - coverage delta 和未覆盖要求；
+- impact graph 输入、evidence key、executed/reused/invalidated 决策及原因；
+- host/guest/session id、前台隔离证明和 CPU/内存/磁盘/GPU 资源曲线；
 - 所有 fault/mutation；
 - 失败签名与制品 manifest；
 - runner 自身错误与环境不确定性。
@@ -500,13 +549,15 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 
 - headless browser 核心场景；
 - Windows Tauri test build 核心用户旅程；
-- 受影响场景选择加固定不可缩减核心集；
+- 由 `chemsema.gui.impact.v1` 选择传递受影响场景，并复用其余仍有效的内容寻址证据；
+- 对 impact selector 运行固定 sentinel/mutation，无法证明边界时扩大而不是缩小范围；
 - 语义、视觉、ARIA、日志和性能预算；
 - 对改动区域的 mutation smoke。
 
 ### 15.3 `gui-nightly`
 
-- 全场景、全用户可见功能、全对象/工具/公开属性清单，以及 `0/1/2/many` 同类与异类多对象矩阵；
+- 验证全用户功能、全对象/工具/公开属性和 `0/1/2/many` 矩阵均有当前有效证据，只执行新增、受影响、过期、轮换环境及不可缓存场景；
+- 持续执行复杂/大文档真实构建、模型新 seed、长序列、soak、泄漏和随机 fault，不能因代码未变永久复用；
 - 真实 WebView2 与 WebdriverIO 交叉执行；
 - 模型生成、长序列和自动收缩；
 - fault profile、内存/handle 泄漏、恢复；
@@ -515,7 +566,7 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 
 ### 15.4 `release-qualification`
 
-只接受已冻结、带 SHA-256 的最终安装候选。它从干净 VM 安装，通过公开 UI/UIA 对每个用户可见功能至少执行一条真实路径，并执行每类对象的真实创建/绘制、全部公开可写属性、单对象与多对象核心矩阵、保存重开、production black-box、升级/卸载/重装和发布 soak。测试构建可以承担更大的组合矩阵，但不能替代生产候选的功能清单证明。任何代码或依赖变化都使 qualification 失效。
+只接受已冻结、带 SHA-256 的最终安装候选。qualification manifest 必须让每个用户功能、对象、公开属性、单/多对象核心矩阵和复杂/大文档 cell 都指向对当前组件闭包有效的真实交互证据；闭包完全相同的证据可以复用，不因换了无关代码而机械重跑。最终安装包仍必须从干净 VM 执行不可复用的安装/冷启动、production black-box 集成 sentinel、受影响功能、保存重开、升级/卸载/重装和发布 soak。任何影响 component closure、打包组合或运行环境的变化只使对应证据失效，而不是无条件抹掉全部历史证明。
 
 ## 16. Demo Qualification Gate
 
@@ -577,6 +628,7 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 
 - 汇总历史展示 bug、当前 GUI 脚本和已知 flaky；
 - 建立 capability/coverage registry；
+- 建立 source/component/capability/scenario 影响图和初始 evidence key；
 - 固定当前 demo journey 和发布候选信息；
 - 记录当前门禁真实执行面，禁止把 browser mock 称为 desktop E2E。
 
@@ -585,7 +637,7 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 ### Phase 1：协议与 runner 内核
 
 - 场景、报告、coverage、artifact manifest schema；
-- scheduler、隔离、action receipt、oracle 和 shrink 基础；
+- 10 vCPU/20 GiB admission control、增量 scheduler、隔离、action receipt、oracle 和 shrink 基础；
 - 标准 CLI 和单场景 reproduce；
 - runner 自测与 mutation harness。
 
@@ -595,6 +647,7 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 
 - 测试 feature、结构化 event journal、quiescence、fault injection；
 - WebdriverIO Tauri 和 Playwright WebView2；
+- Hyper-V background/interactive 双池、host 前台 fail-closed 和 PowerShell Direct 生命周期；
 - test build 与 production build 权限隔离验证。
 
 完成条件：核心编辑旅程在 browser、真实 Tauri test build 和 production black-box 上得到一致语义结果。
@@ -613,6 +666,7 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 - fault profiles、Office/系统边界；
 - DPI/WebView2/GPU/locale 矩阵；
 - nightly dashboard 和 flaky 零容忍。
+- complex/large/xlarge 从空白真实构建、长序列和 24 小时 soak。
 
 完成条件：长期随机运行产生的失败都可重放；所有覆盖缺口机器可读；关键 fault/mutation 均被门禁捕获。
 
@@ -636,6 +690,9 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 - 每类对象均由 GUI 实际创建或绘制，并覆盖全部公开可写属性、完整生命周期和保存重开；
 - `0/1/2/many`、同类/异类多对象、组合/嵌套/部分适用和对象间交互拥有明确场景；
 - 功能、对象、数量、状态、输入、属性、持久化、错误分支和环境矩阵机器可读；
+- complex、large 和 5,000 原子或等价 `xlarge` 文档均有从空白真实构建及继续编辑证据；
+- source/component/capability/scenario 影响图可审计，完整门禁复用未变闭包证据并只执行受影响、过期和不可缓存测试；
+- 所有 worker 合计遵守 10 逻辑处理器/20 GiB，上层桌面从不接收测试输入；
 - 固定 seed 失败可以自动重放和收缩；
 - 核心 mutation set 全部被杀死；
 - PR、nightly、release 和 demo 门禁均在 CI/测试机上持续运行；
@@ -644,7 +701,11 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 - 大型制品有哈希、环境和保留 manifest；
 - 文档、协议、CLI help 和实际实现同步。
 
-## 21. 上游技术依据
+## 21. 当前工作站验证状态（2026-08-08）
+
+已验证 Hyper-V PowerShell 模块存在，`vmms` 与 `vmcompute` 服务运行；host 报告 24 个逻辑处理器和约 63.4 GiB 物理内存，满足拟定的 10 vCPU/20 GiB 总预算。当前 Codex 执行账户 `jiajun\dream` 不具备 Hyper-V 管理授权，`Get-VM` 与 `Get-VMHost` 返回 permission denied，因此现有 VM 清单、配置、启动、guest 登录和 PowerShell Direct 尚未验证。必须先由管理员将专用执行账户加入 `Hyper-V Administrators` 并重新登录，再完成只读 inventory、checkpoint clone、guest 无害命令、文件往返、隔离输入和资源上限验收；在这些步骤通过前不得声称 VM runner 可用。
+
+## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>
 - Tauri WebDriver CI：<https://v2.tauri.app/develop/tests/webdriver/ci/>
@@ -655,5 +716,6 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 - Playwright ARIA snapshot：<https://playwright.dev/docs/aria-snapshots>
 - Microsoft UI Automation 自动测试：<https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-usefortesting>
 - Windows UI Automation CLI 与输入注入：<https://learn.microsoft.com/en-nz/windows/apps/dev-tools/winapp-cli/ui-automation>
+- Hyper-V PowerShell Direct：<https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/powershell-direct>
 
 这些工具是 driver 和证据基础，不是 ChemSema 场景模型、化学 oracle、展示准入或发布责任的替代品。

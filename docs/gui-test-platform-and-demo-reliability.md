@@ -59,6 +59,8 @@ External artifact storage owns large success traces, videos, corpora, long soak 
 
 A generic runner core may be extracted only after it serves at least two independently released products through a stable public API. ChemSema scenarios, fixtures, Test ABI, coverage, and qualification remain here.
 
+Automation must never take over the developer's active Windows desktop. Engine, format, headless-browser, UIA-pattern, and static-oracle work runs in background workers. Real click/drag/draw, focus, touch, pen, IME, native-dialog, and system-shortcut cases run only on an unlocked Hyper-V guest desktop or dedicated test machine. The host coordinator starts and monitors workers and transfers manifests; it never injects host-session input or reads host clipboard/user files. Injection fails closed unless VM/session identity, target process, foreground window, and test root are all verified. Hardware behavior that Hyper-V cannot represent uses a dedicated physical worker.
+
 ## 4. Target repository layout
 
 ```text
@@ -162,6 +164,10 @@ UIA patterns are preferred for accessible controls, windows, and native dialogs.
 
 The black-box driver accepts only a final installer, install directory, or release archive. It cannot call the Test ABI, use debug globals, register test plugins, or set internal documents. Its evidence comes from public UI/UIA, process status, logs and dumps, files, system clipboard/Office payloads, and final screenshots.
 
+### Execution pools
+
+`background-worker` shards run concurrently within resource budgets. Each `interactive-isolated-worker` desktop permits only one real input stream; real-GUI parallelism therefore uses multiple isolated VMs or dedicated sessions, never competing drivers on one desktop. Capability routing cannot substitute a weaker driver for required real-input evidence.
+
 ## 7. Test ABI and observability
 
 The current debug global is not a stable protocol. It will be replaced by test-build-only `chemsema.test.abi.v1`.
@@ -255,13 +261,29 @@ Qualification also seeds mutations such as removed listeners, shifted hit testin
 
 New tools, object types, commands, properties, dialogs, formats, and system capabilities must register their required cells. Unregistered items, items without real click/draw/edit scenarios, and items covered only by internal injection block CI.
 
+### Complex and large documents
+
+Opening a fixture does not prove construction. Starting from a blank document, GUI scenarios build `small`, mixed `complex`, `large` (hundreds of objects or roughly 1,000 atoms), and `xlarge` (initially 5,000 atoms or equivalent interaction/render complexity) tiers. Complex cases combine heterogeneous objects, molecules, graphics/text/symbols, applicable relationships, mixed selections and properties, nested groups, hierarchy, and copy/paste. Large tiers cover both progressive UI construction and continued editing after open, and assert incremental patches rather than full refreshes, latency, feedback cleanup, memory/handles, autosave/journal, undo/redo, save/reopen, recovery, and canonical fingerprints. Real UI copy, batch commands, and templates may accelerate construction; direct injection of the final document cannot count. Long mixed sequences and 24-hour soak remain mandatory.
+
+### Code-to-test impact graph and evidence reuse
+
+`chemsema.gui.impact.v1` links source files, crates/packages, generated WASM, viewer surfaces, native/Office commands, schemas, capabilities, drivers, oracles, and scenarios. Selection follows the transitive closure of the actual diff rather than directory guesses or manual tags.
+
+Passing evidence is content-addressed by scenario/data, product component closure and generated artifacts, fixtures/baselines, driver/oracle/runner, build flags, environment profile, and capability-contract version. It is reusable only while that closure is unchanged, the environment remains compatible, the evidence is unexpired, and no related escaped defect invalidates it. Reports distinguish `executed`, `reused`, and `invalidated` with reasons. Lockfile, compiler, WASM, WebView2, font, schema, driver, oracle, data, and environment changes invalidate their dependent cells. Shared interaction/render/document changes or uncertain boundaries expand the closure.
+
+Completeness means every required coverage cell has current valid evidence, not that every run starts from zero. Unchanged deterministic evidence is reused. Changed/expired cells, new random/model seeds, soak, leak, fault, environment-drift, and historical-defect cases run. The selector itself is mutation-tested; every missed regression permanently widens the relevant dependency edge.
+
 ## 12. Determinism, isolation, and reporting
 
 Workers use separate temporary roots, document directories, WebView profiles, ports, journal/autosave/log/artifact directories, random seeds, and clock/locale settings. System clipboard cases acquire an exclusive lock. Tests never touch user configuration or project files.
 
 Retries collect evidence but never rewrite the first failure as success. Fail-then-pass is a flaky failure and remains blocking.
 
-Every `chemsema.gui.run.v1` report records the commit and dirty state, candidate/installer hashes, environment and driver matrix, scenarios/seeds/workers, action receipts, oracle results, coverage deltas, faults/mutations, failure signatures, and artifact manifest.
+All ChemSema workers share a hard aggregate budget of **10 CPU execution units** (Windows logical processors/vCPUs) and **20 GiB of host committed-memory increase**. Guest vCPUs, host worker slots, and coordination all debit one CPU budget; guest allocation, `vmwp`/Hyper-V overhead, host runners, caches, and reports all debit one measured memory budget. Hyper-V limits, Windows Job Objects/affinity, process sampling, and admission control enforce it. The default profile uses two interactive workers of at most 4 vCPU/7 GiB each, reserving 2 CPU units/6 GiB for host work and virtualization overhead. `xlarge`, Office, and high-memory cases use one heavy worker of at most 8 vCPU/14 GiB with the same reserve. Disk, GPU, thermal, and power pressure pauses/checkpoints work rather than creating flake.
+
+VM profiles use versioned clean checkpoints, dedicated low-privilege accounts, isolated storage/network/clipboard, environment attestation, artifact export, and rollback. They never mount user project directories or personal profiles. Coordinator recovery is idempotent after reboot or power loss.
+
+Every `chemsema.gui.run.v1` report records the commit and dirty state, candidate/installer hashes, environment and driver matrix, scenarios/seeds/workers, action receipts, oracle results, coverage deltas, impact inputs and evidence reuse/invalidation reasons, host/guest/session isolation, resource curves, faults/mutations, failure signatures, and artifact manifest.
 
 A failure bundle includes the original and minimized scenario, fixture and final snapshots, written files, traces or action journal, structured logs and crash references, screenshots and visual/accessibility diffs, and one copy-ready reproduction command.
 
@@ -273,15 +295,15 @@ Retains Rust, format, WASM, container, and static contracts. It is not described
 
 ### `gui-pr`
 
-Runs browser core cases, real Windows Tauri core journeys, affected tests plus an irreducible core set, semantic/visual/accessibility/log/performance oracles, and mutation smoke for the changed area.
+Uses `chemsema.gui.impact.v1` to run the transitive affected closure, reuses other valid content-addressed evidence, and mutation-tests the selector. Uncertain boundaries expand rather than narrow selection. It also runs semantic/visual/accessibility/log/performance oracles and mutation smoke for the changed area.
 
 ### `gui-nightly`
 
-Runs every scenario, user-visible feature, object/tool/public-property inventory, the `0/1/2/many` homogeneous and heterogeneous multi-object matrix, WebdriverIO/Playwright cross-execution, generated long sequences and shrinking, fault profiles, leak and recovery tests, native Windows/Office boundaries, and DPI/runtime/GPU profiles.
+Requires current evidence for the full feature/object/tool/property and `0/1/2/many` matrix, but executes only new, affected, expired, rotating-environment, and non-cacheable cells. Complex/large construction, new model seeds, long sequences, soak, leak, random fault, native Windows/Office, and environment-drift work continues even when source is unchanged.
 
 ### `release-qualification`
 
-Accepts only an immutable final installer candidate. A clean VM installs it and, through public UI/UIA, executes at least one real path for every user-visible feature, real GUI creation/drawing for every object type, every public writable property, the core single- and multi-object matrix, save/reopen, production black-box, upgrade/uninstall/reinstall, and release soak. Test builds may carry the larger combinatorial matrix but cannot replace feature-inventory proof against the production candidate. Any code or dependency change invalidates the qualification.
+Accepts only an immutable final installer candidate whose manifest maps every required feature, object, property, multi-object, and complex/large cell to evidence valid for its current component closure. Identical closures may reuse evidence after unrelated changes. The final installer still runs non-reusable clean-install/cold-start, production integration sentinels, affected features, save/reopen, upgrade/uninstall/reinstall, and release soak. A change invalidates its dependent evidence, not unrelated proofs.
 
 ## 14. Demo Qualification Gate
 
@@ -321,17 +343,21 @@ No current gate is weakened merely because the new platform is under constructio
 ## 17. Implementation phases
 
 1. **Incident ledger and coverage baseline**: map every historical demo bug and existing test to a future scenario id.
-2. **Protocols and runner**: schemas, scheduler, isolation, receipts, oracles, CLI, reporting, shrinking, and runner mutation tests.
-3. **Test ABI and desktop drivers**: structured events, quiescence, faults, WebdriverIO Tauri, Playwright WebView2, and test/production permission checks.
+2. **Protocols and runner**: schemas, impact graph/evidence keys, 10-vCPU/20-GiB scheduler, isolation, receipts, oracles, CLI, reporting, shrinking, and runner mutation tests.
+3. **Test ABI and desktop drivers**: structured events, quiescence, faults, Hyper-V background/interactive pools, host-input fail-closed, WebdriverIO Tauri, Playwright WebView2, and test/production permission checks.
 4. **Regression migration**: move all current suites, establish visual/accessibility/persistence/performance oracles, and enable `gui-pr`.
-5. **Model, fault, and platform matrix**: generators, shrinker, Office/OS boundaries, nightly matrix, and zero-tolerance flake policy.
+5. **Model, fault, and platform matrix**: generators, shrinker, complex/large/xlarge blank-document construction, 24-hour soak, Office/OS boundaries, nightly matrix, and zero-tolerance flake policy.
 6. **Demo and release qualification**: recorder, clean VM, final installer, 1,000 repeats, 24-hour soak, immutable manifests, and archived evidence.
 
 ## 18. Completion definition
 
-The platform is not complete because it can click controls or once reports green. Completion requires versioned scenarios, all four formal driver surfaces, automated test/production isolation, permanent coverage for every historical demo defect, real public-input execution of every user-visible feature, GUI creation/drawing and full writable-property/lifecycle coverage for every object type, explicit `0/1/2/many` homogeneous and heterogeneous multi-object and cross-object scenarios, machine-readable feature/object/cardinality/state/input/property/persistence/error/environment coverage, reproducible and shrinkable seeded failures, a fully killed core mutation set, operational PR/nightly/release/demo gates, no retry-to-green, production-installer evidence, hashed artifact manifests, and synchronized documentation/protocol/help.
+The platform is not complete because it can click controls or once reports green. Completion requires versioned scenarios, all four formal driver surfaces, automated test/production and host-desktop isolation, permanent coverage for every historical demo defect, real public-input execution of every user-visible feature, GUI creation/drawing and full writable-property/lifecycle coverage for every object type, explicit `0/1/2/many` homogeneous and heterogeneous multi-object and cross-object scenarios, blank-document complex/large/5,000-atom-equivalent construction, machine-readable coverage, an audited impact graph with valid evidence reuse, aggregate 10-logical-CPU/20-GiB enforcement, reproducible and shrinkable seeded failures, a fully killed core mutation set, operational PR/nightly/release/demo gates, no retry-to-green, production-installer evidence, hashed artifact manifests, and synchronized documentation/protocol/help.
 
-## 19. Upstream foundations
+## 19. Current workstation validation (2026-08-08)
+
+The Hyper-V PowerShell module is present and `vmms`/`vmcompute` are running. The host reports 24 logical processors and about 63.4 GiB RAM, sufficient for the proposed aggregate budget. The current Codex account `jiajun\dream` is not authorized to manage Hyper-V: `Get-VM` and `Get-VMHost` return permission denied. VM inventory, configuration, startup, guest login, and PowerShell Direct therefore remain unverified. An administrator must add a dedicated execution account to `Hyper-V Administrators`, then the project must verify read-only inventory, checkpoint clone, a harmless guest command, file round trip, input isolation, and resource enforcement before claiming the VM runner is operational.
+
+## 20. Upstream foundations
 
 - Tauri WebDriver and WebdriverIO: <https://v2.tauri.app/develop/tests/webdriver/>
 - Tauri WebDriver CI: <https://v2.tauri.app/develop/tests/webdriver/ci/>
@@ -342,5 +368,6 @@ The platform is not complete because it can click controls or once reports green
 - Playwright ARIA snapshots: <https://playwright.dev/docs/aria-snapshots>
 - Microsoft UI Automation testing: <https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-usefortesting>
 - Windows UI automation and input: <https://learn.microsoft.com/en-nz/windows/apps/dev-tools/winapp-cli/ui-automation>
+- Hyper-V PowerShell Direct: <https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/powershell-direct>
 
 These tools supply drivers and evidence. They do not replace ChemSema's scenario model, chemistry oracles, demo qualification, or release responsibility.

@@ -12,7 +12,7 @@ is a release-quality guide, not a marketing claim.
 | Office/OLE copy and embedding | Beta | Clipboard payload tests, EMF preview tests, Word paste/roundtrip validation scripts |
 | Browser editor | Beta | Viewer interaction smoke tests and stability user-path scripts |
 | Desktop app | Beta | Tauri build, file association config, hybrid latency regression, manual install validation |
-| GUI test platform | Architecture approved / implementation pending | Target: versioned scenarios, WebdriverIO Tauri, Playwright WebView2, Windows UIA, production black box, model/fault/mutation testing, and demo qualification; see the long-term architecture |
+| GUI test platform | Architecture approved / implementation pending | Target: versioned scenarios, isolated Hyper-V real input, aggregate 10-logical-CPU/20-GiB budget, impact/evidence reuse, complex/large construction, model/fault/mutation testing, and demo qualification; see the long-term architecture |
 | CLI one-shot commands | Usable | Rust tests, `npm run verify`, stability report, generated-output verification |
 | CLI JSONL session | Experimental/usable | Session unit tests and large-file performance report |
 | Agent precise capture | Usable beta | PNG/SVG capture tests, public fixture crops, README example crops |
@@ -45,7 +45,7 @@ Before a public beta release:
 6. Confirm GitHub CI passes for both `main` and the release tag.
 7. Upload the installer asset and record its SHA256 digest.
 
-These are the current beta gates, not complete GUI or demo qualification. Once the GUI test platform is implemented, stable releases and formal demos must also pass `gui-pr`, `gui-nightly`, final-installer `release-qualification`, and the [Demo Qualification Gate](./gui-test-platform-and-demo-reliability.md#14-demo-qualification-gate); qualification must prove real click/input/drag execution for every user-visible feature, actual GUI drawing or creation for every object type, and coverage of every public property plus the `0/1/2/many` multi-object matrix. A first-run failure remains a flaky failure even when a retry passes.
+These are the current beta gates, not complete GUI or demo qualification. Once implemented, stable releases and formal demos must also pass `gui-pr`, `gui-nightly`, final-installer `release-qualification`, and the [Demo Qualification Gate](./gui-test-platform-and-demo-reliability.md#14-demo-qualification-gate). Its manifest must prove current valid real-interaction evidence for every feature and object, all public properties, the `0/1/2/many` matrix, and complex/large construction. Unchanged closure evidence may be reused; affected, expired, and non-cacheable work must rerun. A first-run failure remains a flaky failure even when a retry passes.
 
 ## Current Communication Boundary
 
