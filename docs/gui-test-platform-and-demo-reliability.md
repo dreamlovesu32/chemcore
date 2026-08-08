@@ -1,0 +1,323 @@
+# ChemSema GUI Test Platform and Demo Reliability Architecture
+
+Status: long-term architecture and implementation contract. This document defines the final boundaries for GUI automation, real desktop validation, model-based testing, fault injection, demo qualification, and test artifacts. Ad hoc scripts, manual smoke tests, and step-by-step AI computer use are not substitutes for this evidence.
+
+This contract complements the [release quality matrix](./release-quality.md), the [Windows desktop and Office architecture](./windows-desktop-office-architecture.md), the [core contract audit](./core-contract-audit-2026-07-23.zh-CN.md), and the [CCJS 0.2 stability architecture](./ccjs-v0.2-stability-architecture.zh-CN.md).
+
+## 1. Decision
+
+ChemSema will build an independent GUI test platform inside the main repository. Platform code, product scenarios, the Test ABI, fixtures, coverage registries, and release gates must change atomically with the product. Large traces, videos, soak logs, VM images, installers, and corpora belong in artifact storage; the repository retains immutable manifests, hashes, minimal failures, and qualification results.
+
+One versioned scenario model drives four execution surfaces:
+
+1. **WebdriverIO Tauri** for the real Tauri application, WebView, IPC, windows, and frontend/backend logs;
+2. **Playwright** for high-throughput browser tests, real WebView2 CDP cross-checks, visual comparisons, accessibility snapshots, and traces;
+3. **Windows UI Automation and input injection** for native dialogs, focus, clipboard, file associations, external drag/drop, touch, pen, and IME behavior;
+4. **Production black-box execution** against the final installer and installed application without test backdoors.
+
+AI may propose scenarios, identify coverage gaps, classify failure bundles, and turn exploration into candidate regressions. A deterministic runner performs, reproduces, shrinks, and judges every action sequence without an LLM in the execution loop.
+
+## 2. Reliability problem
+
+A user gesture crosses several authorities:
+
+```text
+Windows input/window
+  -> WebView DOM/SVG
+  -> viewer interaction state
+  -> WASM engine
+  -> Tauri/native service
+  -> file/clipboard/Office/recovery storage
+  -> viewer revision and render synchronization
+```
+
+Passing unit tests cannot prove that focus, timing, revisions, caches, rendering, persistence, and recovery agree across this chain. GUI reliability must therefore be a versioned product capability, not a collection of browser scripts.
+
+The platform must prove that:
+
+- input reached the intended visible target;
+- viewer, engine, native service, and persisted state agree on revision;
+- visible output agrees with semantic state;
+- undo/redo, save/reopen, and crash recovery preserve their contracts;
+- delay, cancellation, resource failure, and window changes cannot leave half-committed state;
+- the immutable production candidate repeats the actual demo journey on clean machines;
+- the test system detects seeded faults and mutations instead of merely passing correct code.
+
+## 3. Repository and artifact boundary
+
+The main repository owns:
+
+- scenario, result, coverage, and artifact-manifest schemas;
+- the runner, scheduler, drivers, oracles, generators, shrinker, fault injection, and mutation harness;
+- the test-only ABI and build feature;
+- product and demo scenarios;
+- small canonical fixtures, minimal historical regressions, and required visual baselines;
+- capability/environment matrices and CI workflows;
+- qualification manifests bound to candidate hashes.
+
+External artifact storage owns large success traces, videos, corpora, long soak logs, VM/runtime images, installers, crash dumps, and profiles. Every retained artifact is addressed by URI, size, SHA-256, source commit, candidate hash, environment, driver version, seed, and retention policy. A qualification report must never point only to `latest`.
+
+A generic runner core may be extracted only after it serves at least two independently released products through a stable public API. ChemSema scenarios, fixtures, Test ABI, coverage, and qualification remain here.
+
+## 4. Target repository layout
+
+```text
+packages/gui-test/
+  src/{cli,protocol,runner,scheduler,actions,oracles,coverage,generators,shrinker}
+  src/drivers/{wdio-tauri,playwright-browser,playwright-webview2,windows-uia,production-black-box}
+  src/{fault-injection,mutation,reporters}
+
+crates/chemsema-test-support/
+  test-build-only Rust observability, fault injection, and Test ABI
+
+tests/gui/
+  schemas/
+  scenarios/{core,tools,dialogs,documents,clipboard-office,windows,accessibility,performance,recovery,demo}
+  fixtures/
+  baselines/
+  coverage/
+  qualification/
+
+.github/workflows/{gui-pr,gui-nightly,demo-qualification,release-qualification}.yml
+```
+
+The platform exposes a standalone CLI for listing, running, exploring, reproducing, shrinking, and qualifying scenarios.
+
+## 5. Scenario protocol
+
+All fixed, generated, and minimized cases use `chemsema.gui.scenario.v1`, validated by JSON Schema. Scenarios cannot hide their behavior inside arbitrary JavaScript closures.
+
+A scenario declares:
+
+- stable id, title, schema, risk, owner, and originating defect;
+- required capabilities and allowed drivers;
+- fixture, window, DPI, locale, theme, and runtime profile;
+- stable action ids, completion conditions, and time budgets;
+- intermediate and final oracles;
+- coverage tags and reproducible seeds;
+- an empty-by-default allowlist of expected diagnostics.
+
+Targets resolve in this order:
+
+1. role and accessible name;
+2. stable test id or AutomationId;
+3. document entity/node/bond identity;
+4. authoritative world geometry;
+5. raw screen coordinates only for OS-boundary cases with recorded window and DPI metadata.
+
+CSS ancestry, `nth-child`, incidental labels, and ephemeral runtime ids are not durable contracts.
+
+The action vocabulary includes controls, pointer, keyboard and IME, touch and pen, documents, clipboard and Office, windows, runtime failures, and observation checkpoints. Every action declares its coordinate space, device, modifiers, completion condition, and budget. Fixed sleeps are not normal completion conditions.
+
+## 6. Driver contract
+
+Every driver implements:
+
+```text
+prepare(profile)
+launch(candidate)
+capabilities()
+resolve(target)
+perform(action)
+observe(query)
+checkpoint(label)
+collect_artifacts(policy)
+shutdown()
+```
+
+Each action returns a standard receipt with resolved target, input type, timing, before/after revision and window, completion evidence, diagnostics, and artifact references.
+
+### WebdriverIO Tauri
+
+The primary real-desktop driver launches test or production candidates, drives WebView elements, verifies multiple windows, captures frontend/backend logs, and uses only explicitly granted test IPC. Webdriver and execute/mock plugins are registered solely under a test build feature.
+
+### Playwright browser and WebView2
+
+The browser driver handles high-concurrency interaction, visual, ARIA, and long model sequences. The WebView2 driver connects to the real desktop WebView through an isolated CDP port and user-data directory, cross-validates WebdriverIO, and emits Playwright traces. Workers never share a profile.
+
+### Windows UIA and input
+
+UIA patterns are preferred for accessible controls, windows, and native dialogs. OS input injection is reserved for hover, free-canvas gestures, shortcuts, touch, pen, and IME. Injection runs only on an exclusive unlocked desktop after revalidating the foreground window, target rectangle, DPI, and process identity.
+
+### Production black box
+
+The black-box driver accepts only a final installer, install directory, or release archive. It cannot call the Test ABI, use debug globals, register test plugins, or set internal documents. Its evidence comes from public UI/UIA, process status, logs and dumps, files, system clipboard/Office payloads, and final screenshots.
+
+## 7. Test ABI and observability
+
+The current debug global is not a stable protocol. It will be replaced by test-build-only `chemsema.test.abi.v1`.
+
+Permitted capabilities include fixture setup, isolated reset, canonical document fingerprints, revisions, selection and undo/redo state, coordinate conversion, authoritative bounds, quiescence across UI/render/native/journal/autosave work, counters and pending tasks, deterministic clock/random/fault profiles, structured events, and controlled failures.
+
+The ABI must not perform the user action under test, ship in production, execute arbitrary code, change chemistry/hit-testing/rendering rules, or create a separate business implementation.
+
+Every high-level interaction emits a structured journal containing action id, command, revision, runtime authority, commit/cancel/failure, render patch, native acknowledgement, diagnostics, and timing. Failure analysis cannot depend on concatenated console strings.
+
+## 8. Independent oracles
+
+Important cases combine multiple oracles.
+
+### Interaction
+
+- visible, stable, unobscured targets;
+- correct focus, hover, cursor, selection, and handles;
+- one gesture start and exactly one commit or cancel;
+- complete cleanup of previews, masks, overlays, and pending actions.
+
+### Document and chemistry
+
+- canonical CCJS fingerprint and chemical invariants;
+- one revision per content command;
+- reversible undo/redo fingerprints;
+- agreement among local WASM, native service, and saved snapshot.
+
+### Rendering and visual output
+
+- semantic DOM/SVG objects, render primitives, local and whole-window screenshots;
+- per-object and per-file gates rather than aggregate pass counts;
+- baselines bound to OS, driver, runtime, fonts, DPI, theme, and GPU profile;
+- reviewed baseline changes with cause, scope, and diff evidence.
+
+### Accessibility
+
+- ARIA/UIA tree, names, roles, states, and patterns;
+- complete keyboard navigation and dialog focus behavior;
+- a navigable semantic representation for canvas objects.
+
+### Persistence and external integration
+
+- verified output bytes and hashes;
+- reopen in a new process;
+- independent CLI/engine validation and format round trips;
+- clipboard, Office/OLE, EMF preview, file association, and recovery evidence.
+
+### Runtime quality
+
+- zero unexpected exceptions, rejections, panics, traps, or driver errors;
+- unexpected warnings/errors and recovery fallbacks fail according to policy;
+- explicit startup/action/render/save/recovery budgets;
+- bounded memory, handles, process count, and temporary files after loops.
+
+## 9. Model-based, generated, and AI-assisted testing
+
+The authoritative state model spans document lifecycle, active tool, selection/focus, pointer gesture, dialog/menu, tab/window, clipboard, persistence/recovery, and backend health. Coverage is measured over states and transitions, not test count alone.
+
+Seeded generators produce normal journeys, boundary targeting, rapid switching, cancellation/re-entry, focus loss, asynchronous races, large documents, delayed/failed resources, cross-format/tab/window operations, and Office workflows.
+
+Every failure stores the seed, model state, action receipts, candidate, and evidence. A shrinker removes steps, reduces fixtures, simplifies coordinates, and minimizes objects while preserving the failure signature, yielding a permanent regression.
+
+AI may generate candidate cases and classify evidence, but cannot be the sole oracle, approve baselines, replace machine reports with prose, or claim coverage without a reproducible scenario.
+
+## 10. Fault injection and mutation qualification
+
+Test builds must deterministically simulate IPC delay/reordering/failure, missing/denied/full/partial file writes, clipboard contention and malformed formats, WebView reload, WASM startup failure, resource/font/image failures, autosave/journal/exit races, and Office service or preview failures.
+
+Each fault has a stable id, trigger, count, delay, and expected user outcome. Real machine damage is never used to simulate a fault.
+
+Qualification also seeds mutations such as removed listeners, shifted hit testing, dropped patches or acknowledgements, falsely successful corrupt saves, stale UI snapshots, leaked previews/selections, skipped undo revisions, and swallowed exceptions. Core gates must kill every required mutation. A surviving mutation is a coverage or oracle defect even when correct code passes.
+
+## 11. Coverage registry
+
+`chemsema.gui.coverage.v1` tracks:
+
+- create/select/hover/focus/move/resize/rotate/style/copy/cut/paste/delete/undo/redo per tool and object type;
+- import/render/hit/edit/export/save/reopen per object type;
+- confirm/cancel/invalid-input/keyboard/focus behavior per dialog;
+- shortcuts and modifiers;
+- open/edit/save/reopen/export per format;
+- Web, Tauri test build, production build, Office, and OS boundaries;
+- success/cancel/error/timeout/recovery/crash branches;
+- DPI/window/locale/theme/runtime/GPU profiles;
+- permanent scenarios for every historical defect and demo action.
+
+New tools, object types, commands, dialogs, formats, and system capabilities must register their required cells. Missing cells block CI.
+
+## 12. Determinism, isolation, and reporting
+
+Workers use separate temporary roots, document directories, WebView profiles, ports, journal/autosave/log/artifact directories, random seeds, and clock/locale settings. System clipboard cases acquire an exclusive lock. Tests never touch user configuration or project files.
+
+Retries collect evidence but never rewrite the first failure as success. Fail-then-pass is a flaky failure and remains blocking.
+
+Every `chemsema.gui.run.v1` report records the commit and dirty state, candidate/installer hashes, environment and driver matrix, scenarios/seeds/workers, action receipts, oracle results, coverage deltas, faults/mutations, failure signatures, and artifact manifest.
+
+A failure bundle includes the original and minimized scenario, fixture and final snapshots, written files, traces or action journal, structured logs and crash references, screenshots and visual/accessibility diffs, and one copy-ready reproduction command.
+
+## 13. CI gates
+
+### `verify`
+
+Retains Rust, format, WASM, container, and static contracts. It is not described as complete GUI validation.
+
+### `gui-pr`
+
+Runs browser core cases, real Windows Tauri core journeys, affected tests plus an irreducible core set, semantic/visual/accessibility/log/performance oracles, and mutation smoke for the changed area.
+
+### `gui-nightly`
+
+Runs the full matrix, WebdriverIO/Playwright cross-execution, generated long sequences and shrinking, fault profiles, leak and recovery tests, native Windows/Office boundaries, and DPI/runtime/GPU profiles.
+
+### `release-qualification`
+
+Accepts only an immutable final installer candidate. A clean VM installs it and runs production black-box, upgrade/uninstall/reinstall, full critical journeys, and release soak. Any code or dependency change invalidates the qualification.
+
+## 14. Demo Qualification Gate
+
+Every formal demonstration has a versioned `chemsema.gui.demo.v1` journey matching the exact planned files and actions. The presenter cannot substitute unqualified files or paths at the last minute.
+
+A demo candidate must:
+
+1. install and cold-start on a clean Windows VM;
+2. run offline without a dev server, stale cache, or online assets;
+3. use the production build with no Test ABI;
+4. complete every demo journey at least 1,000 consecutive times with zero failure, flake, or unexpected diagnostic;
+5. pass on at least three independent machine/VM profiles;
+6. cover 100%, 125%, 150%, and 200% DPI plus the actual presentation resolution;
+7. complete at least 24 hours of mixed-journey soak without crash, hang, unhandled error, or unrecoverable state;
+8. stay within approved memory, handle, process, temporary-file, autosave, and journal budgets;
+9. reopen and independently validate every saved file in a new process;
+10. qualify target Office versions when Office/OLE is part of the demonstration;
+11. archive the candidate, installer, scenario, environment, report, and hashes;
+12. be the immutable artifact used on stage.
+
+A first-run failure invalidates the qualification even if a retry passes. A fix produces a new candidate hash and a new qualification.
+
+## 15. Runtime reliability requirements
+
+Testing must be paired with a single structured UI action/error bus, explicit commit/cancel/failure receipts, local/native revision barriers, startup health checks and offline resource guarantees, verified autosave/journal recovery, explicit timeout states, exportable diagnostics, and safe degradation instead of false success.
+
+Any recovery fallback, background error, unexpected warning, or over-budget action is a signal even if the final UI appears correct.
+
+## 16. Migration
+
+Existing GUI, Playwright, interaction, stability, toolbar, text, runtime, large-document, and Office scripts are valuable source evidence but will not grow as separate monoliths.
+
+Migration proceeds by inventorying each case and assertion, extracting shared infrastructure, converting behavior into the versioned scenario protocol, moving observation to Test ABI oracles while retaining real UI actions, cross-running browser and Tauri drivers, adding UIA/black-box variants, mutation-qualifying replacements, and retiring old entries only after coverage equivalence is auditable.
+
+No current gate is weakened merely because the new platform is under construction.
+
+## 17. Implementation phases
+
+1. **Incident ledger and coverage baseline**: map every historical demo bug and existing test to a future scenario id.
+2. **Protocols and runner**: schemas, scheduler, isolation, receipts, oracles, CLI, reporting, shrinking, and runner mutation tests.
+3. **Test ABI and desktop drivers**: structured events, quiescence, faults, WebdriverIO Tauri, Playwright WebView2, and test/production permission checks.
+4. **Regression migration**: move all current suites, establish visual/accessibility/persistence/performance oracles, and enable `gui-pr`.
+5. **Model, fault, and platform matrix**: generators, shrinker, Office/OS boundaries, nightly matrix, and zero-tolerance flake policy.
+6. **Demo and release qualification**: recorder, clean VM, final installer, 1,000 repeats, 24-hour soak, immutable manifests, and archived evidence.
+
+## 18. Completion definition
+
+The platform is not complete because it can click controls or once reports green. Completion requires versioned scenarios, all four formal driver surfaces, automated test/production isolation, permanent coverage for every historical demo defect, machine-readable feature/state/error/environment coverage, reproducible and shrinkable seeded failures, a fully killed core mutation set, operational PR/nightly/release/demo gates, no retry-to-green, production-installer evidence, hashed artifact manifests, and synchronized documentation/protocol/help.
+
+## 19. Upstream foundations
+
+- Tauri WebDriver and WebdriverIO: <https://v2.tauri.app/develop/tests/webdriver/>
+- Tauri WebDriver CI: <https://v2.tauri.app/develop/tests/webdriver/ci/>
+- Playwright WebView2: <https://playwright.dev/docs/webview2>
+- Playwright actions and auto-waiting: <https://playwright.dev/docs/input>, <https://playwright.dev/docs/actionability>
+- Playwright traces: <https://playwright.dev/docs/trace-viewer>
+- Playwright visual comparisons: <https://playwright.dev/docs/test-snapshots>
+- Playwright ARIA snapshots: <https://playwright.dev/docs/aria-snapshots>
+- Microsoft UI Automation testing: <https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-usefortesting>
+- Windows UI automation and input: <https://learn.microsoft.com/en-nz/windows/apps/dev-tools/winapp-cli/ui-automation>
+
+These tools supply drivers and evidence. They do not replace ChemSema's scenario model, chemistry oracles, demo qualification, or release responsibility.

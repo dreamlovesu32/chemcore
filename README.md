@@ -459,6 +459,7 @@ also reads [CITATION.cff](./CITATION.cff) for its **Cite this repository** entry
 - Text symbols and glyph profiles: [English](./docs/text-symbol-glyph-profile-rules.md) / [中文](./docs/text-symbol-glyph-profile-rules.zh-CN.md)
 - Valence-driven label recognition: [English](./docs/valence-label-recognition-rules.md) / [中文](./docs/valence-label-recognition-rules.zh-CN.md)
 - Windows desktop and Office architecture: [English](./docs/windows-desktop-office-architecture.md) / [中文](./docs/windows-desktop-office-architecture.zh-CN.md)
+- GUI test platform and demo reliability architecture: [English](./docs/gui-test-platform-and-demo-reliability.md) / [中文](./docs/gui-test-platform-and-demo-reliability.zh-CN.md)
 - Release quality matrix: [English](./docs/release-quality.md) / [中文](./docs/release-quality.zh-CN.md)
 - Release notes: [CHANGELOG.md](./CHANGELOG.md) / [中文](./CHANGELOG.zh-CN.md)
 - Roadmap: [English](./ROADMAP.md) / [中文](./ROADMAP.zh-CN.md)

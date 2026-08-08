@@ -373,6 +373,7 @@ ORCID 见 [CITING.md](./CITING.md)。GitHub 也会读取 [CITATION.cff](./CITATI
 - 文本符号与 glyph profile：[English](./docs/text-symbol-glyph-profile-rules.md) / [中文](./docs/text-symbol-glyph-profile-rules.zh-CN.md)
 - 价键驱动标签识别：[English](./docs/valence-label-recognition-rules.md) / [中文](./docs/valence-label-recognition-rules.zh-CN.md)
 - Windows 桌面端与 Office 架构：[English](./docs/windows-desktop-office-architecture.md) / [中文](./docs/windows-desktop-office-architecture.zh-CN.md)
+- GUI 测试平台与展示可靠性架构：[English](./docs/gui-test-platform-and-demo-reliability.md) / [中文](./docs/gui-test-platform-and-demo-reliability.zh-CN.md)
 - 发布质量矩阵：[English](./docs/release-quality.md) / [中文](./docs/release-quality.zh-CN.md)
 - Release notes：[English](./CHANGELOG.md) / [中文](./CHANGELOG.zh-CN.md)
 - Roadmap：[English](./ROADMAP.md) / [中文](./ROADMAP.zh-CN.md)

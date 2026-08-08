@@ -164,6 +164,10 @@ Examples:
 
 Hosts reuse the core document model.
 
+### Layer F: Quality And Qualification Plane
+
+GUI testing is an independent quality plane across every host, not an ad hoc viewer script. Versioned scenarios execute through browser, real Tauri/WebView2, Windows UIA/real-input, and final-installer black-box drivers, with interaction, chemistry, rendering, accessibility, persistence, and runtime-quality oracles. The Test ABI exists only in test builds; production candidates receive separate black-box qualification. See the [GUI Test Platform and Demo Reliability Architecture](./gui-test-platform-and-demo-reliability.md).
+
 ## Why CDXML Parsing Lives In The Core
 
 CDXML is currently the main import path because it provides a practical bridge

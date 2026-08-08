@@ -168,6 +168,10 @@ Web 和桌面宿主都会用到的共享逻辑。
 
 宿主层复用核心文档模型。
 
+### Layer F：质量与资格平面
+
+GUI 测试不是 viewer 内的临时脚本，而是横跨全部宿主的独立质量平面。版本化场景由浏览器、真实 Tauri/WebView2、Windows UIA/真实输入和最终安装包黑盒 driver 共同执行，并用交互、化学、渲染、无障碍、持久化和运行质量 oracle 判定。Test ABI 只存在于测试构建，生产候选必须另行接受黑盒资格。完整合同见 [GUI 测试平台与展示可靠性长期架构](./gui-test-platform-and-demo-reliability.zh-CN.md)。
+
 ## 为什么 CDXML 解析要留在核心里
 
 CDXML 目前是最现实的导入入口，因为它能把基于 ChemDraw 的工作流接到 `chemsema` 文档上。

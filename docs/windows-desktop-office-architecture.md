@@ -452,6 +452,10 @@ These outputs should be generated uniformly by engine/render service. The Office
 - Do not regress `.ccjz` to a single gzip JSON or bypass the manifest with undeclared entries.
 - Do not turn the Tauri backend into a second business layer.
 
+## GUI Testing And Demo Reliability
+
+Real desktop E2E, WebView2 cross-validation, Windows UIA/real input, Office and OS boundaries, final-installer black-box execution, and demo qualification follow the [GUI Test Platform and Demo Reliability Architecture](./gui-test-platform-and-demo-reliability.md). Browser dev-server tests alone do not prove desktop correctness, and the test-build Test ABI must never enter production installers.
+
 ## Current Environment Status
 
 As of 2026-05-06:

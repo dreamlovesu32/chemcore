@@ -7,6 +7,7 @@ ChemSema 的公开变更记录会保存在这里。
 - 将当前原生文档体系升级为 CCJS 0.2 + CCJZ Container v1：规范化平铺 scene、独立 hierarchy/relations、确定性分块 ZIP、内容寻址资源、opaque attachments、旧 gzip 只读迁移、原子保存和 hash-chain recovery journal。
 - 增加精确 Document Patch 桌面更新路径、Rust/浏览器 JavaScript/独立 Python 交叉读取、`validate`/`canonicalize`/`migrate`/`conformance` CLI，以及容器和 5000 原子交互性能门禁。
 - 补齐 CCJS 0.2 原先列明的实现短板：稳定结构化诊断、显式分子化学校验、CCJS/CCJZ/CDXML/CDX/SDF 目标格式往返、编辑器可见区分块加载、保留 undo 的 hydration、未变 entry 与附件 copy-on-write、浏览器 Zip64，以及相应 conformance/performance 门禁。
+- 确立 GUI 测试平台与展示可靠性长期架构：测试平台留在主仓库并独立版本化场景、报告、覆盖和 Test ABI，最终覆盖真实 Tauri、Playwright WebView2、Windows UIA、生产安装包黑盒、模型/故障/变异测试及展示资格。
 - 新增可复现的公共 CDXML/CDX 往返基准集，固定 RDKit、Indigo、cdxml-toolkit、
   SAMPL6 和 SAMPL9 中 413 个许可证清楚的文件，并生成机器可读的基线报告。
 - 将公共语料门禁升级为三代语义指纹，并修复其中暴露的全部未预期漂移：元素与同位素

@@ -12,6 +12,7 @@ is a release-quality guide, not a marketing claim.
 | Office/OLE copy and embedding | Beta | Clipboard payload tests, EMF preview tests, Word paste/roundtrip validation scripts |
 | Browser editor | Beta | Viewer interaction smoke tests and stability user-path scripts |
 | Desktop app | Beta | Tauri build, file association config, hybrid latency regression, manual install validation |
+| GUI test platform | Architecture approved / implementation pending | Target: versioned scenarios, WebdriverIO Tauri, Playwright WebView2, Windows UIA, production black box, model/fault/mutation testing, and demo qualification; see the long-term architecture |
 | CLI one-shot commands | Usable | Rust tests, `npm run verify`, stability report, generated-output verification |
 | CLI JSONL session | Experimental/usable | Session unit tests and large-file performance report |
 | Agent precise capture | Usable beta | PNG/SVG capture tests, public fixture crops, README example crops |
@@ -43,6 +44,8 @@ Before a public beta release:
 5. Build the installer with `npm run desktop:build`.
 6. Confirm GitHub CI passes for both `main` and the release tag.
 7. Upload the installer asset and record its SHA256 digest.
+
+These are the current beta gates, not complete GUI or demo qualification. Once the GUI test platform is implemented, stable releases and formal demos must also pass `gui-pr`, `gui-nightly`, final-installer `release-qualification`, and the [Demo Qualification Gate](./gui-test-platform-and-demo-reliability.md#14-demo-qualification-gate). A first-run failure remains a flaky failure even when a retry passes.
 
 ## Current Communication Boundary
 

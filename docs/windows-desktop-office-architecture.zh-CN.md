@@ -449,6 +449,10 @@ Office 中的对象预览不能只依赖 SVG。长期需要：
 - 不把 `.ccjz` 退回单一 gzip JSON，也不绕过 manifest 私自增加未声明 entry。
 - 不把 Tauri 后端变成第二套业务层。
 
+## GUI 测试与展示可靠性
+
+桌面端的真实 E2E、WebView2 交叉验证、Windows UIA/真实输入、Office/系统边界、最终安装包黑盒和展示资格统一遵循 [GUI 测试平台与展示可靠性长期架构](./gui-test-platform-and-demo-reliability.zh-CN.md)。浏览器 dev server 测试不能单独证明桌面端正确，测试构建的 Test ABI 也不能进入生产安装包。
+
 ## 当前环境状态
 
 截至 2026-05-06：
