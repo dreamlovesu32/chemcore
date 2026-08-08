@@ -381,9 +381,9 @@ export function createEditorDocumentRenderer(options) {
       renderDocument();
       return true;
     }
-    if (result.deferDocumentSync) {
-      const patchPrimitiveTargetsFirst = targetIdsFromCommandResult(result, "nodes").size > 0
-        || targetIdsFromCommandResult(result, "bonds").size > 0;
+    const patchPrimitiveTargetsFirst = targetIdsFromCommandResult(result, "nodes").size > 0
+      || targetIdsFromCommandResult(result, "bonds").size > 0;
+    if (result.deferDocumentSync || patchPrimitiveTargetsFirst) {
       const patched = patchPrimitiveTargetsFirst
         ? (renderDocumentPrimitiveChange(result) || renderDocumentObjectPrimitiveChange(result))
         : (renderDocumentObjectPrimitiveChange(result) || renderDocumentPrimitiveChange(result));
@@ -472,6 +472,10 @@ export function createEditorDocumentRenderer(options) {
       const entry = { objectId, primitiveCount: primitives.length, appended: false, removed: 0 };
       debugSample.entries.push(entry);
       if (!primitives.length) {
+        // A surviving object can legitimately become render-empty (for example,
+        // undoing the first bond). Remove its previous primitive tree before the
+        // general object patch path decides whether a scene fallback is needed.
+        entry.removed = removeDocumentObjectDom(documentLayer, objectId);
         continue;
       }
       removeDocumentObjectDom(documentLayer, objectId);
@@ -574,18 +578,30 @@ export function createEditorDocumentRenderer(options) {
     indexDocumentPrimitiveTree(documentLayer);
   }
   
-  function documentPrimitiveElementsForId(attribute, id) {
+  function documentPrimitiveElementsForId(attribute, id, documentLayer = null) {
     const index = primitiveDomIndexForAttribute(attribute);
-    return index ? [...(index.get(id) || [])].filter((element) => element.isConnected) : [];
+    if (!index) {
+      return [];
+    }
+    const indexed = [...(index.get(id) || [])].filter((element) => element.isConnected);
+    if (indexed.length || !documentLayer) {
+      return indexed;
+    }
+    // The index is an acceleration structure, not the source of truth. A
+    // precise DOM fallback makes incremental deletion self-healing if an
+    // earlier full render did not populate the index or a node was replaced.
+    const recovered = [...documentLayer.querySelectorAll(`[${attribute}="${cssEscape(id)}"]`)];
+    recovered.forEach((element) => addDocumentPrimitiveIndexEntry(index, id, element));
+    return recovered;
   }
   
   function collectDocumentPrimitiveTargetElements(documentLayer, nodeIds, bondIds) {
     const elements = new Set();
     for (const nodeId of nodeIds) {
-      documentPrimitiveElementsForId("data-node-id", nodeId).forEach((element) => elements.add(element));
+      documentPrimitiveElementsForId("data-node-id", nodeId, documentLayer).forEach((element) => elements.add(element));
     }
     for (const bondId of bondIds) {
-      documentPrimitiveElementsForId("data-bond-id", bondId).forEach((element) => elements.add(element));
+      documentPrimitiveElementsForId("data-bond-id", bondId, documentLayer).forEach((element) => elements.add(element));
     }
     return elements;
   }

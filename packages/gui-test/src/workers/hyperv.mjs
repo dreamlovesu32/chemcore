@@ -296,6 +296,9 @@ export class HyperVCoordinator {
         "-InputToX", String(coordinates.to[0]), "-InputToY", String(coordinates.to[1]),
         "-InputSteps", String(steps),
       );
+    } else if (kind === "key") {
+      if (typeof coordinates?.key !== "string" || !coordinates.key) throw new Error("Keyboard input requires a shortcut.");
+      extra.push("-InputKey", coordinates.key);
     } else {
       throw new Error(`Unsupported candidate input kind ${kind}.`);
     }

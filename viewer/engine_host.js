@@ -89,7 +89,7 @@ class DesktopHybridEngineHost extends WasmEngineHost {
   }
 }
 
-class TauriEngineSession {
+export class TauriEngineSession {
   constructor(invoke, options = {}) {
     this.invoke = invoke;
     this.sessionId = options.sessionId || null;
@@ -1556,10 +1556,22 @@ class TauriEngineSession {
   }
 
   undo() {
+    if (this.layoutEngine?.undo) {
+      const result = this.layoutEngine.undo();
+      this.syncLocalMutationState({ dirtyExports: true });
+      this.runNativeMutationInBackground("desktop_engine_undo");
+      return result;
+    }
     return this.invokeMutation("desktop_engine_undo");
   }
 
   redo() {
+    if (this.layoutEngine?.redo) {
+      const result = this.layoutEngine.redo();
+      this.syncLocalMutationState({ dirtyExports: true });
+      this.runNativeMutationInBackground("desktop_engine_redo");
+      return result;
+    }
     return this.invokeMutation("desktop_engine_redo");
   }
 

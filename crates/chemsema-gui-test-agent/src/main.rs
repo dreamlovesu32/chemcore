@@ -26,8 +26,8 @@ struct ServerRequest {
 
 fn validate_server_command(args: &[String]) -> Result<(), String> {
     match args.first().map(String::as_str) {
-        Some("click" | "drag") => Ok(()),
-        _ => Err("persistent agent accepts only click or drag requests".to_string()),
+        Some("click" | "drag" | "key") => Ok(()),
+        _ => Err("persistent agent accepts only click, drag, or key requests".to_string()),
     }
 }
 
@@ -157,6 +157,10 @@ fn run(args: &[String]) -> Result<serde_json::Value, String> {
             )?;
             serde_json::to_value(attestation).map_err(|error| error.to_string())
         }
+        Some("key") => {
+            let attestation = windows::key(&guard(args)?, &value(args, "--key")?)?;
+            serde_json::to_value(attestation).map_err(|error| error.to_string())
+        }
         Some("activate") => {
             let attestation = windows::activate(&guard(args)?)?;
             serde_json::to_value(attestation).map_err(|error| error.to_string())
@@ -196,6 +200,7 @@ mod tests {
     fn persistent_server_rejects_non_input_commands() {
         assert!(validate_server_command(&["click".to_string()]).is_ok());
         assert!(validate_server_command(&["drag".to_string()]).is_ok());
+        assert!(validate_server_command(&["key".to_string()]).is_ok());
         assert!(validate_server_command(&["store-autologon-secret".to_string()]).is_err());
         assert!(validate_server_command(&["attest".to_string()]).is_err());
     }

@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet('host-attest', 'reset', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'start-input-agent', 'stop-input-agent', 'uia-query', 'cdp-bridge', 'input-click', 'input-drag', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
+  [ValidateSet('host-attest', 'reset', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'start-input-agent', 'stop-input-agent', 'uia-query', 'cdp-bridge', 'input-click', 'input-drag', 'input-key', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
   [string]$Operation,
 
   [Parameter(Mandatory = $true)]
@@ -24,6 +24,7 @@ param(
   [int]$InputToX,
   [int]$InputToY,
   [int]$InputSteps = 8,
+  [string]$InputKey,
   [ValidateSet('left', 'right', 'middle')]
   [string]$InputButton = 'left'
 )
@@ -625,11 +626,11 @@ function Stop-PersistentInputAgent {
   [ordered]@{ schema='chemsema.gui.worker-attestation.v1'; operation='stop-input-agent'; vmId=(Get-WorkerVm).Id.ToString(); vmName=(Get-WorkerVm).Name; agent=$result }
 }
 
-function Invoke-CandidateInput([ValidateSet('click', 'drag')][string]$Kind) {
+function Invoke-CandidateInput([ValidateSet('click', 'drag', 'key')][string]$Kind) {
   $hostHash = (Get-FileHash -LiteralPath $HostCandidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
   $guestPath = Join-Path (Join-Path (Join-Path $GuestTestRoot 'candidate') $hostHash) 'chemsema-desktop.exe'
   $result = Invoke-Guest -ScriptBlock {
-    param($CandidatePath, $TestRoot, $Kind, $X, $Y, $FromX, $FromY, $ToX, $ToY, $Steps, $Button)
+    param($CandidatePath, $TestRoot, $Kind, $X, $Y, $FromX, $FromY, $ToX, $ToY, $Steps, $Button, $Key)
     $process = Get-Process chemsema-desktop -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $CandidatePath -and $_.SessionId -ne 0 } | Select-Object -First 1
     if ($null -eq $process) { throw 'The authorized desktop candidate is not running.' }
     $runRoot = Join-Path $TestRoot 'runs'
@@ -646,8 +647,11 @@ function Invoke-CandidateInput([ValidateSet('click', 'drag')][string]$Kind) {
     [IO.File]::WriteAllText($guardPath, $guardJson, [Text.UTF8Encoding]::new($false))
     $inputArguments = if ($Kind -eq 'click') {
       @('click', '--guard', $guardPath, '--x', [string]$X, '--y', [string]$Y, '--button', $Button)
-    } else {
+    } elseif ($Kind -eq 'drag') {
       @('drag', '--guard', $guardPath, '--from-x', [string]$FromX, '--from-y', [string]$FromY, '--to-x', [string]$ToX, '--to-y', [string]$ToY, '--steps', [string]$Steps, '--button', $Button)
+    } else {
+      if ([string]::IsNullOrWhiteSpace($Key)) { throw 'Keyboard input requires a shortcut.' }
+      @('key', '--guard', $guardPath, '--key', $Key)
     }
     $channelRoot = Join-Path $TestRoot 'input-channel'
     $ready = Join-Path $channelRoot 'ready.json'
@@ -668,7 +672,7 @@ function Invoke-CandidateInput([ValidateSet('click', 'drag')][string]$Kind) {
     if ($response.id -ne $requestId -or $response.schema -ne 'chemsema.gui.guest-agent-response.v1') { throw 'Persistent input response identity is invalid.' }
     if ($response.status -ne 'passed') { throw "Interactive input was rejected: $($response.message)" }
     $response.result
-  } -ArgumentList @($guestPath, $GuestTestRoot, $Kind, $InputX, $InputY, $InputFromX, $InputFromY, $InputToX, $InputToY, $InputSteps, $InputButton)
+  } -ArgumentList @($guestPath, $GuestTestRoot, $Kind, $InputX, $InputY, $InputFromX, $InputFromY, $InputToX, $InputToY, $InputSteps, $InputButton, $InputKey)
   [ordered]@{
     schema = 'chemsema.gui.worker-attestation.v1'
     operation = "input-$Kind"
@@ -975,6 +979,7 @@ switch ($Operation) {
   'cdp-bridge' { Write-Result (Invoke-CdpBridge) }
   'input-click' { Write-Result (Invoke-CandidateInput 'click') }
   'input-drag' { Write-Result (Invoke-CandidateInput 'drag') }
+  'input-key' { Write-Result (Invoke-CandidateInput 'key') }
   'agent-attest-service' { Write-Result (Get-ServiceAgentAttestation) }
   'agent-attest-interactive' { Write-Result (Get-InteractiveAgentAttestation) }
   'stop' { Write-Result (Stop-Worker) }

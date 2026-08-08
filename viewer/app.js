@@ -35,7 +35,7 @@ import { createNmrPredictionHost } from "./nmr_prediction_host.js";
 import { createBundledNmrProvider } from "./nmr_prediction_provider.js";
 import { createImageImportHost } from "./image_import_host.js";
 import { createDesktopFileHost, normalizeDesktopPath } from "./desktop_file_host.js";
-import { createEngineHost } from "./engine_host.js?v=20260726-molecular-coloring-2";
+import { createEngineHost } from "./engine_host.js?v=20260808-history-sync-1";
 import { bindEditorControls, openColorDialog } from "./editor_bindings.js?v=20260726-biology-assisted-rail";
 import { createDocumentFlow } from "./document_flow.js";
 import { createBrowserDocumentTabs } from "./browser_document_tabs.js";
@@ -56,7 +56,7 @@ import {
 import { createSceneRenderer } from "./scene_renderer.js";
 import { createEditorOverlayRenderer } from "./editor_overlay.js?v=20260723-image-focus";
 import { createEditorSelectionState } from "./editor_selection_state.js";
-import { createEditorDocumentRenderer } from "./editor_document_renderer.js";
+import { createEditorDocumentRenderer } from "./editor_document_renderer.js?v=20260808-empty-render-transition-3";
 import { createEditorReadHost } from "./editor_read_host.js";
 import { createEditorRuntimeHost } from "./editor_runtime_host.js";
 import { createEditorStateRuntimeHost } from "./editor_state_runtime_host.js";
@@ -64,7 +64,7 @@ import { createEditorToolbarHost } from "./editor_toolbar_host.js";
 import { createEditorViewportHost } from "./editor_viewport_host.js";
 import { createEditorPointerController } from "./editor_pointer_controller.js?v=20260629-deep-stability";
 import { createCanvasContextMenuHost } from "./editor_context_menu.js?v=20260726-molecular-coloring";
-import { createEditorCommandController } from "./editor_command_controller.js";
+import { createEditorCommandController } from "./editor_command_controller.js?v=20260808-history-command-1";
 import { createEditorCommandEngine } from "./editor_command_engine.js?v=20260626-interaction-feedback";
 import {
   editorScriptScale as computeEditorScriptScale,

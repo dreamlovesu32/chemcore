@@ -6,16 +6,19 @@
     { "id": "source.gui-platform", "kind": "source", "patterns": ["packages/gui-test/**", "tests/gui/schemas/**", "tests/gui/coverage/**"] },
     { "id": "source.scenario.core.bond.draw-single", "kind": "source", "patterns": ["tests/gui/scenarios/core/draw-single-bond.json"] },
     { "id": "source.scenario.core.bond.draw-single.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/draw-single-bond-production.json"] },
+    { "id": "source.scenario.core.history.undo-redo-bond.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/undo-redo-bond-production.json"] },
     { "id": "source.test-entrypoints", "kind": "source", "patterns": ["package.json", "package-lock.json", "scripts/test.mjs", "scripts/verify.mjs"] },
     { "id": "source.documentation", "kind": "source", "patterns": ["docs/**"] },
     { "id": "component.gui-runner", "kind": "component" },
     { "id": "component.editor-interaction", "kind": "component" },
     { "id": "capability.editor.bond.draw", "kind": "capability" },
+    { "id": "capability.editor.history.undo-redo", "kind": "capability" },
     { "id": "driver.playwright-browser", "kind": "driver" },
     { "id": "driver.production-black-box", "kind": "driver" },
     { "id": "oracle.dom", "kind": "oracle" },
     { "id": "scenario.core.bond.draw-single", "kind": "scenario" },
-    { "id": "scenario.core.bond.draw-single.production", "kind": "scenario" }
+    { "id": "scenario.core.bond.draw-single.production", "kind": "scenario" },
+    { "id": "scenario.core.history.undo-redo-bond.production", "kind": "scenario" }
   ],
   "edges": [
     { "from": "source.viewer", "to": "component.editor-interaction", "reason": "Viewer input and rendering changes can affect editor gestures." },
@@ -24,14 +27,21 @@
     { "from": "source.test-entrypoints", "to": "component.gui-runner", "reason": "Dependency and test entrypoint changes can affect platform execution." },
     { "from": "component.gui-runner", "to": "scenario.core.bond.draw-single", "reason": "Runner changes invalidate scenario execution evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.bond.draw-single.production", "reason": "Runner changes invalidate production desktop scenario evidence." },
+    { "from": "component.gui-runner", "to": "scenario.core.history.undo-redo-bond.production", "reason": "Runner changes invalidate production keyboard scenario evidence." },
     { "from": "source.scenario.core.bond.draw-single", "to": "scenario.core.bond.draw-single", "reason": "Changing the scenario invalidates its evidence." },
     { "from": "source.scenario.core.bond.draw-single.production", "to": "scenario.core.bond.draw-single.production", "reason": "Changing the production scenario invalidates its evidence." },
+    { "from": "source.scenario.core.history.undo-redo-bond.production", "to": "scenario.core.history.undo-redo-bond.production", "reason": "Changing the history scenario invalidates its evidence." },
     { "from": "component.editor-interaction", "to": "capability.editor.bond.draw", "reason": "Bond drawing is an editor interaction capability." },
     { "from": "capability.editor.bond.draw", "to": "scenario.core.bond.draw-single", "reason": "The scenario provides real-user-path evidence for bond drawing." },
     { "from": "capability.editor.bond.draw", "to": "scenario.core.bond.draw-single.production", "reason": "The production scenario provides real OS-input evidence for bond drawing." },
+    { "from": "component.editor-interaction", "to": "capability.editor.history.undo-redo", "reason": "Undo and redo are editor interaction capabilities." },
+    { "from": "capability.editor.bond.draw", "to": "scenario.core.history.undo-redo-bond.production", "reason": "The history scenario creates its bond through real OS input." },
+    { "from": "capability.editor.history.undo-redo", "to": "scenario.core.history.undo-redo-bond.production", "reason": "The scenario provides real keyboard evidence for undo and redo." },
     { "from": "driver.playwright-browser", "to": "scenario.core.bond.draw-single", "reason": "The browser driver executes this scenario." },
     { "from": "driver.production-black-box", "to": "scenario.core.bond.draw-single.production", "reason": "The isolated guest driver executes the production scenario." },
+    { "from": "driver.production-black-box", "to": "scenario.core.history.undo-redo-bond.production", "reason": "The isolated guest driver executes the production keyboard scenario." },
     { "from": "oracle.dom", "to": "scenario.core.bond.draw-single", "reason": "The scenario checks the rendered bond through the DOM oracle." },
-    { "from": "oracle.dom", "to": "scenario.core.bond.draw-single.production", "reason": "The production scenario checks the rendered bond through an independent CDP oracle." }
+    { "from": "oracle.dom", "to": "scenario.core.bond.draw-single.production", "reason": "The production scenario checks the rendered bond through an independent CDP oracle." },
+    { "from": "oracle.dom", "to": "scenario.core.history.undo-redo-bond.production", "reason": "The history scenario checks 1 to 0 to 1 rendered-bond transitions." }
   ]
 }

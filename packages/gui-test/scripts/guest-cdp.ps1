@@ -84,6 +84,28 @@ try {
 (() => ({
   runtimeState: document.body.dataset.runtimeState || null,
   revision: Number.isInteger(window.__chemsemaDebug?.state?.revision) ? window.__chemsemaDebug.state.revision : null,
+  appScript: document.querySelector('script[type="module"]')?.src || null,
+  engine: (() => {
+    const debug = window.__chemsemaDebug;
+    const session = debug?.state?.editorEngine;
+    let documentBonds = null;
+    let lastCommandResult = null;
+    try {
+      const parsed = JSON.parse(session?.documentJson?.() || 'null');
+      documentBonds = Object.values(parsed?.resources || {}).reduce((count, resource) => count + (resource?.data?.bonds?.length || 0), 0);
+    } catch {}
+    try { lastCommandResult = JSON.parse(session?.lastCommandResultJson?.() || 'null'); } catch {}
+    return {
+      hostKind: debug?.engineHost?.kind || null,
+      sessionType: session?.constructor?.name || null,
+      editingRustDocument: !debug?.state?.currentPath && !!session,
+      canUndo: session?.canUndo?.() ?? null,
+      canRedo: session?.canRedo?.() ?? null,
+      documentBonds,
+      lastCommandResult,
+      lastCommandSync: debug?.renderStats?.lastCommandSync || null
+    };
+  })(),
   window: { href: location.href, title: document.title, visibilityState: document.visibilityState, focused: document.hasFocus() },
   viewport: { width: innerWidth, height: innerHeight, devicePixelRatio },
   rendered: { bonds: document.querySelectorAll('[data-bond-id]').length, nodes: document.querySelectorAll('[data-node-id]').length }
@@ -99,6 +121,19 @@ try {
   count: document.querySelectorAll(new TextDecoder().decode(Uint8Array.from(atob('$selectorBase64'), c => c.charCodeAt(0)))).length,
   state: {
     revision: Number.isInteger(window.__chemsemaDebug?.state?.revision) ? window.__chemsemaDebug.state.revision : null,
+    appScript: document.querySelector('script[type="module"]')?.src || null,
+    engine: (() => {
+      const debug = window.__chemsemaDebug;
+      const session = debug?.state?.editorEngine;
+      let documentBonds = null;
+      let lastCommandResult = null;
+      try {
+        const parsed = JSON.parse(session?.documentJson?.() || 'null');
+        documentBonds = Object.values(parsed?.resources || {}).reduce((count, resource) => count + (resource?.data?.bonds?.length || 0), 0);
+      } catch {}
+      try { lastCommandResult = JSON.parse(session?.lastCommandResultJson?.() || 'null'); } catch {}
+      return { hostKind: debug?.engineHost?.kind || null, sessionType: session?.constructor?.name || null, editingRustDocument: !debug?.state?.currentPath && !!session, canUndo: session?.canUndo?.() ?? null, canRedo: session?.canRedo?.() ?? null, documentBonds, lastCommandResult, lastCommandSync: debug?.renderStats?.lastCommandSync || null };
+    })(),
     window: { href: location.href, title: document.title, visibilityState: document.visibilityState, focused: document.hasFocus() },
     rendered: { bonds: document.querySelectorAll('[data-bond-id]').length, nodes: document.querySelectorAll('[data-node-id]').length }
   }

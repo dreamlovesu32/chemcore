@@ -95,7 +95,7 @@ export class ProductionBlackBoxDriver {
   }
 
   capabilities() {
-    return ["gui.public-input", "editor.bond.draw", "oracle.dom", "oracle.diagnostics", "desktop.production"];
+    return ["gui.public-input", "editor.bond.draw", "editor.history.undo-redo", "oracle.dom", "oracle.diagnostics", "desktop.production"];
   }
 
   async resolve(target) {
@@ -134,6 +134,11 @@ export class ProductionBlackBoxDriver {
   }
 
   async perform(action) {
+    if (action.type === "key") {
+      const receipt = await this.coordinator.candidateInput("key", { key: action.key });
+      this.foreground = receipt.agent.foreground;
+      return { kind: "key", key: action.key };
+    }
     const geometry = await this.inputGeometry(action.target);
     const [left, top, right, bottom] = geometry.rect;
     if (action.type === "click") {
@@ -159,7 +164,7 @@ export class ProductionBlackBoxDriver {
       return state;
     }
     const state = await this.coordinator.cdpBridge({ mode: "state" });
-    return { revision: state.revision, window: state.window, rendered: state.rendered };
+    return { revision: state.revision, appScript: state.appScript, engine: state.engine, window: state.window, rendered: state.rendered };
   }
 
   async waitForCompletion(completion) {
@@ -171,7 +176,7 @@ export class ProductionBlackBoxDriver {
         const count = result.count;
         const passed = completion.operator === "eq" ? count === completion.value : count >= completion.value;
         if (!passed) throw new Error(`DOM count is ${count}; expected ${completion.operator} ${completion.value}.`);
-        this.completedActionState = { revision: result.state.revision, window: result.state.window, rendered: result.state.rendered };
+        this.completedActionState = { revision: result.state.revision, appScript: result.state.appScript, engine: result.state.engine, window: result.state.window, rendered: result.state.rendered };
         return count;
       }, { timeoutMs: completion.timeoutMs, intervalMs: 200 });
       return { observed };

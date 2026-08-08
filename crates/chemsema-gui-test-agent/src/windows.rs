@@ -25,9 +25,11 @@ use windows_sys::Win32::System::Threading::{
     PROCESS_TERMINATE,
 };
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
-    SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYEVENTF_KEYUP,
+    MapVirtualKeyW, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
+    KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, MAPVK_VK_TO_VSC_EX,
     MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP,
-    MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEINPUT, VK_MENU,
+    MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEINPUT, VK_CONTROL, VK_DELETE, VK_DOWN,
+    VK_ESCAPE, VK_LEFT, VK_MENU, VK_RETURN, VK_RIGHT, VK_SHIFT, VK_TAB, VK_UP,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, EnumWindows, GetClassNameW, GetClientRect, GetForegroundWindow,
@@ -277,6 +279,100 @@ fn send_mouse(flags: u32) -> Result<(), String> {
     Ok(())
 }
 
+fn send_key_event(virtual_key: u16, flags: u32) -> Result<(), String> {
+    // Physical scan-code injection is stable across keyboard layouts and matches
+    // the hardware path used by an actual keyboard more closely than a bare VK.
+    let mapped = unsafe { MapVirtualKeyW(virtual_key as u32, MAPVK_VK_TO_VSC_EX) };
+    if mapped == 0 {
+        return Err(format!(
+            "cannot map virtual key {virtual_key} to a scan code"
+        ));
+    }
+    let extended = if mapped & 0xff00 != 0 {
+        KEYEVENTF_EXTENDEDKEY
+    } else {
+        0
+    };
+    let input = INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: INPUT_0 {
+            ki: KEYBDINPUT {
+                wVk: 0,
+                wScan: (mapped & 0xff) as u16,
+                dwFlags: flags | KEYEVENTF_SCANCODE | extended,
+                time: 0,
+                dwExtraInfo: 0,
+            },
+        },
+    };
+    if unsafe { SendInput(1, &input, size_of::<INPUT>() as i32) } != 1 {
+        return Err(last_error("SendInput(keyboard)"));
+    }
+    Ok(())
+}
+
+fn parse_shortcut(shortcut: &str) -> Result<(Vec<u16>, u16), String> {
+    let parts = shortcut
+        .split('+')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>();
+    let (key, modifiers) = parts
+        .split_last()
+        .ok_or_else(|| "keyboard shortcut is empty".to_string())?;
+    let mut modifier_keys = Vec::new();
+    for modifier in modifiers {
+        let code = match modifier.to_ascii_lowercase().as_str() {
+            "control" | "ctrl" => VK_CONTROL,
+            "shift" => VK_SHIFT,
+            "alt" => VK_MENU,
+            _ => return Err(format!("unsupported keyboard modifier {modifier}")),
+        };
+        if !modifier_keys.contains(&code) {
+            modifier_keys.push(code);
+        }
+    }
+    let normalized = key.to_ascii_lowercase();
+    let key_code = match normalized.as_str() {
+        "delete" => VK_DELETE,
+        "escape" => VK_ESCAPE,
+        "enter" => VK_RETURN,
+        "tab" => VK_TAB,
+        "arrowleft" => VK_LEFT,
+        "arrowright" => VK_RIGHT,
+        "arrowup" => VK_UP,
+        "arrowdown" => VK_DOWN,
+        value if value.len() == 1 && value.as_bytes()[0].is_ascii_alphanumeric() => {
+            value.as_bytes()[0].to_ascii_uppercase() as u16
+        }
+        _ => return Err(format!("unsupported keyboard key {key}")),
+    };
+    if key_code == VK_DELETE
+        && modifier_keys.contains(&VK_CONTROL)
+        && modifier_keys.contains(&VK_MENU)
+    {
+        return Err("Control+Alt+Delete is forbidden".to_string());
+    }
+    Ok((modifier_keys, key_code))
+}
+
+pub fn key(guard: &InputGuard, shortcut: &str) -> Result<AgentAttestation, String> {
+    let before = attest()?;
+    crate::validate_input_guard(&before, guard)?;
+    let (modifiers, key_code) = parse_shortcut(shortcut)?;
+    for modifier in &modifiers {
+        send_key_event(*modifier, 0)?;
+    }
+    send_key_event(key_code, 0)?;
+    send_key_event(key_code, KEYEVENTF_KEYUP)?;
+    for modifier in modifiers.iter().rev() {
+        send_key_event(*modifier, KEYEVENTF_KEYUP)?;
+    }
+    let after = attest()?;
+    crate::validate_input_guard(&after, guard)?;
+    Ok(after)
+}
+
 fn send_alt_key() -> Result<(), String> {
     let mut inputs = [
         INPUT {
@@ -515,7 +611,7 @@ pub fn dismiss_known_blocker() -> Result<AgentAttestation, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::retryable_window_snapshot_error;
+    use super::{parse_shortcut, retryable_window_snapshot_error};
 
     #[test]
     fn only_invalid_window_handles_are_retried_during_snapshot_capture() {
@@ -525,6 +621,15 @@ mod tests {
         assert!(!retryable_window_snapshot_error(
             "OpenProcess failed with Windows error 5"
         ));
+    }
+
+    #[test]
+    fn keyboard_shortcuts_are_allowlisted_and_secure_attention_is_forbidden() {
+        assert!(parse_shortcut("Control+Z").is_ok());
+        assert!(parse_shortcut("Shift+ArrowLeft").is_ok());
+        assert!(parse_shortcut("Alt+F4").is_err());
+        assert!(parse_shortcut("Control+Alt+Delete").is_err());
+        assert!(parse_shortcut("Meta+R").is_err());
     }
 }
 

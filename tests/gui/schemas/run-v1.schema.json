@@ -47,6 +47,8 @@
       "required": ["revision", "window"],
       "properties": {
         "revision": { "type": ["integer", "null"], "minimum": 0 },
+        "appScript": { "type": ["string", "null"] },
+        "engine": { "type": ["object", "null"] },
         "window": { "type": "object" },
         "rendered": { "type": "object" }
       }
