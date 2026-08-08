@@ -42,6 +42,16 @@
             "operator": { "enum": ["eq", "gte"] }, "value": { "type": "integer", "minimum": 0 },
             "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 120000 }
           }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "selector", "attribute", "operator", "value", "timeoutMs"],
+          "properties": {
+            "kind": { "const": "dom-distinct-count" }, "selector": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "attribute": { "enum": ["data-object-id", "data-node-id", "data-bond-id"] },
+            "operator": { "enum": ["eq", "gte"] }, "value": { "type": "integer", "minimum": 0 },
+            "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 120000 }
+          }
         }
       ]
     },

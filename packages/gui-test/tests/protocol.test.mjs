@@ -8,10 +8,12 @@ import { assertValidDocument, readValidatedDocument, validateDocument } from "..
 
 const scenarioPath = join(guiTestsDir, "scenarios", "core", "draw-single-bond.json");
 const multiObjectScenarioPath = join(guiTestsDir, "scenarios", "core", "multi-bond-clipboard-delete-production.json");
+const mixedObjectScenarioPath = join(guiTestsDir, "scenarios", "core", "mixed-bond-arrow-clipboard-production.json");
 
 test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(scenarioPath);
   await readValidatedDocument(multiObjectScenarioPath);
+  await readValidatedDocument(mixedObjectScenarioPath);
   await readValidatedDocument(join(guiTestsDir, "coverage", "registry-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "coverage", "impact-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "environments", "windows-gui-worker-current.json"));
@@ -36,9 +38,22 @@ test("scenario, coverage registry, and impact graph validate", async () => {
   await assertValidDocument({
     schema: "chemsema.gui.action-transaction.v1",
     input: { kind: "click", x: 10, y: 20, button: "left" },
-    completion: { kind: "actionable", timeoutMs: 12000 },
+    completion: { kind: "actionable", timeoutMs: 8000 },
     budgetMs: 12000,
   }, "action transaction fixture");
+  await assertValidDocument({
+    schema: "chemsema.gui.action-transaction.v1",
+    input: { kind: "key", key: "Control+A" },
+    completion: {
+      kind: "dom-distinct-count",
+      selector: "[data-role=\"document-graphic\"][data-object-id]",
+      attribute: "data-object-id",
+      operator: "eq",
+      value: 2,
+      timeoutMs: 8000,
+    },
+    budgetMs: 12000,
+  }, "distinct object action transaction fixture");
   await assertValidDocument({
     schema: "chemsema.gui.action-transaction-receipt.v1",
     input: {}, before: {}, after: {}, completion: { actionable: true },

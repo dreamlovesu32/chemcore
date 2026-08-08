@@ -185,12 +185,36 @@ export class PlaywrightBrowserDriver {
       );
       return { observed: await this.page.locator(completion.selector).count() };
     }
+    if (completion.kind === "dom-distinct-count") {
+      await this.page.waitForFunction(
+        ({ selector, attribute, operator, value }) => {
+          const count = new Set([...document.querySelectorAll(selector)]
+            .map((element) => element.getAttribute(attribute))
+            .filter(Boolean)).size;
+          return operator === "eq" ? count === value : count >= value;
+        },
+        completion,
+        { timeout: completion.timeoutMs },
+      );
+      return {
+        observed: await this.page.locator(completion.selector).evaluateAll(
+          (elements, attribute) => new Set(elements.map((element) => element.getAttribute(attribute)).filter(Boolean)).size,
+          completion.attribute,
+        ),
+      };
+    }
     throw new Error(`Unsupported completion ${completion.kind}.`);
   }
 
   async observe(oracle) {
     if (oracle.kind === "dom-count") {
       return this.page.locator(oracle.selector).count();
+    }
+    if (oracle.kind === "dom-distinct-count") {
+      return this.page.locator(oracle.selector).evaluateAll(
+        (elements, attribute) => new Set(elements.map((element) => element.getAttribute(attribute)).filter(Boolean)).size,
+        oracle.attribute,
+      );
     }
     if (oracle.kind === "no-unexpected-diagnostics") {
       return [...this.diagnostics];

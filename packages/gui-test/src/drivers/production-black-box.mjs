@@ -100,7 +100,9 @@ export class ProductionBlackBoxDriver {
     return [
       "gui.public-input",
       "editor.bond.draw",
+      "editor.arrow.draw",
       "editor.selection.select-all",
+      "editor.selection.mixed-object",
       "editor.clipboard.copy-paste",
       "editor.selection.delete",
       "editor.history.undo-redo",
@@ -212,9 +214,13 @@ export class ProductionBlackBoxDriver {
   async waitForCompletion(completion) {
     if (completion.kind === "actionable") return { actionable: true };
     if (completion.kind === "quiescent") return { quiescent: true };
-    if (completion.kind === "dom-count") {
+    if (completion.kind === "dom-count" || completion.kind === "dom-distinct-count") {
       const observed = await retry(async () => {
-        const result = await this.coordinator.cdpBridge({ mode: "count-state", selector: completion.selector });
+        const result = await this.coordinator.cdpBridge({
+          mode: completion.kind === "dom-distinct-count" ? "distinct-count-state" : "count-state",
+          selector: completion.selector,
+          ...(completion.kind === "dom-distinct-count" ? { attribute: completion.attribute } : {}),
+        });
         const count = result.count;
         const passed = completion.operator === "eq" ? count === completion.value : count >= completion.value;
         if (!passed) throw new Error(`DOM count is ${count}; expected ${completion.operator} ${completion.value}.`);
@@ -228,6 +234,7 @@ export class ProductionBlackBoxDriver {
 
   async observe(oracle) {
     if (oracle.kind === "dom-count") return this.coordinator.cdpBridge({ mode: "count", selector: oracle.selector });
+    if (oracle.kind === "dom-distinct-count") return this.coordinator.cdpBridge({ mode: "distinct-count", selector: oracle.selector, attribute: oracle.attribute });
     if (oracle.kind === "no-unexpected-diagnostics") return [...this.diagnostics];
     throw new Error(`Unsupported oracle ${oracle.kind}.`);
   }

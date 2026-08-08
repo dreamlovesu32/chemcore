@@ -3,7 +3,7 @@ import { evidenceKey } from "../protocol/canonical.mjs";
 import { assertValidDocument } from "../protocol/validate.mjs";
 
 function oraclePassed(oracle, observed, expectedDiagnostics) {
-  if (oracle.kind === "dom-count") {
+  if (oracle.kind === "dom-count" || oracle.kind === "dom-distinct-count") {
     return oracle.operator === "eq" ? observed === oracle.value : observed >= oracle.value;
   }
   if (oracle.kind === "no-unexpected-diagnostics") {

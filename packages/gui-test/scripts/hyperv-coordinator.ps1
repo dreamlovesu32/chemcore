@@ -815,11 +815,16 @@ function Invoke-ActionTransaction {
     $before = Observe-Cdp ([ordered]@{ mode='state' })
     $inputResponse = Send-ChannelRequest 'input-channel' 'chemsema.gui.guest-agent-request.v1' 'chemsema.gui.guest-agent-response.v1' ([ordered]@{ args=$inputArguments }) 8000
     $completionKind = [string]$Request.completion.kind
-    if ($completionKind -notin @('actionable', 'quiescent', 'dom-count')) { throw 'Unsupported action transaction completion kind.' }
-    if ($completionKind -eq 'dom-count') {
+    if ($completionKind -notin @('actionable', 'quiescent', 'dom-count', 'dom-distinct-count')) { throw 'Unsupported action transaction completion kind.' }
+    if ($completionKind -in @('dom-count', 'dom-distinct-count')) {
       $completionDeadline = [DateTime]::UtcNow.AddMilliseconds([int]$Request.completion.timeoutMs)
+      $completionRequest = [ordered]@{
+        mode = if ($completionKind -eq 'dom-distinct-count') { 'distinct-count-state' } else { 'count-state' }
+        selector = [string]$Request.completion.selector
+      }
+      if ($completionKind -eq 'dom-distinct-count') { $completionRequest['attribute'] = [string]$Request.completion.attribute }
       do {
-        $observed = Observe-Cdp ([ordered]@{ mode='count-state'; selector=[string]$Request.completion.selector })
+        $observed = Observe-Cdp $completionRequest
         $passed = if ($Request.completion.operator -eq 'eq') { [int]$observed.count -eq [int]$Request.completion.value } else { [int]$observed.count -ge [int]$Request.completion.value }
         if ($passed) { break }
         Start-Sleep -Milliseconds 20

@@ -250,6 +250,28 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   const agentStart = source.slice(end, source.indexOf("function Stop-PersistentCdpAgent", end));
   assert.match(agentStart, /-UserId 'SYSTEM' -LogonType ServiceAccount/);
   assert.doesNotMatch(agentStart, /LogonType Interactive/);
+  const guestSource = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
+  assert.match(guestSource, /'distinct-count', 'distinct-count-state'/);
+  assert.match(guestSource, /'data-object-id', 'data-node-id', 'data-bond-id'/);
+});
+
+test("CDP distinct object observation requires an allowlisted identity attribute", async () => {
+  const profile = await readValidatedDocument(profilePath);
+  let encodedRequest = null;
+  const coordinator = new HyperVCoordinator(profile, {
+    environment: { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" },
+    executor(args) {
+      const requestIndex = args.indexOf("-CdpRequestBase64");
+      encodedRequest = JSON.parse(Buffer.from(args[requestIndex + 1], "base64").toString("utf8"));
+      return result({ bridge: { schema: "chemsema.gui.cdp-bridge.v1", status: "passed", value: 2 } });
+    },
+  });
+  assert.equal(await coordinator.cdpBridge({ mode: "distinct-count", selector: "[data-object-id]", attribute: "data-object-id" }), 2);
+  assert.deepEqual(encodedRequest, { mode: "distinct-count", selector: "[data-object-id]", attribute: "data-object-id" });
+  await assert.rejects(
+    coordinator.cdpBridge({ mode: "distinct-count", selector: "[data-object-id]", attribute: "class" }),
+    /allowlisted identity attribute/,
+  );
 });
 
 test("production action transaction uses one guest invocation for before, input, completion, and after", async () => {
@@ -260,7 +282,8 @@ test("production action transaction uses one guest invocation for before, input,
   const transaction = source.slice(start, end);
   assert.equal((transaction.match(/Invoke-Guest/g) || []).length, 1);
   assert.match(transaction, /mode='state'/);
-  assert.match(transaction, /mode='count-state'/);
+  assert.match(transaction, /'count-state'/);
+  assert.match(transaction, /'distinct-count-state'/);
   assert.match(transaction, /'input-channel'/);
   assert.match(transaction, /'cdp-channel'/);
   assert.match(transaction, /chemsema\.gui\.action-transaction-receipt\.v1/);

@@ -73,16 +73,21 @@
       "additionalProperties": false,
       "required": ["kind", "timeoutMs"],
       "properties": {
-        "kind": { "enum": ["actionable", "dom-count", "quiescent"] },
+        "kind": { "enum": ["actionable", "dom-count", "dom-distinct-count", "quiescent"] },
         "selector": { "type": "string" },
+        "attribute": { "enum": ["data-object-id", "data-node-id", "data-bond-id"] },
         "operator": { "enum": ["eq", "gte"] },
         "value": { "type": "integer", "minimum": 0 },
         "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 300000 }
       },
       "allOf": [
         {
-          "if": { "properties": { "kind": { "const": "dom-count" } } },
+          "if": { "properties": { "kind": { "enum": ["dom-count", "dom-distinct-count"] } } },
           "then": { "required": ["selector", "operator", "value"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "dom-distinct-count" } } },
+          "then": { "required": ["attribute"] }
         }
       ]
     },
@@ -132,15 +137,20 @@
       "required": ["id", "kind"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "kind": { "enum": ["dom-count", "no-unexpected-diagnostics"] },
+        "kind": { "enum": ["dom-count", "dom-distinct-count", "no-unexpected-diagnostics"] },
         "selector": { "type": "string" },
+        "attribute": { "enum": ["data-object-id", "data-node-id", "data-bond-id"] },
         "operator": { "enum": ["eq", "gte"] },
         "value": { "type": "integer", "minimum": 0 }
       },
       "allOf": [
         {
-          "if": { "properties": { "kind": { "const": "dom-count" } } },
+          "if": { "properties": { "kind": { "enum": ["dom-count", "dom-distinct-count"] } } },
           "then": { "required": ["selector", "operator", "value"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "dom-distinct-count" } } },
+          "then": { "required": ["attribute"] }
         }
       ]
     },

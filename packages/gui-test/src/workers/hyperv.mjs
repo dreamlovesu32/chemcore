@@ -269,8 +269,13 @@ export class HyperVCoordinator {
   }
 
   async cdpBridge(request) {
-    if (!["locate", "state", "count", "count-state"].includes(request?.mode)) {
+    if (!["locate", "state", "count", "count-state", "distinct-count", "distinct-count-state"].includes(request?.mode)) {
       throw new Error("CDP bridge requires a supported fixed mode.");
+    }
+    if (request.mode.startsWith("distinct-count")) {
+      if (typeof request.selector !== "string" || !request.selector || !["data-object-id", "data-node-id", "data-bond-id"].includes(request.attribute)) {
+        throw new Error("CDP distinct-count requires a selector and an allowlisted identity attribute.");
+      }
     }
     const encoded = Buffer.from(JSON.stringify(request), "utf8").toString("base64");
     const result = await this.execute("cdp-bridge", ["-CdpRequestBase64", encoded]);

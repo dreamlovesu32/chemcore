@@ -54,7 +54,7 @@ try {
   if ([string]::IsNullOrWhiteSpace($EncodedRequest)) { throw 'The CDP request is absent.' }
   $requestJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($EncodedRequest))
   $request = $requestJson | ConvertFrom-Json
-  if ($request.mode -notin @('locate', 'state', 'count', 'count-state')) {
+  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state')) {
     throw "Unsupported CDP bridge mode '$($request.mode)'."
   }
   $deadline = [DateTime]::UtcNow.AddSeconds(30)
@@ -114,14 +114,23 @@ try {
   rendered: { bonds: document.querySelectorAll('[data-bond-id]').length, nodes: document.querySelectorAll('[data-node-id]').length }
 }))()
 '@
-    } elseif ($request.mode -in @('count', 'count-state')) {
+    } elseif ($request.mode -in @('count', 'count-state', 'distinct-count', 'distinct-count-state')) {
       $selectorBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$request.selector))
-      if ($request.mode -eq 'count') {
-        $expression = "(() => document.querySelectorAll(new TextDecoder().decode(Uint8Array.from(atob('$selectorBase64'), c => c.charCodeAt(0)))).length)()"
+      $distinct = $request.mode -in @('distinct-count', 'distinct-count-state')
+      if ($distinct -and $request.attribute -notin @('data-object-id', 'data-node-id', 'data-bond-id')) {
+        throw "Unsupported distinct-count attribute '$($request.attribute)'."
+      }
+      $countExpression = if ($distinct) {
+        "new Set([...document.querySelectorAll(new TextDecoder().decode(Uint8Array.from(atob('$selectorBase64'), c => c.charCodeAt(0))))].map(element => element.getAttribute('$([string]$request.attribute)')).filter(value => value !== null && value !== '')).size"
+      } else {
+        "document.querySelectorAll(new TextDecoder().decode(Uint8Array.from(atob('$selectorBase64'), c => c.charCodeAt(0)))).length"
+      }
+      if ($request.mode -in @('count', 'distinct-count')) {
+        $expression = "(() => $countExpression)()"
       } else {
         $expression = @"
 (() => ({
-  count: document.querySelectorAll(new TextDecoder().decode(Uint8Array.from(atob('$selectorBase64'), c => c.charCodeAt(0)))).length,
+  count: $countExpression,
   state: {
     revision: Number.isInteger(window.__chemsemaDebug?.state?.revision) ? window.__chemsemaDebug.state.revision : null,
     appScript: document.querySelector('script[type="module"]')?.src || null,
