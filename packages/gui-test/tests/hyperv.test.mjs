@@ -72,3 +72,24 @@ test("coordinator shutdown is graceful and never forces power off", async () => 
   assert.match(source, /Stop-VM -VM \$vm\s*$/m);
   assert.doesNotMatch(source, /Stop-VM[^\r\n]+-(?:Force|TurnOff|Save|Shutdown)\b/i);
 });
+
+test("service-session agent attestation cannot claim interactive readiness", async () => {
+  const profile = await readValidatedDocument(profilePath);
+  const coordinator = new HyperVCoordinator(profile, {
+    environment: { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" },
+    executor: () => result({
+      operation: "agent-attest-service",
+      agent: {
+        schema: "chemsema.gui.guest-agent.v1",
+        agentVersion: "0.1.0",
+        processId: 100,
+        sessionId: 0,
+        account: "guest\\chemsema-test",
+        inputDesktop: null,
+        interactiveReady: false,
+        foreground: null,
+      },
+    }),
+  });
+  assert.equal((await coordinator.attestServiceAgent()).agent.sessionId, 0);
+});

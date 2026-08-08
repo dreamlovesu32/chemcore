@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemsema.org/schemas/gui/guest-agent-v1.schema.json",
+  "title": "ChemSema GUI Guest Agent Attestation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "agentVersion", "processId", "sessionId", "account", "inputDesktop", "interactiveReady", "foreground"],
+  "properties": {
+    "schema": { "const": "chemsema.gui.guest-agent.v1" },
+    "agentVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+" },
+    "processId": { "type": "integer", "minimum": 1 },
+    "sessionId": { "type": "integer", "minimum": 0 },
+    "account": { "type": "string", "minLength": 1 },
+    "inputDesktop": { "type": ["string", "null"] },
+    "interactiveReady": { "type": "boolean" },
+    "foreground": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["windowHandle", "processId", "sessionId", "executable", "title", "className", "rect"],
+          "properties": {
+            "windowHandle": { "type": "integer", "minimum": 1 },
+            "processId": { "type": "integer", "minimum": 1 },
+            "sessionId": { "type": "integer", "minimum": 1 },
+            "executable": { "type": "string", "minLength": 1 },
+            "title": { "type": "string" },
+            "className": { "type": "string" },
+            "rect": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": { "type": "integer" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

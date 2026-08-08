@@ -14,4 +14,5 @@ export const schemaFiles = Object.freeze({
   "chemsema.gui.coverage.v1": join(schemaDir, "coverage-v1.schema.json"),
   "chemsema.gui.artifact-manifest.v1": join(schemaDir, "artifact-manifest-v1.schema.json"),
   "chemsema.gui.worker-profile.v1": join(schemaDir, "worker-profile-v1.schema.json"),
+  "chemsema.gui.guest-agent.v1": join(schemaDir, "guest-agent-v1.schema.json"),
 });

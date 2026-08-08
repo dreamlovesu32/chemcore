@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { assertValidDocument } from "../protocol/validate.mjs";
 
 const scriptPath = join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), "scripts", "hyperv-coordinator.ps1");
+const repositoryRoot = dirname(dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url))))));
+const defaultAgentPath = join(repositoryRoot, "target", "release", "chemsema-gui-test-agent.exe");
 
 export function expandWindowsEnvironment(template, environment = process.env) {
   return template.replace(/%([^%]+)%/g, (_, name) => {
@@ -67,6 +69,7 @@ export class HyperVCoordinator {
       "-CredentialPath", credentialPath,
       "-GuestAccount", this.profile.guest.account,
       "-GuestTestRoot", this.profile.guest.testRoot,
+      "-HostAgentPath", defaultAgentPath,
     ];
   }
 
@@ -111,6 +114,21 @@ export class HyperVCoordinator {
   async prepareGuest() {
     await this.attestGuest();
     return this.execute("prepare-guest");
+  }
+
+  async installAgent() {
+    await this.prepareGuest();
+    return this.execute("install-agent");
+  }
+
+  async attestServiceAgent() {
+    const result = await this.execute("agent-attest-service");
+    const agent = result.agent || {};
+    await assertValidDocument(agent, "service agent attestation");
+    if (agent.sessionId !== 0 || agent.interactiveReady !== false) {
+      throw new Error("Service agent attestation unexpectedly claimed an interactive desktop.");
+    }
+    return result;
   }
 
   async stop() {

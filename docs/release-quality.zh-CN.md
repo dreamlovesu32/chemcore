@@ -11,7 +11,7 @@
 | Office/OLE 复制与嵌入 | Beta | 剪贴板 payload、EMF preview、Word 粘贴/回读验证 |
 | 浏览器编辑器 | Beta | viewer 交互 smoke test 和用户路径稳定性脚本 |
 | 桌面端 | Beta | Tauri build、文件关联配置、hybrid latency 回归、安装验证 |
-| GUI 测试平台 | 实施中/首个可执行切片已验证 | 版本化 Schema/runner、真实 Playwright 单键绘制路径、覆盖审计、fail-closed 影响计划、资源准入和 Hyper-V host/guest 实机协调已运行；interactive guest agent、完整 driver/矩阵、复杂与大文档构建、模型/故障/变异测试和展示资格仍待完成 |
+| GUI 测试平台 | 实施中/首个可执行切片已验证 | 版本化 Schema/runner、真实 Playwright 单键绘制路径、覆盖审计、fail-closed 影响计划、资源准入、Hyper-V 实机协调和带 SHA 验证的 Rust guest input agent 已运行；自动交互 guest 启动/输入、完整 driver/矩阵、复杂与大文档构建、模型/故障/变异测试和展示资格仍待完成 |
 | CLI one-shot 命令 | Usable | Rust 测试、`npm run verify`、稳定性报告、输出写入验证 |
 | CLI JSONL session | Experimental/usable | session 单测和大文件性能报告 |
 | Agent 精确截图 | Usable beta | PNG/SVG capture 测试、公开 fixture crop、README 示例图 |

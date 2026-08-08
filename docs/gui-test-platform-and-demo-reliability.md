@@ -363,7 +363,7 @@ The dedicated `chemsema-test` guest account and `vmicvmsession` are enabled. Its
 
 The repository now contains the first executable vertical slice under `packages/gui-test` and `tests/gui`. It includes JSON Schemas for scenarios, run reports, coverage, impact graphs, artifact manifests, and worker profiles; strict schema validation; canonical content-addressed evidence keys; transitive impact selection; fail-closed aggregate 10-CPU-unit/30-GiB admission control; action budgets and before/after receipts; a fake driver; a Playwright browser driver; and a Hyper-V coordinator. The versioned `core.bond.draw-single` scenario uses public accessible targeting and real pointer drag input. The same scenario passes runner self-tests through the fake driver and executes successfully through headless Edge, producing a validated `chemsema.gui.run.v1` report. Existing regression scripts remain active while their cases are inventoried and migrated.
 
-The coordinator has been exercised against `windows-gui-worker-current`: host identity/services/VM/resource/credential attestation passed; the VM started; PowerShell Direct verified the dedicated guest identity, OS, integration service, and network; the bounded `C:\ChemSemaGuiTest` root was prepared; an interactive-input request correctly failed closed because no dedicated unlocked interactive session existed; and the VM then shut down normally. Guest interactive-agent installation and foreground-process/window attestation remain the next isolation boundary before any real OS input is enabled.
+The coordinator has been exercised against `windows-gui-worker-current`: host identity/services/VM/resource/credential attestation passed; the VM started; PowerShell Direct verified the dedicated guest identity, OS, integration service, and network; and the bounded `C:\ChemSemaGuiTest` root was prepared. A Windows-only Rust guest agent was then built and transferred with matching host/guest SHA-256. Its session-0 attestation correctly reported no input desktop, no foreground window, and `interactiveReady=false`; a request requiring interactive input failed closed, and the VM shut down normally. The agent's input path independently requires the dedicated guest account, nonzero authorized session, unlocked `Default` input desktop, expected foreground PID/executable, point inside the foreground window, and a run directory below the authorized root. Automated interactive logon/agent launch and end-to-end guest input remain the next boundary before real OS input is enabled.
 
 The current entry points are:
 
@@ -376,6 +376,8 @@ npm run gui-platform -- worker host-attest
 npm run gui-platform -- worker start
 npm run gui-platform -- worker guest-attest
 npm run gui-platform -- worker prepare-guest
+npm run gui-platform -- worker install-agent
+npm run gui-platform -- worker agent-attest-service
 npm run gui-platform -- worker stop
 npm run gui-platform -- run tests/gui/scenarios/core/draw-single-bond.json --driver fake
 npm run gui-platform -- run tests/gui/scenarios/core/draw-single-bond.json --driver playwright-browser

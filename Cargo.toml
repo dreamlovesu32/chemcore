@@ -7,6 +7,7 @@ members = [
   "crates/chemsema-engine",
   "crates/chemsema-cli",
   "crates/chemsema-desktop-service",
+  "crates/chemsema-gui-test-agent",
   "apps/chemsema-desktop/src-tauri",
   "apps/chemsema-office",
 ]

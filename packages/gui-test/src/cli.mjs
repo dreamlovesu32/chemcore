@@ -78,8 +78,8 @@ async function impact(paths, options) {
 
 async function worker(args, options) {
   const [operation] = args;
-  if (!operation || !["host-attest", "start", "guest-attest", "prepare-guest", "stop"].includes(operation)) {
-    throw new Error("worker requires host-attest, start, guest-attest, prepare-guest, or stop.");
+  if (!operation || !["host-attest", "start", "guest-attest", "prepare-guest", "install-agent", "agent-attest-service", "stop"].includes(operation)) {
+    throw new Error("worker requires host-attest, start, guest-attest, prepare-guest, install-agent, agent-attest-service, or stop.");
   }
   const profile = await readValidatedDocument(resolve(options.profile || join(guiTestsDir, "environments", "windows-gui-worker-current.json")));
   const coordinator = new HyperVCoordinator(profile);
@@ -91,6 +91,10 @@ async function worker(args, options) {
         ? await coordinator.attestGuest({ requireInteractive: options.interactive === true })
         : operation === "prepare-guest"
           ? await coordinator.prepareGuest()
+          : operation === "install-agent"
+            ? await coordinator.installAgent()
+            : operation === "agent-attest-service"
+              ? await coordinator.attestServiceAgent()
           : await coordinator.stop();
   console.log(JSON.stringify(result, null, 2));
 }
@@ -136,7 +140,7 @@ Usage:
   npm run gui-platform -- validate <json> [...json]
   npm run gui-platform -- audit
   npm run gui-platform -- impact <changed-path> [...changed-path] [--graph path]
-  npm run gui-platform -- worker <host-attest|start|guest-attest|prepare-guest|stop> [--profile path] [--interactive]
+  npm run gui-platform -- worker <host-attest|start|guest-attest|prepare-guest|install-agent|agent-attest-service|stop> [--profile path] [--interactive]
   npm run gui-platform -- run <scenario.json> [--driver fake|playwright-browser] [--report path] [--url url]
 `);
 }

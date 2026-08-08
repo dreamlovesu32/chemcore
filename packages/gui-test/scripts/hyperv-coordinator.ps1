@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet('host-attest', 'start', 'guest-attest', 'prepare-guest', 'stop')]
+  [ValidateSet('host-attest', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'agent-attest-service', 'stop')]
   [string]$Operation,
 
   [Parameter(Mandatory = $true)]
@@ -8,7 +8,8 @@ param(
 
   [string]$CredentialPath,
   [string]$GuestAccount,
-  [string]$GuestTestRoot
+  [string]$GuestTestRoot,
+  [string]$HostAgentPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -170,6 +171,92 @@ function Prepare-Guest {
   }
 }
 
+function Install-Agent {
+  if ([string]::IsNullOrWhiteSpace($HostAgentPath) -or -not (Test-Path -LiteralPath $HostAgentPath -PathType Leaf)) {
+    throw 'The built guest agent executable is unavailable.'
+  }
+  $credential = Get-GuestCredential
+  $vm = Get-WorkerVm
+  $session = New-PSSession -VMId $vm.Id -Credential $credential
+  try {
+    $guestAgentDirectory = Join-Path $GuestTestRoot 'agent'
+    $guestAgentPath = Join-Path $guestAgentDirectory 'chemsema-gui-test-agent.exe'
+    Invoke-Command -Session $session -ScriptBlock {
+      param($Directory)
+      New-Item -ItemType Directory -Path $Directory -Force | Out-Null
+    } -ArgumentList $guestAgentDirectory
+    Copy-Item -LiteralPath $HostAgentPath -Destination $guestAgentPath -ToSession $session -Force
+    $guestHash = Invoke-Command -Session $session -ScriptBlock {
+      param($Path)
+      (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    } -ArgumentList $guestAgentPath
+    $hostHash = (Get-FileHash -LiteralPath $HostAgentPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($guestHash -ne $hostHash) {
+      throw 'Guest agent SHA-256 does not match the host build.'
+    }
+    [ordered]@{
+      schema = 'chemsema.gui.worker-attestation.v1'
+      operation = 'install-agent'
+      vmId = $vm.Id.ToString()
+      vmName = $vm.Name
+      agent = [ordered]@{
+        guestPath = $guestAgentPath
+        sha256 = [string]$guestHash
+        bytes = (Get-Item -LiteralPath $HostAgentPath).Length
+      }
+    }
+  }
+  finally {
+    Remove-PSSession -Session $session -ErrorAction SilentlyContinue
+  }
+}
+
+function Get-ServiceAgentAttestation {
+  $agentPath = Join-Path (Join-Path $GuestTestRoot 'agent') 'chemsema-gui-test-agent.exe'
+  $result = Invoke-Guest -ScriptBlock {
+    param($Path)
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+      throw 'Guest agent is not installed.'
+    }
+    $json = & $Path attest
+    if ($LASTEXITCODE -ne 0) {
+      throw 'Guest agent attest command failed.'
+    }
+    $json | ConvertFrom-Json
+  } -ArgumentList @($agentPath)
+  $cleanForeground = if ($null -eq $result.foreground) {
+    $null
+  }
+  else {
+    [ordered]@{
+      windowHandle = [UInt64]$result.foreground.windowHandle
+      processId = [UInt32]$result.foreground.processId
+      sessionId = [UInt32]$result.foreground.sessionId
+      executable = [string]$result.foreground.executable
+      title = [string]$result.foreground.title
+      className = [string]$result.foreground.className
+      rect = @($result.foreground.rect | ForEach-Object { [int]$_ })
+    }
+  }
+  $cleanAgent = [ordered]@{
+    schema = [string]$result.schema
+    agentVersion = [string]$result.agentVersion
+    processId = [UInt32]$result.processId
+    sessionId = [UInt32]$result.sessionId
+    account = [string]$result.account
+    inputDesktop = if ($null -eq $result.inputDesktop) { $null } else { [string]$result.inputDesktop }
+    interactiveReady = [bool]$result.interactiveReady
+    foreground = $cleanForeground
+  }
+  [ordered]@{
+    schema = 'chemsema.gui.worker-attestation.v1'
+    operation = 'agent-attest-service'
+    vmId = (Get-WorkerVm).Id.ToString()
+    vmName = (Get-WorkerVm).Name
+    agent = $cleanAgent
+  }
+}
+
 function Stop-Worker {
   $vm = Get-WorkerVm
   $stoppedByCoordinator = $false
@@ -200,5 +287,7 @@ switch ($Operation) {
   'start' { Write-Result (Start-Worker) }
   'guest-attest' { Write-Result (Get-GuestAttestation) }
   'prepare-guest' { Write-Result (Prepare-Guest) }
+  'install-agent' { Write-Result (Install-Agent) }
+  'agent-attest-service' { Write-Result (Get-ServiceAgentAttestation) }
   'stop' { Write-Result (Stop-Worker) }
 }
