@@ -166,9 +166,11 @@ test("candidate input passes integer coordinates and validates the returned fore
       });
     },
   });
-  assert.equal((await coordinator.candidateInput("click", { x: 34, y: 212 })).agent.foreground.processId, 300);
+  assert.equal((await coordinator.candidateInput("click", { x: 34, y: 212 }, { modifiers: ["Shift"] })).agent.foreground.processId, 300);
   assert.deepEqual(invokedArgs.slice(invokedArgs.indexOf("-InputX"), invokedArgs.indexOf("-InputX") + 4), ["-InputX", "34", "-InputY", "212"]);
+  assert.deepEqual(invokedArgs.slice(invokedArgs.indexOf("-InputModifiers"), invokedArgs.indexOf("-InputModifiers") + 2), ["-InputModifiers", "Shift"]);
   await assert.rejects(coordinator.candidateInput("click", { x: Number.NaN, y: 1 }), /must be integers/);
+  await assert.rejects(coordinator.candidateInput("click", { x: 1, y: 1 }, { modifiers: ["Windows"] }), /allowlisted/);
 });
 
 test("candidate action sends one validated versioned transaction", async () => {
@@ -191,7 +193,7 @@ test("candidate action sends one validated versioned transaction", async () => {
     },
   });
   const receipt = await coordinator.candidateAction(
-    { kind: "click", x: 34, y: 212, button: "left" },
+    { kind: "click", x: 34, y: 212, button: "left", modifiers: ["Shift"] },
     { kind: "actionable", timeoutMs: 8000 },
     12000,
   );
@@ -199,7 +201,7 @@ test("candidate action sends one validated versioned transaction", async () => {
   const encoded = invokedArgs[invokedArgs.indexOf("-ActionRequestBase64") + 1];
   const request = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
   assert.equal(request.schema, "chemsema.gui.action-transaction.v1");
-  assert.deepEqual(request.input, { kind: "click", x: 34, y: 212, button: "left" });
+  assert.deepEqual(request.input, { kind: "click", x: 34, y: 212, button: "left", modifiers: ["Shift"] });
   await assert.rejects(
     coordinator.candidateAction(
       { kind: "click", x: 34, y: 212, button: "left" },
@@ -255,6 +257,8 @@ test("candidate input uses the persistent bounded channel rather than per-action
   assert.doesNotMatch(input, /ScheduledTask|Start-ScheduledTask/);
   assert.match(input, /'text'/);
   assert.match(input, /--text-base64/);
+  assert.match(input, /--modifiers/);
+  assert.match(input, /Pointer modifiers are not allowlisted/);
 });
 
 test("CDP observation uses a persistent bounded channel rather than per-request process launch", async () => {
@@ -379,6 +383,8 @@ test("production action transaction uses one guest invocation for before, input,
   assert.equal((transaction.match(/Invoke-Guest/g) || []).length, 1);
   assert.match(transaction, /mode='state'/);
   assert.match(transaction, /'count-state'/);
+  assert.match(transaction, /Action transaction pointer modifiers are not unique allowlisted values/);
+  assert.match(transaction, /\$null -ne \$_/);
   assert.match(transaction, /'distinct-count-state'/);
   assert.match(transaction, /'input-channel'/);
   assert.match(transaction, /'cdp-channel'/);

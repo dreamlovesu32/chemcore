@@ -33,6 +33,7 @@ param(
   [int]$InputSteps = 8,
   [string]$InputKey,
   [string]$InputTextBase64,
+  [string]$InputModifiers,
   [ValidateSet('left', 'right', 'middle')]
   [string]$InputButton = 'left'
 )
@@ -881,7 +882,7 @@ function Invoke-CandidateInput([ValidateSet('click', 'drag', 'key', 'text')][str
   $hostHash = (Get-FileHash -LiteralPath $HostCandidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
   $guestPath = Join-Path (Join-Path (Join-Path $GuestTestRoot 'candidate') $hostHash) 'chemsema-desktop.exe'
   $result = Invoke-Guest -ScriptBlock {
-    param($CandidatePath, $TestRoot, $Kind, $X, $Y, $FromX, $FromY, $ToX, $ToY, $Steps, $Button, $Key, $TextBase64)
+    param($CandidatePath, $TestRoot, $Kind, $X, $Y, $FromX, $FromY, $ToX, $ToY, $Steps, $Button, $Key, $TextBase64, $Modifiers)
     $process = Get-Process chemsema-desktop -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $CandidatePath -and $_.SessionId -ne 0 } | Select-Object -First 1
     if ($null -eq $process) { throw 'The authorized desktop candidate is not running.' }
     $runRoot = Join-Path $TestRoot 'runs'
@@ -907,6 +908,10 @@ function Invoke-CandidateInput([ValidateSet('click', 'drag', 'key', 'text')][str
       if ([string]::IsNullOrWhiteSpace($TextBase64) -or $TextBase64 -notmatch '^[A-Za-z0-9+/]+={0,2}$') { throw 'Text input requires bounded base64.' }
       @('text', '--guard', $guardPath, '--text-base64', $TextBase64)
     }
+    if ($Kind -in @('click', 'drag') -and -not [string]::IsNullOrWhiteSpace($Modifiers)) {
+      if ($Modifiers -notmatch '^(Shift|Control|Alt)(,(Shift|Control|Alt)){0,2}$') { throw 'Pointer modifiers are not allowlisted.' }
+      $inputArguments += @('--modifiers', $Modifiers)
+    }
     $channelRoot = Join-Path $TestRoot 'input-channel'
     $ready = Join-Path $channelRoot 'ready.json'
     if (-not (Test-Path -LiteralPath $ready -PathType Leaf)) { throw 'Persistent input agent is not ready.' }
@@ -926,7 +931,7 @@ function Invoke-CandidateInput([ValidateSet('click', 'drag', 'key', 'text')][str
     if ($response.id -ne $requestId -or $response.schema -ne 'chemsema.gui.guest-agent-response.v1') { throw 'Persistent input response identity is invalid.' }
     if ($response.status -ne 'passed') { throw "Interactive input was rejected: $($response.message)" }
     $response.result
-  } -ArgumentList @($guestPath, $GuestTestRoot, $Kind, $InputX, $InputY, $InputFromX, $InputFromY, $InputToX, $InputToY, $InputSteps, $InputButton, $InputKey, $InputTextBase64)
+  } -ArgumentList @($guestPath, $GuestTestRoot, $Kind, $InputX, $InputY, $InputFromX, $InputFromY, $InputToX, $InputToY, $InputSteps, $InputButton, $InputKey, $InputTextBase64, $InputModifiers)
   [ordered]@{
     schema = 'chemsema.gui.worker-attestation.v1'
     operation = "input-$Kind"
@@ -995,6 +1000,10 @@ function Invoke-ActionTransaction {
     [IO.File]::WriteAllText($guardPath, $guardJson, [Text.UTF8Encoding]::new($false))
     $button = [string]$Request.input.button
     if ($kind -ne 'key' -and $button -notin @('left', 'middle', 'right')) { throw 'Unsupported action transaction mouse button.' }
+    $modifiers = @($Request.input.modifiers | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_) })
+    if ($kind -ne 'key' -and ($modifiers.Count -gt 3 -or @($modifiers | Where-Object { $_ -notin @('Shift', 'Control', 'Alt') }).Count -gt 0 -or @($modifiers | Select-Object -Unique).Count -ne $modifiers.Count)) {
+      throw 'Action transaction pointer modifiers are not unique allowlisted values.'
+    }
     $inputArguments = if ($kind -eq 'click') {
       @('click', '--guard', $guardPath, '--x', [string][int]$Request.input.x, '--y', [string][int]$Request.input.y, '--button', $button)
     } elseif ($kind -eq 'drag') {
@@ -1002,6 +1011,7 @@ function Invoke-ActionTransaction {
     } else {
       @('key', '--guard', $guardPath, '--key', [string]$Request.input.key)
     }
+    if ($kind -in @('click', 'drag') -and $modifiers.Count -gt 0) { $inputArguments += @('--modifiers', ($modifiers -join ',')) }
 
     $before = Observe-Cdp ([ordered]@{ mode='state' })
     $inputResponse = Send-ChannelRequest 'input-channel' 'chemsema.gui.guest-agent-request.v1' 'chemsema.gui.guest-agent-response.v1' ([ordered]@{ args=$inputArguments }) 8000

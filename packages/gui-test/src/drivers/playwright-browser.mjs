@@ -135,8 +135,8 @@ export class PlaywrightBrowserDriver {
   async perform(action) {
     const locator = this.locatorFor(action.target);
     if (action.type === "click") {
-      await locator.click({ button: action.button || "left" });
-      return { kind: "click" };
+      await locator.click({ button: action.button || "left", modifiers: action.modifiers || [] });
+      return { kind: "click", modifiers: action.modifiers || [] };
     }
     if (action.type === "key") {
       await locator.press(action.key);
@@ -149,11 +149,17 @@ export class PlaywrightBrowserDriver {
       }
       const from = { x: box.x + box.width * action.from.x, y: box.y + box.height * action.from.y };
       const to = { x: box.x + box.width * action.to.x, y: box.y + box.height * action.to.y };
-      await this.page.mouse.move(from.x, from.y);
-      await this.page.mouse.down({ button: action.button || "left" });
-      await this.page.mouse.move(to.x, to.y, { steps: action.steps });
-      await this.page.mouse.up({ button: action.button || "left" });
-      return { kind: "drag", from, to };
+      const modifiers = action.modifiers || [];
+      for (const modifier of modifiers) await this.page.keyboard.down(modifier);
+      try {
+        await this.page.mouse.move(from.x, from.y);
+        await this.page.mouse.down({ button: action.button || "left" });
+        await this.page.mouse.move(to.x, to.y, { steps: action.steps });
+        await this.page.mouse.up({ button: action.button || "left" });
+      } finally {
+        for (const modifier of [...modifiers].reverse()) await this.page.keyboard.up(modifier);
+      }
+      return { kind: "drag", from, to, modifiers };
     }
     throw new Error(`Unsupported Playwright action ${action.type}.`);
   }

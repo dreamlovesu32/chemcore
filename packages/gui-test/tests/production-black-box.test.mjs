@@ -108,10 +108,11 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
     async stop() { stopCount += 1; return {}; },
   };
   const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "draw-single-bond-production.json"));
+  scenario.actions[1].modifiers = ["Shift"];
   const { report, artifactPayloads } = await runScenario({ scenario, driver: new ProductionBlackBoxDriver({ coordinator }) });
   assert.equal(report.status, "passed");
   assert.deepEqual(inputs[0], { kind: "click", x: 34, y: 212, button: "left" });
-  assert.deepEqual(inputs[1], { kind: "drag", from: [480, 439], to: [577, 439], steps: 8, button: "left" });
+  assert.deepEqual(inputs[1], { kind: "drag", from: [480, 439], to: [577, 439], steps: 8, button: "left", modifiers: ["Shift"] });
   assert.equal(stopCount, 2);
   assert.equal(autologonConfigured, true);
   assert.equal(blockerDismissals, 1);

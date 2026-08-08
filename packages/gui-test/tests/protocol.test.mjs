@@ -10,12 +10,14 @@ const scenarioPath = join(guiTestsDir, "scenarios", "core", "draw-single-bond.js
 const multiObjectScenarioPath = join(guiTestsDir, "scenarios", "core", "multi-bond-clipboard-delete-production.json");
 const mixedObjectScenarioPath = join(guiTestsDir, "scenarios", "core", "mixed-bond-arrow-clipboard-production.json");
 const nestedGroupScenarioPath = join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json");
+const regionAdditiveScenarioPath = join(guiTestsDir, "scenarios", "core", "region-additive-mixed-cardinalities-production.json");
 
 test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(scenarioPath);
   await readValidatedDocument(multiObjectScenarioPath);
   await readValidatedDocument(mixedObjectScenarioPath);
   await readValidatedDocument(nestedGroupScenarioPath);
+  await readValidatedDocument(regionAdditiveScenarioPath);
   await readValidatedDocument(join(guiTestsDir, "coverage", "registry-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "coverage", "impact-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "environments", "windows-gui-worker-current.json"));
@@ -39,7 +41,7 @@ test("scenario, coverage registry, and impact graph validate", async () => {
   }, "CDP response fixture");
   await assertValidDocument({
     schema: "chemsema.gui.action-transaction.v1",
-    input: { kind: "click", x: 10, y: 20, button: "left" },
+    input: { kind: "click", x: 10, y: 20, button: "left", modifiers: ["Shift"] },
     completion: { kind: "actionable", timeoutMs: 8000 },
     budgetMs: 12000,
   }, "action transaction fixture");
@@ -68,6 +70,13 @@ test("scenario protocol rejects missing auditable coverage", async () => {
   const result = await validateDocument(scenario);
   assert.equal(result.valid, false);
   assert(result.errors.some((error) => error.includes("coverage")));
+});
+
+test("scenario pointer modifiers are bounded to pointer actions", async () => {
+  const scenario = JSON.parse(await readFile(scenarioPath, "utf8"));
+  scenario.actions[0] = { ...scenario.actions[0], type: "key", key: "Escape", modifiers: ["Shift"] };
+  const result = await validateDocument(scenario);
+  assert.equal(result.valid, false);
 });
 
 test("canonical JSON and evidence keys ignore object key order", () => {

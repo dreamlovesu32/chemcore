@@ -406,8 +406,12 @@ export class HyperVCoordinator {
     return { ...result, transaction };
   }
 
-  async candidateInput(kind, coordinates, { button = "left", steps = 8 } = {}) {
+  async candidateInput(kind, coordinates, { button = "left", steps = 8, modifiers = [] } = {}) {
     const extra = ["-InputButton", button];
+    if (!Array.isArray(modifiers) || modifiers.length > 3 || new Set(modifiers).size !== modifiers.length || modifiers.some((value) => !["Shift", "Control", "Alt"].includes(value))) {
+      throw new Error("Candidate pointer modifiers must be unique allowlisted values.");
+    }
+    if (modifiers.length) extra.push("-InputModifiers", modifiers.join(","));
     if (kind === "click") {
       if (![coordinates.x, coordinates.y].every(Number.isInteger)) {
         throw new Error("Candidate click coordinates must be integers.");

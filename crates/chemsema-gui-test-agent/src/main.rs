@@ -1,7 +1,7 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
-use chemsema_gui_test_agent::{InputGuard, AGENT_PROTOCOL};
 use base64::Engine as _;
+use chemsema_gui_test_agent::{InputGuard, AGENT_PROTOCOL};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
@@ -40,6 +40,16 @@ fn value(args: &[String], name: &str) -> Result<String, String> {
     args.get(index + 1)
         .cloned()
         .ok_or_else(|| format!("missing value for {name}"))
+}
+
+fn optional_value(args: &[String], name: &str) -> Result<String, String> {
+    match args.iter().position(|argument| argument == name) {
+        Some(index) => args
+            .get(index + 1)
+            .cloned()
+            .ok_or_else(|| format!("missing value for {name}")),
+        None => Ok(String::new()),
+    }
 }
 
 fn number<T: std::str::FromStr>(args: &[String], name: &str) -> Result<T, String> {
@@ -145,6 +155,7 @@ fn run(args: &[String]) -> Result<serde_json::Value, String> {
                 number(args, "--x")?,
                 number(args, "--y")?,
                 &value(args, "--button")?,
+                &optional_value(args, "--modifiers")?,
             )?;
             serde_json::to_value(attestation).map_err(|error| error.to_string())
         }
@@ -155,6 +166,7 @@ fn run(args: &[String]) -> Result<serde_json::Value, String> {
                 [number(args, "--to-x")?, number(args, "--to-y")?],
                 number(args, "--steps")?,
                 &value(args, "--button")?,
+                &optional_value(args, "--modifiers")?,
             )?;
             serde_json::to_value(attestation).map_err(|error| error.to_string())
         }

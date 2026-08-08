@@ -110,6 +110,8 @@ export class ProductionBlackBoxDriver {
       "editor.bond.draw",
       "editor.arrow.draw",
       "editor.selection.select-all",
+      "editor.selection.region",
+      "editor.selection.additive",
       "editor.selection.mixed-object",
       "editor.group.group-ungroup",
       "editor.group.nested",
@@ -182,12 +184,12 @@ export class ProductionBlackBoxDriver {
       return result;
     }
     if (input.kind === "click") {
-      const receipt = await this.coordinator.candidateInput("click", { x: input.x, y: input.y }, { button: input.button });
+      const receipt = await this.coordinator.candidateInput("click", { x: input.x, y: input.y }, { button: input.button, modifiers: input.modifiers });
       this.foreground = receipt.agent.foreground;
       return result;
     }
     if (input.kind === "drag") {
-      const receipt = await this.coordinator.candidateInput("drag", { from: input.from, to: input.to }, { button: input.button, steps: input.steps });
+      const receipt = await this.coordinator.candidateInput("drag", { from: input.from, to: input.to }, { button: input.button, steps: input.steps, modifiers: input.modifiers });
       this.foreground = receipt.agent.foreground;
       return result;
     }
@@ -209,15 +211,16 @@ export class ProductionBlackBoxDriver {
     const [left, top, right, bottom] = geometry.rect;
     if (action.type === "click") {
       const [x, y] = geometry.screen([(left + right) / 2, (top + bottom) / 2]);
-      return { input: { kind: "click", x, y, button: action.button || "left" }, result: { kind: "click", screen: [x, y] } };
+      const input = { kind: "click", x, y, button: action.button || "left" };
+      if (action.modifiers?.length) input.modifiers = [...action.modifiers];
+      return { input, result: { kind: "click", screen: [x, y], modifiers: input.modifiers || [] } };
     }
     if (action.type === "drag") {
       const from = geometry.screen([left + (right - left) * action.from.x, top + (bottom - top) * action.from.y]);
       const to = geometry.screen([left + (right - left) * action.to.x, top + (bottom - top) * action.to.y]);
-      return {
-        input: { kind: "drag", from, to, steps: action.steps, button: action.button || "left" },
-        result: { kind: "drag", from, to },
-      };
+      const input = { kind: "drag", from, to, steps: action.steps, button: action.button || "left" };
+      if (action.modifiers?.length) input.modifiers = [...action.modifiers];
+      return { input, result: { kind: "drag", from, to, modifiers: input.modifiers || [] } };
     }
     throw new Error(`Production black-box input type ${action.type} is not implemented.`);
   }
@@ -268,12 +271,12 @@ export class ProductionBlackBoxDriver {
       return { kind: "text", textSource: action.textSource };
     }
     if (input.kind === "click") {
-      const receipt = await this.coordinator.candidateInput("click", { x: input.x, y: input.y }, { button: input.button });
+      const receipt = await this.coordinator.candidateInput("click", { x: input.x, y: input.y }, { button: input.button, modifiers: input.modifiers });
       this.foreground = receipt.agent.foreground;
       return { kind: "click", screen: [input.x, input.y] };
     }
     if (input.kind === "drag") {
-      const receipt = await this.coordinator.candidateInput("drag", { from: input.from, to: input.to }, { button: input.button, steps: input.steps });
+      const receipt = await this.coordinator.candidateInput("drag", { from: input.from, to: input.to }, { button: input.button, steps: input.steps, modifiers: input.modifiers });
       this.foreground = receipt.agent.foreground;
       return { kind: "drag", from: input.from, to: input.to };
     }

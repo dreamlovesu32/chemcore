@@ -122,6 +122,7 @@
         "type": { "enum": ["click", "drag", "key", "text"] },
         "target": { "$ref": "#/$defs/target" },
         "button": { "enum": ["left", "right", "middle"] },
+        "modifiers": { "type": "array", "maxItems": 3, "uniqueItems": true, "items": { "enum": ["Shift", "Control", "Alt"] } },
         "from": { "$ref": "#/$defs/point" },
         "to": { "$ref": "#/$defs/point" },
         "steps": { "type": "integer", "minimum": 1, "maximum": 1000 },
@@ -143,7 +144,8 @@
       "allOf": [
         { "if": { "properties": { "type": { "const": "drag" } } }, "then": { "required": ["from", "to", "steps"] } },
         { "if": { "properties": { "type": { "const": "key" } } }, "then": { "required": ["key"] } },
-        { "if": { "properties": { "type": { "const": "text" } } }, "then": { "required": ["textSource"] } }
+        { "if": { "properties": { "type": { "const": "text" } } }, "then": { "required": ["textSource"] } },
+        { "if": { "properties": { "type": { "enum": ["click", "drag"] } } }, "else": { "not": { "required": ["modifiers"] } } }
       ]
     },
     "oracle": {

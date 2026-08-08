@@ -26,10 +26,10 @@ use windows_sys::Win32::System::Threading::{
 };
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     MapVirtualKeyW, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
-    KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE, MAPVK_VK_TO_VSC_EX,
-    MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP,
-    MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEINPUT, VK_CONTROL, VK_DELETE, VK_DOWN,
-    VK_ESCAPE, VK_LEFT, VK_MENU, VK_RETURN, VK_RIGHT, VK_SHIFT, VK_TAB, VK_UP,
+    KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE,
+    MAPVK_VK_TO_VSC_EX, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN,
+    MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEINPUT, VK_CONTROL,
+    VK_DELETE, VK_DOWN, VK_ESCAPE, VK_LEFT, VK_MENU, VK_RETURN, VK_RIGHT, VK_SHIFT, VK_TAB, VK_UP,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, EnumWindows, GetClassNameW, GetClientRect, GetForegroundWindow,
@@ -377,7 +377,10 @@ fn validate_text_input(text: &str) -> Result<Vec<u16>, String> {
     if text.is_empty() {
         return Err("text input is empty".to_string());
     }
-    if text.chars().any(|character| character == '\0' || character.is_control()) {
+    if text
+        .chars()
+        .any(|character| character == '\0' || character.is_control())
+    {
         return Err("text input contains a control character".to_string());
     }
     let encoded = text.encode_utf16().collect::<Vec<_>>();
@@ -408,7 +411,13 @@ pub fn text(guard: &InputGuard, value: &str) -> Result<AgentAttestation, String>
             });
         }
     }
-    let sent = unsafe { SendInput(inputs.len() as u32, inputs.as_ptr(), size_of::<INPUT>() as i32) };
+    let sent = unsafe {
+        SendInput(
+            inputs.len() as u32,
+            inputs.as_ptr(),
+            size_of::<INPUT>() as i32,
+        )
+    };
     if sent as usize != inputs.len() {
         return Err(last_error("SendInput(text)"));
     }
@@ -466,6 +475,60 @@ fn button_flags(button: &str) -> Result<(u32, u32), String> {
     }
 }
 
+fn parse_pointer_modifiers(value: &str) -> Result<Vec<u16>, String> {
+    let mut keys = Vec::new();
+    for modifier in value
+        .split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+    {
+        let key = match modifier.to_ascii_lowercase().as_str() {
+            "control" | "ctrl" => VK_CONTROL,
+            "shift" => VK_SHIFT,
+            "alt" => VK_MENU,
+            _ => return Err(format!("unsupported pointer modifier {modifier}")),
+        };
+        if !keys.contains(&key) {
+            keys.push(key);
+        }
+    }
+    if keys.len() > 3 {
+        return Err("pointer input accepts at most three modifiers".to_string());
+    }
+    Ok(keys)
+}
+
+fn with_modifier_keys<T>(
+    modifiers: &[u16],
+    operation: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let mut pressed = Vec::new();
+    for modifier in modifiers {
+        if let Err(error) = send_key_event(*modifier, 0) {
+            for pressed_modifier in pressed.iter().rev() {
+                let _ = send_key_event(*pressed_modifier, KEYEVENTF_KEYUP);
+            }
+            return Err(error);
+        }
+        pressed.push(*modifier);
+    }
+    let operation_result = operation();
+    let mut release_error = None;
+    for modifier in pressed.iter().rev() {
+        if let Err(error) = send_key_event(*modifier, KEYEVENTF_KEYUP) {
+            release_error.get_or_insert(error);
+        }
+    }
+    match (operation_result, release_error) {
+        (Err(error), Some(release)) => {
+            Err(format!("{error}; modifier release also failed: {release}"))
+        }
+        (Err(error), None) => Err(error),
+        (Ok(_), Some(release)) => Err(format!("modifier release failed: {release}")),
+        (Ok(value), None) => Ok(value),
+    }
+}
+
 fn validate_point(attestation: &AgentAttestation, x: i32, y: i32) -> Result<(), String> {
     let rect = attestation
         .foreground
@@ -478,7 +541,13 @@ fn validate_point(attestation: &AgentAttestation, x: i32, y: i32) -> Result<(), 
     Ok(())
 }
 
-pub fn click(guard: &InputGuard, x: i32, y: i32, button: &str) -> Result<AgentAttestation, String> {
+pub fn click(
+    guard: &InputGuard,
+    x: i32,
+    y: i32,
+    button: &str,
+    modifiers: &str,
+) -> Result<AgentAttestation, String> {
     let before = attest()?;
     crate::validate_input_guard(&before, guard)?;
     validate_point(&before, x, y)?;
@@ -486,8 +555,11 @@ pub fn click(guard: &InputGuard, x: i32, y: i32, button: &str) -> Result<AgentAt
         return Err(last_error("SetCursorPos"));
     }
     let (down, up) = button_flags(button)?;
-    send_mouse(down)?;
-    send_mouse(up)?;
+    let modifier_keys = parse_pointer_modifiers(modifiers)?;
+    with_modifier_keys(&modifier_keys, || {
+        send_mouse(down)?;
+        send_mouse(up)
+    })?;
     let after = attest()?;
     crate::validate_input_guard(&after, guard)?;
     Ok(after)
@@ -655,7 +727,10 @@ pub fn dismiss_known_blocker() -> Result<AgentAttestation, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_shortcut, retryable_window_snapshot_error, validate_text_input};
+    use super::{
+        parse_pointer_modifiers, parse_shortcut, retryable_window_snapshot_error,
+        validate_text_input, VK_CONTROL, VK_MENU, VK_SHIFT,
+    };
 
     #[test]
     fn only_invalid_window_handles_are_retried_during_snapshot_capture() {
@@ -690,6 +765,20 @@ mod tests {
         assert!(validate_text_input("line\nfeed").is_err());
         assert!(validate_text_input(&"a".repeat(4097)).is_err());
     }
+
+    #[test]
+    fn pointer_modifiers_are_bounded_allowlisted_and_deduplicated() {
+        assert_eq!(parse_pointer_modifiers("").unwrap(), Vec::<u16>::new());
+        assert_eq!(
+            parse_pointer_modifiers("Shift,shift").unwrap(),
+            vec![VK_SHIFT]
+        );
+        assert_eq!(
+            parse_pointer_modifiers("Control,Alt").unwrap(),
+            vec![VK_CONTROL, VK_MENU]
+        );
+        assert!(parse_pointer_modifiers("Windows").is_err());
+    }
 }
 
 pub fn drag(
@@ -698,6 +787,7 @@ pub fn drag(
     to: [i32; 2],
     steps: u32,
     button: &str,
+    modifiers: &str,
 ) -> Result<AgentAttestation, String> {
     if steps == 0 || steps > 1000 {
         return Err("drag steps must be in 1..=1000".to_string());
@@ -710,18 +800,21 @@ pub fn drag(
         return Err(last_error("SetCursorPos(start)"));
     }
     let (down, up) = button_flags(button)?;
-    send_mouse(down)?;
-    for step in 1..=steps {
-        let ratio = step as f64 / steps as f64;
-        let x = from[0] as f64 + (to[0] - from[0]) as f64 * ratio;
-        let y = from[1] as f64 + (to[1] - from[1]) as f64 * ratio;
-        if unsafe { SetCursorPos(x.round() as i32, y.round() as i32) } == 0 {
-            let _ = send_mouse(up);
-            return Err(last_error("SetCursorPos(drag)"));
+    let modifier_keys = parse_pointer_modifiers(modifiers)?;
+    with_modifier_keys(&modifier_keys, || {
+        send_mouse(down)?;
+        for step in 1..=steps {
+            let ratio = step as f64 / steps as f64;
+            let x = from[0] as f64 + (to[0] - from[0]) as f64 * ratio;
+            let y = from[1] as f64 + (to[1] - from[1]) as f64 * ratio;
+            if unsafe { SetCursorPos(x.round() as i32, y.round() as i32) } == 0 {
+                let _ = send_mouse(up);
+                return Err(last_error("SetCursorPos(drag)"));
+            }
+            thread::sleep(Duration::from_millis(8));
         }
-        thread::sleep(Duration::from_millis(8));
-    }
-    send_mouse(up)?;
+        send_mouse(up)
+    })?;
     let after = attest()?;
     crate::validate_input_guard(&after, guard)?;
     Ok(after)

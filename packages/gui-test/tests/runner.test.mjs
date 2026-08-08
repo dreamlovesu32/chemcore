@@ -54,6 +54,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.history.undo-redo-bond.production",
     "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
     "scenario.core.selection.clipboard-delete-multi-bond.production",
+    "scenario.core.selection.region-additive-mixed-cardinalities.production",
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["docs/readme.md"]), []);
   assert.deepEqual(planImpactedScenarios(graph, [
@@ -77,6 +78,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.history.undo-redo-bond.production",
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
       "scenario.core.selection.clipboard-delete-multi-bond.production",
+      "scenario.core.selection.region-additive-mixed-cardinalities.production",
     ],
   });
   assert.deepEqual(selectImpactedScenarios(graph, ["scripts/tests/recovery-journal.test.mjs"]), [
@@ -95,6 +97,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.history.undo-redo-bond.production",
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
       "scenario.core.selection.clipboard-delete-multi-bond.production",
+      "scenario.core.selection.region-additive-mixed-cardinalities.production",
     ],
   });
 });
@@ -107,6 +110,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "undo-redo-bond-production.json"),
     join(guiTestsDir, "scenarios", "core", "multi-bond-clipboard-delete-production.json"),
     join(guiTestsDir, "scenarios", "core", "mixed-bond-arrow-clipboard-production.json"),
+    join(guiTestsDir, "scenarios", "core", "region-additive-mixed-cardinalities-production.json"),
     join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json"),
     join(guiTestsDir, "scenarios", "core", "save-open-roundtrip-production.json"),
   ];
@@ -114,8 +118,8 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 23);
-  assert.equal(result.summary.scenarios, 7);
-  assert.equal(result.summary.gaps, 3);
+  assert.equal(result.summary.scenarios, 8);
+  assert.equal(result.summary.gaps, 2);
 });
 
 test("aggregate scheduler limits fail closed at 10 CPU units and 30 GiB", () => {

@@ -45,6 +45,11 @@ function parseOptions(args) {
   return { positional, options };
 }
 
+function splitCsv(value) {
+  if (value === undefined || value === true || value === "") return [];
+  return String(value).split(",").map((item) => item.trim()).filter(Boolean);
+}
+
 async function listScenarios() {
   const rows = [];
   for (const path of await jsonFiles(scenarioDir)) {
@@ -105,8 +110,8 @@ async function worker(args, options) {
       ? await coordinator.queryUiaByAutomationId(options.id, { controlType: options["control-type"], scopeName: options["scope-name"] })
       : await coordinator.queryUia(options.name, { scopeName: options["scope-name"] }); break;
     case "cdp-state": result = await coordinator.cdpBridge({ mode: "state" }); break;
-    case "input-click": result = await coordinator.candidateInput("click", { x: Number(options.x), y: Number(options.y) }, { button: options.button }); break;
-    case "input-drag": result = await coordinator.candidateInput("drag", { from: [Number(options["from-x"]), Number(options["from-y"])], to: [Number(options["to-x"]), Number(options["to-y"])] }, { button: options.button, steps: Number(options.steps || 8) }); break;
+    case "input-click": result = await coordinator.candidateInput("click", { x: Number(options.x), y: Number(options.y) }, { button: options.button, modifiers: splitCsv(options.modifiers) }); break;
+    case "input-drag": result = await coordinator.candidateInput("drag", { from: [Number(options["from-x"]), Number(options["from-y"])], to: [Number(options["to-x"]), Number(options["to-y"])] }, { button: options.button, steps: Number(options.steps || 8), modifiers: splitCsv(options.modifiers) }); break;
     case "input-key": result = await coordinator.candidateInput("key", { key: options.key }); break;
     case "input-text": result = await coordinator.candidateInput("text", { text: options.text }); break;
     case "agent-attest-service": result = await coordinator.attestServiceAgent(); break;
@@ -164,6 +169,7 @@ Usage:
   npm run gui-platform -- impact <changed-path> [...changed-path] [--graph path]
   npm run gui-platform -- worker <host-attest|start|guest-attest|prepare-guest|install-agent|configure-autologon|install-candidate|launch-candidate|dismiss-known-blocker|activate-candidate|start-cdp-agent|stop-cdp-agent|uia-query|input-click|input-drag|input-key|input-text|agent-attest-service|agent-attest-interactive|stop> [--profile path]
   npm run gui-platform -- worker uia-query (--name accessible-name | --id automation-id [--control-type type]) [--scope-name name]
+  npm run gui-platform -- worker input-click --x 100 --y 100 [--modifiers Shift,Control]
   npm run gui-platform -- worker input-text --text value
   npm run gui-platform -- run <scenario.json> [--driver fake|playwright-browser|production-black-box] [--report path] [--url url]
 `);

@@ -1,0 +1,62 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.selection.region-additive-mixed-cardinalities.production",
+  "title": "Select zero, one, two, and many mixed objects by region and Shift-additive gestures through guarded production input",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": null,
+  "capabilities": [
+    "gui.public-input",
+    "editor.bond.draw",
+    "editor.arrow.draw",
+    "editor.selection.region",
+    "editor.selection.additive",
+    "editor.selection.mixed-object",
+    "editor.selection.delete",
+    "editor.history.undo-redo",
+    "desktop.production"
+  ],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 7,
+  "actions": [
+    { "id": "activate-bond-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "draw-bond", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.28, "y": 0.38 }, "to": { "x": 0.38, "y": 0.38 }, "steps": 8, "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "activate-arrow-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Small arrow head", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"arrow\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "draw-first-arrow", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.48, "y": 0.38 }, "to": { "x": 0.58, "y": 0.38 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "draw-second-arrow", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.70, "y": 0.62 }, "to": { "x": 0.80, "y": 0.62 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "select-zero-in-empty-region", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.84, "y": 0.72 }, "to": { "x": 0.90, "y": 0.78 }, "steps": 8, "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "select-one-arrow-by-region", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.66, "y": 0.56 }, "to": { "x": 0.84, "y": 0.68 }, "steps": 8, "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "delete-one-arrow", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Delete", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "confirm-single-delete-kept-bond", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "undo-single-delete", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "select-two-heterogeneous-objects", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.22, "y": 0.32 }, "to": { "x": 0.62, "y": 0.44 }, "steps": 12, "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 2, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "delete-two-heterogeneous-objects", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Delete", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "confirm-heterogeneous-delete-removed-bond", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "undo-heterogeneous-delete", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "reselect-two-heterogeneous-objects", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.22, "y": 0.32 }, "to": { "x": 0.62, "y": 0.44 }, "steps": 12, "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 2, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "shift-add-third-object", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "modifiers": ["Shift"], "from": { "x": 0.66, "y": 0.56 }, "to": { "x": 0.84, "y": 0.68 }, "steps": 8, "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 3, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "delete-additive-mixed-selection", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Delete", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "confirm-additive-delete-removed-bond", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "undo-additive-delete", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "redo-additive-delete", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Y", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 12000 }
+  ],
+  "oracles": [
+    { "id": "redo-leaves-no-bonds", "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 0 },
+    { "id": "redo-leaves-no-arrows", "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 0 },
+    { "id": "no-stale-selection-overlay", "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "eq", "value": 0 },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw", "editor.arrow.draw", "editor.selection.region", "editor.selection.additive", "editor.selection.mixed-object", "editor.selection.delete", "editor.history.undo-redo", "desktop.production"],
+    "objectTypes": ["bond", "molecule", "arrow"],
+    "cardinalities": ["0", "1", "2", "many"],
+    "states": ["blank-document", "mixed-object", "empty-selection", "single-selection", "heterogeneous-selection", "additive-selection", "deleted", "undone", "redone"],
+    "inputModes": ["mouse", "keyboard", "modified-mouse"],
+    "properties": ["bond.order.single", "arrow.type.solid"],
+    "persistenceBoundaries": ["runtime", "undo-stack"]
+  }
+}
