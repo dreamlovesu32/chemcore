@@ -40,6 +40,8 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
     },
     async dismissKnownBlocker() { blockerVisible = false; blockerDismissals += 1; return {}; },
     async activateCandidate() { return { agent: { foreground: foreground() } }; },
+    async startInputAgent() { return { agent: { status: "ready" } }; },
+    async stopInputAgent() { return {}; },
     async cdpBridge(request) {
       if (request.mode === "state") {
         return { runtimeState: "ready", revision: bonds, window: { title: bonds ? "Untitled *" : "Untitled" }, viewport: { width: 1028, height: 779 }, rendered: { bonds, nodes: 0 } };

@@ -187,6 +187,17 @@ test("interactive launcher is hidden, test-only CDP is loopback, and blocker rem
   assert(queryStart >= 0 && queryHereStringEnd > queryStart && cdpFunction > queryHereStringEnd, "CDP bridge must not be embedded in the generated UIA script");
 });
 
+test("candidate input uses the persistent bounded channel rather than per-action scheduled tasks", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "hyperv-coordinator.ps1"), "utf8");
+  const start = source.indexOf("function Invoke-CandidateInput");
+  const end = source.indexOf("function Get-ServiceAgentAttestation", start);
+  const input = source.slice(start, end);
+  assert.match(input, /chemsema\.gui\.guest-agent-request\.v1/);
+  assert.match(input, /Persistent input response identity is invalid/);
+  assert.doesNotMatch(input, /ScheduledTask|Start-ScheduledTask/);
+});
+
 test("service-session agent attestation cannot claim interactive readiness", async () => {
   const profile = await readValidatedDocument(profilePath);
   const coordinator = new HyperVCoordinator(profile, {

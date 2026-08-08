@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemsema.org/schemas/gui/guest-agent-server-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "status", "processId"],
+  "properties": {
+    "schema": { "const": "chemsema.gui.guest-agent-server.v1" },
+    "status": { "const": "ready" },
+    "processId": { "type": "integer", "minimum": 1 }
+  }
+}

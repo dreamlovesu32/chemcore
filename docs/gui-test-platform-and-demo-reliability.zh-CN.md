@@ -715,6 +715,8 @@ coordinator 已在 `windows-gui-worker-current` 上跨过隔离桌面边界。�
 
 2026-08-08 已在不占用 host 前台的情况下，通过正式 scenario runner 执行第一条 production desktop sentinel。`production-black-box` driver 会启动隔离 VM，安装内容寻址的 agent 与候选程序，应用并逐项验证专用用户桌面 baseline，启动 production desktop，通过 guest loopback CDP 解析带 scope 的 `Single bond` 控件和 `#viewer-container`，再由受守卫的 guest agent 发送一次真实 Windows 点击和一次八步真实拖拽。经过 Schema 验证的 `chemsema.gui.run.v1` 报告记录了两项动作完成、候选 SHA-256 `72f99bcd35b8dc24a837001e0fa6d707bc26e50f18a6428bec9fb42c6a27103f`、渲染键从 0 变为 1、窗口标题进入脏状态、DOM 与诊断 oracle 均通过，以及 evidence key `cbbcbca14237b0281e683b35f0907d473c33b4c1a45cd255bc14006370214176`。每次 CLI 运行现会把经过验证的报告保存为不可变 SHA-256 对象，并在 evidence key 与 run id 下写入经过 Schema 验证的 manifest。Windows UI Automation 继续负责原生/窗口表面；CDP 提供语义边界和独立观测，OS 输入仍由外部守卫代理真实发送。版本化专用用户 baseline 会减少反复出现的 `CloudExperienceHost` 账户提示；若仍出现，agent 只有在系统路径、窗口类、标题和应用模型 ID 四项精确匹配时才允许关闭。完整截图/trace/log bundle、确定性重置、低延迟持久 guest 输入通道和其余 capability 矩阵尚未完成。
 
+此后确定性重置已经投入运行：每个 production 场景都会按不可变 ID 恢复 profile checkpoint，拒绝自动 checkpoint，并在启动前验证 worker 保持关闭。输入也已改为一个常驻交互 guest agent，通过有界文件通道只接受固定 click/drag 协议，不再为每个动作创建计划任务；从重置到持久输入的 production sentinel 已通过且两项动作均在预算内。持久 CDP 传输和完整截图/trace/log bundle 仍未完成。
+
 当前入口为：
 
 ```powershell

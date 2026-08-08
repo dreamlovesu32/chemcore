@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet('host-attest', 'reset', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'uia-query', 'cdp-bridge', 'input-click', 'input-drag', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
+  [ValidateSet('host-attest', 'reset', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'start-input-agent', 'stop-input-agent', 'uia-query', 'cdp-bridge', 'input-click', 'input-drag', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
   [string]$Operation,
 
   [Parameter(Mandatory = $true)]
@@ -587,19 +587,55 @@ function Invoke-CdpBridge {
   }
 }
 
+function Start-PersistentInputAgent {
+  $agentPath = Join-Path (Join-Path $GuestTestRoot 'agent') 'chemsema-gui-test-agent.exe'
+  $result = Invoke-Guest -ScriptBlock {
+    param($ExpectedAccount, $AgentPath, $TestRoot)
+    $channelRoot = Join-Path $TestRoot 'input-channel'
+    if (-not $channelRoot.StartsWith(($TestRoot.TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) { throw 'Input channel path is outside test root.' }
+    if (Test-Path -LiteralPath $channelRoot) { Remove-Item -LiteralPath $channelRoot -Recurse -Force }
+    New-Item -ItemType Directory -Path $channelRoot -Force | Out-Null
+    $taskName = 'ChemSema GUI Persistent Input Agent'
+    $arguments = "serve --allowed-root `"$TestRoot`" --channel-root `"$channelRoot`""
+    $action = New-ScheduledTaskAction -Execute $AgentPath -Argument $arguments
+    $principal = New-ScheduledTaskPrincipal -UserId "$env:COMPUTERNAME\$ExpectedAccount" -LogonType Interactive -RunLevel Highest
+    $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Hours 12) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Settings $settings -Force | Out-Null
+    Start-ScheduledTask -TaskName $taskName
+    $readyPath = Join-Path $channelRoot 'ready.json'
+    $deadline = [DateTime]::UtcNow.AddSeconds(20)
+    while (-not (Test-Path -LiteralPath $readyPath -PathType Leaf) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 50 }
+    if (-not (Test-Path -LiteralPath $readyPath -PathType Leaf)) { throw 'Persistent input agent did not become ready.' }
+    Get-Content -Raw -LiteralPath $readyPath | ConvertFrom-Json
+  } -ArgumentList @($GuestAccount, $agentPath, $GuestTestRoot)
+  [ordered]@{ schema='chemsema.gui.worker-attestation.v1'; operation='start-input-agent'; vmId=(Get-WorkerVm).Id.ToString(); vmName=(Get-WorkerVm).Name; agent=$result }
+}
+
+function Stop-PersistentInputAgent {
+  $result = Invoke-Guest -ScriptBlock {
+    param($TestRoot)
+    $channelRoot = Join-Path $TestRoot 'input-channel'
+    New-Item -ItemType File -Path (Join-Path $channelRoot 'shutdown') -Force | Out-Null
+    $taskName = 'ChemSema GUI Persistent Input Agent'
+    $deadline = [DateTime]::UtcNow.AddSeconds(10)
+    while ((Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue).State -eq 'Running' -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 50 }
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+    [ordered]@{ status='stopped' }
+  } -ArgumentList @($GuestTestRoot)
+  [ordered]@{ schema='chemsema.gui.worker-attestation.v1'; operation='stop-input-agent'; vmId=(Get-WorkerVm).Id.ToString(); vmName=(Get-WorkerVm).Name; agent=$result }
+}
+
 function Invoke-CandidateInput([ValidateSet('click', 'drag')][string]$Kind) {
   $hostHash = (Get-FileHash -LiteralPath $HostCandidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
   $guestPath = Join-Path (Join-Path (Join-Path $GuestTestRoot 'candidate') $hostHash) 'chemsema-desktop.exe'
-  $agentPath = Join-Path (Join-Path $GuestTestRoot 'agent') 'chemsema-gui-test-agent.exe'
   $result = Invoke-Guest -ScriptBlock {
-    param($ExpectedAccount, $CandidatePath, $AgentPath, $TestRoot, $Kind, $X, $Y, $FromX, $FromY, $ToX, $ToY, $Steps, $Button)
+    param($CandidatePath, $TestRoot, $Kind, $X, $Y, $FromX, $FromY, $ToX, $ToY, $Steps, $Button)
     $process = Get-Process chemsema-desktop -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $CandidatePath -and $_.SessionId -ne 0 } | Select-Object -First 1
     if ($null -eq $process) { throw 'The authorized desktop candidate is not running.' }
     $runRoot = Join-Path $TestRoot 'runs'
     $runDirectory = Join-Path $runRoot ("input-$Kind-" + [Guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
     $guardPath = Join-Path $runDirectory 'guard.json'
-    $resultPath = Join-Path $runDirectory 'result.json'
     $guardJson = [ordered]@{
       expectedAgentSessionId = [int]$process.SessionId
       expectedProcessId = [int]$process.Id
@@ -609,28 +645,30 @@ function Invoke-CandidateInput([ValidateSet('click', 'drag')][string]$Kind) {
     } | ConvertTo-Json
     [IO.File]::WriteAllText($guardPath, $guardJson, [Text.UTF8Encoding]::new($false))
     $inputArguments = if ($Kind -eq 'click') {
-      "click --guard `"$guardPath`" --x $X --y $Y --button $Button --output `"$resultPath`""
+      @('click', '--guard', $guardPath, '--x', [string]$X, '--y', [string]$Y, '--button', $Button)
     } else {
-      "drag --guard `"$guardPath`" --from-x $FromX --from-y $FromY --to-x $ToX --to-y $ToY --steps $Steps --button $Button --output `"$resultPath`""
+      @('drag', '--guard', $guardPath, '--from-x', [string]$FromX, '--from-y', [string]$FromY, '--to-x', [string]$ToX, '--to-y', [string]$ToY, '--steps', [string]$Steps, '--button', $Button)
     }
-    $taskName = "ChemSema GUI Input $Kind $($process.Id)"
-    $action = New-ScheduledTaskAction -Execute $AgentPath -Argument $inputArguments
-    $principal = New-ScheduledTaskPrincipal -UserId "$env:COMPUTERNAME\$ExpectedAccount" -LogonType Interactive -RunLevel Highest
-    Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Force | Out-Null
-    try {
-      Start-ScheduledTask -TaskName $taskName
-      $deadline = [DateTime]::UtcNow.AddSeconds(30)
-      do {
-        if (Test-Path -LiteralPath $resultPath -PathType Leaf) { break }
-        Start-Sleep -Milliseconds 100
-      } while ([DateTime]::UtcNow -lt $deadline)
-      if (-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) { throw 'Interactive input agent returned no receipt.' }
-      $agentResult = Get-Content -Raw -LiteralPath $resultPath | ConvertFrom-Json
-      if ($agentResult.status -eq 'failed') { throw "Interactive input was rejected: $($agentResult.message)" }
-      $agentResult
-    }
-    finally { Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue }
-  } -ArgumentList @($GuestAccount, $guestPath, $agentPath, $GuestTestRoot, $Kind, $InputX, $InputY, $InputFromX, $InputFromY, $InputToX, $InputToY, $InputSteps, $InputButton)
+    $channelRoot = Join-Path $TestRoot 'input-channel'
+    $ready = Join-Path $channelRoot 'ready.json'
+    if (-not (Test-Path -LiteralPath $ready -PathType Leaf)) { throw 'Persistent input agent is not ready.' }
+    $requestId = [Guid]::NewGuid().ToString('N')
+    $inbox = Join-Path $channelRoot 'inbox'
+    $outbox = Join-Path $channelRoot 'outbox'
+    $requestPath = Join-Path $inbox "$requestId.json"
+    $temporaryRequest = Join-Path $inbox "$requestId.tmp"
+    $responsePath = Join-Path $outbox "$requestId.json"
+    $requestJson = [ordered]@{ schema='chemsema.gui.guest-agent-request.v1'; id=$requestId; args=$inputArguments } | ConvertTo-Json -Depth 5 -Compress
+    [IO.File]::WriteAllText($temporaryRequest, $requestJson, [Text.UTF8Encoding]::new($false))
+    Move-Item -LiteralPath $temporaryRequest -Destination $requestPath
+    $deadline = [DateTime]::UtcNow.AddSeconds(8)
+    while (-not (Test-Path -LiteralPath $responsePath -PathType Leaf) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 20 }
+    if (-not (Test-Path -LiteralPath $responsePath -PathType Leaf)) { throw 'Persistent input agent returned no receipt within 8 seconds.' }
+    $response = Get-Content -Raw -LiteralPath $responsePath | ConvertFrom-Json
+    if ($response.id -ne $requestId -or $response.schema -ne 'chemsema.gui.guest-agent-response.v1') { throw 'Persistent input response identity is invalid.' }
+    if ($response.status -ne 'passed') { throw "Interactive input was rejected: $($response.message)" }
+    $response.result
+  } -ArgumentList @($guestPath, $GuestTestRoot, $Kind, $InputX, $InputY, $InputFromX, $InputFromY, $InputToX, $InputToY, $InputSteps, $InputButton)
   [ordered]@{
     schema = 'chemsema.gui.worker-attestation.v1'
     operation = "input-$Kind"
@@ -931,6 +969,8 @@ switch ($Operation) {
   'launch-candidate' { Write-Result (Start-Candidate) }
   'dismiss-known-blocker' { Write-Result (Dismiss-KnownBlocker) }
   'activate-candidate' { Write-Result (Activate-Candidate) }
+  'start-input-agent' { Write-Result (Start-PersistentInputAgent) }
+  'stop-input-agent' { Write-Result (Stop-PersistentInputAgent) }
   'uia-query' { Write-Result (Query-Uia) }
   'cdp-bridge' { Write-Result (Invoke-CdpBridge) }
   'input-click' { Write-Result (Invoke-CandidateInput 'click') }

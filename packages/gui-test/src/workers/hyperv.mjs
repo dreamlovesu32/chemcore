@@ -308,6 +308,18 @@ export class HyperVCoordinator {
     return { ...result, agent };
   }
 
+  async startInputAgent() {
+    const result = await this.execute("start-input-agent", [], { timeoutMs: 30000 });
+    if (result.agent?.schema !== "chemsema.gui.guest-agent-server.v1" || result.agent?.status !== "ready") {
+      throw new Error("Persistent input agent returned an invalid readiness receipt.");
+    }
+    return result;
+  }
+
+  async stopInputAgent() {
+    return this.execute("stop-input-agent", [], { timeoutMs: 20000 });
+  }
+
   async attestServiceAgent() {
     const result = await this.execute("agent-attest-service");
     const agent = cleanAgentAttestation(result.agent);
