@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemsema.org/schemas/ccjz-container-v1.schema.json",
+  "title": "ChemSema CCJZ Container Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "mediaType", "documentFormat", "root"],
+  "properties": {
+    "schema": { "const": "chemsema.container.v1" },
+    "mediaType": { "const": "application/vnd.chemsema.document+zip" },
+    "documentFormat": { "const": "chemsema/0.2" },
+    "root": { "$ref": "#/$defs/entry" },
+    "sceneChunks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/chunk" }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/entry" }
+    },
+    "attachments": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "mediaType", "sha256", "size"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)(?!.*:).+$"
+        },
+        "mediaType": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "size": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "chunk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "mediaType", "sha256", "size", "firstRecord", "recordCount"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)(?!.*:).+$"
+        },
+        "mediaType": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "size": { "type": "integer", "minimum": 0 },
+        "firstRecord": { "type": "integer", "minimum": 0 },
+        "recordCount": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

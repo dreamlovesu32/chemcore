@@ -157,7 +157,7 @@ Later work on the same day continued thickening non-Office native desktop capabi
 
 ```text
 crates/chemsema-desktop-service
-  Has started native file read/write: .ccjz gzip, .ccjs, .cdxml, .svg.
+  Owns native file read/write: CCJZ Container v1, legacy gzip read, .ccjs, .cdxml, and .svg.
   Has persisted recent files for the desktop menu.
 
 apps/chemsema-desktop/src-tauri
@@ -303,7 +303,7 @@ Stage 1 only requires Windows/Office to recognize the ChemSema OLE class. Stage 
 
 ## Native Document Container
 
-Current `.ccjz` is gzip JSON, which is suitable for early stages. For Office objects, previews, thumbnails, and resource management, the long-term `.ccjz` API should be designed as a container model.
+Current `.ccjz` is the implemented deterministic `chemsema.container.v1` ZIP package. It supports hashed scene chunks, content-addressed resources, opaque binary attachments, and seek/range reads; legacy gzip remains read-only.
 
 The external extension can remain `.ccjz`; internally it can evolve toward:
 
@@ -321,7 +321,7 @@ meta/
   migration.json
 ```
 
-The container format may later choose zip, zstd package, or another implementation. Stage 1 can still keep gzip JSON internally, but all callers should use stable APIs:
+All callers continue to use stable container APIs:
 
 ```text
 load_ccjz()
@@ -331,7 +331,7 @@ update_preview()
 migrate()
 ```
 
-This allows upgrading from gzip JSON to a multi-file container later without overturning Web, Desktop, or Office callers.
+This keeps Web, Desktop, Office, CLI, and independent readers on the same governed container boundary.
 
 ## Clipboard Formats
 
@@ -398,7 +398,7 @@ These outputs should be generated uniformly by engine/render service. The Office
 
 - Desktop default editing runtime uses `DesktopHybridEngineHost`: hot interactions run synchronously through the WASM core inside WebView.
 - Tauri backend directly calls the Rust engine. Started: Tauri holds `DesktopDocumentService` and exposes `desktop_engine_*` commands.
-- Local filesystem, gzip, and path permissions belong to the Tauri/Rust service. Started: desktop open/save/save-as prefers Tauri native file commands, and `.ccjz` gzip is handled by the Rust service.
+- Local filesystem, atomic save, recovery sidecars, container validation, and path permissions belong to the Tauri/Rust service. Desktop open/save/save-as uses native file commands and CCJZ Container v1 is handled by the Rust service.
 - Viewer is responsible only for UI, event collection, coordinate conversion, and rendering; editing semantics remain decided by the Rust core.
 - `TauriEngineHost` remains a `?engine=tauri-native` diagnostic path and is not the desktop default hot interaction path.
 

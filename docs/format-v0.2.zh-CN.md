@@ -127,7 +127,7 @@ R-tree、均匀网格、BVH、反向依赖表和渲染缓存属于运行时派�
 
 `resources` 通过资源 ID 保存可复用或体量较大的载荷。scene entity 的 `resourceRef` 必须指向存在的资源。molecule scene entity 负责页面定位，`molecule_fragment2d` resource 负责 atom、bond、stereo、标签和结构语义。reactionSchemes、chemicalProperties 和 logicalObjects 分别保存反应、属性和高级逻辑语义。
 
-大规模 FID、长光谱数组、图像或多维实验数据不应无限制内联到普通 JSON。v0.2 的 `.ccjs` 只定义语义快照；当前 `.ccjz` 仍是 gzip 压缩的同一 JSON，不具备 HDF5 式分块随机访问。真正的二进制资源分块需要后续兼容容器，或引用经过校验的外部 HDF5/专业数据集。
+大规模 FID、长光谱数组、图像或多维实验数据不应无限制内联到普通 JSON。v0.2 的 `.ccjs` 定义完整语义快照；`.ccjz` 使用 [`chemsema.container.v1`](protocol/ccjz-container-v1.md) 确定性 ZIP 容器，将 scene 拆成可独立读取的 JSONL chunk，并按 SHA-256 内容寻址外置资源。旧 gzip `.ccjz` 继续只读兼容，新写出器不再生成 gzip。HDF5、Zarr 或专业二进制数组可以作为带明确媒体类型、尺寸和哈希的资源载荷，而不是替代 CCJS 文档语义。
 
 ## 9. Interchange 无损层
 

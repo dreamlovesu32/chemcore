@@ -132,6 +132,34 @@ pub(crate) fn desktop_file_write_path(
 }
 
 #[tauri::command]
+pub(crate) fn desktop_file_read_recovery_journal(
+    state: tauri::State<'_, DesktopState>,
+    path: String,
+) -> Result<Option<String>, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.read_recovery_journal(path)
+}
+
+#[tauri::command]
+pub(crate) fn desktop_file_write_recovery_journal(
+    state: tauri::State<'_, DesktopState>,
+    path: String,
+    content: String,
+) -> Result<(), String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.write_recovery_journal(path, &content)
+}
+
+#[tauri::command]
+pub(crate) fn desktop_file_delete_recovery_journal(
+    state: tauri::State<'_, DesktopState>,
+    path: String,
+) -> Result<(), String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.delete_recovery_journal(path)
+}
+
+#[tauri::command]
 pub(crate) fn desktop_file_write_transient_path(
     path: String,
     content: String,

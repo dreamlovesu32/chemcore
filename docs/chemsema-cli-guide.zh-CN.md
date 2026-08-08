@@ -220,7 +220,7 @@ npm run cli -- convert input.cdxml output --format emf
 | --- | --- | --- | --- |
 | `json` | yes | yes | ChemSema 内部 JSON，`.json` 后缀按内部 JSON 处理 |
 | `ccjs` | yes | yes | ChemSema 内部 JSON，推荐作为未压缩内部格式 |
-| `ccjz` | yes | yes | gzip 压缩 ChemSema JSON |
+| `ccjz` | yes | yes | 带哈希、scene 分块和内容寻址资源的确定性 ZIP；旧 gzip 只读兼容 |
 | `cdxml` | yes | yes | ChemDraw XML |
 | `cdx` | yes | yes | ChemDraw binary |
 | `sdf` | yes | yes | MDL SD file |

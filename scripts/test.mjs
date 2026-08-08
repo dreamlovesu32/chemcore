@@ -22,6 +22,8 @@ run("cargo", ["test"]);
 run(process.execPath, ["--check", "viewer/app.js"]);
 run(process.execPath, [
   "--test",
+  "scripts/tests/ccjz-container.test.mjs",
+  "scripts/tests/recovery-journal.test.mjs",
   "scripts/tests/ccjs-v02-view.test.mjs",
   "scripts/tests/link-interaction.test.mjs",
   "scripts/tests/nmr-prediction-host.test.mjs",

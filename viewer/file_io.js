@@ -1,7 +1,9 @@
+import { CCJZ_MIMETYPE, decodeCcjz, decodeCcjzBlob, encodeCcjz } from "./ccjz_container.js";
+
 export const CHEMSEMA_TEXT_EXTENSION = ".ccjs";
 export const CHEMSEMA_COMPRESSED_EXTENSION = ".ccjz";
 export const CHEMSEMA_TEXT_MIME = "application/vnd.chemsema+json";
-export const CHEMSEMA_COMPRESSED_MIME = "application/vnd.chemsema+gzip";
+export const CHEMSEMA_COMPRESSED_MIME = CCJZ_MIMETYPE;
 export const CHEMDRAW_CDX_MIME = "chemical/x-cdx";
 export const MDL_SDF_MIME = "chemical/x-mdl-sdfile";
 
@@ -82,27 +84,20 @@ export function looksLikeSdfFile(file, text = "") {
 export function looksLikeCompressedChemSemaFile(file) {
   const name = (file?.name || "").toLowerCase();
   const type = (file?.type || "").toLowerCase();
-  return name.endsWith(CHEMSEMA_COMPRESSED_EXTENSION) || type.includes("gzip");
+  return name.endsWith(CHEMSEMA_COMPRESSED_EXTENSION)
+    || type === CHEMSEMA_COMPRESSED_MIME
+    || type.includes("gzip");
 }
 
 export async function compressChemSemaText(text) {
-  if (!globalThis.CompressionStream) {
-    throw new Error("This browser cannot write compressed .ccjz files.");
-  }
-  const stream = new Blob([text], { type: CHEMSEMA_TEXT_MIME })
-    .stream()
-    .pipeThrough(new CompressionStream("gzip"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  return encodeCcjz(text);
 }
 
 export async function decompressChemSemaText(bytes) {
-  if (!globalThis.DecompressionStream) {
-    throw new Error("This browser cannot open compressed .ccjz files.");
+  if (bytes instanceof Blob) {
+    return decodeCcjzBlob(bytes);
   }
-  const stream = new Blob([bytes], { type: CHEMSEMA_COMPRESSED_MIME })
-    .stream()
-    .pipeThrough(new DecompressionStream("gzip"));
-  return new Response(stream).text();
+  return decodeCcjz(bytes);
 }
 
 export function chemsemaOpenAcceptTypes() {

@@ -559,9 +559,9 @@ fn public_patent_ammonium_label_preserves_formula_count_below_explicit_charge() 
     );
 
     let svg = document_to_svg(&document);
-    assert!(svg.contains(">3</tspan>"), "{svg}");
-    assert!(svg.contains(">+</tspan>"), "{svg}");
-    assert!(!svg.contains(">3+</tspan>"), "{svg}");
+    assert!(svg.contains(">3</text>"), "{svg}");
+    assert!(svg.contains(">+</text>"), "{svg}");
+    assert!(!svg.contains(">3+</text>"), "{svg}");
 }
 
 #[test]

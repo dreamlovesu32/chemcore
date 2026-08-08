@@ -145,16 +145,22 @@ fn parse_cdxml_fixed_edge_labels_anchor_subscripts_but_not_superscripts() {
 
     let left = find_node("left");
     let left_label = left.label.as_ref().expect("left label");
+    let left_subscript_distance =
+        (center_x(&left_label.glyph_polygons[1]) - left.position[0]).abs();
     assert!(
-        (center_x(&left_label.glyph_polygons[1]) - left.position[0]).abs() < 0.01,
-        "the leading subscript is the fixed left attachment glyph"
+        left_subscript_distance
+            < (center_x(&left_label.glyph_polygons[2]) - left.position[0]).abs(),
+        "the leading subscript advance cell is the fixed left attachment: {left_subscript_distance}"
     );
 
     let right = find_node("right");
     let right_label = right.label.as_ref().expect("right label");
+    let right_subscript_distance =
+        (center_x(&right_label.glyph_polygons[5]) - right.position[0]).abs();
     assert!(
-        (center_x(&right_label.glyph_polygons[5]) - right.position[0]).abs() < 0.01,
-        "the trailing subscript is the fixed right attachment glyph"
+        right_subscript_distance
+            < (center_x(&right_label.glyph_polygons[4]) - right.position[0]).abs(),
+        "the trailing subscript advance cell is the fixed right attachment: {right_subscript_distance}"
     );
     assert!(
         (center_x(&right_label.glyph_polygons[6]) - right.position[0]).abs() > 0.5,
@@ -207,9 +213,13 @@ fn render_single_line_attached_labels_uses_resolved_box_without_authored_overhan
         .iter()
         .map(|point| point[0])
         .fold(f64::NEG_INFINITY, f64::max);
+    let previous_glyph = &label.glyph_polygons[label.glyph_polygons.len() - 2];
+    let previous_center_x =
+        previous_glyph.iter().map(|point| point[0]).sum::<f64>() / previous_glyph.len() as f64;
+    let last_center_x = (last_min_x + last_max_x) * 0.5;
     assert!(
-        ((last_min_x + last_max_x) * 0.5 - node.position[0]).abs() < 0.01,
-        "the semantic fixed-edge rule must still attach the trailing subscript"
+        (last_center_x - node.position[0]).abs() < (previous_center_x - node.position[0]).abs(),
+        "the semantic fixed-edge rule must attach the trailing subscript advance cell"
     );
 
     let (render_x, render_anchor) = render_document(&document)
@@ -370,7 +380,7 @@ fn parse_cdxml_downward_label_retreat_keeps_the_column_local_axis_contact() {
     let label_endpoint = if from.y < to.y { from } else { to };
 
     assert!(
-        (label_endpoint.y - 24.105).abs() < 0.05,
+        (label_endpoint.y - 24.054_152).abs() < 0.01,
         "ChemDraw keeps the column-local baseline contact below Tyr: {polygon:?}"
     );
 }

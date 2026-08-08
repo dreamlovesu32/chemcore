@@ -17,7 +17,7 @@ CCJS 的价值不在于“把 XML 换成 JSON”。如果只做语法替换，CD
 ```mermaid
 flowchart TD
   A[".ccjs v0.2 规范化快照"] --> B["统一 codec 与版本迁移"]
-  Z[".ccjz 当前为 gzip JSON"] --> B
+  Z[".ccjz 确定性 ZIP：manifest / chunks / resources"] --> B
   C["CDX / CDXML / SDF 等输入"] --> D["来源适配器"]
   D --> E["来源无关 ChemSemaDocument"]
   B --> E
@@ -57,7 +57,7 @@ flowchart TD
 
 过去前端在命令后获取完整 document JSON，再局部重绘；这仍有 O(document size) 的跨边界传输。现在命令结果之外增加 Document Patch：只返回变化实体、依赖资源、关系作用域、样式和必要层级，高级语义区只在相关命令中出现。补丁以 `beforeRevision` 为应用前置条件；乱序、缺口和旧后端都会回退完整同步。前端应用补丁后按目标 ID 请求 renderTargets。
 
-这解决的是大文件编辑陷阱，而不是假设 JSON 本身支持随机访问。打开普通 `.ccjs` 仍需解析完整快照；真正的磁盘局部 I/O 要由未来容器分块或数据库承担。
+这解决的是大文件编辑陷阱，而不是假设 JSON 本身支持随机访问。打开普通 `.ccjs` 仍需解析完整快照；`.ccjz` 则通过 scene chunk、内容寻址资源和 seek/range reader 提供磁盘局部 I/O。大型 HDF5/Zarr/FID 可作为带哈希的 opaque attachment 按范围读取。
 
 ## 2. 为什么 ChemDraw 选择 XML，为什么这不否定 CCJS
 
@@ -130,11 +130,11 @@ CCJS 不应模仿 HDF5 的所有能力。化学页面需要单一归属、确定
 
 ## 5. 仍然存在的短板
 
-### 5.1 `.ccjz` 还不是容器
+### 5.1 `.ccjz` 容器的边界
 
-当前 `.ccjz` 是 gzip JSON。它缩小体积，但不能单独读取某一资源，也不能像 HDF5 一样 chunk。文档必须明确这一点，不能把扩展名宣传成已经完成的容器。
+当前 `.ccjz` 是 `chemsema.container.v1` 确定性 ZIP：固定 MIME、manifest、SHA-256、scene JSONL chunks、内容寻址 JSON resources 和二进制 attachments。Rust、浏览器 JavaScript 和独立 Python reader 已做交叉合规验证；旧 gzip `.ccjz` 仅保留读取兼容。
 
-后续容器应在不改变 CCJS 语义的前提下提供 `document.json`、manifest、二进制 resources、预览和校验和，并保持旧 gzip 读取兼容。是否实现必须由真实大文件基准决定。
+它不是 HDF5 的替代物：CCJZ 管理文档语义、索引和资源边界，HDF5/Zarr 继续管理大型科学数组。容器读取器可以只读 manifest、单个 scene chunk、单个资源或 attachment byte range；普通 `.ccjs` 仍是完整文本快照。
 
 ### 5.2 打开 `.ccjs` 仍是整份解析
 
@@ -142,7 +142,7 @@ flat entities 改善结构、diff 和局部变更，但不让通用 JSON 解析�
 
 ### 5.3 生态与长期稳定性不足
 
-CDXML、SDF、CML 和 HDF5 有更长历史和更多消费者。CCJS 需要 conformance fixtures、独立实现、公开迁移政策和真实 corpus 测试。单一 Rust 实现通过自己的测试还不足以证明跨实现标准。
+CDXML、SDF、CML 和 HDF5 有更长历史和更多消费者。CCJS 已建立 conformance 命令、Rust/JavaScript/Python 交叉读取、公开迁移政策和 corpus 门禁；生态成熟度仍远低于这些格式，因此每次格式变更仍必须保持跨实现 fixtures 与旧版本读取验证。
 
 ### 5.4 Schema 不能证明化学正确
 
@@ -150,7 +150,7 @@ JSON Schema 能验证结构，不能证明价态、立体化学、反应角色�
 
 ### 5.5 局部补丁需要 revision 缺口处理
 
-Document Patch 必须按 beforeRevision 顺序应用。跨进程丢包或后端版本不支持时，前端需要完整刷新。未来可增加补丁合并、journal 和冲突策略，但不能把当前单用户 revision 机制称为协同编辑协议。
+Document Patch 必须按 beforeRevision 顺序应用。跨进程丢包或后端版本不支持时，前端需要完整刷新。当前已用 hash-chain journal 记录提交前补丁，桌面使用同目录 `.journal` 旁车、浏览器使用 IndexedDB，并在验证保存后压缩清除；这仍是崩溃恢复，不是多用户协同编辑协议。
 
 ## 6. 为什么仍有必要开发 CCJS
 

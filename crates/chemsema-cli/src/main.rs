@@ -1,4 +1,5 @@
 mod agent;
+mod format_tools;
 mod protocol;
 
 use chemsema_desktop_service::DesktopDocumentService;
@@ -84,6 +85,14 @@ fn run() -> CliResult<()> {
         "about" => about_command(&args[1..]).map_err(CliError::message),
         "examples" => examples_command(&args[1..]).map_err(CliError::message),
         "guide" => guide_command(&args[1..]).map_err(CliError::message),
+        "validate" => format_tools::validate_command(&args[1..])
+            .map_err(|error| CliError::for_command("validate", error)),
+        "canonicalize" => format_tools::canonicalize_command(&args[1..])
+            .map_err(|error| CliError::for_command("canonicalize", error)),
+        "migrate" => format_tools::migrate_command(&args[1..])
+            .map_err(|error| CliError::for_command("migrate", error)),
+        "conformance" => format_tools::conformance_command(&args[1..])
+            .map_err(|error| CliError::for_command("conformance", error)),
         "label-query" | "label" => label_query_command(&args[1..])
             .map_err(|error| CliError::for_command("label-query", error)),
         "insert-smiles" => insert_smiles_command(&args[1..])

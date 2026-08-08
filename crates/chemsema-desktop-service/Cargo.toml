@@ -9,9 +9,12 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
+chemsema-container = { path = "../chemsema-container" }
 chemsema-engine = { path = "../chemsema-engine" }
 dirs = "6.0"
 encoding_rs = "0.8"
-flate2 = "1.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.60", features = ["Win32_Storage_FileSystem"] }

@@ -244,7 +244,7 @@ Supported formats:
 | --- | --- | --- | --- |
 | `json` | yes | yes | ChemSema internal JSON. `.json` is treated as internal JSON |
 | `ccjs` | yes | yes | ChemSema internal JSON, uncompressed |
-| `ccjz` | yes | yes | gzip-compressed ChemSema JSON |
+| `ccjz` | yes | yes | deterministic hashed ZIP with scene chunks and content-addressed resources; legacy gzip is read-only |
 | `cdxml` | yes | yes | ChemDraw XML |
 | `cdx` | yes | yes | ChemDraw binary |
 | `sdf` | yes | yes | MDL SD file |

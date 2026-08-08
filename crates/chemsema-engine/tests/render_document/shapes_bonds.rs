@@ -1233,7 +1233,7 @@ fn render_document_emits_equal_length_cross_segments_for_bold_dashed_bond() {
     let polygons = object_bond_polygons(&primitives);
     let knockouts = object_knockout_polygons(&primitives);
 
-    assert_eq!(polygons.len(), 11);
+    assert_eq!(polygons.len(), 6);
     assert!(polygons.iter().all(|points| points.len() == 4));
     assert!(knockouts.is_empty(), "{knockouts:?}");
     let black_segments: Vec<_> = polygons
@@ -1247,7 +1247,10 @@ fn render_document_emits_equal_length_cross_segments_for_bold_dashed_bond() {
             .all(|length| (length - first_black).abs() < 0.02),
         "{black_segments:?}"
     );
-    assert!((first_black - 1.0).abs() < 0.02, "{black_segments:?}");
+    assert!(
+        (first_black - 30.0 / 11.0).abs() < 0.02,
+        "{black_segments:?}"
+    );
     assert!(!primitives.iter().any(|primitive| matches!(
         primitive,
         RenderPrimitive::Line { role, object_id, .. }

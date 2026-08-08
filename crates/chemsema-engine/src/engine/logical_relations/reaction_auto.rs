@@ -307,26 +307,35 @@ impl Engine {
             })
             .collect::<BTreeMap<_, _>>();
 
-        let candidate_ids = axes
-            .iter()
-            .flat_map(|axis| {
-                let axial = (axis.length * 4.0).max(crate::DEFAULT_BOND_LENGTH * 8.0);
-                let perpendicular =
-                    (axis.length * 1.5).max(crate::DEFAULT_BOND_LENGTH * 3.0);
-                self.spatial_query([
-                    axis.start.x.min(axis.end.x) - axial,
-                    axis.start.y.min(axis.end.y) - perpendicular,
-                    axis.start.x.max(axis.end.x) + axial,
-                    axis.start.y.max(axis.end.y) + perpendicular,
-                ])
-                .entity_ids
-            })
-            .collect::<BTreeSet<_>>();
+        let scene_objects = self.state.document.scene_objects();
+        // A document may contain a very large molecule resource but only a
+        // handful of page entities. Building the render-derived spatial index
+        // in that case walks every atom and bond merely to filter a few scene
+        // objects. Direct scene scanning is both exact and substantially
+        // cheaper below this bounded threshold.
+        let candidate_ids = if scene_objects.len() <= 256 {
+            scene_objects
+                .iter()
+                .map(|object| object.id.clone())
+                .collect::<BTreeSet<_>>()
+        } else {
+            axes.iter()
+                .flat_map(|axis| {
+                    let axial = (axis.length * 4.0).max(crate::DEFAULT_BOND_LENGTH * 8.0);
+                    let perpendicular =
+                        (axis.length * 1.5).max(crate::DEFAULT_BOND_LENGTH * 3.0);
+                    self.spatial_query([
+                        axis.start.x.min(axis.end.x) - axial,
+                        axis.start.y.min(axis.end.y) - perpendicular,
+                        axis.start.x.max(axis.end.x) + axial,
+                        axis.start.y.max(axis.end.y) + perpendicular,
+                    ])
+                    .entity_ids
+                })
+                .collect::<BTreeSet<_>>()
+        };
 
-        for object in self
-            .state
-            .document
-            .scene_objects()
+        for object in scene_objects
             .into_iter()
             .filter(|object| candidate_ids.contains(&object.id))
         {

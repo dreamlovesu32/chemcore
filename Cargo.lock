@@ -666,6 +666,7 @@ dependencies = [
 name = "chemsema-cli"
 version = "1.0.0-beta.1"
 dependencies = [
+ "chemsema-container",
  "chemsema-desktop-service",
  "chemsema-engine",
  "chemsema-office",
@@ -675,6 +676,17 @@ dependencies = [
  "sha2",
  "tiny-skia",
  "usvg",
+]
+
+[[package]]
+name = "chemsema-container"
+version = "0.1.0"
+dependencies = [
+ "flate2",
+ "serde",
+ "serde_json",
+ "sha2",
+ "zip",
 ]
 
 [[package]]
@@ -700,12 +712,13 @@ dependencies = [
 name = "chemsema-desktop-service"
 version = "1.0.0-beta.1"
 dependencies = [
+ "chemsema-container",
  "chemsema-engine",
  "dirs",
  "encoding_rs",
- "flate2",
  "serde",
  "serde_json",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

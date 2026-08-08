@@ -740,7 +740,28 @@ class TauriEngineSession {
     return this.cache.lastCommandResultJson || "null";
   }
 
+  documentPatchJson() {
+    if (this.layoutEngine?.documentPatchJson) {
+      return this.layoutEngine.documentPatchJson();
+    }
+    return "null";
+  }
+
   executeCommandJson(commandJson) {
+    if (this.layoutEngine?.executeCommandJson) {
+      const result = this.layoutEngine.executeCommandJson(commandJson);
+      const parsed = safeJsonParse(result, null);
+      this.syncCacheFromLayout({ interaction: true });
+      if (parsed?.changed) {
+        this.markExportsDirty();
+        this.runNativeMutationInBackground(
+          "desktop_engine_execute_command_json",
+          { commandJson },
+          { refresh: "document", dirtyExports: true },
+        );
+      }
+      return result;
+    }
     return this.invokeMutation("desktop_engine_execute_command_json", { commandJson }, { refresh: "document" });
   }
 

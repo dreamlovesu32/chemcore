@@ -1,6 +1,47 @@
 use crate::*;
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static SAVE_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 impl DesktopDocumentService {
+    pub fn read_recovery_journal<P: AsRef<Path>>(
+        &self,
+        document_path: P,
+    ) -> Result<Option<String>, String> {
+        let path = recovery_journal_path(&normalize_path(document_path)?);
+        match fs::read_to_string(&path) {
+            Ok(content) => Ok(Some(content)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(format!(
+                "Failed to read recovery journal {}: {error}",
+                path.display()
+            )),
+        }
+    }
+
+    pub fn write_recovery_journal<P: AsRef<Path>>(
+        &self,
+        document_path: P,
+        content: &str,
+    ) -> Result<(), String> {
+        let path = recovery_journal_path(&normalize_path(document_path)?);
+        write_document_bytes_atomically(&path, content.as_bytes())
+    }
+
+    pub fn delete_recovery_journal<P: AsRef<Path>>(&self, document_path: P) -> Result<(), String> {
+        let path = recovery_journal_path(&normalize_path(document_path)?);
+        match fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(format!(
+                "Failed to delete recovery journal {}: {error}",
+                path.display()
+            )),
+        }
+    }
+
     pub fn read_document_file<P: AsRef<Path>>(
         &mut self,
         path: P,
@@ -10,7 +51,7 @@ impl DesktopDocumentService {
             .map_err(|error| format!("Failed to read {}: {error}", path.display()))?;
         let format = document_format_for_path_and_bytes(&path, &bytes);
         let text = if format == "ccjz" {
-            decompress_gzip_text(&bytes)?
+            decode_ccjz(&bytes)?
         } else if format == "cdx" {
             cdx_to_cdxml(&bytes)?
         } else {
@@ -64,23 +105,22 @@ impl DesktopDocumentService {
             .map(normalize_document_format)
             .filter(|value| !value.is_empty())
             .unwrap_or_else(|| document_format_for_path(&path));
-        let expected_bytes;
-        if format == "ccjz" {
-            let bytes = compress_gzip_text(content)?;
-            expected_bytes = bytes.len() as u64;
-            fs::write(&path, bytes.as_slice())
-                .map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
+        let bytes = if format == "ccjz" {
+            encode_ccjz(content)?
         } else if format == "cdx" {
-            let bytes = cdxml_to_cdx(content)?;
-            expected_bytes = bytes.len() as u64;
-            fs::write(&path, bytes.as_slice())
-                .map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
+            cdxml_to_cdx(content)?
         } else {
-            expected_bytes = content.len() as u64;
-            fs::write(&path, content.as_bytes())
-                .map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
+            content.as_bytes().to_vec()
+        };
+        write_document_bytes_atomically(&path, &bytes)?;
+        if format == "ccjz" {
+            let persisted = fs::read(&path).map_err(|error| {
+                format!("Failed to reopen saved CCJZ {}: {error}", path.display())
+            })?;
+            decode_ccjz(&persisted).map_err(|error| {
+                format!("Failed to verify saved CCJZ {}: {error}", path.display())
+            })?;
         }
-        verify_written_file_exact(&path, expected_bytes)?;
         self.add_recent_file(path.clone());
         Ok(DesktopSavedDocument {
             file_name: file_name_for_path(&path),
@@ -141,6 +181,12 @@ impl DesktopDocumentService {
     }
 }
 
+fn recovery_journal_path(document_path: &Path) -> PathBuf {
+    let mut value = document_path.as_os_str().to_os_string();
+    value.push(".journal");
+    PathBuf::from(value)
+}
+
 fn decode_document_text(bytes: &[u8], format: &str, path: &Path) -> Result<String, String> {
     match std::str::from_utf8(bytes) {
         Ok(text) => Ok(text.to_string()),
@@ -183,6 +229,113 @@ fn verify_written_file_exact(path: &Path, expected_bytes: u64) -> Result<(), Str
         return Err(format!(
             "Failed to verify saved document {} after writing: file has {bytes} bytes, expected {expected_bytes}.",
             path.display()
+        ));
+    }
+    Ok(())
+}
+
+fn write_document_bytes_atomically(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let parent = output_parent_path(path).unwrap_or_else(|| Path::new("."));
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("document");
+    let temp_path = (0..100)
+        .find_map(|_| {
+            let sequence = SAVE_TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let candidate = parent.join(format!(
+                ".{file_name}.chemsema-save-{}-{sequence}.tmp",
+                std::process::id()
+            ));
+            match OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&candidate)
+            {
+                Ok(file) => Some(Ok((candidate, file))),
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => None,
+                Err(error) => Some(Err(format!(
+                    "Failed to create temporary save file {}: {error}",
+                    candidate.display()
+                ))),
+            }
+        })
+        .ok_or_else(|| "Failed to allocate a unique temporary save file".to_string())??;
+    let (temp_path, mut file) = temp_path;
+    let result = (|| {
+        file.write_all(bytes).map_err(|error| {
+            format!(
+                "Failed to write temporary save file {}: {error}",
+                temp_path.display()
+            )
+        })?;
+        file.sync_all().map_err(|error| {
+            format!(
+                "Failed to flush temporary save file {}: {error}",
+                temp_path.display()
+            )
+        })?;
+        drop(file);
+        verify_written_file_exact(&temp_path, bytes.len() as u64)?;
+        replace_file_atomically(&temp_path, path)?;
+        verify_written_file_exact(path, bytes.len() as u64)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temp_path);
+    }
+    result
+}
+
+#[cfg(not(windows))]
+fn replace_file_atomically(temp_path: &Path, path: &Path) -> Result<(), String> {
+    fs::rename(temp_path, path).map_err(|error| {
+        format!(
+            "Failed to atomically replace {} with verified temporary file: {error}",
+            path.display()
+        )
+    })
+}
+
+#[cfg(windows)]
+fn replace_file_atomically(temp_path: &Path, path: &Path) -> Result<(), String> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::{
+        MoveFileExW, ReplaceFileW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+        REPLACEFILE_WRITE_THROUGH,
+    };
+
+    let wide = |value: &Path| {
+        value
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect::<Vec<_>>()
+    };
+    let temp = wide(temp_path);
+    let target = wide(path);
+    let ok = unsafe {
+        if path.exists() {
+            ReplaceFileW(
+                target.as_ptr(),
+                temp.as_ptr(),
+                std::ptr::null(),
+                REPLACEFILE_WRITE_THROUGH,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            )
+        } else {
+            MoveFileExW(
+                temp.as_ptr(),
+                target.as_ptr(),
+                MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+            )
+        }
+    };
+    if ok == 0 {
+        return Err(format!(
+            "Failed to atomically replace {} with verified temporary file: {}",
+            path.display(),
+            std::io::Error::last_os_error()
         ));
     }
     Ok(())

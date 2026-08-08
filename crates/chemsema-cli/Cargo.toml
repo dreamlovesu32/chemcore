@@ -9,6 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
+chemsema-container = { path = "../chemsema-container" }
 chemsema-desktop-service = { path = "../chemsema-desktop-service" }
 chemsema-engine = { path = "../chemsema-engine" }
 chemsema-office = { path = "../../apps/chemsema-office" }

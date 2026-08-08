@@ -35,5 +35,4 @@ Normative invariants:
 
 Byte truncation is not a subset mechanism. A portable subset is a new self-contained v0.2 snapshot containing the selected entities and the closure of required hierarchy, styles, resources, relations, and chemical semantics. Incremental UI updates use [Document Patch v1](protocol/document-patch-v1.md), not a reread of the file.
 
-`interchange` retains editable CDX/CDXML objects and properties not yet represented natively. Native fields remain authoritative. `.ccjs` is text JSON; the current `.ccjz` is gzip-compressed JSON and is not an HDF5-like random-access container.
-
+`interchange` retains editable CDX/CDXML objects and properties not yet represented natively. Native fields remain authoritative. `.ccjs` is text JSON. `.ccjz` uses [CCJZ Container v1](protocol/ccjz-container-v1.md): a deterministic, hashed, random-access ZIP container with scene chunks and content-addressed resources. Legacy gzip `.ccjz` remains readable but is never written by current implementations.

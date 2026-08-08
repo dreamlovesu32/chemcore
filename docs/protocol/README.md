@@ -12,6 +12,8 @@ shorter and stricter than the user guides.
 - [Agent Bundle v1](./agent-bundle-v1.md)
 - [Document Diff v1](./document-diff-v1.md)
 - [Document Patch v1](./document-patch-v1.md)
+- [CCJZ Container v1](./ccjz-container-v1.md)
+- [Recovery Journal v1](./journal-v1.md)
 - [Error Model v1](./error-model-v1.md)
 - [Entrypoints v1](./entrypoints-v1.md)
 

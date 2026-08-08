@@ -157,7 +157,7 @@ apps/chemsema-desktop/src-tauri
 
 ```text
 crates/chemsema-desktop-service
-  已开始负责原生文件读写：.ccjz gzip、.ccjs、.cdxml、.svg。
+  负责原生文件读写：CCJZ Container v1、旧 gzip 读取、.ccjs、.cdxml、.svg。
   已持久化最近文件列表，供桌面菜单使用。
 
 apps/chemsema-desktop/src-tauri
@@ -300,7 +300,7 @@ IRunnableObject 当前骨架已存在，下一步补运行状态和桌面端唤�
 
 ## 原生文档容器
 
-当前 `.ccjz` 是 gzip JSON，适合早期阶段。但为了 Office 对象、预览、缩略图和资源管理，长期应把 `.ccjz` 的 API 设计成容器模型。
+当前 `.ccjz` 已实现为确定性的 `chemsema.container.v1` ZIP 包，支持带哈希的 scene 分块、内容寻址资源、opaque 二进制附件和 seek/range 读取；旧 gzip 仅只读兼容。
 
 对外扩展名可以保持 `.ccjz`，内部逐步演进为：
 
@@ -318,7 +318,7 @@ meta/
   migration.json
 ```
 
-容器格式可以后续选择 zip、zstd package 或其他实现。第一阶段内部仍可保持 gzip JSON，但所有调用方都应通过稳定 API：
+所有调用方继续通过稳定容器 API：
 
 ```text
 load_ccjz()
@@ -328,7 +328,7 @@ update_preview()
 migrate()
 ```
 
-这样后续从 gzip JSON 升级到多文件容器时，不需要推翻 Web、Desktop 或 Office 调用方。
+这样 Web、Desktop、Office、CLI 和独立读取器共享同一受治理的容器边界。
 
 ## 剪贴板格式
 
@@ -395,7 +395,7 @@ Office 中的对象预览不能只依赖 SVG。长期需要：
 
 - 桌面默认编辑运行时使用 `DesktopHybridEngineHost`：热交互通过 WebView 内 WASM core 同步完成。
 - Tauri 后端直接调用 Rust engine。已开始：Tauri 已持有 `DesktopDocumentService`，并暴露 `desktop_engine_*` commands。
-- 本地文件系统、gzip 和路径权限归属于 Tauri/Rust service。已开始：桌面打开/保存/另存为优先走 Tauri native file commands，`.ccjz` gzip 由 Rust service 处理。
+- 本地文件系统、原子保存、恢复旁车、容器验证和路径权限归属于 Tauri/Rust service。桌面打开/保存/另存为走 native file commands，CCJZ Container v1 由 Rust service 处理。
 - viewer 只负责 UI、事件采集、坐标换算和渲染；编辑语义仍由 Rust core 决定。
 - `TauriEngineHost` 保留为 `?engine=tauri-native` 诊断路径，不作为桌面热交互默认路径。
 

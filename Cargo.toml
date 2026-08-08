@@ -3,6 +3,7 @@ members = [
   "crates/chemsema-chemical-graph",
   "crates/chemsema-chemistry",
   "crates/chemsema-inchi",
+  "crates/chemsema-container",
   "crates/chemsema-engine",
   "crates/chemsema-cli",
   "crates/chemsema-desktop-service",

@@ -48,7 +48,7 @@ export function createDocumentFlow(options) {
     }
     const compressed = path.toLowerCase().endsWith(CHEMSEMA_COMPRESSED_EXTENSION);
     const text = compressed
-      ? await decompressChemSemaText(await response.arrayBuffer())
+      ? await decompressChemSemaText(await response.blob())
       : await response.text();
     return inflateChemSemaDocument(JSON.parse(text));
   }
@@ -129,13 +129,19 @@ export function createDocumentFlow(options) {
     await waitForRuntimeReady();
     validateChemSemaJsonDocument(documentData);
     await options.finishActiveTextEditor(false);
-    const json = JSON.stringify(documentData);
+    const recovery = await options.recoverDocument?.(documentData, fileName, filePath);
+    const recoveredDocument = recovery?.document || documentData;
+    validateChemSemaJsonDocument(recoveredDocument);
+    const json = JSON.stringify(recoveredDocument);
     const engine = await createLoadedEditorEngine(
       "json",
       (nextEngine) => nextEngine.loadDocumentJson(json),
       { jsonLength: json.length, fileName, filePath },
     );
     await replaceEditorDocumentEngine(engine, fileName, filePath, "Untitled");
+    if (recovery?.recovered) {
+      options.markCurrentDocumentRecovered?.(recovery);
+    }
   }
 
   async function currentDocumentJsonForSave() {
@@ -304,6 +310,7 @@ export function createDocumentFlow(options) {
       options.state.currentFileName = handle.name || suggestedName;
       options.viewerTitle.textContent = options.state.currentDocument?.document?.title || options.state.currentFileName || "Untitled";
       options.markCurrentDocumentSaved?.();
+      await options.compactRecoveryJournal?.();
       return true;
     }
     const payload = await savePayloadForFormat("ccjz");
@@ -511,6 +518,7 @@ export function createDocumentFlow(options) {
         options.state.currentFileName = handle.name || options.state.currentFileName;
         options.viewerTitle.textContent = options.state.currentDocument?.document?.title || options.state.currentFileName || "Untitled";
         options.markCurrentDocumentSaved?.();
+        await options.compactRecoveryJournal?.();
       }
       return true;
     }
@@ -563,6 +571,7 @@ export function createDocumentFlow(options) {
       options.viewerTitle.textContent = options.state.currentDocument?.document?.title || options.state.currentFileName || "Untitled";
       updateDocumentMeta();
       options.markCurrentDocumentSaved?.();
+      await options.compactRecoveryJournal?.();
     } else {
       options.refreshCommandAvailability?.();
     }
@@ -578,7 +587,7 @@ export function createDocumentFlow(options) {
       return;
     }
     const text = looksLikeCompressedChemSemaFile(file)
-      ? await decompressChemSemaText(await file.arrayBuffer())
+      ? await decompressChemSemaText(file)
       : await file.text();
     if (looksLikeSdfFile(file, text)) {
       await loadSdfDocumentIntoEditor(text, file.name || null, null);

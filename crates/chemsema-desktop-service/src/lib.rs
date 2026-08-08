@@ -1,3 +1,4 @@
+use chemsema_container::{decode_ccjz, encode_ccjz};
 use chemsema_engine::{
     cdx_to_cdxml, cdxml_to_cdx, parse_bond_tool_value, parse_bracket_tool_value, ArrowCurve,
     ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BioDrawKind, BioShapeFillType,
@@ -7,13 +8,9 @@ use chemsema_engine::{
     WorldPt,
 };
 use encoding_rs::WINDOWS_1252;
-use flate2::read::GzDecoder;
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
-use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 pub type SessionId = u64;
@@ -1870,6 +1867,30 @@ mod tests {
     }
 
     #[test]
+    fn recovery_journal_sidecar_is_atomic_readable_and_compactable() {
+        let service = DesktopDocumentService::new();
+        let document_path = std::env::temp_dir().join(format!(
+            "chemsema-recovery-sidecar-{}-{}.ccjz",
+            std::process::id(),
+            1
+        ));
+        let journal_path = PathBuf::from(format!("{}.journal", document_path.display()));
+        let _ = fs::remove_file(&journal_path);
+
+        assert_eq!(service.read_recovery_journal(&document_path).unwrap(), None);
+        service
+            .write_recovery_journal(&document_path, "{\"sequence\":1}\n")
+            .unwrap();
+        assert_eq!(
+            service.read_recovery_journal(&document_path).unwrap(),
+            Some("{\"sequence\":1}\n".to_string())
+        );
+        service.delete_recovery_journal(&document_path).unwrap();
+        service.delete_recovery_journal(&document_path).unwrap();
+        assert!(!journal_path.exists());
+    }
+
+    #[test]
     fn cdx_file_round_trip_uses_binary_storage_and_cdxml_text_payload() {
         let mut service = DesktopDocumentService::new();
         let path = std::env::temp_dir().join(format!(
@@ -1975,10 +1996,20 @@ mod tests {
     }
 
     #[test]
-    fn gzip_round_trip_preserves_document_text() {
-        let text = "{\"format\":{\"name\":\"chemsema\"}}\n";
-        let compressed = compress_gzip_text(text).unwrap();
-        assert!(compressed.starts_with(&[0x1f, 0x8b]));
-        assert_eq!(decompress_gzip_text(&compressed).unwrap(), text);
+    fn ccjz_container_round_trip_preserves_document_value() {
+        let text = serde_json::json!({
+            "format": {"name": "chemsema", "version": "0.2", "unit": "pt", "profile": "snapshot"},
+            "entities": {"scene": []},
+            "resources": {}
+        })
+        .to_string();
+        let encoded = encode_ccjz(&text).unwrap();
+        assert!(encoded.starts_with(b"PK"));
+        let decoded: serde_json::Value =
+            serde_json::from_str(&decode_ccjz(&encoded).unwrap()).unwrap();
+        assert_eq!(
+            decoded,
+            serde_json::from_str::<serde_json::Value>(&text).unwrap()
+        );
     }
 }

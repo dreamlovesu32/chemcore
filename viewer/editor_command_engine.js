@@ -83,6 +83,9 @@ export function createEditorCommandEngine(options = {}) {
         const patch = appliedResult?.changed
           ? parseCommandResultJson(activeEngine?.documentPatchJson?.())
           : null;
+        if (patch) {
+          await options.beforeDocumentPatchApplied?.(patch, appliedResult);
+        }
         const applied = patch ? await options.applyDocumentPatch?.(patch, appliedResult) : false;
         if (applied) {
           await options.onDocumentPatchApplied?.(patch, appliedResult);
@@ -110,6 +113,9 @@ export function createEditorCommandEngine(options = {}) {
           };
         }
         const patch = parseCommandResultJson(activeEngine?.documentPatchJson?.());
+        if (patch) {
+          await options.beforeDocumentPatchApplied?.(patch, result);
+        }
         const applied = patch ? await options.applyDocumentPatch?.(patch, result) : false;
         if (applied) {
           await options.onDocumentPatchApplied?.(patch, result);
