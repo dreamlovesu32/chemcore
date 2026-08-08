@@ -22,6 +22,7 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
   let blockerDismissals = 0;
   const inputs = [];
   const coordinator = {
+    async reset() { return { state: "Off" }; },
     async start() { return { vmId: "worker-id" }; },
     async installAgent() { return {}; },
     async configureDesktopBaseline() { return { baseline: { changed: false } }; },

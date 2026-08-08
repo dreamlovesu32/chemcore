@@ -4,7 +4,11 @@
   "kind": "hyper-v",
   "vm": {
     "id": "b5dccf28-86af-4827-9678-2ad252dde413",
-    "generation": 2
+    "generation": 2,
+    "checkpoint": {
+      "id": "9f04c832-f79a-4297-96d8-77fed46b3645",
+      "name": "ChemSema GUI Baseline v1"
+    }
   },
   "resources": {
     "cpuUnits": 8,

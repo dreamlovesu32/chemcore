@@ -110,6 +110,7 @@ export class HyperVCoordinator {
       "-File", scriptPath,
       "-Operation", operation,
       "-VmId", this.profile.vm.id,
+      "-CheckpointId", this.profile.vm.checkpoint.id,
       "-CredentialPath", credentialPath,
       "-GuestAccount", this.profile.guest.account,
       "-GuestTestRoot", this.profile.guest.testRoot,
@@ -131,6 +132,8 @@ export class HyperVCoordinator {
     if (!result.host?.hyperVAdministrator) failures.push("current host token is not in Hyper-V Administrators");
     if (result.host?.vmms !== "Running" || result.host?.vmcompute !== "Running") failures.push("Hyper-V services are not running");
     if (String(result.vm?.id || "").toLowerCase() !== this.profile.vm.id.toLowerCase() || result.vm?.generation !== this.profile.vm.generation) failures.push("VM identity or generation does not match the profile");
+    if (result.vm?.automaticCheckpoints !== false) failures.push("automatic checkpoints are enabled");
+    if (String(result.vm?.checkpointId || "").toLowerCase() !== this.profile.vm.checkpoint.id.toLowerCase() || result.vm?.checkpointName !== this.profile.vm.checkpoint.name) failures.push("deterministic baseline checkpoint does not match the profile");
     if (result.vm?.cpuUnits > this.profile.resources.cpuUnits) failures.push("VM CPU allocation exceeds the profile");
     if (result.vm?.memoryMaximumBytes > this.profile.resources.memoryGiB * 1024 ** 3) failures.push("VM maximum memory exceeds the profile");
     if (!result.credential?.exists) failures.push("encrypted PowerShell Direct credential is unavailable");
@@ -143,6 +146,15 @@ export class HyperVCoordinator {
   async start() {
     await this.attestHost();
     return this.execute("start");
+  }
+
+  async reset() {
+    await this.attestHost();
+    const result = await this.execute("reset", [], { timeoutMs: 120000 });
+    if (String(result.checkpoint?.id || "").toLowerCase() !== this.profile.vm.checkpoint.id.toLowerCase() || result.state !== "Off") {
+      throw new Error("Deterministic worker reset returned an invalid receipt.");
+    }
+    return result;
   }
 
   async attestGuest({ requireInteractive = false } = {}) {

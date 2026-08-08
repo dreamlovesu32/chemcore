@@ -80,7 +80,7 @@ async function impact(paths, options) {
 
 async function worker(args, options) {
   const [operation] = args;
-  if (!operation || !["host-attest", "start", "guest-attest", "prepare-guest", "install-agent", "configure-autologon", "configure-desktop-baseline", "install-candidate", "launch-candidate", "dismiss-known-blocker", "activate-candidate", "uia-query", "cdp-state", "input-click", "input-drag", "agent-attest-service", "agent-attest-interactive", "stop"].includes(operation)) {
+  if (!operation || !["host-attest", "reset", "start", "guest-attest", "prepare-guest", "install-agent", "configure-autologon", "configure-desktop-baseline", "install-candidate", "launch-candidate", "dismiss-known-blocker", "activate-candidate", "uia-query", "cdp-state", "input-click", "input-drag", "agent-attest-service", "agent-attest-interactive", "stop"].includes(operation)) {
     throw new Error("worker requires a supported worker operation.");
   }
   const profile = await readValidatedDocument(resolve(options.profile || join(guiTestsDir, "environments", "windows-gui-worker-current.json")));
@@ -88,6 +88,7 @@ async function worker(args, options) {
   let result;
   switch (operation) {
     case "host-attest": result = await coordinator.attestHost(); break;
+    case "reset": result = await coordinator.reset(); break;
     case "start": result = await coordinator.start(); break;
     case "guest-attest": result = await coordinator.attestGuest({ requireInteractive: options.interactive === true }); break;
     case "prepare-guest": result = await coordinator.prepareGuest(); break;

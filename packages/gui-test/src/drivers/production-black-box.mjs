@@ -48,6 +48,8 @@ export class ProductionBlackBoxDriver {
   async launch() {
     const launchStartedAt = Date.now();
     const mark = (stage) => this.environmentNotes.push(`launch-stage:${stage}:${Date.now() - launchStartedAt}ms`);
+    await this.coordinator.reset();
+    mark("worker-reset");
     this.startReceipt = await this.coordinator.start();
     mark("worker-started");
     await retry(() => this.coordinator.installAgent());

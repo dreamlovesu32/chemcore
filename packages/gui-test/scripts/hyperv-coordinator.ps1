@@ -1,10 +1,12 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet('host-attest', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'uia-query', 'cdp-bridge', 'input-click', 'input-drag', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
+  [ValidateSet('host-attest', 'reset', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'uia-query', 'cdp-bridge', 'input-click', 'input-drag', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
   [string]$Operation,
 
   [Parameter(Mandatory = $true)]
   [string]$VmId,
+
+  [string]$CheckpointId,
 
   [string]$CredentialPath,
   [string]$GuestAccount,
@@ -43,6 +45,7 @@ function Get-HostAttestation {
   $processor = Get-VMProcessor -VM $vm
   $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
   $hyperVAdministratorsSid = 'S-1-5-32-578'
+  $checkpoint = Get-VMSnapshot -VM $vm -ErrorAction SilentlyContinue | Where-Object { $_.Id.ToString() -eq $CheckpointId } | Select-Object -First 1
   [ordered]@{
     schema = 'chemsema.gui.worker-attestation.v1'
     operation = 'host-attest'
@@ -64,11 +67,32 @@ function Get-HostAttestation {
       memoryStartupBytes = $memory.Startup
       memoryMaximumBytes = $memory.Maximum
       automaticCheckpoints = $vm.AutomaticCheckpointsEnabled
+      checkpointId = if ($null -eq $checkpoint) { $null } else { $checkpoint.Id.ToString() }
+      checkpointName = if ($null -eq $checkpoint) { $null } else { $checkpoint.Name }
     }
     credential = [ordered]@{
       configured = -not [string]::IsNullOrWhiteSpace($CredentialPath)
       exists = if ([string]::IsNullOrWhiteSpace($CredentialPath)) { $false } else { Test-Path -LiteralPath $CredentialPath -PathType Leaf }
     }
+  }
+}
+
+function Reset-Worker {
+  $vm = Get-WorkerVm
+  if ($vm.State -ne 'Off') { throw 'Worker must be off before deterministic reset.' }
+  if ($vm.AutomaticCheckpointsEnabled) { throw 'Automatic checkpoints must be disabled for deterministic reset.' }
+  $checkpoint = Get-VMSnapshot -VM $vm -ErrorAction Stop | Where-Object { $_.Id.ToString() -eq $CheckpointId } | Select-Object -First 1
+  if ($null -eq $checkpoint) { throw 'Configured deterministic baseline checkpoint is unavailable.' }
+  Restore-VMSnapshot -VMSnapshot $checkpoint -Confirm:$false
+  $restored = Get-VM -Id $vm.Id
+  if ($restored.State -ne 'Off') { throw 'Deterministic reset did not leave the worker off.' }
+  [ordered]@{
+    schema = 'chemsema.gui.worker-attestation.v1'
+    operation = 'reset'
+    vmId = $restored.Id.ToString()
+    vmName = $restored.Name
+    state = $restored.State.ToString()
+    checkpoint = [ordered]@{ id = $checkpoint.Id.ToString(); name = $checkpoint.Name }
   }
 }
 
@@ -896,6 +920,7 @@ function Stop-Worker {
 
 switch ($Operation) {
   'host-attest' { Write-Result (Get-HostAttestation) }
+  'reset' { Write-Result (Reset-Worker) }
   'start' { Write-Result (Start-Worker) }
   'guest-attest' { Write-Result (Get-GuestAttestation) }
   'prepare-guest' { Write-Result (Prepare-Guest) }

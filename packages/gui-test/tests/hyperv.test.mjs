@@ -38,7 +38,7 @@ test("host attestation verifies identity, services, VM bounds, and encrypted cre
         schema: "chemsema.gui.worker-attestation.v1",
         operation: "host-attest",
         host: { hyperVAdministrator: true, vmms: "Running", vmcompute: "Running" },
-        vm: { id: profile.vm.id, generation: 2, cpuUnits: 8, memoryMaximumBytes: 20 * 1024 ** 3 },
+        vm: { id: profile.vm.id, generation: 2, cpuUnits: 8, memoryMaximumBytes: 20 * 1024 ** 3, automaticCheckpoints: false, checkpointId: profile.vm.checkpoint.id, checkpointName: profile.vm.checkpoint.name },
         credential: { exists: true },
       });
     },
@@ -55,7 +55,7 @@ test("host and interactive guest attestation fail closed", async () => {
     environment: { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" },
     executor: () => result({
       host: { hyperVAdministrator: false, vmms: "Running", vmcompute: "Running" },
-      vm: { id: profile.vm.id, generation: 2, cpuUnits: 8, memoryMaximumBytes: 20 * 1024 ** 3 },
+      vm: { id: profile.vm.id, generation: 2, cpuUnits: 8, memoryMaximumBytes: 20 * 1024 ** 3, automaticCheckpoints: false, checkpointId: profile.vm.checkpoint.id, checkpointName: profile.vm.checkpoint.name },
       credential: { exists: true },
     }),
   });
