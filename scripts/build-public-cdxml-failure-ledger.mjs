@@ -72,7 +72,18 @@ function changedComponents(comparisons = []) {
   }));
 }
 
-function automaticClusters(roundtripCase, visualCase) {
+export function visualFailureScale(visualCase) {
+  if (visualCase?.status !== "fail") return null;
+  if (visualCase.coarsePassed) return "detail-only";
+  const minimumCoverage = Math.min(
+    visualCase.referenceCoverage ?? 0,
+    visualCase.candidateCoverage ?? 0,
+  );
+  if (minimumCoverage < 0.8) return "major";
+  return "local";
+}
+
+export function automaticClusters(roundtripCase, visualCase) {
   const clusters = new Set();
   const comparisons = roundtripCase.comparisons ?? [];
   const firstChanged = comparisons[0]?.semantic?.changed ?? [];
@@ -107,6 +118,10 @@ function automaticClusters(roundtripCase, visualCase) {
   }
   if (visualCase?.status === "fail") {
     clusters.add("visual-pixel-mismatch");
+    clusters.add(`visual-${visualFailureScale(visualCase)}-mismatch`);
+    for (const reason of visualCase.reasons ?? []) {
+      clusters.add(`visual-reason-${reason}`);
+    }
     if ((visualCase.reasons ?? []).some((reason) => reason.includes("component"))) {
       clusters.add("visual-component-topology-mismatch");
     }
@@ -116,6 +131,32 @@ function automaticClusters(roundtripCase, visualCase) {
     clusters.add("visual-not-gated");
   }
   return [...clusters].sort();
+}
+
+export function failureLedgerRegisteredCaseIds({
+  existingCases = [],
+  roundtripCases = [],
+  visualCases = [],
+}) {
+  const roundtripByPath = new Map(roundtripCases.map((entry) => [
+    `${entry.source}/${entry.path}`.replaceAll("\\", "/"),
+    entry,
+  ]));
+  const registeredIds = new Set(existingCases.map((entry) => entry.caseId));
+  for (const entry of roundtripCases) {
+    if (ROUNDTRIP_GATE_FAILURE_STATUSES.has(entry.status)) {
+      registeredIds.add(entry.caseId);
+    }
+  }
+  for (const entry of visualCases) {
+    const relativeCdxml = String(entry.relativeCdxml ?? "").replaceAll("\\", "/");
+    const roundtripCase = roundtripByPath.get(relativeCdxml);
+    if (!roundtripCase) {
+      throw new Error(`Visual gate case ${relativeCdxml} is missing from the roundtrip report`);
+    }
+    registeredIds.add(roundtripCase.caseId);
+  }
+  return [...registeredIds].sort();
 }
 
 function visualSnapshot(visualCase, baselineStatus) {
@@ -184,11 +225,13 @@ function main() {
     throw new Error(`Expected ${options.expected} unexpected failures, found ${failures.length}`);
   }
   const currentById = new Map(roundtrip.cases.map((entry) => [entry.caseId, entry]));
-  const registeredIds = new Set([
-    ...existing.cases.map((entry) => entry.caseId),
-    ...failures.map((entry) => entry.caseId),
-  ]);
-  const cases = [...registeredIds].sort().map((caseId) => {
+  const visualCohort = visual.selection?.cohort?.name ?? null;
+  const registeredIds = failureLedgerRegisteredCaseIds({
+    existingCases: existing.cases,
+    roundtripCases: roundtrip.cases,
+    visualCases: visual.cases,
+  });
+  const cases = registeredIds.map((caseId) => {
     const entry = currentById.get(caseId);
     if (!entry) throw new Error(`Registered case ${caseId} is missing from the current report`);
     const relativeCdxml = `${entry.source}/${entry.path}`.replaceAll("\\", "/");
@@ -209,9 +252,8 @@ function main() {
     ].sort();
     return {
       caseId: entry.caseId,
-      cohort: previous
-        ? previous.cohort ?? "original-338"
-        : "additional-gate-case",
+      cohort: previous?.cohort
+        ?? (visualCase && visualCohort ? visualCohort : "additional-gate-case"),
       source: entry.source,
       path: entry.path,
       relativeCdxml,

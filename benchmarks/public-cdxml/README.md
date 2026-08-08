@@ -307,6 +307,12 @@ Use `--cohort original-338` to run the exact original review cohort recorded
 in `benchmarks/public-cdxml/failure-ledger.json`. The gate fails before image
 analysis if even one cohort path is absent from the gallery, and records the
 cohort name, ledger path, expected count, and selected count in the report.
+The failure-ledger builder derives the current cohort directly from the visual
+report and resolves every path through the round-trip report. A clean
+round-trip run therefore still produces a complete ledger when no previous
+ledger exists. Each visual failure records its exact gate reasons and one of
+`detail-only`, `local`, or `major` mismatch scales; the generic
+`visual-pixel-mismatch` tag is not sufficient for rule triage.
 
 If a later full gate finds a regression that escaped the affected plan, first repair the impact map or feature extraction so that family is selected in the future, then fix the renderer. A one-off manual case addition is not a complete repair.
 
