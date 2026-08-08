@@ -764,6 +764,8 @@ npm run gui-platform:test
 
 该路径发现并修复了真实产品缺陷：对已保存但再次修改的标签选择 `Don't Save` 时，标签虽关闭，但对应 recovery journal 记录未删除，随后打开未变化的磁盘文件会复活已放弃的编辑。生命周期现在会在 discard 关闭前精确压缩该文档的恢复记录，并有专门的 journal 回归测试。探索阶段的失败运行继续作为 failure evidence 保留；没有放宽门禁，也没有 rerun-to-green。
 
+针对提交 `7a529cd` 的影响选择资格闭包已通过全部 7 个登记场景。Playwright 浏览器场景的 evidence key 为 `9dc9e46476f82cb3f0d626af73f987eec42a9a4a2d862f9626cfba2c34f5589f`。生产单键、撤销/重做、多键剪贴板/删除、键/箭头异类对象、嵌套混合组合和保存/重开场景的 evidence key 依次为 `91f33166dd237b2cd9d9532a76f72f29f80076bb9013b8a2f2cf7ebcd93e3cc7`、`b41dbaa41388d5d935f0bd1216178ed952238f518d6fe5b834b8b9bcce067302`、`0104c9132065c15056602beddea1a2a7beb880a6158c22e1a758f2b293cfd830`、`a3b36dcf1e77516c0c602ce5be6be8aa59a996cf14679a9a86e0513fb60ce6a4`、`c7073a695b43a246e30af1873a225b8dfa880822f1396287e4192533fc580fe6` 和 `e71f891c964b3cecc4ac0d1f456e4b870c72ed27ebfa001068aed7aaf4d019d6`。共 67 个动作全部完成；每个 manifest 对象重新计算 SHA-256 均精确一致；没有制品截断，没有运行诊断；每次生产运行后 VM 均回到 `Off` 且分配内存为 0。影响图现已明确把 GUI 输入 agent crate 与 `Cargo.lock` 映射到 GUI 平台，并把 recovery-journal 回归测试映射到文档 I/O，消除了这些已知路径因未知性而触发的全量扩展。
+
 ## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>
