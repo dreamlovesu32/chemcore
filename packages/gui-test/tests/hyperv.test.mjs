@@ -247,6 +247,8 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   assert.match(bridge, /chemsema\.gui\.cdp-response\.v1/);
   assert.match(bridge, /Persistent CDP response identity is invalid/);
   assert.doesNotMatch(bridge, /powershell\.exe|ScheduledTask|ScriptSource/);
+  assert.match(bridge, /if \(\$decodedRequest\.mode -eq 'artifact-export'\) \{ 90 \} else \{ 20 \}/);
+  assert.match(bridge, /AddSeconds\(\$ReceiptTimeoutSeconds\)/);
   const agentStart = source.slice(end, source.indexOf("function Stop-PersistentCdpAgent", end));
   assert.match(agentStart, /-UserId 'SYSTEM' -LogonType ServiceAccount/);
   assert.doesNotMatch(agentStart, /LogonType Interactive/);
@@ -254,6 +256,17 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   assert.match(guestSource, /'distinct-count', 'distinct-count-state'/);
   assert.match(guestSource, /'data-object-id', 'data-node-id', 'data-bond-id'/);
   assert.match(guestSource, /'artifact-export'/);
+  assert.match(guestSource, /'trace-start'/);
+  assert.match(guestSource, /Tracing\.start/);
+  assert.match(guestSource, /transferMode = 'ReturnAsStream'/);
+  assert.match(guestSource, /Tracing\.end/);
+  assert.match(guestSource, /Tracing\.tracingComplete/);
+  assert.match(guestSource, /IO\.read/);
+  assert.match(guestSource, /if \(-not \[string\]::IsNullOrEmpty\(\$chunkData\)\)/);
+  assert.match(guestSource, /return ,\$output\.ToArray\(\)/);
+  assert.match(guestSource, /performance-trace\.json/);
+  assert.doesNotMatch(guestSource, /__chemsemaDebug/);
+  assert.doesNotMatch(guestSource, /document\.ccjs\.json/);
   assert.match(guestSource, /Page\.captureScreenshot/);
   assert.match(guestSource, /64 \* 1024 \* 1024/);
   assert.match(guestSource, /chemsema\.gui\.guest-artifact-export\.v1/);

@@ -11,7 +11,7 @@
 | Office/OLE 复制与嵌入 | Beta | 剪贴板 payload、EMF preview、Word 粘贴/回读验证 |
 | 浏览器编辑器 | Beta | viewer 交互 smoke test 和用户路径稳定性脚本 |
 | 桌面端 | Beta | Tauri build、文件关联配置、hybrid latency 回归、安装验证 |
-| GUI 测试平台 | 实施中/production 鼠标、键盘、同类/异类多对象、二层组合及不可变制品 sentinel 已通过 | 版本化 Schema/runner、真实 Playwright 路径、覆盖/影响/资源门禁、确定性 checkpoint 恢复、无人值守 Hyper-V 登录、逐项验证的专用用户 baseline、内容寻址候选部署、受守卫的 UIA/CDP 定位、有界持久输入与 session-0 CDP 通道、单次调用 guest 动作事务、带 SHA 验证的真实点击/拖拽、白名单扫描码键盘输入、同类与异类对象选择/剪贴板/历史、分子与箭头的二层 group/ungroup 及嵌套剪贴板复制、层级感知的增量 DOM patch、图元计数和白名单不同身份 DOM oracle、内核/DOM 双层状态 receipt、guest→host PowerShell Direct 制品传输及 guest/host 两端 SHA-256 验证、完整最终截图/DOM/CCJS/状态/WebView 日志、Playwright 截图/DOM/CCJS/状态/console/trace bundle，以及不可变报告/制品对象和经过验证的 manifest 已运行；production 性能 trace/视频/崩溃 bundle、完整 capability 矩阵、更深及更多对象类型的组合/异类单元、复杂与大文档构建、模型/故障/变异测试和展示资格仍待完成 |
+| GUI 测试平台 | 实施中/production 鼠标、键盘、同类/异类多对象、二层组合、不可变制品及全场景性能 trace sentinel 已通过 | 版本化 Schema/runner、真实 Playwright 路径、覆盖/影响/资源门禁、确定性 checkpoint 恢复、无人值守 Hyper-V 登录、逐项验证的专用用户 baseline、内容寻址候选部署、受守卫的 UIA/CDP 定位、有界持久输入与 session-0 公开观察 CDP 通道、单次调用 guest 动作事务、带 SHA 验证的真实点击/拖拽、白名单扫描码键盘输入、同类与异类对象选择/剪贴板/历史、分子与箭头的二层 group/ungroup 及嵌套剪贴板复制、层级感知的增量 DOM patch、图元计数和白名单不同身份 DOM oracle、不读取 production 调试全局的公开 DOM/window receipt、完整最终截图/DOM/公开状态/WebView 日志/性能 trace、guest→host PowerShell Direct 制品传输及 guest/host 两端 SHA-256 验证、Playwright 截图/DOM/CCJS/状态/console/trace bundle，以及不可变报告/制品对象和经过验证的 manifest 已运行；真实 GUI 保存—外部解析—重开化学文档 oracle、视频/崩溃 bundle、完整 capability 矩阵、更深及更多对象类型的组合/异类单元、复杂与大文档构建、模型/故障/变异测试和展示资格仍待完成 |
 | CLI one-shot 命令 | Usable | Rust 测试、`npm run verify`、稳定性报告、输出写入验证 |
 | CLI JSONL session | Experimental/usable | session 单测和大文件性能报告 |
 | Agent 精确截图 | Usable beta | PNG/SVG capture 测试、公开 fixture crop、README 示例图 |

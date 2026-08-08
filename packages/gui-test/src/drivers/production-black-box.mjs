@@ -95,6 +95,9 @@ export class ProductionBlackBoxDriver {
       return state;
     });
     mark("webview-ready");
+    const trace = await this.coordinator.cdpBridge({ mode: "trace-start" });
+    if (!trace?.started) throw new Error("WebView performance tracing did not start.");
+    mark("performance-trace-started");
   }
 
   capabilities() {
@@ -258,7 +261,21 @@ export class ProductionBlackBoxDriver {
     const exportManifest = await this.coordinator.cdpBridge({ mode: "artifact-export", artifactId });
     const truncated = exportManifest?.artifacts?.filter((artifact) => artifact.truncated).map((artifact) => artifact.name) || [];
     if (truncated.length) throw new Error(`Production artifact export truncated required payloads: ${truncated.join(", ")}.`);
-    return this.coordinator.fetchArtifacts(exportManifest);
+    const payloads = await this.coordinator.fetchArtifacts(exportManifest);
+    const expected = ["final-screenshot.png", "final-state.json", "final-dom.html", "performance-trace.json", "webview.log"];
+    const names = payloads.map((payload) => payload.name).sort();
+    if (JSON.stringify(names) !== JSON.stringify([...expected].sort())) {
+      throw new Error(`Production artifact export returned an unexpected payload set: ${names.join(", ")}.`);
+    }
+    const trace = payloads.find((payload) => payload.name === "performance-trace.json");
+    let traceDocument;
+    try { traceDocument = JSON.parse(trace.bytes.toString("utf8")); } catch (error) {
+      throw new Error(`Production performance trace is not valid JSON: ${error.message}`);
+    }
+    if (!Array.isArray(traceDocument.traceEvents) || traceDocument.traceEvents.length === 0) {
+      throw new Error("Production performance trace contains no trace events.");
+    }
+    return payloads;
   }
 
   async shutdown() {

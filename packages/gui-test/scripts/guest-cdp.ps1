@@ -7,9 +7,37 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+$script:CdpRequestId = 0
+$script:CdpEvents = [Collections.Generic.List[object]]::new()
+$script:PersistentCdpSocket = $null
+$script:PersistentCdpTargetUrl = $null
+$script:TraceActive = $false
+
+$MaximumArtifactBytes = 64 * 1024 * 1024
+$TraceCategories = 'devtools.timeline,disabled-by-default-devtools.timeline,blink.user_timing,v8.execute,loading,latencyInfo,renderer.scheduler'
 
 function Write-CdpResult([object]$Value) {
   $Value | ConvertTo-Json -Depth 12 -Compress
+}
+
+function Receive-CdpMessage([Net.WebSockets.ClientWebSocket]$Socket, [Threading.CancellationToken]$CancellationToken) {
+  $stream = [IO.MemoryStream]::new()
+  try {
+    do {
+      $buffer = New-Object byte[] 16384
+      $received = $Socket.ReceiveAsync(
+        [ArraySegment[byte]]::new($buffer),
+        $CancellationToken
+      ).GetAwaiter().GetResult()
+      if ($received.MessageType -eq [Net.WebSockets.WebSocketMessageType]::Close) {
+        throw 'WebView2 CDP socket closed before returning a response.'
+      }
+      $stream.Write($buffer, 0, $received.Count)
+    } while (-not $received.EndOfMessage)
+    return [Text.Encoding]::UTF8.GetString($stream.ToArray()) | ConvertFrom-Json
+  } finally {
+    $stream.Dispose()
+  }
 }
 
 function Invoke-Cdp([Net.WebSockets.ClientWebSocket]$Socket, [string]$Method, [object]$Parameters) {
@@ -26,19 +54,8 @@ function Invoke-Cdp([Net.WebSockets.ClientWebSocket]$Socket, [string]$Method, [o
     $cancellation.Token
   ).GetAwaiter().GetResult()
   do {
-    $stream = [IO.MemoryStream]::new()
-    do {
-      $buffer = New-Object byte[] 16384
-      $received = $Socket.ReceiveAsync(
-        [ArraySegment[byte]]::new($buffer),
-        $cancellation.Token
-      ).GetAwaiter().GetResult()
-      if ($received.MessageType -eq [Net.WebSockets.WebSocketMessageType]::Close) {
-        throw 'WebView2 CDP socket closed before returning a response.'
-      }
-      $stream.Write($buffer, 0, $received.Count)
-    } while (-not $received.EndOfMessage)
-    $message = [Text.Encoding]::UTF8.GetString($stream.ToArray()) | ConvertFrom-Json
+    $message = Receive-CdpMessage $Socket $cancellation.Token
+    if ($null -ne $message.method) { $script:CdpEvents.Add($message) }
   } while ($message.id -ne $requestId)
   if ($null -ne $message.error) {
     throw "CDP $Method failed: $($message.error.message)"
@@ -49,12 +66,57 @@ function Invoke-Cdp([Net.WebSockets.ClientWebSocket]$Socket, [string]$Method, [o
   }
 }
 
+function Wait-CdpEvent([Net.WebSockets.ClientWebSocket]$Socket, [string]$Method) {
+  for ($index = 0; $index -lt $script:CdpEvents.Count; $index += 1) {
+    if ($script:CdpEvents[$index].method -eq $Method) {
+      $event = $script:CdpEvents[$index]
+      $script:CdpEvents.RemoveAt($index)
+      return $event.params
+    }
+  }
+  $cancellation = [Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds(30))
+  try {
+    while ($true) {
+      $message = Receive-CdpMessage $Socket $cancellation.Token
+      if ($message.method -eq $Method) { return $message.params }
+      if ($null -ne $message.method) { $script:CdpEvents.Add($message) }
+    }
+  } finally {
+    $cancellation.Dispose()
+  }
+}
+
+function Read-CdpStream([Net.WebSockets.ClientWebSocket]$Socket, [string]$Handle) {
+  $output = [IO.MemoryStream]::new()
+  try {
+    do {
+      $chunk = Invoke-Cdp $Socket 'IO.read' @{ handle = $Handle; size = 1024 * 1024 }
+      $chunkData = [string]$chunk.data
+      if (-not [string]::IsNullOrEmpty($chunkData)) {
+        $bytes = if ($chunk.base64Encoded) {
+          [Convert]::FromBase64String($chunkData)
+        } else {
+          [Text.Encoding]::UTF8.GetBytes($chunkData)
+        }
+        if (($output.Length + $bytes.Length) -gt $MaximumArtifactBytes) {
+          throw 'Performance trace exceeds 64 MiB.'
+        }
+        $output.Write($bytes, 0, $bytes.Length)
+      }
+    } while (-not $chunk.eof)
+    return ,$output.ToArray()
+  } finally {
+    try { [void](Invoke-Cdp $Socket 'IO.close' @{ handle = $Handle }) } catch {}
+    $output.Dispose()
+  }
+}
+
 function Invoke-CdpRequest([string]$EncodedRequest) {
 try {
   if ([string]::IsNullOrWhiteSpace($EncodedRequest)) { throw 'The CDP request is absent.' }
   $requestJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($EncodedRequest))
   $request = $requestJson | ConvertFrom-Json
-  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state', 'artifact-export')) {
+  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state', 'trace-start', 'artifact-export')) {
     throw "Unsupported CDP bridge mode '$($request.mode)'."
   }
   if ($request.mode -eq 'artifact-export' -and [string]$request.artifactId -notmatch '^[a-f0-9]{32}$') {
@@ -74,19 +136,61 @@ try {
   if ($null -eq $target) {
     throw 'The ChemSema WebView2 CDP page target is unavailable.'
   }
-  $socket = [Net.WebSockets.ClientWebSocket]::new()
+  $persistent = -not [string]::IsNullOrWhiteSpace($ChannelRoot)
+  $socket = if ($persistent -and $null -ne $script:PersistentCdpSocket -and
+    $script:PersistentCdpSocket.State -eq [Net.WebSockets.WebSocketState]::Open -and
+    $script:PersistentCdpTargetUrl -eq [string]$target.webSocketDebuggerUrl) {
+    $script:PersistentCdpSocket
+  } else {
+    if ($null -ne $script:PersistentCdpSocket) { $script:PersistentCdpSocket.Dispose() }
+    [Net.WebSockets.ClientWebSocket]::new()
+  }
   try {
-    $connectCancellation = [Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds(15))
-    try {
-    [void]$socket.ConnectAsync(
-      [Uri]$target.webSocketDebuggerUrl,
-      $connectCancellation.Token
-    ).GetAwaiter().GetResult()
-    } finally {
-      $connectCancellation.Dispose()
+    if ($socket.State -ne [Net.WebSockets.WebSocketState]::Open) {
+      $connectCancellation = [Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds(15))
+      try {
+        [void]$socket.ConnectAsync(
+          [Uri]$target.webSocketDebuggerUrl,
+          $connectCancellation.Token
+        ).GetAwaiter().GetResult()
+      } finally {
+        $connectCancellation.Dispose()
+      }
+      if ($persistent) {
+        $script:PersistentCdpSocket = $socket
+        $script:PersistentCdpTargetUrl = [string]$target.webSocketDebuggerUrl
+      }
     }
     $screenshotBase64 = $null
+    $traceBytes = $null
+    if ($request.mode -eq 'trace-start') {
+      if (-not $persistent) { throw 'Performance tracing requires the persistent CDP agent.' }
+      if ($script:TraceActive) { throw 'Performance tracing is already active.' }
+      [void](Invoke-Cdp $socket 'Tracing.start' @{
+        categories = $TraceCategories
+        transferMode = 'ReturnAsStream'
+        streamFormat = 'json'
+        streamCompression = 'none'
+        bufferUsageReportingInterval = 1000
+      })
+      $script:TraceActive = $true
+      return [ordered]@{
+        schema = 'chemsema.gui.cdp-bridge.v1'
+        status = 'passed'
+        mode = 'trace-start'
+        value = [ordered]@{ started = $true; categories = $TraceCategories }
+      }
+    }
     if ($request.mode -eq 'artifact-export') {
+      if (-not $script:TraceActive) { throw 'Performance trace was not started before the scenario.' }
+      [void](Invoke-Cdp $socket 'Tracing.end' @{})
+      $traceComplete = Wait-CdpEvent $socket 'Tracing.tracingComplete'
+      $script:TraceActive = $false
+      if ($traceComplete.dataLossOccurred) { throw 'WebView2 reported data loss in the performance trace.' }
+      if ([string]::IsNullOrWhiteSpace([string]$traceComplete.stream)) { throw 'WebView2 did not return a performance trace stream.' }
+      if ($traceComplete.traceFormat -and $traceComplete.traceFormat -ne 'json') { throw "Unexpected performance trace format '$($traceComplete.traceFormat)'." }
+      $traceBytes = Read-CdpStream $socket ([string]$traceComplete.stream)
+      if ($traceBytes.Length -eq 0) { throw 'The performance trace is empty.' }
       $screenshot = Invoke-Cdp $socket 'Page.captureScreenshot' @{
         format = 'png'
         fromSurface = $true
@@ -106,28 +210,13 @@ try {
       originalBytes: encoded.length
     };
   };
-  const debug = window.__chemsemaDebug;
-  const session = debug?.state?.editorEngine;
-  let documentJson = '';
-  try { documentJson = session?.documentJson?.() || ''; } catch {}
   const dom = boundUtf8(document.documentElement?.outerHTML || '', 64 * 1024 * 1024);
-  const documentArtifact = boundUtf8(documentJson, 64 * 1024 * 1024);
-  let lastCommandResult = null;
-  try { lastCommandResult = JSON.parse(session?.lastCommandResultJson?.() || 'null'); } catch {}
   return {
     state: {
       runtimeState: document.body.dataset.runtimeState || null,
-      revision: Number.isInteger(debug?.state?.revision) ? debug.state.revision : null,
+      revision: null,
       appScript: document.querySelector('script[type="module"]')?.src || null,
-      engine: {
-        hostKind: debug?.engineHost?.kind || null,
-        sessionType: session?.constructor?.name || null,
-        editingRustDocument: !debug?.state?.currentPath && !!session,
-        canUndo: session?.canUndo?.() ?? null,
-        canRedo: session?.canRedo?.() ?? null,
-        lastCommandResult,
-        lastCommandSync: debug?.renderStats?.lastCommandSync || null
-      },
+      engine: null,
       window: { href: location.href, title: document.title, visibilityState: document.visibilityState, focused: document.hasFocus() },
       viewport: { width: innerWidth, height: innerHeight, devicePixelRatio },
       rendered: {
@@ -138,12 +227,11 @@ try {
       }
     },
     domHtml: dom.value,
-    documentJson: documentArtifact.value,
     truncation: {
       domHtml: dom.truncated,
       domHtmlOriginalBytes: dom.originalBytes,
-      documentJson: documentArtifact.truncated,
-      documentJsonOriginalBytes: documentArtifact.originalBytes
+      performanceTrace: false,
+      performanceTraceOriginalBytes: null
     }
   };
 })()
@@ -152,29 +240,9 @@ try {
       $expression = @'
 (() => ({
   runtimeState: document.body.dataset.runtimeState || null,
-  revision: Number.isInteger(window.__chemsemaDebug?.state?.revision) ? window.__chemsemaDebug.state.revision : null,
+  revision: null,
   appScript: document.querySelector('script[type="module"]')?.src || null,
-  engine: (() => {
-    const debug = window.__chemsemaDebug;
-    const session = debug?.state?.editorEngine;
-    let documentBonds = null;
-    let lastCommandResult = null;
-    try {
-      const parsed = JSON.parse(session?.documentJson?.() || 'null');
-      documentBonds = Object.values(parsed?.resources || {}).reduce((count, resource) => count + (resource?.data?.bonds?.length || 0), 0);
-    } catch {}
-    try { lastCommandResult = JSON.parse(session?.lastCommandResultJson?.() || 'null'); } catch {}
-    return {
-      hostKind: debug?.engineHost?.kind || null,
-      sessionType: session?.constructor?.name || null,
-      editingRustDocument: !debug?.state?.currentPath && !!session,
-      canUndo: session?.canUndo?.() ?? null,
-      canRedo: session?.canRedo?.() ?? null,
-      documentBonds,
-      lastCommandResult,
-      lastCommandSync: debug?.renderStats?.lastCommandSync || null
-    };
-  })(),
+  engine: null,
   window: { href: location.href, title: document.title, visibilityState: document.visibilityState, focused: document.hasFocus() },
   viewport: { width: innerWidth, height: innerHeight, devicePixelRatio },
   rendered: { bonds: document.querySelectorAll('[data-bond-id]').length, nodes: document.querySelectorAll('[data-node-id]').length }
@@ -198,20 +266,9 @@ try {
 (() => ({
   count: $countExpression,
   state: {
-    revision: Number.isInteger(window.__chemsemaDebug?.state?.revision) ? window.__chemsemaDebug.state.revision : null,
+    revision: null,
     appScript: document.querySelector('script[type="module"]')?.src || null,
-    engine: (() => {
-      const debug = window.__chemsemaDebug;
-      const session = debug?.state?.editorEngine;
-      let documentBonds = null;
-      let lastCommandResult = null;
-      try {
-        const parsed = JSON.parse(session?.documentJson?.() || 'null');
-        documentBonds = Object.values(parsed?.resources || {}).reduce((count, resource) => count + (resource?.data?.bonds?.length || 0), 0);
-      } catch {}
-      try { lastCommandResult = JSON.parse(session?.lastCommandResultJson?.() || 'null'); } catch {}
-      return { hostKind: debug?.engineHost?.kind || null, sessionType: session?.constructor?.name || null, editingRustDocument: !debug?.state?.currentPath && !!session, canUndo: session?.canUndo?.() ?? null, canRedo: session?.canRedo?.() ?? null, documentBonds, lastCommandResult, lastCommandSync: debug?.renderStats?.lastCommandSync || null };
-    })(),
+    engine: null,
     window: { href: location.href, title: document.title, visibilityState: document.visibilityState, focused: document.hasFocus() },
     rendered: { bonds: document.querySelectorAll('[data-bond-id]').length, nodes: document.querySelectorAll('[data-node-id]').length }
   }
@@ -304,6 +361,7 @@ try {
       }
       $snapshot.truncation | Add-Member -NotePropertyName webviewLog -NotePropertyValue $logTruncated
       $snapshot.truncation | Add-Member -NotePropertyName webviewLogOriginalBytes -NotePropertyValue $logOriginalBytes
+      $snapshot.truncation.performanceTraceOriginalBytes = [int64]$traceBytes.Length
       $artifactRoot = Join-Path (Join-Path $AllowedRoot 'artifacts') ([string]$request.artifactId)
       $allowedArtifactRoot = [IO.Path]::GetFullPath((Join-Path $AllowedRoot 'artifacts')).TrimEnd('\') + '\'
       $resolvedArtifactRoot = [IO.Path]::GetFullPath($artifactRoot).TrimEnd('\') + '\'
@@ -322,7 +380,7 @@ try {
         [ordered]@{ name='final-screenshot.png'; mediaType='image/png'; bytes=[Convert]::FromBase64String($screenshotBase64); truncated=$false },
         [ordered]@{ name='final-state.json'; mediaType='application/json'; bytes=[Text.Encoding]::UTF8.GetBytes(($stateValue | ConvertTo-Json -Depth 16)); truncated=$false },
         [ordered]@{ name='final-dom.html'; mediaType='text/html'; bytes=[Text.Encoding]::UTF8.GetBytes([string]$snapshot.domHtml); truncated=[bool]$snapshot.truncation.domHtml },
-        [ordered]@{ name='document.ccjs.json'; mediaType='application/json'; bytes=[Text.Encoding]::UTF8.GetBytes([string]$snapshot.documentJson); truncated=[bool]$snapshot.truncation.documentJson },
+        [ordered]@{ name='performance-trace.json'; mediaType='application/json'; bytes=$traceBytes; truncated=$false },
         [ordered]@{ name='webview.log'; mediaType='text/plain'; bytes=$logBytes; truncated=$logTruncated }
       )
       $exported = @()
@@ -353,7 +411,7 @@ try {
       value = $value
     }
   } finally {
-    if ($null -ne $socket) { $socket.Dispose() }
+    if (-not $persistent -and $null -ne $socket) { $socket.Dispose() }
   }
 } catch {
   return [ordered]@{
@@ -405,6 +463,10 @@ function Start-CdpServer {
       Remove-Item -LiteralPath $claimPath -Force -ErrorAction SilentlyContinue
     }
     Start-Sleep -Milliseconds 20
+  }
+  if ($null -ne $script:PersistentCdpSocket) {
+    $script:PersistentCdpSocket.Dispose()
+    $script:PersistentCdpSocket = $null
   }
 }
 

@@ -570,8 +570,10 @@ $json=[ordered]@{schema='chemsema.gui.uia-query.v1';processId=$TargetProcessId;n
 
 function Invoke-CdpBridge {
   if ([string]::IsNullOrWhiteSpace($CdpRequestBase64)) { throw 'The CDP bridge request is absent.' }
+  $decodedRequest = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($CdpRequestBase64)) | ConvertFrom-Json
+  $receiptTimeoutSeconds = if ($decodedRequest.mode -eq 'artifact-export') { 90 } else { 20 }
   $result = Invoke-Guest -ScriptBlock {
-    param($TestRoot, $RequestBase64)
+    param($TestRoot, $RequestBase64, $ReceiptTimeoutSeconds)
     $channelRoot = Join-Path $TestRoot 'cdp-channel'
     if (-not (Test-Path -LiteralPath (Join-Path $channelRoot 'ready.json') -PathType Leaf)) { throw 'Persistent CDP agent is not ready.' }
     $requestId = [Guid]::NewGuid().ToString('N')
@@ -583,14 +585,14 @@ function Invoke-CdpBridge {
     $request = [ordered]@{ schema='chemsema.gui.cdp-request.v1'; id=$requestId; requestBase64=$RequestBase64 }
     [IO.File]::WriteAllText($temporaryRequest, ($request | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
     Move-Item -LiteralPath $temporaryRequest -Destination $requestPath
-    $deadline = [DateTime]::UtcNow.AddSeconds(20)
+    $deadline = [DateTime]::UtcNow.AddSeconds($ReceiptTimeoutSeconds)
     while (-not (Test-Path -LiteralPath $responsePath -PathType Leaf) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 20 }
-    if (-not (Test-Path -LiteralPath $responsePath -PathType Leaf)) { throw 'Persistent CDP agent returned no receipt within 20 seconds.' }
+    if (-not (Test-Path -LiteralPath $responsePath -PathType Leaf)) { throw "Persistent CDP agent returned no receipt within $ReceiptTimeoutSeconds seconds." }
     $response = Get-Content -Raw -LiteralPath $responsePath | ConvertFrom-Json
     if ($response.schema -ne 'chemsema.gui.cdp-response.v1' -or $response.id -ne $requestId) { throw 'Persistent CDP response identity is invalid.' }
     if ($response.status -ne 'passed') { throw "Persistent CDP request failed: $($response.message)" }
     $response.bridge
-  } -ArgumentList @($GuestTestRoot, $CdpRequestBase64)
+  } -ArgumentList @($GuestTestRoot, $CdpRequestBase64, $receiptTimeoutSeconds)
   [ordered]@{
     schema = 'chemsema.gui.worker-attestation.v1'
     operation = 'cdp-bridge'

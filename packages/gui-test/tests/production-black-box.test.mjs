@@ -22,6 +22,7 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
   let blockerDismissals = 0;
   let cdpAgentStarts = 0;
   let cdpAgentStops = 0;
+  const cdpModes = [];
   const inputs = [];
   const coordinator = {
     async reset() { return { state: "Off" }; },
@@ -47,6 +48,8 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
     async startCdpAgent() { cdpAgentStarts += 1; return { agent: { status: "ready" } }; },
     async stopCdpAgent() { cdpAgentStops += 1; return {}; },
     async cdpBridge(request) {
+      cdpModes.push(request.mode);
+      if (request.mode === "trace-start") return { started: true, categories: "devtools.timeline" };
       if (request.mode === "artifact-export") {
         return {
           schema: "chemsema.gui.guest-artifact-export.v1",
@@ -55,7 +58,7 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
             "final-screenshot.png",
             "final-state.json",
             "final-dom.html",
-            "document.ccjs.json",
+            "performance-trace.json",
             "webview.log",
           ].map((name) => ({ name, truncated: false })),
         };
@@ -77,7 +80,7 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
         { name: "final-screenshot.png", mediaType: "image/png", bytes: Buffer.from("png") },
         { name: "final-state.json", mediaType: "application/json", bytes: Buffer.from("{}") },
         { name: "final-dom.html", mediaType: "text/html", bytes: Buffer.from("<html></html>") },
-        { name: "document.ccjs.json", mediaType: "application/json", bytes: Buffer.from("{}") },
+        { name: "performance-trace.json", mediaType: "application/json", bytes: Buffer.from('{"traceEvents":[{"name":"test"}]}') },
         { name: "webview.log", mediaType: "text/plain", bytes: Buffer.from("candidate log\n") },
       ];
     },
@@ -112,11 +115,14 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
   assert.equal(blockerDismissals, 1);
   assert.equal(cdpAgentStarts, 1);
   assert.equal(cdpAgentStops, 1);
+  assert(cdpModes.indexOf("trace-start") > cdpModes.indexOf("state"));
+  assert(cdpModes.indexOf("trace-start") < cdpModes.indexOf("locate"));
+  assert(cdpModes.indexOf("artifact-export") > cdpModes.indexOf("trace-start"));
   assert.deepEqual(report.artifacts.map((artifact) => artifact.name), [
     "final-screenshot.png",
     "final-state.json",
     "final-dom.html",
-    "document.ccjs.json",
+    "performance-trace.json",
     "webview.log",
   ]);
   assert.equal(artifactPayloads.length, 5);
@@ -135,4 +141,23 @@ test("production artifact collection fails closed on truncated evidence", async 
     },
   });
   await assert.rejects(driver.collectArtifacts(), /truncated required payloads: final-dom.html/);
+});
+
+test("production artifact collection fails closed on a malformed performance trace", async () => {
+  const artifacts = ["final-screenshot.png", "final-state.json", "final-dom.html", "performance-trace.json", "webview.log"];
+  const driver = new ProductionBlackBoxDriver({
+    coordinator: {
+      async cdpBridge(request) {
+        return {
+          schema: "chemsema.gui.guest-artifact-export.v1",
+          artifactId: request.artifactId,
+          artifacts: artifacts.map((name) => ({ name, truncated: false })),
+        };
+      },
+      async fetchArtifacts() {
+        return artifacts.map((name) => ({ name, bytes: Buffer.from(name === "performance-trace.json" ? "not-json" : "evidence") }));
+      },
+    },
+  });
+  await assert.rejects(driver.collectArtifacts(), /performance trace is not valid JSON/);
 });

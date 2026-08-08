@@ -272,7 +272,7 @@ export class HyperVCoordinator {
   }
 
   async cdpBridge(request) {
-    if (!["locate", "state", "count", "count-state", "distinct-count", "distinct-count-state", "artifact-export"].includes(request?.mode)) {
+    if (!["locate", "state", "count", "count-state", "distinct-count", "distinct-count-state", "trace-start", "artifact-export"].includes(request?.mode)) {
       throw new Error("CDP bridge requires a supported fixed mode.");
     }
     if (request.mode.startsWith("distinct-count")) {
@@ -284,7 +284,8 @@ export class HyperVCoordinator {
       throw new Error("CDP artifact export requires a 32-character lowercase hexadecimal identity.");
     }
     const encoded = Buffer.from(JSON.stringify(request), "utf8").toString("base64");
-    const result = await this.execute("cdp-bridge", ["-CdpRequestBase64", encoded]);
+    const timeoutMs = request.mode === "artifact-export" ? 110000 : 40000;
+    const result = await this.execute("cdp-bridge", ["-CdpRequestBase64", encoded], { timeoutMs });
     if (result.bridge?.schema !== "chemsema.gui.cdp-bridge.v1" || result.bridge?.status !== "passed") {
       throw new Error("CDP bridge returned an invalid receipt.");
     }
