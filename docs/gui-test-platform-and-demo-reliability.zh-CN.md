@@ -768,6 +768,8 @@ npm run gui-platform:test
 
 区域选择与追加选择的混合对象基数覆盖现已通过 `core.selection.region-additive-mixed-cardinalities.production` 投入运行。受守卫真实鼠标先创建一个分子和两个箭头，再依次执行空区域框选、单箭头框选、分子加箭头的异类双对象框选，以及按住 Shift 框选第三个对象。场景不用“看起来有选框”代替语义证明，而是以删除结果和撤销/重做作为 oracle：单对象路径删除后保留一个箭头和一根键；异类双对象路径删除后保留一个箭头且键为 0；Shift 追加后的多对象路径删除后箭头和键均为 0，随后 undo 恢复两个箭头，redo 再次清空。生产候选 SHA-256 `4a7dcc47e2f4469f5aed4f7963c6a7506fa413f7c20879984a9179632ebb6b07` 的 21 个动作与 4 个最终 oracle 全部通过，evidence key 为 `ef69a3036502697a5960df64886aee9f7ac6c73e6e01f7d65e4683aaeb658b36`；6 个 manifest 对象重新计算 SHA-256 均精确一致，诊断为空，VM 回到 `Off` 且分配内存为 0。首次生产尝试在第一个无修饰键点击处 fail-closed，并保留 evidence key `d5450e515986e4d69b4349f35b2258087d620f61178f8dc610493d6f708e9758`：PowerShell 曾把缺失的 `modifiers` 字段规范化为包含一个 null 的数组。现在会先过滤空 modifier，再执行白名单校验；非空修饰键在 Schema、driver、coordinator 与原生输入代理四层仍保持唯一、最多三个，且只允许 Shift、Control 和 Alt。
 
+针对提交 `1f65db5` 的影响选择资格闭包已在没有未知性扩展的情况下通过全部 8 个登记场景。Playwright 浏览器场景的 evidence key 为 `4fb19ef38e44d8a0441bb70bcc09f12bfa95fdf10f2124553c39acbb5870ceca`。生产单键、撤销/重做、多键剪贴板/删除、键/箭头异类对象、嵌套混合组合、保存/重开和区域/追加基数场景的 evidence key 依次为 `388e4efea4cfde977dbc46a4262852b6a128f0370379b53295e93479854b89c2`、`7ffae8c76778a0fa9bc42b8bf83341f706ebf2da0d9e2f67792356cbdbe70092`、`beb3627670e4c9c9c4101a12dd342b1da58effbe11602ca66e40a84325059368`、`683e2398d4d7abd74e9a173ba617fd723b04fb8e63c7439271a911ef1e4cf719`、`d72eb7c63641ce93a985306e18722f5049f7dd9bd1788f4afe3a28516cd670c6`、`43c53632e254d14b94dd003d4c7c01755eb1189c43fda5d93ef6a4b85c0afbb1` 和 `ef69a3036502697a5960df64886aee9f7ac6c73e6e01f7d65e4683aaeb658b36`。共 88 个动作与 26 个最终 oracle 全部通过；51 个 manifest 对象的文件大小和 SHA-256 均重新校验一致；无制品截断、无运行诊断。生产 VM 最终为 `Off`，配置 8 个处理器，分配内存为 0。
+
 ## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>
