@@ -64,13 +64,27 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
       if (kind === "drag") bonds = 1;
       return { agent: { foreground: foreground() } };
     },
+    async candidateAction(input, completion) {
+      const before = { revision: bonds, window: { title: bonds ? "Untitled *" : "Untitled" }, rendered: { bonds, nodes: 0 } };
+      inputs.push(input);
+      if (input.kind === "drag") bonds = 1;
+      const after = { revision: bonds, window: { title: bonds ? "Untitled *" : "Untitled" }, rendered: { bonds, nodes: 0 } };
+      return {
+        transaction: {
+          input: { foreground: foreground() },
+          before,
+          after,
+          completion: completion.kind === "dom-count" ? { observed: bonds } : { actionable: true },
+        },
+      };
+    },
     async stop() { stopCount += 1; return {}; },
   };
   const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "draw-single-bond-production.json"));
   const report = await runScenario({ scenario, driver: new ProductionBlackBoxDriver({ coordinator }) });
   assert.equal(report.status, "passed");
-  assert.deepEqual(inputs[0], { kind: "click", coordinates: { x: 34, y: 212 } });
-  assert.deepEqual(inputs[1], { kind: "drag", coordinates: { from: [480, 439], to: [577, 439] } });
+  assert.deepEqual(inputs[0], { kind: "click", x: 34, y: 212, button: "left" });
+  assert.deepEqual(inputs[1], { kind: "drag", from: [480, 439], to: [577, 439], steps: 8, button: "left" });
   assert.equal(stopCount, 2);
   assert.equal(autologonConfigured, true);
   assert.equal(blockerDismissals, 1);

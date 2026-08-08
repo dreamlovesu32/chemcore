@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet('host-attest', 'reset', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'start-input-agent', 'stop-input-agent', 'start-cdp-agent', 'stop-cdp-agent', 'uia-query', 'cdp-bridge', 'input-click', 'input-drag', 'input-key', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
+  [ValidateSet('host-attest', 'reset', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'start-input-agent', 'stop-input-agent', 'start-cdp-agent', 'stop-cdp-agent', 'uia-query', 'cdp-bridge', 'action-transaction', 'input-click', 'input-drag', 'input-key', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
   [string]$Operation,
 
   [Parameter(Mandatory = $true)]
@@ -15,6 +15,7 @@ param(
   [string]$HostCandidatePath,
   [string]$HostCdpScriptPath,
   [string]$CdpRequestBase64,
+  [string]$ActionRequestBase64,
   [string]$AutomationName,
   [string]$AutomationScopeName,
   [int]$InputX,
@@ -33,7 +34,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 function Write-Result([object]$Value) {
-  $Value | ConvertTo-Json -Depth 10 -Compress
+  $Value | ConvertTo-Json -Depth 16 -Compress
 }
 
 function Get-WorkerVm {
@@ -745,6 +746,116 @@ function Invoke-CandidateInput([ValidateSet('click', 'drag', 'key')][string]$Kin
   }
 }
 
+function Invoke-ActionTransaction {
+  if ([string]::IsNullOrWhiteSpace($ActionRequestBase64)) { throw 'The action transaction request is absent.' }
+  $requestJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($ActionRequestBase64))
+  $request = $requestJson | ConvertFrom-Json
+  if ($request.schema -ne 'chemsema.gui.action-transaction.v1') { throw 'Unsupported action transaction schema.' }
+  if ([int]$request.completion.timeoutMs -gt [int]$request.budgetMs) { throw 'Action transaction completion timeout exceeds its action budget.' }
+  $hostHash = (Get-FileHash -LiteralPath $HostCandidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
+  $guestPath = Join-Path (Join-Path (Join-Path $GuestTestRoot 'candidate') $hostHash) 'chemsema-desktop.exe'
+  $transaction = Invoke-Guest -ScriptBlock {
+    param($CandidatePath, $TestRoot, $Request)
+
+    function Send-ChannelRequest([string]$ChannelName, [string]$RequestSchema, [string]$ResponseSchema, [System.Collections.IDictionary]$EnvelopeFields, [int]$TimeoutMs) {
+      $channelRoot = Join-Path $TestRoot $ChannelName
+      if (-not (Test-Path -LiteralPath (Join-Path $channelRoot 'ready.json') -PathType Leaf)) { throw "$ChannelName is not ready." }
+      $requestId = [Guid]::NewGuid().ToString('N')
+      $inbox = Join-Path $channelRoot 'inbox'
+      $outbox = Join-Path $channelRoot 'outbox'
+      $requestPath = Join-Path $inbox "$requestId.json"
+      $temporaryRequest = Join-Path $inbox "$requestId.tmp"
+      $responsePath = Join-Path $outbox "$requestId.json"
+      $envelope = [ordered]@{ schema=$RequestSchema; id=$requestId }
+      foreach ($entry in $EnvelopeFields.GetEnumerator()) { $envelope[$entry.Key] = $entry.Value }
+      [IO.File]::WriteAllText($temporaryRequest, ($envelope | ConvertTo-Json -Depth 10 -Compress), [Text.UTF8Encoding]::new($false))
+      Move-Item -LiteralPath $temporaryRequest -Destination $requestPath
+      $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMs)
+      while (-not (Test-Path -LiteralPath $responsePath -PathType Leaf) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 20 }
+      if (-not (Test-Path -LiteralPath $responsePath -PathType Leaf)) { throw "$ChannelName returned no receipt within $TimeoutMs ms." }
+      $response = Get-Content -Raw -LiteralPath $responsePath | ConvertFrom-Json
+      if ($response.schema -ne $ResponseSchema -or $response.id -ne $requestId) { throw "$ChannelName response identity is invalid." }
+      if ($response.status -ne 'passed') { throw "$ChannelName request failed: $($response.message)" }
+      $response
+    }
+
+    function Observe-Cdp([System.Collections.IDictionary]$CdpRequest) {
+      $json = $CdpRequest | ConvertTo-Json -Depth 10 -Compress
+      $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
+      $response = Send-ChannelRequest 'cdp-channel' 'chemsema.gui.cdp-request.v1' 'chemsema.gui.cdp-response.v1' ([ordered]@{ requestBase64=$encoded }) 8000
+      $response.bridge.value
+    }
+
+    $process = Get-Process chemsema-desktop -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $CandidatePath -and $_.SessionId -ne 0 } | Select-Object -First 1
+    if ($null -eq $process) { throw 'The authorized desktop candidate is not running.' }
+    $kind = [string]$Request.input.kind
+    if ($kind -notin @('click', 'drag', 'key')) { throw 'Unsupported action transaction input kind.' }
+    $runRoot = Join-Path $TestRoot 'runs'
+    $runDirectory = Join-Path $runRoot ("transaction-$kind-" + [Guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
+    $guardPath = Join-Path $runDirectory 'guard.json'
+    $guardJson = [ordered]@{
+      expectedAgentSessionId = [int]$process.SessionId
+      expectedProcessId = [int]$process.Id
+      expectedExecutable = $CandidatePath
+      allowedRunRoot = $runRoot
+      runDirectory = $runDirectory
+    } | ConvertTo-Json
+    [IO.File]::WriteAllText($guardPath, $guardJson, [Text.UTF8Encoding]::new($false))
+    $button = [string]$Request.input.button
+    if ($kind -ne 'key' -and $button -notin @('left', 'middle', 'right')) { throw 'Unsupported action transaction mouse button.' }
+    $inputArguments = if ($kind -eq 'click') {
+      @('click', '--guard', $guardPath, '--x', [string][int]$Request.input.x, '--y', [string][int]$Request.input.y, '--button', $button)
+    } elseif ($kind -eq 'drag') {
+      @('drag', '--guard', $guardPath, '--from-x', [string][int]$Request.input.from[0], '--from-y', [string][int]$Request.input.from[1], '--to-x', [string][int]$Request.input.to[0], '--to-y', [string][int]$Request.input.to[1], '--steps', [string][int]$Request.input.steps, '--button', $button)
+    } else {
+      @('key', '--guard', $guardPath, '--key', [string]$Request.input.key)
+    }
+
+    $before = Observe-Cdp ([ordered]@{ mode='state' })
+    $inputResponse = Send-ChannelRequest 'input-channel' 'chemsema.gui.guest-agent-request.v1' 'chemsema.gui.guest-agent-response.v1' ([ordered]@{ args=$inputArguments }) 8000
+    $completionKind = [string]$Request.completion.kind
+    if ($completionKind -notin @('actionable', 'quiescent', 'dom-count')) { throw 'Unsupported action transaction completion kind.' }
+    if ($completionKind -eq 'dom-count') {
+      $completionDeadline = [DateTime]::UtcNow.AddMilliseconds([int]$Request.completion.timeoutMs)
+      do {
+        $observed = Observe-Cdp ([ordered]@{ mode='count-state'; selector=[string]$Request.completion.selector })
+        $passed = if ($Request.completion.operator -eq 'eq') { [int]$observed.count -eq [int]$Request.completion.value } else { [int]$observed.count -ge [int]$Request.completion.value }
+        if ($passed) { break }
+        Start-Sleep -Milliseconds 20
+      } while ([DateTime]::UtcNow -lt $completionDeadline)
+      if (-not $passed) { throw "DOM count is $($observed.count); expected $($Request.completion.operator) $($Request.completion.value)." }
+      $after = $observed.state
+      $completion = [ordered]@{ observed=[int]$observed.count }
+    } else {
+      $after = Observe-Cdp ([ordered]@{ mode='state' })
+      $completion = if ($completionKind -eq 'actionable') { [ordered]@{ actionable=$true } } else { [ordered]@{ quiescent=$true } }
+    }
+    [ordered]@{
+      schema = 'chemsema.gui.action-transaction-receipt.v1'
+      input = $inputResponse.result
+      before = $before
+      after = $after
+      completion = $completion
+    }
+  } -ArgumentList @($guestPath, $GuestTestRoot, $request)
+  $cleanTransaction = [ordered]@{
+    schema = [string]$transaction.schema
+    input = $transaction.input
+    before = $transaction.before
+    after = $transaction.after
+    completion = $transaction.completion
+  }
+  [ordered]@{
+    schema = 'chemsema.gui.worker-attestation.v1'
+    operation = 'action-transaction'
+    vmId = (Get-WorkerVm).Id.ToString()
+    vmName = (Get-WorkerVm).Name
+    candidate = [ordered]@{ guestPath=$guestPath; sha256=$hostHash }
+    transaction = $cleanTransaction
+  }
+}
+
 function Get-ServiceAgentAttestation {
   $agentPath = Join-Path (Join-Path $GuestTestRoot 'agent') 'chemsema-gui-test-agent.exe'
   $result = Invoke-Guest -ScriptBlock {
@@ -1039,6 +1150,7 @@ switch ($Operation) {
   'stop-input-agent' { Write-Result (Stop-PersistentInputAgent) }
   'uia-query' { Write-Result (Query-Uia) }
   'cdp-bridge' { Write-Result (Invoke-CdpBridge) }
+  'action-transaction' { Write-Result (Invoke-ActionTransaction) }
   'start-cdp-agent' { Write-Result (Start-PersistentCdpAgent) }
   'stop-cdp-agent' { Write-Result (Stop-PersistentCdpAgent) }
   'input-click' { Write-Result (Invoke-CandidateInput 'click') }

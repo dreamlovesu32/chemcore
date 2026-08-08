@@ -171,6 +171,45 @@ test("candidate input passes integer coordinates and validates the returned fore
   await assert.rejects(coordinator.candidateInput("click", { x: Number.NaN, y: 1 }), /must be integers/);
 });
 
+test("candidate action sends one validated versioned transaction", async () => {
+  const profile = await readValidatedDocument(profilePath);
+  let invokedArgs;
+  const guestPath = "C:\\ChemSemaGuiTest\\candidate\\abc\\chemsema-desktop.exe";
+  const agent = {
+    schema: "chemsema.gui.guest-agent.v1", agentVersion: "0.1.0", processId: 100, sessionId: 1,
+    account: "guest\\chemsema-test", inputDesktop: "Default", interactiveReady: true,
+    foreground: { windowHandle: 200, processId: 300, sessionId: 1, executable: guestPath, title: "ChemSema", className: "Tauri Window", rect: [0, 0, 1000, 800], clientRect: [8, 1, 992, 792] },
+  };
+  const coordinator = new HyperVCoordinator(profile, {
+    environment: { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" },
+    executor(args) {
+      invokedArgs = args;
+      return result({
+        operation: "action-transaction", candidate: { guestPath, sha256: "abc" },
+        transaction: { schema: "chemsema.gui.action-transaction-receipt.v1", input: agent, before: {}, after: {}, completion: { actionable: true } },
+      });
+    },
+  });
+  const receipt = await coordinator.candidateAction(
+    { kind: "click", x: 34, y: 212, button: "left" },
+    { kind: "actionable", timeoutMs: 12000 },
+    12000,
+  );
+  assert.equal(receipt.transaction.input.foreground.processId, 300);
+  const encoded = invokedArgs[invokedArgs.indexOf("-ActionRequestBase64") + 1];
+  const request = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
+  assert.equal(request.schema, "chemsema.gui.action-transaction.v1");
+  assert.deepEqual(request.input, { kind: "click", x: 34, y: 212, button: "left" });
+  await assert.rejects(
+    coordinator.candidateAction(
+      { kind: "click", x: 34, y: 212, button: "left" },
+      { kind: "actionable", timeoutMs: 13000 },
+      12000,
+    ),
+    /within the action budget/,
+  );
+});
+
 test("interactive launcher is hidden, test-only CDP is loopback, and blocker removal is allowlisted", async () => {
   const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const coordinatorSource = await readFile(join(packageRoot, "scripts", "hyperv-coordinator.ps1"), "utf8");
@@ -211,6 +250,20 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   const agentStart = source.slice(end, source.indexOf("function Stop-PersistentCdpAgent", end));
   assert.match(agentStart, /-UserId 'SYSTEM' -LogonType ServiceAccount/);
   assert.doesNotMatch(agentStart, /LogonType Interactive/);
+});
+
+test("production action transaction uses one guest invocation for before, input, completion, and after", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "hyperv-coordinator.ps1"), "utf8");
+  const start = source.indexOf("function Invoke-ActionTransaction");
+  const end = source.indexOf("function Get-ServiceAgentAttestation", start);
+  const transaction = source.slice(start, end);
+  assert.equal((transaction.match(/Invoke-Guest/g) || []).length, 1);
+  assert.match(transaction, /mode='state'/);
+  assert.match(transaction, /mode='count-state'/);
+  assert.match(transaction, /'input-channel'/);
+  assert.match(transaction, /'cdp-channel'/);
+  assert.match(transaction, /chemsema\.gui\.action-transaction-receipt\.v1/);
 });
 
 test("service-session agent attestation cannot claim interactive readiness", async () => {

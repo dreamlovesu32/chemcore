@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "chemsema.gui.action-transaction.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "input", "completion", "budgetMs"],
+  "properties": {
+    "schema": { "const": "chemsema.gui.action-transaction.v1" },
+    "input": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "x", "y", "button"],
+          "properties": { "kind": { "const": "click" }, "x": { "type": "integer" }, "y": { "type": "integer" }, "button": { "enum": ["left", "middle", "right"] } }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "from", "to", "steps", "button"],
+          "properties": {
+            "kind": { "const": "drag" },
+            "from": { "type": "array", "minItems": 2, "maxItems": 2, "prefixItems": [{ "type": "integer" }, { "type": "integer" }], "items": false },
+            "to": { "type": "array", "minItems": 2, "maxItems": 2, "prefixItems": [{ "type": "integer" }, { "type": "integer" }], "items": false },
+            "steps": { "type": "integer", "minimum": 1, "maximum": 1000 },
+            "button": { "enum": ["left", "middle", "right"] }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "key"],
+          "properties": { "kind": { "const": "key" }, "key": { "type": "string", "minLength": 1, "maxLength": 64 } }
+        }
+      ]
+    },
+    "completion": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["kind", "timeoutMs"], "properties": { "kind": { "enum": ["actionable", "quiescent"] }, "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 120000 } } },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "selector", "operator", "value", "timeoutMs"],
+          "properties": {
+            "kind": { "const": "dom-count" }, "selector": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "operator": { "enum": ["eq", "gte"] }, "value": { "type": "integer", "minimum": 0 },
+            "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 120000 }
+          }
+        }
+      ]
+    },
+    "budgetMs": { "type": "integer", "minimum": 1, "maximum": 120000 }
+  }
+}

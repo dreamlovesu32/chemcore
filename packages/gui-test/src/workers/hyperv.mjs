@@ -293,6 +293,24 @@ export class HyperVCoordinator {
     return this.execute("stop-cdp-agent", [], { timeoutMs: 20000 });
   }
 
+  async candidateAction(input, completion, budgetMs) {
+    if (!Number.isInteger(budgetMs) || !Number.isInteger(completion?.timeoutMs) || completion.timeoutMs > budgetMs) {
+      throw new Error("Candidate action completion timeout must be an integer within the action budget.");
+    }
+    const request = { schema: "chemsema.gui.action-transaction.v1", input, completion, budgetMs };
+    await assertValidDocument(request, "candidate action transaction request");
+    const encoded = Buffer.from(JSON.stringify(request), "utf8").toString("base64");
+    const result = await this.execute("action-transaction", ["-ActionRequestBase64", encoded], { timeoutMs: Math.max(30000, budgetMs + 10000) });
+    const agent = cleanAgentAttestation(result.transaction?.input);
+    const transaction = { ...result.transaction, input: agent };
+    await assertValidDocument(agent, "candidate action transaction input attestation");
+    await assertValidDocument(transaction, "candidate action transaction receipt");
+    if (!agent.interactiveReady || agent.foreground?.executable?.toLowerCase() !== result.candidate?.guestPath?.toLowerCase()) {
+      throw new Error("Candidate action transaction failed foreground identity validation.");
+    }
+    return { ...result, transaction };
+  }
+
   async candidateInput(kind, coordinates, { button = "left", steps = 8 } = {}) {
     const extra = ["-InputButton", button];
     if (kind === "click") {

@@ -136,27 +136,57 @@ export class ProductionBlackBoxDriver {
   }
 
   async perform(action) {
-    if (action.type === "key") {
-      const receipt = await this.coordinator.candidateInput("key", { key: action.key });
+    const { input, result } = await this.resolveActionInput(action);
+    if (input.kind === "key") {
+      const receipt = await this.coordinator.candidateInput("key", { key: input.key });
       this.foreground = receipt.agent.foreground;
-      return { kind: "key", key: action.key };
+      return result;
     }
+    if (input.kind === "click") {
+      const receipt = await this.coordinator.candidateInput("click", { x: input.x, y: input.y }, { button: input.button });
+      this.foreground = receipt.agent.foreground;
+      return result;
+    }
+    if (input.kind === "drag") {
+      const receipt = await this.coordinator.candidateInput("drag", { from: input.from, to: input.to }, { button: input.button, steps: input.steps });
+      this.foreground = receipt.agent.foreground;
+      return result;
+    }
+    throw new Error(`Production black-box input type ${action.type} is not implemented.`);
+  }
+
+  async resolveActionInput(action) {
+    if (action.type === "key") return { input: { kind: "key", key: action.key }, result: { kind: "key", key: action.key } };
     const geometry = await this.inputGeometry(action.target);
     const [left, top, right, bottom] = geometry.rect;
     if (action.type === "click") {
       const [x, y] = geometry.screen([(left + right) / 2, (top + bottom) / 2]);
-      const receipt = await this.coordinator.candidateInput("click", { x, y }, { button: action.button || "left" });
-      this.foreground = receipt.agent.foreground;
-      return { kind: "click", screen: [x, y] };
+      return { input: { kind: "click", x, y, button: action.button || "left" }, result: { kind: "click", screen: [x, y] } };
     }
     if (action.type === "drag") {
       const from = geometry.screen([left + (right - left) * action.from.x, top + (bottom - top) * action.from.y]);
       const to = geometry.screen([left + (right - left) * action.to.x, top + (bottom - top) * action.to.y]);
-      const receipt = await this.coordinator.candidateInput("drag", { from, to }, { button: action.button || "left", steps: action.steps });
-      this.foreground = receipt.agent.foreground;
-      return { kind: "drag", from, to };
+      return {
+        input: { kind: "drag", from, to, steps: action.steps, button: action.button || "left" },
+        result: { kind: "drag", from, to },
+      };
     }
     throw new Error(`Production black-box input type ${action.type} is not implemented.`);
+  }
+
+  stateReceipt(state) {
+    return { revision: state.revision, appScript: state.appScript, engine: state.engine, window: state.window, rendered: state.rendered };
+  }
+
+  async executeAction(action) {
+    const { input } = await this.resolveActionInput(action);
+    const receipt = await this.coordinator.candidateAction(input, action.completion, action.budgetMs);
+    this.foreground = receipt.transaction.input.foreground;
+    return {
+      before: this.stateReceipt(receipt.transaction.before),
+      after: this.stateReceipt(receipt.transaction.after),
+      completion: receipt.transaction.completion,
+    };
   }
 
   async actionState() {
@@ -166,7 +196,7 @@ export class ProductionBlackBoxDriver {
       return state;
     }
     const state = await this.coordinator.cdpBridge({ mode: "state" });
-    return { revision: state.revision, appScript: state.appScript, engine: state.engine, window: state.window, rendered: state.rendered };
+    return this.stateReceipt(state);
   }
 
   async waitForCompletion(completion) {

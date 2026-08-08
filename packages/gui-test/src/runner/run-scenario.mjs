@@ -48,6 +48,11 @@ export async function runScenario({ scenario, driver, candidate = {}, componentC
       try {
         const result = await withinBudget((async () => {
           resolvedTarget = await driver.resolve(action.target);
+          if (typeof driver.executeAction === "function") {
+            const transaction = await driver.executeAction(action);
+            before = transaction.before;
+            return { completion: transaction.completion, after: transaction.after };
+          }
           before = await driver.actionState();
           await driver.perform(action);
           const completion = await driver.waitForCompletion(action.completion);

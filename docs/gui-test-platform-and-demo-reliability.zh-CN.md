@@ -719,7 +719,9 @@ coordinator 已在 `windows-gui-worker-current` 上跨过隔离桌面边界。�
 
 正式 `core.history.undo-redo-bond.production` 场景现已在不可变 production 候选上通过：真实鼠标点击与拖拽创建一根键，再发送真实 `Control+Z` 和 `Control+Y`，内核文档与独立 DOM 观测共同证明键数严格按 `0 -> 1 -> 0 -> 1` 变化。候选 SHA-256 为 `739faffa72717bff3eeca5b2817ff1c5f8459a49ab7bc06ab2e0a9ed3bc10773`，evidence key 为 `5d1dbe4bce601b3e950232b5191756859445bf44581e3526dc3dc91277e757fa`；四项动作均保持在原 12 秒预算内，两项最终 oracle 全部通过。该场景没有通过放宽门禁变绿，而是发现并修复了三个真实 production 缺陷：undo/redo 绕过版本化命令结果管线、对象变为空渲染时残留旧图元，以及图元索引缺失或失步时产生幽灵 DOM。production receipt 现在还保留实际入口资源 URL、引擎类型、历史状态、内核键数、命令结果和增量同步模式，使后续失败能区分输入、命令、模型与渲染层。
 
-持久 CDP 观测现已通过版本化有界请求/响应通道投入运行。每次 run 只安装一个隐藏 observer；Schema 与运行时共同要求它以 SYSTEM 身份运行在 session 0，只接受固定 `locate`、`state`、`count` 和 `count-state` 模式，因此不能抢占交互前台，也不能执行任意表达式。同一 production history 场景再次通过，evidence key 为 `703df348f29d23c4845063aa9a34c72fcd3e1ecf5e41fa23d7e90c4cfb5e7ed3`。四项动作从原来每项约 7.2 秒降至 5.1–5.3 秒，同时保持原预算与语义 oracle。host 到 guest 的通道访问目前仍为每次观测或输入调用一次 PowerShell Direct；单次 guest 动作事务/直接认证传输以及完整截图/trace/log bundle 仍未完成。
+持久 CDP 观测现已通过版本化有界请求/响应通道投入运行。每次 run 只安装一个隐藏 observer；Schema 与运行时共同要求它以 SYSTEM 身份运行在 session 0，只接受固定 `locate`、`state`、`count` 和 `count-state` 模式，因此不能抢占交互前台，也不能执行任意表达式。同一 production history 场景再次通过，evidence key 为 `703df348f29d23c4845063aa9a34c72fcd3e1ecf5e41fa23d7e90c4cfb5e7ed3`。四项动作从原来每项约 7.2 秒降至 5.1–5.3 秒，同时保持原预算与语义 oracle。
+
+版本化 guest 动作事务也已投入运行。production runner 先解析公开 UI 目标，随后只调用一次 PowerShell Direct；有界 guest 脚本依次取得独立 CDP `before`、提交且仅提交一次受守卫输入、判断场景声明的固定 completion 条件并返回最终 CDP `after`。输入代理和 CDP observer 仍是不同进程与不同协议，因此事务合并不能让输入实现伪造自己的 oracle。请求与 receipt Schema 保持严格，completion 超时不得超过动作预算。production history 场景以 evidence key `5f30cc7fb7d6dbf83600f7ba26135768a183314278be08bce2852b9e1a5ee159` 通过；四项动作分别在 3.1–3.4 秒完成，相比仅持久 CDP 又降低约 36%，内核/DOM 的 `0 -> 1 -> 0 -> 1` 证据不变。直接认证的 host→guest 传输和完整截图/trace/log bundle 仍未完成。
 
 当前入口为：
 

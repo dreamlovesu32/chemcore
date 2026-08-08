@@ -31,6 +31,16 @@ test("scenario, coverage registry, and impact graph validate", async () => {
     status: "passed",
     bridge: { schema: "chemsema.gui.cdp-bridge.v1", status: "passed" },
   }, "CDP response fixture");
+  await assertValidDocument({
+    schema: "chemsema.gui.action-transaction.v1",
+    input: { kind: "click", x: 10, y: 20, button: "left" },
+    completion: { kind: "actionable", timeoutMs: 12000 },
+    budgetMs: 12000,
+  }, "action transaction fixture");
+  await assertValidDocument({
+    schema: "chemsema.gui.action-transaction-receipt.v1",
+    input: {}, before: {}, after: {}, completion: { actionable: true },
+  }, "action transaction receipt fixture");
 });
 
 test("scenario protocol rejects missing auditable coverage", async () => {
