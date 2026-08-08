@@ -6,7 +6,7 @@
       "kind": "legacy-script",
       "source": "scripts/gui-regression.mjs",
       "status": "partially-migrated",
-      "scenarioIds": ["core.bond.draw-single"],
+      "scenarioIds": ["core.bond.draw-single", "core.bond.draw-single.production"],
       "risk": "critical",
       "notes": "Large browser regression monolith; bond drawing is the first migrated real-user path. Existing gate remains active."
     },

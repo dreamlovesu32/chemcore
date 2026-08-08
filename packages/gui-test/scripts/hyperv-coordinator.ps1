@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet('host-attest', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'uia-query', 'input-click', 'input-drag', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
+  [ValidateSet('host-attest', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'uia-query', 'cdp-bridge', 'input-click', 'input-drag', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
   [string]$Operation,
 
   [Parameter(Mandatory = $true)]
@@ -11,6 +11,8 @@ param(
   [string]$GuestTestRoot,
   [string]$HostAgentPath,
   [string]$HostCandidatePath,
+  [string]$HostCdpScriptPath,
+  [string]$CdpRequestBase64,
   [string]$AutomationName,
   [string]$AutomationScopeName,
   [int]$InputX,
@@ -234,11 +236,20 @@ function Install-Candidate {
   try {
     $guestDirectory = Join-Path (Join-Path $GuestTestRoot 'candidate') $hostHash
     $guestPath = Join-Path $guestDirectory 'chemsema-desktop.exe'
-    Invoke-Command -Session $session -ScriptBlock {
-      param($Directory)
+    $existingHash = Invoke-Command -Session $session -ScriptBlock {
+      param($Directory, $Path)
       New-Item -ItemType Directory -Path $Directory -Force | Out-Null
-    } -ArgumentList $guestDirectory
-    Copy-Item -LiteralPath $HostCandidatePath -Destination $guestPath -ToSession $session -Force
+      if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+      }
+    } -ArgumentList @($guestDirectory, $guestPath)
+    if ($null -ne $existingHash -and [string]$existingHash -ne $hostHash) {
+      throw 'Existing content-addressed guest candidate does not match its directory hash.'
+    }
+    $reused = $null -ne $existingHash
+    if (-not $reused) {
+      Copy-Item -LiteralPath $HostCandidatePath -Destination $guestPath -ToSession $session
+    }
     $guestHash = Invoke-Command -Session $session -ScriptBlock {
       param($Path)
       (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -255,6 +266,7 @@ function Install-Candidate {
         guestPath = $guestPath
         sha256 = [string]$guestHash
         bytes = (Get-Item -LiteralPath $HostCandidatePath).Length
+        reused = $reused
       }
     }
   }
@@ -279,7 +291,27 @@ function Start-Candidate {
     if ($actualHash -ne $ExpectedHash) {
       throw 'Installed desktop candidate failed launch-time SHA-256 verification.'
     }
-    Get-Process chemsema-desktop -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $CandidatePath } | Stop-Process -ErrorAction Stop
+    $candidateProcesses = @(Get-Process chemsema-desktop -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $CandidatePath })
+    $ownedProcessIds = [Collections.Generic.HashSet[int]]::new()
+    foreach ($candidateProcess in $candidateProcesses) { [void]$ownedProcessIds.Add([int]$candidateProcess.Id) }
+    do {
+      $added = $false
+      foreach ($child in @(Get-CimInstance Win32_Process | Where-Object { $ownedProcessIds.Contains([int]$_.ParentProcessId) })) {
+        if ($ownedProcessIds.Add([int]$child.ProcessId)) { $added = $true }
+      }
+    } while ($added)
+    foreach ($ownedId in @($ownedProcessIds | Sort-Object -Descending)) {
+      Stop-Process -Id $ownedId -Force -ErrorAction SilentlyContinue
+    }
+    if ($ownedProcessIds.Count -gt 0) {
+      $exitDeadline = [DateTime]::UtcNow.AddSeconds(20)
+      do {
+        $remaining = @(Get-Process -Id @($ownedProcessIds) -ErrorAction SilentlyContinue)
+        if ($remaining.Count -eq 0) { break }
+        Start-Sleep -Milliseconds 200
+      } while ([DateTime]::UtcNow -lt $exitDeadline)
+      if ($remaining.Count -ne 0) { throw 'Previous candidate process tree did not exit within 20 seconds.' }
+    }
     $launchScript = Join-Path (Split-Path -Parent $CandidatePath) 'launch-gui-test-candidate.ps1'
     $launchSource = @'
 param([string]$CandidatePath)
@@ -357,7 +389,7 @@ function Activate-Candidate {
     Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Settings $settings -Force | Out-Null
     try {
       Start-ScheduledTask -TaskName $taskName
-      $deadline = [DateTime]::UtcNow.AddSeconds(45)
+      $deadline = [DateTime]::UtcNow.AddSeconds(12)
       do {
         if (Test-Path -LiteralPath $resultPath -PathType Leaf) { break }
         $task = Get-ScheduledTask -TaskName $taskName
@@ -366,7 +398,7 @@ function Activate-Candidate {
         Start-Sleep -Milliseconds 250
       } while ([DateTime]::UtcNow -lt $deadline)
       if (-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) {
-        throw "Interactive activation agent failed with task result $($info.LastTaskResult)."
+        throw "Interactive activation agent failed with task result $($info.LastTaskResult) within 12 seconds."
       }
       $agentResult = Get-Content -Raw -LiteralPath $resultPath | ConvertFrom-Json
       if ($agentResult.status -eq 'failed') {
@@ -506,6 +538,31 @@ $json=[ordered]@{schema='chemsema.gui.uia-query.v1';processId=$TargetProcessId;n
   }
 }
 
+function Invoke-CdpBridge {
+  if ([string]::IsNullOrWhiteSpace($HostCdpScriptPath) -or -not (Test-Path -LiteralPath $HostCdpScriptPath -PathType Leaf)) {
+    throw 'The guest CDP bridge script is unavailable.'
+  }
+  if ([string]::IsNullOrWhiteSpace($CdpRequestBase64)) { throw 'The CDP bridge request is absent.' }
+  $source = Get-Content -Raw -LiteralPath $HostCdpScriptPath
+  $json = Invoke-Guest -ScriptBlock {
+    param($TestRoot, $ScriptSource, $RequestBase64)
+    $runDirectory = Join-Path (Join-Path $TestRoot 'runs') ("cdp-" + [Guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
+    $scriptPath = Join-Path $runDirectory 'guest-cdp.ps1'
+    [IO.File]::WriteAllText($scriptPath, $ScriptSource, [Text.UTF8Encoding]::new($false))
+    & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath -RequestBase64 $RequestBase64
+  } -ArgumentList @($GuestTestRoot, $source, $CdpRequestBase64)
+  $result = ([string]@($json)[-1]) | ConvertFrom-Json
+  if ($result.status -ne 'passed') { throw "Guest CDP bridge failed: $($result.message)" }
+  [ordered]@{
+    schema = 'chemsema.gui.worker-attestation.v1'
+    operation = 'cdp-bridge'
+    vmId = (Get-WorkerVm).Id.ToString()
+    vmName = (Get-WorkerVm).Name
+    bridge = $result
+  }
+}
+
 function Invoke-CandidateInput([ValidateSet('click', 'drag')][string]$Kind) {
   $hostHash = (Get-FileHash -LiteralPath $HostCandidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
   $guestPath = Join-Path (Join-Path (Join-Path $GuestTestRoot 'candidate') $hostHash) 'chemsema-desktop.exe'
@@ -585,6 +642,7 @@ function Get-ServiceAgentAttestation {
       title = [string]$result.foreground.title
       className = [string]$result.foreground.className
       rect = @($result.foreground.rect | ForEach-Object { [int]$_ })
+      clientRect = @($result.foreground.clientRect | ForEach-Object { [int]$_ })
     }
   }
   $cleanAgent = [ordered]@{
@@ -678,6 +736,99 @@ function Configure-Autologon {
   }
 }
 
+function Configure-DesktopBaseline {
+  $result = Invoke-Guest -ScriptBlock {
+    param($ExpectedAccount)
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    if (-not $identity.Name.EndsWith("\$ExpectedAccount", [StringComparison]::OrdinalIgnoreCase)) {
+      throw 'Desktop baseline identity does not match the dedicated test account.'
+    }
+    $script:baselineChanged = $false
+    function Open-BaselineKey([string]$Path) {
+      $allowedPrefix = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\'
+      if (-not $Path.StartsWith($allowedPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Desktop baseline registry path is outside the dedicated user allowlist.'
+      }
+      $relativePath = $Path.Substring(6)
+      [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey(
+        $relativePath,
+        [Microsoft.Win32.RegistryKeyPermissionCheck]::ReadWriteSubTree
+      )
+    }
+    function Set-BaselineDword([string]$Path, [string]$Name, [int]$Value) {
+      $key = Open-BaselineKey $Path
+      if ($null -eq $key) { throw "Desktop baseline could not open ${Path}." }
+      try {
+        $current = $key.GetValue($Name, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+        if ($null -eq $current -or [int]$current -ne $Value) {
+          try {
+            $key.SetValue($Name, $Value, [Microsoft.Win32.RegistryValueKind]::DWord)
+          }
+          catch {
+            throw "Desktop baseline cannot set ${Path}::${Name}: $($_.Exception.Message)"
+          }
+          $script:baselineChanged = $true
+        }
+      }
+      finally {
+        $key.Close()
+      }
+    }
+    function Get-BaselineDword([string]$Path, [string]$Name) {
+      $key = Open-BaselineKey $Path
+      if ($null -eq $key) { throw "Desktop baseline could not open ${Path}." }
+      try {
+        $value = $key.GetValue($Name, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+        if ($null -eq $value) { throw "Desktop baseline value $Name was not persisted." }
+        [int]$value
+      }
+      finally {
+        $key.Close()
+      }
+    }
+    $engagement = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement'
+    Set-BaselineDword $engagement 'ScoobeSystemSettingEnabled' 0
+    $delivery = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+    Set-BaselineDword $delivery 'ContentDeliveryAllowed' 0
+    Set-BaselineDword $delivery 'OemPreInstalledAppsEnabled' 0
+    Set-BaselineDword $delivery 'PreInstalledAppsEnabled' 0
+    Set-BaselineDword $delivery 'PreInstalledAppsEverEnabled' 0
+    Set-BaselineDword $delivery 'SilentInstalledAppsEnabled' 0
+    Set-BaselineDword $delivery 'SystemPaneSuggestionsEnabled' 0
+    Set-BaselineDword $delivery 'RotatingLockScreenEnabled' 0
+    Set-BaselineDword $delivery 'RotatingLockScreenOverlayEnabled' 0
+    Set-BaselineDword $delivery 'SoftLandingEnabled' 0
+    Set-BaselineDword $delivery 'SubscribedContent-310093Enabled' 0
+    Set-BaselineDword $delivery 'SubscribedContent-338389Enabled' 0
+    [ordered]@{
+      identity = $identity.Name
+      scope = 'dedicated-test-user'
+      changed = $script:baselineChanged
+      settings = [ordered]@{
+        scoobeSystemSettingEnabled = Get-BaselineDword $engagement 'ScoobeSystemSettingEnabled'
+        contentDeliveryAllowed = Get-BaselineDword $delivery 'ContentDeliveryAllowed'
+        oemPreInstalledAppsEnabled = Get-BaselineDword $delivery 'OemPreInstalledAppsEnabled'
+        preInstalledAppsEnabled = Get-BaselineDword $delivery 'PreInstalledAppsEnabled'
+        preInstalledAppsEverEnabled = Get-BaselineDword $delivery 'PreInstalledAppsEverEnabled'
+        silentInstalledAppsEnabled = Get-BaselineDword $delivery 'SilentInstalledAppsEnabled'
+        systemPaneSuggestionsEnabled = Get-BaselineDword $delivery 'SystemPaneSuggestionsEnabled'
+        rotatingLockScreenEnabled = Get-BaselineDword $delivery 'RotatingLockScreenEnabled'
+        rotatingLockScreenOverlayEnabled = Get-BaselineDword $delivery 'RotatingLockScreenOverlayEnabled'
+        contentDeliverySoftLandingEnabled = Get-BaselineDword $delivery 'SoftLandingEnabled'
+        subscribedContent310093Enabled = Get-BaselineDword $delivery 'SubscribedContent-310093Enabled'
+        subscribedContent338389Enabled = Get-BaselineDword $delivery 'SubscribedContent-338389Enabled'
+      }
+    }
+  } -ArgumentList @($GuestAccount)
+  [ordered]@{
+    schema = 'chemsema.gui.worker-attestation.v1'
+    operation = 'configure-desktop-baseline'
+    vmId = (Get-WorkerVm).Id.ToString()
+    vmName = (Get-WorkerVm).Name
+    baseline = $result
+  }
+}
+
 function Get-InteractiveAgentAttestation {
   $agentPath = Join-Path (Join-Path $GuestTestRoot 'agent') 'chemsema-gui-test-agent.exe'
   $resultPath = Join-Path $GuestTestRoot 'interactive-attestation.json'
@@ -750,11 +901,13 @@ switch ($Operation) {
   'prepare-guest' { Write-Result (Prepare-Guest) }
   'install-agent' { Write-Result (Install-Agent) }
   'configure-autologon' { Write-Result (Configure-Autologon) }
+  'configure-desktop-baseline' { Write-Result (Configure-DesktopBaseline) }
   'install-candidate' { Write-Result (Install-Candidate) }
   'launch-candidate' { Write-Result (Start-Candidate) }
   'dismiss-known-blocker' { Write-Result (Dismiss-KnownBlocker) }
   'activate-candidate' { Write-Result (Activate-Candidate) }
   'uia-query' { Write-Result (Query-Uia) }
+  'cdp-bridge' { Write-Result (Invoke-CdpBridge) }
   'input-click' { Write-Result (Invoke-CandidateInput 'click') }
   'input-drag' { Write-Result (Invoke-CandidateInput 'drag') }
   'agent-attest-service' { Write-Result (Get-ServiceAgentAttestation) }

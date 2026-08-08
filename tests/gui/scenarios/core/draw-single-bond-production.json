@@ -1,0 +1,59 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.bond.draw-single.production",
+  "title": "Draw one single bond in the production desktop through guarded OS input",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": null,
+  "capabilities": ["gui.public-input", "editor.bond.draw", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": {
+    "pool": "interactive-isolated-worker",
+    "viewport": { "width": 1028, "height": 779 },
+    "dpi": 96,
+    "locale": "zh-CN",
+    "theme": "light",
+    "runtime": "production"
+  },
+  "seed": 1,
+  "actions": [
+    {
+      "id": "activate-bond-tool",
+      "type": "click",
+      "target": {
+        "strategy": "role",
+        "value": "button",
+        "name": "Single bond",
+        "scope": { "role": "complementary", "name": "Main Drawing Rail" }
+      },
+      "completion": { "kind": "actionable", "timeoutMs": 12000 },
+      "budgetMs": 12000
+    },
+    {
+      "id": "draw-single-bond",
+      "type": "drag",
+      "target": { "strategy": "automation-id", "value": "viewer-container" },
+      "button": "left",
+      "from": { "x": 0.43, "y": 0.5 },
+      "to": { "x": 0.53, "y": 0.5 },
+      "steps": 8,
+      "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "gte", "value": 1, "timeoutMs": 12000 },
+      "budgetMs": 12000
+    }
+  ],
+  "oracles": [
+    { "id": "rendered-bond-exists", "kind": "dom-count", "selector": "[data-bond-id]", "operator": "gte", "value": 1 },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw", "desktop.production"],
+    "objectTypes": ["bond", "molecule"],
+    "cardinalities": ["1"],
+    "states": ["blank-document", "bond-tool-active"],
+    "inputModes": ["mouse"],
+    "properties": ["bond.order.single"],
+    "persistenceBoundaries": ["runtime"]
+  }
+}

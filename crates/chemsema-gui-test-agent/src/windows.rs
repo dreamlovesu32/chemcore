@@ -7,7 +7,8 @@ use std::path::PathBuf;
 use std::ptr::{null, null_mut};
 use std::thread;
 use std::time::Duration;
-use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, FALSE, RECT, TRUE};
+use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, FALSE, POINT, RECT, TRUE};
+use windows_sys::Win32::Graphics::Gdi::ClientToScreen;
 use windows_sys::Win32::Security::Authentication::Identity::{
     LsaClose, LsaOpenPolicy, LsaStorePrivateData, LSA_HANDLE, LSA_OBJECT_ATTRIBUTES,
     LSA_UNICODE_STRING, POLICY_CREATE_SECRET,
@@ -29,10 +30,10 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEINPUT, VK_MENU,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    BringWindowToTop, EnumWindows, GetClassNameW, GetForegroundWindow, GetWindowRect,
-    GetWindowTextW, GetWindowThreadProcessId, IsWindow, IsWindowVisible, PostMessageW,
-    SetCursorPos, SetForegroundWindow, SetWindowPos, ShowWindowAsync, HWND_NOTOPMOST, HWND_TOPMOST,
-    SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SW_RESTORE, WM_CLOSE,
+    BringWindowToTop, EnumWindows, GetClassNameW, GetClientRect, GetForegroundWindow,
+    GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsWindow, IsWindowVisible,
+    PostMessageW, SetCursorPos, SetForegroundWindow, SetWindowPos, ShowWindowAsync, HWND_NOTOPMOST,
+    HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SW_RESTORE, WM_CLOSE,
 };
 
 fn last_error(context: &str) -> String {
@@ -150,7 +151,7 @@ fn application_user_model_id(process_id: u32) -> Result<String, String> {
     result
 }
 
-fn foreground_process() -> Result<Option<ForegroundProcess>, String> {
+fn foreground_process_once() -> Result<Option<ForegroundProcess>, String> {
     let window = unsafe { GetForegroundWindow() };
     if window.is_null() {
         return Ok(None);
@@ -168,6 +169,23 @@ fn foreground_process() -> Result<Option<ForegroundProcess>, String> {
     if unsafe { GetWindowRect(window, &mut rect) } == 0 {
         return Err(last_error("GetWindowRect"));
     }
+    let mut client = RECT::default();
+    if unsafe { GetClientRect(window, &mut client) } == 0 {
+        return Err(last_error("GetClientRect"));
+    }
+    let mut client_top_left = POINT {
+        x: client.left,
+        y: client.top,
+    };
+    let mut client_bottom_right = POINT {
+        x: client.right,
+        y: client.bottom,
+    };
+    if unsafe { ClientToScreen(window, &mut client_top_left) } == 0
+        || unsafe { ClientToScreen(window, &mut client_bottom_right) } == 0
+    {
+        return Err(last_error("ClientToScreen"));
+    }
     Ok(Some(ForegroundProcess {
         window_handle: window as usize as u64,
         process_id,
@@ -176,7 +194,32 @@ fn foreground_process() -> Result<Option<ForegroundProcess>, String> {
         title: window_text(window),
         class_name: window_class(window),
         rect: [rect.left, rect.top, rect.right, rect.bottom],
+        client_rect: [
+            client_top_left.x,
+            client_top_left.y,
+            client_bottom_right.x,
+            client_bottom_right.y,
+        ],
     }))
+}
+
+fn retryable_window_snapshot_error(message: &str) -> bool {
+    message.contains("Windows error 1400")
+}
+
+fn foreground_process() -> Result<Option<ForegroundProcess>, String> {
+    for attempt in 0..10 {
+        match foreground_process_once() {
+            Ok(snapshot) => return Ok(snapshot),
+            Err(message) if retryable_window_snapshot_error(&message) => {
+                if attempt < 9 {
+                    thread::sleep(Duration::from_millis(25));
+                }
+            }
+            Err(message) => return Err(message),
+        }
+    }
+    Ok(None)
 }
 
 pub fn attest() -> Result<AgentAttestation, String> {
@@ -468,6 +511,21 @@ pub fn dismiss_known_blocker() -> Result<AgentAttestation, String> {
         }
     }
     Err("allowlisted blocker did not close within five seconds".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::retryable_window_snapshot_error;
+
+    #[test]
+    fn only_invalid_window_handles_are_retried_during_snapshot_capture() {
+        assert!(retryable_window_snapshot_error(
+            "GetWindowThreadProcessId failed with Windows error 1400"
+        ));
+        assert!(!retryable_window_snapshot_error(
+            "OpenProcess failed with Windows error 5"
+        ));
+    }
 }
 
 pub fn drag(

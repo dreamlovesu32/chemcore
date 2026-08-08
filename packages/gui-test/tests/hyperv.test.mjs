@@ -78,6 +78,55 @@ test("coordinator shutdown is graceful and never forces power off", async () => 
   assert.doesNotMatch(source, /Stop-VM[^\r\n]+-(?:Force|TurnOff|Save|Shutdown)\b/i);
 });
 
+test("desktop baseline validates every policy used to suppress post-logon interruptions", async () => {
+  const profile = await readValidatedDocument(profilePath);
+  const responses = [
+    result({ operation: "guest-attest", guest: { identity: "guest\\chemsema-test", vmicvmsession: "Running", interactiveAccountMatches: true } }),
+    result({
+      operation: "configure-desktop-baseline",
+      baseline: {
+        scope: "dedicated-test-user",
+        changed: true,
+        settings: {
+          scoobeSystemSettingEnabled: 0,
+          contentDeliveryAllowed: 0,
+          oemPreInstalledAppsEnabled: 0,
+          preInstalledAppsEnabled: 0,
+          preInstalledAppsEverEnabled: 0,
+          silentInstalledAppsEnabled: 0,
+          systemPaneSuggestionsEnabled: 0,
+          rotatingLockScreenEnabled: 0,
+          rotatingLockScreenOverlayEnabled: 0,
+          contentDeliverySoftLandingEnabled: 0,
+          subscribedContent310093Enabled: 0,
+          subscribedContent338389Enabled: 0,
+        },
+      },
+    }),
+  ];
+  const coordinator = new HyperVCoordinator(profile, {
+    environment: { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" },
+    executor: () => responses.shift(),
+  });
+  assert.equal((await coordinator.configureDesktopBaseline()).baseline.changed, true);
+});
+
+test("desktop baseline treats an absent registry value as first-run configuration", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "hyperv-coordinator.ps1"), "utf8");
+  const baselineStart = source.indexOf("function Configure-DesktopBaseline");
+  const baselineEnd = source.indexOf("function Get-InteractiveAgentAttestation", baselineStart);
+  const baseline = source.slice(baselineStart, baselineEnd);
+  assert.match(baseline, /RegistryKeyPermissionCheck\]::ReadWriteSubTree/);
+  assert.match(baseline, /Desktop baseline registry path is outside the dedicated user allowlist/);
+  assert.match(baseline, /\.GetValue\(\$Name, \$null, \[Microsoft\.Win32\.RegistryValueOptions\]::DoNotExpandEnvironmentNames\)/);
+  assert.match(baseline, /\.SetValue\(\$Name, \$Value, \[Microsoft\.Win32\.RegistryValueKind\]::DWord\)/);
+  assert.match(baseline, /Desktop baseline cannot set \$\{Path\}::\$\{Name\}/);
+  assert.match(baseline, /Desktop baseline value \$Name was not persisted/);
+  assert.doesNotMatch(baseline, /Get-ItemPropertyValue/);
+  assert.doesNotMatch(baseline, /New-ItemProperty/);
+});
+
 test("candidate deployment is content-addressed and launch is interactive", async () => {
   const profile = await readValidatedDocument(profilePath);
   const responses = [
@@ -112,7 +161,7 @@ test("candidate input passes integer coordinates and validates the returned fore
           account: "guest\\chemsema-test",
           inputDesktop: "Default",
           interactiveReady: true,
-          foreground: { windowHandle: 200, processId: 300, sessionId: 1, executable: guestPath, title: "ChemSema", className: "Tauri Window", rect: [0, 0, 1000, 800] },
+          foreground: { windowHandle: 200, processId: 300, sessionId: 1, executable: guestPath, title: "ChemSema", className: "Tauri Window", rect: [0, 0, 1000, 800], clientRect: [8, 1, 992, 792] },
         },
       });
     },
@@ -132,6 +181,10 @@ test("interactive launcher is hidden, test-only CDP is loopback, and blocker rem
   assert.doesNotMatch(coordinatorSource, /--remote-debugging-address/);
   assert.match(agentWindows, /Microsoft\.Windows\.CloudExperienceHost_cw5n1h2txyewy!App/);
   assert.match(agentWindows, /Windows\.UI\.Core\.CoreWindow/);
+  const queryStart = coordinatorSource.indexOf("function Query-Uia");
+  const queryHereStringEnd = coordinatorSource.indexOf("\n'@", queryStart);
+  const cdpFunction = coordinatorSource.indexOf("function Invoke-CdpBridge");
+  assert(queryStart >= 0 && queryHereStringEnd > queryStart && cdpFunction > queryHereStringEnd, "CDP bridge must not be embedded in the generated UIA script");
 });
 
 test("service-session agent attestation cannot claim interactive readiness", async () => {
@@ -177,6 +230,7 @@ test("interactive agent attestation requires the dedicated unlocked session", as
           title: "Desktop",
           className: "Shell_TrayWnd",
           rect: [0, 0, 1920, 1080],
+          clientRect: [0, 0, 1920, 1080],
         },
       },
     }),

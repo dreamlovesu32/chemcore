@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { auditCoverage } from "./coverage/audit.mjs";
 import { FakeDriver } from "./drivers/fake.mjs";
 import { PlaywrightBrowserDriver } from "./drivers/playwright-browser.mjs";
+import { ProductionBlackBoxDriver } from "./drivers/production-black-box.mjs";
 import { planImpactedScenarios } from "./impact/select.mjs";
 import { guiTestsDir, scenarioDir } from "./protocol/paths.mjs";
 import { readValidatedDocument } from "./protocol/validate.mjs";
@@ -78,7 +79,7 @@ async function impact(paths, options) {
 
 async function worker(args, options) {
   const [operation] = args;
-  if (!operation || !["host-attest", "start", "guest-attest", "prepare-guest", "install-agent", "configure-autologon", "install-candidate", "launch-candidate", "dismiss-known-blocker", "activate-candidate", "uia-query", "input-click", "input-drag", "agent-attest-service", "agent-attest-interactive", "stop"].includes(operation)) {
+  if (!operation || !["host-attest", "start", "guest-attest", "prepare-guest", "install-agent", "configure-autologon", "configure-desktop-baseline", "install-candidate", "launch-candidate", "dismiss-known-blocker", "activate-candidate", "uia-query", "cdp-state", "input-click", "input-drag", "agent-attest-service", "agent-attest-interactive", "stop"].includes(operation)) {
     throw new Error("worker requires a supported worker operation.");
   }
   const profile = await readValidatedDocument(resolve(options.profile || join(guiTestsDir, "environments", "windows-gui-worker-current.json")));
@@ -91,11 +92,13 @@ async function worker(args, options) {
     case "prepare-guest": result = await coordinator.prepareGuest(); break;
     case "install-agent": result = await coordinator.installAgent(); break;
     case "configure-autologon": result = await coordinator.configureAutologon(); break;
+    case "configure-desktop-baseline": result = await coordinator.configureDesktopBaseline(); break;
     case "install-candidate": result = await coordinator.installCandidate(); break;
     case "launch-candidate": result = await coordinator.launchCandidate(); break;
     case "dismiss-known-blocker": result = await coordinator.dismissKnownBlocker(); break;
     case "activate-candidate": result = await coordinator.activateCandidate(); break;
     case "uia-query": result = await coordinator.queryUia(options.name, { scopeName: options["scope-name"] }); break;
+    case "cdp-state": result = await coordinator.cdpBridge({ mode: "state" }); break;
     case "input-click": result = await coordinator.candidateInput("click", { x: Number(options.x), y: Number(options.y) }, { button: options.button }); break;
     case "input-drag": result = await coordinator.candidateInput("drag", { from: [Number(options["from-x"]), Number(options["from-y"])], to: [Number(options["to-x"]), Number(options["to-y"])] }, { button: options.button, steps: Number(options.steps || 8) }); break;
     case "agent-attest-service": result = await coordinator.attestServiceAgent(); break;
@@ -122,6 +125,8 @@ async function run(path, options) {
     ? new FakeDriver()
     : driverName === "playwright-browser"
       ? new PlaywrightBrowserDriver()
+      : driverName === "production-black-box"
+        ? new ProductionBlackBoxDriver()
       : null;
   if (!driver) {
     throw new Error(`Driver ${driverName} is not implemented.`);
@@ -147,7 +152,7 @@ Usage:
   npm run gui-platform -- audit
   npm run gui-platform -- impact <changed-path> [...changed-path] [--graph path]
   npm run gui-platform -- worker <host-attest|start|guest-attest|prepare-guest|install-agent|configure-autologon|install-candidate|launch-candidate|dismiss-known-blocker|activate-candidate|uia-query|input-click|input-drag|agent-attest-service|agent-attest-interactive|stop> [--profile path]
-  npm run gui-platform -- run <scenario.json> [--driver fake|playwright-browser] [--report path] [--url url]
+  npm run gui-platform -- run <scenario.json> [--driver fake|playwright-browser|production-black-box] [--report path] [--url url]
 `);
 }
 

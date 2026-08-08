@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertValidDocument } from "../protocol/validate.mjs";
@@ -7,6 +7,7 @@ const scriptPath = join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))
 const repositoryRoot = dirname(dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url))))));
 const defaultAgentPath = join(repositoryRoot, "target", "release", "chemsema-gui-test-agent.exe");
 const defaultCandidatePath = join(repositoryRoot, "target", "release", "chemsema-desktop.exe");
+const defaultCdpScriptPath = join(repositoryRoot, "packages", "gui-test", "scripts", "guest-cdp.ps1");
 
 export function expandWindowsEnvironment(template, environment = process.env) {
   return template.replace(/%([^%]+)%/g, (_, name) => {
@@ -18,12 +19,31 @@ export function expandWindowsEnvironment(template, environment = process.env) {
   });
 }
 
-function defaultExecutor(args) {
-  return spawnSync("powershell.exe", args, {
-    encoding: "utf8",
-    windowsHide: true,
-    shell: false,
-    maxBuffer: 10 * 1024 * 1024,
+function defaultExecutor(args, { timeoutMs = 120000 } = {}) {
+  return new Promise((resolve) => {
+    const child = spawn("powershell.exe", args, { windowsHide: true, shell: false });
+    let stdout = "";
+    let stderr = "";
+    let failure = null;
+    const append = (field, chunk) => {
+      if (Buffer.byteLength(field + chunk, "utf8") > 10 * 1024 * 1024) {
+        failure = new Error("Hyper-V coordinator output exceeded 10 MiB.");
+        child.kill();
+        return field;
+      }
+      return field + chunk;
+    };
+    child.stdout.on("data", (chunk) => { stdout = append(stdout, chunk.toString("utf8")); });
+    child.stderr.on("data", (chunk) => { stderr = append(stderr, chunk.toString("utf8")); });
+    child.on("error", (error) => { failure = error; });
+    const timer = setTimeout(() => {
+      failure = new Error(`Hyper-V coordinator exceeded ${timeoutMs} ms.`);
+      child.kill();
+    }, timeoutMs);
+    child.on("close", (status) => {
+      clearTimeout(timer);
+      resolve({ status: status ?? 1, stdout, stderr, error: failure });
+    });
   });
 }
 
@@ -51,6 +71,7 @@ function cleanAgentAttestation(agent = {}) {
     title: agent.foreground.title,
     className: agent.foreground.className,
     rect: agent.foreground.rect,
+    clientRect: agent.foreground.clientRect,
   } : null;
   return {
     schema: agent.schema,
@@ -94,13 +115,14 @@ export class HyperVCoordinator {
       "-GuestTestRoot", this.profile.guest.testRoot,
       "-HostAgentPath", defaultAgentPath,
       "-HostCandidatePath", defaultCandidatePath,
+      "-HostCdpScriptPath", defaultCdpScriptPath,
       ...extraArguments,
     ];
   }
 
-  async execute(operation, extraArguments = []) {
+  async execute(operation, extraArguments = [], { timeoutMs = 120000 } = {}) {
     await this.validateProfile();
-    return parseResult(this.executor(this.argumentsFor(operation, extraArguments)), operation);
+    return parseResult(await this.executor(this.argumentsFor(operation, extraArguments), { timeoutMs }), operation);
   }
 
   async attestHost() {
@@ -157,6 +179,27 @@ export class HyperVCoordinator {
     return result;
   }
 
+  async configureDesktopBaseline() {
+    await this.attestGuest();
+    const result = await this.execute("configure-desktop-baseline");
+    const settings = result.baseline?.settings || {};
+    const valid = result.baseline?.scope === "dedicated-test-user"
+      && settings.scoobeSystemSettingEnabled === 0
+      && settings.contentDeliveryAllowed === 0
+      && settings.oemPreInstalledAppsEnabled === 0
+      && settings.preInstalledAppsEnabled === 0
+      && settings.preInstalledAppsEverEnabled === 0
+      && settings.silentInstalledAppsEnabled === 0
+      && settings.systemPaneSuggestionsEnabled === 0
+      && settings.rotatingLockScreenEnabled === 0
+      && settings.rotatingLockScreenOverlayEnabled === 0
+      && settings.contentDeliverySoftLandingEnabled === 0
+      && settings.subscribedContent310093Enabled === 0
+      && settings.subscribedContent338389Enabled === 0;
+    if (!valid) throw new Error("Desktop baseline failed its post-logon experience policy contract.");
+    return result;
+  }
+
   async installCandidate() {
     await this.prepareGuest();
     const result = await this.execute("install-candidate");
@@ -181,7 +224,7 @@ export class HyperVCoordinator {
   }
 
   async activateCandidate() {
-    const result = await this.execute("activate-candidate");
+    const result = await this.execute("activate-candidate", [], { timeoutMs: 20000 });
     const agent = cleanAgentAttestation(result.agent);
     await assertValidDocument(agent, "candidate activation attestation");
     const expectedExecutable = result.candidate?.guestPath;
@@ -211,6 +254,18 @@ export class HyperVCoordinator {
       throw new Error("UI Automation query returned an invalid receipt.");
     }
     return result;
+  }
+
+  async cdpBridge(request) {
+    if (!["locate", "state", "count", "count-state"].includes(request?.mode)) {
+      throw new Error("CDP bridge requires a supported fixed mode.");
+    }
+    const encoded = Buffer.from(JSON.stringify(request), "utf8").toString("base64");
+    const result = await this.execute("cdp-bridge", ["-CdpRequestBase64", encoded]);
+    if (result.bridge?.schema !== "chemsema.gui.cdp-bridge.v1" || result.bridge?.status !== "passed") {
+      throw new Error("CDP bridge returned an invalid receipt.");
+    }
+    return result.bridge.value;
   }
 
   async candidateInput(kind, coordinates, { button = "left", steps = 8 } = {}) {

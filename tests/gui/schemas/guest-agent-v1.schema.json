@@ -19,7 +19,7 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["windowHandle", "processId", "sessionId", "executable", "title", "className", "rect"],
+          "required": ["windowHandle", "processId", "sessionId", "executable", "title", "className", "rect", "clientRect"],
           "properties": {
             "windowHandle": { "type": "integer", "minimum": 1 },
             "processId": { "type": "integer", "minimum": 1 },
@@ -28,6 +28,12 @@
             "title": { "type": "string" },
             "className": { "type": "string" },
             "rect": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": { "type": "integer" }
+            },
+            "clientRect": {
               "type": "array",
               "minItems": 4,
               "maxItems": 4,

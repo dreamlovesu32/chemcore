@@ -14,6 +14,7 @@ pub struct ForegroundProcess {
     pub title: String,
     pub class_name: String,
     pub rect: [i32; 4],
+    pub client_rect: [i32; 4],
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -148,6 +149,7 @@ mod tests {
                     title: "ChemSema".to_string(),
                     class_name: "WebView2".to_string(),
                     rect: [0, 0, 1600, 1000],
+                    client_rect: [8, 1, 1592, 992],
                 }),
             },
             InputGuard {

@@ -365,7 +365,7 @@ The repository now contains the first executable vertical slice under `packages/
 
 The coordinator has now crossed the isolated-desktop boundary on `windows-gui-worker-current`. The dedicated account logs on unattended using an LSA-stored autologon secret; no plaintext Winlogon password is present. The Rust agent is transferred with host/guest SHA-256 equality, runs without creating or stealing a console window, and distinguishes service session 0 from the unlocked interactive `Default` desktop. Desktop candidates are built from current source, copied into SHA-256-addressed guest directories, rehashed before launch, and started at ordinary user integrity. Every activation/click/drag receipt binds the dedicated account, nonzero session, exact candidate PID and executable, foreground window, in-window coordinates, and bounded run directory.
 
-The first production-desktop sentinel was executed on 2026-08-08 without touching the host foreground: a CDP semantic query resolved the scoped `Single bond` control and `#viewer-container`, the guest agent performed a real Windows click and an eight-step real drag, and an independent WebView oracle changed from zero to one rendered bond while the title became dirty. Windows UI Automation is retained for native/window surfaces; WebView2 CDP is enabled only for the isolated test launch on a guest-loopback port and supplies semantic DOM bounds/oracles while OS input remains external and guarded. A recurring `CloudExperienceHost` account prompt was identified by application model ID and is dismissed only under an exact system-path/class/title/app-ID allowlist; the VM still requires a versioned policy baseline so this prompt is prevented rather than handled during every run. Full scenario-runner integration, evidence export, deterministic reset, and the remaining capability matrix are still incomplete.
+The first production-desktop sentinel was executed through the formal scenario runner on 2026-08-08 without touching the host foreground. The `production-black-box` driver boots the isolated VM, installs content-addressed agent and candidate binaries, applies and verifies a dedicated-user desktop baseline, launches the production desktop, resolves the scoped `Single bond` control and `#viewer-container` through guest-loopback CDP, and sends a real Windows click plus an eight-step real drag through the guarded guest agent. The validated `chemsema.gui.run.v1` report records both completed actions, candidate SHA-256 `72f99bcd35b8dc24a837001e0fa6d707bc26e50f18a6428bec9fb42c6a27103f`, rendered bonds changing from zero to one, a dirty window title, passing DOM and diagnostic oracles, and evidence key `cbbcbca14237b0281e683b35f0907d473c33b4c1a45cd255bc14006370214176`. Windows UI Automation remains responsible for native/window surfaces; CDP supplies semantic bounds and independent observations while OS input remains external and guarded. The recurring `CloudExperienceHost` account prompt is reduced by the versioned dedicated-user baseline and, when still present, dismissed only after the agent verifies the exact system path, window class, title, and application model ID. Evidence bundle export, deterministic reset, persistent low-latency guest input, and the remaining capability matrix are still incomplete.
 
 The current entry points are:
 
@@ -379,10 +379,12 @@ npm run gui-platform -- worker start
 npm run gui-platform -- worker guest-attest
 npm run gui-platform -- worker prepare-guest
 npm run gui-platform -- worker install-agent
+npm run gui-platform -- worker configure-desktop-baseline
 npm run gui-platform -- worker agent-attest-service
 npm run gui-platform -- worker stop
 npm run gui-platform -- run tests/gui/scenarios/core/draw-single-bond.json --driver fake
 npm run gui-platform -- run tests/gui/scenarios/core/draw-single-bond.json --driver playwright-browser
+npm run gui-platform -- run tests/gui/scenarios/core/draw-single-bond-production.json --driver production-black-box
 npm run gui-platform:test
 ```
 
