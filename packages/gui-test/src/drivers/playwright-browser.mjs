@@ -1,5 +1,8 @@
 import { spawn } from "node:child_process";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import net from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { launchBrowser } from "../../../../scripts/playwright-browser.mjs";
 import { repositoryRoot } from "../protocol/paths.mjs";
 
@@ -41,6 +44,7 @@ export class PlaywrightBrowserDriver {
   constructor() {
     this.name = "playwright-browser";
     this.diagnostics = [];
+    this.consoleMessages = [];
   }
 
   async prepare(profile) {
@@ -61,13 +65,19 @@ export class PlaywrightBrowserDriver {
     }
     this.browser = await launchBrowser({ headless: true });
     this.page = await this.browser.newPage({ viewport: this.profile.viewport });
+    await this.page.context().tracing.start({ screenshots: true, snapshots: true, sources: false });
+    this.traceStarted = true;
     this.page.setDefaultTimeout(30000);
     this.page.on("console", (message) => {
+      this.consoleMessages.push({ type: message.type(), text: message.text(), location: message.location() });
       if (message.type() === "error") {
         this.diagnostics.push(message.text());
       }
     });
-    this.page.on("pageerror", (error) => this.diagnostics.push(error.message));
+    this.page.on("pageerror", (error) => {
+      this.consoleMessages.push({ type: "pageerror", text: error.message, stack: error.stack || null });
+      this.diagnostics.push(error.message);
+    });
     await this.page.goto(candidate.url || `http://${host}:${port}/viewer/?gui-test=${Date.now()}`, { waitUntil: "domcontentloaded" });
     await this.page.waitForFunction(() => document.body.dataset.runtimeState === "ready", null, { timeout: 30000 });
     await this.page.waitForFunction(
@@ -232,7 +242,32 @@ export class PlaywrightBrowserDriver {
   }
 
   async collectArtifacts() {
-    return [];
+    const traceRoot = await mkdtemp(join(tmpdir(), "chemsema-playwright-trace-"));
+    const tracePath = join(traceRoot, "playwright-trace.zip");
+    try {
+      const [screenshot, domHtml, documentJson, state] = await Promise.all([
+        this.page.screenshot({ type: "png" }),
+        this.page.content(),
+        this.page.evaluate(() => window.__chemsemaDebug?.state?.editorEngine?.documentJson?.() || ""),
+        this.actionState(),
+      ]);
+      if (this.traceStarted) {
+        await this.page.context().tracing.stop({ path: tracePath });
+        this.traceStarted = false;
+      }
+      const trace = await readFile(tracePath);
+      const json = (value) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`, "utf8");
+      return [
+        { name: "final-screenshot.png", mediaType: "image/png", bytes: screenshot },
+        { name: "final-state.json", mediaType: "application/json", bytes: json({ schema: "chemsema.gui.browser-snapshot.v1", state }) },
+        { name: "final-dom.html", mediaType: "text/html", bytes: Buffer.from(domHtml, "utf8") },
+        { name: "document.ccjs.json", mediaType: "application/json", bytes: Buffer.from(documentJson, "utf8") },
+        { name: "browser-console.json", mediaType: "application/json", bytes: json(this.consoleMessages) },
+        { name: "playwright-trace.zip", mediaType: "application/zip", bytes: trace },
+      ];
+    } finally {
+      await rm(traceRoot, { recursive: true, force: true });
+    }
   }
 
   async shutdown() {

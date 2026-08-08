@@ -1,5 +1,8 @@
 import { spawn } from "node:child_process";
-import { dirname, join } from "node:path";
+import { createHash } from "node:crypto";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertValidDocument } from "../protocol/validate.mjs";
 
@@ -269,7 +272,7 @@ export class HyperVCoordinator {
   }
 
   async cdpBridge(request) {
-    if (!["locate", "state", "count", "count-state", "distinct-count", "distinct-count-state"].includes(request?.mode)) {
+    if (!["locate", "state", "count", "count-state", "distinct-count", "distinct-count-state", "artifact-export"].includes(request?.mode)) {
       throw new Error("CDP bridge requires a supported fixed mode.");
     }
     if (request.mode.startsWith("distinct-count")) {
@@ -277,12 +280,44 @@ export class HyperVCoordinator {
         throw new Error("CDP distinct-count requires a selector and an allowlisted identity attribute.");
       }
     }
+    if (request.mode === "artifact-export" && !/^[a-f0-9]{32}$/.test(request.artifactId || "")) {
+      throw new Error("CDP artifact export requires a 32-character lowercase hexadecimal identity.");
+    }
     const encoded = Buffer.from(JSON.stringify(request), "utf8").toString("base64");
     const result = await this.execute("cdp-bridge", ["-CdpRequestBase64", encoded]);
     if (result.bridge?.schema !== "chemsema.gui.cdp-bridge.v1" || result.bridge?.status !== "passed") {
       throw new Error("CDP bridge returned an invalid receipt.");
     }
     return result.bridge.value;
+  }
+
+  async fetchArtifacts(exportManifest) {
+    if (exportManifest?.schema !== "chemsema.gui.guest-artifact-export.v1" || !Array.isArray(exportManifest.artifacts)) {
+      throw new Error("Guest artifact export manifest is invalid.");
+    }
+    const hostRoot = await mkdtemp(join(tmpdir(), "chemsema-gui-artifacts-"));
+    try {
+      const encoded = Buffer.from(JSON.stringify(exportManifest), "utf8").toString("base64");
+      const result = await this.execute("fetch-artifacts", ["-ArtifactManifestBase64", encoded, "-HostArtifactRoot", hostRoot], { timeoutMs: 180000 });
+      if (result.transfer?.schema !== "chemsema.gui.host-artifact-transfer.v1" || !Array.isArray(result.transfer.artifacts)) {
+        throw new Error("Host artifact transfer receipt is invalid.");
+      }
+      const resolvedRoot = `${resolve(hostRoot)}\\`;
+      const payloads = [];
+      for (const artifact of result.transfer.artifacts) {
+        const hostPath = resolve(artifact.hostPath || "");
+        if (!hostPath.startsWith(resolvedRoot)) throw new Error(`Transferred artifact ${artifact.name} escaped the host staging root.`);
+        const bytes = await readFile(hostPath);
+        const actualHash = createHash("sha256").update(bytes).digest("hex");
+        if (bytes.length !== artifact.size || actualHash !== artifact.sha256) {
+          throw new Error(`Transferred artifact ${artifact.name} failed host SHA-256 verification.`);
+        }
+        payloads.push({ name: artifact.name, mediaType: artifact.mediaType, bytes });
+      }
+      return payloads;
+    } finally {
+      await rm(hostRoot, { recursive: true, force: true });
+    }
   }
 
   async startCdpAgent() {

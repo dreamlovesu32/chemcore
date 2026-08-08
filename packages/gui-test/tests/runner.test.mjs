@@ -11,11 +11,37 @@ import { ResourceBudget } from "../src/scheduler/resource-budget.mjs";
 
 test("the versioned bond scenario executes through the fake driver", async () => {
   const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "draw-single-bond.json"));
-  const report = await runScenario({ scenario, driver: new FakeDriver() });
+  const { report } = await runScenario({ scenario, driver: new FakeDriver() });
   assert.equal(report.status, "passed");
   assert.equal(report.actions.length, 2);
   assert(report.actions.every((receipt) => receipt.status === "completed"));
   assert(report.oracles.every((oracle) => oracle.passed));
+  assert.deepEqual(report.artifacts, []);
+});
+
+test("artifact collection failure fails the run but still shuts the driver down", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "draw-single-bond.json"));
+  const driver = new FakeDriver();
+  let shutdowns = 0;
+  driver.collectArtifacts = async () => { throw new Error("snapshot unavailable"); };
+  driver.shutdown = async () => { shutdowns += 1; };
+  const { report } = await runScenario({ scenario, driver });
+  assert.equal(report.status, "failed");
+  assert.match(report.failure.message, /Artifact collection failed/);
+  assert(report.diagnostics.includes("artifact-collection: snapshot unavailable"));
+  assert.equal(shutdowns, 1);
+});
+
+test("shutdown failure retains already collected artifacts as failure evidence", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "draw-single-bond.json"));
+  const driver = new FakeDriver();
+  driver.collectArtifacts = async () => [{ name: "final-state.json", mediaType: "application/json", bytes: Buffer.from("{}") }];
+  driver.shutdown = async () => { throw new Error("shutdown unavailable"); };
+  const { report, artifactPayloads } = await runScenario({ scenario, driver });
+  assert.equal(report.status, "failed");
+  assert.match(report.failure.message, /Driver shutdown failed/);
+  assert.equal(report.artifacts[0].retention, "failure");
+  assert.equal(artifactPayloads[0].descriptor.retention, "failure");
 });
 
 test("impact selection follows the transitive source to scenario closure", async () => {

@@ -1,6 +1,36 @@
 import { randomUUID } from "node:crypto";
-import { evidenceKey } from "../protocol/canonical.mjs";
+import { evidenceKey, sha256 } from "../protocol/canonical.mjs";
 import { assertValidDocument } from "../protocol/validate.mjs";
+
+const artifactNamePattern = /^[a-z0-9][a-z0-9._-]{0,127}$/;
+
+function normalizeArtifacts(artifacts, retention) {
+  const names = new Set();
+  return (artifacts || []).map((artifact) => {
+    if (!artifactNamePattern.test(artifact?.name || "")) {
+      throw new Error(`Artifact name ${JSON.stringify(artifact?.name)} is not a safe portable name.`);
+    }
+    if (names.has(artifact.name)) throw new Error(`Artifact name ${artifact.name} is duplicated.`);
+    names.add(artifact.name);
+    if (typeof artifact.mediaType !== "string" || !artifact.mediaType.includes("/")) {
+      throw new Error(`Artifact ${artifact.name} has no valid media type.`);
+    }
+    const bytes = Buffer.isBuffer(artifact.bytes) ? artifact.bytes : Buffer.from(artifact.bytes || []);
+    if (bytes.length > 64 * 1024 * 1024) {
+      throw new Error(`Artifact ${artifact.name} exceeds the 64 MiB bounded evidence limit.`);
+    }
+    return {
+      descriptor: {
+        name: artifact.name,
+        mediaType: artifact.mediaType,
+        size: bytes.length,
+        sha256: sha256(bytes),
+        retention,
+      },
+      bytes,
+    };
+  });
+}
 
 function oraclePassed(oracle, observed, expectedDiagnostics) {
   if (oracle.kind === "dom-count" || oracle.kind === "dom-distinct-count") {
@@ -118,15 +148,35 @@ export async function runScenario({ scenario, driver, candidate = {}, componentC
     environment = await driver.environment();
     diagnostics = await driver.observe({ kind: "no-unexpected-diagnostics" });
   } catch (error) {
+    status = "failed";
+    failure ||= { name: error.name, message: `Environment or diagnostic collection failed: ${error.message}`, stack: error.stack || null };
+    diagnostics.push(`environment-collection: ${error.message}`);
+  }
+  let artifactPayloads = [];
+  try {
+    artifactPayloads = normalizeArtifacts(
+      await driver.collectArtifacts(status === "passed" ? "sample" : "failure"),
+      status === "passed" ? "sample" : "failure",
+    );
+  } catch (error) {
+    status = "failed";
+    failure ||= { name: error.name, message: `Artifact collection failed: ${error.message}`, stack: error.stack || null };
     diagnostics.push(`artifact-collection: ${error.message}`);
   }
   try {
-    await driver.collectArtifacts(status === "passed" ? "sample" : "failure");
-  } finally {
     await driver.shutdown();
+  } catch (error) {
+    status = "failed";
+    failure ||= { name: error.name, message: `Driver shutdown failed: ${error.message}`, stack: error.stack || null };
+    diagnostics.push(`driver-shutdown: ${error.message}`);
+  }
+
+  if (status !== "passed") {
+    for (const artifact of artifactPayloads) artifact.descriptor.retention = "failure";
   }
 
   const ended = Date.now();
+  const artifactDescriptors = artifactPayloads.map(({ descriptor }) => descriptor);
   const report = {
     schema: "chemsema.gui.run.v1",
     runId: randomUUID(),
@@ -141,8 +191,15 @@ export async function runScenario({ scenario, driver, candidate = {}, componentC
     oracles: oracleResults,
     diagnostics,
     failure,
-    evidenceKey: evidenceKey({ scenario, driver: driver.name, environment, componentClosure, artifacts }),
+    artifacts: artifactDescriptors,
+    evidenceKey: evidenceKey({
+      scenario,
+      driver: driver.name,
+      environment,
+      componentClosure,
+      artifacts: [...artifacts, ...artifactDescriptors.map((artifact) => artifact.sha256)],
+    }),
   };
   await assertValidDocument(report, `run report for ${scenario.id}`);
-  return report;
+  return { report, artifactPayloads };
 }

@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet('host-attest', 'reset', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'start-input-agent', 'stop-input-agent', 'start-cdp-agent', 'stop-cdp-agent', 'uia-query', 'cdp-bridge', 'action-transaction', 'input-click', 'input-drag', 'input-key', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
+  [ValidateSet('host-attest', 'reset', 'start', 'guest-attest', 'prepare-guest', 'install-agent', 'configure-autologon', 'configure-desktop-baseline', 'install-candidate', 'launch-candidate', 'dismiss-known-blocker', 'activate-candidate', 'start-input-agent', 'stop-input-agent', 'start-cdp-agent', 'stop-cdp-agent', 'uia-query', 'cdp-bridge', 'fetch-artifacts', 'action-transaction', 'input-click', 'input-drag', 'input-key', 'agent-attest-service', 'agent-attest-interactive', 'stop')]
   [string]$Operation,
 
   [Parameter(Mandatory = $true)]
@@ -15,6 +15,8 @@ param(
   [string]$HostCandidatePath,
   [string]$HostCdpScriptPath,
   [string]$CdpRequestBase64,
+  [string]$ArtifactManifestBase64,
+  [string]$HostArtifactRoot,
   [string]$ActionRequestBase64,
   [string]$AutomationName,
   [string]$AutomationScopeName,
@@ -341,7 +343,9 @@ function Start-Candidate {
     $launchScript = Join-Path (Split-Path -Parent $CandidatePath) 'launch-gui-test-candidate.ps1'
     $launchSource = @'
 param([string]$CandidatePath)
-$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--force-renderer-accessibility --remote-debugging-port=9223'
+$logPath = Join-Path (Split-Path -Parent $CandidatePath) 'webview.log'
+Remove-Item -LiteralPath $logPath -Force -ErrorAction SilentlyContinue
+$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--force-renderer-accessibility --remote-debugging-port=9223 --enable-logging --log-file=$logPath --v=1"
 & $CandidatePath
 '@
     [IO.File]::WriteAllText($launchScript, $launchSource, [Text.UTF8Encoding]::new($false))
@@ -593,6 +597,71 @@ function Invoke-CdpBridge {
     vmId = (Get-WorkerVm).Id.ToString()
     vmName = (Get-WorkerVm).Name
     bridge = $result
+  }
+}
+
+function Receive-GuestArtifacts {
+  if ([string]::IsNullOrWhiteSpace($ArtifactManifestBase64)) { throw 'The guest artifact manifest is absent.' }
+  if ([string]::IsNullOrWhiteSpace($HostArtifactRoot)) { throw 'The host artifact staging root is absent.' }
+  $manifest = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($ArtifactManifestBase64)) | ConvertFrom-Json
+  if ($manifest.schema -ne 'chemsema.gui.guest-artifact-export.v1' -or [string]$manifest.artifactId -notmatch '^[a-f0-9]{32}$') {
+    throw 'The guest artifact export manifest is invalid.'
+  }
+  $resolvedHostRoot = [IO.Path]::GetFullPath($HostArtifactRoot)
+  if ($resolvedHostRoot -eq [IO.Path]::GetPathRoot($resolvedHostRoot) -or -not (Test-Path -LiteralPath $resolvedHostRoot -PathType Container)) {
+    throw 'The host artifact staging root is not a bounded existing directory.'
+  }
+  $guestExportRoot = [IO.Path]::GetFullPath((Join-Path (Join-Path $GuestTestRoot 'artifacts') ([string]$manifest.artifactId))).TrimEnd('\') + '\'
+  $seenNames = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+  $validated = @()
+  foreach ($artifact in @($manifest.artifacts)) {
+    $name = [string]$artifact.name
+    $guestPath = [IO.Path]::GetFullPath([string]$artifact.guestPath)
+    if ($name -notmatch '^[a-z0-9][a-z0-9._-]{0,127}$' -or -not $seenNames.Add($name)) { throw 'Guest artifact names must be safe and unique.' }
+    if ([string]$artifact.mediaType -notmatch '^[^/]+/[^/]+$') { throw "Guest artifact $name has an invalid media type." }
+    if (-not ($guestPath + '').StartsWith($guestExportRoot, [StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($guestPath) -ne $name) {
+      throw "Guest artifact $name escaped its authorized export root."
+    }
+    if ([int64]$artifact.size -lt 0 -or [int64]$artifact.size -gt (64 * 1024 * 1024) -or [string]$artifact.sha256 -notmatch '^[a-f0-9]{64}$') {
+      throw "Guest artifact $name has invalid size or content identity."
+    }
+    $validated += [ordered]@{ name=$name; mediaType=[string]$artifact.mediaType; guestPath=$guestPath; size=[int64]$artifact.size; sha256=[string]$artifact.sha256 }
+  }
+  if ($validated.Count -eq 0 -or $validated.Count -gt 16) { throw 'Guest artifact export must contain between one and sixteen payloads.' }
+
+  $credential = Get-GuestCredential
+  $vm = Get-WorkerVm
+  $session = New-PSSession -VMId $vm.Id -Credential $credential
+  try {
+    $received = @()
+    foreach ($artifact in $validated) {
+      $guestIdentity = Invoke-Command -Session $session -ScriptBlock {
+        param($Path)
+        if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw 'Guest artifact file is absent.' }
+        $item = Get-Item -LiteralPath $Path
+        [ordered]@{ size=[int64]$item.Length; sha256=(Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() }
+      } -ArgumentList $artifact.guestPath
+      if ([int64]$guestIdentity.size -ne $artifact.size -or [string]$guestIdentity.sha256 -ne $artifact.sha256) {
+        throw "Guest artifact $($artifact.name) changed before transfer."
+      }
+      $hostPath = Join-Path $resolvedHostRoot $artifact.name
+      Copy-Item -LiteralPath $artifact.guestPath -Destination $hostPath -FromSession $session
+      $hostItem = Get-Item -LiteralPath $hostPath
+      $hostHash = (Get-FileHash -LiteralPath $hostPath -Algorithm SHA256).Hash.ToLowerInvariant()
+      if ([int64]$hostItem.Length -ne $artifact.size -or $hostHash -ne $artifact.sha256) {
+        throw "Host artifact $($artifact.name) failed SHA-256 verification after transfer."
+      }
+      $received += [ordered]@{ name=$artifact.name; mediaType=$artifact.mediaType; hostPath=$hostPath; size=[int64]$hostItem.Length; sha256=$hostHash }
+    }
+    [ordered]@{
+      schema = 'chemsema.gui.worker-attestation.v1'
+      operation = 'fetch-artifacts'
+      vmId = $vm.Id.ToString()
+      vmName = $vm.Name
+      transfer = [ordered]@{ schema='chemsema.gui.host-artifact-transfer.v1'; artifactId=[string]$manifest.artifactId; artifacts=$received }
+    }
+  } finally {
+    Remove-PSSession -Session $session -ErrorAction SilentlyContinue
   }
 }
 
@@ -1155,6 +1224,7 @@ switch ($Operation) {
   'stop-input-agent' { Write-Result (Stop-PersistentInputAgent) }
   'uia-query' { Write-Result (Query-Uia) }
   'cdp-bridge' { Write-Result (Invoke-CdpBridge) }
+  'fetch-artifacts' { Write-Result (Receive-GuestArtifacts) }
   'action-transaction' { Write-Result (Invoke-ActionTransaction) }
   'start-cdp-agent' { Write-Result (Start-PersistentCdpAgent) }
   'stop-cdp-agent' { Write-Result (Stop-PersistentCdpAgent) }

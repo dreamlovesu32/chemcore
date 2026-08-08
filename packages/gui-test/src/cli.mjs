@@ -137,12 +137,12 @@ async function run(path, options) {
     throw new Error(`Driver ${driverName} is not implemented.`);
   }
   const candidate = options.url ? { url: options.url } : {};
-  const report = await runScenario({ scenario, driver, candidate });
+  const { report, artifactPayloads } = await runScenario({ scenario, driver, candidate });
   const reportPath = resolve(options.report || join("tmp", "gui-platform", `${scenario.id}-${driverName}.json`));
   await mkdir(dirname(reportPath), { recursive: true });
   await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   const evidenceRoot = resolve(options["evidence-root"] || join("tmp", "gui-platform", "evidence"));
-  const bundle = await writeEvidenceBundle({ report, root: evidenceRoot });
+  const bundle = await writeEvidenceBundle({ report, artifactPayloads, root: evidenceRoot });
   console.log(`[gui-platform] ${report.status} ${scenario.id} via ${driverName}`);
   console.log(`[gui-platform] report ${reportPath}`);
   console.log(`[gui-platform] evidence ${bundle.manifestPath}`);

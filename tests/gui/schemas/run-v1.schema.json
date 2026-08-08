@@ -4,7 +4,7 @@
   "title": "ChemSema GUI Run v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "runId", "scenarioId", "driver", "status", "startedAt", "endedAt", "durationMs", "environment", "actions", "oracles", "diagnostics", "evidenceKey"],
+  "required": ["schema", "runId", "scenarioId", "driver", "status", "startedAt", "endedAt", "durationMs", "environment", "actions", "oracles", "diagnostics", "artifacts", "evidenceKey"],
   "properties": {
     "schema": { "const": "chemsema.gui.run.v1" },
     "runId": { "type": "string", "minLength": 1 },
@@ -18,10 +18,26 @@
     "actions": { "type": "array", "items": { "$ref": "#/$defs/receipt" } },
     "oracles": { "type": "array", "items": { "$ref": "#/$defs/oracleResult" } },
     "diagnostics": { "type": "array", "items": { "type": "string" } },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" }
+    },
     "failure": { "type": ["object", "null"] },
     "evidenceKey": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
   },
   "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "mediaType", "size", "sha256", "retention"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+        "mediaType": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
+        "size": { "type": "integer", "minimum": 0, "maximum": 67108864 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "retention": { "enum": ["sample", "failure", "qualification", "temporary"] }
+      }
+    },
     "receipt": {
       "type": "object",
       "additionalProperties": false,

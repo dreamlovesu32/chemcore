@@ -47,6 +47,19 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
     async startCdpAgent() { cdpAgentStarts += 1; return { agent: { status: "ready" } }; },
     async stopCdpAgent() { cdpAgentStops += 1; return {}; },
     async cdpBridge(request) {
+      if (request.mode === "artifact-export") {
+        return {
+          schema: "chemsema.gui.guest-artifact-export.v1",
+          artifactId: request.artifactId,
+          artifacts: [
+            "final-screenshot.png",
+            "final-state.json",
+            "final-dom.html",
+            "document.ccjs.json",
+            "webview.log",
+          ].map((name) => ({ name, truncated: false })),
+        };
+      }
       if (request.mode === "state") {
         return { runtimeState: "ready", revision: bonds, window: { title: bonds ? "Untitled *" : "Untitled" }, viewport: { width: 1028, height: 779 }, rendered: { bonds, nodes: 0 } };
       }
@@ -58,6 +71,15 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
         return { scopeCount: null, matches: [{ visible: true, disabled: false, rect: [52, 136, 1028, 739] }] };
       }
       return { scopeCount: 1, matches: [{ visible: true, disabled: false, rect: [4, 191, 48, 231] }] };
+    },
+    async fetchArtifacts() {
+      return [
+        { name: "final-screenshot.png", mediaType: "image/png", bytes: Buffer.from("png") },
+        { name: "final-state.json", mediaType: "application/json", bytes: Buffer.from("{}") },
+        { name: "final-dom.html", mediaType: "text/html", bytes: Buffer.from("<html></html>") },
+        { name: "document.ccjs.json", mediaType: "application/json", bytes: Buffer.from("{}") },
+        { name: "webview.log", mediaType: "text/plain", bytes: Buffer.from("candidate log\n") },
+      ];
     },
     async candidateInput(kind, coordinates) {
       inputs.push({ kind, coordinates });
@@ -81,7 +103,7 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
     async stop() { stopCount += 1; return {}; },
   };
   const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "draw-single-bond-production.json"));
-  const report = await runScenario({ scenario, driver: new ProductionBlackBoxDriver({ coordinator }) });
+  const { report, artifactPayloads } = await runScenario({ scenario, driver: new ProductionBlackBoxDriver({ coordinator }) });
   assert.equal(report.status, "passed");
   assert.deepEqual(inputs[0], { kind: "click", x: 34, y: 212, button: "left" });
   assert.deepEqual(inputs[1], { kind: "drag", from: [480, 439], to: [577, 439], steps: 8, button: "left" });
@@ -90,4 +112,27 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
   assert.equal(blockerDismissals, 1);
   assert.equal(cdpAgentStarts, 1);
   assert.equal(cdpAgentStops, 1);
+  assert.deepEqual(report.artifacts.map((artifact) => artifact.name), [
+    "final-screenshot.png",
+    "final-state.json",
+    "final-dom.html",
+    "document.ccjs.json",
+    "webview.log",
+  ]);
+  assert.equal(artifactPayloads.length, 5);
+});
+
+test("production artifact collection fails closed on truncated evidence", async () => {
+  const driver = new ProductionBlackBoxDriver({
+    coordinator: {
+      async cdpBridge() {
+        return {
+          schema: "chemsema.gui.guest-artifact-export.v1",
+          artifactId: "0".repeat(32),
+          artifacts: [{ name: "final-dom.html", truncated: true }],
+        };
+      },
+    },
+  });
+  await assert.rejects(driver.collectArtifacts(), /truncated required payloads: final-dom.html/);
 });

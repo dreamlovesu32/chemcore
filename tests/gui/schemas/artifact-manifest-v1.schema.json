@@ -13,8 +13,10 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["uri", "size", "sha256", "retention"],
+        "required": ["name", "mediaType", "uri", "size", "sha256", "retention"],
         "properties": {
+          "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+          "mediaType": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
           "uri": { "type": "string", "minLength": 1 },
           "size": { "type": "integer", "minimum": 0 },
           "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },

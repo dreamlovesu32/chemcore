@@ -253,6 +253,35 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   const guestSource = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
   assert.match(guestSource, /'distinct-count', 'distinct-count-state'/);
   assert.match(guestSource, /'data-object-id', 'data-node-id', 'data-bond-id'/);
+  assert.match(guestSource, /'artifact-export'/);
+  assert.match(guestSource, /Page\.captureScreenshot/);
+  assert.match(guestSource, /64 \* 1024 \* 1024/);
+  assert.match(guestSource, /chemsema\.gui\.guest-artifact-export\.v1/);
+  assert.match(guestSource, /webview\.log/);
+});
+
+test("production artifacts use SHA-verified PowerShell Direct file transfer", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "hyperv-coordinator.ps1"), "utf8");
+  const start = source.indexOf("function Receive-GuestArtifacts");
+  const end = source.indexOf("function Start-PersistentCdpAgent", start);
+  const transfer = source.slice(start, end);
+  assert.match(transfer, /Copy-Item[^\n]+-FromSession \$session/);
+  assert.match(transfer, /Guest artifact .* changed before transfer/);
+  assert.match(transfer, /failed SHA-256 verification after transfer/);
+  assert.match(transfer, /64 \* 1024 \* 1024/);
+  assert.doesNotMatch(transfer, /FromBase64String\(\$artifact\./);
+});
+
+test("candidate launch enables a bounded WebView log inside the content-addressed directory", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "hyperv-coordinator.ps1"), "utf8");
+  const start = source.indexOf("function Start-Candidate");
+  const end = source.indexOf("function Activate-Candidate", start);
+  const launch = source.slice(start, end);
+  assert.match(launch, /Join-Path \(Split-Path -Parent \$CandidatePath\) 'webview\.log'/);
+  assert.match(launch, /--enable-logging/);
+  assert.match(launch, /--log-file=\$logPath/);
 });
 
 test("CDP distinct object observation requires an allowlisted identity attribute", async () => {

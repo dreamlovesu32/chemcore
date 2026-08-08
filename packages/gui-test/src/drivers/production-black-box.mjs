@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { guiTestsDir } from "../protocol/paths.mjs";
 import { readValidatedDocument } from "../protocol/validate.mjs";
@@ -253,7 +254,11 @@ export class ProductionBlackBoxDriver {
   }
 
   async collectArtifacts() {
-    return [];
+    const artifactId = randomUUID().replaceAll("-", "");
+    const exportManifest = await this.coordinator.cdpBridge({ mode: "artifact-export", artifactId });
+    const truncated = exportManifest?.artifacts?.filter((artifact) => artifact.truncated).map((artifact) => artifact.name) || [];
+    if (truncated.length) throw new Error(`Production artifact export truncated required payloads: ${truncated.join(", ")}.`);
+    return this.coordinator.fetchArtifacts(exportManifest);
   }
 
   async shutdown() {

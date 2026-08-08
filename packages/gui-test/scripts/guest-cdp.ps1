@@ -54,8 +54,11 @@ try {
   if ([string]::IsNullOrWhiteSpace($EncodedRequest)) { throw 'The CDP request is absent.' }
   $requestJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($EncodedRequest))
   $request = $requestJson | ConvertFrom-Json
-  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state')) {
+  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state', 'artifact-export')) {
     throw "Unsupported CDP bridge mode '$($request.mode)'."
+  }
+  if ($request.mode -eq 'artifact-export' -and [string]$request.artifactId -notmatch '^[a-f0-9]{32}$') {
+    throw 'Artifact export requires a 32-character lowercase hexadecimal identity.'
   }
   $deadline = [DateTime]::UtcNow.AddSeconds(30)
   do {
@@ -82,7 +85,70 @@ try {
     } finally {
       $connectCancellation.Dispose()
     }
-    if ($request.mode -eq 'state') {
+    $screenshotBase64 = $null
+    if ($request.mode -eq 'artifact-export') {
+      $screenshot = Invoke-Cdp $socket 'Page.captureScreenshot' @{
+        format = 'png'
+        fromSurface = $true
+        captureBeyondViewport = $false
+      }
+      $screenshotBase64 = [string]$screenshot.data
+      if ([string]::IsNullOrWhiteSpace($screenshotBase64) -or $screenshotBase64.Length -gt (16 * 1024 * 1024)) {
+        throw 'CDP screenshot is absent or exceeds the bounded artifact channel.'
+      }
+      $expression = @'
+(() => {
+  const boundUtf8 = (value, maximumBytes) => {
+    const encoded = new TextEncoder().encode(value || '');
+    return {
+      value: new TextDecoder().decode(encoded.slice(0, maximumBytes)),
+      truncated: encoded.length > maximumBytes,
+      originalBytes: encoded.length
+    };
+  };
+  const debug = window.__chemsemaDebug;
+  const session = debug?.state?.editorEngine;
+  let documentJson = '';
+  try { documentJson = session?.documentJson?.() || ''; } catch {}
+  const dom = boundUtf8(document.documentElement?.outerHTML || '', 64 * 1024 * 1024);
+  const documentArtifact = boundUtf8(documentJson, 64 * 1024 * 1024);
+  let lastCommandResult = null;
+  try { lastCommandResult = JSON.parse(session?.lastCommandResultJson?.() || 'null'); } catch {}
+  return {
+    state: {
+      runtimeState: document.body.dataset.runtimeState || null,
+      revision: Number.isInteger(debug?.state?.revision) ? debug.state.revision : null,
+      appScript: document.querySelector('script[type="module"]')?.src || null,
+      engine: {
+        hostKind: debug?.engineHost?.kind || null,
+        sessionType: session?.constructor?.name || null,
+        editingRustDocument: !debug?.state?.currentPath && !!session,
+        canUndo: session?.canUndo?.() ?? null,
+        canRedo: session?.canRedo?.() ?? null,
+        lastCommandResult,
+        lastCommandSync: debug?.renderStats?.lastCommandSync || null
+      },
+      window: { href: location.href, title: document.title, visibilityState: document.visibilityState, focused: document.hasFocus() },
+      viewport: { width: innerWidth, height: innerHeight, devicePixelRatio },
+      rendered: {
+        bonds: document.querySelectorAll('[data-bond-id]').length,
+        nodes: document.querySelectorAll('[data-node-id]').length,
+        objects: document.querySelectorAll('[data-object-id]').length,
+        overlays: document.querySelectorAll('#editor-overlay-layer > *').length
+      }
+    },
+    domHtml: dom.value,
+    documentJson: documentArtifact.value,
+    truncation: {
+      domHtml: dom.truncated,
+      domHtmlOriginalBytes: dom.originalBytes,
+      documentJson: documentArtifact.truncated,
+      documentJsonOriginalBytes: documentArtifact.originalBytes
+    }
+  };
+})()
+'@
+    } elseif ($request.mode -eq 'state') {
       $expression = @'
 (() => ({
   runtimeState: document.body.dataset.runtimeState || null,
@@ -200,11 +266,91 @@ try {
     if ($null -ne $evaluation.exceptionDetails) {
       throw "CDP evaluation failed: $($evaluation.exceptionDetails.exception.description)"
     }
+    $value = $evaluation.result.value
+    if ($request.mode -eq 'artifact-export') {
+      $snapshot = $value
+      $logBytes = [byte[]]::new(0)
+      $logTruncated = $false
+      $logOriginalBytes = 0
+      $candidateRoot = Join-Path $AllowedRoot 'candidate'
+      $logPath = Get-ChildItem -LiteralPath $candidateRoot -Filter 'webview.log' -File -Recurse -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+      if ($null -ne $logPath) {
+        $maximumLogBytes = 16 * 1024 * 1024
+        $stream = [IO.File]::Open($logPath.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+        try {
+          $logOriginalBytes = [int64]$stream.Length
+          $readBytes = [int][Math]::Min($logOriginalBytes, $maximumLogBytes)
+          if ($logOriginalBytes -gt $readBytes) {
+            [void]$stream.Seek(-$readBytes, [IO.SeekOrigin]::End)
+            $logTruncated = $true
+          }
+          $buffer = [byte[]]::new($readBytes)
+          $offset = 0
+          while ($offset -lt $readBytes) {
+            $read = $stream.Read($buffer, $offset, $readBytes - $offset)
+            if ($read -le 0) { break }
+            $offset += $read
+          }
+          if ($offset -eq $buffer.Length) {
+            $logBytes = $buffer
+          } else {
+            $logBytes = [byte[]]::new($offset)
+            [Array]::Copy($buffer, $logBytes, $offset)
+          }
+        } finally {
+          $stream.Dispose()
+        }
+      }
+      $snapshot.truncation | Add-Member -NotePropertyName webviewLog -NotePropertyValue $logTruncated
+      $snapshot.truncation | Add-Member -NotePropertyName webviewLogOriginalBytes -NotePropertyValue $logOriginalBytes
+      $artifactRoot = Join-Path (Join-Path $AllowedRoot 'artifacts') ([string]$request.artifactId)
+      $allowedArtifactRoot = [IO.Path]::GetFullPath((Join-Path $AllowedRoot 'artifacts')).TrimEnd('\') + '\'
+      $resolvedArtifactRoot = [IO.Path]::GetFullPath($artifactRoot).TrimEnd('\') + '\'
+      if (-not $resolvedArtifactRoot.StartsWith($allowedArtifactRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Artifact export path escaped the authorized test root.'
+      }
+      if (Test-Path -LiteralPath $artifactRoot) { Remove-Item -LiteralPath $artifactRoot -Recurse -Force }
+      New-Item -ItemType Directory -Path $artifactRoot -Force | Out-Null
+
+      $stateValue = [ordered]@{
+        schema = 'chemsema.gui.production-snapshot.v1'
+        state = $snapshot.state
+        truncation = $snapshot.truncation
+      }
+      $payloads = @(
+        [ordered]@{ name='final-screenshot.png'; mediaType='image/png'; bytes=[Convert]::FromBase64String($screenshotBase64); truncated=$false },
+        [ordered]@{ name='final-state.json'; mediaType='application/json'; bytes=[Text.Encoding]::UTF8.GetBytes(($stateValue | ConvertTo-Json -Depth 16)); truncated=$false },
+        [ordered]@{ name='final-dom.html'; mediaType='text/html'; bytes=[Text.Encoding]::UTF8.GetBytes([string]$snapshot.domHtml); truncated=[bool]$snapshot.truncation.domHtml },
+        [ordered]@{ name='document.ccjs.json'; mediaType='application/json'; bytes=[Text.Encoding]::UTF8.GetBytes([string]$snapshot.documentJson); truncated=[bool]$snapshot.truncation.documentJson },
+        [ordered]@{ name='webview.log'; mediaType='text/plain'; bytes=$logBytes; truncated=$logTruncated }
+      )
+      $exported = @()
+      foreach ($payload in $payloads) {
+        if ($payload.bytes.Length -gt (64 * 1024 * 1024)) { throw "Artifact $($payload.name) exceeds 64 MiB." }
+        $path = Join-Path $artifactRoot $payload.name
+        [IO.File]::WriteAllBytes($path, $payload.bytes)
+        $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        $exported += [ordered]@{
+          name = $payload.name
+          mediaType = $payload.mediaType
+          guestPath = $path
+          size = [int64]$payload.bytes.Length
+          sha256 = $hash
+          truncated = [bool]$payload.truncated
+        }
+      }
+      $value = [ordered]@{
+        schema = 'chemsema.gui.guest-artifact-export.v1'
+        artifactId = [string]$request.artifactId
+        artifacts = $exported
+      }
+    }
     return [ordered]@{
       schema = 'chemsema.gui.cdp-bridge.v1'
       status = 'passed'
       mode = [string]$request.mode
-      value = $evaluation.result.value
+      value = $value
     }
   } finally {
     if ($null -ne $socket) { $socket.Dispose() }
