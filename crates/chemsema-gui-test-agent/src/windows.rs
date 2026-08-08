@@ -1,27 +1,38 @@
-use crate::{AgentAttestation, ForegroundProcess, InputGuard, AGENT_PROTOCOL};
+use crate::{
+    AgentAttestation, ForegroundProcess, InputGuard, AGENT_PROTOCOL, AUTHORIZED_ACCOUNT_SUFFIX,
+};
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::path::PathBuf;
-use std::ptr::null_mut;
+use std::ptr::{null, null_mut};
 use std::thread;
 use std::time::Duration;
-use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, FALSE, RECT};
+use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, FALSE, RECT, TRUE};
+use windows_sys::Win32::Security::Authentication::Identity::{
+    LsaClose, LsaOpenPolicy, LsaStorePrivateData, LSA_HANDLE, LSA_OBJECT_ATTRIBUTES,
+    LSA_UNICODE_STRING, POLICY_CREATE_SECRET,
+};
+use windows_sys::Win32::Storage::Packaging::Appx::GetApplicationUserModelId;
 use windows_sys::Win32::System::RemoteDesktop::ProcessIdToSessionId;
 use windows_sys::Win32::System::StationsAndDesktops::{
     CloseDesktop, GetUserObjectInformationW, OpenInputDesktop, DESKTOP_READOBJECTS,
     DESKTOP_SWITCHDESKTOP, UOI_NAME,
 };
 use windows_sys::Win32::System::Threading::{
-    GetCurrentProcessId, OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION,
+    AttachThreadInput, GetCurrentProcessId, GetCurrentThreadId, OpenProcess,
+    QueryFullProcessImageNameW, TerminateProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+    PROCESS_TERMINATE,
 };
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
-    SendInput, INPUT, INPUT_0, INPUT_MOUSE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
-    MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP,
-    MOUSEINPUT,
+    SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYEVENTF_KEYUP,
+    MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP,
+    MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEINPUT, VK_MENU,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetClassNameW, GetForegroundWindow, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId,
-    SetCursorPos,
+    BringWindowToTop, EnumWindows, GetClassNameW, GetForegroundWindow, GetWindowRect,
+    GetWindowTextW, GetWindowThreadProcessId, IsWindow, IsWindowVisible, PostMessageW,
+    SetCursorPos, SetForegroundWindow, SetWindowPos, ShowWindowAsync, HWND_NOTOPMOST, HWND_TOPMOST,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SW_RESTORE, WM_CLOSE,
 };
 
 fn last_error(context: &str) -> String {
@@ -105,6 +116,35 @@ fn process_executable(process_id: u32) -> Result<PathBuf, String> {
             return Err(last_error("QueryFullProcessImageNameW"));
         }
         Ok(PathBuf::from(wide_string(&buffer, length as usize)))
+    })();
+    unsafe { CloseHandle(process) };
+    result
+}
+
+fn application_user_model_id(process_id: u32) -> Result<String, String> {
+    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process_id) };
+    if process.is_null() {
+        return Err(last_error("OpenProcess(AppUserModelId)"));
+    }
+    let result = (|| {
+        let mut length = 0u32;
+        unsafe { GetApplicationUserModelId(process, &mut length, null_mut()) };
+        if length == 0 {
+            return Err("foreground process has no application user model id".to_string());
+        }
+        let mut buffer = vec![0u16; length as usize];
+        let status =
+            unsafe { GetApplicationUserModelId(process, &mut length, buffer.as_mut_ptr()) };
+        if status != 0 {
+            return Err(format!(
+                "GetApplicationUserModelId failed with Windows error {status}"
+            ));
+        }
+        let used = buffer
+            .iter()
+            .position(|value| *value == 0)
+            .unwrap_or(buffer.len());
+        Ok(wide_string(&buffer, used))
     })();
     unsafe { CloseHandle(process) };
     result
@@ -194,6 +234,46 @@ fn send_mouse(flags: u32) -> Result<(), String> {
     Ok(())
 }
 
+fn send_alt_key() -> Result<(), String> {
+    let mut inputs = [
+        INPUT {
+            r#type: INPUT_KEYBOARD,
+            Anonymous: INPUT_0 {
+                ki: KEYBDINPUT {
+                    wVk: VK_MENU,
+                    wScan: 0,
+                    dwFlags: 0,
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+            },
+        },
+        INPUT {
+            r#type: INPUT_KEYBOARD,
+            Anonymous: INPUT_0 {
+                ki: KEYBDINPUT {
+                    wVk: VK_MENU,
+                    wScan: 0,
+                    dwFlags: KEYEVENTF_KEYUP,
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+            },
+        },
+    ];
+    let sent = unsafe {
+        SendInput(
+            inputs.len() as u32,
+            inputs.as_mut_ptr(),
+            size_of::<INPUT>() as i32,
+        )
+    };
+    if sent != inputs.len() as u32 {
+        return Err(last_error("SendInput(Alt)"));
+    }
+    Ok(())
+}
+
 fn button_flags(button: &str) -> Result<(u32, u32), String> {
     match button {
         "left" => Ok((MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP)),
@@ -230,6 +310,166 @@ pub fn click(guard: &InputGuard, x: i32, y: i32, button: &str) -> Result<AgentAt
     Ok(after)
 }
 
+struct WindowSearch {
+    process_id: u32,
+    window: *mut c_void,
+}
+
+unsafe extern "system" fn find_process_window(window: *mut c_void, parameter: isize) -> i32 {
+    let search = &mut *(parameter as *mut WindowSearch);
+    let mut process_id = 0u32;
+    GetWindowThreadProcessId(window, &mut process_id);
+    if process_id == search.process_id && IsWindowVisible(window) != 0 {
+        search.window = window;
+        return FALSE;
+    }
+    TRUE
+}
+
+fn process_window(process_id: u32) -> Result<*mut c_void, String> {
+    let mut search = WindowSearch {
+        process_id,
+        window: null_mut(),
+    };
+    unsafe {
+        EnumWindows(
+            Some(find_process_window),
+            &mut search as *mut WindowSearch as isize,
+        )
+    };
+    if search.window.is_null() {
+        Err("authorized target process has no visible top-level window on this desktop".to_string())
+    } else {
+        Ok(search.window)
+    }
+}
+
+pub fn activate(guard: &InputGuard) -> Result<AgentAttestation, String> {
+    let before = attest()?;
+    crate::validate_target_guard(&before, guard)?;
+    let window = process_window(guard.expected_process_id)?;
+    if window.is_null()
+        || unsafe { IsWindow(window) } == 0
+        || unsafe { IsWindowVisible(window) } == 0
+    {
+        return Err("authorized target window is absent or not visible".to_string());
+    }
+    let mut process_id = 0u32;
+    let target_thread = unsafe { GetWindowThreadProcessId(window, &mut process_id) };
+    if target_thread == 0 || process_id != guard.expected_process_id {
+        return Err("target window process id does not match the authorized target".to_string());
+    }
+    if !process_executable(process_id)?
+        .to_string_lossy()
+        .eq_ignore_ascii_case(&guard.expected_executable.to_string_lossy())
+    {
+        return Err("target window executable does not match the authorized target".to_string());
+    }
+    let foreground = unsafe { GetForegroundWindow() };
+    let mut foreground_process_id = 0u32;
+    let foreground_thread = if foreground.is_null() {
+        0
+    } else {
+        unsafe { GetWindowThreadProcessId(foreground, &mut foreground_process_id) }
+    };
+    let current_thread = unsafe { GetCurrentThreadId() };
+    if foreground_thread != 0 && foreground_thread != current_thread {
+        unsafe { AttachThreadInput(current_thread, foreground_thread, 1) };
+    }
+    if target_thread != current_thread {
+        unsafe { AttachThreadInput(current_thread, target_thread, 1) };
+    }
+    send_alt_key()?;
+    unsafe {
+        ShowWindowAsync(window, SW_RESTORE);
+        SetWindowPos(
+            window,
+            HWND_TOPMOST,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW,
+        );
+        BringWindowToTop(window);
+        SetForegroundWindow(window);
+        SetWindowPos(window, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+    }
+    if foreground_thread != 0 && foreground_thread != current_thread {
+        unsafe { AttachThreadInput(current_thread, foreground_thread, 0) };
+    }
+    if target_thread != current_thread {
+        unsafe { AttachThreadInput(current_thread, target_thread, 0) };
+    }
+    thread::sleep(Duration::from_millis(250));
+    let after = attest()?;
+    crate::validate_input_guard(&after, guard)?;
+    Ok(after)
+}
+
+pub fn dismiss_known_blocker() -> Result<AgentAttestation, String> {
+    let before = attest()?;
+    if !before
+        .account
+        .to_ascii_lowercase()
+        .ends_with(AUTHORIZED_ACCOUNT_SUFFIX)
+        || before.session_id == 0
+        || before.input_desktop.as_deref() != Some("Default")
+    {
+        return Err("agent is not on the dedicated interactive Default desktop".to_string());
+    }
+    let foreground = before
+        .foreground
+        .as_ref()
+        .ok_or_else(|| "no foreground blocker is available".to_string())?;
+    let executable = foreground.executable.to_string_lossy().to_ascii_lowercase();
+    let title = foreground.title.to_ascii_lowercase();
+    let known_title = title == "microsoft 账户" || title == "microsoft account";
+    if !executable.ends_with("\\windows\\system32\\wwahost.exe")
+        || foreground.class_name != "Windows.UI.Core.CoreWindow"
+        || !known_title
+    {
+        return Err("foreground window is not an allowlisted test-environment blocker".to_string());
+    }
+    let app_id = application_user_model_id(foreground.process_id)?;
+    if app_id != "Microsoft.Windows.CloudExperienceHost_cw5n1h2txyewy!App" {
+        return Err(
+            "foreground WWA host is not the allowlisted CloudExperienceHost app".to_string(),
+        );
+    }
+    let window = foreground.window_handle as usize as *mut c_void;
+    if unsafe { PostMessageW(window, WM_CLOSE, 0, 0) } == 0 {
+        return Err(last_error("PostMessageW(WM_CLOSE)"));
+    }
+    thread::sleep(Duration::from_millis(500));
+    let process = unsafe {
+        OpenProcess(
+            PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION,
+            FALSE,
+            foreground.process_id,
+        )
+    };
+    if !process.is_null() {
+        let terminated = unsafe { TerminateProcess(process, 0) };
+        unsafe { CloseHandle(process) };
+        if terminated == 0 {
+            return Err(last_error("TerminateProcess(CloudExperienceHost)"));
+        }
+    }
+    for _ in 0..20 {
+        thread::sleep(Duration::from_millis(250));
+        if let Ok(after) = attest() {
+            if after.foreground.as_ref().is_none_or(|value| {
+                value.window_handle != foreground.window_handle
+                    || value.process_id != foreground.process_id
+            }) {
+                return Ok(after);
+            }
+        }
+    }
+    Err("allowlisted blocker did not close within five seconds".to_string())
+}
+
 pub fn drag(
     guard: &InputGuard,
     from: [i32; 2],
@@ -263,4 +503,53 @@ pub fn drag(
     let after = attest()?;
     crate::validate_input_guard(&after, guard)?;
     Ok(after)
+}
+
+fn lsa_string(buffer: &mut [u16]) -> Result<LSA_UNICODE_STRING, String> {
+    let bytes = buffer
+        .len()
+        .checked_mul(2)
+        .ok_or_else(|| "LSA string length overflow".to_string())?;
+    if bytes > u16::MAX as usize {
+        return Err("LSA string exceeds the Windows length limit".to_string());
+    }
+    Ok(LSA_UNICODE_STRING {
+        Length: bytes as u16,
+        MaximumLength: bytes as u16,
+        Buffer: buffer.as_mut_ptr(),
+    })
+}
+
+pub fn store_autologon_secret(password: &str) -> Result<(), String> {
+    if password.is_empty() {
+        return Err("autologon password cannot be empty".to_string());
+    }
+    let mut key_buffer: Vec<u16> = "DefaultPassword".encode_utf16().collect();
+    let mut password_buffer: Vec<u16> = password.encode_utf16().collect();
+    let key = lsa_string(&mut key_buffer)?;
+    let secret = lsa_string(&mut password_buffer)?;
+    let mut attributes = LSA_OBJECT_ATTRIBUTES::default();
+    attributes.Length = size_of::<LSA_OBJECT_ATTRIBUTES>() as u32;
+    let mut policy: LSA_HANDLE = 0;
+    let open_status = unsafe {
+        LsaOpenPolicy(
+            null(),
+            &attributes,
+            POLICY_CREATE_SECRET as u32,
+            &mut policy,
+        )
+    };
+    if open_status != 0 {
+        password_buffer.fill(0);
+        return Err(format!("LsaOpenPolicy failed with NTSTATUS {open_status}"));
+    }
+    let store_status = unsafe { LsaStorePrivateData(policy, &key, &secret) };
+    unsafe { LsaClose(policy) };
+    password_buffer.fill(0);
+    if store_status != 0 {
+        return Err(format!(
+            "LsaStorePrivateData failed with NTSTATUS {store_status}"
+        ));
+    }
+    Ok(())
 }

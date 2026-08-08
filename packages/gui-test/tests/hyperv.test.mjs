@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { guiTestsDir } from "../src/protocol/paths.mjs";
+import { guiTestsDir, repositoryRoot } from "../src/protocol/paths.mjs";
 import { readValidatedDocument } from "../src/protocol/validate.mjs";
 import { expandWindowsEnvironment, HyperVCoordinator } from "../src/workers/hyperv.mjs";
 
@@ -20,6 +20,11 @@ test("worker profile contains no secret and expands its external credential path
     expandWindowsEnvironment(profile.credential.pathTemplate, { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" }),
     "C:\\Users\\tester\\AppData\\Local\\ChemSema\\gui-test\\credentials\\windows-gui-worker-current.credential.xml",
   );
+});
+
+test("production canvas exposes a stable accessibility locator", async () => {
+  const html = await readFile(join(repositoryRoot, "viewer", "index.html"), "utf8");
+  assert.match(html, /id="viewer-container"[^>]+role="application"[^>]+aria-label="Drawing canvas"/);
 });
 
 test("host attestation verifies identity, services, VM bounds, and encrypted credential", async () => {
@@ -73,6 +78,62 @@ test("coordinator shutdown is graceful and never forces power off", async () => 
   assert.doesNotMatch(source, /Stop-VM[^\r\n]+-(?:Force|TurnOff|Save|Shutdown)\b/i);
 });
 
+test("candidate deployment is content-addressed and launch is interactive", async () => {
+  const profile = await readValidatedDocument(profilePath);
+  const responses = [
+    result({ operation: "guest-attest", guest: { identity: "guest\\chemsema-test", vmicvmsession: "Running", interactiveAccountMatches: true } }),
+    result({ operation: "launch-candidate", candidate: { guestPath: "C:\\ChemSemaGuiTest\\candidate\\abc\\chemsema-desktop.exe", sha256: "abc", processId: 42, sessionId: 1 } }),
+  ];
+  const coordinator = new HyperVCoordinator(profile, {
+    environment: { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" },
+    executor: () => responses.shift(),
+  });
+  const launch = await coordinator.launchCandidate();
+  assert.equal(launch.candidate.processId, 42);
+  assert.equal(launch.candidate.sessionId, 1);
+});
+
+test("candidate input passes integer coordinates and validates the returned foreground", async () => {
+  const profile = await readValidatedDocument(profilePath);
+  let invokedArgs;
+  const guestPath = "C:\\ChemSemaGuiTest\\candidate\\abc\\chemsema-desktop.exe";
+  const coordinator = new HyperVCoordinator(profile, {
+    environment: { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" },
+    executor(args) {
+      invokedArgs = args;
+      return result({
+        operation: "input-click",
+        candidate: { guestPath, sha256: "abc" },
+        agent: {
+          schema: "chemsema.gui.guest-agent.v1",
+          agentVersion: "0.1.0",
+          processId: 100,
+          sessionId: 1,
+          account: "guest\\chemsema-test",
+          inputDesktop: "Default",
+          interactiveReady: true,
+          foreground: { windowHandle: 200, processId: 300, sessionId: 1, executable: guestPath, title: "ChemSema", className: "Tauri Window", rect: [0, 0, 1000, 800] },
+        },
+      });
+    },
+  });
+  assert.equal((await coordinator.candidateInput("click", { x: 34, y: 212 })).agent.foreground.processId, 300);
+  assert.deepEqual(invokedArgs.slice(invokedArgs.indexOf("-InputX"), invokedArgs.indexOf("-InputX") + 4), ["-InputX", "34", "-InputY", "212"]);
+  await assert.rejects(coordinator.candidateInput("click", { x: Number.NaN, y: 1 }), /must be integers/);
+});
+
+test("interactive launcher is hidden, test-only CDP is loopback, and blocker removal is allowlisted", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const coordinatorSource = await readFile(join(packageRoot, "scripts", "hyperv-coordinator.ps1"), "utf8");
+  const agentMain = await readFile(join(repositoryRoot, "crates", "chemsema-gui-test-agent", "src", "main.rs"), "utf8");
+  const agentWindows = await readFile(join(repositoryRoot, "crates", "chemsema-gui-test-agent", "src", "windows.rs"), "utf8");
+  assert.match(agentMain, /windows_subsystem = "windows"/);
+  assert.match(coordinatorSource, /--remote-debugging-port=9223/);
+  assert.doesNotMatch(coordinatorSource, /--remote-debugging-address/);
+  assert.match(agentWindows, /Microsoft\.Windows\.CloudExperienceHost_cw5n1h2txyewy!App/);
+  assert.match(agentWindows, /Windows\.UI\.Core\.CoreWindow/);
+});
+
 test("service-session agent attestation cannot claim interactive readiness", async () => {
   const profile = await readValidatedDocument(profilePath);
   const coordinator = new HyperVCoordinator(profile, {
@@ -92,4 +153,33 @@ test("service-session agent attestation cannot claim interactive readiness", asy
     }),
   });
   assert.equal((await coordinator.attestServiceAgent()).agent.sessionId, 0);
+});
+
+test("interactive agent attestation requires the dedicated unlocked session", async () => {
+  const profile = await readValidatedDocument(profilePath);
+  const coordinator = new HyperVCoordinator(profile, {
+    environment: { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" },
+    executor: () => result({
+      operation: "agent-attest-interactive",
+      agent: {
+        schema: "chemsema.gui.guest-agent.v1",
+        agentVersion: "0.1.0",
+        processId: 100,
+        sessionId: 2,
+        account: "guest\\chemsema-test",
+        inputDesktop: "Default",
+        interactiveReady: true,
+        foreground: {
+          windowHandle: 200,
+          processId: 300,
+          sessionId: 2,
+          executable: "C:\\Windows\\explorer.exe",
+          title: "Desktop",
+          className: "Shell_TrayWnd",
+          rect: [0, 0, 1920, 1080],
+        },
+      },
+    }),
+  });
+  assert.equal((await coordinator.attestInteractiveAgent()).agent.interactiveReady, true);
 });

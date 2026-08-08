@@ -64,10 +64,40 @@ pub fn validate_input_guard(
         return Err("foreground window belongs to another session".to_string());
     }
     if foreground.process_id != guard.expected_process_id {
-        return Err("foreground process id does not match the authorized target".to_string());
+        return Err(format!(
+            "foreground process id {} does not match authorized target {}; executable {}",
+            foreground.process_id,
+            guard.expected_process_id,
+            foreground.executable.display()
+        ));
     }
     if !same_path(&foreground.executable, &guard.expected_executable) {
         return Err("foreground executable does not match the authorized target".to_string());
+    }
+    if !is_bounded_child(&guard.allowed_run_root, &guard.run_directory)? {
+        return Err("run directory is outside the authorized guest test root".to_string());
+    }
+    Ok(())
+}
+
+pub fn validate_target_guard(
+    attestation: &AgentAttestation,
+    guard: &InputGuard,
+) -> Result<(), String> {
+    if !attestation
+        .account
+        .to_ascii_lowercase()
+        .ends_with(AUTHORIZED_ACCOUNT_SUFFIX)
+    {
+        return Err("input agent is not running as the dedicated guest test account".to_string());
+    }
+    if attestation.session_id == 0
+        || attestation.session_id != guard.expected_agent_session_id
+        || attestation.input_desktop.as_deref() != Some("Default")
+    {
+        return Err(
+            "agent is not attached to the authorized interactive Default desktop".to_string(),
+        );
     }
     if !is_bounded_child(&guard.allowed_run_root, &guard.run_directory)? {
         return Err("run directory is outside the authorized guest test root".to_string());

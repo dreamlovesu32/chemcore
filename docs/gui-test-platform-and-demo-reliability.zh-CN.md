@@ -711,7 +711,9 @@ runner 必须控制动画、系统通知、网络、更新检查和后台任务�
 
 仓库现已在 `packages/gui-test` 与 `tests/gui` 中包含首个可执行纵向切片：场景、运行报告、覆盖清单、影响图、制品清单和 worker profile JSON Schema；严格 Schema 校验；规范化内容寻址 evidence key；传递影响选择；总计 10 CPU unit/30 GiB 的 fail-closed 资源准入；动作硬预算和前后状态收据；fake driver、Playwright browser driver 和 Hyper-V coordinator。版本化场景 `core.bond.draw-single` 使用公开可访问性目标和真实指针拖拽输入。同一场景已通过 fake driver 的 runner 自测，并在无头 Edge 中实际执行成功，生成经过 Schema 验证的 `chemsema.gui.run.v1` 报告。旧回归脚本在逐项登记和迁移期间继续保持有效，不因新平台存在而退役。
 
-coordinator 已在 `windows-gui-worker-current` 上实机执行：host 身份/服务/VM/资源/凭据 attestation 通过；VM 正常启动；PowerShell Direct 验证专用 guest 身份、OS、集成服务和网络；准备了受限 `C:\ChemSemaGuiTest` 根目录。随后构建 Windows 专用 Rust guest agent，并以 host/guest SHA-256 一致的方式传入 VM。agent 在 session 0 中正确报告无 input desktop、无前台窗口且 `interactiveReady=false`；要求交互输入的请求 fail closed，VM 随后正常关机。agent 的输入路径独立强制专用 guest 账户、非零授权 session、已解锁 `Default` input desktop、预期前台 PID/可执行文件、位于前台窗口内的坐标，以及处于授权根目录下的 run directory。启用真实 OS 输入前，下一边界是自动交互登录/agent 启动及端到端 guest 输入。
+coordinator 已在 `windows-gui-worker-current` 上跨过隔离桌面边界。专用账户使用 LSA 保存的自动登录密钥实现无人值守登录，Winlogon 注册表不存在明文密码。Rust agent 以 host/guest SHA-256 一致方式传入，运行时不创建或抢占控制台窗口，并明确区分 service session 0 与已解锁的交互 `Default` 桌面。桌面候选由当前源码构建，复制到按 SHA-256 寻址的 guest 目录，启动前重新校验哈希，并以普通用户完整性级别运行。每个激活/点击/拖拽回执都绑定专用账户、非零 session、精确候选 PID/可执行文件、前台窗口、窗口内坐标和受限 run directory。
+
+2026-08-08 已在不占用 host 前台的情况下执行第一条 production desktop sentinel：CDP 语义查询解析带 scope 的 `Single bond` 控件和 `#viewer-container`，guest agent 发送一次真实 Windows 点击和一次八步真实拖拽，独立 WebView oracle 从 0 个渲染键变为 1 个，窗口标题进入脏状态。Windows UI Automation 继续负责原生/窗口表面；WebView2 CDP 仅在隔离测试启动时通过 guest loopback 端口启用，用于提供语义 DOM 边界和 oracle，OS 输入仍由外部守卫代理真实发送。测试还发现反复出现的 `CloudExperienceHost` 账户提示；当前只在系统路径、窗口类、标题和应用模型 ID 四项精确匹配时关闭，后续仍需将防止该提示出现的策略固化进版本化 VM baseline。完整 scenario-runner 接入、证据导出、确定性重置和其余 capability 矩阵尚未完成。
 
 当前入口为：
 

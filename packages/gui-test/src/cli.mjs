@@ -78,24 +78,30 @@ async function impact(paths, options) {
 
 async function worker(args, options) {
   const [operation] = args;
-  if (!operation || !["host-attest", "start", "guest-attest", "prepare-guest", "install-agent", "agent-attest-service", "stop"].includes(operation)) {
-    throw new Error("worker requires host-attest, start, guest-attest, prepare-guest, install-agent, agent-attest-service, or stop.");
+  if (!operation || !["host-attest", "start", "guest-attest", "prepare-guest", "install-agent", "configure-autologon", "install-candidate", "launch-candidate", "dismiss-known-blocker", "activate-candidate", "uia-query", "input-click", "input-drag", "agent-attest-service", "agent-attest-interactive", "stop"].includes(operation)) {
+    throw new Error("worker requires a supported worker operation.");
   }
   const profile = await readValidatedDocument(resolve(options.profile || join(guiTestsDir, "environments", "windows-gui-worker-current.json")));
   const coordinator = new HyperVCoordinator(profile);
-  const result = operation === "host-attest"
-    ? await coordinator.attestHost()
-    : operation === "start"
-      ? await coordinator.start()
-      : operation === "guest-attest"
-        ? await coordinator.attestGuest({ requireInteractive: options.interactive === true })
-        : operation === "prepare-guest"
-          ? await coordinator.prepareGuest()
-          : operation === "install-agent"
-            ? await coordinator.installAgent()
-            : operation === "agent-attest-service"
-              ? await coordinator.attestServiceAgent()
-          : await coordinator.stop();
+  let result;
+  switch (operation) {
+    case "host-attest": result = await coordinator.attestHost(); break;
+    case "start": result = await coordinator.start(); break;
+    case "guest-attest": result = await coordinator.attestGuest({ requireInteractive: options.interactive === true }); break;
+    case "prepare-guest": result = await coordinator.prepareGuest(); break;
+    case "install-agent": result = await coordinator.installAgent(); break;
+    case "configure-autologon": result = await coordinator.configureAutologon(); break;
+    case "install-candidate": result = await coordinator.installCandidate(); break;
+    case "launch-candidate": result = await coordinator.launchCandidate(); break;
+    case "dismiss-known-blocker": result = await coordinator.dismissKnownBlocker(); break;
+    case "activate-candidate": result = await coordinator.activateCandidate(); break;
+    case "uia-query": result = await coordinator.queryUia(options.name, { scopeName: options["scope-name"] }); break;
+    case "input-click": result = await coordinator.candidateInput("click", { x: Number(options.x), y: Number(options.y) }, { button: options.button }); break;
+    case "input-drag": result = await coordinator.candidateInput("drag", { from: [Number(options["from-x"]), Number(options["from-y"])], to: [Number(options["to-x"]), Number(options["to-y"])] }, { button: options.button, steps: Number(options.steps || 8) }); break;
+    case "agent-attest-service": result = await coordinator.attestServiceAgent(); break;
+    case "agent-attest-interactive": result = await coordinator.attestInteractiveAgent(); break;
+    case "stop": result = await coordinator.stop(); break;
+  }
   console.log(JSON.stringify(result, null, 2));
 }
 
@@ -140,7 +146,7 @@ Usage:
   npm run gui-platform -- validate <json> [...json]
   npm run gui-platform -- audit
   npm run gui-platform -- impact <changed-path> [...changed-path] [--graph path]
-  npm run gui-platform -- worker <host-attest|start|guest-attest|prepare-guest|install-agent|agent-attest-service|stop> [--profile path] [--interactive]
+  npm run gui-platform -- worker <host-attest|start|guest-attest|prepare-guest|install-agent|configure-autologon|install-candidate|launch-candidate|dismiss-known-blocker|activate-candidate|uia-query|input-click|input-drag|agent-attest-service|agent-attest-interactive|stop> [--profile path]
   npm run gui-platform -- run <scenario.json> [--driver fake|playwright-browser] [--report path] [--url url]
 `);
 }
