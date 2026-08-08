@@ -11,6 +11,7 @@ const multiObjectScenarioPath = join(guiTestsDir, "scenarios", "core", "multi-bo
 const mixedObjectScenarioPath = join(guiTestsDir, "scenarios", "core", "mixed-bond-arrow-clipboard-production.json");
 const nestedGroupScenarioPath = join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json");
 const regionAdditiveScenarioPath = join(guiTestsDir, "scenarios", "core", "region-additive-mixed-cardinalities-production.json");
+const crossDocumentClipboardScenarioPath = join(guiTestsDir, "scenarios", "core", "cross-document-clipboard-production.json");
 
 test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(scenarioPath);
@@ -18,6 +19,7 @@ test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(mixedObjectScenarioPath);
   await readValidatedDocument(nestedGroupScenarioPath);
   await readValidatedDocument(regionAdditiveScenarioPath);
+  await readValidatedDocument(crossDocumentClipboardScenarioPath);
   await readValidatedDocument(join(guiTestsDir, "coverage", "registry-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "coverage", "impact-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "environments", "windows-gui-worker-current.json"));

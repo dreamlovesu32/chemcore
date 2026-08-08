@@ -770,6 +770,8 @@ npm run gui-platform:test
 
 针对提交 `1f65db5` 的影响选择资格闭包已在没有未知性扩展的情况下通过全部 8 个登记场景。Playwright 浏览器场景的 evidence key 为 `4fb19ef38e44d8a0441bb70bcc09f12bfa95fdf10f2124553c39acbb5870ceca`。生产单键、撤销/重做、多键剪贴板/删除、键/箭头异类对象、嵌套混合组合、保存/重开和区域/追加基数场景的 evidence key 依次为 `388e4efea4cfde977dbc46a4262852b6a128f0370379b53295e93479854b89c2`、`7ffae8c76778a0fa9bc42b8bf83341f706ebf2da0d9e2f67792356cbdbe70092`、`beb3627670e4c9c9c4101a12dd342b1da58effbe11602ca66e40a84325059368`、`683e2398d4d7abd74e9a173ba617fd723b04fb8e63c7439271a911ef1e4cf719`、`d72eb7c63641ce93a985306e18722f5049f7dd9bd1788f4afe3a28516cd670c6`、`43c53632e254d14b94dd003d4c7c01755eb1189c43fda5d93ef6a4b85c0afbb1` 和 `ef69a3036502697a5960df64886aee9f7ac6c73e6e01f7d65e4683aaeb658b36`。共 88 个动作与 26 个最终 oracle 全部通过；51 个 manifest 对象的文件大小和 SHA-256 均重新校验一致；无制品截断、无运行诊断。生产 VM 最终为 `Off`，配置 8 个处理器，分配内存为 0。
 
+跨文档剪贴板覆盖现已通过 `core.clipboard.cross-document-mixed.production` 投入运行。受守卫真实输入在源文档创建并选中“分子+箭头”，经 Windows 剪贴板复制，通过公开 `New file` 标签按钮创建第二个文档，先证明当前目标文档为空，再粘贴到这个独立文档。动作回执记录文档标签 `1 -> 2`、目标文档键 `0 -> 1`、目标文档不同箭头身份 `0 -> 1`；5 个最终 oracle 证明共有两个标签、恰有一个活动标签，以及目标文档的精确混合对象数量。候选 `4a7dcc47e2f4469f5aed4f7963c6a7506fa413f7c20879984a9179632ebb6b07` 的 11 个动作全部通过，evidence key 为 `f20a768332299ecc0d642ac3e4605607f9271749fdb119d14f3be32fd5b7d835`。6 个 manifest 对象重新计算 SHA-256 均精确一致，诊断为空，VM 回到 `Off` 且分配内存为 0。浏览器/桌面互传、Office、选择性粘贴和独立打开文档等边界仍是显式工作。
+
 ## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>
