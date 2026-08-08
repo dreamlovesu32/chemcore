@@ -302,21 +302,18 @@ IRunnableObject 当前骨架已存在，下一步补运行状态和桌面端唤�
 
 当前 `.ccjz` 已实现为确定性的 `chemsema.container.v1` ZIP 包，支持带哈希的 scene 分块、内容寻址资源、opaque 二进制附件和 seek/range 读取；旧 gzip 仅只读兼容。
 
-对外扩展名可以保持 `.ccjz`，内部逐步演进为：
+当前规范 entry 为：
 
 ```text
+mimetype
 manifest.json
-document.ccjs
-preview.svg
-preview.emf
-preview.png
-resources/
-  images/
-  fonts-or-glyph-cache/
-meta/
-  app-version.json
-  migration.json
+document/root.json
+entities/scene-000000.jsonl
+resources/<sha256>.json
+attachments/<sha256>.<ext>
 ```
+
+preview、应用版本和迁移记录尚未进入 `chemsema.container.v1` manifest，不能把它们列成当前容器内容；以后增加时必须通过新 schema/兼容字段和跨实现夹具治理。
 
 所有调用方继续通过稳定容器 API：
 
@@ -401,10 +398,10 @@ Office 中的对象预览不能只依赖 SVG。长期需要：
 
 ### 阶段 5：文档容器与预览
 
-- `.ccjz` API 容器化。
-- 增加 preview generation。
-- 增加 format version 和 migration。
-- 增加缩略图和资源管理预留。
+- 已完成：`.ccjz` API 容器化、format version、v0.1/旧 gzip 迁移、内容寻址资源、opaque attachments、原子保存和恢复 journal。
+- 已完成：Rust、浏览器 JavaScript、独立 Python reader 的交叉读取与容器性能门禁。
+- 待完成：把 preview/thumbnail 作为受 manifest 治理的可选 entry，而不是私自添加 ZIP 文件。
+- 待完成：编辑器可见区懒加载、未变 entry 的 copy-on-write 复用和浏览器 Zip64 策略。
 
 ### 阶段 6：Windows 剪贴板
 
@@ -449,7 +446,7 @@ Office 中的对象预览不能只依赖 SVG。长期需要：
 - 不做桌面专用化学编辑逻辑。
 - 不让 Office 插件直接解析或修改 ChemSema JSON。
 - 不只做 SVG 粘贴再以后补可编辑对象。
-- 不把 `.ccjz` API 设计死成永远单一 gzip JSON。
+- 不把 `.ccjz` 退回单一 gzip JSON，也不绕过 manifest 私自增加未声明 entry。
 - 不把 Tauri 后端变成第二套业务层。
 
 ## 当前环境状态

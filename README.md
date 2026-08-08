@@ -446,6 +446,8 @@ also reads [CITATION.cff](./CITATION.cff) for its **Cite this repository** entry
 - Editor command history: [English](./docs/editor-command-history.md) / [中文](./docs/editor-command-history.zh-CN.md)
 - Current CCJS format v0.2: [English](./docs/format-v0.2.md) / [中文](./docs/format-v0.2.zh-CN.md)
 - CCJS architecture, comparison, and rationale: [中文](./docs/ccjs-architecture-and-format-rationale.zh-CN.md)
+- CCJS v0.2 implementation status and stable-release gates: [中文](./docs/ccjs-v0.2-stability-architecture.zh-CN.md)
+- CCJZ container, Document Patch, and Recovery Journal contracts: [docs/protocol](./docs/protocol/README.md)
 - Legacy format v0.1: [English](./docs/format-v0.1.md) / [中文](./docs/format-v0.1.zh-CN.md)
 - Glyph clipping rules: [English](./docs/glyph-clip-polygons.md) / [中文](./docs/glyph-clip-polygons.zh-CN.md)
 - Glyph kernel: [English](./docs/glyph-kernel.md) / [中文](./docs/glyph-kernel.zh-CN.md)

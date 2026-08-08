@@ -1,6 +1,6 @@
 # CCJS 文档格式 v0.2
 
-状态：当前规范。JSON Schema：[`schemas/ccjs-v0.2.schema.json`](../schemas/ccjs-v0.2.schema.json)。
+状态：当前写出规范。JSON Schema：[`schemas/ccjs-v0.2.schema.json`](../schemas/ccjs-v0.2.schema.json)。格式设计理由见 [架构、比较与必要性](./ccjs-architecture-and-format-rationale.zh-CN.md)，实现状态与 stable 前剩余条件见 [稳定化架构与发布门禁](./ccjs-v0.2-stability-architecture.zh-CN.md)。
 
 ## 1. 定位
 

@@ -7,6 +7,7 @@ is a release-quality guide, not a marketing claim.
 | --- | --- | --- |
 | CDXML import | Beta | Public fixtures, published paper figures, golden SVG snapshots, parser regressions |
 | CDX import/export | Beta | Round-trip tests and binary storage regression coverage |
+| CCJS 0.2 / CCJZ v1 | Beta | Schema, migration, Rust/JS/Python cross-reading, journal, and performance gates; stable gaps remain in the stability contract |
 | SVG export | Usable | Golden SVG snapshots and pixel comparison scripts |
 | Office/OLE copy and embedding | Beta | Clipboard payload tests, EMF preview tests, Word paste/roundtrip validation scripts |
 | Browser editor | Beta | Viewer interaction smoke tests and stability user-path scripts |
@@ -24,6 +25,7 @@ The current beta treats these areas as hardening priorities:
 | Area | Baseline |
 | --- | --- |
 | File import | Public fixtures, parser regression tests, and planned malicious-input corpus expansion |
+| CCJZ container | Entry-count, per-entry/total-size, path, duplicate/case-collision, hash, and declaration-binding limits today; a unified public rejection conformance corpus remains pending |
 | XML/CDXML parsing | Parser tests today; depth and size limits are tracked as beta-hardening work |
 | Raster/vector export | Output path verification today; render timeouts and large-output caps are tracked as beta-hardening work |
 | CLI session | Deterministic JSONL protocol today; request timeout and resource-budget policies are tracked as beta-hardening work |

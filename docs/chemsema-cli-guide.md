@@ -103,7 +103,11 @@ chemsema-cli about [--pretty] [--out <path>]
 chemsema-cli capabilities [--pretty] [--out <path>]
 chemsema-cli doctor [--pretty] [--out <path>]
 chemsema-cli examples [basic|capture-copy|all] [--pretty] [--out <path>]
-chemsema-cli schema [protocol|commands|targets|capture|context|bundle|detail|diff|guide|copy|json-output|command-script|command-transaction|all] [--pretty] [--out <path>]
+chemsema-cli schema [ccjs-v0.2|ccjz-container|journal|protocol|commands|targets|capture|context|bundle|detail|diff|guide|copy|json-output|command-script|command-transaction|all] [--pretty] [--out <path>]
+chemsema-cli validate <input> [--level structural|chemical|roundtrip] [--out <report.json>] [--pretty]
+chemsema-cli canonicalize <input> --out <document.ccjs|document.ccjz> [--format ccjs|ccjz] [--pretty]
+chemsema-cli migrate <input> --out <document.ccjs|document.ccjz> [--format ccjs|ccjz] [--pretty]
+chemsema-cli conformance [--out <report.json>] [--pretty]
 chemsema-cli inspect <input> [--include summary,objects,molecules,resources,styles] [--out <path>] [--pretty]
 chemsema-cli targets <input> [--out <path>] [--pretty]
 chemsema-cli context <input> --target <selector> [--target <selector> ...] [--targets <selector;selector>] [--radius <pt>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]
@@ -136,7 +140,18 @@ npm run cli -- convert input.cdxml output.emf
 npm run cli -- convert input.cdxml output.ccjs
 npm run cli -- bundle input.cdxml --target molecule:0 --out-dir molecule-0-bundle --context-radius 40 --capture-format png --subset-format ccjs --pretty
 npm run cli -- diff before.ccjs after.ccjs --out diff.json --pretty
+npm run cli -- validate document.ccjz --level structural --pretty
+npm run cli -- canonicalize input.ccjs --out canonical.ccjz --pretty
+npm run cli -- migrate legacy.ccjs --out migrated.ccjz --pretty
+npm run cli -- conformance --pretty
 ```
+
+Format-governance commands:
+
+- `validate` first checks CCJZ manifest/hash integrity or CCJS text structure. `structural` also loads engine document invariants, `chemical` reuses current engine semantic loading, and `roundtrip` additionally checks canonical CCJS reassembly.
+- `canonicalize` and `migrate` require an explicit, distinct `--out` and refuse in-place source overwrite. Both write current CCJS 0.2 through the authoritative engine; `migrate` emphasizes legacy/external upgrade while `canonicalize` normalizes an already supported document.
+- `schema ccjs-v0.2|ccjz-container|journal` returns bundled machine-readable schemas. `conformance` runs built-in deterministic-container and journal probes. Use repository command `npm run conformance:ccjz` for the complete Rust/JavaScript/Python cross-reader check.
+- Current `validate` failures do not yet provide a stable per-issue error code, JSON Pointer/entry, specification clause, and information-loss class. `chemical` is not a standalone complete sanitizer report, and `roundtrip` is not an arbitrary target-format visual round trip. These stable requirements are tracked in the [CCJS 0.2 stability contract](./ccjs-v0.2-stability-architecture.zh-CN.md).
 
 Label query calls:
 
@@ -212,6 +227,7 @@ Protocol contract:
 - `chemsema-cli --version` prints a single text line for shell checks.
 - `chemsema-cli version --pretty` returns product and protocol versions as JSON.
 - `chemsema-cli schema protocol --pretty` returns the runtime protocol ids.
+- `chemsema-cli schema ccjs-v0.2|ccjz-container|journal --pretty` returns the current document, container, and recovery-journal schemas.
 - Machine-facing contracts are documented in [docs/protocol](./protocol/README.md).
 
 `new` starts from a blank ChemSema internal document. The command takes a command

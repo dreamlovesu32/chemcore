@@ -99,6 +99,8 @@ Runtime history entry shape:
 
 History exists only at runtime. It is not written to `.ccjs`, `.ccjz`, `.cdxml`, EMF, or Office/OLE storage. Reopening a file starts with empty history.
 
+This does not conflict with [Recovery Journal v1](./protocol/journal-v1.md): the journal stores replayable Document Patches since the last verified snapshot solely for crash recovery. It has no undo/redo cursor and is not user-visible edit history. A newly saved and verified snapshot removes the absorbed journal while the runtime undo stack remains available by default.
+
 ## Revision And Save State
 
 Every Document Commit advances `revision` once. After a successful save, record:

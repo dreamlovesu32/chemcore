@@ -1,6 +1,23 @@
 # CCJS 0.2 稳定化架构与发布门禁
 
-状态：约束实现的候选规范。CCJS 0.2 在本文全部发布门禁通过前不得标记为 stable。
+状态：当前长期架构与稳定化合同。CCJS 0.2 是当前写出规范，但在本文“stable 发布条件”全部满足前仍不得宣称格式已经冻结或具备成熟生态。
+
+本文不是第二份字段规范：[CCJS 0.2](./format-v0.2.zh-CN.md) 定义语义快照，[CCJZ Container v1](./protocol/ccjz-container-v1.md) 定义容器，[Document Patch v1](./protocol/document-patch-v1.md) 定义局部同步，[Recovery Journal v1](./protocol/journal-v1.md) 定义崩溃恢复。设计理由和格式比较见 [CCJS 架构、比较与必要性](./ccjs-architecture-and-format-rationale.zh-CN.md)。
+
+当前实现状态：
+
+| 能力 | 状态 | 准确边界 |
+|---|---|---|
+| CCJS 0.2 规范化快照与 v0.1 迁移 | 已实现 | 新写出只产生 v0.2 |
+| CCJZ v1 确定性容器 | 已实现 | Rust/JS/Python 交叉读取；旧 gzip 只读 |
+| scene 分块、资源寻址、opaque attachment range | 已实现于容器层 | 编辑器打开仍装配完整快照 |
+| Document Patch 精确更新 | 已实现 | revision 缺口回退完整同步 |
+| hash-chain recovery journal 与原子保存 | 已实现 | 崩溃恢复，不是协同编辑 |
+| 大文档与大附件性能门禁 | 已实现 | smoke 纳入 `npm run verify`，full profile 可显式运行 |
+| 稳定结构化诊断 | 未完成 | 尚缺统一 error code、pointer、条款和 loss severity |
+| 按目标格式的 chemical/visual roundtrip 等级 | 未完成 | 当前 roundtrip 只覆盖规范 CCJS 重装配 |
+| 编辑器可见区懒加载和保存 entry copy-on-write | 未完成 | 底层 range/stream 能力已具备，应用层尚未接通 |
+| 浏览器 Zip64 写出 | 未完成 | 当前浏览器 writer 使用经典 ZIP 上限 |
 
 ## 1. 版本边界
 
@@ -9,7 +26,7 @@ CCJS 0.2 是完整、来源无关的文档语义，不等同于某一种物理�
 - `chemsema` / `0.2`：规范化文档快照；
 - `chemsema.container.v1`：`.ccjz` 分块容器；
 - `chemsema.document.patch.v1`：revision 有界的进程内和跨进程增量同步；
-- `chemsema.journal.v1`：崩溃恢复、审计与压实日志；
+- `chemsema.journal.v1`：崩溃恢复与 checkpoint 压实日志；
 - `chemsema.conformance.v1`：跨实现合规夹具与报告。
 
 协议独立版本化不是推迟问题。任何消费者从容器装配得到的结果必须是通过 CCJS 0.2 Schema 和运行时语义验证的完整快照。
@@ -28,8 +45,7 @@ manifest.json
 document/root.json
 entities/scene-000000.jsonl
 resources/<sha256>.<ext>
-interchange/<sha256>.json
-previews/thumbnail.svg
+attachments/<sha256>.<ext>
 ```
 
 `mimetype` 必须是第一个未压缩 entry，内容固定为 MIME。`manifest.json` 使用 `chemsema.container.v1`，记录所有 entry 的未压缩字节数、SHA-256、媒体类型、记录数、可选边界和引用依赖。entry 名必须是规范相对路径，禁止绝对路径、反斜杠、`.`、`..`、重复名和大小写碰撞。
@@ -48,7 +64,7 @@ previews/thumbnail.svg
 - 外部引用必须同时带哈希和显式可移植性状态；默认稳定文档必须内嵌；
 - 未知媒体类型可以保留和复制，但不得在未理解时改写。
 
-容器读取接口必须支持只读 manifest、指定 scene chunk、指定 resource 和指定 preview，不得强制先解压整个容器。编辑器首次打开先读 root、层级索引和可见区域 chunks；其他 chunks 和资源按需加载。保存采用 copy-on-write，未改变且哈希相同的 entry 可直接复制。
+容器读取接口已支持只读 manifest、指定 scene chunk、指定 resource 和 attachment byte range，不强制先解压整个容器。当前编辑器仍会装配完整快照后进入编辑；“首次只加载可见 chunks”是下一层应用优化，不是当前行为。保存当前流式生成新容器；未改变且哈希相同 entry 的 copy-on-write 复用仍是后续门禁。
 
 ## 4. 增量同步
 
@@ -64,19 +80,19 @@ journal 是独立 JSONL，不写入 CCJS snapshot。桌面使用同目录 sideca
 
 ## 6. 合规层级
 
-`chemsema-cli validate` 必须提供三个独立等级：
+`chemsema-cli validate` 暴露三个等级；当前能力与长期要求必须分开陈述：
 
-1. `structural`：容器、哈希、JSON Schema、ID、层级、引用和 relation signature；
-2. `chemical`：分子图、价态、芳香性、立体化学、反应角色、属性 basis 和光谱 assignment；
-3. `roundtrip`：声明的目标格式导出再导入后满足规定的语义和视觉门禁。
+1. `structural`：当前执行容器/哈希、格式头、基本形状和引擎文档不变量；长期还要把完整 JSON Schema 与所有错误位置写入结构化报告；
+2. `chemical`：当前复用引擎装载与语义不变量；长期要显式覆盖分子图、价态、芳香性、立体化学、反应角色、属性 basis 和光谱 assignment；
+3. `roundtrip`：当前验证规范 CCJS 的重新装载一致性；长期要按声明目标格式执行导出再导入，并绑定语义和视觉门禁。
 
-同时提供 `migrate`、`canonicalize`、`schema ccjs-v0.2` 和 `conformance`。错误报告必须包含稳定 error code、JSON Pointer/entry、规范条款、严重级别和是否会造成信息损失。
+已经提供 `migrate`、`canonicalize`、`schema ccjs-v0.2` 和 `conformance`。stable 前，失败报告还必须统一补齐稳定 error code、JSON Pointer/entry、规范条款、严重级别和是否会造成信息损失。
 
 ## 7. 独立实现
 
 Rust 是产品权威实现，但不能是格式正确性的唯一证据。仓库包含无 Rust 绑定的浏览器 JavaScript 和 Python 参考读取器，二者完成：格式识别、旧 gzip 读取、新容器 manifest/hash 验证和 CCJS 0.2 装配；JavaScript 另提供规范化写出与 Blob range reader。
 
-`chemsema.conformance.v1` 覆盖确定性写出、跨实现装配、scene 分块、JSON resources、opaque attachment、旧 gzip、损坏哈希/CRC、危险或重复 entry、未声明 entry、截断 journal 和迁移。Rust、JavaScript、Python 对合法跨实现样例给出相同语义文档；拒绝类测试由各 reader 的安全门禁独立覆盖。
+`npm run conformance:ccjz` 当前覆盖 Rust、JavaScript、Python 之间的确定性写出和跨实现装配，并包含 scene 分块、JSON resources 与 opaque attachment。Rust/JavaScript 单元测试另外覆盖旧 gzip、损坏哈希、危险或重复 entry、未声明 entry 和 journal 截断/损坏；v0.1 迁移由引擎测试覆盖。stable conformance corpus 仍需把这些分散的拒绝类夹具统一成可发布、跨实现复用的固定语料与报告。
 
 ## 8. 性能门禁
 
@@ -88,18 +104,20 @@ Rust 是产品权威实现，但不能是格式正确性的唯一证据。仓库
 - patch 大小只与受影响闭包有关，不随总文档大小线性增长；
 - manifest 和指定 entry 可以独立读取；
 - opaque 大资源必须流式复制，不得整体物化到内存；
-- 恶意压缩比、巨大声明尺寸、entry 数和层级深度受明确限额保护；
-- 性能基线回退超过登记阈值时 CI 失败。
+- 巨大声明尺寸、entry 数、路径、重复/大小写碰撞和哈希绑定受明确限额或拒绝规则保护；
+- smoke 性能阈值随 `npm run verify` 执行；full profile 在 stable 发布前显式运行并归档，不能以 smoke 代替。
 
 ## 9. 发布条件
 
-只有以下条件全部成立才能将 CCJS 0.2 标为 stable：
+只有以下条件全部成立才能将 CCJS 0.2 标为 stable。当前尚未完成的项目不得因 `npm run verify` 全绿而被省略：
 
-- Rust、TypeScript、Python conformance 全绿；
+- Rust、JavaScript、Python 的公开固定 conformance corpus 全绿；
 - 旧 v0.1、旧 gzip `.ccjz` 和当前 0.2 snapshot 均有确定迁移；
 - 新 `.ccjz` 容器在 Web、CLI、桌面和 Office 路径一致；
-- 所有增量路径通过 revision 缺口与大文件门禁；
+- 所有增量路径通过 revision 缺口与大文件门禁；编辑器可见区懒加载和未变 entry 复用有独立证据；
 - journal 恢复和损坏处理测试通过；
 - `npm run verify`、workspace tests、WASM 和桌面回归全绿；
 - 规范、Schema、CLI capabilities、用户指南和兼容政策同步；
-- 已发布真实 corpus、性能报告和已知限制，不以未验证主张宣传优势。
+- `validate` 三等级和稳定结构化错误报告达到第 6 节合同；
+- 浏览器对超出经典 ZIP 上限的输入明确拒绝或提供 Zip64 写出策略；
+- 已发布真实 corpus、full performance 报告和已知限制，不以未验证主张宣传优势。

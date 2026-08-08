@@ -1,6 +1,6 @@
 # CCJS Document Format v0.2
 
-Status: current specification. Machine-readable schema: [`schemas/ccjs-v0.2.schema.json`](../schemas/ccjs-v0.2.schema.json). The detailed normative rationale is in [the Chinese specification](format-v0.2.zh-CN.md).
+Status: current writing specification. Machine-readable schema: [`schemas/ccjs-v0.2.schema.json`](../schemas/ccjs-v0.2.schema.json). The detailed normative contract is in [the Chinese specification](format-v0.2.zh-CN.md); design rationale and remaining stable-release gates are in the [architecture rationale](ccjs-architecture-and-format-rationale.zh-CN.md) and [stability contract](ccjs-v0.2-stability-architecture.zh-CN.md).
 
 CCJS is ChemSema's source-neutral editable chemical-document snapshot. It represents page scene entities, molecular graphs, styles, resources, containment, typed relations, reaction semantics, and lossless interchange data. It is not a JSON spelling of CDXML.
 

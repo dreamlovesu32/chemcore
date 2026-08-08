@@ -305,21 +305,18 @@ Stage 1 only requires Windows/Office to recognize the ChemSema OLE class. Stage 
 
 Current `.ccjz` is the implemented deterministic `chemsema.container.v1` ZIP package. It supports hashed scene chunks, content-addressed resources, opaque binary attachments, and seek/range reads; legacy gzip remains read-only.
 
-The external extension can remain `.ccjz`; internally it can evolve toward:
+The current normative entries are:
 
 ```text
+mimetype
 manifest.json
-document.ccjs
-preview.svg
-preview.emf
-preview.png
-resources/
-  images/
-  fonts-or-glyph-cache/
-meta/
-  app-version.json
-  migration.json
+document/root.json
+entities/scene-000000.jsonl
+resources/<sha256>.json
+attachments/<sha256>.<ext>
 ```
+
+Previews, application-version metadata, and migration records are not part of the current `chemsema.container.v1` manifest. Adding them requires a governed schema/compatible field and cross-reader fixtures; callers must not insert undeclared ZIP entries.
 
 All callers continue to use stable container APIs:
 
@@ -404,10 +401,10 @@ These outputs should be generated uniformly by engine/render service. The Office
 
 ### Stage 5: Document Container And Preview
 
-- Containerize the `.ccjz` API.
-- Add preview generation.
-- Add format version and migration.
-- Reserve thumbnail and resource-management support.
+- Done: containerized `.ccjz`, format/version checks, v0.1 and legacy-gzip migration, content-addressed resources, opaque attachments, atomic saves, and recovery journals.
+- Done: cross-reading among Rust, browser JavaScript, and the independent Python reader, plus container performance gates.
+- Pending: add preview/thumbnail as manifest-governed optional entries rather than private ZIP additions.
+- Pending: visible-region lazy loading, copy-on-write reuse of unchanged entries, and a browser Zip64 policy.
 
 ### Stage 6: Windows Clipboard
 
@@ -452,7 +449,7 @@ These outputs should be generated uniformly by engine/render service. The Office
 - No desktop-only chemical editing logic.
 - No Office plugin directly parsing or modifying ChemSema JSON.
 - No SVG-only paste with editable object postponed indefinitely.
-- Do not freeze `.ccjz` API as forever single gzip JSON.
+- Do not regress `.ccjz` to a single gzip JSON or bypass the manifest with undeclared entries.
 - Do not turn the Tauri backend into a second business layer.
 
 ## Current Environment Status

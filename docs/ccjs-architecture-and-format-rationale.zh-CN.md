@@ -1,5 +1,7 @@
 # CCJS 当前文档架构、格式比较与新格式必要性
 
+状态：CCJS 0.2 的当前设计总论。规范字段以 [CCJS 0.2 规范](./format-v0.2.zh-CN.md) 为准，物理封装以 [CCJZ Container v1](./protocol/ccjz-container-v1.md) 为准，恢复语义以 [Recovery Journal v1](./protocol/journal-v1.md) 为准；[稳定化架构与发布门禁](./ccjs-v0.2-stability-architecture.zh-CN.md) 区分已经实现的能力和仍未完成的稳定性要求。
+
 ## 摘要
 
 CCJS 的价值不在于“把 XML 换成 JSON”。如果只做语法替换，CDXML 已经成熟、生态更大，开发新格式没有充分理由。CCJS v0.2 的必要性来自一个更具体的空缺：现有主流格式通常分别擅长分子身份、连接表、交换语义、绘图保真或大型科学数组，却很少同时提供来源无关的化学页面模型、稳定对象身份、显式层级与关系、局部编辑协议、严格版本治理和未知源字段的可逆保存。
@@ -7,10 +9,12 @@ CCJS 的价值不在于“把 XML 换成 JSON”。如果只做语法替换，CD
 当前方案不是在所有维度击败所有格式，而是采用分层协作：
 
 - CCJS 负责可编辑化学文档的语义快照；
+- CCJZ 负责大文档的确定性分块封装和二进制资源边界；
 - CDX/CDXML 负责 ChemDraw 互操作，并通过 interchange 层尽量无损往返；
 - MOL/SDF、SMILES、InChI、CML 负责各自擅长的结构交换、标识和语义场景；
 - HDF5 或专业谱学格式负责真正的大型、多维、分块实验数据；
 - Document Patch 负责编辑器高频局部同步，不把运行时历史塞进文件。
+- Recovery Journal 负责崩溃恢复，不冒充 undo history 或多人协同协议。
 
 ## 1. 当前架构
 
@@ -52,6 +56,8 @@ flowchart TD
 文件持久化 hierarchy，因为它是所有权真相。ID map、parentById、relation reverse、resource users、render cache 和空间网格可以从文件重建，因此属于运行时。
 
 当前空间索引采用 96 pt 均匀网格：按 revision 从渲染 primitive 和对象选择包围盒汇总 scene bounds，先查网格候选，再做精确包围盒相交。单对象或查询跨越超过 4096 个网格时不再枚举全部 cell，而改用常驻候选或有界精确扫描，避免异常坐标造成内存爆炸。自动反应关系已使用该索引筛选对象，然后继续执行箭头轴、角色、距离与歧义判断。未来如实测显示密度分布不适合网格，可以替换 R-tree；文件格式无需变化。
+
+这里不把 `link` 和 `group` 提升为两个拥有第二份对象内容的平行数据库。v0.1 的 `group.children` 已升级为 v0.2 `hierarchy`：它是单归属、无环、可验证的树索引；group 自身仍是 scene entity。v0.1 的 `links` 已升级为类型化 `relations`：端点按稳定 ID 引用实体，表达反应参与、标注、几何约束等跨对象语义。空间先后、阅读顺序和绘制顺序分别由派生空间索引、`reading` 和 `zIndex` 负责。这样既得到树和关系索引的查询优势，又不会让“对象内部 children”与“文件头索引”同时声称自己是权威。
 
 ### 1.4 精确更新
 
@@ -112,7 +118,7 @@ CCJS 不应复制一个更小的 CML。它的合理边界是“可编辑二维�
 
 [HDF5 官方 Group 文档](https://support.hdfgroup.org/documentation/hdf5/latest/_h5_g__u_g.html) 说明 group/link 构成层级；简单情况是树，通用情况可以是含多链接和环的有根有向图。其 group 实现会在小组的紧凑存储与大组的索引结构之间切换。[HDF5 文件格式说明](https://portal.hdfgroup.org/documentation/hdf5/latest/_f_m_t1.html) 还描述了 dataset layout、chunk 和 B-tree 等底层结构。
 
-CCJS 不应模仿 HDF5 的所有能力。化学页面需要单一归属、确定选择和可理解 diff；允许多父和环会显著增加编辑语义。HDF5 的真正优势是大型数组和部分 I/O，因此 NMR 的原始 FID、多维矩阵和长采样数据可保存在 HDF5 或未来 `.ccjz` 二进制 resource 中，由 CCJS 保存语义描述、校验和、单位、轴与引用。
+CCJS 不应模仿 HDF5 的所有能力。化学页面需要单一归属、确定选择和可理解 diff；允许多父和环会显著增加编辑语义。HDF5 的真正优势是大型数组和部分 I/O，因此 NMR 的原始 FID、多维矩阵和长采样数据可以作为当前 `.ccjz` 的 opaque attachment 保存，也可以保留为外部 HDF5/Zarr 资源；CCJS 保存媒体类型、校验和、单位、轴、形状与引用。容器提供 attachment byte-range 读取，但不重新实现 HDF5 的 dataset 查询语言。
 
 ## 4. 当前可证明的优势
 
@@ -127,6 +133,9 @@ CCJS 不应模仿 HDF5 的所有能力。化学页面需要单一归属、确定
 7. **派生空间索引**：revision 网格查询经过精确 bbox 复核；Auto reaction resolver 已使用候选索引。
 8. **可移植子文档**：clipboard document 和 CLI bundle 按选择与依赖输出自包含文档，而不是字节截断。
 9. **来源保真策略**：native 字段与 interchange 的权威边界明确，CDX/CDXML 未建模信息不必被静默丢弃。
+10. **确定性容器**：CCJZ v1 提供 manifest、哈希、scene chunks、内容寻址资源、opaque attachments、路径安全检查和旧 gzip 只读迁移。
+11. **恢复边界**：桌面同目录 journal 与浏览器 IndexedDB journal 使用可校验哈希链；只有保存并重新验证成功后才清除旧日志。
+12. **独立读取证据**：Rust、浏览器 JavaScript 和无 Rust 绑定的 Python reader 已能交叉装配同一语义文档。
 
 ## 5. 仍然存在的短板
 
@@ -134,7 +143,7 @@ CCJS 不应模仿 HDF5 的所有能力。化学页面需要单一归属、确定
 
 当前 `.ccjz` 是 `chemsema.container.v1` 确定性 ZIP：固定 MIME、manifest、SHA-256、scene JSONL chunks、内容寻址 JSON resources 和二进制 attachments。Rust、浏览器 JavaScript 和独立 Python reader 已做交叉合规验证；旧 gzip `.ccjz` 仅保留读取兼容。
 
-它不是 HDF5 的替代物：CCJZ 管理文档语义、索引和资源边界，HDF5/Zarr 继续管理大型科学数组。容器读取器可以只读 manifest、单个 scene chunk、单个资源或 attachment byte range；普通 `.ccjs` 仍是完整文本快照。
+它不是 HDF5 的替代物：CCJZ 管理文档语义、索引和资源边界，HDF5/Zarr 继续管理大型科学数组。底层容器读取器可以只读 manifest、单个 scene chunk、单个资源或 attachment byte range；当前编辑器打开文档时仍会装配完整 CCJS 快照，因此“容器支持局部 I/O”不等于“所有编辑路径已经按可见区域懒加载”。普通 `.ccjs` 始终是完整文本快照。
 
 ### 5.2 打开 `.ccjs` 仍是整份解析
 
@@ -152,6 +161,10 @@ JSON Schema 能验证结构，不能证明价态、立体化学、反应角色�
 
 Document Patch 必须按 beforeRevision 顺序应用。跨进程丢包或后端版本不支持时，前端需要完整刷新。当前已用 hash-chain journal 记录提交前补丁，桌面使用同目录 `.journal` 旁车、浏览器使用 IndexedDB，并在验证保存后压缩清除；这仍是崩溃恢复，不是多用户协同编辑协议。
 
+### 5.6 稳定化工具仍有未完成项
+
+当前 CLI 已提供 `validate`、`canonicalize`、`migrate`、`schema` 和 `conformance`，但 `validate` 的三个等级还没有全部达到长期合同：错误报告尚未系统提供稳定 error code、JSON Pointer/entry、规范条款和信息损失等级；`chemical` 目前主要复用引擎装载不变量；`roundtrip` 目前验证规范 CCJS 重装配，不等同于对每个声明目标格式执行语义与视觉往返。CCJZ 底层已有分块/range reader 和流式大附件写入，但编辑器可见区懒加载、未变 entry 的 copy-on-write 复用，以及浏览器单 entry 超过经典 ZIP 上限时的 Zip64 策略仍需完成。上述项目保留在发布门禁和 Roadmap 中，不应写成已经交付。
+
 ## 6. 为什么仍有必要开发 CCJS
 
 开发新格式只有在以下约束同时成立时才合理：
@@ -167,6 +180,6 @@ ChemSema 满足这些条件。因此 CCJS 的必要性不是“JSON 比 XML 新�
 
 ## 7. 结论
 
-CCJS v0.2 采用的是规范化混合模型：实体平铺，树和关系显式，专业化学图保持专业，空间索引派生，更新协议独立，源格式未知信息可逆保存。它在化学页面编辑与 agent 可寻址性上有真实优势；在生态、大型二进制数据和独立实现上仍弱于成熟格式。
+CCJS v0.2 采用的是规范化混合模型：实体平铺，树和关系显式，专业化学图保持专业，空间索引派生，更新协议独立，源格式未知信息可逆保存。它在化学页面编辑与 agent 可寻址性上有真实优势；已经具备三种读取实现，但在生态、长期第三方采用和大型二进制数据专用能力上仍弱于成熟格式。
 
 因此最可信的定位不是“取代所有化学格式”，而是“连接它们并承担可编辑化学文档这一层”。只有持续用 Schema、迁移、真实 corpus、局部性能基准和跨格式往返证据补足短板，这个优势才成立。

@@ -7,7 +7,7 @@
 - 浏览器宿主
 - 桌面宿主
 - 导入 / 导出链路
-- 未来的编辑工具
+- 编辑器、CLI 与 agent 工具
 
 这个项目围绕长期核心架构设计，优先保证文档模型、运行时模型和导入导出链路的稳定性。
 
@@ -182,29 +182,10 @@ CDXML 目前是最现实的导入入口，因为它能把基于 ChemDraw 的工�
 - 保留足够的导入元数据，让源文件绘图选项可以延续
 - 把当前文档导出成 ChemDraw 可识别的 CDXML
 
-## 第一阶段里程碑
+## 当前文档里程碑
 
-第一阶段里程碑：
+当前持久化规范是 CCJS v0.2：scene entity 平铺保存，`hierarchy` 是单归属树索引，`relations` 表达类型化跨对象语义，运行时空间网格由快照派生。`.ccjs` 是完整 UTF-8 JSON；`.ccjz` 是确定性、带哈希、可分块读取的 Container v1。局部交互使用 Document Patch，崩溃恢复使用独立 Journal。
 
-1. `chemsema` file format v0.1
-2. `chemsema` runtime model v0.1
-3. Rust engine 原生 CDXML 导入导出
-4. 一个能证明模型足够的 renderer backend
+字段合同见 [format-v0.2.zh-CN.md](./format-v0.2.zh-CN.md)，设计理由见 [ccjs-architecture-and-format-rationale.zh-CN.md](./ccjs-architecture-and-format-rationale.zh-CN.md)，当前实现与 stable 前剩余门禁见 [ccjs-v0.2-stability-architecture.zh-CN.md](./ccjs-v0.2-stability-architecture.zh-CN.md)。v0.1 只作为迁移输入保留，不再代表当前架构。
 
-这个里程碑要回答的核心问题是：
-
-“这个文档模型，能不能忠实表达我们要支持的那类化学页面？”
-
-## v0.1 后续扩展
-
-下面这些能力进入后续格式版本：
-
-- 完整对齐 ChemDraw 功能
-- 富 query chemistry
-- 高级聚合物语义
-- 完整反应语义
-- 多页布局
-- 协同编辑
-- 二进制缓存格式
-
-第一版应该优先优化清晰性、稳定性和可检查性。
+仍未完成的长期扩展包括更完整的 ChemDraw 覆盖、富 query chemistry、高级聚合物语义、多页布局、多人协同，以及编辑器可见区分块懒加载。大型数组继续交给 HDF5/Zarr 等专业格式，通过 CCJZ attachment 与文档语义关联。

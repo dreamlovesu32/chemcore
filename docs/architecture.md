@@ -7,7 +7,7 @@
 - browser hosts
 - desktop hosts
 - import/export pipelines
-- future editing tools
+- editor, CLI, and agent tools
 
 The project optimizes for the final core architecture from the beginning.
 
@@ -179,30 +179,10 @@ Their role is:
 - preserve enough import metadata to retain source drawing options
 - export the current document back to ChemDraw-readable CDXML
 
-## First Milestone
+## Current Document Milestone
 
-The first meaningful milestone is:
+The current persistence contract is CCJS v0.2: scene entities are flat, `hierarchy` is the single-ownership tree index, `relations` carry typed cross-object semantics, and the runtime spatial grid is derived from the snapshot. `.ccjs` is complete UTF-8 JSON; `.ccjz` is the deterministic, hashed, chunk-readable Container v1. Local interaction uses Document Patch and crash recovery uses a separate Journal.
 
-1. `chemsema` file format v0.1
-2. `chemsema` runtime model v0.1
-3. native CDXML import/export through the Rust engine
-4. a renderer backend that proves the model is sufficient
+See [format-v0.2.md](./format-v0.2.md) for the field contract and the [Chinese architecture rationale](./ccjs-architecture-and-format-rationale.zh-CN.md) plus [stability contract](./ccjs-v0.2-stability-architecture.zh-CN.md) for design decisions, implementation status, and remaining stable-release gates. v0.1 remains migration input only and no longer describes the current architecture.
 
-That milestone answers the most important question:
-
-"Can the document model faithfully represent the kind of chemistry pages we need
-to support?"
-
-## Future Scope After v0.1
-
-The following capabilities belong in later format versions:
-
-- full ChemDraw feature parity
-- rich query chemistry
-- high-end polymer semantics
-- complete reaction semantics
-- multipage layout
-- collaborative editing
-- binary cache formats
-
-The first version should optimize for clarity, stability, and inspectability.
+Long-term work still includes broader ChemDraw coverage, rich query chemistry, advanced polymer semantics, multi-page layout, collaboration, and visible-region chunk loading in the editor. Large arrays remain in HDF5/Zarr-class specialist formats and are connected to document semantics through CCJZ attachments.

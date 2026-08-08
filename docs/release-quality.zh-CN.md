@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | CDXML 导入 | Beta | 公开 fixture、论文图、golden SVG snapshot、解析回归 |
 | CDX 导入/导出 | Beta | round-trip 测试和二进制存储回归 |
+| CCJS 0.2 / CCJZ v1 | Beta | Schema、迁移、Rust/JS/Python 交叉读取、journal、性能门禁；stable 缺口见稳定化合同 |
 | SVG 导出 | Usable | golden SVG snapshot 和像素比较脚本 |
 | Office/OLE 复制与嵌入 | Beta | 剪贴板 payload、EMF preview、Word 粘贴/回读验证 |
 | 浏览器编辑器 | Beta | viewer 交互 smoke test 和用户路径稳定性脚本 |
@@ -23,6 +24,7 @@
 | 区域 | 基线 |
 | --- | --- |
 | 文件导入 | 已有公开 fixture 和解析回归；恶意输入 corpus 继续扩展 |
+| CCJZ 容器 | 已限制 entry 数、单 entry/总尺寸、路径、重复/大小写碰撞、哈希和声明绑定；公开拒绝类 conformance corpus 仍待统一 |
 | XML/CDXML 解析 | 已有 parser 测试；深度和大小限制属于 beta 硬化项 |
 | 栅格/矢量导出 | 已验证输出路径、字节数；渲染超时和超大输出限制属于 beta 硬化项 |
 | CLI session | 已有确定性 JSONL 协议；请求超时和资源预算策略属于 beta 硬化项 |

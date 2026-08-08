@@ -1,7 +1,8 @@
 # ChemSema Protocol Contracts
 
-These documents define the machine-facing CLI contracts. They are intentionally
-shorter and stricter than the user guides.
+These documents define machine-facing CLI, document-storage, incremental-update,
+and recovery contracts. They are intentionally shorter and stricter than the
+user guides.
 
 - [ChemSema CLI Protocol v1](./chemsema-cli-protocol-v1.md)
 - [Selectors v1](./selector-v1.md)

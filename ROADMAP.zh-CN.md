@@ -17,6 +17,14 @@ ChemSema 当前处于公开 beta 阶段。近期路线图重点是让编辑器�
 - 为本机装有 ChemDraw 和 Office 的 Windows 环境补充可选 pixel-diff 与 EMF-record diff 流程。
 - 持续加强 CDXML/CDX round trip、文本布局、箭头几何、键交汇和对象堆叠。
 
+## CCJS 0.2 稳定化
+
+- 保持 CCJS 0.2、CCJZ Container v1、Document Patch v1 和 Recovery Journal v1 独立版本化，并禁止未声明 ZIP entry 或第二套层级真相。
+- 将 `validate structural|chemical|roundtrip` 补齐为稳定结构化诊断：error code、JSON Pointer/entry、规范条款、严重级别和信息损失等级。
+- 把按目标格式的语义/视觉往返夹具与 Rust、JavaScript、Python 拒绝类夹具统一成可发布 conformance corpus。
+- 在编辑器接通可见区 scene chunk 懒加载和未变 entry 的 copy-on-write 保存；在此之前不把底层 range reader 宣传成端到端懒加载。
+- 为浏览器 writer 明确经典 ZIP 上限和 Zip64 策略，并发布 1 万/10 万/100 万对象及 10 MB/100 MB/1 GB 附件的 full performance 报告。
+
 ## 产品体验
 
 - 改进在线 demo，让用户可以拖入 CDXML、导出 SVG/CDXML，并直接从浏览器整理可共享的 reduced repro。
