@@ -353,6 +353,117 @@ export function createEditorDocumentRenderer(options) {
     }
     return group.childNodes.length ? group : null;
   }
+
+  function renderDocumentHierarchyPatchNode(object, objectMap) {
+    if (!object?.id) {
+      return null;
+    }
+    if (sceneObjectType(object) !== "group") {
+      return renderDocumentObjectPatchNode(object.id, objectMap);
+    }
+    const group = makeSvgNode("g", {
+      "data-object-id": object.id,
+      "data-object-type": "group",
+      "data-renderer": "hierarchy-patch",
+    });
+    for (const child of object.children || []) {
+      const childNode = renderDocumentHierarchyPatchNode(child, objectMap);
+      if (childNode) {
+        group.appendChild(childNode);
+      }
+    }
+    return group.childNodes.length ? group : null;
+  }
+
+  function hierarchyPatchRootsForCommandResult(result, documentLayer, objectMap) {
+    const targetObjectIds = targetIdsFromCommandResult(result, "objects");
+    const candidates = new Set();
+    let hierarchyChanged = false;
+    for (const objectId of targetObjectIds) {
+      const object = objectMap.get(objectId);
+      if (sceneObjectType(object) === "group") {
+        hierarchyChanged = true;
+        candidates.add(objectId);
+      }
+    }
+    for (const objectId of result?.deleted?.objects || []) {
+      const deletedGroups = [...documentLayer.querySelectorAll(
+        `[data-object-id="${cssEscape(objectId)}"][data-object-type="group"]`,
+      )];
+      if (!deletedGroups.length) {
+        continue;
+      }
+      hierarchyChanged = true;
+      for (const deletedGroup of deletedGroups) {
+        const parentObject = deletedGroup.parentElement?.closest?.(
+          "[data-object-id][data-object-type]",
+        );
+        if (parentObject?.dataset?.objectId && objectMap.has(parentObject.dataset.objectId)) {
+          candidates.add(parentObject.dataset.objectId);
+        }
+        for (const descendant of deletedGroup.querySelectorAll(
+          "[data-object-id][data-object-type]",
+        )) {
+          if (descendant.dataset.objectId && objectMap.has(descendant.dataset.objectId)) {
+            candidates.add(descendant.dataset.objectId);
+          }
+        }
+      }
+    }
+    if (!hierarchyChanged) {
+      return [];
+    }
+    for (const objectId of targetObjectIds) {
+      if (objectMap.has(objectId)) {
+        candidates.add(objectId);
+      }
+    }
+    return topmostObjectIds(expandObjectIdsWithRenderableAncestors(candidates, objectMap));
+  }
+
+  function renderDocumentHierarchyChange(result = null) {
+    const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
+    if (!documentLayer) {
+      return false;
+    }
+    const objectMap = currentDocumentSceneObjectMap();
+    const patchRoots = hierarchyPatchRootsForCommandResult(result, documentLayer, objectMap);
+    if (!patchRoots.length) {
+      return false;
+    }
+    clearDocumentObjectPreviewTransform();
+    for (const objectId of result?.deleted?.objects || []) {
+      removeDocumentObjectDom(documentLayer, objectId);
+    }
+    for (const objectId of patchRoots) {
+      removeDocumentObjectDomTree(documentLayer, objectId, objectMap);
+    }
+    const patchSet = new Set(patchRoots);
+    const paintOrder = currentDocumentObjectIdsInPaintOrder();
+    const orderedRoots = [...patchRoots].sort((a, b) => {
+      const ai = paintOrder.indexOf(a);
+      const bi = paintOrder.indexOf(b);
+      return (ai < 0 ? Number.MAX_SAFE_INTEGER : ai) - (bi < 0 ? Number.MAX_SAFE_INTEGER : bi);
+    });
+    for (const objectId of orderedRoots) {
+      const node = renderDocumentHierarchyPatchNode(objectMap.get(objectId), objectMap);
+      if (!node) {
+        continue;
+      }
+      const anchor = findDocumentPatchAnchor(documentLayer, objectId, patchSet, paintOrder);
+      documentLayer.insertBefore(node, anchor);
+    }
+    rebuildDocumentPrimitiveIndex(documentLayer);
+    syncViewerStats();
+    positionActiveTextEditor();
+    if (window.__chemsemaDebug) {
+      window.__chemsemaDebug.hierarchyPatchStats = {
+        commandType: result?.commandType || result?.command?.type || null,
+        patchRoots: orderedRoots,
+      };
+    }
+    return true;
+  }
   
   function findDocumentPatchAnchor(documentLayer, objectId, patchedObjectIds, paintOrder) {
     const startIndex = paintOrder.indexOf(objectId);
@@ -379,6 +490,10 @@ export function createEditorDocumentRenderer(options) {
     }
     if (!isEditingRustDocument() || !state.currentDocument || !result?.changed) {
       renderDocument();
+      return true;
+    }
+    if (renderDocumentHierarchyChange(result)) {
+      renderEditorOverlay();
       return true;
     }
     const patchPrimitiveTargetsFirst = targetIdsFromCommandResult(result, "nodes").size > 0

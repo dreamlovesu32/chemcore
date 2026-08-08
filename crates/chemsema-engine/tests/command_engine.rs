@@ -1328,6 +1328,170 @@ fn select_targets_can_drive_group_selection_without_ids() {
 }
 
 #[test]
+fn select_all_groups_and_ungroups_a_molecule_with_a_graphic() {
+    let mut engine = Engine::new();
+    let bond = execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": { "x": 20.0, "y": 30.0 },
+            "end": { "x": 68.0, "y": 30.0 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+    assert_eq!(bond["changed"], true);
+    let molecule_id = document_value(&engine)["entities"]["scene"]
+        .as_array()
+        .expect("scene entities")
+        .iter()
+        .find(|object| object["type"].as_str() == Some("molecule"))
+        .and_then(|object| object["id"].as_str())
+        .expect("molecule id")
+        .to_string();
+    let arrow = execute(
+        &mut engine,
+        json!({
+            "type": "add-arrow",
+            "begin": { "x": 20.0, "y": 70.0 },
+            "end": { "x": 80.0, "y": 70.0 },
+            "variant": "solid",
+            "headSize": "small",
+            "curve": "arc270",
+            "headStyle": "full",
+            "tailStyle": "none",
+            "head": true,
+            "tail": false,
+            "bold": false,
+            "noGo": "none"
+        }),
+    );
+    let arrow_id = created_object_id(&arrow);
+    execute(&mut engine, json!({ "type": "select-all" }));
+
+    let grouped = execute(&mut engine, json!({ "type": "group-selection" }));
+
+    assert_eq!(grouped["changed"], true);
+    let grouped_document = document_value(&engine);
+    let group = grouped_document["entities"]["scene"]
+        .as_array()
+        .expect("scene entities")
+        .iter()
+        .find(|object| object["type"].as_str() == Some("group"))
+        .expect("mixed group");
+    let group_id = group["id"].as_str().expect("group id");
+    assert_eq!(
+        grouped_document["hierarchy"]["children"][group_id],
+        json!([molecule_id, arrow_id])
+    );
+
+    let ungrouped = execute(&mut engine, json!({ "type": "ungroup-selection" }));
+
+    assert_eq!(ungrouped["changed"], true);
+    assert_eq!(engine.state().selection.molecule_objects, vec![molecule_id]);
+    assert_eq!(engine.state().selection.arrow_objects, vec![arrow_id]);
+    assert_eq!(engine.state().selection.nodes.len(), 2);
+    assert_eq!(engine.state().selection.bonds.len(), 1);
+    assert!(document_value(&engine)["entities"]["scene"]
+        .as_array()
+        .expect("scene entities")
+        .iter()
+        .all(|object| object["type"].as_str() != Some("group")));
+}
+
+#[test]
+fn nested_grouping_uses_outermost_selected_objects() {
+    let mut engine = Engine::new();
+    execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": { "x": 20.0, "y": 30.0 },
+            "end": { "x": 68.0, "y": 30.0 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+    execute(
+        &mut engine,
+        json!({
+            "type": "add-arrow",
+            "begin": { "x": 20.0, "y": 70.0 },
+            "end": { "x": 80.0, "y": 70.0 },
+            "variant": "solid",
+            "headSize": "small",
+            "curve": "arc270",
+            "headStyle": "full",
+            "tailStyle": "none",
+            "head": true,
+            "tail": false,
+            "bold": false,
+            "noGo": "none"
+        }),
+    );
+    execute(&mut engine, json!({ "type": "select-all" }));
+    assert_eq!(
+        execute(&mut engine, json!({ "type": "group-selection" }))["changed"],
+        true
+    );
+    let inner_group_id = engine.state().selection.arrow_objects[0].clone();
+    let second_arrow = execute(
+        &mut engine,
+        json!({
+            "type": "add-arrow",
+            "begin": { "x": 110.0, "y": 70.0 },
+            "end": { "x": 170.0, "y": 70.0 },
+            "variant": "solid",
+            "headSize": "small",
+            "curve": "arc270",
+            "headStyle": "full",
+            "tailStyle": "none",
+            "head": true,
+            "tail": false,
+            "bold": false,
+            "noGo": "none"
+        }),
+    );
+    let second_arrow_id = created_object_id(&second_arrow);
+    execute(&mut engine, json!({ "type": "select-all" }));
+
+    let nested = execute(&mut engine, json!({ "type": "group-selection" }));
+
+    assert_eq!(nested["changed"], true);
+    let outer_group_id = engine.state().selection.arrow_objects[0].clone();
+    let document = document_value(&engine);
+    assert_eq!(
+        document["hierarchy"]["children"][&outer_group_id],
+        json!([inner_group_id, second_arrow_id])
+    );
+    assert_eq!(
+        document["entities"]["scene"]
+            .as_array()
+            .expect("scene entities")
+            .iter()
+            .filter(|object| object["type"].as_str() == Some("group"))
+            .count(),
+        2
+    );
+
+    execute(&mut engine, json!({ "type": "select-all" }));
+    let ungrouped = execute(&mut engine, json!({ "type": "ungroup-selection" }));
+
+    assert_eq!(ungrouped["changed"], true);
+    assert_eq!(engine.state().selection.arrow_objects.len(), 2);
+    let document = document_value(&engine);
+    assert_eq!(
+        document["entities"]["scene"]
+            .as_array()
+            .expect("scene entities")
+            .iter()
+            .filter(|object| object["type"].as_str() == Some("group"))
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn select_all_and_clear_selection_report_current_selection() {
     let mut engine = Engine::new();
     execute(

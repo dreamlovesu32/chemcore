@@ -1,5 +1,8 @@
 use super::{EditorCommand, Engine};
-use crate::{refresh_repeating_units, ObjectPayload, SceneObject, SelectionState, Transform};
+use crate::{
+    refresh_repeating_units, ChemSemaDocument, ObjectPayload, SceneObject, SelectionState,
+    Transform,
+};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -7,7 +10,7 @@ const STACK_STEP: i32 = 10;
 
 impl Engine {
     pub fn group_selection(&mut self) -> bool {
-        let object_ids = selected_scene_object_ids(&self.state.selection)
+        let object_ids = selected_scene_object_ids(&self.state.document, &self.state.selection)
             .into_iter()
             .collect();
         self.with_command(EditorCommand::GroupSelection { object_ids }, |engine| {
@@ -16,7 +19,7 @@ impl Engine {
     }
 
     fn group_selection_untracked(&mut self) -> bool {
-        let selected_ids = selected_scene_object_ids(&self.state.selection);
+        let selected_ids = selected_scene_object_ids(&self.state.document, &self.state.selection);
         if selected_ids.len() < 2 {
             return false;
         }
@@ -36,7 +39,7 @@ impl Engine {
     }
 
     pub fn ungroup_selection(&mut self) -> bool {
-        let object_ids = selected_scene_object_ids(&self.state.selection)
+        let object_ids = selected_scene_object_ids(&self.state.document, &self.state.selection)
             .into_iter()
             .collect();
         self.with_command(EditorCommand::UngroupSelection { object_ids }, |engine| {
@@ -45,7 +48,7 @@ impl Engine {
     }
 
     fn ungroup_selection_untracked(&mut self) -> bool {
-        let selected_ids = selected_scene_object_ids(&self.state.selection);
+        let selected_ids = selected_scene_object_ids(&self.state.document, &self.state.selection);
         if selected_ids.is_empty() {
             return false;
         }
@@ -64,6 +67,28 @@ impl Engine {
         for object in ungrouped {
             if object.object_type == "text" {
                 selection.text_objects.push(object.id);
+            } else if object.object_type == "molecule" {
+                selection.molecule_objects.push(object.id.clone());
+                if let Some(fragment) = object
+                    .payload
+                    .resource_ref
+                    .as_ref()
+                    .and_then(|resource_id| self.state.document.resources.get(resource_id))
+                    .and_then(|resource| resource.data.as_fragment())
+                {
+                    selection
+                        .nodes
+                        .extend(fragment.nodes.iter().map(|node| node.id.clone()));
+                    selection.label_nodes.extend(
+                        fragment
+                            .nodes
+                            .iter()
+                            .filter_map(|node| node.label.as_ref().map(|_| node.id.clone())),
+                    );
+                    selection
+                        .bonds
+                        .extend(fragment.bonds.iter().map(|bond| bond.id.clone()));
+                }
             } else {
                 selection.arrow_objects.push(object.id);
             }
@@ -87,7 +112,7 @@ impl Engine {
     }
 
     pub fn apply_selection_order_command(&mut self, command: &str) -> bool {
-        let object_ids = selected_scene_object_ids(&self.state.selection)
+        let object_ids = selected_scene_object_ids(&self.state.document, &self.state.selection)
             .into_iter()
             .collect();
         self.with_command(
@@ -100,7 +125,7 @@ impl Engine {
     }
 
     fn apply_selection_order_command_untracked(&mut self, command: &str) -> bool {
-        let selected_ids = selected_scene_object_ids(&self.state.selection);
+        let selected_ids = selected_scene_object_ids(&self.state.document, &self.state.selection);
         if selected_ids.is_empty() {
             return false;
         }
@@ -114,13 +139,34 @@ impl Engine {
     }
 }
 
-fn selected_scene_object_ids(selection: &SelectionState) -> BTreeSet<String> {
-    selection
+fn selected_scene_object_ids(
+    document: &ChemSemaDocument,
+    selection: &SelectionState,
+) -> BTreeSet<String> {
+    let selected = selection
         .text_objects
         .iter()
         .chain(selection.arrow_objects.iter())
+        .chain(selection.molecule_objects.iter())
         .cloned()
-        .collect()
+        .collect::<BTreeSet<_>>();
+    let mut canonical = BTreeSet::new();
+    collect_outermost_selected_ids(&document.objects, &selected, &mut canonical);
+    canonical
+}
+
+fn collect_outermost_selected_ids(
+    objects: &[SceneObject],
+    selected: &BTreeSet<String>,
+    canonical: &mut BTreeSet<String>,
+) {
+    for object in objects {
+        if selected.contains(&object.id) {
+            canonical.insert(object.id.clone());
+            continue;
+        }
+        collect_outermost_selected_ids(&object.children, selected, canonical);
+    }
 }
 
 fn group_selected_in_siblings(

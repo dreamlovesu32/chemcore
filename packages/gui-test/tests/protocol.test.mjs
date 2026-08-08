@@ -9,11 +9,13 @@ import { assertValidDocument, readValidatedDocument, validateDocument } from "..
 const scenarioPath = join(guiTestsDir, "scenarios", "core", "draw-single-bond.json");
 const multiObjectScenarioPath = join(guiTestsDir, "scenarios", "core", "multi-bond-clipboard-delete-production.json");
 const mixedObjectScenarioPath = join(guiTestsDir, "scenarios", "core", "mixed-bond-arrow-clipboard-production.json");
+const nestedGroupScenarioPath = join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json");
 
 test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(scenarioPath);
   await readValidatedDocument(multiObjectScenarioPath);
   await readValidatedDocument(mixedObjectScenarioPath);
+  await readValidatedDocument(nestedGroupScenarioPath);
   await readValidatedDocument(join(guiTestsDir, "coverage", "registry-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "coverage", "impact-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "environments", "windows-gui-worker-current.json"));

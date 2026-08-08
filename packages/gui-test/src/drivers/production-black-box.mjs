@@ -103,6 +103,8 @@ export class ProductionBlackBoxDriver {
       "editor.arrow.draw",
       "editor.selection.select-all",
       "editor.selection.mixed-object",
+      "editor.group.group-ungroup",
+      "editor.group.nested",
       "editor.clipboard.copy-paste",
       "editor.selection.delete",
       "editor.history.undo-redo",

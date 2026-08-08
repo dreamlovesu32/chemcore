@@ -735,6 +735,62 @@ async function verifyCopyPasteCut(page) {
   assert(restored.renderedBonds > 0, `Paste after cut did not restore content: ${JSON.stringify(restored)}`);
 }
 
+async function verifyNestedMixedGroupRendering(page) {
+  await drawBondWithMouse(page);
+  const viewer = await page.locator("#viewer-container").boundingBox();
+  assert(viewer, "Nested group regression could not locate the viewer.");
+  const drawArrow = async (from, to, expectedCount) => {
+    await page.locator('button[data-tool="arrow"]').click();
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForFunction((count) => new Set(
+      [...document.querySelectorAll('[data-role="document-graphic"][data-object-id]')]
+        .map((element) => element.dataset.objectId)
+        .filter(Boolean),
+    ).size === count, expectedCount);
+  };
+  await drawArrow(
+    { x: viewer.x + viewer.width * 0.62, y: viewer.y + viewer.height * 0.38 },
+    { x: viewer.x + viewer.width * 0.74, y: viewer.y + viewer.height * 0.38 },
+    1,
+  );
+  await page.locator('button[data-tool="select"]').click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.press("Control+G");
+  await page.waitForFunction(() => document.querySelectorAll('[data-object-type="group"][data-object-id]').length === 1
+    && document.querySelectorAll("[data-bond-id]").length === 1);
+
+  await drawArrow(
+    { x: viewer.x + viewer.width * 0.62, y: viewer.y + viewer.height * 0.66 },
+    { x: viewer.x + viewer.width * 0.74, y: viewer.y + viewer.height * 0.66 },
+    2,
+  );
+  await page.locator('button[data-tool="select"]').click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.press("Control+G");
+  await page.waitForFunction(() => document.querySelectorAll('[data-object-type="group"][data-object-id]').length === 2
+    && document.querySelectorAll('[data-object-type="group"] [data-object-type="group"][data-object-id]').length === 1
+    && document.querySelectorAll("[data-bond-id]").length === 1);
+
+  await page.keyboard.press("Control+A");
+  await page.keyboard.press("Control+Shift+G");
+  await page.waitForFunction(() => document.querySelectorAll('[data-object-type="group"][data-object-id]').length === 1
+    && document.querySelectorAll('[data-object-type="group"] [data-object-type="group"][data-object-id]').length === 0
+    && document.querySelectorAll("[data-bond-id]").length === 1
+    && (document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0) > 0);
+  await page.keyboard.press("Control+Z");
+  await page.waitForFunction(() => document.querySelectorAll('[data-object-type="group"][data-object-id]').length === 2
+    && document.querySelectorAll('[data-object-type="group"] [data-object-type="group"][data-object-id]').length === 1
+    && document.querySelectorAll("[data-bond-id]").length === 1);
+  await page.keyboard.press("Control+Y");
+  await page.waitForFunction(() => document.querySelectorAll('[data-object-type="group"][data-object-id]').length === 1
+    && document.querySelectorAll('[data-object-type="group"] [data-object-type="group"][data-object-id]').length === 0
+    && document.querySelectorAll("[data-bond-id]").length === 1
+    && (document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0) === 0);
+}
+
 async function dispatchImageTransfer(page, eventType) {
   await page.evaluate(async (type) => {
     const canvas = document.createElement("canvas");
@@ -1284,6 +1340,10 @@ try {
     await verifyCopyPasteCut(editPage);
     await editPage.close();
 
+    const groupPage = await openViewer(context, errors);
+    await verifyNestedMixedGroupRendering(groupPage);
+    await groupPage.close();
+
     const imagePage = await openViewer(context, errors);
     await verifyImageDropAndPaste(imagePage);
     await imagePage.close();
@@ -1323,7 +1383,7 @@ try {
         ? "[gui-regression] ok (native logical object manager and CDXML export)"
     : exactTieOnly
       ? "[gui-regression] ok (exact-tie double bond)"
-      : "[gui-regression] ok (open, save-as ccjs/cdxml/svg, ctrl+s ccjz, copy/paste/cut, image drop/paste/context-menu, cross-tab structured clipboard, detached desktop tab, toolbar icons, cursors, selection overlay, delete tool, exact-tie double bond, zoom, style, annotation dialog)");
+      : "[gui-regression] ok (open, save-as ccjs/cdxml/svg, ctrl+s ccjz, copy/paste/cut, nested mixed grouping, image drop/paste/context-menu, cross-tab structured clipboard, detached desktop tab, toolbar icons, cursors, selection overlay, delete tool, exact-tie double bond, zoom, style, annotation dialog)");
 } finally {
   await browser?.close();
   if (server) {
