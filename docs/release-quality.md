@@ -45,7 +45,7 @@ Before a public beta release:
 6. Confirm GitHub CI passes for both `main` and the release tag.
 7. Upload the installer asset and record its SHA256 digest.
 
-These are the current beta gates, not complete GUI or demo qualification. Once the GUI test platform is implemented, stable releases and formal demos must also pass `gui-pr`, `gui-nightly`, final-installer `release-qualification`, and the [Demo Qualification Gate](./gui-test-platform-and-demo-reliability.md#14-demo-qualification-gate). A first-run failure remains a flaky failure even when a retry passes.
+These are the current beta gates, not complete GUI or demo qualification. Once the GUI test platform is implemented, stable releases and formal demos must also pass `gui-pr`, `gui-nightly`, final-installer `release-qualification`, and the [Demo Qualification Gate](./gui-test-platform-and-demo-reliability.md#14-demo-qualification-gate); qualification must prove real click/input/drag execution for every user-visible feature, actual GUI drawing or creation for every object type, and coverage of every public property plus the `0/1/2/many` multi-object matrix. A first-run failure remains a flaky failure even when a retry passes.
 
 ## Current Communication Boundary
 

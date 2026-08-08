@@ -35,7 +35,7 @@ ChemSema is in public beta. The near-term roadmap focuses on making the editor e
 
 - Build an independent `packages/gui-test`, versioned scenario/result/coverage protocols, and a test-build-only Test ABI inside the main repository; store large traces, soak logs, VMs, and installers in hash-bound artifact storage.
 - Use WebdriverIO Tauri for the real desktop application, Playwright for browser and WebView2/visual validation, Windows UIA and real input for native window/file/clipboard/Office/touch/pen boundaries, and a production black-box gate for the final installer.
-- Migrate the existing GUI, viewer-interaction, stability, toolbar, text, large-document, and Office scripts into one data-driven scenario model instead of extending separate thousand-line scripts.
+- Migrate the existing GUI, viewer-interaction, stability, toolbar, text, large-document, and Office scripts into one data-driven scenario model instead of extending separate thousand-line scripts; ultimately cover every user feature, object type, public property, and `0/1/2/many` homogeneous/heterogeneous multi-object combination through real clicks, drags, and drawing.
 - Add an explicit state model, seeded generation, automatic failure shrinking, fault profiles, and mutation qualification; retries cannot convert a flaky first failure into success.
 - Establish `gui-pr`, `gui-nightly`, `release-qualification`, and `demo-qualification`; formal demos must satisfy the [long-term architecture](./docs/gui-test-platform-and-demo-reliability.md) with final-installer, clean-VM, repeated-run, and soak evidence.
 

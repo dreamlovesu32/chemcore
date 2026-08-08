@@ -35,7 +35,7 @@ ChemSema 当前处于公开 beta 阶段。近期路线图重点是让编辑器�
 
 - 在主仓库内建设独立 `packages/gui-test`、版本化场景/报告/覆盖协议和测试构建专用 Test ABI；大型 trace、soak、VM 与安装包进入带哈希的外部制品存储。
 - 以 WebdriverIO Tauri 验证真实桌面程序，以 Playwright 验证浏览器和 WebView2/视觉，以 Windows UIA/真实输入验证原生窗口、文件、剪贴板、Office、触摸和笔，并保留最终安装包 production black-box 门禁。
-- 把现有 GUI、viewer interaction、stability、toolbar、text、large-document 和 Office 脚本迁移为同一数据场景，不继续扩展独立千行脚本。
+- 把现有 GUI、viewer interaction、stability、toolbar、text、large-document 和 Office 脚本迁移为同一数据场景，不继续扩展独立千行脚本；最终必须通过真实点击/拖拽/绘制覆盖每个用户功能、每类对象、全部公开属性及 `0/1/2/many` 同类/异类多对象组合。
 - 建立状态模型、固定 seed 生成、自动失败收缩、fault profile 和 mutation qualification；flaky 不允许通过重跑转绿。
 - 建立 `gui-pr`、`gui-nightly`、`release-qualification` 和 `demo-qualification`；正式展示候选须按[长期架构](./docs/gui-test-platform-and-demo-reliability.zh-CN.md)完成最终安装包、干净 VM、连续重复和长时间 soak 证据。
 

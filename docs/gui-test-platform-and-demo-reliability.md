@@ -109,6 +109,25 @@ CSS ancestry, `nth-child`, incidental labels, and ephemeral runtime ids are not 
 
 The action vocabulary includes controls, pointer, keyboard and IME, touch and pen, documents, clipboard and Office, windows, runtime failures, and observation checkpoints. Every action declares its coordinate space, device, modifiers, completion condition, and budget. Fixed sleeps are not normal completion conditions.
 
+### Exhaustive real-user interaction contract
+
+The coverage unit is not "the page opened"; it is a user completing a feature through public interaction. Every user-visible tool, button, menu or context command, shortcut, dialog, property editor, file command, and system integration must have at least one scenario that uses the same real click, key, drag, draw, text-entry, or selection path as a user and then applies independent oracles. Engine calls, the Test ABI, JavaScript functions, and direct document injection may arrange setup or diagnostics, but never count as real interaction coverage for that feature.
+
+Every creatable object type must be created or drawn through the GUI, not merely loaded from a fixture. Its lifecycle covers selection and deselection, hover/focus, movement and, where applicable, resize, rotation, handle editing, text or chemical editing; every public writable property; copy/cut/paste/duplicate/delete; undo/redo; save/close/reopen; and applicable import/export, clipboard, and Office round trips. Property cases cover defaults, representative values, boundaries, mixed values, invalid/cancel paths, and persistence. A property-field change is not sufficient unless visual, semantic-document, and persisted results agree.
+
+Cardinality is mandatory: `0`, `1`, `2`, and `many`, including homogeneous and heterogeneous selections. Multi-object cases cover additive/removal selection, marquee/lasso, select-all, overlap/intersection, distant and partly offscreen objects, locked/hidden/inapplicable objects, inside/outside and nested groups, and large documents. Every batch-capable feature verifies common-property updates, mixed-state presentation, partial applicability, hierarchy and relative-position preservation, atomicity, one-transaction undo/redo, and cleanup of selection, previews, and handles.
+
+Object types are also tested in combination: connection, snapping, alignment, distribution, hierarchy, group/ungroup, z-order, cross-group movement, copied references, dependent deletion, cross-document paste, and every publicly allowed or forbidden interaction among molecules, bonds, atom labels, text, symbols, and other graphical objects. Forbidden combinations must produce explicit feedback, no document mutation, and no dirty history entry.
+
+The minimum auditable coverage cell is:
+
+```text
+feature × object-type × cardinality × selection/state × input-mode
+        × property/value-class × persistence-boundary × platform-profile
+```
+
+Critical and high-risk editing surfaces cover their declared full matrix. Constrained pairwise or model generation may reduce redundant combinations elsewhere, but may not omit a public feature, object type, cardinality class, writable property, or persistence boundary. The registry distinguishes `real-user-path`, `setup-only`, and `oracle-only`; only the first satisfies functional interaction coverage. A feature cannot merge without registered object, cardinality, state, property, and real-input scenarios.
+
 ## 6. Driver contract
 
 Every driver implements:
@@ -220,8 +239,12 @@ Qualification also seeds mutations such as removed listeners, shifted hit testin
 
 `chemsema.gui.coverage.v1` tracks:
 
+- a `real-user-path` scenario for every user-visible control, command, and property rather than only Test ABI or fixture setup;
 - create/select/hover/focus/move/resize/rotate/style/copy/cut/paste/delete/undo/redo per tool and object type;
 - import/render/hit/edit/export/save/reopen per object type;
+- `0/1/2/many`, homogeneous/heterogeneous, grouped/nested, overlapping, locked, hidden, partially applicable, and large-document multi-object states;
+- defaults, representative/boundary/mixed/invalid values, batch editing, undo/redo, and round trips for every public writable property;
+- connection, snapping, alignment, distribution, hierarchy, grouping, z-order, dependent deletion, and cross-document object relationships;
 - confirm/cancel/invalid-input/keyboard/focus behavior per dialog;
 - shortcuts and modifiers;
 - open/edit/save/reopen/export per format;
@@ -230,7 +253,7 @@ Qualification also seeds mutations such as removed listeners, shifted hit testin
 - DPI/window/locale/theme/runtime/GPU profiles;
 - permanent scenarios for every historical defect and demo action.
 
-New tools, object types, commands, dialogs, formats, and system capabilities must register their required cells. Missing cells block CI.
+New tools, object types, commands, properties, dialogs, formats, and system capabilities must register their required cells. Unregistered items, items without real click/draw/edit scenarios, and items covered only by internal injection block CI.
 
 ## 12. Determinism, isolation, and reporting
 
@@ -254,11 +277,11 @@ Runs browser core cases, real Windows Tauri core journeys, affected tests plus a
 
 ### `gui-nightly`
 
-Runs the full matrix, WebdriverIO/Playwright cross-execution, generated long sequences and shrinking, fault profiles, leak and recovery tests, native Windows/Office boundaries, and DPI/runtime/GPU profiles.
+Runs every scenario, user-visible feature, object/tool/public-property inventory, the `0/1/2/many` homogeneous and heterogeneous multi-object matrix, WebdriverIO/Playwright cross-execution, generated long sequences and shrinking, fault profiles, leak and recovery tests, native Windows/Office boundaries, and DPI/runtime/GPU profiles.
 
 ### `release-qualification`
 
-Accepts only an immutable final installer candidate. A clean VM installs it and runs production black-box, upgrade/uninstall/reinstall, full critical journeys, and release soak. Any code or dependency change invalidates the qualification.
+Accepts only an immutable final installer candidate. A clean VM installs it and, through public UI/UIA, executes at least one real path for every user-visible feature, real GUI creation/drawing for every object type, every public writable property, the core single- and multi-object matrix, save/reopen, production black-box, upgrade/uninstall/reinstall, and release soak. Test builds may carry the larger combinatorial matrix but cannot replace feature-inventory proof against the production candidate. Any code or dependency change invalidates the qualification.
 
 ## 14. Demo Qualification Gate
 
@@ -306,7 +329,7 @@ No current gate is weakened merely because the new platform is under constructio
 
 ## 18. Completion definition
 
-The platform is not complete because it can click controls or once reports green. Completion requires versioned scenarios, all four formal driver surfaces, automated test/production isolation, permanent coverage for every historical demo defect, machine-readable feature/state/error/environment coverage, reproducible and shrinkable seeded failures, a fully killed core mutation set, operational PR/nightly/release/demo gates, no retry-to-green, production-installer evidence, hashed artifact manifests, and synchronized documentation/protocol/help.
+The platform is not complete because it can click controls or once reports green. Completion requires versioned scenarios, all four formal driver surfaces, automated test/production isolation, permanent coverage for every historical demo defect, real public-input execution of every user-visible feature, GUI creation/drawing and full writable-property/lifecycle coverage for every object type, explicit `0/1/2/many` homogeneous and heterogeneous multi-object and cross-object scenarios, machine-readable feature/object/cardinality/state/input/property/persistence/error/environment coverage, reproducible and shrinkable seeded failures, a fully killed core mutation set, operational PR/nightly/release/demo gates, no retry-to-green, production-installer evidence, hashed artifact manifests, and synchronized documentation/protocol/help.
 
 ## 19. Upstream foundations
 

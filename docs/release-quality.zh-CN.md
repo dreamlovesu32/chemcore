@@ -44,7 +44,7 @@
 6. 确认 GitHub CI 在 `main` 和 release tag 上通过。
 7. 上传安装包并记录 SHA256。
 
-以上是当前 beta 门禁，不等于完整 GUI 或展示资格。GUI 测试平台落地后，stable/正式展示还必须通过 `gui-pr`、`gui-nightly`、最终安装包 `release-qualification` 和 [Demo Qualification Gate](./gui-test-platform-and-demo-reliability.zh-CN.md#16-demo-qualification-gate)。第一次失败后重跑成功仍记为 flaky failure，不能改写为通过。
+以上是当前 beta 门禁，不等于完整 GUI 或展示资格。GUI 测试平台落地后，stable/正式展示还必须通过 `gui-pr`、`gui-nightly`、最终安装包 `release-qualification` 和 [Demo Qualification Gate](./gui-test-platform-and-demo-reliability.zh-CN.md#16-demo-qualification-gate)；资格必须证明每个用户可见功能经过真实点击/输入/拖拽、每类对象经过实际绘制或创建、全部公开属性和 `0/1/2/many` 多对象矩阵均有覆盖。第一次失败后重跑成功仍记为 flaky failure，不能改写为通过。
 
 ## 当前对外边界
 
