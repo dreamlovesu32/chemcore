@@ -5,6 +5,7 @@ import { auditCoverage } from "./coverage/audit.mjs";
 import { FakeDriver } from "./drivers/fake.mjs";
 import { PlaywrightBrowserDriver } from "./drivers/playwright-browser.mjs";
 import { ProductionBlackBoxDriver } from "./drivers/production-black-box.mjs";
+import { writeEvidenceBundle } from "./evidence/write-bundle.mjs";
 import { planImpactedScenarios } from "./impact/select.mjs";
 import { guiTestsDir, scenarioDir } from "./protocol/paths.mjs";
 import { readValidatedDocument } from "./protocol/validate.mjs";
@@ -136,8 +137,11 @@ async function run(path, options) {
   const reportPath = resolve(options.report || join("tmp", "gui-platform", `${scenario.id}-${driverName}.json`));
   await mkdir(dirname(reportPath), { recursive: true });
   await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  const evidenceRoot = resolve(options["evidence-root"] || join("tmp", "gui-platform", "evidence"));
+  const bundle = await writeEvidenceBundle({ report, root: evidenceRoot });
   console.log(`[gui-platform] ${report.status} ${scenario.id} via ${driverName}`);
   console.log(`[gui-platform] report ${reportPath}`);
+  console.log(`[gui-platform] evidence ${bundle.manifestPath}`);
   if (report.status !== "passed") {
     process.exitCode = 1;
   }
