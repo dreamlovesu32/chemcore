@@ -690,6 +690,27 @@ async function verifyCopyPasteCut(page) {
   assert(pasted.renderedBonds > before.renderedBonds, `Paste did not duplicate the selected structure: ${JSON.stringify({ before, pasted })}`);
 
   await page.keyboard.press("Control+A");
+  try {
+    await page.waitForFunction(() => {
+      const selection = window.__chemsemaDebug.engineState?.selection || {};
+      const selectedCount = (selection.nodes?.length || 0)
+        + (selection.bonds?.length || 0)
+        + (selection.moleculeObjects?.length || 0)
+        + (selection.textObjects?.length || 0)
+        + (selection.arrowObjects?.length || 0);
+      return selectedCount > 0
+        && (document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0) > 0;
+    });
+  } catch (error) {
+    const diagnostic = await page.evaluate(() => ({
+      activeTool: window.__chemsemaDebug.editorState?.activeTool || null,
+      selection: window.__chemsemaDebug.engineState?.selection || null,
+      selectionBounds: JSON.parse(window.__chemsemaDebug.state.editorEngine.selectionBoundsJson?.() || "null"),
+      overlayChildren: document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0,
+      lastCommandResult: JSON.parse(window.__chemsemaDebug.state.editorEngine.lastCommandResultJson?.() || "null"),
+    }));
+    throw new Error(`Ctrl+A after paste did not render the full selection: ${JSON.stringify(diagnostic)}`, { cause: error });
+  }
   await page.locator('button[data-command="cut"]').click();
   try {
     await page.waitForFunction(() => document.querySelectorAll("[data-bond-id]").length === 0);
@@ -750,7 +771,8 @@ async function verifyImageDropAndPaste(page) {
     await page.waitForFunction(() => {
       const engine = window.__chemsemaDebug.state.editorEngine;
       const documentValue = JSON.parse(engine.documentJson());
-      return documentValue.objects?.some((object) => object.type === "image")
+      return (documentValue.objects || documentValue.entities?.scene || [])
+        .some((object) => object.type === "image")
         && window.__chemsemaDebug.editorState?.activeTool === "select"
         && JSON.parse(engine.selectionBoundsJson() || "null");
     });
@@ -766,20 +788,23 @@ async function verifyImageDropAndPaste(page) {
     throw new Error(`Dropped image did not become the selected object: ${JSON.stringify(diagnostic)}`, { cause: error });
   }
 
-  const afterDrop = await page.evaluate(() => (
-    JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson())
-      .objects.filter((object) => object.type === "image").length
-  ));
+  const afterDrop = await page.evaluate(() => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    return (documentValue.objects || documentValue.entities?.scene || [])
+      .filter((object) => object.type === "image").length;
+  });
   await dispatchImageTransfer(page, "paste");
-  await page.waitForFunction((count) => (
-    JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson())
-      .objects.filter((object) => object.type === "image").length > count
-  ), afterDrop);
+  await page.waitForFunction((count) => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    return (documentValue.objects || documentValue.entities?.scene || [])
+      .filter((object) => object.type === "image").length > count;
+  }, afterDrop);
 
-  const afterPaste = await page.evaluate(() => (
-    JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson())
-      .objects.filter((object) => object.type === "image").length
-  ));
+  const afterPaste = await page.evaluate(() => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    return (documentValue.objects || documentValue.entities?.scene || [])
+      .filter((object) => object.type === "image").length;
+  });
   const canvas = await page.locator("#viewer-container").boundingBox();
   assert(canvas, "Viewer container is not visible for context-menu image insertion.");
   await page.mouse.click(canvas.x + canvas.width * 0.72, canvas.y + canvas.height * 0.68, {
@@ -812,10 +837,11 @@ async function verifyImageDropAndPaste(page) {
     mimeType: "image/png",
     buffer: Buffer.from(pngBase64, "base64"),
   });
-  await page.waitForFunction((count) => (
-    JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson())
-      .objects.filter((object) => object.type === "image").length > count
-  ), afterPaste);
+  await page.waitForFunction((count) => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    return (documentValue.objects || documentValue.entities?.scene || [])
+      .filter((object) => object.type === "image").length > count;
+  }, afterPaste);
 
   const selectedImage = page.locator(
     '#viewer-container [data-object-id][data-role="document-graphic"]',
@@ -840,15 +866,11 @@ async function verifyImageDropAndPaste(page) {
   await page.locator('.image-crop-dialog button[type="submit"]').click();
   await page.waitForFunction(() => {
     const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
-    return documentValue.objects?.some(
+    return (documentValue.objects || documentValue.entities?.scene || []).some(
       (object) => object.type === "image" && object.payload?.imageCrop?.width === 1,
     );
   });
-  assert.equal(
-    await page.locator('#viewer-container svg[viewBox="0 0 1 1"] > image').count(),
-    1,
-    "The browser renderer did not apply the kernel source-pixel crop.",
-  );
+  await page.locator('#viewer-container svg[viewBox="0 0 1 1"] > image').waitFor({ state: "visible" });
 
   const croppedImageBounds = await page.locator(
     '#viewer-container svg[viewBox="0 0 1 1"][data-object-id]',
@@ -867,8 +889,8 @@ async function verifyImageDropAndPaste(page) {
   await resetCrop.click();
   await page.waitForFunction(() => {
     const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
-    return documentValue.objects
-      ?.filter((object) => object.type === "image")
+    return (documentValue.objects || documentValue.entities?.scene || [])
+      .filter((object) => object.type === "image")
       .every((object) => !object.payload?.imageCrop);
   });
 }
@@ -965,7 +987,9 @@ async function verifySaveAsFormats(page) {
   await page.locator('button[data-command="save-as"]').click();
   const ccjs = await waitForSaveWrite(page, 0);
   assert.equal(ccjs.name, "gui-save.ccjs");
-  assert(ccjs.text.includes('"objects"') && JSON.parse(ccjs.text).resources, "Save As .ccjs did not write a ChemSema JSON document.");
+  const ccjsDocument = JSON.parse(ccjs.text);
+  assert.equal(ccjsDocument.format?.version, "0.2", "Save As .ccjs did not write the current ChemSema format.");
+  assert(Array.isArray(ccjsDocument.entities?.scene) && ccjsDocument.resources, "Save As .ccjs did not write a ChemSema JSON document.");
 
   await page.locator('button[data-command="save-as"]').click();
   const cdxml = await waitForSaveWrite(page, 1);
@@ -1067,10 +1091,11 @@ async function verifyChemicalPropertyDialog(page) {
   const result = await page.evaluate(() => {
     const documentValue = window.__chemsemaDebug.document;
     const property = documentValue.chemicalProperties[0];
-    const display = documentValue.objects.find((object) => object.id === property.displayObjectId);
+    const display = (documentValue.objects || documentValue.entities?.scene || [])
+      .find((object) => object.id === property.displayObjectId);
     return {
       value: display?.payload?.text,
-      relation: documentValue.links.find(
+      relation: (documentValue.links || documentValue.relations || []).find(
         (candidate) => candidate.kind === "chemical-property-display",
       ),
     };
@@ -1098,7 +1123,8 @@ async function verifyAnnotationDialog(page) {
     const documentValue = JSON.parse(
       window.__chemsemaDebug.state.editorEngine.documentJson(),
     );
-    return documentValue.objects.find((object) => object.type === "constraint")?.id;
+    return (documentValue.objects || documentValue.entities?.scene || [])
+      .find((object) => object.type === "constraint")?.id;
   });
   assert(annotationId, "Imported annotation did not create a native constraint object.");
   const annotationPoint = await page.evaluate(
@@ -1121,7 +1147,7 @@ async function verifyAnnotationDialog(page) {
     const documentValue = JSON.parse(
       window.__chemsemaDebug.state.editorEngine.documentJson(),
     );
-    return documentValue.objects.some(
+    return (documentValue.objects || documentValue.entities?.scene || []).some(
       (object) => object.type === "constraint"
         && object.payload?.constraint?.constraintType === "distance"
         && object.payload.constraint.minimum === 0.75
@@ -1132,12 +1158,12 @@ async function verifyAnnotationDialog(page) {
     const documentValue = JSON.parse(
       window.__chemsemaDebug.state.editorEngine.documentJson(),
     );
-    const annotation = documentValue.objects.find(
+    const annotation = (documentValue.objects || documentValue.entities?.scene || []).find(
       (object) => object.type === "constraint",
     );
     return {
       basis: annotation?.payload?.constraint?.basisEntityIds,
-      relation: documentValue.links.find(
+      relation: (documentValue.links || documentValue.relations || []).find(
         (candidate) => candidate.kind === "annotation-basis",
       ),
     };

@@ -239,6 +239,7 @@ export function createEditorCommandController(options) {
     } else if (command === "select-all") {
       await options.activateEditorTool("select");
       changed = { changed: !!(await state.editorEngine.selectAll?.()) };
+      options.invalidateEditorEngineReadCache?.();
       options.renderEditorOverlay();
       options.refreshCommandAvailability();
       return changed.changed;

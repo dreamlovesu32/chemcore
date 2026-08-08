@@ -751,7 +751,7 @@ function Invoke-ActionTransaction {
   $requestJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($ActionRequestBase64))
   $request = $requestJson | ConvertFrom-Json
   if ($request.schema -ne 'chemsema.gui.action-transaction.v1') { throw 'Unsupported action transaction schema.' }
-  if ([int]$request.completion.timeoutMs -gt [int]$request.budgetMs) { throw 'Action transaction completion timeout exceeds its action budget.' }
+  if ([int]$request.completion.timeoutMs + 4000 -gt [int]$request.budgetMs) { throw 'Action transaction completion timeout does not leave the required 4000 ms target-resolution and transport reserve.' }
   $hostHash = (Get-FileHash -LiteralPath $HostCandidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
   $guestPath = Join-Path (Join-Path (Join-Path $GuestTestRoot 'candidate') $hostHash) 'chemsema-desktop.exe'
   $transaction = Invoke-Guest -ScriptBlock {

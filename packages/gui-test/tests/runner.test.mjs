@@ -24,6 +24,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.draw-single",
     "scenario.core.bond.draw-single.production",
     "scenario.core.history.undo-redo-bond.production",
+    "scenario.core.selection.clipboard-delete-multi-bond.production",
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["docs/readme.md"]), []);
   assert.deepEqual(planImpactedScenarios(graph, ["unknown/new-surface.js"]), {
@@ -35,6 +36,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
       "scenario.core.history.undo-redo-bond.production",
+      "scenario.core.selection.clipboard-delete-multi-bond.production",
     ],
   });
 });
@@ -45,12 +47,14 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "draw-single-bond.json"),
     join(guiTestsDir, "scenarios", "core", "draw-single-bond-production.json"),
     join(guiTestsDir, "scenarios", "core", "undo-redo-bond-production.json"),
+    join(guiTestsDir, "scenarios", "core", "multi-bond-clipboard-delete-production.json"),
   ];
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 12);
-  assert.equal(result.summary.scenarios, 3);
+  assert.equal(result.summary.entries, 18);
+  assert.equal(result.summary.scenarios, 4);
+  assert.equal(result.summary.gaps, 3);
 });
 
 test("aggregate scheduler limits fail closed at 10 CPU units and 30 GiB", () => {

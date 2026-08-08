@@ -721,7 +721,9 @@ coordinator 已在 `windows-gui-worker-current` 上跨过隔离桌面边界。�
 
 持久 CDP 观测现已通过版本化有界请求/响应通道投入运行。每次 run 只安装一个隐藏 observer；Schema 与运行时共同要求它以 SYSTEM 身份运行在 session 0，只接受固定 `locate`、`state`、`count` 和 `count-state` 模式，因此不能抢占交互前台，也不能执行任意表达式。同一 production history 场景再次通过，evidence key 为 `703df348f29d23c4845063aa9a34c72fcd3e1ecf5e41fa23d7e90c4cfb5e7ed3`。四项动作从原来每项约 7.2 秒降至 5.1–5.3 秒，同时保持原预算与语义 oracle。
 
-版本化 guest 动作事务也已投入运行。production runner 先解析公开 UI 目标，随后只调用一次 PowerShell Direct；有界 guest 脚本依次取得独立 CDP `before`、提交且仅提交一次受守卫输入、判断场景声明的固定 completion 条件并返回最终 CDP `after`。输入代理和 CDP observer 仍是不同进程与不同协议，因此事务合并不能让输入实现伪造自己的 oracle。请求与 receipt Schema 保持严格，completion 超时不得超过动作预算。production history 场景以 evidence key `5f30cc7fb7d6dbf83600f7ba26135768a183314278be08bce2852b9e1a5ee159` 通过；四项动作分别在 3.1–3.4 秒完成，相比仅持久 CDP 又降低约 36%，内核/DOM 的 `0 -> 1 -> 0 -> 1` 证据不变。直接认证的 host→guest 传输和完整截图/trace/log bundle 仍未完成。
+版本化 guest 动作事务也已投入运行。production runner 先解析公开 UI 目标，随后只调用一次 PowerShell Direct；有界 guest 脚本依次取得独立 CDP `before`、提交且仅提交一次受守卫输入、判断场景声明的固定 completion 条件并返回最终 CDP `after`。输入代理和 CDP observer 仍是不同进程与不同协议，因此事务合并不能让输入实现伪造自己的 oracle。请求与 receipt Schema 保持严格，completion 超时必须在端到端动作预算内为目标解析与传输预留 4 秒。production history 场景以 evidence key `5f30cc7fb7d6dbf83600f7ba26135768a183314278be08bce2852b9e1a5ee159` 通过；四项动作分别在 3.1–3.4 秒完成，相比仅持久 CDP 又降低约 36%，内核/DOM 的 `0 -> 1 -> 0 -> 1` 证据不变。直接认证的 host→guest 传输和完整截图/trace/log bundle 仍未完成。
+
+第一条 production 多对象工作流 `core.selection.clipboard-delete-multi-bond.production` 也已投入运行：从空白文档开始，以受守卫真实 OS 输入绘制两根键、切换框选工具、全选、经真实 Windows 剪贴板复制、粘贴为四根键、再次全选、原子删除，并验证 undo/redo。候选 SHA-256 `dea620b455daeb253c4141e2e999eae376c5b53ecd0f7a7034795db401ea58f6` 以 evidence key `ff6fc4512e70cee602ce87118087408de8634076731bc6c9b82c9ca98519695c` 通过；独立 DOM 证据记录 `0 -> 1 -> 2 -> 4 -> 0 -> 4 -> 0`，第二次全选将 overlay 从 21 个图元扩展到 39 个，最终既无陈旧 selection overlay，也无意外诊断。该场景发现并修复了一个真实的 revision 稳定交互缓存缺陷：粘贴后全选已经正确更新引擎 selection 与 selection bounds，但前端仍渲染缓存的空 overlay。动作协议现在还要求每项端到端预算内部必须为目标解析与传输保留 4 秒，使 completion 失败时能在外层预算终止前返回精确诊断。
 
 当前入口为：
 

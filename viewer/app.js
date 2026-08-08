@@ -64,7 +64,7 @@ import { createEditorToolbarHost } from "./editor_toolbar_host.js";
 import { createEditorViewportHost } from "./editor_viewport_host.js";
 import { createEditorPointerController } from "./editor_pointer_controller.js?v=20260629-deep-stability";
 import { createCanvasContextMenuHost } from "./editor_context_menu.js?v=20260726-molecular-coloring";
-import { createEditorCommandController } from "./editor_command_controller.js?v=20260808-history-command-1";
+import { createEditorCommandController } from "./editor_command_controller.js?v=20260809-selection-cache-1";
 import { createEditorCommandEngine } from "./editor_command_engine.js?v=20260626-interaction-feedback";
 import {
   editorScriptScale as computeEditorScriptScale,
@@ -1310,6 +1310,7 @@ const editorCommandController = createEditorCommandController({
   renderDocument,
   renderDocumentChange,
   renderEditorOverlay,
+  invalidateEditorEngineReadCache,
   refreshCommandAvailability,
   activateEditorTool,
   commandEngine,

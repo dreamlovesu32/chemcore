@@ -192,7 +192,7 @@ test("candidate action sends one validated versioned transaction", async () => {
   });
   const receipt = await coordinator.candidateAction(
     { kind: "click", x: 34, y: 212, button: "left" },
-    { kind: "actionable", timeoutMs: 12000 },
+    { kind: "actionable", timeoutMs: 8000 },
     12000,
   );
   assert.equal(receipt.transaction.input.foreground.processId, 300);
@@ -203,10 +203,10 @@ test("candidate action sends one validated versioned transaction", async () => {
   await assert.rejects(
     coordinator.candidateAction(
       { kind: "click", x: 34, y: 212, button: "left" },
-      { kind: "actionable", timeoutMs: 13000 },
+      { kind: "actionable", timeoutMs: 8001 },
       12000,
     ),
-    /within the action budget/,
+    /leave 4000 ms/,
   );
 });
 

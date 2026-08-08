@@ -39,3 +39,18 @@ test("history retains the direct fallback when no command engine exists", async 
   assert.equal(await controller.runEditorCommand("undo"), true);
   assert.equal(undoCalls, 1);
 });
+
+test("select all invalidates the revision-stable interaction cache before rendering", async () => {
+  const calls = [];
+  const controller = createEditorCommandController({
+    state: () => ({ editorEngine: { selectAll: () => { calls.push("select"); return true; } } }),
+    isEditingRustDocument: () => true,
+    activateEditorTool: async () => calls.push("activate"),
+    invalidateEditorEngineReadCache: () => calls.push("invalidate"),
+    renderEditorOverlay: () => calls.push("render"),
+    refreshCommandAvailability: () => calls.push("refresh"),
+  });
+
+  assert.equal(await controller.runEditorCommand("select-all"), true);
+  assert.deepEqual(calls, ["activate", "select", "invalidate", "render", "refresh"]);
+});

@@ -6,9 +6,9 @@
       "kind": "legacy-script",
       "source": "scripts/gui-regression.mjs",
       "status": "partially-migrated",
-      "scenarioIds": ["core.bond.draw-single", "core.bond.draw-single.production", "core.history.undo-redo-bond.production"],
+      "scenarioIds": ["core.bond.draw-single", "core.bond.draw-single.production", "core.history.undo-redo-bond.production", "core.selection.clipboard-delete-multi-bond.production"],
       "risk": "critical",
-      "notes": "Large browser regression monolith; bond drawing is the first migrated real-user path. Existing gate remains active."
+      "notes": "Large browser regression monolith; bond drawing and the first multi-object clipboard path are migrated into formal scenarios. Existing gate remains active."
     },
     { "id": "legacy.viewer-interactions", "kind": "legacy-script", "source": "scripts/viewer-interaction-smoke.mjs", "status": "inventoried", "scenarioIds": [], "risk": "critical" },
     { "id": "legacy.stability-user-paths", "kind": "legacy-script", "source": "scripts/stability-user-paths.mjs", "status": "inventoried", "scenarioIds": [], "risk": "critical" },
@@ -20,6 +20,12 @@
     { "id": "legacy.toolbar", "kind": "legacy-script", "source": "scripts/toolbar-regression.mjs", "status": "inventoried", "scenarioIds": [], "risk": "medium" },
     { "id": "legacy.runtime-gate", "kind": "legacy-script", "source": "scripts/runtime-gate-regression.mjs", "status": "inventoried", "scenarioIds": [], "risk": "critical" },
     { "id": "legacy.runtime-gate-browser", "kind": "legacy-script", "source": "scripts/runtime-gate-browser-regression.mjs", "status": "inventoried", "scenarioIds": [], "risk": "critical" },
-    { "id": "legacy.ui-action-runner", "kind": "legacy-script", "source": "scripts/ui-action-runner-regression.mjs", "status": "inventoried", "scenarioIds": [], "risk": "high" }
+    { "id": "legacy.ui-action-runner", "kind": "legacy-script", "source": "scripts/ui-action-runner-regression.mjs", "status": "inventoried", "scenarioIds": [], "risk": "high" },
+    { "id": "capability.selection.select-all", "kind": "public-capability", "source": "viewer/editor_command_controller.js", "status": "partially-migrated", "scenarioIds": ["core.selection.clipboard-delete-multi-bond.production"], "risk": "critical", "notes": "Production evidence covers multiple molecule/bond objects; remaining object types and mixed selections are still required." },
+    { "id": "capability.clipboard.copy-paste", "kind": "public-capability", "source": "viewer/editor_command_controller.js", "status": "partially-migrated", "scenarioIds": ["core.selection.clipboard-delete-multi-bond.production"], "risk": "critical", "notes": "Production evidence covers same-document Windows clipboard duplication; cross-document, cross-surface, and mixed-object cells remain." },
+    { "id": "capability.selection.delete", "kind": "public-capability", "source": "viewer/editor_command_controller.js", "status": "partially-migrated", "scenarioIds": ["core.selection.clipboard-delete-multi-bond.production"], "risk": "critical", "notes": "Production evidence covers atomic multi-bond deletion with undo/redo; mixed and partially applicable selections remain." },
+    { "id": "gap.selection.mixed-object-cardinalities", "kind": "public-capability", "source": "viewer/editor_command_controller.js", "status": "gap", "scenarioIds": [], "risk": "critical", "notes": "Select-all and additive/region selection still require 2/many mixed object types, groups, nesting, hidden/locked objects, and partial viewport coverage." },
+    { "id": "gap.clipboard.cross-boundary", "kind": "public-capability", "source": "viewer/editor_command_controller.js", "status": "gap", "scenarioIds": [], "risk": "critical", "notes": "Copy/cut/paste still require cross-tab, cross-document, browser/desktop, Office, mixed-object, and paste-special production evidence." },
+    { "id": "gap.delete.partial-applicability", "kind": "public-capability", "source": "viewer/editor_command_controller.js", "status": "gap", "scenarioIds": [], "risk": "high", "notes": "Delete still requires mixed applicable/inapplicable, grouped/nested, locked/hidden, overlapping, and large-document production evidence." }
   ]
 }

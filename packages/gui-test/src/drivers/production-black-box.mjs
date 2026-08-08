@@ -97,7 +97,17 @@ export class ProductionBlackBoxDriver {
   }
 
   capabilities() {
-    return ["gui.public-input", "editor.bond.draw", "editor.history.undo-redo", "oracle.dom", "oracle.diagnostics", "desktop.production"];
+    return [
+      "gui.public-input",
+      "editor.bond.draw",
+      "editor.selection.select-all",
+      "editor.clipboard.copy-paste",
+      "editor.selection.delete",
+      "editor.history.undo-redo",
+      "oracle.dom",
+      "oracle.diagnostics",
+      "desktop.production",
+    ];
   }
 
   async resolve(target) {

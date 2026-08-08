@@ -294,8 +294,9 @@ export class HyperVCoordinator {
   }
 
   async candidateAction(input, completion, budgetMs) {
-    if (!Number.isInteger(budgetMs) || !Number.isInteger(completion?.timeoutMs) || completion.timeoutMs > budgetMs) {
-      throw new Error("Candidate action completion timeout must be an integer within the action budget.");
+    const transportReserveMs = 4000;
+    if (!Number.isInteger(budgetMs) || !Number.isInteger(completion?.timeoutMs) || completion.timeoutMs + transportReserveMs > budgetMs) {
+      throw new Error(`Candidate action completion timeout must leave ${transportReserveMs} ms inside the end-to-end action budget for target resolution and transport.`);
     }
     const request = { schema: "chemsema.gui.action-transaction.v1", input, completion, budgetMs };
     await assertValidDocument(request, "candidate action transaction request");
