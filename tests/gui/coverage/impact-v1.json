@@ -3,6 +3,11 @@
   "nodes": [
     { "id": "source.viewer", "kind": "source", "patterns": ["viewer/**"] },
     { "id": "source.engine", "kind": "source", "patterns": ["crates/chemsema-engine/**"] },
+    { "id": "source.gui-platform", "kind": "source", "patterns": ["packages/gui-test/**", "tests/gui/schemas/**", "tests/gui/coverage/**"] },
+    { "id": "source.scenario.core.bond.draw-single", "kind": "source", "patterns": ["tests/gui/scenarios/core/draw-single-bond.json"] },
+    { "id": "source.test-entrypoints", "kind": "source", "patterns": ["package.json", "package-lock.json", "scripts/test.mjs", "scripts/verify.mjs"] },
+    { "id": "source.documentation", "kind": "source", "patterns": ["docs/**"] },
+    { "id": "component.gui-runner", "kind": "component" },
     { "id": "component.editor-interaction", "kind": "component" },
     { "id": "capability.editor.bond.draw", "kind": "capability" },
     { "id": "driver.playwright-browser", "kind": "driver" },
@@ -12,6 +17,10 @@
   "edges": [
     { "from": "source.viewer", "to": "component.editor-interaction", "reason": "Viewer input and rendering changes can affect editor gestures." },
     { "from": "source.engine", "to": "component.editor-interaction", "reason": "Engine mutation, hit testing, and render primitives drive editor gestures." },
+    { "from": "source.gui-platform", "to": "component.gui-runner", "reason": "Runner, schema, coverage, and impact changes can affect every platform scenario." },
+    { "from": "source.test-entrypoints", "to": "component.gui-runner", "reason": "Dependency and test entrypoint changes can affect platform execution." },
+    { "from": "component.gui-runner", "to": "scenario.core.bond.draw-single", "reason": "Runner changes invalidate scenario execution evidence." },
+    { "from": "source.scenario.core.bond.draw-single", "to": "scenario.core.bond.draw-single", "reason": "Changing the scenario invalidates its evidence." },
     { "from": "component.editor-interaction", "to": "capability.editor.bond.draw", "reason": "Bond drawing is an editor interaction capability." },
     { "from": "capability.editor.bond.draw", "to": "scenario.core.bond.draw-single", "reason": "The scenario provides real-user-path evidence for bond drawing." },
     { "from": "driver.playwright-browser", "to": "scenario.core.bond.draw-single", "reason": "The browser driver executes this scenario." },

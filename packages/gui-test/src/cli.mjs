@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { auditCoverage } from "./coverage/audit.mjs";
 import { FakeDriver } from "./drivers/fake.mjs";
 import { PlaywrightBrowserDriver } from "./drivers/playwright-browser.mjs";
-import { scenarioDir } from "./protocol/paths.mjs";
+import { planImpactedScenarios } from "./impact/select.mjs";
+import { guiTestsDir, scenarioDir } from "./protocol/paths.mjs";
 import { readValidatedDocument } from "./protocol/validate.mjs";
 import { runScenario } from "./runner/run-scenario.mjs";
 
@@ -49,6 +51,30 @@ async function listScenarios() {
   console.table(rows);
 }
 
+async function loadScenarios() {
+  const paths = await jsonFiles(scenarioDir);
+  return { paths, scenarios: await Promise.all(paths.map((path) => readValidatedDocument(path))) };
+}
+
+async function audit() {
+  const registry = await readValidatedDocument(join(guiTestsDir, "coverage", "registry-v1.json"));
+  const { paths, scenarios } = await loadScenarios();
+  const result = await auditCoverage({ registry, scenarios, scenarioPaths: paths });
+  console.log(JSON.stringify(result, null, 2));
+  if (!result.valid) {
+    process.exitCode = 1;
+  }
+}
+
+async function impact(paths, options) {
+  if (!paths.length) {
+    throw new Error("impact requires one or more changed repository paths.");
+  }
+  const graph = await readValidatedDocument(resolve(options.graph || join(guiTestsDir, "coverage", "impact-v1.json")));
+  const plan = planImpactedScenarios(graph, paths);
+  console.log(JSON.stringify(plan, null, 2));
+}
+
 async function validatePaths(paths) {
   if (!paths.length) {
     throw new Error("validate requires at least one JSON path.");
@@ -88,6 +114,8 @@ function usage() {
 Usage:
   npm run gui-platform -- list
   npm run gui-platform -- validate <json> [...json]
+  npm run gui-platform -- audit
+  npm run gui-platform -- impact <changed-path> [...changed-path] [--graph path]
   npm run gui-platform -- run <scenario.json> [--driver fake|playwright-browser] [--report path] [--url url]
 `);
 }
@@ -99,6 +127,10 @@ try {
     await listScenarios();
   } else if (command === "validate") {
     await validatePaths(positional);
+  } else if (command === "audit") {
+    await audit();
+  } else if (command === "impact") {
+    await impact(positional, options);
   } else if (command === "run") {
     if (positional.length !== 1) {
       throw new Error("run requires exactly one scenario JSON path.");

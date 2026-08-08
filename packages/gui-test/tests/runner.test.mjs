@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import test from "node:test";
+import { auditCoverage } from "../src/coverage/audit.mjs";
 import { FakeDriver } from "../src/drivers/fake.mjs";
-import { selectImpactedScenarios } from "../src/impact/select.mjs";
+import { planImpactedScenarios, selectImpactedScenarios } from "../src/impact/select.mjs";
 import { guiTestsDir } from "../src/protocol/paths.mjs";
 import { readValidatedDocument } from "../src/protocol/validate.mjs";
 import { runScenario } from "../src/runner/run-scenario.mjs";
@@ -21,6 +22,23 @@ test("impact selection follows the transitive source to scenario closure", async
   const graph = await readValidatedDocument(join(guiTestsDir, "coverage", "impact-v1.json"));
   assert.deepEqual(selectImpactedScenarios(graph, ["viewer/app.js"]), ["scenario.core.bond.draw-single"]);
   assert.deepEqual(selectImpactedScenarios(graph, ["docs/readme.md"]), []);
+  assert.deepEqual(planImpactedScenarios(graph, ["unknown/new-surface.js"]), {
+    changedPaths: ["unknown/new-surface.js"],
+    matchedSources: [],
+    unmatchedPaths: ["unknown/new-surface.js"],
+    expandedForUncertainty: true,
+    scenarios: ["scenario.core.bond.draw-single"],
+  });
+});
+
+test("coverage audit binds every registered source and scenario", async () => {
+  const registry = await readValidatedDocument(join(guiTestsDir, "coverage", "registry-v1.json"));
+  const scenarioPath = join(guiTestsDir, "scenarios", "core", "draw-single-bond.json");
+  const scenario = await readValidatedDocument(scenarioPath);
+  const result = await auditCoverage({ registry, scenarios: [scenario], scenarioPaths: [scenarioPath] });
+  assert.equal(result.valid, true, result.errors.join("\n"));
+  assert.equal(result.summary.entries, 12);
+  assert.equal(result.summary.scenarios, 1);
 });
 
 test("aggregate scheduler limits fail closed at 10 CPU units and 30 GiB", () => {

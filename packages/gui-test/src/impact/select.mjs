@@ -35,3 +35,27 @@ export function selectImpactedScenarios(graph, changedPaths) {
     .filter((id) => nodes.get(id)?.kind === "scenario")
     .sort();
 }
+
+export function planImpactedScenarios(graph, changedPaths) {
+  const sourceNodes = graph.nodes.filter((node) => node.kind === "source");
+  const matchedSources = new Set();
+  const unmatchedPaths = [];
+  for (const changedPath of changedPaths) {
+    const normalized = changedPath.replaceAll("\\", "/");
+    const matches = sourceNodes.filter((node) => (node.patterns || []).some((pattern) => wildcardPatternToRegExp(pattern.replaceAll("\\", "/")).test(normalized)));
+    if (!matches.length) {
+      unmatchedPaths.push(normalized);
+    }
+    for (const match of matches) {
+      matchedSources.add(match.id);
+    }
+  }
+  const allScenarios = graph.nodes.filter((node) => node.kind === "scenario").map((node) => node.id).sort();
+  return {
+    changedPaths: changedPaths.map((path) => path.replaceAll("\\", "/")),
+    matchedSources: [...matchedSources].sort(),
+    unmatchedPaths,
+    expandedForUncertainty: unmatchedPaths.length > 0,
+    scenarios: unmatchedPaths.length > 0 ? allScenarios : selectImpactedScenarios(graph, changedPaths),
+  };
+}

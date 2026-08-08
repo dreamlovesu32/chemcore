@@ -368,6 +368,8 @@ The current entry points are:
 ```powershell
 npm run gui-platform -- list
 npm run gui-platform -- validate tests/gui/scenarios/core/draw-single-bond.json
+npm run gui-platform -- audit
+npm run gui-platform -- impact viewer/app.js
 npm run gui-platform -- run tests/gui/scenarios/core/draw-single-bond.json --driver fake
 npm run gui-platform -- run tests/gui/scenarios/core/draw-single-bond.json --driver playwright-browser
 npm run gui-platform:test
