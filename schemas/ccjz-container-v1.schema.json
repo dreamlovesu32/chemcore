@@ -53,7 +53,25 @@
         "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "size": { "type": "integer", "minimum": 0 },
         "firstRecord": { "type": "integer", "minimum": 0 },
-        "recordCount": { "type": "integer", "minimum": 1 }
+        "recordCount": { "type": "integer", "minimum": 1 },
+        "bounds": {
+          "type": "array",
+          "description": "Conservative [minX,minY,maxX,maxY] scene bounds in document points. Omitted when any record cannot be bounded safely.",
+          "prefixItems": [
+            { "type": "number" },
+            { "type": "number" },
+            { "type": "number" },
+            { "type": "number" }
+          ],
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "entityIds": {
+          "type": "array",
+          "description": "Stable entity ids stored in this chunk.",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
       }
     }
   }

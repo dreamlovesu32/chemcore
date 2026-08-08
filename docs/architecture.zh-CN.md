@@ -188,4 +188,4 @@ CDXML 目前是最现实的导入入口，因为它能把基于 ChemDraw 的工�
 
 字段合同见 [format-v0.2.zh-CN.md](./format-v0.2.zh-CN.md)，设计理由见 [ccjs-architecture-and-format-rationale.zh-CN.md](./ccjs-architecture-and-format-rationale.zh-CN.md)，当前实现与 stable 前剩余门禁见 [ccjs-v0.2-stability-architecture.zh-CN.md](./ccjs-v0.2-stability-architecture.zh-CN.md)。v0.1 只作为迁移输入保留，不再代表当前架构。
 
-仍未完成的长期扩展包括更完整的 ChemDraw 覆盖、富 query chemistry、高级聚合物语义、多页布局、多人协同，以及编辑器可见区分块懒加载。大型数组继续交给 HDF5/Zarr 等专业格式，通过 CCJZ attachment 与文档语义关联。
+仍未完成的长期扩展包括更完整的 ChemDraw 覆盖、富 query chemistry、高级聚合物语义、多页布局和多人协同。编辑器可见区 CCJZ 分块加载、保留 undo 的 hydration、未变 entry 复用和浏览器 Zip64 已实现；大型数组继续交给 HDF5/Zarr 等专业格式，通过 CCJZ attachment 与文档语义关联。

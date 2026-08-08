@@ -22,7 +22,7 @@ const MIMETYPE_PATH: &str = "mimetype";
 const MANIFEST_PATH: &str = "manifest.json";
 const ROOT_PATH: &str = "document/root.json";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Manifest {
     pub schema: String,
@@ -57,6 +57,25 @@ enum EntryPayload<'a> {
     Owned(Vec<u8>),
     Borrowed(&'a [u8]),
     File(&'a Path),
+    Previous(EntryDescriptor),
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReuseReport {
+    pub reused_entries: u64,
+    pub reused_bytes: u64,
+    pub written_entries: u64,
+    pub written_bytes: u64,
+}
+
+trait PreviousCcjz {
+    fn previous_manifest(&self) -> &Manifest;
+    fn copy_verified_entry(
+        &mut self,
+        descriptor: &EntryDescriptor,
+        writer: &mut dyn Write,
+    ) -> Result<(), String>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -68,13 +87,17 @@ pub struct EntryDescriptor {
     pub size: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ChunkDescriptor {
     #[serde(flatten)]
     pub entry: EntryDescriptor,
     pub first_record: u64,
     pub record_count: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bounds: Option<[f64; 4]>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entity_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -209,6 +232,44 @@ impl<R: Read + std::io::Seek> CcjzReader<R> {
     }
 }
 
+impl<R: Read + std::io::Seek> PreviousCcjz for CcjzReader<R> {
+    fn previous_manifest(&self) -> &Manifest {
+        &self.manifest
+    }
+
+    fn copy_verified_entry(
+        &mut self,
+        descriptor: &EntryDescriptor,
+        writer: &mut dyn Write,
+    ) -> Result<(), String> {
+        let mut entry = self
+            .archive
+            .by_name(&descriptor.path)
+            .map_err(|error| format!("Missing reusable CCJZ entry {}: {error}", descriptor.path))?;
+        let mut digest = Sha256::new();
+        let mut copied = 0u64;
+        let mut buffer = [0u8; 64 * 1024];
+        loop {
+            let count = entry.read(&mut buffer).map_err(|error| error.to_string())?;
+            if count == 0 {
+                break;
+            }
+            digest.update(&buffer[..count]);
+            writer
+                .write_all(&buffer[..count])
+                .map_err(|error| error.to_string())?;
+            copied += count as u64;
+        }
+        if copied != descriptor.size || format!("{:x}", digest.finalize()) != descriptor.sha256 {
+            return Err(format!(
+                "Reusable CCJZ entry {} failed integrity verification",
+                descriptor.path
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// Encode a CCJS snapshot as deterministic, stored ZIP entries. Stored entries
 /// trade archive-level compression for byte stability and true range access;
 /// large resource payloads may carry their own compression.
@@ -249,6 +310,43 @@ pub fn write_ccjz_with_files<W: Write + std::io::Seek>(
     attachments: &[Attachment<'_>],
     file_attachments: &[FileAttachment<'_>],
 ) -> Result<(), String> {
+    write_ccjz_internal(
+        writer,
+        document_json,
+        scene_chunk_records,
+        attachments,
+        file_attachments,
+        None,
+    )
+    .map(|_| ())
+}
+
+pub fn write_ccjz_reusing<R: Read + std::io::Seek, W: Write + std::io::Seek>(
+    previous: &mut CcjzReader<R>,
+    writer: &mut W,
+    document_json: &str,
+    scene_chunk_records: usize,
+    attachments: &[Attachment<'_>],
+    file_attachments: &[FileAttachment<'_>],
+) -> Result<ReuseReport, String> {
+    write_ccjz_internal(
+        writer,
+        document_json,
+        scene_chunk_records,
+        attachments,
+        file_attachments,
+        Some(previous),
+    )
+}
+
+fn write_ccjz_internal<W: Write + std::io::Seek>(
+    writer: &mut W,
+    document_json: &str,
+    scene_chunk_records: usize,
+    attachments: &[Attachment<'_>],
+    file_attachments: &[FileAttachment<'_>],
+    mut previous: Option<&mut dyn PreviousCcjz>,
+) -> Result<ReuseReport, String> {
     if scene_chunk_records == 0 {
         return Err("CCJZ scene chunk size must be greater than zero".to_string());
     }
@@ -266,13 +364,44 @@ pub fn write_ccjz_with_files<W: Write + std::io::Seek>(
         .and_then(Value::as_object_mut)
         .map(std::mem::take)
         .unwrap_or_default();
-    let attachment_ids = attachments
+    let previous_manifest = previous
+        .as_deref()
+        .map(PreviousCcjz::previous_manifest)
+        .cloned();
+    let mut attachment_ids = attachments
         .iter()
-        .map(|attachment| attachment.id)
-        .chain(file_attachments.iter().map(|attachment| attachment.id))
+        .map(|attachment| attachment.id.to_string())
+        .chain(
+            file_attachments
+                .iter()
+                .map(|attachment| attachment.id.to_string()),
+        )
         .collect::<BTreeSet<_>>();
     if attachment_ids.len() != attachments.len() + file_attachments.len() {
         return Err("CCJZ attachment ids must be unique".to_string());
+    }
+    let mut preserved_attachments = BTreeMap::new();
+    if let Some(manifest) = &previous_manifest {
+        for (id, descriptor) in &manifest.attachments {
+            if attachment_ids.contains(id) {
+                continue;
+            }
+            let Some(resource) = resources.get(id) else {
+                continue;
+            };
+            if validate_attachment_resource(
+                resource,
+                id,
+                &descriptor.media_type,
+                descriptor.size,
+                &descriptor.sha256,
+            )
+            .is_ok()
+            {
+                attachment_ids.insert(id.clone());
+                preserved_attachments.insert(id.clone(), descriptor.clone());
+            }
+        }
     }
 
     let mut entries = BTreeMap::<String, EntryPayload<'_>>::new();
@@ -289,6 +418,11 @@ pub fn write_ccjz_with_files<W: Write + std::io::Seek>(
             entry: descriptor(&path, "application/x-ndjson", &bytes),
             first_record: (index * scene_chunk_records) as u64,
             record_count: records.len() as u64,
+            bounds: scene_chunk_bounds(records),
+            entity_ids: records
+                .iter()
+                .filter_map(|record| record.get("id").and_then(Value::as_str).map(str::to_string))
+                .collect(),
         });
         entries.insert(path, EntryPayload::Owned(bytes));
     }
@@ -370,6 +504,12 @@ pub fn write_ccjz_with_files<W: Write + std::io::Seek>(
             .entry(path)
             .or_insert(EntryPayload::File(attachment.path));
     }
+    for (id, descriptor) in preserved_attachments {
+        entries
+            .entry(descriptor.path.clone())
+            .or_insert_with(|| EntryPayload::Previous(descriptor.clone()));
+        attachment_descriptors.insert(id, descriptor);
+    }
 
     let root_bytes = canonical_json_bytes(&root)?;
     entries.insert(
@@ -390,25 +530,81 @@ pub fn write_ccjz_with_files<W: Write + std::io::Seek>(
     let manifest_bytes =
         canonical_json_bytes(&serde_json::to_value(&manifest).map_err(|error| error.to_string())?)?;
 
+    if let Some(old_manifest) = &previous_manifest {
+        let mut old_by_path = BTreeMap::new();
+        for descriptor in std::iter::once(&old_manifest.root)
+            .chain(old_manifest.scene_chunks.iter().map(|chunk| &chunk.entry))
+            .chain(old_manifest.resources.values())
+            .chain(old_manifest.attachments.values())
+        {
+            old_by_path.insert(descriptor.path.as_str(), descriptor);
+        }
+        let mut new_by_path = BTreeMap::new();
+        for descriptor in std::iter::once(&manifest.root)
+            .chain(manifest.scene_chunks.iter().map(|chunk| &chunk.entry))
+            .chain(manifest.resources.values())
+            .chain(manifest.attachments.values())
+        {
+            new_by_path.insert(descriptor.path.as_str(), descriptor);
+        }
+        for (path, payload) in &mut entries {
+            if let (Some(old), Some(new)) = (
+                old_by_path.get(path.as_str()),
+                new_by_path.get(path.as_str()),
+            ) {
+                if *old == *new {
+                    *payload = EntryPayload::Previous((*new).clone());
+                }
+            }
+        }
+    }
+
+    let mut report = ReuseReport::default();
     {
         let mut zip = zip::ZipWriter::new(writer);
         let options =
             SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
         write_entry(&mut zip, options, MIMETYPE_PATH, MIMETYPE.as_bytes())?;
         write_entry(&mut zip, options, MANIFEST_PATH, &manifest_bytes)?;
+        report.written_entries += 2;
+        report.written_bytes += (MIMETYPE.len() + manifest_bytes.len()) as u64;
         for (path, bytes) in entries {
             match bytes {
-                EntryPayload::Owned(bytes) => write_entry(&mut zip, options, &path, &bytes)?,
-                EntryPayload::Borrowed(bytes) => write_entry(&mut zip, options, &path, bytes)?,
+                EntryPayload::Owned(bytes) => {
+                    write_entry(&mut zip, options, &path, &bytes)?;
+                    report.written_entries += 1;
+                    report.written_bytes += bytes.len() as u64;
+                }
+                EntryPayload::Borrowed(bytes) => {
+                    write_entry(&mut zip, options, &path, bytes)?;
+                    report.written_entries += 1;
+                    report.written_bytes += bytes.len() as u64;
+                }
                 EntryPayload::File(file_path) => {
-                    write_file_entry(&mut zip, options, &path, file_path)?
+                    let size = std::fs::metadata(file_path)
+                        .map_err(|error| error.to_string())?
+                        .len();
+                    write_file_entry(&mut zip, options, &path, file_path)?;
+                    report.written_entries += 1;
+                    report.written_bytes += size;
+                }
+                EntryPayload::Previous(descriptor) => {
+                    zip.start_file(&path, options).map_err(|error| {
+                        format!("Failed to start reusable CCJZ entry {path}: {error}")
+                    })?;
+                    previous
+                        .as_deref_mut()
+                        .ok_or_else(|| "CCJZ reusable entry has no previous container".to_string())?
+                        .copy_verified_entry(&descriptor, &mut zip)?;
+                    report.reused_entries += 1;
+                    report.reused_bytes += descriptor.size;
                 }
             }
         }
         zip.finish()
             .map_err(|error| format!("Failed to finish CCJZ container: {error}"))?;
     }
-    Ok(())
+    Ok(report)
 }
 
 /// Decode either the current ZIP container or a legacy gzip `.ccjz`.
@@ -465,6 +661,7 @@ pub fn decode_zip_ccjz(bytes: &[u8], limits: DecodeLimits) -> Result<String, Str
         }
         let bytes = read_verified_entry(&mut archive, &chunk.entry, &limits)?;
         let mut count = 0u64;
+        let mut records = Vec::new();
         for (line_index, line) in bytes.split(|byte| *byte == b'\n').enumerate() {
             if line.is_empty() {
                 continue;
@@ -475,7 +672,7 @@ pub fn decode_zip_ccjz(bytes: &[u8], limits: DecodeLimits) -> Result<String, Str
                     line_index + 1
                 )
             })?;
-            scene.push(value);
+            records.push(value);
             count += 1;
         }
         if count != chunk.record_count {
@@ -484,6 +681,30 @@ pub fn decode_zip_ccjz(bytes: &[u8], limits: DecodeLimits) -> Result<String, Str
                 chunk.entry.path
             ));
         }
+        let record_ids = records
+            .iter()
+            .filter_map(|record| record.get("id").and_then(Value::as_str).map(str::to_string))
+            .collect::<Vec<_>>();
+        if !chunk.entity_ids.is_empty() && chunk.entity_ids != record_ids {
+            return Err(format!(
+                "CCJZ scene chunk {} entityIds mismatch",
+                chunk.entry.path
+            ));
+        }
+        if let (Some(declared), Some(actual)) = (chunk.bounds, scene_chunk_bounds(&records)) {
+            let epsilon = 1e-6;
+            if declared[0] > actual[0] + epsilon
+                || declared[1] > actual[1] + epsilon
+                || declared[2] < actual[2] - epsilon
+                || declared[3] < actual[3] - epsilon
+            {
+                return Err(format!(
+                    "CCJZ scene chunk {} bounds are not conservative",
+                    chunk.entry.path
+                ));
+            }
+        }
+        scene.extend(records);
         expected_first += count;
     }
 
@@ -710,6 +931,96 @@ fn descriptor(path: &str, media_type: &str, bytes: &[u8]) -> EntryDescriptor {
         sha256: sha256_hex(bytes),
         size: bytes.len() as u64,
     }
+}
+
+fn scene_chunk_bounds(records: &[Value]) -> Option<[f64; 4]> {
+    let bounds = records
+        .iter()
+        .map(scene_entity_bounds)
+        .collect::<Option<Vec<_>>>()?;
+    bounds.into_iter().reduce(|left, right| {
+        [
+            left[0].min(right[0]),
+            left[1].min(right[1]),
+            left[2].max(right[2]),
+            left[3].max(right[3]),
+        ]
+    })
+}
+
+fn scene_entity_bounds(entity: &Value) -> Option<[f64; 4]> {
+    let payload = entity.get("payload")?;
+    let raw = [
+        payload.get("bbox"),
+        payload.get("boundingBox"),
+        payload.pointer("/arrowGeometry/boundingBox"),
+        payload.pointer("/geometry/boundingBox"),
+        payload.get("boxField"),
+    ]
+    .into_iter()
+    .flatten()
+    .find_map(value_bounds)?;
+    let transform = entity.get("transform");
+    let translate = transform
+        .and_then(|value| value.get("translate"))
+        .and_then(value_point)
+        .unwrap_or([0.0, 0.0]);
+    let scale = transform
+        .and_then(|value| value.get("scale"))
+        .and_then(value_point)
+        .unwrap_or([1.0, 1.0]);
+    let rotate = transform
+        .and_then(|value| value.get("rotate"))
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0)
+        .to_radians();
+    let (sin, cos) = rotate.sin_cos();
+    let corners = [
+        [raw[0], raw[1]],
+        [raw[2], raw[1]],
+        [raw[2], raw[3]],
+        [raw[0], raw[3]],
+    ];
+    corners
+        .into_iter()
+        .map(|point| {
+            let x = point[0] * scale[0];
+            let y = point[1] * scale[1];
+            [
+                x * cos - y * sin + translate[0],
+                x * sin + y * cos + translate[1],
+            ]
+        })
+        .fold(None::<[f64; 4]>, |bounds, point| {
+            Some(match bounds {
+                None => [point[0], point[1], point[0], point[1]],
+                Some(value) => [
+                    value[0].min(point[0]),
+                    value[1].min(point[1]),
+                    value[2].max(point[0]),
+                    value[3].max(point[1]),
+                ],
+            })
+        })
+}
+
+fn value_point(value: &Value) -> Option<[f64; 2]> {
+    let values = value.as_array()?;
+    Some([values.first()?.as_f64()?, values.get(1)?.as_f64()?])
+}
+
+fn value_bounds(value: &Value) -> Option<[f64; 4]> {
+    let values = value.as_array()?;
+    let result = [
+        values.first()?.as_f64()?,
+        values.get(1)?.as_f64()?,
+        values.get(2)?.as_f64()?,
+        values.get(3)?.as_f64()?,
+    ];
+    (result.iter().all(|value| value.is_finite())
+        && result[0] <= result[2]
+        && result[1] <= result[3])
+        .then_some(result)
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
@@ -1038,5 +1349,64 @@ mod tests {
         let mut reader =
             CcjzReader::open(Cursor::new(output.into_inner()), DecodeLimits::default()).unwrap();
         assert_eq!(reader.read_attachment("fid-file").unwrap(), payload);
+    }
+
+    #[test]
+    fn copy_on_write_reuses_unchanged_chunks_and_preserves_attachments() {
+        let payload = b"preserved-fid-payload";
+        let mut document: Value = serde_json::from_str(&sample()).unwrap();
+        document["resources"]["fid"] = serde_json::json!({
+            "type": "nmr-fid",
+            "encoding": "opaque",
+            "data": {
+                "storage": "ccjz-attachment",
+                "mediaType": "application/vnd.chemsema.nmr-fid",
+                "byteLength": payload.len(),
+                "sha256": sha256_hex(payload)
+            }
+        });
+        let original = encode_ccjz_with_attachments(
+            &document.to_string(),
+            2,
+            &[Attachment {
+                id: "fid",
+                media_type: "application/vnd.chemsema.nmr-fid",
+                extension: "fid",
+                bytes: payload,
+            }],
+        )
+        .unwrap();
+        document["entities"]["scene"][2]["z"] = serde_json::json!(30);
+        let mut previous =
+            CcjzReader::open(Cursor::new(&original), DecodeLimits::default()).unwrap();
+        let original_manifest = previous.manifest().clone();
+        let mut output = Cursor::new(Vec::new());
+        let report = write_ccjz_reusing(
+            &mut previous,
+            &mut output,
+            &document.to_string(),
+            2,
+            &[],
+            &[],
+        )
+        .unwrap();
+        assert!(report.reused_entries >= 3, "{report:?}");
+        assert!(report.reused_bytes >= payload.len() as u64, "{report:?}");
+        assert!(report.written_entries >= 3, "{report:?}");
+        let rewritten = output.into_inner();
+        let decoded: Value = serde_json::from_str(&decode_ccjz(&rewritten).unwrap()).unwrap();
+        assert_eq!(decoded, document);
+        let mut reopened =
+            CcjzReader::open(Cursor::new(&rewritten), DecodeLimits::default()).unwrap();
+        assert_eq!(
+            reopened.manifest().scene_chunks[0],
+            original_manifest.scene_chunks[0]
+        );
+        assert_eq!(reopened.manifest().resources, original_manifest.resources);
+        assert_eq!(
+            reopened.manifest().attachments,
+            original_manifest.attachments
+        );
+        assert_eq!(reopened.read_attachment("fid").unwrap(), payload);
     }
 }

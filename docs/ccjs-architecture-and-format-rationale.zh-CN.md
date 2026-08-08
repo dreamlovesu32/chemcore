@@ -136,6 +136,10 @@ CCJS 不应模仿 HDF5 的所有能力。化学页面需要单一归属、确定
 10. **确定性容器**：CCJZ v1 提供 manifest、哈希、scene chunks、内容寻址资源、opaque attachments、路径安全检查和旧 gzip 只读迁移。
 11. **恢复边界**：桌面同目录 journal 与浏览器 IndexedDB journal 使用可校验哈希链；只有保存并重新验证成功后才清除旧日志。
 12. **独立读取证据**：Rust、浏览器 JavaScript 和无 Rust 绑定的 Python reader 已能交叉装配同一语义文档。
+13. **可见区分块加载**：CCJZ chunk 可带保守空间边界；浏览器只读取与视口相交的已知边界 chunk，无法安全求界的 chunk 必须加载，避免以性能换正确性。后续补载通过 hydration 合并，不覆盖本地编辑、不重置 revision/undo，也不会恢复用户已经删除的 relation。
+14. **增量保存**：桌面保存按 path、size 和 SHA-256 复用未变化的 root、scene chunk、resource 和 opaque attachment entry；新容器在同目录临时文件中写出、重新打开验证后原子替换。
+15. **Zip64 边界**：浏览器读写器支持 Zip64 EOCD、locator 和 entry extra；仍保持小文件经典 ZIP 的确定字节，并对超出 JavaScript 安全整数范围的 offset/size 明确拒绝。
+16. **可机器处理的合规报告**：`validate` issue 固定包含 code、stage、pointer/entry、规范条款、severity、information-loss 和 message；chemical 显式调用分子图校验，roundtrip 可逐项执行 CCJS、CCJZ、CDXML、CDX 和 SDF 的语义/视觉往返。
 
 ## 5. 仍然存在的短板
 
@@ -143,7 +147,7 @@ CCJS 不应模仿 HDF5 的所有能力。化学页面需要单一归属、确定
 
 当前 `.ccjz` 是 `chemsema.container.v1` 确定性 ZIP：固定 MIME、manifest、SHA-256、scene JSONL chunks、内容寻址 JSON resources 和二进制 attachments。Rust、浏览器 JavaScript 和独立 Python reader 已做交叉合规验证；旧 gzip `.ccjz` 仅保留读取兼容。
 
-它不是 HDF5 的替代物：CCJZ 管理文档语义、索引和资源边界，HDF5/Zarr 继续管理大型科学数组。底层容器读取器可以只读 manifest、单个 scene chunk、单个资源或 attachment byte range；当前编辑器打开文档时仍会装配完整 CCJS 快照，因此“容器支持局部 I/O”不等于“所有编辑路径已经按可见区域懒加载”。普通 `.ccjs` 始终是完整文本快照。
+它不是 HDF5 的替代物：CCJZ 管理文档语义、索引和资源边界，HDF5/Zarr 继续管理大型科学数组。底层容器读取器可以只读 manifest、单个 scene chunk、单个资源或 attachment byte range；浏览器编辑器打开 `.ccjz` 时先读取 root，再按可见区域加载带保守 bounds 的 chunks，并在保存前完整物化。普通 `.ccjs` 始终是完整文本快照，非浏览器 Blob 路径也可以选择完整装配。
 
 ### 5.2 打开 `.ccjs` 仍是整份解析
 
@@ -161,9 +165,11 @@ JSON Schema 能验证结构，不能证明价态、立体化学、反应角色�
 
 Document Patch 必须按 beforeRevision 顺序应用。跨进程丢包或后端版本不支持时，前端需要完整刷新。当前已用 hash-chain journal 记录提交前补丁，桌面使用同目录 `.journal` 旁车、浏览器使用 IndexedDB，并在验证保存后压缩清除；这仍是崩溃恢复，不是多用户协同编辑协议。
 
-### 5.6 稳定化工具仍有未完成项
+### 5.6 稳定化工具已经补齐的边界
 
-当前 CLI 已提供 `validate`、`canonicalize`、`migrate`、`schema` 和 `conformance`，但 `validate` 的三个等级还没有全部达到长期合同：错误报告尚未系统提供稳定 error code、JSON Pointer/entry、规范条款和信息损失等级；`chemical` 目前主要复用引擎装载不变量；`roundtrip` 目前验证规范 CCJS 重装配，不等同于对每个声明目标格式执行语义与视觉往返。CCJZ 底层已有分块/range reader 和流式大附件写入，但编辑器可见区懒加载、未变 entry 的 copy-on-write 复用，以及浏览器单 entry 超过经典 ZIP 上限时的 Zip64 策略仍需完成。上述项目保留在发布门禁和 Roadmap 中，不应写成已经交付。
+当前 CLI 已提供 `validate`、`canonicalize`、`migrate`、`schema` 和 `conformance`。三个 validate 等级共用 `chemsema.validation-report.v1`：结构/容器失败、化学失败和目标格式往返失败都返回稳定 issue 字段；`chemical` 显式校验每个可编辑分子；`roundtrip` 接受一个或多个 `--target-format`，对 CCJS、CCJZ、CDXML、CDX 和 SDF 实际执行导出再导入。语义指纹要求精确相等；有视觉表达的格式比较去身份、数值规范化后的 primitive 多重集，2 pt 是显式容差；SDF 遇到非分子 scene 或 relation 时先以 confirmed information loss 拒绝。
+
+CCJZ 的可见区加载、未变 entry 复用、附件保留和浏览器 Zip64 已进入自动测试、跨实现 conformance 或 smoke performance 门禁。仍不能因此声称任意第三方格式字段都无损、任意超大数组都适合 JSON，或 smoke 等同于发布前 10 万/100 万对象及 100 MB/1 GB 附件的 full profile 归档。
 
 ## 6. 为什么仍有必要开发 CCJS
 

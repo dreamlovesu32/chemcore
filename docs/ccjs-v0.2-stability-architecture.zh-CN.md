@@ -10,14 +10,14 @@
 |---|---|---|
 | CCJS 0.2 规范化快照与 v0.1 迁移 | 已实现 | 新写出只产生 v0.2 |
 | CCJZ v1 确定性容器 | 已实现 | Rust/JS/Python 交叉读取；旧 gzip 只读 |
-| scene 分块、资源寻址、opaque attachment range | 已实现于容器层 | 编辑器打开仍装配完整快照 |
+| scene 分块、资源寻址、opaque attachment range | 已实现 | 浏览器按可见区加载；未知 bounds 安全回退加载 |
 | Document Patch 精确更新 | 已实现 | revision 缺口回退完整同步 |
 | hash-chain recovery journal 与原子保存 | 已实现 | 崩溃恢复，不是协同编辑 |
 | 大文档与大附件性能门禁 | 已实现 | smoke 纳入 `npm run verify`，full profile 可显式运行 |
-| 稳定结构化诊断 | 未完成 | 尚缺统一 error code、pointer、条款和 loss severity |
-| 按目标格式的 chemical/visual roundtrip 等级 | 未完成 | 当前 roundtrip 只覆盖规范 CCJS 重装配 |
-| 编辑器可见区懒加载和保存 entry copy-on-write | 未完成 | 底层 range/stream 能力已具备，应用层尚未接通 |
-| 浏览器 Zip64 写出 | 未完成 | 当前浏览器 writer 使用经典 ZIP 上限 |
+| 稳定结构化诊断 | 已实现 | `chemsema.validation-report.v1` 固定 issue 字段 |
+| 按目标格式的 chemical/visual roundtrip 等级 | 已实现 | CCJS/CCJZ/CDXML/CDX/SDF；SDF 显式 loss gate |
+| 编辑器可见区懒加载和保存 entry copy-on-write | 已实现 | hydration 保留编辑/undo；保存保留附件并复用同哈希 entry |
+| 浏览器 Zip64 读写 | 已实现 | 小文件保持经典 ZIP；超安全整数明确拒绝 |
 
 ## 1. 版本边界
 
@@ -64,7 +64,9 @@ attachments/<sha256>.<ext>
 - 外部引用必须同时带哈希和显式可移植性状态；默认稳定文档必须内嵌；
 - 未知媒体类型可以保留和复制，但不得在未理解时改写。
 
-容器读取接口已支持只读 manifest、指定 scene chunk、指定 resource 和 attachment byte range，不强制先解压整个容器。当前编辑器仍会装配完整快照后进入编辑；“首次只加载可见 chunks”是下一层应用优化，不是当前行为。保存当前流式生成新容器；未改变且哈希相同 entry 的 copy-on-write 复用仍是后续门禁。
+容器读取接口支持只读 manifest、指定 scene chunk、指定 resource 和 attachment byte range，不强制先解压整个容器。chunk manifest 可记录保守 `bounds` 和 `entityIds`；浏览器 Blob 路径先加载 root，只读取与当前视口相交的 chunks，缺少可靠 bounds 时必须读取该 chunk。补载使用累计 partial snapshot hydration：既有对象保持编辑权威，新增对象/资源进入当前文档，relation、hierarchy 和 reading order 与已加载区域同步，并把新增磁盘对象合入既有历史快照，使 undo 不会删除后来补载的数据。保存前必须 materialize 全部 chunks。
+
+桌面 CCJZ 保存使用 copy-on-write：path、descriptor 和内容哈希未变的 root/chunk/resource/attachment 直接从旧容器流式复制，变化 entry 重写；opaque attachment 即使调用方不再次提供 payload 也会保留。写出在同目录临时文件完成，重新打开验证后原子替换。浏览器 writer/reader 支持 Zip64 directory/offset/size；超过 `Number.MAX_SAFE_INTEGER` 的声明拒绝处理。
 
 ## 4. 增量同步
 
@@ -80,23 +82,23 @@ journal 是独立 JSONL，不写入 CCJS snapshot。桌面使用同目录 sideca
 
 ## 6. 合规层级
 
-`chemsema-cli validate` 暴露三个等级；当前能力与长期要求必须分开陈述：
+`chemsema-cli validate` 暴露三个等级，并统一返回 `chemsema.validation-report.v1`：
 
-1. `structural`：当前执行容器/哈希、格式头、基本形状和引擎文档不变量；长期还要把完整 JSON Schema 与所有错误位置写入结构化报告；
-2. `chemical`：当前复用引擎装载与语义不变量；长期要显式覆盖分子图、价态、芳香性、立体化学、反应角色、属性 basis 和光谱 assignment；
-3. `roundtrip`：当前验证规范 CCJS 的重新装载一致性；长期要按声明目标格式执行导出再导入，并绑定语义和视觉门禁。
+1. `structural`：执行容器/哈希、JSON、格式头、基本形状和引擎文档不变量；失败 issue 给出稳定 code、pointer/entry、条款、severity 和 information-loss；
+2. `chemical`：在 structural 之上显式校验每个可编辑分子图，并报告对象定位和稳定化学错误 code；
+3. `roundtrip`：在 chemical 之上按重复 `--target-format` 或逗号列表对 CCJS、CCJZ、CDXML、CDX、SDF 执行真实导出/导入；语义指纹精确比较，视觉 primitive 使用 2 pt 容差，SDF 的已知表达损失先明确拒绝。
 
-已经提供 `migrate`、`canonicalize`、`schema ccjs-v0.2` 和 `conformance`。stable 前，失败报告还必须统一补齐稳定 error code、JSON Pointer/entry、规范条款、严重级别和是否会造成信息损失。
+已经提供 `migrate`、`canonicalize`、`schema ccjs-v0.2` 和 `conformance`。新增诊断 code 或条款可以向后扩展，但既有 code 含义和 issue 字段不得静默改变。
 
 ## 7. 独立实现
 
 Rust 是产品权威实现，但不能是格式正确性的唯一证据。仓库包含无 Rust 绑定的浏览器 JavaScript 和 Python 参考读取器，二者完成：格式识别、旧 gzip 读取、新容器 manifest/hash 验证和 CCJS 0.2 装配；JavaScript 另提供规范化写出与 Blob range reader。
 
-`npm run conformance:ccjz` 当前覆盖 Rust、JavaScript、Python 之间的确定性写出和跨实现装配，并包含 scene 分块、JSON resources 与 opaque attachment。Rust/JavaScript 单元测试另外覆盖旧 gzip、损坏哈希、危险或重复 entry、未声明 entry 和 journal 截断/损坏；v0.1 迁移由引擎测试覆盖。stable conformance corpus 仍需把这些分散的拒绝类夹具统一成可发布、跨实现复用的固定语料与报告。
+`npm run conformance:ccjz` 覆盖 Rust、JavaScript、Python 之间的确定性写出和跨实现装配，并包含 scene 分块、JSON resources、opaque attachment、浏览器 Zip64 和可见区只加载相交 chunk。Rust/JavaScript 单元测试另外覆盖旧 gzip、损坏哈希、危险或重复 entry、未声明 entry、Zip64 安全整数边界、局部 relation 删除和 journal 截断/损坏；v0.1 迁移由引擎测试覆盖。stable conformance corpus 仍需把这些分散的拒绝类夹具统一成可发布、跨实现复用的固定语料与报告。
 
 ## 8. 性能门禁
 
-使用固定种子的 1 万、10 万和 100 万 scene entity 文档，以及 10 MB、100 MB、1 GB 资源场景。容器门禁报告写入、manifest 打开、首 chunk 读取、attachment range 与吞吐；5000 原子桌面门禁另报告单对象编辑时延和完整 document JSON 调用次数。
+使用固定种子的 1 万、10 万和 100 万 scene entity 文档，以及 10 MB、100 MB、1 GB 资源场景。容器门禁报告写入、manifest 打开、首 chunk 读取、attachment range、吞吐，以及只修改末块时的 copy-on-write 时间、复用 entry/bytes 和复用比例；5000 原子桌面门禁另报告单对象编辑时延和完整 document JSON 调用次数。
 
 稳定门禁：
 

@@ -80,6 +80,7 @@ export const wasmengine_hasClipboard: (a: number) => number;
 export const wasmengine_historyJson: (a: number) => [number, number, number, number];
 export const wasmengine_hoverArrowAction: (a: number, b: number, c: number) => [number, number];
 export const wasmengine_hoverShapeAction: (a: number, b: number, c: number) => [number, number];
+export const wasmengine_hydrateDocumentJson: (a: number, b: number, c: number) => [number, number, number];
 export const wasmengine_insertDocumentTemplateJsonAt: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number];
 export const wasmengine_interactionRenderListJson: (a: number) => [number, number, number, number];
 export const wasmengine_joinSelection: (a: number) => number;

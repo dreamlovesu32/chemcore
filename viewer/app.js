@@ -2151,6 +2151,7 @@ const documentFlow = createDocumentFlow({
   fitView,
   getZoomPercent,
   setZoomPercent,
+  visibleWorldRect,
   markCurrentDocumentSaved,
   markCurrentDocumentRecovered,
   recoverDocument: async (documentData, fileName, filePath) => {
@@ -2193,6 +2194,7 @@ const {
   openDocumentText,
   openDocumentFile,
   openDocumentPath,
+  hydrateVisibleCcjzRegion,
   saveCurrentDocument,
   saveCurrentDocumentAs,
   saveCurrentDocumentCdxml,
@@ -2201,6 +2203,20 @@ const {
   saveCurrentDocumentSvg,
   updateDocumentMeta,
 } = documentFlow;
+
+let viewportHydrationTimer = null;
+let viewportHydration = Promise.resolve();
+function queueVisibleCcjzHydration() {
+  clearTimeout(viewportHydrationTimer);
+  viewportHydrationTimer = setTimeout(() => {
+    const bounds = visibleWorldRect();
+    viewportHydration = viewportHydration
+      .then(() => hydrateVisibleCcjzRegion([bounds.minX, bounds.minY, bounds.maxX, bounds.maxY]))
+      .catch((error) => console.error("[chemsema] visible CCJZ hydration failed", error));
+  }, 60);
+}
+viewerContainer.addEventListener("scroll", queueVisibleCcjzHydration, { passive: true });
+zoomInput.addEventListener("input", queueVisibleCcjzHydration);
 
 const browserDocumentTabs = createBrowserDocumentTabs({
   state,

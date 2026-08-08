@@ -1,4 +1,6 @@
-import { CCJZ_MIMETYPE, decodeCcjz, decodeCcjzBlob, encodeCcjz } from "./ccjz_container.js";
+import {
+  CCJZ_MIMETYPE, decodeCcjz, decodeCcjzBlob, encodeCcjz, openCcjzViewportSession,
+} from "./ccjz_container.js";
 
 export const CHEMSEMA_TEXT_EXTENSION = ".ccjs";
 export const CHEMSEMA_COMPRESSED_EXTENSION = ".ccjz";
@@ -98,6 +100,10 @@ export async function decompressChemSemaText(bytes) {
     return decodeCcjzBlob(bytes);
   }
   return decodeCcjz(bytes);
+}
+
+export function openChemSemaViewportSession(blob, options = {}) {
+  return openCcjzViewportSession(blob, options);
 }
 
 export function chemsemaOpenAcceptTypes() {

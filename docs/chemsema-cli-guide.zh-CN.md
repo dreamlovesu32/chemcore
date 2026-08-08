@@ -124,7 +124,7 @@ npm run cli -- convert input.cdxml output.emf
 npm run cli -- convert input.cdxml output.ccjs
 npm run cli -- bundle input.cdxml --target molecule:0 --out-dir molecule-0-bundle --context-radius 40 --capture-format png --subset-format ccjs --pretty
 npm run cli -- diff before.ccjs after.ccjs --out diff.json --pretty
-npm run cli -- validate document.ccjz --level structural --pretty
+npm run cli -- validate document.ccjz --level roundtrip --target-format ccjs,ccjz,cdxml,cdx --pretty
 npm run cli -- canonicalize input.ccjs --out canonical.ccjz --pretty
 npm run cli -- migrate legacy.ccjs --out migrated.ccjz --pretty
 npm run cli -- conformance --pretty
@@ -132,10 +132,10 @@ npm run cli -- conformance --pretty
 
 格式治理命令：
 
-- `validate` 先验证 CCJZ manifest/hash 或 CCJS 文本结构；`structural` 还经过引擎文档不变量，`chemical` 复用当前引擎语义装载，`roundtrip` 再验证规范 CCJS 重装配一致性。
+- `validate` 先验证 CCJZ manifest/hash 或 CCJS 文本结构；`structural` 再检查引擎文档不变量，`chemical` 显式校验每个可编辑分子图，`roundtrip` 按重复 `--target-format` 或逗号列表实际执行 CCJS/CCJZ/CDXML/CDX/SDF 导出再导入。SDF 无法表达非分子 scene 或 relation 时返回 confirmed information loss，而不是伪装无损。
 - `canonicalize` 和 `migrate` 必须显式给出不同的 `--out`，拒绝原地覆盖源文件。两者都通过权威引擎写出当前 CCJS 0.2；`migrate` 用于强调旧版/外部输入升级，`canonicalize` 用于当前文档规范化。
 - `schema ccjs-v0.2|ccjz-container|journal` 返回随 CLI 分发的机器可读 schema；`conformance` 执行内置确定性容器和 journal probe。跨 Rust/JavaScript/Python 的完整容器检查使用仓库命令 `npm run conformance:ccjz`。
-- 当前 `validate` 尚未提供每个失败的稳定 error code、JSON Pointer/entry、规范条款和信息损失等级；`chemical` 不是独立完整 sanitizer 报告，`roundtrip` 也不是任意目标格式的视觉往返。stable 合同见 [CCJS 0.2 稳定化架构](./ccjs-v0.2-stability-architecture.zh-CN.md)。
+- `validate` 使用 `chemsema.validation-report.v1`；每个 issue 固定包含 code、stage、JSON Pointer/entry、规范条款、severity、information-loss 和 message。roundtrip 的语义指纹精确比较，有视觉表达的目标再比较去身份、数值规范化后的 primitive 多重集，显式容差为 2 pt。合同与仍需发布归档的 corpus/full profile 见 [CCJS 0.2 稳定化架构](./ccjs-v0.2-stability-architecture.zh-CN.md)。
 
 标签查询示例：
 

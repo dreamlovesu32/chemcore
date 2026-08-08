@@ -191,6 +191,7 @@ browser demo is published through GitHub Pages:
 
 - **CDXML/CDX import and export**: The Rust engine parses and writes ChemDraw-oriented formats, maps them into the ChemSema document model, and keeps enough drawing information for re-rendering and round trips.
 - **Unified document and rendering model**: The document model, runtime scene, hit testing, selection state, and render primitives are defined in the engine while the front end focuses on events and display.
+- **Scalable native documents**: CCJS 0.2 keeps flat entities with explicit hierarchy/relations; CCJZ adds hashed chunks, visible-region loading, unchanged-entry and attachment reuse, browser Zip64, and structured chemical/round-trip validation.
 - **Complex bond geometry**: Single, double, triple, bold, dashed, solid wedge, hashed wedge, label clipping, bond joins, crossing gaps, and ChemDraw-style template parameters are implemented.
 - **Arrows and graphical objects**: Reaction arrows, equilibrium arrows, hollow arrows, curved arrows, brackets, lines, shapes, and symbols are supported and continue to be aligned with ChemDraw interaction details.
 - **Selection, drag, rotation, and arrangement**: Object-level and partial molecule selection, multi-select drag preview, rotation, flip, alignment, distribution, color application, and undoable command history are available.

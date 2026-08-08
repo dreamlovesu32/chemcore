@@ -1572,13 +1572,18 @@ impl<'a> CdxmlDocumentWriter<'a> {
             attrs.push(("IsotopicAbundance", abundance.to_string()));
         }
         let effective_radical_count = crate::node_radical_count(node);
+        let radical_is_externally_represented = crate::node_attached_electron_symbols(node)
+            .iter()
+            .any(|attachment| {
+                attachment
+                    .get("radicalDelta")
+                    .and_then(serde_json::Value::as_i64)
+                    .is_some_and(|delta| delta != 0)
+            });
         let radical = match (effective_radical_count, &node.atom_properties.radical) {
             (0, _) => None,
-            (2, crate::AtomRadical::Singlet)
-                if crate::node_attached_electron_symbols(node).is_empty() =>
-            {
-                Some("Singlet")
-            }
+            (_, _) if radical_is_externally_represented => None,
+            (2, crate::AtomRadical::Singlet) => Some("Singlet"),
             (1, _) => Some("Doublet"),
             (_, _) => Some("Triplet"),
         };
@@ -3402,7 +3407,10 @@ impl<'a> CdxmlDocumentWriter<'a> {
                 .payload
                 .extra
                 .get("representAttribute")
-                .and_then(Value::as_str);
+                .and_then(Value::as_str)
+                .or_else(|| {
+                    (kind == "electron" && represented_node.is_some()).then_some("Radical")
+                });
             if let (Some(node_id), Some(attribute)) = (represented_node, represented_attribute) {
                 write_open_tag(out, 4, "graphic", attrs);
                 write_empty_tag(

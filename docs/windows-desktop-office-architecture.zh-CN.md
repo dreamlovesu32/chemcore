@@ -401,7 +401,7 @@ Office 中的对象预览不能只依赖 SVG。长期需要：
 - 已完成：`.ccjz` API 容器化、format version、v0.1/旧 gzip 迁移、内容寻址资源、opaque attachments、原子保存和恢复 journal。
 - 已完成：Rust、浏览器 JavaScript、独立 Python reader 的交叉读取与容器性能门禁。
 - 待完成：把 preview/thumbnail 作为受 manifest 治理的可选 entry，而不是私自添加 ZIP 文件。
-- 待完成：编辑器可见区懒加载、未变 entry 的 copy-on-write 复用和浏览器 Zip64 策略。
+- 已完成：浏览器编辑器按可见区加载 CCJZ chunk，hydration 保留本地编辑与 undo；桌面原子保存复用未变 entry 并保留 opaque attachment；浏览器支持 Zip64 和安全整数拒绝边界。
 
 ### 阶段 6：Windows 剪贴板
 

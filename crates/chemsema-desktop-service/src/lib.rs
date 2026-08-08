@@ -1,4 +1,9 @@
-use chemsema_container::{decode_ccjz, encode_ccjz};
+#[cfg(test)]
+use chemsema_container::encode_ccjz;
+use chemsema_container::{
+    decode_ccjz, write_ccjz, write_ccjz_reusing, CcjzReader, DecodeLimits,
+    DEFAULT_SCENE_CHUNK_RECORDS,
+};
 use chemsema_engine::{
     cdx_to_cdxml, cdxml_to_cdx, parse_bond_tool_value, parse_bracket_tool_value, ArrowCurve,
     ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BioDrawKind, BioShapeFillType,
@@ -155,6 +160,14 @@ impl DesktopDocumentService {
 
     pub fn load_document_json(&mut self, session_id: SessionId, json: &str) -> Result<(), String> {
         self.session_mut(session_id)?.load_document_json(json)
+    }
+
+    pub fn hydrate_document_json(
+        &mut self,
+        session_id: SessionId,
+        json: &str,
+    ) -> Result<usize, String> {
+        self.session_mut(session_id)?.hydrate_document_json(json)
     }
 
     pub fn load_document_cdxml(

@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | CDXML 导入 | Beta | 公开 fixture、论文图、golden SVG snapshot、解析回归 |
 | CDX 导入/导出 | Beta | round-trip 测试和二进制存储回归 |
-| CCJS 0.2 / CCJZ v1 | Beta | Schema、迁移、Rust/JS/Python 交叉读取、journal、性能门禁；stable 缺口见稳定化合同 |
+| CCJS 0.2 / CCJZ v1 | Beta | Schema、迁移、稳定诊断、五格式往返、Rust/JS/Python 交叉读取、可见区加载、COW/Zip64、journal 与性能门禁；生态/corpus/full 报告边界见稳定化合同 |
 | SVG 导出 | Usable | golden SVG snapshot 和像素比较脚本 |
 | Office/OLE 复制与嵌入 | Beta | 剪贴板 payload、EMF preview、Word 粘贴/回读验证 |
 | 浏览器编辑器 | Beta | viewer 交互 smoke test 和用户路径稳定性脚本 |

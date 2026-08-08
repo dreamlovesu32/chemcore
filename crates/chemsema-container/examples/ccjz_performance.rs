@@ -1,4 +1,6 @@
-use chemsema_container::{write_ccjz_with_files, CcjzReader, DecodeLimits, FileAttachment};
+use chemsema_container::{
+    write_ccjz_reusing, write_ccjz_with_files, CcjzReader, DecodeLimits, FileAttachment,
+};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File};
@@ -94,6 +96,35 @@ fn main() -> Result<(), String> {
                     "CCJZ lazy read exceeded 1000 ms: manifest={open_ms:.1}, chunk={first_chunk_ms:.1}"
                 ));
             }
+            let edited = source.replacen(
+                &format!(r#""id":"obj_{:09}","type":"text""#, count - 1),
+                &format!(r#""id":"obj_{:09}","type":"note""#, count - 1),
+                1,
+            );
+            if edited == source {
+                return Err("CCJZ copy-on-write fixture edit did not apply".to_string());
+            }
+            let rewritten_path = directory.join(format!("scene-{count}-edited.ccjz"));
+            let mut previous = CcjzReader::open(
+                File::open(&archive_path).map_err(|error| error.to_string())?,
+                DecodeLimits::default(),
+            )?;
+            let mut rewritten = File::create(&rewritten_path).map_err(|error| error.to_string())?;
+            let start = Instant::now();
+            let reuse = write_ccjz_reusing(&mut previous, &mut rewritten, &edited, 1024, &[], &[])?;
+            rewritten.sync_all().map_err(|error| error.to_string())?;
+            let copy_on_write_ms = elapsed_ms(start);
+            let reuse_ratio = reuse.reused_bytes as f64
+                / (reuse.reused_bytes + reuse.written_bytes).max(1) as f64;
+            if reuse.reused_entries == 0
+                || reuse.written_entries == 0
+                || reuse_ratio < 0.70
+                || copy_on_write_ms > allowed_ms
+            {
+                return Err(format!(
+                    "CCJZ copy-on-write gate failed: {reuse:?}, ratio={reuse_ratio:.3}, time={copy_on_write_ms:.1} ms"
+                ));
+            }
             scene_results.push(json!({
                 "entities": count,
                 "sourceBytes": source.len(),
@@ -102,6 +133,12 @@ fn main() -> Result<(), String> {
                 "manifestOpenMs": open_ms,
                 "firstChunkMs": first_chunk_ms,
                 "firstChunkBytes": first_chunk_bytes,
+                "copyOnWriteMs": copy_on_write_ms,
+                "reusedEntries": reuse.reused_entries,
+                "writtenEntries": reuse.written_entries,
+                "reusedBytes": reuse.reused_bytes,
+                "writtenBytes": reuse.written_bytes,
+                "reuseRatio": reuse_ratio,
             }));
         }
 

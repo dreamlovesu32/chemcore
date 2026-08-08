@@ -1568,7 +1568,29 @@ fn electron_symbol_click_on_atom_sets_radical_semantics_and_exports_it() {
     assert!(chemsema_engine::node_attached_electron_symbols(node)
         .iter()
         .any(|symbol| symbol["radicalDelta"] == 1));
-    assert!(engine.document_cdxml().contains("Radical=\"Doublet\""));
+    let cdxml = engine.document_cdxml();
+    assert_eq!(cdxml.matches("SymbolType=\"Electron\"").count(), 1);
+    assert!(
+        cdxml.contains("<represent attribute=\"Radical\""),
+        "the electron graphic must carry its radical semantics without a duplicate node attribute"
+    );
+    assert!(
+        !cdxml.contains("Radical=\"Doublet\""),
+        "an attached electron graphic and Radical attribute would display the same dot twice"
+    );
+    let mut reopened = Engine::new();
+    reopened
+        .load_cdxml_document(&cdxml)
+        .expect("exported radical CDXML reopens");
+    assert!(reopened
+        .state()
+        .document
+        .editable_fragment()
+        .expect("reopened editable molecule")
+        .fragment
+        .nodes
+        .iter()
+        .any(|node| chemsema_engine::node_radical_count(node) == 1));
 }
 
 #[test]

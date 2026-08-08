@@ -994,6 +994,13 @@ impl WasmEngine {
             .map_err(|error| JsValue::from_str(&error))
     }
 
+    #[wasm_bindgen(js_name = hydrateDocumentJson)]
+    pub fn hydrate_document_json(&mut self, json: &str) -> Result<usize, JsValue> {
+        self.inner
+            .hydrate_document_json(json)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
     #[wasm_bindgen(js_name = loadDocumentCdxml)]
     pub fn load_document_cdxml(&mut self, cdxml: &str) -> Result<(), JsValue> {
         self.inner

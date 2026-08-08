@@ -177,6 +177,7 @@ pub fn run() {
             desktop_engine_create,
             desktop_engine_free,
             desktop_engine_load_document_json,
+            desktop_engine_hydrate_document_json,
             desktop_engine_load_document_cdxml,
             desktop_engine_load_document_sdf,
             desktop_engine_document_json,

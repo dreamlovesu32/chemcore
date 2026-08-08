@@ -4,7 +4,9 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { decodeCcjz, encodeCcjz } from "../viewer/ccjz_container.js";
+import {
+  decodeCcjz, encodeCcjz, openCcjzBlob, openCcjzViewportSession,
+} from "../viewer/ccjz_container.js";
 
 const attachmentBytes = new TextEncoder().encode("independent attachment reader\n");
 const attachmentSha256 = createHash("sha256").update(attachmentBytes).digest("hex");
@@ -59,7 +61,26 @@ try {
   const rustBytes = readFileSync(rustArchive);
   assert.deepEqual(JSON.parse(await decodeCcjz(rustBytes)), sample);
   assert.deepEqual(JSON.parse(run("python", ["tools/ccjz_reader.py", rustArchive])), sample);
-  console.log("[ccjz-conformance] ok (Rust, browser JavaScript, and independent Python reader)");
+
+  const zip64 = await encodeCcjz(JSON.stringify(sample), { sceneChunkRecords: 1, forceZip64: true });
+  assert.deepEqual(JSON.parse(await decodeCcjz(zip64)), sample);
+  const zip64Reader = await openCcjzBlob(new Blob([zip64]));
+  assert.equal(zip64Reader.manifest.sceneChunks.length, 2);
+
+  const spatial = structuredClone(sample);
+  spatial.entities.scene = [
+    { id: "near", type: "text", payload: { bbox: [0, 0, 10, 10] } },
+    { id: "far", type: "text", payload: { bbox: [1000, 0, 1010, 10] } },
+  ];
+  spatial.hierarchy.roots = ["near", "far"];
+  const viewportBytes = await encodeCcjz(JSON.stringify(spatial), { sceneChunkRecords: 1 });
+  const viewport = await openCcjzViewportSession(new Blob([viewportBytes]));
+  const visible = await viewport.loadRegion([-20, -20, 20, 20]);
+  assert.equal(visible.loadedChunks, 1);
+  assert.equal(visible.totalChunks, 2);
+  assert.deepEqual(visible.document.entities.scene.map((entity) => entity.id), ["near"]);
+
+  console.log("[ccjz-conformance] ok (Rust/JavaScript/Python cross-read, browser Zip64, viewport chunk loading)");
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }

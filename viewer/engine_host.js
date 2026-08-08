@@ -454,6 +454,26 @@ class TauriEngineSession {
     return this.invokeMutation("desktop_engine_load_document_json", { json }, { refresh: "document" });
   }
 
+  async hydrateDocumentJson(json) {
+    if (this.layoutEngine?.hydrateDocumentJson) {
+      this.layoutEngine.hydrateDocumentJson(json);
+    }
+    const result = await this.invokeMutation(
+      "desktop_engine_hydrate_document_json",
+      { json },
+      // Both engines hydrate the same cumulative snapshot. A native full
+      // snapshot refresh would call loadDocumentJson on the layout engine and
+      // destroy the undo history that hydration is specifically preserving.
+      { refresh: "exports" },
+    );
+    this.syncCacheFromLayout({ document: true, interaction: true });
+    if (this.layoutEngine?.renderListJson) {
+      this.cache.renderListJson = this.layoutEngine.renderListJson();
+    }
+    this.cache.renderBoundsJson.clear();
+    return result;
+  }
+
   async loadDocumentCdxml(cdxml) {
     const result = await this.invokeMutation("desktop_engine_load_document_cdxml", { cdxml }, { refresh: "document" });
     this.syncLayoutDocumentJson();

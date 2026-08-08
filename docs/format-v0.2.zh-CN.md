@@ -129,6 +129,8 @@ R-tree、均匀网格、BVH、反向依赖表和渲染缓存属于运行时派�
 
 大规模 FID、长光谱数组、图像或多维实验数据不应无限制内联到普通 JSON。v0.2 的 `.ccjs` 定义完整语义快照；`.ccjz` 使用 [`chemsema.container.v1`](protocol/ccjz-container-v1.md) 确定性 ZIP 容器，将 scene 拆成可独立读取的 JSONL chunk，并按 SHA-256 内容寻址外置资源。旧 gzip `.ccjz` 继续只读兼容，新写出器不再生成 gzip。HDF5、Zarr 或专业二进制数组可以作为带明确媒体类型、尺寸和哈希的资源载荷，而不是替代 CCJS 文档语义。
 
+CCJZ chunk descriptor 可以携带保守 `bounds` 和 `entityIds`，供编辑器按可见区域读取；无法可靠求界时必须省略 bounds，读取器必须加载该 chunk。该索引是容器定位提示，不是第二份 scene 或 hierarchy 权威。桌面保存可按 descriptor/hash 流式复用未变化 entry，但必须重新生成、验证并原子替换整个 ZIP directory；浏览器实现支持 Zip64，同时拒绝超过 JavaScript 安全整数范围的 offset/size。
+
 ## 9. Interchange 无损层
 
 `interchange` 保存尚未提升为来源无关字段的 CDX/CDXML 对象、属性、顺序和原始字节。已有 native 字段时 native 字段是编辑权威；exporter 用 native 值重新编码已建模内容，再用 interchange 补回未建模信息。未识别信息不得塞入不参与导出的普通 meta 后静默丢失。

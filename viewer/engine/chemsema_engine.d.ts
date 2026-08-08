@@ -82,6 +82,7 @@ export class WasmEngine {
     historyJson(): string;
     hoverArrowAction(x: number, y: number): string;
     hoverShapeAction(x: number, y: number): string;
+    hydrateDocumentJson(json: string): number;
     insertDocumentTemplateJsonAt(template_id: string, json: string, x: number, y: number): boolean;
     interactionRenderListJson(): string;
     joinSelection(): boolean;
@@ -256,6 +257,7 @@ export interface InitOutput {
     readonly wasmengine_historyJson: (a: number) => [number, number, number, number];
     readonly wasmengine_hoverArrowAction: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_hoverShapeAction: (a: number, b: number, c: number) => [number, number];
+    readonly wasmengine_hydrateDocumentJson: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_insertDocumentTemplateJsonAt: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number];
     readonly wasmengine_interactionRenderListJson: (a: number) => [number, number, number, number];
     readonly wasmengine_joinSelection: (a: number) => number;

@@ -20,10 +20,10 @@ ChemSema 当前处于公开 beta 阶段。近期路线图重点是让编辑器�
 ## CCJS 0.2 稳定化
 
 - 保持 CCJS 0.2、CCJZ Container v1、Document Patch v1 和 Recovery Journal v1 独立版本化，并禁止未声明 ZIP entry 或第二套层级真相。
-- 将 `validate structural|chemical|roundtrip` 补齐为稳定结构化诊断：error code、JSON Pointer/entry、规范条款、严重级别和信息损失等级。
-- 把按目标格式的语义/视觉往返夹具与 Rust、JavaScript、Python 拒绝类夹具统一成可发布 conformance corpus。
-- 在编辑器接通可见区 scene chunk 懒加载和未变 entry 的 copy-on-write 保存；在此之前不把底层 range reader 宣传成端到端懒加载。
-- 为浏览器 writer 明确经典 ZIP 上限和 Zip64 策略，并发布 1 万/10 万/100 万对象及 10 MB/100 MB/1 GB 附件的 full performance 报告。
+- 已完成：`validate structural|chemical|roundtrip` 的稳定结构化 issue、显式分子化学校验和 CCJS/CCJZ/CDXML/CDX/SDF 目标格式语义/视觉往返。
+- 已完成：编辑器可见区 scene chunk 加载、保留编辑与 undo 的 hydration、未变 entry/附件的 copy-on-write 保存，以及浏览器 Zip64 读写与安全整数拒绝边界。
+- 已完成：smoke 门禁记录首 chunk I/O、只改末块的复用比例、附件吞吐，并把 Zip64/可见区行为纳入跨实现 conformance。
+- 待发布归档：统一 Rust/JavaScript/Python 拒绝类固定 corpus，并运行和保存 10 万/100 万对象及 100 MB/1 GB 附件的 full performance 报告。
 
 ## 产品体验
 

@@ -238,6 +238,7 @@ pub(crate) struct CliError {
     hint: Option<String>,
     fix: Option<Value>,
     suggestions: Vec<Value>,
+    details: Option<Value>,
 }
 
 pub(crate) type CliResult<T> = Result<T, CliError>;
@@ -254,6 +255,7 @@ impl CliError {
             hint: Some("Read error.message, then rerun with corrected input.".to_string()),
             fix: None,
             suggestions: Vec::new(),
+            details: None,
         }
     }
 
@@ -275,6 +277,34 @@ impl CliError {
             hint: command_error_hint(kind, command),
             fix,
             suggestions,
+            details: None,
+        }
+    }
+
+    pub(crate) fn validation(report: Value) -> Self {
+        let issue_count = report
+            .get("issues")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0);
+        Self {
+            kind: "validation_failed".to_string(),
+            message: format!("Document validation failed with {issue_count} issue(s)."),
+            command: Some("validate".to_string()),
+            argument: None,
+            usage: command_spec("validate").map(|spec| spec.usage.to_string()),
+            examples: command_spec("validate")
+                .map(|spec| vec![spec.example.to_string()])
+                .unwrap_or_default(),
+            hint: Some(
+                "Inspect error.details.issues and correct every error-severity issue.".to_string(),
+            ),
+            fix: Some(json!({
+                "action": "fix_validation_issues",
+                "issueCount": issue_count,
+            })),
+            suggestions: Vec::new(),
+            details: Some(report),
         }
     }
 
@@ -300,6 +330,7 @@ impl CliError {
                 "helpCommand": "chemsema-cli capabilities",
             })),
             suggestions: command_suggestions(command),
+            details: None,
         }
     }
 
@@ -316,6 +347,7 @@ impl CliError {
                 "hint": self.hint,
                 "fix": self.fix,
                 "suggestions": self.suggestions,
+                "details": self.details,
             }
         })
     }

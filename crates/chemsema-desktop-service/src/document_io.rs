@@ -105,22 +105,21 @@ impl DesktopDocumentService {
             .map(normalize_document_format)
             .filter(|value| !value.is_empty())
             .unwrap_or_else(|| document_format_for_path(&path));
-        let bytes = if format == "ccjz" {
-            encode_ccjz(content)?
-        } else if format == "cdx" {
+        if format == "ccjz" {
+            write_ccjz_document_atomically(&path, content)?;
+            self.add_recent_file(path.clone());
+            return Ok(DesktopSavedDocument {
+                file_name: file_name_for_path(&path),
+                path: path_to_string(&path),
+                format,
+            });
+        }
+        let bytes = if format == "cdx" {
             cdxml_to_cdx(content)?
         } else {
             content.as_bytes().to_vec()
         };
         write_document_bytes_atomically(&path, &bytes)?;
-        if format == "ccjz" {
-            let persisted = fs::read(&path).map_err(|error| {
-                format!("Failed to reopen saved CCJZ {}: {error}", path.display())
-            })?;
-            decode_ccjz(&persisted).map_err(|error| {
-                format!("Failed to verify saved CCJZ {}: {error}", path.display())
-            })?;
-        }
         self.add_recent_file(path.clone());
         Ok(DesktopSavedDocument {
             file_name: file_name_for_path(&path),
@@ -179,6 +178,76 @@ impl DesktopDocumentService {
         fs::write(path, format!("{json}\n"))
             .map_err(|error| format!("Failed to write {}: {error}", path.display()))
     }
+}
+
+fn write_ccjz_document_atomically(path: &Path, content: &str) -> Result<(), String> {
+    let parent = output_parent_path(path).unwrap_or_else(|| Path::new("."));
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("document");
+    let (temp_path, mut output) = (0..100)
+        .find_map(|_| {
+            let sequence = SAVE_TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let candidate = parent.join(format!(
+                ".{file_name}.chemsema-save-{}-{sequence}.tmp",
+                std::process::id()
+            ));
+            match OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create_new(true)
+                .open(&candidate)
+            {
+                Ok(file) => Some(Ok((candidate, file))),
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => None,
+                Err(error) => Some(Err(format!(
+                    "Failed to create temporary save file {}: {error}",
+                    candidate.display()
+                ))),
+            }
+        })
+        .ok_or_else(|| "Failed to allocate a unique temporary save file".to_string())??;
+    let result = (|| {
+        if path.is_file() {
+            let previous_file = OpenOptions::new().read(true).open(path).map_err(|error| {
+                format!("Failed to open previous CCJZ {}: {error}", path.display())
+            })?;
+            let mut previous = CcjzReader::open(previous_file, DecodeLimits::default())?;
+            write_ccjz_reusing(
+                &mut previous,
+                &mut output,
+                content,
+                DEFAULT_SCENE_CHUNK_RECORDS,
+                &[],
+                &[],
+            )?;
+        } else {
+            write_ccjz(&mut output, content, DEFAULT_SCENE_CHUNK_RECORDS, &[])?;
+        }
+        output.sync_all().map_err(|error| {
+            format!(
+                "Failed to flush temporary CCJZ {}: {error}",
+                temp_path.display()
+            )
+        })?;
+        drop(output);
+        let verify_file = OpenOptions::new()
+            .read(true)
+            .open(&temp_path)
+            .map_err(|error| {
+                format!(
+                    "Failed to verify saved CCJZ {}: {error}",
+                    temp_path.display()
+                )
+            })?;
+        CcjzReader::open(verify_file, DecodeLimits::default())?;
+        replace_file_atomically(&temp_path, path)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temp_path);
+    }
+    result
 }
 
 fn recovery_journal_path(document_path: &Path) -> PathBuf {
@@ -347,5 +416,72 @@ fn output_parent_path(path: &Path) -> Option<&Path> {
         None
     } else {
         Some(parent)
+    }
+}
+
+#[cfg(test)]
+mod ccjz_save_tests {
+    use super::*;
+    use chemsema_container::{Attachment, CcjzReader, DecodeLimits};
+
+    #[test]
+    fn atomic_ccjz_resave_preserves_opaque_attachments() {
+        let path = std::env::temp_dir().join(format!(
+            "chemsema-desktop-cow-{}-{}.ccjz",
+            std::process::id(),
+            SAVE_TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        let payload = b"desktop-preserved-fid";
+        let hash = "3a5d8308d0437d8713d353f630fb12f6b19bf5ed596825b0381057e9ba9ee565";
+        let mut document: serde_json::Value =
+            serde_json::from_str(&Engine::new().document_json().expect("document serializes"))
+                .expect("document parses");
+        document["resources"]["fid"] = serde_json::json!({
+            "type": "nmr-fid",
+            "encoding": "opaque",
+            "data": {
+                "storage": "ccjz-attachment",
+                "mediaType": "application/vnd.chemsema.nmr-fid",
+                "byteLength": payload.len(),
+                "sha256": hash
+            }
+        });
+        let result = (|| -> Result<(), String> {
+            let mut initial = OpenOptions::new()
+                .write(true)
+                .read(true)
+                .create_new(true)
+                .open(&path)
+                .map_err(|error| error.to_string())?;
+            chemsema_container::write_ccjz(
+                &mut initial,
+                &document.to_string(),
+                DEFAULT_SCENE_CHUNK_RECORDS,
+                &[Attachment {
+                    id: "fid",
+                    media_type: "application/vnd.chemsema.nmr-fid",
+                    extension: "fid",
+                    bytes: payload,
+                }],
+            )?;
+            drop(initial);
+
+            document["document"]["title"] = serde_json::json!("edited title");
+            write_ccjz_document_atomically(&path, &document.to_string())?;
+            let file = OpenOptions::new()
+                .read(true)
+                .open(&path)
+                .map_err(|error| error.to_string())?;
+            let mut reader = CcjzReader::open(file, DecodeLimits::default())?;
+            assert_eq!(reader.read_attachment("fid")?, payload);
+            let reopened: serde_json::Value = serde_json::from_str(&decode_ccjz(
+                &fs::read(&path).map_err(|error| error.to_string())?,
+            )?)
+            .map_err(|error| error.to_string())?;
+            assert_eq!(reopened, document);
+            Ok(())
+        })();
+        let _ = fs::remove_file(&path);
+        result.expect("desktop copy-on-write save succeeds");
     }
 }

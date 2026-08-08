@@ -140,7 +140,7 @@ npm run cli -- convert input.cdxml output.emf
 npm run cli -- convert input.cdxml output.ccjs
 npm run cli -- bundle input.cdxml --target molecule:0 --out-dir molecule-0-bundle --context-radius 40 --capture-format png --subset-format ccjs --pretty
 npm run cli -- diff before.ccjs after.ccjs --out diff.json --pretty
-npm run cli -- validate document.ccjz --level structural --pretty
+npm run cli -- validate document.ccjz --level roundtrip --target-format ccjs,ccjz,cdxml,cdx --pretty
 npm run cli -- canonicalize input.ccjs --out canonical.ccjz --pretty
 npm run cli -- migrate legacy.ccjs --out migrated.ccjz --pretty
 npm run cli -- conformance --pretty
@@ -148,10 +148,10 @@ npm run cli -- conformance --pretty
 
 Format-governance commands:
 
-- `validate` first checks CCJZ manifest/hash integrity or CCJS text structure. `structural` also loads engine document invariants, `chemical` reuses current engine semantic loading, and `roundtrip` additionally checks canonical CCJS reassembly.
+- `validate` first checks CCJZ manifest/hash integrity or CCJS text structure. `structural` also checks engine document invariants, `chemical` explicitly validates every editable molecular graph, and `roundtrip` performs actual export/import for repeated or comma-separated `--target-format` values covering CCJS/CCJZ/CDXML/CDX/SDF. SDF rejects non-molecule scenes or relations as confirmed information loss instead of claiming a lossless round trip.
 - `canonicalize` and `migrate` require an explicit, distinct `--out` and refuse in-place source overwrite. Both write current CCJS 0.2 through the authoritative engine; `migrate` emphasizes legacy/external upgrade while `canonicalize` normalizes an already supported document.
 - `schema ccjs-v0.2|ccjz-container|journal` returns bundled machine-readable schemas. `conformance` runs built-in deterministic-container and journal probes. Use repository command `npm run conformance:ccjz` for the complete Rust/JavaScript/Python cross-reader check.
-- Current `validate` failures do not yet provide a stable per-issue error code, JSON Pointer/entry, specification clause, and information-loss class. `chemical` is not a standalone complete sanitizer report, and `roundtrip` is not an arbitrary target-format visual round trip. These stable requirements are tracked in the [CCJS 0.2 stability contract](./ccjs-v0.2-stability-architecture.zh-CN.md).
+- `validate` uses `chemsema.validation-report.v1`; every issue has a stable code, stage, JSON Pointer/entry, specification clause, severity, information-loss class, and message. Round-trip semantics compare exactly; visual targets additionally compare identity-scrubbed, numerically normalized primitive multisets with an explicit 2 pt tolerance. The remaining publication corpus/full-profile requirements are tracked in the [CCJS 0.2 stability contract](./ccjs-v0.2-stability-architecture.zh-CN.md).
 
 Label query calls:
 

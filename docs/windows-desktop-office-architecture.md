@@ -404,7 +404,7 @@ These outputs should be generated uniformly by engine/render service. The Office
 - Done: containerized `.ccjz`, format/version checks, v0.1 and legacy-gzip migration, content-addressed resources, opaque attachments, atomic saves, and recovery journals.
 - Done: cross-reading among Rust, browser JavaScript, and the independent Python reader, plus container performance gates.
 - Pending: add preview/thumbnail as manifest-governed optional entries rather than private ZIP additions.
-- Pending: visible-region lazy loading, copy-on-write reuse of unchanged entries, and a browser Zip64 policy.
+- Done: browser visible-region CCJZ chunk loading with edit/undo-preserving hydration, native atomic saves that reuse unchanged entries and preserve opaque attachments, and browser Zip64 with safe-integer rejection.
 
 ### Stage 6: Windows Clipboard
 

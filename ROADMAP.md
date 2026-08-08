@@ -20,10 +20,10 @@ ChemSema is in public beta. The near-term roadmap focuses on making the editor e
 ## CCJS 0.2 Stabilization
 
 - Keep CCJS 0.2, CCJZ Container v1, Document Patch v1, and Recovery Journal v1 independently versioned; forbid undeclared ZIP entries and any second hierarchy authority.
-- Complete stable structured diagnostics for `validate structural|chemical|roundtrip`: error code, JSON Pointer/entry, specification clause, severity, and information-loss classification.
-- Unify target-format semantic/visual round trips and Rust/JavaScript/Python rejection fixtures into a publishable conformance corpus.
-- Connect visible-region scene-chunk loading and copy-on-write reuse of unchanged entries in the editor; until then, do not market the low-level range reader as end-to-end lazy loading.
-- Define the classic-ZIP limit and Zip64 policy for the browser writer, and publish full performance reports for 10k/100k/1m entities and 10 MB/100 MB/1 GB attachments.
+- Completed: stable structured issues for `validate structural|chemical|roundtrip`, explicit molecular validation, and CCJS/CCJZ/CDXML/CDX/SDF target-format semantic/visual round trips.
+- Completed: editor visible-region scene-chunk loading, hydration that preserves edits and undo, copy-on-write reuse of unchanged entries/attachments, and browser Zip64 read/write with safe-integer rejection.
+- Completed: smoke gates for first-chunk I/O, last-chunk-edit reuse ratio, attachment throughput, and cross-implementation Zip64/viewport behavior.
+- Publication work: unify Rust/JavaScript/Python rejection fixtures into a fixed public corpus and archive full 100k/1m-entity plus 100 MB/1 GB attachment performance reports.
 
 ## Product Experience
 

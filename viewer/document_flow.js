@@ -17,6 +17,7 @@ import {
   looksLikeCdxFile,
   looksLikeCdxmlFile,
   looksLikeSdfFile,
+  openChemSemaViewportSession,
   saveFormatFromFileName,
 } from "./file_io.js";
 import {
@@ -91,6 +92,7 @@ export function createDocumentFlow(options) {
   async function replaceEditorDocumentEngine(engine, fileName, filePath, titleFallback) {
     traceEvent("documentFlow.replaceEngine.begin", { fileName, filePath, titleFallback });
     const previousEngine = options.state.editorEngine;
+    options.state.ccjzViewportSession = null;
     options.state.currentPath = null;
     options.state.currentFileName = fileName;
     options.state.currentFilePath = filePath;
@@ -164,6 +166,14 @@ export function createDocumentFlow(options) {
 
   async function prepareCurrentDocumentForOutput() {
     await options.finishActiveTextEditor(true);
+    const session = options.state.ccjzViewportSession;
+    const engine = options.state.editorEngine;
+    if (session && engine?.hydrateDocumentJson && engine?.documentJson) {
+      session.mergeEditedDocument(JSON.parse(await engine.documentJson()));
+      const complete = await session.materialize();
+      await engine.hydrateDocumentJson(JSON.stringify(complete));
+      await options.syncDocumentFromEngine?.();
+    }
     await options.documentLayoutHost?.storeMagnificationPercent?.(
       options.getZoomPercent?.(),
     );
@@ -586,14 +596,47 @@ export function createDocumentFlow(options) {
       await loadCdxDocumentIntoEditor(new Uint8Array(await file.arrayBuffer()), file.name || null, null);
       return;
     }
-    const text = looksLikeCompressedChemSemaFile(file)
-      ? await decompressChemSemaText(file)
-      : await file.text();
+    if (looksLikeCompressedChemSemaFile(file)) {
+      if (file instanceof Blob) {
+        const header = new Uint8Array(await file.slice(0, 2).arrayBuffer());
+        if (!(header[0] === 0x1f && header[1] === 0x8b)) {
+          const session = await openChemSemaViewportSession(file);
+          const visible = options.visibleWorldRect?.();
+          const initialBounds = Array.isArray(visible)
+            ? visible
+            : visible && [visible.minX, visible.minY, visible.maxX, visible.maxY].every(Number.isFinite)
+              ? [visible.minX, visible.minY, visible.maxX, visible.maxY]
+              : session.documentBounds;
+          const initial = await session.loadRegion(initialBounds);
+          await loadJsonDocumentIntoEditor(initial.document, file.name || null, null);
+          options.state.ccjzViewportSession = session;
+          return;
+        }
+      }
+      const text = await decompressChemSemaText(file);
+      await loadJsonDocumentIntoEditor(JSON.parse(text), file.name || null, null);
+      return;
+    }
+    const text = await file.text();
     if (looksLikeSdfFile(file, text)) {
       await loadSdfDocumentIntoEditor(text, file.name || null, null);
       return;
     }
     await openDocumentText(text, file.name || null, null, looksLikeCdxmlFile(file, text) ? "cdxml" : saveFormatFromFileName(file.name));
+  }
+
+  async function hydrateVisibleCcjzRegion(bounds) {
+    const session = options.state.ccjzViewportSession;
+    const engine = options.state.editorEngine;
+    if (!session || !engine?.hydrateDocumentJson || !engine?.documentJson) return false;
+    const current = JSON.parse(await engine.documentJson());
+    session.mergeEditedDocument(current);
+    const loaded = await session.loadRegion(bounds);
+    if (!loaded.newlyLoadedChunks) return false;
+    await engine.hydrateDocumentJson(JSON.stringify(loaded.document));
+    await options.syncDocumentFromEngine?.();
+    options.renderDocument?.();
+    return true;
   }
 
   async function openDocumentText(text, fileName = null, filePath = null, format = null) {
@@ -762,6 +805,7 @@ export function createDocumentFlow(options) {
     loadJsonDocumentIntoEditor,
     openDocumentText,
     openDocumentFile,
+    hydrateVisibleCcjzRegion,
     openDocumentPath,
     saveCurrentDocument,
     saveCurrentDocumentAs,

@@ -85,8 +85,7 @@ fn run() -> CliResult<()> {
         "about" => about_command(&args[1..]).map_err(CliError::message),
         "examples" => examples_command(&args[1..]).map_err(CliError::message),
         "guide" => guide_command(&args[1..]).map_err(CliError::message),
-        "validate" => format_tools::validate_command(&args[1..])
-            .map_err(|error| CliError::for_command("validate", error)),
+        "validate" => format_tools::validate_command(&args[1..]),
         "canonicalize" => format_tools::canonicalize_command(&args[1..])
             .map_err(|error| CliError::for_command("canonicalize", error)),
         "migrate" => format_tools::migrate_command(&args[1..])

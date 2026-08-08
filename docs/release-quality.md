@@ -7,7 +7,7 @@ is a release-quality guide, not a marketing claim.
 | --- | --- | --- |
 | CDXML import | Beta | Public fixtures, published paper figures, golden SVG snapshots, parser regressions |
 | CDX import/export | Beta | Round-trip tests and binary storage regression coverage |
-| CCJS 0.2 / CCJZ v1 | Beta | Schema, migration, Rust/JS/Python cross-reading, journal, and performance gates; stable gaps remain in the stability contract |
+| CCJS 0.2 / CCJZ v1 | Beta | Schema, migration, stable diagnostics, five-format round trips, Rust/JS/Python cross-reading, viewport loading, COW/Zip64, journal, and performance gates; ecosystem/corpus/full-report boundaries remain in the stability contract |
 | SVG export | Usable | Golden SVG snapshots and pixel comparison scripts |
 | Office/OLE copy and embedding | Beta | Clipboard payload tests, EMF preview tests, Word paste/roundtrip validation scripts |
 | Browser editor | Beta | Viewer interaction smoke tests and stability user-path scripts |

@@ -46,63 +46,114 @@ function concatBytes(parts) {
   return result;
 }
 
-function zipStored(entries) {
+function setUint64(view, offset, value) {
+  view.setBigUint64(offset, BigInt(value), true);
+}
+
+function safeZipNumber(value, label) {
+  const number = Number(value);
+  if (!Number.isSafeInteger(number)) throw new Error(`ZIP64 ${label} exceeds JavaScript safe integer range.`);
+  return number;
+}
+
+function zip64Extra({ size, offset, includeSize, includeOffset }) {
+  const dataLength = (includeSize ? 16 : 0) + (includeOffset ? 8 : 0);
+  if (!dataLength) return new Uint8Array();
+  const extra = new Uint8Array(4 + dataLength);
+  const view = new DataView(extra.buffer);
+  view.setUint16(0, 0x0001, true);
+  view.setUint16(2, dataLength, true);
+  let cursor = 4;
+  if (includeSize) {
+    setUint64(view, cursor, size);
+    setUint64(view, cursor + 8, size);
+    cursor += 16;
+  }
+  if (includeOffset) setUint64(view, cursor, offset);
+  return extra;
+}
+
+function zipStored(entries, { forceZip64 = false } = {}) {
   const localParts = [];
   const centralParts = [];
-  let offset = 0;
+  let offset = 0n;
   for (const [name, content] of entries) {
     const nameBytes = encoder.encode(name);
     const bytes = content instanceof Uint8Array ? content : new Uint8Array(content);
-    if (bytes.byteLength > 0xffffffff || offset > 0xffffffff) {
-      throw new Error("Browser CCJZ writer requires ZIP64 for entries larger than 4 GiB.");
-    }
+    const size = BigInt(bytes.byteLength);
+    const size64 = forceZip64 || size > 0xffffffffn;
+    const offset64 = forceZip64 || offset > 0xffffffffn;
+    const localExtra = zip64Extra({ size, offset, includeSize: size64, includeOffset: false });
     const crc = crc32(bytes);
-    const local = new Uint8Array(30 + nameBytes.byteLength);
+    const local = new Uint8Array(30 + nameBytes.byteLength + localExtra.byteLength);
     const localView = new DataView(local.buffer);
     localView.setUint32(0, 0x04034b50, true);
-    localView.setUint16(4, 20, true);
+    localView.setUint16(4, size64 ? 45 : 20, true);
     localView.setUint16(6, 0x0800, true);
     localView.setUint16(8, 0, true);
     localView.setUint16(10, 0, true);
     localView.setUint16(12, 0x0021, true);
     localView.setUint32(14, crc, true);
-    localView.setUint32(18, bytes.byteLength, true);
-    localView.setUint32(22, bytes.byteLength, true);
+    localView.setUint32(18, size64 ? 0xffffffff : bytes.byteLength, true);
+    localView.setUint32(22, size64 ? 0xffffffff : bytes.byteLength, true);
     localView.setUint16(26, nameBytes.byteLength, true);
+    localView.setUint16(28, localExtra.byteLength, true);
     local.set(nameBytes, 30);
+    local.set(localExtra, 30 + nameBytes.byteLength);
     localParts.push(local, bytes);
 
-    const central = new Uint8Array(46 + nameBytes.byteLength);
+    const centralExtra = zip64Extra({ size, offset, includeSize: size64, includeOffset: offset64 });
+    const central = new Uint8Array(46 + nameBytes.byteLength + centralExtra.byteLength);
     const centralView = new DataView(central.buffer);
     centralView.setUint32(0, 0x02014b50, true);
-    centralView.setUint16(4, 20, true);
-    centralView.setUint16(6, 20, true);
+    centralView.setUint16(4, (3 << 8) | (size64 || offset64 ? 45 : 20), true);
+    centralView.setUint16(6, size64 || offset64 ? 45 : 20, true);
     centralView.setUint16(8, 0x0800, true);
     centralView.setUint16(10, 0, true);
     centralView.setUint16(12, 0, true);
     centralView.setUint16(14, 0x0021, true);
     centralView.setUint32(16, crc, true);
-    centralView.setUint32(20, bytes.byteLength, true);
-    centralView.setUint32(24, bytes.byteLength, true);
+    centralView.setUint32(20, size64 ? 0xffffffff : bytes.byteLength, true);
+    centralView.setUint32(24, size64 ? 0xffffffff : bytes.byteLength, true);
     centralView.setUint16(28, nameBytes.byteLength, true);
-    centralView.setUint32(42, offset, true);
+    centralView.setUint16(30, centralExtra.byteLength, true);
+    centralView.setUint32(42, offset64 ? 0xffffffff : Number(offset), true);
     central.set(nameBytes, 46);
+    central.set(centralExtra, 46 + nameBytes.byteLength);
     centralParts.push(central);
-    offset += local.byteLength + bytes.byteLength;
+    offset += BigInt(local.byteLength + bytes.byteLength);
   }
   const centralOffset = offset;
-  const centralSize = centralParts.reduce((sum, part) => sum + part.byteLength, 0);
-  if (entries.length > 0xffff || centralOffset > 0xffffffff || centralSize > 0xffffffff) {
-    throw new Error("Browser CCJZ writer requires ZIP64 for this archive.");
+  const centralSize = BigInt(centralParts.reduce((sum, part) => sum + part.byteLength, 0));
+  const archive64 = forceZip64 || entries.length > 0xffff || centralOffset > 0xffffffffn || centralSize > 0xffffffffn;
+  const trailer = [];
+  if (archive64) {
+    const zip64Offset = centralOffset + centralSize;
+    const record = new Uint8Array(56);
+    const recordView = new DataView(record.buffer);
+    recordView.setUint32(0, 0x06064b50, true);
+    setUint64(recordView, 4, 44);
+    recordView.setUint16(12, (3 << 8) | 45, true);
+    recordView.setUint16(14, 45, true);
+    setUint64(recordView, 24, entries.length);
+    setUint64(recordView, 32, entries.length);
+    setUint64(recordView, 40, centralSize);
+    setUint64(recordView, 48, centralOffset);
+    const locator = new Uint8Array(20);
+    const locatorView = new DataView(locator.buffer);
+    locatorView.setUint32(0, 0x07064b50, true);
+    setUint64(locatorView, 8, zip64Offset);
+    locatorView.setUint32(16, 1, true);
+    trailer.push(record, locator);
   }
   const eocd = new Uint8Array(22);
   const view = new DataView(eocd.buffer);
   view.setUint32(0, 0x06054b50, true);
-  view.setUint16(8, entries.length, true);
-  view.setUint16(10, entries.length, true);
-  view.setUint32(12, centralSize, true);
-  view.setUint32(16, centralOffset, true);
-  return concatBytes([...localParts, ...centralParts, eocd]);
+  view.setUint16(8, archive64 ? 0xffff : entries.length, true);
+  view.setUint16(10, archive64 ? 0xffff : entries.length, true);
+  view.setUint32(12, archive64 ? 0xffffffff : Number(centralSize), true);
+  view.setUint32(16, archive64 ? 0xffffffff : Number(centralOffset), true);
+  return concatBytes([...localParts, ...centralParts, ...trailer, eocd]);
 }
 
 function validatePath(name) {
@@ -147,6 +198,57 @@ function validateAttachmentDescriptor(resource, id, entry) {
   }
 }
 
+function zip64CentralValues(bytes, extraStart, extraLength, size32, compressed32, offset32) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let cursor = extraStart;
+  const end = extraStart + extraLength;
+  while (cursor + 4 <= end) {
+    const id = view.getUint16(cursor, true);
+    const length = view.getUint16(cursor + 2, true);
+    cursor += 4;
+    if (cursor + length > end) throw new Error("CCJZ ZIP extra field is invalid.");
+    if (id === 0x0001) {
+      let valueCursor = cursor;
+      const read = (needed, fallback, label) => {
+        if (!needed) return fallback;
+        if (valueCursor + 8 > cursor + length) throw new Error("CCJZ ZIP64 extra field is incomplete.");
+        const value = safeZipNumber(view.getBigUint64(valueCursor, true), label);
+        valueCursor += 8;
+        return value;
+      };
+      const size = read(size32 === 0xffffffff, size32, "entry size");
+      const compressedSize = read(compressed32 === 0xffffffff, compressed32, "compressed size");
+      const localOffset = read(offset32 === 0xffffffff, offset32, "local offset");
+      return { size, compressedSize, localOffset };
+    }
+    cursor += length;
+  }
+  if (size32 === 0xffffffff || compressed32 === 0xffffffff || offset32 === 0xffffffff) {
+    throw new Error("CCJZ ZIP64 entry is missing its ZIP64 extra field.");
+  }
+  return { size: size32, compressedSize: compressed32, localOffset: offset32 };
+}
+
+function zipDirectoryFromBytes(bytes, view, eocd) {
+  const count16 = view.getUint16(eocd + 10, true);
+  const size32 = view.getUint32(eocd + 12, true);
+  const offset32 = view.getUint32(eocd + 16, true);
+  if (count16 !== 0xffff && size32 !== 0xffffffff && offset32 !== 0xffffffff) {
+    return { count: count16, centralSize: size32, centralOffset: offset32 };
+  }
+  const locator = eocd - 20;
+  if (locator < 0 || view.getUint32(locator, true) !== 0x07064b50) throw new Error("CCJZ ZIP64 locator is missing.");
+  const zip64Offset = safeZipNumber(view.getBigUint64(locator + 8, true), "end record offset");
+  if (zip64Offset + 56 > bytes.byteLength || view.getUint32(zip64Offset, true) !== 0x06064b50) {
+    throw new Error("CCJZ ZIP64 end record is invalid.");
+  }
+  return {
+    count: safeZipNumber(view.getBigUint64(zip64Offset + 32, true), "entry count"),
+    centralSize: safeZipNumber(view.getBigUint64(zip64Offset + 40, true), "central size"),
+    centralOffset: safeZipNumber(view.getBigUint64(zip64Offset + 48, true), "central offset"),
+  };
+}
+
 function readStoredZip(input) {
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -155,8 +257,8 @@ function readStoredZip(input) {
     if (view.getUint32(offset, true) === 0x06054b50) eocd = offset;
   }
   if (eocd < 0) throw new Error("CCJZ ZIP end record is missing.");
-  const count = view.getUint16(eocd + 10, true);
-  let cursor = view.getUint32(eocd + 16, true);
+  const { count, centralOffset } = zipDirectoryFromBytes(bytes, view, eocd);
+  let cursor = centralOffset;
   const entries = new Map();
   const folded = new Set();
   for (let index = 0; index < count; index += 1) {
@@ -165,12 +267,15 @@ function readStoredZip(input) {
     }
     const method = view.getUint16(cursor + 10, true);
     const expectedCrc = view.getUint32(cursor + 16, true);
-    const compressedSize = view.getUint32(cursor + 20, true);
-    const size = view.getUint32(cursor + 24, true);
+    const compressed32 = view.getUint32(cursor + 20, true);
+    const size32 = view.getUint32(cursor + 24, true);
     const nameLength = view.getUint16(cursor + 28, true);
     const extraLength = view.getUint16(cursor + 30, true);
     const commentLength = view.getUint16(cursor + 32, true);
-    const localOffset = view.getUint32(cursor + 42, true);
+    const offset32 = view.getUint32(cursor + 42, true);
+    const { size, compressedSize, localOffset } = zip64CentralValues(
+      bytes, cursor + 46 + nameLength, extraLength, size32, compressed32, offset32,
+    );
     const name = decoder.decode(bytes.subarray(cursor + 46, cursor + 46 + nameLength));
     validatePath(name);
     if (entries.has(name) || folded.has(name.toLowerCase())) throw new Error(`Duplicate CCJZ entry: ${name}`);
@@ -211,9 +316,22 @@ export async function openCcjzBlob(blob, {
     if (tailView.getUint32(offset, true) === 0x06054b50) eocd = offset;
   }
   if (eocd < 0) throw new Error("CCJZ ZIP end record is missing.");
-  const count = tailView.getUint16(eocd + 10, true);
-  const centralSize = tailView.getUint32(eocd + 12, true);
-  const centralOffset = tailView.getUint32(eocd + 16, true);
+  let count = tailView.getUint16(eocd + 10, true);
+  let centralSize = tailView.getUint32(eocd + 12, true);
+  let centralOffset = tailView.getUint32(eocd + 16, true);
+  if (count === 0xffff || centralSize === 0xffffffff || centralOffset === 0xffffffff) {
+    const locator = eocd - 20;
+    if (locator < 0 || tailView.getUint32(locator, true) !== 0x07064b50) {
+      throw new Error("CCJZ ZIP64 locator is missing.");
+    }
+    const zip64Offset = safeZipNumber(tailView.getBigUint64(locator + 8, true), "end record offset");
+    const record = await blobBytes(blob, zip64Offset, 56);
+    const recordView = new DataView(record.buffer, record.byteOffset, record.byteLength);
+    if (recordView.getUint32(0, true) !== 0x06064b50) throw new Error("CCJZ ZIP64 end record is invalid.");
+    count = safeZipNumber(recordView.getBigUint64(32, true), "entry count");
+    centralSize = safeZipNumber(recordView.getBigUint64(40, true), "central size");
+    centralOffset = safeZipNumber(recordView.getBigUint64(48, true), "central offset");
+  }
   if (count > maxEntries) throw new Error(`CCJZ has too many entries: ${count}`);
   const central = await blobBytes(blob, centralOffset, centralSize);
   const view = new DataView(central.buffer, central.byteOffset, central.byteLength);
@@ -228,12 +346,15 @@ export async function openCcjzBlob(blob, {
     }
     const method = view.getUint16(cursor + 10, true);
     const expectedCrc = view.getUint32(cursor + 16, true);
-    const compressedSize = view.getUint32(cursor + 20, true);
-    const size = view.getUint32(cursor + 24, true);
+    const compressed32 = view.getUint32(cursor + 20, true);
+    const size32 = view.getUint32(cursor + 24, true);
     const nameLength = view.getUint16(cursor + 28, true);
     const extraLength = view.getUint16(cursor + 30, true);
     const commentLength = view.getUint16(cursor + 32, true);
-    const localOffset = view.getUint32(cursor + 42, true);
+    const offset32 = view.getUint32(cursor + 42, true);
+    const { size, compressedSize, localOffset } = zip64CentralValues(
+      central, cursor + 46 + nameLength, extraLength, size32, compressed32, offset32,
+    );
     const name = decoder.decode(central.subarray(cursor + 46, cursor + 46 + nameLength));
     validatePath(name);
     if (entries.has(name) || folded.has(name.toLowerCase())) throw new Error(`Duplicate CCJZ entry: ${name}`);
@@ -346,8 +467,234 @@ export async function decodeCcjzBlob(blob, options = {}) {
   return JSON.stringify(canonicalValue(root));
 }
 
+function boundsIntersect(left, right) {
+  return left[0] <= right[2] && left[2] >= right[0]
+    && left[1] <= right[3] && left[3] >= right[1];
+}
+
+function collectResourceRefs(value, refs = new Set()) {
+  if (Array.isArray(value)) {
+    for (const item of value) collectResourceRefs(item, refs);
+  } else if (value && typeof value === "object") {
+    for (const [key, child] of Object.entries(value)) {
+      if ((key === "resourceRef" || key.endsWith("ResourceRef")) && typeof child === "string") {
+        refs.add(child);
+      }
+      collectResourceRefs(child, refs);
+    }
+  }
+  return refs;
+}
+
+export async function openCcjzViewportSession(blob, options = {}) {
+  const reader = await openCcjzBlob(blob, options);
+  const root = JSON.parse(decoder.decode(await reader.readRoot()));
+  if (!Array.isArray(root?.entities?.scene) || root.entities.scene.length) {
+    throw new Error("Invalid CCJZ scene root.");
+  }
+  const loadedChunks = new Set();
+  const entities = new Map();
+  const resources = new Map(Object.entries(root.resources || {}));
+  const exposedIds = new Set();
+
+  async function loadResourceClosure(records) {
+    const refs = collectResourceRefs(records);
+    for (const id of refs) {
+      if (resources.has(id)) continue;
+      if (reader.manifest.resources?.[id]) {
+        resources.set(id, JSON.parse(decoder.decode(await reader.readResource(id))));
+      }
+    }
+  }
+
+  async function loadChunk(index) {
+    if (loadedChunks.has(index)) return false;
+    const descriptor = reader.manifest.sceneChunks?.[index];
+    if (!descriptor) return false;
+    const text = decoder.decode(await reader.readSceneChunk(index));
+    const records = text.split("\n").filter(Boolean).map((line) => JSON.parse(line));
+    if (records.length !== descriptor.recordCount) {
+      throw new Error(`CCJZ scene record count mismatch: ${descriptor.path}`);
+    }
+    const recordIds = records.map((record) => record.id).filter((id) => typeof id === "string");
+    if (descriptor.entityIds?.length
+      && (descriptor.entityIds.length !== recordIds.length
+        || descriptor.entityIds.some((id, offset) => id !== recordIds[offset]))) {
+      throw new Error(`CCJZ scene entityIds mismatch: ${descriptor.path}`);
+    }
+    const actualBounds = chunkSpatialMetadata(records).bounds || null;
+    if (descriptor.bounds && actualBounds
+      && (descriptor.bounds[0] > actualBounds[0] + 1e-6
+        || descriptor.bounds[1] > actualBounds[1] + 1e-6
+        || descriptor.bounds[2] < actualBounds[2] - 1e-6
+        || descriptor.bounds[3] < actualBounds[3] - 1e-6)) {
+      throw new Error(`CCJZ scene bounds are not conservative: ${descriptor.path}`);
+    }
+    for (const record of records) {
+      entities.set(record.id, record);
+      exposedIds.add(record.id);
+    }
+    await loadResourceClosure(records);
+    loadedChunks.add(index);
+    return true;
+  }
+
+  function loadedDocument() {
+    const documentData = structuredClone(root);
+    const loadedIds = new Set(entities.keys());
+    documentData.entities.scene = [...entities.values()]
+      .sort((left, right) => (left.zIndex ?? 0) - (right.zIndex ?? 0));
+    documentData.resources = Object.fromEntries([...resources.entries()].sort(([a], [b]) => a.localeCompare(b)));
+    if (documentData.hierarchy) {
+      documentData.hierarchy.roots = (documentData.hierarchy.roots || []).filter((id) => loadedIds.has(id));
+      documentData.hierarchy.children = Object.fromEntries(
+        Object.entries(documentData.hierarchy.children || {})
+          .filter(([id]) => loadedIds.has(id))
+          .map(([id, children]) => [id, children.filter((child) => loadedIds.has(child))]),
+      );
+      const children = new Set(Object.values(documentData.hierarchy.children).flat());
+      for (const id of loadedIds) if (!children.has(id) && !documentData.hierarchy.roots.includes(id)) {
+        documentData.hierarchy.roots.push(id);
+      }
+    }
+    documentData.relations = (documentData.relations || []).filter((relation) =>
+      (relation.endpoints || []).every((endpoint) => loadedIds.has(endpoint.entityId)));
+    if (documentData.orders?.reading) {
+      documentData.orders.reading = documentData.orders.reading.filter((id) => loadedIds.has(id));
+    }
+    documentData.document = documentData.document || {};
+    documentData.document.layout = {
+      ...(documentData.document.layout || {}),
+      chunkLoading: {
+        schema: "chemsema.chunk-loading.v1",
+        loadedChunks: [...loadedChunks].sort((a, b) => a - b),
+        totalChunks: reader.manifest.sceneChunks?.length || 0,
+        complete: loadedChunks.size === (reader.manifest.sceneChunks?.length || 0),
+      },
+    };
+    return documentData;
+  }
+
+  return {
+    manifest: reader.manifest,
+    documentBounds: [0, 0, Number(root.document?.page?.width || 612), Number(root.document?.page?.height || 792)],
+    async loadRegion(bounds) {
+      const region = numericBounds(bounds);
+      if (!region) throw new Error("CCJZ visible region must be [minX,minY,maxX,maxY].");
+      let newlyLoadedChunks = 0;
+      for (let index = 0; index < (reader.manifest.sceneChunks || []).length; index += 1) {
+        const descriptor = reader.manifest.sceneChunks[index];
+        if (!descriptor.bounds || boundsIntersect(descriptor.bounds, region)) {
+          if (await loadChunk(index)) newlyLoadedChunks += 1;
+        }
+      }
+      return { document: loadedDocument(), newlyLoadedChunks, ...this.stats() };
+    },
+    async materialize() {
+      for (let index = 0; index < (reader.manifest.sceneChunks || []).length; index += 1) {
+        await loadChunk(index);
+      }
+      return loadedDocument();
+    },
+    mergeEditedDocument(documentData) {
+      if (!documentData?.entities?.scene) return;
+      const currentIds = new Set(documentData.entities.scene.map((entity) => entity.id));
+      for (const id of [...entities.keys()]) if (!currentIds.has(id)) entities.delete(id);
+      for (const entity of documentData.entities.scene) {
+        entities.set(entity.id, structuredClone(entity));
+        exposedIds.add(entity.id);
+      }
+      for (const [id, resource] of Object.entries(documentData.resources || {})) {
+        resources.set(id, structuredClone(resource));
+      }
+
+      // Replace semantic indexes for the region the editor has actually
+      // seen, while retaining original cross-chunk relationships whose other
+      // endpoint is still unloaded. This makes local deletion authoritative
+      // without discarding future relationships.
+      const retainedRelations = (root.relations || []).filter((relation) =>
+        (relation.endpoints || []).some((endpoint) => !exposedIds.has(endpoint.entityId)));
+      root.relations = [
+        ...retainedRelations,
+        ...(documentData.relations || []).map((relation) => structuredClone(relation)),
+      ];
+
+      const originalHierarchy = root.hierarchy || { roots: [], children: {} };
+      const editedHierarchy = documentData.hierarchy || { roots: [], children: {} };
+      const mergedChildren = {};
+      for (const [parent, children] of Object.entries(originalHierarchy.children || {})) {
+        const retained = children.filter((child) => !exposedIds.has(parent) || !exposedIds.has(child));
+        if (retained.length) mergedChildren[parent] = retained;
+      }
+      for (const [parent, children] of Object.entries(editedHierarchy.children || {})) {
+        mergedChildren[parent] = [
+          ...(mergedChildren[parent] || []),
+          ...children,
+        ].filter((id, index, values) => values.indexOf(id) === index);
+      }
+      root.hierarchy = {
+        ...originalHierarchy,
+        ...structuredClone(editedHierarchy),
+        roots: [
+          ...(originalHierarchy.roots || []).filter((id) => !exposedIds.has(id)),
+          ...(editedHierarchy.roots || []),
+        ].filter((id, index, values) => values.indexOf(id) === index),
+        children: mergedChildren,
+      };
+
+      root.orders = root.orders || {};
+      root.orders.reading = [
+        ...((root.orders.reading || []).filter((id) => !exposedIds.has(id))),
+        ...((documentData.orders?.reading || [])),
+      ].filter((id, index, values) => values.indexOf(id) === index);
+    },
+    stats() {
+      return {
+        loadedChunks: loadedChunks.size,
+        totalChunks: reader.manifest.sceneChunks?.length || 0,
+        loadedEntities: entities.size,
+      };
+    },
+  };
+}
+
 function descriptor(path, mediaType, bytes, hash) {
   return { path, mediaType, sha256: hash, size: bytes.byteLength };
+}
+
+function numericBounds(value) {
+  return Array.isArray(value) && value.length >= 4 && value.slice(0, 4).every(Number.isFinite)
+    && value[0] <= value[2] && value[1] <= value[3] ? value.slice(0, 4) : null;
+}
+
+function entityBounds(entity) {
+  const payload = entity?.payload || {};
+  const raw = numericBounds(payload.bbox) || numericBounds(payload.boundingBox)
+    || numericBounds(payload.arrowGeometry?.boundingBox) || numericBounds(payload.geometry?.boundingBox)
+    || numericBounds(payload.boxField);
+  if (!raw) return null;
+  const [tx = 0, ty = 0] = entity.transform?.translate || [];
+  const [sx = 1, sy = 1] = entity.transform?.scale || [];
+  const angle = Number(entity.transform?.rotate || 0) * Math.PI / 180;
+  const sin = Math.sin(angle);
+  const cos = Math.cos(angle);
+  const corners = [[raw[0], raw[1]], [raw[2], raw[1]], [raw[2], raw[3]], [raw[0], raw[3]]]
+    .map(([x, y]) => [x * sx * cos - y * sy * sin + tx, x * sx * sin + y * sy * cos + ty]);
+  return corners.reduce((bounds, [x, y]) => [
+    Math.min(bounds[0], x), Math.min(bounds[1], y), Math.max(bounds[2], x), Math.max(bounds[3], y),
+  ], [Infinity, Infinity, -Infinity, -Infinity]);
+}
+
+function chunkSpatialMetadata(records) {
+  const bounds = records.map(entityBounds);
+  const union = bounds.every(Boolean) ? bounds.reduce((left, right) => [
+    Math.min(left[0], right[0]), Math.min(left[1], right[1]),
+    Math.max(left[2], right[2]), Math.max(left[3], right[3]),
+  ]) : null;
+  return {
+    ...(union ? { bounds: union } : {}),
+    entityIds: records.map((record) => record?.id).filter((id) => typeof id === "string"),
+  };
 }
 
 function validateHeader(documentData) {
@@ -359,7 +706,11 @@ function validateHeader(documentData) {
   if (!Array.isArray(documentData?.entities?.scene)) throw new Error("CCJS v0.2 requires entities.scene.");
 }
 
-export async function encodeCcjz(text, { sceneChunkRecords = 1024, attachments = [] } = {}) {
+export async function encodeCcjz(text, {
+  sceneChunkRecords = 1024,
+  attachments = [],
+  forceZip64 = false,
+} = {}) {
   if (!Number.isSafeInteger(sceneChunkRecords) || sceneChunkRecords < 1) {
     throw new Error("CCJZ scene chunk size must be a positive integer.");
   }
@@ -383,7 +734,12 @@ export async function encodeCcjz(text, { sceneChunkRecords = 1024, attachments =
     const path = `entities/scene-${String(index).padStart(6, "0")}.jsonl`;
     const bytes = encoder.encode(`${records.map((record) => JSON.stringify(canonicalValue(record))).join("\n")}\n`);
     const hash = await sha256Hex(bytes);
-    sceneChunks.push({ ...descriptor(path, "application/x-ndjson", bytes, hash), firstRecord: first, recordCount: records.length });
+    sceneChunks.push({
+      ...descriptor(path, "application/x-ndjson", bytes, hash),
+      firstRecord: first,
+      recordCount: records.length,
+      ...chunkSpatialMetadata(records),
+    });
     payloads.set(path, bytes);
   }
   const resourceDescriptors = {};
@@ -426,7 +782,7 @@ export async function encodeCcjz(text, { sceneChunkRecords = 1024, attachments =
     ["mimetype", encoder.encode(CCJZ_MIMETYPE)],
     ["manifest.json", jsonBytes(manifest)],
     ...[...payloads.entries()].sort(([left], [right]) => left.localeCompare(right)),
-  ]);
+  ], { forceZip64 });
 }
 
 async function verified(entries, entry) {
