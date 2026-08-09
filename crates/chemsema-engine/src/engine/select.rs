@@ -1282,7 +1282,11 @@ impl Engine {
     }
 
     pub fn select_at_point(&mut self, point: Point, additive: bool) {
-        let hit = self.select_hit_at_point(point);
+        let hit = self.select_hit_at_point(point).map(|hit| {
+            self.locked_ancestor_group_id_for_hit(&hit)
+                .map(|object_id| SelectHit::ArrowObject { object_id })
+                .unwrap_or(hit)
+        });
         self.state.selection = if let Some(hit) = hit {
             let mut selection = if additive {
                 self.state.selection.clone()
@@ -1548,6 +1552,35 @@ impl Engine {
         }
     }
 
+    fn selected_ancestor_group_id_for_hit(&self, hit: &SelectHit) -> Option<String> {
+        let mut ancestor_id = self.ancestor_group_id_for_hit(hit);
+        while let Some(group_id) = ancestor_id {
+            if self.state.selection.arrow_objects.contains(&group_id) {
+                return Some(group_id);
+            }
+            ancestor_id = self
+                .state
+                .document
+                .ancestor_group_id_for_scene_object(&group_id);
+        }
+        None
+    }
+
+    fn locked_ancestor_group_id_for_hit(&self, hit: &SelectHit) -> Option<String> {
+        let mut ancestor_id = self.ancestor_group_id_for_hit(hit);
+        while let Some(group_id) = ancestor_id {
+            let group = self.state.document.find_scene_object(&group_id)?;
+            if group.locked {
+                return Some(group_id);
+            }
+            ancestor_id = self
+                .state
+                .document
+                .ancestor_group_id_for_scene_object(&group_id);
+        }
+        None
+    }
+
     pub fn select_in_rect(&mut self, start: Point, end: Point, additive: bool) {
         let bounds = AxisBounds::new(start.x, start.y, end.x, end.y);
         let selection = self.collect_region_selection(
@@ -1661,6 +1694,24 @@ impl Engine {
         let Some(hit) = self.select_hit_at_point(point) else {
             return json!({ "kind": "canvas" }).to_string();
         };
+        if let Some(group_id) = self.selected_ancestor_group_id_for_hit(&hit) {
+            return json!({
+                "kind": "object",
+                "objectId": group_id,
+                "objectType": "group",
+                "selected": true,
+            })
+            .to_string();
+        }
+        if let Some(group_id) = self.locked_ancestor_group_id_for_hit(&hit) {
+            return json!({
+                "kind": "object",
+                "objectId": group_id,
+                "objectType": "group",
+                "selected": self.state.selection.arrow_objects.contains(&group_id),
+            })
+            .to_string();
+        }
         let selected = selection_contains_hit(&self.state.selection, &hit);
         match hit {
             SelectHit::TextObject { object_id } => json!({

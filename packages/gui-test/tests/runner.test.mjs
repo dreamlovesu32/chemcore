@@ -51,6 +51,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.draw-single.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
+    "scenario.core.group.locked-ancestor-transform.production",
     "scenario.core.group.nested-mixed-clipboard.production",
     "scenario.core.history.undo-redo-bond.production",
     "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
@@ -79,6 +80,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.draw-single.production",
       "scenario.core.clipboard.cross-document-mixed.production",
       "scenario.core.document.save-open-roundtrip.production",
+      "scenario.core.group.locked-ancestor-transform.production",
       "scenario.core.group.nested-mixed-clipboard.production",
       "scenario.core.history.undo-redo-bond.production",
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
@@ -97,6 +99,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.draw-single.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
+    "scenario.core.group.locked-ancestor-transform.production",
     "scenario.core.group.nested-mixed-clipboard.production",
     "scenario.core.history.undo-redo-bond.production",
     "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
@@ -117,6 +120,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.draw-single.production",
       "scenario.core.clipboard.cross-document-mixed.production",
       "scenario.core.document.save-open-roundtrip.production",
+      "scenario.core.group.locked-ancestor-transform.production",
       "scenario.core.group.nested-mixed-clipboard.production",
       "scenario.core.history.undo-redo-bond.production",
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
@@ -142,14 +146,15 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "locked-partial-delete-production.json"),
     join(guiTestsDir, "scenarios", "core", "locked-molecule-arrow-transform-production.json"),
     join(guiTestsDir, "scenarios", "core", "locked-transform-production.json"),
+    join(guiTestsDir, "scenarios", "core", "locked-group-ancestor-transform-production.json"),
     join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json"),
     join(guiTestsDir, "scenarios", "core", "save-open-roundtrip-production.json"),
   ];
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 25);
-  assert.equal(result.summary.scenarios, 12);
+  assert.equal(result.summary.entries, 26);
+  assert.equal(result.summary.scenarios, 13);
   assert.equal(result.summary.gaps, 0);
 });
 

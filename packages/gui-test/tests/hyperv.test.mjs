@@ -392,6 +392,9 @@ test("production entity targets prefer a render root and fall back to one visibl
   assert.match(source, /visibleRenderRoots/);
   assert.match(source, /visibleRenderRoots\.length \|\| \(visibleElements\.length \? 1 : 0\)/);
   assert.match(source, /hasAttribute\('data-renderer'\) && visibleCandidate/);
+  assert.match(source, /getAttribute\('data-object-type'\) === 'group'/);
+  assert.match(source, /querySelectorAll\('\[data-role\^="document-"\], \[data-bond-id\], \[data-node-id\]'\)/);
+  assert.match(source, /pointerElement\.getBoundingClientRect\(\)/);
   assert.match(source, /screenRects\.flatMap/);
   assert.match(source, /worldPoints\.push/);
 });

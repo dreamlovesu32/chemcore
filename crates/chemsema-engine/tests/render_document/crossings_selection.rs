@@ -1344,6 +1344,20 @@ fn grouped_scene_object_child_click_selects_child_not_group() {
 
     assert!(engine.select_component_at_point(Point::new(20.0, 15.0), false));
     assert_eq!(engine.state().selection.arrow_objects, vec!["grp_1"]);
+    let grouped_hit: serde_json::Value =
+        serde_json::from_str(&engine.context_hit_test_json(Point::new(20.0, 15.0))).unwrap();
+    assert_eq!(grouped_hit["objectId"], "grp_1");
+    assert_eq!(grouped_hit["objectType"], "group");
+    assert_eq!(grouped_hit["selected"], true);
+
+    assert!(engine.set_selection_locked(true));
+    engine.clear_selection();
+    let locked_hit: serde_json::Value =
+        serde_json::from_str(&engine.context_hit_test_json(Point::new(20.0, 15.0))).unwrap();
+    assert_eq!(locked_hit["objectId"], "grp_1");
+    assert_eq!(locked_hit["selected"], false);
+    engine.select_at_point(Point::new(20.0, 15.0), false);
+    assert_eq!(engine.state().selection.arrow_objects, vec!["grp_1"]);
 }
 
 #[test]

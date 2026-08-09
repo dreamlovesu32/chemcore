@@ -117,6 +117,7 @@ export class ProductionBlackBoxDriver {
       "editor.context-menu",
       "editor.group.group-ungroup",
       "editor.group.nested",
+      "editor.group.locked-ancestor",
       "editor.clipboard.copy-paste",
       "editor.clipboard.cross-document",
       "editor.selection.delete",

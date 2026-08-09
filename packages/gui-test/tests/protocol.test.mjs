@@ -14,6 +14,7 @@ const regionAdditiveScenarioPath = join(guiTestsDir, "scenarios", "core", "regio
 const crossDocumentClipboardScenarioPath = join(guiTestsDir, "scenarios", "core", "cross-document-clipboard-production.json");
 const lockedTransformScenarioPath = join(guiTestsDir, "scenarios", "core", "locked-transform-production.json");
 const lockedMoleculeArrowTransformScenarioPath = join(guiTestsDir, "scenarios", "core", "locked-molecule-arrow-transform-production.json");
+const lockedGroupAncestorTransformScenarioPath = join(guiTestsDir, "scenarios", "core", "locked-group-ancestor-transform-production.json");
 
 test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(scenarioPath);
@@ -24,6 +25,7 @@ test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(crossDocumentClipboardScenarioPath);
   await readValidatedDocument(lockedTransformScenarioPath);
   await readValidatedDocument(lockedMoleculeArrowTransformScenarioPath);
+  await readValidatedDocument(lockedGroupAncestorTransformScenarioPath);
   await readValidatedDocument(join(guiTestsDir, "coverage", "registry-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "coverage", "impact-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "environments", "windows-gui-worker-current.json"));

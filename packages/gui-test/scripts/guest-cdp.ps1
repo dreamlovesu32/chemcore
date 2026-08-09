@@ -384,7 +384,18 @@ try {
     root = scopes[0];
   }
   const matches = find(target, root).map(element => {
-    const rect = element.getBoundingClientRect();
+    const pointerElement = target.strategy === 'entity-id'
+      && element.getAttribute('data-object-type') === 'group'
+      ? [...element.querySelectorAll('[data-role^="document-"], [data-bond-id], [data-node-id]')]
+        .find(candidate => {
+          const candidateRect = candidate.getBoundingClientRect();
+          const candidateStyle = getComputedStyle(candidate);
+          return (candidateRect.width > 0 || candidateRect.height > 0)
+            && candidateStyle.visibility !== 'hidden'
+            && candidateStyle.display !== 'none';
+        }) || element
+      : element;
+    const rect = pointerElement.getBoundingClientRect();
     const style = getComputedStyle(element);
     return {
       tag: element.tagName.toLowerCase(),

@@ -1619,6 +1619,85 @@ mod tests {
         assert_ne!(points(&engine, &second_id), second_before);
     }
 
+    #[test]
+    fn locked_group_ancestor_blocks_descendant_motion_in_mixed_pointer_drag() {
+        let mut engine = Engine::new();
+        let first_id = engine
+            .add_arrow_between(Point::new(10.0, 20.0), Point::new(40.0, 20.0))
+            .expect("first grouped arrow is created");
+        let second_id = engine
+            .add_arrow_between(Point::new(10.0, 40.0), Point::new(40.0, 40.0))
+            .expect("second grouped arrow is created");
+        engine.state.selection = SelectionState {
+            arrow_objects: vec![first_id.clone(), second_id.clone()],
+            ..SelectionState::default()
+        };
+        assert!(engine.group_selection());
+        let group_id = engine.state.selection.arrow_objects[0].clone();
+        assert!(engine.set_selection_locked(true));
+
+        let editable_id = engine
+            .add_arrow_between(Point::new(70.0, 60.0), Point::new(100.0, 60.0))
+            .expect("editable root arrow is created");
+        let points = |engine: &Engine, object_id: &str| {
+            engine
+                .state
+                .document
+                .find_scene_object(object_id)
+                .and_then(|object| object.payload.extra.get("points"))
+                .cloned()
+                .expect("arrow points exist")
+        };
+        let first_before = points(&engine, &first_id);
+        let second_before = points(&engine, &second_id);
+        let editable_before = points(&engine, &editable_id);
+        let group_before = engine
+            .state
+            .document
+            .find_scene_object(&group_id)
+            .expect("group exists")
+            .transform
+            .clone();
+
+        assert!(engine.select_all());
+        assert!(engine.begin_selection_move_at_point(Point::new(85.0, 60.0), false, false));
+        assert!(engine.finish_selection_move(Point::new(97.0, 60.0), true));
+
+        assert_eq!(points(&engine, &first_id), first_before);
+        assert_eq!(points(&engine, &second_id), second_before);
+        assert_eq!(
+            engine
+                .state
+                .document
+                .find_scene_object(&group_id)
+                .expect("group remains")
+                .transform,
+            group_before
+        );
+        assert_ne!(points(&engine, &editable_id), editable_before);
+
+        assert!(engine.undo());
+        engine.state.selection = SelectionState {
+            arrow_objects: vec![group_id.clone()],
+            ..SelectionState::default()
+        };
+        assert!(engine.set_selection_locked(false));
+        assert!(engine.select_all());
+        assert!(engine.begin_selection_move_at_point(Point::new(85.0, 60.0), false, false));
+        assert!(engine.finish_selection_move(Point::new(97.0, 60.0), true));
+
+        assert_ne!(
+            engine
+                .state
+                .document
+                .find_scene_object(&group_id)
+                .expect("unlocked group remains")
+                .transform,
+            group_before
+        );
+        assert_ne!(points(&engine, &editable_id), editable_before);
+    }
+
     fn distance_annotation_engine() -> Engine {
         let source = r#"<CDXML BondLength="14.4"><page id="1">
           <fragment id="10"><n id="101" p="40 40"/><n id="102" p="60 40"/><b id="103" B="101" E="102"/></fragment>
