@@ -109,6 +109,7 @@ export class ProductionBlackBoxDriver {
       "gui.public-input",
       "editor.bond.draw",
       "editor.arrow.draw",
+      "editor.arrow.properties",
       "editor.selection.select-all",
       "editor.selection.region",
       "editor.selection.additive",

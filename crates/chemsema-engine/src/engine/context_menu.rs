@@ -494,6 +494,16 @@ impl Engine {
         items: &mut Vec<JsonValue>,
         selected_types: &BTreeSet<&str>,
     ) {
+        if selected_types.len() == 1 && selected_types.contains("line") {
+            items.extend([
+                separator(),
+                self.line_style_menu(),
+                separator(),
+                self.arrowheads_menu(),
+            ]);
+        } else if selected_types.len() == 1 && selected_types.contains("curve") {
+            items.extend([separator(), self.line_style_menu()]);
+        }
         items.extend([
             separator(),
             item("Bring Forward", "order", "bring-forward"),

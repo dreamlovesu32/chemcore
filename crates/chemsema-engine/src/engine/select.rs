@@ -1637,6 +1637,12 @@ impl Engine {
             }
         }
         for entry in self.state.document.editable_fragments() {
+            if entry.object.id == "obj_editor_molecule"
+                && entry.fragment.nodes.is_empty()
+                && entry.fragment.bonds.is_empty()
+            {
+                continue;
+            }
             selection.molecule_objects.push(entry.object.id.clone());
             selection
                 .nodes

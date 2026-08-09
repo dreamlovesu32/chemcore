@@ -119,6 +119,10 @@ export function createCanvasContextMenuHost(options) {
     button.dataset.hasSubmenu = item.submenu?.length ? "true" : "false";
     button.disabled = !!item.disabled;
     button.setAttribute("role", "menuitem");
+    button.setAttribute("aria-label", item.label || "");
+    if (item.submenu?.length) {
+      button.setAttribute("aria-haspopup", "menu");
+    }
     if (item.checked) {
       button.classList.add("is-checked");
       button.setAttribute("aria-checked", "true");

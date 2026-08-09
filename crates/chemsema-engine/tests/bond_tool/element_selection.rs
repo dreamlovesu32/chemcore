@@ -993,6 +993,108 @@ fn selected_arrow_style_updates_from_arrow_toolbar_options() {
 }
 
 #[test]
+fn multi_arrow_line_and_endpoint_properties_roundtrip_through_history() {
+    fn assert_arrow_properties(engine: &Engine, expected_bold: bool, expected_head: &str) {
+        let arrows = engine
+            .state()
+            .document
+            .objects
+            .iter()
+            .filter(|object| object.object_type == "line")
+            .collect::<Vec<_>>();
+        assert_eq!(arrows.len(), 2);
+        for arrow in arrows {
+            let arrow_head = arrow
+                .payload
+                .extra
+                .get("arrowHead")
+                .expect("arrow should retain its arrowHead payload");
+            assert_eq!(
+                arrow_head.get("bold").and_then(|value| value.as_bool()),
+                Some(expected_bold),
+                "{} bold state",
+                arrow.id
+            );
+            assert_eq!(
+                arrow_head.get("head").and_then(|value| value.as_str()),
+                Some(expected_head),
+                "{} endpoint state",
+                arrow.id
+            );
+        }
+    }
+
+    fn assert_checked_menu_value(engine: &Engine, label: &str, command: &str, value: &str) {
+        let menu: serde_json::Value = serde_json::from_str(
+            &engine.context_menu_json(r#"{"kind":"object","objectId":"obj_line_1"}"#, false),
+        )
+        .expect("context menu should be valid JSON");
+        let submenu = menu
+            .as_array()
+            .and_then(|items| {
+                items.iter().find(|item| {
+                    item.get("label").and_then(serde_json::Value::as_str) == Some(label)
+                })
+            })
+            .and_then(|item| item.get("submenu"))
+            .and_then(serde_json::Value::as_array)
+            .unwrap_or_else(|| {
+                panic!("{label} submenu should be available for two arrows: {menu}")
+            });
+        assert!(submenu.iter().any(|item| {
+            item.get("command").and_then(serde_json::Value::as_str) == Some(command)
+                && item.get("value").and_then(serde_json::Value::as_str) == Some(value)
+                && item.get("checked").and_then(serde_json::Value::as_bool) == Some(true)
+        }));
+    }
+
+    let mut engine = Engine::new();
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Arrow,
+        ..ToolState::default()
+    });
+    drag(&mut engine, Point::new(10.0, 20.0), Point::new(90.0, 20.0));
+    drag(&mut engine, Point::new(10.0, 60.0), Point::new(90.0, 60.0));
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Select,
+        ..ToolState::default()
+    });
+    assert!(engine.select_all());
+    assert!(
+        engine.state().selection.molecule_objects.is_empty(),
+        "select-all must not inject the default invisible empty editor molecule into a graphic-only selection"
+    );
+    assert_checked_menu_value(&engine, "Line Style", "line-style", "plain");
+    assert_checked_menu_value(&engine, "Arrowheads", "arrow-endpoint", "head:full");
+
+    assert!(engine.apply_line_style_to_selection("bold"));
+    assert_arrow_properties(&engine, true, "full");
+    assert_checked_menu_value(&engine, "Line Style", "line-style", "bold");
+    assert!(engine.apply_arrow_options_to_selection(
+        ArrowVariant::Solid,
+        ArrowHeadSize::Small,
+        ArrowCurve::Arc270,
+        ArrowEndpointStyle::Left,
+        ArrowEndpointStyle::None,
+        true,
+        false,
+        true,
+        ArrowNoGo::None,
+    ));
+    assert_arrow_properties(&engine, true, "half-left");
+    assert_checked_menu_value(&engine, "Arrowheads", "arrow-endpoint", "head:left");
+
+    assert!(engine.undo());
+    assert_arrow_properties(&engine, true, "full");
+    assert!(engine.undo());
+    assert_arrow_properties(&engine, false, "full");
+    assert!(engine.redo());
+    assert_arrow_properties(&engine, true, "full");
+    assert!(engine.redo());
+    assert_arrow_properties(&engine, true, "half-left");
+}
+
+#[test]
 fn curved_arrow_tool_stores_curve_and_renders_arc_segments() {
     let mut engine = Engine::new();
     engine.set_tool_state(ToolState {
