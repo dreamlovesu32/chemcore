@@ -978,6 +978,7 @@ function closeColorPickers(except = null) {
 async function handleSecondaryToolbarValue(value, options) {
   const { editorState } = options;
   let arrowOptionChanged = false;
+  let arrowPropertyPatch = null;
   await restoreSecondaryToolbarToolIfDeleteIsTemporary(options);
   if (editorState.elementPlacementActive && !value?.startsWith("element-symbol-")) {
     editorState.elementPlacementActive = false;
@@ -1044,6 +1045,7 @@ async function handleSecondaryToolbarValue(value, options) {
     editorState.arrowTail = false;
     editorState.arrowNoGo = value === "arrow-type-nogo-cross" ? "cross" : "hash";
     editorState.arrowBold = false;
+    arrowPropertyPatch = arrowStylePatchFromState(editorState);
     arrowOptionChanged = true;
   } else if (value?.startsWith("arrow-type-")) {
     const previousArrowType = editorState.arrowType;
@@ -1055,50 +1057,61 @@ async function handleSecondaryToolbarValue(value, options) {
       editorState.arrowHeadSize = "small";
     }
     normalizeArrowToolbarStyle(editorState);
+    arrowPropertyPatch = arrowStylePatchFromState(editorState);
     arrowOptionChanged = true;
   } else if (value?.startsWith("arrow-size-")) {
     editorState.arrowHeadSize = value.replace("arrow-size-", "");
     normalizeArrowToolbarStyle(editorState);
+    arrowPropertyPatch = { headSize: editorState.arrowHeadSize };
     arrowOptionChanged = true;
   } else if (value?.startsWith("arrow-curve-")) {
     editorState.arrowCurve = value.replace("arrow-curve-", "");
     normalizeCurvedArrowStyle(editorState);
+    arrowPropertyPatch = { curve: editorState.arrowCurve };
     arrowOptionChanged = true;
   } else if (value === "arrow-line") {
     editorState.arrowHeadStyle = "none";
     editorState.arrowTailStyle = "none";
     editorState.arrowHead = false;
     editorState.arrowTail = false;
+    arrowPropertyPatch = { headStyle: "none", tailStyle: "none" };
     arrowOptionChanged = true;
   } else if (value === "arrow-head") {
     editorState.arrowHeadStyle = editorState.arrowHeadStyle === "full" ? "none" : "full";
     editorState.arrowHead = editorState.arrowHeadStyle !== "none";
+    arrowPropertyPatch = { headStyle: editorState.arrowHeadStyle };
     arrowOptionChanged = true;
   } else if (value === "arrow-tail") {
     editorState.arrowTailStyle = editorState.arrowTailStyle === "full" ? "none" : "full";
     editorState.arrowTail = editorState.arrowTailStyle !== "none";
+    arrowPropertyPatch = { tailStyle: editorState.arrowTailStyle };
     arrowOptionChanged = true;
   } else if (value === "arrow-head-left" || value === "arrow-head-right") {
     const next = value === "arrow-head-left" ? "left" : "right";
     const shouldCancel = editorState.arrowHeadStyle === next;
     editorState.arrowHeadStyle = shouldCancel ? "full" : next;
     normalizeArrowToolbarStyle(editorState);
+    arrowPropertyPatch = { headStyle: editorState.arrowHeadStyle };
     arrowOptionChanged = true;
   } else if (value === "arrow-tail-left" || value === "arrow-tail-right") {
     const next = value === "arrow-tail-left" ? "left" : "right";
     editorState.arrowTailStyle = editorState.arrowTailStyle === next ? "none" : next;
     editorState.arrowTail = editorState.arrowTailStyle !== "none";
+    arrowPropertyPatch = { tailStyle: editorState.arrowTailStyle };
     arrowOptionChanged = true;
   } else if (value === "arrow-head-full") {
     editorState.arrowHeadStyle = "full";
     normalizeArrowToolbarStyle(editorState);
+    arrowPropertyPatch = { headStyle: "full" };
     arrowOptionChanged = true;
   } else if (value === "arrow-nogo-cross" || value === "arrow-nogo-hash") {
     const next = value === "arrow-nogo-cross" ? "cross" : "hash";
     editorState.arrowNoGo = editorState.arrowNoGo === next ? "none" : next;
+    arrowPropertyPatch = { noGo: editorState.arrowNoGo };
     arrowOptionChanged = true;
   } else if (value === "arrow-bold") {
     editorState.arrowBold = !editorState.arrowBold;
+    arrowPropertyPatch = { bold: editorState.arrowBold };
     arrowOptionChanged = true;
   } else if (value?.startsWith("bracket-kind-")) {
     editorState.bracketKind = value.replace("bracket-kind-", "");
@@ -1173,11 +1186,23 @@ async function handleSecondaryToolbarValue(value, options) {
   }
   await options.syncEngineToolState();
   if (arrowOptionChanged) {
-    await options.applyArrowOptionsToSelection();
+    await options.applyArrowOptionsToSelection(arrowPropertyPatch);
   }
   options.renderSecondaryToolbar();
   options.syncCanvasCursor();
   options.focusActiveTextEditor();
+}
+
+function arrowStylePatchFromState(editorState) {
+  return {
+    variant: editorState.arrowType,
+    headSize: editorState.arrowHeadSize,
+    curve: editorState.arrowCurve,
+    headStyle: editorState.arrowHeadStyle,
+    tailStyle: editorState.arrowTailStyle,
+    noGo: editorState.arrowNoGo,
+    bold: editorState.arrowBold,
+  };
 }
 
 function shapeSelectionFromToolbarValue(value) {

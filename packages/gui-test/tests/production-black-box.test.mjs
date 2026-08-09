@@ -217,3 +217,36 @@ test("production artifact collection fails closed on a malformed performance tra
   });
   await assert.rejects(driver.collectArtifacts(), /performance trace is not valid bounded gzip JSON/);
 });
+
+test("failed document inspection retains the transferred bytes and bounded diagnostic", async () => {
+  const artifacts = ["final-screenshot.png", "final-state.json", "final-dom.html", "performance-trace.json.gz", "webview.log"];
+  const driver = new ProductionBlackBoxDriver({
+    coordinator: {
+      async cdpBridge(request) {
+        return {
+          schema: "chemsema.gui.guest-artifact-export.v1",
+          artifactId: request.artifactId,
+          artifacts: artifacts.map((name) => ({ name, truncated: false })),
+        };
+      },
+      async fetchArtifacts() {
+        return artifacts.map((name) => ({
+          name,
+          bytes: name === "performance-trace.json.gz"
+            ? gzipSync(Buffer.from('{"traceEvents":[{"name":"test"}]}'))
+            : Buffer.from(name),
+        }));
+      },
+    },
+  });
+  driver.savedDocument = {
+    transfer: { bytes: Buffer.from('{"schema":"chemsema.ccjs.v0.2"}'), size: 34, sha256: "a".repeat(64) },
+    reports: null,
+    inspectionError: new Error("chemical validation failed"),
+  };
+  const payloads = await driver.collectArtifacts();
+  assert(payloads.some((artifact) => artifact.name === "saved-document.ccjs"));
+  const diagnostic = payloads.find((artifact) => artifact.name === "saved-document-inspect-error.json");
+  assert(diagnostic);
+  assert.match(diagnostic.bytes.toString("utf8"), /chemical validation failed/);
+});

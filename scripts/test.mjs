@@ -27,6 +27,7 @@ run(process.execPath, [
   "scripts/tests/ccjs-v02-view.test.mjs",
   "scripts/tests/engine-host-history.test.mjs",
   "scripts/tests/editor-command-history.test.mjs",
+  "scripts/tests/editor-arrow-properties.test.mjs",
   "scripts/tests/link-interaction.test.mjs",
   "scripts/tests/nmr-prediction-host.test.mjs",
   "scripts/tests/nmr-prediction-provider.test.mjs",

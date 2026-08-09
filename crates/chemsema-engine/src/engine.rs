@@ -48,10 +48,11 @@ mod tlc;
 pub(crate) use self::context_styles::expand_complete_labels_in_fragment;
 
 pub use self::command::{
-    AnnotationPropertiesPatch, ChemicalAnalysisFormat, CommandAnchor, CommandDelta,
-    CommandDoubleBond, CommandResult, CommandTargetDelta, CommandTargetSet, CommandTargets,
-    DocumentCommandFormat, EditorCommand, FocusedDeleteSource, HistoryEntry, HistorySnapshot,
-    ObjectSettingsPatch, TextCommandContent, TextCommandDisplayMode, TextEditCommandTarget,
+    AnnotationPropertiesPatch, ArrowStylePatch, ChemicalAnalysisFormat, CommandAnchor,
+    CommandDelta, CommandDoubleBond, CommandResult, CommandTargetDelta, CommandTargetSet,
+    CommandTargets, DocumentCommandFormat, EditorCommand, FocusedDeleteSource, HistoryEntry,
+    HistorySnapshot, ObjectSettingsPatch, TextCommandContent, TextCommandDisplayMode,
+    TextEditCommandTarget,
 };
 pub use self::patch::{DocumentPatch, SceneEntityPatch};
 pub use self::spatial_index::SpatialQueryResult;
@@ -2238,6 +2239,7 @@ fn editor_command_is_style(command: &EditorCommand) -> bool {
         command,
         EditorCommand::ApplyArrowStyle { .. }
             | EditorCommand::ApplyArrowEndpoints { .. }
+            | EditorCommand::ApplyArrowStylePatch { .. }
             | EditorCommand::ApplyShapeStyle { .. }
             | EditorCommand::ApplyBracketKind { .. }
             | EditorCommand::ApplyOrbitalTemplate { .. }
@@ -2288,6 +2290,7 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::MoveChromatographyMark { .. } => "move-chromatography-mark",
         EditorCommand::ApplyArrowStyle { .. } => "apply-arrow-style",
         EditorCommand::ApplyArrowEndpoints { .. } => "apply-arrow-endpoints",
+        EditorCommand::ApplyArrowStylePatch { .. } => "apply-arrow-style-patch",
         EditorCommand::CycleBondStyle { .. } => "cycle-bond-style",
         EditorCommand::DeleteSelection => "delete-selection",
         EditorCommand::SetObjectsLocked { .. } => "set-objects-locked",

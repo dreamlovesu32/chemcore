@@ -1065,6 +1065,14 @@ fn multi_arrow_line_and_endpoint_properties_roundtrip_through_history() {
         "select-all must not inject the default invisible empty editor molecule into a graphic-only selection"
     );
     assert_checked_menu_value(&engine, "Line Style", "line-style", "plain");
+    assert_checked_menu_value(&engine, "Arrow Type", "arrow-property", "variant:solid");
+    assert_checked_menu_value(
+        &engine,
+        "Arrow Head Size",
+        "arrow-property",
+        "headSize:small",
+    );
+    assert_checked_menu_value(&engine, "No-Go Mark", "arrow-property", "noGo:none");
     assert_checked_menu_value(&engine, "Arrowheads", "arrow-endpoint", "head:full");
 
     assert!(engine.apply_line_style_to_selection("bold"));
@@ -1092,6 +1100,31 @@ fn multi_arrow_line_and_endpoint_properties_roundtrip_through_history() {
     assert_arrow_properties(&engine, true, "full");
     assert!(engine.redo());
     assert_arrow_properties(&engine, true, "half-left");
+
+    assert!(engine.select_all());
+    assert!(
+        engine.apply_arrow_style_patch_to_selection(ArrowStylePatch {
+            variant: Some(ArrowVariant::CurvedMirror),
+            head_size: Some(ArrowHeadSize::Large),
+            curve: Some(ArrowCurve::Arc120),
+            no_go: Some(ArrowNoGo::Hash),
+            ..ArrowStylePatch::default()
+        })
+    );
+    assert_checked_menu_value(
+        &engine,
+        "Arrow Type",
+        "arrow-property",
+        "variant:curved-mirror",
+    );
+    assert_checked_menu_value(
+        &engine,
+        "Arrow Head Size",
+        "arrow-property",
+        "headSize:large",
+    );
+    assert_checked_menu_value(&engine, "Arrow Curve", "arrow-property", "curve:120");
+    assert_checked_menu_value(&engine, "No-Go Mark", "arrow-property", "noGo:hash");
 }
 
 #[test]
@@ -1190,6 +1223,153 @@ fn locked_arrow_properties_are_immutable_in_a_mixed_selection() {
         arrow_state(&engine, "obj_line_2"),
         (true, "half-right".into(), "half-left".into())
     );
+}
+
+#[test]
+fn arrow_style_patches_preserve_unrelated_fields_and_locked_objects() {
+    fn arrow_state(
+        engine: &Engine,
+        object_id: &str,
+    ) -> (String, f64, f64, String, String, bool, String) {
+        let object = engine
+            .state()
+            .document
+            .find_scene_object(object_id)
+            .expect("arrow should remain in the document");
+        let arrow = object
+            .payload
+            .extra
+            .get("arrowHead")
+            .expect("arrow should retain its arrowHead payload");
+        (
+            arrow
+                .get("kind")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("solid")
+                .into(),
+            arrow
+                .get("curve")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.0),
+            arrow
+                .get("length")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.0),
+            arrow
+                .get("head")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("none")
+                .into(),
+            arrow
+                .get("tail")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("none")
+                .into(),
+            arrow
+                .get("bold")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+            arrow
+                .get("noGo")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("none")
+                .into(),
+        )
+    }
+
+    let mut engine = Engine::new();
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Arrow,
+        ..ToolState::default()
+    });
+    drag(&mut engine, Point::new(10.0, 20.0), Point::new(90.0, 20.0));
+    drag(&mut engine, Point::new(10.0, 60.0), Point::new(90.0, 60.0));
+    engine.set_tool_state(select_tool());
+
+    engine.select_at_point(Point::new(50.0, 60.0), false);
+    assert!(engine.apply_arrow_endpoints_to_selection(
+        Some(ArrowEndpointStyle::Right),
+        Some(ArrowEndpointStyle::Left),
+    ));
+    assert!(
+        engine.apply_arrow_style_patch_to_selection(ArrowStylePatch {
+            no_go: Some(ArrowNoGo::Hash),
+            ..ArrowStylePatch::default()
+        })
+    );
+
+    engine.select_at_point(Point::new(50.0, 20.0), false);
+    assert!(engine.set_selection_locked(true));
+    assert!(engine.select_all());
+
+    let locked_initial = arrow_state(&engine, "obj_line_1");
+    assert!(
+        engine.apply_arrow_style_patch_to_selection(ArrowStylePatch {
+            head_size: Some(ArrowHeadSize::Large),
+            ..ArrowStylePatch::default()
+        })
+    );
+    assert_eq!(arrow_state(&engine, "obj_line_1"), locked_initial);
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (
+            "solid".into(),
+            0.0,
+            22.5,
+            "half-right".into(),
+            "half-left".into(),
+            false,
+            "hash".into()
+        )
+    );
+
+    assert!(
+        engine.apply_arrow_style_patch_to_selection(ArrowStylePatch {
+            variant: Some(ArrowVariant::CurvedMirror),
+            curve: Some(ArrowCurve::Arc120),
+            ..ArrowStylePatch::default()
+        })
+    );
+    assert_eq!(arrow_state(&engine, "obj_line_1"), locked_initial);
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (
+            "curved-mirror".into(),
+            120.0,
+            22.5,
+            "half-right".into(),
+            "half-left".into(),
+            false,
+            "hash".into()
+        )
+    );
+
+    assert!(engine.apply_line_style_to_selection("bold"));
+    assert_eq!(arrow_state(&engine, "obj_line_1"), locked_initial);
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (
+            "curved-mirror".into(),
+            120.0,
+            45.0,
+            "half-right".into(),
+            "half-left".into(),
+            true,
+            "hash".into()
+        )
+    );
+
+    assert!(engine.undo());
+    assert!(!arrow_state(&engine, "obj_line_2").5);
+    assert!(engine.undo());
+    assert_eq!(arrow_state(&engine, "obj_line_2").0, "solid");
+    assert!(engine.undo());
+    assert_eq!(arrow_state(&engine, "obj_line_2").2, 10.0);
+    assert!(engine.redo());
+    assert!(engine.redo());
+    assert!(engine.redo());
+    assert_eq!(arrow_state(&engine, "obj_line_1"), locked_initial);
+    assert_eq!(arrow_state(&engine, "obj_line_2").2, 45.0);
 }
 
 #[test]

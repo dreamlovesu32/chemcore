@@ -9,6 +9,7 @@ export class WasmEngine {
     applyArrowEndpointOptionsToSelection(variant: string, head_size: string, curve: string, head_style: string, tail_style: string, no_go: string, bold: boolean): boolean;
     applyArrowEndpointPatchToSelection(head_style: string, tail_style: string): boolean;
     applyArrowOptionsToSelection(variant: string, head_size: string, head: boolean, tail: boolean, bold: boolean): boolean;
+    applyArrowStylePatchToSelection(patch_json: string): boolean;
     applyBondStyleToSelection(style: string): boolean;
     applyBracketKindToSelection(kind: string): boolean;
     applyBracketLabelText(bracket_id: string, session_json: string): boolean;
@@ -185,6 +186,7 @@ export interface InitOutput {
     readonly wasmengine_applyArrowEndpointOptionsToSelection: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => number;
     readonly wasmengine_applyArrowEndpointPatchToSelection: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly wasmengine_applyArrowOptionsToSelection: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
+    readonly wasmengine_applyArrowStylePatchToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyBondStyleToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyBracketKindToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyBracketLabelText: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];

@@ -498,7 +498,10 @@ impl Engine {
             items.extend([
                 separator(),
                 self.line_style_menu(),
-                separator(),
+                self.arrow_type_menu(),
+                self.arrow_head_size_menu(),
+                self.arrow_curve_menu(),
+                self.arrow_no_go_menu(),
                 self.arrowheads_menu(),
             ]);
         } else if selected_types.len() == 1 && selected_types.contains("curve") {
@@ -582,7 +585,10 @@ impl Engine {
                 items.extend([
                     separator(),
                     self.line_style_menu(),
-                    separator(),
+                    self.arrow_type_menu(),
+                    self.arrow_head_size_menu(),
+                    self.arrow_curve_menu(),
+                    self.arrow_no_go_menu(),
                     self.arrowheads_menu(),
                     separator(),
                     order_subitems_flat(),
@@ -1114,6 +1120,22 @@ impl Engine {
             self.selected_uniform_arrow_endpoint("head").as_deref(),
             self.selected_uniform_arrow_endpoint("tail").as_deref(),
         )
+    }
+
+    fn arrow_type_menu(&self) -> JsonValue {
+        arrow_type_menu(self.selected_uniform_arrow_kind().as_deref())
+    }
+
+    fn arrow_head_size_menu(&self) -> JsonValue {
+        arrow_head_size_menu(self.selected_uniform_arrow_head_size().as_deref())
+    }
+
+    fn arrow_curve_menu(&self) -> JsonValue {
+        arrow_curve_menu(self.selected_uniform_arrow_curve().as_deref())
+    }
+
+    fn arrow_no_go_menu(&self) -> JsonValue {
+        arrow_no_go_menu(self.selected_uniform_arrow_no_go().as_deref())
     }
 
     fn bond_type_menu(&self) -> JsonValue {
@@ -1850,6 +1872,85 @@ impl Engine {
         )
     }
 
+    fn selected_uniform_arrow_kind(&self) -> Option<String> {
+        uniform_value(
+            self.selected_scene_objects()
+                .into_iter()
+                .filter(|object| object.object_type == "line")
+                .map(|object| {
+                    object
+                        .payload
+                        .extra
+                        .get("arrowHead")
+                        .and_then(|arrow| arrow.get("kind"))
+                        .and_then(JsonValue::as_str)
+                        .unwrap_or("solid")
+                        .to_string()
+                })
+                .collect(),
+        )
+    }
+
+    fn selected_uniform_arrow_head_size(&self) -> Option<String> {
+        uniform_value(
+            self.selected_scene_objects()
+                .into_iter()
+                .filter(|object| object.object_type == "line")
+                .map(arrow_object_head_size_name)
+                .collect(),
+        )
+    }
+
+    fn selected_uniform_arrow_curve(&self) -> Option<String> {
+        uniform_value(
+            self.selected_scene_objects()
+                .into_iter()
+                .filter(|object| object.object_type == "line")
+                .map(|object| {
+                    let curve = object
+                        .payload
+                        .extra
+                        .get("arrowHead")
+                        .and_then(|arrow| arrow.get("curve"))
+                        .and_then(JsonValue::as_f64)
+                        .unwrap_or(0.0)
+                        .abs();
+                    if curve >= 260.0 {
+                        "270"
+                    } else if curve >= 150.0 {
+                        "180"
+                    } else if curve >= 105.0 {
+                        "120"
+                    } else if curve >= 60.0 {
+                        "90"
+                    } else {
+                        "none"
+                    }
+                    .to_string()
+                })
+                .collect(),
+        )
+    }
+
+    fn selected_uniform_arrow_no_go(&self) -> Option<String> {
+        uniform_value(
+            self.selected_scene_objects()
+                .into_iter()
+                .filter(|object| object.object_type == "line")
+                .map(|object| {
+                    object
+                        .payload
+                        .extra
+                        .get("arrowHead")
+                        .and_then(|arrow| arrow.get("noGo"))
+                        .and_then(JsonValue::as_str)
+                        .unwrap_or("none")
+                        .to_string()
+                })
+                .collect(),
+        )
+    }
+
     fn selected_uniform_bond_style(&self) -> Option<String> {
         uniform_value(
             self.selected_bonds()
@@ -2248,6 +2349,140 @@ fn line_style_menu(current: Option<&str>) -> JsonValue {
             checked_item("Plain", "line-style", "plain", current == Some("plain")),
             checked_item("Dashed", "line-style", "dashed", current == Some("dashed")),
             checked_item("Bold", "line-style", "bold", current == Some("bold")),
+        ],
+    )
+}
+
+fn arrow_type_menu(current: Option<&str>) -> JsonValue {
+    submenu(
+        "Arrow Type",
+        vec![
+            checked_item(
+                "Solid",
+                "arrow-property",
+                "variant:solid",
+                current == Some("solid"),
+            ),
+            checked_item(
+                "Curved",
+                "arrow-property",
+                "variant:curved",
+                current == Some("curved"),
+            ),
+            checked_item(
+                "Mirrored Curved",
+                "arrow-property",
+                "variant:curved-mirror",
+                current == Some("curved-mirror"),
+            ),
+            checked_item(
+                "Hollow",
+                "arrow-property",
+                "variant:hollow",
+                current == Some("hollow"),
+            ),
+            checked_item(
+                "Open Hollow",
+                "arrow-property",
+                "variant:open",
+                current == Some("open"),
+            ),
+            checked_item(
+                "Equilibrium",
+                "arrow-property",
+                "variant:equilibrium",
+                current == Some("equilibrium"),
+            ),
+            checked_item(
+                "Unequal Equilibrium",
+                "arrow-property",
+                "variant:unequal-equilibrium",
+                current == Some("unequal-equilibrium"),
+            ),
+        ],
+    )
+}
+
+fn arrow_head_size_menu(current: Option<&str>) -> JsonValue {
+    submenu(
+        "Arrow Head Size",
+        vec![
+            checked_item(
+                "Small",
+                "arrow-property",
+                "headSize:small",
+                current == Some("small"),
+            ),
+            checked_item(
+                "Medium",
+                "arrow-property",
+                "headSize:medium",
+                current == Some("medium"),
+            ),
+            checked_item(
+                "Large",
+                "arrow-property",
+                "headSize:large",
+                current == Some("large"),
+            ),
+        ],
+    )
+}
+
+fn arrow_curve_menu(current: Option<&str>) -> JsonValue {
+    submenu(
+        "Arrow Curve",
+        vec![
+            checked_item(
+                "90 degrees",
+                "arrow-property",
+                "curve:90",
+                current == Some("90"),
+            ),
+            checked_item(
+                "120 degrees",
+                "arrow-property",
+                "curve:120",
+                current == Some("120"),
+            ),
+            checked_item(
+                "180 degrees",
+                "arrow-property",
+                "curve:180",
+                current == Some("180"),
+            ),
+            checked_item(
+                "270 degrees",
+                "arrow-property",
+                "curve:270",
+                current == Some("270"),
+            ),
+        ],
+    )
+}
+
+fn arrow_no_go_menu(current: Option<&str>) -> JsonValue {
+    submenu(
+        "No-Go Mark",
+        vec![
+            checked_item(
+                "None",
+                "arrow-property",
+                "noGo:none",
+                current == Some("none"),
+            ),
+            checked_item(
+                "Cross",
+                "arrow-property",
+                "noGo:cross",
+                current == Some("cross"),
+            ),
+            checked_item(
+                "Double Slash",
+                "arrow-property",
+                "noGo:hash",
+                current == Some("hash"),
+            ),
         ],
     )
 }
@@ -2671,6 +2906,37 @@ fn line_object_style(document: &crate::ChemSemaDocument, object: &SceneObject) -
         return "dashed".to_string();
     }
     "plain".to_string()
+}
+
+fn arrow_object_head_size_name(object: &SceneObject) -> String {
+    let arrow = object.payload.extra.get("arrowHead");
+    let kind = arrow
+        .and_then(|value| value.get("kind"))
+        .and_then(JsonValue::as_str)
+        .unwrap_or("solid");
+    let bold = arrow
+        .and_then(|value| value.get("bold"))
+        .and_then(JsonValue::as_bool)
+        .unwrap_or(false);
+    let length = arrow
+        .and_then(|value| value.get("length"))
+        .and_then(JsonValue::as_f64)
+        .unwrap_or(10.0)
+        / if bold { 2.0 } else { 1.0 };
+    if matches!(kind, "hollow" | "open") {
+        if length >= 9.0 {
+            "large"
+        } else {
+            "small"
+        }
+    } else if length >= 18.0 {
+        "large"
+    } else if length >= 12.5 {
+        "medium"
+    } else {
+        "small"
+    }
+    .to_string()
 }
 
 fn bond_style_key(bond: &Bond) -> String {

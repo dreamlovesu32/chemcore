@@ -750,7 +750,19 @@ export function createCanvasContextMenuHost(options) {
     } else if (command === "arrow-bold") {
       syncEditorArrowStateFromSelectedLine();
       options.editorState().arrowBold = selectedUniformLineStyle() !== "bold";
-      changed = await options.applyArrowOptionsToSelection();
+      changed = await options.applyArrowOptionsToSelection({ bold: options.editorState().arrowBold });
+    } else if (command === "arrow-property") {
+      const separatorIndex = value.indexOf(":");
+      const property = separatorIndex >= 0 ? value.slice(0, separatorIndex) : "";
+      const propertyValue = separatorIndex >= 0 ? value.slice(separatorIndex + 1) : "";
+      if (!["variant", "headSize", "curve", "noGo"].includes(property) || !propertyValue) {
+        throw new Error(`Unsupported arrow property action ${value}.`);
+      }
+      const patch = { [property]: propertyValue };
+      if (property === "variant" && (propertyValue === "curved" || propertyValue === "curved-mirror")) {
+        patch.curve = "270";
+      }
+      changed = await options.applyArrowOptionsToSelection(patch);
     } else if (command === "arrow-endpoint") {
       syncEditorArrowStateFromSelectedLine();
       const [endpoint, style] = value.split(":");

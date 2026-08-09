@@ -1,9 +1,9 @@
 use chemsema_engine::{
     angle_between, direction_from_angle, line_object_points, parse_document_json, ArrowCurve,
-    ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondLinePattern, BondLineWeight,
-    BondVariant, BracketKind, DoubleBondPlacement, Engine, Point, PointerEvent, RenderPrimitive,
-    RenderRole, ShapeKind, ShapeStyle, TextEditSession, TextEditTarget, Tool, ToolState,
-    ARROW_HIT_RADIUS, DEFAULT_BOND_LENGTH, DEFAULT_BOND_STROKE, GRAPHIC_EDGE_HIT_RADIUS,
+    ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowStylePatch, ArrowVariant, BondLinePattern,
+    BondLineWeight, BondVariant, BracketKind, DoubleBondPlacement, Engine, Point, PointerEvent,
+    RenderPrimitive, RenderRole, ShapeKind, ShapeStyle, TextEditSession, TextEditTarget, Tool,
+    ToolState, ARROW_HIT_RADIUS, DEFAULT_BOND_LENGTH, DEFAULT_BOND_STROKE, GRAPHIC_EDGE_HIT_RADIUS,
 };
 use serde_json::json;
 use std::collections::BTreeMap;

@@ -1,8 +1,8 @@
 use crate::{
-    ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BioDrawKind,
-    BioShapeFillType, BioShapeLineType, BondVariant, BracketKind, Engine, OrbitalPhase,
-    OrbitalStyle, OrbitalTemplate, Point, PointerEvent, RenderBoundsScope, ShapeKind, ShapeStyle,
-    Tool, ToolState, WorldPoint, WorldPt,
+    ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowStylePatch, ArrowVariant,
+    BioDrawKind, BioShapeFillType, BioShapeLineType, BondVariant, BracketKind, Engine,
+    OrbitalPhase, OrbitalStyle, OrbitalTemplate, Point, PointerEvent, RenderBoundsScope, ShapeKind,
+    ShapeStyle, Tool, ToolState, WorldPoint, WorldPt,
 };
 use serde::Deserialize;
 use std::collections::BTreeSet;
@@ -423,6 +423,14 @@ impl WasmEngine {
             (!head_style.is_empty()).then(|| parse_arrow_endpoint_style(head_style)),
             (!tail_style.is_empty()).then(|| parse_arrow_endpoint_style(tail_style)),
         )
+    }
+
+    #[wasm_bindgen(js_name = applyArrowStylePatchToSelection)]
+    pub fn apply_arrow_style_patch_to_selection(&mut self, patch_json: &str) -> bool {
+        let Ok(patch) = serde_json::from_str::<ArrowStylePatch>(patch_json) else {
+            return false;
+        };
+        self.inner.apply_arrow_style_patch_to_selection(patch)
     }
 
     #[wasm_bindgen(js_name = pointerMove)]

@@ -83,7 +83,7 @@
       "properties": {
         "kind": { "enum": ["actionable", "dom-count", "dom-distinct-count", "entity-rect-deltas", "quiescent", "uia-visible", "document-saved"] },
         "target": { "$ref": "#/$defs/target" },
-        "selector": { "type": "string" },
+        "selector": { "type": "string", "minLength": 1, "maxLength": 2048 },
         "attribute": { "enum": ["data-object-id", "data-node-id", "data-bond-id"] },
         "entities": {
           "type": "array", "minItems": 1, "maxItems": 16,
@@ -175,7 +175,11 @@
         { "if": { "properties": { "type": { "const": "drag" } } }, "then": { "required": ["from", "to", "steps"] } },
         { "if": { "properties": { "type": { "const": "key" } } }, "then": { "required": ["key"] } },
         { "if": { "properties": { "type": { "const": "text" } } }, "then": { "required": ["textSource"] } },
-        { "if": { "properties": { "type": { "enum": ["click", "drag"] } } }, "else": { "not": { "required": ["modifiers"] } } }
+        { "if": { "properties": { "type": { "enum": ["click", "drag"] } } }, "else": { "not": { "required": ["modifiers"] } } },
+        {
+          "if": { "properties": { "completion": { "type": "object", "properties": { "kind": { "const": "document-saved" } }, "required": ["kind"] } } },
+          "then": { "properties": { "budgetMs": { "type": "integer", "minimum": 90000 } } }
+        }
       ]
     },
     "oracle": {
@@ -184,21 +188,48 @@
       "required": ["id", "kind"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "kind": { "enum": ["dom-count", "dom-distinct-count", "no-unexpected-diagnostics", "document-counts"] },
+        "kind": { "enum": ["dom-count", "dom-distinct-count", "no-unexpected-diagnostics", "document-counts", "document-arrow-properties"] },
         "selector": { "type": "string" },
         "attribute": { "enum": ["data-object-id", "data-node-id", "data-bond-id"] },
         "operator": { "enum": ["eq", "gte"] },
         "value": { "type": "integer", "minimum": 0 },
         "expected": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["nodes", "bonds", "molecules", "objects"],
-          "properties": {
-            "nodes": { "type": "integer", "minimum": 0 },
-            "bonds": { "type": "integer", "minimum": 0 },
-            "molecules": { "type": "integer", "minimum": 0 },
-            "objects": { "type": "integer", "minimum": 0 }
-          }
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["nodes", "bonds", "molecules", "objects"],
+              "properties": {
+                "nodes": { "type": "integer", "minimum": 0 },
+                "bonds": { "type": "integer", "minimum": 0 },
+                "molecules": { "type": "integer", "minimum": 0 },
+                "objects": { "type": "integer", "minimum": 0 }
+              }
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id"],
+                "minProperties": 2,
+                "properties": {
+                  "id": { "$ref": "#/$defs/id" },
+                  "kind": { "enum": ["solid", "curved", "curved-mirror", "hollow", "open", "equilibrium", "unequal-equilibrium"] },
+                  "curve": { "type": "number", "minimum": -360, "maximum": 360 },
+                  "length": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000 },
+                  "head": { "enum": ["none", "full", "half-left", "half-right"] },
+                  "tail": { "enum": ["none", "full", "half-left", "half-right"] },
+                  "bold": { "type": "boolean" },
+                  "noGo": { "enum": ["none", "cross", "hash"] },
+                  "stroke": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+                }
+              }
+            }
+          ]
         }
       },
       "allOf": [
@@ -212,6 +243,10 @@
         },
         {
           "if": { "properties": { "kind": { "const": "document-counts" } } },
+          "then": { "required": ["expected"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "document-arrow-properties" } } },
           "then": { "required": ["expected"] }
         }
       ]

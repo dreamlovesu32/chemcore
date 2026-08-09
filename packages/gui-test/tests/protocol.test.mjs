@@ -93,6 +93,32 @@ test("scenario protocol rejects missing auditable coverage", async () => {
   assert(result.errors.some((error) => error.includes("coverage")));
 });
 
+test("DOM completion selectors share one bounded protocol limit", async () => {
+  const boundedSelector = `.menu-item${", .menu-item".repeat(80)}`;
+  assert(boundedSelector.length > 512 && boundedSelector.length <= 2048);
+  await assertValidDocument({
+    schema: "chemsema.gui.action-transaction.v1",
+    input: { kind: "click", x: 10, y: 20, button: "left" },
+    completion: { kind: "dom-count", selector: boundedSelector, operator: "eq", value: 7, timeoutMs: 8000 },
+    budgetMs: 12000,
+  }, "bounded DOM selector action transaction");
+
+  const scenario = JSON.parse(await readFile(scenarioPath, "utf8"));
+  scenario.actions[0].completion = { kind: "dom-count", selector: "x".repeat(2049), operator: "eq", value: 1, timeoutMs: 8000 };
+  const result = await validateDocument(scenario);
+  assert.equal(result.valid, false);
+  assert(result.errors.some((error) => error.includes("2048")));
+});
+
+test("native document saves reserve enough time for dismissal, attestation, and transfer", async () => {
+  const scenario = JSON.parse(await readFile(scenarioPath, "utf8"));
+  scenario.actions[0].completion = { kind: "document-saved", timeoutMs: 30000 };
+  scenario.actions[0].budgetMs = 89999;
+  const result = await validateDocument(scenario);
+  assert.equal(result.valid, false);
+  assert(result.errors.some((error) => error.includes("90000")));
+});
+
 test("scenario pointer modifiers are bounded to pointer actions", async () => {
   const scenario = JSON.parse(await readFile(scenarioPath, "utf8"));
   scenario.actions[0] = { ...scenario.actions[0], type: "key", key: "Escape", modifiers: ["Shift"] };

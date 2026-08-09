@@ -330,6 +330,7 @@ impl Engine {
             EditorCommand::AddArrow { .. }
             | EditorCommand::ApplyArrowStyle { .. }
             | EditorCommand::ApplyArrowEndpoints { .. }
+            | EditorCommand::ApplyArrowStylePatch { .. }
             | EditorCommand::AddShape { .. }
             | EditorCommand::AddBioShape { .. }
             | EditorCommand::AddTable { .. }

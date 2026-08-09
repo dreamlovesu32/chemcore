@@ -463,6 +463,11 @@ pub enum EditorCommand {
         #[serde(default, alias = "tailStyle", skip_serializing_if = "Option::is_none")]
         tail_style: Option<ArrowEndpointStyle>,
     },
+    ApplyArrowStylePatch {
+        #[serde(default, alias = "objectIds")]
+        object_ids: Vec<String>,
+        patch: ArrowStylePatch,
+    },
     CycleBondStyle {
         #[serde(alias = "bondId")]
         bond_id: String,
@@ -837,6 +842,37 @@ pub struct AnnotationPropertiesPatch {
     pub italic: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub underline: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArrowStylePatch {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variant: Option<ArrowVariant>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub head_size: Option<ArrowHeadSize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub curve: Option<ArrowCurve>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub head_style: Option<ArrowEndpointStyle>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tail_style: Option<ArrowEndpointStyle>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bold: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub no_go: Option<ArrowNoGo>,
+}
+
+impl ArrowStylePatch {
+    pub fn is_empty(self) -> bool {
+        self.variant.is_none()
+            && self.head_size.is_none()
+            && self.curve.is_none()
+            && self.head_style.is_none()
+            && self.tail_style.is_none()
+            && self.bold.is_none()
+            && self.no_go.is_none()
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]

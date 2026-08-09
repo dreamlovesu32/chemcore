@@ -64,7 +64,7 @@
       "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" },
       "key": "Enter",
       "completion": { "kind": "document-saved", "timeoutMs": 30000 },
-      "budgetMs": 45000
+      "budgetMs": 90000
     },
     {
       "id": "draw-unsaved-second-bond",

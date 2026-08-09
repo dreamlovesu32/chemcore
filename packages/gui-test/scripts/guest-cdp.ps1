@@ -119,6 +119,10 @@ try {
   if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state', 'entity-rects-state', 'trace-start', 'artifact-export')) {
     throw "Unsupported CDP bridge mode '$($request.mode)'."
   }
+  if ($request.mode -in @('count', 'count-state', 'distinct-count', 'distinct-count-state') -and
+    ([string]::IsNullOrWhiteSpace([string]$request.selector) -or ([string]$request.selector).Length -gt 2048)) {
+    throw 'DOM count observation requires a selector of 1 to 2048 characters.'
+  }
   if ($request.mode -eq 'artifact-export' -and [string]$request.artifactId -notmatch '^[a-f0-9]{32}$') {
     throw 'Artifact export requires a 32-character lowercase hexadecimal identity.'
   }
@@ -352,6 +356,37 @@ try {
   const target = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob('$targetBase64'), c => c.charCodeAt(0))));
   const roleOf = (element) => element.getAttribute('role') || ({BUTTON:'button',ASIDE:'complementary',MAIN:'main'}[element.tagName] || null);
   const nameOf = (element) => element.getAttribute('aria-label') || element.getAttribute('title') || element.textContent?.trim() || '';
+  const visibleElement = element => {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return (rect.width > 0 || rect.height > 0) && style.visibility !== 'hidden' && style.display !== 'none';
+  };
+  const geometryPointerRect = element => {
+    const selector = '[data-role="document-graphic"], path, line, polyline, polygon, circle, ellipse, rect';
+    const geometryElements = [element, ...element.querySelectorAll(selector)]
+      .filter((candidate, index, candidates) => candidates.indexOf(candidate) === index)
+      .filter(candidate => typeof candidate.getTotalLength === 'function' && typeof candidate.getPointAtLength === 'function')
+      .filter(visibleElement);
+    const documentGraphics = geometryElements.filter(candidate => candidate.getAttribute('data-role') === 'document-graphic');
+    const candidates = documentGraphics.length ? documentGraphics : geometryElements;
+    let best = null;
+    for (const candidate of candidates) {
+      try {
+        const length = candidate.getTotalLength();
+        const matrix = candidate.getScreenCTM();
+        if (!Number.isFinite(length) || length <= 0 || !matrix) continue;
+        const midpoint = candidate.getPointAtLength(length * 0.5);
+        const clientPoint = new DOMPoint(midpoint.x, midpoint.y).matrixTransform(matrix);
+        if (!Number.isFinite(clientPoint.x) || !Number.isFinite(clientPoint.y)) continue;
+        if (!best || length > best.length) best = { length, x: clientPoint.x, y: clientPoint.y };
+      } catch {
+        // Unsupported or temporarily detached SVG geometry falls back to its rendered rectangle.
+      }
+    }
+    return best
+      ? { left: best.x - 0.5, top: best.y - 0.5, right: best.x + 0.5, bottom: best.y + 0.5, width: 1, height: 1 }
+      : null;
+  };
   const find = (query, root) => {
     if (query.strategy === 'automation-id' || query.strategy === 'test-id') {
       const element = root.querySelector('#' + CSS.escape(query.value));
@@ -384,18 +419,14 @@ try {
     root = scopes[0];
   }
   const matches = find(target, root).map(element => {
-    const pointerElement = target.strategy === 'entity-id'
+    const semanticPointerElement = target.strategy === 'entity-id'
       && element.getAttribute('data-object-type') === 'group'
       ? [...element.querySelectorAll('[data-role^="document-"], [data-bond-id], [data-node-id]')]
-        .find(candidate => {
-          const candidateRect = candidate.getBoundingClientRect();
-          const candidateStyle = getComputedStyle(candidate);
-          return (candidateRect.width > 0 || candidateRect.height > 0)
-            && candidateStyle.visibility !== 'hidden'
-            && candidateStyle.display !== 'none';
-        }) || element
+        .find(visibleElement) || element
       : element;
-    const rect = pointerElement.getBoundingClientRect();
+    const rect = target.strategy === 'entity-id'
+      ? geometryPointerRect(element) || semanticPointerElement.getBoundingClientRect()
+      : semanticPointerElement.getBoundingClientRect();
     const style = getComputedStyle(element);
     return {
       tag: element.tagName.toLowerCase(),

@@ -536,6 +536,10 @@ impl Engine {
                 self.select_scene_objects_for_style(object_ids);
                 self.apply_arrow_endpoints_to_selection(head_style, tail_style)
             }
+            EditorCommand::ApplyArrowStylePatch { object_ids, patch } => {
+                self.select_scene_objects_for_style(object_ids);
+                self.apply_arrow_style_patch_to_selection(patch)
+            }
             EditorCommand::ApplyShapeStyle { object_ids, style } => {
                 self.select_scene_objects_for_style(object_ids);
                 self.apply_shape_style_to_selection(&style)
@@ -747,6 +751,7 @@ impl Engine {
             }
             EditorCommand::ApplyArrowStyle { .. }
             | EditorCommand::ApplyArrowEndpoints { .. }
+            | EditorCommand::ApplyArrowStylePatch { .. }
             | EditorCommand::ApplyShapeStyle { .. }
             | EditorCommand::ApplyBracketKind { .. }
             | EditorCommand::ApplyOrbitalTemplate { .. }

@@ -92,6 +92,16 @@ export class WasmEngine {
         return ret !== 0;
     }
     /**
+     * @param {string} patch_json
+     * @returns {boolean}
+     */
+    applyArrowStylePatchToSelection(patch_json) {
+        const ptr0 = passStringToWasm0(patch_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyArrowStylePatchToSelection(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
      * @param {string} style
      * @returns {boolean}
      */

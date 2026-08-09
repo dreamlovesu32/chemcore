@@ -579,6 +579,71 @@ impl Engine {
         true
     }
 
+    pub fn apply_arrow_style_patch_to_selection(&mut self, patch: ArrowStylePatch) -> bool {
+        if patch.is_empty() {
+            return false;
+        }
+        let object_ids = self
+            .state
+            .selection
+            .arrow_objects
+            .iter()
+            .filter(|object_id| {
+                !self
+                    .state
+                    .document
+                    .scene_object_is_effectively_locked(object_id)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if object_ids.is_empty() {
+            return false;
+        }
+        let command = EditorCommand::ApplyArrowStylePatch { object_ids, patch };
+        self.with_command(command, |engine| {
+            engine.apply_arrow_style_patch_to_selection_untracked(patch)
+        })
+    }
+
+    fn apply_arrow_style_patch_to_selection_untracked(&mut self, patch: ArrowStylePatch) -> bool {
+        if patch.is_empty() {
+            return false;
+        }
+        let object_ids = self
+            .state
+            .selection
+            .arrow_objects
+            .iter()
+            .filter(|object_id| {
+                !self
+                    .state
+                    .document
+                    .scene_object_is_effectively_locked(object_id)
+                    && self
+                        .state
+                        .document
+                        .find_scene_object(object_id)
+                        .is_some_and(|object| object.object_type == "line")
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if object_ids.is_empty() {
+            return false;
+        }
+        self.push_undo_snapshot();
+        let mut changed = false;
+        for object_id in object_ids {
+            changed |= update_arrow_object_style_patch(self, &object_id, patch);
+        }
+        if !changed {
+            self.undo_stack.pop();
+            return false;
+        }
+        self.state.overlay.hover_arrow = None;
+        self.state.overlay.hover_shape = None;
+        true
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(super) fn apply_arrow_options_to_selection_untracked(
         &mut self,
@@ -771,6 +836,213 @@ fn update_arrow_object_endpoint_styles(
         changed = true;
     }
     changed
+}
+
+fn update_arrow_object_style_patch(
+    engine: &mut Engine,
+    object_id: &str,
+    patch: ArrowStylePatch,
+) -> bool {
+    if patch.is_empty() {
+        return false;
+    }
+    let Some(object) = engine
+        .state
+        .document
+        .find_scene_object_mut(object_id)
+        .filter(|object| object.object_type == "line")
+    else {
+        return false;
+    };
+    let original_extra = object.payload.extra.clone();
+    let current_variant = line_object_arrow_variant(object);
+    let current_bold = line_object_arrow_bold(object);
+    let current_size = line_object_arrow_head_size(object, current_variant, current_bold);
+    let current_curve = line_object_arrow_curve_choice(object);
+    let variant = patch.variant.unwrap_or(current_variant);
+    let bold = patch.bold.unwrap_or(current_bold);
+    let head_size = patch.head_size.unwrap_or(current_size);
+    let curve = patch.curve.unwrap_or(current_curve);
+    let dimensions_changed =
+        patch.variant.is_some() || patch.head_size.is_some() || patch.bold.is_some();
+    let curve_changed = patch.variant.is_some() || patch.curve.is_some();
+
+    let mut arrow_head = object
+        .payload
+        .extra
+        .get("arrowHead")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let Some(arrow_head_object) = arrow_head.as_object_mut() else {
+        return false;
+    };
+    if patch.variant.is_some() {
+        arrow_head_object.insert("kind".to_string(), json!(arrow_variant_name(variant)));
+    }
+    if curve_changed {
+        arrow_head_object.insert(
+            "curve".to_string(),
+            json!(arrow_curve_sweep_degrees(variant, curve)),
+        );
+    }
+    if dimensions_changed {
+        let (length, center_length, width) = arrow_payload_dimensions(variant, head_size, bold);
+        arrow_head_object.insert("length".to_string(), json!(length));
+        arrow_head_object.insert("centerLength".to_string(), json!(center_length));
+        arrow_head_object.insert("width".to_string(), json!(width));
+        if let Some(shaft_spacing) = arrow_payload_shaft_spacing(variant, head_size, bold) {
+            arrow_head_object.insert("shaftSpacing".to_string(), json!(shaft_spacing));
+        } else {
+            arrow_head_object.remove("shaftSpacing");
+        }
+        if let Some(ratio) = arrow_payload_equilibrium_ratio(variant) {
+            arrow_head_object.insert("equilibriumRatio".to_string(), json!(ratio));
+        } else {
+            arrow_head_object.remove("equilibriumRatio");
+        }
+    }
+    if let Some(value) = patch.bold {
+        arrow_head_object.insert("bold".to_string(), json!(value));
+    }
+    if let Some(value) = patch.no_go {
+        arrow_head_object.insert("noGo".to_string(), json!(arrow_no_go_payload_name(value)));
+    }
+    if let Some(style) = patch.head_style {
+        arrow_head_object.insert(
+            "head".to_string(),
+            json!(arrow_endpoint_payload_name(style)),
+        );
+        object.payload.extra.insert(
+            "head".to_string(),
+            json!(if arrow_endpoint_enabled(style) {
+                "end"
+            } else {
+                "none"
+            }),
+        );
+    }
+    if let Some(style) = patch.tail_style {
+        arrow_head_object.insert(
+            "tail".to_string(),
+            json!(arrow_endpoint_payload_name(style)),
+        );
+        object.payload.extra.insert(
+            "tail".to_string(),
+            json!(if arrow_endpoint_enabled(style) {
+                "start"
+            } else {
+                "none"
+            }),
+        );
+    }
+    object
+        .payload
+        .extra
+        .insert("arrowHead".to_string(), arrow_head);
+    if curve_changed {
+        refresh_direct_arrow_arc_geometry(object);
+    }
+    object.payload.extra != original_extra
+}
+
+pub(super) fn set_line_arrow_bold_preserving_size(object: &mut SceneObject, bold: bool) -> bool {
+    let variant = line_object_arrow_variant(object);
+    let previous = line_object_arrow_bold(object);
+    if previous == bold {
+        return false;
+    }
+    let head_size = line_object_arrow_head_size(object, variant, previous);
+    let Some(arrow_head) = object
+        .payload
+        .extra
+        .get_mut("arrowHead")
+        .and_then(JsonValue::as_object_mut)
+    else {
+        return false;
+    };
+    let (length, center_length, width) = arrow_payload_dimensions(variant, head_size, bold);
+    arrow_head.insert("length".to_string(), json!(length));
+    arrow_head.insert("centerLength".to_string(), json!(center_length));
+    arrow_head.insert("width".to_string(), json!(width));
+    arrow_head.insert("bold".to_string(), json!(bold));
+    if let Some(shaft_spacing) = arrow_payload_shaft_spacing(variant, head_size, bold) {
+        arrow_head.insert("shaftSpacing".to_string(), json!(shaft_spacing));
+    } else {
+        arrow_head.remove("shaftSpacing");
+    }
+    true
+}
+
+fn line_object_arrow_variant(object: &SceneObject) -> ArrowVariant {
+    match object
+        .payload
+        .extra
+        .get("arrowHead")
+        .and_then(|value| value.get("kind"))
+        .and_then(JsonValue::as_str)
+        .unwrap_or("solid")
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "curved" => ArrowVariant::Curved,
+        "curved-mirror" => ArrowVariant::CurvedMirror,
+        "hollow" => ArrowVariant::Hollow,
+        "open" => ArrowVariant::Open,
+        "equilibrium" => ArrowVariant::Equilibrium,
+        "unequal-equilibrium" => ArrowVariant::UnequalEquilibrium,
+        _ => ArrowVariant::Solid,
+    }
+}
+
+fn line_object_arrow_bold(object: &SceneObject) -> bool {
+    object
+        .payload
+        .extra
+        .get("arrowHead")
+        .and_then(|value| value.get("bold"))
+        .and_then(JsonValue::as_bool)
+        .unwrap_or(false)
+}
+
+fn line_object_arrow_head_size(
+    object: &SceneObject,
+    variant: ArrowVariant,
+    bold: bool,
+) -> ArrowHeadSize {
+    let length = object
+        .payload
+        .extra
+        .get("arrowHead")
+        .and_then(|value| value.get("length"))
+        .and_then(JsonValue::as_f64)
+        .unwrap_or(10.0)
+        / if bold { 2.0 } else { 1.0 };
+    if matches!(variant, ArrowVariant::Hollow | ArrowVariant::Open) {
+        if length >= 9.0 {
+            ArrowHeadSize::Large
+        } else {
+            ArrowHeadSize::Small
+        }
+    } else if length >= 18.0 {
+        ArrowHeadSize::Large
+    } else if length >= 12.5 {
+        ArrowHeadSize::Medium
+    } else {
+        ArrowHeadSize::Small
+    }
+}
+
+fn line_object_arrow_curve_choice(object: &SceneObject) -> ArrowCurve {
+    let curve = line_object_arrow_curve(object).abs();
+    if curve >= 260.0 {
+        ArrowCurve::Arc270
+    } else if curve >= 150.0 {
+        ArrowCurve::Arc180
+    } else if curve >= 105.0 {
+        ArrowCurve::Arc120
+    } else {
+        ArrowCurve::Arc90
+    }
 }
 
 fn refresh_direct_arrow_arc_geometry(object: &mut SceneObject) {

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { guiTestsDir } from "../protocol/paths.mjs";
 import { readValidatedDocument } from "../protocol/validate.mjs";
-import { evaluateDocumentReports, inspectDocumentBytes } from "../oracles/document-file.mjs";
+import { evaluateDocumentArrowProperties, evaluateDocumentReports, inspectDocumentBytes } from "../oracles/document-file.mjs";
 import { HyperVCoordinator } from "../workers/hyperv.mjs";
 
 const defaultProfilePath = join(guiTestsDir, "environments", "windows-gui-worker-current.json");
@@ -359,15 +359,25 @@ export class ProductionBlackBoxDriver {
       const document = await this.ensureSavedDocument();
       return evaluateDocumentReports(document.reports, oracle.expected);
     }
+    if (oracle.kind === "document-arrow-properties") {
+      const document = await this.ensureSavedDocument();
+      return evaluateDocumentArrowProperties(document.transfer.bytes, oracle.expected);
+    }
     throw new Error(`Unsupported oracle ${oracle.kind}.`);
   }
 
   async ensureSavedDocument() {
+    if (this.savedDocument?.inspectionError) throw this.savedDocument.inspectionError;
     if (this.savedDocument) return this.savedDocument;
     if (!this.documentOutput) throw new Error("No bounded document output was prepared.");
     const transfer = await this.coordinator.fetchDocumentOutput(this.documentOutput);
-    const reports = await inspectDocumentBytes(transfer.bytes);
-    this.savedDocument = { transfer, reports };
+    this.savedDocument = { transfer, reports: null, inspectionError: null };
+    try {
+      this.savedDocument.reports = await inspectDocumentBytes(transfer.bytes);
+    } catch (error) {
+      this.savedDocument.inspectionError = error;
+      throw error;
+    }
     return this.savedDocument;
   }
 
@@ -407,13 +417,15 @@ export class ProductionBlackBoxDriver {
     if (this.savedDocument) {
       payloads.push({ name: "saved-document.ccjs", mediaType: "application/vnd.chemsema.document+json", bytes: this.savedDocument.transfer.bytes });
       payloads.push({
-        name: "saved-document-inspect.json",
+        name: this.savedDocument.inspectionError ? "saved-document-inspect-error.json" : "saved-document-inspect.json",
         mediaType: "application/json",
         bytes: Buffer.from(JSON.stringify({
           schema: "chemsema.gui.document-oracle.v1",
           size: this.savedDocument.transfer.size,
           sha256: this.savedDocument.transfer.sha256,
-          ...this.savedDocument.reports,
+          ...(this.savedDocument.inspectionError
+            ? { error: this.savedDocument.inspectionError.message }
+            : this.savedDocument.reports),
         }), "utf8"),
       });
     }

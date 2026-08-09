@@ -1,3 +1,4 @@
+use super::arrows::set_line_arrow_bold_preserving_size;
 use super::*;
 use crate::{
     round2, AtomRadical, AtomReactionStereo, IsotopicAbundance, MoleculeFragment, Node,
@@ -565,7 +566,7 @@ impl Engine {
                     changed = true;
                 }
                 if object.kind() == crate::SceneObjectKind::Line {
-                    changed |= set_line_arrow_bold(object, style == "bold");
+                    changed |= set_line_arrow_bold_preserving_size(object, style == "bold");
                 }
             }
         }
@@ -2138,26 +2139,6 @@ fn existing_wide_end(bond: &Bond) -> String {
         .as_ref()
         .map(|stereo| stereo.wide_end.clone())
         .unwrap_or_else(|| "end".to_string())
-}
-
-fn set_line_arrow_bold(object: &mut SceneObject, bold: bool) -> bool {
-    let Some(arrow_head) = object
-        .payload
-        .extra
-        .get_mut("arrowHead")
-        .and_then(JsonValue::as_object_mut)
-    else {
-        return false;
-    };
-    let previous = arrow_head
-        .get("bold")
-        .and_then(JsonValue::as_bool)
-        .unwrap_or(false);
-    if previous == bold {
-        return false;
-    }
-    arrow_head.insert("bold".to_string(), json!(bold));
-    true
 }
 
 fn apply_text_object_style(object: &mut SceneObject, command: &str, value: &str) -> bool {

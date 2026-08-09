@@ -278,6 +278,7 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   assert.doesNotMatch(agentStart, /LogonType Interactive/);
   const guestSource = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
   assert.match(guestSource, /'distinct-count', 'distinct-count-state'/);
+  assert.match(guestSource, /selector of 1 to 2048 characters/);
   assert.match(guestSource, /'entity-rects-state'/);
   assert.match(guestSource, /Entity rectangle observation requires 1 to 16 unique ids/);
   assert.match(guestSource, /getBBox/);
@@ -379,7 +380,7 @@ test("production world geometry targets are restricted to the rendered page", as
   assert.match(source, /\[data-layer="page-background"\]/);
 });
 
-test("production entity targets prefer a render root and fall back to one visible semantic primitive", async () => {
+test("production entity targets use a real SVG geometry midpoint and retain bounded fallbacks", async () => {
   const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const source = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
   assert.match(source, /query\.strategy === 'entity-id'/);
@@ -394,7 +395,13 @@ test("production entity targets prefer a render root and fall back to one visibl
   assert.match(source, /hasAttribute\('data-renderer'\) && visibleCandidate/);
   assert.match(source, /getAttribute\('data-object-type'\) === 'group'/);
   assert.match(source, /querySelectorAll\('\[data-role\^="document-"\], \[data-bond-id\], \[data-node-id\]'\)/);
-  assert.match(source, /pointerElement\.getBoundingClientRect\(\)/);
+  assert.match(source, /\[data-role="document-graphic"\], path, line, polyline, polygon, circle, ellipse, rect/);
+  assert.match(source, /candidate\.getTotalLength\(\)/);
+  assert.match(source, /candidate\.getPointAtLength\(length \* 0\.5\)/);
+  assert.match(source, /candidate\.getScreenCTM\(\)/);
+  assert.match(source, /new DOMPoint\(midpoint\.x, midpoint\.y\)\.matrixTransform\(matrix\)/);
+  assert.match(source, /length > best\.length/);
+  assert.match(source, /geometryPointerRect\(element\) \|\| semanticPointerElement\.getBoundingClientRect\(\)/);
   assert.match(source, /screenRects\.flatMap/);
   assert.match(source, /worldPoints\.push/);
 });
