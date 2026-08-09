@@ -121,6 +121,7 @@ export class ProductionBlackBoxDriver {
       "editor.clipboard.cross-document",
       "editor.selection.delete",
       "editor.selection.delete-partial",
+      "editor.selection.transform-partial",
       "editor.history.undo-redo",
       "document.save-as",
       "document.open",

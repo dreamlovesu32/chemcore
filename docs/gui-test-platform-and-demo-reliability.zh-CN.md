@@ -788,6 +788,20 @@ CCJS 0.2 已把 `locked` 定义为“对象是否可编辑”，但桌面端此�
 
 这只关闭了“两个箭头、一锁一解锁、混合选择后部分删除”这一单元，并不宣称锁定覆盖已经完整。组合/嵌套选择、隐藏或重叠对象、其他对象类型与属性、经 GUI 建立的锁定祖先、保存重开与格式边界、以及大文档行为仍是明确的 registry 工作。因此 coverage registry 把该能力记为 partially migrated，而不是 complete。
 
+### 锁定对象的部分变换与世界坐标证据
+
+选择变换现在会先把“界面上已选择的对象”投影为“有效可编辑成员”，再建立移动、旋转、缩放、排列或命令目标。锁定分子不再贡献可移动节点；对象自身或任一祖先锁定时，也不再贡献对象变换。文档即时预览渲染器执行同一套“有效锁定”规则，因此低延迟 DOM 预览不会再把引擎已正确排除的锁定成员在视觉上一起拖走。活动按压期间的 pointer down、move、up 现按序执行；专门回归测试证明，即使 move/up 紧接着到达，也会等待异步手势初始化完成，不会越过 pointer down。
+
+生产协议新增通用 completion oracle `entity-rect-deltas`：在同一个受守卫 OS 输入事务前后，观测 1–16 个稳定渲染实体 id。它把本地 `getBBox()` 的四个角通过 `documentContent.getCTM().inverse() * entity.getCTM()` 转换为文档世界坐标矩形，从而排除 viewBox/根相机变化，同时保留对象自身及嵌套变换。每个期望明确声明 `stationary` 或 `moved` 及有界世界单位容差；动作回执保留屏幕矩形、世界矩形、最大位移和逐实体判定。
+
+18 步生产场景 `core.selection.locked-transform.production` 真实绘制两个箭头，经公开右键菜单锁定第一个，共同选择并拖动，执行撤销与重做；随后清空选择，经公开菜单解锁第一个，再在两者均可编辑时重复拖动、撤销和重做。候选 SHA-256 `22294e1dfccd1460b8c97a408c7b2f13ebabb713e703afb3427a922c04f61e5d` 以 evidence key `0d4567affec5d8661ce1940d93a8b53c2f19665c7f58d6ed426ce914bd37dbb1` 通过。锁定拖动及两次历史往返中，`obj_line_1` 的世界位移严格为 0，`obj_line_2` 约为 38.25；解锁后，两对象在拖动、撤销和重做中的位移均约为 33.00。6 个 manifest 对象的文件大小与 SHA-256 独立复算全部一致，诊断为空，VM 最终回到 `Off` 且分配内存为 0。
+
+四次失败运行继续作为诊断证据保留，而不是被最终通过覆盖。`8f9e1c432aacc35e6ae76a6068e2334d6c0d1e3cdff9e955c68baa4c944886ac` 证明屏幕矩形会把 viewBox 变化误判为对象移动；`4b9a39118f40ac244f636b48a5a19b098ea554a8fe0c0f869467adbe10c1294b` 与 `9e114a0dc3e4361d69b09fa2e6ec1a6d967599bdeca40d23f10ec9512f895cba` 证明普通 `getBBox()` 不包含元素 transform，同时快速输入可能越过异步 pointer-down 初始化；`f31bef1e689f724bdc473c29a63995e985eb4baddd5ca901709837ee08b3e2ff` 最终从 DOM 证明两个对象被固化了相同的预览 transform，从而在后端过滤已正确后，定位出前端有效锁定规则仍不一致。
+
+本单元只关闭了“一锁一解锁的两个箭头混合选择”中的指针移动、Unlock 与历史往返。旋转、缩放和排列的引擎路径已经执行同一投影规则，但尚无等价生产 GUI 场景；分子、文本、形状、组合与锁定祖先，属性编辑器和其他命令，保存重开及格式边界，复杂/large/xlarge 文档，长序列与 endurance 也仍是明确未完成单元。因此 registry 新增的 `capability.selection.transform-partial` 状态是 partially migrated，而不是 complete。
+
+候选 `22294e1dfccd1460b8c97a408c7b2f13ebabb713e703afb3427a922c04f61e5d` 的最终影响选择闭包在没有未知性扩展的情况下通过全部 11 个登记场景：浏览器单键 `a037d110e20ae9f63392292f56efd4109827ead8478ad8f128b54ddecde2ec6c`；生产单键 `cfaac5ef5a8db226154ea2fcd9f87e3531b269022f669a561afabee3308d2ec1`、历史 `44549b59e7745bd5aba2ed002d1895f27b03589462545c200662c868cde0140e`、多对象剪贴板/删除 `6f667b79643666b414e059549b614f01222cb854665d43d25afc6452c780bc99`、键/箭头混合 `8673c04af5ec75c01c9ef2b26cdf2f4751ba512340e41f3cda22189392164f7a`、区域/追加 `140916d4a2aec4521bbebb6fe3118fedfdce0f1c3978dcd33d31e7f65dd8cd4b`、锁定部分删除 `e169a4df9a441803700b74358d3e9b6a122e95a1acb67b83b05e208bb300b7fa`、锁定部分变换 `d9e6adfcd62e8546d57cd9e39cb512546f97da84ece62473f68937582638f8d3`、跨文档剪贴板 `b85d94199ac85d4bcab68f5b95f46d1d29bcfcb2a350d67ab6d2ff0d67e99deb`、嵌套组合 `b4a7423528da7e97e95d3dd0493de55b10decaddc303cea9043962d0cf3c04a7` 和保存/重开 `9a22648023ba54cfb382c34c520840241f8d4608fa7037276684b9290ed8d36f`。132 个动作和 37 个最终 oracle 全部通过，诊断为 0。69 个 manifest 对象均被独立重读（含按 UTF-8 读取中文原生对话框报告），文件大小和 SHA-256 与声明完全一致；生产 VM 最终为 `Off`，分配内存为 0。
+
 ## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>

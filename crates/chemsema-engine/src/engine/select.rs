@@ -2114,6 +2114,13 @@ impl Engine {
     fn selection_arrange_items(&self) -> Vec<SelectionArrangeItem> {
         let mut items = Vec::new();
         for object in self.state.document.scene_objects() {
+            if self
+                .state
+                .document
+                .scene_object_is_effectively_locked(&object.id)
+            {
+                continue;
+            }
             if !self
                 .state
                 .selection
@@ -2137,6 +2144,13 @@ impl Engine {
         }
 
         for entry in self.state.document.editable_fragments() {
+            if self
+                .state
+                .document
+                .scene_object_is_effectively_locked(&entry.object.id)
+            {
+                continue;
+            }
             for component in selected_component_summaries_for_entry(self, &entry) {
                 let fragment_items =
                     component_selection_items(&self.state.document, &entry, &component);
@@ -2662,6 +2676,13 @@ impl Engine {
         let overlay = group_selection_overlay(self);
         let mut out = None;
         for object in self.state.document.scene_objects() {
+            if self
+                .state
+                .document
+                .scene_object_is_effectively_locked(&object.id)
+            {
+                continue;
+            }
             if overlay.hides_object(&object.id) {
                 continue;
             }
@@ -2674,6 +2695,13 @@ impl Engine {
             include_optional_bounds(&mut out, AxisBounds::from_array(bounds));
         }
         for object in self.state.document.scene_objects() {
+            if self
+                .state
+                .document
+                .scene_object_is_effectively_locked(&object.id)
+            {
+                continue;
+            }
             if overlay.hides_object(&object.id) {
                 continue;
             }
@@ -2689,6 +2717,13 @@ impl Engine {
             }
         }
         for entry in self.state.document.editable_fragments() {
+            if self
+                .state
+                .document
+                .scene_object_is_effectively_locked(&entry.object.id)
+            {
+                continue;
+            }
             if overlay.hides_object(&entry.object.id) {
                 continue;
             }

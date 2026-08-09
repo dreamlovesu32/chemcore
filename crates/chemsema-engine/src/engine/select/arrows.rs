@@ -27,6 +27,12 @@ pub(super) fn selected_text_object_ids(engine: &Engine) -> BTreeSet<String> {
         );
     }
     ids.retain(|object_id| !overlay.selected_group_hides_object(object_id));
+    ids.retain(|object_id| {
+        !engine
+            .state
+            .document
+            .scene_object_is_effectively_locked(object_id)
+    });
     ids
 }
 
@@ -35,6 +41,16 @@ pub(super) fn selected_movable_node_ids(engine: &Engine) -> Vec<String> {
     let mut node_ids: BTreeSet<String> = engine.state.selection.nodes.iter().cloned().collect();
     node_ids.extend(engine.state.selection.label_nodes.iter().cloned());
     for entry in engine.state.document.editable_fragments() {
+        if engine
+            .state
+            .document
+            .scene_object_is_effectively_locked(&entry.object.id)
+        {
+            for node in &entry.fragment.nodes {
+                node_ids.remove(&node.id);
+            }
+            continue;
+        }
         if overlay.selected_group_hides_object(&entry.object.id) {
             for node in &entry.fragment.nodes {
                 node_ids.remove(&node.id);

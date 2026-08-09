@@ -5,6 +5,28 @@ import {
 
 const DOCUMENT_PREVIEW_BATCH_ELEMENT_THRESHOLD = 96;
 
+export function selectedUnlockedDocumentPreviewObjectIds(document, selection) {
+  if (!selection) {
+    return [];
+  }
+  const effectiveLocks = new Map();
+  const visit = (objects, ancestorLocked = false) => {
+    for (const object of objects || []) {
+      const objectId = object?.id;
+      const effectivelyLocked = ancestorLocked || object?.locked === true;
+      if (objectId) {
+        effectiveLocks.set(objectId, effectivelyLocked);
+      }
+      visit(object?.children, effectivelyLocked);
+    }
+  };
+  visit(document?.objects);
+  return [...new Set([
+    ...(selection.textObjects || selection.text_objects || []),
+    ...(selection.arrowObjects || selection.arrow_objects || []),
+  ])].filter((objectId) => effectiveLocks.get(objectId) !== true);
+}
+
 export function createEditorDocumentRenderer(options) {
   const {
     state,
@@ -1223,10 +1245,7 @@ export function createEditorDocumentRenderer(options) {
     if (!selection || editorSelectionHasItems(selection) === false) {
       return [];
     }
-    return [
-      ...(selection.textObjects || selection.text_objects || []),
-      ...(selection.arrowObjects || selection.arrow_objects || []),
-    ];
+    return selectedUnlockedDocumentPreviewObjectIds(state.currentDocument, selection);
   }
   
   function previewSelectionDebugSummary(selection) {

@@ -278,6 +278,11 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   assert.doesNotMatch(agentStart, /LogonType Interactive/);
   const guestSource = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
   assert.match(guestSource, /'distinct-count', 'distinct-count-state'/);
+  assert.match(guestSource, /'entity-rects-state'/);
+  assert.match(guestSource, /Entity rectangle observation requires 1 to 16 unique ids/);
+  assert.match(guestSource, /getBBox/);
+  assert.match(guestSource, /rootMatrix\.inverse\(\)\.multiply\(elementMatrix\)/);
+  assert.match(guestSource, /worldRect/);
   assert.match(guestSource, /'data-object-id', 'data-node-id', 'data-bond-id'/);
   assert.match(guestSource, /'artifact-export'/);
   assert.match(guestSource, /'trace-start'/);
@@ -395,6 +400,8 @@ test("production action transaction uses one guest invocation for before, input,
   assert.match(transaction, /Action transaction pointer modifiers are not unique allowlisted values/);
   assert.match(transaction, /\$null -ne \$_/);
   assert.match(transaction, /'distinct-count-state'/);
+  assert.match(transaction, /'entity-rect-deltas'/);
+  assert.match(transaction, /maximumDeltaWorld/);
   assert.match(transaction, /'input-channel'/);
   assert.match(transaction, /'cdp-channel'/);
   assert.match(transaction, /chemsema\.gui\.action-transaction-receipt\.v1/);

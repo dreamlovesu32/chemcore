@@ -1492,6 +1492,133 @@ mod tests {
             .is_some());
     }
 
+    #[test]
+    fn mixed_target_move_changes_only_the_editable_molecule_and_is_undoable() {
+        let mut engine = Engine::new();
+        engine.state.document = two_molecule_document();
+        engine
+            .state
+            .document
+            .find_scene_object_mut("obj_mol_a")
+            .expect("first molecule exists")
+            .locked = true;
+        let targets = CommandTargetSet {
+            nodes: vec!["node_a".to_string(), "node_b".to_string()],
+            ..CommandTargetSet::default()
+        };
+
+        assert!(
+            engine
+                .execute_command(EditorCommand::MoveTargets {
+                    targets,
+                    delta: CommandDelta { dx: 5.0, dy: 3.0 },
+                })
+                .expect("move command executes")
+                .changed
+        );
+        let positions = engine
+            .state
+            .document
+            .editable_fragments()
+            .into_iter()
+            .flat_map(|entry| {
+                entry
+                    .fragment
+                    .nodes
+                    .iter()
+                    .map(|node| (node.id.clone(), node.position))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(positions["node_a"], [10.0, 10.0]);
+        assert_eq!(positions["node_b"], [45.0, 43.0]);
+
+        assert!(engine.undo());
+        let positions = engine
+            .state
+            .document
+            .editable_fragments()
+            .into_iter()
+            .flat_map(|entry| {
+                entry
+                    .fragment
+                    .nodes
+                    .iter()
+                    .map(|node| (node.id.clone(), node.position))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(positions["node_a"], [10.0, 10.0]);
+        assert_eq!(positions["node_b"], [40.0, 40.0]);
+    }
+
+    #[test]
+    fn all_locked_target_move_is_a_no_op_without_history() {
+        let mut engine = Engine::new();
+        engine.state.document = two_molecule_document();
+        for object_id in ["obj_mol_a", "obj_mol_b"] {
+            engine
+                .state
+                .document
+                .find_scene_object_mut(object_id)
+                .expect("molecule exists")
+                .locked = true;
+        }
+        let targets = CommandTargetSet {
+            nodes: vec!["node_a".to_string(), "node_b".to_string()],
+            ..CommandTargetSet::default()
+        };
+
+        assert!(
+            !engine
+                .execute_command(EditorCommand::MoveTargets {
+                    targets,
+                    delta: CommandDelta { dx: 5.0, dy: 3.0 },
+                })
+                .expect("move command executes")
+                .changed
+        );
+        assert!(!engine.can_undo());
+    }
+
+    #[test]
+    fn mixed_arrow_pointer_drag_moves_only_the_editable_object() {
+        let mut engine = Engine::new();
+        let first_id = engine
+            .add_arrow_between(Point::new(10.0, 20.0), Point::new(40.0, 20.0))
+            .expect("first arrow is created");
+        let second_id = engine
+            .add_arrow_between(Point::new(60.0, 50.0), Point::new(90.0, 50.0))
+            .expect("second arrow is created");
+        engine
+            .state
+            .document
+            .find_scene_object_mut(&first_id)
+            .expect("first arrow exists")
+            .locked = true;
+        engine.state.selection = SelectionState {
+            arrow_objects: vec![first_id.clone(), second_id.clone()],
+            ..SelectionState::default()
+        };
+        let points = |engine: &Engine, object_id: &str| {
+            engine
+                .state
+                .document
+                .find_scene_object(object_id)
+                .and_then(|object| object.payload.extra.get("points"))
+                .cloned()
+                .expect("arrow points exist")
+        };
+        let first_before = points(&engine, &first_id);
+        let second_before = points(&engine, &second_id);
+
+        assert!(engine.begin_selection_move_at_point(Point::new(75.0, 50.0), false, false));
+        assert!(engine.finish_selection_move(Point::new(87.0, 50.0), true));
+
+        assert_eq!(points(&engine, &first_id), first_before);
+        assert_ne!(points(&engine, &second_id), second_before);
+    }
+
     fn distance_annotation_engine() -> Engine {
         let source = r#"<CDXML BondLength="14.4"><page id="1">
           <fragment id="10"><n id="101" p="40 40"/><n id="102" p="60 40"/><b id="103" B="101" E="102"/></fragment>

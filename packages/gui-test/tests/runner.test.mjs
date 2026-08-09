@@ -56,6 +56,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
     "scenario.core.selection.clipboard-delete-multi-bond.production",
     "scenario.core.selection.locked-partial-delete.production",
+    "scenario.core.selection.locked-transform.production",
     "scenario.core.selection.region-additive-mixed-cardinalities.production",
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["docs/readme.md"]), []);
@@ -82,6 +83,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
       "scenario.core.selection.clipboard-delete-multi-bond.production",
       "scenario.core.selection.locked-partial-delete.production",
+      "scenario.core.selection.locked-transform.production",
       "scenario.core.selection.region-additive-mixed-cardinalities.production",
     ],
   });
@@ -98,6 +100,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
     "scenario.core.selection.clipboard-delete-multi-bond.production",
     "scenario.core.selection.locked-partial-delete.production",
+    "scenario.core.selection.locked-transform.production",
     "scenario.core.selection.region-additive-mixed-cardinalities.production",
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/tests/hyperv.test.mjs"]), []);
@@ -116,6 +119,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
       "scenario.core.selection.clipboard-delete-multi-bond.production",
       "scenario.core.selection.locked-partial-delete.production",
+      "scenario.core.selection.locked-transform.production",
       "scenario.core.selection.region-additive-mixed-cardinalities.production",
     ],
   });
@@ -132,14 +136,15 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "cross-document-clipboard-production.json"),
     join(guiTestsDir, "scenarios", "core", "region-additive-mixed-cardinalities-production.json"),
     join(guiTestsDir, "scenarios", "core", "locked-partial-delete-production.json"),
+    join(guiTestsDir, "scenarios", "core", "locked-transform-production.json"),
     join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json"),
     join(guiTestsDir, "scenarios", "core", "save-open-roundtrip-production.json"),
   ];
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 24);
-  assert.equal(result.summary.scenarios, 10);
+  assert.equal(result.summary.entries, 25);
+  assert.equal(result.summary.scenarios, 11);
   assert.equal(result.summary.gaps, 0);
 });
 

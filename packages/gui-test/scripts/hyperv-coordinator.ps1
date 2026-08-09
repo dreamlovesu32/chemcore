@@ -1018,10 +1018,32 @@ function Invoke-ActionTransaction {
     }
     if ($kind -in @('click', 'drag') -and $modifiers.Count -gt 0) { $inputArguments += @('--modifiers', ($modifiers -join ',')) }
 
-    $before = Observe-Cdp ([ordered]@{ mode='state' })
-    $inputResponse = Send-ChannelRequest 'input-channel' 'chemsema.gui.guest-agent-request.v1' 'chemsema.gui.guest-agent-response.v1' ([ordered]@{ args=$inputArguments }) 8000
     $completionKind = [string]$Request.completion.kind
-    if ($completionKind -notin @('actionable', 'quiescent', 'dom-count', 'dom-distinct-count')) { throw 'Unsupported action transaction completion kind.' }
+    if ($completionKind -notin @('actionable', 'quiescent', 'dom-count', 'dom-distinct-count', 'entity-rect-deltas')) { throw 'Unsupported action transaction completion kind.' }
+    $entityExpectations = @()
+    $beforeEntityObservation = $null
+    if ($completionKind -eq 'entity-rect-deltas') {
+      $entityExpectations = @($Request.completion.entities)
+      $entityIds = @($entityExpectations | ForEach-Object { [string]$_.entityId })
+      if ($entityExpectations.Count -lt 1 -or $entityExpectations.Count -gt 16 -or @($entityIds | Select-Object -Unique).Count -ne $entityIds.Count) {
+        throw 'Entity rectangle completion requires 1 to 16 unique entities.'
+      }
+      foreach ($expectation in $entityExpectations) {
+        if ([string]::IsNullOrWhiteSpace([string]$expectation.entityId) -or ([string]$expectation.entityId).Length -gt 128 -or [string]$expectation.operator -notin @('stationary', 'moved') -or [double]$expectation.toleranceWorld -lt 0 -or [double]$expectation.toleranceWorld -gt 1000) {
+          throw 'Entity rectangle completion contains an invalid expectation.'
+        }
+      }
+      $beforeEntityObservation = Observe-Cdp ([ordered]@{ mode='entity-rects-state'; entityIds=$entityIds })
+      foreach ($entity in @($beforeEntityObservation.entities)) {
+        if ([int]$entity.matchCount -ne 1 -or -not [bool]$entity.visible -or @($entity.rect).Count -ne 4 -or @($entity.worldRect).Count -ne 4) {
+          throw "Entity rectangle precondition failed for '$($entity.entityId)'."
+        }
+      }
+      $before = $beforeEntityObservation.state
+    } else {
+      $before = Observe-Cdp ([ordered]@{ mode='state' })
+    }
+    $inputResponse = Send-ChannelRequest 'input-channel' 'chemsema.gui.guest-agent-request.v1' 'chemsema.gui.guest-agent-response.v1' ([ordered]@{ args=$inputArguments }) 8000
     if ($completionKind -in @('dom-count', 'dom-distinct-count')) {
       $completionDeadline = [DateTime]::UtcNow.AddMilliseconds([int]$Request.completion.timeoutMs)
       $completionRequest = [ordered]@{
@@ -1038,6 +1060,50 @@ function Invoke-ActionTransaction {
       if (-not $passed) { throw "DOM count is $($observed.count); expected $($Request.completion.operator) $($Request.completion.value)." }
       $after = $observed.state
       $completion = [ordered]@{ observed=[int]$observed.count }
+    } elseif ($completionKind -eq 'entity-rect-deltas') {
+      $completionDeadline = [DateTime]::UtcNow.AddMilliseconds([int]$Request.completion.timeoutMs)
+      do {
+        $afterEntityObservation = Observe-Cdp ([ordered]@{ mode='entity-rects-state'; entityIds=$entityIds })
+        $observedEntities = @()
+        $passed = $true
+        foreach ($expectation in $entityExpectations) {
+          $entityId = [string]$expectation.entityId
+          $beforeEntity = @($beforeEntityObservation.entities | Where-Object { [string]$_.entityId -eq $entityId }) | Select-Object -First 1
+          $afterEntity = @($afterEntityObservation.entities | Where-Object { [string]$_.entityId -eq $entityId }) | Select-Object -First 1
+          if ($null -eq $beforeEntity -or $null -eq $afterEntity -or [int]$afterEntity.matchCount -ne 1 -or -not [bool]$afterEntity.visible -or @($afterEntity.rect).Count -ne 4 -or @($afterEntity.worldRect).Count -ne 4) {
+            throw "Entity rectangle postcondition failed for '$entityId'."
+          }
+          $maximumDelta = 0.0
+          for ($index = 0; $index -lt 4; $index++) {
+            $maximumDelta = [Math]::Max($maximumDelta, [Math]::Abs([double]$afterEntity.worldRect[$index] - [double]$beforeEntity.worldRect[$index]))
+          }
+          $expectationPassed = if ([string]$expectation.operator -eq 'stationary') {
+            $maximumDelta -le [double]$expectation.toleranceWorld
+          } else {
+            $maximumDelta -gt [double]$expectation.toleranceWorld
+          }
+          if (-not $expectationPassed) { $passed = $false }
+          $observedEntities += [ordered]@{
+            entityId = $entityId
+            operator = [string]$expectation.operator
+            toleranceWorld = [double]$expectation.toleranceWorld
+            maximumDeltaWorld = $maximumDelta
+            beforeWorldRect = @($beforeEntity.worldRect)
+            afterWorldRect = @($afterEntity.worldRect)
+            beforeRect = @($beforeEntity.rect)
+            afterRect = @($afterEntity.rect)
+            passed = $expectationPassed
+          }
+        }
+        if ($passed) { break }
+        Start-Sleep -Milliseconds 20
+      } while ([DateTime]::UtcNow -lt $completionDeadline)
+      if (-not $passed) {
+        $failedSummary = @($observedEntities | Where-Object { -not $_.passed } | ForEach-Object { "$($_.entityId):$($_.operator):$($_.maximumDeltaWorld) world units" }) -join ', '
+        throw "Entity rectangle completion failed: $failedSummary."
+      }
+      $after = $afterEntityObservation.state
+      $completion = [ordered]@{ entities=$observedEntities }
     } else {
       $after = Observe-Cdp ([ordered]@{ mode='state' })
       $completion = if ($completionKind -eq 'actionable') { [ordered]@{ actionable=$true } } else { [ordered]@{ quiescent=$true } }

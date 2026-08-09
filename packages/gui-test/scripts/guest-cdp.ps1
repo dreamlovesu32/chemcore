@@ -116,7 +116,7 @@ try {
   if ([string]::IsNullOrWhiteSpace($EncodedRequest)) { throw 'The CDP request is absent.' }
   $requestJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($EncodedRequest))
   $request = $requestJson | ConvertFrom-Json
-  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state', 'trace-start', 'artifact-export')) {
+  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state', 'entity-rects-state', 'trace-start', 'artifact-export')) {
     throw "Unsupported CDP bridge mode '$($request.mode)'."
   }
   if ($request.mode -eq 'artifact-export' -and [string]$request.artifactId -notmatch '^[a-f0-9]{32}$') {
@@ -248,6 +248,61 @@ try {
   rendered: { bonds: document.querySelectorAll('[data-bond-id]').length, nodes: document.querySelectorAll('[data-node-id]').length }
 }))()
 '@
+    } elseif ($request.mode -eq 'entity-rects-state') {
+      $entityIds = @($request.entityIds)
+      if ($entityIds.Count -lt 1 -or $entityIds.Count -gt 16 -or @($entityIds | Select-Object -Unique).Count -ne $entityIds.Count) {
+        throw 'Entity rectangle observation requires 1 to 16 unique ids.'
+      }
+      if (@($entityIds | Where-Object { [string]::IsNullOrWhiteSpace([string]$_) -or ([string]$_).Length -gt 128 }).Count -gt 0) {
+        throw 'Entity rectangle observation contains an invalid id.'
+      }
+      $entityIdsBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($entityIds | ConvertTo-Json -Compress)))
+      $expression = @"
+(() => {
+  const entityIds = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob('$entityIdsBase64'), c => c.charCodeAt(0))));
+  const entities = entityIds.map(entityId => {
+    const matches = [...document.querySelectorAll('[data-object-id="' + CSS.escape(entityId) + '"][data-renderer]')];
+    const element = matches[0] || null;
+    const rect = element?.getBoundingClientRect();
+    const localBounds = element && typeof element.getBBox === 'function' ? element.getBBox() : null;
+    const documentRoot = element?.closest?.('[data-layer="document-content"]') || null;
+    const elementMatrix = element?.getCTM?.() || null;
+    const rootMatrix = documentRoot?.getCTM?.() || null;
+    let worldRect = null;
+    if (localBounds && elementMatrix && rootMatrix) {
+      const relativeMatrix = rootMatrix.inverse().multiply(elementMatrix);
+      const corners = [
+        new DOMPoint(localBounds.x, localBounds.y),
+        new DOMPoint(localBounds.x + localBounds.width, localBounds.y),
+        new DOMPoint(localBounds.x, localBounds.y + localBounds.height),
+        new DOMPoint(localBounds.x + localBounds.width, localBounds.y + localBounds.height)
+      ].map(point => point.matrixTransform(relativeMatrix));
+      const xs = corners.map(point => point.x);
+      const ys = corners.map(point => point.y);
+      worldRect = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+    }
+    const style = element ? getComputedStyle(element) : null;
+    return {
+      entityId,
+      matchCount: matches.length,
+      visible: !!rect && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none',
+      rect: rect ? [rect.left, rect.top, rect.right, rect.bottom] : null,
+      worldRect
+    };
+  });
+  return {
+    entities,
+    state: {
+      runtimeState: document.body.dataset.runtimeState || null,
+      revision: null,
+      appScript: document.querySelector('script[type="module"]')?.src || null,
+      engine: null,
+      window: { href: location.href, title: document.title, visibilityState: document.visibilityState, focused: document.hasFocus() },
+      rendered: { bonds: document.querySelectorAll('[data-bond-id]').length, nodes: document.querySelectorAll('[data-node-id]').length }
+    }
+  };
+})()
+"@
     } elseif ($request.mode -in @('count', 'count-state', 'distinct-count', 'distinct-count-state')) {
       $selectorBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$request.selector))
       $distinct = $request.mode -in @('distinct-count', 'distinct-count-state')

@@ -81,10 +81,22 @@
       "additionalProperties": false,
       "required": ["kind", "timeoutMs"],
       "properties": {
-        "kind": { "enum": ["actionable", "dom-count", "dom-distinct-count", "quiescent", "uia-visible", "document-saved"] },
+        "kind": { "enum": ["actionable", "dom-count", "dom-distinct-count", "entity-rect-deltas", "quiescent", "uia-visible", "document-saved"] },
         "target": { "$ref": "#/$defs/target" },
         "selector": { "type": "string" },
         "attribute": { "enum": ["data-object-id", "data-node-id", "data-bond-id"] },
+        "entities": {
+          "type": "array", "minItems": 1, "maxItems": 16,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["entityId", "operator", "toleranceWorld"],
+            "properties": {
+              "entityId": { "type": "string", "minLength": 1, "maxLength": 128 },
+              "operator": { "enum": ["stationary", "moved"] },
+              "toleranceWorld": { "type": "number", "minimum": 0, "maximum": 1000 }
+            }
+          }
+        },
         "operator": { "enum": ["eq", "gte"] },
         "value": { "type": "integer", "minimum": 0 },
         "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 300000 }
@@ -101,6 +113,10 @@
         {
           "if": { "properties": { "kind": { "const": "uia-visible" } } },
           "then": { "required": ["target"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "entity-rect-deltas" } } },
+          "then": { "required": ["entities"] }
         },
         {
           "if": { "properties": { "kind": { "enum": ["actionable", "quiescent", "document-saved"] } } },

@@ -12,6 +12,7 @@ const mixedObjectScenarioPath = join(guiTestsDir, "scenarios", "core", "mixed-bo
 const nestedGroupScenarioPath = join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json");
 const regionAdditiveScenarioPath = join(guiTestsDir, "scenarios", "core", "region-additive-mixed-cardinalities-production.json");
 const crossDocumentClipboardScenarioPath = join(guiTestsDir, "scenarios", "core", "cross-document-clipboard-production.json");
+const lockedTransformScenarioPath = join(guiTestsDir, "scenarios", "core", "locked-transform-production.json");
 
 test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(scenarioPath);
@@ -20,6 +21,7 @@ test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(nestedGroupScenarioPath);
   await readValidatedDocument(regionAdditiveScenarioPath);
   await readValidatedDocument(crossDocumentClipboardScenarioPath);
+  await readValidatedDocument(lockedTransformScenarioPath);
   await readValidatedDocument(join(guiTestsDir, "coverage", "registry-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "coverage", "impact-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "environments", "windows-gui-worker-current.json"));
@@ -60,6 +62,19 @@ test("scenario, coverage registry, and impact graph validate", async () => {
     },
     budgetMs: 12000,
   }, "distinct object action transaction fixture");
+  await assertValidDocument({
+    schema: "chemsema.gui.action-transaction.v1",
+    input: { kind: "drag", from: [100, 100], to: [130, 100], steps: 8, button: "left" },
+    completion: {
+      kind: "entity-rect-deltas",
+      entities: [
+        { entityId: "obj_locked", operator: "stationary", toleranceWorld: 0.5 },
+        { entityId: "obj_editable", operator: "moved", toleranceWorld: 5 },
+      ],
+      timeoutMs: 8000,
+    },
+    budgetMs: 12000,
+  }, "mixed entity rectangle action transaction fixture");
   await assertValidDocument({
     schema: "chemsema.gui.action-transaction-receipt.v1",
     input: {}, before: {}, after: {}, completion: { actionable: true },

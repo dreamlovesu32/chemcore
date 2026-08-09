@@ -27,6 +27,8 @@ export function createEditorPointerController(options) {
   let engineDragPreviewVersion = 0;
   let engineCreationDrag = null;
   let postCommitHoverBlockPoint = null;
+  let pointerSequenceActive = false;
+  let pointerSequenceTail = Promise.resolve();
 
   async function executeDocumentCommand(command, apply, executeOptions = {}) {
     if (options.commandEngine?.executeEngineCommand) {
@@ -737,7 +739,7 @@ export function createEditorPointerController(options) {
     return Number(options.state().editorEngine.revision?.() || 0);
   }
 
-  async function handleEditorPointerMove(event) {
+  async function handleEditorPointerMoveNow(event) {
     options.noteEditorPointerActivity?.();
     const point = options.svgPointFromEvent(event);
     const editorState = options.editorState();
@@ -910,7 +912,7 @@ export function createEditorPointerController(options) {
     );
   }
 
-  async function handleEditorPointerDown(event) {
+  async function handleEditorPointerDownNow(event) {
     options.noteEditorPointerActivity?.();
     await options.awaitPendingToolActivation?.();
     if (!options.routeEditorPointerEvents() || event.button !== 0) {
@@ -1347,7 +1349,7 @@ export function createEditorPointerController(options) {
     });
   }
 
-  async function handleEditorPointerUp(event) {
+  async function handleEditorPointerUpNow(event) {
     options.noteEditorPointerActivity?.();
     if (options.editorState().activeTool === "text" && !options.activeSelectionGesture()) {
       return;
@@ -1647,7 +1649,7 @@ export function createEditorPointerController(options) {
     await options.renderSelectionOnlyUpdate(point);
   }
 
-  async function handleEditorPointerCancel() {
+  async function handleEditorPointerCancelNow() {
     cancelScheduledHoverMove();
     cancelDocumentPreviewFrame();
     postCommitHoverBlockPoint = null;
@@ -1658,6 +1660,44 @@ export function createEditorPointerController(options) {
     options.setCanvasPointerShieldActive?.(false);
     await clearEngineHoverOverlay();
     options.syncCanvasCursor();
+  }
+
+  function enqueuePointerSequence(work) {
+    const next = pointerSequenceTail.then(work, work);
+    pointerSequenceTail = next.catch(() => {});
+    return next;
+  }
+
+  function handleEditorPointerDown(event) {
+    pointerSequenceActive = true;
+    return enqueuePointerSequence(() => handleEditorPointerDownNow(event));
+  }
+
+  function handleEditorPointerMove(event) {
+    if (!pointerSequenceActive) {
+      return handleEditorPointerMoveNow(event);
+    }
+    event.preventDefault();
+    return enqueuePointerSequence(() => handleEditorPointerMoveNow(event));
+  }
+
+  function handleEditorPointerUp(event) {
+    if (!pointerSequenceActive) {
+      return handleEditorPointerUpNow(event);
+    }
+    event.preventDefault();
+    return enqueuePointerSequence(async () => {
+      try {
+        await handleEditorPointerUpNow(event);
+      } finally {
+        pointerSequenceActive = false;
+      }
+    });
+  }
+
+  function handleEditorPointerCancel(event) {
+    pointerSequenceActive = false;
+    return enqueuePointerSequence(() => handleEditorPointerCancelNow(event));
   }
 
   return {

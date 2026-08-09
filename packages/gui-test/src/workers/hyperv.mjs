@@ -362,8 +362,11 @@ export class HyperVCoordinator {
   }
 
   async cdpBridge(request) {
-    if (!["locate", "state", "count", "count-state", "distinct-count", "distinct-count-state", "trace-start", "artifact-export"].includes(request?.mode)) {
+    if (!["locate", "state", "count", "count-state", "distinct-count", "distinct-count-state", "entity-rects-state", "trace-start", "artifact-export"].includes(request?.mode)) {
       throw new Error("CDP bridge requires a supported fixed mode.");
+    }
+    if (request.mode === "entity-rects-state" && (!Array.isArray(request.entityIds) || request.entityIds.length < 1 || request.entityIds.length > 16 || new Set(request.entityIds).size !== request.entityIds.length || request.entityIds.some((id) => typeof id !== "string" || !id || id.length > 128))) {
+      throw new Error("CDP entity rectangle observation requires 1 to 16 unique bounded ids.");
     }
     if (request.mode.startsWith("distinct-count")) {
       if (typeof request.selector !== "string" || !request.selector || !["data-object-id", "data-node-id", "data-bond-id"].includes(request.attribute)) {
