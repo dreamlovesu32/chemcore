@@ -329,6 +329,7 @@ impl Engine {
         match command {
             EditorCommand::AddArrow { .. }
             | EditorCommand::ApplyArrowStyle { .. }
+            | EditorCommand::ApplyArrowEndpoints { .. }
             | EditorCommand::AddShape { .. }
             | EditorCommand::AddBioShape { .. }
             | EditorCommand::AddTable { .. }

@@ -413,6 +413,18 @@ impl WasmEngine {
         )
     }
 
+    #[wasm_bindgen(js_name = applyArrowEndpointPatchToSelection)]
+    pub fn apply_arrow_endpoint_patch_to_selection(
+        &mut self,
+        head_style: &str,
+        tail_style: &str,
+    ) -> bool {
+        self.inner.apply_arrow_endpoints_to_selection(
+            (!head_style.is_empty()).then(|| parse_arrow_endpoint_style(head_style)),
+            (!tail_style.is_empty()).then(|| parse_arrow_endpoint_style(tail_style)),
+        )
+    }
+
     #[wasm_bindgen(js_name = pointerMove)]
     pub fn pointer_move(&mut self, x: f64, y: f64, alt_key: bool) {
         self.inner.pointer_move(PointerEvent::from_world_point(

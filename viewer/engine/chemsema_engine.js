@@ -63,6 +63,19 @@ export class WasmEngine {
         return ret !== 0;
     }
     /**
+     * @param {string} head_style
+     * @param {string} tail_style
+     * @returns {boolean}
+     */
+    applyArrowEndpointPatchToSelection(head_style, tail_style) {
+        const ptr0 = passStringToWasm0(head_style, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(tail_style, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyArrowEndpointPatchToSelection(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        return ret !== 0;
+    }
+    /**
      * @param {string} variant
      * @param {string} head_size
      * @param {boolean} head

@@ -2237,6 +2237,7 @@ fn editor_command_is_style(command: &EditorCommand) -> bool {
     matches!(
         command,
         EditorCommand::ApplyArrowStyle { .. }
+            | EditorCommand::ApplyArrowEndpoints { .. }
             | EditorCommand::ApplyShapeStyle { .. }
             | EditorCommand::ApplyBracketKind { .. }
             | EditorCommand::ApplyOrbitalTemplate { .. }
@@ -2286,6 +2287,7 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::ReplaceNodeLabel { .. } => "replace-node-label",
         EditorCommand::MoveChromatographyMark { .. } => "move-chromatography-mark",
         EditorCommand::ApplyArrowStyle { .. } => "apply-arrow-style",
+        EditorCommand::ApplyArrowEndpoints { .. } => "apply-arrow-endpoints",
         EditorCommand::CycleBondStyle { .. } => "cycle-bond-style",
         EditorCommand::DeleteSelection => "delete-selection",
         EditorCommand::SetObjectsLocked { .. } => "set-objects-locked",

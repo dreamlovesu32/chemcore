@@ -7,6 +7,7 @@ export class WasmEngine {
     activeArrowEditDegrees(): number;
     annotationDialogJson(annotation: string): string;
     applyArrowEndpointOptionsToSelection(variant: string, head_size: string, curve: string, head_style: string, tail_style: string, no_go: string, bold: boolean): boolean;
+    applyArrowEndpointPatchToSelection(head_style: string, tail_style: string): boolean;
     applyArrowOptionsToSelection(variant: string, head_size: string, head: boolean, tail: boolean, bold: boolean): boolean;
     applyBondStyleToSelection(style: string): boolean;
     applyBracketKindToSelection(kind: string): boolean;
@@ -182,6 +183,7 @@ export interface InitOutput {
     readonly wasmengine_activeArrowEditDegrees: (a: number) => number;
     readonly wasmengine_annotationDialogJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_applyArrowEndpointOptionsToSelection: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => number;
+    readonly wasmengine_applyArrowEndpointPatchToSelection: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly wasmengine_applyArrowOptionsToSelection: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
     readonly wasmengine_applyBondStyleToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyBracketKindToSelection: (a: number, b: number, c: number) => number;

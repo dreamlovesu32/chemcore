@@ -455,6 +455,14 @@ pub enum EditorCommand {
         no_go: ArrowNoGo,
         variant: ArrowVariant,
     },
+    ApplyArrowEndpoints {
+        #[serde(default, alias = "objectIds")]
+        object_ids: Vec<String>,
+        #[serde(default, alias = "headStyle", skip_serializing_if = "Option::is_none")]
+        head_style: Option<ArrowEndpointStyle>,
+        #[serde(default, alias = "tailStyle", skip_serializing_if = "Option::is_none")]
+        tail_style: Option<ArrowEndpointStyle>,
+    },
     CycleBondStyle {
         #[serde(alias = "bondId")]
         bond_id: String,

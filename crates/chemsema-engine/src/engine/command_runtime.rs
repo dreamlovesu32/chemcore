@@ -528,6 +528,14 @@ impl Engine {
                     variant, head_size, curve, head_style, tail_style, head, tail, bold, no_go,
                 )
             }
+            EditorCommand::ApplyArrowEndpoints {
+                object_ids,
+                head_style,
+                tail_style,
+            } => {
+                self.select_scene_objects_for_style(object_ids);
+                self.apply_arrow_endpoints_to_selection(head_style, tail_style)
+            }
             EditorCommand::ApplyShapeStyle { object_ids, style } => {
                 self.select_scene_objects_for_style(object_ids);
                 self.apply_shape_style_to_selection(&style)
@@ -738,6 +746,7 @@ impl Engine {
                 ));
             }
             EditorCommand::ApplyArrowStyle { .. }
+            | EditorCommand::ApplyArrowEndpoints { .. }
             | EditorCommand::ApplyShapeStyle { .. }
             | EditorCommand::ApplyBracketKind { .. }
             | EditorCommand::ApplyOrbitalTemplate { .. }

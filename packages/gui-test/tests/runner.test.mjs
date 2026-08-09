@@ -47,6 +47,7 @@ test("shutdown failure retains already collected artifacts as failure evidence",
 test("impact selection follows the transitive source to scenario closure", async () => {
   const graph = await readValidatedDocument(join(guiTestsDir, "coverage", "impact-v1.json"));
   assert.deepEqual(selectImpactedScenarios(graph, ["viewer/app.js"]), [
+    "scenario.core.arrow.locked-mixed-properties.production",
     "scenario.core.arrow.multi-property-history.production",
     "scenario.core.bond.draw-single",
     "scenario.core.bond.draw-single.production",
@@ -77,6 +78,7 @@ test("impact selection follows the transitive source to scenario closure", async
     unmatchedPaths: [],
     expandedForUncertainty: false,
     scenarios: [
+      "scenario.core.arrow.locked-mixed-properties.production",
       "scenario.core.arrow.multi-property-history.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
@@ -98,6 +100,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.document.save-open-roundtrip.production",
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["crates/chemsema-gui-test-agent/src/windows.rs"]), [
+    "scenario.core.arrow.locked-mixed-properties.production",
     "scenario.core.arrow.multi-property-history.production",
     "scenario.core.bond.draw-single.production",
     "scenario.core.clipboard.cross-document-mixed.production",
@@ -119,6 +122,7 @@ test("impact selection follows the transitive source to scenario closure", async
     unmatchedPaths: ["unknown/new-surface.js"],
     expandedForUncertainty: true,
     scenarios: [
+      "scenario.core.arrow.locked-mixed-properties.production",
       "scenario.core.arrow.multi-property-history.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
@@ -152,6 +156,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "locked-transform-production.json"),
     join(guiTestsDir, "scenarios", "core", "locked-group-ancestor-transform-production.json"),
     join(guiTestsDir, "scenarios", "core", "multi-arrow-properties-history-production.json"),
+    join(guiTestsDir, "scenarios", "core", "locked-mixed-arrow-properties-production.json"),
     join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json"),
     join(guiTestsDir, "scenarios", "core", "save-open-roundtrip-production.json"),
   ];
@@ -159,7 +164,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 27);
-  assert.equal(result.summary.scenarios, 14);
+  assert.equal(result.summary.scenarios, 15);
   assert.equal(result.summary.gaps, 0);
 });
 

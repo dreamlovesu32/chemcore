@@ -5,6 +5,7 @@ export const __wbg_wasmengine_free: (a: number, b: number) => void;
 export const wasmengine_activeArrowEditDegrees: (a: number) => number;
 export const wasmengine_annotationDialogJson: (a: number, b: number, c: number) => [number, number];
 export const wasmengine_applyArrowEndpointOptionsToSelection: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => number;
+export const wasmengine_applyArrowEndpointPatchToSelection: (a: number, b: number, c: number, d: number, e: number) => number;
 export const wasmengine_applyArrowOptionsToSelection: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
 export const wasmengine_applyBondStyleToSelection: (a: number, b: number, c: number) => number;
 export const wasmengine_applyBracketKindToSelection: (a: number, b: number, c: number) => number;

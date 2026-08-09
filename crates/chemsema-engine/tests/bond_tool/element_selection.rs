@@ -1095,6 +1095,104 @@ fn multi_arrow_line_and_endpoint_properties_roundtrip_through_history() {
 }
 
 #[test]
+fn locked_arrow_properties_are_immutable_in_a_mixed_selection() {
+    fn arrow_state(engine: &Engine, object_id: &str) -> (bool, String, String) {
+        let object = engine
+            .state()
+            .document
+            .find_scene_object(object_id)
+            .expect("arrow should remain in the document");
+        let arrow_head = object
+            .payload
+            .extra
+            .get("arrowHead")
+            .expect("arrow should retain its arrowHead payload");
+        (
+            arrow_head
+                .get("bold")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+            arrow_head
+                .get("head")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("none")
+                .to_string(),
+            arrow_head
+                .get("tail")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("none")
+                .to_string(),
+        )
+    }
+
+    let mut engine = Engine::new();
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Arrow,
+        ..ToolState::default()
+    });
+    drag(&mut engine, Point::new(10.0, 20.0), Point::new(90.0, 20.0));
+    drag(&mut engine, Point::new(10.0, 60.0), Point::new(90.0, 60.0));
+    engine.set_tool_state(select_tool());
+
+    engine.select_at_point(Point::new(50.0, 20.0), false);
+    assert_eq!(engine.state().selection.arrow_objects, vec!["obj_line_1"]);
+    assert!(engine.set_selection_locked(true));
+    assert!(engine.select_all());
+
+    assert!(engine.apply_line_style_to_selection("bold"));
+    assert_eq!(
+        arrow_state(&engine, "obj_line_1"),
+        (false, "full".into(), "none".into())
+    );
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (true, "full".into(), "none".into())
+    );
+
+    assert!(engine.apply_arrow_endpoints_to_selection(
+        Some(ArrowEndpointStyle::Right),
+        Some(ArrowEndpointStyle::Left),
+    ));
+    assert_eq!(
+        arrow_state(&engine, "obj_line_1"),
+        (false, "full".into(), "none".into())
+    );
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (true, "half-right".into(), "half-left".into())
+    );
+
+    assert!(engine.undo());
+    assert_eq!(
+        arrow_state(&engine, "obj_line_1"),
+        (false, "full".into(), "none".into())
+    );
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (true, "full".into(), "none".into())
+    );
+    assert!(engine.undo());
+    assert_eq!(
+        arrow_state(&engine, "obj_line_1"),
+        (false, "full".into(), "none".into())
+    );
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (false, "full".into(), "none".into())
+    );
+    assert!(engine.redo());
+    assert!(engine.redo());
+    assert_eq!(
+        arrow_state(&engine, "obj_line_1"),
+        (false, "full".into(), "none".into())
+    );
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (true, "half-right".into(), "half-left".into())
+    );
+}
+
+#[test]
 fn curved_arrow_tool_stores_curve_and_renders_arc_segments() {
     let mut engine = Engine::new();
     engine.set_tool_state(ToolState {

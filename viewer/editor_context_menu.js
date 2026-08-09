@@ -755,19 +755,26 @@ export function createCanvasContextMenuHost(options) {
       syncEditorArrowStateFromSelectedLine();
       const [endpoint, style] = value.split(":");
       const nextStyle = style || "none";
+      let headStyle = "";
+      let tailStyle = "";
       if (isEquilibriumArrowType(options.editorState().arrowType) && (nextStyle === "left" || nextStyle === "right")) {
-        options.editorState().arrowHeadStyle = nextStyle;
-        options.editorState().arrowTailStyle = nextStyle;
-        options.editorState().arrowHead = true;
-        options.editorState().arrowTail = true;
+        headStyle = nextStyle;
+        tailStyle = nextStyle;
       } else if (endpoint === "head") {
-        options.editorState().arrowHeadStyle = selectedUniformArrowEndpoint("head") === endpointStylePayloadName(nextStyle) ? "none" : nextStyle;
-        options.editorState().arrowHead = options.editorState().arrowHeadStyle !== "none";
+        headStyle = selectedUniformArrowEndpoint("head") === endpointStylePayloadName(nextStyle) ? "none" : nextStyle;
       } else {
-        options.editorState().arrowTailStyle = selectedUniformArrowEndpoint("tail") === endpointStylePayloadName(nextStyle) ? "none" : nextStyle;
-        options.editorState().arrowTail = options.editorState().arrowTailStyle !== "none";
+        tailStyle = selectedUniformArrowEndpoint("tail") === endpointStylePayloadName(nextStyle) ? "none" : nextStyle;
       }
-      changed = await options.applyArrowOptionsToSelection();
+      changed = await executeDocumentCommand(
+        {
+          type: "apply-arrow-endpoints",
+          payload: {
+            ...(headStyle ? { headStyle } : {}),
+            ...(tailStyle ? { tailStyle } : {}),
+          },
+        },
+        () => options.state().editorEngine?.applyArrowEndpointPatchToSelection?.(headStyle, tailStyle),
+      );
     }
     if (!changed) {
       options.renderEditorOverlay();

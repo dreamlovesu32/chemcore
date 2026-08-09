@@ -469,7 +469,19 @@ impl Engine {
         bold: bool,
         no_go: ArrowNoGo,
     ) -> bool {
-        let object_ids = self.state.selection.arrow_objects.clone();
+        let object_ids = self
+            .state
+            .selection
+            .arrow_objects
+            .iter()
+            .filter(|object_id| {
+                !self
+                    .state
+                    .document
+                    .scene_object_is_effectively_locked(object_id)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
         if object_ids.is_empty() {
             return false;
         }
@@ -492,6 +504,81 @@ impl Engine {
         })
     }
 
+    pub fn apply_arrow_endpoints_to_selection(
+        &mut self,
+        head_style: Option<ArrowEndpointStyle>,
+        tail_style: Option<ArrowEndpointStyle>,
+    ) -> bool {
+        if head_style.is_none() && tail_style.is_none() {
+            return false;
+        }
+        let object_ids = self
+            .state
+            .selection
+            .arrow_objects
+            .iter()
+            .filter(|object_id| {
+                !self
+                    .state
+                    .document
+                    .scene_object_is_effectively_locked(object_id)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if object_ids.is_empty() {
+            return false;
+        }
+        let command = EditorCommand::ApplyArrowEndpoints {
+            object_ids,
+            head_style,
+            tail_style,
+        };
+        self.with_command(command, |engine| {
+            engine.apply_arrow_endpoints_to_selection_untracked(head_style, tail_style)
+        })
+    }
+
+    fn apply_arrow_endpoints_to_selection_untracked(
+        &mut self,
+        head_style: Option<ArrowEndpointStyle>,
+        tail_style: Option<ArrowEndpointStyle>,
+    ) -> bool {
+        let object_ids = self
+            .state
+            .selection
+            .arrow_objects
+            .iter()
+            .filter(|object_id| {
+                !self
+                    .state
+                    .document
+                    .scene_object_is_effectively_locked(object_id)
+                    && self
+                        .state
+                        .document
+                        .find_scene_object(object_id)
+                        .is_some_and(|object| object.object_type == "line")
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if object_ids.is_empty() {
+            return false;
+        }
+        self.push_undo_snapshot();
+        let mut changed = false;
+        for object_id in object_ids {
+            changed |=
+                update_arrow_object_endpoint_styles(self, &object_id, head_style, tail_style);
+        }
+        if !changed {
+            self.undo_stack.pop();
+            return false;
+        }
+        self.state.overlay.hover_arrow = None;
+        self.state.overlay.hover_shape = None;
+        true
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(super) fn apply_arrow_options_to_selection_untracked(
         &mut self,
@@ -503,8 +590,19 @@ impl Engine {
         bold: bool,
         no_go: ArrowNoGo,
     ) -> bool {
-        let selected: std::collections::BTreeSet<String> =
-            self.state.selection.arrow_objects.iter().cloned().collect();
+        let selected: std::collections::BTreeSet<String> = self
+            .state
+            .selection
+            .arrow_objects
+            .iter()
+            .filter(|object_id| {
+                !self
+                    .state
+                    .document
+                    .scene_object_is_effectively_locked(object_id)
+            })
+            .cloned()
+            .collect();
         if selected.is_empty() {
             return false;
         }

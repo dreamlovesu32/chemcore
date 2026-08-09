@@ -484,7 +484,19 @@ impl Engine {
 
     pub fn apply_line_style_to_selection(&mut self, style: &str) -> bool {
         let style = normalize_line_style_name(style);
-        let object_ids = self.state.selection.arrow_objects.clone();
+        let object_ids = self
+            .state
+            .selection
+            .arrow_objects
+            .iter()
+            .filter(|object_id| {
+                !self
+                    .state
+                    .document
+                    .scene_object_is_effectively_locked(object_id)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
         self.with_command(
             EditorCommand::ApplyLineStyle {
                 object_ids,
@@ -495,8 +507,19 @@ impl Engine {
     }
 
     fn apply_line_style_to_selection_untracked(&mut self, style: &str) -> bool {
-        let selected: BTreeSet<String> =
-            self.state.selection.arrow_objects.iter().cloned().collect();
+        let selected: BTreeSet<String> = self
+            .state
+            .selection
+            .arrow_objects
+            .iter()
+            .filter(|object_id| {
+                !self
+                    .state
+                    .document
+                    .scene_object_is_effectively_locked(object_id)
+            })
+            .cloned()
+            .collect();
         if selected.is_empty() {
             return false;
         }

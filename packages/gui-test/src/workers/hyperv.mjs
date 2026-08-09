@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertValidDocument } from "../protocol/validate.mjs";
+import { verifyDesktopCandidateManifest } from "../../../../scripts/candidate-source-identity.mjs";
 
 const scriptPath = join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), "scripts", "hyperv-coordinator.ps1");
 const repositoryRoot = dirname(dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url))))));
@@ -165,10 +166,15 @@ function cleanAgentAttestation(agent = {}) {
 }
 
 export class HyperVCoordinator {
-  constructor(profile, { executor = defaultExecutor, environment = process.env } = {}) {
+  constructor(profile, {
+    executor = defaultExecutor,
+    environment = process.env,
+    candidateVerifier = executor === defaultExecutor ? verifyDesktopCandidateManifest : () => null,
+  } = {}) {
     this.profile = profile;
     this.executor = executor;
     this.environment = environment;
+    this.candidateVerifier = candidateVerifier;
     this.actionExecutor = executor === defaultExecutor ? new PersistentActionExecutor({ profile, environment }) : null;
   }
 
@@ -294,6 +300,7 @@ export class HyperVCoordinator {
   }
 
   async installCandidate() {
+    this.candidateVerifier();
     await this.prepareGuest();
     const result = await this.execute("install-candidate");
     if (!result.candidate?.sha256 || !result.candidate?.guestPath) {

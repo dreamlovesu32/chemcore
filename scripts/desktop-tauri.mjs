@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { writeDesktopCandidateManifest } from "./candidate-source-identity.mjs";
 
 const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const appDir = join(rootDir, "apps", "chemsema-desktop");
@@ -40,5 +41,9 @@ const result = spawnSync(process.execPath, [tauriCli, ...args], {
 
 if (result.error) {
   throw result.error;
+}
+if ((result.status ?? 0) === 0 && args[0] === "build") {
+  const manifest = writeDesktopCandidateManifest();
+  console.log(`Desktop candidate manifest: ${manifest.sourceSha256} -> ${manifest.candidateSha256}`);
 }
 process.exit(result.status ?? 0);
