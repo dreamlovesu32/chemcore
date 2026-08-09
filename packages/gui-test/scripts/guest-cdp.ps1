@@ -261,32 +261,47 @@ try {
 (() => {
   const entityIds = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob('$entityIdsBase64'), c => c.charCodeAt(0))));
   const entities = entityIds.map(entityId => {
-    const matches = [...document.querySelectorAll('[data-object-id="' + CSS.escape(entityId) + '"][data-renderer]')];
-    const element = matches[0] || null;
-    const rect = element?.getBoundingClientRect();
-    const localBounds = element && typeof element.getBBox === 'function' ? element.getBBox() : null;
-    const documentRoot = element?.closest?.('[data-layer="document-content"]') || null;
-    const elementMatrix = element?.getCTM?.() || null;
-    const rootMatrix = documentRoot?.getCTM?.() || null;
-    let worldRect = null;
-    if (localBounds && elementMatrix && rootMatrix) {
+    const allMatches = [...document.querySelectorAll('[data-object-id="' + CSS.escape(entityId) + '"]')];
+    const renderRoots = allMatches.filter(element => element.hasAttribute('data-renderer'));
+    const isVisibleEntityElement = element => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return (rect.width > 0 || rect.height > 0) && style.visibility !== 'hidden' && style.display !== 'none';
+    };
+    const visibleRenderRoots = renderRoots.filter(isVisibleEntityElement);
+    const elements = visibleRenderRoots.length ? visibleRenderRoots : allMatches;
+    const visibleElements = elements.filter(isVisibleEntityElement);
+    const screenRects = visibleElements.map(element => element.getBoundingClientRect());
+    const screenXs = screenRects.flatMap(rect => [rect.left, rect.right]);
+    const screenYs = screenRects.flatMap(rect => [rect.top, rect.bottom]);
+    const rect = screenRects.length
+      ? [Math.min(...screenXs), Math.min(...screenYs), Math.max(...screenXs), Math.max(...screenYs)]
+      : null;
+    const worldPoints = [];
+    for (const element of visibleElements) {
+      const localBounds = typeof element.getBBox === 'function' ? element.getBBox() : null;
+      const documentRoot = element.closest?.('[data-layer="document-content"]') || null;
+      const elementMatrix = element.getCTM?.() || null;
+      const rootMatrix = documentRoot?.getCTM?.() || null;
+      if (!localBounds || !elementMatrix || !rootMatrix) continue;
       const relativeMatrix = rootMatrix.inverse().multiply(elementMatrix);
-      const corners = [
+      worldPoints.push(...[
         new DOMPoint(localBounds.x, localBounds.y),
         new DOMPoint(localBounds.x + localBounds.width, localBounds.y),
         new DOMPoint(localBounds.x, localBounds.y + localBounds.height),
         new DOMPoint(localBounds.x + localBounds.width, localBounds.y + localBounds.height)
-      ].map(point => point.matrixTransform(relativeMatrix));
-      const xs = corners.map(point => point.x);
-      const ys = corners.map(point => point.y);
-      worldRect = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+      ].map(point => point.matrixTransform(relativeMatrix)));
     }
-    const style = element ? getComputedStyle(element) : null;
+    const worldXs = worldPoints.map(point => point.x);
+    const worldYs = worldPoints.map(point => point.y);
+    const worldRect = worldPoints.length
+      ? [Math.min(...worldXs), Math.min(...worldYs), Math.max(...worldXs), Math.max(...worldYs)]
+      : null;
     return {
       entityId,
-      matchCount: matches.length,
-      visible: !!rect && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none',
-      rect: rect ? [rect.left, rect.top, rect.right, rect.bottom] : null,
+      matchCount: visibleRenderRoots.length || (visibleElements.length ? 1 : 0),
+      visible: visibleElements.length > 0,
+      rect,
       worldRect
     };
   });
@@ -346,7 +361,13 @@ try {
       return [...root.querySelectorAll('*')].filter(element => roleOf(element) === query.value && (!query.name || nameOf(element) === query.name));
     }
     if (query.strategy === 'entity-id') {
-      const element = root.querySelector('[data-object-id="' + CSS.escape(query.value) + '"][data-renderer]');
+      const matches = [...root.querySelectorAll('[data-object-id="' + CSS.escape(query.value) + '"]')];
+      const visibleCandidate = candidate => {
+        const rect = candidate.getBoundingClientRect();
+        const style = getComputedStyle(candidate);
+        return (rect.width > 0 || rect.height > 0) && style.visibility !== 'hidden' && style.display !== 'none';
+      };
+      const element = matches.find(candidate => candidate.hasAttribute('data-renderer') && visibleCandidate(candidate)) || matches.find(visibleCandidate);
       return element ? [element] : [];
     }
     if (query.strategy === 'world-geometry') {
@@ -371,7 +392,7 @@ try {
       name: nameOf(element),
       automationId: element.id || null,
       disabled: !!element.disabled || element.getAttribute('aria-disabled') === 'true',
-      visible: rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none',
+      visible: (target.strategy === 'entity-id' ? (rect.width > 0 || rect.height > 0) : (rect.width > 0 && rect.height > 0)) && style.visibility !== 'hidden' && style.display !== 'none',
       rect: [rect.left, rect.top, rect.right, rect.bottom]
     };
   });

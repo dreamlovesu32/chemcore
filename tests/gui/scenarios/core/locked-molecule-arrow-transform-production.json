@@ -1,0 +1,50 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.selection.locked-molecule-arrow-transform.production",
+  "title": "Keep a locked molecule stationary while an editable arrow moves and restore mixed movement after Unlock",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Locked transform projection required production proof across molecular structure and graphic-object preview paths.",
+  "capabilities": ["gui.public-input", "editor.bond.draw", "editor.arrow.draw", "editor.selection.region", "editor.selection.select-all", "editor.selection.mixed-object", "editor.object.lock", "editor.context-menu", "editor.selection.transform-partial", "editor.history.undo-redo", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 11,
+  "actions": [
+    { "id": "activate-bond-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "draw-molecule", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.34, "y": 0.42 }, "to": { "x": 0.44, "y": 0.42 }, "steps": 8, "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "activate-arrow-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Small arrow head", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"arrow\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "draw-arrow", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.60, "y": 0.58 }, "to": { "x": 0.72, "y": 0.58 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "select-molecule", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.30, "y": 0.36 }, "to": { "x": 0.48, "y": 0.48 }, "steps": 8, "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "open-molecule-context-menu", "type": "click", "target": { "strategy": "entity-id", "value": "obj_editor_molecule" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"set-selection-locked\"][data-canvas-context-value=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "lock-molecule", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Lock", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "quiescent", "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "select-locked-molecule-and-editable-arrow", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 2, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "drag-mixed-molecule-arrow-selection", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.52, "y": 0.50 }, "to": { "x": 0.58, "y": 0.50 }, "steps": 8, "completion": { "kind": "entity-rect-deltas", "entities": [{ "entityId": "obj_editor_molecule", "operator": "stationary", "toleranceWorld": 0.5 }, { "entityId": "obj_line_4", "operator": "moved", "toleranceWorld": 5 }], "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "undo-mixed-molecule-arrow-drag", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "entity-rect-deltas", "entities": [{ "entityId": "obj_editor_molecule", "operator": "stationary", "toleranceWorld": 0.5 }, { "entityId": "obj_line_4", "operator": "moved", "toleranceWorld": 5 }], "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "redo-mixed-molecule-arrow-drag", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Y", "completion": { "kind": "entity-rect-deltas", "entities": [{ "entityId": "obj_editor_molecule", "operator": "stationary", "toleranceWorld": 0.5 }, { "entityId": "obj_line_4", "operator": "moved", "toleranceWorld": 5 }], "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "clear-mixed-selection", "type": "click", "target": { "strategy": "world-geometry", "value": "page-background" }, "button": "left", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "open-locked-molecule-context-menu", "type": "click", "target": { "strategy": "entity-id", "value": "obj_editor_molecule" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"set-selection-locked\"][data-canvas-context-value=\"false\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "unlock-molecule", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Unlock", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "quiescent", "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "select-editable-molecule-and-arrow", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 2, "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "drag-editable-molecule-arrow-selection", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.55, "y": 0.50 }, "to": { "x": 0.61, "y": 0.50 }, "steps": 8, "completion": { "kind": "entity-rect-deltas", "entities": [{ "entityId": "obj_editor_molecule", "operator": "moved", "toleranceWorld": 5 }, { "entityId": "obj_line_4", "operator": "moved", "toleranceWorld": 5 }], "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "undo-editable-molecule-arrow-drag", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "entity-rect-deltas", "entities": [{ "entityId": "obj_editor_molecule", "operator": "moved", "toleranceWorld": 5 }, { "entityId": "obj_line_4", "operator": "moved", "toleranceWorld": 5 }], "timeoutMs": 8000 }, "budgetMs": 12000 },
+    { "id": "redo-editable-molecule-arrow-drag", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Y", "completion": { "kind": "entity-rect-deltas", "entities": [{ "entityId": "obj_editor_molecule", "operator": "moved", "toleranceWorld": 5 }, { "entityId": "obj_line_4", "operator": "moved", "toleranceWorld": 5 }], "timeoutMs": 8000 }, "budgetMs": 12000 }
+  ],
+  "oracles": [
+    { "id": "molecule-remains", "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 1 },
+    { "id": "arrow-remains", "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 1 },
+    { "id": "context-menu-is-closed", "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0 },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw", "editor.arrow.draw", "editor.selection.region", "editor.selection.select-all", "editor.selection.mixed-object", "editor.object.lock", "editor.context-menu", "editor.selection.transform-partial", "editor.history.undo-redo", "desktop.production"],
+    "objectTypes": ["bond", "molecule", "arrow"],
+    "cardinalities": ["1", "2"],
+    "states": ["unlocked", "locked", "mixed-object", "mixed-applicability", "moved", "stationary", "undone", "redone", "unlocked-again"],
+    "inputModes": ["mouse", "right-mouse", "keyboard"],
+    "properties": ["object.locked", "object.transform", "bond.order.single", "arrow.type.solid"],
+    "persistenceBoundaries": ["runtime", "undo-stack"]
+  }
+}

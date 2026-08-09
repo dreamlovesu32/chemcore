@@ -379,12 +379,21 @@ test("production world geometry targets are restricted to the rendered page", as
   assert.match(source, /\[data-layer="page-background"\]/);
 });
 
-test("production entity targets resolve one stable scene-object render root", async () => {
+test("production entity targets prefer a render root and fall back to one visible semantic primitive", async () => {
   const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const source = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
   assert.match(source, /query\.strategy === 'entity-id'/);
   assert.match(source, /\[data-object-id=/);
-  assert.match(source, /\[data-renderer\]/);
+  assert.match(source, /hasAttribute\('data-renderer'\)/);
+  assert.match(source, /matches\.find\(candidate/);
+  assert.match(source, /target\.strategy === 'entity-id'/);
+  assert.match(source, /rect\.width > 0 \|\| rect\.height > 0/);
+  assert.match(source, /visibleElements/);
+  assert.match(source, /visibleRenderRoots/);
+  assert.match(source, /visibleRenderRoots\.length \|\| \(visibleElements\.length \? 1 : 0\)/);
+  assert.match(source, /hasAttribute\('data-renderer'\) && visibleCandidate/);
+  assert.match(source, /screenRects\.flatMap/);
+  assert.match(source, /worldPoints\.push/);
 });
 
 test("production action transaction uses one guest invocation for before, input, completion, and after", async () => {
