@@ -109,8 +109,11 @@ export function evaluateDocumentTextProperties(bytes, expected) {
     const runSets = ["runs", "sourceRuns", "displayRuns"]
       .filter((key) => Array.isArray(object?.payload?.[key]))
       .map((key) => ({ key, runs: object.payload[key] }));
-    const runs = runSets.find((entry) => entry.key === "runs")?.runs || [];
-    const weights = runs.map((run) => run?.fontWeight ?? null);
+    const allRuns = runSets.flatMap(({ runs }) => runs);
+    const uniformRunValue = (read) => {
+      const values = allRuns.map(read);
+      return values.length > 0 && values.every((value) => value === values[0]) ? values[0] : null;
+    };
     return {
       id: entry.id,
       found: !!object,
@@ -120,8 +123,21 @@ export function evaluateDocumentTextProperties(bytes, expected) {
       align: object?.payload?.align ?? null,
       lineHeight: object?.payload?.lineHeight ?? null,
       lineHeightMode: object?.payload?.lineHeightMode ?? null,
-      bold: weights.length > 0 && weights.every((weight) => weight === 700),
+      bold: allRuns.length > 0 && allRuns.every((run) => run?.fontWeight === 700),
+      italic: allRuns.length > 0 && allRuns.every((run) => run?.fontStyle === "italic"),
+      underline: allRuns.length > 0 && allRuns.every((run) => run?.underline === true),
+      outline: allRuns.length > 0 && allRuns.every((run) => run?.outline === true),
+      shadow: allRuns.length > 0 && allRuns.every((run) => run?.shadow === true),
+      script: uniformRunValue((run) => run?.script ?? "normal"),
       fill: styles[object?.styleRef]?.fill ?? object?.payload?.fill ?? null,
+      runFontFamilies: Object.fromEntries(runSets.map(({ key, runs: values }) => [
+        key,
+        values.map((run) => run?.fontFamily ?? null),
+      ])),
+      runFontSizes: Object.fromEntries(runSets.map(({ key, runs: values }) => [
+        key,
+        values.map((run) => run?.fontSize ?? null),
+      ])),
       runFills: Object.fromEntries(runSets.map(({ key, runs: values }) => [
         key,
         values.map((run) => run?.fill ?? null),
@@ -130,6 +146,10 @@ export function evaluateDocumentTextProperties(bytes, expected) {
   });
   const passed = observed.every((actual, index) => actual.found
     && Object.entries(expected[index]).every(([name, value]) => name === "id" || actual[name] === value)
+    && (!Object.hasOwn(expected[index], "fontFamily") || Object.values(actual.runFontFamilies)
+      .every((families) => families.every((family) => family === expected[index].fontFamily)))
+    && (!Object.hasOwn(expected[index], "fontSize") || Object.values(actual.runFontSizes)
+      .every((sizes) => sizes.every((size) => size === expected[index].fontSize)))
     && (!Object.hasOwn(expected[index], "fill") || Object.values(actual.runFills)
       .every((fills) => fills.every((fill) => fill === expected[index].fill))));
   return { passed, observed };

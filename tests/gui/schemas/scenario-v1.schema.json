@@ -259,6 +259,11 @@
                   "lineHeight": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000 },
                   "lineHeightMode": { "enum": ["fixed", "auto"] },
                   "bold": { "type": "boolean" },
+                  "italic": { "type": "boolean" },
+                  "underline": { "type": "boolean" },
+                  "outline": { "type": "boolean" },
+                  "shadow": { "type": "boolean" },
+                  "script": { "enum": ["normal", "chemical", "subscript", "superscript"] },
                   "fill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
                 }
               }
