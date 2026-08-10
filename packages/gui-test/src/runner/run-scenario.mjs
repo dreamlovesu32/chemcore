@@ -39,7 +39,7 @@ function oraclePassed(oracle, observed, expectedDiagnostics) {
   if (oracle.kind === "no-unexpected-diagnostics") {
     return observed.every((diagnostic) => expectedDiagnostics.some((expected) => diagnostic.includes(expected)));
   }
-  if (["document-counts", "document-arrow-properties", "document-text-properties"].includes(oracle.kind)) return observed?.passed === true;
+  if (["document-counts", "document-arrow-properties", "document-text-properties", "document-shape-properties"].includes(oracle.kind)) return observed?.passed === true;
   return false;
 }
 

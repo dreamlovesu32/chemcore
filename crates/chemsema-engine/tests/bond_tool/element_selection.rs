@@ -1233,6 +1233,114 @@ fn multi_text_selection_exposes_public_batch_property_menus() {
 }
 
 #[test]
+fn multi_shape_selection_exposes_public_batch_style_menu() {
+    let mut engine = Engine::new();
+    let document = serde_json::json!({
+        "format": { "name": "chemsema", "version": "0.1", "unit": "pt" },
+        "document": {
+            "id": "doc_multi_shape",
+            "title": "multi shape",
+            "page": { "width": 160.0, "height": 100.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_circle": { "kind": "shape", "fill": null, "stroke": "#000000", "strokeWidth": 1.0, "dashArray": [] },
+            "style_rect": { "kind": "shape", "fill": "#000000", "stroke": null, "strokeWidth": 0.0, "dashArray": [] }
+        },
+        "objects": [
+            {
+                "id": "obj_shape_1",
+                "type": "shape",
+                "styleRef": "style_circle",
+                "transform": { "translate": [10.0, 20.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "bbox": [0.0, 0.0, 30.0, 30.0], "kind": "circle" }
+            },
+            {
+                "id": "obj_shape_2",
+                "type": "shape",
+                "styleRef": "style_rect",
+                "transform": { "translate": [80.0, 50.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "bbox": [0.0, 0.0, 40.0, 20.0], "kind": "rect" }
+            }
+        ],
+        "resources": {}
+    });
+    engine
+        .load_document_json(&document.to_string())
+        .expect("multi-shape fixture should load");
+    assert!(engine.select_all());
+
+    let menu: serde_json::Value = serde_json::from_str(
+        &engine.context_menu_json(r#"{"kind":"object","objectId":"obj_shape_1"}"#, false),
+    )
+    .expect("context menu should be valid JSON");
+    let style_items = menu
+        .as_array()
+        .and_then(|items| {
+            items.iter().find(|item| {
+                item.get("label").and_then(serde_json::Value::as_str) == Some("Shape Style")
+            })
+        })
+        .and_then(|item| item.get("submenu"))
+        .and_then(serde_json::Value::as_array)
+        .unwrap_or_else(|| panic!("Shape Style submenu should be available: {menu}"));
+    assert!(style_items.iter().any(|item| {
+        item.get("command").and_then(serde_json::Value::as_str) == Some("shape-style")
+            && item.get("value").and_then(serde_json::Value::as_str) == Some("shadowed")
+    }));
+    assert!(
+        style_items
+            .iter()
+            .all(|item| item.get("checked").and_then(serde_json::Value::as_bool) != Some(true)),
+        "mixed styles must not claim a uniform checked value: {menu}"
+    );
+
+    assert!(engine.apply_shape_style_to_selection("shadowed"));
+    let menu_after: serde_json::Value = serde_json::from_str(
+        &engine.context_menu_json(r#"{"kind":"object","objectId":"obj_shape_1"}"#, false),
+    )
+    .expect("post-style context menu should be valid JSON");
+    let shadowed = menu_after
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some("Shape Style"))
+        .and_then(|item| item.get("submenu"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|items| {
+            items.iter().find(|item| {
+                item.get("value").and_then(serde_json::Value::as_str) == Some("shadowed")
+            })
+        })
+        .expect("Shadowed should remain available after applying the style");
+    assert_eq!(shadowed["checked"], true);
+
+    assert!(engine.undo());
+    assert!(
+        engine.state().selection.is_empty(),
+        "document-snapshot undo should clear the prior selection"
+    );
+    assert!(engine.select_all());
+    let menu_after_undo: serde_json::Value = serde_json::from_str(
+        &engine.context_menu_json(r#"{"kind":"object","objectId":"obj_shape_1"}"#, false),
+    )
+    .expect("undo context menu should be valid JSON");
+    let restored_style_items = menu_after_undo
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some("Shape Style"))
+        .and_then(|item| item.get("submenu"))
+        .and_then(serde_json::Value::as_array)
+        .expect("Shape Style should remain available after undo");
+    assert!(
+        restored_style_items
+            .iter()
+            .all(|item| item.get("checked").and_then(serde_json::Value::as_bool) != Some(true)),
+        "undo must restore each shape's distinct original style: {menu_after_undo}"
+    );
+}
+
+#[test]
 fn locked_arrow_properties_are_immutable_in_a_mixed_selection() {
     fn arrow_state(engine: &Engine, object_id: &str) -> (bool, String, String) {
         let object = engine

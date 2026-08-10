@@ -884,6 +884,14 @@ trace 协议现在会在每个普通 guest 动作事务内部写入四个有界�
 
 这条政策现在由 `gui-platform qualify` 直接执行。命令验证每份输入运行报告，要求全部登记场景齐全且 production 候选哈希唯一，拒绝意外或重复身份；它按 evidence key 与 run id 定位每份 evidence manifest，把所有对象 URI 限制在 evidence root 内，并重新读取每个字节后比较声明大小与 SHA-256。只要纳入的任一运行失败，对应场景就保持失败，即使后续运行通过。当前 21 报告资格结果因此为 `failed`：19 个场景全部存在，其中 17 个场景单元干净；保存/打开与锁定祖先组合各包含一次失败和一次通过，两次失败仍阻断资格。门禁独立验证 141 个 manifest 对象，共 189,509,350 字节，没有 evidence 诊断或候选不匹配。资格输出本身是严格版本化的 `chemsema.gui.qualification.v1` 文档；非通过结果以非零状态退出。
 
+### 四类 Shape 创建、批量属性、历史与持久化
+
+登记闭包现已扩展为 20 个场景。`core.shape.multi-kind-style-history.production` 通过受守卫的真实鼠标输入依次绘制 Circle/Solid、Ellipse/Dashed、Rounded rectangle/Shaded 和 Rectangle/Filled；全选四个对象，通过公开画布菜单批量设为 Shadowed，证明统一勾选状态；撤销该批量事务后，按照文档快照历史会清空 selection 的既有合同显式重新全选，证明四种原始混合样式得到恢复；再重做 Shadowed，并通过 Windows 原生对话框保存。独立 CCJS oracle 要求格式 0.2、一个预期的空编辑器分子根加四个图形、持久化 kind 精确为 `circle`、`ellipse`、`roundRect`、`rect`，且每个 Shape 都必须为 `fill: null`、黑色 stroke、宽度 1、空 dash array、`shaded: false`、`shadow: true`、`shadowSize: 4`。候选 `59d280714265b53527ed5984131423200134ceeede3ee84eac00123f06e7620b` 通过 30/30 个真实输入动作和 4/4 个最终 oracle，诊断为 0；evidence key `c10ae65a412ed6a91e273852cfa448eb5086d88152fedd3a30ca7708284c447b` 保留 8 个制品，VM 最终恢复为 `Off`。
+
+失败链没有删除。Evidence `3e08a7179b946a2f7d82f531f8a6ab6d62d4236fa948ace1ce3159b426ac7613` 与 `8c92962773930e111df709a2eef837a25c6457977c0795748d97be4d467b7ab1` 修正了不受支持的 DOM 假设。Evidence `8dce1a44c68bdaa94f56ffe10e33ffc92bf18f9f2a8fc351e33fb87f8e3a4df0` 暴露真实产品缺陷：同类多 Shape selection 虽然内核支持批量应用，却没有公开 Shape Style 菜单。Rust 菜单分支与回归测试现已覆盖混合初始样式、统一应用、撤销清空 selection、重新全选和精确恢复混合样式。Evidence `2f6932acfd90b696ffc91d74e888371bc55180bbc43e6be0ea18461374259e51`、`2d78c96a6b02a623dae0e07828e9f1e9d15e09c4abf7cdc2f0128eb0fe47d28a` 与 `b5f1045845f0898f1b429bf96430c47d8b143f53ba3da4d58b7f888d5267faae` 随后分别修正显式重新选择、空编辑器根计数，以及 UI 命令名与 CCJS kind 名的差异，没有放宽产品断言。全仓门禁随后通过，包括 146 个 JavaScript 测试、全部 Rust 与文档测试、WASM 重建和生成制品同步。
+
+这只是一个已通过资格的 Shape 单元，不是绿色的 20 场景候选资格。当前候选的 fail-closed 资格文档报告：预期 20、通过 1、缺失 19、失败运行 0，并重新校验了 9 个 evidence 对象共 10,539,578 字节。引擎修改使受影响的旧候选证据闭包失效，而此前 19 场景资格仍按失败保留政策保持失败。颜色、Faded、锁定/组合、变换、剪贴板、其他格式、复杂/large/xlarge 文档、环境/故障/模型/变异覆盖、耐久和连续 1,000 次展示资格仍开放。
+
 ## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>

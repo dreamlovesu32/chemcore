@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateDocumentArrowProperties, evaluateDocumentReports, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
+import { evaluateDocumentArrowProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
 
 const validReports = {
   inspect: {
@@ -96,6 +96,35 @@ test("saved-document text oracle checks exact content and public style propertie
     },
   }));
   assert.equal(evaluateDocumentTextProperties(staleSourceRuns, expected).passed, false);
+});
+
+test("saved-document shape oracle checks exact kind and public style properties", () => {
+  const bytes = Buffer.from(JSON.stringify({
+    styles: {
+      style_shape_1: {
+        kind: "shape",
+        fill: null,
+        stroke: "#000000",
+        strokeWidth: 1,
+        dashArray: [],
+        shadow: true,
+        shadowSize: 4,
+      },
+    },
+    entities: {
+      scene: [{
+        id: "obj_shape_1",
+        type: "shape",
+        styleRef: "style_shape_1",
+        payload: { kind: "circle" },
+      }],
+    },
+  }));
+  const expected = [{ id: "obj_shape_1", kind: "circle", fill: null, stroke: "#000000", strokeWidth: 1, dashArray: [], shaded: false, shadow: true, shadowSize: 4 }];
+  assert.equal(evaluateDocumentShapeProperties(bytes, expected).passed, true);
+  assert.equal(evaluateDocumentShapeProperties(bytes, [{ ...expected[0], kind: "ellipse" }]).passed, false);
+  assert.equal(evaluateDocumentShapeProperties(bytes, [{ ...expected[0], dashArray: [4] }]).passed, false);
+  assert.equal(evaluateDocumentShapeProperties(bytes, [{ ...expected[0], shadow: false }]).passed, false);
 });
 
 test("saved-document validation is chemical only when a nonempty molecular graph exists", () => {

@@ -515,6 +515,8 @@ impl Engine {
                 self.text_alignment_menu(),
                 item("Line Spacing...", "text-line-spacing", ""),
             ]);
+        } else if selected_types.len() == 1 && selected_types.contains("shape") {
+            items.extend([separator(), self.shape_style_menu()]);
         }
         items.extend([
             separator(),

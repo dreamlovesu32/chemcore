@@ -155,6 +155,36 @@ export function evaluateDocumentTextProperties(bytes, expected) {
   return { passed, observed };
 }
 
+export function evaluateDocumentShapeProperties(bytes, expected) {
+  let document;
+  try {
+    document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));
+  } catch {
+    return { passed: false, observed: [] };
+  }
+  const scene = Array.isArray(document?.entities?.scene) ? document.entities.scene : [];
+  const styles = document?.styles && typeof document.styles === "object" ? document.styles : {};
+  const observed = expected.map((entry) => {
+    const object = scene.find((candidate) => candidate?.id === entry.id && candidate?.type === "shape");
+    const style = styles[object?.styleRef] || {};
+    return {
+      id: entry.id,
+      found: !!object,
+      kind: object?.payload?.kind ?? null,
+      fill: style.fill ?? null,
+      stroke: style.stroke ?? null,
+      strokeWidth: style.strokeWidth ?? null,
+      dashArray: Array.isArray(style.dashArray) ? style.dashArray : null,
+      shaded: style.shaded === true,
+      shadow: style.shadow === true,
+      shadowSize: style.shadowSize ?? null,
+    };
+  });
+  const passed = observed.every((actual, index) => actual.found
+    && Object.entries(expected[index]).every(([name, value]) => name === "id" || JSON.stringify(actual[name]) === JSON.stringify(value)));
+  return { passed, observed };
+}
+
 export function validationLevelForDocumentBytes(bytes) {
   try {
     const document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));

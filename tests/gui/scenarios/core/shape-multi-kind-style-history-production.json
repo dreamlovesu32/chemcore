@@ -1,0 +1,71 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.shape.multi-kind-style-history.production",
+  "title": "Draw every public shape kind, change styles, batch edit, undo, redo, and verify persistence",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Shape creation and multi-object style editing had no isolated production evidence proving real public input, history behavior, or exact CCJS persistence.",
+  "capabilities": ["gui.public-input", "editor.shape.draw", "editor.shape.properties", "editor.selection.select-all", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 19,
+  "actions": [
+    { "id": "activate-circle-solid-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Circle Solid outline", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"shape\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-circle-solid", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.26, "y": 0.30 }, "to": { "x": 0.38, "y": 0.45 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "choose-ellipse-kind", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Ellipse" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"shape-kind-ellipse\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-ellipse-dashed", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Ellipse Dashed outline" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"shape-style-ellipse-dashed\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-ellipse-dashed", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.53, "y": 0.30 }, "to": { "x": 0.70, "y": 0.42 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "choose-rounded-rectangle-kind", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Rounded rectangle" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"shape-kind-round-rect\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-rounded-rectangle-shaded", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Rounded rectangle Shaded" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"shape-style-round-rect-shaded\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-rounded-rectangle-shaded", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.24, "y": 0.58 }, "to": { "x": 0.41, "y": 0.72 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 3, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "choose-rectangle-kind", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Rectangle" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"shape-kind-rect\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-rectangle-filled", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Rectangle Filled" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"shape-style-rect-filled\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-rectangle-filled", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.54, "y": 0.57 }, "to": { "x": 0.72, "y": 0.72 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 4, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-all-shapes", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 4, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-shape-style-menu", "type": "click", "target": { "strategy": "entity-id", "value": "obj_shape_1" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"shape-style\"][data-canvas-context-value=\"shadowed\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-shape-style-menu", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Shape Style", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Shape Style\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "make-all-shapes-shadowed", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Shadowed", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "verify-all-shadowed", "type": "click", "target": { "strategy": "entity-id", "value": "obj_shape_1" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"shape-style\"][data-canvas-context-value=\"shadowed\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "close-shadowed-menu", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "undo-batch-shape-style", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 4, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "reselect-all-shapes-after-undo", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 4, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "verify-mixed-styles-restored", "type": "click", "target": { "strategy": "entity-id", "value": "obj_shape_1" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"shape-style\"][aria-checked=\"true\"]", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "close-mixed-style-menu", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "redo-batch-shape-style", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Y", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 4, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "verify-redone-shadowed-style", "type": "click", "target": { "strategy": "entity-id", "value": "obj_shape_1" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"shape-style\"][data-canvas-context-value=\"shadowed\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "close-redone-style-menu", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "four-shape-kinds-remain", "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 4 },
+    { "id": "saved-document-has-four-graphics", "kind": "document-counts", "expected": { "nodes": 0, "bonds": 0, "molecules": 1, "objects": 5 } },
+    { "id": "saved-shape-kind-and-style-matrix", "kind": "document-shape-properties", "expected": [
+      { "id": "obj_shape_1", "kind": "circle", "fill": null, "stroke": "#000000", "strokeWidth": 1, "dashArray": [], "shaded": false, "shadow": true, "shadowSize": 4 },
+      { "id": "obj_shape_2", "kind": "ellipse", "fill": null, "stroke": "#000000", "strokeWidth": 1, "dashArray": [], "shaded": false, "shadow": true, "shadowSize": 4 },
+      { "id": "obj_shape_3", "kind": "roundRect", "fill": null, "stroke": "#000000", "strokeWidth": 1, "dashArray": [], "shaded": false, "shadow": true, "shadowSize": 4 },
+      { "id": "obj_shape_4", "kind": "rect", "fill": null, "stroke": "#000000", "strokeWidth": 1, "dashArray": [], "shaded": false, "shadow": true, "shadowSize": 4 }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.shape.draw", "editor.shape.properties", "editor.selection.select-all", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["shape"],
+    "cardinalities": ["1", "2", "many"],
+    "states": ["circle", "ellipse", "rounded-rectangle", "rectangle", "solid", "dashed", "shaded", "filled", "shadowed", "mixed-style", "selected", "saved-document"],
+    "inputModes": ["mouse", "right-mouse", "keyboard", "native-dialog"],
+    "properties": ["shape.kind", "shape.style", "shape.fill", "shape.stroke", "shape.stroke-width", "shape.dash-array", "shape.shaded", "shape.shadow", "shape.shadow-size"],
+    "persistenceBoundaries": ["runtime", "history", "filesystem", "native-dialog"]
+  }
+}

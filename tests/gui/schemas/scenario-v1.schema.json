@@ -228,7 +228,7 @@
       "required": ["id", "kind"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "kind": { "enum": ["dom-count", "dom-distinct-count", "no-unexpected-diagnostics", "document-counts", "document-arrow-properties", "document-text-properties"] },
+        "kind": { "enum": ["dom-count", "dom-distinct-count", "no-unexpected-diagnostics", "document-counts", "document-arrow-properties", "document-text-properties", "document-shape-properties"] },
         "selector": { "type": "string" },
         "attribute": { "enum": ["data-object-id", "data-node-id", "data-bond-id"] },
         "operator": { "enum": ["eq", "gte"] },
@@ -296,6 +296,29 @@
                   "fill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
                 }
               }
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "kind"],
+                "minProperties": 3,
+                "properties": {
+                  "id": { "$ref": "#/$defs/id" },
+                  "kind": { "enum": ["circle", "ellipse", "roundRect", "rect"] },
+                  "fill": { "type": ["string", "null"], "pattern": "^#[0-9a-fA-F]{6}$" },
+                  "stroke": { "type": ["string", "null"], "pattern": "^#[0-9a-fA-F]{6}$" },
+                  "strokeWidth": { "type": "number", "minimum": 0, "maximum": 1000 },
+                  "dashArray": { "type": "array", "maxItems": 16, "items": { "type": "number", "minimum": 0, "maximum": 1000 } },
+                  "shaded": { "type": "boolean" },
+                  "shadow": { "type": "boolean" },
+                  "shadowSize": { "type": ["number", "null"], "minimum": 0, "maximum": 1000 }
+                }
+              }
             }
           ]
         }
@@ -319,6 +342,10 @@
         },
         {
           "if": { "properties": { "kind": { "const": "document-text-properties" } } },
+          "then": { "required": ["expected"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "document-shape-properties" } } },
           "then": { "required": ["expected"] }
         }
       ]
