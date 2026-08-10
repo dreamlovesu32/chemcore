@@ -160,6 +160,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.text.multi-property-persistence.production",
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["scripts/test.mjs"]), []);
+  assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/qualification/evaluate.mjs"]), []);
   assert.deepEqual(planImpactedScenarios(graph, ["unknown/new-surface.js"]), {
     changedPaths: ["unknown/new-surface.js"],
     matchedSources: [],

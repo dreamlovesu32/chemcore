@@ -5,6 +5,7 @@
     { "id": "source.viewer-numeric-dialog", "kind": "source", "patterns": ["viewer/numeric_dialog_host.js"] },
     { "id": "source.engine", "kind": "source", "patterns": ["crates/chemsema-engine/**"] },
     { "id": "source.gui-platform", "kind": "source", "patterns": ["packages/gui-test/src/cli.mjs", "packages/gui-test/src/protocol/**", "packages/gui-test/src/runner/**", "packages/gui-test/src/evidence/**", "packages/gui-test/src/coverage/**", "packages/gui-test/src/impact/**"] },
+    { "id": "source.gui-qualification", "kind": "source", "patterns": ["packages/gui-test/src/qualification/**"] },
     { "id": "source.gui-schema-metadata", "kind": "source", "patterns": ["tests/gui/schemas/**"] },
     { "id": "source.gui-coverage-metadata", "kind": "source", "patterns": ["tests/gui/coverage/**"] },
     { "id": "source.gui-production-transport", "kind": "source", "patterns": ["packages/gui-test/src/workers/**", "packages/gui-test/scripts/**", "crates/chemsema-gui-test-agent/**"] },

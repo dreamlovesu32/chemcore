@@ -23,4 +23,5 @@ export const schemaFiles = Object.freeze({
   "chemsema.gui.cdp-response.v1": join(schemaDir, "cdp-response-v1.schema.json"),
   "chemsema.gui.action-transaction.v1": join(schemaDir, "action-transaction-v1.schema.json"),
   "chemsema.gui.action-transaction-receipt.v1": join(schemaDir, "action-transaction-receipt-v1.schema.json"),
+  "chemsema.gui.qualification.v1": join(schemaDir, "qualification-v1.schema.json"),
 });

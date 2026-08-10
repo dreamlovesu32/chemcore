@@ -882,6 +882,8 @@ CCJS 0.2 已把 `locked` 定义为“对象是否可编辑”，但桌面端此�
 
 trace 协议现在会在每个普通 guest 动作事务内部写入四个有界用户时序标记：`start`、`input-before`、`input-after` 和 `complete`。它们复用 before/completion/after 观察所用的持久 observer 通道，绝不替代受守卫的 OS 输入。同一候选上的一次锁定祖先组合诊断执行以 evidence `b07c0ced9a0bf1576f0130e7fbedac9c10bbb6aec2d152fce8c2c97fecebd6d4` 通过全部 22 个动作和 4 个 oracle；预期的 88 个标记全部存在且未截断。164,998 个 trace 事件中没有任何大于等于 50 ms 的任务；Layout、Paint 和 Commit 峰值分别为 1.139 ms、0.412 ms 和 5.286 ms，而保留失败中分别达到 2,094.164 ms、1,298.080 ms 和 614.156 ms。失败动作时段的宿主 Hyper-V 与 System 日志没有记录调度、CPU 或内存故障。启动时反复出现的 VHDX security-information 警告在通过与失败运行中都存在，因此不能解释该事件。现有证据支持“整个 renderer 或 VM 被暂停调度”，但还不能区分两者。后续通过提供了干净功能结果，不会把失败的资格尝试改成绿色。
 
+这条政策现在由 `gui-platform qualify` 直接执行。命令验证每份输入运行报告，要求全部登记场景齐全且 production 候选哈希唯一，拒绝意外或重复身份；它按 evidence key 与 run id 定位每份 evidence manifest，把所有对象 URI 限制在 evidence root 内，并重新读取每个字节后比较声明大小与 SHA-256。只要纳入的任一运行失败，对应场景就保持失败，即使后续运行通过。当前 21 报告资格结果因此为 `failed`：19 个场景全部存在，其中 17 个场景单元干净；保存/打开与锁定祖先组合各包含一次失败和一次通过，两次失败仍阻断资格。门禁独立验证 141 个 manifest 对象，共 189,509,350 字节，没有 evidence 诊断或候选不匹配。资格输出本身是严格版本化的 `chemsema.gui.qualification.v1` 文档；非通过结果以非零状态退出。
+
 ## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>

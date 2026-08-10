@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "chemsema.gui.qualification.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "qualificationId", "generatedAt", "status", "candidateSha256", "reportCount", "expectedScenarioCount", "passedScenarioCount", "failedScenarioCount", "missingScenarioCount", "failedRunCount", "reports", "scenarioResults", "evidence", "diagnostics"],
+  "properties": {
+    "schema": { "const": "chemsema.gui.qualification.v1" },
+    "qualificationId": { "type": "string", "format": "uuid" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["passed", "failed"] },
+    "candidateSha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "reportCount": { "type": "integer", "minimum": 0 },
+    "expectedScenarioCount": { "type": "integer", "minimum": 1 },
+    "passedScenarioCount": { "type": "integer", "minimum": 0 },
+    "failedScenarioCount": { "type": "integer", "minimum": 0 },
+    "missingScenarioCount": { "type": "integer", "minimum": 0 },
+    "failedRunCount": { "type": "integer", "minimum": 0 },
+    "reports": { "type": "array", "items": { "$ref": "#/$defs/report" } },
+    "scenarioResults": { "type": "array", "items": { "$ref": "#/$defs/scenarioResult" } },
+    "evidence": { "$ref": "#/$defs/evidence" },
+    "diagnostics": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  },
+  "$defs": {
+    "report": {
+      "type": "object", "additionalProperties": false,
+      "required": ["runId", "scenarioId", "driver", "status", "evidenceKey", "candidateSha256"],
+      "properties": {
+        "runId": { "type": "string", "format": "uuid" }, "scenarioId": { "type": "string", "minLength": 1 },
+        "driver": { "type": "string", "minLength": 1 }, "status": { "enum": ["passed", "failed"] },
+        "evidenceKey": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "candidateSha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "scenarioResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scenarioId", "status", "runIds", "passedRuns", "failedRuns"],
+      "properties": {
+        "scenarioId": { "type": "string", "minLength": 1 }, "status": { "enum": ["passed", "failed", "missing"] },
+        "runIds": { "type": "array", "items": { "type": "string", "format": "uuid" } },
+        "passedRuns": { "type": "array", "items": { "type": "string", "format": "uuid" } },
+        "failedRuns": { "type": "array", "items": { "type": "string", "format": "uuid" } }
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["manifestCount", "artifactCount", "totalBytes", "verifiedHashes"],
+      "properties": {
+        "manifestCount": { "type": "integer", "minimum": 0 }, "artifactCount": { "type": "integer", "minimum": 0 },
+        "totalBytes": { "type": "integer", "minimum": 0 }, "verifiedHashes": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

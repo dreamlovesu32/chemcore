@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { auditCoverage } from "./coverage/audit.mjs";
 import { FakeDriver } from "./drivers/fake.mjs";
@@ -8,7 +9,9 @@ import { ProductionBlackBoxDriver } from "./drivers/production-black-box.mjs";
 import { writeEvidenceBundle } from "./evidence/write-bundle.mjs";
 import { planImpactedScenarios } from "./impact/select.mjs";
 import { guiTestsDir, scenarioDir } from "./protocol/paths.mjs";
-import { readValidatedDocument } from "./protocol/validate.mjs";
+import { assertValidDocument, readValidatedDocument } from "./protocol/validate.mjs";
+import { evaluateQualification } from "./qualification/evaluate.mjs";
+import { verifyQualificationEvidence } from "./qualification/verify-evidence.mjs";
 import { runScenario } from "./runner/run-scenario.mjs";
 import { HyperVCoordinator } from "./workers/hyperv.mjs";
 
@@ -159,6 +162,35 @@ async function run(path, options) {
   }
 }
 
+async function qualify(paths, options) {
+  if (!paths.length) throw new Error("qualify requires one or more run-report paths or directories.");
+  const expanded = (await Promise.all(paths.map(async (input) => {
+    const resolved = resolve(input);
+    return (await stat(resolved)).isDirectory() ? jsonFiles(resolved) : [resolved];
+  }))).flat().sort();
+  const reports = await Promise.all(expanded.map((path) => readValidatedDocument(path)));
+  if (reports.some((report) => report.schema !== "chemsema.gui.run.v1")) {
+    throw new Error("qualify accepts only chemsema.gui.run.v1 reports.");
+  }
+  const { scenarios } = await loadScenarios();
+  const evidenceRoot = resolve(options["evidence-root"] || join("tmp", "gui-platform", "evidence"));
+  const evidenceAudit = await verifyQualificationEvidence({ reports, evidenceRoot });
+  const evaluated = evaluateQualification({ reports, expectedScenarioIds: scenarios.map((scenario) => scenario.id), evidenceAudit });
+  const qualification = {
+    schema: "chemsema.gui.qualification.v1",
+    qualificationId: randomUUID(),
+    generatedAt: new Date().toISOString(),
+    ...evaluated,
+  };
+  await assertValidDocument(qualification, "GUI qualification result");
+  const outputPath = resolve(options.output || join("tmp", "gui-platform", `qualification-${qualification.qualificationId}.json`));
+  await mkdir(dirname(outputPath), { recursive: true });
+  await writeFile(outputPath, `${JSON.stringify(qualification, null, 2)}\n`, "utf8");
+  console.log(`[gui-platform] qualification ${qualification.status}`);
+  console.log(`[gui-platform] report ${outputPath}`);
+  if (qualification.status !== "passed") process.exitCode = 1;
+}
+
 function usage() {
   console.log(`ChemSema GUI test platform
 
@@ -172,6 +204,7 @@ Usage:
   npm run gui-platform -- worker input-click --x 100 --y 100 [--modifiers Shift,Control]
   npm run gui-platform -- worker input-text --text value
   npm run gui-platform -- run <scenario.json> [--driver fake|playwright-browser|production-black-box] [--report path] [--url url]
+  npm run gui-platform -- qualify <run-report|directory> [...] [--evidence-root path] [--output path]
 `);
 }
 
@@ -193,6 +226,8 @@ try {
       throw new Error("run requires exactly one scenario JSON path.");
     }
     await run(positional[0], options);
+  } else if (command === "qualify") {
+    await qualify(positional, options);
   } else {
     usage();
     if (command) {

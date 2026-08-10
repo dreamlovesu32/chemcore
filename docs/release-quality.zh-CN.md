@@ -11,7 +11,7 @@
 | Office/OLE 复制与嵌入 | Beta | 剪贴板 payload、EMF preview、Word 粘贴/回读验证 |
 | 浏览器编辑器 | Beta | viewer 交互 smoke test 和用户路径稳定性脚本 |
 | 桌面端 | Beta | Tauri build、文件关联配置、hybrid latency 回归、安装验证 |
-| GUI 测试平台 | 实施中/现有 19 个登记场景覆盖 production 鼠标、键盘、原生保存/打开、同类与异类多对象编辑、二层组合、箭头与扩展文本样式矩阵持久化、多行固定行距及既有文本编辑/历史/取消；最近一次 19 场景资格尝试因保留两次长尾失败而不是绿色 | 版本化 Schema/runner、真实 Playwright 与隔离 Hyper-V production 路径、覆盖/支持显式排除的精确影响/资源门禁、内容寻址候选、受守卫 UIA/CDP 定位、真实点击/拖拽/文字/Enter/快捷键输入、具名数值对话框的无效值与取消路径、原生对话框保存与重开、独立保存 CCJS 化学和精确属性/run 集合 oracle、选择/剪贴板/历史/锁定/组合、精确 DOM 文本转换、分阶段动作时延、逐动作 trace 边界标记、完整 trace 与有界性能摘要、完整有界 evidence bundle，以及 guest/host SHA-256 验证已运行；锁定组合调度卡顿虽有一次带标记的干净运行但仍开放，视频/崩溃 bundle、完整功能—对象—属性—值域与 `0/1/2/many` 矩阵、更深组合/异类单元、全部格式边界、复杂/large/xlarge 构建、环境覆盖、模型/故障/变异测试、耐久、连续 1,000 次展示资格和最终安装包资格仍待完成 |
+| GUI 测试平台 | 实施中/现有 19 个登记场景覆盖 production 鼠标、键盘、原生保存/打开、同类与异类多对象编辑、二层组合、箭头与扩展文本样式矩阵持久化、多行固定行距及既有文本编辑/历史/取消；机器资格门因保留两次长尾失败而保持红灯，即使后续运行通过 | 版本化 Schema/runner/资格 manifest、真实 Playwright 与隔离 Hyper-V production 路径、覆盖/支持显式排除的精确影响/资源门禁、内容寻址候选、受守卫 UIA/CDP 定位、真实点击/拖拽/文字/Enter/快捷键输入、具名数值对话框的无效值与取消路径、原生对话框保存与重开、独立保存 CCJS 化学和精确属性/run 集合 oracle、选择/剪贴板/历史/锁定/组合、精确 DOM 文本转换、分阶段动作时延、逐动作 trace 边界标记、完整 trace 与有界性能摘要、先失败后通过仍阻断的汇总、受 root 约束的证据重哈希、完整有界 evidence bundle，以及 guest/host SHA-256 验证已运行；锁定组合调度卡顿虽有一次带标记的干净运行但仍开放，视频/崩溃 bundle、完整功能—对象—属性—值域与 `0/1/2/many` 矩阵、更深组合/异类单元、全部格式边界、复杂/large/xlarge 构建、环境覆盖、模型/故障/变异测试、耐久、连续 1,000 次展示资格和最终安装包资格仍待完成 |
 | CLI one-shot 命令 | Usable | Rust 测试、`npm run verify`、稳定性报告、输出写入验证 |
 | CLI JSONL session | Experimental/usable | session 单测和大文件性能报告 |
 | Agent 精确截图 | Usable beta | PNG/SVG capture 测试、公开 fixture crop、README 示例图 |
