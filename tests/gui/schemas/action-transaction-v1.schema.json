@@ -76,7 +76,7 @@
         }
       ]
     },
-    "budgetMs": { "type": "integer", "minimum": 1, "maximum": 120000 }
+    "budgetMs": { "type": "integer", "minimum": 30000, "maximum": 120000 }
   },
   "$defs": {
     "modifiers": { "type": "array", "maxItems": 3, "uniqueItems": true, "items": { "enum": ["Shift", "Control", "Alt"] } }

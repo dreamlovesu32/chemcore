@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { guiTestsDir } from "../protocol/paths.mjs";
 import { readValidatedDocument } from "../protocol/validate.mjs";
-import { evaluateDocumentArrowProperties, evaluateDocumentReports, inspectDocumentBytes } from "../oracles/document-file.mjs";
+import { evaluateDocumentArrowProperties, evaluateDocumentReports, evaluateDocumentTextProperties, inspectDocumentBytes } from "../oracles/document-file.mjs";
 import { HyperVCoordinator } from "../workers/hyperv.mjs";
 
 const defaultProfilePath = join(guiTestsDir, "environments", "windows-gui-worker-current.json");
@@ -110,6 +110,8 @@ export class ProductionBlackBoxDriver {
       "editor.bond.draw",
       "editor.arrow.draw",
       "editor.arrow.properties",
+      "editor.text.create",
+      "editor.text.properties",
       "editor.selection.select-all",
       "editor.selection.region",
       "editor.selection.additive",
@@ -212,13 +214,17 @@ export class ProductionBlackBoxDriver {
   async resolveActionInput(action) {
     if (action.type === "key") return { input: { kind: "key", key: action.key }, result: { kind: "key", key: action.key } };
     if (action.type === "text") {
+      if (typeof action.text === "string") {
+        return { input: { kind: "text", text: action.text }, result: { kind: "text", textLength: action.text.length } };
+      }
       if (action.textSource !== "document-output-path" || !this.documentOutput?.guestPath) throw new Error("Document output path is unavailable for text input.");
       return { input: { kind: "text", text: this.documentOutput.guestPath }, result: { kind: "text", textSource: action.textSource } };
     }
     const geometry = await this.inputGeometry(action.target);
     const [left, top, right, bottom] = geometry.rect;
     if (action.type === "click") {
-      const [x, y] = geometry.screen([(left + right) / 2, (top + bottom) / 2]);
+      const at = action.at || { x: 0.5, y: 0.5 };
+      const [x, y] = geometry.screen([left + (right - left) * at.x, top + (bottom - top) * at.y]);
       const input = { kind: "click", x, y, button: action.button || "left" };
       if (action.modifiers?.length) input.modifiers = [...action.modifiers];
       return { input, result: { kind: "click", screen: [x, y], modifiers: input.modifiers || [] } };
@@ -276,7 +282,9 @@ export class ProductionBlackBoxDriver {
     if (input.kind === "text") {
       const receipt = await this.coordinator.candidateInput("text", { text: input.text });
       this.foreground = receipt.agent.foreground;
-      return { kind: "text", textSource: action.textSource };
+      return action.textSource
+        ? { kind: "text", textSource: action.textSource }
+        : { kind: "text", textLength: input.text.length };
     }
     if (input.kind === "click") {
       const receipt = await this.coordinator.candidateInput("click", { x: input.x, y: input.y }, { button: input.button, modifiers: input.modifiers });
@@ -362,6 +370,10 @@ export class ProductionBlackBoxDriver {
     if (oracle.kind === "document-arrow-properties") {
       const document = await this.ensureSavedDocument();
       return evaluateDocumentArrowProperties(document.transfer.bytes, oracle.expected);
+    }
+    if (oracle.kind === "document-text-properties") {
+      const document = await this.ensureSavedDocument();
+      return evaluateDocumentTextProperties(document.transfer.bytes, oracle.expected);
     }
     throw new Error(`Unsupported oracle ${oracle.kind}.`);
   }

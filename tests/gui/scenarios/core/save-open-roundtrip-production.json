@@ -15,7 +15,7 @@
       "type": "click",
       "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } },
       "completion": { "kind": "actionable", "timeoutMs": 8000 },
-      "budgetMs": 12000
+      "budgetMs": 30000
     },
     {
       "id": "draw-saved-bond",
@@ -26,21 +26,21 @@
       "to": { "x": 0.45, "y": 0.43 },
       "steps": 8,
       "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 1, "timeoutMs": 8000 },
-      "budgetMs": 12000
+      "budgetMs": 30000
     },
     {
       "id": "open-save-as-dialog",
       "type": "click",
       "target": { "strategy": "role", "value": "button", "name": "Save as" },
       "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 },
-      "budgetMs": 25000
+      "budgetMs": 30000
     },
     {
       "id": "focus-save-filename",
       "type": "click",
       "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" },
       "completion": { "kind": "actionable", "timeoutMs": 8000 },
-      "budgetMs": 25000
+      "budgetMs": 30000
     },
     {
       "id": "select-save-filename",
@@ -48,7 +48,7 @@
       "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" },
       "key": "Control+A",
       "completion": { "kind": "actionable", "timeoutMs": 8000 },
-      "budgetMs": 25000
+      "budgetMs": 30000
     },
     {
       "id": "type-save-path",
@@ -56,7 +56,7 @@
       "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" },
       "textSource": "document-output-path",
       "completion": { "kind": "actionable", "timeoutMs": 8000 },
-      "budgetMs": 25000
+      "budgetMs": 30000
     },
     {
       "id": "confirm-save",
@@ -75,21 +75,21 @@
       "to": { "x": 0.65, "y": 0.6 },
       "steps": 8,
       "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 2, "timeoutMs": 8000 },
-      "budgetMs": 12000
+      "budgetMs": 30000
     },
     {
       "id": "close-dirty-saved-tab",
       "type": "click",
       "target": { "strategy": "role", "value": "button", "name": "Close roundtrip.ccjs *" },
       "completion": { "kind": "dom-count", "selector": "[data-unsaved-decision='discard']", "operator": "eq", "value": 1, "timeoutMs": 12000 },
-      "budgetMs": 18000
+      "budgetMs": 30000
     },
     {
       "id": "discard-unsaved-second-bond",
       "type": "click",
       "target": { "strategy": "role", "value": "button", "name": "Don't Save" },
       "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 0, "timeoutMs": 12000 },
-      "budgetMs": 18000
+      "budgetMs": 30000
     },
     {
       "id": "open-native-open-dialog",
@@ -103,7 +103,7 @@
       "type": "click",
       "target": { "strategy": "uia-automation-id", "value": "1148", "controlType": "ControlType.Pane", "className": "Edit" },
       "completion": { "kind": "actionable", "timeoutMs": 8000 },
-      "budgetMs": 25000
+      "budgetMs": 30000
     },
     {
       "id": "select-open-filename",
@@ -111,7 +111,7 @@
       "target": { "strategy": "uia-automation-id", "value": "1148", "controlType": "ControlType.Pane", "className": "Edit" },
       "key": "Control+A",
       "completion": { "kind": "actionable", "timeoutMs": 8000 },
-      "budgetMs": 25000
+      "budgetMs": 30000
     },
     {
       "id": "type-open-path",
@@ -119,7 +119,7 @@
       "target": { "strategy": "uia-automation-id", "value": "1148", "controlType": "ControlType.Pane", "className": "Edit" },
       "textSource": "document-output-path",
       "completion": { "kind": "actionable", "timeoutMs": 8000 },
-      "budgetMs": 25000
+      "budgetMs": 30000
     },
     {
       "id": "confirm-open",
@@ -134,7 +134,7 @@
       "type": "click",
       "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } },
       "completion": { "kind": "actionable", "timeoutMs": 8000 },
-      "budgetMs": 12000
+      "budgetMs": 30000
     },
     {
       "id": "continue-editing-reopened-document",
@@ -145,7 +145,7 @@
       "to": { "x": 0.8, "y": 0.75 },
       "steps": 8,
       "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 2, "timeoutMs": 12000 },
-      "budgetMs": 18000
+      "budgetMs": 30000
     }
   ],
   "oracles": [

@@ -1,5 +1,79 @@
+export function contextMenuViewportBounds(metrics = {}) {
+  const innerWidth = Math.max(0, Number(metrics.innerWidth) || 0);
+  const innerHeight = Math.max(0, Number(metrics.innerHeight) || 0);
+  const screenX = Number(metrics.screenX) || 0;
+  const screenY = Number(metrics.screenY) || 0;
+  const availLeft = Number(metrics.availLeft);
+  const availTop = Number(metrics.availTop);
+  const availWidth = Number(metrics.availWidth);
+  const availHeight = Number(metrics.availHeight);
+  const hasScreenWorkArea = [availLeft, availTop, availWidth, availHeight]
+    .every(Number.isFinite) && availWidth > 0 && availHeight > 0;
+  const left = hasScreenWorkArea ? Math.max(0, availLeft - screenX) : 0;
+  const top = hasScreenWorkArea ? Math.max(0, availTop - screenY) : 0;
+  const right = hasScreenWorkArea
+    ? Math.min(innerWidth, availLeft + availWidth - screenX)
+    : innerWidth;
+  const bottom = hasScreenWorkArea
+    ? Math.min(innerHeight, availTop + availHeight - screenY)
+    : innerHeight;
+  return {
+    left: Math.min(left, right),
+    top: Math.min(top, bottom),
+    right: Math.max(left, right),
+    bottom: Math.max(top, bottom),
+  };
+}
+
+export function contextSubmenuPlacement(entryRect, submenuRect, bounds, margin = 6) {
+  let offsetTop = -4;
+  if (submenuRect.bottom > bounds.bottom - margin) {
+    offsetTop -= submenuRect.bottom - (bounds.bottom - margin);
+  }
+  if (entryRect.top + offsetTop < bounds.top + margin) {
+    offsetTop += bounds.top + margin - (entryRect.top + offsetTop);
+  }
+  return {
+    offsetTop,
+    openLeft: submenuRect.right > bounds.right - margin,
+  };
+}
+
 export function createCanvasContextMenuHost(options) {
   let activeContextMenuState = null;
+
+  function availableViewportBounds() {
+    return contextMenuViewportBounds({
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+      screenX: window.screenX,
+      screenY: window.screenY,
+      availLeft: window.screen?.availLeft,
+      availTop: window.screen?.availTop,
+      availWidth: window.screen?.availWidth,
+      availHeight: window.screen?.availHeight,
+    });
+  }
+
+  function positionSubmenu(entry) {
+    const submenu = entry?.querySelector?.(":scope > .canvas-context-submenu");
+    if (!submenu) {
+      return;
+    }
+    submenu.style.left = "";
+    submenu.style.right = "";
+    submenu.style.top = "-4px";
+    const placement = contextSubmenuPlacement(
+      entry.getBoundingClientRect(),
+      submenu.getBoundingClientRect(),
+      availableViewportBounds(),
+    );
+    submenu.style.top = `${placement.offsetTop}px`;
+    if (placement.openLeft) {
+      submenu.style.left = "auto";
+      submenu.style.right = "calc(100% - 2px)";
+    }
+  }
 
   function uniformValue(values) {
     const normalized = values.filter((value) => value != null && value !== "");
@@ -54,13 +128,25 @@ export function createCanvasContextMenuHost(options) {
     });
     menu.addEventListener("click", (event) => {
       const item = event.target.closest("[data-canvas-context-command]");
-      if (!item || item.disabled || item.dataset.hasSubmenu === "true") {
+      if (!item || item.disabled) {
+        return;
+      }
+      if (item.dataset.hasSubmenu === "true") {
+        positionSubmenu(item.closest(".canvas-context-menu-entry"));
         return;
       }
       const command = item.dataset.canvasContextCommand;
       const value = item.dataset.canvasContextValue || "";
       void runCanvasContextMenuCommand(command, value);
     });
+    const scheduleSubmenuPosition = (event) => {
+      const entry = event.target.closest?.(".canvas-context-menu-entry.has-submenu");
+      if (entry) {
+        requestAnimationFrame(() => positionSubmenu(entry));
+      }
+    };
+    menu.addEventListener("focusin", scheduleSubmenuPosition);
+    menu.addEventListener("pointerover", scheduleSubmenuPosition);
 
     return menu;
   }
@@ -186,8 +272,9 @@ export function createCanvasContextMenuHost(options) {
     const margin = 6;
     const width = canvasContextMenu.offsetWidth;
     const height = canvasContextMenu.offsetHeight;
-    const left = Math.max(margin, Math.min(event.clientX, window.innerWidth - width - margin));
-    const top = Math.max(margin, Math.min(event.clientY, window.innerHeight - height - margin));
+    const bounds = availableViewportBounds();
+    const left = Math.max(bounds.left + margin, Math.min(event.clientX, bounds.right - width - margin));
+    const top = Math.max(bounds.top + margin, Math.min(event.clientY, bounds.bottom - height - margin));
     canvasContextMenu.style.left = `${left}px`;
     canvasContextMenu.style.top = `${top}px`;
     canvasContextMenu.querySelector("button:not(:disabled):not([data-has-submenu='true'])")?.focus?.({ preventScroll: true });

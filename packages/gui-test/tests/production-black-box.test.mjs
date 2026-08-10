@@ -131,6 +131,23 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
   assert.equal(artifactPayloads.length, 5);
 });
 
+test("production black-box resolves bounded literal text without exposing its content in receipts", async () => {
+  const driver = new ProductionBlackBoxDriver();
+  const resolved = await driver.resolveActionInput({ type: "text", text: "H2SO4" });
+  assert.deepEqual(resolved.input, { kind: "text", text: "H2SO4" });
+  assert.deepEqual(resolved.result, { kind: "text", textLength: 5 });
+});
+
+test("production black-box maps relative click positions inside a semantic target", async () => {
+  const target = { strategy: "automation-id", value: "viewer-container" };
+  const driver = new ProductionBlackBoxDriver();
+  driver.foreground = foreground();
+  driver.webviewState = { viewport: { width: 1028, height: 779 } };
+  driver.targets.set(JSON.stringify(target), { rect: [52, 136, 1028, 739] });
+  const resolved = await driver.resolveActionInput({ type: "click", target, at: { x: 0.25, y: 0.75 } });
+  assert.deepEqual(resolved.input, { kind: "click", x: 304, y: 589, button: "left" });
+});
+
 test("production artifact collection fails closed on truncated evidence", async () => {
   const driver = new ProductionBlackBoxDriver({
     coordinator: {

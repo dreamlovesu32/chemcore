@@ -1128,6 +1128,111 @@ fn multi_arrow_line_and_endpoint_properties_roundtrip_through_history() {
 }
 
 #[test]
+fn multi_text_selection_exposes_public_batch_property_menus() {
+    let mut engine = Engine::new();
+    let document = serde_json::json!({
+        "format": { "name": "chemsema", "version": "0.1", "unit": "pt" },
+        "document": {
+            "id": "doc_multi_text",
+            "title": "multi text",
+            "page": { "width": 160.0, "height": 100.0, "background": "#ffffff" }
+        },
+        "styles": {},
+        "objects": [
+            {
+                "id": "obj_text_1",
+                "type": "text",
+                "transform": { "translate": [10.0, 20.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "bbox": [0.0, 0.0, 40.0, 14.0], "text": "first", "fontFamily": "Arial", "fontSize": 10.0, "lineHeight": 12.0, "align": "left", "preserveLines": true }
+            },
+            {
+                "id": "obj_text_2",
+                "type": "text",
+                "transform": { "translate": [80.0, 50.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "bbox": [0.0, 0.0, 40.0, 14.0], "text": "second", "fontFamily": "Arial", "fontSize": 10.0, "lineHeight": 12.0, "align": "left", "preserveLines": true }
+            }
+        ],
+        "resources": {}
+    });
+    engine
+        .load_document_json(&document.to_string())
+        .expect("multi-text fixture should load");
+    assert!(engine.select_all());
+
+    let menu: serde_json::Value = serde_json::from_str(
+        &engine.context_menu_json(r#"{"kind":"object","objectId":"obj_text_1"}"#, false),
+    )
+    .expect("context menu should be valid JSON");
+    let items = menu.as_array().expect("context menu should be an array");
+    for label in ["Font", "Style", "Size", "Alignment"] {
+        assert!(
+            items
+                .iter()
+                .any(
+                    |item| item.get("label").and_then(serde_json::Value::as_str) == Some(label)
+                        && item
+                            .get("submenu")
+                            .and_then(serde_json::Value::as_array)
+                            .is_some()
+                ),
+            "{label} submenu should be available for a homogeneous multi-text selection: {menu}"
+        );
+    }
+    assert!(items.iter().any(|item| {
+        item.get("command").and_then(serde_json::Value::as_str) == Some("text-line-spacing")
+    }));
+
+    assert!(engine.apply_text_style_to_selection("bold", "on"));
+    for object_id in ["obj_text_1", "obj_text_2"] {
+        let object = engine
+            .state()
+            .document
+            .find_scene_object(object_id)
+            .expect("selected text should remain in the document");
+        for key in ["runs", "sourceRuns", "displayRuns"] {
+            assert_eq!(object.payload.extra[key][0]["fontWeight"], 700);
+        }
+    }
+    let rendered = serde_json::to_string(&engine.render_list())
+        .expect("render list should serialize after applying bold");
+    assert!(
+        rendered.contains(r#""fontWeight":700"#),
+        "bold text runs must remain deserializable by the render pipeline: {rendered}"
+    );
+    let menu_after_bold: serde_json::Value = serde_json::from_str(
+        &engine.context_menu_json(r#"{"kind":"object","objectId":"obj_text_1"}"#, false),
+    )
+    .expect("post-style context menu should be valid JSON");
+    let bold_item = menu_after_bold
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some("Style"))
+        .and_then(|item| item.get("submenu"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|items| {
+            items
+                .iter()
+                .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some("Bold"))
+        })
+        .expect("Bold should remain available after applying the style");
+    assert_eq!(bold_item["checked"], true);
+    assert_eq!(bold_item["value"], "bold:off");
+
+    assert!(engine.apply_color_to_selection("#0000ff"));
+    for object_id in ["obj_text_1", "obj_text_2"] {
+        let object = engine
+            .state()
+            .document
+            .find_scene_object(object_id)
+            .expect("colored text should remain in the document");
+        for key in ["runs", "sourceRuns", "displayRuns"] {
+            assert_eq!(object.payload.extra[key][0]["fill"], "#0000ff");
+        }
+    }
+}
+
+#[test]
 fn locked_arrow_properties_are_immutable_in_a_mixed_selection() {
     fn arrow_state(engine: &Engine, object_id: &str) -> (bool, String, String) {
         let object = engine

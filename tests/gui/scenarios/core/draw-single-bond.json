@@ -27,7 +27,7 @@
         "scope": { "role": "complementary", "name": "Main Drawing Rail" }
       },
       "completion": { "kind": "actionable", "timeoutMs": 12000 },
-      "budgetMs": 12000
+      "budgetMs": 30000
     },
     {
       "id": "draw-single-bond",
@@ -38,7 +38,7 @@
       "to": { "x": 0.53, "y": 0.5 },
       "steps": 8,
       "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "gte", "value": 1, "timeoutMs": 12000 },
-      "budgetMs": 12000,
+      "budgetMs": 30000,
       "fakeEffect": { "kind": "increment-dom-count", "selector": "[data-bond-id]", "by": 1 }
     }
   ],

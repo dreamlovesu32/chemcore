@@ -506,6 +506,15 @@ impl Engine {
             ]);
         } else if selected_types.len() == 1 && selected_types.contains("curve") {
             items.extend([separator(), self.line_style_menu()]);
+        } else if selected_types.len() == 1 && selected_types.contains("text") {
+            items.extend([
+                separator(),
+                self.text_font_menu(),
+                self.text_style_menu(),
+                self.text_size_menu(),
+                self.text_alignment_menu(),
+                item("Line Spacing...", "text-line-spacing", ""),
+            ]);
         }
         items.extend([
             separator(),

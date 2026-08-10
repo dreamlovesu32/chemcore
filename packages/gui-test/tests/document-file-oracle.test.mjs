@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateDocumentArrowProperties, evaluateDocumentReports, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
+import { evaluateDocumentArrowProperties, evaluateDocumentReports, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
 
 const validReports = {
   inspect: {
@@ -46,6 +46,51 @@ test("saved-document arrow oracle checks exact public CCJS properties", () => {
   assert.equal(evaluateDocumentArrowProperties(bytes, expected).passed, true);
   assert.equal(evaluateDocumentArrowProperties(bytes, [{ ...expected[0], length: 22.5 }]).passed, false);
   assert.equal(evaluateDocumentArrowProperties(bytes, [{ ...expected[0], id: "obj_line_missing" }]).passed, false);
+});
+
+test("saved-document text oracle checks exact content and public style properties", () => {
+  const bytes = Buffer.from(JSON.stringify({
+    styles: { style_obj_text_1_color: { fill: "#0000ff" } },
+    entities: {
+      scene: [{
+        id: "obj_text_1",
+        type: "text",
+        styleRef: "style_obj_text_1_color",
+        payload: {
+          text: "ChemSema H2O",
+          fontFamily: "Arial",
+          fontSize: 18,
+          align: "center",
+          runs: [{ text: "ChemSema H2O", fontWeight: 700, fill: "#0000ff" }],
+          sourceRuns: [{ text: "ChemSema H2O", fontWeight: 700, fill: "#0000ff" }],
+        },
+      }],
+    },
+  }));
+  const expected = [{ id: "obj_text_1", text: "ChemSema H2O", fontFamily: "Arial", fontSize: 18, align: "center", bold: true, fill: "#0000ff" }];
+  assert.equal(evaluateDocumentTextProperties(bytes, expected).passed, true);
+  assert.equal(evaluateDocumentTextProperties(bytes, [{ ...expected[0], bold: false }]).passed, false);
+  assert.equal(evaluateDocumentTextProperties(bytes, [{ ...expected[0], fill: "#ff0000" }]).passed, false);
+
+  const staleSourceRuns = Buffer.from(JSON.stringify({
+    styles: { style_obj_text_1_color: { fill: "#0000ff" } },
+    entities: {
+      scene: [{
+        id: "obj_text_1",
+        type: "text",
+        styleRef: "style_obj_text_1_color",
+        payload: {
+          text: "ChemSema H2O",
+          fontFamily: "Arial",
+          fontSize: 18,
+          align: "center",
+          runs: [{ text: "ChemSema H2O", fontWeight: 700, fill: "#0000ff" }],
+          sourceRuns: [{ text: "ChemSema H2O", fontWeight: 700, fill: "#000000" }],
+        },
+      }],
+    },
+  }));
+  assert.equal(evaluateDocumentTextProperties(staleSourceRuns, expected).passed, false);
 });
 
 test("saved-document validation is chemical only when a nonempty molecular graph exists", () => {

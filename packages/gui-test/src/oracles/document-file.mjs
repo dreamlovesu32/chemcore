@@ -95,6 +95,44 @@ export function evaluateDocumentArrowProperties(bytes, expected) {
   return { passed, observed };
 }
 
+export function evaluateDocumentTextProperties(bytes, expected) {
+  let document;
+  try {
+    document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));
+  } catch {
+    return { passed: false, observed: [] };
+  }
+  const scene = Array.isArray(document?.entities?.scene) ? document.entities.scene : [];
+  const styles = document?.styles && typeof document.styles === "object" ? document.styles : {};
+  const observed = expected.map((entry) => {
+    const object = scene.find((candidate) => candidate?.id === entry.id && candidate?.type === "text");
+    const runSets = ["runs", "sourceRuns", "displayRuns"]
+      .filter((key) => Array.isArray(object?.payload?.[key]))
+      .map((key) => ({ key, runs: object.payload[key] }));
+    const runs = runSets.find((entry) => entry.key === "runs")?.runs || [];
+    const weights = runs.map((run) => run?.fontWeight ?? null);
+    return {
+      id: entry.id,
+      found: !!object,
+      text: object?.payload?.text ?? null,
+      fontFamily: object?.payload?.fontFamily ?? null,
+      fontSize: object?.payload?.fontSize ?? null,
+      align: object?.payload?.align ?? null,
+      bold: weights.length > 0 && weights.every((weight) => weight === 700),
+      fill: styles[object?.styleRef]?.fill ?? object?.payload?.fill ?? null,
+      runFills: Object.fromEntries(runSets.map(({ key, runs: values }) => [
+        key,
+        values.map((run) => run?.fill ?? null),
+      ])),
+    };
+  });
+  const passed = observed.every((actual, index) => actual.found
+    && Object.entries(expected[index]).every(([name, value]) => name === "id" || actual[name] === value)
+    && (!Object.hasOwn(expected[index], "fill") || Object.values(actual.runFills)
+      .every((fills) => fills.every((fill) => fill === expected[index].fill))));
+  return { passed, observed };
+}
+
 export function validationLevelForDocumentBytes(bytes) {
   try {
     const document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));

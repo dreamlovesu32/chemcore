@@ -2202,7 +2202,7 @@ fn apply_text_object_style(object: &mut SceneObject, command: &str, value: &str)
         _ => {
             let enabled = parse_enabled_value(value);
             changed |= apply_text_object_runs(object, |run| {
-                set_style_number(run, "fontWeight", if enabled { 700.0 } else { 400.0 })
+                set_style_u32(run, "fontWeight", if enabled { 700 } else { 400 })
             });
         }
     }
@@ -2456,6 +2456,14 @@ fn set_style_number(map: &mut Map<String, JsonValue>, key: &str, value: f64) -> 
         .and_then(JsonValue::as_f64)
         .is_some_and(|current| (current - value).abs() <= crate::EPSILON)
     {
+        return false;
+    }
+    map.insert(key.to_string(), json!(value));
+    true
+}
+
+fn set_style_u32(map: &mut Map<String, JsonValue>, key: &str, value: u32) -> bool {
+    if map.get(key).and_then(JsonValue::as_u64) == Some(u64::from(value)) {
         return false;
     }
     map.insert(key.to_string(), json!(value));

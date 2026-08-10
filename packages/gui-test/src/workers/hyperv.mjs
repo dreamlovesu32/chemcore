@@ -480,7 +480,11 @@ export class HyperVCoordinator {
   }
 
   async candidateAction(input, completion, budgetMs) {
+    const minimumTransactionBudgetMs = 30000;
     const transportReserveMs = 4000;
+    if (!Number.isInteger(budgetMs) || budgetMs < minimumTransactionBudgetMs) {
+      throw new Error(`Candidate action end-to-end budget must be at least ${minimumTransactionBudgetMs} ms so host/guest transport cannot consume the product completion window.`);
+    }
     if (!Number.isInteger(budgetMs) || !Number.isInteger(completion?.timeoutMs) || completion.timeoutMs + transportReserveMs > budgetMs) {
       throw new Error(`Candidate action completion timeout must leave ${transportReserveMs} ms inside the end-to-end action budget for target resolution and transport.`);
     }

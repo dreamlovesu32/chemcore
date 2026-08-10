@@ -135,12 +135,24 @@ export class PlaywrightBrowserDriver {
   async perform(action) {
     const locator = this.locatorFor(action.target);
     if (action.type === "click") {
-      await locator.click({ button: action.button || "left", modifiers: action.modifiers || [] });
+      const position = action.at ? await (async () => {
+        const box = await locator.boundingBox();
+        if (!box) throw new Error(`Click target ${action.target.value} has no visible bounding box.`);
+        return { x: box.width * action.at.x, y: box.height * action.at.y };
+      })() : undefined;
+      await locator.click({ button: action.button || "left", modifiers: action.modifiers || [], position });
       return { kind: "click", modifiers: action.modifiers || [] };
     }
     if (action.type === "key") {
       await locator.press(action.key);
       return { kind: "key", key: action.key };
+    }
+    if (action.type === "text") {
+      if (typeof action.text !== "string") {
+        throw new Error(`Playwright text input does not support source ${action.textSource || "unknown"}.`);
+      }
+      await locator.pressSequentially(action.text);
+      return { kind: "text", textLength: action.text.length };
     }
     if (action.type === "drag") {
       const box = await locator.boundingBox();

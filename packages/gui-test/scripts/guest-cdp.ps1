@@ -354,7 +354,7 @@ try {
       $expression = @"
 (() => {
   const target = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob('$targetBase64'), c => c.charCodeAt(0))));
-  const roleOf = (element) => element.getAttribute('role') || ({BUTTON:'button',ASIDE:'complementary',MAIN:'main'}[element.tagName] || null);
+  const roleOf = (element) => element.getAttribute('role') || ({BUTTON:'button',ASIDE:'complementary',MAIN:'main',TEXTAREA:'textbox',SELECT:'combobox'}[element.tagName] || (element.tagName === 'INPUT' ? (element.type === 'button' || element.type === 'submit' ? 'button' : 'textbox') : null));
   const nameOf = (element) => element.getAttribute('aria-label') || element.getAttribute('title') || element.textContent?.trim() || '';
   const visibleElement = element => {
     const rect = element.getBoundingClientRect();

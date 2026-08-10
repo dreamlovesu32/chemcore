@@ -51,7 +51,7 @@ test("scenario, coverage registry, and impact graph validate", async () => {
     schema: "chemsema.gui.action-transaction.v1",
     input: { kind: "click", x: 10, y: 20, button: "left", modifiers: ["Shift"] },
     completion: { kind: "actionable", timeoutMs: 8000 },
-    budgetMs: 12000,
+    budgetMs: 30000,
   }, "action transaction fixture");
   await assertValidDocument({
     schema: "chemsema.gui.action-transaction.v1",
@@ -64,7 +64,7 @@ test("scenario, coverage registry, and impact graph validate", async () => {
       value: 2,
       timeoutMs: 8000,
     },
-    budgetMs: 12000,
+    budgetMs: 30000,
   }, "distinct object action transaction fixture");
   await assertValidDocument({
     schema: "chemsema.gui.action-transaction.v1",
@@ -77,7 +77,7 @@ test("scenario, coverage registry, and impact graph validate", async () => {
       ],
       timeoutMs: 8000,
     },
-    budgetMs: 12000,
+    budgetMs: 30000,
   }, "mixed entity rectangle action transaction fixture");
   await assertValidDocument({
     schema: "chemsema.gui.action-transaction-receipt.v1",
@@ -100,7 +100,7 @@ test("DOM completion selectors share one bounded protocol limit", async () => {
     schema: "chemsema.gui.action-transaction.v1",
     input: { kind: "click", x: 10, y: 20, button: "left" },
     completion: { kind: "dom-count", selector: boundedSelector, operator: "eq", value: 7, timeoutMs: 8000 },
-    budgetMs: 12000,
+    budgetMs: 30000,
   }, "bounded DOM selector action transaction");
 
   const scenario = JSON.parse(await readFile(scenarioPath, "utf8"));
@@ -119,11 +119,58 @@ test("native document saves reserve enough time for dismissal, attestation, and 
   assert(result.errors.some((error) => error.includes("90000")));
 });
 
+test("scenario actions reserve an independent transport envelope around product completion", async () => {
+  const scenario = JSON.parse(await readFile(scenarioPath, "utf8"));
+  scenario.actions[0].budgetMs = 29999;
+  const result = await validateDocument(scenario);
+  assert.equal(result.valid, false);
+  assert(result.errors.some((error) => error.includes("30000")));
+});
+
 test("scenario pointer modifiers are bounded to pointer actions", async () => {
   const scenario = JSON.parse(await readFile(scenarioPath, "utf8"));
   scenario.actions[0] = { ...scenario.actions[0], type: "key", key: "Escape", modifiers: ["Shift"] };
   const result = await validateDocument(scenario);
   assert.equal(result.valid, false);
+});
+
+test("scenario relative click positions are bounded and click-only", async () => {
+  const scenario = JSON.parse(await readFile(scenarioPath, "utf8"));
+  scenario.actions[0].at = { x: 0.25, y: 0.75 };
+  await assertValidDocument(scenario, "relative click scenario");
+
+  scenario.actions[0].at.x = 1.01;
+  let result = await validateDocument(scenario);
+  assert.equal(result.valid, false);
+
+  scenario.actions[0] = { ...scenario.actions[0], type: "key", key: "Escape", at: { x: 0.5, y: 0.5 } };
+  delete scenario.actions[0].button;
+  result = await validateDocument(scenario);
+  assert.equal(result.valid, false);
+});
+
+test("scenario text input accepts exactly one bounded literal or declared source", async () => {
+  const scenario = JSON.parse(await readFile(scenarioPath, "utf8"));
+  scenario.actions[0] = {
+    ...scenario.actions[0],
+    type: "text",
+    text: "ChemSema text",
+  };
+  delete scenario.actions[0].button;
+  await assertValidDocument(scenario, "literal text scenario");
+
+  scenario.actions[0].textSource = "document-output-path";
+  let result = await validateDocument(scenario);
+  assert.equal(result.valid, false);
+
+  delete scenario.actions[0].text;
+  await assertValidDocument(scenario, "sourced text scenario");
+
+  scenario.actions[0].text = "x".repeat(4097);
+  delete scenario.actions[0].textSource;
+  result = await validateDocument(scenario);
+  assert.equal(result.valid, false);
+  assert(result.errors.some((error) => error.includes("4096")));
 });
 
 test("canonical JSON and evidence keys ignore object key order", () => {

@@ -195,7 +195,7 @@ test("candidate action sends one validated versioned transaction", async () => {
   const receipt = await coordinator.candidateAction(
     { kind: "click", x: 34, y: 212, button: "left", modifiers: ["Shift"] },
     { kind: "actionable", timeoutMs: 8000 },
-    12000,
+    30000,
   );
   assert.equal(receipt.transaction.input.foreground.processId, 300);
   const encoded = invokedArgs[invokedArgs.indexOf("-ActionRequestBase64") + 1];
@@ -207,6 +207,14 @@ test("candidate action sends one validated versioned transaction", async () => {
       { kind: "click", x: 34, y: 212, button: "left" },
       { kind: "actionable", timeoutMs: 8001 },
       12000,
+    ),
+    /at least 30000 ms/,
+  );
+  await assert.rejects(
+    coordinator.candidateAction(
+      { kind: "click", x: 34, y: 212, button: "left" },
+      { kind: "actionable", timeoutMs: 26001 },
+      30000,
     ),
     /leave 4000 ms/,
   );
@@ -378,6 +386,14 @@ test("production world geometry targets are restricted to the rendered page", as
   assert.match(source, /query\.strategy === 'world-geometry'/);
   assert.match(source, /query\.value !== 'page-background'/);
   assert.match(source, /\[data-layer="page-background"\]/);
+});
+
+test("production semantic targets expose native text and select controls", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
+  assert.match(source, /TEXTAREA:'textbox'/);
+  assert.match(source, /SELECT:'combobox'/);
+  assert.match(source, /element\.tagName === 'INPUT'/);
 });
 
 test("production entity targets use a real SVG geometry midpoint and retain bounded fallbacks", async () => {

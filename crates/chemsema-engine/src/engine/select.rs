@@ -1264,18 +1264,20 @@ impl Engine {
         let Some(object) = self.state.document.find_scene_object_mut(object_id) else {
             return false;
         };
-        let Some(runs) = object
-            .payload
-            .extra
-            .get_mut("runs")
-            .and_then(JsonValue::as_array_mut)
-        else {
-            return false;
-        };
         let mut changed = false;
-        for run in runs {
-            if let Some(run_object) = run.as_object_mut() {
-                changed |= set_style_string(run_object, "fill", color);
+        for key in ["runs", "sourceRuns", "displayRuns"] {
+            let Some(runs) = object
+                .payload
+                .extra
+                .get_mut(key)
+                .and_then(JsonValue::as_array_mut)
+            else {
+                continue;
+            };
+            for run in runs {
+                if let Some(run_object) = run.as_object_mut() {
+                    changed |= set_style_string(run_object, "fill", color);
+                }
             }
         }
         changed
