@@ -46,6 +46,28 @@ export function createNumericDialogHost({ root = document.body, engine, commandE
   };
 }
 
+export function numericDialogMarkup(payload = {}) {
+  const field = payload.field || {};
+  const title = payload.title || "Value";
+  const fieldLabel = field.label || "Value";
+  return `
+    <div class="desktop-modal-window-drag-strip" data-desktop-window-drag-region aria-hidden="true"></div>
+    <div class="numeric-dialog-backdrop" data-numeric-dialog-close></div>
+    <form class="numeric-dialog-panel" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
+      <div class="numeric-dialog-title" data-desktop-window-drag-region>${escapeHtml(title)}</div>
+      <label class="numeric-dialog-field">
+        <span>${escapeHtml(fieldLabel)}</span>
+        <input name="value" aria-label="${escapeHtml(fieldLabel)}" type="text" inputmode="${escapeHtml(field.inputMode || "decimal")}" value="${escapeHtml(formatFieldValue(field.value, field.inputMode))}">
+        <em>${escapeHtml(field.unit || "")}</em>
+      </label>
+      <div class="numeric-dialog-actions">
+        <button type="button" data-numeric-dialog-close>Cancel</button>
+        <button type="submit">Apply</button>
+      </div>
+    </form>
+  `;
+}
+
 class NumericDialog {
   constructor({ root, payload, apply }) {
     this.root = root;
@@ -59,23 +81,7 @@ class NumericDialog {
       this.resolve = resolve;
       this.backdrop = document.createElement("div");
       this.backdrop.className = "numeric-dialog";
-      const field = this.payload.field || {};
-      this.backdrop.innerHTML = `
-        <div class="desktop-modal-window-drag-strip" data-desktop-window-drag-region aria-hidden="true"></div>
-        <div class="numeric-dialog-backdrop" data-numeric-dialog-close></div>
-        <form class="numeric-dialog-panel" aria-label="${escapeHtml(this.payload.title || "Value")}">
-          <div class="numeric-dialog-title" data-desktop-window-drag-region>${escapeHtml(this.payload.title || "Value")}</div>
-          <label class="numeric-dialog-field">
-            <span>${escapeHtml(field.label || "Value")}</span>
-            <input name="value" type="text" inputmode="${escapeHtml(field.inputMode || "decimal")}" value="${escapeHtml(formatFieldValue(field.value, field.inputMode))}">
-            <em>${escapeHtml(field.unit || "")}</em>
-          </label>
-          <div class="numeric-dialog-actions">
-            <button type="button" data-numeric-dialog-close>Cancel</button>
-            <button type="submit">Apply</button>
-          </div>
-        </form>
-      `;
+      this.backdrop.innerHTML = numericDialogMarkup(this.payload);
       this.root.appendChild(this.backdrop);
       this.bind();
       this.backdrop.querySelector("input")?.focus?.({ preventScroll: true });

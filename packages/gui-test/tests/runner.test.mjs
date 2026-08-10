@@ -63,6 +63,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.selection.locked-partial-delete.production",
     "scenario.core.selection.locked-transform.production",
     "scenario.core.selection.region-additive-mixed-cardinalities.production",
+    "scenario.core.text.line-spacing-validation.production",
     "scenario.core.text.multi-property-persistence.production",
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["docs/readme.md"]), []);
@@ -76,7 +77,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "crates/chemsema-gui-test-agent/src/windows.rs",
       "scripts/tests/recovery-journal.test.mjs",
     ],
-    matchedSources: ["source.document-recovery-test", "source.gui-production-transport", "source.test-entrypoints"],
+    matchedSources: ["source.document-recovery-test", "source.gui-production-transport", "source.runtime-dependencies"],
     unmatchedPaths: [],
     expandedForUncertainty: false,
     scenarios: [
@@ -96,6 +97,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.selection.locked-partial-delete.production",
       "scenario.core.selection.locked-transform.production",
       "scenario.core.selection.region-additive-mixed-cardinalities.production",
+      "scenario.core.text.line-spacing-validation.production",
       "scenario.core.text.multi-property-persistence.production",
     ],
   });
@@ -103,6 +105,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.property-matrix-persistence.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
+    "scenario.core.text.line-spacing-validation.production",
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["crates/chemsema-gui-test-agent/src/windows.rs"]), [
     "scenario.core.arrow.locked-mixed-properties.production",
@@ -120,9 +123,20 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.selection.locked-partial-delete.production",
     "scenario.core.selection.locked-transform.production",
     "scenario.core.selection.region-additive-mixed-cardinalities.production",
+    "scenario.core.text.line-spacing-validation.production",
     "scenario.core.text.multi-property-persistence.production",
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/tests/hyperv.test.mjs"]), []);
+  assert.deepEqual(selectImpactedScenarios(graph, ["viewer/numeric_dialog_host.js"]), [
+    "scenario.core.text.line-spacing-validation.production",
+  ]);
+  assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/oracles/document-file.mjs"]), [
+    "scenario.core.arrow.property-matrix-persistence.production",
+    "scenario.core.document.save-open-roundtrip.production",
+    "scenario.core.text.line-spacing-validation.production",
+    "scenario.core.text.multi-property-persistence.production",
+  ]);
+  assert.deepEqual(selectImpactedScenarios(graph, ["scripts/test.mjs"]), []);
   assert.deepEqual(planImpactedScenarios(graph, ["unknown/new-surface.js"]), {
     changedPaths: ["unknown/new-surface.js"],
     matchedSources: [],
@@ -145,6 +159,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.selection.locked-partial-delete.production",
       "scenario.core.selection.locked-transform.production",
       "scenario.core.selection.region-additive-mixed-cardinalities.production",
+      "scenario.core.text.line-spacing-validation.production",
       "scenario.core.text.multi-property-persistence.production",
     ],
   });
@@ -168,6 +183,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "locked-mixed-arrow-properties-production.json"),
     join(guiTestsDir, "scenarios", "core", "arrow-property-matrix-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "text-multi-property-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "text-line-spacing-validation-production.json"),
     join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json"),
     join(guiTestsDir, "scenarios", "core", "save-open-roundtrip-production.json"),
   ];
@@ -175,7 +191,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 29);
-  assert.equal(result.summary.scenarios, 17);
+  assert.equal(result.summary.scenarios, 18);
   assert.equal(result.summary.gaps, 0);
 });
 

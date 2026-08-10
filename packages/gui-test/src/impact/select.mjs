@@ -3,6 +3,15 @@ function wildcardPatternToRegExp(pattern) {
   return new RegExp(`^${escaped}$`);
 }
 
+function sourceMatchesPath(node, path) {
+  const normalized = path.replaceAll("\\", "/");
+  const patterns = node.patterns || [];
+  const positive = patterns.filter((pattern) => !pattern.startsWith("!"));
+  const negative = patterns.filter((pattern) => pattern.startsWith("!")).map((pattern) => pattern.slice(1));
+  return positive.some((pattern) => wildcardPatternToRegExp(pattern.replaceAll("\\", "/")).test(normalized))
+    && !negative.some((pattern) => wildcardPatternToRegExp(pattern.replaceAll("\\", "/")).test(normalized));
+}
+
 export function selectImpactedScenarios(graph, changedPaths) {
   const nodes = new Map(graph.nodes.map((node) => [node.id, node]));
   const outgoing = new Map();
@@ -16,10 +25,7 @@ export function selectImpactedScenarios(graph, changedPaths) {
   }
 
   const queue = graph.nodes
-    .filter((node) => node.kind === "source" && (node.patterns || []).some((pattern) => {
-      const regex = wildcardPatternToRegExp(pattern.replaceAll("\\", "/"));
-      return changedPaths.some((path) => regex.test(path.replaceAll("\\", "/")));
-    }))
+    .filter((node) => node.kind === "source" && changedPaths.some((path) => sourceMatchesPath(node, path)))
     .map((node) => node.id);
   const visited = new Set(queue);
   while (queue.length) {
@@ -42,7 +48,7 @@ export function planImpactedScenarios(graph, changedPaths) {
   const unmatchedPaths = [];
   for (const changedPath of changedPaths) {
     const normalized = changedPath.replaceAll("\\", "/");
-    const matches = sourceNodes.filter((node) => (node.patterns || []).some((pattern) => wildcardPatternToRegExp(pattern.replaceAll("\\", "/")).test(normalized)));
+    const matches = sourceNodes.filter((node) => sourceMatchesPath(node, normalized));
     if (!matches.length) {
       unmatchedPaths.push(normalized);
     }

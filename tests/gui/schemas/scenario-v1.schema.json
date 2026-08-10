@@ -256,6 +256,8 @@
                   "fontFamily": { "type": "string", "minLength": 1, "maxLength": 128 },
                   "fontSize": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000 },
                   "align": { "enum": ["left", "center", "right", "justify"] },
+                  "lineHeight": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000 },
+                  "lineHeightMode": { "enum": ["fixed", "auto"] },
                   "bold": { "type": "boolean" },
                   "fill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
                 }

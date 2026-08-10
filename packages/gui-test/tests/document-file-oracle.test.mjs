@@ -61,16 +61,19 @@ test("saved-document text oracle checks exact content and public style propertie
           fontFamily: "Arial",
           fontSize: 18,
           align: "center",
+          lineHeight: 20,
+          lineHeightMode: "fixed",
           runs: [{ text: "ChemSema H2O", fontWeight: 700, fill: "#0000ff" }],
           sourceRuns: [{ text: "ChemSema H2O", fontWeight: 700, fill: "#0000ff" }],
         },
       }],
     },
   }));
-  const expected = [{ id: "obj_text_1", text: "ChemSema H2O", fontFamily: "Arial", fontSize: 18, align: "center", bold: true, fill: "#0000ff" }];
+  const expected = [{ id: "obj_text_1", text: "ChemSema H2O", fontFamily: "Arial", fontSize: 18, align: "center", lineHeight: 20, lineHeightMode: "fixed", bold: true, fill: "#0000ff" }];
   assert.equal(evaluateDocumentTextProperties(bytes, expected).passed, true);
   assert.equal(evaluateDocumentTextProperties(bytes, [{ ...expected[0], bold: false }]).passed, false);
   assert.equal(evaluateDocumentTextProperties(bytes, [{ ...expected[0], fill: "#ff0000" }]).passed, false);
+  assert.equal(evaluateDocumentTextProperties(bytes, [{ ...expected[0], lineHeight: 12 }]).passed, false);
 
   const staleSourceRuns = Buffer.from(JSON.stringify({
     styles: { style_obj_text_1_color: { fill: "#0000ff" } },

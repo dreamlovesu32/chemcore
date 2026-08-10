@@ -118,6 +118,8 @@ export function evaluateDocumentTextProperties(bytes, expected) {
       fontFamily: object?.payload?.fontFamily ?? null,
       fontSize: object?.payload?.fontSize ?? null,
       align: object?.payload?.align ?? null,
+      lineHeight: object?.payload?.lineHeight ?? null,
+      lineHeightMode: object?.payload?.lineHeightMode ?? null,
       bold: weights.length > 0 && weights.every((weight) => weight === 700),
       fill: styles[object?.styleRef]?.fill ?? object?.payload?.fill ?? null,
       runFills: Object.fromEntries(runSets.map(({ key, runs: values }) => [

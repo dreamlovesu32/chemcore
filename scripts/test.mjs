@@ -31,6 +31,7 @@ run(process.execPath, [
   "scripts/tests/editor-arrow-properties.test.mjs",
   "scripts/tests/editor-viewport-host.test.mjs",
   "scripts/tests/link-interaction.test.mjs",
+  "scripts/tests/numeric-dialog-host.test.mjs",
   "scripts/tests/nmr-prediction-host.test.mjs",
   "scripts/tests/nmr-prediction-provider.test.mjs",
   "scripts/tests/nmr-prediction-e2e.test.mjs",
