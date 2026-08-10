@@ -220,7 +220,7 @@ test("candidate action sends one validated versioned transaction", async () => {
       30000,
       "activate-bond-tool",
     ),
-    /leave 4000 ms/,
+    /leave 15000 ms/,
   );
 });
 
@@ -477,6 +477,8 @@ test("production action transaction uses one guest invocation for before, input,
   assert.match(transaction, /maximumDeltaWorld/);
   assert.match(transaction, /'input-channel'/);
   assert.match(transaction, /'cdp-channel'/);
+  assert.match(transaction, /\$channelReceiptTimeoutMs = 15000/);
+  assert.match(transaction, /Send-ChannelRequest 'cdp-channel'.*\$channelReceiptTimeoutMs/);
   assert.match(transaction, /Mark-Trace 'start'/);
   assert.match(transaction, /Mark-Trace 'input-before'/);
   assert.match(transaction, /Mark-Trace 'input-after'/);

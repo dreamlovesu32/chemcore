@@ -900,6 +900,16 @@ trace 协议现在会在每个普通 guest 动作事务内部写入四个有界�
 
 这仍只是当前闭包中一个已通过资格的单元，不是整体资格。`qualification-current-21-incomplete.json` 有意保持 `failed`：预期 21、通过 1、缺失 20、失败运行 0，且没有 evidence 诊断。本场景覆盖独立 Symbol；原子/标签附着、轨道式放置、由此产生的化学与 Link 关系、混合/组合/锁定 Symbol、变换、剪贴板、CDXML/CDX 往返和大文档行为仍是明确待办。
 
+### 成对 Bracket：公开属性、可见侧边更新、层级与传输隔离
+
+登记闭包现已扩展为 22 个场景。`core.bracket.three-kind-properties-history.production` 绘制 Parentheses、Square brackets 和 Braces 三种公开成对对象。每个编辑器括号对由一个 `bracket-group` 根和两个可见 `bracket` 侧边表示。测试暴露了真实产品缺陷：selection 只看到组根，导致 Bracket Type 缺失，Color 还可能写到不可见的组而不是渲染子对象。内核现在把选中的 bracket group 识别为括号属性目标，从可见后代推导统一类型/颜色，并把颜色应用到左右两个侧边 payload。Rust 回归覆盖混合初始类型、公开菜单出现、统一类型/颜色应用、可见 payload 变化和两步撤销。
+
+最终隔离运行 `48d30648-dc4e-4f7b-a0f3-cf4fb0acb008` 在候选 `cb3d367ba9bea4e278b33a25aebb7c60add65787ed343ea31a94c07508e2e42e` 上于 283,368 ms 内通过 29/29 个受守卫 OS 输入动作和 4/4 个最终 oracle，诊断为 0。Evidence key `94318165141069e8e8f0f3e54b27e9fda9cef71d769bec23722b739a29763257` 保留 8 个 driver 制品。独立 CCJS oracle 要求格式 0.2、一个空编辑器分子加三个根与六个侧边、精确的 `curly`/left-or-right/`#008000` 侧边 payload，以及文件头 `hierarchy.children` 中每个根到自身有序 left/right ID 的精确映射。资格过程重新读取 9 个对象共 10,690,033 字节，VM 最终恢复为 `Off`。
+
+失败链继续保留。Evidence `e0265830730310110bbfd866df8583b855e6a2b39d05b18d53a7e5d9639dfe75` 记录了第三次绘制后的持久 CDP 通道回执超时。平台此前把产品 8 秒完成窗口同时用于传输回执；现在改为独立且有界的 15 秒定位/传输预留，同时保留原 8 秒产品观察与 30 秒动作总预算。Evidence `18f0b35756855396618d46dde03915bb8f5e0bcefb66235e6ff7070d47977013` 随后走完全流程，但检查发现第一版 oracle 只核对侧边记录，没有证明 0.2 层级隶属。该证据没有被当作最终资格；强化后的层级 oracle 重新运行，得到上述最终证据。
+
+`qualification-current-22-incomplete.json` 仍有意保持 `failed`：预期 22、通过 1、缺失 21、失败运行 0，重新验证 9 个 evidence 对象且无 evidence 诊断。Bracket 标签、重复次数 Link 关系、分子包含、控制柄缩放、锁定/组合交互、剪贴板、CDXML/CDX 往返和大文档仍开放。
+
 ## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>

@@ -1,0 +1,67 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.bracket.three-kind-properties-history.production",
+  "title": "Draw every bracket pair, batch-edit visible sides, undo, redo, and verify persistence",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Editor-created bracket pairs were selected as bracket-group roots, hiding Bracket Type and applying Color to the invisible root instead of both rendered sides.",
+  "capabilities": ["gui.public-input", "editor.bracket.draw", "editor.bracket.properties", "editor.selection.select-all", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 21,
+  "actions": [
+    { "id": "activate-bracket-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Bracket", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"bracket\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-parentheses", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.22, "y": 0.27 }, "to": { "x": 0.36, "y": 0.65 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-square-brackets", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Square brackets" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bracket-kind-square\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-square-brackets", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.43, "y": 0.27 }, "to": { "x": 0.57, "y": 0.65 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 4, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-braces", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Braces" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bracket-kind-curly\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-braces", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.64, "y": 0.27 }, "to": { "x": 0.78, "y": 0.65 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 6, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-all-bracket-pairs", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 3, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-mixed-bracket-menu", "type": "click", "target": { "strategy": "entity-id", "value": "obj_bracket_1_left" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"bracket-kind\"][aria-checked=\"true\"]", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-bracket-type-menu", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Bracket Type", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Bracket Type\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "make-all-braces", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Braces", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-uniform-braces-menu", "type": "click", "target": { "strategy": "entity-id", "value": "obj_bracket_1_left" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"bracket-kind\"][data-canvas-context-value=\"curly\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-color-menu", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Color", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Color\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "make-all-brackets-green", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Green", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "verify-uniform-green", "type": "click", "target": { "strategy": "entity-id", "value": "obj_bracket_1_left" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"color\"][data-canvas-context-value=\"#008000\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "close-green-menu", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "undo-green", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 6, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "reselect-after-color-undo", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 3, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "verify-black-restored", "type": "click", "target": { "strategy": "entity-id", "value": "obj_bracket_1_left" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"color\"][data-canvas-context-value=\"#000000\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "close-black-menu", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "redo-green", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Y", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 6, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "reselect-after-color-redo", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 3, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "verify-green-redone", "type": "click", "target": { "strategy": "entity-id", "value": "obj_bracket_1_left" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"color\"][data-canvas-context-value=\"#008000\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "close-redone-menu", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "six-visible-bracket-sides-remain", "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 6 },
+    { "id": "saved-document-has-three-pairs", "kind": "document-counts", "expected": { "nodes": 0, "bonds": 0, "molecules": 1, "objects": 10 } },
+    { "id": "saved-bracket-pair-property-matrix", "kind": "document-bracket-properties", "expected": [
+      { "id": "obj_bracket_1", "children": [{ "id": "obj_bracket_1_left", "kind": "curly", "side": "left", "stroke": "#008000" }, { "id": "obj_bracket_1_right", "kind": "curly", "side": "right", "stroke": "#008000" }] },
+      { "id": "obj_bracket_2", "children": [{ "id": "obj_bracket_2_left", "kind": "curly", "side": "left", "stroke": "#008000" }, { "id": "obj_bracket_2_right", "kind": "curly", "side": "right", "stroke": "#008000" }] },
+      { "id": "obj_bracket_3", "children": [{ "id": "obj_bracket_3_left", "kind": "curly", "side": "left", "stroke": "#008000" }, { "id": "obj_bracket_3_right", "kind": "curly", "side": "right", "stroke": "#008000" }] }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bracket.draw", "editor.bracket.properties", "editor.selection.select-all", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["bracket", "group"],
+    "cardinalities": ["1", "2", "many"],
+    "states": ["parentheses", "square-brackets", "braces", "paired-sides", "mixed-kind", "black", "green", "selected", "saved-document"],
+    "inputModes": ["mouse", "right-mouse", "keyboard", "native-dialog"],
+    "properties": ["bracket.kind", "bracket.side", "bracket.stroke", "bracket.group-membership"],
+    "persistenceBoundaries": ["runtime", "history", "filesystem", "native-dialog"]
+  }
+}

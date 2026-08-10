@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateDocumentArrowProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
+import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
 
 const validReports = {
   inspect: {
@@ -142,6 +142,30 @@ test("saved-document symbol oracle checks exact kind and both persisted color su
   assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...expected[0], kind: "plus" }]).passed, false);
   assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...expected[0], payloadFill: "#000000" }]).passed, false);
   assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...expected[0], styleFill: "#000000" }]).passed, false);
+});
+
+test("saved-document bracket oracle checks paired group membership and visible side properties", () => {
+  const bytes = Buffer.from(JSON.stringify({
+    entities: { scene: [{
+      id: "obj_bracket_1",
+      type: "group",
+    },
+    { id: "obj_bracket_1_left", type: "bracket", payload: { kind: "curly", side: "left", stroke: "#008000" } },
+    { id: "obj_bracket_1_right", type: "bracket", payload: { kind: "curly", side: "right", stroke: "#008000" } }] },
+    hierarchy: { roots: ["obj_bracket_1"], children: { obj_bracket_1: ["obj_bracket_1_left", "obj_bracket_1_right"] } },
+  }));
+  const expected = [{ id: "obj_bracket_1", children: [
+    { id: "obj_bracket_1_left", kind: "curly", side: "left", stroke: "#008000" },
+    { id: "obj_bracket_1_right", kind: "curly", side: "right", stroke: "#008000" },
+  ] }];
+  assert.equal(evaluateDocumentBracketProperties(bytes, expected).passed, true);
+  const wrongHierarchy = Buffer.from(JSON.stringify({
+    ...JSON.parse(bytes.toString("utf8")),
+    hierarchy: { roots: ["obj_bracket_1"], children: { obj_bracket_1: ["obj_bracket_1_right", "obj_bracket_1_left"] } },
+  }));
+  assert.equal(evaluateDocumentBracketProperties(wrongHierarchy, expected).passed, false);
+  assert.equal(evaluateDocumentBracketProperties(bytes, [{ ...expected[0], children: [{ ...expected[0].children[0], side: "right" }, expected[0].children[1]] }]).passed, false);
+  assert.equal(evaluateDocumentBracketProperties(bytes, [{ ...expected[0], children: [{ ...expected[0].children[0], stroke: "#000000" }, expected[0].children[1]] }]).passed, false);
 });
 
 test("saved-document validation is chemical only when a nonempty molecular graph exists", () => {

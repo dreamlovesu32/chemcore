@@ -70,6 +70,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.property-matrix-persistence.production",
     "scenario.core.bond.draw-single",
     "scenario.core.bond.draw-single.production",
+    "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
     "scenario.core.group.locked-ancestor-transform.production",
@@ -107,6 +108,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.arrow.property-matrix-persistence.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
+      "scenario.core.bracket.three-kind-properties-history.production",
       "scenario.core.clipboard.cross-document-mixed.production",
       "scenario.core.document.save-open-roundtrip.production",
       "scenario.core.group.locked-ancestor-transform.production",
@@ -127,6 +129,7 @@ test("impact selection follows the transitive source to scenario closure", async
   });
   assert.deepEqual(selectImpactedScenarios(graph, ["scripts/tests/recovery-journal.test.mjs"]), [
     "scenario.core.arrow.property-matrix-persistence.production",
+    "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
     "scenario.core.shape.multi-kind-style-history.production",
@@ -139,6 +142,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.multi-property-history.production",
     "scenario.core.arrow.property-matrix-persistence.production",
     "scenario.core.bond.draw-single.production",
+    "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
     "scenario.core.group.locked-ancestor-transform.production",
@@ -162,6 +166,7 @@ test("impact selection follows the transitive source to scenario closure", async
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/oracles/document-file.mjs"]), [
     "scenario.core.arrow.property-matrix-persistence.production",
+    "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.document.save-open-roundtrip.production",
     "scenario.core.shape.multi-kind-style-history.production",
     "scenario.core.symbol.eight-kind-color-history.production",
@@ -182,6 +187,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.arrow.property-matrix-persistence.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
+      "scenario.core.bracket.three-kind-properties-history.production",
       "scenario.core.clipboard.cross-document-mixed.production",
       "scenario.core.document.save-open-roundtrip.production",
       "scenario.core.group.locked-ancestor-transform.production",
@@ -224,14 +230,15 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "text-existing-edit-history-production.json"),
     join(guiTestsDir, "scenarios", "core", "shape-multi-kind-style-history-production.json"),
     join(guiTestsDir, "scenarios", "core", "symbol-eight-kind-color-history-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bracket-three-kind-properties-history-production.json"),
     join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json"),
     join(guiTestsDir, "scenarios", "core", "save-open-roundtrip-production.json"),
   ];
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 32);
-  assert.equal(result.summary.scenarios, 21);
+  assert.equal(result.summary.entries, 33);
+  assert.equal(result.summary.scenarios, 22);
   assert.equal(result.summary.gaps, 0);
 });
 

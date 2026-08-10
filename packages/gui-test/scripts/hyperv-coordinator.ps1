@@ -953,7 +953,7 @@ function Invoke-ActionTransaction {
   $request = $requestJson | ConvertFrom-Json
   if ($request.schema -ne 'chemsema.gui.action-transaction.v1') { throw 'Unsupported action transaction schema.' }
   if ([string]$request.actionId -notmatch '^[A-Za-z0-9._-]{1,128}$') { throw 'Action transaction identity is invalid.' }
-  if ([int]$request.completion.timeoutMs + 4000 -gt [int]$request.budgetMs) { throw 'Action transaction completion timeout does not leave the required 4000 ms target-resolution and transport reserve.' }
+  if ([int]$request.completion.timeoutMs + 15000 -gt [int]$request.budgetMs) { throw 'Action transaction completion timeout does not leave the required 15000 ms target-resolution and transport reserve.' }
   $hostHash = (Get-FileHash -LiteralPath $HostCandidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
   $guestPath = Join-Path (Join-Path (Join-Path $GuestTestRoot 'candidate') $hostHash) 'chemsema-desktop.exe'
   $transaction = Invoke-Guest -ScriptBlock {
@@ -981,10 +981,12 @@ function Invoke-ActionTransaction {
       $response
     }
 
+    $channelReceiptTimeoutMs = 15000
+
     function Observe-Cdp([System.Collections.IDictionary]$CdpRequest) {
       $json = $CdpRequest | ConvertTo-Json -Depth 10 -Compress
       $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
-      $response = Send-ChannelRequest 'cdp-channel' 'chemsema.gui.cdp-request.v1' 'chemsema.gui.cdp-response.v1' ([ordered]@{ requestBase64=$encoded }) 8000
+      $response = Send-ChannelRequest 'cdp-channel' 'chemsema.gui.cdp-request.v1' 'chemsema.gui.cdp-response.v1' ([ordered]@{ requestBase64=$encoded }) $channelReceiptTimeoutMs
       $response.bridge.value
     }
 

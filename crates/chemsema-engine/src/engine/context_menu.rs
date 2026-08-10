@@ -517,6 +517,8 @@ impl Engine {
             ]);
         } else if selected_types.len() == 1 && selected_types.contains("shape") {
             items.extend([separator(), self.shape_style_menu()]);
+        } else if self.selection_contains_only_bracket_targets() {
+            items.extend([separator(), self.bracket_type_menu()]);
         }
         items.extend([
             separator(),
@@ -1725,7 +1727,7 @@ impl Engine {
     fn selected_uniform_color(&self) -> Option<String> {
         let mut colors = Vec::new();
         for object in self.selected_scene_objects() {
-            colors.push(style_color_for_object(&self.state.document, object));
+            collect_visible_bracket_colors(&self.state.document, object, &mut colors);
         }
         for bond in self.selected_bonds() {
             colors.push(css_color_to_hex(
@@ -1832,21 +1834,16 @@ impl Engine {
     }
 
     fn selected_uniform_bracket_kind(&self) -> Option<String> {
-        uniform_value(
-            self.selected_scene_objects()
-                .into_iter()
-                .filter(|object| object.object_type == "bracket")
-                .map(|object| {
-                    object
-                        .payload
-                        .extra
-                        .get("kind")
-                        .and_then(JsonValue::as_str)
-                        .unwrap_or("round")
-                        .to_string()
-                })
-                .collect(),
-        )
+        let mut kinds = Vec::new();
+        for object in self.selected_scene_objects() {
+            collect_bracket_kinds(object, &mut kinds);
+        }
+        uniform_value(kinds)
+    }
+
+    fn selection_contains_only_bracket_targets(&self) -> bool {
+        let selected = self.selected_scene_objects();
+        !selected.is_empty() && selected.into_iter().all(scene_object_is_bracket_target)
     }
 
     fn selected_uniform_line_style(&self) -> Option<String> {
@@ -2860,6 +2857,50 @@ fn style_color_for_object(document: &crate::ChemSemaDocument, object: &SceneObje
             .as_deref()
             .unwrap_or("#000000"),
     )
+}
+
+fn scene_object_is_bracket_target(object: &SceneObject) -> bool {
+    object.object_type == "bracket"
+        || (object.object_type == "group"
+            && object.meta.get("kind").and_then(JsonValue::as_str) == Some("bracket-group"))
+}
+
+fn collect_bracket_kinds(object: &SceneObject, kinds: &mut Vec<String>) {
+    if object.object_type == "bracket" {
+        kinds.push(
+            object
+                .payload
+                .extra
+                .get("kind")
+                .and_then(JsonValue::as_str)
+                .unwrap_or("round")
+                .to_string(),
+        );
+        return;
+    }
+    if scene_object_is_bracket_target(object) {
+        for child in &object.children {
+            collect_bracket_kinds(child, kinds);
+        }
+    }
+}
+
+fn collect_visible_bracket_colors(
+    document: &crate::ChemSemaDocument,
+    object: &SceneObject,
+    colors: &mut Vec<String>,
+) {
+    if object.object_type == "bracket" {
+        colors.push(style_color_for_object(document, object));
+        return;
+    }
+    if scene_object_is_bracket_target(object) {
+        for child in &object.children {
+            collect_visible_bracket_colors(document, child, colors);
+        }
+    } else {
+        colors.push(style_color_for_object(document, object));
+    }
 }
 
 fn shape_style_for_object(document: &crate::ChemSemaDocument, object: &SceneObject) -> String {

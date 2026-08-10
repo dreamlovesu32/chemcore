@@ -212,6 +212,48 @@ export function evaluateDocumentSymbolProperties(bytes, expected) {
   return { passed, observed };
 }
 
+export function evaluateDocumentBracketProperties(bytes, expected) {
+  let document;
+  try {
+    document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));
+  } catch {
+    return { passed: false, observed: [] };
+  }
+  const roots = Array.isArray(document?.entities?.scene) ? document.entities.scene : [];
+  const objects = [];
+  const visit = (object) => {
+    if (!object || typeof object !== "object") return;
+    objects.push(object);
+    if (Array.isArray(object.children)) object.children.forEach(visit);
+  };
+  roots.forEach(visit);
+  const observed = expected.map((entry) => {
+    const group = objects.find((object) => object?.id === entry.id && object?.type === "group");
+    const childIds = Array.isArray(document?.hierarchy?.children?.[entry.id])
+      ? document.hierarchy.children[entry.id]
+      : [];
+    const children = entry.children.map((childEntry) => {
+      const child = objects.find((object) => object?.id === childEntry.id && object?.type === "bracket");
+      return {
+        id: childEntry.id,
+        found: !!child,
+        kind: child?.payload?.kind ?? null,
+        side: child?.payload?.side ?? null,
+        stroke: child?.payload?.stroke ?? null,
+      };
+    });
+    return { id: entry.id, found: !!group, childIds, children };
+  });
+  const passed = observed.every((actual, index) => {
+    const wanted = expected[index];
+    return actual.found
+      && JSON.stringify(actual.childIds) === JSON.stringify(wanted.children.map((child) => child.id))
+      && wanted.children.every((child, childIndex) => actual.children[childIndex]?.found
+        && Object.entries(child).every(([name, value]) => name === "id" || actual.children[childIndex][name] === value));
+  });
+  return { passed, observed };
+}
+
 export function validationLevelForDocumentBytes(bytes) {
   try {
     const document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));

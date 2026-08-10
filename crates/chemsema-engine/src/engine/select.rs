@@ -1077,8 +1077,24 @@ impl Engine {
         self.push_undo_snapshot();
         let selected_text: BTreeSet<String> =
             self.state.selection.text_objects.iter().cloned().collect();
-        let selected_graphics: BTreeSet<String> =
+        let mut selected_graphics: BTreeSet<String> =
             self.state.selection.arrow_objects.iter().cloned().collect();
+        let selected_bracket_groups = self
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .filter(|object| {
+                selected_graphics.contains(&object.id)
+                    && object.object_type == "group"
+                    && object.meta.get("kind").and_then(JsonValue::as_str) == Some("bracket-group")
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        for group in selected_bracket_groups {
+            selected_graphics.remove(&group.id);
+            collect_bracket_descendant_ids(&group, &mut selected_graphics);
+        }
         let mut changed = false;
         let selected_object_ids = self
             .state
@@ -2834,6 +2850,15 @@ enum ColorTarget {
     Text,
     Graphic,
     Molecule,
+}
+
+fn collect_bracket_descendant_ids(object: &SceneObject, ids: &mut BTreeSet<String>) {
+    for child in &object.children {
+        if child.object_type == "bracket" {
+            ids.insert(child.id.clone());
+        }
+        collect_bracket_descendant_ids(child, ids);
+    }
 }
 
 fn normalize_selection_color(color: &str) -> String {

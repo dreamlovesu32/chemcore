@@ -1341,6 +1341,131 @@ fn multi_shape_selection_exposes_public_batch_style_menu() {
 }
 
 #[test]
+fn editor_bracket_groups_expose_and_apply_visible_batch_properties() {
+    fn bracket_group(id: &str, kind: &str, x: f64) -> serde_json::Value {
+        serde_json::json!({
+            "id": id,
+            "type": "group",
+            "name": "bracket-group",
+            "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+            "meta": { "source": "editor", "kind": "bracket-group" },
+            "payload": { "bbox": [x, 20.0, 30.0, 50.0] },
+            "children": [
+                {
+                    "id": format!("{id}_left"),
+                    "type": "bracket",
+                    "transform": { "translate": [x, 20.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                    "payload": { "bbox": [0.0, 0.0, 5.0, 50.0], "kind": kind, "side": "left", "stroke": "#000000", "strokeWidth": 1.0 }
+                },
+                {
+                    "id": format!("{id}_right"),
+                    "type": "bracket",
+                    "transform": { "translate": [x + 25.0, 20.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                    "payload": { "bbox": [0.0, 0.0, 5.0, 50.0], "kind": kind, "side": "right", "stroke": "#000000", "strokeWidth": 1.0 }
+                }
+            ]
+        })
+    }
+
+    let mut engine = Engine::new();
+    let document = serde_json::json!({
+        "format": { "name": "chemsema", "version": "0.1", "unit": "pt" },
+        "document": { "id": "doc_bracket_groups", "title": "bracket groups", "page": { "width": 180.0, "height": 100.0, "background": "#ffffff" } },
+        "styles": {},
+        "objects": [bracket_group("obj_bracket_1", "round", 20.0), bracket_group("obj_bracket_2", "square", 100.0)],
+        "resources": {}
+    });
+    engine
+        .load_document_json(&document.to_string())
+        .expect("editor bracket-group fixture should load");
+    assert!(engine.select_all());
+
+    let menu: serde_json::Value = serde_json::from_str(&engine.context_menu_json(
+        r#"{"kind":"object","objectId":"obj_bracket_1_left"}"#,
+        false,
+    ))
+    .expect("bracket-group context menu should be valid JSON");
+    let bracket_items = menu
+        .as_array()
+        .and_then(|items| {
+            items.iter().find(|item| {
+                item.get("label").and_then(serde_json::Value::as_str) == Some("Bracket Type")
+            })
+        })
+        .and_then(|item| item.get("submenu"))
+        .and_then(serde_json::Value::as_array)
+        .unwrap_or_else(|| {
+            panic!("Bracket Type submenu should be public for bracket groups: {menu}")
+        });
+    assert!(bracket_items
+        .iter()
+        .all(|item| item.get("checked").and_then(serde_json::Value::as_bool) != Some(true)));
+
+    assert!(engine.apply_bracket_kind_to_selection("curly"));
+    assert!(engine.apply_color_to_selection("#008000"));
+    for id in [
+        "obj_bracket_1_left",
+        "obj_bracket_1_right",
+        "obj_bracket_2_left",
+        "obj_bracket_2_right",
+    ] {
+        let object = engine
+            .state()
+            .document
+            .find_scene_object(id)
+            .unwrap_or_else(|| panic!("{id} should exist"));
+        assert_eq!(object.payload.extra["kind"], "curly");
+        assert_eq!(object.payload.extra["stroke"], "#008000");
+    }
+
+    let uniform_menu: serde_json::Value = serde_json::from_str(&engine.context_menu_json(
+        r#"{"kind":"object","objectId":"obj_bracket_1_left"}"#,
+        false,
+    ))
+    .expect("uniform bracket-group context menu should be valid JSON");
+    for (label, value) in [("Bracket Type", "curly"), ("Color", "#008000")] {
+        let checked = uniform_menu
+            .as_array()
+            .and_then(|items| {
+                items.iter().find(|item| {
+                    item.get("label").and_then(serde_json::Value::as_str) == Some(label)
+                })
+            })
+            .and_then(|item| item.get("submenu"))
+            .and_then(serde_json::Value::as_array)
+            .and_then(|items| {
+                items.iter().find(|item| {
+                    item.get("value").and_then(serde_json::Value::as_str) == Some(value)
+                })
+            })
+            .and_then(|item| item.get("checked"))
+            .and_then(serde_json::Value::as_bool);
+        assert_eq!(
+            checked,
+            Some(true),
+            "{label} should report {value} uniformly"
+        );
+    }
+
+    assert!(engine.undo());
+    assert!(engine.select_all());
+    let after_color_undo = engine
+        .state()
+        .document
+        .find_scene_object("obj_bracket_1_left")
+        .expect("left bracket should survive undo");
+    assert_eq!(after_color_undo.payload.extra["kind"], "curly");
+    assert_eq!(after_color_undo.payload.extra["stroke"], "#000000");
+    assert!(engine.undo());
+    let after_kind_undo = engine
+        .state()
+        .document
+        .find_scene_object("obj_bracket_2_left")
+        .expect("second bracket should survive undo");
+    assert_eq!(after_kind_undo.payload.extra["kind"], "square");
+}
+
+#[test]
 fn locked_arrow_properties_are_immutable_in_a_mixed_selection() {
     fn arrow_state(engine: &Engine, object_id: &str) -> (bool, String, String) {
         let object = engine
