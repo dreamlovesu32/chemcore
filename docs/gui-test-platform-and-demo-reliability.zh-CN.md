@@ -880,6 +880,8 @@ CCJS 0.2 已把 `locked` 定义为“对象是否可编辑”，但桌面端此�
 
 独立审计重新读取本次尝试闭包中的 18 份报告、既有文本通过报告和分阶段保存/打开通过报告，共 20 份报告、372 个动作收据、59 个 oracle 结果和 134 个 manifest 对象，总计 180,619,707 字节；134 个对象的实际大小与 SHA-256 均与声明一致。该集合包含 18 份通过报告和上述 2 份保留失败；按唯一登记场景计算，只有锁定祖先组合单元在本次资格尝试中没有干净结果。VM 最终为 `Off`、配置 8 核、分配内存为 0。因此这代表覆盖扩展，不代表 19 场景资格通过，也不代表其余对象/属性/值域、格式、复杂/large/xlarge、环境、故障/模型/变异、耐久或连续 1,000 次目标已完成。
 
+trace 协议现在会在每个普通 guest 动作事务内部写入四个有界用户时序标记：`start`、`input-before`、`input-after` 和 `complete`。它们复用 before/completion/after 观察所用的持久 observer 通道，绝不替代受守卫的 OS 输入。同一候选上的一次锁定祖先组合诊断执行以 evidence `b07c0ced9a0bf1576f0130e7fbedac9c10bbb6aec2d152fce8c2c97fecebd6d4` 通过全部 22 个动作和 4 个 oracle；预期的 88 个标记全部存在且未截断。164,998 个 trace 事件中没有任何大于等于 50 ms 的任务；Layout、Paint 和 Commit 峰值分别为 1.139 ms、0.412 ms 和 5.286 ms，而保留失败中分别达到 2,094.164 ms、1,298.080 ms 和 614.156 ms。失败动作时段的宿主 Hyper-V 与 System 日志没有记录调度、CPU 或内存故障。启动时反复出现的 VHDX security-information 警告在通过与失败运行中都存在，因此不能解释该事件。现有证据支持“整个 renderer 或 VM 被暂停调度”，但还不能区分两者。后续通过提供了干净功能结果，不会把失败的资格尝试改成绿色。
+
 ## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>

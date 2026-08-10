@@ -116,7 +116,7 @@ try {
   if ([string]::IsNullOrWhiteSpace($EncodedRequest)) { throw 'The CDP request is absent.' }
   $requestJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($EncodedRequest))
   $request = $requestJson | ConvertFrom-Json
-  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state', 'text', 'text-state', 'entity-rects-state', 'trace-start', 'artifact-export')) {
+  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state', 'text', 'text-state', 'entity-rects-state', 'trace-start', 'trace-mark', 'artifact-export')) {
     throw "Unsupported CDP bridge mode '$($request.mode)'."
   }
   if ($request.mode -in @('count', 'count-state', 'distinct-count', 'distinct-count-state', 'text', 'text-state') -and
@@ -125,6 +125,9 @@ try {
   }
   if ($request.mode -eq 'artifact-export' -and [string]$request.artifactId -notmatch '^[a-f0-9]{32}$') {
     throw 'Artifact export requires a 32-character lowercase hexadecimal identity.'
+  }
+  if ($request.mode -eq 'trace-mark' -and [string]$request.name -notmatch '^chemsema-action:[A-Za-z0-9._:-]{1,220}$') {
+    throw 'Trace marks require a bounded ChemSema action marker.'
   }
   $deadline = [DateTime]::UtcNow.AddSeconds(30)
   do {
@@ -183,6 +186,17 @@ try {
         status = 'passed'
         mode = 'trace-start'
         value = [ordered]@{ started = $true; categories = $TraceCategories }
+      }
+    }
+    if ($request.mode -eq 'trace-mark') {
+      if (-not $script:TraceActive) { throw 'Performance trace was not started before the action marker.' }
+      $markerJson = [string]$request.name | ConvertTo-Json -Compress
+      [void](Invoke-Cdp $socket 'Runtime.evaluate' @{ expression="performance.mark($markerJson); true"; returnByValue=$true })
+      return [ordered]@{
+        schema = 'chemsema.gui.cdp-bridge.v1'
+        status = 'passed'
+        mode = 'trace-mark'
+        value = [ordered]@{ marked=$true; name=[string]$request.name }
       }
     }
     if ($request.mode -eq 'artifact-export') {

@@ -53,12 +53,14 @@ test("scenario, coverage registry, and impact graph validate", async () => {
   }, "CDP response fixture");
   await assertValidDocument({
     schema: "chemsema.gui.action-transaction.v1",
+    actionId: "activate-bond-tool",
     input: { kind: "click", x: 10, y: 20, button: "left", modifiers: ["Shift"] },
     completion: { kind: "actionable", timeoutMs: 8000 },
     budgetMs: 30000,
   }, "action transaction fixture");
   await assertValidDocument({
     schema: "chemsema.gui.action-transaction.v1",
+    actionId: "select-two-objects",
     input: { kind: "key", key: "Control+A" },
     completion: {
       kind: "dom-distinct-count",
@@ -72,12 +74,14 @@ test("scenario, coverage registry, and impact graph validate", async () => {
   }, "distinct object action transaction fixture");
   await assertValidDocument({
     schema: "chemsema.gui.action-transaction.v1",
+    actionId: "undo-text-edit",
     input: { kind: "key", key: "Control+Z" },
     completion: { kind: "dom-text", selector: "[data-object-id=\"obj_text_1\"]", text: "Original text", timeoutMs: 8000 },
     budgetMs: 30000,
   }, "exact DOM text action transaction fixture");
   await assertValidDocument({
     schema: "chemsema.gui.action-transaction.v1",
+    actionId: "drag-mixed-selection",
     input: { kind: "drag", from: [100, 100], to: [130, 100], steps: 8, button: "left" },
     completion: {
       kind: "entity-rect-deltas",
@@ -108,6 +112,7 @@ test("DOM completion selectors share one bounded protocol limit", async () => {
   assert(boundedSelector.length > 512 && boundedSelector.length <= 2048);
   await assertValidDocument({
     schema: "chemsema.gui.action-transaction.v1",
+    actionId: "bounded-selector",
     input: { kind: "click", x: 10, y: 20, button: "left" },
     completion: { kind: "dom-count", selector: boundedSelector, operator: "eq", value: 7, timeoutMs: 8000 },
     budgetMs: 30000,

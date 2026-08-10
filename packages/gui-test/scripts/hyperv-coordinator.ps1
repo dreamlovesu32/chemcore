@@ -952,6 +952,7 @@ function Invoke-ActionTransaction {
   $requestJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($ActionRequestBase64))
   $request = $requestJson | ConvertFrom-Json
   if ($request.schema -ne 'chemsema.gui.action-transaction.v1') { throw 'Unsupported action transaction schema.' }
+  if ([string]$request.actionId -notmatch '^[A-Za-z0-9._-]{1,128}$') { throw 'Action transaction identity is invalid.' }
   if ([int]$request.completion.timeoutMs + 4000 -gt [int]$request.budgetMs) { throw 'Action transaction completion timeout does not leave the required 4000 ms target-resolution and transport reserve.' }
   $hostHash = (Get-FileHash -LiteralPath $HostCandidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
   $guestPath = Join-Path (Join-Path (Join-Path $GuestTestRoot 'candidate') $hostHash) 'chemsema-desktop.exe'
@@ -985,6 +986,10 @@ function Invoke-ActionTransaction {
       $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
       $response = Send-ChannelRequest 'cdp-channel' 'chemsema.gui.cdp-request.v1' 'chemsema.gui.cdp-response.v1' ([ordered]@{ requestBase64=$encoded }) 8000
       $response.bridge.value
+    }
+
+    function Mark-Trace([string]$Phase) {
+      [void](Observe-Cdp ([ordered]@{ mode='trace-mark'; name="chemsema-action:$([string]$Request.actionId):$Phase" }))
     }
 
     $process = Get-Process chemsema-desktop -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $CandidatePath -and $_.SessionId -ne 0 } | Select-Object -First 1
@@ -1025,6 +1030,7 @@ function Invoke-ActionTransaction {
     }
     $entityExpectations = @()
     $beforeEntityObservation = $null
+    Mark-Trace 'start'
     if ($completionKind -eq 'entity-rect-deltas') {
       $entityExpectations = @($Request.completion.entities)
       $entityIds = @($entityExpectations | ForEach-Object { [string]$_.entityId })
@@ -1046,7 +1052,9 @@ function Invoke-ActionTransaction {
     } else {
       $before = Observe-Cdp ([ordered]@{ mode='state' })
     }
+    Mark-Trace 'input-before'
     $inputResponse = Send-ChannelRequest 'input-channel' 'chemsema.gui.guest-agent-request.v1' 'chemsema.gui.guest-agent-response.v1' ([ordered]@{ args=$inputArguments }) 8000
+    Mark-Trace 'input-after'
     if ($completionKind -in @('dom-count', 'dom-distinct-count')) {
       $completionDeadline = [DateTime]::UtcNow.AddMilliseconds([int]$Request.completion.timeoutMs)
       $completionRequest = [ordered]@{
@@ -1127,6 +1135,7 @@ function Invoke-ActionTransaction {
       $after = Observe-Cdp ([ordered]@{ mode='state' })
       $completion = if ($completionKind -eq 'actionable') { [ordered]@{ actionable=$true } } else { [ordered]@{ quiescent=$true } }
     }
+    Mark-Trace 'complete'
     [ordered]@{
       schema = 'chemsema.gui.action-transaction-receipt.v1'
       input = $inputResponse.result

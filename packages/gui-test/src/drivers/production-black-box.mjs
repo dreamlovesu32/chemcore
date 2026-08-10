@@ -29,6 +29,13 @@ function key(target) {
 
 export function summarizePerformanceTrace(traceDocument) {
   const events = traceDocument.traceEvents;
+  const allActionMarkers = events.filter((event) => typeof event?.name === "string" && event.name.startsWith("chemsema-action:"));
+  const actionMarkers = allActionMarkers.slice(0, 512).map((event) => ({
+    name: event.name,
+    timestampUs: Number.isFinite(event.ts) ? event.ts : null,
+    processId: Number.isInteger(event.pid) ? event.pid : null,
+    threadId: Number.isInteger(event.tid) ? event.tid : null,
+  }));
   const completed = events.filter((event) => event?.ph === "X" && Number.isFinite(event.dur) && event.dur >= 50_000);
   const topLongTasks = [...completed]
     .sort((left, right) => right.dur - left.dur)
@@ -58,6 +65,8 @@ export function summarizePerformanceTrace(traceDocument) {
   return {
     schema: "chemsema.gui.performance-summary.v1",
     eventCount: events.length,
+    actionMarkers,
+    actionMarkersTruncated: allActionMarkers.length > actionMarkers.length,
     longTaskThresholdMs: 50,
     longTaskCount: completed.length,
     maxLongTaskMs: topLongTasks[0]?.durationMs || 0,
@@ -323,7 +332,7 @@ export class ProductionBlackBoxDriver {
       const after = nativeDialogRemains ? before : await phase("capture-after-state", () => this.actionState());
       return { before, after, completion, result, phases: this.actionProgress() };
     }
-    const receipt = await this.coordinator.candidateAction(input, action.completion, action.budgetMs);
+    const receipt = await this.coordinator.candidateAction(input, action.completion, action.budgetMs, action.id);
     this.foreground = receipt.transaction.input.foreground;
     this.lastActionState = this.stateReceipt(receipt.transaction.after);
     return {

@@ -3,9 +3,10 @@
   "$id": "chemsema.gui.action-transaction.v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "input", "completion", "budgetMs"],
+  "required": ["schema", "actionId", "input", "completion", "budgetMs"],
   "properties": {
     "schema": { "const": "chemsema.gui.action-transaction.v1" },
+    "actionId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._-]+$" },
     "input": {
       "oneOf": [
         {

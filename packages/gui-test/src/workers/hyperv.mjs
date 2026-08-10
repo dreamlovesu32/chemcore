@@ -369,7 +369,7 @@ export class HyperVCoordinator {
   }
 
   async cdpBridge(request) {
-    if (!["locate", "state", "count", "count-state", "distinct-count", "distinct-count-state", "text", "text-state", "entity-rects-state", "trace-start", "artifact-export"].includes(request?.mode)) {
+    if (!["locate", "state", "count", "count-state", "distinct-count", "distinct-count-state", "text", "text-state", "entity-rects-state", "trace-start", "trace-mark", "artifact-export"].includes(request?.mode)) {
       throw new Error("CDP bridge requires a supported fixed mode.");
     }
     if (["count", "count-state", "distinct-count", "distinct-count-state", "text", "text-state"].includes(request.mode)
@@ -386,6 +386,9 @@ export class HyperVCoordinator {
     }
     if (request.mode === "artifact-export" && !/^[a-f0-9]{32}$/.test(request.artifactId || "")) {
       throw new Error("CDP artifact export requires a 32-character lowercase hexadecimal identity.");
+    }
+    if (request.mode === "trace-mark" && (typeof request.name !== "string" || !/^chemsema-action:[A-Za-z0-9._:-]{1,220}$/.test(request.name))) {
+      throw new Error("CDP trace marks require a bounded ChemSema action marker.");
     }
     const encoded = Buffer.from(JSON.stringify(request), "utf8").toString("base64");
     const timeoutMs = request.mode === "artifact-export" ? 110000 : 40000;
@@ -479,7 +482,7 @@ export class HyperVCoordinator {
     return this.execute("stop-cdp-agent", [], { timeoutMs: 20000 });
   }
 
-  async candidateAction(input, completion, budgetMs) {
+  async candidateAction(input, completion, budgetMs, actionId) {
     const minimumTransactionBudgetMs = 30000;
     const transportReserveMs = 4000;
     if (!Number.isInteger(budgetMs) || budgetMs < minimumTransactionBudgetMs) {
@@ -488,7 +491,7 @@ export class HyperVCoordinator {
     if (!Number.isInteger(budgetMs) || !Number.isInteger(completion?.timeoutMs) || completion.timeoutMs + transportReserveMs > budgetMs) {
       throw new Error(`Candidate action completion timeout must leave ${transportReserveMs} ms inside the end-to-end action budget for target resolution and transport.`);
     }
-    const request = { schema: "chemsema.gui.action-transaction.v1", input, completion, budgetMs };
+    const request = { schema: "chemsema.gui.action-transaction.v1", actionId, input, completion, budgetMs };
     await assertValidDocument(request, "candidate action transaction request");
     const encoded = Buffer.from(JSON.stringify(request), "utf8").toString("base64");
     const argumentsForAction = this.argumentsFor("action-transaction", ["-ActionRequestBase64", encoded]);

@@ -140,12 +140,15 @@ test("performance trace summary retains bounded long-task and hotspot evidence",
     { ph: "X", name: "RunTask", cat: "timeline", dur: 125_500, ts: 10, pid: 1, tid: 2 },
     { ph: "X", name: "Layout", cat: "timeline", dur: 75_250, ts: 20, pid: 1, tid: 2 },
     { ph: "X", name: "Paint", cat: "timeline", dur: 25_000, ts: 30, pid: 1, tid: 2 },
+    { ph: "R", name: "chemsema-action:draw-bond:input-after", cat: "blink.user_timing", ts: 40, pid: 1, tid: 2 },
   ] });
-  assert.equal(summary.eventCount, 3);
+  assert.equal(summary.eventCount, 4);
   assert.equal(summary.longTaskCount, 2);
   assert.equal(summary.maxLongTaskMs, 125.5);
   assert.deepEqual(summary.topLongTasks.map((event) => event.name), ["RunTask", "Layout"]);
   assert.deepEqual(summary.hotspots.find((entry) => entry.name === "Layout"), { name: "Layout", count: 1, totalMs: 75.25, maxMs: 75.25 });
+  assert.deepEqual(summary.actionMarkers, [{ name: "chemsema-action:draw-bond:input-after", timestampUs: 40, processId: 1, threadId: 2 }]);
+  assert.equal(summary.actionMarkersTruncated, false);
 });
 
 test("production black-box resolves bounded literal text without exposing its content in receipts", async () => {

@@ -196,17 +196,20 @@ test("candidate action sends one validated versioned transaction", async () => {
     { kind: "click", x: 34, y: 212, button: "left", modifiers: ["Shift"] },
     { kind: "actionable", timeoutMs: 8000 },
     30000,
+    "activate-bond-tool",
   );
   assert.equal(receipt.transaction.input.foreground.processId, 300);
   const encoded = invokedArgs[invokedArgs.indexOf("-ActionRequestBase64") + 1];
   const request = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
   assert.equal(request.schema, "chemsema.gui.action-transaction.v1");
+  assert.equal(request.actionId, "activate-bond-tool");
   assert.deepEqual(request.input, { kind: "click", x: 34, y: 212, button: "left", modifiers: ["Shift"] });
   await assert.rejects(
     coordinator.candidateAction(
       { kind: "click", x: 34, y: 212, button: "left" },
       { kind: "actionable", timeoutMs: 8001 },
       12000,
+      "activate-bond-tool",
     ),
     /at least 30000 ms/,
   );
@@ -215,6 +218,7 @@ test("candidate action sends one validated versioned transaction", async () => {
       { kind: "click", x: 34, y: 212, button: "left" },
       { kind: "actionable", timeoutMs: 26001 },
       30000,
+      "activate-bond-tool",
     ),
     /leave 4000 ms/,
   );
@@ -307,6 +311,8 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   assert.match(guestSource, /'data-object-id', 'data-node-id', 'data-bond-id'/);
   assert.match(guestSource, /'artifact-export'/);
   assert.match(guestSource, /'trace-start'/);
+  assert.match(guestSource, /'trace-mark'/);
+  assert.match(guestSource, /performance\.mark/);
   assert.match(guestSource, /Tracing\.start/);
   assert.match(guestSource, /transferMode = 'ReturnAsStream'/);
   assert.match(guestSource, /Tracing\.end/);
@@ -471,6 +477,10 @@ test("production action transaction uses one guest invocation for before, input,
   assert.match(transaction, /maximumDeltaWorld/);
   assert.match(transaction, /'input-channel'/);
   assert.match(transaction, /'cdp-channel'/);
+  assert.match(transaction, /Mark-Trace 'start'/);
+  assert.match(transaction, /Mark-Trace 'input-before'/);
+  assert.match(transaction, /Mark-Trace 'input-after'/);
+  assert.match(transaction, /Mark-Trace 'complete'/);
   assert.match(transaction, /chemsema\.gui\.action-transaction-receipt\.v1/);
   assert.match(source, /ChemSemaGuiPersistentSession/);
   assert.match(broker, /New-PSSession -VMId/);
