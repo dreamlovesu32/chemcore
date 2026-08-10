@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import test from "node:test";
 import { gzipSync } from "node:zlib";
-import { ProductionBlackBoxDriver } from "../src/drivers/production-black-box.mjs";
+import { ProductionBlackBoxDriver, summarizePerformanceTrace } from "../src/drivers/production-black-box.mjs";
 import { guiTestsDir } from "../src/protocol/paths.mjs";
 import { readValidatedDocument } from "../src/protocol/validate.mjs";
 import { runScenario } from "../src/runner/run-scenario.mjs";
@@ -127,8 +127,25 @@ test("production black-box driver maps semantic CDP targets to guarded OS input"
     "final-dom.html",
     "performance-trace.json.gz",
     "webview.log",
+    "performance-summary.json",
   ]);
-  assert.equal(artifactPayloads.length, 5);
+  assert.equal(artifactPayloads.length, 6);
+  const summary = JSON.parse(artifactPayloads.find((artifact) => artifact.descriptor.name === "performance-summary.json").bytes);
+  assert.equal(summary.schema, "chemsema.gui.performance-summary.v1");
+  assert.equal(summary.eventCount, 1);
+});
+
+test("performance trace summary retains bounded long-task and hotspot evidence", () => {
+  const summary = summarizePerformanceTrace({ traceEvents: [
+    { ph: "X", name: "RunTask", cat: "timeline", dur: 125_500, ts: 10, pid: 1, tid: 2 },
+    { ph: "X", name: "Layout", cat: "timeline", dur: 75_250, ts: 20, pid: 1, tid: 2 },
+    { ph: "X", name: "Paint", cat: "timeline", dur: 25_000, ts: 30, pid: 1, tid: 2 },
+  ] });
+  assert.equal(summary.eventCount, 3);
+  assert.equal(summary.longTaskCount, 2);
+  assert.equal(summary.maxLongTaskMs, 125.5);
+  assert.deepEqual(summary.topLongTasks.map((event) => event.name), ["RunTask", "Layout"]);
+  assert.deepEqual(summary.hotspots.find((entry) => entry.name === "Layout"), { name: "Layout", count: 1, totalMs: 75.25, maxMs: 75.25 });
 });
 
 test("production black-box resolves bounded literal text without exposing its content in receipts", async () => {
@@ -136,6 +153,25 @@ test("production black-box resolves bounded literal text without exposing its co
   const resolved = await driver.resolveActionInput({ type: "text", text: "H2SO4" });
   assert.deepEqual(resolved.input, { kind: "text", text: "H2SO4" });
   assert.deepEqual(resolved.result, { kind: "text", textLength: 5 });
+});
+
+test("production black-box requires one exact DOM text match and retains its action state", async () => {
+  const state = { revision: 7, appScript: "app.js", engine: null, window: { title: "Untitled *" }, rendered: { bonds: 0, nodes: 0 } };
+  const requests = [];
+  const driver = new ProductionBlackBoxDriver({
+    coordinator: {
+      async cdpBridge(request) {
+        requests.push(request);
+        return { count: 1, text: "Original text", state };
+      },
+    },
+  });
+  assert.deepEqual(
+    await driver.waitForCompletion({ kind: "dom-text", selector: "[data-object-id=\"obj_text_1\"]", text: "Original text", timeoutMs: 100 }),
+    { observedText: "Original text" },
+  );
+  assert.deepEqual(requests, [{ mode: "text-state", selector: "[data-object-id=\"obj_text_1\"]" }]);
+  assert.deepEqual(await driver.actionState(), state);
 });
 
 test("production black-box maps relative click positions inside a semantic target", async () => {

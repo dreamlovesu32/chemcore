@@ -5,7 +5,7 @@ import { auditCoverage } from "../src/coverage/audit.mjs";
 import { FakeDriver } from "../src/drivers/fake.mjs";
 import { planImpactedScenarios, selectImpactedScenarios } from "../src/impact/select.mjs";
 import { guiTestsDir } from "../src/protocol/paths.mjs";
-import { readValidatedDocument } from "../src/protocol/validate.mjs";
+import { assertValidDocument, readValidatedDocument } from "../src/protocol/validate.mjs";
 import { runScenario } from "../src/runner/run-scenario.mjs";
 import { ResourceBudget } from "../src/scheduler/resource-budget.mjs";
 
@@ -15,8 +15,26 @@ test("the versioned bond scenario executes through the fake driver", async () =>
   assert.equal(report.status, "passed");
   assert.equal(report.actions.length, 2);
   assert(report.actions.every((receipt) => receipt.status === "completed"));
+  assert(report.actions.every((receipt) => receipt.phases.some((phase) => phase.name === "resolve-target" && phase.status === "completed")));
+  assert(report.actions.every((receipt) => receipt.phases.some((phase) => phase.name === "execute-action" && phase.status === "completed")));
+  const legacyReport = structuredClone(report);
+  for (const receipt of legacyReport.actions) delete receipt.phases;
+  await assertValidDocument(legacyReport, "legacy run report without phase attribution");
   assert(report.oracles.every((oracle) => oracle.passed));
   assert.deepEqual(report.artifacts, []);
+});
+
+test("the fake driver uses the same exact DOM text completion contract", async () => {
+  const driver = new FakeDriver();
+  await driver.perform({ fakeEffect: { kind: "set-dom-text", selector: ".display", text: "A  B\nC" } });
+  assert.deepEqual(
+    await driver.waitForCompletion({ kind: "dom-text", selector: ".display", text: "A  B\nC" }),
+    { observedText: "A  B\nC" },
+  );
+  await assert.rejects(
+    driver.waitForCompletion({ kind: "dom-text", selector: ".display", text: "A B\nC" }),
+    /DOM text completion failed/,
+  );
 });
 
 test("artifact collection failure fails the run but still shuts the driver down", async () => {
@@ -63,6 +81,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.selection.locked-partial-delete.production",
     "scenario.core.selection.locked-transform.production",
     "scenario.core.selection.region-additive-mixed-cardinalities.production",
+    "scenario.core.text.existing-edit-history.production",
     "scenario.core.text.line-spacing-validation.production",
     "scenario.core.text.multi-property-persistence.production",
   ]);
@@ -97,6 +116,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.selection.locked-partial-delete.production",
       "scenario.core.selection.locked-transform.production",
       "scenario.core.selection.region-additive-mixed-cardinalities.production",
+      "scenario.core.text.existing-edit-history.production",
       "scenario.core.text.line-spacing-validation.production",
       "scenario.core.text.multi-property-persistence.production",
     ],
@@ -105,6 +125,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.property-matrix-persistence.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
+    "scenario.core.text.existing-edit-history.production",
     "scenario.core.text.line-spacing-validation.production",
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["crates/chemsema-gui-test-agent/src/windows.rs"]), [
@@ -123,6 +144,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.selection.locked-partial-delete.production",
     "scenario.core.selection.locked-transform.production",
     "scenario.core.selection.region-additive-mixed-cardinalities.production",
+    "scenario.core.text.existing-edit-history.production",
     "scenario.core.text.line-spacing-validation.production",
     "scenario.core.text.multi-property-persistence.production",
   ]);
@@ -133,6 +155,7 @@ test("impact selection follows the transitive source to scenario closure", async
   assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/oracles/document-file.mjs"]), [
     "scenario.core.arrow.property-matrix-persistence.production",
     "scenario.core.document.save-open-roundtrip.production",
+    "scenario.core.text.existing-edit-history.production",
     "scenario.core.text.line-spacing-validation.production",
     "scenario.core.text.multi-property-persistence.production",
   ]);
@@ -159,6 +182,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.selection.locked-partial-delete.production",
       "scenario.core.selection.locked-transform.production",
       "scenario.core.selection.region-additive-mixed-cardinalities.production",
+      "scenario.core.text.existing-edit-history.production",
       "scenario.core.text.line-spacing-validation.production",
       "scenario.core.text.multi-property-persistence.production",
     ],
@@ -184,14 +208,15 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "arrow-property-matrix-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "text-multi-property-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "text-line-spacing-validation-production.json"),
+    join(guiTestsDir, "scenarios", "core", "text-existing-edit-history-production.json"),
     join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json"),
     join(guiTestsDir, "scenarios", "core", "save-open-roundtrip-production.json"),
   ];
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 29);
-  assert.equal(result.summary.scenarios, 18);
+  assert.equal(result.summary.entries, 30);
+  assert.equal(result.summary.scenarios, 19);
   assert.equal(result.summary.gaps, 0);
 });
 

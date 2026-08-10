@@ -2,6 +2,7 @@ export class FakeDriver {
   constructor() {
     this.name = "fake";
     this.counts = new Map();
+    this.texts = new Map();
     this.diagnostics = [];
   }
 
@@ -26,6 +27,9 @@ export class FakeDriver {
       const previous = this.counts.get(action.fakeEffect.selector) || 0;
       this.counts.set(action.fakeEffect.selector, previous + action.fakeEffect.by);
     }
+    if (action.fakeEffect?.kind === "set-dom-text") {
+      this.texts.set(action.fakeEffect.selector, action.fakeEffect.text);
+    }
     return { fakeEffect: action.fakeEffect || null };
   }
 
@@ -45,6 +49,13 @@ export class FakeDriver {
         throw new Error(`Completion failed for ${completion.selector}: observed ${observed}, expected ${completion.operator} ${completion.value}.`);
       }
       return { observed };
+    }
+    if (completion.kind === "dom-text") {
+      const observedText = this.texts.get(completion.selector);
+      if (observedText !== completion.text) {
+        throw new Error(`DOM text completion failed for ${completion.selector}: observed ${JSON.stringify(observedText)}, expected ${JSON.stringify(completion.text)}.`);
+      }
+      return { observedText };
     }
     return { kind: completion.kind };
   }

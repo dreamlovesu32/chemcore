@@ -285,8 +285,20 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   assert.match(agentStart, /-UserId 'SYSTEM' -LogonType ServiceAccount/);
   assert.doesNotMatch(agentStart, /LogonType Interactive/);
   const guestSource = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
-  assert.match(guestSource, /'distinct-count', 'distinct-count-state'/);
-  assert.match(guestSource, /selector of 1 to 2048 characters/);
+  assert.match(guestSource, /'distinct-count', 'distinct-count-state', 'text', 'text-state'/);
+  assert.match(guestSource, /DOM observation requires a selector of 1 to 2048 characters/);
+  assert.match(guestSource, /elements\.length === 1 \? elements\[0\]\.textContent : null/);
+  const countBranch = guestSource.slice(
+    guestSource.indexOf("} elseif ($request.mode -in @('count', 'count-state'"),
+    guestSource.indexOf("} elseif ($request.mode -in @('text', 'text-state'"),
+  );
+  assert.match(countBranch, /\$countExpression = if \(\$distinct\)/);
+  assert.match(countBranch, /\$expression = @"/);
+  const textBranch = guestSource.slice(
+    guestSource.indexOf("} elseif ($request.mode -in @('text', 'text-state'"),
+    guestSource.indexOf("} else {", guestSource.indexOf("} elseif ($request.mode -in @('text', 'text-state'")),
+  );
+  assert.doesNotMatch(textBranch, /\$countExpression/);
   assert.match(guestSource, /'entity-rects-state'/);
   assert.match(guestSource, /Entity rectangle observation requires 1 to 16 unique ids/);
   assert.match(guestSource, /getBBox/);
@@ -380,6 +392,23 @@ test("CDP distinct object observation requires an allowlisted identity attribute
   );
 });
 
+test("CDP text observation preserves an exact bounded selector request", async () => {
+  const profile = await readValidatedDocument(profilePath);
+  let encodedRequest = null;
+  const exact = { count: 1, text: "A  B\nC" };
+  const coordinator = new HyperVCoordinator(profile, {
+    environment: { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" },
+    executor(args) {
+      const requestIndex = args.indexOf("-CdpRequestBase64");
+      encodedRequest = JSON.parse(Buffer.from(args[requestIndex + 1], "base64").toString("utf8"));
+      return result({ bridge: { schema: "chemsema.gui.cdp-bridge.v1", status: "passed", value: exact } });
+    },
+  });
+  assert.deepEqual(await coordinator.cdpBridge({ mode: "text-state", selector: ".text-editor-display" }), exact);
+  assert.deepEqual(encodedRequest, { mode: "text-state", selector: ".text-editor-display" });
+  await assert.rejects(coordinator.cdpBridge({ mode: "text", selector: "x".repeat(2049) }), /selector of 1 to 2048 characters/);
+});
+
 test("production world geometry targets are restricted to the rendered page", async () => {
   const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const source = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
@@ -435,6 +464,9 @@ test("production action transaction uses one guest invocation for before, input,
   assert.match(transaction, /Action transaction pointer modifiers are not unique allowlisted values/);
   assert.match(transaction, /\$null -ne \$_/);
   assert.match(transaction, /'distinct-count-state'/);
+  assert.match(transaction, /'dom-text'/);
+  assert.match(transaction, /mode='text-state'/);
+  assert.match(transaction, /-ceq \$expectedText/);
   assert.match(transaction, /'entity-rect-deltas'/);
   assert.match(transaction, /maximumDeltaWorld/);
   assert.match(transaction, /'input-channel'/);

@@ -116,12 +116,12 @@ try {
   if ([string]::IsNullOrWhiteSpace($EncodedRequest)) { throw 'The CDP request is absent.' }
   $requestJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($EncodedRequest))
   $request = $requestJson | ConvertFrom-Json
-  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state', 'entity-rects-state', 'trace-start', 'artifact-export')) {
+  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state', 'text', 'text-state', 'entity-rects-state', 'trace-start', 'artifact-export')) {
     throw "Unsupported CDP bridge mode '$($request.mode)'."
   }
-  if ($request.mode -in @('count', 'count-state', 'distinct-count', 'distinct-count-state') -and
+  if ($request.mode -in @('count', 'count-state', 'distinct-count', 'distinct-count-state', 'text', 'text-state') -and
     ([string]::IsNullOrWhiteSpace([string]$request.selector) -or ([string]$request.selector).Length -gt 2048)) {
-    throw 'DOM count observation requires a selector of 1 to 2048 characters.'
+    throw 'DOM observation requires a selector of 1 to 2048 characters.'
   }
   if ($request.mode -eq 'artifact-export' -and [string]$request.artifactId -notmatch '^[a-f0-9]{32}$') {
     throw 'Artifact export requires a 32-character lowercase hexadecimal identity.'
@@ -347,6 +347,36 @@ try {
     rendered: { bonds: document.querySelectorAll('[data-bond-id]').length, nodes: document.querySelectorAll('[data-node-id]').length }
   }
 }))()
+"@
+      }
+    } elseif ($request.mode -in @('text', 'text-state')) {
+      $selectorBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$request.selector))
+      $textExpression = @"
+(() => {
+  const selector = new TextDecoder().decode(Uint8Array.from(atob('$selectorBase64'), c => c.charCodeAt(0)));
+  const elements = [...document.querySelectorAll(selector)];
+  return { count: elements.length, text: elements.length === 1 ? elements[0].textContent : null };
+})()
+"@
+      if ($request.mode -eq 'text') {
+        $expression = $textExpression
+      } else {
+        $expression = @"
+(() => {
+  const selector = new TextDecoder().decode(Uint8Array.from(atob('$selectorBase64'), c => c.charCodeAt(0)));
+  const elements = [...document.querySelectorAll(selector)];
+  return {
+    count: elements.length,
+    text: elements.length === 1 ? elements[0].textContent : null,
+    state: {
+      revision: null,
+      appScript: document.querySelector('script[type="module"]')?.src || null,
+      engine: null,
+      window: { href: location.href, title: document.title, visibilityState: document.visibilityState, focused: document.hasFocus() },
+      rendered: { bonds: document.querySelectorAll('[data-bond-id]').length, nodes: document.querySelectorAll('[data-node-id]').length }
+    }
+  };
+})()
 "@
       }
     } else {

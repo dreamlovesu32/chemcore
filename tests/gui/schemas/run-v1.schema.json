@@ -53,6 +53,20 @@
         "before": { "$ref": "#/$defs/actionState" },
         "after": { "$ref": "#/$defs/actionState" },
         "completion": {},
+        "phases": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "durationMs", "status"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+              "durationMs": { "type": "integer", "minimum": 0 },
+              "status": { "enum": ["completed", "in-progress", "failed"] }
+            }
+          }
+        },
         "diagnostics": { "type": "array", "items": { "type": "string" } },
         "artifacts": { "type": "array", "items": { "type": "string" } }
       }

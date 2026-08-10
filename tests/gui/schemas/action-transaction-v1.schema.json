@@ -56,6 +56,15 @@
         },
         {
           "type": "object", "additionalProperties": false,
+          "required": ["kind", "selector", "text", "timeoutMs"],
+          "properties": {
+            "kind": { "const": "dom-text" }, "selector": { "type": "string", "minLength": 1, "maxLength": 2048 },
+            "text": { "type": "string", "maxLength": 4096 },
+            "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 120000 }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false,
           "required": ["kind", "entities", "timeoutMs"],
           "properties": {
             "kind": { "const": "entity-rect-deltas" },

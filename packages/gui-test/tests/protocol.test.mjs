@@ -16,6 +16,7 @@ const lockedTransformScenarioPath = join(guiTestsDir, "scenarios", "core", "lock
 const lockedMoleculeArrowTransformScenarioPath = join(guiTestsDir, "scenarios", "core", "locked-molecule-arrow-transform-production.json");
 const lockedGroupAncestorTransformScenarioPath = join(guiTestsDir, "scenarios", "core", "locked-group-ancestor-transform-production.json");
 const textLineSpacingScenarioPath = join(guiTestsDir, "scenarios", "core", "text-line-spacing-validation-production.json");
+const textExistingEditScenarioPath = join(guiTestsDir, "scenarios", "core", "text-existing-edit-history-production.json");
 
 test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(scenarioPath);
@@ -28,6 +29,7 @@ test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(lockedMoleculeArrowTransformScenarioPath);
   await readValidatedDocument(lockedGroupAncestorTransformScenarioPath);
   await readValidatedDocument(textLineSpacingScenarioPath);
+  await readValidatedDocument(textExistingEditScenarioPath);
   await readValidatedDocument(join(guiTestsDir, "coverage", "registry-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "coverage", "impact-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "environments", "windows-gui-worker-current.json"));
@@ -70,6 +72,12 @@ test("scenario, coverage registry, and impact graph validate", async () => {
   }, "distinct object action transaction fixture");
   await assertValidDocument({
     schema: "chemsema.gui.action-transaction.v1",
+    input: { kind: "key", key: "Control+Z" },
+    completion: { kind: "dom-text", selector: "[data-object-id=\"obj_text_1\"]", text: "Original text", timeoutMs: 8000 },
+    budgetMs: 30000,
+  }, "exact DOM text action transaction fixture");
+  await assertValidDocument({
+    schema: "chemsema.gui.action-transaction.v1",
     input: { kind: "drag", from: [100, 100], to: [130, 100], steps: 8, button: "left" },
     completion: {
       kind: "entity-rect-deltas",
@@ -110,6 +118,17 @@ test("DOM completion selectors share one bounded protocol limit", async () => {
   const result = await validateDocument(scenario);
   assert.equal(result.valid, false);
   assert(result.errors.some((error) => error.includes("2048")));
+});
+
+test("DOM text completion accepts empty exact text and rejects oversized text", async () => {
+  const scenario = JSON.parse(await readFile(scenarioPath, "utf8"));
+  scenario.actions[0].completion = { kind: "dom-text", selector: "[data-role=\"text-editor-display\"]", text: "", timeoutMs: 8000 };
+  assert.equal((await validateDocument(scenario)).valid, true);
+
+  scenario.actions[0].completion.text = "x".repeat(4097);
+  const result = await validateDocument(scenario);
+  assert.equal(result.valid, false);
+  assert(result.errors.some((error) => error.includes("4096")));
 });
 
 test("native document saves reserve enough time for dismissal, attestation, and transfer", async () => {

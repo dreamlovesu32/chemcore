@@ -76,19 +76,25 @@ export async function runScenario({ scenario, driver, candidate = {}, componentC
       const startedAt = new Date(actionStarted).toISOString();
       let resolvedTarget = null;
       let before = { revision: null, window: {} };
+      const phases = [];
       try {
         const result = await withinBudget((async () => {
+          const resolveStarted = Date.now();
           resolvedTarget = await driver.resolve(action.target);
+          phases.push({ name: "resolve-target", durationMs: Date.now() - resolveStarted, status: "completed" });
+          const executeStarted = Date.now();
           if (typeof driver.executeAction === "function") {
             const transaction = await driver.executeAction(action);
             before = transaction.before;
-            return { completion: transaction.completion, after: transaction.after };
+            phases.push({ name: "execute-action", durationMs: Date.now() - executeStarted, status: "completed" });
+            return { completion: transaction.completion, after: transaction.after, driverPhases: transaction.phases || [] };
           }
           before = await driver.actionState();
           await driver.perform(action);
           const completion = await driver.waitForCompletion(action.completion);
           const after = await driver.actionState();
-          return { completion, after };
+          phases.push({ name: "execute-action", durationMs: Date.now() - executeStarted, status: "completed" });
+          return { completion, after, driverPhases: [] };
         })(), action.budgetMs, `Action ${action.id}`);
         const ended = Date.now();
         actionReceipts.push({
@@ -102,11 +108,16 @@ export async function runScenario({ scenario, driver, candidate = {}, componentC
           before,
           after: result.after,
           completion: result.completion,
+          phases: [...phases, ...result.driverPhases],
           diagnostics: [],
           artifacts: [],
         });
       } catch (error) {
         const ended = Date.now();
+        const driverPhases = typeof driver.actionProgress === "function" ? driver.actionProgress() : [];
+        if (!phases.some((phase) => phase.name === "execute-action")) {
+          phases.push({ name: "execute-action", durationMs: Math.max(0, ended - actionStarted - phases.reduce((sum, phase) => sum + phase.durationMs, 0)), status: "failed" });
+        }
         let after = before;
         try {
           after = await driver.actionState();
@@ -124,6 +135,7 @@ export async function runScenario({ scenario, driver, candidate = {}, componentC
           before,
           after,
           completion: null,
+          phases: [...phases, ...driverPhases],
           diagnostics: [error.message],
           artifacts: [],
         });

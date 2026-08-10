@@ -231,6 +231,17 @@ export class PlaywrightBrowserDriver {
         ),
       };
     }
+    if (completion.kind === "dom-text") {
+      await this.page.waitForFunction(
+        ({ selector, text }) => {
+          const elements = document.querySelectorAll(selector);
+          return elements.length === 1 && elements[0].textContent === text;
+        },
+        completion,
+        { timeout: completion.timeoutMs },
+      );
+      return { observedText: await this.page.locator(completion.selector).textContent() };
+    }
     throw new Error(`Unsupported completion ${completion.kind}.`);
   }
 

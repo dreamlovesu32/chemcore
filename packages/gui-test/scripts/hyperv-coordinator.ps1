@@ -1019,7 +1019,10 @@ function Invoke-ActionTransaction {
     if ($kind -in @('click', 'drag') -and $modifiers.Count -gt 0) { $inputArguments += @('--modifiers', ($modifiers -join ',')) }
 
     $completionKind = [string]$Request.completion.kind
-    if ($completionKind -notin @('actionable', 'quiescent', 'dom-count', 'dom-distinct-count', 'entity-rect-deltas')) { throw 'Unsupported action transaction completion kind.' }
+    if ($completionKind -notin @('actionable', 'quiescent', 'dom-count', 'dom-distinct-count', 'dom-text', 'entity-rect-deltas')) { throw 'Unsupported action transaction completion kind.' }
+    if ($completionKind -eq 'dom-text' -and ([string]::IsNullOrWhiteSpace([string]$Request.completion.selector) -or ([string]$Request.completion.selector).Length -gt 2048 -or $null -eq $Request.completion.text -or ([string]$Request.completion.text).Length -gt 4096)) {
+      throw 'DOM text completion requires a selector of 1 to 2048 characters and text of at most 4096 characters.'
+    }
     $entityExpectations = @()
     $beforeEntityObservation = $null
     if ($completionKind -eq 'entity-rect-deltas') {
@@ -1060,6 +1063,22 @@ function Invoke-ActionTransaction {
       if (-not $passed) { throw "DOM count is $($observed.count); expected $($Request.completion.operator) $($Request.completion.value)." }
       $after = $observed.state
       $completion = [ordered]@{ observed=[int]$observed.count }
+    } elseif ($completionKind -eq 'dom-text') {
+      $completionDeadline = [DateTime]::UtcNow.AddMilliseconds([int]$Request.completion.timeoutMs)
+      $completionRequest = [ordered]@{ mode='text-state'; selector=[string]$Request.completion.selector }
+      $expectedText = [string]$Request.completion.text
+      do {
+        $observed = Observe-Cdp $completionRequest
+        $passed = [int]$observed.count -eq 1 -and [string]$observed.text -ceq $expectedText
+        if ($passed) { break }
+        Start-Sleep -Milliseconds 20
+      } while ([DateTime]::UtcNow -lt $completionDeadline)
+      if (-not $passed) {
+        if ([int]$observed.count -ne 1) { throw "DOM text selector matched $($observed.count) elements; expected exactly 1." }
+        throw "DOM text did not exactly match the expected $($expectedText.Length)-character value."
+      }
+      $after = $observed.state
+      $completion = [ordered]@{ observedText=[string]$observed.text }
     } elseif ($completionKind -eq 'entity-rect-deltas') {
       $completionDeadline = [DateTime]::UtcNow.AddMilliseconds([int]$Request.completion.timeoutMs)
       do {

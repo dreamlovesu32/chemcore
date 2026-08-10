@@ -27,6 +27,49 @@ function key(target) {
   return JSON.stringify(target);
 }
 
+export function summarizePerformanceTrace(traceDocument) {
+  const events = traceDocument.traceEvents;
+  const completed = events.filter((event) => event?.ph === "X" && Number.isFinite(event.dur) && event.dur >= 50_000);
+  const topLongTasks = [...completed]
+    .sort((left, right) => right.dur - left.dur)
+    .slice(0, 25)
+    .map((event) => ({
+      name: String(event.name || "unknown").slice(0, 128),
+      category: String(event.cat || "").slice(0, 256),
+      durationMs: Math.round(event.dur) / 1000,
+      timestampUs: Number.isFinite(event.ts) ? event.ts : null,
+      processId: Number.isInteger(event.pid) ? event.pid : null,
+      threadId: Number.isInteger(event.tid) ? event.tid : null,
+      ...(typeof event.args?.url === "string" ? { url: event.args.url.slice(0, 2048) } : {}),
+      ...(typeof event.args?.data?.functionName === "string" ? { functionName: event.args.data.functionName.slice(0, 256) } : {}),
+      ...(typeof event.args?.data?.url === "string" ? { scriptUrl: event.args.data.url.slice(0, 2048) } : {}),
+    }));
+  const hotspotNames = new Set(["EventDispatch", "Layout", "UpdateLayoutTree", "Paint", "Commit", "RasterTask", "RunMicrotasks", "RunTask"]);
+  const hotspots = new Map();
+  for (const event of events) {
+    if (event?.ph !== "X" || !Number.isFinite(event.dur) || !hotspotNames.has(event.name)) continue;
+    const current = hotspots.get(event.name) || { name: event.name, count: 0, totalMs: 0, maxMs: 0 };
+    const durationMs = event.dur / 1000;
+    current.count += 1;
+    current.totalMs += durationMs;
+    current.maxMs = Math.max(current.maxMs, durationMs);
+    hotspots.set(event.name, current);
+  }
+  return {
+    schema: "chemsema.gui.performance-summary.v1",
+    eventCount: events.length,
+    longTaskThresholdMs: 50,
+    longTaskCount: completed.length,
+    maxLongTaskMs: topLongTasks[0]?.durationMs || 0,
+    topLongTasks,
+    hotspots: [...hotspots.values()].sort((left, right) => right.totalMs - left.totalMs).map((entry) => ({
+      ...entry,
+      totalMs: Math.round(entry.totalMs * 1000) / 1000,
+      maxMs: Math.round(entry.maxMs * 1000) / 1000,
+    })),
+  };
+}
+
 export class ProductionBlackBoxDriver {
   constructor({ coordinator, profilePath = defaultProfilePath } = {}) {
     this.name = "production-black-box";
@@ -35,6 +78,7 @@ export class ProductionBlackBoxDriver {
     this.targets = new Map();
     this.diagnostics = [];
     this.environmentNotes = [];
+    this.activeActionPhases = [];
   }
 
   async prepare(profile) {
@@ -111,6 +155,7 @@ export class ProductionBlackBoxDriver {
       "editor.arrow.draw",
       "editor.arrow.properties",
       "editor.text.create",
+      "editor.text.edit-existing",
       "editor.text.properties",
       "editor.selection.select-all",
       "editor.selection.region",
@@ -244,24 +289,39 @@ export class ProductionBlackBoxDriver {
   }
 
   async executeAction(action) {
+    this.activeActionPhases = [];
+    const phase = async (name, operation) => {
+      const entry = { name, durationMs: 0, status: "in-progress", startedAt: Date.now() };
+      this.activeActionPhases.push(entry);
+      try {
+        const result = await operation();
+        entry.durationMs = Date.now() - entry.startedAt;
+        entry.status = "completed";
+        return result;
+      } catch (error) {
+        entry.durationMs = Date.now() - entry.startedAt;
+        entry.status = "failed";
+        throw error;
+      }
+    };
     const { input } = await this.resolveActionInput(action);
     if (action.target.strategy === "uia-automation-id" || ["uia-visible", "document-saved"].includes(action.completion.kind) || input.kind === "text") {
       const nativeTarget = action.target.strategy === "uia-automation-id";
       if (nativeTarget && !this.lastActionState) {
         throw new Error("Native dialog input requires a stable WebView state captured before the dialog opened.");
       }
-      const before = nativeTarget ? this.lastActionState : await this.actionState();
-      const result = await this.performResolvedInput(input, action);
+      const before = nativeTarget ? this.lastActionState : await phase("capture-before-state", () => this.actionState());
+      const result = await phase("perform-input", () => this.performResolvedInput(input, action));
       const closesNativeDialog = nativeTarget && action.completion.kind !== "actionable" && action.completion.kind !== "uia-visible";
       if (closesNativeDialog) {
-        await this.waitForNativeTargetDismissal(action.target, action.completion.timeoutMs);
-        const attestation = await retry(() => this.coordinator.attestInteractiveAgent(), { timeoutMs: action.completion.timeoutMs, intervalMs: 200 });
+        await phase("wait-native-dismissal", () => this.waitForNativeTargetDismissal(action.target, action.completion.timeoutMs));
+        const attestation = await phase("reattest-interactive-agent", () => retry(() => this.coordinator.attestInteractiveAgent(), { timeoutMs: action.completion.timeoutMs, intervalMs: 200 }));
         this.foreground = attestation.agent.foreground;
       }
-      const completion = await this.waitForCompletion(action.completion);
+      const completion = await phase("wait-completion", () => this.waitForCompletion(action.completion));
       const nativeDialogRemains = action.completion.kind === "uia-visible" || (nativeTarget && !closesNativeDialog);
-      const after = nativeDialogRemains ? before : await this.actionState();
-      return { before, after, completion, result };
+      const after = nativeDialogRemains ? before : await phase("capture-after-state", () => this.actionState());
+      return { before, after, completion, result, phases: this.actionProgress() };
     }
     const receipt = await this.coordinator.candidateAction(input, action.completion, action.budgetMs);
     this.foreground = receipt.transaction.input.foreground;
@@ -270,7 +330,15 @@ export class ProductionBlackBoxDriver {
       before: this.stateReceipt(receipt.transaction.before),
       after: this.lastActionState,
       completion: receipt.transaction.completion,
+      phases: [],
     };
+  }
+
+  actionProgress() {
+    return this.activeActionPhases.map(({ startedAt, ...entry }) => ({
+      ...entry,
+      durationMs: entry.status === "in-progress" ? Date.now() - startedAt : entry.durationMs,
+    }));
   }
 
   async performResolvedInput(input, action) {
@@ -347,6 +415,16 @@ export class ProductionBlackBoxDriver {
         return count;
       }, { timeoutMs: completion.timeoutMs, intervalMs: 200 });
       return { observed };
+    }
+    if (completion.kind === "dom-text") {
+      const observedText = await retry(async () => {
+        const result = await this.coordinator.cdpBridge({ mode: "text-state", selector: completion.selector });
+        if (result.count !== 1) throw new Error(`DOM text selector matched ${result.count} elements; expected exactly 1.`);
+        if (result.text !== completion.text) throw new Error(`DOM text did not exactly match the expected ${completion.text.length}-character value.`);
+        this.completedActionState = this.stateReceipt(result.state);
+        return result.text;
+      }, { timeoutMs: completion.timeoutMs, intervalMs: 200 });
+      return { observedText };
     }
     if (completion.kind === "uia-visible") {
       const resolved = await retry(() => this.resolve(completion.target), { timeoutMs: completion.timeoutMs, intervalMs: 200 });
@@ -426,6 +504,11 @@ export class ProductionBlackBoxDriver {
     if (!Array.isArray(traceDocument.traceEvents) || traceDocument.traceEvents.length === 0) {
       throw new Error("Production performance trace contains no trace events.");
     }
+    payloads.push({
+      name: "performance-summary.json",
+      mediaType: "application/json",
+      bytes: Buffer.from(JSON.stringify(summarizePerformanceTrace(traceDocument), null, 2)),
+    });
     if (this.savedDocument) {
       payloads.push({ name: "saved-document.ccjs", mediaType: "application/vnd.chemsema.document+json", bytes: this.savedDocument.transfer.bytes });
       payloads.push({

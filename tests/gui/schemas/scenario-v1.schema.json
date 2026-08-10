@@ -81,7 +81,7 @@
       "additionalProperties": false,
       "required": ["kind", "timeoutMs"],
       "properties": {
-        "kind": { "enum": ["actionable", "dom-count", "dom-distinct-count", "entity-rect-deltas", "quiescent", "uia-visible", "document-saved"] },
+        "kind": { "enum": ["actionable", "dom-count", "dom-distinct-count", "dom-text", "entity-rect-deltas", "quiescent", "uia-visible", "document-saved"] },
         "target": { "$ref": "#/$defs/target" },
         "selector": { "type": "string", "minLength": 1, "maxLength": 2048 },
         "attribute": { "enum": ["data-object-id", "data-node-id", "data-bond-id"] },
@@ -99,6 +99,7 @@
         },
         "operator": { "enum": ["eq", "gte"] },
         "value": { "type": "integer", "minimum": 0 },
+        "text": { "type": "string", "maxLength": 4096 },
         "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 300000 }
       },
       "allOf": [
@@ -109,6 +110,21 @@
         {
           "if": { "properties": { "kind": { "const": "dom-distinct-count" } } },
           "then": { "required": ["attribute"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "dom-text" } } },
+          "then": {
+            "required": ["selector", "text"],
+            "not": {
+              "anyOf": [
+                { "required": ["target"] },
+                { "required": ["attribute"] },
+                { "required": ["entities"] },
+                { "required": ["operator"] },
+                { "required": ["value"] }
+              ]
+            }
+          }
         },
         {
           "if": { "properties": { "kind": { "const": "uia-visible" } } },
@@ -127,7 +143,8 @@
                 { "required": ["selector"] },
                 { "required": ["attribute"] },
                 { "required": ["operator"] },
-                { "required": ["value"] }
+                { "required": ["value"] },
+                { "required": ["text"] }
               ]
             }
           }
@@ -163,14 +180,26 @@
         "completion": { "$ref": "#/$defs/completion" },
         "budgetMs": { "type": "integer", "minimum": 30000, "maximum": 300000 },
         "fakeEffect": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind", "selector", "by"],
-          "properties": {
-            "kind": { "const": "increment-dom-count" },
-            "selector": { "type": "string", "minLength": 1 },
-            "by": { "type": "integer", "minimum": 1 }
-          }
+          "oneOf": [
+            {
+              "type": "object", "additionalProperties": false,
+              "required": ["kind", "selector", "by"],
+              "properties": {
+                "kind": { "const": "increment-dom-count" },
+                "selector": { "type": "string", "minLength": 1, "maxLength": 2048 },
+                "by": { "type": "integer", "minimum": 1 }
+              }
+            },
+            {
+              "type": "object", "additionalProperties": false,
+              "required": ["kind", "selector", "text"],
+              "properties": {
+                "kind": { "const": "set-dom-text" },
+                "selector": { "type": "string", "minLength": 1, "maxLength": 2048 },
+                "text": { "type": "string", "maxLength": 4096 }
+              }
+            }
+          ]
         }
       },
       "allOf": [
