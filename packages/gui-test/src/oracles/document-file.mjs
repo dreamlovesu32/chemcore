@@ -185,6 +185,33 @@ export function evaluateDocumentShapeProperties(bytes, expected) {
   return { passed, observed };
 }
 
+export function evaluateDocumentSymbolProperties(bytes, expected) {
+  let document;
+  try {
+    document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));
+  } catch {
+    return { passed: false, observed: [] };
+  }
+  const scene = Array.isArray(document?.entities?.scene) ? document.entities.scene : [];
+  const styles = document?.styles && typeof document.styles === "object" ? document.styles : {};
+  const observed = expected.map((entry) => {
+    const object = scene.find((candidate) => candidate?.id === entry.id && candidate?.type === "symbol");
+    const style = styles[object?.styleRef] || {};
+    return {
+      id: entry.id,
+      found: !!object,
+      kind: object?.payload?.kind ?? null,
+      payloadFill: object?.payload?.fill ?? null,
+      styleFill: style.fill ?? null,
+      styleKind: style.kind ?? null,
+      symbolStyle: object?.payload?.symbolStyle ?? null,
+    };
+  });
+  const passed = observed.every((actual, index) => actual.found
+    && Object.entries(expected[index]).every(([name, value]) => name === "id" || JSON.stringify(actual[name]) === JSON.stringify(value)));
+  return { passed, observed };
+}
+
 export function validationLevelForDocumentBytes(bytes) {
   try {
     const document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));

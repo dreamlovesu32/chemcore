@@ -892,6 +892,14 @@ trace 协议现在会在每个普通 guest 动作事务内部写入四个有界�
 
 这只是一个已通过资格的 Shape 单元，不是绿色的 20 场景候选资格。当前候选的 fail-closed 资格文档报告：预期 20、通过 1、缺失 19、失败运行 0，并重新校验了 9 个 evidence 对象共 10,539,578 字节。引擎修改使受影响的旧候选证据闭包失效，而此前 19 场景资格仍按失败保留政策保持失败。颜色、Faded、锁定/组合、变换、剪贴板、其他格式、复杂/large/xlarge 文档、环境/故障/模型/变异覆盖、耐久和连续 1,000 次展示资格仍开放。
 
+### 八类电荷/电子 Symbol、批量颜色、历史与持久化
+
+登记闭包现已扩展为 21 个场景。`core.symbol.eight-kind-color-history.production` 启用公开的 Charge and electron symbols 工具，通过受守卫的真实鼠标手势在不同空间位置依次创建 Circle plus、Plus、Radical cation、Lone pair、Circle minus、Minus、Radical anion 和 Electron 八个对象；全选八个对象，通过公开 Color 菜单批量设为 Green，证明统一勾选值；撤销到统一黑色，在快照历史清空 selection 后重新全选，再重做到绿色，并通过 Windows 原生对话框保存。文件 oracle 要求格式 0.2、一个空编辑器分子根加八个 Symbol、八个精确的持久化 kind、`symbolStyle: default`，以及每个对象的 payload 与引用 style 中都同时为 `#008000`。
+
+候选 `59d280714265b53527ed5984131423200134ceeede3ee84eac00123f06e7620b` 在 341,499 ms 内通过 36/36 个动作和 4/4 个最终 oracle，诊断为 0。Run `e17d9f30-b612-495a-901c-d1a15d3f9f9f`、evidence key `93d8ec852d1dc25bc45f05e5c23de868f5034781e89e39264e44eb78072c1f23` 保留 8 个 driver 制品；资格过程重新读取 9 个 manifest 对象共 11,404,910 字节，VM 最终恢复为 `Off`。先前失败运行继续保留在 evidence key `fcf79b3feec54c7f5fb1534621551f785adf2bd93b05fa1ea7784176efff4412`：产品已成功创建第一个 Symbol，但测试错误假定 renderer 根带有 `data-object-type`。修正后的 oracle 在稳定公开的 `document-graphic` 图元上按不同 `data-object-id` 计数，因此同一对象的多个 SVG path 不能虚增数量。
+
+这仍只是当前闭包中一个已通过资格的单元，不是整体资格。`qualification-current-21-incomplete.json` 有意保持 `failed`：预期 21、通过 1、缺失 20、失败运行 0，且没有 evidence 诊断。本场景覆盖独立 Symbol；原子/标签附着、轨道式放置、由此产生的化学与 Link 关系、混合/组合/锁定 Symbol、变换、剪贴板、CDXML/CDX 往返和大文档行为仍是明确待办。
+
 ## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>

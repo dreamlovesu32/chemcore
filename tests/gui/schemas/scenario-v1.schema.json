@@ -228,7 +228,7 @@
       "required": ["id", "kind"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "kind": { "enum": ["dom-count", "dom-distinct-count", "no-unexpected-diagnostics", "document-counts", "document-arrow-properties", "document-text-properties", "document-shape-properties"] },
+        "kind": { "enum": ["dom-count", "dom-distinct-count", "no-unexpected-diagnostics", "document-counts", "document-arrow-properties", "document-text-properties", "document-shape-properties", "document-symbol-properties"] },
         "selector": { "type": "string" },
         "attribute": { "enum": ["data-object-id", "data-node-id", "data-bond-id"] },
         "operator": { "enum": ["eq", "gte"] },
@@ -319,6 +319,25 @@
                   "shadowSize": { "type": ["number", "null"], "minimum": 0, "maximum": 1000 }
                 }
               }
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "kind", "payloadFill", "styleFill", "styleKind", "symbolStyle"],
+                "properties": {
+                  "id": { "$ref": "#/$defs/id" },
+                  "kind": { "enum": ["circle-plus", "plus", "radical-cation", "lone-pair", "circle-minus", "minus", "radical-anion", "electron"] },
+                  "payloadFill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                  "styleFill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                  "styleKind": { "const": "symbol" },
+                  "symbolStyle": { "type": "string", "minLength": 1, "maxLength": 64 }
+                }
+              }
             }
           ]
         }
@@ -346,6 +365,10 @@
         },
         {
           "if": { "properties": { "kind": { "const": "document-shape-properties" } } },
+          "then": { "required": ["expected"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "document-symbol-properties" } } },
           "then": { "required": ["expected"] }
         }
       ]

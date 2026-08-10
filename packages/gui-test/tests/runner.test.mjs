@@ -82,6 +82,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.selection.locked-transform.production",
     "scenario.core.selection.region-additive-mixed-cardinalities.production",
     "scenario.core.shape.multi-kind-style-history.production",
+    "scenario.core.symbol.eight-kind-color-history.production",
     "scenario.core.text.existing-edit-history.production",
     "scenario.core.text.line-spacing-validation.production",
     "scenario.core.text.multi-property-persistence.production",
@@ -118,6 +119,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.selection.locked-transform.production",
       "scenario.core.selection.region-additive-mixed-cardinalities.production",
       "scenario.core.shape.multi-kind-style-history.production",
+      "scenario.core.symbol.eight-kind-color-history.production",
       "scenario.core.text.existing-edit-history.production",
       "scenario.core.text.line-spacing-validation.production",
       "scenario.core.text.multi-property-persistence.production",
@@ -128,6 +130,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
     "scenario.core.shape.multi-kind-style-history.production",
+    "scenario.core.symbol.eight-kind-color-history.production",
     "scenario.core.text.existing-edit-history.production",
     "scenario.core.text.line-spacing-validation.production",
   ]);
@@ -148,6 +151,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.selection.locked-transform.production",
     "scenario.core.selection.region-additive-mixed-cardinalities.production",
     "scenario.core.shape.multi-kind-style-history.production",
+    "scenario.core.symbol.eight-kind-color-history.production",
     "scenario.core.text.existing-edit-history.production",
     "scenario.core.text.line-spacing-validation.production",
     "scenario.core.text.multi-property-persistence.production",
@@ -160,6 +164,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.property-matrix-persistence.production",
     "scenario.core.document.save-open-roundtrip.production",
     "scenario.core.shape.multi-kind-style-history.production",
+    "scenario.core.symbol.eight-kind-color-history.production",
     "scenario.core.text.existing-edit-history.production",
     "scenario.core.text.line-spacing-validation.production",
     "scenario.core.text.multi-property-persistence.production",
@@ -189,6 +194,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.selection.locked-transform.production",
       "scenario.core.selection.region-additive-mixed-cardinalities.production",
       "scenario.core.shape.multi-kind-style-history.production",
+      "scenario.core.symbol.eight-kind-color-history.production",
       "scenario.core.text.existing-edit-history.production",
       "scenario.core.text.line-spacing-validation.production",
       "scenario.core.text.multi-property-persistence.production",
@@ -217,14 +223,15 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "text-line-spacing-validation-production.json"),
     join(guiTestsDir, "scenarios", "core", "text-existing-edit-history-production.json"),
     join(guiTestsDir, "scenarios", "core", "shape-multi-kind-style-history-production.json"),
+    join(guiTestsDir, "scenarios", "core", "symbol-eight-kind-color-history-production.json"),
     join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json"),
     join(guiTestsDir, "scenarios", "core", "save-open-roundtrip-production.json"),
   ];
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 31);
-  assert.equal(result.summary.scenarios, 20);
+  assert.equal(result.summary.entries, 32);
+  assert.equal(result.summary.scenarios, 21);
   assert.equal(result.summary.gaps, 0);
 });
 

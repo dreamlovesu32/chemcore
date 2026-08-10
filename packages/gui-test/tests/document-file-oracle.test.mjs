@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateDocumentArrowProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
+import { evaluateDocumentArrowProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
 
 const validReports = {
   inspect: {
@@ -125,6 +125,23 @@ test("saved-document shape oracle checks exact kind and public style properties"
   assert.equal(evaluateDocumentShapeProperties(bytes, [{ ...expected[0], kind: "ellipse" }]).passed, false);
   assert.equal(evaluateDocumentShapeProperties(bytes, [{ ...expected[0], dashArray: [4] }]).passed, false);
   assert.equal(evaluateDocumentShapeProperties(bytes, [{ ...expected[0], shadow: false }]).passed, false);
+});
+
+test("saved-document symbol oracle checks exact kind and both persisted color surfaces", () => {
+  const bytes = Buffer.from(JSON.stringify({
+    styles: { style_obj_symbol_1_color: { kind: "symbol", fill: "#008000" } },
+    entities: { scene: [{
+      id: "obj_symbol_1",
+      type: "symbol",
+      styleRef: "style_obj_symbol_1_color",
+      payload: { kind: "circle-plus", fill: "#008000", symbolStyle: "default" },
+    }] },
+  }));
+  const expected = [{ id: "obj_symbol_1", kind: "circle-plus", payloadFill: "#008000", styleFill: "#008000", styleKind: "symbol", symbolStyle: "default" }];
+  assert.equal(evaluateDocumentSymbolProperties(bytes, expected).passed, true);
+  assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...expected[0], kind: "plus" }]).passed, false);
+  assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...expected[0], payloadFill: "#000000" }]).passed, false);
+  assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...expected[0], styleFill: "#000000" }]).passed, false);
 });
 
 test("saved-document validation is chemical only when a nonempty molecular graph exists", () => {
