@@ -646,14 +646,14 @@ test("the element-label matrix kills wrong-palette, wrong-target, and node-seman
 test("the representative periodic matrix kills swapped-number, truncated-row, wrong-target, and display-only mutants", async () => {
   const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-representative-value-matrix-production.json"));
   const expectedValues = [
-    ["hydrogen", "H", 1, "n_2"],
-    ["fluorine", "F", 9, "n_5"],
-    ["silicon", "Si", 14, "n_8"],
-    ["sulfur", "S", 16, "n_11"],
-    ["iron", "Fe", 26, "n_14"],
-    ["bromine", "Br", 35, "n_17"],
-    ["uranium", "U", 92, "n_20"],
-    ["oganesson", "Og", 118, "n_23"],
+    ["hydrogen", "H", 1, "n_2", 0.15257, 0.34],
+    ["fluorine", "F", 9, "n_5", 0.37257, 0.34],
+    ["silicon", "Si", 14, "n_8", 0.59257, 0.34],
+    ["sulfur", "S", 16, "n_11", 0.81257, 0.34],
+    ["iron", "Fe", 26, "n_14", 0.15257, 0.64],
+    ["bromine", "Br", 35, "n_17", 0.37257, 0.64],
+    ["uranium", "U", 92, "n_20", 0.59257, 0.64],
+    ["oganesson", "Og", 118, "n_23", 0.81257, 0.64],
   ];
   assert.deepEqual(
     expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `open-element-palette-for-${name}`).target.value),
@@ -666,6 +666,10 @@ test("the representative periodic matrix kills swapped-number, truncated-row, wr
   assert.deepEqual(
     expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `apply-${name}`).completion.selector),
     expectedValues.map(([, , , nodeId]) => `[data-node-id="${nodeId}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `apply-${name}`).at),
+    expectedValues.map(([, , , , x, y]) => ({ x, y })),
   );
   assert.deepEqual(
     scenario.oracles.find((oracle) => oracle.id === "saved-representative-element-semantics").expected.map(({ id, element, atomicNumber, charge }) => ({ id, element, atomicNumber, charge })),
