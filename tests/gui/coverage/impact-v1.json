@@ -23,6 +23,7 @@
     { "id": "source.scenario.core.ring.chair-benzene-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-chair-benzene-persistence-production.json"] },
     { "id": "source.scenario.core.ring.bond-fusion-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-bond-fusion-persistence-production.json"] },
     { "id": "source.scenario.core.ring.endpoint-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-endpoint-attachment-persistence-production.json"] },
+    { "id": "source.scenario.core.ring.vertex-bond-continuation-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-vertex-bond-continuation-persistence-production.json"] },
     { "id": "source.scenario.core.chain.drag-count-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/chain-drag-count-persistence-production.json"] },
     { "id": "source.scenario.core.chain.endpoint-attachment-continuation.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/chain-endpoint-attachment-continuation-production.json"] },
     { "id": "source.scenario.core.history.undo-redo-bond.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/undo-redo-bond-production.json"] },
@@ -107,6 +108,7 @@
     { "id": "scenario.core.ring.chair-benzene-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.ring.bond-fusion-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.ring.endpoint-attachment-persistence.production", "kind": "scenario" },
+    { "id": "scenario.core.ring.vertex-bond-continuation-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.chain.drag-count-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.chain.endpoint-attachment-continuation.production", "kind": "scenario" },
     { "id": "scenario.core.history.undo-redo-bond.production", "kind": "scenario" },
@@ -453,6 +455,12 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.ring.endpoint-attachment-persistence.production", "reason": "The physical driver draws the target bond, selects Ring 6, clicks the measured endpoint, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.ring.endpoint-attachment-persistence.production", "reason": "Exactly seven distinct rendered bonds kill missed-endpoint, accidental-bond-fusion, and dropped-ring-member mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.ring.endpoint-attachment-persistence.production", "reason": "Seven nodes, seven bonds, one molecule, and one object kill disconnected-paste, bond-fusion, and incomplete-attachment mutants." }
+    ,{ "from": "capability.editor.ring.insert", "to": "scenario.core.ring.vertex-bond-continuation-persistence.production", "reason": "The production cell covers continued single-bond drawing from a public ring vertex with exact connected persistence." }
+    ,{ "from": "capability.editor.bond.draw", "to": "scenario.core.ring.vertex-bond-continuation-persistence.production", "reason": "The continued bond must use the public Single bond tool and share the measured ring vertex." }
+    ,{ "from": "source.scenario.core.ring.vertex-bond-continuation-persistence.production", "to": "scenario.core.ring.vertex-bond-continuation-persistence.production", "reason": "Changing the ring vertex-continuation scenario invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.ring.vertex-bond-continuation-persistence.production", "reason": "The physical driver creates the attached ring, reactivates Single bond, drags from its measured outer vertex, and saves through the native dialog." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.ring.vertex-bond-continuation-persistence.production", "reason": "Exactly eight distinct rendered bonds kill dropped-continuation and accidental extra-bond mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.ring.vertex-bond-continuation-persistence.production", "reason": "Eight nodes, eight bonds, one molecule, one object, and exact single-bond semantics kill vertex-miss and disconnected-continuation mutants." }
     ,{ "from": "component.editor-interaction", "to": "capability.editor.chain.draw", "reason": "The shared editor interaction path owns public variable-length chain dragging and preview commitment." }
     ,{ "from": "capability.editor.chain.draw", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "The production cell covers drag-derived chain length, zigzag commitment, and exact persistence." }
     ,{ "from": "source.scenario.core.chain.drag-count-persistence.production", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "Changing the chain production scenario invalidates its evidence." }
