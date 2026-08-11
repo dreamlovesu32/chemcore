@@ -2449,6 +2449,15 @@ body.native-frame-shell .document-tab-close svg {
   background: #ffffff;
 }
 
+.viewer-container:focus {
+  outline: none;
+}
+
+.viewer-container:focus-visible {
+  outline: 2px solid var(--active);
+  outline-offset: -2px;
+}
+
 .numeric-dialog-field input.is-invalid {
   border-color: #b44747;
   box-shadow: 0 0 0 2px rgba(180, 71, 71, 0.16);

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 import { evaluateUiState, uiStateRequest } from "../src/oracles/ui-state.mjs";
@@ -15,6 +16,20 @@ function foreground() {
     clientRect: [8, 1, 1036, 780],
   };
 }
+
+test("canvas focus and selection controls have explicit accessible frontend geometry", async () => {
+  const [index, app, styles, overlay] = await Promise.all([
+    readFile(new URL("../../../viewer/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../../../viewer/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../../../viewer/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../../../viewer/editor_overlay.js", import.meta.url), "utf8"),
+  ]);
+  assert.match(index, /id="viewer-container"[^>]+role="application"[^>]+tabindex="0"/);
+  assert.match(app, /viewerContainer\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(styles, /\.viewer-container:focus-visible\s*\{[^}]*outline: 2px solid var\(--active\)/s);
+  assert.match(overlay, /SELECTION_RESIZE_HANDLE_SCREEN_PX = 6/);
+  assert.match(overlay, /SELECTION_ROTATE_HANDLE_RADIUS_SCREEN_PX = 4/);
+});
 
 test("production black-box driver maps semantic CDP targets to guarded OS input", async () => {
   let bonds = 0;

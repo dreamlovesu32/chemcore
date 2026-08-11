@@ -19,7 +19,7 @@
     {
       "id": "selection-overlay-encloses-rendered-bond",
       "kind": "ui-state",
-      "selector": "[data-layer=\"editor-overlay\"] .editor-selection-box, [data-layer=\"editor-overlay\"] .editor-selection-bond-box, [data-layer=\"editor-overlay\"] .editor-selection-node-box",
+      "selector": "[data-layer=\"editor-overlay\"] [data-role=\"selection-box\"], [data-layer=\"editor-overlay\"] [data-role=\"selection-bond-box\"], [data-layer=\"editor-overlay\"] [data-role=\"selection-node-box\"]",
       "referenceSelector": "[data-bond-id]",
       "uiExpected": {
         "styles": [
@@ -34,7 +34,7 @@
     {
       "id": "selection-resize-handles-have-scaled-screen-size",
       "kind": "ui-state",
-      "selector": "[data-layer=\"editor-overlay\"] .editor-selection-resize-handle",
+      "selector": "[data-layer=\"editor-overlay\"] [data-role=\"selection-resize-handle\"]",
       "uiExpected": {
         "visibleCount": 8,
         "styles": [

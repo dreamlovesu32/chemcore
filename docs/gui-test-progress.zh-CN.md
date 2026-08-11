@@ -125,10 +125,12 @@
 
 当前物理产品候选的旧 25 场景已分批执行；最近批次 `physical-production-after-navigation-fix-20260811-1786430051466` 在后台连续通过 7/7，7 份报告与 49 个证据对象的大小和 SHA-256 已独立复算一致。过程中保留并修复了 action budget、Delete/方向键 SendInput、Windows 原子状态替换竞争等首次失败。由于源码闭包继续加入前端 oracle 和新场景，当前尚无覆盖 27 场景的单提交 qualification，整体继续保持失败。
 
+前端物理实跑已证明 Zoom in 的 hover 背景、Tab 后 Zoom out 的键盘焦点环、禁用 Save 样式和本机 DPR 1.5。选择场景生成了 1 个选择框、8 个 resize handle 和旋转控件，同时发现画布拖拽后焦点仍滞留工具按钮、resize handle 只有 1.5 CSS px；当前修复为可聚焦画布、指针交互移交焦点、键盘 `:focus-visible` 边框、6 CSS px resize handle 和 4 CSS px 旋转半径，等待新候选实机回归。原失败证据保留。
+
 ## 4.1 物理工作节点第一阶段记录
 
 - 正式仓库由 GitHub 全新克隆，最低可信基线 `dc9d8a78b1f7ebfcc42b7077ec49f842650fef20` 已验证；退役项目仓库按日期完整归档，用户化学文档未删除。
-- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前为 84/84、audit 27 场景/0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
+- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前为 85/85、audit 27 场景/0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
 - 旧 25 场景已有分批物理证据；新增前端两场景和当前提交完整影响闭包尚待运行。
