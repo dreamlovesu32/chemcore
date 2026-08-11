@@ -104,12 +104,17 @@ test("scenario, coverage registry, and impact graph validate", async () => {
 test("mixed-object text selection does not depend on the engine's next object id", async () => {
   const scenario = await readValidatedDocument(frontendSelectionScenarioPath);
   const commit = scenario.actions.find((action) => action.id === "commit-text");
+  const selectText = scenario.actions.find((action) => action.id === "select-text-only");
   const openMenu = scenario.actions.find((action) => action.id === "open-text-font-menu");
   const geometry = scenario.oracles.find((oracle) => oracle.id === "text-selection-box-matches-current-font-geometry");
   assert.equal(commit.completion.selector, '[data-role="document-text"]');
+  assert.deepEqual(selectText.target, { strategy: "selector", value: '[data-role="document-text"]' });
+  assert.equal(selectText.completion.operator, "eq");
+  assert.equal(selectText.completion.value, 1);
+  assert(scenario.actions.indexOf(selectText) < scenario.actions.indexOf(openMenu));
   assert.deepEqual(openMenu.target, { strategy: "selector", value: '[data-role="document-text"]' });
   assert.equal(geometry.referenceSelector, '[data-role="document-text"]');
-  assert.doesNotMatch(JSON.stringify({ commit, openMenu, geometry }), /obj_text_\d+/);
+  assert.doesNotMatch(JSON.stringify({ commit, selectText, openMenu, geometry }), /obj_text_\d+/);
 });
 
 test("selector targets share the bounded DOM selector limit", async () => {
