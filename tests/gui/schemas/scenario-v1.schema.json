@@ -338,6 +338,7 @@
                   "reactionStereo": { "enum": ["unspecified", "inversion", "retention"] },
                   "showAtomQuery": { "type": "boolean" },
                   "ringBondCount": { "enum": ["unspecified", "no-ring-bonds", "as-drawn", "simple-ring", "fusion", "spiro-or-higher"] },
+                  "unsaturatedBonds": { "enum": ["unspecified", "must-be-absent", "must-be-present"] },
                   "labelText": { "type": "string", "minLength": 1, "maxLength": 128 },
                   "labelSourceText": { "type": "string", "minLength": 1, "maxLength": 128 }
                 }
