@@ -4,9 +4,9 @@
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
 登记场景：**27**
 
-当前产品候选：`02bc19c907eef593a9cc78550c77b04387a48343b4224d4da2995196cca7be0c`
+当前产品候选：`cea5f3522ac36743fb15e32e922a59d616efd91ebcc7c99d0e9e9736ba8f9b9b`（源码闭包 `2cd1a01b55b773db8bd2d16d032f4dac36a241646a3d53452859d2a74cf6326a`）
 
-当前源码闭包完整资格：**0/27；新增前端 oracle 后必须重新生成同一提交的完整闭包，整体继续为失败**
+当前源码闭包完整资格：**2/27 有同一候选的当前通过证据，尚缺 25 个场景；整体继续为失败**
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -43,11 +43,11 @@
 | ✅ | 内容寻址候选 | 可执行文件与源码闭包哈希绑定，源码或二进制漂移时拒绝运行 |
 | ✅ | 原生 Windows 对话框 | 保存/打开使用真实 UIA 与键盘输入，保存文件经 SHA-256 回传 |
 | ✅ | 独立文件 oracle | 已支持化学计数及 Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 精确属性 |
-| 🟡 | 独立前端状态 oracle | 已加入焦点归属、`:hover`、禁用态、受限计算样式、选择覆盖层/对象几何、控制点像素尺寸、实际 viewport 与 `devicePixelRatio`；尚缺键盘 `:focus-visible` 顺序、全部光标/主题/DPI/窗口尺寸矩阵 |
+| 🟡 | 独立前端状态 oracle | 已用当前候选实机通过焦点归属、键盘焦点环、`:hover`、禁用态、受限计算样式、选择覆盖层/对象几何、控制点像素尺寸、实际 viewport 与 `devicePixelRatio`；尚缺完整键盘 `:focus-visible` 顺序、全部光标/主题/DPI/窗口尺寸矩阵 |
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 已实现单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希，并完成 7 场景无人值守连续批次及 49 个证据对象复算；事件唤醒仍需完成 active-writer 退避验收和重启续跑 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 已实现单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；已完成 7 场景无人值守批次及当前前端 2 场景批次，分别复算 49 和 14 个证据对象；事件唤醒仍需完成 active-writer 退避验收和重启续跑 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -91,12 +91,12 @@
 
 ## 4. 已登记的 27 个场景
 
-所有 27 个场景均已实现并进入 registry；这只表示场景存在，不表示对应功能族已完整覆盖。旧的 25 场景矩阵已经分批获得过物理证据，但输入代理和测试设施随后发生变化；新增两个前端场景也尚未实机验收，因此必须为当前提交重新生成影响闭包，不能用较早绿色结果冒充当前完整资格。
+所有 27 个场景均已实现并进入 registry；这只表示场景存在，不表示对应功能族已完整覆盖。旧的 25 场景矩阵已经分批获得过物理证据，但输入代理、产品前端和测试设施随后发生变化；新增两个前端场景已在当前候选通过，仍必须为其余 25 个场景生成或按影响图登记可复用证据，不能用较早绿色结果冒充当前完整资格。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
 | ⬜ | `core.bond.draw-single` | 浏览器公开输入绘制单键基线 |
-| ✅ | `core.bond.draw-single.production` | production 真实 OS 输入绘制单键 |
+| ⬜ | `core.bond.draw-single.production` | production 真实 OS 输入绘制单键 |
 | ⬜ | `core.history.undo-redo-bond.production` | 单键撤销/重做 |
 | ⬜ | `core.selection.clipboard-delete-multi-bond.production` | 多键选择、复制粘贴、删除、历史 |
 | ⬜ | `core.selection.clipboard-delete-mixed-bond-arrow.production` | 分子/Arrow 混合剪贴板、删除、历史 |
@@ -119,28 +119,28 @@
 | ⬜ | `core.table.structure-border-history.production` | Table 结构、对齐、边框、历史与持久化 |
 | ⬜ | `core.orbital.seven-template-properties-history.production` | 七种 Orbital、几何迁移、属性与持久化 |
 | ⬜ | `core.chromatography.tlc-gel-mark-color-history.production` | TLC/Gel、内部颜色、标记拖动、历史与持久化 |
-| ✅ | `core.document.save-open-roundtrip.production` | 原生保存、独立校验、重开与继续编辑 |
-| ⬜ | `core.frontend.focus-hover-disabled.production` | 真实点击后的焦点归属、焦点环、hover、disabled 样式与 150% DPI |
-| ⬜ | `core.frontend.selection-geometry.production` | 真实绘制/框选后的选择框、控制点、画布焦点/hover 与缩放几何 |
+| ⬜ | `core.document.save-open-roundtrip.production` | 原生保存、独立校验、重开与继续编辑 |
+| ✅ | `core.frontend.focus-hover-disabled.production` | 真实点击后的焦点归属、焦点环、hover、disabled 样式与 150% DPI |
+| ✅ | `core.frontend.selection-geometry.production` | 真实绘制/框选后的选择框、控制点、画布焦点/hover 与缩放几何 |
 
-当前物理产品候选的旧 25 场景已分批执行；最近批次 `physical-production-after-navigation-fix-20260811-1786430051466` 在后台连续通过 7/7，7 份报告与 49 个证据对象的大小和 SHA-256 已独立复算一致。过程中保留并修复了 action budget、Delete/方向键 SendInput、Windows 原子状态替换竞争等首次失败。由于源码闭包继续加入前端 oracle 和新场景，当前尚无覆盖 27 场景的单提交 qualification，整体继续保持失败。
+旧 25 场景已分批执行；最近旧批次 `physical-production-after-navigation-fix-20260811-1786430051466` 在后台连续通过 7/7，7 份报告与 49 个证据对象的大小和 SHA-256 已独立复算一致。过程中保留并修复了 action budget、Delete/方向键 SendInput、Windows 原子状态替换竞争等首次失败。当前候选尚无覆盖 27 场景的单候选 qualification，整体继续保持失败。
 
-前端物理实跑已证明 Zoom in 的 hover 背景、Tab 后 Zoom out 的键盘焦点环、禁用 Save 样式和本机 DPR 1.5。选择场景生成了 1 个选择框、8 个 resize handle 和旋转控件，同时发现画布拖拽后焦点仍滞留工具按钮、resize handle 只有 1.5 CSS px；当前修复为可聚焦画布、指针交互移交焦点、键盘 `:focus-visible` 边框、6 CSS px resize handle 和 4 CSS px 旋转半径，等待新候选实机回归。原失败证据保留。
+当前候选的前端批次 `physical-frontend-150-percent-20260811-1786432325957` 已通过 2/2。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；Zoom in hover 背景为 `rgb(238, 243, 248)`；Tab 后 Zoom out 为唯一焦点，outline 为 `auto/0.666667px`；Save 为 disabled，cursor `default`、opacity `0.35`。真实绘制和框选后有 1 个选择框、8 个 6×6 CSS px resize handle，画布同时满足 focused、focus-within 和 hover，active element 为 `viewer-container`。2 份报告、2 份 manifest 和 14 个证据对象已独立复算；报告 SHA-256 分别为 `60b814ece8c734ac5ea3a7c85caec4124c1a2dab64a72ee37293a29361413f11`、`a0c9632ccd1d6eaefceb0b29e10d420d1582cbfac8d929b7b1a1dd54cb46dddc`，manifest SHA-256 分别为 `a4683637e0be1a0f2379c9d5b2963f4753ce30c6651289b1d3c61d875d3129e1`、`859240a2dd85fea032cd63420be58c96d49cb86c67dc956207dcced93991d842`。此前发现的画布焦点滞留和 1.5 CSS px 手柄问题已修复并由当前候选回归关闭；PowerShell 空样式、单元素数组和 CDP 大小写键设施失败的原始证据仍保留。
 
 ## 4.1 物理工作节点第一阶段记录
 
 - 正式仓库由 GitHub 全新克隆，最低可信基线 `dc9d8a78b1f7ebfcc42b7077ec49f842650fef20` 已验证；退役项目仓库按日期完整归档，用户化学文档未删除。
-- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前为 85/85、audit 27 场景/0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
+- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前为 86/86、audit 27 场景/0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
-- 旧 25 场景已有分批物理证据；新增前端两场景和当前提交完整影响闭包尚待运行。
-- 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、事件触发器 active-writer 退避验收、重启续跑、当前前端改动提交/PR/CI。
+- 旧 25 场景已有分批物理证据；当前候选的前端两场景已通过并完成证据复算，当前提交其余影响闭包尚待运行或登记严格复用理由。
+- 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、事件触发器 active-writer 退避验收、重启续跑、PR CI 收口。
 
 ## 5. 下一阶段执行顺序
 
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
-1. 🟡 **物理节点第一阶段收口**：实跑前端焦点/选择几何场景，完成当前影响闭包、NSIS 安装/文件关联、事件触发唤醒验收、干净提交与 PR/CI、重启 checkpoint 续跑。
+1. 🟡 **物理节点第一阶段收口**：完成当前其余影响闭包、NSIS 安装/文件关联、事件触发唤醒验收、干净提交与 PR/CI、重启 checkpoint 续跑。
 2. **化学绘制主干**：11 种键、原子/标签/电荷、环、Chain、Template Library、反应连接与属性。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。
