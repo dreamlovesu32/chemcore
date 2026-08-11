@@ -552,6 +552,9 @@ try {
     if (query.strategy === 'role') {
       return [...root.querySelectorAll('*')].filter(element => roleOf(element) === query.value && (!query.name || nameOf(element) === query.name));
     }
+    if (query.strategy === 'selector') {
+      return [...root.querySelectorAll(query.value)];
+    }
     if (query.strategy === 'entity-id') {
       const matches = [...root.querySelectorAll('[data-object-id="' + CSS.escape(query.value) + '"]')];
       const visibleCandidate = candidate => {

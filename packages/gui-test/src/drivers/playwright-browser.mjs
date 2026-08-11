@@ -102,6 +102,7 @@ export class PlaywrightBrowserDriver {
       const id = target.value.replaceAll('"', '\\"');
       return scope.locator(`[id="${id}"]`);
     }
+    if (target.strategy === "selector") return scope.locator(target.value);
     throw new Error(`Playwright browser cannot resolve target strategy ${target.strategy}.`);
   }
 

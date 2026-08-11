@@ -54,8 +54,8 @@
       "additionalProperties": false,
       "required": ["strategy", "value"],
       "properties": {
-        "strategy": { "enum": ["role", "automation-id", "test-id", "entity-id", "world-geometry", "uia-automation-id"] },
-        "value": { "type": "string", "minLength": 1 },
+        "strategy": { "enum": ["role", "automation-id", "test-id", "selector", "entity-id", "world-geometry", "uia-automation-id"] },
+        "value": { "type": "string", "minLength": 1, "maxLength": 2048 },
         "name": { "type": "string" },
         "controlType": { "type": "string", "pattern": "^ControlType\\.[A-Za-z]+$" },
         "className": { "type": "string", "minLength": 1 },

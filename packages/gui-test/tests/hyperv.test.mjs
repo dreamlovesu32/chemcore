@@ -465,6 +465,13 @@ test("production entity targets use a real SVG geometry midpoint and retain boun
   assert.match(source, /worldPoints\.push/);
 });
 
+test("production selector targets resolve the unique rendered element without an object id", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
+  assert.match(source, /query\.strategy === 'selector'/);
+  assert.match(source, /root\.querySelectorAll\(query\.value\)/);
+});
+
 test("production action transaction uses one guest invocation for before, input, completion, and after", async () => {
   const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const source = await readFile(join(packageRoot, "scripts", "hyperv-coordinator.ps1"), "utf8");
